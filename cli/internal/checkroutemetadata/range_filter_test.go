@@ -38,16 +38,16 @@ func TestProjectFilterUsesTheSharedMatcher(t *testing.T) {
 
 // TestDiscoverPatchPairOnRangedPack: with the published Kubernetes removal
 // ranges, an off-anchor patch pair on a reviewed line, such as
-// 1.24.17 -> 1.25.3, now matches the same seven rules as the anchor pair
-// itself, each disclosing its range match; the anchor pair's own checks are
-// unaffected. A pair with no reviewed range at all, the 1.32 flow-control
-// line, still finds no rule.
+// 1.24.17 -> 1.25.3, now matches the same rules as the anchor pair itself (at
+// least the seven API removals), each disclosing its range match; the anchor
+// pair's own checks are unaffected. The exact-only 1.32 flow-control rule
+// still never matches off its anchor.
 func TestDiscoverPatchPairOnRangedPack(t *testing.T) {
 	patch, err := Discover("kubernetes", "1.24.17", "1.25.3")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if patch.RuleCoverageState != "MATCHED" || len(patch.Checks) != 7 {
+	if patch.RuleCoverageState != "MATCHED" || len(patch.Checks) < 7 {
 		t.Fatalf("patch pair=%+v", patch)
 	}
 	for _, check := range patch.Checks {
@@ -59,8 +59,8 @@ func TestDiscoverPatchPairOnRangedPack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if anchor.RuleCoverageState != "MATCHED" || len(anchor.Checks) != 7 {
-		t.Fatalf("anchor checks=%d", len(anchor.Checks))
+	if anchor.RuleCoverageState != "MATCHED" || len(anchor.Checks) != len(patch.Checks) {
+		t.Fatalf("anchor checks=%d, patch checks=%d", len(anchor.Checks), len(patch.Checks))
 	}
 	for _, check := range anchor.Checks {
 		if check.Range == nil {
@@ -71,7 +71,14 @@ func TestDiscoverPatchPairOnRangedPack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if noRule.RuleCoverageState != "NO_MATCHING_EMBEDDED_RULE" || len(noRule.Checks) != 0 {
+	// The exact-only flow-control rule never matches off its anchor; other
+	// ranged rules on the 1.32 line may.
+	for _, check := range noRule.Checks {
+		if check.RuleID == "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0" || check.Range == nil {
+			t.Fatalf("flow-control off-anchor pair=%+v", noRule)
+		}
+	}
+	if len(noRule.Checks) == 0 && noRule.RuleCoverageState != "NO_MATCHING_EMBEDDED_RULE" {
 		t.Fatalf("flow-control off-anchor pair=%+v", noRule)
 	}
 }

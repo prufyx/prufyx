@@ -21,7 +21,9 @@ func TestKubernetesFlowControlReviewClock_BoundsStaticRule(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			report, err := Check("kubernetes", input, now)
+			// Select the flow-control rule itself: other rules on the same
+			// transition need other evidence and are not what this test bounds.
+			report, err := CheckRule("kubernetes", "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0", input, now)
 			if err != nil || len(report.Check.Claims) != 1 || report.Check.Claims[0].Status != "UNKNOWN" || report.Check.Claims[0].ReasonCode != test.reason {
 				t.Fatalf("report=%+v err=%v", report, err)
 			}

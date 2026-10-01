@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 )
 
 type componentFixture struct {
@@ -45,16 +47,37 @@ func assertComponentOutputRedacted(t *testing.T, fixture componentFixture, outpu
 	}
 }
 
-func TestKubernetesComponentConfigCheckWithoutPublishedRulesStaysUnknown(t *testing.T) {
+func TestKubernetesComponentConfigCheckWithoutReviewedRuleStaysUnknown(t *testing.T) {
 	fixture := writeComponentFixture(t, 0o600, "")
-	code, stdout, stderr := runCNCFCLI(t, componentConfigArgs(fixture.selection)...)
-	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "Kubernetes component configuration review") || !strings.Contains(stdout, "aggregate: UNKNOWN") {
+	// No predicate covers the 1.38 line, so no rule can be selected.
+	args := componentConfigArgs(fixture.selection)
+	for index, value := range args {
+		switch value {
+		case "1.23.17":
+			args[index] = "1.37.2"
+		case "1.24.0":
+			args[index] = "1.38.0"
+		}
+	}
+	code, stdout, stderr := runCNCFCLI(t, args...)
+	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "Kubernetes component configuration review") || !strings.Contains(stdout, "aggregate: UNKNOWN") || !strings.Contains(stdout, "no reviewed rule") {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 	assertComponentOutputRedacted(t, fixture, stdout)
-	code, stdout, stderr = runCNCFCLI(t, componentConfigArgs(fixture.selection, "--component-config-digest", cncfDigest(fixture.selectionRaw), "--format", "json")...)
-	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) || strings.Contains(stdout, `"status":"PASS"`) {
-		t.Fatalf("json code=%d stdout=%q stderr=%q", code, stdout, stderr)
+}
+
+// TestKubernetesComponentConfigCheckFollowsPublication: the removed dockershim
+// flag blocks once a reviewed rule consumes its fact; until then the route
+// reports UNKNOWN and never PASS.
+func TestKubernetesComponentConfigCheckFollowsPublication(t *testing.T) {
+	fixture := writeComponentFixture(t, 0o600, "")
+	want := ExitUnknown
+	if cncfcheck.RegisteredFact("component.kubernetes.kubelet_dockershim_flags_removed") {
+		want = ExitBlocked
+	}
+	code, stdout, stderr := runCNCFCLI(t, componentConfigArgs(fixture.selection, "--component-config-digest", cncfDigest(fixture.selectionRaw), "--format", "json")...)
+	if code != want || stderr != "" || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) || strings.Contains(stdout, `"status":"PASS"`) {
+		t.Fatalf("code=%d want=%d stdout=%q stderr=%q", code, want, stdout, stderr)
 	}
 	assertComponentOutputRedacted(t, fixture, stdout)
 }

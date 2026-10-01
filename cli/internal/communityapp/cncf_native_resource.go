@@ -270,6 +270,10 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 	var report cncfcheck.Report
 	if selectedRuleID != "" {
 		report, err = cncfcheck.CheckRule(project, selectedRuleID, prepared.CanonicalInputJSON, now)
+	} else if project == "kubernetes" {
+		// The rendered apply-set adapter decides only removed-API rules; other
+		// Kubernetes rules on the same transition need other evidence.
+		report, err = cncfcheck.CheckFacts(project, cncfprepare.KubernetesRemovedAPIAllFacts(), prepared.CanonicalInputJSON, now)
 	} else {
 		report, err = cncfcheck.Check(project, prepared.CanonicalInputJSON, now)
 	}

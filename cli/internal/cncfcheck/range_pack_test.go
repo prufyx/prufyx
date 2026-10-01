@@ -209,7 +209,7 @@ func TestRangeAwarePrefilterSelectsThroughTheMatcher(t *testing.T) {
 	// Rules selected for a pair with no ranged rule -- the 1.32 flow-control
 	// rule stays exact-only by design (see EXCLUDED in the ranges tooling) --
 	// still render under the exact schema.
-	exactOnly, err := ranged.rulesForAdmittedInput("kubernetes", kubernetesInput(t, "1.31.0", "1.32.0", true))
+	exactOnly, err := ranged.factFamilyRuleSet("kubernetes", []string{"component.kubernetes.flowcontrol_v1beta3_removed_gvk_present"}, kubernetesInput(t, "1.31.0", "1.32.0", true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,8 +249,8 @@ func TestPublishedRangeWidensSelectionAndClaims(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(report.Check.Claims) != 7 {
-			t.Fatalf("present=%v: claims=%d, want 7", tc.present, len(report.Check.Claims))
+		if want := rulesAnchoredOn(t, "1.24.0", "1.25.0"); len(report.Check.Claims) != want || want < 7 {
+			t.Fatalf("present=%v: claims=%d, want %d", tc.present, len(report.Check.Claims), want)
 		}
 		for _, claim := range report.Check.Claims {
 			if claim.SubjectMatch == nil || claim.SubjectMatch.Mode != "range" || claim.SubjectMatch.AnchorFrom != "1.24.0" || claim.SubjectMatch.AnchorTo != "1.25.0" {
@@ -284,4 +284,25 @@ func TestPublishedRangeWidensSelectionAndClaims(t *testing.T) {
 	if _, err := Check("kubernetes", kubernetesInput(t, "v1.24.17", "1.25.3", true), rangeReviewClock); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("v-prefixed version err=%v", err)
 	}
+}
+
+// rulesAnchoredOn counts published Kubernetes rules anchored on one pair, so
+// the range tests follow the pack as reviewed rules are added to a line.
+func rulesAnchoredOn(t *testing.T, from, to string) int {
+	t.Helper()
+	b, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	count := 0
+	for _, entry := range b.pack.Entries {
+		var shape ruleShape
+		if json.Unmarshal(entry.Rule, &shape) != nil {
+			t.Fatal("rule shape")
+		}
+		if entry.Project == "kubernetes" && shape.Subject.From == from && shape.Subject.To == to {
+			count++
+		}
+	}
+	return count
 }

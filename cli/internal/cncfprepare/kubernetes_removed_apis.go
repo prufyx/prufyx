@@ -159,6 +159,22 @@ func KubernetesRemovedAPIFacts(from, to string) []string {
 	return facts
 }
 
+// KubernetesRemovedAPIAllFacts returns every fact the rendered apply-set
+// adapters derive (each reviewed removal plus the 1.32 flow-control fact),
+// sorted. The native route evaluates exactly the rules over these facts, so
+// rules about other Kubernetes evidence on the same transition neither run
+// nor turn its result UNKNOWN.
+func KubernetesRemovedAPIAllFacts() []string {
+	facts := []string{KubernetesFlowControlFact}
+	for _, removals := range kubernetesRemovalsByTargetMinor {
+		for _, removal := range removals {
+			facts = append(facts, removal.Fact)
+		}
+	}
+	sort.Strings(facts)
+	return facts
+}
+
 // PrepareKubernetesRemovedAPIs converts a bounded caller-selected rendered apply
 // set to one canonical fact per reviewed API removal for a transition that
 // crosses exactly one reviewed minor line. It never reads a cluster. Pairs

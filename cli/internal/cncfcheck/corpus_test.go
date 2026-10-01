@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
@@ -596,6 +597,14 @@ func TestCompletenessForADependentComponentNeedsItsDependencyInScope(t *testing.
 	}
 	facts := map[string][]declaredFact{
 		kubernetesComponent: {boolFact("component.kubernetes.flowcontrol_v1beta3_removed_gvk_present", false)},
+	}
+	// Every published Kubernetes rule on this transition needs its own fact
+	// for a scope-complete result; declare the component-configuration facts
+	// the pack consumes as clear as well.
+	for _, fact := range cncfprepare.KubernetesComponentConfigFacts("1.31.0", "1.32.0") {
+		if RegisteredFact(fact) {
+			facts[kubernetesComponent] = append(facts[kubernetesComponent], boolFact(fact, false))
+		}
 	}
 	report, err := assessScopeWith(b, embeddedAttestation(t), scopeInput(t, []string{rookComponent, kubernetesComponent}, versions, facts), now)
 	if err != nil {

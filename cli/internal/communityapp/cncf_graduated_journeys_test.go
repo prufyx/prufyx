@@ -9,6 +9,9 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 )
 
 type graduatedJourney struct {
@@ -211,12 +214,21 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 			fixture: "kubernetes-dockershim-input.json",
 			pass: func(document map[string]any) {
 				setProposedBoolFact(t, document, "component.kubernetes.in_tree_dockershim_required", false)
+				// Other published rules on this transition need their own
+				// facts for a PASS; declare those the pack consumes as clear.
+				for _, fact := range cncfprepare.KubernetesComponentConfigFacts("1.23.17", "1.24.0") {
+					if cncfcheck.RegisteredFact(fact) {
+						addProposedBoolFact(t, document, fact, false)
+					}
+				}
 			},
 			missing: func(document map[string]any) {
 				removeProposedFact(t, document, "component.kubernetes.in_tree_dockershim_required")
 			},
 			wrongPair: func(document map[string]any) {
-				setProposedVersion(t, document, "1.24.1")
+				// A multi-minor jump: no exact or ranged Kubernetes rule
+				// covers it.
+				setProposedVersion(t, document, "1.25.0")
 			},
 		},
 		{
@@ -560,6 +572,23 @@ func setProposedFactValue(t *testing.T, document map[string]any, id, key string,
 		}
 	}
 	t.Fatalf("fact %s not found", id)
+}
+
+// addProposedBoolFact appends a declared bool fact to the component that owns
+// the fact namespace and keeps the facts ordered by id.
+func addProposedBoolFact(t *testing.T, document map[string]any, id string, value bool) {
+	t.Helper()
+	components, ok := document["proposed"].(map[string]any)["components"].([]any)
+	if !ok || len(components) != 1 {
+		t.Fatalf("proposed components for %s", id)
+	}
+	component := components[0].(map[string]any)
+	facts, _ := component["facts"].([]any)
+	facts = append(facts, map[string]any{"id": id, "state": "declared", "boolValue": value})
+	sort.Slice(facts, func(i, j int) bool {
+		return facts[i].(map[string]any)["id"].(string) < facts[j].(map[string]any)["id"].(string)
+	})
+	component["facts"] = facts
 }
 
 func removeProposedFact(t *testing.T, document map[string]any, id string) {
