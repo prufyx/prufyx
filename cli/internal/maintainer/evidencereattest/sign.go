@@ -35,6 +35,10 @@ type SignOptions struct {
 	// same bytes being checked would accept any self-consistent trust
 	// root an attacker hands in, which is not pinning at all.
 	ExpectedTrustRootDigest string
+	// Now is the signer's clock; zero means time.Now(). Sign refuses a
+	// statement whose attestedAt is later than Now, so a future-dated
+	// statement can never enter a pack's chain.
+	Now time.Time
 }
 
 // checkSampleReviewed refuses to sign a statement carrying any
@@ -59,15 +63,23 @@ func checkSampleReviewed(statement Statement) error {
 }
 
 // Sign produces a detached envelope over the exact statement bytes. It
-// refuses a statement that does not already parse, a statement whose
-// sampled rules lack a recorded review, a signer outside the trust root,
+// refuses a statement that does not already parse, a statement attested
+// after the signer's clock, a statement whose sampled rules lack a
+// recorded review, a signer outside the trust root,
 // and any statement bound to a different trust root than the one supplied.
 func Sign(options SignOptions) ([]byte, error) {
 	defer wipe(options.Passphrase)
-	now := time.Now().UTC()
+	now := options.Now
+	if now.IsZero() {
+		now = time.Now()
+	}
+	now = now.UTC()
 	statement, err := ParseStatement(options.Statement)
 	if err != nil {
 		return nil, ErrRejected
+	}
+	if attestedAt, err := parseUTC(statement.AttestedAt); err != nil || attestedAt.After(now) {
+		return nil, fmt.Errorf("%w: attestedAt is in the future", ErrRejected)
 	}
 	if err := checkSampleReviewed(statement); err != nil {
 		return nil, err

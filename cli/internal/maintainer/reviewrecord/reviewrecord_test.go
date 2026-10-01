@@ -114,6 +114,28 @@ func TestRecordRejectsUnknownAndDuplicateFields(t *testing.T) {
 	}
 }
 
+func TestParseRecordFieldsAppliesStructuralValidation(t *testing.T) {
+	r := validTestRecord()
+	r.Bindings.RuleDigest = "sha256:" + strings.Repeat("e", 64)
+	raw, _ := json.Marshal(r)
+	fields, err := ParseRecordFields(raw)
+	if err != nil {
+		t.Fatalf("valid record rejected: %v", err)
+	}
+	if fields.Project != "karmada" || fields.RuleID != karmadaRule || fields.RuleDigest != r.Bindings.RuleDigest || fields.DecidedAt.Format(time.RFC3339) != "2026-09-13T08:00:00Z" {
+		t.Fatalf("unexpected fields: %+v", fields)
+	}
+	unknown := bytes.Replace(raw, []byte(`"schema":`), []byte(`"unknown":true,"schema":`), 1)
+	if _, err := ParseRecordFields(unknown); err == nil {
+		t.Fatal("unknown field accepted")
+	}
+	r.Decision.State = "SOMETHING_ELSE"
+	wrongState, _ := json.Marshal(r)
+	if _, err := ParseRecordFields(wrongState); err == nil {
+		t.Fatal("record with a different decision state accepted")
+	}
+}
+
 func TestDeclaredMaintainerAcceptsOrdinaryUnicodePublicName(t *testing.T) {
 	r := validTestRecord()
 	r.Decision.Maintainer = "Željko Мария 山田 太郎"

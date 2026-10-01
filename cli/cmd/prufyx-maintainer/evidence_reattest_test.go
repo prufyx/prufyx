@@ -18,6 +18,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgesign"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/reviewrecord"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 	"github.com/theupdateframework/go-tuf/v2/metadata"
 )
@@ -27,8 +28,8 @@ const reattestWorklistPackPath = "/repo/cli/internal/cncfcheck/data/rules.json"
 // reattestFixture is one prepared, signed single-rule batch on disk, with a
 // throwaway key and trust root that exist only below t.TempDir().
 type reattestFixture struct {
-	dir, worklist, rules, out, chain, reviews string
-	trustRoot, trustRootDigest, envelope      string
+	dir, worklist, rules, out, chain, base, reviews string
+	trustRoot, trustRootDigest, envelope            string
 }
 
 func exitCode(err error) int {
@@ -57,21 +58,31 @@ func newReattestFixture(t *testing.T) reattestFixture {
 	}
 	f := reattestFixture{
 		dir: dir, worklist: filepath.Join(dir, "worklist.json"), rules: filepath.Join(dir, "rules.json"),
-		out: filepath.Join(dir, "out"), chain: filepath.Join(dir, "chain"), reviews: filepath.Join(dir, "reviews"),
+		out: filepath.Join(dir, "out"), chain: filepath.Join(dir, "chain"), base: filepath.Join(dir, "base-chain"), reviews: filepath.Join(dir, "reviews"),
 		trustRoot: filepath.Join(dir, "trust-root.json"), envelope: filepath.Join(dir, "out", "statement.sig.json"),
 	}
-	for _, d := range []string{f.chain, f.reviews} {
+	for _, d := range []string{f.chain, f.base, f.reviews} {
 		if err := os.Mkdir(d, 0o700); err != nil {
 			t.Fatal(err)
 		}
 	}
 	at := time.Now().UTC().Truncate(time.Second).Add(-time.Hour)
 	commit := strings.Repeat("a", 40)
+	// The current lease ends before the wave-1 slot and within the
+	// renewal window, so the rule is due and its validUntil moves later.
+	slot, err := evidencereattest.SlotDate(1, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validUntil := at.Add(7 * 24 * time.Hour)
+	if !validUntil.Before(slot) {
+		validUntil = slot.Add(-time.Hour)
+	}
 	rule := map[string]any{
 		"id": "rule-a", "operator": "require", "reasonCode": "TEST_REASON", "nextAction": "TEST_ACTION",
 		"subject": map[string]any{"component": "pkg:github/owner/repo", "from": "1.0.0", "to": "2.0.0"},
 		"evidence": map[string]any{
-			"state": "active", "reviewedAt": at.Add(-30 * 24 * time.Hour).Format(time.RFC3339), "validUntil": at.Add(60 * 24 * time.Hour).Format(time.RFC3339),
+			"state": "active", "reviewedAt": at.Add(-30 * 24 * time.Hour).Format(time.RFC3339), "validUntil": validUntil.Format(time.RFC3339),
 			"sources": []any{map[string]any{"id": "rule-a-src", "url": "https://github.com/owner/repo/blob/" + commit + "/VERSION", "revision": commit, "contentDigest": "sha256:" + strings.Repeat("cd", 32), "startLine": 1, "endLine": 1}},
 		},
 	}
@@ -96,7 +107,7 @@ func newReattestFixture(t *testing.T) reattestFixture {
 		t.Fatal(err)
 	}
 	writeFile(t, f.worklist, worklist)
-	writeFile(t, filepath.Join(f.reviews, "rule-a.json"), []byte("{\"reviewed\":\"rule-a\"}\n"))
+	writeFile(t, filepath.Join(f.reviews, "rule-a.json"), reattestReviewRecord(t, rule, "proj-a", at.Add(-30*time.Minute)))
 
 	var stdout, stderr bytes.Buffer
 	if err := run([]string{"evidence", "reattest", "prepare", "--worklist", f.worklist, "--pack", "cncf", "--rules", f.rules,
@@ -145,13 +156,49 @@ func newReattestFixture(t *testing.T) reattestFixture {
 	}
 	envelope, err := evidencereattest.Sign(evidencereattest.SignOptions{
 		Statement: bytes.TrimSuffix(statement, []byte("\n")), TrustRoot: root, EncryptedKey: key,
-		Passphrase: []byte("correct horse battery staple"), ExpectedTrustRootDigest: f.trustRootDigest,
+		Passphrase: []byte("correct horse battery staple"), ExpectedTrustRootDigest: f.trustRootDigest, Now: time.Now(),
 	})
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
 	writeFile(t, f.envelope, append(envelope, '\n'))
 	return f
+}
+
+// reattestReviewRecord renders a structurally valid individual review
+// record for rule, bound to the rule's exact content, decided at decidedAt.
+func reattestReviewRecord(t *testing.T, rule map[string]any, project string, decidedAt time.Time) []byte {
+	t.Helper()
+	ruleRaw, err := json.Marshal(rule)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, err := sourcecorpus.DecodeBounded(ruleRaw, int64(len(ruleRaw)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonical, err := sourcecorpus.Canonical(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := "sha256:" + strings.Repeat("d", 64)
+	raw, err := json.Marshal(map[string]any{
+		"schema": reviewrecord.RecordSchema,
+		"decision": map[string]any{
+			"authority": "DECLARED_MAINTAINER_DECISION_NOT_AUTHENTICATED", "state": "ACCEPTED_FOR_SIGNING_REVIEW",
+			"maintainer": "Test Reviewer", "decidedAt": decidedAt.UTC().Format(time.RFC3339), "scope": "ONE_RULE_CONSISTENCY_ONLY",
+		},
+		"subject": map[string]any{"project": project, "ruleId": rule["id"], "knowledgeRevision": "1", "evaluationAt": decidedAt.UTC().Format(time.RFC3339)},
+		"bindings": map[string]any{
+			"packetDigest": other, "packetReceiptDigest": other, "sourceReceiptDigest": other, "sourceCorpusManifestDigest": other,
+			"sourceCorpusReceiptDigest": other, "vectorFileDigest": other, "selectedVectorGroupDigest": other, "targetDigest": other,
+			"engineCapabilityDigest": other, "ruleDigest": sourcecorpus.SHA(canonical), "ruleEvidenceDigest": other,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return append(raw, '\n')
 }
 
 func (f reattestFixture) verifyArgs(extra ...string) []string {
@@ -162,7 +209,7 @@ func (f reattestFixture) verifyArgsWithReviews(reviews string, extra ...string) 
 	args := []string{"evidence", "reattest", "verify",
 		"--statement", filepath.Join(f.out, "statement.json"), "--prior-pack", f.rules, "--next-pack", filepath.Join(f.out, "rules.next.json"),
 		"--worklist", f.worklist, "--pack", "cncf", "--rules-worklist-path", reattestWorklistPackPath,
-		"--statement-chain-dir", f.chain, "--review-record-dir", reviews}
+		"--statement-chain-dir", f.chain, "--base-statement-chain-dir", f.base, "--review-record-dir", reviews}
 	return append(args, extra...)
 }
 
@@ -282,22 +329,121 @@ func TestEvidenceReattestRejectsBadReviewRecordDirectory(t *testing.T) {
 			"--output-dir", filepath.Join(f.dir, "out-"+filepath.Base(reviews)), "--statement-chain-dir", f.chain, "--review-record-dir", reviews}
 	}
 	empty := filepath.Join(f.dir, "empty-record")
-	duplicate := filepath.Join(f.dir, "duplicate-record")
-	for _, d := range []string{empty, duplicate} {
+	otherExtension := filepath.Join(f.dir, "other-extension")
+	noExtension := filepath.Join(f.dir, "no-extension")
+	onlyExtension := filepath.Join(f.dir, "only-extension")
+	for _, d := range []string{empty, otherExtension, noExtension, onlyExtension} {
 		if err := os.Mkdir(d, 0o700); err != nil {
 			t.Fatal(err)
 		}
 	}
+	record, err := os.ReadFile(filepath.Join(f.reviews, "rule-a.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	writeFile(t, filepath.Join(empty, "rule-a.json"), nil)
-	writeFile(t, filepath.Join(duplicate, "rule-a.json"), []byte("one"))
-	writeFile(t, filepath.Join(duplicate, "rule-a.txt"), []byte("two"))
+	writeFile(t, filepath.Join(otherExtension, "rule-a.json"), record)
+	writeFile(t, filepath.Join(otherExtension, "rule-a.txt"), record)
+	writeFile(t, filepath.Join(noExtension, "rule-a"), record)
+	writeFile(t, filepath.Join(onlyExtension, ".json"), record)
 	var stdout, stderr bytes.Buffer
-	for _, dir := range []string{empty, duplicate, "relative/reviews"} {
+	for _, dir := range []string{empty, otherExtension, noExtension, onlyExtension, "relative/reviews"} {
 		if got := exitCode(run(prepareArgs(dir), &stdout, &stderr)); got != 2 {
 			t.Fatalf("review record directory %s: exit %d, want 2", dir, got)
 		}
 		if got := exitCode(run(f.verifyArgsWithReviews(dir, "--structural-only"), &stdout, &stderr)); got != 2 {
 			t.Fatalf("verify with review record directory %s: exit %d, want 2", dir, got)
 		}
+	}
+}
+
+func TestLoadReviewRecordsKeysByFileNameWithoutJSONExtension(t *testing.T) {
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(dir, "kubernetes.v1.30-rule.json"), []byte("{}"))
+	writeFile(t, filepath.Join(dir, "rule-a.json"), []byte("{}"))
+	records, err := loadReviewRecords(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 2 || records["kubernetes.v1.30-rule"] == nil || records["rule-a"] == nil {
+		t.Fatalf("unexpected rule IDs: %v", records)
+	}
+	writeFile(t, filepath.Join(dir, "kubernetes.v1.30-rule"), []byte("{}"))
+	if _, err := loadReviewRecords(dir); err == nil {
+		t.Fatal("a review record file without the .json extension was accepted")
+	}
+}
+
+func TestEvidenceReattestVerifyRequiresChainToExtendBaseChain(t *testing.T) {
+	f := newReattestFixture(t)
+	copyFile := func(from, to string) {
+		raw, err := os.ReadFile(from)
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, to, raw)
+	}
+	sigFlags := []string{"--envelope", f.envelope, "--trust-root", f.trustRoot, "--trust-root-digest", f.trustRootDigest}
+	var stdout, stderr bytes.Buffer
+
+	withoutBase := f.verifyArgs(sigFlags...)
+	for i := range withoutBase {
+		if withoutBase[i] == "--base-statement-chain-dir" {
+			withoutBase = append(withoutBase[:i], withoutBase[i+2:]...)
+			break
+		}
+	}
+	if got := exitCode(run(withoutBase, &stdout, &stderr)); got != 2 {
+		t.Fatalf("verify without --base-statement-chain-dir: exit %d, want 2", got)
+	}
+
+	// The statement is already part of the base branch's chain, and the
+	// change's chain directory was emptied.
+	copyFile(filepath.Join(f.out, "statement.json"), filepath.Join(f.base, "0001.statement.json"))
+	copyFile(f.envelope, filepath.Join(f.base, "0001.statement.sig.json"))
+	stderr.Reset()
+	if got := exitCode(run(f.verifyArgs(sigFlags...), &stdout, &stderr)); got != 1 || !strings.Contains(stderr.String(), "V5:") || !strings.Contains(stderr.String(), "base chain entry 0001 is missing or changed") {
+		t.Fatalf("emptied chain over a non-empty base: exit %d, stderr %q", got, stderr.String())
+	}
+	copyFile(filepath.Join(f.out, "statement.json"), filepath.Join(f.chain, "0001.statement.json"))
+	copyFile(f.envelope, filepath.Join(f.chain, "0001.statement.sig.json"))
+	stderr.Reset()
+	if got := exitCode(run(f.verifyArgs(sigFlags...), &stdout, &stderr)); got != 1 || !strings.Contains(stderr.String(), "already recorded in the base branch's statement chain") {
+		t.Fatalf("statement already in the base chain: exit %d, stderr %q", got, stderr.String())
+	}
+}
+
+func TestEvidenceReattestRejectsMalformedReviewRecordContent(t *testing.T) {
+	f := newReattestFixture(t)
+	reviews := filepath.Join(f.dir, "bad-content")
+	if err := os.Mkdir(reviews, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(reviews, "rule-a.json"), []byte("{\"reviewed\":\"rule-a\"}\n"))
+	var stdout, stderr bytes.Buffer
+	args := []string{"evidence", "reattest", "prepare", "--worklist", f.worklist, "--pack", "cncf", "--rules", f.rules,
+		"--rules-worklist-path", reattestWorklistPackPath, "--next-revision", "rev-2", "--wave", "1",
+		"--output-dir", filepath.Join(f.dir, "out-bad"), "--statement-chain-dir", f.chain, "--review-record-dir", reviews}
+	if got := exitCode(run(args, &stdout, &stderr)); got != 2 || !strings.Contains(stderr.String(), "is not a well-formed review record") {
+		t.Fatalf("prepare with a malformed review record: exit %d, stderr %q", got, stderr.String())
+	}
+	stderr.Reset()
+	if got := exitCode(run(f.verifyArgsWithReviews(reviews, "--structural-only"), &stdout, &stderr)); got != 1 || !strings.Contains(stderr.String(), "is not a well-formed review record") {
+		t.Fatalf("verify with a malformed review record: exit %d, stderr %q", got, stderr.String())
+	}
+}
+
+func TestEvidenceReattestPrepareRejectsFutureAttestedAt(t *testing.T) {
+	f := newReattestFixture(t)
+	var stdout, stderr bytes.Buffer
+	args := []string{"evidence", "reattest", "prepare", "--worklist", f.worklist, "--pack", "cncf", "--rules", f.rules,
+		"--rules-worklist-path", reattestWorklistPackPath, "--next-revision", "rev-2", "--wave", "1",
+		"--output-dir", filepath.Join(f.dir, "out-future"), "--statement-chain-dir", f.chain, "--review-record-dir", f.reviews,
+		"--attested-at", time.Now().UTC().Add(48 * time.Hour).Truncate(time.Second).Format(time.RFC3339)}
+	if got := exitCode(run(args, &stdout, &stderr)); got != 2 || !strings.Contains(stderr.String(), "attestedAt is in the future") {
+		t.Fatalf("prepare with a future --attested-at: exit %d, stderr %q", got, stderr.String())
 	}
 }

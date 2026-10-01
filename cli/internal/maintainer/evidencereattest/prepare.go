@@ -37,6 +37,8 @@ const (
 	reasonDuplicateCitation      = "DUPLICATE_CITATION_FOR_SOURCE"
 	reasonCitationCommitMismatch = "CITATION_COMMIT_DOES_NOT_MATCH_PINNED_SOURCE"
 	reasonStaggerDeferred        = "STAGGER_DEFERRED"
+	reasonNotLaterThanCurrent    = "NOT_LATER_THAN_CURRENT"
+	reasonNotYetDue              = "NOT_YET_DUE"
 )
 
 // PrepareOptions names every input Prepare needs. It performs no I/O and
@@ -65,8 +67,12 @@ type PrepareOptions struct {
 	// Wave is the 1..7 stagger slot this batch renews into (see SlotDate).
 	Wave int
 	// AttestedAt is the instant this batch is being prepared, normally
-	// "now" from the caller's clock.
+	// "now" from the caller's clock. It must not be after Now.
 	AttestedAt time.Time
+	// Now is the caller's clock. Required: Prepare rejects an AttestedAt
+	// later than Now, and a chain entry attested later than Now, so a
+	// future-dated statement can never be prepared or built upon.
+	Now time.Time
 	// NextRevision is the new pack revision string for rules.next.json.
 	NextRevision string
 	// EngineCapabilityDigest identifies the compiled engine this batch was
@@ -74,14 +80,16 @@ type PrepareOptions struct {
 	// supplies it so this package stays decoupled from cncfcheck/
 	// projectcheck and stays testable with synthetic packs.
 	EngineCapabilityDigest string
-	// ReviewRecordDigests maps a rule ID to the digest of its individual
-	// review record, when one has been produced for it. A record whose
-	// digest the chain has not recorded for that rule before is a new
-	// individual review: it is listed in the statement's
-	// individualReviews and resets the rule's consecutive-batch-cycle
-	// count. A sampled rule with no new review record gets an empty
-	// reviewRecordDigest in the statement, which Sign refuses to sign.
-	ReviewRecordDigests map[string]string
+	// ReviewRecords maps a rule ID to the exact bytes of its individual
+	// review record (maintainer/reviewrecord's format), when one has been
+	// produced for it. A record whose digest the chain has not recorded
+	// for that rule before must pass chainState.reviewsFromRecords' checks
+	// or Prepare fails; a record that does is a new individual review: it
+	// is listed in the statement's individualReviews and resets the rule's
+	// consecutive-batch-cycle count. A sampled rule with no new review
+	// record gets an empty reviewRecordDigest in the statement, which Sign
+	// refuses to sign.
+	ReviewRecords map[string][]byte
 }
 
 // PrepareResult is everything Prepare produces.
@@ -125,7 +133,13 @@ func matchesPack(rulePackField, wantPath string) bool {
 // declares eligibility; every rule's inclusion is recomputed here from the
 // worklist and pack bytes the caller supplied.
 func Prepare(opts PrepareOptions) (PrepareResult, error) {
-	state, err := deriveChainState(opts.Chain, opts.PackName, opts.AttestedAt.UTC(), "")
+	if opts.Now.IsZero() {
+		return PrepareResult{}, fmt.Errorf("%w: the caller's current time is required", ErrRejected)
+	}
+	if opts.AttestedAt.After(opts.Now) {
+		return PrepareResult{}, fmt.Errorf("%w: attestedAt is in the future", ErrRejected)
+	}
+	state, err := deriveChainState(opts.Chain, opts.PackName, opts.Now.UTC(), "")
 	if err != nil {
 		return PrepareResult{}, err
 	}
@@ -206,26 +220,20 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 			mismatchProjects[citation.Project] = true
 		}
 	}
-	candidates := make([]ruleCandidate, 0, len(doc.Entries))
-	priorRules := make([]ruleFields, 0, len(doc.Entries))
-	packRuleIDs := make([]string, 0, len(doc.Entries))
-	for _, entry := range doc.Entries {
-		fields, err := parseRuleFields(entry.Rule)
-		if err != nil {
-			return PrepareResult{}, err
-		}
-		candidates = append(candidates, ruleCandidate{
-			RuleID: fields.ID, Project: entry.Project, Raw: entry.Rule, Fields: fields,
-			Citations: citationsByRule[fields.ID],
-		})
-		priorRules = append(priorRules, fields)
-		packRuleIDs = append(packRuleIDs, fields.ID)
+	candidates, priorRules, err := packCandidates(doc)
+	if err != nil {
+		return PrepareResult{}, err
 	}
-	sort.Slice(candidates, func(i, j int) bool { return candidates[i].RuleID < candidates[j].RuleID })
+	for i := range candidates {
+		candidates[i].Citations = citationsByRule[candidates[i].RuleID]
+	}
 
 	// Chain-derived per-rule state: which supplied review records are new
 	// individual reviews, and each rule's consecutive-batch-cycle count.
-	fresh := state.freshReviews(packRuleIDs, opts.ReviewRecordDigests)
+	fresh, err := state.reviewsFromRecords(candidatesByID(candidates), opts.ReviewRecords, attestedAt)
+	if err != nil {
+		return PrepareResult{}, err
+	}
 	if err := state.checkPriorPackCovered(priorRules, fresh); err != nil {
 		return PrepareResult{}, err
 	}
@@ -246,12 +254,22 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		eligibleIDs = append(eligibleIDs, candidate.RuleID)
 	}
 
-	// V7: cap the batch so the slot week this batch renews into stays
-	// within the stagger cap. Eligible rules are taken in order of current
-	// validUntil, then rule ID; the rest are deferred to a later wave.
-	chosen, deferred, err := staggerBatch(candidates, eligibleIDs, validUntilAt)
+	// A renewal must move validUntil later: an otherwise eligible rule
+	// whose current validUntil is not before this batch's slot date is
+	// not renewed (NOT_LATER_THAN_CURRENT), and neither is one whose lease
+	// still runs for longer than the renewal window (NOT_YET_DUE). V7
+	// then caps the batch so the slot week stays within the stagger cap:
+	// the remaining rules are taken soonest-expiring first, then by rule
+	// ID, and the rest are deferred to a later wave.
+	chosen, notLater, notDue, deferred, err := staggerBatch(candidates, eligibleIDs, attestedAt, validUntilAt)
 	if err != nil {
 		return PrepareResult{}, err
+	}
+	for _, id := range notLater {
+		notExtended = append(notExtended, NotExtendedEntry{RuleID: id, WorstClass: reasonNotLaterThanCurrent})
+	}
+	for _, id := range notDue {
+		notExtended = append(notExtended, NotExtendedEntry{RuleID: id, WorstClass: reasonNotYetDue})
 	}
 	for _, id := range deferred {
 		notExtended = append(notExtended, NotExtendedEntry{RuleID: id, WorstClass: reasonStaggerDeferred})
@@ -269,10 +287,7 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		sampledSet[id] = true
 	}
 
-	candidateByID := map[string]ruleCandidate{}
-	for _, c := range candidates {
-		candidateByID[c.RuleID] = c
-	}
+	candidateByID := candidatesByID(candidates)
 
 	nextDoc := doc
 	nextDoc.Revision = opts.NextRevision
@@ -522,36 +537,50 @@ func isoWeek(t time.Time) string {
 	return fmt.Sprintf("%04d-W%02d", year, week)
 }
 
-// staggerBatch caps a batch so the ISO week of slot holds no more than
-// staggerCap(len(candidates)) validUntil values once the batch is applied.
-// Eligible rules are ordered by current validUntil (earliest first), then
-// rule ID, and taken in that order while they fit; the first one that does
-// not fit, and every one after it, is deferred. A rule whose current
-// validUntil already falls in the slot week does not add to the count.
-func staggerBatch(candidates []ruleCandidate, eligibleIDs []string, slot time.Time) (chosen, deferred []string, err error) {
+// staggerBatch selects which eligible rules this batch renews. A rule is
+// renewed only if the batch's slot date is strictly later than its current
+// validUntil (otherwise it is returned in notLater), so a renewal never
+// moves a rule's validUntil earlier or leaves it unchanged; and only if its
+// current validUntil is no more than renewalWindow after attestedAt
+// (otherwise it is returned in notDue), so a rule renewed recently is not
+// picked again, spending its consecutive-batch-cycle budget, while most of
+// its lease is still left. The remaining rules are capped so the ISO week
+// of slot holds no more than staggerCap(len(candidates)) validUntil values
+// once the batch is applied: they are ordered by how soon they expire
+// relative to slot (earliest current validUntil first), then rule ID, and
+// taken in that order while they fit; the first one that does not fit,
+// and every one after it, is deferred. A rule whose current validUntil
+// already falls in the slot week does not add to the count.
+func staggerBatch(candidates []ruleCandidate, eligibleIDs []string, attestedAt, slot time.Time) (chosen, notLater, notDue, deferred []string, err error) {
 	slotWeek := isoWeek(slot)
 	weekCap := staggerCap(len(candidates))
-	isEligible := map[string]bool{}
-	for _, id := range eligibleIDs {
-		isEligible[id] = true
-	}
 	current := map[string]time.Time{}
 	inWeek := 0
 	for _, candidate := range candidates {
 		validUntil, err := parseUTC(candidate.Fields.Evidence.ValidUntil)
 		if err != nil {
-			return nil, nil, fmt.Errorf("%w: V7: rule %s validUntil", ErrRejected, candidate.RuleID)
+			return nil, nil, nil, nil, fmt.Errorf("%w: V7: rule %s validUntil", ErrRejected, candidate.RuleID)
 		}
 		current[candidate.RuleID] = validUntil
 		if isoWeek(validUntil) == slotWeek {
 			inWeek++
 		}
 	}
-	ordered := append([]string(nil), eligibleIDs...)
+	ordered := make([]string, 0, len(eligibleIDs))
+	for _, id := range eligibleIDs {
+		switch {
+		case !slot.After(current[id]):
+			notLater = append(notLater, id)
+		case current[id].Sub(attestedAt) > renewalWindow:
+			notDue = append(notDue, id)
+		default:
+			ordered = append(ordered, id)
+		}
+	}
 	sort.Slice(ordered, func(i, j int) bool {
-		a, b := current[ordered[i]], current[ordered[j]]
-		if !a.Equal(b) {
-			return a.Before(b)
+		a, b := slot.Sub(current[ordered[i]]), slot.Sub(current[ordered[j]])
+		if a != b {
+			return a > b
 		}
 		return ordered[i] < ordered[j]
 	})
@@ -561,12 +590,38 @@ func staggerBatch(candidates []ruleCandidate, eligibleIDs []string, slot time.Ti
 			add = 0
 		}
 		if inWeek+add > weekCap {
-			return chosen, ordered[i:], nil
+			return chosen, notLater, notDue, ordered[i:], nil
 		}
 		inWeek += add
 		chosen = append(chosen, id)
 	}
-	return chosen, nil, nil
+	return chosen, notLater, notDue, nil, nil
+}
+
+// packCandidates parses every rule in doc into a ruleCandidate (without
+// citations), sorted by rule ID, and also returns the rules' typed fields
+// in pack order.
+func packCandidates(doc packDocument) ([]ruleCandidate, []ruleFields, error) {
+	candidates := make([]ruleCandidate, 0, len(doc.Entries))
+	priorRules := make([]ruleFields, 0, len(doc.Entries))
+	for _, entry := range doc.Entries {
+		fields, err := parseRuleFields(entry.Rule)
+		if err != nil {
+			return nil, nil, err
+		}
+		candidates = append(candidates, ruleCandidate{RuleID: fields.ID, Project: entry.Project, Raw: entry.Rule, Fields: fields})
+		priorRules = append(priorRules, fields)
+	}
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].RuleID < candidates[j].RuleID })
+	return candidates, priorRules, nil
+}
+
+func candidatesByID(candidates []ruleCandidate) map[string]ruleCandidate {
+	byID := make(map[string]ruleCandidate, len(candidates))
+	for _, c := range candidates {
+		byID[c.RuleID] = c
+	}
+	return byID
 }
 
 func hasRange(raw json.RawMessage) bool {

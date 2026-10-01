@@ -28,8 +28,10 @@
 //	          root whose digest the caller supplies independently. It
 //	          refuses to run unattended (no TTY) and refuses a statement
 //	          whose sampled-for-full-review rules lack a recorded review.
-//	verify  - deterministic, side-effect-free, CI-usable. It verifies the
-//	          pack's statement chain with the same derivation prepare uses
+//	verify  - deterministic, side-effect-free, CI-usable. It requires the
+//	          pack's statement chain to extend the base branch's chain by
+//	          at most the statement itself (checkAppendOnly), verifies the
+//	          chain with the same derivation prepare uses
 //	          (deriveChainState), recomputes the whole statement and the
 //	          whole next pack from scratch and requires them to match the
 //	          supplied bytes exactly, then checks every further invariant
@@ -112,6 +114,14 @@ const (
 	// renewed at most twice in a row before it must go through an
 	// individual review.
 	maxConsecutiveBatchCycles = 2
+
+	// renewalWindow is how close to expiry a rule's current lease must be
+	// for a batch to renew it: three weekly waves. A rule whose validUntil
+	// is further than this from attestedAt is not yet due (NOT_YET_DUE).
+	// Without it, weekly batches each renewing into a slot one week later
+	// than the last would pick the same just-renewed rules again every
+	// week and spend their two-cycle budget within days.
+	renewalWindow = 3 * 7 * 24 * time.Hour
 
 	// minWave and maxWave bound the seven-wave stagger. Assignment of
 	// projects to waves is not implemented here; this package only

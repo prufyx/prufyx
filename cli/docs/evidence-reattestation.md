@@ -34,6 +34,12 @@ so the examples below use `"$PWD/..."`.
   derived from the file at hand).
 
 ```sh
+# 0. One statement chain directory per pack, kept in version control.
+#    Each statement gets the next zero-padded sequence number as its stem,
+#    so a new entry never overwrites an earlier one.
+mkdir -p "$PWD/chain/cncf"
+SEQ=$(printf '%04d' $(( $(find "$PWD/chain/cncf" -name '*.statement.json' | wc -l) + 1 )))
+
 # 1. (existing; unchanged)
 prufyx-maintainer evidence repin --state "$PWD/fresh-state" --output "$PWD/worklist.json"
 
@@ -44,33 +50,66 @@ prufyx-maintainer evidence reattest prepare \
   --statement-chain-dir "$PWD/chain/cncf" \
   --trust-root "$PWD/evidence-reattest-trust-root.json" --trust-root-digest "$ROOT_DIGEST" \
   --review-record-dir "$PWD/reviews" \
-  --next-revision <rev> --wave <1..7> --output-dir "$PWD/out"
-#   → out/statement.json  (canonical JSON, sorted keys)
-#   → out/rules.next.json (candidate next pack: only reviewedAt/validUntil changed)
-#   → out/summary.txt     (what a human reads before signing)
+  --next-revision <rev> --wave <1..7> --output-dir "$PWD/out/$SEQ"
+#   → out/$SEQ/statement.json  (canonical JSON, sorted keys)
+#   → out/$SEQ/rules.next.json (candidate next pack: only reviewedAt/validUntil changed)
+#   → out/$SEQ/summary.txt     (what a human reads before signing)
 
-# 3. A human, at a terminal, reads out/summary.txt, individually reviews
-#    every rule it lists as sampled, adds each review record to reviews/,
-#    reruns step 2, and then signs.
+# 3. A human, at a terminal, reads out/$SEQ/summary.txt, individually
+#    reviews every rule it lists as sampled, adds each review record to
+#    reviews/ as <ruleId>.json, reruns step 2, and then signs. Records
+#    already recorded in the chain may stay in reviews/; they are skipped.
 prufyx-maintainer evidence reattest sign \
-  --statement "$PWD/out/statement.json" \
+  --statement "$PWD/out/$SEQ/statement.json" \
   --trust-root "$PWD/evidence-reattest-trust-root.json" --trust-root-digest "$ROOT_DIGEST" \
   --key "$PWD/evidence-reattest.key.pem" \
-  --output "$PWD/out/statement.sig.json"
+  --output "$PWD/out/$SEQ/statement.sig.json"
 
-# 4. Deterministic, CI-usable gate; non-zero exit on any violation.
+# 4. Append the signed statement to the pack's chain, and apply the next
+#    pack, in the same change.
+cp "$PWD/out/$SEQ/statement.json"     "$PWD/chain/cncf/$SEQ.statement.json"
+cp "$PWD/out/$SEQ/statement.sig.json" "$PWD/chain/cncf/$SEQ.statement.sig.json"
+cp "$PWD/out/$SEQ/rules.next.json"    "$PWD/current-rules.json"
+
+# 5. Deterministic, CI-usable gate; non-zero exit on any violation. CI runs
+#    it on the change, with the base branch's chain directory and rule pack
+#    checked out separately (see "The base branch's chain" below).
 prufyx-maintainer evidence reattest verify \
-  --statement "$PWD/out/statement.json" --prior-pack "$PWD/current-rules.json" \
-  --next-pack "$PWD/out/rules.next.json" --worklist "$PWD/worklist.json" --pack cncf \
+  --statement "$PWD/chain/cncf/$SEQ.statement.json" --prior-pack "$BASE/current-rules.json" \
+  --next-pack "$PWD/current-rules.json" --worklist "$PWD/worklist.json" --pack cncf \
   --rules-worklist-path "$REPIN_RULES_PATH" \
-  --statement-chain-dir "$PWD/chain/cncf" --review-record-dir "$PWD/reviews" \
-  --envelope "$PWD/out/statement.sig.json" \
+  --statement-chain-dir "$PWD/chain/cncf" --base-statement-chain-dir "$BASE/chain/cncf" \
+  --review-record-dir "$PWD/reviews" \
+  --envelope "$PWD/chain/cncf/$SEQ.statement.sig.json" \
   --trust-root "$PWD/evidence-reattest-trust-root.json" --trust-root-digest "$ROOT_DIGEST"
-
-# 5. Append the signed statement to the pack's chain.
-cp out/statement.json     chain/cncf/0001.statement.json
-cp out/statement.sig.json chain/cncf/0001.statement.sig.json
 ```
+
+`$BASE` is a separate, read-only checkout of the base branch the change is
+proposed against, for example:
+
+```sh
+BASE=$(mktemp -d)/base
+git worktree add --detach "$BASE" "origin/main"
+mkdir -p "$BASE/chain/cncf"   # stays empty when the base branch has no chain yet
+# ... run verify ...
+git worktree remove "$BASE"
+```
+
+or, without a worktree, by exporting just the two inputs `verify` needs
+from the base branch:
+
+```sh
+BASE=$(mktemp -d)
+mkdir -p "$BASE/chain/cncf"
+git show origin/main:current-rules.json > "$BASE/current-rules.json"
+for f in $(git ls-tree --name-only origin/main chain/cncf/); do
+  git show "origin/main:$f" > "$BASE/$f"
+done
+```
+
+Either way, when the base branch has no chain directory yet,
+`$BASE/chain/cncf` is an empty directory. The retained worklist and the
+review records are read from the change itself.
 
 `--trust-root`/`--trust-root-digest` may be omitted from `prepare` only
 while the pack's chain directory is still empty; as soon as it holds a
@@ -78,11 +117,17 @@ statement, both commands need the pin to verify it. `--review-record-dir`
 is optional, but without it every sampled rule is reported as `MISSING
 REVIEW RECORD` and `sign` and `verify` refuse the statement.
 
+`--attested-at` defaults to the current time and may never be later than
+it: `prepare` rejects a future `--attested-at`, `sign` refuses to sign a
+statement whose `attestedAt` is later than the signer's clock, and
+`prepare` and `verify` reject a chain holding an entry attested later than
+their own clock.
+
 `prepare` and `verify` never wire a statement into the runtime pack loader
-or the embedded rule pack. Publishing a re-attested pack (applying
-`rules.next.json`, running `corpus-attestation`, and running
-`export-knowledge`) is a separate step, exactly as it is for any other rule
-pack change; this tool does not perform it.
+or the embedded rule pack. Publishing a re-attested pack (running
+`corpus-attestation` and `export-knowledge` on the changed rule pack) is a
+separate step, exactly as it is for any other rule pack change; this tool
+does not perform it.
 
 ## Eligibility: computed, never declared
 
@@ -106,19 +151,33 @@ next pack, byte-for-byte.
 | E6 | The rule's consecutive batch-renewal count, derived from the pack's verified statement chain (see [The statement chain](#the-statement-chain-v5)), does not exceed 2 | A rule renewed by batch twice since its last recorded individual review must go through an individual review next |
 | E7 | The rule's evidence state is `active`, and no citation anywhere in the rule's project classified `CORPUS_DIGEST_MISMATCH` | A withdrawn rule, or a project with an unresolved corpus-integrity finding, is excluded project-wide |
 
-Rules that pass E1–E7 are then capped by the stagger rule (V7 below):
-`prepare` orders them by their current `validUntil` (earliest first), then
-by rule ID, and renews as many as fit in the slot week. The rest are listed
-in `notExtended` with the reason `STAGGER_DEFERRED`; they are left for a
-later wave, not for individual review.
+A rule that passes E1–E7 is renewed only if the renewal moves its
+`validUntil` later and its lease is close to its end:
+
+- the batch's slot date must be strictly later than the rule's current
+  `validUntil`; otherwise the rule is listed in `notExtended` as
+  `NOT_LATER_THAN_CURRENT`. A renewal never moves a rule's `validUntil`
+  earlier or leaves it unchanged.
+- the rule's current `validUntil` must be no more than 21 days (three
+  weekly waves) after `attestedAt`; otherwise it is listed as
+  `NOT_YET_DUE`. A rule renewed recently is therefore not picked again
+  while most of its lease is left, which would spend its two-cycle
+  budget (E6) within days.
+
+The remaining rules are then capped by the stagger rule (V7 below):
+`prepare` orders them by how soon they expire relative to the slot date
+(earliest current `validUntil` first), then by rule ID, and renews as many
+as fit in the slot week. The rest are listed in `notExtended` with the
+reason `STAGGER_DEFERRED`; they are left for a later wave, not for
+individual review.
 
 Among the rules renewed after that cap, `prepare` samples `ceil(10%)` of
 them, seeded by `sha256(worklistDigest ‖ ruleId)`, and lists them in
 `sampledForFullReview`. Each one needs a full individual review before
 `sign` — or `verify` — will accept the statement: a review record for it
-must be supplied in `--review-record-dir`, and it must be one whose digest
-this pack's chain has not recorded for that rule before. The seed is a
-function of inputs nobody controls after the worklist is generated, so the
+must be supplied in `--review-record-dir`, and it must be a new individual
+review (see [The statement chain](#the-statement-chain-v5)). The seed is
+a function of inputs nobody controls after the worklist is generated, so the
 sample cannot be predicted or chosen.
 
 `notExtended` reasons are either the worst citation class found (E1), or
@@ -127,15 +186,17 @@ one of: `WORKLIST_SCOPE_INCOMPLETE` (E2), `TAG_FALLBACK_BASELINE` (E3),
 `CONSECUTIVE_BATCH_CYCLE_CAP` (E6), `EVIDENCE_NOT_ACTIVE` and
 `CORPUS_DIGEST_MISMATCH_IN_PROJECT` (E7), `SOURCE_WITHOUT_CITATION`,
 `CITATION_WITHOUT_SOURCE`, `DUPLICATE_CITATION_FOR_SOURCE`,
-`CITATION_COMMIT_DOES_NOT_MATCH_PINNED_SOURCE` (E1), and
+`CITATION_COMMIT_DOES_NOT_MATCH_PINNED_SOURCE` (E1),
+`NOT_LATER_THAN_CURRENT` and `NOT_YET_DUE` (renewal timing, see above), and
 `STAGGER_DEFERRED` (V7 cap).
 
 ## What `verify` checks (V1–V7)
 
 `verify` is deterministic and side-effect-free. It takes the statement, the
 prior and next rule pack bytes, the retained worklist, the pack's statement
-chain directory, and the review record directory, and fails closed with a
-non-zero exit on the first violation it finds:
+chain directory as it is in the change and as it is on the base branch,
+and the review record directory, and fails closed with a non-zero exit on
+the first violation it finds:
 
 - **V1/V3** — `verify` reruns `prepare` with exactly the inputs the
   statement claims (worklist, prior pack, wave, attestedAt, next revision,
@@ -155,10 +216,11 @@ non-zero exit on the first violation it finds:
 - **V5** — the statement chain; see [The statement chain](#the-statement-chain-v5).
 - **V6** — a CI gate over the pack diff, independent of V1/V3: every rule
   whose `reviewedAt`/`validUntil` changed between the prior and next pack
-  must be covered either by this statement or by a supplied individual
-  review record (`--review-record-dir`), and every rule present in one pack
-  must be present in the other. It does not re-verify a review record's
-  authenticity, which stays `review-record`'s job.
+  must be covered either by this statement or by a new individual review
+  record (`--review-record-dir`), and every rule present in one pack must
+  be present in the other. It does not re-verify a review record against
+  its packet, corpus, vectors and target, which stays `review-record`'s
+  job.
 - **V7** — the stagger cap. The cap is `floor(15% × the number of rules in
   the pack)`, and never less than 1. For every ISO week this statement
   renews at least one rule into, the number of next-pack rules whose
@@ -186,8 +248,9 @@ empty, because the chain's own signatures are always verified; it rejects
 Exit codes: `0` — every check passed and, when anything was renewed, the
 signature verified; `1` — an invariant or the signature failed, a
 signature was required but not supplied, or `--structural-only` was used;
-`2` — a usage error or an unreadable or malformed input file (including a
-bad chain or review record directory).
+`2` — a usage error (including a missing `--base-statement-chain-dir`) or
+an unreadable or malformed input file (including a bad chain or review
+record directory).
 
 ## The statement chain (V5)
 
@@ -211,6 +274,14 @@ function), and treat it as authoritative:
   one head. A fork (two entries naming the same previous), a gap (an entry
   whose previous is missing), a second genesis entry, or a duplicate entry
   rejects the chain.
+- `verify` also requires the chain directory in the change
+  (`--statement-chain-dir`) to equal the base branch's chain directory
+  (`--base-statement-chain-dir`) entry for entry, byte for byte, plus at
+  most one added entry, which must be the statement under verification.
+  Removing, replacing, re-signing, or adding any other entry rejects the
+  statement (V5), and so does an emptied chain directory over a non-empty
+  base, or a statement the base chain already records. See
+  [The base branch's chain](#the-base-branchs-chain).
 - The statement being prepared or verified must name the head as its
   `previousAttestationDigest` (`null` only when the chain is empty), and
   its `attestedAt` must be later than the head's. A statement that is
@@ -227,16 +298,33 @@ function), and treat it as authoritative:
   renewed in some cycle keeps its count: only a recorded individual review
   resets it.
 - **What counts as an individual review.** A review record in
-  `--review-record-dir` (one file per rule, named `<ruleId>.<ext>`, whose
-  digest is the SHA-256 of its exact bytes) for a rule in the pack, whose
-  digest the chain has not already recorded for that rule. `prepare` lists
-  every such record in the statement's `individualReviews`, so once the
-  statement is signed and appended, the review is part of the signed log;
-  a later statement that supplies the same record again does not reset
-  the rule a second time. A sampled rule's review is recorded the same
-  way. As everywhere else in this tool, the record's content is not
-  re-verified here; its digest is bound into the signed statement, and the
-  signer vouches for it.
+  `--review-record-dir` — one file per rule, named `<ruleId>.json` (the
+  rule ID is the file name with exactly the `.json` extension removed, so
+  dotted rule IDs work; a file with any other name rejects the command) —
+  whose digest (the SHA-256 of its exact bytes) the chain has not already
+  recorded for that rule. Such a record must be a structurally valid
+  `review-record` record (`prufyx.io/declared-knowledge-review-record/v1`,
+  with that format's fixed decision, authority and scope) whose
+  `subject.ruleId` and `subject.project` are the rule's own, whose
+  `bindings.ruleDigest` is the digest of the rule exactly as it is in the
+  prior pack (the same canonical scheme `review-record` uses), and whose
+  `decision.decidedAt` is later than the rule's last individual review
+  recorded in the chain and not later than `attestedAt`. A record for a
+  rule not in the pack, or one failing any of these checks, rejects the
+  statement (V5); it is never silently ignored. So a record copied under
+  another rule's name, an already counted record with a byte changed, or
+  a record made against an earlier version of the rule never counts as a
+  new review, whether or not the statement renews anything. `prepare`
+  lists every new review in the statement's `individualReviews`, so once
+  the statement is signed and appended, the review is part of the signed
+  log; a later statement that supplies the same record again skips it
+  and does not reset the rule a second time. A sampled rule's review is
+  recorded the same way. A chain entry that lists an individual review
+  for a rule in neither its `rules` nor its `notExtended` is rejected. As
+  everywhere else in this tool, the record is not checked against its
+  packet, corpus, vectors and target here (see
+  [Known scope limits](#known-scope-limits)); its digest is bound into the
+  signed statement, and the signer vouches for it.
 - **Editing the pack between cycles does not reset anything.** The chain
   head is found by linkage, not by matching pack digests, so an unrelated
   rule change merged between cycles leaves every count intact.
@@ -247,12 +335,35 @@ function), and treat it as authoritative:
   the chain or the rule was reviewed individually since. `prepare` and
   `verify` both reject the statement (V5) unless a new review record is
   supplied for that rule.
+- **Dates cannot drift away from the chain.** A prior-pack rule whose
+  `reviewedAt` equals some chain entry's `attestedAt` must be one that
+  entry renewed, still carrying the `validUntil` that entry set, or one
+  that entry recorded an individual review for, unless a new review
+  record is supplied for it.
 
 `--previous-statement` has been removed from both commands: the chain
-directory alone determines the previous statement. The chain directory
-must be kept in version control and only ever appended to; deleting it
-entirely is indistinguishable from a pack with no history and must be
-caught in code review of the change that deletes it.
+directory alone determines the previous statement.
+
+### The base branch's chain
+
+The chain directory only protects anything if it can never be rewritten
+by the change being verified. `verify` therefore needs
+`--base-statement-chain-dir`: the same pack's chain directory exactly as
+it is on the base branch the change is proposed against, checked out by
+CI from the base branch itself (see the `git worktree add` and `git show`
+examples under [Pipeline](#pipeline)), never taken from the change. It
+must be an absolute path; pass an empty directory when the base branch has
+no chain for the pack yet. Supplying the change's own chain directory
+here defeats the check.
+
+The chain directories must also be protected on the base branch: changes
+to them must go through the same review and required `verify` status
+check as rule pack changes (for example with branch protection and a
+code-owners rule on the chain directories), so nothing lands on the base
+branch that removes or rewrites an entry. A change that deletes or
+rewrites the chain is rejected by `verify` against the base branch; a
+direct push to the base branch that bypasses `verify` is not something
+this tool can see.
 
 ## Signing
 
@@ -353,15 +464,16 @@ this tool does not make; callers supply both explicitly on every call.
 - **`--statement-chain-dir` contents.** `prepare` and `verify` read this
   directory to derive the chain (see [The statement chain](#the-statement-chain-v5));
   neither writes to it, and nothing in this tool appends a statement to it
-  after signing. Appending each signed statement and its signature, and
-  keeping the directory append-only in version control, is the caller's
-  responsibility.
+  after signing. Appending each signed statement and its signature under
+  a new stem is the caller's responsibility; `verify` enforces that the
+  change only appends, against `--base-statement-chain-dir`.
 - **Trust root rotation.** Every chain entry is verified under the one
   trust root the command is given, so a new trust root must keep every key
   that signed an existing chain entry for as long as that chain is in use.
-- **Review record content.** `--review-record-dir` records are bound by
-  digest only. Verifying a record's content needs the rule's evidence
-  packet, source corpus, vectors, and target (see `review-record`), which
-  this tool does not take, so it does not do it. It rejects an empty
-  record, two records for the same rule ID, and anything in the directory
-  that is not a regular file.
+- **Review record content.** `--review-record-dir` records are checked
+  structurally and bound to the rule, its project, its exact prior-pack
+  version, and the chain's review history (see
+  [The statement chain](#the-statement-chain-v5)), but not against the
+  rule's evidence packet, source corpus, vectors and target (see
+  `review-record`), which this tool does not take. The record's declared
+  `decidedAt` is not authenticated.

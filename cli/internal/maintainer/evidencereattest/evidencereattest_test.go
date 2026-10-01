@@ -10,12 +10,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgesign"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/reviewrecord"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
 
@@ -98,6 +100,9 @@ func buildWorklistAndPack(t *testing.T, packPath string, generatedAt time.Time, 
 	for _, repo := range repos {
 		repoList = append(repoList, repo)
 	}
+	// A fixed order keeps the worklist bytes, and so the seeded sample,
+	// the same on every run.
+	sort.Slice(repoList, func(i, j int) bool { return repoList[i].Repo < repoList[j].Repo })
 	wl := evidencerepin.Worklist{
 		Schema: evidencerepin.Schema, Authority: evidencerepin.Authority, GeneratedAt: rfc3339(generatedAt),
 		Scope:     evidencerepin.WorklistScope{RulePacks: []string{packPath}},
@@ -122,7 +127,7 @@ func freshSpec(id, project string, now time.Time) ruleSpec {
 		id: id, project: project, commit: strings.Repeat("a", 40), path: "VERSION",
 		class: evidencerepin.ClassFileIdentical, resolution: "",
 		repoResolvedAt: rfc3339(now.Add(-time.Hour)),
-		reviewedAt:     rfc3339(now.Add(-30 * 24 * time.Hour)), validUntil: rfc3339(now.Add(60 * 24 * time.Hour)),
+		reviewedAt:     rfc3339(now.Add(-30 * 24 * time.Hour)), validUntil: rfc3339(now.Add(7 * 24 * time.Hour)),
 		state: "active",
 	}
 }
@@ -170,7 +175,7 @@ func TestPrepareEligibleHappyPath(t *testing.T) {
 
 	result, err := Prepare(PrepareOptions{
 		WorklistRaw: marshalWorklist(t, wl), PackName: PackCNCF, PackPath: packPath, PackRaw: pack,
-		Wave: 1, AttestedAt: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
+		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
 	})
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
@@ -197,7 +202,7 @@ func TestPrepareExcludesStaleBaseline(t *testing.T) {
 
 	result, err := Prepare(PrepareOptions{
 		WorklistRaw: marshalWorklist(t, wl), PackName: PackCNCF, PackPath: packPath, PackRaw: pack,
-		Wave: 1, AttestedAt: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
+		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
 	})
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
@@ -218,7 +223,7 @@ func TestPrepareExcludesTagFallback(t *testing.T) {
 
 	result, err := Prepare(PrepareOptions{
 		WorklistRaw: marshalWorklist(t, wl), PackName: PackCNCF, PackPath: packPath, PackRaw: pack,
-		Wave: 1, AttestedAt: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
+		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
 	})
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
@@ -255,7 +260,7 @@ func TestPrepareOneBadCitationExcludesWholeRule(t *testing.T) {
 
 	result, err := Prepare(PrepareOptions{
 		WorklistRaw: marshalWorklist(t, wl), PackName: PackCNCF, PackPath: packPath, PackRaw: pack,
-		Wave: 1, AttestedAt: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
+		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
 	})
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
@@ -276,7 +281,7 @@ func TestPrepareExcludesRangedRule(t *testing.T) {
 
 	result, err := Prepare(PrepareOptions{
 		WorklistRaw: marshalWorklist(t, wl), PackName: PackCNCF, PackPath: packPath, PackRaw: pack,
-		Wave: 1, AttestedAt: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
+		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
 	})
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
@@ -294,7 +299,7 @@ func TestPrepareExcludesWithdrawnState(t *testing.T) {
 
 	result, err := Prepare(PrepareOptions{
 		WorklistRaw: marshalWorklist(t, wl), PackName: PackCNCF, PackPath: packPath, PackRaw: pack,
-		Wave: 1, AttestedAt: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
+		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
 	})
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
@@ -313,7 +318,7 @@ func TestPrepareExcludesEntireProjectOnCorpusDigestMismatch(t *testing.T) {
 
 	result, err := Prepare(PrepareOptions{
 		WorklistRaw: marshalWorklist(t, wl), PackName: PackCNCF, PackPath: packPath, PackRaw: pack,
-		Wave: 1, AttestedAt: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
+		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
 	})
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
@@ -344,7 +349,7 @@ func TestPrepareExcludesEverythingOnPendingCitations(t *testing.T) {
 
 	result, err := Prepare(PrepareOptions{
 		WorklistRaw: marshalWorklist(t, wl), PackName: PackCNCF, PackPath: packPath, PackRaw: pack,
-		Wave: 1, AttestedAt: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
+		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
 	})
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
@@ -369,7 +374,7 @@ func TestPrepareIgnoresHandEditedSummaryPending(t *testing.T) {
 
 	result, err := Prepare(PrepareOptions{
 		WorklistRaw: marshalWorklist(t, wl), PackName: PackCNCF, PackPath: packPath, PackRaw: pack,
-		Wave: 1, AttestedAt: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
+		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
 	})
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
@@ -399,8 +404,8 @@ func singleRuleSetup(t *testing.T, mut func(*evidencerepin.Worklist)) (res Prepa
 	wlRaw = marshalWorklist(t, wl)
 	result, err := Prepare(PrepareOptions{
 		WorklistRaw: wlRaw, PackName: PackCNCF, PackPath: packPath, PackRaw: rawPack,
-		Wave: 1, AttestedAt: now, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
-		ReviewRecordDigests: map[string]string{"rule-a": "sha256:" + strings.Repeat("ee", 32)},
+		Wave: 1, AttestedAt: now, Now: now, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
+		ReviewRecords: singleRecords(t, rawPack),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -411,8 +416,7 @@ func singleRuleSetup(t *testing.T, mut func(*evidencerepin.Worklist)) (res Prepa
 func defaultVerifyOptions(t *testing.T, now time.Time) VerifyOptions {
 	t.Helper()
 	return VerifyOptions{
-		AttestedAtNow: now.Add(time.Hour), Chain: &Chain{},
-		ReviewRecordDigests: map[string]string{"rule-a": "sha256:" + strings.Repeat("ee", 32)},
+		AttestedAtNow: now.Add(time.Hour), Chain: &Chain{}, BaseChain: &Chain{},
 	}
 }
 
@@ -493,6 +497,7 @@ func TestVerifyRejectsSmuggledUnlistedRuleChange(t *testing.T) {
 	opts := defaultVerifyOptions(t, now)
 	opts.StatementRaw = raw
 	opts.PriorPackRaw = pack
+	opts.ReviewRecords = singleRecords(t, pack)
 	opts.NextPackRaw = next
 	opts.WorklistRaw = wlRaw
 	opts.PackName = PackCNCF
@@ -520,6 +525,7 @@ func TestVerifyRejectsUnboundDigests(t *testing.T) {
 	opts := defaultVerifyOptions(t, now)
 	opts.StatementRaw = raw
 	opts.PriorPackRaw = pack
+	opts.ReviewRecords = singleRecords(t, pack)
 	opts.NextPackRaw = res.NextPack
 	opts.WorklistRaw = wlRaw
 	opts.PackName = PackCNCF
@@ -538,7 +544,7 @@ func TestVerifyRejectsUnreviewedSample(t *testing.T) {
 	wlRaw := marshalWorklist(t, wl)
 	res, err := Prepare(PrepareOptions{
 		WorklistRaw: wlRaw, PackName: PackCNCF, PackPath: packPath, PackRaw: pack,
-		Wave: 1, AttestedAt: baseNow, NextRevision: "r2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
+		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "r2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -548,7 +554,6 @@ func TestVerifyRejectsUnreviewedSample(t *testing.T) {
 	}
 
 	opts := defaultVerifyOptions(t, baseNow)
-	opts.ReviewRecordDigests = nil
 	opts.StatementRaw = res.StatementCanonical
 	opts.PriorPackRaw = pack
 	opts.NextPackRaw = res.NextPack
@@ -566,7 +571,7 @@ func TestSignAndVerifySignatureRequirePinnedTrustRoot(t *testing.T) {
 	key, root, _ := generateTestKey(t, []byte("correct horse battery staple"))
 
 	// No expected digest at all.
-	if _, err := Sign(SignOptions{Statement: res.StatementCanonical, TrustRoot: root, EncryptedKey: key, Passphrase: []byte("correct horse battery staple")}); err == nil {
+	if _, err := Sign(SignOptions{Statement: res.StatementCanonical, TrustRoot: root, EncryptedKey: key, Passphrase: []byte("correct horse battery staple"), Now: baseNow.Add(time.Hour)}); err == nil {
 		t.Fatal("Sign accepted a trust root with no pinned expected digest")
 	}
 	if _, err := VerifySignature(VerifySignatureOptions{Statement: res.StatementCanonical, Envelope: []byte("{}"), TrustRoot: root}); err == nil {
@@ -577,7 +582,7 @@ func TestSignAndVerifySignatureRequirePinnedTrustRoot(t *testing.T) {
 	wrongDigest := "sha256:" + strings.Repeat("ff", 32)
 	if _, err := Sign(SignOptions{
 		Statement: res.StatementCanonical, TrustRoot: root, EncryptedKey: key,
-		Passphrase: []byte("correct horse battery staple"), ExpectedTrustRootDigest: wrongDigest,
+		Passphrase: []byte("correct horse battery staple"), ExpectedTrustRootDigest: wrongDigest, Now: baseNow.Add(time.Hour),
 	}); err == nil {
 		t.Fatal("expected Sign to reject a mismatched expected trust root digest")
 	}
@@ -616,8 +621,8 @@ func prepareOnePassResult(t *testing.T, now time.Time, packPath string, spec rul
 	worklistRaw := marshalWorklist(t, wl)
 	result, err := Prepare(PrepareOptions{
 		WorklistRaw: worklistRaw, PackName: PackCNCF, PackPath: packPath, PackRaw: pack,
-		Wave: 1, AttestedAt: now, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
-		ReviewRecordDigests: map[string]string{spec.id: "sha256:" + strings.Repeat("ee", 32)},
+		Wave: 1, AttestedAt: now, Now: now, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
+		ReviewRecords: singleRecords(t, pack),
 	})
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
@@ -633,6 +638,7 @@ func TestVerifyHappyPath(t *testing.T) {
 	opts := defaultVerifyOptions(t, baseNow)
 	opts.StatementRaw = result.StatementCanonical
 	opts.PriorPackRaw = pack
+	opts.ReviewRecords = singleRecords(t, pack)
 	opts.NextPackRaw = result.NextPack
 	opts.WorklistRaw = worklistRaw
 	opts.PackName = PackCNCF
@@ -664,6 +670,7 @@ func TestVerifyRejectsTamperedNextPack(t *testing.T) {
 	opts := defaultVerifyOptions(t, baseNow)
 	opts.StatementRaw = result.StatementCanonical
 	opts.PriorPackRaw = priorPack
+	opts.ReviewRecords = singleRecords(t, priorPack)
 	opts.NextPackRaw = tampered
 	opts.WorklistRaw = worklistRaw
 	opts.PackName = PackCNCF
@@ -704,6 +711,7 @@ func TestVerifyRejectsUnlistedRuleTamperedAloneWithoutStatementChange(t *testing
 	opts := defaultVerifyOptions(t, baseNow)
 	opts.StatementRaw = result.StatementCanonical
 	opts.PriorPackRaw = priorPack
+	opts.ReviewRecords = singleRecords(t, priorPack)
 	opts.NextPackRaw = tampered
 	opts.WorklistRaw = worklistRaw
 	opts.PackName = PackCNCF
@@ -733,6 +741,7 @@ func TestVerifyRejectsExpiredLease(t *testing.T) {
 	opts := defaultVerifyOptions(t, baseNow)
 	opts.StatementRaw = raw
 	opts.PriorPackRaw = priorPack
+	opts.ReviewRecords = singleRecords(t, priorPack)
 	opts.NextPackRaw = result.NextPack
 	opts.WorklistRaw = worklistRaw
 	opts.PackName = PackCNCF
@@ -765,6 +774,7 @@ func TestVerifyRejectsWrongPackBinding(t *testing.T) {
 	opts := defaultVerifyOptions(t, baseNow)
 	opts.StatementRaw = result.StatementCanonical
 	opts.PriorPackRaw = otherPack
+	opts.ReviewRecords = singleRecords(t, otherPack)
 	opts.NextPackRaw = result.NextPack
 	opts.WorklistRaw = worklistRaw
 	opts.PackName = PackCNCF
@@ -794,6 +804,7 @@ func TestVerifyRejectsChainWithoutPreviousStatement(t *testing.T) {
 	opts := defaultVerifyOptions(t, baseNow)
 	opts.StatementRaw = tampered
 	opts.PriorPackRaw = priorPack
+	opts.ReviewRecords = singleRecords(t, priorPack)
 	opts.NextPackRaw = result.NextPack
 	opts.WorklistRaw = worklistRaw
 	opts.PackName = PackCNCF
@@ -815,6 +826,7 @@ func TestVerifyRejectsEmptyWorklist(t *testing.T) {
 	opts := defaultVerifyOptions(t, baseNow)
 	opts.StatementRaw = result.StatementCanonical
 	opts.PriorPackRaw = priorPack
+	opts.ReviewRecords = singleRecords(t, priorPack)
 	opts.NextPackRaw = result.NextPack
 	opts.WorklistRaw = nil
 	opts.PackName = PackCNCF
@@ -834,6 +846,7 @@ func TestVerifyRejectsFutureAttestedAt(t *testing.T) {
 	opts.AttestedAtNow = baseNow.Add(-time.Hour) // verifier's clock is BEFORE the statement's attestedAt
 	opts.StatementRaw = result.StatementCanonical
 	opts.PriorPackRaw = priorPack
+	opts.ReviewRecords = singleRecords(t, priorPack)
 	opts.NextPackRaw = result.NextPack
 	opts.WorklistRaw = worklistRaw
 	opts.PackName = PackCNCF
@@ -880,7 +893,7 @@ func TestSignAndVerifySignatureRoundTrip(t *testing.T) {
 	expectedDigest := sourcecorpus.SHA(trustRoot)
 	envelope, err := Sign(SignOptions{
 		Statement: result.StatementCanonical, TrustRoot: trustRoot, EncryptedKey: encryptedKey,
-		Passphrase: []byte("correct horse battery staple"), ExpectedTrustRootDigest: expectedDigest,
+		Passphrase: []byte("correct horse battery staple"), ExpectedTrustRootDigest: expectedDigest, Now: baseNow.Add(time.Hour),
 	})
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
@@ -902,7 +915,7 @@ func TestSignRefusesUnreviewedSample(t *testing.T) {
 	wl, pack := buildWorklistAndPack(t, packPath, baseNow, []ruleSpec{spec})
 	result, err := Prepare(PrepareOptions{
 		WorklistRaw: marshalWorklist(t, wl), PackName: PackCNCF, PackPath: packPath, PackRaw: pack,
-		Wave: 1, AttestedAt: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
+		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
 		// deliberately no ReviewRecordDigests: the sampled rule stays unreviewed.
 	})
 	if err != nil {
@@ -915,10 +928,10 @@ func TestSignRefusesUnreviewedSample(t *testing.T) {
 	encryptedKey, trustRoot, _ := generateTestKey(t, []byte("correct horse battery staple"))
 	_, err = Sign(SignOptions{
 		Statement: result.StatementCanonical, TrustRoot: trustRoot, EncryptedKey: encryptedKey,
-		Passphrase: []byte("correct horse battery staple"), ExpectedTrustRootDigest: sourcecorpus.SHA(trustRoot),
+		Passphrase: []byte("correct horse battery staple"), ExpectedTrustRootDigest: sourcecorpus.SHA(trustRoot), Now: baseNow.Add(time.Hour),
 	})
-	if err == nil {
-		t.Fatal("expected Sign to refuse a statement with an unreviewed sampled rule")
+	if err == nil || !strings.Contains(err.Error(), "has no recorded individual review") {
+		t.Fatalf("expected Sign to refuse a statement with an unreviewed sampled rule, got %v", err)
 	}
 }
 
@@ -991,7 +1004,7 @@ func prepareSingle(t *testing.T, wl evidencerepin.Worklist, pack []byte, packPat
 	t.Helper()
 	result, err := Prepare(PrepareOptions{
 		WorklistRaw: marshalWorklist(t, wl), PackName: PackCNCF, PackPath: packPath, PackRaw: pack,
-		Wave: 1, AttestedAt: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
+		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
 	})
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
@@ -1186,11 +1199,17 @@ func (f *chainFixture) chain() *Chain {
 	return &Chain{Entries: append([]ChainEntry(nil), f.entries...), TrustRoot: f.root, ExpectedTrustRootDigest: f.digest}
 }
 
+// sign signs statementRaw with f's key, with the signer's clock an hour
+// after the statement's own attestedAt.
 func (f *chainFixture) sign(statementRaw []byte) []byte {
 	f.t.Helper()
+	var statement Statement
+	if err := json.Unmarshal(statementRaw, &statement); err != nil {
+		f.t.Fatal(err)
+	}
 	envelope, err := Sign(SignOptions{
 		Statement: statementRaw, TrustRoot: f.root, EncryptedKey: f.key,
-		Passphrase: []byte(testPassphrase), ExpectedTrustRootDigest: f.digest,
+		Passphrase: []byte(testPassphrase), ExpectedTrustRootDigest: f.digest, Now: mustParse(statement.AttestedAt).Add(time.Hour),
 	})
 	if err != nil {
 		f.t.Fatalf("Sign: %v", err)
@@ -1203,7 +1222,56 @@ func (f *chainFixture) append(name string, statementRaw []byte) {
 	f.entries = append(f.entries, ChainEntry{Name: name, Statement: statementRaw, Envelope: f.sign(statementRaw)})
 }
 
-func reviewDigest(label string) string { return sourcecorpus.SHA([]byte("review record " + label)) }
+// testReviewRecord renders a structurally valid individual review record
+// (maintainer/reviewrecord's format) for ruleID, bound to the rule's exact
+// version in packRaw, decided at decidedAt. maintainer only varies the
+// record's bytes.
+func testReviewRecord(t *testing.T, packRaw []byte, ruleID string, decidedAt time.Time, maintainer string) []byte {
+	t.Helper()
+	doc, err := loadPack(packRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	project, ruleDigest := "", ""
+	for _, entry := range doc.Entries {
+		fields, _ := parseRuleFields(entry.Rule)
+		if fields.ID == ruleID {
+			project = entry.Project
+			ruleDigest, _, _, err = ruleDigestAndEvidence(entry.Rule)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if project == "" {
+		t.Fatalf("testReviewRecord: rule %s not in pack", ruleID)
+	}
+	other := "sha256:" + strings.Repeat("d", 64)
+	raw, err := json.Marshal(map[string]any{
+		"schema": reviewrecord.RecordSchema,
+		"decision": map[string]any{
+			"authority": "DECLARED_MAINTAINER_DECISION_NOT_AUTHENTICATED", "state": "ACCEPTED_FOR_SIGNING_REVIEW",
+			"maintainer": maintainer, "decidedAt": rfc3339(decidedAt), "scope": "ONE_RULE_CONSISTENCY_ONLY",
+		},
+		"subject": map[string]any{"project": project, "ruleId": ruleID, "knowledgeRevision": "1", "evaluationAt": rfc3339(decidedAt)},
+		"bindings": map[string]any{
+			"packetDigest": other, "packetReceiptDigest": other, "sourceReceiptDigest": other, "sourceCorpusManifestDigest": other,
+			"sourceCorpusReceiptDigest": other, "vectorFileDigest": other, "selectedVectorGroupDigest": other, "targetDigest": other,
+			"engineCapabilityDigest": other, "ruleDigest": ruleDigest, "ruleEvidenceDigest": other,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return append(raw, '\n')
+}
+
+// singleRecords is the review record the single-rule fixtures supply for
+// their one sampled rule, rule-a.
+func singleRecords(t *testing.T, packRaw []byte) map[string][]byte {
+	t.Helper()
+	return map[string][]byte{"rule-a": testReviewRecord(t, packRaw, "rule-a", baseNow.Add(-time.Hour), "Test Reviewer")}
+}
 
 // padPackWithPastRules adds n rules whose validUntil values sit in distinct
 // ISO weeks of 2023-2024, far from any slot week used by these tests.
@@ -1230,6 +1298,11 @@ func padPackWithPastRules(t *testing.T, packRaw []byte, n int) []byte {
 
 const chainPackPath = "/p/rules.json"
 
+// cycleSpacing is the time between consecutive chain test cycles: one full
+// wave cycle, so each cycle's wave-1 slot date is strictly later than the
+// previous cycle's and every rule renewed last cycle is eligible again.
+const cycleSpacing = slotCycleDays * 24 * time.Hour
+
 func cycleSpecs(n int, at time.Time) []ruleSpec {
 	specs := make([]ruleSpec, 0, n)
 	for i := 0; i < n; i++ {
@@ -1243,25 +1316,36 @@ type cycle struct {
 	worklistRaw []byte
 	prior       []byte
 	at          time.Time
-	reviews     map[string]string
+	reviews     map[string][]byte
 }
 
 // prepareCycle prepares one batch against f's chain. It runs Prepare once
-// to learn the seeded sample, then again with a new review record digest
-// for every sampled rule (plus extraReviews), exactly as a maintainer
-// would after reviewing the sample.
-func prepareCycle(t *testing.T, f *chainFixture, prior []byte, at time.Time, specs []ruleSpec, revision string, extraReviews map[string]string) cycle {
+// to learn the seeded sample, then again with a new review record for
+// every sampled rule (plus one for each rule in extraReviews), exactly as
+// a maintainer would after reviewing the sample. Every record is bound to
+// the rule's version in prior and decided an hour before at.
+func prepareCycle(t *testing.T, f *chainFixture, prior []byte, at time.Time, specs []ruleSpec, revision string, extraReviews []string) cycle {
+	t.Helper()
+	return prepareCycleWithRecords(t, f, prior, at, specs, revision, extraReviews, nil)
+}
+
+// prepareCycleWithRecords is prepareCycle with extra, caller-built review
+// records added to the supplied directory as they are.
+func prepareCycleWithRecords(t *testing.T, f *chainFixture, prior []byte, at time.Time, specs []ruleSpec, revision string, extraReviews []string, records map[string][]byte) cycle {
 	t.Helper()
 	wl, _ := buildWorklistAndPack(t, chainPackPath, at, specs)
 	worklistRaw := marshalWorklist(t, wl)
-	reviews := map[string]string{}
-	for id, digest := range extraReviews {
-		reviews[id] = digest
+	reviews := map[string][]byte{}
+	for id, raw := range records {
+		reviews[id] = raw
+	}
+	for _, id := range extraReviews {
+		reviews[id] = testReviewRecord(t, prior, id, at.Add(-time.Hour), "Individual Reviewer")
 	}
 	opts := PrepareOptions{
 		WorklistRaw: worklistRaw, PackName: PackCNCF, PackPath: chainPackPath, PackRaw: prior, Chain: f.chain(),
-		Wave: 1, AttestedAt: at, NextRevision: revision, EngineCapabilityDigest: testEngineCapabilityDigest,
-		ReviewRecordDigests: reviews,
+		Wave: 1, AttestedAt: at, Now: at, NextRevision: revision, EngineCapabilityDigest: testEngineCapabilityDigest,
+		ReviewRecords: reviews,
 	}
 	first, err := Prepare(opts)
 	if err != nil {
@@ -1269,7 +1353,7 @@ func prepareCycle(t *testing.T, f *chainFixture, prior []byte, at time.Time, spe
 	}
 	for _, sample := range first.Statement.SampledForFullReview {
 		if sample.ReviewRecordDigest == "" {
-			reviews[sample.RuleID] = reviewDigest(revision + "/" + sample.RuleID)
+			reviews[sample.RuleID] = testReviewRecord(t, prior, sample.RuleID, at.Add(-time.Hour), "Sample Reviewer")
 		}
 	}
 	res, err := Prepare(opts)
@@ -1290,11 +1374,23 @@ func renewedIDs(result PrepareResult) string {
 	return strings.Join(ids, ",")
 }
 
+// verifyCycle verifies c against chain, with chain minus c's own
+// statement (if present) as the base branch's chain.
 func verifyCycle(c cycle, chain *Chain) error {
+	base := &Chain{TrustRoot: chain.TrustRoot, ExpectedTrustRootDigest: chain.ExpectedTrustRootDigest}
+	for _, entry := range chain.Entries {
+		if string(entry.Statement) != string(c.res.StatementCanonical) {
+			base.Entries = append(base.Entries, entry)
+		}
+	}
+	return verifyCycleAgainstBase(c, base, chain)
+}
+
+func verifyCycleAgainstBase(c cycle, base, chain *Chain) error {
 	_, err := Verify(VerifyOptions{
 		StatementRaw: c.res.StatementCanonical, PriorPackRaw: c.prior, NextPackRaw: c.res.NextPack,
-		WorklistRaw: c.worklistRaw, Chain: chain, PackName: PackCNCF, PackPath: chainPackPath,
-		EngineCapabilityDigest: testEngineCapabilityDigest, AttestedAtNow: c.at.Add(time.Hour), ReviewRecordDigests: c.reviews,
+		WorklistRaw: c.worklistRaw, Chain: chain, BaseChain: base, PackName: PackCNCF, PackPath: chainPackPath,
+		EngineCapabilityDigest: testEngineCapabilityDigest, AttestedAtNow: c.at.Add(time.Hour), ReviewRecords: c.reviews,
 	})
 	return err
 }
@@ -1337,7 +1433,7 @@ func twoCycleChain(t *testing.T) (f *chainFixture, c1, c2 cycle, target string, 
 	}
 	f.append("0001", c1.res.StatementCanonical)
 
-	t2 := t1.Add(40 * 24 * time.Hour)
+	t2 := t1.Add(cycleSpacing)
 	c2 = prepareCycle(t, f, c1.res.NextPack, t2, cycleSpecs(12, t2), "rev-3", nil)
 	if err := verifyCycle(c2, f.chain()); err != nil {
 		t.Fatalf("cycle 2 verify: %v", err)
@@ -1352,7 +1448,7 @@ func twoCycleChain(t *testing.T) (f *chainFixture, c1, c2 cycle, target string, 
 	if target == "" {
 		t.Fatal("setup: no rule reached two consecutive batch cycles")
 	}
-	return f, c1, c2, target, t2.Add(40 * 24 * time.Hour)
+	return f, c1, c2, target, t2.Add(cycleSpacing)
 }
 
 func TestChainCapsThirdConsecutiveBatchRenewal(t *testing.T) {
@@ -1424,7 +1520,7 @@ func TestVerifyRejectsTruncatedStatementChain(t *testing.T) {
 	}
 	_, err := Prepare(PrepareOptions{
 		WorklistRaw: honest.worklistRaw, PackName: PackCNCF, PackPath: chainPackPath, PackRaw: c2.res.NextPack, Chain: truncated,
-		Wave: 1, AttestedAt: t3, NextRevision: "rev-4", EngineCapabilityDigest: testEngineCapabilityDigest, ReviewRecordDigests: honest.reviews,
+		Wave: 1, AttestedAt: t3, Now: t3, NextRevision: "rev-4", EngineCapabilityDigest: testEngineCapabilityDigest, ReviewRecords: honest.reviews,
 	})
 	if err == nil || !strings.Contains(err.Error(), "V5:") || !strings.Contains(err.Error(), "truncated") {
 		t.Fatalf("expected Prepare to refuse a truncated chain with a V5 error, got %v", err)
@@ -1534,7 +1630,9 @@ func TestVerifyAcceptsStatementAlreadyAppendedAsChainHead(t *testing.T) {
 	if err := verifyCycle(c2, f.chain()); err != nil {
 		t.Fatalf("a statement already appended as the chain head must still verify: %v", err)
 	}
-	if err := verifyCycle(c1, f.chain()); err == nil || !strings.Contains(err.Error(), "V5:") || !strings.Contains(err.Error(), "already recorded") {
+	late := c1
+	late.at = c2.at // a verifier clock at which every chain entry is in the past
+	if err := verifyCycle(late, f.chain()); err == nil || !strings.Contains(err.Error(), "V5:") || !strings.Contains(err.Error(), "already recorded in the chain, and not as its head") {
 		t.Fatalf("expected a V5 error for a statement recorded mid-chain, got %v", err)
 	}
 }
@@ -1557,7 +1655,7 @@ func TestPrepareAndVerifyAgreeAfterRuleWasIneligibleLastCycle(t *testing.T) {
 		t.Fatalf("cycle 1 verify: %v", err)
 	}
 	f.append("0001", c1.res.StatementCanonical)
-	t2 := t1.Add(40 * 24 * time.Hour)
+	t2 := t1.Add(cycleSpacing)
 	c2 := prepareCycle(t, f, c1.res.NextPack, t2, cycleSpecs(2, t2), "rev-3", nil)
 	if cyclesOf(c2, "rule-01") != 1 {
 		t.Fatalf("expected rule-01 renewed at cycle 1, got %d (%+v)", cyclesOf(c2, "rule-01"), c2.res.Statement.NotExtended)
@@ -1569,7 +1667,7 @@ func TestPrepareAndVerifyAgreeAfterRuleWasIneligibleLastCycle(t *testing.T) {
 
 func TestNewIndividualReviewResetsConsecutiveCycles(t *testing.T) {
 	f, _, c2, target, t3 := twoCycleChain(t)
-	c3 := prepareCycle(t, f, c2.res.NextPack, t3, cycleSpecs(12, t3), "rev-4", map[string]string{target: reviewDigest("individual/" + target)})
+	c3 := prepareCycle(t, f, c2.res.NextPack, t3, cycleSpecs(12, t3), "rev-4", []string{target})
 	if cyclesOf(c3, target) != 1 {
 		t.Fatalf("expected a new review to reset %s to cycle 1, got %d (reason %q)", target, cyclesOf(c3, target), worstClassOf(c3, target))
 	}
@@ -1587,23 +1685,6 @@ func TestNewIndividualReviewResetsConsecutiveCycles(t *testing.T) {
 	}
 	if err := verifyCycle(c3, f.chain()); err != nil {
 		t.Fatalf("cycle 3 verify: %v", err)
-	}
-}
-
-func TestReusedReviewRecordDoesNotResetConsecutiveCycles(t *testing.T) {
-	state := newChainState()
-	digest := reviewDigest("once")
-	state.recordedReviews["rule-a"] = map[string]bool{digest: true}
-	state.batchSinceReview["rule-a"] = 1
-	if fresh := state.freshReviews([]string{"rule-a"}, map[string]string{"rule-a": digest}); len(fresh) != 0 {
-		t.Fatalf("a review record already recorded in the chain was treated as new: %+v", fresh)
-	}
-	statement := Statement{
-		AttestedAt: "2026-10-06T12:00:00Z", IndividualReviews: []IndividualReview{{RuleID: "rule-a", ReviewRecordDigest: digest}},
-		Rules: []RuleAttestation{{RuleID: "rule-a", ConsecutiveBatchCycles: 1, PriorReviewedAt: "2026-09-01T00:00:00Z", LastIndividualReviewAt: "2026-10-06T12:00:00Z"}},
-	}
-	if err := checkV5(statement, state); err == nil || !strings.Contains(err.Error(), "V5:") || !strings.Contains(err.Error(), "already recorded") {
-		t.Fatalf("expected a V5 error for a reused review record, got %v", err)
 	}
 }
 
@@ -1671,7 +1752,7 @@ func TestPriorPackRuleReviewedAfterChainHeadNeedsNewReviewRecord(t *testing.T) {
 	if err := state.checkPriorPackCovered([]ruleFields{rule}, nil); err == nil || !strings.Contains(err.Error(), "V5:") || !strings.Contains(err.Error(), "truncated") {
 		t.Fatalf("expected a V5 error for a rule reviewed after the chain head with no review record, got %v", err)
 	}
-	if err := state.checkPriorPackCovered([]ruleFields{rule}, map[string]string{"rule-a": reviewDigest("x")}); err != nil {
+	if err := state.checkPriorPackCovered([]ruleFields{rule}, map[string]string{"rule-a": "sha256:" + strings.Repeat("ee", 32)}); err != nil {
 		t.Fatalf("a new review record must account for the later reviewedAt: %v", err)
 	}
 	rule.Evidence.ReviewedAt = "2026-08-20T12:00:00Z"
@@ -1690,7 +1771,7 @@ func TestPrepareDefersRulesOverStaggerCap(t *testing.T) {
 	for i := range specs {
 		// Current validUntil runs opposite to rule ID order, so the cap
 		// must pick by validUntil first.
-		specs[i].validUntil = rfc3339(baseNow.Add(time.Duration(60-i) * 24 * time.Hour))
+		specs[i].validUntil = rfc3339(baseNow.Add(time.Duration(20-i) * 24 * time.Hour))
 	}
 	specs[5].validUntil = specs[4].validUntil // tie: broken by rule ID
 	_, pack := buildWorklistAndPack(t, chainPackPath, baseNow, specs)
@@ -1735,16 +1816,18 @@ func TestPrepareAndVerifyStayWithinStaggerCapOnRealPacks(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		at := time.Date(2026, 9, 25, 12, 0, 0, 0, time.UTC)
+		// Late enough that every wave's slot date is later than the
+		// packs' current validUntil values, so only V7 limits the batch.
+		at := time.Date(2026, 12, 14, 12, 0, 0, 0, time.UTC)
 		wl := evidencerepin.Worklist{
 			Schema: evidencerepin.Schema, Authority: evidencerepin.Authority, GeneratedAt: rfc3339(at),
 			Scope: evidencerepin.WorklistScope{RulePacks: []string{tc.path}},
 			Repos: []evidencerepin.RepoResolution{{Owner: "o", Repo: "r", Status: "RESOLVED", CurrentTag: "v1", ResolvedAt: rfc3339(at.Add(-time.Hour))}},
 		}
-		reviews := map[string]string{}
+		reviews := map[string][]byte{}
 		for _, entry := range doc.Entries {
 			fields, _ := parseRuleFields(entry.Rule)
-			reviews[fields.ID] = reviewDigest(tc.pack + "/" + fields.ID)
+			reviews[fields.ID] = testReviewRecord(t, raw, fields.ID, at.Add(-time.Hour), "Test Reviewer")
 			for _, source := range fields.Evidence.Sources {
 				wl.Citations = append(wl.Citations, evidencerepin.ClassResult{
 					RulePack: tc.path, RuleID: fields.ID, Project: entry.Project, SourceID: source.ID,
@@ -1756,7 +1839,7 @@ func TestPrepareAndVerifyStayWithinStaggerCapOnRealPacks(t *testing.T) {
 		for wave := minWave; wave <= maxWave; wave++ {
 			res, err := Prepare(PrepareOptions{
 				WorklistRaw: worklistRaw, PackName: tc.pack, PackPath: tc.path, PackRaw: raw, Chain: &Chain{},
-				Wave: wave, AttestedAt: at, NextRevision: "next", EngineCapabilityDigest: testEngineCapabilityDigest, ReviewRecordDigests: reviews,
+				Wave: wave, AttestedAt: at, Now: at, NextRevision: "next", EngineCapabilityDigest: testEngineCapabilityDigest, ReviewRecords: reviews,
 			})
 			if err != nil {
 				t.Fatalf("%s wave %d: Prepare: %v", tc.pack, wave, err)
@@ -1766,8 +1849,8 @@ func TestPrepareAndVerifyStayWithinStaggerCapOnRealPacks(t *testing.T) {
 			}
 			if _, err := Verify(VerifyOptions{
 				StatementRaw: res.StatementCanonical, PriorPackRaw: raw, NextPackRaw: res.NextPack, WorklistRaw: worklistRaw,
-				Chain: &Chain{}, PackName: tc.pack, PackPath: tc.path, EngineCapabilityDigest: testEngineCapabilityDigest,
-				AttestedAtNow: at.Add(time.Hour), ReviewRecordDigests: reviews,
+				Chain: &Chain{}, BaseChain: &Chain{}, PackName: tc.pack, PackPath: tc.path, EngineCapabilityDigest: testEngineCapabilityDigest,
+				AttestedAtNow: at.Add(time.Hour), ReviewRecords: reviews,
 			}); err != nil {
 				t.Fatalf("%s wave %d: Verify rejected Prepare's own output (%d renewed): %v", tc.pack, wave, res.EligibleRuleCount, err)
 			}

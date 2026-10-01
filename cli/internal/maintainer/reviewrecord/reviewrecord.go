@@ -315,6 +315,35 @@ func exactSelectedRule(raw []byte, revision, project, ruleID string) (cncfcheck.
 	return bundle, ruleRaw, rule, nil
 }
 
+// RecordFields is the subset of a review record's declared fields a caller
+// needs to bind the record to one rule: which rule it names, which exact
+// version of that rule it was made against, and when the decision was
+// declared.
+type RecordFields struct {
+	Project    string
+	RuleID     string
+	RuleDigest string
+	DecidedAt  time.Time
+}
+
+// ParseRecordFields applies this package's full structural record
+// validation (closed field sets, fixed schema, authority, state and scope,
+// well-formed identifiers, timestamps and binding digests) to raw and
+// returns the fields that identify what the record reviewed. It does not
+// check the record against its packet, corpus, vectors or target; only
+// Verify does that.
+func ParseRecordFields(raw []byte) (RecordFields, error) {
+	r, _, err := parseRecord(raw)
+	if err != nil {
+		return RecordFields{}, errRejected
+	}
+	decidedAt, err := parseUTC(r.Decision.DecidedAt)
+	if err != nil {
+		return RecordFields{}, errRejected
+	}
+	return RecordFields{Project: r.Subject.Project, RuleID: r.Subject.RuleID, RuleDigest: r.Bindings.RuleDigest, DecidedAt: decidedAt}, nil
+}
+
 func parseRecord(raw []byte) (record, any, error) {
 	value, err := sourcecorpus.DecodeBounded(raw, maxRecord)
 	if err != nil {

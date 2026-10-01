@@ -32,6 +32,14 @@ type VerifyOptions struct {
 	// derivation assigns it; neither is ever taken from a caller-supplied
 	// value.
 	Chain *Chain
+	// BaseChain is the same pack's statement chain as it is on the base
+	// branch the change is proposed against. Required: pass a Chain with no
+	// entries when the base branch has no attestation history for the
+	// pack. Chain must equal BaseChain exactly, plus at most one added
+	// entry that is the statement under verification (see
+	// checkAppendOnly), so a change can never remove, replace or reorder
+	// the chain it builds on.
+	BaseChain *Chain
 	// EngineCapabilityDigest, PackName and PackPath mirror Prepare's
 	// options: checkV1AndV3 recomputes the whole statement and next pack
 	// exactly the way Prepare did and requires an exact byte match.
@@ -43,16 +51,18 @@ type VerifyOptions struct {
 	// review-lease clock is bounded by an honest verifier clock, not only
 	// by internally consistent statement fields.
 	AttestedAtNow time.Time
-	// ReviewRecordDigests supplies, for every sampled rule, the digest of
-	// its actual individual review record file (see the CLI's
-	// --review-record-dir). It is used to recompute the statement exactly
-	// (checkV1AndV3: a statement whose declared individualReviews or
-	// reviewRecordDigest does not match the supplied records fails to
-	// reproduce) and, via checkV6, as the individually-reviewed
-	// alternative for a rule whose dates changed outside this statement's
-	// own batch. This package does not re-verify a review record's
-	// authenticity; that is maintainer/reviewrecord's job.
-	ReviewRecordDigests map[string]string
+	// ReviewRecords supplies individual review records by rule ID (see
+	// PrepareOptions.ReviewRecords and the CLI's --review-record-dir). Each
+	// is checked structurally and against the prior pack and the chain
+	// (chainState.reviewsFromRecords); the ones that are new individual
+	// reviews are used to recompute the statement exactly (checkV1AndV3: a
+	// statement whose declared individualReviews or reviewRecordDigest does
+	// not match the supplied records fails to reproduce) and, via checkV6,
+	// as the individually-reviewed alternative for a rule whose dates
+	// changed outside this statement's own batch. This package does not
+	// re-verify a record against its packet, corpus, vectors and target;
+	// that is maintainer/reviewrecord's job.
+	ReviewRecords map[string][]byte
 }
 
 // VerifyResult reports what Verify established. Every field is filled in
@@ -90,6 +100,9 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 	if err := checkV2(statement); err != nil {
 		return VerifyResult{}, err
 	}
+	if err := checkAppendOnly(options.BaseChain, options.Chain, options.StatementRaw); err != nil {
+		return VerifyResult{}, err
+	}
 	state, err := deriveChainState(options.Chain, options.PackName, options.AttestedAtNow.UTC(), sourcecorpus.SHA(options.StatementRaw))
 	if err != nil {
 		return VerifyResult{}, err
@@ -111,7 +124,8 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 	if err != nil {
 		return VerifyResult{}, err
 	}
-	if err := checkPriorPackAgainstChain(state, priorDoc, options.ReviewRecordDigests); err != nil {
+	fresh, err := checkPriorPackAgainstChain(state, priorDoc, options.ReviewRecords, attestedAt.UTC())
+	if err != nil {
 		return VerifyResult{}, err
 	}
 
@@ -124,7 +138,7 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 	if err := checkV5(statement, state); err != nil {
 		return VerifyResult{}, err
 	}
-	if err := checkV6(priorByID, nextByID, statement, options.ReviewRecordDigests); err != nil {
+	if err := checkV6(priorByID, nextByID, statement, fresh); err != nil {
 		return VerifyResult{}, err
 	}
 	if err := checkV7(statement, nextByID); err != nil {
@@ -182,7 +196,7 @@ func checkV1AndV3(statement Statement, statementRaw []byte, options VerifyOption
 		WorklistRaw: options.WorklistRaw, PackName: options.PackName, PackPath: options.PackPath,
 		PackRaw: options.PriorPackRaw,
 		Wave:    statement.Wave, AttestedAt: mustParse(statement.AttestedAt), NextRevision: statement.Pack.Next.Revision,
-		EngineCapabilityDigest: options.EngineCapabilityDigest, ReviewRecordDigests: options.ReviewRecordDigests,
+		EngineCapabilityDigest: options.EngineCapabilityDigest, ReviewRecords: options.ReviewRecords,
 	}, state)
 	if err != nil {
 		return fmt.Errorf("%w: V3: recomputation failed: %v", ErrRejected, err)
@@ -236,22 +250,25 @@ func rulesByID(doc packDocument) (map[string]json.RawMessage, error) {
 	return byID, nil
 }
 
-// checkPriorPackAgainstChain applies chainState.checkPriorPackCovered to
-// the supplied prior pack, with the same new-review computation Prepare
-// uses, so a truncated chain is reported as V5 rather than only as a
-// failed recomputation.
-func checkPriorPackAgainstChain(state chainState, priorDoc packDocument, reviewRecordDigests map[string]string) error {
-	rules := make([]ruleFields, 0, len(priorDoc.Entries))
-	ids := make([]string, 0, len(priorDoc.Entries))
-	for _, entry := range priorDoc.Entries {
-		fields, err := parseRuleFields(entry.Rule)
-		if err != nil {
-			return err
-		}
-		rules = append(rules, fields)
-		ids = append(ids, fields.ID)
+// checkPriorPackAgainstChain decides which supplied review records are
+// new individual reviews (chainState.reviewsFromRecords, exactly as
+// Prepare does) and applies chainState.checkPriorPackCovered to the
+// supplied prior pack, so a bad review record or a truncated chain is
+// reported as V5 rather than only as a failed recomputation. It returns
+// the new reviews by rule ID.
+func checkPriorPackAgainstChain(state chainState, priorDoc packDocument, records map[string][]byte, attestedAt time.Time) (map[string]string, error) {
+	candidates, rules, err := packCandidates(priorDoc)
+	if err != nil {
+		return nil, err
 	}
-	return state.checkPriorPackCovered(rules, state.freshReviews(ids, reviewRecordDigests))
+	fresh, err := state.reviewsFromRecords(candidatesByID(candidates), records, attestedAt)
+	if err != nil {
+		return nil, err
+	}
+	if err := state.checkPriorPackCovered(rules, fresh); err != nil {
+		return nil, err
+	}
+	return fresh, nil
 }
 
 // checkV5 checks the statement against the pack's verified statement
@@ -269,11 +286,12 @@ func checkV5(statement Statement, state chainState) error {
 // checkV6 is a CI gate over the pack diff, independent of checkV1AndV3:
 // every rule whose evidence.reviewedAt or evidence.validUntil changed
 // between the prior and next pack must be covered either by this
-// statement or by a declared individual review record, and every rule
-// present in one pack must be present in the other. It does not re-verify
-// a review record's authenticity; that stays maintainer/reviewrecord's
-// job.
-func checkV6(priorByID, nextByID map[string]json.RawMessage, statement Statement, reviewRecordDigests map[string]string) error {
+// statement or by a new individual review record (freshReviews, as
+// returned by checkPriorPackAgainstChain), and every rule present in one
+// pack must be present in the other. It does not re-verify a review
+// record against its packet, corpus, vectors and target; that stays
+// maintainer/reviewrecord's job.
+func checkV6(priorByID, nextByID map[string]json.RawMessage, statement Statement, freshReviews map[string]string) error {
 	covered := map[string]bool{}
 	for _, ra := range statement.Rules {
 		covered[ra.RuleID] = true
@@ -305,7 +323,7 @@ func checkV6(priorByID, nextByID map[string]json.RawMessage, statement Statement
 		if covered[ruleID] {
 			continue
 		}
-		if digest, ok := reviewRecordDigests[ruleID]; ok && digest != "" {
+		if digest, ok := freshReviews[ruleID]; ok && digest != "" {
 			continue
 		}
 		return fmt.Errorf("%w: V6: rule %s evidence dates changed with no covering attestation or review record", ErrRejected, ruleID)

@@ -3,16 +3,20 @@
 package evidencereattest
 
 import (
+	"bytes"
 	"fmt"
 	"sort"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/maintainer/reviewrecord"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
 
 // ChainEntry is one previously produced statement in a pack's statement
 // chain together with its detached signature envelope. Name is only used
-// in error messages; it plays no part in ordering the chain.
+// in error messages; it plays no part in ordering the chain or in comparing
+// a chain against its base (see checkAppendOnly), which use the exact
+// statement and envelope bytes.
 type ChainEntry struct {
 	Name      string
 	Statement []byte
@@ -49,6 +53,19 @@ type chainState struct {
 	// has already recorded, so a record is never counted as a new review
 	// twice.
 	recordedReviews map[string]map[string]bool
+	// entries holds, keyed by attestedAt (unique, because attestedAt
+	// strictly increases along the chain), which rules each chain entry
+	// renewed or recorded an individual review for, and the validUntil it
+	// renewed them to (see checkPriorPackCovered).
+	entries map[string]entryRecord
+}
+
+// entryRecord is what one chain entry did, as checkPriorPackCovered needs
+// it. It is never modified after apply records it.
+type entryRecord struct {
+	validUntil string
+	renewed    map[string]bool
+	reviewed   map[string]bool
 }
 
 func newChainState() chainState {
@@ -56,6 +73,7 @@ func newChainState() chainState {
 		batchSinceReview: map[string]int{},
 		lastReviewAt:     map[string]string{},
 		recordedReviews:  map[string]map[string]bool{},
+		entries:          map[string]entryRecord{},
 	}
 }
 
@@ -78,6 +96,9 @@ func (s chainState) clone() chainState {
 			set[d] = true
 		}
 		out.recordedReviews[k] = set
+	}
+	for k, v := range s.entries {
+		out.entries[k] = v
 	}
 	return out
 }
@@ -108,20 +129,66 @@ func (s chainState) expectedLastReview(ruleID string, reviewedNow bool, attested
 	return priorReviewedAt
 }
 
-// freshReviews returns, for every rule ID in ruleIDs with a supplied review
-// record digest, that digest, unless the chain already recorded the same
-// digest for the same rule: a review record already counted once is never
-// a new individual review.
-func (s chainState) freshReviews(ruleIDs []string, supplied map[string]string) map[string]string {
+// reviewsFromRecords decides which supplied individual review records are
+// new individual reviews, keyed by rule ID, with the digest of the
+// record's exact bytes. records maps a rule ID (the record file's name
+// without its ".json" extension) to the record's bytes; rules holds every
+// rule in the prior pack by ID.
+//
+// A record whose digest the chain already recorded for that rule is not a
+// new review and is skipped. Every other record must be a structurally
+// valid review record (maintainer/reviewrecord's format) that names the
+// same rule and the same project, is bound to the exact version of the
+// rule in the prior pack (its bindings.ruleDigest), and was decided after
+// the rule's last individual review recorded in the chain and not after
+// attestedAt. A record for a rule not in the pack, or one failing any of
+// these checks, rejects the whole statement rather than being skipped:
+// copying one rule's record under another rule's name, changing a byte of
+// an already counted record, or supplying a record made against an older
+// version of the rule never counts as a new review.
+func (s chainState) reviewsFromRecords(rules map[string]ruleCandidate, records map[string][]byte, attestedAt time.Time) (map[string]string, error) {
+	ids := make([]string, 0, len(records))
+	for id := range records {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
 	out := map[string]string{}
-	for _, id := range ruleIDs {
-		digest := supplied[id]
-		if digest == "" || s.recordedReviews[id][digest] {
+	for _, id := range ids {
+		raw := records[id]
+		rule, ok := rules[id]
+		if !ok {
+			return nil, fmt.Errorf("%w: V5: review record %s names no rule in the pack", ErrRejected, id)
+		}
+		if len(raw) == 0 || len(raw) > MaxReviewRecordBytes {
+			return nil, fmt.Errorf("%w: V5: review record for rule %s is empty or too large", ErrRejected, id)
+		}
+		digest := sourcecorpus.SHA(raw)
+		if s.recordedReviews[id][digest] {
 			continue
+		}
+		fields, err := reviewrecord.ParseRecordFields(raw)
+		if err != nil {
+			return nil, fmt.Errorf("%w: V5: review record for rule %s is not a well-formed review record", ErrRejected, id)
+		}
+		if fields.RuleID != id || fields.Project != rule.Project {
+			return nil, fmt.Errorf("%w: V5: review record for rule %s names a different rule or project", ErrRejected, id)
+		}
+		ruleDigest, _, _, err := ruleDigestAndEvidence(rule.Raw)
+		if err != nil || fields.RuleDigest != ruleDigest {
+			return nil, fmt.Errorf("%w: V5: review record for rule %s is not bound to the rule's current version in the prior pack", ErrRejected, id)
+		}
+		if last, ok := s.lastReviewAt[id]; ok {
+			lastAt, err := parseUTC(last)
+			if err != nil || !fields.DecidedAt.After(lastAt) {
+				return nil, fmt.Errorf("%w: V5: review record for rule %s is not later than the rule's last individual review recorded in the chain", ErrRejected, id)
+			}
+		}
+		if fields.DecidedAt.After(attestedAt) {
+			return nil, fmt.Errorf("%w: V5: review record for rule %s was decided after attestedAt", ErrRejected, id)
 		}
 		out[id] = digest
 	}
-	return out
+	return out, nil
 }
 
 // apply checks that statement correctly continues the chain described by s
@@ -150,6 +217,13 @@ func (s *chainState) apply(statement Statement) error {
 		return fmt.Errorf("%w: V5: attestedAt is not after the chain head's attestedAt", ErrRejected)
 	}
 
+	listed := map[string]bool{}
+	for _, ra := range statement.Rules {
+		listed[ra.RuleID] = true
+	}
+	for _, ne := range statement.NotExtended {
+		listed[ne.RuleID] = true
+	}
 	reviewed := map[string]string{}
 	previousID := ""
 	for i, review := range statement.IndividualReviews {
@@ -157,6 +231,9 @@ func (s *chainState) apply(statement Statement) error {
 			return fmt.Errorf("%w: V5: individualReviews must be sorted by unique rule ID", ErrRejected)
 		}
 		previousID = review.RuleID
+		if !listed[review.RuleID] {
+			return fmt.Errorf("%w: V5: rule %s has an individual review but is in neither the statement's rules nor its notExtended list", ErrRejected, review.RuleID)
+		}
 		if !validDigest(review.ReviewRecordDigest) {
 			return fmt.Errorf("%w: V5: rule %s individual review record digest is malformed", ErrRejected, review.RuleID)
 		}
@@ -195,10 +272,16 @@ func (s *chainState) apply(statement Statement) error {
 		}
 		s.recordedReviews[ruleID][digest] = true
 	}
+	record := entryRecord{validUntil: statement.ValidUntil, renewed: map[string]bool{}, reviewed: map[string]bool{}}
+	for ruleID := range reviewed {
+		record.reviewed[ruleID] = true
+	}
 	for _, ra := range statement.Rules {
 		s.batchSinceReview[ra.RuleID] = ra.ConsecutiveBatchCycles
 		s.lastReviewAt[ra.RuleID] = ra.LastIndividualReviewAt
+		record.renewed[ra.RuleID] = true
 	}
+	s.entries[statement.AttestedAt] = record
 	canonical, err := CanonicalStatement(statement)
 	if err != nil {
 		return fmt.Errorf("%w: V5: statement digest", ErrRejected)
@@ -209,12 +292,17 @@ func (s *chainState) apply(statement Statement) error {
 	return nil
 }
 
-// checkPriorPackCovered rejects a prior pack holding any rule whose
-// reviewedAt is later than the chain head's attestedAt unless this
-// statement records a new individual review for it. Every batch renewal is
-// a chain entry, so such a rule was either renewed by a statement missing
-// from the chain (a truncated chain) or reviewed individually; only a
-// supplied review record tells the two apart.
+// checkPriorPackCovered ties the prior pack's evidence dates to the chain.
+// It rejects a prior pack holding any rule whose reviewedAt is later than
+// the chain head's attestedAt unless this statement records a new
+// individual review for it: every batch renewal is a chain entry, so such
+// a rule was either renewed by a statement missing from the chain (a
+// truncated chain) or reviewed individually, and only a supplied review
+// record tells the two apart. It also rejects a rule whose reviewedAt
+// equals some chain entry's attestedAt unless that entry renewed it (and
+// then its validUntil must still be the one that entry set) or recorded an
+// individual review for it, or this statement records a new one: a rule's
+// dates can never claim a renewal the chain does not record.
 func (s chainState) checkPriorPackCovered(priorRules []ruleFields, fresh map[string]string) error {
 	if s.headDigest == nil {
 		return nil
@@ -224,17 +312,82 @@ func (s chainState) checkPriorPackCovered(priorRules []ruleFields, fresh map[str
 		if err != nil {
 			return fmt.Errorf("%w: V5: rule %s reviewedAt is malformed", ErrRejected, rule.ID)
 		}
-		if reviewedAt.After(s.headAttestedAt) && fresh[rule.ID] == "" {
+		if fresh[rule.ID] != "" {
+			continue
+		}
+		if reviewedAt.After(s.headAttestedAt) {
 			return fmt.Errorf("%w: V5: rule %s was reviewed after the chain head was attested but no new individual review record is supplied for it; the statement chain may be truncated", ErrRejected, rule.ID)
 		}
+		entry, ok := s.entries[rule.Evidence.ReviewedAt]
+		if !ok {
+			continue
+		}
+		if entry.renewed[rule.ID] {
+			if rule.Evidence.ValidUntil != entry.validUntil {
+				return fmt.Errorf("%w: V5: rule %s carries the reviewedAt of the chain entry that renewed it but not the validUntil that entry set", ErrRejected, rule.ID)
+			}
+			continue
+		}
+		if !entry.reviewed[rule.ID] {
+			return fmt.Errorf("%w: V5: rule %s carries a chain entry's attestedAt as its reviewedAt but that entry neither renewed it nor recorded an individual review for it", ErrRejected, rule.ID)
+		}
+	}
+	return nil
+}
+
+// checkAppendOnly requires chain, the statement chain supplied with the
+// change under verification, to be base, the same pack's statement chain
+// on the base branch, with at most one entry added, and that added entry
+// to be the statement under verification. Entries are compared by their
+// exact statement and envelope bytes, never by name. Removing, replacing,
+// re-signing or adding any other entry is rejected, as is an empty chain
+// over a non-empty base, and a statement the base chain already records.
+func checkAppendOnly(base, chain *Chain, statementRaw []byte) error {
+	if base == nil {
+		return fmt.Errorf("%w: V5: the base branch's statement chain is required; pass an empty one for a pack with no attestation history on the base branch", ErrRejected)
+	}
+	if chain == nil {
+		return fmt.Errorf("%w: V5: a statement chain is required; pass an empty one for a pack with no attestation history", ErrRejected)
+	}
+	type key struct{ statement, envelope string }
+	present := map[key]int{}
+	for _, entry := range chain.Entries {
+		present[key{sourcecorpus.SHA(entry.Statement), sourcecorpus.SHA(entry.Envelope)}]++
+	}
+	for _, entry := range base.Entries {
+		k := key{sourcecorpus.SHA(entry.Statement), sourcecorpus.SHA(entry.Envelope)}
+		if present[k] == 0 {
+			return fmt.Errorf("%w: V5: base chain entry %s is missing or changed in the statement chain; the chain is append-only", ErrRejected, entry.Name)
+		}
+		present[k]--
+	}
+	for _, entry := range base.Entries {
+		if bytes.Equal(entry.Statement, statementRaw) {
+			return fmt.Errorf("%w: V5: the statement is already recorded in the base branch's statement chain", ErrRejected)
+		}
+	}
+	var added []ChainEntry
+	for _, entry := range chain.Entries {
+		k := key{sourcecorpus.SHA(entry.Statement), sourcecorpus.SHA(entry.Envelope)}
+		if present[k] > 0 {
+			present[k]--
+			added = append(added, entry)
+		}
+	}
+	if len(added) > 1 {
+		return fmt.Errorf("%w: V5: the statement chain adds %d entries to the base chain; at most one, the statement under verification, may be added", ErrRejected, len(added))
+	}
+	if len(added) == 1 && !bytes.Equal(added[0].Statement, statementRaw) {
+		return fmt.Errorf("%w: V5: chain entry %s is added to the base chain but is not the statement under verification", ErrRejected, added[0].Name)
 	}
 	return nil
 }
 
 // deriveChainState verifies a pack's statement chain and folds it into a
 // chainState. It is the one chain derivation both Prepare and Verify use.
-// Every entry must parse, belong to packName, and carry a valid signature
-// under the pinned trust root at now; entries must link by
+// Every entry must parse, belong to packName, be attested no later than
+// now, and carry a valid signature under the pinned trust root at now;
+// entries must link by
 // previousAttestationDigest from exactly one genesis entry to exactly one
 // head with no fork, gap, cycle, or duplicate; and every entry's recorded
 // cycle counts must themselves continue the chain (see apply).
@@ -272,6 +425,9 @@ func deriveChainState(chain *Chain, packName string, now time.Time, selfDigest s
 		}
 		if statement.Pack.Name != packName {
 			return chainState{}, fmt.Errorf("%w: V5: chain entry %s belongs to another pack", ErrRejected, entry.Name)
+		}
+		if attestedAt, err := parseUTC(statement.AttestedAt); err != nil || attestedAt.After(now) {
+			return chainState{}, fmt.Errorf("%w: V5: chain entry %s is attested after the current time", ErrRejected, entry.Name)
 		}
 		if _, err := VerifySignature(VerifySignatureOptions{
 			Statement: entry.Statement, Envelope: entry.Envelope, TrustRoot: chain.TrustRoot,

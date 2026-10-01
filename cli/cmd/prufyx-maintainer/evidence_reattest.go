@@ -18,7 +18,6 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgesign"
-	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
 
 func evidenceReattestError() error {
@@ -81,19 +80,23 @@ func readCanonicalInput(path string, limit int) ([]byte, error) {
 	return bytes.TrimSuffix(raw, []byte("\n")), nil
 }
 
-// loadReviewRecordDigests reads every file in dir (non-recursive) and maps
-// its base name without extension, the rule ID, to sourcecorpus.SHA of its
-// exact bytes. This is the one digest scheme Prepare, Sign's caller, and
-// Verify all use consistently for a rule's recorded individual review. It
-// rejects anything that is not a regular file (including symlinks and
-// subdirectories), an empty file, a file with no rule ID before its
-// extension, and two files for the same rule ID. It does not re-verify
-// the record's content, which stays maintainer/reviewrecord's job (see
-// evidencereattest's checkV6 doc comment).
-func loadReviewRecordDigests(dir string) (map[string]string, error) {
-	digests := map[string]string{}
+// reviewRecordSuffix is the one file extension a review record may have.
+// The rule ID is the file name with exactly this suffix removed, so a rule
+// ID that itself contains dots maps unambiguously to its file.
+const reviewRecordSuffix = ".json"
+
+// loadReviewRecords reads every file in dir (non-recursive) and maps its
+// rule ID, the file name without its ".json" extension, to the file's
+// exact bytes. It rejects anything that is not a regular file (including
+// symlinks and subdirectories), a file without the ".json" extension or
+// with nothing before it, and an empty file. The records' content is
+// checked by evidencereattest itself (structure, rule ID, project, rule
+// digest and decision time; see its reviewsFromRecords), identically in
+// prepare and verify.
+func loadReviewRecords(dir string) (map[string][]byte, error) {
+	records := map[string][]byte{}
 	if dir == "" {
-		return digests, nil
+		return records, nil
 	}
 	if !filepath.IsAbs(dir) {
 		return nil, knowledgesign.ErrRejected
@@ -111,20 +114,23 @@ func loadReviewRecordDigests(dir string) (map[string]string, error) {
 			return nil, knowledgesign.ErrRejected
 		}
 		name := entry.Name()
-		ruleID := strings.TrimSuffix(name, filepath.Ext(name))
+		if !strings.HasSuffix(name, reviewRecordSuffix) {
+			return nil, knowledgesign.ErrRejected
+		}
+		ruleID := strings.TrimSuffix(name, reviewRecordSuffix)
 		if ruleID == "" {
 			return nil, knowledgesign.ErrRejected
 		}
-		if _, dup := digests[ruleID]; dup {
+		if _, dup := records[ruleID]; dup {
 			return nil, knowledgesign.ErrRejected
 		}
 		raw, err := readReattestInput(filepath.Join(dir, name), evidencereattest.MaxReviewRecordBytes)
 		if err != nil || len(raw) == 0 {
 			return nil, knowledgesign.ErrRejected
 		}
-		digests[ruleID] = sourcecorpus.SHA(raw)
+		records[ruleID] = raw
 	}
-	return digests, nil
+	return records, nil
 }
 
 const (
@@ -213,9 +219,9 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	flags.StringVar(&trustRootPath, "trust-root", "", "trust root the chain's statements are signed under (absolute path; required, with --trust-root-digest, when the chain is not empty)")
 	flags.StringVar(&trustRootDigest, "trust-root-digest", "", "the trust root's digest as independently known to the caller, sha256:... (never derived from --trust-root itself)")
 	flags.StringVar(&nextRevision, "next-revision", "", "new pack revision string for rules.next.json")
-	flags.StringVar(&reviewRecordDir, "review-record-dir", "", "directory of <ruleId>.<ext> individual review records, one per rule (absolute path; optional)")
+	flags.StringVar(&reviewRecordDir, "review-record-dir", "", "directory of <ruleId>.json individual review records, one per rule (absolute path; optional)")
 	flags.StringVar(&outputDir, "output-dir", "", "new directory to write statement.json, rules.next.json, and summary.txt into")
-	flags.StringVar(&attestedAtFlag, "attested-at", "", "exact UTC RFC3339 attestation instant (default: now)")
+	flags.StringVar(&attestedAtFlag, "attested-at", "", "exact UTC RFC3339 attestation instant, not in the future (default: now)")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
 			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest prepare --worklist ABS --pack cncf|community --rules ABS --next-revision STR --wave N --output-dir ABS --statement-chain-dir ABS [--trust-root ABS --trust-root-digest sha256:...] [--rules-worklist-path STR] [--review-record-dir ABS] [--attested-at RFC3339]")
@@ -235,7 +241,8 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	if rulesWorklistPath == "" {
 		rulesWorklistPath = rulesPath
 	}
-	attestedAt := time.Now().UTC()
+	now := time.Now().UTC()
+	attestedAt := now
 	if attestedAtFlag != "" {
 		parsed, err := time.Parse(time.RFC3339, attestedAtFlag)
 		if err != nil {
@@ -256,7 +263,7 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return evidenceReattestError()
 	}
-	reviewDigests, err := loadReviewRecordDigests(reviewRecordDir)
+	reviewRecords, err := loadReviewRecords(reviewRecordDir)
 	if err != nil {
 		return evidenceReattestError()
 	}
@@ -267,8 +274,8 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 
 	result, err := evidencereattest.Prepare(evidencereattest.PrepareOptions{
 		WorklistRaw: worklistRaw, PackName: packName, PackPath: rulesWorklistPath, PackRaw: packRaw,
-		Chain: chain, Wave: *wave, AttestedAt: attestedAt, NextRevision: nextRevision,
-		EngineCapabilityDigest: capabilityDigest, ReviewRecordDigests: reviewDigests,
+		Chain: chain, Wave: *wave, AttestedAt: attestedAt, Now: now, NextRevision: nextRevision,
+		EngineCapabilityDigest: capabilityDigest, ReviewRecords: reviewRecords,
 	})
 	if err != nil {
 		fmt.Fprintf(stderr, "evidence reattest prepare: %v\n", err)
@@ -332,7 +339,7 @@ func runEvidenceReattestSign(args []string, stdout, stderr io.Writer) error {
 	}
 	envelope, err := evidencereattest.Sign(evidencereattest.SignOptions{
 		Statement: statementRaw, TrustRoot: trustRootRaw, EncryptedKey: keyRaw, Passphrase: passphrase,
-		ExpectedTrustRootDigest: trustRootDigest,
+		ExpectedTrustRootDigest: trustRootDigest, Now: time.Now().UTC(),
 	})
 	if err != nil {
 		fmt.Fprintf(stderr, "evidence reattest sign: %v\n", err)
@@ -348,7 +355,7 @@ func runEvidenceReattestSign(args []string, stdout, stderr io.Writer) error {
 func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("evidence reattest verify", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
-	var statementPath, priorPackPath, nextPackPath, worklistPath, packName, rulesWorklistPath, reviewRecordDir, envelopePath, trustRootPath, trustRootDigest, statementChainDir string
+	var statementPath, priorPackPath, nextPackPath, worklistPath, packName, rulesWorklistPath, reviewRecordDir, envelopePath, trustRootPath, trustRootDigest, statementChainDir, baseStatementChainDir string
 	var structuralOnly bool
 	flags.StringVar(&statementPath, "statement", "", "statement.json to verify (absolute path)")
 	flags.StringVar(&priorPackPath, "prior-pack", "", "the base-branch rule pack (absolute path)")
@@ -356,20 +363,21 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 	flags.StringVar(&worklistPath, "worklist", "", "the retained worklist the statement was prepared from (absolute path)")
 	flags.StringVar(&packName, "pack", "", "cncf or community, for the eligibility recomputation")
 	flags.StringVar(&rulesWorklistPath, "rules-worklist-path", "", "the rule pack path as it appears in the worklist, if different from --prior-pack")
-	flags.StringVar(&reviewRecordDir, "review-record-dir", "", "directory of individual review records (optional)")
+	flags.StringVar(&reviewRecordDir, "review-record-dir", "", "directory of <ruleId>.json individual review records, one per rule (absolute path; optional)")
 	flags.StringVar(&statementChainDir, "statement-chain-dir", "", "this pack's statement chain directory of <stem>.statement.json and <stem>.statement.sig.json pairs (absolute path; required, may be empty)")
+	flags.StringVar(&baseStatementChainDir, "base-statement-chain-dir", "", "the same pack's statement chain directory as it is on the base branch, checked out separately (absolute path; required, may be empty); --statement-chain-dir must equal it plus at most the statement under verification")
 	flags.StringVar(&envelopePath, "envelope", "", "statement.sig.json; required, with --trust-root and --trust-root-digest, whenever the statement renews at least one rule")
 	flags.StringVar(&trustRootPath, "trust-root", "", "trust root the statement and the chain are signed under; required with --trust-root-digest whenever --envelope is given or the chain is not empty")
 	flags.StringVar(&trustRootDigest, "trust-root-digest", "", "the trust root's digest as independently known to the caller, sha256:... (never derived from --trust-root itself)")
 	flags.BoolVar(&structuralOnly, "structural-only", false, "run only the structural checks, skipping the signature requirement; this NEVER counts as a passing publish gate and always exits non-zero, even when every structural check passes")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest verify --statement ABS --prior-pack ABS --next-pack ABS --worklist ABS --pack cncf|community --statement-chain-dir ABS (--envelope ABS --trust-root ABS --trust-root-digest sha256:... | --structural-only [--trust-root ABS --trust-root-digest sha256:...]) [--rules-worklist-path STR] [--review-record-dir ABS]")
+			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest verify --statement ABS --prior-pack ABS --next-pack ABS --worklist ABS --pack cncf|community --statement-chain-dir ABS --base-statement-chain-dir ABS (--envelope ABS --trust-root ABS --trust-root-digest sha256:... | --structural-only [--trust-root ABS --trust-root-digest sha256:...]) [--rules-worklist-path STR] [--review-record-dir ABS]")
 			return e
 		}
 		return evidenceReattestError()
 	}
-	if flags.NArg() != 0 || statementPath == "" || priorPackPath == "" || nextPackPath == "" || worklistPath == "" || packName == "" || statementChainDir == "" {
+	if flags.NArg() != 0 || statementPath == "" || priorPackPath == "" || nextPackPath == "" || worklistPath == "" || packName == "" || statementChainDir == "" || baseStatementChainDir == "" {
 		return evidenceReattestError()
 	}
 	// --trust-root and --trust-root-digest always come as a pair; they pin
@@ -410,7 +418,11 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return evidenceReattestError()
 	}
-	reviewDigests, err := loadReviewRecordDigests(reviewRecordDir)
+	baseChain, err := readStatementChain(baseStatementChainDir, trustRootPath, trustRootDigest)
+	if err != nil {
+		return evidenceReattestError()
+	}
+	reviewRecords, err := loadReviewRecords(reviewRecordDir)
 	if err != nil {
 		return evidenceReattestError()
 	}
@@ -421,9 +433,9 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 
 	result, err := evidencereattest.Verify(evidencereattest.VerifyOptions{
 		StatementRaw: statementRaw, PriorPackRaw: priorPackRaw, NextPackRaw: nextPackRaw,
-		WorklistRaw: worklistRaw, Chain: chain,
+		WorklistRaw: worklistRaw, Chain: chain, BaseChain: baseChain,
 		PackName: packName, PackPath: rulesWorklistPathOrDefault(rulesWorklistPath, priorPackPath), EngineCapabilityDigest: capabilityDigest,
-		ReviewRecordDigests: reviewDigests, AttestedAtNow: time.Now().UTC(),
+		ReviewRecords: reviewRecords, AttestedAtNow: time.Now().UTC(),
 	})
 	if err != nil {
 		fmt.Fprintf(stderr, "evidence reattest verify: FAIL: %v\n", err)
