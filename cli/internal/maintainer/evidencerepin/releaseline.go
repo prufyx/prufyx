@@ -63,6 +63,11 @@ const (
 	BaselineLatest      = "latest"
 	BaselineReleaseLine = "release_line"
 
+	// LineStatusPinnedIsLatest and LineStatusLaterReleases are the
+	// per-citation lineStatus of a release-line baseline.
+	LineStatusPinnedIsLatest = "pinned_is_latest"
+	LineStatusLaterReleases  = "later_releases_on_line"
+
 	pinFound              = "PINNED"
 	pinUnderivable        = "UNDERIVABLE"
 	lineResolved          = "RESOLVED"
@@ -213,8 +218,9 @@ func fetchAllReleases(ctx context.Context, fetcher APIFetcher, owner, repo strin
 			if page == 1 {
 				return releaseList{complete: true, none: true}, nil
 			}
-			list.complete = true
-			return list, nil
+			// A missing page after the first is an anomaly, not the end
+			// of the list: only an empty page array ends the scan.
+			return releaseList{}, fmt.Errorf("%w: releases page %d not found", errRejected, page)
 		}
 		var raw []struct {
 			TagName    string `json:"tag_name"`
@@ -529,6 +535,13 @@ func (r *lineResolver) line(pin PinResolution) LineResolution {
 	list, err := r.releaseList(pin.Owner, pin.Repo)
 	if err != nil {
 		return pending(err)
+	}
+	if !list.complete {
+		// A truncated scan cannot prove which release is newest on the
+		// line, whatever an earlier run cached about the pin.
+		result.Status, result.Detail, result.ResolvedAt = lineUnderivable, "the repository has more releases than the line scan covers", r.stamp()
+		r.state.Lines[key] = result
+		return result
 	}
 	tag, _, reason := newestOnLine(pinned, list.entries)
 	if reason != "" {

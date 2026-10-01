@@ -106,7 +106,9 @@ carries:
 | `baselineTag` | The release tag whose commit was compared (`newCommit`). |
 | `baselineLine` | The `MAJOR.MINOR` line, for `release_line`. |
 | `pinnedTag` | The release tag proven to point at `oldCommit`, for `release_line`. |
+| `lineStatus` | For `release_line`: `pinned_is_latest` when the pinned tag is itself the newest release of its line (the line can no longer change, so the comparison is trivially unchanged), otherwise `later_releases_on_line`. Recorded for downstream policy; eligibility does not depend on it. |
 | `baselineNote` | Why a release-line request used `latest` instead. |
+| `observedDigest`, `observedSize` | For `CORPUS_DIGEST_MISMATCH` only: the digest and byte size of the file actually served at the citation's own pinned commit. |
 
 The top-level `lines` list holds one resolution per release line a baseline
 relies on (`owner`, `repo`, `prefix`, `line`, `tag`, `commit`, `resolvedAt`),
@@ -115,6 +117,11 @@ file schema is `prufyx.io/evidence-repin-state/v2`; a `v1` state keeps its
 repository resolutions and recomputes citation results.
 
 ### Limits to keep in mind
+
+* Corrections published only on later release lines are not seen in
+  release-line mode. This matters most for `pinned_is_latest` citations: the
+  line is closed, so the result stays unchanged even if a later line corrects
+  the cited content. Use `--baseline latest` to see such changes.
 
 * A line baseline compares the pinned commit with the line's newest release
   only; a change made and reverted between two releases of the line is not

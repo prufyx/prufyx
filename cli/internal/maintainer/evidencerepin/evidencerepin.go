@@ -596,6 +596,19 @@ type ClassResult struct {
 	// PinnedTag is the release tag proven to point at OldCommit, for a
 	// release-line baseline.
 	PinnedTag string `json:"pinnedTag,omitempty"`
+	// LineStatus is set on a release-line baseline only.
+	// LineStatusPinnedIsLatest means the pinned tag is itself the newest
+	// release of its line, so the line can no longer change and the
+	// comparison is trivially unchanged; LineStatusLaterReleases means
+	// newer releases exist on the line. Corrections published only on
+	// later lines are not seen by a release-line baseline either way.
+	LineStatus string `json:"lineStatus,omitempty"`
+	// ObservedDigest and ObservedSize describe the file actually served at
+	// the citation's own pinned commit when it did not hash to the recorded
+	// contentDigest (CORPUS_DIGEST_MISMATCH), to help diagnose transient
+	// serving anomalies.
+	ObservedDigest string `json:"observedDigest,omitempty"`
+	ObservedSize   *int   `json:"observedSize,omitempty"`
 	// BaselineNote says why a release-line request used the latest
 	// baseline instead.
 	BaselineNote string `json:"baselineNote,omitempty"`
@@ -721,7 +734,9 @@ func Classify(ctx context.Context, citation Citation, currentCommit string, blob
 		case "HTTP_200":
 			if sourcecorpus.SHA(oldFetch.Body) != citation.OldDigest {
 				result.Class = ClassCorpusDigestMismatch
-				result.Detail = "file fetched at the citation's own pinned commit does not hash to the recorded contentDigest"
+				size := len(oldFetch.Body)
+				result.ObservedDigest, result.ObservedSize = sourcecorpus.SHA(oldFetch.Body), &size
+				result.Detail = "file fetched at the citation's own pinned commit does not hash to the recorded contentDigest (observed " + result.ObservedDigest + ", " + strconv.Itoa(size) + " bytes; recorded " + citation.OldDigest + ")"
 				return result
 			}
 			class, newStart, newEnd := classifySpan(oldFetch.Body, citation.StartLine, citation.EndLine, newFetch.Body)
@@ -1134,6 +1149,11 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 				result.Baseline = BaselineReleaseLine
 				result.BaselineLine = decision.line.Line
 				result.PinnedTag = decision.pin.Tag
+				if decision.pin.Tag == decision.line.Tag {
+					result.LineStatus = LineStatusPinnedIsLatest
+				} else {
+					result.LineStatus = LineStatusLaterReleases
+				}
 			} else {
 				result.Baseline = BaselineLatest
 				result.BaselineNote = decision.note

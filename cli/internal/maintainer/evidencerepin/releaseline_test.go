@@ -159,6 +159,11 @@ func newLineFixture(tags []string, prereleases map[string]bool, latestTag string
 		body   []byte
 		status int
 	}{raw, 200}
+	// Only an empty page ends the release scan.
+	f.api.responses["/repos/example/proj/releases?per_page="+strconv.Itoa(releasePageSize)+"&page=2"] = struct {
+		body   []byte
+		status int
+	}{[]byte(`[]`), 200}
 	latest, _ := json.Marshal([]map[string]any{{"tag_name": latestTag, "draft": false, "prerelease": false}})
 	f.api.responses["/repos/example/proj/releases?per_page=10"] = struct {
 		body   []byte
