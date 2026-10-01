@@ -921,3 +921,38 @@ func TestLatestTagPicksHighestVersionNotFirstListed(t *testing.T) {
 		t.Fatalf("expected the numerically highest version v10.0.0, got %q", got)
 	}
 }
+
+func TestLoadCitationsEvidenceBasis(t *testing.T) {
+	digest := sourcecorpus.SHA([]byte("line1\nline2"))
+	build := func(mutate func(evidence map[string]any)) []byte {
+		entry := ruleEntry("argo-cd", "argo-cd.rule-1", source("argo-cd-src", "argoproj", "argo-cd", commitA, "VERSION", digest, 1, 2))
+		mutate(entry["rule"].(map[string]any)["evidence"].(map[string]any))
+		return rulePackJSON(t, entry)
+	}
+	mechanical := func(e map[string]any) {
+		e["basis"] = "mechanical"
+		e["extractor"] = map[string]any{"id": "example.removal", "version": "1.0.0", "codeDigest": "sha256:" + strings.Repeat("ab", 32)}
+		e["derivedAt"] = "2026-01-01T00:00:00Z"
+	}
+	for name, test := range map[string]struct {
+		mutate func(map[string]any)
+		valid  bool
+	}{
+		"absent":                       {func(map[string]any) {}, true},
+		"reviewed":                     {func(e map[string]any) { e["basis"] = "reviewed" }, true},
+		"mechanical":                   {mechanical, true},
+		"unknown basis":                {func(e map[string]any) { e["basis"] = "automatic" }, false},
+		"mechanical without extractor": {func(e map[string]any) { e["basis"] = "mechanical" }, false},
+		"extractor without mechanical": {func(e map[string]any) { mechanical(e); delete(e, "basis") }, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			citations, err := LoadCitations("rules.json", build(test.mutate))
+			if test.valid && (err != nil || len(citations) != 1) {
+				t.Fatalf("citations=%v err=%v", citations, err)
+			}
+			if !test.valid && err == nil {
+				t.Fatal("expected a rejection")
+			}
+		})
+	}
+}

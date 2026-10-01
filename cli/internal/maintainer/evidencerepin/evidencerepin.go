@@ -59,6 +59,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecapture"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
@@ -158,7 +159,10 @@ func LoadCitations(rulePackPath string, raw []byte) ([]Citation, error) {
 			Rule    struct {
 				ID       string `json:"id"`
 				Evidence struct {
-					Sources []struct {
+					Basis     string                      `json:"basis"`
+					Extractor *constraintengine.Extractor `json:"extractor"`
+					DerivedAt string                      `json:"derivedAt"`
+					Sources   []struct {
 						ID            string `json:"id"`
 						URL           string `json:"url"`
 						Revision      string `json:"revision"`
@@ -175,6 +179,13 @@ func LoadCitations(rulePackPath string, raw []byte) ([]Citation, error) {
 	}
 	var out []Citation
 	for _, entry := range document.Entries {
+		// The citations of a mechanical rule are classified like any other
+		// (drift is information), but a malformed basis is rejected here so a
+		// worklist is never built over a rule the engine would not parse.
+		evidence := entry.Rule.Evidence
+		if err := constraintengine.ValidateBasis(evidence.Basis, evidence.Extractor, evidence.DerivedAt); err != nil {
+			return nil, fmt.Errorf("%w: invalid evidence basis in %s: rule %s", errRejected, rulePackPath, entry.Rule.ID)
+		}
 		for _, source := range entry.Rule.Evidence.Sources {
 			owner, repo, commit, path, ok := parseCitationURL(source.URL)
 			if !ok {
