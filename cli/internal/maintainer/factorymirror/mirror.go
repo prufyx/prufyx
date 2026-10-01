@@ -52,6 +52,9 @@ type Options struct {
 	LsRemoteTimeout time.Duration
 	GitTimeout      time.Duration
 	LockStaleAfter  time.Duration
+	// ReleasesTTL is how long release metadata may be called "known" when
+	// it cannot be revalidated (no credential); default 24h.
+	ReleasesTTL time.Duration
 	// Force fetches even when the remote fingerprint is unchanged.
 	Force    bool
 	Progress io.Writer
@@ -110,6 +113,9 @@ func (o *Options) defaults() error {
 	}
 	if o.Now == nil {
 		o.Now = time.Now
+	}
+	if o.ReleasesTTL <= 0 {
+		o.ReleasesTTL = DefaultReleasesTTL
 	}
 	if o.LsRemoteTimeout <= 0 {
 		o.LsRemoteTimeout = 2 * time.Minute
@@ -388,6 +394,18 @@ func (r *run) preserve(ctx context.Context, dest, commit string) {
 	_, _ = r.git(ctx, time.Minute, dest, "update-ref", "refs/prufyx/preserved/"+commit, commit)
 }
 
+// DefaultReleasesTTL bounds how stale "known" release metadata may get.
+const DefaultReleasesTTL = 24 * time.Hour
+
+// releasesExpired reports whether known metadata is older than the TTL.
+func (r *run) releasesExpired(cur Releases) bool {
+	if cur.Status != ReleasesKnown {
+		return false
+	}
+	t, err := time.Parse(time.RFC3339, cur.FetchedAt)
+	return err != nil || r.opts.Now().Sub(t) > r.opts.ReleasesTTL
+}
+
 func (r *run) updateReleases(ctx context.Context, repo Repo, cur Releases, changed bool) Releases {
 	degrade := func(reason string) Releases {
 		out := cur
@@ -406,14 +424,15 @@ func (r *run) updateReleases(ctx context.Context, repo Repo, cur Releases, chang
 		if cur.Status == "" {
 			return Releases{Status: ReleasesUnknown, Reason: ReasonNoToken}
 		}
-		if changed {
+		if changed || r.releasesExpired(cur) {
 			return degrade(ReasonNoToken)
 		}
 		return cur
 	}
-	if !changed && cur.Status == ReleasesKnown {
-		return cur
-	}
+	// Releases are revalidated on every run, whether or not git refs
+	// changed: a release can be published after its tag was pushed, flipped
+	// to or from prerelease, or deleted without any ref moving. The listing
+	// is conditional (If-None-Match), so an unchanged repository costs a 304.
 	if r.rateLimited.Load() {
 		return degrade(ReasonRateLimited)
 	}

@@ -85,11 +85,15 @@ func cmdMirror(args []string, getenv func(string) string, stdout, stderr io.Writ
 	concurrency := f.Int("concurrency", 4, "simultaneous repositories (1-16)")
 	force := f.Bool("force", false, "fetch even when upstream looks unchanged")
 	remoteBase := f.String("remote-base", "https://", "URL prefix for upstream repositories (https:// only)")
+	releasePages := f.Int("release-pages", DefaultReleasePages, "release pages (100 per page) to read per repository; 0 reads all of them")
 	allowFile := f.Bool("test-allow-file-remote", false, "testing only: permit a file:// --remote-base")
 	gitTimeout := f.Duration("git-timeout", 45*time.Minute, "limit for one clone or fetch")
 	staleAfter := f.Duration("lock-stale-after", DefaultLockStaleAfter, "age after which an unrefreshed lock is abandoned")
 	if err := f.Parse(args); err != nil || f.NArg() != 0 {
 		return 0, fmt.Errorf("%w: mirror options", ErrInvalid)
+	}
+	if *releasePages < 0 {
+		return 0, fmt.Errorf("%w: --release-pages must not be negative", ErrInvalid)
 	}
 	if *state == "" || *registry == "" {
 		return 0, fmt.Errorf("%w: --state and --registry are required", ErrInvalid)
@@ -124,7 +128,7 @@ func cmdMirror(args []string, getenv func(string) string, stdout, stderr io.Writ
 		LockStaleAfter: *staleAfter, Progress: stderr,
 	}
 	if tokens != nil {
-		opts.Releases = GitHubReleases{Tokens: tokens}
+		opts.Releases = GitHubReleases{Tokens: tokens, MaxPages: *releasePages, CompleteScan: *releasePages == 0}
 	} else {
 		fmt.Fprintln(stderr, "mirror: no GitHub credential configured; release metadata is recorded as unknown")
 	}

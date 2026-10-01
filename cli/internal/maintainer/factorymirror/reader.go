@@ -249,6 +249,9 @@ func (r *Reader) CompleteReleases(repo string) (Releases, error) {
 	if rel.Status != ReleasesKnown || rel.Truncated {
 		return Releases{}, fmt.Errorf("%w: status %q, truncated %v", ErrReleasesIncomplete, rel.Status, rel.Truncated)
 	}
+	if t, err := time.Parse(time.RFC3339, rel.FetchedAt); err != nil || time.Since(t) > DefaultReleasesTTL {
+		return Releases{}, fmt.Errorf("%w: last revalidated %q", ErrReleasesIncomplete, rel.FetchedAt)
+	}
 	return rel, nil
 }
 

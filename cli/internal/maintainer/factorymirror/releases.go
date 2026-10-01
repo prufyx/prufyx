@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -250,16 +251,39 @@ func newAPIClient() *http.Client {
 
 // GitHubReleases lists releases through the GitHub REST API with ETag
 // revalidation (a 304 does not consume rate limit).
+//
+// The ETag handed back to the caller is opaque: it carries the validator of
+// every page that was read, one per line, and a later call revalidates every
+// one of those pages. A change on any page (a release published, deleted,
+// flipped from or to prerelease) therefore causes a fresh listing.
 type GitHubReleases struct {
 	Tokens TokenSource
 	// BaseURL defaults to the public API; tests point it at a local server.
 	BaseURL string
 	Client  *http.Client
-	// MaxPages bounds pagination (100 releases per page); default 3.
+	// MaxPages bounds pagination (100 releases per page); default 20. A
+	// listing cut short by the bound is marked Truncated and must not be
+	// used to derive release lines.
 	MaxPages int
+	// CompleteScan reads every page regardless of MaxPages (up to a hard
+	// ceiling of absoluteMaxReleasePages pages).
+	CompleteScan bool
 }
 
-const maxReleasePageBytes = 8 << 20
+const (
+	maxReleasePageBytes = 8 << 20
+	// DefaultReleasePages is the default page bound (100 releases per page).
+	DefaultReleasePages = 20
+	// absoluteMaxReleasePages bounds even a complete scan.
+	absoluteMaxReleasePages = 1000
+)
+
+func splitETags(etag string) []string {
+	if etag == "" {
+		return nil
+	}
+	return strings.Split(etag, "\n")
+}
 
 // List implements ReleaseClient. Only github.com repositories are supported.
 func (g GitHubReleases) List(ctx context.Context, repo Repo, etag string) (ReleaseResult, error) {
@@ -276,49 +300,55 @@ func (g GitHubReleases) List(ctx context.Context, repo Repo, etag string) (Relea
 	}
 	maxPages := g.MaxPages
 	if maxPages <= 0 {
-		maxPages = 3
+		maxPages = DefaultReleasePages
+	}
+	if g.CompleteScan {
+		maxPages = absoluteMaxReleasePages
 	}
 	token, err := g.Tokens.Token(ctx)
 	if err != nil {
 		return ReleaseResult{}, err
 	}
-	next := base + "/repos/" + url.PathEscape(repo.Owner) + "/" + url.PathEscape(repo.Name) + "/releases?per_page=100"
-	var result ReleaseResult
-	for page := 1; next != ""; page++ {
-		if !strings.HasPrefix(next, base+"/") {
-			return ReleaseResult{}, errors.New("github releases: pagination left the API host")
+	pageURL := func(n int) string {
+		return base + "/repos/" + url.PathEscape(repo.Owner) + "/" + url.PathEscape(repo.Name) + "/releases?per_page=100&page=" + strconv.Itoa(n)
+	}
+
+	// Revalidate every page we saw last time; only when all of them are
+	// unchanged is the cached listing still good.
+	if validators := splitETags(etag); len(validators) > 0 {
+		unchanged := true
+		for i, v := range validators {
+			if v == "" {
+				unchanged = false
+				break
+			}
+			resp, err := g.fetchPage(ctx, client, base, pageURL(i+1), token, v)
+			if err != nil {
+				return ReleaseResult{}, err
+			}
+			if resp.status != http.StatusNotModified {
+				unchanged = false
+				break
+			}
 		}
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, next, nil)
+		if unchanged {
+			return ReleaseResult{NotModified: true, ETag: etag}, nil
+		}
+	}
+
+	var result ReleaseResult
+	var etags []string
+	missingValidator := false
+	next := pageURL(1)
+	for page := 1; next != ""; page++ {
+		resp, err := g.fetchPage(ctx, client, base, next, token, "")
 		if err != nil {
 			return ReleaseResult{}, err
 		}
-		setAPIHeaders(req)
-		req.Header.Set("Authorization", "Bearer "+token)
-		if page == 1 && etag != "" {
-			req.Header.Set("If-None-Match", etag)
-		}
-		resp, err := client.Do(req)
-		if err != nil {
-			return ReleaseResult{}, fmt.Errorf("github releases: transport: %w", err)
-		}
-		body, rerr := io.ReadAll(io.LimitReader(resp.Body, maxReleasePageBytes+1))
-		resp.Body.Close()
-		if rerr != nil || len(body) > maxReleasePageBytes {
-			return ReleaseResult{}, errors.New("github releases: unreadable or oversized response")
-		}
-		switch {
-		case resp.StatusCode == http.StatusNotModified && page == 1:
-			return ReleaseResult{NotModified: true, ETag: etag}, nil
-		case resp.StatusCode == http.StatusNotFound:
-			return ReleaseResult{}, ErrReleasesNotFound
-		case resp.StatusCode == http.StatusTooManyRequests,
-			resp.StatusCode == http.StatusForbidden && (resp.Header.Get("X-RateLimit-Remaining") == "0" || resp.Header.Get("Retry-After") != ""):
-			return ReleaseResult{}, ErrRateLimited
-		case resp.StatusCode != http.StatusOK:
-			return ReleaseResult{}, fmt.Errorf("github releases: status %d", resp.StatusCode)
-		}
-		if page == 1 {
-			result.ETag = resp.Header.Get("ETag")
+		if tag := resp.header.Get("ETag"); tag == "" || strings.ContainsAny(tag, "\r\n") {
+			missingValidator = true
+		} else {
+			etags = append(etags, tag)
 		}
 		var raw []struct {
 			ID              int64  `json:"id"`
@@ -330,19 +360,66 @@ func (g GitHubReleases) List(ctx context.Context, repo Repo, etag string) (Relea
 			CreatedAt       string `json:"created_at"`
 			PublishedAt     string `json:"published_at"`
 		}
-		if err := json.Unmarshal(body, &raw); err != nil {
+		if err := json.Unmarshal(resp.body, &raw); err != nil {
 			return ReleaseResult{}, errors.New("github releases: malformed response")
 		}
 		for _, r := range raw {
 			result.Items = append(result.Items, Release{ID: r.ID, Tag: r.TagName, Name: r.Name, Draft: r.Draft, Prerelease: r.Prerelease, TargetCommitish: r.TargetCommitish, CreatedAt: r.CreatedAt, PublishedAt: r.PublishedAt})
 		}
-		next = nextLink(resp.Header.Get("Link"))
+		next = nextLink(resp.header.Get("Link"))
 		if next != "" && page >= maxPages {
 			result.Truncated = true
 			break
 		}
 	}
+	if !missingValidator {
+		result.ETag = strings.Join(etags, "\n")
+	}
 	return result, nil
+}
+
+type pageResponse struct {
+	status int
+	header http.Header
+	body   []byte
+}
+
+// fetchPage performs one GET. A 200 or (when a validator was sent) 304 is
+// returned; everything else is mapped to an error.
+func (g GitHubReleases) fetchPage(ctx context.Context, client *http.Client, base, target, token, validator string) (pageResponse, error) {
+	if !strings.HasPrefix(target, base+"/") {
+		return pageResponse{}, errors.New("github releases: pagination left the API host")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	if err != nil {
+		return pageResponse{}, err
+	}
+	setAPIHeaders(req)
+	req.Header.Set("Authorization", "Bearer "+token)
+	if validator != "" {
+		req.Header.Set("If-None-Match", validator)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return pageResponse{}, fmt.Errorf("github releases: transport: %w", err)
+	}
+	body, rerr := io.ReadAll(io.LimitReader(resp.Body, maxReleasePageBytes+1))
+	resp.Body.Close()
+	if rerr != nil || len(body) > maxReleasePageBytes {
+		return pageResponse{}, errors.New("github releases: unreadable or oversized response")
+	}
+	switch {
+	case resp.StatusCode == http.StatusNotModified && validator != "":
+		return pageResponse{status: resp.StatusCode, header: resp.Header}, nil
+	case resp.StatusCode == http.StatusNotFound:
+		return pageResponse{}, ErrReleasesNotFound
+	case resp.StatusCode == http.StatusTooManyRequests,
+		resp.StatusCode == http.StatusForbidden && (resp.Header.Get("X-RateLimit-Remaining") == "0" || resp.Header.Get("Retry-After") != ""):
+		return pageResponse{}, ErrRateLimited
+	case resp.StatusCode != http.StatusOK:
+		return pageResponse{}, fmt.Errorf("github releases: status %d", resp.StatusCode)
+	}
+	return pageResponse{status: resp.StatusCode, header: resp.Header, body: body}, nil
 }
 
 // nextLink extracts rel="next" from a Link header.
