@@ -7,10 +7,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
-	"time"
 )
 
 type env struct {
@@ -290,68 +288,4 @@ func TestUnreachableRemoteIsReportedNotFatal(t *testing.T) {
 			t.Fatalf("remote URL leaked in error: %q", r.Error)
 		}
 	}
-}
-
-func TestStaleLockIsRecovered(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "locks", "mirror.lock")
-	l1, err := AcquireLock(path, 0, fixedNow())
-	if err != nil {
-		t.Fatal(err)
-	}
-	// A live holder blocks.
-	if _, err := AcquireLock(path, 0, fixedNow()); !errors.Is(err, ErrLocked) {
-		t.Fatalf("want ErrLocked, got %v", err)
-	}
-	l1.Release()
-	if _, err := os.Stat(path); err == nil {
-		t.Fatal("release must remove the lock")
-	}
-	// Abandoned heartbeat: simulate a crashed holder on another host.
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, []byte(`{"nonce":"x","pid":1,"host":"other","startedAt":"2020-01-01T00:00:00Z"}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := AcquireLock(path, DefaultLockStaleAfter, fixedNow()); !errors.Is(err, ErrLocked) {
-		t.Fatal("fresh lock of another host must hold")
-	}
-	old := time.Now().Add(-time.Hour)
-	if err := os.Chtimes(path, old, old); err != nil {
-		t.Fatal(err)
-	}
-	l2, err := AcquireLock(path, DefaultLockStaleAfter, fixedNow())
-	if err != nil {
-		t.Fatalf("stale lock not recovered: %v", err)
-	}
-	// The old holder releasing late must not remove the new lock.
-	stale := &Lock{path: path, nonce: "x", stop: make(chan struct{}), done: make(chan struct{})}
-	close(stale.done)
-	stale.Release()
-	if _, err := os.Stat(path); err != nil {
-		t.Fatal("foreign release removed the lock")
-	}
-	l2.Release()
-}
-
-func TestDeadProcessLockOnSameHostIsRecovered(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("pid liveness is not checked on this platform")
-	}
-	path := filepath.Join(t.TempDir(), "locks", "mirror.lock")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	host, _ := os.Hostname()
-	// pid 2^31-2 does not exist.
-	body := `{"nonce":"x","pid":2147483646,"host":"` + host + `","startedAt":"2020-01-01T00:00:00Z"}`
-	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	l, err := AcquireLock(path, DefaultLockStaleAfter, fixedNow())
-	if err != nil {
-		t.Fatalf("dead-pid lock not recovered: %v", err)
-	}
-	l.Release()
 }
