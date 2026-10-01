@@ -3,8 +3,8 @@
 `prufyx-maintainer evidence repin` is a maintainer tool that checks, for every
 source cited by the shipped rule packs, whether the cited upstream content has
 changed since the commit the rule pinned. It is deterministic, uses no model,
-reads the rule packs and public GitHub data, and writes only a worklist (and an
-optional resumable state file). It never edits a rule pack or a review record,
+reads the rule packs and public GitHub data (or a local mirror of it, see
+below), and writes only a worklist (and an optional resumable state file). It never edits a rule pack or a review record,
 and it never makes or alters a compatibility claim.
 
 ```sh
@@ -14,6 +14,82 @@ prufyx-maintainer evidence repin --state "$PWD/state" --output "$PWD/worklist.js
 Set `GITHUB_TOKEN` (or `GH_TOKEN`) to raise GitHub's API rate limit; the token
 is never logged or written. Re-run with the same `--state` to resume after a
 rate limit.
+
+## Sources: `--source http|mirror`
+
+By default repin asks GitHub (`--source http`). With `--source mirror` it reads
+tags, release metadata and file bytes only from a local mirror made by
+`prufyx-maintainer factory mirror`, and makes no network request of any kind:
+
+```sh
+prufyx-maintainer evidence repin --source mirror --mirror-state "$PWD/mirror-state" \
+  --wants-out "$PWD/wants.json" --output "$PWD/worklist.json"
+```
+
+The classification code is the same for both sources, so the same repositories,
+tags and files classify identically either way. The mirror source recomputes
+everything on each run (it is offline, so that is cheap) and does not use
+`--state`.
+
+What the mirror cannot answer is `PENDING`, never "unchanged". The citation's
+`detail` says why:
+
+| Situation | Result |
+|---|---|
+| A cited file's contents are not materialized in the mirror (the mirror never downloads on demand) or the commit is not in the mirror | `PENDING`, with a note to add the file to the mirror's wants |
+| The repository has an unacknowledged alarm (a tag moved or vanished) | `PENDING` for every citation of the repository: nothing is compared against tags that may have been rewritten, until a person acknowledges the alarm with `factory ack` |
+| The repository is not in the mirror | `PENDING` |
+| Release metadata is unknown (the mirror had no GitHub credential), stale, or missing | `PENDING` for the repository |
+| Release metadata is known but the mirror cut the list short | The newest release is still used, but no release line is derived: citations keep the latest-release baseline and `baselineNote` says the line scan is incomplete |
+
+A repository with a complete, known, empty release list falls back to its tags
+exactly as over HTTP (`tag_fallback`, never batch-attestable). With the mirror,
+that fallback considers every recorded tag rather than the first page GitHub
+returns.
+
+### Getting the files into the mirror: a two-step flow
+
+Which commit a citation is compared with (the newest release, or the newest on
+its release line) is only known once the mirror has the repository's tags and
+releases, so the files to materialize cannot be listed from the rule packs
+alone. The flow is:
+
+1. `factory mirror --registry ... --state DIR` (refs, tags, releases).
+2. `evidence repin --source mirror --mirror-state DIR --wants-out wants.json ...`
+   lists in `wants.json` every file it could not read, at both the pinned and
+   the baseline commit (the file at the pinned commit of the same path is
+   requested in the same round, so one more round is enough). The file has the
+   shape `factory mirror --wants` reads and is deterministic. It is empty when
+   nothing is missing.
+3. `factory mirror --registry ... --state DIR --wants wants.json` materializes
+   them.
+4. Run repin again. Steps 2 to 4 are only needed for files not yet in the
+   mirror; once a warm mirror holds them, repin needs no further step.
+
+(`factory registry derive --wants-out` still lists the pinned files only,
+which is all that can be known before the first mirror run.)
+
+### Freshness comes from the mirror
+
+A worklist built from a mirror that was last refreshed days ago must not look as
+fresh as the moment it was built. For `--source mirror`:
+
+* every repository carries `source: "mirror"`, `mirrorCheckedAt` (the mirror's
+  last successful look at the repository's refs; if its last check failed, the
+  time its refs last changed) and `mirrorReleasesAt` (the last successful
+  revalidation of its release metadata);
+* `resolvedAt` of a repository and of each release line is the older of those
+  two times (never later than the run), so `summary.oldestResolvedAt` is the
+  mirror's age;
+* a repository, line or classified citation older than `--max-age` is marked
+  `stale`;
+* the worklist records `source` (also in `scope.source`) and `mirror`
+  (`indexUpdatedAt`, `indexDigest`) to identify the mirror snapshot used.
+
+`evidence reattest` applies its 72-hour freshness bound to that time: it takes
+the oldest of `resolvedAt`, `mirrorCheckedAt` and `mirrorReleasesAt` of a
+repository or line whose `source` is `mirror`, and treats a missing or
+unparsable time, or an unknown `source`, as stale.
 
 ## Classes
 
