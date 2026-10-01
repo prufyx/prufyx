@@ -255,7 +255,7 @@ func TestEvidenceReattestVerifyExitCodes(t *testing.T) {
 		if got := exitCode(err); got != tc.want {
 			t.Fatalf("%s: exit code %d, want %d (err=%v stderr=%q)", tc.name, got, tc.want, err, stderr.String())
 		}
-		if tc.name == "valid" && !strings.Contains(stdout.String(), "evidence reattest verify: OK rules=1") {
+		if tc.name == "valid" && !strings.Contains(stdout.String(), "evidence reattest verify: OK role=human rules=1") {
 			t.Fatalf("valid: unexpected output %q", stdout.String())
 		}
 		if tc.name == "no signature" && !strings.Contains(stderr.String(), "--envelope, --trust-root, and --trust-root-digest are required") {

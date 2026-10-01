@@ -36,8 +36,13 @@ func runEvidenceReattest(args []string, stdout, stderr io.Writer) error {
 		return runEvidenceReattestSign(args[1:], stdout, stderr)
 	case "verify":
 		return runEvidenceReattestVerify(args[1:], stdout, stderr)
+	case "trust-root":
+		if len(args) > 1 && args[1] == "migrate" {
+			return runEvidenceReattestTrustRootMigrate(args[2:], stdout, stderr)
+		}
+		return evidenceReattestError()
 	case "help", "-h", "--help":
-		_, err := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest <prepare|sign|verify> [options]")
+		_, err := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest <prepare|sign|verify|trust-root migrate> [options]")
 		return err
 	default:
 		return evidenceReattestError()
@@ -210,7 +215,8 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("evidence reattest prepare", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	var worklistPath, packName, rulesPath, rulesWorklistPath, nextRevision, reviewRecordDir, outputDir, attestedAtFlag, statementChainDir, trustRootPath, trustRootDigest string
-	wave := flags.Int("wave", 0, "1..7 stagger slot this batch renews into")
+	wave := flags.Int("wave", 0, "1..7 stagger slot this batch renews into (human mode only)")
+	mode := flags.String("mode", evidencereattest.ModeHuman, "human (a reviewer's batch: wave, sample, terminal signing) or automated (no sample, per-rule schedule, automation-key signing)")
 	flags.StringVar(&worklistPath, "worklist", "", "retained evidence-repin worklist (absolute path)")
 	flags.StringVar(&packName, "pack", "", "cncf or community")
 	flags.StringVar(&rulesPath, "rules", "", "current rule pack file (absolute path)")
@@ -224,7 +230,7 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	flags.StringVar(&attestedAtFlag, "attested-at", "", "exact UTC RFC3339 attestation instant, not in the future (default: now)")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest prepare --worklist ABS --pack cncf|community --rules ABS --next-revision STR --wave N --output-dir ABS --statement-chain-dir ABS [--trust-root ABS --trust-root-digest sha256:...] [--rules-worklist-path STR] [--review-record-dir ABS] [--attested-at RFC3339]")
+			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest prepare --worklist ABS --pack cncf|community --rules ABS --next-revision STR (--wave N | --mode automated) --output-dir ABS --statement-chain-dir ABS [--trust-root ABS --trust-root-digest sha256:...] [--rules-worklist-path STR] [--review-record-dir ABS] [--attested-at RFC3339]")
 			return e
 		}
 		return evidenceReattestError()
@@ -236,6 +242,9 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 		return evidenceReattestError()
 	}
 	if packName != evidencereattest.PackCNCF && packName != evidencereattest.PackCommunity {
+		return evidenceReattestError()
+	}
+	if *mode != evidencereattest.ModeHuman && *mode != evidencereattest.ModeAutomated {
 		return evidenceReattestError()
 	}
 	if rulesWorklistPath == "" {
@@ -274,7 +283,7 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 
 	result, err := evidencereattest.Prepare(evidencereattest.PrepareOptions{
 		WorklistRaw: worklistRaw, PackName: packName, PackPath: rulesWorklistPath, PackRaw: packRaw,
-		Chain: chain, Wave: *wave, AttestedAt: attestedAt, Now: now, NextRevision: nextRevision,
+		Chain: chain, Mode: *mode, Wave: *wave, AttestedAt: attestedAt, Now: now, NextRevision: nextRevision,
 		EngineCapabilityDigest: capabilityDigest, ReviewRecords: reviewRecords,
 	})
 	if err != nil {
@@ -294,51 +303,87 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	if err := os.WriteFile(filepath.Join(outputDir, "summary.txt"), result.Summary, 0o644); err != nil {
 		return evidenceReattestError()
 	}
-	fmt.Fprintf(stdout, "evidence reattest prepare: eligible=%d sampled=%d notExtended=%d\n",
-		result.EligibleRuleCount, result.SampledRuleCount, result.NotExtendedRuleCount)
+	fmt.Fprintf(stdout, "evidence reattest prepare: mode=%s signerRole=%s eligible=%d sampled=%d notExtended=%d\n",
+		*mode, result.Statement.SignerRole, result.EligibleRuleCount, result.SampledRuleCount, result.NotExtendedRuleCount)
 	return nil
 }
+
+const evidenceReattestSignUsage = "usage: prufyx-maintainer evidence reattest sign --statement ABS --trust-root ABS --trust-root-digest sha256:... --output ABS [--role human] --key ABS | --role automation (--key ABS | --key-env NAME) (--passphrase-file ABS | --passphrase-env NAME)"
 
 func runEvidenceReattestSign(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("evidence reattest sign", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
-	var statementPath, trustRootPath, trustRootDigest, keyPath, output string
+	var statementPath, trustRootPath, trustRootDigest, keyPath, keyEnv, passphrasePath, passphraseEnv, output, role string
 	flags.StringVar(&statementPath, "statement", "", "exact statement.json prepare produced (absolute path)")
 	flags.StringVar(&trustRootPath, "trust-root", "", "evidence-reattestation trust root (absolute path; no production path is configured, see evidencereattest.ProductionTrustRootPath)")
 	flags.StringVar(&trustRootDigest, "trust-root-digest", "", "the trust root's digest as independently known to the caller, sha256:... (never derived from --trust-root itself)")
-	flags.StringVar(&keyPath, "key", "", "encrypted local re-attestation signing key")
+	flags.StringVar(&role, "role", evidencereattest.RoleHuman, "the role to sign as: human (terminal passphrase prompt only) or automation (unattended; key and passphrase from files or environment variables)")
+	flags.StringVar(&keyPath, "key", "", "encrypted re-attestation signing key file (absolute path, mode 0600, owned by the current user)")
+	flags.StringVar(&keyEnv, "key-env", "", "automation role only: name of an environment variable holding the encrypted signing key PEM")
+	flags.StringVar(&passphrasePath, "passphrase-file", "", "automation role only: file holding the key's passphrase (absolute path, mode 0600, owned by the current user; one trailing newline is ignored)")
+	flags.StringVar(&passphraseEnv, "passphrase-env", "", "automation role only: name of an environment variable holding the key's passphrase")
 	flags.StringVar(&output, "output", "", "new statement.sig.json output path")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest sign --statement ABS --trust-root ABS --trust-root-digest sha256:... --key ABS --output ABS")
+			_, e := fmt.Fprintln(stdout, evidenceReattestSignUsage)
 			return e
 		}
 		return evidenceReattestError()
 	}
-	if flags.NArg() != 0 || statementPath == "" || trustRootPath == "" || trustRootDigest == "" || keyPath == "" || output == "" || !filepath.IsAbs(output) {
+	if flags.NArg() != 0 || statementPath == "" || trustRootPath == "" || trustRootDigest == "" || output == "" || !filepath.IsAbs(output) {
+		return evidenceReattestError()
+	}
+	switch role {
+	case evidencereattest.RoleHuman:
+		// A human key is unlocked only at a terminal: none of the
+		// unattended inputs may be given.
+		if keyPath == "" || keyEnv != "" || passphrasePath != "" || passphraseEnv != "" {
+			return evidenceReattestError()
+		}
+	case evidencereattest.RoleAutomation:
+		if (keyPath == "") == (keyEnv == "") || (passphrasePath == "") == (passphraseEnv == "") {
+			return evidenceReattestError()
+		}
+	default:
 		return evidenceReattestError()
 	}
 	statementRaw, err := readCanonicalInput(statementPath, evidencereattest.MaxStatementBytes)
 	if err != nil {
 		return evidenceReattestError()
 	}
+	// Refuse a statement prepared for the other role before any secret is
+	// read: an automation key never signs a human statement, and a human
+	// key never signs an automated one. Sign enforces the same binding.
+	statementRole, err := evidencereattest.StatementSignerRole(statementRaw)
+	if err != nil || statementRole != role {
+		fmt.Fprintf(stderr, "evidence reattest sign: the statement must be signed with role %q, not %q\n", statementRole, role)
+		return &commandError{code: 2, message: "evidence reattest sign: rejected", printed: true}
+	}
 	trustRootRaw, err := readCanonicalInput(trustRootPath, evidencereattest.MaxTrustRootBytes)
 	if err != nil {
 		return evidenceReattestError()
 	}
-	keyRaw, err := signerKey(keyPath)
-	if err != nil {
-		return evidenceReattestError()
-	}
-	// promptPassphrase refuses off a TTY (see knowledge_sign.go): this is
-	// the only place this command acquires secret input, so an unattended
-	// or agent-driven shell can never reach Sign with a usable passphrase.
-	passphrase, err := promptPassphrase(stderr, false)
-	if err != nil {
-		return evidenceReattestError()
+	var keyRaw, passphrase []byte
+	if role == evidencereattest.RoleHuman {
+		keyRaw, err = signerKey(keyPath)
+		if err != nil {
+			return evidenceReattestError()
+		}
+		// promptPassphrase refuses off a TTY (see knowledge_sign.go): a
+		// human key is only ever unlocked by a person at a terminal, so an
+		// unattended or agent-driven shell can never reach Sign with it.
+		passphrase, err = promptPassphrase(stderr, false)
+		if err != nil {
+			return evidenceReattestError()
+		}
+	} else {
+		keyRaw, passphrase, err = automationSecrets(keyPath, keyEnv, passphrasePath, passphraseEnv)
+		if err != nil {
+			return evidenceReattestError()
+		}
 	}
 	envelope, err := evidencereattest.Sign(evidencereattest.SignOptions{
-		Statement: statementRaw, TrustRoot: trustRootRaw, EncryptedKey: keyRaw, Passphrase: passphrase,
+		Statement: statementRaw, TrustRoot: trustRootRaw, EncryptedKey: keyRaw, Passphrase: passphrase, Role: role,
 		ExpectedTrustRootDigest: trustRootDigest, Now: time.Now().UTC(),
 	})
 	if err != nil {
@@ -348,7 +393,107 @@ func runEvidenceReattestSign(args []string, stdout, stderr io.Writer) error {
 	if err := os.WriteFile(output, append(append([]byte(nil), envelope...), '\n'), 0o644); err != nil {
 		return evidenceReattestError()
 	}
-	fmt.Fprintln(stdout, "evidence reattest sign: signed")
+	fmt.Fprintf(stdout, "evidence reattest sign: signed (role %s)\n", role)
+	return nil
+}
+
+// automationSecrets reads an automation key and its passphrase for
+// unattended signing, as a CI job provides them from its secrets: each
+// either from a file (absolute, mode 0600, owned by the current user, read
+// through the same bounded no-follow reader as every other input) or from
+// a named environment variable. A passphrase file's one trailing newline
+// is dropped. Empty values are rejected.
+func automationSecrets(keyPath, keyEnv, passphrasePath, passphraseEnv string) (key, passphrase []byte, err error) {
+	if keyPath != "" {
+		key, err = signerKey(keyPath)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		value, ok := os.LookupEnv(keyEnv)
+		if !ok || value == "" || len(value) > knowledgesign.MaxKeyBytes {
+			return nil, nil, knowledgesign.ErrRejected
+		}
+		key = []byte(value)
+	}
+	if passphrasePath != "" {
+		raw, err := signerKey(passphrasePath)
+		if err != nil {
+			return nil, nil, err
+		}
+		passphrase = bytes.TrimSuffix(bytes.TrimSuffix(raw, []byte("\n")), []byte("\r"))
+	} else {
+		value, ok := os.LookupEnv(passphraseEnv)
+		if !ok {
+			return nil, nil, knowledgesign.ErrRejected
+		}
+		passphrase = []byte(value)
+	}
+	if len(passphrase) == 0 {
+		return nil, nil, knowledgesign.ErrRejected
+	}
+	return key, passphrase, nil
+}
+
+// runEvidenceReattestTrustRootMigrate writes a v2 trust root derived from
+// an existing v1 or v2 one (see evidencereattest.MigrateTrustRoot). It
+// reads and writes public keys only.
+func runEvidenceReattestTrustRootMigrate(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("evidence reattest trust-root migrate", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	var fromPath, fromDigest, output, expires string
+	var addKeys, removeKeys stringList
+	flags.StringVar(&fromPath, "from", "", "current trust root, v1 or v2 (absolute path)")
+	flags.StringVar(&fromDigest, "from-digest", "", "the current trust root's pinned digest, sha256:...")
+	flags.StringVar(&output, "output", "", "new file to write the v2 trust root to (absolute path; must not exist)")
+	flags.StringVar(&expires, "expires", "", "new expiry as exact UTC RFC3339 (default: keep the current root's)")
+	flags.Var(&addKeys, "add-automation-key", "hex Ed25519 public key to add with the automation role (repeatable)")
+	flags.Var(&removeKeys, "remove-key", "key ID to remove (repeatable)")
+	if err := flags.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest trust-root migrate --from ABS --from-digest sha256:... --output ABS [--expires RFC3339] [--add-automation-key HEX]... [--remove-key KEYID]...")
+			return e
+		}
+		return evidenceReattestError()
+	}
+	if flags.NArg() != 0 || fromPath == "" || fromDigest == "" || output == "" || !filepath.IsAbs(output) {
+		return evidenceReattestError()
+	}
+	fromRaw, err := readCanonicalInput(fromPath, evidencereattest.MaxTrustRootBytes)
+	if err != nil {
+		return evidenceReattestError()
+	}
+	result, err := evidencereattest.MigrateTrustRoot(evidencereattest.MigrateTrustRootOptions{
+		From: fromRaw, ExpectedFromDigest: fromDigest, Now: time.Now().UTC(), Expires: expires,
+		AddAutomationKeys: addKeys, RemoveKeyIDs: removeKeys,
+	})
+	if err != nil {
+		fmt.Fprintf(stderr, "evidence reattest trust-root migrate: %v\n", err)
+		return &commandError{code: 2, message: "evidence reattest trust-root migrate: rejected", printed: true}
+	}
+	file, err := os.OpenFile(output, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return evidenceReattestError()
+	}
+	_, writeErr := file.Write(append(append([]byte(nil), result.TrustRoot...), '\n'))
+	closeErr := file.Close()
+	if writeErr != nil || closeErr != nil {
+		return evidenceReattestError()
+	}
+	fmt.Fprintf(stdout, "evidence reattest trust-root migrate: schemaVersion=%s trustRootDigest=%s\n", evidencereattest.TrustRootSchema, result.Digest)
+	for _, key := range result.Keys {
+		fmt.Fprintf(stdout, "  key %s role %s\n", key.KeyID, key.Role)
+	}
+	return nil
+}
+
+// stringList is a repeatable string flag.
+type stringList []string
+
+func (l *stringList) String() string { return strings.Join(*l, ",") }
+
+func (l *stringList) Set(value string) error {
+	*l = append(*l, value)
 	return nil
 }
 
@@ -470,8 +615,8 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 		}
 		keyIDs := append([]string(nil), sig.SignerKeyIDs...)
 		sort.Strings(keyIDs)
-		fmt.Fprintf(stdout, "evidence reattest verify: OK rules=%d sampled=%d notExtended=%d signedBy=%s\n",
-			result.RuleCount, result.SampledCount, result.NotExtendedCount, strings.Join(keyIDs, ","))
+		fmt.Fprintf(stdout, "evidence reattest verify: OK role=%s rules=%d sampled=%d notExtended=%d signedBy=%s\n",
+			sig.SignerRole, result.RuleCount, result.SampledCount, result.NotExtendedCount, strings.Join(keyIDs, ","))
 		return nil
 	}
 	fmt.Fprintf(stdout, "evidence reattest verify: OK rules=%d sampled=%d notExtended=%d (nothing renewed; no signature required)\n",
