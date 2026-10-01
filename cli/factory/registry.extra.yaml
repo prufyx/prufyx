@@ -1,0 +1,9 @@
+# Repositories mirrored in addition to those cited by the shipped rule packs:
+# candidate projects for mechanical derivation. Merged by
+#   prufyx-maintainer factory registry derive --extra factory/registry.extra.yaml
+repos:
+  - kubernetes/kubernetes
+  - kubernetes/ingress-nginx
+  - cert-manager/cert-manager
+  - coredns/coredns
+  - kubernetes-sigs/kustomize

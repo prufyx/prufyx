@@ -62,6 +62,9 @@ func (g ExecGit) env() []string {
 		"GIT_CONFIG_GLOBAL=" + os.DevNull,
 		"GIT_PAGER=cat",
 		"GIT_ALLOW_PROTOCOL=" + allow,
+		// The state directory is operator-owned; it may belong to another
+		// uid than the process (bind mounts), which git would refuse.
+		"GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=safe.directory", "GIT_CONFIG_VALUE_0=*",
 	}
 	if g.Offline {
 		env = append(env, "GIT_NO_LAZY_FETCH=1", "GIT_ALLOW_PROTOCOL=none")
