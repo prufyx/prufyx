@@ -95,6 +95,46 @@ func (b bundle) check(project, selectedRuleID string, inputRaw []byte, now time.
 	if err != nil {
 		return Report{}, ErrIntegrity
 	}
+	return b.report(project, selectedRuleID, false, input, rules, inputRaw, now)
+}
+
+// RegisteredFact reports whether the compiled fact registry declares id. A
+// native adapter uses it to emit only facts that a published rule can consume.
+func RegisteredFact(id string) bool {
+	for _, definition := range compiledDefinitions() {
+		if definition.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// CheckFacts evaluates the project's embedded rules whose every condition and
+// applicability fact is one of facts: exactly the rules a native adapter that
+// derives those facts can decide. Rules about other evidence are neither run
+// nor reported. When no such rule matches the transition, every rule of that
+// family is evaluated, so the claims say why none applies; when the family is
+// empty the report has no claims.
+func CheckFacts(project string, facts []string, inputRaw []byte, now time.Time) (Report, error) {
+	b, err := load()
+	if err != nil {
+		return Report{}, err
+	}
+	if !b.hasProject(project) || len(facts) == 0 {
+		return Report{}, ErrInvalid
+	}
+	input, err := constraintengine.ParseInput(inputRaw, b.registry)
+	if err != nil {
+		return Report{}, ErrInvalid
+	}
+	rules, err := b.factFamilyRuleSet(project, facts, inputRaw)
+	if err != nil {
+		return Report{}, ErrIntegrity
+	}
+	return b.report(project, "", true, input, rules, inputRaw, now)
+}
+
+func (b bundle) report(project, selectedRuleID string, family bool, input constraintengine.Input, rules constraintengine.RuleSet, inputRaw []byte, now time.Time) (Report, error) {
 	result, err := constraintengine.Evaluate(input, rules, now)
 	if err != nil {
 		return Report{}, ErrInvalid
@@ -116,7 +156,9 @@ func (b bundle) check(project, selectedRuleID string, inputRaw []byte, now time.
 		report.NextAction = "review the selected native-input claim; other project rules, configuration and whole-upgrade behavior remain unassessed"
 	}
 	if len(result.Claims) == 0 {
-		if selectedRuleID != "" {
+		if family {
+			report.NextAction = "no reviewed rule for this native input is packaged; the result stays UNKNOWN until a maintainer publishes one for this transition"
+		} else if selectedRuleID != "" {
 			report.NextAction = "the selected reviewed native-input rule is unavailable; retain UNKNOWN and select knowledge that contains that exact rule"
 		} else {
 			report.NextAction = "no generic rules are packaged for this project; inspect its existing named checks in the catalogue or contribute an exact transition with primary source evidence"

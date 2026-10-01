@@ -67,6 +67,7 @@ var fromToEqualityAllowlist = map[string]int{
 	"internal/cncfprepare/kubeedge.go":                         3,
 	"internal/cncfprepare/kubeflow.go":                         1,
 	"internal/cncfprepare/kubernetes.go":                       1,
+	"internal/cncfprepare/kubernetes_component_config.go":      1,
 	"internal/cncfprepare/kubernetes_removed_apis.go":          1,
 	"internal/cncfprepare/kubevirt.go":                         1,
 	"internal/cncfprepare/kuma.go":                             3,

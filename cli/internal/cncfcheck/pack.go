@@ -354,6 +354,65 @@ func (b bundle) rulesForAdmittedInput(project string, raw []byte) (constrainteng
 	return b.parseRules(matched)
 }
 
+// factFamilyRuleSet selects the project's rules whose condition and
+// applicability facts all belong to facts, narrowed to the rules whose
+// transition matches the input when any does.
+func (b bundle) factFamilyRuleSet(project string, facts []string, raw []byte) (constraintengine.RuleSet, error) {
+	allowed := map[string]bool{}
+	for _, fact := range facts {
+		allowed[fact] = true
+	}
+	var input struct {
+		Current  sideShape `json:"current"`
+		Proposed sideShape `json:"proposed"`
+	}
+	if json.Unmarshal(raw, &input) != nil {
+		return constraintengine.RuleSet{}, ErrIntegrity
+	}
+	versions := func(side sideShape) map[string]string {
+		values := map[string]string{}
+		for _, identity := range side.Components {
+			values[identity.Component] = identity.Version
+		}
+		return values
+	}
+	current, proposed := versions(input.Current), versions(input.Proposed)
+	family := make([]json.RawMessage, 0)
+	matched := make([]json.RawMessage, 0)
+	for _, entry := range b.pack.Entries {
+		if entry.Project != project {
+			continue
+		}
+		var shape ruleShape
+		if json.Unmarshal(entry.Rule, &shape) != nil {
+			return constraintengine.RuleSet{}, ErrIntegrity
+		}
+		conditions := append([]conditionShape(nil), shape.AppliesWhen...)
+		if shape.Condition != nil {
+			conditions = append(conditions, *shape.Condition)
+		}
+		inFamily := len(conditions) > 0
+		for _, condition := range conditions {
+			inFamily = inFamily && allowed[condition.FactID]
+		}
+		if !inFamily {
+			continue
+		}
+		family = append(family, entry.Rule)
+		subject, err := constraintengine.RuleTransitionOf(entry.Rule)
+		if err != nil {
+			return constraintengine.RuleSet{}, ErrIntegrity
+		}
+		if subject.Match(current[subject.Component], proposed[subject.Component]) != constraintengine.MatchNone {
+			matched = append(matched, entry.Rule)
+		}
+	}
+	if len(matched) == 0 {
+		return b.parseRules(family)
+	}
+	return b.parseRules(matched)
+}
+
 func (b bundle) selectedRuleSet(project, ruleID string) (constraintengine.RuleSet, error) {
 	selected := make([]json.RawMessage, 0, 1)
 	for _, entry := range b.pack.Entries {
