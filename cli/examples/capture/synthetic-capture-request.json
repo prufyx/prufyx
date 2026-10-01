@@ -1,0 +1,21 @@
+{
+  "authority": "DECLARED_PUBLIC_SOURCE_REQUESTS_NOT_RULE_OR_RUNTIME_PROOF",
+  "requests": [
+    {
+      "declarations": {"packetDigest": null, "ruleIDs": []},
+      "id": "synthetic-source-release-note",
+      "project": {"canonicalRepositoryURL": "https://github.com/example/synthetic-project", "slug": "synthetic-project"},
+      "source": {
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "fileDigest": "sha256:2aa55d81765ce03e46eaeaa27a4314ed8663bd7ec8fc27e46ab0a5f7dc6e6366",
+        "immutableURL": "https://github.com/example/synthetic-source/blob/0123456789abcdef0123456789abcdef01234567/CHANGELOG.md",
+        "repositoryURL": "https://github.com/example/synthetic-source",
+        "sourceKind": "release_note",
+        "spans": [{"endLine": 2, "spanDigest": "sha256:6db05b099a72111496ca7a2641f7e234f83ed00b918c095ff8c682a55729a98a", "startLine": 1}],
+        "version": "1.0.0"
+      }
+    }
+  ],
+  "revision": "synthetic-capture-v1",
+  "schema": "prufyx.io/private-public-source-capture-request/v1"
+}

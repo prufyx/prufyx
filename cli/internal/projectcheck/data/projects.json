@@ -1,0 +1,70 @@
+{
+  "schema": "prufyx.io/community-project-registry/v1alpha1",
+  "revision": "community-projects-2026-09-12.2",
+  "projects": [
+    {
+      "slug": "argo-workflows",
+      "name": "Argo Workflows",
+      "repositoryURL": "https://github.com/argoproj/argo-workflows",
+      "component": "pkg:github/argoproj/argo-workflows",
+      "identityAuthority": "MAINTAINER_REVIEWED_EXTERNAL_REPOSITORY",
+      "cncfMembership": "NOT_ASSERTED"
+    },
+    {
+      "slug": "ceph",
+      "name": "Ceph",
+      "repositoryURL": "https://github.com/ceph/ceph",
+      "component": "pkg:github/ceph/ceph",
+      "identityAuthority": "MAINTAINER_REVIEWED_EXTERNAL_REPOSITORY",
+      "cncfMembership": "NOT_ASSERTED"
+    },
+    {
+      "slug": "fluent-bit",
+      "name": "Fluent Bit",
+      "repositoryURL": "https://github.com/fluent/fluent-bit",
+      "component": "pkg:github/fluent/fluent-bit",
+      "identityAuthority": "MAINTAINER_REVIEWED_EXTERNAL_REPOSITORY",
+      "cncfMembership": "NOT_ASSERTED"
+    },
+    {
+      "slug": "grafana",
+      "name": "Grafana",
+      "repositoryURL": "https://github.com/grafana/grafana",
+      "component": "pkg:github/grafana/grafana",
+      "identityAuthority": "MAINTAINER_REVIEWED_EXTERNAL_REPOSITORY",
+      "cncfMembership": "NOT_ASSERTED"
+    },
+    {
+      "slug": "kibana",
+      "name": "Kibana",
+      "repositoryURL": "https://github.com/elastic/kibana",
+      "component": "pkg:github/elastic/kibana",
+      "identityAuthority": "MAINTAINER_REVIEWED_EXTERNAL_REPOSITORY",
+      "cncfMembership": "NOT_ASSERTED"
+    },
+    {
+      "slug": "loki",
+      "name": "Grafana Loki",
+      "repositoryURL": "https://github.com/grafana/loki",
+      "component": "pkg:github/grafana/loki",
+      "identityAuthority": "MAINTAINER_REVIEWED_EXTERNAL_REPOSITORY",
+      "cncfMembership": "NOT_ASSERTED"
+    },
+    {
+      "slug": "mariadb",
+      "name": "MariaDB Server",
+      "repositoryURL": "https://github.com/MariaDB/server",
+      "component": "pkg:github/mariadb/server",
+      "identityAuthority": "MAINTAINER_REVIEWED_EXTERNAL_REPOSITORY",
+      "cncfMembership": "NOT_ASSERTED"
+    },
+    {
+      "slug": "mariadb-operator",
+      "name": "MariaDB Operator",
+      "repositoryURL": "https://github.com/mariadb-operator/mariadb-operator",
+      "component": "pkg:github/mariadb-operator/mariadb-operator",
+      "identityAuthority": "MAINTAINER_REVIEWED_EXTERNAL_REPOSITORY",
+      "cncfMembership": "NOT_ASSERTED"
+    }
+  ]
+}

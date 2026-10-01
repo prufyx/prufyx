@@ -1,0 +1,85 @@
+{
+  "allowExternalModules": false,
+  "binaryName": "prufyx",
+  "buildTargets": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "entrypoints": [
+    "./cmd/prufyx-community"
+  ],
+  "moduleRoot": "cli",
+  "requiredGoVersion": "go1.26.8",
+  "requiredPaths": [
+    {"path": "LICENSE", "role": "license"},
+    {"path": "LICENSES", "recursive": true, "role": "license"},
+    {"path": "NOTICE", "role": "notice"},
+    {"path": "THIRD-PARTY.md", "role": "notice"},
+    {"path": ".gitignore", "role": "repository-config"},
+    {"path": ".gitleaksignore", "role": "repository-config"},
+    {"path": ".github/CODE_OF_CONDUCT.md", "role": "community-governance"},
+    {"path": ".github/CONTRIBUTING.md", "role": "community-governance"},
+    {"path": ".github/SECURITY.md", "role": "community-governance"},
+    {"path": ".github/SUPPORT.md", "role": "community-governance"},
+    {"path": ".github/ISSUE_TEMPLATE/new-project.yml", "role": "community-governance"},
+    {"path": ".github/ISSUE_TEMPLATE/source-preview-feedback.md", "role": "community-governance"},
+    {"path": ".github/workflows/_community-build.yml", "role": "ci"},
+    {"path": ".github/workflows/community-ci.yml", "role": "ci"},
+    {"path": ".github/workflows/community-release.yml", "role": "ci"},
+    {"path": ".github/workflows/community-source-gate.yml", "role": "ci"},
+    {"path": "CHANGELOG.md", "role": "documentation"},
+    {"path": "CONTRIBUTING.md", "role": "community-governance"},
+    {"path": "README.md", "role": "documentation"},
+    {"path": "SOURCE-PREVIEW.json", "role": "release-metadata"},
+    {"path": "SECURITY.md", "role": "documentation"},
+    {"path": "cli/README.md", "role": "documentation"},
+    {"path": "cli/Makefile", "role": "build-tool"},
+    {"path": "cli/cmd/prufyx-collector", "recursive": true, "role": "operator-tool"},
+    {"path": "cli/internal/localcollector", "recursive": true, "role": "operator-tool"},
+    {"path": "cli/cmd/prufyx-offline-boundary", "recursive": true, "role": "operator-test"},
+    {"path": "cli/internal/offlineboundary", "recursive": true, "role": "operator-test"},
+    {"path": "cli/cmd/prufyx-maintainer", "recursive": true, "role": "maintainer-tool"},
+    {"path": "cli/internal/maintainer", "recursive": true, "role": "maintainer-tool"},
+    {"path": "cli/docs/community-checks.md", "role": "documentation"},
+    {"path": "cli/docs/community-project-checks.md", "role": "documentation"},
+    {"path": "cli/examples/projects", "recursive": true, "role": "example"},
+    {"path": "cli/docs/data-handling.md", "role": "documentation"},
+    {"path": "cli/docs/local-collection.md", "role": "documentation"},
+    {"path": "cli/docs/offline-boundary.md", "role": "documentation"},
+    {"path": "cli/docs/native-format-preflights.md", "role": "documentation"},
+    {"path": "cli/docs/openfga-oidc-upgrade.md", "role": "documentation"},
+    {"path": "cli/docs/cloudevents-structured-json.md", "role": "documentation"},
+    {"path": "cli/docs/spiffe-x509-svid.md", "role": "documentation"},
+    {"path": "cli/docs/tikv-gcp-v2-wif-backup.md", "role": "documentation"},
+    {"path": "cli/docs/product-contract.md", "role": "documentation"},
+    {"path": "cli/docs/prometheus-mode.md", "role": "documentation"},
+    {"path": "cli/docs/signing-provenance.md", "role": "documentation"},
+    {"path": "cli/release/COMMUNITY-SOURCE-GATE.md", "role": "documentation"},
+    {"path": "cli/release/community-shipping-policy-v1.json", "role": "release-policy"},
+    {"path": "cli/examples/community", "recursive": true, "role": "example"},
+    {"path": "cli/scripts/component-configuration-adapters-v3.json", "role": "operator-data"},
+    {"path": "cli/scripts/component-configuration-adapters.json", "role": "operator-data"},
+    {"path": "cli/scripts/kubeconfig-api-snapshot.sh", "role": "operator-tool"},
+    {"path": "cli/scripts/test-component-configuration-adapter.sh", "role": "operator-test"},
+    {"path": "cli/scripts/test-kubeconfig-api-snapshot-offline.sh", "role": "operator-test"},
+    {"path": "cli/scripts/testdata", "recursive": true, "role": "operator-testdata"},
+    {"path": "scripts/community-release.sh", "role": "release-tool"}
+  ],
+  "schemaVersion": "prufyx.io/community-shipping-policy/v1",
+  "sourceBuildTargets": [
+    "linux/amd64",
+    "linux/arm64",
+    "darwin/arm64"
+  ],
+  "testPolicy": {
+    "requireDirectTestsForProductionPackages": true,
+    "testTags": [
+      "parityreview"
+    ]
+  },
+  "toolchainArchives": {
+    "darwin/arm64": "a012b25b571bd0138a03dcd25375ceba866fe5ca822f426d2c66a4de56fd3f4b",
+    "linux/amd64": "d0f743b33e8d8945e6b1f432edd15785c70507121d6e2a723b21285eddf8b57b",
+    "linux/arm64": "211ffced9dcb9633a55eac6364816ec0ddd951389a740e88fa8b3337971bdda0"
+  }
+}

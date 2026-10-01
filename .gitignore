@@ -1,0 +1,8 @@
+# Local build and observation output
+/prufyx
+/cli/prufyx
+/dist/
+.local/
+.DS_Store
+__pycache__/
+*.pyc

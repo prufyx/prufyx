@@ -1,0 +1,96 @@
+{
+  "schema": "prufyx.io/cncf-source-contract/v1alpha1",
+  "component": "pkg:github/opencost/opencost",
+  "target": {
+    "version": "1.121.2",
+    "tag": "v1.121.2",
+    "commit": "e22df84a4fb1113534514c44616f979f6455c0a7",
+    "publishedAt": "2026-09-11T21:38:02Z"
+  },
+  "origins": [
+    {
+      "version": "1.116.0",
+      "tag": "v1.116.0",
+      "commit": "050ce5a6436494e46844f0d6b6702dac9a4a05c7",
+      "publishedAt": "2025-08-07T15:46:33Z",
+      "sourceDigests": {
+        "pkg/cmd/costmodel/costmodel.go": "sha256:e37528c244a176ecd2682e8e50a306a24f571c6fbdbfc5866781f914b7d08703",
+        "pkg/costmodel/router.go": "sha256:425dd29cedadf61b50458daa695c5eff67d9c741685962108de1c03120bf68eb"
+      }
+    },
+    {
+      "version": "1.117.6",
+      "tag": "v1.117.6",
+      "commit": "faff1c39d11ac28ea8dd6dbdfd7606172cf9f933",
+      "publishedAt": "2025-09-30T18:15:40Z",
+      "sourceDigests": {
+        "pkg/cmd/costmodel/costmodel.go": "sha256:e37528c244a176ecd2682e8e50a306a24f571c6fbdbfc5866781f914b7d08703",
+        "pkg/costmodel/router.go": "sha256:60e4923d5e7670e7fb2673a4f66f374be85142287ca19a0541f7b8aa867ea7f0"
+      }
+    },
+    {
+      "version": "1.118.0",
+      "tag": "v1.118.0",
+      "commit": "37e08c6365d0f086562d049633e7a19bd025369a",
+      "publishedAt": "2025-10-23T20:07:34Z",
+      "sourceDigests": {
+        "pkg/cmd/costmodel/costmodel.go": "sha256:32ceb0ac356122099ecc0f9ee2ddc99330e90966edb0184d73987e8c8451323c",
+        "pkg/costmodel/router.go": "sha256:f20450b02819e27bbfa4ba3b1e415f6a54f52635abf4e50a3aaf29c3c4b70ca0"
+      }
+    },
+    {
+      "version": "1.119.2",
+      "tag": "v1.119.2",
+      "commit": "8572a23ed7d9ad77526bf49fe70c20b050d037dc",
+      "publishedAt": "2026-02-09T19:28:42Z",
+      "sourceDigests": {
+        "pkg/cmd/costmodel/costmodel.go": "sha256:3752c99c17300d47204845dd140c8a4278864c528b910a85a687da1bc6b11153",
+        "pkg/costmodel/router.go": "sha256:48b5bc756ac233dc5208c9d4ce0ecfbc82aa95d17bf87443d5aad71cfff03f28"
+      }
+    },
+    {
+      "version": "1.120.4",
+      "tag": "v1.120.4",
+      "commit": "1741baaf3682445acba7dfd28c5c5a2a01d4006b",
+      "publishedAt": "2026-06-25T18:58:04Z",
+      "sourceDigests": {
+        "pkg/cmd/costmodel/costmodel.go": "sha256:1b9bca9621b99a85aa873e3895176f287a06f45619fe2a6044abf42ce2f2322b",
+        "pkg/costmodel/router.go": "sha256:9696c85692fab940c5f06a36ad5178f6f583309a7e9d728e40ca678d2157c116"
+      },
+      "initializationSemantics": "pkg/costmodel/router.go already passes nil to NewMemoryController; origin source does not prove provider-derived deployment reliance"
+    }
+  ],
+  "targetSources": [
+    {
+      "id": "target-cloud-cost-gate",
+      "path": "pkg/cmd/costmodel/costmodel.go",
+      "commit": "e22df84a4fb1113534514c44616f979f6455c0a7",
+      "contentDigest": "sha256:8e51b656656f1fe707f83589b42940a5078e3e0db1cd129e81829e2a85c9830c",
+      "startLine": 78,
+      "endLine": 101
+    },
+    {
+      "id": "target-cloud-cost-initialization",
+      "path": "pkg/costmodel/router.go",
+      "commit": "e22df84a4fb1113534514c44616f979f6455c0a7",
+      "contentDigest": "sha256:eaa77b4dde1f2d7d836089f9e1e30c727a676fa192f0b7b62f35fde6f7b48a97",
+      "startLine": 637,
+      "endLine": 661
+    },
+    {
+      "id": "target-source-priority-and-paths",
+      "path": "pkg/cloud/config/watcher.go",
+      "commit": "e22df84a4fb1113534514c44616f979f6455c0a7",
+      "contentDigest": "sha256:c2c6f0c3609d0bc9c29a745d7f50097095a177fd5e574e2720072c1704d3dfea",
+      "startLine": 229,
+      "endLine": 350
+    }
+  ],
+  "predicate": "exact routes use caller-declared complete current and proposed source selections; the 1.120.4 route is target revalidation because that origin already passes nil to cloud-cost initialization",
+  "sourceKind": "official-github-stable-release-and-peeled-commit",
+  "runtimeClaims": "none",
+  "limitations": [
+    "Origin source identity does not establish a deployment-specific provider-derived current source.",
+    "The 1.120.4 route does not claim that v1.121.2 introduced nil initialization."
+  ]
+}

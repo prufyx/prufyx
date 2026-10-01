@@ -1,0 +1,33 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/goharbor/harbor",
+        "version": "1.7.5",
+        "facts": []
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/goharbor/harbor",
+        "version": "1.8.0",
+        "facts": [
+          {
+            "id": "component.harbor.deployment_mode",
+            "state": "declared",
+            "enumValue": "docker-compose"
+          },
+          {
+            "id": "component.harbor.installer_config_format",
+            "state": "declared",
+            "enumValue": "cfg"
+          }
+        ]
+      }
+    ]
+  }
+}

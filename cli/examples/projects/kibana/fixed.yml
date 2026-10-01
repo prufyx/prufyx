@@ -1,0 +1,4 @@
+xpack:
+  reporting:
+    roles:
+      enabled: false

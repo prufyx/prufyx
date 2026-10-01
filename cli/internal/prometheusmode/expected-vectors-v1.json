@@ -1,0 +1,201 @@
+{
+  "schema": "prufyx.io/prometheus-mode-expected-vectors/v1",
+  "status": "AUTHORED_BEFORE_EVALUATOR_COMPARISON",
+  "sourceContractDigest": "sha256:ae2abefb40167d77b7bb39e6331102da00580517588197f55e3eda762fc0da2f",
+  "claimScope": "declared Prometheus agent-mode preservation only",
+  "aggregate": "UNKNOWN",
+  "vectors": [
+    {
+      "id": "proposed-legacy-loses-current-agent-mode",
+      "current": {
+        "version": "2.55.1",
+        "imageDigest": "sha256:f4def6b3b61109a6eeea59945d578bb7e926c36cb0e036a23e3ceb8b6de024ad",
+        "agentMode": true,
+        "args": ["--config.file=/etc/prometheus/prometheus.yml", "--enable-feature=agent"]
+      },
+      "proposed": {
+        "version": "3.1.0",
+        "image": "prom/prometheus:v3.1.0@sha256:0ea5254abf85f87901e8cfbd18fd243c59162c338ce0acd86aa2b0153d83dce2",
+        "command": ["/bin/prometheus"],
+        "args": ["--config.file=/etc/prometheus/prometheus.yml", "--enable-feature=agent"]
+      },
+      "expected": {
+        "currentMode": true,
+        "proposedMode": false,
+        "proposedOrigin": "legacy_feature_ignored",
+        "status": "ATTENTION",
+        "reasonCode": "PROMETHEUS_AGENT_MODE_NOT_PRESERVED",
+        "reason": "exact declared Prometheus agent mode changes from enabled to disabled in the proposed configuration",
+        "nextAction": "replace the legacy --enable-feature=agent token with --agent, then reassess and verify applied runtime behavior"
+      }
+    },
+    {
+      "id": "proposed-dedicated-preserves-current-agent-mode",
+      "current": {
+        "version": "2.55.1",
+        "imageDigest": "sha256:f4def6b3b61109a6eeea59945d578bb7e926c36cb0e036a23e3ceb8b6de024ad",
+        "agentMode": true,
+        "args": ["--config.file=/etc/prometheus/prometheus.yml", "--enable-feature=agent"]
+      },
+      "proposed": {
+        "version": "3.1.0",
+        "image": "prom/prometheus:v3.1.0@sha256:0ea5254abf85f87901e8cfbd18fd243c59162c338ce0acd86aa2b0153d83dce2",
+        "command": ["/bin/prometheus"],
+        "args": ["--config.file=/etc/prometheus/prometheus.yml", "--agent"]
+      },
+      "expected": {
+        "currentMode": true,
+        "proposedMode": true,
+        "proposedOrigin": "dedicated_agent_flag",
+        "status": "PASS",
+        "reasonCode": "PROMETHEUS_AGENT_MODE_PRESERVED",
+        "reason": "exact declared current and proposed Prometheus agent modes are both enabled",
+        "nextAction": "retain the exact image and argument bindings, then verify applied runtime behavior before upgrade"
+      }
+    },
+    {
+      "id": "current-server-differs-from-fixed-proposed-agent",
+      "current": {
+        "version": "2.55.1",
+        "imageDigest": "sha256:f4def6b3b61109a6eeea59945d578bb7e926c36cb0e036a23e3ceb8b6de024ad",
+        "agentMode": false,
+        "args": ["--config.file=/etc/prometheus/prometheus.yml"]
+      },
+      "proposed": {
+        "version": "3.1.0",
+        "image": "prom/prometheus:v3.1.0@sha256:0ea5254abf85f87901e8cfbd18fd243c59162c338ce0acd86aa2b0153d83dce2",
+        "command": ["/bin/prometheus"],
+        "args": ["--config.file=/etc/prometheus/prometheus.yml", "--agent"]
+      },
+      "expected": {
+        "currentMode": false,
+        "proposedMode": true,
+        "proposedOrigin": "dedicated_agent_flag",
+        "status": "ATTENTION",
+        "reasonCode": "PROMETHEUS_AGENT_MODE_NOT_PRESERVED",
+        "reason": "exact declared Prometheus agent mode changes from disabled to enabled in the proposed configuration",
+        "nextAction": "confirm that enabling agent mode is intended; otherwise remove --agent, then reassess and verify applied runtime behavior"
+      }
+    },
+    {
+      "id": "proposed-wrapper-remains-unknown",
+      "current": {
+        "version": "2.55.1",
+        "imageDigest": "sha256:f4def6b3b61109a6eeea59945d578bb7e926c36cb0e036a23e3ceb8b6de024ad",
+        "agentMode": true,
+        "args": ["--enable-feature=agent"]
+      },
+      "proposed": {
+        "version": "3.1.0",
+        "image": "prom/prometheus:v3.1.0@sha256:0ea5254abf85f87901e8cfbd18fd243c59162c338ce0acd86aa2b0153d83dce2",
+        "command": ["/bin/sh", "-c"],
+        "args": ["/bin/prometheus --agent"]
+      },
+      "expected": {
+        "currentMode": true,
+        "proposedMode": null,
+        "proposedOrigin": "unknown_entrypoint",
+        "status": "UNKNOWN",
+        "reasonCode": "PROMETHEUS_AGENT_MODE_EVIDENCE_INCOMPLETE",
+        "reason": "the proposed declared agent mode is unresolved for the admitted source grammar",
+        "nextAction": "provide one supported Prometheus workload with the exact reviewed image digest, direct /bin/prometheus entrypoint semantics, and complete declared arguments"
+      }
+    },
+    {
+      "id": "proposed-environment-interpolation-remains-unknown",
+      "current": {
+        "version": "2.55.1",
+        "imageDigest": "sha256:f4def6b3b61109a6eeea59945d578bb7e926c36cb0e036a23e3ceb8b6de024ad",
+        "agentMode": true,
+        "args": ["--enable-feature=agent"]
+      },
+      "proposed": {
+        "version": "3.1.0",
+        "image": "prom/prometheus:v3.1.0@sha256:0ea5254abf85f87901e8cfbd18fd243c59162c338ce0acd86aa2b0153d83dce2",
+        "command": ["/bin/prometheus"],
+        "args": ["$(PROMETHEUS_MODE)"]
+      },
+      "expected": {
+        "currentMode": true,
+        "proposedMode": null,
+        "proposedOrigin": "unresolved_argument_interpolation",
+        "status": "UNKNOWN",
+        "reasonCode": "PROMETHEUS_AGENT_MODE_EVIDENCE_INCOMPLETE",
+        "reason": "the proposed declared agent mode is unresolved for the admitted source grammar",
+        "nextAction": "provide one supported Prometheus workload with the exact reviewed image digest, direct /bin/prometheus entrypoint semantics, and complete declared arguments"
+      }
+    },
+    {
+      "id": "proposed-option-terminator-remains-unknown",
+      "current": {
+        "version": "2.55.1",
+        "imageDigest": "sha256:f4def6b3b61109a6eeea59945d578bb7e926c36cb0e036a23e3ceb8b6de024ad",
+        "agentMode": true,
+        "args": ["--enable-feature=agent"]
+      },
+      "proposed": {
+        "version": "3.1.0",
+        "image": "prom/prometheus:v3.1.0@sha256:0ea5254abf85f87901e8cfbd18fd243c59162c338ce0acd86aa2b0153d83dce2",
+        "command": ["/bin/prometheus"],
+        "args": ["--", "--agent"]
+      },
+      "expected": {
+        "currentMode": true,
+        "proposedMode": null,
+        "proposedOrigin": "unsupported_option_terminator",
+        "status": "UNKNOWN",
+        "reasonCode": "PROMETHEUS_AGENT_MODE_EVIDENCE_INCOMPLETE",
+        "reason": "the proposed declared agent mode is unresolved for the admitted source grammar",
+        "nextAction": "provide one supported Prometheus workload with the exact reviewed image digest, direct /bin/prometheus entrypoint semantics, and complete declared arguments"
+      }
+    },
+    {
+      "id": "proposed-agent-after-unparsed-bare-flag-remains-unknown",
+      "current": {
+        "version": "2.55.1",
+        "imageDigest": "sha256:f4def6b3b61109a6eeea59945d578bb7e926c36cb0e036a23e3ceb8b6de024ad",
+        "agentMode": true,
+        "args": ["--enable-feature=agent"]
+      },
+      "proposed": {
+        "version": "3.1.0",
+        "image": "prom/prometheus:v3.1.0@sha256:0ea5254abf85f87901e8cfbd18fd243c59162c338ce0acd86aa2b0153d83dce2",
+        "command": ["/bin/prometheus"],
+        "args": ["--config.file", "--agent"]
+      },
+      "expected": {
+        "currentMode": true,
+        "proposedMode": null,
+        "proposedOrigin": "ambiguous_preceding_flag_arity",
+        "status": "UNKNOWN",
+        "reasonCode": "PROMETHEUS_AGENT_MODE_EVIDENCE_INCOMPLETE",
+        "reason": "the proposed declared agent mode is unresolved for the admitted source grammar",
+        "nextAction": "provide one supported Prometheus workload with the exact reviewed image digest, direct /bin/prometheus entrypoint semantics, and complete declared arguments"
+      }
+    },
+    {
+      "id": "proposed-agent-after-unbound-positional-remains-unknown",
+      "current": {
+        "version": "2.55.1",
+        "imageDigest": "sha256:f4def6b3b61109a6eeea59945d578bb7e926c36cb0e036a23e3ceb8b6de024ad",
+        "agentMode": true,
+        "args": ["--enable-feature=agent"]
+      },
+      "proposed": {
+        "version": "3.1.0",
+        "image": "prom/prometheus:v3.1.0@sha256:0ea5254abf85f87901e8cfbd18fd243c59162c338ce0acd86aa2b0153d83dce2",
+        "command": ["/bin/prometheus"],
+        "args": ["unexpected-positional", "--agent"]
+      },
+      "expected": {
+        "currentMode": true,
+        "proposedMode": null,
+        "proposedOrigin": "unsupported_positional_argument",
+        "status": "UNKNOWN",
+        "reasonCode": "PROMETHEUS_AGENT_MODE_EVIDENCE_INCOMPLETE",
+        "reason": "the proposed declared agent mode is unresolved for the admitted source grammar",
+        "nextAction": "provide one supported Prometheus workload with the exact reviewed image digest, direct /bin/prometheus entrypoint semantics, and complete declared arguments"
+      }
+    }
+  ]
+}

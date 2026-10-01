@@ -1,0 +1,9 @@
+[client]
+user=synthetic-reader
+
+[mysqld]
+innodb_defragment=ON
+max_connections=100
+# The fixed example is paired with --require-innodb-defragmentation false.
+# MariaDB 11.4.2 accepts this removed option only as an ignored compatibility
+# input; the scoped PASS records that the removed behavior is no longer needed.

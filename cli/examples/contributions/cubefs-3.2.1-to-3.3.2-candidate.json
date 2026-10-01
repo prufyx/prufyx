@@ -1,0 +1,128 @@
+{
+  "schema": "prufyx.io/upstream-evidence-packet/v1",
+  "submission": {
+    "kind": "existing_project_transition"
+  },
+  "project": {
+    "slug": "cubefs",
+    "displayName": "CubeFS",
+    "canonicalRepositoryURL": "https://github.com/cubeFS/cubefs"
+  },
+  "transition": {
+    "currentVersion": "3.2.1",
+    "proposedVersion": "3.3.2"
+  },
+  "tagBindings": [
+    {
+      "version": "3.2.1",
+      "tag": "v3.2.1",
+      "commit": "00e7ae59d56508e1926862adf83ef4329819ae6a",
+      "assertion": "DECLARED_UNVERIFIED"
+    },
+    {
+      "version": "3.3.2",
+      "tag": "v3.3.2",
+      "commit": "3bed539b361bc02e3eea47cc28d71d91f2b82a59",
+      "assertion": "DECLARED_UNVERIFIED"
+    }
+  ],
+  "sources": [
+    {
+      "id": "cubefs-v321-metanode",
+      "sourceKind": "source_code",
+      "version": "3.2.1",
+      "commit": "00e7ae59d56508e1926862adf83ef4329819ae6a",
+      "immutableURL": "https://github.com/cubeFS/cubefs/blob/00e7ae59d56508e1926862adf83ef4329819ae6a/metanode/metanode.go",
+      "fileDigest": "sha256:ead043847da47ff6b5fb6da38b2c717a8b6fbab2136f4ac670c99449ae267b6d",
+      "spans": [
+        {
+          "startLine": 52,
+          "endLine": 68,
+          "excerpt": "// The data consistency is ensured by Raft.\ntype MetaNode struct {\n\tnodeId            uint64\n\tlisten            string\n\tbindIp            bool\n\tmetadataDir       string // root dir of the metaNode\n\traftDir           string // root dir of the raftStore log\n\tmetadataManager   MetadataManager\n\tlocalAddr         string\n\tclusterId         string\n\traftStore         raftstore.RaftStore\n\traftHeartbeatPort string\n\traftReplicatePort string\n\tzoneName          string\n\thttpStopC         chan uint8\n\tsmuxStopC         chan uint8\n\tmetrics           *MetaNodeMetrics"
+        }
+      ]
+    },
+    {
+      "id": "cubefs-v332-config",
+      "sourceKind": "source_code",
+      "version": "3.3.2",
+      "commit": "3bed539b361bc02e3eea47cc28d71d91f2b82a59",
+      "immutableURL": "https://github.com/cubeFS/cubefs/blob/3bed539b361bc02e3eea47cc28d71d91f2b82a59/util/config/config.go",
+      "fileDigest": "sha256:7730b2eb21f9a4cd7afe585bb90c7125ff86db50e70f49e02b814c5a003e26e4",
+      "spans": [
+        {
+          "startLine": 44,
+          "endLine": 54,
+          "excerpt": "\n// LoadConfigFile loads config information from a JSON file.\nfunc LoadConfigFile(filename string) (*Config, error) {\n\tresult := newConfig()\n\terr := result.parse(filename)\n\tif err != nil {\n\t\tlog.Printf(\"error loading config file %s: %s\", filename, err)\n\t}\n\treturn result, err\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "cubefs-v332-metanode",
+      "sourceKind": "source_code",
+      "version": "3.3.2",
+      "commit": "3bed539b361bc02e3eea47cc28d71d91f2b82a59",
+      "immutableURL": "https://github.com/cubeFS/cubefs/blob/3bed539b361bc02e3eea47cc28d71d91f2b82a59/metanode/metanode.go",
+      "fileDigest": "sha256:40702b70ed7ba35f4c9a92324cd77072aab29d84e67cf8c0527b24c1810350d5",
+      "spans": [
+        {
+          "startLine": 271,
+          "endLine": 283,
+          "excerpt": "\tif cfg.HasKey(cfgRaftSyncSnapFormatVersion) {\n\t\traftSyncSnapFormatVersion := uint32(cfg.GetInt64(cfgRaftSyncSnapFormatVersion))\n\t\tif raftSyncSnapFormatVersion < 0 || raftSyncSnapFormatVersion > SnapFormatVersion_1 {\n\t\t\tm.raftSyncSnapFormatVersion = SnapFormatVersion_1\n\t\t\tlog.LogInfof(\"invalid config raftSyncSnapFormatVersion, using default[%v]\", m.raftSyncSnapFormatVersion)\n\t\t} else {\n\t\t\tm.raftSyncSnapFormatVersion = raftSyncSnapFormatVersion\n\t\t\tlog.LogInfof(\"by config raftSyncSnapFormatVersion:[%v]\", m.raftSyncSnapFormatVersion)\n\t\t}\n\t} else {\n\t\tm.raftSyncSnapFormatVersion = SnapFormatVersion_1\n\t\tlog.LogInfof(\"using default raftSyncSnapFormatVersion[%v]\", m.raftSyncSnapFormatVersion)\n\t}"
+        }
+      ]
+    },
+    {
+      "id": "cubefs-v332-metanode-doc",
+      "sourceKind": "migration_guide",
+      "version": "3.3.2",
+      "commit": "3bed539b361bc02e3eea47cc28d71d91f2b82a59",
+      "immutableURL": "https://github.com/cubeFS/cubefs/blob/3bed539b361bc02e3eea47cc28d71d91f2b82a59/docs/source/maintenance/configs/metanode.md",
+      "fileDigest": "sha256:cddb93ffc7ee318131d6c4a30a99027b416659205d4a5ba91362d9c9a8a9b27a",
+      "spans": [
+        {
+          "startLine": 29,
+          "endLine": 40,
+          "excerpt": "## Configuration Example\n\n``` json\n{\n     \"role\": \"metanode\",\n     \"listen\": \"17210\",\n     \"prof\": \"17220\",\n     \"logLevel\": \"debug\",\n     \"localIP\":\"127.0.0.1\",\n     \"metadataDir\": \"/cfs/metanode/data/meta\",\n     \"logDir\": \"/cfs/metanode/log\",\n     \"raftDir\": \"/cfs/metanode/data/raft\","
+        }
+      ]
+    },
+    {
+      "id": "cubefs-v332-changelog",
+      "sourceKind": "changelog",
+      "version": "3.3.2",
+      "commit": "3bed539b361bc02e3eea47cc28d71d91f2b82a59",
+      "immutableURL": "https://github.com/cubeFS/cubefs/blob/3bed539b361bc02e3eea47cc28d71d91f2b82a59/CHANGELOG.md",
+      "fileDigest": "sha256:a86b70896c0a77f59b85d4f7d959c787fd821c9fae35b0d016c67068a7abcd78",
+      "spans": [
+        {
+          "startLine": 3,
+          "endLine": 10,
+          "excerpt": "### **UPGRAGDE NOTICE**\nUPGRAGDE NOTICE\nIf your CubeFS version is v2.3.x or before, please refer to the UPGRADE NOTICE in v2.4.0 for upgrading steps.\nif you CubeFS version is v3.2.1 or before, and need to upgrade to v3.3.*, you must follow these upgrade steps:\n1. When upgrading the metanode node, you need to add \"raftSyncSnapFormatVersion\": 0 to the configuration file.\n2. After all metanodes are upgraded, remove this configuration item so that raftSyncSnapFormatVersion defaults to 1.\n3. Restart all metanodes.\n4. Please upgrade the client at the end, the master has enhanced the check of the client, otherwise it will cause the client to mount abnormally"
+        }
+      ]
+    }
+  ],
+  "declaration": {
+    "statement": "Candidate evidence for one exact CubeFS 3.2.1 to 3.3.2 planned MetaNode upgrade guard: target source prescribes raftSyncSnapFormatVersion numeric 0 while MetaNodes are upgraded, before later removal, restart, and client-last steps.",
+    "proofStatus": "DECLARED_NOT_VERIFIED"
+  },
+  "limitations": [
+    "Tag bindings, source bytes, digests, exact spans, attribution and semantic scope require independent review.",
+    "The check reads one caller-supplied planned native MetaNode JSON config and a caller-declared metanode-upgrade phase; it is not an observed effective or complete cluster configuration.",
+    "Only an absent setting, explicit numeric 0, or explicit numeric 1 is qualified; unsupported types and values remain UNKNOWN rather than inheriting CubeFS coercion behavior.",
+    "PASS clears only this source-prescribed guard for the declared phase. Removing the setting after all MetaNodes upgrade, restarting all MetaNodes and upgrading the client last remain unverified follow-up requirements.",
+    "This packet does not establish peer versions, rollout completion, restart or client order, mounts, runtime behavior, data safety, signing, publication or support for other versions."
+  ],
+  "review": {
+    "state": "NOT_REVIEWED",
+    "claimedReviewer": {
+      "kind": "agent",
+      "identity": "sol-cubefs-metanode-candidate"
+    }
+  },
+  "attribution": {
+    "licenseAssertion": "DECLARED_UNKNOWN",
+    "attribution": "Bounded excerpts and immutable references to upstream CubeFS source, documentation and changelog; attribution and licensing require independent review."
+  }
+}

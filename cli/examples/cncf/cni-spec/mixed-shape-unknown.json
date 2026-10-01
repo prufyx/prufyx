@@ -1,0 +1,10 @@
+{
+  "cniVersion": "1.0.0",
+  "name": "review-example",
+  "type": "bridge",
+  "plugins": [
+    {
+      "type": "portmap"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+xpack: &reporting_defaults
+  reporting: *reporting_defaults

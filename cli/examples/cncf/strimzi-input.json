@@ -1,0 +1,43 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/strimzi/strimzi-kafka-operator",
+        "version": "0.51.0",
+        "facts": []
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/strimzi/strimzi-kafka-operator",
+        "version": "1.0.0",
+        "facts": [
+          {
+            "id": "component.strimzi.distribution",
+            "state": "declared",
+            "enumValue": "official_upstream"
+          },
+          {
+            "id": "component.strimzi.execution_surface",
+            "state": "declared",
+            "enumValue": "kafka_custom_resource"
+          },
+          {
+            "id": "component.strimzi.kafka_v1beta2_api_present",
+            "state": "declared",
+            "boolValue": true
+          },
+          {
+            "id": "component.strimzi.target_kafka_crd_admission_required",
+            "state": "declared",
+            "boolValue": true
+          }
+        ]
+      }
+    ]
+  }
+}

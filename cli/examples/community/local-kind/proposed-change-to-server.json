@@ -1,0 +1,18 @@
+{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "spec": {
+    "template": {
+      "spec": {
+        "containers": [
+          {
+            "name": "prometheus",
+            "image": "prom/prometheus:v3.1.0@sha256:0ea5254abf85f87901e8cfbd18fd243c59162c338ce0acd86aa2b0153d83dce2",
+            "command": ["/bin/prometheus"],
+            "args": ["--config.file=/etc/prometheus/prometheus.yml"]
+          }
+        ]
+      }
+    }
+  }
+}

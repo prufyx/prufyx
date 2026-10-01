@@ -1,0 +1,1 @@
+{"apiVersion":"kubevirt.io/v1","kind":"VirtualMachineInstance","metadata":{"name":"vm","namespace":"compute"},"spec":{"domain":{"devices":{"interfaces":[{"name":"default"}]}}}}

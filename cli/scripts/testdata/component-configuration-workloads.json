@@ -1,0 +1,46 @@
+{
+  "items": [
+    {
+      "kind": "Deployment",
+      "spec": {"template": {"spec": {"containers": [{
+        "image": "quay.io/prometheus/prometheus:v3.14.0",
+        "args": ["--web.enable-admin-api=false", "--web.enable-admin-api=false", "--web.enable-lifecycle", "--log.level=debug", "--web.config.file=/var/run/secrets/prometheus/config.yml"]
+      }]}}}
+    },
+    {
+      "kind": "Deployment",
+      "spec": {"template": {"spec": {"containers": [{
+        "image": "registry.private.invalid/customer/prometheus:9.9.9",
+        "args": ["--web.enable-admin-api=true", "--password=must-not-retain"]
+      }]}}}
+    },
+    {
+      "kind": "Deployment",
+      "spec": {"template": {"spec": {"containers": [{
+        "image": "quay.io/argoproj/workflow-controller:v4.1.2",
+        "args": ["--namespaced", "--managed-namespace"]
+      }]}}}
+    },
+    {
+      "kind": "DaemonSet",
+      "spec": {"template": {"spec": {"containers": [{
+        "image": "quay.io/cilium/cilium:v1.17.6",
+        "args": ["--enable-ipv4=true", "--enable-ipv4=false", "--enable-ipv6"]
+      }]}}}
+    },
+    {
+      "kind": "Deployment",
+      "spec": {"template": {"spec": {"containers": [{
+        "image": "quay.io/jetstack/cert-manager-controller:v1.21.1",
+        "args": ["--enable-certificate-owner-ref=true", "--dns01-recursive-nameservers"]
+      }]}}}
+    },
+    {
+      "kind": "Deployment",
+      "spec": {"template": {"spec": {"containers": [{
+        "image": "quay.io/prometheus/prometheus:v3.14.0",
+        "args": ["--log.level=secret"]
+      }]}}}
+    }
+  ]
+}

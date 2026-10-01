@@ -1,0 +1,6 @@
+[client]
+user=synthetic-reader
+
+[mariadb]
+innodb_defragment=ON
+max_connections=100

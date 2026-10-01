@@ -1,0 +1,1 @@
+{"cniVersion":"1.0.0","name":"example-network","type":"bridge","bridge":"cni0","ipam":{"type":"host-local","subnet":"10.10.0.0/16"}}

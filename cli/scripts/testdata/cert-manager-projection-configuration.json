@@ -1,0 +1,2 @@
+
+{"componentId":"pkg:oci/cert-manager/cert-manager","observedVersion":"1.21.1","versionScheme":"tag","predicates":{"component.cert_manager.feature_gate_acme_use_ari":true,"component.cert_manager.dns01_recursive_nameservers_configured":true}}

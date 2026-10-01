@@ -1,0 +1,38 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/cortexproject/cortex",
+        "version": "1.17.2",
+        "facts": []
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/cortexproject/cortex",
+        "version": "1.21.1",
+        "facts": [
+          {
+            "id": "component.cortex.distribution",
+            "state": "declared",
+            "enumValue": "official_upstream"
+          },
+          {
+            "id": "component.cortex.execution_surface",
+            "state": "declared",
+            "enumValue": "cortex"
+          },
+          {
+            "id": "component.cortex.removed_at_modifier_flag_present",
+            "state": "declared",
+            "boolValue": true
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,169 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Build binaries
+        working-directory: cli
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+          VERSION: ${{ github.ref_name }}
+          SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/prufyx_${VERSION}_${GOOS}_${GOARCH}
+          mkdir -p dist/prufyx-collector_${VERSION}_${GOOS}_${GOARCH}
+
+          # community-<os>-<arch> is a distinct build-identity profile family
+          # (see internal/buildidentity): it is truthfully reported by
+          # `prufyx version` as a community build, and it never satisfies the
+          # strict linux-amd64/linux-arm64 profile the signed-release
+          # pipeline (internal/maintainer/releaseworkflow) requires.
+          BUILD_PROFILE="community-${GOOS}-${GOARCH}"
+
+          # SOURCE_DATE_EPOCH is the tagged commit's own commit time, not the
+          # workflow run time, so the same tag always reproduces the same
+          # build identity.
+          BUILD_EPOCH="$(git show -s --format=%ct "${SOURCE_REVISION}")"
+          BUILD_EPOCH_RFC3339="$(date -u -d "@${BUILD_EPOCH}" +%Y-%m-%dT%H:%M:%SZ)"
+
+          # A truthful digest of the exact source tree at the tagged commit,
+          # and of the Community shipping policy that governs what the
+          # strict release pipeline is allowed to ship. Neither claims the
+          # full releasegate derivation ran here -- only that this binary was
+          # built from this tree and can be checked against it.
+          SOURCE_TREE_DIGEST="sha256:$(git archive "${SOURCE_REVISION}" | sha256sum | cut -d' ' -f1)"
+          ALLOWLIST_DIGEST="sha256:$(sha256sum release/community-shipping-policy-v2.json | cut -d' ' -f1)"
+
+          GO_VERSION="$(go env GOVERSION)"
+
+          EMBEDDED_IDENTITY="PRUFYX_BUILD_IDENTITY_V1_BEGIN|${VERSION}|release|${SOURCE_REVISION}|${SOURCE_TREE_DIGEST}|${ALLOWLIST_DIGEST}|${BUILD_PROFILE}|${BUILD_EPOCH_RFC3339}|${GO_VERSION}|UNPINNED|true|PRUFYX_BUILD_IDENTITY_V1_END"
+
+          LDFLAGS="-X github.com/prufyx/prufyx/cli/internal/buildidentity.Version=${VERSION}"
+          LDFLAGS="${LDFLAGS} -X github.com/prufyx/prufyx/cli/internal/buildidentity.SourceRevision=${SOURCE_REVISION}"
+          LDFLAGS="${LDFLAGS} -X github.com/prufyx/prufyx/cli/internal/buildidentity.SourceTreeDigest=${SOURCE_TREE_DIGEST}"
+          LDFLAGS="${LDFLAGS} -X github.com/prufyx/prufyx/cli/internal/buildidentity.AllowlistDigest=${ALLOWLIST_DIGEST}"
+          LDFLAGS="${LDFLAGS} -X github.com/prufyx/prufyx/cli/internal/buildidentity.BuildProfile=${BUILD_PROFILE}"
+          LDFLAGS="${LDFLAGS} -X github.com/prufyx/prufyx/cli/internal/buildidentity.BuildEpoch=${BUILD_EPOCH}"
+          LDFLAGS="${LDFLAGS} -X github.com/prufyx/prufyx/cli/internal/buildidentity.TrustRootDigest=UNPINNED"
+          LDFLAGS="${LDFLAGS} -X github.com/prufyx/prufyx/cli/internal/buildidentity.EmbeddedIdentity=${EMBEDDED_IDENTITY}"
+
+          go build -trimpath -buildvcs=false \
+            -ldflags "${LDFLAGS}" \
+            -o dist/prufyx_${VERSION}_${GOOS}_${GOARCH}/prufyx \
+            ./cmd/prufyx-community
+
+          go build -trimpath -buildvcs=false \
+            -o dist/prufyx-collector_${VERSION}_${GOOS}_${GOARCH}/prufyx-collector \
+            ./cmd/prufyx-collector
+
+          tar -C dist -czf "dist/prufyx_${VERSION}_${GOOS}_${GOARCH}.tar.gz" "prufyx_${VERSION}_${GOOS}_${GOARCH}"
+          tar -C dist -czf "dist/prufyx-collector_${VERSION}_${GOOS}_${GOARCH}.tar.gz" "prufyx-collector_${VERSION}_${GOOS}_${GOARCH}"
+
+      - name: Upload archives
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: archives-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            cli/dist/*.tar.gz
+          retention-days: 7
+          if-no-files-found: error
+
+  provenance:
+    name: Checksums and provenance
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download archives
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: archives-*
+          path: dist
+          merge-multiple: true
+
+      - name: Generate SHA256SUMS
+        working-directory: dist
+        run: |
+          set -euo pipefail
+          sha256sum *.tar.gz > SHA256SUMS
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: dist/*.tar.gz
+
+      - name: Upload release bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-bundle
+          path: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
+          retention-days: 7
+          if-no-files-found: error
+
+  draft-release:
+    name: Create draft release
+    needs: provenance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download release bundle
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-bundle
+          path: dist
+
+      - name: Create draft GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh release create "${GITHUB_REF_NAME}" \
+            --draft \
+            --title "${GITHUB_REF_NAME}" \
+            --notes "Draft release for ${GITHUB_REF_NAME}. Attach-only workflow output; review before publishing." \
+            dist/*.tar.gz \
+            dist/SHA256SUMS

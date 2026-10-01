@@ -1,0 +1,23 @@
+{
+  "schema": "prufyx.io/community-project-corpus-attestation/v1alpha1",
+  "attestation": "COMPLETE_REVIEWED_RULES_FOR_LISTED_COMPONENTS",
+  "revision": "community-project-rules-2026-09-12.6",
+  "packDigest": "sha256:64d9550e8505bdefcbd33d0ca0911119a0f9576f40799a0878a0c1ec3a9e2a28",
+  "ruleSetDigest": "sha256:4cb768bf4798696a5811092ab9c3facc379bba76b9d7ab4a270ed384ebbc3bff",
+  "ruleCount": 34,
+  "components": [
+    "pkg:github/argoproj/argo-workflows",
+    "pkg:github/ceph/ceph",
+    "pkg:github/elastic/kibana",
+    "pkg:github/fluent/fluent-bit",
+    "pkg:github/grafana/grafana",
+    "pkg:github/grafana/loki",
+    "pkg:github/mariadb-operator/mariadb-operator",
+    "pkg:github/mariadb/server"
+  ],
+  "limitations": [
+    "this attestation states only that every reviewed rule the maintainer holds for each listed component is present in this pack at this revision; it authors no compatibility claim and changes none",
+    "it is not a statement that the listed upstream projects have no other incompatibilities, only that this corpus is not silently missing a rule the maintainer already reviewed",
+    "components absent from this list are outside the attestation; a scope naming one can never reach a completeness verdict"
+  ]
+}

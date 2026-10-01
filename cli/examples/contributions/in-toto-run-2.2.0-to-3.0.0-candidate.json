@@ -1,0 +1,167 @@
+{
+  "schema": "prufyx.io/upstream-evidence-packet/v1",
+  "submission": {
+    "kind": "existing_project_transition"
+  },
+  "project": {
+    "slug": "in-toto",
+    "displayName": "in-toto",
+    "canonicalRepositoryURL": "https://github.com/in-toto/in-toto"
+  },
+  "transition": {
+    "currentVersion": "2.2.0",
+    "proposedVersion": "3.0.0"
+  },
+  "tagBindings": [
+    {
+      "version": "2.2.0",
+      "tag": "v2.2.0",
+      "commit": "0c1a97f0632659dc27a930d2dc31b69b58dd1437",
+      "assertion": "DECLARED_UNVERIFIED"
+    },
+    {
+      "version": "3.0.0",
+      "tag": "v3.0.0",
+      "commit": "659942bde1cd732b0b9449445f9769b2def6aeb1",
+      "assertion": "DECLARED_UNVERIFIED"
+    }
+  ],
+  "sources": [
+    {
+      "id": "in-toto-v2run",
+      "sourceKind": "source_code",
+      "version": "2.2.0",
+      "commit": "0c1a97f0632659dc27a930d2dc31b69b58dd1437",
+      "immutableURL": "https://github.com/in-toto/in-toto/blob/0c1a97f0632659dc27a930d2dc31b69b58dd1437/in_toto/in_toto_run.py",
+      "fileDigest": "sha256:ac8c75b880694464258263e49abe158fe1d965f075f6d35757ba5583a2dcf11e",
+      "spans": [
+        {
+          "startLine": 213,
+          "endLine": 220,
+          "excerpt": "    named_args.add_argument(*KEY_ARGS, **KEY_KWARGS)\n    parser.add_argument(*KEY_TYPE_ARGS, **KEY_TYPE_KWARGS)\n    parser.add_argument(*KEY_PASSWORD_ARGS, **KEY_PASSWORD_KWARGS)\n\n    named_args.add_argument(*GPG_ARGS, **GPG_KWARGS)\n    parser.add_argument(*GPG_HOME_ARGS, **GPG_HOME_KWARGS)\n\n    named_args.add_argument(*SIGNING_KEY_ARGS, **SIGNING_KEY_KWARGS)"
+        },
+        {
+          "startLine": 233,
+          "endLine": 243,
+          "excerpt": "    # FIXME: This is not yet ideal.\n    # What should we do with tokens like > or ; ?\n    parser.add_argument(\n        \"link_cmd\",\n        nargs=\"*\",\n        metavar=\"<command>\",\n        help=(\n            \"command to be executed. It is separated from named and optional\"\n            \" arguments by a double dash '--'.\"\n        ),\n    )"
+        },
+        {
+          "startLine": 265,
+          "endLine": 271,
+          "excerpt": "    # Use exactly one of legacy key, gpg or pkcs8 signing key\n    if sum([bool(args.key), bool(args.gpg), bool(args.signing_key)]) != 1:\n        parser.print_usage()\n        parser.error(\n            \"Specify exactly one of '--key <key path>', \"\n            \"--gpg [<keyid>]' or --signing-key <key path>\"\n        )"
+        },
+        {
+          "startLine": 298,
+          "endLine": 305,
+          "excerpt": "        key = None\n        if args.key:\n            LOG.warning(\n                \"'-k', '--key' is deprecated, use '--signing-key' instead.\"\n            )\n\n            key = interface.import_privatekey_from_file(\n                args.key,"
+        }
+      ]
+    },
+    {
+      "id": "in-toto-v3run",
+      "sourceKind": "source_code",
+      "version": "3.0.0",
+      "commit": "659942bde1cd732b0b9449445f9769b2def6aeb1",
+      "immutableURL": "https://github.com/in-toto/in-toto/blob/659942bde1cd732b0b9449445f9769b2def6aeb1/in_toto/in_toto_run.py",
+      "fileDigest": "sha256:8bb67dcf23e842ae22232bce4697835e87844c8bfc52e02d3a7acb1f2ba778b7",
+      "spans": [
+        {
+          "startLine": 207,
+          "endLine": 212,
+          "excerpt": "    parser.add_argument(*KEY_PASSWORD_ARGS, **KEY_PASSWORD_KWARGS)\n\n    named_args.add_argument(*GPG_ARGS, **GPG_KWARGS)\n    parser.add_argument(*GPG_HOME_ARGS, **GPG_HOME_KWARGS)\n\n    named_args.add_argument(*SIGNING_KEY_ARGS, **SIGNING_KEY_KWARGS)"
+        },
+        {
+          "startLine": 225,
+          "endLine": 235,
+          "excerpt": "    # FIXME: This is not yet ideal.\n    # What should we do with tokens like > or ; ?\n    parser.add_argument(\n        \"link_cmd\",\n        nargs=\"*\",\n        metavar=\"<command>\",\n        help=(\n            \"command to be executed. It is separated from named and optional\"\n            \" arguments by a double dash '--'.\"\n        ),\n    )"
+        },
+        {
+          "startLine": 257,
+          "endLine": 262,
+          "excerpt": "    # Use exactly one of gpg or pkcs8 signing key\n    if sum([bool(args.gpg), bool(args.signing_key)]) != 1:\n        parser.print_usage()\n        parser.error(\n            \"Specify either '--signing-key <path>' or '--gpg [<keyid>]'\"\n        )"
+        }
+      ]
+    },
+    {
+      "id": "in-toto-v2args",
+      "sourceKind": "source_code",
+      "version": "2.2.0",
+      "commit": "0c1a97f0632659dc27a930d2dc31b69b58dd1437",
+      "immutableURL": "https://github.com/in-toto/in-toto/blob/0c1a97f0632659dc27a930d2dc31b69b58dd1437/in_toto/common_args.py",
+      "fileDigest": "sha256:b8bf868b86f39174490b4d72641ddd2bb2981709a1215697b9e3decd081f639c",
+      "spans": [
+        {
+          "startLine": 83,
+          "endLine": 93,
+          "excerpt": "KEY_ARGS = [\"-k\", \"--key\"]\nKEY_KWARGS = {\n    \"type\": str,\n    \"metavar\": \"<path>\",\n    \"help\": (\n        \"path to a private key file to sign the resulting link metadata.\"\n        \" The keyid prefix is used as an infix for the link metadata\"\n        \" filename, i.e. '<name>.<keyid prefix>.link'. See '--key-type' for\"\n        \" available formats. Passing one of '--key' or '--gpg' is required.\"\n    ),\n}"
+        },
+        {
+          "startLine": 166,
+          "endLine": 176,
+          "excerpt": "SIGNING_KEY_ARGS = [\"--signing-key\"]\nSIGNING_KEY_KWARGS = {\n    \"type\": str,\n    \"metavar\": \"<path>\",\n    \"dest\": \"signing_key\",\n    \"help\": (\n        \"replacement for '--key' using a standard PKCS8/PEM format. Key type is\"\n        \" detected automatically and need not be specified with '--key-type'.\"\n        \" Use '--password [<password>]' to pass a decryption password\"\n        \" or toggle a prompt, if the key es encrypted.\"\n    ),"
+        }
+      ]
+    },
+    {
+      "id": "in-toto-v3args",
+      "sourceKind": "source_code",
+      "version": "3.0.0",
+      "commit": "659942bde1cd732b0b9449445f9769b2def6aeb1",
+      "immutableURL": "https://github.com/in-toto/in-toto/blob/659942bde1cd732b0b9449445f9769b2def6aeb1/in_toto/common_args.py",
+      "fileDigest": "sha256:828dfb3921743a66b91098bd751d217033cb904916a417274758f345fb6b4db5",
+      "spans": [
+        {
+          "startLine": 132,
+          "endLine": 142,
+          "excerpt": "SIGNING_KEY_ARGS = [\"--signing-key\"]\nSIGNING_KEY_KWARGS = {\n    \"type\": str,\n    \"metavar\": \"<path>\",\n    \"dest\": \"signing_key\",\n    \"help\": (\n        \"signing key in a standard PKCS8/PEM format. Supported keytypes are\"\n        \" rsa, ed25519, ecdsa (nistp256). Use '--password [<password>]' to pass\"\n        \" a decryption password or toggle a prompt, if the key is encrypted.\"\n    ),\n}"
+        }
+      ]
+    },
+    {
+      "id": "in-toto-changelog",
+      "sourceKind": "changelog",
+      "version": "3.0.0",
+      "commit": "659942bde1cd732b0b9449445f9769b2def6aeb1",
+      "immutableURL": "https://github.com/in-toto/in-toto/blob/659942bde1cd732b0b9449445f9769b2def6aeb1/CHANGELOG.md",
+      "fileDigest": "sha256:709f602815dea14b834116b325b24450739799400d9b42d53f9c08d89f0e0113",
+      "spans": [
+        {
+          "startLine": 3,
+          "endLine": 12,
+          "excerpt": "## v3.0.0\n\nThis release, most notably, marks stable securesystemslib v1.0.0 as minimum\nrequirement, and, as a consequence, removes the recently deprecated CLI/API arguments (see below).\n\n### Changed\nUpdate securesystemslib v1.0.0 (#740)\n\n### Removed\nRemove deprecated CLI/API arguments and legacy securesystemslib integration (#739)"
+        },
+        {
+          "startLine": 32,
+          "endLine": 42,
+          "excerpt": "for available implementations). In addition, the in-toto CLI provides new\narguments to read consistent standard key file formats for signing (PEM/PKCS8)\nand signature verification (PEM/subjectPublicKeyInfo).\n\nRelated legacy key arguments are deprecated and will be removed in the next\nmajor release. securesystemslib provides a script to [migrate key files\n](https://github.com/secure-systems-lab/securesystemslib#legacy-key-migration).\n\n### Added\n- in-toto-run/record CLI: `--signing-key` arg (#649, #651)\n- in-toto-verify CLI: `--verification-keys` arg (#652)"
+        },
+        {
+          "startLine": 54,
+          "endLine": 58,
+          "excerpt": "### Deprecated\n- in-toto-run/record CLI: `-k`, `--key` arg (#649, #651)\n- in-toto-verify CLI: `-k`, `--layout-keys` arg (#674)\n- runlib API: `signing_key` arg (#612)\n- model API: `Metablock.sign()` method (#659)"
+        }
+      ]
+    }
+  ],
+  "declaration": {
+    "statement": "Candidate evidence for one in-toto Python CLI 2.2.0 to 3.0.0 parser condition: in-toto-run removes the legacy pre-boundary -k/--key option while retaining --signing-key.",
+    "proofStatus": "DECLARED_NOT_VERIFIED"
+  },
+  "limitations": [
+    "Source bytes, tag bindings, exact spans, attribution and semantic scope require independent review.",
+    "Only a plain planned in-toto-run argv matching the bounded prefix grammar is supported; all tokens after its first valid -- delimiter are opaque.",
+    "Replacing -k/--key with --signing-key does not convert a key or prove its format, password handling, loading, signing or wrapped-command execution.",
+    "This does not authenticate process/version provenance or establish runtime, trust, supply-chain or whole-upgrade safety; record, verify, TUF and GPG paths are excluded."
+  ],
+  "review": {
+    "state": "NOT_REVIEWED",
+    "claimedReviewer": {
+      "kind": "agent",
+      "identity": "sol-in-toto-run-candidate"
+    }
+  },
+  "attribution": {
+    "licenseAssertion": "DECLARED_UNKNOWN",
+    "attribution": "Bounded excerpts and immutable references to upstream in-toto source and changelog; attribution and licensing require independent review."
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "role": "metanode",
+  "listen": "17210",
+  "metadataDir": "/var/lib/cubefs/metanode",
+  "raftSyncSnapFormatVersion": 1
+}

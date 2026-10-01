@@ -1,0 +1,28 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "version": "1.23.17",
+        "facts": []
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "version": "1.24.0",
+        "facts": [
+          {
+            "id": "component.kubernetes.in_tree_dockershim_required",
+            "state": "declared",
+            "boolValue": true
+          }
+        ]
+      }
+    ]
+  }
+}

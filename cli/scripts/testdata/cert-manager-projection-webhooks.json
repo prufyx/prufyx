@@ -1,0 +1,3 @@
+[
+  {"webhooks":[{"identityPresent":true,"admissionReviewVersions":["v1"],"failurePolicy":"Fail","rules":[{"apiGroups":["cert-manager.io"]}]}]}
+]

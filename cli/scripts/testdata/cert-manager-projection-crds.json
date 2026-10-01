@@ -1,0 +1,8 @@
+[
+  {"group":"cert-manager.io","plural":"certificates","versions":[{"name":"v1","served":true,"storage":true}]},
+  {"group":"cert-manager.io","plural":"certificaterequests","versions":[{"name":"v1","served":true,"storage":true}]},
+  {"group":"cert-manager.io","plural":"issuers","versions":[{"name":"v1","served":true,"storage":true}]},
+  {"group":"cert-manager.io","plural":"clusterissuers","versions":[{"name":"v1","served":true,"storage":true}]},
+  {"group":"acme.cert-manager.io","plural":"challenges","versions":[{"name":"v1","served":true,"storage":true}]},
+  {"group":"acme.cert-manager.io","plural":"orders","versions":[{"name":"v1","served":true,"storage":true}]}
+]

@@ -1,0 +1,1 @@
+{"schema":"prufyx.io/operator-declared-constraint-input/v1alpha1","authority":"OPERATOR_DECLARED_MINIMIZED","current":{"components":[{"component":"pkg:github/rook/rook","version":"1.19.11","facts":[]}]},"proposed":{"components":[{"component":"pkg:github/kubernetes/kubernetes","version":"1.30.0","facts":[]},{"component":"pkg:github/rook/rook","version":"1.20.7","facts":[]}]}}

@@ -1,0 +1,44 @@
+{
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/spiffe/spire",
+        "facts": [
+          {
+            "boolValue": false,
+            "id": "component.spire.removed_entry_ttl_flag_present",
+            "state": "declared"
+          }
+        ],
+        "version": "1.10.4"
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/spiffe/spire",
+        "facts": [
+          {
+            "enumValue": "official_upstream",
+            "id": "component.spire.distribution",
+            "state": "declared"
+          },
+          {
+            "enumValue": "spire_server_entry_create",
+            "id": "component.spire.execution_surface",
+            "state": "declared"
+          },
+          {
+            "boolValue": true,
+            "id": "component.spire.removed_entry_ttl_flag_present",
+            "state": "declared"
+          }
+        ],
+        "version": "1.11.0"
+      }
+    ]
+  },
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+}

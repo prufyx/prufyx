@@ -1,0 +1,49 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/dragonflyoss/dragonfly",
+        "version": "2.2.3",
+        "facts": [
+          {
+            "id": "component.dragonfly.legacy_verbose_debug_intent",
+            "state": "declared",
+            "boolValue": true
+          }
+        ]
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/dragonflyoss/dragonfly",
+        "version": "2.2.4",
+        "facts": [
+          {
+            "id": "component.dragonfly.debug_logging_enabled",
+            "state": "declared",
+            "boolValue": false
+          },
+          {
+            "id": "component.dragonfly.distribution",
+            "state": "declared",
+            "enumValue": "official_upstream"
+          },
+          {
+            "id": "component.dragonfly.execution_surface",
+            "state": "declared",
+            "enumValue": "manager_config"
+          },
+          {
+            "id": "component.dragonfly.retain_debug_logging_required",
+            "state": "declared",
+            "boolValue": true
+          }
+        ]
+      }
+    ]
+  }
+}

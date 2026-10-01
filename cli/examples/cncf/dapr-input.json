@@ -1,0 +1,33 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/dapr/dapr",
+        "version": "1.14.0",
+        "facts": [
+          {
+            "id": "component.dapr.scheduler_embedded_etcd_inventory_complete",
+            "state": "declared",
+            "boolValue": true
+          },
+          {
+            "id": "component.dapr.scheduler_persisted_data_present",
+            "state": "declared",
+            "boolValue": true
+          }
+        ]
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/dapr/dapr",
+        "version": "1.15.0",
+        "facts": []
+      }
+    ]
+  }
+}

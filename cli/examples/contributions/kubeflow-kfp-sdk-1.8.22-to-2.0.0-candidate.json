@@ -1,0 +1,129 @@
+{
+  "schema": "prufyx.io/upstream-evidence-packet/v1",
+  "submission": {
+    "kind": "existing_project_transition"
+  },
+  "project": {
+    "slug": "kubeflow",
+    "displayName": "Kubeflow Pipelines Python SDK",
+    "canonicalRepositoryURL": "https://github.com/kubeflow/pipelines"
+  },
+  "transition": {
+    "currentVersion": "1.8.22",
+    "proposedVersion": "2.0.0"
+  },
+  "tagBindings": [
+    {
+      "version": "1.8.22",
+      "tag": "sdk-1.8.22",
+      "commit": "f5ba0212fc316aff38d4a3129bc6f2a7b54f97b5",
+      "assertion": "DECLARED_UNVERIFIED"
+    },
+    {
+      "version": "2.0.0",
+      "tag": "sdk-2.0.0",
+      "commit": "e03e31219387b587b700ba3e31a02df486aa364f",
+      "assertion": "DECLARED_UNVERIFIED"
+    }
+  ],
+  "sources": [
+    {
+      "id": "kubeflow-kfp-v1-create-component-export",
+      "sourceKind": "source_code",
+      "version": "1.8.22",
+      "commit": "f5ba0212fc316aff38d4a3129bc6f2a7b54f97b5",
+      "immutableURL": "https://github.com/kubeflow/pipelines/blob/f5ba0212fc316aff38d4a3129bc6f2a7b54f97b5/sdk/python/kfp/components/_python_op.py",
+      "fileDigest": "sha256:076b64273844e8413ee510f22c97dca9a9ee1e4cefeb8e5b3ee4a2c1b3d8d8fb",
+      "spans": [
+        {
+          "startLine": 13,
+          "endLine": 27,
+          "excerpt": "# limitations under the License.\n\n__all__ = [\n    'create_component_from_func',\n    'create_component_from_func_v2',\n    'func_to_container_op',\n    'func_to_component_text',\n    'default_base_image_or_builder',\n    'InputArtifact',\n    'InputPath',\n    'InputTextFile',\n    'InputBinaryFile',\n    'OutputArtifact',\n    'OutputPath',\n    'OutputTextFile',"
+        }
+      ]
+    },
+    {
+      "id": "kubeflow-kfp-v1-components-public-import",
+      "sourceKind": "source_code",
+      "version": "1.8.22",
+      "commit": "f5ba0212fc316aff38d4a3129bc6f2a7b54f97b5",
+      "immutableURL": "https://github.com/kubeflow/pipelines/blob/f5ba0212fc316aff38d4a3129bc6f2a7b54f97b5/sdk/python/kfp/components/__init__.py",
+      "fileDigest": "sha256:8c469526b1a55281f04ede011aecc9ca0dbd4855f7eb36f8886863252c9d136f",
+      "spans": [
+        {
+          "startLine": 13,
+          "endLine": 17,
+          "excerpt": "# limitations under the License.\n\nfrom ._airflow_op import *\nfrom ._components import *\nfrom ._python_op import *"
+        }
+      ]
+    },
+    {
+      "id": "kubeflow-kfp-v2-components-export",
+      "sourceKind": "source_code",
+      "version": "2.0.0",
+      "commit": "e03e31219387b587b700ba3e31a02df486aa364f",
+      "immutableURL": "https://github.com/kubeflow/pipelines/blob/e03e31219387b587b700ba3e31a02df486aa364f/sdk/python/kfp/components/__init__.py",
+      "fileDigest": "sha256:198591beb7def92163e7d2d50afbc0d9b1282c50df03c6c4aa2b08e90368f2c3",
+      "spans": [
+        {
+          "startLine": 15,
+          "endLine": 31,
+          "excerpt": "# limitations under the License.\n\n__all__ = [\n    'load_component_from_file',\n    'load_component_from_url',\n    'load_component_from_text',\n    'PythonComponent',\n    'BaseComponent',\n    'ContainerComponent',\n    'YamlComponent',\n]\n\nfrom kfp.components.base_component import BaseComponent\nfrom kfp.components.container_component import ContainerComponent\nfrom kfp.components.python_component import PythonComponent\nfrom kfp.components.yaml_component import load_component_from_file\nfrom kfp.components.yaml_component import load_component_from_text"
+        }
+      ]
+    },
+    {
+      "id": "kubeflow-kfp-v2-dsl-component-export",
+      "sourceKind": "source_code",
+      "version": "2.0.0",
+      "commit": "e03e31219387b587b700ba3e31a02df486aa364f",
+      "immutableURL": "https://github.com/kubeflow/pipelines/blob/e03e31219387b587b700ba3e31a02df486aa364f/sdk/python/kfp/dsl/__init__.py",
+      "fileDigest": "sha256:0bf2281a2930250696df64277ba8478750a72ea5da80d466163b2ca9bf18997d",
+      "spans": [
+        {
+          "startLine": 15,
+          "endLine": 24,
+          "excerpt": "# limitations under the License.\n\n__all__ = [\n    'component',\n    'container_component',\n    'pipeline',\n    'importer',\n    'ContainerSpec',\n    'Condition',\n    'ExitHandler',"
+        }
+      ]
+    },
+    {
+      "id": "kubeflow-kfp-v2-migration-create-component",
+      "sourceKind": "migration_guide",
+      "version": "2.0.0",
+      "commit": "debcbb9035e75869e9dc2ed6b9354376ac1a26e7",
+      "immutableURL": "https://github.com/kubeflow/website/blob/debcbb9035e75869e9dc2ed6b9354376ac1a26e7/content/en/docs/components/pipelines/user-guides/migration.md",
+      "fileDigest": "sha256:aa87039104f2a84c657ec499a0e3e61d4dc63283c7ab608caa442a5d31617473",
+      "spans": [
+        {
+          "startLine": 75,
+          "endLine": 131,
+          "excerpt": "##### **create_component_from_func and func_to_container_op support**\n\n**Affects:** KFP OSS users and Vertex AI Pipelines users\n\n`create_component_from_func` and `func_to_container_op` are both used in KFP SDK v1 to create lightweight Python function-based components.\n\nBoth functions are removed in KFP SDK v2.\n\n**Change:** Use the [`@dsl.component`][dsl-component] decorator, as described in [Lightweight Python Components][lightweight-python-components] and [Containerized Python Components][containerized-python-components].\n\n<table>\n<tr>\n<th>Previous usage</th>\n<th>New usage</th>\n</tr>\n<tr>\n<td>\n\n```python\nfrom kfp.components import create_component_from_func\nfrom kfp.components import func_to_container_op\n\n@create_component_from_func\ndef component1(...):\n    ...\n\ndef component2(...):\n    ...\n\ncomponent2 = create_component_from_func(component2)\n\n@func_to_container_op\ndef component3(...):\n    ...\n\n@dsl.pipeline(name='my-pipeline')\ndef pipeline():\n    component1(...)\n    component2(...)\n    component3(...)\n```\n\n</td>\n<td>\n\n```python\nfrom kfp import dsl\n\n@dsl.component\ndef component1(...):\n    ...\n\n@dsl.component\ndef component2(...):\n    ...\n\n@dsl.component"
+        }
+      ]
+    }
+  ],
+  "declaration": {
+    "statement": "Candidate evidence for one exact KFP Python SDK 1.8.22 to 2.0.0 source-authoring check: target v2 removes create_component_from_func and the official migration guide directs authors to @dsl.component.",
+    "proofStatus": "DECLARED_NOT_VERIFIED"
+  },
+  "limitations": [
+    "Tag bindings, source bytes, digests, exact spans, attribution and semantic scope require independent review.",
+    "The supplementary website guide is pinned documentation evidence for proposed SDK applicability; it is not a Pipelines release tag or proof the guide existed at release time.",
+    "The local adapter reads one private caller-supplied Python source file with a closed Go lexical parser; it does not authenticate the installed SDK, process or version provenance.",
+    "Only one unaliased bare decorator in either reviewed form is admitted; unsupported bindings and shapes remain UNKNOWN.",
+    "PASS clears only this removed public authoring API condition; component semantics, dependencies, images, compilation, backend and runtime behavior remain UNKNOWN.",
+    "The checker does not import or execute supplied source, access the network, or modify the input file."
+  ],
+  "review": {
+    "state": "NOT_REVIEWED",
+    "claimedReviewer": {
+      "kind": "agent",
+      "identity": "sol-kubeflow-kfp-candidate"
+    }
+  },
+  "attribution": {
+    "licenseAssertion": "DECLARED_UNKNOWN",
+    "attribution": "Bounded excerpts and immutable references to upstream Kubeflow Pipelines source and the Kubeflow website migration guide; attribution and licensing require independent review."
+  }
+}

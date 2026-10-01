@@ -1,0 +1,106 @@
+{
+  "schema": "prufyx.io/prometheus-mode-source-contract/v1",
+  "componentId": "pkg:oci/prometheus/prometheus",
+  "question": "Does the exact proposed declared configuration preserve the current declared Prometheus agent mode?",
+  "claimLimit": "The result compares source-bound declared mode only; it does not prove process startup, applied runtime mode, data safety, or whole-upgrade compatibility.",
+  "current": {
+    "version": "2.55.1",
+    "exactTag": "v2.55.1",
+    "sourceCommit": "6d7569113f1ca814f1e149f74176656540043b8d",
+    "repository": "docker.io/prom/prometheus",
+    "indexDigest": "sha256:2659f4c2ebb718e7695cb9b25ffa7d6be64db013daba13e05c875451cf51b0d3",
+    "platform": "linux/arm64/v8",
+    "platformManifestDigest": "sha256:f4def6b3b61109a6eeea59945d578bb7e926c36cb0e036a23e3ceb8b6de024ad",
+    "entrypoint": ["/bin/prometheus"],
+    "defaultAgentMode": false
+  },
+  "proposed": {
+    "version": "3.1.0",
+    "exactTag": "v3.1.0",
+    "sourceCommit": "7086161a93b262aa0949dbf2aba15a5a7b13e0a3",
+    "repository": "docker.io/prom/prometheus",
+    "indexDigest": "sha256:6559acbd5d770b15bb3c954629ce190ac3cbbdb2b7f1c30f0385c4e05104e218",
+    "platform": "linux/arm64/v8",
+    "platformManifestDigest": "sha256:0ea5254abf85f87901e8cfbd18fd243c59162c338ce0acd86aa2b0153d83dce2",
+    "entrypoint": ["/bin/prometheus"],
+    "defaultAgentMode": false
+  },
+  "evidence": {
+    "role": "server",
+    "currentEvidenceClass": "declared_container_context_v1",
+    "proposedEvidenceClass": "proposed_declared_container_context_v1",
+    "requiredCurrentPredicates": [
+      "component.prometheus.agent_mode",
+      "component.prometheus.image_digest"
+    ]
+  },
+  "grammar": {
+    "command": {
+      "absent": "Use the exact reviewed image entrypoint for the version and platform manifest.",
+      "explicit": "Only the single token /bin/prometheus is admitted.",
+      "other": "UNKNOWN"
+    },
+    "args": {
+      "absent": "Use the exact reviewed image defaults; agent mode is false.",
+      "completeList": "Evaluate only the admitted version-specific forms below.",
+      "wrapperOrUnknownForm": "UNKNOWN",
+      "environmentInterpolation": "Any argument containing $( is UNKNOWN because manifest-time expansion can change mode-relevant tokens.",
+      "optionTerminator": "The -- token is UNKNOWN until exact parser termination semantics are source-bound.",
+      "unparsedBareFlagBeforeAgent": "A bare unparsed flag immediately before --agent is UNKNOWN because its value arity is not source-bound.",
+      "unboundPositionalArgument": "A non-flag token is admitted only as the immediate value of a preceding bare non-agent option; leading or consecutive positional tokens are UNKNOWN."
+    },
+    "v2.55.1": {
+      "enableFeatureForms": ["--enable-feature VALUE", "--enable-feature=VALUE"],
+      "featureList": "Repeated occurrences are cumulative; values split literally on comma and match the case-sensitive token agent.",
+      "agentMode": "true when any feature token is exactly agent; otherwise false",
+      "unsupported": ["--agent", "--no-agent", "--agent=VALUE"]
+    },
+    "v3.1.0": {
+      "dedicatedForms": {"--agent": true},
+      "legacyAgentFeature": "ignored for mode selection",
+      "duplicateDedicatedBoolean": "UNKNOWN",
+      "unsupported": ["--no-agent", "--agent VALUE", "--agent=VALUE", "--no-agent=VALUE"]
+    }
+  },
+  "sources": [
+    {
+      "sourceId": "prometheus-v2.55.1-image-entrypoint-defaults",
+      "url": "https://raw.githubusercontent.com/prometheus/prometheus/6d7569113f1ca814f1e149f74176656540043b8d/Dockerfile",
+      "immutableCommit": "6d7569113f1ca814f1e149f74176656540043b8d",
+      "contentDigest": "sha256:d6e5e6779277a2ffc7d6868ad4f3156e60a37a4ef9efd7cc2e4cd7d76a362733",
+      "spans": [{"startLine": 24, "endLine": 28, "textDigest": "sha256:88ea2175c3a68c09c28803b0aa342676f127ec1abbcfd608e127a9772d20c2e9"}]
+    },
+    {
+      "sourceId": "prometheus-v2.55.1-agent-mode",
+      "url": "https://raw.githubusercontent.com/prometheus/prometheus/6d7569113f1ca814f1e149f74176656540043b8d/cmd/prometheus/main.go",
+      "immutableCommit": "6d7569113f1ca814f1e149f74176656540043b8d",
+      "contentDigest": "sha256:0fef0c25e6299a84def90030f742967797658d6ae2842ce3a616550ade756d28",
+      "spans": [
+        {"startLine": 99, "endLine": 102, "textDigest": "sha256:197ec314f29fb318cd9c245a240f57a4c091fca05fa9bb54fed881b3aceafb63"},
+        {"startLine": 176, "endLine": 261, "textDigest": "sha256:d2e714e418d891a9a0ef1d2bc8046dff4c88133b9b2eec5f67517036c6397d8b"},
+        {"startLine": 201, "endLine": 208, "textDigest": "sha256:cc11b9923ea8d565aa5548609214f5da2048502c1b401555491cf11ece680fa3"},
+        {"startLine": 495, "endLine": 496, "textDigest": "sha256:e2a64f7ce7830bd0f261083229f47e5d18d81470544658f4ca34180057bb7c91"}
+      ]
+    },
+    {
+      "sourceId": "prometheus-v3.1.0-image-entrypoint-defaults",
+      "url": "https://raw.githubusercontent.com/prometheus/prometheus/7086161a93b262aa0949dbf2aba15a5a7b13e0a3/Dockerfile",
+      "immutableCommit": "7086161a93b262aa0949dbf2aba15a5a7b13e0a3",
+      "contentDigest": "sha256:0637e42c34c8815db93c967c6a9817eb1efc1e15f6a2ffb4161f5086a5ef69f3",
+      "spans": [{"startLine": 22, "endLine": 25, "textDigest": "sha256:3262760feb636fb7e8f70308e2249d28a96489cf07584d4d99d006b9e8dcff26"}]
+    },
+    {
+      "sourceId": "prometheus-v3.1.0-agent-mode",
+      "url": "https://raw.githubusercontent.com/prometheus/prometheus/7086161a93b262aa0949dbf2aba15a5a7b13e0a3/cmd/prometheus/main.go",
+      "immutableCommit": "7086161a93b262aa0949dbf2aba15a5a7b13e0a3",
+      "contentDigest": "sha256:be22f139cb76427f545266b1cc2cfab7aab513a61e8160f2d9df8476c5b581b2",
+      "spans": [
+        {"startLine": 136, "endLine": 139, "textDigest": "sha256:197ec314f29fb318cd9c245a240f57a4c091fca05fa9bb54fed881b3aceafb63"},
+        {"startLine": 217, "endLine": 284, "textDigest": "sha256:ea8d034b5dd85e863a7360fdcaa3d0107c346ef82bd62097c45f99df0b1b95b7"},
+        {"startLine": 518, "endLine": 521, "textDigest": "sha256:8a4689be7c01a4a660491faf37a1abb42a2998bc2921c164dd56bb017f5efcf5"},
+        {"startLine": 554, "endLine": 561, "textDigest": "sha256:4da3cfca5fa19bc9be9f4f7ea583a37b84486f769a3bf82f2779247336606eac"},
+        {"startLine": 678, "endLine": 680, "textDigest": "sha256:7ba2b5e2bab59b4acd8535961e1c26a852df582d88cc7c6f7d78bd6a4e7fff43"}
+      ]
+    }
+  ]
+}

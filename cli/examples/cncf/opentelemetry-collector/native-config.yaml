@@ -1,0 +1,6 @@
+exporters:
+  logging/example: {}
+service:
+  pipelines:
+    traces:
+      exporters: [logging/example]

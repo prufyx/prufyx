@@ -1,0 +1,28 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/envoyproxy/envoy",
+        "version": "1.17.2",
+        "facts": []
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/envoyproxy/envoy",
+        "version": "1.18.0",
+        "facts": [
+          {
+            "id": "component.envoy.xds_api_major",
+            "state": "declared",
+            "enumValue": "v2"
+          }
+        ]
+      }
+    ]
+  }
+}

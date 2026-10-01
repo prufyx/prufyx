@@ -1,0 +1,29 @@
+{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+    "name": "kyverno-controller",
+    "labels": {"app": "kyverno"}
+  },
+  "spec": {
+    "replicas": 1,
+    "selector": {"matchLabels": {"app": "kyverno"}},
+    "template": {
+      "metadata": {
+        "labels": {"app": "kyverno"}
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "kyverno-controller",
+            "image": "ghcr.io/kyverno/kyverno:v1.13.0",
+            "command": ["reports-controller"],
+            "args": [
+              "--reportsChunkSize=250"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

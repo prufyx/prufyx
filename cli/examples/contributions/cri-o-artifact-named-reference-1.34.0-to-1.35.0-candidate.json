@@ -1,0 +1,218 @@
+{
+  "schema": "prufyx.io/upstream-evidence-packet/v1",
+  "submission": {
+    "kind": "existing_project_transition"
+  },
+  "project": {
+    "slug": "cri-o",
+    "displayName": "CRI-O",
+    "canonicalRepositoryURL": "https://github.com/cri-o/cri-o"
+  },
+  "transition": {
+    "currentVersion": "1.34.0",
+    "proposedVersion": "1.35.0"
+  },
+  "tagBindings": [
+    {
+      "version": "1.34.0",
+      "tag": "v1.34.0",
+      "commit": "d91a449706dbbd6c285e4d365bbd3b65fd8de43c",
+      "assertion": "DECLARED_UNVERIFIED"
+    },
+    {
+      "version": "1.35.0",
+      "tag": "v1.35.0",
+      "commit": "92c18a2e2673764cd10f89b1a5061e2b26f44209",
+      "assertion": "DECLARED_UNVERIFIED"
+    }
+  ],
+  "sources": [
+    {
+      "id": "crio-v134-artifact-resolver",
+      "sourceKind": "source_code",
+      "version": "1.34.0",
+      "commit": "d91a449706dbbd6c285e4d365bbd3b65fd8de43c",
+      "immutableURL": "https://github.com/cri-o/cri-o/blob/d91a449706dbbd6c285e4d365bbd3b65fd8de43c/internal/ociartifact/impl.go",
+      "fileDigest": "sha256:4c95e4b18bac0425da7695b0560318f4b65ed905ef33d8a29c88bded63c613a3",
+      "spans": [
+        {
+          "startLine": 144,
+          "endLine": 163,
+          "excerpt": "// CandidatesForPotentiallyShortImageName resolves locally an artifact name into a set of fully-qualified image names (domain/repo/image:tag|@digest).\n// It will only return an empty slice if err != nil.\nfunc (d *defaultImpl) CandidatesForPotentiallyShortImageName(systemContext *types.SystemContext, imageName string) ([]reference.Named, error) {\n\t// Always resolve unqualified names to all candidates. We should use a more secure mode once we settle on a shortname alias table.\n\tsc := types.SystemContext{}\n\tif systemContext != nil {\n\t\tsc = *systemContext // A shallow copy\n\t}\n\n\tresolved, err := shortnames.ResolveLocally(&sc, imageName)\n\tif err != nil {\n\t\t// Error is not very clear in this context, and unfortunately is also not a variable.\n\t\tif strings.Contains(err.Error(), \"short-name resolution enforced but cannot prompt without a TTY\") {\n\t\t\treturn nil, fmt.Errorf(\"short name mode is enforcing, but image name %s returns ambiguous list\", imageName)\n\t\t}\n\n\t\treturn nil, err\n\t}\n\n\treturn resolved, nil"
+        }
+      ]
+    },
+    {
+      "id": "crio-v135-artifact-resolver",
+      "sourceKind": "source_code",
+      "version": "1.35.0",
+      "commit": "92c18a2e2673764cd10f89b1a5061e2b26f44209",
+      "immutableURL": "https://github.com/cri-o/cri-o/blob/92c18a2e2673764cd10f89b1a5061e2b26f44209/internal/ociartifact/impl.go",
+      "fileDigest": "sha256:017d6c13ee7e1bb7e27329713bbbf6e680fc77b4f96a1834db4b22782768c8e5",
+      "spans": [
+        {
+          "startLine": 74,
+          "endLine": 87,
+          "excerpt": "// CandidatesForPotentiallyShortImageName resolves locally an artifact name into a set of fully-qualified image names (domain/repo/image:tag|@digest).\n// It will only return an empty slice if err != nil.\nfunc (d *defaultImpl) CandidatesForPotentiallyShortImageName(systemContext *types.SystemContext, imageName string) ([]reference.Named, error) {\n\tif shortnames.IsShortName(imageName) {\n\t\treturn nil, fmt.Errorf(\"artifact %q must be a fully-qualified reference; short names and unqualified-search-registries are not supported for artifacts\", imageName)\n\t}\n\n\tnamedRef, err := reference.ParseNormalizedNamed(imageName)\n\tif err != nil {\n\t\treturn nil, fmt.Errorf(\"invalid artifact name %q: %w\", imageName, err)\n\t}\n\n\treturn []reference.Named{reference.TagNameOnly(namedRef)}, nil\n}"
+        }
+      ]
+    },
+    {
+      "id": "crio-v135-artifact-store-caller",
+      "sourceKind": "source_code",
+      "version": "1.35.0",
+      "commit": "92c18a2e2673764cd10f89b1a5061e2b26f44209",
+      "immutableURL": "https://github.com/cri-o/cri-o/blob/92c18a2e2673764cd10f89b1a5061e2b26f44209/internal/ociartifact/store.go",
+      "fileDigest": "sha256:0d81111f128b9922c7fd580f6f72b53801a09ee97108a91784f923ddec5147dc",
+      "spans": [
+        {
+          "startLine": 315,
+          "endLine": 338,
+          "excerpt": "// getByNameOrDigest retrieves an artifact by its name or digest.\n// Returns the artifact, a boolean indicating whether strRef was a digest (true) or name (false),\n// and an error if the artifact could not be found.\n// Returns ErrNotFound if no matching artifact exists.\n// TODO: replace with GetByNameOrDigest in libartifact.\nfunc (s *Store) getByNameOrDigest(ctx context.Context, strRef string) (*Artifact, bool, error) {\n\tif strRef == \"\" {\n\t\treturn nil, false, errors.New(\"empty name or digest\")\n\t}\n\n\tartifacts, err := s.List(ctx)\n\tif err != nil {\n\t\treturn nil, false, fmt.Errorf(\"list artifacts: %w\", err)\n\t}\n\n\t// if strRef is a just digest or short digest\n\tif idx := slices.IndexFunc(artifacts, func(a *Artifact) bool { return strings.HasPrefix(a.digest.Encoded(), strRef) }); len(strRef) >= 3 && idx != -1 {\n\t\treturn artifacts[idx], true, nil\n\t}\n\n\t// if strRef is named reference\n\tcandidates, err := s.impl.CandidatesForPotentiallyShortImageName(s.SystemContext(), strRef)\n\tif err != nil {\n\t\t// If there are no artifacts in the store, return ErrNotFound regardless of name validation errors"
+        },
+        {
+          "startLine": 339,
+          "endLine": 350,
+          "excerpt": "\t\t// This maintains backward compatibility where invalid names simply weren't found\n\t\tif len(artifacts) == 0 {\n\t\t\treturn nil, false, fmt.Errorf(\"%w with name or digest of: %s\", ErrNotFound, strRef)\n\t\t}\n\n\t\treturn nil, false, fmt.Errorf(\"get candidates for potentially short image name: %w\", err)\n\t}\n\n\tfor _, candidate := range candidates {\n\t\tfor _, artifact := range artifacts {\n\t\t\tif candidate.String() == artifact.Reference() || candidate.String() == artifact.CanonicalName() {\n\t\t\t\treturn artifact, false, nil"
+        }
+      ]
+    },
+    {
+      "id": "crio-v135-image-status-caller",
+      "sourceKind": "source_code",
+      "version": "1.35.0",
+      "commit": "92c18a2e2673764cd10f89b1a5061e2b26f44209",
+      "immutableURL": "https://github.com/cri-o/cri-o/blob/92c18a2e2673764cd10f89b1a5061e2b26f44209/server/image_status.go",
+      "fileDigest": "sha256:9d0647a00e1517511275495a7b33016fbe84e436746603cc051bdcae319e0d84",
+      "spans": [
+        {
+          "startLine": 31,
+          "endLine": 52,
+          "excerpt": "\tlog.Infof(ctx, \"Checking image status: %s\", img.GetImage())\n\n\tstatus, err := s.storageImageStatus(ctx, img)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\n\tif status == nil {\n\t\tartifact, err := s.ArtifactStore().Status(ctx, img.GetImage())\n\t\tif err == nil {\n\t\t\treturn &types.ImageStatusResponse{\n\t\t\t\tImage: artifact.CRIImage(),\n\t\t\t}, nil\n\t\t}\n\n\t\tif errors.Is(err, ociartifact.ErrNotFound) {\n\t\t\tlog.Infof(ctx, \"Neither image nor artfiact %s found\", img.GetImage())\n\t\t} else if err != nil {\n\t\t\tlog.Errorf(ctx, \"Unable to get artifact: %v\", err)\n\t\t}\n\n\t\treturn &types.ImageStatusResponse{}, nil"
+        }
+      ]
+    },
+    {
+      "id": "crio-v135-normalization-grammar",
+      "sourceKind": "source_code",
+      "version": "1.35.0",
+      "commit": "92c18a2e2673764cd10f89b1a5061e2b26f44209",
+      "immutableURL": "https://github.com/cri-o/cri-o/blob/92c18a2e2673764cd10f89b1a5061e2b26f44209/vendor/github.com/distribution/reference/normalize.go",
+      "fileDigest": "sha256:76ba6f446732a836657b36ca19a2f940497da0ded41dff566f545a30626c46c5",
+      "spans": [
+        {
+          "startLine": 10,
+          "endLine": 15,
+          "excerpt": "\nvar (\n\tlegacyDefaultDomain = \"index.docker.io\"\n\tdefaultDomain       = \"docker.io\"\n\tofficialRepoName    = \"library\"\n\tdefaultTag          = \"latest\""
+        },
+        {
+          "startLine": 32,
+          "endLine": 53,
+          "excerpt": "func ParseNormalizedNamed(s string) (Named, error) {\n\tif ok := anchoredIdentifierRegexp.MatchString(s); ok {\n\t\treturn nil, fmt.Errorf(\"invalid repository name (%s), cannot specify 64-byte hexadecimal strings\", s)\n\t}\n\tdomain, remainder := splitDockerDomain(s)\n\tvar remoteName string\n\tif tagSep := strings.IndexRune(remainder, ':'); tagSep > -1 {\n\t\tremoteName = remainder[:tagSep]\n\t} else {\n\t\tremoteName = remainder\n\t}\n\tif strings.ToLower(remoteName) != remoteName {\n\t\treturn nil, errors.New(\"invalid reference format: repository name must be lowercase\")\n\t}\n\n\tref, err := Parse(domain + \"/\" + remainder)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\tnamed, isNamed := ref.(Named)\n\tif !isNamed {\n\t\treturn nil, fmt.Errorf(\"reference %s has no name\", ref.String())"
+        },
+        {
+          "startLine": 90,
+          "endLine": 107,
+          "excerpt": "func splitDockerDomain(name string) (domain, remainder string) {\n\ti := strings.IndexRune(name, '/')\n\tif i == -1 || (!strings.ContainsAny(name[:i], \".:\") && name[:i] != \"localhost\") {\n\t\tdomain, remainder = defaultDomain, name\n\t} else {\n\t\tdomain, remainder = name[:i], name[i+1:]\n\t}\n\tif domain == legacyDefaultDomain {\n\t\tdomain = defaultDomain\n\t}\n\tif domain == defaultDomain && !strings.ContainsRune(remainder, '/') {\n\t\tremainder = officialRepoName + \"/\" + remainder\n\t}\n\treturn\n}\n\n// familiarizeName returns a shortened version of the name familiar\n// to the Docker UI. Familiar names have the default domain"
+        }
+      ]
+    },
+    {
+      "id": "crio-v135-reference-grammar",
+      "sourceKind": "source_code",
+      "version": "1.35.0",
+      "commit": "92c18a2e2673764cd10f89b1a5061e2b26f44209",
+      "immutableURL": "https://github.com/cri-o/cri-o/blob/92c18a2e2673764cd10f89b1a5061e2b26f44209/vendor/github.com/distribution/reference/reference.go",
+      "fileDigest": "sha256:09eee8efc0533bd052af03373ae65fcdb052d1828ccbca7a4af02684a94e660c",
+      "spans": [
+        {
+          "startLine": 1,
+          "endLine": 18,
+          "excerpt": "// Package reference provides a general type to represent any way of referencing images within the registry.\n// Its main purpose is to abstract tags and digests (content-addressable hash).\n//\n// Grammar\n//\n//\treference                       := name [ \":\" tag ] [ \"@\" digest ]\n//\tname                            := [domain '/'] path-component ['/' path-component]*\n//\tdomain                          := domain-component ['.' domain-component]* [':' port-number]\n//\tdomain-component                := /([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])/\n//\tport-number                     := /[0-9]+/\n//\tpath-component                  := alphanumeric [separator alphanumeric]*\n//\talphanumeric                   := /[a-z0-9]+/\n//\tseparator                       := /[_.]|__|[-]*/\n//\n//\ttag                             := /[\\w][\\w.-]{0,127}/\n//\n//\tdigest                          := digest-algorithm \":\" digest-hex\n//\tdigest-algorithm                := digest-algorithm-component [ digest-algorithm-separator digest-algorithm-component ]*"
+        },
+        {
+          "startLine": 32,
+          "endLine": 38,
+          "excerpt": "\t\"github.com/opencontainers/go-digest\"\n)\n\nconst (\n\t// NameTotalLengthMax is the maximum total number of characters in a repository name.\n\tNameTotalLengthMax = 255\n)"
+        },
+        {
+          "startLine": 189,
+          "endLine": 218,
+          "excerpt": "func Parse(s string) (Reference, error) {\n\tmatches := ReferenceRegexp.FindStringSubmatch(s)\n\tif matches == nil {\n\t\tif s == \"\" {\n\t\t\treturn nil, ErrNameEmpty\n\t\t}\n\t\tif ReferenceRegexp.FindStringSubmatch(strings.ToLower(s)) != nil {\n\t\t\treturn nil, ErrNameContainsUppercase\n\t\t}\n\t\treturn nil, ErrReferenceInvalidFormat\n\t}\n\n\tif len(matches[1]) > NameTotalLengthMax {\n\t\treturn nil, ErrNameTooLong\n\t}\n\n\tvar repo repository\n\n\tnameMatch := anchoredNameRegexp.FindStringSubmatch(matches[1])\n\tif len(nameMatch) == 3 {\n\t\trepo.domain = nameMatch[1]\n\t\trepo.path = nameMatch[2]\n\t} else {\n\t\trepo.domain = \"\"\n\t\trepo.path = matches[1]\n\t}\n\n\tref := reference{\n\t\tnamedRepository: repo,\n\t\ttag:             matches[2],"
+        },
+        {
+          "startLine": 241,
+          "endLine": 278,
+          "excerpt": "func ParseNamed(s string) (Named, error) {\n\tnamed, err := ParseNormalizedNamed(s)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\tif named.String() != s {\n\t\treturn nil, ErrNameNotCanonical\n\t}\n\treturn named, nil\n}\n\n// WithName returns a named object representing the given string. If the input\n// is invalid ErrReferenceInvalidFormat will be returned.\nfunc WithName(name string) (Named, error) {\n\tif len(name) > NameTotalLengthMax {\n\t\treturn nil, ErrNameTooLong\n\t}\n\n\tmatch := anchoredNameRegexp.FindStringSubmatch(name)\n\tif match == nil || len(match) != 3 {\n\t\treturn nil, ErrReferenceInvalidFormat\n\t}\n\treturn repository{\n\t\tdomain: match[1],\n\t\tpath:   match[2],\n\t}, nil\n}\n\n// WithTag combines the name from \"name\" and the tag from \"tag\" to form a\n// reference incorporating both the name and the tag.\nfunc WithTag(name Named, tag string) (NamedTagged, error) {\n\tif !anchoredTagRegexp.MatchString(tag) {\n\t\treturn nil, ErrTagInvalidFormat\n\t}\n\tvar repo repository\n\tif r, ok := name.(namedRepository); ok {\n\t\trepo.domain = r.Domain()\n\t\trepo.path = r.Path()"
+        }
+      ]
+    },
+    {
+      "id": "crio-v135-reference-regex",
+      "sourceKind": "source_code",
+      "version": "1.35.0",
+      "commit": "92c18a2e2673764cd10f89b1a5061e2b26f44209",
+      "immutableURL": "https://github.com/cri-o/cri-o/blob/92c18a2e2673764cd10f89b1a5061e2b26f44209/vendor/github.com/distribution/reference/regexp.go",
+      "fileDigest": "sha256:2b28300779c30ddd8dd4c8ee3b5f1544f746e4f3c4ceefd3f90266186ee3cf4d",
+      "spans": [
+        {
+          "startLine": 16,
+          "endLine": 42,
+          "excerpt": "\t// components. This allow one period, one or two underscore and multiple\n\t// dashes. Repeated dashes and underscores are intentionally treated\n\t// differently. In order to support valid hostnames as name components,\n\t// supporting repeated dash was added. Additionally double underscore is\n\t// now allowed as a separator to loosen the restriction for previously\n\t// supported names.\n\tseparator = `(?:[._]|__|[-]*)`\n\n\t// repository name to start with a component as defined by DomainRegexp\n\t// and followed by an optional port.\n\tdomainComponent = `(?:[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])`\n\n\t// The string counterpart for TagRegexp.\n\ttag = `[\\w][\\w.-]{0,127}`\n\n\t// The string counterpart for DigestRegexp.\n\tdigestPat = `[A-Za-z][A-Za-z0-9]*(?:[-_+.][A-Za-z][A-Za-z0-9]*)*[:][[:xdigit:]]{32,}`\n\n\t// The string counterpart for IdentifierRegexp.\n\tidentifier = `([a-f0-9]{64})`\n\n\t// The string counterpart for ShortIdentifierRegexp.\n\tshortIdentifier = `([a-f0-9]{6,64})`\n)\n\nvar (\n\t// nameComponent restricts registry path component names to start"
+        },
+        {
+          "startLine": 43,
+          "endLine": 71,
+          "excerpt": "\t// with at least one letter or number, with following parts able to be\n\t// separated by one period, one or two underscore and multiple dashes.\n\tnameComponent = expression(\n\t\talphaNumeric,\n\t\toptional(repeated(separator, alphaNumeric)))\n\n\tdomain = expression(\n\t\tdomainComponent,\n\t\toptional(repeated(literal(`.`), domainComponent)),\n\t\toptional(literal(`:`), `[0-9]+`))\n\t// DomainRegexp defines the structure of potential domain components\n\t// that may be part of image names. This is purposely a subset of what is\n\t// allowed by DNS to ensure backwards compatibility with Docker image\n\t// names.\n\tDomainRegexp = re(domain)\n\n\t// TagRegexp matches valid tag names. From docker/docker:graph/tags.go.\n\tTagRegexp = re(tag)\n\n\tanchoredTag = anchored(tag)\n\t// anchoredTagRegexp matches valid tag names, anchored at the start and\n\t// end of the matched string.\n\tanchoredTagRegexp = storageRegexp.Delayed(anchoredTag)\n\n\t// DigestRegexp matches valid digests.\n\tDigestRegexp = re(digestPat)\n\n\tanchoredDigest = anchored(digestPat)\n\t// anchoredDigestRegexp matches valid digests, anchored at the start and"
+        },
+        {
+          "startLine": 72,
+          "endLine": 99,
+          "excerpt": "\t// end of the matched string.\n\tanchoredDigestRegexp = storageRegexp.Delayed(anchoredDigest)\n\n\tnamePat = expression(\n\t\toptional(domain, literal(`/`)),\n\t\tnameComponent,\n\t\toptional(repeated(literal(`/`), nameComponent)))\n\t// NameRegexp is the format for the name component of references. The\n\t// regexp has capturing groups for the domain and name part omitting\n\t// the separating forward slash from either.\n\tNameRegexp = re(namePat)\n\n\tanchoredName = anchored(\n\t\toptional(capture(domain), literal(`/`)),\n\t\tcapture(nameComponent,\n\t\t\toptional(repeated(literal(`/`), nameComponent))))\n\t// anchoredNameRegexp is used to parse a name value, capturing the\n\t// domain and trailing components.\n\tanchoredNameRegexp = storageRegexp.Delayed(anchoredName)\n\n\treferencePat = anchored(capture(namePat),\n\t\toptional(literal(\":\"), capture(tag)),\n\t\toptional(literal(\"@\"), capture(digestPat)))\n\t// ReferenceRegexp is the full supported format of a reference. The regexp\n\t// is anchored and has capturing groups for name, tag, and digest\n\t// components.\n\tReferenceRegexp = re(referencePat)\n"
+        },
+        {
+          "startLine": 100,
+          "endLine": 105,
+          "excerpt": "\t// IdentifierRegexp is the format for string identifier used as a\n\t// content addressable identifier using sha256. These identifiers\n\t// are like digests without the algorithm, since sha256 is used.\n\tIdentifierRegexp = re(identifier)\n\n\t// ShortIdentifierRegexp is the format used to represent a prefix"
+        }
+      ]
+    },
+    {
+      "id": "crio-v135-short-name-definition",
+      "sourceKind": "source_code",
+      "version": "1.35.0",
+      "commit": "92c18a2e2673764cd10f89b1a5061e2b26f44209",
+      "immutableURL": "https://github.com/cri-o/cri-o/blob/92c18a2e2673764cd10f89b1a5061e2b26f44209/vendor/go.podman.io/image/v5/pkg/shortnames/shortnames.go",
+      "fileDigest": "sha256:9b43a49ec53b0288760aab6fb0ede0feff73f148d24563e16a9c32bd5f4f08b1",
+      "spans": [
+        {
+          "startLine": 19,
+          "endLine": 31,
+          "excerpt": "// IsShortName returns true if the specified input is a \"short name\".  A \"short\n// name\" refers to a container image without a fully-qualified reference, and\n// is hence missing a registry (or domain).  Names including a digest are not\n// short names.\n//\n// Examples:\n//   - short names: \"image:tag\", \"library/fedora\"\n//   - not short names: \"quay.io/image\", \"localhost/image:tag\",\n//     \"server.org:5000/lib/image\", \"image@sha256:...\"\nfunc IsShortName(input string) bool {\n\tisShort, _, _ := parseUnnormalizedShortName(input)\n\treturn isShort\n}"
+        }
+      ]
+    }
+  ],
+  "declaration": {
+    "statement": "Candidate evidence for one exact CRI-O 1.34.0 to 1.35.0 ArtifactStore named-reference plan: the target rejects a short artifact reference and admits a fully-qualified reference through its parser.",
+    "proofStatus": "DECLARED_NOT_VERIFIED"
+  },
+  "limitations": [
+    "Tag bindings, source bytes, exact spans, attribution and semantic scope require independent review.",
+    "The check reads one caller-supplied native CRI ImageStatusRequest JSON file and caller-declared named-reference-resolution intent; it does not observe target request routing or store state.",
+    "Only the documented strict explicit-tag short and fully-qualified lexical subsets are classified; other well-formed forms remain UNKNOWN.",
+    "PASS clears only the target short-name guard. It does not establish alias resolution, store contents, registry access, ImageStatus results, pulls, removal, runtime behavior or whole-upgrade compatibility.",
+    "This packet does not establish signing, publication, support for other versions, or official registry provenance."
+  ],
+  "review": {
+    "state": "NOT_REVIEWED",
+    "claimedReviewer": {
+      "kind": "agent",
+      "identity": "sol-crio-artifact-name-candidate"
+    }
+  },
+  "attribution": {
+    "licenseAssertion": "DECLARED_UNKNOWN",
+    "attribution": "Bounded excerpts and immutable references to upstream CRI-O source and vendored parser source; attribution and licensing require independent review."
+  }
+}

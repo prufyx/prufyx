@@ -1,0 +1,14 @@
+{
+  "apiVersion": "policy.karmada.io/v1alpha1",
+  "kind": "PropagationPolicy",
+  "metadata": {
+    "name": "synthetic-karmada-policy"
+  },
+  "spec": {
+    "failover": {
+      "application": {
+        "purgeMode": "Immediately"
+      }
+    }
+  }
+}

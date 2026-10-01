@@ -1,0 +1,12 @@
+{
+  "authn": {
+    "method": "oidc",
+    "oidc": {
+      "issuer": "",
+      "audience": "audience.example.invalid"
+    }
+  },
+  "http": {
+    "enabled": true
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/cilium/cilium",
+        "version": "1.18.13",
+        "facts": []
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/cilium/cilium",
+        "version": "1.19.7",
+        "facts": [
+          {
+            "id": "component.cilium.nonempty_requires_fields",
+            "state": "declared",
+            "boolValue": false
+          }
+        ]
+      }
+    ]
+  }
+}

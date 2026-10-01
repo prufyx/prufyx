@@ -1,0 +1,1 @@
+{"schemaVersion":1,"name":"example/application","tag":"latest","architecture":"amd64","fsLayers":[{"blobSum":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}],"history":[{"v1Compatibility":"{}"}],"signatures":[{"header":{"jwk":{}},"signature":"synthetic","protected":"synthetic"}]}

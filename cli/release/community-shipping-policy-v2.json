@@ -1,0 +1,652 @@
+{
+  "allowExternalModules": true,
+  "binaryName": "prufyx",
+  "binaryResources": [
+    {
+      "path": "cli/vendor/google.golang.org/protobuf/internal/editiondefaults/editions_defaults.binpb",
+      "sha256": "c79ef4d8baed55566a8c8c9b18d25e96aee124020ca8e1913058ac491a63c6ed"
+    }
+  ],
+  "buildTargets": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "entrypoints": [
+    "./cmd/prufyx-community"
+  ],
+  "externalModules": [
+    {
+      "goModSum": "h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=",
+      "licenseDeclared": "MIT",
+      "moduleSum": "h1:dRaEfpa2VI55EwlIW72hMRHdWouJeRF7TPYhI+AUQjk=",
+      "notices": [
+        {
+          "distributionPath": "LICENSES/Module-BurntSushi-toml-MIT.txt",
+          "sha256": "d21cb1c60785d6d3a84a7059323ccafc45c645b1bbda281c76a62d66ad2d7dc3",
+          "sourcePath": "cli/vendor/github.com/BurntSushi/toml/COPYING"
+        }
+      ],
+      "path": "github.com/BurntSushi/toml",
+      "version": "v1.6.0"
+    },
+    {
+      "goModSum": "h1:rkhZdG3JZukswDf7f0cwqPNk4K0sa+F97BxZthm/crw=",
+      "licenseDeclared": "MIT",
+      "moduleSum": "h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=",
+      "notices": [
+        {
+          "distributionPath": "LICENSES/Module-cenkalti-backoff-MIT.txt",
+          "sha256": "5c0476add4c38b55d0ed5ac11b85e00c38f26e1caee20dfe3ab58190103d1fbc",
+          "sourcePath": "cli/vendor/github.com/cenkalti/backoff/v5/LICENSE"
+        }
+      ],
+      "path": "github.com/cenkalti/backoff/v5",
+      "version": "v5.0.3"
+    },
+    {
+      "goModSum": "h1:Lx5LCZQjLH1QBaMPeGwsME9biPeo1lPx6lbGj/UmzgM=",
+      "licenseDeclared": "Apache-2.0",
+      "moduleSum": "h1:24VGNpS0IwrOZ2ms2P1QE3Xa5X9p4phx0aUgzYzHW6I=",
+      "notices": [
+        {
+          "distributionPath": "LICENSES/Module-google-go-containerregistry-Apache-2.0.txt",
+          "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd",
+          "sourcePath": "cli/vendor/github.com/google/go-containerregistry/LICENSE"
+        }
+      ],
+      "path": "github.com/google/go-containerregistry",
+      "version": "v0.20.7"
+    },
+    {
+      "goModSum": "h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=",
+      "licenseDeclared": "Apache-2.0",
+      "moduleSum": "h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8Oi/yOhh5U=",
+      "notices": [
+        {
+          "distributionPath": "LICENSES/Module-opencontainers-go-digest-Apache-2.0.txt",
+          "sha256": "aceb55133c41c50c2e170c5918e301fe74f592d0f28724bf2f7a7bfdcff1fc5f",
+          "sourcePath": "cli/vendor/github.com/opencontainers/go-digest/LICENSE"
+        },
+        {
+          "distributionPath": "LICENSES/Module-opencontainers-go-digest-docs-CC-BY-SA-4.0.txt",
+          "sha256": "a1d1adec3ba691ef6e377a78bbe9e9e2501f2f4a1723d08857da1ac6564e4fed",
+          "sourcePath": "cli/vendor/github.com/opencontainers/go-digest/LICENSE.docs"
+        }
+      ],
+      "path": "github.com/opencontainers/go-digest",
+      "version": "v1.0.0"
+    },
+    {
+      "goModSum": "h1:+PMOTjUGwHj2vcZ+TFKlb1tXRbrdWE1LYDT5i9JC80Q=",
+      "licenseDeclared": "MIT",
+      "moduleSum": "h1:iuCR9kcMFD4QurdKrGvPLoKZLv9YvwPYVr0473BdtFs=",
+      "notices": [
+        {
+          "distributionPath": "LICENSES/Module-go-securesystemslib-MIT.txt",
+          "sha256": "cb64503e4772676abf9c5f67398c14426f7b1346a4d7aa851ad64ff49fbf41e4",
+          "sourcePath": "cli/vendor/github.com/secure-systems-lab/go-securesystemslib/LICENSE"
+        }
+      ],
+      "path": "github.com/secure-systems-lab/go-securesystemslib",
+      "version": "v0.11.0"
+    },
+    {
+      "goModSum": "h1:+gXR+38nIa2oEupqDdzg4qSBT0Os+sP7oYv6alWewWc=",
+      "licenseDeclared": "Apache-2.0",
+      "moduleSum": "h1:F8YTI65xOHw70NrvPwJ5PhAzsvTnuJMGLkA4FIkofAY=",
+      "notices": [
+        {
+          "distributionPath": "LICENSES/Module-sigstore-protobuf-specs-Apache-2.0.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "sourcePath": "cli/vendor/github.com/sigstore/protobuf-specs/LICENSE"
+        }
+      ],
+      "path": "github.com/sigstore/protobuf-specs",
+      "version": "v0.5.0"
+    },
+    {
+      "goModSum": "h1:k/mcVVXw3I87dYG/iCVTSW2xTrW7vPzxxGic4KqsqXs=",
+      "licenseDeclared": "Apache-2.0",
+      "moduleSum": "h1:YWhMQfTrJSK80QB1pbxjYeAwGKx+5UwWPPAY9hrPPZg=",
+      "notices": [
+        {
+          "distributionPath": "LICENSES/Module-sigstore-Apache-2.0.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "sourcePath": "cli/vendor/github.com/sigstore/sigstore/LICENSE"
+        }
+      ],
+      "path": "github.com/sigstore/sigstore",
+      "version": "v1.10.6"
+    },
+    {
+      "goModSum": "h1:JqBrIUnNLAaNq/8GmBcEMFWfAFBbqp/MkJEJseXKbks=",
+      "licenseDeclared": "Apache-2.0",
+      "moduleSum": "h1:w7976/W8uTwlsegP5nRymlpjPgrwSh+AXUf85is6nJk=",
+      "notices": [
+        {
+          "distributionPath": "LICENSES/Module-go-tuf-Apache-2.0.txt",
+          "sha256": "e0122c8780558ada7b4ce0e1aa8596b3d95fda640cef42fca283991bf20306cf",
+          "sourcePath": "cli/vendor/github.com/theupdateframework/go-tuf/v2/LICENSE"
+        },
+        {
+          "distributionPath": "LICENSES/Module-go-tuf-NOTICE.txt",
+          "sha256": "86ce5e2bb72f603a8849e085524022bdac6668df4f0baca507033610237365f3",
+          "sourcePath": "cli/vendor/github.com/theupdateframework/go-tuf/v2/NOTICE"
+        }
+      ],
+      "path": "github.com/theupdateframework/go-tuf/v2",
+      "version": "v2.4.2"
+    },
+    {
+      "goModSum": "h1:OMW5y6CY9l38uPLmxU6l6pwcXp1obtLo3e6gT7gQR2I=",
+      "licenseDeclared": "BSD-3-Clause",
+      "moduleSum": "h1:GUh5Ii4J5jtcseSMiRqr1jXCNHoxjeV9Fmekc2oLy6Y=",
+      "notices": [
+        {
+          "distributionPath": "LICENSES/Module-golang-x-crypto-BSD-3-Clause.txt",
+          "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad",
+          "sourcePath": "cli/vendor/golang.org/x/crypto/LICENSE"
+        },
+        {
+          "distributionPath": "LICENSES/Module-golang-x-crypto-PATENTS.txt",
+          "sha256": "96f408bfae65bf137fc2525d3ecb030271c50c1e90799f87abf8846d8dd505cc",
+          "sourcePath": "cli/vendor/golang.org/x/crypto/PATENTS"
+        }
+      ],
+      "path": "golang.org/x/crypto",
+      "version": "v0.56.0"
+    },
+    {
+      "goModSum": "h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=",
+      "licenseDeclared": "BSD-3-Clause",
+      "moduleSum": "h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=",
+      "notices": [
+        {
+          "distributionPath": "LICENSES/Module-golang-x-sys-BSD-3-Clause.txt",
+          "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad",
+          "sourcePath": "cli/vendor/golang.org/x/sys/LICENSE"
+        },
+        {
+          "distributionPath": "LICENSES/Module-golang-x-sys-PATENTS.txt",
+          "sha256": "96f408bfae65bf137fc2525d3ecb030271c50c1e90799f87abf8846d8dd505cc",
+          "sourcePath": "cli/vendor/golang.org/x/sys/PATENTS"
+        }
+      ],
+      "path": "golang.org/x/sys",
+      "version": "v0.47.0"
+    },
+    {
+      "goModSum": "h1:9aqxs0blBcrm/n0L9QW0aRVD+ktan8ssZromtqJC43w=",
+      "licenseDeclared": "BSD-3-Clause",
+      "moduleSum": "h1:NwWyBmoJCbfTHpxrWoZ9C6/VxOf7ic219I8xZZFdrf0=",
+      "notices": [
+        {
+          "distributionPath": "LICENSES/Module-golang-x-term-BSD-3-Clause.txt",
+          "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad",
+          "sourcePath": "cli/vendor/golang.org/x/term/LICENSE"
+        },
+        {
+          "distributionPath": "LICENSES/Module-golang-x-term-PATENTS.txt",
+          "sha256": "96f408bfae65bf137fc2525d3ecb030271c50c1e90799f87abf8846d8dd505cc",
+          "sourcePath": "cli/vendor/golang.org/x/term/PATENTS"
+        }
+      ],
+      "path": "golang.org/x/term",
+      "version": "v0.45.0"
+    },
+    {
+      "goModSum": "h1:j3QtIyytwqGr1JUDtYXwtMXWPKsEa5LtzIFN1Wn5WvE=",
+      "licenseDeclared": "Apache-2.0",
+      "moduleSum": "h1:BIRfGDEjiHRrk0QKZe3Xv2ieMhtgRGeLcZQ0mIVn4EY=",
+      "notices": [
+        {
+          "distributionPath": "LICENSES/Module-google-genproto-Apache-2.0.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "sourcePath": "cli/vendor/google.golang.org/genproto/googleapis/api/LICENSE"
+        }
+      ],
+      "path": "google.golang.org/genproto/googleapis/api",
+      "version": "v0.0.0-20250825161204-c5933d9347a5"
+    },
+    {
+      "goModSum": "h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=",
+      "licenseDeclared": "BSD-3-Clause",
+      "moduleSum": "h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=",
+      "notices": [
+        {
+          "distributionPath": "LICENSES/Module-google-protobuf-BSD-3-Clause.txt",
+          "sha256": "4835612df0098ca95f8e7d9e3bffcb02358d435dbb38057c844c99d7f725eb20",
+          "sourcePath": "cli/vendor/google.golang.org/protobuf/LICENSE"
+        },
+        {
+          "distributionPath": "LICENSES/Module-google-protobuf-PATENTS.txt",
+          "sha256": "96f408bfae65bf137fc2525d3ecb030271c50c1e90799f87abf8846d8dd505cc",
+          "sourcePath": "cli/vendor/google.golang.org/protobuf/PATENTS"
+        }
+      ],
+      "path": "google.golang.org/protobuf",
+      "version": "v1.36.11"
+    },
+    {
+      "goModSum": "h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=",
+      "licenseDeclared": "MIT-AND-Apache-2.0",
+      "moduleSum": "h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=",
+      "notices": [
+        {
+          "distributionPath": "LICENSES/Module-go-yaml-v3-MIT-Apache-2.0.txt",
+          "sha256": "d18f6323b71b0b768bb5e9616e36da390fbd39369a81807cca352de4e4e6aa0b",
+          "sourcePath": "cli/vendor/gopkg.in/yaml.v3/LICENSE"
+        },
+        {
+          "distributionPath": "LICENSES/Module-go-yaml-v3-NOTICE.txt",
+          "sha256": "f6c2dd3a67b576eafb89b80200b8b1627230bf3821a0c14cb99a22ac19107d00",
+          "sourcePath": "cli/vendor/gopkg.in/yaml.v3/NOTICE"
+        }
+      ],
+      "path": "gopkg.in/yaml.v3",
+      "version": "v3.0.1"
+    }
+  ],
+  "moduleRoot": "cli",
+  "requiredGoVersion": "go1.26.8",
+  "requiredPaths": [
+    {
+      "path": "LICENSE",
+      "role": "license"
+    },
+    {
+      "path": "LICENSES",
+      "recursive": true,
+      "role": "license"
+    },
+    {
+      "path": "NOTICE",
+      "role": "notice"
+    },
+    {
+      "path": "THIRD-PARTY.md",
+      "role": "notice"
+    },
+    {
+      "path": ".gitignore",
+      "role": "repository-config"
+    },
+    {
+      "path": ".gitleaksignore",
+      "role": "repository-config"
+    },
+    {
+      "path": ".github/CODE_OF_CONDUCT.md",
+      "role": "community-governance"
+    },
+    {
+      "path": ".github/CONTRIBUTING.md",
+      "role": "community-governance"
+    },
+    {
+      "path": ".github/SECURITY.md",
+      "role": "community-governance"
+    },
+    {
+      "path": ".github/SUPPORT.md",
+      "role": "community-governance"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/new-project.yml",
+      "role": "community-governance"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/project-knowledge.yml",
+      "role": "community-governance"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/source-preview-feedback.md",
+      "role": "community-governance"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "role": "documentation"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "role": "community-governance"
+    },
+    {
+      "path": "README.md",
+      "role": "documentation"
+    },
+    {
+      "path": "SOURCE-PREVIEW.json",
+      "role": "release-metadata"
+    },
+    {
+      "path": "SECURITY.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/README.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/Makefile",
+      "role": "build-tool"
+    },
+    {
+      "path": "cli/cmd/prufyx-collector",
+      "recursive": true,
+      "role": "operator-tool"
+    },
+    {
+      "path": "cli/internal/localcollector",
+      "recursive": true,
+      "role": "operator-tool"
+    },
+    {
+      "path": "cli/cmd/prufyx-offline-boundary",
+      "recursive": true,
+      "role": "operator-test"
+    },
+    {
+      "path": "cli/internal/offlineboundary",
+      "recursive": true,
+      "role": "operator-test"
+    },
+    {
+      "path": "cli/docs/community-checks.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/batch-checks.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/examples/batch",
+      "recursive": true,
+      "role": "example"
+    },
+    {
+      "path": "cli/docs/community-project-checks.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/examples/projects",
+      "recursive": true,
+      "role": "example"
+    },
+    {
+      "path": "cli/docs/data-handling.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/local-collection.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/offline-boundary.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/native-format-preflights.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/openfga-oidc-upgrade.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/cloudevents-structured-json.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/spiffe-x509-svid.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/tikv-gcp-v2-wif-backup.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/product-contract.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/project-onboarding.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/rfc/RFC-0001-public-project-knowledge-onboarding.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/adr/ADR-0001-source-observations-before-reviewed-rules.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/adr/ADR-0002-add-declared-review-consistency-gate.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/adr/ADR-0003-unsigned-knowledge-release-plan.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/prometheus-mode.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/prometheus-remote-write-http2.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/signing-provenance.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/release/COMMUNITY-SOURCE-GATE.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/release/community-shipping-policy-v1.json",
+      "role": "release-policy"
+    },
+    {
+      "path": "cli/examples/community",
+      "recursive": true,
+      "role": "example"
+    },
+    {
+      "path": "cli/scripts/component-configuration-adapters-v3.json",
+      "role": "operator-data"
+    },
+    {
+      "path": "cli/scripts/check-dco-range.sh",
+      "role": "operator-test"
+    },
+    {
+      "path": "cli/scripts/component-configuration-adapters.json",
+      "role": "operator-data"
+    },
+    {
+      "path": "cli/scripts/kubeconfig-api-snapshot.sh",
+      "role": "operator-tool"
+    },
+    {
+      "path": "cli/scripts/test-component-configuration-adapter.sh",
+      "role": "operator-test"
+    },
+    {
+      "path": "cli/scripts/test-kubeconfig-api-snapshot-offline.sh",
+      "role": "operator-test"
+    },
+    {
+      "path": "cli/scripts/test-offline-cli-boundary.sh",
+      "role": "operator-test"
+    },
+    {
+      "path": "cli/scripts/testdata",
+      "recursive": true,
+      "role": "operator-testdata"
+    },
+    {
+      "path": "scripts/community-release.sh",
+      "role": "release-tool"
+    },
+    {
+      "path": "cli/docs/knowledge-database.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/release/community-shipping-policy-v2.json",
+      "role": "release-policy"
+    },
+    {
+      "path": "cli/vendor",
+      "recursive": true,
+      "role": "vendor"
+    },
+    {
+      "path": "cli/internal/knowledgefixture",
+      "recursive": true,
+      "role": "example-support"
+    },
+    {
+      "path": "cli/docs/CNCF-SOURCE-PREVIEW.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/examples/cncf",
+      "recursive": true,
+      "role": "example"
+    },
+    {
+      "path": "cli/docs/cncf-knowledge-database.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/knowledge-updates.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/knowledge-status-adopter.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/knowledge-export.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/knowledge-publisher.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/knowledge-signer.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/upstream-contributions.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/examples/contributions",
+      "recursive": true,
+      "role": "example"
+    },
+    {
+      "path": "cli/examples/project-onboarding",
+      "recursive": true,
+      "role": "example"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/upstream-evidence-contribution.md",
+      "role": "community-governance"
+    },
+    {
+      "path": "cli/docs/source-corpus.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/examples/corpus",
+      "recursive": true,
+      "role": "example"
+    },
+    {
+      "path": "cli/docs/source-corpus-collection.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/examples/source-corpus-collection",
+      "recursive": true,
+      "role": "example"
+    },
+    {
+      "path": "cli/docs/public-source-capture.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/examples/capture",
+      "recursive": true,
+      "role": "example"
+    },
+    {
+      "path": "cli/docs/upstream-review-record-template.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/declared-review-record.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/community-support-inventory.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/data/selected-source-records-v1.json",
+      "role": "operator-data"
+    },
+    {
+      "path": "cli/docs/generated/community-support-inventory.json",
+      "role": "operator-data"
+    },
+    {
+      "path": "cli/docs/generated/community-support-inventory.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/docs/latest-upgrade-coverage-2026-09-12.md",
+      "role": "documentation"
+    },
+    {
+      "path": "cli/cmd/prufyx-maintainer",
+      "recursive": true,
+      "role": "maintainer-tool"
+    },
+    {
+      "path": "cli/internal/maintainer",
+      "recursive": true,
+      "role": "maintainer-tool"
+    },
+    {
+      "path": "cli/internal/cncfprepare/flux-latest-source-contract.json",
+      "role": "operator-data"
+    }
+  ],
+  "schemaVersion": "prufyx.io/community-shipping-policy/v2",
+  "sourceBuildTargets": [
+    "linux/amd64",
+    "linux/arm64",
+    "darwin/arm64"
+  ],
+  "testPolicy": {
+    "requireDirectTestsForProductionPackages": true,
+    "testTags": [
+      "parityreview"
+    ]
+  },
+  "toolchainArchives": {
+    "darwin/arm64": "a012b25b571bd0138a03dcd25375ceba866fe5ca822f426d2c66a4de56fd3f4b",
+    "linux/amd64": "d0f743b33e8d8945e6b1f432edd15785c70507121d6e2a723b21285eddf8b57b",
+    "linux/arm64": "211ffced9dcb9633a55eac6364816ec0ddd951389a740e88fa8b3337971bdda0"
+  },
+  "vendorRoot": "cli/vendor",
+  "vendorTreeDigest": "sha256:a79e35a51ea0a9f749d6f69323b218ebb712ffa68a8f488321ccf6c981ecec4f"
+}

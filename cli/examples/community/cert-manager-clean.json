@@ -1,0 +1,1 @@
+{"prometheus":{"servicemonitor":{"enabled":true,"interval":"60s"}}}

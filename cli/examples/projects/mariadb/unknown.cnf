@@ -1,0 +1,4 @@
+!includedir /synthetic/mariadb/conf.d
+
+[mariadbd]
+max_connections=100

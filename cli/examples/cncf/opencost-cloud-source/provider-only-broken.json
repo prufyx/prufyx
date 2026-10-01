@@ -1,0 +1,14 @@
+{
+  "schema": "prufyx.io/opencost-cloud-cost-source-selection/v1alpha1",
+  "current": {
+    "cloudCostEnabled": true,
+    "sourceSelectionComplete": true,
+    "selectedSource": "provider_derived"
+  },
+  "proposed": {
+    "cloudCostEnabled": true,
+    "sourceSelectionComplete": true,
+    "selectedSource": "provider_derived",
+    "cloudIntegrationConfigSource": "absent"
+  }
+}

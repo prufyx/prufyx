@@ -1,0 +1,1 @@
+{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"argo-server","namespace":"argo"},"spec":{"template":{"spec":{"containers":[{"name":"argo-server","image":"example.invalid/custom-argo:v3.6.0","args":["server"],"env":[]}]}}}}

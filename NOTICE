@@ -1,0 +1,17 @@
+Prufyx
+Copyright 2026 Spas Atanasov and Prufyx contributors
+
+The Prufyx source code is licensed under the GNU Affero General Public License,
+version 3 only. See LICENSE.
+
+Prufyx knowledge data is licensed under the Creative Commons
+Attribution-ShareAlike 4.0 International license. See DATA-LICENSE.md and
+LICENSES/CC-BY-SA-4.0.txt.
+
+Binary distributions include the Go runtime and standard library.
+Copyright 2009 The Go Authors.
+See LICENSES/Go-BSD-3-Clause.txt.
+
+Public component names, version facts, source URLs, and source digests identify
+upstream projects. They do not imply endorsement by those projects or the CNCF.
+See THIRD-PARTY.md for the included-content inventory and its boundaries.

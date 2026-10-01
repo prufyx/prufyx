@@ -1,0 +1,97 @@
+{
+  "apiVersion": "prufyx.io/configuration-adapters/v1alpha1",
+  "kind": "ComponentConfigurationAdapterRegistry",
+  "metadata": {
+    "schemaVersion": "1.1.0",
+    "registryVersion": "v2",
+    "policy": "public_identity_exact_match_non_secret_predicates_declared_context"
+  },
+  "adapters": [
+    {
+      "componentId": "pkg:oci/prometheus/prometheus",
+      "identities": [
+        "docker.io/prom/prometheus",
+        "prom/prometheus",
+        "quay.io/prometheus/prometheus"
+      ],
+      "workloadKinds": ["Deployment", "StatefulSet"],
+      "predicates": [
+        {"id": "component.prometheus.web_admin_api_enabled", "valueKind": "boolean", "flags": ["--web.enable-admin-api"]},
+        {"id": "component.prometheus.web_lifecycle_enabled", "valueKind": "boolean", "flags": ["--web.enable-lifecycle"]},
+        {"id": "component.prometheus.log_level", "valueKind": "enum", "allowedValues": ["debug", "info", "warn", "error"], "flags": ["--log.level"]}
+      ]
+    },
+    {
+      "componentId": "pkg:oci/argoproj/argo-workflows",
+      "identities": [
+        "docker.io/argoproj/workflow-controller",
+        "argoproj/workflow-controller",
+        "quay.io/argoproj/workflow-controller"
+      ],
+      "workloadKinds": ["Deployment"],
+      "declaredRole": "workflow-controller",
+      "roleEvidenceClass": "declared_container_context_v1",
+      "predicates": [
+        {"id": "component.argo_workflows.namespaced_mode", "valueKind": "boolean", "flags": ["--namespaced"]},
+        {"id": "component.argo_workflows.managed_namespace_configured", "valueKind": "presence", "flags": ["--managed-namespace"]}
+      ]
+    },
+    {
+      "componentId": "pkg:oci/argoproj/argo-cd",
+      "identities": [
+        "docker.io/argoproj/argocd",
+        "argoproj/argocd",
+        "quay.io/argoproj/argocd"
+      ],
+      "workloadKinds": ["Deployment", "StatefulSet"],
+      "predicates": [
+        {"id": "component.argo_cd.insecure_server_enabled", "valueKind": "boolean", "flags": ["--insecure"]},
+        {"id": "component.argo_cd.repo_server_configured", "valueKind": "presence", "flags": ["--repo-server"]}
+      ]
+    },
+    {
+      "componentId": "pkg:oci/cert-manager/cert-manager",
+      "identities": [
+        "docker.io/jetstack/cert-manager-controller",
+        "jetstack/cert-manager-controller",
+        "quay.io/jetstack/cert-manager-controller",
+        "docker.io/jetstack/cert-manager-webhook",
+        "jetstack/cert-manager-webhook",
+        "quay.io/jetstack/cert-manager-webhook",
+        "docker.io/jetstack/cert-manager-cainjector",
+        "jetstack/cert-manager-cainjector",
+        "quay.io/jetstack/cert-manager-cainjector",
+        "docker.io/jetstack/cert-manager-startupapicheck",
+        "jetstack/cert-manager-startupapicheck",
+        "quay.io/jetstack/cert-manager-startupapicheck"
+      ],
+      "workloadKinds": ["Deployment"],
+      "predicates": [
+        {"id": "component.cert_manager.owner_ref_enabled", "valueKind": "boolean", "flags": ["--enable-certificate-owner-ref"]},
+        {"id": "component.cert_manager.dns01_recursive_nameservers_configured", "valueKind": "presence", "flags": ["--dns01-recursive-nameservers"]},
+        {"id": "component.cert_manager.feature_gate_acme_use_ari", "valueKind": "featureGate", "featureGate": "ACMEUseARI", "flags": ["--feature-gates"]},
+        {"id": "component.cert_manager.feature_gate_experimental_gateway_api_support", "valueKind": "featureGate", "featureGate": "ExperimentalGatewayAPISupport", "flags": ["--feature-gates"]},
+        {"id": "component.cert_manager.feature_gate_listener_sets", "valueKind": "featureGate", "featureGate": "ListenerSets", "flags": ["--feature-gates"]},
+        {"id": "component.cert_manager.feature_gate_server_side_apply", "valueKind": "featureGate", "featureGate": "ServerSideApply", "flags": ["--feature-gates"]},
+        {"id": "component.cert_manager.feature_gate_ca_injector_merging", "valueKind": "featureGate", "featureGate": "CAInjectorMerging", "flags": ["--feature-gates"]},
+        {"id": "component.cert_manager.feature_gate_other_names", "valueKind": "featureGate", "featureGate": "OtherNames", "flags": ["--feature-gates"]},
+        {"id": "component.cert_manager.feature_gate_certificate_request_controllers", "valueKind": "featureGate", "featureGate": "ExperimentalCertificateSigningRequestControllers", "flags": ["--feature-gates"]}
+      ]
+    },
+    {
+      "componentId": "pkg:oci/cilium/cilium",
+      "identities": [
+        "docker.io/cilium/cilium",
+        "cilium/cilium",
+        "quay.io/cilium/cilium"
+      ],
+      "workloadKinds": ["DaemonSet"],
+      "predicates": [
+        {"id": "component.cilium.ipv4_enabled", "valueKind": "boolean", "flags": ["--enable-ipv4"]},
+        {"id": "component.cilium.ipv6_enabled", "valueKind": "boolean", "flags": ["--enable-ipv6"]},
+        {"id": "component.cilium.k8s_network_policy_enabled", "valueKind": "boolean", "flags": ["--enable-k8s-networkpolicy"]},
+        {"id": "component.cilium.bpf_masquerade_enabled", "valueKind": "boolean", "flags": ["--enable-bpf-masquerade"]}
+      ]
+    }
+  ]
+}

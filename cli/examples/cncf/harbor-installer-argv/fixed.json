@@ -1,0 +1,6 @@
+{
+  "apiVersion": "prufyx.io/harbor-installer-argv/v1alpha1",
+  "kind": "HarborInstallerArguments",
+  "effectiveArgvDeclared": true,
+  "argv": ["--with-notary", "--with-trivy"]
+}

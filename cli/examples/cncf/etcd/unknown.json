@@ -1,0 +1,1 @@
+{"apiVersion":"prufyx.io/etcd-effective-argv/v1alpha1","kind":"EtcdEffectiveArguments","effectiveArgvDeclared":true,"argv":["--config-file=/operator/private/etcd.yaml"]}

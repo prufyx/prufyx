@@ -1,0 +1,48 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/tektoncd/pipeline",
+        "version": "1.9.0",
+        "facts": []
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/tektoncd/pipeline",
+        "version": "1.10.0",
+        "facts": [
+          {
+            "id": "component.tekton.config_observability_identity_bound",
+            "state": "declared",
+            "boolValue": true
+          },
+          {
+            "id": "component.tekton.distribution",
+            "state": "declared",
+            "enumValue": "official_upstream"
+          },
+          {
+            "id": "component.tekton.proposed_config_observability_complete_effective",
+            "state": "declared",
+            "boolValue": true
+          },
+          {
+            "id": "component.tekton.proposed_metrics_protocol_prometheus",
+            "state": "declared",
+            "boolValue": true
+          },
+          {
+            "id": "component.tekton.retain_prometheus_metrics_required",
+            "state": "declared",
+            "boolValue": true
+          }
+        ]
+      }
+    ]
+  }
+}

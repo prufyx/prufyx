@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-declaration
+  namespace: prufyx-local-proof
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: prometheus-declaration
+  template:
+    metadata:
+      labels:
+        app: prometheus-declaration
+    spec:
+      containers:
+        - name: prometheus
+          image: docker.io/prom/prometheus:v2.55.1@sha256:f4def6b3b61109a6eeea59945d578bb7e926c36cb0e036a23e3ceb8b6de024ad
+          command:
+            - /bin/prometheus
+          args:
+            - --enable-feature=agent

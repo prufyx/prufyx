@@ -1,0 +1,1 @@
+{"apiVersion":"postgresql.cnpg.io/v1","kind":"Database","metadata":{"name":"app-a","namespace":"db"},"spec":{"cluster":{"name":"primary"}}}

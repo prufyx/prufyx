@@ -1,0 +1,15 @@
+{
+  "authority": "LOCAL_VERIFIED_RETAINED_SHARDS_NOT_RULE_OR_RUNTIME_PROOF",
+  "revision": "collection-v1",
+  "schema": "prufyx.io/private-source-corpus-collection/v1",
+  "shards": [
+    {
+      "manifestPath": "shard-a/manifest.json",
+      "objectRoot": "shard-a/objects"
+    },
+    {
+      "manifestPath": "shard-b/manifest.json",
+      "objectRoot": "shard-b/objects"
+    }
+  ]
+}

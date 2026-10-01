@@ -1,0 +1,28 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/vitessio/vitess",
+        "version": "22.0.0",
+        "facts": []
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/vitessio/vitess",
+        "version": "23.0.0",
+        "facts": [
+          {
+            "id": "component.vitess.multi_statement_execute_fetch_as_dba",
+            "state": "declared",
+            "boolValue": true
+          }
+        ]
+      }
+    ]
+  }
+}

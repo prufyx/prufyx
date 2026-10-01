@@ -1,0 +1,2684 @@
+{
+  "schema": "prufyx.io/community-project-source-rule-pack/v1alpha1",
+  "revision": "community-project-rules-2026-09-12.6",
+  "policyId": "community-project-source-preview-v1",
+  "policyDigest": "sha256:16b3a461dfc639f997c6f048d4dc6f0cf5bda3c02c12fdc4f390bf52fc2ff144",
+  "entries": [
+    {
+      "description": "Argo Workflows v4.1.3 retains the --base-href spelling that replaced --basehref; this checks literal argv for one exact-image, caller-selected target argo-server Deployment.",
+      "project": "argo-workflows",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/argoproj/argo-workflows",
+          "description": "Whether the selected target argo-server literal argv contains removed --basehref; argument values are discarded.",
+          "enumTokens": null,
+          "id": "component.argo-workflows.server_legacy_basehref_flag_present",
+          "side": "proposed",
+          "type": "bool"
+        }
+      ],
+      "rule": {
+        "condition": {
+          "component": "pkg:github/argoproj/argo-workflows",
+          "factId": "component.argo-workflows.server_legacy_basehref_flag_present",
+          "side": "proposed",
+          "boolValue": true
+        },
+        "evidence": {
+          "reviewedAt": "2026-09-12T10:42:00Z",
+          "sources": [
+            {
+              "id": "argo-workflows-v3-4-18-origin-identity",
+              "url": "https://github.com/argoproj/argo-workflows/blob/c2b9dc6dbc7b209eadf122238a9a9b2082ac8266/version.go",
+              "revision": "c2b9dc6dbc7b209eadf122238a9a9b2082ac8266",
+              "contentDigest": "sha256:9cc3ff02c95774cefbc306c5be72cbc4f9922f956359bf25fdc1685b20d9456e",
+              "startLine": 1,
+              "endLine": 30
+            },
+            {
+              "id": "argo-workflows-v3-5-15-legacy-server-flag",
+              "url": "https://github.com/argoproj/argo-workflows/blob/b44c9b6a21cc60c00ef0cf3ca6a6a49e197a59b7/cmd/argo/commands/server.go",
+              "revision": "b44c9b6a21cc60c00ef0cf3ca6a6a49e197a59b7",
+              "contentDigest": "sha256:e910ef239b78d69ed65be37f74aa665e9a8097a9fd52234cc49a2a276e1b51d7",
+              "startLine": 194,
+              "endLine": 208
+            },
+            {
+              "id": "argo-workflows-v4-1-3-argocli-entrypoint",
+              "url": "https://github.com/argoproj/argo-workflows/blob/5fdad0fe6f6d740c55d8289f26c912ab711ca407/Dockerfile",
+              "revision": "5fdad0fe6f6d740c55d8289f26c912ab711ca407",
+              "contentDigest": "sha256:e60b4b56d2b610beb39a492e125927688a63d71fee3b5f920653c500330874f8",
+              "startLine": 130,
+              "endLine": 140
+            },
+            {
+              "id": "argo-workflows-v4-1-3-server-flags",
+              "url": "https://github.com/argoproj/argo-workflows/blob/5fdad0fe6f6d740c55d8289f26c912ab711ca407/cmd/argo/commands/server.go",
+              "revision": "5fdad0fe6f6d740c55d8289f26c912ab711ca407",
+              "contentDigest": "sha256:6c1abfc38dfeb89bc0b53ebe814711747409d6c42eca12fb6b9ea01febd41f68",
+              "startLine": 195,
+              "endLine": 224
+            }
+          ],
+          "state": "active",
+          "validUntil": "2026-12-11T10:42:00Z"
+        },
+        "id": "argo-workflows.server-basehref.3-4-18-to-4-1-3",
+        "nextAction": "Replace --basehref with --base-href in the selected target argo-server argv; review all other rendered server workloads and arguments separately.",
+        "operator": "forbid_predicate_value",
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "subject": {
+          "component": "pkg:github/argoproj/argo-workflows",
+          "from": "3.4.18",
+          "to": "4.1.3"
+        }
+      }
+    },
+    {
+      "description": "Argo Workflows v4.1.3 retains the --base-href spelling that replaced --basehref; this checks literal argv for one exact-image, caller-selected target argo-server Deployment.",
+      "project": "argo-workflows",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/argoproj/argo-workflows",
+          "description": "Whether the selected target argo-server literal argv contains removed --basehref; argument values are discarded.",
+          "enumTokens": null,
+          "id": "component.argo-workflows.server_legacy_basehref_flag_present",
+          "side": "proposed",
+          "type": "bool"
+        }
+      ],
+      "rule": {
+        "condition": {
+          "component": "pkg:github/argoproj/argo-workflows",
+          "factId": "component.argo-workflows.server_legacy_basehref_flag_present",
+          "side": "proposed",
+          "boolValue": true
+        },
+        "evidence": {
+          "reviewedAt": "2026-09-12T10:42:00Z",
+          "sources": [
+            {
+              "id": "argo-workflows-v3-5-15-legacy-server-flag",
+              "url": "https://github.com/argoproj/argo-workflows/blob/b44c9b6a21cc60c00ef0cf3ca6a6a49e197a59b7/cmd/argo/commands/server.go",
+              "revision": "b44c9b6a21cc60c00ef0cf3ca6a6a49e197a59b7",
+              "contentDigest": "sha256:e910ef239b78d69ed65be37f74aa665e9a8097a9fd52234cc49a2a276e1b51d7",
+              "startLine": 194,
+              "endLine": 208
+            },
+            {
+              "id": "argo-workflows-v3-5-15-origin-identity",
+              "url": "https://github.com/argoproj/argo-workflows/blob/b44c9b6a21cc60c00ef0cf3ca6a6a49e197a59b7/version.go",
+              "revision": "b44c9b6a21cc60c00ef0cf3ca6a6a49e197a59b7",
+              "contentDigest": "sha256:9cc3ff02c95774cefbc306c5be72cbc4f9922f956359bf25fdc1685b20d9456e",
+              "startLine": 1,
+              "endLine": 30
+            },
+            {
+              "id": "argo-workflows-v4-1-3-argocli-entrypoint",
+              "url": "https://github.com/argoproj/argo-workflows/blob/5fdad0fe6f6d740c55d8289f26c912ab711ca407/Dockerfile",
+              "revision": "5fdad0fe6f6d740c55d8289f26c912ab711ca407",
+              "contentDigest": "sha256:e60b4b56d2b610beb39a492e125927688a63d71fee3b5f920653c500330874f8",
+              "startLine": 130,
+              "endLine": 140
+            },
+            {
+              "id": "argo-workflows-v4-1-3-server-flags",
+              "url": "https://github.com/argoproj/argo-workflows/blob/5fdad0fe6f6d740c55d8289f26c912ab711ca407/cmd/argo/commands/server.go",
+              "revision": "5fdad0fe6f6d740c55d8289f26c912ab711ca407",
+              "contentDigest": "sha256:6c1abfc38dfeb89bc0b53ebe814711747409d6c42eca12fb6b9ea01febd41f68",
+              "startLine": 195,
+              "endLine": 224
+            }
+          ],
+          "state": "active",
+          "validUntil": "2026-12-11T10:42:00Z"
+        },
+        "id": "argo-workflows.server-basehref.3-5-15-to-4-1-3",
+        "nextAction": "Replace --basehref with --base-href in the selected target argo-server argv; review all other rendered server workloads and arguments separately.",
+        "operator": "forbid_predicate_value",
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "subject": {
+          "component": "pkg:github/argoproj/argo-workflows",
+          "from": "3.5.15",
+          "to": "4.1.3"
+        }
+      }
+    },
+    {
+      "project": "argo-workflows",
+      "description": "Argo Workflows 3.6 renames the argo server --basehref option to --base-href; this checks only literal argv for one explicitly bound argo-server container in a caller-supplied Deployment.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.argo-workflows.server_legacy_basehref_flag_present",
+          "component": "pkg:github/argoproj/argo-workflows",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed exact-image argo-server container argv retains literal --basehref after conservative command and environment admission."
+        }
+      ],
+      "rule": {
+        "id": "argo-workflows.server-basehref.3-5-to-3-6",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/argoproj/argo-workflows",
+          "from": "3.5.0",
+          "to": "3.6.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/argoproj/argo-workflows",
+          "factId": "component.argo-workflows.server_legacy_basehref_flag_present",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-11T20:30:00Z",
+          "validUntil": "2026-12-10T20:30:00Z",
+          "sources": [
+            {
+              "id": "argo-workflows-v3-5-server-basehref",
+              "url": "https://github.com/argoproj/argo-workflows/blob/bf735a2e861d6b1c686dd4a076afc3468aa89c4a/cmd/argo/commands/server.go",
+              "revision": "bf735a2e861d6b1c686dd4a076afc3468aa89c4a",
+              "contentDigest": "sha256:0eae669e00e9aa71c2f3bce8252b67f7cb36b7ee95dc4512c31f4464b7065ca0",
+              "startLine": 208,
+              "endLine": 221
+            },
+            {
+              "id": "argo-workflows-v3-6-argo-server-deployment",
+              "url": "https://github.com/argoproj/argo-workflows/blob/b26ed4aa4dee395844531efa4a76a022183bec22/manifests/base/argo-server/argo-server-deployment.yaml",
+              "revision": "b26ed4aa4dee395844531efa4a76a022183bec22",
+              "contentDigest": "sha256:18ce29181a99e29a9eaeb75a7b2eb569b5590a4fa9f9f4d1abd80a477e1cbbc2",
+              "startLine": 14,
+              "endLine": 26
+            },
+            {
+              "id": "argo-workflows-v3-6-argocli-entrypoint",
+              "url": "https://github.com/argoproj/argo-workflows/blob/b26ed4aa4dee395844531efa4a76a022183bec22/Dockerfile",
+              "revision": "b26ed4aa4dee395844531efa4a76a022183bec22",
+              "contentDigest": "sha256:9901aee7d93552cdab4dc179f9e718654556f3de128cdff9c6b3de39c6d52ea0",
+              "startLine": 114,
+              "endLine": 116
+            },
+            {
+              "id": "argo-workflows-v3-6-release-image-render",
+              "url": "https://github.com/argoproj/argo-workflows/blob/b26ed4aa4dee395844531efa4a76a022183bec22/Makefile",
+              "revision": "b26ed4aa4dee395844531efa4a76a022183bec22",
+              "contentDigest": "sha256:94d39b9b7fb3335ab2fcd8133b37a5311d8ca3c08b0daae37725e5127a3bb27d",
+              "startLine": 447,
+              "endLine": 449
+            },
+            {
+              "id": "argo-workflows-v3-6-release-version",
+              "url": "https://github.com/argoproj/argo-workflows/blob/b26ed4aa4dee395844531efa4a76a022183bec22/Makefile",
+              "revision": "b26ed4aa4dee395844531efa4a76a022183bec22",
+              "contentDigest": "sha256:94d39b9b7fb3335ab2fcd8133b37a5311d8ca3c08b0daae37725e5127a3bb27d",
+              "startLine": 23,
+              "endLine": 28
+            },
+            {
+              "id": "argo-workflows-v3-6-server-base-href",
+              "url": "https://github.com/argoproj/argo-workflows/blob/b26ed4aa4dee395844531efa4a76a022183bec22/cmd/argo/commands/server.go",
+              "revision": "b26ed4aa4dee395844531efa4a76a022183bec22",
+              "contentDigest": "sha256:dc187ed0c58628ca38c9b002c3323339687730694301ec72850e022dd382ccb1",
+              "startLine": 192,
+              "endLine": 197
+            },
+            {
+              "id": "argo-workflows-v3-6-upgrade-guide",
+              "url": "https://github.com/argoproj/argo-workflows/blob/b26ed4aa4dee395844531efa4a76a022183bec22/docs/upgrading.md",
+              "revision": "b26ed4aa4dee395844531efa4a76a022183bec22",
+              "contentDigest": "sha256:f56dfdc66915a7e80c345b86834a2c0ffefad891e44563ec4c61ee8199967778",
+              "startLine": 19,
+              "endLine": 27
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Replace literal --basehref with --base-href in the caller-owned argo-server workload, then recheck the same private file."
+      }
+    },
+    {
+      "description": "Argo Workflows v4.1.3 retains the --base-href spelling that replaced --basehref; this checks literal argv for one exact-image, caller-selected target argo-server Deployment.",
+      "project": "argo-workflows",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/argoproj/argo-workflows",
+          "description": "Whether the selected target argo-server literal argv contains removed --basehref; argument values are discarded.",
+          "enumTokens": null,
+          "id": "component.argo-workflows.server_legacy_basehref_flag_present",
+          "side": "proposed",
+          "type": "bool"
+        }
+      ],
+      "rule": {
+        "condition": {
+          "component": "pkg:github/argoproj/argo-workflows",
+          "factId": "component.argo-workflows.server_legacy_basehref_flag_present",
+          "side": "proposed",
+          "boolValue": true
+        },
+        "evidence": {
+          "reviewedAt": "2026-09-12T10:42:00Z",
+          "sources": [
+            {
+              "id": "argo-workflows-v3-5-15-legacy-server-flag",
+              "url": "https://github.com/argoproj/argo-workflows/blob/b44c9b6a21cc60c00ef0cf3ca6a6a49e197a59b7/cmd/argo/commands/server.go",
+              "revision": "b44c9b6a21cc60c00ef0cf3ca6a6a49e197a59b7",
+              "contentDigest": "sha256:e910ef239b78d69ed65be37f74aa665e9a8097a9fd52234cc49a2a276e1b51d7",
+              "startLine": 194,
+              "endLine": 208
+            },
+            {
+              "id": "argo-workflows-v3-6-19-origin-identity",
+              "url": "https://github.com/argoproj/argo-workflows/blob/c66a734c911a25a1e0f626af5995a222d6267e37/version.go",
+              "revision": "c66a734c911a25a1e0f626af5995a222d6267e37",
+              "contentDigest": "sha256:9cc3ff02c95774cefbc306c5be72cbc4f9922f956359bf25fdc1685b20d9456e",
+              "startLine": 1,
+              "endLine": 30
+            },
+            {
+              "id": "argo-workflows-v4-1-3-argocli-entrypoint",
+              "url": "https://github.com/argoproj/argo-workflows/blob/5fdad0fe6f6d740c55d8289f26c912ab711ca407/Dockerfile",
+              "revision": "5fdad0fe6f6d740c55d8289f26c912ab711ca407",
+              "contentDigest": "sha256:e60b4b56d2b610beb39a492e125927688a63d71fee3b5f920653c500330874f8",
+              "startLine": 130,
+              "endLine": 140
+            },
+            {
+              "id": "argo-workflows-v4-1-3-server-flags",
+              "url": "https://github.com/argoproj/argo-workflows/blob/5fdad0fe6f6d740c55d8289f26c912ab711ca407/cmd/argo/commands/server.go",
+              "revision": "5fdad0fe6f6d740c55d8289f26c912ab711ca407",
+              "contentDigest": "sha256:6c1abfc38dfeb89bc0b53ebe814711747409d6c42eca12fb6b9ea01febd41f68",
+              "startLine": 195,
+              "endLine": 224
+            }
+          ],
+          "state": "active",
+          "validUntil": "2026-12-11T10:42:00Z"
+        },
+        "id": "argo-workflows.server-basehref.3-6-19-to-4-1-3",
+        "nextAction": "Replace --basehref with --base-href in the selected target argo-server argv; review all other rendered server workloads and arguments separately.",
+        "operator": "forbid_predicate_value",
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "subject": {
+          "component": "pkg:github/argoproj/argo-workflows",
+          "from": "3.6.19",
+          "to": "4.1.3"
+        }
+      }
+    },
+    {
+      "description": "Argo Workflows v4.1.3 retains the --base-href spelling that replaced --basehref; this checks literal argv for one exact-image, caller-selected target argo-server Deployment.",
+      "project": "argo-workflows",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/argoproj/argo-workflows",
+          "description": "Whether the selected target argo-server literal argv contains removed --basehref; argument values are discarded.",
+          "enumTokens": null,
+          "id": "component.argo-workflows.server_legacy_basehref_flag_present",
+          "side": "proposed",
+          "type": "bool"
+        }
+      ],
+      "rule": {
+        "condition": {
+          "component": "pkg:github/argoproj/argo-workflows",
+          "factId": "component.argo-workflows.server_legacy_basehref_flag_present",
+          "side": "proposed",
+          "boolValue": true
+        },
+        "evidence": {
+          "reviewedAt": "2026-09-12T10:42:00Z",
+          "sources": [
+            {
+              "id": "argo-workflows-v3-5-15-legacy-server-flag",
+              "url": "https://github.com/argoproj/argo-workflows/blob/b44c9b6a21cc60c00ef0cf3ca6a6a49e197a59b7/cmd/argo/commands/server.go",
+              "revision": "b44c9b6a21cc60c00ef0cf3ca6a6a49e197a59b7",
+              "contentDigest": "sha256:e910ef239b78d69ed65be37f74aa665e9a8097a9fd52234cc49a2a276e1b51d7",
+              "startLine": 194,
+              "endLine": 208
+            },
+            {
+              "id": "argo-workflows-v3-7-18-origin-identity",
+              "url": "https://github.com/argoproj/argo-workflows/blob/66e32e5cc367f223e2ecf4fbe852b95eaed83034/version.go",
+              "revision": "66e32e5cc367f223e2ecf4fbe852b95eaed83034",
+              "contentDigest": "sha256:9cc3ff02c95774cefbc306c5be72cbc4f9922f956359bf25fdc1685b20d9456e",
+              "startLine": 1,
+              "endLine": 30
+            },
+            {
+              "id": "argo-workflows-v4-1-3-argocli-entrypoint",
+              "url": "https://github.com/argoproj/argo-workflows/blob/5fdad0fe6f6d740c55d8289f26c912ab711ca407/Dockerfile",
+              "revision": "5fdad0fe6f6d740c55d8289f26c912ab711ca407",
+              "contentDigest": "sha256:e60b4b56d2b610beb39a492e125927688a63d71fee3b5f920653c500330874f8",
+              "startLine": 130,
+              "endLine": 140
+            },
+            {
+              "id": "argo-workflows-v4-1-3-server-flags",
+              "url": "https://github.com/argoproj/argo-workflows/blob/5fdad0fe6f6d740c55d8289f26c912ab711ca407/cmd/argo/commands/server.go",
+              "revision": "5fdad0fe6f6d740c55d8289f26c912ab711ca407",
+              "contentDigest": "sha256:6c1abfc38dfeb89bc0b53ebe814711747409d6c42eca12fb6b9ea01febd41f68",
+              "startLine": 195,
+              "endLine": 224
+            }
+          ],
+          "state": "active",
+          "validUntil": "2026-12-11T10:42:00Z"
+        },
+        "id": "argo-workflows.server-basehref.3-7-18-to-4-1-3",
+        "nextAction": "Replace --basehref with --base-href in the selected target argo-server argv; review all other rendered server workloads and arguments separately.",
+        "operator": "forbid_predicate_value",
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "subject": {
+          "component": "pkg:github/argoproj/argo-workflows",
+          "from": "3.7.18",
+          "to": "4.1.3"
+        }
+      }
+    },
+    {
+      "description": "Argo Workflows v4.1.3 retains the --base-href spelling that replaced --basehref; this checks literal argv for one exact-image, caller-selected target argo-server Deployment.",
+      "project": "argo-workflows",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/argoproj/argo-workflows",
+          "description": "Whether the selected target argo-server literal argv contains removed --basehref; argument values are discarded.",
+          "enumTokens": null,
+          "id": "component.argo-workflows.server_legacy_basehref_flag_present",
+          "side": "proposed",
+          "type": "bool"
+        }
+      ],
+      "rule": {
+        "condition": {
+          "component": "pkg:github/argoproj/argo-workflows",
+          "factId": "component.argo-workflows.server_legacy_basehref_flag_present",
+          "side": "proposed",
+          "boolValue": true
+        },
+        "evidence": {
+          "reviewedAt": "2026-09-12T10:42:00Z",
+          "sources": [
+            {
+              "id": "argo-workflows-v3-5-15-legacy-server-flag",
+              "url": "https://github.com/argoproj/argo-workflows/blob/b44c9b6a21cc60c00ef0cf3ca6a6a49e197a59b7/cmd/argo/commands/server.go",
+              "revision": "b44c9b6a21cc60c00ef0cf3ca6a6a49e197a59b7",
+              "contentDigest": "sha256:e910ef239b78d69ed65be37f74aa665e9a8097a9fd52234cc49a2a276e1b51d7",
+              "startLine": 194,
+              "endLine": 208
+            },
+            {
+              "id": "argo-workflows-v4-0-11-origin-identity",
+              "url": "https://github.com/argoproj/argo-workflows/blob/dc33efd84469d9cb5511e83152ef23f33fa4e9f3/version.go",
+              "revision": "dc33efd84469d9cb5511e83152ef23f33fa4e9f3",
+              "contentDigest": "sha256:6cd15bdfe37bc3482884bc562f51262a126d9076946335219d72a66253806cca",
+              "startLine": 1,
+              "endLine": 30
+            },
+            {
+              "id": "argo-workflows-v4-1-3-argocli-entrypoint",
+              "url": "https://github.com/argoproj/argo-workflows/blob/5fdad0fe6f6d740c55d8289f26c912ab711ca407/Dockerfile",
+              "revision": "5fdad0fe6f6d740c55d8289f26c912ab711ca407",
+              "contentDigest": "sha256:e60b4b56d2b610beb39a492e125927688a63d71fee3b5f920653c500330874f8",
+              "startLine": 130,
+              "endLine": 140
+            },
+            {
+              "id": "argo-workflows-v4-1-3-server-flags",
+              "url": "https://github.com/argoproj/argo-workflows/blob/5fdad0fe6f6d740c55d8289f26c912ab711ca407/cmd/argo/commands/server.go",
+              "revision": "5fdad0fe6f6d740c55d8289f26c912ab711ca407",
+              "contentDigest": "sha256:6c1abfc38dfeb89bc0b53ebe814711747409d6c42eca12fb6b9ea01febd41f68",
+              "startLine": 195,
+              "endLine": 224
+            }
+          ],
+          "state": "active",
+          "validUntil": "2026-12-11T10:42:00Z"
+        },
+        "id": "argo-workflows.server-basehref.4-0-11-to-4-1-3",
+        "nextAction": "Replace --basehref with --base-href in the selected target argo-server argv; review all other rendered server workloads and arguments separately.",
+        "operator": "forbid_predicate_value",
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "subject": {
+          "component": "pkg:github/argoproj/argo-workflows",
+          "from": "4.0.11",
+          "to": "4.1.3"
+        }
+      }
+    },
+    {
+      "project": "ceph",
+      "description": "At the exact Ceph 20.2.4 target, FileStore is rejected as no longer supported. This target-only check evaluates one explicitly selected caller-supplied current OSD metadata object and does not claim when support changed, describe a migration, assess other OSDs, or establish cluster, runtime, or whole-upgrade behavior.",
+      "requiredFacts": [
+        {
+          "side": "current",
+          "id": "component.ceph.selected_current_osd_filestore",
+          "component": "pkg:github/ceph/ceph",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether one complete caller-selected current OSD metadata object with the explicitly matching numeric OSD id reports osd_objectstore=filestore; this says nothing about other OSDs or cluster inventory."
+        }
+      ],
+      "rule": {
+        "id": "ceph.selected-osd-filestore.15-2-17-to-20-2-4",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/ceph/ceph",
+          "from": "15.2.17",
+          "to": "20.2.4"
+        },
+        "condition": {
+          "side": "current",
+          "component": "pkg:github/ceph/ceph",
+          "factId": "component.ceph.selected_current_osd_filestore",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:19:00Z",
+          "validUntil": "2026-12-11T09:19:00Z",
+          "sources": [
+            {
+              "id": "ceph-origin-15-2-17-metadata",
+              "url": "https://github.com/ceph/ceph/blob/8a82819d84cf884bd39c17e3236e0632ac146dc4/src/osd/OSD.cc",
+              "revision": "8a82819d84cf884bd39c17e3236e0632ac146dc4",
+              "contentDigest": "sha256:0566cdd8948d2a016a55644e7c66368024e47a1b9fe39c40f4461edf4b0665df",
+              "startLine": 6511,
+              "endLine": 6524
+            },
+            {
+              "id": "ceph-origin-15-2-17-metadata-envelope",
+              "url": "https://github.com/ceph/ceph/blob/8a82819d84cf884bd39c17e3236e0632ac146dc4/src/mon/OSDMonitor.cc",
+              "revision": "8a82819d84cf884bd39c17e3236e0632ac146dc4",
+              "contentDigest": "sha256:633261ccb9b6c9c86ebde4dbc8f37dfea0005522350ad3efa59e2c444e0c094a",
+              "startLine": 5656,
+              "endLine": 5700
+            },
+            {
+              "id": "ceph-origin-15-2-17-version",
+              "url": "https://github.com/ceph/ceph/blob/8a82819d84cf884bd39c17e3236e0632ac146dc4/CMakeLists.txt",
+              "revision": "8a82819d84cf884bd39c17e3236e0632ac146dc4",
+              "contentDigest": "sha256:dd26b37fcaab2fdaaaa3f0144617c1b28f32bd8e15ffae568727ea013fbeaead",
+              "startLine": 1,
+              "endLine": 6
+            },
+            {
+              "id": "ceph-target-20-2-4-filestore-rejection",
+              "url": "https://github.com/ceph/ceph/blob/7f793731f1b39eb4f465e960113d2363c311b964/src/os/ObjectStore.cc",
+              "revision": "7f793731f1b39eb4f465e960113d2363c311b964",
+              "contentDigest": "sha256:799290b0c0805cfbb7a1f066ede2d4438bf9091b9689672a7af0a724dd49aabb",
+              "startLine": 46,
+              "endLine": 56
+            },
+            {
+              "id": "ceph-target-20-2-4-version",
+              "url": "https://github.com/ceph/ceph/blob/7f793731f1b39eb4f465e960113d2363c311b964/CMakeLists.txt",
+              "revision": "7f793731f1b39eb4f465e960113d2363c311b964",
+              "contentDigest": "sha256:5359f077f86bbef8f1ade1c56ff714111e60b0417aa9f8835339abc4f5225b90",
+              "startLine": 1,
+              "endLine": 6
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Migrate the explicitly selected current FileStore OSD to a target-supported backend using the applicable Ceph procedure before proposing 20.2.4; assess every other OSD and all upgrade sequencing separately."
+      }
+    },
+    {
+      "project": "ceph",
+      "description": "At the exact Ceph 20.2.4 target, FileStore is rejected as no longer supported. This target-only check evaluates one explicitly selected caller-supplied current OSD metadata object and does not claim when support changed, describe a migration, assess other OSDs, or establish cluster, runtime, or whole-upgrade behavior.",
+      "requiredFacts": [
+        {
+          "side": "current",
+          "id": "component.ceph.selected_current_osd_filestore",
+          "component": "pkg:github/ceph/ceph",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether one complete caller-selected current OSD metadata object with the explicitly matching numeric OSD id reports osd_objectstore=filestore; this says nothing about other OSDs or cluster inventory."
+        }
+      ],
+      "rule": {
+        "id": "ceph.selected-osd-filestore.16-2-15-to-20-2-4",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/ceph/ceph",
+          "from": "16.2.15",
+          "to": "20.2.4"
+        },
+        "condition": {
+          "side": "current",
+          "component": "pkg:github/ceph/ceph",
+          "factId": "component.ceph.selected_current_osd_filestore",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:19:00Z",
+          "validUntil": "2026-12-11T09:19:00Z",
+          "sources": [
+            {
+              "id": "ceph-origin-16-2-15-metadata",
+              "url": "https://github.com/ceph/ceph/blob/618f440892089921c3e944a991122ddc44e60516/src/osd/OSD.cc",
+              "revision": "618f440892089921c3e944a991122ddc44e60516",
+              "contentDigest": "sha256:0070bf3128fddbf4b0c28e84b2bb8ce14dc3c84c21070ee05fcf3ef68c35880c",
+              "startLine": 6743,
+              "endLine": 6756
+            },
+            {
+              "id": "ceph-origin-16-2-15-metadata-envelope",
+              "url": "https://github.com/ceph/ceph/blob/618f440892089921c3e944a991122ddc44e60516/src/mon/OSDMonitor.cc",
+              "revision": "618f440892089921c3e944a991122ddc44e60516",
+              "contentDigest": "sha256:5651cd677b47bcb64f9b82f22e87094bd9ef80effee92d4003cf6829785cdb94",
+              "startLine": 5776,
+              "endLine": 5821
+            },
+            {
+              "id": "ceph-origin-16-2-15-version",
+              "url": "https://github.com/ceph/ceph/blob/618f440892089921c3e944a991122ddc44e60516/CMakeLists.txt",
+              "revision": "618f440892089921c3e944a991122ddc44e60516",
+              "contentDigest": "sha256:d3d1554efffaa77c4105bcdd775efc90818fadf2e8447de885675c43e72d6bb9",
+              "startLine": 1,
+              "endLine": 6
+            },
+            {
+              "id": "ceph-target-20-2-4-filestore-rejection",
+              "url": "https://github.com/ceph/ceph/blob/7f793731f1b39eb4f465e960113d2363c311b964/src/os/ObjectStore.cc",
+              "revision": "7f793731f1b39eb4f465e960113d2363c311b964",
+              "contentDigest": "sha256:799290b0c0805cfbb7a1f066ede2d4438bf9091b9689672a7af0a724dd49aabb",
+              "startLine": 46,
+              "endLine": 56
+            },
+            {
+              "id": "ceph-target-20-2-4-version",
+              "url": "https://github.com/ceph/ceph/blob/7f793731f1b39eb4f465e960113d2363c311b964/CMakeLists.txt",
+              "revision": "7f793731f1b39eb4f465e960113d2363c311b964",
+              "contentDigest": "sha256:5359f077f86bbef8f1ade1c56ff714111e60b0417aa9f8835339abc4f5225b90",
+              "startLine": 1,
+              "endLine": 6
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Migrate the explicitly selected current FileStore OSD to a target-supported backend using the applicable Ceph procedure before proposing 20.2.4; assess every other OSD and all upgrade sequencing separately."
+      }
+    },
+    {
+      "project": "ceph",
+      "description": "At the exact Ceph 20.2.4 target, FileStore is rejected as no longer supported. This target-only check evaluates one explicitly selected caller-supplied current OSD metadata object and does not claim when support changed, describe a migration, assess other OSDs, or establish cluster, runtime, or whole-upgrade behavior.",
+      "requiredFacts": [
+        {
+          "side": "current",
+          "id": "component.ceph.selected_current_osd_filestore",
+          "component": "pkg:github/ceph/ceph",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether one complete caller-selected current OSD metadata object with the explicitly matching numeric OSD id reports osd_objectstore=filestore; this says nothing about other OSDs or cluster inventory."
+        }
+      ],
+      "rule": {
+        "id": "ceph.selected-osd-filestore.17-2-9-to-20-2-4",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/ceph/ceph",
+          "from": "17.2.9",
+          "to": "20.2.4"
+        },
+        "condition": {
+          "side": "current",
+          "component": "pkg:github/ceph/ceph",
+          "factId": "component.ceph.selected_current_osd_filestore",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:19:00Z",
+          "validUntil": "2026-12-11T09:19:00Z",
+          "sources": [
+            {
+              "id": "ceph-origin-17-2-9-metadata",
+              "url": "https://github.com/ceph/ceph/blob/69bf48f20731a4b0d742613f6c6335ccb54dd217/src/osd/OSD.cc",
+              "revision": "69bf48f20731a4b0d742613f6c6335ccb54dd217",
+              "contentDigest": "sha256:8536107f9982c5c806bef76a7382b69705f26f08ff04e3f87da6116860edb362",
+              "startLine": 7001,
+              "endLine": 7014
+            },
+            {
+              "id": "ceph-origin-17-2-9-metadata-envelope",
+              "url": "https://github.com/ceph/ceph/blob/69bf48f20731a4b0d742613f6c6335ccb54dd217/src/mon/OSDMonitor.cc",
+              "revision": "69bf48f20731a4b0d742613f6c6335ccb54dd217",
+              "contentDigest": "sha256:529cb1c82f38c4692f1e86760bf4a1b848b30cd6d459d08a0a5b5e7ac1f19706",
+              "startLine": 5772,
+              "endLine": 5817
+            },
+            {
+              "id": "ceph-origin-17-2-9-version",
+              "url": "https://github.com/ceph/ceph/blob/69bf48f20731a4b0d742613f6c6335ccb54dd217/CMakeLists.txt",
+              "revision": "69bf48f20731a4b0d742613f6c6335ccb54dd217",
+              "contentDigest": "sha256:a2563470c694fff09723e9d49369867d12f53741b8d2979e4b05a2a12200d0a5",
+              "startLine": 1,
+              "endLine": 6
+            },
+            {
+              "id": "ceph-target-20-2-4-filestore-rejection",
+              "url": "https://github.com/ceph/ceph/blob/7f793731f1b39eb4f465e960113d2363c311b964/src/os/ObjectStore.cc",
+              "revision": "7f793731f1b39eb4f465e960113d2363c311b964",
+              "contentDigest": "sha256:799290b0c0805cfbb7a1f066ede2d4438bf9091b9689672a7af0a724dd49aabb",
+              "startLine": 46,
+              "endLine": 56
+            },
+            {
+              "id": "ceph-target-20-2-4-version",
+              "url": "https://github.com/ceph/ceph/blob/7f793731f1b39eb4f465e960113d2363c311b964/CMakeLists.txt",
+              "revision": "7f793731f1b39eb4f465e960113d2363c311b964",
+              "contentDigest": "sha256:5359f077f86bbef8f1ade1c56ff714111e60b0417aa9f8835339abc4f5225b90",
+              "startLine": 1,
+              "endLine": 6
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Migrate the explicitly selected current FileStore OSD to a target-supported backend using the applicable Ceph procedure before proposing 20.2.4; assess every other OSD and all upgrade sequencing separately."
+      }
+    },
+    {
+      "project": "ceph",
+      "description": "Ceph Reef no longer supports FileStore; this checks only whether one explicitly selected caller-supplied current Quincy OSD metadata object reports the FileStore backend.",
+      "requiredFacts": [
+        {
+          "side": "current",
+          "id": "component.ceph.selected_current_osd_filestore",
+          "component": "pkg:github/ceph/ceph",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the caller-selected current Quincy OSD metadata object reports osd_objectstore=filestore for the explicitly matching numeric OSD id."
+        }
+      ],
+      "rule": {
+        "id": "ceph.selected-osd-filestore.17-2-to-18-2",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/ceph/ceph",
+          "from": "17.2.7",
+          "to": "18.2.0"
+        },
+        "condition": {
+          "side": "current",
+          "component": "pkg:github/ceph/ceph",
+          "factId": "component.ceph.selected_current_osd_filestore",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-11T21:00:00Z",
+          "validUntil": "2026-12-10T21:00:00Z",
+          "sources": [
+            {
+              "id": "ceph-quincy-objectstore-filestore-construction",
+              "url": "https://github.com/ceph/ceph/blob/b12291d110049b2f35e32e0de30d70e9a4c060d2/src/os/ObjectStore.cc",
+              "revision": "b12291d110049b2f35e32e0de30d70e9a4c060d2",
+              "contentDigest": "sha256:a2311b6221805ab60256b09632cb9c70ba7422a0b1f107104b48e57619ea5fa9",
+              "startLine": 49,
+              "endLine": 64
+            },
+            {
+              "id": "ceph-quincy-osd-current-backend-metadata",
+              "url": "https://github.com/ceph/ceph/blob/b12291d110049b2f35e32e0de30d70e9a4c060d2/src/osd/OSD.cc",
+              "revision": "b12291d110049b2f35e32e0de30d70e9a4c060d2",
+              "contentDigest": "sha256:69c30396b47d4987f184ec728d5e7ca90854cf71e272e1b80f84ea4d58438b55",
+              "startLine": 6896,
+              "endLine": 6913
+            },
+            {
+              "id": "ceph-quincy-selected-osd-metadata-object",
+              "url": "https://github.com/ceph/ceph/blob/b12291d110049b2f35e32e0de30d70e9a4c060d2/src/mon/OSDMonitor.cc",
+              "revision": "b12291d110049b2f35e32e0de30d70e9a4c060d2",
+              "contentDigest": "sha256:e7372f9c65fa3cc3d9c1c60c913e19ac355e399b2154eaf3942fd11850b2bdb8",
+              "startLine": 5758,
+              "endLine": 5793
+            },
+            {
+              "id": "ceph-reef-objectstore-filestore-rejection",
+              "url": "https://github.com/ceph/ceph/blob/5dd24139a1eada541a3bc16b6941c5dde975e26d/src/os/ObjectStore.cc",
+              "revision": "5dd24139a1eada541a3bc16b6941c5dde975e26d",
+              "contentDigest": "sha256:dafddc3e1865fe65c747efc83e7ff57ca0f851f21790e8b185de7e715ec600d4",
+              "startLine": 46,
+              "endLine": 63
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Migrate the explicitly selected current FileStore OSD to BlueStore using Ceph's documented procedure before the Reef upgrade; assess every other OSD separately."
+      }
+    },
+    {
+      "project": "ceph",
+      "description": "At the exact Ceph 20.2.4 target, FileStore is rejected as no longer supported. This target-only check evaluates one explicitly selected caller-supplied current OSD metadata object and does not claim when support changed, describe a migration, assess other OSDs, or establish cluster, runtime, or whole-upgrade behavior.",
+      "requiredFacts": [
+        {
+          "side": "current",
+          "id": "component.ceph.selected_current_osd_filestore",
+          "component": "pkg:github/ceph/ceph",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether one complete caller-selected current OSD metadata object with the explicitly matching numeric OSD id reports osd_objectstore=filestore; this says nothing about other OSDs or cluster inventory."
+        }
+      ],
+      "rule": {
+        "id": "ceph.selected-osd-filestore.18-2-8-to-20-2-4",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/ceph/ceph",
+          "from": "18.2.8",
+          "to": "20.2.4"
+        },
+        "condition": {
+          "side": "current",
+          "component": "pkg:github/ceph/ceph",
+          "factId": "component.ceph.selected_current_osd_filestore",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:19:00Z",
+          "validUntil": "2026-12-11T09:19:00Z",
+          "sources": [
+            {
+              "id": "ceph-origin-18-2-8-metadata",
+              "url": "https://github.com/ceph/ceph/blob/efac5a54607c13fa50d4822e50242b86e6e446df/src/osd/OSD.cc",
+              "revision": "efac5a54607c13fa50d4822e50242b86e6e446df",
+              "contentDigest": "sha256:92c54e145c2d4c4c12ef5cce7e72b50ea550918ba84eb4dc9adb19071532831f",
+              "startLine": 7052,
+              "endLine": 7065
+            },
+            {
+              "id": "ceph-origin-18-2-8-metadata-envelope",
+              "url": "https://github.com/ceph/ceph/blob/efac5a54607c13fa50d4822e50242b86e6e446df/src/mon/OSDMonitor.cc",
+              "revision": "efac5a54607c13fa50d4822e50242b86e6e446df",
+              "contentDigest": "sha256:7724e8942c8f8ad599235767758c6669ca49571d6e956742f085226adc40a733",
+              "startLine": 5788,
+              "endLine": 5833
+            },
+            {
+              "id": "ceph-origin-18-2-8-version",
+              "url": "https://github.com/ceph/ceph/blob/efac5a54607c13fa50d4822e50242b86e6e446df/CMakeLists.txt",
+              "revision": "efac5a54607c13fa50d4822e50242b86e6e446df",
+              "contentDigest": "sha256:35aca9a79a690e5c85443ec2539d65f4ec55529798a14c827b1afc18ce3f665b",
+              "startLine": 1,
+              "endLine": 6
+            },
+            {
+              "id": "ceph-target-20-2-4-filestore-rejection",
+              "url": "https://github.com/ceph/ceph/blob/7f793731f1b39eb4f465e960113d2363c311b964/src/os/ObjectStore.cc",
+              "revision": "7f793731f1b39eb4f465e960113d2363c311b964",
+              "contentDigest": "sha256:799290b0c0805cfbb7a1f066ede2d4438bf9091b9689672a7af0a724dd49aabb",
+              "startLine": 46,
+              "endLine": 56
+            },
+            {
+              "id": "ceph-target-20-2-4-version",
+              "url": "https://github.com/ceph/ceph/blob/7f793731f1b39eb4f465e960113d2363c311b964/CMakeLists.txt",
+              "revision": "7f793731f1b39eb4f465e960113d2363c311b964",
+              "contentDigest": "sha256:5359f077f86bbef8f1ade1c56ff714111e60b0417aa9f8835339abc4f5225b90",
+              "startLine": 1,
+              "endLine": 6
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Migrate the explicitly selected current FileStore OSD to a target-supported backend using the applicable Ceph procedure before proposing 20.2.4; assess every other OSD and all upgrade sequencing separately."
+      }
+    },
+    {
+      "project": "ceph",
+      "description": "At the exact Ceph 20.2.4 target, FileStore is rejected as no longer supported. This target-only check evaluates one explicitly selected caller-supplied current OSD metadata object and does not claim when support changed, describe a migration, assess other OSDs, or establish cluster, runtime, or whole-upgrade behavior.",
+      "requiredFacts": [
+        {
+          "side": "current",
+          "id": "component.ceph.selected_current_osd_filestore",
+          "component": "pkg:github/ceph/ceph",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether one complete caller-selected current OSD metadata object with the explicitly matching numeric OSD id reports osd_objectstore=filestore; this says nothing about other OSDs or cluster inventory."
+        }
+      ],
+      "rule": {
+        "id": "ceph.selected-osd-filestore.19-2-6-to-20-2-4",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/ceph/ceph",
+          "from": "19.2.6",
+          "to": "20.2.4"
+        },
+        "condition": {
+          "side": "current",
+          "component": "pkg:github/ceph/ceph",
+          "factId": "component.ceph.selected_current_osd_filestore",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:19:00Z",
+          "validUntil": "2026-12-11T09:19:00Z",
+          "sources": [
+            {
+              "id": "ceph-origin-19-2-6-metadata",
+              "url": "https://github.com/ceph/ceph/blob/f9fd95b4335bad6a26d7a74468f55d269e8dbef4/src/osd/OSD.cc",
+              "revision": "f9fd95b4335bad6a26d7a74468f55d269e8dbef4",
+              "contentDigest": "sha256:dc734aa46e5f9d1d052a1874ef6fbd29ce6a482f059345bf1e9cdf788446a979",
+              "startLine": 6979,
+              "endLine": 6992
+            },
+            {
+              "id": "ceph-origin-19-2-6-metadata-envelope",
+              "url": "https://github.com/ceph/ceph/blob/f9fd95b4335bad6a26d7a74468f55d269e8dbef4/src/mon/OSDMonitor.cc",
+              "revision": "f9fd95b4335bad6a26d7a74468f55d269e8dbef4",
+              "contentDigest": "sha256:af30922f7961c0547f1f8ab60e99fa711ba4c7e1fcc811e249cad7ecf17201b9",
+              "startLine": 5745,
+              "endLine": 5790
+            },
+            {
+              "id": "ceph-origin-19-2-6-version",
+              "url": "https://github.com/ceph/ceph/blob/f9fd95b4335bad6a26d7a74468f55d269e8dbef4/CMakeLists.txt",
+              "revision": "f9fd95b4335bad6a26d7a74468f55d269e8dbef4",
+              "contentDigest": "sha256:a192e82b9697c2a4cb70e6a0a48ead9b9b465ec51401b717e92eebb11d7cc75b",
+              "startLine": 1,
+              "endLine": 6
+            },
+            {
+              "id": "ceph-target-20-2-4-filestore-rejection",
+              "url": "https://github.com/ceph/ceph/blob/7f793731f1b39eb4f465e960113d2363c311b964/src/os/ObjectStore.cc",
+              "revision": "7f793731f1b39eb4f465e960113d2363c311b964",
+              "contentDigest": "sha256:799290b0c0805cfbb7a1f066ede2d4438bf9091b9689672a7af0a724dd49aabb",
+              "startLine": 46,
+              "endLine": 56
+            },
+            {
+              "id": "ceph-target-20-2-4-version",
+              "url": "https://github.com/ceph/ceph/blob/7f793731f1b39eb4f465e960113d2363c311b964/CMakeLists.txt",
+              "revision": "7f793731f1b39eb4f465e960113d2363c311b964",
+              "contentDigest": "sha256:5359f077f86bbef8f1ade1c56ff714111e60b0417aa9f8835339abc4f5225b90",
+              "startLine": 1,
+              "endLine": 6
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Migrate the explicitly selected current FileStore OSD to a target-supported backend using the applicable Ceph procedure before proposing 20.2.4; assess every other OSD and all upgrade sequencing separately."
+      }
+    },
+    {
+      "project": "fluent-bit",
+      "description": "Fluent Bit 4.0 changes the OpenTelemetry output http2 default from on to off; this checks only a complete caller-selected classic OUTPUT section and an explicit intent to preserve the previously enabled setting. It does not establish protocol negotiation, TLS, connectivity, collector behavior, or whole-upgrade compatibility.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.fluent_bit.proposed_http2_enabled",
+          "component": "pkg:github/fluent/fluent-bit",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective OpenTelemetry output setting enables http2 (on or force) after strict bounded classic-config admission and explicit current-default/preservation declarations."
+        }
+      ],
+      "rule": {
+        "id": "fluent-bit.http2-setting.3-2-to-4-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/fluent/fluent-bit",
+          "from": "3.2.0",
+          "to": "4.0.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/fluent/fluent-bit",
+          "factId": "component.fluent_bit.proposed_http2_enabled",
+          "boolValue": false
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-11T22:23:16Z",
+          "validUntil": "2026-12-10T22:23:16Z",
+          "sources": [
+            {
+              "id": "fluent-bit-v3-2-classic-native-fixture",
+              "url": "https://github.com/fluent/fluent-bit/blob/50512ed56aad32f07d98a723cb217f0251bb52e8/tests/internal/data/config_format/classic/fluent-bit.conf",
+              "revision": "50512ed56aad32f07d98a723cb217f0251bb52e8",
+              "contentDigest": "sha256:403dcade6ab9645d0de6db4370bdfa77d7d874da3adc867db5b0f719a3973a97",
+              "startLine": 30,
+              "endLine": 32
+            },
+            {
+              "id": "fluent-bit-v3-2-classic-parser",
+              "url": "https://github.com/fluent/fluent-bit/blob/50512ed56aad32f07d98a723cb217f0251bb52e8/src/config_format/flb_cf_fluentbit.c",
+              "revision": "50512ed56aad32f07d98a723cb217f0251bb52e8",
+              "contentDigest": "sha256:ad8931dba32e5454a8df11b37ec845d89ab9451418646a87d0f64f415ae6f4e3",
+              "startLine": 553,
+              "endLine": 718
+            },
+            {
+              "id": "fluent-bit-v3-2-opentelemetry-config-consumer",
+              "url": "https://github.com/fluent/fluent-bit/blob/50512ed56aad32f07d98a723cb217f0251bb52e8/plugins/out_opentelemetry/opentelemetry_conf.c",
+              "revision": "50512ed56aad32f07d98a723cb217f0251bb52e8",
+              "contentDigest": "sha256:a3c9341e2aca33651aec02fdc856274a203a3f3e38b3716d818de6609d1a4432",
+              "startLine": 545,
+              "endLine": 562
+            },
+            {
+              "id": "fluent-bit-v3-2-opentelemetry-http2-default",
+              "url": "https://github.com/fluent/fluent-bit/blob/50512ed56aad32f07d98a723cb217f0251bb52e8/plugins/out_opentelemetry/opentelemetry.c",
+              "revision": "50512ed56aad32f07d98a723cb217f0251bb52e8",
+              "contentDigest": "sha256:f47090834ebbcf1e87c54f83b763222dda4a55f11d2aa1732e61d2a3ecb4e21d",
+              "startLine": 666,
+              "endLine": 678
+            },
+            {
+              "id": "fluent-bit-v4-0-classic-native-fixture",
+              "url": "https://github.com/fluent/fluent-bit/blob/712b48d7c387c87c922075aa5556afe648e36c4b/tests/internal/data/config_format/classic/fluent-bit.conf",
+              "revision": "712b48d7c387c87c922075aa5556afe648e36c4b",
+              "contentDigest": "sha256:403dcade6ab9645d0de6db4370bdfa77d7d874da3adc867db5b0f719a3973a97",
+              "startLine": 30,
+              "endLine": 32
+            },
+            {
+              "id": "fluent-bit-v4-0-classic-parser",
+              "url": "https://github.com/fluent/fluent-bit/blob/712b48d7c387c87c922075aa5556afe648e36c4b/src/config_format/flb_cf_fluentbit.c",
+              "revision": "712b48d7c387c87c922075aa5556afe648e36c4b",
+              "contentDigest": "sha256:75a1f3aa48f393e8b16c89d1487b4846af155e79f5f2c58cd8dccf5c27e5b414",
+              "startLine": 558,
+              "endLine": 723
+            },
+            {
+              "id": "fluent-bit-v4-0-opentelemetry-config-consumer",
+              "url": "https://github.com/fluent/fluent-bit/blob/712b48d7c387c87c922075aa5556afe648e36c4b/plugins/out_opentelemetry/opentelemetry_conf.c",
+              "revision": "712b48d7c387c87c922075aa5556afe648e36c4b",
+              "contentDigest": "sha256:89a8b925b27c3f7eba6e8ded97854156ef22ce3f94d1f891d57de2fcaaafd259",
+              "startLine": 563,
+              "endLine": 596
+            },
+            {
+              "id": "fluent-bit-v4-0-opentelemetry-http2-default",
+              "url": "https://github.com/fluent/fluent-bit/blob/712b48d7c387c87c922075aa5556afe648e36c4b/plugins/out_opentelemetry/opentelemetry.c",
+              "revision": "712b48d7c387c87c922075aa5556afe648e36c4b",
+              "contentDigest": "sha256:181741166d765bfe4b9a36717092b12a62c1caf56f38306f880b4fb6fa82b6c4",
+              "startLine": 814,
+              "endLine": 826
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "If preserving the previously enabled OpenTelemetry HTTP/2 setting, provide a complete effective classic OUTPUT section with http2 on or force; off or omission is blocked under that intent, while unsupported syntax remains UNKNOWN."
+      }
+    },
+    {
+      "project": "fluent-bit",
+      "description": "Fluent Bit 5.1.2 target-only OpenTelemetry HTTP/2 requirement. It applies only when the caller explicitly requires HTTP/2 for the selected output; the target also permits HTTP/1.1, so this is neither a universal invalidity nor an origin-default preservation claim.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.fluent_bit.target_required_http2_enabled",
+          "component": "pkg:github/fluent/fluent-bit",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the complete caller-selected classic OpenTelemetry OUTPUT has http2 on or force under an explicit target HTTP/2 requirement. It does not infer an origin default, preservation intent, TLS, negotiation, connectivity, or runtime behavior."
+        }
+      ],
+      "rule": {
+        "id": "fluent-bit.http2-target-required.3-2-to-5-1",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/fluent/fluent-bit",
+          "from": "3.2.10",
+          "to": "5.1.2"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/fluent/fluent-bit",
+          "factId": "component.fluent_bit.target_required_http2_enabled",
+          "boolValue": false
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:53:37Z",
+          "validUntil": "2026-12-11T09:53:37Z",
+          "sources": [
+            {
+              "id": "fluent-bit-v5-1-classic-config-key-value-parser",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/src/config_format/flb_cf_fluentbit.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:35f5c734099d60cb8d0c14a62b5bde834b3e0e9d80564cb710f0c0119d69be90",
+              "startLine": 650,
+              "endLine": 723
+            },
+            {
+              "id": "fluent-bit-v5-1-classic-config-parser",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/src/config_format/flb_cf_fluentbit.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:35f5c734099d60cb8d0c14a62b5bde834b3e0e9d80564cb710f0c0119d69be90",
+              "startLine": 588,
+              "endLine": 615
+            },
+            {
+              "id": "fluent-bit-v5-1-http2-config-map",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/plugins/out_opentelemetry/opentelemetry.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:2ac4b0e1c7ebee537743f5e39b99e661359a39b4c668db1c023a6540bbc279c3",
+              "startLine": 1127,
+              "endLine": 1136
+            },
+            {
+              "id": "fluent-bit-v5-1-http2-consumer",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/plugins/out_opentelemetry/opentelemetry_conf.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:a1a420505706321866515a6073b2317467d3ae09a3704a5afa8b1bad6d9b8051",
+              "startLine": 708,
+              "endLine": 744
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Because the selected output requires HTTP/2, provide complete caller-selected classic OUTPUT input with http2 on or force; off or omission is blocked only under that declared target requirement."
+      }
+    },
+    {
+      "project": "fluent-bit",
+      "description": "Fluent Bit 5.1.2 target-only OpenTelemetry HTTP/2 requirement. It applies only when the caller explicitly requires HTTP/2 for the selected output; the target also permits HTTP/1.1, so this is neither a universal invalidity nor an origin-default preservation claim.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.fluent_bit.target_required_http2_enabled",
+          "component": "pkg:github/fluent/fluent-bit",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the complete caller-selected classic OpenTelemetry OUTPUT has http2 on or force under an explicit target HTTP/2 requirement. It does not infer an origin default, preservation intent, TLS, negotiation, connectivity, or runtime behavior."
+        }
+      ],
+      "rule": {
+        "id": "fluent-bit.http2-target-required.4-0-to-5-1",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/fluent/fluent-bit",
+          "from": "4.0.14",
+          "to": "5.1.2"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/fluent/fluent-bit",
+          "factId": "component.fluent_bit.target_required_http2_enabled",
+          "boolValue": false
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:53:37Z",
+          "validUntil": "2026-12-11T09:53:37Z",
+          "sources": [
+            {
+              "id": "fluent-bit-v5-1-classic-config-key-value-parser",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/src/config_format/flb_cf_fluentbit.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:35f5c734099d60cb8d0c14a62b5bde834b3e0e9d80564cb710f0c0119d69be90",
+              "startLine": 650,
+              "endLine": 723
+            },
+            {
+              "id": "fluent-bit-v5-1-classic-config-parser",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/src/config_format/flb_cf_fluentbit.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:35f5c734099d60cb8d0c14a62b5bde834b3e0e9d80564cb710f0c0119d69be90",
+              "startLine": 588,
+              "endLine": 615
+            },
+            {
+              "id": "fluent-bit-v5-1-http2-config-map",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/plugins/out_opentelemetry/opentelemetry.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:2ac4b0e1c7ebee537743f5e39b99e661359a39b4c668db1c023a6540bbc279c3",
+              "startLine": 1127,
+              "endLine": 1136
+            },
+            {
+              "id": "fluent-bit-v5-1-http2-consumer",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/plugins/out_opentelemetry/opentelemetry_conf.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:a1a420505706321866515a6073b2317467d3ae09a3704a5afa8b1bad6d9b8051",
+              "startLine": 708,
+              "endLine": 744
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Because the selected output requires HTTP/2, provide complete caller-selected classic OUTPUT input with http2 on or force; off or omission is blocked only under that declared target requirement."
+      }
+    },
+    {
+      "project": "fluent-bit",
+      "description": "Fluent Bit 5.1.2 target-only OpenTelemetry HTTP/2 requirement. It applies only when the caller explicitly requires HTTP/2 for the selected output; the target also permits HTTP/1.1, so this is neither a universal invalidity nor an origin-default preservation claim.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.fluent_bit.target_required_http2_enabled",
+          "component": "pkg:github/fluent/fluent-bit",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the complete caller-selected classic OpenTelemetry OUTPUT has http2 on or force under an explicit target HTTP/2 requirement. It does not infer an origin default, preservation intent, TLS, negotiation, connectivity, or runtime behavior."
+        }
+      ],
+      "rule": {
+        "id": "fluent-bit.http2-target-required.4-1-to-5-1",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/fluent/fluent-bit",
+          "from": "4.1.2",
+          "to": "5.1.2"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/fluent/fluent-bit",
+          "factId": "component.fluent_bit.target_required_http2_enabled",
+          "boolValue": false
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:53:37Z",
+          "validUntil": "2026-12-11T09:53:37Z",
+          "sources": [
+            {
+              "id": "fluent-bit-v5-1-classic-config-key-value-parser",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/src/config_format/flb_cf_fluentbit.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:35f5c734099d60cb8d0c14a62b5bde834b3e0e9d80564cb710f0c0119d69be90",
+              "startLine": 650,
+              "endLine": 723
+            },
+            {
+              "id": "fluent-bit-v5-1-classic-config-parser",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/src/config_format/flb_cf_fluentbit.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:35f5c734099d60cb8d0c14a62b5bde834b3e0e9d80564cb710f0c0119d69be90",
+              "startLine": 588,
+              "endLine": 615
+            },
+            {
+              "id": "fluent-bit-v5-1-http2-config-map",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/plugins/out_opentelemetry/opentelemetry.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:2ac4b0e1c7ebee537743f5e39b99e661359a39b4c668db1c023a6540bbc279c3",
+              "startLine": 1127,
+              "endLine": 1136
+            },
+            {
+              "id": "fluent-bit-v5-1-http2-consumer",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/plugins/out_opentelemetry/opentelemetry_conf.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:a1a420505706321866515a6073b2317467d3ae09a3704a5afa8b1bad6d9b8051",
+              "startLine": 708,
+              "endLine": 744
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Because the selected output requires HTTP/2, provide complete caller-selected classic OUTPUT input with http2 on or force; off or omission is blocked only under that declared target requirement."
+      }
+    },
+    {
+      "project": "fluent-bit",
+      "description": "Fluent Bit 5.1.2 target-only OpenTelemetry HTTP/2 requirement. It applies only when the caller explicitly requires HTTP/2 for the selected output; the target also permits HTTP/1.1, so this is neither a universal invalidity nor an origin-default preservation claim.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.fluent_bit.target_required_http2_enabled",
+          "component": "pkg:github/fluent/fluent-bit",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the complete caller-selected classic OpenTelemetry OUTPUT has http2 on or force under an explicit target HTTP/2 requirement. It does not infer an origin default, preservation intent, TLS, negotiation, connectivity, or runtime behavior."
+        }
+      ],
+      "rule": {
+        "id": "fluent-bit.http2-target-required.4-2-to-5-1",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/fluent/fluent-bit",
+          "from": "4.2.8",
+          "to": "5.1.2"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/fluent/fluent-bit",
+          "factId": "component.fluent_bit.target_required_http2_enabled",
+          "boolValue": false
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:53:37Z",
+          "validUntil": "2026-12-11T09:53:37Z",
+          "sources": [
+            {
+              "id": "fluent-bit-v5-1-classic-config-key-value-parser",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/src/config_format/flb_cf_fluentbit.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:35f5c734099d60cb8d0c14a62b5bde834b3e0e9d80564cb710f0c0119d69be90",
+              "startLine": 650,
+              "endLine": 723
+            },
+            {
+              "id": "fluent-bit-v5-1-classic-config-parser",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/src/config_format/flb_cf_fluentbit.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:35f5c734099d60cb8d0c14a62b5bde834b3e0e9d80564cb710f0c0119d69be90",
+              "startLine": 588,
+              "endLine": 615
+            },
+            {
+              "id": "fluent-bit-v5-1-http2-config-map",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/plugins/out_opentelemetry/opentelemetry.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:2ac4b0e1c7ebee537743f5e39b99e661359a39b4c668db1c023a6540bbc279c3",
+              "startLine": 1127,
+              "endLine": 1136
+            },
+            {
+              "id": "fluent-bit-v5-1-http2-consumer",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/plugins/out_opentelemetry/opentelemetry_conf.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:a1a420505706321866515a6073b2317467d3ae09a3704a5afa8b1bad6d9b8051",
+              "startLine": 708,
+              "endLine": 744
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Because the selected output requires HTTP/2, provide complete caller-selected classic OUTPUT input with http2 on or force; off or omission is blocked only under that declared target requirement."
+      }
+    },
+    {
+      "project": "fluent-bit",
+      "description": "Fluent Bit 5.1.2 target-only OpenTelemetry HTTP/2 requirement. It applies only when the caller explicitly requires HTTP/2 for the selected output; the target also permits HTTP/1.1, so this is neither a universal invalidity nor an origin-default preservation claim.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.fluent_bit.target_required_http2_enabled",
+          "component": "pkg:github/fluent/fluent-bit",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the complete caller-selected classic OpenTelemetry OUTPUT has http2 on or force under an explicit target HTTP/2 requirement. It does not infer an origin default, preservation intent, TLS, negotiation, connectivity, or runtime behavior."
+        }
+      ],
+      "rule": {
+        "id": "fluent-bit.http2-target-required.5-0-to-5-1",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/fluent/fluent-bit",
+          "from": "5.0.10",
+          "to": "5.1.2"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/fluent/fluent-bit",
+          "factId": "component.fluent_bit.target_required_http2_enabled",
+          "boolValue": false
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:53:37Z",
+          "validUntil": "2026-12-11T09:53:37Z",
+          "sources": [
+            {
+              "id": "fluent-bit-v5-1-classic-config-key-value-parser",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/src/config_format/flb_cf_fluentbit.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:35f5c734099d60cb8d0c14a62b5bde834b3e0e9d80564cb710f0c0119d69be90",
+              "startLine": 650,
+              "endLine": 723
+            },
+            {
+              "id": "fluent-bit-v5-1-classic-config-parser",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/src/config_format/flb_cf_fluentbit.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:35f5c734099d60cb8d0c14a62b5bde834b3e0e9d80564cb710f0c0119d69be90",
+              "startLine": 588,
+              "endLine": 615
+            },
+            {
+              "id": "fluent-bit-v5-1-http2-config-map",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/plugins/out_opentelemetry/opentelemetry.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:2ac4b0e1c7ebee537743f5e39b99e661359a39b4c668db1c023a6540bbc279c3",
+              "startLine": 1127,
+              "endLine": 1136
+            },
+            {
+              "id": "fluent-bit-v5-1-http2-consumer",
+              "url": "https://github.com/fluent/fluent-bit/blob/66910c10a4d7eafa810b84229cf2dcf7b0f26f97/plugins/out_opentelemetry/opentelemetry_conf.c",
+              "revision": "66910c10a4d7eafa810b84229cf2dcf7b0f26f97",
+              "contentDigest": "sha256:a1a420505706321866515a6073b2317467d3ae09a3704a5afa8b1bad6d9b8051",
+              "startLine": 708,
+              "endLine": 744
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Because the selected output requires HTTP/2, provide complete caller-selected classic OUTPUT input with http2 on or force; off or omission is blocked only under that declared target requirement."
+      }
+    },
+    {
+      "project": "grafana",
+      "description": "Grafana 11 removes legacy alerting; this checks only whether a complete, precedence-resolved proposed grafana.ini explicitly enables the removed subsystem and does not establish alert-data migration.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.grafana.legacy_alerting_explicitly_enabled",
+          "component": "pkg:github/grafana/grafana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective grafana.ini explicitly sets [alerting] enabled=true after environment and CLI precedence is resolved."
+        }
+      ],
+      "rule": {
+        "id": "grafana.legacy-alerting-config.10-4-to-11-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/grafana/grafana",
+          "from": "10.4.0",
+          "to": "11.0.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/grafana/grafana",
+          "factId": "component.grafana.legacy_alerting_explicitly_enabled",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-11T19:30:00Z",
+          "validUntil": "2026-12-10T19:30:00Z",
+          "sources": [
+            {
+              "id": "grafana-v10-4-defaults-legacy-alerting-key",
+              "url": "https://github.com/grafana/grafana/blob/03f502a94d17f7dc4e6c34acdf8428aedd986e4c/conf/defaults.ini",
+              "revision": "03f502a94d17f7dc4e6c34acdf8428aedd986e4c",
+              "contentDigest": "sha256:4d836af3389e42952ca11b37359f480930568bc37c63233757dfc7b4a13efd42",
+              "startLine": 1332,
+              "endLine": 1335
+            },
+            {
+              "id": "grafana-v11-legacy-alerting-removal",
+              "url": "https://github.com/grafana/grafana/blob/277ef258d4b9a5acdf2932347c6a4ca72d739b28/docs/sources/breaking-changes/breaking-changes-v11-0.md",
+              "revision": "277ef258d4b9a5acdf2932347c6a4ca72d739b28",
+              "contentDigest": "sha256:5c4471891e232882d61fab65412b1946a82636578ad8821b946eaf392547a586",
+              "startLine": 86,
+              "endLine": 93
+            },
+            {
+              "id": "grafana-v11-setting-startup-call",
+              "url": "https://github.com/grafana/grafana/blob/277ef258d4b9a5acdf2932347c6a4ca72d739b28/pkg/setting/setting.go",
+              "revision": "277ef258d4b9a5acdf2932347c6a4ca72d739b28",
+              "contentDigest": "sha256:fa74b26705d2376323afba6188e4455ac0d72550f4273bcc7ebd71d0f8fb2d70",
+              "startLine": 1147,
+              "endLine": 1149
+            },
+            {
+              "id": "grafana-v11-setting-startup-guard",
+              "url": "https://github.com/grafana/grafana/blob/277ef258d4b9a5acdf2932347c6a4ca72d739b28/pkg/setting/setting.go",
+              "revision": "277ef258d4b9a5acdf2932347c6a4ca72d739b28",
+              "contentDigest": "sha256:fa74b26705d2376323afba6188e4455ac0d72550f4273bcc7ebd71d0f8fb2d70",
+              "startLine": 1743,
+              "endLine": 1751
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove the explicit legacy-alerting enablement and complete Grafana's documented alert migration before upgrading; recheck the precedence-resolved config."
+      }
+    },
+    {
+      "project": "grafana",
+      "description": "Grafana 13.2.1 retains the target startup rejection for [alerting] enabled=true; this checks only a complete, precedence-resolved proposed grafana.ini and does not assert that the rejection was newly introduced at 13.2.1 or that alert data was migrated.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.grafana.legacy_alerting_explicitly_enabled",
+          "component": "pkg:github/grafana/grafana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective grafana.ini explicitly sets [alerting] enabled=true after environment and CLI precedence is resolved."
+        }
+      ],
+      "rule": {
+        "id": "grafana.legacy-alerting-config.12-2-10-to-13-2-1",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/grafana/grafana",
+          "from": "12.2.10",
+          "to": "13.2.1"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/grafana/grafana",
+          "factId": "component.grafana.legacy_alerting_explicitly_enabled",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:24:22Z",
+          "validUntil": "2026-12-11T09:24:22Z",
+          "sources": [
+            {
+              "id": "grafana-v13-2-legacy-alerting-rejection",
+              "url": "https://github.com/grafana/grafana/blob/56cd3e9288d8255fecebe5d05b48d191f50674b5/pkg/setting/setting.go",
+              "revision": "56cd3e9288d8255fecebe5d05b48d191f50674b5",
+              "contentDigest": "sha256:2e1564393b694f1731b28f81a70214f3f25a480cb648bc34b023077190b7de7d",
+              "startLine": 2288,
+              "endLine": 2294
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove the explicit legacy-alerting enablement and separately complete Grafana alert migration review; this target check does not establish a whole upgrade."
+      }
+    },
+    {
+      "project": "grafana",
+      "description": "Grafana 13.2.1 retains the target startup rejection for [alerting] enabled=true; this checks only a complete, precedence-resolved proposed grafana.ini and does not assert that the rejection was newly introduced at 13.2.1 or that alert data was migrated.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.grafana.legacy_alerting_explicitly_enabled",
+          "component": "pkg:github/grafana/grafana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective grafana.ini explicitly sets [alerting] enabled=true after environment and CLI precedence is resolved."
+        }
+      ],
+      "rule": {
+        "id": "grafana.legacy-alerting-config.12-3-11-to-13-2-1",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/grafana/grafana",
+          "from": "12.3.11",
+          "to": "13.2.1"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/grafana/grafana",
+          "factId": "component.grafana.legacy_alerting_explicitly_enabled",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:24:22Z",
+          "validUntil": "2026-12-11T09:24:22Z",
+          "sources": [
+            {
+              "id": "grafana-v13-2-legacy-alerting-rejection",
+              "url": "https://github.com/grafana/grafana/blob/56cd3e9288d8255fecebe5d05b48d191f50674b5/pkg/setting/setting.go",
+              "revision": "56cd3e9288d8255fecebe5d05b48d191f50674b5",
+              "contentDigest": "sha256:2e1564393b694f1731b28f81a70214f3f25a480cb648bc34b023077190b7de7d",
+              "startLine": 2288,
+              "endLine": 2294
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove the explicit legacy-alerting enablement and separately complete Grafana alert migration review; this target check does not establish a whole upgrade."
+      }
+    },
+    {
+      "project": "grafana",
+      "description": "Grafana 13.2.1 retains the target startup rejection for [alerting] enabled=true; this checks only a complete, precedence-resolved proposed grafana.ini and does not assert that the rejection was newly introduced at 13.2.1 or that alert data was migrated.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.grafana.legacy_alerting_explicitly_enabled",
+          "component": "pkg:github/grafana/grafana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective grafana.ini explicitly sets [alerting] enabled=true after environment and CLI precedence is resolved."
+        }
+      ],
+      "rule": {
+        "id": "grafana.legacy-alerting-config.12-4-10-to-13-2-1",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/grafana/grafana",
+          "from": "12.4.10",
+          "to": "13.2.1"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/grafana/grafana",
+          "factId": "component.grafana.legacy_alerting_explicitly_enabled",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:24:22Z",
+          "validUntil": "2026-12-11T09:24:22Z",
+          "sources": [
+            {
+              "id": "grafana-v13-2-legacy-alerting-rejection",
+              "url": "https://github.com/grafana/grafana/blob/56cd3e9288d8255fecebe5d05b48d191f50674b5/pkg/setting/setting.go",
+              "revision": "56cd3e9288d8255fecebe5d05b48d191f50674b5",
+              "contentDigest": "sha256:2e1564393b694f1731b28f81a70214f3f25a480cb648bc34b023077190b7de7d",
+              "startLine": 2288,
+              "endLine": 2294
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove the explicit legacy-alerting enablement and separately complete Grafana alert migration review; this target check does not establish a whole upgrade."
+      }
+    },
+    {
+      "project": "grafana",
+      "description": "Grafana 13.2.1 retains the target startup rejection for [alerting] enabled=true; this checks only a complete, precedence-resolved proposed grafana.ini and does not assert that the rejection was newly introduced at 13.2.1 or that alert data was migrated.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.grafana.legacy_alerting_explicitly_enabled",
+          "component": "pkg:github/grafana/grafana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective grafana.ini explicitly sets [alerting] enabled=true after environment and CLI precedence is resolved."
+        }
+      ],
+      "rule": {
+        "id": "grafana.legacy-alerting-config.13-0-8-to-13-2-1",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/grafana/grafana",
+          "from": "13.0.8",
+          "to": "13.2.1"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/grafana/grafana",
+          "factId": "component.grafana.legacy_alerting_explicitly_enabled",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:24:22Z",
+          "validUntil": "2026-12-11T09:24:22Z",
+          "sources": [
+            {
+              "id": "grafana-v13-2-legacy-alerting-rejection",
+              "url": "https://github.com/grafana/grafana/blob/56cd3e9288d8255fecebe5d05b48d191f50674b5/pkg/setting/setting.go",
+              "revision": "56cd3e9288d8255fecebe5d05b48d191f50674b5",
+              "contentDigest": "sha256:2e1564393b694f1731b28f81a70214f3f25a480cb648bc34b023077190b7de7d",
+              "startLine": 2288,
+              "endLine": 2294
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove the explicit legacy-alerting enablement and separately complete Grafana alert migration review; this target check does not establish a whole upgrade."
+      }
+    },
+    {
+      "project": "grafana",
+      "description": "Grafana 13.2.1 retains the target startup rejection for [alerting] enabled=true; this checks only a complete, precedence-resolved proposed grafana.ini and does not assert that the rejection was newly introduced at 13.2.1 or that alert data was migrated.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.grafana.legacy_alerting_explicitly_enabled",
+          "component": "pkg:github/grafana/grafana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective grafana.ini explicitly sets [alerting] enabled=true after environment and CLI precedence is resolved."
+        }
+      ],
+      "rule": {
+        "id": "grafana.legacy-alerting-config.13-1-5-to-13-2-1",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/grafana/grafana",
+          "from": "13.1.5",
+          "to": "13.2.1"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/grafana/grafana",
+          "factId": "component.grafana.legacy_alerting_explicitly_enabled",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:24:22Z",
+          "validUntil": "2026-12-11T09:24:22Z",
+          "sources": [
+            {
+              "id": "grafana-v13-2-legacy-alerting-rejection",
+              "url": "https://github.com/grafana/grafana/blob/56cd3e9288d8255fecebe5d05b48d191f50674b5/pkg/setting/setting.go",
+              "revision": "56cd3e9288d8255fecebe5d05b48d191f50674b5",
+              "contentDigest": "sha256:2e1564393b694f1731b28f81a70214f3f25a480cb648bc34b023077190b7de7d",
+              "startLine": 2288,
+              "endLine": 2294
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove the explicit legacy-alerting enablement and separately complete Grafana alert migration review; this target check does not establish a whole upgrade."
+      }
+    },
+    {
+      "project": "kibana",
+      "description": "Kibana 9 ignores reporting roles settings and removes xpack.reporting.roles.allow; this checks only a complete, precedence-resolved kibana.yml for that key.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.kibana.reporting_roles_allow_present",
+          "component": "pkg:github/elastic/kibana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective kibana.yml contains xpack.reporting.roles.allow in dotted or nested mapping form."
+        }
+      ],
+      "rule": {
+        "id": "kibana.reporting-roles-allow.8-18-to-9-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/elastic/kibana",
+          "from": "8.18.0",
+          "to": "9.0.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/elastic/kibana",
+          "factId": "component.kibana.reporting_roles_allow_present",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-11T19:30:00Z",
+          "validUntil": "2026-12-10T19:30:00Z",
+          "sources": [
+            {
+              "id": "kibana-v8-18-reporting-roles-settings",
+              "url": "https://github.com/elastic/kibana/blob/c220d2938cd718bb332afb07baaf95999eb28759/docs/settings/reporting-settings.asciidoc",
+              "revision": "c220d2938cd718bb332afb07baaf95999eb28759",
+              "contentDigest": "sha256:f2ea9bde4ba6ff14bccfd942615940093fa9ebf1a1195372c09fdf96157801cf",
+              "startLine": 71,
+              "endLine": 96
+            },
+            {
+              "id": "kibana-v9-reporting-roles-removal",
+              "url": "https://github.com/elastic/kibana/blob/504d6bfa94cca17fabb76e06152c30c4f0c3efdd/docs/release-notes/breaking-changes.md",
+              "revision": "504d6bfa94cca17fabb76e06152c30c4f0c3efdd",
+              "contentDigest": "sha256:80ec4be6a4daae30fc12706c3e1d4d939357f983fdbf22ca7c2d6112afc42688",
+              "startLine": 346,
+              "endLine": 361
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove xpack.reporting.roles.allow and grant reporting access through Kibana feature privileges, then recheck the precedence-resolved config."
+      }
+    },
+    {
+      "project": "kibana",
+      "description": "Kibana 9.5.3 defaults status.allowAnonymous and status.statusPageBypassMonitorPrivilege to false. This applies only when the operator explicitly requires full status for authenticated callers without Elasticsearch monitor privilege and supplies a complete, precedence-resolved proposed kibana.yml.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.kibana.full_status_without_monitor_required",
+          "component": "pkg:github/elastic/kibana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the operator explicitly requires the full Kibana status response for authenticated callers without Elasticsearch monitor privilege."
+        },
+        {
+          "side": "proposed",
+          "id": "component.kibana.status_page_authentication_required",
+          "component": "pkg:github/elastic/kibana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed reviewed status route requires authentication, derived only from an unambiguous complete and precedence-resolved status.allowAnonymous false setting or target default."
+        },
+        {
+          "side": "proposed",
+          "id": "component.kibana.status_page_bypass_monitor_privilege",
+          "component": "pkg:github/elastic/kibana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective Kibana setting status.statusPageBypassMonitorPrivilege is true; an omitted setting uses the reviewed 9.5.3 target default false only after completeness and precedence are declared."
+        }
+      ],
+      "rule": {
+        "id": "kibana.status-page-monitor-bypass.9-0-8-to-9-5-3",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/elastic/kibana",
+          "from": "9.0.8",
+          "to": "9.5.3"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/elastic/kibana",
+          "factId": "component.kibana.status_page_bypass_monitor_privilege",
+          "boolValue": false
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/elastic/kibana",
+            "factId": "component.kibana.full_status_without_monitor_required",
+            "boolValue": true
+          },
+          {
+            "side": "proposed",
+            "component": "pkg:github/elastic/kibana",
+            "factId": "component.kibana.status_page_authentication_required",
+            "boolValue": true
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:24:22Z",
+          "validUntil": "2026-12-11T09:24:22Z",
+          "sources": [
+            {
+              "id": "kibana-v9-5-status-config-default",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/src/core/packages/status/server-internal/src/status_config.ts",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:f99da1cc1218efa86c2f0c72d935d1e49e0b7b9d2e03271b2127f5fdedbab78c",
+              "startLine": 14,
+              "endLine": 17
+            },
+            {
+              "id": "kibana-v9-5-status-route-monitor-decision",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/src/core/packages/status/server-internal/src/routes/status.ts",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:0bfddaf8a4a02251f15d0e06ed5007c084b74e97c73fa66ad9299082f5e2ddec",
+              "startLine": 81,
+              "endLine": 105
+            },
+            {
+              "id": "kibana-v9-5-status-route-redaction",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/src/core/packages/status/server-internal/src/routes/status.ts",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:0bfddaf8a4a02251f15d0e06ed5007c084b74e97c73fa66ad9299082f5e2ddec",
+              "startLine": 199,
+              "endLine": 230
+            },
+            {
+              "id": "kibana-v9-5-status-setting-documentation",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/docs/reference/configuration-reference/general-settings.yml",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:cc12281539a21726d0b9c2142bfeb0e3540a8b73fe1a16c5a05f6b8087c6058a",
+              "startLine": 134,
+              "endLine": 143
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "If full status without monitor privilege is required, set status.statusPageBypassMonitorPrivilege: true; otherwise grant monitor privilege or adjust the client. Authentication, authorization, clients, and runtime status responses are not evaluated."
+      }
+    },
+    {
+      "project": "kibana",
+      "description": "Kibana 9.5.3 defaults status.allowAnonymous and status.statusPageBypassMonitorPrivilege to false. This applies only when the operator explicitly requires full status for authenticated callers without Elasticsearch monitor privilege and supplies a complete, precedence-resolved proposed kibana.yml.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.kibana.full_status_without_monitor_required",
+          "component": "pkg:github/elastic/kibana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the operator explicitly requires the full Kibana status response for authenticated callers without Elasticsearch monitor privilege."
+        },
+        {
+          "side": "proposed",
+          "id": "component.kibana.status_page_authentication_required",
+          "component": "pkg:github/elastic/kibana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed reviewed status route requires authentication, derived only from an unambiguous complete and precedence-resolved status.allowAnonymous false setting or target default."
+        },
+        {
+          "side": "proposed",
+          "id": "component.kibana.status_page_bypass_monitor_privilege",
+          "component": "pkg:github/elastic/kibana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective Kibana setting status.statusPageBypassMonitorPrivilege is true; an omitted setting uses the reviewed 9.5.3 target default false only after completeness and precedence are declared."
+        }
+      ],
+      "rule": {
+        "id": "kibana.status-page-monitor-bypass.9-1-10-to-9-5-3",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/elastic/kibana",
+          "from": "9.1.10",
+          "to": "9.5.3"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/elastic/kibana",
+          "factId": "component.kibana.status_page_bypass_monitor_privilege",
+          "boolValue": false
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/elastic/kibana",
+            "factId": "component.kibana.full_status_without_monitor_required",
+            "boolValue": true
+          },
+          {
+            "side": "proposed",
+            "component": "pkg:github/elastic/kibana",
+            "factId": "component.kibana.status_page_authentication_required",
+            "boolValue": true
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:24:22Z",
+          "validUntil": "2026-12-11T09:24:22Z",
+          "sources": [
+            {
+              "id": "kibana-v9-5-status-config-default",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/src/core/packages/status/server-internal/src/status_config.ts",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:f99da1cc1218efa86c2f0c72d935d1e49e0b7b9d2e03271b2127f5fdedbab78c",
+              "startLine": 14,
+              "endLine": 17
+            },
+            {
+              "id": "kibana-v9-5-status-route-monitor-decision",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/src/core/packages/status/server-internal/src/routes/status.ts",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:0bfddaf8a4a02251f15d0e06ed5007c084b74e97c73fa66ad9299082f5e2ddec",
+              "startLine": 81,
+              "endLine": 105
+            },
+            {
+              "id": "kibana-v9-5-status-route-redaction",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/src/core/packages/status/server-internal/src/routes/status.ts",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:0bfddaf8a4a02251f15d0e06ed5007c084b74e97c73fa66ad9299082f5e2ddec",
+              "startLine": 199,
+              "endLine": 230
+            },
+            {
+              "id": "kibana-v9-5-status-setting-documentation",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/docs/reference/configuration-reference/general-settings.yml",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:cc12281539a21726d0b9c2142bfeb0e3540a8b73fe1a16c5a05f6b8087c6058a",
+              "startLine": 134,
+              "endLine": 143
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "If full status without monitor privilege is required, set status.statusPageBypassMonitorPrivilege: true; otherwise grant monitor privilege or adjust the client. Authentication, authorization, clients, and runtime status responses are not evaluated."
+      }
+    },
+    {
+      "project": "kibana",
+      "description": "Kibana 9.5.3 defaults status.allowAnonymous and status.statusPageBypassMonitorPrivilege to false. This applies only when the operator explicitly requires full status for authenticated callers without Elasticsearch monitor privilege and supplies a complete, precedence-resolved proposed kibana.yml.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.kibana.full_status_without_monitor_required",
+          "component": "pkg:github/elastic/kibana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the operator explicitly requires the full Kibana status response for authenticated callers without Elasticsearch monitor privilege."
+        },
+        {
+          "side": "proposed",
+          "id": "component.kibana.status_page_authentication_required",
+          "component": "pkg:github/elastic/kibana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed reviewed status route requires authentication, derived only from an unambiguous complete and precedence-resolved status.allowAnonymous false setting or target default."
+        },
+        {
+          "side": "proposed",
+          "id": "component.kibana.status_page_bypass_monitor_privilege",
+          "component": "pkg:github/elastic/kibana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective Kibana setting status.statusPageBypassMonitorPrivilege is true; an omitted setting uses the reviewed 9.5.3 target default false only after completeness and precedence are declared."
+        }
+      ],
+      "rule": {
+        "id": "kibana.status-page-monitor-bypass.9-2-8-to-9-5-3",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/elastic/kibana",
+          "from": "9.2.8",
+          "to": "9.5.3"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/elastic/kibana",
+          "factId": "component.kibana.status_page_bypass_monitor_privilege",
+          "boolValue": false
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/elastic/kibana",
+            "factId": "component.kibana.full_status_without_monitor_required",
+            "boolValue": true
+          },
+          {
+            "side": "proposed",
+            "component": "pkg:github/elastic/kibana",
+            "factId": "component.kibana.status_page_authentication_required",
+            "boolValue": true
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:24:22Z",
+          "validUntil": "2026-12-11T09:24:22Z",
+          "sources": [
+            {
+              "id": "kibana-v9-5-status-config-default",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/src/core/packages/status/server-internal/src/status_config.ts",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:f99da1cc1218efa86c2f0c72d935d1e49e0b7b9d2e03271b2127f5fdedbab78c",
+              "startLine": 14,
+              "endLine": 17
+            },
+            {
+              "id": "kibana-v9-5-status-route-monitor-decision",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/src/core/packages/status/server-internal/src/routes/status.ts",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:0bfddaf8a4a02251f15d0e06ed5007c084b74e97c73fa66ad9299082f5e2ddec",
+              "startLine": 81,
+              "endLine": 105
+            },
+            {
+              "id": "kibana-v9-5-status-route-redaction",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/src/core/packages/status/server-internal/src/routes/status.ts",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:0bfddaf8a4a02251f15d0e06ed5007c084b74e97c73fa66ad9299082f5e2ddec",
+              "startLine": 199,
+              "endLine": 230
+            },
+            {
+              "id": "kibana-v9-5-status-setting-documentation",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/docs/reference/configuration-reference/general-settings.yml",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:cc12281539a21726d0b9c2142bfeb0e3540a8b73fe1a16c5a05f6b8087c6058a",
+              "startLine": 134,
+              "endLine": 143
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "If full status without monitor privilege is required, set status.statusPageBypassMonitorPrivilege: true; otherwise grant monitor privilege or adjust the client. Authentication, authorization, clients, and runtime status responses are not evaluated."
+      }
+    },
+    {
+      "project": "kibana",
+      "description": "Kibana 9.5.3 defaults status.allowAnonymous and status.statusPageBypassMonitorPrivilege to false. This applies only when the operator explicitly requires full status for authenticated callers without Elasticsearch monitor privilege and supplies a complete, precedence-resolved proposed kibana.yml.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.kibana.full_status_without_monitor_required",
+          "component": "pkg:github/elastic/kibana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the operator explicitly requires the full Kibana status response for authenticated callers without Elasticsearch monitor privilege."
+        },
+        {
+          "side": "proposed",
+          "id": "component.kibana.status_page_authentication_required",
+          "component": "pkg:github/elastic/kibana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed reviewed status route requires authentication, derived only from an unambiguous complete and precedence-resolved status.allowAnonymous false setting or target default."
+        },
+        {
+          "side": "proposed",
+          "id": "component.kibana.status_page_bypass_monitor_privilege",
+          "component": "pkg:github/elastic/kibana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective Kibana setting status.statusPageBypassMonitorPrivilege is true; an omitted setting uses the reviewed 9.5.3 target default false only after completeness and precedence are declared."
+        }
+      ],
+      "rule": {
+        "id": "kibana.status-page-monitor-bypass.9-3-8-to-9-5-3",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/elastic/kibana",
+          "from": "9.3.8",
+          "to": "9.5.3"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/elastic/kibana",
+          "factId": "component.kibana.status_page_bypass_monitor_privilege",
+          "boolValue": false
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/elastic/kibana",
+            "factId": "component.kibana.full_status_without_monitor_required",
+            "boolValue": true
+          },
+          {
+            "side": "proposed",
+            "component": "pkg:github/elastic/kibana",
+            "factId": "component.kibana.status_page_authentication_required",
+            "boolValue": true
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:24:22Z",
+          "validUntil": "2026-12-11T09:24:22Z",
+          "sources": [
+            {
+              "id": "kibana-v9-5-status-config-default",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/src/core/packages/status/server-internal/src/status_config.ts",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:f99da1cc1218efa86c2f0c72d935d1e49e0b7b9d2e03271b2127f5fdedbab78c",
+              "startLine": 14,
+              "endLine": 17
+            },
+            {
+              "id": "kibana-v9-5-status-route-monitor-decision",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/src/core/packages/status/server-internal/src/routes/status.ts",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:0bfddaf8a4a02251f15d0e06ed5007c084b74e97c73fa66ad9299082f5e2ddec",
+              "startLine": 81,
+              "endLine": 105
+            },
+            {
+              "id": "kibana-v9-5-status-route-redaction",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/src/core/packages/status/server-internal/src/routes/status.ts",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:0bfddaf8a4a02251f15d0e06ed5007c084b74e97c73fa66ad9299082f5e2ddec",
+              "startLine": 199,
+              "endLine": 230
+            },
+            {
+              "id": "kibana-v9-5-status-setting-documentation",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/docs/reference/configuration-reference/general-settings.yml",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:cc12281539a21726d0b9c2142bfeb0e3540a8b73fe1a16c5a05f6b8087c6058a",
+              "startLine": 134,
+              "endLine": 143
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "If full status without monitor privilege is required, set status.statusPageBypassMonitorPrivilege: true; otherwise grant monitor privilege or adjust the client. Authentication, authorization, clients, and runtime status responses are not evaluated."
+      }
+    },
+    {
+      "project": "kibana",
+      "description": "Kibana 9.5.3 defaults status.allowAnonymous and status.statusPageBypassMonitorPrivilege to false. This applies only when the operator explicitly requires full status for authenticated callers without Elasticsearch monitor privilege and supplies a complete, precedence-resolved proposed kibana.yml.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.kibana.full_status_without_monitor_required",
+          "component": "pkg:github/elastic/kibana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the operator explicitly requires the full Kibana status response for authenticated callers without Elasticsearch monitor privilege."
+        },
+        {
+          "side": "proposed",
+          "id": "component.kibana.status_page_authentication_required",
+          "component": "pkg:github/elastic/kibana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed reviewed status route requires authentication, derived only from an unambiguous complete and precedence-resolved status.allowAnonymous false setting or target default."
+        },
+        {
+          "side": "proposed",
+          "id": "component.kibana.status_page_bypass_monitor_privilege",
+          "component": "pkg:github/elastic/kibana",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective Kibana setting status.statusPageBypassMonitorPrivilege is true; an omitted setting uses the reviewed 9.5.3 target default false only after completeness and precedence are declared."
+        }
+      ],
+      "rule": {
+        "id": "kibana.status-page-monitor-bypass.9-4-6-to-9-5-3",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/elastic/kibana",
+          "from": "9.4.6",
+          "to": "9.5.3"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/elastic/kibana",
+          "factId": "component.kibana.status_page_bypass_monitor_privilege",
+          "boolValue": false
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/elastic/kibana",
+            "factId": "component.kibana.full_status_without_monitor_required",
+            "boolValue": true
+          },
+          {
+            "side": "proposed",
+            "component": "pkg:github/elastic/kibana",
+            "factId": "component.kibana.status_page_authentication_required",
+            "boolValue": true
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T09:24:22Z",
+          "validUntil": "2026-12-11T09:24:22Z",
+          "sources": [
+            {
+              "id": "kibana-v9-5-status-config-default",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/src/core/packages/status/server-internal/src/status_config.ts",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:f99da1cc1218efa86c2f0c72d935d1e49e0b7b9d2e03271b2127f5fdedbab78c",
+              "startLine": 14,
+              "endLine": 17
+            },
+            {
+              "id": "kibana-v9-5-status-route-monitor-decision",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/src/core/packages/status/server-internal/src/routes/status.ts",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:0bfddaf8a4a02251f15d0e06ed5007c084b74e97c73fa66ad9299082f5e2ddec",
+              "startLine": 81,
+              "endLine": 105
+            },
+            {
+              "id": "kibana-v9-5-status-route-redaction",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/src/core/packages/status/server-internal/src/routes/status.ts",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:0bfddaf8a4a02251f15d0e06ed5007c084b74e97c73fa66ad9299082f5e2ddec",
+              "startLine": 199,
+              "endLine": 230
+            },
+            {
+              "id": "kibana-v9-5-status-setting-documentation",
+              "url": "https://github.com/elastic/kibana/blob/2169f1de4c917fce03905cc3110f3f523e2184d2/docs/reference/configuration-reference/general-settings.yml",
+              "revision": "2169f1de4c917fce03905cc3110f3f523e2184d2",
+              "contentDigest": "sha256:cc12281539a21726d0b9c2142bfeb0e3540a8b73fe1a16c5a05f6b8087c6058a",
+              "startLine": 134,
+              "endLine": 143
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "If full status without monitor privilege is required, set status.statusPageBypassMonitorPrivilege: true; otherwise grant monitor privilege or adjust the client. Authentication, authorization, clients, and runtime status responses are not evaluated."
+      }
+    },
+    {
+      "project": "loki",
+      "description": "Loki 3.0 removes two legacy string-valued compactor shared-store settings; this checks only their presence in one complete, precedence-resolved proposed native Loki YAML compactor mapping.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.loki.compactor_legacy_shared_store_present",
+          "component": "pkg:github/grafana/loki",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed complete selected Loki compactor mapping contains shared_store or shared_store_key_prefix with a literal YAML string value."
+        }
+      ],
+      "rule": {
+        "id": "loki.compactor-shared-store.2-9-to-3-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/grafana/loki",
+          "from": "2.9.8",
+          "to": "3.0.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/grafana/loki",
+          "factId": "component.loki.compactor_legacy_shared_store_present",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-11T23:48:14Z",
+          "validUntil": "2026-12-10T23:48:14Z",
+          "sources": [
+            {
+              "id": "loki-v2-compactor-legacy-keys",
+              "url": "https://github.com/grafana/loki/blob/94e00299ec9b36ad97c147641566b6922268c54e/pkg/storage/stores/indexshipper/compactor/compactor.go",
+              "revision": "94e00299ec9b36ad97c147641566b6922268c54e",
+              "contentDigest": "sha256:60559d5b4f415ce2db9b56d1bf10e5683a1dfc2218a3e3a72aacd40c7d28822f",
+              "startLine": 73,
+              "endLine": 108
+            },
+            {
+              "id": "loki-v3-cmd-config-failure",
+              "url": "https://github.com/grafana/loki/blob/b4f7181c7aa9484e66976e8a933111a9b85ea8c2/cmd/loki/main.go",
+              "revision": "b4f7181c7aa9484e66976e8a933111a9b85ea8c2",
+              "contentDigest": "sha256:4bedb098af4451d03112d4f2441895fdafdc485ec3306e8ba73ecf1441d95c99",
+              "startLine": 36,
+              "endLine": 45
+            },
+            {
+              "id": "loki-v3-compactor-keys-removed",
+              "url": "https://github.com/grafana/loki/blob/b4f7181c7aa9484e66976e8a933111a9b85ea8c2/pkg/compactor/compactor.go",
+              "revision": "b4f7181c7aa9484e66976e8a933111a9b85ea8c2",
+              "contentDigest": "sha256:df60208086c18e486cf7c8b498c38e47f1ce23ffe83a7c280cb6ad4c8bcfdf0e",
+              "startLine": 73,
+              "endLine": 109
+            },
+            {
+              "id": "loki-v3-config-error-propagation",
+              "url": "https://github.com/grafana/loki/blob/b4f7181c7aa9484e66976e8a933111a9b85ea8c2/pkg/util/cfg/cfg.go",
+              "revision": "b4f7181c7aa9484e66976e8a933111a9b85ea8c2",
+              "contentDigest": "sha256:d35c54a0026b2c23adb8884bb15842daddb04177fb20f8a06df758848d7f5626",
+              "startLine": 28,
+              "endLine": 44
+            },
+            {
+              "id": "loki-v3-dynamic-strict-first",
+              "url": "https://github.com/grafana/loki/blob/b4f7181c7aa9484e66976e8a933111a9b85ea8c2/pkg/util/cfg/dynamic.go",
+              "revision": "b4f7181c7aa9484e66976e8a933111a9b85ea8c2",
+              "contentDigest": "sha256:26971a79f17e3091a73d7b01a5701880757562cfcc4ba65380145530b2930fab",
+              "startLine": 13,
+              "endLine": 40
+            },
+            {
+              "id": "loki-v3-strict-file-loader",
+              "url": "https://github.com/grafana/loki/blob/b4f7181c7aa9484e66976e8a933111a9b85ea8c2/pkg/util/cfg/files.go",
+              "revision": "b4f7181c7aa9484e66976e8a933111a9b85ea8c2",
+              "contentDigest": "sha256:b0460e3b42949704dd54076f1caa16615eb08698c5ce498d9796af887b000c83",
+              "startLine": 40,
+              "endLine": 120
+            },
+            {
+              "id": "loki-v3-top-level-compactor-binding",
+              "url": "https://github.com/grafana/loki/blob/b4f7181c7aa9484e66976e8a933111a9b85ea8c2/pkg/loki/loki.go",
+              "revision": "b4f7181c7aa9484e66976e8a933111a9b85ea8c2",
+              "contentDigest": "sha256:5cf53ee390408bf0df3953f61a4039da4162dbb5475cf40cfc0a68156ae11221",
+              "startLine": 74,
+              "endLine": 102
+            },
+            {
+              "id": "loki-v3-upgrade-shared-store-removal",
+              "url": "https://github.com/grafana/loki/blob/b4f7181c7aa9484e66976e8a933111a9b85ea8c2/docs/sources/setup/upgrade/_index.md",
+              "revision": "b4f7181c7aa9484e66976e8a933111a9b85ea8c2",
+              "contentDigest": "sha256:a37d623da6a49ae793923e6364ac0578c5e3137be583edfcff56883e58d25894",
+              "startLine": 85,
+              "endLine": 145
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove shared_store and shared_store_key_prefix from the selected compactor mapping, then separately follow Loki 3.0 storage, index, retention, and data-access migration guidance."
+      }
+    },
+    {
+      "project": "loki",
+      "description": "Loki 3.0 requires structured metadata to use TSDB with schema v13; this checks only one complete, precedence-resolved selected schema period and does not establish runtime startup or data migration.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.loki.structured_metadata_requires_tsdb_v13",
+          "component": "pkg:github/grafana/loki",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected proposed Loki schema and store violate the reviewed structured-metadata TSDB/v13 constraint."
+        }
+      ],
+      "rule": {
+        "id": "loki.structured-metadata-tsdb-v13.2-9-8-to-3-0-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/grafana/loki",
+          "from": "2.9.8",
+          "to": "3.0.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/grafana/loki",
+          "factId": "component.loki.structured_metadata_requires_tsdb_v13",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T01:19:15Z",
+          "validUntil": "2026-12-11T01:19:15Z",
+          "sources": [
+            {
+              "id": "loki-v2-config-validate",
+              "url": "https://github.com/grafana/loki/blob/94e00299ec9b36ad97c147641566b6922268c54e/pkg/loki/loki.go",
+              "revision": "94e00299ec9b36ad97c147641566b6922268c54e",
+              "contentDigest": "sha256:7d4bae6dccf98b64ef0cfbc35ec26e390f5ae4c170240537fd60c8864a616c3f",
+              "startLine": 208,
+              "endLine": 269
+            },
+            {
+              "id": "loki-v2-structured-metadata-default",
+              "url": "https://github.com/grafana/loki/blob/94e00299ec9b36ad97c147641566b6922268c54e/pkg/validation/limits.go",
+              "revision": "94e00299ec9b36ad97c147641566b6922268c54e",
+              "contentDigest": "sha256:e8f4de56d0bda498b4236cbe4e5f0dcde3a9eba025f2d77a51638de484c22953",
+              "startLine": 183,
+              "endLine": 294
+            },
+            {
+              "id": "loki-v3-config-registers-limits",
+              "url": "https://github.com/grafana/loki/blob/b4f7181c7aa9484e66976e8a933111a9b85ea8c2/pkg/loki/loki.go",
+              "revision": "b4f7181c7aa9484e66976e8a933111a9b85ea8c2",
+              "contentDigest": "sha256:5cf53ee390408bf0df3953f61a4039da4162dbb5475cf40cfc0a68156ae11221",
+              "startLine": 154,
+              "endLine": 294
+            },
+            {
+              "id": "loki-v3-schema-period-validation",
+              "url": "https://github.com/grafana/loki/blob/b4f7181c7aa9484e66976e8a933111a9b85ea8c2/pkg/storage/config/schema_config.go",
+              "revision": "b4f7181c7aa9484e66976e8a933111a9b85ea8c2",
+              "contentDigest": "sha256:f96124194fbe2df3f642144cef7e6425bad02c0fb3479e007c421e1b601890b5",
+              "startLine": 136,
+              "endLine": 481
+            },
+            {
+              "id": "loki-v3-structured-metadata-default",
+              "url": "https://github.com/grafana/loki/blob/b4f7181c7aa9484e66976e8a933111a9b85ea8c2/pkg/validation/limits.go",
+              "revision": "b4f7181c7aa9484e66976e8a933111a9b85ea8c2",
+              "contentDigest": "sha256:a7fd7403183b0583f6fe8de7d8a7b36b5e14a894730c4e0ce938acca83c9d8eb",
+              "startLine": 210,
+              "endLine": 387
+            },
+            {
+              "id": "loki-v3-structured-metadata-guide",
+              "url": "https://github.com/grafana/loki/blob/b4f7181c7aa9484e66976e8a933111a9b85ea8c2/docs/sources/get-started/labels/structured-metadata.md",
+              "revision": "b4f7181c7aa9484e66976e8a933111a9b85ea8c2",
+              "contentDigest": "sha256:2747b317389a2b8451801c0e8abd637e9114a08e81504848f21911649b86a83d",
+              "startLine": 8,
+              "endLine": 10
+            },
+            {
+              "id": "loki-v3-structured-metadata-schema-validation",
+              "url": "https://github.com/grafana/loki/blob/b4f7181c7aa9484e66976e8a933111a9b85ea8c2/pkg/loki/validation.go",
+              "revision": "b4f7181c7aa9484e66976e8a933111a9b85ea8c2",
+              "contentDigest": "sha256:16b2dafeec5beedc4c19605be7d57ca563bedf174f86aee455609306c0ff47f5",
+              "startLine": 24,
+              "endLine": 52
+            },
+            {
+              "id": "loki-v3-upgrade-guide",
+              "url": "https://github.com/grafana/loki/blob/b4f7181c7aa9484e66976e8a933111a9b85ea8c2/docs/sources/setup/upgrade/_index.md",
+              "revision": "b4f7181c7aa9484e66976e8a933111a9b85ea8c2",
+              "contentDigest": "sha256:a37d623da6a49ae793923e6364ac0578c5e3137be583edfcff56883e58d25894",
+              "startLine": 47,
+              "endLine": 84
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Use schema v13 with tsdb, or disable allow_structured_metadata, then separately review Loki storage, index, retention, and data-access migration guidance."
+      }
+    },
+    {
+      "project": "mariadb",
+      "description": "MariaDB 10.11.8 provides InnoDB defragmentation while 11.4.2 registers innodb-defragment only as a removed compatibility option that warns and does nothing. This checks only an explicit caller requirement for that removed behavior in the exact upstream transition; option presence alone never blocks startup.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.mariadb.innodb_defragmentation_required",
+          "component": "pkg:github/mariadb/server",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the caller explicitly requires InnoDB defragmentation behavior to remain available in the proposed MariaDB target."
+        },
+        {
+          "side": "proposed",
+          "id": "component.mariadb.upstream_distribution",
+          "component": "pkg:github/mariadb/server",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the caller explicitly binds the selected configuration to the reviewed upstream MariaDB distribution."
+        }
+      ],
+      "rule": {
+        "id": "mariadb.innodb-defragmentation-required.10-11-8-to-11-4-2",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/mariadb/server",
+          "from": "10.11.8",
+          "to": "11.4.2"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/mariadb/server",
+          "factId": "component.mariadb.innodb_defragmentation_required",
+          "boolValue": true
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/mariadb/server",
+            "factId": "component.mariadb.upstream_distribution",
+            "boolValue": true
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-12T12:00:00Z",
+          "validUntil": "2026-12-11T12:00:00Z",
+          "sources": [
+            {
+              "id": "mariadb-v10-11-8-innodb-defragment-definition",
+              "url": "https://github.com/MariaDB/server/blob/3a069644682e336e445039e48baae9693f9a08ee/storage/innobase/handler/ha_innodb.cc",
+              "revision": "3a069644682e336e445039e48baae9693f9a08ee",
+              "contentDigest": "sha256:d4044534167584837501ecbc49f0ab18d772016ea48a21f8590dc74ff048c2d8",
+              "startLine": 19108,
+              "endLine": 19114
+            },
+            {
+              "id": "mariadb-v10-11-8-innodb-defragment-registration",
+              "url": "https://github.com/MariaDB/server/blob/3a069644682e336e445039e48baae9693f9a08ee/storage/innobase/handler/ha_innodb.cc",
+              "revision": "3a069644682e336e445039e48baae9693f9a08ee",
+              "contentDigest": "sha256:d4044534167584837501ecbc49f0ab18d772016ea48a21f8590dc74ff048c2d8",
+              "startLine": 19771,
+              "endLine": 19778
+            },
+            {
+              "id": "mariadb-v11-4-2-innodb-registration-gap",
+              "url": "https://github.com/MariaDB/server/blob/3fca5ed772fb75e3e57c507edef2985f8eba5b12/storage/innobase/handler/ha_innodb.cc",
+              "revision": "3fca5ed772fb75e3e57c507edef2985f8eba5b12",
+              "contentDigest": "sha256:b6a105b287042ef653acb036f881f82eefd1c002454fa7e04381df4d2bd771d2",
+              "startLine": 19704,
+              "endLine": 19723
+            },
+            {
+              "id": "mariadb-v11-4-2-removed-option-handler",
+              "url": "https://github.com/MariaDB/server/blob/3fca5ed772fb75e3e57c507edef2985f8eba5b12/sql/mysqld.cc",
+              "revision": "3fca5ed772fb75e3e57c507edef2985f8eba5b12",
+              "contentDigest": "sha256:0f9cb54b1e8bf459124ee41522e7147841751a9ed17c62fb2dc2afa1bcf328bd",
+              "startLine": 8049,
+              "endLine": 8052
+            },
+            {
+              "id": "mariadb-v11-4-2-removed-option-macro",
+              "url": "https://github.com/MariaDB/server/blob/3fca5ed772fb75e3e57c507edef2985f8eba5b12/sql/mysqld.cc",
+              "revision": "3fca5ed772fb75e3e57c507edef2985f8eba5b12",
+              "contentDigest": "sha256:0f9cb54b1e8bf459124ee41522e7147841751a9ed17c62fb2dc2afa1bcf328bd",
+              "startLine": 4836,
+              "endLine": 4838
+            },
+            {
+              "id": "mariadb-v11-4-2-removed-option-registration",
+              "url": "https://github.com/MariaDB/server/blob/3fca5ed772fb75e3e57c507edef2985f8eba5b12/sql/mysqld.cc",
+              "revision": "3fca5ed772fb75e3e57c507edef2985f8eba5b12",
+              "contentDigest": "sha256:0f9cb54b1e8bf459124ee41522e7147841751a9ed17c62fb2dc2afa1bcf328bd",
+              "startLine": 5273,
+              "endLine": 5278
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Choose and verify an alternative to removed InnoDB defragmentation, or explicitly waive that behavior requirement. Deleting the ignored option alone does not restore the feature."
+      }
+    },
+    {
+      "project": "mariadb-operator",
+      "description": "MariaDB Operator 26.6.0 requires a Galera data-plane update before the operator update; this checks one complete caller-selected MariaDB resource and does not evaluate cluster state or controller completion.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.auto_update_data_plane",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected MariaDB resource explicitly declares spec.updateStrategy.autoUpdateDataPlane true."
+        },
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.galera_enabled",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected MariaDB resource explicitly declares spec.galera.enabled true."
+        },
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.pre_operator_update",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the caller explicitly declares the check is before the operator update."
+        },
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.replication_enabled",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected MariaDB resource declares the separate spec.replication.enabled mode; true means Galera-only scope does not apply."
+        },
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.resource_complete",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the caller explicitly declares the selected MariaDB resource complete."
+        }
+      ],
+      "rule": {
+        "id": "mariadb-operator.upgrade-26-6.requires-dataplane-prerequisite",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "from": "26.3.0",
+          "to": "26.6.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "factId": "component.mariadb_operator.auto_update_data_plane",
+          "boolValue": false
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/mariadb-operator/mariadb-operator",
+            "factId": "component.mariadb_operator.galera_enabled",
+            "boolValue": true
+          },
+          {
+            "side": "proposed",
+            "component": "pkg:github/mariadb-operator/mariadb-operator",
+            "factId": "component.mariadb_operator.replication_enabled",
+            "boolValue": false
+          },
+          {
+            "side": "proposed",
+            "component": "pkg:github/mariadb-operator/mariadb-operator",
+            "factId": "component.mariadb_operator.pre_operator_update",
+            "boolValue": true
+          },
+          {
+            "side": "proposed",
+            "component": "pkg:github/mariadb-operator/mariadb-operator",
+            "factId": "component.mariadb_operator.resource_complete",
+            "boolValue": true
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-09-13T08:16:03Z",
+          "validUntil": "2026-12-12T08:16:03Z",
+          "sources": [
+            {
+              "id": "mariadb-operator-v26-3-api-type",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/ac223c4c562533bcf64ca620072e7c1564017d4d/api/v1alpha1/mariadb_types.go",
+              "revision": "ac223c4c562533bcf64ca620072e7c1564017d4d",
+              "contentDigest": "sha256:4a17f16414e711fd7828e79825683fcf905f25850b1ce3933ba6800a301d244f",
+              "startLine": 980,
+              "endLine": 993
+            },
+            {
+              "id": "mariadb-operator-v26-3-crd",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/ac223c4c562533bcf64ca620072e7c1564017d4d/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "ac223c4c562533bcf64ca620072e7c1564017d4d",
+              "contentDigest": "sha256:2e9eedf1db34a02c621ddd47bcbcacded35ff5a9084a619f9e3ce388d0ebf313",
+              "startLine": 5774,
+              "endLine": 5781
+            },
+            {
+              "id": "mariadb-operator-v26-3-pod-builder",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/ac223c4c562533bcf64ca620072e7c1564017d4d/pkg/builder/pod_builder.go",
+              "revision": "ac223c4c562533bcf64ca620072e7c1564017d4d",
+              "contentDigest": "sha256:2aff20dd300948700640cf2f2ec72edb42c0369fd1d5e75c11a696d46402fc16",
+              "startLine": 358,
+              "endLine": 374
+            },
+            {
+              "id": "mariadb-operator-v26-6-api-type",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/58a3f520eeb92060473848d529fba8fcd9a157a6/api/v1alpha1/mariadb_types.go",
+              "revision": "58a3f520eeb92060473848d529fba8fcd9a157a6",
+              "contentDigest": "sha256:2f2e3e0b02d6235fc932fbd7c21ae0765affd6750b915922b5c589d174c4525a",
+              "startLine": 1021,
+              "endLine": 1034
+            },
+            {
+              "id": "mariadb-operator-v26-6-controller-path",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/58a3f520eeb92060473848d529fba8fcd9a157a6/internal/controller/mariadb_controller.go",
+              "revision": "58a3f520eeb92060473848d529fba8fcd9a157a6",
+              "contentDigest": "sha256:97223804aef96ff476aa0810fda3f823b20cbc3562ae1df3b66d640d47804397",
+              "startLine": 304,
+              "endLine": 313
+            },
+            {
+              "id": "mariadb-operator-v26-6-crd",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/58a3f520eeb92060473848d529fba8fcd9a157a6/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "58a3f520eeb92060473848d529fba8fcd9a157a6",
+              "contentDigest": "sha256:e353944e2df97251b3684b41f20a48f6c14d52b6b1781b4e1ad9fb2e7423c125",
+              "startLine": 6301,
+              "endLine": 6308
+            },
+            {
+              "id": "mariadb-operator-v26-6-pod-builder",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/58a3f520eeb92060473848d529fba8fcd9a157a6/pkg/builder/pod_builder.go",
+              "revision": "58a3f520eeb92060473848d529fba8fcd9a157a6",
+              "contentDigest": "sha256:28610341ae1f0a05427b43b70610ffc7422d32a1c4d869018971a4a14b080b10",
+              "startLine": 371,
+              "endLine": 386
+            },
+            {
+              "id": "mariadb-operator-v26-6-upgrade-guide",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/58a3f520eeb92060473848d529fba8fcd9a157a6/docs/releases/UPGRADE_26.6.0.md",
+              "revision": "58a3f520eeb92060473848d529fba8fcd9a157a6",
+              "contentDigest": "sha256:54bd83e984a8008e70f5820dba566133e0c235f48421b97b56b7ea29203d7893",
+              "startLine": 8,
+              "endLine": 20
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "For a selected Galera-only MariaDB resource, set spec.updateStrategy.autoUpdateDataPlane: true before updating the operator; review standalone, replication, admission, runtime readiness, and data-plane completion separately."
+      }
+    }
+  ]
+}

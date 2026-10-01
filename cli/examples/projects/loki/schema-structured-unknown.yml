@@ -1,0 +1,9 @@
+limits_config: {}
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      schema: v13
+    - from: 2025-01-01
+      store: tsdb
+      schema: v13

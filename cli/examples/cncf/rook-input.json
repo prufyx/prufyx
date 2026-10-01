@@ -1,0 +1,28 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/rook/rook",
+        "version": "1.19.4",
+        "facts": []
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/rook/rook",
+        "version": "1.20.0",
+        "facts": [
+          {
+            "id": "component.rook.deployment_mode",
+            "state": "declared",
+            "enumValue": "helm"
+          }
+        ]
+      }
+    ]
+  }
+}

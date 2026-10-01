@@ -1,0 +1,38 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/kumahq/kuma",
+        "version": "2.8.0",
+        "facts": []
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/kumahq/kuma",
+        "version": "2.9.0",
+        "facts": [
+          {
+            "id": "component.kuma.distribution",
+            "state": "declared",
+            "enumValue": "official_upstream"
+          },
+          {
+            "id": "component.kuma.execution_surface",
+            "state": "declared",
+            "enumValue": "kumactl_install_transparent_proxy"
+          },
+          {
+            "id": "component.kuma.removed_exclude_uid_flags_present",
+            "state": "declared",
+            "boolValue": true
+          }
+        ]
+      }
+    ]
+  }
+}

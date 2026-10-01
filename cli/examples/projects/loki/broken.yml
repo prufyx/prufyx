@@ -1,0 +1,4 @@
+auth_enabled: false
+compactor:
+  working_directory: /var/loki/compactor
+  shared_store: filesystem

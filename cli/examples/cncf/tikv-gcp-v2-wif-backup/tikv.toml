@@ -1,0 +1,5 @@
+[backup]
+gcp-v2-enable = false
+
+[server]
+addr = "127.0.0.1:20160"

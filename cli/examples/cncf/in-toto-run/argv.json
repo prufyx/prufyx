@@ -1,0 +1,13 @@
+[
+  "in-toto-run",
+  "--step-name",
+  "build",
+  "--key",
+  "/private/example-legacy-key",
+  "--",
+  "make",
+  "release",
+  "--key",
+  "wrapped-command-value",
+  "--"
+]

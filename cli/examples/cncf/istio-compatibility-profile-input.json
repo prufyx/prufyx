@@ -1,0 +1,28 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/istio/istio",
+        "version": "1.23.6",
+        "facts": []
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/istio/istio",
+        "version": "1.24.0",
+        "facts": [
+          {
+            "id": "component.istio.compatibility_profile",
+            "state": "declared",
+            "enumValue": "1.20"
+          }
+        ]
+      }
+    ]
+  }
+}

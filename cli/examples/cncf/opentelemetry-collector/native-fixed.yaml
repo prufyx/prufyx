@@ -1,0 +1,6 @@
+exporters:
+  debug: {}
+service:
+  pipelines:
+    traces:
+      exporters: [debug]

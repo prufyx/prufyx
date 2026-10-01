@@ -1,0 +1,4 @@
+defaults: &compactor_defaults
+  shared_store: filesystem
+compactor:
+  <<: *compactor_defaults

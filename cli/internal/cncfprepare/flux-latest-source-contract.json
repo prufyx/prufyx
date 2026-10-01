@@ -1,0 +1,282 @@
+{
+  "schema": "prufyx.io/flux-removed-api-source-contract/v1",
+  "component": "pkg:github/fluxcd/flux2",
+  "observedAt": "2026-09-12T09:23:23Z",
+  "target": {
+    "version": "2.9.5",
+    "tagCommit": "dd233c4fadef306a62b7893204f8e3817fecc2b2",
+    "controllerVersions": {
+      "source-controller": "1.9.5",
+      "kustomize-controller": "1.9.5",
+      "helm-controller": "1.6.4",
+      "notification-controller": "1.9.4",
+      "image-reflector-controller": "1.2.5",
+      "image-automation-controller": "1.2.5",
+      "source-watcher": "2.2.4"
+    },
+    "controllerVersionsSource": {
+      "url": "https://github.com/fluxcd/flux2/blob/dd233c4fadef306a62b7893204f8e3817fecc2b2/manifests/crds/kustomization.yaml",
+      "revision": "dd233c4fadef306a62b7893204f8e3817fecc2b2",
+      "contentDigest": "sha256:b3e356e0c8e7f652b2ee6e37c7de280c15a8de48abff9f4c787eb9d89fe12f36",
+      "spans": [
+        "3-10"
+      ]
+    }
+  },
+  "previousMinorHeads": [
+    {
+      "version": "2.8.8",
+      "tagCommit": "1fd61a06264d71cf445ed55c4f14d401d26a1c64"
+    },
+    {
+      "version": "2.7.5",
+      "tagCommit": "8454b02a32e48d775b9f563cb51fdcb1787b5b93"
+    },
+    {
+      "version": "2.6.4",
+      "tagCommit": "6bf37f6a560fd84982d67f853162e4b3c2235edb"
+    },
+    {
+      "version": "2.5.1",
+      "tagCommit": "8d5f40dca5aa5d3c0fc3414457dda15a0ac92fa4"
+    },
+    {
+      "version": "2.4.0",
+      "tagCommit": "5350425cdcd5fa015337e09fa502153c0275bd4b"
+    }
+  ],
+  "removedAPIs": [
+    "source.toolkit.fluxcd.io/v1beta2",
+    "kustomize.toolkit.fluxcd.io/v1beta2",
+    "helm.toolkit.fluxcd.io/v2beta2",
+    "image.toolkit.fluxcd.io/v1beta2",
+    "notification.toolkit.fluxcd.io/v1beta2"
+  ],
+  "targetCRDs": [
+    {
+      "sourceURL": "https://github.com/fluxcd/source-controller/releases/download/v1.9.5/source-controller.crds.yaml",
+      "revision": "53194ad4730ebf07718b29d58f66efd6938fd3da",
+      "contentDigest": "sha256:5acf3b01c24f15647a162f2d43b1287f0d0156fab0026f4afb9865874cdbe16d",
+      "kinds": [
+        "Bucket",
+        "ExternalArtifact",
+        "GitRepository",
+        "HelmChart",
+        "HelmRepository",
+        "OCIRepository"
+      ],
+      "kindServedVersions": {
+        "Bucket": "v1",
+        "ExternalArtifact": "v1",
+        "GitRepository": "v1",
+        "HelmChart": "v1",
+        "HelmRepository": "v1",
+        "OCIRepository": "v1"
+      },
+      "spans": [
+        "7-34",
+        "383-384",
+        "394-423",
+        "581-582",
+        "592-621",
+        "1071-1072",
+        "1082-1120",
+        "1430-1431",
+        "1441-1470",
+        "1756-1757",
+        "1767-1796",
+        "2185-2186"
+      ],
+      "apiGroup": "source.toolkit.fluxcd.io"
+    },
+    {
+      "sourceURL": "https://github.com/fluxcd/kustomize-controller/releases/download/v1.9.5/kustomize-controller.crds.yaml",
+      "revision": "d5d5d2bf9d9cf3cb33c3150f47990bb22781334a",
+      "contentDigest": "sha256:b9e74622f9f3d87950f59641651fe0ea0220367c1d6f34a72c9591552afda292",
+      "kinds": [
+        "Kustomization"
+      ],
+      "kindServedVersions": {
+        "Kustomization": "v1"
+      },
+      "spans": [
+        "7-33",
+        "806-807"
+      ],
+      "apiGroup": "kustomize.toolkit.fluxcd.io"
+    },
+    {
+      "sourceURL": "https://github.com/fluxcd/helm-controller/releases/download/v1.6.4/helm-controller.crds.yaml",
+      "revision": "561379cd309d56a5037f2261848065eeee6a1a7a",
+      "contentDigest": "sha256:8af19966e63cccde7d2c62e24c7bd3466010dd53e9d063e2ce22d1391e11f272",
+      "kinds": [
+        "HelmRelease"
+      ],
+      "kindServedVersions": {
+        "HelmRelease": "v2"
+      },
+      "spans": [
+        "7-33",
+        "1483-1484"
+      ],
+      "apiGroup": "helm.toolkit.fluxcd.io"
+    },
+    {
+      "sourceURL": "https://github.com/fluxcd/notification-controller/releases/download/v1.9.4/notification-controller.crds.yaml",
+      "revision": "a1dff35982bf7faf937f38ca2d5219907a6016d3",
+      "contentDigest": "sha256:6819016fb84943ea42521df03f196c596d276cf814774cd8cace97981e7e3985",
+      "kinds": [
+        "Alert",
+        "Provider",
+        "Receiver"
+      ],
+      "kindServedVersions": {
+        "Alert": "v1beta3",
+        "Provider": "v1beta3",
+        "Receiver": "v1"
+      },
+      "spans": [
+        "7-25",
+        "164-165",
+        "174-192",
+        "370-371",
+        "380-404",
+        "741-742"
+      ],
+      "apiGroup": "notification.toolkit.fluxcd.io"
+    },
+    {
+      "sourceURL": "https://github.com/fluxcd/image-reflector-controller/releases/download/v1.2.5/image-reflector-controller.crds.yaml",
+      "revision": "d245eae59b9ef4928f69c556c13cd1729753349c",
+      "contentDigest": "sha256:c28662b43ee30cfe17b1b177577564f3b52ee112ef345b52dcdda8b77049bde7",
+      "kinds": [
+        "ImagePolicy",
+        "ImageRepository"
+      ],
+      "kindServedVersions": {
+        "ImagePolicy": "v1",
+        "ImageRepository": "v1"
+      },
+      "spans": [
+        "7-40",
+        "303-304",
+        "314-351",
+        "620-621"
+      ],
+      "apiGroup": "image.toolkit.fluxcd.io"
+    },
+    {
+      "sourceURL": "https://github.com/fluxcd/image-automation-controller/releases/download/v1.2.5/image-automation-controller.crds.yaml",
+      "revision": "119f65d75d1d50ef05a70c24afa0844005330576",
+      "contentDigest": "sha256:7d04980647085d68069549b40c4027cc5b0a5b6d463e397501d3f8b7b1c9b0c9",
+      "kinds": [
+        "ImageUpdateAutomation"
+      ],
+      "kindServedVersions": {
+        "ImageUpdateAutomation": "v1"
+      },
+      "spans": [
+        "7-39",
+        "445-446"
+      ],
+      "apiGroup": "image.toolkit.fluxcd.io"
+    }
+  ],
+  "predicate": {
+    "id": "flux.removed-beta-api-union.2-9",
+    "operator": "forbid_predicate_value",
+    "factId": "component.flux.latest_removed_beta_api_present",
+    "trueOutcome": "BLOCKED",
+    "falseOutcome": "PASS_SCOPED",
+    "scope": "one caller-supplied complete rendered resource selection; stored CRD versions, migration execution, reconciliation and runtime remain UNKNOWN"
+  },
+  "orderConstraints": [
+    {
+      "from": "2.4.0",
+      "to": "2.9.5",
+      "reviewGates": [
+        "2.7+ upgrade procedure",
+        "2.8 API migration",
+        "2.9 API migration"
+      ],
+      "installedHopRequired": false
+    },
+    {
+      "from": "2.5.1",
+      "to": "2.9.5",
+      "reviewGates": [
+        "2.7+ upgrade procedure",
+        "2.8 API migration",
+        "2.9 API migration"
+      ],
+      "installedHopRequired": false
+    },
+    {
+      "from": "2.6.4",
+      "to": "2.9.5",
+      "reviewGates": [
+        "2.7+ upgrade procedure",
+        "2.8 API migration",
+        "2.9 API migration"
+      ],
+      "installedHopRequired": false
+    },
+    {
+      "from": "2.7.5",
+      "to": "2.9.5",
+      "reviewGates": [
+        "2.8 API migration",
+        "2.9 API migration"
+      ],
+      "installedHopRequired": false
+    },
+    {
+      "from": "2.8.8",
+      "to": "2.9.5",
+      "reviewGates": [
+        "2.9 API migration"
+      ],
+      "installedHopRequired": false
+    }
+  ],
+  "sources": [
+    {
+      "id": "flux-roadmap-v28-v29-deprecation-record",
+      "url": "https://raw.githubusercontent.com/fluxcd/website/ac0b85d538b9bdd80329d2203ffe05d42ddf7816/content/en/roadmap.md",
+      "revision": "ac0b85d538b9bdd80329d2203ffe05d42ddf7816",
+      "contentDigest": "sha256:2e77ab5ecbe33e884c265c802ce4ee7d00e8becb5ef25387d7abfe973aaa137b",
+      "spans": [
+        "69-74",
+        "134-138"
+      ]
+    },
+    {
+      "id": "flux-v2.7-beta1-api-removal",
+      "url": "https://raw.githubusercontent.com/fluxcd/website/325038fc31e0e42af2b289d7add4f7c9ab71900f/content/en/blog/2025-09-29-announcing-flux-v2.7.0/index.md",
+      "revision": "325038fc31e0e42af2b289d7add4f7c9ab71900f",
+      "contentDigest": "sha256:7e8f77f9dd597ab400b96f0c6bbd9be665972988f161f8975899869b3e2ce949",
+      "spans": [
+        "316-327"
+      ]
+    },
+    {
+      "id": "flux-v2.8-api-removal",
+      "url": "https://raw.githubusercontent.com/fluxcd/website/ac0b85d538b9bdd80329d2203ffe05d42ddf7816/content/en/blog/2026-02-23-announcing-flux-v2.8.0/index.md",
+      "revision": "ac0b85d538b9bdd80329d2203ffe05d42ddf7816",
+      "contentDigest": "sha256:0545b9d2008824feb147f117cc732c708a4a715c4834c6fc3c4c682ea43285ae",
+      "spans": [
+        "164-174"
+      ]
+    },
+    {
+      "id": "flux-v2.9-api-removal-and-default",
+      "url": "https://raw.githubusercontent.com/fluxcd/website/ac0b85d538b9bdd80329d2203ffe05d42ddf7816/content/en/blog/2026-06-30-announcing-flux-v2.9.0/index.md",
+      "revision": "ac0b85d538b9bdd80329d2203ffe05d42ddf7816",
+      "contentDigest": "sha256:3ab4693ec3a84d69a10a94b70b75c6a8efd594037e1e85057c186d308512d68f",
+      "spans": [
+        "285-297"
+      ]
+    }
+  ],
+  "scope": "reviewed Flux toolkit CRD kinds listed in targetCRDs only; source-watcher and extension CRDs or API versions are not classified"
+}

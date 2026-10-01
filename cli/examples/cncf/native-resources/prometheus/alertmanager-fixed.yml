@@ -1,0 +1,4 @@
+api_version: v2
+scheme: http
+static_configs:
+  - targets: [127.0.0.1:9093]

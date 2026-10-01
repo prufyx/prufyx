@@ -1,0 +1,334 @@
+{
+  "schema": "prufyx.io/community-source-preview/v2",
+  "status": "development_source_preview",
+  "destination": "https://github.com/prufyx/prufyx",
+  "source": {
+    "inventoryPath": "cli/docs/generated/community-support-inventory.json",
+    "inventorySha256": "sha256:6d47facc4ef8cc25f1a587ec880b59f9044b2137d37791cc7c6d4954e3f93c1a",
+    "counts": {
+      "executableProjects": 66,
+      "selectedSourceRecords": 110,
+      "selectedSourceProjects": 58,
+      "documentedScenarioExamples": 33
+    },
+    "latestUpgradeCoverage": {
+      "asOf": "2026-09-12",
+      "matrixPath": "cli/docs/latest-upgrade-coverage-2026-09-12.md",
+      "projectCount": 23,
+      "selectedExactProjectVersionPairCount": 115,
+      "selection": "Five selected earlier stable releases per project to one exact reviewed target; this is not universal minor-line coverage.",
+      "inputAuthority": "Bounded native input or explicit minimized operator declarations, as stated per matrix row.",
+      "claimScope": "Exact endpoints and named predicates only; missing, custom, incomplete, ambiguous, runtime, cluster, data-migration, and whole-upgrade facts remain UNKNOWN.",
+      "additionalPreservedRoute": "Jaeger 1.76.0 to 2.20.0 is retained outside the selected-pair count.",
+      "additionalDepthRoute": "Prometheus 2.55.1 to 3.14.0 adds three scoped constraints, including a native remote_write HTTP/2-default route, outside the selected-pair count.",
+      "preexistingSelectedPair": "Cortex 1.17.2 to 1.21.1 was already present and is included in the selected-pair count.",
+      "qualificationGaps": [
+        {
+          "project": "notation",
+          "state": "NO_EXECUTABLE_RULE",
+          "reason": "Source qualification did not establish a substantive target predicate."
+        }
+      ]
+    },
+    "toolchain": "Go 1.26.8 with vendored modules; offline build and local file evaluation"
+  },
+  "scenarios": [
+    {
+      "project": "argo-workflows",
+      "repository": "https://github.com/argoproj/argo-workflows",
+      "from": "3.5.0",
+      "to": "3.6.0",
+      "rule": "argo server --basehref is renamed to --base-href",
+      "input": "caller-supplied native Kubernetes Deployment JSON"
+    },
+    {
+      "project": "ceph",
+      "repository": "https://github.com/ceph/ceph",
+      "from": "17.2.7",
+      "to": "18.2.0",
+      "rule": "selected current FileStore OSD metadata is incompatible with Reef",
+      "input": "caller-supplied selected current per-OSD metadata JSON object"
+    },
+    {
+      "project": "cloud-custodian",
+      "repository": "https://github.com/cloud-custodian/cloud-custodian",
+      "from": "0.9.50",
+      "to": "0.9.51",
+      "rule": "selected IAM access-key json-diff policy filter is removed",
+      "input": "caller-supplied private policy JSON"
+    },
+    {
+      "project": "cloudnativepg",
+      "repository": "https://github.com/cloudnative-pg/cloudnative-pg",
+      "from": "1.29.0",
+      "to": "1.30.0",
+      "rule": "cluster reference immutability",
+      "input": "paired native Kubernetes JSON objects"
+    },
+    {
+      "project": "container-network-interface-cni",
+      "repository": "https://github.com/containernetworking/cni",
+      "from": "0.4.0",
+      "to": "1.0.0",
+      "versionKind": "CNI specification editions, not library releases",
+      "rule": "non-List configuration is removed",
+      "input": "plugin configuration JSON"
+    },
+    {
+      "project": "containerd",
+      "repository": "https://github.com/containerd/containerd",
+      "from": "1.7.28",
+      "to": "2.0.0",
+      "rule": "one selected official bundled v1 runtime shim is removed while config version 2 is migrated",
+      "input": "caller-supplied complete and precedence-resolved native config.toml with explicit handler and upstream/bundled-runtime declarations"
+    },
+    {
+      "project": "contour",
+      "repository": "https://github.com/projectcontour/contour",
+      "from": "1.19.0",
+      "to": "1.20.0",
+      "rule": "selected networking.x-k8s.io/v1alpha1 resources need explicit migration",
+      "input": "caller-selected Kubernetes resource JSON"
+    },
+    {
+      "project": "distribution",
+      "repository": "https://github.com/distribution/distribution",
+      "from": "2.8.3",
+      "to": "3.0.0",
+      "rule": "schema 1 manifests are removed",
+      "input": "native manifest JSON"
+    },
+    {
+      "project": "emissary-ingress",
+      "repository": "https://github.com/emissary-ingress/emissary",
+      "from": "3.10.0",
+      "to": "4.0.1",
+      "rule": "diagd --metrics-endpoint is removed",
+      "input": "caller-selected argv JSON"
+    },
+    {
+      "project": "fluent-bit",
+      "repository": "https://github.com/fluent/fluent-bit",
+      "from": "3.2.0",
+      "to": "4.0.0",
+      "rule": "an intended enabled OpenTelemetry HTTP/2 setting must remain explicitly enabled",
+      "input": "caller-declared complete native classic configuration with current-default and preservation declarations"
+    },
+    {
+      "project": "fluentd",
+      "repository": "https://github.com/fluent/fluentd",
+      "from": "1.17.1",
+      "to": "1.18.0",
+      "rule": "one selected unquoted interpolation marker changes literal treatment",
+      "input": "paired caller-declared literal JSON values with selected-value completeness, current-default, and preservation guards"
+    },
+    {
+      "project": "grafana",
+      "repository": "https://github.com/grafana/grafana",
+      "from": "10.4.0",
+      "to": "11.0.0",
+      "rule": "legacy alerting cannot be explicitly enabled",
+      "input": "caller-declared complete native effective grafana.ini"
+    },
+    {
+      "project": "harbor",
+      "repository": "https://github.com/goharbor/harbor",
+      "from": "2.7.0",
+      "to": "2.8.0",
+      "rule": "selected complete installer argv removes --with-chartmuseum",
+      "input": "caller-declared complete literal Harbor installer argv JSON"
+    },
+    {
+      "project": "kibana",
+      "repository": "https://github.com/elastic/kibana",
+      "from": "8.18.0",
+      "to": "9.0.0",
+      "rule": "xpack.reporting.roles.allow is removed",
+      "input": "caller-declared complete native effective kibana.yml"
+    },
+    {
+      "project": "loki",
+      "repository": "https://github.com/grafana/loki",
+      "from": "2.9.8",
+      "to": "3.0.0",
+      "rule": "selected compactor shared_store and shared_store_key_prefix keys are removed",
+      "input": "caller-declared complete native Loki YAML with resolved precedence"
+    },
+    {
+      "project": "kubevirt",
+      "repository": "https://github.com/kubevirt/kubevirt",
+      "from": "1.8.4",
+      "to": "1.9.0",
+      "rule": "interfaces with no or multiple bindings are rejected",
+      "input": "native VM or VMI JSON"
+    },
+    {
+      "project": "metallb",
+      "repository": "https://github.com/metallb/metallb",
+      "from": "0.12.1",
+      "to": "0.13.2",
+      "rule": "selected legacy ConfigMap configuration is removed",
+      "input": "caller-selected ConfigMap or reviewed CR JSON"
+    },
+    {
+      "project": "nats",
+      "repository": "https://github.com/nats-io/nats-server",
+      "from": "2.10.0",
+      "to": "2.11.0",
+      "rule": "ASCII spaces in supplied server, cluster, or gateway names are rejected",
+      "input": "caller-supplied native JSON NATS configuration subset"
+    },
+    {
+      "project": "opencost",
+      "repository": "https://github.com/opencost/opencost",
+      "from": "1.119.0",
+      "to": "1.120.0",
+      "rule": "enabled cloud-cost collection moves from provider-derived configuration to an explicitly selected cloud-integration file",
+      "input": "caller-declared complete source selection; file presence is declared, not observed"
+    },
+    {
+      "project": "openfga",
+      "repository": "https://github.com/openfga/openfga",
+      "from": "1.17.1",
+      "to": "1.18.0",
+      "rule": "OIDC issuer and audience are required for complete effective configuration",
+      "input": "native effective-config JSON with explicit completeness"
+    },
+    {
+      "project": "prometheus",
+      "repository": "https://github.com/prometheus/prometheus",
+      "from": "2.55.1",
+      "to": "3.1.0",
+      "rule": "selected scrape_classic_histograms key is renamed",
+      "input": "caller-selected complete native scrape_config YAML with resolved precedence"
+    },
+    {
+      "project": "prometheus",
+      "repository": "https://github.com/prometheus/prometheus",
+      "from": "2.55.1",
+      "to": "3.1.0",
+      "rule": "selected Alertmanager api_version v1 is removed",
+      "input": "caller-selected complete native alerting.alertmanagers entry YAML with resolved precedence"
+    },
+    {
+      "project": "loki",
+      "repository": "https://github.com/grafana/loki",
+      "from": "2.9.8",
+      "to": "3.0.0",
+      "rule": "selected structured-metadata schema requires tsdb store and v13 when metadata is enabled",
+      "input": "caller-selected complete, precedence-resolved native Loki schema configuration YAML"
+    },
+    {
+      "project": "argo-cd",
+      "repository": "https://github.com/argoproj/argo-cd",
+      "from": "2.14.0",
+      "to": "3.0.0",
+      "rule": "exact resource.exclusions source default is blocked when v2 visibility preservation is declared",
+      "input": "caller-selected complete, precedence-resolved native argocd-cm YAML with explicit v2-visibility-preservation intent"
+    },
+    {
+      "project": "opentelemetry",
+      "repository": "https://github.com/open-telemetry/opentelemetry-collector",
+      "from": "0.110.0",
+      "to": "0.111.0",
+      "rule": "existing logging-exporter removal constraint through a new native input route",
+      "input": "caller-selected complete, precedence-resolved native Collector YAML with declared official distribution"
+    },
+    {
+      "project": "mariadb",
+      "repository": "https://github.com/MariaDB/server",
+      "from": "10.11.8",
+      "to": "11.4.2",
+      "rule": "explicitly required upstream InnoDB defragmentation behavior is unavailable; the target accepts the old option only as an ignored compatibility input",
+      "input": "caller-selected complete, precedence-resolved native server option file with declared upstream distribution and explicit true or false behavior requirement"
+    },
+    {
+      "project": "kubernetes",
+      "repository": "https://github.com/kubernetes/kubernetes",
+      "from": "1.31.0",
+      "to": "1.32.0",
+      "rule": "complete target apply set contains a removed flowcontrol.apiserver.k8s.io/v1beta3 FlowSchema or PriorityLevelConfiguration",
+      "input": "caller-selected complete rendered Kubernetes JSON apply set with official-upstream distribution and target-API-apply intent"
+    },
+    {
+      "project": "cilium",
+      "repository": "https://github.com/cilium/cilium",
+      "from": "1.16.19",
+      "to": "1.17.18",
+      "rule": "whitespace-trimmed selected ConfigMap cluster-name violates target syntax",
+      "input": "caller-selected complete, precedence-resolved official-upstream v1 ConfigMap YAML or JSON"
+    },
+    {
+      "project": "coredns",
+      "repository": "https://github.com/coredns/coredns",
+      "from": "1.13.2",
+      "to": "1.14.7",
+      "rule": "the removed federation directive is blocked in a direct complete Corefile",
+      "input": "caller-selected complete Corefile with declared official distribution"
+    },
+    {
+      "project": "envoy",
+      "repository": "https://github.com/envoyproxy/envoy",
+      "from": "1.38.4",
+      "to": "1.39.1",
+      "rule": "direct V2 transport_api_version at the selected ADS, LDS, or CDS api_config_source path is blocked; this native route has no PASS",
+      "input": "caller-selected directly loaded JSON bootstrap"
+    },
+    {
+      "project": "prometheus",
+      "repository": "https://github.com/prometheus/prometheus",
+      "from": "2.55.1",
+      "to": "3.14.0",
+      "rule": "one selected remote_write entry direct enable_http2 setting or reviewed omitted default is checked against an explicit endpoint requirement",
+      "input": "caller-selected complete, precedence-resolved native Prometheus YAML with a unique literal remote_write entry name"
+    },
+    {
+      "project": "mariadb-operator",
+      "repository": "https://github.com/mariadb-operator/mariadb-operator",
+      "from": "26.3.0",
+      "to": "26.6.0",
+      "rule": "one complete Galera resource must enable autoUpdateDataPlane before the operator update",
+      "input": "caller-selected complete native k8s.mariadb.com/v1alpha1 MariaDB JSON with Galera-only and pre-operator-update declarations"
+    },
+    {
+      "project": "opentelemetry",
+      "repository": "https://github.com/open-telemetry/opentelemetry-collector",
+      "from": "0.110.0",
+      "to": "0.111.0",
+      "rule": "target internal-metrics localhost default is incompatible with a required non-loopback scrape when no metrics override is configured",
+      "input": "caller-selected complete, precedence-resolved native Collector YAML with declared official distribution, effective feature gate, and non-loopback scrape requirement"
+    }
+  ],
+  "resultScope": [
+    "Each result is limited to its named predicate, exact source contract, supplied local input, and caller-declared intent.",
+    "Unsupported, missing, ambiguous, incomplete, or unobserved facts remain UNKNOWN.",
+    "The checks do not establish whole-upgrade compatibility, cluster state, effective configuration, runtime behavior, delivery, backup completion, or data safety.",
+    "The tool reads local data and does not execute supplied source, workloads, plugins, or commands.",
+    "There is no official prebuilt binary, hosted feed, startup refresh, or automatic knowledge admission."
+  ],
+  "knowledgeUpdates": {
+    "mode": "explicit operator-selected local update",
+    "metadataOnly": "Reviewed metadata may reuse existing canonical facts and admitted input formats.",
+    "cliBoundary": "New fact types, engine behavior, or native input formats may require a CLI release.",
+    "replay": "Historical local selections remain explicit and separately verifiable."
+  },
+  "contribution": {
+    "guide": "cli/docs/upstream-contributions.md",
+    "reviewRecord": "cli/docs/upstream-review-record-template.md",
+    "firstPartyLicense": "Apache-2.0",
+    "copyright": "Spas Atanasov",
+    "dco": "Required by CONTRIBUTING.md",
+    "policy": "Candidate evidence receives independent source, semantic, and maintainer review before publication."
+  },
+  "historicalPreparation": {
+    "status": "HISTORICAL_PRIVATE_PREPARATION_ONLY",
+    "note": "The identifiers below describe an earlier private preparation checkout. They are not the current checkout, current tree, current inventory, or publication commit.",
+    "baseCommit": "39a133388e86b8196ca134af838a903e212b8f13",
+    "parentCommit": "52c7c8253ae8ed3cc218f5cdecaa5a303359e3a0",
+    "tree": "2df74a3873aed31fea04ff92aaf5c8687dbad8d7"
+  },
+  "excludedFromSelfDescription": [
+    "This metadata file is not a source-record hash list.",
+    "No future commit, tree, archive digest, release tag, or binary digest is claimed here."
+  ]
+}

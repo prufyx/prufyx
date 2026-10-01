@@ -1,0 +1,154 @@
+{
+  "schema": "prufyx.io/upstream-evidence-packet/v1",
+  "submission": {
+    "kind": "existing_project_transition"
+  },
+  "project": {
+    "slug": "cilium",
+    "displayName": "Cilium",
+    "canonicalRepositoryURL": "https://github.com/cilium/cilium"
+  },
+  "transition": {
+    "currentVersion": "1.18.13",
+    "proposedVersion": "1.19.7"
+  },
+  "tagBindings": [
+    {
+      "version": "1.18.13",
+      "tag": "v1.18.13",
+      "commit": "782d4dca211cfd4cdf08dcd089a14bae38eaf25e",
+      "assertion": "DECLARED_UNVERIFIED"
+    },
+    {
+      "version": "1.19.7",
+      "tag": "v1.19.7",
+      "commit": "704b537b83f456fc199f48c2f1781beb0d679c87",
+      "assertion": "DECLARED_UNVERIFIED"
+    }
+  ],
+  "sources": [
+    {
+      "id": "cilium-cnp-target",
+      "sourceKind": "source_code",
+      "version": "1.19.7",
+      "commit": "704b537b83f456fc199f48c2f1781beb0d679c87",
+      "immutableURL": "https://github.com/cilium/cilium/blob/704b537b83f456fc199f48c2f1781beb0d679c87/pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnetworkpolicies.yaml",
+      "fileDigest": "sha256:1b1738a904de1152c43078e6a873440aea100f30f10ce5ed4e8622524c13fa43",
+      "spans": [
+        {
+          "startLine": 1072,
+          "endLine": 1077,
+          "excerpt": "                    toRequires:\n                      description: Deprecated.\n                      items:\n                        type: string\n                      maxItems: 0\n                      type: array"
+        },
+        {
+          "startLine": 1638,
+          "endLine": 1643,
+          "excerpt": "                    toRequires:\n                      description: Deprecated.\n                      items:\n                        type: string\n                      maxItems: 0\n                      type: array"
+        },
+        {
+          "startLine": 2190,
+          "endLine": 2195,
+          "excerpt": "                    fromRequires:\n                      description: Deprecated.\n                      items:\n                        type: string\n                      maxItems: 0\n                      type: array"
+        },
+        {
+          "startLine": 3112,
+          "endLine": 3117,
+          "excerpt": "                    fromRequires:\n                      description: Deprecated.\n                      items:\n                        type: string\n                      maxItems: 0\n                      type: array"
+        },
+        {
+          "startLine": 4360,
+          "endLine": 4365,
+          "excerpt": "                      toRequires:\n                        description: Deprecated.\n                        items:\n                          type: string\n                        maxItems: 0\n                        type: array"
+        },
+        {
+          "startLine": 4927,
+          "endLine": 4932,
+          "excerpt": "                      toRequires:\n                        description: Deprecated.\n                        items:\n                          type: string\n                        maxItems: 0\n                        type: array"
+        },
+        {
+          "startLine": 5479,
+          "endLine": 5484,
+          "excerpt": "                      fromRequires:\n                        description: Deprecated.\n                        items:\n                          type: string\n                        maxItems: 0\n                        type: array"
+        },
+        {
+          "startLine": 6402,
+          "endLine": 6407,
+          "excerpt": "                      fromRequires:\n                        description: Deprecated.\n                        items:\n                          type: string\n                        maxItems: 0\n                        type: array"
+        }
+      ]
+    },
+    {
+      "id": "cilium-ccnp-target",
+      "sourceKind": "source_code",
+      "version": "1.19.7",
+      "commit": "704b537b83f456fc199f48c2f1781beb0d679c87",
+      "immutableURL": "https://github.com/cilium/cilium/blob/704b537b83f456fc199f48c2f1781beb0d679c87/pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwidenetworkpolicies.yaml",
+      "fileDigest": "sha256:ae742b7ad66ddb4af752b6ae9787f2d3bc4597e3f29df80417967767f9bf2a79",
+      "spans": [
+        {
+          "startLine": 1069,
+          "endLine": 1074,
+          "excerpt": "                    toRequires:\n                      description: Deprecated.\n                      items:\n                        type: string\n                      maxItems: 0\n                      type: array"
+        },
+        {
+          "startLine": 1635,
+          "endLine": 1640,
+          "excerpt": "                    toRequires:\n                      description: Deprecated.\n                      items:\n                        type: string\n                      maxItems: 0\n                      type: array"
+        },
+        {
+          "startLine": 2187,
+          "endLine": 2192,
+          "excerpt": "                    fromRequires:\n                      description: Deprecated.\n                      items:\n                        type: string\n                      maxItems: 0\n                      type: array"
+        },
+        {
+          "startLine": 3109,
+          "endLine": 3114,
+          "excerpt": "                    fromRequires:\n                      description: Deprecated.\n                      items:\n                        type: string\n                      maxItems: 0\n                      type: array"
+        },
+        {
+          "startLine": 4357,
+          "endLine": 4362,
+          "excerpt": "                      toRequires:\n                        description: Deprecated.\n                        items:\n                          type: string\n                        maxItems: 0\n                        type: array"
+        },
+        {
+          "startLine": 4924,
+          "endLine": 4929,
+          "excerpt": "                      toRequires:\n                        description: Deprecated.\n                        items:\n                          type: string\n                        maxItems: 0\n                        type: array"
+        },
+        {
+          "startLine": 5476,
+          "endLine": 5481,
+          "excerpt": "                      fromRequires:\n                        description: Deprecated.\n                        items:\n                          type: string\n                        maxItems: 0\n                        type: array"
+        },
+        {
+          "startLine": 6399,
+          "endLine": 6404,
+          "excerpt": "                      fromRequires:\n                        description: Deprecated.\n                        items:\n                          type: string\n                        maxItems: 0\n                        type: array"
+        }
+      ]
+    }
+  ],
+  "declaration": {
+    "statement": "Candidate narrow target-schema evidence: at the declared Cilium v1.19.7 source commit, every represented fromRequires/toRequires array in both CiliumNetworkPolicy and CiliumClusterwideNetworkPolicy CRD schemas has maxItems: 0. This packet does not claim historical support removal or API-server admission, pruning, startup, traffic, or whole-upgrade behavior. The executable rule uses only the existing operator-declared component.cilium.nonempty_requires_fields fact; false is valid only for definite absence across the complete relevant set.",
+    "proofStatus": "DECLARED_NOT_VERIFIED"
+  },
+  "limitations": [
+    "The exact 1.18.13 to 1.19.7 tag bindings and retained source bytes require independent verification.",
+    "The evidence is limited to target CRD schema declarations for CNP and CCNP and says nothing about historical support removal.",
+    "The check uses manually declared facts and does not inspect files, clusters, API-server admission, or stored objects.",
+    "A true nonempty-array declaration yields only a scoped BLOCKED result; it is not a runtime or startup prediction.",
+    "False requires a definite complete-set absence declaration; missing, partial, empty, unsupported, or ambiguous input cannot be treated as false.",
+    "The result does not cover traffic policy behavior, conversion, pruning, deployment order, or whole-upgrade safety."
+  ],
+  "review": {
+    "state": "NOT_REVIEWED",
+    "claimedReviewer": {
+      "kind": "agent",
+      "identity": "cilium-target-crd-candidate"
+    }
+  },
+  "attribution": {
+    "licenseAssertion": "DECLARED_UNKNOWN",
+    "attribution": "Upstream Cilium source references; attribution and licensing remain independently unverified."
+  }
+}

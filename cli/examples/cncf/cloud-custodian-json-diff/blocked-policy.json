@@ -1,0 +1,11 @@
+{
+  "policies": [
+    {
+      "name": "access-key-review",
+      "resource": "aws.iam-access-key",
+      "filters": [
+        {"type": "json-diff", "selector": "previous"}
+      ]
+    }
+  ]
+}

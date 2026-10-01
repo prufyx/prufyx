@@ -1,0 +1,116 @@
+name: Propose a project or transition
+description: Submit public evidence for a catalogue identity or an exact project transition.
+title: "[project] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use public, immutable upstream references only. Do not include customer configuration, cluster data, credentials, Secrets, logs, source archives, or private excerpts.
+
+        This form starts a review conversation. It does not add a project, rule, or executable check.
+  - type: dropdown
+    id: support-kind
+    attributes:
+      label: Requested support kind
+      description: Choose the bounded proposal you want reviewed.
+      options:
+        - Existing project transition
+        - New catalogue identity proposal
+    validations:
+      required: true
+  - type: input
+    id: project-id
+    attributes:
+      label: Stable project ID
+      description: Lowercase stable slug used in the packet (for example, my-project).
+      placeholder: my-project
+    validations:
+      required: true
+  - type: input
+    id: display-name
+    attributes:
+      label: Project display name
+      placeholder: My Project
+    validations:
+      required: true
+  - type: input
+    id: repository
+    attributes:
+      label: Official repository
+      description: Use the canonical HTTPS GitHub repository URL.
+      placeholder: https://github.com/owner/repository
+    validations:
+      required: true
+  - type: input
+    id: current-version
+    attributes:
+      label: Current version
+      description: >-
+        Exact endpoint version for a transition; write N/A only in this intake form for a new identity proposal.
+        The scaffold omits --current-version and --proposed-version, and the packet uses transition: null.
+      placeholder: 1.2.3
+    validations:
+      required: true
+  - type: input
+    id: proposed-version
+    attributes:
+      label: Proposed version
+      description: >-
+        Exact endpoint version for a transition; write N/A only in this intake form for a new identity proposal.
+        The scaffold omits --current-version and --proposed-version, and the packet uses transition: null.
+      placeholder: 2.0.0
+    validations:
+      required: true
+  - type: textarea
+    id: pinned-evidence
+    attributes:
+      label: Pinned upstream evidence
+      description: List immutable blob URLs, 40-character commits, source versions, line spans, and full-file SHA-256 digests. One source per line.
+      placeholder: |
+        https://github.com/owner/repository/blob/<40-char-commit>/path/to/file
+        version: 2.0.0; lines: 120-128; sha256: <64-hex-digest>
+    validations:
+      required: true
+  - type: textarea
+    id: claim
+    attributes:
+      label: Bounded change and limitation
+      description: Describe one exact configuration or behavior change, what should block, and what remains UNKNOWN.
+      placeholder: |
+        Change:
+        Blocking condition:
+        Non-blocking condition:
+        UNKNOWN boundary:
+    validations:
+      required: true
+  - type: textarea
+    id: synthetic-check
+    attributes:
+      label: Synthetic configuration and test expectations
+      description: Describe sanitized local inputs and expected PASS, BLOCKED, or UNKNOWN outcomes. Do not paste real customer data.
+      placeholder: |
+        Input file shape:
+        Expected PASS:
+        Expected BLOCKED:
+        Expected UNKNOWN:
+    validations:
+      required: true
+  - type: textarea
+    id: attribution
+    attributes:
+      label: License and attribution disposition
+      description: State the source license/notice you reviewed and how the packet will retain only permitted metadata or short spans. This is a declaration for review, not approval.
+      placeholder: Source license or notice URL, attribution requirement, and proposed retention treatment.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safeguards
+    attributes:
+      label: Submission safeguards
+      options:
+        - label: I will keep customer configuration, credentials, Secrets, logs, source archives, and private excerpts out of this contribution.
+          required: true
+        - label: I understand that local validation produces a CANDIDATE/NOT_REVIEWED receipt and does not verify upstream evidence or publish a rule.
+          required: true

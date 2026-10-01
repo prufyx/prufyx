@@ -1,0 +1,43 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/linkerd/linkerd2",
+        "version": "2.13.7",
+        "facts": []
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/linkerd/linkerd2",
+        "version": "2.14.0",
+        "facts": [
+          {
+            "id": "component.linkerd.distribution",
+            "state": "declared",
+            "enumValue": "official_upstream"
+          },
+          {
+            "id": "component.linkerd.execution_surface",
+            "state": "declared",
+            "enumValue": "meshtls_authentication_crd"
+          },
+          {
+            "id": "component.linkerd.mtls_identity_selector_empty",
+            "state": "declared",
+            "boolValue": true
+          },
+          {
+            "id": "component.linkerd.schema_validation_required",
+            "state": "declared",
+            "boolValue": true
+          }
+        ]
+      }
+    ]
+  }
+}

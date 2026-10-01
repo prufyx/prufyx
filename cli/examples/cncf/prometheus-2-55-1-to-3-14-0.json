@@ -1,0 +1,21 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {"component": "pkg:github/prometheus/prometheus", "version": "2.55.1", "facts": []}
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/prometheus/prometheus",
+        "version": "3.14.0",
+        "facts": [
+          {"id": "component.prometheus.alertmanager_api_version_selection", "state": "declared", "enumValue": "v1"},
+          {"id": "component.prometheus.scrape_classic_histograms_key", "state": "declared", "enumValue": "scrape_classic_histograms"}
+        ]
+      }
+    ]
+  }
+}

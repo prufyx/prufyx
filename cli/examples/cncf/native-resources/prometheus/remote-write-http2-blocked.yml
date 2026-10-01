@@ -1,0 +1,5 @@
+global:
+  scrape_interval: 30s
+remote_write:
+  - name: primary
+    url: https://example.invalid/api/v1/write

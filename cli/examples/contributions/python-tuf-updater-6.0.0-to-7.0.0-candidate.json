@@ -1,0 +1,148 @@
+{
+  "schema": "prufyx.io/upstream-evidence-packet/v1",
+  "submission": {
+    "kind": "existing_project_transition"
+  },
+  "project": {
+    "slug": "the-update-framework-tuf",
+    "displayName": "The Update Framework (TUF)",
+    "canonicalRepositoryURL": "https://github.com/theupdateframework/python-tuf"
+  },
+  "transition": {
+    "currentVersion": "6.0.0",
+    "proposedVersion": "7.0.0"
+  },
+  "tagBindings": [
+    {
+      "version": "6.0.0",
+      "tag": "v6.0.0",
+      "commit": "bb6d459ce30137e061da9c347c2cc6cb5d9e5992",
+      "assertion": "DECLARED_UNVERIFIED"
+    },
+    {
+      "version": "7.0.0",
+      "tag": "v7.0.0",
+      "commit": "353bdb767db56fd4667c9bcf56b710d50fdc2ac0",
+      "assertion": "DECLARED_UNVERIFIED"
+    }
+  ],
+  "sources": [
+    {
+      "id": "python-tuf-v6-ngclient-export",
+      "sourceKind": "source_code",
+      "version": "6.0.0",
+      "commit": "bb6d459ce30137e061da9c347c2cc6cb5d9e5992",
+      "immutableURL": "https://github.com/theupdateframework/python-tuf/blob/bb6d459ce30137e061da9c347c2cc6cb5d9e5992/tuf/ngclient/__init__.py",
+      "fileDigest": "sha256:6fab1ae3c177de227d2b931daf30f0057ac33059f41a0366c985dcddd87763fd",
+      "spans": [
+        {
+          "startLine": 4,
+          "endLine": 18,
+          "excerpt": "\"\"\"TUF client public API.\"\"\"\n\nfrom tuf.api.metadata import TargetFile\nfrom tuf.ngclient.config import UpdaterConfig\nfrom tuf.ngclient.fetcher import FetcherInterface\nfrom tuf.ngclient.updater import Updater\nfrom tuf.ngclient.urllib3_fetcher import Urllib3Fetcher\n\n__all__ = [  # noqa: PLE0604\n    FetcherInterface.__name__,\n    Urllib3Fetcher.__name__,\n    TargetFile.__name__,\n    Updater.__name__,\n    UpdaterConfig.__name__,\n]"
+        }
+      ]
+    },
+    {
+      "id": "python-tuf-v6-updater-signature",
+      "sourceKind": "source_code",
+      "version": "6.0.0",
+      "commit": "bb6d459ce30137e061da9c347c2cc6cb5d9e5992",
+      "immutableURL": "https://github.com/theupdateframework/python-tuf/blob/bb6d459ce30137e061da9c347c2cc6cb5d9e5992/tuf/ngclient/updater.py",
+      "fileDigest": "sha256:9e8a1f7dc0df08cb3670c0e3135f8a23eb3eda01c679a44dbde351880059bd53",
+      "spans": [
+        {
+          "startLine": 80,
+          "endLine": 95,
+          "excerpt": "    Args:\n        metadata_dir: Local metadata directory. Directory must be\n            writable and it must contain a trusted root.json file\n        metadata_base_url: Base URL for all remote metadata downloads\n        target_dir: Local targets directory. Directory must be writable. It\n            will be used as the default target download directory by\n            ``find_cached_target()`` and ``download_target()``\n        target_base_url: ``Optional``; Default base URL for all remote target\n            downloads. Can be individually set in ``download_target()``\n        fetcher: ``Optional``; ``FetcherInterface`` implementation used to\n            download both metadata and targets. Default is ``Urllib3Fetcher``\n        config: ``Optional``; ``UpdaterConfig`` could be used to setup common\n            configuration options.\n        bootstrap: ``Optional``; initial root metadata. A bootstrap root should\n            always be provided. If it is not, the current root.json in the\n            metadata cache is used as the initial root."
+        },
+        {
+          "startLine": 102,
+          "endLine": 111,
+          "excerpt": "    def __init__(\n        self,\n        metadata_dir: str,\n        metadata_base_url: str,\n        target_dir: str | None = None,\n        target_base_url: str | None = None,\n        fetcher: FetcherInterface | None = None,\n        config: UpdaterConfig | None = None,\n        bootstrap: bytes | None = None,\n    ):"
+        }
+      ]
+    },
+    {
+      "id": "python-tuf-v7-ngclient-export",
+      "sourceKind": "source_code",
+      "version": "7.0.0",
+      "commit": "353bdb767db56fd4667c9bcf56b710d50fdc2ac0",
+      "immutableURL": "https://github.com/theupdateframework/python-tuf/blob/353bdb767db56fd4667c9bcf56b710d50fdc2ac0/tuf/ngclient/__init__.py",
+      "fileDigest": "sha256:6fab1ae3c177de227d2b931daf30f0057ac33059f41a0366c985dcddd87763fd",
+      "spans": [
+        {
+          "startLine": 4,
+          "endLine": 18,
+          "excerpt": "\"\"\"TUF client public API.\"\"\"\n\nfrom tuf.api.metadata import TargetFile\nfrom tuf.ngclient.config import UpdaterConfig\nfrom tuf.ngclient.fetcher import FetcherInterface\nfrom tuf.ngclient.updater import Updater\nfrom tuf.ngclient.urllib3_fetcher import Urllib3Fetcher\n\n__all__ = [  # noqa: PLE0604\n    FetcherInterface.__name__,\n    Urllib3Fetcher.__name__,\n    TargetFile.__name__,\n    Updater.__name__,\n    UpdaterConfig.__name__,\n]"
+        }
+      ]
+    },
+    {
+      "id": "python-tuf-v7-release-change",
+      "sourceKind": "changelog",
+      "version": "7.0.0",
+      "commit": "353bdb767db56fd4667c9bcf56b710d50fdc2ac0",
+      "immutableURL": "https://github.com/theupdateframework/python-tuf/blob/353bdb767db56fd4667c9bcf56b710d50fdc2ac0/docs/CHANGELOG.md",
+      "fileDigest": "sha256:a6f6e446a37d9ff1b61cf2b1b443421355ada34ab2fcc07954cebf22e8a405e9",
+      "spans": [
+        {
+          "startLine": 5,
+          "endLine": 20,
+          "excerpt": "## v7.0.0\n\nThis is a major release only because of a minor ngclient API tweak: there\nare no large functional changes.\n\n### Fixed\n\n* Fix [GHSA-qp9x-wp8f-qgjj](https://github.com/theupdateframework/python-tuf/security/advisories/GHSA-qp9x-wp8f-qgjj):\n  Incorrect delegation path matching on Windows\n* Various documentation fixes (#2812, #2922, #2923)\n\n### Changed\n\n* ngclient: `Updater()` now requires the named bootstrap argument to make it\n  clearer that providing one is strongly recommended: previous default\n  functionality can be reproduced with `bootstrap=None` (#2903)"
+        }
+      ]
+    },
+    {
+      "id": "python-tuf-v7-updater-signature",
+      "sourceKind": "source_code",
+      "version": "7.0.0",
+      "commit": "353bdb767db56fd4667c9bcf56b710d50fdc2ac0",
+      "immutableURL": "https://github.com/theupdateframework/python-tuf/blob/353bdb767db56fd4667c9bcf56b710d50fdc2ac0/tuf/ngclient/updater.py",
+      "fileDigest": "sha256:80d7d2c92c603eab40bff77260847a620e1e17d50dfe648c4db013c70dec4e49",
+      "spans": [
+        {
+          "startLine": 81,
+          "endLine": 94,
+          "excerpt": "    Args:\n        metadata_dir: Local metadata directory. Directory must be\n            writable. If ``bootstrap`` is ``None``, this directory must contain\n            a trusted root.json file.\n        metadata_base_url: Base URL for all remote metadata downloads\n        target_dir: Local targets directory. Directory must be writable. It\n            will be used as the default target download directory by\n            ``find_cached_target()`` and ``download_target()``\n        target_base_url: ``Optional``; Default base URL for all remote target\n            downloads. Can be individually set in ``download_target()``\n        fetcher: ``Optional``; ``FetcherInterface`` implementation used to\n            download both metadata and targets. Default is ``Urllib3Fetcher``\n        config: ``Optional``; ``UpdaterConfig`` could be used to setup common\n            configuration options."
+        },
+        {
+          "startLine": 95,
+          "endLine": 99,
+          "excerpt": "        bootstrap: Initial root metadata bytes. This argument is required.\n            Pass the embedded root metadata bytes for secure initialization.\n            Pass ``None`` only if you explicitly want to use the cached\n            root.json as the trust anchor (not recommended for most\n            deployments)."
+        },
+        {
+          "startLine": 106,
+          "endLine": 116,
+          "excerpt": "    def __init__(\n        self,\n        metadata_dir: str,\n        metadata_base_url: str,\n        target_dir: str | None = None,\n        target_base_url: str | None = None,\n        fetcher: FetcherInterface | None = None,\n        config: UpdaterConfig | None = None,\n        *,\n        bootstrap: bytes | None,\n    ):"
+        },
+        {
+          "startLine": 139,
+          "endLine": 147,
+          "excerpt": "        if bootstrap is None:\n            # if no root was provided, use the cached non-versioned root.json\n            bootstrap = self._load_local_metadata(Root.type)\n\n        # Load the initial root, make sure it's cached\n        self._trusted_set = TrustedMetadataSet(\n            bootstrap, self.config.envelope_type\n        )\n        self._persist_root(self._trusted_set.root.version, bootstrap)"
+        }
+      ]
+    }
+  ],
+  "declaration": {
+    "statement": "Candidate evidence for one exact python-tuf Updater 6.0.0 to 7.0.0 direct-call check: target 7.0.0 requires an explicit named bootstrap argument where 6.0.0 allowed omission.",
+    "proofStatus": "DECLARED_NOT_VERIFIED"
+  },
+  "limitations": [
+    "Tag bindings, source bytes, digests, exact spans, attribution and semantic scope require independent review.",
+    "The local adapter reads one private caller-supplied Python source file with a closed Go lexical parser; it does not authenticate the installed package, process or version provenance.",
+    "Only one conservatively bound direct tuf.ngclient.Updater call in either documented unaliased import form is admitted. Unsupported syntax, bindings and call shapes remain UNKNOWN.",
+    "PASS establishes only explicit bootstrap keyword presence. The value, root or cache trust, metadata, updates, network, runtime behavior and whole-upgrade safety remain UNKNOWN.",
+    "The checker does not import or execute supplied source, load bootstrap/root/cache data, access the network, or modify the input file."
+  ],
+  "review": {
+    "state": "NOT_REVIEWED",
+    "claimedReviewer": {
+      "kind": "agent",
+      "identity": "sol-tuf-updater-candidate"
+    }
+  },
+  "attribution": {
+    "licenseAssertion": "DECLARED_UNKNOWN",
+    "attribution": "Bounded excerpts and immutable references to upstream python-tuf source and changelog; attribution and licensing require independent review."
+  }
+}

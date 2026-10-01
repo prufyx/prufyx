@@ -1,0 +1,411 @@
+{
+  "apiVersion": "prufyx.io/configuration-adapters/v1alpha1",
+  "kind": "ComponentConfigurationAdapterRegistry",
+  "metadata": {
+    "schemaVersion": "1.2.0",
+    "registryVersion": "v3",
+    "policy": "public_identity_exact_match_non_secret_predicates_source_bound_declared_context"
+  },
+  "adapters": [
+    {
+      "componentId": "pkg:oci/prometheus/prometheus",
+      "identities": [
+        "prom/prometheus"
+      ],
+      "workloadKinds": [
+        "Deployment",
+        "StatefulSet"
+      ],
+      "predicates": [
+        {
+          "id": "component.prometheus.agent_mode",
+          "valueKind": "versionedAgentMode",
+          "flags": [
+            "--enable-feature",
+            "--agent"
+          ]
+        },
+        {
+          "id": "component.prometheus.image_digest",
+          "valueKind": "publicImageDigest",
+          "flags": []
+        }
+      ],
+      "declaredRole": "server",
+      "roleEvidenceClass": "declared_container_context_v1",
+      "entrypointContract": {
+        "imageEntrypoint": [
+          "/bin/prometheus"
+        ],
+        "acceptedExplicitCommands": [
+          [
+            "/bin/prometheus"
+          ]
+        ],
+        "imageBindings": [
+          {
+            "version": "2.55.1",
+            "referenceClass": "tag_and_platform_digest",
+            "indexDigest": "sha256:2659f4c2ebb718e7695cb9b25ffa7d6be64db013daba13e05c875451cf51b0d3",
+            "platformDigests": [
+              "sha256:f4def6b3b61109a6eeea59945d578bb7e926c36cb0e036a23e3ceb8b6de024ad"
+            ],
+            "defaultPredicateValues": {
+              "component.prometheus.agent_mode": false
+            }
+          },
+          {
+            "version": "3.1.0",
+            "referenceClass": "tag_and_platform_digest",
+            "indexDigest": "sha256:6559acbd5d770b15bb3c954629ce190ac3cbbdb2b7f1c30f0385c4e05104e218",
+            "platformDigests": [
+              "sha256:0ea5254abf85f87901e8cfbd18fd243c59162c338ce0acd86aa2b0153d83dce2"
+            ],
+            "defaultPredicateValues": {
+              "component.prometheus.agent_mode": false
+            }
+          }
+        ],
+        "sourceBindings": [
+          {
+            "sourceId": "prometheus-v2.55.1-image-entrypoint-defaults",
+            "url": "https://raw.githubusercontent.com/prometheus/prometheus/6d7569113f1ca814f1e149f74176656540043b8d/Dockerfile",
+            "immutableCommit": "6d7569113f1ca814f1e149f74176656540043b8d",
+            "contentDigest": "sha256:d6e5e6779277a2ffc7d6868ad4f3156e60a37a4ef9efd7cc2e4cd7d76a362733",
+            "spans": [
+              {
+                "startLine": 24,
+                "endLine": 28,
+                "textDigest": "sha256:88ea2175c3a68c09c28803b0aa342676f127ec1abbcfd608e127a9772d20c2e9"
+              }
+            ]
+          },
+          {
+            "sourceId": "prometheus-v2.55.1-agent-mode",
+            "url": "https://raw.githubusercontent.com/prometheus/prometheus/6d7569113f1ca814f1e149f74176656540043b8d/cmd/prometheus/main.go",
+            "immutableCommit": "6d7569113f1ca814f1e149f74176656540043b8d",
+            "contentDigest": "sha256:0fef0c25e6299a84def90030f742967797658d6ae2842ce3a616550ade756d28",
+            "spans": [
+              {
+                "startLine": 176,
+                "endLine": 208,
+                "textDigest": "sha256:458a75d3a9b60010732a6070ce1728e04db36f40313eade5c4b169ac9e87a541"
+              },
+              {
+                "startLine": 201,
+                "endLine": 208,
+                "textDigest": "sha256:cc11b9923ea8d565aa5548609214f5da2048502c1b401555491cf11ece680fa3"
+              },
+              {
+                "startLine": 495,
+                "endLine": 496,
+                "textDigest": "sha256:e2a64f7ce7830bd0f261083229f47e5d18d81470544658f4ca34180057bb7c91"
+              }
+            ]
+          },
+          {
+            "sourceId": "prometheus-v3.1.0-image-entrypoint-defaults",
+            "url": "https://raw.githubusercontent.com/prometheus/prometheus/7086161a93b262aa0949dbf2aba15a5a7b13e0a3/Dockerfile",
+            "immutableCommit": "7086161a93b262aa0949dbf2aba15a5a7b13e0a3",
+            "contentDigest": "sha256:0637e42c34c8815db93c967c6a9817eb1efc1e15f6a2ffb4161f5086a5ef69f3",
+            "spans": [
+              {
+                "startLine": 22,
+                "endLine": 25,
+                "textDigest": "sha256:3262760feb636fb7e8f70308e2249d28a96489cf07584d4d99d006b9e8dcff26"
+              }
+            ]
+          },
+          {
+            "sourceId": "prometheus-v3.1.0-agent-mode",
+            "url": "https://raw.githubusercontent.com/prometheus/prometheus/7086161a93b262aa0949dbf2aba15a5a7b13e0a3/cmd/prometheus/main.go",
+            "immutableCommit": "7086161a93b262aa0949dbf2aba15a5a7b13e0a3",
+            "contentDigest": "sha256:be22f139cb76427f545266b1cc2cfab7aab513a61e8160f2d9df8476c5b581b2",
+            "spans": [
+              {
+                "startLine": 217,
+                "endLine": 284,
+                "textDigest": "sha256:ea8d034b5dd85e863a7360fdcaa3d0107c346ef82bd62097c45f99df0b1b95b7"
+              },
+              {
+                "startLine": 518,
+                "endLine": 521,
+                "textDigest": "sha256:8a4689be7c01a4a660491faf37a1abb42a2998bc2921c164dd56bb017f5efcf5"
+              },
+              {
+                "startLine": 554,
+                "endLine": 561,
+                "textDigest": "sha256:4da3cfca5fa19bc9be9f4f7ea583a37b84486f769a3bf82f2779247336606eac"
+              },
+              {
+                "startLine": 678,
+                "endLine": 680,
+                "textDigest": "sha256:7ba2b5e2bab59b4acd8535961e1c26a852df582d88cc7c6f7d78bd6a4e7fff43"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "componentId": "pkg:oci/argoproj/argo-workflows",
+      "identities": [
+        "docker.io/argoproj/workflow-controller",
+        "argoproj/workflow-controller",
+        "quay.io/argoproj/workflow-controller"
+      ],
+      "workloadKinds": [
+        "Deployment"
+      ],
+      "declaredRole": "workflow-controller",
+      "roleEvidenceClass": "declared_container_context_v1",
+      "predicates": [
+        {
+          "id": "component.argo_workflows.namespaced_mode",
+          "valueKind": "boolean",
+          "flags": [
+            "--namespaced"
+          ]
+        },
+        {
+          "id": "component.argo_workflows.managed_namespace_configured",
+          "valueKind": "presence",
+          "flags": [
+            "--managed-namespace"
+          ]
+        }
+      ],
+      "entrypointContract": {
+        "imageEntrypoint": [
+          "workflow-controller"
+        ],
+        "acceptedExplicitCommands": [
+          [
+            "workflow-controller"
+          ]
+        ],
+        "sourceBindings": [
+          {
+            "sourceId": "argo-workflows-v4.1.2-image-entrypoint",
+            "url": "https://raw.githubusercontent.com/argoproj/argo-workflows/16a52d67daf2f4a8a76fa8bec02a76a46aa46257/Dockerfile",
+            "immutableCommit": "16a52d67daf2f4a8a76fa8bec02a76a46aa46257",
+            "contentDigest": "sha256:e60b4b56d2b610beb39a492e125927688a63d71fee3b5f920653c500330874f8",
+            "spans": [
+              {
+                "startLine": 118,
+                "endLine": 126,
+                "textDigest": "sha256:c2bf8b615bc8f6a8587f172470b6279644018ea062b7d1ffe0ce64ffefa2b9be"
+              }
+            ]
+          },
+          {
+            "sourceId": "argo-workflows-v4.1.2-declared-command",
+            "url": "https://raw.githubusercontent.com/argoproj/argo-workflows/16a52d67daf2f4a8a76fa8bec02a76a46aa46257/manifests/base/workflow-controller/workflow-controller-deployment.yaml",
+            "immutableCommit": "16a52d67daf2f4a8a76fa8bec02a76a46aa46257",
+            "contentDigest": "sha256:851257565170f2f0f3e0140dfe45bbd546e83b4ae95a5dad6751d2cf6c099ee7",
+            "spans": [
+              {
+                "startLine": 26,
+                "endLine": 28,
+                "textDigest": "sha256:46db62d7f71f9f58520b94d54110daf6ee183f372342ad621bdf67e0875b2cc8"
+              }
+            ]
+          },
+          {
+            "sourceId": "argo-workflows-v4.1.2-managed-namespace",
+            "url": "https://raw.githubusercontent.com/argoproj/argo-workflows/16a52d67daf2f4a8a76fa8bec02a76a46aa46257/docs/managed-namespace.md",
+            "immutableCommit": "16a52d67daf2f4a8a76fa8bec02a76a46aa46257",
+            "contentDigest": "sha256:a8aa00d2c1f908e54b74c21bcd2f61d44f1cb31c6e96f9e59db02dafdac49465",
+            "spans": [
+              {
+                "startLine": 8,
+                "endLine": 10,
+                "textDigest": "sha256:f7caffb2fa2cfacc5ac026d7e2c8c926f4910d90c4159e741ab6e865875d0ee4"
+              }
+            ]
+          },
+          {
+            "sourceId": "argo-workflows-v4.1.2-managed-namespace-inline",
+            "url": "https://raw.githubusercontent.com/argoproj/argo-workflows/16a52d67daf2f4a8a76fa8bec02a76a46aa46257/docs/environment-variables.md",
+            "immutableCommit": "16a52d67daf2f4a8a76fa8bec02a76a46aa46257",
+            "contentDigest": "sha256:5101a449f09f9573d192f7a9c05ef6889c8add5962606826d7addac7377c975b",
+            "spans": [
+              {
+                "startLine": 65,
+                "endLine": 70,
+                "textDigest": "sha256:1efef6b37a1245e0619857e36a56547b00c71a46c690347861329b6fec86fade"
+              }
+            ]
+          }
+        ],
+        "imageBindings": [
+          {
+            "version": "4.1.2",
+            "referenceClass": "tag"
+          }
+        ]
+      }
+    },
+    {
+      "componentId": "pkg:oci/argoproj/argo-cd",
+      "identities": [
+        "docker.io/argoproj/argocd",
+        "argoproj/argocd",
+        "quay.io/argoproj/argocd"
+      ],
+      "workloadKinds": [
+        "Deployment",
+        "StatefulSet"
+      ],
+      "predicates": [
+        {
+          "id": "component.argo_cd.insecure_server_enabled",
+          "valueKind": "boolean",
+          "flags": [
+            "--insecure"
+          ]
+        },
+        {
+          "id": "component.argo_cd.repo_server_configured",
+          "valueKind": "presence",
+          "flags": [
+            "--repo-server"
+          ]
+        }
+      ]
+    },
+    {
+      "componentId": "pkg:oci/cert-manager/cert-manager",
+      "identities": [
+        "docker.io/jetstack/cert-manager-controller",
+        "jetstack/cert-manager-controller",
+        "quay.io/jetstack/cert-manager-controller",
+        "docker.io/jetstack/cert-manager-webhook",
+        "jetstack/cert-manager-webhook",
+        "quay.io/jetstack/cert-manager-webhook",
+        "docker.io/jetstack/cert-manager-cainjector",
+        "jetstack/cert-manager-cainjector",
+        "quay.io/jetstack/cert-manager-cainjector",
+        "docker.io/jetstack/cert-manager-startupapicheck",
+        "jetstack/cert-manager-startupapicheck",
+        "quay.io/jetstack/cert-manager-startupapicheck"
+      ],
+      "workloadKinds": [
+        "Deployment"
+      ],
+      "predicates": [
+        {
+          "id": "component.cert_manager.owner_ref_enabled",
+          "valueKind": "boolean",
+          "flags": [
+            "--enable-certificate-owner-ref"
+          ]
+        },
+        {
+          "id": "component.cert_manager.dns01_recursive_nameservers_configured",
+          "valueKind": "presence",
+          "flags": [
+            "--dns01-recursive-nameservers"
+          ]
+        },
+        {
+          "id": "component.cert_manager.feature_gate_acme_use_ari",
+          "valueKind": "featureGate",
+          "featureGate": "ACMEUseARI",
+          "flags": [
+            "--feature-gates"
+          ]
+        },
+        {
+          "id": "component.cert_manager.feature_gate_experimental_gateway_api_support",
+          "valueKind": "featureGate",
+          "featureGate": "ExperimentalGatewayAPISupport",
+          "flags": [
+            "--feature-gates"
+          ]
+        },
+        {
+          "id": "component.cert_manager.feature_gate_listener_sets",
+          "valueKind": "featureGate",
+          "featureGate": "ListenerSets",
+          "flags": [
+            "--feature-gates"
+          ]
+        },
+        {
+          "id": "component.cert_manager.feature_gate_server_side_apply",
+          "valueKind": "featureGate",
+          "featureGate": "ServerSideApply",
+          "flags": [
+            "--feature-gates"
+          ]
+        },
+        {
+          "id": "component.cert_manager.feature_gate_ca_injector_merging",
+          "valueKind": "featureGate",
+          "featureGate": "CAInjectorMerging",
+          "flags": [
+            "--feature-gates"
+          ]
+        },
+        {
+          "id": "component.cert_manager.feature_gate_other_names",
+          "valueKind": "featureGate",
+          "featureGate": "OtherNames",
+          "flags": [
+            "--feature-gates"
+          ]
+        },
+        {
+          "id": "component.cert_manager.feature_gate_certificate_request_controllers",
+          "valueKind": "featureGate",
+          "featureGate": "ExperimentalCertificateSigningRequestControllers",
+          "flags": [
+            "--feature-gates"
+          ]
+        }
+      ]
+    },
+    {
+      "componentId": "pkg:oci/cilium/cilium",
+      "identities": [
+        "docker.io/cilium/cilium",
+        "cilium/cilium",
+        "quay.io/cilium/cilium"
+      ],
+      "workloadKinds": [
+        "DaemonSet"
+      ],
+      "predicates": [
+        {
+          "id": "component.cilium.ipv4_enabled",
+          "valueKind": "boolean",
+          "flags": [
+            "--enable-ipv4"
+          ]
+        },
+        {
+          "id": "component.cilium.ipv6_enabled",
+          "valueKind": "boolean",
+          "flags": [
+            "--enable-ipv6"
+          ]
+        },
+        {
+          "id": "component.cilium.k8s_network_policy_enabled",
+          "valueKind": "boolean",
+          "flags": [
+            "--enable-k8s-networkpolicy"
+          ]
+        },
+        {
+          "id": "component.cilium.bpf_masquerade_enabled",
+          "valueKind": "boolean",
+          "flags": [
+            "--enable-bpf-masquerade"
+          ]
+        }
+      ]
+    }
+  ]
+}

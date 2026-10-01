@@ -1,0 +1,33 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/kedacore/keda",
+        "version": "2.16.0",
+        "facts": []
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/kedacore/keda",
+        "version": "2.17.0",
+        "facts": [
+          {
+            "id": "component.keda.external_scaler_present",
+            "state": "declared",
+            "boolValue": true
+          },
+          {
+            "id": "component.keda.legacy_tls_cert_file_required_for_transport",
+            "state": "declared",
+            "boolValue": true
+          }
+        ]
+      }
+    ]
+  }
+}

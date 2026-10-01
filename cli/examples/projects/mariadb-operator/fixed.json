@@ -1,0 +1,8 @@
+{
+  "apiVersion": "k8s.mariadb.com/v1alpha1",
+  "kind": "MariaDB",
+  "spec": {
+    "galera": {"enabled": true},
+    "updateStrategy": {"autoUpdateDataPlane": true}
+  }
+}

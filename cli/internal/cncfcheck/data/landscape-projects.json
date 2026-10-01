@@ -1,0 +1,1538 @@
+{
+  "schema": "prufyx.io/cncf-landscape/v1",
+  "revision": "c1ef02752bbb9bbff9c405541ebed483e736f9c5",
+  "sourceURL": "https://github.com/cncf/landscape/blob/c1ef02752bbb9bbff9c405541ebed483e736f9c5/landscape.yml",
+  "landscapeFileDigest": "sha256:8ee4c10af7d58ddda752ff91c20bf6a5f328bfa5aa288f93801d0ca9d2b0c0ef",
+  "projects": [
+    {
+      "slug": "aeraki-mesh",
+      "name": "Aeraki Mesh",
+      "repositoryURL": "https://github.com/aeraki-mesh/aeraki",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "agones",
+      "name": "Agones",
+      "repositoryURL": "https://github.com/agones-dev/agones",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "akri",
+      "name": "Akri",
+      "repositoryURL": "https://github.com/project-akri/akri",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "antrea",
+      "name": "Antrea",
+      "repositoryURL": "https://github.com/antrea-io/antrea",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "apicurio-registry",
+      "name": "Apicurio Registry",
+      "repositoryURL": "https://github.com/Apicurio/apicurio-registry",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "argo-cd",
+      "name": "Argo",
+      "repositoryURL": "https://github.com/argoproj/argo-cd",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "armada",
+      "name": "Armada",
+      "repositoryURL": "https://github.com/armadaproject/armada",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "artifact-hub",
+      "name": "Artifact Hub",
+      "repositoryURL": "https://github.com/artifacthub/hub",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "athenz",
+      "name": "Athenz",
+      "repositoryURL": "https://github.com/AthenZ/athenz",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "atlantis",
+      "name": "Atlantis",
+      "repositoryURL": "https://github.com/runatlantis/atlantis",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "backstage",
+      "name": "Backstage",
+      "repositoryURL": "https://github.com/backstage/backstage",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "bank-vaults",
+      "name": "Bank-Vaults",
+      "repositoryURL": "https://github.com/bank-vaults/bank-vaults",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "bfe",
+      "name": "BFE",
+      "repositoryURL": "https://github.com/bfenetworks/bfe",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "bootc",
+      "name": "bootc",
+      "repositoryURL": "https://github.com/bootc-dev/bootc",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "bpfman",
+      "name": "bpfman",
+      "repositoryURL": "https://github.com/bpfman/bpfman",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "brigade",
+      "name": "Brigade",
+      "repositoryURL": "https://github.com/brigadecore/brigade",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "buildpacks",
+      "name": "Buildpacks",
+      "repositoryURL": "https://github.com/buildpacks/pack",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "cadence-workflow",
+      "name": "Cadence Workflow",
+      "repositoryURL": "https://github.com/cadence-workflow/cadence",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "capsule",
+      "name": "Capsule",
+      "repositoryURL": "https://github.com/projectcapsule/capsule",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "carina",
+      "name": "Carina",
+      "repositoryURL": "https://github.com/carina-io/carina",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "cartography",
+      "name": "Cartography",
+      "repositoryURL": "https://github.com/cartography-cncf/cartography",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "carvel",
+      "name": "Carvel",
+      "repositoryURL": "https://github.com/carvel-dev/ytt",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "cdk-for-kubernetes-cdk8s",
+      "name": "CDK for Kubernetes (CDK8s)",
+      "repositoryURL": "https://github.com/cdk8s-team/cdk8s",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "cedar",
+      "name": "Cedar",
+      "repositoryURL": "https://github.com/cedar-policy/cedar",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "cert-manager",
+      "name": "cert-manager",
+      "repositoryURL": "https://github.com/cert-manager/cert-manager",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "chaos-mesh",
+      "name": "Chaos Mesh",
+      "repositoryURL": "https://github.com/chaos-mesh/chaos-mesh",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "chaosblade",
+      "name": "Chaosblade",
+      "repositoryURL": "https://github.com/chaosblade-io/chaosblade",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "cilium",
+      "name": "Cilium",
+      "repositoryURL": "https://github.com/cilium/cilium",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "cloud-custodian",
+      "name": "Cloud Custodian",
+      "repositoryURL": "https://github.com/cloud-custodian/cloud-custodian",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "cloudevents",
+      "name": "CloudEvents",
+      "repositoryURL": "https://github.com/cloudevents/spec",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "cloudnativepg",
+      "name": "CloudNativePG",
+      "repositoryURL": "https://github.com/cloudnative-pg/cloudnative-pg",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "clusternet",
+      "name": "Clusternet",
+      "repositoryURL": "https://github.com/clusternet/clusternet",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "clusterpedia",
+      "name": "Clusterpedia",
+      "repositoryURL": "https://github.com/clusterpedia-io/clusterpedia",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "cni-genie",
+      "name": "CNI-Genie",
+      "repositoryURL": "https://github.com/cni-genie/CNI-Genie",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "cohdi",
+      "name": "CoHDI",
+      "repositoryURL": "https://github.com/CoHDI",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "composefs",
+      "name": "composefs",
+      "repositoryURL": "https://github.com/containers/composefs",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "confidential-containers",
+      "name": "Confidential Containers",
+      "repositoryURL": "https://github.com/confidential-containers/confidential-containers",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "connect-rpc",
+      "name": "Connect RPC",
+      "repositoryURL": "https://github.com/connectrpc/connect-go",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "container-network-interface-cni",
+      "name": "Container Network Interface (CNI)",
+      "repositoryURL": "https://github.com/containernetworking/cni",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "container2wasm",
+      "name": "container2wasm",
+      "repositoryURL": "https://github.com/container2wasm/container2wasm",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "containerd",
+      "name": "containerd",
+      "repositoryURL": "https://github.com/containerd/containerd",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "containerssh",
+      "name": "ContainerSSH",
+      "repositoryURL": "https://github.com/containerssh/containerssh",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "contour",
+      "name": "Contour",
+      "repositoryURL": "https://github.com/projectcontour/contour",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "copa",
+      "name": "Copa",
+      "repositoryURL": "https://github.com/project-copacetic/copacetic",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "coredns",
+      "name": "CoreDNS",
+      "repositoryURL": "https://github.com/coredns/coredns",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "cortex",
+      "name": "Cortex",
+      "repositoryURL": "https://github.com/cortexproject/cortex",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "cozystack",
+      "name": "Cozystack",
+      "repositoryURL": "https://github.com/cozystack/cozystack",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "cri-o",
+      "name": "CRI-O",
+      "repositoryURL": "https://github.com/cri-o/cri-o",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "crossplane",
+      "name": "Crossplane",
+      "repositoryURL": "https://github.com/crossplane/crossplane",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "cubefs",
+      "name": "CubeFS",
+      "repositoryURL": "https://github.com/cubeFS/cubefs",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "curiefense",
+      "name": "Curiefense",
+      "repositoryURL": null,
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "curve",
+      "name": "Curve",
+      "repositoryURL": "https://github.com/opencurve/curve",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "curvine",
+      "name": "Curvine",
+      "repositoryURL": "https://github.com/CurvineIO/curvine",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "dalec",
+      "name": "Dalec",
+      "repositoryURL": "https://github.com/project-dalec/dalec",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "dapr",
+      "name": "Dapr",
+      "repositoryURL": "https://github.com/dapr/dapr",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "devfile",
+      "name": "Devfile",
+      "repositoryURL": "https://github.com/devfile/api",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "devspace",
+      "name": "DevSpace",
+      "repositoryURL": "https://github.com/devspace-sh/devspace",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "devstream",
+      "name": "DevStream",
+      "repositoryURL": "https://github.com/devstream-io/devstream",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "dex",
+      "name": "Dex",
+      "repositoryURL": "https://github.com/dexidp/dex",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "distribution",
+      "name": "Distribution",
+      "repositoryURL": "https://github.com/distribution/distribution",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "dragonfly",
+      "name": "Dragonfly",
+      "repositoryURL": "https://github.com/dragonflyoss/dragonfly",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "drasi",
+      "name": "Drasi",
+      "repositoryURL": "https://github.com/drasi-project/drasi-platform",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "easegress",
+      "name": "Easegress",
+      "repositoryURL": "https://github.com/easegress-io/easegress",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "emissary-ingress",
+      "name": "Emissary-Ingress",
+      "repositoryURL": "https://github.com/emissary-ingress/emissary",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "envoy",
+      "name": "Envoy",
+      "repositoryURL": "https://github.com/envoyproxy/envoy",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "eraser",
+      "name": "Eraser",
+      "repositoryURL": "https://github.com/eraser-dev/eraser",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "etcd",
+      "name": "etcd",
+      "repositoryURL": "https://github.com/etcd-io/etcd",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "external-secrets",
+      "name": "external-secrets",
+      "repositoryURL": "https://github.com/external-secrets/external-secrets",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "fabedge",
+      "name": "FabEdge",
+      "repositoryURL": "https://github.com/FabEdge/fabedge",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "falco",
+      "name": "Falco",
+      "repositoryURL": "https://github.com/falcosecurity/falco",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "flatcar-container-linux",
+      "name": "Flatcar Container Linux",
+      "repositoryURL": "https://github.com/flatcar/Flatcar",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "fluentd",
+      "name": "Fluentd",
+      "repositoryURL": "https://github.com/fluent/fluentd",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "fluid",
+      "name": "Fluid",
+      "repositoryURL": "https://github.com/fluid-cloudnative/fluid",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "flux",
+      "name": "Flux",
+      "repositoryURL": "https://github.com/fluxcd/flux2",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "fonio",
+      "name": "Fonio",
+      "repositoryURL": "https://github.com/foniod/foniod",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "grpc",
+      "name": "gRPC",
+      "repositoryURL": "https://github.com/grpc/grpc",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "hami",
+      "name": "HAMi",
+      "repositoryURL": "https://github.com/Project-HAMi/HAMi",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "harbor",
+      "name": "Harbor",
+      "repositoryURL": "https://github.com/goharbor/harbor",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "headlamp",
+      "name": "Headlamp",
+      "repositoryURL": "https://github.com/kubernetes-sigs/headlamp",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "helm",
+      "name": "Helm",
+      "repositoryURL": "https://github.com/helm/helm",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "hexa",
+      "name": "Hexa",
+      "repositoryURL": "https://github.com/hexa-org/policy-orchestrator",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "higress",
+      "name": "Higress",
+      "repositoryURL": "https://github.com/higress-group/higress",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "holmesgpt",
+      "name": "HolmesGPT",
+      "repositoryURL": "https://github.com/HolmesGPT/holmesgpt",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "hwameistor",
+      "name": "HwameiStor",
+      "repositoryURL": "https://github.com/hwameistor/hwameistor",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "hyperlight",
+      "name": "Hyperlight",
+      "repositoryURL": "https://github.com/hyperlight-dev/hyperlight",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "in-toto",
+      "name": "in-toto",
+      "repositoryURL": "https://github.com/in-toto/in-toto",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "inclavare-containers",
+      "name": "Inclavare Containers",
+      "repositoryURL": "https://github.com/inclavare-containers/inclavare-containers",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "inspektor-gadget",
+      "name": "Inspektor Gadget",
+      "repositoryURL": "https://github.com/inspektor-gadget/inspektor-gadget",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "interlink",
+      "name": "Interlink",
+      "repositoryURL": "https://github.com/interlink-hq/interLink",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "istio",
+      "name": "Istio",
+      "repositoryURL": "https://github.com/istio/istio",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "jaeger",
+      "name": "Jaeger",
+      "repositoryURL": "https://github.com/jaegertracing/jaeger",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "k0s",
+      "name": "k0s",
+      "repositoryURL": "https://github.com/k0sproject/k0s",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "k3s",
+      "name": "k3s",
+      "repositoryURL": "https://github.com/k3s-io/k3s",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "k8gb",
+      "name": "k8gb",
+      "repositoryURL": "https://github.com/k8gb-io/k8gb",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "k8sgpt",
+      "name": "K8sGPT",
+      "repositoryURL": "https://github.com/k8sgpt-ai/k8sgpt",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "k8up",
+      "name": "K8up",
+      "repositoryURL": "https://github.com/k8up-io/k8up",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kagent",
+      "name": "kagent",
+      "repositoryURL": "https://github.com/kagent-dev/kagent",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kai-scheduler",
+      "name": "KAI Scheduler",
+      "repositoryURL": "https://github.com/kai-scheduler/KAI-Scheduler",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kairos",
+      "name": "Kairos",
+      "repositoryURL": "https://github.com/kairos-io/kairos",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kaito",
+      "name": "KAITO",
+      "repositoryURL": "https://github.com/kaito-project/kaito",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kanister",
+      "name": "Kanister",
+      "repositoryURL": "https://github.com/kanisterio/kanister",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "karmada",
+      "name": "Karmada",
+      "repositoryURL": "https://github.com/karmada-io/karmada",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "kbind",
+      "name": "kbind",
+      "repositoryURL": "https://github.com/kbind-dev/kbind",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kcl",
+      "name": "KCL",
+      "repositoryURL": "https://github.com/kcl-lang/kcl",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kcp",
+      "name": "kcp",
+      "repositoryURL": "https://github.com/kcp-dev/kcp",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "keda",
+      "name": "KEDA",
+      "repositoryURL": "https://github.com/kedacore/keda",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "kepler",
+      "name": "Kepler",
+      "repositoryURL": "https://github.com/sustainable-computing-io/kepler",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "keptn",
+      "name": "Keptn",
+      "repositoryURL": "https://github.com/keptn/lifecycle-toolkit",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "keycloak",
+      "name": "Keycloak",
+      "repositoryURL": "https://github.com/keycloak/keycloak",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "keylime",
+      "name": "Keylime",
+      "repositoryURL": "https://github.com/keylime/keylime",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kgateway",
+      "name": "Kgateway",
+      "repositoryURL": "https://github.com/kgateway-dev/kgateway",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kitops",
+      "name": "KitOps",
+      "repositoryURL": "https://github.com/kitops-ml/kitops",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kmesh",
+      "name": "Kmesh",
+      "repositoryURL": "https://github.com/kmesh-net/kmesh",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "knative",
+      "name": "Knative",
+      "repositoryURL": "https://github.com/knative/serving",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "ko",
+      "name": "ko",
+      "repositoryURL": "https://github.com/ko-build/ko",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "konveyor",
+      "name": "Konveyor",
+      "repositoryURL": "https://github.com/konveyor/operator",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "koordinator",
+      "name": "Koordinator",
+      "repositoryURL": "https://github.com/koordinator-sh/koordinator",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kpt",
+      "name": "kpt",
+      "repositoryURL": "https://github.com/kptdev/kpt",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "krator",
+      "name": "Krator",
+      "repositoryURL": "https://github.com/krator-rs/krator",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "krkn",
+      "name": "Krkn",
+      "repositoryURL": "https://github.com/krkn-chaos/krkn",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "krustlet",
+      "name": "Krustlet",
+      "repositoryURL": "https://github.com/krustlet/krustlet",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "kserve",
+      "name": "KServe",
+      "repositoryURL": "https://github.com/kserve/kserve",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "kuadrant",
+      "name": "Kuadrant",
+      "repositoryURL": "https://github.com/kuadrant/kuadrant-operator",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kuasar",
+      "name": "Kuasar",
+      "repositoryURL": "https://github.com/kuasar-io/kuasar",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kube-burner",
+      "name": "Kube-burner",
+      "repositoryURL": "https://github.com/kube-burner/kube-burner",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kube-ovn",
+      "name": "Kube-OVN",
+      "repositoryURL": "https://github.com/kubeovn/kube-ovn",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kube-rs",
+      "name": "kube-rs",
+      "repositoryURL": "https://github.com/kube-rs/kube",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kube-vip",
+      "name": "kube-vip",
+      "repositoryURL": "https://github.com/kube-vip/kube-vip",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kubean",
+      "name": "Kubean",
+      "repositoryURL": "https://github.com/kubean-io/kubean",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kubearmor",
+      "name": "KubeArmor",
+      "repositoryURL": "https://github.com/kubearmor/kubearmor",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kubeclipper",
+      "name": "KubeClipper",
+      "repositoryURL": "https://github.com/kubeclipper/kubeclipper",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kubedl",
+      "name": "KubeDL",
+      "repositoryURL": "https://github.com/kubedl-io/kubedl",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "kubeedge",
+      "name": "KubeEdge",
+      "repositoryURL": "https://github.com/kubeedge/kubeedge",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "kubeelasti",
+      "name": "KubeElasti",
+      "repositoryURL": "https://github.com/KubeElasti/KubeElasti",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kubefleet",
+      "name": "KubeFleet",
+      "repositoryURL": "https://github.com/kubefleet-dev/kubefleet",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kubeflow",
+      "name": "Kubeflow",
+      "repositoryURL": "https://github.com/kubeflow/kubeflow",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "kuberhealthy",
+      "name": "Kuberhealthy",
+      "repositoryURL": "https://github.com/kuberhealthy/kuberhealthy",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kubernetes",
+      "name": "Kubernetes",
+      "repositoryURL": "https://github.com/kubernetes/kubernetes",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "kubescape",
+      "name": "Kubescape",
+      "repositoryURL": "https://github.com/kubescape/kubescape",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "kubeslice",
+      "name": "KubeSlice",
+      "repositoryURL": "https://github.com/kubeslice/kubeslice",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kubestellar",
+      "name": "KubeStellar",
+      "repositoryURL": "https://github.com/kubestellar/kubestellar",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kubevela",
+      "name": "KubeVela",
+      "repositoryURL": "https://github.com/kubevela/kubevela",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "kubevirt",
+      "name": "KubeVirt",
+      "repositoryURL": "https://github.com/kubevirt/kubevirt",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "kubewarden",
+      "name": "Kubewarden",
+      "repositoryURL": "https://github.com/kubewarden/kubewarden-controller",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kudo",
+      "name": "KUDO",
+      "repositoryURL": "https://github.com/kudobuilder/kudo",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kuma",
+      "name": "Kuma",
+      "repositoryURL": "https://github.com/kumahq/kuma",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kured",
+      "name": "Kured",
+      "repositoryURL": "https://github.com/kubereboot/kured",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kusionstack",
+      "name": "KusionStack",
+      "repositoryURL": "https://github.com/KusionStack/kusion",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "kyverno",
+      "name": "Kyverno",
+      "repositoryURL": "https://github.com/kyverno/kyverno",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "lima",
+      "name": "Lima",
+      "repositoryURL": "https://github.com/lima-vm/lima",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "linkerd",
+      "name": "Linkerd",
+      "repositoryURL": "https://github.com/linkerd/linkerd2",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "litmus",
+      "name": "Litmus",
+      "repositoryURL": "https://github.com/litmuschaos/litmus",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "llm-d",
+      "name": "llm-d",
+      "repositoryURL": "https://github.com/llm-d/llm-d",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "logging-operator-kube-logging",
+      "name": "Logging Operator (Kube Logging)",
+      "repositoryURL": "https://github.com/kube-logging/logging-operator",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "longhorn",
+      "name": "Longhorn",
+      "repositoryURL": "https://github.com/longhorn/longhorn",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "loxilb",
+      "name": "LoxiLB",
+      "repositoryURL": "https://github.com/loxilb-io/loxilb",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "merbridge",
+      "name": "Merbridge",
+      "repositoryURL": "https://github.com/merbridge/merbridge",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "meshery",
+      "name": "Meshery",
+      "repositoryURL": "https://github.com/meshery/meshery",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "metal3-io",
+      "name": "metal3-io",
+      "repositoryURL": "https://github.com/metal3-io/baremetal-operator",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "metallb",
+      "name": "MetalLB",
+      "repositoryURL": "https://github.com/metallb/metallb",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "microcks",
+      "name": "Microcks",
+      "repositoryURL": "https://github.com/microcks/microcks",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "modelpack",
+      "name": "ModelPack",
+      "repositoryURL": "https://github.com/modelpack/model-spec",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "nats",
+      "name": "NATS",
+      "repositoryURL": "https://github.com/nats-io/nats-server",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "network-service-mesh",
+      "name": "Network Service Mesh",
+      "repositoryURL": "https://github.com/networkservicemesh/api",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "nmstate",
+      "name": "NMstate",
+      "repositoryURL": "https://github.com/nmstate/nmstate",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "nocalhost",
+      "name": "Nocalhost",
+      "repositoryURL": "https://github.com/nocalhost/nocalhost",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "notary-project",
+      "name": "Notary Project",
+      "repositoryURL": "https://github.com/notaryproject/notation",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "oauth2-proxy",
+      "name": "OAuth2 Proxy",
+      "repositoryURL": "https://github.com/oauth2-proxy/oauth2-proxy",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "opa",
+      "name": "Open Policy Agent (OPA)",
+      "repositoryURL": "https://github.com/open-policy-agent/opa",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "open-cluster-management",
+      "name": "Open Cluster Management",
+      "repositoryURL": "https://github.com/open-cluster-management-io/ocm",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "open-policy-containers",
+      "name": "Open Policy Containers",
+      "repositoryURL": "https://github.com/opcr-io/policy",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "open-service-mesh",
+      "name": "Open Service Mesh",
+      "repositoryURL": "https://github.com/openservicemesh/osm",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "open-workflow-specification",
+      "name": "Open Workflow Specification",
+      "repositoryURL": "https://github.com/open-workflow-specification/specification",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "openchoreo",
+      "name": "OpenChoreo",
+      "repositoryURL": "https://github.com/openchoreo/openchoreo",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "opencost",
+      "name": "OpenCost",
+      "repositoryURL": "https://github.com/opencost/opencost",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "openebs",
+      "name": "OpenEBS",
+      "repositoryURL": "https://github.com/openebs/openebs",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "openelb",
+      "name": "OpenELB",
+      "repositoryURL": "https://github.com/openelb/openelb",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "openeverest",
+      "name": "OpenEverest",
+      "repositoryURL": "https://github.com/openeverest/openeverest",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "openfeature",
+      "name": "OpenFeature",
+      "repositoryURL": "https://github.com/open-feature/spec",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "openfga",
+      "name": "OpenFGA",
+      "repositoryURL": "https://github.com/openfga/openfga",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "openfunction",
+      "name": "OpenFunction",
+      "repositoryURL": "https://github.com/OpenFunction/OpenFunction",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "opengemini",
+      "name": "openGemini",
+      "repositoryURL": "https://github.com/openGemini/openGemini",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "opengitops",
+      "name": "OpenGitOps",
+      "repositoryURL": "https://github.com/open-gitops/project",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "openkruise",
+      "name": "OpenKruise",
+      "repositoryURL": "https://github.com/openkruise/kruise",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "openmetrics",
+      "name": "OpenMetrics",
+      "repositoryURL": "https://github.com/OpenObservability/OpenMetrics",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "opentelemetry",
+      "name": "OpenTelemetry",
+      "repositoryURL": "https://github.com/open-telemetry/community",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "opentofu",
+      "name": "OpenTofu",
+      "repositoryURL": "https://github.com/opentofu/opentofu",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "opentracing",
+      "name": "OpenTracing",
+      "repositoryURL": "https://github.com/opentracing/opentracing-go",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "openyurt",
+      "name": "OpenYurt",
+      "repositoryURL": "https://github.com/openyurtio/openyurt",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "operator-framework",
+      "name": "Operator Framework",
+      "repositoryURL": "https://github.com/operator-framework/operator-sdk",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "oras",
+      "name": "ORAS",
+      "repositoryURL": "https://github.com/oras-project/oras",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "oscal-compass",
+      "name": "OSCAL-COMPASS",
+      "repositoryURL": "https://github.com/oscal-compass/compliance-trestle",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "ovn-kubernetes",
+      "name": "OVN-Kubernetes",
+      "repositoryURL": "https://github.com/ovn-kubernetes/ovn-kubernetes",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "oxia",
+      "name": "Oxia",
+      "repositoryURL": "https://github.com/oxia-db/oxia",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "paralus",
+      "name": "Paralus",
+      "repositoryURL": "https://github.com/paralus/paralus",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "parsec",
+      "name": "Parsec",
+      "repositoryURL": "https://github.com/parallaxsecond/parsec",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "perses",
+      "name": "Perses",
+      "repositoryURL": "https://github.com/perses/perses",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "pipecd",
+      "name": "PipeCD",
+      "repositoryURL": "https://github.com/pipe-cd/pipecd",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "piraeus-datastore",
+      "name": "Piraeus Datastore",
+      "repositoryURL": "https://github.com/piraeusdatastore/piraeus-operator",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "pixie",
+      "name": "Pixie",
+      "repositoryURL": "https://github.com/pixie-io/pixie",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "podman-container-tools",
+      "name": "Podman Container Tools",
+      "repositoryURL": "https://github.com/podman-container-tools/podman",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "podman-desktop",
+      "name": "Podman Desktop",
+      "repositoryURL": "https://github.com/podman-desktop/podman-desktop",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "porter",
+      "name": "Porter",
+      "repositoryURL": "https://github.com/getporter/porter",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "pravega",
+      "name": "Pravega",
+      "repositoryURL": "https://github.com/pravega/pravega",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "prometheus",
+      "name": "Prometheus",
+      "repositoryURL": "https://github.com/prometheus/prometheus",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "radius",
+      "name": "Radius",
+      "repositoryURL": "https://github.com/radius-project/radius",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "ratify",
+      "name": "Ratify",
+      "repositoryURL": "https://github.com/ratify-project/ratify",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "rkt",
+      "name": "rkt",
+      "repositoryURL": "https://github.com/rkt/rkt",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "rook",
+      "name": "Rook",
+      "repositoryURL": "https://github.com/rook/rook",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "runme-notebooks",
+      "name": "Runme Notebooks",
+      "repositoryURL": "https://github.com/runmedev/runme",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "schemahero",
+      "name": "SchemaHero",
+      "repositoryURL": "https://github.com/schemahero/schemahero",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "score",
+      "name": "Score",
+      "repositoryURL": "https://github.com/score-spec/spec",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "sealer",
+      "name": "sealer",
+      "repositoryURL": "https://github.com/sealerio/sealer",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "sermant",
+      "name": "Sermant",
+      "repositoryURL": "https://github.com/sermant-io/Sermant",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "serverless-devs",
+      "name": "Serverless Devs",
+      "repositoryURL": "https://github.com/serverless-devs/serverless-devs",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "service-mesh-interface-smi",
+      "name": "Service Mesh Interface (SMI)",
+      "repositoryURL": "https://github.com/servicemeshinterface/smi-spec",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "service-mesh-performance",
+      "name": "Service Mesh Performance",
+      "repositoryURL": "https://github.com/service-mesh-performance/service-mesh-performance",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "shipwright",
+      "name": "Shipwright",
+      "repositoryURL": "https://github.com/shipwright-io/build",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "skooner",
+      "name": "Skooner",
+      "repositoryURL": "https://github.com/skooner-k8s/skooner",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "slimfaas",
+      "name": "SlimFaaS",
+      "repositoryURL": "https://github.com/SlimPlanet/SlimFaas",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "slimtoolkit",
+      "name": "SlimToolkit",
+      "repositoryURL": "https://github.com/slimtoolkit/slim",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "sops",
+      "name": "SOPS",
+      "repositoryURL": "https://github.com/getsops/sops",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "spiderpool",
+      "name": "Spiderpool",
+      "repositoryURL": "https://github.com/spidernet-io/spiderpool",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "spiffe",
+      "name": "SPIFFE",
+      "repositoryURL": "https://github.com/spiffe/spiffe",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "spin",
+      "name": "Spin",
+      "repositoryURL": "https://github.com/spinframework/spin",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "spinkube",
+      "name": "SpinKube",
+      "repositoryURL": "https://github.com/spinframework/spin-operator",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "spire",
+      "name": "SPIRE",
+      "repositoryURL": "https://github.com/spiffe/spire",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "stacker",
+      "name": "Stacker",
+      "repositoryURL": "https://github.com/project-stacker/stacker",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "strimzi",
+      "name": "Strimzi",
+      "repositoryURL": "https://github.com/strimzi/strimzi-kafka-operator",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "submariner",
+      "name": "Submariner",
+      "repositoryURL": "https://github.com/submariner-io/submariner",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "superedge",
+      "name": "SuperEdge",
+      "repositoryURL": "https://github.com/superedge/superedge",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "tekton",
+      "name": "Tekton",
+      "repositoryURL": "https://github.com/tektoncd/pipeline",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "telepresence",
+      "name": "Telepresence",
+      "repositoryURL": "https://github.com/telepresenceio/telepresence",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "teller",
+      "name": "Teller",
+      "repositoryURL": "https://github.com/tellerops/teller",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "thanos",
+      "name": "Thanos",
+      "repositoryURL": "https://github.com/thanos-io/thanos",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "the-update-framework-tuf",
+      "name": "The Update Framework (TUF)",
+      "repositoryURL": "https://github.com/theupdateframework/python-tuf",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "tikv",
+      "name": "TiKV",
+      "repositoryURL": "https://github.com/tikv/tikv",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "tinkerbell",
+      "name": "Tinkerbell",
+      "repositoryURL": "https://github.com/tinkerbell/tinkerbell",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "tokenetes",
+      "name": "Tokenetes",
+      "repositoryURL": "https://github.com/tokenetes/tokenetes",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "tremor",
+      "name": "Tremor",
+      "repositoryURL": "https://github.com/tremor-rs/tremor-runtime",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "trickster",
+      "name": "Trickster",
+      "repositoryURL": "https://github.com/trickstercache/trickster",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "urunc",
+      "name": "urunc",
+      "repositoryURL": "https://github.com/urunc-dev/urunc",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "velero",
+      "name": "Velero",
+      "repositoryURL": "https://github.com/velero-io/velero",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "vineyard",
+      "name": "Vineyard",
+      "repositoryURL": "https://github.com/v6d-io/v6d",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "virtual-kubelet",
+      "name": "Virtual Kubelet",
+      "repositoryURL": "https://github.com/virtual-kubelet/virtual-kubelet",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "visual-studio-code-kubernetes-tools",
+      "name": "Visual Studio Code Kubernetes Tools",
+      "repositoryURL": "https://github.com/vscode-kubernetes-tools/vscode-kubernetes-tools",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "vitess",
+      "name": "Vitess",
+      "repositoryURL": "https://github.com/vitessio/vitess",
+      "cncfStage": "graduated"
+    },
+    {
+      "slug": "volcano",
+      "name": "Volcano",
+      "repositoryURL": "https://github.com/volcano-sh/volcano",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "wasmcloud",
+      "name": "wasmCloud",
+      "repositoryURL": "https://github.com/wasmCloud/wasmCloud",
+      "cncfStage": "incubating"
+    },
+    {
+      "slug": "wasmedge-runtime",
+      "name": "WasmEdge Runtime",
+      "repositoryURL": "https://github.com/WasmEdge/WasmEdge",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "werf",
+      "name": "werf",
+      "repositoryURL": "https://github.com/werf/werf",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "xline",
+      "name": "Xline",
+      "repositoryURL": "https://github.com/xline-kv/Xline",
+      "cncfStage": "archived"
+    },
+    {
+      "slug": "xregistry",
+      "name": "xRegistry",
+      "repositoryURL": "https://github.com/xregistry/server",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "youki",
+      "name": "youki",
+      "repositoryURL": "https://github.com/youki-dev/youki",
+      "cncfStage": "sandbox"
+    },
+    {
+      "slug": "zot",
+      "name": "zot",
+      "repositoryURL": "https://github.com/project-zot/zot",
+      "cncfStage": "sandbox"
+    }
+  ]
+}

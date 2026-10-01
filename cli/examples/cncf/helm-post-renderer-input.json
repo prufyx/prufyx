@@ -1,0 +1,28 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/helm/helm",
+        "version": "3.14.4",
+        "facts": []
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/helm/helm",
+        "version": "4.0.0",
+        "facts": [
+          {
+            "id": "component.helm.post_renderer_mode",
+            "state": "declared",
+            "enumValue": "executable_path"
+          }
+        ]
+      }
+    ]
+  }
+}

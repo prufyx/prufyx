@@ -1,0 +1,38 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/crossplane/crossplane",
+        "version": "1.20.0",
+        "facts": []
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/crossplane/crossplane",
+        "version": "2.0.0",
+        "facts": [
+          {
+            "id": "component.crossplane.composition_mode",
+            "state": "declared",
+            "enumValue": "resources"
+          },
+          {
+            "id": "component.crossplane.distribution",
+            "state": "declared",
+            "enumValue": "official_upstream"
+          },
+          {
+            "id": "component.crossplane.schema_validation_required",
+            "state": "declared",
+            "boolValue": true
+          }
+        ]
+      }
+    ]
+  }
+}

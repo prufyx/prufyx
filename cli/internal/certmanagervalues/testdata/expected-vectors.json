@@ -1,0 +1,119 @@
+{
+  "schema": "prufyx.io/cert-manager-removed-monitor-values-expected-vectors/v1",
+  "authority": "independently-authored-expected-vectors",
+  "claimScope": "presence of three curated monitoring values removed by cert-manager v1.21.1 only",
+  "transition": {
+    "currentChartVersion": "v1.20.3",
+    "targetChartVersion": "v1.21.1"
+  },
+  "vectors": [
+    {
+      "id": "service-monitor-target-port-string",
+      "values": {"prometheus": {"servicemonitor": {"targetPort": "custom-metrics"}}},
+      "helmBaseline": "BLOCKED",
+      "expectedClaim": "BLOCKED",
+      "reasonCode": "CERT_MANAGER_REMOVED_MONITOR_VALUE_PRESENT",
+      "matchedPath": "prometheus.servicemonitor.targetPort"
+    },
+    {
+      "id": "service-monitor-path-string",
+      "values": {"prometheus": {"servicemonitor": {"path": "/custom"}}},
+      "helmBaseline": "BLOCKED",
+      "expectedClaim": "BLOCKED",
+      "reasonCode": "CERT_MANAGER_REMOVED_MONITOR_VALUE_PRESENT",
+      "matchedPath": "prometheus.servicemonitor.path"
+    },
+    {
+      "id": "pod-monitor-path-string",
+      "values": {"prometheus": {"podmonitor": {"path": "/custom"}}},
+      "helmBaseline": "BLOCKED",
+      "expectedClaim": "BLOCKED",
+      "reasonCode": "CERT_MANAGER_REMOVED_MONITOR_VALUE_PRESENT",
+      "matchedPath": "prometheus.podmonitor.path"
+    },
+    {
+      "id": "service-monitor-target-port-null",
+      "values": {"prometheus": {"servicemonitor": {"targetPort": null}}},
+      "helmBaseline": "BLOCKED",
+      "expectedClaim": "BLOCKED",
+      "reasonCode": "CERT_MANAGER_REMOVED_MONITOR_VALUE_PRESENT",
+      "matchedPath": "prometheus.servicemonitor.targetPort"
+    },
+    {
+      "id": "service-monitor-path-false",
+      "values": {"prometheus": {"servicemonitor": {"path": false}}},
+      "helmBaseline": "BLOCKED",
+      "expectedClaim": "BLOCKED",
+      "reasonCode": "CERT_MANAGER_REMOVED_MONITOR_VALUE_PRESENT",
+      "matchedPath": "prometheus.servicemonitor.path"
+    },
+    {
+      "id": "pod-monitor-path-empty",
+      "values": {"prometheus": {"podmonitor": {"path": ""}}},
+      "helmBaseline": "BLOCKED",
+      "expectedClaim": "BLOCKED",
+      "reasonCode": "CERT_MANAGER_REMOVED_MONITOR_VALUE_PRESENT",
+      "matchedPath": "prometheus.podmonitor.path"
+    },
+    {
+      "id": "service-monitor-unknown-nested",
+      "values": {"prometheus": {"servicemonitor": {"unknownNested": false}}},
+      "helmBaseline": "BLOCKED",
+      "expectedClaim": "PASS",
+      "reasonCode": "CERT_MANAGER_REMOVED_MONITOR_VALUES_ABSENT",
+      "matchedPath": "prometheus.servicemonitor.unknownNested",
+      "curatedRemovedKey": false,
+      "limitation": "FULL_TARGET_HELM_SCHEMA_NOT_EVALUATED"
+    },
+    {
+      "id": "pod-monitor-unknown-nested",
+      "values": {"prometheus": {"podmonitor": {"unknownNested": false}}},
+      "helmBaseline": "BLOCKED",
+      "expectedClaim": "PASS",
+      "reasonCode": "CERT_MANAGER_REMOVED_MONITOR_VALUES_ABSENT",
+      "matchedPath": "prometheus.podmonitor.unknownNested",
+      "curatedRemovedKey": false,
+      "limitation": "FULL_TARGET_HELM_SCHEMA_NOT_EVALUATED"
+    },
+    {
+      "id": "valid-control",
+      "values": {"prometheus": {"servicemonitor": {"enabled": true, "interval": "60s"}}},
+      "helmBaseline": "PASS",
+      "expectedClaim": "PASS",
+      "reasonCode": "CERT_MANAGER_REMOVED_MONITOR_VALUES_ABSENT",
+      "claimLimit": "PASS applies only to this target values-schema check; the aggregate upgrade remains UNKNOWN"
+    },
+    {
+      "id": "missing-proposed-values",
+      "values": null,
+      "expectedClaim": "UNKNOWN",
+      "reasonCode": "PROPOSED_HELM_VALUES_REQUIRED",
+      "nextAction": "provide the exact proposed merged Helm values artifact"
+    },
+    {
+      "id": "ambiguous-service-monitor-shape",
+      "values": {"prometheus": {"servicemonitor": null}},
+      "helmBaseline": "BLOCKED",
+      "expectedClaim": "UNKNOWN",
+      "reasonCode": "CERT_MANAGER_MONITOR_VALUES_SHAPE_UNRESOLVED",
+      "nextAction": "provide a proposed JSON values object whose prometheus and monitor parents are objects"
+    },
+    {
+      "id": "explicit-helm-schema-bypass-does-not-authorize-key",
+      "values": {"prometheus": {"servicemonitor": {"path": "/custom"}}},
+      "schemaValidation": "disabled",
+      "helmBaselineWithSkipSchemaValidation": "PASS",
+      "expectedClaim": "ATTENTION",
+      "reasonCode": "CERT_MANAGER_REMOVED_MONITOR_VALUE_IGNORED_WITH_SCHEMA_VALIDATION_DISABLED",
+      "nextAction": "remove the key, re-enable schema validation, and verify the fixed /metrics path satisfies the intended scrape contract"
+    }
+  ],
+  "aggregateOutcome": "UNKNOWN",
+  "prohibitedConclusions": [
+    "whole-upgrade SAFE",
+    "runtime compatibility",
+    "full target Helm schema validation",
+    "support outside the exact target chart",
+    "a mandatory intermediate version hop"
+  ]
+}

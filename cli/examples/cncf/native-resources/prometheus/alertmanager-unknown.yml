@@ -1,0 +1,3 @@
+alerting:
+  alertmanagers:
+    - api_version: v1

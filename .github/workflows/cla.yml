@@ -1,0 +1,135 @@
+name: CLA
+
+# Checks that every author of a pull request has signed CLA.md, and records a
+# signature when the pull request author replies with the signing sentence.
+#
+# Runs on pull_request_target so it can comment and record signatures on pull
+# requests from forks. It never checks out or executes pull request code: it
+# only reads pull request metadata through the API.
+# Signatures are stored on the dedicated `cla-signatures` branch, so recording
+# one never writes to `main`.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  statuses: write
+
+concurrency:
+  group: cla-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  cla:
+    name: CLA signed
+    if: github.event_name == 'pull_request_target' || (github.event.issue.pull_request && github.event.comment.body)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check or record CLA signatures
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const SENTENCE = 'I have read the CLA Document and I hereby sign the CLA';
+            const BRANCH = 'cla-signatures';
+            const FILE = 'signatures.json';
+            const CLA_URL = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/CLA.md`;
+            // The maintainer is the CLA licensor and does not sign it.
+            const EXEMPT = new Set(['airstand', 'dependabot[bot]', 'github-actions[bot]']);
+            const { owner, repo } = context.repo;
+            const prNumber = context.payload.pull_request?.number ?? context.payload.issue.number;
+
+            const pr = (await github.rest.pulls.get({ owner, repo, pull_number: prNumber })).data;
+
+            async function ensureBranch() {
+              try {
+                await github.rest.repos.getBranch({ owner, repo, branch: BRANCH });
+              } catch (e) {
+                if (e.status !== 404) throw e;
+                const base = await github.rest.repos.getBranch({ owner, repo, branch: pr.base.repo.default_branch });
+                const tree = await github.rest.git.createTree({ owner, repo, tree: [{ path: FILE, mode: '100644', type: 'blob', content: '{\n  "signatures": []\n}\n' }] });
+                const commit = await github.rest.git.createCommit({ owner, repo, message: 'Initialise CLA signatures', tree: tree.data.sha, parents: [] });
+                await github.rest.git.createRef({ owner, repo, ref: `refs/heads/${BRANCH}`, sha: commit.data.sha });
+              }
+            }
+
+            async function readSignatures() {
+              await ensureBranch();
+              const res = await github.rest.repos.getContent({ owner, repo, path: FILE, ref: BRANCH });
+              const doc = JSON.parse(Buffer.from(res.data.content, 'base64').toString('utf8'));
+              if (!Array.isArray(doc.signatures)) throw new Error('signatures.json is malformed');
+              return { doc, sha: res.data.sha };
+            }
+
+            // Record a signature when the pull request author posts the exact sentence.
+            if (context.eventName === 'issue_comment') {
+              const body = (context.payload.comment.body || '').trim();
+              if (body !== SENTENCE) return;
+              const commenter = context.payload.comment.user;
+              if (commenter.id !== pr.user.id) {
+                core.info('Signing comment is not from the pull request author; ignoring.');
+                return;
+              }
+              const { doc, sha } = await readSignatures();
+              if (!doc.signatures.some(s => s.id === commenter.id)) {
+                doc.signatures.push({
+                  name: commenter.login,
+                  id: commenter.id,
+                  claVersion: '1.0',
+                  signedAt: context.payload.comment.created_at,
+                  pullRequest: prNumber,
+                  commentId: context.payload.comment.id,
+                });
+                await github.rest.repos.createOrUpdateFileContents({
+                  owner, repo, branch: BRANCH, path: FILE, sha,
+                  message: `Record CLA signature for @${commenter.login}`,
+                  content: Buffer.from(JSON.stringify(doc, null, 2) + '\n').toString('base64'),
+                });
+              }
+            }
+
+            // Every commit author with a GitHub account must have signed; a
+            // commit with no linked GitHub account cannot be verified and fails.
+            const commits = await github.paginate(github.rest.pulls.listCommits, { owner, repo, pull_number: prNumber, per_page: 100 });
+            const { doc } = await readSignatures();
+            const signed = new Set(doc.signatures.map(s => s.id));
+            const missing = new Set();
+            const unlinked = new Set();
+            for (const c of commits) {
+              const author = c.author;
+              if (!author) { unlinked.add(c.commit.author?.email || c.sha.slice(0, 12)); continue; }
+              if (EXEMPT.has(author.login)) continue;
+              if (!signed.has(author.id)) missing.add(author.login);
+            }
+            if (!signed.has(pr.user.id) && !EXEMPT.has(pr.user.login)) missing.add(pr.user.login);
+
+            const ok = missing.size === 0 && unlinked.size === 0;
+            await github.rest.repos.createCommitStatus({
+              owner, repo, sha: pr.head.sha, context: 'CLA',
+              state: ok ? 'success' : 'failure',
+              description: ok ? 'All authors have signed the CLA' : 'CLA signature missing',
+              target_url: CLA_URL,
+            });
+            if (ok) return;
+
+            const marker = '<!-- prufyx-cla -->';
+            const lines = [marker, 'Thank you for your contribution.', '',
+              `Before it can be reviewed, every author must sign the [Prufyx Contributor License Agreement](${CLA_URL}). You keep the copyright in your work.`, ''];
+            if (missing.size) lines.push(`Not yet signed: ${[...missing].map(l => '@' + l).join(', ')}.`, '',
+              'To sign, the pull request author replies with exactly:', '', '```text', SENTENCE, '```', '',
+              'Co-authors must open their own pull request to sign, or ask a maintainer.');
+            if (unlinked.size) lines.push('', `Some commits are authored by an email address that is not linked to a GitHub account (${[...unlinked].join(', ')}). Link the address to your GitHub account or re-author the commits.`);
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: prNumber, per_page: 100 });
+            const existing = comments.find(c => c.user.type === 'Bot' && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body: lines.join('\n') });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: lines.join('\n') });
+            }
+            core.setFailed('CLA signature missing');

@@ -1,0 +1,82 @@
+name: Suggest a public project source
+description: Point Prufyx at a public GitHub repository for local, source-only knowledge onboarding.
+title: "[project source] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing a useful public project. A repository URL is enough to start: you do not need to maintain the project, calculate hashes, or prove a compatibility claim.
+
+        This suggestion starts source review. It does not add an executable check, support claim, catalogue membership, or published knowledge package.
+  - type: input
+    id: repository
+    attributes:
+      label: Public GitHub repository
+      description: Use the exact HTTPS URL for the open repository you want considered.
+      placeholder: https://github.com/owner/repository
+    validations:
+      required: true
+  - type: input
+    id: component-name
+    attributes:
+      label: Project or component name
+      description: Name the open-source project or the specific component in this repository.
+      placeholder: Example Operator
+    validations:
+      required: true
+  - type: dropdown
+    id: relationship
+    attributes:
+      label: Your relationship to this project (optional)
+      description: This is a self-declaration for context and is not used as review or ownership authority.
+      options:
+        - I use or evaluate it
+        - I contribute to it
+        - I maintain it
+        - I found a useful public source
+  - type: textarea
+    id: relevance
+    attributes:
+      label: What should we look for?
+      description: Briefly describe the releases, migrations, configuration changes, or operator behavior that would be useful to inspect.
+      placeholder: Recent releases document changes to...
+    validations:
+      required: true
+  - type: input
+    id: tag-prefix
+    attributes:
+      label: Release tag prefix (optional)
+      description: Add a prefix only when it helps select this component's releases.
+      placeholder: operator-v
+  - type: textarea
+    id: source-paths
+    attributes:
+      label: Changelog or release-note paths (optional)
+      description: List repository-relative paths if the usual changelog names are not enough. No commit or hash is required.
+      placeholder: |
+        docs/CHANGELOG.md
+        releases/operator.md
+  - type: textarea
+    id: licensing
+    attributes:
+      label: License and attribution references
+      description: Link any LICENSE, NOTICE, or project licensing page you know about. Write "unknown" when you are unsure; the maintainer reviews licensing separately.
+      placeholder: https://github.com/owner/repository/blob/main/LICENSE
+    validations:
+      required: true
+  - type: textarea
+    id: extra-context
+    attributes:
+      label: Additional public context (optional)
+      description: Add public documentation links or explain whether this repository is one component of a broader product or hosted service.
+  - type: checkboxes
+    id: safeguards
+    attributes:
+      label: Submission boundary
+      options:
+        - label: I included only public repository information and no customer configuration, credentials, Secrets, private paths, logs, proprietary source, or production data.
+          required: true
+        - label: I understand that source collection remains NOT_REVIEWED and NOT_ADMITTED until separate maintainer review, and does not create an executable rule or compatibility result.
+          required: true

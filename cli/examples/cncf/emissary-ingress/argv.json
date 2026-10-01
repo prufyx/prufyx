@@ -1,0 +1,5 @@
+[
+  "diagd",
+  "--metrics-endpoint",
+  "https://example.invalid/metrics"
+]

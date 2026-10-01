@@ -1,0 +1,10 @@
+.:53 {
+    errors
+    health
+    ready
+    federation example.org {
+        proxy . 10.0.0.53
+    }
+    forward . /etc/resolv.conf
+    cache 30
+}

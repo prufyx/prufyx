@@ -1,0 +1,9 @@
+{
+  "policies": [
+    {
+      "name": "access-key-review",
+      "resource": "iam-access-key",
+      "filters": []
+    }
+  ]
+}

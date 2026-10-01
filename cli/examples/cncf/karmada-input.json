@@ -1,0 +1,43 @@
+{
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/karmada-io/karmada",
+        "facts": [],
+        "version": "1.18.3"
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/karmada-io/karmada",
+        "facts": [
+          {
+            "enumValue": "official_upstream",
+            "id": "component.karmada.distribution",
+            "state": "declared"
+          },
+          {
+            "enumValue": "karmada_policy_application_failover",
+            "id": "component.karmada.execution_surface",
+            "state": "declared"
+          },
+          {
+            "boolValue": true,
+            "id": "component.karmada.removed_application_purge_mode_present",
+            "state": "declared"
+          },
+          {
+            "boolValue": true,
+            "id": "component.karmada.target_policy_crd_admission_required",
+            "state": "declared"
+          }
+        ],
+        "version": "1.19.0"
+      }
+    ]
+  },
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+}

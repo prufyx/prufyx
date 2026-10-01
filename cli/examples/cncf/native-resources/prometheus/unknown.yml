@@ -1,0 +1,2 @@
+job_name: selected-api
+scrape_interval: 30s

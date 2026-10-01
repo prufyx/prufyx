@@ -1,0 +1,11 @@
+{
+  "apiVersion": "policy.linkerd.io/v1alpha1",
+  "kind": "MeshTLSAuthentication",
+  "metadata": {
+    "name": "synthetic-linkerd-authentication",
+    "namespace": "synthetic-preview"
+  },
+  "spec": {
+    "identities": []
+  }
+}

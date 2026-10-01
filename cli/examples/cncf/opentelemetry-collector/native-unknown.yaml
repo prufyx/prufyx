@@ -1,0 +1,8 @@
+connectors:
+  logging: {}
+exporters:
+  debug: {}
+service:
+  pipelines:
+    traces:
+      exporters: [logging]

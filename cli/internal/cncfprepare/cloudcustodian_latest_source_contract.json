@@ -1,0 +1,110 @@
+{
+  "schema": "prufyx.io/cncf-source-contract/v1alpha1",
+  "component": "pkg:github/cloud-custodian/cloud-custodian",
+  "target": {
+    "version": "0.9.52",
+    "releaseTag": "0.9.52.0",
+    "commit": "427a1a3244a9bdae52e3fc56ca4416ff6af7cd5e",
+    "publishedAt": "2026-09-03T19:16:59Z"
+  },
+  "origins": [
+    {
+      "version": "0.9.47",
+      "releaseTag": "0.9.47.0",
+      "commit": "2eda2f51d54fc48d487950bb5abc766859640e81",
+      "publishedAt": "2025-09-22T18:14:42Z",
+      "packageVersionSource": {
+        "path": "c7n/version.py",
+        "contentDigest": "sha256:bd32f0aad01fab33b876bdcc9fe06fc97b85f7037164f16c383bb061f410badd",
+        "startLine": 1,
+        "endLine": 2
+      }
+    },
+    {
+      "version": "0.9.48",
+      "releaseTag": "0.9.48.0",
+      "commit": "159bbce6adc041d37c0f5cbf91c1a2a3593c43df",
+      "publishedAt": "2025-12-01T19:04:50Z",
+      "packageVersionSource": {
+        "path": "c7n/version.py",
+        "contentDigest": "sha256:98ed0d904fb96e1bdc6db6ef88db83613af31eef1b22355af6f30df5b15495c0",
+        "startLine": 1,
+        "endLine": 2
+      }
+    },
+    {
+      "version": "0.9.49",
+      "releaseTag": "0.9.49.0",
+      "commit": "ec3a3d345c3519fbcdd35caf070842d0203c2e7b",
+      "publishedAt": "2026-01-16T21:21:11Z",
+      "packageVersionSource": {
+        "path": "c7n/version.py",
+        "contentDigest": "sha256:e81ec6f49efb6ba70b36da63df6b5698cb57fe7b54f56259c507de2603d97394",
+        "startLine": 1,
+        "endLine": 2
+      }
+    },
+    {
+      "version": "0.9.50",
+      "releaseTag": "0.9.50.0",
+      "commit": "9b8ba87c4b75c907f721d4fce4d949bdfdb577f7",
+      "publishedAt": "2026-03-18T17:16:59Z",
+      "packageVersionSource": {
+        "path": "c7n/version.py",
+        "contentDigest": "sha256:362a4ff670f94d1c117b01d2b8c4e030a36ef859aa8effad3b8c62aec1d2d8fb",
+        "startLine": 1,
+        "endLine": 2
+      }
+    },
+    {
+      "version": "0.9.51",
+      "releaseTag": "0.9.51.0",
+      "commit": "7ef39f35b54c18195f47f990b967c904bb8df8cb",
+      "publishedAt": "2026-05-28T19:52:40Z",
+      "packageVersionSource": {
+        "path": "c7n/version.py",
+        "contentDigest": "sha256:5af4f1f2d1c5641d5f1f5938a912f00cb781a56f847ea21681cc3989f26a2a22",
+        "startLine": 1,
+        "endLine": 2
+      }
+    }
+  ],
+  "targetSources": [
+    {
+      "id": "target-iam-access-key-resource",
+      "path": "c7n/resources/iam.py",
+      "commit": "427a1a3244a9bdae52e3fc56ca4416ff6af7cd5e",
+      "contentDigest": "sha256:290753ebb5106aabc53e00967f567d8f6c5600ed83f9dc8a6ccf352fb36105ee",
+      "startLine": 3339,
+      "endLine": 3354
+    },
+    {
+      "id": "target-json-diff-registration",
+      "path": "c7n/filters/revisions.py",
+      "commit": "427a1a3244a9bdae52e3fc56ca4416ff6af7cd5e",
+      "contentDigest": "sha256:ed2d210d5607c62981b61f466d6b45f04639fe0de8de4059ae58cf6be4c49a59",
+      "startLine": 153,
+      "endLine": 179
+    },
+    {
+      "id": "target-package-version",
+      "path": "c7n/version.py",
+      "commit": "427a1a3244a9bdae52e3fc56ca4416ff6af7cd5e",
+      "contentDigest": "sha256:9deaeaa0af013cd8bd9eeebff05157a96efeeb640a29cc23ca5c3f2caf1b78d1",
+      "startLine": 1,
+      "endLine": 2
+    },
+    {
+      "id": "target-query-typeinfo-default",
+      "path": "c7n/query.py",
+      "commit": "427a1a3244a9bdae52e3fc56ca4416ff6af7cd5e",
+      "contentDigest": "sha256:b59ee1bc2082c3599f98c952061d45ba8935b03801ebc7fe4e47d31c7872c068",
+      "startLine": 797,
+      "endLine": 991
+    }
+  ],
+  "predicate": "one complete caller-selected JSON policy directly contains json-diff on iam-access-key; variables, includes, dynamic selection, nested filters and execution remain UNKNOWN",
+  "sourceKind": "official-github-release-tag-package-version-and-peeled-commit",
+  "runtimeClaims": "none",
+  "qualification": "json-diff registers only when resource_type.config_type is non-nil; the target iam-access-key resource inherits TypeInfo.config_type=None and does not override it."
+}

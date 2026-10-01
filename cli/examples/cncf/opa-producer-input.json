@@ -1,0 +1,38 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/open-policy-agent/opa",
+        "version": "0.70.0",
+        "facts": []
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/open-policy-agent/opa",
+        "version": "1.0.0",
+        "facts": [
+          {
+            "id": "component.opa.modules_use_rego_v1_import",
+            "state": "declared",
+            "boolValue": false
+          },
+          {
+            "id": "component.opa.producer_v0_compatible",
+            "state": "declared",
+            "boolValue": false
+          },
+          {
+            "id": "component.opa.v0_consumers_remain",
+            "state": "declared",
+            "boolValue": true
+          }
+        ]
+      }
+    ]
+  }
+}

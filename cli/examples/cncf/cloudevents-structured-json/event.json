@@ -1,0 +1,9 @@
+{
+  "specversion": "1.0",
+  "id": "example-event-1",
+  "source": "https://example.invalid/prufyx-demo",
+  "type": "org.example.prufyx.demo",
+  "data": {
+    "message": "synthetic example"
+  }
+}
