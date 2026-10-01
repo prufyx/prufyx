@@ -413,10 +413,15 @@ func (c *mirrorWantsCollector) add(repo, commit, path string) {
 	c.wants[key][path] = true
 }
 
-func (c *mirrorWantsCollector) missing(repo, commit, path string) {
+// missing records an unavailable file and, so that one more round suffices,
+// the pinned files of the same path that are not available either.
+// available reports whether a pinned file can already be read.
+func (c *mirrorWantsCollector) missing(repo, commit, path string, available func(commit string) bool) {
 	c.add(repo, commit, path)
 	for old := range c.pinned[repo+"\x00"+path] {
-		c.add(repo, old, path)
+		if old != commit && !available(old) {
+			c.add(repo, old, path)
+		}
 	}
 }
 
@@ -459,10 +464,10 @@ func (f *mirrorBlobFetcher) Fetch(_ context.Context, path string) sourcecapture.
 	case errors.Is(err, ErrMirrorPathNotFound):
 		return sourcecapture.FetchResult{Kind: "HTTP_STATUS", StatusCode: 404}
 	case errors.Is(err, ErrMirrorBlobNotLocal):
-		f.wants.missing(mirrorRepoName(owner, repo), commit, file)
+		f.wants.missing(mirrorRepoName(owner, repo), commit, file, f.canRead(owner, repo, file))
 		return sourcecapture.FetchResult{Kind: mirrorKindBlobNotLocal}
 	case errors.Is(err, ErrMirrorCommitUnknown):
-		f.wants.missing(mirrorRepoName(owner, repo), commit, file)
+		f.wants.missing(mirrorRepoName(owner, repo), commit, file, f.canRead(owner, repo, file))
 		return sourcecapture.FetchResult{Kind: mirrorKindCommitUnknown}
 	case errors.Is(err, ErrMirrorFrozen):
 		f.notes.add(owner, repo, err)
@@ -476,6 +481,13 @@ func (f *mirrorBlobFetcher) Fetch(_ context.Context, path string) sourcecapture.
 		return sourcecapture.FetchResult{Kind: mirrorKindTooLarge}
 	}
 	return sourcecapture.FetchResult{Kind: mirrorKindReadError}
+}
+
+func (f *mirrorBlobFetcher) canRead(owner, repo, file string) func(commit string) bool {
+	return func(commit string) bool {
+		_, err := f.src.Read(owner, repo, commit, file)
+		return err == nil
+	}
 }
 
 // BuildMirrorWorklist is BuildWorklistWithBaseline over a local mirror. It
