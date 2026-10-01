@@ -209,13 +209,24 @@ func TestRangeAwarePrefilterSelectsThroughTheMatcher(t *testing.T) {
 	// Rules selected for a pair with no ranged rule -- the 1.32 flow-control
 	// rule stays exact-only by design (see EXCLUDED in the ranges tooling) --
 	// still render under the exact schema.
-	exactOnly, err := ranged.factFamilyRuleSet("kubernetes", []string{"component.kubernetes.flowcontrol_v1beta3_removed_gvk_present"}, kubernetesInput(t, "1.31.0", "1.32.0", true))
+	exactOnly, err := ranged.rulesForAdmittedInput("kubernetes", kubernetesInput(t, "1.31.0", "1.32.0", true))
 	if err != nil {
 		t.Fatal(err)
 	}
 	engine, err := constraintengine.Evaluate(mustInput(t, ranged, kubernetesInput(t, "1.31.0", "1.32.0", true)), exactOnly, rangeReviewClock)
 	if err != nil || engine.EngineContractDigest != constraintengine.EngineContractDigest() {
 		t.Fatalf("exact selection digest=%s err=%v", engine.EngineContractDigest, err)
+	}
+	// The fact-family selection, which is what the generic path uses once a
+	// family has component-configuration rules, renders the same exact-only
+	// rule under the exact schema.
+	family, err := ranged.factFamilyRuleSet("kubernetes", []string{"component.kubernetes.flowcontrol_v1beta3_removed_gvk_present"}, kubernetesInput(t, "1.31.0", "1.32.0", true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	engine, err = constraintengine.Evaluate(mustInput(t, ranged, kubernetesInput(t, "1.31.0", "1.32.0", true)), family, rangeReviewClock)
+	if err != nil || engine.EngineContractDigest != constraintengine.EngineContractDigest() {
+		t.Fatalf("fact-family selection digest=%s err=%v", engine.EngineContractDigest, err)
 	}
 }
 
