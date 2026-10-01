@@ -434,7 +434,7 @@ func TestFutureAttestedAtIsRejectedByPrepareSignAndChain(t *testing.T) {
 		t.Fatal(err)
 	}
 	f := newChainFixture(t)
-	if _, err := Sign(SignOptions{
+	if _, err := Sign(SignOptions{Role: RoleHuman,
 		Statement: res.StatementCanonical, TrustRoot: f.root, EncryptedKey: f.key, Passphrase: []byte(testPassphrase),
 		ExpectedTrustRootDigest: f.digest, Now: baseNow.Add(-time.Second),
 	}); err == nil || !strings.Contains(err.Error(), "attestedAt is in the future") {

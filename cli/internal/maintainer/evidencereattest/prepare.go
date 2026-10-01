@@ -3,6 +3,8 @@
 package evidencereattest
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -41,6 +43,11 @@ const (
 	reasonStaggerDeferred        = "STAGGER_DEFERRED"
 	reasonNotLaterThanCurrent    = "NOT_LATER_THAN_CURRENT"
 	reasonNotYetDue              = "NOT_YET_DUE"
+	// reasonLatestBaselineUnverified is automated mode only: a citation
+	// compared with the latest release whose compared commit is not the
+	// commit its repository's resolution names, or whose repository was
+	// resolved through the tags fallback.
+	reasonLatestBaselineUnverified = "LATEST_BASELINE_UNVERIFIED"
 )
 
 // PrepareOptions names every input Prepare needs. It performs no I/O and
@@ -66,7 +73,13 @@ type PrepareOptions struct {
 	// previousAttestationDigest are derived from it (see
 	// deriveChainState), never taken from a caller-supplied value.
 	Chain *Chain
-	// Wave is the 1..7 stagger slot this batch renews into (see SlotDate).
+	// Mode is ModeHuman (the default when empty) or ModeAutomated. It
+	// decides the statement's signerRole and which renewal policy applies:
+	// see evaluateEligibility, scheduleAutomated and checkRolePolicy.
+	Mode string
+	// Wave is the 1..7 stagger slot a human-mode batch renews into (see
+	// SlotDate). It must be 0 in automated mode, which schedules each rule
+	// into its own week instead (see scheduleAutomated).
 	Wave int
 	// AttestedAt is the instant this batch is being prepared, normally
 	// "now" from the caller's clock. It must not be after Now.
@@ -155,7 +168,15 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	if opts.PackName != PackCNCF && opts.PackName != PackCommunity {
 		return PrepareResult{}, fmt.Errorf("%w: unknown pack", ErrRejected)
 	}
-	if opts.Wave < minWave || opts.Wave > maxWave {
+	role, err := roleForMode(opts.Mode)
+	if err != nil {
+		return PrepareResult{}, err
+	}
+	automated := role == RoleAutomation
+	if automated && opts.Wave != 0 {
+		return PrepareResult{}, fmt.Errorf("%w: automated mode takes no wave", ErrRejected)
+	}
+	if !automated && (opts.Wave < minWave || opts.Wave > maxWave) {
 		return PrepareResult{}, fmt.Errorf("%w: wave out of range", ErrRejected)
 	}
 	if opts.PackPath == "" || opts.NextRevision == "" || opts.EngineCapabilityDigest == "" {
@@ -170,6 +191,10 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	if err := json.Unmarshal(opts.WorklistRaw, &wl); err != nil || (wl.Schema != evidencerepin.Schema && wl.Schema != evidencerepin.SchemaV1) {
 		return PrepareResult{}, fmt.Errorf("%w: decode worklist", ErrRejected)
 	}
+	// Automated mode needs the baseline records a v1 worklist predates.
+	if automated && wl.Schema != evidencerepin.Schema {
+		return PrepareResult{}, fmt.Errorf("%w: automated mode requires a current-schema worklist", ErrRejected)
+	}
 	worklistDigest := sourcecorpus.SHA(opts.WorklistRaw)
 
 	doc, err := loadPack(opts.PackRaw)
@@ -182,7 +207,12 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		return PrepareResult{}, err
 	}
 
-	validUntilAt, err := SlotDate(opts.Wave, attestedAt)
+	var validUntilAt time.Time
+	if automated {
+		validUntilAt, err = automatedHorizon(attestedAt)
+	} else {
+		validUntilAt, err = SlotDate(opts.Wave, attestedAt)
+	}
 	if err != nil {
 		return PrepareResult{}, err
 	}
@@ -235,7 +265,11 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 
 	// Chain-derived per-rule state: which supplied review records are new
 	// individual reviews, and each rule's consecutive-batch-cycle count.
-	fresh, err := state.reviewsFromRecords(candidatesByID(candidates), opts.ReviewRecords, attestedAt)
+	records := opts.ReviewRecords
+	if automated {
+		records = state.anchoredReviewRecords(candidatesByID(candidates), records)
+	}
+	fresh, err := state.reviewsFromRecords(candidatesByID(candidates), records, attestedAt)
 	if err != nil {
 		return PrepareResult{}, err
 	}
@@ -251,7 +285,7 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	for _, candidate := range candidates {
 		_, reviewedNow := fresh[candidate.RuleID]
 		cycles := state.expectedCycles(candidate.RuleID, reviewedNow)
-		reason, ok := evaluateEligibility(candidate, e2ok, e4worklist, attestedAt, repoByKey, lines, mismatchProjects, cycles)
+		reason, ok := evaluateEligibility(candidate, e2ok, e4worklist, attestedAt, repoByKey, lines, mismatchProjects, cycles, automated)
 		if !ok {
 			notExtended = append(notExtended, NotExtendedEntry{RuleID: candidate.RuleID, WorstClass: reason})
 			continue
@@ -266,7 +300,22 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	// then caps the batch so the slot week stays within the stagger cap:
 	// the remaining rules are taken soonest-expiring first, then by rule
 	// ID, and the rest are deferred to a later wave.
-	chosen, notLater, notDue, deferred, err := staggerBatch(candidates, eligibleIDs, attestedAt, validUntilAt)
+	//
+	// Automated mode schedules each rule into its own week instead (see
+	// scheduleAutomated), under the same V7 cap.
+	var chosen, notLater, notDue, deferred []string
+	ruleValidUntil := map[string]time.Time{}
+	if automated {
+		ruleValidUntil, notLater, notDue, deferred, err = scheduleAutomated(candidates, eligibleIDs, attestedAt)
+		for id := range ruleValidUntil {
+			chosen = append(chosen, id)
+		}
+	} else {
+		chosen, notLater, notDue, deferred, err = staggerBatch(candidates, eligibleIDs, attestedAt, validUntilAt)
+		for _, id := range chosen {
+			ruleValidUntil[id] = validUntilAt
+		}
+	}
 	if err != nil {
 		return PrepareResult{}, err
 	}
@@ -285,7 +334,12 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	}
 	sort.Strings(eligibleIDs)
 
+	// The seeded sample is the human path's audit; an automated statement
+	// has none (see checkSampleReviewed).
 	sampleSize := int(math.Ceil(sampleFraction * float64(len(eligibleIDs))))
+	if automated {
+		sampleSize = 0
+	}
 	sampled := sampleRuleIDs(worklistDigest, eligibleIDs, sampleSize)
 	sampledSet := map[string]bool{}
 	for _, id := range sampled {
@@ -303,7 +357,8 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 			continue
 		}
 		candidate := candidateByID[fields.ID]
-		mutated, err := mutateRuleEvidenceDates(nextDoc.Entries[i].Rule, attestedAtString, validUntil)
+		renewedUntil := ruleValidUntil[fields.ID].Format(time.RFC3339)
+		mutated, err := mutateRuleEvidenceDates(nextDoc.Entries[i].Rule, attestedAtString, renewedUntil)
 		if err != nil {
 			return PrepareResult{}, err
 		}
@@ -358,6 +413,9 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 			LastIndividualReviewAt: state.expectedLastReview(fields.ID, reviewedNow, attestedAtString, fields.Evidence.ReviewedAt),
 			ConsecutiveBatchCycles: state.expectedCycles(fields.ID, reviewedNow), Citations: citationAttestations,
 		}
+		if automated {
+			ra.ValidUntil = renewedUntil
+		}
 		ruleAttestations[fields.ID] = ra
 	}
 
@@ -409,8 +467,12 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		previousDigest = &digestValue
 	}
 
+	authority, text, wave := Authority, FixedStatementText(wl.GeneratedAt, validUntil), opts.Wave
+	if automated {
+		authority, text, wave = AuthorityAutomated, AutomatedStatementText(wl.GeneratedAt, validUntil), 0
+	}
 	statement := Statement{
-		Schema: StatementSchema, Purpose: Purpose, Audience: Audience, Authority: Authority,
+		Schema: StatementSchema, Purpose: Purpose, Audience: Audience, Authority: authority, SignerRole: role,
 		Pack: PackRef{
 			Name: opts.PackName, Schema: doc.Schema, PolicyID: doc.PolicyID, PolicyDigest: doc.PolicyDigest,
 			EngineCapabilityDigest: opts.EngineCapabilityDigest,
@@ -423,10 +485,10 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 			OldestRepoResolvedAt: wl.Summary.OldestResolvedAt, Pending: wl.Summary.Pending,
 			ToolIdentityDigest: toolIdentityDigest(),
 		},
-		Wave: opts.Wave, AttestedAt: attestedAtString, ValidUntil: validUntil,
+		Wave: wave, AttestedAt: attestedAtString, ValidUntil: validUntil,
 		Rules: rules, SampledForFullReview: sampledEntries, IndividualReviews: individualReviews, NotExtended: notExtended,
 		UpstreamReleasesSincePrior: releases,
-		Statement:                  FixedStatementText(wl.GeneratedAt, validUntil),
+		Statement:                  text,
 	}
 	canonical, err := CanonicalStatement(statement)
 	if err != nil {
@@ -448,6 +510,9 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	if err := checkV7(statement, nextByID); err != nil {
 		return PrepareResult{}, fmt.Errorf("%w: statement failed stagger self-check: %v", ErrRejected, err)
 	}
+	if err := checkRolePolicy(statement, candidateByID); err != nil {
+		return PrepareResult{}, fmt.Errorf("%w: statement failed role-policy self-check: %v", ErrRejected, err)
+	}
 
 	summary := renderSummary(statement, opts, doc.Entries)
 
@@ -464,7 +529,7 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 func evaluateEligibility(
 	candidate ruleCandidate, e2ok, e4worklist bool, attestedAt time.Time,
 	repoByKey map[string]evidencerepin.RepoResolution, lines []evidencerepin.LineResolution, mismatchProjects map[string]bool,
-	consecutiveCycles int,
+	consecutiveCycles int, automated bool,
 ) (string, bool) {
 	if !e2ok {
 		return reasonScopeIncomplete, false
@@ -522,6 +587,13 @@ func evaluateEligibility(
 		// record that resolved this very tag and commit.
 		switch citation.Baseline {
 		case "", evidencerepin.BaselineLatest:
+			// Automated mode re-proves a latest-release baseline against
+			// the worklist's own repository record: the compared commit
+			// must be the one the repository resolved to, resolved through
+			// Releases, never the tags fallback.
+			if automated && !latestBaselineVerified(citation, repoByKey) {
+				return reasonLatestBaselineUnverified, false
+			}
 		case evidencerepin.BaselineReleaseLine:
 			if !lineBaselineVerified(citation, lines) {
 				return reasonLineBaselineUnverified, false
@@ -571,6 +643,16 @@ func evaluateEligibility(
 		return reasonCorpusMismatchProject, false
 	}
 	return "", true
+}
+
+// latestBaselineVerified reports whether a citation compared with its
+// repository's latest release is backed by the worklist's own resolution
+// of that repository: resolved, through Releases, to exactly the commit the
+// citation was compared with.
+func latestBaselineVerified(citation evidencerepin.ClassResult, repoByKey map[string]evidencerepin.RepoResolution) bool {
+	repo, ok := repoByKey[citation.Owner+"/"+citation.Repo]
+	return ok && repo.Status == "RESOLVED" && repo.Resolution != resolutionTagFallback &&
+		repo.CurrentCommit != "" && citation.NewCommit == repo.CurrentCommit
 }
 
 // matchingLine finds the worklist line record a release-line citation's
@@ -673,6 +755,93 @@ func staggerBatch(candidates []ruleCandidate, eligibleIDs []string, attestedAt, 
 	return chosen, notLater, notDue, nil, nil
 }
 
+// slotPreference is a rule's preferred index among n automated slots:
+// sha256 of a fixed domain and the rule ID, read as a big-endian integer,
+// modulo n. It depends on nothing but the rule ID, so rules spread over
+// the slots independently of pack order and of each other.
+func slotPreference(ruleID string, n int) int {
+	sum := sha256.Sum256([]byte(automatedSlotDomain + ruleID))
+	return int(binary.BigEndian.Uint64(sum[:8]) % uint64(n))
+}
+
+// scheduleAutomated is automated mode's replacement for wave slots: it
+// picks each renewed rule's own new validUntil among AutomatedSlots(
+// attestedAt), so daily automated runs spread validUntil values over the
+// weeks of the lease window instead of piling one wave's rules into one
+// week.
+//
+// The rules considered are the eligible ones that are due: a rule whose
+// current validUntil is further than renewalWindow from attestedAt is not
+// yet due (notDue), exactly as in human mode. They are placed one at a
+// time, soonest-expiring first, then by rule ID. Each rule starts at its
+// own preferred slot (slotPreference) and takes the first slot, going
+// later and wrapping around to the earliest, that is strictly later than
+// its current validUntil (otherwise it is skipped) and whose ISO week stays
+// within the V7 cap counting every rule's validUntil as it will be in the
+// next pack. A rule no slot accepts is deferred; one with no slot later
+// than its current validUntil at all is notLater. The result is a pure
+// function of the pack's rules, the eligible IDs and attestedAt, so Verify
+// recomputes it identically.
+func scheduleAutomated(candidates []ruleCandidate, eligibleIDs []string, attestedAt time.Time) (chosen map[string]time.Time, notLater, notDue, deferred []string, err error) {
+	slots := AutomatedSlots(attestedAt)
+	if len(slots) == 0 {
+		return nil, nil, nil, nil, fmt.Errorf("%w: no automated slot", ErrRejected)
+	}
+	weekCap := staggerCap(len(candidates))
+	current := map[string]time.Time{}
+	counts := map[string]int{}
+	for _, candidate := range candidates {
+		validUntil, err := parseUTC(candidate.Fields.Evidence.ValidUntil)
+		if err != nil {
+			return nil, nil, nil, nil, fmt.Errorf("%w: V7: rule %s validUntil", ErrRejected, candidate.RuleID)
+		}
+		current[candidate.RuleID] = validUntil
+		counts[isoWeek(validUntil)]++
+	}
+	ordered := make([]string, 0, len(eligibleIDs))
+	for _, id := range eligibleIDs {
+		switch {
+		case !slots[len(slots)-1].After(current[id]):
+			notLater = append(notLater, id)
+		case current[id].Sub(attestedAt) > renewalWindow:
+			notDue = append(notDue, id)
+		default:
+			ordered = append(ordered, id)
+		}
+	}
+	sort.Slice(ordered, func(i, j int) bool {
+		a, b := current[ordered[i]], current[ordered[j]]
+		if !a.Equal(b) {
+			return a.Before(b)
+		}
+		return ordered[i] < ordered[j]
+	})
+	chosen = map[string]time.Time{}
+	for _, id := range ordered {
+		start := slotPreference(id, len(slots))
+		placed := false
+		for k := 0; k < len(slots); k++ {
+			slot := slots[(start+k)%len(slots)]
+			if !slot.After(current[id]) {
+				continue
+			}
+			oldWeek, newWeek := isoWeek(current[id]), isoWeek(slot)
+			if oldWeek != newWeek && counts[newWeek]+1 > weekCap {
+				continue
+			}
+			counts[oldWeek]--
+			counts[newWeek]++
+			chosen[id] = slot
+			placed = true
+			break
+		}
+		if !placed {
+			deferred = append(deferred, id)
+		}
+	}
+	return chosen, notLater, notDue, deferred, nil
+}
+
 // packCandidates parses every rule in doc into a ruleCandidate (without
 // citations), sorted by rule ID, and also returns the rules' typed fields
 // in pack order.
@@ -765,6 +934,8 @@ func renderSummary(statement Statement, opts PrepareOptions, entries []packEntry
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "pack: %s\n", statement.Pack.Name)
+	role, _ := statementRole(statement)
+	fmt.Fprintf(&b, "signer role: %s\n", role)
 	fmt.Fprintf(&b, "prior revision: %s (packDigest %s)\n", statement.Pack.Prior.Revision, statement.Pack.Prior.PackDigest)
 	fmt.Fprintf(&b, "next revision: %s (packDigest %s)\n", statement.Pack.Next.Revision, statement.Pack.Next.PackDigest)
 	fmt.Fprintf(&b, "eligible: %d, sampled for full review: %d, not extended: %d, total rules in pack: %d\n",
@@ -778,6 +949,12 @@ func renderSummary(statement Statement, opts PrepareOptions, entries []packEntry
 		ids := byProject[project]
 		sort.Strings(ids)
 		fmt.Fprintf(&b, "  %s: %s\n", project, strings.Join(ids, ", "))
+	}
+	if role == RoleAutomation {
+		fmt.Fprintf(&b, "per-rule validUntil (automated schedule):\n")
+		for _, ra := range statement.Rules {
+			fmt.Fprintf(&b, "  %s: %s\n", ra.RuleID, ra.ValidUntil)
+		}
 	}
 	fmt.Fprintf(&b, "sampled for full review (must be individually reviewed before signing):\n")
 	for _, s := range statement.SampledForFullReview {
@@ -802,7 +979,9 @@ func renderSummary(statement Statement, opts PrepareOptions, entries []packEntry
 	}
 	fmt.Fprintf(&b, "attestedAt: %s\n", statement.AttestedAt)
 	fmt.Fprintf(&b, "validUntil: %s\n", statement.ValidUntil)
-	fmt.Fprintf(&b, "wave: %s\n", strconv.Itoa(statement.Wave))
+	if role == RoleHuman {
+		fmt.Fprintf(&b, "wave: %s\n", strconv.Itoa(statement.Wave))
+	}
 	fmt.Fprintf(&b, "statementDigest: %s\n", statementDigest)
 	return []byte(b.String())
 }

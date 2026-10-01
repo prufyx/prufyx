@@ -138,7 +138,7 @@ func newReattestFixture(t *testing.T) reattestFixture {
 	// encoding/json writes map keys sorted and compact, which is the
 	// canonical form for this ASCII-only document.
 	root, err := json.Marshal(map[string]any{
-		"schemaVersion": evidencereattest.TrustRootSchema, "purpose": evidencereattest.Purpose,
+		"schemaVersion": evidencereattest.TrustRootSchemaV1, "purpose": evidencereattest.Purpose,
 		"expires": time.Now().UTC().Add(365 * 24 * time.Hour).Truncate(time.Second).Format(time.RFC3339), "threshold": 1,
 		"keys": []any{map[string]any{"keyId": keyID, "keyType": "ed25519", "scheme": "ed25519", "publicKey": hex.EncodeToString(public)}},
 	})
@@ -154,7 +154,7 @@ func newReattestFixture(t *testing.T) reattestFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	envelope, err := evidencereattest.Sign(evidencereattest.SignOptions{
+	envelope, err := evidencereattest.Sign(evidencereattest.SignOptions{Role: evidencereattest.RoleHuman,
 		Statement: bytes.TrimSuffix(statement, []byte("\n")), TrustRoot: root, EncryptedKey: key,
 		Passphrase: []byte("correct horse battery staple"), ExpectedTrustRootDigest: f.trustRootDigest, Now: time.Now(),
 	})

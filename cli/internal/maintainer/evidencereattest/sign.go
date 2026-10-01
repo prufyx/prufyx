@@ -19,14 +19,21 @@ import (
 // Passphrase and wipes it before returning.
 //
 // SignOptions does not itself check for a terminal: that check belongs to
-// the CLI adapter, which must refuse to acquire a passphrase at all off a
-// TTY (see cmd/prufyx-maintainer's promptPassphrase). This package's own
-// refusal is checkSampleReviewed: a statement whose sampled rules are
+// the CLI adapter, which must refuse to acquire a human key's passphrase
+// at all off a TTY (see cmd/prufyx-maintainer's promptPassphrase), and
+// reads an automation key's passphrase only from a file or environment
+// variable. This package's own refusals are the role binding (Role must
+// equal the statement's signerRole and the signing key's role in the trust
+// root) and checkSampleReviewed: a human statement whose sampled rules are
 // missing a recorded individual review is refused regardless of how the
 // passphrase was obtained.
 type SignOptions struct {
 	Statement, TrustRoot, EncryptedKey []byte
 	Passphrase                         []byte
+	// Role is the role the caller is signing as, RoleHuman or
+	// RoleAutomation. Required: Sign refuses a statement prepared for the
+	// other role, and a key whose role in the trust root is not Role.
+	Role string
 	// ExpectedTrustRootDigest is the trust root's digest as the caller
 	// independently knows it (from a pinned configuration value, never
 	// computed from TrustRoot itself). Required: Sign refuses to run
@@ -41,11 +48,22 @@ type SignOptions struct {
 	Now time.Time
 }
 
-// checkSampleReviewed refuses to sign a statement carrying any
+// checkSampleReviewed refuses to sign a human statement carrying any
 // sampled-for-full-review entry with no recorded review: the seeded sample
 // must be reviewed, and Prepare can only record that a review happened,
-// never that signing may proceed without one.
+// never that signing may proceed without one. Only an automated statement
+// is exempt from the sample, and it must then carry none.
 func checkSampleReviewed(statement Statement) error {
+	role, err := statementRole(statement)
+	if err != nil {
+		return err
+	}
+	if role == RoleAutomation {
+		if len(statement.SampledForFullReview) != 0 {
+			return fmt.Errorf("%w: an automated statement carries a sample", ErrRejected)
+		}
+		return nil
+	}
 	if len(statement.SampledForFullReview) == 0 && len(statement.Rules) > 0 {
 		// A non-empty batch with zero sampled rules can only happen if the
 		// 10% seed genuinely rounds to zero, which sampleRuleIDs already
@@ -64,9 +82,11 @@ func checkSampleReviewed(statement Statement) error {
 
 // Sign produces a detached envelope over the exact statement bytes. It
 // refuses a statement that does not already parse, a statement attested
-// after the signer's clock, a statement whose sampled rules lack a
-// recorded review, a signer outside the trust root,
-// and any statement bound to a different trust root than the one supplied.
+// after the signer's clock, a statement prepared for a role other than
+// options.Role, a human statement whose sampled rules lack a recorded
+// review, a signer outside the trust root or whose role there is not
+// options.Role, and any statement bound to a different trust root than the
+// one supplied.
 func Sign(options SignOptions) ([]byte, error) {
 	defer wipe(options.Passphrase)
 	now := options.Now
@@ -80,6 +100,16 @@ func Sign(options SignOptions) ([]byte, error) {
 	}
 	if attestedAt, err := parseUTC(statement.AttestedAt); err != nil || attestedAt.After(now) {
 		return nil, fmt.Errorf("%w: attestedAt is in the future", ErrRejected)
+	}
+	role, err := statementRole(statement)
+	if err != nil {
+		return nil, err
+	}
+	if options.Role != RoleHuman && options.Role != RoleAutomation {
+		return nil, fmt.Errorf("%w: a signing role is required", ErrRejected)
+	}
+	if options.Role != role {
+		return nil, fmt.Errorf("%w: the statement must be signed by a %s key, not a %s key", ErrRejected, role, options.Role)
 	}
 	if err := checkSampleReviewed(statement); err != nil {
 		return nil, err
@@ -109,12 +139,12 @@ func Sign(options SignOptions) ([]byte, error) {
 	}
 	authorized := false
 	for _, key := range root.Keys {
-		if key.KeyID == keyID {
+		if key.KeyID == keyID && keyRole(root, key) == role {
 			authorized = true
 		}
 	}
 	if !authorized {
-		return nil, ErrRejected
+		return nil, fmt.Errorf("%w: the signing key is not a %s key in the trust root", ErrRejected, role)
 	}
 	signer, err := signature.LoadSigner(private, crypto.Hash(0))
 	if err != nil {
@@ -162,11 +192,16 @@ type VerifySignatureOptions struct {
 type VerifySignatureResult struct {
 	SignerKeyIDs    []string
 	TrustRootDigest string
+	// SignerRole is the role every accepted signature's key holds in the
+	// trust root; it always equals the statement's own signerRole.
+	SignerRole string
 }
 
 // VerifySignature checks a re-attestation statement's detached signature
 // against a pinned trust root. It fails closed on an unknown signer, a
-// wrong or expired root, a digest mismatch, a duplicate signer, or too few
+// signer whose role in the trust root is not the statement's signerRole (a
+// v1 statement's role, and every v1 root key's role, is human), a wrong or
+// expired root, a digest mismatch, a duplicate signer, or too few
 // signatures.
 func VerifySignature(options VerifySignatureOptions) (VerifySignatureResult, error) {
 	now := options.Now
@@ -182,7 +217,12 @@ func VerifySignature(options VerifySignatureOptions) (VerifySignatureResult, err
 		return VerifySignatureResult{}, ErrRejected
 	}
 	trustRootDigest := options.ExpectedTrustRootDigest
-	if _, err := ParseStatement(options.Statement); err != nil {
+	statement, err := ParseStatement(options.Statement)
+	if err != nil {
+		return VerifySignatureResult{}, ErrRejected
+	}
+	role, err := statementRole(statement)
+	if err != nil {
 		return VerifySignatureResult{}, ErrRejected
 	}
 	envelope, err := decodeExact[Envelope](options.Envelope, MaxEnvelopeBytes)
@@ -195,8 +235,13 @@ func VerifySignature(options VerifySignatureOptions) (VerifySignatureResult, err
 	if len(envelope.Signatures) < root.Threshold || len(envelope.Signatures) > len(root.Keys) {
 		return VerifySignatureResult{}, ErrRejected
 	}
+	// Only keys holding the statement's role can contribute a signature:
+	// a key of the other role is treated exactly like an unknown key.
 	keys := make(map[string]ed25519.PublicKey, len(root.Keys))
 	for _, key := range root.Keys {
+		if keyRole(root, key) != role {
+			continue
+		}
 		decoded, decodeErr := hex.DecodeString(key.PublicKey)
 		if decodeErr != nil {
 			return VerifySignatureResult{}, ErrRejected
@@ -220,5 +265,5 @@ func VerifySignature(options VerifySignatureOptions) (VerifySignatureResult, err
 	if len(accepted) < root.Threshold {
 		return VerifySignatureResult{}, ErrRejected
 	}
-	return VerifySignatureResult{SignerKeyIDs: accepted, TrustRootDigest: trustRootDigest}, nil
+	return VerifySignatureResult{SignerKeyIDs: accepted, TrustRootDigest: trustRootDigest, SignerRole: role}, nil
 }

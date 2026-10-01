@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
 
@@ -70,6 +71,9 @@ type VerifyOptions struct {
 // on success; on failure the returned error names which invariant failed
 // and Result is the zero value.
 type VerifyResult struct {
+	// SignerRole is the role the statement requires of its signature
+	// (see VerifySignature, which enforces it).
+	SignerRole                                string
 	RuleCount, SampledCount, NotExtendedCount int
 }
 
@@ -125,7 +129,15 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 	if err != nil {
 		return VerifyResult{}, err
 	}
-	fresh, err := checkPriorPackAgainstChain(state, priorDoc, options.ReviewRecords, attestedAt.UTC())
+	role, err := statementRole(statement)
+	if err != nil {
+		return VerifyResult{}, fmt.Errorf("%w: statement role", ErrRejected)
+	}
+	fresh, err := checkPriorPackAgainstChain(state, priorDoc, options.ReviewRecords, attestedAt.UTC(), role)
+	if err != nil {
+		return VerifyResult{}, err
+	}
+	priorCandidates, _, err := packCandidates(priorDoc)
 	if err != nil {
 		return VerifyResult{}, err
 	}
@@ -139,7 +151,13 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 	if err := checkV5(statement, state); err != nil {
 		return VerifyResult{}, err
 	}
-	if err := checkV6(priorByID, nextByID, statement, fresh); err != nil {
+	coveringReviews := fresh
+	if role == RoleAutomation {
+		// No person signs an automated statement, so nothing but the
+		// statement's own rules may account for a date change in its pack.
+		coveringReviews = nil
+	}
+	if err := checkV6(priorByID, nextByID, statement, coveringReviews); err != nil {
 		return VerifyResult{}, err
 	}
 	if err := checkV7(statement, nextByID); err != nil {
@@ -148,14 +166,19 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 	if err := checkSampleReviewed(statement); err != nil {
 		return VerifyResult{}, err
 	}
+	if err := checkRolePolicy(statement, candidatesByID(priorCandidates)); err != nil {
+		return VerifyResult{}, err
+	}
 
-	return VerifyResult{RuleCount: len(statement.Rules), SampledCount: len(statement.SampledForFullReview), NotExtendedCount: len(statement.NotExtended)}, nil
+	return VerifyResult{SignerRole: role, RuleCount: len(statement.Rules), SampledCount: len(statement.SampledForFullReview), NotExtendedCount: len(statement.NotExtended)}, nil
 }
 
-// checkV2 checks the statement's own declared review-lease dates: its
-// validUntil must equal its wave's slot date computed from its own
-// attestedAt, and the lease (validUntil - attestedAt) must be positive and
-// no more than the policy-v1 90-day cap.
+// checkV2 checks the statement's own declared review-lease dates: the
+// lease (validUntil - attestedAt) must be positive and no more than the
+// policy-v1 90-day cap; a human statement's validUntil must equal its
+// wave's slot date computed from its own attestedAt; an automated
+// statement's validUntil must be its latest automated slot, and every rule
+// it renews must have a validUntil that is one of its automated slots.
 func checkV2(statement Statement) error {
 	attestedAt, err := time.Parse(time.RFC3339, statement.AttestedAt)
 	if err != nil {
@@ -170,9 +193,33 @@ func checkV2(statement Statement) error {
 	if validUntil.Sub(attestedAt) <= 0 || validUntil.Sub(attestedAt) > maxLease {
 		return fmt.Errorf("%w: V2: lease is not positive or exceeds the policy-v1 90-day cap", ErrRejected)
 	}
-	wantValidUntil, err := SlotDate(statement.Wave, attestedAt)
-	if err != nil || !validUntil.Equal(wantValidUntil) {
-		return fmt.Errorf("%w: V2: validUntil does not match the wave's slot date", ErrRejected)
+	role, err := statementRole(statement)
+	if err != nil {
+		return fmt.Errorf("%w: V2: statement role", ErrRejected)
+	}
+	if role == RoleHuman {
+		wantValidUntil, err := SlotDate(statement.Wave, attestedAt)
+		if err != nil || !validUntil.Equal(wantValidUntil) {
+			return fmt.Errorf("%w: V2: validUntil does not match the wave's slot date", ErrRejected)
+		}
+		return nil
+	}
+	horizon, err := automatedHorizon(attestedAt)
+	if err != nil || !validUntil.Equal(horizon) {
+		return fmt.Errorf("%w: V2: validUntil is not the automated schedule's horizon", ErrRejected)
+	}
+	slots := map[string]bool{}
+	for _, slot := range AutomatedSlots(attestedAt) {
+		slots[slot.Format(time.RFC3339)] = true
+	}
+	for _, ra := range statement.Rules {
+		ruleValidUntil, err := parseUTC(ra.ValidUntil)
+		if err != nil || ruleValidUntil.Sub(attestedAt) <= 0 || ruleValidUntil.Sub(attestedAt) > maxLease {
+			return fmt.Errorf("%w: V2: rule %s lease is not positive or exceeds the policy-v1 90-day cap", ErrRejected, ra.RuleID)
+		}
+		if !slots[ra.ValidUntil] {
+			return fmt.Errorf("%w: V2: rule %s validUntil is not an automated slot", ErrRejected, ra.RuleID)
+		}
 	}
 	return nil
 }
@@ -193,7 +240,16 @@ func checkV2(statement Statement) error {
 // equality. A rule present on only one side of prior/next therefore always
 // fails here too, not only in checkV6's dedicated scan.
 func checkV1AndV3(statement Statement, statementRaw []byte, options VerifyOptions, state chainState) error {
+	role, err := statementRole(statement)
+	if err != nil {
+		return fmt.Errorf("%w: V3: statement role", ErrRejected)
+	}
+	mode := ModeHuman
+	if role == RoleAutomation {
+		mode = ModeAutomated
+	}
 	result, err := prepareWithChain(PrepareOptions{
+		Mode:        mode,
 		WorklistRaw: options.WorklistRaw, PackName: options.PackName, PackPath: options.PackPath,
 		PackRaw: options.PriorPackRaw,
 		Wave:    statement.Wave, AttestedAt: mustParse(statement.AttestedAt), NextRevision: statement.Pack.Next.Revision,
@@ -256,11 +312,16 @@ func rulesByID(doc packDocument) (map[string]json.RawMessage, error) {
 // Prepare does) and applies chainState.checkPriorPackCovered to the
 // supplied prior pack, so a bad review record or a truncated chain is
 // reported as V5 rather than only as a failed recomputation. It returns
-// the new reviews by rule ID.
-func checkPriorPackAgainstChain(state chainState, priorDoc packDocument, records map[string][]byte, attestedAt time.Time) (map[string]string, error) {
+// the new reviews by rule ID. For an automated statement only the records
+// chainState.anchoredReviewRecords admits are considered, exactly as
+// Prepare does in automated mode.
+func checkPriorPackAgainstChain(state chainState, priorDoc packDocument, records map[string][]byte, attestedAt time.Time, role string) (map[string]string, error) {
 	candidates, rules, err := packCandidates(priorDoc)
 	if err != nil {
 		return nil, err
+	}
+	if role == RoleAutomation {
+		records = state.anchoredReviewRecords(candidatesByID(candidates), records)
 	}
 	fresh, err := state.reviewsFromRecords(candidatesByID(candidates), records, attestedAt)
 	if err != nil {
@@ -386,6 +447,82 @@ func checkV7(statement Statement, nextByID map[string]json.RawMessage) error {
 	for week, count := range counts {
 		if count > weekCap {
 			return fmt.Errorf("%w: V7: ISO week %s holds %d of %d rules, over the cap of %d", ErrRejected, week, count, total, weekCap)
+		}
+	}
+	return nil
+}
+
+// checkRolePolicy (V8) checks, independently of checkV1AndV3's
+// recomputation, that what the statement renews is within what its signer
+// role may renew, from the statement and the prior pack alone:
+//
+//   - every renewed rule exists in the prior pack, is a reviewed (not
+//     mechanical) rule, is active, carries no version range, and is listed
+//     with exactly one citation per evidence source, each classified
+//     NO_NEW_RELEASE, FILE_IDENTICAL or SPAN_IDENTICAL against the latest
+//     release or its own release line, pinned to the source's own revision;
+//   - its consecutiveBatchCycles is within 1..the cap;
+//   - a human statement has a wave, no per-rule validUntil, and a non-empty
+//     sample whenever it renews anything (the sample's reviews are
+//     checkSampleReviewed's job);
+//   - an automated statement has no wave, no sample, and a validUntil on
+//     every rule.
+func checkRolePolicy(statement Statement, prior map[string]ruleCandidate) error {
+	role, err := statementRole(statement)
+	if err != nil {
+		return fmt.Errorf("%w: V8: statement role", ErrRejected)
+	}
+	switch role {
+	case RoleHuman:
+		if statement.Wave < minWave || statement.Wave > maxWave {
+			return fmt.Errorf("%w: V8: a human statement requires a wave", ErrRejected)
+		}
+		if len(statement.Rules) > 0 && len(statement.SampledForFullReview) == 0 {
+			return fmt.Errorf("%w: V8: a human statement that renews rules requires a sample", ErrRejected)
+		}
+	case RoleAutomation:
+		if statement.Wave != 0 || len(statement.SampledForFullReview) != 0 {
+			return fmt.Errorf("%w: V8: an automated statement has no wave and no sample", ErrRejected)
+		}
+	}
+	for _, ra := range statement.Rules {
+		if (role == RoleAutomation) == (ra.ValidUntil == "") {
+			return fmt.Errorf("%w: V8: rule %s per-rule validUntil does not match the statement's role", ErrRejected, ra.RuleID)
+		}
+		candidate, ok := prior[ra.RuleID]
+		if !ok {
+			return fmt.Errorf("%w: V8: renewed rule %s is not in the prior pack", ErrRejected, ra.RuleID)
+		}
+		if candidate.Fields.isMechanical() || hasRange(candidate.Fields.Range) || candidate.Fields.Evidence.State != "active" {
+			return fmt.Errorf("%w: V8: rule %s is not renewable by reattestation", ErrRejected, ra.RuleID)
+		}
+		if ra.ConsecutiveBatchCycles < 1 || ra.ConsecutiveBatchCycles > maxConsecutiveBatchCycles {
+			return fmt.Errorf("%w: V8: rule %s consecutiveBatchCycles is outside 1..%d", ErrRejected, ra.RuleID, maxConsecutiveBatchCycles)
+		}
+		sources := map[string]string{}
+		for _, source := range candidate.Fields.Evidence.Sources {
+			sources[source.ID] = source.Revision
+		}
+		if len(sources) == 0 || len(ra.Citations) != len(sources) {
+			return fmt.Errorf("%w: V8: rule %s citations do not cover its sources one to one", ErrRejected, ra.RuleID)
+		}
+		seen := map[string]bool{}
+		for _, citation := range ra.Citations {
+			revision, known := sources[citation.SourceID]
+			if !known || seen[citation.SourceID] || citation.PinnedCommit != revision {
+				return fmt.Errorf("%w: V8: rule %s citation %s does not match its source", ErrRejected, ra.RuleID, citation.SourceID)
+			}
+			seen[citation.SourceID] = true
+			switch citation.Class {
+			case evidencerepin.ClassNoNewRelease, evidencerepin.ClassFileIdentical, evidencerepin.ClassSpanIdentical:
+			default:
+				return fmt.Errorf("%w: V8: rule %s citation %s is classified %s", ErrRejected, ra.RuleID, citation.SourceID, citation.Class)
+			}
+			switch citation.Baseline {
+			case "", evidencerepin.BaselineLatest, evidencerepin.BaselineReleaseLine:
+			default:
+				return fmt.Errorf("%w: V8: rule %s citation %s has an unknown baseline", ErrRejected, ra.RuleID, citation.SourceID)
+			}
 		}
 	}
 	return nil

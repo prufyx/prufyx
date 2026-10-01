@@ -575,7 +575,7 @@ func TestSignAndVerifySignatureRequirePinnedTrustRoot(t *testing.T) {
 	key, root, _ := generateTestKey(t, []byte("correct horse battery staple"))
 
 	// No expected digest at all.
-	if _, err := Sign(SignOptions{Statement: res.StatementCanonical, TrustRoot: root, EncryptedKey: key, Passphrase: []byte("correct horse battery staple"), Now: baseNow.Add(time.Hour)}); err == nil {
+	if _, err := Sign(SignOptions{Role: RoleHuman, Statement: res.StatementCanonical, TrustRoot: root, EncryptedKey: key, Passphrase: []byte("correct horse battery staple"), Now: baseNow.Add(time.Hour)}); err == nil {
 		t.Fatal("Sign accepted a trust root with no pinned expected digest")
 	}
 	if _, err := VerifySignature(VerifySignatureOptions{Statement: res.StatementCanonical, Envelope: []byte("{}"), TrustRoot: root}); err == nil {
@@ -584,7 +584,7 @@ func TestSignAndVerifySignatureRequirePinnedTrustRoot(t *testing.T) {
 
 	// A digest that does not match the actual root is also rejected.
 	wrongDigest := "sha256:" + strings.Repeat("ff", 32)
-	if _, err := Sign(SignOptions{
+	if _, err := Sign(SignOptions{Role: RoleHuman,
 		Statement: res.StatementCanonical, TrustRoot: root, EncryptedKey: key,
 		Passphrase: []byte("correct horse battery staple"), ExpectedTrustRootDigest: wrongDigest, Now: baseNow.Add(time.Hour),
 	}); err == nil {
@@ -879,7 +879,7 @@ func generateTestKey(t *testing.T, passphrase []byte) (encryptedKey, trustRoot [
 	}
 	root := TrustRoot{
 		SchemaVersion: TrustRootSchema, Purpose: Purpose, Expires: rfc3339(time.Now().UTC().Add(365 * 24 * time.Hour)),
-		Threshold: 1, Keys: []TrustKey{{KeyID: keyID, KeyType: "ed25519", Scheme: "ed25519", PublicKey: hex.EncodeToString(public)}},
+		Threshold: 1, Keys: []TrustKey{{KeyID: keyID, KeyType: "ed25519", Scheme: "ed25519", PublicKey: hex.EncodeToString(public), Role: RoleHuman}},
 	}
 	trustRoot, err = canonicalBytes(root)
 	if err != nil {
@@ -895,7 +895,7 @@ func TestSignAndVerifySignatureRoundTrip(t *testing.T) {
 
 	encryptedKey, trustRoot, keyID := generateTestKey(t, []byte("correct horse battery staple"))
 	expectedDigest := sourcecorpus.SHA(trustRoot)
-	envelope, err := Sign(SignOptions{
+	envelope, err := Sign(SignOptions{Role: RoleHuman,
 		Statement: result.StatementCanonical, TrustRoot: trustRoot, EncryptedKey: encryptedKey,
 		Passphrase: []byte("correct horse battery staple"), ExpectedTrustRootDigest: expectedDigest, Now: baseNow.Add(time.Hour),
 	})
@@ -930,7 +930,7 @@ func TestSignRefusesUnreviewedSample(t *testing.T) {
 	}
 
 	encryptedKey, trustRoot, _ := generateTestKey(t, []byte("correct horse battery staple"))
-	_, err = Sign(SignOptions{
+	_, err = Sign(SignOptions{Role: RoleHuman,
 		Statement: result.StatementCanonical, TrustRoot: trustRoot, EncryptedKey: encryptedKey,
 		Passphrase: []byte("correct horse battery staple"), ExpectedTrustRootDigest: sourcecorpus.SHA(trustRoot), Now: baseNow.Add(time.Hour),
 	})
@@ -1211,7 +1211,7 @@ func (f *chainFixture) sign(statementRaw []byte) []byte {
 	if err := json.Unmarshal(statementRaw, &statement); err != nil {
 		f.t.Fatal(err)
 	}
-	envelope, err := Sign(SignOptions{
+	envelope, err := Sign(SignOptions{Role: RoleHuman,
 		Statement: statementRaw, TrustRoot: f.root, EncryptedKey: f.key,
 		Passphrase: []byte(testPassphrase), ExpectedTrustRootDigest: f.digest, Now: mustParse(statement.AttestedAt).Add(time.Hour),
 	})

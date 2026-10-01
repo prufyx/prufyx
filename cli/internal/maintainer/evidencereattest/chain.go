@@ -61,11 +61,11 @@ type chainState struct {
 }
 
 // entryRecord is what one chain entry did, as checkPriorPackCovered needs
-// it. It is never modified after apply records it.
+// it: the validUntil it renewed each rule to, and the rules it recorded an
+// individual review for. It is never modified after apply records it.
 type entryRecord struct {
-	validUntil string
-	renewed    map[string]bool
-	reviewed   map[string]bool
+	renewed  map[string]string
+	reviewed map[string]bool
 }
 
 func newChainState() chainState {
@@ -191,6 +191,45 @@ func (s chainState) reviewsFromRecords(rules map[string]ruleCandidate, records m
 	return out, nil
 }
 
+// renewedValidUntil is the validUntil statement gives a rule it renews: the
+// rule's own in an automated statement, the statement's in a human one.
+func renewedValidUntil(statement Statement, ra RuleAttestation) string {
+	if ra.ValidUntil != "" {
+		return ra.ValidUntil
+	}
+	return statement.ValidUntil
+}
+
+// anchoredReviewRecords is the subset of records an automated statement may
+// count as new individual reviews. A review record is a maintainer's
+// declaration, not authenticated by itself; in a human statement the
+// signing reviewer vouches for it, but no person signs an automated one. So
+// an automated statement counts a record only for a rule whose prior-pack
+// reviewedAt is later than the chain head's attestedAt: a rule whose
+// evidence dates were already moved, on the base branch, by a change
+// outside the chain (an individual review), which checkPriorPackCovered
+// requires the next statement to record. Every other record is left out,
+// so automation can never reset a rule's consecutive-cycle count on its
+// own say.
+func (s chainState) anchoredReviewRecords(rules map[string]ruleCandidate, records map[string][]byte) map[string][]byte {
+	out := map[string][]byte{}
+	if s.headDigest == nil {
+		return out
+	}
+	for id, raw := range records {
+		rule, ok := rules[id]
+		if !ok {
+			continue
+		}
+		reviewedAt, err := parseUTC(rule.Fields.Evidence.ReviewedAt)
+		if err != nil || !reviewedAt.After(s.headAttestedAt) {
+			continue
+		}
+		out[id] = raw
+	}
+	return out
+}
+
 // apply checks that statement correctly continues the chain described by s
 // and advances s past it. It is the single definition of V5 used on every
 // chain entry, on the statement being verified (checkV5), and as Prepare's
@@ -272,14 +311,14 @@ func (s *chainState) apply(statement Statement) error {
 		}
 		s.recordedReviews[ruleID][digest] = true
 	}
-	record := entryRecord{validUntil: statement.ValidUntil, renewed: map[string]bool{}, reviewed: map[string]bool{}}
+	record := entryRecord{renewed: map[string]string{}, reviewed: map[string]bool{}}
 	for ruleID := range reviewed {
 		record.reviewed[ruleID] = true
 	}
 	for _, ra := range statement.Rules {
 		s.batchSinceReview[ra.RuleID] = ra.ConsecutiveBatchCycles
 		s.lastReviewAt[ra.RuleID] = ra.LastIndividualReviewAt
-		record.renewed[ra.RuleID] = true
+		record.renewed[ra.RuleID] = renewedValidUntil(statement, ra)
 	}
 	s.entries[statement.AttestedAt] = record
 	canonical, err := CanonicalStatement(statement)
@@ -322,8 +361,8 @@ func (s chainState) checkPriorPackCovered(priorRules []ruleFields, fresh map[str
 		if !ok {
 			continue
 		}
-		if entry.renewed[rule.ID] {
-			if rule.Evidence.ValidUntil != entry.validUntil {
+		if validUntil, renewed := entry.renewed[rule.ID]; renewed {
+			if rule.Evidence.ValidUntil != validUntil {
 				return fmt.Errorf("%w: V5: rule %s carries the reviewedAt of the chain entry that renewed it but not the validUntil that entry set", ErrRejected, rule.ID)
 			}
 			continue
