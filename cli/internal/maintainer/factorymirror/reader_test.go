@@ -204,3 +204,39 @@ func TestOpenReaderUsesTheOfflineRunner(t *testing.T) {
 		t.Fatalf("reader runner is not offline: %#v", r.git)
 	}
 }
+
+func TestReaderRejectsSymlinksAndNeverFollowsThem(t *testing.T) {
+	e := newEnv(t, k1)
+	u := e.remote[k1]
+	u.commit("one", map[string]string{"a.txt": "alpha\n", "dir/inner.txt": "inner\n"})
+	for name, target := range map[string]string{"link.txt": "a.txt", "escape": "/etc/passwd", "dirlink": "dir"} {
+		if err := os.Symlink(target, filepath.Join(u.work, name)); err != nil {
+			t.Skipf("symlinks unavailable: %v", err)
+		}
+	}
+	runGit(t, u.work, "add", "-A")
+	runGit(t, u.work, "commit", "-q", "-m", "links")
+	runGit(t, u.work, "push", "-q", "-f", "origin", "main")
+	c := runGit(t, u.work, "rev-parse", "HEAD")
+	e.opts.Wants = []Want{{Repo: k1, Commit: c, Paths: []string{"a.txt", "link.txt", "escape", "dir/inner.txt"}}}
+	e.run()
+	r, err := OpenReader(e.state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := r.Read(k1, c, "a.txt"); err != nil || string(got) != "alpha\n" {
+		t.Fatalf("control read: %q %v", got, err)
+	}
+	for _, p := range []string{"link.txt", "escape", "dirlink"} {
+		if got, err := r.Read(k1, c, p); !errors.Is(err, ErrNotAFile) || got != nil {
+			t.Fatalf("symlink %s was read: %q %v", p, got, err)
+		}
+	}
+	// A symlinked directory is not traversed.
+	if got, err := r.Read(k1, c, "dirlink/inner.txt"); err == nil {
+		t.Fatalf("path through a symlinked directory was read: %q", got)
+	}
+	if _, err := r.List(k1, c, "dirlink"); err == nil {
+		t.Fatal("symlinked directory was listed")
+	}
+}

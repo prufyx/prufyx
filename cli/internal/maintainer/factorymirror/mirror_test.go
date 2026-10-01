@@ -289,3 +289,40 @@ func TestUnreachableRemoteIsReportedNotFatal(t *testing.T) {
 		}
 	}
 }
+
+func TestScrubRemovesTheRemoteFromErrorText(t *testing.T) {
+	url := "https://github.com/acme/widget.git"
+	for _, msg := range []string{
+		"git ls-remote: exit status 128: fatal: unable to access 'https://github.com/acme/widget.git/': could not resolve host",
+		"fatal: repository 'https://github.com/acme/widget.git' not found",
+		"fatal: 'github.com/acme/widget' does not appear to be a git repository",
+		"remote: Repository not found at https://github.com/acme/widget.git twice https://github.com/acme/widget.git",
+	} {
+		got := scrub(msg, url)
+		if strings.Contains(got, "acme/widget") || !strings.Contains(got, "<remote>") {
+			t.Fatalf("scrub(%q) = %q", msg, got)
+		}
+	}
+	if got := scrub("unrelated failure", url); got != "unrelated failure" {
+		t.Fatalf("%q", got)
+	}
+}
+
+func TestFailedRunsNeverLeakTheRemoteInTheIndex(t *testing.T) {
+	e := newEnv(t, k1)
+	e.opts.Repos = []Repo{mustRepo(t, "github.com/acme/missing"), mustRepo(t, k1)}
+	e.remote[k1].commit("one", map[string]string{"a": "1"})
+	e.git.failFirst = func(args []string) bool { return args[0] == "clone" }
+	e.run()
+	e.run()
+	raw, err := os.ReadFile(filepath.Join(e.state, "mirror-index.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), e.root) {
+		t.Fatalf("remote location persisted in the index: %s", raw)
+	}
+	if msg := e.index().Repos["github.com/acme/missing"].Error; !strings.Contains(msg, "<remote>") {
+		t.Fatalf("expected a scrubbed error in the index: %q", msg)
+	}
+}
