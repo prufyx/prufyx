@@ -213,7 +213,20 @@ func (m *k8sComponentModel) flags(scope string) ([]k8sFlag, bool) {
 
 // configResolved is false when the component's arguments reference a
 // configuration file and no configuration document was supplied for it.
+//
+// The kubelet is stricter. kubeadm hosts keep --config in the systemd drop-in,
+// not in kubeadm-flags.env, so the absence of --config in the supplied
+// arguments proves nothing. A kubelet scope is resolved only when (a) a
+// kubelet-config source (or an embedded KubeletConfiguration) was supplied,
+// or the selection declares kubeletNoConfigFile, or the scope has no sources
+// at all; and (b) when --config-dir is named, at least one kubelet-dropin
+// file was supplied, or the selection declares kubeletNoConfigDir. A named
+// --config with no supplied document, or a declaration contradicted by the
+// arguments or sources, is unresolved.
 func (m *k8sComponentModel) configResolved(scope string) bool {
+	if scope == K8sScopeKubelet {
+		return m.kubeletConfigResolved()
+	}
 	flagName := "config"
 	if scope == K8sScopeAPIServer {
 		flagName = "admission-control-config-file"
@@ -223,6 +236,30 @@ func (m *k8sComponentModel) configResolved(scope string) bool {
 		if flag.name == flagName && len(m.scope(scope).configs) == 0 {
 			return false
 		}
+	}
+	return true
+}
+
+func (m *k8sComponentModel) kubeletConfigResolved() bool {
+	evidence := m.scope(K8sScopeKubelet)
+	flags, _ := m.flags(K8sScopeKubelet)
+	hasConfig, hasConfigDir := false, false
+	for _, flag := range flags {
+		hasConfig = hasConfig || flag.name == "config"
+		hasConfigDir = hasConfigDir || flag.name == "config-dir"
+	}
+	files := len(evidence.configs) - evidence.dropins
+	switch {
+	case hasConfig && (files == 0 || m.kubeletNoConfigFile):
+		return false
+	case !hasConfig && files == 0 && !m.kubeletNoConfigFile && (len(evidence.argv) > 0 || len(evidence.configs) > 0):
+		return false
+	case m.kubeletNoConfigFile && files > 0:
+		return false
+	case hasConfigDir && (evidence.dropins == 0 || m.kubeletNoConfigDir):
+		return false
+	case m.kubeletNoConfigDir && evidence.dropins > 0:
+		return false
 	}
 	return true
 }

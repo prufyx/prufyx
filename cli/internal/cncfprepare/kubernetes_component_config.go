@@ -66,6 +66,7 @@ const (
 	K8sFormatArgs            = "args"
 	K8sFormatKubeletEnv      = "kubelet-env"
 	K8sFormatKubeletConfig   = "kubelet-config"
+	K8sFormatKubeletDropIn   = "kubelet-dropin"
 	K8sFormatSchedulerConfig = "scheduler-config"
 	K8sFormatKubeProxyConfig = "kube-proxy-config"
 	K8sFormatAdmissionConfig = "admission-config"
@@ -77,7 +78,7 @@ var k8sScopeFormats = map[string]map[string]bool{
 	K8sScopeAPIServer:         {K8sFormatPodManifest: true, K8sFormatArgs: true, K8sFormatAdmissionConfig: true},
 	K8sScopeControllerManager: {K8sFormatPodManifest: true, K8sFormatArgs: true},
 	K8sScopeScheduler:         {K8sFormatPodManifest: true, K8sFormatArgs: true, K8sFormatSchedulerConfig: true},
-	K8sScopeKubelet:           {K8sFormatKubeletEnv: true, K8sFormatArgs: true, K8sFormatKubeletConfig: true},
+	K8sScopeKubelet:           {K8sFormatKubeletEnv: true, K8sFormatArgs: true, K8sFormatKubeletConfig: true, K8sFormatKubeletDropIn: true},
 	K8sScopeKubeProxy:         {K8sFormatPodManifest: true, K8sFormatArgs: true, K8sFormatKubeProxyConfig: true},
 	K8sScopeKubeadm:           {K8sFormatKubeadmConfig: true},
 	K8sScopeStaticPods:        {K8sFormatPodManifest: true},
@@ -99,10 +100,16 @@ type KubernetesComponentSource struct {
 
 // KubernetesComponentSelection is the parsed selection document.
 type KubernetesComponentSelection struct {
-	Complete  map[string]bool
-	CgroupV1  *bool
-	Sources   []KubernetesComponentSource
-	selection []byte
+	Complete map[string]bool
+	CgroupV1 *bool
+	// KubeletNoConfigFile and KubeletNoConfigDir are caller declarations that
+	// no kubelet uses a configuration file (--config) or a drop-in directory
+	// (--config-dir), so the absence of a kubelet-config or kubelet-dropin
+	// source is meaningful.
+	KubeletNoConfigFile bool
+	KubeletNoConfigDir  bool
+	Sources             []KubernetesComponentSource
+	selection           []byte
 }
 
 // ParseKubernetesComponentSelection strictly parses the caller's selection
@@ -138,8 +145,17 @@ func ParseKubernetesComponentSelection(raw []byte) (KubernetesComponentSelection
 	}
 	if value, exists := root["declarations"]; exists {
 		declarations, ok := value.(map[string]any)
-		if !ok || allowFields(declarations, map[string]bool{"linuxNodeCgroupV1": true}) != nil {
+		if !ok || allowFields(declarations, map[string]bool{"linuxNodeCgroupV1": true, "kubeletNoConfigFile": true, "kubeletNoConfigDir": true}) != nil {
 			return KubernetesComponentSelection{}, ErrInvalid
+		}
+		for key, target := range map[string]*bool{"kubeletNoConfigFile": &selection.KubeletNoConfigFile, "kubeletNoConfigDir": &selection.KubeletNoConfigDir} {
+			if value, exists := declarations[key]; exists {
+				declared, ok := value.(bool)
+				if !ok {
+					return KubernetesComponentSelection{}, ErrInvalid
+				}
+				*target = declared
+			}
 		}
 		if value, exists := declarations["linuxNodeCgroupV1"]; exists {
 			declared, ok := value.(bool)
@@ -284,6 +300,7 @@ func PrepareKubernetesComponentConfig(selection KubernetesComponentSelection, co
 type k8sScopeEvidence struct {
 	argv       [][]string
 	configs    []map[string]any
+	dropins    int // how many of configs came from kubelet drop-in files
 	pods       []map[string]any
 	unresolved bool
 }
@@ -293,6 +310,8 @@ type k8sComponentModel struct {
 	complete map[string]bool
 	cgroupV1 *bool
 	kubeadm  []map[string]any
+
+	kubeletNoConfigFile, kubeletNoConfigDir bool
 }
 
 func (m *k8sComponentModel) scope(name string) *k8sScopeEvidence {
@@ -316,7 +335,8 @@ func (m *k8sComponentModel) allComplete(scopes []string) bool {
 }
 
 func buildK8sComponentModel(selection KubernetesComponentSelection, contents [][]byte) *k8sComponentModel {
-	model := &k8sComponentModel{scopes: map[string]*k8sScopeEvidence{}, complete: selection.Complete, cgroupV1: selection.CgroupV1}
+	model := &k8sComponentModel{scopes: map[string]*k8sScopeEvidence{}, complete: selection.Complete, cgroupV1: selection.CgroupV1,
+		kubeletNoConfigFile: selection.KubeletNoConfigFile, kubeletNoConfigDir: selection.KubeletNoConfigDir}
 	for name := range k8sScopeFormats {
 		model.scope(name)
 	}
@@ -395,6 +415,10 @@ func (m *k8sComponentModel) addSource(source KubernetesComponentSource, raw []by
 		}
 	case K8sFormatKubeletConfig:
 		m.addConfigDocuments(scope, documents, "kubelet.config.k8s.io", "KubeletConfiguration", "kubelet")
+	case K8sFormatKubeletDropIn:
+		before := len(scope.configs)
+		m.addConfigDocuments(scope, documents, "kubelet.config.k8s.io", "KubeletConfiguration", "")
+		scope.dropins += len(scope.configs) - before
 	case K8sFormatKubeProxyConfig:
 		m.addConfigDocuments(scope, documents, "kubeproxy.config.k8s.io", "KubeProxyConfiguration", "config.conf")
 	case K8sFormatSchedulerConfig:

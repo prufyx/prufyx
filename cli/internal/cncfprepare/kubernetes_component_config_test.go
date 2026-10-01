@@ -28,14 +28,22 @@ func k8sSelection(t *testing.T, complete []string, cgroupV1 *bool, sources ...k8
 	if complete != nil {
 		document["complete"] = complete
 	}
+	declarations := map[string]any{}
 	if cgroupV1 != nil {
-		document["declarations"] = map[string]any{"linuxNodeCgroupV1": *cgroupV1}
+		declarations["linuxNodeCgroupV1"] = *cgroupV1
 	}
 	items := make([]source, 0, len(sources))
 	contents := make([][]byte, 0, len(sources))
 	for index, src := range sources {
+		if src.scope == "declare" {
+			declarations[src.format] = true
+			continue
+		}
 		items = append(items, source{Scope: src.scope, Format: src.format, Path: fmt.Sprintf("/private/selected/source-%d", index), StaticPod: src.static})
 		contents = append(contents, []byte(src.body))
+	}
+	if len(declarations) > 0 {
+		document["declarations"] = declarations
 	}
 	document["sources"] = items
 	raw, err := json.Marshal(document)
@@ -82,7 +90,10 @@ var (
 	k8sKubeletEnv = func(args string) k8sSrc {
 		return k8sSrc{scope: K8sScopeKubelet, format: K8sFormatKubeletEnv, body: "# generated\nKUBELET_KUBEADM_ARGS=\"" + args + "\"\n"}
 	}
-	k8sArgs = func(scope string, args ...string) k8sSrc {
+	// k8sNoConfigFile and k8sNoConfigDir add the matching selection declaration.
+	k8sNoConfigFile = k8sSrc{scope: "declare", format: "kubeletNoConfigFile"}
+	k8sNoConfigDir  = k8sSrc{scope: "declare", format: "kubeletNoConfigDir"}
+	k8sArgs         = func(scope string, args ...string) k8sSrc {
 		raw, _ := json.Marshal(args)
 		return k8sSrc{scope: scope, format: K8sFormatArgs, body: string(raw)}
 	}
@@ -165,7 +176,7 @@ func TestKubernetesComponentConfigPredicates(t *testing.T) {
 		// cgroup v1 node declaration with the failCgroupV1 override.
 		{"cgroup v1 node without override blocks", "1.34.1", "1.35.0", "kubelet_cgroup_v1_fail_by_default", "true", []string{K8sScopeKubelet}, &k8sTrue, []k8sSrc{kubeletConfig("cgroupDriver: systemd\n")}},
 		{"cgroup v1 node with failCgroupV1 false passes", "1.34.1", "1.35.0", "kubelet_cgroup_v1_fail_by_default", "false", []string{K8sScopeKubelet}, &k8sTrue, []k8sSrc{kubeletConfig("failCgroupV1: false\n")}},
-		{"cgroup v1 override by flag", "1.34.1", "1.35.0", "kubelet_cgroup_v1_fail_by_default", "false", []string{K8sScopeKubelet}, &k8sTrue, []k8sSrc{k8sKubeletEnv("--fail-cgroupv1=false")}},
+		{"cgroup v1 override by flag", "1.34.1", "1.35.0", "kubelet_cgroup_v1_fail_by_default", "false", []string{K8sScopeKubelet}, &k8sTrue, []k8sSrc{k8sKubeletEnv("--fail-cgroupv1=false"), k8sNoConfigFile}},
 		{"cgroup v1 bare flag means true", "1.34.1", "1.35.0", "kubelet_cgroup_v1_fail_by_default", "true", nil, &k8sTrue, []k8sSrc{k8sKubeletEnv("--fail-cgroupv1")}},
 		{"cgroup v1 explicit true", "1.34.1", "1.35.0", "kubelet_cgroup_v1_fail_by_default", "true", nil, &k8sTrue, []k8sSrc{kubeletConfig("failCgroupV1: true\n")}},
 		{"cgroup v1 override with incomplete kubelet evidence", "1.34.1", "1.35.0", "kubelet_cgroup_v1_fail_by_default", "unsupported", nil, &k8sTrue, []k8sSrc{kubeletConfig("failCgroupV1: false\n")}},
@@ -412,5 +423,98 @@ func TestKubernetesComponentConfigGateScopesIgnoreUnrelatedConfigFiles(t *testin
 	view, found = facts["component.kubernetes.kube_proxy_userspace_mode_removed"]
 	if got := k8sFactState(view, found); got != "false" {
 		t.Fatalf("kube-proxy fact = %s", got)
+	}
+}
+
+func TestKubernetesComponentConfigKubeletConfigSourceRequired(t *testing.T) {
+	const swap = "component.kubernetes.kubelet_memoryswap_unlimitedswap_dropped"
+	const gate = "component.kubernetes.feature_gates_sidecarcontainers_removed"
+	kubeletCfg := func(body string) k8sSrc {
+		return k8sSrc{scope: K8sScopeKubelet, format: K8sFormatKubeletConfig, body: "apiVersion: kubelet.config.k8s.io/v1beta1\nkind: KubeletConfiguration\n" + body}
+	}
+	dropin := func(body string) k8sSrc {
+		return k8sSrc{scope: K8sScopeKubelet, format: K8sFormatKubeletDropIn, body: "apiVersion: kubelet.config.k8s.io/v1beta1\nkind: KubeletConfiguration\n" + body}
+	}
+	withConfig := "--config=/var/lib/kubelet/config.yaml"
+	withDir := withConfig + " --config-dir=/etc/kubernetes/kubelet.conf.d"
+	for _, test := range []struct {
+		name, from, to, fact, want string
+		sources                    []k8sSrc
+	}{
+		// Finding 1: --config-dir named, drop-ins not supplied.
+		{"config-dir without drop-ins", "1.29.0", "1.30.0", swap, "unsupported", []k8sSrc{k8sKubeletEnv(withDir), kubeletCfg("cgroupDriver: systemd\n")}},
+		{"config-dir without drop-ins gates", "1.36.0", "1.37.0", gate, "unsupported", []k8sSrc{k8sKubeletEnv(withDir), kubeletCfg("cgroupDriver: systemd\n")}},
+		{"config-dir with a clean drop-in", "1.29.0", "1.30.0", swap, "false", []k8sSrc{k8sKubeletEnv(withDir), kubeletCfg("cgroupDriver: systemd\n"), dropin("cgroupDriver: systemd\n")}},
+		{"config-dir drop-in sets the removed value", "1.29.0", "1.30.0", swap, "true", []k8sSrc{k8sKubeletEnv(withDir), kubeletCfg("cgroupDriver: systemd\n"), dropin("memorySwap:\n  swapBehavior: UnlimitedSwap\n")}},
+		{"config-dir drop-in sets a removed gate", "1.36.0", "1.37.0", gate, "true", []k8sSrc{k8sKubeletEnv(withDir), kubeletCfg("cgroupDriver: systemd\n"), dropin("featureGates: {SidecarContainers: true}\n")}},
+		{"config-dir declared absent", "1.29.0", "1.30.0", swap, "false", []k8sSrc{k8sKubeletEnv(withConfig), kubeletCfg("cgroupDriver: systemd\n"), k8sNoConfigDir}},
+		{"config-dir declared absent but named", "1.29.0", "1.30.0", swap, "unsupported", []k8sSrc{k8sKubeletEnv(withDir), kubeletCfg("cgroupDriver: systemd\n"), k8sNoConfigDir}},
+		{"config-dir declared absent but drop-in supplied", "1.29.0", "1.30.0", swap, "unsupported", []k8sSrc{k8sKubeletEnv(withDir), kubeletCfg("cgroupDriver: systemd\n"), dropin("cgroupDriver: systemd\n"), k8sNoConfigDir}},
+		{"drop-in supplied without --config-dir still counts", "1.29.0", "1.30.0", swap, "true", []k8sSrc{k8sKubeletEnv(withConfig), kubeletCfg("cgroupDriver: systemd\n"), dropin("memorySwap: {swapBehavior: UnlimitedSwap}\n")}},
+		// Finding 2: kubeadm env file carries no --config.
+		{"env file only", "1.29.0", "1.30.0", swap, "unsupported", []k8sSrc{k8sKubeletEnv("--container-runtime-endpoint=unix:///run/containerd/containerd.sock")}},
+		{"env file only with no-config-file declaration", "1.29.0", "1.30.0", swap, "false", []k8sSrc{k8sKubeletEnv("--container-runtime-endpoint=unix:///run/containerd/containerd.sock"), k8sNoConfigFile}},
+		{"no-config-file declaration contradicted by --config", "1.29.0", "1.30.0", swap, "unsupported", []k8sSrc{k8sKubeletEnv(withConfig), k8sNoConfigFile}},
+		{"no-config-file declaration contradicted by a source", "1.29.0", "1.30.0", swap, "unsupported", []k8sSrc{k8sKubeletEnv("--v=2"), kubeletCfg("cgroupDriver: systemd\n"), k8sNoConfigFile}},
+		{"env file with a kubelet-config source", "1.29.0", "1.30.0", swap, "false", []k8sSrc{k8sKubeletEnv("--v=2"), kubeletCfg("cgroupDriver: systemd\n")}},
+		{"env file only gates", "1.36.0", "1.37.0", gate, "unsupported", []k8sSrc{k8sKubeletEnv("--v=2")}},
+		{"argument-only fact still needs no config", "1.23.17", "1.24.0", "component.kubernetes.kubelet_dockershim_flags_removed", "false", []k8sSrc{k8sKubeletEnv("--v=2")}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, facts := k8sComponentFacts(t, test.from, test.to, []string{K8sScopeKubelet}, nil, test.sources...)
+			view, found := facts[test.fact]
+			if got := k8sFactState(view, found); got != test.want {
+				t.Fatalf("%s = %s, want %s", test.fact, got, test.want)
+			}
+		})
+	}
+	// A kubelet-dropin source is a kubelet-scope format only.
+	raw := []byte(`{"apiVersion":"` + KubernetesComponentSelectionAPIVersion + `","kind":"` + KubernetesComponentSelectionKind + `","sources":[{"scope":"kube-proxy","format":"kubelet-dropin","path":"/a/b"}]}`)
+	if _, err := ParseKubernetesComponentSelection(raw); err == nil {
+		t.Fatal("kubelet-dropin accepted outside the kubelet scope")
+	}
+	raw = []byte(`{"apiVersion":"` + KubernetesComponentSelectionAPIVersion + `","kind":"` + KubernetesComponentSelectionKind + `","declarations":{"kubeletNoConfigFile":"yes"},"sources":[{"scope":"kubelet","format":"args","path":"/a/b"}]}`)
+	if _, err := ParseKubernetesComponentSelection(raw); err == nil {
+		t.Fatal("non-boolean declaration accepted")
+	}
+}
+
+func TestKubernetesComponentConfigTwoContainersNamingTheBinaryAreUnknown(t *testing.T) {
+	pod := func(first, second string) k8sSrc {
+		return k8sSrc{scope: K8sScopeAPIServer, format: K8sFormatPodManifest, body: "apiVersion: v1\nkind: Pod\nmetadata: {name: kube-apiserver}\nspec:\n  containers:\n  - {name: a, command: [kube-apiserver, " + first + "]}\n  - {name: b, command: [/usr/local/bin/kube-apiserver, " + second + "]}\n"}
+	}
+	const fact = "component.kubernetes.apiserver_insecure_address_flags_removed"
+	for _, test := range []struct{ name, first, second string }{
+		{"removed flag in the first", "--insecure-port=0", "--v=2"},
+		{"removed flag in the second", "--v=2", "--insecure-port=0"},
+		{"neither", "--v=2", "--v=3"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, facts := k8sComponentFacts(t, "1.23.0", "1.24.0", []string{K8sScopeAPIServer}, nil, pod(test.first, test.second))
+			view, found := facts[fact]
+			if got := k8sFactState(view, found); got != "unsupported" {
+				t.Fatalf("%s = %s, want unsupported", fact, got)
+			}
+		})
+	}
+}
+
+func TestKubernetesComponentConfigNonBooleanCloudProviderGateIsNotAnOptIn(t *testing.T) {
+	const fact = "component.kubernetes.in_tree_cloud_providers_off_by_default"
+	for _, test := range []struct{ name, gate, want string }{
+		{"explicit false opts in", "DisableCloudProviders=false", "false"},
+		{"non-boolean value is unknown", "DisableCloudProviders=maybe", "unsupported"},
+		{"empty value is unknown", "DisableCloudProviders=", "unsupported"},
+		{"valueless gate is unknown", "DisableCloudProviders", "unsupported"},
+		{"explicit true stays unknown", "DisableCloudProviders=true", "unsupported"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			scopes := []string{K8sScopeAPIServer, K8sScopeControllerManager, K8sScopeKubelet}
+			_, facts := k8sComponentFacts(t, "1.28.4", "1.29.0", scopes, nil, k8sArgs(K8sScopeControllerManager, "--cloud-provider=gce", "--feature-gates="+test.gate))
+			view, found := facts[fact]
+			if got := k8sFactState(view, found); got != test.want {
+				t.Fatalf("%s = %s, want %s", fact, got, test.want)
+			}
+		})
 	}
 }
