@@ -50,8 +50,11 @@ var k8sComponentPredicates = []k8sPredicate{
 		Eval: k8sListFlagContains(K8sScopeAPIServer, "PodSecurityPolicy", "enable-admission-plugins", "admission-control")},
 	{Fact: "component.kubernetes.apiserver_service_account_api_audiences_removed", Line: "1.25", Reads: []string{K8sScopeAPIServer},
 		Eval: k8sFlagsPresent([]string{K8sScopeAPIServer}, "service-account-api-audiences")},
-	{Fact: "component.kubernetes.pod_seccomp_alpha_annotations_ignored", Line: "1.25", Reads: k8sPodScopes,
-		Eval: k8sPodsMatch(k8sSeccompAlphaAnnotations)},
+	// At 1.25 the kubelet stops honouring the annotations, while the API
+	// server still copies them into securityContext for API-created pods
+	// until 1.27; only static pods lose the profile on this line.
+	{Fact: "component.kubernetes.static_pod_seccomp_alpha_annotations_ignored", Line: "1.25", Reads: []string{K8sScopeStaticPods},
+		Eval: k8sPodsMatchIn([]string{K8sScopeStaticPods}, k8sSeccompAlphaAnnotations)},
 
 	{Fact: "component.kubernetes.kube_proxy_userspace_mode_removed", Line: "1.26", Reads: []string{K8sScopeKubeProxy},
 		Eval: k8sKubeProxyMode("userspace")},
@@ -759,9 +762,13 @@ func k8sPodViews(document map[string]any) ([]k8sPodView, bool) {
 // k8sPodsMatch evaluates a per-document matcher over workloads and static
 // pods. A matcher returns (present, resolved).
 func k8sPodsMatch(match func(map[string]any) (bool, bool)) func(*k8sComponentModel) k8sResult {
+	return k8sPodsMatchIn(k8sPodScopes, match)
+}
+
+func k8sPodsMatchIn(scopes []string, match func(map[string]any) (bool, bool)) func(*k8sComponentModel) k8sResult {
 	return func(m *k8sComponentModel) k8sResult {
 		result := k8sResult{resolved: true}
-		for _, scope := range k8sPodScopes {
+		for _, scope := range scopes {
 			for _, document := range m.scope(scope).pods {
 				present, resolved := match(document)
 				result.present = result.present || present
