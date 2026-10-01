@@ -37,6 +37,8 @@ kind: ComponentConfigSelection
 complete: [kube-apiserver, kube-controller-manager, kube-scheduler, kubelet, kube-proxy, kubeadm, static-pods, workloads]
 declarations:
   linuxNodeCgroupV1: false   # optional: does any Linux node use cgroup v1?
+  # kubeletNoConfigFile: true  # optional: no kubelet uses --config
+  # kubeletNoConfigDir: true   # optional: no kubelet uses --config-dir
 sources:
 - {scope: kube-apiserver, format: pod-manifest, path: /abs/kube-apiserver.yaml, staticPod: true}
 - {scope: kube-controller-manager, format: pod-manifest, path: /abs/kube-controller-manager.yaml, staticPod: true}
@@ -51,6 +53,27 @@ sources:
 - {scope: workloads, format: manifests, path: /abs/rendered.yaml, digest: "sha256:..."}
 ```
 
+### Kubelet configuration files
+
+On kubeadm nodes `--config` is set in the systemd drop-in
+(`KUBELET_CONFIG_ARGS`), not in `kubeadm-flags.env`, so an environment file
+that names no `--config` does not show that the kubelet reads no configuration
+file. Facts that read kubelet configuration (the memory swap behaviour,
+feature gates, `failCgroupV1`) are therefore unknown unless one of these holds:
+
+- a `kubelet-config` source (or a KubeletConfiguration embedded in a supplied
+  kubeadm document) is listed; or
+- `declarations.kubeletNoConfigFile: true` states that no kubelet uses a
+  configuration file; or
+- the kubelet scope lists no source at all and is declared `complete`.
+
+When the kubelet arguments name `--config-dir`, those facts are also unknown
+unless at least one `kubelet-dropin` source is listed, or
+`declarations.kubeletNoConfigDir: true` states that no kubelet uses a drop-in
+directory. A declaration contradicted by a named `--config` or `--config-dir`,
+or by a listed source, is treated as unresolved. Facts that read only
+command-line options are unaffected.
+
 A scope listed in `complete` with no sources declares that the scope has no
 arguments or configuration at all, for example `kube-proxy` on a cluster that
 does not run kube-proxy. Declare completeness only when it is true: it is the
@@ -64,7 +87,7 @@ failure. `--component-config-digest` pins the selection document itself.
 | `kube-apiserver` | `pod-manifest`, `args`, `admission-config` |
 | `kube-controller-manager` | `pod-manifest`, `args` |
 | `kube-scheduler` | `pod-manifest`, `args`, `scheduler-config` |
-| `kubelet` | `kubelet-env`, `args`, `kubelet-config` |
+| `kubelet` | `kubelet-env`, `args`, `kubelet-config`, `kubelet-dropin` |
 | `kube-proxy` | `pod-manifest`, `args`, `kube-proxy-config` |
 | `kubeadm` | `kubeadm-config` |
 | `static-pods` | `pod-manifest` |
@@ -86,7 +109,10 @@ Formats:
 - `kubelet-config`, `kube-proxy-config`, `scheduler-config`: the component's
   configuration document, or, for the kubelet and kube-proxy, the v1 ConfigMap
   that carries it (`data.kubelet`, `data["config.conf"]`). Several documents
-  (for example kubelet drop-ins) may be listed.
+  may be listed.
+- `kubelet-dropin`: one file of the directory named by the kubelet's
+  `--config-dir`, a KubeletConfiguration fragment. List every file of the
+  directory, one source each.
 - `admission-config`: an AdmissionConfiguration, or a standalone webhook
   admission configuration that one of its plugins loads by `path`.
 - `kubeadm-config`: kubeadm documents (`kubeadm.k8s.io` v1beta1 to v1beta4),
