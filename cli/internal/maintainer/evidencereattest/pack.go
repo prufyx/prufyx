@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
 
@@ -43,6 +44,13 @@ type ruleSourceField struct {
 	ContentDigest string `json:"contentDigest"`
 }
 
+// isMechanical reports whether the rule's evidence was derived from source by
+// an extractor. Such a rule is renewed only by the derivation path, never by a
+// reviewer's reattestation.
+func (f ruleFields) isMechanical() bool {
+	return f.Evidence.Basis == constraintengine.BasisMechanical
+}
+
 // ruleFields is a typed, lossy view of one rule's identity, evidence, and
 // range presence. It is read-only: it is never remarshaled to produce
 // output bytes (see nextPackDocument, which mutates the generic decode
@@ -51,10 +59,13 @@ type ruleFields struct {
 	ID       string          `json:"id"`
 	Range    json.RawMessage `json:"range"`
 	Evidence struct {
-		State      string            `json:"state"`
-		ReviewedAt string            `json:"reviewedAt"`
-		ValidUntil string            `json:"validUntil"`
-		Sources    []ruleSourceField `json:"sources"`
+		State      string                      `json:"state"`
+		Basis      string                      `json:"basis"`
+		Extractor  *constraintengine.Extractor `json:"extractor"`
+		DerivedAt  string                      `json:"derivedAt"`
+		ReviewedAt string                      `json:"reviewedAt"`
+		ValidUntil string                      `json:"validUntil"`
+		Sources    []ruleSourceField           `json:"sources"`
 	} `json:"evidence"`
 }
 
@@ -62,6 +73,24 @@ func parseRuleFields(raw json.RawMessage) (ruleFields, error) {
 	var fields ruleFields
 	if err := json.Unmarshal(raw, &fields); err != nil || fields.ID == "" {
 		return ruleFields{}, fmt.Errorf("%w: malformed rule", ErrRejected)
+	}
+	// The basis vocabulary is closed. An unknown token, or a mechanical rule
+	// without its extractor, is a malformed rule here exactly as it is to the
+	// engine, so no later step has to guess what it is renewing.
+	var presence struct {
+		Evidence map[string]json.RawMessage `json:"evidence"`
+	}
+	_ = json.Unmarshal(raw, &presence)
+	for _, key := range []string{"basis", "derivedAt"} {
+		if value, present := presence.Evidence[key]; present && (string(value) == `""` || string(value) == "null") {
+			return ruleFields{}, fmt.Errorf("%w: rule %s evidence %s", ErrRejected, fields.ID, key)
+		}
+	}
+	if value, present := presence.Evidence["extractor"]; present && string(value) == "null" {
+		return ruleFields{}, fmt.Errorf("%w: rule %s evidence extractor", ErrRejected, fields.ID)
+	}
+	if err := constraintengine.ValidateBasis(fields.Evidence.Basis, fields.Evidence.Extractor, fields.Evidence.DerivedAt); err != nil {
+		return ruleFields{}, fmt.Errorf("%w: rule %s evidence basis", ErrRejected, fields.ID)
 	}
 	return fields, nil
 }

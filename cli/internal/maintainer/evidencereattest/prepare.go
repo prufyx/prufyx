@@ -29,6 +29,7 @@ const (
 	reasonTagFallbackBaseline    = "TAG_FALLBACK_BASELINE"
 	reasonStaleBaseline          = "STALE_BASELINE"
 	reasonRangedRule             = "RANGED_RULE_EXCLUDED"
+	reasonMechanicalRule         = "MECHANICAL_RULE_EXCLUDED"
 	reasonConsecutiveCycleCap    = "CONSECUTIVE_BATCH_CYCLE_CAP"
 	reasonInactiveOrWithdrawn    = "EVIDENCE_NOT_ACTIVE"
 	reasonCorpusMismatchProject  = "CORPUS_DIGEST_MISMATCH_IN_PROJECT"
@@ -447,6 +448,14 @@ func evaluateEligibility(
 ) (string, bool) {
 	if !e2ok {
 		return reasonScopeIncomplete, false
+	}
+
+	// A reviewer's reattestation renews only evidence a person interpreted.
+	// A rule derived from source by an extractor carries no such review to
+	// extend: its lease is renewed by re-deriving it, so it is never renewed
+	// here, however unchanged its citations are.
+	if candidate.Fields.isMechanical() {
+		return reasonMechanicalRule, false
 	}
 
 	// E1 is recomputed here from the citations themselves; the worklist's

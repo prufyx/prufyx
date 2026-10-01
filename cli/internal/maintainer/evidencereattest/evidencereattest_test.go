@@ -73,6 +73,7 @@ type ruleSpec struct {
 	reviewedAt, validUntil    string
 	state                     string
 	ranged                    bool
+	mechanical                bool
 }
 
 func buildWorklistAndPack(t *testing.T, packPath string, generatedAt time.Time, specs []ruleSpec) (worklist evidencerepin.Worklist, pack []byte) {
@@ -84,6 +85,9 @@ func buildWorklistAndPack(t *testing.T, packPath string, generatedAt time.Time, 
 	for _, spec := range specs {
 		source := testSource(spec.id+"-src", "owner", "repo-"+spec.id, spec.commit, spec.path, digest, 1, 1)
 		rule := testRule(spec.id, spec.state, spec.reviewedAt, spec.validUntil, spec.ranged, source)
+		if spec.mechanical {
+			markMechanical(rule, spec.reviewedAt)
+		}
 		entries = append(entries, testEntry(spec.project, rule))
 
 		citations = append(citations, evidencerepin.ClassResult{

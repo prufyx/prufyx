@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
 
@@ -317,8 +318,16 @@ func checkV6(priorByID, nextByID map[string]json.RawMessage, statement Statement
 		if err != nil {
 			return fmt.Errorf("%w: V6: rule %s", ErrRejected, ruleID)
 		}
+		if constraintengine.EffectiveBasis(priorFields.Evidence.Basis) != constraintengine.EffectiveBasis(nextFields.Evidence.Basis) {
+			return fmt.Errorf("%w: V6: rule %s evidence basis changed; reattestation does not alter provenance", ErrRejected, ruleID)
+		}
 		if nextFields.Evidence.ReviewedAt == priorFields.Evidence.ReviewedAt && nextFields.Evidence.ValidUntil == priorFields.Evidence.ValidUntil {
 			continue
+		}
+		// Neither a batch attestation nor an individual review record may
+		// move the lease of a mechanical rule, or change a rule's basis.
+		if priorFields.isMechanical() || nextFields.isMechanical() {
+			return fmt.Errorf("%w: V6: rule %s is mechanical; its evidence dates are not renewable by reattestation", ErrRejected, ruleID)
 		}
 		if covered[ruleID] {
 			continue
