@@ -292,6 +292,14 @@ func validateEvidence(evidence evidence) error {
 	if err != nil || !validUntil.After(reviewed) {
 		return fmt.Errorf("validity time: %w", ErrInvalid)
 	}
+	if err := ValidateBasis(evidence.Basis, evidence.Extractor, evidence.DerivedAt); err != nil {
+		return err
+	}
+	if evidence.DerivedAt != "" {
+		if derived, _ := parseUTC(evidence.DerivedAt); !derived.Before(validUntil) {
+			return fmt.Errorf("derivedAt is not before validUntil: %w", ErrInvalid)
+		}
+	}
 	if len(evidence.Sources) == 0 || len(evidence.Sources) > maxSources {
 		return fmt.Errorf("source count: %w", ErrInvalid)
 	}
@@ -453,9 +461,24 @@ func validateRuleShape(raw []byte) error {
 				return err
 			}
 		}
-		evidence, err := exactObject(rule["evidence"], []string{"state", "reviewedAt", "validUntil", "sources"}, nil)
+		evidence, err := exactObject(rule["evidence"], []string{"state", "reviewedAt", "validUntil", "sources"}, []string{"basis", "extractor", "derivedAt"})
 		if err != nil {
 			return err
+		}
+		// A present basis or derivedAt must be a real value: an empty string
+		// would otherwise decode to the same zero value as an absent field.
+		for _, key := range []string{"basis", "derivedAt"} {
+			if raw, ok := evidence[key]; ok {
+				var value string
+				if json.Unmarshal(raw, &value) != nil || value == "" {
+					return ErrInvalid
+				}
+			}
+		}
+		if extractor, ok := evidence["extractor"]; ok {
+			if _, err := exactObject(extractor, []string{"id", "version", "codeDigest"}, nil); err != nil {
+				return err
+			}
 		}
 		sources, err := exactArray(evidence["sources"])
 		if err != nil || len(sources) > maxSources {

@@ -42,7 +42,11 @@ func Evaluate(input Input, rules RuleSet, now time.Time) (Report, error) {
 }
 
 func evaluateRule(input inputDocument, rule rule, now time.Time) Claim {
-	claim := Claim{RuleID: rule.ID, RuleDigest: digestJSON(rule), Operator: rule.Operator, ReasonCode: rule.ReasonCode, NextAction: rule.NextAction, EvidenceReviewedAt: rule.Evidence.ReviewedAt, EvidenceValidUntil: rule.Evidence.ValidUntil, RequiredFacts: requiredFacts(rule), Sources: append([]SourceEvidence(nil), rule.Evidence.Sources...)}
+	claim := Claim{RuleID: rule.ID, RuleDigest: digestJSON(rule), Operator: rule.Operator, ReasonCode: rule.ReasonCode, NextAction: rule.NextAction, EvidenceReviewedAt: rule.Evidence.ReviewedAt, EvidenceValidUntil: rule.Evidence.ValidUntil, RequiredFacts: requiredFacts(rule), Sources: append([]SourceEvidence(nil), rule.Evidence.Sources...), EvidenceBasis: rule.Evidence.Basis, EvidenceDerivedAt: rule.Evidence.DerivedAt}
+	if rule.Evidence.Extractor != nil {
+		extractor := *rule.Evidence.Extractor
+		claim.EvidenceExtractor = &extractor
+	}
 	if rule.Evidence.State == "withdrawn" {
 		claim.Status, claim.ReasonCode, claim.EvidenceFreshness = "UNKNOWN", "RULE_EVIDENCE_WITHDRAWN", "withdrawn"
 		claim.NextAction = "select later declared rule source references with active evidence"
@@ -274,6 +278,9 @@ func validClaims(claims []Claim) bool {
 	for i, claim := range claims {
 		reviewed, reviewedErr := parseUTC(claim.EvidenceReviewedAt)
 		validUntil, validUntilErr := parseUTC(claim.EvidenceValidUntil)
+		if ValidateBasis(claim.EvidenceBasis, claim.EvidenceExtractor, claim.EvidenceDerivedAt) != nil {
+			return false
+		}
 		if (i > 0 && claims[i-1].RuleID >= claim.RuleID) || !idRE.MatchString(claim.RuleID) || !digestRE.MatchString(claim.RuleDigest) || (claim.Status != "PASS" && claim.Status != "BLOCKED" && claim.Status != "UNKNOWN") || !reasonRE.MatchString(claim.ReasonCode) || !publicText(claim.NextAction) || !validRequiredFacts(claim.RequiredFacts) || reviewedErr != nil || validUntilErr != nil || !validUntil.After(reviewed) || (claim.EvidenceFreshness != "current" && claim.EvidenceFreshness != "stale" && claim.EvidenceFreshness != "withdrawn" && claim.EvidenceFreshness != "clock_before_review") {
 			return false
 		}

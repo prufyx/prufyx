@@ -299,10 +299,68 @@ type componentCheck struct {
 }
 
 type evidence struct {
-	State      string           `json:"state"`
+	State string `json:"state"`
+	// Basis, Extractor and DerivedAt are optional provenance. They are parsed
+	// strictly and reported, and they never take part in a verdict. A rule
+	// that omits them marshals, digests and evaluates exactly as before they
+	// existed; an absent basis means the rule was reviewed by a maintainer.
+	Basis      string           `json:"basis,omitempty"`
+	Extractor  *Extractor       `json:"extractor,omitempty"`
+	DerivedAt  string           `json:"derivedAt,omitempty"`
 	ReviewedAt string           `json:"reviewedAt"`
 	ValidUntil string           `json:"validUntil"`
 	Sources    []SourceEvidence `json:"sources"`
+}
+
+// Evidence basis values. A rule is either interpreted by a person (reviewed)
+// or derived from pinned upstream source by a versioned extractor
+// (mechanical). Absent means reviewed.
+const (
+	BasisReviewed   = "reviewed"
+	BasisMechanical = "mechanical"
+)
+
+// Extractor identifies the versioned program that derived a mechanical rule.
+// CodeDigest is the sha256 of the extractor's source at build time.
+type Extractor struct {
+	ID         string `json:"id"`
+	Version    string `json:"version"`
+	CodeDigest string `json:"codeDigest"`
+}
+
+// EffectiveBasis resolves an evidence basis token: absent is reviewed.
+func EffectiveBasis(basis string) string {
+	if basis == "" {
+		return BasisReviewed
+	}
+	return basis
+}
+
+// ValidateBasis checks the provenance fields of one rule's evidence against
+// the closed vocabulary: basis is "mechanical" or "reviewed" (or absent);
+// a mechanical rule must name its extractor and the UTC time it was derived,
+// and any other rule must carry neither. The extractor identity is a public id,
+// a strict three-part version and a sha256 code digest.
+func ValidateBasis(basis string, extractor *Extractor, derivedAt string) error {
+	switch basis {
+	case "", BasisReviewed:
+		if extractor != nil || derivedAt != "" {
+			return fmt.Errorf("extractor and derivedAt are only valid for a mechanical rule: %w", ErrInvalid)
+		}
+	case BasisMechanical:
+		if extractor == nil || derivedAt == "" {
+			return fmt.Errorf("a mechanical rule requires extractor and derivedAt: %w", ErrInvalid)
+		}
+		if !idRE.MatchString(extractor.ID) || !validVersion(extractor.Version) || !digestRE.MatchString(extractor.CodeDigest) {
+			return fmt.Errorf("extractor identity: %w", ErrInvalid)
+		}
+		if _, err := parseUTC(derivedAt); err != nil {
+			return fmt.Errorf("derivedAt: %w", ErrInvalid)
+		}
+	default:
+		return fmt.Errorf("evidence basis: %w", ErrInvalid)
+	}
+	return nil
 }
 
 type SourceEvidence struct {
@@ -332,17 +390,24 @@ func (r RuleSet) Digest() (string, error) {
 }
 
 type Claim struct {
-	RuleID             string           `json:"ruleId"`
-	RuleDigest         string           `json:"ruleDigest"`
-	Operator           string           `json:"operator"`
-	Status             string           `json:"status"`
-	ReasonCode         string           `json:"reasonCode"`
-	NextAction         string           `json:"nextAction"`
-	EvidenceReviewedAt string           `json:"evidenceReviewedAt"`
-	EvidenceValidUntil string           `json:"evidenceValidUntil"`
-	EvidenceFreshness  string           `json:"evidenceFreshness"`
-	RequiredFacts      []RequiredFact   `json:"requiredFacts"`
-	Sources            []SourceEvidence `json:"sources"`
+	RuleID             string `json:"ruleId"`
+	RuleDigest         string `json:"ruleDigest"`
+	Operator           string `json:"operator"`
+	Status             string `json:"status"`
+	ReasonCode         string `json:"reasonCode"`
+	NextAction         string `json:"nextAction"`
+	EvidenceReviewedAt string `json:"evidenceReviewedAt"`
+	EvidenceValidUntil string `json:"evidenceValidUntil"`
+	EvidenceFreshness  string `json:"evidenceFreshness"`
+	// EvidenceBasis, EvidenceExtractor and EvidenceDerivedAt disclose how the
+	// rule was produced. They are present only when the rule declares a basis,
+	// so a claim from a rule without one serializes exactly as before; absent
+	// means the rule was reviewed by a maintainer.
+	EvidenceBasis     string           `json:"evidenceBasis,omitempty"`
+	EvidenceExtractor *Extractor       `json:"evidenceExtractor,omitempty"`
+	EvidenceDerivedAt string           `json:"evidenceDerivedAt,omitempty"`
+	RequiredFacts     []RequiredFact   `json:"requiredFacts"`
+	Sources           []SourceEvidence `json:"sources"`
 	// SubjectMatch is present only when the transition matched the rule's
 	// reviewed range rather than its exact anchor pair. Exact matches omit it,
 	// so exact-rule claims serialize exactly as before ranges existed.
