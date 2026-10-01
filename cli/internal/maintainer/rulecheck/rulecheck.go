@@ -121,7 +121,13 @@ type componentCheck struct {
 }
 
 type evidenceBody struct {
-	State      string                            `json:"state"`
+	State string `json:"state"`
+	// Basis, Extractor and DerivedAt are the optional provenance of a rule
+	// the engine parses strictly: reviewed by a maintainer (absent) or
+	// derived from pinned source by a versioned extractor (mechanical).
+	Basis      string                            `json:"basis,omitempty"`
+	Extractor  *constraintengine.Extractor       `json:"extractor,omitempty"`
+	DerivedAt  string                            `json:"derivedAt,omitempty"`
 	ReviewedAt string                            `json:"reviewedAt"`
 	ValidUntil string                            `json:"validUntil"`
 	Sources    []constraintengine.SourceEvidence `json:"sources"`
@@ -405,6 +411,12 @@ func checkEntry(index int, entry Entry, opts Options) ([]Finding, string, bool) 
 	// been withdrawn after publication; that path also accepts "withdrawn".
 	if body.Evidence.State != "active" && !(opts.AllowRange && body.Evidence.State == "withdrawn") {
 		addRule(ruleID, "evidence-state", "rule.evidence.state must be \"active\" for a new candidate, got %q", body.Evidence.State)
+	}
+	if err := constraintengine.ValidateBasis(body.Evidence.Basis, body.Evidence.Extractor, body.Evidence.DerivedAt); err != nil {
+		addRule(ruleID, "evidence-basis", "rule.evidence.basis must be \"mechanical\" or \"reviewed\" (or absent, meaning reviewed); a mechanical rule requires evidence.extractor {id, version, codeDigest sha256:<64 lowercase hex>} and a UTC RFC3339 evidence.derivedAt, and any other rule must carry neither: %v", err)
+	}
+	if body.Evidence.Basis == constraintengine.BasisMechanical && !opts.AllowRange {
+		addRule(ruleID, "evidence-basis", "rule.evidence.basis \"mechanical\" is not accepted from a community contribution; only the maintainers' derivation tooling produces mechanical rules")
 	}
 	if len(body.Evidence.Sources) == 0 {
 		addRule(ruleID, "evidence-sources", "rule.evidence.sources must cite at least one source")

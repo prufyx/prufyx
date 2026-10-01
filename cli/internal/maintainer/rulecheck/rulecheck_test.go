@@ -501,3 +501,76 @@ func TestValidate_RangeNotAcceptedInContributions(t *testing.T) {
 	}
 	assertFinding(t, entry, "range")
 }
+
+// --- Evidence basis ------------------------------------------------------
+
+const basisCodeDigest = "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+
+func setMechanical(entry map[string]any) {
+	evidence := rule(entry)["evidence"].(map[string]any)
+	evidence["basis"] = "mechanical"
+	evidence["extractor"] = map[string]any{"id": "example.removal", "version": "1.0.0", "codeDigest": basisCodeDigest}
+	evidence["derivedAt"] = evidence["reviewedAt"]
+}
+
+func basisFindings(t *testing.T, entry map[string]any, opts Options) []Finding {
+	t.Helper()
+	result, err := Validate(candidateFile(t, entry), opts)
+	if err != nil {
+		t.Fatalf("Validate returned error: %v", err)
+	}
+	var out []Finding
+	for _, f := range result.Findings {
+		if f.Check == "evidence-basis" || f.Check == "engine-rejected" || f.Check == "rule-schema" {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+func TestValidate_EvidenceBasisTable(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		mutate     func(map[string]any)
+		maintainer bool
+		wantClean  bool
+	}{
+		{"reviewed explicit, community", func(e map[string]any) { rule(e)["evidence"].(map[string]any)["basis"] = "reviewed" }, false, true},
+		{"mechanical, maintainer self-check", setMechanical, true, true},
+		{"mechanical, community contribution", setMechanical, false, false},
+		{"unknown basis", func(e map[string]any) { rule(e)["evidence"].(map[string]any)["basis"] = "automatic" }, true, false},
+		{"mechanical without extractor", func(e map[string]any) {
+			setMechanical(e)
+			delete(rule(e)["evidence"].(map[string]any), "extractor")
+		}, true, false},
+		{"mechanical without derivedAt", func(e map[string]any) {
+			setMechanical(e)
+			delete(rule(e)["evidence"].(map[string]any), "derivedAt")
+		}, true, false},
+		{"extractor without mechanical basis", func(e map[string]any) {
+			setMechanical(e)
+			delete(rule(e)["evidence"].(map[string]any), "basis")
+		}, true, false},
+		{"bad extractor digest", func(e map[string]any) {
+			setMechanical(e)
+			rule(e)["evidence"].(map[string]any)["extractor"].(map[string]any)["codeDigest"] = "sha256:abc"
+		}, true, false},
+		{"unknown extractor key", func(e map[string]any) {
+			setMechanical(e)
+			rule(e)["evidence"].(map[string]any)["extractor"].(map[string]any)["extra"] = "x"
+		}, true, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			entry := firstRealEntry(t)
+			setRuleID(t, entry, "smoke.basis.1-0-0-to-2-0-0")
+			test.mutate(entry)
+			findings := basisFindings(t, entry, Options{AllowRange: test.maintainer})
+			if test.wantClean && len(findings) != 0 {
+				t.Fatalf("unexpected findings: %+v", findings)
+			}
+			if !test.wantClean && len(findings) == 0 {
+				t.Fatal("expected a finding")
+			}
+		})
+	}
+}
