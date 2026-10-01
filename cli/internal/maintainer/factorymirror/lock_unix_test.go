@@ -5,6 +5,7 @@
 package factorymirror
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -144,5 +145,52 @@ func TestFlockStaleLockRecoveryAcrossProcesses(t *testing.T) {
 		if len(won) != len(cmds) {
 			t.Fatalf("round %d: %s of %d processes completed", round, strconv.Itoa(len(won)), len(cmds))
 		}
+	}
+}
+
+// A contender that opened the lock file just before its holder removed it
+// must not end up locking the removed file next to a new holder.
+func TestFlockContenderOnRemovedFileDoesNotShareTheLock(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "locks", "mirror.lock")
+	a, err := AcquireLock(path, 0, fixedNow())
+	if err != nil {
+		t.Fatal(err)
+	}
+	opened, proceed := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	lockOpenedHook = func() {
+		first := false
+		once.Do(func() { first = true })
+		if first {
+			close(opened)
+			<-proceed
+		}
+	}
+	defer func() { lockOpenedHook = nil }()
+
+	type result struct {
+		l   *Lock
+		err error
+	}
+	bDone := make(chan result)
+	go func() {
+		l, err := AcquireLock(path, 0, fixedNow())
+		bDone <- result{l, err}
+	}()
+	<-opened                                   // B has the old file open and is about to lock it
+	a.Release()                                // A removes it and unlocks
+	c, err := AcquireLock(path, 0, fixedNow()) // C creates and locks a new file
+	if err != nil {
+		t.Fatalf("C: %v", err)
+	}
+	defer c.Release()
+	close(proceed)
+	res := <-bDone
+	if res.err == nil {
+		res.l.Release()
+		t.Fatal("B and C hold the lock at the same time")
+	}
+	if !errors.Is(res.err, ErrLocked) {
+		t.Fatalf("B: %v", res.err)
 	}
 }

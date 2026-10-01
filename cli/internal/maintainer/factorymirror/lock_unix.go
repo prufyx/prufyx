@@ -16,6 +16,10 @@ func processAlive(pid int) bool {
 	return err == nil || errors.Is(err, syscall.EPERM)
 }
 
+// lockOpenedHook, when set (tests only), runs between opening the lock file
+// and locking it.
+var lockOpenedHook func()
+
 // platformAcquire holds an exclusive flock on the lock file. The file is
 // removed by the holder before unlocking; a contender that opened the
 // file just before that notices, because its descriptor no longer refers to
@@ -25,6 +29,9 @@ func platformAcquire(path string, body []byte, _ lockRecord, _ time.Duration) (f
 		f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o644)
 		if err != nil {
 			return nil, err
+		}
+		if lockOpenedHook != nil {
+			lockOpenedHook()
 		}
 		if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 			f.Close()

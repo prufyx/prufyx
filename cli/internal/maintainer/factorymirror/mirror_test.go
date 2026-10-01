@@ -303,6 +303,10 @@ func TestScrubRemovesTheRemoteFromErrorText(t *testing.T) {
 			t.Fatalf("scrub(%q) = %q", msg, got)
 		}
 	}
+	// The whole remote is replaced, scheme and suffix included.
+	if got := scrub("fatal: repository 'https://github.com/acme/widget.git' not found", url); got != "fatal: repository '<remote>' not found" {
+		t.Fatalf("%q", got)
+	}
 	if got := scrub("unrelated failure", url); got != "unrelated failure" {
 		t.Fatalf("%q", got)
 	}

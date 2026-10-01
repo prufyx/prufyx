@@ -8,6 +8,7 @@
 //
 //	<state>/mirror/<host>/<owner>/<repo>.git   partial (blobless) bare clones
 //	<state>/mirror-index.json                  tags, heads, releases, alarms
+//	<state>/alarms/<date>.json                 alarms detected that day (feed for the monitor)
 //	<state>/locks/mirror.lock                  single-writer lock
 //
 // The package is deterministic and involves no model. Two roles are kept
@@ -25,6 +26,11 @@
 //     lazy blob fetching are disabled for every git process it starts, so a
 //     blob that was not materialized is reported as such instead of being
 //     downloaded.
+//
+// A frozen repository (one with an unacknowledged alarm) does not hand out
+// its tags: ResolveTag and Tags return ErrRepoFrozen until a person has
+// reviewed the alarm. Release metadata is revalidated on every run, and a
+// truncated or stale list is refused by CompleteReleases.
 //
 // Absence of information is reported as unknown: without a GitHub credential
 // the release metadata of a repository is marked unknown rather than guessed
