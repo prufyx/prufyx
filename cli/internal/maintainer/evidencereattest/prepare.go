@@ -775,11 +775,12 @@ func slotPreference(ruleID string, n int) int {
 // yet due (notDue), exactly as in human mode. They are placed one at a
 // time, soonest-expiring first, then by rule ID. Each rule starts at its
 // own preferred slot (slotPreference) and takes the first slot, going
-// later and wrapping around to the earliest, that is strictly later than
-// its current validUntil (otherwise it is skipped) and whose ISO week stays
-// within the V7 cap counting every rule's validUntil as it will be in the
-// next pack. A rule no slot accepts is deferred; one with no slot later
-// than its current validUntil at all is notLater. The result is a pure
+// later and wrapping around to the earliest, whose ISO week stays within
+// the V7 cap counting every rule's validUntil as it will be in the next
+// pack. A rule no slot accepts is deferred. An eligible rule whose current
+// validUntil is not before the latest slot is notLater (checked first, as
+// in human mode); every slot is later than a due rule's current
+// validUntil, so a renewal always moves validUntil later. The result is a pure
 // function of the pack's rules, the eligible IDs and attestedAt, so Verify
 // recomputes it identically.
 func scheduleAutomated(candidates []ruleCandidate, eligibleIDs []string, attestedAt time.Time) (chosen map[string]time.Time, notLater, notDue, deferred []string, err error) {
@@ -821,10 +822,10 @@ func scheduleAutomated(candidates []ruleCandidate, eligibleIDs []string, atteste
 		start := slotPreference(id, len(slots))
 		placed := false
 		for k := 0; k < len(slots); k++ {
+			// Every slot is later than any due rule's current validUntil:
+			// slots start more than automatedMinLease after attestedAt,
+			// and a due rule's lease ends within renewalWindow of it.
 			slot := slots[(start+k)%len(slots)]
-			if !slot.After(current[id]) {
-				continue
-			}
 			oldWeek, newWeek := isoWeek(current[id]), isoWeek(slot)
 			if oldWeek != newWeek && counts[newWeek]+1 > weekCap {
 				continue

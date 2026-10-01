@@ -151,13 +151,7 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 	if err := checkV5(statement, state); err != nil {
 		return VerifyResult{}, err
 	}
-	coveringReviews := fresh
-	if role == RoleAutomation {
-		// No person signs an automated statement, so nothing but the
-		// statement's own rules may account for a date change in its pack.
-		coveringReviews = nil
-	}
-	if err := checkV6(priorByID, nextByID, statement, coveringReviews); err != nil {
+	if err := checkV6(priorByID, nextByID, statement, coveringReviews(role, fresh)); err != nil {
 		return VerifyResult{}, err
 	}
 	if err := checkV7(statement, nextByID); err != nil {
@@ -343,6 +337,17 @@ func checkPriorPackAgainstChain(state chainState, priorDoc packDocument, records
 func checkV5(statement Statement, state chainState) error {
 	next := state.clone()
 	return next.apply(statement)
+}
+
+// coveringReviews is what checkV6 may accept, besides the statement's own
+// rules, as accounting for a rule's changed evidence dates: the new
+// individual reviews for a human statement, and nothing for an automated
+// one, which no person signs.
+func coveringReviews(role string, fresh map[string]string) map[string]string {
+	if role == RoleAutomation {
+		return nil
+	}
+	return fresh
 }
 
 // checkV6 is a CI gate over the pack diff, independent of checkV1AndV3:
