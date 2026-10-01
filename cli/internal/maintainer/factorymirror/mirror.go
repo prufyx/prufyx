@@ -289,9 +289,9 @@ func (r *run) processRepo(ctx context.Context, repo Repo) RepoResult {
 	}
 	newAlarms := 0
 	if prev != nil && prev.LastFetchedAt != "" {
-		for _, a := range detectTagChanges(repo.Key(), prev.Tags, snap.Tags, r.stamp()) {
+		for _, a := range detectTagChanges(repo.Key(), prev.Tags, prev.Tombstones, snap.Tags, r.stamp()) {
 			if !r.idx.hasAlarm(a.ID) {
-				r.idx.Alarms = append(r.idx.Alarms, a)
+				r.idx.addAlarm(a)
 				newAlarms++
 				r.preserve(ctx, dest, a.OldCommit)
 			}
@@ -324,6 +324,7 @@ func (r *run) processRepo(ctx context.Context, repo Repo) RepoResult {
 	info.Status, info.Error, info.LastCheckedAt = "ok", "", r.stamp()
 	if changed {
 		info.RemoteFingerprint, info.LastFetchedAt = fingerprint, r.stamp()
+		info.Tombstones = nextTombstones(info.Tags, info.Tombstones, snap.Tags)
 		info.Heads, info.Tags = snap.Heads, snap.Tags
 	}
 	relInfo := info.Releases

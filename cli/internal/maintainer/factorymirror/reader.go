@@ -24,6 +24,12 @@ var (
 	// access); the mirror command does, via Options.Wants.
 	ErrBlobNotLocal = errors.New("factory mirror: file contents are not materialized in the mirror")
 	ErrTooLarge     = errors.New("factory mirror: file too large")
+	// ErrRepoFrozen means the repository has an unacknowledged alarm: its
+	// tags are not trustworthy until a person has reviewed the alarm.
+	ErrRepoFrozen = errors.New("factory mirror: repository is frozen by an unacknowledged alarm")
+	// ErrReleasesIncomplete means release metadata is missing, stale, or
+	// truncated and must not be used to derive anything.
+	ErrReleasesIncomplete = errors.New("factory mirror: release metadata is not complete")
 )
 
 // MaxFileBytes bounds a single Read.
@@ -166,12 +172,27 @@ func (r *Reader) info(repo string) (*RepoInfo, error) {
 	return info, nil
 }
 
+// frozen reports whether the repository has an unacknowledged alarm.
+func (r *Reader) frozen(info *RepoInfo) bool {
+	key := info.Host + "/" + info.Owner + "/" + info.Name
+	for _, a := range r.idx.Alarms {
+		if a.Repo == key && !a.Acknowledged {
+			return true
+		}
+	}
+	return false
+}
+
 // ResolveTag returns the commit a tag pointed at when the mirror last
-// looked.
+// looked. While the repository is frozen it returns ErrRepoFrozen: the
+// recorded tags may include one that upstream moved.
 func (r *Reader) ResolveTag(repo, tag string) (string, error) {
 	info, err := r.info(repo)
 	if err != nil {
 		return "", err
+	}
+	if r.frozen(info) {
+		return "", ErrRepoFrozen
 	}
 	t, ok := info.Tags[tag]
 	if !ok {
@@ -180,11 +201,15 @@ func (r *Reader) ResolveTag(repo, tag string) (string, error) {
 	return t.Commit, nil
 }
 
-// Tags returns a copy of the recorded tag -> commit map.
+// Tags returns a copy of the recorded tag -> commit map, or ErrRepoFrozen
+// while the repository has an unacknowledged alarm.
 func (r *Reader) Tags(repo string) (map[string]TagInfo, error) {
 	info, err := r.info(repo)
 	if err != nil {
 		return nil, err
+	}
+	if r.frozen(info) {
+		return nil, ErrRepoFrozen
 	}
 	out := make(map[string]TagInfo, len(info.Tags))
 	for k, v := range info.Tags {
@@ -210,12 +235,21 @@ func (r *Reader) Frozen(repo string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	for _, a := range r.idx.Alarms {
-		if a.Repo == info.Host+"/"+info.Owner+"/"+info.Name && !a.Acknowledged {
-			return true, nil
-		}
+	return r.frozen(info), nil
+}
+
+// CompleteReleases returns the release metadata only when it is known,
+// fresh and not truncated; otherwise it returns ErrReleasesIncomplete.
+// Anything that derives a release line from the list must use this.
+func (r *Reader) CompleteReleases(repo string) (Releases, error) {
+	rel, err := r.Releases(repo)
+	if err != nil {
+		return Releases{}, err
 	}
-	return false, nil
+	if rel.Status != ReleasesKnown || rel.Truncated {
+		return Releases{}, fmt.Errorf("%w: status %q, truncated %v", ErrReleasesIncomplete, rel.Status, rel.Truncated)
+	}
+	return rel, nil
 }
 
 // OpenAlarms lists the unacknowledged alarms.

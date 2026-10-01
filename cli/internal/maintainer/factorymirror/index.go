@@ -25,6 +25,10 @@ type Index struct {
 	UpdatedAt string               `json:"updatedAt"`
 	Repos     map[string]*RepoInfo `json:"repos"`
 	Alarms    []Alarm              `json:"alarms"`
+
+	// pending lists alarms added since the last Save, to be written to the
+	// dated alarm files.
+	pending []Alarm
 }
 
 // RepoInfo is the mirror's knowledge of one repository.
@@ -43,6 +47,10 @@ type RepoInfo struct {
 	Heads             map[string]string  `json:"heads,omitempty"`
 	Tags              map[string]TagInfo `json:"tags,omitempty"`
 	Releases          Releases           `json:"releases"`
+	// Tombstones maps a tag that disappeared upstream to the commit it last
+	// pointed at. A tombstoned tag that reappears at another commit raises
+	// an alarm.
+	Tombstones map[string]string `json:"tombstones,omitempty"`
 	// Frozen is true while the repository has an unacknowledged alarm.
 	// Loosening changes that depend on this repository must not be made
 	// while it is frozen.
@@ -53,7 +61,12 @@ type RepoInfo struct {
 const (
 	AlarmTagMoved   = "tag_moved"
 	AlarmTagDeleted = "tag_deleted"
+	// AlarmTagReappeared is a deleted tag that came back at another commit.
+	AlarmTagReappeared = "tag_reappeared"
 )
+
+// AlarmsSchema identifies the dated alarm files in the alarms directory.
+const AlarmsSchema = "prufyx.io/factory-mirror-alarms/v1"
 
 // Alarm is a durable record of upstream behaviour that must not be trusted
 // silently.
@@ -113,8 +126,68 @@ func LoadIndex(stateDir string) (*Index, error) {
 	return idx, nil
 }
 
-// Save writes the index atomically.
+// addAlarm records a newly detected alarm.
+func (idx *Index) addAlarm(a Alarm) {
+	idx.Alarms = append(idx.Alarms, a)
+	idx.pending = append(idx.pending, a)
+}
+
+// alarmsFile is the content of alarms/<date>.json: the alarms detected that
+// (UTC) day, as they were when detected. It is an append-only feed for the
+// monitor; acknowledgement state lives in the index.
+type alarmsFile struct {
+	Schema string  `json:"schema"`
+	Date   string  `json:"date"`
+	Alarms []Alarm `json:"alarms"`
+}
+
+func (idx *Index) flushAlarmFiles(stateDir string) error {
+	byDate := map[string][]Alarm{}
+	for _, a := range idx.pending {
+		date := a.DetectedAt
+		if len(date) >= 10 {
+			date = date[:10]
+		}
+		byDate[date] = append(byDate[date], a)
+	}
+	for date, fresh := range byDate {
+		path := filepath.Join(stateDir, "alarms", date+".json")
+		doc := alarmsFile{Schema: AlarmsSchema, Date: date, Alarms: []Alarm{}}
+		if raw, err := os.ReadFile(path); err == nil {
+			var old alarmsFile
+			if json.Unmarshal(raw, &old) == nil && old.Schema == AlarmsSchema {
+				doc.Alarms = old.Alarms
+			}
+		}
+		for _, a := range fresh {
+			dup := false
+			for _, o := range doc.Alarms {
+				if o.ID == a.ID {
+					dup = true
+				}
+			}
+			if !dup {
+				doc.Alarms = append(doc.Alarms, a)
+			}
+		}
+		raw, err := json.MarshalIndent(doc, "", "  ")
+		if err != nil {
+			return err
+		}
+		if err := writeFileAtomic(path, append(raw, '\n')); err != nil {
+			return err
+		}
+	}
+	idx.pending = nil
+	return nil
+}
+
+// Save writes the index atomically, after the dated alarm files of newly
+// detected alarms.
 func (idx *Index) Save(stateDir string) error {
+	if err := idx.flushAlarmFiles(stateDir); err != nil {
+		return err
+	}
 	for _, info := range idx.Repos {
 		info.Frozen = false
 	}
@@ -193,7 +266,8 @@ func writeFileAtomic(path string, data []byte) error {
 }
 
 // detectTagChanges compares previously recorded tags with a new view.
-func detectTagChanges(repo string, old map[string]TagInfo, current map[string]TagInfo, now string) []Alarm {
+// tombstones holds tags that were seen deleted earlier and their last commit.
+func detectTagChanges(repo string, old map[string]TagInfo, tombstones map[string]string, current map[string]TagInfo, now string) []Alarm {
 	var out []Alarm
 	names := make([]string, 0, len(old))
 	for n := range old {
@@ -209,6 +283,38 @@ func detectTagChanges(repo string, old map[string]TagInfo, current map[string]Ta
 		case cur.Commit != prev.Commit:
 			out = append(out, Alarm{ID: alarmID(AlarmTagMoved, repo, n, prev.Commit, cur.Commit), Kind: AlarmTagMoved, Repo: repo, Tag: n, OldCommit: prev.Commit, NewCommit: cur.Commit, DetectedAt: now})
 		}
+	}
+	names = names[:0]
+	for n := range tombstones {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		last := tombstones[n]
+		cur, ok := current[n]
+		if _, tracked := old[n]; ok && !tracked && cur.Commit != last {
+			out = append(out, Alarm{ID: alarmID(AlarmTagReappeared, repo, n, last, cur.Commit), Kind: AlarmTagReappeared, Repo: repo, Tag: n, OldCommit: last, NewCommit: cur.Commit, DetectedAt: now})
+		}
+	}
+	return out
+}
+
+// nextTombstones returns the tombstones after moving from old to current:
+// tags that vanished are added, tags that are present are dropped.
+func nextTombstones(old map[string]TagInfo, tombstones map[string]string, current map[string]TagInfo) map[string]string {
+	out := map[string]string{}
+	for n, c := range tombstones {
+		if _, back := current[n]; !back {
+			out[n] = c
+		}
+	}
+	for n, t := range old {
+		if _, still := current[n]; !still {
+			out[n] = t.Commit
+		}
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }
