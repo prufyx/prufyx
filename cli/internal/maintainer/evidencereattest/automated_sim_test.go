@@ -48,8 +48,8 @@ func unchangedWorklist(t *testing.T, packPath string, packRaw []byte, at time.Ti
 
 type simReport struct {
 	total, continuous, lapsedAtStart, renewals, cappedRules int
-	lapsedBy                                               map[string]int
-	minGapDays                                             int
+	lapsedBy                                                map[string]int
+	minGapDays                                              int
 	// cappedUntil is, for the rules at the cap after the last run, the
 	// earliest and latest validUntil: with no individual review they expire
 	// to UNKNOWN between these two instants.

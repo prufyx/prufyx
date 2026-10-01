@@ -563,6 +563,21 @@ func TestAutomatedModeIgnoresReviewRecordsThePackDoesNotRequire(t *testing.T) {
 	}
 }
 
+// With no chain head there is nothing a review record could be anchored
+// to: an automated statement opening a chain records none.
+func TestAutomatedModeRecordsNoReviewOnAnEmptyChain(t *testing.T) {
+	f := newRoleFixture(t)
+	pack := automatedPack(t, baseNow)
+	records := map[string][]byte{"rule-00": testReviewRecord(t, pack, "rule-00", baseNow.Add(-time.Hour), "Some Maintainer")}
+	c := prepareAutomated(t, f.chainFixture, pack, baseNow, cycleSpecs(12, baseNow), "rev-2", records)
+	if len(c.res.Statement.IndividualReviews) != 0 {
+		t.Fatalf("an automated statement on an empty chain recorded %+v", c.res.Statement.IndividualReviews)
+	}
+	if err := verifyCycle(c, f.chain()); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // A rule whose evidence dates the base branch already moved after the chain
 // head (an individual review merged outside the chain) is recorded by the
 // next automated statement from its review record, which resets its count.
@@ -590,6 +605,25 @@ func TestAutomatedModeRecordsAReviewThePackRequires(t *testing.T) {
 	}
 	if err := verifyCycle(c3, f.chain()); err != nil {
 		t.Fatalf("verify: %v", err)
+	}
+}
+
+// Verify applies the same anchoring as automated Prepare when it ties the
+// prior pack to the chain: a rule claiming the chain head's attestedAt as
+// its reviewedAt, which the head did not renew, is a V5 failure even when
+// a review record for it is supplied, because an automated statement may
+// not count that record.
+func TestVerifyAnchorsReviewRecordsForAutomatedStatements(t *testing.T) {
+	f, c2 := twoAutomatedRounds(t)
+	t3 := c2.at.Add(automatedSpacing)
+	c3 := prepareAutomated(t, f.chainFixture, c2.res.NextPack, t3, cycleSpecs(12, t3), "rev-4", nil)
+	prior := setRuleDates(t, c2.res.NextPack, "past-000", c2.res.Statement.AttestedAt, rfc3339(t3.Add(7*24*time.Hour)))
+	tampered := c3
+	tampered.prior = prior
+	tampered.reviews = map[string][]byte{"past-000": testReviewRecord(t, prior, "past-000", t3.Add(-time.Hour), "Some Maintainer")}
+	err := verifyCycle(tampered, f.chain())
+	if err == nil || !strings.Contains(err.Error(), "V5:") || !strings.Contains(err.Error(), "neither renewed it nor recorded") {
+		t.Fatalf("expected the unanchored record to be ignored and V5 to fire, got %v", err)
 	}
 }
 
@@ -621,24 +655,34 @@ func TestSignBindsSigningRoleStatementRoleAndKeyRole(t *testing.T) {
 	f := newRoleFixture(t)
 	human := humanStatementFor(t, f).res.StatementCanonical
 	automated := prepareAutomated(t, f.chainFixture, automatedPack(t, baseNow), baseNow, cycleSpecs(12, baseNow), "rev-2", nil).res.StatementCanonical
+	// Each refusal is asserted by its own reason, so every one of the three
+	// checks (a role is given, it is the statement's role, the key holds
+	// it) is shown to fire on its own rather than being masked by Sign's
+	// final self-verification.
 	for _, tc := range []struct {
 		name      string
 		role      string
 		key       testKeyPair
 		statement []byte
-		ok        bool
+		wantErr   string
 	}{
-		{"human key signs human statement", RoleHuman, f.human, human, true},
-		{"automation key signs automated statement", RoleAutomation, f.automation, automated, true},
-		{"automation role refuses a human statement", RoleAutomation, f.automation, human, false},
-		{"human role refuses an automated statement", RoleHuman, f.human, automated, false},
-		{"automation role refuses a human key", RoleAutomation, f.human, automated, false},
-		{"human role refuses an automation key", RoleHuman, f.automation, human, false},
-		{"no role", "", f.human, human, false},
+		{"human key signs human statement", RoleHuman, f.human, human, ""},
+		{"automation key signs automated statement", RoleAutomation, f.automation, automated, ""},
+		{"automation role refuses a human statement", RoleAutomation, f.automation, human, "must be signed with the human role, not the automation role"},
+		{"human role refuses an automated statement", RoleHuman, f.human, automated, "must be signed with the automation role, not the human role"},
+		{"automation role refuses a human key", RoleAutomation, f.human, automated, "does not hold the automation role in the trust root"},
+		{"human role refuses an automation key", RoleHuman, f.automation, human, "does not hold the human role in the trust root"},
+		{"no role", "", f.human, human, "a signing role is required"},
 	} {
 		_, err := f.signAs(tc.role, tc.key, tc.statement)
-		if (err == nil) != tc.ok {
-			t.Fatalf("%s: err=%v, want ok=%v", tc.name, err, tc.ok)
+		if tc.wantErr == "" {
+			if err != nil {
+				t.Fatalf("%s: %v", tc.name, err)
+			}
+			continue
+		}
+		if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+			t.Fatalf("%s: want an error containing %q, got %v", tc.name, tc.wantErr, err)
 		}
 	}
 }

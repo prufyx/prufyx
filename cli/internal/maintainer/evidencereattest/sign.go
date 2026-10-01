@@ -109,7 +109,7 @@ func Sign(options SignOptions) ([]byte, error) {
 		return nil, fmt.Errorf("%w: a signing role is required", ErrRejected)
 	}
 	if options.Role != role {
-		return nil, fmt.Errorf("%w: the statement must be signed by a %s key, not a %s key", ErrRejected, role, options.Role)
+		return nil, fmt.Errorf("%w: the statement must be signed with the %s role, not the %s role", ErrRejected, role, options.Role)
 	}
 	if err := checkSampleReviewed(statement); err != nil {
 		return nil, err
@@ -144,7 +144,7 @@ func Sign(options SignOptions) ([]byte, error) {
 		}
 	}
 	if !authorized {
-		return nil, fmt.Errorf("%w: the signing key is not a %s key in the trust root", ErrRejected, role)
+		return nil, fmt.Errorf("%w: the signing key does not hold the %s role in the trust root", ErrRejected, role)
 	}
 	signer, err := signature.LoadSigner(private, crypto.Hash(0))
 	if err != nil {
