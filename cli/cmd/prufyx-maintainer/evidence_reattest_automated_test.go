@@ -7,6 +7,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgesign"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 	"github.com/secure-systems-lab/go-securesystemslib/cjson"
@@ -97,6 +99,26 @@ func newAutomatedFixture(t *testing.T) automatedFixture {
 	f.passphraseFile = filepath.Join(f.dir, "passphrase.txt")
 	writeFile(t, f.passphraseFile, []byte(automationTestPassphrase+"\n"))
 
+	// Automated mode renews only citations compared on their release line.
+	f.worklist = filepath.Join(f.dir, "worklist-line.json")
+	var wl evidencerepin.Worklist
+	raw, err := os.ReadFile(filepath.Join(f.dir, "worklist.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &wl); err != nil {
+		t.Fatal(err)
+	}
+	c := &wl.Citations[0]
+	c.Baseline, c.BaselineMode, c.BaselineLine, c.PinnedTag, c.BaselineTag = evidencerepin.BaselineReleaseLine, evidencerepin.BaselineModeReleaseLine, "0.9", "v0.9.0", "v0.9.4"
+	wl.Lines = []evidencerepin.LineResolution{{
+		Owner: c.Owner, Repo: c.Repo, Prefix: "v", Line: "0.9", Status: "RESOLVED", Tag: "v0.9.4", Commit: c.NewCommit, ResolvedAt: wl.Repos[0].ResolvedAt,
+	}}
+	if raw, err = json.Marshal(wl); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, f.worklist, raw)
+
 	attestedAt := time.Now().UTC().Truncate(time.Second).Add(-time.Hour)
 	var stdout, stderr bytes.Buffer
 	if err := run(f.prepareArgs("--attested-at", attestedAt.Format(time.RFC3339)), &stdout, &stderr); err != nil {
@@ -145,14 +167,29 @@ func TestEvidenceReattestPrepareAutomatedMode(t *testing.T) {
 func TestEvidenceReattestSignAutomationRoleUnattended(t *testing.T) {
 	f := newAutomatedFixture(t)
 	statement := filepath.Join(f.autoOut, "statement.json")
-	verify := func(envelope string) (int, string) {
+	verifyWith := func(envelope string, extra ...string) (int, string) {
+		// The gate verifies a statement that is already the chain's one
+		// new entry, against a worklist this job produced itself.
+		statementRaw, err := os.ReadFile(statement)
+		if err != nil {
+			t.Fatal(err)
+		}
+		envelopeRaw, err := os.ReadFile(envelope)
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(f.chain, "0001.statement.json"), statementRaw)
+		writeFile(t, filepath.Join(f.chain, "0001.statement.sig.json"), envelopeRaw)
 		var stdout, stderr bytes.Buffer
 		args := []string{"evidence", "reattest", "verify",
 			"--statement", statement, "--prior-pack", f.rules, "--next-pack", filepath.Join(f.autoOut, "rules.next.json"),
 			"--worklist", f.worklist, "--pack", "cncf", "--rules-worklist-path", reattestWorklistPackPath,
 			"--statement-chain-dir", f.chain, "--base-statement-chain-dir", f.base,
 			"--envelope", envelope, "--trust-root", f.root, "--trust-root-digest", f.rootDigest}
-		return exitCode(run(args, &stdout, &stderr)), stdout.String() + stderr.String()
+		return exitCode(run(append(args, extra...), &stdout, &stderr)), stdout.String() + stderr.String()
+	}
+	verify := func(envelope string) (int, string) {
+		return verifyWith(envelope, "--rerun-worklist", f.worklist)
 	}
 
 	fromFiles := filepath.Join(f.dir, "files.sig.json")
@@ -162,6 +199,32 @@ func TestEvidenceReattestSignAutomationRoleUnattended(t *testing.T) {
 	}
 	if code, out := verify(fromFiles); code != 0 || !strings.Contains(out, "OK role=automation rules=1 sampled=0") || !strings.Contains(out, f.automation.id) {
 		t.Fatalf("verify: exit %d, %q", code, out)
+	}
+
+	// The gate does not take the signing job's worklist on trust: without
+	// a worklist the verifying job produced itself it refuses, and a
+	// citation the independent worklist classifies differently is a V9
+	// failure.
+	if code, out := verifyWith(fromFiles); code != 1 || !strings.Contains(out, "--rerun-worklist") {
+		t.Fatalf("verify without --rerun-worklist: exit %d, %q", code, out)
+	}
+	var independent evidencerepin.Worklist
+	rawWorklist, err := os.ReadFile(f.worklist)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(rawWorklist, &independent); err != nil {
+		t.Fatal(err)
+	}
+	independent.Citations[0].Class = evidencerepin.ClassSpanIdentical
+	rawIndependent, err := json.Marshal(independent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	differing := filepath.Join(f.dir, "independent-worklist.json")
+	writeFile(t, differing, rawIndependent)
+	if code, out := verifyWith(fromFiles, "--rerun-worklist", differing); code != 1 || !strings.Contains(out, "V9:") {
+		t.Fatalf("verify against a differing independent worklist: exit %d, %q", code, out)
 	}
 
 	keyPEM, err := os.ReadFile(f.automation.path)
@@ -180,6 +243,14 @@ func TestEvidenceReattestSignAutomationRoleUnattended(t *testing.T) {
 	if code, out := verify(fromEnv); code != 0 {
 		t.Fatalf("verify: exit %d, %q", code, out)
 	}
+	// Both variables are removed from the process as soon as they are read.
+	for _, name := range []string{"TEST_REATTEST_KEY", "TEST_REATTEST_PASSPHRASE"} {
+		if _, still := os.LookupEnv(name); still {
+			t.Fatalf("%s is still set after signing", name)
+		}
+	}
+	t.Setenv("TEST_REATTEST_KEY", string(keyPEM))
+	t.Setenv("TEST_REATTEST_PASSPHRASE", automationTestPassphrase)
 
 	looseFile := filepath.Join(f.dir, "loose-passphrase.txt")
 	if err := os.WriteFile(looseFile, []byte(automationTestPassphrase), 0o644); err != nil {

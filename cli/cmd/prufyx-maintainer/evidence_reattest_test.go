@@ -233,23 +233,47 @@ func TestEvidenceReattestVerifyExitCodes(t *testing.T) {
 	writeFile(t, badEnvelope, bytes.Replace(raw, []byte(parsed.Signatures[0].Sig), sig, 1))
 
 	sigFlags := []string{"--envelope", f.envelope, "--trust-root", f.trustRoot, "--trust-root-digest", f.trustRootDigest}
+	// chained cases run with the statement and its envelope appended to the
+	// statement chain, as the publish gate sees a merged change.
+	setChain := func(on bool) {
+		for _, name := range []string{"0001.statement.json", "0001.statement.sig.json"} {
+			path := filepath.Join(f.chain, name)
+			if !on {
+				_ = os.Remove(path)
+				continue
+			}
+			from := filepath.Join(f.out, "statement.json")
+			if strings.HasSuffix(name, ".sig.json") {
+				from = f.envelope
+			}
+			raw, err := os.ReadFile(from)
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeFile(t, path, raw)
+		}
+	}
 	for _, tc := range []struct {
-		name string
-		args []string
-		want int
+		name    string
+		args    []string
+		want    int
+		chained bool
 	}{
-		{"no signature", f.verifyArgs(), 1},
-		{"structural only", f.verifyArgs("--structural-only"), 1},
-		{"structural only with the chain's trust root", f.verifyArgs("--structural-only", "--trust-root", f.trustRoot, "--trust-root-digest", f.trustRootDigest), 1},
-		{"structural only with an envelope", f.verifyArgs(append([]string{"--structural-only"}, sigFlags...)...), 2},
-		{"envelope without trust root", f.verifyArgs("--envelope", f.envelope), 2},
-		{"trust root without digest", f.verifyArgs("--envelope", f.envelope, "--trust-root", f.trustRoot), 2},
-		{"digest without trust root", f.verifyArgs("--envelope", f.envelope, "--trust-root-digest", f.trustRootDigest), 2},
-		{"bad signature", f.verifyArgs("--envelope", badEnvelope, "--trust-root", f.trustRoot, "--trust-root-digest", f.trustRootDigest), 1},
-		{"wrong trust root digest", f.verifyArgs("--envelope", f.envelope, "--trust-root", f.trustRoot, "--trust-root-digest", "sha256:"+strings.Repeat("0", 64)), 1},
-		{"removed previous-statement flag", f.verifyArgs(append([]string{"--previous-statement", filepath.Join(f.out, "statement.json")}, sigFlags...)...), 2},
-		{"valid", f.verifyArgs(sigFlags...), 0},
+		{"no signature, statement not in the chain", f.verifyArgs(), 1, false},
+		{"no signature, statement in the chain", f.verifyArgs("--trust-root", f.trustRoot, "--trust-root-digest", f.trustRootDigest), 1, true},
+		{"structural only", f.verifyArgs("--structural-only"), 1, false},
+		{"structural only with the chain's trust root", f.verifyArgs("--structural-only", "--trust-root", f.trustRoot, "--trust-root-digest", f.trustRootDigest), 1, false},
+		{"structural only with an envelope", f.verifyArgs(append([]string{"--structural-only"}, sigFlags...)...), 2, false},
+		{"envelope without trust root", f.verifyArgs("--envelope", f.envelope), 2, false},
+		{"trust root without digest", f.verifyArgs("--envelope", f.envelope, "--trust-root", f.trustRoot), 2, false},
+		{"digest without trust root", f.verifyArgs("--envelope", f.envelope, "--trust-root-digest", f.trustRootDigest), 2, false},
+		{"valid envelope, statement not appended to the chain", f.verifyArgs(sigFlags...), 1, false},
+		{"bad signature", f.verifyArgs("--envelope", badEnvelope, "--trust-root", f.trustRoot, "--trust-root-digest", f.trustRootDigest), 1, true},
+		{"wrong trust root digest", f.verifyArgs("--envelope", f.envelope, "--trust-root", f.trustRoot, "--trust-root-digest", "sha256:"+strings.Repeat("0", 64)), 1, true},
+		{"removed previous-statement flag", f.verifyArgs(append([]string{"--previous-statement", filepath.Join(f.out, "statement.json")}, sigFlags...)...), 2, false},
+		{"valid", f.verifyArgs(sigFlags...), 0, true},
 	} {
+		setChain(tc.chained)
 		var stdout, stderr bytes.Buffer
 		err := run(tc.args, &stdout, &stderr)
 		if got := exitCode(err); got != tc.want {
@@ -258,10 +282,19 @@ func TestEvidenceReattestVerifyExitCodes(t *testing.T) {
 		if tc.name == "valid" && !strings.Contains(stdout.String(), "evidence reattest verify: OK role=human rules=1") {
 			t.Fatalf("valid: unexpected output %q", stdout.String())
 		}
-		if tc.name == "no signature" && !strings.Contains(stderr.String(), "--envelope, --trust-root, and --trust-root-digest are required") {
-			t.Fatalf("no signature: unexpected stderr %q", stderr.String())
+		if tc.name == "no signature, statement not in the chain" && !strings.Contains(stderr.String(), "not appended to the statement chain") {
+			t.Fatalf("%s: unexpected stderr %q", tc.name, stderr.String())
 		}
-		if (tc.name == "bad signature" || tc.name == "wrong trust root digest") && !strings.Contains(stderr.String(), "FAIL: signature") {
+		if tc.name == "valid envelope, statement not appended to the chain" && !strings.Contains(stderr.String(), "not appended to the statement chain") {
+			t.Fatalf("%s: unexpected stderr %q", tc.name, stderr.String())
+		}
+		if tc.name == "no signature, statement in the chain" && !strings.Contains(stderr.String(), "--envelope, --trust-root, and --trust-root-digest are required") {
+			t.Fatalf("%s: unexpected stderr %q", tc.name, stderr.String())
+		}
+		if tc.name == "bad signature" && !strings.Contains(stderr.String(), "FAIL: signature") {
+			t.Fatalf("%s: expected a signature failure, got stderr %q", tc.name, stderr.String())
+		}
+		if tc.name == "wrong trust root digest" && !strings.Contains(stderr.String(), "signature") {
 			t.Fatalf("%s: expected a signature failure, got stderr %q", tc.name, stderr.String())
 		}
 		if tc.name == "structural only" && !strings.Contains(stderr.String(), "structural checks passed") {
