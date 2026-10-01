@@ -338,6 +338,7 @@ func runEvidenceReattestSign(args []string, stdout, stderr io.Writer) error {
 		// A human key is unlocked only at a terminal: none of the
 		// unattended inputs may be given.
 		if keyPath == "" || keyEnv != "" || passphrasePath != "" || passphraseEnv != "" {
+			fmt.Fprintln(stderr, "evidence reattest sign: the human role takes --key and reads its passphrase only at a terminal")
 			return evidenceReattestError()
 		}
 	case evidencereattest.RoleAutomation:
@@ -379,6 +380,7 @@ func runEvidenceReattestSign(args []string, stdout, stderr io.Writer) error {
 	} else {
 		keyRaw, passphrase, err = automationSecrets(keyPath, keyEnv, passphrasePath, passphraseEnv)
 		if err != nil {
+			fmt.Fprintln(stderr, "evidence reattest sign: the automation key or its passphrase is unavailable or empty")
 			return evidenceReattestError()
 		}
 	}

@@ -239,6 +239,15 @@ func TestAutomatedPrepareRenewsWithoutSampleOnAPerRuleSchedule(t *testing.T) {
 			t.Fatalf("rule %s next-pack dates %s/%s, want %s/%s", ra.RuleID, reviewedAt, validUntil, statement.AttestedAt, ra.ValidUntil)
 		}
 	}
+	// The preference hash spreads the rules: twelve rules land in at least
+	// three different weeks.
+	weeks := map[string]bool{}
+	for _, ra := range statement.Rules {
+		weeks[isoWeek(mustParse(ra.ValidUntil))] = true
+	}
+	if len(weeks) < 3 {
+		t.Fatalf("twelve rules were scheduled into only %d weeks", len(weeks))
+	}
 	if err := verifyCycle(c, f.chain()); err != nil {
 		t.Fatalf("Verify rejected Prepare's own automated statement: %v", err)
 	}
@@ -624,7 +633,8 @@ func TestVerifyAnchorsReviewRecordsForAutomatedStatements(t *testing.T) {
 	tampered.prior = prior
 	tampered.reviews = map[string][]byte{"past-000": testReviewRecord(t, prior, "past-000", t3.Add(-time.Hour), "Some Maintainer")}
 	err := verifyCycle(tampered, f.chain())
-	if err == nil || !strings.Contains(err.Error(), "V5:") || !strings.Contains(err.Error(), "neither renewed it nor recorded") {
+	// Reported by Verify's own chain check, not only by the recomputation.
+	if err == nil || !strings.Contains(err.Error(), "V5:") || !strings.Contains(err.Error(), "neither renewed it nor recorded") || strings.Contains(err.Error(), "V3:") {
 		t.Fatalf("expected the unanchored record to be ignored and V5 to fire, got %v", err)
 	}
 }
@@ -879,6 +889,20 @@ func TestCheckRolePolicyRejectsWhatTheRoleMayNotRenew(t *testing.T) {
 		{"ranged rule", ac, nil, func(c cycle) map[string]ruleCandidate {
 			return mutatePrior(c, first, func(rule map[string]any) { rule["range"] = map[string]any{"fromMin": "1.0.0"} })
 		}},
+		{"duplicate citation for one of two sources", ac, func(s *Statement) {
+			s.Rules[0].Citations = append(s.Rules[0].Citations, s.Rules[0].Citations[0])
+		}, func(c cycle) map[string]ruleCandidate {
+			return mutatePrior(c, first, func(rule map[string]any) {
+				evidence := rule["evidence"].(map[string]any)
+				sources := evidence["sources"].([]any)
+				second := map[string]any{}
+				for k, v := range sources[0].(map[string]any) {
+					second[k] = v
+				}
+				second["id"] = "second-src"
+				evidence["sources"] = append(sources, second)
+			})
+		}},
 		{"withdrawn rule", ac, nil, func(c cycle) map[string]ruleCandidate {
 			return mutatePrior(c, first, func(rule map[string]any) { rule["evidence"].(map[string]any)["state"] = "withdrawn" })
 		}},
@@ -905,22 +929,22 @@ func TestCheckV2ChecksTheAutomatedSchedule(t *testing.T) {
 	}
 	slots := AutomatedSlots(baseNow)
 	for _, tc := range []struct {
-		name string
-		mut  func(*Statement)
+		name, want string
+		mut        func(*Statement)
 	}{
-		{"rule validUntil between slots", func(s *Statement) { s.Rules[0].ValidUntil = rfc3339(slots[1].Add(-24 * time.Hour)) }},
-		{"rule validUntil before the shortest automated lease", func(s *Statement) {
+		{"rule validUntil between slots", "not an automated slot", func(s *Statement) { s.Rules[0].ValidUntil = rfc3339(slots[1].Add(-24 * time.Hour)) }},
+		{"rule validUntil before the shortest automated lease", "not an automated slot", func(s *Statement) {
 			s.Rules[0].ValidUntil = rfc3339(slots[0].Add(-7 * 24 * time.Hour))
 		}},
-		{"rule validUntil past the lease cap", func(s *Statement) {
+		{"rule validUntil past the lease cap", "exceeds the policy-v1 90-day cap", func(s *Statement) {
 			s.Rules[0].ValidUntil = rfc3339(slots[len(slots)-1].Add(7 * 24 * time.Hour))
 		}},
-		{"statement validUntil not the horizon", func(s *Statement) { s.ValidUntil = rfc3339(slots[len(slots)-2]) }},
+		{"statement validUntil not the horizon", "horizon", func(s *Statement) { s.ValidUntil = rfc3339(slots[len(slots)-2]) }},
 	} {
 		statement := deepCopyStatement(t, automated)
 		tc.mut(&statement)
-		if err := checkV2(statement); err == nil || !strings.Contains(err.Error(), "V2:") {
-			t.Fatalf("%s: expected a V2 rejection, got %v", tc.name, err)
+		if err := checkV2(statement); err == nil || !strings.Contains(err.Error(), "V2:") || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("%s: expected a V2 rejection containing %q, got %v", tc.name, tc.want, err)
 		}
 	}
 }
@@ -1147,14 +1171,26 @@ func TestMigrateTrustRoot(t *testing.T) {
 	}{
 		{"wrong pinned digest", MigrateTrustRootOptions{From: v1, ExpectedFromDigest: plain.Digest}},
 		{"remove an unknown key", MigrateTrustRootOptions{From: v1, ExpectedFromDigest: v1Digest, RemoveKeyIDs: []string{a.id}}},
-		{"add a key already present", MigrateTrustRootOptions{From: added.TrustRoot, ExpectedFromDigest: added.Digest, AddAutomationKeys: []string{hex.EncodeToString(a.public)}}},
-		{"add the human key as an automation key", MigrateTrustRootOptions{From: v1, ExpectedFromDigest: v1Digest, AddAutomationKeys: []string{hex.EncodeToString(h.public)}}},
+
 		{"malformed public key", MigrateTrustRootOptions{From: v1, ExpectedFromDigest: v1Digest, AddAutomationKeys: []string{"zz"}}},
 		{"expiry in the past", MigrateTrustRootOptions{From: v1, ExpectedFromDigest: v1Digest, Expires: rfc3339(now.Add(-time.Hour))}},
 		{"no keys left", MigrateTrustRootOptions{From: v1, ExpectedFromDigest: v1Digest, RemoveKeyIDs: []string{h.id}}},
 	} {
 		if _, err := migrate(tc.opts); err == nil {
 			t.Fatalf("%s: MigrateTrustRoot accepted it", tc.name)
+		}
+	}
+	// A key already in the root, in either role, is refused as such; a
+	// human key can never be re-added as an automation key.
+	for _, tc := range []struct {
+		name string
+		opts MigrateTrustRootOptions
+	}{
+		{"add a key already present", MigrateTrustRootOptions{From: added.TrustRoot, ExpectedFromDigest: added.Digest, AddAutomationKeys: []string{hex.EncodeToString(a.public)}}},
+		{"add the human key as an automation key", MigrateTrustRootOptions{From: v1, ExpectedFromDigest: v1Digest, AddAutomationKeys: []string{hex.EncodeToString(h.public)}}},
+	} {
+		if _, err := migrate(tc.opts); err == nil || !strings.Contains(err.Error(), "already in the trust root") {
+			t.Fatalf("%s: want an already-present refusal, got %v", tc.name, err)
 		}
 	}
 }

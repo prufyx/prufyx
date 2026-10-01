@@ -209,6 +209,9 @@ func TestEvidenceReattestSignAutomationRoleUnattended(t *testing.T) {
 		if got := exitCode(run(tc.args, &stdout, &stderr)); got != 2 {
 			t.Fatalf("%s: exit code %d, want 2 (stderr %q)", tc.name, got, stderr.String())
 		}
+		if strings.Contains(tc.name, "empty passphrase") && !strings.Contains(stderr.String(), "unavailable or empty") {
+			t.Fatalf("%s: stderr %q", tc.name, stderr.String())
+		}
 	}
 }
 
@@ -230,9 +233,9 @@ func TestEvidenceReattestSignRefusesRoleMismatch(t *testing.T) {
 			f.signArgs(automated, out("b"), "--role", "human", "--key", f.human.path)},
 		{"default role on an automated statement", `must be signed with role "automation", not "human"`,
 			f.signArgs(automated, out("c"), "--key", f.human.path)},
-		{"human role with a passphrase file", "", f.signArgs(human, out("d"), "--role", "human", "--key", f.human.path, "--passphrase-file", f.passphraseFile)},
-		{"human role with a passphrase variable", "", f.signArgs(human, out("e"), "--role", "human", "--key", f.human.path, "--passphrase-env", "HOME")},
-		{"human role with a key variable", "", f.signArgs(human, out("f"), "--role", "human", "--key-env", "HOME")},
+		{"human role with a passphrase file", "only at a terminal", f.signArgs(human, out("d"), "--role", "human", "--key", f.human.path, "--passphrase-file", f.passphraseFile)},
+		{"human role with a passphrase variable", "only at a terminal", f.signArgs(human, out("e"), "--role", "human", "--key", f.human.path, "--passphrase-env", "HOME")},
+		{"human role with a key variable", "only at a terminal", f.signArgs(human, out("f"), "--role", "human", "--key-env", "HOME")},
 	} {
 		var stdout, stderr bytes.Buffer
 		if got := exitCode(run(tc.args, &stdout, &stderr)); got != 2 {
