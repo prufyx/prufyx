@@ -138,6 +138,9 @@ func writeKnativeHumanReview(out interface{ Write([]byte) (int, error) }, report
 	if _, err := fmt.Fprintf(out, "Knative Serving Service upgrade review\ntransition: %s -> %s\nsetting spec.template.spec.containers[0].ports[0].name versus spec.template.spec.containers[0].startupProbe.httpGet.port: %s\nscoped result: %s (%s)\naggregate: UNKNOWN\nraw Service digest: %s\nprepared input digest: %s\nevaluated at: %s\nknowledge: embedded revision %s\nknowledge pack digest: %s\nnetwork used: false\nService changed: false\n", from, to, formatKnativePortFact(fact), claim.Status, claim.ReasonCode, sourceDigest, report.InputFileDigest, report.Check.EvaluatedAt, report.KnowledgeRevision, report.KnowledgePackDigest); err != nil {
 		return err
 	}
+	if _, err := fmt.Fprintln(out, claim.EvidenceBasisLine()); err != nil {
+		return err
+	}
 	for _, source := range claim.Sources {
 		if _, err := fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
 			return err
@@ -176,6 +179,9 @@ func writeKnativeExternalHumanReview(out interface{ Write([]byte) (int, error) }
 		}
 	} else {
 		claim := claims[0]
+		if _, err := fmt.Fprintln(out, claim.EvidenceBasisLine()); err != nil {
+			return err
+		}
 		for _, source := range claim.Sources {
 			if _, err := fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
 				return err

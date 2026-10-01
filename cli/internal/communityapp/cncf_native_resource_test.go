@@ -287,3 +287,26 @@ func TestCNCFNativeResourceGroupOrWorldReadableInputGetsAnActionableHint(t *test
 		}
 	})
 }
+
+func TestCNCFHumanAndJSONOutputShowEvidenceBasisWithoutChangingExit(t *testing.T) {
+	raw := []byte(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"config","namespace":"metallb-system"},"data":{"config":"address-pools: []"}}`)
+	path := writeCNCFFile(t, "resource.json", raw, 0o600)
+	args := []string{"check", "cncf", "--project", "metallb", "--native-resource", path, "--from", "0.12.1", "--to", "0.13.2", "--now", "2026-09-11T18:00:00Z"}
+	code, stdout, stderr := runCNCFCLI(t, args...)
+	if code != ExitBlocked || stderr != "" {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+	line := "evidence basis: reviewed by maintainer\n"
+	if strings.Count(stdout, line) != 1 || strings.Index(stdout, line) > strings.Index(stdout, "pinned source:") {
+		t.Fatalf("expected one basis line before the pinned sources: %q", stdout)
+	}
+	jsonCode, jsonOut, jsonErr := runCNCFCLI(t, append(args, "--format", "json")...)
+	if jsonCode != code || jsonErr != "" {
+		t.Fatalf("json exit %d differs from human exit %d (%q)", jsonCode, code, jsonErr)
+	}
+	// Published rules declare no basis, so their reports keep their exact
+	// shape; an absent basis means the rule was reviewed by a maintainer.
+	if strings.Contains(jsonOut, "evidenceBasis") || strings.Contains(jsonOut, "evidenceExtractor") {
+		t.Fatalf("a reviewed rule's JSON must not carry a basis: %q", jsonOut)
+	}
+}

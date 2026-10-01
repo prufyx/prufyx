@@ -169,6 +169,9 @@ func writeNativeFormatHuman(out interface{ Write([]byte) (int, error) }, report 
 	if _, err := fmt.Fprintf(out, "%s\ntransition: %s -> %s\n%sinput classification: %s\nscoped result: %s (%s)\naggregate: UNKNOWN\nraw input digest: %s\nprepared input digest: %s\nevaluated at: %s\nknowledge: embedded revision %s\nknowledge pack digest: %s\nnetwork used: false\ninput file handling: Prufyx reads but does not modify the %s.\n", title, from, to, intent, prepared.Reason, claim.Status, claim.ReasonCode, rawDigest, report.InputFileDigest, report.Check.EvaluatedAt, report.KnowledgeRevision, report.KnowledgePackDigest, subject); err != nil {
 		return err
 	}
+	if _, err := fmt.Fprintln(out, claim.EvidenceBasisLine()); err != nil {
+		return err
+	}
 	for _, source := range claim.Sources {
 		if _, err := fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
 			return err

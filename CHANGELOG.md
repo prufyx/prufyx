@@ -19,6 +19,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Rules may declare how their evidence was produced: `evidence.basis`
+  (`reviewed` or `mechanical`; absent means reviewed), `evidence.extractor`
+  and `evidence.derivedAt`. The fields are parsed strictly, never affect a
+  verdict, and are shown with every finding in human output (`evidence basis:
+  ...`) and, for mechanical rules, in JSON (`evidenceBasis`,
+  `evidenceExtractor`, `evidenceDerivedAt`). Existing rule packs and reports
+  are unchanged. `evidence reattest` refuses to renew a mechanical rule.
 - A local, machine-verifiable declared-review consistency record that binds one
   selected rule to exact packet, source-corpus, target, and executed-vector
   evidence. It does not authenticate the declared reviewer, admit a full target,

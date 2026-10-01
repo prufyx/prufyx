@@ -52,6 +52,9 @@ func (r runtime) cncfArgoCDResourceExclusions(path, pin, from, to string, comple
 	if _, err := fmt.Fprintf(r.stdout, "Argo CD resource-exclusions review\ntransition: %s -> %s\nraw ConfigMap digest: %s\nprepared input digest: %s\nscope: declared v2 visibility preservation only; resource existence, watches, UI, reconciliation, runtime, and whole upgrade remain UNKNOWN\nscoped result: %s (%s)\naggregate: UNKNOWN\nnetwork used: false\n", from, to, sourceDigest, prepared.InputDigest, claim.Status, claim.ReasonCode); err != nil {
 		return ExitIntegrity
 	}
+	if _, err := fmt.Fprintln(r.stdout, claim.EvidenceBasisLine()); err != nil {
+		return ExitIntegrity
+	}
 	for _, source := range claim.Sources {
 		if _, err := fmt.Fprintf(r.stdout, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
 			return ExitIntegrity

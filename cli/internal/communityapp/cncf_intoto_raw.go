@@ -130,6 +130,9 @@ func writeInTotoHuman(out interface{ Write([]byte) (int, error) }, report cncfch
 	if _, err := fmt.Fprintf(out, "in-toto-run key argument upgrade review\ntransition: Python CLI %s -> %s\npre-boundary key option: %s\nscoped result: %s (%s)\naggregate: UNKNOWN\nraw argv digest: %s\nprepared input digest: %s\nevaluated at: %s\nknowledge: %s revision %s\nknowledge pack digest: %s\nnetwork used: false\ninput file handling: Prufyx reads but does not modify the supplied argv file.\n", from, to, formatInTotoFact(fact), claim.Status, claim.ReasonCode, rawDigest, report.InputFileDigest, report.Check.EvaluatedAt, origin, report.KnowledgeRevision, report.KnowledgePackDigest); err != nil {
 		return err
 	}
+	if _, err := fmt.Fprintln(out, claim.EvidenceBasisLine()); err != nil {
+		return err
+	}
 	for _, s := range claim.Sources {
 		if _, err := fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", s.URL, s.StartLine, s.EndLine, s.Revision, s.ContentDigest); err != nil {
 			return err
@@ -163,6 +166,9 @@ func writeInTotoExternalHuman(out interface{ Write([]byte) (int, error) }, repor
 			return err
 		}
 	} else {
+		if _, err := fmt.Fprintln(out, claims[0].EvidenceBasisLine()); err != nil {
+			return err
+		}
 		for _, s := range claims[0].Sources {
 			if _, err := fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", s.URL, s.StartLine, s.EndLine, s.Revision, s.ContentDigest); err != nil {
 				return err

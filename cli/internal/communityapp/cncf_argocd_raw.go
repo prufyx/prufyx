@@ -107,6 +107,9 @@ func writeArgoCDHumanReview(out interface{ Write([]byte) (int, error) }, report 
 	if _, err := fmt.Fprintf(out, "Argo CD ConfigMap upgrade review\ntransition: %s -> %s\nsetting server.rbac.disableApplicationFineGrainedRBACInheritance: %s\nrequires inherited application update/delete permissions: %s\nscoped result: %s (%s)\naggregate: UNKNOWN\nraw ConfigMap digest: %s\nprepared input digest: %s\nevaluated at: %s\nknowledge: embedded revision %s\nknowledge pack digest: %s\nnetwork used: false\nConfigMap or RBAC changed: false\n", from, to, formatArgoCDSetting(setting), formatArgoCDIntent(intent), claim.Status, claim.ReasonCode, sourceDigest, report.InputFileDigest, report.Check.EvaluatedAt, report.KnowledgeRevision, report.KnowledgePackDigest); err != nil {
 		return err
 	}
+	if _, err := fmt.Fprintln(out, claim.EvidenceBasisLine()); err != nil {
+		return err
+	}
 	for _, source := range claim.Sources {
 		if _, err := fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
 			return err

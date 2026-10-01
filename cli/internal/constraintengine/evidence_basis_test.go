@@ -158,3 +158,42 @@ func mustMarshal(t *testing.T, value any) []byte {
 	}
 	return raw
 }
+
+// TestEvidenceBasisPresentationGolden pins the exact human line and the exact
+// JSON of a mechanical claim's provenance.
+func TestEvidenceBasisPresentationGolden(t *testing.T) {
+	registry := testRegistry(t)
+	input := testInput(t, registry, `{"id":"component.example.feature_enabled","state":"declared","boolValue":false}`, "2.0.0")
+	render := func(mutate func(map[string]any)) (Claim, []byte) {
+		rules, err := ParseRuleSet(basisDocument(mutate), registry)
+		if err != nil {
+			t.Fatal(err)
+		}
+		report, err := Evaluate(input, rules, testNow(t))
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, err := MarshalReport(report)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return report.Claims[0], raw
+	}
+
+	claim, _ := render(func(map[string]any) {})
+	if got := claim.EvidenceBasisLine(); got != "evidence basis: reviewed by maintainer" {
+		t.Fatalf("absent basis line = %q", got)
+	}
+	claim, _ = render(func(e map[string]any) { e["basis"] = "reviewed" })
+	if got := claim.EvidenceBasisLine(); got != "evidence basis: reviewed by maintainer" {
+		t.Fatalf("reviewed basis line = %q", got)
+	}
+	claim, raw := render(mechanical)
+	if got := claim.EvidenceBasisLine(); got != "evidence basis: derived from source by example.removal v1.2.3" {
+		t.Fatalf("mechanical basis line = %q", got)
+	}
+	want := `"evidenceBasis":"mechanical","evidenceExtractor":{"id":"example.removal","version":"1.2.3","codeDigest":"` + testCodeDigest + `"},"evidenceDerivedAt":"2026-01-01T00:00:00Z"`
+	if !strings.Contains(string(raw), want) {
+		t.Fatalf("JSON provenance missing or reordered:\n%s", raw)
+	}
+}

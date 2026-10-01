@@ -135,6 +135,9 @@ func writeTUFHuman(out interface{ Write([]byte) (int, error) }, report cncfcheck
 	if _, err := fmt.Fprintf(out, "TUF Updater source-call review\ntransition: Python API %s -> %s\nbootstrap keyword: %s\nscoped result: %s (%s)\naggregate: UNKNOWN\nraw source digest: %s\nprepared input digest: %s\nevaluated at: %s\nknowledge: %s revision %s\nknowledge pack digest: %s\nsource parser: Go lexical subset; no Python interpreter, import, or execution is used\nnetwork used: false\ninput file handling: Prufyx reads but does not modify or execute the supplied Python source.\n", from, to, formatTUFFact(fact), claim.Status, claim.ReasonCode, rawDigest, report.InputFileDigest, report.Check.EvaluatedAt, origin, report.KnowledgeRevision, report.KnowledgePackDigest); err != nil {
 		return err
 	}
+	if _, err := fmt.Fprintln(out, claim.EvidenceBasisLine()); err != nil {
+		return err
+	}
 	for _, source := range claim.Sources {
 		if _, err := fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
 			return err
@@ -156,6 +159,9 @@ func writeTUFExternalHuman(out interface{ Write([]byte) (int, error) }, report c
 		return err
 	}
 	if len(claims) == 1 {
+		if _, err := fmt.Fprintln(out, claims[0].EvidenceBasisLine()); err != nil {
+			return err
+		}
 		for _, source := range claims[0].Sources {
 			if _, err := fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
 				return err

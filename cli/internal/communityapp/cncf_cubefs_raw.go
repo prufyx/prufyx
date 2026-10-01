@@ -137,6 +137,9 @@ func writeCubeFSHuman(out interface{ Write([]byte) (int, error) }, report cncfch
 	if _, err := fmt.Fprintf(out, "CubeFS MetaNode planned-upgrade review\ntransition: %s -> %s\ndeclared phase: %s\nplanned config raftSyncSnapFormatVersion: %s\nscoped result: %s (%s)\naggregate: UNKNOWN\nraw config digest: %s\nprepared input digest: %s\nevaluated at: %s\nknowledge: %s revision %s\nknowledge pack digest: %s\nnetwork used: false\ninput file handling: Prufyx reads but does not modify the supplied planned config.\n", from, to, formatCubeFSPhase(phase, facts.phaseState), formatCubeFSGuard(facts), claim.Status, claim.ReasonCode, rawDigest, report.InputFileDigest, report.Check.EvaluatedAt, origin, report.KnowledgeRevision, report.KnowledgePackDigest); err != nil {
 		return err
 	}
+	if _, err := fmt.Fprintln(out, claim.EvidenceBasisLine()); err != nil {
+		return err
+	}
 	for _, source := range claim.Sources {
 		if _, err := fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
 			return err
@@ -158,6 +161,9 @@ func writeCubeFSExternalHuman(out interface{ Write([]byte) (int, error) }, repor
 		return err
 	}
 	if len(claims) == 1 {
+		if _, err := fmt.Fprintln(out, claims[0].EvidenceBasisLine()); err != nil {
+			return err
+		}
 		for _, source := range claims[0].Sources {
 			if _, err := fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
 				return err

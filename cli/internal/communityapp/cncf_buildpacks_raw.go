@@ -157,6 +157,9 @@ func writeBuildpacksHuman(out interface{ Write([]byte) (int, error) }, report cn
 	if _, err := fmt.Fprintf(out, "Buildpacks Lifecycle Platform API plan review\ntransition: Lifecycle %s -> %s\nCNB_PLATFORM_API: current %s (%s); proposed %s (%s)\nscoped result: %s (%s)\naggregate: UNKNOWN\ncurrent supplied config digest: %s\nproposed supplied config digest: %s\nprepared input digest: %s\nevaluated at: %s\nknowledge: %s revision %s\nknowledge pack digest: %s\nnetwork used: false\ninput file handling: Prufyx does not modify the supplied files; their separate digests do not assert that their complete contents are equal.\n", from, to, currentAPI, facts.currentSupport, proposedAPI, facts.proposedSupport, claim.Status, claim.ReasonCode, currentDigest, proposedDigest, report.InputFileDigest, report.Check.EvaluatedAt, origin, report.KnowledgeRevision, report.KnowledgePackDigest); err != nil {
 		return err
 	}
+	if _, err := fmt.Fprintln(out, claim.EvidenceBasisLine()); err != nil {
+		return err
+	}
 	for _, source := range claim.Sources {
 		if _, err := fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
 			return err

@@ -221,6 +221,15 @@ the first violation it finds:
   be present in the other. It does not re-verify a review record against
   its packet, corpus, vectors and target, which stays `review-record`'s
   job.
+- **Mechanical rules** — a rule whose `evidence.basis` is `mechanical` is
+  derived from source rather than reviewed, so there is no review for a
+  reattestation to extend. `prepare` never renews one: it lists the rule under
+  `notExtended` with `MECHANICAL_RULE_EXCLUDED`, whatever its citations say, and
+  leaves its bytes untouched. `verify` rejects (under V6) any change to a
+  mechanical rule's `reviewedAt`/`validUntil`, even one covered by an
+  individual review record, and any change to a rule's `evidence.basis`. A pack
+  whose rule carries a malformed basis (an unknown value, or a mechanical rule
+  without its extractor) is rejected on load.
 - **V7** — the stagger cap. The cap is `floor(15% × the number of rules in
   the pack)`, and never less than 1. For every ISO week this statement
   renews at least one rule into, the number of next-pack rules whose

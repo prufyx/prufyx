@@ -137,6 +137,9 @@ func writeCRIOHuman(out interface{ Write([]byte) (int, error) }, report cncfchec
 	if _, err := fmt.Fprintf(out, "CRI-O planned ArtifactStore named-reference review\ntransition: %s -> %s\ndeclared operation: %s\nsupplied artifact reference class: %s\nscoped result: %s (%s)\naggregate readiness: UNKNOWN\nraw ImageStatusRequest digest: %s\nprepared input digest: %s\nevaluated at: %s\nknowledge: %s revision %s\nknowledge pack digest: %s\nnetwork used: false\ninput file handling: Prufyx reads but does not modify the supplied request.\n", from, to, formatCRIOOperation(operation, facts.operationState), formatCRIOReference(facts), claim.Status, claim.ReasonCode, rawDigest, report.InputFileDigest, report.Check.EvaluatedAt, origin, report.KnowledgeRevision, report.KnowledgePackDigest); err != nil {
 		return err
 	}
+	if _, err := fmt.Fprintln(out, claim.EvidenceBasisLine()); err != nil {
+		return err
+	}
 	for _, source := range claim.Sources {
 		if _, err := fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
 			return err
@@ -158,6 +161,9 @@ func writeCRIOExternalHuman(out interface{ Write([]byte) (int, error) }, report 
 		return err
 	}
 	if len(claims) == 1 {
+		if _, err := fmt.Fprintln(out, claims[0].EvidenceBasisLine()); err != nil {
+			return err
+		}
 		for _, source := range claims[0].Sources {
 			if _, err := fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
 				return err

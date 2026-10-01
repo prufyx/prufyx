@@ -56,6 +56,9 @@ func (r runtime) cncfKubeEdgeInitArgvCheck(path, pin, from, to, distribution, ar
 		if _, err := fmt.Fprintf(r.stdout, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction); err != nil {
 			return ExitIntegrity
 		}
+		if _, err := fmt.Fprintln(r.stdout, claim.EvidenceBasisLine()); err != nil {
+			return ExitIntegrity
+		}
 		for _, source := range claim.Sources {
 			if _, err := fmt.Fprintf(r.stdout, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
 				return ExitIntegrity

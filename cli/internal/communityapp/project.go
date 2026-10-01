@@ -257,6 +257,7 @@ func (r runtime) project(args []string) int {
 		}
 		for _, claim := range report.Check.Claims {
 			fmt.Fprintf(r.stdout, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction)
+			fmt.Fprintln(r.stdout, claim.EvidenceBasisLine())
 			for _, source := range claim.Sources {
 				fmt.Fprintf(r.stdout, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest)
 			}

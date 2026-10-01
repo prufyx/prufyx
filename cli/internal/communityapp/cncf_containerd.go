@@ -74,6 +74,9 @@ func (r runtime) cncfContainerdConfig(path, pin, handler, from, to string, compl
 	if _, err := fmt.Fprintf(r.stdout, "containerd selected runtime upgrade review\ntransition: %s -> %s\nsupported configuration formats: v2 and v3\nscoped result: %s (%s)\naggregate: UNKNOWN\nprepared input digest: %s\nevaluated at: %s\nknowledge: embedded revision %s\nknowledge pack digest: %s\nnetwork used: false\ncontainerd executed: false\nselected handler and raw TOML retained: false\nscope: selected official bundled runtime shim availability only; configuration migration, startup, container creation, custom shims, and whole-upgrade compatibility remain unverified\n", from, to, claim.Status, claim.ReasonCode, report.InputFileDigest, report.Check.EvaluatedAt, report.KnowledgeRevision, report.KnowledgePackDigest); err != nil {
 		return ExitIntegrity
 	}
+	if _, err := fmt.Fprintln(r.stdout, claim.EvidenceBasisLine()); err != nil {
+		return ExitIntegrity
+	}
 	for _, source := range claim.Sources {
 		if _, err := fmt.Fprintf(r.stdout, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
 			return ExitIntegrity

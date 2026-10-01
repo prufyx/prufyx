@@ -46,6 +46,32 @@ A candidate file is a JSON array of one or more entries in exactly this
 schema — nothing more, nothing less. See the worked example below, and
 either `rules.json` file, for real entries to model a new one on.
 
+## Evidence basis
+
+A rule's `evidence` block may say how the rule was produced. The fields are
+optional and never change a verdict; they are parsed strictly and shown next to
+every finding.
+
+| Field | Meaning |
+| --- | --- |
+| `basis` | `"reviewed"` (interpreted by a maintainer) or `"mechanical"` (derived from pinned upstream source by a versioned extractor). Absent means `reviewed`. Any other value is rejected. |
+| `extractor` | `{ "id", "version", "codeDigest" }`: the extractor id, a strict `major.minor.patch` version and the `sha256:<64 lowercase hex>` digest of the extractor's source. Required when `basis` is `mechanical`, and rejected otherwise. |
+| `derivedAt` | RFC 3339 UTC time the extractor produced this rule. Required when `basis` is `mechanical`, rejected otherwise, and earlier than `validUntil`. |
+
+Community contributions are reviewed rules: a candidate that declares
+`basis: "mechanical"` is rejected by `prufyx-maintainer rule validate`. A
+mechanical rule is never renewed by `evidence reattest`; see
+[evidence-reattestation.md](evidence-reattestation.md).
+
+Every human finding prints one line before the pinned sources, either
+`evidence basis: reviewed by maintainer` or
+`evidence basis: derived from source by <extractor id> v<version>`. In JSON
+output a finding that comes from a mechanical rule carries `evidenceBasis`,
+`evidenceExtractor` (`id`, `version`, `codeDigest`) and `evidenceDerivedAt` on
+its claim. These fields are omitted for rules with no declared basis, so
+existing reports keep their exact bytes; an absent `evidenceBasis` means the
+rule was reviewed by a maintainer. Neither form changes the exit code.
+
 ## Evidence discipline
 
 Every rule cites the exact upstream text it rests on, and the citation

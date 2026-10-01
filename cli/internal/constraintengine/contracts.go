@@ -616,3 +616,13 @@ func compareVersions(left, right string) (int, bool) {
 	}
 	return 0, true
 }
+
+// EvidenceBasisLine is the one-line human statement of how the claim's rule
+// was produced. It is presentation only: it reads fields the verdict never
+// consults. An absent basis means a maintainer reviewed the rule.
+func (c Claim) EvidenceBasisLine() string {
+	if EffectiveBasis(c.EvidenceBasis) == BasisMechanical && c.EvidenceExtractor != nil {
+		return fmt.Sprintf("evidence basis: derived from source by %s v%s", c.EvidenceExtractor.ID, c.EvidenceExtractor.Version)
+	}
+	return "evidence basis: reviewed by maintainer"
+}
