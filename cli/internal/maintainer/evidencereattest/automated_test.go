@@ -870,6 +870,9 @@ func TestCheckRolePolicyRejectsWhatTheRoleMayNotRenew(t *testing.T) {
 		{"citation with an unknown baseline", ac, func(s *Statement) { s.Rules[0].Citations[0].Baseline = "tag" }, nil},
 		{"citation pinned to another commit", ac, func(s *Statement) { s.Rules[0].Citations[0].PinnedCommit = strings.Repeat("9", 40) }, nil},
 		{"citation for an unknown source", ac, func(s *Statement) { s.Rules[0].Citations[0].SourceID = "other" }, nil},
+		{"citation for an unknown source with no pinned commit", ac, func(s *Statement) {
+			s.Rules[0].Citations[0].SourceID, s.Rules[0].Citations[0].PinnedCommit = "other", ""
+		}, nil},
 		{"missing citation", ac, func(s *Statement) { s.Rules[0].Citations = nil }, nil},
 		{"duplicate citation", ac, func(s *Statement) {
 			s.Rules[0].Citations = append(s.Rules[0].Citations, s.Rules[0].Citations[0])
