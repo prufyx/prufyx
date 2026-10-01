@@ -245,7 +245,7 @@ func TestPublishedRangeWidensSelectionAndClaims(t *testing.T) {
 		{true, 10, "BLOCKED"},
 		{false, 11, "PASS"},
 	} {
-		report, err := Check("kubernetes", kubernetesInput(t, "1.24.17", "1.25.3", tc.present), rangeReviewClock)
+		report, err := Check("kubernetes", kubernetesInput(t, "1.24.17", "1.25.3", tc.present), currentKubernetesReviewClock(t, rangeReviewClock))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -305,4 +305,37 @@ func rulesAnchoredOn(t *testing.T, from, to string) int {
 		}
 	}
 	return count
+}
+
+// currentKubernetesReviewClock returns the later of fallback and one minute
+// after the newest Kubernetes rule review, so a test that evaluates every
+// Kubernetes rule on a transition runs while all of them are current.
+func currentKubernetesReviewClock(t *testing.T, fallback time.Time) time.Time {
+	t.Helper()
+	b, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	latest := fallback
+	for _, entry := range b.pack.Entries {
+		if entry.Project != "kubernetes" {
+			continue
+		}
+		var shape struct {
+			Evidence struct {
+				ReviewedAt string `json:"reviewedAt"`
+			} `json:"evidence"`
+		}
+		if json.Unmarshal(entry.Rule, &shape) != nil {
+			t.Fatal("rule evidence")
+		}
+		reviewed, err := time.Parse(time.RFC3339, shape.Evidence.ReviewedAt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if candidate := reviewed.Add(time.Minute); candidate.After(latest) {
+			latest = candidate
+		}
+	}
+	return latest
 }

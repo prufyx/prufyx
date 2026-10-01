@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
@@ -418,6 +419,9 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 						t.Fatalf("input mode=%o, want 0600", info.Mode().Perm())
 					}
 					now := "2026-09-10T04:00:00Z"
+					if journey.project == "kubernetes" {
+						now = currentKubernetesReviewNow(t, now)
+					}
 					if journey.project == "containerd" {
 						now = "2026-09-12T12:30:00Z"
 					}
@@ -626,4 +630,45 @@ func removeProposedComponent(t *testing.T, document map[string]any, componentID 
 		}
 	}
 	section["components"] = filtered
+}
+
+// currentKubernetesReviewNow returns the later of fallback and one minute
+// after the newest embedded Kubernetes rule review, so the journey evaluates
+// every Kubernetes rule on its transition while all of them are current.
+func currentKubernetesReviewNow(t *testing.T, fallback string) string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("..", "cncfcheck", "data", "rules.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pack struct {
+		Entries []struct {
+			Project string `json:"project"`
+			Rule    struct {
+				Evidence struct {
+					ReviewedAt string `json:"reviewedAt"`
+				} `json:"evidence"`
+			} `json:"rule"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(raw, &pack); err != nil {
+		t.Fatal(err)
+	}
+	latest, err := time.Parse(time.RFC3339, fallback)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range pack.Entries {
+		if entry.Project != "kubernetes" {
+			continue
+		}
+		reviewed, err := time.Parse(time.RFC3339, entry.Rule.Evidence.ReviewedAt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if candidate := reviewed.Add(time.Minute); candidate.After(latest) {
+			latest = candidate
+		}
+	}
+	return latest.UTC().Format(time.RFC3339)
 }

@@ -60,7 +60,7 @@ func TestKubernetesComponentConfigCheckWithoutReviewedRuleStaysUnknown(t *testin
 		}
 	}
 	code, stdout, stderr := runCNCFCLI(t, args...)
-	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "Kubernetes component configuration review") || !strings.Contains(stdout, "aggregate: UNKNOWN") || !strings.Contains(stdout, "no reviewed rule") {
+	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "Kubernetes component configuration review") || !strings.Contains(stdout, "aggregate: UNKNOWN") || !strings.Contains(stdout, "KUBERNETES_COMPONENT_NO_REVIEWED_PREDICATE_FOR_TRANSITION") || strings.Contains(stdout, ": PASS") || strings.Contains(stdout, ": BLOCKED") {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 	assertComponentOutputRedacted(t, fixture, stdout)

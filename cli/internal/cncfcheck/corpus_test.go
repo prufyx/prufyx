@@ -590,7 +590,7 @@ func TestCrossComponentDependencyStaysUnknownWhenTheDependencyIsOutOfScope(t *te
 // UNKNOWN. Completeness is not something a wider scope buys for free.
 func TestCompletenessForADependentComponentNeedsItsDependencyInScope(t *testing.T) {
 	b := testBundle(t)
-	now := mustTime(t, "2026-09-20T00:00:00Z")
+	now := currentKubernetesReviewClock(t, mustTime(t, "2026-09-20T00:00:00Z"))
 	versions := map[string][2]string{
 		rookComponent:       {"1.19.5", "1.20.0"},
 		kubernetesComponent: {"1.31.0", "1.32.0"},
