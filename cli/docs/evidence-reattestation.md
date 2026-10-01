@@ -143,10 +143,10 @@ next pack, byte-for-byte.
 
 | # | Condition | What it means |
 |---|---|---|
-| E1 | The rule's citations, matched one-for-one against `evidence.sources[].id`, each classify `NO_NEW_RELEASE`, `FILE_IDENTICAL`, or `SPAN_IDENTICAL`, are not stale, were not resolved through the GitHub tags fallback, and each cite the exact commit their source pins | A source with no citation, an extra citation with no source, a duplicate citation, or one bad citation excludes the whole rule, never just that citation |
+| E1 | The rule's citations, matched one-for-one against `evidence.sources[].id`, each classify `NO_NEW_RELEASE`, `FILE_IDENTICAL`, or `SPAN_IDENTICAL`, are not stale, were not resolved through the GitHub tags fallback, and each cite the exact commit their source pins; a citation compared against a release line (`baseline: release_line`, see [evidence-repin.md](evidence-repin.md)) must additionally have a consistent pinned tag, line and compared tag and be backed by a fresh, resolved line record in the worklist naming that exact tag and commit | A source with no citation, an extra citation with no source, a duplicate citation, or one bad citation excludes the whole rule, never just that citation |
 | E2 | Across the whole worklist, no citation for this pack classifies `PENDING`, and the worklist's scope has no `--project`/`--limit` filter | A partial or still-resolving worklist disqualifies the entire batch, not just the rules it touches. This is computed by counting the citations themselves, never read from a self-reported summary field a caller could hand-edit |
 | E3 | (folded into E1) No citation's repository was resolved through the GitHub tags fallback | A tag-fallback baseline is weaker evidence and goes to individual review |
-| E4 | The worklist is within 72 hours of the attestation instant, and every cited repository's own resolution is too | A stale worklist is never treated as current |
+| E4 | The worklist is within 72 hours of the attestation instant, and every cited repository's own resolution is too (and, for a release-line citation, so is its line record) | A stale worklist is never treated as current |
 | E5 | The rule carries no `range` | Ranged rules are excluded from batch renewal entirely |
 | E6 | The rule's consecutive batch-renewal count, derived from the pack's verified statement chain (see [The statement chain](#the-statement-chain-v5)), does not exceed 2 | A rule renewed by batch twice since its last recorded individual review must go through an individual review next |
 | E7 | The rule's evidence state is `active`, and no citation anywhere in the rule's project classified `CORPUS_DIGEST_MISMATCH` | A withdrawn rule, or a project with an unresolved corpus-integrity finding, is excluded project-wide |
@@ -182,7 +182,7 @@ sample cannot be predicted or chosen.
 
 `notExtended` reasons are either the worst citation class found (E1), or
 one of: `WORKLIST_SCOPE_INCOMPLETE` (E2), `TAG_FALLBACK_BASELINE` (E3),
-`STALE_BASELINE` (E4, or a stale citation), `RANGED_RULE_EXCLUDED` (E5),
+`STALE_BASELINE` (E4, or a stale citation), `RELEASE_LINE_BASELINE_UNVERIFIED` (E1, a release-line citation whose pinned tag, line, compared tag or line record is missing or inconsistent), `RANGED_RULE_EXCLUDED` (E5),
 `CONSECUTIVE_BATCH_CYCLE_CAP` (E6), `EVIDENCE_NOT_ACTIVE` and
 `CORPUS_DIGEST_MISMATCH_IN_PROJECT` (E7), `SOURCE_WITHOUT_CITATION`,
 `CITATION_WITHOUT_SOURCE`, `DUPLICATE_CITATION_FOR_SOURCE`,
@@ -460,7 +460,9 @@ this tool does not make; callers supply both explicitly on every call.
 - **`upstreamReleasesSincePrior`.** `evidence repin` resolves only each
   repository's single most recent release, not a full release history
   since the prior attestation. This field therefore lists the latest
-  resolved tag per cited repository, not a complete errata list. Not
+  resolved tag per cited repository (the compared tag of each citation, which
+  for a release-line citation is the newest release on its line), not a
+  complete errata list. Not
   implemented: fetching and acknowledging the full release list for each
   cited repository.
 - **`toolIdentityDigest`.** A fixed, documented placeholder

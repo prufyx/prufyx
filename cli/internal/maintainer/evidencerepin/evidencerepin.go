@@ -66,14 +66,24 @@ import (
 
 const (
 	// Schema identifies the worklist artifact this command produces.
-	Schema = "prufyx.io/evidence-repin-worklist/v1"
+	Schema = "prufyx.io/evidence-repin-worklist/v2"
+	// SchemaV1 is the previous worklist schema, whose citations carry no
+	// baseline fields and were all compared with the latest release.
+	// Consumers may still read it, treating every citation as BaselineLatest.
+	SchemaV1 = "prufyx.io/evidence-repin-worklist/v1"
 	// Authority states plainly what this output is and is not.
 	Authority = "LOCAL_MECHANICAL_CITATION_DRIFT_CLASSIFICATION_NOT_A_CLAIM"
 	// StateSchema identifies the resumable progress file.
-	StateSchema = "prufyx.io/evidence-repin-state/v1"
+	StateSchema = "prufyx.io/evidence-repin-state/v2"
+	// stateSchemaV1 state files hold repository resolutions that remain
+	// valid; their citation results carry no baseline record and are
+	// discarded on load.
+	stateSchemaV1 = "prufyx.io/evidence-repin-state/v1"
 
 	maxRulesBytes int64 = 16 << 20
-	maxAPIBytes   int64 = 4 << 20
+	// maxAPIBytes bounds one api.github.com response. A page of releases
+	// carries release notes and can be several megabytes.
+	maxAPIBytes   int64 = 16 << 20
 	maxStateBytes int64 = 64 << 20
 
 	// Drift classes, ordered from cheapest to most expensive to re-review.
@@ -143,6 +153,11 @@ type Citation struct {
 	OldDigest string
 	StartLine int
 	EndLine   int
+	// SubjectFrom and SubjectTo are the rule subject's version strings.
+	// They are only hints for naming candidate release tags (see
+	// releaseline.go); nothing is concluded from them without a commit match.
+	SubjectFrom string
+	SubjectTo   string
 }
 
 func (c Citation) repoKey() string { return c.Owner + "/" + c.Repo }
@@ -157,7 +172,11 @@ func LoadCitations(rulePackPath string, raw []byte) ([]Citation, error) {
 		Entries []struct {
 			Project string `json:"project"`
 			Rule    struct {
-				ID       string `json:"id"`
+				ID      string `json:"id"`
+				Subject struct {
+					From string `json:"from"`
+					To   string `json:"to"`
+				} `json:"subject"`
 				Evidence struct {
 					Basis     string                      `json:"basis"`
 					Extractor *constraintengine.Extractor `json:"extractor"`
@@ -209,6 +228,9 @@ func LoadCitations(rulePackPath string, raw []byte) ([]Citation, error) {
 				OldDigest: source.ContentDigest,
 				StartLine: source.StartLine,
 				EndLine:   source.EndLine,
+
+				SubjectFrom: entry.Rule.Subject.From,
+				SubjectTo:   entry.Rule.Subject.To,
 			})
 		}
 	}
@@ -558,6 +580,25 @@ type ClassResult struct {
 	// in the same run). A stale result is reported as-is, with its original
 	// ClassifiedAt, never silently re-stamped as current.
 	Stale bool `json:"stale,omitempty"`
+
+	// BaselineMode is the requested comparison policy (BaselineModeLatest
+	// or BaselineModeReleaseLine) this result was computed under.
+	BaselineMode string `json:"baselineMode,omitempty"`
+	// Baseline records which baseline NewCommit came from:
+	// BaselineReleaseLine (the newest release on the pinned tag's line) or
+	// BaselineLatest (the repository's most recent release).
+	Baseline string `json:"baseline,omitempty"`
+	// BaselineTag is the release tag NewCommit belongs to.
+	BaselineTag string `json:"baselineTag,omitempty"`
+	// BaselineLine is the release line (MAJOR.MINOR) for a release-line
+	// baseline.
+	BaselineLine string `json:"baselineLine,omitempty"`
+	// PinnedTag is the release tag proven to point at OldCommit, for a
+	// release-line baseline.
+	PinnedTag string `json:"pinnedTag,omitempty"`
+	// BaselineNote says why a release-line request used the latest
+	// baseline instead.
+	BaselineNote string `json:"baselineNote,omitempty"`
 }
 
 // costRank orders the worklist cheapest-reviewer-cost first: batch-attestable
@@ -727,10 +768,15 @@ type State struct {
 	Schema  string                    `json:"schema"`
 	Repos   map[string]RepoResolution `json:"repos"`
 	Results map[string]ClassResult    `json:"results"`
+	Pins    map[string]PinResolution  `json:"pins,omitempty"`
+	Lines   map[string]LineResolution `json:"lines,omitempty"`
 }
 
 func newState() *State {
-	return &State{Schema: StateSchema, Repos: map[string]RepoResolution{}, Results: map[string]ClassResult{}}
+	return &State{
+		Schema: StateSchema, Repos: map[string]RepoResolution{}, Results: map[string]ClassResult{},
+		Pins: map[string]PinResolution{}, Lines: map[string]LineResolution{},
+	}
 }
 
 // LoadState reads a state file, or returns a fresh empty state if path is
@@ -750,14 +796,26 @@ func LoadState(path string) (*State, error) {
 		return nil, fmt.Errorf("%w: state file too large", errRejected)
 	}
 	state := newState()
-	if err := json.Unmarshal(raw, state); err != nil || state.Schema != StateSchema {
+	if err := json.Unmarshal(raw, state); err != nil || (state.Schema != StateSchema && state.Schema != stateSchemaV1) {
 		return nil, fmt.Errorf("%w: decode state: %v", errRejected, err)
+	}
+	if state.Schema == stateSchemaV1 {
+		// Repository resolutions carry over; v1 citation results have no
+		// baseline record, so they are recomputed rather than resumed.
+		state.Schema = StateSchema
+		state.Results = nil
 	}
 	if state.Repos == nil {
 		state.Repos = map[string]RepoResolution{}
 	}
 	if state.Results == nil {
 		state.Results = map[string]ClassResult{}
+	}
+	if state.Pins == nil {
+		state.Pins = map[string]PinResolution{}
+	}
+	if state.Lines == nil {
+		state.Lines = map[string]LineResolution{}
 	}
 	return state, nil
 }
@@ -797,6 +855,9 @@ type Summary struct {
 	// regardless of the run's own GeneratedAt timestamp. Empty when no repo
 	// resolution carries a timestamp.
 	OldestResolvedAt string `json:"oldestResolvedAt,omitempty"`
+	// BaselineDistribution counts classified citations by the baseline
+	// they were compared against (BaselineReleaseLine, BaselineLatest).
+	BaselineDistribution map[string]int `json:"baselineDistribution,omitempty"`
 }
 
 // isFresh reports whether an RFC3339 UTC timestamp is within maxAge of now.
@@ -838,12 +899,15 @@ func oldestResolvedAt(repos []RepoResolution) string {
 }
 
 func summarize(results []ClassResult) Summary {
-	summary := Summary{Distribution: map[string]int{}}
+	summary := Summary{Distribution: map[string]int{}, BaselineDistribution: map[string]int{}}
 	summary.TotalCitations = len(results)
 	for _, result := range results {
 		summary.Distribution[result.Class]++
 		if result.Class != ClassPending {
 			summary.Classified++
+			if result.Baseline != "" {
+				summary.BaselineDistribution[result.Baseline]++
+			}
 		} else {
 			summary.Pending++
 		}
@@ -908,6 +972,9 @@ type Worklist struct {
 	GeneratedAt string           `json:"generatedAt"`
 	Scope       WorklistScope    `json:"scope"`
 	Repos       []RepoResolution `json:"repos"`
+	// Lines lists every release-line resolution a citation's baseline
+	// relies on.
+	Lines       []LineResolution `json:"lines,omitempty"`
 	Citations   []ClassResult    `json:"citations"`
 	Rules       []RuleVerdict    `json:"rules"`
 	Summary     Summary          `json:"summary"`
@@ -919,6 +986,9 @@ type WorklistScope struct {
 	RulePacks []string `json:"rulePacks"`
 	Projects  []string `json:"projects,omitempty"`
 	Limit     int      `json:"limit,omitempty"`
+	// Baseline is the requested comparison policy; each citation records
+	// the baseline it actually used.
+	Baseline string `json:"baseline,omitempty"`
 }
 
 var worklistLimitations = []string{
@@ -928,6 +998,8 @@ var worklistLimitations = []string{
 	"SPAN_MOVED, CONTENT_CHANGED, PATH_GONE, and CORPUS_DIGEST_MISMATCH all require a human reviewer; this tool only narrows where reviewer time goes",
 	"CORPUS_DIGEST_MISMATCH means the file fetched at the citation's own pinned commit does not hash to the recorded contentDigest (or is not reachable there at all); this is a corpus integrity problem, not citation drift, and should be investigated separately",
 	"a repo resolution or citation classification resumed from --state is reported as current only if it is within --max-age of this run; an older entry is either recomputed or, when this run could not recompute it, kept and marked \"stale\": true rather than reported as fresh",
+	"a citation with \"baseline\": \"release_line\" was compared with the newest GitHub Release on the release line of the release tag proven to point at its pinned commit, not with the repository's most recent release; it answers whether the cited content changed in later releases of that line and says nothing about other release lines",
+	"a citation with \"baseline\": \"latest\" under a release-line request fell back because its release line could not be proven unambiguously; the reason is in baselineNote",
 	"a repo resolution with \"resolution\": \"tag_fallback\" was resolved from the tags list, not from GitHub Releases; the tags list endpoint carries no documented recency guarantee, so this is weaker evidence and should not be treated as batch-attestable without review",
 }
 
@@ -946,6 +1018,19 @@ var worklistLimitations = []string{
 // returned worklist rather than being silently re-stamped as fresh under
 // this run's GeneratedAt.
 func BuildWorklist(ctx context.Context, citations []Citation, projects []string, limit int, state *State, apiFetcher APIFetcher, blobFetcher sourcecapture.Fetcher, now func() time.Time, maxAge time.Duration, progress io.Writer) (Worklist, error) {
+	return BuildWorklistWithBaseline(ctx, citations, projects, limit, state, apiFetcher, blobFetcher, now, maxAge, progress, BaselineModeLatest)
+}
+
+// BuildWorklistWithBaseline is BuildWorklist with an explicit baseline
+// policy: BaselineModeLatest compares every citation with the repository's
+// most recent release; BaselineModeReleaseLine compares a citation with the
+// newest release on the release line of its pinned tag whenever that line
+// can be proven (see releaseline.go) and with the most recent release
+// otherwise. Each result records the baseline it used.
+func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projects []string, limit int, state *State, apiFetcher APIFetcher, blobFetcher sourcecapture.Fetcher, now func() time.Time, maxAge time.Duration, progress io.Writer, baselineMode string) (Worklist, error) {
+	if baselineMode != BaselineModeLatest && baselineMode != BaselineModeReleaseLine {
+		return Worklist{}, fmt.Errorf("%w: unknown baseline mode", errRejected)
+	}
 	filtered := filterCitations(citations, projects, limit)
 	// Wrap once per run: many citations across a corpus cite the same
 	// file (shared old blob, and sometimes shared new blob too), and
@@ -964,6 +1049,7 @@ func BuildWorklist(ctx context.Context, citations []Citation, projects []string,
 	sort.Strings(repoOrder)
 
 	rateLimited := false
+	resolver := newLineResolver(ctx, apiFetcher, state, now, maxAge, &rateLimited)
 	for _, key := range repoOrder {
 		if existing, ok := state.Repos[key]; ok && existing.Status == repoResolved && isFresh(existing.ResolvedAt, now(), maxAge) {
 			// Still fresh: resume without re-resolving or re-stamping.
@@ -1016,7 +1102,7 @@ func BuildWorklist(ctx context.Context, citations []Citation, projects []string,
 	for _, citation := range filtered {
 		citationKey := citation.key()
 		existing, hadExisting := state.Results[citationKey]
-		if hadExisting && existing.Class != ClassPending && isFresh(existing.ClassifiedAt, now(), maxAge) {
+		if hadExisting && existing.Class != ClassPending && isFresh(existing.ClassifiedAt, now(), maxAge) && resultMode(existing) == baselineMode && lineStillFresh(state, existing, now(), maxAge) {
 			// Still fresh: resume without reclassifying or re-stamping.
 			results = append(results, existing)
 			continue
@@ -1026,10 +1112,33 @@ func BuildWorklist(ctx context.Context, citations []Citation, projects []string,
 		var result ClassResult
 		switch {
 		case resolutionUsable:
-			result = Classify(ctx, citation, resolution.CurrentCommit, cachedBlobFetcher)
+			baselineCommit, baselineTag := resolution.CurrentCommit, resolution.CurrentTag
+			var decision baselineDecision
+			if baselineMode == BaselineModeReleaseLine {
+				decision = resolver.decide(citation, resolution)
+				if decision.line != nil {
+					baselineCommit, baselineTag = decision.line.Commit, decision.line.Tag
+				}
+			}
+			if decision.pending != "" {
+				result = pendingResult(citation, "baseline unresolved: "+decision.pending)
+				result.BaselineMode = baselineMode
+				break
+			}
+			result = Classify(ctx, citation, baselineCommit, cachedBlobFetcher)
 			result.ClassifiedAt = now().UTC().Format(time.RFC3339)
 			result.Resolution = resolution.Resolution
-		case hadExisting && existing.Class != ClassPending:
+			result.BaselineMode = baselineMode
+			result.BaselineTag = baselineTag
+			if decision.line != nil {
+				result.Baseline = BaselineReleaseLine
+				result.BaselineLine = decision.line.Line
+				result.PinnedTag = decision.pin.Tag
+			} else {
+				result.Baseline = BaselineLatest
+				result.BaselineNote = decision.note
+			}
+		case hadExisting && existing.Class != ClassPending && resultMode(existing) == baselineMode:
 			// The prior classification is stale, but this run cannot
 			// recompute it (its repo's resolution is itself stale and
 			// unrefreshed this run, typically due to an earlier rate
@@ -1038,12 +1147,8 @@ func BuildWorklist(ctx context.Context, citations []Citation, projects []string,
 			result = existing
 			result.Stale = true
 		default:
-			result = ClassResult{
-				RulePack: citation.RulePack, RuleID: citation.RuleID, Project: citation.Project, SourceID: citation.SourceID,
-				Owner: citation.Owner, Repo: citation.Repo, Path: citation.Path,
-				OldCommit: citation.OldCommit, OldStart: citation.StartLine, OldEnd: citation.EndLine,
-				Class: ClassPending, Detail: "repository current commit unresolved: " + resolution.Status,
-			}
+			result = pendingResult(citation, "repository current commit unresolved: "+resolution.Status)
+			result.BaselineMode = baselineMode
 		}
 		state.Results[citationKey] = result
 		results = append(results, result)
@@ -1083,16 +1188,88 @@ func BuildWorklist(ctx context.Context, citations []Citation, projects []string,
 	summary := summarize(results)
 	summary.OldestResolvedAt = oldestResolvedAt(repos)
 
+	// List every release line a reported baseline relies on, marking any
+	// that this run could not refresh as stale instead of re-stamping it.
+	lineSet := map[string]bool{}
+	var lines []LineResolution
+	for _, result := range results {
+		if result.Baseline != BaselineReleaseLine {
+			continue
+		}
+		key := lineKey(result.Owner, result.Repo, linePrefixOf(result.PinnedTag), result.BaselineLine)
+		if lineSet[key] {
+			continue
+		}
+		lineSet[key] = true
+		line, ok := state.Lines[key]
+		if !ok {
+			continue
+		}
+		if !isFresh(line.ResolvedAt, now(), maxAge) {
+			line.Stale = true
+		}
+		lines = append(lines, line)
+	}
+	sort.Slice(lines, func(i, j int) bool {
+		a, b := lines[i], lines[j]
+		if a.Owner != b.Owner {
+			return a.Owner < b.Owner
+		}
+		if a.Repo != b.Repo {
+			return a.Repo < b.Repo
+		}
+		if a.Prefix != b.Prefix {
+			return a.Prefix < b.Prefix
+		}
+		return a.Line < b.Line
+	})
+
 	worklist := Worklist{
 		Schema: Schema, Authority: Authority, GeneratedAt: now().UTC().Format(time.RFC3339),
-		Scope:       WorklistScope{RulePacks: rulePacks, Projects: projects, Limit: limit},
+		Scope:       WorklistScope{RulePacks: rulePacks, Projects: projects, Limit: limit, Baseline: baselineMode},
 		Repos:       repos,
+		Lines:       lines,
 		Citations:   results,
 		Rules:       ruleVerdicts(results),
 		Summary:     summary,
 		Limitations: worklistLimitations,
 	}
 	return worklist, nil
+}
+
+// resultMode is the baseline mode a result was computed under; a result
+// that predates the field was compared with the latest release.
+func resultMode(result ClassResult) string {
+	if result.BaselineMode == "" {
+		return BaselineModeLatest
+	}
+	return result.BaselineMode
+}
+
+func pendingResult(citation Citation, detail string) ClassResult {
+	return ClassResult{
+		RulePack: citation.RulePack, RuleID: citation.RuleID, Project: citation.Project, SourceID: citation.SourceID,
+		Owner: citation.Owner, Repo: citation.Repo, Path: citation.Path,
+		OldCommit: citation.OldCommit, OldStart: citation.StartLine, OldEnd: citation.EndLine,
+		Class: ClassPending, Detail: detail,
+	}
+}
+
+// linePrefixOf returns the tag prefix of a strictly parsed release tag, or
+// "" when the tag does not parse.
+func linePrefixOf(tag string) string {
+	parsed, _ := parseStrictTag(tag)
+	return parsed.Prefix
+}
+
+// lineStillFresh reports whether a resumable result's release-line
+// resolution is still within maxAge; a latest-baseline result has none.
+func lineStillFresh(state *State, result ClassResult, now time.Time, maxAge time.Duration) bool {
+	if result.Baseline != BaselineReleaseLine {
+		return true
+	}
+	line, ok := state.Lines[lineKey(result.Owner, result.Repo, linePrefixOf(result.PinnedTag), result.BaselineLine)]
+	return ok && line.Status == lineResolved && line.Tag == result.BaselineTag && isFresh(line.ResolvedAt, now, maxAge)
 }
 
 func filterCitations(citations []Citation, projects []string, limit int) []Citation {
@@ -1148,10 +1325,15 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, apiFetche
 	statePath := flags.String("state", "", "resumable progress file (optional)")
 	outputPath := flags.String("output", "", "new worklist output path")
 	maxAge := flags.Duration("max-age", DefaultMaxAge, "freshness bound for a resumed repo resolution or citation classification; older entries are recomputed or marked stale, never resumed as current")
+	baseline := flags.String("baseline", BaselineModeReleaseLine, "comparison baseline: \"release-line\" compares each citation with the newest release on the release line of its pinned tag when that line can be proven (latest release otherwise); \"latest\" compares every citation with the repository's most recent release")
 	flags.Var(&rulePacks, "rules", "rule pack path (repeatable; default: the shipped CNCF and community packs)")
 	flags.Var(&projects, "project", "restrict to this project slug (repeatable; default: all)")
 	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 || *outputPath == "" {
 		fmt.Fprintln(stderr, "evidence repin: command rejected")
+		return 2
+	}
+	if *baseline != BaselineModeReleaseLine && *baseline != BaselineModeLatest {
+		fmt.Fprintln(stderr, "evidence repin: --baseline must be release-line or latest")
 		return 2
 	}
 	if len(rulePacks) == 0 {
@@ -1183,7 +1365,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, apiFetche
 		return 2
 	}
 
-	worklist, err := BuildWorklist(ctx, citations, projects, *limit, state, apiFetcher, blobFetcher, now, *maxAge, stderr)
+	worklist, err := BuildWorklistWithBaseline(ctx, citations, projects, *limit, state, apiFetcher, blobFetcher, now, *maxAge, stderr, *baseline)
 	if err != nil {
 		fmt.Fprintf(stderr, "evidence repin: %v\n", err)
 		return 2

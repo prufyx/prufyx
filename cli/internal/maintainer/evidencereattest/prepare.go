@@ -28,6 +28,7 @@ const (
 	reasonScopeIncomplete        = "WORKLIST_SCOPE_INCOMPLETE"
 	reasonTagFallbackBaseline    = "TAG_FALLBACK_BASELINE"
 	reasonStaleBaseline          = "STALE_BASELINE"
+	reasonLineBaselineUnverified = "RELEASE_LINE_BASELINE_UNVERIFIED"
 	reasonRangedRule             = "RANGED_RULE_EXCLUDED"
 	reasonMechanicalRule         = "MECHANICAL_RULE_EXCLUDED"
 	reasonConsecutiveCycleCap    = "CONSECUTIVE_BATCH_CYCLE_CAP"
@@ -166,7 +167,7 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		return PrepareResult{}, fmt.Errorf("%w: worklist size rejected", ErrRejected)
 	}
 	var wl evidencerepin.Worklist
-	if err := json.Unmarshal(opts.WorklistRaw, &wl); err != nil || wl.Schema != evidencerepin.Schema {
+	if err := json.Unmarshal(opts.WorklistRaw, &wl); err != nil || (wl.Schema != evidencerepin.Schema && wl.Schema != evidencerepin.SchemaV1) {
 		return PrepareResult{}, fmt.Errorf("%w: decode worklist", ErrRejected)
 	}
 	worklistDigest := sourcecorpus.SHA(opts.WorklistRaw)
@@ -205,6 +206,9 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	generatedAt, genErr := time.Parse(time.RFC3339, wl.GeneratedAt)
 	e4worklist := genErr == nil && !attestedAt.Before(generatedAt) && !attestedAt.After(generatedAt.Add(freshnessBound))
 
+	// A v1 worklist predates baselines: every citation in it was compared
+	// with the latest release and carries no release-line record.
+	lines := wl.Lines
 	repoByKey := map[string]evidencerepin.RepoResolution{}
 	for _, repo := range wl.Repos {
 		repoByKey[repo.Owner+"/"+repo.Repo] = repo
@@ -247,7 +251,7 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	for _, candidate := range candidates {
 		_, reviewedNow := fresh[candidate.RuleID]
 		cycles := state.expectedCycles(candidate.RuleID, reviewedNow)
-		reason, ok := evaluateEligibility(candidate, e2ok, e4worklist, attestedAt, repoByKey, mismatchProjects, cycles)
+		reason, ok := evaluateEligibility(candidate, e2ok, e4worklist, attestedAt, repoByKey, lines, mismatchProjects, cycles)
 		if !ok {
 			notExtended = append(notExtended, NotExtendedEntry{RuleID: candidate.RuleID, WorstClass: reason})
 			continue
@@ -292,7 +296,7 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 
 	nextDoc := doc
 	nextDoc.Revision = opts.NextRevision
-	repoTags := map[string]string{}
+	repoTags := map[string]map[string]bool{}
 	for i := range nextDoc.Entries {
 		fields, _ := parseRuleFields(nextDoc.Entries[i].Rule)
 		if !eligible[fields.ID] {
@@ -326,12 +330,23 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		citationAttestations := make([]CitationAttestation, 0, len(citations))
 		for _, c := range citations {
 			repo := repoByKey[c.Owner+"/"+c.Repo]
-			citationAttestations = append(citationAttestations, CitationAttestation{
+			attestation := CitationAttestation{
 				SourceID: c.SourceID, Class: c.Class, PinnedCommit: c.OldCommit,
 				ComparedTag: repo.CurrentTag, ComparedCommit: c.NewCommit, ContentDigest: contentDigestBySource[c.SourceID],
-			})
-			if repo.CurrentTag != "" {
-				repoTags[c.Owner+"/"+c.Repo] = repo.CurrentTag
+			}
+			if c.Baseline == evidencerepin.BaselineReleaseLine {
+				attestation.ComparedTag = c.BaselineTag
+				attestation.Baseline = c.Baseline
+				attestation.BaselineLine = c.BaselineLine
+				attestation.PinnedTag = c.PinnedTag
+			}
+			citationAttestations = append(citationAttestations, attestation)
+			if attestation.ComparedTag != "" {
+				repoName := c.Owner + "/" + c.Repo
+				if repoTags[repoName] == nil {
+					repoTags[repoName] = map[string]bool{}
+				}
+				repoTags[repoName][attestation.ComparedTag] = true
 			}
 		}
 
@@ -368,8 +383,13 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	sort.Slice(individualReviews, func(i, j int) bool { return individualReviews[i].RuleID < individualReviews[j].RuleID })
 
 	releases := make([]UpstreamRelease, 0, len(repoTags))
-	for repo, tag := range repoTags {
-		releases = append(releases, UpstreamRelease{Repo: repo, Tags: []string{tag}})
+	for repo, tagSet := range repoTags {
+		tags := make([]string, 0, len(tagSet))
+		for tag := range tagSet {
+			tags = append(tags, tag)
+		}
+		sort.Strings(tags)
+		releases = append(releases, UpstreamRelease{Repo: repo, Tags: tags})
 	}
 	sort.Slice(releases, func(i, j int) bool { return releases[i].Repo < releases[j].Repo })
 
@@ -443,7 +463,7 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 // (see chainState.expectedCycles).
 func evaluateEligibility(
 	candidate ruleCandidate, e2ok, e4worklist bool, attestedAt time.Time,
-	repoByKey map[string]evidencerepin.RepoResolution, mismatchProjects map[string]bool,
+	repoByKey map[string]evidencerepin.RepoResolution, lines []evidencerepin.LineResolution, mismatchProjects map[string]bool,
 	consecutiveCycles int,
 ) (string, bool) {
 	if !e2ok {
@@ -496,6 +516,19 @@ func evaluateEligibility(
 		if citation.OldCommit != source.Revision {
 			return reasonCitationCommitMismatch, false
 		}
+		// A release-line baseline is never weaker than the latest-release
+		// baseline: it must also carry a mutually consistent pinned tag,
+		// line and compared tag, and it must be backed by a worklist line
+		// record that resolved this very tag and commit.
+		switch citation.Baseline {
+		case "", evidencerepin.BaselineLatest:
+		case evidencerepin.BaselineReleaseLine:
+			if !lineBaselineVerified(citation, lines) {
+				return reasonLineBaselineUnverified, false
+			}
+		default:
+			return reasonLineBaselineUnverified, false
+		}
 	}
 	for sourceID := range citationsBySource {
 		if !sourceIDs[sourceID] {
@@ -515,6 +548,13 @@ func evaluateEligibility(
 		if err != nil || repo.Stale || attestedAt.Before(resolvedAt) || attestedAt.Sub(resolvedAt) > freshnessBound {
 			return reasonStaleBaseline, false
 		}
+		if citation.Baseline == evidencerepin.BaselineReleaseLine {
+			line, _ := matchingLine(citation, lines)
+			lineResolvedAt, err := time.Parse(time.RFC3339, line.ResolvedAt)
+			if err != nil || line.Stale || attestedAt.Before(lineResolvedAt) || attestedAt.Sub(lineResolvedAt) > freshnessBound {
+				return reasonStaleBaseline, false
+			}
+		}
 	}
 	if hasRange(candidate.Fields.Range) {
 		return reasonRangedRule, false
@@ -529,6 +569,30 @@ func evaluateEligibility(
 		return reasonCorpusMismatchProject, false
 	}
 	return "", true
+}
+
+// matchingLine finds the worklist line record a release-line citation's
+// baseline must be backed by: same repository and line, resolved, and
+// naming exactly the compared tag and commit.
+func matchingLine(citation evidencerepin.ClassResult, lines []evidencerepin.LineResolution) (evidencerepin.LineResolution, bool) {
+	for _, line := range lines {
+		if line.Owner == citation.Owner && line.Repo == citation.Repo && line.Line == citation.BaselineLine &&
+			line.Status == "RESOLVED" && line.Tag == citation.BaselineTag && line.Commit == citation.NewCommit && line.Commit != "" {
+			return line, true
+		}
+	}
+	return evidencerepin.LineResolution{}, false
+}
+
+func lineBaselineVerified(citation evidencerepin.ClassResult, lines []evidencerepin.LineResolution) bool {
+	if citation.PinnedTag == "" || citation.BaselineTag == "" || citation.BaselineLine == "" || citation.NewCommit == "" {
+		return false
+	}
+	if !evidencerepin.LineBaselineConsistent(citation.PinnedTag, citation.BaselineTag, citation.BaselineLine) {
+		return false
+	}
+	_, ok := matchingLine(citation, lines)
+	return ok
 }
 
 // staggerCap is V7's per-week cap for a pack of total rules:
