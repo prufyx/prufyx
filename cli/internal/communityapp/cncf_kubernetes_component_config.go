@@ -5,10 +5,12 @@ package communityapp
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
 // cncfKubernetesComponentConfig reads one caller-written selection document
@@ -81,15 +83,27 @@ func (r runtime) cncfKubernetesComponentConfig(path, pin, from, to, distribution
 			return ExitIntegrity
 		}
 	}
-	for _, claim := range report.Check.Claims {
-		if _, err := fmt.Fprintf(r.stdout, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction); err != nil {
-			return ExitIntegrity
+	if err := writeKubernetesComponentClaims(r.stdout, report.Check.Claims); err != nil {
+		return ExitIntegrity
+	}
+	return cncfcheck.ClaimExit(report)
+}
+
+// writeKubernetesComponentClaims prints each claim, its evidence basis, and
+// its pinned sources, in the order every human writer uses.
+func writeKubernetesComponentClaims(out io.Writer, claims []constraintengine.Claim) error {
+	for _, claim := range claims {
+		if _, err := fmt.Fprintf(out, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintln(out, claim.EvidenceBasisLine()); err != nil {
+			return err
 		}
 		for _, source := range claim.Sources {
-			if _, err := fmt.Fprintf(r.stdout, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
-				return ExitIntegrity
+			if _, err := fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
+				return err
 			}
 		}
 	}
-	return cncfcheck.ClaimExit(report)
+	return nil
 }

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
 type componentFixture struct {
@@ -142,5 +143,33 @@ func TestKubernetesComponentConfigCheckRejectsWrongModesBeforeReading(t *testing
 		if code != ExitUsage || stdout != "" || strings.Contains(stderr, "PRIVATE-NOT") {
 			t.Fatalf("args=%q code=%d stdout=%q stderr=%q", args, code, stdout, stderr)
 		}
+	}
+}
+
+// TestKubernetesComponentConfigHumanOutputShowsEvidenceBasis: like every other
+// human writer, each claim prints its evidence basis once, before its pinned
+// sources, for both a reviewed and a mechanically derived rule.
+func TestKubernetesComponentConfigHumanOutputShowsEvidenceBasis(t *testing.T) {
+	sources := []constraintengine.SourceEvidence{{ID: "s", URL: "https://example.com/a", Revision: "r1", ContentDigest: "sha256:aa", StartLine: 3, EndLine: 4}}
+	for _, test := range []struct {
+		name  string
+		claim constraintengine.Claim
+		line  string
+	}{
+		{"reviewed", constraintengine.Claim{RuleID: "kubernetes.example", Status: "BLOCKED", ReasonCode: "X", NextAction: "act", Sources: sources}, "evidence basis: reviewed by maintainer\n"},
+		{"mechanical", constraintengine.Claim{RuleID: "kubernetes.example", Status: "BLOCKED", ReasonCode: "X", NextAction: "act", Sources: sources, EvidenceBasis: "mechanical", EvidenceExtractor: &constraintengine.Extractor{ID: "example.removal", Version: "1.2.3", CodeDigest: "sha256:bb"}}, "evidence basis: derived from source by example.removal v1.2.3\n"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var out strings.Builder
+			if err := writeKubernetesComponentClaims(&out, []constraintengine.Claim{test.claim, test.claim}); err != nil {
+				t.Fatal(err)
+			}
+			for _, block := range strings.Split(out.String(), "kubernetes.example: ")[1:] {
+				basis, source := strings.Index(block, test.line), strings.Index(block, "pinned source:")
+				if strings.Count(block, test.line) != 1 || source < 0 || basis > source {
+					t.Fatalf("basis line must appear once before the pinned sources: %q", block)
+				}
+			}
+		})
 	}
 }
