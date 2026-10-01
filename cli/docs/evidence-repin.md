@@ -29,11 +29,36 @@ class:
 | `CONTENT_CHANGED` | The path exists and the cited bytes are gone. |
 | `PATH_GONE` | The path does not exist at the baseline commit. |
 | `CORPUS_DIGEST_MISMATCH` | The file at the citation's own pinned commit does not hash to the recorded `contentDigest`; an integrity finding, not drift. |
+| `NO_RELEASE_BASELINE` | Terminal: the citation's repository definitively publishes no GitHub Releases and no tags (typically a website or docs repository), so there is nothing to compare against. See below. |
 | `PENDING` | Not resolved this run (rate limit, transport error, unresolved baseline); retried on the next run. |
 
 Only `NO_NEW_RELEASE`, `FILE_IDENTICAL` and `SPAN_IDENTICAL` can make a rule
 eligible for batch renewal (see [evidence-reattestation.md](evidence-reattestation.md)).
 The other classes need a human reviewer.
+
+### `NO_RELEASE_BASELINE` versus `PENDING`
+
+`PENDING` means the answer is not known yet and a later run can supply it;
+it blocks batch renewal of the whole pack. `NO_RELEASE_BASELINE` means the
+answer is known and is "there is no release or tag to compare against". It is
+recorded only when, for that repository, the Releases list request and the
+tags list request (the fallback described under Baselines) each returned a
+success status with a JSON array holding no entry. The first page of either
+list is conclusive, so an empty first page is an empty list. Anything else
+stays `PENDING`: a 404, a rate limit (403 or 429), any other error status, a
+transport error, a body that is not a JSON array, a Releases list holding only
+drafts and pre-releases, or a tag that exists but does not resolve to a commit.
+
+The repository's resolution in the worklist's `repos` list then has status
+`NO_RELEASES_OR_TAGS` and a `determination` object
+(`{"releasesListEmpty": true, "tagsListEmpty": true}`), and each of its
+citations carries class `NO_RELEASE_BASELINE` with a `detail` stating how it
+was determined. The class is never resumed from the state file: it is derived
+from the repository's current resolution on every run, so a repository that
+later publishes a release is compared against it. It counts as classified (not
+pending) in the summary, so it also counts in the denominator of
+`batchAttestableFraction`. It is never batch-attestable: the rules that cite
+it need individual review or expire.
 
 ## Baselines: `--baseline release-line|latest`
 
