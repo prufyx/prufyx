@@ -238,22 +238,65 @@ func (r *Reader) Frozen(repo string) (bool, error) {
 	return r.frozen(info), nil
 }
 
-// CompleteReleases returns the release metadata only when it is known,
-// fresh and not truncated; otherwise it returns ErrReleasesIncomplete.
-// Anything that derives a release line from the list must use this.
-func (r *Reader) CompleteReleases(repo string) (Releases, error) {
+// UsableReleases returns the release metadata only when it is known and
+// fresh; a list the mirror itself cut short (Truncated) is still returned,
+// because its newest entries are present. Otherwise it returns
+// ErrReleasesIncomplete. Anything that needs the NEWEST release may use
+// it; anything that needs every release must use CompleteReleases.
+func (r *Reader) UsableReleases(repo string) (Releases, error) {
 	rel, err := r.Releases(repo)
 	if err != nil {
 		return Releases{}, err
 	}
-	if rel.Status != ReleasesKnown || rel.Truncated {
-		return Releases{}, fmt.Errorf("%w: status %q, truncated %v", ErrReleasesIncomplete, rel.Status, rel.Truncated)
+	if rel.Status != ReleasesKnown {
+		return Releases{}, fmt.Errorf("%w: status %q, reason %q", ErrReleasesIncomplete, rel.Status, rel.Reason)
 	}
 	if t, err := time.Parse(time.RFC3339, rel.FetchedAt); err != nil || time.Since(t) > DefaultReleasesTTL {
 		return Releases{}, fmt.Errorf("%w: last revalidated %q", ErrReleasesIncomplete, rel.FetchedAt)
 	}
 	return rel, nil
 }
+
+// CompleteReleases returns the release metadata only when it is known,
+// fresh and not truncated; otherwise it returns ErrReleasesIncomplete.
+// Anything that derives a release line from the list must use this.
+func (r *Reader) CompleteReleases(repo string) (Releases, error) {
+	rel, err := r.UsableReleases(repo)
+	if err != nil {
+		return Releases{}, err
+	}
+	if rel.Truncated {
+		return Releases{}, fmt.Errorf("%w: the list is truncated", ErrReleasesIncomplete)
+	}
+	return rel, nil
+}
+
+// RepoStatus is the mirror's own record of when it last looked at one
+// repository.
+type RepoStatus struct {
+	// Status is "ok" after a successful check, "error" after a failed one.
+	Status string
+	// LastCheckedAt is the last check attempt (successful only when Status
+	// is "ok"); LastFetchedAt is when refs last changed and were fetched.
+	LastCheckedAt string
+	LastFetchedAt string
+	// ReleasesFetchedAt is the last successful revalidation of the release
+	// metadata.
+	ReleasesFetchedAt string
+}
+
+// RepoStatus reports when the mirror last looked at a repository.
+func (r *Reader) RepoStatus(repo string) (RepoStatus, error) {
+	info, err := r.info(repo)
+	if err != nil {
+		return RepoStatus{}, err
+	}
+	return RepoStatus{Status: info.Status, LastCheckedAt: info.LastCheckedAt, LastFetchedAt: info.LastFetchedAt, ReleasesFetchedAt: info.Releases.FetchedAt}, nil
+}
+
+// IndexInfo identifies the index snapshot this Reader sees: when the mirror
+// last wrote it and a digest of its bytes.
+func (r *Reader) IndexInfo() (updatedAt, digest string) { return r.idx.UpdatedAt, r.idx.Digest() }
 
 // OpenAlarms lists the unacknowledged alarms.
 func (r *Reader) OpenAlarms() []Alarm { return r.idx.OpenAlarms() }

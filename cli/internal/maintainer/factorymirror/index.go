@@ -29,7 +29,14 @@ type Index struct {
 	// pending lists alarms added since the last Save, to be written to the
 	// dated alarm files.
 	pending []Alarm
+	// digest identifies the exact index file this value was loaded from.
+	digest string
 }
+
+// Digest is a short hex digest of the index file as it was loaded: it
+// changes whenever the mirror records anything new. It is empty for an
+// index that has not been written yet.
+func (idx *Index) Digest() string { return idx.digest }
 
 // RepoInfo is the mirror's knowledge of one repository.
 type RepoInfo struct {
@@ -111,6 +118,8 @@ func LoadIndex(stateDir string) (*Index, error) {
 		return nil, fmt.Errorf("%w: mirror index too large", ErrInvalid)
 	}
 	idx := newIndex()
+	sum := sha256.Sum256(raw)
+	idx.digest = hex.EncodeToString(sum[:8])
 	if err := json.Unmarshal(raw, idx); err != nil {
 		return nil, fmt.Errorf("%w: mirror index: %v", ErrInvalid, err)
 	}

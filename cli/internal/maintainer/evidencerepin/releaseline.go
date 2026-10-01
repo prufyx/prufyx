@@ -275,6 +275,10 @@ type LineResolution struct {
 	// Stale is true when this line resolution is older than the run's
 	// --max-age bound and was not refreshed this run.
 	Stale bool `json:"stale,omitempty"`
+	// Source, MirrorCheckedAt and MirrorReleasesAt: see RepoResolution.
+	Source           string `json:"source,omitempty"`
+	MirrorCheckedAt  string `json:"mirrorCheckedAt,omitempty"`
+	MirrorReleasesAt string `json:"mirrorReleasesAt,omitempty"`
 }
 
 // pinKey keys a pin by repository, commit and the hint set that was tried,
@@ -373,6 +377,13 @@ func (r *lineResolver) releaseList(owner, repo string) (releaseList, error) {
 	}
 	if *r.rateLimited {
 		return releaseList{}, errRateLimited
+	}
+	if gate, ok := r.fetcher.(releaseScanGate); ok && !gate.CompleteReleaseScan(owner, repo) {
+		// The source knows its release list is cut short: report an
+		// incomplete scan, exactly as a scan that hit the page bound.
+		list := releaseList{}
+		r.releases[key] = &releaseResult{list: list}
+		return list, nil
 	}
 	list, err := fetchAllReleases(r.ctx, r.fetcher, owner, repo)
 	if errors.Is(err, errRateLimited) {

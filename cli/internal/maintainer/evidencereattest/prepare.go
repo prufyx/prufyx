@@ -544,14 +544,16 @@ func evaluateEligibility(
 		if !known {
 			return reasonStaleBaseline, false
 		}
-		resolvedAt, err := time.Parse(time.RFC3339, repo.ResolvedAt)
-		if err != nil || repo.Stale || attestedAt.Before(resolvedAt) || attestedAt.Sub(resolvedAt) > freshnessBound {
+		// A repository resolved from a mirror is as old as the mirror's own
+		// last look at it, not as old as the run that read the mirror.
+		resolvedAt, ok := repo.EvidenceAt()
+		if !ok || repo.Stale || attestedAt.Before(resolvedAt) || attestedAt.Sub(resolvedAt) > freshnessBound {
 			return reasonStaleBaseline, false
 		}
 		if citation.Baseline == evidencerepin.BaselineReleaseLine {
 			line, _ := matchingLine(citation, lines)
-			lineResolvedAt, err := time.Parse(time.RFC3339, line.ResolvedAt)
-			if err != nil || line.Stale || attestedAt.Before(lineResolvedAt) || attestedAt.Sub(lineResolvedAt) > freshnessBound {
+			lineResolvedAt, ok := line.EvidenceAt()
+			if !ok || line.Stale || attestedAt.Before(lineResolvedAt) || attestedAt.Sub(lineResolvedAt) > freshnessBound {
 				return reasonStaleBaseline, false
 			}
 		}

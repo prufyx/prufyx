@@ -321,6 +321,13 @@ type RepoResolution struct {
 	// A stale resolution is reported as-is, never silently re-stamped with
 	// a new ResolvedAt.
 	Stale bool `json:"stale,omitempty"`
+	// Source, MirrorCheckedAt and MirrorReleasesAt are set when the
+	// resolution was read from a local mirror (see mirror.go). ResolvedAt is
+	// then the OLDEST of the mirror's own last successful look at the
+	// repository and its release metadata, never the time of this run.
+	Source           string `json:"source,omitempty"`
+	MirrorCheckedAt  string `json:"mirrorCheckedAt,omitempty"`
+	MirrorReleasesAt string `json:"mirrorReleasesAt,omitempty"`
 }
 
 var errRateLimited = errors.New("github api rate limited")
@@ -1041,6 +1048,11 @@ type Worklist struct {
 	Rules       []RuleVerdict    `json:"rules"`
 	Summary     Summary          `json:"summary"`
 	Limitations []string         `json:"limitations"`
+
+	// Source is "mirror" when the data came from a local mirror; empty
+	// means GitHub over HTTP. Mirror identifies the mirror snapshot used.
+	Source string            `json:"source,omitempty"`
+	Mirror *MirrorProvenance `json:"mirror,omitempty"`
 }
 
 // WorklistScope records what subset of the corpus this run covered.
@@ -1051,6 +1063,8 @@ type WorklistScope struct {
 	// Baseline is the requested comparison policy; each citation records
 	// the baseline it actually used.
 	Baseline string `json:"baseline,omitempty"`
+	// Source mirrors Worklist.Source.
+	Source string `json:"source,omitempty"`
 }
 
 var worklistLimitations = []string{
@@ -1393,6 +1407,24 @@ func (list *stringList) Set(value string) error {
 // Run is the "evidence repin" CLI adapter, wired from prufyx-maintainer's
 // "evidence" command.
 func Run(ctx context.Context, args []string, stdout, stderr io.Writer, apiFetcher APIFetcher, blobFetcher sourcecapture.Fetcher, now func() time.Time, defaultRulePacks []string) int {
+	return RunWith(ctx, args, stdout, stderr, Deps{API: apiFetcher, Blobs: blobFetcher, Now: now, DefaultRulePacks: defaultRulePacks})
+}
+
+// Deps carries what the "evidence repin" command needs from its caller.
+type Deps struct {
+	API   APIFetcher
+	Blobs sourcecapture.Fetcher
+	Now   func() time.Time
+	// DefaultRulePacks are used when --rules is not given.
+	DefaultRulePacks []string
+	// OpenMirror opens the local mirror in a state directory for
+	// --source mirror. Nil rejects that source.
+	OpenMirror func(stateDir string) (MirrorSource, error)
+}
+
+// RunWith is Run with the full set of dependencies.
+func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps Deps) int {
+	apiFetcher, blobFetcher, now, defaultRulePacks := deps.API, deps.Blobs, deps.Now, deps.DefaultRulePacks
 	if len(args) == 0 || args[0] != "repin" {
 		fmt.Fprintln(stderr, "evidence: unknown or missing subcommand (expected: repin)")
 		return 2
@@ -1406,6 +1438,9 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, apiFetche
 	outputPath := flags.String("output", "", "new worklist output path")
 	maxAge := flags.Duration("max-age", DefaultMaxAge, "freshness bound for a resumed repo resolution or citation classification; older entries are recomputed or marked stale, never resumed as current")
 	baseline := flags.String("baseline", BaselineModeReleaseLine, "comparison baseline: \"release-line\" compares each citation with the newest release on the release line of its pinned tag when that line can be proven (latest release otherwise); \"latest\" compares every citation with the repository's most recent release")
+	source := flags.String("source", SourceHTTP, "where tags, releases and file bytes come from: \"http\" (GitHub, the default) or \"mirror\" (a local factory mirror, strictly offline; needs --mirror-state)")
+	mirrorState := flags.String("mirror-state", "", "factory mirror state directory (with --source mirror)")
+	wantsOut := flags.String("wants-out", "", "with --source mirror: write the pinned files the mirror is missing as a wants file for \"factory mirror --wants\"")
 	flags.Var(&rulePacks, "rules", "rule pack path (repeatable; default: the shipped CNCF and community packs)")
 	flags.Var(&projects, "project", "restrict to this project slug (repeatable; default: all)")
 	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 || *outputPath == "" {
@@ -1414,6 +1449,10 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, apiFetche
 	}
 	if *baseline != BaselineModeReleaseLine && *baseline != BaselineModeLatest {
 		fmt.Fprintln(stderr, "evidence repin: --baseline must be release-line or latest")
+		return 2
+	}
+	if msg := checkSourceFlags(*source, *mirrorState, *statePath, *wantsOut, deps.OpenMirror != nil); msg != "" {
+		fmt.Fprintln(stderr, "evidence repin: "+msg)
 		return 2
 	}
 	if len(rulePacks) == 0 {
@@ -1439,21 +1478,44 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, apiFetche
 		citations = append(citations, parsed...)
 	}
 
-	state, err := LoadState(*statePath)
-	if err != nil {
-		fmt.Fprintf(stderr, "evidence repin: %v\n", err)
-		return 2
-	}
-
-	worklist, err := BuildWorklistWithBaseline(ctx, citations, projects, *limit, state, apiFetcher, blobFetcher, now, *maxAge, stderr, *baseline)
-	if err != nil {
-		fmt.Fprintf(stderr, "evidence repin: %v\n", err)
-		return 2
-	}
-
-	if err := SaveState(*statePath, state); err != nil {
-		fmt.Fprintf(stderr, "evidence repin: %v\n", err)
-		return 2
+	var worklist Worklist
+	var missing int
+	if *source == SourceMirror {
+		src, err := deps.OpenMirror(*mirrorState)
+		if err != nil {
+			fmt.Fprintf(stderr, "evidence repin: cannot open the mirror: %v\n", err)
+			return 2
+		}
+		var wants MirrorWants
+		worklist, wants, err = BuildMirrorWorklist(ctx, citations, projects, *limit, src, now, *maxAge, stderr, *baseline)
+		if err != nil {
+			fmt.Fprintf(stderr, "evidence repin: %v\n", err)
+			return 2
+		}
+		for _, want := range wants.Wants {
+			missing += len(want.Paths)
+		}
+		if *wantsOut != "" {
+			if err := writeWants(*wantsOut, wants); err != nil {
+				fmt.Fprintf(stderr, "evidence repin: cannot write wants: %v\n", err)
+				return 2
+			}
+		}
+	} else {
+		state, err := LoadState(*statePath)
+		if err != nil {
+			fmt.Fprintf(stderr, "evidence repin: %v\n", err)
+			return 2
+		}
+		worklist, err = BuildWorklistWithBaseline(ctx, citations, projects, *limit, state, apiFetcher, blobFetcher, now, *maxAge, stderr, *baseline)
+		if err != nil {
+			fmt.Fprintf(stderr, "evidence repin: %v\n", err)
+			return 2
+		}
+		if err := SaveState(*statePath, state); err != nil {
+			fmt.Fprintf(stderr, "evidence repin: %v\n", err)
+			return 2
+		}
 	}
 
 	raw, err := json.MarshalIndent(worklist, "", "  ")
@@ -1467,5 +1529,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, apiFetche
 	}
 	fmt.Fprintf(stdout, "evidence repin: %d citations, %d classified, %d pending, %d rules, batch-attestable fraction %.2f\n",
 		worklist.Summary.TotalCitations, worklist.Summary.Classified, worklist.Summary.Pending, len(worklist.Rules), worklist.Summary.BatchAttestableFraction)
+	if *source == SourceMirror && missing > 0 {
+		fmt.Fprintf(stdout, "evidence repin: %d file(s) are not in the mirror; add them with \"factory mirror --wants\" (see --wants-out) and run again\n", missing)
+	}
 	return 0
 }

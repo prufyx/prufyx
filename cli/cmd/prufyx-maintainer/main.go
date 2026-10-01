@@ -424,7 +424,10 @@ func runEvidenceRepin(args []string, stdout, stderr io.Writer) int {
 		token = os.Getenv("GH_TOKEN")
 	}
 	apiFetcher := evidencerepin.GitHubAPIFetcher{Token: token}
-	return evidencerepin.Run(context.Background(), args, stdout, stderr, apiFetcher, sourcecapture.FixedHTTPSFetcher{}, time.Now, defaultRulePacks)
+	return evidencerepin.RunWith(context.Background(), args, stdout, stderr, evidencerepin.Deps{
+		API: apiFetcher, Blobs: sourcecapture.FixedHTTPSFetcher{}, Now: time.Now, DefaultRulePacks: defaultRulePacks,
+		OpenMirror: factorymirror.OpenRepinSource,
+	})
 }
 
 // runCorpusAttestation wires the corpus-attestation maintainer subcommand. It
