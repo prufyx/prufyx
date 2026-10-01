@@ -27,7 +27,7 @@ that must sign it (`signerRole`):
 |---|---|---|
 | Signer role | `human` | `automation` |
 | Who signs | a maintainer, at a terminal | an unattended job (for example CI) |
-| What it renews | reviewed rules whose citations are all mechanically unchanged (E1–E7) | the same, with each latest-release baseline additionally re-proven against the worklist's own repository record |
+| What it renews | reviewed rules whose citations are all mechanically unchanged (E1–E7) | the same, restricted to citations compared on their own release line (`baseline: release_line`); a rule with a latest-release citation is left to a human statement |
 | Sample | `ceil(10%)` of the batch must be individually reviewed before signing | none |
 | Schedule | one wave slot for the whole batch (`--wave 1..7`) | each rule scheduled into its own week (see [Automated mode](#automated-mode)) |
 | Consecutive-cycle cap | 2 | 2, shared with human renewals |
@@ -114,6 +114,40 @@ prufyx-maintainer evidence reattest verify \
   --trust-root "$PWD/evidence-reattest-trust-root.json" --trust-root-digest "$ROOT_DIGEST"
 ```
 
+### The gate: what it trusts
+
+The publish gate is `verify` with `--envelope`, `--trust-root` and
+`--trust-root-digest`, run on the change with the statement already
+appended. It accepts a statement that renews a rule or records an
+individual review only when the change's chain is the base branch's chain
+plus exactly that statement: a renewal merged without its signed chain
+entry is refused (V5), and so is any change to a rule's `reviewedAt` or
+`validUntil` that a chain entry does not record (V6). `--structural-only`
+is the only way to run `verify` on a statement that is not appended yet; it
+never exits zero.
+
+The worklist is input the signing job supplied; the statement binds its
+digest but nothing authenticates its content. For an automated statement the
+gate therefore must not rely on it alone. The CI verify job runs
+`evidence repin` itself, independently of the signing job, and passes the
+result as `--rerun-worklist`:
+
+```sh
+prufyx-maintainer evidence repin --state "$PWD/verify-state" --output "$PWD/rerun-worklist.json"
+prufyx-maintainer evidence reattest verify ... --rerun-worklist "$PWD/rerun-worklist.json"
+```
+
+`verify` then requires, for every citation of every rule the statement
+renews, exactly one citation in that worklist for the same pack path, rule
+and source with the same class, pinned commit, compared commit and, for the
+release-line baseline, the same line, pinned tag and compared tag, backed by
+a resolved line record in that worklist (V9). Any missing or differing
+citation fails the gate. The command refuses to pass an automated statement
+that renews rules when `--rerun-worklist` is not given. Because both runs
+read the live upstream, run the verify job soon after the signing job; a
+legitimate difference between the two runs (for example a release published
+in between) fails closed and the statement is simply prepared again.
+
 `$BASE` is a separate, read-only checkout of the base branch the change is
 proposed against, for example:
 
@@ -171,8 +205,9 @@ prufyx-maintainer evidence reattest sign --role automation \
   --output "$PWD/out/$SEQ/statement.sig.json"
 ```
 
-Steps 4 and 5 are unchanged: an automated statement is appended to the same
-chain, and `verify` takes the same arguments.
+Step 4 is unchanged: an automated statement is appended to the same chain.
+Step 5 takes the same arguments plus `--rerun-worklist`, a worklist the
+verifying job produced itself (see [The gate](#the-gate-what-it-trusts)).
 
 `prepare` and `verify` never wire a statement into the runtime pack loader
 or the embedded rule pack. Publishing a re-attested pack (running
@@ -237,13 +272,15 @@ sample cannot be predicted or chosen.
 including the mechanical-rule exclusion, `NOT_YET_DUE` and
 `NOT_LATER_THAN_CURRENT`), with these differences:
 
-- **Latest-release baselines are re-proven.** A citation compared with its
-  repository's latest release must name, as its compared commit, exactly
-  the commit the worklist's own record for that repository resolved to,
-  and that record must be `RESOLVED` through Releases, never the tags
-  fallback. Otherwise the rule is listed as `LATEST_BASELINE_UNVERIFIED`.
-  (A release-line citation is already required to be backed by a matching
-  line record; see E1.) A v1 worklist, which predates baseline records, is
+- **Release-line baselines only.** The owner's approval of automated
+  renewal covers a citation whose cited commit is byte-identical on its own
+  release line. Every citation of a rule renewed in automated mode must
+  therefore carry `baseline: release_line`, with a consistent pinned tag,
+  line and compared tag backed by a resolved, fresh line record (E1). A
+  rule with a citation compared with the repository's latest release is
+  listed as `LATEST_BASELINE_NOT_AUTOMATABLE` and left to a human
+  statement, whose path is unchanged. `verify` enforces the same rule on
+  the statement (V8). A v1 worklist, which predates baseline records, is
   rejected.
 - **No sample.** `sampledForFullReview` is always empty, and must be: a
   human statement that renews rules without a reviewed sample, or an
@@ -253,18 +290,17 @@ including the mechanical-rule exclusion, `NOT_YET_DUE` and
   recorded individual review, by either kind of statement, is not renewed
   again (`CONSECUTIVE_BATCH_CYCLE_CAP`). With no individual review, its
   lease then runs out and it evaluates as `UNKNOWN`.
-- **Review records are counted only when the pack requires them.** A
-  review record is a maintainer's declaration; in a human statement the
-  signing maintainer vouches for it, but nobody signs an automated
-  statement. So an automated statement counts a supplied record as a new
-  individual review (resetting the rule's cycle count) only for a rule
-  whose `reviewedAt` in the prior pack is later than the chain head's
-  `attestedAt` — a rule whose dates were already moved on the base branch
-  by an individual review merged outside the chain, which the next
-  statement must record anyway (see "A truncated chain is detected"
-  below). Every other supplied record is ignored, so supplying records can
-  never reset a rule's count in automated mode. V6 likewise accepts only
-  the statement's own rules, never a review record, as accounting for a
+- **Review records are never counted.** A review record is a maintainer's
+  declaration; in a human statement the signing maintainer vouches for it,
+  but nobody signs an automated statement. An automated statement therefore
+  counts no record at all: supplying records can never reset a rule's cycle
+  count in automated mode, and an automated statement never lists
+  `individualReviews`. A rule whose `reviewedAt` in the prior pack is later
+  than the chain head's `attestedAt` was changed by something the chain does
+  not record (an individual review, or a renewal merged without its chain
+  entry); it is excluded as `REVIEWED_OUTSIDE_STATEMENT_CHAIN` and left to a
+  human statement, which records the review and resets the count. V6 accepts
+  only the statement's own rules, never a review record, as accounting for a
   changed date in an automated statement's pack.
 - **Per-rule schedule instead of waves.** There is no `--wave`. The
   candidate dates are the weekly Monday 12:00 UTC instants that are more
@@ -297,9 +333,9 @@ one of: `WORKLIST_SCOPE_INCOMPLETE` (E2), `TAG_FALLBACK_BASELINE` (E3),
 `CITATION_COMMIT_DOES_NOT_MATCH_PINNED_SOURCE` (E1),
 `NOT_LATER_THAN_CURRENT` and `NOT_YET_DUE` (renewal timing, see above),
 `STAGGER_DEFERRED` (V7 cap), `MECHANICAL_RULE_EXCLUDED`, and, in automated
-mode only, `LATEST_BASELINE_UNVERIFIED`.
+mode only, `LATEST_BASELINE_NOT_AUTOMATABLE` and `REVIEWED_OUTSIDE_STATEMENT_CHAIN`.
 
-## What `verify` checks (V1–V8)
+## What `verify` checks (V1–V9)
 
 `verify` is deterministic and side-effect-free. It takes the statement, the
 prior and next rule pack bytes, the retained worklist, the pack's statement
@@ -330,9 +366,11 @@ the first violation it finds:
   whose `reviewedAt`/`validUntil` changed between the prior and next pack
   must be covered either by this statement or by a new individual review
   record (`--review-record-dir`), and every rule present in one pack must
-  be present in the other. It does not re-verify a review record against
-  its packet, corpus, vectors and target, which stays `review-record`'s
-  job.
+  be present in the other. Coverage only counts when the statement is a
+  chain entry (or in `--structural-only` mode), and a rule the statement
+  covers must carry exactly the `reviewedAt` and `validUntil` the statement
+  gives it. It does not re-verify a review record against its packet,
+  corpus, vectors and target, which stays `review-record`'s job.
 - **Mechanical rules** — a rule whose `evidence.basis` is `mechanical` is
   derived from source rather than reviewed, so there is no review for a
   reattestation to extend. `prepare` never renews one: it lists the rule under
@@ -357,14 +395,20 @@ the first violation it finds:
   reviewed (not mechanical), active rule with no `range`, and is listed
   with exactly one citation per evidence source, each pinned to the
   source's own revision and classified `NO_NEW_RELEASE`, `FILE_IDENTICAL`
-  or `SPAN_IDENTICAL` against the latest release or its release line; its
+  or `SPAN_IDENTICAL` against the latest release or its release line (an
+  automated statement: its own release line only); its
   `consecutiveBatchCycles` is between 1 and 2; a human statement has a
   wave, no per-rule `validUntil`, and a sample whenever it renews anything;
   an automated statement has no wave, no sample, and a `validUntil` on
   every rule.
 
+- **V9** — only with `--rerun-worklist`: every citation of every renewed
+  rule matches an independently produced worklist (see
+  [The gate](#the-gate-what-it-trusts)).
+
 `verify` also requires a valid signature under a pinned trust root whenever
-the statement renews at least one rule (`--envelope` together with
+the statement renews at least one rule or records an individual review
+(`--envelope` together with
 `--trust-root` and `--trust-root-digest`). `--trust-root` and
 `--trust-root-digest` always come as a pair; `--envelope` without them, or
 one of them without the other, is a usage error (exit 2). Pass
@@ -372,7 +416,9 @@ one of them without the other, is a usage error (exit 2). Pass
 checking the statement's own signature; that mode always exits non-zero
 (exit 1), however the structural checks came out, so it can never be
 mistaken for a passing publish gate. It exists for early checks — for
-example, right after `prepare`, before anyone has signed anything. It still
+example, right after `prepare`, before anyone has signed anything, and it
+is the only mode in which the statement need not be appended to the chain
+yet. It still
 needs `--trust-root`/`--trust-root-digest` when the pack's chain is not
 empty, because the chain's own signatures are always verified; it rejects
 `--envelope`.
@@ -409,7 +455,10 @@ function), and treat it as authoritative:
 - `verify` also requires the chain directory in the change
   (`--statement-chain-dir`) to equal the base branch's chain directory
   (`--base-statement-chain-dir`) entry for entry, byte for byte, plus at
-  most one added entry, which must be the statement under verification.
+  most one added entry, which must be the statement under verification;
+  when the statement renews a rule or records an individual review, that
+  entry is required, so the chain must equal the base chain plus exactly
+  this statement.
   Removing, replacing, re-signing, or adding any other entry rejects the
   statement (V5), and so does an emptied chain directory over a non-empty
   base, or a statement the base chain already records. See
@@ -465,8 +514,9 @@ function), and treat it as authoritative:
   a chain entry. So when the prior pack holds a rule whose `reviewedAt` is
   later than the head's `attestedAt`, either a statement is missing from
   the chain or the rule was reviewed individually since. `prepare` and
-  `verify` both reject the statement (V5) unless a new review record is
-  supplied for that rule.
+  `verify` both reject a human statement (V5) unless a new review record is
+  supplied for that rule. An automated statement instead excludes the rule
+  (`REVIEWED_OUTSIDE_STATEMENT_CHAIN`) and counts no record.
 - **Dates cannot drift away from the chain.** A prior-pack rule whose
   `reviewedAt` equals some chain entry's `attestedAt` must be one that
   entry renewed, still carrying the `validUntil` that entry set, or one
@@ -537,10 +587,29 @@ exposed only to the job that signs, for example:
 Run `verify` on the prepared statement before signing it, and sign only in
 a job that cannot be triggered by an untrusted change (for example only on
 the protected default branch, in an environment whose secrets are
-restricted to it). Even a stolen automation key can renew only what the
-automated policy computes as eligible from the retained worklist: `verify`
-recomputes every automated statement, and the key can never sign a human
-statement.
+restricted to it).
+
+Prefer `--key` and `--passphrase-file` (files of mode `0600` mounted for
+the job) to the environment variables. `sign` removes `--key-env` and
+`--passphrase-env` variables from its own environment as soon as it has
+read them and wipes its copies of the key and passphrase, but an
+environment variable is still visible to everything else the job runs.
+
+What a stolen automation key can do is bounded, not null. It can sign a
+statement that renews a rule only if that rule is a reviewed (not
+mechanical), active rule without a version range, due for renewal (within
+21 days of its lease end), under the two-consecutive-cycle cap, renewed for
+at most 90 days, whose every citation is classified `NO_NEW_RELEASE`,
+`FILE_IDENTICAL` or `SPAN_IDENTICAL` against its own release line, as the
+signing job's own `evidence repin` run reported it. The worklist is input
+the signing job supplies and is not authenticated, so a holder of the key
+who also controls that job can claim an unchanged citation that was not; the
+bound on the key alone is only as strong as the worklist. That is why the
+gate must re-run `evidence repin` in a separate job and pass the result as
+`--rerun-worklist` before accepting an automated statement (see
+[The gate](#the-gate-what-it-trusts)). The key can never sign a human
+statement, never reset a rule's cycle count, and never renew a rule a
+person last reviewed outside the chain.
 
 ```sh
 prufyx-maintainer evidence reattest sign \
@@ -591,7 +660,9 @@ Earlier formats stay valid:
   statement.
 - A v1 statement (`prufyx.io/evidence-reattestation/v1`, no `signerRole`)
   is a human statement. Chains that begin with v1 statements stay
-  verifiable; new statements are always v2 and record their role.
+  verifiable; new statements are always v2 and record their role. A
+  statement prepared by older tooling does not verify against this version: prepare it
+  again, then sign and append the new statement.
 
 `trust-root migrate` derives a v2 root from a v1 or v2 root, reading only
 public keys:
