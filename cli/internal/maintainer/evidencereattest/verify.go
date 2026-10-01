@@ -65,6 +65,26 @@ type VerifyOptions struct {
 	// re-verify a record against its packet, corpus, vectors and target;
 	// that is maintainer/reviewrecord's job.
 	ReviewRecords map[string][]byte
+	// PreSign selects the explicit pre-sign structural mode: the statement
+	// need not yet be appended to Chain, so Chain may equal BaseChain. It
+	// exists only to run the structural checks right after Prepare, before
+	// anyone has signed. Without it, a statement that renews any rule or
+	// records any individual review must be the one entry Chain adds to
+	// BaseChain (checkAppendOnly), and checkV6 refuses any evidence-date
+	// change that no chain entry records. A PreSign result must never be
+	// used as the publish gate; the CLI's --structural-only, the only
+	// caller that sets it, always exits non-zero.
+	PreSign bool
+	// IndependentWorklistRaw, when set, is a worklist produced
+	// independently of the signing job (the CI verify job's own "evidence
+	// repin" run). Verify then requires, for every citation of every rule
+	// the statement renews, exactly one identical citation (class, pinned
+	// and compared commits, baseline, line and tags) in that worklist,
+	// backed by its own line record, so a statement built from a worklist
+	// the signing job could have forged is rejected (see
+	// checkIndependentWorklist). WorklistRaw is the signing job's retained
+	// worklist and is only as trustworthy as that job.
+	IndependentWorklistRaw []byte
 }
 
 // VerifyResult reports what Verify established. Every field is filled in
@@ -75,6 +95,8 @@ type VerifyResult struct {
 	// (see VerifySignature, which enforces it).
 	SignerRole                                string
 	RuleCount, SampledCount, NotExtendedCount int
+	// ReviewCount is how many individual reviews the statement records.
+	ReviewCount int
 }
 
 // Verify recomputes and checks every invariant this package enforces
@@ -105,7 +127,8 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 	if err := checkV2(statement); err != nil {
 		return VerifyResult{}, err
 	}
-	if err := checkAppendOnly(options.BaseChain, options.Chain, options.StatementRaw); err != nil {
+	recordsChange := len(statement.Rules) > 0 || len(statement.IndividualReviews) > 0
+	if err := checkAppendOnly(options.BaseChain, options.Chain, options.StatementRaw, recordsChange && !options.PreSign); err != nil {
 		return VerifyResult{}, err
 	}
 	state, err := deriveChainState(options.Chain, options.PackName, options.AttestedAtNow.UTC(), sourcecorpus.SHA(options.StatementRaw))
@@ -151,7 +174,7 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 	if err := checkV5(statement, state); err != nil {
 		return VerifyResult{}, err
 	}
-	if err := checkV6(priorByID, nextByID, statement, coveringReviews(role, fresh)); err != nil {
+	if err := checkV6(priorByID, nextByID, statement, coveringReviews(role, fresh), options.PreSign || chainContains(options.Chain, options.StatementRaw)); err != nil {
 		return VerifyResult{}, err
 	}
 	if err := checkV7(statement, nextByID); err != nil {
@@ -163,8 +186,13 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 	if err := checkRolePolicy(statement, candidatesByID(priorCandidates)); err != nil {
 		return VerifyResult{}, err
 	}
+	if len(options.IndependentWorklistRaw) > 0 {
+		if err := checkIndependentWorklist(statement, options.PackPath, options.IndependentWorklistRaw); err != nil {
+			return VerifyResult{}, err
+		}
+	}
 
-	return VerifyResult{SignerRole: role, RuleCount: len(statement.Rules), SampledCount: len(statement.SampledForFullReview), NotExtendedCount: len(statement.NotExtended)}, nil
+	return VerifyResult{SignerRole: role, RuleCount: len(statement.Rules), SampledCount: len(statement.SampledForFullReview), NotExtendedCount: len(statement.NotExtended), ReviewCount: len(statement.IndividualReviews)}, nil
 }
 
 // checkV2 checks the statement's own declared review-lease dates: the
@@ -306,22 +334,23 @@ func rulesByID(doc packDocument) (map[string]json.RawMessage, error) {
 // Prepare does) and applies chainState.checkPriorPackCovered to the
 // supplied prior pack, so a bad review record or a truncated chain is
 // reported as V5 rather than only as a failed recomputation. It returns
-// the new reviews by rule ID. For an automated statement only the records
-// chainState.anchoredReviewRecords admits are considered, exactly as
-// Prepare does in automated mode.
+// the new reviews by rule ID. An automated statement counts no review
+// record at all and tolerates a rule reviewed outside the chain (it is
+// excluded, see reasonReviewedOutsideChain), exactly as Prepare does in
+// automated mode.
 func checkPriorPackAgainstChain(state chainState, priorDoc packDocument, records map[string][]byte, attestedAt time.Time, role string) (map[string]string, error) {
 	candidates, rules, err := packCandidates(priorDoc)
 	if err != nil {
 		return nil, err
 	}
 	if role == RoleAutomation {
-		records = state.anchoredReviewRecords(candidatesByID(candidates), records)
+		records = nil
 	}
 	fresh, err := state.reviewsFromRecords(candidatesByID(candidates), records, attestedAt)
 	if err != nil {
 		return nil, err
 	}
-	if err := state.checkPriorPackCovered(rules, fresh); err != nil {
+	if _, err := state.checkPriorPackCovered(rules, fresh, role == RoleAutomation); err != nil {
 		return nil, err
 	}
 	return fresh, nil
@@ -350,6 +379,20 @@ func coveringReviews(role string, fresh map[string]string) map[string]string {
 	return fresh
 }
 
+// chainContains reports whether chain has an entry whose statement is
+// exactly statementRaw.
+func chainContains(chain *Chain, statementRaw []byte) bool {
+	if chain == nil {
+		return false
+	}
+	for _, entry := range chain.Entries {
+		if bytes.Equal(entry.Statement, statementRaw) {
+			return true
+		}
+	}
+	return false
+}
+
 // checkV6 is a CI gate over the pack diff, independent of checkV1AndV3:
 // every rule whose evidence.reviewedAt or evidence.validUntil changed
 // between the prior and next pack must be covered either by this
@@ -358,10 +401,18 @@ func coveringReviews(role string, fresh map[string]string) map[string]string {
 // pack must be present in the other. It does not re-verify a review
 // record against its packet, corpus, vectors and target; that stays
 // maintainer/reviewrecord's job.
-func checkV6(priorByID, nextByID map[string]json.RawMessage, statement Statement, freshReviews map[string]string) error {
-	covered := map[string]bool{}
+//
+// Coverage only counts when the statement is a chain entry
+// (statementRecorded): a date change accounted for by a statement the
+// chain does not record is refused, whatever the statement says, because
+// the next run would treat the moved dates as a change outside the chain.
+// A rule the statement covers must also carry exactly the dates the
+// statement gives it: reviewedAt equal to attestedAt and validUntil equal
+// to the statement's (or the rule's own, in an automated statement).
+func checkV6(priorByID, nextByID map[string]json.RawMessage, statement Statement, freshReviews map[string]string, statementRecorded bool) error {
+	covered := map[string]RuleAttestation{}
 	for _, ra := range statement.Rules {
-		covered[ra.RuleID] = true
+		covered[ra.RuleID] = ra
 	}
 	allIDs := map[string]bool{}
 	for id := range priorByID {
@@ -395,7 +446,13 @@ func checkV6(priorByID, nextByID map[string]json.RawMessage, statement Statement
 		if priorFields.isMechanical() || nextFields.isMechanical() {
 			return fmt.Errorf("%w: V6: rule %s is mechanical; its evidence dates are not renewable by reattestation", ErrRejected, ruleID)
 		}
-		if covered[ruleID] {
+		if !statementRecorded {
+			return fmt.Errorf("%w: V6: rule %s evidence dates changed but the statement covering them is not recorded in the statement chain", ErrRejected, ruleID)
+		}
+		if ra, ok := covered[ruleID]; ok {
+			if nextFields.Evidence.ReviewedAt != statement.AttestedAt || nextFields.Evidence.ValidUntil != renewedValidUntil(statement, ra) {
+				return fmt.Errorf("%w: V6: rule %s evidence dates are not the ones the statement gives it", ErrRejected, ruleID)
+			}
 			continue
 		}
 		if digest, ok := freshReviews[ruleID]; ok && digest != "" {
@@ -465,7 +522,8 @@ func checkV7(statement Statement, nextByID map[string]json.RawMessage) error {
 //     mechanical) rule, is active, carries no version range, and is listed
 //     with exactly one citation per evidence source, each classified
 //     NO_NEW_RELEASE, FILE_IDENTICAL or SPAN_IDENTICAL against the latest
-//     release or its own release line, pinned to the source's own revision;
+//     release or its own release line (an automated statement: its own
+//     release line only), pinned to the source's own revision;
 //   - its consecutiveBatchCycles is within 1..the cap;
 //   - a human statement has a wave, no per-rule validUntil, and a non-empty
 //     sample whenever it renews anything (the sample's reviews are
@@ -527,6 +585,61 @@ func checkRolePolicy(statement Statement, prior map[string]ruleCandidate) error 
 			case "", evidencerepin.BaselineLatest, evidencerepin.BaselineReleaseLine:
 			default:
 				return fmt.Errorf("%w: V8: rule %s citation %s has an unknown baseline", ErrRejected, ra.RuleID, citation.SourceID)
+			}
+			// Owner approval of automated renewal covers byte-identical
+			// citations on their release line only.
+			if role == RoleAutomation && (citation.Baseline != evidencerepin.BaselineReleaseLine || citation.BaselineLine == "" || citation.PinnedTag == "") {
+				return fmt.Errorf("%w: V8: rule %s citation %s is not compared on its release line, which automated renewal requires", ErrRejected, ra.RuleID, citation.SourceID)
+			}
+		}
+	}
+	return nil
+}
+
+// checkIndependentWorklist compares the statement's citations with a
+// worklist produced independently of the signing job. For every citation
+// of every rule the statement renews, the independent worklist must hold
+// exactly one citation for the same pack path, rule and source with the
+// same class, pinned commit, compared commit and, for a release-line
+// baseline, the same baseline, line, pinned tag and compared tag, and a
+// resolved line record naming that tag and commit. Any missing or
+// differing citation rejects the statement: the statement's own worklist
+// is only as trustworthy as the job that signed it.
+func checkIndependentWorklist(statement Statement, packPath string, independentRaw []byte) error {
+	if len(independentRaw) > MaxWorklistBytes {
+		return fmt.Errorf("%w: V9: independent worklist is too large", ErrRejected)
+	}
+	var wl evidencerepin.Worklist
+	if err := json.Unmarshal(independentRaw, &wl); err != nil || (wl.Schema != evidencerepin.Schema && wl.Schema != evidencerepin.SchemaV1) {
+		return fmt.Errorf("%w: V9: independent worklist does not decode", ErrRejected)
+	}
+	type key struct{ rule, source string }
+	found := map[key][]evidencerepin.ClassResult{}
+	for _, citation := range wl.Citations {
+		if matchesPack(citation.RulePack, packPath) {
+			k := key{citation.RuleID, citation.SourceID}
+			found[k] = append(found[k], citation)
+		}
+	}
+	for _, ra := range statement.Rules {
+		for _, claimed := range ra.Citations {
+			matches := found[key{ra.RuleID, claimed.SourceID}]
+			if len(matches) != 1 {
+				return fmt.Errorf("%w: V9: rule %s citation %s has no single counterpart in the independent worklist", ErrRejected, ra.RuleID, claimed.SourceID)
+			}
+			got := matches[0]
+			if got.Class != claimed.Class || got.OldCommit != claimed.PinnedCommit || got.NewCommit != claimed.ComparedCommit {
+				return fmt.Errorf("%w: V9: rule %s citation %s differs from the independent worklist", ErrRejected, ra.RuleID, claimed.SourceID)
+			}
+			if claimed.Baseline == evidencerepin.BaselineReleaseLine {
+				if got.Baseline != claimed.Baseline || got.BaselineLine != claimed.BaselineLine || got.PinnedTag != claimed.PinnedTag || got.BaselineTag != claimed.ComparedTag {
+					return fmt.Errorf("%w: V9: rule %s citation %s baseline differs from the independent worklist", ErrRejected, ra.RuleID, claimed.SourceID)
+				}
+				if !lineBaselineVerified(got, wl.Lines) {
+					return fmt.Errorf("%w: V9: rule %s citation %s is not backed by a line record in the independent worklist", ErrRejected, ra.RuleID, claimed.SourceID)
+				}
+			} else if got.Baseline == evidencerepin.BaselineReleaseLine {
+				return fmt.Errorf("%w: V9: rule %s citation %s baseline differs from the independent worklist", ErrRejected, ra.RuleID, claimed.SourceID)
 			}
 		}
 	}

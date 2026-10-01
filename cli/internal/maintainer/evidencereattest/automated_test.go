@@ -142,7 +142,30 @@ const automatedSpacing = 70 * 24 * time.Hour
 func prepareAutomated(t *testing.T, f *chainFixture, prior []byte, at time.Time, specs []ruleSpec, revision string, records map[string][]byte) cycle {
 	t.Helper()
 	wl, _ := buildWorklistAndPack(t, chainPackPath, at, specs)
+	lineBaselined(&wl)
 	return prepareAutomatedWith(t, f, prior, at, marshalWorklist(t, wl), revision, records)
+}
+
+// lineBaselined rewrites every citation of wl as a comparison with the
+// newest release on its pinned tag's release line, backed by a resolved
+// line record, the only baseline automated mode renews. It leaves each
+// citation's class and commits alone.
+func lineBaselined(wl *evidencerepin.Worklist) {
+	wl.Lines = nil
+	for i := range wl.Citations {
+		c := &wl.Citations[i]
+		c.Baseline, c.BaselineMode = evidencerepin.BaselineReleaseLine, evidencerepin.BaselineModeReleaseLine
+		c.BaselineLine, c.PinnedTag, c.BaselineTag = "0.9", "v0.9.0", "v0.9.4"
+		resolvedAt := ""
+		for _, repo := range wl.Repos {
+			if repo.Owner == c.Owner && repo.Repo == c.Repo {
+				resolvedAt = repo.ResolvedAt
+			}
+		}
+		wl.Lines = append(wl.Lines, evidencerepin.LineResolution{
+			Owner: c.Owner, Repo: c.Repo, Prefix: "v", Line: "0.9", Status: "RESOLVED", Tag: "v0.9.4", Commit: c.NewCommit, ResolvedAt: resolvedAt,
+		})
+	}
 }
 
 func prepareAutomatedWith(t *testing.T, f *chainFixture, prior []byte, at time.Time, worklistRaw []byte, revision string, records map[string][]byte) cycle {
@@ -387,48 +410,72 @@ func TestAutomatedPrepareRefusesMechanicalRules(t *testing.T) {
 	}
 }
 
-// Automated mode re-proves a latest-release baseline against the worklist's
-// own repository record; human mode is unchanged and renews the same rule.
-func TestAutomatedPrepareReprovesLatestReleaseBaseline(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		mut  func(repo *evidencerepin.RepoResolution)
-	}{
-		{"compared commit is not the repository's resolved commit", func(repo *evidencerepin.RepoResolution) { repo.CurrentCommit = strings.Repeat("b", 40) }},
-		{"repository resolved through the tags fallback", func(repo *evidencerepin.RepoResolution) { repo.Resolution = resolutionTagFallback }},
-		{"repository not resolved", func(repo *evidencerepin.RepoResolution) { repo.Status = "UNRESOLVED" }},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			f := newRoleFixture(t)
-			specs := cycleSpecs(2, baseNow)
-			wl, pack := buildWorklistAndPack(t, chainPackPath, baseNow, specs)
-			pack = padPackWithPastRules(t, pack, 40)
-			for i := range wl.Repos {
-				if wl.Repos[i].Repo == "repo-rule-01" {
-					tc.mut(&wl.Repos[i])
-				}
-			}
-			worklistRaw := marshalWorklist(t, wl)
-			c := prepareAutomatedWith(t, f.chainFixture, pack, baseNow, worklistRaw, "rev-2", nil)
-			if cyclesOf(c, "rule-00") != 1 || worstClassOf(c, "rule-01") != reasonLatestBaselineUnverified {
-				t.Fatalf("expected rule-01 excluded as %s, got renewed=%s notExtended=%+v", reasonLatestBaselineUnverified, renewedIDs(c.res), c.res.Statement.NotExtended)
-			}
-			human, err := Prepare(PrepareOptions{
-				WorklistRaw: worklistRaw, PackName: PackCNCF, PackPath: chainPackPath, PackRaw: pack, Chain: &Chain{},
-				Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest,
-			})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if renewedIDs(human) != "rule-00,rule-01" {
-				t.Fatalf("human mode must be unchanged and renew both, got %s (%+v)", renewedIDs(human), human.Statement.NotExtended)
-			}
-		})
+// The owner's approval of automated renewal covers byte-identical citations
+// on their own release line. A citation compared with the repository's
+// latest release is excluded in automated mode, however well the worklist
+// backs it; human mode is unchanged and renews the same rule.
+func TestAutomatedPrepareExcludesLatestReleaseBaselines(t *testing.T) {
+	f := newRoleFixture(t)
+	specs := cycleSpecs(2, baseNow)
+	wl, pack := buildWorklistAndPack(t, chainPackPath, baseNow, specs)
+	pack = padPackWithPastRules(t, pack, 40)
+	lineBaselined(&wl)
+	// rule-01 alone is compared with its repository's latest release, with
+	// a repository record that fully backs that comparison.
+	for i := range wl.Citations {
+		if wl.Citations[i].RuleID == "rule-01" {
+			c := &wl.Citations[i]
+			c.Baseline, c.BaselineMode, c.BaselineLine, c.PinnedTag, c.BaselineTag = evidencerepin.BaselineLatest, "", "", "", ""
+		}
+	}
+	worklistRaw := marshalWorklist(t, wl)
+	c := prepareAutomatedWith(t, f.chainFixture, pack, baseNow, worklistRaw, "rev-2", nil)
+	if renewedIDs(c.res) != "rule-00" || worstClassOf(c, "rule-01") != reasonLatestBaselineNotAutomatable {
+		t.Fatalf("expected rule-01 excluded as %s, got renewed=%s notExtended=%+v", reasonLatestBaselineNotAutomatable, renewedIDs(c.res), c.res.Statement.NotExtended)
+	}
+	if err := verifyCycle(c, f.chain()); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	human, err := Prepare(PrepareOptions{
+		WorklistRaw: worklistRaw, PackName: PackCNCF, PackPath: chainPackPath, PackRaw: pack, Chain: &Chain{},
+		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renewedIDs(human) != "rule-00,rule-01" {
+		t.Fatalf("human mode must be unchanged and renew both, got %s (%+v)", renewedIDs(human), human.Statement.NotExtended)
+	}
+}
+
+// A statement that renews a rule on a latest-release baseline is not a
+// valid automated statement: V8 refuses it however it was produced.
+func TestVerifyRejectsAutomatedStatementWithLatestBaselineCitation(t *testing.T) {
+	f := newRoleFixture(t)
+	c := prepareAutomated(t, f.chainFixture, automatedPack(t, baseNow), baseNow, cycleSpecs(12, baseNow), "rev-2", nil)
+	statement := c.res.Statement
+	statement.Rules = append([]RuleAttestation(nil), statement.Rules...)
+	statement.Rules[0].Citations = append([]CitationAttestation(nil), statement.Rules[0].Citations...)
+	statement.Rules[0].Citations[0].Baseline, statement.Rules[0].Citations[0].BaselineLine, statement.Rules[0].Citations[0].PinnedTag = "", "", ""
+	priorDoc, err := loadPack(c.prior)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates, _, err := packCandidates(priorDoc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := checkRolePolicy(statement, candidatesByID(candidates)); err == nil || !strings.Contains(err.Error(), "release line") {
+		t.Fatalf("V8 must refuse a latest-baseline citation in an automated statement, got %v", err)
+	}
+	if err := checkRolePolicy(c.res.Statement, candidatesByID(candidates)); err != nil {
+		t.Fatalf("the untampered statement must pass V8: %v", err)
 	}
 }
 
 func TestAutomatedPrepareRequiresCurrentWorklistSchemaAndNoWave(t *testing.T) {
 	wl, pack := buildWorklistAndPack(t, chainPackPath, baseNow, cycleSpecs(1, baseNow))
+	lineBaselined(&wl)
 	opts := PrepareOptions{
 		Mode: ModeAutomated, PackName: PackCNCF, PackPath: chainPackPath, PackRaw: pack, Chain: &Chain{},
 		AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest,
@@ -590,32 +637,39 @@ func TestAutomatedModeRecordsNoReviewOnAnEmptyChain(t *testing.T) {
 }
 
 // A rule whose evidence dates the base branch already moved after the chain
-// head (an individual review merged outside the chain) is recorded by the
-// next automated statement from its review record, which resets its count.
-func TestAutomatedModeRecordsAReviewThePackRequires(t *testing.T) {
+// head (an individual review merged outside the chain) is never renewed by
+// an automated statement, which counts no review record: it is excluded
+// with an explicit reason and left to a human statement, which records the
+// review and resets its count. Nothing else is held back.
+func TestAutomatedModeLeavesARuleReviewedOutsideTheChainToAHuman(t *testing.T) {
 	f, c2 := twoAutomatedRounds(t)
 	t3 := c2.at.Add(automatedSpacing)
 	reviewedAt := c2.at.Add(24 * time.Hour)
 	prior := setRuleDates(t, c2.res.NextPack, "rule-01", rfc3339(reviewedAt), rfc3339(t3.Add(7*24*time.Hour)))
-	if _, err := Prepare(PrepareOptions{
-		Mode: ModeAutomated, WorklistRaw: func() []byte {
-			wl, _ := buildWorklistAndPack(t, chainPackPath, t3, cycleSpecs(12, t3))
-			return marshalWorklist(t, wl)
-		}(), PackName: PackCNCF, PackPath: chainPackPath, PackRaw: prior, Chain: f.chain(),
-		AttestedAt: t3, Now: t3, NextRevision: "rev-4", EngineCapabilityDigest: testEngineCapabilityDigest,
-	}); err == nil || !strings.Contains(err.Error(), "truncated") {
-		t.Fatalf("an individually reviewed rule with no record must stop the batch, got %v", err)
-	}
 	records := map[string][]byte{"rule-01": testReviewRecord(t, prior, "rule-01", reviewedAt, "Individual Reviewer")}
-	c3 := prepareAutomated(t, f.chainFixture, prior, t3, cycleSpecs(12, t3), "rev-4", records)
-	if cyclesOf(c3, "rule-01") != 1 || len(c3.res.Statement.IndividualReviews) != 1 || c3.res.Statement.IndividualReviews[0].RuleID != "rule-01" {
-		t.Fatalf("expected rule-01 recorded and renewed at one cycle, got renewed=%s reviews=%+v", renewedIDs(c3.res), c3.res.Statement.IndividualReviews)
+	for name, supplied := range map[string]map[string][]byte{"without a record": nil, "with a record": records} {
+		c3 := prepareAutomated(t, f.chainFixture, prior, t3, cycleSpecs(12, t3), "rev-4", supplied)
+		if worstClassOf(c3, "rule-01") != reasonReviewedOutsideChain || len(c3.res.Statement.IndividualReviews) != 0 {
+			t.Fatalf("%s: expected rule-01 excluded as %s with no review recorded, got renewed=%s notExtended=%+v reviews=%+v",
+				name, reasonReviewedOutsideChain, renewedIDs(c3.res), c3.res.Statement.NotExtended, c3.res.Statement.IndividualReviews)
+		}
+		if renewedIDs(c3.res) != "" {
+			t.Fatalf("%s: every other rule is at the cap, got renewals %s", name, renewedIDs(c3.res))
+		}
+		if err := verifyCycle(c3, f.chain()); err != nil {
+			t.Fatalf("%s: verify: %v", name, err)
+		}
 	}
-	if renewedIDs(c3.res) != "rule-01" {
-		t.Fatalf("only the reviewed rule may be renewed, got %s", renewedIDs(c3.res))
+	wl, _ := buildWorklistAndPack(t, chainPackPath, t3, cycleSpecs(12, t3))
+	human, err := Prepare(PrepareOptions{
+		WorklistRaw: marshalWorklist(t, wl), PackName: PackCNCF, PackPath: chainPackPath, PackRaw: prior, Chain: f.chain(),
+		Wave: 1, AttestedAt: t3, Now: t3, NextRevision: "rev-4", EngineCapabilityDigest: testEngineCapabilityDigest, ReviewRecords: records,
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if err := verifyCycle(c3, f.chain()); err != nil {
-		t.Fatalf("verify: %v", err)
+	if len(human.Statement.IndividualReviews) != 1 || human.Statement.IndividualReviews[0].RuleID != "rule-01" {
+		t.Fatalf("a human statement must record the review, got %+v", human.Statement.IndividualReviews)
 	}
 }
 
@@ -649,7 +703,7 @@ func TestCoveringReviewsAreNoneForAutomatedStatements(t *testing.T) {
 	}
 	prior := map[string]json.RawMessage{"rule-a": ruleJSON(t, "rule-a", "2026-01-01T00:00:00Z", "2026-03-01T00:00:00Z")}
 	next := map[string]json.RawMessage{"rule-a": ruleJSON(t, "rule-a", "2026-02-01T00:00:00Z", "2026-04-01T00:00:00Z")}
-	if err := checkV6(prior, next, Statement{}, coveringReviews(RoleAutomation, fresh)); err == nil || !strings.Contains(err.Error(), "V6:") {
+	if err := checkV6(prior, next, Statement{}, coveringReviews(RoleAutomation, fresh), true); err == nil || !strings.Contains(err.Error(), "V6:") {
 		t.Fatalf("expected V6 to reject a date change covered only by a review record in an automated statement, got %v", err)
 	}
 }

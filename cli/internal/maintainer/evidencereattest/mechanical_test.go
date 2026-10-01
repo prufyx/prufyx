@@ -117,15 +117,15 @@ func TestCheckV6RejectsMechanicalLeaseChangeEvenWithReviewRecord(t *testing.T) {
 	next := map[string]json.RawMessage{"rule-a": derive("2026-02-01T00:00:00Z", "2026-04-01T00:00:00Z")}
 	fresh := map[string]string{"rule-a": "sha256:" + strings.Repeat("ee", 32)}
 	for name, statement := range map[string]Statement{
-		"covered by statement": {Rules: []RuleAttestation{{RuleID: "rule-a"}}},
+		"covered by statement": {AttestedAt: "2026-02-01T00:00:00Z", ValidUntil: "2026-04-01T00:00:00Z", Rules: []RuleAttestation{{RuleID: "rule-a"}}},
 		"covered by record":    {},
 	} {
-		if err := checkV6(prior, next, statement, fresh); err == nil || !strings.Contains(err.Error(), "mechanical") {
+		if err := checkV6(prior, next, statement, fresh, true); err == nil || !strings.Contains(err.Error(), "mechanical") {
 			t.Fatalf("%s: expected a mechanical refusal, got %v", name, err)
 		}
 	}
 	// A pack change that leaves a mechanical rule's lease alone is fine.
-	if err := checkV6(prior, prior, Statement{}, nil); err != nil {
+	if err := checkV6(prior, prior, Statement{}, nil, true); err != nil {
 		t.Fatalf("unchanged mechanical rule rejected: %v", err)
 	}
 }
@@ -136,7 +136,7 @@ func TestCheckV6RejectsBasisChange(t *testing.T) {
 	markMechanical(mechanical, "2026-01-01T00:00:00Z")
 	a, _ := json.Marshal(reviewed)
 	b, _ := json.Marshal(mechanical)
-	if err := checkV6(map[string]json.RawMessage{"rule-a": a}, map[string]json.RawMessage{"rule-a": b}, Statement{}, nil); err == nil || !strings.Contains(err.Error(), "basis changed") {
+	if err := checkV6(map[string]json.RawMessage{"rule-a": a}, map[string]json.RawMessage{"rule-a": b}, Statement{}, nil, true); err == nil || !strings.Contains(err.Error(), "basis changed") {
 		t.Fatalf("expected a basis-change refusal, got %v", err)
 	}
 }

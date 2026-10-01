@@ -200,36 +200,6 @@ func renewedValidUntil(statement Statement, ra RuleAttestation) string {
 	return statement.ValidUntil
 }
 
-// anchoredReviewRecords is the subset of records an automated statement may
-// count as new individual reviews. A review record is a maintainer's
-// declaration, not authenticated by itself; in a human statement the
-// signing reviewer vouches for it, but no person signs an automated one. So
-// an automated statement counts a record only for a rule whose prior-pack
-// reviewedAt is later than the chain head's attestedAt: a rule whose
-// evidence dates were already moved, on the base branch, by a change
-// outside the chain (an individual review), which checkPriorPackCovered
-// requires the next statement to record. Every other record is left out,
-// so automation can never reset a rule's consecutive-cycle count on its
-// own say.
-func (s chainState) anchoredReviewRecords(rules map[string]ruleCandidate, records map[string][]byte) map[string][]byte {
-	out := map[string][]byte{}
-	if s.headDigest == nil {
-		return out
-	}
-	for id, raw := range records {
-		rule, ok := rules[id]
-		if !ok {
-			continue
-		}
-		reviewedAt, err := parseUTC(rule.Fields.Evidence.ReviewedAt)
-		if err != nil || !reviewedAt.After(s.headAttestedAt) {
-			continue
-		}
-		out[id] = raw
-	}
-	return out
-}
-
 // apply checks that statement correctly continues the chain described by s
 // and advances s past it. It is the single definition of V5 used on every
 // chain entry, on the statement being verified (checkV5), and as Prepare's
@@ -342,20 +312,32 @@ func (s *chainState) apply(statement Statement) error {
 // then its validUntil must still be the one that entry set) or recorded an
 // individual review for it, or this statement records a new one: a rule's
 // dates can never claim a renewal the chain does not record.
-func (s chainState) checkPriorPackCovered(priorRules []ruleFields, fresh map[string]string) error {
+//
+// With tolerateOutside (an automated statement, which never counts a
+// review record) a rule whose reviewedAt is later than the chain head is
+// not an error: it is returned in outside so the caller can exclude it
+// from the automated renewal and leave it to a human statement. Nothing
+// about such a rule is trusted, and nothing in the automated path can
+// reset its consecutive-cycle count.
+func (s chainState) checkPriorPackCovered(priorRules []ruleFields, fresh map[string]string, tolerateOutside bool) (outside map[string]bool, err error) {
+	outside = map[string]bool{}
 	if s.headDigest == nil {
-		return nil
+		return outside, nil
 	}
 	for _, rule := range priorRules {
 		reviewedAt, err := parseUTC(rule.Evidence.ReviewedAt)
 		if err != nil {
-			return fmt.Errorf("%w: V5: rule %s reviewedAt is malformed", ErrRejected, rule.ID)
+			return nil, fmt.Errorf("%w: V5: rule %s reviewedAt is malformed", ErrRejected, rule.ID)
 		}
 		if fresh[rule.ID] != "" {
 			continue
 		}
 		if reviewedAt.After(s.headAttestedAt) {
-			return fmt.Errorf("%w: V5: rule %s was reviewed after the chain head was attested but no new individual review record is supplied for it; the statement chain may be truncated", ErrRejected, rule.ID)
+			if tolerateOutside {
+				outside[rule.ID] = true
+				continue
+			}
+			return nil, fmt.Errorf("%w: V5: rule %s was reviewed after the chain head was attested but no new individual review record is supplied for it; the statement chain may be truncated", ErrRejected, rule.ID)
 		}
 		entry, ok := s.entries[rule.Evidence.ReviewedAt]
 		if !ok {
@@ -363,15 +345,15 @@ func (s chainState) checkPriorPackCovered(priorRules []ruleFields, fresh map[str
 		}
 		if validUntil, renewed := entry.renewed[rule.ID]; renewed {
 			if rule.Evidence.ValidUntil != validUntil {
-				return fmt.Errorf("%w: V5: rule %s carries the reviewedAt of the chain entry that renewed it but not the validUntil that entry set", ErrRejected, rule.ID)
+				return nil, fmt.Errorf("%w: V5: rule %s carries the reviewedAt of the chain entry that renewed it but not the validUntil that entry set", ErrRejected, rule.ID)
 			}
 			continue
 		}
 		if !entry.reviewed[rule.ID] {
-			return fmt.Errorf("%w: V5: rule %s carries a chain entry's attestedAt as its reviewedAt but that entry neither renewed it nor recorded an individual review for it", ErrRejected, rule.ID)
+			return nil, fmt.Errorf("%w: V5: rule %s carries a chain entry's attestedAt as its reviewedAt but that entry neither renewed it nor recorded an individual review for it", ErrRejected, rule.ID)
 		}
 	}
-	return nil
+	return outside, nil
 }
 
 // checkAppendOnly requires chain, the statement chain supplied with the
@@ -381,7 +363,14 @@ func (s chainState) checkPriorPackCovered(priorRules []ruleFields, fresh map[str
 // exact statement and envelope bytes, never by name. Removing, replacing,
 // re-signing or adding any other entry is rejected, as is an empty chain
 // over a non-empty base, and a statement the base chain already records.
-func checkAppendOnly(base, chain *Chain, statementRaw []byte) error {
+//
+// With requireAdded the statement under verification must be the one added
+// entry: a chain equal to its base is then rejected. Verify requires this
+// whenever the statement renews a rule or records an individual review, so
+// a renewal that is merged without its signed chain entry can never be
+// accepted; only the explicit pre-sign structural mode (VerifyOptions.PreSign)
+// runs without it, and that mode never passes the publish gate.
+func checkAppendOnly(base, chain *Chain, statementRaw []byte, requireAdded bool) error {
 	if base == nil {
 		return fmt.Errorf("%w: V5: the base branch's statement chain is required; pass an empty one for a pack with no attestation history on the base branch", ErrRejected)
 	}
@@ -418,6 +407,9 @@ func checkAppendOnly(base, chain *Chain, statementRaw []byte) error {
 	}
 	if len(added) == 1 && !bytes.Equal(added[0].Statement, statementRaw) {
 		return fmt.Errorf("%w: V5: chain entry %s is added to the base chain but is not the statement under verification", ErrRejected, added[0].Name)
+	}
+	if requireAdded && len(added) != 1 {
+		return fmt.Errorf("%w: V5: the statement renews a rule or records an individual review but is not appended to the statement chain; the chain must be the base chain plus exactly this statement", ErrRejected)
 	}
 	return nil
 }

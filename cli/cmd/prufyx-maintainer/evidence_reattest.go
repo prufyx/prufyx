@@ -388,6 +388,10 @@ func runEvidenceReattestSign(args []string, stdout, stderr io.Writer) error {
 		Statement: statementRaw, TrustRoot: trustRootRaw, EncryptedKey: keyRaw, Passphrase: passphrase, Role: role,
 		ExpectedTrustRootDigest: trustRootDigest, Now: time.Now().UTC(),
 	})
+	// Sign wipes the passphrase; wipe the key copy too.
+	for i := range keyRaw {
+		keyRaw[i] = 0
+	}
 	if err != nil {
 		fmt.Fprintf(stderr, "evidence reattest sign: %v\n", err)
 		return &commandError{code: 2, message: "evidence reattest sign: rejected", printed: true}
@@ -413,6 +417,9 @@ func automationSecrets(keyPath, keyEnv, passphrasePath, passphraseEnv string) (k
 		}
 	} else {
 		value, ok := os.LookupEnv(keyEnv)
+		// Remove the variable as soon as it is read, so nothing the
+		// process starts afterwards inherits the secret.
+		_ = os.Unsetenv(keyEnv)
 		if !ok || value == "" || len(value) > knowledgesign.MaxKeyBytes {
 			return nil, nil, knowledgesign.ErrRejected
 		}
@@ -426,6 +433,7 @@ func automationSecrets(keyPath, keyEnv, passphrasePath, passphraseEnv string) (k
 		passphrase = bytes.TrimSuffix(bytes.TrimSuffix(raw, []byte("\n")), []byte("\r"))
 	} else {
 		value, ok := os.LookupEnv(passphraseEnv)
+		_ = os.Unsetenv(passphraseEnv)
 		if !ok {
 			return nil, nil, knowledgesign.ErrRejected
 		}
@@ -502,12 +510,13 @@ func (l *stringList) Set(value string) error {
 func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("evidence reattest verify", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
-	var statementPath, priorPackPath, nextPackPath, worklistPath, packName, rulesWorklistPath, reviewRecordDir, envelopePath, trustRootPath, trustRootDigest, statementChainDir, baseStatementChainDir string
+	var statementPath, priorPackPath, nextPackPath, worklistPath, rerunWorklistPath, packName, rulesWorklistPath, reviewRecordDir, envelopePath, trustRootPath, trustRootDigest, statementChainDir, baseStatementChainDir string
 	var structuralOnly bool
 	flags.StringVar(&statementPath, "statement", "", "statement.json to verify (absolute path)")
 	flags.StringVar(&priorPackPath, "prior-pack", "", "the base-branch rule pack (absolute path)")
 	flags.StringVar(&nextPackPath, "next-pack", "", "the changed rule pack, e.g. rules.next.json (absolute path)")
 	flags.StringVar(&worklistPath, "worklist", "", "the retained worklist the statement was prepared from (absolute path)")
+	flags.StringVar(&rerunWorklistPath, "rerun-worklist", "", "a worklist the verifying job produced itself with its own \"evidence repin\" run (absolute path); every citation of every rule the statement renews must match it. Required whenever an automated statement renews a rule")
 	flags.StringVar(&packName, "pack", "", "cncf or community, for the eligibility recomputation")
 	flags.StringVar(&rulesWorklistPath, "rules-worklist-path", "", "the rule pack path as it appears in the worklist, if different from --prior-pack")
 	flags.StringVar(&reviewRecordDir, "review-record-dir", "", "directory of <ruleId>.json individual review records, one per rule (absolute path; optional)")
@@ -519,7 +528,7 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 	flags.BoolVar(&structuralOnly, "structural-only", false, "run only the structural checks, skipping the signature requirement; this NEVER counts as a passing publish gate and always exits non-zero, even when every structural check passes")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest verify --statement ABS --prior-pack ABS --next-pack ABS --worklist ABS --pack cncf|community --statement-chain-dir ABS --base-statement-chain-dir ABS (--envelope ABS --trust-root ABS --trust-root-digest sha256:... | --structural-only [--trust-root ABS --trust-root-digest sha256:...]) [--rules-worklist-path STR] [--review-record-dir ABS]")
+			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest verify --statement ABS --prior-pack ABS --next-pack ABS --worklist ABS --pack cncf|community --statement-chain-dir ABS --base-statement-chain-dir ABS (--envelope ABS --trust-root ABS --trust-root-digest sha256:... | --structural-only [--trust-root ABS --trust-root-digest sha256:...]) [--rerun-worklist ABS] [--rules-worklist-path STR] [--review-record-dir ABS]")
 			return e
 		}
 		return evidenceReattestError()
@@ -569,6 +578,13 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return evidenceReattestError()
 	}
+	var rerunWorklistRaw []byte
+	if rerunWorklistPath != "" {
+		rerunWorklistRaw, err = readReattestInput(rerunWorklistPath, evidencereattest.MaxWorklistBytes)
+		if err != nil {
+			return evidenceReattestError()
+		}
+	}
 	reviewRecords, err := loadReviewRecords(reviewRecordDir)
 	if err != nil {
 		return evidenceReattestError()
@@ -583,6 +599,7 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 		WorklistRaw: worklistRaw, Chain: chain, BaseChain: baseChain,
 		PackName: packName, PackPath: rulesWorklistPathOrDefault(rulesWorklistPath, priorPackPath), EngineCapabilityDigest: capabilityDigest,
 		ReviewRecords: reviewRecords, AttestedAtNow: time.Now().UTC(),
+		PreSign: structuralOnly, IndependentWorklistRaw: rerunWorklistRaw,
 	})
 	if err != nil {
 		fmt.Fprintf(stderr, "evidence reattest verify: FAIL: %v\n", err)
@@ -598,8 +615,13 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 		return &commandError{code: 1, message: "evidence reattest verify: structural-only is not a publish gate", printed: true}
 	}
 
-	if result.RuleCount > 0 && !signatureFlagsGiven {
-		fmt.Fprintln(stderr, "evidence reattest verify: FAIL: this statement renews at least one rule; --envelope, --trust-root, and --trust-root-digest are required (or pass --structural-only to explicitly skip the signature, which never passes the gate)")
+	if result.SignerRole == evidencereattest.RoleAutomation && result.RuleCount > 0 && len(rerunWorklistRaw) == 0 {
+		fmt.Fprintln(stderr, "evidence reattest verify: FAIL: an automated statement that renews rules is only accepted against a worklist this job produced itself; pass --rerun-worklist")
+		return &commandError{code: 1, message: "evidence reattest verify: independent worklist required", printed: true}
+	}
+
+	if (result.RuleCount > 0 || result.ReviewCount > 0) && !signatureFlagsGiven {
+		fmt.Fprintln(stderr, "evidence reattest verify: FAIL: this statement renews at least one rule or records an individual review; --envelope, --trust-root, and --trust-root-digest are required (or pass --structural-only to explicitly skip the signature, which never passes the gate)")
 		return &commandError{code: 1, message: "evidence reattest verify: signature required", printed: true}
 	}
 

@@ -421,6 +421,9 @@ func defaultVerifyOptions(t *testing.T, now time.Time) VerifyOptions {
 	t.Helper()
 	return VerifyOptions{
 		AttestedAtNow: now.Add(time.Hour), Chain: &Chain{}, BaseChain: &Chain{},
+		// These tests check the structural invariants of a statement
+		// that has not been appended to a chain yet.
+		PreSign: true,
 	}
 }
 
@@ -1119,17 +1122,18 @@ func TestCheckV6RejectsUncoveredDateChangeAndOneSidedRule(t *testing.T) {
 	next := map[string]json.RawMessage{"rule-a": renewed}
 	empty := Statement{}
 
-	if err := checkV6(prior, next, empty, nil); err == nil || !strings.Contains(err.Error(), "V6:") || !strings.Contains(err.Error(), "no covering attestation") {
+	if err := checkV6(prior, next, empty, nil, true); err == nil || !strings.Contains(err.Error(), "V6:") || !strings.Contains(err.Error(), "no covering attestation") {
 		t.Fatalf("expected a V6 uncovered date change error, got %v", err)
 	}
-	if err := checkV6(prior, next, empty, map[string]string{"rule-a": "sha256:" + strings.Repeat("ee", 32)}); err != nil {
+	if err := checkV6(prior, next, empty, map[string]string{"rule-a": "sha256:" + strings.Repeat("ee", 32)}, true); err != nil {
 		t.Fatalf("date change covered by a review record rejected: %v", err)
 	}
-	if err := checkV6(prior, next, Statement{Rules: []RuleAttestation{{RuleID: "rule-a"}}}, nil); err != nil {
+	covering := Statement{AttestedAt: "2026-02-01T00:00:00Z", ValidUntil: "2026-04-01T00:00:00Z", Rules: []RuleAttestation{{RuleID: "rule-a"}}}
+	if err := checkV6(prior, next, covering, nil, true); err != nil {
 		t.Fatalf("date change covered by the statement rejected: %v", err)
 	}
 	next["rule-b"] = ruleJSON(t, "rule-b", "2026-02-01T00:00:00Z", "2026-04-01T00:00:00Z")
-	if err := checkV6(prior, next, Statement{Rules: []RuleAttestation{{RuleID: "rule-a"}}}, nil); err == nil || !strings.Contains(err.Error(), "V6:") || !strings.Contains(err.Error(), "only one of the prior and next packs") {
+	if err := checkV6(prior, next, covering, nil, true); err == nil || !strings.Contains(err.Error(), "V6:") || !strings.Contains(err.Error(), "only one of the prior and next packs") {
 		t.Fatalf("expected a V6 one-sided rule error, got %v", err)
 	}
 }
@@ -1395,6 +1399,9 @@ func verifyCycleAgainstBase(c cycle, base, chain *Chain) error {
 		StatementRaw: c.res.StatementCanonical, PriorPackRaw: c.prior, NextPackRaw: c.res.NextPack,
 		WorklistRaw: c.worklistRaw, Chain: chain, BaseChain: base, PackName: PackCNCF, PackPath: chainPackPath,
 		EngineCapabilityDigest: testEngineCapabilityDigest, AttestedAtNow: c.at.Add(time.Hour), ReviewRecords: c.reviews,
+		// A statement the chain does not carry yet is checked in the
+		// pre-sign structural mode; one it carries is checked strictly.
+		PreSign: !chainContains(chain, c.res.StatementCanonical),
 	})
 	return err
 }
@@ -1753,14 +1760,14 @@ func TestPriorPackRuleReviewedAfterChainHeadNeedsNewReviewRecord(t *testing.T) {
 	state := chainStateAt(t, "2026-08-20T12:00:00Z", 1)
 	rule := ruleFields{ID: "rule-a"}
 	rule.Evidence.ReviewedAt = "2026-09-01T00:00:00Z"
-	if err := state.checkPriorPackCovered([]ruleFields{rule}, nil); err == nil || !strings.Contains(err.Error(), "V5:") || !strings.Contains(err.Error(), "truncated") {
+	if _, err := state.checkPriorPackCovered([]ruleFields{rule}, nil, false); err == nil || !strings.Contains(err.Error(), "V5:") || !strings.Contains(err.Error(), "truncated") {
 		t.Fatalf("expected a V5 error for a rule reviewed after the chain head with no review record, got %v", err)
 	}
-	if err := state.checkPriorPackCovered([]ruleFields{rule}, map[string]string{"rule-a": "sha256:" + strings.Repeat("ee", 32)}); err != nil {
+	if _, err := state.checkPriorPackCovered([]ruleFields{rule}, map[string]string{"rule-a": "sha256:" + strings.Repeat("ee", 32)}, false); err != nil {
 		t.Fatalf("a new review record must account for the later reviewedAt: %v", err)
 	}
 	rule.Evidence.ReviewedAt = "2026-08-20T12:00:00Z"
-	if err := state.checkPriorPackCovered([]ruleFields{rule}, nil); err != nil {
+	if _, err := state.checkPriorPackCovered([]ruleFields{rule}, nil, false); err != nil {
 		t.Fatalf("a rule renewed by the chain head itself must pass: %v", err)
 	}
 }
@@ -1854,7 +1861,7 @@ func TestPrepareAndVerifyStayWithinStaggerCapOnRealPacks(t *testing.T) {
 			if _, err := Verify(VerifyOptions{
 				StatementRaw: res.StatementCanonical, PriorPackRaw: raw, NextPackRaw: res.NextPack, WorklistRaw: worklistRaw,
 				Chain: &Chain{}, BaseChain: &Chain{}, PackName: tc.pack, PackPath: tc.path, EngineCapabilityDigest: testEngineCapabilityDigest,
-				AttestedAtNow: at.Add(time.Hour), ReviewRecords: reviews,
+				AttestedAtNow: at.Add(time.Hour), ReviewRecords: reviews, PreSign: true,
 			}); err != nil {
 				t.Fatalf("%s wave %d: Verify rejected Prepare's own output (%d renewed): %v", tc.pack, wave, res.EligibleRuleCount, err)
 			}

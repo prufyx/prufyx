@@ -15,8 +15,9 @@ import (
 )
 
 // unchangedWorklist is a synthetic worklist over every citation of the pack
-// in packRaw in which every citation is unchanged (NO_NEW_RELEASE against a
-// latest-release baseline its own repository record backs), fresh at at.
+// in packRaw in which every citation is unchanged (NO_NEW_RELEASE against
+// the newest release on its own release line, backed by a resolved line
+// record), fresh at at.
 func unchangedWorklist(t *testing.T, packPath string, packRaw []byte, at time.Time) []byte {
 	t.Helper()
 	doc, err := loadPack(packRaw)
@@ -39,10 +40,11 @@ func unchangedWorklist(t *testing.T, packPath string, packRaw []byte, at time.Ti
 			wl.Citations = append(wl.Citations, evidencerepin.ClassResult{
 				RulePack: packPath, RuleID: fields.ID, Project: entry.Project, SourceID: source.ID,
 				Owner: "o", Repo: repo, OldCommit: source.Revision, NewCommit: source.Revision,
-				Class: evidencerepin.ClassNoNewRelease, Baseline: evidencerepin.BaselineLatest, BaselineTag: "v1",
+				Class: evidencerepin.ClassNoNewRelease,
 			})
 		}
 	}
+	lineBaselined(&wl)
 	return marshalWorklist(t, wl)
 }
 
@@ -119,10 +121,18 @@ func simulateAutomated(t *testing.T, packName, packPath string, start time.Time,
 		if err != nil {
 			t.Fatalf("%s run %d: Prepare: %v", packName, run+1, err)
 		}
+		// Every automated run is signed by the automation key and appended,
+		// and verified as the one entry added to the base chain.
+		envelope, err := f.signAs(RoleAutomation, f.automation, res.StatementCanonical)
+		if err != nil {
+			t.Fatalf("%s run %d: automation Sign: %v", packName, run+1, err)
+		}
+		baseChain := f.chain()
+		f.entries = append(f.entries, ChainEntry{Name: fmt.Sprintf("%04d", run+1), Statement: res.StatementCanonical, Envelope: envelope})
 		if _, err := Verify(VerifyOptions{
 			StatementRaw: res.StatementCanonical, PriorPackRaw: raw, NextPackRaw: res.NextPack, WorklistRaw: worklistRaw,
-			Chain: f.chain(), BaseChain: f.chain(), PackName: packName, PackPath: packPath, EngineCapabilityDigest: testEngineCapabilityDigest,
-			AttestedAtNow: at.Add(time.Hour),
+			Chain: f.chain(), BaseChain: baseChain, PackName: packName, PackPath: packPath, EngineCapabilityDigest: testEngineCapabilityDigest,
+			AttestedAtNow: at.Add(time.Hour), IndependentWorklistRaw: worklistRaw,
 		}); err != nil {
 			t.Fatalf("%s run %d: Verify rejected Prepare's own automated statement: %v", packName, run+1, err)
 		}
@@ -146,12 +156,6 @@ func simulateAutomated(t *testing.T, packName, packPath string, start time.Time,
 				lastReason[ne.RuleID] = ne.WorstClass
 			}
 		}
-		// Every automated run is signed by the automation key and appended.
-		envelope, err := f.signAs(RoleAutomation, f.automation, res.StatementCanonical)
-		if err != nil {
-			t.Fatalf("%s run %d: automation Sign: %v", packName, run+1, err)
-		}
-		f.entries = append(f.entries, ChainEntry{Name: fmt.Sprintf("%04d", run+1), Statement: res.StatementCanonical, Envelope: envelope})
 		raw = res.NextPack
 	}
 	doc, err := loadPack(raw)

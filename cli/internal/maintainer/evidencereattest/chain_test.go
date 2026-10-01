@@ -609,7 +609,7 @@ func TestWeeklyBatchSimulationOnRealPacks(t *testing.T) {
 			_, verr := Verify(VerifyOptions{
 				StatementRaw: res.StatementCanonical, PriorPackRaw: raw, NextPackRaw: res.NextPack, WorklistRaw: worklistRaw,
 				Chain: f.chain(), BaseChain: f.chain(), PackName: tc.pack, PackPath: tc.path, EngineCapabilityDigest: testEngineCapabilityDigest,
-				AttestedAtNow: at.Add(time.Hour),
+				AttestedAtNow: at.Add(time.Hour), PreSign: true,
 			})
 			if len(res.Statement.Rules) == 0 && verr != nil {
 				t.Fatalf("%s week %d: Verify: %v", tc.pack, week+1, verr)

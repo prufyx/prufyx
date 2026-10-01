@@ -43,11 +43,19 @@ const (
 	reasonStaggerDeferred        = "STAGGER_DEFERRED"
 	reasonNotLaterThanCurrent    = "NOT_LATER_THAN_CURRENT"
 	reasonNotYetDue              = "NOT_YET_DUE"
-	// reasonLatestBaselineUnverified is automated mode only: a citation
-	// compared with the latest release whose compared commit is not the
-	// commit its repository's resolution names, or whose repository was
-	// resolved through the tags fallback.
-	reasonLatestBaselineUnverified = "LATEST_BASELINE_UNVERIFIED"
+	// reasonLatestBaselineNotAutomatable is automated mode only: a
+	// citation compared with the repository's latest release rather than
+	// with the newest release on its pinned tag's own release line. The
+	// owner's approval of automated renewal covers byte-identical citations
+	// on their release line only, so such a rule is left to a human
+	// statement.
+	reasonLatestBaselineNotAutomatable = "LATEST_BASELINE_NOT_AUTOMATABLE"
+	// reasonReviewedOutsideChain is automated mode only: the rule's
+	// reviewedAt in the prior pack is later than the chain head's
+	// attestedAt, so its evidence dates were moved by something the chain
+	// does not record. Automation never counts a review record, so the
+	// rule is left to a human statement.
+	reasonReviewedOutsideChain = "REVIEWED_OUTSIDE_STATEMENT_CHAIN"
 )
 
 // PrepareOptions names every input Prepare needs. It performs no I/O and
@@ -265,15 +273,19 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 
 	// Chain-derived per-rule state: which supplied review records are new
 	// individual reviews, and each rule's consecutive-batch-cycle count.
+	//
+	// An automated statement never counts a review record: no person signs
+	// it, and a record is only a maintainer's unauthenticated declaration.
 	records := opts.ReviewRecords
 	if automated {
-		records = state.anchoredReviewRecords(candidatesByID(candidates), records)
+		records = nil
 	}
 	fresh, err := state.reviewsFromRecords(candidatesByID(candidates), records, attestedAt)
 	if err != nil {
 		return PrepareResult{}, err
 	}
-	if err := state.checkPriorPackCovered(priorRules, fresh); err != nil {
+	outsideChain, err := state.checkPriorPackCovered(priorRules, fresh, automated)
+	if err != nil {
 		return PrepareResult{}, err
 	}
 
@@ -283,6 +295,10 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	ruleAttestations := map[string]RuleAttestation{}
 
 	for _, candidate := range candidates {
+		if outsideChain[candidate.RuleID] {
+			notExtended = append(notExtended, NotExtendedEntry{RuleID: candidate.RuleID, WorstClass: reasonReviewedOutsideChain})
+			continue
+		}
 		_, reviewedNow := fresh[candidate.RuleID]
 		cycles := state.expectedCycles(candidate.RuleID, reviewedNow)
 		reason, ok := evaluateEligibility(candidate, e2ok, e4worklist, attestedAt, repoByKey, lines, mismatchProjects, cycles, automated)
@@ -587,12 +603,12 @@ func evaluateEligibility(
 		// record that resolved this very tag and commit.
 		switch citation.Baseline {
 		case "", evidencerepin.BaselineLatest:
-			// Automated mode re-proves a latest-release baseline against
-			// the worklist's own repository record: the compared commit
-			// must be the one the repository resolved to, resolved through
-			// Releases, never the tags fallback.
-			if automated && !latestBaselineVerified(citation, repoByKey) {
-				return reasonLatestBaselineUnverified, false
+			// The owner's approval of automated renewal covers a citation
+			// whose cited commit is byte-identical on its own release
+			// line only; a comparison with the repository's latest
+			// release is left to a human statement.
+			if automated {
+				return reasonLatestBaselineNotAutomatable, false
 			}
 		case evidencerepin.BaselineReleaseLine:
 			if !lineBaselineVerified(citation, lines) {
@@ -643,16 +659,6 @@ func evaluateEligibility(
 		return reasonCorpusMismatchProject, false
 	}
 	return "", true
-}
-
-// latestBaselineVerified reports whether a citation compared with its
-// repository's latest release is backed by the worklist's own resolution
-// of that repository: resolved, through Releases, to exactly the commit the
-// citation was compared with.
-func latestBaselineVerified(citation evidencerepin.ClassResult, repoByKey map[string]evidencerepin.RepoResolution) bool {
-	repo, ok := repoByKey[citation.Owner+"/"+citation.Repo]
-	return ok && repo.Status == "RESOLVED" && repo.Resolution != resolutionTagFallback &&
-		repo.CurrentCommit != "" && citation.NewCommit == repo.CurrentCommit
 }
 
 // matchingLine finds the worklist line record a release-line citation's
