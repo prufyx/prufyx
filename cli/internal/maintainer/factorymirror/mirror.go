@@ -394,8 +394,10 @@ func (r *run) preserve(ctx context.Context, dest, commit string) {
 	_, _ = r.git(ctx, time.Minute, dest, "update-ref", "refs/prufyx/preserved/"+commit, commit)
 }
 
-// DefaultReleasesTTL bounds how stale "known" release metadata may get.
-const DefaultReleasesTTL = 24 * time.Hour
+// DefaultReleasesTTL bounds how stale "known" release metadata may get. It
+// leaves a day of slack for a late daily mirror run while staying inside the
+// 72-hour freshness bound that evidence reattestation applies.
+const DefaultReleasesTTL = 48 * time.Hour
 
 // releasesExpired reports whether known metadata is older than the TTL.
 func (r *run) releasesExpired(cur Releases) bool {

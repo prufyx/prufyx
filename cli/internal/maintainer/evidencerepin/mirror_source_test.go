@@ -675,7 +675,7 @@ func TestMirrorUnknownOrTruncatedReleases(t *testing.T) {
 		w := newWorld(t)
 		w.mirror(w.wants())
 		editIndex(t, w.state, func(repo map[string]any) {
-			repo["releases"].(map[string]any)["fetchedAt"] = time.Now().Add(-30 * time.Hour).UTC().Format(time.RFC3339)
+			repo["releases"].(map[string]any)["fetchedAt"] = time.Now().Add(-(factorymirror.DefaultReleasesTTL + 6*time.Hour)).UTC().Format(time.RFC3339)
 		})
 		wl, _ := w.mirrorWorklist(evidencerepin.BaselineModeLatest)
 		if c := classOf(wl, "-a"); c.Class != evidencerepin.ClassPending {
