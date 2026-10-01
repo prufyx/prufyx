@@ -141,6 +141,9 @@ func run(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	case "evidence":
+		if len(args) > 1 && args[1] == "reattest" {
+			return runEvidenceReattest(args[2:], stdout, stderr)
+		}
 		if code := runEvidenceRepin(args[1:], stdout, stderr); code != 0 {
 			return &commandError{code: code, message: "evidence repin failed", printed: true}
 		}

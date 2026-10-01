@@ -1,0 +1,367 @@
+# Batch evidence re-attestation
+
+`prufyx-maintainer evidence reattest prepare|sign|verify` lets a human
+maintainer renew the review lease on a batch of rules in one signed
+statement, when a fresh `evidence repin` run has mechanically confirmed that
+every one of their cited upstream spans is unchanged. It renews exactly two
+fields per rule, `evidence.reviewedAt` and `evidence.validUntil`; it never
+re-derives, edits, or authors a compatibility claim, and it never decides
+that a rule's evidence is unchanged on its own — that decision is always
+computed from a retained `evidence repin` worklist, never declared by a
+caller, and never trusted from the statement itself: `verify` reruns the
+whole computation from scratch and requires an exact byte match.
+
+This tool is separate from, and does not replace, individual rule review
+(`review-record`). A rule whose citations show any real drift (a moved,
+changed, or gone span, or a corpus-integrity mismatch) is never eligible for
+batch renewal; it goes to individual review.
+
+## Pipeline
+
+Every path argument must be absolute (the commands reject relative paths),
+so the examples below use `"$PWD/..."`.
+
+- `$REPIN_RULES_PATH` is the rule pack path exactly as `evidence repin`
+  recorded it in the worklist (`scope.rulePacks` and each citation's
+  `rulePack`): the `--rules` value repin was given, or by default the
+  absolute path of the shipped pack in the checkout repin ran from.
+  Citations are matched to the pack by that exact string, so
+  `--rules-worklist-path` is needed whenever it differs from the
+  `--rules`/`--prior-pack` path being read; it may be omitted when the two
+  are identical.
+- `$ROOT_DIGEST` is the trust root's pinned digest (see
+  [Signing](#signing) for how it is computed and why it must not be
+  derived from the file at hand).
+
+```sh
+# 1. (existing; unchanged)
+prufyx-maintainer evidence repin --state "$PWD/fresh-state" --output "$PWD/worklist.json"
+
+# 2. Build the statement and the candidate next pack.
+prufyx-maintainer evidence reattest prepare \
+  --worklist "$PWD/worklist.json" --pack cncf --rules "$PWD/current-rules.json" \
+  --rules-worklist-path "$REPIN_RULES_PATH" \
+  --statement-chain-dir "$PWD/chain/cncf" \
+  --trust-root "$PWD/evidence-reattest-trust-root.json" --trust-root-digest "$ROOT_DIGEST" \
+  --review-record-dir "$PWD/reviews" \
+  --next-revision <rev> --wave <1..7> --output-dir "$PWD/out"
+#   → out/statement.json  (canonical JSON, sorted keys)
+#   → out/rules.next.json (candidate next pack: only reviewedAt/validUntil changed)
+#   → out/summary.txt     (what a human reads before signing)
+
+# 3. A human, at a terminal, reads out/summary.txt, individually reviews
+#    every rule it lists as sampled, adds each review record to reviews/,
+#    reruns step 2, and then signs.
+prufyx-maintainer evidence reattest sign \
+  --statement "$PWD/out/statement.json" \
+  --trust-root "$PWD/evidence-reattest-trust-root.json" --trust-root-digest "$ROOT_DIGEST" \
+  --key "$PWD/evidence-reattest.key.pem" \
+  --output "$PWD/out/statement.sig.json"
+
+# 4. Deterministic, CI-usable gate; non-zero exit on any violation.
+prufyx-maintainer evidence reattest verify \
+  --statement "$PWD/out/statement.json" --prior-pack "$PWD/current-rules.json" \
+  --next-pack "$PWD/out/rules.next.json" --worklist "$PWD/worklist.json" --pack cncf \
+  --rules-worklist-path "$REPIN_RULES_PATH" \
+  --statement-chain-dir "$PWD/chain/cncf" --review-record-dir "$PWD/reviews" \
+  --envelope "$PWD/out/statement.sig.json" \
+  --trust-root "$PWD/evidence-reattest-trust-root.json" --trust-root-digest "$ROOT_DIGEST"
+
+# 5. Append the signed statement to the pack's chain.
+cp out/statement.json     chain/cncf/0001.statement.json
+cp out/statement.sig.json chain/cncf/0001.statement.sig.json
+```
+
+`--trust-root`/`--trust-root-digest` may be omitted from `prepare` only
+while the pack's chain directory is still empty; as soon as it holds a
+statement, both commands need the pin to verify it. `--review-record-dir`
+is optional, but without it every sampled rule is reported as `MISSING
+REVIEW RECORD` and `sign` and `verify` refuse the statement.
+
+`prepare` and `verify` never wire a statement into the runtime pack loader
+or the embedded rule pack. Publishing a re-attested pack (applying
+`rules.next.json`, running `corpus-attestation`, and running
+`export-knowledge`) is a separate step, exactly as it is for any other rule
+pack change; this tool does not perform it.
+
+## Eligibility: computed, never declared
+
+`prepare` recomputes, for every rule in the pack, whether it qualifies for
+batch renewal (conditions E1–E7 below), directly from the worklist's
+citations — never from any rolled-up verdict the worklist itself might
+also carry. A rule that fails any one of them is listed in `notExtended`
+with the worst reason found, and is left for individual review. `sign` and
+`verify` never trust a caller's claim about eligibility either: `verify`
+reruns `prepare`'s exact computation from the same worklist and pack and
+requires the result to reproduce the supplied statement, and the supplied
+next pack, byte-for-byte.
+
+| # | Condition | What it means |
+|---|---|---|
+| E1 | The rule's citations, matched one-for-one against `evidence.sources[].id`, each classify `NO_NEW_RELEASE`, `FILE_IDENTICAL`, or `SPAN_IDENTICAL`, are not stale, were not resolved through the GitHub tags fallback, and each cite the exact commit their source pins | A source with no citation, an extra citation with no source, a duplicate citation, or one bad citation excludes the whole rule, never just that citation |
+| E2 | Across the whole worklist, no citation for this pack classifies `PENDING`, and the worklist's scope has no `--project`/`--limit` filter | A partial or still-resolving worklist disqualifies the entire batch, not just the rules it touches. This is computed by counting the citations themselves, never read from a self-reported summary field a caller could hand-edit |
+| E3 | (folded into E1) No citation's repository was resolved through the GitHub tags fallback | A tag-fallback baseline is weaker evidence and goes to individual review |
+| E4 | The worklist is within 72 hours of the attestation instant, and every cited repository's own resolution is too | A stale worklist is never treated as current |
+| E5 | The rule carries no `range` | Ranged rules are excluded from batch renewal entirely |
+| E6 | The rule's consecutive batch-renewal count, derived from the pack's verified statement chain (see [The statement chain](#the-statement-chain-v5)), does not exceed 2 | A rule renewed by batch twice since its last recorded individual review must go through an individual review next |
+| E7 | The rule's evidence state is `active`, and no citation anywhere in the rule's project classified `CORPUS_DIGEST_MISMATCH` | A withdrawn rule, or a project with an unresolved corpus-integrity finding, is excluded project-wide |
+
+Rules that pass E1–E7 are then capped by the stagger rule (V7 below):
+`prepare` orders them by their current `validUntil` (earliest first), then
+by rule ID, and renews as many as fit in the slot week. The rest are listed
+in `notExtended` with the reason `STAGGER_DEFERRED`; they are left for a
+later wave, not for individual review.
+
+Among the rules renewed after that cap, `prepare` samples `ceil(10%)` of
+them, seeded by `sha256(worklistDigest ‖ ruleId)`, and lists them in
+`sampledForFullReview`. Each one needs a full individual review before
+`sign` — or `verify` — will accept the statement: a review record for it
+must be supplied in `--review-record-dir`, and it must be one whose digest
+this pack's chain has not recorded for that rule before. The seed is a
+function of inputs nobody controls after the worklist is generated, so the
+sample cannot be predicted or chosen.
+
+`notExtended` reasons are either the worst citation class found (E1), or
+one of: `WORKLIST_SCOPE_INCOMPLETE` (E2), `TAG_FALLBACK_BASELINE` (E3),
+`STALE_BASELINE` (E4, or a stale citation), `RANGED_RULE_EXCLUDED` (E5),
+`CONSECUTIVE_BATCH_CYCLE_CAP` (E6), `EVIDENCE_NOT_ACTIVE` and
+`CORPUS_DIGEST_MISMATCH_IN_PROJECT` (E7), `SOURCE_WITHOUT_CITATION`,
+`CITATION_WITHOUT_SOURCE`, `DUPLICATE_CITATION_FOR_SOURCE`,
+`CITATION_COMMIT_DOES_NOT_MATCH_PINNED_SOURCE` (E1), and
+`STAGGER_DEFERRED` (V7 cap).
+
+## What `verify` checks (V1–V7)
+
+`verify` is deterministic and side-effect-free. It takes the statement, the
+prior and next rule pack bytes, the retained worklist, the pack's statement
+chain directory, and the review record directory, and fails closed with a
+non-zero exit on the first violation it finds:
+
+- **V1/V3** — `verify` reruns `prepare` with exactly the inputs the
+  statement claims (worklist, prior pack, wave, attestedAt, next revision,
+  engine capability digest, review records) over the chain state it derived
+  itself, and requires the result to reproduce both the supplied statement
+  and the supplied next pack byte-for-byte. This is what makes V1 ("only
+  `reviewedAt`/`validUntil` may change, nothing else, in no other rule, and
+  no entry may be added, removed, or reordered") and V3 ("eligibility is
+  never a caller claim") hold at once: any difference anywhere in either
+  document breaks the byte match.
+- **V2** — the lease (`validUntil − attestedAt`) is positive and never
+  exceeds the 90-day cap, and the statement's `validUntil` equals the
+  wave's slot date computed from `attestedAt`; every renewed rule's next
+  `reviewedAt`/`validUntil` equal the statement's (enforced by V1).
+- **V4** — the statement's declared prior/next pack digests, revisions, and
+  rule-set digests are rebound to the actual supplied pack bytes.
+- **V5** — the statement chain; see [The statement chain](#the-statement-chain-v5).
+- **V6** — a CI gate over the pack diff, independent of V1/V3: every rule
+  whose `reviewedAt`/`validUntil` changed between the prior and next pack
+  must be covered either by this statement or by a supplied individual
+  review record (`--review-record-dir`), and every rule present in one pack
+  must be present in the other. It does not re-verify a review record's
+  authenticity, which stays `review-record`'s job.
+- **V7** — the stagger cap. The cap is `floor(15% × the number of rules in
+  the pack)`, and never less than 1. For every ISO week this statement
+  renews at least one rule into, the number of next-pack rules whose
+  `validUntil` falls in that week must not exceed the cap. Weeks this
+  statement renews nothing into are not checked: a cluster that already
+  exists elsewhere in the pack does not fail an unrelated batch, and a
+  batch that moves rules out of a crowded week is allowed. `prepare` caps
+  its own batch the same way (see `STAGGER_DEFERRED` above), so it never
+  emits a statement V7 rejects.
+
+`verify` also requires a valid signature under a pinned trust root whenever
+the statement renews at least one rule (`--envelope` together with
+`--trust-root` and `--trust-root-digest`). `--trust-root` and
+`--trust-root-digest` always come as a pair; `--envelope` without them, or
+one of them without the other, is a usage error (exit 2). Pass
+`--structural-only` to run only the checks above, deliberately without
+checking the statement's own signature; that mode always exits non-zero
+(exit 1), however the structural checks came out, so it can never be
+mistaken for a passing publish gate. It exists for early checks — for
+example, right after `prepare`, before anyone has signed anything. It still
+needs `--trust-root`/`--trust-root-digest` when the pack's chain is not
+empty, because the chain's own signatures are always verified; it rejects
+`--envelope`.
+
+Exit codes: `0` — every check passed and, when anything was renewed, the
+signature verified; `1` — an invariant or the signature failed, a
+signature was required but not supplied, or `--structural-only` was used;
+`2` — a usage error or an unreadable or malformed input file (including a
+bad chain or review record directory).
+
+## The statement chain (V5)
+
+Each pack has a statement chain directory: a signed, append-only log of
+every statement produced for that pack. It holds only regular files named
+`<stem>.statement.json` and `<stem>.statement.sig.json`, one pair per
+statement, exactly as `prepare` and `sign` wrote them. Any other file, a
+statement without its signature (or the reverse), a symlink, or a
+subdirectory rejects the command. The stem is free-form; nothing depends on
+it or on the order of file names.
+
+Both `prepare` and `verify` derive the chain the same way (one shared
+function), and treat it as authoritative:
+
+- Every entry must parse, belong to the same pack (`--pack`), and carry a
+  valid signature under the same pinned trust root the command is given
+  (`--trust-root` and `--trust-root-digest`). An unsigned or badly signed
+  entry rejects the whole chain; it is never skipped.
+- Entries are ordered by their `previousAttestationDigest` links, from
+  exactly one genesis entry (`previousAttestationDigest: null`) to exactly
+  one head. A fork (two entries naming the same previous), a gap (an entry
+  whose previous is missing), a second genesis entry, or a duplicate entry
+  rejects the chain.
+- The statement being prepared or verified must name the head as its
+  `previousAttestationDigest` (`null` only when the chain is empty), and
+  its `attestedAt` must be later than the head's. A statement that is
+  already the chain's head (verified after it was appended) is checked
+  against the chain before it; one recorded anywhere else in the chain is
+  rejected.
+- Every rule's `consecutiveBatchCycles` is derived from the chain, never
+  from a caller-supplied value, and every entry's own recorded counts must
+  match that derivation: a rule's count is the number of statements in the
+  chain that renewed it since the most recent statement that recorded an
+  individual review for it, plus one for the statement at hand. A count
+  below 1 anywhere is rejected, and a count above 2 means the rule is not
+  renewed (`CONSECUTIVE_BATCH_CYCLE_CAP`). A rule that was simply not
+  renewed in some cycle keeps its count: only a recorded individual review
+  resets it.
+- **What counts as an individual review.** A review record in
+  `--review-record-dir` (one file per rule, named `<ruleId>.<ext>`, whose
+  digest is the SHA-256 of its exact bytes) for a rule in the pack, whose
+  digest the chain has not already recorded for that rule. `prepare` lists
+  every such record in the statement's `individualReviews`, so once the
+  statement is signed and appended, the review is part of the signed log;
+  a later statement that supplies the same record again does not reset
+  the rule a second time. A sampled rule's review is recorded the same
+  way. As everywhere else in this tool, the record's content is not
+  re-verified here; its digest is bound into the signed statement, and the
+  signer vouches for it.
+- **Editing the pack between cycles does not reset anything.** The chain
+  head is found by linkage, not by matching pack digests, so an unrelated
+  rule change merged between cycles leaves every count intact.
+- **A truncated chain is detected.** Every batch renewal sets the renewed
+  rules' `reviewedAt` to the statement's `attestedAt`, and every renewal is
+  a chain entry. So when the prior pack holds a rule whose `reviewedAt` is
+  later than the head's `attestedAt`, either a statement is missing from
+  the chain or the rule was reviewed individually since. `prepare` and
+  `verify` both reject the statement (V5) unless a new review record is
+  supplied for that rule.
+
+`--previous-statement` has been removed from both commands: the chain
+directory alone determines the previous statement. The chain directory
+must be kept in version control and only ever appended to; deleting it
+entirely is indistinguishable from a pack with no history and must be
+caught in code review of the change that deletes it.
+
+## Signing
+
+`sign` refuses to run off a terminal: it reads the passphrase the same way
+every other signer in this repository does
+(`term.ReadPassword` on `os.Stdin`, no flag, environment variable, file,
+default, or redirected input), so an unattended or agent-driven shell can
+never reach it with a usable passphrase. It additionally refuses a statement
+whose sampled rules are missing a recorded individual review
+(`sampledForFullReview[].reviewRecordDigest` empty): the maintainer must
+show they actually reviewed the seeded sample before their signature can
+cover the batch.
+
+```sh
+prufyx-maintainer evidence reattest sign \
+  --statement "$PWD/out/statement.json" \
+  --trust-root /absolute/operator-private/evidence-reattest-trust-root.json \
+  --trust-root-digest sha256:<independently-known-root-digest> \
+  --key /absolute/operator-private/evidence-reattest.key.pem \
+  --output "$PWD/out/statement.sig.json"
+```
+
+`--trust-root-digest` must come from somewhere other than the `--trust-root`
+file itself — a value the maintainer already holds, not one computed from
+the bytes being checked. `sign` and `VerifySignature` both refuse to run
+without it and refuse when it does not match; computing it from the same
+file would accept any self-consistent root an attacker hands in, which is
+not pinning at all.
+
+The digest is `sha256:` followed by the lowercase hex SHA-256 of the trust
+root's canonical JSON bytes, which is the file's content **without** its
+single trailing newline (the commands strip exactly one trailing newline
+before checking). Canonical JSON contains no raw newline, so whoever
+creates the root and publishes its pin can compute it with:
+
+```sh
+echo "sha256:$(tr -d '\n' < evidence-reattest-trust-root.json | shasum -a 256 | cut -d' ' -f1)"
+```
+
+The signed bytes are the exact canonical statement; the statement's own
+`statement` field is a fixed text (never free-form), stating what was run,
+what was found, and what the signature does and does not mean — restated
+verbatim in `cli/internal/maintainer/evidencereattest/evidencereattest.go`'s
+`FixedStatementText`.
+
+## Key custody
+
+The re-attestation signing key is a separate purpose (`rule-evidence-
+reattestation`) from both community-release signing and the TUF roles: a
+signature made for one purpose can never verify against another
+(`evidencereattest.Purpose`/`Audience`, checked on every parse). No
+production trust root is configured anywhere in this repository.
+`evidencereattest.ProductionTrustRootPath` is deliberately left as an unset
+constant; every function that needs a trust root takes it, and its expected
+digest, as explicit caller-supplied inputs instead, and no production path
+is ever read implicitly. Tests in this package generate their own
+throwaway keys with `ed25519.GenerateKey`; no real key or trust root is
+committed anywhere in this repository. Where the production key and its
+trust root are stored (hardware token vs. passphrase-encrypted offline key,
+single vs. multi-maintainer signature threshold) is a deployment decision
+this tool does not make; callers supply both explicitly on every call.
+
+## Known scope limits
+
+- **Rule-digest scheme.** `priorRuleDigest`/`nextRuleDigest` use
+  `sourcecorpus.Canonical`/`SHA` over the generically decoded rule — the
+  same scheme `maintainer/reviewrecord` uses for its own `ruleDigest`
+  binding. This is deliberately **not** byte-identical to the engine's
+  internal `claims[].ruleDigest` (`constraintengine`'s `digestJSON`, which
+  marshals an unexported typed struct in Go field-declaration order, not
+  sorted-key canonical order). The mismatch never affects a check this
+  package makes, because every comparison this package performs uses its
+  own scheme consistently on both sides.
+- **`ruleSetDigest`.** A digest over just the pack's rule array in
+  canonical form, for this package's own prior/next binding (V4). It is not
+  claimed to equal `constraintengine.RuleSet.Digest()`, which is unexported
+  and tied to the compiled, embedded pack rather than an arbitrary on-disk
+  file.
+- **`engineCapabilityDigest` for the community pack.** The CNCF pack uses
+  `cncfcheck.ExternalCapabilityDigest()`. The community pack has no
+  equivalent external capability surface (no external profile exists for it
+  at all), so its statements instead carry
+  `constraintengine.EngineContractDigest()`, the generic engine contract
+  digest. This is a known, narrower binding, not a silent substitution.
+- **`upstreamReleasesSincePrior`.** `evidence repin` resolves only each
+  repository's single most recent release, not a full release history
+  since the prior attestation. This field therefore lists the latest
+  resolved tag per cited repository, not a complete errata list. Not
+  implemented: fetching and acknowledging the full release list for each
+  cited repository.
+- **`toolIdentityDigest`.** A fixed, documented placeholder
+  (`evidencereattest.ToolIdentity`, hashed), not a reproducible
+  build-provenance attestation; no such system exists in this repository.
+- **Wave assignment.** `prepare`/`verify` compute a wave's slot date from
+  `attestedAt` (`evidencereattest.SlotDate`), but do not assign projects to
+  waves; the wave number is a caller-supplied input. Not implemented:
+  deterministic bin-packing of projects into waves by citation count.
+- **`--statement-chain-dir` contents.** `prepare` and `verify` read this
+  directory to derive the chain (see [The statement chain](#the-statement-chain-v5));
+  neither writes to it, and nothing in this tool appends a statement to it
+  after signing. Appending each signed statement and its signature, and
+  keeping the directory append-only in version control, is the caller's
+  responsibility.
+- **Trust root rotation.** Every chain entry is verified under the one
+  trust root the command is given, so a new trust root must keep every key
+  that signed an existing chain entry for as long as that chain is in use.
+- **Review record content.** `--review-record-dir` records are bound by
+  digest only. Verifying a record's content needs the rule's evidence
+  packet, source corpus, vectors, and target (see `review-record`), which
+  this tool does not take, so it does not do it. It rejects an empty
+  record, two records for the same rule ID, and anything in the directory
+  that is not a regular file.
