@@ -296,7 +296,9 @@ func TestAutomatedSlotsStayWithinTheLeaseWindow(t *testing.T) {
 			if slot.Weekday() != time.Monday || slot.Hour() != 12 || slot.Minute() != 0 || slot.Second() != 0 {
 				t.Fatalf("%s: slot %s is not Monday 12:00 UTC", rfc3339(at), rfc3339(slot))
 			}
-			if slot.Sub(at) <= automatedMinLease || slot.Sub(at) > maxLease {
+			// Literal bounds, independent of the constants: more than six
+			// weeks (twice the 21-day renewal window) and at most 90 days.
+			if slot.Sub(at) <= 42*24*time.Hour || slot.Sub(at) > 90*24*time.Hour {
 				t.Fatalf("%s: slot %s is outside (%s, %s]", rfc3339(at), rfc3339(slot), automatedMinLease, maxLease)
 			}
 			if i > 0 && !slot.After(slots[i-1]) {

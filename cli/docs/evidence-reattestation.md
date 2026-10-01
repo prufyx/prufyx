@@ -1,9 +1,11 @@
 # Batch evidence re-attestation
 
-`prufyx-maintainer evidence reattest prepare|sign|verify` lets a human
-maintainer renew the review lease on a batch of rules in one signed
-statement, when a fresh `evidence repin` run has mechanically confirmed that
-every one of their cited upstream spans is unchanged. It renews exactly two
+`prufyx-maintainer evidence reattest prepare|sign|verify` renews the review
+lease on a batch of rules in one signed statement, when a fresh `evidence
+repin` run has mechanically confirmed that every one of their cited
+upstream spans is unchanged. A human maintainer signs a human-mode batch at
+a terminal; an automation key signs an automated-mode batch unattended (see
+[Modes and signer roles](#modes-and-signer-roles)). It renews exactly two
 fields per rule, `evidence.reviewedAt` and `evidence.validUntil`; it never
 re-derives, edits, or authors a compatibility claim, and it never decides
 that a rule's evidence is unchanged on its own — that decision is always
@@ -15,6 +17,32 @@ This tool is separate from, and does not replace, individual rule review
 (`review-record`). A rule whose citations show any real drift (a moved,
 changed, or gone span, or a corpus-integrity mismatch) is never eligible for
 batch renewal; it goes to individual review.
+
+## Modes and signer roles
+
+`prepare` has two modes, and every statement records the role of the key
+that must sign it (`signerRole`):
+
+| | Human mode (`--mode human`, the default) | Automated mode (`--mode automated`) |
+|---|---|---|
+| Signer role | `human` | `automation` |
+| Who signs | a maintainer, at a terminal | an unattended job (for example CI) |
+| What it renews | reviewed rules whose citations are all mechanically unchanged (E1–E7) | the same, with each latest-release baseline additionally re-proven against the worklist's own repository record |
+| Sample | `ceil(10%)` of the batch must be individually reviewed before signing | none |
+| Schedule | one wave slot for the whole batch (`--wave 1..7`) | each rule scheduled into its own week (see [Automated mode](#automated-mode)) |
+| Consecutive-cycle cap | 2 | 2, shared with human renewals |
+| Mechanical rules | never renewed | never renewed |
+
+The binding is enforced in both directions and at every step: `sign`
+refuses a statement prepared for the other role, and refuses a key whose
+role in the trust root is not the one it signs as; a signature verifies a
+statement only when its key holds the statement's role
+(`VerifySignature`, which `verify` and the chain derivation both use); and
+`verify` recomputes the statement in the mode its role names and checks the
+role's policy independently (V8). An automation key can therefore only ever
+produce a statement that renews what the automated policy computes as
+eligible, and a human statement always carries the wave and the reviewed
+sample the human path requires.
 
 ## Pipeline
 
@@ -54,6 +82,8 @@ prufyx-maintainer evidence reattest prepare \
 #   → out/$SEQ/statement.json  (canonical JSON, sorted keys)
 #   → out/$SEQ/rules.next.json (candidate next pack: only reviewedAt/validUntil changed)
 #   → out/$SEQ/summary.txt     (what a human reads before signing)
+
+#    (Automated mode: --mode automated instead of --wave; see below.)
 
 # 3. A human, at a terminal, reads out/$SEQ/summary.txt, individually
 #    reviews every rule it lists as sampled, adds each review record to
@@ -123,6 +153,27 @@ statement whose `attestedAt` is later than the signer's clock, and
 `prepare` and `verify` reject a chain holding an entry attested later than
 their own clock.
 
+In automated mode, steps 2 and 3 become:
+
+```sh
+prufyx-maintainer evidence reattest prepare --mode automated \
+  --worklist "$PWD/worklist.json" --pack cncf --rules "$PWD/current-rules.json" \
+  --rules-worklist-path "$REPIN_RULES_PATH" \
+  --statement-chain-dir "$PWD/chain/cncf" \
+  --trust-root "$PWD/evidence-reattest-trust-root.json" --trust-root-digest "$ROOT_DIGEST" \
+  --review-record-dir "$PWD/reviews" \
+  --next-revision <rev> --output-dir "$PWD/out/$SEQ"
+
+prufyx-maintainer evidence reattest sign --role automation \
+  --statement "$PWD/out/$SEQ/statement.json" \
+  --trust-root "$PWD/evidence-reattest-trust-root.json" --trust-root-digest "$ROOT_DIGEST" \
+  --key-env REATTEST_AUTOMATION_KEY --passphrase-env REATTEST_AUTOMATION_PASSPHRASE \
+  --output "$PWD/out/$SEQ/statement.sig.json"
+```
+
+Steps 4 and 5 are unchanged: an automated statement is appended to the same
+chain, and `verify` takes the same arguments.
+
 `prepare` and `verify` never wire a statement into the runtime pack loader
 or the embedded rule pack. Publishing a re-attested pack (running
 `corpus-attestation` and `export-knowledge` on the changed rule pack) is a
@@ -180,6 +231,63 @@ review (see [The statement chain](#the-statement-chain-v5)). The seed is
 a function of inputs nobody controls after the worklist is generated, so the
 sample cannot be predicted or chosen.
 
+## Automated mode
+
+`prepare --mode automated` computes eligibility exactly as above (E1–E7,
+including the mechanical-rule exclusion, `NOT_YET_DUE` and
+`NOT_LATER_THAN_CURRENT`), with these differences:
+
+- **Latest-release baselines are re-proven.** A citation compared with its
+  repository's latest release must name, as its compared commit, exactly
+  the commit the worklist's own record for that repository resolved to,
+  and that record must be `RESOLVED` through Releases, never the tags
+  fallback. Otherwise the rule is listed as `LATEST_BASELINE_UNVERIFIED`.
+  (A release-line citation is already required to be backed by a matching
+  line record; see E1.) A v1 worklist, which predates baseline records, is
+  rejected.
+- **No sample.** `sampledForFullReview` is always empty, and must be: a
+  human statement that renews rules without a reviewed sample, or an
+  automated statement carrying a sample, is rejected.
+- **The consecutive-cycle cap still applies**, and it counts human and
+  automated renewals together: a rule renewed twice since its last
+  recorded individual review, by either kind of statement, is not renewed
+  again (`CONSECUTIVE_BATCH_CYCLE_CAP`). With no individual review, its
+  lease then runs out and it evaluates as `UNKNOWN`.
+- **Review records are counted only when the pack requires them.** A
+  review record is a maintainer's declaration; in a human statement the
+  signing maintainer vouches for it, but nobody signs an automated
+  statement. So an automated statement counts a supplied record as a new
+  individual review (resetting the rule's cycle count) only for a rule
+  whose `reviewedAt` in the prior pack is later than the chain head's
+  `attestedAt` — a rule whose dates were already moved on the base branch
+  by an individual review merged outside the chain, which the next
+  statement must record anyway (see "A truncated chain is detected"
+  below). Every other supplied record is ignored, so supplying records can
+  never reset a rule's count in automated mode. V6 likewise accepts only
+  the statement's own rules, never a review record, as accounting for a
+  changed date in an automated statement's pack.
+- **Per-rule schedule instead of waves.** There is no `--wave`. The
+  candidate dates are the weekly Monday 12:00 UTC instants that are more
+  than 42 days (twice the renewal window) and at most 90 days after
+  `attestedAt` — six or seven of them, each in its own ISO week. Due rules
+  are placed one at a time, soonest-expiring first, then by rule ID. Each
+  rule starts at its own preferred date — `sha256` of a fixed domain string
+  and the rule ID, modulo the number of candidate dates — and takes the
+  first date, moving later and wrapping around to the earliest, whose ISO
+  week stays within the V7 cap, counting every rule's `validUntil` as it
+  will be in the next pack. A rule no date accepts is `STAGGER_DEFERRED`
+  and is picked up by a later run. Each renewed rule's own date is recorded
+  as `rules[].validUntil`; the statement's `validUntil` is the latest
+  candidate date. The schedule depends only on the pack's rules, the
+  eligible set and `attestedAt` — not on pack order — so `verify`
+  recomputes it identically. Because every candidate date is more than 42
+  days out and a rule is due only within 21 days of its lease end, an
+  automated renewal always moves `validUntil` later, and a renewed rule is
+  not due again for at least 21 days.
+
+Automated runs are meant to be frequent (for example daily): each run renews
+whatever has become due since the last one, spread over the coming weeks.
+
 `notExtended` reasons are either the worst citation class found (E1), or
 one of: `WORKLIST_SCOPE_INCOMPLETE` (E2), `TAG_FALLBACK_BASELINE` (E3),
 `STALE_BASELINE` (E4, or a stale citation), `RELEASE_LINE_BASELINE_UNVERIFIED` (E1, a release-line citation whose pinned tag, line, compared tag or line record is missing or inconsistent), `RANGED_RULE_EXCLUDED` (E5),
@@ -187,10 +295,11 @@ one of: `WORKLIST_SCOPE_INCOMPLETE` (E2), `TAG_FALLBACK_BASELINE` (E3),
 `CORPUS_DIGEST_MISMATCH_IN_PROJECT` (E7), `SOURCE_WITHOUT_CITATION`,
 `CITATION_WITHOUT_SOURCE`, `DUPLICATE_CITATION_FOR_SOURCE`,
 `CITATION_COMMIT_DOES_NOT_MATCH_PINNED_SOURCE` (E1),
-`NOT_LATER_THAN_CURRENT` and `NOT_YET_DUE` (renewal timing, see above), and
-`STAGGER_DEFERRED` (V7 cap).
+`NOT_LATER_THAN_CURRENT` and `NOT_YET_DUE` (renewal timing, see above),
+`STAGGER_DEFERRED` (V7 cap), `MECHANICAL_RULE_EXCLUDED`, and, in automated
+mode only, `LATEST_BASELINE_UNVERIFIED`.
 
-## What `verify` checks (V1–V7)
+## What `verify` checks (V1–V8)
 
 `verify` is deterministic and side-effect-free. It takes the statement, the
 prior and next rule pack bytes, the retained worklist, the pack's statement
@@ -199,7 +308,7 @@ and the review record directory, and fails closed with a non-zero exit on
 the first violation it finds:
 
 - **V1/V3** — `verify` reruns `prepare` with exactly the inputs the
-  statement claims (worklist, prior pack, wave, attestedAt, next revision,
+  statement claims (mode from its `signerRole`, worklist, prior pack, wave, attestedAt, next revision,
   engine capability digest, review records) over the chain state it derived
   itself, and requires the result to reproduce both the supplied statement
   and the supplied next pack byte-for-byte. This is what makes V1 ("only
@@ -208,9 +317,12 @@ the first violation it finds:
   never a caller claim") hold at once: any difference anywhere in either
   document breaks the byte match.
 - **V2** — the lease (`validUntil − attestedAt`) is positive and never
-  exceeds the 90-day cap, and the statement's `validUntil` equals the
-  wave's slot date computed from `attestedAt`; every renewed rule's next
-  `reviewedAt`/`validUntil` equal the statement's (enforced by V1).
+  exceeds the 90-day cap. For a human statement, its `validUntil` equals
+  the wave's slot date computed from `attestedAt`, and every renewed rule's
+  next `reviewedAt`/`validUntil` equal the statement's (enforced by V1).
+  For an automated statement, its `validUntil` is the latest automated
+  candidate date for `attestedAt`, and every renewed rule's own
+  `validUntil` is one of those candidate dates, each within the 90-day cap.
 - **V4** — the statement's declared prior/next pack digests, revisions, and
   rule-set digests are rebound to the actual supplied pack bytes.
 - **V5** — the statement chain; see [The statement chain](#the-statement-chain-v5).
@@ -239,6 +351,17 @@ the first violation it finds:
   batch that moves rules out of a crowded week is allowed. `prepare` caps
   its own batch the same way (see `STAGGER_DEFERRED` above), so it never
   emits a statement V7 rejects.
+
+- **V8** — the role policy, from the statement and the prior pack alone,
+  independent of V1/V3: every renewed rule exists in the prior pack, is a
+  reviewed (not mechanical), active rule with no `range`, and is listed
+  with exactly one citation per evidence source, each pinned to the
+  source's own revision and classified `NO_NEW_RELEASE`, `FILE_IDENTICAL`
+  or `SPAN_IDENTICAL` against the latest release or its release line; its
+  `consecutiveBatchCycles` is between 1 and 2; a human statement has a
+  wave, no per-rule `validUntil`, and a sample whenever it renews anything;
+  an automated statement has no wave, no sample, and a `validUntil` on
+  every rule.
 
 `verify` also requires a valid signature under a pinned trust root whenever
 the statement renews at least one rule (`--envelope` together with
@@ -376,15 +499,48 @@ this tool can see.
 
 ## Signing
 
-`sign` refuses to run off a terminal: it reads the passphrase the same way
-every other signer in this repository does
+`sign --role human` (the default) refuses to run off a terminal: it reads
+the passphrase the same way every other signer in this repository does
 (`term.ReadPassword` on `os.Stdin`, no flag, environment variable, file,
 default, or redirected input), so an unattended or agent-driven shell can
-never reach it with a usable passphrase. It additionally refuses a statement
-whose sampled rules are missing a recorded individual review
-(`sampledForFullReview[].reviewRecordDigest` empty): the maintainer must
-show they actually reviewed the seeded sample before their signature can
-cover the batch.
+never reach a human key with a usable passphrase; it rejects
+`--key-env`, `--passphrase-file` and `--passphrase-env`. It additionally
+refuses a statement whose sampled rules are missing a recorded individual
+review (`sampledForFullReview[].reviewRecordDigest` empty): the maintainer
+must show they actually reviewed the seeded sample before their signature
+can cover the batch.
+
+`sign --role automation` is the unattended path, for automated statements
+only. It reads the encrypted key from `--key` (an absolute path to a file
+of mode `0600` owned by the current user) or from the environment variable
+named by `--key-env`, and its passphrase from `--passphrase-file` (same
+file rules; one trailing newline is ignored) or from the environment
+variable named by `--passphrase-env` — exactly one source of each. Both
+roles refuse, before any secret is read, a statement whose `signerRole` is
+not the role given, and `sign` refuses a key whose role in the trust root
+is not that role. In CI, the key and the passphrase are two secrets
+exposed only to the job that signs, for example:
+
+```yaml
+- name: Sign the automated statement
+  env:
+    REATTEST_AUTOMATION_KEY: ${{ secrets.REATTEST_AUTOMATION_KEY }}
+    REATTEST_AUTOMATION_PASSPHRASE: ${{ secrets.REATTEST_AUTOMATION_PASSPHRASE }}
+  run: |
+    prufyx-maintainer evidence reattest sign --role automation \
+      --statement "$PWD/out/statement.json" \
+      --trust-root "$PWD/evidence-reattest-trust-root.json" --trust-root-digest "$ROOT_DIGEST" \
+      --key-env REATTEST_AUTOMATION_KEY --passphrase-env REATTEST_AUTOMATION_PASSPHRASE \
+      --output "$PWD/out/statement.sig.json"
+```
+
+Run `verify` on the prepared statement before signing it, and sign only in
+a job that cannot be triggered by an untrusted change (for example only on
+the protected default branch, in an environment whose secrets are
+restricted to it). Even a stolen automation key can renew only what the
+automated policy computes as eligible from the retained worklist: `verify`
+recomputes every automated statement, and the key can never sign a human
+statement.
 
 ```sh
 prufyx-maintainer evidence reattest sign \
@@ -416,7 +572,46 @@ The signed bytes are the exact canonical statement; the statement's own
 `statement` field is a fixed text (never free-form), stating what was run,
 what was found, and what the signature does and does not mean — restated
 verbatim in `cli/internal/maintainer/evidencereattest/evidencereattest.go`'s
-`FixedStatementText`.
+`FixedStatementText` (human) and `AutomatedStatementText` (automated; it
+states that no person reviewed the statement).
+
+## Trust roots and roles
+
+A trust root (`prufyx.io/evidence-reattestation-trust-root/v2`) lists every
+key that may sign a statement for a pack, each with a `role`: `human` or
+`automation`. The threshold applies within one role — a statement is
+signed by keys of its own role only — so every role a root lists must have
+at least `threshold` keys. A key of the other role in an envelope is
+treated exactly like an unknown key.
+
+Earlier formats stay valid:
+
+- A v1 trust root (`.../trust-root/v1`, no `role` fields) is still accepted;
+  every key in it is a `human` key. It cannot sign or verify an automated
+  statement.
+- A v1 statement (`prufyx.io/evidence-reattestation/v1`, no `signerRole`)
+  is a human statement. Chains that begin with v1 statements stay
+  verifiable; new statements are always v2 and record their role.
+
+`trust-root migrate` derives a v2 root from a v1 or v2 root, reading only
+public keys:
+
+```sh
+prufyx-maintainer evidence reattest trust-root migrate \
+  --from "$PWD/evidence-reattest-trust-root.json" --from-digest "$ROOT_DIGEST" \
+  --add-automation-key <64 hex characters: the automation key's Ed25519 public key> \
+  --output "$PWD/evidence-reattest-trust-root.v2.json"
+```
+
+Every key it keeps keeps its role (a v1 root's keys become `human` keys);
+it can add `automation` keys (`--add-automation-key`, repeatable) and
+remove keys (`--remove-key <keyId>`, repeatable, for rotation), never adds a
+`human` key, keeps the threshold, and keeps the expiry unless `--expires`
+is given. It prints the new root's digest, which becomes the new pinned
+`--trust-root-digest`. Because the same human key is in the new root, a
+chain signed under the old root verifies unchanged under the new one; only
+the pin changes, and it must change in the same place for `prepare`,
+`sign` and `verify`.
 
 ## Key custody
 
@@ -434,6 +629,10 @@ committed anywhere in this repository. Where the production key and its
 trust root are stored (hardware token vs. passphrase-encrypted offline key,
 single vs. multi-maintainer signature threshold) is a deployment decision
 this tool does not make; callers supply both explicitly on every call.
+Keep the human and automation keys apart: the human key stays with the
+maintainer and is only ever unlocked at a terminal; the automation key and
+its passphrase are held as secrets of the one job that signs automated
+statements, never on the machine that prepares them.
 
 ## Known scope limits
 
@@ -480,7 +679,14 @@ this tool does not make; callers supply both explicitly on every call.
   change only appends, against `--base-statement-chain-dir`.
 - **Trust root rotation.** Every chain entry is verified under the one
   trust root the command is given, so a new trust root must keep every key
-  that signed an existing chain entry for as long as that chain is in use.
+  that signed an existing chain entry, in the same role, for as long as
+  that chain is in use. `trust-root migrate` never changes a kept key's
+  role, but it does not stop the operator removing a key that signed an
+  existing entry; `prepare` and `verify` then reject the chain.
+- **Key generation.** This tool does not generate the automation key. Any
+  Ed25519 key in the encrypted PEM format the other signers in this
+  repository use works; its public key is added with
+  `trust-root migrate --add-automation-key`.
 - **Review record content.** `--review-record-dir` records are checked
   structurally and bound to the rule, its project, its exact prior-pack
   version, and the chain's review history (see
