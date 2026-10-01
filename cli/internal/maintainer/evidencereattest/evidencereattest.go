@@ -23,11 +23,15 @@
 //	          plus a candidate "next" pack with only the qualifying rules'
 //	          reviewedAt/validUntil fields changed. It writes no production
 //	          pack file and needs no signing key.
-//	sign    - a human, at a terminal only, signs the exact statement bytes
-//	          prepare produced with an Ed25519 key under a pinned trust
-//	          root whose digest the caller supplies independently. It
-//	          refuses to run unattended (no TTY) and refuses a statement
-//	          whose sampled-for-full-review rules lack a recorded review.
+//	sign    - signs the exact statement bytes prepare produced with an
+//	          Ed25519 key under a pinned trust root whose digest the caller
+//	          supplies independently. The key's role in the trust root must
+//	          be the statement's signerRole: a human statement (human mode:
+//	          a wave and a seeded sample) is signed by a human, at a
+//	          terminal only, and is refused while a sampled rule lacks a
+//	          recorded review; an automated statement (automated mode: no
+//	          sample, a per-rule staggered validUntil) is signed unattended
+//	          by an automation key.
 //	verify  - deterministic, side-effect-free, CI-usable. It requires the
 //	          pack's statement chain to extend the base branch's chain by
 //	          at most the statement itself (checkAppendOnly), verifies the
@@ -35,7 +39,7 @@
 //	          (deriveChainState), recomputes the whole statement and the
 //	          whole next pack from scratch and requires them to match the
 //	          supplied bytes exactly, then checks every further invariant
-//	          (V2, V4-V7), with a non-zero process exit from its CLI
+//	          (V2, V4-V8), with a non-zero process exit from its CLI
 //	          adapter on any violation. It also requires a valid signature
 //	          under a pinned trust root whenever the statement renews at
 //	          least one rule.
