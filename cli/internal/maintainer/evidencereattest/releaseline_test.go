@@ -107,3 +107,42 @@ func TestPrepareRefusesUnverifiedReleaseLineBaselines(t *testing.T) {
 		}
 	}
 }
+
+// A repository that definitively publishes no releases or tags leaves its
+// citation NO_RELEASE_BASELINE. That class must not hold the whole pack's
+// batch back the way PENDING does, and the rule citing it must not be
+// renewed in batch.
+func TestPrepareNoReleaseBaselineExcludesOnlyItsOwnRule(t *testing.T) {
+	packPath := "/repo/cli/internal/cncfcheck/data/rules.json"
+	good := freshSpec("rule-a", "proj-a", baseNow)
+	bare := freshSpec("rule-b", "proj-b", baseNow)
+	bare.class = evidencerepin.ClassNoReleaseBaseline
+	wl, pack := buildWorklistAndPack(t, packPath, baseNow, []ruleSpec{good, bare})
+	result := prepareSingle(t, wl, pack, packPath)
+	if len(result.Statement.Rules) != 1 || result.Statement.Rules[0].RuleID != "rule-a" {
+		t.Fatalf("the unaffected rule must still be batch-renewable: rules %+v, notExtended %+v", result.Statement.Rules, result.Statement.NotExtended)
+	}
+	found := map[string]string{}
+	for _, ne := range result.Statement.NotExtended {
+		found[ne.RuleID] = ne.WorstClass
+	}
+	if found["rule-b"] != evidencerepin.ClassNoReleaseBaseline {
+		t.Fatalf("the rule citing a repository without releases must be excluded with its class: %+v", found)
+	}
+}
+
+// PENDING next to a NO_RELEASE_BASELINE citation still blocks the batch.
+func TestPrepareNoReleaseBaselineDoesNotMaskPending(t *testing.T) {
+	packPath := "/repo/cli/internal/cncfcheck/data/rules.json"
+	bare := freshSpec("rule-b", "proj-b", baseNow)
+	bare.class = evidencerepin.ClassNoReleaseBaseline
+	wl, pack := buildWorklistAndPack(t, packPath, baseNow, []ruleSpec{freshSpec("rule-a", "proj-a", baseNow), bare})
+	wl.Citations = append(wl.Citations, evidencerepin.ClassResult{
+		RulePack: packPath, RuleID: "rule-x", Project: "proj-a", SourceID: "rule-x-src",
+		Owner: "owner", Repo: "repo-x", Class: evidencerepin.ClassPending,
+	})
+	result := prepareSingle(t, wl, pack, packPath)
+	if len(result.Statement.Rules) != 0 {
+		t.Fatalf("a PENDING citation must still block the whole batch: %+v", result.Statement.Rules)
+	}
+}

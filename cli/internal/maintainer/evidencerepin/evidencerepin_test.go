@@ -913,7 +913,7 @@ func TestLatestTagPicksHighestVersionNotFirstListed(t *testing.T) {
 		// might return it), v10.0.0 numerically newer but listed second.
 		"/repos/example/versioned/tags?per_page=30": {[]byte(`[{"name":"v9.0.0"},{"name":"v10.0.0"},{"name":"v2.0.0"}]`), 200},
 	}}
-	got, err := latestTag(context.Background(), fetcher, "example", "versioned")
+	got, _, err := latestTag(context.Background(), fetcher, "example", "versioned")
 	if err != nil {
 		t.Fatalf("latestTag: %v", err)
 	}

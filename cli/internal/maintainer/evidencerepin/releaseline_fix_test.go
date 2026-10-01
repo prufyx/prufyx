@@ -5,6 +5,7 @@ package evidencerepin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -347,5 +348,124 @@ func TestLineStatusPinnedIsLatest(t *testing.T) {
 	latest := f.run(t, BaselineModeLatest, f.citation("proj-v1-25-3-doc", "v1.25.3", "doc.md", "x", 1, 1)).Citations[0]
 	if latest.LineStatus != "" {
 		t.Fatalf("latest baseline carries no line status: %+v", latest)
+	}
+}
+
+type noBaselineResponse struct {
+	body   []byte
+	status int
+}
+
+func noBaselineFetcher(owner, repo string, releases, tags noBaselineResponse) *fakeAPIFetcher {
+	f := &fakeAPIFetcher{responses: map[string]struct {
+		body   []byte
+		status int
+	}{}}
+	f.responses["/repos/"+owner+"/"+repo+"/releases?per_page=10"] = struct {
+		body   []byte
+		status int
+	}(releases)
+	f.responses["/repos/"+owner+"/"+repo+"/tags?per_page=30"] = struct {
+		body   []byte
+		status int
+	}(tags)
+	return f
+}
+
+func noBaselineCitations() []Citation {
+	return []Citation{
+		{RulePack: "p", RuleID: "r1", Project: "site", SourceID: "s1", Owner: "example", Repo: "website", Path: "a.md", OldCommit: commitA, OldDigest: "sha256:x", StartLine: 1, EndLine: 1},
+	}
+}
+
+func TestResolveCurrentCommitEmptyReleasesAndTagsIsDefinitive(t *testing.T) {
+	f := noBaselineFetcher("example", "website", noBaselineResponse{[]byte(`[]`), 200}, noBaselineResponse{[]byte(`[]`), 200})
+	_, _, _, err := ResolveCurrentCommit(context.Background(), f, "example", "website")
+	if !errors.Is(err, errNoReleaseBaseline) {
+		t.Fatalf("expected the definitive no-baseline error, got %v", err)
+	}
+}
+
+func TestNoReleaseBaselineIsTerminalAndNotBatchEligible(t *testing.T) {
+	f := noBaselineFetcher("example", "website", noBaselineResponse{[]byte(`[]`), 200}, noBaselineResponse{[]byte(`[]`), 200})
+	for _, mode := range []string{BaselineModeLatest, BaselineModeReleaseLine} {
+		state := newState()
+		wl, err := BuildWorklistWithBaseline(context.Background(), noBaselineCitations(), nil, 0, state, f, fakeBlobFetcher{}, fixedNow(), DefaultMaxAge, nil, mode)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := wl.Citations[0]
+		if got.Class != ClassNoReleaseBaseline || got.ClassifiedAt == "" || got.Detail == "" {
+			t.Fatalf("%s: expected a classified NO_RELEASE_BASELINE, got %+v", mode, got)
+		}
+		if wl.Summary.Pending != 0 || wl.Summary.Distribution[ClassNoReleaseBaseline] != 1 {
+			t.Fatalf("%s: must not count as pending: %+v", mode, wl.Summary)
+		}
+		if r := wl.Repos[0]; r.Status != repoNoReleasesOrTags || r.Determination == nil || !r.Determination.definitive() {
+			t.Fatalf("%s: repo resolution must carry the determination: %+v", mode, r)
+		}
+		if v := wl.Rules[0]; v.BatchEligible || v.PendingCitation || v.WorstClass != ClassNoReleaseBaseline {
+			t.Fatalf("%s: rule must be neither batch-eligible nor pending: %+v", mode, v)
+		}
+	}
+}
+
+// Anything short of two successful empty lists must stay PENDING.
+func TestNoBaselineNotProvenStaysPending(t *testing.T) {
+	empty := noBaselineResponse{[]byte(`[]`), 200}
+	cases := map[string][2]noBaselineResponse{
+		"tags rate limited":         {empty, {nil, 429}},
+		"tags forbidden":            {empty, {nil, 403}},
+		"tags server error":         {empty, {nil, 500}},
+		"tags missing":              {empty, {nil, 404}},
+		"tags not an array":         {empty, {[]byte(`{}`), 200}},
+		"tags null":                 {empty, {[]byte(`null`), 200}},
+		"tags body empty":           {empty, {nil, 200}},
+		"releases missing":          {{nil, 404}, empty},
+		"releases rate limited":     {{nil, 429}, empty},
+		"releases server error":     {{nil, 502}, empty},
+		"releases not an array":     {{[]byte(`{"message":"x"}`), 200}, empty},
+		"releases null":             {{[]byte(`null`), 200}, empty},
+		"only prereleases listed":   {{[]byte(`[{"tag_name":"v1-rc1","prerelease":true}]`), 200}, empty},
+		"only drafts listed":        {{[]byte(`[{"tag_name":"v1","draft":true}]`), 200}, empty},
+		"tag listed but unresolved": {empty, {[]byte(`[{"name":"v1"}]`), 200}},
+	}
+	for name, c := range cases {
+		f := noBaselineFetcher("example", "website", c[0], c[1])
+		wl, err := BuildWorklist(context.Background(), noBaselineCitations(), nil, 0, newState(), f, fakeBlobFetcher{}, fixedNow(), DefaultMaxAge, nil)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if wl.Citations[0].Class != ClassPending || wl.Summary.Pending != 1 || wl.Rules[0].BatchEligible {
+			t.Fatalf("%s: must stay PENDING, got %+v", name, wl.Citations[0])
+		}
+		if wl.Repos[0].Determination != nil {
+			t.Fatalf("%s: no determination may be recorded: %+v", name, wl.Repos[0])
+		}
+	}
+}
+
+// A NO_RELEASE_BASELINE result is never resumed from the state file: when
+// the repository later publishes a release the citation is classified
+// against it.
+func TestNoReleaseBaselineIsNotResumedOnceReleaseAppears(t *testing.T) {
+	state := newState()
+	none := noBaselineFetcher("example", "website", noBaselineResponse{[]byte(`[]`), 200}, noBaselineResponse{[]byte(`[]`), 200})
+	if _, err := BuildWorklist(context.Background(), noBaselineCitations(), nil, 0, state, none, fakeBlobFetcher{}, fixedNow(), DefaultMaxAge, nil); err != nil {
+		t.Fatal(err)
+	}
+	released := &fakeAPIFetcher{responses: map[string]struct {
+		body   []byte
+		status int
+	}{
+		"/repos/example/website/releases?per_page=10": {[]byte(`[{"tag_name":"v1"}]`), 200},
+		"/repos/example/website/git/ref/tags/v1":      {[]byte(`{"object":{"sha":"` + commitA + `","type":"commit"}}`), 200},
+	}}
+	wl, err := BuildWorklist(context.Background(), noBaselineCitations(), nil, 0, state, released, fakeBlobFetcher{}, fixedNow(), DefaultMaxAge, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wl.Citations[0].Class != ClassNoNewRelease {
+		t.Fatalf("expected the new release to be used, got %+v", wl.Citations[0])
 	}
 }

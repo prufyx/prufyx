@@ -98,6 +98,16 @@ const (
 	// a citation this run could not resolve (rate limit, transport error,
 	// or a repo not yet attempted) so a later run can retry it.
 	ClassPending = "PENDING"
+	// ClassNoReleaseBaseline marks a citation whose repository was
+	// definitively determined to publish neither GitHub Releases nor tags,
+	// so there is nothing to compare the pinned commit against. It is a
+	// terminal class, unlike ClassPending: it does not block a pack's batch (E2), and it is
+	// never batch-attestable (E1): the rules citing it need individual
+	// review or expire. It is re-derived from the repository's current
+	// resolution on every run, never resumed from an earlier one. It is recorded only when both lists were fetched
+	// successfully and returned an empty array; a missing repository,
+	// an error, a rate limit or an unparseable body stays PENDING.
+	ClassNoReleaseBaseline = "NO_RELEASE_BASELINE"
 
 	repoResolved           = "RESOLVED"
 	repoPendingRateLimited = "PENDING_RATE_LIMITED"
@@ -303,6 +313,8 @@ type RepoResolution struct {
 	// tags fallback rather than GitHub Releases, so downstream tooling can
 	// treat it as weaker evidence. Empty means Releases resolved it.
 	Resolution string `json:"resolution,omitempty"`
+	// Determination records how a NO_RELEASES_OR_TAGS status was reached.
+	Determination *NoBaselineDetermination `json:"determination,omitempty"`
 	// Stale is true when this resolution is older than the run's --max-age
 	// bound but could not be refreshed this run (for example because an
 	// earlier repository in the same run hit the GitHub API rate limit).
@@ -313,6 +325,27 @@ type RepoResolution struct {
 
 var errRateLimited = errors.New("github api rate limited")
 
+// NoBaselineDetermination is the evidence that a repository has no release
+// or tag to compare against: the releases list and the tags list were each
+// fetched with a success status and decoded as a JSON array holding no
+// entry. The first page is conclusive because both endpoints page from the
+// start of the list, so an empty first page is an empty list.
+type NoBaselineDetermination struct {
+	ReleasesListEmpty bool `json:"releasesListEmpty"`
+	TagsListEmpty     bool `json:"tagsListEmpty"`
+}
+
+// noBaselineDetail is the human-readable form recorded on the citation.
+const noBaselineDetail = "repository publishes no GitHub Releases and no tags: releases list and tags list were both fetched successfully and are empty"
+
+func (d *NoBaselineDetermination) definitive() bool {
+	return d != nil && d.ReleasesListEmpty && d.TagsListEmpty
+}
+
+// errNoReleaseBaseline is returned by ResolveCurrentCommit only when both
+// lists were fetched and were provably empty.
+var errNoReleaseBaseline = errors.New("repository has no releases and no tags")
+
 // ResolveCurrentCommit finds an owner/repo's most recent published release
 // (falling back to its most recent tag when the project publishes no
 // GitHub Releases) and resolves that tag to a commit SHA. It makes at most
@@ -321,17 +354,20 @@ var errRateLimited = errors.New("github api rate limited")
 // resolution is resolutionTagFallback when the tags fallback was used
 // (weaker evidence: see latestTag), or "" when GitHub Releases resolved it.
 func ResolveCurrentCommit(ctx context.Context, fetcher APIFetcher, owner, repo string) (tag, commit, resolution string, err error) {
-	tag, err = latestReleaseTag(ctx, fetcher, owner, repo)
+	tag, releasesEmpty, err := latestReleaseTag(ctx, fetcher, owner, repo)
 	if err != nil {
 		return "", "", "", err
 	}
 	if tag == "" {
-		tag, err = latestTag(ctx, fetcher, owner, repo)
+		var tagsEmpty bool
+		tag, tagsEmpty, err = latestTag(ctx, fetcher, owner, repo)
 		if err != nil {
 			return "", "", "", err
 		}
 		if tag != "" {
 			resolution = resolutionTagFallback
+		} else if releasesEmpty && tagsEmpty {
+			return "", "", "", errNoReleaseBaseline
 		}
 	}
 	if tag == "" {
@@ -367,13 +403,17 @@ func apiGet(ctx context.Context, fetcher APIFetcher, path string) ([]byte, error
 // descending.
 const releaseListPageSize = "10"
 
-func latestReleaseTag(ctx context.Context, fetcher APIFetcher, owner, repo string) (string, error) {
+// latestReleaseTag returns the newest published non-prerelease tag. empty is
+// true only when the endpoint answered successfully with a JSON array that
+// holds no release at all; a 404, an undecodable body, or a list holding only
+// drafts and prereleases is not "empty".
+func latestReleaseTag(ctx context.Context, fetcher APIFetcher, owner, repo string) (tag string, empty bool, err error) {
 	body, err := apiGet(ctx, fetcher, "/repos/"+owner+"/"+repo+"/releases?per_page="+releaseListPageSize)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	if body == nil {
-		return "", nil
+		return "", false, nil
 	}
 	var releases []struct {
 		TagName    string `json:"tag_name"`
@@ -381,17 +421,17 @@ func latestReleaseTag(ctx context.Context, fetcher APIFetcher, owner, repo strin
 		Prerelease bool   `json:"prerelease"`
 	}
 	if err := json.Unmarshal(body, &releases); err != nil {
-		return "", nil
+		return "", false, nil
 	}
 	// "Current release" means the latest published, non-prerelease
 	// version: a release candidate is not what an operator upgrades to,
 	// so it should not stand in as the staleness baseline.
 	for _, release := range releases {
 		if !release.Draft && !release.Prerelease {
-			return release.TagName, nil
+			return release.TagName, false, nil
 		}
 	}
-	return "", nil
+	return "", releases != nil && len(releases) == 0, nil
 }
 
 // tagsFallbackPageSize bounds the single tags-list request used when a
@@ -447,19 +487,24 @@ func compareTagVersions(a, b []int) int {
 	return 0
 }
 
-func latestTag(ctx context.Context, fetcher APIFetcher, owner, repo string) (string, error) {
+// latestTag is the tags fallback. empty has the same meaning as for
+// latestReleaseTag: a successful response holding an empty JSON array.
+func latestTag(ctx context.Context, fetcher APIFetcher, owner, repo string) (tag string, empty bool, err error) {
 	body, err := apiGet(ctx, fetcher, "/repos/"+owner+"/"+repo+"/tags?per_page="+tagsFallbackPageSize)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	if body == nil {
-		return "", nil
+		return "", false, nil
 	}
 	var tags []struct {
 		Name string `json:"name"`
 	}
-	if err := json.Unmarshal(body, &tags); err != nil || len(tags) == 0 {
-		return "", nil
+	if err := json.Unmarshal(body, &tags); err != nil {
+		return "", false, nil
+	}
+	if len(tags) == 0 {
+		return "", tags != nil, nil
 	}
 	// Prefer the numerically highest parsed version among candidates that
 	// parse as one; a strictly-greater comparison keeps the first API-order
@@ -476,7 +521,7 @@ func latestTag(ctx context.Context, fetcher APIFetcher, owner, repo string) (str
 			best, bestVersion, bestOK = candidate.Name, version, true
 		}
 	}
-	return best, nil
+	return best, false, nil
 }
 
 func resolveTagCommit(ctx context.Context, fetcher APIFetcher, owner, repo, tag string) (string, error) {
@@ -636,8 +681,10 @@ func costRank(class string) int {
 		return 5
 	case ClassCorpusDigestMismatch:
 		return 6
-	default:
+	case ClassNoReleaseBaseline:
 		return 7
+	default:
+		return 8
 	}
 }
 
@@ -1084,12 +1131,19 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 			resolution.Status = repoPendingRateLimited
 			resolution.Detail = "github api rate limit reached; re-run with the same --state to resume"
 			rateLimited = true
+		case errors.Is(err, errNoReleaseBaseline):
+			resolution.Status = repoNoReleasesOrTags
+			resolution.Detail = noBaselineDetail
+			resolution.Determination = &NoBaselineDetermination{ReleasesListEmpty: true, TagsListEmpty: true}
 		case err != nil:
 			resolution.Status = repoPendingError
 			resolution.Detail = "resolution attempt failed; re-run with the same --state to retry"
 		case commit == "":
-			resolution.Status = repoNoReleasesOrTags
-			resolution.Detail = "no GitHub Releases or tags found"
+			// Nothing resolved but emptiness was not proven (404, an
+			// undecodable body, only drafts and prereleases, or a tag
+			// that did not resolve to a commit): stay PENDING.
+			resolution.Status = repoPendingError
+			resolution.Detail = "no baseline resolved and absence of releases and tags not proven; re-run to retry"
 		default:
 			resolution.Status = repoResolved
 			resolution.CurrentTag = tag
@@ -1117,15 +1171,21 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 	for _, citation := range filtered {
 		citationKey := citation.key()
 		existing, hadExisting := state.Results[citationKey]
-		if hadExisting && existing.Class != ClassPending && isFresh(existing.ClassifiedAt, now(), maxAge) && resultMode(existing) == baselineMode && lineStillFresh(state, existing, now(), maxAge) {
+		if hadExisting && existing.Class != ClassPending && existing.Class != ClassNoReleaseBaseline && isFresh(existing.ClassifiedAt, now(), maxAge) && resultMode(existing) == baselineMode && lineStillFresh(state, existing, now(), maxAge) {
 			// Still fresh: resume without reclassifying or re-stamping.
 			results = append(results, existing)
 			continue
 		}
 		resolution := state.Repos[citation.repoKey()]
 		resolutionUsable := resolution.Status == repoResolved && isFresh(resolution.ResolvedAt, now(), maxAge)
+		noBaseline := resolution.Status == repoNoReleasesOrTags && resolution.Determination.definitive() && isFresh(resolution.ResolvedAt, now(), maxAge)
 		var result ClassResult
 		switch {
+		case noBaseline:
+			result = pendingResult(citation, noBaselineDetail)
+			result.Class = ClassNoReleaseBaseline
+			result.ClassifiedAt = now().UTC().Format(time.RFC3339)
+			result.BaselineMode = baselineMode
 		case resolutionUsable:
 			baselineCommit, baselineTag := resolution.CurrentCommit, resolution.CurrentTag
 			var decision baselineDecision
