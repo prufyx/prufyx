@@ -619,10 +619,11 @@ func TestCompletenessForADependentComponentNeedsItsDependencyInScope(t *testing.
 		}
 	}
 
-	// Now put the dependency on a transition nobody reviewed. Its own rules all
+	// Now put the dependency on a transition nobody reviewed (a patch upgrade
+	// within one minor line crosses no reviewed removal). Its own rules all
 	// become NOT_APPLICABLE, it has nothing evaluated, and the aggregate falls
 	// back to UNKNOWN rather than riding on rook's passing claim.
-	versions[kubernetesComponent] = [2]string{"1.32.0", "1.33.0"}
+	versions[kubernetesComponent] = [2]string{"1.33.0", "1.33.1"}
 	fallback, err := assessScopeWith(b, embeddedAttestation(t), scopeInput(t, []string{rookComponent, kubernetesComponent}, versions, map[string][]declaredFact{}), now)
 	if err != nil {
 		t.Fatal(err)
