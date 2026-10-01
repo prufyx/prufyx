@@ -359,4 +359,3 @@ func nextLink(header string) string {
 	}
 	return ""
 }
-

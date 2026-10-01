@@ -28,6 +28,9 @@ type lockRecord struct {
 	StartedAt string `json:"startedAt"`
 }
 
+// Heartbeat age is measured against the real clock because it is compared
+// with file modification times.
+//
 // Lock is a single-writer lock file with heartbeat-based stale recovery.
 // A lock is stale when its heartbeat (file modification time) is older than
 // the stale interval, or when it names a process on this host that no longer
@@ -72,7 +75,7 @@ func AcquireLock(path string, staleAfter time.Duration, now func() time.Time) (*
 		if !errors.Is(err, os.ErrExist) {
 			return nil, err
 		}
-		if !lockIsStale(path, staleAfter, now, host) {
+		if !lockIsStale(path, staleAfter, host) {
 			return nil, ErrLocked
 		}
 		// Atomically move the stale lock aside; only one contender wins the rename.
@@ -84,12 +87,12 @@ func AcquireLock(path string, staleAfter time.Duration, now func() time.Time) (*
 	return nil, ErrLocked
 }
 
-func lockIsStale(path string, staleAfter time.Duration, now func() time.Time, host string) bool {
+func lockIsStale(path string, staleAfter time.Duration, host string) bool {
 	info, err := os.Stat(path)
 	if err != nil {
 		return true // vanished; retry the create
 	}
-	if now().Sub(info.ModTime()) > staleAfter {
+	if time.Since(info.ModTime()) > staleAfter {
 		return true
 	}
 	raw, err := os.ReadFile(path)

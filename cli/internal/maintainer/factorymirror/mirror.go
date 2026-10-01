@@ -325,7 +325,13 @@ func (r *run) processRepo(ctx context.Context, repo Repo) RepoResult {
 }
 
 // scrub removes the remote URL from error text.
-func scrub(msg, url string) string { return strings.ReplaceAll(msg, url, "<remote>") }
+func scrub(msg, url string) string {
+	msg = strings.ReplaceAll(msg, url, "<remote>")
+	if i := strings.Index(url, "://"); i >= 0 {
+		msg = strings.ReplaceAll(msg, strings.TrimSuffix(url[i+3:], ".git"), "<remote>")
+	}
+	return msg
+}
 
 func (r *run) clone(ctx context.Context, url, dest string) error {
 	partial := dest + ".partial"

@@ -212,3 +212,9 @@ func detectTagChanges(repo string, old map[string]TagInfo, current map[string]Ta
 	}
 	return out
 }
+
+func sortStrings(lists ...[]string) {
+	for _, l := range lists {
+		sort.Strings(l)
+	}
+}

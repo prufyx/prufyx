@@ -18,6 +18,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/contribution"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/corpusattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/factorymirror"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgeexport"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgepack"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/localkind"
@@ -73,6 +74,9 @@ func run(args []string, stdout, stderr io.Writer) error {
 	}
 	if len(args) > 1 && args[0] == "evidence" && args[1] == "repin" {
 		repeatable = []string{"--project", "--rules"}
+	}
+	if args[0] == "factory" {
+		repeatable = factorymirror.RepeatableFlags(args)
 	}
 	if duplicateLongFlag(args[1:], repeatable) {
 		return &commandError{code: 2, message: "prufyx-maintainer: duplicate option rejected"}
@@ -148,13 +152,15 @@ func run(args []string, stdout, stderr io.Writer) error {
 			return &commandError{code: code, message: "evidence repin failed", printed: true}
 		}
 		return nil
+	case "factory":
+		return runFactory(args[1:], stdout, stderr)
 	case "rule":
 		if code := runRuleCheck(args[1:], stdout, stderr); code != 0 {
 			return &commandError{code: code, message: "rule validate failed", printed: true}
 		}
 		return nil
 	case "help", "-h", "--help":
-		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|rule|export-knowledge|package-knowledge|knowledge-publish|knowledge-sign|support-inventory|release-gate|staging-receipt|release|local-kind|release-*> [options]")
+		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|rule|export-knowledge|package-knowledge|knowledge-publish|knowledge-sign|support-inventory|release-gate|staging-receipt|release|local-kind|release-*> [options]")
 		return nil
 	default:
 		return usageError()

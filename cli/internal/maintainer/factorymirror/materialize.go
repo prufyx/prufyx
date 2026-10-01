@@ -152,4 +152,3 @@ func lsTree(ctx context.Context, g GitRunner, dir, commit, p string, listDir boo
 	}
 	return out, nil
 }
-
