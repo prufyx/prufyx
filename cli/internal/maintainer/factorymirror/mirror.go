@@ -32,7 +32,13 @@ type Options struct {
 	// repositories are up to date (see Materialize).
 	Wants []Want
 	// RemoteBase is prepended to host/owner/name.git; default "https://".
+	// With the default git runner only an https:// base is accepted (and
+	// file:// when AllowFileRemote is set); anything else, such as a
+	// transport helper like "ext::", is rejected.
 	RemoteBase string
+	// AllowFileRemote additionally permits a file:// RemoteBase. It exists
+	// for tests of the command line, not for production runs.
+	AllowFileRemote bool
 	// Concurrency bounds simultaneous repositories (default 4, max 16).
 	Concurrency int
 	// Git defaults to ExecGit allowing only the scheme of RemoteBase.
@@ -112,11 +118,19 @@ func (o *Options) defaults() error {
 		o.GitTimeout = 45 * time.Minute
 	}
 	if o.Git == nil {
-		scheme := "https"
-		if i := strings.Index(o.RemoteBase, "://"); i > 0 {
-			scheme = o.RemoteBase[:i]
+		var scheme string
+		switch {
+		case strings.HasPrefix(o.RemoteBase, "https://"):
+			scheme = "https"
+		case o.AllowFileRemote && strings.HasPrefix(o.RemoteBase, "file://"):
+			scheme = "file"
+		default:
+			return fmt.Errorf("%w: remote base must start with https://", ErrInvalid)
 		}
-		o.Git = ExecGit{AllowProtocols: scheme}
+		if strings.ContainsAny(o.RemoteBase, " \t\r\n\x00") {
+			return fmt.Errorf("%w: remote base contains whitespace", ErrInvalid)
+		}
+		o.Git = ExecGit{AllowProtocols: scheme, StateDir: o.StateDir}
 	}
 	if o.Progress == nil {
 		o.Progress = io.Discard

@@ -110,7 +110,7 @@ func (r *run) offline() GitRunner {
 	if r.opts.OfflineGit != nil {
 		return r.opts.OfflineGit
 	}
-	return ExecGit{Offline: true}
+	return ExecGit{Offline: true, StateDir: r.opts.StateDir}
 }
 
 // TreeEntry is one entry of a git tree.

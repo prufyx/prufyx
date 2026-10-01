@@ -84,7 +84,8 @@ func cmdMirror(args []string, getenv func(string) string, stdout, stderr io.Writ
 	wantsFile := f.String("wants", "", "JSON file listing pinned files to materialize")
 	concurrency := f.Int("concurrency", 4, "simultaneous repositories (1-16)")
 	force := f.Bool("force", false, "fetch even when upstream looks unchanged")
-	remoteBase := f.String("remote-base", "https://", "URL prefix for upstream repositories")
+	remoteBase := f.String("remote-base", "https://", "URL prefix for upstream repositories (https:// only)")
+	allowFile := f.Bool("test-allow-file-remote", false, "testing only: permit a file:// --remote-base")
 	gitTimeout := f.Duration("git-timeout", 45*time.Minute, "limit for one clone or fetch")
 	staleAfter := f.Duration("lock-stale-after", DefaultLockStaleAfter, "age after which an unrefreshed lock is abandoned")
 	if err := f.Parse(args); err != nil || f.NArg() != 0 {
@@ -118,7 +119,7 @@ func cmdMirror(args []string, getenv func(string) string, stdout, stderr io.Writ
 		return 0, err
 	}
 	opts := Options{
-		StateDir: *state, Repos: repos, Wants: wants, RemoteBase: *remoteBase,
+		StateDir: *state, Repos: repos, Wants: wants, RemoteBase: *remoteBase, AllowFileRemote: *allowFile,
 		Concurrency: *concurrency, Force: *force, GitTimeout: *gitTimeout,
 		LockStaleAfter: *staleAfter, Progress: stderr,
 	}
@@ -136,7 +137,7 @@ func cmdMirror(args []string, getenv func(string) string, stdout, stderr io.Writ
 		_ = enc.Encode(res)
 	}
 	if err != nil {
-		if errors.Is(err, ErrLocked) {
+		if errors.Is(err, ErrLocked) || errors.Is(err, ErrInvalid) {
 			return 0, err
 		}
 		fmt.Fprintf(stderr, "factory: %v\n", err)

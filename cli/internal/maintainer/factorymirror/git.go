@@ -11,7 +11,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -32,6 +34,11 @@ type ExecGit struct {
 	AllowProtocols string
 	// Offline disables every transport and lazy object fetching.
 	Offline bool
+	// StateDir is the mirror's state directory. Git is told to trust (and
+	// only to trust) the repository it is run in when that repository lies
+	// inside it; the directory may belong to another uid than the process
+	// (bind mounts), which git would otherwise refuse.
+	StateDir string
 }
 
 type limitBuffer struct {
@@ -48,10 +55,18 @@ func (l *limitBuffer) Write(p []byte) (int, error) {
 	return l.buf.Write(p)
 }
 
-func (g ExecGit) env() []string {
+// env builds the git environment for a command run in dir.
+//
+// Hooks and the file system monitor are always disabled: the repositories
+// are mirrors of other people's code and nothing in them may be executed.
+func (g ExecGit) env(dir string) []string {
 	allow := g.AllowProtocols
 	if allow == "" {
 		allow = "https"
+	}
+	config := [][2]string{{"core.hooksPath", os.DevNull}, {"core.fsmonitor", "false"}}
+	if trusted, ok := g.trusts(dir); ok {
+		config = append(config, [2]string{"safe.directory", trusted})
 	}
 	env := []string{
 		"PATH=" + os.Getenv("PATH"),
@@ -62,14 +77,33 @@ func (g ExecGit) env() []string {
 		"GIT_CONFIG_GLOBAL=" + os.DevNull,
 		"GIT_PAGER=cat",
 		"GIT_ALLOW_PROTOCOL=" + allow,
-		// The state directory is operator-owned; it may belong to another
-		// uid than the process (bind mounts), which git would refuse.
-		"GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=safe.directory", "GIT_CONFIG_VALUE_0=*",
+		"GIT_CONFIG_COUNT=" + strconv.Itoa(len(config)),
+	}
+	for i, kv := range config {
+		env = append(env, fmt.Sprintf("GIT_CONFIG_KEY_%d=%s", i, kv[0]), fmt.Sprintf("GIT_CONFIG_VALUE_%d=%s", i, kv[1]))
 	}
 	if g.Offline {
 		env = append(env, "GIT_NO_LAZY_FETCH=1", "GIT_ALLOW_PROTOCOL=none")
 	}
 	return env
+}
+
+// trusts returns the absolute path of dir when it is a directory strictly
+// inside the state directory.
+func (g ExecGit) trusts(dir string) (string, bool) {
+	if g.StateDir == "" || dir == "" {
+		return "", false
+	}
+	state, err1 := filepath.Abs(g.StateDir)
+	d, err2 := filepath.Abs(dir)
+	if err1 != nil || err2 != nil {
+		return "", false
+	}
+	rel, err := filepath.Rel(state, d)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return d, true
 }
 
 // Run implements GitRunner.
@@ -85,7 +119,7 @@ func (g ExecGit) RunStdin(ctx context.Context, dir string, stdin []byte, args ..
 	}
 	cmd := exec.CommandContext(ctx, "git", full...)
 	cmd.Dir = dir
-	cmd.Env = g.env()
+	cmd.Env = g.env(dir)
 	if stdin != nil {
 		cmd.Stdin = bytes.NewReader(stdin)
 	}

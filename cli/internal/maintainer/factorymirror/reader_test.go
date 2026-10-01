@@ -3,7 +3,11 @@
 package factorymirror
 
 import (
+	"context"
 	"errors"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -130,5 +134,73 @@ func TestWantForUnmirroredRepoFailsSafely(t *testing.T) {
 	res := e.run()
 	if len(res.Wants) != 1 || res.Wants[0].Complete || res.Wants[0].Error == "" {
 		t.Fatalf("%+v", res.Wants)
+	}
+}
+
+// The default Reader must stay offline even where a lazy fetch would work:
+// here the upstream is a local file:// repository with partial-clone filters
+// enabled, so an online git would happily download the missing blob.
+func TestReaderStaysOfflineWhereLazyFetchWouldSucceed(t *testing.T) {
+	e := newEnv(t, k1)
+	c1 := e.remote[k1].commit("one", map[string]string{"a.txt": "alpha\n"})
+	e.run()
+
+	r, err := OpenReader(e.state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		if _, err := r.Read(k1, c1, "a.txt"); !errors.Is(err, ErrBlobNotLocal) {
+			t.Fatalf("offline reader (attempt %d): %v", i, err)
+		}
+	}
+	// Control: the same call with an online runner that allows file://
+	// does fetch the blob, so the failure above is the Reader's doing.
+	online, err := OpenReader(e.state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	online.git = ExecGit{AllowProtocols: "file", StateDir: e.state}
+	if got, err := online.Read(k1, c1, "a.txt"); err != nil || string(got) != "alpha\n" {
+		t.Fatalf("control (online) read should lazily fetch: %q %v", got, err)
+	}
+}
+
+// Every git process of the Reader carries all three offline switches.
+func TestOfflineRunnerPassesEveryOfflineSwitch(t *testing.T) {
+	shim := t.TempDir()
+	log := filepath.Join(shim, "log")
+	script := "#!/bin/sh\n{ echo \"ARGS $*\"; env | grep -E '^GIT_(NO_LAZY_FETCH|ALLOW_PROTOCOL)=' | sed 's/^/ENV /'; } >> '" + log + "'\nexit 0\n"
+	if err := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
+	if _, err := (ExecGit{Offline: true, AllowProtocols: "https"}).Run(context.Background(), t.TempDir(), "cat-file", "-p", "HEAD"); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(raw)
+	if !strings.Contains(got, "ARGS -c protocol.allow=never cat-file -p HEAD") {
+		t.Fatalf("protocol.allow=never missing: %s", got)
+	}
+	if !strings.Contains(got, "ENV GIT_NO_LAZY_FETCH=1") {
+		t.Fatalf("GIT_NO_LAZY_FETCH missing: %s", got)
+	}
+	if !strings.Contains(got, "ENV GIT_ALLOW_PROTOCOL=none") || strings.Contains(got, "GIT_ALLOW_PROTOCOL=https") {
+		t.Fatalf("GIT_ALLOW_PROTOCOL must be none: %s", got)
+	}
+}
+
+func TestOpenReaderUsesTheOfflineRunner(t *testing.T) {
+	r, err := OpenReader(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, ok := r.git.(ExecGit)
+	if !ok || !g.Offline {
+		t.Fatalf("reader runner is not offline: %#v", r.git)
 	}
 }

@@ -49,7 +49,7 @@ func OpenReader(stateDir string) (*Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Reader{state: stateDir, idx: idx, git: ExecGit{Offline: true}, ctx: context.Background()}, nil
+	return &Reader{state: stateDir, idx: idx, git: ExecGit{Offline: true, StateDir: stateDir}, ctx: context.Background()}, nil
 }
 
 func (r *Reader) dir(repo string) (Repo, string, error) {

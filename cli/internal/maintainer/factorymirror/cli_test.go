@@ -4,7 +4,9 @@ package factorymirror
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,7 +32,7 @@ func TestMainDeriveMirrorStatusAckEndToEnd(t *testing.T) {
 	if raw, _ := os.ReadFile(out); !strings.Contains(string(raw), "github.com/acme/widget") {
 		t.Fatalf("%s", raw)
 	}
-	args := []string{"mirror", "--state", e.state, "--registry", out, "--remote-base", fileBase(e.root)}
+	args := []string{"mirror", "--state", e.state, "--registry", out, "--remote-base", fileBase(e.root), "--test-allow-file-remote"}
 	stdout.Reset()
 	// The CLI builds its own git runner restricted to the base's scheme.
 	if code := Main(args, nil, getenv, &stdout, &stderr); code != 0 {
@@ -76,5 +78,48 @@ func TestMainDeriveMirrorStatusAckEndToEnd(t *testing.T) {
 	}
 	if code := Main([]string{"mirror", "--state", e.state}, nil, getenv, &stdout, &stderr); code != 2 {
 		t.Fatal("missing registry accepted")
+	}
+}
+
+func TestMirrorRejectsUnsafeRemoteBases(t *testing.T) {
+	e := newEnv(t, k1)
+	e.remote[k1].commit("one", map[string]string{"f": "1"})
+	reg := filepath.Join(t.TempDir(), "registry.yaml")
+	if err := os.WriteFile(reg, []byte("repos:\n  - acme/widget\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(t.TempDir(), "ran")
+	getenv := func(string) string { return "" }
+	for _, base := range []string{
+		"ext::sh -c 'touch " + marker + "' %s ",
+		"ext::touch " + marker + "/",
+		"git://example.invalid/",
+		"ssh://example.invalid/",
+		"http://example.invalid/",
+		"HTTPS://example.invalid/",
+		"https://example.invalid/ -oProxyCommand=x/",
+		"file://" + e.root + "/", // needs the explicit test flag
+	} {
+		args := []string{"mirror", "--state", e.state, "--registry", reg, "--remote-base", base}
+		var stdout, stderr bytes.Buffer
+		code := Main(args, nil, getenv, &stdout, &stderr)
+		if code != 2 {
+			t.Fatalf("remote base %q accepted: code %d %s", base, code, stderr.String())
+		}
+	}
+	if _, err := os.Stat(marker); err == nil {
+		t.Fatal("transport helper ran")
+	}
+	if _, err := os.Stat(filepath.Join(e.state, "mirror")); err == nil {
+		t.Fatal("something was cloned")
+	}
+}
+
+func TestRunRejectsUnsafeRemoteBaseWithDefaultGit(t *testing.T) {
+	for _, base := range []string{"ext::sh -c x ", "file:///tmp/"} {
+		_, err := Run(context.Background(), Options{StateDir: t.TempDir(), Repos: []Repo{mustRepo(t, k1)}, RemoteBase: base})
+		if !errors.Is(err, ErrInvalid) {
+			t.Fatalf("base %q: %v", base, err)
+		}
 	}
 }
