@@ -111,24 +111,16 @@ func validateSetCondition(condition setCondition, registry Registry) error {
 }
 
 // validateSetValueShape gates the exact {members, complete} shape before
-// struct decoding: no aliases, nulls or extra keys, and members is an array.
-// Strict decoding then requires string members and a boolean complete, and
+// struct decoding: no aliases, nulls or extra keys. Strict decoding then
+// requires an array of string members and a boolean complete, and
 // canonicalMembers bounds and orders them.
 func validateSetValueShape(raw json.RawMessage) error {
-	object, err := exactObject(raw, []string{"members", "complete"}, nil)
-	if err != nil {
-		return err
-	}
-	_, err = exactArray(object["members"])
+	_, err := exactObject(raw, []string{"members", "complete"}, nil)
 	return err
 }
 
 func validateSetConditionShape(raw json.RawMessage) error {
-	object, err := exactObject(raw, []string{"side", "component", "factId", "members"}, nil)
-	if err != nil {
-		return err
-	}
-	_, err = exactArray(object["members"])
+	_, err := exactObject(raw, []string{"side", "component", "factId", "members"}, nil)
 	return err
 }
 

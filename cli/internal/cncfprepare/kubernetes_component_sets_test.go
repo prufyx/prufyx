@@ -132,7 +132,11 @@ func TestKubernetesComponentSetFactsEmission(t *testing.T) {
 	if err != nil || custom.Reason != ReasonKubernetesComponentDistribution {
 		t.Fatalf("custom err=%v reason=%s", err, custom.Reason)
 	}
-	for id, view := range k8sProposedFacts(t, custom) {
+	customFacts := k8sProposedFacts(t, custom)
+	if len(customFacts) != len(KubernetesComponentConfigSetFacts()) {
+		t.Fatalf("custom distribution facts=%v", customFacts)
+	}
+	for id, view := range customFacts {
 		if view.State != "unsupported" || view.SetValue != nil {
 			t.Fatalf("custom distribution declared %s: %+v", id, view)
 		}

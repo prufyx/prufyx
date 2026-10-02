@@ -240,6 +240,10 @@ func TestSetRuleStrictParse(t *testing.T) {
 			document["schema"] = RulesSchemaSet
 			return document
 		}(),
+		// Under the schema the operator itself selects, a set condition is
+		// still refused on any other operator.
+		"set condition on predicate, exact schema": testRuleDocument("forbid_predicate_value", setConditionJSON("a")+`,"condition":{"side":"proposed","component":"`+testComponent+`","factId":"`+testFact+`","boolValue":true}`),
+		"set condition on target, exact schema":    testRuleDocument("forbid_target_version", setConditionJSON("a")),
 		"exact schema with set rule": func() map[string]any {
 			document := setRuleDocument(setConditionJSON("a"))
 			document["schema"] = RulesSchema
@@ -519,6 +523,44 @@ func TestSetOverlapsAreKeyedByFact(t *testing.T) {
 	} {
 		if _, err := ParseRuleSet(document, registry); err != nil {
 			t.Fatalf("%s refused: %v", name, err)
+		}
+	}
+}
+
+// TestSetEvaluationReadsOnlyDeclaredFacts checks the evaluator on its own: a
+// set value carried by a fact in any state but declared is never read. The
+// parser already refuses such input.
+func TestSetEvaluationReadsOnlyDeclaredFacts(t *testing.T) {
+	condition := setCondition{Side: "proposed", Component: testComponent, FactID: setTestFact, Members: []string{"RemovedGate"}}
+	r := rule{ID: "example-rule", Operator: OperatorForbidSetMember, SetCondition: &condition, ReasonCode: "FEATURE_REMOVED", NextAction: "act"}
+	for _, state := range []string{"missing", "unsupported", "conflict"} {
+		input := inputDocument{Proposed: inputSide{Components: []inputComponent{{Component: testComponent, Version: "2.0.0", Facts: []inputFact{{ID: setTestFact, State: state, SetValue: &SetValue{Members: []string{}, Complete: true}}}}}}}
+		claim := evaluateSetRule(input, r, Claim{})
+		if claim.Status != "UNKNOWN" || claim.ReasonCode != "RULE_FACT_UNAVAILABLE" {
+			t.Fatalf("%s: claim=%+v", state, claim)
+		}
+	}
+}
+
+// TestFactValuePresenceIsExactlyOne checks the shape gate on its own: a
+// declared fact carries exactly one value field, any other state none.
+func TestFactValuePresenceIsExactlyOne(t *testing.T) {
+	for raw, want := range map[string]bool{
+		`{"state":"declared","setValue":{}}`:                    true,
+		`{"state":"declared","boolValue":true}`:                 true,
+		`{"state":"declared"}`:                                  false,
+		`{"state":"declared","boolValue":true,"setValue":{}}`:   false,
+		`{"state":"declared","enumValue":"a","setValue":{}}`:    false,
+		`{"state":"declared","boolValue":true,"enumValue":"a"}`: false,
+		`{"state":"missing","setValue":{}}`:                     false,
+		`{"state":"missing"}`:                                   true,
+	} {
+		var fact map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(raw), &fact); err != nil {
+			t.Fatal(err)
+		}
+		if validFactValuePresence(fact) != want {
+			t.Fatalf("%s: presence=%v", raw, !want)
 		}
 	}
 }
