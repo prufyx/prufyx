@@ -138,3 +138,39 @@ func hasDuplicateLines(text string) bool {
 	}
 	return false
 }
+
+func TestGenericPreviewQuietHumanOutput(t *testing.T) {
+	run := func(raw string, extra ...string) (int, string) {
+		path := writeCNCFFile(t, "vector.json", []byte(raw), 0o600)
+		code, stdout, stderr := runCNCFCLI(t, append(cncfArgs(path), extra...)...)
+		if stderr != "" {
+			t.Fatalf("stderr=%q", stderr)
+		}
+		return code, stdout
+	}
+	// A reviewed pair with a PASS claim: counted, listed on request, aggregate after the claims.
+	code, quiet := run(syntheticHelmInput, "--format", "human")
+	if code != ExitOK || strings.Contains(quiet, ": PASS (") || !strings.Contains(quiet, "1 rules PASS (not listed; use --show-passes)") || strings.Index(quiet, "aggregate: UNKNOWN") < strings.Index(quiet, "rules PASS") {
+		t.Fatalf("code=%d\n%s", code, quiet)
+	}
+	code, listed := run(syntheticHelmInput, "--format", "human", "--show-passes")
+	if code != ExitOK || !strings.Contains(listed, ": PASS (") || strings.Contains(listed, "--show-passes") {
+		t.Fatalf("code=%d\n%s", code, listed)
+	}
+	// A pair outside every reviewed transition collapses to one line.
+	outside := strings.Replace(syntheticHelmInput, `"version":"4.0.0"`, `"version":"3.14.4"`, 1)
+	code, unreviewed := run(outside, "--format", "human")
+	if code != ExitUnknown || strings.Contains(unreviewed, "(RULE_TRANSITION_NOT_REVIEWED)") || !strings.Contains(unreviewed, "UNKNOWN: helm ") || !strings.Contains(unreviewed, "is not a reviewed transition") || !strings.Contains(unreviewed, "use prufyx scan") {
+		t.Fatalf("code=%d\n%s", code, unreviewed)
+	}
+	// JSON carries the claims as before.
+	if code, out := run(outside, "--format", "json"); code != ExitUnknown || !strings.Contains(out, "RULE_TRANSITION_NOT_REVIEWED") {
+		t.Fatalf("json code=%d", code)
+	}
+}
+
+func TestCompareVersionsOrdersNumerically(t *testing.T) {
+	if compareVersions("1.9.0", "1.10.0") >= 0 || compareVersions("1.23.17", "1.24.0") >= 0 || compareVersions("1.24.0", "1.24.0") != 0 {
+		t.Fatal("numeric order broken")
+	}
+}
