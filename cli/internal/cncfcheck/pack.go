@@ -150,10 +150,7 @@ func load() (bundle, error) {
 		if json.Unmarshal(entry.Rule, &shape) != nil || shape.Subject.Component != subjectComponent(entry.Project, identities[entry.Project].RepositoryURL) {
 			return bundle{}, ErrIntegrity
 		}
-		conditions := append([]conditionShape(nil), shape.AppliesWhen...)
-		if shape.Condition != nil {
-			conditions = append(conditions, *shape.Condition)
-		}
+		conditions := shape.conditions()
 		required := map[string]bool{}
 		for _, condition := range conditions {
 			required[condition.Side+"/"+condition.Component+"/"+condition.FactID] = true
@@ -176,16 +173,26 @@ func load() (bundle, error) {
 const (
 	packSchema       = "prufyx.io/cncf-source-rule-pack/v1alpha1"
 	packSchemaRanged = "prufyx.io/cncf-source-rule-pack/v1alpha2"
+	packSchemaSet    = "prufyx.io/cncf-source-rule-pack/v1alpha3"
 )
 
 // validPackSchema requires the pack schema to state whether the pack holds a
-// reviewed version range. A pack with no range keeps the original schema, so
-// its bytes and digest are unchanged; a pack with one carries the new schema,
-// which binaries that predate ranges reject.
+// reviewed version range or a forbid_set_member rule. A pack with neither
+// keeps the original schema, so its bytes and digest are unchanged; a pack
+// with a range carries the ranged schema, which binaries that predate ranges
+// reject; a pack with a set rule carries the set schema (ranges allowed),
+// which binaries that predate set facts reject.
 func validPackSchema(pack rulePack) bool {
 	rules := make([]json.RawMessage, 0, len(pack.Entries))
 	for _, entry := range pack.Entries {
 		rules = append(rules, entry.Rule)
+	}
+	set, err := constraintengine.AnySetRule(rules)
+	if err != nil {
+		return false
+	}
+	if set {
+		return pack.Schema == packSchemaSet
 	}
 	ranged, err := constraintengine.AnyRanged(rules)
 	if err != nil {
@@ -315,8 +322,22 @@ type ruleShape struct {
 		From      string `json:"from"`
 		To        string `json:"to"`
 	} `json:"subject"`
-	Condition   *conditionShape  `json:"condition"`
-	AppliesWhen []conditionShape `json:"appliesWhen"`
+	Condition    *conditionShape  `json:"condition"`
+	SetCondition *conditionShape  `json:"setCondition"`
+	AppliesWhen  []conditionShape `json:"appliesWhen"`
+}
+
+// conditions lists every fact a rule reads: its applicability facts, its
+// predicate condition and its set condition.
+func (s ruleShape) conditions() []conditionShape {
+	conditions := append([]conditionShape(nil), s.AppliesWhen...)
+	if s.Condition != nil {
+		conditions = append(conditions, *s.Condition)
+	}
+	if s.SetCondition != nil {
+		conditions = append(conditions, *s.SetCondition)
+	}
+	return conditions
 }
 
 func (b bundle) rulesForAdmittedInput(project string, raw []byte) (constraintengine.RuleSet, error) {
@@ -387,10 +408,7 @@ func (b bundle) factFamilyRuleSet(project string, facts []string, raw []byte) (c
 		if json.Unmarshal(entry.Rule, &shape) != nil {
 			return constraintengine.RuleSet{}, ErrIntegrity
 		}
-		conditions := append([]conditionShape(nil), shape.AppliesWhen...)
-		if shape.Condition != nil {
-			conditions = append(conditions, *shape.Condition)
-		}
+		conditions := shape.conditions()
 		inFamily := len(conditions) > 0
 		for _, condition := range conditions {
 			inFamily = inFamily && allowed[condition.FactID]

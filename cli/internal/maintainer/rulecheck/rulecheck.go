@@ -91,6 +91,7 @@ type ruleBody struct {
 	// constraintengine.ParseRuleSet, never reimplemented here).
 	Range        *constraintengine.VersionRange `json:"range,omitempty"`
 	Condition    *factCondition                 `json:"condition,omitempty"`
+	SetCondition *setCondition                  `json:"setCondition,omitempty"`
 	AppliesWhen  []factCondition                `json:"appliesWhen,omitempty"`
 	Dependency   *componentCheck                `json:"dependency,omitempty"`
 	Intermediate string                         `json:"intermediate,omitempty"`
@@ -111,6 +112,15 @@ type factCondition struct {
 	FactID    string `json:"factId"`
 	BoolValue *bool  `json:"boolValue,omitempty"`
 	EnumValue string `json:"enumValue,omitempty"`
+}
+
+// setCondition mirrors the engine's forbid_set_member condition: the set fact
+// read and the members the rule forbids.
+type setCondition struct {
+	Side      string   `json:"side"`
+	Component string   `json:"component"`
+	FactID    string   `json:"factId"`
+	Members   []string `json:"members"`
 }
 
 type componentCheck struct {
@@ -328,8 +338,10 @@ func checkEntry(index int, entry Entry, opts Options) ([]Finding, string, bool) 
 			factType = constraintengine.FactBool
 		case "enum":
 			factType = constraintengine.FactEnum
+		case "set":
+			factType = constraintengine.FactSet
 		default:
-			add("requiredFacts", "requiredFacts[%d].type must be \"bool\" or \"enum\", got %q", factIndex, fact.Type)
+			add("requiredFacts", "requiredFacts[%d].type must be \"bool\", \"enum\" or \"set\", got %q", factIndex, fact.Type)
 			continue
 		}
 		definition := constraintengine.FactDefinition{ID: fact.ID, Component: fact.Component, Type: factType, EnumTokens: fact.EnumTokens}
@@ -354,7 +366,7 @@ func checkEntry(index int, entry Entry, opts Options) ([]Finding, string, bool) 
 	bodyDecoder := json.NewDecoder(bytes.NewReader(entry.Rule))
 	bodyDecoder.DisallowUnknownFields()
 	if err := bodyDecoder.Decode(&body); err != nil {
-		add("rule-schema", "rule object does not decode as the closed rule schema (id, operator, subject, condition/appliesWhen/dependency/intermediate, evidence, reasonCode, nextAction): %v", err)
+		add("rule-schema", "rule object does not decode as the closed rule schema (id, operator, subject, condition/setCondition/appliesWhen/dependency/intermediate, evidence, reasonCode, nextAction): %v", err)
 		return findings, "", false
 	}
 	if _, err := bodyDecoder.Token(); err != io.EOF {
@@ -400,6 +412,19 @@ func checkEntry(index int, entry Entry, opts Options) ([]Finding, string, bool) 
 		}
 	}
 	checkFactReference("rule.condition", body.Condition)
+	if body.SetCondition != nil {
+		checkFactReference("rule.setCondition", &factCondition{Side: body.SetCondition.Side, Component: body.SetCondition.Component, FactID: body.SetCondition.FactID})
+		for memberIndex, member := range body.SetCondition.Members {
+			if !constraintengine.ValidSetMember(member) {
+				addRule(ruleID, "set-member", "rule.setCondition.members[%d] %q must be 1-%d bytes of [A-Za-z0-9._/-] starting with a letter or digit", memberIndex, member, constraintengine.MaxSetMemberBytes)
+			} else if memberIndex > 0 && body.SetCondition.Members[memberIndex-1] >= member {
+				addRule(ruleID, "set-member", "rule.setCondition.members must be strictly ascending with no duplicates; %q follows %q", member, body.SetCondition.Members[memberIndex-1])
+			}
+		}
+		if len(body.SetCondition.Members) == 0 || len(body.SetCondition.Members) > constraintengine.MaxForbiddenMembers {
+			addRule(ruleID, "set-member", "rule.setCondition.members must name 1-%d forbidden members, got %d", constraintengine.MaxForbiddenMembers, len(body.SetCondition.Members))
+		}
+	}
 	for i := range body.AppliesWhen {
 		checkFactReference(fmt.Sprintf("rule.appliesWhen[%d]", i), &body.AppliesWhen[i])
 	}

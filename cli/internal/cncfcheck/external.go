@@ -369,10 +369,7 @@ func validateExternalPack(base bundle, packValue rulePack, revision string) erro
 		if json.Unmarshal(entry.Rule, &shape) != nil || shape.Subject.Component != subjectComponent(entry.Project, base.identities()[entry.Project].RepositoryURL) {
 			return ErrIntegrity
 		}
-		conditions := append([]conditionShape(nil), shape.AppliesWhen...)
-		if shape.Condition != nil {
-			conditions = append(conditions, *shape.Condition)
-		}
+		conditions := shape.conditions()
 		required := map[string]bool{}
 		for _, condition := range conditions {
 			required[condition.Side+"/"+condition.Component+"/"+condition.FactID] = true
