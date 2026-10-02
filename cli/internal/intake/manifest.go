@@ -117,6 +117,7 @@ func (w *Workspace) add(source Source, value any, listMetadata any, listAPI, ite
 		// A typed list's items may omit apiVersion and kind; the list's own
 		// group, version and kind apply.
 		api, kind, apiOK, kindOK = listAPI, itemKind, true, true
+		object["apiVersion"], object["kind"] = api, kind
 	}
 	if kind == "Secret" {
 		stripSecret(object)

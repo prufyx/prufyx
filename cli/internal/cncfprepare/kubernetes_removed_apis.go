@@ -3,6 +3,7 @@
 package cncfprepare
 
 import (
+	"github.com/prufyx/prufyx/cli/internal/intake"
 	"sort"
 	"strconv"
 	"strings"
@@ -266,53 +267,39 @@ func classifyKubernetesRemoval(documents []map[string]any, removal kubernetesRem
 	return present, unreviewed
 }
 
-// kubernetesApplySetDocuments applies the same bounded shape rules as the
-// flow-control adapter: one document or one flat core v1 List, no templating,
-// no typed or nested lists. A non-empty reason means the set is unresolved.
+// kubernetesApplySetDocuments reads the caller's apply set through the shared
+// intake decoder: single or multi-document YAML or JSON, with core v1 Lists and
+// typed lists flattened one level. Anything the decoder cannot place as a
+// Kubernetes object (template syntax, a nested list, a document that is not
+// Kubernetes shaped, invalid list metadata) leaves the set unresolved. A
+// non-empty reason means the set is unresolved.
 func kubernetesApplySetDocuments(raw []byte) ([]map[string]any, bool, Reason, error) {
-	if strings.Contains(string(raw), "{{") || strings.Contains(string(raw), "${") {
-		return nil, false, ReasonKubernetesTemplated, nil
-	}
-	value, err := decodeStrict(raw)
+	workspace, err := intake.Decode("input", raw)
 	if err != nil {
 		return nil, false, "", err
 	}
-	root, ok := value.(map[string]any)
-	if !ok {
+	for _, omission := range workspace.Omissions {
+		if omission.Reason == intake.ReasonTemplated || omission.Reason == intake.ReasonUnparseable {
+			return nil, false, ReasonKubernetesTemplated, nil
+		}
+	}
+	if len(workspace.Omissions) > 0 || len(workspace.Documents) == 0 {
 		return nil, false, ReasonKubernetesUnresolved, nil
 	}
-	api, kind, ok := kubernetesGVK(root)
-	if !ok {
-		return nil, false, ReasonKubernetesUnresolved, nil
-	}
-	if kind != "List" {
-		if strings.HasSuffix(kind, "List") {
+	documents := make([]map[string]any, 0, len(workspace.Documents))
+	paginated := false
+	for _, document := range workspace.Documents {
+		if _, _, ok := kubernetesGVK(document.Value); !ok {
 			return nil, false, ReasonKubernetesUnresolved, nil
 		}
-		return []map[string]any{root}, false, "", nil
-	}
-	if api != "v1" {
-		return nil, false, ReasonKubernetesUnresolved, nil
-	}
-	items, found := root["items"].([]any)
-	if !found || len(items) == 0 {
-		return nil, false, ReasonKubernetesUnresolved, nil
-	}
-	paginated, metadataOK := kubernetesListPagination(root)
-	if !metadataOK {
-		return nil, false, ReasonKubernetesUnresolved, nil
-	}
-	documents := make([]map[string]any, 0, len(items))
-	for _, item := range items {
-		document, ok := item.(map[string]any)
-		if !ok {
-			return nil, false, ReasonKubernetesUnresolved, nil
+		if document.Source.Item >= 0 {
+			listPaginated, metadataOK := kubernetesListPagination(map[string]any{"metadata": document.ListMetadata})
+			if !metadataOK {
+				return nil, false, ReasonKubernetesUnresolved, nil
+			}
+			paginated = paginated || listPaginated
 		}
-		_, itemKind, ok := kubernetesGVK(document)
-		if !ok || itemKind == "List" || strings.HasSuffix(itemKind, "List") {
-			return nil, false, ReasonKubernetesUnresolved, nil
-		}
-		documents = append(documents, document)
+		documents = append(documents, document.Value)
 	}
 	return documents, paginated, "", nil
 }

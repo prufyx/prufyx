@@ -63,51 +63,17 @@ func inspectKubernetesFlowControl(raw []byte, complete bool) (kubernetesInspecti
 	if len(raw) == 0 || len(raw) > maxInputBytes || !utf8.Valid(raw) {
 		return kubernetesInspection{}, ErrInvalid
 	}
-	if strings.Contains(string(raw), "{{") || strings.Contains(string(raw), "${") {
-		return kubernetesInspection{Reason: ReasonKubernetesTemplated}, nil
-	}
-	value, err := decodeStrict(raw)
+	documents, paginated, reason, err := kubernetesApplySetDocuments(raw)
 	if err != nil {
 		return kubernetesInspection{}, ErrInvalid
 	}
-	root, ok := value.(map[string]any)
-	if !ok {
-		return kubernetesInspection{Reason: ReasonKubernetesUnresolved}, nil
-	}
-	api, kind, ok := kubernetesGVK(root)
-	if !ok {
-		return kubernetesInspection{Reason: ReasonKubernetesUnresolved}, nil
-	}
-	documents := []map[string]any{root}
-	paginated := false
-	if kind == "List" {
-		if api != "v1" {
-			return kubernetesInspection{Reason: ReasonKubernetesUnresolved}, nil
-		}
-		items, found := root["items"].([]any)
-		if !found || len(items) == 0 {
-			return kubernetesInspection{Reason: ReasonKubernetesUnresolved}, nil
-		}
-		var metadataOK bool
-		paginated, metadataOK = kubernetesListPagination(root)
-		if !metadataOK {
-			return kubernetesInspection{Reason: ReasonKubernetesUnresolved}, nil
-		}
-		documents = make([]map[string]any, 0, len(items))
-		for _, item := range items {
-			document, ok := item.(map[string]any)
-			if !ok {
-				return kubernetesInspection{Reason: ReasonKubernetesUnresolved}, nil
-			}
-			documents = append(documents, document)
-		}
-	} else if strings.HasSuffix(kind, "List") {
-		return kubernetesInspection{Reason: ReasonKubernetesUnresolved}, nil
+	if reason != "" {
+		return kubernetesInspection{Reason: reason}, nil
 	}
 	removed := false
 	for _, document := range documents {
 		api, kind, ok := kubernetesGVK(document)
-		if !ok || kind == "List" || strings.HasSuffix(kind, "List") {
+		if !ok {
 			return kubernetesInspection{Reason: ReasonKubernetesUnresolved}, nil
 		}
 		if kind != "FlowSchema" && kind != "PriorityLevelConfiguration" {
