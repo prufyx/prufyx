@@ -194,6 +194,9 @@ func TestRecorderLogsAndReusesByObjectID(t *testing.T) {
 	if got.SHA256 != hex.EncodeToString(sum[:]) || got.Commit != testNext || got.Path != "pkg/same.go" {
 		t.Fatalf("reuse record %+v", got)
 	}
+	if _, ok := Reuse(rec, repo, testNext, "pkg/changed.go", sameOID); ok {
+		t.Fatal("reuse accepted a blob id the listing does not give for that path")
+	}
 	if _, ok := Reuse(rec, repo, testNext, "pkg/same.go", strings.Repeat("0", 40)); ok {
 		t.Fatal("reuse accepted a wrong object id")
 	}
@@ -335,16 +338,20 @@ func TestCanonicalSortsKeysAndIsStable(t *testing.T) {
 
 type toyExtractor struct {
 	members   []string
+	pass      []string
+	desc      string
 	cite      string
 	startLine int
 	endLine   int
 	withhold  bool
 }
 
-func (toyExtractor) ID() string                   { return "toy.removal" }
-func (toyExtractor) Version() string              { return "1.0.0" }
-func (toyExtractor) Applies(r RepoRef) bool       { return r.Key == testRepo }
-func (toyExtractor) SourceFiles() (string, fs.FS) { return "toy", fstest.MapFS{"toy.go": {Data: []byte("package toy\n")}} }
+func (toyExtractor) ID() string             { return "toy.removal" }
+func (toyExtractor) Version() string        { return "1.0.0" }
+func (toyExtractor) Applies(r RepoRef) bool { return r.Key == testRepo }
+func (toyExtractor) SourceFiles() (string, fs.FS) {
+	return "toy", fstest.MapFS{"toy.go": {Data: []byte("package toy\n")}}
+}
 func (toyExtractor) Pairs(ix ReleaseIndex) []VersionPair {
 	return []VersionPair{{Repo: ix.Repo, From: "1.0.0", FromTag: "v1.0.0", FromCommit: testCommit, To: "2.0.0", ToTag: "v2.0.0", ToCommit: testNext}}
 }
@@ -356,19 +363,25 @@ func (x toyExtractor) Extract(_ context.Context, r PinnedReader, p VersionPair) 
 	if x.withhold {
 		return Extraction{}, &Withheld{Reason: "toy registry incomplete"}
 	}
+	if x.desc == "" {
+		x.desc = "Toy removal."
+	}
+	if x.pass == nil {
+		x.pass = []string{"kept"}
+	}
 	cite := x.cite
 	if cite == "" {
 		cite = "decl.go"
 	}
 	return Extraction{Proof: map[string]any{"removed": x.members}, Candidates: []Candidate{{
-		Project: "example", Description: "Toy removal.",
+		Project: "example", Description: x.desc,
 		RequiredFacts: []Fact{{Side: "proposed", ID: "component.example.flags_set", Component: "pkg:github/example/project", Type: "set", Description: "Flags."}},
 		Rule: Rule{ID: "example.toy.1-0-0-to-2-0-0", Operator: "forbid_set_member",
 			Subject:      Subject{Component: "pkg:github/example/project", From: p.From, To: p.To},
 			SetCondition: &SetCondition{Side: "proposed", Component: "pkg:github/example/project", FactID: "component.example.flags_set", Members: x.members},
 			ReasonCode:   "EXAMPLE_REMOVED", NextAction: "remove the listed flags"},
 		Sources:     []SourceRef{{ID: "toy-declaration", Repo: p.Repo, Commit: p.FromCommit, Path: cite, StartLine: x.startLine, EndLine: x.endLine}},
-		PassMembers: []string{"kept"},
+		PassMembers: x.pass,
 	}}}, nil
 }
 
@@ -438,12 +451,14 @@ func TestRunStampsProvenanceAndGeneratesCheckedVectors(t *testing.T) {
 func TestRunRefusesUnprovenCitationsAndBadRules(t *testing.T) {
 	root := toyFixture(t)
 	for name, x := range map[string]toyExtractor{
-		"cites a file it did not read": {members: []string{"old"}, cite: "other.go"},
-		"span past the end of file":    {members: []string{"old"}, startLine: 3, endLine: 4},
-		"inverted span":                {members: []string{"old"}, startLine: 3, endLine: 2},
-		"unsorted members":             {members: []string{"older", "old"}},
-		"invalid member":               {members: []string{"bad=member"}},
-		"pass member forbidden":        {members: []string{"kept"}},
+		"cites a file it did not read":  {members: []string{"old"}, cite: "other.go"},
+		"span past the end of file":     {members: []string{"old"}, startLine: 3, endLine: 4},
+		"inverted span":                 {members: []string{"old"}, startLine: 3, endLine: 2},
+		"unsorted members":              {members: []string{"older", "old"}},
+		"invalid member":                {members: []string{"bad=member"}},
+		"pass member forbidden":         {members: []string{"kept"}},
+		"vector the engine rejects":     {members: []string{"old"}, pass: []string{"bad=member"}},
+		"description rulecheck rejects": {members: []string{"old"}, desc: "bad\ndescription"},
 	} {
 		if _, err := runToy(t, x, root); err == nil {
 			t.Fatalf("%s: run succeeded", name)
