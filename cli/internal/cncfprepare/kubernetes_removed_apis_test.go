@@ -12,7 +12,8 @@ import (
 type k8sFactView struct {
 	ID        string `json:"id"`
 	State     string `json:"state"`
-	BoolValue *bool  `json:"boolValue"`
+	BoolValue *bool          `json:"boolValue"`
+	SetValue  *inputSetValue `json:"setValue"`
 }
 
 func k8sProposedFacts(t *testing.T, prepared Prepared) map[string]k8sFactView {
