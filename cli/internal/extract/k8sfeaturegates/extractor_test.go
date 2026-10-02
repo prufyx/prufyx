@@ -512,13 +512,13 @@ func TestAbsenceMustBeProvenOrNoRule(t *testing.T) {
 		reason   string
 	}{
 		"unparseable file anywhere in the walk": {from, with(map[string]string{"pkg/kubelet/broken.go": "package kubelet\n\nfunc {"}), "parsing pkg/kubelet/broken.go"},
-		"map key that cannot be resolved": {from, with(map[string]string{"staging/src/k8s.io/other/pkg/x/x.go": "package x\n\nimport (\n\t\"example.com/ext\"\n\t\"k8s.io/component-base/featuregate\"\n)\n\nvar m = map[featuregate.Feature]featuregate.FeatureSpec{ext.Gate: {}}\n"}), "cannot be resolved"},
-		"map key computed by a call": {from, with(map[string]string{"pkg/x/x.go": "package x\n\nimport \"k8s.io/component-base/featuregate\"\n\nvar m = map[featuregate.Feature]featuregate.FeatureSpec{name(): {}}\n\nfunc name() featuregate.Feature { return \"\" }\n"}), "cannot be resolved"},
+		"map key that cannot be resolved":       {from, with(map[string]string{"staging/src/k8s.io/other/pkg/x/x.go": "package x\n\nimport (\n\t\"example.com/ext\"\n\t\"k8s.io/component-base/featuregate\"\n)\n\nvar m = map[featuregate.Feature]featuregate.FeatureSpec{ext.Gate: {}}\n"}), "cannot be resolved"},
+		"map key computed by a call":            {from, with(map[string]string{"pkg/x/x.go": "package x\n\nimport \"k8s.io/component-base/featuregate\"\n\nvar m = map[featuregate.Feature]featuregate.FeatureSpec{name(): {}}\n\nfunc name() featuregate.Feature { return \"\" }\n"}), "cannot be resolved"},
 		"no recognised unrecognised-gate error": {from, with(map[string]string{featuregateFile: "package featuregate\n\ntype Feature string\n"}), "does not reject unrecognised gates"},
 		"feature gate implementation missing":   {from, with(map[string]string{"staging/src/k8s.io/x/x.go": "package x\n"}, featuregateFile), "does not reject unrecognised gates"},
 		"required root missing":                 {from, with(nil, featuregateFile, "cmd/kubelet/kubelet.go"), "required directory staging/ is missing"},
-		"generated list names an unknown gate": {from, with(map[string]string{"test/compatibility_lifecycle/reference/versioned_feature_list.yaml": "- name: Alpha\n- name: Gamma\n"}), "lists Gamma"},
-		"generated list unreadable":            {from, with(map[string]string{"test/compatibility_lifecycle/reference/versioned_feature_list.yaml": "- name: [\n"}), "parsing test/compatibility_lifecycle"},
+		"generated list names an unknown gate":  {from, with(map[string]string{"test/compatibility_lifecycle/reference/versioned_feature_list.yaml": "- name: Alpha\n- name: Gamma\n"}), "lists Gamma"},
+		"generated list unreadable":             {from, with(map[string]string{"test/compatibility_lifecycle/reference/versioned_feature_list.yaml": "- name: [\n"}), "parsing test/compatibility_lifecycle"},
 		"from registry key unresolved": {map[string]string{
 			"pkg/features/kube_features.go": "package features\n\nimport \"k8s.io/component-base/featuregate\"\n\nvar m = map[featuregate.Feature]featuregate.FeatureSpec{Missing: {}, \"Gamma\": {}}\n",
 			featuregateFile:                 goodFeatureGate,

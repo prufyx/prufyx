@@ -11,6 +11,7 @@ import (
 	"slices"
 	"sort"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
@@ -123,7 +124,7 @@ func Oracle(outDir string, expectedRaw []byte) ([]string, error) {
 			forbidden := map[string]bool{}
 			for _, e := range entries {
 				sc := e.Rule.SetCondition
-				if sc != nil && e.Rule.Subject.From == r.From && e.Rule.Subject.To == r.To && sc.FactID == Components[ci].Fact {
+				if sc != nil && (constraintengine.RuleTransition{Component: e.Rule.Subject.Component, From: e.Rule.Subject.From, To: e.Rule.Subject.To}).IsAnchor(r.From, r.To) && sc.FactID == Components[ci].Fact {
 					for _, mem := range sc.Members {
 						forbidden[mem] = true
 					}

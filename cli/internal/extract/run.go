@@ -171,7 +171,7 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 			if err != nil {
 				return nil, fmt.Errorf("pair %s: %w", pair.Key(), err)
 			}
-			if entry.Rule.Subject.From != pair.From || entry.Rule.Subject.To != pair.To {
+			if !(constraintengine.RuleTransition{Component: entry.Rule.Subject.Component, From: entry.Rule.Subject.From, To: entry.Rule.Subject.To}).IsAnchor(pair.From, pair.To) {
 				return nil, fmt.Errorf("pair %s: rule %s has subject %s -> %s", pair.Key(), entry.Rule.ID, entry.Rule.Subject.From, entry.Rule.Subject.To)
 			}
 			out.Entries = append(out.Entries, entry)
