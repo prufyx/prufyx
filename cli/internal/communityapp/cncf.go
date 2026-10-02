@@ -229,7 +229,8 @@ Selected-store checks have no embedded fallback. Historical replay requires
 the matching raw native-input digest and all three knowledge pins.
 Exit 0: all selected nonempty claims PASS; 10: at least one claim BLOCKED;
 11: UNKNOWN or no rules; 2: invalid input; 3: integrity failure.
-Whole-upgrade compatibility remains UNKNOWN in every case.`)
+Whole-upgrade compatibility remains UNKNOWN in every case.
+Add --show-passes with --format human on the Kubernetes native-resource route and the generic --input preview to list PASS claims; by default they are counted. JSON is unaffected.`)
 		return ExitOK
 	}
 	fs := flag.NewFlagSet("check cncf", flag.ContinueOnError)

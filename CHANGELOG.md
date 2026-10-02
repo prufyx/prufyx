@@ -9,6 +9,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- Human output of `check cncf` on the Kubernetes native-resource route and
+  the other native-resource routes, and of the generic `--input` preview, is
+  shorter and answers first. `PASS` claims are counted instead of listed
+  (`--show-passes` lists them), the aggregate follows the claims, each
+  distinct pinned source is printed once at the end, and a transition no rule
+  reviews prints one `UNKNOWN` line naming the reviewed pairs instead of one
+  block per rule. JSON output, verdicts and exit codes are unchanged.
+- The Kubernetes native-resource route (`check cncf --project kubernetes
+  --native-resource`) now reads single and multi-document YAML as well as JSON,
+  flattens `v1` `List` and typed `*List` documents, and treats template syntax
+  per document instead of anywhere in the file. JSON input produces the same
+  prepared input digest and verdicts as before; JSON `null` values (as printed
+  by `kubectl get -o json`) are now accepted. Input size and file-permission
+  rules are unchanged.
 - Prufyx is now published at `github.com/prufyx/prufyx`. The Go module path is
   `github.com/prufyx/prufyx/cli`.
 - Source code is licensed under the GNU Affero General Public License v3.0 only

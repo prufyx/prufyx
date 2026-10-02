@@ -21,8 +21,9 @@ go build -o /tmp/prufyx ./cmd/prufyx-community
 
 ## 2. What the verdicts mean
 
-Every `prufyx check` prints one aggregate assessment and one line per rule it
-evaluated:
+Every `prufyx check` prints one aggregate assessment and the rules that
+decide something. Rules that came back `PASS` are counted, not listed (add
+`--show-passes` to list them):
 
 - **PASS** — the input does not match the reviewed source condition for this
   rule. It is not a certificate that the rest of the upgrade is safe.
@@ -93,20 +94,21 @@ prufyx: NATIVE_CNCF_RESOURCE_INPUT_INVALID: input file is readable or writable b
   --now 2026-09-24T00:00:00Z --format human
 ```
 
-Verified output (trimmed to the decisive line and its citation; the full run
-also prints six other reviewed removals in this pair, all `PASS` because
-this apply set does not contain them):
+Verified output (the complete human output; the six other reviewed removals
+in this pair came back `PASS` because this apply set does not contain them, so
+they are counted rather than listed):
 
 ```
 kubernetes native input review
 raw input digests: sha256:74b724b3dbe66cdea762575500e4fce48a5469b669668a7108280e026456a355
 prepared input digest: sha256:619e1cfad17ce822d3ad4d36b1cdc3ef3024e9ec37720096f2af8076b92660b2
-aggregate: UNKNOWN
-network used: false
-whole-upgrade compatibility: UNKNOWN
 kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0: BLOCKED (REVIEWED_SOURCE_CONSTRAINT)
 next action: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
+evidence basis: reviewed by maintainer
+6 rules PASS (not listed; use --show-passes)
+aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
 pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md lines 87-93; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:96f34a49cbdd7bd53008cc7b7cc8aff58c373ad323e64eef0155cbbc44494f61
+pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md lines 189-193; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:7d33809eeb313cbd589018a8dde893974065c50f5ee8cde27d99e879d0dde81f
 ```
 
 ```sh
@@ -130,7 +132,7 @@ this command) catch the drift rather than silently citing changed text.
 Notice the aggregate stays `UNKNOWN` even though one rule is `BLOCKED`. A
 `BLOCKED` claim is still a `BLOCKED` claim — that specific resource will
 break — but Prufyx never inflates "one scoped claim was decisive" into
-"the whole upgrade was fully evaluated." Ten other removals in this pair
+"the whole upgrade was fully evaluated." The other removals in this pair
 came back `PASS` only because this particular apply set does not contain
 those kinds; that is not the same as proving they never occur anywhere in a
 real cluster.
@@ -155,6 +157,94 @@ Both flags are on the command deliberately — they are not boilerplate.
 Drop either flag and every removal in this pair reports `UNKNOWN` instead of
 `PASS`/`BLOCKED` — try it, the CLI will tell you why in the `next action`
 field.
+
+## 5a. The same check on YAML
+
+You do not have to convert anything to JSON first. The Kubernetes route reads
+single or multi-document YAML, such as the output of `helm template` or
+`kustomize build`, and `kubectl get -o yaml` lists. Nothing is rendered or
+executed: a document that still contains template syntax (`{{ ... }}` or
+`${...}` in a value) makes the result `UNKNOWN` and asks for rendered output.
+
+```sh
+cd /tmp/prufyx-quickstart
+cat > applyset.yaml <<'YAML'
+# Two documents, as `helm template` or `kustomize build` prints them.
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: nightly-report
+  namespace: default
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: report
+              image: example/report:1.0
+          restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: report-settings
+  namespace: default
+data:
+  mode: nightly
+YAML
+chmod 600 applyset.yaml
+/tmp/prufyx check cncf --project kubernetes --native-resource applyset.yaml \
+  --from 1.24.0 --to 1.25.0 \
+  --distribution official_upstream --target-api-apply-required --resource-scope-complete \
+  --now 2026-09-24T00:00:00Z --format human
+```
+
+Verified output:
+
+```
+kubernetes native input review
+raw input digests: sha256:97307ffffabe0fdddbf2b527079b10ddf8559876f3cf1c356a7f424db023a654
+prepared input digest: sha256:619e1cfad17ce822d3ad4d36b1cdc3ef3024e9ec37720096f2af8076b92660b2
+kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0: BLOCKED (REVIEWED_SOURCE_CONSTRAINT)
+next action: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
+evidence basis: reviewed by maintainer
+6 rules PASS (not listed; use --show-passes)
+aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
+pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md lines 87-93; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:96f34a49cbdd7bd53008cc7b7cc8aff58c373ad323e64eef0155cbbc44494f61
+pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md lines 189-193; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:7d33809eeb313cbd589018a8dde893974065c50f5ee8cde27d99e879d0dde81f
+```
+
+The `prepared input digest` is the same as for the JSON file, because both
+files describe the same removal facts; only the `raw input digests` differ,
+since the bytes differ. The exit code is again `10`.
+
+Anchors, aliases, merge keys, custom tags, duplicate keys and non-string keys
+are rejected, as they are for JSON: each can make the bytes you read differ
+from the value Kubernetes decodes.
+
+## 5b. Pairs Prufyx has not reviewed
+
+A pair that no reviewed rule covers, such as a multi-minor jump, prints one
+line and exits `11`:
+
+```sh
+/tmp/prufyx check cncf --project kubernetes --native-resource applyset.json \
+  --from 1.21.0 --to 1.25.0 \
+  --distribution official_upstream --target-api-apply-required --resource-scope-complete \
+  --now 2026-09-24T00:00:00Z --format human
+```
+
+```
+kubernetes native input review
+raw input digests: sha256:74b724b3dbe66cdea762575500e4fce48a5469b669668a7108280e026456a355
+prepared input digest: sha256:0590394cb84c8f90bf0a765b6bd580a14bb2d2e203ce8645da7adf40a0cec443
+UNKNOWN: kubernetes 1.21.0 -> 1.25.0 is not a reviewed transition; reviewed pairs: 1.21.0 -> 1.22.0, 1.23.17 -> 1.24.0, 1.24.0 -> 1.25.0, 1.25.0 -> 1.26.0, 1.26.0 -> 1.27.0, 1.28.0 -> 1.29.0, 1.31.0 -> 1.32.0; for multi-minor upgrades use prufyx scan
+aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
+```
+
+`--format json` still lists every rule that was considered.
 
 ## 6. A second worked example: Kubernetes 1.21 → 1.22
 
@@ -188,18 +278,24 @@ chmod 600 applyset-1-22.json
   --now 2026-09-24T00:00:00Z --format human
 ```
 
-Verified output (trimmed to the decisive line):
+Verified output:
 
 ```
+kubernetes native input review
+raw input digests: sha256:6670657e4ad5888348b0fa1ab708309940610063bcc9cbed1914e2283652f924
+prepared input digest: sha256:f7bd070cd7f335de92cd6824fd7454e80df20312b9fbc22cefc05508674fab9a
 kubernetes.ingress-extensions-v1beta1-removed.1-21-0-to-1-22-0: BLOCKED (REVIEWED_SOURCE_CONSTRAINT)
 next action: Migrate the named Ingress manifest to networking.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
+evidence basis: reviewed by maintainer
+12 rules PASS (not listed; use --show-passes)
+aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
 pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md lines 257-269; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:96f34a49cbdd7bd53008cc7b7cc8aff58c373ad323e64eef0155cbbc44494f61
+pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md lines 189-193; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:7d33809eeb313cbd589018a8dde893974065c50f5ee8cde27d99e879d0dde81f
 ```
 
-Exit code is again `10`. This same run prints thirteen lines in total — the
-1.21 → 1.22 pair reviews thirteen separate removals at once (webhooks, CRDs,
-RBAC, leases, and more), and every one of them gets a line every time you run
-this check, whether or not that particular kind is present in your input.
+Exit code is again `10`. The 1.21 → 1.22 pair reviews thirteen separate
+removals at once (webhooks, CRDs, RBAC, leases, and more); the twelve that do
+not match are counted. Add `--show-passes` to list them.
 
 ## 7. Where to go next
 
