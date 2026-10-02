@@ -36,8 +36,10 @@ files hold the same shape: a top-level `entries` array, where each entry is:
 ```
 
 `operator` is one of `forbid_predicate_value`, `require_component_version`,
-`require_intermediate_version`, or `forbid_target_version` — see
-`internal/constraintengine/parse.go` for exactly what each one checks.
+`require_intermediate_version`, `forbid_target_version`, or
+`forbid_set_member` (see [Set-valued facts](#set-valued-facts-and-forbid_set_member)
+below) — see `internal/constraintengine/parse.go` for exactly what each one
+checks.
 `requiredFacts` may be empty for an operator that carries no fact condition
 (for example `require_component_version`, which only compares a declared
 dependency version).
@@ -45,6 +47,65 @@ dependency version).
 A candidate file is a JSON array of one or more entries in exactly this
 schema — nothing more, nothing less. See the worked example below, and
 either `rules.json` file, for real entries to model a new one on.
+
+## Set-valued facts and `forbid_set_member`
+
+Some removals are naturally a list: the feature gates a component sets, or
+the command-line options it is given. Instead of one `bool` fact per removed
+name, such a rule reads one **set fact** per component and kind, and the
+`forbid_set_member` operator names the members it forbids.
+
+A set fact is declared in `requiredFacts` with `"type": "set"` and
+`"enumTokens": null`. In a prepared input a declared set fact carries
+`"setValue": { "members": [...], "complete": true|false }`:
+
+- `members` is strictly ascending (byte order) with no duplicates, at most 256
+  entries, each 1-128 bytes of `[A-Za-z0-9._/-]` starting with a letter or
+  digit;
+- `complete` is the preparer's statement that no other member exists. It is
+  `true` only when every source the set is read from was supplied, declared
+  complete and fully understood.
+
+A `forbid_set_member` rule carries a `setCondition` instead of a `condition`:
+
+```json
+"operator": "forbid_set_member",
+"setCondition": {
+  "side": "proposed",
+  "component": "pkg:github/kubernetes/kubernetes",
+  "factId": "component.kubernetes.kubelet_feature_gates_set",
+  "members": ["ExampleRemovedGate"]
+}
+```
+
+`members` names 1-64 forbidden members under the same rules (sorted, no
+duplicates, same character set and length). The rule decides:
+
+| Declared set | Verdict |
+| --- | --- |
+| holds a forbidden member (complete or not) | `BLOCKED`; the claim lists the members found in `matchedMembers` |
+| declared complete, no forbidden member | `PASS` |
+| not complete, no forbidden member | `UNKNOWN` (`RULE_SET_FACT_INCOMPLETE`) |
+| missing, unsupported, conflicting or not declared | `UNKNOWN` (`RULE_FACT_UNAVAILABLE`) |
+
+Absence is never inferred from an incomplete set. `matchedMembers` appears only
+on a `BLOCKED` `forbid_set_member` claim, and human output adds one line
+`forbidden members present: <members>` before the evidence basis; other claims
+keep their exact bytes. Matching is exact and case-sensitive.
+
+Set facts are valid only with `forbid_set_member`: they cannot appear in
+`appliesWhen` or in a `forbid_predicate_value` condition, and a `setCondition`
+on any other operator is rejected. Unknown fields anywhere in a set value or
+set condition are rejected.
+
+A rule document or pack that contains a `forbid_set_member` rule carries its
+own schema — rules `prufyx.io/deterministic-constraint-rules/v1alpha3`, CNCF
+pack `prufyx.io/cncf-source-rule-pack/v1alpha3` — and its reports carry a
+separate engine contract digest. The schema may also hold reviewed ranges.
+Binaries that predate set facts reject such a document outright, and every
+document without the operator keeps its previous schema, digests and report
+bytes. Two set rules on the same fact whose reviewed ranges overlap may not
+forbid a common member.
 
 ## Evidence basis
 

@@ -162,6 +162,37 @@ A missing source is never read as absence. In particular:
 - `--distribution` other than `official_upstream` keeps every fact unknown:
   vendor builds may keep removed settings.
 
+### Feature-gate and flag sets
+
+Besides the per-setting predicates, the adapter can declare two set facts
+for each of kube-apiserver, kube-controller-manager, kube-scheduler, kubelet
+and kube-proxy (see [set-valued facts](contributing-rules.md#set-valued-facts-and-forbid_set_member)):
+
+| Fact | Members |
+| --- | --- |
+| `component.kubernetes.<component>_feature_gates_set` | every feature gate the component sets at all, from `--feature-gates` and from a kubelet or kube-proxy `featureGates` map |
+| `component.kubernetes.<component>_flags_set` | every long command-line option the component is given, normalised as above |
+
+`<component>` is `kube_apiserver`, `kube_controller_manager`,
+`kube_scheduler`, `kubelet` or `kube_proxy`. Only gate and option names enter
+the set; values never do. A gate set to `false` is still set: a component
+refuses to start with an unrecognised gate whatever value it is given, so a
+removed gate blocks either way. A gate entry without `=` or with a
+non-boolean value is also set.
+
+A set is declared complete only when its component scope is listed in
+`complete` and every source of that scope was fully understood (for the
+kubelet and kube-proxy feature-gate sets this includes the configuration
+document rule above). Otherwise the set is declared with what was found and
+marked incomplete, so a forbidden member still blocks but its absence stays
+`UNKNOWN`. The sets over-approximate: every token spelling a long option
+counts, even one another option might consume as its value. A name outside the
+set member character set is left out and marks the set incomplete; a set of
+more than 256 names is declared unsupported. A forbid_set_member rule over one
+of these facts decides by its own reviewed transition, and like every fact here
+a set is emitted only when a published rule consumes it and only for a
+transition across one minor line.
+
 Managed control planes usually hide API server, controller manager and
 scheduler arguments. Leave those scopes out of `complete`; their rules then
 stay `UNKNOWN` unless a supplied source shows a removed setting.
