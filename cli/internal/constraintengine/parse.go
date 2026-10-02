@@ -103,16 +103,22 @@ func validateFact(fact inputFact, component string, registry Registry) error {
 	case "declared":
 		switch definition.Type {
 		case FactBool:
-			if fact.BoolValue == nil || fact.EnumValue != "" {
+			if fact.BoolValue == nil || fact.EnumValue != "" || fact.SetValue != nil {
 				return ErrInvalid
 			}
 		case FactEnum:
-			if fact.BoolValue != nil || !contains(definition.EnumTokens, fact.EnumValue) {
+			if fact.BoolValue != nil || fact.SetValue != nil || !contains(definition.EnumTokens, fact.EnumValue) {
 				return ErrInvalid
 			}
+		case FactSet:
+			if fact.BoolValue != nil || fact.EnumValue != "" || validateSetValue(fact.SetValue) != nil {
+				return ErrInvalid
+			}
+		default:
+			return ErrInvalid
 		}
 	case "missing", "unsupported", "conflict":
-		if fact.BoolValue != nil || fact.EnumValue != "" {
+		if fact.BoolValue != nil || fact.EnumValue != "" || fact.SetValue != nil {
 			return ErrInvalid
 		}
 	default:
@@ -134,10 +140,10 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	if err := decodeStrict(raw, &document); err != nil {
 		return RuleSet{}, err
 	}
-	if (document.Schema != RulesSchema && document.Schema != RulesSchemaRanged) || !idRE.MatchString(document.Revision) || !idRE.MatchString(document.PolicyID) || !digestRE.MatchString(document.PolicyDigest) || len(document.Rules) > maxRules {
+	if (document.Schema != RulesSchema && document.Schema != RulesSchemaRanged && document.Schema != RulesSchemaSet) || !idRE.MatchString(document.Revision) || !idRE.MatchString(document.PolicyID) || !digestRE.MatchString(document.PolicyDigest) || len(document.Rules) > maxRules {
 		return RuleSet{}, fmt.Errorf("ruleset identity: %w", ErrInvalid)
 	}
-	ranged := false
+	ranged, setOperator := false, false
 	for i, rule := range document.Rules {
 		if i > 0 && document.Rules[i-1].ID >= rule.ID {
 			return RuleSet{}, fmt.Errorf("rule order: %w", ErrInvalid)
@@ -146,13 +152,16 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 			return RuleSet{}, fmt.Errorf("rule: %w", err)
 		}
 		ranged = ranged || rule.Range != nil
+		setOperator = setOperator || rule.usesSetOperator()
 	}
-	// The schema string states whether the document carries ranges, and it
-	// must be right in both directions: an exact-only schema never admits a
-	// range, and the ranged schema is never used without one, so every
-	// document has exactly one schema and one engine contract.
-	if ranged != (document.Schema == RulesSchemaRanged) {
-		return RuleSet{}, fmt.Errorf("ruleset schema does not match range use: %w", ErrInvalid)
+	// The schema string states which contract the document needs, and it
+	// must be right in every direction: a document using forbid_set_member
+	// carries the set schema (which also admits ranges) and no other
+	// document does; otherwise an exact-only schema never admits a range,
+	// and the ranged schema is never used without one. Every document has
+	// exactly one schema and one engine contract.
+	if setOperator != (document.Schema == RulesSchemaSet) || (!setOperator && ranged != (document.Schema == RulesSchemaRanged)) {
+		return RuleSet{}, fmt.Errorf("ruleset schema does not match range or set operator use: %w", ErrInvalid)
 	}
 	if ranged {
 		if err := validateRangeOverlaps(document.Rules); err != nil {
@@ -162,7 +171,7 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	if err := validateCorpus(document); err != nil {
 		return RuleSet{}, err
 	}
-	return RuleSet{document: document, digest: digestJSON(document), registryDigest: registry.Digest(), ranged: ranged, seal: &ruleSetSeal{}}, nil
+	return RuleSet{document: document, digest: digestJSON(document), registryDigest: registry.Digest(), ranged: ranged, setOperator: setOperator, seal: &ruleSetSeal{}}, nil
 }
 
 // validateCorpus admits a completeness attestation only when the document can
@@ -216,7 +225,15 @@ func validateRule(rule rule, registry Registry) error {
 		}
 		seenConditions[key] = struct{}{}
 	}
+	if rule.SetCondition != nil && rule.Operator != OperatorForbidSetMember {
+		return fmt.Errorf("set condition is only valid for %s: %w", OperatorForbidSetMember, ErrInvalid)
+	}
 	switch rule.Operator {
+	case OperatorForbidSetMember:
+		if rule.SetCondition == nil || rule.Condition != nil || rule.Dependency != nil || rule.Intermediate != "" {
+			return fmt.Errorf("forbid set member structure: %w", ErrInvalid)
+		}
+		return validateSetCondition(*rule.SetCondition, registry)
 	case "forbid_predicate_value":
 		if rule.Condition == nil || rule.Dependency != nil || rule.Intermediate != "" {
 			return fmt.Errorf("forbid predicate structure: %w", ErrInvalid)
@@ -400,12 +417,17 @@ func validateInputShape(raw []byte) error {
 				return ErrInvalid
 			}
 			for _, factRaw := range facts {
-				fact, err := exactObject(factRaw, []string{"id", "state"}, []string{"boolValue", "enumValue"})
+				fact, err := exactObject(factRaw, []string{"id", "state"}, []string{"boolValue", "enumValue", "setValue"})
 				if err != nil {
 					return err
 				}
 				if !validFactValuePresence(fact) {
 					return ErrInvalid
+				}
+				if setValue, ok := fact["setValue"]; ok {
+					if err := validateSetValueShape(setValue); err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -428,7 +450,7 @@ func validateRuleShape(raw []byte) error {
 		return ErrInvalid
 	}
 	for _, ruleRaw := range rules {
-		rule, err := exactObject(ruleRaw, []string{"id", "operator", "subject", "evidence", "reasonCode", "nextAction"}, []string{"condition", "appliesWhen", "dependency", "intermediate", "range"})
+		rule, err := exactObject(ruleRaw, []string{"id", "operator", "subject", "evidence", "reasonCode", "nextAction"}, []string{"condition", "setCondition", "appliesWhen", "dependency", "intermediate", "range"})
 		if err != nil {
 			return err
 		}
@@ -442,6 +464,11 @@ func validateRuleShape(raw []byte) error {
 		}
 		if condition, ok := rule["condition"]; ok {
 			if err := validateConditionShape(condition); err != nil {
+				return err
+			}
+		}
+		if condition, ok := rule["setCondition"]; ok {
+			if err := validateSetConditionShape(condition); err != nil {
 				return err
 			}
 		}
@@ -558,12 +585,16 @@ func validFactValuePresence(fact map[string]json.RawMessage) bool {
 	if err := json.Unmarshal(fact["state"], &state); err != nil {
 		return false
 	}
-	_, hasBool := fact["boolValue"]
-	_, hasEnum := fact["enumValue"]
-	if state == "declared" {
-		return hasBool != hasEnum
+	present := 0
+	for _, key := range []string{"boolValue", "enumValue", "setValue"} {
+		if _, ok := fact[key]; ok {
+			present++
+		}
 	}
-	return !hasBool && !hasEnum
+	if state == "declared" {
+		return present == 1
+	}
+	return present == 0
 }
 
 func validateConditionShape(raw json.RawMessage) error {

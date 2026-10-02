@@ -137,9 +137,17 @@ func RuleTransitionOf(raw []byte) (RuleTransition, error) {
 }
 
 // RulesSchemaFor returns the rules schema a document holding exactly these
-// rules must carry: the ranged schema when at least one rule has a range, the
-// original exact-only schema otherwise.
+// rules must carry: the set schema when at least one rule uses
+// forbid_set_member, else the ranged schema when at least one rule has a
+// range, the original exact-only schema otherwise.
 func RulesSchemaFor(rules []json.RawMessage) (string, error) {
+	set, err := AnySetRule(rules)
+	if err != nil {
+		return "", err
+	}
+	if set {
+		return RulesSchemaSet, nil
+	}
 	ranged, err := AnyRanged(rules)
 	if err != nil {
 		return "", err
@@ -360,6 +368,12 @@ func validateRangeOverlaps(rules []rule) error {
 			if constraintKey(a) != constraintKey(b) {
 				continue
 			}
+			// Two set rules on one set fact constrain the same thing only
+			// when they forbid a common member; one rule per removed member
+			// is the expected shape.
+			if a.SetCondition != nil && len(setMembersHit(a.SetCondition.Members, b.SetCondition.Members)) == 0 {
+				continue
+			}
 			if regionsOverlap(a.transition(), b.transition()) {
 				return fmt.Errorf("overlapping rules constrain the same fact: %w", ErrInvalid)
 			}
@@ -370,6 +384,8 @@ func validateRangeOverlaps(rules []rule) error {
 
 func constraintKey(r rule) string {
 	switch {
+	case r.SetCondition != nil:
+		return r.Operator + "\x00" + r.SetCondition.Side + "\x00" + r.SetCondition.Component + "\x00" + r.SetCondition.FactID
 	case r.Condition != nil:
 		return r.Operator + "\x00" + r.Condition.Side + "\x00" + r.Condition.Component + "\x00" + r.Condition.FactID
 	case r.Dependency != nil:

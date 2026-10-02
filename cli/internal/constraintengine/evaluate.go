@@ -102,6 +102,8 @@ func evaluateMatchedRule(input inputDocument, rule rule, claim Claim) Claim {
 	}
 
 	switch rule.Operator {
+	case OperatorForbidSetMember:
+		return evaluateSetRule(input, rule, claim)
 	case "forbid_predicate_value":
 		fact, found := findFact(input, rule.Condition.Side, rule.Condition.Component, rule.Condition.FactID)
 		if !found || fact.State != "declared" {
@@ -196,6 +198,9 @@ func requiredFacts(rule rule) []RequiredFact {
 	if rule.Condition != nil {
 		conditions = append(conditions, *rule.Condition)
 	}
+	if rule.SetCondition != nil {
+		conditions = append(conditions, rule.SetCondition.fact())
+	}
 	result := make([]RequiredFact, 0, len(conditions))
 	seen := make(map[string]struct{}, len(conditions))
 	for _, condition := range conditions {
@@ -264,7 +269,7 @@ func issueReport(report Report) Report {
 // independently re-derive that same assessment. No block, no verdict —
 // however many claims passed. See legalAssessment.
 func MarshalReport(report Report) ([]byte, error) {
-	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
+	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !validSetClaims(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
 		return nil, ErrIntegrity
 	}
 	raw, err := json.Marshal(report)
@@ -297,7 +302,7 @@ func validClaimMatches(report Report) bool {
 		if match == nil {
 			continue
 		}
-		if report.EngineContractDigest != engineContractDigestRanged() || match.Mode != subjectMatchModeRange || claim.Status == "UNKNOWN" && claim.ReasonCode == "RULE_TRANSITION_NOT_REVIEWED" {
+		if (report.EngineContractDigest != engineContractDigestRanged() && report.EngineContractDigest != engineContractDigestSet()) || match.Mode != subjectMatchModeRange || claim.Status == "UNKNOWN" && claim.ReasonCode == "RULE_TRANSITION_NOT_REVIEWED" {
 			return false
 		}
 		if !validVersion(match.AnchorFrom) || !validVersion(match.AnchorTo) || !inBound(match.AnchorFrom, match.From) || !inBound(match.AnchorTo, match.To) {

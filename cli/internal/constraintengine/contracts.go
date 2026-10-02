@@ -155,6 +155,10 @@ func newRegistry(definitions []FactDefinition, definitionLimit int) (Registry, e
 			if len(copy.EnumTokens) != 0 {
 				return Registry{}, fmt.Errorf("boolean enum tokens: %w", ErrInvalid)
 			}
+		case FactSet:
+			if len(copy.EnumTokens) != 0 {
+				return Registry{}, fmt.Errorf("set enum tokens: %w", ErrInvalid)
+			}
 		case FactEnum:
 			if len(copy.EnumTokens) == 0 || len(copy.EnumTokens) > maxFacts {
 				return Registry{}, fmt.Errorf("enum token count: %w", ErrInvalid)
@@ -223,6 +227,9 @@ type inputFact struct {
 	State     string `json:"state"`
 	BoolValue *bool  `json:"boolValue,omitempty"`
 	EnumValue string `json:"enumValue,omitempty"`
+	// SetValue is present only for a declared set fact, so every input
+	// without one marshals and digests exactly as before set facts existed.
+	SetValue *SetValue `json:"setValue,omitempty"`
 }
 
 // Input is an opaque parser-issued capability. Its seal establishes only that
@@ -267,8 +274,11 @@ type rule struct {
 	Subject  transition `json:"subject"`
 	// Range is optional. When absent the rule marshals, digests, and matches
 	// exactly as it did before ranges existed.
-	Range        *VersionRange   `json:"range,omitempty"`
-	Condition    *factCondition  `json:"condition,omitempty"`
+	Range     *VersionRange  `json:"range,omitempty"`
+	Condition *factCondition `json:"condition,omitempty"`
+	// SetCondition is used only by forbid_set_member. When absent the rule
+	// marshals and digests exactly as before the operator existed.
+	SetCondition *setCondition   `json:"setCondition,omitempty"`
 	AppliesWhen  []factCondition `json:"appliesWhen,omitempty"`
 	Dependency   *componentCheck `json:"dependency,omitempty"`
 	Intermediate string          `json:"intermediate,omitempty"`
@@ -377,6 +387,7 @@ type RuleSet struct {
 	digest         string
 	registryDigest string
 	ranged         bool
+	setOperator    bool
 	seal           *ruleSetSeal
 }
 type ruleSetSeal struct{}
@@ -412,6 +423,10 @@ type Claim struct {
 	// reviewed range rather than its exact anchor pair. Exact matches omit it,
 	// so exact-rule claims serialize exactly as before ranges existed.
 	SubjectMatch *SubjectMatch `json:"subjectMatch,omitempty"`
+	// MatchedMembers is present only on a BLOCKED forbid_set_member claim:
+	// the forbidden members found in the declared set. Every other claim
+	// omits it and serializes exactly as before the operator existed.
+	MatchedMembers []string `json:"matchedMembers,omitempty"`
 }
 
 // SubjectMatch discloses a range match: the reviewed anchor pair and the
@@ -511,6 +526,9 @@ func EngineContractDigest() string { return engineContractDigest() }
 func EngineContractDigestRanged() string { return engineContractDigestRanged() }
 
 func (r RuleSet) engineDigest() string {
+	if r.setOperator {
+		return engineContractDigestSet()
+	}
 	if r.ranged {
 		return engineContractDigestRanged()
 	}
@@ -542,7 +560,9 @@ func scopeDigestFor(engineDigest string) string {
 	switch engineDigest {
 	case engineContractDigest():
 		return scopeContractDigest()
-	case engineContractDigestRanged():
+	case engineContractDigestRanged(), engineContractDigestSet():
+		// The set contract admits ranges, so it pairs with the scope
+		// contract that carries the anchor-review condition.
 		return scopeContractDigestRanged()
 	}
 	return ""
