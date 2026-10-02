@@ -1,0 +1,140 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package communityapp
+
+import (
+	"strings"
+	"testing"
+)
+
+const quietCronJobJSON = `{"apiVersion":"v1","kind":"List","items":[{"apiVersion":"batch/v1beta1","kind":"CronJob","metadata":{"name":"nightly-report","namespace":"default"}}]}`
+
+const quietCronJobYAML = `apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: nightly-report
+  namespace: default
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: settings
+`
+
+func quietArgs(path, from, to string, extra ...string) []string {
+	args := []string{"check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", from, "--to", to, "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", "2026-09-24T00:00:00Z"}
+	return append(args, extra...)
+}
+
+func nonEmptyLines(text string) []string {
+	return strings.Split(strings.TrimRight(text, "\n"), "\n")
+}
+
+func TestQuietHumanUnreviewedTransitionsPrintAtMostFiveLines(t *testing.T) {
+	path := writeCNCFFile(t, "kubernetes.json", []byte(quietCronJobJSON), 0o600)
+	for _, pair := range [][2]string{{"1.21.0", "1.25.0"}, {"1.28.0", "1.30.0"}, {"1.25.0", "1.24.0"}} {
+		code, human, stderr := runCNCFCLI(t, quietArgs(path, pair[0], pair[1], "--format", "human")...)
+		lines := nonEmptyLines(human)
+		if code != ExitUnknown || stderr != "" || len(lines) > 5 {
+			t.Fatalf("%v: code=%d lines=%d stderr=%q\n%s", pair, code, len(lines), stderr, human)
+		}
+		for _, want := range []string{"UNKNOWN: kubernetes " + pair[0] + " -> " + pair[1] + " is not a reviewed transition", "reviewed pairs:", "1.24.0 -> 1.25.0", "use prufyx scan", "aggregate: UNKNOWN"} {
+			if !strings.Contains(human, want) {
+				t.Errorf("%v: missing %q in\n%s", pair, want, human)
+			}
+		}
+		if strings.Contains(human, RuleTransitionNotReviewedText) {
+			t.Errorf("per-rule lines were not collapsed:\n%s", human)
+		}
+		jsonCode, jsonOut, _ := runCNCFCLI(t, quietArgs(path, pair[0], pair[1], "--format", "json")...)
+		if jsonCode != code || strings.Count(jsonOut, "RULE_TRANSITION_NOT_REVIEWED") < 20 {
+			t.Errorf("%v: JSON must still carry every claim (code %d)", pair, jsonCode)
+		}
+	}
+}
+
+// RuleTransitionNotReviewedText is the reason code the collapsed output must
+// not repeat per rule.
+const RuleTransitionNotReviewedText = "(RULE_TRANSITION_NOT_REVIEWED)"
+
+func TestQuietHumanReviewedPairCollapsesPassesAndSharesSources(t *testing.T) {
+	path := writeCNCFFile(t, "kubernetes.json", []byte(quietCronJobJSON), 0o600)
+	code, human, stderr := runCNCFCLI(t, quietArgs(path, "1.24.0", "1.25.0", "--format", "human")...)
+	lines := nonEmptyLines(human)
+	if code != ExitBlocked || stderr != "" || len(lines) > 10 {
+		t.Fatalf("code=%d lines=%d\n%s", code, len(lines), human)
+	}
+	if strings.Count(human, "pinned source:") != 2 || strings.Contains(human, ": PASS (") || !strings.Contains(human, "6 rules PASS (not listed; use --show-passes)") {
+		t.Fatalf("unexpected quiet output:\n%s", human)
+	}
+	if !strings.Contains(human, "BLOCKED (REVIEWED_SOURCE_CONSTRAINT)") {
+		t.Fatalf("decisive claim missing:\n%s", human)
+	}
+	aggregate, claim := strings.Index(human, "aggregate: UNKNOWN"), strings.Index(human, "BLOCKED (")
+	if aggregate < claim {
+		t.Fatalf("aggregate must follow the claims:\n%s", human)
+	}
+
+	code, withPasses, _ := runCNCFCLI(t, quietArgs(path, "1.24.0", "1.25.0", "--format", "human", "--show-passes")...)
+	if code != ExitBlocked || strings.Count(withPasses, ": PASS (") != 6 || hasDuplicateLines(withPasses) || !strings.Contains(withPasses, "pinned source:") || strings.Contains(withPasses, "--show-passes") {
+		t.Fatalf("--show-passes output:\n%s", withPasses)
+	}
+}
+
+func TestQuietHumanLeavesJSONUntouched(t *testing.T) {
+	path := writeCNCFFile(t, "kubernetes.json", []byte(quietCronJobJSON), 0o600)
+	_, plain, _ := runCNCFCLI(t, quietArgs(path, "1.24.0", "1.25.0", "--format", "json")...)
+	_, shown, _ := runCNCFCLI(t, quietArgs(path, "1.24.0", "1.25.0", "--format", "json", "--show-passes")...)
+	if plain != shown || strings.Count(plain, `"status":"PASS"`) != 6 {
+		t.Fatalf("JSON differs with --show-passes or lost claims")
+	}
+}
+
+func TestKubernetesNativeAcceptsYAMLWithSameVerdicts(t *testing.T) {
+	jsonPath := writeCNCFFile(t, "a.json", []byte(quietCronJobJSON), 0o600)
+	yamlPath := writeCNCFFile(t, "a.yaml", []byte(quietCronJobYAML), 0o600)
+	jsonCode, jsonHuman, _ := runCNCFCLI(t, quietArgs(jsonPath, "1.24.0", "1.25.0", "--format", "human")...)
+	yamlCode, yamlHuman, stderr := runCNCFCLI(t, quietArgs(yamlPath, "1.24.0", "1.25.0", "--format", "human")...)
+	if yamlCode != ExitBlocked || jsonCode != yamlCode || stderr != "" {
+		t.Fatalf("yaml code=%d json code=%d stderr=%q\n%s", yamlCode, jsonCode, stderr, yamlHuman)
+	}
+	// Only the raw input digest line may differ.
+	strip := func(text string) string {
+		var kept []string
+		for _, line := range strings.Split(text, "\n") {
+			if !strings.HasPrefix(line, "raw input digests:") {
+				kept = append(kept, line)
+			}
+		}
+		return strings.Join(kept, "\n")
+	}
+	if strip(jsonHuman) != strip(yamlHuman) {
+		t.Fatalf("verdict output differs:\n%s\n---\n%s", jsonHuman, yamlHuman)
+	}
+}
+
+func TestKubernetesNativeYAMLTemplatedAndMalformed(t *testing.T) {
+	templated := writeCNCFFile(t, "t.yaml", []byte("apiVersion: batch/v1\nkind: CronJob\nmetadata:\n  name: \"{{ .Values.name }}\"\n"), 0o600)
+	code, out, stderr := runCNCFCLI(t, quietArgs(templated, "1.24.0", "1.25.0", "--format", "json")...)
+	if code != ExitUnknown || stderr != "" || !strings.Contains(out, "RULE_FACT_UNAVAILABLE") {
+		t.Fatalf("templated: code=%d out=%q stderr=%q", code, out, stderr)
+	}
+	bad := writeCNCFFile(t, "bad.yaml", []byte("a: &x 1\nb: *x\n"), 0o600)
+	code, out, _ = runCNCFCLI(t, quietArgs(bad, "1.24.0", "1.25.0", "--format", "json")...)
+	if code != ExitUsage || out != "" {
+		t.Fatalf("alias accepted: code=%d out=%q", code, out)
+	}
+}
+
+func hasDuplicateLines(text string) bool {
+	seen := map[string]bool{}
+	for _, line := range strings.Split(text, "\n") {
+		if strings.HasPrefix(line, "pinned source:") {
+			if seen[line] {
+				return true
+			}
+			seen[line] = true
+		}
+	}
+	return false
+}

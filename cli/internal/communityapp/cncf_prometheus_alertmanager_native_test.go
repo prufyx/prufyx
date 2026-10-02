@@ -77,7 +77,7 @@ func TestPrometheusSelectedAlertmanagerHumanScope(t *testing.T) {
 	code, stdout, stderr := runCNCFCLI(t,
 		"check", "cncf", "--project", "prometheus", "--alertmanager-config", path,
 		"--from", "2.55.1", "--to", "3.1.0", "--alertmanager-config-complete",
-		"--alertmanager-config-precedence-resolved", "--now", "2026-09-12T00:30:00Z")
+		"--alertmanager-config-precedence-resolved", "--now", "2026-09-12T00:30:00Z", "--show-passes")
 	for _, text := range []string{"api_version omitted; exact target source-derived default v2", "caller-selected mapping; not observed running configuration", "v2 support, reachability and alert delivery remain unverified", "verify that the actual Alertmanager supports v2"} {
 		if !strings.Contains(stdout, text) {
 			t.Fatalf("missing %q from %q", text, stdout)
