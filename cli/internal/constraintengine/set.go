@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 // A set-valued fact declares a bounded, sorted, duplicate-free list of public
@@ -257,4 +258,14 @@ func validSetClaims(report Report) bool {
 		}
 	}
 	return true
+}
+
+// MatchedMembersLine is the one-line human statement of the forbidden set
+// members a BLOCKED forbid_set_member claim found. ok is false for every
+// other claim, whose human output is unchanged.
+func (c Claim) MatchedMembersLine() (line string, ok bool) {
+	if len(c.MatchedMembers) == 0 {
+		return "", false
+	}
+	return "forbidden members present: " + strings.Join(c.MatchedMembers, ", "), true
 }

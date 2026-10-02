@@ -6,7 +6,14 @@ import "github.com/prufyx/prufyx/cli/internal/constraintengine"
 
 const PolicyDeclaration = "Prufyx CNCF source-constraint preview v1: exact declared current/proposed endpoints; compiled minimized facts; scoped PASS/BLOCKED/UNKNOWN; all whole-upgrade assessments UNKNOWN; no runtime, signature, observed input, or upload authority. Maintainer source reviews expire after 90 days; this is not an upstream support lifetime."
 
+// compiledDefinitions is the fact registry of this build: the packaged
+// definitions, plus nothing in every shipped build (see
+// additionalDefinitions).
 func compiledDefinitions() []constraintengine.FactDefinition {
+	return append(packagedDefinitions(), additionalDefinitions()...)
+}
+
+func packagedDefinitions() []constraintengine.FactDefinition {
 	return []constraintengine.FactDefinition{
 		{ID: "component.argo_cd.disable_fine_grained_inheritance", Component: "pkg:github/argoproj/argo-cd", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.argo_cd.latest_distribution", Component: "pkg:github/argoproj/argo-cd", Type: constraintengine.FactEnum, EnumTokens: []string{"custom_build", "official_upstream"}},

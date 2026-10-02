@@ -96,6 +96,11 @@ func writeKubernetesComponentClaims(out io.Writer, claims []constraintengine.Cla
 		if _, err := fmt.Fprintf(out, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction); err != nil {
 			return err
 		}
+		if line, ok := claim.MatchedMembersLine(); ok {
+			if _, err := fmt.Fprintln(out, line); err != nil {
+				return err
+			}
+		}
 		if _, err := fmt.Fprintln(out, claim.EvidenceBasisLine()); err != nil {
 			return err
 		}

@@ -10,8 +10,8 @@ import (
 )
 
 type k8sFactView struct {
-	ID        string `json:"id"`
-	State     string `json:"state"`
+	ID        string         `json:"id"`
+	State     string         `json:"state"`
 	BoolValue *bool          `json:"boolValue"`
 	SetValue  *inputSetValue `json:"setValue"`
 }

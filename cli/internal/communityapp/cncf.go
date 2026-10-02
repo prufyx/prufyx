@@ -867,6 +867,9 @@ Whole-upgrade compatibility remains UNKNOWN in every case.`)
 		fmt.Fprintf(r.stdout, "%s source-constraint preview\naggregate: UNKNOWN\ninput authority: %s\nknowledge: embedded revision %s\nruntime transitions reproduced: 0\nnetwork used: false\n", report.Project, report.Check.InputAuthority, report.KnowledgeRevision)
 		for _, claim := range report.Check.Claims {
 			fmt.Fprintf(r.stdout, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction)
+			if line, ok := claim.MatchedMembersLine(); ok {
+				fmt.Fprintln(r.stdout, line)
+			}
 			fmt.Fprintln(r.stdout, claim.EvidenceBasisLine())
 		}
 		fmt.Fprintf(r.stdout, "input digest: %s\nknowledge pack digest: %s\nnext action: %s\n", report.InputFileDigest, report.KnowledgePackDigest, report.NextAction)

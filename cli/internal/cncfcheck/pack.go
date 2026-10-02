@@ -89,20 +89,31 @@ type bundle struct {
 }
 
 func load() (bundle, error) {
-	var result bundle
 	landscapeRaw, err := packagedFiles.ReadFile("data/landscape-projects.json")
-	if err != nil || strictJSON(landscapeRaw, &result.landscape) != nil {
+	if err != nil {
 		return bundle{}, ErrIntegrity
 	}
 	priorityRaw, err := packagedFiles.ReadFile("data/priority-portfolio.json")
-	if err != nil || strictJSON(priorityRaw, &result.priority) != nil {
+	if err != nil {
 		return bundle{}, ErrIntegrity
 	}
-	packRaw, err := packagedFiles.ReadFile("data/rules.json")
-	if err != nil || strictJSON(packRaw, &result.pack) != nil {
+	packRaw, err := packagedRulePack()
+	if err != nil {
 		return bundle{}, ErrIntegrity
 	}
-	result.registry, err = compiledRegistry()
+	return assemble(landscapeRaw, priorityRaw, packRaw, compiledDefinitions())
+}
+
+// assemble admits the landscape, priority list and rule pack against a fact
+// registry built from definitions. Every check of the packaged knowledge is
+// here, so tests can hold synthetic knowledge to exactly the same rules.
+func assemble(landscapeRaw, priorityRaw, packRaw []byte, factDefinitions []constraintengine.FactDefinition) (bundle, error) {
+	var result bundle
+	if strictJSON(landscapeRaw, &result.landscape) != nil || strictJSON(priorityRaw, &result.priority) != nil || strictJSON(packRaw, &result.pack) != nil {
+		return bundle{}, ErrIntegrity
+	}
+	var err error
+	result.registry, err = constraintengine.NewCompiledRegistry(factDefinitions)
 	if err != nil {
 		return bundle{}, ErrIntegrity
 	}
@@ -127,7 +138,7 @@ func load() (bundle, error) {
 		}
 	}
 	definitions := map[string]constraintengine.FactDefinition{}
-	for _, definition := range compiledDefinitions() {
+	for _, definition := range factDefinitions {
 		definitions[definition.ID] = definition
 	}
 	if result.pack.PolicyID != "cncf-source-preview-v1" || result.pack.PolicyDigest != digest([]byte(PolicyDeclaration)) {
