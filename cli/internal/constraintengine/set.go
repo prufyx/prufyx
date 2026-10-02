@@ -70,13 +70,15 @@ type setCondition struct {
 // identifier of 1 to MaxSetMemberBytes bytes over [A-Za-z0-9._/-] that starts
 // with a letter or digit.
 func ValidSetMember(value string) bool {
-	return len(value) <= MaxSetMemberBytes && setMemberRE.MatchString(value)
+	// The pattern bounds the length: one leading and at most 127 further
+	// single-byte characters, MaxSetMemberBytes in all.
+	return setMemberRE.MatchString(value)
 }
 
 // canonicalMembers checks a strictly ascending, duplicate-free member list
 // within [minimum, maximum] entries.
 func canonicalMembers(members []string, minimum, maximum int) bool {
-	if members == nil || len(members) < minimum || len(members) > maximum {
+	if len(members) < minimum || len(members) > maximum {
 		return false
 	}
 	for index, member := range members {
@@ -109,21 +111,16 @@ func validateSetCondition(condition setCondition, registry Registry) error {
 }
 
 // validateSetValueShape gates the exact {members, complete} shape before
-// struct decoding: no aliases, nulls, extra keys or non-string members.
+// struct decoding: no aliases, nulls or extra keys, and members is an array.
+// Strict decoding then requires string members and a boolean complete, and
+// canonicalMembers bounds and orders them.
 func validateSetValueShape(raw json.RawMessage) error {
 	object, err := exactObject(raw, []string{"members", "complete"}, nil)
 	if err != nil {
 		return err
 	}
-	var complete bool
-	if json.Unmarshal(object["complete"], &complete) != nil {
-		return ErrInvalid
-	}
-	members, err := exactArray(object["members"])
-	if err != nil || len(members) > MaxSetMembers {
-		return ErrInvalid
-	}
-	return stringItems(members)
+	_, err = exactArray(object["members"])
+	return err
 }
 
 func validateSetConditionShape(raw json.RawMessage) error {
@@ -131,21 +128,8 @@ func validateSetConditionShape(raw json.RawMessage) error {
 	if err != nil {
 		return err
 	}
-	members, err := exactArray(object["members"])
-	if err != nil || len(members) == 0 || len(members) > MaxForbiddenMembers {
-		return ErrInvalid
-	}
-	return stringItems(members)
-}
-
-func stringItems(items []json.RawMessage) error {
-	for _, item := range items {
-		var value string
-		if json.Unmarshal(item, &value) != nil {
-			return ErrInvalid
-		}
-	}
-	return nil
+	_, err = exactArray(object["members"])
+	return err
 }
 
 // setMembersHit returns the forbidden members present in declared, in
@@ -198,8 +182,9 @@ func setIncompleteAction(condition setCondition) string {
 }
 
 // usesSetOperator reports whether a parsed rule needs the set contract.
+// A set condition on any other operator is rejected by validateRule.
 func (r rule) usesSetOperator() bool {
-	return r.Operator == OperatorForbidSetMember || r.SetCondition != nil
+	return r.Operator == OperatorForbidSetMember
 }
 
 // AnySetRule reports whether any raw rule uses forbid_set_member or carries a

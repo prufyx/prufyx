@@ -458,3 +458,67 @@ func itoa(value int) string {
 	raw, _ := json.Marshal(value)
 	return string(raw)
 }
+
+// TestValidateFactRefusesMixedValuesBehindTheShapeGate checks the typed
+// validator on its own: the shape gate already refuses these documents, and
+// the validator must refuse them as well.
+func TestValidateFactRefusesMixedValuesBehindTheShapeGate(t *testing.T) {
+	registry, err := NewRegistry([]FactDefinition{
+		{ID: testFact, Component: testComponent, Type: FactBool},
+		{ID: "component.example.mode", Component: testComponent, Type: FactEnum, EnumTokens: []string{"a"}},
+		{ID: setTestFact, Component: testComponent, Type: FactSet},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	yes, set := true, &SetValue{Members: []string{}, Complete: true}
+	for name, fact := range map[string]inputFact{
+		"bool with set":         {ID: testFact, State: "declared", BoolValue: &yes, SetValue: set},
+		"enum with set":         {ID: "component.example.mode", State: "declared", EnumValue: "a", SetValue: set},
+		"set with bool":         {ID: setTestFact, State: "declared", BoolValue: &yes, SetValue: set},
+		"set with enum":         {ID: setTestFact, State: "declared", EnumValue: "a", SetValue: set},
+		"set without value":     {ID: setTestFact, State: "declared"},
+		"missing with set":      {ID: setTestFact, State: "missing", SetValue: set},
+		"unsupported with set":  {ID: setTestFact, State: "unsupported", SetValue: set},
+		"set with null members": {ID: setTestFact, State: "declared", SetValue: &SetValue{Complete: true}},
+	} {
+		err := validateFact(fact, testComponent, registry)
+		if name == "set with null members" {
+			// A nil member list is the empty set; the shape gate is what
+			// refuses a JSON null.
+			if err != nil {
+				t.Fatalf("%s refused: %v", name, err)
+			}
+			continue
+		}
+		if err == nil {
+			t.Fatalf("%s accepted", name)
+		}
+	}
+}
+
+// TestSetOverlapsAreKeyedByFact: set rules on different facts (or sides) may
+// forbid the same member in overlapping ranges.
+func TestSetOverlapsAreKeyedByFact(t *testing.T) {
+	registry, err := NewRegistry([]FactDefinition{
+		{ID: "component.alpha.kubelet_feature_gates_set", Component: scopeComponentA, Type: FactSet},
+		{ID: "component.alpha.apiserver_feature_gates_set", Component: scopeComponentA, Type: FactSet},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	setRule := func(id, side, fact string) string {
+		spec := defaultRangeSpec()
+		spec.id, spec.operator = id, OperatorForbidSetMember
+		spec.extra = `,"setCondition":{"side":"` + side + `","component":"` + scopeComponentA + `","factId":"` + fact + `","members":["GateA"]}`
+		return spec.ruleJSON()
+	}
+	for name, document := range map[string][]byte{
+		"different facts": rangeDocument(RulesSchemaSet, false, setRule("gate-a", "proposed", "component.alpha.apiserver_feature_gates_set"), setRule("gate-b", "proposed", "component.alpha.kubelet_feature_gates_set")),
+		"different sides": rangeDocument(RulesSchemaSet, false, setRule("gate-a", "current", "component.alpha.kubelet_feature_gates_set"), setRule("gate-b", "proposed", "component.alpha.kubelet_feature_gates_set")),
+	} {
+		if _, err := ParseRuleSet(document, registry); err != nil {
+			t.Fatalf("%s refused: %v", name, err)
+		}
+	}
+}

@@ -82,10 +82,8 @@ func (m *k8sComponentModel) members(set k8sSetFact) (members []string, complete,
 	case k8sSetKindFeatureGates:
 		var gates map[string][]k8sGateValue
 		gates, resolved = m.gates(set.Scope)
-		for name, occurrences := range gates {
-			if len(occurrences) > 0 {
-				names[name] = true
-			}
+		for name := range gates {
+			names[name] = true
 		}
 	case k8sSetKindFlags:
 		var flags []k8sFlag
