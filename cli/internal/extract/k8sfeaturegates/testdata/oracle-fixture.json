@@ -1,0 +1,96 @@
+{
+  "removals": [
+    {
+      "gate": "BoundServiceAccountTokenVolume",
+      "removedIn": "1.23",
+      "declFile": "pkg/features/kube_features.go",
+      "declLine": 45
+    },
+    {
+      "gate": "StartupProbe",
+      "removedIn": "1.23",
+      "declFile": "pkg/features/kube_features.go",
+      "declLine": 53
+    },
+    {
+      "gate": "CloudDualStackNodeIPs",
+      "removedIn": "1.32",
+      "declFile": "pkg/features/kube_features.go",
+      "declLine": 42
+    },
+    {
+      "gate": "HPAContainerMetrics",
+      "removedIn": "1.32",
+      "declFile": "pkg/features/kube_features.go",
+      "declLine": 52
+    },
+    {
+      "gate": "KMSv2",
+      "removedIn": "1.32",
+      "declFile": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go",
+      "declLine": 33
+    },
+    {
+      "gate": "ServerSideApply",
+      "removedIn": "1.32",
+      "declFile": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go",
+      "declLine": 41
+    },
+    {
+      "gate": "APIServerTracing",
+      "removedIn": "1.37",
+      "declFile": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go",
+      "declLine": 40
+    },
+    {
+      "gate": "AnyVolumeDataSource",
+      "removedIn": "1.37",
+      "declFile": "pkg/features/kube_features.go",
+      "declLine": 51
+    },
+    {
+      "gate": "AuthorizeWithSelectors",
+      "removedIn": "1.37",
+      "declFile": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go",
+      "declLine": 46
+    },
+    {
+      "gate": "SidecarContainers",
+      "removedIn": "1.37",
+      "declFile": "pkg/features/kube_features.go",
+      "declLine": 59
+    }
+  ],
+  "rules": [
+    {
+      "name": "bound-sa-token-volume",
+      "from": "1.22.0",
+      "to": "1.23.0",
+      "gates": [
+        "BoundServiceAccountTokenVolume"
+      ],
+      "components": [
+        "kube-apiserver",
+        "kube-controller-manager",
+        "kube-scheduler",
+        "kubelet",
+        "kube-proxy"
+      ]
+    },
+    {
+      "name": "sidecar-containers",
+      "from": "1.36.0",
+      "to": "1.37.0",
+      "gates": [
+        "SidecarContainers"
+      ],
+      "components": [
+        "kube-apiserver",
+        "kube-controller-manager",
+        "kube-scheduler",
+        "kubelet",
+        "kube-proxy"
+      ]
+    }
+  ]
+}

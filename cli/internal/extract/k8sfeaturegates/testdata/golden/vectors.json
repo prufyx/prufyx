@@ -1,0 +1,2022 @@
+[
+  {
+    "expect": {
+      "matchedMembers": [
+        "BoundServiceAccountTokenVolume",
+        "StartupProbe"
+      ],
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.22.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_apiserver_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "APIListChunking",
+                    "BoundServiceAccountTokenVolume",
+                    "StartupProbe"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.23.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "kubernetes.feature-gate-removal.kube-apiserver.1-22-0-to-1-23-0.1/blocked",
+    "ruleId": "kubernetes.feature-gate-removal.kube-apiserver.1-22-0-to-1-23-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.22.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_apiserver_feature_gates_set",
+                "setValue": {
+                  "complete": true,
+                  "members": [
+                    "APIListChunking"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.23.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "kubernetes.feature-gate-removal.kube-apiserver.1-22-0-to-1-23-0.1/pass-complete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-apiserver.1-22-0-to-1-23-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_SET_FACT_INCOMPLETE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.22.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_apiserver_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "APIListChunking"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.23.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "kubernetes.feature-gate-removal.kube-apiserver.1-22-0-to-1-23-0.1/unknown-incomplete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-apiserver.1-22-0-to-1-23-0.1"
+  },
+  {
+    "expect": {
+      "matchedMembers": [
+        "CloudDualStackNodeIPs",
+        "HPAContainerMetrics",
+        "KMSv2",
+        "ServerSideApply"
+      ],
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.31.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_apiserver_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "AnyVolumeDataSource",
+                    "CloudDualStackNodeIPs",
+                    "HPAContainerMetrics",
+                    "KMSv2",
+                    "ServerSideApply"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "kubernetes.feature-gate-removal.kube-apiserver.1-31-0-to-1-32-0.1/blocked",
+    "ruleId": "kubernetes.feature-gate-removal.kube-apiserver.1-31-0-to-1-32-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.31.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_apiserver_feature_gates_set",
+                "setValue": {
+                  "complete": true,
+                  "members": [
+                    "AnyVolumeDataSource"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "kubernetes.feature-gate-removal.kube-apiserver.1-31-0-to-1-32-0.1/pass-complete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-apiserver.1-31-0-to-1-32-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_SET_FACT_INCOMPLETE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.31.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_apiserver_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "AnyVolumeDataSource"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "kubernetes.feature-gate-removal.kube-apiserver.1-31-0-to-1-32-0.1/unknown-incomplete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-apiserver.1-31-0-to-1-32-0.1"
+  },
+  {
+    "expect": {
+      "matchedMembers": [
+        "APIServerTracing",
+        "AnyVolumeDataSource",
+        "AuthorizeWithSelectors",
+        "SidecarContainers"
+      ],
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.36.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_apiserver_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "APIServerTracing",
+                    "AllowDNSOnlyNodeCSR",
+                    "AnyVolumeDataSource",
+                    "AuthorizeWithSelectors",
+                    "SidecarContainers"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.37.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "kubernetes.feature-gate-removal.kube-apiserver.1-36-0-to-1-37-0.1/blocked",
+    "ruleId": "kubernetes.feature-gate-removal.kube-apiserver.1-36-0-to-1-37-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.36.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_apiserver_feature_gates_set",
+                "setValue": {
+                  "complete": true,
+                  "members": [
+                    "AllowDNSOnlyNodeCSR"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.37.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "kubernetes.feature-gate-removal.kube-apiserver.1-36-0-to-1-37-0.1/pass-complete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-apiserver.1-36-0-to-1-37-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_SET_FACT_INCOMPLETE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.36.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_apiserver_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "AllowDNSOnlyNodeCSR"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.37.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "kubernetes.feature-gate-removal.kube-apiserver.1-36-0-to-1-37-0.1/unknown-incomplete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-apiserver.1-36-0-to-1-37-0.1"
+  },
+  {
+    "expect": {
+      "matchedMembers": [
+        "BoundServiceAccountTokenVolume",
+        "StartupProbe"
+      ],
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.22.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_controller_manager_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "APIListChunking",
+                    "BoundServiceAccountTokenVolume",
+                    "StartupProbe"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.23.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "kubernetes.feature-gate-removal.kube-controller-manager.1-22-0-to-1-23-0.1/blocked",
+    "ruleId": "kubernetes.feature-gate-removal.kube-controller-manager.1-22-0-to-1-23-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.22.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_controller_manager_feature_gates_set",
+                "setValue": {
+                  "complete": true,
+                  "members": [
+                    "APIListChunking"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.23.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "kubernetes.feature-gate-removal.kube-controller-manager.1-22-0-to-1-23-0.1/pass-complete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-controller-manager.1-22-0-to-1-23-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_SET_FACT_INCOMPLETE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.22.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_controller_manager_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "APIListChunking"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.23.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "kubernetes.feature-gate-removal.kube-controller-manager.1-22-0-to-1-23-0.1/unknown-incomplete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-controller-manager.1-22-0-to-1-23-0.1"
+  },
+  {
+    "expect": {
+      "matchedMembers": [
+        "CloudDualStackNodeIPs",
+        "HPAContainerMetrics",
+        "KMSv2",
+        "ServerSideApply"
+      ],
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.31.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_controller_manager_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "AnyVolumeDataSource",
+                    "CloudDualStackNodeIPs",
+                    "HPAContainerMetrics",
+                    "KMSv2",
+                    "ServerSideApply"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "kubernetes.feature-gate-removal.kube-controller-manager.1-31-0-to-1-32-0.1/blocked",
+    "ruleId": "kubernetes.feature-gate-removal.kube-controller-manager.1-31-0-to-1-32-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.31.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_controller_manager_feature_gates_set",
+                "setValue": {
+                  "complete": true,
+                  "members": [
+                    "AnyVolumeDataSource"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "kubernetes.feature-gate-removal.kube-controller-manager.1-31-0-to-1-32-0.1/pass-complete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-controller-manager.1-31-0-to-1-32-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_SET_FACT_INCOMPLETE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.31.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_controller_manager_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "AnyVolumeDataSource"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "kubernetes.feature-gate-removal.kube-controller-manager.1-31-0-to-1-32-0.1/unknown-incomplete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-controller-manager.1-31-0-to-1-32-0.1"
+  },
+  {
+    "expect": {
+      "matchedMembers": [
+        "APIServerTracing",
+        "AnyVolumeDataSource",
+        "AuthorizeWithSelectors",
+        "SidecarContainers"
+      ],
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.36.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_controller_manager_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "APIServerTracing",
+                    "AllowDNSOnlyNodeCSR",
+                    "AnyVolumeDataSource",
+                    "AuthorizeWithSelectors",
+                    "SidecarContainers"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.37.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "kubernetes.feature-gate-removal.kube-controller-manager.1-36-0-to-1-37-0.1/blocked",
+    "ruleId": "kubernetes.feature-gate-removal.kube-controller-manager.1-36-0-to-1-37-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.36.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_controller_manager_feature_gates_set",
+                "setValue": {
+                  "complete": true,
+                  "members": [
+                    "AllowDNSOnlyNodeCSR"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.37.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "kubernetes.feature-gate-removal.kube-controller-manager.1-36-0-to-1-37-0.1/pass-complete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-controller-manager.1-36-0-to-1-37-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_SET_FACT_INCOMPLETE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.36.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_controller_manager_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "AllowDNSOnlyNodeCSR"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.37.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "kubernetes.feature-gate-removal.kube-controller-manager.1-36-0-to-1-37-0.1/unknown-incomplete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-controller-manager.1-36-0-to-1-37-0.1"
+  },
+  {
+    "expect": {
+      "matchedMembers": [
+        "BoundServiceAccountTokenVolume",
+        "StartupProbe"
+      ],
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.22.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_proxy_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "APIListChunking",
+                    "BoundServiceAccountTokenVolume",
+                    "StartupProbe"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.23.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "kubernetes.feature-gate-removal.kube-proxy.1-22-0-to-1-23-0.1/blocked",
+    "ruleId": "kubernetes.feature-gate-removal.kube-proxy.1-22-0-to-1-23-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.22.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_proxy_feature_gates_set",
+                "setValue": {
+                  "complete": true,
+                  "members": [
+                    "APIListChunking"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.23.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "kubernetes.feature-gate-removal.kube-proxy.1-22-0-to-1-23-0.1/pass-complete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-proxy.1-22-0-to-1-23-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_SET_FACT_INCOMPLETE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.22.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_proxy_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "APIListChunking"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.23.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "kubernetes.feature-gate-removal.kube-proxy.1-22-0-to-1-23-0.1/unknown-incomplete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-proxy.1-22-0-to-1-23-0.1"
+  },
+  {
+    "expect": {
+      "matchedMembers": [
+        "CloudDualStackNodeIPs",
+        "HPAContainerMetrics",
+        "KMSv2",
+        "ServerSideApply"
+      ],
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.31.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_proxy_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "AnyVolumeDataSource",
+                    "CloudDualStackNodeIPs",
+                    "HPAContainerMetrics",
+                    "KMSv2",
+                    "ServerSideApply"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "kubernetes.feature-gate-removal.kube-proxy.1-31-0-to-1-32-0.1/blocked",
+    "ruleId": "kubernetes.feature-gate-removal.kube-proxy.1-31-0-to-1-32-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.31.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_proxy_feature_gates_set",
+                "setValue": {
+                  "complete": true,
+                  "members": [
+                    "AnyVolumeDataSource"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "kubernetes.feature-gate-removal.kube-proxy.1-31-0-to-1-32-0.1/pass-complete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-proxy.1-31-0-to-1-32-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_SET_FACT_INCOMPLETE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.31.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_proxy_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "AnyVolumeDataSource"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "kubernetes.feature-gate-removal.kube-proxy.1-31-0-to-1-32-0.1/unknown-incomplete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-proxy.1-31-0-to-1-32-0.1"
+  },
+  {
+    "expect": {
+      "matchedMembers": [
+        "APIServerTracing",
+        "AnyVolumeDataSource",
+        "AuthorizeWithSelectors",
+        "SidecarContainers"
+      ],
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.36.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_proxy_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "APIServerTracing",
+                    "AllowDNSOnlyNodeCSR",
+                    "AnyVolumeDataSource",
+                    "AuthorizeWithSelectors",
+                    "SidecarContainers"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.37.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "kubernetes.feature-gate-removal.kube-proxy.1-36-0-to-1-37-0.1/blocked",
+    "ruleId": "kubernetes.feature-gate-removal.kube-proxy.1-36-0-to-1-37-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.36.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_proxy_feature_gates_set",
+                "setValue": {
+                  "complete": true,
+                  "members": [
+                    "AllowDNSOnlyNodeCSR"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.37.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "kubernetes.feature-gate-removal.kube-proxy.1-36-0-to-1-37-0.1/pass-complete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-proxy.1-36-0-to-1-37-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_SET_FACT_INCOMPLETE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.36.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_proxy_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "AllowDNSOnlyNodeCSR"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.37.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "kubernetes.feature-gate-removal.kube-proxy.1-36-0-to-1-37-0.1/unknown-incomplete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-proxy.1-36-0-to-1-37-0.1"
+  },
+  {
+    "expect": {
+      "matchedMembers": [
+        "BoundServiceAccountTokenVolume",
+        "StartupProbe"
+      ],
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.22.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_scheduler_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "APIListChunking",
+                    "BoundServiceAccountTokenVolume",
+                    "StartupProbe"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.23.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "kubernetes.feature-gate-removal.kube-scheduler.1-22-0-to-1-23-0.1/blocked",
+    "ruleId": "kubernetes.feature-gate-removal.kube-scheduler.1-22-0-to-1-23-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.22.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_scheduler_feature_gates_set",
+                "setValue": {
+                  "complete": true,
+                  "members": [
+                    "APIListChunking"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.23.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "kubernetes.feature-gate-removal.kube-scheduler.1-22-0-to-1-23-0.1/pass-complete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-scheduler.1-22-0-to-1-23-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_SET_FACT_INCOMPLETE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.22.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_scheduler_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "APIListChunking"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.23.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "kubernetes.feature-gate-removal.kube-scheduler.1-22-0-to-1-23-0.1/unknown-incomplete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-scheduler.1-22-0-to-1-23-0.1"
+  },
+  {
+    "expect": {
+      "matchedMembers": [
+        "CloudDualStackNodeIPs",
+        "HPAContainerMetrics",
+        "KMSv2",
+        "ServerSideApply"
+      ],
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.31.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_scheduler_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "AnyVolumeDataSource",
+                    "CloudDualStackNodeIPs",
+                    "HPAContainerMetrics",
+                    "KMSv2",
+                    "ServerSideApply"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "kubernetes.feature-gate-removal.kube-scheduler.1-31-0-to-1-32-0.1/blocked",
+    "ruleId": "kubernetes.feature-gate-removal.kube-scheduler.1-31-0-to-1-32-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.31.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_scheduler_feature_gates_set",
+                "setValue": {
+                  "complete": true,
+                  "members": [
+                    "AnyVolumeDataSource"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "kubernetes.feature-gate-removal.kube-scheduler.1-31-0-to-1-32-0.1/pass-complete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-scheduler.1-31-0-to-1-32-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_SET_FACT_INCOMPLETE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.31.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_scheduler_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "AnyVolumeDataSource"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "kubernetes.feature-gate-removal.kube-scheduler.1-31-0-to-1-32-0.1/unknown-incomplete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-scheduler.1-31-0-to-1-32-0.1"
+  },
+  {
+    "expect": {
+      "matchedMembers": [
+        "APIServerTracing",
+        "AnyVolumeDataSource",
+        "AuthorizeWithSelectors",
+        "SidecarContainers"
+      ],
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.36.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_scheduler_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "APIServerTracing",
+                    "AllowDNSOnlyNodeCSR",
+                    "AnyVolumeDataSource",
+                    "AuthorizeWithSelectors",
+                    "SidecarContainers"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.37.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "kubernetes.feature-gate-removal.kube-scheduler.1-36-0-to-1-37-0.1/blocked",
+    "ruleId": "kubernetes.feature-gate-removal.kube-scheduler.1-36-0-to-1-37-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.36.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_scheduler_feature_gates_set",
+                "setValue": {
+                  "complete": true,
+                  "members": [
+                    "AllowDNSOnlyNodeCSR"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.37.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "kubernetes.feature-gate-removal.kube-scheduler.1-36-0-to-1-37-0.1/pass-complete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-scheduler.1-36-0-to-1-37-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_SET_FACT_INCOMPLETE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.36.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kube_scheduler_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "AllowDNSOnlyNodeCSR"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.37.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "kubernetes.feature-gate-removal.kube-scheduler.1-36-0-to-1-37-0.1/unknown-incomplete",
+    "ruleId": "kubernetes.feature-gate-removal.kube-scheduler.1-36-0-to-1-37-0.1"
+  },
+  {
+    "expect": {
+      "matchedMembers": [
+        "BoundServiceAccountTokenVolume",
+        "StartupProbe"
+      ],
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.22.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kubelet_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "APIListChunking",
+                    "BoundServiceAccountTokenVolume",
+                    "StartupProbe"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.23.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "kubernetes.feature-gate-removal.kubelet.1-22-0-to-1-23-0.1/blocked",
+    "ruleId": "kubernetes.feature-gate-removal.kubelet.1-22-0-to-1-23-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.22.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kubelet_feature_gates_set",
+                "setValue": {
+                  "complete": true,
+                  "members": [
+                    "APIListChunking"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.23.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "kubernetes.feature-gate-removal.kubelet.1-22-0-to-1-23-0.1/pass-complete",
+    "ruleId": "kubernetes.feature-gate-removal.kubelet.1-22-0-to-1-23-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_SET_FACT_INCOMPLETE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.22.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kubelet_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "APIListChunking"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.23.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "kubernetes.feature-gate-removal.kubelet.1-22-0-to-1-23-0.1/unknown-incomplete",
+    "ruleId": "kubernetes.feature-gate-removal.kubelet.1-22-0-to-1-23-0.1"
+  },
+  {
+    "expect": {
+      "matchedMembers": [
+        "CloudDualStackNodeIPs",
+        "HPAContainerMetrics",
+        "KMSv2",
+        "ServerSideApply"
+      ],
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.31.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kubelet_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "AnyVolumeDataSource",
+                    "CloudDualStackNodeIPs",
+                    "HPAContainerMetrics",
+                    "KMSv2",
+                    "ServerSideApply"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "kubernetes.feature-gate-removal.kubelet.1-31-0-to-1-32-0.1/blocked",
+    "ruleId": "kubernetes.feature-gate-removal.kubelet.1-31-0-to-1-32-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.31.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kubelet_feature_gates_set",
+                "setValue": {
+                  "complete": true,
+                  "members": [
+                    "AnyVolumeDataSource"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "kubernetes.feature-gate-removal.kubelet.1-31-0-to-1-32-0.1/pass-complete",
+    "ruleId": "kubernetes.feature-gate-removal.kubelet.1-31-0-to-1-32-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_SET_FACT_INCOMPLETE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.31.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kubelet_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "AnyVolumeDataSource"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "kubernetes.feature-gate-removal.kubelet.1-31-0-to-1-32-0.1/unknown-incomplete",
+    "ruleId": "kubernetes.feature-gate-removal.kubelet.1-31-0-to-1-32-0.1"
+  },
+  {
+    "expect": {
+      "matchedMembers": [
+        "APIServerTracing",
+        "AnyVolumeDataSource",
+        "AuthorizeWithSelectors",
+        "SidecarContainers"
+      ],
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.36.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kubelet_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "APIServerTracing",
+                    "AllowDNSOnlyNodeCSR",
+                    "AnyVolumeDataSource",
+                    "AuthorizeWithSelectors",
+                    "SidecarContainers"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.37.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "kubernetes.feature-gate-removal.kubelet.1-36-0-to-1-37-0.1/blocked",
+    "ruleId": "kubernetes.feature-gate-removal.kubelet.1-36-0-to-1-37-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.36.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kubelet_feature_gates_set",
+                "setValue": {
+                  "complete": true,
+                  "members": [
+                    "AllowDNSOnlyNodeCSR"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.37.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "kubernetes.feature-gate-removal.kubelet.1-36-0-to-1-37-0.1/pass-complete",
+    "ruleId": "kubernetes.feature-gate-removal.kubelet.1-36-0-to-1-37-0.1"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_SET_FACT_INCOMPLETE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.36.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.kubelet_feature_gates_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "AllowDNSOnlyNodeCSR"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "1.37.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "kubernetes.feature-gate-removal.kubelet.1-36-0-to-1-37-0.1/unknown-incomplete",
+    "ruleId": "kubernetes.feature-gate-removal.kubelet.1-36-0-to-1-37-0.1"
+  }
+]

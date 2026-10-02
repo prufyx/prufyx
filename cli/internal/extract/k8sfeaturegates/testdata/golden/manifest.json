@@ -1,0 +1,574 @@
+{
+  "codeFiles": [],
+  "commits": [
+    {
+      "commit": "0000000000000000000000000000000000012200",
+      "listings": 14,
+      "reads": 4,
+      "readsDigest": "sha256:4453491c3b58d6a59ac99a7f1166f9ab23da25e69726fd8b17fdcf7e518e6961"
+    },
+    {
+      "commit": "0000000000000000000000000000000000012300",
+      "listings": 14,
+      "reads": 4,
+      "readsDigest": "sha256:9443cfa565fd9fcdc70d03cb2523513097b9785cf6edf4297b7b014a4181f235"
+    },
+    {
+      "commit": "0000000000000000000000000000000000013100",
+      "listings": 13,
+      "reads": 6,
+      "readsDigest": "sha256:b123de95f5c1e5108ebdc3cde18050c6fc8d1b56c89a7013a76b8668c00f3894"
+    },
+    {
+      "commit": "0000000000000000000000000000000000013200",
+      "listings": 14,
+      "reads": 8,
+      "readsDigest": "sha256:5ba3c6ceca74ae5912dbeb81071a1e7b9920b16c40887994a86ed62a0d445668"
+    },
+    {
+      "commit": "0000000000000000000000000000000000013600",
+      "listings": 19,
+      "reads": 7,
+      "readsDigest": "sha256:7f7dc6c724d5a1c36c6f3619bd804358bb83dab450d7c1586319a103cc1872df"
+    },
+    {
+      "commit": "0000000000000000000000000000000000013700",
+      "listings": 19,
+      "reads": 7,
+      "readsDigest": "sha256:e7eb22d0d5806f1321399a5b4d008d845413cfb64e5c71543c31a2fc01cdb29d"
+    }
+  ],
+  "derivedAt": "2026-10-02T00:00:00Z",
+  "extractor": {
+    "codeDigest": "sha256:CODE",
+    "id": "k8s.feature-gate-removal",
+    "version": "1.0.0"
+  },
+  "outputs": {
+    "candidates.json": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000012200.tsv": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000012300.tsv": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000013100.tsv": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000013200.tsv": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000013600.tsv": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000013700.tsv": "sha256:OUTPUT",
+    "vectors.json": "sha256:OUTPUT"
+  },
+  "pairs": [
+    {
+      "from": "1.22.0",
+      "fromCommit": "0000000000000000000000000000000000012200",
+      "fromTag": "v1.22.0",
+      "proof": {
+        "components": [
+          "kube-apiserver",
+          "kube-controller-manager",
+          "kube-scheduler",
+          "kubelet",
+          "kube-proxy"
+        ],
+        "from": {
+          "commit": "0000000000000000000000000000000000012200",
+          "complete": true,
+          "declarationFiles": [
+            {
+              "gates": 4,
+              "path": "pkg/features/kube_features.go",
+              "sha256": "6110f29aacc25a43420df16656b056c90473d47255a9467f20e553853ea9c0f1"
+            },
+            {
+              "gates": 2,
+              "path": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go",
+              "sha256": "41e3b1bfbb1d5079b38f2eb014155c481ab1f7ce785d473abf73a1596cb782ec"
+            },
+            {
+              "gates": 1,
+              "path": "staging/src/k8s.io/controller-manager/pkg/features/kube_features.go",
+              "sha256": "20701002212d0105fcc5a2b29511ed09b90cd392ff5a538a678070158449da3f"
+            }
+          ],
+          "declared": [
+            "APIListChunking",
+            "AppArmor",
+            "BoundServiceAccountTokenVolume",
+            "ControllerManagerLeaderMigration",
+            "DevicePlugins",
+            "StartupProbe",
+            "StreamingProxyRedirects"
+          ]
+        },
+        "removed": [
+          {
+            "declaredAt": {
+              "line": 45,
+              "path": "pkg/features/kube_features.go"
+            },
+            "gate": "BoundServiceAccountTokenVolume",
+            "registeredAt": [
+              {
+                "line": 66,
+                "path": "pkg/features/kube_features.go"
+              }
+            ]
+          },
+          {
+            "declaredAt": {
+              "line": 53,
+              "path": "pkg/features/kube_features.go"
+            },
+            "gate": "StartupProbe",
+            "registeredAt": [
+              {
+                "line": 67,
+                "path": "pkg/features/kube_features.go"
+              }
+            ]
+          }
+        ],
+        "to": {
+          "commit": "0000000000000000000000000000000000012300",
+          "complete": true,
+          "declarationFiles": [
+            {
+              "gates": 2,
+              "path": "pkg/features/kube_features.go",
+              "sha256": "72365b75ae2fa886413c42ba9749cea42efbe4dc0baadc3a8e27d9fbf1640eac"
+            },
+            {
+              "gates": 2,
+              "path": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go",
+              "sha256": "41e3b1bfbb1d5079b38f2eb014155c481ab1f7ce785d473abf73a1596cb782ec"
+            },
+            {
+              "gates": 1,
+              "path": "staging/src/k8s.io/controller-manager/pkg/features/kube_features.go",
+              "sha256": "20701002212d0105fcc5a2b29511ed09b90cd392ff5a538a678070158449da3f"
+            }
+          ],
+          "dynamicKeys": 0,
+          "goFiles": 4,
+          "names": [
+            "APIListChunking",
+            "AllAlpha",
+            "AllBeta",
+            "AppArmor",
+            "ControllerManagerLeaderMigration",
+            "DevicePlugins",
+            "StreamingProxyRedirects"
+          ],
+          "namesDigest": "sha256:a281d1a2c6a0dae3af28cdfd1f6e1b19fa606817534a4e176b7c80efc555297d",
+          "referenceLists": [],
+          "unrecognizedGateError": {
+            "line": 68,
+            "path": "staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          },
+          "walkRoots": {
+            "pkg": "3dcf132b79ddf4a7d617045e77fff0f712a31fab",
+            "staging": "08bb367fcdbb05f06bef300da3cfd7b229e94e52"
+          }
+        }
+      },
+      "rules": [
+        "kubernetes.feature-gate-removal.kube-apiserver.1-22-0-to-1-23-0.1",
+        "kubernetes.feature-gate-removal.kube-controller-manager.1-22-0-to-1-23-0.1",
+        "kubernetes.feature-gate-removal.kube-proxy.1-22-0-to-1-23-0.1",
+        "kubernetes.feature-gate-removal.kube-scheduler.1-22-0-to-1-23-0.1",
+        "kubernetes.feature-gate-removal.kubelet.1-22-0-to-1-23-0.1"
+      ],
+      "status": "derived",
+      "to": "1.23.0",
+      "toCommit": "0000000000000000000000000000000000012300",
+      "toTag": "v1.23.0"
+    },
+    {
+      "from": "1.31.0",
+      "fromCommit": "0000000000000000000000000000000000013100",
+      "fromTag": "v1.31.0",
+      "proof": {
+        "components": [
+          "kube-apiserver",
+          "kube-controller-manager",
+          "kube-scheduler",
+          "kubelet",
+          "kube-proxy"
+        ],
+        "from": {
+          "commit": "0000000000000000000000000000000000013100",
+          "complete": true,
+          "declarationFiles": [
+            {
+              "path": "pkg/features/client_adapter.go",
+              "sha256": "60c86d9da1970164a91b9fb1c0b602f24dd81553d9697eedd22e2af6d88cdaed"
+            },
+            {
+              "gates": 4,
+              "path": "pkg/features/kube_features.go",
+              "sha256": "ecc5d680531030859b91a475d2947adc097ab4ece700ef0cfbd5ad8c1cd4ceab"
+            },
+            {
+              "path": "pkg/features/versioned_kube_features.go",
+              "sha256": "a1f42ee85083d886fac2a5853a47168bcaa73e8151c87837583ef2455d78fa5e"
+            },
+            {
+              "gates": 3,
+              "path": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go",
+              "sha256": "46863f3a067ba00228ae95f7a49be7142aec80e294ef609fcbd38e4111e479d5"
+            },
+            {
+              "gates": 1,
+              "path": "staging/src/k8s.io/client-go/features/known_features.go",
+              "sha256": "e3e297b392c41744b03bb7279370b6992616cc326a0cce6f4e7e0f162da98722"
+            }
+          ],
+          "declared": [
+            "AnyVolumeDataSource",
+            "CloudDualStackNodeIPs",
+            "HPAContainerMetrics",
+            "KMSv2",
+            "ServerSideApply",
+            "SidecarContainers",
+            "WatchList",
+            "WatchListClient"
+          ]
+        },
+        "removed": [
+          {
+            "declaredAt": {
+              "line": 42,
+              "path": "pkg/features/kube_features.go"
+            },
+            "gate": "CloudDualStackNodeIPs",
+            "registeredAt": [
+              {
+                "line": 87,
+                "path": "pkg/features/kube_features.go"
+              }
+            ]
+          },
+          {
+            "declaredAt": {
+              "line": 52,
+              "path": "pkg/features/kube_features.go"
+            },
+            "gate": "HPAContainerMetrics",
+            "registeredAt": [
+              {
+                "line": 88,
+                "path": "pkg/features/kube_features.go"
+              }
+            ]
+          },
+          {
+            "declaredAt": {
+              "line": 33,
+              "path": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+            },
+            "gate": "KMSv2",
+            "registeredAt": [
+              {
+                "line": 90,
+                "path": "pkg/features/kube_features.go"
+              },
+              {
+                "line": 64,
+                "path": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+              }
+            ]
+          },
+          {
+            "declaredAt": {
+              "line": 41,
+              "path": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+            },
+            "gate": "ServerSideApply",
+            "registeredAt": [
+              {
+                "line": 91,
+                "path": "pkg/features/kube_features.go"
+              },
+              {
+                "line": 65,
+                "path": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+              }
+            ]
+          }
+        ],
+        "to": {
+          "commit": "0000000000000000000000000000000000013200",
+          "complete": true,
+          "declarationFiles": [
+            {
+              "path": "pkg/features/client_adapter.go",
+              "sha256": "461a6544ae8b59e3e24affa133f7921d07b0f8ae4d26fc9a2854274a6aac7fa9"
+            },
+            {
+              "gates": 2,
+              "path": "pkg/features/kube_features.go",
+              "sha256": "e7a118783dda30e6ff4306eb84cfb5b2a6979c000370b631f348be000aaa0cba"
+            },
+            {
+              "path": "pkg/features/versioned_kube_features.go",
+              "sha256": "bf058724e7c5460ec909ca80578385d9398c777cff64d35d810a8c4201c30881"
+            },
+            {
+              "gates": 1,
+              "path": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go",
+              "sha256": "864adb450cb3974af54a980dc05ca6a6f2b5542bbfcf50c235aa2c1752e08934"
+            },
+            {
+              "gates": 1,
+              "path": "staging/src/k8s.io/client-go/features/known_features.go",
+              "sha256": "e3e297b392c41744b03bb7279370b6992616cc326a0cce6f4e7e0f162da98722"
+            }
+          ],
+          "dynamicKeys": 0,
+          "goFiles": 6,
+          "names": [
+            "AllAlpha",
+            "AllBeta",
+            "AnyVolumeDataSource",
+            "SidecarContainers",
+            "WatchList",
+            "WatchListClient"
+          ],
+          "namesDigest": "sha256:facf323581906d5dc5e3ead7ca13878c0b4f5f05e55a76b034a5c3fe4906eeda",
+          "referenceLists": [
+            {
+              "path": "test/featuregates_linter/test_data/unversioned_feature_list.yaml",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "gates": 3,
+              "path": "test/featuregates_linter/test_data/versioned_feature_list.yaml",
+              "sha256": "01647b8e78b4e26f70c55c0a3d63b1847058816ab6b711f252ff9ebf6a346d6d"
+            }
+          ],
+          "unrecognizedGateError": {
+            "line": 71,
+            "path": "staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          },
+          "walkRoots": {
+            "pkg": "61fb723097ed04258a37c3e275854c1a9e33b679",
+            "staging": "e6527d5262aca7f6e2a5aa59e67bd25a7aae7dc9"
+          }
+        }
+      },
+      "rules": [
+        "kubernetes.feature-gate-removal.kube-apiserver.1-31-0-to-1-32-0.1",
+        "kubernetes.feature-gate-removal.kube-controller-manager.1-31-0-to-1-32-0.1",
+        "kubernetes.feature-gate-removal.kube-proxy.1-31-0-to-1-32-0.1",
+        "kubernetes.feature-gate-removal.kube-scheduler.1-31-0-to-1-32-0.1",
+        "kubernetes.feature-gate-removal.kubelet.1-31-0-to-1-32-0.1"
+      ],
+      "status": "derived",
+      "to": "1.32.0",
+      "toCommit": "0000000000000000000000000000000000013200",
+      "toTag": "v1.32.0"
+    },
+    {
+      "from": "1.36.0",
+      "fromCommit": "0000000000000000000000000000000000013600",
+      "fromTag": "v1.36.0",
+      "proof": {
+        "components": [
+          "kube-apiserver",
+          "kube-controller-manager",
+          "kube-scheduler",
+          "kubelet",
+          "kube-proxy"
+        ],
+        "from": {
+          "commit": "0000000000000000000000000000000000013600",
+          "complete": true,
+          "declarationFiles": [
+            {
+              "gates": 3,
+              "path": "pkg/features/kube_features.go",
+              "sha256": "a18d24c19e5401f3bf5f228eb3815b509e07751592ef34721ece90c476abcdf0"
+            },
+            {
+              "gates": 3,
+              "path": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go",
+              "sha256": "3170fc68b8341b818c83eb8a8a955d4b62da0daaa079745a35f7569efca0e03d"
+            },
+            {
+              "gates": 1,
+              "path": "staging/src/k8s.io/client-go/features/known_features.go",
+              "sha256": "564383a835ac6134eac24cd466165c1b7718471776261a978f039aa308970a21"
+            },
+            {
+              "gates": 3,
+              "path": "staging/src/k8s.io/component-base/logs/api/v1/kube_features.go",
+              "sha256": "da1d6986e9fb5d384069b86ee259b1a4c7ccebe633c22190709556fa247ec446"
+            },
+            {
+              "gates": 2,
+              "path": "staging/src/k8s.io/component-base/zpages/features/kube_features.go",
+              "sha256": "8ef43af23af6143494252cfaab9bf3f2cf0a1e5c8be079564d534fde8bfec7b1"
+            }
+          ],
+          "declared": [
+            "APIServerTracing",
+            "AllowDNSOnlyNodeCSR",
+            "AnyVolumeDataSource",
+            "AuthorizeWithSelectors",
+            "ComponentFlagz",
+            "ComponentStatusz",
+            "ContextualLogging",
+            "LoggingAlphaOptions",
+            "LoggingBetaOptions",
+            "SidecarContainers",
+            "WatchList",
+            "WatchListClient"
+          ]
+        },
+        "removed": [
+          {
+            "declaredAt": {
+              "line": 40,
+              "path": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+            },
+            "gate": "APIServerTracing",
+            "registeredAt": [
+              {
+                "line": 90,
+                "path": "pkg/features/kube_features.go"
+              },
+              {
+                "line": 66,
+                "path": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+              }
+            ]
+          },
+          {
+            "declaredAt": {
+              "line": 51,
+              "path": "pkg/features/kube_features.go"
+            },
+            "gate": "AnyVolumeDataSource",
+            "registeredAt": [
+              {
+                "line": 78,
+                "path": "pkg/features/kube_features.go"
+              }
+            ]
+          },
+          {
+            "declaredAt": {
+              "line": 46,
+              "path": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+            },
+            "gate": "AuthorizeWithSelectors",
+            "registeredAt": [
+              {
+                "line": 96,
+                "path": "pkg/features/kube_features.go"
+              },
+              {
+                "line": 72,
+                "path": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+              }
+            ]
+          },
+          {
+            "declaredAt": {
+              "line": 59,
+              "path": "pkg/features/kube_features.go"
+            },
+            "gate": "SidecarContainers",
+            "registeredAt": [
+              {
+                "line": 84,
+                "path": "pkg/features/kube_features.go"
+              }
+            ]
+          }
+        ],
+        "to": {
+          "commit": "0000000000000000000000000000000000013700",
+          "complete": true,
+          "declarationFiles": [
+            {
+              "gates": 1,
+              "path": "pkg/features/kube_features.go",
+              "sha256": "d03d1928a7947bbf341da40e643b7d882404f3088556716cbf09b948a021ec47"
+            },
+            {
+              "gates": 1,
+              "path": "staging/src/k8s.io/apiserver/pkg/features/kube_features.go",
+              "sha256": "fba76f35f35e083791086d14b868bb714dc9b92b730d5d86356734d9c3bf37dd"
+            },
+            {
+              "gates": 1,
+              "path": "staging/src/k8s.io/client-go/features/known_features.go",
+              "sha256": "564383a835ac6134eac24cd466165c1b7718471776261a978f039aa308970a21"
+            },
+            {
+              "gates": 3,
+              "path": "staging/src/k8s.io/component-base/logs/api/v1/kube_features.go",
+              "sha256": "da1d6986e9fb5d384069b86ee259b1a4c7ccebe633c22190709556fa247ec446"
+            },
+            {
+              "gates": 2,
+              "path": "staging/src/k8s.io/component-base/zpages/features/kube_features.go",
+              "sha256": "8ef43af23af6143494252cfaab9bf3f2cf0a1e5c8be079564d534fde8bfec7b1"
+            }
+          ],
+          "dynamicKeys": 0,
+          "goFiles": 6,
+          "names": [
+            "AllAlpha",
+            "AllBeta",
+            "AllowDNSOnlyNodeCSR",
+            "ComponentFlagz",
+            "ComponentStatusz",
+            "ContextualLogging",
+            "LoggingAlphaOptions",
+            "LoggingBetaOptions",
+            "LoggingStableOptions",
+            "WatchList",
+            "WatchListClient"
+          ],
+          "namesDigest": "sha256:c4b3fa689cb042b17653313a18c90d544fc37df40afb7e2beb7c33576cc47594",
+          "referenceLists": [
+            {
+              "gates": 7,
+              "path": "test/compatibility_lifecycle/reference/versioned_feature_list.yaml",
+              "sha256": "14804ac61b3ae3199affe91950e3ccac85fc22623905bf329b66141b6d7ab723"
+            }
+          ],
+          "unrecognizedGateError": {
+            "line": 75,
+            "path": "staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          },
+          "walkRoots": {
+            "pkg": "c4fbcd499eb63c8d40e3368b8d195f63abbae458",
+            "staging": "46f1a60135e46740c01750c6bca6ece17a29faa1"
+          }
+        }
+      },
+      "rules": [
+        "kubernetes.feature-gate-removal.kube-apiserver.1-36-0-to-1-37-0.1",
+        "kubernetes.feature-gate-removal.kube-controller-manager.1-36-0-to-1-37-0.1",
+        "kubernetes.feature-gate-removal.kube-proxy.1-36-0-to-1-37-0.1",
+        "kubernetes.feature-gate-removal.kube-scheduler.1-36-0-to-1-37-0.1",
+        "kubernetes.feature-gate-removal.kubelet.1-36-0-to-1-37-0.1"
+      ],
+      "status": "derived",
+      "to": "1.37.0",
+      "toCommit": "0000000000000000000000000000000000013700",
+      "toTag": "v1.37.0"
+    }
+  ],
+  "repo": "github.com/kubernetes/kubernetes",
+  "schema": "prufyx.io/extractor-run-manifest/v1",
+  "totals": {
+    "commitsRead": 6,
+    "derived": 3,
+    "pairs": 3,
+    "rules": 15,
+    "vectors": 45,
+    "withheld": 0
+  },
+  "validUntil": "2026-12-31T00:00:00Z"
+}

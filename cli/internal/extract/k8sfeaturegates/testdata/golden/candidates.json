@@ -1,0 +1,1262 @@
+[
+  {
+    "description": "Kubernetes 1.23.0 no longer declares the 2 listed feature gates that 1.22.0 declared; kube-apiserver refuses to start when a feature-gate setting names an unrecognised gate. Derived from the complete feature-gate registries at both release tags.",
+    "project": "kubernetes",
+    "requiredFacts": [
+      {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "description": "Feature gates the kube-apiserver sets, from --feature-gates and a configuration featureGates map.",
+        "enumTokens": null,
+        "id": "component.kubernetes.kube_apiserver_feature_gates_set",
+        "side": "proposed",
+        "type": "set"
+      }
+    ],
+    "rule": {
+      "evidence": {
+        "basis": "mechanical",
+        "derivedAt": "2026-10-02T00:00:00Z",
+        "extractor": {
+          "codeDigest": "sha256:CODE",
+          "id": "k8s.feature-gate-removal",
+          "version": "1.0.0"
+        },
+        "reviewedAt": "2026-10-02T00:00:00Z",
+        "sources": [
+          {
+            "contentDigest": "sha256:6110f29aacc25a43420df16656b056c90473d47255a9467f20e553853ea9c0f1",
+            "endLine": 53,
+            "id": "gate-declarations-1-22-0-a",
+            "revision": "0000000000000000000000000000000000012200",
+            "startLine": 45,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000012200/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:72365b75ae2fa886413c42ba9749cea42efbe4dc0baadc3a8e27d9fbf1640eac",
+            "endLine": 50,
+            "id": "gate-registry-1-23-0-a",
+            "revision": "0000000000000000000000000000000000012300",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000012300/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:04181a1f902c73d21b16443e45c93913e7b1a1734ae6f3aee94ab022c2e3579e",
+            "endLine": 68,
+            "id": "unrecognized-gate-1-23-0",
+            "revision": "0000000000000000000000000000000000012300",
+            "startLine": 68,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000012300/staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          }
+        ],
+        "state": "active",
+        "validUntil": "2026-12-31T00:00:00Z"
+      },
+      "id": "kubernetes.feature-gate-removal.kube-apiserver.1-22-0-to-1-23-0.1",
+      "nextAction": "remove the listed feature gates from every kube-apiserver feature-gate setting (--feature-gates or featureGates) before upgrading to 1.23.0",
+      "operator": "forbid_set_member",
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "setCondition": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "factId": "component.kubernetes.kube_apiserver_feature_gates_set",
+        "members": [
+          "BoundServiceAccountTokenVolume",
+          "StartupProbe"
+        ],
+        "side": "proposed"
+      },
+      "subject": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "from": "1.22.0",
+        "to": "1.23.0"
+      }
+    }
+  },
+  {
+    "description": "Kubernetes 1.32.0 no longer declares the 4 listed feature gates that 1.31.0 declared; kube-apiserver refuses to start when a feature-gate setting names an unrecognised gate. Derived from the complete feature-gate registries at both release tags.",
+    "project": "kubernetes",
+    "requiredFacts": [
+      {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "description": "Feature gates the kube-apiserver sets, from --feature-gates and a configuration featureGates map.",
+        "enumTokens": null,
+        "id": "component.kubernetes.kube_apiserver_feature_gates_set",
+        "side": "proposed",
+        "type": "set"
+      }
+    ],
+    "rule": {
+      "evidence": {
+        "basis": "mechanical",
+        "derivedAt": "2026-10-02T00:00:00Z",
+        "extractor": {
+          "codeDigest": "sha256:CODE",
+          "id": "k8s.feature-gate-removal",
+          "version": "1.0.0"
+        },
+        "reviewedAt": "2026-10-02T00:00:00Z",
+        "sources": [
+          {
+            "contentDigest": "sha256:ecc5d680531030859b91a475d2947adc097ab4ece700ef0cfbd5ad8c1cd4ceab",
+            "endLine": 52,
+            "id": "gate-declarations-1-31-0-a",
+            "revision": "0000000000000000000000000000000000013100",
+            "startLine": 42,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013100/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:46863f3a067ba00228ae95f7a49be7142aec80e294ef609fcbd38e4111e479d5",
+            "endLine": 41,
+            "id": "gate-declarations-1-31-0-b",
+            "revision": "0000000000000000000000000000000000013100",
+            "startLine": 33,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013100/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:e7a118783dda30e6ff4306eb84cfb5b2a6979c000370b631f348be000aaa0cba",
+            "endLine": 55,
+            "id": "gate-registry-1-32-0-a",
+            "revision": "0000000000000000000000000000000000013200",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013200/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:864adb450cb3974af54a980dc05ca6a6f2b5542bbfcf50c235aa2c1752e08934",
+            "endLine": 49,
+            "id": "gate-registry-1-32-0-b",
+            "revision": "0000000000000000000000000000000000013200",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013200/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:3707d4133bfc977cf7eadbb71bd859412484ad11d699699d4211e2eb6178d2f6",
+            "endLine": 71,
+            "id": "unrecognized-gate-1-32-0",
+            "revision": "0000000000000000000000000000000000013200",
+            "startLine": 71,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013200/staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          }
+        ],
+        "state": "active",
+        "validUntil": "2026-12-31T00:00:00Z"
+      },
+      "id": "kubernetes.feature-gate-removal.kube-apiserver.1-31-0-to-1-32-0.1",
+      "nextAction": "remove the listed feature gates from every kube-apiserver feature-gate setting (--feature-gates or featureGates) before upgrading to 1.32.0",
+      "operator": "forbid_set_member",
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "setCondition": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "factId": "component.kubernetes.kube_apiserver_feature_gates_set",
+        "members": [
+          "CloudDualStackNodeIPs",
+          "HPAContainerMetrics",
+          "KMSv2",
+          "ServerSideApply"
+        ],
+        "side": "proposed"
+      },
+      "subject": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "from": "1.31.0",
+        "to": "1.32.0"
+      }
+    }
+  },
+  {
+    "description": "Kubernetes 1.37.0 no longer declares the 4 listed feature gates that 1.36.0 declared; kube-apiserver refuses to start when a feature-gate setting names an unrecognised gate. Derived from the complete feature-gate registries at both release tags.",
+    "project": "kubernetes",
+    "requiredFacts": [
+      {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "description": "Feature gates the kube-apiserver sets, from --feature-gates and a configuration featureGates map.",
+        "enumTokens": null,
+        "id": "component.kubernetes.kube_apiserver_feature_gates_set",
+        "side": "proposed",
+        "type": "set"
+      }
+    ],
+    "rule": {
+      "evidence": {
+        "basis": "mechanical",
+        "derivedAt": "2026-10-02T00:00:00Z",
+        "extractor": {
+          "codeDigest": "sha256:CODE",
+          "id": "k8s.feature-gate-removal",
+          "version": "1.0.0"
+        },
+        "reviewedAt": "2026-10-02T00:00:00Z",
+        "sources": [
+          {
+            "contentDigest": "sha256:a18d24c19e5401f3bf5f228eb3815b509e07751592ef34721ece90c476abcdf0",
+            "endLine": 59,
+            "id": "gate-declarations-1-36-0-a",
+            "revision": "0000000000000000000000000000000000013600",
+            "startLine": 51,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013600/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:3170fc68b8341b818c83eb8a8a955d4b62da0daaa079745a35f7569efca0e03d",
+            "endLine": 46,
+            "id": "gate-declarations-1-36-0-b",
+            "revision": "0000000000000000000000000000000000013600",
+            "startLine": 40,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013600/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:d03d1928a7947bbf341da40e643b7d882404f3088556716cbf09b948a021ec47",
+            "endLine": 104,
+            "id": "gate-registry-1-37-0-a",
+            "revision": "0000000000000000000000000000000000013700",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013700/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:fba76f35f35e083791086d14b868bb714dc9b92b730d5d86356734d9c3bf37dd",
+            "endLine": 62,
+            "id": "gate-registry-1-37-0-b",
+            "revision": "0000000000000000000000000000000000013700",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013700/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:0ef36e242227123cbf7f5396523f67889f4986ab63848f63b4bbbf790cd02267",
+            "endLine": 75,
+            "id": "unrecognized-gate-1-37-0",
+            "revision": "0000000000000000000000000000000000013700",
+            "startLine": 75,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013700/staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          }
+        ],
+        "state": "active",
+        "validUntil": "2026-12-31T00:00:00Z"
+      },
+      "id": "kubernetes.feature-gate-removal.kube-apiserver.1-36-0-to-1-37-0.1",
+      "nextAction": "remove the listed feature gates from every kube-apiserver feature-gate setting (--feature-gates or featureGates) before upgrading to 1.37.0",
+      "operator": "forbid_set_member",
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "setCondition": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "factId": "component.kubernetes.kube_apiserver_feature_gates_set",
+        "members": [
+          "APIServerTracing",
+          "AnyVolumeDataSource",
+          "AuthorizeWithSelectors",
+          "SidecarContainers"
+        ],
+        "side": "proposed"
+      },
+      "subject": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "from": "1.36.0",
+        "to": "1.37.0"
+      }
+    }
+  },
+  {
+    "description": "Kubernetes 1.23.0 no longer declares the 2 listed feature gates that 1.22.0 declared; kube-controller-manager refuses to start when a feature-gate setting names an unrecognised gate. Derived from the complete feature-gate registries at both release tags.",
+    "project": "kubernetes",
+    "requiredFacts": [
+      {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "description": "Feature gates the kube-controller-manager sets, from --feature-gates and a configuration featureGates map.",
+        "enumTokens": null,
+        "id": "component.kubernetes.kube_controller_manager_feature_gates_set",
+        "side": "proposed",
+        "type": "set"
+      }
+    ],
+    "rule": {
+      "evidence": {
+        "basis": "mechanical",
+        "derivedAt": "2026-10-02T00:00:00Z",
+        "extractor": {
+          "codeDigest": "sha256:CODE",
+          "id": "k8s.feature-gate-removal",
+          "version": "1.0.0"
+        },
+        "reviewedAt": "2026-10-02T00:00:00Z",
+        "sources": [
+          {
+            "contentDigest": "sha256:6110f29aacc25a43420df16656b056c90473d47255a9467f20e553853ea9c0f1",
+            "endLine": 53,
+            "id": "gate-declarations-1-22-0-a",
+            "revision": "0000000000000000000000000000000000012200",
+            "startLine": 45,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000012200/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:72365b75ae2fa886413c42ba9749cea42efbe4dc0baadc3a8e27d9fbf1640eac",
+            "endLine": 50,
+            "id": "gate-registry-1-23-0-a",
+            "revision": "0000000000000000000000000000000000012300",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000012300/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:04181a1f902c73d21b16443e45c93913e7b1a1734ae6f3aee94ab022c2e3579e",
+            "endLine": 68,
+            "id": "unrecognized-gate-1-23-0",
+            "revision": "0000000000000000000000000000000000012300",
+            "startLine": 68,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000012300/staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          }
+        ],
+        "state": "active",
+        "validUntil": "2026-12-31T00:00:00Z"
+      },
+      "id": "kubernetes.feature-gate-removal.kube-controller-manager.1-22-0-to-1-23-0.1",
+      "nextAction": "remove the listed feature gates from every kube-controller-manager feature-gate setting (--feature-gates or featureGates) before upgrading to 1.23.0",
+      "operator": "forbid_set_member",
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "setCondition": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "factId": "component.kubernetes.kube_controller_manager_feature_gates_set",
+        "members": [
+          "BoundServiceAccountTokenVolume",
+          "StartupProbe"
+        ],
+        "side": "proposed"
+      },
+      "subject": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "from": "1.22.0",
+        "to": "1.23.0"
+      }
+    }
+  },
+  {
+    "description": "Kubernetes 1.32.0 no longer declares the 4 listed feature gates that 1.31.0 declared; kube-controller-manager refuses to start when a feature-gate setting names an unrecognised gate. Derived from the complete feature-gate registries at both release tags.",
+    "project": "kubernetes",
+    "requiredFacts": [
+      {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "description": "Feature gates the kube-controller-manager sets, from --feature-gates and a configuration featureGates map.",
+        "enumTokens": null,
+        "id": "component.kubernetes.kube_controller_manager_feature_gates_set",
+        "side": "proposed",
+        "type": "set"
+      }
+    ],
+    "rule": {
+      "evidence": {
+        "basis": "mechanical",
+        "derivedAt": "2026-10-02T00:00:00Z",
+        "extractor": {
+          "codeDigest": "sha256:CODE",
+          "id": "k8s.feature-gate-removal",
+          "version": "1.0.0"
+        },
+        "reviewedAt": "2026-10-02T00:00:00Z",
+        "sources": [
+          {
+            "contentDigest": "sha256:ecc5d680531030859b91a475d2947adc097ab4ece700ef0cfbd5ad8c1cd4ceab",
+            "endLine": 52,
+            "id": "gate-declarations-1-31-0-a",
+            "revision": "0000000000000000000000000000000000013100",
+            "startLine": 42,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013100/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:46863f3a067ba00228ae95f7a49be7142aec80e294ef609fcbd38e4111e479d5",
+            "endLine": 41,
+            "id": "gate-declarations-1-31-0-b",
+            "revision": "0000000000000000000000000000000000013100",
+            "startLine": 33,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013100/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:e7a118783dda30e6ff4306eb84cfb5b2a6979c000370b631f348be000aaa0cba",
+            "endLine": 55,
+            "id": "gate-registry-1-32-0-a",
+            "revision": "0000000000000000000000000000000000013200",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013200/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:864adb450cb3974af54a980dc05ca6a6f2b5542bbfcf50c235aa2c1752e08934",
+            "endLine": 49,
+            "id": "gate-registry-1-32-0-b",
+            "revision": "0000000000000000000000000000000000013200",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013200/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:3707d4133bfc977cf7eadbb71bd859412484ad11d699699d4211e2eb6178d2f6",
+            "endLine": 71,
+            "id": "unrecognized-gate-1-32-0",
+            "revision": "0000000000000000000000000000000000013200",
+            "startLine": 71,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013200/staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          }
+        ],
+        "state": "active",
+        "validUntil": "2026-12-31T00:00:00Z"
+      },
+      "id": "kubernetes.feature-gate-removal.kube-controller-manager.1-31-0-to-1-32-0.1",
+      "nextAction": "remove the listed feature gates from every kube-controller-manager feature-gate setting (--feature-gates or featureGates) before upgrading to 1.32.0",
+      "operator": "forbid_set_member",
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "setCondition": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "factId": "component.kubernetes.kube_controller_manager_feature_gates_set",
+        "members": [
+          "CloudDualStackNodeIPs",
+          "HPAContainerMetrics",
+          "KMSv2",
+          "ServerSideApply"
+        ],
+        "side": "proposed"
+      },
+      "subject": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "from": "1.31.0",
+        "to": "1.32.0"
+      }
+    }
+  },
+  {
+    "description": "Kubernetes 1.37.0 no longer declares the 4 listed feature gates that 1.36.0 declared; kube-controller-manager refuses to start when a feature-gate setting names an unrecognised gate. Derived from the complete feature-gate registries at both release tags.",
+    "project": "kubernetes",
+    "requiredFacts": [
+      {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "description": "Feature gates the kube-controller-manager sets, from --feature-gates and a configuration featureGates map.",
+        "enumTokens": null,
+        "id": "component.kubernetes.kube_controller_manager_feature_gates_set",
+        "side": "proposed",
+        "type": "set"
+      }
+    ],
+    "rule": {
+      "evidence": {
+        "basis": "mechanical",
+        "derivedAt": "2026-10-02T00:00:00Z",
+        "extractor": {
+          "codeDigest": "sha256:CODE",
+          "id": "k8s.feature-gate-removal",
+          "version": "1.0.0"
+        },
+        "reviewedAt": "2026-10-02T00:00:00Z",
+        "sources": [
+          {
+            "contentDigest": "sha256:a18d24c19e5401f3bf5f228eb3815b509e07751592ef34721ece90c476abcdf0",
+            "endLine": 59,
+            "id": "gate-declarations-1-36-0-a",
+            "revision": "0000000000000000000000000000000000013600",
+            "startLine": 51,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013600/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:3170fc68b8341b818c83eb8a8a955d4b62da0daaa079745a35f7569efca0e03d",
+            "endLine": 46,
+            "id": "gate-declarations-1-36-0-b",
+            "revision": "0000000000000000000000000000000000013600",
+            "startLine": 40,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013600/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:d03d1928a7947bbf341da40e643b7d882404f3088556716cbf09b948a021ec47",
+            "endLine": 104,
+            "id": "gate-registry-1-37-0-a",
+            "revision": "0000000000000000000000000000000000013700",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013700/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:fba76f35f35e083791086d14b868bb714dc9b92b730d5d86356734d9c3bf37dd",
+            "endLine": 62,
+            "id": "gate-registry-1-37-0-b",
+            "revision": "0000000000000000000000000000000000013700",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013700/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:0ef36e242227123cbf7f5396523f67889f4986ab63848f63b4bbbf790cd02267",
+            "endLine": 75,
+            "id": "unrecognized-gate-1-37-0",
+            "revision": "0000000000000000000000000000000000013700",
+            "startLine": 75,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013700/staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          }
+        ],
+        "state": "active",
+        "validUntil": "2026-12-31T00:00:00Z"
+      },
+      "id": "kubernetes.feature-gate-removal.kube-controller-manager.1-36-0-to-1-37-0.1",
+      "nextAction": "remove the listed feature gates from every kube-controller-manager feature-gate setting (--feature-gates or featureGates) before upgrading to 1.37.0",
+      "operator": "forbid_set_member",
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "setCondition": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "factId": "component.kubernetes.kube_controller_manager_feature_gates_set",
+        "members": [
+          "APIServerTracing",
+          "AnyVolumeDataSource",
+          "AuthorizeWithSelectors",
+          "SidecarContainers"
+        ],
+        "side": "proposed"
+      },
+      "subject": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "from": "1.36.0",
+        "to": "1.37.0"
+      }
+    }
+  },
+  {
+    "description": "Kubernetes 1.23.0 no longer declares the 2 listed feature gates that 1.22.0 declared; kube-proxy refuses to start when a feature-gate setting names an unrecognised gate. Derived from the complete feature-gate registries at both release tags.",
+    "project": "kubernetes",
+    "requiredFacts": [
+      {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "description": "Feature gates the kube-proxy sets, from --feature-gates and a configuration featureGates map.",
+        "enumTokens": null,
+        "id": "component.kubernetes.kube_proxy_feature_gates_set",
+        "side": "proposed",
+        "type": "set"
+      }
+    ],
+    "rule": {
+      "evidence": {
+        "basis": "mechanical",
+        "derivedAt": "2026-10-02T00:00:00Z",
+        "extractor": {
+          "codeDigest": "sha256:CODE",
+          "id": "k8s.feature-gate-removal",
+          "version": "1.0.0"
+        },
+        "reviewedAt": "2026-10-02T00:00:00Z",
+        "sources": [
+          {
+            "contentDigest": "sha256:6110f29aacc25a43420df16656b056c90473d47255a9467f20e553853ea9c0f1",
+            "endLine": 53,
+            "id": "gate-declarations-1-22-0-a",
+            "revision": "0000000000000000000000000000000000012200",
+            "startLine": 45,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000012200/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:72365b75ae2fa886413c42ba9749cea42efbe4dc0baadc3a8e27d9fbf1640eac",
+            "endLine": 50,
+            "id": "gate-registry-1-23-0-a",
+            "revision": "0000000000000000000000000000000000012300",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000012300/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:04181a1f902c73d21b16443e45c93913e7b1a1734ae6f3aee94ab022c2e3579e",
+            "endLine": 68,
+            "id": "unrecognized-gate-1-23-0",
+            "revision": "0000000000000000000000000000000000012300",
+            "startLine": 68,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000012300/staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          }
+        ],
+        "state": "active",
+        "validUntil": "2026-12-31T00:00:00Z"
+      },
+      "id": "kubernetes.feature-gate-removal.kube-proxy.1-22-0-to-1-23-0.1",
+      "nextAction": "remove the listed feature gates from every kube-proxy feature-gate setting (--feature-gates or featureGates) before upgrading to 1.23.0",
+      "operator": "forbid_set_member",
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "setCondition": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "factId": "component.kubernetes.kube_proxy_feature_gates_set",
+        "members": [
+          "BoundServiceAccountTokenVolume",
+          "StartupProbe"
+        ],
+        "side": "proposed"
+      },
+      "subject": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "from": "1.22.0",
+        "to": "1.23.0"
+      }
+    }
+  },
+  {
+    "description": "Kubernetes 1.32.0 no longer declares the 4 listed feature gates that 1.31.0 declared; kube-proxy refuses to start when a feature-gate setting names an unrecognised gate. Derived from the complete feature-gate registries at both release tags.",
+    "project": "kubernetes",
+    "requiredFacts": [
+      {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "description": "Feature gates the kube-proxy sets, from --feature-gates and a configuration featureGates map.",
+        "enumTokens": null,
+        "id": "component.kubernetes.kube_proxy_feature_gates_set",
+        "side": "proposed",
+        "type": "set"
+      }
+    ],
+    "rule": {
+      "evidence": {
+        "basis": "mechanical",
+        "derivedAt": "2026-10-02T00:00:00Z",
+        "extractor": {
+          "codeDigest": "sha256:CODE",
+          "id": "k8s.feature-gate-removal",
+          "version": "1.0.0"
+        },
+        "reviewedAt": "2026-10-02T00:00:00Z",
+        "sources": [
+          {
+            "contentDigest": "sha256:ecc5d680531030859b91a475d2947adc097ab4ece700ef0cfbd5ad8c1cd4ceab",
+            "endLine": 52,
+            "id": "gate-declarations-1-31-0-a",
+            "revision": "0000000000000000000000000000000000013100",
+            "startLine": 42,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013100/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:46863f3a067ba00228ae95f7a49be7142aec80e294ef609fcbd38e4111e479d5",
+            "endLine": 41,
+            "id": "gate-declarations-1-31-0-b",
+            "revision": "0000000000000000000000000000000000013100",
+            "startLine": 33,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013100/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:e7a118783dda30e6ff4306eb84cfb5b2a6979c000370b631f348be000aaa0cba",
+            "endLine": 55,
+            "id": "gate-registry-1-32-0-a",
+            "revision": "0000000000000000000000000000000000013200",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013200/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:864adb450cb3974af54a980dc05ca6a6f2b5542bbfcf50c235aa2c1752e08934",
+            "endLine": 49,
+            "id": "gate-registry-1-32-0-b",
+            "revision": "0000000000000000000000000000000000013200",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013200/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:3707d4133bfc977cf7eadbb71bd859412484ad11d699699d4211e2eb6178d2f6",
+            "endLine": 71,
+            "id": "unrecognized-gate-1-32-0",
+            "revision": "0000000000000000000000000000000000013200",
+            "startLine": 71,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013200/staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          }
+        ],
+        "state": "active",
+        "validUntil": "2026-12-31T00:00:00Z"
+      },
+      "id": "kubernetes.feature-gate-removal.kube-proxy.1-31-0-to-1-32-0.1",
+      "nextAction": "remove the listed feature gates from every kube-proxy feature-gate setting (--feature-gates or featureGates) before upgrading to 1.32.0",
+      "operator": "forbid_set_member",
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "setCondition": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "factId": "component.kubernetes.kube_proxy_feature_gates_set",
+        "members": [
+          "CloudDualStackNodeIPs",
+          "HPAContainerMetrics",
+          "KMSv2",
+          "ServerSideApply"
+        ],
+        "side": "proposed"
+      },
+      "subject": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "from": "1.31.0",
+        "to": "1.32.0"
+      }
+    }
+  },
+  {
+    "description": "Kubernetes 1.37.0 no longer declares the 4 listed feature gates that 1.36.0 declared; kube-proxy refuses to start when a feature-gate setting names an unrecognised gate. Derived from the complete feature-gate registries at both release tags.",
+    "project": "kubernetes",
+    "requiredFacts": [
+      {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "description": "Feature gates the kube-proxy sets, from --feature-gates and a configuration featureGates map.",
+        "enumTokens": null,
+        "id": "component.kubernetes.kube_proxy_feature_gates_set",
+        "side": "proposed",
+        "type": "set"
+      }
+    ],
+    "rule": {
+      "evidence": {
+        "basis": "mechanical",
+        "derivedAt": "2026-10-02T00:00:00Z",
+        "extractor": {
+          "codeDigest": "sha256:CODE",
+          "id": "k8s.feature-gate-removal",
+          "version": "1.0.0"
+        },
+        "reviewedAt": "2026-10-02T00:00:00Z",
+        "sources": [
+          {
+            "contentDigest": "sha256:a18d24c19e5401f3bf5f228eb3815b509e07751592ef34721ece90c476abcdf0",
+            "endLine": 59,
+            "id": "gate-declarations-1-36-0-a",
+            "revision": "0000000000000000000000000000000000013600",
+            "startLine": 51,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013600/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:3170fc68b8341b818c83eb8a8a955d4b62da0daaa079745a35f7569efca0e03d",
+            "endLine": 46,
+            "id": "gate-declarations-1-36-0-b",
+            "revision": "0000000000000000000000000000000000013600",
+            "startLine": 40,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013600/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:d03d1928a7947bbf341da40e643b7d882404f3088556716cbf09b948a021ec47",
+            "endLine": 104,
+            "id": "gate-registry-1-37-0-a",
+            "revision": "0000000000000000000000000000000000013700",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013700/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:fba76f35f35e083791086d14b868bb714dc9b92b730d5d86356734d9c3bf37dd",
+            "endLine": 62,
+            "id": "gate-registry-1-37-0-b",
+            "revision": "0000000000000000000000000000000000013700",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013700/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:0ef36e242227123cbf7f5396523f67889f4986ab63848f63b4bbbf790cd02267",
+            "endLine": 75,
+            "id": "unrecognized-gate-1-37-0",
+            "revision": "0000000000000000000000000000000000013700",
+            "startLine": 75,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013700/staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          }
+        ],
+        "state": "active",
+        "validUntil": "2026-12-31T00:00:00Z"
+      },
+      "id": "kubernetes.feature-gate-removal.kube-proxy.1-36-0-to-1-37-0.1",
+      "nextAction": "remove the listed feature gates from every kube-proxy feature-gate setting (--feature-gates or featureGates) before upgrading to 1.37.0",
+      "operator": "forbid_set_member",
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "setCondition": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "factId": "component.kubernetes.kube_proxy_feature_gates_set",
+        "members": [
+          "APIServerTracing",
+          "AnyVolumeDataSource",
+          "AuthorizeWithSelectors",
+          "SidecarContainers"
+        ],
+        "side": "proposed"
+      },
+      "subject": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "from": "1.36.0",
+        "to": "1.37.0"
+      }
+    }
+  },
+  {
+    "description": "Kubernetes 1.23.0 no longer declares the 2 listed feature gates that 1.22.0 declared; kube-scheduler refuses to start when a feature-gate setting names an unrecognised gate. Derived from the complete feature-gate registries at both release tags.",
+    "project": "kubernetes",
+    "requiredFacts": [
+      {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "description": "Feature gates the kube-scheduler sets, from --feature-gates and a configuration featureGates map.",
+        "enumTokens": null,
+        "id": "component.kubernetes.kube_scheduler_feature_gates_set",
+        "side": "proposed",
+        "type": "set"
+      }
+    ],
+    "rule": {
+      "evidence": {
+        "basis": "mechanical",
+        "derivedAt": "2026-10-02T00:00:00Z",
+        "extractor": {
+          "codeDigest": "sha256:CODE",
+          "id": "k8s.feature-gate-removal",
+          "version": "1.0.0"
+        },
+        "reviewedAt": "2026-10-02T00:00:00Z",
+        "sources": [
+          {
+            "contentDigest": "sha256:6110f29aacc25a43420df16656b056c90473d47255a9467f20e553853ea9c0f1",
+            "endLine": 53,
+            "id": "gate-declarations-1-22-0-a",
+            "revision": "0000000000000000000000000000000000012200",
+            "startLine": 45,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000012200/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:72365b75ae2fa886413c42ba9749cea42efbe4dc0baadc3a8e27d9fbf1640eac",
+            "endLine": 50,
+            "id": "gate-registry-1-23-0-a",
+            "revision": "0000000000000000000000000000000000012300",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000012300/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:04181a1f902c73d21b16443e45c93913e7b1a1734ae6f3aee94ab022c2e3579e",
+            "endLine": 68,
+            "id": "unrecognized-gate-1-23-0",
+            "revision": "0000000000000000000000000000000000012300",
+            "startLine": 68,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000012300/staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          }
+        ],
+        "state": "active",
+        "validUntil": "2026-12-31T00:00:00Z"
+      },
+      "id": "kubernetes.feature-gate-removal.kube-scheduler.1-22-0-to-1-23-0.1",
+      "nextAction": "remove the listed feature gates from every kube-scheduler feature-gate setting (--feature-gates or featureGates) before upgrading to 1.23.0",
+      "operator": "forbid_set_member",
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "setCondition": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "factId": "component.kubernetes.kube_scheduler_feature_gates_set",
+        "members": [
+          "BoundServiceAccountTokenVolume",
+          "StartupProbe"
+        ],
+        "side": "proposed"
+      },
+      "subject": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "from": "1.22.0",
+        "to": "1.23.0"
+      }
+    }
+  },
+  {
+    "description": "Kubernetes 1.32.0 no longer declares the 4 listed feature gates that 1.31.0 declared; kube-scheduler refuses to start when a feature-gate setting names an unrecognised gate. Derived from the complete feature-gate registries at both release tags.",
+    "project": "kubernetes",
+    "requiredFacts": [
+      {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "description": "Feature gates the kube-scheduler sets, from --feature-gates and a configuration featureGates map.",
+        "enumTokens": null,
+        "id": "component.kubernetes.kube_scheduler_feature_gates_set",
+        "side": "proposed",
+        "type": "set"
+      }
+    ],
+    "rule": {
+      "evidence": {
+        "basis": "mechanical",
+        "derivedAt": "2026-10-02T00:00:00Z",
+        "extractor": {
+          "codeDigest": "sha256:CODE",
+          "id": "k8s.feature-gate-removal",
+          "version": "1.0.0"
+        },
+        "reviewedAt": "2026-10-02T00:00:00Z",
+        "sources": [
+          {
+            "contentDigest": "sha256:ecc5d680531030859b91a475d2947adc097ab4ece700ef0cfbd5ad8c1cd4ceab",
+            "endLine": 52,
+            "id": "gate-declarations-1-31-0-a",
+            "revision": "0000000000000000000000000000000000013100",
+            "startLine": 42,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013100/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:46863f3a067ba00228ae95f7a49be7142aec80e294ef609fcbd38e4111e479d5",
+            "endLine": 41,
+            "id": "gate-declarations-1-31-0-b",
+            "revision": "0000000000000000000000000000000000013100",
+            "startLine": 33,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013100/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:e7a118783dda30e6ff4306eb84cfb5b2a6979c000370b631f348be000aaa0cba",
+            "endLine": 55,
+            "id": "gate-registry-1-32-0-a",
+            "revision": "0000000000000000000000000000000000013200",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013200/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:864adb450cb3974af54a980dc05ca6a6f2b5542bbfcf50c235aa2c1752e08934",
+            "endLine": 49,
+            "id": "gate-registry-1-32-0-b",
+            "revision": "0000000000000000000000000000000000013200",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013200/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:3707d4133bfc977cf7eadbb71bd859412484ad11d699699d4211e2eb6178d2f6",
+            "endLine": 71,
+            "id": "unrecognized-gate-1-32-0",
+            "revision": "0000000000000000000000000000000000013200",
+            "startLine": 71,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013200/staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          }
+        ],
+        "state": "active",
+        "validUntil": "2026-12-31T00:00:00Z"
+      },
+      "id": "kubernetes.feature-gate-removal.kube-scheduler.1-31-0-to-1-32-0.1",
+      "nextAction": "remove the listed feature gates from every kube-scheduler feature-gate setting (--feature-gates or featureGates) before upgrading to 1.32.0",
+      "operator": "forbid_set_member",
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "setCondition": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "factId": "component.kubernetes.kube_scheduler_feature_gates_set",
+        "members": [
+          "CloudDualStackNodeIPs",
+          "HPAContainerMetrics",
+          "KMSv2",
+          "ServerSideApply"
+        ],
+        "side": "proposed"
+      },
+      "subject": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "from": "1.31.0",
+        "to": "1.32.0"
+      }
+    }
+  },
+  {
+    "description": "Kubernetes 1.37.0 no longer declares the 4 listed feature gates that 1.36.0 declared; kube-scheduler refuses to start when a feature-gate setting names an unrecognised gate. Derived from the complete feature-gate registries at both release tags.",
+    "project": "kubernetes",
+    "requiredFacts": [
+      {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "description": "Feature gates the kube-scheduler sets, from --feature-gates and a configuration featureGates map.",
+        "enumTokens": null,
+        "id": "component.kubernetes.kube_scheduler_feature_gates_set",
+        "side": "proposed",
+        "type": "set"
+      }
+    ],
+    "rule": {
+      "evidence": {
+        "basis": "mechanical",
+        "derivedAt": "2026-10-02T00:00:00Z",
+        "extractor": {
+          "codeDigest": "sha256:CODE",
+          "id": "k8s.feature-gate-removal",
+          "version": "1.0.0"
+        },
+        "reviewedAt": "2026-10-02T00:00:00Z",
+        "sources": [
+          {
+            "contentDigest": "sha256:a18d24c19e5401f3bf5f228eb3815b509e07751592ef34721ece90c476abcdf0",
+            "endLine": 59,
+            "id": "gate-declarations-1-36-0-a",
+            "revision": "0000000000000000000000000000000000013600",
+            "startLine": 51,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013600/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:3170fc68b8341b818c83eb8a8a955d4b62da0daaa079745a35f7569efca0e03d",
+            "endLine": 46,
+            "id": "gate-declarations-1-36-0-b",
+            "revision": "0000000000000000000000000000000000013600",
+            "startLine": 40,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013600/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:d03d1928a7947bbf341da40e643b7d882404f3088556716cbf09b948a021ec47",
+            "endLine": 104,
+            "id": "gate-registry-1-37-0-a",
+            "revision": "0000000000000000000000000000000000013700",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013700/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:fba76f35f35e083791086d14b868bb714dc9b92b730d5d86356734d9c3bf37dd",
+            "endLine": 62,
+            "id": "gate-registry-1-37-0-b",
+            "revision": "0000000000000000000000000000000000013700",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013700/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:0ef36e242227123cbf7f5396523f67889f4986ab63848f63b4bbbf790cd02267",
+            "endLine": 75,
+            "id": "unrecognized-gate-1-37-0",
+            "revision": "0000000000000000000000000000000000013700",
+            "startLine": 75,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013700/staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          }
+        ],
+        "state": "active",
+        "validUntil": "2026-12-31T00:00:00Z"
+      },
+      "id": "kubernetes.feature-gate-removal.kube-scheduler.1-36-0-to-1-37-0.1",
+      "nextAction": "remove the listed feature gates from every kube-scheduler feature-gate setting (--feature-gates or featureGates) before upgrading to 1.37.0",
+      "operator": "forbid_set_member",
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "setCondition": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "factId": "component.kubernetes.kube_scheduler_feature_gates_set",
+        "members": [
+          "APIServerTracing",
+          "AnyVolumeDataSource",
+          "AuthorizeWithSelectors",
+          "SidecarContainers"
+        ],
+        "side": "proposed"
+      },
+      "subject": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "from": "1.36.0",
+        "to": "1.37.0"
+      }
+    }
+  },
+  {
+    "description": "Kubernetes 1.23.0 no longer declares the 2 listed feature gates that 1.22.0 declared; kubelet refuses to start when a feature-gate setting names an unrecognised gate. Derived from the complete feature-gate registries at both release tags.",
+    "project": "kubernetes",
+    "requiredFacts": [
+      {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "description": "Feature gates the kubelet sets, from --feature-gates and a configuration featureGates map.",
+        "enumTokens": null,
+        "id": "component.kubernetes.kubelet_feature_gates_set",
+        "side": "proposed",
+        "type": "set"
+      }
+    ],
+    "rule": {
+      "evidence": {
+        "basis": "mechanical",
+        "derivedAt": "2026-10-02T00:00:00Z",
+        "extractor": {
+          "codeDigest": "sha256:CODE",
+          "id": "k8s.feature-gate-removal",
+          "version": "1.0.0"
+        },
+        "reviewedAt": "2026-10-02T00:00:00Z",
+        "sources": [
+          {
+            "contentDigest": "sha256:6110f29aacc25a43420df16656b056c90473d47255a9467f20e553853ea9c0f1",
+            "endLine": 53,
+            "id": "gate-declarations-1-22-0-a",
+            "revision": "0000000000000000000000000000000000012200",
+            "startLine": 45,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000012200/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:72365b75ae2fa886413c42ba9749cea42efbe4dc0baadc3a8e27d9fbf1640eac",
+            "endLine": 50,
+            "id": "gate-registry-1-23-0-a",
+            "revision": "0000000000000000000000000000000000012300",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000012300/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:04181a1f902c73d21b16443e45c93913e7b1a1734ae6f3aee94ab022c2e3579e",
+            "endLine": 68,
+            "id": "unrecognized-gate-1-23-0",
+            "revision": "0000000000000000000000000000000000012300",
+            "startLine": 68,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000012300/staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          }
+        ],
+        "state": "active",
+        "validUntil": "2026-12-31T00:00:00Z"
+      },
+      "id": "kubernetes.feature-gate-removal.kubelet.1-22-0-to-1-23-0.1",
+      "nextAction": "remove the listed feature gates from every kubelet feature-gate setting (--feature-gates or featureGates) before upgrading to 1.23.0",
+      "operator": "forbid_set_member",
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "setCondition": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "factId": "component.kubernetes.kubelet_feature_gates_set",
+        "members": [
+          "BoundServiceAccountTokenVolume",
+          "StartupProbe"
+        ],
+        "side": "proposed"
+      },
+      "subject": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "from": "1.22.0",
+        "to": "1.23.0"
+      }
+    }
+  },
+  {
+    "description": "Kubernetes 1.32.0 no longer declares the 4 listed feature gates that 1.31.0 declared; kubelet refuses to start when a feature-gate setting names an unrecognised gate. Derived from the complete feature-gate registries at both release tags.",
+    "project": "kubernetes",
+    "requiredFacts": [
+      {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "description": "Feature gates the kubelet sets, from --feature-gates and a configuration featureGates map.",
+        "enumTokens": null,
+        "id": "component.kubernetes.kubelet_feature_gates_set",
+        "side": "proposed",
+        "type": "set"
+      }
+    ],
+    "rule": {
+      "evidence": {
+        "basis": "mechanical",
+        "derivedAt": "2026-10-02T00:00:00Z",
+        "extractor": {
+          "codeDigest": "sha256:CODE",
+          "id": "k8s.feature-gate-removal",
+          "version": "1.0.0"
+        },
+        "reviewedAt": "2026-10-02T00:00:00Z",
+        "sources": [
+          {
+            "contentDigest": "sha256:ecc5d680531030859b91a475d2947adc097ab4ece700ef0cfbd5ad8c1cd4ceab",
+            "endLine": 52,
+            "id": "gate-declarations-1-31-0-a",
+            "revision": "0000000000000000000000000000000000013100",
+            "startLine": 42,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013100/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:46863f3a067ba00228ae95f7a49be7142aec80e294ef609fcbd38e4111e479d5",
+            "endLine": 41,
+            "id": "gate-declarations-1-31-0-b",
+            "revision": "0000000000000000000000000000000000013100",
+            "startLine": 33,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013100/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:e7a118783dda30e6ff4306eb84cfb5b2a6979c000370b631f348be000aaa0cba",
+            "endLine": 55,
+            "id": "gate-registry-1-32-0-a",
+            "revision": "0000000000000000000000000000000000013200",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013200/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:864adb450cb3974af54a980dc05ca6a6f2b5542bbfcf50c235aa2c1752e08934",
+            "endLine": 49,
+            "id": "gate-registry-1-32-0-b",
+            "revision": "0000000000000000000000000000000000013200",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013200/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:3707d4133bfc977cf7eadbb71bd859412484ad11d699699d4211e2eb6178d2f6",
+            "endLine": 71,
+            "id": "unrecognized-gate-1-32-0",
+            "revision": "0000000000000000000000000000000000013200",
+            "startLine": 71,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013200/staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          }
+        ],
+        "state": "active",
+        "validUntil": "2026-12-31T00:00:00Z"
+      },
+      "id": "kubernetes.feature-gate-removal.kubelet.1-31-0-to-1-32-0.1",
+      "nextAction": "remove the listed feature gates from every kubelet feature-gate setting (--feature-gates or featureGates) before upgrading to 1.32.0",
+      "operator": "forbid_set_member",
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "setCondition": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "factId": "component.kubernetes.kubelet_feature_gates_set",
+        "members": [
+          "CloudDualStackNodeIPs",
+          "HPAContainerMetrics",
+          "KMSv2",
+          "ServerSideApply"
+        ],
+        "side": "proposed"
+      },
+      "subject": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "from": "1.31.0",
+        "to": "1.32.0"
+      }
+    }
+  },
+  {
+    "description": "Kubernetes 1.37.0 no longer declares the 4 listed feature gates that 1.36.0 declared; kubelet refuses to start when a feature-gate setting names an unrecognised gate. Derived from the complete feature-gate registries at both release tags.",
+    "project": "kubernetes",
+    "requiredFacts": [
+      {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "description": "Feature gates the kubelet sets, from --feature-gates and a configuration featureGates map.",
+        "enumTokens": null,
+        "id": "component.kubernetes.kubelet_feature_gates_set",
+        "side": "proposed",
+        "type": "set"
+      }
+    ],
+    "rule": {
+      "evidence": {
+        "basis": "mechanical",
+        "derivedAt": "2026-10-02T00:00:00Z",
+        "extractor": {
+          "codeDigest": "sha256:CODE",
+          "id": "k8s.feature-gate-removal",
+          "version": "1.0.0"
+        },
+        "reviewedAt": "2026-10-02T00:00:00Z",
+        "sources": [
+          {
+            "contentDigest": "sha256:a18d24c19e5401f3bf5f228eb3815b509e07751592ef34721ece90c476abcdf0",
+            "endLine": 59,
+            "id": "gate-declarations-1-36-0-a",
+            "revision": "0000000000000000000000000000000000013600",
+            "startLine": 51,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013600/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:3170fc68b8341b818c83eb8a8a955d4b62da0daaa079745a35f7569efca0e03d",
+            "endLine": 46,
+            "id": "gate-declarations-1-36-0-b",
+            "revision": "0000000000000000000000000000000000013600",
+            "startLine": 40,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013600/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:d03d1928a7947bbf341da40e643b7d882404f3088556716cbf09b948a021ec47",
+            "endLine": 104,
+            "id": "gate-registry-1-37-0-a",
+            "revision": "0000000000000000000000000000000000013700",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013700/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:fba76f35f35e083791086d14b868bb714dc9b92b730d5d86356734d9c3bf37dd",
+            "endLine": 62,
+            "id": "gate-registry-1-37-0-b",
+            "revision": "0000000000000000000000000000000000013700",
+            "startLine": 1,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013700/staging/src/k8s.io/apiserver/pkg/features/kube_features.go"
+          },
+          {
+            "contentDigest": "sha256:0ef36e242227123cbf7f5396523f67889f4986ab63848f63b4bbbf790cd02267",
+            "endLine": 75,
+            "id": "unrecognized-gate-1-37-0",
+            "revision": "0000000000000000000000000000000000013700",
+            "startLine": 75,
+            "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013700/staging/src/k8s.io/component-base/featuregate/feature_gate.go"
+          }
+        ],
+        "state": "active",
+        "validUntil": "2026-12-31T00:00:00Z"
+      },
+      "id": "kubernetes.feature-gate-removal.kubelet.1-36-0-to-1-37-0.1",
+      "nextAction": "remove the listed feature gates from every kubelet feature-gate setting (--feature-gates or featureGates) before upgrading to 1.37.0",
+      "operator": "forbid_set_member",
+      "reasonCode": "KUBERNETES_FEATURE_GATE_REMOVED",
+      "setCondition": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "factId": "component.kubernetes.kubelet_feature_gates_set",
+        "members": [
+          "APIServerTracing",
+          "AnyVolumeDataSource",
+          "AuthorizeWithSelectors",
+          "SidecarContainers"
+        ],
+        "side": "proposed"
+      },
+      "subject": {
+        "component": "pkg:github/kubernetes/kubernetes",
+        "from": "1.36.0",
+        "to": "1.37.0"
+      }
+    }
+  }
+]

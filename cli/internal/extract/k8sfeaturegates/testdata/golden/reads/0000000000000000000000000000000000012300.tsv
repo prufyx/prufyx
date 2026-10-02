@@ -1,0 +1,4 @@
+pkg/features/kube_features.go	72365b75ae2fa886413c42ba9749cea42efbe4dc0baadc3a8e27d9fbf1640eac	1797
+staging/src/k8s.io/apiserver/pkg/features/kube_features.go	41e3b1bfbb1d5079b38f2eb014155c481ab1f7ce785d473abf73a1596cb782ec	1914
+staging/src/k8s.io/component-base/featuregate/feature_gate.go	04181a1f902c73d21b16443e45c93913e7b1a1734ae6f3aee94ab022c2e3579e	2722
+staging/src/k8s.io/controller-manager/pkg/features/kube_features.go	20701002212d0105fcc5a2b29511ed09b90cd392ff5a538a678070158449da3f	1434
