@@ -289,9 +289,10 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 			return ExitIntegrity
 		}
 	} else {
-		if _, err := fmt.Fprintf(r.stdout, "%s native input review\nraw input digests: %s\nprepared input digest: %s\naggregate: UNKNOWN\nnetwork used: false\nwhole-upgrade compatibility: UNKNOWN\n", project, joinNativeDigests(rawDigests), prepared.InputDigest); err != nil {
+		if _, err := fmt.Fprintf(r.stdout, "%s native input review\nraw input digests: %s\nprepared input digest: %s\n", project, joinNativeDigests(rawDigests), prepared.InputDigest); err != nil {
 			return ExitIntegrity
 		}
+		summary := summarizeClaims(report.Check.Claims, flagProvided(args, "show-passes"))
 		if prometheusRemoteWriteMode {
 			if _, err := fmt.Fprintln(r.stdout, "selected input: one literal-name remote_write entry from the caller-supplied full configuration\nscope: direct enable_http2 and declared endpoint requirement only; negotiation, delivery, runtime flags, includes, and whole-config validity remain unverified"); err != nil {
 				return ExitIntegrity
@@ -305,18 +306,29 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 				return ExitIntegrity
 			}
 		}
-		for _, claim := range report.Check.Claims {
+		if summary.allUnreviewed {
+			if err := writeUnreviewedTransition(r.stdout, project, from, to); err != nil {
+				return ExitIntegrity
+			}
+		}
+		for _, claim := range summary.shown {
 			if _, err := fmt.Fprintf(r.stdout, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction); err != nil {
 				return ExitIntegrity
 			}
 			if _, err := fmt.Fprintln(r.stdout, claim.EvidenceBasisLine()); err != nil {
 				return ExitIntegrity
 			}
-			for _, source := range claim.Sources {
-				if _, err := fmt.Fprintf(r.stdout, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
-					return ExitIntegrity
-				}
+		}
+		if !summary.allUnreviewed {
+			if err := writeCollapsedNotes(r.stdout, summary); err != nil {
+				return ExitIntegrity
 			}
+		}
+		if _, err := fmt.Fprintln(r.stdout, "aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)"); err != nil {
+			return ExitIntegrity
+		}
+		if err := writeSourceFooter(r.stdout, summary.shown); err != nil {
+			return ExitIntegrity
 		}
 	}
 	return cncfcheck.ClaimExit(report)

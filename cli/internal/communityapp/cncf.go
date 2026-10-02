@@ -397,6 +397,7 @@ Whole-upgrade compatibility remains UNKNOWN in every case.`)
 	knowledgeBundleDigest := fs.String("knowledge-bundle-digest", "", "optional exact target digest")
 	knowledgeTrustReceiptDigest := fs.String("knowledge-trust-receipt-digest", "", "optional exact trust receipt digest")
 	format := fs.String("format", "human", "human or json")
+	showPasses := fs.Bool("show-passes", false, "human output: list PASS claims instead of counting them")
 	digestRE := regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 	if duplicateFlags(args) || fs.Parse(args) != nil || fs.NArg() != 0 || *project == "" || (*format != "human" && *format != "json") || (flagProvided(args, "input-digest") && !digestRE.MatchString(*pin)) || (flagProvided(args, "config-map-digest") && !digestRE.MatchString(*configMapPin)) || (flagProvided(args, "resource-exclusions-config-map-digest") && !digestRE.MatchString(*resourceExclusionsConfigMapPin)) || (flagProvided(args, "repository-secret-digest") && !digestRE.MatchString(*repositorySecretPin)) || (flagProvided(args, "linkerd-resource-digest") && !digestRE.MatchString(*linkerdResourcePin)) || (flagProvided(args, "karmada-resource-digest") && !digestRE.MatchString(*karmadaResourcePin)) || (flagProvided(args, "cilium-policy-digest") && !digestRE.MatchString(*ciliumPolicyPin)) || (flagProvided(args, "keadm-init-argv-digest") && !digestRE.MatchString(*keadmInitArgvPin)) || (flagProvided(args, "tekton-config-observability-digest") && !digestRE.MatchString(*tektonConfigObservabilityPin)) || (flagProvided(args, "service-digest") && !digestRE.MatchString(*servicePin)) || (flagProvided(args, "current-lifecycle-config-digest") && !digestRE.MatchString(*currentLifecyclePin)) || (flagProvided(args, "proposed-lifecycle-config-digest") && !digestRE.MatchString(*proposedLifecyclePin)) || (flagProvided(args, "in-toto-run-argv-digest") && !digestRE.MatchString(*inTotoRunArgvPin)) || (flagProvided(args, "python-source-digest") && !digestRE.MatchString(*pythonSourcePin)) || (flagProvided(args, "metanode-config-digest") && !digestRE.MatchString(*metanodeConfigPin)) || (flagProvided(args, "image-status-request-digest") && !digestRE.MatchString(*imageStatusRequestPin)) || (flagProvided(args, "native-resource-digest") && !digestRE.MatchString(*nativeResourcePin)) || (flagProvided(args, "component-config-digest") && !digestRE.MatchString(*componentConfigPin)) || (flagProvided(args, "cilium-config-map-digest") && !digestRE.MatchString(*ciliumConfigMapPin)) || (flagProvided(args, "coredns-corefile-digest") && !digestRE.MatchString(*corednsCorefilePin)) || (flagProvided(args, "envoy-bootstrap-digest") && !digestRE.MatchString(*envoyBootstrapPin)) || (flagProvided(args, "nats-config-digest") && !digestRE.MatchString(*natsConfigPin)) || (flagProvided(args, "kafka-resource-digest") && !digestRE.MatchString(*kafkaResourcePin)) || (flagProvided(args, "falco-argv-digest") && !digestRE.MatchString(*falcoArgvPin)) || (flagProvided(args, "kumactl-argv-digest") && !digestRE.MatchString(*kumactlArgvPin)) || (flagProvided(args, "composition-digest") && !digestRE.MatchString(*compositionPin)) || (flagProvided(args, "upgrade-plan-digest") && !digestRE.MatchString(*upgradePlanPin)) || (flagProvided(args, "spire-entry-argv-digest") && !digestRE.MatchString(*spireEntryArgvPin)) || (flagProvided(args, "keda-scaled-object-digest") && !digestRE.MatchString(*kedaScaledObjectPin)) || (flagProvided(args, "otel-collector-config-digest") && !digestRE.MatchString(*otelCollectorConfigPin)) || (flagProvided(args, "scrape-config-digest") && !digestRE.MatchString(*scrapeConfigPin)) || (flagProvided(args, "prometheus-config-digest") && !digestRE.MatchString(*prometheusConfigPin)) || (flagProvided(args, "alertmanager-config-digest") && !digestRE.MatchString(*alertmanagerConfigPin)) || (flagProvided(args, "kyverno-resource-digest") && !digestRE.MatchString(*kyvernoResourcePin)) || (flagProvided(args, "jaeger-argv-digest") && !digestRE.MatchString(*jaegerArgvPin)) || (flagProvided(args, "current-resource-digest") && !digestRE.MatchString(*currentResourcePin)) || (flagProvided(args, "resource-digest") && !digestRE.MatchString(*resourcePin)) || (flagProvided(args, "image-manifest-digest") && !digestRE.MatchString(*imageManifestPin)) || (flagProvided(args, "cni-configuration-digest") && !digestRE.MatchString(*cniConfigurationPin)) || (flagProvided(args, "containerd-config-digest") && !digestRE.MatchString(*containerdConfigPin)) || (flagProvided(args, "diagd-argv-digest") && !digestRE.MatchString(*diagdArgvPin)) || (flagProvided(args, "effective-config-digest") && !digestRE.MatchString(*effectiveConfigPin)) || (flagProvided(args, "replay-report") && *replay == "") {
 		return r.usage("invalid CNCF check arguments; use --help")
@@ -864,14 +865,27 @@ Whole-upgrade compatibility remains UNKNOWN in every case.`)
 			return ExitIntegrity
 		}
 	} else {
-		fmt.Fprintf(r.stdout, "%s source-constraint preview\naggregate: UNKNOWN\ninput authority: %s\nknowledge: embedded revision %s\nruntime transitions reproduced: 0\nnetwork used: false\n", report.Project, report.Check.InputAuthority, report.KnowledgeRevision)
-		for _, claim := range report.Check.Claims {
+		fmt.Fprintf(r.stdout, "%s source-constraint preview\ninput authority: %s\nknowledge: embedded revision %s\nruntime transitions reproduced: 0\nnetwork used: false\n", report.Project, report.Check.InputAuthority, report.KnowledgeRevision)
+		summary := summarizeClaims(report.Check.Claims, *showPasses)
+		if summary.allUnreviewed {
+			from, to, _ := canonicalTransition(raw)
+			if err := writeUnreviewedTransition(r.stdout, report.Project, from, to); err != nil {
+				return ExitIntegrity
+			}
+		}
+		for _, claim := range summary.shown {
 			fmt.Fprintf(r.stdout, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction)
 			if line, ok := claim.MatchedMembersLine(); ok {
 				fmt.Fprintln(r.stdout, line)
 			}
 			fmt.Fprintln(r.stdout, claim.EvidenceBasisLine())
 		}
+		if !summary.allUnreviewed {
+			if err := writeCollapsedNotes(r.stdout, summary); err != nil {
+				return ExitIntegrity
+			}
+		}
+		fmt.Fprintln(r.stdout, "aggregate: UNKNOWN")
 		fmt.Fprintf(r.stdout, "input digest: %s\nknowledge pack digest: %s\nnext action: %s\n", report.InputFileDigest, report.KnowledgePackDigest, report.NextAction)
 		if *replay != "" {
 			fmt.Fprintln(r.stdout, "historical replay: MATCH; current freshness and non-revocation are not established")
