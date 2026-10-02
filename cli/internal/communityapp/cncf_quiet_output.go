@@ -54,7 +54,7 @@ func writeUnreviewedTransition(out io.Writer, project, from, to string) error {
 	if from != "" && to != "" {
 		subject = project + " " + from + " -> " + to
 	}
-	_, err := fmt.Fprintf(out, "UNKNOWN: %s is not a reviewed transition; reviewed pairs: %s; for multi-minor upgrades use prufyx scan\n", subject, reviewedPairs(project))
+	_, err := fmt.Fprintf(out, "UNKNOWN: %s is not a reviewed transition; reviewed pairs: %s; for a multi-minor upgrade, check each reviewed pair in turn\n", subject, reviewedPairs(project))
 	return err
 }
 

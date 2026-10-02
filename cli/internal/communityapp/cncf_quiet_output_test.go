@@ -38,7 +38,7 @@ func TestQuietHumanUnreviewedTransitionsPrintAtMostFiveLines(t *testing.T) {
 		if code != ExitUnknown || stderr != "" || len(lines) > 5 {
 			t.Fatalf("%v: code=%d lines=%d stderr=%q\n%s", pair, code, len(lines), stderr, human)
 		}
-		for _, want := range []string{"UNKNOWN: kubernetes " + pair[0] + " -> " + pair[1] + " is not a reviewed transition", "reviewed pairs:", "1.24.0 -> 1.25.0", "use prufyx scan", "aggregate: UNKNOWN"} {
+		for _, want := range []string{"UNKNOWN: kubernetes " + pair[0] + " -> " + pair[1] + " is not a reviewed transition", "reviewed pairs:", "1.24.0 -> 1.25.0", "check each reviewed pair in turn", "aggregate: UNKNOWN"} {
 			if !strings.Contains(human, want) {
 				t.Errorf("%v: missing %q in\n%s", pair, want, human)
 			}
@@ -160,7 +160,7 @@ func TestGenericPreviewQuietHumanOutput(t *testing.T) {
 	// A pair outside every reviewed transition collapses to one line.
 	outside := strings.Replace(syntheticHelmInput, `"version":"4.0.0"`, `"version":"3.14.4"`, 1)
 	code, unreviewed := run(outside, "--format", "human")
-	if code != ExitUnknown || strings.Contains(unreviewed, "(RULE_TRANSITION_NOT_REVIEWED)") || !strings.Contains(unreviewed, "UNKNOWN: helm ") || !strings.Contains(unreviewed, "is not a reviewed transition") || !strings.Contains(unreviewed, "use prufyx scan") {
+	if code != ExitUnknown || strings.Contains(unreviewed, "(RULE_TRANSITION_NOT_REVIEWED)") || !strings.Contains(unreviewed, "UNKNOWN: helm ") || !strings.Contains(unreviewed, "is not a reviewed transition") || !strings.Contains(unreviewed, "check each reviewed pair in turn") {
 		t.Fatalf("code=%d\n%s", code, unreviewed)
 	}
 	// JSON carries the claims as before.
