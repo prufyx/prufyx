@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -38,6 +39,20 @@ var errK8sComponentYAML = ErrUnsupported
 // DecodeDocuments returns every non-empty document as plain values:
 // map[string]any, []any, string, bool, json.Number or nil.
 func DecodeDocuments(raw []byte) ([]any, error) {
+	return decodeDocuments(raw, decodeOptions{})
+}
+
+// decodeOptions tightens or relaxes the base decoder for the manifest path.
+type decodeOptions struct {
+	// foldKeys rejects two keys in one mapping that differ only in case,
+	// as the strict JSON decoder of the preparers does.
+	foldKeys bool
+	// timestampStrings reads an untagged timestamp scalar such as 2026-01-02
+	// as the string it is written as.
+	timestampStrings bool
+}
+
+func decodeDocuments(raw []byte, opts decodeOptions) ([]any, error) {
 	decoder := yaml.NewDecoder(bytes.NewReader(raw))
 	documents := make([]any, 0, 1)
 	budget := MaxNodes
@@ -63,7 +78,7 @@ func DecodeDocuments(raw []byte) ([]any, error) {
 			// An empty document between separators carries no configuration.
 			continue
 		}
-		value, err := yamlValue(node.Content[0], 0, &budget)
+		value, err := opts.yamlValue(node.Content[0], 0, &budget)
 		if err != nil {
 			return nil, err
 		}
@@ -75,7 +90,7 @@ func DecodeDocuments(raw []byte) ([]any, error) {
 	return documents, nil
 }
 
-func yamlValue(node *yaml.Node, depth int, budget *int) (any, error) {
+func (opts decodeOptions) yamlValue(node *yaml.Node, depth int, budget *int) (any, error) {
 	*budget--
 	if *budget < 0 || depth > MaxDepth || node == nil || node.Anchor != "" || node.Alias != nil || node.Kind == yaml.AliasNode {
 		return nil, errK8sComponentYAML
@@ -86,6 +101,7 @@ func yamlValue(node *yaml.Node, depth int, budget *int) (any, error) {
 			return nil, errK8sComponentYAML
 		}
 		object := make(map[string]any, len(node.Content)/2)
+		seen := map[string]bool{}
 		for index := 0; index < len(node.Content); index += 2 {
 			key := node.Content[index]
 			if key.Kind != yaml.ScalarNode || key.ShortTag() != "!!str" || key.Anchor != "" || key.Alias != nil || key.Value == "" || key.Value == "<<" {
@@ -94,7 +110,14 @@ func yamlValue(node *yaml.Node, depth int, budget *int) (any, error) {
 			if _, duplicate := object[key.Value]; duplicate {
 				return nil, errK8sComponentYAML
 			}
-			value, err := yamlValue(node.Content[index+1], depth+1, budget)
+			if opts.foldKeys {
+				folded := strings.ToLower(key.Value)
+				if seen[folded] {
+					return nil, errK8sComponentYAML
+				}
+				seen[folded] = true
+			}
+			value, err := opts.yamlValue(node.Content[index+1], depth+1, budget)
 			if err != nil {
 				return nil, err
 			}
@@ -107,7 +130,7 @@ func yamlValue(node *yaml.Node, depth int, budget *int) (any, error) {
 		}
 		items := make([]any, 0, len(node.Content))
 		for _, child := range node.Content {
-			value, err := yamlValue(child, depth+1, budget)
+			value, err := opts.yamlValue(child, depth+1, budget)
 			if err != nil {
 				return nil, err
 			}
@@ -130,6 +153,10 @@ func yamlValue(node *yaml.Node, depth int, budget *int) (any, error) {
 			return json.Number(node.Value), nil
 		case "!!null":
 			return nil, nil
+		case "!!timestamp":
+			if opts.timestampStrings {
+				return node.Value, nil
+			}
 		}
 		return nil, errK8sComponentYAML
 	}
