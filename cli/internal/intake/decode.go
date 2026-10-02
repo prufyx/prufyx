@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package cncfprepare
+package intake
 
 import (
 	"bytes"
@@ -19,18 +19,28 @@ import (
 // the value a Kubernetes component decodes.
 
 const (
-	maxK8sComponentDocuments = 256
-	maxK8sComponentNodes     = 200000
+	// MaxDocuments and MaxNodes bound one decode call.
+	MaxDocuments = 256
+	MaxNodes     = 200000
+	// MaxDepth, MaxObjectMembers and MaxArrayItems bound one document. They
+	// equal the limits of the strict JSON decoder used by the preparers.
+	MaxDepth         = 32
+	MaxObjectMembers = 4096
+	MaxArrayItems    = 2048
 )
 
-var errK8sComponentYAML = errors.New("unsupported Kubernetes component YAML")
+// ErrUnsupported reports bytes outside the accepted YAML subset or outside the
+// bounds.
+var ErrUnsupported = errors.New("unsupported Kubernetes component YAML")
 
-// k8sDecodeDocuments returns every non-empty document as plain values:
+var errK8sComponentYAML = ErrUnsupported
+
+// DecodeDocuments returns every non-empty document as plain values:
 // map[string]any, []any, string, bool, json.Number or nil.
-func k8sDecodeDocuments(raw []byte) ([]any, error) {
+func DecodeDocuments(raw []byte) ([]any, error) {
 	decoder := yaml.NewDecoder(bytes.NewReader(raw))
 	documents := make([]any, 0, 1)
-	budget := maxK8sComponentNodes
+	budget := MaxNodes
 	for {
 		var node yaml.Node
 		err := decoder.Decode(&node)
@@ -53,26 +63,26 @@ func k8sDecodeDocuments(raw []byte) ([]any, error) {
 			// An empty document between separators carries no configuration.
 			continue
 		}
-		value, err := k8sYAMLValue(node.Content[0], 0, &budget)
+		value, err := yamlValue(node.Content[0], 0, &budget)
 		if err != nil {
 			return nil, err
 		}
 		documents = append(documents, value)
-		if len(documents) > maxK8sComponentDocuments {
+		if len(documents) > MaxDocuments {
 			return nil, errK8sComponentYAML
 		}
 	}
 	return documents, nil
 }
 
-func k8sYAMLValue(node *yaml.Node, depth int, budget *int) (any, error) {
+func yamlValue(node *yaml.Node, depth int, budget *int) (any, error) {
 	*budget--
-	if *budget < 0 || depth > maxJSONDepth || node == nil || node.Anchor != "" || node.Alias != nil || node.Kind == yaml.AliasNode {
+	if *budget < 0 || depth > MaxDepth || node == nil || node.Anchor != "" || node.Alias != nil || node.Kind == yaml.AliasNode {
 		return nil, errK8sComponentYAML
 	}
 	switch node.Kind {
 	case yaml.MappingNode:
-		if node.ShortTag() != "!!map" || len(node.Content)%2 != 0 || len(node.Content)/2 > maxObjectMembers {
+		if node.ShortTag() != "!!map" || len(node.Content)%2 != 0 || len(node.Content)/2 > MaxObjectMembers {
 			return nil, errK8sComponentYAML
 		}
 		object := make(map[string]any, len(node.Content)/2)
@@ -84,7 +94,7 @@ func k8sYAMLValue(node *yaml.Node, depth int, budget *int) (any, error) {
 			if _, duplicate := object[key.Value]; duplicate {
 				return nil, errK8sComponentYAML
 			}
-			value, err := k8sYAMLValue(node.Content[index+1], depth+1, budget)
+			value, err := yamlValue(node.Content[index+1], depth+1, budget)
 			if err != nil {
 				return nil, err
 			}
@@ -92,12 +102,12 @@ func k8sYAMLValue(node *yaml.Node, depth int, budget *int) (any, error) {
 		}
 		return object, nil
 	case yaml.SequenceNode:
-		if node.ShortTag() != "!!seq" || len(node.Content) > maxArrayItems {
+		if node.ShortTag() != "!!seq" || len(node.Content) > MaxArrayItems {
 			return nil, errK8sComponentYAML
 		}
 		items := make([]any, 0, len(node.Content))
 		for _, child := range node.Content {
-			value, err := k8sYAMLValue(child, depth+1, budget)
+			value, err := yamlValue(child, depth+1, budget)
 			if err != nil {
 				return nil, err
 			}

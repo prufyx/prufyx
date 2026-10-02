@@ -4,6 +4,7 @@ package cncfprepare
 
 import (
 	"encoding/json"
+	"github.com/prufyx/prufyx/cli/internal/intake"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -118,7 +119,7 @@ func ParseKubernetesComponentSelection(raw []byte) (KubernetesComponentSelection
 	if len(raw) == 0 || len(raw) > maxInputBytes || !utf8.Valid(raw) {
 		return KubernetesComponentSelection{}, ErrInvalid
 	}
-	documents, err := k8sDecodeDocuments(raw)
+	documents, err := intake.DecodeDocuments(raw)
 	if err != nil || len(documents) != 1 {
 		return KubernetesComponentSelection{}, ErrInvalid
 	}
@@ -406,7 +407,7 @@ func (m *k8sComponentModel) addSource(source KubernetesComponentSource, raw []by
 		scope.argv = append(scope.argv, tokens)
 		return
 	}
-	documents, err := k8sDecodeDocuments(raw)
+	documents, err := intake.DecodeDocuments(raw)
 	if err != nil || len(documents) == 0 {
 		unresolved()
 		return
@@ -518,7 +519,7 @@ func k8sConfigMapDocument(configMap map[string]any, key string) (map[string]any,
 	if !ok || text == "" || argvRenderingUnresolved([]byte(text)) {
 		return nil, false
 	}
-	documents, err := k8sDecodeDocuments([]byte(text))
+	documents, err := intake.DecodeDocuments([]byte(text))
 	if err != nil || len(documents) != 1 {
 		return nil, false
 	}

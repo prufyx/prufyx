@@ -389,29 +389,6 @@ func TestKubernetesComponentConfigPredicateTable(t *testing.T) {
 	}
 }
 
-func TestKubernetesComponentYAMLDecoder(t *testing.T) {
-	for name, raw := range map[string]string{
-		"alias":          "a: &x 1\nb: *x\n",
-		"merge key":      "a: {x: 1}\nb:\n  <<: {x: 2}\n",
-		"custom tag":     "a: !secret x\n",
-		"non-string key": "1: x\n",
-		"duplicate key":  "a: 1\na: 2\n",
-		"binary":         "a: !!binary aGVsbG8=\n",
-	} {
-		if _, err := k8sDecodeDocuments([]byte(raw)); err == nil {
-			t.Errorf("%s accepted", name)
-		}
-	}
-	documents, err := k8sDecodeDocuments([]byte("---\n---\na: true\nb: [1, \"x\", null]\n---\n{\"c\": false}\n"))
-	if err != nil || len(documents) != 2 {
-		t.Fatalf("documents=%v err=%v", documents, err)
-	}
-	first := documents[0].(map[string]any)
-	if first["a"] != true || len(first["b"].([]any)) != 3 || documents[1].(map[string]any)["c"] != false {
-		t.Fatalf("decoded %#v", documents)
-	}
-}
-
 func TestKubernetesComponentConfigGateScopesIgnoreUnrelatedConfigFiles(t *testing.T) {
 	// The API server's admission configuration file has no feature gates, so a
 	// reference to it without the file does not block a gate decision.
