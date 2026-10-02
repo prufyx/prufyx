@@ -403,6 +403,16 @@ type inputFact struct {
 	State     string `json:"state"`
 	BoolValue *bool  `json:"boolValue,omitempty"`
 	EnumValue string `json:"enumValue,omitempty"`
+	// SetValue is present only for a declared set fact; every other fact
+	// marshals exactly as before set facts existed.
+	SetValue *inputSetValue `json:"setValue,omitempty"`
+}
+
+// inputSetValue is a declared set: members in ascending byte order and
+// whether the declaration is complete.
+type inputSetValue struct {
+	Members  []string `json:"members"`
+	Complete bool     `json:"complete"`
 }
 
 func parseContainer(value any) (workloadContainer, error) {

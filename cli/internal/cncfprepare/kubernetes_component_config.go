@@ -246,19 +246,50 @@ func PrepareKubernetesComponentConfig(selection KubernetesComponentSelection, co
 			}
 		}
 	}
+	// Set facts are not tied to one minor line: a published
+	// forbid_set_member rule's own subject decides which transitions it
+	// covers. Like every adapter fact they are emitted only for a transition
+	// that crosses exactly one minor line.
+	sets := make([]k8sSetFact, 0)
+	if _, ok := kubernetesCrossedMinorLine(from, to); ok {
+		for _, set := range k8sComponentSetFacts {
+			if registered(set.Fact) {
+				sets = append(sets, set)
+			}
+		}
+	}
 	model := buildK8sComponentModel(selection, contents)
-	facts := make([]inputFact, 0, len(predicates))
+	facts := make([]inputFact, 0, len(predicates)+len(sets))
 	state, reason := StatePrepared, ReasonKubernetesComponentSettingAbsent
+	if len(predicates) == 0 {
+		reason = ReasonKubernetesComponentSettingSetsComplete
+	}
 	anyPresent := false
 	switch {
-	case len(predicates) == 0:
+	case len(predicates) == 0 && len(sets) == 0:
 		state, reason = StateUnknown, ReasonKubernetesComponentNoReviewedRule
 	case distribution != "official_upstream":
 		state, reason = StateUnknown, ReasonKubernetesComponentDistribution
 		for _, predicate := range predicates {
 			facts = append(facts, inputFact{ID: predicate.Fact, State: "unsupported"})
 		}
+		for _, set := range sets {
+			facts = append(facts, inputFact{ID: set.Fact, State: "unsupported"})
+		}
 	default:
+		for _, set := range sets {
+			members, complete, ok := model.members(set)
+			switch {
+			case !ok:
+				state, reason = StateUnknown, ReasonKubernetesComponentEvidenceIncomplete
+				facts = append(facts, inputFact{ID: set.Fact, State: "unsupported"})
+			case !complete:
+				state, reason = StateUnknown, ReasonKubernetesComponentEvidenceIncomplete
+				facts = append(facts, setFact(set.Fact, members, false))
+			default:
+				facts = append(facts, setFact(set.Fact, members, true))
+			}
+		}
 		for _, predicate := range predicates {
 			result := predicate.Eval(model)
 			switch {

@@ -1056,9 +1056,9 @@ func k8sStaticPodAPIReference(document map[string]any) (bool, bool) {
 // table order. A native route passes it to select the rules this adapter can
 // decide.
 func KubernetesComponentConfigAllFacts() []string {
-	facts := make([]string, 0, len(k8sComponentPredicates))
+	facts := make([]string, 0, len(k8sComponentPredicates)+len(k8sComponentSetFacts))
 	for _, predicate := range k8sComponentPredicates {
 		facts = append(facts, predicate.Fact)
 	}
-	return facts
+	return append(facts, KubernetesComponentConfigSetFacts()...)
 }
