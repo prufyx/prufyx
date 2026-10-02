@@ -57,7 +57,10 @@ func k8sSelection(t *testing.T, complete []string, cgroupV1 *bool, sources ...k8
 	return selection, contents
 }
 
-func k8sAllRegistered(string) bool { return true }
+// k8sAllRegistered registers every bool predicate fact. The set facts have
+// their own tests (kubernetes_component_sets_test.go), so the predicate tests
+// keep their fact counts and preparation reasons.
+func k8sAllRegistered(id string) bool { return !strings.HasSuffix(id, "_set") }
 
 func k8sComponentFacts(t *testing.T, from, to string, complete []string, cgroupV1 *bool, sources ...k8sSrc) (Prepared, map[string]k8sFactView) {
 	t.Helper()
