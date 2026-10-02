@@ -32,8 +32,8 @@ type inputComponent struct {
 }
 
 type inputFact struct {
-	ID       string                     `json:"id"`
-	State    string                     `json:"state"`
+	ID       string                    `json:"id"`
+	State    string                    `json:"state"`
 	SetValue constraintengine.SetValue `json:"setValue"`
 }
 

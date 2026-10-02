@@ -1,0 +1,30 @@
+- name: AnyVolumeDataSource
+  versionedSpecs:
+  - default: false
+    lockToDefault: false
+    preRelease: Alpha
+    version: "1.18"
+  - default: true
+    lockToDefault: false
+    preRelease: Beta
+    version: "1.24"
+- name: SidecarContainers
+  versionedSpecs:
+  - default: false
+    lockToDefault: false
+    preRelease: Alpha
+    version: "1.28"
+  - default: true
+    lockToDefault: false
+    preRelease: Beta
+    version: "1.29"
+- name: WatchList
+  versionedSpecs:
+  - default: false
+    lockToDefault: false
+    preRelease: Alpha
+    version: "1.27"
+  - default: true
+    lockToDefault: false
+    preRelease: Beta
+    version: "1.32"

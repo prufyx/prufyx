@@ -49,7 +49,9 @@ import (
 // re-registers names another map declares). Where the commit carries the
 // upstream generated feature lists (test/featuregates_linter/test_data or
 // test/compatibility_lifecycle/reference), every name they list must be in
-// All.
+// All, or be the Go identifier of a resolved key (the lists name gates by
+// identifier: CPUCFSQuotaPeriod is the identifier of the gate a component
+// accepts as CustomCPUCFSQuotaPeriod).
 
 var (
 	declPkgFeatures      = regexp.MustCompile(`^staging/src/k8s\.io/[^/]+/pkg/features$`)
@@ -104,6 +106,10 @@ type registry struct {
 	// DeclProblems make Declared unusable.
 	DeclProblems []string
 	All          map[string]bool
+	// KeyIdents are the Go identifiers of resolved map keys; upstream's
+	// generated feature lists name a gate by its identifier, which can
+	// differ from the name a component accepts.
+	KeyIdents map[string]bool
 	// Problems make All unusable (absence cannot be proven).
 	Problems       []string
 	Roots          map[string]string
@@ -123,7 +129,7 @@ type walkFile struct {
 // buildRegistry walks the commit and parses its gate registry. Read
 // failures are recorded as problems; only context errors abort.
 func (x *Extractor) buildRegistry(ctx context.Context, r extract.PinnedReader, repo extract.RepoRef, commit string) (*registry, error) {
-	reg := &registry{Commit: commit, Declared: map[string]*gateDecl{}, All: map[string]bool{}, Roots: map[string]string{}, files: map[string]*fileSummary{}, sha: map[string]string{}}
+	reg := &registry{Commit: commit, Declared: map[string]*gateDecl{}, All: map[string]bool{}, KeyIdents: map[string]bool{}, Roots: map[string]string{}, files: map[string]*fileSummary{}, sha: map[string]string{}}
 	var mu sync.Mutex
 	problem := func(format string, a ...any) {
 		mu.Lock()
@@ -437,6 +443,9 @@ func (reg *registry) resolve() {
 				continue
 			}
 			reg.All[got.name] = true
+			if k.Ref.Kind == refLocal || k.Ref.Kind == refSelector {
+				reg.KeyIdents[k.Ref.Value] = true
+			}
 			if !inDecl {
 				continue
 			}
@@ -526,7 +535,7 @@ func (x *Extractor) checkReferenceLists(ctx context.Context, r extract.PinnedRea
 					reg.Problems = append(reg.Problems, fmt.Sprintf("%s: entry %d has no name", e.Path, i))
 					continue
 				}
-				if !reg.All[name] {
+				if !reg.All[name] && !reg.KeyIdents[name] {
 					reg.Problems = append(reg.Problems, fmt.Sprintf("%s lists %s, which the parsed registry does not hold", e.Path, name))
 				}
 			}
