@@ -40,6 +40,12 @@ jobs:
         working-directory: cli
         run: go test ./...
 
+      - name: Test command routes against synthetic knowledge
+        working-directory: cli
+        run: |
+          go vet -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/
+          go test -tags prufyx_synthetic_knowledge -run Synthetic ./internal/cncfcheck/ ./internal/communityapp/
+
       - name: Validate community rule candidates
         working-directory: cli
         run: |

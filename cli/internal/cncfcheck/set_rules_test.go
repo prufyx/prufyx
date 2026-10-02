@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -207,5 +209,17 @@ func TestSyntheticRemovedGateThroughAdapterAndKnowledge(t *testing.T) {
 				t.Fatalf("matched members disclosure wrong: %s", raw)
 			}
 		})
+	}
+}
+
+// TestReleaseBuildsNeverUseSyntheticKnowledge: the synthetic knowledge seam
+// exists only under a build tag that the release workflow never sets.
+func TestReleaseBuildsNeverUseSyntheticKnowledge(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".github", "workflows", "release.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "prufyx_synthetic_knowledge") || strings.Contains(string(raw), "-tags") {
+		t.Fatal("the release workflow sets build tags")
 	}
 }

@@ -173,3 +173,25 @@ func TestKubernetesComponentConfigHumanOutputShowsEvidenceBasis(t *testing.T) {
 		})
 	}
 }
+
+// TestKubernetesComponentConfigHumanOutputNamesMatchedMembers: a BLOCKED set
+// claim names the forbidden members it found; every other claim prints
+// exactly as before.
+func TestKubernetesComponentConfigHumanOutputNamesMatchedMembers(t *testing.T) {
+	blocked := constraintengine.Claim{RuleID: "kubernetes.example", Operator: constraintengine.OperatorForbidSetMember, Status: "BLOCKED", ReasonCode: "X", NextAction: "act", MatchedMembers: []string{"GateA", "GateB"}}
+	var out strings.Builder
+	if err := writeKubernetesComponentClaims(&out, []constraintengine.Claim{blocked}); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "kubernetes.example: BLOCKED (X)\nnext action: act\nforbidden members present: GateA, GateB\nevidence basis: reviewed by maintainer\n" {
+		t.Fatalf("output=%q", out.String())
+	}
+	out.Reset()
+	blocked.MatchedMembers = nil
+	if err := writeKubernetesComponentClaims(&out, []constraintengine.Claim{blocked}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "forbidden members") {
+		t.Fatalf("output=%q", out.String())
+	}
+}
