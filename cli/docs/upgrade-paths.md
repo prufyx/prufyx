@@ -71,7 +71,18 @@ A rule decides a hop only if it matches every upgrade the hop stands for:
 - A major-line end is never covered, because a reviewed range spans at most
   one minor line per side.
 
-A hop no rule decides stays a gap; it is never reported as passing.
+A rule **overlaps** a hop when it applies to at least one upgrade the hop
+stands for: for example, a rule reviewed for exactly `1.25.7 -> 1.26.0`
+overlaps the hop `1.25 -> 1.26`, because an operator who stopped at 1.25.7
+takes that upgrade. A hop is decided only when every current rule of the
+component that overlaps it also covers it. A rule that overlaps a hop
+without covering it leaves the hop undecided, and a hop no rule decides stays
+a gap; neither is ever reported as passing.
+
+A rule reviewed for a whole multi-line upgrade (from the actual version
+straight to the target) matches no single hop of a sequential plan; it still
+applies to the upgrade as a whole and must not be lost when the upgrade is
+split into hops.
 
 ## The record
 
@@ -125,9 +136,10 @@ A record is evaluated at an explicit time, exactly as a rule's evidence is:
 | `stale` | the time is at or after `validUntil` |
 | `current` | otherwise |
 
-Only a `current` record is used to plan. Any other record is treated as if
-there were none, so the upgrade falls back to one undecided direct hop and the
-path is a gap, never a pass.
+Only a `current` record is used to plan. A record that exists but is not
+current is a gap of its own: the knowledge says how the component must be
+upgraded and only its review has lapsed, so the upgrade is never planned as
+one direct hop instead, and never passes.
 
 ## In a knowledge pack
 
@@ -165,11 +177,16 @@ renewal; it expires instead, and its paths become gaps again.
   hops, or a gap. Pass `nil` when the component has no current record.
 - `cncfcheck.PathPolicyFor(component, now)` returns the embedded pack's
   record for a component with its freshness. Its `Policy()` is `nil` unless
-  the record is current; pass that straight to `PlanPath`.
-- `Hop.CoveredBy(rule)` reports whether a rule matches every upgrade a hop
-  stands for, and `Endpoint.EngineVersion()` gives the concrete version that
-  stands for a line end (`M.m.0`) in an engine input. A rule matched at
-  `M.m.0` decides the hop only if `CoveredBy` also holds.
+  the record is current; pass that straight to `PlanPath`. `Found` is false
+  when there is no record (plan one direct hop), and `RecordNotCurrent()` is
+  true when a record exists but is not current (a gap: do not plan).
+- `Hop.Overlaps(rule)` reports whether a rule matches at least one upgrade a
+  hop stands for, and `Hop.CoveredBy(rule)` whether it matches every one.
+  Select the rules of a hop with `Overlaps`, not by matching at `M.m.0`: a
+  rule for another release of the line does not match there. The hop is
+  decided only if every current overlapping rule also satisfies `CoveredBy`.
+  `Endpoint.EngineVersion()` gives the concrete version that stands for a
+  line end (`M.m.0`) in an engine input.
 - `rulecheck.ValidatePathPolicies(document, options)` and
   `rulecheck.ValidatePackPathPolicies(pack, options)` report every problem
   the pack loader would reject, and, given a time, every record that is not
