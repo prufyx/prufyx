@@ -52,8 +52,17 @@ func TestWorkflowShape(t *testing.T) {
 	if _, ok := wf.On["pull_request"]; ok {
 		t.Fatal("pull_request would run the change's own workflow definition")
 	}
-	if _, ok := wf.On["merge_group"]; !ok {
-		t.Fatal("the gate must also run for the merge queue (merge_group)")
+	// No merge queue is in use: a merge_group run would take its workflow
+	// definition from the queued commit, and has no pull request author.
+	if _, ok := wf.On["merge_group"]; ok {
+		t.Fatal("merge_group runs the queued commit's own workflow definition")
+	}
+	for trigger := range wf.On {
+		switch trigger {
+		case "pull_request_target", "schedule", "workflow_dispatch":
+		default:
+			t.Fatalf("unexpected trigger %s", trigger)
+		}
 	}
 	if strings.Contains(string(raw), "head.ref") {
 		t.Fatal("the gate must check the head commit, never a branch name")
