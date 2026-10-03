@@ -321,7 +321,9 @@ func TestRepoGapBound(t *testing.T) {
 func TestNothingAfterTheWorkLimit(t *testing.T) {
 	saved := workBudget
 	defer func() { workBudget = saved }()
-	workBudget = 0
+	// One step checks the root's source; the budget then runs out at the
+	// directory.
+	workBudget = 1
 	repo := analyze(t, map[string]string{"git.yaml": gitRepo, "a.yaml": fluxRoot("a", "./app"), "b.yaml": fluxRoot("b", "./app/"),
 		"app/kustomization.yaml": "resources: []\n", "app/kustomization.yml": "resources: []\n"})
 	if len(repo.Environments) != 2 {
