@@ -48,7 +48,7 @@ func (a *analysis) run() Repo {
 		switch {
 		case inside[c.id]:
 		case whole[c.id]:
-			repo.Gaps = append(repo.Gaps, Gap{ConstructNotEvaluated, c.doc.Source, "a Kustomization that applies the whole repository is not an environment root; only the Flux bootstrap object flux-system is"})
+			repo.Gaps = append(repo.Gaps, Gap{ConstructNotEvaluated, c.doc.Source, "a Kustomization that applies the whole repository is not an environment root; only the Flux bootstrap object in flux-system/gotk-sync.yaml is"})
 		default:
 			roots = append(roots, c)
 		}

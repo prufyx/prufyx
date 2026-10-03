@@ -325,9 +325,17 @@ func TestWholeRepositoryKustomization(t *testing.T) {
 	// The Flux bootstrap object may apply the whole repository.
 	boot := strings.NewReplacer("name: fleet", "name: flux-system").Replace(gitRepo)
 	bootRoot := strings.NewReplacer("name: root", "name: flux-system", "name: fleet", "name: flux-system").Replace(fluxRoot("root", "./"))
-	whole := analyze(t, map[string]string{"git.yaml": boot, "root.yaml": bootRoot, "apps/r.yaml": helmRelease("web", "1.0.0")})
+	whole := analyze(t, map[string]string{"git.yaml": boot, "clusters/prod/flux-system/gotk-sync.yaml": bootRoot, "apps/r.yaml": helmRelease("web", "1.0.0")})
 	if len(whole.Environments) != 1 || len(whole.Environments[0].Releases) != 1 {
 		t.Fatalf("bootstrap root: %+v", whole)
+	}
+	// The same object anywhere else is not the bootstrap object: the real
+	// roots stay separate and the stray one is reported.
+	for _, stray := range []string{"legacy/stray.yaml", "flux-system/other.yaml", "legacy/gotk-sync.yaml"} {
+		repo := analyze(t, with(files, map[string]string{"git2.yaml": boot, stray: bootRoot}))
+		if got := envNames(repo); len(got) != 2 || !hasGap(repo.Gaps, ConstructNotEvaluated, "flux-system/gotk-sync.yaml") {
+			t.Errorf("%s: environments %v, gaps %+v", stray, got, repo.Gaps)
+		}
 	}
 	// Reached as a child, a whole-repository Kustomization is not followed.
 	child := analyze(t, map[string]string{"git.yaml": gitRepo, "root.yaml": fluxRoot("root", "./a"), "a/k.yaml": fluxRoot("k", "./"),

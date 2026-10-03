@@ -24,10 +24,11 @@
 // Every walk is bounded. Each object is parsed once and the parsed form is
 // shared by every environment; inline values held as text are decoded once,
 // against a node budget of the same size as the intake one. Finding the roots
-// and walking the environments each have a work budget, and every loop over
-// input charges it in proportion to the items it reads, so the total work is
-// linear in the budgets whatever the shape of the repository. Reaching any
-// bound is a CLOSURE_LIMIT gap that says what was cut.
+// and walking the environments each have a work budget. Every loop over input
+// charges it one step per item, and reading or resolving text charges one step
+// per 64 bytes, so each step stands for a bounded amount of work. Parsing an
+// object once is linear in its size. The text a result holds is bounded too.
+// Reaching any bound is a CLOSURE_LIMIT gap that says what was cut.
 package gitops
 
 import (
@@ -54,8 +55,8 @@ const (
 	MaxValuesBytes  = 65536 // bytes of one inline helm.values text that is decoded
 )
 
-// Work budgets. A step is one item read by one loop; decoding text costs one
-// step per 64 bytes. discoveryBudget bounds the search for roots and
+// Work budgets. A step is one item read by one loop; decoding or resolving
+// text costs one step per 64 bytes. discoveryBudget bounds the search for roots and
 // workBudget bounds the walks of all environments together, so neither can
 // starve the other and a hostile repository cannot make the walks quadratic.
 // valuesNodeBudget bounds the YAML nodes decoded from inline value and patch

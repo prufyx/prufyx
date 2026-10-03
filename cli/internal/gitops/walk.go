@@ -284,7 +284,7 @@ func (w *walker) flux(d *docRef, hops int) {
 		return
 	}
 	if s.wholeRepo && !s.bootstrap {
-		w.gap(ConstructNotEvaluated, src, "a Kustomization that applies the whole repository is followed only for the Flux bootstrap object flux-system")
+		w.gap(ConstructNotEvaluated, src, "a Kustomization that applies the whole repository is followed only for the Flux bootstrap object in flux-system/gotk-sync.yaml")
 		return
 	}
 	w.objStack[d.id] = true

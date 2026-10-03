@@ -3,6 +3,7 @@
 package gitops
 
 import (
+	"path"
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/intake"
@@ -269,8 +270,12 @@ func (a *analysis) parseFlux(d *docRef) (*fluxSpec, int) {
 	}
 	s.dir, cost = a.resolve(".", p), cost+resolveCost(p)
 	s.wholeRepo = s.dir.reason == "" && s.dir.path == "."
+	// Only the object flux bootstrap writes may apply the whole repository:
+	// flux-system/flux-system, from its own source, in
+	// flux-system/gotk-sync.yaml.
 	s.bootstrap = d.doc.Name == "flux-system" && d.doc.Namespace == "flux-system" &&
-		s.ref.kind == "GitRepository" && s.ref.name == "flux-system" && (s.ref.ns == "" || s.ref.ns == "flux-system")
+		s.ref.kind == "GitRepository" && s.ref.name == "flux-system" && (s.ref.ns == "" || s.ref.ns == "flux-system") &&
+		path.Base(d.rel) == "gotk-sync.yaml" && path.Base(d.dir) == "flux-system"
 	if v, present := spec["targetNamespace"]; present && v != nil {
 		if str, ok := v.(string); ok {
 			s.targetNS = str
