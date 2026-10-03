@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/rulecheck"
@@ -247,4 +248,104 @@ func rulesOf(t *testing.T, candidates []byte) []json.RawMessage {
 		rules = append(rules, e.Rule)
 	}
 	return rules
+}
+
+// A run that attests no line writes no attestations.json (a document is
+// never empty), the manifest does not list it, and verify agrees: the
+// re-derivation has no such file, so a stray one is reported.
+func TestRunWithoutAttestationsWritesNoAttestationFile(t *testing.T) {
+	// A fresh extractor per run: an extractor instance caches what it read.
+	fresh := func() tamper {
+		return tamper{New(0), func(res *extract.Extraction, _ extract.VersionPair) {
+			res.Attestations, res.NotAttested = nil, "not attested in this test"
+		}}
+	}
+	r := extract.FixtureReader{Root: fixtureRoot}
+	out, err := extract.Run(context.Background(), fresh(), r, r, extract.Options{Repo: k8sRepo(t), DerivedAt: derivedAt})
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, err := out.Files()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := files[extract.FileAttestations]; ok || len(out.Attestations) != 0 {
+		t.Fatalf("attestations.json written for a run without attestations")
+	}
+	if _, ok := out.Manifest.Outputs[extract.FileAttestations]; ok {
+		t.Fatal("manifest lists attestations.json")
+	}
+	for _, p := range out.Manifest.Pairs {
+		if p.Attestation == nil || p.Attestation.Status != extract.PairNotAttested {
+			t.Fatalf("pair %s: %+v", p.To, p.Attestation)
+		}
+	}
+	dir := filepath.Join(t.TempDir(), "run")
+	if err := out.Write(dir); err != nil {
+		t.Fatal(err)
+	}
+	verify := func() []string {
+		problems, err := extract.Verify(context.Background(), fresh(), r, r, dir, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return problems
+	}
+	if p := verify(); len(p) != 0 {
+		t.Fatalf("clean run: %v", p)
+	}
+	if err := os.WriteFile(filepath.Join(dir, extract.FileAttestations), []byte("[]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if p := verify(); !slices.Contains(p, extract.FileAttestations+": not produced by the re-derivation") {
+		t.Fatalf("verify with a stray empty attestations.json: %v", p)
+	}
+}
+
+// The extractor's own rules carry a range over the whole previous and
+// target minor line, so every attestation it emits passes the line-wide
+// check; a rule narrowed to its anchor pair makes the run fail.
+func TestEmittedRulesAreLineWide(t *testing.T) {
+	out := fixtureOutput(t)
+	family, _ := lineattest.LookupFamily(lineattest.FamilyKubernetesRemovedServedGVK)
+	n := 0
+	for _, a := range out.Attestations {
+		for _, e := range out.Entries {
+			if !slices.Contains(a.RuleIDs, e.Rule.ID) {
+				continue
+			}
+			n++
+			tr := constraintengine.RuleTransition{Component: e.Rule.Subject.Component, From: e.Rule.Subject.From, To: e.Rule.Subject.To, Range: e.Rule.Range}
+			if !family.CoversLine(tr, a.Line) {
+				t.Fatalf("rule %s is not line-wide for %s", e.Rule.ID, a.Line)
+			}
+		}
+	}
+	if n == 0 {
+		t.Fatal("no attested rule checked")
+	}
+	x := tamper{New(0), func(res *extract.Extraction, p extract.VersionPair) {
+		if p.To == "v1.25.0" || p.To == "1.25.0" {
+			for i := range res.Candidates {
+				res.Candidates[i].Rule.Range = nil
+			}
+		}
+	}}
+	r := extract.FixtureReader{Root: fixtureRoot}
+	if _, err := extract.Run(context.Background(), x, r, r, extract.Options{Repo: k8sRepo(t), DerivedAt: derivedAt}); err == nil || !strings.Contains(err.Error(), "rule-not-line-wide") {
+		t.Fatalf("anchor-only rules attested: %v", err)
+	}
+}
+
+// noFamilies attests lines but declares no fact family.
+type noFamilies struct{ tamper }
+
+func (noFamilies) AttestedFamilies() []string { return nil }
+
+func TestFrameworkRefusesAttestationOfUndeclaredFamily(t *testing.T) {
+	x := noFamilies{tamper{New(0), func(*extract.Extraction, extract.VersionPair) {}}}
+	r := extract.FixtureReader{Root: fixtureRoot}
+	if _, err := extract.Run(context.Background(), x, r, r, extract.Options{Repo: k8sRepo(t), DerivedAt: derivedAt}); err == nil {
+		t.Fatal("an attestation of a family the extractor does not declare was accepted")
+	}
 }

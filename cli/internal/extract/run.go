@@ -121,7 +121,7 @@ type Output struct {
 	Manifest Manifest
 	// Attestations are the stamped line attestations, in canonical order.
 	// They are written to attestations.json when the extractor attests
-	// lines.
+	// lines and there is at least one.
 	Attestations []lineattest.LineAttestation
 	attests      bool
 	reads        map[string][]ReadRecord
@@ -427,7 +427,10 @@ const (
 	FileCandidates = "candidates.json"
 	FileVectors    = "vectors.json"
 	FileManifest   = "manifest.json"
-	// FileAttestations is written only by an extractor that attests lines.
+	// FileAttestations is written only by an extractor that attests lines,
+	// and only when the run attests at least one line: an attestation
+	// document is never empty, so a run without attestations has no file
+	// (and extract verify reports a stray one as not re-derived).
 	FileAttestations = "attestations.json"
 	DirReads         = "reads"
 )
@@ -452,12 +455,8 @@ func (o *Output) Files() (map[string][]byte, error) {
 	}
 	m := o.Manifest
 	m.Outputs = map[string]string{FileCandidates: digest(files[FileCandidates]), FileVectors: digest(files[FileVectors])}
-	if o.attests {
-		atts := o.Attestations
-		if atts == nil {
-			atts = []lineattest.LineAttestation{}
-		}
-		if files[FileAttestations], err = Canonical(atts); err != nil {
+	if o.attests && len(o.Attestations) > 0 {
+		if files[FileAttestations], err = Canonical(o.Attestations); err != nil {
 			return nil, err
 		}
 		m.Outputs[FileAttestations] = digest(files[FileAttestations])
