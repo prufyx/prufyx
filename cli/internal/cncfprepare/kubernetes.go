@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/prufyx/prufyx/cli/internal/intake"
 )
 
 const KubernetesComponent = "pkg:github/kubernetes/kubernetes"
@@ -28,27 +30,43 @@ func PrepareKubernetesFlowControl(raw []byte, from, to, distribution string, tar
 	if len(raw) == 0 || len(raw) > maxInputBytes || !utf8.Valid(raw) {
 		return Prepared{}, ErrInvalid
 	}
+	prepared, _, err := prepareKubernetesFlowControl(func() (kubernetesApplySet, error) { return kubernetesApplySetFromBytes(raw) }, digestBytes(raw), from, to, distribution, targetApplyRequired, complete)
+	return prepared, err
+}
+
+// prepareKubernetesFlowControl is the flow-control preparation over an apply
+// set that read resolves on demand, after the target guard. It also returns
+// the documents that made the fact true, when it is declared true.
+func prepareKubernetesFlowControl(read func() (kubernetesApplySet, error), sourceDigest, from, to, distribution string, targetApplyRequired, complete bool) (Prepared, map[string][]intake.Source, error) {
 	if !targetApplyRequired || distribution != "official_upstream" {
-		return kubernetesPrepared(raw, from, to, inputFact{ID: KubernetesFlowControlFact, State: "unsupported"}, StateUnknown, ReasonKubernetesTargetGuard)
+		prepared, err := kubernetesPrepared(sourceDigest, from, to, inputFact{ID: KubernetesFlowControlFact, State: "unsupported"}, StateUnknown, ReasonKubernetesTargetGuard)
+		return prepared, nil, err
 	}
-	inspected, err := inspectKubernetesFlowControl(raw, complete)
+	set, err := read()
 	if err != nil {
-		return Prepared{}, ErrInvalid
+		return Prepared{}, nil, ErrInvalid
 	}
+	inspected := inspectKubernetesFlowControl(set, complete)
 	fact := inputFact{ID: KubernetesFlowControlFact, State: "unsupported"}
 	state := StateUnknown
 	reason := inspected.Reason
+	var sources map[string][]intake.Source
 	if inspected.Complete && !inspected.Paginated && inspected.Reason == ReasonKubernetesRemovedWitness {
 		v := true
 		fact = inputFact{ID: KubernetesFlowControlFact, State: "declared", BoolValue: &v}
 		state = StatePrepared
+		sources = map[string][]intake.Source{KubernetesFlowControlFact: inspected.Matched}
 	}
 	if inspected.Complete && !inspected.Paginated && inspected.Reason == ReasonKubernetesSelectedSetClear {
 		v := false
 		fact = inputFact{ID: KubernetesFlowControlFact, State: "declared", BoolValue: &v}
 		state = StatePrepared
 	}
-	return kubernetesPrepared(raw, from, to, fact, state, reason)
+	prepared, err := kubernetesPrepared(sourceDigest, from, to, fact, state, reason)
+	if err != nil {
+		return Prepared{}, nil, err
+	}
+	return prepared, sources, nil
 }
 
 // kubernetesInspection is intentionally a flat, bounded GVK classifier. It
@@ -57,24 +75,20 @@ func PrepareKubernetesFlowControl(raw []byte, from, to, distribution string, tar
 type kubernetesInspection struct {
 	Removed, Complete, Paginated bool
 	Reason                       Reason
+	// Matched lists the documents at the removed version.
+	Matched []intake.Source
 }
 
-func inspectKubernetesFlowControl(raw []byte, complete bool) (kubernetesInspection, error) {
-	if len(raw) == 0 || len(raw) > maxInputBytes || !utf8.Valid(raw) {
-		return kubernetesInspection{}, ErrInvalid
-	}
-	documents, paginated, reason, err := kubernetesApplySetDocuments(raw)
-	if err != nil {
-		return kubernetesInspection{}, ErrInvalid
-	}
-	if reason != "" {
-		return kubernetesInspection{Reason: reason}, nil
+func inspectKubernetesFlowControl(set kubernetesApplySet, complete bool) kubernetesInspection {
+	if set.reason != "" {
+		return kubernetesInspection{Reason: set.reason}
 	}
 	removed := false
-	for _, document := range documents {
-		api, kind, ok := kubernetesGVK(document)
+	var matched []intake.Source
+	for _, document := range set.documents {
+		api, kind, ok := kubernetesGVK(document.value)
 		if !ok {
-			return kubernetesInspection{Reason: ReasonKubernetesUnresolved}, nil
+			return kubernetesInspection{Reason: ReasonKubernetesUnresolved}
 		}
 		if kind != "FlowSchema" && kind != "PriorityLevelConfiguration" {
 			continue
@@ -85,26 +99,27 @@ func inspectKubernetesFlowControl(raw []byte, complete bool) (kubernetesInspecti
 		}
 		if api == "flowcontrol.apiserver.k8s.io/v1beta3" {
 			removed = true
+			matched = append(matched, document.source)
 			continue
 		}
 		if api != "flowcontrol.apiserver.k8s.io/v1" {
 			// The two reviewed served GVKs are v1beta3 and v1. A group/kind
 			// match with another version cannot establish either predicate.
-			return kubernetesInspection{Reason: ReasonKubernetesUnreviewed}, nil
+			return kubernetesInspection{Reason: ReasonKubernetesUnreviewed}
 		}
 	}
-	result := kubernetesInspection{Removed: removed, Complete: complete, Paginated: paginated}
+	result := kubernetesInspection{Removed: removed, Complete: complete, Paginated: set.paginated, Matched: matched}
 	switch {
 	case !complete:
 		result.Reason = ReasonKubernetesScopeIncomplete
-	case paginated:
+	case set.paginated:
 		result.Reason = ReasonKubernetesPagination
 	case removed:
 		result.Reason = ReasonKubernetesRemovedWitness
 	default:
 		result.Reason = ReasonKubernetesSelectedSetClear
 	}
-	return result, nil
+	return result
 }
 
 func kubernetesGVK(value map[string]any) (string, string, bool) {
@@ -187,7 +202,7 @@ func kubernetesListPagination(root map[string]any) (bool, bool) {
 	}
 	return paginated, true
 }
-func kubernetesPrepared(raw []byte, from, to string, fact inputFact, state State, reason Reason) (Prepared, error) {
+func kubernetesPrepared(sourceDigest, from, to string, fact inputFact, state State, reason Reason) (Prepared, error) {
 	if !validVersionSyntax(from) || !validVersionSyntax(to) || from == to {
 		return Prepared{}, ErrInvalid
 	}
@@ -195,5 +210,5 @@ func kubernetesPrepared(raw []byte, from, to string, fact inputFact, state State
 	if err != nil {
 		return Prepared{}, ErrInvalid
 	}
-	return Prepared{CanonicalInputJSON: canonical, SourceDigest: digestBytes(raw), InputDigest: digestBytes(canonical), State: state, Reason: reason, Omissions: []string{"SELECTED_RENDERED_APPLY_SET_IS_CALLER_SUPPLIED_NOT_LIVE_OBSERVATION", "CLUSTER_OBJECTS_CRDS_RUNTIME_CLIENTS_AND_STORAGE_VERSIONS_NOT_EVALUATED"}}, nil
+	return Prepared{CanonicalInputJSON: canonical, SourceDigest: sourceDigest, InputDigest: digestBytes(canonical), State: state, Reason: reason, Omissions: []string{"SELECTED_RENDERED_APPLY_SET_IS_CALLER_SUPPLIED_NOT_LIVE_OBSERVATION", "CLUSTER_OBJECTS_CRDS_RUNTIME_CLIENTS_AND_STORAGE_VERSIONS_NOT_EVALUATED"}}, nil
 }

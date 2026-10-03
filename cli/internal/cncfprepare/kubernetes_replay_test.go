@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/intake"
 )
 
 var updateReplay = flag.Bool("update", false, "rewrite the golden files")
@@ -150,5 +153,89 @@ func TestKubernetesPreparedReplay(t *testing.T) {
 			}
 		}
 		t.Fatal("prepared replay changed")
+	}
+}
+
+// TestKubernetesScanMatchesBytePreparation: for every replay case whose bytes
+// decode, the documents path yields the same canonical input, state and
+// reason as the byte path (and refuses exactly when it refuses), so a scan
+// evaluates the engine input that the single-file route would.
+func TestKubernetesScanMatchesBytePreparation(t *testing.T) {
+	inputs := kubernetesReplayInputs(t)
+	compared := 0
+	for name, raw := range inputs {
+		workspace, err := intake.Decode("input", raw)
+		if err != nil {
+			continue
+		}
+		workspace.Digest = "sha256:" + strings.Repeat("0", 64)
+		for _, pair := range kubernetesReplayPairs() {
+			for _, decl := range kubernetesReplayDeclarations() {
+				want, wantErr := PrepareKubernetesRemovedAPIs(raw, pair[0], pair[1], decl.distribution, decl.apply, decl.scope)
+				got, gotErr := PrepareKubernetesScan(workspace, pair[0], pair[1], decl.distribution, decl.apply, decl.scope)
+				key := fmt.Sprintf("%s %v %+v", name, pair, decl)
+				if (wantErr == nil) != (gotErr == nil) {
+					t.Fatalf("%s: byte error %v, documents error %v", key, wantErr, gotErr)
+				}
+				if wantErr != nil {
+					continue
+				}
+				compared++
+				if string(got.Prepared.CanonicalInputJSON) != string(want.CanonicalInputJSON) || got.Prepared.InputDigest != want.InputDigest || got.Prepared.State != want.State || got.Prepared.Reason != want.Reason || !reflect.DeepEqual(got.Prepared.Omissions, want.Omissions) {
+					t.Fatalf("%s: documents path differs:\n%s\n%s", key, got.Prepared.CanonicalInputJSON, want.CanonicalInputJSON)
+				}
+				if got.Prepared.SourceDigest != workspace.Digest {
+					t.Fatalf("%s: source digest %s", key, got.Prepared.SourceDigest)
+				}
+				for fact, sources := range got.Sources {
+					if len(sources) == 0 || !strings.Contains(string(got.Prepared.CanonicalInputJSON), `{"id":"`+fact+`","state":"declared","boolValue":true}`) {
+						t.Fatalf("%s: sources for %s, which is not declared true", key, fact)
+					}
+				}
+			}
+		}
+	}
+	if compared < 1000 {
+		t.Fatalf("only %d cases compared", compared)
+	}
+}
+
+// TestKubernetesScanSources: the documents that made a fact true are listed
+// exactly, with file, document, item and line, and documents at served
+// versions are not.
+func TestKubernetesScanSources(t *testing.T) {
+	first, err := intake.Decode("a.yaml", []byte("apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: one}\n---\napiVersion: batch/v1\nkind: CronJob\nmetadata: {name: served}\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := intake.Decode("b.json", []byte(`{"apiVersion":"v1","kind":"List","items":[{"apiVersion":"v1","kind":"ConfigMap"},{"apiVersion":"batch/v1beta1","kind":"CronJob","metadata":{"name":"two"}}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	workspace := intake.Workspace{Documents: append(first.Documents, second.Documents...), Digest: "sha256:" + strings.Repeat("1", 64)}
+	scan, err := PrepareKubernetesScan(workspace, "1.24.17", "1.25.0", "official_upstream", true, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const fact = "component.kubernetes.cronjob_v1beta1_removed_gvk_present"
+	want := []intake.Source{first.Documents[0].Source, second.Documents[1].Source}
+	if !reflect.DeepEqual(scan.Sources[fact], want) || len(scan.Sources) != 1 {
+		t.Fatalf("sources %+v", scan.Sources)
+	}
+	if want[0].Line != 1 || want[1].Item != 1 || want[1].Line != 1 {
+		t.Fatalf("provenance %+v", want)
+	}
+	flow, err := intake.Decode("f.yaml", []byte("apiVersion: flowcontrol.apiserver.k8s.io/v1beta3\nkind: FlowSchema\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow.Digest = workspace.Digest
+	scan, err = PrepareKubernetesScan(flow, "1.31.0", "1.32.0", "official_upstream", true, true)
+	if err != nil || len(scan.Sources[KubernetesFlowControlFact]) != 1 {
+		t.Fatalf("flow-control sources %+v %v", scan.Sources, err)
+	}
+	scan, err = PrepareKubernetesScan(flow, "1.31.0", "1.32.0", "official_upstream", true, false)
+	if err != nil || len(scan.Sources) != 0 {
+		t.Fatalf("sources without a declared fact %+v %v", scan.Sources, err)
 	}
 }

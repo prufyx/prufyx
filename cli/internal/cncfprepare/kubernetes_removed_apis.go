@@ -192,12 +192,25 @@ func KubernetesRemovedAPIAllFacts() []string {
 // that do not cross a reviewed minor line, including 1.31.0 -> 1.32.0 and any
 // multi-minor jump, keep the established flow-control behaviour unchanged.
 func PrepareKubernetesRemovedAPIs(raw []byte, from, to, distribution string, targetApplyRequired, complete bool) (Prepared, error) {
-	removals, reviewed := kubernetesRemovalsForCrossedMinorLine(from, to)
-	if !reviewed {
+	if _, reviewed := kubernetesRemovalsForCrossedMinorLine(from, to); !reviewed {
 		return PrepareKubernetesFlowControl(raw, from, to, distribution, targetApplyRequired, complete)
 	}
 	if len(raw) == 0 || len(raw) > maxInputBytes || !utf8.Valid(raw) {
 		return Prepared{}, ErrInvalid
+	}
+	prepared, _, err := prepareKubernetesRemovedAPIs(func() (kubernetesApplySet, error) { return kubernetesApplySetFromBytes(raw) }, digestBytes(raw), from, to, distribution, targetApplyRequired, complete)
+	return prepared, err
+}
+
+// prepareKubernetesRemovedAPIs is the removed-API preparation over an apply
+// set that read resolves on demand, after the target guard, as the byte route
+// always did. It also returns, for every fact declared true, the documents
+// that made it true. It must only be called for a pair that crosses a
+// reviewed minor line.
+func prepareKubernetesRemovedAPIs(read func() (kubernetesApplySet, error), sourceDigest, from, to, distribution string, targetApplyRequired, complete bool) (Prepared, map[string][]intake.Source, error) {
+	removals, reviewed := kubernetesRemovalsForCrossedMinorLine(from, to)
+	if !reviewed {
+		return Prepared{}, nil, ErrInvalid
 	}
 	unsupported := func() []inputFact {
 		facts := make([]inputFact, 0, len(removals))
@@ -206,27 +219,35 @@ func PrepareKubernetesRemovedAPIs(raw []byte, from, to, distribution string, tar
 		}
 		return facts
 	}
+	prepare := func(facts []inputFact, state State, reason Reason, sources map[string][]intake.Source) (Prepared, map[string][]intake.Source, error) {
+		prepared, err := kubernetesRemovedPrepared(sourceDigest, from, to, facts, state, reason)
+		if err != nil {
+			return Prepared{}, nil, err
+		}
+		return prepared, sources, nil
+	}
 	if !targetApplyRequired || distribution != "official_upstream" {
-		return kubernetesRemovedPrepared(raw, from, to, unsupported(), StateUnknown, ReasonKubernetesTargetGuard)
+		return prepare(unsupported(), StateUnknown, ReasonKubernetesTargetGuard, nil)
 	}
-	documents, paginated, reason, err := kubernetesApplySetDocuments(raw)
+	set, err := read()
 	if err != nil {
-		return Prepared{}, ErrInvalid
+		return Prepared{}, nil, ErrInvalid
 	}
-	if reason != "" {
-		return kubernetesRemovedPrepared(raw, from, to, unsupported(), StateUnknown, reason)
+	if set.reason != "" {
+		return prepare(unsupported(), StateUnknown, set.reason, nil)
 	}
 	if !complete {
-		return kubernetesRemovedPrepared(raw, from, to, unsupported(), StateUnknown, ReasonKubernetesScopeIncomplete)
+		return prepare(unsupported(), StateUnknown, ReasonKubernetesScopeIncomplete, nil)
 	}
-	if paginated {
-		return kubernetesRemovedPrepared(raw, from, to, unsupported(), StateUnknown, ReasonKubernetesPagination)
+	if set.paginated {
+		return prepare(unsupported(), StateUnknown, ReasonKubernetesPagination, nil)
 	}
 
 	facts := make([]inputFact, 0, len(removals))
+	sources := map[string][]intake.Source{}
 	anyPresent, anyUnreviewed := false, false
 	for _, removal := range removals {
-		present, unreviewed := classifyKubernetesRemoval(documents, removal)
+		present, unreviewed, matched := classifyKubernetesRemoval(set.documents, removal)
 		switch {
 		case unreviewed:
 			anyUnreviewed = true
@@ -235,6 +256,7 @@ func PrepareKubernetesRemovedAPIs(raw []byte, from, to, distribution string, tar
 			anyPresent = true
 			v := true
 			facts = append(facts, inputFact{ID: removal.Fact, State: "declared", BoolValue: &v})
+			sources[removal.Fact] = matched
 		default:
 			v := false
 			facts = append(facts, inputFact{ID: removal.Fact, State: "declared", BoolValue: &v})
@@ -250,15 +272,16 @@ func PrepareKubernetesRemovedAPIs(raw []byte, from, to, distribution string, tar
 	if anyPresent {
 		overall = ReasonKubernetesRemovedGVKPresent
 	}
-	return kubernetesRemovedPrepared(raw, from, to, facts, state, overall)
+	return prepare(facts, state, overall, sources)
 }
 
 // classifyKubernetesRemoval reports whether the removed GVK is present, and
 // whether a document of the same group and kind carries a version the cited
-// source does not name, which makes this one fact undecidable.
-func classifyKubernetesRemoval(documents []map[string]any, removal kubernetesRemoval) (present, unreviewed bool) {
+// source does not name, which makes this one fact undecidable. matched lists
+// the documents at the removed version, in apply-set order.
+func classifyKubernetesRemoval(documents []kubernetesDocument, removal kubernetesRemoval) (present, unreviewed bool, matched []intake.Source) {
 	for _, document := range documents {
-		api, kind, _ := kubernetesGVK(document)
+		api, kind, _ := kubernetesGVK(document.value)
 		if !containsString(removal.Kinds, kind) {
 			continue
 		}
@@ -269,52 +292,90 @@ func classifyKubernetesRemoval(documents []map[string]any, removal kubernetesRem
 		switch {
 		case version == removal.Removed:
 			present = true
+			matched = append(matched, document.source)
 		case containsString(removal.Served, version):
 		default:
 			unreviewed = true
 		}
 	}
-	return present, unreviewed
+	return present, unreviewed, matched
 }
 
-// kubernetesApplySetDocuments reads the caller's apply set through the shared
+// kubernetesDocument is one object of a rendered apply set and where it came
+// from. The source never reaches a prepared input.
+type kubernetesDocument struct {
+	value  map[string]any
+	source intake.Source
+}
+
+// kubernetesApplySet is a resolved apply set. A non-empty reason means the
+// set is unresolved and documents must not be used.
+type kubernetesApplySet struct {
+	documents []kubernetesDocument
+	paginated bool
+	reason    Reason
+}
+
+// kubernetesApplySetFromBytes reads the caller's apply set through the shared
 // intake decoder: single or multi-document YAML or JSON, with core v1 Lists and
-// typed lists flattened one level. Anything the decoder cannot place as a
-// Kubernetes object (template syntax, a nested list, a document that is not
-// Kubernetes shaped, invalid list metadata) leaves the set unresolved. A
-// non-empty reason means the set is unresolved.
-func kubernetesApplySetDocuments(raw []byte) ([]map[string]any, bool, Reason, error) {
+// typed lists flattened one level.
+func kubernetesApplySetFromBytes(raw []byte) (kubernetesApplySet, error) {
 	workspace, err := intake.Decode("input", raw)
 	if err != nil {
-		return nil, false, "", err
+		return kubernetesApplySet{}, err
 	}
+	return kubernetesApplySetOf(workspace), nil
+}
+
+// kubernetesApplySetOf resolves decoded documents into an apply set. Anything
+// the decoder could not place as a Kubernetes object (template syntax, a
+// nested list, a document that is not Kubernetes shaped, invalid list
+// metadata) leaves the set unresolved.
+func kubernetesApplySetOf(workspace intake.Workspace) kubernetesApplySet {
 	for _, omission := range workspace.Omissions {
 		if omission.Reason == intake.ReasonTemplated || omission.Reason == intake.ReasonUnparseable {
-			return nil, false, ReasonKubernetesTemplated, nil
+			return kubernetesApplySet{reason: ReasonKubernetesTemplated}
 		}
 	}
 	if len(workspace.Omissions) > 0 || len(workspace.Documents) == 0 {
-		return nil, false, ReasonKubernetesUnresolved, nil
+		return kubernetesApplySet{reason: ReasonKubernetesUnresolved}
 	}
-	documents := make([]map[string]any, 0, len(workspace.Documents))
-	paginated := false
+	set := kubernetesApplySet{documents: make([]kubernetesDocument, 0, len(workspace.Documents))}
 	for _, document := range workspace.Documents {
 		if _, _, ok := kubernetesGVK(document.Value); !ok {
-			return nil, false, ReasonKubernetesUnresolved, nil
+			return kubernetesApplySet{reason: ReasonKubernetesUnresolved}
 		}
 		if document.Source.Item >= 0 {
 			listPaginated, metadataOK := kubernetesListPagination(map[string]any{"metadata": document.ListMetadata})
 			if !metadataOK {
-				return nil, false, ReasonKubernetesUnresolved, nil
+				return kubernetesApplySet{reason: ReasonKubernetesUnresolved}
 			}
-			paginated = paginated || listPaginated
+			set.paginated = set.paginated || listPaginated
 		}
-		documents = append(documents, document.Value)
+		set.documents = append(set.documents, kubernetesDocument{value: document.Value, source: document.Source})
 	}
-	return documents, paginated, "", nil
+	return set
 }
 
-func kubernetesRemovedPrepared(raw []byte, from, to string, facts []inputFact, state State, reason Reason) (Prepared, error) {
+// kubernetesApplySetDocuments is kubernetesApplySetFromBytes in its original
+// shape: the documents, whether a list is paginated, and the reason the set is
+// unresolved.
+func kubernetesApplySetDocuments(raw []byte) ([]map[string]any, bool, Reason, error) {
+	set, err := kubernetesApplySetFromBytes(raw)
+	if err != nil {
+		return nil, false, "", err
+	}
+	if set.reason != "" {
+		return nil, false, set.reason, nil
+	}
+	documents := make([]map[string]any, 0, len(set.documents))
+	for _, document := range set.documents {
+		documents = append(documents, document.value)
+	}
+	return documents, set.paginated, "", nil
+}
+
+func kubernetesRemovedPrepared(sourceDigest, from, to string, facts []inputFact, state State, reason Reason) (Prepared, error) {
 	if !validVersionSyntax(from) || !validVersionSyntax(to) || from == to {
 		return Prepared{}, ErrInvalid
 	}
@@ -324,7 +385,7 @@ func kubernetesRemovedPrepared(raw []byte, from, to string, facts []inputFact, s
 	if err != nil {
 		return Prepared{}, ErrInvalid
 	}
-	return Prepared{CanonicalInputJSON: canonical, SourceDigest: digestBytes(raw), InputDigest: digestBytes(canonical), State: state, Reason: reason, Omissions: []string{"SELECTED_RENDERED_APPLY_SET_IS_CALLER_SUPPLIED_NOT_LIVE_OBSERVATION", "CLUSTER_OBJECTS_CRDS_RUNTIME_CLIENTS_AND_STORAGE_VERSIONS_NOT_EVALUATED"}}, nil
+	return Prepared{CanonicalInputJSON: canonical, SourceDigest: sourceDigest, InputDigest: digestBytes(canonical), State: state, Reason: reason, Omissions: []string{"SELECTED_RENDERED_APPLY_SET_IS_CALLER_SUPPLIED_NOT_LIVE_OBSERVATION", "CLUSTER_OBJECTS_CRDS_RUNTIME_CLIENTS_AND_STORAGE_VERSIONS_NOT_EVALUATED"}}, nil
 }
 
 func containsString(values []string, value string) bool {
