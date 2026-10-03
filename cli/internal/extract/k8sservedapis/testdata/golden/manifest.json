@@ -42,9 +42,10 @@
   "extractor": {
     "codeDigest": "sha256:CODE",
     "id": "k8s.served-api-removal",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "outputs": {
+    "attestations.json": "sha256:OUTPUT",
     "candidates.json": "sha256:OUTPUT",
     "reads/0000000000000000000000000000000000012400.tsv": "sha256:OUTPUT",
     "reads/0000000000000000000000000000000000012500.tsv": "sha256:OUTPUT",
@@ -56,6 +57,13 @@
   },
   "pairs": [
     {
+      "attestation": {
+        "families": [
+          "kubernetes.removed_served_gvk"
+        ],
+        "line": "1.25",
+        "status": "attested"
+      },
       "from": "1.24.0",
       "fromCommit": "0000000000000000000000000000000000012400",
       "fromTag": "v1.24.0",
@@ -226,6 +234,13 @@
       "toTag": "v1.25.0"
     },
     {
+      "attestation": {
+        "families": [
+          "kubernetes.removed_served_gvk"
+        ],
+        "line": "1.31",
+        "status": "attested"
+      },
       "from": "1.30.0",
       "fromCommit": "0000000000000000000000000000000000013000",
       "fromTag": "v1.30.0",
@@ -252,6 +267,13 @@
       "toTag": "v1.31.0"
     },
     {
+      "attestation": {
+        "families": [
+          "kubernetes.removed_served_gvk"
+        ],
+        "line": "1.32",
+        "status": "attested"
+      },
       "from": "1.31.0",
       "fromCommit": "0000000000000000000000000000000000013100",
       "fromTag": "v1.31.0",
@@ -338,6 +360,13 @@
       "toTag": "v1.32.0"
     },
     {
+      "attestation": {
+        "families": [
+          "kubernetes.removed_served_gvk"
+        ],
+        "line": "1.33",
+        "status": "attested"
+      },
       "from": "1.32.0",
       "fromCommit": "0000000000000000000000000000000000013200",
       "fromTag": "v1.32.0",
@@ -401,6 +430,7 @@
   "repo": "github.com/kubernetes/kubernetes",
   "schema": "prufyx.io/extractor-run-manifest/v1",
   "totals": {
+    "attestations": 4,
     "commitsRead": 6,
     "derived": 4,
     "pairs": 4,

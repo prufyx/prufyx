@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/rulecheck"
 )
 
@@ -67,7 +68,24 @@ type PairRecord struct {
 	Reason     string   `json:"reason,omitempty"`
 	Rules      []string `json:"rules"`
 	Proof      any      `json:"proof"`
+	// Attestation is recorded for every pair of an extractor that attests
+	// lines, and omitted for any other extractor.
+	Attestation *PairAttestation `json:"attestation,omitempty"`
 }
+
+// PairAttestation records whether a pair's target line was attested.
+type PairAttestation struct {
+	Status   string   `json:"status"`
+	Line     string   `json:"line"`
+	Families []string `json:"families"`
+	Reason   string   `json:"reason,omitempty"`
+}
+
+// Pair attestation statuses.
+const (
+	PairAttested    = "attested"
+	PairNotAttested = "not-attested"
+)
 
 // Pair statuses.
 const (
@@ -92,6 +110,8 @@ type Totals struct {
 	Rules     int `json:"rules"`
 	Vectors   int `json:"vectors"`
 	CommitsRd int `json:"commitsRead"`
+	// Attestations counts line attestations; omitted when zero.
+	Attestations int `json:"attestations,omitempty"`
 }
 
 // Output is a complete run result, rendered to files by Files.
@@ -99,7 +119,12 @@ type Output struct {
 	Entries  []Entry
 	Vectors  []Vector
 	Manifest Manifest
-	reads    map[string][]ReadRecord
+	// Attestations are the stamped line attestations, in canonical order.
+	// They are written to attestations.json when the extractor attests
+	// lines.
+	Attestations []lineattest.LineAttestation
+	attests      bool
+	reads        map[string][]ReadRecord
 }
 
 var timeRE = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$`)
@@ -151,14 +176,29 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 	m := &out.Manifest
 	*m = Manifest{Schema: ManifestSchema, Extractor: identity, CodeFiles: files, Repo: opts.Repo.Key, DerivedAt: derivedAt, ValidUntil: validUntil, Pairs: []PairRecord{}, Outputs: map[string]string{}}
 	passByRule := map[string][]string{}
+	attester, attests := ex.(LineAttester)
+	families := map[string]bool{}
+	if attests {
+		out.attests = true
+		for _, f := range attester.AttestedFamilies() {
+			if _, ok := lineattest.LookupFamily(f); !ok {
+				return nil, fmt.Errorf("extractor %s attests unknown fact family %q", ex.ID(), f)
+			}
+			families[f] = true
+		}
+	}
 	for _, pair := range pairs {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		pr := PairRecord{From: pair.From, FromTag: pair.FromTag, FromCommit: pair.FromCommit, To: pair.To, ToTag: pair.ToTag, ToCommit: pair.ToCommit, Rules: []string{}}
 		res, err := ex.Extract(ctx, rec, pair)
+		line, lineOK := lineattest.LineOf(pair.To)
 		if w, withheld := IsWithheld(err); withheld {
 			pr.Status, pr.Reason, pr.Proof = PairWithheld, w.Reason, w.Proof
+			if attests {
+				pr.Attestation = &PairAttestation{Status: PairNotAttested, Line: line, Families: []string{}, Reason: "the pair is withheld"}
+			}
 			m.Pairs = append(m.Pairs, pr)
 			continue
 		}
@@ -179,6 +219,35 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 			pr.Rules = append(pr.Rules, entry.Rule.ID)
 		}
 		sort.Strings(pr.Rules)
+		if !attests && (len(res.Attestations) > 0 || res.NotAttested != "") {
+			return nil, fmt.Errorf("pair %s: extractor %s returned attestations but does not attest lines", pair.Key(), ex.ID())
+		}
+		if attests {
+			pa := &PairAttestation{Status: PairNotAttested, Line: line, Families: []string{}}
+			for _, c := range res.Attestations {
+				if !families[c.FactFamily] || !lineOK || c.Line != line {
+					return nil, fmt.Errorf("pair %s: attestation for line %q family %q is outside the pair's target line %s or the extractor's families", pair.Key(), c.Line, c.FactFamily, line)
+				}
+				a, err := stampAttestation(c, rec, identity, derivedAt, validUntil)
+				if err != nil {
+					return nil, fmt.Errorf("pair %s: %w", pair.Key(), err)
+				}
+				out.Attestations = append(out.Attestations, a)
+				pa.Families = append(pa.Families, c.FactFamily)
+			}
+			sort.Strings(pa.Families)
+			switch {
+			case len(pa.Families) > 0 && res.NotAttested != "":
+				return nil, fmt.Errorf("pair %s: both attested and not attested", pair.Key())
+			case len(pa.Families) > 0:
+				pa.Status = PairAttested
+			case res.NotAttested != "":
+				pa.Reason = res.NotAttested
+			default:
+				pa.Reason = "the extractor stated no attestation"
+			}
+			pr.Attestation = pa
+		}
 		m.Pairs = append(m.Pairs, pr)
 	}
 	sort.Slice(out.Entries, func(i, j int) bool { return out.Entries[i].Rule.ID < out.Entries[j].Rule.ID })
@@ -200,12 +269,15 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 	if err := CheckVectors(out.Entries, out.Vectors, derived); err != nil {
 		return nil, err
 	}
+	if err := checkAttestations(out); err != nil {
+		return nil, err
+	}
 	for _, c := range rec.Commits(opts.Repo) {
 		reads := rec.CommitReads(opts.Repo, c)
 		out.reads[c] = reads
 		m.Commits = append(m.Commits, CommitRecord{Commit: c, Reads: len(reads), Listings: rec.Listings(opts.Repo, c), ReadsDigest: digest(readsTSV(reads))})
 	}
-	m.Totals = Totals{Pairs: len(m.Pairs), Rules: len(out.Entries), Vectors: len(out.Vectors), CommitsRd: len(m.Commits)}
+	m.Totals = Totals{Pairs: len(m.Pairs), Rules: len(out.Entries), Vectors: len(out.Vectors), CommitsRd: len(m.Commits), Attestations: len(out.Attestations)}
 	for _, p := range m.Pairs {
 		if p.Status == PairDerived {
 			m.Totals.Derived++
@@ -230,25 +302,89 @@ func stamp(c Candidate, rec *Recorder, id constraintengine.Extractor, derivedAt,
 		ReasonCode: c.Rule.ReasonCode, NextAction: c.Rule.NextAction,
 		Evidence: Evidence{State: "active", Basis: constraintengine.BasisMechanical, Extractor: id, DerivedAt: derivedAt, ReviewedAt: derivedAt, ValidUntil: validUntil},
 	}}
-	if len(c.Sources) == 0 {
-		return Entry{}, fmt.Errorf("rule %s cites no source", c.Rule.ID)
+	sources, err := stampSources("rule "+c.Rule.ID, c.Sources, rec)
+	if err != nil {
+		return Entry{}, err
 	}
-	for _, s := range c.Sources {
+	e.Rule.Evidence.Sources = sources
+	return e, nil
+}
+
+// stampSources resolves cited files to pinned evidence. Digests and line
+// counts come from the recorder, so a record can only cite bytes the
+// extractor actually read.
+func stampSources(what string, refs []SourceRef, rec *Recorder) ([]constraintengine.SourceEvidence, error) {
+	if len(refs) == 0 {
+		return nil, fmt.Errorf("%s cites no source", what)
+	}
+	var out []constraintengine.SourceEvidence
+	for _, s := range refs {
 		read, ok := rec.Lookup(s.Repo, s.Commit, s.Path)
 		if !ok {
-			return Entry{}, fmt.Errorf("rule %s cites %s@%s:%s, which the extractor did not read", c.Rule.ID, s.Repo.Key, s.Commit, s.Path)
+			return nil, fmt.Errorf("%s cites %s@%s:%s, which the extractor did not read", what, s.Repo.Key, s.Commit, s.Path)
 		}
 		start, end := s.StartLine, s.EndLine
 		if end == 0 {
 			start, end = 1, read.Lines
 		}
 		if start < 1 || end < start || end > read.Lines {
-			return Entry{}, fmt.Errorf("rule %s cites lines %d-%d of %s, which has %d lines", c.Rule.ID, start, end, s.Path, read.Lines)
+			return nil, fmt.Errorf("%s cites lines %d-%d of %s, which has %d lines", what, start, end, s.Path, read.Lines)
 		}
-		e.Rule.Evidence.Sources = append(e.Rule.Evidence.Sources, constraintengine.SourceEvidence{ID: s.ID, URL: s.Repo.BlobURL(s.Commit, s.Path), Revision: s.Commit, ContentDigest: "sha256:" + read.SHA256, StartLine: start, EndLine: end})
+		out = append(out, constraintengine.SourceEvidence{ID: s.ID, URL: s.Repo.BlobURL(s.Commit, s.Path), Revision: s.Commit, ContentDigest: "sha256:" + read.SHA256, StartLine: start, EndLine: end})
 	}
-	sort.Slice(e.Rule.Evidence.Sources, func(i, j int) bool { return e.Rule.Evidence.Sources[i].ID < e.Rule.Evidence.Sources[j].ID })
-	return e, nil
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out, nil
+}
+
+// stampAttestation turns an attestation candidate into a line attestation
+// with mechanical provenance: reviewedAt is derivedAt, the lease is the
+// rules' lease.
+func stampAttestation(c AttestationCandidate, rec *Recorder, id constraintengine.Extractor, derivedAt, validUntil string) (lineattest.LineAttestation, error) {
+	extractor := id
+	ids := append([]string{}, c.RuleIDs...)
+	sort.Strings(ids)
+	a := lineattest.LineAttestation{Component: c.Component, Line: c.Line, FactFamily: c.FactFamily, Completeness: lineattest.Completeness, RuleIDs: ids,
+		Evidence: lineattest.Evidence{Basis: constraintengine.BasisMechanical, Extractor: &extractor, DerivedAt: derivedAt, ReviewedAt: derivedAt, ValidUntil: validUntil}}
+	sources, err := stampSources("attestation "+a.Key().String(), c.Sources, rec)
+	if err != nil {
+		return lineattest.LineAttestation{}, err
+	}
+	a.Evidence.Sources = sources
+	if err := a.Validate(); err != nil {
+		return lineattest.LineAttestation{}, fmt.Errorf("attestation %s: %w", a.Key(), err)
+	}
+	return a, nil
+}
+
+// checkAttestations puts the attestations in canonical order and requires
+// each to list exactly the run's own rules for its line and family, through
+// the same check a pack's attestations pass.
+func checkAttestations(out *Output) error {
+	if len(out.Attestations) == 0 {
+		return nil
+	}
+	lineattest.Sort(out.Attestations)
+	raw, err := lineattest.Marshal(out.Attestations)
+	if err != nil {
+		return fmt.Errorf("attestations: %w", err)
+	}
+	rules := make([]json.RawMessage, 0, len(out.Entries))
+	for _, e := range out.Entries {
+		r, err := json.Marshal(e.Rule)
+		if err != nil {
+			return err
+		}
+		rules = append(rules, r)
+	}
+	result := rulecheck.ValidateLineAttestations(raw, rules, rulecheck.AttestationOptions{})
+	if !result.Valid {
+		var lines []string
+		for _, f := range result.Findings {
+			lines = append(lines, fmt.Sprintf("%s: %s: %s", f.RuleID, f.Check, f.Message))
+		}
+		return fmt.Errorf("rulecheck rejected attestations:\n%s", strings.Join(lines, "\n"))
+	}
+	return nil
 }
 
 func checkCandidates(entries []Entry, existing []string) error {
@@ -291,7 +427,9 @@ const (
 	FileCandidates = "candidates.json"
 	FileVectors    = "vectors.json"
 	FileManifest   = "manifest.json"
-	DirReads       = "reads"
+	// FileAttestations is written only by an extractor that attests lines.
+	FileAttestations = "attestations.json"
+	DirReads         = "reads"
 )
 
 // Files renders the output as relative path -> bytes.
@@ -314,6 +452,16 @@ func (o *Output) Files() (map[string][]byte, error) {
 	}
 	m := o.Manifest
 	m.Outputs = map[string]string{FileCandidates: digest(files[FileCandidates]), FileVectors: digest(files[FileVectors])}
+	if o.attests {
+		atts := o.Attestations
+		if atts == nil {
+			atts = []lineattest.LineAttestation{}
+		}
+		if files[FileAttestations], err = Canonical(atts); err != nil {
+			return nil, err
+		}
+		m.Outputs[FileAttestations] = digest(files[FileAttestations])
+	}
 	for c, reads := range o.reads {
 		name := DirReads + "/" + c + ".tsv"
 		files[name] = readsTSV(reads)

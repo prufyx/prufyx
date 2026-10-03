@@ -105,6 +105,33 @@ type Extraction struct {
 	// parsed and why each claim holds). It is recorded in the manifest and
 	// must marshal deterministically.
 	Proof any
+	// Attestations are the line attestations of an extractor that
+	// implements LineAttester; any other extractor must leave it empty.
+	Attestations []AttestationCandidate
+	// NotAttested says why a derived pair of a LineAttester states no
+	// attestation. It is recorded in the manifest.
+	NotAttested string
+}
+
+// LineAttester is implemented by an extractor that also attests lines: for
+// a pair it derives completely, it may state that its rules for the pair's
+// target minor line are all the rules of a fact family on that line (none,
+// for a quiet line). The framework stamps each attestation with the same
+// mechanical provenance as a rule and checks that it lists exactly the
+// extractor's own rules for that line and family.
+type LineAttester interface {
+	// AttestedFamilies names the fact families the extractor attests.
+	AttestedFamilies() []string
+}
+
+// AttestationCandidate is one line attestation an extractor proposes. The
+// framework adds the basis, extractor identity, times and source digests.
+type AttestationCandidate struct {
+	Component  string
+	Line       string
+	FactFamily string
+	RuleIDs    []string
+	Sources    []SourceRef
 }
 
 // Withheld means the pair could not be established completely, so no rule

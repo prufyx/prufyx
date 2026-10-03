@@ -27,12 +27,13 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
 // Identity.
 const (
 	ID      = "k8s.served-api-removal"
-	Version = "1.0.0"
+	Version = "1.1.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/k8sservedapis"
 )
@@ -96,6 +97,11 @@ func (x *Extractor) Version() string { return Version }
 
 // SourceFiles implements extract.CodeSource.
 func (x *Extractor) SourceFiles() (string, fs.FS) { return SourceDir, source }
+
+// AttestedFamilies implements extract.LineAttester.
+func (x *Extractor) AttestedFamilies() []string {
+	return []string{lineattest.FamilyKubernetesRemovedServedGVK}
+}
 
 // Applies implements extract.Extractor.
 func (x *Extractor) Applies(repo extract.RepoRef) bool { return repo.Key == Repo }
@@ -563,12 +569,39 @@ func (x *Extractor) Extract(_ context.Context, r extract.PinnedReader, pair extr
 		proof.Removals = append(proof.Removals, rp)
 	}
 	var out []extract.Candidate
+	var ids []string
 	for _, b := range all {
 		for _, u := range b.uses {
-			out = append(out, candidate(pair, line, b.rp, u, len(b.uses) > 1))
+			c := candidate(pair, line, b.rp, u, len(b.uses) > 1)
+			out = append(out, c)
+			ids = append(ids, c.Rule.ID)
 		}
 	}
-	return extract.Extraction{Candidates: out, Proof: proof}, nil
+	res := extract.Extraction{Candidates: out, Proof: proof}
+	// The line is attested only when every removal it declares has a rule:
+	// a removal without an adapter fact has no rule, and an attestation
+	// claiming the rules are complete would hide it.
+	var noFact []string
+	for _, rp := range proof.Removals {
+		for _, kind := range rp.NoFactKinds {
+			noFact = append(noFact, gvk{rp.Group, rp.Version, kind}.String())
+		}
+	}
+	if len(noFact) > 0 {
+		res.NotAttested = fmt.Sprintf("removals without an adapter fact have no rule: %s", strings.Join(noFact, ", "))
+		return res, nil
+	}
+	if ids == nil {
+		ids = []string{}
+	}
+	res.Attestations = []extract.AttestationCandidate{{
+		Component: purl, Line: proof.TargetLine, FactFamily: lineattest.FamilyKubernetesRemovedServedGVK, RuleIDs: ids,
+		Sources: []extract.SourceRef{
+			{ID: "openapi-" + slug(pair.From), Repo: pair.Repo, Commit: pair.FromCommit, Path: specPath},
+			{ID: "openapi-" + slug(pair.To), Repo: pair.Repo, Commit: pair.ToCommit, Path: specPath},
+		},
+	}}
+	return res, nil
 }
 
 // replacements are the stable and beta versions of group served at the later

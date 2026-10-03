@@ -1,0 +1,155 @@
+[
+  {
+    "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+    "component": "pkg:github/kubernetes/kubernetes",
+    "evidence": {
+      "basis": "mechanical",
+      "derivedAt": "2026-10-03T00:00:00Z",
+      "extractor": {
+        "codeDigest": "sha256:CODE",
+        "id": "k8s.served-api-removal",
+        "version": "1.1.0"
+      },
+      "reviewedAt": "2026-10-03T00:00:00Z",
+      "sources": [
+        {
+          "contentDigest": "sha256:e39d66037ad1e059d5b93bf6618ad59d5547640b875f97495cd15a7b2fc37140",
+          "endLine": 343,
+          "id": "openapi-1-24-0",
+          "revision": "0000000000000000000000000000000000012400",
+          "startLine": 1,
+          "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000012400/api/openapi-spec/swagger.json"
+        },
+        {
+          "contentDigest": "sha256:a8b6ff0c1e7ba4237d9dfff5b1453f67fa500fd8278ac187ef098b701350532d",
+          "endLine": 271,
+          "id": "openapi-1-25-0",
+          "revision": "0000000000000000000000000000000000012500",
+          "startLine": 1,
+          "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000012500/api/openapi-spec/swagger.json"
+        }
+      ],
+      "validUntil": "2027-01-01T00:00:00Z"
+    },
+    "factFamily": "kubernetes.removed_served_gvk",
+    "line": "1.25",
+    "ruleIds": [
+      "kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0",
+      "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0",
+      "kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0",
+      "kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0"
+    ]
+  },
+  {
+    "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+    "component": "pkg:github/kubernetes/kubernetes",
+    "evidence": {
+      "basis": "mechanical",
+      "derivedAt": "2026-10-03T00:00:00Z",
+      "extractor": {
+        "codeDigest": "sha256:CODE",
+        "id": "k8s.served-api-removal",
+        "version": "1.1.0"
+      },
+      "reviewedAt": "2026-10-03T00:00:00Z",
+      "sources": [
+        {
+          "contentDigest": "sha256:535c67b6ea5de4bbacfe284eeb17d777461bb7a069ac0853ca27687818b5a890",
+          "endLine": 388,
+          "id": "openapi-1-30-0",
+          "revision": "0000000000000000000000000000000000013000",
+          "startLine": 1,
+          "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013000/api/openapi-spec/swagger.json"
+        },
+        {
+          "contentDigest": "sha256:50f7b34b8f00af2e5e5b004a26a26c00bfc610c3057da2e3fefa2fd614be38f2",
+          "endLine": 388,
+          "id": "openapi-1-31-0",
+          "revision": "0000000000000000000000000000000000013100",
+          "startLine": 1,
+          "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013100/api/openapi-spec/swagger.json"
+        }
+      ],
+      "validUntil": "2027-01-01T00:00:00Z"
+    },
+    "factFamily": "kubernetes.removed_served_gvk",
+    "line": "1.31",
+    "ruleIds": []
+  },
+  {
+    "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+    "component": "pkg:github/kubernetes/kubernetes",
+    "evidence": {
+      "basis": "mechanical",
+      "derivedAt": "2026-10-03T00:00:00Z",
+      "extractor": {
+        "codeDigest": "sha256:CODE",
+        "id": "k8s.served-api-removal",
+        "version": "1.1.0"
+      },
+      "reviewedAt": "2026-10-03T00:00:00Z",
+      "sources": [
+        {
+          "contentDigest": "sha256:50f7b34b8f00af2e5e5b004a26a26c00bfc610c3057da2e3fefa2fd614be38f2",
+          "endLine": 388,
+          "id": "openapi-1-31-0",
+          "revision": "0000000000000000000000000000000000013100",
+          "startLine": 1,
+          "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013100/api/openapi-spec/swagger.json"
+        },
+        {
+          "contentDigest": "sha256:459187c273602b9782eadb09be1a80031b7be57ae175ac49dd835b8fb678de68",
+          "endLine": 343,
+          "id": "openapi-1-32-0",
+          "revision": "0000000000000000000000000000000000013200",
+          "startLine": 1,
+          "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013200/api/openapi-spec/swagger.json"
+        }
+      ],
+      "validUntil": "2027-01-01T00:00:00Z"
+    },
+    "factFamily": "kubernetes.removed_served_gvk",
+    "line": "1.32",
+    "ruleIds": [
+      "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0"
+    ]
+  },
+  {
+    "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+    "component": "pkg:github/kubernetes/kubernetes",
+    "evidence": {
+      "basis": "mechanical",
+      "derivedAt": "2026-10-03T00:00:00Z",
+      "extractor": {
+        "codeDigest": "sha256:CODE",
+        "id": "k8s.served-api-removal",
+        "version": "1.1.0"
+      },
+      "reviewedAt": "2026-10-03T00:00:00Z",
+      "sources": [
+        {
+          "contentDigest": "sha256:459187c273602b9782eadb09be1a80031b7be57ae175ac49dd835b8fb678de68",
+          "endLine": 343,
+          "id": "openapi-1-32-0",
+          "revision": "0000000000000000000000000000000000013200",
+          "startLine": 1,
+          "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013200/api/openapi-spec/swagger.json"
+        },
+        {
+          "contentDigest": "sha256:1fa9eeb7a5557986aaaf98d352848fb52c033cc94e9a4cfd4d2e33b668cecd72",
+          "endLine": 334,
+          "id": "openapi-1-33-0",
+          "revision": "0000000000000000000000000000000000013300",
+          "startLine": 1,
+          "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000013300/api/openapi-spec/swagger.json"
+        }
+      ],
+      "validUntil": "2027-01-01T00:00:00Z"
+    },
+    "factFamily": "kubernetes.removed_served_gvk",
+    "line": "1.33",
+    "ruleIds": [
+      "kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-32-0-to-1-33-0"
+    ]
+  }
+]
