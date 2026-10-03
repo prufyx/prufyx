@@ -344,3 +344,43 @@ func TestPathPolicyPackMember(t *testing.T) {
 		t.Fatalf("rulePack path-policy member %q, upgradepath.PackMember %q", name, upgradepath.PackMember)
 	}
 }
+
+// Project targets carry rule entries only. A source pack with a section they
+// cannot carry is refused, never split without it; a pack without one splits
+// with each target's schema chosen by the same level table as the loader's.
+func TestSplitTargetsRefuseSectionsTheyCannotCarry(t *testing.T) {
+	same := func(string, func(string) ([]byte, error)) (string, error) { return "7", nil }
+	for name, raw := range map[string][]byte{
+		"path policies": featurePack(t, packSchemaPathPolicies, nil, validPolicies(t)),
+		"attestations":  featurePack(t, packSchemaAttested, validAttestations(t), nil),
+		"both":          featurePack(t, packSchemaPathPolicies, validAttestations(t), validPolicies(t)),
+	} {
+		base, err := assembleSynthetic(raw, nil)
+		if err != nil {
+			t.Fatalf("%s: synthetic pack refused: %v", name, err)
+		}
+		if _, targets, err := buildExternalTargets(base, "7", "operator_provided", same); !errors.Is(err, ErrIntegrity) || targets != nil {
+			t.Fatalf("%s: split without the section: %v", name, err)
+		}
+	}
+	base, err := assembleSynthetic(featurePack(t, packSchemaRanged, nil, nil), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, targets, err := buildExternalTargets(base, "7", "operator_provided", same)
+	if err != nil || len(targets) == 0 {
+		t.Fatalf("plain pack split: %d %v", len(targets), err)
+	}
+	for _, target := range targets {
+		var envelope struct {
+			Pack rulePack `json:"pack"`
+		}
+		if err := json.Unmarshal(target.Bytes, &envelope); err != nil {
+			t.Fatal(err)
+		}
+		want, err := requiredPackSchema(rulePack{Entries: envelope.Pack.Entries})
+		if err != nil || envelope.Pack.Schema != want {
+			t.Fatalf("%s: schema %s, want %s (%v)", target.Path, envelope.Pack.Schema, want, err)
+		}
+	}
+}

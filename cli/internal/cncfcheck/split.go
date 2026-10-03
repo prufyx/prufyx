@@ -8,8 +8,6 @@ import (
 	"regexp"
 	"sort"
 	"time"
-
-	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
 // Per-project layout. The CNCF knowledge database is published as one TUF
@@ -274,6 +272,17 @@ func buildEmbeddedExternalTargets(revision, purpose string, revisionFor func(str
 	if err != nil {
 		return ExternalTarget{}, nil, err
 	}
+	return buildExternalTargets(base, revision, purpose, revisionFor)
+}
+
+// buildExternalTargets splits base's pack into project targets. A project
+// target carries rule entries only, so a source pack holding a section the
+// targets cannot carry (line attestations, upgrade-path policies) is refused
+// rather than published without it.
+func buildExternalTargets(base bundle, revision, purpose string, revisionFor func(string, func(string) ([]byte, error)) (string, error)) (ExternalTarget, []ExternalTarget, error) {
+	if len(base.pack.LineAttestations) > 0 || len(base.pack.PathPolicies) > 0 {
+		return ExternalTarget{}, nil, ErrIntegrity
+	}
 	capability, err := externalCapabilityDigest(base)
 	if err != nil {
 		return ExternalTarget{}, nil, ErrIntegrity
@@ -347,9 +356,9 @@ func encodeExternalEnvelope(base bundle, revision, purpose string, entries []Ent
 		entries = []Entry{}
 	}
 	pack := rulePack{Revision: revision, PolicyID: base.pack.PolicyID, PolicyDigest: base.pack.PolicyDigest, LandscapeFileDigest: base.pack.LandscapeFileDigest, RegistryDigest: base.pack.RegistryDigest, Entries: entries}
-	pack.Schema, err = packSchemaFor(entries)
+	pack.Schema, err = requiredPackSchema(pack)
 	if err != nil {
-		return nil, err
+		return nil, ErrIntegrity
 	}
 	raw, err := json.Marshal(struct {
 		Schema                 string   `json:"schema"`
@@ -362,28 +371,6 @@ func encodeExternalEnvelope(base bundle, revision, purpose string, entries []Ent
 		return nil, ErrIntegrity
 	}
 	return raw, nil
-}
-
-func packSchemaFor(entries []Entry) (string, error) {
-	rules := make([]json.RawMessage, 0, len(entries))
-	for _, entry := range entries {
-		rules = append(rules, entry.Rule)
-	}
-	set, err := constraintengine.AnySetRule(rules)
-	if err != nil {
-		return "", ErrIntegrity
-	}
-	if set {
-		return packSchemaSet, nil
-	}
-	ranged, err := constraintengine.AnyRanged(rules)
-	if err != nil {
-		return "", ErrIntegrity
-	}
-	if ranged {
-		return packSchemaRanged, nil
-	}
-	return packSchema, nil
 }
 
 func strconvRevision(value string) (uint64, error) {
