@@ -24,6 +24,8 @@ func TestParseAccepted(t *testing.T) {
 		{"v1.29.3-eks-adc7111", "", EKS, "1.29.3", ConfidenceExact},
 		{"v1.29.3-eks-adc7111", "eks", EKS, "1.29.3", ConfidenceExact},
 		{"1.29.3-gke.1093000", "", GKE, "1.29.3", ConfidenceExact},
+		{"v1.29.3-gke.1093000", "", GKE, "1.29.3", ConfidenceExact},
+		{"v1.29.4", "aks", AKS, "1.29.4", ConfidenceDeclared},
 		{"v1.29.4+k3s1", "", K3s, "1.29.4", ConfidenceExact},
 		{"v1.29.4+rke2r1", "rke2", RKE2, "1.29.4", ConfidenceExact},
 		{"v1.30.0+k3s12", "k3s", K3s, "1.30.0", ConfidenceExact},
@@ -51,7 +53,6 @@ func TestParseRejected(t *testing.T) {
 		{"v1.29.3-eks-ADC7111", "", ErrMalformed},
 		{"v1.29.3-eks-adc711", "", ErrMalformed},
 		{"1.29.3-eks-adc7111", "", ErrMalformed},
-		{"v1.29.3-gke.1093000", "", ErrMalformed},
 		{"1.29.3-gke.", "", ErrMalformed},
 		{"1.29.3-gke.0", "", ErrMalformed},
 		{"1.29.3-gke.01", "", ErrMalformed},
@@ -89,7 +90,6 @@ func TestParseRejected(t *testing.T) {
 		{"v1.29.3-eks-adc7111", "gke", ErrDistributionMismatch},
 		{"v1.29.4+k3s1", "rke2", ErrDistributionMismatch},
 		{"v1.29.4+k3s1", "kubeadm", ErrDistributionMismatch},
-		{"v1.29.4", "aks", ErrMalformed},
 		{"4.16.3", "", ErrMalformed}, // upstream major must be 1; openshift needs a declaration
 	}
 	for _, c := range cases {

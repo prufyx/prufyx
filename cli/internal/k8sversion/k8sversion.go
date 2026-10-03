@@ -135,9 +135,6 @@ func Parse(raw, declared string) (Version, error) {
 		default:
 			return Version{}, fmt.Errorf("%w: bare version with declared %s", ErrDistributionMismatch, d)
 		}
-		if d == AKS && strings.HasPrefix(raw, "v") {
-			return Version{}, fmt.Errorf("%w", ErrMalformed)
-		}
 	default:
 		md := Distribution(marker)
 		if d != "" && d != md {
@@ -171,7 +168,7 @@ func split(raw string) (c core, marker, suffix string, err error) {
 		return core{s[:i], hasV, ""}, string(EKS), h, nil
 	case strings.Contains(s, "-gke."):
 		i := strings.Index(s, "-gke.")
-		if hasV || !isPatchNumber(s[i+5:]) {
+		if !isPatchNumber(s[i+5:]) {
 			return c, "", "", bad
 		}
 		return core{s[:i], hasV, ""}, string(GKE), s[i+5:], nil
