@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
@@ -33,6 +34,10 @@ const (
 	reasonLineBaselineUnverified = "RELEASE_LINE_BASELINE_UNVERIFIED"
 	reasonRangedRule             = "RANGED_RULE_EXCLUDED"
 	reasonMechanicalRule         = "MECHANICAL_RULE_EXCLUDED"
+	// reasonMechanicalRecord is reasonMechanicalRule for a line
+	// attestation or path-policy record an extractor derived: it is renewed
+	// only by re-deriving it.
+	reasonMechanicalRecord       = "MECHANICAL_RECORD_EXCLUDED"
 	reasonConsecutiveCycleCap    = "CONSECUTIVE_BATCH_CYCLE_CAP"
 	reasonInactiveOrWithdrawn    = "EVIDENCE_NOT_ACTIVE"
 	reasonCorpusMismatchProject  = "CORPUS_DIGEST_MISMATCH_IN_PROJECT"
@@ -366,19 +371,43 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 
 	nextDoc := doc
 	nextDoc.Revision = opts.NextRevision
-	repoTags := map[string]map[string]bool{}
+	mutatedByID := map[string]json.RawMessage{}
 	for i := range nextDoc.Entries {
 		fields, _ := parseRuleFields(nextDoc.Entries[i].Rule)
 		if !eligible[fields.ID] {
 			continue
 		}
-		candidate := candidateByID[fields.ID]
-		renewedUntil := ruleValidUntil[fields.ID].Format(time.RFC3339)
-		mutated, err := mutateRuleEvidenceDates(nextDoc.Entries[i].Rule, attestedAtString, renewedUntil)
+		mutated, err := mutateRuleEvidenceDates(nextDoc.Entries[i].Rule, attestedAtString, ruleValidUntil[fields.ID].Format(time.RFC3339))
 		if err != nil {
 			return PrepareResult{}, err
 		}
 		nextDoc.Entries[i].Rule = mutated
+		mutatedByID[fields.ID] = mutated
+	}
+	// A renewed line attestation or path-policy record changes in its pack
+	// section, in place (see renewRecords).
+	renewRecordDates := map[string]recordDates{}
+	for _, record := range doc.records {
+		if eligible[record.ID] {
+			renewRecordDates[record.ID] = recordDates{reviewedAt: attestedAtString, validUntil: ruleValidUntil[record.ID].Format(time.RFC3339)}
+		}
+	}
+	nextDoc, renewedRecords, err := renewRecords(nextDoc, renewRecordDates)
+	if err != nil {
+		return PrepareResult{}, err
+	}
+	for id, mutated := range renewedRecords {
+		mutatedByID[id] = mutated
+	}
+	repoTags := map[string]map[string]bool{}
+	for _, id := range eligibleIDs {
+		candidate := candidateByID[id]
+		fields := candidate.Fields
+		renewedUntil := ruleValidUntil[id].Format(time.RFC3339)
+		mutated := mutatedByID[id]
+		if mutated == nil {
+			return PrepareResult{}, fmt.Errorf("%w: renewed item %s is not in the pack", ErrRejected, id)
+		}
 
 		priorRuleDigest, _, sourcesDigest, err := ruleDigestAndEvidence(candidate.Raw)
 		if err != nil {
@@ -471,6 +500,14 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	if err != nil {
 		return PrepareResult{}, err
 	}
+	// The next pack must load exactly as Verify will load it (its record
+	// sections parse strictly and every attestation still lists exactly its
+	// scope's rules), and its records may differ from the prior pack's in
+	// their validity windows only (V10).
+	reloaded, err := loadPack(nextPackRaw)
+	if err != nil {
+		return PrepareResult{}, fmt.Errorf("%w: next pack failed self-verification: %v", ErrRejected, err)
+	}
 	nextPackDigestValue := packDigest(nextPackRaw)
 	nextRuleSetDigestValue, err := ruleSetDigest(nextDoc)
 	if err != nil {
@@ -519,7 +556,7 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	if err := selfCheck.apply(statement); err != nil {
 		return PrepareResult{}, fmt.Errorf("%w: statement failed chain self-check: %v", ErrRejected, err)
 	}
-	nextByID, err := rulesByID(nextDoc)
+	nextByID, err := rulesByID(reloaded)
 	if err != nil {
 		return PrepareResult{}, err
 	}
@@ -529,8 +566,11 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	if err := checkRolePolicy(statement, candidateByID); err != nil {
 		return PrepareResult{}, fmt.Errorf("%w: statement failed role-policy self-check: %v", ErrRejected, err)
 	}
+	if err := checkV10(doc, reloaded); err != nil {
+		return PrepareResult{}, fmt.Errorf("%w: next pack failed record self-check: %v", ErrRejected, err)
+	}
 
-	summary := renderSummary(statement, opts, doc.Entries)
+	summary := renderSummary(statement, opts, doc.Entries, doc.records)
 
 	return PrepareResult{
 		Statement: statement, StatementCanonical: canonical, NextPack: nextPackRaw, Summary: summary,
@@ -556,6 +596,9 @@ func evaluateEligibility(
 	// extend: its lease is renewed by re-deriving it, so it is never renewed
 	// here, however unchanged its citations are.
 	if candidate.Fields.isMechanical() {
+		if candidate.Fields.record {
+			return reasonMechanicalRecord, false
+		}
 		return reasonMechanicalRule, false
 	}
 
@@ -870,6 +913,14 @@ func packCandidates(doc packDocument) ([]ruleCandidate, []ruleFields, error) {
 		candidates = append(candidates, ruleCandidate{RuleID: fields.ID, Project: entry.Project, Raw: entry.Rule, Fields: fields})
 		priorRules = append(priorRules, fields)
 	}
+	// Line attestation and path-policy records are renewable items like
+	// rules: same eligibility, lease, stagger, chain and review-record rules,
+	// under their record IDs.
+	for _, record := range doc.records {
+		fields := recordFields(record)
+		candidates = append(candidates, ruleCandidate{RuleID: record.ID, Project: record.Project, Raw: record.Raw, Fields: fields})
+		priorRules = append(priorRules, fields)
+	}
 	sort.Slice(candidates, func(i, j int) bool { return candidates[i].RuleID < candidates[j].RuleID })
 	return candidates, priorRules, nil
 }
@@ -922,7 +973,7 @@ func sampleRuleIDs(worklistDigest string, eligibleIDs []string, sampleSize int) 
 	return out
 }
 
-func renderSummary(statement Statement, opts PrepareOptions, entries []packEntryDoc) []byte {
+func renderSummary(statement Statement, opts PrepareOptions, entries []packEntryDoc, records []evidencerepin.PackRecord) []byte {
 	byProject := map[string][]string{}
 	for _, ra := range statement.Rules {
 		byProject[ra.Project] = append(byProject[ra.Project], ra.RuleID)
@@ -963,6 +1014,21 @@ func renderSummary(statement Statement, opts PrepareOptions, entries []packEntry
 		ids := byProject[project]
 		sort.Strings(ids)
 		fmt.Fprintf(&b, "  %s: %s\n", project, strings.Join(ids, ", "))
+	}
+	if len(records) > 0 {
+		renewed := map[string]bool{}
+		for _, ra := range statement.Rules {
+			renewed[ra.RuleID] = true
+		}
+		fmt.Fprintf(&b, "records in the pack (line attestations and path policies; a review record names the record ID and binds the record digest):\n")
+		for _, record := range records {
+			digest, _, _, _ := ruleDigestAndEvidence(record.Raw)
+			status := "not renewed"
+			if renewed[record.ID] {
+				status = "renewed"
+			}
+			fmt.Fprintf(&b, "  %s: %s, basis %s, validUntil %s, record digest %s, %s\n", record.ID, record.Scope, constraintengine.EffectiveBasis(record.Basis), record.ValidUntil, digest, status)
+		}
 	}
 	if role == RoleAutomation {
 		fmt.Fprintf(&b, "per-rule validUntil (automated schedule):\n")

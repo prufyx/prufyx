@@ -186,6 +186,9 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 	if err := checkRolePolicy(statement, candidatesByID(priorCandidates)); err != nil {
 		return VerifyResult{}, err
 	}
+	if err := checkV10(priorDoc, nextDoc); err != nil {
+		return VerifyResult{}, err
+	}
 	if len(options.IndependentWorklistRaw) > 0 {
 		if err := checkIndependentWorklist(statement, options.PackPath, options.IndependentWorklistRaw); err != nil {
 			return VerifyResult{}, err
@@ -317,6 +320,9 @@ func checkV4(statement Statement, priorRaw, nextRaw []byte, priorDoc, nextDoc pa
 	return nil
 }
 
+// rulesByID maps every rule ID to the rule, and every line attestation or
+// path-policy record ID to the record's view (see recordView), so V6 and V7
+// cover records exactly as they cover rules.
 func rulesByID(doc packDocument) (map[string]json.RawMessage, error) {
 	byID := map[string]json.RawMessage{}
 	for _, entry := range doc.Entries {
@@ -326,7 +332,41 @@ func rulesByID(doc packDocument) (map[string]json.RawMessage, error) {
 		}
 		byID[fields.ID] = entry.Rule
 	}
+	for _, record := range doc.records {
+		view, err := recordView(record)
+		if err != nil {
+			return nil, err
+		}
+		byID[record.ID] = view
+	}
 	return byID, nil
+}
+
+// checkV10 holds a pack's line attestation and path-policy records to what a
+// renewal may change, independently of checkV1AndV3's recomputation: the
+// prior and next pack carry the same sections, holding the same records in
+// the same order, and each record is identical apart from its
+// evidence.reviewedAt and evidence.validUntil. Which date changes are
+// allowed at all is V6's (records are in rulesByID), and the next pack's
+// records were parsed strictly and re-checked against its rules on load
+// (loadRecords).
+func checkV10(priorDoc, nextDoc packDocument) error {
+	if (priorDoc.LineAttestations == nil) != (nextDoc.LineAttestations == nil) || (priorDoc.PathPolicies == nil) != (nextDoc.PathPolicies == nil) {
+		return fmt.Errorf("%w: V10: a record section is present in only one of the prior and next packs", ErrRejected)
+	}
+	if len(priorDoc.records) != len(nextDoc.records) {
+		return fmt.Errorf("%w: V10: the prior and next packs hold different numbers of records", ErrRejected)
+	}
+	for i, prior := range priorDoc.records {
+		next := nextDoc.records[i]
+		if prior.ID != next.ID || prior.Project != next.Project {
+			return fmt.Errorf("%w: V10: record %d is %s in the prior pack but %s in the next", ErrRejected, i, prior.ID, next.ID)
+		}
+		if !sameOutsideValidity(prior.Raw, next.Raw) {
+			return fmt.Errorf("%w: V10: record %s changed outside evidence.reviewedAt and evidence.validUntil", ErrRejected, prior.ID)
+		}
+	}
+	return nil
 }
 
 // checkPriorPackAgainstChain decides which supplied review records are

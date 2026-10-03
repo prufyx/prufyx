@@ -15,6 +15,13 @@
 // Verify, which recomputes eligibility and the whole statement from scratch
 // and requires an exact byte match against what the caller supplied).
 //
+// A pack's line attestations and path-policy records (its lineAttestations
+// and pathPolicies sections) renew the same way, as items named by their
+// record IDs (evidencerepin.LineAttestationRecordID, PathPolicyRecordID):
+// the same eligibility, lease, stagger, chain and review-record rules, and
+// only the same two fields change, in place inside the record (see
+// renewRecords and checkV10). A mechanical record is never renewed here.
+//
 // The three subcommands are a pipeline:
 //
 //	prepare - reads a worklist, the current rule pack, and the pack's

@@ -9,9 +9,9 @@ import (
 	"testing"
 )
 
-// Re-attestation does not handle line attestations yet: a pack carrying
-// them is refused instead of being rewritten without them.
-func TestLoadPackRefusesLineAttestations(t *testing.T) {
+// An attestation section that does not parse (here: empty) is refused
+// rather than carried; records_test.go covers valid sections.
+func TestLoadPackRefusesInvalidLineAttestations(t *testing.T) {
 	raw, err := os.ReadFile("../../cncfcheck/data/rules.json")
 	if err != nil {
 		t.Fatal(err)
@@ -24,6 +24,6 @@ func TestLoadPackRefusesLineAttestations(t *testing.T) {
 		t.Fatal("fixture edit did not apply")
 	}
 	if _, err := loadPack(attested); !errors.Is(err, ErrRejected) {
-		t.Fatalf("a pack with line attestations was accepted: %v", err)
+		t.Fatalf("a pack with an empty attestation section was accepted: %v", err)
 	}
 }

@@ -9,10 +9,10 @@ import (
 	"testing"
 )
 
-// Re-attestation does not renew upgrade-path policies yet: a pack carrying
-// them is refused instead of being rewritten without them, so the policies
-// expire and the paths they shaped fall back to gaps.
-func TestLoadPackRefusesPathPolicies(t *testing.T) {
+// A path-policy section that does not parse (here: a record without
+// evidence), or one under a case variant of its member name, is refused
+// rather than carried; records_test.go covers valid sections.
+func TestLoadPackRefusesInvalidPathPolicies(t *testing.T) {
 	raw, err := os.ReadFile("../../cncfcheck/data/rules.json")
 	if err != nil {
 		t.Fatal(err)

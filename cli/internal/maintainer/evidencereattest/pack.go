@@ -6,9 +6,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
+	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
 // packDocument mirrors the shape shared by cncfcheck's and projectcheck's
@@ -25,6 +29,18 @@ type packDocument struct {
 	LandscapeFileDigest string         `json:"landscapeFileDigest,omitempty"`
 	RegistryDigest      string         `json:"registryDigest,omitempty"`
 	Entries             []packEntryDoc `json:"entries"`
+	// LineAttestations and PathPolicies are the pack's optional record
+	// sections (lineattest.PackMember, upgradepath.PackMember), carried as
+	// their exact bytes. A pack without them re-renders without them, so
+	// its bytes do not change. Only a renewed record's two validity fields
+	// ever differ between a prior and a next pack (see renewRecords, V10).
+	LineAttestations json.RawMessage `json:"lineAttestations,omitempty"`
+	PathPolicies     json.RawMessage `json:"pathPolicies,omitempty"`
+
+	// records holds the records of both sections in section order, as
+	// evidencerepin.PackRecords located and parsed them. It is never
+	// rendered.
+	records []evidencerepin.PackRecord
 }
 
 // packEntryDoc mirrors one pack entry in its actual on-disk field order.
@@ -56,6 +72,9 @@ func (f ruleFields) isMechanical() bool {
 // output bytes (see nextPackDocument, which mutates the generic decode
 // instead, so untouched fields survive byte-for-byte).
 type ruleFields struct {
+	// record is true for the view of a line attestation or path-policy
+	// record (see recordFields); it is never decoded.
+	record   bool
 	ID       string          `json:"id"`
 	Range    json.RawMessage `json:"range"`
 	Evidence struct {
@@ -114,12 +133,253 @@ func loadPack(raw []byte) (packDocument, error) {
 	if doc.Schema == "" || doc.Revision == "" || len(doc.Entries) == 0 {
 		return packDocument{}, fmt.Errorf("%w: rule pack missing required fields", ErrRejected)
 	}
+	ruleIDs := map[string]bool{}
 	for _, entry := range doc.Entries {
-		if _, err := parseRuleFields(entry.Rule); err != nil {
+		fields, err := parseRuleFields(entry.Rule)
+		if err != nil {
 			return packDocument{}, err
 		}
+		ruleIDs[fields.ID] = true
+	}
+	if err := loadRecords(raw, &doc, ruleIDs); err != nil {
+		return packDocument{}, err
 	}
 	return doc, nil
+}
+
+// loadRecords reads the pack's line attestation and path-policy sections.
+// Each is located by its exact member name (a case variant, or a repeated
+// or unknown top-level member, rejects the pack: encoding/json would
+// otherwise fold a variant onto the field) and parsed strictly; the decoded
+// fields must hold exactly those bytes. Every line attestation must list
+// exactly the pack's rules for its scope, each covering the whole line
+// (lineattest.CheckRuleSets), so a renewal can never carry an attestation
+// the pack no longer supports. No record ID may equal a rule ID.
+func loadRecords(raw []byte, doc *packDocument, ruleIDs map[string]bool) error {
+	records, err := evidencerepin.PackRecords(raw)
+	if err != nil {
+		return fmt.Errorf("%w: pack records: %v", ErrRejected, err)
+	}
+	for _, member := range []struct {
+		name  string
+		field json.RawMessage
+	}{{lineattest.PackMember, doc.LineAttestations}, {upgradepath.PackMember, doc.PathPolicies}} {
+		section, present, err := lineattest.PackMemberSection(raw, member.name)
+		if err != nil || present != (member.field != nil) || !bytes.Equal(section, member.field) {
+			return fmt.Errorf("%w: pack section %s", ErrRejected, member.name)
+		}
+	}
+	if doc.LineAttestations != nil {
+		atts, err := lineattest.Parse(doc.LineAttestations)
+		if err != nil {
+			return fmt.Errorf("%w: line attestations: %v", ErrRejected, err)
+		}
+		rules := make([]json.RawMessage, 0, len(doc.Entries))
+		for _, entry := range doc.Entries {
+			rules = append(rules, entry.Rule)
+		}
+		problems, err := lineattest.CheckRuleSets(atts, rules)
+		if err != nil || len(problems) > 0 {
+			return fmt.Errorf("%w: line attestations do not match the pack's rules (%d problems): %v", ErrRejected, len(problems), err)
+		}
+	}
+	for _, record := range records {
+		if ruleIDs[record.ID] {
+			return fmt.Errorf("%w: record %s has the ID of a rule", ErrRejected, record.ID)
+		}
+	}
+	doc.records = records
+	return nil
+}
+
+// recordFields is the typed view of one record that eligibility, the
+// statement chain and V8 read, exactly as they read a rule's. A record has
+// no range. A line attestation has no evidence state (see
+// evidencerepin.PackRecord.State).
+func recordFields(record evidencerepin.PackRecord) ruleFields {
+	fields := ruleFields{record: true, ID: record.ID}
+	fields.Evidence.State = record.State
+	fields.Evidence.Basis = record.Basis
+	fields.Evidence.ReviewedAt = record.ReviewedAt
+	fields.Evidence.ValidUntil = record.ValidUntil
+	for _, source := range record.Sources {
+		fields.Evidence.Sources = append(fields.Evidence.Sources, ruleSourceField{ID: source.ID, Revision: source.Revision, ContentDigest: source.ContentDigest})
+	}
+	return fields
+}
+
+// recordView renders a record as the minimal rule-shaped document
+// {"evidence": <the record's evidence>, "id": <record ID>} that V6 and V7
+// read with parseRuleFields, so their checks on evidence dates and basis
+// apply to records exactly as to rules.
+func recordView(record evidencerepin.PackRecord) (json.RawMessage, error) {
+	value, err := sourcecorpus.DecodeBounded(record.Raw, int64(len(record.Raw)))
+	if err != nil {
+		return nil, fmt.Errorf("%w: record %s", ErrRejected, record.ID)
+	}
+	obj, ok := value.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("%w: record %s", ErrRejected, record.ID)
+	}
+	evidence, ok := obj["evidence"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("%w: record %s evidence", ErrRejected, record.ID)
+	}
+	canon, err := sourcecorpus.Canonical(map[string]any{"id": record.ID, "evidence": evidence})
+	if err != nil {
+		return nil, fmt.Errorf("%w: record %s", ErrRejected, record.ID)
+	}
+	return json.RawMessage(canon), nil
+}
+
+// recordDates is the reviewedAt and validUntil a renewal gives one record.
+type recordDates struct{ reviewedAt, validUntil string }
+
+// renewRecords returns doc with the records named in renew given their new
+// dates, and the renewed records' new bytes by record ID. Only the two date
+// values inside each renewed record's evidence change, in place: every
+// other byte of the record, including member order, is kept (see
+// setRecordDates). A section with no renewed record is kept as it is.
+func renewRecords(doc packDocument, renew map[string]recordDates) (packDocument, map[string]json.RawMessage, error) {
+	renewed := map[string]json.RawMessage{}
+	sections := map[string][]json.RawMessage{}
+	changed := map[string]bool{}
+	records := make([]evidencerepin.PackRecord, 0, len(doc.records))
+	for _, record := range doc.records {
+		if dates, ok := renew[record.ID]; ok {
+			mutated, err := setRecordDates(record.Raw, dates.reviewedAt, dates.validUntil)
+			if err != nil {
+				return packDocument{}, nil, err
+			}
+			record.Raw, record.ReviewedAt, record.ValidUntil = mutated, dates.reviewedAt, dates.validUntil
+			renewed[record.ID], changed[record.Project] = mutated, true
+		}
+		records = append(records, record)
+		sections[record.Project] = append(sections[record.Project], record.Raw)
+	}
+	doc.records = records
+	if len(renewed) != len(renew) {
+		return packDocument{}, nil, fmt.Errorf("%w: a renewed record is not in the pack", ErrRejected)
+	}
+	join := func(items []json.RawMessage) json.RawMessage {
+		parts := make([][]byte, len(items))
+		for i, item := range items {
+			parts[i] = item
+		}
+		return json.RawMessage("[" + string(bytes.Join(parts, []byte(","))) + "]")
+	}
+	if changed[evidencerepin.RecordProjectLineAttestations] {
+		doc.LineAttestations = join(sections[evidencerepin.RecordProjectLineAttestations])
+	}
+	if changed[evidencerepin.RecordProjectPathPolicies] {
+		doc.PathPolicies = join(sections[evidencerepin.RecordProjectPathPolicies])
+	}
+	return doc, renewed, nil
+}
+
+// setRecordDates replaces the values of evidence.reviewedAt and
+// evidence.validUntil in one record's exact bytes and changes nothing else.
+// Each member must occur exactly once; the result is checked to differ from
+// the input in those two values only.
+func setRecordDates(raw json.RawMessage, reviewedAt, validUntil string) (json.RawMessage, error) {
+	evStart, evEnd, err := memberSpan(raw, "evidence")
+	if err != nil {
+		return nil, err
+	}
+	evidence := raw[evStart:evEnd]
+	type span struct{ start, end int }
+	replacements := map[span][]byte{}
+	for name, value := range map[string]string{"reviewedAt": reviewedAt, "validUntil": validUntil} {
+		start, end, err := memberSpan(evidence, name)
+		if err != nil {
+			return nil, err
+		}
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			return nil, fmt.Errorf("%w: record dates", ErrRejected)
+		}
+		replacements[span{evStart + start, evStart + end}] = encoded
+	}
+	spans := make([]span, 0, len(replacements))
+	for s := range replacements {
+		spans = append(spans, s)
+	}
+	sort.Slice(spans, func(i, j int) bool { return spans[i].start > spans[j].start })
+	out := append([]byte(nil), raw...)
+	for _, s := range spans {
+		out = append(out[:s.start], append(append([]byte(nil), replacements[s]...), out[s.end:]...)...)
+	}
+	if !sameOutsideValidity(raw, out) {
+		return nil, fmt.Errorf("%w: record dates changed more than the validity window", ErrRejected)
+	}
+	return json.RawMessage(out), nil
+}
+
+// memberSpan returns the byte span of the value of member name in the JSON
+// object raw. The member must occur exactly once at the top level of raw.
+func memberSpan(raw []byte, name string) (start, end int, err error) {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
+		return 0, 0, fmt.Errorf("%w: record is not an object", ErrRejected)
+	}
+	found := false
+	for dec.More() {
+		tok, err := dec.Token()
+		if err != nil {
+			return 0, 0, fmt.Errorf("%w: record member", ErrRejected)
+		}
+		key, _ := tok.(string)
+		var value json.RawMessage
+		if err := dec.Decode(&value); err != nil {
+			return 0, 0, fmt.Errorf("%w: record member %s", ErrRejected, key)
+		}
+		if key != name {
+			continue
+		}
+		if found {
+			return 0, 0, fmt.Errorf("%w: record member %s repeats", ErrRejected, name)
+		}
+		found = true
+		end = int(dec.InputOffset())
+		start = end - len(value)
+		if start < 0 || !bytes.Equal(raw[start:end], value) {
+			return 0, 0, fmt.Errorf("%w: record member %s", ErrRejected, name)
+		}
+	}
+	if !found {
+		return 0, 0, fmt.Errorf("%w: record member %s missing", ErrRejected, name)
+	}
+	return start, end, nil
+}
+
+// withoutValidity is a record's canonical form with evidence.reviewedAt and
+// evidence.validUntil removed: what a renewal must leave unchanged.
+func withoutValidity(raw json.RawMessage) (string, error) {
+	value, err := sourcecorpus.DecodeBounded(raw, int64(len(raw)))
+	if err != nil {
+		return "", fmt.Errorf("%w: record", ErrRejected)
+	}
+	obj, ok := value.(map[string]any)
+	if !ok {
+		return "", fmt.Errorf("%w: record", ErrRejected)
+	}
+	evidence, ok := obj["evidence"].(map[string]any)
+	if !ok {
+		return "", fmt.Errorf("%w: record evidence", ErrRejected)
+	}
+	delete(evidence, "reviewedAt")
+	delete(evidence, "validUntil")
+	canon, err := sourcecorpus.Canonical(obj)
+	if err != nil {
+		return "", fmt.Errorf("%w: record", ErrRejected)
+	}
+	return string(canon), nil
+}
+
+func sameOutsideValidity(a, b json.RawMessage) bool {
+	left, err1 := withoutValidity(a)
+	right, err2 := withoutValidity(b)
+	return err1 == nil && err2 == nil && left == right
 }
 
 // packDigest is the pack's whole-file digest, computed the same way
