@@ -1,12 +1,30 @@
 # Trust material: keys and trust roots the knowledge gate reads from the
 # base branch. Changes need the owner's review and never merge
-# automatically.
+# automatically. (Patterns here are case-sensitive; the gate also treats
+# other spellings of these names as trust material.)
 /cli/knowledge/trust/ @airstand
 /cli/knowledge/reattestation/trust-root.json @airstand
 **/trust-root*.json @airstand
 **/*approval-keys*.json @airstand
 
-# The gate itself and its workflow.
-/.github/workflows/knowledge-gate.yml @airstand
+# The kill switch.
+/factory/PAUSE @airstand
+
+# The gate and the code its checks rest on.
 /cli/internal/maintainer/knowledgegate/ @airstand
-/.github/CODEOWNERS @airstand
+/cli/cmd/prufyx-maintainer/gate.go @airstand
+/cli/internal/strictjson/ @airstand
+/cli/internal/cncfcheck/packfiles.go @airstand
+/cli/internal/projectcheck/packfiles.go @airstand
+/cli/internal/lineattest/pack.go @airstand
+/cli/internal/validation/ @airstand
+/cli/internal/maintainer/evidencereattest/ @airstand
+/cli/internal/extract/ @airstand
+
+# Dependencies.
+/cli/go.mod @airstand
+/cli/go.sum @airstand
+/cli/vendor/ @airstand
+
+# Workflows, repository settings and this file.
+/.github/ @airstand
