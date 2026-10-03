@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 )
 
 // PackMember is the rule pack member that holds the attestation section.
@@ -14,7 +15,9 @@ const PackMember = "lineAttestations"
 
 // PackMembers are the exact top-level member names of a rule pack. The pack
 // loader's document type must name exactly these (a test pins it).
-var PackMembers = []string{"schema", "revision", "policyId", "policyDigest", "landscapeFileDigest", "registryDigest", "entries", PackMember}
+// "pathPolicies" is the upgrade-path policy section (upgradepath.PackMember;
+// spelled out here because that package builds on this one).
+var PackMembers = []string{"schema", "revision", "policyId", "policyDigest", "landscapeFileDigest", "registryDigest", "entries", PackMember, "pathPolicies"}
 
 // PackSection reads the top level of a rule pack and returns its raw
 // attestation section; present is false when the pack has none. It is the
@@ -30,6 +33,17 @@ var PackMembers = []string{"schema", "revision", "policyId", "policyDigest", "la
 // any name that repeats, is therefore an error, and so is anything other
 // than one JSON object.
 func PackSection(pack []byte) (section json.RawMessage, present bool, err error) {
+	return PackMemberSection(pack, PackMember)
+}
+
+// PackMemberSection is PackSection for any one of PackMembers: it checks the
+// whole top level exactly as PackSection does and returns the raw value of
+// member; present is false when the pack has no such member. A member that
+// is not one of PackMembers is an error.
+func PackMemberSection(pack []byte, member string) (section json.RawMessage, present bool, err error) {
+	if !slices.Contains(PackMembers, member) {
+		return nil, false, fmt.Errorf("%w: %q is not a rule pack member", ErrInvalid, member)
+	}
 	known := map[string]bool{}
 	for _, name := range PackMembers {
 		known[name] = true
@@ -57,7 +71,7 @@ func PackSection(pack []byte) (section json.RawMessage, present bool, err error)
 		if err := dec.Decode(&value); err != nil {
 			return nil, false, fmt.Errorf("%w: rule pack member %q: %v", ErrInvalid, name, err)
 		}
-		if name == PackMember {
+		if name == member {
 			section, present = value, true
 		}
 	}

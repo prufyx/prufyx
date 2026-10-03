@@ -20,6 +20,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
+	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
 //go:embed data/landscape-projects.json data/priority-portfolio.json data/rules.json
@@ -83,6 +84,9 @@ type rulePack struct {
 	// predate attestations reject; a pack without it is byte-identical to
 	// one built before attestations existed.
 	LineAttestations json.RawMessage `json:"lineAttestations,omitempty"`
+	// PathPolicies is the optional upgrade-path policy section, under the
+	// same rule: a pack that carries it uses the path-policy pack schema.
+	PathPolicies json.RawMessage `json:"pathPolicies,omitempty"`
 }
 
 type bundle struct {
@@ -93,6 +97,7 @@ type bundle struct {
 	packDigest      string
 	catalogueDigest string
 	attestations    lineattest.Index
+	pathPolicies    upgradepath.Index
 }
 
 func load() (bundle, error) {
@@ -127,6 +132,10 @@ func assemble(landscapeRaw, priorityRaw, packRaw []byte, factDefinitions []const
 		return bundle{}, ErrIntegrity
 	}
 	if attested != (len(result.pack.LineAttestations) > 0) || !bytes.Equal(attestationSection, result.pack.LineAttestations) {
+		return bundle{}, ErrIntegrity
+	}
+	policySection, hasPolicies, err := lineattest.PackMemberSection(packRaw, upgradepath.PackMember)
+	if err != nil || hasPolicies != (len(result.pack.PathPolicies) > 0) || !bytes.Equal(policySection, result.pack.PathPolicies) {
 		return bundle{}, ErrIntegrity
 	}
 	result.registry, err = constraintengine.NewCompiledRegistry(factDefinitions)
@@ -197,6 +206,9 @@ func assemble(landscapeRaw, priorityRaw, packRaw []byte, factDefinitions []const
 	if result.attestations, err = admitAttestations(attestationSection, attested, result.pack.Entries); err != nil {
 		return bundle{}, err
 	}
+	if result.pathPolicies, err = admitPathPolicies(policySection, hasPolicies, result.landscape.Projects); err != nil {
+		return bundle{}, err
+	}
 	return result, nil
 }
 
@@ -243,42 +255,56 @@ const (
 	packSchema       = "prufyx.io/cncf-source-rule-pack/v1alpha1"
 	packSchemaRanged = "prufyx.io/cncf-source-rule-pack/v1alpha2"
 	packSchemaSet    = "prufyx.io/cncf-source-rule-pack/v1alpha3"
-	// packSchemaAttested is carried by, and only by, a pack holding line
-	// attestations. It admits ranged and set rules as well.
+	// packSchemaAttested is the level of a pack holding line attestations.
 	packSchemaAttested = "prufyx.io/cncf-source-rule-pack/v1alpha4"
+	// packSchemaPathPolicies is the level of a pack holding upgrade-path
+	// policies.
+	packSchemaPathPolicies = "prufyx.io/cncf-source-rule-pack/v1alpha5"
 )
 
-// validPackSchema requires the pack schema to state whether the pack holds a
-// reviewed version range or a forbid_set_member rule. A pack with neither
-// keeps the original schema, so its bytes and digest are unchanged; a pack
-// with a range carries the ranged schema, which binaries that predate ranges
-// reject; a pack with a set rule carries the set schema (ranges allowed),
-// which binaries that predate set facts reject. A pack with line
-// attestations carries the attested schema whatever its rules, which binaries
-// that predate attestations reject.
-func validPackSchema(pack rulePack) bool {
-	if len(pack.LineAttestations) > 0 {
-		return pack.Schema == packSchemaAttested
-	}
+// packFeature is one pack feature and the schema that introduced it.
+type packFeature struct {
+	schema  string
+	present func(pack rulePack, rules []json.RawMessage) (bool, error)
+}
+
+// packFeatureLevels lists the pack features in ascending schema level. A
+// pack carries exactly the schema of the highest-level feature it uses, and
+// the original schema when it uses none, so a pack without a newer feature
+// keeps its bytes and digest, and a binary that predates a feature rejects
+// every pack that uses it (unknown schema). A new feature adds one row.
+var packFeatureLevels = []packFeature{
+	{packSchemaRanged, func(_ rulePack, rules []json.RawMessage) (bool, error) { return constraintengine.AnyRanged(rules) }},
+	{packSchemaSet, func(_ rulePack, rules []json.RawMessage) (bool, error) { return constraintengine.AnySetRule(rules) }},
+	{packSchemaAttested, func(pack rulePack, _ []json.RawMessage) (bool, error) { return len(pack.LineAttestations) > 0, nil }},
+	{packSchemaPathPolicies, func(pack rulePack, _ []json.RawMessage) (bool, error) { return len(pack.PathPolicies) > 0, nil }},
+}
+
+// requiredPackSchema is the schema of the highest-level feature the pack
+// uses.
+func requiredPackSchema(pack rulePack) (string, error) {
 	rules := make([]json.RawMessage, 0, len(pack.Entries))
 	for _, entry := range pack.Entries {
 		rules = append(rules, entry.Rule)
 	}
-	set, err := constraintengine.AnySetRule(rules)
-	if err != nil {
-		return false
+	schema := packSchema
+	for _, feature := range packFeatureLevels {
+		present, err := feature.present(pack, rules)
+		if err != nil {
+			return "", err
+		}
+		if present {
+			schema = feature.schema
+		}
 	}
-	if set {
-		return pack.Schema == packSchemaSet
-	}
-	ranged, err := constraintengine.AnyRanged(rules)
-	if err != nil {
-		return false
-	}
-	if ranged {
-		return pack.Schema == packSchemaRanged
-	}
-	return pack.Schema == packSchema
+	return schema, nil
+}
+
+// validPackSchema requires the pack schema to be exactly the level of the
+// highest-level feature the pack uses (packFeatureLevels).
+func validPackSchema(pack rulePack) bool {
+	schema, err := requiredPackSchema(pack)
+	return err == nil && pack.Schema == schema
 }
 
 func (b bundle) ruleSet(project string) (constraintengine.RuleSet, error) {

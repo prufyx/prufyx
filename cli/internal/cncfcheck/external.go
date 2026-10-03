@@ -360,6 +360,10 @@ func validateExternalPack(base bundle, packValue rulePack, revision string) erro
 	if len(packValue.LineAttestations) > 0 {
 		return ErrIntegrity
 	}
+	// Nor upgrade-path policies.
+	if len(packValue.PathPolicies) > 0 {
+		return ErrIntegrity
+	}
 	if !validPackSchema(packValue) || packValue.Revision != revision || packValue.PolicyID != base.pack.PolicyID || packValue.PolicyDigest != base.pack.PolicyDigest || packValue.LandscapeFileDigest != base.landscape.LandscapeFileDigest || packValue.RegistryDigest != base.registry.Digest() || len(packValue.Entries) > maxExternalEntries {
 		return ErrIntegrity
 	}
