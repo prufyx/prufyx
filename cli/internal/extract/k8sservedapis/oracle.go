@@ -103,8 +103,8 @@ func Oracle(outDir string, expectedRaw []byte) ([]string, error) {
 			diffs = append(diffs, fmt.Sprintf("NOFACT %s: no adapter fact for %s", name, strings.Join(got.NoFactKinds, ",")))
 		}
 		covered := false
-		for _, en := range entries {
-			if en.Rule.Subject.To == info.rec.To && strings.HasPrefix(en.Rule.ID, "kubernetes.served-api-removal."+groupSlug(e.Group)+"-"+e.Version) {
+		for _, id := range info.rec.Rules {
+			if strings.HasPrefix(id, "kubernetes.served-api-removal."+groupSlug(e.Group)+"-"+e.Version) {
 				covered = true
 			}
 		}
