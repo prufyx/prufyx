@@ -27,9 +27,18 @@ type relEntry struct {
 	owner   int     // the object that collected the release
 }
 
+// visitKey is a directory or document read under one namespace scope: a
+// base reached again under another namespace is deployed again, so it is
+// read again.
 type visitKey struct {
 	dir     string
 	recurse bool
+	ns      string
+}
+
+type handleKey struct {
+	id int
+	ns string
 }
 
 // walker is the closure of one root object. In discover mode it only follows
@@ -45,7 +54,8 @@ type walker struct {
 	charged   bool
 	dirStack  map[string]bool // true: entered through a reference
 	visited   map[visitKey]bool
-	doneFiles map[string]bool
+	doneFiles map[visitKey]bool
+	handled   map[handleKey]bool
 	objStack  map[int]bool
 	seen      []bool // by document id
 	reached   map[int]bool
@@ -65,7 +75,7 @@ type walker struct {
 
 func newWalker(a *analysis, root *docRef, b *budget, discover bool) *walker {
 	return &walker{a: a, b: b, discover: discover, root: root, at: root.rel,
-		dirStack: map[string]bool{}, visited: map[visitKey]bool{}, doneFiles: map[string]bool{}, objStack: map[int]bool{},
+		dirStack: map[string]bool{}, visited: map[visitKey]bool{}, doneFiles: map[visitKey]bool{}, handled: map[handleKey]bool{}, objStack: map[int]bool{},
 		seen: make([]bool, len(a.docs)), reached: map[int]bool{}, srcs: map[string][]*docRef{}}
 }
 
@@ -190,6 +200,7 @@ func (w *walker) nsOf(d *docRef) string {
 
 func (w *walker) walk() {
 	w.seen[w.root.id] = true
+	w.handled[handleKey{w.root.id, ""}] = true
 	if w.root.kind == kindFlux {
 		w.flux(w.root, 0)
 	} else {
@@ -318,14 +329,14 @@ func (w *walker) visitDir(dir string, hops int, recurse, byRef bool) {
 		}
 		return
 	}
-	if w.visited[visitKey{dir, recurse}] || w.visited[visitKey{dir, true}] {
+	if w.visited[visitKey{dir, recurse, w.scopeNS}] || w.visited[visitKey{dir, true, w.scopeNS}] {
 		return
 	}
 	if !w.a.dirs[dir] {
 		w.gap(SourceNotFound, src, w.a.missing(dir))
 		return
 	}
-	w.visited[visitKey{dir, recurse}] = true
+	w.visited[visitKey{dir, recurse, w.scopeNS}] = true
 	w.dirStack[dir] = byRef
 	defer delete(w.dirStack, dir)
 	if k := w.a.kust[dir]; k != nil {
@@ -452,10 +463,10 @@ func (w *walker) kustomization(k *docRef, dir string, hops int) {
 
 // resourceFile reads a file named by a kustomization, once per walk.
 func (w *walker) resourceFile(f string, hops int) {
-	if w.doneFiles[f] {
+	if w.doneFiles[visitKey{f, false, w.scopeNS}] {
 		return
 	}
-	w.doneFiles[f] = true
+	w.doneFiles[visitKey{f, false, w.scopeNS}] = true
 	w.at = f
 	w.fileGaps(f)
 	docs := w.a.byFile[f]
@@ -471,9 +482,10 @@ func (w *walker) resourceFile(f string, hops int) {
 }
 
 func (w *walker) handle(d *docRef, hops int) {
-	if !w.charge(1) || w.seen[d.id] {
+	if !w.charge(1) || w.handled[handleKey{d.id, w.scopeNS}] {
 		return
 	}
+	w.handled[handleKey{d.id, w.scopeNS}] = true
 	w.seen[d.id] = true
 	switch d.kind {
 	case kindFlux:

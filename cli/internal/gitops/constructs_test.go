@@ -502,3 +502,41 @@ func TestSymlinkParents(t *testing.T) {
 		}
 	}
 }
+
+// TestBaseUnderTwoNamespaces: a base reached under two namespaces is
+// deployed twice and is reported twice.
+func TestBaseUnderTwoNamespaces(t *testing.T) {
+	tenant := func(name string) string {
+		return strings.Replace(fluxRoot(name, "./base"), "spec:\n", "spec:\n  targetNamespace: "+name+"\n", 1)
+	}
+	flux := analyze(t, map[string]string{
+		"git.yaml": gitRepo, "root.yaml": fluxRoot("root", "./tenants"),
+		"tenants/a.yaml": tenant("team-a"), "tenants/b.yaml": tenant("team-b"),
+		"base/r.yaml": helmRelease("web", "1.0.0"), "base/repo.yaml": helmRepo,
+	})
+	e := envByName(t, flux, "tenants")
+	if len(e.Releases) != 2 || e.Releases[0].Namespace != "team-a" || e.Releases[1].Namespace != "team-b" || len(e.Gaps) != 0 {
+		t.Fatalf("tenants: %+v", e)
+	}
+	overlay := func(ns, version string) string {
+		return "namespace: " + ns + "\nresources: [../../base]\npatches:\n" +
+			"  - target: {kind: HelmRelease, name: web}\n    patch: '[{op: replace, path: /spec/chart/spec/version, value: " + version + "}]'\n"
+	}
+	kust := analyze(t, map[string]string{
+		"git.yaml": gitRepo, "root.yaml": fluxRoot("root", "./apps"),
+		"apps/kustomization.yaml":       "resources: [../overlays/a, ../overlays/b]\n",
+		"overlays/a/kustomization.yaml": overlay("team-a", "2.0.0"),
+		"overlays/b/kustomization.yaml": overlay("team-b", "3.0.0"),
+		"base/kustomization.yaml":       "resources: [r.yaml, repo.yaml]\n",
+		"base/r.yaml":                   helmRelease("web", "1.0.0"),
+		"base/repo.yaml":                helmRepo,
+	})
+	e = envByName(t, kust, "apps")
+	var got []string
+	for _, r := range e.Releases {
+		got = append(got, r.Namespace+"@"+r.ChartVersion+"@"+r.SourceRef)
+	}
+	if strings.Join(got, ",") != "team-a@2.0.0@HelmRepository/team-a/charts,team-b@3.0.0@HelmRepository/team-b/charts" || len(e.Gaps) != 0 {
+		t.Fatalf("overlays: %v %+v", got, e.Gaps)
+	}
+}
