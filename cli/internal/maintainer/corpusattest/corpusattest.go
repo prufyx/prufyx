@@ -128,6 +128,69 @@ func DocumentFor(pack string) ([]byte, error) {
 	return append(raw, '\n'), nil
 }
 
+// DocumentFromTree renders the attestation for one pack read from the files
+// of a source tree (cliRoot is that tree's cli/ directory) instead of the
+// embedded asset, as the exact bytes the committed asset must hold. It lets
+// a checker built from one revision regenerate the attestation of another
+// revision's pack, with this revision's admission rules.
+func DocumentFromTree(pack, cliRoot string) ([]byte, error) {
+	read := func(rel string) ([]byte, error) {
+		raw, err := os.ReadFile(filepath.Join(cliRoot, filepath.FromSlash(rel)))
+		if err != nil {
+			return nil, err
+		}
+		if len(raw) > maxPackBytes {
+			return nil, fmt.Errorf("%s exceeds the reviewed bound", rel)
+		}
+		return raw, nil
+	}
+	var raw []byte
+	switch pack {
+	case PackCNCF:
+		landscape, err := read("internal/cncfcheck/data/landscape-projects.json")
+		if err != nil {
+			return nil, err
+		}
+		priority, err := read("internal/cncfcheck/data/priority-portfolio.json")
+		if err != nil {
+			return nil, err
+		}
+		rules, err := read(targets()[PackCNCF].rulesPath)
+		if err != nil {
+			return nil, err
+		}
+		attestation, err := cncfcheck.BuildAttestationFromFiles(landscape, priority, rules)
+		if err != nil {
+			return nil, err
+		}
+		if raw, err = json.MarshalIndent(attestation, "", "  "); err != nil {
+			return nil, err
+		}
+	case PackCommunity:
+		registry, err := read("internal/projectcheck/data/projects.json")
+		if err != nil {
+			return nil, err
+		}
+		rules, err := read(targets()[PackCommunity].rulesPath)
+		if err != nil {
+			return nil, err
+		}
+		attestation, err := projectcheck.BuildAttestationFromFiles(registry, rules)
+		if err != nil {
+			return nil, err
+		}
+		if raw, err = json.MarshalIndent(attestation, "", "  "); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf("unknown rule pack")
+	}
+	if _, err := targets()[pack].parse(raw); err != nil {
+		return nil, err
+	}
+	return append(raw, '\n'), nil
+}
+
 // Digest is the attestation's canonical digest, computed with the reviewed
 // corpus hashing helper rather than a second SHA-256 implementation.
 func Digest(document []byte) (string, error) {

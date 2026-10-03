@@ -687,6 +687,13 @@ func lineBaselineVerified(citation evidencerepin.ClassResult, lines []evidencere
 
 // staggerCap is V7's per-week cap for a pack of total rules:
 // floor(staggerCapPercent% of total), and never less than one.
+// StaggerCap is the most rules of a pack of total rules whose validUntil may
+// fall in one ISO week (the V7 stagger cap).
+func StaggerCap(total int) int { return staggerCap(total) }
+
+// ISOWeek names the ISO week of t (UTC) as YYYY-Www.
+func ISOWeek(t time.Time) string { return isoWeek(t) }
+
 func staggerCap(total int) int {
 	weekCap := total * staggerCapPercent / 100
 	if weekCap < 1 {

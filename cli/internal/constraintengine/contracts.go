@@ -82,6 +82,15 @@ const (
 	maxStringBytes           = 256
 )
 
+// MaxCompiledRegistryFacts is the cap on the number of facts a compiled
+// registry may define (see NewCompiledRegistry). It is exported so knowledge
+// checks can report how close the registry is to it.
+const MaxCompiledRegistryFacts = maxCompiledRegistryFacts
+
+// MaxRegistryFacts is the cap on the number of facts a registry built with
+// NewRegistry may define.
+const MaxRegistryFacts = maxFacts
+
 var (
 	ErrInvalid   = errors.New("invalid constraint engine input")
 	ErrIntegrity = errors.New("constraint engine integrity failure")

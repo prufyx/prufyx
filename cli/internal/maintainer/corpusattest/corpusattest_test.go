@@ -255,3 +255,24 @@ func TestCNCFAttestationIsNotTheCommunityOne(t *testing.T) {
 		}
 	}
 }
+
+// DocumentFromTree over this source tree must reproduce the embedded
+// attestation byte for byte: both paths admit the same pack bytes.
+func TestDocumentFromTreeMatchesEmbedded(t *testing.T) {
+	for _, pack := range []string{PackCommunity, PackCNCF} {
+		embedded, err := DocumentFor(pack)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fromTree, err := DocumentFromTree(pack, filepath.Join("..", "..", ".."))
+		if err != nil {
+			t.Fatalf("%s: %v", pack, err)
+		}
+		if string(embedded) != string(fromTree) {
+			t.Fatalf("%s: attestation from the tree differs from the embedded one", pack)
+		}
+	}
+	if _, err := DocumentFromTree("other", filepath.Join("..", "..", "..")); err == nil {
+		t.Fatal("unknown pack accepted")
+	}
+}
