@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"unsafe"
 )
 
 // usage runs Analyze and returns the steps each pass charged.
@@ -371,10 +372,47 @@ func TestResultSizeLimit(t *testing.T) {
 		!hasGap(last.Gaps, ClosureLimit, "reached before this environment was read") || len(last.Releases) != 0 || len(last.Gaps) != 1 {
 		t.Fatalf("first %+v\nlast %+v", first.Gaps, last)
 	}
+	// Image references count too.
+	resultBytes = 300
+	pods := map[string]string{"git.yaml": gitRepo, "root.yaml": fluxRoot("root", "./app")}
+	for i := 0; i < 40; i++ {
+		pods[fmt.Sprintf("app/p%02d.yaml", i)] = fmt.Sprintf("apiVersion: v1\nkind: Pod\nmetadata: {name: p%d}\nspec: {containers: [{name: c, image: 'r.example.test/i%02d:1'}]}\n", i, i)
+	}
+	ie := analyze(t, pods).Environments[0]
+	if len(ie.Images) == 0 || len(ie.Images) >= 40 || !hasGap(ie.Gaps, ClosureLimit, "result size limit") {
+		t.Fatalf("images not counted: %d images", len(ie.Images))
+	}
 	// Inline values count once per release that carries them.
 	resultBytes = 2000
 	v := analyze(t, bigValuesRepo(4, 1200, 1), "https://github.com/example/fleet")
 	if e := v.Environments[0]; len(e.Releases) >= 4 || !hasGap(e.Gaps, ClosureLimit, "result size limit") {
 		t.Fatalf("values not counted: %d releases", len(e.Releases))
+	}
+}
+
+// TestSourceStringsAreShared: the strings about one source are built once
+// and shared by every environment.
+func TestSourceStringsAreShared(t *testing.T) {
+	repo := analyze(t, longIdentityRepo(2, 3))
+	a, b := repo.Environments[0], repo.Environments[1]
+	if len(a.Releases) != 3 || len(b.Releases) != 3 {
+		t.Fatalf("releases: %d, %d", len(a.Releases), len(b.Releases))
+	}
+	if unsafe.StringData(a.Releases[0].SourceRef) != unsafe.StringData(b.Releases[0].SourceRef) {
+		t.Fatal("SourceRef is built for each environment")
+	}
+	var da, db string
+	for _, g := range a.Gaps {
+		if g.Reason == SourceNotFound {
+			da = g.Detail
+		}
+	}
+	for _, g := range b.Gaps {
+		if g.Reason == SourceNotFound {
+			db = g.Detail
+		}
+	}
+	if da == "" || unsafe.StringData(da) != unsafe.StringData(db) {
+		t.Fatal("the source gap detail is built for each environment")
 	}
 }
