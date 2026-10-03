@@ -463,3 +463,24 @@ func TestGitopsDeterministic(t *testing.T) {
 		t.Fatalf("argo order changed the result")
 	}
 }
+
+func TestRemoteSourceRefIsNotFollowed(t *testing.T) {
+	other := strings.Replace(fluxRoot("child", "./elsewhere"), "name: fleet", "name: another-repo", 1)
+	repo := analyze(t, map[string]string{
+		"git.yaml": gitRepo, "root.yaml": fluxRoot("root", "./app"),
+		"app/child.yaml":      other,
+		"elsewhere/r.yaml":    helmRelease("hidden", "1.0.0"),
+		"elsewhere/repo.yaml": helmRepo,
+		"app/bucket.yaml":     strings.Replace(fluxRoot("bucket", "./elsewhere"), "kind: GitRepository", "kind: Bucket", 1),
+	})
+	e := envByName(t, repo, "app")
+	if len(e.Releases) != 0 || !hasGap(e.Gaps, RemoteReferenceNotResolved, "another-repo") || !hasGap(e.Gaps, RemoteReferenceNotResolved, "Bucket") {
+		t.Fatalf("%+v", e)
+	}
+	// The GitRepository of the root must be this repository when it is known.
+	foreign := analyze(t, map[string]string{"git.yaml": gitRepo, "root.yaml": fluxRoot("root", "./app"), "app/r.yaml": helmRelease("x", "1.0.0")},
+		"https://git.example.test/team/other")
+	if e := envByName(t, foreign, "app"); len(e.Releases) != 0 || !hasGap(e.Gaps, RemoteReferenceNotResolved, "not this repository") {
+		t.Fatalf("%+v", e)
+	}
+}
