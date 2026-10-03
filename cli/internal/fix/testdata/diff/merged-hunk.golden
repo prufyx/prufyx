@@ -6,14 +6,14 @@
    labels:
 -    one: x
 -    two: x
-+    one: y
++    one: yy
 +    Two: x
      three: x
      four: x
      five: x
      six: x
 -    seven: x
-+    seven: y
++    seven: yy
      eight: x
  spec:
    schedule: "* * * * *"
@@ -21,4 +21,4 @@
  apiVersion: batch/v1beta1 # second
  kind: CronJob
 -metadata: {name: b, labels: {one: x}}
-+metadata: {name: b, labels: {one: y}}
++metadata: {name: b, labels: {one: yy}}

@@ -101,7 +101,7 @@ func TestPlanConflicts(t *testing.T) {
 		edits []rawEdit
 		want  Reason
 	}{
-		{name: "same token different replacements", edits: []rawEdit{{41, 42, "y"}, {41, 42, "z"}}, want: ReasonConflictingEdits},
+		{name: "same token different replacements", edits: []rawEdit{{41, 42, "yy"}, {41, 42, "z"}}, want: ReasonConflictingEdits},
 		{name: "overlapping spans", edits: []rawEdit{{38, 42, "q"}, {41, 42, "z"}}, want: ReasonConflictingEdits},
 		{name: "nested span", edits: []rawEdit{{30, 42, "q"}, {38, 39, "b"}}, want: ReasonConflictingEdits},
 	}
@@ -114,36 +114,36 @@ func TestPlanConflicts(t *testing.T) {
 		})
 	}
 	t.Run("two kinds conflict", func(t *testing.T) {
-		requests := []Request{setRequest("value", "x", "y", "data", "a"), setRequest("value", "x", "z", "data", "a")}
+		requests := []Request{setRequest("value", "x", "yy", "data", "a"), setRequest("value", "x", "z", "data", "a")}
 		_, err := Plan(display, src, requests, Options{})
 		if ReasonOf(err) != ReasonConflictingEdits {
 			t.Fatalf("got %v", err)
 		}
 	})
 	t.Run("identical edits merge", func(t *testing.T) {
-		requests := []Request{setRequest("value", "x", "y", "data", "a"), setRequest("value", "x", "y", "data", "a")}
+		requests := []Request{setRequest("value", "x", "yy", "data", "a"), setRequest("value", "x", "yy", "data", "a")}
 		plan, err := Plan(display, src, requests, Options{})
 		if err != nil || len(plan.Edits) != 1 {
 			t.Fatalf("plan %+v, err %v", plan, err)
 		}
 	})
 	t.Run("altered plan refused at apply", func(t *testing.T) {
-		plan, err := Plan(display, src, []Request{setRequest("value", "x", "y", "data", "a")}, Options{})
+		plan, err := Plan(display, src, []Request{setRequest("value", "x", "yy", "data", "a")}, Options{})
 		if err != nil {
 			t.Fatal(err)
 		}
 		plan.Edits = append(plan.Edits, Edit{File: display, StartByte: 42, EndByte: 43, Replacement: "w"})
-		if _, err := ApplyInMemory(src, plan, Options{}); ReasonOf(err) != ReasonConflictingEdits {
+		if _, err := ApplyInMemory(src, plan, Options{}); ReasonOf(err) != ReasonInvalidEdit {
 			t.Fatalf("got %v", err)
 		}
 	})
 	t.Run("key and value edits on one pair", func(t *testing.T) {
-		plan, err := Plan(display, src, []Request{rawRequest(rawEdit{39, 40, "b"}, rawEdit{42, 43, "y"})}, Options{SkipIdempotenceCheck: true})
+		plan, err := Plan(display, src, []Request{rawRequest(rawEdit{39, 40, "b"}, rawEdit{42, 43, "yy"})}, Options{SkipIdempotenceCheck: true})
 		if err != nil {
 			t.Fatal(err)
 		}
 		after, err := ApplyInMemory(src, plan, Options{SkipIdempotenceCheck: true})
-		if err != nil || !strings.HasSuffix(string(after), "  b: y\n") {
+		if err != nil || !strings.HasSuffix(string(after), "  b: yy\n") {
 			t.Fatalf("after %q err %v", after, err)
 		}
 	})
@@ -184,7 +184,7 @@ func TestPlanEditValidation(t *testing.T) {
 		})
 	}
 	t.Run("wrong file", func(t *testing.T) {
-		plan, err := Plan(display, src, []Request{setRequest("value", "x", "y", "data", "a")}, Options{})
+		plan, err := Plan(display, src, []Request{setRequest("value", "x", "yy", "data", "a")}, Options{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -196,7 +196,7 @@ func TestPlanEditValidation(t *testing.T) {
 	t.Run("too many edits", func(t *testing.T) {
 		edits := make([]rawEdit, MaxEditsPerFile+1)
 		for i := range edits {
-			edits[i] = rawEdit{42, 43, "y"}
+			edits[i] = rawEdit{42, 43, "yy"}
 		}
 		_, err := Plan(display, src, []Request{rawRequest(edits...)}, Options{SkipIdempotenceCheck: true})
 		if ReasonOf(err) != ReasonLimit {
@@ -222,7 +222,7 @@ func TestPlanEditValidation(t *testing.T) {
 		}
 	})
 	t.Run("missing document", func(t *testing.T) {
-		request := setRequest("value", "x", "y", "data", "a")
+		request := setRequest("value", "x", "yy", "data", "a")
 		request.Documents = []int{3}
 		_, err := Plan(display, src, []Request{request}, Options{})
 		if ReasonOf(err) != ReasonPathNotFound {
@@ -231,7 +231,7 @@ func TestPlanEditValidation(t *testing.T) {
 	})
 	t.Run("secret file", func(t *testing.T) {
 		secret := []byte("apiVersion: v1\nkind: ConfigMap\ndata:\n  a: x\n---\napiVersion: v1\nkind: Secret\nstringData:\n  p: hunter2\n")
-		request := setRequest("value", "x", "y", "data", "a")
+		request := setRequest("value", "x", "yy", "data", "a")
 		request.Documents = []int{0}
 		_, err := Plan(display, secret, []Request{request}, Options{})
 		if ReasonOf(err) != ReasonSecretDocument || strings.Contains(err.Error(), "hunter2") {
@@ -250,7 +250,7 @@ func TestPlanEditValidation(t *testing.T) {
 		}
 	})
 	t.Run("digest mismatch in memory", func(t *testing.T) {
-		plan, err := Plan(display, src, []Request{setRequest("value", "x", "y", "data", "a")}, Options{})
+		plan, err := Plan(display, src, []Request{setRequest("value", "x", "yy", "data", "a")}, Options{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -325,8 +325,9 @@ func TestApplyDecodeVerification(t *testing.T) {
 		{name: "plain key followed by colon in flow", src: "{\"a\":1}\n", edit: rawEdit{1, 4, "b"}, want: ReasonDecodeMismatch},
 		{name: "rename onto sibling", src: "a: 1\nb: 2\n", edit: rawEdit{0, 1, "b"}, want: ReasonDecodeMismatch},
 		{name: "rename onto sibling by case", src: "a: 1\nb: 2\n", edit: rawEdit{0, 1, "B"}, want: ReasonDecodeMismatch},
-		{name: "root document becomes null", src: "a: b\n--- x\n", edit: rawEdit{9, 10, "null"}, want: ReasonDecodeMismatch},
-		{name: "value becomes timestamp text kept", src: "a: x\n", edit: rawEdit{3, 4, "2026-01-02"}, want: ""},
+		{name: "root document becomes null", src: "a: b\n--- x\n", edit: rawEdit{9, 10, "null"}, want: ReasonInvalidEdit},
+		{name: "plain date", src: "a: x\n", edit: rawEdit{3, 4, "2026-01-02"}, want: ReasonInvalidEdit},
+		{name: "value becomes timestamp text kept", src: "a: x\n", edit: rawEdit{3, 4, "'2026-01-02'"}, want: ""},
 		{name: "quoted value", src: "a: x\n", edit: rawEdit{3, 4, `"y z"`}, want: ""},
 		{name: "number", src: "a: x\n", edit: rawEdit{3, 4, "12"}, want: ""},
 	}
@@ -346,7 +347,7 @@ func TestApplyDecodeVerification(t *testing.T) {
 			t.Fatal(err)
 		}
 		plan.Edits[0].Replacement = "p, q"
-		if _, err := ApplyInMemory(src, plan, Options{SkipIdempotenceCheck: true}); ReasonOf(err) != ReasonDecodeMismatch {
+		if _, err := ApplyInMemory(src, plan, Options{SkipIdempotenceCheck: true}); ReasonOf(err) != ReasonInvalidEdit {
 			t.Fatalf("got %v", err)
 		}
 	})
@@ -354,7 +355,7 @@ func TestApplyDecodeVerification(t *testing.T) {
 
 func TestRegistry(t *testing.T) {
 	ids := Kinds()
-	if strings.Join(ids, ",") != "test_grow,test_raw,test_set" {
+	if strings.Join(ids, ",") != "test_grow,test_mutate,test_once,test_raw,test_refuse,test_set" {
 		t.Fatalf("kinds %v", ids)
 	}
 	if _, ok := Lookup("test_set"); !ok {
@@ -369,7 +370,19 @@ func TestRegistry(t *testing.T) {
 		}()
 		f()
 	}
-	mustPanic("register after use", func() { Register(setKind{}) })
+	// A fresh, valid id: only the seal can make this panic.
+	func() {
+		defer func() {
+			recovered := recover()
+			if message, _ := recovered.(string); !strings.Contains(message, "after the registry was used") {
+				t.Fatalf("register after use: panic %v", recovered)
+			}
+		}()
+		Register(sealProbe{})
+	}()
+	if _, ok := Lookup("test_seal_probe"); ok {
+		t.Fatal("a kind was registered after the registry was used")
+	}
 	registry.Lock()
 	registry.sealed = false
 	registry.Unlock()
@@ -382,6 +395,10 @@ func TestRegistry(t *testing.T) {
 	mustPanic("invalid id", func() { Register(badIDKind{}) })
 	mustPanic("nil", func() { Register(nil) })
 }
+
+type sealProbe struct{ growKind }
+
+func (sealProbe) ID() string { return "test_seal_probe" }
 
 type badIDKind struct{ growKind }
 

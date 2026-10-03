@@ -15,7 +15,7 @@ var knownReasons = map[Reason]bool{
 	ReasonPathNotFound: true, ReasonBlockScalar: true, ReasonMultiLineScalar: true, ReasonSpanNotIsolated: true,
 	ReasonInvalidEdit: true, ReasonConflictingEdits: true, ReasonDecodeMismatch: true, ReasonNotIdempotent: true,
 	ReasonUnknownKind: true, ReasonInvalidParams: true, ReasonKindRefused: true, ReasonLimit: true,
-	ReasonFileChanged: true, ReasonUnsafeFile: true, ReasonOutsideRoots: true, ReasonWriteFailed: true,
+	ReasonFileChanged: true, ReasonUnsafeFile: true, ReasonOutsideRoots: true, ReasonWriteFailed: true, ReasonDescriptorLimit: true,
 }
 
 func addSeeds(f *testing.F, extra ...any) {

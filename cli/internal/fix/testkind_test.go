@@ -19,6 +19,9 @@ func init() {
 	Register(setKind{})
 	Register(rawKind{})
 	Register(growKind{})
+	Register(refuseKind{})
+	Register(mutateKind{})
+	Register(onceKind{})
 }
 
 type setParams struct {
@@ -60,23 +63,22 @@ type setKind struct{}
 
 func (setKind) ID() string { return "test_set" }
 
-func (setKind) Validate(params Params) error {
-	var p setParams
-	if err := decodeParams(params, &p); err != nil {
-		return err
-	}
-	if p.Part != "value" && p.Part != "key" || p.To == "" || len(p.Path) > MaxPathSegments {
-		return errors.New("invalid")
-	}
-	_, err := p.path()
-	return err
-}
-
-func (setKind) Plan(doc intake.Document, src []byte, params Params) ([]Edit, error) {
+func (setKind) Validate(params Params) (any, error) {
 	var p setParams
 	if err := decodeParams(params, &p); err != nil {
 		return nil, err
 	}
+	if p.Part != "value" && p.Part != "key" || p.To == "" || len(p.Path) > MaxPathSegments {
+		return nil, errors.New("invalid")
+	}
+	if _, err := p.path(); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+func (setKind) Plan(doc intake.Document, src []byte, parsed any) ([]Edit, error) {
+	p := parsed.(setParams)
 	path, err := p.path()
 	if err != nil {
 		return nil, err
@@ -139,19 +141,19 @@ type rawKind struct{}
 
 func (rawKind) ID() string { return "test_raw" }
 
-func (rawKind) Validate(params Params) error {
+func (rawKind) Validate(params Params) (any, error) {
 	var edits []rawEdit
-	return decodeParams(params, &edits)
+	if err := decodeParams(params, &edits); err != nil {
+		return nil, err
+	}
+	return edits, nil
 }
 
-func (rawKind) Plan(doc intake.Document, _ []byte, params Params) ([]Edit, error) {
+func (rawKind) Plan(doc intake.Document, _ []byte, parsed any) ([]Edit, error) {
 	if doc.Source.Document != 0 {
 		return nil, nil
 	}
-	var raw []rawEdit
-	if err := decodeParams(params, &raw); err != nil {
-		return nil, err
-	}
+	raw := parsed.([]rawEdit)
 	edits := make([]Edit, len(raw))
 	for i, e := range raw {
 		edits[i] = Edit{File: doc.Source.Display, StartByte: e.Start, EndByte: e.End, Replacement: e.Replacement}
@@ -164,16 +166,16 @@ type growKind struct{}
 
 func (growKind) ID() string { return "test_grow" }
 
-func (growKind) Validate(params Params) error {
-	var p setParams
-	return decodeParams(params, &p)
-}
-
-func (growKind) Plan(doc intake.Document, src []byte, params Params) ([]Edit, error) {
+func (growKind) Validate(params Params) (any, error) {
 	var p setParams
 	if err := decodeParams(params, &p); err != nil {
 		return nil, err
 	}
+	return p, nil
+}
+
+func (growKind) Plan(doc intake.Document, src []byte, parsed any) ([]Edit, error) {
+	p := parsed.(setParams)
 	path, err := p.path()
 	if err != nil {
 		return nil, err
@@ -200,4 +202,85 @@ func rawRequest(edits ...rawEdit) Request {
 		panic(err)
 	}
 	return Request{Kind: "test_raw", Params: params}
+}
+
+// refuseKind fails Plan in the way its parameters say.
+type refuseKind struct{}
+
+type refuseParams struct {
+	Mode   string `json:"mode"`
+	Reason string `json:"reason"`
+	Detail string `json:"detail"`
+}
+
+func (refuseKind) ID() string { return "test_refuse" }
+
+func (refuseKind) Validate(params Params) (any, error) {
+	var p refuseParams
+	if err := decodeParams(params, &p); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+func (refuseKind) Plan(_ intake.Document, _ []byte, parsed any) ([]Edit, error) {
+	p := parsed.(refuseParams)
+	switch p.Mode {
+	case "refusal":
+		return nil, &Refusal{Reason: Reason(p.Reason), Detail: p.Detail}
+	case "wrapped":
+		return nil, fmt.Errorf("kind: %w", &Refusal{Reason: Reason(p.Reason), Detail: p.Detail})
+	}
+	return nil, errors.New(p.Detail)
+}
+
+func refuseRequest(mode, reason, detail string) Request {
+	params, err := json.Marshal(refuseParams{Mode: mode, Reason: reason, Detail: detail})
+	if err != nil {
+		panic(err)
+	}
+	return Request{Kind: "test_refuse", Params: params}
+}
+
+// mutateKind writes into the source bytes it is given.
+type mutateKind struct{}
+
+func (mutateKind) ID() string { return "test_mutate" }
+
+func (mutateKind) Validate(Params) (any, error) { return nil, nil }
+
+func (mutateKind) Plan(_ intake.Document, src []byte, _ any) ([]Edit, error) {
+	src[0] ^= 0x20
+	return nil, nil
+}
+
+// onceKind counts its calls: Validate must run once per request, and every
+// Plan call must get the value Validate returned. It rewrites a: x to a: zz.
+type onceKind struct{}
+
+var onceLog struct {
+	validated []*onceParams
+	planned   []any
+}
+
+type onceParams struct{ marker int }
+
+func (onceKind) ID() string { return "test_once" }
+
+func (onceKind) Validate(params Params) (any, error) {
+	parsed := &onceParams{marker: len(onceLog.validated)}
+	onceLog.validated = append(onceLog.validated, parsed)
+	return parsed, nil
+}
+
+func (onceKind) Plan(doc intake.Document, src []byte, parsed any) ([]Edit, error) {
+	onceLog.planned = append(onceLog.planned, parsed)
+	if doc.Value["a"] != "x" {
+		return nil, nil
+	}
+	span, err := Locate(src, doc.Source.Document, Path{Key("a")}, PartValue)
+	if err != nil {
+		return nil, err
+	}
+	return []Edit{span.Edit(doc.Source.Display, "zz")}, nil
 }

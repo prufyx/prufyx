@@ -56,9 +56,44 @@ const (
 	ReasonUnsafeFile Reason = "UNSAFE_FILE"
 	// ReasonOutsideRoots: the file is not inside a declared root.
 	ReasonOutsideRoots Reason = "OUTSIDE_ROOTS"
-	// ReasonWriteFailed: the file could not be written; it is unchanged.
+	// ReasonWriteFailed: the file could not be written; it is unchanged. When
+	// the file was replaced but the change could not be made durable, the
+	// result also says it was written.
 	ReasonWriteFailed Reason = "WRITE_FAILED"
+	// ReasonDescriptorLimit: the process ran out of file descriptors; the file
+	// is unchanged and can be retried alone or in a smaller batch.
+	ReasonDescriptorLimit Reason = "DESCRIPTOR_LIMIT"
 )
+
+// reasons is the closed vocabulary.
+var reasons = map[Reason]bool{
+	ReasonUnsupportedYAML: true, ReasonUnsupportedEncoding: true, ReasonTemplated: true, ReasonSecretDocument: true,
+	ReasonPathNotFound: true, ReasonBlockScalar: true, ReasonMultiLineScalar: true, ReasonSpanNotIsolated: true,
+	ReasonInvalidEdit: true, ReasonConflictingEdits: true, ReasonDecodeMismatch: true, ReasonNotIdempotent: true,
+	ReasonUnknownKind: true, ReasonInvalidParams: true, ReasonKindRefused: true, ReasonLimit: true,
+	ReasonFileChanged: true, ReasonUnsafeFile: true, ReasonOutsideRoots: true, ReasonWriteFailed: true,
+	ReasonDescriptorLimit: true,
+}
+
+// kindError turns an error returned by a kind into a refusal that is safe to
+// show: the reason must be in the closed list and the detail a fixed
+// printable-ASCII string within the bound; anything else is KIND_REFUSED.
+func kindError(err error) *Refusal {
+	var refusal *Refusal
+	if errors.As(err, &refusal) && refusal != nil && reasons[refusal.Reason] && len(refusal.Detail) <= maxDetail && printableASCII(refusal.Detail) {
+		return &Refusal{Reason: refusal.Reason, Detail: refusal.Detail}
+	}
+	return refuse(ReasonKindRefused, "the fix kind declined to plan an edit")
+}
+
+func printableASCII(text string) bool {
+	for i := 0; i < len(text); i++ {
+		if text[i] < 0x20 || text[i] > 0x7e {
+			return false
+		}
+	}
+	return true
+}
 
 // maxDetail bounds the explanation of a refusal.
 const maxDetail = 256

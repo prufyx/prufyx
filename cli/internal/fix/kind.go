@@ -3,17 +3,29 @@
 package fix
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/prufyx/prufyx/cli/internal/intake"
 )
 
-// Params are the parameters of one fix, as JSON. A kind decodes and bounds
-// them itself in Validate.
+// Params are the parameters of one fix, as JSON. They are at most
+// MaxParamsBytes long, valid JSON without duplicate object keys, and are
+// parsed once: Validate decodes and bounds them and returns the value that
+// Plan then receives.
 type Params = json.RawMessage
+
+const (
+	// MaxParamsBytes bounds the parameters of one fix.
+	MaxParamsBytes = 64 << 10
+	// maxParamsDepth bounds the nesting of the parameters.
+	maxParamsDepth = 32
+)
 
 // Edit replaces the bytes [StartByte, EndByte) of File with Replacement.
 // File is the display name the document was decoded under.
@@ -26,14 +38,85 @@ type Edit struct {
 
 // Kind is one compiled fix kind.
 //
+// Validate decodes and bounds the parameters once per request and returns the
+// parsed value (any type, nil allowed). Plan receives exactly that value, so
+// the parameters that were validated are the parameters that are applied; it
+// must treat the value as read-only.
+//
 // Plan is called once per mapping document of a file. doc carries the decoded
-// document, src the raw bytes of the whole file. A kind returns no edits when
-// the document needs no change; it locates its targets with Locator. It must
-// be idempotent: planning on its own output returns no edits.
+// document, src a private copy of the raw bytes of the whole file (a kind
+// that writes into it is refused). A kind returns no edits when the document
+// needs no change; it locates its targets with Locator. It must be
+// idempotent: planning on its own output returns no edits.
+//
+// An error returned from Plan is passed on only when it is a *Refusal with a
+// reason from the closed list and a Detail that is a fixed printable-ASCII
+// string of at most 256 bytes; Detail must never carry file content or
+// parameter values. Any other error becomes KIND_REFUSED.
 type Kind interface {
 	ID() string
-	Validate(params Params) error
-	Plan(doc intake.Document, src []byte, params Params) ([]Edit, error)
+	Validate(params Params) (parsed any, err error)
+	Plan(doc intake.Document, src []byte, parsed any) ([]Edit, error)
+}
+
+// checkParams bounds and pre-validates parameters before a kind sees them:
+// size, valid JSON, no duplicate keys (also when compared without case) and a
+// bounded depth. Empty parameters are allowed.
+func checkParams(params Params) *Refusal {
+	if len(params) == 0 {
+		return nil
+	}
+	if len(params) > MaxParamsBytes {
+		return refuse(ReasonLimit, "the fix parameters are larger than the limit")
+	}
+	if !json.Valid(params) {
+		return refuse(ReasonInvalidParams, "the fix parameters are not valid JSON")
+	}
+	type frame struct {
+		object    bool
+		expectKey bool
+		keys      map[string]bool
+	}
+	var stack []frame
+	valueDone := func() {
+		if n := len(stack); n > 0 && stack[n-1].object {
+			stack[n-1].expectKey = true
+		}
+	}
+	decoder := json.NewDecoder(bytes.NewReader(params))
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return refuse(ReasonInvalidParams, "the fix parameters are not valid JSON")
+		}
+		if delim, ok := token.(json.Delim); ok {
+			switch delim {
+			case '{', '[':
+				if len(stack) >= maxParamsDepth {
+					return refuse(ReasonInvalidParams, "the fix parameters are nested too deeply")
+				}
+				stack = append(stack, frame{object: delim == '{', expectKey: delim == '{', keys: map[string]bool{}})
+			default:
+				stack = stack[:len(stack)-1]
+				valueDone()
+			}
+			continue
+		}
+		if n := len(stack); n > 0 && stack[n-1].object && stack[n-1].expectKey {
+			key, _ := token.(string)
+			folded := strings.ToLower(key)
+			if stack[n-1].keys[folded] {
+				return refuse(ReasonInvalidParams, "the fix parameters repeat an object key")
+			}
+			stack[n-1].keys[folded] = true
+			stack[n-1].expectKey = false
+			continue
+		}
+		valueDone()
+	}
 }
 
 var registry = struct {

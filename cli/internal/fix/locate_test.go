@@ -126,6 +126,7 @@ func TestLocateSpans(t *testing.T) {
 // must decode to the original values with only the target changed.
 func assertSentinel(t testing.TB, src []byte, doc int, p Path, part Part, span Span) {
 	t.Helper()
+	assertSpanShape(t, src, span)
 	file, r := parseFile(src)
 	if r != nil {
 		t.Fatalf("parse: %v", r)

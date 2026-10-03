@@ -164,19 +164,24 @@ func (f *parsedFile) offset(line, column int) (int, bool) {
 	return at, true
 }
 
-// holdsSecret reports a Secret, a SecretList, or any list with a Secret item.
+// holdsSecret reports whether any mapping at any depth, in any position (a
+// root sequence, a list item, a Template object, a custom resource), has
+// kind Secret or SecretList. Such a file is refused whole, because the
+// context lines of a diff could print its bytes.
 func holdsSecret(value any) bool {
-	object, ok := value.(map[string]any)
-	if !ok {
-		return false
-	}
-	if kind, _ := object["kind"].(string); kind == "Secret" || kind == "SecretList" {
-		return true
-	}
-	items, _ := object["items"].([]any)
-	for _, item := range items {
-		if entry, ok := item.(map[string]any); ok {
-			if kind, _ := entry["kind"].(string); kind == "Secret" {
+	switch typed := value.(type) {
+	case map[string]any:
+		if kind, _ := typed["kind"].(string); kind == "Secret" || kind == "SecretList" {
+			return true
+		}
+		for _, child := range typed {
+			if holdsSecret(child) {
+				return true
+			}
+		}
+	case []any:
+		for _, child := range typed {
+			if holdsSecret(child) {
 				return true
 			}
 		}

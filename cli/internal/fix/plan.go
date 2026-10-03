@@ -3,7 +3,7 @@
 package fix
 
 import (
-	"errors"
+	"bytes"
 	"reflect"
 	"sort"
 	"strings"
@@ -55,6 +55,39 @@ type FilePlan struct {
 	Diff string
 }
 
+// boundRequest is a request whose kind was found and whose parameters were
+// bounded and validated once.
+type boundRequest struct {
+	request Request
+	kind    Kind
+	parsed  any
+}
+
+// bind looks up the kind of every request and validates its parameters once.
+// The parsed value is what the kind's Plan receives, at planning and at the
+// idempotence re-plan alike.
+func bind(requests []Request) ([]boundRequest, *Refusal) {
+	if len(requests) > MaxRequests {
+		return nil, refuse(ReasonLimit, "too many fix requests for one file")
+	}
+	bound := make([]boundRequest, len(requests))
+	for i, request := range requests {
+		kind, ok := Lookup(request.Kind)
+		if !ok {
+			return nil, refuse(ReasonUnknownKind, "no compiled fix kind has the requested id")
+		}
+		if r := checkParams(request.Params); r != nil {
+			return nil, r
+		}
+		parsed, err := kind.Validate(bytes.Clone(request.Params))
+		if err != nil {
+			return nil, refuse(ReasonInvalidParams, "the fix parameters do not validate")
+		}
+		bound[i] = boundRequest{request: request, kind: kind, parsed: parsed}
+	}
+	return bound, nil
+}
+
 // Plan asks every requested kind for its edits on src, validates them and
 // proves the result: the edited bytes must decode to the original values
 // with exactly the targeted substitutions, and re-planning on them must
@@ -63,6 +96,7 @@ func Plan(display string, src []byte, requests []Request, opts Options) (FilePla
 	if r := checkDisplay(display); r != nil {
 		return FilePlan{}, r
 	}
+	src = bytes.Clone(src)
 	file, r := parseFile(src)
 	if r != nil {
 		return FilePlan{}, r
@@ -70,12 +104,16 @@ func Plan(display string, src []byte, requests []Request, opts Options) (FilePla
 	if file.hasSecret() {
 		return FilePlan{}, refuse(ReasonSecretDocument, "the file holds a Secret; files with Secrets are never edited")
 	}
-	digest := digestOf(src)
-	edits, r := collect(file, display, digest, requests)
+	bound, r := bind(requests)
 	if r != nil {
 		return FilePlan{}, r
 	}
-	edits, _, r = verify(file, display, edits, requests, opts)
+	digest := digestOf(src)
+	edits, r := collect(file, display, digest, bound)
+	if r != nil {
+		return FilePlan{}, r
+	}
+	edits, _, r = verify(file, display, edits, bound, opts)
 	if r != nil {
 		return FilePlan{}, r
 	}
@@ -91,27 +129,63 @@ func Plan(display string, src []byte, requests []Request, opts Options) (FilePla
 }
 
 // ApplyInMemory applies a plan to src and returns the new bytes without
-// touching any file. src must have the plan's digest; every check of Plan is
-// repeated, so a plan that was altered after planning is still refused.
+// touching any file. src must have the plan's digest. The plan is not
+// trusted: the requested kinds are run again on src and must produce
+// exactly the plan's edits and diff, so an altered plan is refused.
 func ApplyInMemory(src []byte, plan FilePlan, opts Options) ([]byte, error) {
+	after, _, err := applyPlan(src, plan, opts)
+	return after, err
+}
+
+// applyPlan re-derives the edits of a plan from its requests, requires them
+// to equal the plan's, and returns the new bytes together with the diff
+// computed from the edits that were actually applied.
+func applyPlan(src []byte, plan FilePlan, opts Options) ([]byte, string, error) {
 	if r := checkDisplay(plan.Display); r != nil {
-		return nil, r
+		return nil, "", r
 	}
 	if digestOf(src) != plan.Digest {
-		return nil, refuse(ReasonFileChanged, "the bytes differ from the bytes the fix was planned on")
+		return nil, "", refuse(ReasonFileChanged, "the bytes differ from the bytes the fix was planned on")
 	}
+	src = bytes.Clone(src)
 	file, r := parseFile(src)
 	if r != nil {
-		return nil, r
+		return nil, "", r
 	}
 	if file.hasSecret() {
-		return nil, refuse(ReasonSecretDocument, "the file holds a Secret; files with Secrets are never edited")
+		return nil, "", refuse(ReasonSecretDocument, "the file holds a Secret; files with Secrets are never edited")
 	}
-	_, after, r := verify(file, plan.Display, plan.Edits, plan.Requests, opts)
+	bound, r := bind(plan.Requests)
 	if r != nil {
-		return nil, r
+		return nil, "", r
 	}
-	return after, nil
+	edits, r := collect(file, plan.Display, plan.Digest, bound)
+	if r != nil {
+		return nil, "", r
+	}
+	applied, after, r := verify(file, plan.Display, edits, bound, opts)
+	if r != nil {
+		return nil, "", r
+	}
+	if len(applied) != len(plan.Edits) {
+		return nil, "", refuse(ReasonInvalidEdit, "the plan's edits are not the edits its requests produce")
+	}
+	for i := range applied {
+		if applied[i] != plan.Edits[i] {
+			return nil, "", refuse(ReasonInvalidEdit, "the plan's edits are not the edits its requests produce")
+		}
+	}
+	diff := ""
+	if len(applied) > 0 {
+		var err error
+		if diff, err = UnifiedDiff(plan.Display, src, applied); err != nil {
+			return nil, "", err
+		}
+	}
+	if diff != plan.Diff {
+		return nil, "", refuse(ReasonInvalidEdit, "the plan's diff is not the diff of its edits")
+	}
+	return after, diff, nil
 }
 
 func checkDisplay(display string) *Refusal {
@@ -126,25 +200,18 @@ func checkDisplay(display string) *Refusal {
 	return nil
 }
 
-// collect runs the requested kinds over the selected mapping documents.
-func collect(file *parsedFile, display, digest string, requests []Request) ([]Edit, *Refusal) {
-	if len(requests) > MaxRequests {
-		return nil, refuse(ReasonLimit, "too many fix requests for one file")
-	}
+// collect runs the requested kinds over the selected mapping documents. The
+// kinds get one private copy of the source; a kind that changes it is
+// refused.
+func collect(file *parsedFile, display, digest string, bound []boundRequest) ([]Edit, *Refusal) {
 	var edits []Edit
-	for _, request := range requests {
-		kind, ok := Lookup(request.Kind)
-		if !ok {
-			return nil, refuse(ReasonUnknownKind, "no compiled fix kind has the requested id")
-		}
-		if err := kind.Validate(request.Params); err != nil {
-			return nil, refuse(ReasonInvalidParams, "the fix parameters do not validate")
-		}
-		indexes := request.Documents
+	scratch := bytes.Clone(file.src)
+	for _, bound := range bound {
+		indexes := bound.request.Documents
 		if indexes == nil {
 			indexes = make([]int, len(file.docs))
-			for i := range indexes {
-				indexes[i] = i
+			for j := range indexes {
+				indexes[j] = j
 			}
 		}
 		for _, index := range indexes {
@@ -155,13 +222,12 @@ func collect(file *parsedFile, display, digest string, requests []Request) ([]Ed
 			if !ok {
 				continue
 			}
-			planned, err := kind.Plan(documentFor(display, digest, index, object), file.src, request.Params)
+			planned, err := bound.kind.Plan(documentFor(display, digest, index, object), scratch, bound.parsed)
+			if !bytes.Equal(scratch, file.src) {
+				return nil, refuse(ReasonKindRefused, "the fix kind modified the source bytes it was given")
+			}
 			if err != nil {
-				var refusal *Refusal
-				if errors.As(err, &refusal) {
-					return nil, refusal
-				}
-				return nil, refuse(ReasonKindRefused, "the fix kind declined to plan an edit")
+				return nil, kindError(err)
 			}
 			edits = append(edits, planned...)
 			if len(edits) > MaxEditsPerFile {
@@ -199,7 +265,7 @@ type target struct {
 // verify validates the edits, applies them in memory and proves the result.
 // It returns the normalised edits (sorted, without exact duplicates and
 // without edits that change nothing) and the new bytes.
-func verify(file *parsedFile, display string, edits []Edit, requests []Request, opts Options) ([]Edit, []byte, *Refusal) {
+func verify(file *parsedFile, display string, edits []Edit, bound []boundRequest, opts Options) ([]Edit, []byte, *Refusal) {
 	if len(edits) > MaxEditsPerFile {
 		return nil, nil, refuse(ReasonLimit, "too many edits for one file")
 	}
@@ -280,16 +346,11 @@ func verify(file *parsedFile, display string, edits []Edit, requests []Request, 
 	if edited.hasSecret() {
 		return nil, nil, refuse(ReasonSecretDocument, "the edited file would hold a Secret")
 	}
-	if len(edited.docs) != len(expected) {
-		return nil, nil, refuse(ReasonDecodeMismatch, "the edited file has a different number of documents")
-	}
-	for i, doc := range edited.docs {
-		if !reflect.DeepEqual(doc.value, expected[i]) {
-			return nil, nil, refuse(ReasonDecodeMismatch, "the edited file changes more than the targeted values")
-		}
+	if r := sameDocuments(edited, expected); r != nil {
+		return nil, nil, r
 	}
 	if !opts.SkipIdempotenceCheck {
-		again, r := collect(edited, display, digestOf(after), requests)
+		again, r := collect(edited, display, digestOf(after), bound)
 		if r != nil {
 			return nil, nil, refuse(ReasonNotIdempotent, "planning the fix again on its output was refused")
 		}
@@ -301,6 +362,20 @@ func verify(file *parsedFile, display string, edits []Edit, requests []Request, 
 		}
 	}
 	return result, after, nil
+}
+
+// sameDocuments requires the edited file to hold exactly the expected
+// documents.
+func sameDocuments(edited *parsedFile, expected []any) *Refusal {
+	if len(edited.docs) != len(expected) {
+		return refuse(ReasonDecodeMismatch, "the edited file has a different number of documents")
+	}
+	for i, doc := range edited.docs {
+		if !reflect.DeepEqual(doc.value, expected[i]) {
+			return refuse(ReasonDecodeMismatch, "the edited file changes more than the targeted values")
+		}
+	}
+	return nil
 }
 
 // checkReplacement accepts a single-line UTF-8 token without control
@@ -315,10 +390,8 @@ func checkReplacement(replacement string) *Refusal {
 	if !utf8.ValidString(replacement) {
 		return refuse(ReasonInvalidEdit, "a replacement is not valid UTF-8")
 	}
-	for _, r := range replacement {
-		if r < 0x20 && r != '\t' || r == 0x7f || r == 0x85 || r == 0x2028 || r == 0x2029 || r == 0xfeff {
-			return refuse(ReasonInvalidEdit, "a replacement contains a line break or control character")
-		}
+	if hasControl(replacement) {
+		return refuse(ReasonInvalidEdit, "a replacement contains a line break or control character")
 	}
 	if strings.HasPrefix(replacement, "---") || strings.HasPrefix(replacement, "...") {
 		return refuse(ReasonInvalidEdit, "a replacement starts with a document marker")
@@ -327,6 +400,17 @@ func checkReplacement(replacement string) *Refusal {
 		return refuse(ReasonInvalidEdit, "a replacement contains template syntax")
 	}
 	return nil
+}
+
+// hasControl reports a control character, a line or paragraph separator or a
+// byte order mark. Tab counts as a control character too.
+func hasControl(text string) bool {
+	for _, r := range text {
+		if r < 0x20 || r == 0x7f || r == 0x85 || r == 0x2028 || r == 0x2029 || r == 0xfeff {
+			return true
+		}
+	}
+	return false
 }
 
 // replacementValue decodes a replacement on its own. It must be exactly one
@@ -343,6 +427,19 @@ func replacementValue(replacement string, part Part) (any, *Refusal) {
 	value, err := strictScalar(alone)
 	if err != nil {
 		return nil, refuse(ReasonInvalidEdit, "a replacement is outside the strict YAML subset")
+	}
+	// Escapes in a quoted token can produce characters the bytes do not
+	// show, so the decoded text is checked as well.
+	if text, isString := value.(string); isString {
+		if !utf8.ValidString(text) || hasControl(text) {
+			return nil, refuse(ReasonInvalidEdit, "a replacement decodes to text with a control character")
+		}
+		if strings.Contains(text, "{{") || strings.Contains(text, "${") {
+			return nil, refuse(ReasonInvalidEdit, "a replacement decodes to text with template syntax")
+		}
+	}
+	if alone.Style&(yaml.SingleQuotedStyle|yaml.DoubleQuotedStyle) == 0 && ambiguousPlain(alone) {
+		return nil, refuse(ReasonInvalidEdit, "a plain replacement reads as a boolean, number, null or date in YAML 1.1; quote it")
 	}
 	if part == PartKey {
 		key, isString := value.(string)

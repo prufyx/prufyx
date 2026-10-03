@@ -22,8 +22,8 @@ func TestUnifiedDiffGolden(t *testing.T) {
 	}{
 		{name: "separate-hunks", src: long, requests: []Request{setRequest("value", "batch/v1beta1", "batch/v1", "apiVersion")}},
 		{name: "merged-hunk", src: long, requests: []Request{
-			setRequest("value", "x", "y", "metadata", "labels", "one"),
-			setRequest("value", "x", "y", "metadata", "labels", "seven"),
+			setRequest("value", "x", "yy", "metadata", "labels", "one"),
+			setRequest("value", "x", "yy", "metadata", "labels", "seven"),
 			setRequest("key", "", "Two", "metadata", "labels", "two"),
 		}},
 		{name: "two-edits-one-line", src: long, requests: []Request{
