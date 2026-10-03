@@ -1,0 +1,12 @@
+# Trust material: keys and trust roots the knowledge gate reads from the
+# base branch. Changes need the owner's review and never merge
+# automatically.
+/cli/knowledge/trust/ @airstand
+/cli/knowledge/reattestation/trust-root.json @airstand
+**/trust-root*.json @airstand
+**/*approval-keys*.json @airstand
+
+# The gate itself and its workflow.
+/.github/workflows/knowledge-gate.yml @airstand
+/cli/internal/maintainer/knowledgegate/ @airstand
+/.github/CODEOWNERS @airstand
