@@ -291,6 +291,29 @@ func TestNoticeIntegrity(t *testing.T) {
 			t.Fatalf("%s: forged report accepted", name)
 		}
 	}
+	// Without a scope block only the claim bindings can refuse a forgery.
+	unscoped, err := Evaluate(scopeInput(t, registry, false, componentInput{Component: scopeComponentA, From: "1.0.0", To: "2.0.0", Fact: declaredFact(scopeFactA, false)}), rules, testNow(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := MarshalReport(unscoped); err != nil {
+		t.Fatal(err)
+	}
+	for name, forge := range map[string]func(*Report){
+		"unscoped NOTICE from another operator": func(r *Report) { r.Claims[0].Operator = "forbid_target_version" },
+		"unscoped NOTICE on a verdict rule": func(r *Report) {
+			r.Claims[1].Status, r.Claims[1].ReasonCode = StatusNotice, ReasonOneWayTransition
+		},
+		"unscoped notice under the set contract": func(r *Report) { r.EngineContractDigest = EngineContractDigestSet() },
+	} {
+		raw, _ := json.Marshal(unscoped)
+		var forged Report
+		_ = json.Unmarshal(raw, &forged)
+		forge(&forged)
+		if _, err := MarshalReport(reseal(forged)); err == nil {
+			t.Fatalf("%s: forged report accepted", name)
+		}
+	}
 	// The unforged clone passes, so each refusal above is the forgery's.
 	if _, err := MarshalReport(reseal(clone())); err != nil {
 		t.Fatalf("clone refused: %v", err)
