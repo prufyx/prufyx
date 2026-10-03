@@ -4,8 +4,7 @@
 the published knowledge — the rule packs, their corpus attestations, the
 generated support inventory and the reattestation records — before it can
 merge. The `Knowledge gate` workflow (`.github/workflows/knowledge-gate.yml`)
-runs it on every pull request to `main`, for the merge queue, and once a day on
-`main`.
+runs it on every pull request to `main` and once a day on `main`.
 
 The gate compares two trees of the repository: the **base** the change is
 proposed against and the proposed **head**. It is built from the base and only
@@ -39,7 +38,8 @@ the transition, a range-matched `BLOCKED` can become a scope-complete `PASS`.
 Removing a rule is never admitted; withdraw it instead.
 
 The comparison is on canonical JSON (keys sorted), so re-formatting a pack
-file is not a change. Each entry is compared as the engine reads it: the gate
+file is not a change. The list of changed files compares content and the
+executable bit, so a mode-only change is a change. Each entry is compared as the engine reads it: the gate
 decodes the pack with the engine's own types and compares the re-encoded
 entries. A pack in which any object holds a repeated member, or two members
 whose names differ only in letter case (`"rule"` and `"Rule"`), is refused
@@ -85,6 +85,7 @@ Run on every pack of the head, whatever the change:
 | `block-only/<pack>` | an active rule has basis `consensus` (see above) |
 | `reattestation/<pack>` | the statement chain changed and the appended statement does not verify |
 | `tree` | the head holds a symbolic link or a special file under `cli/` |
+| `file-modes` | a knowledge file the automation may change has, or changes, an executable bit |
 | `trust-material` | the change touches trust material (see below) and is not a person's change matching the pinned digest |
 | `knowledge-records` | an approval file, worklist or review record changed without the rule change or statement it belongs to (see below) |
 | `limits` | the change holds more loosening changes than the cap (default 200) |
@@ -339,10 +340,10 @@ stopped. When a statement chain changed it first runs `evidence repin` itself
 and passes the result as `--rerun-worklist`. The token is read-only and the
 workflow uses no secrets. On the daily run it adds `--rederive-all`.
 
-For the merge queue (`merge_group`) it checks the queued commit against the
-queue's base. That run uses the workflow definition of the queued commit, so
-changes to the workflow and to the gate need the owner's review (`CODEOWNERS`)
-and are never eligible for automatic merging.
+It does not run for a merge queue: a `merge_group` run would use the workflow
+definition of the queued commit. Pull requests must instead be up to date with
+`main` before they merge (branch protection "require branches to be up to
+date"), so the merged tree is the tree the gate checked.
 
 Repository variables: `REATTEST_TRUST_ROOT_DIGEST` (the pinned trust root
 digest; unset means no statement is accepted), `WEB_APPROVAL_KEYS_DIGEST` (the

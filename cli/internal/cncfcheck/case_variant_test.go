@@ -107,3 +107,16 @@ func TestAdmittedPackView(t *testing.T) {
 		t.Fatalf("AdmittedEntry is not stable: %v", err)
 	}
 }
+
+// The external-bundle scanner folds member names exactly as struct
+// decoding matches them: "ſtate" (long s) is "state".
+func TestExternalScanFoldsLikeStructDecoding(t *testing.T) {
+	for _, doc := range []string{`{"state":"a","State":"b"}`, "{\"state\":\"a\",\"ſtate\":\"b\"}", "{\"kind\":\"a\",\"Kind\":\"b\"}"} {
+		if scanExternalJSON([]byte(doc)) == nil {
+			t.Fatalf("%s accepted", doc)
+		}
+	}
+	if err := scanExternalJSON([]byte(`{"state":"a","stats":"b"}`)); err != nil {
+		t.Fatalf("distinct names refused: %v", err)
+	}
+}

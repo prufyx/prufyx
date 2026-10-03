@@ -8,11 +8,11 @@ import (
 	"io"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/strictjson"
 )
 
 const (
@@ -517,7 +517,9 @@ func consumeExternalJSON(decoder *json.Decoder, depth int, allowNull bool) error
 				if !ok || name == "" || len(name) > maxExternalStringBytes {
 					return ErrInvalid
 				}
-				folded := strings.ToLower(name)
+				// The same fold as Go's struct decoding (and every other strict
+				// reader): Unicode simple case folding, not only lower-casing.
+				folded := strictjson.FoldKey(name)
 				if seen[folded] {
 					return ErrInvalid
 				}

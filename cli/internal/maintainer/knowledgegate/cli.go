@@ -377,7 +377,10 @@ func printChecks(w io.Writer, r *Report) {
 }
 
 func mdEscape(s string) string {
-	return strings.NewReplacer("|", "\\|", "<", "&lt;", ">", "&gt;", "`", "'", "\n", " ", "\r", " ").Replace(s)
+	// Pipes, HTML, code spans, line breaks, and link or image syntax from
+	// the proposed change are neutralised.
+	return strings.NewReplacer("&", "&amp;", "|", "\\|", "<", "&lt;", ">", "&gt;", "`", "'", "\n", " ", "\r", " ",
+		"[", "\\[", "]", "\\]", "(", "\\(", ")", "\\)", "!", "\\!").Replace(s)
 }
 
 func writeSummary(w io.Writer, r *Report) {
@@ -390,7 +393,7 @@ func writeSummary(w io.Writer, r *Report) {
 			if !c.OK {
 				detail = c.Detail
 			}
-			fmt.Fprintf(w, "| %s | %s | %s | `%s` | %s | %s | %s |\n", strings.TrimSpace(mark(c.OK)), c.Class, c.Pack, mdEscape(c.subject()), strings.Join(c.Kinds, ", "), mdEscape(c.Basis), mdEscape(detail))
+			fmt.Fprintf(w, "| %s | %s | %s | %s | %s | %s | %s |\n", strings.TrimSpace(mark(c.OK)), c.Class, c.Pack, mdEscape(c.subject()), strings.Join(c.Kinds, ", "), mdEscape(c.Basis), mdEscape(detail))
 		}
 		fmt.Fprintln(w)
 	}
