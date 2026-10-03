@@ -223,6 +223,13 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	if r.ChangedPaths, err = ChangedPaths(opts.Base, opts.Head); err != nil {
 		return nil, err
 	}
+	// Nothing under cli/ may be a link or a special file: every reader of
+	// the head refuses them, and this states it once for the whole tree.
+	special, err := opts.Head.SpecialFiles(cliDir)
+	if err != nil {
+		return nil, err
+	}
+	r.add("tree", len(special) == 0, "%d links or special files under %s/%s", len(special), cliDir, listDetail(special))
 
 	// Statements appended to a chain are verified whether or not a rule
 	// change needs them: the chain is published knowledge too.

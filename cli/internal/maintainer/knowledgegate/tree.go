@@ -14,13 +14,16 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/prufyx/prufyx/cli/internal/validation"
 )
 
 // MaxFileBytes bounds every knowledge file the gate reads.
 const MaxFileBytes = 16 << 20
 
-// ErrMissing reports a file that does not exist in a tree.
-var ErrMissing = errors.New("file does not exist")
+// ErrMissing reports a file that does not exist in a tree. It matches
+// fs.ErrNotExist as well.
+var ErrMissing = fmt.Errorf("file does not exist: %w", fs.ErrNotExist)
 
 // Tree is one repository checkout, read-only.
 type Tree struct {
@@ -34,22 +37,21 @@ func cleanRel(rel string) (string, error) {
 	return rel, nil
 }
 
-// Read returns a regular file's bytes. Symbolic links (at the file or any
-// parent inside the tree) and files over limit are refused; a missing file
-// is ErrMissing.
+// Read returns a regular file's bytes. Every path component is opened
+// relative to its parent without following symbolic links, the file is
+// opened without blocking (a FIFO or device is refused, never read), and
+// at most limit bytes are read. A missing file is ErrMissing.
 func (t Tree) Read(rel string, limit int64) ([]byte, error) {
 	rel, err := cleanRel(rel)
 	if err != nil {
 		return nil, err
 	}
-	if err := t.noLinks(rel); err != nil {
+	f, err := t.openFile(rel)
+	if err != nil {
 		return nil, err
 	}
-	full := filepath.Join(t.Root, filepath.FromSlash(rel))
-	info, err := os.Lstat(full)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("%w: %s", ErrMissing, rel)
-	}
+	defer f.Close()
+	info, err := f.Stat()
 	if err != nil {
 		return nil, err
 	}
@@ -59,11 +61,6 @@ func (t Tree) Read(rel string, limit int64) ([]byte, error) {
 	if info.Size() > limit {
 		return nil, fmt.Errorf("%s exceeds %d bytes", rel, limit)
 	}
-	f, err := os.Open(full)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
 	raw, err := io.ReadAll(io.LimitReader(f, limit+1))
 	if err != nil {
 		return nil, err
@@ -74,25 +71,64 @@ func (t Tree) Read(rel string, limit int64) ([]byte, error) {
 	return raw, nil
 }
 
-// noLinks refuses a path any of whose parent directories inside the tree is
-// a symbolic link, so a read can never leave the tree.
-func (t Tree) noLinks(rel string) error {
-	parts := strings.Split(rel, "/")
-	cur := t.Root
-	for _, p := range parts[:len(parts)-1] {
-		cur = filepath.Join(cur, p)
-		info, err := os.Lstat(cur)
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		if info.Mode()&fs.ModeSymlink != 0 || !info.IsDir() {
-			return fmt.Errorf("%s: parent %s is not a plain directory", rel, cur)
-		}
+// openDir opens the tree directory rel ("" for the root) component by
+// component, never following a symbolic link.
+func (t Tree) openDir(rel string) (*os.File, error) {
+	dir, err := os.Open(t.Root)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	if rel == "" {
+		return dir, nil
+	}
+	for _, part := range strings.Split(rel, "/") {
+		kind, err := validation.StatEntry(dir, part)
+		if errors.Is(err, fs.ErrNotExist) {
+			dir.Close()
+			return nil, fmt.Errorf("%w: %s", ErrMissing, rel)
+		}
+		if err != nil || kind != validation.EntryDirectory {
+			dir.Close()
+			return nil, fmt.Errorf("%s: parent %s is not a plain directory", rel, part)
+		}
+		next, err := validation.OpenEntryDirectory(dir, part)
+		dir.Close()
+		if err != nil {
+			return nil, fmt.Errorf("%s: parent %s is not a plain directory: %v", rel, part, err)
+		}
+		dir = next
+	}
+	return dir, nil
+}
+
+func (t Tree) openFile(rel string) (*os.File, error) {
+	parent, name := "", rel
+	if i := strings.LastIndex(rel, "/"); i >= 0 {
+		parent, name = rel[:i], rel[i+1:]
+	}
+	dir, err := t.openDir(parent)
+	if err != nil {
+		if errors.Is(err, ErrMissing) {
+			return nil, fmt.Errorf("%w: %s", ErrMissing, rel)
+		}
+		return nil, err
+	}
+	defer dir.Close()
+	kind, err := validation.StatEntry(dir, name)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("%w: %s", ErrMissing, rel)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if kind != validation.EntryRegular {
+		return nil, fmt.Errorf("%s is not a regular file", rel)
+	}
+	f, err := validation.OpenEntryFile(dir, name)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %v", rel, err)
+	}
+	return f, nil
 }
 
 // ReadOptional is Read, returning nil and no error for a missing file.
@@ -122,43 +158,76 @@ func (t Tree) Dir(rel string, limit int64, maxEntries int) (map[string][]byte, e
 	if err != nil {
 		return nil, err
 	}
-	if err := t.noLinks(rel + "/x"); err != nil {
-		return nil, err
-	}
-	full := filepath.Join(t.Root, filepath.FromSlash(rel))
-	info, err := os.Lstat(full)
-	if errors.Is(err, fs.ErrNotExist) {
+	dir, err := t.openDir(rel)
+	if errors.Is(err, ErrMissing) {
 		return map[string][]byte{}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	if !info.IsDir() {
-		return nil, fmt.Errorf("%s is not a directory", rel)
-	}
-	items, err := os.ReadDir(full)
-	if err != nil {
+	names, err := dir.Readdirnames(maxEntries + 1)
+	dir.Close()
+	if err != nil && !errors.Is(err, io.EOF) {
 		return nil, err
 	}
-	if len(items) > maxEntries {
+	if len(names) > maxEntries {
 		return nil, fmt.Errorf("%s holds more than %d entries", rel, maxEntries)
 	}
 	out := map[string][]byte{}
-	for _, item := range items {
-		if !item.Type().IsRegular() {
-			return nil, fmt.Errorf("%s/%s is not a regular file", rel, item.Name())
-		}
-		raw, err := t.Read(rel+"/"+item.Name(), limit)
+	for _, name := range names {
+		raw, err := t.Read(rel+"/"+name, limit)
 		if err != nil {
 			return nil, err
 		}
-		out[item.Name()] = raw
+		out[name] = raw
 	}
 	return out, nil
 }
 
+// readUnder returns a reader of paths relative to the tree directory dir.
+func (t Tree) readUnder(dir string) func(rel string) ([]byte, error) {
+	return func(rel string) ([]byte, error) { return t.Read(dir+"/"+rel, MaxFileBytes) }
+}
+
+// readPath reads a file named by Root joined with its tree path, the form
+// in which the support inventory configuration names its inputs.
+func (t Tree) readPath(full string, limit int64) ([]byte, error) {
+	rel, err := filepath.Rel(t.Root, full)
+	if err != nil {
+		return nil, err
+	}
+	return t.Read(filepath.ToSlash(rel), limit)
+}
+
+// SpecialFiles lists, sorted, every path below the tree directory dir that
+// is neither a regular file nor a directory: symbolic links, FIFOs,
+// devices, sockets.
+func (t Tree) SpecialFiles(dir string) ([]string, error) {
+	var out []string
+	root := filepath.Join(t.Root, filepath.FromSlash(dir))
+	if _, err := os.Lstat(root); errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && !d.Type().IsRegular() {
+			rel, err := filepath.Rel(t.Root, p)
+			if err != nil {
+				return err
+			}
+			out = append(out, filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	sort.Strings(out)
+	return out, err
+}
+
 // fileDigests maps every file below the tree root (except .git) to a digest
-// of its content; a symbolic link is recorded by its target.
+// of its content; a symbolic link is recorded by its target, any other
+// non-regular file by its type (it is never opened).
 func (t Tree) fileDigests() (map[string][32]byte, error) {
 	out := map[string][32]byte{}
 	err := filepath.WalkDir(t.Root, func(p string, d fs.DirEntry, err error) error {
@@ -187,7 +256,7 @@ func (t Tree) fileDigests() (map[string][32]byte, error) {
 			}
 			out[rel] = sha256.Sum256([]byte("link\x00" + target))
 		case d.Type().IsRegular():
-			f, err := os.Open(p)
+			f, err := validation.OpenInputRegularFile(p)
 			if err != nil {
 				return err
 			}

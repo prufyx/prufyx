@@ -41,6 +41,26 @@ type Config struct {
 	SPIFFEProfile, CloudEventsProfile, TiKVProfile     string
 	CNCFPrepareSource, SelectedSourceManifest          string
 	ProjectRules, ProjectRegistry                      string
+	// ReadFile, when set, reads every input instead of the file system:
+	// it is given the paths above and at most limit bytes are needed. A
+	// missing file must be reported with an error matching
+	// os.ErrNotExist.
+	ReadFile func(path string, limit int64) ([]byte, error)
+}
+
+// maxInputBytes bounds an inventory input read through Config.ReadFile.
+const maxInputBytes = 16 << 20
+
+func (cfg Config) readInput(path string, limit int64) ([]byte, error) {
+	if cfg.ReadFile != nil {
+		return cfg.ReadFile(path, limit)
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(io.LimitReader(f, limit+1))
 }
 
 type loaded struct {
@@ -143,10 +163,13 @@ func decodeValue(dec *json.Decoder) (any, error) {
 	return token, nil
 }
 
-func load(path string) (loaded, error) {
-	raw, err := os.ReadFile(path)
+func (cfg Config) load(path string) (loaded, error) {
+	raw, err := cfg.readInput(path, maxInputBytes)
 	if err != nil {
 		return loaded{}, fmt.Errorf("read inventory input: %w", err)
+	}
+	if len(raw) > maxInputBytes {
+		return loaded{}, invalid("inventory input exceeds the bounded size")
 	}
 	value, err := decodeStrict(raw)
 	if err != nil {
@@ -402,13 +425,8 @@ func selectedRecords(document map[string]any) ([]map[string]any, map[string]any,
 	return result, map[string]any{"collectionIndexDigest": digest, "referenceState": "reference_only", "licenseState": "license_unreviewed"}, nil
 }
 
-func loadPreparerSource(path string) ([]byte, string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, "", fmt.Errorf("read CNCF preparer dispatch: %w", err)
-	}
-	defer f.Close()
-	raw, err := io.ReadAll(io.LimitReader(f, maxCNCFPrepareSourceBytes+1))
+func (cfg Config) loadPreparerSource(path string) ([]byte, string, error) {
+	raw, err := cfg.readInput(path, maxCNCFPrepareSourceBytes)
 	if err != nil {
 		return nil, "", fmt.Errorf("read CNCF preparer dispatch: %w", err)
 	}
@@ -1243,7 +1261,7 @@ func Generate(cfg Config) ([]byte, string, error) {
 	paths := []string{cfg.Rules, cfg.Landscape, cfg.CertContract, cfg.PrometheusContract, cfg.SPIFFEProfile, cfg.CloudEventsProfile, cfg.TiKVProfile, cfg.SelectedSourceManifest, cfg.ProjectRules, cfg.ProjectRegistry}
 	inputs := make([]loaded, len(paths))
 	for i, name := range paths {
-		v, err := load(name)
+		v, err := cfg.load(name)
 		if err != nil {
 			return nil, "", err
 		}
@@ -1271,7 +1289,7 @@ func Generate(cfg Config) ([]byte, string, error) {
 		}
 		identities[slug] = identity{name, repository}
 	}
-	preparerSource, preparerDigest, err := loadPreparerSource(cfg.CNCFPrepareSource)
+	preparerSource, preparerDigest, err := cfg.loadPreparerSource(cfg.CNCFPrepareSource)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1293,7 +1311,7 @@ func Generate(cfg Config) ([]byte, string, error) {
 	// input identity or route.
 	latestPath := filepath.Join(filepath.Dir(cfg.CertContract), "source-contract-v1-latest.json")
 	latestContractDigest := ""
-	if latest, latestErr := load(latestPath); latestErr == nil {
+	if latest, latestErr := cfg.load(latestPath); latestErr == nil {
 		if err := validateLatestCertContract(latest.value); err != nil {
 			return nil, "", err
 		}

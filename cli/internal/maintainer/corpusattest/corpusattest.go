@@ -134,8 +134,21 @@ func DocumentFor(pack string) ([]byte, error) {
 // a checker built from one revision regenerate the attestation of another
 // revision's pack, with this revision's admission rules.
 func DocumentFromTree(pack, cliRoot string) ([]byte, error) {
+	return DocumentFromFiles(pack, func(rel string) ([]byte, error) {
+		return os.ReadFile(filepath.Join(cliRoot, filepath.FromSlash(rel)))
+	})
+}
+
+// MaxInputBytes bounds every input file DocumentFromFiles reads.
+const MaxInputBytes = maxPackBytes
+
+// DocumentFromFiles is DocumentFromTree with the files supplied by read,
+// which is given paths relative to the cli/ directory, with forward
+// slashes. A reader that refuses links and bounds sizes keeps a tree it
+// does not trust from leading the read anywhere else.
+func DocumentFromFiles(pack string, readFile func(rel string) ([]byte, error)) ([]byte, error) {
 	read := func(rel string) ([]byte, error) {
-		raw, err := os.ReadFile(filepath.Join(cliRoot, filepath.FromSlash(rel)))
+		raw, err := readFile(rel)
 		if err != nil {
 			return nil, err
 		}

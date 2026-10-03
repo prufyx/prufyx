@@ -130,7 +130,7 @@ func DefaultLayout() Layout {
 				View: cncfcheck.AdmittedPackView, Entry: cncfcheck.AdmittedEntry,
 				AttestationPath: cncfAttestPath,
 				Attest: func(t Tree) ([]byte, error) {
-					return corpusattest.DocumentFromTree(corpusattest.PackCNCF, filepath.Join(t.Root, cliDir))
+					return corpusattest.DocumentFromFiles(corpusattest.PackCNCF, t.readUnder(cliDir))
 				},
 				CapabilityDigest: cncfcheck.ExternalCapabilityDigest,
 			},
@@ -150,7 +150,7 @@ func DefaultLayout() Layout {
 				View: projectcheck.AdmittedPackView, Entry: projectcheck.AdmittedEntry,
 				AttestationPath: commAttestPath,
 				Attest: func(t Tree) ([]byte, error) {
-					return corpusattest.DocumentFromTree(corpusattest.PackCommunity, filepath.Join(t.Root, cliDir))
+					return corpusattest.DocumentFromFiles(corpusattest.PackCommunity, t.readUnder(cliDir))
 				},
 				CapabilityDigest: func() (string, error) { return constraintengine.EngineContractDigest(), nil },
 			},
@@ -181,7 +181,8 @@ func DefaultLayout() Layout {
 }
 
 // supportInventoryConfig points the support inventory generator at a tree's
-// files, the same inputs the maintainer command uses by default.
+// files, the same inputs the maintainer command uses by default, read
+// through the tree's own reader.
 func supportInventoryConfig(t Tree) supportinventory.Config {
 	p := func(rel string) string { return filepath.Join(t.Root, cliDir, filepath.FromSlash(rel)) }
 	return supportinventory.Config{
@@ -196,6 +197,9 @@ func supportInventoryConfig(t Tree) supportinventory.Config {
 		ProjectRules:           p("internal/projectcheck/data/rules.json"),
 		ProjectRegistry:        p("internal/projectcheck/data/projects.json"),
 		SelectedSourceManifest: p("docs/data/selected-source-records-v1.json"),
+		// Every input is read through the tree: no links, no FIFOs or
+		// devices, bounded sizes.
+		ReadFile: t.readPath,
 	}
 }
 

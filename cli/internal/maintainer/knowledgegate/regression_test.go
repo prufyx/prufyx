@@ -302,17 +302,23 @@ func TestRegressionPackMemberChange(t *testing.T) {
 	}
 	r := runGate(t, Options{Base: base, Head: head})
 	requireFail(t, r, "member revision changed")
-	// Re-spelling a member with another letter case reads the same to the
-	// engine, so it is no change at all (and no change hides behind one).
+	// Top-level member names must be spelled exactly.
 	base2, head2 := trees(t)
 	raw, err := os.ReadFile(filepath.Join(head2.Root, cncfRulesPath))
 	if err != nil {
 		t.Fatal(err)
 	}
 	writeFile(t, filepath.Join(head2.Root, cncfRulesPath), bytes.Replace(raw, []byte(`"revision"`), []byte(`"Revision"`), 1))
+	if _, err := Classify(DefaultLayout(), base2, head2); err == nil {
+		t.Fatal("a respelt top-level member was read")
+	}
+	// Inside an entry, a member respelt with another letter case reads the
+	// same to the engine, so it is no change at all: the gate classifies
+	// what the engine reads, not the spelling.
+	writeFile(t, filepath.Join(head2.Root, cncfRulesPath), bytes.Replace(raw, []byte(`"description"`), []byte(`"Description"`), 1))
 	cls, err = Classify(DefaultLayout(), base2, head2)
 	if err != nil || len(cls.Changes) != 0 {
-		t.Fatalf("respelt member: %v %+v", err, cls.Changes)
+		t.Fatalf("respelt entry member: %v %+v", err, cls)
 	}
 }
 
