@@ -38,7 +38,7 @@ func TestPlanPathTable(t *testing.T) {
 	}
 	cases := []tc{
 		// The worked example: 1.24.17 -> 1.30.4 visits every minor line.
-		{"minor rfc example", policy(PolicySequentialMinor), "1.24.17", "1.30.4", hops(exact("1.24.17"), line("1.25"), line("1.26"), line("1.27"), line("1.28"), line("1.29"), exact("1.30.4")), ""},
+		{"minor 1.24.17 to 1.30.4", policy(PolicySequentialMinor), "1.24.17", "1.30.4", hops(exact("1.24.17"), line("1.25"), line("1.26"), line("1.27"), line("1.28"), line("1.29"), exact("1.30.4")), ""},
 		{"minor same line", policy(PolicySequentialMinor), "1.24.3", "1.24.17", hops(exact("1.24.3"), exact("1.24.17")), ""},
 		{"minor adjacent", policy(PolicySequentialMinor), "1.24.17", "1.25.0", hops(exact("1.24.17"), exact("1.25.0")), ""},
 		{"minor multi-line", policy(PolicySequentialMinor), "1.27.0", "1.29.2", hops(exact("1.27.0"), line("1.28"), exact("1.29.2")), ""},
@@ -76,6 +76,7 @@ func TestPlanPathTable(t *testing.T) {
 		{"no policy invalid", nil, "1.30.4", "", nil, GapPathNotPlannable},
 
 		{"unknown policy", policy("skip_any"), "1.24.0", "1.26.0", nil, GapPathNotPlannable},
+		{"direct policy of another component", &PathPolicy{Component: "pkg:github/cilium/cilium", Policy: PolicyDirect}, "1.24.0", "1.26.0", nil, GapPathNotPlannable},
 		{"policy of another component", &PathPolicy{Component: "pkg:github/cilium/cilium", Policy: PolicySequentialMinor}, "1.24.0", "1.26.0", nil, GapPathNotPlannable},
 		{"invalid beats downgrade", policy(PolicySequentialMinor), "1.30.x", "1.24.0", nil, GapPathNotPlannable},
 		{"leading zero patch", policy(PolicyDirect), "1.24.01", "1.25.0", nil, GapPathNotPlannable},
@@ -375,5 +376,111 @@ func TestHopCoverageAgreesWithLineAttestationFamily(t *testing.T) {
 	}
 	if agree == 0 {
 		t.Fatal("degenerate sample: no rule covered the hop")
+	}
+}
+
+// The rule an operator at 1.25.7 would hit on the hop 1.25 -> 1.26 does not
+// match at the hop's engine versions (1.25.0 -> 1.26.0), and does not cover the
+// hop, but it overlaps it: the hop must not be decided without it.
+func TestHopOverlapsAnchorInsideLine(t *testing.T) {
+	rule := constraintengine.RuleTransition{Component: k8s, From: "1.25.7", To: "1.26.0"}
+	hop := Hop{Index: 2, From: line("1.25"), To: line("1.26")}
+	from, _ := hop.From.EngineVersion()
+	to, _ := hop.To.EngineVersion()
+	if rule.Match(from, to) != constraintengine.MatchNone {
+		t.Fatal("fixture: the rule matches at the engine versions")
+	}
+	if rule.Match("1.25.7", "1.26.0") == constraintengine.MatchNone {
+		t.Fatal("fixture: the rule does not match the real stop")
+	}
+	if hop.CoveredBy(rule) {
+		t.Fatal("an anchor rule covers a line hop")
+	}
+	if !hop.Overlaps(rule) {
+		t.Fatal("a rule for 1.25.7 -> 1.26.0 does not overlap the hop 1.25 -> 1.26")
+	}
+	for _, other := range []Hop{{1, line("1.24"), line("1.25")}, {3, line("1.26"), line("1.27")}, {1, exact("1.25.6"), line("1.26")}} {
+		if other.Overlaps(rule) {
+			t.Fatalf("hop %v -> %v overlaps a rule for 1.25.7 -> 1.26.0", other.From, other.To)
+		}
+	}
+	if !(Hop{1, exact("1.25.7"), line("1.26")}).Overlaps(rule) {
+		t.Fatal("the exact start of the rule's anchor does not overlap")
+	}
+}
+
+// Overlaps is exact: it holds if and only if the engine matches some concrete
+// transition of the hop. The candidate releases per end are the end's own
+// lowest and highest release and every rule version inside it, which contain
+// a witness whenever one exists (bounds are half-open). CoveredBy implies
+// Overlaps.
+func TestHopOverlapsProperty(t *testing.T) {
+	rng := rand.New(rand.NewSource(11))
+	v := func() string {
+		return fmt.Sprintf("%d.%d.%s", 1+rng.Intn(2), 23+rng.Intn(5), []string{"0", "1", "7", "4294967295"}[rng.Intn(4)])
+	}
+	ends := func() (Endpoint, Endpoint) {
+		lines := []Endpoint{line("1.24"), line("1.25"), line("1.26"), line("2"), exact("1.24.7"), exact("1.25.0"), exact("1.26.1"), exact("2.25.0")}
+		return lines[rng.Intn(len(lines))], lines[rng.Intn(len(lines))]
+	}
+	candidates := func(e Endpoint, rule constraintengine.RuleTransition, from bool) []string {
+		if e.Exact() {
+			return []string{e.Version}
+		}
+		low, _, _ := e.span()
+		out := []string{low}
+		// The highest release below high.
+		if e.MinorLine() {
+			out = append(out, e.Line+".4294967295")
+		} else {
+			out = append(out, e.Line+".4294967295.4294967295")
+		}
+		vals := []string{rule.To}
+		if from {
+			vals = []string{rule.From}
+		}
+		if rule.Range != nil {
+			if from {
+				vals = append(vals, rule.Range.From.Gte)
+			} else {
+				vals = append(vals, rule.Range.To.Gte)
+			}
+		}
+		for _, x := range vals {
+			if e.holds(x) {
+				out = append(out, x)
+			}
+		}
+		return out
+	}
+	overlaps := 0
+	for i := 0; i < 50000; i++ {
+		rule := constraintengine.RuleTransition{Component: k8s, From: v(), To: v()}
+		if rng.Intn(4) > 0 {
+			rule.Range = &constraintengine.VersionRange{From: constraintengine.VersionBound{Gte: v(), Lt: v()}, To: constraintengine.VersionBound{Gte: v(), Lt: v()}}
+		}
+		f, to := ends()
+		hop := Hop{Index: 1, From: f, To: to}
+		witness := false
+		for _, a := range candidates(f, rule, true) {
+			for _, b := range candidates(to, rule, false) {
+				if rule.Match(a, b) != constraintengine.MatchNone {
+					witness = true
+				}
+			}
+		}
+		got := hop.Overlaps(rule)
+		if got != witness {
+			t.Fatalf("hop %v -> %v rule %s -> %s range %+v: Overlaps %v, witness %v", f, to, rule.From, rule.To, rule.Range, got, witness)
+		}
+		if hop.CoveredBy(rule) && !got {
+			t.Fatalf("hop %v -> %v covered but not overlapped", f, to)
+		}
+		if got {
+			overlaps++
+		}
+	}
+	if overlaps < 500 {
+		t.Fatalf("degenerate sample: %d overlaps", overlaps)
 	}
 }

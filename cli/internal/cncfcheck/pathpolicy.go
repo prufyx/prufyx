@@ -61,14 +61,19 @@ func CatalogSubjectComponents() ([]string, error) {
 // PathPolicyFor returns the embedded pack's upgrade-path policy record for a
 // component with its freshness at now. Status.Found is false when the pack
 // has no record for the component. Only Status.Policy may be used to plan: it
-// is nil unless the record is current, so a stale, withdrawn or
-// not-yet-reviewed record is treated exactly like no record. No record is
-// never a licence to skip lines: the planner then plans a single direct hop
+// is nil unless the record is current. A record that exists but is not
+// current (Status.RecordNotCurrent: stale, withdrawn or not yet reviewed) is
+// a gap of its own, never a fallback to a direct hop. No record is never a
+// licence to skip lines either: the planner then plans a single direct hop
 // that the caller must still decide.
 func PathPolicyFor(component string, now time.Time) (upgradepath.Status, error) {
 	b, err := load()
 	if err != nil {
 		return upgradepath.Status{}, err
 	}
-	return b.pathPolicies.Lookup(component, now), nil
+	return b.pathPolicyFor(component, now), nil
+}
+
+func (b bundle) pathPolicyFor(component string, now time.Time) upgradepath.Status {
+	return b.pathPolicies.Lookup(component, now)
 }

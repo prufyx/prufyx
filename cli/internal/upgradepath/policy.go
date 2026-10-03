@@ -186,8 +186,12 @@ type Status struct {
 }
 
 // Policy returns the policy to plan with, or nil when there is no record or
-// the record is not current. A nil policy is never a licence to skip lines:
-// PlanPath then plans one direct hop that the caller must still decide.
+// the record is not current. A nil policy is never a licence to skip lines.
+// The two nil cases differ: with no record (Found false) PlanPath plans one
+// direct hop that the caller must still decide; a record that exists but is
+// not current (RecordNotCurrent) is a gap of its own, and the caller must not
+// fall back to a direct hop, because the knowledge said how to upgrade and
+// only its review lapsed.
 func (s Status) Policy() *PathPolicy {
 	if !s.Found || s.Freshness != FreshnessCurrent {
 		return nil
@@ -195,6 +199,11 @@ func (s Status) Policy() *PathPolicy {
 	p := s.Record.PathPolicy()
 	return &p
 }
+
+// RecordNotCurrent reports a record that exists but may not be used: stale,
+// withdrawn or reviewed after the lookup time. The caller reports the path
+// as a gap; it never plans the upgrade as if the component had no record.
+func (s Status) RecordNotCurrent() bool { return s.Found && s.Freshness != FreshnessCurrent }
 
 // Index looks records up by component. Build it only from a validated
 // document (Parse or Validate).

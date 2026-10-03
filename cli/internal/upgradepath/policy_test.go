@@ -210,6 +210,9 @@ func TestPathPolicyFreshness(t *testing.T) {
 				t.Fatalf("lookup %+v", status)
 			}
 			p := status.Policy()
+			if status.RecordNotCurrent() != (c.want != FreshnessCurrent) {
+				t.Fatalf("RecordNotCurrent %v at %s", status.RecordNotCurrent(), c.want)
+			}
 			if (p != nil) != (c.want == FreshnessCurrent) {
 				t.Fatalf("policy %v usable at freshness %s", p, c.want)
 			}
@@ -223,8 +226,18 @@ func TestPathPolicyFreshness(t *testing.T) {
 	if unreadable.Freshness(at("2026-11-15T00:00:00Z")) != FreshnessStale {
 		t.Fatal("a record with unreadable times is not stale")
 	}
+	// Only the exact active state is active, even in an index built from
+	// records that were never validated.
+	for _, state := range []string{"Active", "ACTIVE", "", "draft"} {
+		odd := r
+		odd.Evidence.State = state
+		status := NewIndex([]Record{odd}).Lookup(k8s, at("2026-11-15T00:00:00Z"))
+		if status.Freshness == FreshnessCurrent || status.Policy() != nil || !status.RecordNotCurrent() {
+			t.Fatalf("state %q: %+v", state, status)
+		}
+	}
 	missing := ix.Lookup("pkg:github/cilium/cilium", at("2026-11-15T00:00:00Z"))
-	if missing.Found || missing.Policy() != nil {
+	if missing.Found || missing.Policy() != nil || missing.RecordNotCurrent() {
 		t.Fatalf("absent component: %+v", missing)
 	}
 	// A status that claims current freshness without a record is unusable.

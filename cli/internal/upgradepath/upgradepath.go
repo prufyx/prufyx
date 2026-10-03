@@ -112,8 +112,9 @@ func (e Endpoint) String() string {
 
 // EngineVersion is the concrete version that stands for the endpoint in an
 // engine input: the exact version, or M.m.0 for a minor line. A major line
-// has none. A rule matched at M.m.0 may decide the hop only if CoveredBy
-// holds as well.
+// has none. Matching rules at M.m.0 does not select the rules that apply to
+// the hop: a rule for another release of the line does not match there. Use
+// Hop.Overlaps to select them and Hop.CoveredBy to decide.
 func (e Endpoint) EngineVersion() (string, bool) {
 	switch {
 	case e.Exact():
@@ -144,11 +145,65 @@ func (e Endpoint) CoveredBy(b constraintengine.VersionBound) bool {
 // anchor or its range). A hop with a line end is covered only by a range
 // whose side covers the whole line; an anchor-only rule never covers it. The
 // caller checks that the rule's component is the plan's component.
+//
+// Decision rule: a hop is decided only when every current rule of the
+// component that overlaps it (Overlaps) also covers it (CoveredBy). A rule
+// that overlaps without covering applies to some releases of a line end but
+// not to others, so it leaves the hop undecided, never passed.
 func (h Hop) CoveredBy(t constraintengine.RuleTransition) bool {
 	if h.From.Exact() && h.To.Exact() {
 		return t.Match(h.From.Version, h.To.Version) != constraintengine.MatchNone
 	}
 	return t.Range != nil && h.From.CoveredBy(t.Range.From) && h.To.CoveredBy(t.Range.To)
+}
+
+// Overlaps reports whether the rule subject matches at least one concrete
+// transition the hop stands for: its anchor pair lies in the hop (the anchor
+// equals an exact end, or lies in a line end), or its range intersects the
+// hop on both sides. Every rule that overlaps a hop applies to some operator
+// taking that hop, so it must be found when the hop is decided, even when it
+// does not match at M.m.0. An endpoint that is neither an exact version nor a
+// line overlaps nothing.
+func (h Hop) Overlaps(t constraintengine.RuleTransition) bool {
+	if h.From.holds(t.From) && h.To.holds(t.To) {
+		return true
+	}
+	return t.Range != nil && h.From.intersects(t.Range.From) && h.To.intersects(t.Range.To)
+}
+
+// span is the half-open release interval a line end stands for:
+// [M.m.0, M.(m+1).0) for a minor line, [M.0.0, (M+1).0.0) for a major line.
+func (e Endpoint) span() (low, high string, ok bool) {
+	switch {
+	case e.MinorLine():
+		major, minor := numbers(e.Line + ".0")
+		return e.Line + ".0", strconv.FormatUint(major, 10) + "." + strconv.FormatUint(minor+1, 10) + ".0", true
+	case e.MajorLine():
+		major, _ := strconv.ParseUint(e.Line, 10, 64)
+		return e.Line + ".0.0", strconv.FormatUint(major+1, 10) + ".0.0", true
+	}
+	return "", "", false
+}
+
+// holds reports whether the endpoint stands for the release version: the
+// exact version itself (compared as the engine compares an anchor), or a
+// release inside the line.
+func (e Endpoint) holds(version string) bool {
+	if e.Exact() {
+		return e.Version == version
+	}
+	low, high, ok := e.span()
+	return ok && validVersion(version) && !constraintengine.VersionLess(version, low) && constraintengine.VersionLess(version, high)
+}
+
+// intersects reports whether some release the endpoint stands for lies in
+// the bound.
+func (e Endpoint) intersects(b constraintengine.VersionBound) bool {
+	if e.Exact() {
+		return b.Contains(e.Version)
+	}
+	low, high, ok := e.span()
+	return ok && constraintengine.VersionLess(b.Gte, b.Lt) && constraintengine.VersionLess(low, b.Lt) && constraintengine.VersionLess(b.Gte, high)
 }
 
 // PlanPath plans the upgrade of component from the exact version from to the

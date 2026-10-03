@@ -143,18 +143,29 @@ func TestPathPolicyFreshness(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			status := b.pathPolicies.Lookup(c.component, c.now)
+			status := b.pathPolicyFor(c.component, c.now)
 			if !status.Found || status.Freshness != c.want {
 				t.Fatalf("status %+v, want %s", status, c.want)
 			}
-			if (status.Policy() != nil) != (c.want == upgradepath.FreshnessCurrent) {
+			current := c.want == upgradepath.FreshnessCurrent
+			if (status.Policy() != nil) != current {
 				t.Fatalf("policy usable at %s", status.Freshness)
 			}
-			// A record that is not current plans like no record: one direct
-			// hop with no policy, never a sequential plan.
-			plan := upgradepath.PlanPath(c.component, "1.24.17", "1.30.4", status.Policy())
-			if c.want != upgradepath.FreshnessCurrent && (plan.Policy != "" || len(plan.Hops) != 1) {
-				t.Fatalf("a %s record shaped the plan: %+v", c.want, plan)
+			// A record that exists but is not current is told apart from no
+			// record: it is a gap of its own, never a direct hop.
+			if status.RecordNotCurrent() == current {
+				t.Fatalf("RecordNotCurrent %v at %s", status.RecordNotCurrent(), status.Freshness)
+			}
+		})
+	}
+	if absent := b.pathPolicyFor("pkg:github/argoproj/argo-cd", time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)); absent.Found || absent.RecordNotCurrent() || absent.Policy() != nil {
+		t.Fatalf("absent record: %+v", absent)
+	}
+	// The embedded lookup goes through the same method.
+	for _, c := range cases {
+		t.Run("embedded "+c.name, func(t *testing.T) {
+			if status, err := PathPolicyFor(c.component, c.now); err != nil || status.Found {
+				t.Fatalf("embedded pack: %+v %v", status, err)
 			}
 		})
 	}
