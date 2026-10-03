@@ -190,6 +190,12 @@ func TestFluxHelmReleaseConstructs(t *testing.T) {
 			t.Errorf("git ref %q: %+v", ref, e)
 		}
 	}
+	// A Git source that is not in the input: the revision is unknown.
+	missing := gitChart("")
+	delete(missing, "app/g.yaml")
+	if e := envByName(t, analyze(t, missing), "app"); !hasGap(e.Gaps, SourceNotFound, "was not found") || !hasGap(e.Gaps, ChartVersionNotPinned, "revision is unknown") {
+		t.Fatalf("missing Git source: %+v", e.Gaps)
+	}
 	files := with(base, map[string]string{
 		"app/repo.yaml": helmRepo,
 		"app/r.yaml": `apiVersion: helm.toolkit.fluxcd.io/v2
@@ -365,6 +371,18 @@ func TestSelfURLMatching(t *testing.T) {
 		"https://github.com/org/repo.git.git": false,
 		"":                                    false,
 	} {
+		if got := a.isSelf(url); got != want {
+			t.Errorf("isSelf(%q) = %v, want %v", url, got, want)
+		}
+	}
+	// A configured URL with a query, a fragment or white space matches
+	// nothing, not even itself.
+	for _, u := range []string{"https://github.com/org/q?x=1", "https://github.com/org/f#x", "https://github.com/org/s p"} {
+		if _, ok := normalizeURL(u); ok {
+			t.Errorf("%q accepted", u)
+		}
+	}
+	for url, want := range map[string]bool{} {
 		if got := a.isSelf(url); got != want {
 			t.Errorf("isSelf(%q) = %v, want %v", url, got, want)
 		}

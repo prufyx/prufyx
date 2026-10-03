@@ -314,3 +314,21 @@ func TestRepoGapBound(t *testing.T) {
 		t.Fatalf("repo gaps = %d", len(repo.Gaps))
 	}
 }
+
+// TestNothingAfterTheWorkLimit: once the budget is used up, a walk adds
+// nothing but the gap that says so.
+func TestNothingAfterTheWorkLimit(t *testing.T) {
+	saved := workBudget
+	defer func() { workBudget = saved }()
+	workBudget = 0
+	repo := analyze(t, map[string]string{"git.yaml": gitRepo, "a.yaml": fluxRoot("a", "./app"), "b.yaml": fluxRoot("b", "./app/"),
+		"app/kustomization.yaml": "resources: []\n", "app/kustomization.yml": "resources: []\n"})
+	if len(repo.Environments) != 2 {
+		t.Fatalf("environments = %v", envNames(repo))
+	}
+	for _, e := range repo.Environments {
+		if len(e.Gaps) != 1 || !hasGap(e.Gaps, ClosureLimit, "work limit") {
+			t.Fatalf("%s: %+v", e.Name, e.Gaps)
+		}
+	}
+}
