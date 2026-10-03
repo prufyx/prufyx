@@ -574,6 +574,16 @@ func digestBytes(raw []byte) string {
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
+// ParseUTC parses a timestamp in the one form the engine accepts: RFC 3339
+// in UTC with a "Z" suffix and no fractional seconds.
+func ParseUTC(value string) (time.Time, error) { return parseUTC(value) }
+
+// ValidID reports whether value is a valid rule or source id.
+func ValidID(value string) bool { return idRE.MatchString(value) }
+
+// ValidComponent reports whether value is a valid component package URL.
+func ValidComponent(value string) bool { return componentRE.MatchString(value) }
+
 func parseUTC(value string) (time.Time, error) {
 	parsed, err := time.Parse(time.RFC3339, value)
 	if err != nil || parsed.Location() != time.UTC || parsed.Format(time.RFC3339) != value {

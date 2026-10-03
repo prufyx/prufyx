@@ -317,11 +317,20 @@ func validateEvidence(evidence evidence) error {
 			return fmt.Errorf("derivedAt is not before validUntil: %w", ErrInvalid)
 		}
 	}
-	if len(evidence.Sources) == 0 || len(evidence.Sources) > maxSources {
+	return ValidateSources(evidence.Sources)
+}
+
+// ValidateSources checks a cited source list exactly as a rule's evidence
+// is checked: one to eight sources in strictly ascending id order, each a
+// pinned commit, a whole-file sha256 digest, a line span and an immutable
+// Git URL at that commit. Other pinned knowledge records reuse it so their
+// citations meet the same bar as a rule's.
+func ValidateSources(sources []SourceEvidence) error {
+	if len(sources) == 0 || len(sources) > maxSources {
 		return fmt.Errorf("source count: %w", ErrInvalid)
 	}
-	for i, source := range evidence.Sources {
-		if i > 0 && evidence.Sources[i-1].ID >= source.ID {
+	for i, source := range sources {
+		if i > 0 && sources[i-1].ID >= source.ID {
 			return fmt.Errorf("source order: %w", ErrInvalid)
 		}
 		if !idRE.MatchString(source.ID) {
