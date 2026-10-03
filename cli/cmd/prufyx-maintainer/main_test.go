@@ -748,3 +748,21 @@ func TestReleaseSigningPassphraseReaderIsInstalled(t *testing.T) {
 		t.Fatal("release signing passphrase was read without a terminal")
 	}
 }
+
+func TestGateCommandIsWired(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"gate", "help"}, &stdout, &stderr); err != nil || !strings.Contains(stdout.String(), "gate verify") {
+		t.Fatalf("gate help: %v %q", err, stdout.String())
+	}
+	if code := exitCode(run([]string{"gate", "classify"}, &stdout, &stderr)); code != 2 {
+		t.Fatalf("gate classify without trees: exit %d", code)
+	}
+	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout.Reset()
+	if err := run([]string{"gate", "classify", "--base", root, "--head", root}, &stdout, &stderr); err != nil || !strings.Contains(stdout.String(), "0 tightening, 0 loosening") {
+		t.Fatalf("gate classify: %v %q", err, stdout.String())
+	}
+}
