@@ -144,6 +144,9 @@ func TestGateKillSwitch(t *testing.T) {
 			if c, ok := check(r, "kill-switch"); !ok || c.OK {
 				t.Fatalf("kill-switch check %+v", c)
 			}
+			if c := change(t, r, ids[1]); c.OK || !strings.Contains(c.Detail, "kill switch") {
+				t.Fatalf("loosening change while paused: %+v", c)
+			}
 			lr, err := Limits(Options{Layout: DefaultLayout(), Base: base, Head: head})
 			if err != nil || lr.Passed() {
 				t.Fatalf("limits with the kill switch: %v %v", lr.Result, err)
@@ -265,5 +268,41 @@ func TestTreeRefusesLinks(t *testing.T) {
 	}
 	if _, err := tr.Dir("linked", 1<<10, 10); err == nil {
 		t.Fatal("directory read through a link")
+	}
+}
+
+// Every head pack passes rulecheck, even when the change itself only
+// tightens: a description with a control character the engine tolerates
+// is still refused.
+func TestGateRulecheck(t *testing.T) {
+	base, head := trees(t)
+	ids := readPack(t, base, cncfRulesPath).activeReviewed()
+	for _, tr := range []Tree{base, head} {
+		editPack(t, tr, cncfRulesPath, func(p *packDoc) {
+			e := p.find(t, ids[0])
+			e["description"] = e["description"].(string) + "\tx"
+		})
+	}
+	editPack(t, head, cncfRulesPath, func(p *packDoc) { evidenceOf(p.find(t, ids[1]))["state"] = "withdrawn" })
+	r := runGate(t, Options{Base: base, Head: head})
+	requireFail(t, r, "rulecheck/cncf")
+	if c, _ := check(r, "admit/cncf"); !c.OK {
+		t.Fatalf("the engine should admit the pack: %+v", c)
+	}
+}
+
+// A verified statement admits only the rules it renews; anything else in
+// the pack needs its own proof.
+func TestAdmitReviewedNeedsRenewedRule(t *testing.T) {
+	base, head := trees(t)
+	c := &Change{Pack: "cncf", RuleID: "some.rule", head: &entry{RuleID: "some.rule"}}
+	opts := Options{Layout: DefaultLayout(), Base: base, Head: head, Now: gateNow}
+	admitReviewed(c, statementResult{OK: true, Renewed: map[string]bool{"other.rule": true}}, func() (*ApprovalKeys, error) { return nil, nil }, opts)
+	if c.OK || !strings.Contains(c.Detail, "does not renew this rule") {
+		t.Fatalf("%+v", c)
+	}
+	admitReviewed(c, statementResult{OK: true, Renewed: map[string]bool{"some.rule": true}}, nil, opts)
+	if !c.OK || c.Proof != ProofReattestation {
+		t.Fatalf("%+v", c)
 	}
 }
