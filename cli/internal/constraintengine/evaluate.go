@@ -139,6 +139,10 @@ func evaluateMatchedRule(input inputDocument, rule rule, claim Claim) Claim {
 		claim.Status = "BLOCKED"
 	case "forbid_target_version":
 		claim.Status = "BLOCKED"
+	case OperatorNoticeOneWay:
+		// Informational only: the reviewed transition cannot be rolled
+		// back. Scope completeness never counts it (see notice.go).
+		claim.Status = StatusNotice
 	default:
 		claim.Status, claim.ReasonCode = "UNKNOWN", "RULE_OPERATOR_UNSUPPORTED"
 	}
@@ -269,7 +273,7 @@ func issueReport(report Report) Report {
 // independently re-derive that same assessment. No block, no verdict —
 // however many claims passed. See legalAssessment.
 func MarshalReport(report Report) ([]byte, error) {
-	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !validSetClaims(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
+	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !validSetClaims(report) || !validNoticeClaims(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
 		return nil, ErrIntegrity
 	}
 	raw, err := json.Marshal(report)
@@ -286,7 +290,7 @@ func validClaims(claims []Claim) bool {
 		if ValidateBasis(claim.EvidenceBasis, claim.EvidenceExtractor, claim.EvidenceDerivedAt) != nil {
 			return false
 		}
-		if (i > 0 && claims[i-1].RuleID >= claim.RuleID) || !idRE.MatchString(claim.RuleID) || !digestRE.MatchString(claim.RuleDigest) || (claim.Status != "PASS" && claim.Status != "BLOCKED" && claim.Status != "UNKNOWN") || !reasonRE.MatchString(claim.ReasonCode) || !publicText(claim.NextAction) || !validRequiredFacts(claim.RequiredFacts) || reviewedErr != nil || validUntilErr != nil || !validUntil.After(reviewed) || (claim.EvidenceFreshness != "current" && claim.EvidenceFreshness != "stale" && claim.EvidenceFreshness != "withdrawn" && claim.EvidenceFreshness != "clock_before_review") {
+		if (i > 0 && claims[i-1].RuleID >= claim.RuleID) || !idRE.MatchString(claim.RuleID) || !digestRE.MatchString(claim.RuleDigest) || (claim.Status != "PASS" && claim.Status != "BLOCKED" && claim.Status != "UNKNOWN" && claim.Status != StatusNotice) || !reasonRE.MatchString(claim.ReasonCode) || !publicText(claim.NextAction) || !validRequiredFacts(claim.RequiredFacts) || reviewedErr != nil || validUntilErr != nil || !validUntil.After(reviewed) || (claim.EvidenceFreshness != "current" && claim.EvidenceFreshness != "stale" && claim.EvidenceFreshness != "withdrawn" && claim.EvidenceFreshness != "clock_before_review") {
 			return false
 		}
 	}
@@ -302,7 +306,7 @@ func validClaimMatches(report Report) bool {
 		if match == nil {
 			continue
 		}
-		if (report.EngineContractDigest != engineContractDigestRanged() && report.EngineContractDigest != engineContractDigestSet()) || match.Mode != subjectMatchModeRange || claim.Status == "UNKNOWN" && claim.ReasonCode == "RULE_TRANSITION_NOT_REVIEWED" {
+		if (report.EngineContractDigest != engineContractDigestRanged() && report.EngineContractDigest != engineContractDigestSet() && report.EngineContractDigest != engineContractDigestNotice()) || match.Mode != subjectMatchModeRange || claim.Status == "UNKNOWN" && claim.ReasonCode == "RULE_TRANSITION_NOT_REVIEWED" {
 			return false
 		}
 		if !validVersion(match.AnchorFrom) || !validVersion(match.AnchorTo) || !inBound(match.AnchorFrom, match.From) || !inBound(match.AnchorTo, match.To) {

@@ -83,8 +83,14 @@ func buildScopeCompleteness(input inputDocument, rules ruleDocument, claims []Cl
 			CorpusAttested: corpusAttested, EvaluatedRuleIDs: []string{}, NotEvaluated: []NotEvaluatedRule{},
 		})
 	}
-	outOfScope := 0
+	outOfScope, notices := 0, 0
 	for position, candidate := range rules.Rules {
+		// A notice rule is verdict-neutral: it is counted, never partitioned,
+		// so the aggregate is exactly what it would be without it.
+		if candidate.usesNoticeOperator() {
+			notices++
+			continue
+		}
 		state, reason := ruleApplicability(input, declared, candidate)
 		if state == applicabilityOutOfScope {
 			outOfScope++
@@ -109,7 +115,7 @@ func buildScopeCompleteness(input inputDocument, rules ruleDocument, claims []Cl
 	result := &ScopeCompleteness{
 		Declaration: ScopeDeclaration, CorpusAttestation: CorpusAttestation,
 		ContractDigest: scopeDigestFor(engineDigest), RuleSetRevision: rules.Revision,
-		OutOfScopeRules: outOfScope, Components: components,
+		OutOfScopeRules: outOfScope, NoticeRules: notices, Components: components,
 	}
 	assessment, unresolved, err := deriveAssessment(result, claims)
 	if err != nil {
@@ -217,12 +223,22 @@ func validScopeBlock(scope *ScopeCompleteness, claims []Claim, engineDigest stri
 	if scope.Resolved != (scope.UnresolvedReason == "") || (scope.UnresolvedReason != "" && !reasonRE.MatchString(scope.UnresolvedReason)) {
 		return false
 	}
-	if scope.OutOfScopeRules < 0 || len(scope.Components) == 0 || len(scope.Components) > maxComponents {
+	if scope.OutOfScopeRules < 0 || scope.NoticeRules < 0 || len(scope.Components) == 0 || len(scope.Components) > maxComponents {
 		return false
 	}
+	// Notice claims are never referenced by a component: they are only
+	// counted, and the count must be exactly theirs.
 	known := make(map[string]struct{}, len(claims))
+	notices := 0
 	for _, claim := range claims {
+		if claim.IsNotice() {
+			notices++
+			continue
+		}
 		known[claim.RuleID] = struct{}{}
+	}
+	if scope.NoticeRules != notices {
+		return false
 	}
 	referenced := make(map[string]struct{}, len(claims))
 	for index, component := range scope.Components {
@@ -260,10 +276,10 @@ func validScopeBlock(scope *ScopeCompleteness, claims []Claim, engineDigest stri
 			}
 		}
 	}
-	// Every rule in the evaluated document is either out of scope or accounted
-	// for exactly once. Dropping an undetermined rule from the enumeration
-	// therefore cannot buy a completeness claim.
-	return len(referenced)+scope.OutOfScopeRules == len(claims)
+	// Every rule in the evaluated document is either a notice, out of scope,
+	// or accounted for exactly once. Dropping an undetermined rule from the
+	// enumeration therefore cannot buy a completeness claim.
+	return len(referenced)+scope.OutOfScopeRules+scope.NoticeRules == len(claims)
 }
 
 func claimReference(known, referenced map[string]struct{}, ruleID string) bool {

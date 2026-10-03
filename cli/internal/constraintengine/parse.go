@@ -140,10 +140,10 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	if err := decodeStrict(raw, &document); err != nil {
 		return RuleSet{}, err
 	}
-	if (document.Schema != RulesSchema && document.Schema != RulesSchemaRanged && document.Schema != RulesSchemaSet) || !idRE.MatchString(document.Revision) || !idRE.MatchString(document.PolicyID) || !digestRE.MatchString(document.PolicyDigest) || len(document.Rules) > maxRules {
+	if (document.Schema != RulesSchema && document.Schema != RulesSchemaRanged && document.Schema != RulesSchemaSet && document.Schema != RulesSchemaNotice) || !idRE.MatchString(document.Revision) || !idRE.MatchString(document.PolicyID) || !digestRE.MatchString(document.PolicyDigest) || len(document.Rules) > maxRules {
 		return RuleSet{}, fmt.Errorf("ruleset identity: %w", ErrInvalid)
 	}
-	ranged, setOperator := false, false
+	ranged, setOperator, notice := false, false, false
 	for i, rule := range document.Rules {
 		if i > 0 && document.Rules[i-1].ID >= rule.ID {
 			return RuleSet{}, fmt.Errorf("rule order: %w", ErrInvalid)
@@ -153,15 +153,18 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 		}
 		ranged = ranged || rule.Range != nil
 		setOperator = setOperator || rule.usesSetOperator()
+		notice = notice || rule.usesNoticeOperator()
 	}
 	// The schema string states which contract the document needs, and it
-	// must be right in every direction: a document using forbid_set_member
-	// carries the set schema (which also admits ranges) and no other
-	// document does; otherwise an exact-only schema never admits a range,
-	// and the ranged schema is never used without one. Every document has
-	// exactly one schema and one engine contract.
-	if setOperator != (document.Schema == RulesSchemaSet) || (!setOperator && ranged != (document.Schema == RulesSchemaRanged)) {
-		return RuleSet{}, fmt.Errorf("ruleset schema does not match range or set operator use: %w", ErrInvalid)
+	// must be right in every direction: a document carries exactly the
+	// schema of the highest-level feature it uses. A document using
+	// notice_one_way carries the notice schema (which also admits ranges
+	// and set rules); otherwise one using forbid_set_member carries the set
+	// schema (which also admits ranges); otherwise an exact-only schema never
+	// admits a range, and the ranged schema is never used without one. Every
+	// document has exactly one schema and one engine contract.
+	if document.Schema != requiredRulesSchema(ranged, setOperator, notice) {
+		return RuleSet{}, fmt.Errorf("ruleset schema does not match range, set or notice operator use: %w", ErrInvalid)
 	}
 	if ranged {
 		if err := validateRangeOverlaps(document.Rules); err != nil {
@@ -171,7 +174,7 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	if err := validateCorpus(document); err != nil {
 		return RuleSet{}, err
 	}
-	return RuleSet{document: document, digest: digestJSON(document), registryDigest: registry.Digest(), ranged: ranged, setOperator: setOperator, seal: &ruleSetSeal{}}, nil
+	return RuleSet{document: document, digest: digestJSON(document), registryDigest: registry.Digest(), ranged: ranged, setOperator: setOperator, notice: notice, seal: &ruleSetSeal{}}, nil
 }
 
 // validateCorpus admits a completeness attestation only when the document can
@@ -188,6 +191,11 @@ func validateCorpus(document ruleDocument) error {
 	}
 	subjects := make(map[string]int, len(document.Rules))
 	for _, rule := range document.Rules {
+		// A notice rule is never evaluated for completeness, so it cannot
+		// support an attestation either.
+		if rule.usesNoticeOperator() {
+			continue
+		}
 		subjects[rule.Subject.Component]++
 	}
 	for index, component := range corpus.Components {
@@ -261,6 +269,8 @@ func validateRule(rule rule, registry Registry) error {
 		if rule.Condition != nil || rule.Dependency != nil || rule.Intermediate != "" {
 			return fmt.Errorf("target structure: %w", ErrInvalid)
 		}
+	case OperatorNoticeOneWay:
+		return validateNoticeRule(rule)
 	default:
 		return fmt.Errorf("operator: %w", ErrInvalid)
 	}

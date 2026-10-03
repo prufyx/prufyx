@@ -388,6 +388,7 @@ type RuleSet struct {
 	registryDigest string
 	ranged         bool
 	setOperator    bool
+	notice         bool
 	seal           *ruleSetSeal
 }
 type ruleSetSeal struct{}
@@ -474,14 +475,19 @@ type reportSeal struct{}
 // were evaluated and which were not. The not-evaluated list is the point: a
 // completeness statement that cannot name what it skipped is not auditable.
 type ScopeCompleteness struct {
-	Declaration       string           `json:"declaration"`
-	CorpusAttestation string           `json:"corpusAttestation"`
-	ContractDigest    string           `json:"contractDigest"`
-	RuleSetRevision   string           `json:"ruleSetRevision"`
-	Resolved          bool             `json:"resolved"`
-	UnresolvedReason  string           `json:"unresolvedReason,omitempty"`
-	OutOfScopeRules   int              `json:"outOfScopeRules"`
-	Components        []ComponentScope `json:"components"`
+	Declaration       string `json:"declaration"`
+	CorpusAttestation string `json:"corpusAttestation"`
+	ContractDigest    string `json:"contractDigest"`
+	RuleSetRevision   string `json:"ruleSetRevision"`
+	Resolved          bool   `json:"resolved"`
+	UnresolvedReason  string `json:"unresolvedReason,omitempty"`
+	OutOfScopeRules   int    `json:"outOfScopeRules"`
+	// NoticeRules counts the notice_one_way rules of the document. They are
+	// verdict-neutral and never enter the applicable set; the field is
+	// absent when zero, so every scope block without one serializes exactly
+	// as before notices existed.
+	NoticeRules int              `json:"noticeRules,omitempty"`
+	Components  []ComponentScope `json:"components"`
 }
 
 type ComponentScope struct {
@@ -526,6 +532,9 @@ func EngineContractDigest() string { return engineContractDigest() }
 func EngineContractDigestRanged() string { return engineContractDigestRanged() }
 
 func (r RuleSet) engineDigest() string {
+	if r.notice {
+		return engineContractDigestNotice()
+	}
 	if r.setOperator {
 		return engineContractDigestSet()
 	}
@@ -564,6 +573,8 @@ func scopeDigestFor(engineDigest string) string {
 		// The set contract admits ranges, so it pairs with the scope
 		// contract that carries the anchor-review condition.
 		return scopeContractDigestRanged()
+	case engineContractDigestNotice():
+		return scopeContractDigestNotice()
 	}
 	return ""
 }
