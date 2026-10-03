@@ -222,6 +222,13 @@ func TestConstraintsProjectsRejectTamperedMissingExtraAndMismatchedTargets(t *te
 		copy[ConstraintsProjectsIndexTargetPath] = index
 		return copy
 	}
+	// The index binds the first project to the exact bytes of the second
+	// project's target, so TUF and the index agree but the rules belong to
+	// another project. Its revision is above the floor, so only semantic
+	// admission of the project target can reject it.
+	foreign := without(first)
+	foreign[first] = base[second]
+	foreign[ConstraintsProjectsIndexTargetPath] = rebindIndexEntry(t, base[ConstraintsProjectsIndexTargetPath], projectOf(t, first), base[second], "6")
 	extraProject := "visual-studio-code-kubernetes-tools"
 	extraTargets := without("")
 	extraTargets[cncfcheck.ProjectTargetPath(extraProject)] = base[first]
@@ -236,6 +243,7 @@ func TestConstraintsProjectsRejectTamperedMissingExtraAndMismatchedTargets(t *te
 		{"project listed in index but not signed", knowledgefixture.ProjectsPackage{Targets: without(second)}, "listed in the index but not signed"},
 		{"project signed but not in index", knowledgefixture.ProjectsPackage{Targets: extraTargets}, "signed but not listed in the index"},
 		{"unsigned extra package member", knowledgefixture.ProjectsPackage{Targets: base, Extra: map[string][]byte{knowledgefixture.ProjectsPackageMember(cncfcheck.ProjectTargetPath(extraProject), base[first]): base[first]}}, "unused package member"},
+		{"project target holds another project's rules", knowledgefixture.ProjectsPackage{Targets: foreign}, "semantic admission"},
 		{"index digest differs from signed target", knowledgefixture.ProjectsPackage{Targets: withIndex(otherIndex.Bytes)}, "differs between index and targets metadata"},
 		{"signed project differs from index", knowledgefixture.ProjectsPackage{Targets: func() map[string][]byte { c := without(first); c[first] = olderFirst; return c }()}, "differs between index and targets metadata"},
 	}
@@ -454,4 +462,43 @@ func TestConstraintsProjectsStoredProjectTamperFailsClosed(t *testing.T) {
 	if status, err := InspectConstraintsProjects(f.store); err != nil || status.State != "INTEGRITY_FAILURE" {
 		t.Fatalf("status after tamper=%+v err=%v", status, err)
 	}
+}
+
+// rebindIndexEntry points one index entry at raw, giving the entry and the
+// index the given revision and copying the rule digest and expiry of raw.
+func rebindIndexEntry(t *testing.T, indexRaw []byte, project string, raw []byte, revision string) []byte {
+	t.Helper()
+	bundle, err := cncfcheck.ParseExternalBundle(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	admission, err := bundle.Admission()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document struct {
+		Schema                 string                         `json:"schema"`
+		Revision               string                         `json:"revision"`
+		Purpose                string                         `json:"purpose"`
+		EngineCapabilityDigest string                         `json:"engineCapabilityDigest"`
+		Projects               []cncfcheck.ExternalIndexEntry `json:"projects"`
+	}
+	if err := json.Unmarshal(indexRaw, &document); err != nil {
+		t.Fatal(err)
+	}
+	document.Revision = revision
+	for i := range document.Projects {
+		if document.Projects[i].Project == project {
+			document.Projects[i].Length, document.Projects[i].Digest = int64(len(raw)), digestBytes(raw)
+			document.Projects[i].Revision, document.Projects[i].RuleDigest, document.Projects[i].EvidenceExpiresAt = revision, admission.RuleDigest, admission.EvidenceExpiresAt
+		}
+	}
+	out, err := json.Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cncfcheck.ParseExternalIndex(out); err != nil {
+		t.Fatal(err)
+	}
+	return out
 }

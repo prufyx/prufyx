@@ -131,6 +131,15 @@ func TestAdmitExternalProjectTargetBindsIndexEntry(t *testing.T) {
 	if _, err := AdmitExternalProjectTarget(lyingIndex, a, projects[b]); !errors.Is(err, ErrIntegrity) {
 		t.Fatalf("foreign entries admitted under project %s: %v", a, err)
 	}
+	// The envelope revision must equal the index entry even when the bytes
+	// are exactly the ones the entry binds.
+	relabeled, err := parseExternalIndex(reencodeIndex(t, index.Bytes, func(d *externalIndexDocument) { d.Projects[0].Revision = "9" }), &base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := AdmitExternalProjectTarget(relabeled, a, projects[a]); !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("revision mismatch admitted: %v", err)
+	}
 	// Revision and rule digest must match the index entry.
 	other, otherProjects := buildSplit(t, "4")
 	otherIndex, err := ParseExternalIndex(other.Bytes)
