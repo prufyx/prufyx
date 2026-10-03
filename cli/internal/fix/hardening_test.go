@@ -328,11 +328,14 @@ func TestParamsAreBoundedAndParsedOnce(t *testing.T) {
 		want   Reason
 	}{
 		"too large":        {`{"a":"` + strings.Repeat("x", MaxParamsBytes) + `"}`, ReasonLimit},
+		"one over":         {`{"a":"` + strings.Repeat("x", MaxParamsBytes-7) + `"}`, ReasonLimit},
+		"non-ASCII key":    {`{"s":1,"\u017f":2}`, ReasonInvalidParams},
+		"raw non-ASCII":    {"{\"s\":1,\"\u017f\":2}", ReasonInvalidParams},
 		"not JSON":         {`{"a":`, ReasonInvalidParams},
 		"trailing data":    {`{} {}`, ReasonInvalidParams},
 		"duplicate key":    {`{"a":1,"a":2}`, ReasonInvalidParams},
 		"case-folded dup":  {`{"path":[],"Path":[]}`, ReasonInvalidParams},
-		"escaped dup":      {`{"a":1,"a":2}`, ReasonInvalidParams},
+		"escaped dup":      {`{"a":1,"\u0061":2}`, ReasonInvalidParams},
 		"nested duplicate": {`{"o":[{"k":1,"k":2}]}`, ReasonInvalidParams},
 		"too deep":         {strings.Repeat("[", maxParamsDepth+1) + strings.Repeat("]", maxParamsDepth+1), ReasonInvalidParams},
 	}
@@ -348,7 +351,7 @@ func TestParamsAreBoundedAndParsedOnce(t *testing.T) {
 		"empty":           "",
 		"same key in two": `{"a":{"k":1},"b":{"k":2}}`,
 		"sibling arrays":  `{"a":[{"k":1},{"k":2}]}`,
-		"at the bound":    `{"a":"` + strings.Repeat("x", MaxParamsBytes-9) + `"}`,
+		"at the bound":    `{"a":"` + strings.Repeat("x", MaxParamsBytes-8) + `"}`,
 		"deep enough":     strings.Repeat("[", maxParamsDepth) + strings.Repeat("]", maxParamsDepth),
 	} {
 		t.Run("ok "+name, func(t *testing.T) {

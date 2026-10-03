@@ -43,6 +43,11 @@ type Edit struct {
 // the parameters that were validated are the parameters that are applied; it
 // must treat the value as read-only.
 //
+// Plan must be a pure, deterministic function of (doc, src, parsed): no time,
+// randomness, environment, or map iteration order that picks one of several
+// candidates. The framework calls it again when a plan is applied and refuses
+// the plan if the edits differ.
+//
 // Plan is called once per mapping document of a file. doc carries the decoded
 // document, src a private copy of the raw bytes of the whole file (a kind
 // that writes into it is refused). A kind returns no edits when the document
@@ -60,7 +65,7 @@ type Kind interface {
 }
 
 // checkParams bounds and pre-validates parameters before a kind sees them:
-// size, valid JSON, no duplicate keys (also when compared without case) and a
+// size, valid JSON, no duplicate keys (also when compared without case; non-ASCII keys are refused) and a
 // bounded depth. Empty parameters are allowed.
 func checkParams(params Params) *Refusal {
 	if len(params) == 0 {
@@ -107,6 +112,13 @@ func checkParams(params Params) *Refusal {
 		}
 		if n := len(stack); n > 0 && stack[n-1].object && stack[n-1].expectKey {
 			key, _ := token.(string)
+			for _, r := range key {
+				if r >= 0x80 {
+					// encoding/json folds keys with full Unicode case folding,
+					// which this check does not model; refuse instead.
+					return refuse(ReasonInvalidParams, "the fix parameters use a non-ASCII object key")
+				}
+			}
 			folded := strings.ToLower(key)
 			if stack[n-1].keys[folded] {
 				return refuse(ReasonInvalidParams, "the fix parameters repeat an object key")
