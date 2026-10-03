@@ -207,7 +207,7 @@ func TestEvaluateRejectsRootReplacedBySymlinkBeforeDescriptorAcquisition(t *test
 		}
 		return currentbundle.OpenDirectoryNoFollow(path)
 	}
-	if _, exit, err := evaluate(planPath, declaredRoot, time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC), "", replaceThenAcquire, knowledge.OpenSelectedConstraints); err == nil || exit != 2 || acquisitions != 1 {
+	if _, exit, err := evaluate(planPath, declaredRoot, time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC), "", replaceThenAcquire, knowledge.OpenSelectedCNCF); err == nil || exit != 2 || acquisitions != 1 {
 		t.Fatalf("root replacement accepted: exit=%d err=%v acquisitions=%d", exit, err, acquisitions)
 	}
 }
@@ -281,9 +281,9 @@ func TestEvaluateWithStoreUsesOneCurrentSnapshotForMixedKnowledge(t *testing.T) 
 	})
 	planPath := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
 	opens := 0
-	openOnce := func(selection knowledge.SelectionRequest) (knowledge.VerifiedRevision, error) {
+	openOnce := func(selection knowledge.SelectionRequest, projects []string) (knowledge.VerifiedRevision, error) {
 		opens++
-		return knowledge.OpenSelectedConstraints(selection)
+		return knowledge.OpenSelectedCNCF(selection, projects)
 	}
 	report, exit, err := evaluate(planPath, root, time.Time{}, fixture.store, currentbundle.OpenDirectoryNoFollow, openOnce)
 	if err != nil || exit != 10 || opens != 1 || len(report.Items) != 2 {
@@ -354,7 +354,7 @@ func TestEvaluateWithStorePreflightsAllFilesBeforeStoreOpen(t *testing.T) {
 	writeBatchFile(t, filepath.Join(root, "bad.json"), map[string]any{"not": "canonical"})
 	planPath := writeBatchFile(t, filepath.Join(root, "plan.json"), signedKnowledgePlan([]Item{{ID: "bad", Kind: "cncf", Project: "kyverno", From: "1.12.5", To: "1.13.0", InputPath: "bad.json"}}))
 	opens := 0
-	open := func(knowledge.SelectionRequest) (knowledge.VerifiedRevision, error) {
+	open := func(knowledge.SelectionRequest, []string) (knowledge.VerifiedRevision, error) {
 		opens++
 		return knowledge.VerifiedRevision{}, nil
 	}

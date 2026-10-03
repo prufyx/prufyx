@@ -106,7 +106,11 @@ type loadedItem struct {
 }
 
 type rootOpener func(string) (*os.File, error)
-type knowledgeOpener func(knowledge.SelectionRequest) (knowledge.VerifiedRevision, error)
+
+// knowledgeOpener opens the selected CNCF revision once per batch. projects
+// names every CNCF project in the plan, so a per-project store reads only
+// those project targets.
+type knowledgeOpener func(knowledge.SelectionRequest, []string) (knowledge.VerifiedRevision, error)
 
 // Evaluate validates the complete plan and all item files before evaluating
 // any item. Paths are relative to root and are opened with no-follow checks.
@@ -114,7 +118,7 @@ func Evaluate(planPath, root string, now time.Time) (Report, int, error) {
 	if now.IsZero() || now.Location() != time.UTC || now.Nanosecond() != 0 {
 		return Report{}, 2, ErrInvalid
 	}
-	return evaluate(planPath, root, now, "", currentbundle.OpenDirectoryNoFollow, knowledge.OpenSelectedConstraints)
+	return evaluate(planPath, root, now, "", currentbundle.OpenDirectoryNoFollow, knowledge.OpenSelectedCNCF)
 }
 
 // EvaluateWithStore opens the selected signed CNCF revision once, after the
@@ -124,7 +128,7 @@ func EvaluateWithStore(planPath, root, storeRoot string) (Report, int, error) {
 	if storeRoot == "" {
 		return Report{}, 2, ErrInvalid
 	}
-	return evaluate(planPath, root, time.Time{}, storeRoot, currentbundle.OpenDirectoryNoFollow, knowledge.OpenSelectedConstraints)
+	return evaluate(planPath, root, time.Time{}, storeRoot, currentbundle.OpenDirectoryNoFollow, knowledge.OpenSelectedCNCF)
 }
 
 func evaluate(planPath, root string, now time.Time, storeRoot string, acquireRoot rootOpener, openKnowledge knowledgeOpener) (Report, int, error) {
@@ -184,7 +188,7 @@ func evaluate(planPath, root string, now time.Time, storeRoot string, acquireRoo
 	}
 	var selected knowledge.VerifiedRevision
 	if signed {
-		selected, err = openKnowledge(knowledge.SelectionRequest{StoreRoot: storeRoot})
+		selected, err = openKnowledge(knowledge.SelectionRequest{StoreRoot: storeRoot}, cncfProjects(plan))
 		if err != nil {
 			if errors.Is(err, knowledge.ErrNoSelection) {
 				return Report{}, 11, err
@@ -610,4 +614,18 @@ func noDuplicateJSON(raw []byte) bool {
 func digest(raw []byte) string {
 	sum := sha256.Sum256(raw)
 	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+// cncfProjects lists the distinct CNCF projects of a validated plan in order.
+func cncfProjects(plan Plan) []string {
+	seen := map[string]bool{}
+	projects := []string{}
+	for _, item := range plan.Items {
+		if item.Kind == "cncf" && !seen[item.Project] {
+			seen[item.Project] = true
+			projects = append(projects, item.Project)
+		}
+	}
+	sort.Strings(projects)
+	return projects
 }

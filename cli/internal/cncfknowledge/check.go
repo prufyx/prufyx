@@ -57,6 +57,20 @@ type KnowledgeBinding struct {
 	MetadataFreshness      string                 `json:"metadataFreshness"`
 	CurrentNonRevocation   string                 `json:"currentNonRevocation"`
 	TrustReceipt           knowledge.TrustReceipt `json:"trustReceipt"`
+	// ProjectTarget is set when the selection uses the per-project layout.
+	// The fields above then identify the selected index.
+	ProjectTarget *ProjectTargetBinding `json:"projectTarget,omitempty"`
+}
+
+// ProjectTargetBinding identifies the project target evaluated from a
+// per-project selection. Status is "present", or "absent_from_index" when the
+// selected index has no target for the project and no rule can apply.
+type ProjectTargetBinding struct {
+	Project    string `json:"project"`
+	Status     string `json:"status"`
+	TargetPath string `json:"targetPath,omitempty"`
+	Revision   string `json:"revision,omitempty"`
+	Digest     string `json:"digest,omitempty"`
 }
 
 type EngineBinding struct {
@@ -119,7 +133,7 @@ func EvaluateCurrent(req Request) (Report, error) {
 	if err := validateRequest(req); err != nil {
 		return Report{}, err
 	}
-	selected, err := knowledge.OpenSelectedConstraints(req.Selection)
+	selected, err := knowledge.OpenSelectedCNCF(req.Selection, []string{req.Project})
 	if err != nil {
 		return Report{}, err
 	}
@@ -144,15 +158,15 @@ func evaluateSelected(req CheckInput, selected knowledge.VerifiedRevision) (Repo
 		return Report{}, ErrIntegrity
 	}
 	receipt := selected.TrustReceipt()
-	if receipt.TargetPath != knowledge.ConstraintsTargetPath || receipt.TrustSource != "OPERATOR_PROVISIONED" {
-		return Report{}, ErrIntegrity
-	}
-	bundle, err := cncfcheck.ParseExternalBundle(selected.Bytes())
+	bundle, admission, projectBinding, err := selectedBundle(req.Project, selected)
 	if err != nil {
+		return Report{}, err
+	}
+	if receipt.TrustSource != "OPERATOR_PROVISIONED" || receipt.TargetDigest != selected.BundleDigest() || admission.Revision != selected.Revision() || admission.Revision != receipt.KnowledgeRevision || admission.Purpose != receipt.Purpose || admission.EngineCapabilityDigest != receipt.EngineCapabilityDigest || admission.HasRule != receipt.HasRule || admission.RuleDigest != receipt.RuleDigest || admission.EvidenceExpiresAt != receipt.EvidenceExpiresAt {
 		return Report{}, ErrIntegrity
 	}
-	admission, err := bundle.Admission()
-	if err != nil || bundle.BundleDigest() != selected.BundleDigest() || receipt.TargetDigest != selected.BundleDigest() || admission.Revision != selected.Revision() || admission.Revision != receipt.KnowledgeRevision || admission.Purpose != receipt.Purpose || admission.EngineCapabilityDigest != receipt.EngineCapabilityDigest || admission.HasRule != receipt.HasRule || admission.RuleDigest != receipt.RuleDigest || admission.EvidenceExpiresAt != receipt.EvidenceExpiresAt {
+	packAdmission, err := bundle.Admission()
+	if err != nil {
 		return Report{}, ErrIntegrity
 	}
 	evaluatedAt := selected.VerifiedAt().UTC().Truncate(time.Second)
@@ -169,7 +183,7 @@ func evaluateSelected(req CheckInput, selected knowledge.VerifiedRevision) (Repo
 	if len(check.Check.Claims) == 1 && check.Check.Claims[0].RuleID == req.SelectedRuleID {
 		expectedSelected = req.SelectedRuleID
 	}
-	if _, err := cncfcheck.MarshalReport(check); err != nil || check.KnowledgeOrigin != "external_declared" || check.SourceAuthority != "DECLARED_RULE_SOURCE_REFERENCES" || check.KnowledgeRevision != admission.Revision || check.KnowledgePackDigest != selected.BundleDigest() || check.InputFileDigest != digestBytes(req.Input) || check.RequestedRuleID != req.SelectedRuleID || check.SelectedRuleID != expectedSelected {
+	if _, err := cncfcheck.MarshalReport(check); err != nil || check.KnowledgeOrigin != "external_declared" || check.SourceAuthority != "DECLARED_RULE_SOURCE_REFERENCES" || check.KnowledgeRevision != packAdmission.Revision || check.KnowledgePackDigest != bundle.BundleDigest() || check.InputFileDigest != digestBytes(req.Input) || check.RequestedRuleID != req.SelectedRuleID || check.SelectedRuleID != expectedSelected {
 		return Report{}, ErrIntegrity
 	}
 	identity, err := buildidentity.Report()
@@ -193,6 +207,7 @@ func evaluateSelected(req CheckInput, selected knowledge.VerifiedRevision) (Repo
 			EngineCapabilityDigest: admission.EngineCapabilityDigest, ImportedVerifiedAt: receipt.VerifiedAt,
 			EvaluatedAt: evaluatedAt.Format(time.RFC3339), MetadataFreshness: "verified_at_evaluation_time",
 			CurrentNonRevocation: "not_checked_offline", TrustReceipt: receipt,
+			ProjectTarget: projectBinding,
 		},
 		Engine: EngineBinding{Identity: identity, IdentityDigest: digestBytes(identityRaw), Strength: strength},
 		Check:  check,
@@ -203,6 +218,56 @@ func evaluateSelected(req CheckInput, selected knowledge.VerifiedRevision) (Repo
 	}
 	report.seal, report.digest = &reportSeal{}, digestBytes(raw)
 	return report, nil
+}
+
+// selectedBundle returns the envelope to evaluate and the admission of the
+// selected target. A single-target selection is one envelope. A per-project
+// selection is the index plus the requested project's target; a project the
+// index does not list evaluates against an empty envelope, which yields
+// UNKNOWN and never falls back to embedded knowledge.
+func selectedBundle(project string, selected knowledge.VerifiedRevision) (cncfcheck.ExternalBundle, cncfcheck.ExternalAdmission, *ProjectTargetBinding, error) {
+	receipt := selected.TrustReceipt()
+	if !selected.PerProject() {
+		if receipt.TargetPath != knowledge.ConstraintsTargetPath {
+			return cncfcheck.ExternalBundle{}, cncfcheck.ExternalAdmission{}, nil, ErrIntegrity
+		}
+		bundle, err := cncfcheck.ParseExternalBundle(selected.Bytes())
+		if err != nil || bundle.BundleDigest() != selected.BundleDigest() {
+			return cncfcheck.ExternalBundle{}, cncfcheck.ExternalAdmission{}, nil, ErrIntegrity
+		}
+		admission, err := bundle.Admission()
+		if err != nil {
+			return cncfcheck.ExternalBundle{}, cncfcheck.ExternalAdmission{}, nil, ErrIntegrity
+		}
+		return bundle, admission, nil, nil
+	}
+	if receipt.TargetPath != knowledge.ConstraintsProjectsIndexTargetPath || digestBytes(selected.Bytes()) != selected.BundleDigest() {
+		return cncfcheck.ExternalBundle{}, cncfcheck.ExternalAdmission{}, nil, ErrIntegrity
+	}
+	index, err := cncfcheck.ParseExternalIndex(selected.Bytes())
+	if err != nil {
+		return cncfcheck.ExternalBundle{}, cncfcheck.ExternalAdmission{}, nil, ErrIntegrity
+	}
+	admission, err := index.Admission()
+	if err != nil {
+		return cncfcheck.ExternalBundle{}, cncfcheck.ExternalAdmission{}, nil, ErrIntegrity
+	}
+	target, loaded := selected.ProjectTarget(project)
+	if _, listed := index.Entry(project); listed != loaded {
+		return cncfcheck.ExternalBundle{}, cncfcheck.ExternalAdmission{}, nil, ErrIntegrity
+	}
+	if !loaded {
+		bundle, err := cncfcheck.EmptyExternalBundle(admission.Revision, admission.Purpose)
+		if err != nil {
+			return cncfcheck.ExternalBundle{}, cncfcheck.ExternalAdmission{}, nil, ErrIntegrity
+		}
+		return bundle, admission, &ProjectTargetBinding{Project: project, Status: "absent_from_index"}, nil
+	}
+	bundle, err := cncfcheck.AdmitExternalProjectTarget(index, project, target.Bytes())
+	if err != nil || bundle.BundleDigest() != target.Digest {
+		return cncfcheck.ExternalBundle{}, cncfcheck.ExternalAdmission{}, nil, ErrIntegrity
+	}
+	return bundle, admission, &ProjectTargetBinding{Project: project, Status: "present", TargetPath: target.Path, Revision: target.Revision, Digest: target.Digest}, nil
 }
 
 func MarshalReport(report Report) ([]byte, error) {
@@ -249,7 +314,7 @@ func ReplayHistorical(req Request, expected []byte) (HistoricalReplay, error) {
 	if err != nil || evaluatedAt.Location() != time.UTC || evaluatedAt.Nanosecond() != 0 || evaluatedAt.Format(time.RFC3339) != original.Knowledge.EvaluatedAt {
 		return HistoricalReplay{}, ErrIntegrity
 	}
-	selected, err := knowledge.OpenHistoricalConstraints(req.Selection, evaluatedAt)
+	selected, err := knowledge.OpenHistoricalCNCF(req.Selection, evaluatedAt, []string{req.Project})
 	if err != nil {
 		return HistoricalReplay{}, err
 	}
