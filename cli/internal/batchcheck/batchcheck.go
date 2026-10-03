@@ -23,6 +23,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/projectcheck"
@@ -342,15 +343,7 @@ func evaluateItem(item Item, raw []byte, now time.Time, selected knowledge.Verif
 			return result
 		}
 		result.Report = append(json.RawMessage(nil), sealed...)
-		claims := make([]claimView, 0, len(report.Check.Claims))
-		for _, claim := range report.Check.Claims {
-			// One-way notices are informational and never decide an outcome.
-			if claim.IsNotice() {
-				continue
-			}
-			claims = append(claims, claimView{Status: claim.Status, ReasonCode: claim.ReasonCode, EvidenceFreshness: claim.EvidenceFreshness})
-		}
-		return fromClaims(result, claims)
+		return fromClaims(result, cncfClaimViews(report.Check.Claims))
 	}
 	report, err := projectcheck.Check(item.Project, raw, now)
 	if err != nil {
@@ -407,18 +400,24 @@ func evaluateExternalCNCF(result ItemResult, item Item, raw []byte, selected kno
 		return result
 	}
 	result.Report = append(json.RawMessage(nil), sealed...)
-	claims := make([]claimView, 0, len(report.Check.Check.Claims))
-	for _, claim := range report.Check.Check.Claims {
-		// One-way notices are informational and never decide an outcome.
-		if claim.IsNotice() {
-			continue
-		}
-		claims = append(claims, claimView{Status: claim.Status, ReasonCode: claim.ReasonCode, EvidenceFreshness: claim.EvidenceFreshness})
-	}
-	return fromClaims(result, claims)
+	return fromClaims(result, cncfClaimViews(report.Check.Check.Claims))
 }
 
 type claimView struct{ Status, ReasonCode, EvidenceFreshness string }
+
+// cncfClaimViews keeps the claims that decide an outcome. One-way notices are
+// informational and never do: an item whose only claims are notices keeps the
+// UNKNOWN outcome of an item without claims.
+func cncfClaimViews(claims []constraintengine.Claim) []claimView {
+	views := make([]claimView, 0, len(claims))
+	for _, claim := range claims {
+		if claim.IsNotice() {
+			continue
+		}
+		views = append(views, claimView{Status: claim.Status, ReasonCode: claim.ReasonCode, EvidenceFreshness: claim.EvidenceFreshness})
+	}
+	return views
+}
 
 func fromClaims(result ItemResult, claims []claimView) ItemResult {
 	if len(claims) == 0 {
