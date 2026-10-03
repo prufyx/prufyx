@@ -22,15 +22,16 @@ var (
 	gateEntryRE = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]{0,63}=(?:true|false)$`)
 )
 
-// componentConfigAPIGroups lists, per component, the config API groups whose
-// documents carry a featureGates map.
-var componentConfigAPIGroups = map[string]string{
-	"pkg:oci/cert-manager/cert-manager": "config.cert-manager.io/",
-}
-
 // removeFeatureGateKind drops one gate from a --feature-gates list. Removing
 // the last entry of a list, or an entry of a featureGates map, deletes a
-// whole argument or mapping entry; those structural edits are refused.
+// whole argument or mapping entry; those structural edits are refused, and so
+// is any document in which a featureGates mapping holds the gate.
+//
+// Limits: only the regular containers of a workload are read (init containers
+// are left alone); only the double-dash flag --feature-gates is recognised
+// (not -feature-gates); in the two-element form the element after the flag is
+// taken as the list, and no per-component flag schema exists to tell a value
+// from a flag.
 type removeFeatureGateKind struct{}
 
 func (removeFeatureGateKind) ID() string { return "remove_feature_gate" }
@@ -149,16 +150,39 @@ func (removeFeatureGateKind) Plan(doc intake.Document, src []byte, parsed any) (
 	return edits, nil
 }
 
-// checkGateMap refuses a component configuration whose featureGates map holds
-// the gate: dropping a map entry is a structural edit.
+// checkGateMap refuses a document in which any featureGates mapping, at any
+// depth, holds the gate as a key: dropping a map entry is a structural edit.
 func checkGateMap(doc intake.Document, p removeFeatureGateParams) error {
-	group, ok := componentConfigAPIGroups[p.Component]
-	if !ok || !strings.HasPrefix(doc.APIVersion, group) {
-		return nil
-	}
-	gates, _ := doc.Value["featureGates"].(map[string]any)
-	if _, present := gates[p.Gate]; present {
+	if gateInMap(doc.Value, p.Gate, 0) {
 		return kindRefused("the gate is a featureGates map entry; removing it is a structural edit")
 	}
 	return nil
+}
+
+func gateInMap(value any, gate string, depth int) bool {
+	if depth > 256 {
+		return true // too deep to inspect: refuse
+	}
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, child := range typed {
+			if key == "featureGates" {
+				if gates, ok := child.(map[string]any); ok {
+					if _, present := gates[gate]; present {
+						return true
+					}
+				}
+			}
+			if gateInMap(child, gate, depth+1) {
+				return true
+			}
+		}
+	case []any:
+		for _, child := range typed {
+			if gateInMap(child, gate, depth+1) {
+				return true
+			}
+		}
+	}
+	return false
 }

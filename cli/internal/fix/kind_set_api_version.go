@@ -23,6 +23,8 @@ type setAPIVersionParams struct {
 }
 
 // setAPIVersionKind replaces the apiVersion of documents of one exact kind.
+// Documents of another kind are skipped, even with the same apiVersion. A List
+// holding a matching item is refused (its items are not addressed).
 // Whether the migration is safe is a property of the rule that asks for it;
 // this kind only does the byte-exact replacement.
 type setAPIVersionKind struct{}
@@ -58,7 +60,7 @@ func (setAPIVersionKind) Plan(doc intake.Document, src []byte, parsed any) ([]Ed
 		return nil, nil
 	}
 	if doc.Kind != p.Kind {
-		return nil, kindRefused("a document with the source apiVersion has another kind")
+		return nil, nil
 	}
 	locator, err := NewLocator(src)
 	if err != nil {

@@ -180,6 +180,9 @@ func TestSetAPIVersion(t *testing.T) {
 		{name: "other group untouched", src: "apiVersion: example.com/batch/v1beta1\nkind: CronJob\n", params: params},
 		{name: "core group", params: kindParams(t, map[string]string{"from": "v1", "to": "v1beta1", "kind": "Widget"}),
 			src: "apiVersion: v1\nkind: Widget\n", want: "apiVersion: v1beta1\nkind: Widget\n", edits: 1},
+		{name: "other kind with the same apiVersion is skipped", params: params,
+			src:  "apiVersion: batch/v1beta1\nkind: Job\n---\n" + cron("batch/v1beta1") + "---\napiVersion: batch/v1beta1\nkind: cronjob\n",
+			want: "apiVersion: batch/v1beta1\nkind: Job\n---\n" + cron("batch/v1") + "---\napiVersion: batch/v1beta1\nkind: cronjob\n", edits: 1},
 		{name: "no apiVersion", src: "kind: CronJob\nname: x\n", params: params},
 	})
 }
@@ -187,11 +190,7 @@ func TestSetAPIVersion(t *testing.T) {
 func TestSetAPIVersionRefusals(t *testing.T) {
 	params := kindParams(t, map[string]string{"from": "batch/v1beta1", "to": "batch/v1", "kind": "CronJob"})
 	runRefusals(t, "set_api_version", params, map[string]string{
-		"wrong kind":            "apiVersion: batch/v1beta1\nkind: Job\n",
-		"kind in other case":    "apiVersion: batch/v1beta1\nkind: cronjob\n",
-		"list with a match":     "apiVersion: v1\nkind: List\nitems:\n- apiVersion: batch/v1beta1\n  kind: CronJob\n",
-		"no kind":               "apiVersion: batch/v1beta1\nname: x\n",
-		"match among documents": "apiVersion: batch/v1beta1\nkind: CronJob\n---\napiVersion: batch/v1beta1\nkind: Job\n",
+		"list with a match": "apiVersion: v1\nkind: List\nitems:\n- apiVersion: batch/v1beta1\n  kind: CronJob\n",
 	})
 	for name, src := range map[string]string{
 		"block scalar":   "apiVersion: >-\n  batch/v1beta1\nkind: CronJob\n",
@@ -355,8 +354,8 @@ func TestRemoveFeatureGate(t *testing.T) {
 			src: workload("DaemonSet", container("quay.io/cilium/cilium:v1.16.0", "        args: [--feature-gates=ServerSideApply=true]\n"))},
 		{name: "map absent", params: params,
 			src: "apiVersion: config.cert-manager.io/v1alpha1\nkind: ControllerConfiguration\nfeatureGates:\n  A: true\n"},
-		{name: "map of an unrelated document", params: params,
-			src: "apiVersion: kubelet.config.k8s.io/v1beta1\nkind: KubeletConfiguration\nfeatureGates:\n  ServerSideApply: true\n"},
+		{name: "map without the gate in any document", params: params,
+			src: "apiVersion: kubelet.config.k8s.io/v1beta1\nkind: KubeletConfiguration\nfeatureGates:\n  Other: true\n"},
 	})
 }
 
@@ -364,18 +363,21 @@ func TestRemoveFeatureGateRefusals(t *testing.T) {
 	params := kindParams(t, map[string]string{"component": cmID, "gate": "ServerSideApply"})
 	img := "quay.io/jetstack/cert-manager-controller:v1.16.2"
 	runRefusals(t, "remove_feature_gate", params, map[string]string{
-		"only gate in the list":      workload("Deployment", container(img, "        args: [--feature-gates=ServerSideApply=true]\n")),
-		"only gate in separate form": workload("Deployment", container(img, "        args: [--feature-gates, ServerSideApply=false]\n")),
-		"gate twice in a list":       workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=true,ServerSideApply=false,A=true\"]\n")),
-		"gate in two flags":          workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=true,A=true\", \"--feature-gates=ServerSideApply=true,B=true\"]\n")),
-		"malformed entry":            workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=yes,A=true\"]\n")),
-		"spaces in the list":         workload("Deployment", container(img, "        args: [\"--feature-gates=A=true, ServerSideApply=true\"]\n")),
-		"unknown image":              workload("Deployment", container("example.com/x:1", "        args: [\"--feature-gates=ServerSideApply=true,A=true\"]\n")),
-		"escaped token":              workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=true,A=true\\x21\"]\n")),
-		"gate map entry":             "apiVersion: config.cert-manager.io/v1alpha1\nkind: ControllerConfiguration\nfeatureGates:\n  ServerSideApply: true\n  A: true\n",
-		"gate map only entry":        "apiVersion: config.cert-manager.io/v1alpha1\nkind: WebhookConfiguration\nfeatureGates: {ServerSideApply: true}\n",
-		"list of workloads":          "apiVersion: v1\nkind: List\nitems:\n- kind: Pod\n",
-		"junk in a flow list":        workload("Deployment", container(img, "        args: [--v=2, \"--feature-gates=ServerSideApply=true;x\"]\n")),
+		"only gate in the list":          workload("Deployment", container(img, "        args: [--feature-gates=ServerSideApply=true]\n")),
+		"only gate in separate form":     workload("Deployment", container(img, "        args: [--feature-gates, ServerSideApply=false]\n")),
+		"gate twice in a list":           workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=true,ServerSideApply=false,A=true\"]\n")),
+		"gate in two flags":              workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=true,A=true\", \"--feature-gates=ServerSideApply=true,B=true\"]\n")),
+		"malformed entry":                workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=yes,A=true\"]\n")),
+		"spaces in the list":             workload("Deployment", container(img, "        args: [\"--feature-gates=A=true, ServerSideApply=true\"]\n")),
+		"unknown image":                  workload("Deployment", container("example.com/x:1", "        args: [\"--feature-gates=ServerSideApply=true,A=true\"]\n")),
+		"escaped token":                  workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=true,A=true\\x21\"]\n")),
+		"gate map entry":                 "apiVersion: config.cert-manager.io/v1alpha1\nkind: ControllerConfiguration\nfeatureGates:\n  ServerSideApply: true\n  A: true\n",
+		"gate map in any document":       "apiVersion: kubelet.config.k8s.io/v1beta1\nkind: KubeletConfiguration\nfeatureGates:\n  ServerSideApply: true\n",
+		"gate map nested":                "a:\n  b:\n  - featureGates:\n      ServerSideApply: false\n",
+		"gate map beside a fixable flag": workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=true,A=true\"]\n")) + "---\nfeatureGates: {ServerSideApply: true}\n",
+		"gate map only entry":            "apiVersion: config.cert-manager.io/v1alpha1\nkind: WebhookConfiguration\nfeatureGates: {ServerSideApply: true}\n",
+		"list of workloads":              "apiVersion: v1\nkind: List\nitems:\n- kind: Pod\n",
+		"junk in a flow list":            workload("Deployment", container(img, "        args: [--v=2, \"--feature-gates=ServerSideApply=true;x\"]\n")),
 	})
 	runInvalidParams(t, "remove_feature_gate", []string{
 		``, `{}`, `{"component":"pkg:oci/cert-manager/cert-manager"}`,

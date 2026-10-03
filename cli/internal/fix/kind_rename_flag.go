@@ -19,6 +19,12 @@ type renameFlagParams struct {
 
 // renameFlagKind renames a command-line flag in the command and args lists of
 // the containers of one component.
+//
+// Limits: only the regular containers of a workload are read (init containers
+// are left alone); only double-dash flags are recognised (not -flag); the
+// flag token is renamed but never its value, and a value element that looks
+// like the flag cannot be told from the flag (no per-component flag schema),
+// so it counts as an occurrence.
 type renameFlagKind struct{}
 
 func (renameFlagKind) ID() string { return "rename_flag" }
