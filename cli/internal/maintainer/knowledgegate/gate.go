@@ -152,7 +152,7 @@ func Limits(opts Options) (*Report, error) {
 	}
 	r := newReport(cls, opts)
 	r.limitChecks(cls)
-	r.finish()
+	r.finish(false)
 	return r, nil
 }
 
@@ -181,13 +181,15 @@ func (r *Report) limitChecks(cls *Classification) {
 	}
 }
 
-func (r *Report) finish() {
+// finish sets the result: every check must pass and, when changes is set,
+// every change must have been admitted.
+func (r *Report) finish(changes bool) {
 	pass := true
 	for _, c := range r.Checks {
 		pass = pass && c.OK
 	}
 	for _, c := range r.Changes {
-		pass = pass && c.OK
+		pass = pass && (c.OK || !changes)
 	}
 	r.Result = "fail"
 	if pass {
@@ -277,7 +279,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	r.packChecks(cls, opts)
 	r.generatedChecks(opts)
 	r.limitChecks(cls)
-	r.finish()
+	r.finish(true)
 	r.autoMerge(opts)
 	return r, nil
 }
