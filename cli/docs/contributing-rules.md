@@ -36,8 +36,9 @@ files hold the same shape: a top-level `entries` array, where each entry is:
 ```
 
 `operator` is one of `forbid_predicate_value`, `require_component_version`,
-`require_intermediate_version`, `forbid_target_version`, or
+`require_intermediate_version`, `forbid_target_version`,
 `forbid_set_member` (see [Set-valued facts](#set-valued-facts-and-forbid_set_member)
+below), or `notice_one_way` (see [One-way notices](#one-way-notices-and-notice_one_way)
 below) — see `internal/constraintengine/parse.go` for exactly what each one
 checks.
 `requiredFacts` may be empty for an operator that carries no fact condition
@@ -106,6 +107,51 @@ Binaries that predate set facts reject such a document outright, and every
 document without the operator keeps its previous schema, digests and report
 bytes. Two set rules on the same fact whose reviewed ranges overlap may not
 forbid a common member.
+
+## One-way notices and `notice_one_way`
+
+Some upgrades cannot be rolled back: a stored format or version changes and
+the older release cannot read it again. A `notice_one_way` rule says so for
+one reviewed transition. It is a notice, not a verdict.
+
+```json
+"operator": "notice_one_way",
+"subject": { "component": "...", "from": "1.29.0", "to": "1.30.0" },
+"evidence": { "state": "active", "reviewedAt": "...", "validUntil": "...", "sources": [ /* pinned sources */ ] },
+"reasonCode": "ONE_WAY_TRANSITION",
+"nextAction": "take an etcd snapshot and verify that it restores before upgrading"
+```
+
+- `reasonCode` must be `ONE_WAY_TRANSITION`.
+- The rule carries no `condition`, `setCondition`, `dependency` or
+  `intermediate`. `appliesWhen` and a reviewed `range` are allowed.
+- `nextAction` is the reviewed "before you upgrade" text: what the operator
+  must do first (a backup, a snapshot, a verified restore), written from the
+  cited source, at most 256 bytes. It must not contain the word "safe" in any
+  form; describe the precaution, never the outcome.
+- `requiredFacts` lists only the facts `appliesWhen` reads, and is empty when
+  there are none.
+
+When the transition matches, the evidence is current and every `appliesWhen`
+condition holds, the claim status is `NOTICE`. Otherwise the claim is
+`UNKNOWN` with the usual reason (stale or withdrawn evidence, a transition the
+rule does not review, an applicability fact that is missing or does not
+match). Either way the claim never decides anything: a notice is left out of
+the exit code and of every aggregate, a project whose only rules are notices
+still has no evaluated rule, and a notice cannot support a completeness
+attestation. Human output prints a matching notice as
+`cannot be rolled back: <rule id>` followed by
+`before you upgrade: <nextAction>`; a notice for another transition prints
+nothing, because the absence of a notice says nothing about rolling back.
+
+A rule document or pack that contains a `notice_one_way` rule carries its own
+schema — rules `prufyx.io/deterministic-constraint-rules/v1alpha4`, CNCF pack
+`prufyx.io/cncf-source-rule-pack/v1alpha6` — and its reports carry a separate
+engine contract digest. The schema may also hold reviewed ranges and
+`forbid_set_member` rules. Binaries that predate notices reject such a
+document outright, and every document without the operator keeps its previous
+schema, digests and report bytes. Community project packs do not accept
+notices.
 
 ## Evidence basis
 

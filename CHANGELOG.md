@@ -57,6 +57,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Rule data can now carry one-way upgrade notices: a reviewed rule that says a
+  transition cannot be rolled back, with the reviewed steps to take before
+  upgrading. A notice shows up as its own `NOTICE` claim and its own lines in
+  human output (`cannot be rolled back: ...`, `before you upgrade: ...`); it
+  never changes a verdict, an aggregate or the exit status. No notice rules
+  are shipped yet.
 - Upgrade-path policies: a knowledge pack may carry an optional
   `pathPolicies` section saying how a component's upgrades are split into
   hops (`sequential_minor`, `direct` or `sequential_major`), each record with

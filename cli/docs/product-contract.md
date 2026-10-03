@@ -37,6 +37,15 @@ The `check` command's exit status describes its named claim:
 | Invalid input | 2 | Correct the command or input before evaluating it |
 | Integrity failure | 3 | The supplied or bound bytes do not match the expected identity |
 
+A claim may also be `NOTICE`: a reviewed rule states that the declared
+transition cannot be rolled back, and human output prints it as
+`cannot be rolled back: <rule>` with the reviewed text of what to do before
+upgrading. `NOTICE` is informational and never a verdict. It never changes the
+exit status or any aggregate: notices are left out, so a report whose only
+claims are notices exits 11, and a notice beside passing or blocking claims
+leaves their exit status as it was. The absence of a notice means nothing; it
+does not say that a rollback is possible.
+
 The whole-upgrade aggregate remains UNKNOWN. No result in this release
 authorizes a rollout or establishes full runtime, data, rollback or component
 compatibility. The older `validate-prometheus-mode` command retains its
