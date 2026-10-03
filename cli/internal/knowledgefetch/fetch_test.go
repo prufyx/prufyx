@@ -163,3 +163,23 @@ func (errReader) Read([]byte) (int, error) { return 0, io.ErrUnexpectedEOF }
 type readCloser struct{ io.Reader }
 
 func (readCloser) Close() error { return nil }
+
+func TestFetchPerProjectBound(t *testing.T) {
+	size := maxPackageBytes + 1
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write(make([]byte, size))
+	}))
+	defer server.Close()
+	if _, err := fetchWithClient(context.Background(), server.URL+"/package", testTLSClient(server)); !errors.Is(err, ErrOversized) {
+		t.Fatalf("single-target bound not applied: %v", err)
+	}
+	got, err := fetchWithLimit(context.Background(), server.URL+"/package", testTLSClient(server), maxPerProjectPackageBytes)
+	if err != nil || len(got) != size {
+		t.Fatalf("per-project bound rejected %d bytes: %v", size, err)
+	}
+	size = maxPerProjectPackageBytes + 1
+	if _, err := fetchWithLimit(context.Background(), server.URL+"/package", testTLSClient(server), maxPerProjectPackageBytes); !errors.Is(err, ErrOversized) {
+		t.Fatalf("per-project bound not applied: %v", err)
+	}
+}

@@ -18,7 +18,12 @@ import (
 	"unicode"
 )
 
-const maxPackageBytes = 4 << 20
+const (
+	maxPackageBytes = 4 << 20
+	// maxPerProjectPackageBytes bounds a per-project CNCF package: the index,
+	// one target per project (each at most 1 MiB) and TUF metadata.
+	maxPerProjectPackageBytes = 8 << 20
+)
 
 var (
 	// ErrInvalidSource means the caller did not provide one explicit, absolute
@@ -63,9 +68,19 @@ func Fetch(ctx context.Context, source string) ([]byte, error) {
 	return fetchWithClient(ctx, source, newClient(nil))
 }
 
+// FetchPerProject is Fetch with the larger bound of a per-project CNCF
+// package. Transport rules are identical.
+func FetchPerProject(ctx context.Context, source string) ([]byte, error) {
+	return fetchWithLimit(ctx, source, newClient(nil), maxPerProjectPackageBytes)
+}
+
 // Tests supply only their own TLS trust and deterministic failure transports.
 // Production does not expose or retain mutable client state.
 func fetchWithClient(ctx context.Context, source string, client *http.Client) ([]byte, error) {
+	return fetchWithLimit(ctx, source, client, maxPackageBytes)
+}
+
+func fetchWithLimit(ctx context.Context, source string, client *http.Client, limit int64) ([]byte, error) {
 	if err := ValidateSource(source); err != nil {
 		return nil, ErrInvalidSource
 	}
@@ -95,14 +110,14 @@ func fetchWithClient(ctx context.Context, source string, client *http.Client) ([
 	if response.StatusCode != http.StatusOK || !identityEncoding(response.Header.Values("Content-Encoding")) {
 		return nil, ErrTransfer
 	}
-	if response.ContentLength > maxPackageBytes {
+	if response.ContentLength > limit {
 		return nil, ErrOversized
 	}
-	raw, err := io.ReadAll(io.LimitReader(response.Body, maxPackageBytes+1))
+	raw, err := io.ReadAll(io.LimitReader(response.Body, limit+1))
 	if err != nil {
 		return nil, ErrTransfer
 	}
-	if len(raw) > maxPackageBytes {
+	if int64(len(raw)) > limit {
 		return nil, ErrOversized
 	}
 	return bytes.Clone(raw), nil

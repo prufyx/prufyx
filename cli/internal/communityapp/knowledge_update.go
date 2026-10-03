@@ -22,7 +22,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/knowledgereleaseplan"
 )
 
-const updateUsage = "Usage: prufyx db update (--source HTTPS_URL [--profile cert-manager|cncf|spiffe-x509-svid|cloudevents-structured-json|tikv-gcp-v2-wif-backup] [--expected-revision REVISION] [--expected-bundle-digest SHA256] | --release-plan LOCAL_FILE) --package-out FILE --db-root DIR [--bootstrap-root FILE --bootstrap-root-digest SHA256] [--format human|json]"
+const updateUsage = "Usage: prufyx db update (--source HTTPS_URL [--profile cert-manager|cncf|cncf-projects|spiffe-x509-svid|cloudevents-structured-json|tikv-gcp-v2-wif-backup] [--expected-revision REVISION] [--expected-bundle-digest SHA256] | --release-plan LOCAL_FILE) --package-out FILE --db-root DIR [--bootstrap-root FILE --bootstrap-root-digest SHA256] [--format human|json]"
 
 type knowledgeUpdateOutput struct {
 	APIVersion             string                   `json:"apiVersion"`
@@ -40,12 +40,18 @@ type knowledgeUpdateOutput struct {
 }
 
 func (r runtime) databaseUpdate(ctx context.Context, args []string) int {
-	return r.databaseUpdateWithFetch(ctx, args, knowledgefetch.Fetch)
+	return r.databaseUpdateWithFetches(ctx, args, knowledgefetch.Fetch, knowledgefetch.FetchPerProject)
 }
 
 // The injected function is a test seam. Production has one fixed transport;
 // private check inputs and environment-derived clients never enter this API.
 func (r runtime) databaseUpdateWithFetch(ctx context.Context, args []string, fetch func(context.Context, string) ([]byte, error)) int {
+	return r.databaseUpdateWithFetches(ctx, args, fetch, fetch)
+}
+
+// databaseUpdateWithFetches selects the transport bound by profile: a
+// per-project CNCF package may be larger than a single-target package.
+func (r runtime) databaseUpdateWithFetches(ctx context.Context, args []string, fetch, fetchPerProject func(context.Context, string) ([]byte, error)) int {
 	if hasHelp(args) {
 		fmt.Fprintln(r.stdout, updateUsage+"\n\nExplicitly fetch a complete package, retain it privately, then verify and import\nlocally. A release plan supplies unsigned routing and exact verification assertions;\nit never supplies bootstrap trust. The output must be new, outside the store, in\nan existing 0700 directory. Obtain the initial root and its identity independently.\nNo official Prufyx feed or root is configured. Checks, replay, import and status\nremain offline.")
 		return ExitOK
@@ -56,7 +62,7 @@ func (r runtime) databaseUpdateWithFetch(ctx context.Context, args []string, fet
 	releasePlan := fs.String("release-plan", "", "local canonical unsigned routing and assertion plan")
 	packageOut := fs.String("package-out", "", "new retained package file in a private directory outside the store")
 	dbRoot := fs.String("db-root", "", "private knowledge store root")
-	profile := fs.String("profile", "cert-manager", "cert-manager, cncf, spiffe-x509-svid, cloudevents-structured-json, or tikv-gcp-v2-wif-backup in separate directories")
+	profile := fs.String("profile", "cert-manager", "cert-manager, cncf, cncf-projects, spiffe-x509-svid, cloudevents-structured-json, or tikv-gcp-v2-wif-backup in separate directories")
 	bootstrapRoot := fs.String("bootstrap-root", "", "independently provisioned initial TUF root")
 	bootstrapDigest := fs.String("bootstrap-root-digest", "", "exact initial root SHA-256")
 	expectedRevision := fs.String("expected-revision", "", "optional exact semantic revision assertion")
@@ -152,6 +158,9 @@ func (r runtime) databaseUpdateWithFetch(ctx context.Context, args []string, fet
 		return finish(ExitUsage)
 	}
 	output.NetworkAttempted = true
+	if *profile == "cncf-projects" {
+		fetch = fetchPerProject
+	}
 	raw, err = fetch(ctx, *source)
 	if err != nil {
 		if errors.Is(err, knowledgefetch.ErrOversized) {
@@ -197,6 +206,8 @@ func (r runtime) databaseUpdateWithFetch(ctx context.Context, args []string, fet
 	var receipt knowledge.ImportReceipt
 	if *profile == "cncf" {
 		receipt, err = knowledge.ImportConstraints(req)
+	} else if *profile == "cncf-projects" {
+		receipt, err = knowledge.ImportConstraintsProjects(req)
 	} else if *profile == "spiffe-x509-svid" {
 		receipt, err = knowledge.ImportSPIFFEX509SVID(req)
 	} else if *profile == "cloudevents-structured-json" {
@@ -209,6 +220,10 @@ func (r runtime) databaseUpdateWithFetch(ctx context.Context, args []string, fet
 	if err != nil {
 		output.ReasonCode = "KNOWLEDGE_PACKAGE_IMPORT_REJECTED"
 		output.NextAction = "retain the downloaded package; inspect db status for this profile and follow local db import recovery instructions"
+		if errors.Is(err, knowledge.ErrLayout) {
+			output.ReasonCode = "KNOWLEDGE_LAYOUT_MISMATCH"
+			output.NextAction = knowledgeLayoutNextAction
+		}
 		if receipt.APIVersion != "" {
 			rejection := rejectedKnowledgeImport(receipt, err, *profile)
 			output.Rejection = &rejection
@@ -336,6 +351,9 @@ func (r runtime) writeKnowledgeUpdate(output knowledgeUpdateOutput, format strin
 	fmt.Fprintf(&b, "knowledge update: %s\nprofile: %s\nnetwork attempted: %t\ntransfer completed: %t\npackage retained: %t\npartial cleanup required: %t\npackage digest: %s\nreason: %s\nnext action: %s\n", output.Status, output.Profile, output.NetworkAttempted, output.TransferCompleted, output.PackageRetained, output.PartialCleanupRequired, output.PackageDigest, output.ReasonCode, output.NextAction)
 	if receipt := output.ImportReceipt; receipt != nil {
 		fmt.Fprintf(&b, "revision: %s\npurpose: %s\ntrust source: %s\nbundle digest: %s\ntrust receipt digest: %s\n", receipt.TrustReceipt.KnowledgeRevision, receipt.TrustReceipt.Purpose, receipt.TrustReceipt.TrustSource, receipt.TrustReceipt.TargetDigest, receipt.TrustReceiptDigest)
+		if len(receipt.ProjectTargets) > 0 {
+			fmt.Fprintf(&b, "project targets: %d\n", len(receipt.ProjectTargets))
+		}
 		if receipt.TrustReceipt.Purpose == "synthetic_test_only" {
 			fmt.Fprintln(&b, "authority: synthetic test knowledge only; no official Prufyx trust root or compatibility proof")
 		}
