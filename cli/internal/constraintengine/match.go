@@ -431,3 +431,47 @@ func intervalsOverlap(a, b interval) bool {
 	}
 	return below(a.low, b) && below(b.low, a)
 }
+
+// Line coverage. A multi-hop upgrade path passes through intermediate minor
+// lines without fixing a patch version: the operator may stop at M.m.0 or at
+// any later patch of the line. A rule may decide such a hop only when its
+// range contains every release of the line on that side.
+
+// CoversLine reports whether the bound contains every release version of the
+// minor line M.m: gte <= M.m.0 and lt >= M.(m+1).0. The line must be exactly
+// "M.m" with the engine's version syntax (no leading zeros, each part fitting
+// 32 bits); an invalid line, a line without a next minor line, or a bound
+// whose versions do not parse never covers anything.
+func (b VersionBound) CoversLine(line string) bool {
+	start, next, ok := lineBounds(line)
+	if !ok {
+		return false
+	}
+	low, lowOK := compareVersions(b.Gte, start)
+	high, highOK := compareVersions(b.Lt, next)
+	return lowOK && highOK && low <= 0 && high >= 0
+}
+
+// CoversFromLine reports whether the rule matches a transition from every
+// release of line on its from side: the rule has a range and the range's
+// from bound covers the whole line. An anchor-only rule matches one exact
+// pair and never covers a line.
+func (t RuleTransition) CoversFromLine(line string) bool {
+	return t.Range != nil && t.Range.From.CoversLine(line)
+}
+
+// CoversToLine is the target-side counterpart of CoversFromLine.
+func (t RuleTransition) CoversToLine(line string) bool {
+	return t.Range != nil && t.Range.To.CoversLine(line)
+}
+
+// lineBounds returns M.m.0 and M.(m+1).0 for a valid minor line M.m.
+func lineBounds(line string) (start, next string, ok bool) {
+	start = line + ".0"
+	parsed, valid := parseVersion(start)
+	if !valid || parsed[1] == ^uint32(0) {
+		return "", "", false
+	}
+	next = fmt.Sprintf("%d.%d.0", parsed[0], uint64(parsed[1])+1)
+	return start, next, true
+}
