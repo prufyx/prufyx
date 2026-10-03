@@ -67,10 +67,25 @@ func validateNoticeRule(r rule) error {
 	if r.ReasonCode != ReasonOneWayTransition {
 		return fmt.Errorf("notice reason code: %w", ErrInvalid)
 	}
-	if strings.Contains(strings.ToLower(r.NextAction), "safe") {
-		return fmt.Errorf("notice text must not describe the upgrade as safe: %w", ErrInvalid)
+	// Printable ASCII only, so no look-alike letter, invisible character or
+	// direction override can hide a word; then neither the text nor the rule
+	// id may contain "safe" in any case.
+	if !printableASCII(r.NextAction) || !printableASCII(r.ID) {
+		return fmt.Errorf("notice text and id must be printable ASCII: %w", ErrInvalid)
+	}
+	if strings.Contains(strings.ToLower(r.NextAction), "safe") || strings.Contains(strings.ToLower(r.ID), "safe") {
+		return fmt.Errorf("notice text and id must not contain the word safe: %w", ErrInvalid)
 	}
 	return nil
+}
+
+func printableASCII(value string) bool {
+	for index := 0; index < len(value); index++ {
+		if value[index] < 0x20 || value[index] > 0x7e {
+			return false
+		}
+	}
+	return true
 }
 
 // AnyNoticeRule reports whether any raw rule uses notice_one_way.
@@ -152,7 +167,11 @@ func (c Claim) NoticeLines() (lines []string, ok bool) {
 	if _, excluded := exclusionReasons[c.ReasonCode]; excluded {
 		return nil, true
 	}
-	return append([]string{noticeUnresolvedPrefix + c.RuleID + " (" + c.ReasonCode + ")"}, prefixedLines(noticeUnresolvedActions, c.NextAction)...), true
+	head := []string{noticeUnresolvedPrefix + c.RuleID + " (" + c.ReasonCode + ")"}
+	if len(head[0]) > maxStringBytes {
+		head = []string{noticeUnresolvedPrefix + c.RuleID, "reason: " + c.ReasonCode}
+	}
+	return append(head, prefixedLines(noticeUnresolvedActions, c.NextAction)...), true
 }
 
 // prefixedLines keeps prefix and text on one line when that fits in 256

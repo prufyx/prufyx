@@ -91,6 +91,20 @@ func TestNoticeRuleStructure(t *testing.T) {
 		"corpus backed only by a notice": ruleDocumentJSON(RulesSchemaNotice, []string{scopeComponentA}, good),
 		"unknown schema level":           ruleDocumentJSON("prufyx.io/deterministic-constraint-rules/v1alpha5", nil, good),
 	}
+	// Look-alike letters, invisible characters and direction overrides are
+	// refused outright: the text is printable ASCII.
+	for name, text := range map[string]string{
+		"long s":           "rollback is \u017fafe",
+		"cyrillic dze":     "rollback is \u0455afe",
+		"cyrillic a":       "rollback is s\u0430fe",
+		"fullwidth":        "rollback is \uff53\uff41\uff46\uff45",
+		"soft hyphen":      "rollback is sa\u00adfe",
+		"zero width space": "rollback is sa\u200bfe",
+		"bidi override":    "rollback is \u202eefas",
+	} {
+		rejected["unicode "+name] = ruleDocumentJSON(RulesSchemaNotice, nil, replace(noticeBefore, text))
+	}
+	rejected["safe in the rule id"] = ruleDocumentJSON(RulesSchemaNotice, nil, replace(`"id":"notice-a"`, `"id":"rollback-safe"`))
 	for name, raw := range rejected {
 		if !json.Valid(raw) {
 			t.Fatalf("%s: fixture is not JSON: %s", name, raw)
@@ -518,6 +532,13 @@ func TestNoticeLines(t *testing.T) {
 	stale.Status, stale.ReasonCode, stale.NextAction = "UNKNOWN", "RULE_EVIDENCE_STALE", "select later declared rule source references with current evidence"
 	if lines, ok := stale.NoticeLines(); !ok || len(lines) != 2 || !strings.HasPrefix(lines[0], "one-way notice not established: notice-a") {
 		t.Fatalf("stale lines=%q", lines)
+	}
+	longReason := stale
+	longReason.RuleID, longReason.ReasonCode = strings.Repeat("r", 128), strings.Repeat("R", 128)
+	for _, line := range func() []string { l, _ := longReason.NoticeLines(); return l }() {
+		if len(line) > 256 {
+			t.Fatalf("unresolved line over 256 bytes: %d", len(line))
+		}
 	}
 	if _, ok := (Claim{Operator: "forbid_target_version", Status: "BLOCKED"}).NoticeLines(); ok {
 		t.Fatal("a verdict claim produced notice lines")
