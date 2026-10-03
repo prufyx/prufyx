@@ -1,0 +1,6 @@
+--- a/deploy/app.yaml
++++ b/deploy/app.yaml
+@@ -1,2 +1,2 @@
+-apiVersion: v1
++apiVersion: v1beta1
+ kind: Widget

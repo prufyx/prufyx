@@ -1,0 +1,19 @@
+--- a/deploy/app.yaml
++++ b/deploy/app.yaml
+@@ -1,14 +1,14 @@
+ apiVersion: apps/v1
+ kind: Deployment
+ ---
+-apiVersion: batch/v1beta1
++apiVersion: batch/v1
+ kind: CronJob
+ metadata:
+   name: x
+ spec:
+   schedule: "* * * * *"
+ ---
+-apiVersion: batch/v1beta1
++apiVersion: batch/v1
+ kind: CronJob
+ metadata:
+   name: x

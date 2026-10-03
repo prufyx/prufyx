@@ -1,0 +1,8 @@
+--- a/deploy/app.yaml
++++ b/deploy/app.yaml
+@@ -9,4 +9,4 @@
+       - name: c
+         image: prom/prometheus:v3.1.0
+         args:
+-        - "--storage.tsdb.retention=15d"
++        - "--storage.tsdb.retention.time=15d"
