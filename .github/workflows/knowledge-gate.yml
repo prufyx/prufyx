@@ -9,12 +9,20 @@ name: Knowledge gate
 # workflow runs on pull_request_target (the workflow definition and the gate
 # code come from the base branch, so a change cannot weaken its own gate).
 # It holds no secrets beyond a read-only token and never merges anything; it
-# reports whether the change would be eligible for automatic merging.
+# reports whether the change would be eligible for automatic merging, and
+# for which head commit.
+#
+# Both trees are exported from git objects (never checked out), so the
+# change's own .gitattributes cannot make the files the gate checks differ
+# from the blobs that merge. A pull request must be up to date with the
+# current tip of main.
 
 on:
   pull_request_target:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
+    types: [checks_requested]
   schedule:
     - cron: "23 4 * * *"
   workflow_dispatch:
@@ -32,58 +40,115 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
-      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
       HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
       PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+      EVENT_SENDER: ${{ github.event.sender.login }}
       BOT_LOGIN: ${{ vars.KNOWLEDGE_BOT_LOGIN || 'prufyx-factory[bot]' }}
       REATTEST_TRUST_ROOT_DIGEST: ${{ vars.REATTEST_TRUST_ROOT_DIGEST }}
+      WEB_APPROVAL_KEYS_DIGEST: ${{ vars.WEB_APPROVAL_KEYS_DIGEST }}
       MAX_LOOSENING: ${{ vars.KNOWLEDGE_MAX_LOOSENING || '200' }}
     outputs:
       result: ${{ steps.verify.outputs.result }}
       auto-merge-eligible: ${{ steps.verify.outputs.auto_merge_eligible }}
+      # A consumer that merges must merge exactly this commit, and only
+      # when this job succeeded.
+      head-sha: ${{ steps.verify.outputs.head_sha }}
     steps:
-      - name: Check out the base (gate code and pinned keys)
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          ref: ${{ env.BASE_SHA }}
-          path: base
-          persist-credentials: false
-
-      - name: Check out the proposed change (data only, never executed)
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          repository: ${{ env.HEAD_REPO }}
-          ref: ${{ env.HEAD_SHA }}
-          path: head
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Require the change to be based on the current base
-        if: github.event_name == 'pull_request_target'
+      - name: Resolve the base
+        id: base
         run: |
           set -euo pipefail
-          git -C head fetch --no-tags --quiet "https://github.com/${GITHUB_REPOSITORY}.git" "${BASE_SHA}"
-          if ! git -C head merge-base --is-ancestor "${BASE_SHA}" "${HEAD_SHA}"; then
-            echo "::error::The change is not based on the current ${GITHUB_BASE_REF}; update it so the gate compares exactly what would merge."
+          sha_re='^[0-9a-f]{40}$'
+          if ! [[ "${HEAD_SHA}" =~ ${sha_re} ]]; then
+            echo "The head commit id is not a full commit id."
             exit 1
           fi
+          case "${GITHUB_EVENT_NAME}" in
+            pull_request_target)
+              tip="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | cut -f1)"
+              if ! [[ "${tip}" =~ ${sha_re} ]]; then
+                echo "Cannot resolve the tip of main."
+                exit 1
+              fi
+              if [ "${PR_BASE_SHA}" != "${tip}" ]; then
+                echo "main has moved since this run was triggered; update the branch so the gate compares exactly what would merge."
+                exit 1
+              fi
+              base="${tip}"
+              ;;
+            merge_group)
+              base="${GROUP_BASE_SHA}"
+              ;;
+            *)
+              base="${HEAD_SHA}"
+              ;;
+          esac
+          if ! [[ "${base}" =~ ${sha_re} ]]; then
+            echo "The base commit id is not a full commit id."
+            exit 1
+          fi
+          echo "BASE_SHA=${base}" >> "${GITHUB_ENV}"
+          echo "sha=${base}" >> "${GITHUB_OUTPUT}"
+
+      - name: Check out the base (gate code only)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ steps.base.outputs.sha }}
+          path: gate-src
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version-file: base/cli/go.mod
+          go-version-file: gate-src/cli/go.mod
           cache: false
 
       - name: Build the gate from the base
-        working-directory: base/cli
+        working-directory: gate-src/cli
         run: go build -buildvcs=false -trimpath -o "${RUNNER_TEMP}/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      - name: Fetch both commits and require the head to contain the base
+        run: |
+          set -euo pipefail
+          objects="${RUNNER_TEMP}/objects.git"
+          git init -q --bare "${objects}"
+          git -C "${objects}" fetch --no-tags --quiet "https://github.com/${GITHUB_REPOSITORY}.git" "${BASE_SHA}"
+          git -C "${objects}" fetch --no-tags --quiet "https://github.com/${HEAD_REPO}.git" "${HEAD_SHA}"
+          if ! git -C "${objects}" merge-base --is-ancestor "${BASE_SHA}" "${HEAD_SHA}"; then
+            echo "The change does not contain the current base; update it so the gate compares exactly what would merge."
+            exit 1
+          fi
+
+      - name: Export both trees from git objects (no checkout, no attributes)
+        run: |
+          set -euo pipefail
+          "${RUNNER_TEMP}/prufyx-maintainer" gate export --git-dir "${RUNNER_TEMP}/objects.git" --commit "${BASE_SHA}" --out base
+          "${RUNNER_TEMP}/prufyx-maintainer" gate export --git-dir "${RUNNER_TEMP}/objects.git" --commit "${HEAD_SHA}" --out head
+
+      - name: List the change's commits
+        if: github.event_name == 'pull_request_target'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE_SHA}...${HEAD_SHA}?per_page=100" \
+            --jq '{status, ahead_by, behind_by, total_commits, commits: [.commits[] | {sha, author: (if .author then {login: .author.login} else null end), committer: (if .committer then {login: .committer.login} else null end), commit: {verification: {verified: .commit.verification.verified}}}]}' \
+            > "${RUNNER_TEMP}/commits.json"; then
+            echo "The commit list is unavailable; the change is not eligible for automatic merging."
+            rm -f "${RUNNER_TEMP}/commits.json"
+          fi
 
       - name: Classify the change
         id: classify
         run: |
           set -euo pipefail
+          token="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+          echo "::stop-commands::${token}"
           "${RUNNER_TEMP}/prufyx-maintainer" gate classify --base base --head head
+          echo "::${token}::"
           "${RUNNER_TEMP}/prufyx-maintainer" gate classify --base base --head head --json > "${RUNNER_TEMP}/classify.json"
           chains="$(jq -r '.chainsChanged | length' "${RUNNER_TEMP}/classify.json")"
           echo "chains_changed=${chains}" >> "${GITHUB_OUTPUT}"
@@ -109,24 +174,38 @@ jobs:
           set -euo pipefail
           args=(gate verify --base base --head head --source github
                 --bot-login "${BOT_LOGIN}" --max-loosening "${MAX_LOOSENING}"
+                --head-sha "${HEAD_SHA}"
                 --report "${RUNNER_TEMP}/gate-report.json" --summary "${GITHUB_STEP_SUMMARY}")
           if [ -n "${PR_AUTHOR}" ]; then
             args+=(--author "${PR_AUTHOR}")
           fi
+          if [ -n "${EVENT_SENDER}" ]; then
+            args+=(--sender "${EVENT_SENDER}")
+          fi
+          if [ -f "${RUNNER_TEMP}/commits.json" ]; then
+            args+=(--commits "${RUNNER_TEMP}/commits.json")
+          fi
           if [ -n "${REATTEST_TRUST_ROOT_DIGEST}" ]; then
             args+=(--trust-root-digest "${REATTEST_TRUST_ROOT_DIGEST}")
+          fi
+          if [ -n "${WEB_APPROVAL_KEYS_DIGEST}" ]; then
+            args+=(--approval-keys-digest "${WEB_APPROVAL_KEYS_DIGEST}")
           fi
           if [ -f "${RUNNER_TEMP}/rerun-worklist.json" ]; then
             args+=(--rerun-worklist "${RUNNER_TEMP}/rerun-worklist.json")
           fi
-          if [ "${GITHUB_EVENT_NAME}" != "pull_request_target" ]; then
+          if [ "${GITHUB_EVENT_NAME}" = "schedule" ] || [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             args+=(--rederive-all)
           fi
           status=0
+          token="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+          echo "::stop-commands::${token}"
           "${RUNNER_TEMP}/prufyx-maintainer" "${args[@]}" || status=$?
+          echo "::${token}::"
           if [ -f "${RUNNER_TEMP}/gate-report.json" ]; then
-            echo "result=$(jq -r '.result' "${RUNNER_TEMP}/gate-report.json")" >> "${GITHUB_OUTPUT}"
-            echo "auto_merge_eligible=$(jq -r '.autoMerge.eligible' "${RUNNER_TEMP}/gate-report.json")" >> "${GITHUB_OUTPUT}"
+            echo "result=$(jq -r 'if .result == "pass" then "pass" else "fail" end' "${RUNNER_TEMP}/gate-report.json")" >> "${GITHUB_OUTPUT}"
+            echo "auto_merge_eligible=$(jq -r 'if .autoMerge.eligible == true then "true" else "false" end' "${RUNNER_TEMP}/gate-report.json")" >> "${GITHUB_OUTPUT}"
+            echo "head_sha=${HEAD_SHA}" >> "${GITHUB_OUTPUT}"
           fi
           exit "${status}"
 
@@ -138,5 +217,6 @@ jobs:
           path: |
             ${{ runner.temp }}/gate-report.json
             ${{ runner.temp }}/classify.json
+            ${{ runner.temp }}/commits.json
           if-no-files-found: ignore
           retention-days: 30

@@ -21,6 +21,7 @@ import (
 )
 
 const usage = `usage:
+  prufyx-maintainer gate export   --git-dir DIR --commit SHA --out DIR
   prufyx-maintainer gate classify --base DIR --head DIR [--json]
   prufyx-maintainer gate limits   --base DIR --head DIR [--max-loosening N] [--json]
   prufyx-maintainer gate verify   --base DIR --head DIR [--source github|fixture:DIR]
@@ -46,6 +47,8 @@ func mainWith(args []string, getenv func(string) string, stdout, stderr io.Write
 	var code int
 	var err error
 	switch args[0] {
+	case "export":
+		code, err = cmdExport(args[1:])
 	case "classify":
 		code, err = cmdClassify(args[1:], layout, stdout)
 	case "limits":
@@ -103,6 +106,27 @@ func parse(f *flag.FlagSet, args []string) error {
 		return errors.New("command rejected\n" + usage)
 	}
 	return nil
+}
+
+func cmdExport(args []string) (int, error) {
+	var o ExportOptions
+	f := flag.NewFlagSet("gate export", flag.ContinueOnError)
+	f.SetOutput(io.Discard)
+	f.StringVar(&o.GitDir, "git-dir", "", "repository holding the commit")
+	f.StringVar(&o.Commit, "commit", "", "full commit id to export")
+	f.StringVar(&o.Out, "out", "", "directory to create")
+	if err := parse(f, args); err != nil {
+		return 2, err
+	}
+	if o.GitDir == "" || o.Commit == "" || o.Out == "" {
+		return 2, errors.New("--git-dir, --commit and --out are required\n" + usage)
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := Export(ctx, o); err != nil {
+		return 2, err
+	}
+	return 0, nil
 }
 
 // ClassifyOutput is the JSON form of "gate classify".
