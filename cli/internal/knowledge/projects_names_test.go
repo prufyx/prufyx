@@ -96,7 +96,7 @@ func TestConstraintsProjectsRejectPackageOverTheMemberTotalBeforeStoreUse(t *tes
 	}
 	path := f.write(t, knowledgefixture.ProjectsPackage{Targets: base, Extra: extra})
 	info, err := os.Stat(path)
-	if err != nil || info.Size() <= SplitMaxPackageMemberBytes || info.Size() >= SplitMaxPackageBytes {
+	if err != nil || info.Size() <= 7<<20 || info.Size() >= 8<<20 {
 		t.Fatalf("test package size %v is not between the member total and the file bound: %v", info, err)
 	}
 	_, err = f.importPackage(path)
