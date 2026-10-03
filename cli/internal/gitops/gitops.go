@@ -34,6 +34,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/prufyx/prufyx/cli/internal/intake"
@@ -164,8 +165,8 @@ func Analyze(ws intake.Workspace, opts Options) Repo {
 	return a.run()
 }
 
-// clip makes s safe to print: control characters, invalid bytes and
-// direction overrides are written as \uXXXX escapes, and the result is cut
+// clip makes s safe to print: control characters, invalid bytes, line
+// separators and format characters are written as \uXXXX escapes, and the result is cut
 // to MaxFieldBytes bytes on a character boundary.
 func clip(s string) string {
 	if needsEscape(s) {
@@ -197,7 +198,10 @@ func unsafeRune(r rune) bool {
 	switch {
 	case r < 0x20, r == 0x7f, r >= 0x80 && r <= 0x9f, r == utf8.RuneError:
 		return true
-	case r == 0x200e, r == 0x200f, r >= 0x202a && r <= 0x202e, r >= 0x2066 && r <= 0x2069:
+	case r == 0x2028, r == 0x2029, unicode.Is(unicode.Cf, r):
+		// Line and paragraph separators, and every format character:
+		// direction marks, overrides and isolates, zero-width characters,
+		// the byte order mark and tag characters.
 		return true
 	}
 	return false

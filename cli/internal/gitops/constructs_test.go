@@ -430,6 +430,14 @@ func TestPrintableDetails(t *testing.T) {
 	if got := clip("a\x00b\u2066c\xffd"); got != `a\u0000b\u2066c\ufffdd` {
 		t.Fatalf("clip = %q", got)
 	}
+	for _, r := range []rune{0x2028, 0x2029, 0x061c, 0x200b, 0x200c, 0x200d, 0x2060, 0xfeff, 0xe0001, 0xe0041, 0xe007f, 0x00ad} {
+		if got := clip("a" + string(r) + "b"); got != fmt.Sprintf(`a\u%04xb`, r) {
+			t.Errorf("clip(U+%04X) = %q", r, got)
+		}
+	}
+	if got := clip("plain é ü 日本"); got != "plain é ü 日本" {
+		t.Errorf("printable text changed: %q", got)
+	}
 }
 
 func TestPathRefusals(t *testing.T) {
