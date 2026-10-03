@@ -22,6 +22,7 @@ func init() {
 	Register(refuseKind{})
 	Register(mutateKind{})
 	Register(onceKind{})
+	Register(pokeKind{})
 }
 
 type setParams struct {
@@ -283,4 +284,19 @@ func (onceKind) Plan(doc intake.Document, src []byte, parsed any) ([]Edit, error
 		return nil, err
 	}
 	return []Edit{span.Edit(doc.Source.Display, "zz")}, nil
+}
+
+// pokeKind writes into the slice the caller handed to Plan, as a concurrent
+// writer would, while planning is under way.
+type pokeKind struct{}
+
+var pokeTarget []byte
+
+func (pokeKind) ID() string { return "test_poke" }
+
+func (pokeKind) Validate(Params) (any, error) { return nil, nil }
+
+func (pokeKind) Plan(intake.Document, []byte, any) ([]Edit, error) {
+	pokeTarget[0] = 'A'
+	return nil, nil
 }

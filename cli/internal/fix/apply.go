@@ -201,8 +201,13 @@ func descriptorsExhausted(err error) bool {
 	return errors.Is(err, syscall.EMFILE) || errors.Is(err, syscall.ENFILE)
 }
 
-func errDescriptors() *Refusal {
-	return refuse(ReasonDescriptorLimit, "the process has no file descriptors left; apply fewer files at a time")
+// openRefusal names why a file or directory could not be opened: no
+// descriptors left, or the given explanation.
+func openRefusal(err error, detail string) *Refusal {
+	if descriptorsExhausted(err) {
+		return refuse(ReasonDescriptorLimit, "the process has no file descriptors left; apply fewer files at a time")
+	}
+	return refuse(ReasonUnsafeFile, detail)
 }
 
 // readChecked reads the open file in full, bounded.
@@ -256,10 +261,7 @@ func prepare(index int, target Target, roots []string, opts Options) (*prepared,
 func openChecked(abs string) (*handles, error) {
 	dir, err := validation.OpenInputDirectory(filepath.Dir(abs))
 	if err != nil {
-		if descriptorsExhausted(err) {
-			return nil, errDescriptors()
-		}
-		return nil, refuse(ReasonUnsafeFile, "the file's directory cannot be reached without following a symlink")
+		return nil, openRefusal(err, "the file's directory cannot be reached without following a symlink")
 	}
 	h := &handles{dir: dir, base: filepath.Base(abs)}
 	ok := false
@@ -287,10 +289,7 @@ func openChecked(abs string) (*handles, error) {
 	}
 	file, err := validation.OpenEntryFile(dir, h.base)
 	if err != nil {
-		if descriptorsExhausted(err) {
-			return nil, errDescriptors()
-		}
-		return nil, refuse(ReasonUnsafeFile, "the file cannot be opened without following a symlink")
+		return nil, openRefusal(err, "the file cannot be opened without following a symlink")
 	}
 	h.file = file
 	info, err := file.Stat()
@@ -359,7 +358,7 @@ func (p *prepared) write(plan FilePlan, opts Options) (diff string, written bool
 	fd, err := unix.Openat(dirFD, tempName, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0o600)
 	if err != nil {
 		if descriptorsExhausted(err) {
-			return "", false, errDescriptors()
+			return "", false, openRefusal(err, "")
 		}
 		return "", false, refuse(ReasonWriteFailed, "the temporary file cannot be created")
 	}

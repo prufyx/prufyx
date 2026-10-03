@@ -276,6 +276,25 @@ func TestKindGetsACopyOfTheSource(t *testing.T) {
 	}
 }
 
+// Planning works on a snapshot: bytes that change in the caller's slice
+// while it runs neither reach the kinds nor the digest.
+func TestPlanWorksOnASnapshot(t *testing.T) {
+	src := []byte("a: x\n")
+	digest := digestOf(src)
+	pokeTarget = src
+	defer func() { pokeTarget = nil }()
+	plan, err := Plan(display, src, []Request{{Kind: "test_poke"}, setRequest("value", "x", "zz", "a")}, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if src[0] == 'a' {
+		t.Fatal("the test kind did not write into the caller's slice")
+	}
+	if plan.Digest != digest || len(plan.Edits) != 1 || plan.Edits[0].Replacement != "zz" {
+		t.Fatalf("plan %+v", plan)
+	}
+}
+
 func TestPlanDoesNotAliasTheCallersBytes(t *testing.T) {
 	src := []byte("a: x\n")
 	plan, err := Plan(display, src, []Request{setRequest("value", "x", "zz", "a")}, Options{})

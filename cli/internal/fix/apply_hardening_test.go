@@ -400,3 +400,38 @@ func TestApplyRecomputesTheDiff(t *testing.T) {
 		t.Fatalf("%+v", result)
 	}
 }
+
+// A target is checked first and written later; the file may be swapped in
+// between, also for one with the same bytes.
+func TestApplyDetectsASwapBetweenCheckAndWrite(t *testing.T) {
+	root, first, plan := workspace(t, 0o644)
+	second := filepath.Join(filepath.Dir(first), "second.yaml")
+	writeMode(t, second, applySource, 0o644)
+	original := beforeRename
+	calls := 0
+	beforeRename = func(*os.File, string) error {
+		calls++
+		if calls != 1 {
+			return nil
+		}
+		replacement := second + ".new"
+		if err := os.WriteFile(replacement, []byte(applySource), 0o644); err != nil {
+			return err
+		}
+		return os.Rename(replacement, second)
+	}
+	defer func() { beforeRename = original }()
+	results := Apply([]Target{{Path: first, Plan: plan}, {Path: second, Plan: plan}}, ApplyOptions{Roots: []string{root}})
+	if results[0].Err != nil || !results[0].Written {
+		t.Fatalf("first: %+v", results[0])
+	}
+	if ReasonOf(results[1].Err) != ReasonFileChanged || results[1].Written {
+		t.Fatalf("second: %+v", results[1])
+	}
+	if content, _ := os.ReadFile(second); string(content) != applySource {
+		t.Fatalf("the swapped file was written: %q", content)
+	}
+	if names := leftovers(t, filepath.Dir(first)); len(names) != 0 {
+		t.Fatalf("leftovers %v", names)
+	}
+}
