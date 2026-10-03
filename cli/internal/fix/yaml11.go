@@ -11,8 +11,8 @@ import (
 // The decode proof reads YAML 1.2 (yaml.v3), but Kubernetes clients read
 // plain scalars with YAML 1.1 rules, where more spellings are not strings.
 // A plain replacement is therefore refused when 1.1 would read it as
-// anything but text, unless both readings agree it is the same plain decimal
-// number. A quoted replacement is always text for both and is fine.
+// anything but text, unless both readings agree: a plain decimal number, or exactly true,
+// false or null in lowercase. A quoted replacement is always text for both and is fine.
 
 var (
 	// yaml11Words are the 1.1 spellings of booleans and null, in any case.
@@ -43,6 +43,7 @@ func ambiguousPlain(node *yaml.Node) bool {
 	case "!!str":
 		return yaml11Words.MatchString(text) || yaml11Numbers.MatchString(text) || yaml11Timestamp.MatchString(text)
 	}
-	// Booleans, null and timestamps.
-	return true
+	// Booleans, null and timestamps: only the lowercase spellings that 1.1
+	// and 1.2 read the same way are allowed.
+	return text != "true" && text != "false" && text != "null" || node.ShortTag() == "!!timestamp"
 }

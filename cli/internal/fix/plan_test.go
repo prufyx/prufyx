@@ -325,7 +325,7 @@ func TestApplyDecodeVerification(t *testing.T) {
 		{name: "plain key followed by colon in flow", src: "{\"a\":1}\n", edit: rawEdit{1, 4, "b"}, want: ReasonDecodeMismatch},
 		{name: "rename onto sibling", src: "a: 1\nb: 2\n", edit: rawEdit{0, 1, "b"}, want: ReasonDecodeMismatch},
 		{name: "rename onto sibling by case", src: "a: 1\nb: 2\n", edit: rawEdit{0, 1, "B"}, want: ReasonDecodeMismatch},
-		{name: "root document becomes null", src: "a: b\n--- x\n", edit: rawEdit{9, 10, "null"}, want: ReasonInvalidEdit},
+		{name: "root document becomes null", src: "a: b\n--- x\n", edit: rawEdit{9, 10, "null"}, want: ReasonDecodeMismatch},
 		{name: "plain date", src: "a: x\n", edit: rawEdit{3, 4, "2026-01-02"}, want: ReasonInvalidEdit},
 		{name: "value becomes timestamp text kept", src: "a: x\n", edit: rawEdit{3, 4, "'2026-01-02'"}, want: ""},
 		{name: "quoted value", src: "a: x\n", edit: rawEdit{3, 4, `"y z"`}, want: ""},

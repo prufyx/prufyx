@@ -120,7 +120,7 @@ func TestSecretDetectionAtAnyDepth(t *testing.T) {
 func TestYAML11AmbiguousReplacements(t *testing.T) {
 	refused := []string{
 		"y", "Y", "n", "N", "yes", "Yes", "YES", "yEs", "no", "No", "NO", "on", "On", "ON", "oN", "off", "Off", "OFF",
-		"true", "True", "TRUE", "false", "False", "FALSE", "~", "null", "Null", "NULL",
+		"True", "TRUE", "tRue", "False", "FALSE", "~", "Null", "NULL",
 		"1_000", "0b101", "0B101", "0o17", "0x1F", "0xff", "1:20", "190:20:30", "1:20.5", ".inf", ".Inf", ".INF", "-.inf", "+.inf",
 		".nan", ".NaN", ".NAN", "0777", "017", "1e3", "1E3", "1.5e3", "+1_0", "-0b1", ".5", "1.",
 		"2001-12-14", "2001-12-14t21:59:43.10-05:00", "2001-12-14 21:59:43.10 -5", "2001-12-14T21:59:43Z",
@@ -138,6 +138,16 @@ func TestYAML11AmbiguousReplacements(t *testing.T) {
 				}
 			})
 		}
+	}
+	// Lowercase true, false and null are read the same by 1.1 and 1.2 for
+	// values; as keys they are not strings and stay refused.
+	for _, token := range []string{"true", "false", "null"} {
+		t.Run("key "+token, func(t *testing.T) {
+			_, err := Plan(display, []byte("a: x\n"), []Request{setRequest("key", "", token, "a")}, Options{})
+			if ReasonOf(err) != ReasonInvalidEdit {
+				t.Fatalf("plain %q: %v", token, err)
+			}
+		})
 	}
 	for _, token := range append(refused, "text with spaces", "a: b") {
 		quoted := []string{`"` + token + `"`, `'` + token + `'`}
@@ -159,7 +169,7 @@ func TestYAML11AmbiguousReplacements(t *testing.T) {
 			})
 		}
 	}
-	for _, token := range []string{"12", "-3", "+4", "0", "1.5", "0.25", "ab", "v1", "1.2.3", "yy", "nope", "online", "batch/v1", "x-1", "3xlarge"} {
+	for _, token := range []string{"true", "false", "null", "12", "-3", "+4", "0", "1.5", "0.25", "ab", "v1", "1.2.3", "yy", "nope", "online", "batch/v1", "x-1", "3xlarge"} {
 		t.Run("allowed "+token, func(t *testing.T) {
 			if _, err := Plan(display, []byte("a: x\n"), []Request{setRequest("value", "x", token, "a")}, Options{}); err != nil {
 				t.Fatalf("plain %q: %v", token, err)
