@@ -11,6 +11,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/corpusattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgetargets"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/supportinventory"
 	"github.com/prufyx/prufyx/cli/internal/projectcheck"
 )
@@ -20,6 +21,12 @@ type PackStats struct {
 	Entries                         int
 	TargetBytes, MaxTargetBytes     int
 	RegistryFacts, MaxRegistryFacts int
+	// Split is true for a pack also published as one target per project
+	// plus an index; Targets are those targets, SplitErr why the pack
+	// could not be split.
+	Split    bool
+	Targets  []knowledgetargets.Target
+	SplitErr error
 }
 
 // PackSpec describes one rule pack the gate checks. Paths are relative to
@@ -125,7 +132,11 @@ func DefaultLayout() Layout {
 					if err != nil {
 						return PackStats{}, err
 					}
-					return PackStats{Entries: r.Entries, TargetBytes: r.TargetBytes, MaxTargetBytes: r.MaxTargetBytes, RegistryFacts: r.RegistryFacts, MaxRegistryFacts: r.MaxRegistryFacts}, nil
+					stats := PackStats{Entries: r.Entries, TargetBytes: r.TargetBytes, MaxTargetBytes: r.MaxTargetBytes, RegistryFacts: r.RegistryFacts, MaxRegistryFacts: r.MaxRegistryFacts, Split: true, SplitErr: r.SplitErr}
+					for _, target := range r.ProjectTargets {
+						stats.Targets = append(stats.Targets, knowledgetargets.Target{Path: target.Path, Bytes: int64(len(target.Bytes))})
+					}
+					return stats, nil
 				},
 				View: cncfcheck.AdmittedPackView, Entry: cncfcheck.AdmittedEntry,
 				AttestationPath: cncfAttestPath,

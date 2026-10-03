@@ -15,6 +15,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract/extractcli"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgetargets"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/rulecheck"
 )
 
@@ -444,6 +445,9 @@ func (r *Report) packChecks(cls *Classification, opts Options) {
 			r.add("admit/"+spec.Name, true, "%d entries admitted", stats.Entries)
 			r.add("registry/"+spec.Name, stats.RegistryFacts <= stats.MaxRegistryFacts, "%d of %d facts", stats.RegistryFacts, stats.MaxRegistryFacts)
 			r.sizeCheck(spec, stats, len(b.Raw), len(h.Raw), loosening[spec.Name] > 0)
+			if stats.Split {
+				r.targetsCheck(spec, stats, len(b.Raw), len(h.Raw), loosening[spec.Name] > 0)
+			}
 		}
 		r.rulecheck(spec, h)
 		r.staggerCheck(spec, h, loosenedWeeks[spec.Name])
@@ -602,4 +606,43 @@ func (r *Report) modeCheck(opts Options) {
 		}
 	}
 	r.add("file-modes", len(bad) == 0, "%d knowledge files with an executable bit%s", len(bad), listDetail(bad))
+}
+
+// targetsCheck sizes the per-project targets and the index a split pack is
+// published as, with the limits of "knowledge-targets check-size": every
+// target against the per-target cap and its alarm, and their sum against
+// the package bound. Over a cap fails; at or above an alarm raises one and
+// fails a change that loosens and grows the pack.
+func (r *Report) targetsCheck(spec PackSpec, stats PackStats, baseLen, headLen int, loosens bool) {
+	name := "targets/" + spec.Name
+	if stats.SplitErr != nil {
+		r.add(name, false, "the pack cannot be split into per-project targets: %v", stats.SplitErr)
+		return
+	}
+	limit := knowledgetargets.DefaultLimit()
+	var over []string
+	largest := knowledgetargets.Target{}
+	for _, t := range stats.Targets {
+		if t.Bytes > limit.Cap {
+			over = append(over, fmt.Sprintf("%s is %d bytes", t.Path, t.Bytes))
+		}
+		if t.Bytes > largest.Bytes {
+			largest = t
+		}
+	}
+	alarmed := knowledgetargets.Alarms(stats.Targets, limit)
+	total, totalAlarm := knowledgetargets.TotalAlarmed(stats.Targets, limit)
+	for _, t := range alarmed {
+		r.Alarms = append(r.Alarms, fmt.Sprintf("%s target %s is at or above %d bytes", spec.Name, t.Path, limit.Alarm))
+	}
+	if totalAlarm {
+		r.Alarms = append(r.Alarms, fmt.Sprintf("%s targets total %d bytes, at or above %d", spec.Name, total, limit.TotalAlarm))
+	}
+	grows := loosens && headLen > baseLen
+	ok := len(over) == 0 && total <= limit.TotalCap && !((len(alarmed) > 0 || totalAlarm) && grows)
+	detail := fmt.Sprintf("%d targets, largest %s %d of %d bytes, total %d of %d bytes%s", len(stats.Targets), largest.Path, largest.Bytes, limit.Cap, total, limit.TotalCap, listDetail(over))
+	if !ok && len(over) == 0 && total <= limit.TotalCap {
+		detail += "; at or above an alarm a change may not loosen and grow the pack"
+	}
+	r.add(name, ok, "%s", detail)
 }

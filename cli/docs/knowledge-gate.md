@@ -79,6 +79,7 @@ Run on every pack of the head, whatever the change:
 | `rulecheck/<pack>` | `rule validate` finds anything in any entry |
 | `registry/<pack>` | the compiled fact registry exceeds its cap |
 | `size/<pack>` | the published target exceeds its size cap, or is at or above 80 percent of it and the change loosens and grows the pack. At or above 80 percent an alarm is reported |
+| `targets/cncf` | the CNCF pack, split into the per-project targets and the index it is published as, has a target over the per-target cap or a total over the package bound (the limits of `knowledge-targets check-size`), or a target or the total is at or above its alarm and the change loosens and grows the pack. Alarms are reported. The single-target size above is still checked, because the publisher still produces that layout |
 | `stagger/<pack>` | a loosening change moves a lease into an ISO week that then holds more than 15% of the pack's rules (at least one) |
 | `attestation/<pack>` | the committed corpus attestation differs from a regeneration from the head's pack |
 | `generated/…` | the committed support inventory differs from a regeneration from the head's files |

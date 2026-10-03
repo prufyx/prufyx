@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgetargets"
 )
 
 // Regression tests for attacks on the gate found in review. Each builds a
@@ -562,5 +565,50 @@ func TestSummaryEscapesMarkdown(t *testing.T) {
 		if strings.Contains(got, bad) {
 			t.Fatalf("mdEscape left %q in %q", bad, got)
 		}
+	}
+}
+
+// The CNCF pack is also sized as the per-project targets and index it is
+// published as, with the limits of "knowledge-targets check-size".
+func TestTargetsCheck(t *testing.T) {
+	limit := knowledgetargets.DefaultLimit()
+	small := []knowledgetargets.Target{{Path: "knowledge/cncf/index.v1.json", Bytes: 1000}, {Path: "knowledge/cncf/projects/a.v1.json", Bytes: 5000}}
+	alarmed := append(append([]knowledgetargets.Target(nil), small...), knowledgetargets.Target{Path: "knowledge/cncf/projects/big.v1.json", Bytes: limit.Alarm})
+	over := append(append([]knowledgetargets.Target(nil), small...), knowledgetargets.Target{Path: "knowledge/cncf/projects/huge.v1.json", Bytes: limit.Cap + 1})
+	var many []knowledgetargets.Target
+	for i := int64(0); i*(limit.Alarm-1) < limit.TotalCap+limit.Alarm; i++ {
+		many = append(many, knowledgetargets.Target{Path: fmt.Sprintf("knowledge/cncf/projects/p%d.v1.json", i), Bytes: limit.Alarm - 1})
+	}
+	for name, tc := range map[string]struct {
+		stats         PackStats
+		loosens, grow bool
+		ok, alarm     bool
+	}{
+		"small":                        {PackStats{Split: true, Targets: small}, true, true, true, false},
+		"alarm, tightening":            {PackStats{Split: true, Targets: alarmed}, false, true, true, true},
+		"alarm, loosening, same size":  {PackStats{Split: true, Targets: alarmed}, true, false, true, true},
+		"alarm, loosening and growing": {PackStats{Split: true, Targets: alarmed}, true, true, false, true},
+		"over the per-target cap":      {PackStats{Split: true, Targets: over}, false, false, false, true},
+		"over the package bound":       {PackStats{Split: true, Targets: many}, false, false, false, true},
+		"cannot split":                 {PackStats{Split: true, SplitErr: errors.New("x")}, false, false, false, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := &Report{Alarms: []string{}}
+			headLen := 10
+			if tc.grow {
+				headLen = 11
+			}
+			r.targetsCheck(PackSpec{Name: "cncf"}, tc.stats, 10, headLen, tc.loosens)
+			c, _ := check(r, "targets/cncf")
+			if c.OK != tc.ok || (len(r.Alarms) > 0) != tc.alarm {
+				t.Fatalf("ok=%v alarms=%v: %s", c.OK, r.Alarms, c.Detail)
+			}
+		})
+	}
+	// The shipped pack splits and every target is well under the alarm.
+	base, head := trees(t)
+	r := runGate(t, Options{Base: base, Head: head})
+	if c, ok := check(r, "targets/cncf"); !ok || !c.OK || !strings.Contains(c.Detail, "targets, largest") {
+		t.Fatalf("targets/cncf: %+v", c)
 	}
 }

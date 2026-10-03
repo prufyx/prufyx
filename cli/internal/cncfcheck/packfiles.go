@@ -15,6 +15,10 @@ import (
 // bound for any real revision.
 const externalSizeRevision = "99999999999999999999"
 
+// splitSizeRevision is the longest revision a per-project target or the
+// index admits, used to size them as an upper bound.
+const splitSizeRevision = "2147483647"
+
 // PackFileReport describes a CNCF rule pack admitted from files rather than
 // from the embedded asset.
 type PackFileReport struct {
@@ -26,6 +30,11 @@ type PackFileReport struct {
 	// RegistryFacts is the size of the compiled fact registry the pack is
 	// checked against; MaxRegistryFacts is the engine's cap.
 	RegistryFacts, MaxRegistryFacts int
+	// ProjectTargets are the per-project targets and the index the pack
+	// is published as (sized with the longest practical revision); nil
+	// with SplitErr set when the pack cannot be split.
+	ProjectTargets []ExternalTarget
+	SplitErr       error
 }
 
 // CheckPackFiles admits a landscape, priority list and rule pack exactly as
@@ -58,7 +67,15 @@ func CheckPackFiles(landscapeRaw, priorityRaw, packRaw []byte) (PackFileReport, 
 			return PackFileReport{}, ErrIntegrity
 		}
 	}
+	index, projects, splitErr := buildExternalTargets(b, splitSizeRevision, "operator_provided", func(string, func(string) ([]byte, error)) (string, error) {
+		return splitSizeRevision, nil
+	})
+	var targets []ExternalTarget
+	if splitErr == nil {
+		targets = append([]ExternalTarget{index}, projects...)
+	}
 	return PackFileReport{
+		ProjectTargets: targets, SplitErr: splitErr,
 		Entries: len(b.pack.Entries), MaxEntries: maxExternalEntries,
 		TargetBytes: len(raw), MaxTargetBytes: maxExternalBundleBytes,
 		RegistryFacts: len(compiledDefinitions()), MaxRegistryFacts: constraintengine.MaxCompiledRegistryFacts,
