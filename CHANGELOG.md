@@ -86,6 +86,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   `attestations.json` when a run attests at least one line. Attestations do not change
   any verdict or exit code, and the published pack carries none. See
   `cli/docs/line-attestations.md`.
+- `prufyx-maintainer gate classify|limits|verify` and the `Knowledge gate`
+  workflow check every change to the shipped knowledge. Each changed rule is
+  classified from the pack diff as tightening (withdraw, earlier
+  `validUntil`) or loosening (anything else); a loosening change is admitted
+  only when the gate re-derives a mechanical rule byte for byte from upstream
+  bytes it fetches itself, verifies a signed reattestation statement against
+  its own evidence check, or verifies a pinned owner approval. The gate also
+  checks every pack, caps loosening changes per change, honours a
+  `factory/PAUSE` kill switch and reports, without acting on it, whether a
+  change is eligible for automatic merging. See `cli/docs/knowledge-gate.md`.
 - Rules may declare how their evidence was produced: `evidence.basis`
   (`reviewed` or `mechanical`; absent means reviewed), `evidence.extractor`
   and `evidence.derivedAt`. The fields are parsed strictly, never affect a

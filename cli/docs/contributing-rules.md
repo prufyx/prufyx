@@ -171,7 +171,9 @@ every finding.
 Community contributions are reviewed rules: a candidate that declares
 `basis: "mechanical"` is rejected by `prufyx-maintainer rule validate`. A
 mechanical rule is never renewed by `evidence reattest`; see
-[evidence-reattestation.md](evidence-reattestation.md).
+[evidence-reattestation.md](evidence-reattestation.md). Every change to the
+shipped packs passes the [knowledge gate](knowledge-gate.md), which admits a
+new or renewed mechanical rule only when it re-derives it byte for byte.
 
 A rule may also be named by a **line attestation**, a statement that a minor
 line's rules for one fact family are complete. If a pack attests the line

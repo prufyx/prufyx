@@ -1,0 +1,142 @@
+name: Knowledge gate
+
+# Checks every change to the published knowledge (rule packs, corpus
+# attestations, the support inventory, reattestation records) before it can
+# merge, and re-derives every mechanical rule once a day.
+#
+# The gate is always built from the base branch and only reads the proposed
+# change's files: nothing from the change is executed. That is why this
+# workflow runs on pull_request_target (the workflow definition and the gate
+# code come from the base branch, so a change cannot weaken its own gate).
+# It holds no secrets beyond a read-only token and never merges anything; it
+# reports whether the change would be eligible for automatic merging.
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: knowledge-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Knowledge gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+      PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+      BOT_LOGIN: ${{ vars.KNOWLEDGE_BOT_LOGIN || 'prufyx-factory[bot]' }}
+      REATTEST_TRUST_ROOT_DIGEST: ${{ vars.REATTEST_TRUST_ROOT_DIGEST }}
+      MAX_LOOSENING: ${{ vars.KNOWLEDGE_MAX_LOOSENING || '200' }}
+    outputs:
+      result: ${{ steps.verify.outputs.result }}
+      auto-merge-eligible: ${{ steps.verify.outputs.auto_merge_eligible }}
+    steps:
+      - name: Check out the base (gate code and pinned keys)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.BASE_SHA }}
+          path: base
+          persist-credentials: false
+
+      - name: Check out the proposed change (data only, never executed)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: ${{ env.HEAD_REPO }}
+          ref: ${{ env.HEAD_SHA }}
+          path: head
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require the change to be based on the current base
+        if: github.event_name == 'pull_request_target'
+        run: |
+          set -euo pipefail
+          git -C head fetch --no-tags --quiet "https://github.com/${GITHUB_REPOSITORY}.git" "${BASE_SHA}"
+          if ! git -C head merge-base --is-ancestor "${BASE_SHA}" "${HEAD_SHA}"; then
+            echo "::error::The change is not based on the current ${GITHUB_BASE_REF}; update it so the gate compares exactly what would merge."
+            exit 1
+          fi
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: base/cli/go.mod
+          cache: false
+
+      - name: Build the gate from the base
+        working-directory: base/cli
+        run: go build -buildvcs=false -trimpath -o "${RUNNER_TEMP}/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      - name: Classify the change
+        id: classify
+        run: |
+          set -euo pipefail
+          "${RUNNER_TEMP}/prufyx-maintainer" gate classify --base base --head head
+          "${RUNNER_TEMP}/prufyx-maintainer" gate classify --base base --head head --json > "${RUNNER_TEMP}/classify.json"
+          chains="$(jq -r '.chainsChanged | length' "${RUNNER_TEMP}/classify.json")"
+          echo "chains_changed=${chains}" >> "${GITHUB_OUTPUT}"
+
+      - name: Re-run the evidence check independently
+        if: steps.classify.outputs.chains_changed != '0'
+        working-directory: base
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          "${RUNNER_TEMP}/prufyx-maintainer" evidence repin \
+            --rules cli/internal/cncfcheck/data/rules.json \
+            --rules cli/internal/projectcheck/data/rules.json \
+            --baseline release-line \
+            --output "${RUNNER_TEMP}/rerun-worklist.json"
+
+      - name: Verify the change
+        id: verify
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          args=(gate verify --base base --head head --source github
+                --bot-login "${BOT_LOGIN}" --max-loosening "${MAX_LOOSENING}"
+                --report "${RUNNER_TEMP}/gate-report.json" --summary "${GITHUB_STEP_SUMMARY}")
+          if [ -n "${PR_AUTHOR}" ]; then
+            args+=(--author "${PR_AUTHOR}")
+          fi
+          if [ -n "${REATTEST_TRUST_ROOT_DIGEST}" ]; then
+            args+=(--trust-root-digest "${REATTEST_TRUST_ROOT_DIGEST}")
+          fi
+          if [ -f "${RUNNER_TEMP}/rerun-worklist.json" ]; then
+            args+=(--rerun-worklist "${RUNNER_TEMP}/rerun-worklist.json")
+          fi
+          if [ "${GITHUB_EVENT_NAME}" != "pull_request_target" ]; then
+            args+=(--rederive-all)
+          fi
+          status=0
+          "${RUNNER_TEMP}/prufyx-maintainer" "${args[@]}" || status=$?
+          if [ -f "${RUNNER_TEMP}/gate-report.json" ]; then
+            echo "result=$(jq -r '.result' "${RUNNER_TEMP}/gate-report.json")" >> "${GITHUB_OUTPUT}"
+            echo "auto_merge_eligible=$(jq -r '.autoMerge.eligible' "${RUNNER_TEMP}/gate-report.json")" >> "${GITHUB_OUTPUT}"
+          fi
+          exit "${status}"
+
+      - name: Keep the gate report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: knowledge-gate-report
+          path: |
+            ${{ runner.temp }}/gate-report.json
+            ${{ runner.temp }}/classify.json
+          if-no-files-found: ignore
+          retention-days: 30
