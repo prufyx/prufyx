@@ -19,13 +19,15 @@ type Entry struct {
 
 // RuleJSON is the full rule as the engine parses it.
 type RuleJSON struct {
-	ID           string        `json:"id"`
-	Operator     string        `json:"operator"`
-	Subject      Subject       `json:"subject"`
-	SetCondition *SetCondition `json:"setCondition,omitempty"`
-	Evidence     Evidence      `json:"evidence"`
-	ReasonCode   string        `json:"reasonCode"`
-	NextAction   string        `json:"nextAction"`
+	ID           string                         `json:"id"`
+	Operator     string                         `json:"operator"`
+	Subject      Subject                        `json:"subject"`
+	SetCondition *SetCondition                  `json:"setCondition,omitempty"`
+	Range        *constraintengine.VersionRange `json:"range,omitempty"`
+	Condition    *Condition                     `json:"condition,omitempty"`
+	Evidence     Evidence                       `json:"evidence"`
+	ReasonCode   string                         `json:"reasonCode"`
+	NextAction   string                         `json:"nextAction"`
 }
 
 // Evidence is the rule's evidence block for a mechanical rule.

@@ -12,7 +12,10 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
-const reasonSetIncomplete = "RULE_SET_FACT_INCOMPLETE"
+const (
+	reasonSetIncomplete   = "RULE_SET_FACT_INCOMPLETE"
+	reasonFactUnavailable = "RULE_FACT_UNAVAILABLE"
+)
 
 type inputDoc struct {
 	Schema    string    `json:"schema"`
@@ -32,9 +35,10 @@ type inputComponent struct {
 }
 
 type inputFact struct {
-	ID       string                    `json:"id"`
-	State    string                    `json:"state"`
-	SetValue constraintengine.SetValue `json:"setValue"`
+	ID        string                     `json:"id"`
+	State     string                     `json:"state"`
+	SetValue  *constraintengine.SetValue `json:"setValue,omitempty"`
+	BoolValue *bool                      `json:"boolValue,omitempty"`
 }
 
 // GenerateVectors derives the test vectors of one forbid_set_member entry:
@@ -45,6 +49,9 @@ type inputFact struct {
 //   - unknown-incomplete: the same set, not declared complete.
 func GenerateVectors(entry Entry, pass []string) ([]Vector, error) {
 	rule := entry.Rule
+	if rule.Operator == predicateOperator {
+		return generatePredicateVectors(entry)
+	}
 	if rule.Operator != constraintengine.OperatorForbidSetMember || rule.SetCondition == nil {
 		return nil, fmt.Errorf("rule %s: vectors are generated for forbid_set_member rules only", rule.ID)
 	}
@@ -64,7 +71,7 @@ func GenerateVectors(entry Entry, pass []string) ([]Vector, error) {
 			Schema:    constraintengine.InputSchema,
 			Authority: constraintengine.InputAuthority,
 			Current:   inputSide{Components: []inputComponent{{Component: rule.Subject.Component, Version: rule.Subject.From, Facts: []inputFact{}}}},
-			Proposed:  inputSide{Components: []inputComponent{{Component: rule.Subject.Component, Version: rule.Subject.To, Facts: []inputFact{{ID: cond.FactID, State: "declared", SetValue: constraintengine.SetValue{Members: members, Complete: complete}}}}}},
+			Proposed:  inputSide{Components: []inputComponent{{Component: rule.Subject.Component, Version: rule.Subject.To, Facts: []inputFact{{ID: cond.FactID, State: "declared", SetValue: &constraintengine.SetValue{Members: members, Complete: complete}}}}}},
 		}
 		if cond.Component != rule.Subject.Component {
 			return Vector{}, fmt.Errorf("rule %s: set fact component differs from the subject", rule.ID)
@@ -87,6 +94,50 @@ func GenerateVectors(entry Entry, pass []string) ([]Vector, error) {
 		{VectorUnknownIncomplete, passSet, false, VectorExpect{Status: "UNKNOWN", ReasonCode: reasonSetIncomplete}},
 	} {
 		v, err := mk(spec.kind, spec.members, spec.complete, spec.expect)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}
+
+const predicateOperator = "forbid_predicate_value"
+
+// generatePredicateVectors derives the vectors of a forbid_predicate_value
+// entry over its anchor transition: the fact true blocks, false passes, and
+// a missing fact is UNKNOWN (RULE_FACT_UNAVAILABLE).
+func generatePredicateVectors(entry Entry) ([]Vector, error) {
+	rule := entry.Rule
+	cond := rule.Condition
+	if cond == nil || cond.Side != "proposed" || cond.BoolValue == nil || cond.Component != rule.Subject.Component {
+		return nil, fmt.Errorf("rule %s: vectors support a proposed-side boolean condition on the subject component only", rule.ID)
+	}
+	mk := func(kind string, fact inputFact, expect VectorExpect) (Vector, error) {
+		doc := inputDoc{
+			Schema:    constraintengine.InputSchema,
+			Authority: constraintengine.InputAuthority,
+			Current:   inputSide{Components: []inputComponent{{Component: rule.Subject.Component, Version: rule.Subject.From, Facts: []inputFact{}}}},
+			Proposed:  inputSide{Components: []inputComponent{{Component: rule.Subject.Component, Version: rule.Subject.To, Facts: []inputFact{fact}}}},
+		}
+		raw, err := compact(doc)
+		if err != nil {
+			return Vector{}, err
+		}
+		return Vector{Name: rule.ID + "/" + kind, RuleID: rule.ID, Kind: kind, Input: raw, Expect: expect}, nil
+	}
+	yes, no := *cond.BoolValue, !*cond.BoolValue
+	var out []Vector
+	for _, spec := range []struct {
+		kind   string
+		fact   inputFact
+		expect VectorExpect
+	}{
+		{VectorBlocked, inputFact{ID: cond.FactID, State: "declared", BoolValue: &yes}, VectorExpect{Status: "BLOCKED", ReasonCode: rule.ReasonCode}},
+		{VectorPassComplete, inputFact{ID: cond.FactID, State: "declared", BoolValue: &no}, VectorExpect{Status: "PASS", ReasonCode: rule.ReasonCode}},
+		{VectorUnknownIncomplete, inputFact{ID: cond.FactID, State: "missing"}, VectorExpect{Status: "UNKNOWN", ReasonCode: reasonFactUnavailable}},
+	} {
+		v, err := mk(spec.kind, spec.fact, spec.expect)
 		if err != nil {
 			return nil, err
 		}

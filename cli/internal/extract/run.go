@@ -226,7 +226,7 @@ func stamp(c Candidate, rec *Recorder, id constraintengine.Extractor, derivedAt,
 		c.Rule.SetCondition = &cond
 	}
 	e := Entry{Project: c.Project, Description: c.Description, RequiredFacts: append([]Fact(nil), c.RequiredFacts...), Rule: RuleJSON{
-		ID: c.Rule.ID, Operator: c.Rule.Operator, Subject: c.Rule.Subject, SetCondition: c.Rule.SetCondition,
+		ID: c.Rule.ID, Operator: c.Rule.Operator, Subject: c.Rule.Subject, SetCondition: c.Rule.SetCondition, Range: c.Rule.Range, Condition: c.Rule.Condition,
 		ReasonCode: c.Rule.ReasonCode, NextAction: c.Rule.NextAction,
 		Evidence: Evidence{State: "active", Basis: constraintengine.BasisMechanical, Extractor: id, DerivedAt: derivedAt, ReviewedAt: derivedAt, ValidUntil: validUntil},
 	}}

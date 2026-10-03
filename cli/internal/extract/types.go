@@ -9,6 +9,8 @@ import (
 	"io/fs"
 	"regexp"
 	"strings"
+
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
 // RepoRef names an upstream repository as host/owner/name, for example
@@ -153,8 +155,12 @@ type Rule struct {
 	Operator     string
 	Subject      Subject
 	SetCondition *SetCondition
-	ReasonCode   string
-	NextAction   string
+	// Range and Condition are used by forbid_predicate_value rules: the
+	// reviewed-range shape of today's Kubernetes API-removal rules.
+	Range      *constraintengine.VersionRange
+	Condition  *Condition
+	ReasonCode string
+	NextAction string
 }
 
 // Subject is the reviewed anchor transition.
@@ -162,6 +168,14 @@ type Subject struct {
 	Component string `json:"component"`
 	From      string `json:"from"`
 	To        string `json:"to"`
+}
+
+// Condition is a forbid_predicate_value condition on one boolean fact.
+type Condition struct {
+	Side      string `json:"side"`
+	Component string `json:"component"`
+	FactID    string `json:"factId"`
+	BoolValue *bool  `json:"boolValue,omitempty"`
 }
 
 // SetCondition is a forbid_set_member condition.
