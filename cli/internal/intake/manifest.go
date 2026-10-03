@@ -70,6 +70,13 @@ type Omission struct {
 type Workspace struct {
 	Documents []Document
 	Omissions []Omission
+	// Auxiliary holds the decoded value of top-level documents that are not
+	// Kubernetes-shaped but come from a file named exactly Chart.yaml,
+	// kustomization.yaml, kustomization.yml or Kustomization. The same
+	// documents are still listed as NOT_KUBERNETES_SHAPED omissions, so every
+	// other output is unchanged. A templated document is never retained.
+	// Document.Kind is empty when the file carries no kind.
+	Auxiliary []Document
 	// Files, Digest and Notices are filled by Open only.
 	Files []FileRecord
 	// Digest is sha256 over the sorted file digests.
@@ -151,6 +158,7 @@ func (w *Workspace) add(source Source, value any, listMetadata any, listAPI, ite
 	}
 	if !apiOK || !kindOK || api == "" || kind == "" {
 		w.omit(source, ReasonNotKubernetesShaped)
+		w.retainAuxiliary(source, object, api, kind, templated)
 		return
 	}
 	if templated {
@@ -225,4 +233,26 @@ func valueHasTemplateSyntax(value any) bool {
 		}
 	}
 	return false
+}
+
+// auxiliaryName reports whether a file base name is on the closed list of
+// files whose non-Kubernetes-shaped content is retained.
+func auxiliaryName(display string) bool {
+	base := display
+	if i := strings.LastIndexAny(display, "/\\"); i >= 0 {
+		base = display[i+1:]
+	}
+	switch base {
+	case "Chart.yaml", "kustomization.yaml", "kustomization.yml", "Kustomization":
+		return true
+	}
+	return false
+}
+
+// retainAuxiliary keeps the value of a top-level object from a listed file.
+func (w *Workspace) retainAuxiliary(source Source, object map[string]any, api, kind string, templated bool) {
+	if templated || source.Item >= 0 || !auxiliaryName(source.Display) {
+		return
+	}
+	w.Auxiliary = append(w.Auxiliary, Document{Source: source, APIVersion: api, Kind: kind, Value: object})
 }

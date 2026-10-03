@@ -324,6 +324,11 @@ func (o *opener) rename(oldDisplay, newDisplay string) {
 			o.out.Omissions[i].Source.Display = newDisplay
 		}
 	}
+	for i := range o.out.Auxiliary {
+		if o.out.Auxiliary[i].Source.Display == oldDisplay {
+			o.out.Auxiliary[i].Source.Display = newDisplay
+		}
+	}
 }
 
 // consume reads at most FileBytes from reader and decodes it. size is the
@@ -380,6 +385,7 @@ func (o *opener) consume(key, display string, reader io.Reader, size int64, perm
 	o.docs += fileDocs
 	o.out.Documents = append(o.out.Documents, decoded.Documents...)
 	o.out.Omissions = append(o.out.Omissions, decoded.Omissions...)
+	o.out.Auxiliary = append(o.out.Auxiliary, decoded.Auxiliary...)
 	return nil
 }
 
@@ -392,6 +398,7 @@ func (o *opener) finish() Workspace {
 	sort.SliceStable(w.Files, func(i, j int) bool { return w.Files[i].Display < w.Files[j].Display })
 	sort.SliceStable(w.Documents, func(i, j int) bool { return sourceLess(w.Documents[i].Source, w.Documents[j].Source) })
 	sort.SliceStable(w.Omissions, func(i, j int) bool { return sourceLess(w.Omissions[i].Source, w.Omissions[j].Source) })
+	sort.SliceStable(w.Auxiliary, func(i, j int) bool { return sourceLess(w.Auxiliary[i].Source, w.Auxiliary[j].Source) })
 	digest := sha256.New()
 	readable := 0
 	digests := make([]string, 0, len(w.Files))
