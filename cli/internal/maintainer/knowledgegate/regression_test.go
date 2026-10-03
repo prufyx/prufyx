@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgetargets"
 )
@@ -610,5 +611,47 @@ func TestTargetsCheck(t *testing.T) {
 	r := runGate(t, Options{Base: base, Head: head})
 	if c, ok := check(r, "targets/cncf"); !ok || !c.OK || !strings.Contains(c.Detail, "targets, largest") {
 		t.Fatalf("targets/cncf: %+v", c)
+	}
+}
+
+// A one-way notice rule is a rule entry like any other: added by the
+// automation account without a proof, it is a loosening change that fails.
+func TestNoticeRuleWithoutProofFails(t *testing.T) {
+	base, head := trees(t)
+	const component = "pkg:github/kubernetes/kubernetes"
+	rule := map[string]any{
+		"id": "kubernetes.gate-test-one-way.1-36-0-to-1-37-0", "operator": constraintengine.OperatorNoticeOneWay,
+		"subject": map[string]any{"component": component, "from": "1.36.0", "to": "1.37.0"},
+		"evidence": map[string]any{"state": "active", "reviewedAt": "2026-09-20T00:00:00Z", "validUntil": "2026-12-19T00:00:00Z",
+			"sources": []any{map[string]any{"id": "gate-test-source", "url": "https://github.com/kubernetes/kubernetes/blob/0000000000000000000000000000000000000001/CHANGELOG.md",
+				"revision": "0000000000000000000000000000000000000001", "contentDigest": "sha256:" + strings.Repeat("0", 64), "startLine": 1, "endLine": 2}}},
+		"reasonCode": constraintengine.ReasonOneWayTransition, "nextAction": "take an etcd snapshot and verify that it restores before upgrading",
+	}
+	id := rule["id"].(string)
+	p := readPack(t, head, cncfRulesPath)
+	p.fields["schema"] = json.RawMessage(`"prufyx.io/cncf-source-rule-pack/v1alpha6"`)
+	p.entries = append(p.entries, map[string]any{"project": "kubernetes", "description": "Gate test one-way transition.", "requiredFacts": []any{}, "rule": rule})
+	p.sortByID()
+	p.write(t, head, cncfRulesPath)
+	// The corpus attestation is regenerated as the factory would; the
+	// support inventory generator does not read this pack level yet, so
+	// the generated-output check fails as well.
+	spec := DefaultLayout().Packs[0]
+	att, err := spec.Attest(head)
+	if err != nil {
+		t.Fatalf("attestation: %v", err)
+	}
+	writeFile(t, filepath.Join(head.Root, filepath.FromSlash(spec.AttestationPath)), att)
+	r := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})
+	if c, ok := check(r, "admit/cncf"); !ok || !c.OK {
+		t.Fatalf("the engine does not admit the notice pack: %+v", c)
+	}
+	c := change(t, r, id)
+	if c.Class != ClassLoosening || len(c.Kinds) != 1 || c.Kinds[0] != KindNew || c.OK || c.Basis != constraintengine.BasisReviewed {
+		t.Fatalf("notice change %+v", c)
+	}
+	requireFail(t, r, "no owner approval")
+	if r.AutoMerge.Eligible {
+		t.Fatal("a notice rule without proof is eligible")
 	}
 }
