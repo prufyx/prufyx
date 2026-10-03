@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -190,5 +191,55 @@ func TestEmptyExternalBundleHasNoRules(t *testing.T) {
 	}
 	if admission, _ := bundle.Admission(); admission.HasRule || admission.Revision != "2" {
 		t.Fatalf("empty bundle admission %+v", admission)
+	}
+}
+
+// TestBuildFromPreviousIndexGivesChangedProjectsTheNewRevision changes the
+// recorded digest of one project in the previous index, as if that project's
+// content had changed since, and requires only that project to move to the
+// new revision.
+func TestBuildFromPreviousIndexGivesChangedProjectsTheNewRevision(t *testing.T) {
+	index, _, _ := BuildEmbeddedExternalTargets("5", nil)
+	var document externalIndexDocument
+	if err := json.Unmarshal(index.Bytes, &document); err != nil {
+		t.Fatal(err)
+	}
+	changed := document.Projects[0].Project
+	document.Projects[0].Digest = "sha256:" + strings.Repeat("0", 62) + "ff"
+	previous, err := json.Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next, projects, err := BuildEmbeddedExternalTargetsFrom("6", previous)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseExternalIndex(next.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed.Entries()) != len(document.Projects) || len(projects) != len(document.Projects) {
+		t.Fatalf("project count changed: %d entries, %d targets", len(parsed.Entries()), len(projects))
+	}
+	for _, entry := range parsed.Entries() {
+		want := "5"
+		if entry.Project == changed {
+			want = "6"
+		}
+		if entry.Revision != want {
+			t.Fatalf("project %s is at revision %s, want %s", entry.Project, entry.Revision, want)
+		}
+	}
+	// The changed project's envelope carries the new revision too.
+	for _, target := range projects {
+		if target.Path == ProjectTargetPath(changed) {
+			bundle, err := AdmitExternalProjectTarget(parsed, changed, target.Bytes)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if admission, _ := bundle.Admission(); admission.Revision != "6" {
+				t.Fatalf("changed project envelope at revision %s", admission.Revision)
+			}
+		}
 	}
 }
