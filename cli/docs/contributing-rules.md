@@ -129,6 +129,14 @@ line's rules for one fact family are complete. If a pack attests the line
 your rule's target version falls in, the attestation must list your rule, or
 the pack is rejected; see [line-attestations.md](line-attestations.md).
 
+A rule decides one hop of an upgrade. How an upgrade is split into hops (for
+example, one hop per Kubernetes minor line) is a separate reviewed record, an
+**upgrade-path policy**, with the same evidence as a rule. On an intermediate
+hop a rule counts only if its reviewed range covers the whole minor line on
+that side; a rule without a range never does. A component without a policy
+is never assumed to allow skipping lines. See
+[upgrade-paths.md](upgrade-paths.md).
+
 Every human finding prints one line before the pinned sources, either
 `evidence basis: reviewed by maintainer` or
 `evidence basis: derived from source by <extractor id> v<version>`. In JSON

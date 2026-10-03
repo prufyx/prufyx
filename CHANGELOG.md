@@ -57,6 +57,17 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Upgrade-path policies: a knowledge pack may carry an optional
+  `pathPolicies` section saying how a component's upgrades are split into
+  hops (`sequential_minor`, `direct` or `sequential_major`), each record with
+  the same cited, time-limited evidence as a rule. A pack with the section
+  uses schema `prufyx.io/cncf-source-rule-pack/v1alpha5`, which earlier
+  binaries reject, and is rejected as a whole if any record is malformed or
+  names a component that is not a catalog project's. A component without a
+  current policy is never assumed to allow skipping lines. A pack now always
+  carries the schema of the newest feature it uses. No verdict or exit code
+  changes, and the published pack carries no policies. See
+  `cli/docs/upgrade-paths.md`.
 - Line attestations: a knowledge pack may carry an optional
   `lineAttestations` section stating that, for one component, minor line and
   fact family, the listed rules are all the rules (none for a quiet line). A

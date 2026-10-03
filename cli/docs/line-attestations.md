@@ -142,8 +142,10 @@ treated as if it were absent: the line is a gap again, never a pass.
 Attestations go in an optional `lineAttestations` member of the CNCF rule
 pack. A pack that carries it must use the schema
 `prufyx.io/cncf-source-rule-pack/v1alpha4` (which also allows ranged and
-set-valued rules); that schema is refused without attestations, and
-attestations are refused under any other schema. Binaries built before
+set-valued rules), or the schema of a newer feature it also carries (see
+[upgrade-paths.md](upgrade-paths.md#in-a-knowledge-pack)); that schema is
+refused without attestations, and attestations are refused under any other
+schema. Binaries built before
 attestations existed reject such a pack, both for the unknown member and the
 unknown schema, so an attested pack can never be read as an unattested one.
 A pack without the member is byte-for-byte what it was before.
@@ -152,7 +154,7 @@ The pack's own top-level member names are matched exactly before the pack is
 decoded, by the same function in the pack loader and in
 `rulecheck.ValidatePackAttestations`: any name that is not exactly one of
 `schema`, `revision`, `policyId`, `policyDigest`, `landscapeFileDigest`,
-`registryDigest`, `entries` or `lineAttestations` (for example
+`registryDigest`, `entries`, `lineAttestations` or `pathPolicies` (for example
 `LineAttestations`, or a spelling that only matches under Unicode case
 folding), and any name that repeats, rejects the pack. So every reader sees
 the same attestation section, or none.
