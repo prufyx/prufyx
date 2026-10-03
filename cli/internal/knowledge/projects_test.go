@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -429,4 +430,28 @@ func flipByte(raw []byte) []byte {
 	out := append([]byte(nil), raw...)
 	out[len(out)/2] ^= 0x01
 	return out
+}
+
+func TestConstraintsProjectsStoredProjectTamperFailsClosed(t *testing.T) {
+	f := newProjectsFixture(t)
+	targets := projectsTargets(t, "5", nil)
+	receipt, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: targets}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, second := firstProjects(targets)
+	stored := filepath.Join(f.store, filepath.FromSlash(receipt.AdmissionPath), "projects", projectOf(t, first)+".json")
+	if err := os.WriteFile(stored, flipByte(targets[first]), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := OpenSelectedCNCF(SelectionRequest{StoreRoot: f.store}, []string{projectOf(t, first)}); !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("tampered stored project opened: %v", err)
+	}
+	// Lazy opening of another project does not read the tampered file.
+	if _, err := OpenSelectedCNCF(SelectionRequest{StoreRoot: f.store}, []string{projectOf(t, second)}); err != nil {
+		t.Fatalf("untouched project unavailable: %v", err)
+	}
+	if status, err := InspectConstraintsProjects(f.store); err != nil || status.State != "INTEGRITY_FAILURE" {
+		t.Fatalf("status after tamper=%+v err=%v", status, err)
+	}
 }

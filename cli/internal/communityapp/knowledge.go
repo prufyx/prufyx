@@ -428,4 +428,4 @@ func (r runtime) writeJSON(value any, code int) int {
 
 // knowledgeLayoutNextAction explains a CNCF layout mismatch between a
 // package or store and the selected profile. Nothing was imported.
-const knowledgeLayoutNextAction = "the package or store uses the other CNCF knowledge layout: use --profile cncf-projects for per-project packages and --profile cncf for single-target packages, each with its own store directory; the existing store was not changed"
+const knowledgeLayoutNextAction = "the package or store uses the other CNCF knowledge layout: use --profile cncf-projects for per-project packages and --profile cncf for single-target packages, each with its own store directory; nothing was imported and the selection did not change"
