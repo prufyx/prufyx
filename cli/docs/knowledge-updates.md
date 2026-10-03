@@ -111,7 +111,8 @@ environment proxy, or compression. Only absolute HTTPS URLs without credentials,
 queries, fragments, whitespace, or percent escapes are admitted, up to 4096 bytes.
 TLS uses the
 system trust configuration. Transfer has a 30-second total deadline and a 4 MiB
-body limit. Nothing runs automatically when a check, replay, help or version
+body limit; with `--profile cncf-projects` the limit is 8 MiB (see
+[Per-project CNCF knowledge targets](cncf-knowledge-per-project.md)). Nothing runs automatically when a check, replay, help or version
 command starts. For an offline environment, transfer the package separately and
 use `db import`.
 

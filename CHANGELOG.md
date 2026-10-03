@@ -7,11 +7,32 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- The CNCF knowledge database can be published as one signed TUF target per
+  project (`knowledge/cncf/projects/<project>.v1.json`) plus an index target
+  (`knowledge/cncf/index.v1.json`), each capped at 1 MiB, through the new
+  `cncf-projects` profile of `db verify`, `db import`, `db update` and
+  `db status`. The index and every project target are verified against the
+  signed targets role; missing, extra, mismatched and oversize targets are
+  rejected, and the index and each project keep their own rollback floor.
+  `check cncf` and `check batch` detect the layout from the store and read
+  only the projects being checked. Per-project packages may be up to 8 MiB.
+  See `cli/docs/cncf-knowledge-per-project.md`.
+- `prufyx-maintainer knowledge-targets build` writes the per-project targets
+  from the embedded pack deterministically, and `knowledge-targets
+  check-size` fails when any target reaches 80% of the 1 MiB per-target cap,
+  naming the target and its size. CI runs the size check.
+
 ### Changed
 
 - Input files that must be private are now accepted with any owner-only mode
   (`0600`, `0400`, `0700`, ...); only a group or other permission bit is refused.
   This applies to every `check cncf` route that reads a private input file.
+- With the single-target `cncf` profile, a per-project package or store is
+  now rejected before the store changes with exit code `2`, a message that
+  names the `cncf-projects` profile, and `db update` reason
+  `KNOWLEDGE_LAYOUT_MISMATCH`. Existing single-target stores keep working.
 - Human output of `check cncf` on the Kubernetes native-resource route and
   the other native-resource routes, and of the generic `--input` preview, is
   shorter and answers first. `PASS` claims are counted instead of listed

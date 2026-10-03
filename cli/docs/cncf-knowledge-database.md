@@ -37,6 +37,11 @@ TUF verifies origin under the selected root, metadata expiry, target digests and
 rollback protection. A signature does not establish that source assertions are
 correct, maintainer-reviewed, or reproduced in a runtime environment.
 
+The database can also be published as one target per project plus an index,
+using the `cncf-projects` profile; see [Per-project CNCF knowledge
+targets](cncf-knowledge-per-project.md). Checks detect the layout from the
+store. The rest of this page describes the single-target `cncf` profile.
+
 ## Import and inspect
 
 Use a separate private store directory for this profile. An existing
