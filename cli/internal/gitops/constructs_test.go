@@ -594,3 +594,89 @@ func TestArgoNonScalarRevision(t *testing.T) {
 		}
 	}
 }
+
+func deployment(images ...string) string {
+	var b strings.Builder
+	b.WriteString("apiVersion: apps/v1\nkind: Deployment\nmetadata: {name: d}\nspec:\n  template:\n    spec:\n      containers:\n")
+	for i, im := range images {
+		fmt.Fprintf(&b, "        - {name: c%d, image: '%s'}\n", i, im)
+	}
+	return b.String()
+}
+
+func pinList(e Environment) string {
+	var out []string
+	for _, p := range e.Images {
+		out = append(out, p.Image+":"+p.Tag+"@"+p.Digest)
+	}
+	return strings.Join(out, ",")
+}
+
+// TestImagesTransformer: an images list changes the images of the workloads
+// of its own object; it never adds a pin of its own.
+func TestImagesTransformer(t *testing.T) {
+	digest := "sha256:" + strings.Repeat("a", 64)
+	base := map[string]string{"git.yaml": gitRepo, "root.yaml": fluxRoot("root", "./app"),
+		"app/d.yaml": deployment("r.example.test/web:v1", "r.example.test/job@"+digest, "r.example.test/other:1")}
+	run := func(images string, extra map[string]string) Environment {
+		files := with(base, extra)
+		files["app/kustomization.yaml"] = "resources: [d.yaml]\nimages:\n" + images
+		return envByName(t, analyze(t, files), "app")
+	}
+	cases := []struct{ images, pins, gap string }{
+		{"  - {name: r.example.test/web, newTag: v2}\n", "r.example.test/job:@" + digest + ",r.example.test/other:1@,r.example.test/web:v2@", ""},
+		{"  - {name: r.example.test/web, newName: m.example.test/web}\n", "m.example.test/web:v1@,r.example.test/job:@" + digest + ",r.example.test/other:1@", ""},
+		{"  - {name: r.example.test/web, digest: '" + digest + "'}\n", "r.example.test/job:@" + digest + ",r.example.test/other:1@,r.example.test/web:@" + digest, ""},
+		{"  - {name: r.example.test/job, newTag: '2'}\n", "r.example.test/job:2@,r.example.test/other:1@,r.example.test/web:v1@", ""},
+		{"  - {name: r.example.test/web, newName: m.example.test/web}\n  - {name: m.example.test/web, newTag: v3}\n", "m.example.test/web:v3@,r.example.test/job:@" + digest + ",r.example.test/other:1@", ""},
+		{"  - {name: r.example.test/none, newTag: v2}\n", "r.example.test/job:@" + digest + ",r.example.test/other:1@,r.example.test/web:v1@", "matches no image read here"},
+		{"  - {name: 'r.example.test/web:v1', newTag: v2}\n", "r.example.test/job:@" + digest + ",r.example.test/other:1@,r.example.test/web:v1@", "with a tag or digest"},
+		{"  - {name: r.example.test/web, newTag: [v2]}\n", "r.example.test/job:@" + digest + ",r.example.test/other:1@,r.example.test/web:v1@", "newTag is not a string"},
+	}
+	for _, c := range cases {
+		e := run(c.images, nil)
+		if pinList(e) != c.pins || (c.gap == "") != (len(e.Gaps) == 0) || (c.gap != "" && !hasGap(e.Gaps, ConstructNotEvaluated, c.gap)) {
+			t.Errorf("%q: pins %s, gaps %+v", c.images, pinList(e), e.Gaps)
+		}
+	}
+	// An outer kustomization changes the images of its bases.
+	outer := envByName(t, analyze(t, map[string]string{
+		"git.yaml": gitRepo, "root.yaml": fluxRoot("root", "./overlay"),
+		"overlay/kustomization.yaml": "resources: [../base]\nimages: [{name: r.example.test/web, newTag: v9}]\n",
+		"base/kustomization.yaml":    "resources: [d.yaml]\nimages: [{name: r.example.test/web, newTag: v5}]\n",
+		"base/d.yaml":                deployment("r.example.test/web:v1"),
+	}), "overlay")
+	if pinList(outer) != "r.example.test/web:v9@" {
+		t.Fatalf("outer rule: %s %+v", pinList(outer), outer.Gaps)
+	}
+	// It does not reach into a nested Flux Kustomization.
+	nested := envByName(t, analyze(t, map[string]string{
+		"git.yaml": gitRepo, "root.yaml": fluxRoot("root", "./parent"),
+		"parent/kustomization.yaml": "resources: [child.yaml]\nimages: [{name: r.example.test/web, newTag: v9}]\n",
+		"parent/child.yaml":         fluxRoot("child", "./apps"),
+		"apps/d.yaml":               deployment("r.example.test/web:v1"),
+	}), "parent")
+	if pinList(nested) != "r.example.test/web:v1@" || !hasGap(nested.Gaps, ConstructNotEvaluated, "matches no image") {
+		t.Fatalf("nested: %s %+v", pinList(nested), nested.Gaps)
+	}
+	// Flux spec.images apply to the Kustomization's own content.
+	fluxImages := strings.Replace(fluxRoot("root", "./app"), "spec:\n", "spec:\n  images: [{name: r.example.test/web, newTag: v7}]\n", 1)
+	fe := envByName(t, analyze(t, with(base, map[string]string{"root.yaml": fluxImages})), "app")
+	if !strings.Contains(pinList(fe), "r.example.test/web:v7@") || strings.Contains(pinList(fe), "web:v1") {
+		t.Fatalf("flux images: %s", pinList(fe))
+	}
+	// Argo CD kustomize.images, in both forms.
+	for img, want := range map[string]string{
+		"r.example.test/web=m.example.test/web:v3": "m.example.test/web:v3@",
+		"r.example.test/web:v4":                    "r.example.test/web:v4@",
+		"r.example.test/web@" + digest:             "r.example.test/web:@" + digest,
+	} {
+		repo := Analyze(memory(t, map[string]string{
+			"app.yaml":   argoApp("a", "    {repoURL: 'https://github.com/example/fleet', path: dir, kustomize: {images: ['"+img+"']}}\n"),
+			"dir/d.yaml": deployment("r.example.test/web:v1"),
+		}), Options{Root: "repo", SelfRepoURLs: []string{"https://github.com/example/fleet"}})
+		if e := envByName(t, repo, "argocd/a"); pinList(e) != want || len(e.Gaps) != 0 {
+			t.Errorf("argo %s: %s %+v", img, pinList(e), e.Gaps)
+		}
+	}
+}

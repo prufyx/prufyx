@@ -1,5 +1,6 @@
 resources:
   - ../base/podinfo
+  - web.yaml
 images:
   - name: registry.example.test/team/web
     newTag: 1.2.0

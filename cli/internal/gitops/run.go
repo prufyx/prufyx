@@ -67,7 +67,7 @@ func (a *analysis) run() Repo {
 			covered[i] = covered[i] || seen
 		}
 		repo.Environments = append(repo.Environments, Environment{
-			Name: envName(r), Root: r.doc.Source, Releases: w.rels, Images: w.imgs, Gaps: w.gaps,
+			Name: envName(r), Root: r.doc.Source, Releases: w.rels, Images: w.pins, Gaps: w.gaps,
 		})
 	}
 	uniqueNames(repo.Environments, roots)

@@ -62,7 +62,8 @@ type walker struct {
 	reached   map[int]bool
 	entries   []relEntry
 	rels      []Release
-	imgs      []ImagePin
+	imgs      []imgEntry
+	pins      []ImagePin // the images of the result, after finish
 	gaps      []Gap
 	srcs      map[string][]*docRef
 	owner     int
@@ -288,7 +289,7 @@ func (w *walker) flux(d *docRef, hops int) {
 	}
 	w.objStack[d.id] = true
 	owner, scope := w.enter(s.targetNS)
-	from := len(w.entries)
+	from, imgFrom := len(w.entries), len(w.imgs)
 	w.visitDir(s.dir.path, hops+1, true, true)
 	for _, c := range s.components {
 		if !w.charge(1) {
@@ -298,7 +299,7 @@ func (w *walker) flux(d *docRef, hops int) {
 	}
 	if !w.discover && !w.stopped {
 		w.addGaps(s.gaps)
-		w.addImages(s.images)
+		w.applyImages(s.images, imgFrom)
 		w.applyPatches(s.patches, from, src)
 	}
 	w.owner, w.scopeNS = owner, scope
@@ -506,7 +507,7 @@ func (w *walker) kustomization(k *docRef, dir string, hops int) {
 		// An outer namespace transformer runs later and wins.
 		w.scopeNS = s.ns
 	}
-	from := len(w.entries)
+	from, imgFrom := len(w.entries), len(w.imgs)
 	for _, e := range s.entries {
 		if !w.charge(1) {
 			break
@@ -518,7 +519,7 @@ func (w *walker) kustomization(k *docRef, dir string, hops int) {
 	}
 	if !w.discover && !w.stopped {
 		w.addGaps(s.gaps)
-		w.addImages(s.images)
+		w.applyImages(s.images, imgFrom)
 		w.applyPatches(s.patches, from, k.doc.Source)
 	}
 	w.scopeNS = scope
@@ -603,7 +604,58 @@ func (w *walker) addImages(pins []ImagePin) {
 			}
 			return
 		}
-		w.imgs = append(w.imgs, p)
+		w.imgs = append(w.imgs, imgEntry{p, w.owner})
+	}
+}
+
+// imgEntry is an image a walk collected; transformers of the object that
+// collected it may still change it.
+type imgEntry struct {
+	pin   ImagePin
+	owner int
+}
+
+// applyImages applies an images transformer to the images this object
+// collected itself since index from. A rule that matches no image read here
+// is a gap: it may change an image that is not read.
+func (w *walker) applyImages(rules []imageRule, from int) {
+	if len(rules) == 0 {
+		return
+	}
+	byName := map[string][]int{}
+	for i := from; i < len(w.imgs); i++ {
+		if !w.charge(1) {
+			return
+		}
+		if w.imgs[i].owner == w.owner {
+			byName[w.imgs[i].pin.Image] = append(byName[w.imgs[i].pin.Image], i)
+		}
+	}
+	for _, r := range rules {
+		if !w.charge(1) {
+			return
+		}
+		matched := byName[r.name]
+		if len(matched) == 0 {
+			w.gap(ConstructNotEvaluated, r.src, "images entry "+r.name+" matches no image read here; it is not applied")
+			continue
+		}
+		if r.newName != "" && r.newName != r.name {
+			delete(byName, r.name)
+			byName[r.newName] = append(byName[r.newName], matched...)
+		}
+		for _, i := range matched {
+			p := &w.imgs[i].pin
+			if r.newName != "" {
+				p.Image = r.newName
+			}
+			switch {
+			case r.digest != "":
+				p.Digest, p.Tag = r.digest, ""
+			case r.newTag != "":
+				p.Tag, p.Digest = r.newTag, ""
+			}
+		}
 	}
 }
 
@@ -686,15 +738,15 @@ func (w *walker) argoSource(s *argoSrc, hops int) {
 		if !s.follow {
 			return
 		}
-		if !w.discover {
-			w.addImages(s.images)
-		}
-		scope := w.scopeNS
+		scope, imgFrom := w.scopeNS, len(w.imgs)
 		if s.ns != "" {
 			w.scopeNS = s.ns
 		}
 		w.visitDir(s.dir.path, hops+1, s.recurse, true)
 		w.scopeNS = scope
+		if !w.discover && !w.stopped {
+			w.applyImages(s.images, imgFrom)
+		}
 	}
 }
 
@@ -762,8 +814,16 @@ func (w *walker) finish() {
 		}
 		return a.RepoURL < b.RepoURL
 	})
-	sort.SliceStable(w.imgs, func(i, j int) bool {
-		a, b := w.imgs[i], w.imgs[j]
+	w.pins = make([]ImagePin, 0, len(w.imgs))
+	for _, e := range w.imgs {
+		if !w.spend(len(e.pin.Image) + len(e.pin.Tag) + len(e.pin.Digest)) {
+			break
+		}
+		w.pins = append(w.pins, e.pin)
+	}
+	w.imgs = nil
+	sort.SliceStable(w.pins, func(i, j int) bool {
+		a, b := w.pins[i], w.pins[j]
 		switch {
 		case a.Image != b.Image:
 			return a.Image < b.Image

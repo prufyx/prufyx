@@ -143,10 +143,11 @@ func TestChartAndKustomization(t *testing.T) {
 	for _, p := range e.Images {
 		images = append(images, p.Image+":"+p.Tag+"@"+p.Digest)
 	}
+	// The images list is a transformer: it changes the images of the
+	// workloads, it adds none.
 	wantImages := []string{
 		"mirror.example.test/team/web:1.2.4@",
 		"registry.example.test/team/job:@sha256:0000000000000000000000000000000000000000000000000000000000000002",
-		"registry.example.test/team/web:1.0.0@",
 	}
 	if strings.Join(images, "|") != strings.Join(wantImages, "|") {
 		t.Fatalf("images = %q", images)

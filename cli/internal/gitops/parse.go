@@ -19,7 +19,7 @@ func (r fluxRef) key() string { return sourceKey(r.kind, r.ns, r.name) }
 
 type kustSpec struct {
 	entries []target
-	images  []ImagePin
+	images  []imageRule
 	patches []patchResult
 	ns      string
 	gaps    []Gap
@@ -34,7 +34,7 @@ type fluxSpec struct {
 	bootstrap  bool
 	targetNS   string
 	components []target
-	images     []ImagePin
+	images     []imageRule
 	patches    []patchResult
 	gaps       []Gap
 }
@@ -85,7 +85,7 @@ type argoSrc struct {
 	follow   bool
 	recurse  bool
 	ns       string
-	images   []ImagePin
+	images   []imageRule
 }
 
 type argoSpec struct {
@@ -181,29 +181,56 @@ func (a *analysis) parseKust(k *docRef) (*kustSpec, int) {
 	return s, cost
 }
 
+// imageRule is one entry of a kustomize images transformer: images named
+// name get newName, newTag or digest. A digest replaces the tag, a new tag
+// replaces the digest.
+type imageRule struct {
+	name, newName, newTag, digest string
+	src                           intake.Source
+}
+
+// checkRule refuses a rule whose fields could not be reported as they are.
+func checkRule(r imageRule) string {
+	if r.name == "" {
+		return "an images entry has no name"
+	}
+	if strings.ContainsAny(r.name, "@") || strings.LastIndexByte(r.name, ':') > strings.LastIndexByte(r.name, '/') {
+		return "an images entry name with a tag or digest is not evaluated"
+	}
+	if detail := badImage(ImagePin{Image: r.name + r.newName, Tag: r.newTag, Digest: r.digest}); detail != "" {
+		return detail
+	}
+	return ""
+}
+
 // kustImages reads a kustomize images list.
-func kustImages(list []any, src intake.Source, gaps *[]Gap) ([]ImagePin, int) {
+func kustImages(list []any, src intake.Source, gaps *[]Gap) ([]imageRule, int) {
 	g := gapAt(src)
-	var pins []ImagePin
+	var rules []imageRule
 	for _, e := range list {
 		m := asMap(e)
-		image := asStr(m["newName"])
-		if image == "" {
-			image = asStr(m["name"])
-		}
-		if image == "" {
-			*gaps = append(*gaps, g(SourceNotFound, "an images entry has no name"))
+		if m == nil {
+			*gaps = append(*gaps, g(ConstructNotEvaluated, "an images entry is not an object"))
 			continue
 		}
-		tag, _ := scalar(m["newTag"])
-		pin := ImagePin{Image: image, Tag: tag, Digest: asStr(m["digest"]), Source: src}
-		if detail := badImage(pin); detail != "" {
-			*gaps = append(*gaps, g(SourceNotFound, detail))
+		r := imageRule{name: asStr(m["name"]), newName: asStr(m["newName"]), digest: asStr(m["digest"]), src: src}
+		if v, present := m["newTag"]; present && v != nil {
+			tag, ok := scalar(v)
+			if !ok {
+				*gaps = append(*gaps, g(ConstructNotEvaluated, "an images entry newTag is not a string"))
+				continue
+			}
+			r.newTag = tag
+		}
+		if detail := checkRule(r); detail != "" {
+			*gaps = append(*gaps, g(ConstructNotEvaluated, detail))
 			continue
 		}
-		pins = append(pins, pin)
+		if r.newName != "" || r.newTag != "" || r.digest != "" {
+			rules = append(rules, r)
+		}
 	}
-	return pins, len(list)
+	return rules, len(list)
 }
 
 func badImage(p ImagePin) string {
@@ -555,20 +582,24 @@ func (a *analysis) parseArgoSource(d *docRef, m map[string]any, destNS string) *
 				add(SourceNotFound, "a kustomize image entry is not a string")
 				continue
 			}
+			name := ""
 			if i := strings.IndexByte(text, '='); i >= 0 {
-				text = text[i+1:]
+				name, text = text[:i], text[i+1:]
 			}
 			image, tag, digest, ok := splitImage(text)
 			if !ok {
-				add(SourceNotFound, "a kustomize image entry is not understood")
+				add(ConstructNotEvaluated, "a kustomize image entry is not understood")
 				continue
 			}
-			pin := ImagePin{Image: image, Tag: tag, Digest: digest, Source: d.doc.Source}
-			if detail := badImage(pin); detail != "" {
-				add(SourceNotFound, detail)
+			r := imageRule{name: name, newName: image, newTag: tag, digest: digest, src: d.doc.Source}
+			if name == "" || name == image {
+				r.name, r.newName = image, ""
+			}
+			if detail := checkRule(r); detail != "" {
+				add(ConstructNotEvaluated, detail)
 				continue
 			}
-			s.images = append(s.images, pin)
+			s.images = append(s.images, r)
 		}
 		s.ns = asStr(k["namespace"])
 		if nonEmpty(k["namePrefix"]) || nonEmpty(k["nameSuffix"]) {

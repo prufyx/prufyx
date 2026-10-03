@@ -8,3 +8,5 @@ spec:
       containers:
         - name: web
           image: registry.example.test/team/web:1.0.0
+        - name: job
+          image: registry.example.test/team/job:0.9.0

@@ -63,13 +63,11 @@ func TestReleaseBound(t *testing.T) {
 func TestImageBound(t *testing.T) {
 	ws := intake.Workspace{Documents: []intake.Document{gitDoc()}}
 	ws.Documents = append(ws.Documents, flux("repo/root.yaml", 0, "root", "./app"))
-	var images []any
 	for i := 0; i < MaxImages+3; i++ {
-		images = append(images, map[string]any{"name": fmt.Sprintf("registry.example.test/i%d", i), "newTag": "1"})
+		ws.Documents = append(ws.Documents, doc(fmt.Sprintf("repo/app/p%05d.yaml", i), 0, "v1", "Pod", "apps", fmt.Sprintf("p%d", i), map[string]any{
+			"containers": []any{map[string]any{"name": "c", "image": fmt.Sprintf("registry.example.test/i%d:1", i)}},
+		}))
 	}
-	ws.Auxiliary = append(ws.Auxiliary, intake.Document{
-		Source: intake.Source{Display: "repo/app/kustomization.yaml", Item: -1}, Value: map[string]any{"images": images},
-	})
 	repo := Analyze(ws, Options{Root: "repo"})
 	e := repo.Environments[0]
 	if len(e.Images) != MaxImages || !hasGap(e.Gaps, ClosureLimit, "4096 image pins") {
