@@ -125,15 +125,21 @@ func ScopeContractDigestNotice() string { return scopeContractDigestNotice() }
 
 // validNoticeClaims binds the NOTICE status to the notice operator and the
 // notice contract: a NOTICE claim comes only from a notice_one_way rule with
-// current evidence and the fixed reason code, a notice_one_way claim is never
-// PASS or BLOCKED, and either is legal only under the notice contract.
+// current evidence and the fixed reason code (or from a lead rule, see
+// validBasisClaims), a notice_one_way claim is never PASS or BLOCKED, and
+// either is legal only under the notice contract or the basis contract,
+// which admits notices.
 func validNoticeClaims(report Report) bool {
 	for _, claim := range report.Claims {
 		notice := claim.IsNotice()
-		if notice && report.EngineContractDigest != engineContractDigestNotice() {
+		// The basis contract admits every feature of the notice contract.
+		if notice && report.EngineContractDigest != engineContractDigestNotice() && report.EngineContractDigest != engineContractDigestBasis() {
 			return false
 		}
-		if claim.Status == StatusNotice && (!notice || claim.ReasonCode != ReasonOneWayTransition || claim.EvidenceFreshness != "current") {
+		// NOTICE comes from a one-way notice, or from a lead that would have
+		// blocked (bound to the basis contract by validBasisClaims).
+		noticeSource := notice && claim.ReasonCode == ReasonOneWayTransition || !notice && claim.IsLead() && claim.ReasonCode == ReasonLeadNotVerified
+		if claim.Status == StatusNotice && (!noticeSource || claim.EvidenceFreshness != "current") {
 			return false
 		}
 		if notice && claim.Status != StatusNotice && claim.Status != "UNKNOWN" {
@@ -157,7 +163,14 @@ func (c Claim) IsNotice() bool {
 // absence of a notice says nothing; any other notice claim says that the
 // notice could not be established and why. No line states that a rollback
 // is possible. Every line is at most 256 bytes.
+//
+// A lead claim is verdict-neutral too and is printed here: a lead that
+// would have blocked prints as an unverified lead with its next action, and
+// any other lead claim prints nothing.
 func (c Claim) NoticeLines() (lines []string, ok bool) {
+	if c.IsLead() && !c.IsNotice() {
+		return c.leadLines(), true
+	}
 	if !c.IsNotice() {
 		return nil, false
 	}

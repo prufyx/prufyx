@@ -89,7 +89,7 @@ func TestNoticeRuleStructure(t *testing.T) {
 		"oversized before text":          ruleDocumentJSON(RulesSchemaNotice, nil, replace(noticeBefore, strings.Repeat("b", 257))),
 		"control character in text":      ruleDocumentJSON(RulesSchemaNotice, nil, replace(noticeBefore, `take\u0007a snapshot`)),
 		"corpus backed only by a notice": ruleDocumentJSON(RulesSchemaNotice, []string{scopeComponentA}, good),
-		"unknown schema level":           ruleDocumentJSON("prufyx.io/deterministic-constraint-rules/v1alpha5", nil, good),
+		"unknown schema level":           ruleDocumentJSON("prufyx.io/deterministic-constraint-rules/v1alpha9", nil, good),
 	}
 	// Look-alike letters, invisible characters and direction overrides are
 	// refused outright: the text is printable ASCII.

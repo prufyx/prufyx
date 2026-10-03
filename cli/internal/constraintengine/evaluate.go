@@ -41,7 +41,14 @@ func Evaluate(input Input, rules RuleSet, now time.Time) (Report, error) {
 	return issueReport(report), nil
 }
 
+// evaluateRule decides one rule, then applies its basis: the basis may only
+// withhold a verdict (consensus never passes, lead never blocks or passes),
+// never create one.
 func evaluateRule(input inputDocument, rule rule, now time.Time) Claim {
+	return applyBasisSemantics(rule, evaluateRuleVerdict(input, rule, now))
+}
+
+func evaluateRuleVerdict(input inputDocument, rule rule, now time.Time) Claim {
 	claim := Claim{RuleID: rule.ID, RuleDigest: digestJSON(rule), Operator: rule.Operator, ReasonCode: rule.ReasonCode, NextAction: rule.NextAction, EvidenceReviewedAt: rule.Evidence.ReviewedAt, EvidenceValidUntil: rule.Evidence.ValidUntil, RequiredFacts: requiredFacts(rule), Sources: append([]SourceEvidence(nil), rule.Evidence.Sources...), EvidenceBasis: rule.Evidence.Basis, EvidenceDerivedAt: rule.Evidence.DerivedAt}
 	if rule.Evidence.Extractor != nil {
 		extractor := *rule.Evidence.Extractor
@@ -273,7 +280,7 @@ func issueReport(report Report) Report {
 // independently re-derive that same assessment. No block, no verdict —
 // however many claims passed. See legalAssessment.
 func MarshalReport(report Report) ([]byte, error) {
-	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !validSetClaims(report) || !validNoticeClaims(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
+	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !validSetClaims(report) || !validNoticeClaims(report) || !validBasisClaims(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
 		return nil, ErrIntegrity
 	}
 	raw, err := json.Marshal(report)
@@ -290,7 +297,7 @@ func validClaims(claims []Claim) bool {
 		if ValidateBasis(claim.EvidenceBasis, claim.EvidenceExtractor, claim.EvidenceDerivedAt) != nil {
 			return false
 		}
-		if (i > 0 && claims[i-1].RuleID >= claim.RuleID) || !idRE.MatchString(claim.RuleID) || !digestRE.MatchString(claim.RuleDigest) || (claim.Status != "PASS" && claim.Status != "BLOCKED" && claim.Status != "UNKNOWN" && claim.Status != StatusNotice) || !reasonRE.MatchString(claim.ReasonCode) || !publicText(claim.NextAction) || !validRequiredFacts(claim.RequiredFacts) || reviewedErr != nil || validUntilErr != nil || !validUntil.After(reviewed) || (claim.EvidenceFreshness != "current" && claim.EvidenceFreshness != "stale" && claim.EvidenceFreshness != "withdrawn" && claim.EvidenceFreshness != "clock_before_review") {
+		if (i > 0 && claims[i-1].RuleID >= claim.RuleID) || !idRE.MatchString(claim.RuleID) || !digestRE.MatchString(claim.RuleDigest) || (claim.Status != "PASS" && claim.Status != "BLOCKED" && claim.Status != "UNKNOWN" && claim.Status != StatusNotice && claim.Status != StatusNoKnownIssue) || !reasonRE.MatchString(claim.ReasonCode) || !publicText(claim.NextAction) || !validRequiredFacts(claim.RequiredFacts) || reviewedErr != nil || validUntilErr != nil || !validUntil.After(reviewed) || (claim.EvidenceFreshness != "current" && claim.EvidenceFreshness != "stale" && claim.EvidenceFreshness != "withdrawn" && claim.EvidenceFreshness != "clock_before_review") {
 			return false
 		}
 	}
@@ -306,7 +313,7 @@ func validClaimMatches(report Report) bool {
 		if match == nil {
 			continue
 		}
-		if (report.EngineContractDigest != engineContractDigestRanged() && report.EngineContractDigest != engineContractDigestSet() && report.EngineContractDigest != engineContractDigestNotice()) || match.Mode != subjectMatchModeRange || claim.Status == "UNKNOWN" && claim.ReasonCode == "RULE_TRANSITION_NOT_REVIEWED" {
+		if (report.EngineContractDigest != engineContractDigestRanged() && report.EngineContractDigest != engineContractDigestSet() && report.EngineContractDigest != engineContractDigestNotice() && report.EngineContractDigest != engineContractDigestBasis()) || match.Mode != subjectMatchModeRange || claim.Status == "UNKNOWN" && claim.ReasonCode == "RULE_TRANSITION_NOT_REVIEWED" {
 			return false
 		}
 		if !validVersion(match.AnchorFrom) || !validVersion(match.AnchorTo) || !inBound(match.AnchorFrom, match.From) || !inBound(match.AnchorTo, match.To) {

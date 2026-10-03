@@ -140,10 +140,10 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	if err := decodeStrict(raw, &document); err != nil {
 		return RuleSet{}, err
 	}
-	if (document.Schema != RulesSchema && document.Schema != RulesSchemaRanged && document.Schema != RulesSchemaSet && document.Schema != RulesSchemaNotice) || !idRE.MatchString(document.Revision) || !idRE.MatchString(document.PolicyID) || !digestRE.MatchString(document.PolicyDigest) || len(document.Rules) > maxRules {
+	if (document.Schema != RulesSchema && document.Schema != RulesSchemaRanged && document.Schema != RulesSchemaSet && document.Schema != RulesSchemaNotice && document.Schema != RulesSchemaBasis) || !idRE.MatchString(document.Revision) || !idRE.MatchString(document.PolicyID) || !digestRE.MatchString(document.PolicyDigest) || len(document.Rules) > maxRules {
 		return RuleSet{}, fmt.Errorf("ruleset identity: %w", ErrInvalid)
 	}
-	ranged, setOperator, notice := false, false, false
+	ranged, setOperator, notice, basis := false, false, false, false
 	for i, rule := range document.Rules {
 		if i > 0 && document.Rules[i-1].ID >= rule.ID {
 			return RuleSet{}, fmt.Errorf("rule order: %w", ErrInvalid)
@@ -154,17 +154,20 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 		ranged = ranged || rule.Range != nil
 		setOperator = setOperator || rule.usesSetOperator()
 		notice = notice || rule.usesNoticeOperator()
+		basis = basis || rule.usesBasisSemantics()
 	}
 	// The schema string states which contract the document needs, and it
 	// must be right in every direction: a document carries exactly the
 	// schema of the highest-level feature it uses. A document using
 	// notice_one_way carries the notice schema (which also admits ranges
-	// and set rules); otherwise one using forbid_set_member carries the set
+	// and set rules); a document holding a consensus or lead rule carries
+	// the basis schema above all of them; otherwise one using
+	// forbid_set_member carries the set
 	// schema (which also admits ranges); otherwise an exact-only schema never
 	// admits a range, and the ranged schema is never used without one. Every
 	// document has exactly one schema and one engine contract.
-	if document.Schema != requiredRulesSchema(ranged, setOperator, notice) {
-		return RuleSet{}, fmt.Errorf("ruleset schema does not match range, set or notice operator use: %w", ErrInvalid)
+	if document.Schema != requiredRulesSchema(ranged, setOperator, notice, basis) {
+		return RuleSet{}, fmt.Errorf("ruleset schema does not match range, set, notice operator or basis use: %w", ErrInvalid)
 	}
 	if ranged {
 		if err := validateRangeOverlaps(document.Rules); err != nil {
@@ -174,7 +177,7 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	if err := validateCorpus(document); err != nil {
 		return RuleSet{}, err
 	}
-	return RuleSet{document: document, digest: digestJSON(document), registryDigest: registry.Digest(), ranged: ranged, setOperator: setOperator, notice: notice, seal: &ruleSetSeal{}}, nil
+	return RuleSet{document: document, digest: digestJSON(document), registryDigest: registry.Digest(), ranged: ranged, setOperator: setOperator, notice: notice, basis: basis, seal: &ruleSetSeal{}}, nil
 }
 
 // validateCorpus admits a completeness attestation only when the document can
@@ -191,9 +194,9 @@ func validateCorpus(document ruleDocument) error {
 	}
 	subjects := make(map[string]int, len(document.Rules))
 	for _, rule := range document.Rules {
-		// A notice rule is never evaluated for completeness, so it cannot
-		// support an attestation either.
-		if rule.usesNoticeOperator() {
+		// A notice or lead rule is never evaluated for completeness, so it
+		// cannot support an attestation either.
+		if rule.verdictNeutral() {
 			continue
 		}
 		subjects[rule.Subject.Component]++
@@ -215,6 +218,9 @@ func validateRule(rule rule, registry Registry) error {
 	}
 	if err := validateEvidence(rule.Evidence); err != nil {
 		return fmt.Errorf("rule evidence: %w", err)
+	}
+	if err := validateBasisRule(rule); err != nil {
+		return err
 	}
 	if err := validateRange(rule); err != nil {
 		return err

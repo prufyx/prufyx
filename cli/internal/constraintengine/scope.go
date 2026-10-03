@@ -83,12 +83,17 @@ func buildScopeCompleteness(input inputDocument, rules ruleDocument, claims []Cl
 			CorpusAttested: corpusAttested, EvaluatedRuleIDs: []string{}, NotEvaluated: []NotEvaluatedRule{},
 		})
 	}
-	outOfScope, notices := 0, 0
+	outOfScope, notices, leads := 0, 0, 0
 	for position, candidate := range rules.Rules {
-		// A notice rule is verdict-neutral: it is counted, never partitioned,
-		// so the aggregate is exactly what it would be without it.
+		// A notice or lead rule is verdict-neutral: it is counted, never
+		// partitioned, so the aggregate is exactly what it would be without
+		// it.
 		if candidate.usesNoticeOperator() {
 			notices++
+			continue
+		}
+		if candidate.verdictNeutral() {
+			leads++
 			continue
 		}
 		state, reason := ruleApplicability(input, declared, candidate)
@@ -104,6 +109,12 @@ func buildScopeCompleteness(input inputDocument, rules ruleDocument, claims []Cl
 				target.EvaluatedRuleIDs = append(target.EvaluatedRuleIDs, candidate.ID)
 				continue
 			}
+			// A consensus rule that found no issue was applicable but did not
+			// verify anything: the scope is not proven.
+			if claim.Status == StatusNoKnownIssue {
+				target.NotEvaluated = append(target.NotEvaluated, NotEvaluatedRule{RuleID: candidate.ID, Applicability: ApplicabilityApplicable, ReasonCode: claim.ReasonCode})
+				continue
+			}
 			// Applicable but not decidable: stale or withdrawn evidence, a
 			// missing constraint fact, an undeclared dependency component, or
 			// an unsupported operator. Carry the claim's own reason code.
@@ -115,7 +126,7 @@ func buildScopeCompleteness(input inputDocument, rules ruleDocument, claims []Cl
 	result := &ScopeCompleteness{
 		Declaration: ScopeDeclaration, CorpusAttestation: CorpusAttestation,
 		ContractDigest: scopeDigestFor(engineDigest), RuleSetRevision: rules.Revision,
-		OutOfScopeRules: outOfScope, NoticeRules: notices, Components: components,
+		OutOfScopeRules: outOfScope, NoticeRules: notices, LeadRules: leads, Components: components,
 	}
 	assessment, unresolved, err := deriveAssessment(result, claims)
 	if err != nil {
@@ -141,7 +152,7 @@ func deriveAssessment(scope *ScopeCompleteness, claims []Claim) (string, string,
 	}
 	required, verified := 0, 0
 	blockers := []validation.VerifiedBlocker{}
-	unattested, undetermined, emptyComponent, notAnchorReviewed := false, false, false, false
+	unattested, undetermined, emptyComponent, notAnchorReviewed, consensusOnly := false, false, false, false, false
 	for _, component := range scope.Components {
 		// Completeness stays anchor-only: a component's transition must
 		// equal the reviewed anchor pair of at least one evaluated rule. A
@@ -173,8 +184,18 @@ func deriveAssessment(scope *ScopeCompleteness, claims []Claim) (string, string,
 			}
 		}
 		for _, skipped := range component.NotEvaluated {
-			if _, found := statuses[skipped.RuleID]; !found {
+			status, found := statuses[skipped.RuleID]
+			if !found {
 				return "", "", ErrIntegrity
+			}
+			// NO_KNOWN_ISSUE is recorded as applicable and not verified, and
+			// nothing else is: the two are bound in both directions.
+			if (status == StatusNoKnownIssue) != (skipped.Applicability == ApplicabilityApplicable) {
+				return "", "", ErrIntegrity
+			}
+			if skipped.Applicability == ApplicabilityApplicable {
+				required, consensusOnly = required+1, true
+				continue
 			}
 			if skipped.Applicability == ApplicabilityUndetermined {
 				// Required because it may be applicable, unverified because it
@@ -189,6 +210,8 @@ func deriveAssessment(scope *ScopeCompleteness, claims []Claim) (string, string,
 		unresolved = unresolvedComponentNotAttested
 	case undetermined:
 		unresolved = unresolvedApplicability
+	case consensusOnly:
+		unresolved = unresolvedConsensusOnlyScope
 	case emptyComponent:
 		unresolved = unresolvedNoApplicableRule
 	case notAnchorReviewed:
@@ -223,23 +246,28 @@ func validScopeBlock(scope *ScopeCompleteness, claims []Claim, engineDigest stri
 	if scope.Resolved != (scope.UnresolvedReason == "") || (scope.UnresolvedReason != "" && !reasonRE.MatchString(scope.UnresolvedReason)) {
 		return false
 	}
-	if scope.OutOfScopeRules < 0 || scope.NoticeRules < 0 || len(scope.Components) == 0 || len(scope.Components) > maxComponents {
+	if scope.OutOfScopeRules < 0 || scope.NoticeRules < 0 || scope.LeadRules < 0 || len(scope.Components) == 0 || len(scope.Components) > maxComponents {
 		return false
 	}
-	// Notice claims are never referenced by a component: they are only
-	// counted, and the count must be exactly theirs.
+	// Notice and lead claims are never referenced by a component: they are
+	// only counted, and each count must be exactly theirs.
 	known := make(map[string]struct{}, len(claims))
-	notices := 0
+	notices, leads := 0, 0
 	for _, claim := range claims {
 		if claim.IsNotice() {
 			notices++
 			continue
 		}
+		if claim.IsLead() {
+			leads++
+			continue
+		}
 		known[claim.RuleID] = struct{}{}
 	}
-	if scope.NoticeRules != notices {
+	if scope.NoticeRules != notices || scope.LeadRules != leads {
 		return false
 	}
+	basisScope := scope.ContractDigest == scopeContractDigestBasis()
 	referenced := make(map[string]struct{}, len(claims))
 	for index, component := range scope.Components {
 		if !componentRE.MatchString(component.Component) || (index > 0 && scope.Components[index-1].Component >= component.Component) {
@@ -260,7 +288,12 @@ func validScopeBlock(scope *ScopeCompleteness, claims []Claim, engineDigest stri
 			if position > 0 && component.NotEvaluated[position-1].RuleID >= skipped.RuleID {
 				return false
 			}
-			if skipped.Applicability != ApplicabilityNotApplicable && skipped.Applicability != ApplicabilityUndetermined || !reasonRE.MatchString(skipped.ReasonCode) {
+			if skipped.Applicability != ApplicabilityNotApplicable && skipped.Applicability != ApplicabilityUndetermined && skipped.Applicability != ApplicabilityApplicable || !reasonRE.MatchString(skipped.ReasonCode) {
+				return false
+			}
+			// APPLICABLE in the not-evaluated list is a consensus rule that
+			// found no issue, legal only under the basis scope contract.
+			if skipped.Applicability == ApplicabilityApplicable && (!basisScope || skipped.ReasonCode != ReasonConsensusNoKnownIssue) {
 				return false
 			}
 			// NOT_APPLICABLE is legal only under a reason code that actually
@@ -276,10 +309,10 @@ func validScopeBlock(scope *ScopeCompleteness, claims []Claim, engineDigest stri
 			}
 		}
 	}
-	// Every rule in the evaluated document is either a notice, out of scope,
-	// or accounted for exactly once. Dropping an undetermined rule from the
-	// enumeration therefore cannot buy a completeness claim.
-	return len(referenced)+scope.OutOfScopeRules+scope.NoticeRules == len(claims)
+	// Every rule in the evaluated document is either a notice, a lead, out
+	// of scope, or accounted for exactly once. Dropping an undetermined rule
+	// from the enumeration therefore cannot buy a completeness claim.
+	return len(referenced)+scope.OutOfScopeRules+scope.NoticeRules+scope.LeadRules == len(claims)
 }
 
 func claimReference(known, referenced map[string]struct{}, ruleID string) bool {

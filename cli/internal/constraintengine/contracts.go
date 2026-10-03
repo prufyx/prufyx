@@ -320,7 +320,8 @@ type componentCheck struct {
 type evidence struct {
 	State string `json:"state"`
 	// Basis, Extractor and DerivedAt are optional provenance. They are parsed
-	// strictly and reported, and they never take part in a verdict. A rule
+	// strictly and reported. Only a consensus or lead basis changes what the
+	// rule may decide (basis.go), and only under the basis contract. A rule
 	// that omits them marshals, digests and evaluates exactly as before they
 	// existed; an absent basis means the rule was reviewed by a maintainer.
 	Basis      string           `json:"basis,omitempty"`
@@ -331,9 +332,9 @@ type evidence struct {
 	Sources    []SourceEvidence `json:"sources"`
 }
 
-// Evidence basis values. A rule is either interpreted by a person (reviewed)
-// or derived from pinned upstream source by a versioned extractor
-// (mechanical). Absent means reviewed.
+// Evidence basis values. A rule is interpreted by a person (reviewed) or
+// derived from pinned upstream source by a versioned extractor (mechanical);
+// see basis.go for empirical, consensus and lead. Absent means reviewed.
 const (
 	BasisReviewed   = "reviewed"
 	BasisMechanical = "mechanical"
@@ -356,15 +357,28 @@ func EffectiveBasis(basis string) string {
 }
 
 // ValidateBasis checks the provenance fields of one rule's evidence against
-// the closed vocabulary: basis is "mechanical" or "reviewed" (or absent);
-// a mechanical rule must name its extractor and the UTC time it was derived,
-// and any other rule must carry neither. The extractor identity is a public id,
-// a strict three-part version and a sha256 code digest.
+// the closed vocabulary (Bases): a reviewed rule (or one without a basis)
+// carries neither extractor nor derivedAt; a mechanical rule must name its
+// extractor and the UTC time it was derived; an empirical, consensus or lead
+// rule must carry the UTC time it was derived and no extractor. The
+// extractor identity is a public id, a strict three-part version and a
+// sha256 code digest.
+//
+// What a basis may decide is a separate question (BasisMayBlock,
+// BasisMayPass). Callers whose records only a person or an extractor may
+// produce use ValidateReviewedOrMechanicalBasis.
 func ValidateBasis(basis string, extractor *Extractor, derivedAt string) error {
 	switch basis {
 	case "", BasisReviewed:
 		if extractor != nil || derivedAt != "" {
 			return fmt.Errorf("extractor and derivedAt are only valid for a mechanical rule: %w", ErrInvalid)
+		}
+	case BasisEmpirical, BasisConsensus, BasisLead:
+		if extractor != nil || derivedAt == "" {
+			return fmt.Errorf("an empirical, consensus or lead rule requires derivedAt and no extractor: %w", ErrInvalid)
+		}
+		if _, err := parseUTC(derivedAt); err != nil {
+			return fmt.Errorf("derivedAt: %w", ErrInvalid)
 		}
 	case BasisMechanical:
 		if extractor == nil || derivedAt == "" {
@@ -380,6 +394,17 @@ func ValidateBasis(basis string, extractor *Extractor, derivedAt string) error {
 		return fmt.Errorf("evidence basis: %w", ErrInvalid)
 	}
 	return nil
+}
+
+// ValidateReviewedOrMechanicalBasis is ValidateBasis restricted to the two
+// bases a person or a versioned extractor produce. Records outside the rule
+// engine that do not define what a model-derived basis may decide refuse
+// every other basis.
+func ValidateReviewedOrMechanicalBasis(basis string, extractor *Extractor, derivedAt string) error {
+	if basis != "" && basis != BasisReviewed && basis != BasisMechanical {
+		return fmt.Errorf("evidence basis must be reviewed or mechanical: %w", ErrInvalid)
+	}
+	return ValidateBasis(basis, extractor, derivedAt)
 }
 
 type SourceEvidence struct {
@@ -398,6 +423,7 @@ type RuleSet struct {
 	ranged         bool
 	setOperator    bool
 	notice         bool
+	basis          bool
 	seal           *ruleSetSeal
 }
 type ruleSetSeal struct{}
@@ -495,8 +521,11 @@ type ScopeCompleteness struct {
 	// verdict-neutral and never enter the applicable set; the field is
 	// absent when zero, so every scope block without one serializes exactly
 	// as before notices existed.
-	NoticeRules int              `json:"noticeRules,omitempty"`
-	Components  []ComponentScope `json:"components"`
+	NoticeRules int `json:"noticeRules,omitempty"`
+	// LeadRules counts the lead rules of the document, which are
+	// verdict-neutral in the same way; absent when zero.
+	LeadRules  int              `json:"leadRules,omitempty"`
+	Components []ComponentScope `json:"components"`
 }
 
 type ComponentScope struct {
@@ -541,6 +570,9 @@ func EngineContractDigest() string { return engineContractDigest() }
 func EngineContractDigestRanged() string { return engineContractDigestRanged() }
 
 func (r RuleSet) engineDigest() string {
+	if r.basis {
+		return engineContractDigestBasis()
+	}
 	if r.notice {
 		return engineContractDigestNotice()
 	}
@@ -584,6 +616,8 @@ func scopeDigestFor(engineDigest string) string {
 		return scopeContractDigestRanged()
 	case engineContractDigestNotice():
 		return scopeContractDigestNotice()
+	case engineContractDigestBasis():
+		return scopeContractDigestBasis()
 	}
 	return ""
 }
@@ -668,11 +702,21 @@ func compareVersions(left, right string) (int, bool) {
 }
 
 // EvidenceBasisLine is the one-line human statement of how the claim's rule
-// was produced. It is presentation only: it reads fields the verdict never
-// consults. An absent basis means a maintainer reviewed the rule.
+// was produced and, for a basis that limits it, what the rule may decide.
+// It is presentation only. An absent basis means a maintainer reviewed the
+// rule.
 func (c Claim) EvidenceBasisLine() string {
-	if EffectiveBasis(c.EvidenceBasis) == BasisMechanical && c.EvidenceExtractor != nil {
-		return fmt.Sprintf("evidence basis: derived from source by %s v%s", c.EvidenceExtractor.ID, c.EvidenceExtractor.Version)
+	switch EffectiveBasis(c.EvidenceBasis) {
+	case BasisMechanical:
+		if c.EvidenceExtractor != nil {
+			return fmt.Sprintf("evidence basis: derived from source by %s v%s", c.EvidenceExtractor.ID, c.EvidenceExtractor.Version)
+		}
+	case BasisEmpirical:
+		return "evidence basis: reproduced with upstream artifacts; may block or pass"
+	case BasisConsensus:
+		return "evidence basis: two independent model readings, citations verified; may block, never passes"
+	case BasisLead:
+		return "evidence basis: one unverified model reading; never blocks or passes"
 	}
 	return "evidence basis: reviewed by maintainer"
 }

@@ -137,11 +137,19 @@ func RuleTransitionOf(raw []byte) (RuleTransition, error) {
 }
 
 // RulesSchemaFor returns the rules schema a document holding exactly these
-// rules must carry: the notice schema when at least one rule uses
+// rules must carry: the basis schema when at least one rule has a consensus
+// or lead basis, else the notice schema when at least one rule uses
 // notice_one_way, else the set schema when at least one rule uses
 // forbid_set_member, else the ranged schema when at least one rule has a
 // range, the original exact-only schema otherwise.
 func RulesSchemaFor(rules []json.RawMessage) (string, error) {
+	basis, err := AnyBasisRule(rules)
+	if err != nil {
+		return "", err
+	}
+	if basis {
+		return RulesSchemaBasis, nil
+	}
 	notice, err := AnyNoticeRule(rules)
 	if err != nil {
 		return "", err
@@ -182,8 +190,10 @@ func AnyRanged(rules []json.RawMessage) (bool, error) {
 
 // requiredRulesSchema is the schema of the highest-level feature a parsed
 // document uses; RulesSchemaFor is its raw-rule counterpart.
-func requiredRulesSchema(ranged, setOperator, notice bool) string {
+func requiredRulesSchema(ranged, setOperator, notice, basis bool) string {
 	switch {
+	case basis:
+		return RulesSchemaBasis
 	case notice:
 		return RulesSchemaNotice
 	case setOperator:
