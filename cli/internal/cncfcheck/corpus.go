@@ -129,14 +129,22 @@ func (b bundle) unfilteredCorpus() (CorpusInventory, error) {
 }
 
 // corpusComponents is the sorted, deduplicated set of subject components that
-// actually have at least one reviewed rule in the pack. It is the upper bound
-// on what any attestation may list.
+// actually have at least one reviewed verdict rule in the pack. It is the
+// upper bound on what any attestation may list. A one-way notice never
+// supports an attestation, so a component with only notices is left out.
 func (b bundle) corpusComponents() ([]string, error) {
 	seen := map[string]struct{}{}
 	for _, entry := range b.pack.Entries {
 		var shape ruleShape
 		if json.Unmarshal(entry.Rule, &shape) != nil || shape.Subject.Component == "" {
 			return nil, ErrIntegrity
+		}
+		notice, err := isNoticeRule(entry.Rule)
+		if err != nil {
+			return nil, ErrIntegrity
+		}
+		if notice {
+			continue
 		}
 		seen[shape.Subject.Component] = struct{}{}
 	}

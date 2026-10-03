@@ -364,6 +364,14 @@ func validateExternalPack(base bundle, packValue rulePack, revision string) erro
 	if len(packValue.PathPolicies) > 0 {
 		return ErrIntegrity
 	}
+	// Nor one-way notices: an external pack holding one is refused.
+	rules := make([]json.RawMessage, 0, len(packValue.Entries))
+	for _, entry := range packValue.Entries {
+		rules = append(rules, entry.Rule)
+	}
+	if notice, err := constraintengine.AnyNoticeRule(rules); err != nil || notice {
+		return ErrIntegrity
+	}
 	if !validPackSchema(packValue) || packValue.Revision != revision || packValue.PolicyID != base.pack.PolicyID || packValue.PolicyDigest != base.pack.PolicyDigest || packValue.LandscapeFileDigest != base.landscape.LandscapeFileDigest || packValue.RegistryDigest != base.registry.Digest() || len(packValue.Entries) > maxExternalEntries {
 		return ErrIntegrity
 	}

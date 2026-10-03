@@ -5,6 +5,7 @@ package cncfcheck
 import (
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -71,7 +72,15 @@ func TestPackNoticeLevel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Check.Claims) != 1 || report.Check.Claims[0].Status != constraintengine.StatusNotice || report.Check.EngineContractDigest != constraintengine.EngineContractDigestNotice() || ClaimExit(report) != 11 {
+	// No verdict rule reviews the pair, so every Kubernetes rule is reported
+	// as not reviewed beside the one NOTICE claim.
+	notices := report.Check.Claims[:0:0]
+	for _, claim := range report.Check.Claims {
+		if claim.IsNotice() {
+			notices = append(notices, claim)
+		}
+	}
+	if len(notices) != 1 || notices[0].Status != constraintengine.StatusNotice || len(report.Check.Claims) != 27 || report.Check.EngineContractDigest != constraintengine.EngineContractDigestNotice() || ClaimExit(report) != 11 {
 		t.Fatalf("claims=%+v exit=%d", report.Check.Claims, ClaimExit(report))
 	}
 	if _, err := MarshalReport(report); err != nil {
@@ -131,5 +140,138 @@ func TestClaimExitNotice(t *testing.T) {
 				t.Fatalf("exit=%d want %d claims=%+v", got, tc.exit, report.Check.Claims)
 			}
 		})
+	}
+}
+
+// verdictClaimsOf drops the notice claims of a report.
+func verdictClaimsOf(claims []constraintengine.Claim) []constraintengine.Claim {
+	var verdicts []constraintengine.Claim
+	for _, claim := range claims {
+		if !claim.IsNotice() {
+			verdicts = append(verdicts, claim)
+		}
+	}
+	return verdicts
+}
+
+// TestNoticeNeverChangesRuleSelection: a matching notice for a pair no
+// verdict rule reviews keeps the fallback to every project rule, for the
+// generic selector and for the fact-family selector, so the verdict claims are
+// exactly those of the same report without the notice.
+func TestNoticeNeverChangesRuleSelection(t *testing.T) {
+	base, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	const pspFact = "component.kubernetes.psp_v1beta1_removed_gvk_present"
+	family := []string{pspFact, "component.kubernetes.cronjob_v1beta1_removed_gvk_present"}
+	guarded := syntheticNoticeEntry()
+	guarded.Rule = json.RawMessage(strings.Replace(syntheticNoticeRule("kubernetes.synthetic-one-way-guarded.1-36-0-to-1-37-0", "2026-09-20T00:00:00Z", "2026-12-19T00:00:00Z"), `,"evidence":`, `,"appliesWhen":[{"side":"proposed","component":"`+noticeComponent+`","factId":"`+pspFact+`","boolValue":true}],"evidence":`, 1))
+	guarded.RequiredFacts = []Fact{{Side: "proposed", ID: pspFact, Component: noticeComponent, Type: constraintengine.FactBool, Description: "A removed PodSecurityPolicy v1beta1 object is present."}}
+	withNotice, err := assembleSynthetic(syntheticPack(t, packSchemaNotice, nil, syntheticNoticeEntry(), guarded), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	inputRaw := noticeInput()
+	evaluate := func(b bundle, familySelector bool) Report {
+		t.Helper()
+		input, err := constraintengine.ParseInput(inputRaw, b.registry)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var rules constraintengine.RuleSet
+		if familySelector {
+			rules, err = b.factFamilyRuleSet("kubernetes", family, inputRaw)
+		} else {
+			rules, err = b.rulesForAdmittedInput("kubernetes", inputRaw)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		report, err := b.report("kubernetes", "", familySelector, input, rules, inputRaw, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return report
+	}
+	for _, familySelector := range []bool{false, true} {
+		without, with := evaluate(base, familySelector), evaluate(withNotice, familySelector)
+		verdicts := verdictClaimsOf(with.Check.Claims)
+		if len(verdicts) == 0 || !reflect.DeepEqual(verdicts, without.Check.Claims) {
+			t.Fatalf("family=%v: verdict claims changed: %d -> %d", familySelector, len(without.Check.Claims), len(verdicts))
+		}
+		for _, claim := range verdicts {
+			if claim.Status != "UNKNOWN" || claim.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED" {
+				t.Fatalf("family=%v: claim %+v", familySelector, claim)
+			}
+		}
+		if !familySelector && len(verdicts) != 26 {
+			t.Fatalf("generic selection holds %d verdict claims, want the 26 Kubernetes rules", len(verdicts))
+		}
+		if len(with.Check.Claims) == len(verdicts) || ClaimExit(with) != ClaimExit(without) {
+			t.Fatalf("family=%v: notices=%d exit %d vs %d", familySelector, len(with.Check.Claims)-len(verdicts), ClaimExit(with), ClaimExit(without))
+		}
+	}
+}
+
+// TestCorpusInventorySkipsNoticeOnlyComponents: the inventory an attestation
+// is built from leaves out a component whose only rules are notices, so the
+// generated attestation still binds.
+func TestCorpusInventorySkipsNoticeOnlyComponents(t *testing.T) {
+	const aeraki = "pkg:github/aeraki-mesh/aeraki"
+	notice := Entry{Project: "aeraki-mesh", Description: "Synthetic test-only one-way transition.", RequiredFacts: []Fact{}, Rule: json.RawMessage(strings.Replace(syntheticNoticeRule("aeraki-mesh.synthetic-one-way.1-36-0-to-1-37-0", "2026-09-20T00:00:00Z", "2026-12-19T00:00:00Z"), noticeComponent, aeraki, 1))}
+	b, err := assembleSynthetic(syntheticPack(t, packSchemaNotice, nil, notice), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := b.unfilteredCorpus()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, component := range inventory.Components {
+		if component == aeraki {
+			t.Fatal("a notice-only component is in the corpus inventory")
+		}
+	}
+	attestation, err := json.Marshal(Attestation{
+		Schema: CorpusAttestationSchema, Attestation: constraintengine.CorpusAttestation,
+		Revision: inventory.Revision, PackDigest: inventory.PackDigest, RuleSetDigest: inventory.RuleSetDigest,
+		RuleCount: inventory.RuleCount, Components: inventory.Components, Limitations: AttestationLimitations(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := b.attestedRuleSet(attestation); err != nil {
+		t.Fatalf("attestation over a pack with a notice-only component refused: %v", err)
+	}
+}
+
+// TestExternalPackRefusesNotices: the external knowledge target does not
+// accept one-way notices yet, even under the notice pack schema.
+func TestExternalPackRefusesNotices(t *testing.T) {
+	base, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	capability, err := ExternalCapabilityDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pack := base.pack
+	pack.Revision, pack.Schema = "1", packSchemaNotice
+	pack.Entries = []Entry{syntheticNoticeEntry()}
+	if !validPackSchema(pack) {
+		t.Fatal("fixture schema is not the notice level")
+	}
+	raw, err := json.Marshal(externalFixtureDocument{Schema: externalBundleSchema, Revision: "1", Purpose: "operator_provided", EngineCapabilityDigest: capability, Pack: pack})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ParseExternalBundle(raw); err == nil {
+		t.Fatal("external pack with a notice accepted")
+	}
+	if err := validateExternalPack(base, pack, "1"); !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("validateExternalPack: %v", err)
 	}
 }

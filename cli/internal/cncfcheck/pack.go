@@ -463,6 +463,7 @@ func (b bundle) rulesForAdmittedInput(project string, raw []byte) (constrainteng
 	}
 	current, proposed := versions(input.Current), versions(input.Proposed)
 	matched := make([]json.RawMessage, 0)
+	verdicts := 0
 	for _, entry := range b.pack.Entries {
 		if entry.Project != project {
 			continue
@@ -473,12 +474,26 @@ func (b bundle) rulesForAdmittedInput(project string, raw []byte) (constrainteng
 		}
 		if subject.Match(current[subject.Component], proposed[subject.Component]) != constraintengine.MatchNone {
 			matched = append(matched, entry.Rule)
+			notice, err := isNoticeRule(entry.Rule)
+			if err != nil {
+				return constraintengine.RuleSet{}, ErrIntegrity
+			}
+			if !notice {
+				verdicts++
+			}
 		}
 	}
-	if len(matched) == 0 {
+	// The fallback is decided on verdict rules only, so a matching one-way
+	// notice never changes which verdict claims a report holds.
+	if verdicts == 0 {
 		return b.ruleSet(project)
 	}
 	return b.parseRules(matched)
+}
+
+// isNoticeRule reports whether one raw rule is a one-way notice.
+func isNoticeRule(raw json.RawMessage) (bool, error) {
+	return constraintengine.AnyNoticeRule([]json.RawMessage{raw})
 }
 
 // factFamilyRuleSet selects the project's rules whose condition and
@@ -506,6 +521,7 @@ func (b bundle) factFamilyRuleSet(project string, facts []string, raw []byte) (c
 	current, proposed := versions(input.Current), versions(input.Proposed)
 	family := make([]json.RawMessage, 0)
 	matched := make([]json.RawMessage, 0)
+	verdicts := 0
 	for _, entry := range b.pack.Entries {
 		if entry.Project != project {
 			continue
@@ -529,9 +545,17 @@ func (b bundle) factFamilyRuleSet(project string, facts []string, raw []byte) (c
 		}
 		if subject.Match(current[subject.Component], proposed[subject.Component]) != constraintengine.MatchNone {
 			matched = append(matched, entry.Rule)
+			notice, err := isNoticeRule(entry.Rule)
+			if err != nil {
+				return constraintengine.RuleSet{}, ErrIntegrity
+			}
+			if !notice {
+				verdicts++
+			}
 		}
 	}
-	if len(matched) == 0 {
+	// As in rulesForAdmittedInput: a notice alone never narrows the family.
+	if verdicts == 0 {
 		return b.parseRules(family)
 	}
 	return b.parseRules(matched)
