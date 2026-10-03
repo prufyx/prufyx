@@ -106,7 +106,7 @@ func (p *packDoc) write(t *testing.T, tr Tree, rel string) {
 	writeFile(t, filepath.Join(tr.Root, filepath.FromSlash(rel)), append(raw, '\n'))
 }
 
-func ruleOf(e map[string]any) map[string]any    { return e["rule"].(map[string]any) }
+func ruleOf(e map[string]any) map[string]any     { return e["rule"].(map[string]any) }
 func evidenceOf(e map[string]any) map[string]any { return ruleOf(e)["evidence"].(map[string]any) }
 func ruleID(e map[string]any) string             { return ruleOf(e)["id"].(string) }
 

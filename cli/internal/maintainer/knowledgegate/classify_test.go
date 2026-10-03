@@ -56,10 +56,18 @@ func TestClassifyTable(t *testing.T) {
 		kinds []string
 	}{
 		{"withdraw", plain, []edit{setEv("state", "withdrawn")}, ClassTightening, []string{KindWithdraw}},
-		{"expire", plain, []edit{func(e map[string]any) { evidenceOf(e)["validUntil"] = shiftTime(t, evidenceOf(e)["validUntil"], -240*3600e9) }}, ClassTightening, []string{KindExpire}},
-		{"withdraw and expire", plain, []edit{setEv("state", "withdrawn"), func(e map[string]any) { evidenceOf(e)["validUntil"] = shiftTime(t, evidenceOf(e)["validUntil"], -3600e9) }}, ClassTightening, []string{KindWithdraw, KindExpire}},
-		{"renew", plain, []edit{func(e map[string]any) { evidenceOf(e)["validUntil"] = shiftTime(t, evidenceOf(e)["validUntil"], 3600e9) }}, ClassLoosening, []string{KindRenew}},
-		{"reviewedAt only", plain, []edit{func(e map[string]any) { evidenceOf(e)["reviewedAt"] = shiftTime(t, evidenceOf(e)["reviewedAt"], 3600e9) }}, ClassLoosening, []string{KindRenew}},
+		{"expire", plain, []edit{func(e map[string]any) {
+			evidenceOf(e)["validUntil"] = shiftTime(t, evidenceOf(e)["validUntil"], -240*3600e9)
+		}}, ClassTightening, []string{KindExpire}},
+		{"withdraw and expire", plain, []edit{setEv("state", "withdrawn"), func(e map[string]any) {
+			evidenceOf(e)["validUntil"] = shiftTime(t, evidenceOf(e)["validUntil"], -3600e9)
+		}}, ClassTightening, []string{KindWithdraw, KindExpire}},
+		{"renew", plain, []edit{func(e map[string]any) {
+			evidenceOf(e)["validUntil"] = shiftTime(t, evidenceOf(e)["validUntil"], 3600e9)
+		}}, ClassLoosening, []string{KindRenew}},
+		{"reviewedAt only", plain, []edit{func(e map[string]any) {
+			evidenceOf(e)["reviewedAt"] = shiftTime(t, evidenceOf(e)["reviewedAt"], 3600e9)
+		}}, ClassLoosening, []string{KindRenew}},
 		{"reactivate", withState(plain, "withdrawn"), []edit{setEv("state", "active")}, ClassLoosening, []string{KindReactivate}},
 		{"unknown state", plain, []edit{setEv("state", "paused")}, ClassLoosening, []string{KindModify}},
 		{"repin", plain, []edit{func(e map[string]any) {
