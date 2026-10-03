@@ -34,10 +34,13 @@ const (
 	// most 1 MiB each, and TUF metadata. The complete package is bounded by
 	// the local bounded-file reader (8 MiB); member bytes by 7 MiB.
 	SplitMaxPackageBytes = 8 << 20
-	splitMaxPackageBytes = SplitMaxPackageBytes
-	splitMaxPackageTotal = 7 << 20
-	splitMaxPackageFiles = cncfcheck.MaxExternalIndexProjects + 32
-	splitMaxJSONMembers  = 8 * (cncfcheck.MaxExternalIndexProjects + 1) * 4
+	// SplitMaxPackageMemberBytes is the bound on the summed size of all
+	// members of a per-project package.
+	SplitMaxPackageMemberBytes = 7 << 20
+	splitMaxPackageBytes       = SplitMaxPackageBytes
+	splitMaxPackageTotal       = SplitMaxPackageMemberBytes
+	splitMaxPackageFiles       = cncfcheck.MaxExternalIndexProjects + 32
+	splitMaxJSONMembers        = 8 * (cncfcheck.MaxExternalIndexProjects + 1) * 4
 )
 
 var (

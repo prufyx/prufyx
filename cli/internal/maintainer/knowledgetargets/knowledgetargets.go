@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/knowledge"
 )
 
 // ErrRejected is returned for invalid arguments or unusable inputs.
@@ -32,11 +33,43 @@ type Target struct {
 type Limit struct {
 	Cap   int64
 	Alarm int64
+	// TotalCap is the bound on the summed size of all targets in one
+	// package; TotalAlarm is the size at which the check fails.
+	TotalCap   int64
+	TotalAlarm int64
 }
 
 // DefaultLimit is the published per-target cap with the alarm at 80%.
 func DefaultLimit() Limit {
-	return Limit{Cap: int64(cncfcheck.MaxExternalTargetBytes), Alarm: cncfcheck.TargetSizeAlarmBytes()}
+	total := int64(knowledge.SplitMaxPackageMemberBytes)
+	return Limit{
+		Cap:        int64(cncfcheck.MaxExternalTargetBytes),
+		Alarm:      cncfcheck.TargetSizeAlarmBytes(),
+		TotalCap:   total,
+		TotalAlarm: alarmBytes(total),
+	}
+}
+
+// alarmBytes is the smallest size at or above 80% of limit, rounded up.
+func alarmBytes(limit int64) int64 {
+	value := limit * cncfcheck.TargetSizeAlarmPercent
+	return (value + 99) / 100
+}
+
+// TotalAlarmed reports the summed target size and whether it is at or above
+// the aggregate alarm.
+func TotalAlarmed(targets []Target, limit Limit) (int64, bool) {
+	var sum int64
+	for _, target := range targets {
+		sum += target.Bytes
+	}
+	return sum, sum >= limit.TotalAlarm
+}
+
+// SingleTargetAlarmed reports whether the single-target layout (the only one
+// the publisher can produce today) is at or above the per-target alarm.
+func SingleTargetAlarmed(bytes int64, limit Limit) bool {
+	return bytes >= limit.Alarm
 }
 
 // Alarms returns the targets at or above the alarm size, largest first.
@@ -64,6 +97,9 @@ func Build(revision string, previousIndex []byte) (cncfcheck.ExternalTarget, []c
 	}
 	return cncfcheck.BuildEmbeddedExternalTargets(revision, nil)
 }
+
+// exportSingleTarget is a test seam for the single-target layout size.
+var exportSingleTarget = cncfcheck.ExportEmbeddedExternalBundle
 
 // Run implements "prufyx-maintainer knowledge-targets build|check-size".
 // Exit codes: 0 success, 1 size alarm, 2 rejected command or input.
@@ -152,13 +188,21 @@ func runCheckSize(args []string, stdout, stderr io.Writer) int {
 		for _, project := range projects {
 			targets = append(targets, Target{Path: project.Path, Bytes: int64(len(project.Bytes))})
 		}
-		// The single-target layout is reported for information only; it
-		// is not gated because the per-project layout replaces it.
-		if single, err := cncfcheck.ExportEmbeddedExternalBundle("1"); err == nil {
-			fmt.Fprintf(stdout, "single-target layout (information only): knowledge/constraints.v1.json %d bytes (%.1f%% of cap)\n", len(single), percent(int64(len(single)), DefaultLimit().Cap))
-		} else {
-			fmt.Fprintln(stdout, "single-target layout (information only): the embedded pack no longer fits one target")
+		// The publisher can only produce the single-target layout until it
+		// emits per-project targets, so that layout is gated too. Remove
+		// this gate when the single-target profile is retired.
+		code := report(targets, DefaultLimit(), stdout, stderr)
+		single, err := exportSingleTarget("1")
+		switch {
+		case err != nil:
+			fmt.Fprintln(stderr, "size alarm: the embedded pack no longer fits the single target knowledge/constraints.v1.json")
+			return 1
+		case SingleTargetAlarmed(int64(len(single)), DefaultLimit()):
+			fmt.Fprintf(stderr, "size alarm: single-target layout knowledge/constraints.v1.json is %d bytes, at or above %d%% of the %d-byte per-target cap (%d bytes); the publisher still produces only this layout\n", len(single), cncfcheck.TargetSizeAlarmPercent, DefaultLimit().Cap, DefaultLimit().Alarm)
+			return 1
 		}
+		fmt.Fprintf(stdout, "single-target layout: knowledge/constraints.v1.json %d bytes (%.1f%% of cap)\n", len(single), percent(int64(len(single)), DefaultLimit().Cap))
+		return code
 	}
 	return report(targets, DefaultLimit(), stdout, stderr)
 }
@@ -184,7 +228,12 @@ func report(targets []Target, limit Limit, stdout, stderr io.Writer) int {
 	for _, target := range failed {
 		fmt.Fprintf(stderr, "size alarm: target %s is %d bytes, at or above %d%% of the %d-byte per-target cap (%d bytes)\n", target.Path, target.Bytes, cncfcheck.TargetSizeAlarmPercent, limit.Cap, limit.Alarm)
 	}
-	if len(failed) > 0 {
+	sum, totalAlarmed := TotalAlarmed(targets, limit)
+	fmt.Fprintf(stdout, "package total %d bytes (%.1f%% of the %d-byte member total); alarm at %d bytes\n", sum, percent(sum, limit.TotalCap), limit.TotalCap, limit.TotalAlarm)
+	if totalAlarmed {
+		fmt.Fprintf(stderr, "size alarm: summed targets are %d bytes, at or above %d%% of the %d-byte package member total (%d bytes)\n", sum, cncfcheck.TargetSizeAlarmPercent, limit.TotalCap, limit.TotalAlarm)
+	}
+	if len(failed) > 0 || totalAlarmed {
 		return 1
 	}
 	fmt.Fprintf(stdout, "all %d targets are below the size alarm\n", len(targets))

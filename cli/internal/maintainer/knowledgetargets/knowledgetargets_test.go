@@ -105,3 +105,60 @@ func TestEmbeddedPackTargetsAreBelowTheAlarm(t *testing.T) {
 		t.Fatalf("code=%d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
 }
+
+func TestPackageTotalAlarmFiresAtEightyPercentOfTheMemberTotal(t *testing.T) {
+	limit := DefaultLimit()
+	if limit.TotalCap != 7<<20 || limit.TotalAlarm != 5872026 {
+		t.Fatalf("limit=%+v", limit)
+	}
+	// Every target is far below the per-target alarm; only the sum is large.
+	each := limit.Alarm - 1
+	build := func(sum int64) []Target {
+		var targets []Target
+		for i := 0; sum > 0; i++ {
+			size := each
+			if sum < size {
+				size = sum
+			}
+			targets = append(targets, Target{Path: "knowledge/cncf/projects/p" + string(rune('a'+i)) + ".v1.json", Bytes: size})
+			sum -= size
+		}
+		return targets
+	}
+	var stdout, stderr bytes.Buffer
+	if code := report(build(limit.TotalAlarm-1), limit, &stdout, &stderr); code != 0 || stderr.Len() != 0 {
+		t.Fatalf("below: code=%d stderr=%s", code, stderr.String())
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if code := report(build(limit.TotalAlarm), limit, &stdout, &stderr); code != 1 || !strings.Contains(stderr.String(), "summed targets are 5872026 bytes") {
+		t.Fatalf("at: code=%d stderr=%s", code, stderr.String())
+	}
+}
+
+func TestSingleTargetLayoutIsGated(t *testing.T) {
+	limit := DefaultLimit()
+	if SingleTargetAlarmed(limit.Alarm-1, limit) || !SingleTargetAlarmed(limit.Alarm, limit) {
+		t.Fatal("single-target boundary is not 80% of the cap")
+	}
+	original := exportSingleTarget
+	defer func() { exportSingleTarget = original }()
+
+	exportSingleTarget = func(string) ([]byte, error) { return make([]byte, limit.Alarm), nil }
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"check-size"}, &stdout, &stderr); code != 1 || !strings.Contains(stderr.String(), "single-target layout knowledge/constraints.v1.json is 838861 bytes") {
+		t.Fatalf("at alarm: code=%d stderr=%s", code, stderr.String())
+	}
+	exportSingleTarget = func(string) ([]byte, error) { return make([]byte, limit.Alarm-1), nil }
+	stdout.Reset()
+	stderr.Reset()
+	if code := Run([]string{"check-size"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("below alarm: code=%d stderr=%s", code, stderr.String())
+	}
+	exportSingleTarget = func(string) ([]byte, error) { return nil, ErrRejected }
+	stdout.Reset()
+	stderr.Reset()
+	if code := Run([]string{"check-size"}, &stdout, &stderr); code != 1 || !strings.Contains(stderr.String(), "no longer fits") {
+		t.Fatalf("unbuildable: code=%d stderr=%s", code, stderr.String())
+	}
+}
