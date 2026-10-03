@@ -244,6 +244,47 @@ func LoadCitations(rulePackPath string, raw []byte) ([]Citation, error) {
 			})
 		}
 	}
+	ruleIDs := make(map[string]bool, len(document.Entries))
+	for _, entry := range document.Entries {
+		ruleIDs[entry.Rule.ID] = true
+	}
+	return appendRecordCitations(out, rulePackPath, raw, ruleIDs)
+}
+
+// appendRecordCitations adds the citations of the pack's line attestation
+// and path-policy records (see PackRecords), under their record IDs, so
+// source drift is monitored for them exactly as for rules. A record ID equal
+// to a rule ID rejects the pack.
+func appendRecordCitations(out []Citation, rulePackPath string, raw []byte, ruleIDs map[string]bool) ([]Citation, error) {
+	records, err := PackRecords(raw)
+	if err != nil {
+		return nil, fmt.Errorf("%w: pack records in %s: %v", errRejected, rulePackPath, err)
+	}
+	if len(records) == 0 {
+		return out, nil
+	}
+	for _, record := range records {
+		if ruleIDs[record.ID] {
+			return nil, fmt.Errorf("%w: record %s in %s has the ID of a rule", errRejected, record.ID, rulePackPath)
+		}
+		for _, source := range record.Sources {
+			owner, repo, commit, path, ok := parseCitationURL(source.URL)
+			if !ok {
+				return nil, fmt.Errorf("%w: unresolvable citation url shape in %s: %s source %s", errRejected, rulePackPath, record.Scope, source.ID)
+			}
+			if commit != source.Revision {
+				return nil, fmt.Errorf("%w: citation url commit does not match revision in %s: %s source %s", errRejected, rulePackPath, record.Scope, source.ID)
+			}
+			if source.StartLine < 1 || source.EndLine < source.StartLine {
+				return nil, fmt.Errorf("%w: invalid span in %s: %s source %s", errRejected, rulePackPath, record.Scope, source.ID)
+			}
+			out = append(out, Citation{
+				RulePack: rulePackPath, RuleID: record.ID, Project: record.Project, SourceID: source.ID,
+				Owner: owner, Repo: repo, Path: path, OldCommit: source.Revision, OldDigest: source.ContentDigest,
+				StartLine: source.StartLine, EndLine: source.EndLine,
+			})
+		}
+	}
 	return out, nil
 }
 
