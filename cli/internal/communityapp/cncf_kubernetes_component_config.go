@@ -78,23 +78,33 @@ func (r runtime) cncfKubernetesComponentConfig(path, pin, from, to, distribution
 	if _, err := fmt.Fprintf(r.stdout, "Kubernetes component configuration review\ntransition: %s -> %s\nselected sources: %d\npreparation: %s (%s)\nprepared input digest: %s\naggregate: UNKNOWN\nevaluated at: %s\nknowledge: embedded revision %s\nknowledge pack digest: %s\nnetwork used: false\npaths, argument values and raw documents retained: false\nscope: removed component settings named by reviewed rules only; component startup, runtime behavior, and whole-upgrade compatibility remain unverified\n", from, to, len(selection.Sources), prepared.State, prepared.Reason, prepared.InputDigest, report.Check.EvaluatedAt, report.KnowledgeRevision, report.KnowledgePackDigest); err != nil {
 		return ExitIntegrity
 	}
-	if len(report.Check.Claims) == 0 {
-		if _, err := fmt.Fprintf(r.stdout, "scoped result: UNKNOWN (no reviewed rule for this input and transition)\nnext action: %s\n", report.NextAction); err != nil {
-			return ExitIntegrity
-		}
-	}
-	if err := writeKubernetesComponentClaims(r.stdout, report.Check.Claims); err != nil {
+	if err := writeKubernetesComponentResult(r.stdout, report.Check.Claims, report.NextAction); err != nil {
 		return ExitIntegrity
 	}
 	return cncfcheck.ClaimExit(report)
+}
+
+// writeKubernetesComponentResult prints the "no reviewed rule" line when no
+// verdict claim exists (one-way notices do not count), then every claim.
+func writeKubernetesComponentResult(out io.Writer, claims []constraintengine.Claim, nextAction string) error {
+	if verdictClaims(claims) == 0 {
+		if _, err := fmt.Fprintf(out, "scoped result: UNKNOWN (no reviewed rule for this input and transition)\nnext action: %s\n", nextAction); err != nil {
+			return err
+		}
+	}
+	return writeKubernetesComponentClaims(out, claims)
 }
 
 // writeKubernetesComponentClaims prints each claim, its evidence basis, and
 // its pinned sources, in the order every human writer uses.
 func writeKubernetesComponentClaims(out io.Writer, claims []constraintengine.Claim) error {
 	for _, claim := range claims {
-		if _, err := fmt.Fprintf(out, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction); err != nil {
+		printed, err := writeClaimHeadline(out, claim)
+		if err != nil {
 			return err
+		}
+		if !printed {
+			continue
 		}
 		if line, ok := claim.MatchedMembersLine(); ok {
 			if _, err := fmt.Fprintln(out, line); err != nil {

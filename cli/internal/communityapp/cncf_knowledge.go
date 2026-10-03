@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
@@ -50,17 +51,7 @@ func (r runtime) externalCNCF(req cncfknowledge.Request, replayPath, format stri
 	} else {
 		var output bytes.Buffer
 		fmt.Fprintf(&output, "%s source-constraint check\nwhole-upgrade assessment: UNKNOWN\nknowledge: external signed local revision %s\npurpose: %s\ntrust source: %s\nsource references: operator-declared; runtime behavior unverified\n", report.Check.Project, report.Knowledge.Revision, report.Knowledge.Purpose, report.Knowledge.TrustSource)
-		for _, claim := range report.Check.Check.Claims {
-			if claim.IsNotice() {
-				_ = writeNotices(&output, []constraintengine.Claim{claim})
-				continue
-			}
-			fmt.Fprintf(&output, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction)
-			if line, ok := claim.MatchedMembersLine(); ok {
-				fmt.Fprintln(&output, line)
-			}
-			fmt.Fprintln(&output, claim.EvidenceBasisLine())
-		}
+		_ = writeExternalClaims(&output, report.Check.Check.Claims)
 		fmt.Fprintf(&output, "input digest: %s\nbundle digest: %s\ntrust receipt digest: %s\nevaluated at: %s\ncurrent non-revocation: not checked offline\nnetwork used: false\nnext action: %s\n", report.Check.InputFileDigest, report.Knowledge.BundleDigest, report.Knowledge.TrustReceiptDigest, report.Knowledge.EvaluatedAt, report.Check.NextAction)
 		if report.Knowledge.Purpose == "synthetic_test_only" {
 			fmt.Fprintln(&output, "authority: synthetic test knowledge only; no official Prufyx signing root or compatibility proof")
@@ -81,4 +72,28 @@ func (r runtime) cncfKnowledgeError(message string, err error) int {
 		return r.fail(message, ExitUsage)
 	}
 	return r.knowledgeError(message, err)
+}
+
+// writeExternalClaims prints every claim of an external-knowledge report.
+// External knowledge refuses one-way notices today; printing them with the
+// notice wording is defence in depth.
+func writeExternalClaims(out io.Writer, claims []constraintengine.Claim) error {
+	for _, claim := range claims {
+		printed, err := writeClaimHeadline(out, claim)
+		if err != nil {
+			return err
+		}
+		if !printed {
+			continue
+		}
+		if line, ok := claim.MatchedMembersLine(); ok {
+			if _, err := fmt.Fprintln(out, line); err != nil {
+				return err
+			}
+		}
+		if _, err := fmt.Fprintln(out, claim.EvidenceBasisLine()); err != nil {
+			return err
+		}
+	}
+	return writeNoVerdictLine(out, claims)
 }

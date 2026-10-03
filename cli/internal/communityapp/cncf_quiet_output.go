@@ -61,14 +61,12 @@ func summarizeClaims(claims []constraintengine.Claim, showPasses bool) claimSumm
 // nothing: its absence is not a statement about rolling back.
 func writeNotices(out io.Writer, notices []constraintengine.Claim) error {
 	for _, claim := range notices {
-		lines, _ := claim.NoticeLines()
-		if len(lines) == 0 {
-			continue
+		printed, err := writeClaimHeadline(out, claim)
+		if err != nil {
+			return err
 		}
-		for _, line := range lines {
-			if _, err := fmt.Fprintln(out, line); err != nil {
-				return err
-			}
+		if !printed {
+			continue
 		}
 		if _, err := fmt.Fprintln(out, claim.EvidenceBasisLine()); err != nil {
 			return err
@@ -76,6 +74,46 @@ func writeNotices(out io.Writer, notices []constraintengine.Claim) error {
 	}
 	return nil
 }
+
+// writeClaimHeadline prints the first lines of one claim: the rule, status,
+// reason and next action of a verdict claim, or the one-way wording of a
+// notice. printed is false for a notice that does not apply to the declared
+// transition; the caller then prints nothing else for that claim.
+func writeClaimHeadline(out io.Writer, claim constraintengine.Claim) (printed bool, err error) {
+	if lines, notice := claim.NoticeLines(); notice {
+		for _, line := range lines {
+			if _, err := fmt.Fprintln(out, line); err != nil {
+				return false, err
+			}
+		}
+		return len(lines) > 0, nil
+	}
+	_, err = fmt.Fprintf(out, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction)
+	return err == nil, err
+}
+
+// verdictClaims counts the claims that are not one-way notices.
+func verdictClaims(claims []constraintengine.Claim) int {
+	verdicts := 0
+	for _, claim := range claims {
+		if !claim.IsNotice() {
+			verdicts++
+		}
+	}
+	return verdicts
+}
+
+// writeNoVerdictLine states, when a report holds one-way notices and nothing
+// else, that no verdict rule decided the transition.
+func writeNoVerdictLine(out io.Writer, claims []constraintengine.Claim) error {
+	if len(claims) == 0 || verdictClaims(claims) != 0 {
+		return nil
+	}
+	_, err := fmt.Fprintln(out, noVerdictLine)
+	return err
+}
+
+const noVerdictLine = "UNKNOWN: no reviewed rule decided this transition; a one-way notice is not a verdict"
 
 // writeUnreviewedTransition is the whole answer when no claim could be decided
 // because the pair is not one a reviewed rule covers.
@@ -191,4 +229,27 @@ func canonicalTransition(input []byte) (from, to string, ok bool) {
 		return "", "", false
 	}
 	return envelope.Current.Components[0].Version, envelope.Proposed.Components[0].Version, true
+}
+
+// writeNativeClaims prints the listed verdict claims, then the one-way
+// notices, then the collapsed counts.
+func writeNativeClaims(out io.Writer, summary claimSummary, claims []constraintengine.Claim) error {
+	for _, claim := range summary.shown {
+		if _, err := fmt.Fprintf(out, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintln(out, claim.EvidenceBasisLine()); err != nil {
+			return err
+		}
+	}
+	if err := writeNotices(out, summary.notices); err != nil {
+		return err
+	}
+	if err := writeNoVerdictLine(out, claims); err != nil {
+		return err
+	}
+	if !summary.allUnreviewed {
+		return writeCollapsedNotes(out, summary)
+	}
+	return nil
 }

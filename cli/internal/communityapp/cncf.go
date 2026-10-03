@@ -884,6 +884,9 @@ Add --show-passes with --format human on the Kubernetes native-resource route an
 		if err := writeNotices(r.stdout, summary.notices); err != nil {
 			return ExitIntegrity
 		}
+		if err := writeNoVerdictLine(r.stdout, report.Check.Claims); err != nil {
+			return ExitIntegrity
+		}
 		if !summary.allUnreviewed {
 			if err := writeCollapsedNotes(r.stdout, summary); err != nil {
 				return ExitIntegrity

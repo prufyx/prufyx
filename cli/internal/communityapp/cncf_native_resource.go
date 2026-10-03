@@ -311,21 +311,8 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 				return ExitIntegrity
 			}
 		}
-		for _, claim := range summary.shown {
-			if _, err := fmt.Fprintf(r.stdout, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction); err != nil {
-				return ExitIntegrity
-			}
-			if _, err := fmt.Fprintln(r.stdout, claim.EvidenceBasisLine()); err != nil {
-				return ExitIntegrity
-			}
-		}
-		if err := writeNotices(r.stdout, summary.notices); err != nil {
+		if err := writeNativeClaims(r.stdout, summary, report.Check.Claims); err != nil {
 			return ExitIntegrity
-		}
-		if !summary.allUnreviewed {
-			if err := writeCollapsedNotes(r.stdout, summary); err != nil {
-				return ExitIntegrity
-			}
 		}
 		if _, err := fmt.Fprintln(r.stdout, "aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)"); err != nil {
 			return ExitIntegrity

@@ -72,8 +72,12 @@ func (r runtime) cncfJaegerNativeCheck(path, pin string, nonMemoryStorage, offic
 		return ExitIntegrity
 	}
 	for _, claim := range report.Check.Claims {
-		if _, err := fmt.Fprintf(r.stdout, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction); err != nil {
+		printed, err := writeClaimHeadline(r.stdout, claim)
+		if err != nil {
 			return ExitIntegrity
+		}
+		if !printed {
+			continue
 		}
 		if _, err := fmt.Fprintln(r.stdout, claim.EvidenceBasisLine()); err != nil {
 			return ExitIntegrity

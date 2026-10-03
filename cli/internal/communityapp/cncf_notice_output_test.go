@@ -67,3 +67,54 @@ func TestNoticeHumanOutput(t *testing.T) {
 		t.Fatalf("summary=%+v", onlyNotices)
 	}
 }
+
+// TestNoticeWritersOnEveryRoute: the native-resource writer, the external
+// knowledge writer, the per-project claim writer and the component
+// configuration writer all print a notice with the one-way wording, never
+// as a plain status line, and a report holding only notices says that no
+// rule decided the transition.
+func TestNoticeWritersOnEveryRoute(t *testing.T) {
+	notice := noticeClaim("notice-applies", constraintengine.StatusNotice, constraintengine.ReasonOneWayTransition, noticeBeforeText)
+	other := noticeClaim("notice-other-pair", "UNKNOWN", reasonTransitionNotReviewed, "no rule for declared pair")
+	blocked := constraintengine.Claim{RuleID: "rule-blocked", Operator: "forbid_target_version", Status: "BLOCKED", ReasonCode: "FEATURE_REMOVED", NextAction: "plan a reviewed route"}
+	wording := "cannot be rolled back: notice-applies\nbefore you upgrade: " + noticeBeforeText + "\n"
+	check := func(name, text string, onlyNotices bool) {
+		t.Helper()
+		if !strings.Contains(text, wording) || strings.Contains(text, "NOTICE (") || strings.Contains(text, "notice-other-pair") || strings.Contains(strings.ToLower(text), "safe") {
+			t.Fatalf("%s:\n%s", name, text)
+		}
+		if onlyNotices != strings.Contains(text, noVerdictLine) {
+			t.Fatalf("%s: no-verdict line wrong:\n%s", name, text)
+		}
+	}
+	for _, claims := range [][]constraintengine.Claim{{notice, other}, {blocked, notice, other}} {
+		only := len(claims) == 2
+		var native, external, headline, component bytes.Buffer
+		if err := writeNativeClaims(&native, summarizeClaims(claims, false), claims); err != nil {
+			t.Fatal(err)
+		}
+		check("native", native.String(), only)
+		if err := writeExternalClaims(&external, claims); err != nil {
+			t.Fatal(err)
+		}
+		check("external", external.String(), only)
+		for _, claim := range claims {
+			if _, err := writeClaimHeadline(&headline, claim); err != nil {
+				t.Fatal(err)
+			}
+		}
+		check("per-project", headline.String(), false)
+		if err := writeKubernetesComponentResult(&component, claims, "inspect the declared sources"); err != nil {
+			t.Fatal(err)
+		}
+		text := component.String()
+		if only != strings.Contains(text, "scoped result: UNKNOWN (no reviewed rule for this input and transition)") || !strings.Contains(text, wording) || strings.Contains(text, "NOTICE (") {
+			t.Fatalf("component config:\n%s", text)
+		}
+	}
+	// A notice that does not apply prints nothing, so no evidence line either.
+	var out bytes.Buffer
+	if printed, err := writeClaimHeadline(&out, other); err != nil || printed || out.Len() != 0 {
+		t.Fatalf("printed=%v err=%v out=%q", printed, err, out.String())
+	}
+}
