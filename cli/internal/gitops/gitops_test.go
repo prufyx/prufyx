@@ -284,7 +284,7 @@ func TestSOPSNeverDecoded(t *testing.T) {
 	ws, root := openFixture(t, "sops")
 	repo := Analyze(ws, Options{Root: root})
 	out := marshal(t, repo)
-	for _, leak := range []string{"ENC[", "AES256", "cGFzc3dvcmQ", "Y2lwaGVydGV4dC1jaGFydA", "age1example", "AGE ENCRYPTED", "private"} {
+	for _, leak := range []string{"ENC[", "AES256", "cGFzc3dvcmQ", "Y2lwaGVydGV4dC1jaGFydA", "age1example", "AGE ENCRYPTED", "classified"} {
 		if strings.Contains(out, leak) {
 			t.Fatalf("encrypted content %q reached the result: %s", leak, out)
 		}
