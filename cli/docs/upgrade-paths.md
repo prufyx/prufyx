@@ -153,9 +153,10 @@ pack carries exactly the schema of the newest feature it uses:
 | a set-valued rule | `prufyx.io/cncf-source-rule-pack/v1alpha3` |
 | line attestations | `prufyx.io/cncf-source-rule-pack/v1alpha4` |
 | upgrade-path policies | `prufyx.io/cncf-source-rule-pack/v1alpha5` |
+| a one-way notice rule | `prufyx.io/cncf-source-rule-pack/v1alpha6` |
 
-So a pack with path policies, with or without line attestations, uses
-`v1alpha5`, and `v1alpha5` without path policies is refused. Binaries built
+So a pack with path policies and no notice rule, with or without line
+attestations, uses `v1alpha5`, and `v1alpha5` without path policies is refused. Binaries built
 before path policies existed reject such a pack twice, for the unknown member
 and the unknown schema. A pack without the member is byte-for-byte what it
 was before.
