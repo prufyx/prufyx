@@ -88,7 +88,10 @@ evaluated with no rules and stays `UNKNOWN`; embedded rules are never used as a
 fallback. The report's `knowledge` section identifies the selected index
 (`targetPath`, `revision`, `bundleDigest`, `trustReceiptDigest`) and adds a
 `projectTarget` object with the evaluated project's target path, revision and
-digest, or `"status": "absent_from_index"`. Historical replay uses the index
+digest, or `"status": "absent_from_index"`; for an absent project the report's
+pack digest identifies a synthesized empty envelope that was never published.
+A damaged stored project target blocks only checks of that project, while
+`db status` reports the store failure. Historical replay uses the index
 identities from the report:
 
 ```sh
@@ -151,18 +154,21 @@ still prepare only the single-target layout; signing per-project targets is
 not part of this source preview yet.
 
 The size check fails when any target reaches 80% of the 1 MiB per-target cap
-(838861 bytes or more):
+(838861 bytes or more), or when the summed size of all targets reaches 80% of
+the 7 MiB member total of one package (5872026 bytes or more):
 
 ```sh
 go run ./cmd/prufyx-maintainer knowledge-targets check-size
 go run ./cmd/prufyx-maintainer knowledge-targets check-size --dir /absolute/new-dir
 ```
 
-Without `--dir` it builds the targets from the embedded pack in memory. With
-`--dir` it measures every `.json` file under `knowledge/cncf/` in a build
-output, without parsing, so an oversize file is still reported. It prints the
-largest targets and, for each target at or over the alarm, the target path,
-its size, the percentage and the cap; it then exits `1`. Exit `0` means every
-target is below the alarm; exit `2` means the command or input was rejected.
-CI runs the check on every push and pull request. The size of the
-single-target layout is printed for information only.
+Without `--dir` it builds the targets from the embedded pack in memory and
+also checks the single-target layout, which is still the only layout the
+publisher can produce; that check fails at the same 80% alarm and is removed
+when the single-target profile is retired. With `--dir` it measures every
+`.json` file under `knowledge/cncf/` in a build output, without parsing, so an
+oversize file is still reported. It prints the largest targets, the package
+total and, for each target at or over the alarm, the target path, its size, the
+percentage and the cap; it then exits `1`. Exit `0` means every target and the
+total are below the alarm; exit `2` means the command or input was rejected.
+CI runs the check on pushes to `main` and on pull requests that target `main`.
