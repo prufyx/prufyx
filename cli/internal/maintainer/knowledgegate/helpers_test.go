@@ -189,6 +189,8 @@ func runGate(t *testing.T, opts Options) *Report {
 	if opts.Now.IsZero() {
 		opts.Now = gateNow
 	}
+	pinBaseKeys(&opts)
+	fromBot(&opts)
 	r, err := Verify(context.Background(), opts)
 	if err != nil {
 		t.Fatalf("gate: %v", err)
@@ -249,4 +251,39 @@ func requireFail(t *testing.T, r *Report, want string) {
 		}
 	}
 	t.Fatalf("no failure mentions %q:\n%s", want, strings.Join(failedChecks(r), "\n"))
+}
+
+// pinBaseKeys stands in for the repository variable that pins the owner
+// approval key file: unless a test sets ApprovalKeysDigest itself ("none"
+// for no digest), it pins the base's key file as it is.
+func pinBaseKeys(opts *Options) {
+	switch opts.ApprovalKeysDigest {
+	case "none":
+		opts.ApprovalKeysDigest = ""
+	case "":
+		if raw, err := opts.Base.Read(opts.Layout.ApprovalKeysPath, MaxFileBytes); err == nil {
+			opts.ApprovalKeysDigest = pinnedDigest(raw)
+		}
+	}
+}
+
+// testHeadSHA stands for the head commit of a test change.
+const testHeadSHA = "0123456789abcdef0123456789abcdef01234567"
+
+// botCommits is the commit list of a change made entirely by the
+// automation account: one commit it authored, committed and GitHub
+// verified, ending at testHeadSHA.
+func botCommits() *CommitList {
+	c := CommitRecord{SHA: testHeadSHA, Author: &loginField{DefaultBotLogin}, Committer: &loginField{DefaultBotLogin}}
+	c.Commit.Verification.Verified = true
+	return &CommitList{Status: "ahead", AheadBy: 1, TotalCommits: 1, Commits: []CommitRecord{c}}
+}
+
+// fromBot completes a change a test attributes to the automation account
+// (Author set, no Sender and no commit list): the run was triggered by it
+// and every commit is its own.
+func fromBot(opts *Options) {
+	if opts.Author == DefaultBotLogin && opts.Sender == "" && opts.Commits == nil {
+		opts.Sender, opts.HeadSHA, opts.Commits = DefaultBotLogin, testHeadSHA, botCommits()
+	}
 }

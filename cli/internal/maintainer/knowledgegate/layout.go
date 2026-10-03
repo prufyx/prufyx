@@ -75,8 +75,11 @@ type Layout struct {
 	Generated []GeneratedPair
 	// AutoMergePaths lists the paths an automatically mergeable change may
 	// touch: an entry ending in "/" is a directory prefix, any other entry
-	// an exact file.
+	// an exact file. Trust material is never among them.
 	AutoMergePaths []string
+	// TrustPaths lists trust material (same form as AutoMergePaths). Any
+	// file named trust-root* or *approval-keys* is trust material too.
+	TrustPaths []string
 }
 
 // Repository paths of the default layout.
@@ -88,7 +91,11 @@ const (
 	commAttestPath = "cli/internal/projectcheck/data/corpus-attestation.json"
 	inventoryJSON  = "cli/docs/generated/community-support-inventory.json"
 	inventoryMD    = "cli/docs/generated/community-support-inventory.md"
-	knowledgeDir   = "cli/knowledge/"
+	trustDir       = "cli/knowledge/trust/"
+	reattestDir    = "cli/knowledge/reattestation"
+	approvalDir    = "cli/knowledge/approvals"
+	trustRootPath  = "cli/knowledge/reattestation/trust-root.json"
+	approvalKeys   = "cli/knowledge/trust/web-approval-keys.json"
 )
 
 func readAll(t Tree, rels ...string) ([][]byte, error) {
@@ -149,17 +156,27 @@ func DefaultLayout() Layout {
 			},
 		},
 		PausePath:        "factory/PAUSE",
-		ReattestDir:      "cli/knowledge/reattestation",
-		TrustRootPath:    "cli/knowledge/reattestation/trust-root.json",
-		ApprovalDir:      "cli/knowledge/approvals",
-		ApprovalKeysPath: "cli/knowledge/trust/web-approval-keys.json",
+		ReattestDir:      reattestDir,
+		TrustRootPath:    trustRootPath,
+		ApprovalDir:      approvalDir,
+		ApprovalKeysPath: approvalKeys,
 		Generated: []GeneratedPair{{
 			JSONPath: inventoryJSON, MarkdownPath: inventoryMD,
 			Generate: func(t Tree) ([]byte, string, error) {
 				return supportinventory.Generate(supportInventoryConfig(t))
 			},
 		}},
-		AutoMergePaths: []string{cncfRulesPath, cncfAttestPath, commRulesPath, commAttestPath, inventoryJSON, inventoryMD, knowledgeDir},
+		AutoMergePaths: []string{
+			cncfRulesPath, cncfAttestPath, commRulesPath, commAttestPath, inventoryJSON, inventoryMD,
+			approvalDir + "/",
+			reattestDir + "/" + evidencereattest.PackCNCF + "/chain/",
+			reattestDir + "/" + evidencereattest.PackCNCF + "/worklists/",
+			reattestDir + "/" + evidencereattest.PackCNCF + "/review-records/",
+			reattestDir + "/" + evidencereattest.PackCommunity + "/chain/",
+			reattestDir + "/" + evidencereattest.PackCommunity + "/worklists/",
+			reattestDir + "/" + evidencereattest.PackCommunity + "/review-records/",
+		},
+		TrustPaths: []string{trustDir, trustRootPath, approvalKeys},
 	}
 }
 
@@ -185,6 +202,9 @@ func supportInventoryConfig(t Tree) supportinventory.Config {
 // autoMergePath reports whether a change to rel is allowed in an
 // automatically mergeable change.
 func (l Layout) autoMergePath(rel string) bool {
+	if l.trustPath(rel) {
+		return false
+	}
 	for _, allowed := range l.AutoMergePaths {
 		if strings.HasSuffix(allowed, "/") {
 			if strings.HasPrefix(rel, allowed) {

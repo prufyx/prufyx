@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -62,12 +63,22 @@ type Options struct {
 	Concurrency int
 	// Now is the gate's clock; zero means time.Now().
 	Now time.Time
-	// Author is the change's author login; BotLogin the automation's.
-	Author, BotLogin string
+	// Author is the change's author login; Sender the login of the
+	// account whose action triggered this run; BotLogin the automation's.
+	Author, Sender, BotLogin string
+	// HeadSHA is the head commit the gate checks; Commits the change's
+	// commit range (base..head) with authors, committers and signature
+	// verification. Both are required for automatic-merge eligibility.
+	HeadSHA string
+	Commits *CommitList
 	// MaxLoosening caps loosening changes; 0 means DefaultMaxLoosening.
 	MaxLoosening int
 	// TrustRootDigest pins the reattestation trust root read from Base.
 	TrustRootDigest string
+	// ApprovalKeysDigest pins the owner-approval key file read from Base
+	// (sha256 of the file without its trailing newline). Without it no
+	// approval is accepted.
+	ApprovalKeysDigest string
 	// RerunWorklist is the worklist this job's own evidence repin run
 	// produced, required to admit a reattestation statement.
 	RerunWorklist []byte
@@ -117,6 +128,10 @@ type Report struct {
 	ChainsChanged []string    `json:"chainsChanged"`
 	AutoMerge     AutoMerge   `json:"autoMerge"`
 	Author        string      `json:"author,omitempty"`
+	Sender        string      `json:"sender,omitempty"`
+	// HeadSHA is the head commit this result is for. A merge must be made
+	// with exactly this commit.
+	HeadSHA string `json:"headSha,omitempty"`
 }
 
 // Passed reports whether every change was admitted and every check passed.
@@ -162,7 +177,7 @@ func newReport(cls *Classification, opts Options) *Report {
 		Schema: ReportSchema, Paused: cls.Paused, Totals: Totals{Tightening: t, Loosening: l},
 		Limits:  LimitReport{MaxLoosening: opts.MaxLoosening, Loosening: l, OK: l <= opts.MaxLoosening},
 		Changes: cls.Changes, Checks: []Check{}, Alarms: []string{}, ChangedPaths: []string{}, ChainsChanged: append([]string{}, cls.ChainsChanged...),
-		Author: opts.Author,
+		Author: opts.Author, Sender: opts.Sender, HeadSHA: opts.HeadSHA,
 	}
 }
 
@@ -235,6 +250,10 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 			raw, err := opts.Base.Read(opts.Layout.ApprovalKeysPath, maxApprovalBytes*4)
 			if err != nil {
 				approvalKeysErr = fmt.Errorf("no owner approval key is pinned in the base: %v", err)
+			} else if opts.ApprovalKeysDigest == "" {
+				approvalKeysErr = errors.New("no owner approval key digest is configured")
+			} else if pinnedDigest(raw) != opts.ApprovalKeysDigest {
+				approvalKeysErr = errors.New("the owner approval key file in the base does not match the pinned digest")
 			} else if k, err := ParseApprovalKeys(raw); err != nil {
 				approvalKeysErr = err
 			} else {
@@ -254,12 +273,20 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 			c.fail("the kill switch is set: no loosening change is admitted")
 			continue
 		}
+		if c.Member != "" {
+			c.fail("only the pack's entries may change through this gate; the top-level member " + logSafe(c.Member) + " changed")
+			continue
+		}
 		if c.head == nil {
 			c.fail("a rule may not be removed (it can turn BLOCKED into a scope-complete PASS); withdraw it instead")
 			continue
 		}
 		switch c.Basis {
 		case constraintengine.BasisMechanical:
+			if err := freshDerivation(c.head, opts.Now); err != nil {
+				c.fail(err.Error())
+				continue
+			}
 			mechanical = append(mechanical, c)
 		case constraintengine.BasisReviewed:
 			admitReviewed(c, statements[c.Pack], loadKeys, opts)
@@ -278,10 +305,19 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	}
 	r.packChecks(cls, opts)
 	r.generatedChecks(opts)
+	r.trustCheck(opts)
+	r.recordCheck(cls, statements, opts)
 	r.limitChecks(cls)
 	r.finish(true)
 	r.autoMerge(opts)
 	return r, nil
+}
+
+func baseCanonical(c *Change) []byte {
+	if c.base == nil {
+		return nil
+	}
+	return c.base.Canonical
 }
 
 func admitReviewed(c *Change, stmt statementResult, loadKeys func() (*ApprovalKeys, error), opts Options) {
@@ -310,7 +346,7 @@ func admitReviewed(c *Change, stmt statementResult, loadKeys func() (*ApprovalKe
 		keys, err := loadKeys()
 		if err != nil {
 			reasons = append(reasons, err.Error())
-		} else if err := VerifyApproval(raw, *keys, c.Pack, c.RuleID, c.head.Canonical, opts.Now); err != nil {
+		} else if err := VerifyApproval(raw, *keys, c.Pack, c.RuleID, baseCanonical(c), c.head.Canonical, opts.Now); err != nil {
 			reasons = append(reasons, err.Error())
 		} else {
 			c.OK, c.Proof = true, ProofApproval
@@ -415,11 +451,11 @@ func (r *Report) sizeCheck(spec PackSpec, stats PackStats, baseLen, headLen int,
 	}
 	alarm := stats.TargetBytes*100 >= SizeAlarmPercent*stats.MaxTargetBytes
 	ok := stats.TargetBytes <= stats.MaxTargetBytes && !(alarm && loosens && headLen > baseLen)
-	detail := fmt.Sprintf("target %d of %d bytes (%d%%)", stats.TargetBytes, stats.MaxTargetBytes, pct)
+	detail := fmt.Sprintf("target %d of %d bytes (%d percent)", stats.TargetBytes, stats.MaxTargetBytes, pct)
 	if alarm {
-		r.Alarms = append(r.Alarms, fmt.Sprintf("%s target is at %d%% of its size cap", spec.Name, pct))
+		r.Alarms = append(r.Alarms, fmt.Sprintf("%s target is at %d percent of its size cap", spec.Name, pct))
 		if !ok {
-			detail += fmt.Sprintf("; at or above %d%% a change may not loosen and grow the pack", SizeAlarmPercent)
+			detail += fmt.Sprintf("; at or above %d percent a change may not loosen and grow the pack", SizeAlarmPercent)
 		}
 	}
 	r.add("size/"+spec.Name, ok, "%s", detail)
@@ -524,8 +560,12 @@ func (r *Report) autoMerge(opts Options) {
 		reasons = append(reasons, "the gate did not pass")
 	}
 	if opts.Author == "" || opts.Author != opts.BotLogin {
-		reasons = append(reasons, fmt.Sprintf("author %q is not the automation account %q", opts.Author, opts.BotLogin))
+		reasons = append(reasons, fmt.Sprintf("author %q is not the automation account %q", logSafe(opts.Author), logSafe(opts.BotLogin)))
 	}
+	if opts.Sender != opts.BotLogin {
+		reasons = append(reasons, fmt.Sprintf("the run was triggered by %q, not the automation account", logSafe(opts.Sender)))
+	}
+	reasons = append(reasons, commitReasons(opts)...)
 	if len(r.Changes) == 0 && len(r.ChainsChanged) == 0 {
 		reasons = append(reasons, "the change holds no knowledge change")
 	}

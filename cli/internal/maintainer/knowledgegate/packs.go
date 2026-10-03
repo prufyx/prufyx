@@ -113,6 +113,16 @@ func newEntry(admitted json.RawMessage) (*entry, error) {
 	}, nil
 }
 
+func decodeAny(raw []byte) (any, error) {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	var out any
+	if err := dec.Decode(&out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func decodeGeneric(raw []byte) (map[string]any, error) {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.UseNumber()

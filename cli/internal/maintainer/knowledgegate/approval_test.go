@@ -32,9 +32,22 @@ func newApprovalKey(t *testing.T) testApprovalKey {
 
 func (k testApprovalKey) pin(t *testing.T, tr Tree, owners ...string) {
 	t.Helper()
+	k.pinUntil(t, tr, "2027-10-01T00:00:00Z", owners...)
+}
+
+// pinBoth pins the key in the base and leaves the file unchanged in the
+// head, as in any change made on top of the base.
+func (k testApprovalKey) pinBoth(t *testing.T, base, head Tree, owners ...string) {
+	t.Helper()
+	k.pin(t, base, owners...)
+	k.pin(t, head, owners...)
+}
+
+func (k testApprovalKey) pinUntil(t *testing.T, tr Tree, notAfter string, owners ...string) {
+	t.Helper()
 	raw, err := json.MarshalIndent(ApprovalKeys{
 		Schema: ApprovalKeysSchema, Role: ApprovalKeyRole, Owners: owners,
-		Keys: []ApprovalKey{{KeyID: ApprovalKeyID(k.public), PublicKey: hex.EncodeToString(k.public), NotAfter: "2027-10-01T00:00:00Z"}},
+		Keys: []ApprovalKey{{KeyID: ApprovalKeyID(k.public), PublicKey: hex.EncodeToString(k.public), NotAfter: notAfter}},
 	}, "", "  ")
 	if err != nil {
 		t.Fatal(err)
@@ -87,12 +100,12 @@ func approvalPath(head Tree, id string) string {
 func TestGateOwnerApproval(t *testing.T) {
 	key := newApprovalKey(t)
 	good := func(id, digest string) ApprovalRecord {
-		return ApprovalRecord{CandidateDigest: digest, CandidateID: "cand-1", DecidedAt: gateNow.Add(-time.Hour).Format(time.RFC3339), Decision: "approve", Identity: "airstand", Pack: "cncf", RuleID: id}
+		return ApprovalRecord{BaseDigest: ApprovalBaseAbsent, CandidateDigest: digest, CandidateID: "cand-1", DecidedAt: gateNow.Add(-time.Hour).Format(time.RFC3339), Decision: "approve", Identity: "airstand", Pack: "cncf", RuleID: id}
 	}
 
 	t.Run("valid", func(t *testing.T) {
 		base, head, id, digest := approvalTrees(t)
-		key.pin(t, base, "airstand")
+		key.pinBoth(t, base, head, "airstand")
 		writeFile(t, approvalPath(head, id), key.sign(t, good(id, digest)))
 		r := runGate(t, Options{Base: base, Head: head})
 		requirePass(t, r)
@@ -105,7 +118,7 @@ func TestGateOwnerApproval(t *testing.T) {
 		setup func(t *testing.T, base, head Tree, id, digest string)
 		want  string
 	}{
-		"no approval": {func(t *testing.T, base, head Tree, id, digest string) { key.pin(t, base, "airstand") }, "no owner approval"},
+		"no approval": {func(t *testing.T, base, head Tree, id, digest string) { key.pinBoth(t, base, head, "airstand") }, "no owner approval"},
 		"no pinned key": {func(t *testing.T, base, head Tree, id, digest string) {
 			writeFile(t, approvalPath(head, id), key.sign(t, good(id, digest)))
 		}, "no owner approval key is pinned"},
@@ -114,46 +127,73 @@ func TestGateOwnerApproval(t *testing.T) {
 			writeFile(t, approvalPath(head, id), key.sign(t, good(id, digest)))
 		}, "no owner approval key is pinned"},
 		"unpinned signer": {func(t *testing.T, base, head Tree, id, digest string) {
-			key.pin(t, base, "airstand")
+			key.pinBoth(t, base, head, "airstand")
 			writeFile(t, approvalPath(head, id), newApprovalKey(t).sign(t, good(id, digest)))
 		}, "not pinned"},
 		"entry changed after approval": {func(t *testing.T, base, head Tree, id, digest string) {
-			key.pin(t, base, "airstand")
+			key.pinBoth(t, base, head, "airstand")
 			r := good(id, "sha256:"+strings.Repeat("ab", 32))
 			writeFile(t, approvalPath(head, id), key.sign(t, r))
 		}, "candidate digest does not match"},
 		"not an owner": {func(t *testing.T, base, head Tree, id, digest string) {
-			key.pin(t, base, "airstand")
+			key.pinBoth(t, base, head, "airstand")
 			r := good(id, digest)
 			r.Identity = "someone-else"
 			writeFile(t, approvalPath(head, id), key.sign(t, r))
 		}, "is not an owner"},
 		"rejected": {func(t *testing.T, base, head Tree, id, digest string) {
-			key.pin(t, base, "airstand")
+			key.pinBoth(t, base, head, "airstand")
 			r := good(id, digest)
 			r.Decision = "reject"
 			writeFile(t, approvalPath(head, id), key.sign(t, r))
 		}, `decision is "reject"`},
 		"other rule": {func(t *testing.T, base, head Tree, id, digest string) {
-			key.pin(t, base, "airstand")
+			key.pinBoth(t, base, head, "airstand")
 			r := good(id, digest)
 			r.RuleID = "other.rule"
 			writeFile(t, approvalPath(head, id), key.sign(t, r))
 		}, "approves a different rule"},
 		"older than 14 days": {func(t *testing.T, base, head Tree, id, digest string) {
-			key.pin(t, base, "airstand")
+			key.pinBoth(t, base, head, "airstand")
 			r := good(id, digest)
 			r.DecidedAt = gateNow.Add(-15 * 24 * time.Hour).Format(time.RFC3339)
 			writeFile(t, approvalPath(head, id), key.sign(t, r))
 		}, "older than 14 days"},
 		"decided in the future": {func(t *testing.T, base, head Tree, id, digest string) {
-			key.pin(t, base, "airstand")
+			key.pinBoth(t, base, head, "airstand")
 			r := good(id, digest)
 			r.DecidedAt = gateNow.Add(time.Hour).Format(time.RFC3339)
 			writeFile(t, approvalPath(head, id), key.sign(t, r))
 		}, "decided in the future"},
+		"other pack": {func(t *testing.T, base, head Tree, id, digest string) {
+			key.pinBoth(t, base, head, "airstand")
+			r := good(id, digest)
+			r.Pack = "community"
+			writeFile(t, approvalPath(head, id), key.sign(t, r))
+		}, "approves a different rule"},
+		"base digest of another state": {func(t *testing.T, base, head Tree, id, digest string) {
+			key.pinBoth(t, base, head, "airstand")
+			r := good(id, digest)
+			r.BaseDigest = digest
+			writeFile(t, approvalPath(head, id), key.sign(t, r))
+		}, "base digest does not match"},
+		"expired key": {func(t *testing.T, base, head Tree, id, digest string) {
+			key.pinUntil(t, base, gateNow.Add(-time.Minute).Format(time.RFC3339), "airstand")
+			key.pinUntil(t, head, gateNow.Add(-time.Minute).Format(time.RFC3339), "airstand")
+			writeFile(t, approvalPath(head, id), key.sign(t, good(id, digest)))
+		}, "signing key has expired"},
+		"version 1 record": {func(t *testing.T, base, head Tree, id, digest string) {
+			key.pinBoth(t, base, head, "airstand")
+			raw := strings.Replace(string(key.sign(t, good(id, digest))), ApprovalSchema, "prufyx.io/knowledge-approval/v1", 1)
+			writeFile(t, approvalPath(head, id), []byte(raw))
+		}, "wrong schema"},
+		"case-variant member": {func(t *testing.T, base, head Tree, id, digest string) {
+			key.pinBoth(t, base, head, "airstand")
+			raw := strings.Replace(string(key.sign(t, good(id, digest))), `"keyId"`, `"KeyId": "x", "keyId"`, 1)
+			writeFile(t, approvalPath(head, id), []byte(raw))
+		}, "letter case"},
 		"tampered record": {func(t *testing.T, base, head Tree, id, digest string) {
-			key.pin(t, base, "airstand")
+			key.pinBoth(t, base, head, "airstand")
 			r := good(id, digest)
 			raw := key.sign(t, r)
 			raw = []byte(strings.Replace(string(raw), `"cand-1"`, `"cand-2"`, 1))
@@ -168,6 +208,20 @@ func TestGateOwnerApproval(t *testing.T) {
 			requireFail(t, r, tc.want)
 		})
 	}
+
+	// The key file read from the base must match the digest pinned in the
+	// gate's configuration.
+	for name, tc := range map[string]struct{ digest, want string }{
+		"no key digest configured": {"none", "no owner approval key digest is configured"},
+		"key file digest mismatch": {"sha256:" + strings.Repeat("0", 64), "does not match the pinned digest"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			base, head, id, digest := approvalTrees(t)
+			key.pinBoth(t, base, head, "airstand")
+			writeFile(t, approvalPath(head, id), key.sign(t, good(id, digest)))
+			requireFail(t, runGate(t, Options{Base: base, Head: head, ApprovalKeysDigest: tc.digest}), tc.want)
+		})
+	}
 }
 
 // An approval never admits a mechanical rule: those loosen only by
@@ -175,14 +229,14 @@ func TestGateOwnerApproval(t *testing.T) {
 func TestApprovalDoesNotCoverMechanical(t *testing.T) {
 	key := newApprovalKey(t)
 	base, head, entries := mechanicalTrees(t, func(entries []map[string]any) { ruleOf(entries[0])["nextAction"] = "Changed." })
-	key.pin(t, base, "airstand")
+	key.pinBoth(t, base, head, "airstand")
 	id := ruleID(entries[0])
 	cls, err := Classify(DefaultLayout(), base, head)
 	if err != nil {
 		t.Fatal(err)
 	}
 	digest := CandidateDigest(cls.head["cncf"].Entries[id].Canonical)
-	writeFile(t, approvalPath(head, id), key.sign(t, ApprovalRecord{CandidateDigest: digest, CandidateID: "c", DecidedAt: gateNow.Format(time.RFC3339), Decision: "approve", Identity: "airstand", Pack: "cncf", RuleID: id}))
+	writeFile(t, approvalPath(head, id), key.sign(t, ApprovalRecord{BaseDigest: ApprovalBaseAbsent, CandidateDigest: digest, CandidateID: "c", DecidedAt: gateNow.Format(time.RFC3339), Decision: "approve", Identity: "airstand", Pack: "cncf", RuleID: id}))
 	r := runGate(t, Options{Base: base, Head: head, Source: nil})
 	if c := change(t, r, id); c.OK {
 		t.Fatal("an approval admitted a mechanical rule")

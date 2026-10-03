@@ -184,7 +184,7 @@ func newReattestFixture(t *testing.T) reattestFixture {
 	res, err := evidencereattest.Prepare(evidencereattest.PrepareOptions{
 		WorklistRaw: f.worklist, PackName: evidencereattest.PackCommunity, PackPath: synthPackPath, PackRaw: packRaw,
 		Chain: &evidencereattest.Chain{}, Mode: evidencereattest.ModeAutomated, AttestedAt: at, Now: now,
-		NextRevision: "rev-2", EngineCapabilityDigest: capability,
+		NextRevision: "rev-1", EngineCapabilityDigest: capability,
 	})
 	if err != nil {
 		t.Fatalf("prepare: %v", err)
@@ -282,6 +282,11 @@ func TestGateReattestationRejects(t *testing.T) {
 				}
 			}
 		}, "no reattestation statement"},
+		"two statements appended": {func(t *testing.T, f *reattestFixture, o *Options) {
+			dir := filepath.Join(f.head.Root, synthLayout().ReattestDir, "community", "chain")
+			writeFile(t, filepath.Join(dir, "0002.statement.json"), append(append([]byte(nil), f.statement...), '\n'))
+			writeFile(t, filepath.Join(dir, "0002.statement.sig.json"), append(append([]byte(nil), f.envl...), '\n'))
+		}, "appends 2"},
 		"kill switch": {func(t *testing.T, f *reattestFixture, o *Options) {
 			writeFile(t, filepath.Join(f.base.Root, "factory", "PAUSE"), nil)
 		}, "kill switch"},
@@ -295,6 +300,43 @@ func TestGateReattestationRejects(t *testing.T) {
 			requireFail(t, r, tc.want)
 			if c := change(t, r, f.ruleID); c.OK {
 				t.Fatal("the renewal was admitted")
+			}
+		})
+	}
+}
+
+// Worklists and review records change only with the statement appended in
+// the same change: its own worklist, and records of rules it renews.
+func TestGateReattestationRecordFiles(t *testing.T) {
+	dir := func(f reattestFixture) string {
+		return filepath.Join(f.head.Root, synthLayout().ReattestDir, "community")
+	}
+	for name, tc := range map[string]struct {
+		edit func(t *testing.T, f reattestFixture)
+		ok   bool
+	}{
+		"statement and its worklist": {func(t *testing.T, f reattestFixture) {}, true},
+		"worklist of another stem": {func(t *testing.T, f reattestFixture) {
+			writeFile(t, filepath.Join(dir(f), "worklists", "0002.worklist.json"), f.worklist)
+		}, false},
+		"worklist rewritten": {func(t *testing.T, f reattestFixture) {
+			writeFile(t, filepath.Join(f.base.Root, synthLayout().ReattestDir, "community", "worklists", "0000.worklist.json"), f.worklist)
+			writeFile(t, filepath.Join(dir(f), "worklists", "0000.worklist.json"), append(append([]byte(nil), f.worklist...), ' '))
+		}, false},
+		"review record of another rule": {func(t *testing.T, f reattestFixture) {
+			writeFile(t, filepath.Join(dir(f), "review-records", "other.rule.json"), []byte("{}\n"))
+		}, false},
+		"unexpected directory": {func(t *testing.T, f reattestFixture) {
+			writeFile(t, filepath.Join(dir(f), "notes", "x.json"), []byte("{}\n"))
+		}, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newReattestFixture(t)
+			tc.edit(t, f)
+			r := runGate(t, f.opts())
+			c, _ := check(r, "knowledge-records")
+			if c.OK != tc.ok || (tc.ok && !r.Passed()) {
+				t.Fatalf("knowledge-records ok=%v pass=%v: %s %v", c.OK, r.Passed(), c.Detail, failedChecks(r))
 			}
 		})
 	}

@@ -15,6 +15,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode/utf8"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
@@ -23,8 +24,10 @@ const usage = `usage:
   prufyx-maintainer gate classify --base DIR --head DIR [--json]
   prufyx-maintainer gate limits   --base DIR --head DIR [--max-loosening N] [--json]
   prufyx-maintainer gate verify   --base DIR --head DIR [--source github|fixture:DIR]
-                                  [--author LOGIN] [--bot-login LOGIN] [--max-loosening N]
-                                  [--trust-root-digest sha256:...] [--rerun-worklist FILE]
+                                  [--author LOGIN] [--sender LOGIN] [--bot-login LOGIN]
+                                  [--head-sha SHA] [--commits FILE] [--max-loosening N]
+                                  [--trust-root-digest sha256:...] [--approval-keys-digest sha256:...]
+                                  [--rerun-worklist FILE]
                                   [--rederive-all] [--concurrency N] [--now RFC3339]
                                   [--report FILE] [--summary FILE]`
 
@@ -57,7 +60,7 @@ func mainWith(args []string, getenv func(string) string, stdout, stderr io.Write
 		return 2
 	}
 	if err != nil {
-		fmt.Fprintf(stderr, "gate: %v\n", err)
+		fmt.Fprintf(stderr, "gate: %s\n", logSafe(err.Error()))
 		return 2
 	}
 	return code
@@ -135,7 +138,7 @@ func cmdClassify(args []string, layout Layout, stdout io.Writer) (int, error) {
 		return 0, writeJSON(stdout, out)
 	}
 	for _, c := range cls.Changes {
-		fmt.Fprintf(stdout, "%-10s %s %s [%s] basis=%s\n", c.Class, c.Pack, c.RuleID, strings.Join(c.Kinds, ","), c.Basis)
+		fmt.Fprintf(stdout, "%-10s %s %s [%s] basis=%s\n", c.Class, c.Pack, c.subject(), strings.Join(c.Kinds, ","), logSafe(c.Basis))
 	}
 	for _, p := range cls.ChainsChanged {
 		fmt.Fprintf(stdout, "chain      %s reattestation statement chain changed\n", p)
@@ -189,12 +192,16 @@ func exitFor(r *Report) int {
 
 func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout io.Writer) (int, error) {
 	var t treeFlags
-	var source, author, bot, digest, rerun, now, report, summary string
+	var source, author, sender, bot, headSHA, commits, digest, keysDigest, rerun, now, report, summary string
 	var max, concurrency int
 	var all bool
 	f := newFlags("gate verify", &t)
 	f.StringVar(&source, "source", "", "upstream source for re-derivation: github or fixture:DIR")
 	f.StringVar(&author, "author", "", "the change's author login")
+	f.StringVar(&sender, "sender", "", "the login of the account whose action triggered this run")
+	f.StringVar(&headSHA, "head-sha", "", "the head commit being checked")
+	f.StringVar(&commits, "commits", "", "the change's commit list (GitHub compare API JSON)")
+	f.StringVar(&keysDigest, "approval-keys-digest", "", "pinned digest of the owner approval key file")
 	f.StringVar(&bot, "bot-login", DefaultBotLogin, "the automation account's login")
 	f.IntVar(&max, "max-loosening", DefaultMaxLoosening, "cap on loosening changes")
 	f.StringVar(&digest, "trust-root-digest", "", "pinned digest of the reattestation trust root")
@@ -214,7 +221,16 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	if max < 1 || concurrency < 0 || concurrency > 64 {
 		return 2, errors.New("--max-loosening must be at least 1 and --concurrency 0-64")
 	}
-	opts := Options{Layout: layout, Base: base, Head: head, Author: author, BotLogin: bot, MaxLoosening: max, TrustRootDigest: digest, RederiveAll: all, Concurrency: concurrency}
+	opts := Options{Layout: layout, Base: base, Head: head, Author: author, Sender: sender, BotLogin: bot, HeadSHA: headSHA, MaxLoosening: max, TrustRootDigest: digest, ApprovalKeysDigest: keysDigest, RederiveAll: all, Concurrency: concurrency}
+	if commits != "" {
+		raw, err := readBoundedFile(commits, maxCommitListBytes)
+		if err != nil {
+			return 2, err
+		}
+		if opts.Commits, err = ParseCommitList(raw); err != nil {
+			return 2, err
+		}
+	}
 	if now != "" {
 		if opts.Now, err = time.Parse(time.RFC3339, now); err != nil || !strings.HasSuffix(now, "Z") {
 			return 2, errors.New("--now must be RFC 3339 UTC")
@@ -234,7 +250,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 		return 2, errors.New("--source must be github or fixture:DIR")
 	}
 	if rerun != "" {
-		if opts.RerunWorklist, err = os.ReadFile(rerun); err != nil {
+		if opts.RerunWorklist, err = readBoundedFile(rerun, MaxFileBytes); err != nil {
 			return 2, err
 		}
 	}
@@ -273,6 +289,23 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	return exitFor(r), nil
 }
 
+// readBoundedFile reads a file this job produced, up to limit bytes.
+func readBoundedFile(name string, limit int64) ([]byte, error) {
+	f, err := os.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	raw, err := io.ReadAll(io.LimitReader(f, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(raw)) > limit {
+		return nil, fmt.Errorf("%s exceeds %d bytes", name, limit)
+	}
+	return raw, nil
+}
+
 func writeJSON(w io.Writer, v any) error {
 	raw, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
@@ -280,6 +313,14 @@ func writeJSON(w io.Writer, v any) error {
 	}
 	_, err = w.Write(append(raw, '\n'))
 	return err
+}
+
+// subject names what a change concerns, safe to print.
+func (c *Change) subject() string {
+	if c.Member != "" {
+		return "member:" + logSafe(c.Member)
+	}
+	return logSafe(c.RuleID)
 }
 
 func mark(ok bool) string {
@@ -295,24 +336,24 @@ func printChecks(w io.Writer, r *Report) {
 		if !c.OK {
 			detail = c.Detail
 		}
-		fmt.Fprintf(w, "%s %-10s %s %s [%s] basis=%s: %s\n", mark(c.OK), c.Class, c.Pack, c.RuleID, strings.Join(c.Kinds, ","), c.Basis, detail)
+		fmt.Fprintf(w, "%s %-10s %s %s [%s] basis=%s: %s\n", mark(c.OK), c.Class, c.Pack, c.subject(), strings.Join(c.Kinds, ","), logSafe(c.Basis), logSafe(detail))
 	}
 	for _, c := range r.Checks {
-		fmt.Fprintf(w, "%s check %s: %s\n", mark(c.OK), c.Name, c.Detail)
+		fmt.Fprintf(w, "%s check %s: %s\n", mark(c.OK), c.Name, logSafe(c.Detail))
 	}
 	for _, a := range r.Alarms {
-		fmt.Fprintf(w, "ALARM %s\n", a)
+		fmt.Fprintf(w, "ALARM %s\n", logSafe(a))
 	}
 	fmt.Fprintf(w, "gate: %s (%d tightening, %d loosening; kill switch %s)\n", strings.ToUpper(r.Result), r.Totals.Tightening, r.Totals.Loosening, onOff(r.Paused))
 	if r.AutoMerge.Eligible {
 		fmt.Fprintln(w, "auto-merge: eligible")
 	} else if r.Schema != "" && r.AutoMerge.Reasons != nil {
-		fmt.Fprintf(w, "auto-merge: not eligible (%s)\n", strings.Join(r.AutoMerge.Reasons, "; "))
+		fmt.Fprintf(w, "auto-merge: not eligible (%s)\n", logSafe(strings.Join(r.AutoMerge.Reasons, "; ")))
 	}
 }
 
 func mdEscape(s string) string {
-	return strings.NewReplacer("|", "\\|", "\n", " ", "<", "&lt;", ">", "&gt;").Replace(s)
+	return strings.NewReplacer("|", "\\|", "<", "&lt;", ">", "&gt;", "`", "'", "\n", " ", "\r", " ").Replace(s)
 }
 
 func writeSummary(w io.Writer, r *Report) {
@@ -325,7 +366,7 @@ func writeSummary(w io.Writer, r *Report) {
 			if !c.OK {
 				detail = c.Detail
 			}
-			fmt.Fprintf(w, "| %s | %s | %s | `%s` | %s | %s | %s |\n", strings.TrimSpace(mark(c.OK)), c.Class, c.Pack, mdEscape(c.RuleID), strings.Join(c.Kinds, ", "), c.Basis, mdEscape(detail))
+			fmt.Fprintf(w, "| %s | %s | %s | `%s` | %s | %s | %s |\n", strings.TrimSpace(mark(c.OK)), c.Class, c.Pack, mdEscape(c.subject()), strings.Join(c.Kinds, ", "), mdEscape(c.Basis), mdEscape(detail))
 		}
 		fmt.Fprintln(w)
 	}
@@ -342,4 +383,34 @@ func writeSummary(w io.Writer, r *Report) {
 	} else {
 		fmt.Fprintf(w, "\nAutomatic merge: not eligible (%s).\n", mdEscape(strings.Join(r.AutoMerge.Reasons, "; ")))
 	}
+}
+
+// maxLogField bounds one proposed-change string in the gate's text output.
+const maxLogField = 512
+
+// logSafe makes a string from the proposed change safe to print in a CI
+// log: no line breaks or other control characters (so it can never start
+// a line, and so never form a workflow command), "%" and "::" escaped, and
+// the length capped.
+func logSafe(s string) string {
+	var b strings.Builder
+	for i, r := range s {
+		if b.Len() >= maxLogField {
+			b.WriteString(fmt.Sprintf("...(%d more bytes)", len(s)-i))
+			break
+		}
+		switch {
+		case r == '%':
+			b.WriteString("%25")
+		case r == ':' && strings.HasPrefix(s[i:], "::"):
+			b.WriteString("%3A")
+		case r < 0x20 || r == 0x7f || (r >= 0x80 && r < 0xa0) || r == 0x2028 || r == 0x2029 || r == 0x85:
+			b.WriteString(fmt.Sprintf("%%%02X", r))
+		case r == utf8.RuneError && !strings.HasPrefix(s[i:], "�"):
+			b.WriteString("%FF")
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }

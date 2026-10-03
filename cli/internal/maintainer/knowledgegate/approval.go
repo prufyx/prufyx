@@ -13,19 +13,29 @@ import (
 	"fmt"
 	"regexp"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/strictjson"
 )
 
 // Owner approval records. An approval is the owner's signed decision that
-// one exact pack entry may be published as a reviewed rule. The signing key
-// is the web-approval key; its public half is pinned in the base tree, so a
-// change cannot bring its own key.
+// one exact pack entry may replace one exact base state (an earlier entry,
+// or no entry) as a reviewed rule. The signing key is the web-approval key;
+// its public half is pinned in the base tree and its file digest in the
+// gate's configuration, so a change cannot bring its own key.
+//
+// Version 2 binds the base state. Version 1 records, which bound only the
+// proposed entry and could be replayed after the rule was withdrawn, are
+// refused.
 const (
-	ApprovalSchema     = "prufyx.io/knowledge-approval/v1"
+	ApprovalSchema     = "prufyx.io/knowledge-approval/v2"
 	ApprovalKeysSchema = "prufyx.io/web-approval-keys/v1"
 	ApprovalKeyRole    = "web-approval"
 	// ApprovalDomain prefixes the signed bytes, so an approval signature
 	// can never be mistaken for any other signature made with the key.
-	ApprovalDomain = "prufyx.io/knowledge-approval/v1\x00"
+	ApprovalDomain = "prufyx.io/knowledge-approval/v2\x00"
+	// ApprovalBaseAbsent is the base digest of an approval for a rule the
+	// base does not hold.
+	ApprovalBaseAbsent = "absent"
 	// ApprovalDecisionApprove is the only decision that admits a change.
 	ApprovalDecisionApprove = "approve"
 	// MaxApprovalAge is how long an approval stays usable.
@@ -39,6 +49,9 @@ const (
 // restricted alphabet, so its canonical form is unambiguous in any JSON
 // implementation.
 type ApprovalRecord struct {
+	// BaseDigest is the digest of the base entry the approval replaces
+	// (see CandidateDigest), or ApprovalBaseAbsent for a new rule.
+	BaseDigest      string `json:"baseDigest"`
 	CandidateDigest string `json:"candidateDigest"`
 	CandidateID     string `json:"candidateId"`
 	DecidedAt       string `json:"decidedAt"`
@@ -95,7 +108,7 @@ func SignedApprovalBytes(r ApprovalRecord) ([]byte, error) {
 }
 
 func (r ApprovalRecord) validate() error {
-	if !approvalDigestRE.MatchString(r.CandidateDigest) || !approvalTokenRE.MatchString(r.CandidateID) || !approvalTimeRE.MatchString(r.DecidedAt) ||
+	if (r.BaseDigest != ApprovalBaseAbsent && !approvalDigestRE.MatchString(r.BaseDigest)) || !approvalDigestRE.MatchString(r.CandidateDigest) || !approvalTokenRE.MatchString(r.CandidateID) || !approvalTimeRE.MatchString(r.DecidedAt) ||
 		!approvalTokenRE.MatchString(r.Decision) || !approvalLoginRE.MatchString(r.Identity) || !approvalTokenRE.MatchString(r.Pack) || !approvalTokenRE.MatchString(r.RuleID) {
 		return errors.New("approval record field out of range")
 	}
@@ -109,13 +122,17 @@ func ApprovalKeyID(public ed25519.PublicKey) string {
 }
 
 // CandidateDigest is the digest an approval binds: sha256 of the entry's
-// canonical JSON (keys sorted, two-space indent, one final newline).
+// canonical JSON (keys sorted, two-space indent, one final newline), the
+// entry read as admission reads it.
 func CandidateDigest(canonicalEntry []byte) string {
 	sum := sha256.Sum256(canonicalEntry)
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
 func strictDecode(raw []byte, v any) error {
+	if err := strictjson.Check(raw); err != nil {
+		return err
+	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
@@ -155,9 +172,11 @@ func ParseApprovalKeys(raw []byte) (ApprovalKeys, error) {
 // VerifyApproval checks one approval envelope for one proposed entry: the
 // signature under a pinned, unexpired key; an approving decision by a
 // pinned owner; the pack and rule id; a decision time not in the future
-// and at most MaxApprovalAge old; and a candidate digest equal to the
-// digest of the proposed entry's canonical bytes.
-func VerifyApproval(raw []byte, keys ApprovalKeys, pack, ruleID string, canonicalEntry []byte, now time.Time) error {
+// and at most MaxApprovalAge old; a candidate digest equal to the digest
+// of the proposed entry's canonical bytes; and a base digest equal to the
+// digest of the base entry's canonical bytes (baseEntry nil: the base has
+// no such rule, and the record must say ApprovalBaseAbsent).
+func VerifyApproval(raw []byte, keys ApprovalKeys, pack, ruleID string, baseEntry, canonicalEntry []byte, now time.Time) error {
 	if len(raw) > maxApprovalBytes {
 		return errors.New("approval too large")
 	}
@@ -218,6 +237,13 @@ func VerifyApproval(raw []byte, keys ApprovalKeys, pack, ruleID string, canonica
 	}
 	if r.CandidateDigest != CandidateDigest(canonicalEntry) {
 		return errors.New("approval: candidate digest does not match the proposed entry")
+	}
+	wantBase := ApprovalBaseAbsent
+	if baseEntry != nil {
+		wantBase = CandidateDigest(baseEntry)
+	}
+	if r.BaseDigest != wantBase {
+		return errors.New("approval: base digest does not match the rule the change replaces")
 	}
 	return nil
 }

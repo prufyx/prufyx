@@ -17,7 +17,7 @@ import (
 
 var servedFixture = filepath.Join("..", "..", "extract", "k8sservedapis", "testdata", "fixture")
 
-var servedDerivedAt = time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+var servedDerivedAt = time.Date(2026, 10, 3, 6, 0, 0, 0, time.UTC)
 
 // derivedEntries runs the served-API extractor over its frozen fixture, as
 // the factory would over the mirror, and returns its pack entries.
@@ -129,7 +129,7 @@ func TestGateMechanicalLeaseAndRenewal(t *testing.T) {
 			}
 		}
 	})
-	r = runGate(t, Options{Base: head, Head: renewed, Source: extract.FixtureReader{Root: servedFixture}})
+	r = runGate(t, Options{Base: head, Head: renewed, Source: extract.FixtureReader{Root: servedFixture}, Now: gateNow.Add(7 * 24 * time.Hour)})
 	requirePass(t, r)
 	for _, c := range r.Changes {
 		if c.Class != ClassLoosening || c.Kinds[0] != KindRenew || c.Proof != ProofRederived {

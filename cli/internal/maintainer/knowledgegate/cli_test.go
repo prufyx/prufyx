@@ -69,7 +69,17 @@ func TestCLI(t *testing.T) {
 	editPack(t, head, cncfRulesPath, func(p *packDoc) {
 		ruleOf(p.find(t, ids[1]))["nextAction"] = ruleOf(readPack(t, base, cncfRulesPath).find(t, ids[1]))["nextAction"]
 	})
-	if code, out = runCLI(t, "verify", "--base", base.Root, "--head", head.Root, "--now", now, "--source", "fixture:"+servedFixture, "--author", DefaultBotLogin); code != 0 || !strings.Contains(out, "auto-merge: eligible") {
+	commits := filepath.Join(dir, "commits.json")
+	rawCommits, err := json.Marshal(botCommits())
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, commits, rawCommits)
+	bot := []string{"verify", "--base", base.Root, "--head", head.Root, "--now", now, "--source", "fixture:" + servedFixture, "--author", DefaultBotLogin}
+	if code, out = runCLI(t, bot...); code != 0 || strings.Contains(out, "auto-merge: eligible") {
+		t.Fatalf("verify tightening without provenance: %d %s", code, out)
+	}
+	if code, out = runCLI(t, append(bot, "--sender", DefaultBotLogin, "--head-sha", testHeadSHA, "--commits", commits)...); code != 0 || !strings.Contains(out, "auto-merge: eligible") {
 		t.Fatalf("verify tightening: %d %s", code, out)
 	}
 

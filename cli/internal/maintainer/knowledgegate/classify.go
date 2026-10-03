@@ -33,12 +33,19 @@ const (
 	KindRangeChange = "range-change" // range changed otherwise
 	KindBasis       = "basis-change" // evidence basis or extractor changed
 	KindModify      = "modify"       // anything else in the entry changed
+	// KindPackMember is a change to a top-level pack member other than
+	// entries (schema, revision, policy, any new member). No such change
+	// is admitted by this version of the gate.
+	KindPackMember = "pack-member"
 )
 
 // Change is one rule that differs between base and head.
 type Change struct {
-	Pack    string   `json:"pack"`
-	RuleID  string   `json:"ruleId"`
+	Pack   string `json:"pack"`
+	RuleID string `json:"ruleId"`
+	// Member names the top-level pack member a pack-member change
+	// concerns; RuleID is then empty.
+	Member  string   `json:"member,omitempty"`
 	Project string   `json:"project"`
 	Class   string   `json:"class"`
 	Kinds   []string `json:"kinds"`
@@ -55,8 +62,32 @@ type Change struct {
 	base, head *entry
 }
 
-// diffPacks classifies every rule that differs between two loads of a pack.
+// diffPacks classifies every top-level member and every rule that differs
+// between two loads of a pack. Only entries have classification rules:
+// any other member that differs is a loosening change that is never
+// admitted.
 func diffPacks(base, head *loadedPack) []*Change {
+	var out []*Change
+	members := map[string]bool{}
+	for m := range base.Members {
+		members[m] = true
+	}
+	for m := range head.Members {
+		members[m] = true
+	}
+	names := make([]string, 0, len(members))
+	for m := range members {
+		names = append(names, m)
+	}
+	sort.Strings(names)
+	for _, m := range names {
+		b, bok := base.Members[m]
+		h, hok := head.Members[m]
+		if bok == hok && bytes.Equal(canonicalRaw(b), canonicalRaw(h)) {
+			continue
+		}
+		out = append(out, &Change{Pack: head.Spec.Name, Member: m, Class: ClassLoosening, Kinds: []string{KindPackMember}})
+	}
 	ids := map[string]bool{}
 	for id := range base.Entries {
 		ids[id] = true
@@ -69,7 +100,6 @@ func diffPacks(base, head *loadedPack) []*Change {
 		sorted = append(sorted, id)
 	}
 	sort.Strings(sorted)
-	var out []*Change
 	for _, id := range sorted {
 		b, h := base.Entries[id], head.Entries[id]
 		if b != nil && h != nil && bytes.Equal(b.Canonical, h.Canonical) {
@@ -164,6 +194,19 @@ func classifyEdit(b, h *entry) (string, []string) {
 		return ClassLoosening, kinds
 	}
 	return ClassTightening, kinds
+}
+
+// canonicalRaw is the canonical form of a JSON value; nil when it does not
+// parse, so two unparsable values never compare equal to a valid one.
+func canonicalRaw(raw json.RawMessage) []byte {
+	if raw == nil {
+		return nil
+	}
+	v, err := decodeAny(raw)
+	if err != nil {
+		return nil
+	}
+	return canonicalOf(v)
 }
 
 func containsKind(kinds []string, k string) bool {
