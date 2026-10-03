@@ -58,6 +58,16 @@ var kubernetesRemovalsByTargetMinor = map[string][]kubernetesRemoval{
 		{Fact: "component.kubernetes.priorityclass_v1beta1_removed_gvk_present", Group: "scheduling.k8s.io", Kinds: []string{"PriorityClass"}, Removed: "v1beta1", Served: []string{"v1"}},
 		{Fact: "component.kubernetes.storage_v1beta1_removed_gvk_present", Group: "storage.k8s.io", Kinds: []string{"CSIDriver", "CSINode", "StorageClass", "VolumeAttachment"}, Removed: "v1beta1", Served: []string{"v1"}},
 	},
+	"1.37": {
+		{Fact: "component.kubernetes.ipaddress_servicecidr_v1beta1_removed_gvk_present", Group: "networking.k8s.io", Kinds: []string{"IPAddress", "ServiceCIDR"}, Removed: "v1beta1", Served: []string{"v1"}},
+		{Fact: "component.kubernetes.volumeattributesclass_v1beta1_removed_gvk_present", Group: "storage.k8s.io", Kinds: []string{"VolumeAttributesClass"}, Removed: "v1beta1", Served: []string{"v1"}},
+	},
+	"1.34": {
+		{Fact: "component.kubernetes.validatingadmissionpolicy_v1beta1_removed_gvk_present", Group: "admissionregistration.k8s.io", Kinds: []string{"ValidatingAdmissionPolicy", "ValidatingAdmissionPolicyBinding"}, Removed: "v1beta1", Served: []string{"v1"}},
+	},
+	"1.33": {
+		{Fact: "component.kubernetes.selfsubjectreview_v1beta1_removed_gvk_present", Group: "authentication.k8s.io", Kinds: []string{"SelfSubjectReview"}, Removed: "v1beta1", Served: []string{"v1"}},
+	},
 	"1.29": {
 		{Fact: "component.kubernetes.flowcontrol_v1beta2_removed_gvk_present", Group: "flowcontrol.apiserver.k8s.io", Kinds: []string{"FlowSchema", "PriorityLevelConfiguration"}, Removed: "v1beta2", Served: []string{"v1", "v1beta3"}},
 	},

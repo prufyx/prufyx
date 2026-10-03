@@ -11,6 +11,116 @@
           {
             "component": "pkg:github/kubernetes/kubernetes",
             "facts": [],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "boolValue": true,
+                "id": "component.kubernetes.selfsubjectreview_v1beta1_removed_gvk_present",
+                "state": "declared"
+              }
+            ],
+            "version": "1.33.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-32-0-to-1-33-0/blocked",
+    "ruleId": "kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-32-0-to-1-33-0"
+  },
+  {
+    "expect": {
+      "reasonCode": "KUBERNETES_SERVED_API_REMOVED",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "boolValue": false,
+                "id": "component.kubernetes.selfsubjectreview_v1beta1_removed_gvk_present",
+                "state": "declared"
+              }
+            ],
+            "version": "1.33.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-32-0-to-1-33-0/pass-complete",
+    "ruleId": "kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-32-0-to-1-33-0"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_FACT_UNAVAILABLE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.32.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [
+              {
+                "id": "component.kubernetes.selfsubjectreview_v1beta1_removed_gvk_present",
+                "state": "missing"
+              }
+            ],
+            "version": "1.33.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-32-0-to-1-33-0/unknown-incomplete",
+    "ruleId": "kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-32-0-to-1-33-0"
+  },
+  {
+    "expect": {
+      "reasonCode": "KUBERNETES_SERVED_API_REMOVED",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
             "version": "1.24.0"
           }
         ]

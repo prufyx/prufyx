@@ -382,3 +382,31 @@ func TestK8sRemovedAPIs122ExtensionsIngressOtherVersion(t *testing.T) {
 	wantUnsupported(t, facts, k8sFact122("ingress_extensions_v1beta1"))
 	wantBool(t, facts, k8sFact122("ingress_networking_v1beta1"), false)
 }
+
+// The 1.33, 1.34 and 1.37 removals: a document at the removed version is a
+// witness, one at the served version is absent, and an unreviewed version of
+// the same group and kind leaves just that fact undecidable.
+func TestK8sRemovedAPIsLaterLines(t *testing.T) {
+	cases := []struct {
+		from, to, group, fact string
+		kinds                 []string
+	}{
+		{"1.32.0", "1.33.0", "authentication.k8s.io", "component.kubernetes.selfsubjectreview_v1beta1_removed_gvk_present", []string{"SelfSubjectReview"}},
+		{"1.33.0", "1.34.0", "admissionregistration.k8s.io", "component.kubernetes.validatingadmissionpolicy_v1beta1_removed_gvk_present", []string{"ValidatingAdmissionPolicy", "ValidatingAdmissionPolicyBinding"}},
+		{"1.36.0", "1.37.0", "networking.k8s.io", "component.kubernetes.ipaddress_servicecidr_v1beta1_removed_gvk_present", []string{"IPAddress", "ServiceCIDR"}},
+		{"1.36.0", "1.37.0", "storage.k8s.io", "component.kubernetes.volumeattributesclass_v1beta1_removed_gvk_present", []string{"VolumeAttributesClass"}},
+	}
+	for _, tc := range cases {
+		if !containsString(KubernetesRemovedAPIFacts(tc.from, tc.to), tc.fact) || !containsString(KubernetesRemovedAPIAllFacts(), tc.fact) {
+			t.Fatalf("%s not emitted for %s -> %s", tc.fact, tc.from, tc.to)
+		}
+		for _, kind := range tc.kinds {
+			facts := k8sProposedFacts(t, prepareK8s(t, k8sList(k8sDoc(tc.group+"/v1beta1", kind)), tc.from, tc.to, true))
+			wantBool(t, facts, tc.fact, true)
+			facts = k8sProposedFacts(t, prepareK8s(t, k8sList(k8sDoc(tc.group+"/v1", kind)), tc.from, tc.to, true))
+			wantBool(t, facts, tc.fact, false)
+			facts = k8sProposedFacts(t, prepareK8s(t, k8sList(k8sDoc(tc.group+"/v1alpha1", kind)), tc.from, tc.to, true))
+			wantUnsupported(t, facts, tc.fact)
+		}
+	}
+}

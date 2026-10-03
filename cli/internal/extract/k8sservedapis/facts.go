@@ -67,6 +67,10 @@ var adapterFacts = []adapterFact{
 	{27, "storage.k8s.io", "v1beta1", []string{"CSIStorageCapacity"}, factPrefix + "csistoragecapacity_v1beta1_removed_gvk_present", "csistoragecapacity"},
 	{29, "flowcontrol.apiserver.k8s.io", "v1beta2", []string{"FlowSchema", "PriorityLevelConfiguration"}, factPrefix + "flowcontrol_v1beta2_removed_gvk_present", "flowcontrol"},
 	{32, "flowcontrol.apiserver.k8s.io", "v1beta3", []string{"FlowSchema", "PriorityLevelConfiguration"}, factPrefix + "flowcontrol_v1beta3_removed_gvk_present", "flowcontrol"},
+	{33, "authentication.k8s.io", "v1beta1", []string{"SelfSubjectReview"}, factPrefix + "selfsubjectreview_v1beta1_removed_gvk_present", "selfsubjectreview"},
+	{34, "admissionregistration.k8s.io", "v1beta1", []string{"ValidatingAdmissionPolicy", "ValidatingAdmissionPolicyBinding"}, factPrefix + "validatingadmissionpolicy_v1beta1_removed_gvk_present", "validatingadmissionpolicy"},
+	{37, "networking.k8s.io", "v1beta1", []string{"IPAddress", "ServiceCIDR"}, factPrefix + "ipaddress_servicecidr_v1beta1_removed_gvk_present", "ipaddress"},
+	{37, "storage.k8s.io", "v1beta1", []string{"VolumeAttributesClass"}, factPrefix + "volumeattributesclass_v1beta1_removed_gvk_present", "volumeattributesclass"},
 }
 
 // factFor returns the adapter fact covering kind of group/version removed at

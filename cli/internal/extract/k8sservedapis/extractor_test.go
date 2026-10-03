@@ -97,7 +97,7 @@ func TestFixtureRemovalsAcrossEras(t *testing.T) {
 		{"v1.25.0", extract.PairDerived, []string{"autoscaling/v2beta1:HorizontalPodAutoscaler", "batch/v1beta1:CronJob", "policy/v1beta1:PodDisruptionBudget,PodSecurityPolicy"}, 4},
 		{"v1.31.0", extract.PairDerived, nil, 0},
 		{"v1.32.0", extract.PairDerived, []string{"flowcontrol.apiserver.k8s.io/v1beta3:FlowSchema,PriorityLevelConfiguration"}, 1},
-		{"v1.33.0", extract.PairDerived, []string{"authentication.k8s.io/v1beta1:SelfSubjectReview"}, 0},
+		{"v1.33.0", extract.PairDerived, []string{"authentication.k8s.io/v1beta1:SelfSubjectReview"}, 1},
 	} {
 		p := pairTo(t, out, w.to)
 		proof := proofOf(t, p)
@@ -122,7 +122,7 @@ func TestFixtureRemovalsAcrossEras(t *testing.T) {
 		}
 	}
 	p33 := proofOf(t, pairTo(t, out, "v1.33.0"))
-	if !slices.Equal(p33.Removals[0].NoFactKinds, []string{"SelfSubjectReview"}) || p33.Removals[0].Replacements[0] != "v1" {
+	if len(p33.Removals[0].NoFactKinds) != 0 || len(p33.Removals[0].Facts) != 1 || p33.Removals[0].Replacements[0] != "v1" {
 		t.Fatalf("1.33: %+v", p33.Removals[0])
 	}
 	p32 := proofOf(t, pairTo(t, out, "v1.32.0"))
@@ -295,6 +295,14 @@ func kindsOf(desc string) []string {
 	return strings.Split(list, ", ")
 }
 
+// unpublishedRemovalFacts are adapter facts with no rule in the published pack.
+var unpublishedRemovalFacts = []string{
+	"component.kubernetes.selfsubjectreview_v1beta1_removed_gvk_present",
+	"component.kubernetes.validatingadmissionpolicy_v1beta1_removed_gvk_present",
+	"component.kubernetes.ipaddress_servicecidr_v1beta1_removed_gvk_present",
+	"component.kubernetes.volumeattributesclass_v1beta1_removed_gvk_present",
+}
+
 // The rules have the shape of the reviewed API-removal rules in the pack:
 // same facts, same ranges and range bases, same anchor, for the rules both
 // derive.
@@ -319,6 +327,11 @@ func TestRulesHaveTheReviewedShape(t *testing.T) {
 	for _, e := range fixtureOutput(t).Entries {
 		rev, ok := byFact[e.Rule.Condition.FactID]
 		if !ok {
+			// Facts the adapter derives but the published pack carries no
+			// rule for yet have nothing to compare against.
+			if slices.Contains(unpublishedRemovalFacts, e.Rule.Condition.FactID) {
+				continue
+			}
 			t.Fatalf("%s: fact %s is not a reviewed removal fact", e.Rule.ID, e.Rule.Condition.FactID)
 		}
 		a, b := e.Rule, rev.Rule
@@ -356,7 +369,7 @@ func TestFactsMatchTheAdapter(t *testing.T) {
 	if all := cncfprepare.KubernetesRemovedAPIAllFacts(); !slices.Equal(ours, all) {
 		t.Fatalf("extractor facts %v, adapter facts %v", ours, all)
 	}
-	for line := 22; line <= 32; line++ {
+	for line := 22; line <= 37; line++ {
 		var mine []string
 		for _, f := range AdapterFacts() {
 			if f.Line == line && line != 32 {

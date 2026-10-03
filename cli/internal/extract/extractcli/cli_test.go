@@ -69,7 +69,7 @@ func TestServedAPIRunVerifyOracleOnFixture(t *testing.T) {
 	const id, fx = "k8s.served-api-removal", "../k8sservedapis/testdata/fixture"
 	dir := filepath.Join(t.TempDir(), "out")
 	code, out, errs := run("run", "--extractor", id, "--fixture", fx, "--out", dir, "--derived-at", "2026-10-03T00:00:00Z")
-	if code != 0 || !strings.Contains(out, "4 pairs (4 derived, 0 withheld), 5 rules, 15 vectors") {
+	if code != 0 || !strings.Contains(out, "4 pairs (4 derived, 0 withheld), 6 rules, 18 vectors") {
 		t.Fatalf("run: %d %s %s", code, out, errs)
 	}
 	if code, out, errs := run("verify", "--extractor", id, "--fixture", fx, "--out", dir); code != 0 || !strings.Contains(out, "byte-identical") {
