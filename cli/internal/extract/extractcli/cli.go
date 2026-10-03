@@ -21,6 +21,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/k8sfeaturegates"
+	"github.com/prufyx/prufyx/cli/internal/extract/k8sservedapis"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/factorymirror"
 )
 
@@ -48,6 +49,12 @@ func Catalog() map[string]Spec {
 			Repo:   k8sfeaturegates.Repo,
 			New:    func(c int) extract.Extractor { return k8sfeaturegates.New(c) },
 			Oracle: k8sfeaturegates.Oracle,
+		},
+		k8sservedapis.ID: {
+			ID:     k8sservedapis.ID,
+			Repo:   k8sservedapis.Repo,
+			New:    func(c int) extract.Extractor { return k8sservedapis.New(c) },
+			Oracle: k8sservedapis.Oracle,
 		},
 	}
 }
