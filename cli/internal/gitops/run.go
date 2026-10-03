@@ -8,39 +8,63 @@ import (
 )
 
 func (a *analysis) run() Repo {
+	repo := Repo{Gaps: append([]Gap(nil), a.repoGaps...)}
 	var candidates []*docRef
 	for _, d := range a.docs {
-		if isFluxKustomization(d) || isArgoApplication(d) {
+		if d.kind == kindFlux || d.kind == kindArgo {
 			candidates = append(candidates, d)
 		}
 	}
-	// First pass: find which candidates sit inside another candidate's
-	// closure. Only the others are roots.
-	inside := map[skey]bool{}
+	// Discovery: find which candidates sit inside another candidate's
+	// closure; only the others are roots. It has its own budget, so a
+	// costly search never leaves the environments without work.
+	disc := &budget{limit: discoveryBudget}
+	a.disc = disc
+	inside := map[int]bool{}
+	whole := map[int]bool{}
 	for _, c := range candidates {
-		w := newWalker(a, c)
+		w := newWalker(a, c, disc, true)
+		if c.kind == kindFlux {
+			if s := w.fluxOf(c); s.fatal == nil && s.wholeRepo && !s.bootstrap {
+				// Applies the whole repository: not a root, and it does not
+				// make the real roots inside it.
+				whole[c.id] = true
+				continue
+			}
+		}
+		if disc.out {
+			break
+		}
 		w.walk()
 		for k := range w.reached {
 			inside[k] = true
 		}
 	}
+	if disc.out {
+		repo.Gaps = append(repo.Gaps, Gap{ClosureLimit, intakeNone(), "work limit reached while finding environment roots; some environments may belong inside others"})
+	}
 	var roots []*docRef
 	for _, c := range candidates {
-		if !inside[c.key] {
+		switch {
+		case inside[c.id]:
+		case whole[c.id]:
+			repo.Gaps = append(repo.Gaps, Gap{ConstructNotEvaluated, c.doc.Source, "a Kustomization that applies the whole repository is not an environment root; only the Flux bootstrap object flux-system is"})
+		default:
 			roots = append(roots, c)
 		}
 	}
-	repo := Repo{Gaps: append([]Gap(nil), a.repoGaps...)}
 	if len(roots) > MaxEnvironments {
 		repo.Gaps = append(repo.Gaps, Gap{ClosureLimit, roots[MaxEnvironments].doc.Source, "more than 256 environments; the rest are not listed"})
 		roots = roots[:MaxEnvironments]
 	}
-	covered := map[skey]bool{}
+	work := &budget{limit: workBudget}
+	a.work = work
+	covered := make([]bool, len(a.docs))
 	for _, r := range roots {
-		w := newWalker(a, r)
+		w := newWalker(a, r, work, false)
 		w.walk()
-		for k := range w.seen {
-			covered[k] = true
+		for i, seen := range w.seen {
+			covered[i] = covered[i] || seen
 		}
 		repo.Environments = append(repo.Environments, Environment{
 			Name: envName(r), Root: r.doc.Source, Releases: w.rels, Images: w.imgs, Gaps: w.gaps,
@@ -56,23 +80,23 @@ func (a *analysis) run() Repo {
 	orphans := map[string]bool{}
 	for _, d := range a.docs {
 		switch {
-		case d.doc.Kind == "ApplicationSet" && d.group() == "argoproj.io":
+		case d.kind == kindAppSet:
 			repo.Gaps = append(repo.Gaps, Gap{GeneratedApplicationsNotEvaluated, d.doc.Source, "ApplicationSet generates Applications that are not evaluated"})
-		case covered[d.key]:
-		case isFluxKustomization(d) || isArgoApplication(d):
-			if !inside[d.key] {
+		case covered[d.id]:
+		case d.kind == kindFlux || d.kind == kindArgo:
+			if !inside[d.id] {
 				continue
 			}
 			repo.Gaps = append(repo.Gaps, Gap{ClosureLimit, d.doc.Source, "not reachable from any root; possible cycle"})
-		case d.doc.Kind == KindHelmRelease && d.group() == "helm.toolkit.fluxcd.io", d.aux && path.Base(d.rel) == "Chart.yaml":
+		case d.kind == kindHelmRelease, d.kind == kindChart:
 			if !orphans[d.rel] {
 				orphans[d.rel] = true
 				repo.Gaps = append(repo.Gaps, Gap{SourceNotFound, d.doc.Source, "not reachable from any environment root"})
 			}
 		}
 	}
-	if a.exhausted {
-		repo.Gaps = append(repo.Gaps, Gap{ClosureLimit, intakeNone(), "work limit reached; the result is incomplete"})
+	if work.out {
+		repo.Gaps = append(repo.Gaps, Gap{ClosureLimit, intakeNone(), "work limit reached while reading environments; the result is incomplete"})
 	}
 	repo.Gaps = sortGaps(repo.Gaps)
 	if len(repo.Gaps) > MaxGaps {
@@ -93,7 +117,7 @@ func sortedKeys[V any](m map[string]V) []string {
 // envName names an environment after its root: the path a Flux Kustomization
 // manages, or the namespace and name of an Argo CD Application.
 func envName(r *docRef) string {
-	if isFluxKustomization(r) {
+	if r.kind == kindFlux {
 		p := asStr(asMap(r.doc.Value["spec"])["path"])
 		p = path.Clean("/" + p)[1:]
 		if p == "" {

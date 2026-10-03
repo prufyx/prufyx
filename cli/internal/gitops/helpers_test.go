@@ -45,6 +45,7 @@ func memory(t *testing.T, files map[string]string) intake.Workspace {
 		all.Documents = append(all.Documents, w.Documents...)
 		all.Omissions = append(all.Omissions, w.Omissions...)
 		all.Auxiliary = append(all.Auxiliary, w.Auxiliary...)
+		all.Encrypted = append(all.Encrypted, w.Encrypted...)
 		all.Files = append(all.Files, intake.FileRecord{Display: "repo/" + name})
 	}
 	return all

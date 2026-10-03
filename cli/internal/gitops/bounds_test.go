@@ -111,7 +111,7 @@ func TestWorkBudget(t *testing.T) {
 	workBudget = 50
 	var ws intake.Workspace
 	for i := 0; i < 20; i++ {
-		ws.Documents = append(ws.Documents, flux(fmt.Sprintf("repo/k%02d.yaml", i), 0, fmt.Sprintf("k%02d", i), "./"))
+		ws.Documents = append(ws.Documents, flux(fmt.Sprintf("repo/k%02d.yaml", i), 0, fmt.Sprintf("k%02d", i), "./a"))
 	}
 	for i := 0; i < 100; i++ {
 		ws.Documents = append(ws.Documents, release(fmt.Sprintf("repo/a/r%03d.yaml", i), 0, fmt.Sprintf("r%03d", i)))
@@ -120,10 +120,16 @@ func TestWorkBudget(t *testing.T) {
 	if !hasGap(repo.Gaps, ClosureLimit, "work limit") {
 		t.Fatalf("gaps = %+v", repo.Gaps)
 	}
+	if len(repo.Environments) != 20 {
+		t.Fatalf("environments = %v", envNames(repo))
+	}
 	for _, e := range repo.Environments {
 		if !hasGap(e.Gaps, ClosureLimit, "work limit") && len(e.Releases) < 100 {
 			t.Fatalf("%s is silently incomplete", e.Name)
 		}
+	}
+	if last := repo.Environments[19]; !hasGap(last.Gaps, ClosureLimit, "before this environment was read") {
+		t.Fatalf("last environment gaps = %+v", last.Gaps)
 	}
 }
 

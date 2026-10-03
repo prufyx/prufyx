@@ -47,6 +47,7 @@ func FuzzGitops(f *testing.F) {
 			ws.Documents = append(ws.Documents, w.Documents...)
 			ws.Omissions = append(ws.Omissions, w.Omissions...)
 			ws.Auxiliary = append(ws.Auxiliary, w.Auxiliary...)
+			ws.Encrypted = append(ws.Encrypted, w.Encrypted...)
 			ws.Files = append(ws.Files, intake.FileRecord{Display: name})
 		}
 		repo := Analyze(ws, Options{Root: "repo", SelfRepoURLs: []string{"https://example.test/r"}})

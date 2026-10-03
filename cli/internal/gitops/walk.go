@@ -10,598 +10,663 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/intake"
 )
 
-// maxValuesText bounds an inline Argo CD helm.values text that is parsed.
-const maxValuesText = 64 << 10
-
-type fluxRef struct{ kind, ns, name string }
-
-func (r fluxRef) key() string { return sourceKey(r.kind, r.ns, r.name) }
-
-type relMeta struct {
-	objName, objNs string
-	ref            fluxRef // Flux source of a HelmRelease; zero otherwise
-	chartRef       bool    // the chart comes from an OCIRepository
+// budget is a work budget shared by the walks of one pass.
+type budget struct {
+	used, limit int
+	out         bool
 }
 
-// walker is the closure of one root object.
+// relEntry is a release collected by a walk. It points at the shared parse
+// and holds only what differs per environment; finish turns it into a
+// Release.
+type relEntry struct {
+	base    *Release
+	hr      *docRef // the HelmRelease document; nil for other kinds
+	ns      string  // namespace of the object after transformers
+	version string  // chart version after patches
+	owner   int     // the object that collected the release
+}
+
+type visitKey struct {
+	dir     string
+	recurse bool
+}
+
+// walker is the closure of one root object. In discover mode it only follows
+// references to find which roots lie inside other roots: it reads no release,
+// image or value and reports no gap.
 type walker struct {
-	a        *analysis
-	root     *docRef
-	own      string
-	dirStack map[string]bool
-	visited  map[string]bool
-	objStack map[skey]bool
-	seen     map[skey]bool
-	reached  map[skey]bool
-	rels     []Release
-	metas    []relMeta
-	imgs     []ImagePin
-	gaps     []Gap
-	srcs     map[string][]*docRef
-	relFull  bool
-	imgFull  bool
-	gapFull  bool
-	stopped  bool
+	a         *analysis
+	b         *budget
+	discover  bool
+	root      *docRef
+	own       string
+	at        string // what is being read, for the work-limit gap
+	charged   bool
+	dirStack  map[string]bool // true: entered through a reference
+	visited   map[visitKey]bool
+	doneFiles map[string]bool
+	objStack  map[int]bool
+	seen      []bool // by document id
+	reached   map[int]bool
+	entries   []relEntry
+	rels      []Release
+	imgs      []ImagePin
+	gaps      []Gap
+	srcs      map[string][]*docRef
+	owner     int
+	nextOwner int
+	scopeNS   string // namespace set by the nearest enclosing transformer
+	relFull   bool
+	imgFull   bool
+	gapFull   bool
+	stopped   bool
 }
 
-func newWalker(a *analysis, root *docRef) *walker {
-	return &walker{a: a, root: root, dirStack: map[string]bool{}, visited: map[string]bool{}, objStack: map[skey]bool{},
-		seen: map[skey]bool{}, reached: map[skey]bool{}, srcs: map[string][]*docRef{}}
-}
-
-func isFluxKustomization(d *docRef) bool {
-	return !d.aux && d.doc.Kind == "Kustomization" && d.group() == "kustomize.toolkit.fluxcd.io"
-}
-
-func isArgoApplication(d *docRef) bool {
-	return !d.aux && d.doc.Kind == "Application" && d.group() == "argoproj.io"
+func newWalker(a *analysis, root *docRef, b *budget, discover bool) *walker {
+	return &walker{a: a, b: b, discover: discover, root: root, at: root.rel,
+		dirStack: map[string]bool{}, visited: map[visitKey]bool{}, doneFiles: map[string]bool{}, objStack: map[int]bool{},
+		seen: make([]bool, len(a.docs)), reached: map[int]bool{}, srcs: map[string][]*docRef{}}
 }
 
 func (w *walker) gap(reason string, src intake.Source, detail string) {
+	w.addGap(Gap{reason, src, clip(detail)})
+}
+
+func (w *walker) addGap(g Gap) {
+	if w.discover {
+		return
+	}
 	if len(w.gaps) >= MaxGaps {
 		if !w.gapFull {
 			w.gapFull = true
-			w.gaps = append(w.gaps, Gap{ClosureLimit, src, "more than 4096 gaps; the rest are not listed"})
+			w.gaps = append(w.gaps, Gap{ClosureLimit, g.Source, "more than 4096 gaps; the rest are not listed"})
 		}
 		return
 	}
-	w.gaps = append(w.gaps, Gap{reason, src, clip(detail)})
+	w.gaps = append(w.gaps, g)
 }
 
-// step charges one unit of the shared work budget.
-func (w *walker) step() bool {
+// addGaps reports the gaps a parse found, one step each.
+func (w *walker) addGaps(gaps []Gap) {
+	if w.discover {
+		return
+	}
+	for _, g := range gaps {
+		if !w.charge(1) {
+			return
+		}
+		w.addGap(g)
+	}
+}
+
+// charge takes n steps from the budget of this pass. When the budget is used
+// up the walk stops and says where.
+func (w *walker) charge(n int) bool {
 	if w.stopped {
 		return false
 	}
-	w.a.steps++
-	if w.a.steps > workBudget {
-		w.a.exhausted = true
+	first := !w.charged
+	w.charged = true
+	if w.b.out && first {
 		w.stopped = true
-		w.gap(ClosureLimit, w.root.doc.Source, "work limit reached; the environment is incomplete")
+		w.gap(ClosureLimit, w.root.doc.Source, "work limit reached before this environment was read; it is not evaluated")
+		return false
+	}
+	w.b.used += n
+	if w.b.used > w.b.limit {
+		w.b.out = true
+		w.stopped = true
+		w.gap(ClosureLimit, w.root.doc.Source, "work limit reached while reading "+w.at+"; the rest of this environment is not evaluated")
 		return false
 	}
 	return true
 }
 
+// The parsed form of a document is computed once, on first use, and charged
+// to the pass that needs it first.
+
+func (w *walker) kustOf(d *docRef) *kustSpec {
+	if d.kustP == nil {
+		s, cost := w.a.parseKust(d)
+		d.kustP = s
+		w.charge(cost)
+	}
+	return d.kustP
+}
+
+func (w *walker) fluxOf(d *docRef) *fluxSpec {
+	if d.fluxP == nil {
+		s, cost := w.a.parseFlux(d)
+		d.fluxP = s
+		w.charge(cost)
+	}
+	return d.fluxP
+}
+
+func (w *walker) argoOf(d *docRef) *argoSpec {
+	if d.argoP == nil {
+		s, cost := w.a.parseArgo(d)
+		d.argoP = s
+		w.charge(cost)
+	}
+	return d.argoP
+}
+
+func (w *walker) hrOf(d *docRef) *hrSpec {
+	if d.hrP == nil {
+		s, cost := w.a.parseHelmRelease(d)
+		d.hrP = s
+		w.charge(cost)
+	}
+	return d.hrP
+}
+
+func (w *walker) imagesOf(d *docRef) *imageSpec {
+	if d.imgP == nil {
+		s, cost := parseWorkload(d)
+		d.imgP = s
+		w.charge(cost)
+	}
+	return d.imgP
+}
+
+func (w *walker) chartOf(d *docRef) *chartSpec {
+	if d.chartP == nil {
+		s, cost := w.a.parseChart(d)
+		d.chartP = s
+		w.charge(cost)
+	}
+	return d.chartP
+}
+
+// nsOf is the namespace of d after the namespace transformers around it.
+func (w *walker) nsOf(d *docRef) string {
+	if w.scopeNS != "" {
+		return w.scopeNS
+	}
+	return d.doc.Namespace
+}
+
 func (w *walker) walk() {
-	w.seen[w.root.key] = true
-	if isFluxKustomization(w.root) {
+	w.seen[w.root.id] = true
+	if w.root.kind == kindFlux {
 		w.flux(w.root, 0)
 	} else {
 		w.argo(w.root, 0)
 	}
-	w.finish()
+	if !w.discover {
+		w.finish()
+	}
+}
+
+// enter starts a new object scope: patches and namespace transformers of an
+// object apply only to what it collected itself.
+func (w *walker) enter(ns string) (int, string) {
+	owner, scope := w.owner, w.scopeNS
+	w.nextOwner++
+	w.owner, w.scopeNS = w.nextOwner, ns
+	return owner, scope
 }
 
 func (w *walker) flux(d *docRef, hops int) {
-	w.seen[d.key] = true
+	w.seen[d.id] = true
 	if d != w.root {
-		w.reached[d.key] = true
+		w.reached[d.id] = true
 	}
-	if w.objStack[d.key] {
+	if w.objStack[d.id] {
 		return
 	}
-	spec := asMap(d.doc.Value["spec"])
-	ref := asMap(spec["sourceRef"])
-	r := fluxRef{asStr(ref["kind"]), asStr(ref["namespace"]), asStr(ref["name"])}
-	if r.ns == "" {
-		r.ns = d.doc.Namespace
-	}
-	if r.kind == "" || r.name == "" {
-		w.gap(SourceNotFound, d.doc.Source, "spec.sourceRef is missing")
+	s := w.fluxOf(d)
+	src := d.doc.Source
+	if s.fatal != nil {
+		w.addGap(*s.fatal)
 		return
+	}
+	ref := s.ref
+	if !s.refNsSet {
+		ref.ns = w.nsOf(d)
 	}
 	if d == w.root {
-		if r.kind != "GitRepository" {
-			w.gap(RemoteReferenceNotResolved, d.doc.Source, "root sourceRef is a "+r.kind+", not a GitRepository")
+		if ref.kind != "GitRepository" {
+			w.gap(RemoteReferenceNotResolved, src, "root sourceRef is a "+ref.kind+", not a GitRepository")
 			return
 		}
-		w.own = r.key()
-		if len(w.a.self) > 0 {
-			if docs := w.a.sources[r.key()]; len(docs) == 1 && !w.a.isSelf(asStr(get(docs[0].doc.Value, "spec", "url"))) {
-				w.gap(RemoteReferenceNotResolved, d.doc.Source, "GitRepository "+r.key()+" is not this repository")
-				return
-			}
-		}
-	} else if r.key() != w.own {
-		w.gap(RemoteReferenceNotResolved, d.doc.Source, "sourceRef "+r.key()+" is not the source of the root")
-		return
-	}
-	p := "./"
-	if v, present := spec["path"]; present {
-		s, ok := v.(string)
-		if !ok {
-			w.gap(SourceNotFound, d.doc.Source, "spec.path is not a string")
+		w.own = ref.key()
+		if len(w.a.self) > 0 && !w.ownIsSelf(ref) {
 			return
 		}
-		if s != "" {
-			p = s
-		}
-	}
-	dir, reason, detail := w.a.resolve(".", p)
-	if reason != "" {
-		w.gap(reason, d.doc.Source, detail)
+	} else if ref.key() != w.own {
+		w.gap(RemoteReferenceNotResolved, src, "sourceRef "+ref.key()+" is not the source of the root")
 		return
 	}
-	w.objStack[d.key] = true
-	from := len(w.rels)
-	w.visitDir(dir, hops+1)
-	delete(w.objStack, d.key)
-	w.applyImages(asList(spec["images"]), d.doc.Source)
-	w.applyPatches(asList(spec["patches"]), from, d.doc.Source)
-	if len(asList(spec["patchesStrategicMerge"])) > 0 || len(asList(spec["patchesJson6902"])) > 0 {
-		w.gap(PatchNotEvaluated, d.doc.Source, "patchesStrategicMerge and patchesJson6902 are not evaluated")
+	if s.dir.reason != "" {
+		w.gap(s.dir.reason, src, s.dir.detail)
+		return
+	}
+	if s.wholeRepo && !s.bootstrap {
+		w.gap(ConstructNotEvaluated, src, "a Kustomization that applies the whole repository is followed only for the Flux bootstrap object flux-system")
+		return
+	}
+	w.objStack[d.id] = true
+	owner, scope := w.enter(s.targetNS)
+	from := len(w.entries)
+	w.visitDir(s.dir.path, hops+1, true, true)
+	for _, c := range s.components {
+		if !w.charge(1) {
+			break
+		}
+		w.follow(c, src, hops)
+	}
+	if !w.discover && !w.stopped {
+		w.addGaps(s.gaps)
+		w.addImages(s.images)
+		w.applyPatches(s.patches, from, src)
+	}
+	w.owner, w.scopeNS = owner, scope
+	delete(w.objStack, d.id)
+}
+
+// ownIsSelf checks every definition of the root's GitRepository against
+// SelfRepoURLs; none, or one that does not match, stops the walk.
+func (w *walker) ownIsSelf(ref fluxRef) bool {
+	src := w.root.doc.Source
+	docs := w.a.sources[ref.key()]
+	if len(docs) == 0 {
+		w.gap(RemoteReferenceNotResolved, src, "GitRepository "+ref.key()+" is not in the input; it cannot be matched to this repository")
+		return false
+	}
+	for _, d := range docs {
+		if !w.charge(1) {
+			return false
+		}
+		if !w.a.isSelf(asStr(get(d.doc.Value, "spec", "url"))) {
+			w.gap(RemoteReferenceNotResolved, src, "GitRepository "+ref.key()+" is not this repository")
+			return false
+		}
+	}
+	return true
+}
+
+// follow goes to a resolved reference: a file or a directory.
+func (w *walker) follow(t target, src intake.Source, hops int) {
+	switch {
+	case t.reason != "":
+		w.gap(t.reason, src, t.detail)
+	case w.a.files[t.path]:
+		w.resourceFile(t.path, hops)
+	default:
+		w.visitDir(t.path, hops+1, true, true)
 	}
 }
 
-func (w *walker) visitDir(dir string, hops int) {
-	if !w.step() {
+func (w *walker) visitDir(dir string, hops int, recurse, byRef bool) {
+	if !w.charge(1) {
 		return
 	}
+	w.at = dir
+	src := w.root.doc.Source
 	if hops > MaxDepth {
-		w.gap(ClosureLimit, w.root.doc.Source, "references nested deeper than 32 levels at "+clip(dir))
+		w.gap(ClosureLimit, src, "references nested deeper than 32 levels at "+dir)
 		return
 	}
-	if w.dirStack[dir] {
-		w.gap(ClosureLimit, w.root.doc.Source, "reference cycle at "+clip(dir))
+	if viaRef, on := w.dirStack[dir]; on {
+		if viaRef {
+			w.gap(ClosureLimit, src, "reference cycle at "+dir)
+		} else {
+			w.gap(ClosureLimit, src, dir+" is referenced while it is read through a parent directory; it is read once")
+		}
 		return
 	}
-	if w.visited[dir] {
+	if w.visited[visitKey{dir, recurse}] || w.visited[visitKey{dir, true}] {
 		return
 	}
 	if !w.a.dirs[dir] {
-		w.gap(SourceNotFound, w.root.doc.Source, w.a.missing(dir))
+		w.gap(SourceNotFound, src, w.a.missing(dir))
 		return
 	}
-	w.visited[dir] = true
-	w.dirStack[dir] = true
+	w.visited[visitKey{dir, recurse}] = true
+	w.dirStack[dir] = byRef
 	defer delete(w.dirStack, dir)
 	if k := w.a.kust[dir]; k != nil {
-		if src, multi := w.a.kustMulti[dir]; multi {
-			w.gap(SourceNotFound, src, "more than one kustomization file in a directory")
+		if first, multi := w.a.kustMulti[dir]; multi {
+			w.gap(SourceNotFound, first, "more than one kustomization file in a directory")
 		}
 		w.kustomization(k, dir, hops)
 		return
 	}
-	for _, f := range w.a.encByDir[dir] {
-		w.gap(Encrypted, w.a.enc[f], "SOPS-encrypted document skipped")
+	if names := w.a.kustFiles[dir]; len(names) > 0 {
+		// A kustomization file that intake could not keep (template syntax,
+		// encryption or a shape that is not an object): the directory is not
+		// read as a plain directory, which would collect too much.
+		for _, n := range names {
+			if !w.charge(1) {
+				return
+			}
+			w.fileGaps(path.Join(dir, n))
+		}
+		w.gap(SourceNotFound, src, "the kustomization file in "+dir+" was not read; the directory is not evaluated")
+		return
 	}
-	for _, o := range w.a.omitByDir[dir] {
-		w.gap(SourceNotFound, o.Source, "document with template syntax was not read")
+	if _, chart := w.a.chartDocs[dir]; chart {
+		w.chartDir(dir, hops)
+		return
 	}
-	for _, d := range w.a.byDir[dir] {
+	if !w.discover {
+		for _, f := range w.a.encByDir[dir] {
+			if !w.charge(1) {
+				return
+			}
+			w.gap(Encrypted, w.a.enc[f], "SOPS-encrypted document skipped")
+		}
+		for _, o := range w.a.omitByDir[dir] {
+			if !w.charge(1) {
+				return
+			}
+			w.gap(SourceNotFound, o.Source, "document with template syntax was not read")
+		}
+	}
+	docs := w.a.byDir[dir]
+	if w.discover {
+		docs = w.a.candDir[dir]
+	}
+	for _, d := range docs {
 		w.handle(d, hops)
 		if w.stopped {
 			return
 		}
 	}
-	for _, sub := range w.a.subdirs[dir] {
-		w.visitDir(sub, hops)
+	if recurse {
+		for _, sub := range w.a.subdirs[dir] {
+			w.visitDir(sub, hops, true, false)
+			if w.stopped {
+				return
+			}
+		}
+	}
+}
+
+// chartDir reads a local Helm chart: its Chart.yaml only. The chart is not
+// rendered, so its templates are not read.
+func (w *walker) chartDir(dir string, hops int) {
+	if w.discover {
+		return
+	}
+	for _, d := range w.a.chartDocs[dir] {
+		w.handle(d, hops)
 		if w.stopped {
 			return
 		}
+	}
+	w.fileGaps(path.Join(dir, "Chart.yaml"))
+	if w.a.chartExtra[dir] {
+		w.gap(ConstructNotEvaluated, w.root.doc.Source, "the local Helm chart in "+dir+" is not rendered; its templates are not read")
+	}
+}
+
+// fileGaps reports an encrypted file and the documents of a file that intake
+// left out because of template syntax.
+func (w *walker) fileGaps(f string) {
+	if w.discover {
+		return
+	}
+	if src, enc := w.a.enc[f]; enc {
+		if !w.charge(1) {
+			return
+		}
+		w.gap(Encrypted, src, "SOPS-encrypted document skipped")
+	}
+	for _, o := range w.a.omitByFile[f] {
+		if !w.charge(1) {
+			return
+		}
+		w.gap(SourceNotFound, o.Source, "document with template syntax was not read")
 	}
 }
 
 func (w *walker) kustomization(k *docRef, dir string, hops int) {
-	w.seen[k.key] = true
-	v := k.doc.Value
-	from := len(w.rels)
-	var entries []any
-	for _, name := range []string{"resources", "bases", "components"} {
-		entries = append(entries, asList(v[name])...)
+	w.seen[k.id] = true
+	s := w.kustOf(k)
+	scope := w.scopeNS
+	if s.ns != "" && w.scopeNS == "" {
+		// An outer namespace transformer runs later and wins.
+		w.scopeNS = s.ns
 	}
-	for _, e := range entries {
-		r, ok := e.(string)
-		if !ok {
-			w.gap(SourceNotFound, k.doc.Source, "a resource entry is not a string")
-			continue
+	from := len(w.entries)
+	for _, e := range s.entries {
+		if !w.charge(1) {
+			break
 		}
-		w.resource(k, dir, r, hops)
+		w.follow(e, k.doc.Source, hops)
+		if w.stopped {
+			break
+		}
+	}
+	if !w.discover && !w.stopped {
+		w.addGaps(s.gaps)
+		w.addImages(s.images)
+		w.applyPatches(s.patches, from, k.doc.Source)
+	}
+	w.scopeNS = scope
+}
+
+// resourceFile reads a file named by a kustomization, once per walk.
+func (w *walker) resourceFile(f string, hops int) {
+	if w.doneFiles[f] {
+		return
+	}
+	w.doneFiles[f] = true
+	w.at = f
+	w.fileGaps(f)
+	docs := w.a.byFile[f]
+	if w.discover {
+		docs = w.a.candFile[f]
+	}
+	for _, d := range docs {
+		w.handle(d, hops)
 		if w.stopped {
 			return
 		}
 	}
-	w.applyImages(asList(v["images"]), k.doc.Source)
-	w.applyPatches(asList(v["patches"]), from, k.doc.Source)
-	if len(asList(v["patchesStrategicMerge"])) > 0 || len(asList(v["patchesJson6902"])) > 0 ||
-		len(asList(v["replacements"])) > 0 || len(asList(v["transformers"])) > 0 {
-		w.gap(PatchNotEvaluated, k.doc.Source, "patchesStrategicMerge, patchesJson6902, replacements and transformers are not evaluated")
-	}
-	if len(asList(v["helmCharts"])) > 0 {
-		w.gap(RemoteReferenceNotResolved, k.doc.Source, "helmCharts are not evaluated")
-	}
-}
-
-func (w *walker) resource(k *docRef, dir, ref string, hops int) {
-	resolved, reason, detail := w.a.resolve(dir, ref)
-	if reason != "" {
-		w.gap(reason, k.doc.Source, detail)
-		return
-	}
-	switch {
-	case w.a.files[resolved]:
-		if src, enc := w.a.enc[resolved]; enc {
-			w.gap(Encrypted, src, "SOPS-encrypted document skipped")
-		}
-		for _, o := range w.a.omitByDir[path.Dir(resolved)] {
-			if w.a.relOf(o.Source.Display) == resolved {
-				w.gap(SourceNotFound, o.Source, "document with template syntax was not read")
-			}
-		}
-		for _, d := range w.a.byDir[path.Dir(resolved)] {
-			if d.rel == resolved {
-				w.handle(d, hops)
-			}
-		}
-	case w.a.dirs[resolved]:
-		w.visitDir(resolved, hops+1)
-	default:
-		w.gap(SourceNotFound, k.doc.Source, w.a.missing(resolved))
-	}
-}
-
-func (a *analysis) relOf(display string) string {
-	r, _ := a.rel(display)
-	return r
 }
 
 func (w *walker) handle(d *docRef, hops int) {
-	if !w.step() || w.seen[d.key] {
+	if !w.charge(1) || w.seen[d.id] {
 		return
 	}
-	w.seen[d.key] = true
-	switch {
-	case d.aux:
-		if path.Base(d.rel) == "Chart.yaml" {
-			w.chart(d)
-		}
-	case isFluxKustomization(d):
+	w.seen[d.id] = true
+	switch d.kind {
+	case kindFlux:
 		w.flux(d, hops)
-	case isArgoApplication(d):
-		w.reached[d.key] = true
+		return
+	case kindArgo:
+		w.reached[d.id] = true
 		w.argo(d, hops)
-	case d.doc.Kind == "ApplicationSet" && d.group() == "argoproj.io":
+		return
+	}
+	if w.discover {
+		return
+	}
+	switch d.kind {
+	case kindChart:
+		w.chart(d, hops)
+	case kindAppSet:
 		w.gap(GeneratedApplicationsNotEvaluated, d.doc.Source, "ApplicationSet generates Applications that are not evaluated")
-	case d.doc.Kind == KindHelmRelease && d.group() == "helm.toolkit.fluxcd.io":
+	case kindHelmRelease:
 		w.helmRelease(d)
-	case d.group() == "source.toolkit.fluxcd.io":
-		k := sourceKey(d.doc.Kind, d.doc.Namespace, d.doc.Name)
+	case kindSource:
+		k := sourceKey(d.doc.Kind, w.nsOf(d), d.doc.Name)
 		w.srcs[k] = append(w.srcs[k], d)
-	default:
-		w.workload(d)
+	case kindWorkload:
+		s := w.imagesOf(d)
+		w.addGaps(s.gaps)
+		w.addImages(s.pins)
 	}
 }
 
-func (w *walker) addRelease(r Release, m relMeta) {
-	if len(w.rels) >= MaxReleases {
+func (w *walker) addRelease(e relEntry) {
+	if len(w.entries) >= MaxReleases {
 		if !w.relFull {
 			w.relFull = true
-			w.gap(ClosureLimit, r.Source, "more than 4096 releases; the rest are not listed")
+			w.gap(ClosureLimit, e.base.Source, "more than 4096 releases; the rest are not listed")
 		}
 		return
 	}
-	w.rels = append(w.rels, r)
-	w.metas = append(w.metas, m)
+	e.owner = w.owner
+	w.entries = append(w.entries, e)
 }
 
-func (w *walker) addImage(p ImagePin) {
-	if !fits(p.Image, p.Tag, p.Digest) {
-		w.gap(SourceNotFound, p.Source, "image reference longer than 256 bytes")
-		return
-	}
-	if len(w.imgs) >= MaxImages {
-		if !w.imgFull {
-			w.imgFull = true
-			w.gap(ClosureLimit, p.Source, "more than 4096 image pins; the rest are not listed")
+func (w *walker) addImages(pins []ImagePin) {
+	for _, p := range pins {
+		if !w.charge(1) {
+			return
 		}
-		return
+		if len(w.imgs) >= MaxImages {
+			if !w.imgFull {
+				w.imgFull = true
+				w.gap(ClosureLimit, p.Source, "more than 4096 image pins; the rest are not listed")
+			}
+			return
+		}
+		w.imgs = append(w.imgs, p)
 	}
-	w.imgs = append(w.imgs, p)
 }
+
+// maxReleaseName is the longest Helm release name Flux uses unchanged.
+const maxReleaseName = 53
 
 func (w *walker) helmRelease(d *docRef) {
-	spec := asMap(d.doc.Value["spec"])
-	r := Release{Kind: KindHelmRelease, Source: d.doc.Source, Namespace: asStr(spec["targetNamespace"]), ReleaseName: asStr(spec["releaseName"])}
-	if r.Namespace == "" {
-		r.Namespace = d.doc.Namespace
+	s := w.hrOf(d)
+	w.addGaps(s.gaps)
+	if !s.ok {
+		return
 	}
-	if r.ReleaseName == "" {
-		r.ReleaseName = d.doc.Name
-	}
-	meta := relMeta{objName: d.doc.Name, objNs: d.doc.Namespace}
-	ref := func(m map[string]any) fluxRef {
-		f := fluxRef{asStr(m["kind"]), asStr(m["namespace"]), asStr(m["name"])}
-		if f.ns == "" {
-			f.ns = d.doc.Namespace
-		}
-		return f
-	}
-	if chartSpec := asMap(get(spec, "chart", "spec")); chartSpec != nil {
-		r.Chart = asStr(chartSpec["chart"])
-		if v, present := chartSpec["version"]; present {
-			version, ok := scalar(v)
-			if !ok {
-				w.gap(SourceNotFound, d.doc.Source, "spec.chart.spec.version is not a string")
-				return
-			}
-			r.ChartVersion = version
-		}
-		meta.ref = ref(asMap(chartSpec["sourceRef"]))
-		if r.Chart == "" || meta.ref.kind == "" || meta.ref.name == "" {
-			w.gap(SourceNotFound, d.doc.Source, "chart name or sourceRef is missing")
+	w.addRelease(relEntry{base: &s.rel, hr: d, ns: w.nsOf(d), version: s.rel.ChartVersion})
+}
+
+func (w *walker) chart(d *docRef, hops int) {
+	s := w.chartOf(d)
+	w.addGaps(s.gaps)
+	for i, dep := range s.deps {
+		if !w.charge(1) {
 			return
 		}
-	} else if cr := asMap(spec["chartRef"]); cr != nil {
-		meta.ref, meta.chartRef = ref(cr), true
-		if meta.ref.kind != "OCIRepository" || meta.ref.name == "" {
-			w.gap(SourceNotFound, d.doc.Source, "chartRef of kind "+clip(meta.ref.kind)+" is not evaluated")
+		w.addRelease(relEntry{base: &s.deps[i], version: dep.ChartVersion})
+	}
+	for _, t := range s.files {
+		if !w.charge(1) {
 			return
 		}
-	} else {
-		w.gap(SourceNotFound, d.doc.Source, "the chart is not identified")
-		return
-	}
-	if v, present := spec["values"]; present && v != nil {
-		if m := asMap(v); m != nil {
-			r.Values = m
-		} else {
-			w.gap(ValuesFromNotResolved, d.doc.Source, "spec.values is not an object")
+		switch {
+		case t.reason != "":
+			w.gap(t.reason, d.doc.Source, "file:// dependency: "+t.detail)
+		case w.a.files[t.path]:
+			w.gap(SourceNotFound, d.doc.Source, "file:// dependency is not a chart directory: "+t.path)
+		default:
+			w.visitDir(t.path, hops+1, true, true)
 		}
-	}
-	if from := asList(spec["valuesFrom"]); len(from) > 0 {
-		var names []string
-		for _, f := range from {
-			fm := asMap(f)
-			names = append(names, asStr(fm["kind"])+"/"+asStr(fm["name"]))
-			if len(names) == 4 {
-				break
-			}
+		if w.stopped {
+			return
 		}
-		w.gap(ValuesFromNotResolved, d.doc.Source, "valuesFrom: "+strings.Join(names, ", "))
-	}
-	w.addRelease(r, meta)
-}
-
-func (w *walker) workload(d *docRef) {
-	spec := asMap(d.doc.Value["spec"])
-	var pod map[string]any
-	switch d.doc.Kind {
-	case "Pod":
-		pod = spec
-	case "Deployment", "StatefulSet", "DaemonSet", "ReplicaSet", "Job", "ReplicationController":
-		pod = asMap(get(spec, "template", "spec"))
-	case "CronJob":
-		pod = asMap(get(spec, "jobTemplate", "spec", "template", "spec"))
-	default:
-		return
-	}
-	for _, field := range []string{"initContainers", "containers"} {
-		for _, c := range asList(pod[field]) {
-			ref := asStr(asMap(c)["image"])
-			if ref == "" {
-				continue
-			}
-			image, tag, digest, ok := splitImage(ref)
-			if !ok {
-				w.gap(SourceNotFound, d.doc.Source, "image reference is not understood")
-				continue
-			}
-			w.addImage(ImagePin{Image: image, Tag: tag, Digest: digest, Source: d.doc.Source})
-		}
-	}
-}
-
-func (w *walker) chart(d *docRef) {
-	deps := d.doc.Value["dependencies"]
-	if deps == nil {
-		return
-	}
-	list, ok := deps.([]any)
-	if !ok {
-		w.gap(SourceNotFound, d.doc.Source, "dependencies is not a list")
-		return
-	}
-	for _, e := range list {
-		m := asMap(e)
-		name := asStr(m["name"])
-		if name == "" {
-			w.gap(SourceNotFound, d.doc.Source, "a dependency has no name")
-			continue
-		}
-		repo := asStr(m["repository"])
-		if strings.HasPrefix(repo, "file://") {
-			continue // a chart inside this repository; its own Chart.yaml is read
-		}
-		version, _ := scalar(m["version"])
-		release := name
-		if alias := asStr(m["alias"]); alias != "" {
-			release = alias
-		}
-		w.addRelease(Release{Kind: KindChartDependency, Chart: name, ChartVersion: version, RepoURL: repo, ReleaseName: release, Source: d.doc.Source}, relMeta{})
-	}
-}
-
-// applyImages records a kustomize-style images list.
-func (w *walker) applyImages(list []any, src intake.Source) {
-	for _, e := range list {
-		m := asMap(e)
-		image := asStr(m["newName"])
-		if image == "" {
-			image = asStr(m["name"])
-		}
-		if image == "" {
-			w.gap(SourceNotFound, src, "an images entry has no name")
-			continue
-		}
-		tag, _ := scalar(m["newTag"])
-		w.addImage(ImagePin{Image: image, Tag: tag, Digest: asStr(m["digest"]), Source: src})
 	}
 }
 
 func (w *walker) argo(d *docRef, hops int) {
-	spec := asMap(d.doc.Value["spec"])
-	var sources []any
-	if l := asList(spec["sources"]); len(l) > 0 {
-		sources = l
-	} else if s := spec["source"]; s != nil {
-		sources = []any{s}
-	}
-	if len(sources) == 0 {
-		w.gap(SourceNotFound, d.doc.Source, "the Application has no source")
+	s := w.argoOf(d)
+	w.addGaps(s.gaps)
+	if w.objStack[d.id] {
 		return
 	}
-	if len(sources) > MaxSources {
-		w.gap(ClosureLimit, d.doc.Source, "more than 64 sources; the rest are not evaluated")
-		sources = sources[:MaxSources]
-	}
-	destNS := asStr(get(spec, "destination", "namespace"))
-	w.objStack[d.key] = true
-	defer delete(w.objStack, d.key)
-	for _, s := range sources {
-		w.argoSource(d, asMap(s), destNS, hops)
+	w.objStack[d.id] = true
+	owner, scope := w.enter("")
+	for _, src := range s.sources {
+		if !w.charge(1) {
+			break
+		}
+		w.argoSource(src, hops)
 		if w.stopped {
+			break
+		}
+	}
+	w.owner, w.scopeNS = owner, scope
+	delete(w.objStack, d.id)
+}
+
+func (w *walker) argoSource(s *argoSrc, hops int) {
+	w.addGaps(s.gaps)
+	switch s.kind {
+	case argoChart:
+		if w.discover {
 			return
 		}
-	}
-}
-
-func (w *walker) argoSource(d *docRef, s map[string]any, destNS string, hops int) {
-	src := d.doc.Source
-	if s == nil {
-		w.gap(SourceNotFound, src, "a source is not an object")
-		return
-	}
-	repo := asStr(s["repoURL"])
-	chart := asStr(s["chart"])
-	helm := asMap(s["helm"])
-	switch pth, hasPath := s["path"].(string); {
-	case chart != "":
-		rev, _ := scalar(s["targetRevision"])
-		release := asStr(helm["releaseName"])
-		if release == "" {
-			release = d.doc.Name
-		}
-		r := Release{Kind: KindApplication, Chart: chart, ChartVersion: rev, RepoURL: repo, Namespace: destNS, ReleaseName: release, Source: src}
-		r.Values = w.argoValues(src, helm)
-		w.valueFiles(src, helm)
-		w.addRelease(r, relMeta{})
-	case hasPath:
-		if !w.a.isSelf(repo) {
-			w.gap(RemoteReferenceNotResolved, src, "repoURL "+clip(repo)+" is not this repository")
+		_, gap, cost := w.a.argoValues(s)
+		if !w.charge(cost) {
 			return
 		}
-		dir, reason, detail := w.a.resolve(".", pth)
-		if reason != "" {
-			w.gap(reason, src, detail)
+		if gap != nil {
+			w.addGap(*gap)
+		}
+		w.addRelease(relEntry{base: &s.rel, version: s.rel.ChartVersion})
+	case argoPath:
+		if !s.follow {
 			return
 		}
-		w.valueFiles(src, helm)
-		w.argoKustomizeImages(src, asMap(s["kustomize"]))
-		w.visitDir(dir, hops+1)
-	case s["ref"] != nil:
-		if !w.a.isSelf(repo) {
-			w.gap(RemoteReferenceNotResolved, src, "ref source repoURL "+clip(repo)+" is not this repository")
+		if !w.discover {
+			w.addImages(s.images)
 		}
-	default:
-		w.gap(SourceNotFound, src, "a source has neither chart, path nor ref")
-	}
-}
-
-func (w *walker) valueFiles(src intake.Source, helm map[string]any) {
-	if len(asList(helm["valueFiles"])) > 0 || len(asList(helm["fileParameters"])) > 0 {
-		w.gap(ValueFilesNotResolved, src, "helm value files are not read")
-	}
-}
-
-func (w *walker) argoValues(src intake.Source, helm map[string]any) map[string]any {
-	obj, hasObj := helm["valuesObject"]
-	text, hasText := helm["values"].(string)
-	switch {
-	case hasObj && hasText && text != "":
-		w.gap(ValuesFromNotResolved, src, "helm.values and helm.valuesObject are both set")
-		return nil
-	case hasObj:
-		if m := asMap(obj); m != nil {
-			return m
+		scope := w.scopeNS
+		if s.ns != "" {
+			w.scopeNS = s.ns
 		}
-		w.gap(ValuesFromNotResolved, src, "helm.valuesObject is not an object")
-	case hasText && strings.TrimSpace(text) != "":
-		if len(text) > maxValuesText {
-			w.gap(ValuesFromNotResolved, src, "helm.values is longer than 65536 bytes")
-			return nil
-		}
-		docs, err := intake.DecodeDocuments([]byte(text))
-		if err != nil || len(docs) != 1 || asMap(docs[0]) == nil {
-			w.gap(ValuesFromNotResolved, src, "helm.values is not a single YAML object")
-			return nil
-		}
-		return asMap(docs[0])
-	}
-	return nil
-}
-
-func (w *walker) argoKustomizeImages(src intake.Source, k map[string]any) {
-	for _, e := range asList(k["images"]) {
-		text, ok := e.(string)
-		if !ok {
-			continue
-		}
-		if i := strings.IndexByte(text, '='); i >= 0 {
-			text = text[i+1:]
-		}
-		image, tag, digest, ok := splitImage(text)
-		if !ok {
-			w.gap(SourceNotFound, src, "a kustomize image entry is not understood")
-			continue
-		}
-		w.addImage(ImagePin{Image: image, Tag: tag, Digest: digest, Source: src})
+		w.visitDir(s.dir.path, hops+1, s.recurse, true)
+		w.scopeNS = scope
 	}
 }
 
 // finish resolves Flux sources, checks pins and drops what cannot be named.
 func (w *walker) finish() {
-	kept := w.rels[:0]
-	for i := range w.rels {
-		r, m := w.rels[i], w.metas[i]
-		if m.ref.kind != "" {
-			w.resolveSource(&r, m) // an unresolved release stays, without a repository
+	w.rels = make([]Release, 0, len(w.entries))
+	for _, e := range w.entries {
+		r := *e.base
+		r.ChartVersion = e.version
+		var ref fluxRef
+		if e.hr != nil {
+			hr := e.hr.hrP
+			if r.Namespace = hr.targetNS; r.Namespace == "" {
+				r.Namespace = e.ns
+			}
+			if ref = hr.ref; !hr.refNsSet {
+				ref.ns = e.ns
+			}
+		}
+		gitDetail := ""
+		if ref.kind != "" {
+			gitDetail = w.resolveSource(&r, ref, e.hr.hrP.chartRef) // an unresolved release stays, without a repository
 		}
 		if !fits(r.Chart, r.ChartVersion, r.RepoURL, r.SourceRef, r.Namespace, r.ReleaseName) {
 			w.gap(SourceNotFound, r.Source, "release identity longer than 256 bytes")
 			continue
 		}
-		if !(m.ref.kind == "GitRepository") && !isPinned(r.ChartVersion) {
+		if needsEscape(r.Chart) || needsEscape(r.ChartVersion) || needsEscape(r.RepoURL) || needsEscape(r.SourceRef) ||
+			needsEscape(r.Namespace) || needsEscape(r.ReleaseName) {
+			w.gap(SourceNotFound, r.Source, "release identity holds control characters")
+			continue
+		}
+		switch {
+		case ref.kind == "GitRepository":
+			if gitDetail != "" {
+				w.gap(ChartVersionNotPinned, r.Source, gitDetail)
+			}
+		case !isPinned(r.ChartVersion):
 			detail := "no version is set"
 			if r.ChartVersion != "" {
 				detail = "version " + r.ChartVersion
 			}
 			w.gap(ChartVersionNotPinned, r.Source, detail)
 		}
-		kept = append(kept, r)
+		w.rels = append(w.rels, r)
 	}
-	w.rels = kept
-	w.metas = nil
+	w.entries = nil
 	sort.SliceStable(w.rels, func(i, j int) bool {
 		a, b := w.rels[i], w.rels[j]
 		switch {
@@ -638,12 +703,18 @@ func (w *walker) finish() {
 // resolveSource fills RepoURL (and, for an OCI chart, Chart and version) from
 // the Flux source object. It prefers a source met in this environment and
 // accepts one defined elsewhere only when it is the only one of that name.
-func (w *walker) resolveSource(r *Release, m relMeta) bool {
-	key := m.ref.key()
+// For a chart from a GitRepository it returns why the chart is not pinned, or
+// "" when the repository is at a fixed tag or commit.
+func (w *walker) resolveSource(r *Release, ref fluxRef, chartRef bool) string {
+	key := ref.key()
 	r.SourceRef = key
 	docs := w.srcs[key]
 	if len(docs) == 0 {
 		docs = w.a.sources[key]
+	}
+	unknownGit := ""
+	if ref.kind == "GitRepository" {
+		unknownGit = "chart from a Git source whose revision is unknown"
 	}
 	if len(docs) != 1 {
 		detail := "source " + key + " was not found"
@@ -651,23 +722,26 @@ func (w *walker) resolveSource(r *Release, m relMeta) bool {
 			detail = "source " + key + " is defined more than once"
 		}
 		w.gap(SourceNotFound, r.Source, detail)
-		return false
+		return unknownGit
 	}
 	spec := asMap(docs[0].doc.Value["spec"])
 	url := asStr(spec["url"])
-	switch m.ref.kind {
-	case "HelmRepository", "GitRepository":
+	switch ref.kind {
+	case "HelmRepository":
 		r.RepoURL = url
+	case "GitRepository":
+		r.RepoURL = url
+		return gitPin(asMap(spec["ref"]))
 	case "OCIRepository":
-		if !m.chartRef {
+		if !chartRef {
 			w.gap(SourceNotFound, r.Source, "an OCIRepository is not a chart repository here")
-			return false
+			return ""
 		}
 		trimmed := strings.TrimRight(url, "/")
 		i := strings.LastIndexByte(trimmed, '/')
 		if !strings.HasPrefix(trimmed, "oci://") || i < len("oci://") {
 			w.gap(SourceNotFound, r.Source, "OCIRepository url is not an oci:// chart reference")
-			return false
+			return ""
 		}
 		r.RepoURL, r.Chart = trimmed[:i], trimmed[i+1:]
 		ref := asMap(spec["ref"])
@@ -678,8 +752,30 @@ func (w *walker) resolveSource(r *Release, m relMeta) bool {
 			}
 		}
 	default:
-		w.gap(RemoteReferenceNotResolved, r.Source, "source of kind "+clip(m.ref.kind)+" is not evaluated")
-		return false
+		w.gap(RemoteReferenceNotResolved, r.Source, "source of kind "+ref.kind+" is not evaluated")
 	}
-	return true
+	return ""
+}
+
+// gitPin says why a GitRepository reference is not fixed, in the order of
+// precedence Flux uses; "" means a commit or a tag.
+func gitPin(ref map[string]any) string {
+	text := func(k string) string { s, _ := scalar(ref[k]); return s }
+	commit, name, semver, tag, branch := text("commit"), text("name"), text("semver"), text("tag"), text("branch")
+	switch {
+	case commit != "":
+		return ""
+	case name != "":
+		if strings.HasPrefix(name, "refs/tags/") {
+			return ""
+		}
+		return "chart from a Git source at reference " + name
+	case semver != "":
+		return "chart from a Git source at version range " + semver
+	case tag != "":
+		return ""
+	case branch != "":
+		return "chart from a Git source at branch " + branch
+	}
+	return "chart from a Git source without a fixed tag or commit"
 }

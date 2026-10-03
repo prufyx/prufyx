@@ -60,7 +60,7 @@ func TestFluxEnvironments(t *testing.T) {
 
 func TestArgoEnvironments(t *testing.T) {
 	ws, root := openFixture(t, "argo")
-	repo := Analyze(ws, Options{Root: root, SelfRepoURLs: []string{"https://github.com/example/fleet"}})
+	repo := Analyze(ws, Options{Root: root, SelfRepoURLs: []string{"https://github.com/example/fleet"}, SelfRevisions: []string{"main"}})
 	if got := envNames(repo); len(got) != 1 || got[0] != "argocd/root" {
 		t.Fatalf("environments = %v", got)
 	}
@@ -129,12 +129,14 @@ func TestChartAndKustomization(t *testing.T) {
 	}
 	want := []string{
 		"ChartDependency common@~1.0.0 https://charts.example.test ns= rel=base",
+		"ChartDependency pg@* https://charts.example.test ns= rel=pg",
 		"ChartDependency redis@18.1.0 https://charts.example.test ns= rel=redis",
 	}
 	if strings.Join(rel, "|") != strings.Join(want, "|") {
 		t.Fatalf("releases = %q", rel)
 	}
-	if !hasGap(e.Gaps, ChartVersionNotPinned, "~1.0.0") || len(e.Gaps) != 1 {
+	// The file:// dependency is read through its own Chart.yaml.
+	if !hasGap(e.Gaps, ChartVersionNotPinned, "~1.0.0") || !hasGap(e.Gaps, ChartVersionNotPinned, "version *") || len(e.Gaps) != 2 {
 		t.Fatalf("gaps = %+v", e.Gaps)
 	}
 	var images []string
@@ -457,8 +459,9 @@ func TestGitopsDeterministic(t *testing.T) {
 	}
 	a1, aroot := openFixture(t, "argo", "apps", "bootstrap", "charts")
 	a2, _ := openFixture(t, "argo", "charts", "bootstrap", "apps")
-	o1 := marshal(t, Analyze(a1, Options{Root: aroot, SelfRepoURLs: []string{"https://github.com/example/fleet"}}))
-	o2 := marshal(t, Analyze(a2, Options{Root: aroot, SelfRepoURLs: []string{"https://github.com/example/fleet"}}))
+	opts := Options{Root: aroot, SelfRepoURLs: []string{"https://github.com/example/fleet"}, SelfRevisions: []string{"main"}}
+	o1 := marshal(t, Analyze(a1, opts))
+	o2 := marshal(t, Analyze(a2, opts))
 	if o1 != o2 {
 		t.Fatalf("argo order changed the result")
 	}

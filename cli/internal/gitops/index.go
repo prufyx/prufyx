@@ -3,7 +3,6 @@
 package gitops
 
 import (
-	"net/url"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -21,53 +20,95 @@ type skey struct {
 
 func keyOf(s intake.Source) skey { return skey{s.Display, s.Document, s.Item} }
 
-// docRef is one decoded document placed in the repository tree.
+// docKind says how a walk treats a document.
+type docKind int
+
+const (
+	kindOther docKind = iota
+	kindKustomization
+	kindFlux
+	kindArgo
+	kindAppSet
+	kindHelmRelease
+	kindSource
+	kindWorkload
+	kindChart
+)
+
+// docRef is one decoded document placed in the repository tree. The parsed
+// fields are filled the first time a walk needs them and never change after,
+// so every environment shares one parse.
 type docRef struct {
-	doc intake.Document
-	rel string // file path relative to the root, with slashes
-	dir string // directory of the file, "." for the root
-	aux bool
-	key skey
+	doc  intake.Document
+	rel  string // file path relative to the root, with slashes
+	dir  string // directory of the file, "." for the root
+	aux  bool
+	key  skey
+	id   int // index in analysis.docs
+	kind docKind
+
+	kustP  *kustSpec
+	fluxP  *fluxSpec
+	argoP  *argoSpec
+	hrP    *hrSpec
+	imgP   *imageSpec
+	chartP *chartSpec
 }
 
 func (d *docRef) group() string { return groupOf(d.doc.APIVersion) }
 
 // analysis holds everything derived from the workspace once.
 type analysis struct {
-	opts    Options
-	root    string
-	self    map[string]bool
-	docs    []*docRef
-	byDir   map[string][]*docRef
-	files   map[string]bool
-	dirs    map[string]bool
-	subdirs map[string][]string
+	opts      Options
+	root      string
+	self      map[string]bool
+	revisions map[string]bool
+	docs      []*docRef
+	byDir     map[string][]*docRef
+	byFile    map[string][]*docRef
+	candDir   map[string][]*docRef // Flux Kustomizations and Argo CD Applications only
+	candFile  map[string][]*docRef
+	files     map[string]bool
+	dirs      map[string]bool
+	subdirs   map[string][]string
 	// enc lists SOPS-encrypted files, by file and by directory. Only the
 	// source of the first encrypted document is kept, never its value.
-	enc       map[string]intake.Source
-	encByDir  map[string][]string
-	omitByDir map[string][]intake.Omission
-	symlinks  map[string]bool
-	kust      map[string]*docRef
-	kustMulti map[string]intake.Source
-	sources   map[string][]*docRef
-	repoGaps  []Gap
-	steps     int
-	exhausted bool
+	enc        map[string]intake.Source
+	encByDir   map[string][]string
+	omitByDir  map[string][]intake.Omission
+	omitByFile map[string][]intake.Omission
+	symlinks   map[string]bool
+	kust       map[string]*docRef
+	kustMulti  map[string]intake.Source
+	kustFiles  map[string][]string // kustomization file names present in a directory
+	chartDocs  map[string][]*docRef
+	chartExtra map[string]bool // a chart directory holds more than Chart.yaml and values.yaml
+	sources    map[string][]*docRef
+	repoGaps   []Gap
+	nodes      int // inline value and patch nodes still allowed
+	disc, work *budget
 }
 
 var kustomizationNames = map[string]bool{"kustomization.yaml": true, "kustomization.yml": true, "Kustomization": true}
 
 func newAnalysis(ws intake.Workspace, opts Options) *analysis {
 	a := &analysis{
-		opts: opts, self: map[string]bool{},
-		byDir: map[string][]*docRef{}, files: map[string]bool{}, dirs: map[string]bool{".": true},
+		opts: opts, self: map[string]bool{}, revisions: map[string]bool{},
+		byDir: map[string][]*docRef{}, byFile: map[string][]*docRef{}, candDir: map[string][]*docRef{}, candFile: map[string][]*docRef{},
+		files: map[string]bool{}, dirs: map[string]bool{".": true},
 		subdirs: map[string][]string{}, enc: map[string]intake.Source{}, encByDir: map[string][]string{},
-		omitByDir: map[string][]intake.Omission{}, symlinks: map[string]bool{}, kust: map[string]*docRef{},
-		kustMulti: map[string]intake.Source{}, sources: map[string][]*docRef{},
+		omitByDir: map[string][]intake.Omission{}, omitByFile: map[string][]intake.Omission{}, symlinks: map[string]bool{},
+		kust: map[string]*docRef{}, kustMulti: map[string]intake.Source{}, kustFiles: map[string][]string{},
+		chartDocs: map[string][]*docRef{}, chartExtra: map[string]bool{}, sources: map[string][]*docRef{},
+		nodes: valuesNodeBudget,
 	}
 	for _, u := range opts.SelfRepoURLs {
-		a.self[normalizeURL(u)] = true
+		if n, ok := normalizeURL(u); ok {
+			a.self[n] = true
+		}
+	}
+	for _, r := range opts.SelfRevisions {
+		a.revisions[r] = true
 	}
 	a.root = opts.Root
 	if a.root == "" {
@@ -88,6 +129,14 @@ func newAnalysis(ws intake.Workspace, opts Options) *analysis {
 			a.addFile(rel)
 		}
 	}
+	encrypted := func(rel string, src intake.Source) {
+		a.addFile(rel)
+		if _, done := a.enc[rel]; !done {
+			a.enc[rel] = src
+			dir := path.Dir(rel)
+			a.encByDir[dir] = append(a.encByDir[dir], rel)
+		}
+	}
 	add := func(d intake.Document, aux bool) {
 		rel, ok := note(d.Source.Display)
 		if !ok {
@@ -95,22 +144,21 @@ func newAnalysis(ws intake.Workspace, opts Options) *analysis {
 		}
 		a.addFile(rel)
 		if isEncrypted(d.Value) {
-			if _, done := a.enc[rel]; !done {
-				a.enc[rel] = d.Source
-				dir := path.Dir(rel)
-				a.encByDir[dir] = append(a.encByDir[dir], rel)
-			}
+			encrypted(rel, d.Source)
 			return
 		}
-		ref := &docRef{doc: d, rel: rel, dir: path.Dir(rel), aux: aux, key: keyOf(d.Source)}
-		a.docs = append(a.docs, ref)
-		a.byDir[ref.dir] = append(a.byDir[ref.dir], ref)
+		a.docs = append(a.docs, &docRef{doc: d, rel: rel, dir: path.Dir(rel), aux: aux, key: keyOf(d.Source)})
 	}
 	for _, d := range ws.Documents {
 		add(d, false)
 	}
 	for _, d := range ws.Auxiliary {
 		add(d, true)
+	}
+	for _, s := range ws.Encrypted {
+		if rel, ok := note(s.Display); ok {
+			encrypted(rel, s)
+		}
 	}
 	for _, o := range ws.Omissions {
 		rel, ok := note(o.Source.Display)
@@ -124,11 +172,27 @@ func newAnalysis(ws intake.Workspace, opts Options) *analysis {
 			a.addFile(rel)
 			dir := path.Dir(rel)
 			a.omitByDir[dir] = append(a.omitByDir[dir], o)
+			a.omitByFile[rel] = append(a.omitByFile[rel], o)
 		}
 	}
+	// A file can hold both encrypted and plain documents; the plain ones of
+	// an encrypted file are not used either.
+	kept := a.docs[:0]
+	for _, d := range a.docs {
+		if _, enc := a.enc[d.rel]; !enc {
+			kept = append(kept, d)
+		}
+	}
+	a.docs = kept
 	sort.SliceStable(a.docs, func(i, j int) bool { return srcLess(a.docs[i].doc.Source, a.docs[j].doc.Source) })
 	for dir := range a.encByDir {
 		sort.Strings(a.encByDir[dir])
+	}
+	for _, list := range []map[string][]intake.Omission{a.omitByDir, a.omitByFile} {
+		for k := range list {
+			l := list[k]
+			sort.SliceStable(l, func(i, j int) bool { return srcLess(l[i].Source, l[j].Source) })
+		}
 	}
 	for dir := range a.dirs {
 		if dir != "." {
@@ -139,18 +203,64 @@ func newAnalysis(ws intake.Workspace, opts Options) *analysis {
 	for dir := range a.subdirs {
 		sort.Strings(a.subdirs[dir])
 	}
-	for _, d := range a.docs {
-		base := path.Base(d.rel)
-		if kustomizationNames[base] && (d.aux || d.group() == "kustomize.config.k8s.io") {
+	for f := range a.files {
+		dir, base := path.Dir(f), path.Base(f)
+		switch {
+		case kustomizationNames[base]:
+			a.kustFiles[dir] = append(a.kustFiles[dir], base)
+		case base == "Chart.yaml":
+			a.chartDocs[dir] = a.chartDocs[dir] // marks a chart directory
+		}
+	}
+	for dir := range a.kustFiles {
+		sort.Strings(a.kustFiles[dir])
+	}
+	for dir := range a.chartDocs {
+		if len(a.subdirs[dir]) > 0 {
+			a.chartExtra[dir] = true
+		}
+	}
+	for f := range a.files {
+		dir, base := path.Dir(f), path.Base(f)
+		if _, chart := a.chartDocs[dir]; chart && base != "Chart.yaml" && base != "values.yaml" {
+			a.chartExtra[dir] = true
+		}
+	}
+	for i, d := range a.docs {
+		d.id = i
+		d.kind = classify(d)
+		a.byDir[d.dir] = append(a.byDir[d.dir], d)
+		a.byFile[d.rel] = append(a.byFile[d.rel], d)
+		switch d.kind {
+		case kindKustomization:
 			if prev, dup := a.kust[d.dir]; dup {
-				a.kustMulti[d.dir] = prev.doc.Source
+				if _, seen := a.kustMulti[d.dir]; !seen {
+					a.kustMulti[d.dir] = prev.doc.Source
+				}
 				continue
 			}
 			a.kust[d.dir] = d
-		}
-		if d.group() == "source.toolkit.fluxcd.io" {
+		case kindFlux, kindArgo:
+			a.candDir[d.dir] = append(a.candDir[d.dir], d)
+			a.candFile[d.rel] = append(a.candFile[d.rel], d)
+		case kindSource:
 			k := sourceKey(d.doc.Kind, d.doc.Namespace, d.doc.Name)
 			a.sources[k] = append(a.sources[k], d)
+		case kindChart:
+			a.chartDocs[d.dir] = append(a.chartDocs[d.dir], d)
+		}
+	}
+	// Two files with kustomization names in one directory: the first one by
+	// name is used, the directory is reported.
+	for dir, names := range a.kustFiles {
+		if len(names) > 1 {
+			if _, seen := a.kustMulti[dir]; !seen {
+				src := intake.Source{Display: path.Join(dir, names[1]), Item: -1}
+				if k := a.kust[dir]; k != nil {
+					src = k.doc.Source
+				}
+				a.kustMulti[dir] = src
+			}
 		}
 	}
 	names := make([]string, 0, len(outside))
@@ -162,6 +272,36 @@ func newAnalysis(ws intake.Workspace, opts Options) *analysis {
 		a.repoGaps = append(a.repoGaps, Gap{SourceNotFound, outside[n], "file is outside the repository root"})
 	}
 	return a
+}
+
+// classify decides once how a document is treated. A document from a file
+// named Chart.yaml is a chart whatever its shape.
+func classify(d *docRef) docKind {
+	base := path.Base(d.rel)
+	g := d.group()
+	switch {
+	case base == "Chart.yaml":
+		return kindChart
+	case kustomizationNames[base] && (d.aux || g == "kustomize.config.k8s.io"):
+		return kindKustomization
+	case d.aux:
+		return kindOther
+	case d.doc.Kind == "Kustomization" && g == "kustomize.toolkit.fluxcd.io":
+		return kindFlux
+	case d.doc.Kind == "Application" && g == "argoproj.io":
+		return kindArgo
+	case d.doc.Kind == "ApplicationSet" && g == "argoproj.io":
+		return kindAppSet
+	case d.doc.Kind == KindHelmRelease && g == "helm.toolkit.fluxcd.io":
+		return kindHelmRelease
+	case g == "source.toolkit.fluxcd.io":
+		return kindSource
+	}
+	switch d.doc.Kind {
+	case "Pod", "Deployment", "StatefulSet", "DaemonSet", "ReplicaSet", "Job", "ReplicationController", "CronJob":
+		return kindWorkload
+	}
+	return kindOther
 }
 
 func (a *analysis) addFile(rel string) {
@@ -223,24 +363,34 @@ func commonDir(ws intake.Workspace) string {
 
 var hostLike = regexp.MustCompile(`^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+/`)
 
+// target is a reference resolved once. Reason is empty on success.
+type target struct {
+	path           string
+	reason, detail string
+}
+
 // resolve turns a reference found in a file of directory base into a path
-// inside the root. The second result is empty on success; otherwise it is the
-// gap reason and the third result its detail.
-func (a *analysis) resolve(base, ref string) (string, string, string) {
+// inside the root. On failure the target carries the gap reason and detail.
+func (a *analysis) resolve(base, ref string) target {
 	switch {
 	case ref == "" || strings.ContainsAny(ref, "\x00\\"):
-		return "", SourceNotFound, "empty or invalid path"
+		return target{reason: SourceNotFound, detail: "empty or invalid path " + clip(ref)}
+	case len(ref) > MaxRefBytes:
+		return target{reason: SourceNotFound, detail: "path longer than 4096 bytes"}
 	case strings.Contains(ref, "://") || strings.HasPrefix(ref, "git@") || strings.HasPrefix(ref, "/") || filepath.IsAbs(ref):
-		return "", RemoteReferenceNotResolved, "remote or absolute reference " + clip(ref)
+		return target{reason: RemoteReferenceNotResolved, detail: "remote or absolute reference " + clip(ref)}
 	}
 	joined := path.Clean(path.Join(base, ref))
 	if joined == ".." || strings.HasPrefix(joined, "../") {
-		return "", RemoteReferenceNotResolved, "path leaves the repository " + clip(ref)
+		return target{reason: RemoteReferenceNotResolved, detail: "path leaves the repository " + clip(ref)}
 	}
-	if !a.files[joined] && !a.dirs[joined] && hostLike.MatchString(ref) {
-		return "", RemoteReferenceNotResolved, "remote reference " + clip(ref)
+	if !a.files[joined] && !a.dirs[joined] {
+		if hostLike.MatchString(ref) {
+			return target{reason: RemoteReferenceNotResolved, detail: "remote reference " + clip(ref)}
+		}
+		return target{path: joined, reason: SourceNotFound, detail: a.missing(joined)}
 	}
-	return joined, "", ""
+	return target{path: joined}
 }
 
 // missing explains why a resolved path has no files.
@@ -254,47 +404,43 @@ func (a *analysis) missing(p string) string {
 }
 
 // normalizeURL applies the only normalisation allowed for repository URLs:
-// lower-case host, no trailing ".git" and "/".
-func normalizeURL(raw string) string {
-	raw = strings.TrimSpace(raw)
-	var out string
-	if strings.Contains(raw, "://") {
-		u, err := url.Parse(raw)
-		if err != nil || u.Host == "" {
-			return strings.ToLower(raw)
-		}
-		out = u.Scheme + "://"
-		if u.User != nil {
-			out += u.User.String() + "@"
-		}
-		out += strings.ToLower(u.Host) + u.EscapedPath()
-	} else if i := strings.IndexAny(raw, ":/"); i > 0 {
-		out = strings.ToLower(raw[:i]) + raw[i:]
-	} else {
-		out = strings.ToLower(raw)
+// the host is lower-cased, then one trailing "/" and one trailing ".git" are
+// removed. A URL with a query, a fragment, white space or a control
+// character is refused (second result false) and never matches.
+func normalizeURL(raw string) (string, bool) {
+	if raw == "" || strings.ContainsAny(raw, "?# \t\r\n") || needsEscape(raw) {
+		return "", false
 	}
-	out = strings.TrimRight(out, "/")
+	out := raw
+	if i := strings.Index(raw, "://"); i >= 0 {
+		rest := raw[i+3:]
+		end := strings.IndexByte(rest, '/')
+		if end < 0 {
+			end = len(rest)
+		}
+		authority := rest[:end]
+		at := strings.LastIndexByte(authority, '@') + 1
+		out = raw[:i+3] + authority[:at] + strings.ToLower(authority[at:]) + rest[end:]
+	} else if colon := strings.IndexByte(raw, ':'); colon > 0 && !strings.Contains(raw[:colon], "/") {
+		userHost := raw[:colon]
+		at := strings.LastIndexByte(userHost, '@') + 1
+		out = userHost[:at] + strings.ToLower(userHost[at:]) + raw[colon:]
+	}
+	out = strings.TrimSuffix(out, "/")
 	out = strings.TrimSuffix(out, ".git")
-	return strings.TrimRight(out, "/")
+	return out, out != ""
 }
 
 func (a *analysis) isSelf(raw string) bool {
-	return len(a.self) > 0 && a.self[normalizeURL(raw)]
+	n, ok := normalizeURL(raw)
+	return ok && a.self[n]
 }
 
 // isEncrypted reports a SOPS document: the metadata block SOPS adds, or any
 // string in SOPS ciphertext form. The content is never read further.
 func isEncrypted(v map[string]any) bool {
-	if m, ok := v["sops"].(map[string]any); ok {
-		if _, mac := m["mac"]; mac {
-			return true
-		}
-		if _, ver := m["version"]; ver {
-			return true
-		}
-		if _, lm := m["lastmodified"]; lm {
-			return true
-		}
+	if intake.HasSOPSMetadata(v) {
+		return true
 	}
 	return hasCiphertext(v, 0)
 }

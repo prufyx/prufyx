@@ -1,0 +1,7 @@
+apiVersion: v2
+name: subchart
+version: 0.1.0
+dependencies:
+  - name: pg
+    version: "*"
+    repository: https://charts.example.test
