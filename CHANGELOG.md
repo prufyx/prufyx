@@ -36,6 +36,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Line attestations: a knowledge pack may carry an optional
+  `lineAttestations` section stating that, for one component, minor line and
+  fact family, the listed rules are all the rules (none for a quiet line). A
+  pack with the section uses schema
+  `prufyx.io/cncf-source-rule-pack/v1alpha4`, which earlier binaries reject,
+  and is rejected unless every attestation lists exactly the pack's rules for
+  its line and family. The `k8s.served-api-removal` extractor (1.1.0) writes
+  mechanical attestations to `attestations.json`. Attestations do not change
+  any verdict or exit code, and the published pack carries none. See
+  `cli/docs/line-attestations.md`.
 - Rules may declare how their evidence was produced: `evidence.basis`
   (`reviewed` or `mechanical`; absent means reviewed), `evidence.extractor`
   and `evidence.derivedAt`. The fields are parsed strictly, never affect a

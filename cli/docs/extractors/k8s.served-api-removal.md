@@ -1,9 +1,10 @@
 # Extractor `k8s.served-api-removal`
 
-Version 1.0.0. Derives `forbid_predicate_value` rules for Kubernetes API
+Version 1.1.0. Derives `forbid_predicate_value` rules for Kubernetes API
 versions that a minor release stops serving. It is deterministic, reads only
 upstream source pinned by full commit SHA, parses Go with `go/parser` (nothing
-is compiled or executed), and involves no model.
+is compiled or executed), and involves no model. It also attests every line
+it derives completely (see "Line attestations" below).
 
 ## What it reads
 
@@ -67,8 +68,7 @@ For every removed (group, version) the manifest records, per line: the kinds,
 the List kinds, the lifecycle file and the lines of every removed method,
 the stable and beta versions of the group served at the later tag for all of
 the removed kinds (`replacements`), and the adapter fact for each kind. Quiet
-lines carry an empty removal list, so a later per-line attestation can be
-derived from the manifest.
+lines carry an empty removal list.
 
 ## Rules
 
@@ -91,6 +91,26 @@ the extractor identity. Sources (three): the lifecycle method lines at the
 earlier tag (`lifecycle-<group>-<version>-<from>`, which every bound cites) and
 the whole specification at each tag (`openapi-<from>`, `openapi-<to>`).
 
+## Line attestations
+
+Version 1.1.0 adds a [line attestation](../line-attestations.md) for every
+derived pair: for component `pkg:github/kubernetes/kubernetes`, line `1.L` and
+fact family `kubernetes.removed_served_gvk`, the rules of that pair are all
+the rules (none for a quiet line). The attestation has basis `mechanical`,
+the run's extractor identity, `derivedAt`, `reviewedAt` and `validUntil`, and
+cites the whole specification at both tags (`openapi-<from>`, `openapi-<to>`).
+
+No attestation is emitted for a withheld pair, or for a line where a removal
+has no adapter fact (its kinds are under `noFactKinds`), since that removal
+has no rule. Each pair in the manifest records the outcome under
+`attestation` (`status` `attested` or `not-attested`, `line`, `families` and,
+when not attested, `reason`). The attestations are written to
+`attestations.json`, in canonical order, and are renewed by running the
+extractor again; `extract verify` re-derives them byte for byte.
+
+Version 1.1.0 changes no rule: only the extractor version in each rule's
+evidence differs from 1.0.0.
+
 ## What it never claims
 
 - Anything about alpha versions, resources served by aggregated or custom
@@ -112,4 +132,5 @@ prufyx-maintainer extract oracle --extractor k8s.served-api-removal --out OUT --
 (`{"removals": [{"line": "1.25", "group": "batch", "version": "v1beta1",
 "kinds": ["CronJob"]}]}`) and reports `MISSING`, `WITHHELD`, `KINDS`, `NOFACT`,
 `NORULE` and `EXTRA` differences. The output files, canonical encoding and
-code digest are those of every extractor (see `internal/extract`).
+code digest are those of every extractor (see `internal/extract`), plus
+`attestations.json`.

@@ -124,6 +124,11 @@ Community contributions are reviewed rules: a candidate that declares
 mechanical rule is never renewed by `evidence reattest`; see
 [evidence-reattestation.md](evidence-reattestation.md).
 
+A rule may also be named by a **line attestation**, a statement that a minor
+line's rules for one fact family are complete. If a pack attests the line
+your rule's target version falls in, the attestation must list your rule, or
+the pack is rejected; see [line-attestations.md](line-attestations.md).
+
 Every human finding prints one line before the pinned sources, either
 `evidence basis: reviewed by maintainer` or
 `evidence basis: derived from source by <extractor id> v<version>`. In JSON
