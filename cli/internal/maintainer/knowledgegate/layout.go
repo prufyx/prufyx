@@ -1,0 +1,190 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package knowledgegate
+
+import (
+	"path/filepath"
+	"strings"
+
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/corpusattest"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/supportinventory"
+	"github.com/prufyx/prufyx/cli/internal/projectcheck"
+)
+
+// PackStats is what admitting one pack reports.
+type PackStats struct {
+	Entries                         int
+	TargetBytes, MaxTargetBytes     int
+	RegistryFacts, MaxRegistryFacts int
+}
+
+// PackSpec describes one rule pack the gate checks. Paths are relative to
+// the repository root, with forward slashes.
+type PackSpec struct {
+	// Name is the pack's short name, also its reattestation pack name.
+	Name string
+	// Path is the rules.json path. It is also the pack path a
+	// reattestation worklist must name.
+	Path string
+	// Admit admits the pack as the engine admits shipped knowledge, from
+	// the files of a tree, and reports its size.
+	Admit func(t Tree) (PackStats, error)
+	// AttestationPath is the committed corpus attestation; Attest
+	// regenerates it from the tree's files.
+	AttestationPath string
+	Attest          func(t Tree) ([]byte, error)
+	// CapabilityDigest is the engine identity reattestation statements
+	// for this pack are bound to.
+	CapabilityDigest func() (string, error)
+}
+
+// GeneratedPair is a generated JSON and Markdown output pair.
+type GeneratedPair struct {
+	JSONPath, MarkdownPath string
+	Generate               func(t Tree) (jsonRaw []byte, markdown string, err error)
+}
+
+// Layout names every knowledge file the gate reads.
+type Layout struct {
+	Packs []PackSpec
+	// PausePath is the kill switch: while it exists in the base or the
+	// head, every loosening change fails.
+	PausePath string
+	// ReattestDir holds, per pack, <pack>/chain (the signed statement
+	// chain), <pack>/worklists/<stem>.worklist.json (the worklist each
+	// statement was prepared from) and <pack>/review-records.
+	ReattestDir string
+	// TrustRootPath is the reattestation trust root. It is read from the
+	// base tree only; its digest must be supplied separately.
+	TrustRootPath string
+	// ApprovalDir holds owner approvals as <pack>/<rule id>.json.
+	ApprovalDir string
+	// ApprovalKeysPath pins the owner-approval keys. It is read from the
+	// base tree only.
+	ApprovalKeysPath string
+	// Generated are outputs that must regenerate byte-identically.
+	Generated []GeneratedPair
+	// AutoMergePaths lists the paths an automatically mergeable change may
+	// touch: an entry ending in "/" is a directory prefix, any other entry
+	// an exact file.
+	AutoMergePaths []string
+}
+
+// Repository paths of the default layout.
+const (
+	cliDir         = "cli"
+	cncfRulesPath  = "cli/internal/cncfcheck/data/rules.json"
+	cncfAttestPath = "cli/internal/cncfcheck/data/corpus-attestation.json"
+	commRulesPath  = "cli/internal/projectcheck/data/rules.json"
+	commAttestPath = "cli/internal/projectcheck/data/corpus-attestation.json"
+	inventoryJSON  = "cli/docs/generated/community-support-inventory.json"
+	inventoryMD    = "cli/docs/generated/community-support-inventory.md"
+	knowledgeDir   = "cli/knowledge/"
+)
+
+func readAll(t Tree, rels ...string) ([][]byte, error) {
+	out := make([][]byte, len(rels))
+	for i, rel := range rels {
+		raw, err := t.Read(rel, MaxFileBytes)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = raw
+	}
+	return out, nil
+}
+
+// DefaultLayout is the layout of this repository.
+func DefaultLayout() Layout {
+	return Layout{
+		Packs: []PackSpec{
+			{
+				Name: evidencereattest.PackCNCF, Path: cncfRulesPath,
+				Admit: func(t Tree) (PackStats, error) {
+					files, err := readAll(t, "cli/internal/cncfcheck/data/landscape-projects.json", "cli/internal/cncfcheck/data/priority-portfolio.json", cncfRulesPath)
+					if err != nil {
+						return PackStats{}, err
+					}
+					r, err := cncfcheck.CheckPackFiles(files[0], files[1], files[2])
+					if err != nil {
+						return PackStats{}, err
+					}
+					return PackStats{Entries: r.Entries, TargetBytes: r.TargetBytes, MaxTargetBytes: r.MaxTargetBytes, RegistryFacts: r.RegistryFacts, MaxRegistryFacts: r.MaxRegistryFacts}, nil
+				},
+				AttestationPath: cncfAttestPath,
+				Attest: func(t Tree) ([]byte, error) {
+					return corpusattest.DocumentFromTree(corpusattest.PackCNCF, filepath.Join(t.Root, cliDir))
+				},
+				CapabilityDigest: cncfcheck.ExternalCapabilityDigest,
+			},
+			{
+				Name: evidencereattest.PackCommunity, Path: commRulesPath,
+				Admit: func(t Tree) (PackStats, error) {
+					files, err := readAll(t, "cli/internal/projectcheck/data/projects.json", commRulesPath)
+					if err != nil {
+						return PackStats{}, err
+					}
+					r, err := projectcheck.CheckPackFiles(files[0], files[1])
+					if err != nil {
+						return PackStats{}, err
+					}
+					return PackStats{Entries: r.Entries, TargetBytes: r.TargetBytes, MaxTargetBytes: r.MaxTargetBytes, RegistryFacts: r.RegistryFacts, MaxRegistryFacts: r.MaxRegistryFacts}, nil
+				},
+				AttestationPath: commAttestPath,
+				Attest: func(t Tree) ([]byte, error) {
+					return corpusattest.DocumentFromTree(corpusattest.PackCommunity, filepath.Join(t.Root, cliDir))
+				},
+				CapabilityDigest: func() (string, error) { return constraintengine.EngineContractDigest(), nil },
+			},
+		},
+		PausePath:        "factory/PAUSE",
+		ReattestDir:      "cli/knowledge/reattestation",
+		TrustRootPath:    "cli/knowledge/reattestation/trust-root.json",
+		ApprovalDir:      "cli/knowledge/approvals",
+		ApprovalKeysPath: "cli/knowledge/trust/web-approval-keys.json",
+		Generated: []GeneratedPair{{
+			JSONPath: inventoryJSON, MarkdownPath: inventoryMD,
+			Generate: func(t Tree) ([]byte, string, error) {
+				return supportinventory.Generate(supportInventoryConfig(t))
+			},
+		}},
+		AutoMergePaths: []string{cncfRulesPath, cncfAttestPath, commRulesPath, commAttestPath, inventoryJSON, inventoryMD, knowledgeDir},
+	}
+}
+
+// supportInventoryConfig points the support inventory generator at a tree's
+// files, the same inputs the maintainer command uses by default.
+func supportInventoryConfig(t Tree) supportinventory.Config {
+	p := func(rel string) string { return filepath.Join(t.Root, cliDir, filepath.FromSlash(rel)) }
+	return supportinventory.Config{
+		Rules:                  p("internal/cncfcheck/data/rules.json"),
+		Landscape:              p("internal/cncfcheck/data/landscape-projects.json"),
+		CertContract:           p("internal/certmanagervalues/source-contract-v1.json"),
+		PrometheusContract:     p("internal/prometheusmode/source-contract-v1.json"),
+		SPIFFEProfile:          p("internal/spiffex509svid/data/profile.json"),
+		CloudEventsProfile:     p("internal/cloudeventsstructuredjson/data/profile.json"),
+		TiKVProfile:            p("internal/tikvgcpv2/data/profile.json"),
+		CNCFPrepareSource:      p("internal/communityapp/cncf_prepare.go"),
+		ProjectRules:           p("internal/projectcheck/data/rules.json"),
+		ProjectRegistry:        p("internal/projectcheck/data/projects.json"),
+		SelectedSourceManifest: p("docs/data/selected-source-records-v1.json"),
+	}
+}
+
+// autoMergePath reports whether a change to rel is allowed in an
+// automatically mergeable change.
+func (l Layout) autoMergePath(rel string) bool {
+	for _, allowed := range l.AutoMergePaths {
+		if strings.HasSuffix(allowed, "/") {
+			if strings.HasPrefix(rel, allowed) {
+				return true
+			}
+		} else if rel == allowed {
+			return true
+		}
+	}
+	return false
+}

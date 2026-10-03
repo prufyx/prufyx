@@ -168,13 +168,15 @@ func run(args []string, stdout, stderr io.Writer) error {
 			return &commandError{code: code, message: "chart-versions failed", printed: true}
 		}
 		return nil
+	case "gate":
+		return runGate(args[1:], stdout, stderr)
 	case "rule":
 		if code := runRuleCheck(args[1:], stdout, stderr); code != 0 {
 			return &commandError{code: code, message: "rule validate failed", printed: true}
 		}
 		return nil
 	case "help", "-h", "--help":
-		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|chart-versions|rule|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-sign|support-inventory|release-gate|staging-receipt|release|local-kind|release-*> [options]")
+		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|chart-versions|gate|rule|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-sign|support-inventory|release-gate|staging-receipt|release|local-kind|release-*> [options]")
 		return nil
 	default:
 		return usageError()
