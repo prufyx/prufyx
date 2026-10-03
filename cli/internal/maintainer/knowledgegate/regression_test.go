@@ -499,3 +499,68 @@ func TestRecordFilesNeedTheirChange(t *testing.T) {
 		})
 	}
 }
+
+// A mode-only change is a change: outside the knowledge files it makes the
+// change ineligible, on a knowledge file it fails.
+func TestModeOnlyChanges(t *testing.T) {
+	setup := func(t *testing.T) (Tree, Tree) {
+		base, head := trees(t)
+		for _, tr := range []Tree{base, head} {
+			writeFile(t, filepath.Join(tr.Root, "scripts", "release.sh"), []byte("#!/bin/sh\n"))
+			writeFile(t, filepath.Join(tr.Root, ".github", "workflows", "x.yml"), []byte("name: x\n"))
+			if err := os.Chmod(filepath.Join(tr.Root, "scripts", "release.sh"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}
+		ids := readPack(t, base, cncfRulesPath).activeReviewed()
+		editPack(t, head, cncfRulesPath, func(p *packDoc) { evidenceOf(p.find(t, ids[1]))["state"] = "withdrawn" })
+		return base, head
+	}
+	t.Run("outside the allow-list", func(t *testing.T) {
+		base, head := setup(t)
+		if err := os.Chmod(filepath.Join(head.Root, "scripts", "release.sh"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(filepath.Join(head.Root, ".github", "workflows", "x.yml"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		r := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})
+		got := strings.Join(r.ChangedPaths, " ")
+		if !strings.Contains(got, "scripts/release.sh") || !strings.Contains(got, ".github/workflows/x.yml") {
+			t.Fatalf("mode-only changes not listed: %v", r.ChangedPaths)
+		}
+		if r.AutoMerge.Eligible {
+			t.Fatal("a change flipping executable bits is eligible")
+		}
+	})
+	t.Run("on a knowledge file", func(t *testing.T) {
+		base, head := setup(t)
+		if err := os.Chmod(filepath.Join(head.Root, filepath.FromSlash(cncfAttestPath)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		r := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})
+		requireFail(t, r, "file-modes")
+		if r.AutoMerge.Eligible {
+			t.Fatal("eligible")
+		}
+	})
+	t.Run("unchanged modes pass", func(t *testing.T) {
+		base, head := setup(t)
+		r := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})
+		requirePass(t, r)
+		if !r.AutoMerge.Eligible {
+			t.Fatalf("not eligible: %v", r.AutoMerge.Reasons)
+		}
+	})
+}
+
+// Step-summary text from the proposed change cannot form links, images or
+// HTML.
+func TestSummaryEscapesMarkdown(t *testing.T) {
+	got := mdEscape("![x](https://e.invalid/a.png) [y](https://e.invalid) <b>&")
+	for _, bad := range []string{"![", "](", "<b>", " & "} {
+		if strings.Contains(got, bad) {
+			t.Fatalf("mdEscape left %q in %q", bad, got)
+		}
+	}
+}

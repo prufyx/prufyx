@@ -313,6 +313,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	r.packChecks(cls, opts)
 	r.generatedChecks(opts)
 	r.trustCheck(opts)
+	r.modeCheck(opts)
 	r.recordCheck(cls, statements, opts)
 	r.limitChecks(cls)
 	r.finish(true)
@@ -586,4 +587,19 @@ func (r *Report) autoMerge(opts Options) {
 		reasons = append(reasons, "the change touches files outside the knowledge files"+listDetail(outside))
 	}
 	r.AutoMerge = AutoMerge{Eligible: len(reasons) == 0, Reasons: reasons}
+}
+
+// modeCheck refuses an executable bit on a knowledge file the automation
+// may change, and any change of the bit on one: knowledge files are data.
+func (r *Report) modeCheck(opts Options) {
+	var bad []string
+	for _, p := range r.ChangedPaths {
+		if !opts.Layout.autoMergePath(p) {
+			continue
+		}
+		if opts.Head.executable(p) || opts.Base.executable(p) {
+			bad = append(bad, p)
+		}
+	}
+	r.add("file-modes", len(bad) == 0, "%d knowledge files with an executable bit%s", len(bad), listDetail(bad))
 }

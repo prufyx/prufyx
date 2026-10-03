@@ -326,6 +326,9 @@ func TestGateReattestationRecordFiles(t *testing.T) {
 		"statement's worklist replaces one in the base": {func(t *testing.T, f reattestFixture) {
 			writeFile(t, filepath.Join(f.base.Root, synthLayout().ReattestDir, "community", "worklists", "0001.worklist.json"), append(append([]byte(nil), f.worklist...), ' '))
 		}, false},
+		"review record removed": {func(t *testing.T, f reattestFixture) {
+			writeFile(t, filepath.Join(f.base.Root, synthLayout().ReattestDir, "community", "review-records", f.ruleID+".json"), []byte("{}\n"))
+		}, false},
 		"review record of another rule": {func(t *testing.T, f reattestFixture) {
 			writeFile(t, filepath.Join(dir(f), "review-records", "other.rule.json"), []byte("{}\n"))
 		}, false},

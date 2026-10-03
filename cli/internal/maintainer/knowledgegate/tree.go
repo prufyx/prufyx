@@ -226,7 +226,7 @@ func (t Tree) SpecialFiles(dir string) ([]string, error) {
 }
 
 // fileDigests maps every file below the tree root (except .git) to a digest
-// of its content; a symbolic link is recorded by its target, any other
+// of its executable bit and content; a symbolic link is recorded by its target, any other
 // non-regular file by its type (it is never opened).
 func (t Tree) fileDigests() (map[string][32]byte, error) {
 	out := map[string][32]byte{}
@@ -256,12 +256,22 @@ func (t Tree) fileDigests() (map[string][32]byte, error) {
 			}
 			out[rel] = sha256.Sum256([]byte("link\x00" + target))
 		case d.Type().IsRegular():
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
 			f, err := validation.OpenInputRegularFile(p)
 			if err != nil {
 				return err
 			}
 			h := sha256.New()
-			h.Write([]byte("file\x00"))
+			// The git mode is part of what merges: an executable bit
+			// flipped with no content change is a change.
+			if info.Mode().Perm()&0o111 != 0 {
+				h.Write([]byte("exec\x00"))
+			} else {
+				h.Write([]byte("file\x00"))
+			}
 			_, err = io.Copy(h, f)
 			f.Close()
 			if err != nil {
@@ -302,4 +312,10 @@ func ChangedPaths(base, head Tree) ([]string, error) {
 	}
 	sort.Strings(out)
 	return out, nil
+}
+
+// executable reports whether rel is a regular file with an executable bit.
+func (t Tree) executable(rel string) bool {
+	info, err := os.Lstat(filepath.Join(t.Root, filepath.FromSlash(rel)))
+	return err == nil && info.Mode().IsRegular() && info.Mode().Perm()&0o111 != 0
 }
