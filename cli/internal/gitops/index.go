@@ -77,7 +77,7 @@ type analysis struct {
 	encByDir   map[string][]string
 	omitByDir  map[string][]intake.Omission
 	omitByFile map[string][]intake.Omission
-	symlinks   map[string]bool
+	links      *linkTrie // symlinks intake did not follow, by path component
 	kust       map[string]*docRef
 	kustMulti  map[string]intake.Source
 	kustFiles  map[string][]string // kustomization file names present in a directory
@@ -97,7 +97,7 @@ func newAnalysis(ws intake.Workspace, opts Options) *analysis {
 		byDir: map[string][]*docRef{}, byFile: map[string][]*docRef{}, candDir: map[string][]*docRef{}, candFile: map[string][]*docRef{},
 		files: map[string]bool{}, dirs: map[string]bool{".": true},
 		subdirs: map[string][]string{}, enc: map[string]intake.Source{}, encByDir: map[string][]string{},
-		omitByDir: map[string][]intake.Omission{}, omitByFile: map[string][]intake.Omission{}, symlinks: map[string]bool{},
+		omitByDir: map[string][]intake.Omission{}, omitByFile: map[string][]intake.Omission{}, links: &linkTrie{},
 		kust: map[string]*docRef{}, kustMulti: map[string]intake.Source{}, kustFiles: map[string][]string{},
 		chartDocs: map[string][]*docRef{}, chartExtra: map[string]bool{}, sources: map[string][]*docRef{},
 		nodes: valuesNodeBudget,
@@ -167,7 +167,7 @@ func newAnalysis(ws intake.Workspace, opts Options) *analysis {
 		}
 		switch o.Reason {
 		case intake.ReasonSymlinkNotFollowed:
-			a.symlinks[rel] = true
+			a.links.add(rel)
 		case intake.ReasonTemplated, intake.ReasonUnparseable:
 			a.addFile(rel)
 			dir := path.Dir(rel)
@@ -393,15 +393,57 @@ func (a *analysis) resolve(base, ref string) target {
 	return target{path: joined}
 }
 
+// linkTrie holds symlink paths by component, so that finding a symlink
+// among the parents of a path costs one pass over the path.
+type linkTrie struct {
+	kids map[string]*linkTrie
+	link bool
+}
+
+func (t *linkTrie) add(p string) {
+	for _, c := range strings.Split(p, "/") {
+		if t.kids == nil {
+			t.kids = map[string]*linkTrie{}
+		}
+		next := t.kids[c]
+		if next == nil {
+			next = &linkTrie{}
+			t.kids[c] = next
+		}
+		t = next
+	}
+	t.link = true
+}
+
+// under returns the symlink that p is or lies under, or "".
+func (t *linkTrie) under(p string) string {
+	for end := 0; t != nil; {
+		next := strings.IndexByte(p[end:], '/')
+		stop := len(p)
+		if next >= 0 {
+			stop = end + next
+		}
+		if t = t.kids[p[end:stop]]; t != nil && t.link {
+			return p[:stop]
+		}
+		if next < 0 {
+			return ""
+		}
+		end = stop + 1
+	}
+	return ""
+}
+
 // missing explains why a resolved path has no files.
 func (a *analysis) missing(p string) string {
-	for q := p; q != "." && q != "/"; q = path.Dir(q) {
-		if a.symlinks[q] {
-			return "symlink is not followed: " + clip(q)
-		}
+	if q := a.links.under(p); q != "" {
+		return "symlink is not followed: " + clip(q)
 	}
 	return "no input file under " + clip(p)
 }
+
+// resolveCost is the work of resolving ref: one step per 64 bytes.
+func resolveCost(ref string) int { return 1 + len(ref)/64 }
 
 // normalizeURL applies the only normalisation allowed for repository URLs:
 // the host is lower-cased, then one trailing "/" and one trailing ".git" are

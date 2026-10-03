@@ -81,7 +81,7 @@ func TestWorkIsCharged(t *testing.T) {
 		}, 1, 2, nil},
 		{"kustomization entries", func(n int) map[string]string {
 			return with(flux, map[string]string{"app/kustomization.yaml": "resources:\n" + repeat(n, func(i int) string { return fmt.Sprintf("  - missing%d.yaml\n", i) }) + "  - keep.yaml\n"})
-		}, 2, 1, nil},
+		}, 3, 1, nil}, // discovery: parse, resolve, entry
 		{"omissions of a resource file", func(n int) map[string]string {
 			return with(flux, map[string]string{"app/kustomization.yaml": "resources: [f.yaml]\n", "app/f.yaml": "---\n" + repeat(n+1, func(int) string { return templated + "---\n" })})
 		}, 0, 1, nil},
@@ -105,7 +105,7 @@ func TestWorkIsCharged(t *testing.T) {
 				files[fmt.Sprintf("app/r%d.yaml", i)] = helmRelease(fmt.Sprintf("r%d", i), "1.0.0")
 			}
 			return files
-		}, 2, 4, nil}, // discovery: entry parse and entry; work: entry, document, parse, patch scan
+		}, 3, 4, nil}, // discovery: entry parse, resolve and entry; work: entry, document, parse, patch scan
 		{"gaps of a document", func(n int) map[string]string {
 			files := with(flux, map[string]string{"app/keep.yaml": "a: 1\n"})
 			for i := 0; i < n; i++ {
@@ -127,7 +127,7 @@ func TestWorkIsCharged(t *testing.T) {
 			return with(flux, map[string]string{"app/Chart.yaml": "apiVersion: v2\nname: c\ndependencies:\n" + repeat(n+1, func(i int) string {
 				return fmt.Sprintf("  - {name: d%d, version: 1.0.0, repository: 'file://../none%d'}\n", i, i)
 			})})
-		}, 0, 2, nil},
+		}, 0, 3, nil}, // parse, resolve, loop
 		{"workload containers", func(n int) map[string]string {
 			return with(flux, map[string]string{"app/d.yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata: {name: d}\nspec:\n  template:\n    spec:\n      containers:\n" +
 				repeat(n+1, func(i int) string {
@@ -137,7 +137,7 @@ func TestWorkIsCharged(t *testing.T) {
 		{"Flux components", func(n int) map[string]string {
 			return with(map[string]string{"git.yaml": gitRepo, "app/keep.yaml": "a: 1\n"}, map[string]string{"root.yaml": fluxRoot("root", "./app") + "  components:\n" +
 				repeat(n+1, func(i int) string { return fmt.Sprintf("    - ../none%d\n", i) })})
-		}, 2, 1, nil},
+		}, 3, 1, nil},
 		{"root source definitions", func(n int) map[string]string {
 			files := with(flux, map[string]string{"app/keep.yaml": "a: 1\n"})
 			for i := 0; i <= n; i++ {
@@ -330,5 +330,16 @@ func TestNothingAfterTheWorkLimit(t *testing.T) {
 		if len(e.Gaps) != 1 || !hasGap(e.Gaps, ClosureLimit, "work limit") {
 			t.Fatalf("%s: %+v", e.Name, e.Gaps)
 		}
+	}
+}
+
+// TestResolveCostsItsLength: a reference costs one step per 64 bytes.
+func TestResolveCostsItsLength(t *testing.T) {
+	short := map[string]string{"git.yaml": gitRepo, "root.yaml": fluxRoot("root", "./k"), "k/kustomization.yaml": "resources: [x]\n"}
+	long := with(short, map[string]string{"k/kustomization.yaml": "resources: [" + strings.Repeat("a/", 1000) + "x]\n"})
+	d0, _, _ := usage(t, short, Options{})
+	d1, _, _ := usage(t, long, Options{})
+	if d1-d0 != 2000/64 {
+		t.Fatalf("a 2001-byte reference cost %d more steps", d1-d0)
 	}
 }

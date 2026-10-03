@@ -489,3 +489,16 @@ func TestDepthThroughKustomizationDirectories(t *testing.T) {
 		t.Fatalf("depth 33: %+v", e)
 	}
 }
+
+func TestSymlinkParents(t *testing.T) {
+	links := &linkTrie{}
+	links.add("a/link")
+	links.add("top")
+	for p, want := range map[string]string{
+		"a/link": "a/link", "a/link/x/y": "a/link", "a/lin": "", "a/linkx/y": "", "a": "", "top/z": "top", "x/top": "", "": "",
+	} {
+		if got := links.under(p); got != want {
+			t.Errorf("under(%q) = %q, want %q", p, got, want)
+		}
+	}
+}

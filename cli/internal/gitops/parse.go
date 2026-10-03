@@ -78,6 +78,7 @@ type argoSrc struct {
 	decoded bool
 	values  map[string]any
 	valGap  *Gap
+	cost    int    // resolving the path
 	dir     target // path sources
 	follow  bool
 	recurse bool
@@ -136,7 +137,7 @@ func (a *analysis) parseKust(k *docRef) (*kustSpec, int) {
 				s.gaps = append(s.gaps, g(SourceNotFound, "a "+name+" entry is not a string"))
 				continue
 			}
-			s.entries = append(s.entries, a.resolve(k.dir, r))
+			s.entries, cost = append(s.entries, a.resolve(k.dir, r)), cost+resolveCost(r)
 		}
 	}
 	images, bad := listField(v, "images")
@@ -237,7 +238,7 @@ func (a *analysis) parseFlux(d *docRef) (*fluxSpec, int) {
 			p = str
 		}
 	}
-	s.dir = a.resolve(".", p)
+	s.dir, cost = a.resolve(".", p), cost+resolveCost(p)
 	s.wholeRepo = s.dir.reason == "" && s.dir.path == "."
 	s.bootstrap = d.doc.Name == "flux-system" && d.doc.Namespace == "flux-system" &&
 		s.ref.kind == "GitRepository" && s.ref.name == "flux-system" && (s.ref.ns == "" || s.ref.ns == "flux-system")
@@ -260,7 +261,7 @@ func (a *analysis) parseFlux(d *docRef) (*fluxSpec, int) {
 			continue
 		}
 		if s.dir.reason == "" {
-			s.components = append(s.components, a.resolve(s.dir.path, r))
+			s.components, cost = append(s.components, a.resolve(s.dir.path, r)), cost+resolveCost(r)
 		}
 	}
 	images, bad := listField(spec, "images")
@@ -421,7 +422,7 @@ func (a *analysis) parseChart(d *docRef) (*chartSpec, int) {
 		repo := asStr(m["repository"])
 		if local, ok := strings.CutPrefix(repo, "file://"); ok {
 			// A chart inside this repository: its own Chart.yaml is read.
-			s.files = append(s.files, a.resolve(d.dir, local))
+			s.files, cost = append(s.files, a.resolve(d.dir, local)), cost+resolveCost(local)
 			continue
 		}
 		version, _ := scalar(m["version"])
@@ -457,7 +458,8 @@ func (a *analysis) parseArgo(d *docRef) (*argoSpec, int) {
 	destNS := asStr(get(spec, "destination", "namespace"))
 	for _, e := range sources {
 		cost++
-		s.sources = append(s.sources, a.parseArgoSource(d, asMap(e), destNS))
+		src := a.parseArgoSource(d, asMap(e), destNS)
+		s.sources, cost = append(s.sources, src), cost+src.cost
 	}
 	return s, cost
 }
@@ -476,7 +478,11 @@ func (a *analysis) parseArgoSource(d *docRef, m map[string]any, destNS string) *
 	}
 	repo := asStr(m["repoURL"])
 	chart := asStr(m["chart"])
-	rev, _ := scalar(m["targetRevision"])
+	rev, revOK := scalar(m["targetRevision"])
+	if v, present := m["targetRevision"]; present && v != nil && !revOK {
+		add(ConstructNotEvaluated, "targetRevision is not a string")
+		return s
+	}
 	helm := asMap(m["helm"])
 	if nonEmpty(m["plugin"]) {
 		add(ConstructNotEvaluated, "a config management plugin is not evaluated")
@@ -519,7 +525,7 @@ func (a *analysis) parseArgoSource(d *docRef, m map[string]any, destNS string) *
 			add(RemoteReferenceNotResolved, "targetRevision "+rev+" is not the checked-out revision")
 			return s
 		}
-		s.dir = a.resolve(".", pth)
+		s.dir, s.cost = a.resolve(".", pth), resolveCost(pth)
 		if s.dir.reason != "" {
 			add(s.dir.reason, s.dir.detail)
 			return s

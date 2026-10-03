@@ -175,3 +175,51 @@ func TestAdversarialManyRoots(t *testing.T) {
 		}
 	}
 }
+
+// longMissingRepo: kustomizations listing thousands of long, deep, missing
+// references.
+func longMissingRepo(kusts, entries int) map[string]string {
+	files := map[string]string{"git.yaml": gitRepo, "root.yaml": fluxRoot("root", "./top")}
+	var top strings.Builder
+	top.WriteString("resources:\n")
+	deep := strings.Repeat("a/", 2040)
+	for k := 0; k < kusts; k++ {
+		fmt.Fprintf(&top, "  - ../k%d\n", k)
+		var b strings.Builder
+		b.WriteString("resources:\n")
+		for i := 0; i < entries; i++ {
+			fmt.Fprintf(&b, "  - %sx%d\n", deep, i)
+		}
+		files[fmt.Sprintf("k%d/kustomization.yaml", k)] = b.String()
+	}
+	files["top/kustomization.yaml"] = top.String()
+	return files
+}
+
+// longIdentityRepo: many roots over thousands of HelmReleases whose identity
+// fields are long and whose source is missing.
+func longIdentityRepo(roots, releases int) map[string]string {
+	files := map[string]string{"git.yaml": gitRepo}
+	ns := strings.Repeat("n", 118)
+	for f := 0; f*200 < releases; f++ {
+		var b strings.Builder
+		for i := 0; i < 200 && f*200+i < releases; i++ {
+			name := fmt.Sprintf("%s-%02d-%03d", strings.Repeat("r", 113), f, i)
+			fmt.Fprintf(&b, "---\napiVersion: helm.toolkit.fluxcd.io/v2\nkind: HelmRelease\nmetadata: {name: %s, namespace: %s}\nspec:\n  chart:\n    spec: {chart: %s, version: 1.0.0, sourceRef: {kind: HelmRepository, name: missing}}\n", name, ns, name)
+		}
+		files[fmt.Sprintf("apps/r%02d.yaml", f)] = b.String()
+	}
+	for i := 0; i < roots; i++ {
+		files[fmt.Sprintf("roots/r%04d.yaml", i)] = fluxRoot(fmt.Sprintf("r%04d", i), "./apps")
+	}
+	return files
+}
+
+func TestAdversarialLongMissingReferences(t *testing.T) {
+	ws := memory(t, longMissingRepo(4, 500))
+	repo, elapsed, alloc := measure(t, func() Repo { return Analyze(ws, Options{Root: "repo"}) })
+	checkCost(t, "long missing references", elapsed, alloc)
+	if len(repo.Environments) != 1 || !hasGap(repo.Environments[0].Gaps, SourceNotFound, "no input file under k0/a/a/") {
+		t.Fatalf("%+v", repo.Environments)
+	}
+}
