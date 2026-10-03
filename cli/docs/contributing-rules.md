@@ -127,8 +127,9 @@ one reviewed transition. It is a notice, not a verdict.
   `intermediate`. `appliesWhen` and a reviewed `range` are allowed.
 - `nextAction` is the reviewed "before you upgrade" text: what the operator
   must do first (a backup, a snapshot, a verified restore), written from the
-  cited source, at most 256 bytes. It must not contain the word "safe" in any
-  form; describe the precaution, never the outcome.
+  cited source, at most 256 bytes of printable ASCII. Neither it nor the rule
+  `id` may contain the word "safe" (in any letter case); describe the
+  precaution, never the outcome.
 - `requiredFacts` lists only the facts `appliesWhen` reads, and is empty when
   there are none.
 
@@ -137,12 +138,14 @@ condition holds, the claim status is `NOTICE`. Otherwise the claim is
 `UNKNOWN` with the usual reason (stale or withdrawn evidence, a transition the
 rule does not review, an applicability fact that is missing or does not
 match). Either way the claim never decides anything: a notice is left out of
-the exit code and of every aggregate, a project whose only rules are notices
-still has no evaluated rule, and a notice cannot support a completeness
-attestation. Human output prints a matching notice as
+the exit code and of every aggregate, it never changes which other rules a
+check reports, a project whose only rules are notices still has no evaluated
+rule, and a notice cannot support a completeness attestation. Human output prints a matching notice as
 `cannot be rolled back: <rule id>` followed by
 `before you upgrade: <nextAction>`; a notice for another transition prints
 nothing, because the absence of a notice says nothing about rolling back.
+When a check holds notices and no other claim, it also prints
+`UNKNOWN: no reviewed rule decided this transition; a one-way notice is not a verdict`.
 
 A rule document or pack that contains a `notice_one_way` rule carries its own
 schema — rules `prufyx.io/deterministic-constraint-rules/v1alpha4`, CNCF pack
@@ -150,8 +153,8 @@ schema — rules `prufyx.io/deterministic-constraint-rules/v1alpha4`, CNCF pack
 engine contract digest. The schema may also hold reviewed ranges and
 `forbid_set_member` rules. Binaries that predate notices reject such a
 document outright, and every document without the operator keeps its previous
-schema, digests and report bytes. Community project packs do not accept
-notices.
+schema, digests and report bytes. Community project packs and external
+knowledge targets do not accept notices yet.
 
 ## Evidence basis
 
