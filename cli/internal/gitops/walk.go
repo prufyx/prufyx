@@ -271,7 +271,7 @@ func (w *walker) flux(d *docRef, hops int) {
 			return
 		}
 		w.own = ref.key()
-		if len(w.a.self) > 0 && !w.ownIsSelf(ref) {
+		if !w.ownIsSelf(ref) {
 			return
 		}
 	} else if ref.key() != w.own {
@@ -305,25 +305,61 @@ func (w *walker) flux(d *docRef, hops int) {
 	delete(w.objStack, d.id)
 }
 
-// ownIsSelf checks every definition of the root's GitRepository against
-// SelfRepoURLs; none, or one that does not match, stops the walk.
+// ownIsSelf checks every definition of the root's GitRepository: its URL
+// against SelfRepoURLs (when given) and its ref against the checked-out
+// revision, with the rule used for Argo CD sources. None, or one that does
+// not match, stops the walk.
 func (w *walker) ownIsSelf(ref fluxRef) bool {
 	src := w.root.doc.Source
 	docs := w.a.sources[ref.key()]
 	if len(docs) == 0 {
-		w.gap(RemoteReferenceNotResolved, src, "GitRepository "+ref.key()+" is not in the input; it cannot be matched to this repository")
+		w.gap(RemoteReferenceNotResolved, src, "GitRepository "+ref.key()+" is not in the input; its URL and revision are unknown")
 		return false
 	}
 	for _, d := range docs {
 		if !w.charge(1) {
 			return false
 		}
-		if !w.a.isSelf(asStr(get(d.doc.Value, "spec", "url"))) {
+		spec := asMap(d.doc.Value["spec"])
+		if len(w.a.self) > 0 && !w.a.isSelf(asStr(spec["url"])) {
 			w.gap(RemoteReferenceNotResolved, src, "GitRepository "+ref.key()+" is not this repository")
+			return false
+		}
+		if rev, ok := gitRevision(spec["ref"]); !ok {
+			w.gap(RemoteReferenceNotResolved, src, "GitRepository "+ref.key()+" has a ref that is not understood")
+			return false
+		} else if !w.a.revisionIsSelf(rev) && !w.a.revisionIsSelf(strings.TrimPrefix(strings.TrimPrefix(rev, "refs/heads/"), "refs/tags/")) {
+			w.gap(RemoteReferenceNotResolved, src, "GitRepository "+ref.key()+" tracks "+rev+", not the checked-out revision")
 			return false
 		}
 	}
 	return true
+}
+
+// gitRevision is the revision a GitRepository ref selects, in the order of
+// precedence Flux uses; "" when there is no ref.
+func gitRevision(v any) (string, bool) {
+	if v == nil {
+		return "", true
+	}
+	ref, ok := v.(map[string]any)
+	if !ok {
+		return "", false
+	}
+	for _, field := range []string{"commit", "name", "semver", "tag", "branch"} {
+		f, present := ref[field]
+		if !present || f == nil {
+			continue
+		}
+		s, ok := scalar(f)
+		if !ok {
+			return "", false
+		}
+		if s != "" {
+			return s, true
+		}
+	}
+	return "", true
 }
 
 // follow goes to a resolved reference: a file or a directory.

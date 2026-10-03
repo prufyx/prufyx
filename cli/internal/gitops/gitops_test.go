@@ -18,7 +18,7 @@ func releaseSummary(r Release) string {
 
 func TestFluxEnvironments(t *testing.T) {
 	ws, root := openFixture(t, "flux")
-	repo := Analyze(ws, Options{Root: root})
+	repo := Analyze(ws, Options{Root: root, SelfRevisions: []string{"main"}})
 	if got := envNames(repo); len(got) != 2 || got[0] != "clusters/production" || got[1] != "clusters/staging" {
 		t.Fatalf("environments = %v", got)
 	}
@@ -450,7 +450,7 @@ func TestGitopsDeterministic(t *testing.T) {
 	ws3, _ := openFixture(t, "flux")
 	var first string
 	for i, ws := range []intake.Workspace{ws1, ws2, ws3} {
-		out := marshal(t, Analyze(ws, Options{Root: root}))
+		out := marshal(t, Analyze(ws, Options{Root: root, SelfRevisions: []string{"main"}}))
 		if i == 0 {
 			first = out
 		} else if out != first {

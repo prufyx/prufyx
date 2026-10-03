@@ -540,3 +540,49 @@ func TestBaseUnderTwoNamespaces(t *testing.T) {
 		t.Fatalf("overlays: %v %+v", got, e.Gaps)
 	}
 }
+
+func TestFluxRootRevision(t *testing.T) {
+	withRef := func(ref string) string { return gitRepo + ref }
+	base := map[string]string{"root.yaml": fluxRoot("root", "./app"), "app/r.yaml": helmRelease("x", "1.0.0"), "app/repo.yaml": helmRepo}
+	cases := []struct {
+		git       []string
+		revisions []string
+		follow    bool
+		detail    string
+	}{
+		{[]string{withRef("  ref: {tag: v0.0.1-old}\n")}, nil, false, "tracks v0.0.1-old"},
+		{[]string{withRef("  ref: {tag: v0.0.1-old}\n")}, []string{"v0.0.1-old"}, true, ""},
+		{[]string{gitRepo}, nil, true, ""},
+		{[]string{withRef("  ref: {branch: main}\n")}, []string{"main"}, true, ""},
+		{[]string{withRef("  ref: {name: refs/heads/main}\n")}, []string{"main"}, true, ""},
+		{[]string{withRef("  ref: {branch: main, commit: abc123}\n")}, []string{"main"}, false, "tracks abc123"},
+		{[]string{withRef("  ref: [main]\n")}, nil, false, "not understood"},
+		{[]string{withRef("  ref: {branch: [main]}\n")}, []string{"main"}, false, "not understood"},
+		{[]string{gitRepo, withRef("  ref: {branch: old}\n")}, nil, false, "tracks old"},
+		{nil, nil, false, "not in the input"},
+	}
+	for i, c := range cases {
+		files := with(base, nil)
+		for j, g := range c.git {
+			files[fmt.Sprintf("git%d.yaml", j)] = strings.Replace(g, "spec: {url: \"ssh://git@git.example.test/team/fleet\"}\n", "spec:\n  url: \"ssh://git@git.example.test/team/fleet\"\n", 1)
+		}
+		repo := Analyze(memory(t, files), Options{Root: "repo", SelfRevisions: c.revisions})
+		e := envByName(t, repo, "app")
+		if (len(e.Releases) == 1) != c.follow || (!c.follow && !hasGap(e.Gaps, RemoteReferenceNotResolved, c.detail)) {
+			t.Errorf("case %d: %+v", i, e)
+		}
+	}
+}
+
+func TestArgoNonScalarRevision(t *testing.T) {
+	for _, rev := range []string{"{a: b}", "[v1]", "true"} {
+		repo := Analyze(memory(t, map[string]string{
+			"app.yaml":   argoApp("a", "    {repoURL: 'https://github.com/example/fleet', path: dir, targetRevision: "+rev+"}\n"),
+			"dir/d.yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata: {name: d}\nspec: {template: {spec: {containers: [{name: c, image: 'r.example.test/i:1'}]}}}\n",
+		}), Options{Root: "repo", SelfRepoURLs: []string{"https://github.com/example/fleet"}})
+		e := envByName(t, repo, "argocd/a")
+		if len(e.Images) != 0 || !hasGap(e.Gaps, ConstructNotEvaluated, "targetRevision is not a string") {
+			t.Errorf("targetRevision %s: %+v", rev, e)
+		}
+	}
+}

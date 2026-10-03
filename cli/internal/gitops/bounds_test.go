@@ -31,8 +31,13 @@ func release(display string, index int, name string) intake.Document {
 	})
 }
 
+// gitDoc is the GitRepository the Kustomizations made by flux use.
+func gitDoc() intake.Document {
+	return doc("repo/git.yaml", 0, "source.toolkit.fluxcd.io/v1", "GitRepository", "flux-system", "fleet", map[string]any{"url": "ssh://git@git.example.test/team/fleet"})
+}
+
 func TestEnvironmentBound(t *testing.T) {
-	var ws intake.Workspace
+	ws := intake.Workspace{Documents: []intake.Document{gitDoc()}}
 	for i := 0; i < MaxEnvironments+5; i++ {
 		ws.Documents = append(ws.Documents, flux(fmt.Sprintf("repo/r/k%04d.yaml", i), 0, fmt.Sprintf("k%04d", i), "./none"))
 	}
@@ -43,7 +48,7 @@ func TestEnvironmentBound(t *testing.T) {
 }
 
 func TestReleaseBound(t *testing.T) {
-	var ws intake.Workspace
+	ws := intake.Workspace{Documents: []intake.Document{gitDoc()}}
 	ws.Documents = append(ws.Documents, flux("repo/root.yaml", 0, "root", "./app"))
 	for i := 0; i < MaxReleases+3; i++ {
 		ws.Documents = append(ws.Documents, release(fmt.Sprintf("repo/app/r%05d.yaml", i), 0, fmt.Sprintf("r%05d", i)))
@@ -56,7 +61,7 @@ func TestReleaseBound(t *testing.T) {
 }
 
 func TestImageBound(t *testing.T) {
-	var ws intake.Workspace
+	ws := intake.Workspace{Documents: []intake.Document{gitDoc()}}
 	ws.Documents = append(ws.Documents, flux("repo/root.yaml", 0, "root", "./app"))
 	var images []any
 	for i := 0; i < MaxImages+3; i++ {
@@ -73,7 +78,7 @@ func TestImageBound(t *testing.T) {
 }
 
 func TestGapBound(t *testing.T) {
-	var ws intake.Workspace
+	ws := intake.Workspace{Documents: []intake.Document{gitDoc()}}
 	ws.Documents = append(ws.Documents, flux("repo/root.yaml", 0, "root", "./app"))
 	for i := 0; i < MaxGaps+10; i++ {
 		d := release(fmt.Sprintf("repo/app/r%05d.yaml", i), 0, "x")
@@ -109,7 +114,7 @@ func TestWorkBudget(t *testing.T) {
 	saved := workBudget
 	defer func() { workBudget = saved }()
 	workBudget = 50
-	var ws intake.Workspace
+	ws := intake.Workspace{Documents: []intake.Document{gitDoc()}}
 	for i := 0; i < 20; i++ {
 		ws.Documents = append(ws.Documents, flux(fmt.Sprintf("repo/k%02d.yaml", i), 0, fmt.Sprintf("k%02d", i), "./a"))
 	}
