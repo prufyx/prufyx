@@ -285,8 +285,9 @@ type kindLine struct {
 }
 
 type factUse struct {
-	Fact  string   `json:"fact"`
-	Kinds []string `json:"kinds"`
+	Fact         string   `json:"fact"`
+	Kinds        []string `json:"kinds"`
+	Replacements []string `json:"replacements"`
 }
 
 type removalProof struct {
@@ -554,6 +555,7 @@ func (x *Extractor) Extract(_ context.Context, r extract.PinnedReader, pair extr
 		var uses []useSpan
 		for _, fact := range order {
 			u := perFact[fact]
+			u.Replacements = replacements(to, k.group, k.version, u.Kinds)
 			rp.Facts = append(rp.Facts, *u)
 			uses = append(uses, spanFor(rp, u))
 		}
@@ -665,8 +667,8 @@ func candidate(pair extract.VersionPair, line int, rp removalProof, u useSpan, s
 	}
 	kinds := joinKinds(u.use.Kinds)
 	next := "Remove the named manifests or replace them with a kind and version the target release serves, then reassess the complete target apply set. Validate CRDs, stored objects, clients and API-server configuration separately."
-	if n := len(rp.Replacements); n > 0 {
-		next = fmt.Sprintf("Migrate the named manifests to %s, then reassess the complete target apply set. Validate CRDs, stored objects, clients and API-server configuration separately.", groupVersion(rp.Group, rp.Replacements[n-1]))
+	if n := len(u.use.Replacements); n > 0 {
+		next = fmt.Sprintf("Migrate the named manifests to %s, then reassess the complete target apply set. Validate CRDs, stored objects, clients and API-server configuration separately.", groupVersion(rp.Group, u.use.Replacements[n-1]))
 	}
 	yes := true
 	bounds := []constraintengine.RangeBound{

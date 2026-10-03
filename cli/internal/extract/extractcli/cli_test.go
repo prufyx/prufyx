@@ -64,3 +64,29 @@ func TestRejectsBadInvocations(t *testing.T) {
 		t.Fatalf("list: %d %s", code, out)
 	}
 }
+
+func TestServedAPIRunVerifyOracleOnFixture(t *testing.T) {
+	const id, fx = "k8s.served-api-removal", "../k8sservedapis/testdata/fixture"
+	dir := filepath.Join(t.TempDir(), "out")
+	code, out, errs := run("run", "--extractor", id, "--fixture", fx, "--out", dir, "--derived-at", "2026-10-03T00:00:00Z")
+	if code != 0 || !strings.Contains(out, "4 pairs (4 derived, 0 withheld), 5 rules, 15 vectors") {
+		t.Fatalf("run: %d %s %s", code, out, errs)
+	}
+	if code, out, errs := run("verify", "--extractor", id, "--fixture", fx, "--out", dir); code != 0 || !strings.Contains(out, "byte-identical") {
+		t.Fatalf("verify: %d %s %s", code, out, errs)
+	}
+	if code, out, _ := run("oracle", "--extractor", id, "--out", dir, "--expected", "../k8sservedapis/testdata/oracle-fixture.json"); code != 0 {
+		t.Fatalf("oracle: %d %s", code, out)
+	}
+	p := filepath.Join(dir, "candidates.json")
+	data, _ := os.ReadFile(p)
+	if err := os.WriteFile(p, bytes.Replace(data, []byte("CronJob"), []byte("CronJoX"), 1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if code, out, _ := run("verify", "--extractor", id, "--fixture", fx, "--out", dir); code != 1 || !strings.Contains(out, "DIFFERS candidates.json") {
+		t.Fatalf("tampered verify: %d %s", code, out)
+	}
+	if code, out, _ := run("list"); code != 0 || !strings.Contains(out, id+"\tgithub.com/kubernetes/kubernetes") {
+		t.Fatalf("list: %d %s", code, out)
+	}
+}

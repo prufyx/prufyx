@@ -1,0 +1,388 @@
+{
+  "definitions": {
+    "io.k8s.api.admissionregistration.v1.MutatingWebhookConfiguration": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "admissionregistration.k8s.io",
+          "kind": "MutatingWebhookConfiguration",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.admissionregistration.v1.MutatingWebhookConfigurationList": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "admissionregistration.k8s.io",
+          "kind": "MutatingWebhookConfigurationList",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.admissionregistration.v1.ValidatingAdmissionPolicy": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "admissionregistration.k8s.io",
+          "kind": "ValidatingAdmissionPolicy",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.admissionregistration.v1.ValidatingAdmissionPolicyBinding": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "admissionregistration.k8s.io",
+          "kind": "ValidatingAdmissionPolicyBinding",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.admissionregistration.v1.ValidatingAdmissionPolicyBindingList": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "admissionregistration.k8s.io",
+          "kind": "ValidatingAdmissionPolicyBindingList",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.admissionregistration.v1.ValidatingAdmissionPolicyList": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "admissionregistration.k8s.io",
+          "kind": "ValidatingAdmissionPolicyList",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.admissionregistration.v1.ValidatingWebhookConfiguration": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "admissionregistration.k8s.io",
+          "kind": "ValidatingWebhookConfiguration",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.admissionregistration.v1.ValidatingWebhookConfigurationList": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "admissionregistration.k8s.io",
+          "kind": "ValidatingWebhookConfigurationList",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.admissionregistration.v1alpha1.ValidatingAdmissionPolicy": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "admissionregistration.k8s.io",
+          "kind": "ValidatingAdmissionPolicy",
+          "version": "v1alpha1"
+        }
+      ]
+    },
+    "io.k8s.api.admissionregistration.v1alpha1.ValidatingAdmissionPolicyBinding": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "admissionregistration.k8s.io",
+          "kind": "ValidatingAdmissionPolicyBinding",
+          "version": "v1alpha1"
+        }
+      ]
+    },
+    "io.k8s.api.admissionregistration.v1alpha1.ValidatingAdmissionPolicyBindingList": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "admissionregistration.k8s.io",
+          "kind": "ValidatingAdmissionPolicyBindingList",
+          "version": "v1alpha1"
+        }
+      ]
+    },
+    "io.k8s.api.admissionregistration.v1alpha1.ValidatingAdmissionPolicyList": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "admissionregistration.k8s.io",
+          "kind": "ValidatingAdmissionPolicyList",
+          "version": "v1alpha1"
+        }
+      ]
+    },
+    "io.k8s.api.admissionregistration.v1beta1.ValidatingAdmissionPolicy": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "admissionregistration.k8s.io",
+          "kind": "ValidatingAdmissionPolicy",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "io.k8s.api.admissionregistration.v1beta1.ValidatingAdmissionPolicyBinding": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "admissionregistration.k8s.io",
+          "kind": "ValidatingAdmissionPolicyBinding",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "io.k8s.api.admissionregistration.v1beta1.ValidatingAdmissionPolicyBindingList": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "admissionregistration.k8s.io",
+          "kind": "ValidatingAdmissionPolicyBindingList",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "io.k8s.api.admissionregistration.v1beta1.ValidatingAdmissionPolicyList": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "admissionregistration.k8s.io",
+          "kind": "ValidatingAdmissionPolicyList",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "io.k8s.api.authentication.v1.SelfSubjectReview": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "authentication.k8s.io",
+          "kind": "SelfSubjectReview",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.authentication.v1.TokenRequest": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "authentication.k8s.io",
+          "kind": "TokenRequest",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.authentication.v1.TokenReview": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "authentication.k8s.io",
+          "kind": "TokenReview",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.authentication.v1alpha1.SelfSubjectReview": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "authentication.k8s.io",
+          "kind": "SelfSubjectReview",
+          "version": "v1alpha1"
+        }
+      ]
+    },
+    "io.k8s.api.authentication.v1beta1.SelfSubjectReview": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "authentication.k8s.io",
+          "kind": "SelfSubjectReview",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "io.k8s.api.autoscaling.v1.HorizontalPodAutoscaler": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "autoscaling",
+          "kind": "HorizontalPodAutoscaler",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.autoscaling.v1.HorizontalPodAutoscalerList": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "autoscaling",
+          "kind": "HorizontalPodAutoscalerList",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.autoscaling.v1.Scale": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "autoscaling",
+          "kind": "Scale",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.autoscaling.v2.HorizontalPodAutoscaler": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "autoscaling",
+          "kind": "HorizontalPodAutoscaler",
+          "version": "v2"
+        }
+      ]
+    },
+    "io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerList": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "autoscaling",
+          "kind": "HorizontalPodAutoscalerList",
+          "version": "v2"
+        }
+      ]
+    },
+    "io.k8s.api.batch.v1.CronJob": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "batch",
+          "kind": "CronJob",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.batch.v1.CronJobList": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "batch",
+          "kind": "CronJobList",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.batch.v1.Job": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "batch",
+          "kind": "Job",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.batch.v1.JobList": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "batch",
+          "kind": "JobList",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.core.v1.Pod": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "",
+          "kind": "Pod",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.flowcontrol.v1.FlowSchema": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "flowcontrol.apiserver.k8s.io",
+          "kind": "FlowSchema",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.flowcontrol.v1.FlowSchemaList": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "flowcontrol.apiserver.k8s.io",
+          "kind": "FlowSchemaList",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.flowcontrol.v1.PriorityLevelConfiguration": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "flowcontrol.apiserver.k8s.io",
+          "kind": "PriorityLevelConfiguration",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.flowcontrol.v1.PriorityLevelConfigurationList": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "flowcontrol.apiserver.k8s.io",
+          "kind": "PriorityLevelConfigurationList",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.flowcontrol.v1beta3.FlowSchema": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "flowcontrol.apiserver.k8s.io",
+          "kind": "FlowSchema",
+          "version": "v1beta3"
+        }
+      ]
+    },
+    "io.k8s.api.flowcontrol.v1beta3.FlowSchemaList": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "flowcontrol.apiserver.k8s.io",
+          "kind": "FlowSchemaList",
+          "version": "v1beta3"
+        }
+      ]
+    },
+    "io.k8s.api.flowcontrol.v1beta3.PriorityLevelConfiguration": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "flowcontrol.apiserver.k8s.io",
+          "kind": "PriorityLevelConfiguration",
+          "version": "v1beta3"
+        }
+      ]
+    },
+    "io.k8s.api.flowcontrol.v1beta3.PriorityLevelConfigurationList": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "flowcontrol.apiserver.k8s.io",
+          "kind": "PriorityLevelConfigurationList",
+          "version": "v1beta3"
+        }
+      ]
+    },
+    "io.k8s.api.policy.v1.Eviction": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "policy",
+          "kind": "Eviction",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.policy.v1.PodDisruptionBudget": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "policy",
+          "kind": "PodDisruptionBudget",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.k8s.api.policy.v1.PodDisruptionBudgetList": {
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "policy",
+          "kind": "PodDisruptionBudgetList",
+          "version": "v1"
+        }
+      ]
+    }
+  },
+  "info": {
+    "title": "Kubernetes",
+    "version": "v1.31.0"
+  },
+  "paths": {},
+  "swagger": "2.0"
+}

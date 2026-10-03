@@ -1,0 +1,402 @@
+{
+  "codeFiles": [],
+  "commits": [
+    {
+      "commit": "0000000000000000000000000000000000012400",
+      "listings": 14,
+      "reads": 11,
+      "readsDigest": "sha256:5b0f678629c05ab0852e7e2336a90f04f0cc19114685431be7ece4404e4e69cf"
+    },
+    {
+      "commit": "0000000000000000000000000000000000012500",
+      "listings": 0,
+      "reads": 1,
+      "readsDigest": "sha256:0bf63241818bb30b33ba05f6c3b13261fcfc8e6ee873161b8d6bab75dfb84685"
+    },
+    {
+      "commit": "0000000000000000000000000000000000013000",
+      "listings": 16,
+      "reads": 13,
+      "readsDigest": "sha256:e3d0beebf53958a7bcf701f3d3d6e72d5e49adedc55f877a052e5f8cc6416c49"
+    },
+    {
+      "commit": "0000000000000000000000000000000000013100",
+      "listings": 16,
+      "reads": 13,
+      "readsDigest": "sha256:37eeda7ce2f323b8922da3007f7ce67290f5660f98f15afd472151c86452934f"
+    },
+    {
+      "commit": "0000000000000000000000000000000000013200",
+      "listings": 18,
+      "reads": 15,
+      "readsDigest": "sha256:54ff8563aa3c6a06803f754cb4c9f0ec26c55c61c61c2210279a53e5b84398e5"
+    },
+    {
+      "commit": "0000000000000000000000000000000000013300",
+      "listings": 0,
+      "reads": 1,
+      "readsDigest": "sha256:704ade6023eef5f1cf7be6ff27db9fd70a8f49eeb90e4a8d45f1985de33e292d"
+    }
+  ],
+  "derivedAt": "2026-10-03T00:00:00Z",
+  "extractor": {
+    "codeDigest": "sha256:CODE",
+    "id": "k8s.served-api-removal",
+    "version": "1.0.0"
+  },
+  "outputs": {
+    "candidates.json": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000012400.tsv": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000012500.tsv": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000013000.tsv": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000013100.tsv": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000013200.tsv": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000013300.tsv": "sha256:OUTPUT",
+    "vectors.json": "sha256:OUTPUT"
+  },
+  "pairs": [
+    {
+      "from": "1.24.0",
+      "fromCommit": "0000000000000000000000000000000000012400",
+      "fromTag": "v1.24.0",
+      "proof": {
+        "alphaDeclared": [],
+        "alphaGone": [],
+        "fromTag": "v1.24.0",
+        "lifecycleFiles": 5,
+        "listInconsistencies": [
+          "autoscaling/v2beta2/HorizontalPodAutoscalerList declares HorizontalPodAutoscalerList removed in 1.25 but HorizontalPodAutoscaler in 1.26"
+        ],
+        "removals": [
+          {
+            "facts": [
+              {
+                "fact": "component.kubernetes.hpa_v2beta1_removed_gvk_present",
+                "kinds": [
+                  "HorizontalPodAutoscaler"
+                ],
+                "replacements": [
+                  "v2beta2",
+                  "v1",
+                  "v2"
+                ]
+              }
+            ],
+            "group": "autoscaling",
+            "kindLines": [
+              {
+                "endLine": 50,
+                "kind": "HorizontalPodAutoscaler",
+                "startLine": 48
+              },
+              {
+                "endLine": 74,
+                "kind": "HorizontalPodAutoscalerList",
+                "startLine": 72
+              }
+            ],
+            "kinds": [
+              "HorizontalPodAutoscaler"
+            ],
+            "listKinds": [
+              "HorizontalPodAutoscalerList"
+            ],
+            "noFactKinds": [],
+            "path": "staging/src/k8s.io/api/autoscaling/v2beta1/zz_generated.prerelease-lifecycle.go",
+            "replacements": [
+              "v2beta2",
+              "v1",
+              "v2"
+            ],
+            "version": "v2beta1"
+          },
+          {
+            "facts": [
+              {
+                "fact": "component.kubernetes.cronjob_v1beta1_removed_gvk_present",
+                "kinds": [
+                  "CronJob"
+                ],
+                "replacements": [
+                  "v1"
+                ]
+              }
+            ],
+            "group": "batch",
+            "kindLines": [
+              {
+                "endLine": 50,
+                "kind": "CronJob",
+                "startLine": 48
+              },
+              {
+                "endLine": 74,
+                "kind": "CronJobList",
+                "startLine": 72
+              }
+            ],
+            "kinds": [
+              "CronJob"
+            ],
+            "listKinds": [
+              "CronJobList"
+            ],
+            "noFactKinds": [],
+            "path": "staging/src/k8s.io/api/batch/v1beta1/zz_generated.prerelease-lifecycle.go",
+            "replacements": [
+              "v1"
+            ],
+            "version": "v1beta1"
+          },
+          {
+            "facts": [
+              {
+                "fact": "component.kubernetes.pdb_v1beta1_removed_gvk_present",
+                "kinds": [
+                  "PodDisruptionBudget"
+                ],
+                "replacements": [
+                  "v1"
+                ]
+              },
+              {
+                "fact": "component.kubernetes.psp_v1beta1_removed_gvk_present",
+                "kinds": [
+                  "PodSecurityPolicy"
+                ],
+                "replacements": []
+              }
+            ],
+            "group": "policy",
+            "kindLines": [
+              {
+                "endLine": 68,
+                "kind": "PodDisruptionBudget",
+                "startLine": 66
+              },
+              {
+                "endLine": 92,
+                "kind": "PodDisruptionBudgetList",
+                "startLine": 90
+              },
+              {
+                "endLine": 110,
+                "kind": "PodSecurityPolicy",
+                "startLine": 108
+              },
+              {
+                "endLine": 128,
+                "kind": "PodSecurityPolicyList",
+                "startLine": 126
+              }
+            ],
+            "kinds": [
+              "PodDisruptionBudget",
+              "PodSecurityPolicy"
+            ],
+            "listKinds": [
+              "PodDisruptionBudgetList",
+              "PodSecurityPolicyList"
+            ],
+            "noFactKinds": [],
+            "path": "staging/src/k8s.io/api/policy/v1beta1/zz_generated.prerelease-lifecycle.go",
+            "replacements": [],
+            "version": "v1beta1"
+          }
+        ],
+        "removedDecls": 13,
+        "specKindsFrom": 37,
+        "specKindsTo": 29,
+        "targetLine": "1.25",
+        "toTag": "v1.25.0",
+        "unobserved": [
+          "batch/v1beta1/JobTemplate",
+          "policy/v1beta1/Eviction"
+        ]
+      },
+      "rules": [
+        "kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0",
+        "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0",
+        "kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0",
+        "kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0"
+      ],
+      "status": "derived",
+      "to": "1.25.0",
+      "toCommit": "0000000000000000000000000000000000012500",
+      "toTag": "v1.25.0"
+    },
+    {
+      "from": "1.30.0",
+      "fromCommit": "0000000000000000000000000000000000013000",
+      "fromTag": "v1.30.0",
+      "proof": {
+        "alphaDeclared": [],
+        "alphaGone": [],
+        "fromTag": "v1.30.0",
+        "lifecycleFiles": 6,
+        "listInconsistencies": [
+          "autoscaling/v2beta2/HorizontalPodAutoscalerList declares HorizontalPodAutoscalerList removed in 1.25 but HorizontalPodAutoscaler in 1.26"
+        ],
+        "removals": [],
+        "removedDecls": 15,
+        "specKindsFrom": 42,
+        "specKindsTo": 42,
+        "targetLine": "1.31",
+        "toTag": "v1.31.0",
+        "unobserved": []
+      },
+      "rules": [],
+      "status": "derived",
+      "to": "1.31.0",
+      "toCommit": "0000000000000000000000000000000000013100",
+      "toTag": "v1.31.0"
+    },
+    {
+      "from": "1.31.0",
+      "fromCommit": "0000000000000000000000000000000000013100",
+      "fromTag": "v1.31.0",
+      "proof": {
+        "alphaDeclared": [],
+        "alphaGone": [
+          "admissionregistration.k8s.io/v1alpha1/ValidatingAdmissionPolicy",
+          "admissionregistration.k8s.io/v1alpha1/ValidatingAdmissionPolicyBinding",
+          "admissionregistration.k8s.io/v1alpha1/ValidatingAdmissionPolicyBindingList",
+          "admissionregistration.k8s.io/v1alpha1/ValidatingAdmissionPolicyList",
+          "authentication.k8s.io/v1alpha1/SelfSubjectReview"
+        ],
+        "fromTag": "v1.31.0",
+        "lifecycleFiles": 6,
+        "listInconsistencies": [
+          "autoscaling/v2beta2/HorizontalPodAutoscalerList declares HorizontalPodAutoscalerList removed in 1.25 but HorizontalPodAutoscaler in 1.26"
+        ],
+        "removals": [
+          {
+            "facts": [
+              {
+                "fact": "component.kubernetes.flowcontrol_v1beta3_removed_gvk_present",
+                "kinds": [
+                  "FlowSchema",
+                  "PriorityLevelConfiguration"
+                ],
+                "replacements": [
+                  "v1"
+                ]
+              }
+            ],
+            "group": "flowcontrol.apiserver.k8s.io",
+            "kindLines": [
+              {
+                "endLine": 50,
+                "kind": "FlowSchema",
+                "startLine": 48
+              },
+              {
+                "endLine": 74,
+                "kind": "FlowSchemaList",
+                "startLine": 72
+              },
+              {
+                "endLine": 98,
+                "kind": "PriorityLevelConfiguration",
+                "startLine": 96
+              },
+              {
+                "endLine": 122,
+                "kind": "PriorityLevelConfigurationList",
+                "startLine": 120
+              }
+            ],
+            "kinds": [
+              "FlowSchema",
+              "PriorityLevelConfiguration"
+            ],
+            "listKinds": [
+              "FlowSchemaList",
+              "PriorityLevelConfigurationList"
+            ],
+            "noFactKinds": [],
+            "path": "staging/src/k8s.io/api/flowcontrol/v1beta3/zz_generated.prerelease-lifecycle.go",
+            "replacements": [
+              "v1"
+            ],
+            "version": "v1beta3"
+          }
+        ],
+        "removedDecls": 15,
+        "specKindsFrom": 42,
+        "specKindsTo": 37,
+        "targetLine": "1.32",
+        "toTag": "v1.32.0",
+        "unobserved": []
+      },
+      "rules": [
+        "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0"
+      ],
+      "status": "derived",
+      "to": "1.32.0",
+      "toCommit": "0000000000000000000000000000000000013200",
+      "toTag": "v1.32.0"
+    },
+    {
+      "from": "1.32.0",
+      "fromCommit": "0000000000000000000000000000000000013200",
+      "fromTag": "v1.32.0",
+      "proof": {
+        "alphaDeclared": [],
+        "alphaGone": [],
+        "fromTag": "v1.32.0",
+        "lifecycleFiles": 7,
+        "listInconsistencies": [
+          "autoscaling/v2beta2/HorizontalPodAutoscalerList declares HorizontalPodAutoscalerList removed in 1.25 but HorizontalPodAutoscaler in 1.26"
+        ],
+        "removals": [
+          {
+            "facts": [],
+            "group": "authentication.k8s.io",
+            "kindLines": [
+              {
+                "endLine": 44,
+                "kind": "SelfSubjectReview",
+                "startLine": 42
+              }
+            ],
+            "kinds": [
+              "SelfSubjectReview"
+            ],
+            "listKinds": [],
+            "noFactKinds": [
+              "SelfSubjectReview"
+            ],
+            "path": "staging/src/k8s.io/api/authentication/v1beta1/zz_generated.prerelease-lifecycle.go",
+            "replacements": [
+              "v1"
+            ],
+            "version": "v1beta1"
+          }
+        ],
+        "removedDecls": 23,
+        "specKindsFrom": 37,
+        "specKindsTo": 36,
+        "targetLine": "1.33",
+        "toTag": "v1.33.0",
+        "unobserved": []
+      },
+      "rules": [],
+      "status": "derived",
+      "to": "1.33.0",
+      "toCommit": "0000000000000000000000000000000000013300",
+      "toTag": "v1.33.0"
+    }
+  ],
+  "repo": "github.com/kubernetes/kubernetes",
+  "schema": "prufyx.io/extractor-run-manifest/v1",
+  "totals": {
+    "commitsRead": 6,
+    "derived": 4,
+    "pairs": 4,
+    "rules": 5,
+    "vectors": 15,
+    "withheld": 0
+  },
+  "validUntil": "2027-01-01T00:00:00Z"
+}

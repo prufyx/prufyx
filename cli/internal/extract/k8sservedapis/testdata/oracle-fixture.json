@@ -1,0 +1,42 @@
+{
+ "removals": [
+  {
+   "line": "1.25",
+   "group": "batch",
+   "version": "v1beta1",
+   "kinds": [
+    "CronJob"
+   ],
+   "rule": "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0"
+  },
+  {
+   "line": "1.25",
+   "group": "autoscaling",
+   "version": "v2beta1",
+   "kinds": [
+    "HorizontalPodAutoscaler"
+   ],
+   "rule": "kubernetes.hpa-v2beta1-removed.1-24-0-to-1-25-0"
+  },
+  {
+   "line": "1.25",
+   "group": "policy",
+   "version": "v1beta1",
+   "kinds": [
+    "PodDisruptionBudget",
+    "PodSecurityPolicy"
+   ],
+   "rule": "kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0; kubernetes.psp-v1beta1-removed.1-24-0-to-1-25-0"
+  },
+  {
+   "line": "1.32",
+   "group": "flowcontrol.apiserver.k8s.io",
+   "version": "v1beta3",
+   "kinds": [
+    "FlowSchema",
+    "PriorityLevelConfiguration"
+   ],
+   "rule": "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0"
+  }
+ ]
+}
