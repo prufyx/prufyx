@@ -30,7 +30,7 @@ func CodeDigest() (string, error) {
 	return extract.CodeDigest(files), nil
 }
 
-const usage = "usage: prufyx-maintainer chart-versions <derive|verify> --mirror DIR --mapping FILE --out FILE [--derived-at RFC3339] [--valid-days N] [--report FILE]"
+const usage = "usage: prufyx-maintainer chart-versions <derive|verify> --mirror DIR --mapping FILE --out FILE [--derived-at UTC-TIME] [--valid-days N] [--report FILE]"
 
 // Main runs the chart-versions subcommands and returns the exit code.
 // derive writes the table; verify re-derives it and compares byte for byte.
@@ -45,7 +45,7 @@ func Main(args []string, now func() time.Time, stdout, stderr io.Writer) int {
 	mirror := fs.String("mirror", "", "factory mirror state directory")
 	mapping := fs.String("mapping", "", "chart mapping file")
 	out := fs.String("out", "", "app-version table file")
-	derivedAt := fs.String("derived-at", "", "derivation time (RFC 3339 UTC); default now")
+	derivedAt := fs.String("derived-at", "", "derivation time (UTC, like 2030-01-02T03:04:05Z); default now")
 	validDays := fs.Int("valid-days", 90, "days a derived record stays usable")
 	reportPath := fs.String("report", "", "write the derive report (withheld tags) to this file")
 	if err := fs.Parse(args[1:]); err != nil || fs.NArg() != 0 || *mirror == "" || *mapping == "" || *out == "" {
