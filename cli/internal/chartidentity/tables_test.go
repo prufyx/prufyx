@@ -318,3 +318,19 @@ func FuzzLoadTables(f *testing.F) {
 		}
 	})
 }
+
+func TestSortAppVersions(t *testing.T) {
+	recs := []AppVersionRecord{
+		appRecord("pkg:github/b/b", "x", "1.0.0", "1.0.0"), appRecord("pkg:github/a/a", "y", "1.0.0", "1.0.0"),
+		appRecord("pkg:github/a/a", "x", "2.0.0", "1.0.0"), appRecord("pkg:github/a/a", "x", "1.0.0", "1.0.0"),
+	}
+	SortAppVersions(recs)
+	var got []string
+	for _, r := range recs {
+		got = append(got, r.Component+" "+r.Chart+" "+r.ChartVersion)
+	}
+	want := "pkg:github/a/a x 1.0.0,pkg:github/a/a x 2.0.0,pkg:github/a/a y 1.0.0,pkg:github/b/b x 1.0.0"
+	if strings.Join(got, ",") != want {
+		t.Fatalf("order: %v", got)
+	}
+}
