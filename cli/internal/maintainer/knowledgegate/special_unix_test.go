@@ -6,6 +6,7 @@ package knowledgegate
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -86,5 +87,42 @@ func TestHeadSpecialFilesAreNeverRead(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestTreeReadRefusesSpecialFiles(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "d", "big.json"), make([]byte, 2048))
+	writeFile(t, filepath.Join(root, "d", "ok.json"), []byte("{}"))
+	if err := syscall.Mkfifo(filepath.Join(root, "d", "fifo.json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tr := Tree{Root: root}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if _, err := tr.Read("d/fifo.json", 1<<10); err == nil {
+			t.Error("a FIFO was read")
+		}
+		if _, err := tr.Dir("d", 1<<20, 10); err == nil {
+			t.Error("a directory holding a FIFO was read")
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		t.Fatal("reading a FIFO blocked")
+	}
+	if _, err := tr.Read("d/big.json", 1<<10); err == nil {
+		t.Fatal("an oversize file was read")
+	}
+	if _, err := tr.Read("d/missing.json", 1<<10); !errors.Is(err, ErrMissing) || !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("missing file: %v", err)
+	}
+	if _, err := tr.Read("nodir/missing.json", 1<<10); !errors.Is(err, ErrMissing) {
+		t.Fatalf("missing parent: %v", err)
+	}
+	if raw, err := tr.Read("d/ok.json", 1<<10); err != nil || string(raw) != "{}" {
+		t.Fatalf("plain file: %v", err)
 	}
 }
