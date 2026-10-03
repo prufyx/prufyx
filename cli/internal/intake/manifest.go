@@ -77,6 +77,11 @@ type Workspace struct {
 	// other output is unchanged. A templated document is never retained.
 	// Document.Kind is empty when the file carries no kind.
 	Auxiliary []Document
+	// Encrypted holds the source of every top-level document that is not
+	// Kubernetes-shaped but carries a SOPS metadata block. Only the source is
+	// kept, never the value; the document is still listed as a
+	// NOT_KUBERNETES_SHAPED omission.
+	Encrypted []Source
 	// Files, Digest and Notices are filled by Open only.
 	Files []FileRecord
 	// Digest is sha256 over the sorted file digests.
@@ -159,6 +164,9 @@ func (w *Workspace) add(source Source, value any, listMetadata any, listAPI, ite
 	if !apiOK || !kindOK || api == "" || kind == "" {
 		w.omit(source, ReasonNotKubernetesShaped)
 		w.retainAuxiliary(source, object, api, kind, templated)
+		if source.Item < 0 && HasSOPSMetadata(object) {
+			w.Encrypted = append(w.Encrypted, source)
+		}
 		return
 	}
 	if templated {
@@ -255,4 +263,19 @@ func (w *Workspace) retainAuxiliary(source Source, object map[string]any, api, k
 		return
 	}
 	w.Auxiliary = append(w.Auxiliary, Document{Source: source, APIVersion: api, Kind: kind, Value: object})
+}
+
+// HasSOPSMetadata reports the metadata block SOPS adds to a file it encrypts:
+// a top-level sops object with a mac, version or lastmodified member.
+func HasSOPSMetadata(object map[string]any) bool {
+	block, ok := object["sops"].(map[string]any)
+	if !ok {
+		return false
+	}
+	for _, member := range []string{"mac", "version", "lastmodified"} {
+		if _, found := block[member]; found {
+			return true
+		}
+	}
+	return false
 }

@@ -75,3 +75,37 @@ func TestAuxiliaryDoesNotChangeWorkspace(t *testing.T) {
 func fmtCM(name string) string {
 	return "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: " + name + "\n"
 }
+
+func TestEncryptedSourcesAreListed(t *testing.T) {
+	dir := root(t)
+	write(t, filepath.Join(dir, "a", "secrets.enc.yaml"), "password: ENC[AES256_GCM,data:eA==,iv:eA==,tag:eA==,type:str]\nsops:\n  mac: ENC[x]\n  version: 3.8.1\n", 0o600)
+	write(t, filepath.Join(dir, "a", "values.yaml"), "password: plain\nsops: not-a-block\n", 0o600)
+	write(t, filepath.Join(dir, "a", "shaped.yaml"), "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: c}\nsops: {mac: x}\n", 0o600)
+	write(t, filepath.Join(dir, "b", "list.yaml"), "- sops: {mac: x}\n", 0o600)
+	w, err := Open([]string{dir}, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(w.Encrypted) != 1 || filepath.Base(w.Encrypted[0].Display) != "secrets.enc.yaml" || w.Encrypted[0].Digest == "" {
+		t.Fatalf("encrypted = %+v", w.Encrypted)
+	}
+	// The listing adds nothing else: the file is still an omission and the
+	// shaped document is still a document.
+	var shaped int
+	for _, o := range w.Omissions {
+		if o.Reason == ReasonNotKubernetesShaped {
+			shaped++
+		}
+	}
+	if shaped != 3 || len(w.Documents) != 1 {
+		t.Fatalf("omissions = %d, documents = %d", shaped, len(w.Documents))
+	}
+	for _, block := range []map[string]any{{"mac": "x"}, {"version": "3"}, {"lastmodified": "t"}} {
+		if !HasSOPSMetadata(map[string]any{"sops": block}) {
+			t.Fatalf("block %v not recognised", block)
+		}
+	}
+	if HasSOPSMetadata(map[string]any{"sops": map[string]any{"other": 1}}) || HasSOPSMetadata(map[string]any{"sops": "x"}) {
+		t.Fatal("a sops key without metadata was recognised")
+	}
+}
