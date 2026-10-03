@@ -55,6 +55,7 @@ func TestParseRejected(t *testing.T) {
 		{"1.29.3-gke.", "", ErrMalformed},
 		{"1.29.3-gke.0", "", ErrMalformed},
 		{"1.29.3-gke.01", "", ErrMalformed},
+		{"1.29.3-gke.1234567890", "", ErrMalformed},
 		{"v1.29.4+k3s", "", ErrMalformed},
 		{"v1.29.4+k3s0", "", ErrMalformed},
 		{"v1.29.4+k3s01", "", ErrMalformed},
