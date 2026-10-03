@@ -1,0 +1,5 @@
+resources:
+  - ../base/podinfo
+images:
+  - name: registry.example.test/team/web
+    newTag: 1.2.0

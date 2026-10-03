@@ -1,0 +1,24 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: private
+  namespace: app
+spec:
+  chart:
+    spec:
+      chart: ENC[AES256_GCM,data:Y2lwaGVydGV4dC1jaGFydA==,iv:aXY=,tag:dGFn,type:str]
+      sourceRef:
+        kind: HelmRepository
+        name: ENC[AES256_GCM,data:Y2lwaGVydGV4dC1uYW1l,iv:aXY=,tag:dGFn,type:str]
+  values:
+    password: ENC[AES256_GCM,data:cGFzc3dvcmQtY2lwaGVydGV4dA==,iv:aXY=,tag:dGFn,type:str]
+sops:
+  age:
+    - recipient: age1examplerecipient0000000000000000000000000000000000000000
+      enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRlZC1rZXk=
+        -----END AGE ENCRYPTED FILE-----
+  lastmodified: "2026-01-01T00:00:00Z"
+  mac: ENC[AES256_GCM,data:bWFj,iv:aXY=,tag:dGFn,type:str]
+  version: 3.9.0

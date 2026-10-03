@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  template:
+    spec:
+      containers:
+        - name: web
+          image: registry.example.test/team/web:1.2.3
+        - name: sidecar
+          image: registry.example.test/team/proxy@sha256:0000000000000000000000000000000000000000000000000000000000000001

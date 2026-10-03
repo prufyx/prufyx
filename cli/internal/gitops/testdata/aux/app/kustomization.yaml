@@ -1,0 +1,9 @@
+resources:
+  - deploy.yaml
+  - ../chart
+images:
+  - name: registry.example.test/team/web
+    newName: mirror.example.test/team/web
+    newTag: 1.2.4
+  - name: registry.example.test/team/job
+    digest: sha256:0000000000000000000000000000000000000000000000000000000000000002

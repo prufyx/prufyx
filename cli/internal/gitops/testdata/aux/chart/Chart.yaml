@@ -1,0 +1,14 @@
+apiVersion: v2
+name: shared
+version: 0.2.0
+dependencies:
+  - name: redis
+    version: 18.1.0
+    repository: https://charts.example.test
+  - name: common
+    version: ~1.0.0
+    repository: https://charts.example.test
+    alias: base
+  - name: subchart
+    version: 0.1.0
+    repository: file://../subchart

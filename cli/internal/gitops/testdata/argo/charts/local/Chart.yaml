@@ -1,0 +1,7 @@
+apiVersion: v2
+name: local
+version: 0.1.0
+dependencies:
+  - name: redis
+    version: 18.1.0
+    repository: https://charts.example.test

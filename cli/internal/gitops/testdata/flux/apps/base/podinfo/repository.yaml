@@ -1,0 +1,8 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: podinfo
+  namespace: podinfo
+spec:
+  interval: 1h
+  url: https://charts.example.test/podinfo

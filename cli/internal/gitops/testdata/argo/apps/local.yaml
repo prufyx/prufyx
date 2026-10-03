@@ -1,0 +1,12 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: local
+  namespace: argocd
+spec:
+  destination:
+    namespace: local
+  source:
+    repoURL: https://github.com/example/fleet
+    targetRevision: main
+    path: charts/local

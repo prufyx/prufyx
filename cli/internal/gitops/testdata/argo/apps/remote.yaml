@@ -1,0 +1,12 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: remote
+  namespace: argocd
+spec:
+  destination:
+    namespace: remote
+  source:
+    repoURL: https://github.com/example/other
+    targetRevision: main
+    path: deploy
