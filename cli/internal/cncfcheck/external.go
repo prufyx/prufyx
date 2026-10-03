@@ -345,6 +345,11 @@ func validExternalRevision(value string) bool {
 }
 
 func validateExternalPack(base bundle, packValue rulePack, revision string) error {
+	// The external target profile does not carry line attestations yet; a
+	// pack holding them is refused rather than admitted without its checks.
+	if len(packValue.LineAttestations) > 0 {
+		return ErrIntegrity
+	}
 	if !validPackSchema(packValue) || packValue.Revision != revision || packValue.PolicyID != base.pack.PolicyID || packValue.PolicyDigest != base.pack.PolicyDigest || packValue.LandscapeFileDigest != base.landscape.LandscapeFileDigest || packValue.RegistryDigest != base.registry.Digest() || len(packValue.Entries) > maxExternalEntries {
 		return ErrIntegrity
 	}

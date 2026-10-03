@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
 //go:embed data/landscape-projects.json data/priority-portfolio.json data/rules.json
@@ -77,6 +78,11 @@ type rulePack struct {
 	LandscapeFileDigest string  `json:"landscapeFileDigest"`
 	RegistryDigest      string  `json:"registryDigest"`
 	Entries             []Entry `json:"entries"`
+	// LineAttestations is the optional line attestation section. A pack
+	// that carries it uses the attested pack schema, which binaries that
+	// predate attestations reject; a pack without it is byte-identical to
+	// one built before attestations existed.
+	LineAttestations json.RawMessage `json:"lineAttestations,omitempty"`
 }
 
 type bundle struct {
@@ -86,6 +92,7 @@ type bundle struct {
 	registry        constraintengine.Registry
 	packDigest      string
 	catalogueDigest string
+	attestations    lineattest.Index
 }
 
 func load() (bundle, error) {
@@ -178,13 +185,54 @@ func assemble(landscapeRaw, priorityRaw, packRaw []byte, factDefinitions []const
 	if _, err := result.ruleSet(""); err != nil {
 		return bundle{}, ErrIntegrity
 	}
+	if result.attestations, err = admitAttestations(result.pack); err != nil {
+		return bundle{}, err
+	}
 	return result, nil
+}
+
+// admitAttestations parses the pack's line attestations strictly and
+// requires every one to list exactly the pack's rules for its component,
+// line and fact family. Any disagreement rejects the whole pack: an
+// attestation that leaves out a rule would let a gap pass as covered.
+func admitAttestations(pack rulePack) (lineattest.Index, error) {
+	if len(pack.LineAttestations) == 0 {
+		return lineattest.NewIndex(nil), nil
+	}
+	atts, err := lineattest.Parse(pack.LineAttestations)
+	if err != nil {
+		return lineattest.Index{}, ErrIntegrity
+	}
+	rules := make([]json.RawMessage, 0, len(pack.Entries))
+	for _, entry := range pack.Entries {
+		rules = append(rules, entry.Rule)
+	}
+	problems, err := lineattest.CheckRuleSets(atts, rules)
+	if err != nil || len(problems) > 0 {
+		return lineattest.Index{}, ErrIntegrity
+	}
+	return lineattest.NewIndex(atts), nil
+}
+
+// AttestationsFor returns the embedded pack's line attestations for one
+// component, minor release line and fact family, each with its freshness at
+// now. An empty result means the line is not attested for that family; only
+// an attestation whose freshness is current may be relied on.
+func AttestationsFor(component, line, family string, now time.Time) ([]lineattest.Status, error) {
+	b, err := load()
+	if err != nil {
+		return nil, err
+	}
+	return b.attestations.AttestationsFor(component, line, family, now), nil
 }
 
 const (
 	packSchema       = "prufyx.io/cncf-source-rule-pack/v1alpha1"
 	packSchemaRanged = "prufyx.io/cncf-source-rule-pack/v1alpha2"
 	packSchemaSet    = "prufyx.io/cncf-source-rule-pack/v1alpha3"
+	// packSchemaAttested is carried by, and only by, a pack holding line
+	// attestations. It admits ranged and set rules as well.
+	packSchemaAttested = "prufyx.io/cncf-source-rule-pack/v1alpha4"
 )
 
 // validPackSchema requires the pack schema to state whether the pack holds a
@@ -192,8 +240,13 @@ const (
 // keeps the original schema, so its bytes and digest are unchanged; a pack
 // with a range carries the ranged schema, which binaries that predate ranges
 // reject; a pack with a set rule carries the set schema (ranges allowed),
-// which binaries that predate set facts reject.
+// which binaries that predate set facts reject. A pack with line
+// attestations carries the attested schema whatever its rules, which binaries
+// that predate attestations reject.
 func validPackSchema(pack rulePack) bool {
+	if len(pack.LineAttestations) > 0 {
+		return pack.Schema == packSchemaAttested
+	}
 	rules := make([]json.RawMessage, 0, len(pack.Entries))
 	for _, entry := range pack.Entries {
 		rules = append(rules, entry.Rule)
