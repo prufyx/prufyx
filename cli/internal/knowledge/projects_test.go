@@ -228,7 +228,7 @@ func TestConstraintsProjectsRejectTamperedMissingExtraAndMismatchedTargets(t *te
 	// admission of the project target can reject it.
 	foreign := without(first)
 	foreign[first] = base[second]
-	foreign[ConstraintsProjectsIndexTargetPath] = rebindIndexEntry(t, base[ConstraintsProjectsIndexTargetPath], projectOf(t, first), base[second], "6")
+	foreign[ConstraintsProjectsIndexTargetPath] = rebindIndexEntry(t, base[ConstraintsProjectsIndexTargetPath], projectOf(t, first), base[second], "6", "6")
 	extraProject := "visual-studio-code-kubernetes-tools"
 	extraTargets := without("")
 	extraTargets[cncfcheck.ProjectTargetPath(extraProject)] = base[first]
@@ -465,8 +465,8 @@ func TestConstraintsProjectsStoredProjectTamperFailsClosed(t *testing.T) {
 }
 
 // rebindIndexEntry points one index entry at raw, giving the entry and the
-// index the given revision and copying the rule digest and expiry of raw.
-func rebindIndexEntry(t *testing.T, indexRaw []byte, project string, raw []byte, revision string) []byte {
+// index the given revisions and copying the rule digest and expiry of raw.
+func rebindIndexEntry(t *testing.T, indexRaw []byte, project string, raw []byte, indexRevision, entryRevision string) []byte {
 	t.Helper()
 	bundle, err := cncfcheck.ParseExternalBundle(raw)
 	if err != nil {
@@ -486,11 +486,11 @@ func rebindIndexEntry(t *testing.T, indexRaw []byte, project string, raw []byte,
 	if err := json.Unmarshal(indexRaw, &document); err != nil {
 		t.Fatal(err)
 	}
-	document.Revision = revision
+	document.Revision = indexRevision
 	for i := range document.Projects {
 		if document.Projects[i].Project == project {
 			document.Projects[i].Length, document.Projects[i].Digest = int64(len(raw)), digestBytes(raw)
-			document.Projects[i].Revision, document.Projects[i].RuleDigest, document.Projects[i].EvidenceExpiresAt = revision, admission.RuleDigest, admission.EvidenceExpiresAt
+			document.Projects[i].Revision, document.Projects[i].RuleDigest, document.Projects[i].EvidenceExpiresAt = entryRevision, admission.RuleDigest, admission.EvidenceExpiresAt
 		}
 	}
 	out, err := json.Marshal(document)
@@ -501,4 +501,88 @@ func rebindIndexEntry(t *testing.T, indexRaw []byte, project string, raw []byte,
 		t.Fatal(err)
 	}
 	return out
+}
+
+// withoutFirstEntry returns raw, a project envelope, with its first entry
+// removed: different bytes, same revision, still an envelope of that project.
+func withoutFirstEntry(t *testing.T, raw []byte) []byte {
+	t.Helper()
+	var document map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &document); err != nil {
+		t.Fatal(err)
+	}
+	var pack map[string]json.RawMessage
+	if err := json.Unmarshal(document["pack"], &pack); err != nil {
+		t.Fatal(err)
+	}
+	var entries []json.RawMessage
+	if err := json.Unmarshal(pack["entries"], &entries); err != nil || len(entries) < 2 {
+		t.Fatalf("project has %d entries: %v", len(entries), err)
+	}
+	var err error
+	if pack["entries"], err = json.Marshal(entries[1:]); err != nil {
+		t.Fatal(err)
+	}
+	if document["pack"], err = json.Marshal(pack); err != nil {
+		t.Fatal(err)
+	}
+	out, err := json.Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+// TestConstraintsProjectsEqualRevisionMustKeepTheExactDigest covers the rule
+// that a project whose revision equals its floor must also keep the digest it
+// had at that revision.
+func TestConstraintsProjectsEqualRevisionMustKeepTheExactDigest(t *testing.T) {
+	f := newProjectsFixture(t)
+	base := projectsTargets(t, "5", nil)
+	var victim string
+	for name, raw := range base {
+		if name == ConstraintsProjectsIndexTargetPath {
+			continue
+		}
+		var probe struct {
+			Pack struct {
+				Entries []json.RawMessage `json:"entries"`
+			} `json:"pack"`
+		}
+		if json.Unmarshal(raw, &probe) == nil && len(probe.Pack.Entries) >= 2 && (victim == "" || name < victim) {
+			victim = name
+		}
+	}
+	if victim == "" {
+		t.Fatal("no project with two entries")
+	}
+	receipt, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: base}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	kept, err := loadSelectionAt(f.store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Index revision 6; the victim keeps revision 5 but carries other bytes.
+	changed := withoutFirstEntry(t, base[victim])
+	relabelled := map[string][]byte{}
+	for name, raw := range base {
+		relabelled[name] = raw
+	}
+	relabelled[victim] = changed
+	relabelled[ConstraintsProjectsIndexTargetPath] = rebindIndexEntry(t, base[ConstraintsProjectsIndexTargetPath], projectOf(t, victim), changed, "6", "5")
+	rejected, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: relabelled}))
+	if !errors.Is(err, ErrRollback) || !strings.Contains(err.Error(), victim) {
+		t.Fatalf("equal revision with other bytes accepted: receipt=%+v err=%v", rejected, err)
+	}
+	assertSelectionKept(t, f.store, kept, rejected)
+	verifiedAt, _ := time.Parse(time.RFC3339, receipt.TrustReceipt.VerifiedAt)
+	if _, err := OpenHistoricalCNCF(SelectionRequest{StoreRoot: f.store, ExpectedRevision: "5", ExpectedBundleDigest: receipt.TrustReceipt.TargetDigest, ExpectedTrustReceiptDigest: receipt.TrustReceiptDigest}, verifiedAt, []string{projectOf(t, victim)}); err != nil {
+		t.Fatalf("last good revision unavailable: %v", err)
+	}
+	// The same index revision with identical bytes is still accepted.
+	if _, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: projectsTargets(t, "6", map[string]string{projectOf(t, victim): "5"})})); err != nil {
+		t.Fatalf("equal revision with equal bytes rejected: %v", err)
+	}
 }
