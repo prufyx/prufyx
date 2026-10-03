@@ -22,6 +22,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/factorymirror"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgeexport"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgepack"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgetargets"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/localkind"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/projectonboarding"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/releasegate"
@@ -89,6 +90,11 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runExportKnowledge(args[1:])
 	case "knowledge-publish":
 		return runKnowledgePublish(args[1:], stdout)
+	case "knowledge-targets":
+		if code := knowledgetargets.Run(args[1:], stdout, stderr); code != 0 {
+			return &commandError{code: code, message: "knowledge-targets failed", printed: true}
+		}
+		return nil
 	case "knowledge-sign":
 		return runKnowledgeSign(args[1:], stdout, stderr)
 	case "support-inventory":
@@ -168,7 +174,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	case "help", "-h", "--help":
-		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|chart-versions|rule|export-knowledge|package-knowledge|knowledge-publish|knowledge-sign|support-inventory|release-gate|staging-receipt|release|local-kind|release-*> [options]")
+		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|chart-versions|rule|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-sign|support-inventory|release-gate|staging-receipt|release|local-kind|release-*> [options]")
 		return nil
 	default:
 		return usageError()
