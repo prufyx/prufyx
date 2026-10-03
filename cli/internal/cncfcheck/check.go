@@ -255,6 +255,10 @@ func (c Checker) CheckFacts(project string, facts []string, inputRaw []byte, now
 	if err != nil {
 		return Report{}, err
 	}
+	return b.checkFacts(project, facts, inputRaw, now)
+}
+
+func (b bundle) checkFacts(project string, facts []string, inputRaw []byte, now time.Time) (Report, error) {
 	if !b.hasProject(project) || len(facts) == 0 {
 		return Report{}, ErrInvalid
 	}
