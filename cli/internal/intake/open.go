@@ -308,20 +308,20 @@ func (o *opener) readFile(file *os.File, display string) error {
 	return o.consume(key, display, file, info.Size(), perm, result)
 }
 
-func (o *opener) rename(from, to string) {
+func (o *opener) rename(oldDisplay, newDisplay string) {
 	for i := range o.out.Files {
-		if o.out.Files[i].Display == from {
-			o.out.Files[i].Display = to
+		if o.out.Files[i].Display == oldDisplay {
+			o.out.Files[i].Display = newDisplay
 		}
 	}
 	for i := range o.out.Documents {
-		if o.out.Documents[i].Source.Display == from {
-			o.out.Documents[i].Source.Display = to
+		if o.out.Documents[i].Source.Display == oldDisplay {
+			o.out.Documents[i].Source.Display = newDisplay
 		}
 	}
 	for i := range o.out.Omissions {
-		if o.out.Omissions[i].Source.Display == from {
-			o.out.Omissions[i].Source.Display = to
+		if o.out.Omissions[i].Source.Display == oldDisplay {
+			o.out.Omissions[i].Source.Display = newDisplay
 		}
 	}
 }
