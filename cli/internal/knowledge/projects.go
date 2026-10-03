@@ -31,9 +31,11 @@ var ErrLayout = errors.New("knowledge target layout mismatch")
 
 const (
 	// A per-project package holds the index, up to 256 project targets of at
-	// most 1 MiB each, and TUF metadata. Its complete size is bounded here.
-	splitMaxPackageTotal = 32 << 20
-	splitMaxPackageBytes = splitMaxPackageTotal + 1<<20
+	// most 1 MiB each, and TUF metadata. The complete package is bounded by
+	// the local bounded-file reader (8 MiB); member bytes by 7 MiB.
+	SplitMaxPackageBytes = 8 << 20
+	splitMaxPackageBytes = SplitMaxPackageBytes
+	splitMaxPackageTotal = 7 << 20
 	splitMaxPackageFiles = cncfcheck.MaxExternalIndexProjects + 32
 	splitMaxJSONMembers  = 8 * (cncfcheck.MaxExternalIndexProjects + 1) * 4
 )
@@ -210,7 +212,7 @@ func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.
 		}
 		_, raw, err := u.DownloadTarget(info, filepath.Join(targetDir, "project-"+entry.Project+".json"), "https://offline.invalid/targets")
 		if err != nil {
-			return nil, err
+			return nil, splitFailure("target %s is missing or does not match its signed length and hash", entry.TargetPath)
 		}
 		if _, err := cncfcheck.AdmitExternalProjectTarget(index, entry.Project, raw); err != nil {
 			return nil, splitFailure("target %s semantic admission", entry.TargetPath)
