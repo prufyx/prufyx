@@ -1,0 +1,24 @@
+--- a/manifests/cron.yaml
++++ b/manifests/cron.yaml
+@@ -3,17 +3,17 @@
+ metadata:
+   name: a
+   labels:
+-    one: x
+-    two: x
++    one: y
++    Two: x
+     three: x
+     four: x
+     five: x
+     six: x
+-    seven: x
++    seven: y
+     eight: x
+ spec:
+   schedule: "* * * * *"
+ ---
+ apiVersion: batch/v1beta1 # second
+ kind: CronJob
+-metadata: {name: b, labels: {one: x}}
++metadata: {name: b, labels: {one: y}}

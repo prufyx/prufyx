@@ -22,7 +22,7 @@ func init() {
 }
 
 type setParams struct {
-	Path []any `json:"path"`
+	Path []any  `json:"path"`
 	Part string `json:"part"`
 	From string `json:"from"`
 	To   string `json:"to"`

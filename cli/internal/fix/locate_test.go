@@ -131,7 +131,7 @@ func assertSentinel(t testing.TB, src []byte, doc int, p Path, part Part, span S
 		t.Fatalf("parse: %v", r)
 	}
 	sentinel := "zqsentinel"
-	for strings.Contains(string(src), sentinel) {
+	for strings.Contains(strings.ToLower(string(src)), sentinel) {
 		sentinel += "q"
 	}
 	expected := make([]any, len(file.docs))
