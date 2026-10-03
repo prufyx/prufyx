@@ -50,7 +50,7 @@ type GitHubSource struct {
 	LsRemote func(ctx context.Context, repoURL string) ([]byte, error)
 
 	mu    sync.Mutex
-	roots map[string]string            // repo NUL commit -> root tree id
+	roots map[string]string              // repo NUL commit -> root tree id
 	trees map[string][]extract.TreeEntry // repo NUL tree id -> entries (names only)
 }
 
