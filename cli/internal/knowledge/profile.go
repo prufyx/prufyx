@@ -3,6 +3,7 @@
 package knowledge
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -36,6 +37,7 @@ const (
 	profileSPIFFEX509SVID
 	profileCloudEventsStructuredJSON
 	profileTiKVGCPV2WIFBackup
+	profileConstraintsProjects
 )
 
 const (
@@ -44,6 +46,7 @@ const (
 	profileSPIFFEMarkerName      = "community-spiffe-x509-svid"
 	profileCloudEventsMarkerName = "community-cloudevents-structured-json"
 	profileTiKVMarkerName        = "community-tikv-gcp-v2-wif-backup"
+	profileProjectsMarkerName    = "community-constraints-projects"
 )
 
 // profileSpec is intentionally private. A profile controls target identity,
@@ -54,6 +57,7 @@ type profileSpec struct {
 	maxTarget   int64
 	markerName  string
 	constraints bool
+	split       bool
 	cliName     string
 	admit       AdmitFunc
 }
@@ -70,6 +74,8 @@ func profileForID(id profileID) profileSpec {
 		return cloudEventsStructuredJSONProfile()
 	case profileTiKVGCPV2WIFBackup:
 		return tikvGCPV2WIFBackupProfile()
+	case profileConstraintsProjects:
+		return constraintsProjectsProfile()
 	default:
 		return profileSpec{}
 	}
@@ -95,7 +101,19 @@ func tikvGCPV2WIFBackupProfile() profileSpec {
 	return profileSpec{id: profileTiKVGCPV2WIFBackup, targetPath: TiKVGCPV2WIFBackupTargetPath, maxTarget: maxPackageEntry, markerName: profileTiKVMarkerName, cliName: "tikv-gcp-v2-wif-backup", admit: admitTiKVGCPV2WIFBackup}
 }
 
+// constraintsProjectsProfile is the per-project CNCF layout: one index
+// target plus one target per project, each capped at 1 MiB.
+func constraintsProjectsProfile() profileSpec {
+	return profileSpec{id: profileConstraintsProjects, targetPath: ConstraintsProjectsIndexTargetPath, maxTarget: maxPackageEntry, markerName: profileProjectsMarkerName, split: true, cliName: "cncf-projects", admit: admitConstraintsIndex}
+}
+
 func (p profileSpec) valid() bool {
+	if p.split != (p.id == profileConstraintsProjects) {
+		return false
+	}
+	if p.id == profileConstraintsProjects {
+		return p.targetPath == ConstraintsProjectsIndexTargetPath && p.maxTarget == maxPackageEntry && !p.constraints && p.markerName == profileProjectsMarkerName && p.cliName == "cncf-projects" && p.admit != nil
+	}
 	if p.id == profileCertManager {
 		return p.targetPath == TargetPath && p.maxTarget == maxPackageEntry && !p.constraints && p.markerName == "" && p.cliName == "cert-manager" && p.admit == nil
 	}
@@ -162,7 +180,16 @@ func checkProfileMarker(store *storeFS, p profileSpec, allowInitialize bool) err
 		return ErrIntegrity
 	}
 	var marker profileMarker
-	if decodeCanonicalStrict(raw, &marker) != nil || marker.APIVersion != profileMarkerAPIVersion || marker.Profile != p.markerName || marker.TargetPath != p.targetPath {
+	if decodeCanonicalStrict(raw, &marker) != nil || marker.APIVersion != profileMarkerAPIVersion {
+		return ErrIntegrity
+	}
+	if p.id == profileConstraints && marker.Profile == profileProjectsMarkerName {
+		return fmt.Errorf("store holds the per-project CNCF layout; use the cncf-projects profile: %w", errors.Join(ErrLayout, ErrIntegrity))
+	}
+	if p.split && marker.Profile == profileConstraintsMarkerName {
+		return fmt.Errorf("store holds the single-target CNCF layout; use the cncf profile or a new store directory: %w", errors.Join(ErrLayout, ErrIntegrity))
+	}
+	if marker.Profile != p.markerName || marker.TargetPath != p.targetPath {
 		return ErrIntegrity
 	}
 	if !p.marked() {

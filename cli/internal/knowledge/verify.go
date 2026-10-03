@@ -103,8 +103,15 @@ func verifyForProfile(req VerifyRequest, profile profileSpec, admit AdmitFunc) (
 	}
 	profileName := profile.cliName
 	state := verified.material.state
+	var projects []ProjectTargetReceipt
+	if profile.split {
+		if projects, err = projectReceipts(verified.target); err != nil || len(projects) != len(verified.projects) {
+			return PackageVerificationReceipt{}, ErrIntegrity
+		}
+	}
 	return PackageVerificationReceipt{
-		APIVersion: "prufyx.io/knowledge-package-verification/v1", Status: "VERIFIED", Profile: profileName,
+		ProjectTargets: projects,
+		APIVersion:     "prufyx.io/knowledge-package-verification/v1", Status: "VERIFIED", Profile: profileName,
 		VerifiedAt: verified.verifiedAt.Format(time.RFC3339), TrustSource: "OPERATOR_PROVISIONED",
 		InitialRootDigest: initialDigest, RootHistory: append([]RootHistoryEntry(nil), state.RootHistory...),
 		Root: state.Root, Timestamp: state.Timestamp, Snapshot: state.Snapshot, Targets: state.Targets,

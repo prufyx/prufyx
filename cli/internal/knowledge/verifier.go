@@ -38,6 +38,9 @@ type verificationResult struct {
 	verifiedAt time.Time
 	refreshErr error
 	served     map[string][]byte
+	// projects holds the verified project targets of a per-project profile,
+	// keyed by project. It is empty for single-target profiles.
+	projects map[string][]byte
 }
 
 func verifyPackage(pkg importPackage, prior *trustMaterial, bootstrap []byte, initialDigest string, testRefTime *time.Time, fetchHook func(string) error) (verificationResult, error) {
@@ -45,6 +48,14 @@ func verifyPackage(pkg importPackage, prior *trustMaterial, bootstrap []byte, in
 }
 
 func verifyPackageForProfile(pkg importPackage, profile profileSpec, prior *trustMaterial, bootstrap []byte, initialDigest string, testRefTime *time.Time, fetchHook func(string) error) (verificationResult, error) {
+	return verifyPackageForProfileProjects(pkg, profile, prior, bootstrap, initialDigest, testRefTime, fetchHook, nil)
+}
+
+// verifyPackageForProfileProjects verifies the package. For a per-project
+// profile, only selects the project targets to download and verify; nil
+// selects every project. The index and its binding to the signed targets role
+// are always verified completely.
+func verifyPackageForProfileProjects(pkg importPackage, profile profileSpec, prior *trustMaterial, bootstrap []byte, initialDigest string, testRefTime *time.Time, fetchHook func(string) error, only map[string]bool) (verificationResult, error) {
 	if !profile.valid() {
 		return verificationResult{}, ErrIntegrity
 	}
@@ -141,6 +152,14 @@ func verifyPackageForProfile(pkg importPackage, profile profileSpec, prior *trus
 		result.refreshErr = err
 		return result, nil
 	}
+	if profile.split {
+		projects, err := verifySplitTargets(u, trusted.Targets[metadata.TARGETS], target, targetDir, only)
+		if err != nil {
+			result.refreshErr = err
+			return result, nil
+		}
+		result.projects = projects
+	}
 	result.target = append([]byte(nil), target...)
 	result.targetInfo = info
 	return result, nil
@@ -189,6 +208,7 @@ func materialFromTrusted(trusted trustedmetadata.TrustedMetadata, prior *trustMa
 	if prior != nil {
 		state.RevisionFloor = prior.state.RevisionFloor
 		state.RevisionFloorBundleDigest = prior.state.RevisionFloorBundleDigest
+		state.ProjectFloors = append([]projectFloor(nil), prior.state.ProjectFloors...)
 	}
 	material := trustMaterial{state: state, rootHistory: history, root: append([]byte(nil), rootRaw...)}
 	material.timestamp = trustedTimestampRaw(trusted.Timestamp, accepted["timestamp"])
@@ -488,7 +508,14 @@ func validateTrustedSetForProfile(trusted trustedmetadata.TrustedMetadata, profi
 		return ErrIntegrity
 	}
 	targets := trusted.Targets[metadata.TARGETS]
-	if len(targets.UnrecognizedFields) != 0 || len(targets.Signed.UnrecognizedFields) != 0 || targets.Signed.Delegations != nil || len(targets.Signed.Targets) != 1 || targets.Signed.Targets[profile.targetPath] == nil {
+	if len(targets.UnrecognizedFields) != 0 || len(targets.Signed.UnrecognizedFields) != 0 || targets.Signed.Delegations != nil {
+		return ErrIntegrity
+	}
+	if profile.split {
+		if err := validateSplitTargetsRole(targets, profile); err != nil {
+			return err
+		}
+	} else if len(targets.Signed.Targets) != 1 || targets.Signed.Targets[profile.targetPath] == nil {
 		return ErrIntegrity
 	}
 	for _, metaFile := range []*metadata.MetaFiles{trusted.Timestamp.Signed.Meta["snapshot.json"], trusted.Snapshot.Signed.Meta["targets.json"]} {
@@ -518,6 +545,10 @@ func validateSignatures[T receiptRole](role *metadata.Metadata[T]) error {
 func classifyTUFError(err error) error {
 	if err == nil {
 		return nil
+	}
+	var split *splitTargetError
+	if errors.As(err, &split) {
+		return err
 	}
 	if errors.Is(err, &metadata.ErrExpiredMetadata{}) {
 		return fmt.Errorf("TUF metadata expired: %w", ErrExpired)

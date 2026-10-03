@@ -160,13 +160,21 @@ func validateTUFShapeForTarget(raw []byte, targetPath string) error {
 			return ErrIntegrity
 		}
 		var targets map[string]map[string]json.RawMessage
-		if json.Unmarshal(signed["targets"], &targets) != nil || len(targets) != 1 {
+		if json.Unmarshal(signed["targets"], &targets) != nil {
 			return ErrIntegrity
 		}
-		f, ok := targets[targetPath]
-		var length int64
-		if !ok || !exactKeys(f, []string{"length", "hashes"}) || !decodePositiveInt(f["length"], maxPackageEntry, &length) || validateHashesShape(f["hashes"]) != nil {
+		if isSplitTarget(targetPath) {
+			if _, ok := targets[targetPath]; !ok || len(targets) < 2 || len(targets) > splitMaxPackageFiles {
+				return ErrIntegrity
+			}
+		} else if len(targets) != 1 {
 			return ErrIntegrity
+		}
+		for name, f := range targets {
+			var length int64
+			if (name != targetPath && !(isSplitTarget(targetPath) && splitTargetKey(name))) || !exactKeys(f, []string{"length", "hashes"}) || !decodePositiveInt(f["length"], maxPackageEntry, &length) || validateHashesShape(f["hashes"]) != nil {
+				return ErrIntegrity
+			}
 		}
 	default:
 		return ErrIntegrity
@@ -301,7 +309,7 @@ func walkJSONTarget(d *json.Decoder, depth int, members *int, targetPath string)
 				seen[k] = true
 				folded[strings.ToLower(k)] = true
 				*members++
-				if *members > maxJSONMembers {
+				if *members > jsonMemberLimit(targetPath) {
 					return ErrIntegrity
 				}
 				if e = walkJSONTarget(d, depth+1, members, targetPath); e != nil {
@@ -317,7 +325,7 @@ func walkJSONTarget(d *json.Decoder, depth int, members *int, targetPath string)
 			for d.More() {
 				items++
 				*members++
-				if items > maxJSONMembers || *members > maxJSONMembers {
+				if items > jsonMemberLimit(targetPath) || *members > jsonMemberLimit(targetPath) {
 					return ErrIntegrity
 				}
 				if e := walkJSONTarget(d, depth+1, members, targetPath); e != nil {
@@ -357,7 +365,7 @@ func validTUFKeyForTarget(k, targetPath string) bool {
 	if _, ok := tufStaticKeys[k]; ok {
 		return true
 	}
-	if k == targetPath {
+	if k == targetPath || isSplitTarget(targetPath) && splitTargetKey(k) {
 		return true
 	}
 	return hexKeyRE.MatchString(k)

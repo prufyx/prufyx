@@ -438,5 +438,8 @@ func validateTrustState(s trustState) error {
 			return ErrIntegrity
 		}
 	}
+	if len(s.ProjectFloors) > 0 && (s.RevisionFloor == "" || validateProjectFloors(s.ProjectFloors) != nil) {
+		return ErrIntegrity
+	}
 	return nil
 }

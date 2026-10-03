@@ -34,6 +34,9 @@ type trustState struct {
 	Targets                   RoleReceipt        `json:"targets,omitempty"`
 	RevisionFloor             string             `json:"revisionFloor,omitempty"`
 	RevisionFloorBundleDigest string             `json:"revisionFloorBundleDigest,omitempty"`
+	// ProjectFloors is set only by the per-project profile: one rollback
+	// floor per project target, in project order.
+	ProjectFloors []projectFloor `json:"projectFloors,omitempty"`
 }
 type digestPointer struct {
 	APIVersion string `json:"apiVersion"`

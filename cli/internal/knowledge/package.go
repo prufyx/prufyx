@@ -42,9 +42,13 @@ func readImportPackageForProfile(filePath string, profile profileSpec) (importPa
 	if !profile.valid() {
 		return importPackage{}, ErrIntegrity
 	}
-	raw, info, err := currentbundle.ReadBoundedFileInfo(filePath, maxPackageBytes)
+	limitBytes, limitFiles, limitTotal := profile.packageLimits()
+	raw, info, err := currentbundle.ReadBoundedFileInfo(filePath, limitBytes)
 	if err != nil || info == nil || !info.Mode().IsRegular() {
 		return importPackage{}, fmt.Errorf("open package: %w", ErrInvalid)
+	}
+	if err := packageLayoutMismatch(raw, profile); err != nil {
+		return importPackage{}, err
 	}
 	reader := tar.NewReader(bytes.NewReader(raw))
 	files := map[string][]byte{}
@@ -60,7 +64,7 @@ func readImportPackageForProfile(filePath string, profile profileSpec) (importPa
 		}
 		//lint:ignore SA1019 Xattrs is deprecated for writing, but this parser must reject legacy extended attributes.
 		legacyXattrs := header.Xattrs != nil
-		if len(files) >= maxPackageFiles || header.Typeflag != tar.TypeReg || header.Size < 1 || header.Size > maxPackageEntry || header.Mode != 0o644 || header.Uid != 0 || header.Gid != 0 || header.Uname != "" || header.Gname != "" || header.Linkname != "" || !header.ModTime.Equal(time.Unix(0, 0)) || !header.AccessTime.IsZero() || !header.ChangeTime.IsZero() || header.Devmajor != 0 || header.Devminor != 0 || header.PAXRecords != nil || legacyXattrs {
+		if len(files) >= limitFiles || header.Typeflag != tar.TypeReg || header.Size < 1 || header.Size > maxPackageEntry || header.Mode != 0o644 || header.Uid != 0 || header.Gid != 0 || header.Uname != "" || header.Gname != "" || header.Linkname != "" || !header.ModTime.Equal(time.Unix(0, 0)) || !header.AccessTime.IsZero() || !header.ChangeTime.IsZero() || header.Devmajor != 0 || header.Devminor != 0 || header.PAXRecords != nil || legacyXattrs {
 			return importPackage{}, fmt.Errorf("package header: %w", ErrInvalid)
 		}
 		name := header.Name
@@ -71,7 +75,7 @@ func readImportPackageForProfile(filePath string, profile profileSpec) (importPa
 			return importPackage{}, fmt.Errorf("duplicate package path: %w", ErrInvalid)
 		}
 		total += header.Size
-		if total > maxPackageTotal {
+		if total > limitTotal {
 			return importPackage{}, fmt.Errorf("package total size: %w", ErrInvalid)
 		}
 		data, err := io.ReadAll(io.LimitReader(reader, header.Size+1))
@@ -123,6 +127,9 @@ func packageMemberName(name, targetPath string) bool {
 	}
 	if targetPath == TargetPath && packageNameRE.MatchString(name) {
 		return true
+	}
+	if isSplitTarget(targetPath) {
+		return splitMemberName(name)
 	}
 	if !strings.HasPrefix(name, "targets/knowledge/") || !strings.HasSuffix(name, "."+path.Base(targetPath)) {
 		return false

@@ -295,6 +295,13 @@ func importWithProfile(req ImportRequest, profile profileSpec, admit AdmitFunc, 
 	if err := enforceRevisionFloor(previousFloor, verified.material.state.RevisionFloorBundleDigest, admission.Revision, bundleDigest); err != nil {
 		return finish(rejected, err)
 	}
+	if profile.split {
+		floors, floorErr := advanceProjectFloors(verified.material.state.ProjectFloors, verified.target)
+		if floorErr != nil {
+			return finish(rejected, floorErr)
+		}
+		verified.material.state.ProjectFloors = floors
+	}
 	verified.material.state.RevisionFloor = admission.Revision
 	verified.material.state.RevisionFloorBundleDigest = bundleDigest
 	stateRaw, _ := marshalCanonical(verified.material.state)
@@ -317,11 +324,15 @@ func importWithProfile(req ImportRequest, profile profileSpec, admit AdmitFunc, 
 		receiptRaw, receiptErr := store.read(rel+"/trust-receipt.json", maxStateFile)
 		var old TrustReceipt
 		validExisting := targetErr == nil && receiptErr == nil && digestBytes(target) == bundleDigest && digestBytes(receiptRaw) == existing.TrustReceiptDigest && decodeCanonicalStrict(receiptRaw, &old) == nil && validateTrustReceiptForProfile(old, existing, &verified.material, int64(len(target)), profile) == nil && admissionMatchesReceipt(admission, old)
+		if validExisting && profile.split {
+			stored, storedErr := readStoredProjects(store, rel, target, nil)
+			validExisting = storedErr == nil && sameProjects(stored, verified.projects)
+		}
 		if !validExisting {
 			return rejected, ErrIntegrity
 		}
 		if expectedVerificationDigest == "" || old.ExpectedVerificationAssertionsDigest == expectedVerificationDigest {
-			return finish(ImportReceipt{APIVersion: "prufyx.io/knowledge-import-receipt/v1", Status: "IMPORTED", TrustStateAdvanced: trustChanged, SelectionChanged: false, TrustStateDigest: verified.material.stateDigest, TrustReceipt: old, TrustReceiptDigest: existing.TrustReceiptDigest, AdmissionPath: rel}, nil)
+			return finish(withProjectReceipts(ImportReceipt{APIVersion: "prufyx.io/knowledge-import-receipt/v1", Status: "IMPORTED", TrustStateAdvanced: trustChanged, SelectionChanged: false, TrustStateDigest: verified.material.stateDigest, TrustReceipt: old, TrustReceiptDigest: existing.TrustReceiptDigest, AdmissionPath: rel}, profile, verified.target), nil)
 		}
 		// A valid manual v1 admission does not claim it checked a later release
 		// plan. Fall through after re-verifying this request and mint a v2
@@ -349,6 +360,11 @@ func importWithProfile(req ImportRequest, profile profileSpec, admit AdmitFunc, 
 	}
 	receiptDigest := digestBytes(receiptRaw)
 	relative := filepath.Join("admissions", strings.TrimPrefix(bundleDigest, "sha256:"), strings.TrimPrefix(receiptDigest, "sha256:"))
+	if profile.split {
+		if err := persistProjects(store, filepath.ToSlash(relative), verified.projects); err != nil {
+			return failureReceipt(err)
+		}
+	}
 	if err := persistAdmission(store, filepath.ToSlash(relative), verified.target, receiptRaw, verified.material.stateDigest); err != nil {
 		return failureReceipt(err)
 	}
@@ -363,7 +379,7 @@ func importWithProfile(req ImportRequest, profile profileSpec, admit AdmitFunc, 
 	if err = runImportHook(hook, "selection-published", store); err != nil {
 		return failureReceipt(err)
 	}
-	return finish(ImportReceipt{APIVersion: "prufyx.io/knowledge-import-receipt/v1", Status: "IMPORTED", TrustStateAdvanced: trustChanged, SelectionChanged: true, TrustStateDigest: verified.material.stateDigest, TrustReceipt: receipt, TrustReceiptDigest: receiptDigest, AdmissionPath: filepath.ToSlash(relative)}, nil)
+	return finish(withProjectReceipts(ImportReceipt{APIVersion: "prufyx.io/knowledge-import-receipt/v1", Status: "IMPORTED", TrustStateAdvanced: trustChanged, SelectionChanged: true, TrustStateDigest: verified.material.stateDigest, TrustReceipt: receipt, TrustReceiptDigest: receiptDigest, AdmissionPath: filepath.ToSlash(relative)}, profile, verified.target), nil)
 }
 
 func durableFailureReceipt(store *storeFS, active *importPending, profile profileSpec, admit AdmitFunc, cause error) (ImportReceipt, error) {
@@ -430,8 +446,14 @@ func validateStoredSelection(store *storeFS, selected selectionPointer, profile 
 	if err != nil {
 		return ErrIntegrity
 	}
-	verified, err := verifyPackageForProfile(packageFromStoredForProfile(material, target, selected.BundleDigest, profile), profile, material, nil, "", &verifiedAt, nil)
-	if err != nil || verified.refreshErr != nil || digestBytes(verified.target) != selected.BundleDigest || verified.material.stateDigest != selected.TrustStateDigest {
+	var projects map[string][]byte
+	if profile.split {
+		if projects, err = readStoredProjects(store, rel, target, nil); err != nil {
+			return ErrIntegrity
+		}
+	}
+	verified, err := verifyPackageForProfile(packageFromStoredWithProjects(material, target, selected.BundleDigest, profile, projects), profile, material, nil, "", &verifiedAt, nil)
+	if err != nil || verified.refreshErr != nil || digestBytes(verified.target) != selected.BundleDigest || verified.material.stateDigest != selected.TrustStateDigest || profile.split && !sameProjects(projects, verified.projects) {
 		return ErrIntegrity
 	}
 	admission, err := admit(append([]byte(nil), target...))

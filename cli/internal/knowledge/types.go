@@ -7,6 +7,8 @@ package knowledge
 import (
 	"errors"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 )
 
 const (
@@ -121,6 +123,9 @@ type PackageVerificationReceipt struct {
 	StoreChanged                bool               `json:"storeChanged"`
 	RollbackAgainstStoreChecked bool               `json:"rollbackAgainstStoreChecked"`
 	ImportEligibility           string             `json:"importEligibility"`
+	// ProjectTargets lists every verified project target of a per-project
+	// package. It is empty for single-target profiles.
+	ProjectTargets []ProjectTargetReceipt `json:"projectTargets,omitempty"`
 }
 
 type SelectionRequest struct {
@@ -176,6 +181,9 @@ type ImportReceipt struct {
 	TrustReceipt       TrustReceipt `json:"trustReceipt"`
 	TrustReceiptDigest string       `json:"trustReceiptDigest"`
 	AdmissionPath      string       `json:"admissionPath"`
+	// ProjectTargets lists the verified project targets of a per-project
+	// import. It is empty for single-target profiles.
+	ProjectTargets []ProjectTargetReceipt `json:"projectTargets,omitempty"`
 }
 
 type Status struct {
@@ -217,7 +225,10 @@ type VerifiedRevision struct {
 	verifiedAt         time.Time
 	mode               SelectionMode
 	profile            profileID
-	seal               *verifiedSeal
+	// projects holds the verified project targets requested from a
+	// per-project store. The bytes above are then the index target.
+	projects map[string]ProjectTarget
+	seal     *verifiedSeal
 }
 
 type verifiedSeal struct{}
@@ -243,6 +254,30 @@ func (v VerifiedRevision) Valid() bool {
 			return false
 		}
 	}
+	if (v.profile == profileConstraintsProjects) != (v.projects != nil) {
+		return false
+	}
+	for project, target := range v.projects {
+		if target.Project != project || target.Path != cncfcheck.ProjectTargetPath(project) || digestBytes(target.bytes) != target.Digest {
+			return false
+		}
+	}
 	receipt, err := marshalCanonical(v.trustReceipt)
 	return err == nil && digestBytes(receipt) == v.trustReceiptDigest && digestBytes(v.bytes) == v.bundleDigest && v.revision == v.trustReceipt.KnowledgeRevision
+}
+
+// PerProject reports whether this revision was opened from a per-project
+// store. Its Bytes are then the index target, and project targets are
+// available through ProjectTarget.
+func (v VerifiedRevision) PerProject() bool { return v.profile == profileConstraintsProjects }
+
+// ProjectTarget returns one verified project target. It is absent when the
+// selected index lists no target for the project or it was not requested.
+func (v VerifiedRevision) ProjectTarget(project string) (ProjectTarget, bool) {
+	target, ok := v.projects[project]
+	if !ok {
+		return ProjectTarget{}, false
+	}
+	target.bytes = append([]byte(nil), target.bytes...)
+	return target, true
 }

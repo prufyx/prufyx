@@ -100,6 +100,13 @@ type ExternalProfileContract struct {
 // ParseExternalBundle admits a complete operator-provided target envelope.
 // It performs no source fetch, signature verification, or network operation.
 func ParseExternalBundle(raw []byte) (ExternalBundle, error) {
+	return parseExternalBundle(raw, nil)
+}
+
+// parseExternalBundle admits raw against base, loading the compiled bundle
+// when base is nil. Callers that admit many targets in one operation pass the
+// base they already loaded; every check is identical.
+func parseExternalBundle(raw []byte, base *bundle) (ExternalBundle, error) {
 	if err := scanExternalJSON(raw); err != nil || validateExternalEnvelopeShape(raw) != nil {
 		return ExternalBundle{}, ErrInvalid
 	}
@@ -107,11 +114,14 @@ func ParseExternalBundle(raw []byte) (ExternalBundle, error) {
 	if err := json.Unmarshal(raw, &document); err != nil || document.Schema != externalBundleSchema || !validExternalRevision(document.Revision) || (document.Purpose != "operator_provided" && document.Purpose != "synthetic_test_only") {
 		return ExternalBundle{}, ErrInvalid
 	}
-	base, err := load()
-	if err != nil {
-		return ExternalBundle{}, err
+	if base == nil {
+		loaded, err := load()
+		if err != nil {
+			return ExternalBundle{}, err
+		}
+		base = &loaded
 	}
-	capability, err := externalCapabilityDigest(base)
+	capability, err := externalCapabilityDigest(*base)
 	if err != nil || document.EngineCapabilityDigest != capability {
 		return ExternalBundle{}, ErrIntegrity
 	}
@@ -119,7 +129,7 @@ func ParseExternalBundle(raw []byte) (ExternalBundle, error) {
 	if err := json.Unmarshal(document.Pack, &packValue); err != nil {
 		return ExternalBundle{}, ErrInvalid
 	}
-	if err := validateExternalPack(base, packValue, document.Revision); err != nil {
+	if err := validateExternalPack(*base, packValue, document.Revision); err != nil {
 		return ExternalBundle{}, err
 	}
 	candidate := bundle{landscape: base.landscape, priority: base.priority, pack: packValue, registry: base.registry, packDigest: digest(raw), catalogueDigest: base.catalogueDigest}

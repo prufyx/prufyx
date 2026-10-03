@@ -9,43 +9,45 @@ import (
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 )
 
 const genericIntegrityNextAction = "inspect store integrity; use a matching CLI capability, or provision a separate store with an independently verified bootstrap; preserve the old store"
 
 func OpenSelected(req SelectionRequest, admit AdmitFunc) (VerifiedRevision, error) {
-	return openRevision(req, certManagerProfile(), time.Time{}, SelectionCurrent, admit)
+	return openRevision(req, certManagerProfile(), time.Time{}, SelectionCurrent, admit, nil)
 }
 
 // OpenSelectedConstraints opens the selected fixed generic CNCF revision.
 func OpenSelectedConstraints(req SelectionRequest) (VerifiedRevision, error) {
 	p := constraintsProfile()
-	return openRevision(req, p, time.Time{}, SelectionCurrent, p.admit)
+	return openRevision(req, p, time.Time{}, SelectionCurrent, p.admit, nil)
 }
 
 // OpenSelectedSPIFFEX509SVID opens the selected isolated conformance profile.
 func OpenSelectedSPIFFEX509SVID(req SelectionRequest) (VerifiedRevision, error) {
 	p := spiffeX509SVIDProfile()
-	return openRevision(req, p, time.Time{}, SelectionCurrent, p.admit)
+	return openRevision(req, p, time.Time{}, SelectionCurrent, p.admit, nil)
 }
 
 // OpenSelectedCloudEventsStructuredJSON opens the selected isolated conformance profile.
 func OpenSelectedCloudEventsStructuredJSON(req SelectionRequest) (VerifiedRevision, error) {
 	p := cloudEventsStructuredJSONProfile()
-	return openRevision(req, p, time.Time{}, SelectionCurrent, p.admit)
+	return openRevision(req, p, time.Time{}, SelectionCurrent, p.admit, nil)
 }
 
 // OpenSelectedTiKVGCPV2WIFBackup opens the selected isolated target-preflight profile.
 func OpenSelectedTiKVGCPV2WIFBackup(req SelectionRequest) (VerifiedRevision, error) {
 	p := tikvGCPV2WIFBackupProfile()
-	return openRevision(req, p, time.Time{}, SelectionCurrent, p.admit)
+	return openRevision(req, p, time.Time{}, SelectionCurrent, p.admit, nil)
 }
 
 func OpenHistorical(req SelectionRequest, evaluatedAt time.Time, admit AdmitFunc) (VerifiedRevision, error) {
 	if req.ExpectedRevision == "" || req.ExpectedBundleDigest == "" || req.ExpectedTrustReceiptDigest == "" || evaluatedAt.IsZero() || evaluatedAt.Location() != time.UTC {
 		return VerifiedRevision{}, fmt.Errorf("historical selection requires exact identities and UTC time: %w", ErrInvalid)
 	}
-	return openRevision(req, certManagerProfile(), evaluatedAt, SelectionHistorical, admit)
+	return openRevision(req, certManagerProfile(), evaluatedAt, SelectionHistorical, admit, nil)
 }
 
 // OpenHistoricalConstraints revalidates an exact historical generic revision.
@@ -54,7 +56,7 @@ func OpenHistoricalConstraints(req SelectionRequest, evaluatedAt time.Time) (Ver
 		return VerifiedRevision{}, fmt.Errorf("historical selection requires exact identities and UTC time: %w", ErrInvalid)
 	}
 	p := constraintsProfile()
-	return openRevision(req, p, evaluatedAt, SelectionHistorical, p.admit)
+	return openRevision(req, p, evaluatedAt, SelectionHistorical, p.admit, nil)
 }
 
 // OpenHistoricalSPIFFEX509SVID revalidates one exact saved profile revision.
@@ -63,7 +65,7 @@ func OpenHistoricalSPIFFEX509SVID(req SelectionRequest, evaluatedAt time.Time) (
 		return VerifiedRevision{}, fmt.Errorf("historical selection requires exact identities and UTC time: %w", ErrInvalid)
 	}
 	p := spiffeX509SVIDProfile()
-	return openRevision(req, p, evaluatedAt, SelectionHistorical, p.admit)
+	return openRevision(req, p, evaluatedAt, SelectionHistorical, p.admit, nil)
 }
 
 // OpenHistoricalCloudEventsStructuredJSON revalidates one exact saved profile revision.
@@ -72,7 +74,7 @@ func OpenHistoricalCloudEventsStructuredJSON(req SelectionRequest, evaluatedAt t
 		return VerifiedRevision{}, fmt.Errorf("historical selection requires exact identities and UTC time: %w", ErrInvalid)
 	}
 	p := cloudEventsStructuredJSONProfile()
-	return openRevision(req, p, evaluatedAt, SelectionHistorical, p.admit)
+	return openRevision(req, p, evaluatedAt, SelectionHistorical, p.admit, nil)
 }
 
 // OpenHistoricalTiKVGCPV2WIFBackup revalidates one exact saved profile revision.
@@ -81,11 +83,11 @@ func OpenHistoricalTiKVGCPV2WIFBackup(req SelectionRequest, evaluatedAt time.Tim
 		return VerifiedRevision{}, fmt.Errorf("historical selection requires exact identities and UTC time: %w", ErrInvalid)
 	}
 	p := tikvGCPV2WIFBackupProfile()
-	return openRevision(req, p, evaluatedAt, SelectionHistorical, p.admit)
+	return openRevision(req, p, evaluatedAt, SelectionHistorical, p.admit, nil)
 }
 
-func openRevision(req SelectionRequest, profile profileSpec, evaluatedAt time.Time, mode SelectionMode, admit AdmitFunc) (VerifiedRevision, error) {
-	if !profile.valid() || admit == nil {
+func openRevision(req SelectionRequest, profile profileSpec, evaluatedAt time.Time, mode SelectionMode, admit AdmitFunc, only map[string]bool) (VerifiedRevision, error) {
+	if !profile.valid() || admit == nil || profile.split != (only != nil) {
 		return VerifiedRevision{}, ErrInvalid
 	}
 	store, err := ensureStoreRoot(req.StoreRoot)
@@ -187,19 +189,30 @@ func openRevision(req SelectionRequest, profile profileSpec, evaluatedAt time.Ti
 	if err != nil || validateAdmissionForProfile(admission, profile) != nil || !admissionMatchesReceipt(admission, receipt) {
 		return VerifiedRevision{}, ErrIntegrity
 	}
-	pkg := packageFromStoredForProfile(selectedState, target, selection.BundleDigest, profile)
+	var storedProjects map[string][]byte
+	if profile.split {
+		if storedProjects, err = readStoredProjects(store, rel, target, only); err != nil {
+			return VerifiedRevision{}, err
+		}
+	}
+	pkg := packageFromStoredWithProjects(selectedState, target, selection.BundleDigest, profile, storedProjects)
 	ref := &evaluatedAt
-	verified, err := verifyPackageForProfile(pkg, profile, selectedState, nil, "", ref, nil)
+	verified, err := verifyPackageForProfileProjects(pkg, profile, selectedState, nil, "", ref, nil, only)
 	if err != nil {
 		return VerifiedRevision{}, err
 	}
 	if verified.refreshErr != nil {
 		return VerifiedRevision{}, classifyTUFError(verified.refreshErr)
 	}
-	if digestBytes(verified.target) != selection.BundleDigest || verified.material.stateDigest != selection.TrustStateDigest {
+	if digestBytes(verified.target) != selection.BundleDigest || verified.material.stateDigest != selection.TrustStateDigest || profile.split && !sameProjects(storedProjects, verified.projects) {
 		return VerifiedRevision{}, fmt.Errorf("revalidated trust state: %w", ErrIntegrity)
 	}
 	v := VerifiedRevision{bytes: append([]byte(nil), target...), revision: selection.Revision, bundleDigest: selection.BundleDigest, trustReceipt: receipt, trustReceiptDigest: selection.TrustReceiptDigest, verifiedAt: evaluatedAt, mode: mode, profile: profile.id, seal: &verifiedSeal{}}
+	if profile.split {
+		if v.projects, err = verifiedProjectTargets(target, verified.projects); err != nil {
+			return VerifiedRevision{}, err
+		}
+	}
 	if !v.Valid() {
 		return VerifiedRevision{}, ErrIntegrity
 	}
@@ -315,8 +328,16 @@ func inspectProfile(storeRoot string, profile profileSpec) (Status, error) {
 					admissionOK = admissionErr == nil && validateAdmissionForProfile(admitted, profile) == nil && admissionMatchesReceipt(admitted, receipt)
 				}
 				if admissionOK {
-					verified, verifyErr := verifyPackageForProfile(packageFromStoredForProfile(selectedMaterial, target, selection.BundleDigest, profile), profile, selectedMaterial, nil, "", &now, nil)
-					stateMatches := verifyErr == nil && verified.material.stateDigest == selectedMaterial.stateDigest
+					var storedProjects map[string][]byte
+					var projectsErr error
+					if profile.split {
+						storedProjects, projectsErr = readStoredProjects(store, rel, target, nil)
+					}
+					verified, verifyErr := verifyPackageForProfile(packageFromStoredWithProjects(selectedMaterial, target, selection.BundleDigest, profile, storedProjects), profile, selectedMaterial, nil, "", &now, nil)
+					stateMatches := projectsErr == nil && verifyErr == nil && verified.material.stateDigest == selectedMaterial.stateDigest
+					if profile.split && verified.refreshErr == nil && !sameProjects(storedProjects, verified.projects) {
+						stateMatches = false
+					}
 					if stateMatches && verified.refreshErr == nil && digestBytes(verified.target) == selection.BundleDigest {
 						integrityOK = true
 					} else if stateMatches && errors.Is(classifyTUFError(verified.refreshErr), ErrExpired) {
@@ -467,6 +488,21 @@ func packageFromStored(m *trustMaterial, target []byte, bundle string) importPac
 }
 
 func packageFromStoredForProfile(m *trustMaterial, target []byte, bundle string, profile profileSpec) importPackage {
-	files := map[string][]byte{"metadata/timestamp.json": append([]byte(nil), m.timestamp...), fmt.Sprintf("metadata/%d.snapshot.json", m.state.Snapshot.Version): append([]byte(nil), m.snapshot...), fmt.Sprintf("metadata/%d.targets.json", m.state.Targets.Version): append([]byte(nil), m.targets...), "targets/knowledge/" + strings.TrimPrefix(bundle, "sha256:") + "." + path.Base(profile.targetPath): append([]byte(nil), target...)}
+	return packageFromStoredWithProjects(m, target, bundle, profile, nil)
+}
+
+// packageFromStoredWithProjects rebuilds an in-memory package from stored
+// trust material, the stored target and, for a per-project profile, the
+// stored project targets that will be re-verified.
+func packageFromStoredWithProjects(m *trustMaterial, target []byte, bundle string, profile profileSpec, projects map[string][]byte) importPackage {
+	files := map[string][]byte{"metadata/timestamp.json": append([]byte(nil), m.timestamp...), fmt.Sprintf("metadata/%d.snapshot.json", m.state.Snapshot.Version): append([]byte(nil), m.snapshot...), fmt.Sprintf("metadata/%d.targets.json", m.state.Targets.Version): append([]byte(nil), m.targets...)}
+	if profile.split {
+		files[hashedTargetMember(profile.targetPath, strings.TrimPrefix(bundle, "sha256:"))] = append([]byte(nil), target...)
+		for project, raw := range projects {
+			files[hashedTargetMember(cncfcheck.ProjectTargetPath(project), strings.TrimPrefix(digestBytes(raw), "sha256:"))] = append([]byte(nil), raw...)
+		}
+	} else {
+		files["targets/knowledge/"+strings.TrimPrefix(bundle, "sha256:")+"."+path.Base(profile.targetPath)] = append([]byte(nil), target...)
+	}
 	return importPackage{files: files, targetPath: profile.targetPath}
 }
