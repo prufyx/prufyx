@@ -5,6 +5,7 @@ package knowledgegate
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"time"
@@ -30,7 +31,11 @@ type rederiveKey struct {
 // names and requires every rule's head entry to be byte-identical
 // (canonical JSON) to the re-derived one. It sets OK, Proof and Detail on
 // every change it is given.
-func rederive(ctx context.Context, src Source, catalog map[string]extractcli.Spec, concurrency int, changes []*Change) {
+func rederive(ctx context.Context, src Source, catalog map[string]extractcli.Spec, concurrency int, layout Layout, changes []*Change) {
+	admitted := map[string]func([]byte) (json.RawMessage, error){}
+	for _, spec := range layout.Packs {
+		admitted[spec.Name] = spec.Entry
+	}
 	groups := map[rederiveKey][]*Change{}
 	for _, c := range changes {
 		ev := c.head.Evidence
@@ -56,10 +61,18 @@ func rederive(ctx context.Context, src Source, catalog map[string]extractcli.Spe
 			continue
 		}
 		for _, c := range group {
-			want, ok := entries[c.RuleID]
+			derived, ok := entries[c.RuleID]
+			var want []byte
+			if ok {
+				// Compare the re-derived entry as admission would read
+				// it, exactly as the head entry was read.
+				want, err = admittedCanonical(admitted[c.Pack], derived)
+			}
 			switch {
 			case !ok:
 				c.fail(fmt.Sprintf("extractor %s %s does not derive this rule from the pinned upstream bytes", k.id, k.version))
+			case err != nil:
+				c.fail("the re-derived entry is not admissible: " + err.Error())
 			case !bytes.Equal(want, c.head.Canonical):
 				c.fail(fmt.Sprintf("rule differs from what extractor %s %s derives from the pinned upstream bytes", k.id, k.version))
 			default:
@@ -100,11 +113,23 @@ func rederiveGroup(ctx context.Context, src Source, catalog map[string]extractcl
 	}
 	entries := map[string][]byte{}
 	for _, e := range out.Entries {
-		raw, err := extract.Canonical(e)
+		raw, err := json.Marshal(e)
 		if err != nil {
 			return nil, err
 		}
 		entries[e.Rule.ID] = raw
 	}
 	return entries, nil
+}
+
+// admittedCanonical is the canonical JSON of an entry as admission reads it.
+func admittedCanonical(admit func([]byte) (json.RawMessage, error), raw []byte) ([]byte, error) {
+	if admit == nil {
+		return nil, fmt.Errorf("no admission reader for this pack")
+	}
+	view, err := admit(raw)
+	if err != nil {
+		return nil, err
+	}
+	return extract.Canonical(view)
 }

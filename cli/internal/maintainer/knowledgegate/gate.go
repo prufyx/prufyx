@@ -271,7 +271,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 			c.fail(fmt.Sprintf("evidence basis %q is not admitted", c.Basis))
 		}
 	}
-	rederive(ctx, opts.Source, opts.Catalog, opts.Concurrency, mechanical)
+	rederive(ctx, opts.Source, opts.Catalog, opts.Concurrency, opts.Layout, mechanical)
 
 	if opts.RederiveAll {
 		r.rederiveAll(ctx, cls, opts)
@@ -340,7 +340,7 @@ func (r *Report) rederiveAll(ctx context.Context, cls *Classification, opts Opti
 			all = append(all, &Change{Pack: spec.Name, RuleID: id, head: e})
 		}
 	}
-	rederive(ctx, opts.Source, opts.Catalog, opts.Concurrency, all)
+	rederive(ctx, opts.Source, opts.Catalog, opts.Concurrency, opts.Layout, all)
 	var failed []string
 	for _, c := range all {
 		if !c.OK {

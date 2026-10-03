@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/strictjson"
 )
 
 const PolicyDeclaration = "Prufyx community project source-constraint preview v1: exact reviewed external project identity and current/proposed endpoints; native caller-supplied configuration, workload, or selected current metadata reduced to compiled facts; scoped PASS/BLOCKED/UNKNOWN; whole-upgrade assessment remains UNKNOWN; no CNCF membership, runtime, signature, external feed, or upload authority. Maintainer source reviews expire after 90 days."
@@ -197,7 +198,7 @@ func load() (bundle, error) {
 
 func loadRaw(registryRaw, packRaw []byte, factDefinitions []constraintengine.FactDefinition) (bundle, error) {
 	var b bundle
-	if strict(registryRaw, &b.registryDocument) != nil || strict(packRaw, &b.pack) != nil {
+	if strictjson.Check(packRaw) != nil || strict(registryRaw, &b.registryDocument) != nil || strict(packRaw, &b.pack) != nil {
 		return bundle{}, ErrIntegrity
 	}
 	var err error

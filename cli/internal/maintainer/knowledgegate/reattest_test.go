@@ -41,6 +41,7 @@ func synthLayout() Layout {
 				}
 				return PackStats{Entries: 1, TargetBytes: len(raw), MaxTargetBytes: 1 << 20, RegistryFacts: 1, MaxRegistryFacts: 64}, nil
 			},
+			View: rawPackView, Entry: rawEntryView,
 			AttestationPath: synthAttestPath,
 			Attest:          func(t Tree) ([]byte, error) { return []byte("attested\n"), nil },
 			CapabilityDigest: func() (string, error) {
@@ -55,6 +56,22 @@ func synthLayout() Layout {
 		AutoMergePaths:   []string{"knowledge/"},
 	}
 }
+
+// rawPackView and rawEntryView read a synthetic pack as plain JSON.
+func rawPackView(raw []byte) (map[string]json.RawMessage, []json.RawMessage, error) {
+	var members map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &members); err != nil {
+		return nil, nil, err
+	}
+	var entries []json.RawMessage
+	if err := json.Unmarshal(members["entries"], &entries); err != nil {
+		return nil, nil, err
+	}
+	delete(members, "entries")
+	return members, entries, nil
+}
+
+func rawEntryView(raw []byte) (json.RawMessage, error) { return json.RawMessage(raw), nil }
 
 type reattestFixture struct {
 	base, head      Tree

@@ -10,6 +10,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/strictjson"
 )
 
 // entry is one pack entry, indexed by its rule id.
@@ -40,55 +41,76 @@ type loadedPack struct {
 	Spec    PackSpec
 	Present bool
 	Raw     []byte
+	// Members are the pack's top-level members other than entries, as
+	// admission reads them.
+	Members map[string]json.RawMessage
 	Entries map[string]*entry
 	Order   []string
 }
 
+// loadPack reads a pack as the engine admits it: a pack with a repeated or
+// case-variant member anywhere is refused, and every entry is the one
+// admission decodes (re-encoded from the engine's own types), so the gate
+// classifies exactly what the engine would admit, never a second reading
+// of the same bytes.
 func loadPack(t Tree, spec PackSpec) (*loadedPack, error) {
 	raw, err := t.Read(spec.Path, MaxFileBytes)
 	if errors.Is(err, ErrMissing) {
-		return &loadedPack{Spec: spec, Entries: map[string]*entry{}}, nil
+		return &loadedPack{Spec: spec, Members: map[string]json.RawMessage{}, Entries: map[string]*entry{}}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	p := &loadedPack{Spec: spec, Present: true, Raw: raw, Entries: map[string]*entry{}}
-	var doc struct {
-		Entries []json.RawMessage `json:"entries"`
-	}
-	if err := json.Unmarshal(raw, &doc); err != nil {
+	if err := strictjson.Check(raw); err != nil {
 		return nil, fmt.Errorf("%s: %w", spec.Path, err)
 	}
-	for i, rawEntry := range doc.Entries {
-		var shape struct {
-			Project string `json:"project"`
-			Rule    struct {
-				ID       string          `json:"id"`
-				Range    json.RawMessage `json:"range"`
-				Evidence evidenceView    `json:"evidence"`
-			} `json:"rule"`
-		}
-		if err := json.Unmarshal(rawEntry, &shape); err != nil || shape.Rule.ID == "" {
-			return nil, fmt.Errorf("%s: entry %d has no rule id", spec.Path, i)
-		}
-		if _, dup := p.Entries[shape.Rule.ID]; dup {
-			return nil, fmt.Errorf("%s: rule id %s appears twice", spec.Path, shape.Rule.ID)
-		}
-		canonical, err := extract.Canonical(rawEntry)
+	members, entries, err := spec.View(raw)
+	if err != nil {
+		return nil, fmt.Errorf("%s: the engine cannot read the pack: %w", spec.Path, err)
+	}
+	p := &loadedPack{Spec: spec, Present: true, Raw: raw, Members: members, Entries: map[string]*entry{}}
+	for i, admitted := range entries {
+		e, err := newEntry(admitted)
 		if err != nil {
-			return nil, fmt.Errorf("%s: rule %s: %w", spec.Path, shape.Rule.ID, err)
+			return nil, fmt.Errorf("%s: entry %d: %w", spec.Path, i, err)
 		}
-		generic, err := decodeGeneric(rawEntry)
-		if err != nil {
-			return nil, fmt.Errorf("%s: rule %s: %w", spec.Path, shape.Rule.ID, err)
+		if _, dup := p.Entries[e.RuleID]; dup {
+			return nil, fmt.Errorf("%s: rule id %s appears twice", spec.Path, e.RuleID)
 		}
-		p.Entries[shape.Rule.ID] = &entry{
-			RuleID: shape.Rule.ID, Project: shape.Project, Raw: rawEntry, Canonical: canonical,
-			generic: generic, Evidence: shape.Rule.Evidence, Range: shape.Rule.Range,
-		}
-		p.Order = append(p.Order, shape.Rule.ID)
+		p.Entries[e.RuleID] = e
+		p.Order = append(p.Order, e.RuleID)
 	}
 	return p, nil
+}
+
+// newEntry indexes one entry as admission reads it.
+func newEntry(admitted json.RawMessage) (*entry, error) {
+	if err := strictjson.Check(admitted); err != nil {
+		return nil, err
+	}
+	var shape struct {
+		Project string `json:"project"`
+		Rule    struct {
+			ID       string          `json:"id"`
+			Range    json.RawMessage `json:"range"`
+			Evidence evidenceView    `json:"evidence"`
+		} `json:"rule"`
+	}
+	if err := json.Unmarshal(admitted, &shape); err != nil || shape.Rule.ID == "" {
+		return nil, errors.New("no rule id")
+	}
+	canonical, err := extract.Canonical(admitted)
+	if err != nil {
+		return nil, fmt.Errorf("rule %s: %w", shape.Rule.ID, err)
+	}
+	generic, err := decodeGeneric(admitted)
+	if err != nil {
+		return nil, fmt.Errorf("rule %s: %w", shape.Rule.ID, err)
+	}
+	return &entry{
+		RuleID: shape.Rule.ID, Project: shape.Project, Raw: admitted, Canonical: canonical,
+		generic: generic, Evidence: shape.Rule.Evidence, Range: shape.Rule.Range,
+	}, nil
 }
 
 func decodeGeneric(raw []byte) (map[string]any, error) {

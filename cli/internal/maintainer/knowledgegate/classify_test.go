@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"reflect"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 )
 
 func entryFrom(t *testing.T, e map[string]any) *entry {
@@ -14,19 +16,15 @@ func entryFrom(t *testing.T, e map[string]any) *entry {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir := t.TempDir()
-	tr := Tree{Root: dir}
-	doc, _ := json.Marshal(map[string]any{"entries": []json.RawMessage{raw}})
-	writeFile(t, dir+"/p.json", doc)
-	p, err := loadPack(tr, PackSpec{Name: "x", Path: "p.json"})
+	admitted, err := cncfcheck.AdmittedEntry(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, v := range p.Entries {
-		return v
+	e2, err := newEntry(admitted)
+	if err != nil {
+		t.Fatal(err)
 	}
-	t.Fatal("no entry")
-	return nil
+	return e2
 }
 
 // TestClassifyTable covers every class and kind with edits of a real

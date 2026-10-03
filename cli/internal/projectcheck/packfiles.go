@@ -3,7 +3,10 @@
 package projectcheck
 
 import (
+	"encoding/json"
+
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/strictjson"
 )
 
 // MaxPackBytes is the size cap applied to the community-project rule pack
@@ -50,4 +53,53 @@ func BuildAttestationFromFiles(registryRaw, packRaw []byte) (Attestation, error)
 		Revision: inventory.Revision, PackDigest: inventory.PackDigest, RuleSetDigest: inventory.RuleSetDigest,
 		RuleCount: inventory.RuleCount, Components: inventory.Components, Limitations: AttestationLimitations(),
 	}, nil
+}
+
+// AdmittedPackView decodes a rule pack the way admission decodes it and
+// returns what admission reads: every top-level member except entries, and
+// every entry, each re-encoded from the decoded value. A pack with a
+// repeated or case-variant member anywhere is refused.
+func AdmittedPackView(packRaw []byte) (map[string]json.RawMessage, []json.RawMessage, error) {
+	if strictjson.Check(packRaw) != nil {
+		return nil, nil, ErrIntegrity
+	}
+	var pack packDocument
+	if strict(packRaw, &pack) != nil {
+		return nil, nil, ErrIntegrity
+	}
+	entries := make([]json.RawMessage, 0, len(pack.Entries))
+	for _, e := range pack.Entries {
+		raw, err := json.Marshal(e)
+		if err != nil {
+			return nil, nil, ErrIntegrity
+		}
+		entries = append(entries, raw)
+	}
+	pack.Entries = nil
+	raw, err := json.Marshal(pack)
+	if err != nil {
+		return nil, nil, ErrIntegrity
+	}
+	var members map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &members); err != nil {
+		return nil, nil, ErrIntegrity
+	}
+	delete(members, "entries")
+	return members, entries, nil
+}
+
+// AdmittedEntry re-encodes one pack entry as admission decodes it.
+func AdmittedEntry(raw []byte) (json.RawMessage, error) {
+	if strictjson.Check(raw) != nil {
+		return nil, ErrIntegrity
+	}
+	var e entry
+	if strict(raw, &e) != nil {
+		return nil, ErrIntegrity
+	}
+	out, err := json.Marshal(e)
+	if err != nil {
+		return nil, ErrIntegrity
+	}
+	return out, nil
 }

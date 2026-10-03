@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"slices"
+
+	"github.com/prufyx/prufyx/cli/internal/strictjson"
 )
 
 // PackMember is the rule pack member that holds the attestation section.
@@ -31,7 +33,9 @@ var PackMembers = []string{"schema", "revision", "policyId", "policyDigest", "la
 // by its exact name could validate one section while the loader served
 // another. Any top-level name that is not exactly one of PackMembers, and
 // any name that repeats, is therefore an error, and so is anything other
-// than one JSON object.
+// than one JSON object. Below the top level the shared strict check
+// applies: no object anywhere in the pack may hold a repeated member or
+// members whose names differ only in letter case.
 func PackSection(pack []byte) (section json.RawMessage, present bool, err error) {
 	return PackMemberSection(pack, PackMember)
 }
@@ -43,6 +47,11 @@ func PackSection(pack []byte) (section json.RawMessage, present bool, err error)
 func PackMemberSection(pack []byte, member string) (section json.RawMessage, present bool, err error) {
 	if !slices.Contains(PackMembers, member) {
 		return nil, false, fmt.Errorf("%w: %q is not a rule pack member", ErrInvalid, member)
+	}
+	// Below the top level the shared strict check applies, so every
+	// reader of any pack section reads the same values.
+	if err := strictjson.Check(pack); err != nil {
+		return nil, false, fmt.Errorf("%w: rule pack: %v", ErrInvalid, err)
 	}
 	known := map[string]bool{}
 	for _, name := range PackMembers {

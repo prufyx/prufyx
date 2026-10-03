@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
+	"github.com/prufyx/prufyx/cli/internal/strictjson"
 )
 
 // externalSizeRevision is the longest revision an external target may carry
@@ -80,4 +82,63 @@ func BuildAttestationFromFiles(landscapeRaw, priorityRaw, packRaw []byte) (Attes
 		Revision: inventory.Revision, PackDigest: inventory.PackDigest, RuleSetDigest: inventory.RuleSetDigest,
 		RuleCount: inventory.RuleCount, Components: inventory.Components, Limitations: AttestationLimitations(),
 	}, nil
+}
+
+// AdmittedPackView decodes a rule pack the way admission decodes it and
+// returns what admission reads: every top-level member except entries, and
+// every entry, each re-encoded from the decoded value. A reader that
+// compares these bytes compares exactly what the engine admits. A pack with
+// a repeated or case-variant member anywhere is refused.
+func AdmittedPackView(packRaw []byte) (map[string]json.RawMessage, []json.RawMessage, error) {
+	// The same exact top-level names and strict check as admission.
+	if _, _, err := lineattest.PackSection(packRaw); err != nil {
+		return nil, nil, ErrIntegrity
+	}
+	var pack rulePack
+	if strictJSON(packRaw, &pack) != nil {
+		return nil, nil, ErrIntegrity
+	}
+	entries := make([]json.RawMessage, 0, len(pack.Entries))
+	for _, entry := range pack.Entries {
+		raw, err := json.Marshal(entry)
+		if err != nil {
+			return nil, nil, ErrIntegrity
+		}
+		entries = append(entries, raw)
+	}
+	pack.Entries = nil
+	members, err := admittedMembers(pack)
+	if err != nil {
+		return nil, nil, err
+	}
+	return members, entries, nil
+}
+
+// AdmittedEntry re-encodes one pack entry as admission decodes it.
+func AdmittedEntry(raw []byte) (json.RawMessage, error) {
+	if strictjson.Check(raw) != nil {
+		return nil, ErrIntegrity
+	}
+	var entry Entry
+	if strictJSON(raw, &entry) != nil {
+		return nil, ErrIntegrity
+	}
+	out, err := json.Marshal(entry)
+	if err != nil {
+		return nil, ErrIntegrity
+	}
+	return out, nil
+}
+
+func admittedMembers(v any) (map[string]json.RawMessage, error) {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return nil, ErrIntegrity
+	}
+	var members map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &members); err != nil {
+		return nil, ErrIntegrity
+	}
+	delete(members, "entries")
+	return members, nil
 }

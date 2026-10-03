@@ -3,6 +3,7 @@
 package knowledgegate
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strings"
 
@@ -32,6 +33,11 @@ type PackSpec struct {
 	// Admit admits the pack as the engine admits shipped knowledge, from
 	// the files of a tree, and reports its size.
 	Admit func(t Tree) (PackStats, error)
+	// View decodes the pack file as admission decodes it: its top-level
+	// members other than entries, and its entries, each re-encoded from
+	// the engine's own types. Entry does the same for one entry.
+	View  func(raw []byte) (map[string]json.RawMessage, []json.RawMessage, error)
+	Entry func(raw []byte) (json.RawMessage, error)
 	// AttestationPath is the committed corpus attestation; Attest
 	// regenerates it from the tree's files.
 	AttestationPath string
@@ -114,6 +120,7 @@ func DefaultLayout() Layout {
 					}
 					return PackStats{Entries: r.Entries, TargetBytes: r.TargetBytes, MaxTargetBytes: r.MaxTargetBytes, RegistryFacts: r.RegistryFacts, MaxRegistryFacts: r.MaxRegistryFacts}, nil
 				},
+				View: cncfcheck.AdmittedPackView, Entry: cncfcheck.AdmittedEntry,
 				AttestationPath: cncfAttestPath,
 				Attest: func(t Tree) ([]byte, error) {
 					return corpusattest.DocumentFromTree(corpusattest.PackCNCF, filepath.Join(t.Root, cliDir))
@@ -133,6 +140,7 @@ func DefaultLayout() Layout {
 					}
 					return PackStats{Entries: r.Entries, TargetBytes: r.TargetBytes, MaxTargetBytes: r.MaxTargetBytes, RegistryFacts: r.RegistryFacts, MaxRegistryFacts: r.MaxRegistryFacts}, nil
 				},
+				View: projectcheck.AdmittedPackView, Entry: projectcheck.AdmittedEntry,
 				AttestationPath: commAttestPath,
 				Attest: func(t Tree) ([]byte, error) {
 					return corpusattest.DocumentFromTree(corpusattest.PackCommunity, filepath.Join(t.Root, cliDir))
