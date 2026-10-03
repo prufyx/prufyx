@@ -1,0 +1,57 @@
+{
+  "schema": "prufyx.io/chart-app-versions/v1alpha1",
+  "records": [
+    {
+      "component": "pkg:github/acme/widget",
+      "chart": "widget",
+      "chartVersion": "1.2.0",
+      "appVersion": "1.30.0",
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "chart.app-version",
+          "version": "1.0.0",
+          "codeDigest": "sha256:abababababababababababababababababababababababababababababababab"
+        },
+        "derivedAt": "2030-01-02T03:04:05Z",
+        "validUntil": "2030-04-02T03:04:05Z",
+        "sources": [
+          {
+            "id": "chart-yaml",
+            "url": "https://github.com/acme/widget/blob/c04f68979a264ff3cd3a5052f0e09444d83762f6/chart/Chart.yaml",
+            "revision": "c04f68979a264ff3cd3a5052f0e09444d83762f6",
+            "contentDigest": "sha256:2acc48aca59293d555ce9aa99b1300acda9a904c55b66cdb805f2b5172cc7817",
+            "startLine": 4,
+            "endLine": 5
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/acme/widget",
+      "chart": "widget",
+      "chartVersion": "1.3.0",
+      "appVersion": "1.31.0",
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "chart.app-version",
+          "version": "1.0.0",
+          "codeDigest": "sha256:abababababababababababababababababababababababababababababababab"
+        },
+        "derivedAt": "2030-01-02T03:04:05Z",
+        "validUntil": "2030-04-02T03:04:05Z",
+        "sources": [
+          {
+            "id": "chart-yaml",
+            "url": "https://github.com/acme/widget/blob/6aaee865c64269365079a3c8f96f8fecf0f15b16/chart/Chart.yaml",
+            "revision": "6aaee865c64269365079a3c8f96f8fecf0f15b16",
+            "contentDigest": "sha256:5e4d143479e098060f2ab3d00b78dd9339b2d649eb72913b559cb9cb1761d8ce",
+            "startLine": 4,
+            "endLine": 5
+          }
+        ]
+      }
+    }
+  ]
+}
