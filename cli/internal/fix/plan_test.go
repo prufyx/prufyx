@@ -355,7 +355,7 @@ func TestApplyDecodeVerification(t *testing.T) {
 
 func TestRegistry(t *testing.T) {
 	ids := Kinds()
-	if strings.Join(ids, ",") != "test_grow,test_mutate,test_once,test_poke,test_raw,test_refuse,test_set" {
+	if strings.Join(ids, ",") != "remove_feature_gate,rename_flag,set_api_version,test_grow,test_mutate,test_once,test_poke,test_raw,test_refuse,test_set" {
 		t.Fatalf("kinds %v", ids)
 	}
 	if _, ok := Lookup("test_set"); !ok {

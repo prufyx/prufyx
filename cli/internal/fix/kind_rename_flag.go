@@ -13,8 +13,8 @@ func init() { Register(renameFlagKind{}) }
 
 type renameFlagParams struct {
 	Component string `json:"component"`
-	From      string `json:"from"`
-	To        string `json:"to"`
+	Old       string `json:"from"`
+	New       string `json:"to"`
 }
 
 // renameFlagKind renames a command-line flag in the command and args lists of
@@ -28,7 +28,7 @@ func (renameFlagKind) Validate(params Params) (any, error) {
 	if err := decodeKindParams(params, &p); err != nil {
 		return nil, err
 	}
-	if !flagNameRE.MatchString(p.From) || !flagNameRE.MatchString(p.To) || p.From == p.To {
+	if !flagNameRE.MatchString(p.Old) || !flagNameRE.MatchString(p.New) || p.Old == p.New {
 		return nil, errors.New("invalid flag")
 	}
 	if !knownComponent(p.Component) {
@@ -57,10 +57,10 @@ func (renameFlagKind) Plan(doc intake.Document, src []byte, parsed any) ([]Edit,
 		target := false
 		for _, list := range ref.lists {
 			for _, element := range list {
-				if isFlag(element.value, p.From) {
+				if isFlag(element.value, p.Old) {
 					found = append(found, element)
 				}
-				if isFlag(element.value, p.To) {
+				if isFlag(element.value, p.New) {
 					target = true
 				}
 			}
@@ -90,10 +90,10 @@ func (renameFlagKind) Plan(doc intake.Document, src []byte, parsed any) ([]Edit,
 		if quote != 0 {
 			body = raw[1 : len(raw)-1]
 		}
-		if !strings.HasPrefix(body, p.From) {
+		if !strings.HasPrefix(body, p.Old) {
 			return nil, kindRefused("the flag token cannot be edited in place")
 		}
-		edits = append(edits, span.Edit(doc.Source.Display, wrap(quote, p.To+body[len(p.From):])))
+		edits = append(edits, span.Edit(doc.Source.Display, wrap(quote, p.New+body[len(p.Old):])))
 	}
 	return edits, nil
 }

@@ -17,8 +17,8 @@ var (
 )
 
 type setAPIVersionParams struct {
-	From string `json:"from"`
-	To   string `json:"to"`
+	Old  string `json:"from"`
+	New  string `json:"to"`
 	Kind string `json:"kind"`
 }
 
@@ -34,7 +34,7 @@ func (setAPIVersionKind) Validate(params Params) (any, error) {
 	if err := decodeKindParams(params, &p); err != nil {
 		return nil, err
 	}
-	if !apiVersionRE.MatchString(p.From) || !apiVersionRE.MatchString(p.To) || p.From == p.To {
+	if !apiVersionRE.MatchString(p.Old) || !apiVersionRE.MatchString(p.New) || p.Old == p.New {
 		return nil, errors.New("invalid apiVersion")
 	}
 	if !kindNameRE.MatchString(p.Kind) || p.Kind == "Secret" || p.Kind == "List" {
@@ -48,13 +48,13 @@ func (setAPIVersionKind) Plan(doc intake.Document, src []byte, parsed any) ([]Ed
 	if doc.Kind == "List" {
 		items, _ := doc.Value["items"].([]any)
 		for _, item := range items {
-			if entry, ok := item.(map[string]any); ok && entry["kind"] == p.Kind && entry["apiVersion"] == p.From {
+			if entry, ok := item.(map[string]any); ok && entry["kind"] == p.Kind && entry["apiVersion"] == p.Old {
 				return nil, kindRefused("a List holding a matching document is not supported")
 			}
 		}
 		return nil, nil
 	}
-	if doc.APIVersion != p.From {
+	if doc.APIVersion != p.Old {
 		return nil, nil
 	}
 	if doc.Kind != p.Kind {
@@ -69,5 +69,5 @@ func (setAPIVersionKind) Plan(doc intake.Document, src []byte, parsed any) ([]Ed
 		return nil, err
 	}
 	quote := tokenQuote(string(src[span.Start:span.End]))
-	return []Edit{span.Edit(doc.Source.Display, wrap(quote, p.To))}, nil
+	return []Edit{span.Edit(doc.Source.Display, wrap(quote, p.New))}, nil
 }
