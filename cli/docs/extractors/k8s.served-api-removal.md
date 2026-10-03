@@ -105,11 +105,16 @@ has no adapter fact (its kinds are under `noFactKinds`), since that removal
 has no rule. Each pair in the manifest records the outcome under
 `attestation` (`status` `attested` or `not-attested`, `line`, `families` and,
 when not attested, `reason`). The attestations are written to
-`attestations.json`, in canonical order, and are renewed by running the
-extractor again; `extract verify` re-derives them byte for byte.
+`attestations.json`, in canonical order (the file is not written when no line
+is attested), and are renewed by running the extractor again; `extract
+verify` re-derives them byte for byte. Every rule the extractor emits ranges
+over the whole previous minor line and the whole target line, so each
+listed rule matches every upgrade into the attested line.
 
-Version 1.1.0 changes no rule: only the extractor version in each rule's
-evidence differs from 1.0.0.
+Version 1.1.0 changes no rule: only the extractor identity in each rule's
+evidence differs from 1.0.0 (`evidence.extractor.version`, and
+`evidence.extractor.codeDigest`, which changes with any change to the
+extractor's code).
 
 ## What it never claims
 

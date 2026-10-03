@@ -42,8 +42,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   pack with the section uses schema
   `prufyx.io/cncf-source-rule-pack/v1alpha4`, which earlier binaries reject,
   and is rejected unless every attestation lists exactly the pack's rules for
-  its line and family. The `k8s.served-api-removal` extractor (1.1.0) writes
-  mechanical attestations to `attestations.json`. Attestations do not change
+  its line and family and each listed rule matches every upgrade into the
+  line. The pack's top-level member names must be spelled exactly. The
+  `k8s.served-api-removal` extractor (1.1.0) writes mechanical attestations to
+  `attestations.json` when a run attests at least one line. Attestations do not change
   any verdict or exit code, and the published pack carries none. See
   `cli/docs/line-attestations.md`.
 - Rules may declare how their evidence was produced: `evidence.basis`

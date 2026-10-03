@@ -51,8 +51,8 @@ them to change an answer. The published knowledge pack carries none.
 | `evidence.sources` | One to eight sources, exactly as a rule's: ascending ids, a pinned 40-hex commit, an immutable GitHub URL at that commit, the whole file's `sha256`, and a line span. |
 
 Parsing is exact: every required member must be present, member names are
-case-sensitive, a member may not repeat, no value may be `null`, and unknown
-members are rejected.
+case-sensitive (no case or Unicode folding), a member may not repeat, no
+value may be `null`, and unknown members are rejected.
 
 A document is a non-empty array in canonical order (component, then fact
 family, then line in numeric order, so `1.9` comes before `1.10`), with at
@@ -90,6 +90,34 @@ belong to its component, line and family:
 
 A withdrawn rule is still in the pack and must still be listed.
 
+## Every listed rule covers the whole line
+
+Equal sets are not enough: a listed rule must also match **every** upgrade
+into the line, or an upgrade it does not match would find no rule while the
+line is attested. For `kubernetes.removed_served_gvk` an upgrade into line
+`M.m` starts on the previous minor line (Kubernetes upgrades one minor line
+at a time), so a listed rule must carry a version range with
+
+```
+range.from.gte <= M.(m-1).0   and   M.m.0     <= range.from.lt
+range.to.gte   <= M.m.0       and   M.(m+1).0 <= range.to.lt
+```
+
+Range bounds are half-open (`gte <= version < lt`), exactly as rule matching
+uses them, so this range matches every release of the previous line going to
+every release of the line. A rule without a range matches only its own
+anchor pair (for example `1.31.0` to `1.32.0`, not `1.31.4` to `1.32.1`) and
+is not line-wide. A listed rule that is not line-wide fails
+(`attestation-rule-not-line-wide`). A line on which the pack holds such a
+rule cannot be attested at all: listing the rule fails this check and
+leaving it out fails the exact set. A line `M.0` has no previous minor line
+in its major and cannot be attested.
+
+A planner that uses an attestation must still evaluate each listed rule for
+the upgrade's actual versions: a listed rule that does not match the
+upgrade, or does not reach a verdict, makes that upgrade a gap, never
+covered.
+
 The check runs when a pack is loaded (one mismatch rejects the whole pack),
 inside every extractor run that emits attestations, and through
 `rulecheck.ValidateLineAttestations` / `ValidatePackAttestations` for
@@ -120,6 +148,15 @@ attestations existed reject such a pack, both for the unknown member and the
 unknown schema, so an attested pack can never be read as an unattested one.
 A pack without the member is byte-for-byte what it was before.
 
+The pack's own top-level member names are matched exactly before the pack is
+decoded, by the same function in the pack loader and in
+`rulecheck.ValidatePackAttestations`: any name that is not exactly one of
+`schema`, `revision`, `policyId`, `policyDigest`, `landscapeFileDigest`,
+`registryDigest`, `entries` or `lineAttestations` (for example
+`LineAttestations`, or a spelling that only matches under Unicode case
+folding), and any name that repeats, rejects the pack. So every reader sees
+the same attestation section, or none.
+
 The pack digest covers the attestations, as it covers every other byte of
 the pack. The external knowledge target format does not carry attestations
 yet: an external pack with `lineAttestations` is refused. `evidence
@@ -149,7 +186,15 @@ would claim the rules are complete while one removal has none. The manifest
 records, for every pair, `"attestation": {"status": "attested" | "not-attested",
 "line", "families", "reason"}`. The attestations are written to
 `attestations.json`, whose digest is in the manifest; `extract verify`
-re-derives the run and reports the file if a single byte differs.
+re-derives the run and reports the file if a single byte differs. A run that
+attests no line (for example, every pair withheld) writes no
+`attestations.json`, since an attestation document is never empty; `extract
+verify` then reports a stray `attestations.json` as not produced by the
+re-derivation.
+
+Every rule the extractor emits has a range over the whole previous minor
+line and the whole target line, so its attestations pass the line-wide
+check.
 
 An extractor's attestation is complete relative to that extractor's rules.
 Placed in a pack that also holds other rules for the same line and family
@@ -163,22 +208,24 @@ Attestations expire like rules, and must be renewed the same way.
 
 - **Mechanical**: renewed by re-derivation. Run the same extractor build
   again against the same pinned tags with a new `--derived-at`; the
-  attestation comes back with new `derivedAt`, `reviewedAt` and `validUntil`
-  and nothing else changed. A new extractor version or build also changes
+  attestation comes back with later `derivedAt`, `reviewedAt` and
+  `validUntil` and nothing else changed. A new extractor version or build also changes
   `evidence.extractor`, which is a loosening change but not a plain renewal. `extract verify` proves it is reproducible from the pinned bytes.
   A person does not renew a mechanical attestation.
 - **Reviewed**: renewed only by a maintainer who reads the sources again.
   `evidence reattest` does not cover attestations yet.
 
 Every change between two attestation sets is classified by
-`lineattest.Classify`:
+`lineattest.Classify`. Each set may hold at most one attestation per
+component, line and family; a set with two is an error.
 
 | Change | Class |
 | --- | --- |
 | an attestation removed | tightening |
 | `validUntil` earlier, or `reviewedAt` later, and nothing else changed | tightening |
 | an attestation added | loosening |
-| `validUntil` later with nothing else changed (a renewal; `Renewal` is set) | loosening |
+| `reviewedAt` later, `derivedAt` later (when present) and `validUntil` later, nothing else changed (a renewal; `Renewal` is set) | loosening |
+| `validUntil` later without a later `reviewedAt`/`derivedAt`, or either moved earlier (backdating) | loosening, not a renewal |
 | any change to `ruleIds`, sources, basis or extractor | loosening |
 
 A tightening change can only turn a covered line back into a gap. A
