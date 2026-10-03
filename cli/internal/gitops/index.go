@@ -87,6 +87,38 @@ type analysis struct {
 	repoGaps   []Gap
 	nodes      int // inline value and patch nodes still allowed
 	disc, work *budget
+	outUsed    int // result bytes used
+	outFull    bool
+	srcTexts   map[fluxRef]*srcText
+	pinDetails map[string]string
+}
+
+// srcText holds the strings about one Flux source reference, built once and
+// shared by every release and gap that names it.
+type srcText struct {
+	key, notFound, many string
+}
+
+func (a *analysis) sourceText(ref fluxRef) *srcText {
+	if t := a.srcTexts[ref]; t != nil {
+		return t
+	}
+	key := ref.key()
+	t := &srcText{key: key, notFound: clip("source " + key + " was not found"), many: clip("source " + key + " is defined more than once")}
+	a.srcTexts[ref] = t
+	return t
+}
+
+func (a *analysis) pinDetail(version string) string {
+	if version == "" {
+		return "no version is set"
+	}
+	if d, ok := a.pinDetails[version]; ok {
+		return d
+	}
+	d := clip("version " + version)
+	a.pinDetails[version] = d
+	return d
 }
 
 var kustomizationNames = map[string]bool{"kustomization.yaml": true, "kustomization.yml": true, "Kustomization": true}
@@ -100,7 +132,7 @@ func newAnalysis(ws intake.Workspace, opts Options) *analysis {
 		omitByDir: map[string][]intake.Omission{}, omitByFile: map[string][]intake.Omission{}, links: &linkTrie{},
 		kust: map[string]*docRef{}, kustMulti: map[string]intake.Source{}, kustFiles: map[string][]string{},
 		chartDocs: map[string][]*docRef{}, chartExtra: map[string]bool{}, sources: map[string][]*docRef{},
-		nodes: valuesNodeBudget,
+		nodes: valuesNodeBudget, srcTexts: map[fluxRef]*srcText{}, pinDetails: map[string]string{},
 	}
 	for _, u := range opts.SelfRepoURLs {
 		if n, ok := normalizeURL(u); ok {

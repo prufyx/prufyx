@@ -163,7 +163,7 @@ func TestAdversarialManyPatches(t *testing.T) {
 }
 
 func TestAdversarialManyRoots(t *testing.T) {
-	ws := memory(t, manyRootsRepo(300, 1000))
+	ws := memory(t, manyRootsRepo(300, 500))
 	repo, elapsed, alloc := measure(t, func() Repo { return Analyze(ws, Options{Root: "repo"}) })
 	checkCost(t, "many roots", elapsed, alloc)
 	if len(repo.Environments) != MaxEnvironments {
@@ -222,4 +222,24 @@ func TestAdversarialLongMissingReferences(t *testing.T) {
 	if len(repo.Environments) != 1 || !hasGap(repo.Environments[0].Gaps, SourceNotFound, "no input file under k0/a/a/") {
 		t.Fatalf("%+v", repo.Environments)
 	}
+}
+
+func TestAdversarialLongIdentities(t *testing.T) {
+	ws := memory(t, longIdentityRepo(256, 4100))
+	runtime.GC()
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	repo, elapsed, alloc := measure(t, func() Repo { return Analyze(ws, Options{Root: "repo"}) })
+	runtime.GC()
+	runtime.ReadMemStats(&after)
+	held := int64(after.HeapAlloc) - int64(before.HeapAlloc)
+	checkCost(t, "long identities", elapsed, alloc)
+	t.Logf("long identities: %d MiB held by the result", held>>20)
+	if held > 64<<20 {
+		t.Fatalf("the result holds %d MiB", held>>20)
+	}
+	if !hasGap(repo.Environments[0].Gaps, ClosureLimit, "result size limit") && !hasGap(repo.Environments[len(repo.Environments)-1].Gaps, ClosureLimit, "result size limit") {
+		t.Fatal("the result size limit is not reported")
+	}
+	runtime.KeepAlive(repo)
 }

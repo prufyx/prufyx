@@ -343,3 +343,38 @@ func TestResolveCostsItsLength(t *testing.T) {
 		t.Fatalf("a 2001-byte reference cost %d more steps", d1-d0)
 	}
 }
+
+// TestResultSizeLimit: once the result holds the allowed bytes, nothing more
+// is added, and the environments say so.
+func TestResultSizeLimit(t *testing.T) {
+	saved := resultBytes
+	defer func() { resultBytes = saved }()
+	resultBytes = 2000
+	files := manyRootsRepo(3, 40)
+	repo := analyze(t, files)
+	total := 0
+	for _, e := range repo.Environments {
+		for _, r := range e.Releases {
+			total += len(r.Chart) + len(r.ChartVersion) + len(r.RepoURL) + len(r.SourceRef) + len(r.Namespace) + len(r.ReleaseName)
+		}
+		for _, g := range e.Gaps {
+			if g.Reason != ClosureLimit {
+				total += len(g.Detail)
+			}
+		}
+	}
+	if total > resultBytes || total == 0 {
+		t.Fatalf("result holds %d bytes", total)
+	}
+	first, last := repo.Environments[0], repo.Environments[2]
+	if !hasGap(first.Gaps, ClosureLimit, "result size limit of 16 MiB reached; the rest") ||
+		!hasGap(last.Gaps, ClosureLimit, "reached before this environment was read") || len(last.Releases) != 0 || len(last.Gaps) != 1 {
+		t.Fatalf("first %+v\nlast %+v", first.Gaps, last)
+	}
+	// Inline values count once per release that carries them.
+	resultBytes = 2000
+	v := analyze(t, bigValuesRepo(4, 1200, 1), "https://github.com/example/fleet")
+	if e := v.Environments[0]; len(e.Releases) >= 4 || !hasGap(e.Gaps, ClosureLimit, "result size limit") {
+		t.Fatalf("values not counted: %d releases", len(e.Releases))
+	}
+}

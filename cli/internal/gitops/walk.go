@@ -24,6 +24,7 @@ type relEntry struct {
 	hr      *docRef // the HelmRelease document; nil for other kinds
 	ns      string  // namespace of the object after transformers
 	version string  // chart version after patches
+	vals    int     // bytes of the inline values text
 	owner   int     // the object that collected the release
 }
 
@@ -94,7 +95,28 @@ func (w *walker) addGap(g Gap) {
 		}
 		return
 	}
+	if !w.spend(len(g.Detail)) {
+		return
+	}
 	w.gaps = append(w.gaps, g)
+}
+
+const resultFull = "result size limit of 16 MiB reached; the rest is not listed"
+
+// spend takes n bytes from the result size budget shared by all
+// environments. When it is used up the walk stops and nothing more is added.
+func (w *walker) spend(n int) bool {
+	if w.a.outFull {
+		return false
+	}
+	w.a.outUsed += n
+	if w.a.outUsed > resultBytes {
+		w.a.outFull = true
+		w.stopped = true
+		w.gaps = append(w.gaps, Gap{ClosureLimit, w.root.doc.Source, resultFull})
+		return false
+	}
+	return true
 }
 
 // addGaps reports the gaps a parse found, one step each.
@@ -118,6 +140,11 @@ func (w *walker) charge(n int) bool {
 	}
 	first := !w.charged
 	w.charged = true
+	if w.a.outFull && first && !w.discover {
+		w.stopped = true
+		w.gaps = append(w.gaps, Gap{ClosureLimit, w.root.doc.Source, "result size limit of 16 MiB reached before this environment was read; it is not listed"})
+		return false
+	}
 	if w.b.out && first {
 		w.stopped = true
 		w.gap(ClosureLimit, w.root.doc.Source, "work limit reached before this environment was read; it is not evaluated")
@@ -553,7 +580,7 @@ func (w *walker) helmRelease(d *docRef) {
 	if !s.ok {
 		return
 	}
-	w.addRelease(relEntry{base: &s.rel, hr: d, ns: w.nsOf(d), version: s.rel.ChartVersion})
+	w.addRelease(relEntry{base: &s.rel, hr: d, ns: w.nsOf(d), version: s.rel.ChartVersion, vals: s.valBytes})
 }
 
 func (w *walker) chart(d *docRef, hops int) {
@@ -618,7 +645,7 @@ func (w *walker) argoSource(s *argoSrc, hops int) {
 		if gap != nil {
 			w.addGap(*gap)
 		}
-		w.addRelease(relEntry{base: &s.rel, version: s.rel.ChartVersion})
+		w.addRelease(relEntry{base: &s.rel, version: s.rel.ChartVersion, vals: s.valBytes})
 	case argoPath:
 		if !s.follow {
 			return
@@ -639,6 +666,9 @@ func (w *walker) argoSource(s *argoSrc, hops int) {
 func (w *walker) finish() {
 	w.rels = make([]Release, 0, len(w.entries))
 	for _, e := range w.entries {
+		if w.a.outFull {
+			break
+		}
 		r := *e.base
 		r.ChartVersion = e.version
 		var ref fluxRef
@@ -664,17 +694,16 @@ func (w *walker) finish() {
 			w.gap(SourceNotFound, r.Source, "release identity holds control characters")
 			continue
 		}
+		if !w.spend(len(r.Chart) + len(r.ChartVersion) + len(r.RepoURL) + len(r.SourceRef) + len(r.Namespace) + len(r.ReleaseName) + e.vals) {
+			break
+		}
 		switch {
 		case ref.kind == "GitRepository":
 			if gitDetail != "" {
-				w.gap(ChartVersionNotPinned, r.Source, gitDetail)
+				w.addGap(Gap{ChartVersionNotPinned, r.Source, gitDetail})
 			}
 		case !isPinned(r.ChartVersion):
-			detail := "no version is set"
-			if r.ChartVersion != "" {
-				detail = "version " + r.ChartVersion
-			}
-			w.gap(ChartVersionNotPinned, r.Source, detail)
+			w.addGap(Gap{ChartVersionNotPinned, r.Source, w.a.pinDetail(r.ChartVersion)})
 		}
 		w.rels = append(w.rels, r)
 	}
@@ -718,7 +747,8 @@ func (w *walker) finish() {
 // For a chart from a GitRepository it returns why the chart is not pinned, or
 // "" when the repository is at a fixed tag or commit.
 func (w *walker) resolveSource(r *Release, ref fluxRef, chartRef bool) string {
-	key := ref.key()
+	text := w.a.sourceText(ref)
+	key := text.key
 	r.SourceRef = key
 	docs := w.srcs[key]
 	if len(docs) == 0 {
@@ -729,11 +759,11 @@ func (w *walker) resolveSource(r *Release, ref fluxRef, chartRef bool) string {
 		unknownGit = "chart from a Git source whose revision is unknown"
 	}
 	if len(docs) != 1 {
-		detail := "source " + key + " was not found"
+		detail := text.notFound
 		if len(docs) > 1 {
-			detail = "source " + key + " is defined more than once"
+			detail = text.many
 		}
-		w.gap(SourceNotFound, r.Source, detail)
+		w.addGap(Gap{SourceNotFound, r.Source, detail})
 		return unknownGit
 	}
 	spec := asMap(docs[0].doc.Value["spec"])

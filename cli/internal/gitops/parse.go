@@ -46,6 +46,7 @@ type hrSpec struct {
 	ref      fluxRef
 	refNsSet bool
 	chartRef bool
+	valBytes int
 	gaps     []Gap
 }
 
@@ -70,20 +71,21 @@ const (
 )
 
 type argoSrc struct {
-	kind    argoKind
-	gaps    []Gap
-	rel     Release // chart sources
-	text    string  // helm.values text, decoded on first use
-	object  map[string]any
-	decoded bool
-	values  map[string]any
-	valGap  *Gap
-	cost    int    // resolving the path
-	dir     target // path sources
-	follow  bool
-	recurse bool
-	ns      string
-	images  []ImagePin
+	kind     argoKind
+	gaps     []Gap
+	rel      Release // chart sources
+	text     string  // helm.values text, decoded on first use
+	object   map[string]any
+	decoded  bool
+	values   map[string]any
+	valBytes int
+	valGap   *Gap
+	cost     int    // resolving the path
+	dir      target // path sources
+	follow   bool
+	recurse  bool
+	ns       string
+	images   []ImagePin
 }
 
 type argoSpec struct {
@@ -339,7 +341,7 @@ func (a *analysis) parseHelmRelease(d *docRef) (*hrSpec, int) {
 	}
 	if v, present := spec["values"]; present && v != nil {
 		if m := asMap(v); m != nil {
-			s.rel.Values = m
+			s.rel.Values, s.valBytes = m, valueBytes(m, 0)
 		} else {
 			s.gaps = append(s.gaps, g(ValuesFromNotResolved, "spec.values is not an object"))
 		}
@@ -359,7 +361,7 @@ func (a *analysis) parseHelmRelease(d *docRef) (*hrSpec, int) {
 		s.gaps = append(s.gaps, g(PatchNotEvaluated, "spec.postRenderers are not evaluated"))
 	}
 	s.ok = true
-	return s, 1
+	return s, 1 + s.valBytes/64
 }
 
 var podPaths = map[string][]string{
@@ -609,6 +611,31 @@ func structuralTokens(text string) int {
 	return count
 }
 
+// valueBytes is the text size of a decoded value: keys, scalars and a few
+// bytes of punctuation per node.
+func valueBytes(v any, depth int) int {
+	if depth > intake.MaxDepth+2 {
+		return 0
+	}
+	switch t := v.(type) {
+	case map[string]any:
+		n := 2
+		for k, c := range t {
+			n += len(k) + 2 + valueBytes(c, depth+1)
+		}
+		return n
+	case []any:
+		n := 2
+		for _, c := range t {
+			n += 1 + valueBytes(c, depth+1)
+		}
+		return n
+	case string:
+		return len(t) + 2
+	}
+	return 8
+}
+
 func countNodes(v any) int {
 	n := 1
 	switch t := v.(type) {
@@ -647,8 +674,8 @@ func (a *analysis) argoValues(s *argoSrc) (map[string]any, *Gap, int) {
 	}
 	s.decoded = true
 	if s.object != nil {
-		s.values, s.rel.Values = s.object, s.object
-		return s.values, nil, 0
+		s.values, s.rel.Values, s.valBytes = s.object, s.object, valueBytes(s.object, 0)
+		return s.values, nil, s.valBytes / 64
 	}
 	if s.text == "" {
 		return nil, nil, 0
@@ -670,7 +697,7 @@ func (a *analysis) argoValues(s *argoSrc) (map[string]any, *Gap, int) {
 		s.valGap = &gap
 	default:
 		s.values = asMap(docs[0])
-		s.rel.Values = s.values
+		s.rel.Values, s.valBytes = s.values, valueBytes(s.values, 0)
 	}
 	s.text = ""
 	return s.values, s.valGap, cost
