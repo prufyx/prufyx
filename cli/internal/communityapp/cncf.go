@@ -106,7 +106,7 @@ func (r runtime) cncf(args []string) int {
 
 Optional, local source-constraint preview using minimized operator declarations.
 Inspect inputs with: prufyx catalog cncf --project SLUG --format json
-Input and replay files must be regular private files (0600), without symlinks.
+Input and replay files must be regular private files (mode 0600 or stricter, with no group or other access), without symlinks.
 Embedded rules use explicit canonical UTC with whole-second precision. Replay
 compares the exact prior JSON at its original time, without current freshness.
 Select a separate local signed CNCF store with --knowledge-db DIR. Current
@@ -1071,7 +1071,7 @@ func readCNCFPrivate(path string, limit int) ([]byte, error) {
 	if !info.Mode().IsRegular() {
 		return nil, cncfcheck.ErrInvalid
 	}
-	if info.Mode().Perm() != 0600 {
+	if info.Mode().Perm()&0o077 != 0 {
 		return nil, fmt.Errorf("%w: %w", ErrInsecurePermissions, cncfcheck.ErrInvalid)
 	}
 	return raw, nil
