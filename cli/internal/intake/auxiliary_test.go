@@ -72,4 +72,6 @@ func TestAuxiliaryDoesNotChangeWorkspace(t *testing.T) {
 	}
 }
 
-func fmtCM(name string) string { return "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: " + name + "\n" }
+func fmtCM(name string) string {
+	return "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: " + name + "\n"
+}
