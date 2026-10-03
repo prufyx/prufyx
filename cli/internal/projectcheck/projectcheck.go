@@ -531,6 +531,11 @@ func validPackSchema(pack packDocument) bool {
 	for _, e := range pack.Entries {
 		rules = append(rules, e.Rule)
 	}
+	// No community project pack schema admits one-way notices.
+	notice, err := constraintengine.AnyNoticeRule(rules)
+	if err != nil || notice {
+		return false
+	}
 	ranged, err := constraintengine.AnyRanged(rules)
 	if err != nil {
 		return false

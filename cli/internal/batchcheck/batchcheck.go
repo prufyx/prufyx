@@ -344,6 +344,10 @@ func evaluateItem(item Item, raw []byte, now time.Time, selected knowledge.Verif
 		result.Report = append(json.RawMessage(nil), sealed...)
 		claims := make([]claimView, 0, len(report.Check.Claims))
 		for _, claim := range report.Check.Claims {
+			// One-way notices are informational and never decide an outcome.
+			if claim.IsNotice() {
+				continue
+			}
 			claims = append(claims, claimView{Status: claim.Status, ReasonCode: claim.ReasonCode, EvidenceFreshness: claim.EvidenceFreshness})
 		}
 		return fromClaims(result, claims)
@@ -405,6 +409,10 @@ func evaluateExternalCNCF(result ItemResult, item Item, raw []byte, selected kno
 	result.Report = append(json.RawMessage(nil), sealed...)
 	claims := make([]claimView, 0, len(report.Check.Check.Claims))
 	for _, claim := range report.Check.Check.Claims {
+		// One-way notices are informational and never decide an outcome.
+		if claim.IsNotice() {
+			continue
+		}
 		claims = append(claims, claimView{Status: claim.Status, ReasonCode: claim.ReasonCode, EvidenceFreshness: claim.EvidenceFreshness})
 	}
 	return fromClaims(result, claims)

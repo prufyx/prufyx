@@ -205,15 +205,18 @@ func Replay(project string, inputRaw []byte, now time.Time, expected []byte) (Re
 }
 
 // ClaimExit concerns only the selected nonempty set of source constraints.
+// Claims of one-way notice rules are informational and never take part: a
+// report holding nothing else exits as one without claims.
 func ClaimExit(report Report) int {
 	if _, err := MarshalReport(report); err != nil {
 		return 3
 	}
-	if len(report.Check.Claims) == 0 {
-		return 11
-	}
-	unknown := false
+	decided, unknown := 0, false
 	for _, claim := range report.Check.Claims {
+		if claim.IsNotice() {
+			continue
+		}
+		decided++
 		if claim.Status == "BLOCKED" {
 			return 10
 		}
@@ -221,7 +224,7 @@ func ClaimExit(report Report) int {
 			unknown = true
 		}
 	}
-	if unknown {
+	if decided == 0 || unknown {
 		return 11
 	}
 	return 0

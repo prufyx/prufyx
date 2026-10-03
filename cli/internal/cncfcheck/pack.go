@@ -260,6 +260,8 @@ const (
 	// packSchemaPathPolicies is the level of a pack holding upgrade-path
 	// policies.
 	packSchemaPathPolicies = "prufyx.io/cncf-source-rule-pack/v1alpha5"
+	// packSchemaNotice is the level of a pack holding a notice_one_way rule.
+	packSchemaNotice = "prufyx.io/cncf-source-rule-pack/v1alpha6"
 )
 
 // packFeature is one pack feature and the schema that introduced it.
@@ -278,6 +280,7 @@ var packFeatureLevels = []packFeature{
 	{packSchemaSet, func(_ rulePack, rules []json.RawMessage) (bool, error) { return constraintengine.AnySetRule(rules) }},
 	{packSchemaAttested, func(pack rulePack, _ []json.RawMessage) (bool, error) { return len(pack.LineAttestations) > 0, nil }},
 	{packSchemaPathPolicies, func(pack rulePack, _ []json.RawMessage) (bool, error) { return len(pack.PathPolicies) > 0, nil }},
+	{packSchemaNotice, func(_ rulePack, rules []json.RawMessage) (bool, error) { return constraintengine.AnyNoticeRule(rules) }},
 }
 
 // requiredPackSchema is the schema of the highest-level feature the pack
