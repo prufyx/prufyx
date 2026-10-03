@@ -9,6 +9,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 )
 
@@ -50,6 +51,10 @@ func (r runtime) externalCNCF(req cncfknowledge.Request, replayPath, format stri
 		var output bytes.Buffer
 		fmt.Fprintf(&output, "%s source-constraint check\nwhole-upgrade assessment: UNKNOWN\nknowledge: external signed local revision %s\npurpose: %s\ntrust source: %s\nsource references: operator-declared; runtime behavior unverified\n", report.Check.Project, report.Knowledge.Revision, report.Knowledge.Purpose, report.Knowledge.TrustSource)
 		for _, claim := range report.Check.Check.Claims {
+			if claim.IsNotice() {
+				_ = writeNotices(&output, []constraintengine.Claim{claim})
+				continue
+			}
 			fmt.Fprintf(&output, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction)
 			if line, ok := claim.MatchedMembersLine(); ok {
 				fmt.Fprintln(&output, line)

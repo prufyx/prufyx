@@ -23,9 +23,12 @@ const reasonTransitionNotReviewed = "RULE_TRANSITION_NOT_REVIEWED"
 // maxReviewedPairsShown bounds the reviewed-pairs list in one line.
 const maxReviewedPairsShown = 8
 
-// claimSummary partitions claims for quiet human output.
+// claimSummary partitions claims for quiet human output. One-way notices are
+// kept apart from every verdict claim: they are never collapsed with passes
+// and never counted as unreviewed, blocked or unknown.
 type claimSummary struct {
 	shown         []constraintengine.Claim
+	notices       []constraintengine.Claim
 	passes        int
 	unreviewed    int
 	allUnreviewed bool
@@ -33,7 +36,13 @@ type claimSummary struct {
 
 func summarizeClaims(claims []constraintengine.Claim, showPasses bool) claimSummary {
 	var summary claimSummary
+	verdicts := 0
 	for _, claim := range claims {
+		if claim.IsNotice() {
+			summary.notices = append(summary.notices, claim)
+			continue
+		}
+		verdicts++
 		switch {
 		case claim.Status == "UNKNOWN" && claim.ReasonCode == reasonTransitionNotReviewed:
 			summary.unreviewed++
@@ -43,8 +52,29 @@ func summarizeClaims(claims []constraintengine.Claim, showPasses bool) claimSumm
 			summary.shown = append(summary.shown, claim)
 		}
 	}
-	summary.allUnreviewed = len(claims) > 0 && summary.unreviewed == len(claims)
+	summary.allUnreviewed = verdicts > 0 && summary.unreviewed == verdicts
 	return summary
+}
+
+// writeNotices prints each one-way notice on its own lines, with its
+// reviewed "before you upgrade" text. A notice that does not apply prints
+// nothing: its absence is not a statement about rolling back.
+func writeNotices(out io.Writer, notices []constraintengine.Claim) error {
+	for _, claim := range notices {
+		lines, _ := claim.NoticeLines()
+		if len(lines) == 0 {
+			continue
+		}
+		for _, line := range lines {
+			if _, err := fmt.Fprintln(out, line); err != nil {
+				return err
+			}
+		}
+		if _, err := fmt.Fprintln(out, claim.EvidenceBasisLine()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // writeUnreviewedTransition is the whole answer when no claim could be decided
