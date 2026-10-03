@@ -237,6 +237,11 @@ func TestPlanEditValidation(t *testing.T) {
 		if ReasonOf(err) != ReasonSecretDocument || strings.Contains(err.Error(), "hunter2") {
 			t.Fatalf("got %v", err)
 		}
+		// Even with nothing to change the file is refused, so no diff
+		// context can ever show Secret bytes.
+		if _, err := Plan(display, secret, nil, Options{}); ReasonOf(err) != ReasonSecretDocument {
+			t.Fatalf("got %v", err)
+		}
 	})
 	t.Run("edit turns document into secret", func(t *testing.T) {
 		_, err := Plan(display, src, []Request{setRequest("value", "ConfigMap", "Secret", "kind")}, Options{})
