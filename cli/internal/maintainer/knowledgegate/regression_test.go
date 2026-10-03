@@ -228,7 +228,8 @@ func TestTrustMaterialChanges(t *testing.T) {
 			}
 		})
 	}
-	if !DefaultLayout().trustPath(approvalKeys) || DefaultLayout().autoMergePath(approvalKeys) || DefaultLayout().autoMergePath(trustRootPath) || DefaultLayout().autoMergePath("cli/knowledge/trust/x.json") {
+	if !DefaultLayout().trustPath(approvalKeys) || DefaultLayout().autoMergePath(approvalKeys) || DefaultLayout().autoMergePath(trustRootPath) || DefaultLayout().autoMergePath("cli/knowledge/trust/x.json") ||
+		DefaultLayout().autoMergePath("cli/knowledge/approvals/web-approval-keys.json") || DefaultLayout().autoMergePath("cli/knowledge/reattestation/cncf/chain/trust-root-2.json") {
 		t.Fatal("trust material is allow-listed for automatic merging")
 	}
 }
@@ -373,6 +374,7 @@ func TestEligibilityNeedsBotProvenance(t *testing.T) {
 		want string
 	}{
 		"sender is a person": {func(o *Options) { o.Sender = "someone" }, "triggered by"},
+		"author is a person": {func(o *Options) { o.Author = "someone" }, "is not the automation account"},
 		"no commit list":     {func(o *Options) { o.Commits = nil }, "commit list was not supplied"},
 		"no head sha":        {func(o *Options) { o.HeadSHA = "" }, "head commit was not supplied"},
 		"other head":         {func(o *Options) { o.HeadSHA = strings.Repeat("f", 40) }, "does not end at the head"},
