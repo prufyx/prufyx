@@ -423,18 +423,21 @@ func TestHopOverlapsProperty(t *testing.T) {
 		lines := []Endpoint{line("1.24"), line("1.25"), line("1.26"), line("2"), exact("1.24.7"), exact("1.25.0"), exact("1.26.1"), exact("2.25.0")}
 		return lines[rng.Intn(len(lines))], lines[rng.Intn(len(lines))]
 	}
+	// candidates are computed without the package's own span helpers.
 	candidates := func(e Endpoint, rule constraintengine.RuleTransition, from bool) []string {
 		if e.Exact() {
 			return []string{e.Version}
 		}
-		low, _, _ := e.span()
-		out := []string{low}
-		// The highest release below high.
+		var low, highest string
+		inEnd := func(x string) bool { return false }
 		if e.MinorLine() {
-			out = append(out, e.Line+".4294967295")
+			low, highest = e.Line+".0", e.Line+".4294967295"
+			inEnd = func(x string) bool { return strings.HasPrefix(x, e.Line+".") && strings.Count(x, ".") == 2 }
 		} else {
-			out = append(out, e.Line+".4294967295.4294967295")
+			low, highest = e.Line+".0.0", e.Line+".4294967295.4294967295"
+			inEnd = func(x string) bool { return strings.HasPrefix(x, e.Line+".") }
 		}
+		out := []string{low, highest}
 		vals := []string{rule.To}
 		if from {
 			vals = []string{rule.From}
@@ -447,7 +450,7 @@ func TestHopOverlapsProperty(t *testing.T) {
 			}
 		}
 		for _, x := range vals {
-			if e.holds(x) {
+			if inEnd(x) {
 				out = append(out, x)
 			}
 		}
