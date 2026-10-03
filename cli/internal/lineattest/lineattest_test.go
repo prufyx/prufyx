@@ -73,6 +73,10 @@ func TestParseIsStrict(t *testing.T) {
 		return strings.Replace(valid, old, new, 1)
 	}
 	two := func(a, b LineAttestation) string { return string(encode(t, []LineAttestation{a, b})) }
+	reviewedDoc := string(encode(t, []LineAttestation{reviewed("1.28")}))
+	withNull := func(member string) string {
+		return strings.Replace(reviewedDoc, `"basis":"reviewed",`, `"basis":"reviewed",`+member+`:null,`, 1)
+	}
 	expired := mechanical("1.28")
 	expired.Evidence.ValidUntil = "2027-01-01T00:00:00Z"
 	derivedMismatch := mechanical("1.28")
@@ -80,39 +84,42 @@ func TestParseIsStrict(t *testing.T) {
 	reviewedWithExtractor := mechanical("1.28")
 	reviewedWithExtractor.Evidence.Basis = "reviewed"
 	cases := map[string]string{
-		"not an array":            `{}`,
-		"empty array":             `[]`,
-		"null document":           `null`,
-		"trailing data":           valid + `[]`,
-		"unknown member":          replace(`"line":`, `"extra":1,"line":`),
-		"unknown evidence member": replace(`"basis":`, `"state":"active","basis":`),
-		"case alias":              replace(`"ruleIds"`, `"RuleIds"`),
-		"repeated member":         replace(`"line":"1.28"`, `"line":"1.28","line":"1.29"`),
-		"null ruleIds":            replace(`"ruleIds":["a.rule"]`, `"ruleIds":null`),
-		"missing ruleIds":         replace(`"ruleIds":["a.rule"],`, ``),
-		"null extractor":          replace(`"extractor":{`, `"extractor":null,"x":{`),
-		"missing sources":         strings.Replace(valid, `"sources":`, `"sourcez":`, 1),
-		"unknown family":          replace(FamilyKubernetesRemovedServedGVK, "kubernetes.other"),
-		"wrong component":         replace(`"component":"`+k8s+`"`, `"component":"pkg:github/x/y"`),
-		"bad line":                replace(`"line":"1.28"`, `"line":"1.28.0"`),
-		"leading zero line":       replace(`"line":"1.28"`, `"line":"1.028"`),
-		"bad completeness":        replace(Completeness, "COMPLETE_REVIEWED_RULES_FOR_LISTED_COMPONENTS"),
-		"unsorted rule ids":       replace(`["a.rule"]`, `["b.rule","a.rule"]`),
-		"duplicate rule ids":      replace(`["a.rule"]`, `["a.rule","a.rule"]`),
-		"bad rule id":             replace(`["a.rule"]`, `["A Rule"]`),
-		"absent basis":            replace(`"basis":"mechanical",`, ``),
-		"unknown basis":           replace(`"basis":"mechanical"`, `"basis":"consensus"`),
-		"window over 90 days":     string(encode(t, []LineAttestation{expired})),
-		"window reversed":         replace(`"validUntil":"2026-12-30T00:00:00Z"`, `"validUntil":"2026-09-01T00:00:00Z"`),
-		"non-UTC time":            replace(`"reviewedAt":"2026-10-01T00:00:00Z"`, `"reviewedAt":"2026-10-01T00:00:00+00:00"`),
-		"derivedAt != reviewedAt": string(encode(t, []LineAttestation{derivedMismatch})),
-		"reviewed with extractor": string(encode(t, []LineAttestation{reviewedWithExtractor})),
-		"no sources":              replace(`"sources":[`, `"sources":[],"x":[`),
-		"unpinned source URL":     replace(`/blob/`+rev, `/blob/main`),
-		"bad source digest":       replace(`"sha256:aaaa`, `"sha1:aaaa`),
-		"duplicate scope":         two(reviewed("1.28"), mechanical("1.28")),
-		"non-canonical order":     two(reviewed("1.29"), reviewed("1.28")),
-		"numeric order, not text": two(reviewed("1.100"), reviewed("1.99")),
+		"not an array":              `{}`,
+		"empty array":               `[]`,
+		"null document":             `null`,
+		"trailing data":             valid + `[]`,
+		"unknown member":            replace(`"line":`, `"extra":1,"line":`),
+		"unknown evidence member":   replace(`"basis":`, `"state":"active","basis":`),
+		"case alias":                replace(`"ruleIds"`, `"RuleIds"`),
+		"case alias shadows member": replace(`"line":"1.28"`, `"line":"1.28","Line":"1.29"`),
+		"repeated member":           replace(`"line":"1.28"`, `"line":"1.28","line":"1.29"`),
+		"null ruleIds":              replace(`"ruleIds":["a.rule"]`, `"ruleIds":null`),
+		"missing ruleIds":           replace(`"ruleIds":["a.rule"],`, ``),
+		"null extractor":            replace(`"extractor":{`, `"extractor":null,"x":{`),
+		"null optional extractor":   withNull(`"extractor"`),
+		"null optional derivedAt":   withNull(`"derivedAt"`),
+		"missing sources":           strings.Replace(valid, `"sources":`, `"sourcez":`, 1),
+		"unknown family":            replace(FamilyKubernetesRemovedServedGVK, "kubernetes.other"),
+		"wrong component":           replace(`"component":"`+k8s+`"`, `"component":"pkg:github/x/y"`),
+		"bad line":                  replace(`"line":"1.28"`, `"line":"1.28.0"`),
+		"leading zero line":         replace(`"line":"1.28"`, `"line":"1.028"`),
+		"bad completeness":          replace(Completeness, "COMPLETE_REVIEWED_RULES_FOR_LISTED_COMPONENTS"),
+		"unsorted rule ids":         replace(`["a.rule"]`, `["b.rule","a.rule"]`),
+		"duplicate rule ids":        replace(`["a.rule"]`, `["a.rule","a.rule"]`),
+		"bad rule id":               replace(`["a.rule"]`, `["A Rule"]`),
+		"absent basis":              replace(`"basis":"mechanical",`, ``),
+		"unknown basis":             replace(`"basis":"mechanical"`, `"basis":"consensus"`),
+		"window over 90 days":       string(encode(t, []LineAttestation{expired})),
+		"window reversed":           replace(`"validUntil":"2026-12-30T00:00:00Z"`, `"validUntil":"2026-09-01T00:00:00Z"`),
+		"non-UTC time":              replace(`"reviewedAt":"2026-10-01T00:00:00Z"`, `"reviewedAt":"2026-10-01T00:00:00+00:00"`),
+		"derivedAt != reviewedAt":   string(encode(t, []LineAttestation{derivedMismatch})),
+		"reviewed with extractor":   string(encode(t, []LineAttestation{reviewedWithExtractor})),
+		"no sources":                replace(`"sources":[`, `"sources":[],"x":[`),
+		"unpinned source URL":       replace(`/blob/`+rev, `/blob/main`),
+		"bad source digest":         replace(`"sha256:aaaa`, `"sha1:aaaa`),
+		"duplicate scope":           two(reviewed("1.28"), mechanical("1.28")),
+		"non-canonical order":       two(reviewed("1.29"), reviewed("1.28")),
+		"numeric order, not text":   two(reviewed("1.100"), reviewed("1.99")),
 	}
 	for name, doc := range cases {
 		t.Run(name, func(t *testing.T) {
