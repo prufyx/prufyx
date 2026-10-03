@@ -45,6 +45,10 @@ type Source struct {
 	Digest   string // sha256 of the raw bytes of the file
 	Document int    // 0-based index among the non-empty YAML documents of the file
 	Item     int    // -1, or the 0-based index inside a List's items
+	// Line is the 1-based line of the document's apiVersion key (of the item's
+	// own apiVersion key for a List item), or 0 when there is none. It is
+	// provenance for reports only and never part of a digest.
+	Line int
 }
 
 // Document is one Kubernetes-shaped object. Secret payloads are never present.
@@ -117,6 +121,8 @@ func decodeFile(display string, raw []byte, bounds decodeOptions) (Workspace, er
 	sum := sha256.Sum256(raw)
 	digest := "sha256:" + hex.EncodeToString(sum[:])
 	bounds.foldKeys, bounds.timestampStrings = true, true
+	var lines []documentLines
+	bounds.lines = &lines
 	values, err := decodeDocuments(raw, bounds)
 	if err != nil {
 		var limit limitReached
@@ -131,7 +137,11 @@ func decodeFile(display string, raw []byte, bounds decodeOptions) (Workspace, er
 	var workspace Workspace
 	for index, value := range values {
 		source := Source{Display: display, Digest: digest, Document: index, Item: -1}
-		workspace.add(source, value, nil, "", "")
+		var itemLines []int
+		if index < len(lines) {
+			source.Line, itemLines = lines[index].root, lines[index].items
+		}
+		workspace.add(source, value, nil, "", "", itemLines)
 	}
 	return workspace, nil
 }
@@ -141,7 +151,8 @@ func (w *Workspace) omit(source Source, reason Reason) {
 }
 
 // add classifies one decoded top-level value.
-func (w *Workspace) add(source Source, value any, listMetadata any, listAPI, itemKind string) {
+// itemLines holds the apiVersion line of each item when value is a List.
+func (w *Workspace) add(source Source, value any, listMetadata any, listAPI, itemKind string, itemLines []int) {
 	object, ok := value.(map[string]any)
 	if !ok {
 		w.omit(source, ReasonNotKubernetesShaped)
@@ -194,8 +205,11 @@ func (w *Workspace) add(source Source, value any, listMetadata any, listAPI, ite
 		}
 		for index, item := range items {
 			itemSource := source
-			itemSource.Item = index
-			w.add(itemSource, item, object["metadata"], api, inferred)
+			itemSource.Item, itemSource.Line = index, 0
+			if index < len(itemLines) {
+				itemSource.Line = itemLines[index]
+			}
+			w.add(itemSource, item, object["metadata"], api, inferred, nil)
 		}
 		return
 	}

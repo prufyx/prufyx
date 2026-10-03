@@ -60,6 +60,48 @@ type decodeOptions struct {
 	// nodes is the node budget shared with the caller, so one budget can span
 	// several files; nil means a fresh MaxNodes budget.
 	nodes *int
+	// lines, when not nil, receives the apiVersion lines of every returned
+	// document, in the same order.
+	lines *[]documentLines
+}
+
+// documentLines is where the apiVersion key of a document, and of each item
+// of a top-level items sequence, starts: a 1-based line, 0 when absent.
+type documentLines struct {
+	root  int
+	items []int
+}
+
+// apiVersionLine returns the line of the apiVersion key of a mapping node.
+func apiVersionLine(node *yaml.Node) int {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return 0
+	}
+	for index := 0; index+1 < len(node.Content); index += 2 {
+		if key := node.Content[index]; key.Kind == yaml.ScalarNode && key.Value == "apiVersion" {
+			return key.Line
+		}
+	}
+	return 0
+}
+
+// linesOf records the apiVersion lines of a document root and of the items of
+// its top-level items sequence, the only list level intake flattens.
+func linesOf(root *yaml.Node) documentLines {
+	lines := documentLines{root: apiVersionLine(root)}
+	if root.Kind != yaml.MappingNode {
+		return lines
+	}
+	for index := 0; index+1 < len(root.Content); index += 2 {
+		key, value := root.Content[index], root.Content[index+1]
+		if key.Kind == yaml.ScalarNode && key.Value == "items" && value.Kind == yaml.SequenceNode {
+			lines.items = make([]int, len(value.Content))
+			for item, child := range value.Content {
+				lines.items[item] = apiVersionLine(child)
+			}
+		}
+	}
+	return lines
 }
 
 // errLimit and the limit names let Open report which bound was exceeded.
@@ -129,6 +171,9 @@ func decodeDocuments(raw []byte, opts decodeOptions) ([]any, error) {
 			return nil, err
 		}
 		documents = append(documents, value)
+		if opts.lines != nil {
+			*opts.lines = append(*opts.lines, linesOf(node.Content[0]))
+		}
 		if len(documents) > maxDocuments {
 			return nil, limitReached{"documents"}
 		}
