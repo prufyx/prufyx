@@ -39,7 +39,11 @@ var errK8sComponentYAML = ErrUnsupported
 // DecodeDocuments returns every non-empty document as plain values:
 // map[string]any, []any, string, bool, json.Number or nil.
 func DecodeDocuments(raw []byte) ([]any, error) {
-	return decodeDocuments(raw, decodeOptions{})
+	documents, err := decodeDocuments(raw, decodeOptions{})
+	if err != nil {
+		return nil, errK8sComponentYAML
+	}
+	return documents, nil
 }
 
 // decodeOptions tightens or relaxes the base decoder for the manifest path.
@@ -50,12 +54,31 @@ type decodeOptions struct {
 	// timestampStrings reads an untagged timestamp scalar such as 2026-01-02
 	// as the string it is written as.
 	timestampStrings bool
+	// maxDocuments bounds the documents of this call; zero means MaxDocuments
+	// and a negative value allows none.
+	maxDocuments int
+	// nodes is the node budget shared with the caller, so one budget can span
+	// several files; nil means a fresh MaxNodes budget.
+	nodes *int
 }
+
+// errLimit and the limit names let Open report which bound was exceeded.
+type limitReached struct{ limit string }
+
+func (e limitReached) Error() string { return "limit reached: " + e.limit }
 
 func decodeDocuments(raw []byte, opts decodeOptions) ([]any, error) {
 	decoder := yaml.NewDecoder(bytes.NewReader(raw))
 	documents := make([]any, 0, 1)
-	budget := MaxNodes
+	local := MaxNodes
+	budget := &local
+	if opts.nodes != nil {
+		budget = opts.nodes
+	}
+	maxDocuments := MaxDocuments
+	if opts.maxDocuments != 0 {
+		maxDocuments = max(opts.maxDocuments, 0)
+	}
 	for {
 		var node yaml.Node
 		err := decoder.Decode(&node)
@@ -78,13 +101,13 @@ func decodeDocuments(raw []byte, opts decodeOptions) ([]any, error) {
 			// An empty document between separators carries no configuration.
 			continue
 		}
-		value, err := opts.yamlValue(node.Content[0], 0, &budget)
+		value, err := opts.yamlValue(node.Content[0], 0, budget)
 		if err != nil {
 			return nil, err
 		}
 		documents = append(documents, value)
-		if len(documents) > MaxDocuments {
-			return nil, errK8sComponentYAML
+		if len(documents) > maxDocuments {
+			return nil, limitReached{"documents"}
 		}
 	}
 	return documents, nil
@@ -92,7 +115,10 @@ func decodeDocuments(raw []byte, opts decodeOptions) ([]any, error) {
 
 func (opts decodeOptions) yamlValue(node *yaml.Node, depth int, budget *int) (any, error) {
 	*budget--
-	if *budget < 0 || depth > MaxDepth || node == nil || node.Anchor != "" || node.Alias != nil || node.Kind == yaml.AliasNode {
+	if *budget < 0 {
+		return nil, limitReached{"nodes"}
+	}
+	if depth > MaxDepth || node == nil || node.Anchor != "" || node.Alias != nil || node.Kind == yaml.AliasNode {
 		return nil, errK8sComponentYAML
 	}
 	switch node.Kind {

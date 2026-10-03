@@ -59,10 +59,16 @@ type Omission struct {
 	Reason Reason
 }
 
-// Workspace is the decoded content of one file.
+// Workspace is the decoded content of one file (Decode) or of every input
+// of an Open call.
 type Workspace struct {
 	Documents []Document
 	Omissions []Omission
+	// Files, Digest and Notices are filled by Open only.
+	Files []FileRecord
+	// Digest is sha256 over the sorted file digests.
+	Digest  string
+	Notices []string
 }
 
 // ErrDecode reports bytes that are not valid or not within bounds.
@@ -77,13 +83,28 @@ var ErrDecode = errors.New("input is not a bounded YAML or JSON document set")
 // syntax in a string scalar, and a file that cannot be parsed because of such
 // syntax, become omissions; any other undecodable input is an error.
 func Decode(display string, raw []byte) (Workspace, error) {
+	workspace, err := decodeFile(display, raw, decodeOptions{})
+	if err != nil {
+		return Workspace{}, ErrDecode
+	}
+	return workspace, nil
+}
+
+// decodeFile is Decode with caller-chosen document and node budgets. A bound
+// that is exceeded is returned as a limitReached error.
+func decodeFile(display string, raw []byte, bounds decodeOptions) (Workspace, error) {
 	if len(raw) == 0 || !utf8.Valid(raw) {
 		return Workspace{}, ErrDecode
 	}
 	sum := sha256.Sum256(raw)
 	digest := "sha256:" + hex.EncodeToString(sum[:])
-	values, err := decodeDocuments(raw, decodeOptions{foldKeys: true, timestampStrings: true})
+	bounds.foldKeys, bounds.timestampStrings = true, true
+	values, err := decodeDocuments(raw, bounds)
 	if err != nil {
+		var limit limitReached
+		if errors.As(err, &limit) {
+			return Workspace{}, err
+		}
 		if hasTemplateSyntax(string(raw)) {
 			return Workspace{Omissions: []Omission{{Source: Source{Display: display, Digest: digest, Item: -1}, Reason: ReasonUnparseable}}}, nil
 		}
