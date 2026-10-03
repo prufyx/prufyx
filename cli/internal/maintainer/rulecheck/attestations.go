@@ -26,7 +26,10 @@ const (
 	CheckAttestationSchema      = "attestation-schema"
 	CheckAttestationMissingRule = "attestation-missing-rule"
 	CheckAttestationExtraRule   = "attestation-extra-rule"
-	CheckAttestationNotCurrent  = "attestation-not-current"
+	// CheckAttestationRuleNotLineWide: a listed rule does not match every
+	// transition into the attested line (see lineattest.Family.CoversLine).
+	CheckAttestationRuleNotLineWide = "attestation-rule-not-line-wide"
+	CheckAttestationNotCurrent      = "attestation-not-current"
 )
 
 // ValidateLineAttestations checks an attestation document against the rules
@@ -34,7 +37,10 @@ const (
 // (lineattest.Parse), and every attestation's ruleIds must equal exactly the
 // pack's rules for that component, line and fact family: a rule the pack
 // holds but the attestation leaves out, and a listed rule the pack does not
-// hold for that scope, are each one finding. Finding.EntryIndex is the
+// hold for that scope, are each one finding. Every listed rule must also
+// match every transition into the line (a range covering the whole previous
+// minor line on the from side and the whole line on the to side); a rule
+// that does not is an attestation-rule-not-line-wide finding. Finding.EntryIndex is the
 // attestation's index; Finding.RuleID is the disagreeing rule.
 func ValidateLineAttestations(raw []byte, rules []json.RawMessage, opts AttestationOptions) Result {
 	result := Result{Schema: AttestationResultSchema}
@@ -54,9 +60,16 @@ func ValidateLineAttestations(raw []byte, rules []json.RawMessage, opts Attestat
 		return result
 	}
 	for _, p := range problems {
-		check := CheckAttestationExtraRule
-		if p.Kind == lineattest.ProblemMissingRule {
+		var check string
+		switch p.Kind {
+		case lineattest.ProblemMissingRule:
 			check = CheckAttestationMissingRule
+		case lineattest.ProblemExtraRule:
+			check = CheckAttestationExtraRule
+		case lineattest.ProblemRuleNotLineWide:
+			check = CheckAttestationRuleNotLineWide
+		default:
+			check = CheckAttestationSchema
 		}
 		result.Findings = append(result.Findings, Finding{EntryIndex: index[p.Key], RuleID: p.RuleID, Check: check, Message: p.Message})
 	}
@@ -72,9 +85,19 @@ func ValidateLineAttestations(raw []byte, rules []json.RawMessage, opts Attestat
 }
 
 // ValidatePackAttestations reads a whole pack file and validates its
-// lineAttestations section against its own entries. A pack without the
-// section has nothing to check and is valid.
+// lineAttestations section against its own entries. The section is located
+// by lineattest.PackSection, the function the pack loader uses, so top-level
+// member names are matched exactly and a case or Unicode-folding variant of
+// any member is an error rather than a pack "without" the section. A pack
+// without the section has nothing to check and is valid.
 func ValidatePackAttestations(pack []byte, opts AttestationOptions) (Result, error) {
+	section, present, err := lineattest.PackSection(pack)
+	if err != nil {
+		return Result{}, fmt.Errorf("pack does not decode: %w", err)
+	}
+	if !present {
+		return Result{Schema: AttestationResultSchema, Valid: true}, nil
+	}
 	var doc struct {
 		Entries []struct {
 			Rule json.RawMessage `json:"rule"`
@@ -83,16 +106,9 @@ func ValidatePackAttestations(pack []byte, opts AttestationOptions) (Result, err
 	if err := json.Unmarshal(pack, &doc); err != nil {
 		return Result{}, fmt.Errorf("pack does not decode: %w", err)
 	}
-	var members map[string]json.RawMessage
-	if err := json.Unmarshal(pack, &members); err != nil {
-		return Result{}, fmt.Errorf("pack does not decode: %w", err)
-	}
-	if _, present := members["lineAttestations"]; !present {
-		return Result{Schema: AttestationResultSchema, Valid: true}, nil
-	}
 	rules := make([]json.RawMessage, 0, len(doc.Entries))
 	for _, e := range doc.Entries {
 		rules = append(rules, e.Rule)
 	}
-	return ValidateLineAttestations(members["lineAttestations"], rules, opts), nil
+	return ValidateLineAttestations(section, rules, opts), nil
 }

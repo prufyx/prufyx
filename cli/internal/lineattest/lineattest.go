@@ -56,12 +56,64 @@ type Family struct {
 	ID        string
 	Component string
 	facts     *regexp.Regexp
+	// fromPreviousLine states the family's hop shape: every transition into
+	// line M.m starts on line M.(m-1). It is the only hop shape defined; a
+	// family without it has no line-wide rules and cannot be attested.
+	fromPreviousLine bool
 }
 
 // Covers reports whether a rule condition on (component, factID) belongs to
 // the family.
 func (f Family) Covers(component, factID string) bool {
 	return component == f.Component && f.facts.MatchString(factID)
+}
+
+// LineTransitions returns the transitions into line that the family's hops
+// take, as the engine's half-open version bounds: from any release of the
+// previous minor line, [M.(m-1).0, M.m.0), to any release of the line,
+// [M.m.0, M.(m+1).0). ok is false when the line has no previous minor line
+// in the same major (m = 0) or the family defines no hop shape.
+func (f Family) LineTransitions(line string) (from, to constraintengine.VersionBound, ok bool) {
+	if !f.fromPreviousLine || !ValidLine(line) {
+		return from, to, false
+	}
+	major, minor := lineNumbers(line)
+	if minor == 0 || minor >= 1<<32-1 || major >= 1<<32 {
+		return from, to, false
+	}
+	at := func(m uint64) string { return fmt.Sprintf("%d.%d.0", major, m) }
+	return constraintengine.VersionBound{Gte: at(minor - 1), Lt: at(minor)}, constraintengine.VersionBound{Gte: at(minor), Lt: at(minor + 1)}, true
+}
+
+// CoversLine reports whether a rule subject matches every transition into
+// line, using the engine's own matcher semantics (constraintengine.Match):
+// an anchor pair matches one transition only, and a range matches a
+// transition when from and to each lie inside its half-open bounds. So the
+// rule must carry a range whose from bound contains the whole previous minor
+// line and whose to bound contains the whole target line:
+//
+//	range.from.gte <= M.(m-1).0  and  M.m.0 <= range.from.lt
+//	range.to.gte   <= M.m.0      and  M.(m+1).0 <= range.to.lt
+//
+// Every release version of the previous line lies in [M.(m-1).0, M.m.0) and
+// every release version of the line in [M.m.0, M.(m+1).0), so these bounds
+// are necessary and sufficient. The engine caps each side of a range at one
+// minor line, so in practice they hold with equality. A version the engine
+// cannot parse makes the comparison fail, and the rule is not line-wide.
+func (f Family) CoversLine(t constraintengine.RuleTransition, line string) bool {
+	from, to, ok := f.LineTransitions(line)
+	if !ok || t.Range == nil {
+		return false
+	}
+	return contains(t.Range.From, from) && contains(t.Range.To, to)
+}
+
+// contains reports outer.gte <= inner.gte and inner.lt <= outer.lt.
+func contains(outer, inner constraintengine.VersionBound) bool {
+	le := func(a, b string) bool {
+		return constraintengine.VersionLess(a, b) || constraintengine.SameVersion(a, b)
+	}
+	return le(outer.Gte, inner.Gte) && le(inner.Lt, outer.Lt)
 }
 
 // families is the closed, compiled family vocabulary. Adding a family is a
@@ -72,6 +124,8 @@ var families = map[string]Family{
 		ID:        FamilyKubernetesRemovedServedGVK,
 		Component: "pkg:github/kubernetes/kubernetes",
 		facts:     regexp.MustCompile(`^component\.kubernetes\.[a-z0-9_]+_removed_gvk_present$`),
+		// Kubernetes upgrades a control plane one minor line at a time.
+		fromPreviousLine: true,
 	},
 }
 

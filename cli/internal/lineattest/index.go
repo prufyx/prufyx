@@ -62,6 +62,21 @@ func NewIndex(atts []LineAttestation) Index {
 // fact family, each with its freshness at now. A validated document holds at
 // most one per scope, so the result has zero or one element. An empty result
 // means the line is not attested for that family; it never means "no rules".
+//
+// Contract for a caller that plans or evaluates a hop into the line:
+//   - only a current attestation may be relied on; any other freshness is
+//     treated as no attestation;
+//   - the attestation says which rules exist, not that they decided the hop:
+//     every listed rule must be evaluated for the hop's concrete versions,
+//     and a listed rule that does not match the hop (constraintengine
+//     RuleTransition.Match returns MatchNone), or that does not reach a
+//     verdict, makes the hop a gap, never covered.
+//
+// An admitted pack only holds attestations whose rules match every
+// transition into the line (CheckRuleSets, rule-not-line-wide), so the
+// second point should not trigger for a hop of the family's shape; it is the
+// caller's guard for any hop of another shape (for example one that skips a
+// minor line) and for an index built without CheckRuleSets.
 func (ix Index) AttestationsFor(component, line, family string, now time.Time) []Status {
 	a, ok := ix.byKey[Key{Component: component, Line: line, Family: family}]
 	if !ok {

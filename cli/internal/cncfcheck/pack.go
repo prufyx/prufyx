@@ -116,10 +116,19 @@ func load() (bundle, error) {
 // here, so tests can hold synthetic knowledge to exactly the same rules.
 func assemble(landscapeRaw, priorityRaw, packRaw []byte, factDefinitions []constraintengine.FactDefinition) (bundle, error) {
 	var result bundle
+	// Pack member names are checked exactly before decoding, and the
+	// attestation section is taken from the same function every other
+	// reader of a pack's attestations uses.
+	attestationSection, attested, err := lineattest.PackSection(packRaw)
+	if err != nil {
+		return bundle{}, ErrIntegrity
+	}
 	if strictJSON(landscapeRaw, &result.landscape) != nil || strictJSON(priorityRaw, &result.priority) != nil || strictJSON(packRaw, &result.pack) != nil {
 		return bundle{}, ErrIntegrity
 	}
-	var err error
+	if attested != (len(result.pack.LineAttestations) > 0) || !bytes.Equal(attestationSection, result.pack.LineAttestations) {
+		return bundle{}, ErrIntegrity
+	}
 	result.registry, err = constraintengine.NewCompiledRegistry(factDefinitions)
 	if err != nil {
 		return bundle{}, ErrIntegrity
@@ -185,26 +194,28 @@ func assemble(landscapeRaw, priorityRaw, packRaw []byte, factDefinitions []const
 	if _, err := result.ruleSet(""); err != nil {
 		return bundle{}, ErrIntegrity
 	}
-	if result.attestations, err = admitAttestations(result.pack); err != nil {
+	if result.attestations, err = admitAttestations(attestationSection, attested, result.pack.Entries); err != nil {
 		return bundle{}, err
 	}
 	return result, nil
 }
 
-// admitAttestations parses the pack's line attestations strictly and
-// requires every one to list exactly the pack's rules for its component,
-// line and fact family. Any disagreement rejects the whole pack: an
-// attestation that leaves out a rule would let a gap pass as covered.
-func admitAttestations(pack rulePack) (lineattest.Index, error) {
-	if len(pack.LineAttestations) == 0 {
+// admitAttestations parses the pack's line attestation section (as
+// lineattest.PackSection located it) strictly and requires every attestation
+// to list exactly the pack's rules for its component, line and fact family,
+// each of them matching every transition into the line. Any problem rejects
+// the whole pack: an attestation that leaves out a rule, or lists one that
+// is silent on part of the line, would let a gap pass as covered.
+func admitAttestations(section json.RawMessage, present bool, entries []Entry) (lineattest.Index, error) {
+	if !present {
 		return lineattest.NewIndex(nil), nil
 	}
-	atts, err := lineattest.Parse(pack.LineAttestations)
+	atts, err := lineattest.Parse(section)
 	if err != nil {
 		return lineattest.Index{}, ErrIntegrity
 	}
-	rules := make([]json.RawMessage, 0, len(pack.Entries))
-	for _, entry := range pack.Entries {
+	rules := make([]json.RawMessage, 0, len(entries))
+	for _, entry := range entries {
 		rules = append(rules, entry.Rule)
 	}
 	problems, err := lineattest.CheckRuleSets(atts, rules)
@@ -217,7 +228,9 @@ func admitAttestations(pack rulePack) (lineattest.Index, error) {
 // AttestationsFor returns the embedded pack's line attestations for one
 // component, minor release line and fact family, each with its freshness at
 // now. An empty result means the line is not attested for that family; only
-// an attestation whose freshness is current may be relied on.
+// an attestation whose freshness is current may be relied on. The caller's
+// contract is that of lineattest.Index.AttestationsFor: a listed rule that
+// does not match the hop being evaluated makes the hop a gap, never covered.
 func AttestationsFor(component, line, family string, now time.Time) ([]lineattest.Status, error) {
 	b, err := load()
 	if err != nil {

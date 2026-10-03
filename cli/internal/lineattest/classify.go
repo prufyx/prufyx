@@ -3,6 +3,7 @@
 package lineattest
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"time"
@@ -34,17 +35,22 @@ type Change struct {
 	// Fields names the changed members of a modified attestation, sorted.
 	Fields []string
 	// Renewal marks a loosening modification that changes only the times
-	// (reviewedAt, derivedAt, validUntil) and moves validUntil later, with
-	// the same basis, extractor, sources and rules: a lease renewal.
+	// and moves all of them forward: reviewedAt later, derivedAt later (when
+	// either side has one) and validUntil later, with the same completeness,
+	// rules, basis, extractor and sources: a lease renewal. Moving reviewedAt
+	// or derivedAt backwards (backdating), or extending validUntil without a
+	// later review, is a plain loosening change, never a renewal.
 	Renewal bool
 	// Basis is the basis of the attestation after the change (before it,
 	// for a removal).
 	Basis string
 }
 
-// Classify compares two attestation sets (each one per scope, as a
-// validated document guarantees) and returns every change in canonical
-// scope order. Unchanged attestations are not reported.
+// Classify compares two attestation sets and returns every change in
+// canonical scope order. Unchanged attestations are not reported. Each set
+// must hold at most one attestation per scope, as a validated document does;
+// a set with a duplicate scope is an error, never collapsed, because keeping
+// either copy could hide a change.
 //
 //   - removed: tightening (the line becomes a gap again);
 //   - added: loosening;
@@ -57,14 +63,14 @@ type Change struct {
 // person only with a reproducible derivation behind it; a loosening change
 // to a reviewed attestation needs a person. Classify does not decide
 // admissibility; it tells the caller which rule applies.
-func Classify(before, after []LineAttestation) []Change {
-	old := map[Key]LineAttestation{}
-	for _, a := range before {
-		old[a.Key()] = a
+func Classify(before, after []LineAttestation) ([]Change, error) {
+	old, err := byScope("before", before)
+	if err != nil {
+		return nil, err
 	}
-	cur := map[Key]LineAttestation{}
-	for _, a := range after {
-		cur[a.Key()] = a
+	cur, err := byScope("after", after)
+	if err != nil {
+		return nil, err
 	}
 	keys := make([]Key, 0, len(old)+len(cur))
 	for k := range old {
@@ -91,7 +97,18 @@ func Classify(before, after []LineAttestation) []Change {
 			}
 		}
 	}
-	return out
+	return out, nil
+}
+
+func byScope(side string, atts []LineAttestation) (map[Key]LineAttestation, error) {
+	out := make(map[Key]LineAttestation, len(atts))
+	for _, a := range atts {
+		if _, dup := out[a.Key()]; dup {
+			return nil, fmt.Errorf("%w: the %s set holds two attestations for %s", ErrInvalid, side, a.Key())
+		}
+		out[a.Key()] = a
+	}
+	return out, nil
 }
 
 func classifyModified(a, b LineAttestation) (Change, bool) {
@@ -136,7 +153,8 @@ func classifyModified(a, b LineAttestation) (Change, bool) {
 		return c, true
 	}
 	c.Class = Loosening
-	c.Renewal = !other && !timesUnknown && endLater
+	hasDerived := a.Evidence.DerivedAt != "" || b.Evidence.DerivedAt != ""
+	c.Renewal = !other && !timesUnknown && endLater && startLater && (!hasDerived || derivedLater)
 	return c, true
 }
 

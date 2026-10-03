@@ -76,6 +76,8 @@ func TestAttestationMustListExactlyThePackRules(t *testing.T) {
 		"rule of another line": {attestation("1.27", "kubernetes.csistoragecapacity-v1beta1-removed.1-26-0-to-1-27-0", rules126[1]), CheckAttestationExtraRule, rules126[1]},
 		"falsely quiet line":   {attestation("1.32"), CheckAttestationMissingRule, "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0"},
 		"other family":         {attestation("1.24", "kubernetes.in-tree-dockershim-removed.1-24"), CheckAttestationExtraRule, "kubernetes.in-tree-dockershim-removed.1-24"},
+		// The published 1.32 rule matches its anchor pair only.
+		"rule not line-wide": {attestation("1.32", "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0"), CheckAttestationRuleNotLineWide, "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			r := ValidateLineAttestations(doc(t, c.att), rules, AttestationOptions{})
@@ -119,5 +121,34 @@ func TestValidatePackAttestations(t *testing.T) {
 	bad, _ = json.Marshal(pack)
 	if r, err := ValidatePackAttestations(bad, AttestationOptions{}); err != nil || r.Valid {
 		t.Fatalf("a null section is valid: %+v %v", r, err)
+	}
+}
+
+// rulecheck locates the section through the same exact-name function as the
+// pack loader: a variant spelling is an error, never "no section, valid".
+func TestValidatePackAttestationsMatchesMemberNamesExactly(t *testing.T) {
+	raw, err := os.ReadFile("../../cncfcheck/data/rules.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	section := string(doc(t, attestation("1.30")))
+	withMembers := func(members string) []byte {
+		return []byte(strings.Replace(string(raw), `"entries":`, members+`"entries":`, 1))
+	}
+	if r, err := ValidatePackAttestations(withMembers(`"lineAttestations":`+section+`,`), AttestationOptions{}); err != nil || !r.Valid || r.EntryCount != 1 {
+		t.Fatalf("exact spelling: %+v %v", r, err)
+	}
+	for name, members := range map[string]string{
+		"LineAttestations": `"LineAttestations":` + section + `,`,
+		"LINEATTESTATIONS": `"LINEATTESTATIONS":` + section + `,`,
+		"long s":           `"lineAttestationſ":` + section + `,`,
+		"two spellings":    `"lineAttestations":` + section + `,"LineAttestations":` + section + `,`,
+		"repeated":         `"lineAttestations":` + section + `,"lineAttestations":` + section + `,`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			if r, err := ValidatePackAttestations(withMembers(members), AttestationOptions{}); err == nil {
+				t.Fatalf("accepted: %+v", r)
+			}
+		})
 	}
 }

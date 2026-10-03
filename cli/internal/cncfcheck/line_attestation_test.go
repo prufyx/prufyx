@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -229,5 +231,80 @@ func TestExternalBundleRefusesAttestations(t *testing.T) {
 	}
 	if err := validateExternalPack(base, value, "7"); !errors.Is(err, ErrIntegrity) {
 		t.Fatalf("validateExternalPack admitted attestations: %v", err)
+	}
+}
+
+// The published flowcontrol v1beta3 rule matches its anchor pair only, so a
+// 1.32 attestation listing it would present a hop such as 1.31.4 -> 1.32.1 as
+// covered while no rule matches it. The loader refuses it, and an attestation
+// leaving it out is a missing rule: 1.32 cannot be attested over this pack.
+func TestPackRejectsAttestationListingARuleThatIsNotLineWide(t *testing.T) {
+	const id = "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0"
+	for _, entry := range func() []Entry {
+		b, err := load()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return b.pack.Entries
+	}() {
+		tr, err := constraintengine.RuleTransitionOf(entry.Rule)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(entry.Rule), `"id":"`+id+`"`) && tr.Match("1.31.4", "1.32.1") != constraintengine.MatchNone {
+			t.Fatal("fixture assumption broken: the 1.32 rule now matches every hop into 1.32")
+		}
+	}
+	for name, ids := range map[string][]string{"listed": {id}, "left out": nil} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := assembleSynthetic(attestedPack(t, packSchemaAttested, section(t, testAttestation("1.32", ids))), nil); !errors.Is(err, ErrIntegrity) {
+				t.Fatalf("accepted: %v", err)
+			}
+		})
+	}
+}
+
+// The pack's member names are matched exactly before decoding: encoding/json
+// would serve a case or Unicode-folding variant as the attestation section
+// while a case-sensitive reader saw no section at all.
+func TestPackRejectsVariantSpellingsOfMembers(t *testing.T) {
+	good := attestedPack(t, packSchemaAttested, validAttestations(t))
+	if _, err := assembleSynthetic(good, nil); err != nil {
+		t.Fatalf("unmutated pack refused: %v", err)
+	}
+	only125 := section(t, testAttestation("1.25", line125Rules))
+	variants := map[string][]byte{
+		"two spellings": bytes.Replace(good, []byte(`"lineAttestations":`), append(append([]byte(`"lineAttestations":`), only125...), []byte(`,"LineAttestations":`)...), 1),
+		"repeated":      bytes.Replace(good, []byte(`"lineAttestations":`), append(append([]byte(`"lineAttestations":`), only125...), []byte(`,"lineAttestations":`)...), 1),
+		"other member":  bytes.Replace(good, []byte(`"entries":`), []byte(`"Entries":`), 1),
+	}
+	for _, alias := range []string{"LineAttestations", "LINEATTESTATIONS", "lineAttestationſ"} {
+		variants[alias] = bytes.Replace(good, []byte(`"lineAttestations"`), []byte(`"`+alias+`"`), 1)
+	}
+	for name, raw := range variants {
+		t.Run(name, func(t *testing.T) {
+			if bytes.Equal(raw, good) {
+				t.Fatal("fixture not mutated")
+			}
+			if _, err := assembleSynthetic(raw, nil); !errors.Is(err, ErrIntegrity) {
+				t.Fatalf("loader accepted: %v", err)
+			}
+		})
+	}
+}
+
+// The loader's pack type names exactly the members PackSection allows.
+func TestPackMembersMatchThePackType(t *testing.T) {
+	var names []string
+	typ := reflect.TypeOf(rulePack{})
+	for i := 0; i < typ.NumField(); i++ {
+		name, _, _ := strings.Cut(typ.Field(i).Tag.Get("json"), ",")
+		names = append(names, name)
+	}
+	want := append([]string{}, lineattest.PackMembers...)
+	sort.Strings(names)
+	sort.Strings(want)
+	if !slices.Equal(names, want) {
+		t.Fatalf("rulePack members %v, lineattest.PackMembers %v", names, want)
 	}
 }

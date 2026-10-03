@@ -133,7 +133,21 @@ func TestParseIsStrict(t *testing.T) {
 	}
 }
 
+// rule is a pack rule whose range covers the whole line of to when from is
+// the start of the previous minor line, as every published removal rule's
+// does; anchorRule is the same rule without a range.
 func rule(id, from, to string, facts ...string) json.RawMessage {
+	line, _ := LineOf(to)
+	major, minor := lineNumbers(line)
+	rng := fmt.Sprintf(`,"range":{"from":{"gte":%q,"lt":%q},"to":{"gte":%q,"lt":%q}}`, from, to, to, fmt.Sprintf("%d.%d.0", major, minor+1))
+	return ruleWith(id, from, to, rng, facts...)
+}
+
+func anchorRule(id, from, to string, facts ...string) json.RawMessage {
+	return ruleWith(id, from, to, "", facts...)
+}
+
+func ruleWith(id, from, to, rng string, facts ...string) json.RawMessage {
 	conds := ""
 	if len(facts) > 0 {
 		conds = fmt.Sprintf(`,"condition":{"side":"proposed","component":%q,"factId":%q,"boolValue":true}`, k8s, facts[0])
@@ -145,7 +159,7 @@ func rule(id, from, to string, facts ...string) json.RawMessage {
 		}
 		conds += `,"appliesWhen":[` + strings.Join(aw, ",") + `]`
 	}
-	return json.RawMessage(fmt.Sprintf(`{"id":%q,"operator":"forbid_predicate_value","subject":{"component":%q,"from":%q,"to":%q}%s}`, id, k8s, from, to, conds))
+	return json.RawMessage(fmt.Sprintf(`{"id":%q,"operator":"forbid_predicate_value","subject":{"component":%q,"from":%q,"to":%q}%s%s}`, id, k8s, from, to, rng, conds))
 }
 
 const (
@@ -270,15 +284,15 @@ func TestClassify(t *testing.T) {
 		"basis":         {[]LineAttestation{base}, []LineAttestation{toReviewed}, Change{Kind: ChangeModified, Class: Loosening, Basis: "reviewed", Fields: []string{"evidence.basis", "evidence.derivedAt", "evidence.extractor"}}},
 	} {
 		t.Run(name, func(t *testing.T) {
-			got := Classify(c.before, c.after)
+			got, err := Classify(c.before, c.after)
 			c.want.Key = base.Key()
-			if len(got) != 1 || fmt.Sprint(got[0]) != fmt.Sprint(c.want) {
+			if err != nil || len(got) != 1 || fmt.Sprint(got[0]) != fmt.Sprint(c.want) {
 				t.Fatalf("got %+v\nwant %+v", got, c.want)
 			}
 		})
 	}
-	if got := Classify([]LineAttestation{base}, []LineAttestation{base}); len(got) != 0 {
-		t.Fatalf("unchanged reported: %+v", got)
+	if got, err := Classify([]LineAttestation{base}, []LineAttestation{base}); err != nil || len(got) != 0 {
+		t.Fatalf("unchanged reported: %+v %v", got, err)
 	}
 	if !Renewable(base) || Renewable(reviewed("1.28")) {
 		t.Fatal("only mechanical attestations renew by re-derivation")
