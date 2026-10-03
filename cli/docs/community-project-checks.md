@@ -213,7 +213,7 @@ cp cli/examples/projects/grafana/broken.ini "$PREVIEW_DIR/grafana-proposed.ini"
   --now 2026-09-11T20:00:00Z
 ```
 
-Input must be a regular `0600` file without symlinks. The completeness and
+Input must be a regular file with an owner-only mode (`0600` or stricter, for example `0400`) without symlinks. The completeness and
 precedence flags are explicit caller declarations: use them only after the
 file represents all effective settings, including environment and CLI
 overrides. Without either declaration the relevant fact remains UNKNOWN.

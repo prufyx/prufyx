@@ -20,8 +20,10 @@ import (
 type PermissionPolicy int
 
 const (
-	// Strict refuses a file that is readable or writable by group or other:
-	// the mode must satisfy perm&0o077 == 0, so 0600 and 0400 are accepted.
+	// Strict refuses a file that is readable or writable by group or other
+	// (the mode must satisfy perm&0o077 == 0, so 0600 and 0400 are accepted),
+	// a file owned by another user than the effective user, and a file with
+	// more than one hard link.
 	Strict PermissionPolicy = iota
 	// RefuseWritable refuses a file that is writable by group or other. A file
 	// readable by group or other is accepted and counted in a notice.
@@ -30,11 +32,11 @@ const (
 
 // Default bounds. A zero Limits field selects the default.
 const (
-	DefaultFileBytes  int64 = 8 << 20
+	DefaultFileBytes  int64 = 2 << 20
 	DefaultTotalBytes int64 = 32 << 20
 	DefaultFiles            = 2048
 	DefaultDocuments        = 8192
-	DefaultNodes            = 2000000
+	DefaultNodes            = 500000
 )
 
 // Limits bounds one Open call. The nesting depth limit is MaxDepth.
@@ -42,7 +44,7 @@ type Limits struct {
 	FileBytes  int64 // bytes per file or stdin
 	TotalBytes int64 // bytes over all files
 	Files      int
-	Documents  int // YAML documents over all files
+	Documents  int // YAML documents and List items over all files
 	Nodes      int // YAML nodes over all files
 }
 
@@ -110,25 +112,35 @@ type opener struct {
 	nodes  int
 	docs   int
 	total  int64
-	seen   map[string]bool
+	seen   map[string]string // file identity -> display kept for it
 	out    Workspace
 }
+
+// stdinKey cannot collide with a file identity or a path: NUL is refused in paths.
+const stdinKey = "\x00stdin"
+
+// effectiveUID is the user a Strict input file must belong to.
+var effectiveUID = func() uint64 { return uint64(os.Geteuid()) }
 
 // Open reads files, directories and stdin ("-") into one Workspace.
 //
 // A directory is walked recursively in lexical order. Only regular files named
 // *.yaml, *.yml or *.json are read; hidden directories are skipped and
-// symlinks are never followed. Every component is opened through directory
+// symlinks are never followed. A symlink, or a pipe, socket or device with a
+// manifest extension, is recorded as an omission so the result never looks
+// more complete than it is; a regular file or directory that cannot be opened
+// is an error. Every component is opened through directory
 // descriptors, so replacing a path with a symlink while the walk runs cannot
 // lead outside the directory. A file named directly is read whatever its
-// extension, but it must still be a regular file and not a symlink.
+// extension, but it must still be a regular file and not a symlink. The same
+// file reached by two paths is read once, under the lexically smallest path.
 //
 // Documents are ordered by file display path, then document and item index.
 func Open(paths []string, opts Options) (Workspace, error) {
 	if len(paths) == 0 {
 		return Workspace{}, fmt.Errorf("%w: no input paths", ErrInput)
 	}
-	o := &opener{opts: opts, limits: opts.Limits.withDefaults(), seen: map[string]bool{}}
+	o := &opener{opts: opts, limits: opts.Limits.withDefaults(), seen: map[string]string{}}
 	o.nodes = o.limits.Nodes
 	for _, path := range paths {
 		if err := o.openPath(path); err != nil {
@@ -140,14 +152,14 @@ func Open(paths []string, opts Options) (Workspace, error) {
 
 func (o *opener) openPath(path string) error {
 	if path == "-" {
-		if o.seen["-"] {
+		if _, done := o.seen[stdinKey]; done {
 			return nil
 		}
 		reader := o.opts.Stdin
 		if reader == nil {
 			reader = os.Stdin
 		}
-		return o.consume("-", reader, -1, 0, ModeNotApplicable)
+		return o.consume(stdinKey, "-", reader, -1, 0, ModeNotApplicable)
 	}
 	if path == "" || strings.IndexByte(path, 0) >= 0 {
 		return fmt.Errorf("%w: empty or invalid path", ErrInput)
@@ -166,13 +178,20 @@ func (o *opener) openPath(path string) error {
 		}
 		defer dir.Close()
 		return o.walk(dir, filepath.Clean(path))
+	case !info.Mode().IsRegular():
+		// Not opened at all: opening a device can have side effects.
+		return fmt.Errorf("%w: %s is not a regular file or directory", ErrInput, path)
 	default:
 		file, err := validation.OpenInputRegularFile(path)
 		if err != nil {
 			return fmt.Errorf("%w: %s", ErrInput, path)
 		}
 		defer file.Close()
-		return o.readFile(file, filepath.Clean(path))
+		display := filepath.Clean(path)
+		if display == "-" {
+			display = "./-" // "-" alone means stdin
+		}
+		return o.readFile(file, display)
 	}
 }
 
@@ -184,37 +203,55 @@ func (o *opener) walk(dir *os.File, display string) error {
 	sort.Strings(names)
 	for _, name := range names {
 		child := filepath.Join(display, name)
-		if sub, err := validation.OpenEntryDirectory(dir, name); err == nil {
+		kind, err := validation.StatEntry(dir, name)
+		if err != nil {
+			return fmt.Errorf("%w: %s", ErrInput, child)
+		}
+		hidden := strings.HasPrefix(name, ".")
+		switch kind {
+		case validation.EntryDirectory:
 			// Hidden directories (.git, .terraform) are skipped.
-			if !strings.HasPrefix(name, ".") {
-				err = o.walk(sub, child)
+			if hidden {
+				continue
 			}
+			sub, err := validation.OpenEntryDirectory(dir, name)
+			if err != nil {
+				return fmt.Errorf("%w: %s cannot be opened", ErrInput, child)
+			}
+			err = o.walk(sub, child)
 			_ = sub.Close()
 			if err != nil {
 				return err
 			}
-			continue
-		}
-		if !isManifestName(name) {
-			continue
-		}
-		file, err := validation.OpenEntryFile(dir, name)
-		if err != nil {
-			// A symlink, or an entry replaced since it was listed.
-			continue
-		}
-		info, err := file.Stat()
-		if err != nil || !info.Mode().IsRegular() {
+		case validation.EntryRegular:
+			if !isManifestName(name) {
+				continue
+			}
+			file, err := validation.OpenEntryFile(dir, name)
+			if err != nil {
+				return fmt.Errorf("%w: %s cannot be opened", ErrInput, child)
+			}
+			err = o.readFile(file, child)
 			_ = file.Close()
-			continue
-		}
-		err = o.readFile(file, child)
-		_ = file.Close()
-		if err != nil {
-			return err
+			if err != nil {
+				return err
+			}
+		case validation.EntrySymlink:
+			if !hidden {
+				o.omit(child, ReasonSymlinkNotFollowed)
+			}
+		default:
+			if isManifestName(name) {
+				o.omit(child, ReasonNotRegularFile)
+			}
 		}
 	}
 	return nil
+}
+
+// omit records an entry that was seen and deliberately not read.
+func (o *opener) omit(display string, reason Reason) {
+	o.out.Omissions = append(o.out.Omissions, Omission{Source: Source{Display: display, Item: -1}, Reason: reason})
 }
 
 func isManifestName(name string) bool {
@@ -230,10 +267,8 @@ func (o *opener) readFile(file *os.File, display string) error {
 	if err != nil || !info.Mode().IsRegular() {
 		return fmt.Errorf("%w: %s is not a regular file", ErrInput, display)
 	}
-	if o.seen[display] {
-		return nil
-	}
 	perm := info.Mode().Perm()
+	identity, haveIdentity := validation.IdentityOf(info)
 	result := ModePrivate
 	switch o.opts.Permissions {
 	case RefuseWritable:
@@ -244,16 +279,56 @@ func (o *opener) readFile(file *os.File, display string) error {
 		if perm&0o077 != 0 {
 			return fmt.Errorf("%w: %s is accessible by group or other (mode %04o)", ErrPermissions, display, perm)
 		}
+		if !haveIdentity {
+			return fmt.Errorf("%w: %s: owner and link count cannot be checked", ErrPermissions, display)
+		}
+		if identity.Uid != effectiveUID() {
+			return fmt.Errorf("%w: %s is owned by another user", ErrPermissions, display)
+		}
+		if identity.Nlink != 1 {
+			return fmt.Errorf("%w: %s has more than one hard link", ErrPermissions, display)
+		}
 	}
 	if perm&0o044 != 0 {
 		result = ModeReadableByOthers
 	}
-	return o.consume(display, file, info.Size(), perm, result)
+	key := display
+	if haveIdentity {
+		key = fmt.Sprintf("%d:%d", identity.Dev, identity.Ino)
+	}
+	if kept, done := o.seen[key]; done {
+		// The same file reached by another spelling: keep one record, under
+		// the lexically smallest display, whatever the argument order.
+		if display < kept {
+			o.rename(kept, display)
+			o.seen[key] = display
+		}
+		return nil
+	}
+	return o.consume(key, display, file, info.Size(), perm, result)
+}
+
+func (o *opener) rename(from, to string) {
+	for i := range o.out.Files {
+		if o.out.Files[i].Display == from {
+			o.out.Files[i].Display = to
+		}
+	}
+	for i := range o.out.Documents {
+		if o.out.Documents[i].Source.Display == from {
+			o.out.Documents[i].Source.Display = to
+		}
+	}
+	for i := range o.out.Omissions {
+		if o.out.Omissions[i].Source.Display == from {
+			o.out.Omissions[i].Source.Display = to
+		}
+	}
 }
 
 // consume reads at most FileBytes from reader and decodes it. size is the
 // size reported by the filesystem, or -1 when unknown.
-func (o *opener) consume(display string, reader io.Reader, size int64, perm os.FileMode, result ModeResult) error {
+func (o *opener) consume(key, display string, reader io.Reader, size int64, perm os.FileMode, result ModeResult) error {
 	if len(o.out.Files) >= o.limits.Files {
 		return limitError("files", int64(o.limits.Files))
 	}
@@ -271,7 +346,7 @@ func (o *opener) consume(display string, reader io.Reader, size int64, perm os.F
 	if o.total > o.limits.TotalBytes {
 		return limitError("bytes total", o.limits.TotalBytes)
 	}
-	o.seen[display] = true
+	o.seen[key] = display
 	sum := sha256.Sum256(raw)
 	record := FileRecord{Display: display, Digest: "sha256:" + hex.EncodeToString(sum[:]), Size: int64(len(raw)), Mode: perm, Policy: result}
 	o.out.Files = append(o.out.Files, record)
@@ -297,16 +372,10 @@ func (o *opener) consume(display string, reader io.Reader, size int64, perm os.F
 		return fmt.Errorf("%w: %s", ErrDecode, display)
 	}
 	o.nodes = nodes
-	fileDocs := 0
-	for _, document := range decoded.Documents {
-		if document.Source.Document+1 > fileDocs {
-			fileDocs = document.Source.Document + 1
-		}
-	}
-	for _, omission := range decoded.Omissions {
-		if omission.Source.Document+1 > fileDocs {
-			fileDocs = omission.Source.Document + 1
-		}
+	// Every document, every List item and every omission counts.
+	fileDocs := len(decoded.Documents) + len(decoded.Omissions)
+	if o.docs+fileDocs > o.limits.Documents {
+		return limitError("documents", int64(o.limits.Documents))
 	}
 	o.docs += fileDocs
 	o.out.Documents = append(o.out.Documents, decoded.Documents...)

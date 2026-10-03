@@ -84,8 +84,12 @@ The unreleased [CNCF preview](CNCF-SOURCE-PREVIEW.md) accepts only minimized loc
 operator declarations: public component identities, numeric versions and
 compiled boolean or finite-enum facts. It rejects unknown fields, arbitrary
 configuration strings and raw argument arrays. Parsing those declarations does
-not establish cluster observation. Input and replay files require private mode
-0600, bounded regular-file reads and no symlinks or hardlinks. Reports retain
+not establish cluster observation. Input and replay files require an
+owner-only mode (0600 or stricter, for example 0400), bounded regular-file reads
+and no symlinks or hardlinks. Where a command reads a directory of manifests,
+its strict input policy additionally requires that the current user owns each
+file and that it has a single hard link; symlinks and special files met in the
+directory are reported as omissions, never followed. Reports retain
 input hashes and public rule evidence; the CLI does not echo rejected input or
 local paths. Evaluation reads no network endpoint and persists no input file.
 Its generic rule pack is embedded by default. An explicit signed CNCF selection

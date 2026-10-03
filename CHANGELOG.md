@@ -9,6 +9,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- Input files that must be private are now accepted with any owner-only mode
+  (`0600`, `0400`, `0700`, ...); only a group or other permission bit is refused.
+  This applies to every `check cncf` route that reads a private input file.
 - Human output of `check cncf` on the Kubernetes native-resource route and
   the other native-resource routes, and of the generic `--input` preview, is
   shorter and answers first. `PASS` claims are counted instead of listed

@@ -26,7 +26,7 @@ Exit codes follow every other check: `10` when a reviewed rule is `BLOCKED`,
 ## Selection document
 
 The selection document and every file it names must be regular files with
-mode `0600`, at most 1 MiB each, named by absolute, clean paths with no
+an owner-only mode (`0600` or stricter, for example `0400`), at most 1 MiB each, named by absolute, clean paths with no
 symbolic link. JSON is accepted wherever YAML is.
 
 ```yaml

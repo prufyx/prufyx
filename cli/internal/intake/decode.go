@@ -67,6 +67,26 @@ type limitReached struct{ limit string }
 
 func (e limitReached) Error() string { return "limit reached: " + e.limit }
 
+// structuralTokens returns a cheap upper bound on the number of YAML nodes in
+// raw, from bytes alone: every flow indicator, comma, colon and line break, and
+// every dash that starts a sequence entry, can introduce at most one node, plus
+// one for the root. It lets the caller refuse input before the YAML decoder
+// allocates a tree that is roughly two hundred bytes per node.
+func structuralTokens(raw []byte) int {
+	count := 1
+	for i, b := range raw {
+		switch b {
+		case '[', '{', ',', ':', '\n', '\r':
+			count++
+		case '-':
+			if i+1 == len(raw) || raw[i+1] == ' ' || raw[i+1] == '\n' || raw[i+1] == '\r' || raw[i+1] == '\t' {
+				count++
+			}
+		}
+	}
+	return count
+}
+
 func decodeDocuments(raw []byte, opts decodeOptions) ([]any, error) {
 	decoder := yaml.NewDecoder(bytes.NewReader(raw))
 	documents := make([]any, 0, 1)
@@ -74,6 +94,9 @@ func decodeDocuments(raw []byte, opts decodeOptions) ([]any, error) {
 	budget := &local
 	if opts.nodes != nil {
 		budget = opts.nodes
+	}
+	if structuralTokens(raw) > *budget {
+		return nil, limitReached{"nodes"}
 	}
 	maxDocuments := MaxDocuments
 	if opts.maxDocuments != 0 {

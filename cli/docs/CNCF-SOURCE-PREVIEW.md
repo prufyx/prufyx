@@ -40,7 +40,7 @@ prufyx check cncf --project SLUG --input FILE --now RFC3339 \
 
 `prepare cncf` is a pure local transformation for a project-specific private JSON
 resource or declaration. Kyverno accepts a proposed Pod or `apps/v1` Deployment
-JSON document. The source file must be a regular private file with mode `0600`; the command does not write it. Select the intended
+JSON document. The source file must be a regular private file with an owner-only mode (`0600` or stricter, for example `0400`); the command does not write it. Select the intended
 container explicitly. A scoped result requires the explicit operator declaration
 `--distribution official_upstream` and a literal bare `reports-controller`
 command, with `command[1:]` followed by `args`. Image entrypoints,
@@ -183,7 +183,7 @@ prufyx catalog cncf --priority
 prufyx catalog cncf --project helm --format json
 ```
 
-The generic check accepts one local JSON file containing minimized, operator-declared current and proposed component identities and facts. The file must be a regular private file with mode `0600`; symlinks, permissive files, oversized files, malformed JSON, and untyped values are rejected. The CLI reads bytes locally and does not collect a cluster, inspect live state, invoke a model, download a database, or upload data.
+The generic check accepts one local JSON file containing minimized, operator-declared current and proposed component identities and facts. The file must be a regular private file with an owner-only mode (`0600` or stricter, for example `0400`); symlinks, permissive files, oversized files, malformed JSON, and untyped values are rejected. The CLI reads bytes locally and does not collect a cluster, inspect live state, invoke a model, download a database, or upload data.
 
 The current embedded preview has 158 exact rules across 54 rule projects, 123
 registered boolean or finite-enum facts, and 842 rule-scoped cases. The

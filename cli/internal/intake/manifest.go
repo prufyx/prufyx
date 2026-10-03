@@ -30,6 +30,12 @@ const (
 	// is not v1, no items, an item that is not an object, or invalid list
 	// metadata.
 	ReasonListShape Reason = "LIST_SHAPE_UNRESOLVED"
+	// ReasonSymlinkNotFollowed marks a symlink met while walking a directory.
+	// Symlinks are never followed, so the file it names is not read.
+	ReasonSymlinkNotFollowed Reason = "SYMLINK_NOT_FOLLOWED"
+	// ReasonNotRegularFile marks a pipe, socket or device with a manifest
+	// extension met while walking a directory.
+	ReasonNotRegularFile Reason = "NOT_REGULAR_FILE"
 )
 
 // Source says where a document came from. Display is the path as the caller
