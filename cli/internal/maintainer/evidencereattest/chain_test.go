@@ -212,7 +212,7 @@ func TestReviewRecordsMustBindToRuleVersionAndChain(t *testing.T) {
 			r["subject"].(map[string]any)["project"] = "another-project"
 		})}, "names a different rule or project"},
 		"older rule version":             {map[string][]byte{target: testReviewRecord(t, c1.res.NextPack, target, t3.Add(-time.Hour), "Individual Reviewer")}, "not bound to the rule's current version"},
-		"already counted, byte appended": {map[string][]byte{sampledInC2: append(append([]byte(nil), c2Record...), ' ')}, "not bound to the rule's current version"},
+		"already counted, byte appended": {map[string][]byte{sampledInC2: append(append([]byte(nil), c2Record...), ' ')}, "is not a well-formed review record"},
 		"not later than last review":     {map[string][]byte{sampledInC2: testReviewRecord(t, prior, sampledInC2, c2.at.Add(-2*time.Hour), "Another Reviewer")}, "is not later than the rule's last individual review recorded in the chain"},
 		"decided after attestedAt":       {map[string][]byte{target: testReviewRecord(t, prior, target, t3.Add(time.Hour), "Individual Reviewer")}, "was decided after attestedAt"},
 		"rule not in pack":               {map[string][]byte{"ghost-rule": good}, "review record ghost-rule names no rule in the pack"},
@@ -428,7 +428,7 @@ func TestFutureAttestedAtIsRejectedByPrepareSignAndChain(t *testing.T) {
 		t.Fatalf("expected Prepare to require a clock, got %v", err)
 	}
 	opts.Now = baseNow
-	opts.ReviewRecords = singleRecords(t, pack)
+	opts = withSampleRecords(t, opts)
 	res, err := Prepare(opts)
 	if err != nil {
 		t.Fatal(err)
@@ -497,14 +497,11 @@ func TestPrepareRenewsOnlyRulesWhoseValidUntilMovesLater(t *testing.T) {
 		soonest: {"rule-01": reasonNotLaterThanCurrent, "rule-02": reasonNotLaterThanCurrent},
 		latest:  {"rule-03": reasonNotYetDue},
 	} {
-		res, err := Prepare(PrepareOptions{
+		res, reviews := prepareWithSample(t, PrepareOptions{
 			WorklistRaw: worklistRaw, PackName: PackCNCF, PackPath: chainPackPath, PackRaw: pack, Chain: &Chain{},
 			Wave: wave, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, ReviewRecords: records,
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		c := cycle{res: res, worklistRaw: worklistRaw, prior: pack, at: baseNow, reviews: records}
+		c := cycle{res: res, worklistRaw: worklistRaw, prior: pack, at: baseNow, reviews: reviews}
 		if cyclesOf(c, "rule-00") != 1 {
 			t.Fatalf("wave %d: expected rule-00 renewed, got %q", wave, renewedIDs(res))
 		}

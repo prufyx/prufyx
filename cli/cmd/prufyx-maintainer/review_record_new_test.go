@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -299,5 +300,93 @@ func TestReviewRecordNewPrepareSignVerify(t *testing.T) {
 	writeFile(t, filepath.Join(tampered, f.sampled+".json"), append(edited, '\n'))
 	if err := verify(tampered); exitCode(err) == 0 {
 		t.Fatal("verify accepted a tampered record")
+	}
+}
+
+// --individual writes an individual review of a renewed rule that the
+// statement did not sample.
+func TestReviewRecordNewIndividual(t *testing.T) {
+	f := newSampleCLIFixture(t)
+	path := filepath.Join(f.reviews, f.unsampled+".json")
+	var stdout, stderr bytes.Buffer
+	if err := run(f.newArgs(f.unsampled, path, "--individual"), &stdout, &stderr); err != nil {
+		t.Fatalf("review-record new --individual: %v %s", err, stderr.String())
+	}
+	record, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(record, []byte(`"scope":"ONE_INDIVIDUALLY_REVIEWED_RULE_OF_ONE_PREPARED_STATEMENT"`)) {
+		t.Fatalf("not an individual review: %s", record)
+	}
+	statement := f.prepare(t, "out2", f.at.Add(10*time.Minute))
+	recorded := false
+	for _, r := range statement.IndividualReviews {
+		recorded = recorded || (r.RuleID == f.unsampled && r.ReviewRecordDigest == sourcecorpus.SHA(record))
+	}
+	if !recorded {
+		t.Fatalf("the individual review is not recorded: %+v", statement.IndividualReviews)
+	}
+}
+
+// The dispatcher refuses a repeated option in either spelling.
+func TestDuplicateOptionInEitherSpellingIsRefused(t *testing.T) {
+	f := newSampleCLIFixture(t)
+	out := filepath.Join(f.dir, f.sampled+".json")
+	for _, extra := range [][]string{{"-rule", f.unsampled}, {"-rule=" + f.unsampled}, {"--rule=" + f.unsampled}} {
+		var stdout, stderr bytes.Buffer
+		err := run(f.newArgs(f.sampled, out, extra...), &stdout, &stderr)
+		var command *commandError
+		if !errors.As(err, &command) || command.code != 2 || command.message != "prufyx-maintainer: duplicate option rejected" {
+			t.Fatalf("%v: %v", extra, err)
+		}
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatal("a record was written")
+	}
+	if !duplicateLongFlag([]string{"--a", "1", "-a", "2"}, nil) || duplicateLongFlag([]string{"--n", "-1", "--m", "-1"}, nil) || duplicateLongFlag([]string{"--a", "x", "--", "--a"}, nil) {
+		t.Fatal("duplicateLongFlag spelling rules")
+	}
+}
+
+// writeNewFile never replaces an existing file or symlink, and leaves
+// nothing behind when it refuses.
+func TestWriteNewFileLeavesNothingBehind(t *testing.T) {
+	dir := t.TempDir()
+	existing := filepath.Join(dir, "a.json")
+	writeFile(t, existing, []byte("old"))
+	if err := writeNewFile(existing, []byte("new")); !errors.Is(err, os.ErrExist) {
+		t.Fatalf("existing file: %v", err)
+	}
+	dangling := filepath.Join(dir, "b.json")
+	if err := os.Symlink(filepath.Join(dir, "missing"), dangling); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeNewFile(dangling, []byte("new")); !errors.Is(err, os.ErrExist) {
+		t.Fatalf("dangling symlink: %v", err)
+	}
+	if err := writeNewFile(filepath.Join(dir, "missing-dir", "c.json"), []byte("new")); err == nil {
+		t.Fatal("write into a missing directory succeeded")
+	}
+	if err := writeNewFile(filepath.Join(dir, "d.json"), []byte("data")); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	if strings.Join(names, ",") != "a.json,b.json,d.json" {
+		t.Fatalf("directory holds %v", names)
+	}
+	if got, _ := os.ReadFile(existing); string(got) != "old" {
+		t.Fatal("an existing file was replaced")
+	}
+	info, err := os.Stat(filepath.Join(dir, "d.json"))
+	if err != nil || info.Mode().Perm() != 0o644 {
+		t.Fatalf("mode: %v %v", info, err)
 	}
 }

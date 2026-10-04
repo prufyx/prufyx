@@ -18,7 +18,6 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgesign"
-	"github.com/prufyx/prufyx/cli/internal/maintainer/reviewrecord"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 	"github.com/theupdateframework/go-tuf/v2/metadata"
 )
@@ -107,14 +106,29 @@ func newReattestFixture(t *testing.T) reattestFixture {
 		t.Fatal(err)
 	}
 	writeFile(t, f.worklist, worklist)
-	writeFile(t, filepath.Join(f.reviews, "rule-a.json"), reattestReviewRecord(t, rule, "proj-a", at.Add(-30*time.Minute)))
 
+	// Prepare, write the sampled rule's review with review-record new, and
+	// prepare again, as a maintainer does.
 	var stdout, stderr bytes.Buffer
-	if err := run([]string{"evidence", "reattest", "prepare", "--worklist", f.worklist, "--pack", "cncf", "--rules", f.rules,
-		"--rules-worklist-path", reattestWorklistPackPath, "--next-revision", "rev-2", "--wave", "1", "--output-dir", f.out,
-		"--statement-chain-dir", f.chain, "--review-record-dir", f.reviews, "--attested-at", at.Format(time.RFC3339)}, &stdout, &stderr); err != nil {
-		t.Fatalf("prepare: %v %s", err, stderr.String())
+	prepare := func(attestedAt time.Time) {
+		t.Helper()
+		if err := os.RemoveAll(f.out); err != nil {
+			t.Fatal(err)
+		}
+		stdout.Reset()
+		if err := run([]string{"evidence", "reattest", "prepare", "--worklist", f.worklist, "--pack", "cncf", "--rules", f.rules,
+			"--rules-worklist-path", reattestWorklistPackPath, "--next-revision", "rev-2", "--wave", "1", "--output-dir", f.out,
+			"--statement-chain-dir", f.chain, "--review-record-dir", f.reviews, "--attested-at", attestedAt.Format(time.RFC3339)}, &stdout, &stderr); err != nil {
+			t.Fatalf("prepare: %v %s", err, stderr.String())
+		}
 	}
+	prepare(at)
+	if err := run([]string{"review-record", "new", "--statement", filepath.Join(f.out, "statement.json"), "--pack", "cncf",
+		"--rules", f.rules, "--rules-worklist-path", reattestWorklistPackPath, "--worklist", f.worklist, "--rule", "rule-a",
+		"--reviewer", "airstand", "--decided-at", at.Add(time.Minute).Format(time.RFC3339), "--output", filepath.Join(f.reviews, "rule-a.json")}, &stdout, &stderr); err != nil {
+		t.Fatalf("review-record new: %v %s", err, stderr.String())
+	}
+	prepare(at.Add(2 * time.Minute))
 	if !strings.Contains(stdout.String(), "eligible=1 sampled=1") {
 		t.Fatalf("prepare: unexpected output %q", stdout.String())
 	}
@@ -163,42 +177,6 @@ func newReattestFixture(t *testing.T) reattestFixture {
 	}
 	writeFile(t, f.envelope, append(envelope, '\n'))
 	return f
-}
-
-// reattestReviewRecord renders a structurally valid individual review
-// record for rule, bound to the rule's exact content, decided at decidedAt.
-func reattestReviewRecord(t *testing.T, rule map[string]any, project string, decidedAt time.Time) []byte {
-	t.Helper()
-	ruleRaw, err := json.Marshal(rule)
-	if err != nil {
-		t.Fatal(err)
-	}
-	value, err := sourcecorpus.DecodeBounded(ruleRaw, int64(len(ruleRaw)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	canonical, err := sourcecorpus.Canonical(value)
-	if err != nil {
-		t.Fatal(err)
-	}
-	other := "sha256:" + strings.Repeat("d", 64)
-	raw, err := json.Marshal(map[string]any{
-		"schema": reviewrecord.RecordSchema,
-		"decision": map[string]any{
-			"authority": "DECLARED_MAINTAINER_DECISION_NOT_AUTHENTICATED", "state": "ACCEPTED_FOR_SIGNING_REVIEW",
-			"maintainer": "Test Reviewer", "decidedAt": decidedAt.UTC().Format(time.RFC3339), "scope": "ONE_RULE_CONSISTENCY_ONLY",
-		},
-		"subject": map[string]any{"project": project, "ruleId": rule["id"], "knowledgeRevision": "1", "evaluationAt": decidedAt.UTC().Format(time.RFC3339)},
-		"bindings": map[string]any{
-			"packetDigest": other, "packetReceiptDigest": other, "sourceReceiptDigest": other, "sourceCorpusManifestDigest": other,
-			"sourceCorpusReceiptDigest": other, "vectorFileDigest": other, "selectedVectorGroupDigest": other, "targetDigest": other,
-			"engineCapabilityDigest": other, "ruleDigest": sourcecorpus.SHA(canonical), "ruleEvidenceDigest": other,
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return append(raw, '\n')
 }
 
 func (f reattestFixture) verifyArgs(extra ...string) []string {

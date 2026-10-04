@@ -471,9 +471,16 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 
 	sampledEntries := make([]SampledEntry, 0, len(sampled))
 	for _, id := range sampled {
-		// Only a new individual review satisfies the sample: a record the
-		// chain already counted once for this rule leaves the entry empty.
-		sampledEntries = append(sampledEntries, SampledEntry{RuleID: id, ReviewRecordDigest: fresh[id]})
+		// Only a new individual review in the sample review format
+		// (review-record new) satisfies the sample: a record the chain
+		// already counted once for this rule, or a declared review record,
+		// leaves the entry empty. A declared record still counts as the
+		// rule's individual review.
+		digest := fresh[id]
+		if !IsSampleReview(records[id]) {
+			digest = ""
+		}
+		sampledEntries = append(sampledEntries, SampledEntry{RuleID: id, ReviewRecordDigest: digest})
 	}
 	sort.Slice(sampledEntries, func(i, j int) bool { return sampledEntries[i].RuleID < sampledEntries[j].RuleID })
 
@@ -985,10 +992,12 @@ func hasRange(raw json.RawMessage) bool {
 
 // sampleRuleIDs implements the seeded 10% audit: sort
 // eligible rule IDs by sha256(worklistDigest || ruleId) and take the first
-// sampleSize. The seed is entirely a function of inputs the maintainer does
-// not control after the fact (the worklist digest and the rule IDs
-// themselves), so the sample cannot be chosen or predicted before repin
-// runs.
+// sampleSize. The seed is the worklist digest, so the sample is fixed once
+// the worklist bytes and the eligible set are. It is not an audit the signer
+// cannot steer: the digest covers the worklist's exact bytes (whitespace and
+// key order included, which the checks of the citations ignore), and the
+// wave, attestedAt and any new individual review change the eligible set.
+// Each of these can move the sample before signing.
 func sampleRuleIDs(worklistDigest string, eligibleIDs []string, sampleSize int) []string {
 	if sampleSize <= 0 || len(eligibleIDs) == 0 {
 		return nil
@@ -1084,6 +1093,11 @@ func renderSummary(statement Statement, opts PrepareOptions, entries []packEntry
 	fmt.Fprintf(&b, "sampled for full review (must be individually reviewed before signing):\n")
 	for _, s := range statement.SampledForFullReview {
 		status := "MISSING REVIEW RECORD"
+		for _, r := range statement.IndividualReviews {
+			if r.RuleID == s.RuleID && s.ReviewRecordDigest == "" {
+				status = "MISSING REVIEW RECORD (a declared review record does not satisfy the sample: write one with review-record new)"
+			}
+		}
 		if s.ReviewRecordDigest != "" {
 			status = s.ReviewRecordDigest
 		}

@@ -219,8 +219,16 @@ func duplicateLongFlag(args []string, repeatable []string) bool {
 	}
 	seen := map[string]bool{}
 	for _, arg := range args {
-		if !strings.HasPrefix(arg, "--") || arg == "--" {
-			continue
+		if arg == "--" {
+			break
+		}
+		// Go's flag package accepts -name as well as --name: both spell
+		// the same option. A lone "-" and negative numbers are values.
+		if !strings.HasPrefix(arg, "--") {
+			if len(arg) < 2 || arg[0] != '-' || (arg[1] >= '0' && arg[1] <= '9') {
+				continue
+			}
+			arg = "-" + arg
 		}
 		name := strings.SplitN(arg, "=", 2)[0]
 		if seen[name] && !allowed[name] {

@@ -39,6 +39,11 @@ const (
 	sampleReviewAuthority = "DECLARED_REVIEWER_DECISION_NOT_AUTHENTICATED"
 	sampleReviewState     = "RULE_CONFIRMED_AT_COMPARED_COMMITS"
 	sampleReviewScope     = "ONE_SAMPLED_RULE_OF_ONE_PREPARED_STATEMENT"
+	// individualReviewScope is the scope of an individual review record
+	// (review-record new --individual): the review of one rule the
+	// statement renews, whether or not it is sampled, typically one whose
+	// consecutive-batch-cycle count must be reset.
+	individualReviewScope = "ONE_INDIVIDUALLY_REVIEWED_RULE_OF_ONE_PREPARED_STATEMENT"
 )
 
 // sampleReviewLimitations is the fixed text every sample review record
@@ -116,6 +121,11 @@ type SampleReviewOptions struct {
 	DecidedAt              time.Time
 	// Now is the caller's clock: a decision in the future is refused.
 	Now time.Time
+	// Individual selects the individual review scope: the rule need not be
+	// sampled, but must be renewed by the statement or excluded from it only
+	// by the consecutive-batch-cycle cap. Its citations are computed from
+	// the worklist and the prior pack.
+	Individual bool
 }
 
 // NewSampleReview renders the sample review record for one rule a prepared
@@ -178,33 +188,50 @@ func NewSampleReview(opts SampleReviewOptions) ([]byte, error) {
 	for _, s := range statement.SampledForFullReview {
 		sampled = sampled || s.RuleID == opts.RuleID
 	}
-	if !sampled {
-		return reject("rule %s is not sampled for full review in this statement", opts.RuleID)
-	}
 	var ra *RuleAttestation
 	for i := range statement.Rules {
 		if statement.Rules[i].RuleID == opts.RuleID {
 			ra = &statement.Rules[i]
 		}
 	}
-	if ra == nil || ra.Project != candidate.Project {
+	capped := false
+	for _, ne := range statement.NotExtended {
+		capped = capped || (ne.RuleID == opts.RuleID && ne.WorstClass == reasonConsecutiveCycleCap)
+	}
+	switch {
+	case !opts.Individual && !sampled:
+		return reject("rule %s is not sampled for full review in this statement", opts.RuleID)
+	case !opts.Individual && ra == nil:
 		return reject("rule %s is not renewed by this statement under its own project", opts.RuleID)
+	case opts.Individual && ra == nil && !capped:
+		return reject("rule %s is neither renewed by this statement nor held back only by the consecutive-cycle cap", opts.RuleID)
 	}
 	ruleDigest, _, sourcesDigest, err := ruleDigestAndEvidence(candidate.Raw)
-	if err != nil || ra.PriorRuleDigest != ruleDigest || ra.SourcesDigest != sourcesDigest {
-		return reject("rule %s in the statement is not the rule in the prior pack", opts.RuleID)
+	if err != nil {
+		return nil, err
 	}
 	citations, err := worklistCitationAttestations(opts.WorklistRaw, opts.PackPath, candidate)
 	if err != nil {
 		return nil, err
 	}
-	want, err := canonicalBytes(citations)
-	if err != nil {
-		return nil, err
+	if len(citations) == 0 {
+		return reject("rule %s has no citation in the worklist", opts.RuleID)
 	}
-	got, err := canonicalBytes(ra.Citations)
-	if err != nil || !bytes.Equal(want, got) {
-		return reject("rule %s's citations in the statement are not the worklist's", opts.RuleID)
+	if ra != nil {
+		if ra.Project != candidate.Project {
+			return reject("rule %s is not renewed by this statement under its own project", opts.RuleID)
+		}
+		if ra.PriorRuleDigest != ruleDigest || ra.SourcesDigest != sourcesDigest {
+			return reject("rule %s in the statement is not the rule in the prior pack", opts.RuleID)
+		}
+		want, err := canonicalBytes(citations)
+		if err != nil {
+			return nil, err
+		}
+		got, err := canonicalBytes(ra.Citations)
+		if err != nil || !bytes.Equal(want, got) {
+			return reject("rule %s's citations in the statement are not the worklist's", opts.RuleID)
+		}
 	}
 	if opts.DecidedAt.IsZero() || opts.Now.IsZero() {
 		return reject("the decision time and the caller's clock are required")
@@ -220,17 +247,21 @@ func NewSampleReview(opts SampleReviewOptions) ([]byte, error) {
 	if decidedAt.After(opts.Now.UTC()) {
 		return reject("the decision time is in the future")
 	}
-	bindings, err := sampleReviewBindingsFor(statement, *ra, candidate.Raw)
+	bindings, err := sampleReviewBindingsFor(statement, candidate.Raw, citations)
 	if err != nil {
 		return nil, err
+	}
+	scope := sampleReviewScope
+	if opts.Individual {
+		scope = individualReviewScope
 	}
 	record := SampleReviewRecord{
 		Schema: SampleReviewSchema,
 		Decision: SampleReviewDecision{
 			Authority: sampleReviewAuthority, State: sampleReviewState, Reviewer: opts.Reviewer,
-			DecidedAt: decidedAt.Format(time.RFC3339), Scope: sampleReviewScope,
+			DecidedAt: decidedAt.Format(time.RFC3339), Scope: scope,
 		},
-		Subject:     sampleReviewSubjectFor(statement, *ra),
+		Subject:     sampleReviewSubjectFor(statement, candidate.Project, opts.RuleID),
 		Bindings:    bindings,
 		Limitations: append([]string(nil), sampleReviewLimitations...),
 	}
@@ -291,13 +322,14 @@ func worklistCitationAttestations(worklistRaw []byte, packPath string, candidate
 }
 
 // sampleReviewBindingsFor computes a sample review record's bindings from a
-// statement, the rule's entry in it, and the rule's exact prior-pack bytes.
-func sampleReviewBindingsFor(statement Statement, ra RuleAttestation, ruleRaw json.RawMessage) (SampleReviewBindings, error) {
-	_, evidenceDigest, _, err := ruleDigestAndEvidence(ruleRaw)
+// statement, the rule's exact prior-pack bytes and the rule's citations as
+// Prepare renders them (citationAttestationsFor).
+func sampleReviewBindingsFor(statement Statement, ruleRaw json.RawMessage, ruleCitations []CitationAttestation) (SampleReviewBindings, error) {
+	ruleDigest, evidenceDigest, sourcesDigest, err := ruleDigestAndEvidence(ruleRaw)
 	if err != nil {
 		return SampleReviewBindings{}, err
 	}
-	citations, err := canonicalBytes(ra.Citations)
+	citations, err := canonicalBytes(ruleCitations)
 	if err != nil {
 		return SampleReviewBindings{}, err
 	}
@@ -305,15 +337,15 @@ func sampleReviewBindingsFor(statement Statement, ra RuleAttestation, ruleRaw js
 		PriorPackDigest:        statement.Pack.Prior.PackDigest,
 		WorklistDigest:         statement.Worklist.Digest,
 		EngineCapabilityDigest: statement.Pack.EngineCapabilityDigest,
-		RuleDigest:             ra.PriorRuleDigest,
+		RuleDigest:             ruleDigest,
 		RuleEvidenceDigest:     evidenceDigest,
-		SourcesDigest:          ra.SourcesDigest,
+		SourcesDigest:          sourcesDigest,
 		CitationsDigest:        sourcecorpus.SHA(citations),
 	}, nil
 }
 
-func sampleReviewSubjectFor(statement Statement, ra RuleAttestation) SampleReviewSubject {
-	return SampleReviewSubject{Pack: statement.Pack.Name, PriorRevision: statement.Pack.Prior.Revision, Project: ra.Project, RuleID: ra.RuleID}
+func sampleReviewSubjectFor(statement Statement, project, ruleID string) SampleReviewSubject {
+	return SampleReviewSubject{Pack: statement.Pack.Name, PriorRevision: statement.Pack.Prior.Revision, Project: project, RuleID: ruleID}
 }
 
 // IsSampleReview reports whether raw declares the sample review schema. It
@@ -340,7 +372,7 @@ func ParseSampleReview(raw []byte) (SampleReviewRecord, error) {
 	}
 	d, s, b := record.Decision, record.Subject, record.Bindings
 	if record.Schema != SampleReviewSchema || d.Authority != sampleReviewAuthority || d.State != sampleReviewState ||
-		d.Scope != sampleReviewScope || !validReviewerName(d.Reviewer) {
+		(d.Scope != sampleReviewScope && d.Scope != individualReviewScope) || !validReviewerName(d.Reviewer) {
 		return SampleReviewRecord{}, ErrRejected
 	}
 	if len(record.Limitations) != len(sampleReviewLimitations) {
@@ -383,16 +415,23 @@ func parseReviewRecordFields(raw []byte) (reviewrecord.RecordFields, error) {
 	return reviewrecord.RecordFields{Project: record.Subject.Project, RuleID: record.Subject.RuleID, RuleDigest: record.Bindings.RuleDigest, DecidedAt: decidedAt}, nil
 }
 
-// checkSampleReviews checks every new individual review in fresh that is a
-// sample review record against the statement being prepared: it must be
-// for a rule the statement samples, decided no earlier than the worklist
-// was generated, and carry exactly the subject and bindings this statement
-// and the rule's prior-pack bytes give. Prepare runs it, and so Verify does
-// too, through its recomputation (checkV1AndV3).
+// checkSampleReviews checks the review records of a statement being
+// prepared. A sampled rule's review is recorded only from a record in this
+// format (either scope; Prepare leaves the entry empty for a declared
+// review record, which no longer satisfies the sample, and Sign and Verify
+// then refuse the statement). Every new record in this format must be for
+// a rule the statement renews (and, in the sample scope, samples), be
+// decided no earlier than the worklist was generated, and carry exactly the
+// subject and bindings this statement and the rule's prior-pack bytes give.
+// Prepare runs it, and so Verify does too, through its recomputation
+// (checkV1AndV3).
 func checkSampleReviews(statement Statement, records map[string][]byte, fresh map[string]string, candidates map[string]ruleCandidate) error {
 	sampled := map[string]bool{}
 	for _, s := range statement.SampledForFullReview {
 		sampled[s.RuleID] = true
+		if s.ReviewRecordDigest != "" && !IsSampleReview(records[s.RuleID]) {
+			return fmt.Errorf("%w: sample review record for rule %s: a sampled rule needs a record written by review-record new", ErrRejected, s.RuleID)
+		}
 	}
 	renewed := map[string]RuleAttestation{}
 	for _, r := range statement.Rules {
@@ -413,7 +452,7 @@ func checkSampleReviews(statement Statement, records map[string][]byte, fresh ma
 		if err != nil {
 			return fmt.Errorf("%w: sample review record for rule %s is not well formed", ErrRejected, id)
 		}
-		if !sampled[id] {
+		if record.Decision.Scope == sampleReviewScope && !sampled[id] {
 			return fmt.Errorf("%w: sample review record for rule %s: the rule is not sampled for full review in this statement", ErrRejected, id)
 		}
 		ra, ok := renewed[id]
@@ -425,10 +464,10 @@ func checkSampleReviews(statement Statement, records map[string][]byte, fresh ma
 		if err != nil || genErr != nil || decidedAt.Before(generatedAt) {
 			return fmt.Errorf("%w: sample review record for rule %s was decided before the worklist was generated", ErrRejected, id)
 		}
-		if record.Subject != sampleReviewSubjectFor(statement, ra) {
+		if record.Subject != sampleReviewSubjectFor(statement, ra.Project, id) {
 			return fmt.Errorf("%w: sample review record for rule %s names another pack, revision, project or rule", ErrRejected, id)
 		}
-		want, err := sampleReviewBindingsFor(statement, ra, candidate.Raw)
+		want, err := sampleReviewBindingsFor(statement, candidate.Raw, ra.Citations)
 		if err != nil {
 			return err
 		}

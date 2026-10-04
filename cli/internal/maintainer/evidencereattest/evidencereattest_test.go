@@ -406,14 +406,10 @@ func singleRuleSetup(t *testing.T, mut func(*evidencerepin.Worklist)) (res Prepa
 		mut(&wl)
 	}
 	wlRaw = marshalWorklist(t, wl)
-	result, err := Prepare(PrepareOptions{
+	result, _ := prepareWithSample(t, PrepareOptions{
 		WorklistRaw: wlRaw, PackName: PackCNCF, PackPath: packPath, PackRaw: rawPack,
 		Wave: 1, AttestedAt: now, Now: now, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
-		ReviewRecords: singleRecords(t, rawPack),
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
 	return result, rawPack, wlRaw, now, packPath
 }
 
@@ -626,14 +622,10 @@ func prepareOnePassResult(t *testing.T, now time.Time, packPath string, spec rul
 	wl, pack := buildWorklistAndPack(t, packPath, now, []ruleSpec{spec})
 	pack = padPackWithSpreadRules(t, pack, 12)
 	worklistRaw := marshalWorklist(t, wl)
-	result, err := Prepare(PrepareOptions{
+	result, _ := prepareWithSample(t, PrepareOptions{
 		WorklistRaw: worklistRaw, PackName: PackCNCF, PackPath: packPath, PackRaw: pack,
 		Wave: 1, AttestedAt: now, Now: now, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
-		ReviewRecords: singleRecords(t, pack),
 	})
-	if err != nil {
-		t.Fatalf("Prepare: %v", err)
-	}
 	return result, pack, worklistRaw
 }
 
@@ -1278,6 +1270,13 @@ func testReviewRecord(t *testing.T, packRaw []byte, ruleID string, decidedAt tim
 // their one sampled rule, rule-a.
 func singleRecords(t *testing.T, packRaw []byte) map[string][]byte {
 	t.Helper()
+	if cached, ok := singleRecordCache[sourcecorpus.SHA(packRaw)]; ok {
+		out := map[string][]byte{}
+		for id, raw := range cached {
+			out[id] = raw
+		}
+		return out
+	}
 	return map[string][]byte{"rule-a": testReviewRecord(t, packRaw, "rule-a", baseNow.Add(-time.Hour), "Test Reviewer")}
 }
 
@@ -1359,11 +1358,8 @@ func prepareCycleWithRecords(t *testing.T, f *chainFixture, prior []byte, at tim
 	if err != nil {
 		t.Fatalf("Prepare %s: %v", revision, err)
 	}
-	for _, sample := range first.Statement.SampledForFullReview {
-		if sample.ReviewRecordDigest == "" {
-			reviews[sample.RuleID] = testReviewRecord(t, prior, sample.RuleID, at.Add(-time.Hour), "Sample Reviewer")
-		}
-	}
+	opts = withSampleRecords(t, opts)
+	reviews = opts.ReviewRecords
 	res, err := Prepare(opts)
 	if err != nil {
 		t.Fatalf("Prepare %s: %v", revision, err)
@@ -1838,7 +1834,6 @@ func TestPrepareAndVerifyStayWithinStaggerCapOnRealPacks(t *testing.T) {
 		reviews := map[string][]byte{}
 		for _, entry := range doc.Entries {
 			fields, _ := parseRuleFields(entry.Rule)
-			reviews[fields.ID] = testReviewRecord(t, raw, fields.ID, at.Add(-time.Hour), "Test Reviewer")
 			for _, source := range fields.Evidence.Sources {
 				wl.Citations = append(wl.Citations, evidencerepin.ClassResult{
 					RulePack: tc.path, RuleID: fields.ID, Project: entry.Project, SourceID: source.ID,
@@ -1848,10 +1843,11 @@ func TestPrepareAndVerifyStayWithinStaggerCapOnRealPacks(t *testing.T) {
 		}
 		worklistRaw := marshalWorklist(t, wl)
 		for wave := minWave; wave <= maxWave; wave++ {
-			res, err := Prepare(PrepareOptions{
+			prepared := withSampleRecords(t, PrepareOptions{
 				WorklistRaw: worklistRaw, PackName: tc.pack, PackPath: tc.path, PackRaw: raw, Chain: &Chain{},
 				Wave: wave, AttestedAt: at, Now: at, NextRevision: "next", EngineCapabilityDigest: testEngineCapabilityDigest, ReviewRecords: reviews,
 			})
+			res, err := Prepare(prepared)
 			if err != nil {
 				t.Fatalf("%s wave %d: Prepare: %v", tc.pack, wave, err)
 			}
@@ -1861,7 +1857,7 @@ func TestPrepareAndVerifyStayWithinStaggerCapOnRealPacks(t *testing.T) {
 			if _, err := Verify(VerifyOptions{
 				StatementRaw: res.StatementCanonical, PriorPackRaw: raw, NextPackRaw: res.NextPack, WorklistRaw: worklistRaw,
 				Chain: &Chain{}, BaseChain: &Chain{}, PackName: tc.pack, PackPath: tc.path, EngineCapabilityDigest: testEngineCapabilityDigest,
-				AttestedAtNow: at.Add(time.Hour), ReviewRecords: reviews, PreSign: true,
+				AttestedAtNow: at.Add(time.Hour), ReviewRecords: prepared.ReviewRecords, PreSign: true,
 			}); err != nil {
 				t.Fatalf("%s wave %d: Verify rejected Prepare's own output (%d renewed): %v", tc.pack, wave, res.EligibleRuleCount, err)
 			}

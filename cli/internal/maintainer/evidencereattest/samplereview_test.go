@@ -410,14 +410,14 @@ func TestSampleReviewRefusesUnsampledRule(t *testing.T) {
 	// A record built for it by hand, with every binding right.
 	ra := ruleAttestationOf(t, s.first.Statement, id)
 	candidate := candidatesByIDFromPack(t, s.prior)[id]
-	bindings, err := sampleReviewBindingsFor(s.first.Statement, ra, candidate.Raw)
+	bindings, err := sampleReviewBindingsFor(s.first.Statement, candidate.Raw, ra.Citations)
 	if err != nil {
 		t.Fatal(err)
 	}
 	raw, err := canonicalBytes(SampleReviewRecord{
 		Schema:   SampleReviewSchema,
 		Decision: SampleReviewDecision{Authority: sampleReviewAuthority, State: sampleReviewState, Reviewer: "airstand", DecidedAt: rfc3339(s.t1.Add(10 * time.Minute)), Scope: sampleReviewScope},
-		Subject:  sampleReviewSubjectFor(s.first.Statement, ra), Bindings: bindings, Limitations: sampleReviewLimitations,
+		Subject:  sampleReviewSubjectFor(s.first.Statement, ra.Project, ra.RuleID), Bindings: bindings, Limitations: sampleReviewLimitations,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -500,7 +500,7 @@ func TestNewSampleReviewChecksItsInputs(t *testing.T) {
 		"other worklist":       {func(o *SampleReviewOptions) { o.WorklistRaw = marshalWorklist(t, otherWorklist) }, "not prepared from this worklist"},
 		"other engine":         {func(o *SampleReviewOptions) { o.EngineCapabilityDigest = other }, "different engine"},
 		"no engine":            {func(o *SampleReviewOptions) { o.EngineCapabilityDigest = "" }, "different engine"},
-		"other worklist path":  {func(o *SampleReviewOptions) { o.PackPath = "/other/rules.json" }, "citations in the statement are not the worklist's"},
+		"other worklist path":  {func(o *SampleReviewOptions) { o.PackPath = "/other/rules.json" }, "has no citation in the worklist"},
 		"not a statement":      {func(o *SampleReviewOptions) { o.StatementRaw = append(append([]byte(nil), o.StatementRaw...), ' ') }, "not a canonical prepared statement"},
 		"decided before prep":  {func(o *SampleReviewOptions) { o.DecidedAt = s.t1.Add(-time.Second) }, "before the statement was prepared"},
 		"decided in future":    {func(o *SampleReviewOptions) { o.DecidedAt = o.Now.Add(time.Second) }, "in the future"},
@@ -637,5 +637,215 @@ func TestParseSampleReviewRefusesMalformedRecords(t *testing.T) {
 				t.Fatal("ParseSampleReview accepted a malformed record")
 			}
 		})
+	}
+}
+
+// A declared review record with placeholder bindings no longer satisfies
+// the sample: prepare records it as the rule's individual review but leaves
+// the sampled entry empty, and sign and verify refuse the statement.
+func TestDeclaredRecordDoesNotSatisfyTheSample(t *testing.T) {
+	s := newSampleFlow(t)
+	records := map[string][]byte{}
+	for _, id := range s.sampled() {
+		records[id] = testReviewRecord(t, s.prior, id, s.t1.Add(10*time.Minute), "Placeholder")
+	}
+	t2 := s.t1.Add(20 * time.Minute)
+	res := s.prepare(t, t2, records)
+	for _, e := range res.Statement.SampledForFullReview {
+		if e.ReviewRecordDigest != "" {
+			t.Fatalf("a declared record satisfied the sample for %s", e.RuleID)
+		}
+	}
+	if len(res.Statement.IndividualReviews) != 2 {
+		t.Fatalf("the declared records must still count as individual reviews, got %+v", res.Statement.IndividualReviews)
+	}
+	if !strings.Contains(string(res.Summary), "a declared review record does not satisfy the sample") {
+		t.Fatalf("summary does not say why the sample is missing:\n%s", res.Summary)
+	}
+	if _, err := Sign(SignOptions{Role: RoleHuman, Statement: res.StatementCanonical, TrustRoot: s.f.root, EncryptedKey: s.f.key,
+		Passphrase: []byte(testPassphrase), ExpectedTrustRootDigest: s.f.digest, Now: t2.Add(time.Hour)}); err == nil || !strings.Contains(err.Error(), "has no recorded individual review") {
+		t.Fatalf("Sign: %v", err)
+	}
+	_, err := Verify(VerifyOptions{
+		StatementRaw: res.StatementCanonical, PriorPackRaw: s.prior, NextPackRaw: res.NextPack, WorklistRaw: s.worklistRaw,
+		Chain: s.f.chain(), BaseChain: s.f.chain(), PackName: PackCNCF, PackPath: chainPackPath,
+		EngineCapabilityDigest: testEngineCapabilityDigest, AttestedAtNow: t2.Add(time.Hour), ReviewRecords: records, PreSign: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "has no recorded individual review") {
+		t.Fatalf("Verify: %v", err)
+	}
+	// Replacing the declared records with sample review records, written
+	// from this statement, satisfies the sample.
+	for _, id := range s.sampled() {
+		o := s.options(id)
+		o.StatementRaw, o.DecidedAt, o.Now = res.StatementCanonical, t2, t2
+		raw, err := NewSampleReview(o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		records[id] = raw
+	}
+	final := s.prepare(t, t2, records)
+	for _, e := range final.Statement.SampledForFullReview {
+		if e.ReviewRecordDigest != sourcecorpus.SHA(records[e.RuleID]) {
+			t.Fatalf("sample review record for %s not recorded", e.RuleID)
+		}
+	}
+}
+
+// review-record new --individual: a rule held back only by the
+// consecutive-cycle cap is renewed again once its individual review is
+// recorded, in the documented order (individual records, prepare, sample
+// records, prepare, sign).
+func TestIndividualReviewResetsTheCapThroughReviewRecordNew(t *testing.T) {
+	f, _, c2, target, t3 := twoCycleChain(t)
+	wl, _ := buildWorklistAndPack(t, chainPackPath, t3, cycleSpecs(12, t3))
+	worklistRaw := marshalWorklist(t, wl)
+	opts := PrepareOptions{
+		WorklistRaw: worklistRaw, PackName: PackCNCF, PackPath: chainPackPath, PackRaw: c2.res.NextPack, Chain: f.chain(),
+		Wave: 1, AttestedAt: t3, Now: t3, NextRevision: "rev-4", EngineCapabilityDigest: testEngineCapabilityDigest,
+	}
+	first, err := Prepare(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := cycle{res: first}
+	if worstClassOf(c, target) != reasonConsecutiveCycleCap {
+		t.Fatalf("setup: %s is not held back by the cap", target)
+	}
+	review := SampleReviewOptions{
+		StatementRaw: first.StatementCanonical, PriorPackRaw: c2.res.NextPack, WorklistRaw: worklistRaw,
+		PackName: PackCNCF, PackPath: chainPackPath, EngineCapabilityDigest: testEngineCapabilityDigest,
+		RuleID: target, Reviewer: "airstand", DecidedAt: t3, Now: t3,
+	}
+	if _, err := NewSampleReview(review); err == nil || !strings.Contains(err.Error(), "not sampled") {
+		t.Fatalf("a sample-scope record for a capped rule: %v", err)
+	}
+	review.Individual = true
+	individual, err := NewSampleReview(review)
+	if err != nil {
+		t.Fatalf("NewSampleReview --individual: %v", err)
+	}
+	parsed, err := ParseSampleReview(individual)
+	if err != nil || parsed.Decision.Scope != individualReviewScope {
+		t.Fatalf("scope: %+v %v", parsed.Decision, err)
+	}
+	opts.ReviewRecords = map[string][]byte{target: individual}
+	opts = withSampleRecords(t, opts)
+	res, err := Prepare(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, ra := range res.Statement.Rules {
+		found = found || (ra.RuleID == target && ra.ConsecutiveBatchCycles == 1)
+	}
+	if !found {
+		t.Fatalf("%s not renewed with a reset count: %s", target, renewedIDs(res))
+	}
+	reviewed := false
+	for _, r := range res.Statement.IndividualReviews {
+		reviewed = reviewed || (r.RuleID == target && r.ReviewRecordDigest == sourcecorpus.SHA(individual))
+	}
+	if !reviewed || !bytes.Equal(opts.ReviewRecords[target], individual) {
+		t.Fatalf("the individual review is not recorded: %+v", res.Statement.IndividualReviews)
+	}
+	f.append("0003", res.StatementCanonical)
+	if err := verifyCycle(cycle{res: res, worklistRaw: worklistRaw, prior: c2.res.NextPack, at: t3, reviews: opts.ReviewRecords}, f.chain()); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+
+	// The same record with another worklist (a fresh repin) is refused.
+	other, _ := buildWorklistAndPack(t, chainPackPath, t3, cycleSpecs(12, t3))
+	other.Repos[0].ResolvedAt = rfc3339(t3.Add(-2 * time.Hour))
+	_, err = Prepare(PrepareOptions{
+		WorklistRaw: marshalWorklist(t, other), PackName: PackCNCF, PackPath: chainPackPath, PackRaw: c2.res.NextPack, Chain: newChainFixtureFrom(f, 2).chain(),
+		Wave: 1, AttestedAt: t3, Now: t3, NextRevision: "rev-4", EngineCapabilityDigest: testEngineCapabilityDigest,
+		ReviewRecords: map[string][]byte{target: individual},
+	})
+	if !errors.Is(err, ErrRejected) || !strings.Contains(err.Error(), "worklistDigest does not match") {
+		t.Fatalf("an individual record with another worklist: %v", err)
+	}
+}
+
+// newChainFixtureFrom is f with only its first n chain entries.
+func newChainFixtureFrom(f *chainFixture, n int) *chainFixture {
+	out := *f
+	out.entries = append([]ChainEntry(nil), f.entries[:n]...)
+	return &out
+}
+
+// An individual record satisfies a sampled rule, and is refused, by new
+// and by prepare, for a rule the statement does not renew.
+func TestIndividualReviewScope(t *testing.T) {
+	s := newSampleFlow(t)
+	// A sampled rule's individual review satisfies the sample.
+	id := s.sampled()[0]
+	o := s.options(id)
+	o.Individual = true
+	individual, err := NewSampleReview(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	records := s.records(t)
+	records[id] = individual
+	res := s.prepare(t, s.t1.Add(20*time.Minute), records)
+	for _, e := range res.Statement.SampledForFullReview {
+		if e.RuleID == id && e.ReviewRecordDigest != sourcecorpus.SHA(individual) {
+			t.Fatal("an individual record did not satisfy the sample")
+		}
+	}
+	// An unsampled renewed rule may take an individual record.
+	o = s.options(s.unsampled(t))
+	o.Individual = true
+	if _, err := NewSampleReview(o); err != nil {
+		t.Fatalf("individual review of an unsampled renewed rule: %v", err)
+	}
+
+	// A rule that is not due is neither renewed nor capped: refused by new;
+	// a correctly bound record built for it by hand is refused by prepare.
+	specs := cycleSpecs(12, s.t1)
+	specs[11].validUntil = rfc3339(s.t1.Add(renewalWindow + time.Hour))
+	wl, pack := buildWorklistAndPack(t, chainPackPath, s.t1, specs)
+	pack = padPackWithPastRules(t, pack, 80)
+	worklistRaw := marshalWorklist(t, wl)
+	prep := PrepareOptions{
+		WorklistRaw: worklistRaw, PackName: PackCNCF, PackPath: chainPackPath, PackRaw: pack, Chain: &Chain{},
+		Wave: 1, AttestedAt: s.t1, Now: s.t1, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest,
+	}
+	first, err := Prepare(prep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if worstClassOf(cycle{res: first}, "rule-11") != reasonNotYetDue {
+		t.Fatalf("setup: rule-11 is %q", worstClassOf(cycle{res: first}, "rule-11"))
+	}
+	notDue := SampleReviewOptions{
+		StatementRaw: first.StatementCanonical, PriorPackRaw: pack, WorklistRaw: worklistRaw, PackName: PackCNCF, PackPath: chainPackPath,
+		EngineCapabilityDigest: testEngineCapabilityDigest, RuleID: "rule-11", Reviewer: "airstand", DecidedAt: s.t1, Now: s.t1, Individual: true,
+	}
+	if _, err := NewSampleReview(notDue); !errors.Is(err, ErrRejected) || !strings.Contains(err.Error(), "neither renewed by this statement nor held back only by the consecutive-cycle cap") {
+		t.Fatalf("individual review of a rule not due: %v", err)
+	}
+	candidate := candidatesByIDFromPack(t, pack)["rule-11"]
+	citations, err := worklistCitationAttestations(worklistRaw, chainPackPath, candidate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bindings, err := sampleReviewBindingsFor(first.Statement, candidate.Raw, citations)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := canonicalBytes(SampleReviewRecord{
+		Schema:   SampleReviewSchema,
+		Decision: SampleReviewDecision{Authority: sampleReviewAuthority, State: sampleReviewState, Reviewer: "airstand", DecidedAt: rfc3339(s.t1), Scope: individualReviewScope},
+		Subject:  sampleReviewSubjectFor(first.Statement, candidate.Project, "rule-11"), Bindings: bindings, Limitations: sampleReviewLimitations,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	prep.ReviewRecords = map[string][]byte{"rule-11": append(raw, '\n')}
+	if _, err := Prepare(prep); !errors.Is(err, ErrRejected) || !strings.Contains(err.Error(), "the rule is not renewed by this statement") {
+		t.Fatalf("prepare with an individual record for a rule not renewed: %v", err)
 	}
 }

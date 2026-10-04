@@ -788,19 +788,15 @@ func TestReviewRecordsForRecordsAreRefused(t *testing.T) {
 
 	// Verify refuses the same record (a human statement over the pack,
 	// with the record supplied as a review record).
-	res, err := Prepare(PrepareOptions{
+	res, reviews := prepareWithSample(t, PrepareOptions{
 		WorklistRaw: worklistFromPack(t, prior, baseNow, nil), PackName: PackCNCF, PackPath: chainPackPath, PackRaw: prior, Chain: &Chain{},
 		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest,
-		ReviewRecords: map[string][]byte{"rule-a": itemReviewRecord(t, prior, "rule-a", baseNow.Add(-time.Hour))},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
 	opts := defaultVerifyOptions(t, baseNow)
 	opts.StatementRaw, opts.PriorPackRaw, opts.NextPackRaw = res.StatementCanonical, prior, res.NextPack
 	opts.WorklistRaw = worklistFromPack(t, prior, baseNow, nil)
 	opts.PackName, opts.PackPath, opts.EngineCapabilityDigest = PackCNCF, chainPackPath, testEngineCapabilityDigest
-	opts.ReviewRecords = map[string][]byte{"rule-a": itemReviewRecord(t, prior, "rule-a", baseNow.Add(-time.Hour))}
+	opts.ReviewRecords = reviews
 	if _, err := Verify(opts); err != nil {
 		t.Fatalf("the human statement itself: %v", err)
 	}

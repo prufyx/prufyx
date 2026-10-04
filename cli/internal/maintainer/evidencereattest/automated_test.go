@@ -605,13 +605,10 @@ func TestAutomatedModeIgnoresReviewRecordsThePackDoesNotRequire(t *testing.T) {
 		t.Fatalf("verify: %v", err)
 	}
 	wl, _ := buildWorklistAndPack(t, chainPackPath, t3, cycleSpecs(12, t3))
-	human, err := Prepare(PrepareOptions{
+	human, _ := prepareWithSample(t, PrepareOptions{
 		WorklistRaw: marshalWorklist(t, wl), PackName: PackCNCF, PackPath: chainPackPath, PackRaw: c2.res.NextPack, Chain: f.chain(),
 		Wave: 1, AttestedAt: t3, Now: t3, NextRevision: "rev-4", EngineCapabilityDigest: testEngineCapabilityDigest, ReviewRecords: records,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
 	found := false
 	for _, ra := range human.Statement.Rules {
 		found = found || (ra.RuleID == "rule-00" && ra.ConsecutiveBatchCycles == 1)
@@ -661,13 +658,10 @@ func TestAutomatedModeLeavesARuleReviewedOutsideTheChainToAHuman(t *testing.T) {
 		}
 	}
 	wl, _ := buildWorklistAndPack(t, chainPackPath, t3, cycleSpecs(12, t3))
-	human, err := Prepare(PrepareOptions{
+	human, _ := prepareWithSample(t, PrepareOptions{
 		WorklistRaw: marshalWorklist(t, wl), PackName: PackCNCF, PackPath: chainPackPath, PackRaw: prior, Chain: f.chain(),
 		Wave: 1, AttestedAt: t3, Now: t3, NextRevision: "rev-4", EngineCapabilityDigest: testEngineCapabilityDigest, ReviewRecords: records,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
 	if len(human.Statement.IndividualReviews) != 1 || human.Statement.IndividualReviews[0].RuleID != "rule-01" {
 		t.Fatalf("a human statement must record the review, got %+v", human.Statement.IndividualReviews)
 	}

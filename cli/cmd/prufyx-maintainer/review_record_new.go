@@ -15,7 +15,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
 
-const reviewRecordNewUsage = "usage: prufyx-maintainer review-record new --statement ABS --pack cncf|community --rules ABS --worklist ABS --rule RULE_ID --reviewer NAME --decided-at RFC3339 --output ABS [--rules-worklist-path STR]"
+const reviewRecordNewUsage = "usage: prufyx-maintainer review-record new --statement ABS --pack cncf|community --rules ABS --worklist ABS --rule RULE_ID --reviewer NAME --decided-at RFC3339 --output ABS [--rules-worklist-path STR] [--individual]"
 
 // reviewRecordNowFunc is the clock review-record new refuses a future
 // decision time against. Tests replace it.
@@ -42,6 +42,7 @@ func runReviewRecordNew(args []string, stdout, stderr io.Writer) error {
 	flags.StringVar(&ruleID, "rule", "", "the sampled rule's ID")
 	flags.StringVar(&reviewer, "reviewer", "", "the reviewer's public name or handle")
 	flags.StringVar(&decidedAtFlag, "decided-at", "", "exact UTC RFC3339 decision time, not before the statement's attestedAt and not in the future")
+	individual := flags.Bool("individual", false, "write an individual review of a rule the statement renews or holds back only by the consecutive-cycle cap, instead of a sampled rule's review")
 	flags.StringVar(&output, "output", "", "new record file, normally <review-record-dir>/<rule id>.json (absolute path; never overwritten)")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -82,7 +83,7 @@ func runReviewRecordNew(args []string, stdout, stderr io.Writer) error {
 	record, err := evidencereattest.NewSampleReview(evidencereattest.SampleReviewOptions{
 		StatementRaw: statementRaw, PriorPackRaw: packRaw, WorklistRaw: worklistRaw,
 		PackName: packName, PackPath: rulesWorklistPath, EngineCapabilityDigest: capability,
-		RuleID: ruleID, Reviewer: reviewer, DecidedAt: decidedAt.UTC(), Now: reviewRecordNowFunc(),
+		RuleID: ruleID, Reviewer: reviewer, DecidedAt: decidedAt.UTC(), Now: reviewRecordNowFunc(), Individual: *individual,
 	})
 	if err != nil {
 		fmt.Fprintf(stderr, "review-record new: %v\n", err)
@@ -92,16 +93,41 @@ func runReviewRecordNew(args []string, stdout, stderr io.Writer) error {
 		fmt.Fprintf(stderr, "review-record new: the output file must be named %s.json\n", ruleID)
 		return &commandError{code: 2, message: "review-record new: rejected", printed: true}
 	}
-	file, err := os.OpenFile(output, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
-	if err != nil {
-		fmt.Fprintf(stderr, "review-record new: cannot create %s (it must not exist yet)\n", filepath.Base(output))
+	if err := writeNewFile(output, record); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			fmt.Fprintf(stderr, "review-record new: %s already exists; a record the statement chain already counted is replaced by deleting it first (the change then modifies it)\n", filepath.Base(output))
+		} else {
+			fmt.Fprintf(stderr, "review-record new: cannot write %s\n", filepath.Base(output))
+		}
 		return &commandError{code: 2, message: "review-record new: rejected", printed: true}
-	}
-	_, writeErr := file.Write(record)
-	closeErr := file.Close()
-	if writeErr != nil || closeErr != nil {
-		return rejected()
 	}
 	fmt.Fprintf(stdout, "review-record new: rule=%s recordDigest=%s\n", ruleID, sourcecorpus.SHA(record))
 	return nil
+}
+
+// writeNewFile writes data to a temporary file in path's directory and then
+// links it to path, which must not exist yet. A failed write leaves nothing
+// at path, and an existing file or symlink at path is never replaced.
+func writeNewFile(path string, data []byte) error {
+	if _, err := os.Lstat(path); err == nil {
+		return os.ErrExist
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".review-record-*.tmp")
+	if err != nil {
+		return err
+	}
+	name := tmp.Name()
+	defer os.Remove(name)
+	_, writeErr := tmp.Write(data)
+	syncErr := tmp.Sync()
+	closeErr := tmp.Close()
+	if writeErr != nil || syncErr != nil || closeErr != nil {
+		return errors.Join(writeErr, syncErr, closeErr)
+	}
+	if err := os.Chmod(name, 0o644); err != nil {
+		return err
+	}
+	// os.Link fails if path exists (including a dangling symlink), so a
+	// file created meanwhile is not overwritten, unlike os.Rename.
+	return os.Link(name, path)
 }
