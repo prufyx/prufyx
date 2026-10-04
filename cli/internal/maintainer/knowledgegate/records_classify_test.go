@@ -96,6 +96,16 @@ func TestClassifyRecordEdits(t *testing.T) {
 			shift(ev(d, pol), "reviewedAt", time.Hour)
 			shift(ev(d, pol), "validUntil", time.Hour)
 		}, ClassLoosening, []string{KindWithdraw, KindRenew}, false},
+		"policy renewed and changed": {pol, func(d map[string]any) {
+			shift(ev(d, pol), "reviewedAt", time.Hour)
+			shift(ev(d, pol), "validUntil", time.Hour)
+			sectionRecord(d, pol, 0)["policy"] = "direct"
+		}, ClassLoosening, []string{KindRenew, KindModify}, false},
+		"policy renewed and basis named": {pol, func(d map[string]any) {
+			shift(ev(d, pol), "reviewedAt", time.Hour)
+			shift(ev(d, pol), "validUntil", time.Hour)
+			ev(d, pol)["basis"] = "reviewed"
+		}, ClassLoosening, []string{KindRenew, KindBasis}, false},
 		"policy changed":     {pol, func(d map[string]any) { sectionRecord(d, pol, 0)["policy"] = "direct" }, ClassLoosening, []string{KindModify}, false},
 		"policy basis named": {pol, func(d map[string]any) { ev(d, pol)["basis"] = "reviewed" }, ClassLoosening, []string{KindBasis}, false},
 		"policy withdrawn and changed": {pol, func(d map[string]any) {
@@ -180,5 +190,36 @@ func TestLoadPackRefusesUnreadableRecords(t *testing.T) {
 	}
 	if _, err := loadPack(Tree{Root: root}, synthLayout().Packs[0]); err != nil {
 		t.Fatalf("a pack read without records: %v", err)
+	}
+}
+
+// The signed fields of an approval: a rule approval names no subject and no
+// scope; a record approval names a known subject and a well-formed scope.
+func TestApprovalRecordSubjectAndScope(t *testing.T) {
+	base := ApprovalRecord{BaseDigest: ApprovalBaseAbsent, CandidateDigest: "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+		CandidateID: "cand-1", DecidedAt: "2026-10-03T11:00:00Z", Decision: "approve", Identity: "airstand", Pack: "cncf", RuleID: "line-attestation.000000000000000000000000"}
+	good := base
+	good.Subject, good.Scope = ApprovalSubjectLineAttestation, recordComponent+" kubernetes.removed_served_gvk 1.33"
+	if _, err := SignedApprovalBytes(base); err != nil {
+		t.Fatalf("rule approval: %v", err)
+	}
+	if _, err := SignedApprovalBytes(good); err != nil {
+		t.Fatalf("record approval: %v", err)
+	}
+	for name, edit := range map[string]func(r *ApprovalRecord){
+		"scope without subject":   func(r *ApprovalRecord) { r.Subject = "" },
+		"subject without scope":   func(r *ApprovalRecord) { r.Scope = "" },
+		"unknown subject":         func(r *ApprovalRecord) { r.Subject = "pathPolicy" },
+		"scope without a line":    func(r *ApprovalRecord) { r.Scope = recordComponent + " kubernetes.removed_served_gvk" },
+		"scope with a newline":    func(r *ApprovalRecord) { r.Scope = recordComponent + " kubernetes.removed_served_gvk\n1.33" },
+		"scope not a package URL": func(r *ApprovalRecord) { r.Scope = "kubernetes kubernetes.removed_served_gvk 1.33" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := good
+			edit(&r)
+			if _, err := SignedApprovalBytes(r); err == nil {
+				t.Fatal("accepted")
+			}
+		})
 	}
 }
