@@ -185,8 +185,11 @@ func TestDistributionsStrict(t *testing.T) {
 		"case variant member":     edit(`"controlPlane"`, `"CONTROLPLANE"`),
 		"repeated member":         edit(`"controlPlane":"managed"`, `"controlPlane":"managed","controlPlane":"managed"`),
 		"null member":             edit(`"applicability":[`, `"applicability":null,"x":[`),
-		"unknown family":          section(func(s *distribution.Section) { s.Applicability[1].Family = "kubernetes.addons" }),
-		"unknown distribution":    section(func(s *distribution.Section) { s.Records[0].Distribution = "minikube" }),
+		"unknown family":          section(func(s *distribution.Section) { s.Applicability[1].Family = "kubernetes.workloads" }),
+		"unknown distribution": section(func(s *distribution.Section) {
+			s.Records[0].Distribution = "minikube"
+			s.Applicability = s.Applicability[:0]
+		}),
 		"record for upstream": section(func(s *distribution.Section) {
 			s.Records[0].Distribution = "kubeadm"
 			s.Applicability = []distribution.Applicability{}

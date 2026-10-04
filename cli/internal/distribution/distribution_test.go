@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -99,6 +100,18 @@ func TestParseStrictness(t *testing.T) {
 		mutate(&s)
 		return marshalSection(t, s)
 	}
+	// sorted applies mutate and restores canonical order, so a case fails
+	// for its own defect, never for order.
+	sorted := func(mutate func(*Section)) []byte {
+		s := testSection()
+		mutate(&s)
+		sort.SliceStable(s.Records, func(i, j int) bool { return s.Records[i].Distribution < s.Records[j].Distribution })
+		sort.SliceStable(s.Applicability, func(i, j int) bool {
+			a, b := s.Applicability[i], s.Applicability[j]
+			return a.Distribution < b.Distribution || (a.Distribution == b.Distribution && a.Family < b.Family)
+		})
+		return marshalSection(t, s)
+	}
 	evidence := func(mutate func(*Evidence)) []byte {
 		return section(func(s *Section) { mutate(&s.Records[0].Evidence) })
 	}
@@ -126,15 +139,18 @@ func TestParseStrictness(t *testing.T) {
 		"empty reason":                replace(t, `"reason":"The provider operates the control plane."`, `"reason":""`),
 		"empty basis":                 replace(t, `"state":"active"`, `"state":"active","basis":""`),
 		"empty mapping":               replace(t, `"kubernetesMapping":[{"line":"4.98","kubernetes":"1.98"},{"line":"4.99","kubernetes":"1.99"}]`, `"kubernetesMapping":[]`),
-		"unknown distribution":        section(func(s *Section) { s.Records[0].Distribution = "minikube" }),
+		"unknown distribution":        sorted(func(s *Section) { s.Records[1].Distribution = "minikube"; s.Applicability = s.Applicability[:2] }),
 		"distribution case":           section(func(s *Section) { s.Records[0].Distribution = "EKS"; s.Applicability = []Applicability{} }),
-		"record for upstream": section(func(s *Section) {
+		"record for upstream": sorted(func(s *Section) {
 			s.Records = append([]Record{{Distribution: "kubeadm", ControlPlane: ControlPlaneSelfManaged, Evidence: testEvidence()}}, s.Records...)
 		}),
-		"record for official upstream": section(func(s *Section) {
+		"record for official upstream": sorted(func(s *Section) {
 			s.Records = append(s.Records, Record{Distribution: "official_upstream", ControlPlane: ControlPlaneSelfManaged, Evidence: testEvidence()})
 		}),
-		"statement for upstream":        section(func(s *Section) { s.Applicability[0].Distribution = "kubeadm" }),
+		"statement for upstream": sorted(func(s *Section) {
+			s.Records = append(s.Records, Record{Distribution: "kubeadm", ControlPlane: ControlPlaneSelfManaged, Evidence: testEvidence()})
+			s.Applicability[0].Distribution = "kubeadm"
+		}),
 		"unknown control plane":         section(func(s *Section) { s.Records[1].ControlPlane = "hosted" }),
 		"managed k3s":                   section(func(s *Section) { s.Records[1].ControlPlane = ControlPlaneManaged }),
 		"self-managed eks":              section(func(s *Section) { s.Records[0].ControlPlane = ControlPlaneSelfManaged }),
@@ -150,7 +166,8 @@ func TestParseStrictness(t *testing.T) {
 			s.Records[2].KubernetesMapping[1].Kubernetes = "1.98"
 		}),
 		"mapping kubernetes decreasing": section(func(s *Section) { s.Records[2].KubernetesMapping[1].Kubernetes = "1.97" }),
-		"unknown family":                section(func(s *Section) { s.Applicability[1].Family = "kubernetes.addons" }),
+		"unknown family":                sorted(func(s *Section) { s.Applicability[1].Family = "kubernetes.addons" }),
+		"unknown family sorting last":   sorted(func(s *Section) { s.Applicability[1].Family = "kubernetes.workloads" }),
 		"unknown status":                section(func(s *Section) { s.Applicability[1].Status = "partial" }),
 		"status case":                   section(func(s *Section) { s.Applicability[1].Status = "Applies" }),
 		"statement without record": section(func(s *Section) {
