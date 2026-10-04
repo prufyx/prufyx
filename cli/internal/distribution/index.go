@@ -34,6 +34,14 @@ type ApplicabilityStatus struct {
 	Freshness string `json:"freshness,omitempty"`
 	// Reason is the statement's reason, if any.
 	Reason string `json:"reason,omitempty"`
+	// Basis is the statement's effective evidence basis ("reviewed" when
+	// the evidence names none) and RecordBasis that of its distribution's
+	// record; both empty for LookupUpstream and LookupAbsent. A caller
+	// with a trust policy (for example a required basis) must apply it to
+	// both before it relies on Applies: a statement or record the policy
+	// does not admit is a gap.
+	Basis       string `json:"basis,omitempty"`
+	RecordBasis string `json:"recordBasis,omitempty"`
 }
 
 // Applies is the one test a caller may use to treat the family as checked
@@ -70,6 +78,9 @@ type MappingStatus struct {
 	Kubernetes string `json:"kubernetes,omitempty"`
 	// Freshness is the OpenShift record's freshness when Found.
 	Freshness string `json:"freshness,omitempty"`
+	// Basis is the OpenShift record's effective evidence basis when Found.
+	// A caller with a trust policy must apply it before it uses Minor.
+	Basis string `json:"basis,omitempty"`
 }
 
 // Minor returns the Kubernetes line to use, only for a found mapping whose
@@ -139,6 +150,7 @@ func (ix Index) ApplicabilityFor(distribution, family string, now time.Time) App
 		return out
 	}
 	out.Status, out.Reason = statement.Status, statement.Reason
+	out.Basis, out.RecordBasis = constraintengine.EffectiveBasis(statement.Evidence.Basis), constraintengine.EffectiveBasis(record.Evidence.Basis)
 	out.Freshness = record.Evidence.Freshness(now)
 	if out.Freshness == FreshnessCurrent {
 		out.Freshness = statement.Evidence.Freshness(now)
@@ -157,6 +169,7 @@ func (ix Index) OpenShiftMinor(line string, now time.Time) MappingStatus {
 	for _, m := range record.KubernetesMapping {
 		if m.Line == line {
 			out.Found, out.Kubernetes, out.Freshness = true, m.Kubernetes, record.Evidence.Freshness(now)
+			out.Basis = constraintengine.EffectiveBasis(record.Evidence.Basis)
 			return out
 		}
 	}

@@ -55,10 +55,16 @@ func TestOpenShiftInjectedTable(t *testing.T) {
 			t.Fatalf("%q/%q: ParseWith(nil) = %+v %v, Parse = %+v %v", c[0], c[1], got, gotErr, want, wantErr)
 		}
 	}
-	// With a table, the table alone decides an OpenShift minor.
+	// With a table, the table alone decides an OpenShift minor: it fully
+	// replaces the compiled map, even when it is empty or lacks the minor.
 	v, err = ParseWith("4.99.3", "openshift", table)
 	if err != nil || v.Upstream.Minor != 99 {
 		t.Fatalf("table did not decide: %+v %v", v, err)
+	}
+	for name, other := range map[string]OpenShiftMap{"empty": {}, "other minor": {98: 98}} {
+		if _, err := ParseWith("4.99.3", "openshift", other); !errors.Is(err, ErrUnknownOpenShift) {
+			t.Fatalf("%s table fell back to the compiled map: %v", name, err)
+		}
 	}
 	// Other formats ignore the table.
 	for _, c := range [][2]string{{"v1.29.3-eks-adc7111", ""}, {"1.29.3", "aks"}, {"1.29.3", "eks"}} {

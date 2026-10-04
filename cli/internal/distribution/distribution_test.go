@@ -185,14 +185,20 @@ func TestParseStrictness(t *testing.T) {
 		"duplicate statement apart": section(func(s *Section) {
 			s.Applicability = []Applicability{s.Applicability[1], s.Applicability[2], s.Applicability[1]}
 		}),
-		"duplicate statement":     section(func(s *Section) { s.Applicability[0] = s.Applicability[1] }),
-		"reason too long":         section(func(s *Section) { s.Applicability[0].Reason = strings.Repeat("a", MaxText+1) }),
-		"reason control":          section(func(s *Section) { s.Applicability[0].Reason = "a\nb" }),
-		"reason surrounding":      section(func(s *Section) { s.Applicability[0].Reason = " a" }),
-		"reason invalid utf8":     section(func(s *Section) { s.Applicability[0].Reason = "a\xffb" }),
-		"state":                   evidence(func(e *Evidence) { e.State = "draft" }),
-		"state case":              evidence(func(e *Evidence) { e.State = "Active" }),
-		"basis":                   evidence(func(e *Evidence) { e.Basis = "consensus" }),
+		"duplicate statement": section(func(s *Section) { s.Applicability[0] = s.Applicability[1] }),
+		"reason too long":     section(func(s *Section) { s.Applicability[0].Reason = strings.Repeat("a", MaxText+1) }),
+		"reason control":      section(func(s *Section) { s.Applicability[0].Reason = "a\nb" }),
+		"reason surrounding":  section(func(s *Section) { s.Applicability[0].Reason = " a" }),
+		"reason invalid utf8": section(func(s *Section) { s.Applicability[0].Reason = "a\xffb" }),
+		"state":               evidence(func(e *Evidence) { e.State = "draft" }),
+		"state case":          evidence(func(e *Evidence) { e.State = "Active" }),
+		"basis":               evidence(func(e *Evidence) { e.Basis = "consensus" }),
+		"managed openshift":   section(func(s *Section) { s.Records[2].ControlPlane = ControlPlaneManaged }),
+		"hosted openshift":    section(func(s *Section) { s.Records[2].ControlPlane = "hosted" }),
+		"mechanical derivedAt at validUntil": evidence(func(e *Evidence) {
+			e.Basis, e.DerivedAt = constraintengine.BasisMechanical, e.ValidUntil
+			e.Extractor = &constraintengine.Extractor{ID: "distribution.versions", Version: "1.0.0", CodeDigest: "sha256:" + strings.Repeat("b", 64)}
+		}),
 		"mechanical no extractor": evidence(func(e *Evidence) { e.Basis = constraintengine.BasisMechanical; e.DerivedAt = e.ReviewedAt }),
 		"reviewedAt not UTC":      evidence(func(e *Evidence) { e.ReviewedAt = "2026-10-01T00:00:00+00:00" }),
 		"reviewedAt fraction":     evidence(func(e *Evidence) { e.ReviewedAt = "2026-10-01T00:00:00.5Z" }),
@@ -212,6 +218,25 @@ func TestParseStrictness(t *testing.T) {
 		"statement non-Git":   statementEvidence(func(e *Evidence) { e.Sources[0].URL = "https://docs.example.com/versions.html" }),
 		"statement window":    statementEvidence(func(e *Evidence) { e.ValidUntil = "2027-10-01T00:00:00Z" }),
 		"statement bad state": statementEvidence(func(e *Evidence) { e.State = "" }),
+	}
+	// Model-derived or empirical evidence is never accepted, on a record or a
+	// statement, even when it is well formed for a rule (derivedAt set, no
+	// extractor): an applies statement can let a family be checked.
+	for _, basis := range []string{constraintengine.BasisConsensus, constraintengine.BasisLead, constraintengine.BasisEmpirical} {
+		set := func(e *Evidence) { e.Basis, e.DerivedAt = basis, "2026-10-01T00:00:00Z" }
+		if err := constraintengine.ValidateBasis(basis, nil, "2026-10-01T00:00:00Z"); err != nil {
+			t.Fatalf("fixture: %s evidence is not well formed for a rule: %v", basis, err)
+		}
+		cases["record basis "+basis] = evidence(set)
+		cases["statement basis "+basis] = statementEvidence(set)
+	}
+	// The mechanical fixture is valid with derivedAt before validUntil, so
+	// the row above fails for the bound alone.
+	mechanical := testSection()
+	mechanical.Records[0].Evidence.Basis, mechanical.Records[0].Evidence.DerivedAt = constraintengine.BasisMechanical, "2026-12-29T23:59:59Z"
+	mechanical.Records[0].Evidence.Extractor = &constraintengine.Extractor{ID: "distribution.versions", Version: "1.0.0", CodeDigest: "sha256:" + strings.Repeat("b", 64)}
+	if _, err := Parse(marshalSection(t, mechanical)); err != nil {
+		t.Fatalf("mechanical fixture refused: %v", err)
 	}
 	tooMany := testSection()
 	for len(tooMany.Applicability) <= MaxApplicability {
@@ -552,4 +577,38 @@ func FuzzDistributions(f *testing.F) {
 			}
 		}
 	})
+}
+
+// Lookups report the evidence basis of the statement and of its record, so
+// a caller can apply a trust policy before relying on Applies.
+func TestLookupBasis(t *testing.T) {
+	s := testSection()
+	extractor := &constraintengine.Extractor{ID: "distribution.versions", Version: "1.0.0", CodeDigest: "sha256:" + strings.Repeat("b", 64)}
+	s.Applicability[1].Evidence.Basis, s.Applicability[1].Evidence.DerivedAt, s.Applicability[1].Evidence.Extractor = constraintengine.BasisMechanical, "2026-10-01T00:00:00Z", extractor
+	s.Records[2].Evidence.Basis, s.Records[2].Evidence.DerivedAt, s.Records[2].Evidence.Extractor = constraintengine.BasisMechanical, "2026-10-01T00:00:00Z", extractor
+	if _, err := Parse(marshalSection(t, s)); err != nil {
+		t.Fatal(err)
+	}
+	ix := NewIndex(s)
+	now := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	if got := ix.ApplicabilityFor("eks", FamilyRemovedServedGVK, now); got.Basis != constraintengine.BasisMechanical || got.RecordBasis != constraintengine.BasisReviewed {
+		t.Fatalf("mechanical statement under a reviewed record: %+v", got)
+	}
+	if got := ix.ApplicabilityFor("eks", FamilyComponentFlags, now); got.Basis != constraintengine.BasisReviewed || got.RecordBasis != constraintengine.BasisReviewed {
+		t.Fatalf("reviewed statement: %+v", got)
+	}
+	for _, got := range []ApplicabilityStatus{ix.ApplicabilityFor("gke", FamilyNode, now), ix.ApplicabilityFor("kubeadm", FamilyNode, now), ix.ApplicabilityFor("eks", FamilyNode, now)} {
+		if got.Basis != "" || got.RecordBasis != "" {
+			t.Fatalf("basis without a statement: %+v", got)
+		}
+	}
+	if m := ix.OpenShiftMinor("4.99", now); m.Basis != constraintengine.BasisMechanical {
+		t.Fatalf("mapping basis: %+v", m)
+	}
+	if m := NewIndex(testSection()).OpenShiftMinor("4.99", now); m.Basis != constraintengine.BasisReviewed {
+		t.Fatalf("reviewed mapping basis: %+v", m)
+	}
+	if m := ix.OpenShiftMinor("4.97", now); m.Basis != "" {
+		t.Fatalf("basis without a mapping: %+v", m)
+	}
 }

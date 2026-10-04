@@ -66,11 +66,14 @@ The section holds two lists:
 
 - A **record** states one distribution's identity: its id from the table
   above, its control plane (`managed` or `self_managed`; `eks`, `gke` and
-  `aks` are always `managed`, `k3s`, `rke2` and `talos` always
+  `aks` are always `managed`; `k3s`, `rke2`, `talos` and `openshift` always
   `self_managed`), and for `openshift` only, an optional mapping of
   OpenShift minor lines (`4.N`) to Kubernetes minor lines (`1.M`), strictly
   increasing in both. A mapping never gives a patch version.
-  `official_upstream` and `kubeadm` take no record.
+  `official_upstream` and `kubeadm` take no record. `openshift` means
+  OpenShift Container Platform, which you operate yourself; managed OpenShift
+  services will get distribution ids of their own, so a statement about one
+  never applies to the other.
 - An **applicability statement** says that one rule family `applies` or is
   `not_applicable` to one distribution, with an optional `reason` of at most
   256 bytes. It needs a record for the same distribution in the section.
@@ -93,7 +96,8 @@ Absence is never a pass:
   otherwise an OpenShift version stays "unknown".
 
 Every record and statement carries the evidence block of a rule: `state`,
-optional `basis`, `reviewedAt`, `validUntil` (at most 90 days later) and one
+optional `basis` (`reviewed`, the default, or `mechanical`; model-derived and
+empirical bases are refused), `reviewedAt`, `validUntil` (at most 90 days later) and one
 to eight sources pinned to a Git commit with a whole-file digest. Provider
 documentation that is not in a Git repository cannot be cited yet, so such a
 distribution stays a gap until a pinned statement exists.
@@ -119,6 +123,8 @@ gets the same online check a rule source gets.
 
 For library callers, `distribution.Index.ApplicabilityFor(distribution,
 family, now)` answers one question, and only a result whose `Applies()` is
-true may be checked as upstream. `Index.OpenShiftTable(now)` gives the
+true may be checked as upstream. The result also reports the evidence basis
+of the statement and of its record (`Basis`, `RecordBasis`); a caller that
+applies a trust policy must apply it to both first. `Index.OpenShiftTable(now)` gives the
 current OpenShift mapping for `k8sversion.ParseWith(raw, declared, table)`,
 which behaves exactly as `k8sversion.Parse` when the table is nil.

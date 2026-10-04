@@ -96,12 +96,14 @@ func UpstreamEquivalent(distribution string) bool {
 	return distribution == string(k8sversion.OfficialUpstream) || distribution == string(k8sversion.Kubeadm)
 }
 
-// controlPlanes fixes the control-plane model of the distributions whose
-// model is part of their identity; OpenShift may be either (self-managed or
-// a managed service).
+// controlPlanes fixes the control-plane model of every distribution that
+// takes a record. "openshift" is OpenShift Container Platform, which its
+// owner operates (self_managed); managed OpenShift offerings would need ids
+// of their own, so a statement about one can never apply to the other.
 var controlPlanes = map[string]string{
 	string(k8sversion.EKS): ControlPlaneManaged, string(k8sversion.GKE): ControlPlaneManaged, string(k8sversion.AKS): ControlPlaneManaged,
 	string(k8sversion.K3s): ControlPlaneSelfManaged, string(k8sversion.RKE2): ControlPlaneSelfManaged, string(k8sversion.Talos): ControlPlaneSelfManaged,
+	string(k8sversion.OpenShift): ControlPlaneSelfManaged,
 }
 
 // Evidence states, as a rule's.

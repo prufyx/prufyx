@@ -291,6 +291,8 @@ func parseOpenShift(raw string, table OpenShiftMap) (Version, error) {
 		}
 	}
 	k, found := openshiftToKubernetes[min]
+	// An injected table, even an empty one, replaces the compiled map
+	// entirely: there is never a fallback to it.
 	if table != nil {
 		minor, ok := table[min]
 		k, found = [2]int{1, minor}, ok && minor >= 0 && minor <= maxNumber
