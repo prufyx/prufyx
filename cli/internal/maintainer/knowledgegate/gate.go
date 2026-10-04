@@ -327,6 +327,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	approvals := &baseApprovals{opts: opts}
 
 	var mechanical []*Change
+	consensusChecks := &consensusRun{}
 	for _, c := range cls.Changes {
 		if c.Class == ClassTightening {
 			c.OK, c.Proof = true, ProofNoneRequired
@@ -372,7 +373,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 			admitReviewed(c, statements[c.Pack], loadKeys, opts)
 		case constraintengine.BasisConsensus:
 			c.fail("consensus evidence has no verifier in this gate; not admitted")
-			reportConsensus(ctx, c, opts)
+			consensusChecks.report(ctx, c, opts)
 		case constraintengine.BasisEmpirical:
 			// Empirical evidence may pass, so it needs a reproduction proof
 			// this gate cannot check yet.

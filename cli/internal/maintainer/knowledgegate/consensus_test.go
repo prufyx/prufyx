@@ -3,7 +3,9 @@
 package knowledgegate
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -70,7 +72,7 @@ func consensusBundle(t *testing.T, notes string, names ...string) []byte {
 	return raw
 }
 
-const consensusNotes = "# v1.41.0\n\n## Changes by Kind\n\n- Removed the SilentDial feature gate. ([#140005](https://github.com/kubernetes/kubernetes/pull/140005)) [SIG Node]\n- Removed the PhantomAccelerator feature gate. (#140005)\n\n# v1.41.0-rc.1\n"
+const consensusNotes = "# v1.41.0\n\n## Changes by Kind\n\n- Removed the SilentDial feature gate. ([#140005](https://github.com/kubernetes/kubernetes/pull/140005)) [SIG Node]\n- Removed the PhantomAccelerator feature gate. ([#140005](https://github.com/kubernetes/kubernetes/pull/140005))\n\n# v1.41.0-rc.1\n"
 
 // consensusChange adds a well-formed consensus rule to the head pack, with
 // a claims bundle when bundle is not nil, and runs the gate.
@@ -104,7 +106,7 @@ func consensusChange(t *testing.T, bundle []byte, src Source) (*Report, *Change)
 // A consensus rule whose every claim verifies is still refused, with the
 // same refusal as before; nothing about admission depends on the verdict.
 func TestGateConsensusStillRefused(t *testing.T) {
-	notes := "# v1.41.0\n\n- Removed the SilentDial feature gate. (#140005)\n\n# v1.41.0-rc.1\n"
+	notes := "# v1.41.0\n\n## Changes by Kind\n\n- Removed the SilentDial feature gate. ([#140005](https://github.com/kubernetes/kubernetes/pull/140005))\n\n# v1.41.0-rc.1\n"
 	r, c := consensusChange(t, consensusBundle(t, notes, "SilentDial"), consensusSource(t, notes))
 	if c.Consensus == nil || c.Consensus.Verified != 1 || c.Consensus.Error != "" {
 		t.Fatalf("verdict %+v", c.Consensus)
@@ -150,5 +152,42 @@ func TestGateReportsVerifierVerdict(t *testing.T) {
 	_, c = consensusChange(t, consensusBundle(t, consensusNotes, "SilentDial"), nil)
 	if c.Consensus == nil || c.Consensus.Error != "no upstream source" {
 		t.Fatalf("no source %+v", c.Consensus)
+	}
+}
+
+// One gate run verifies at most MaxConsensusBundles bundles and shares one
+// inventory cache between them.
+func TestGateConsensusBounds(t *testing.T) {
+	src := consensusSource(t, consensusNotes)
+	head := Tree{Root: t.TempDir()}
+	layout := DefaultLayout()
+	bundle := consensusBundle(t, consensusNotes, "SilentDial")
+	run := &consensusRun{}
+	var first *consensus.ExtractorInventories
+	for i := 0; i <= MaxConsensusBundles; i++ {
+		id := fmt.Sprintf("rule-%d", i)
+		writeFile(t, filepath.Join(head.Root, filepath.FromSlash(layout.ConsensusClaimsDir), "cncf", id+".json"), bundle)
+		c := &Change{Pack: "cncf", RuleID: id}
+		run.report(context.Background(), c, Options{Layout: layout, Head: head, Source: src})
+		if i == 0 {
+			first = run.inventories
+		}
+		if run.inventories != first {
+			t.Fatal("the inventory cache is not shared")
+		}
+		switch {
+		case i < MaxConsensusBundles && (c.Consensus.Error != "" || c.Consensus.Verified != 1):
+			t.Fatalf("bundle %d: %+v", i, c.Consensus)
+		case i == MaxConsensusBundles && !strings.Contains(c.Consensus.Error, "claims bundles in one run"):
+			t.Fatalf("bundle over the cap: %+v", c.Consensus)
+		}
+	}
+	// A cancelled run reports an error rather than a verdict.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	c := &Change{Pack: "cncf", RuleID: "rule-0"}
+	(&consensusRun{}).report(ctx, c, Options{Layout: layout, Head: head, Source: src})
+	if c.Consensus.Error == "" || c.OK {
+		t.Fatalf("cancelled: %+v", c.Consensus)
 	}
 }

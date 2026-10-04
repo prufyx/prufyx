@@ -116,7 +116,11 @@ func (x *ExtractorInventories) Inventory(ctx context.Context, kind string, repo 
 		x.cache, x.errs = map[string]*Inventory{}, map[string]error{}
 	}
 	if err != nil {
-		x.errs[key] = err
+		if ctx.Err() == nil {
+			// A cancelled or timed-out build is not a property of the
+			// commit; only other errors are remembered.
+			x.errs[key] = err
+		}
 		return nil, err
 	}
 	x.cache[key] = inv
