@@ -307,3 +307,19 @@ func TestCustomResourceVersionsArguments(t *testing.T) {
 		t.Fatal("empty input accepted")
 	}
 }
+
+// An unresolved set is not read at all when a readable object of a non-List
+// kind carries a top-level items array, even beside a forbidden member; and
+// an unresolved set with no member of the project keeps no unattributed
+// documents, so nothing else is reported about it.
+func TestCustomResourceVersionsUnresolvedSetEdges(t *testing.T) {
+	templated := "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: '{{ .Values.name }}'}\n"
+	items := prepareCR(t, crDocs(kafkaV1beta2, templated, "apiVersion: example.io/v1\nkind: Bundle\nmetadata:\n  name: b\nitems: []\n"), "strimzi", true)
+	if fact := crFact(t, items.Prepared); fact.State != "unsupported" || items.Prepared.Reason != ReasonCustomResourcesUnresolved || len(items.Members) != 0 {
+		t.Fatalf("items: fact %+v reason %s", fact, items.Prepared.Reason)
+	}
+	unattributed := prepareCR(t, crDocs("apiVersion: cert-manager.io/v1\nkind: Certificate\nmetadata:\n  name: tls\n", templated), "strimzi", true)
+	if fact := crFact(t, unattributed.Prepared); fact.State != "unsupported" || len(unattributed.Unattributed) != 0 || unattributed.Prepared.Reason != ReasonCustomResourcesRendering {
+		t.Fatalf("unattributed: fact %+v unattributed %+v", fact, unattributed.Unattributed)
+	}
+}
