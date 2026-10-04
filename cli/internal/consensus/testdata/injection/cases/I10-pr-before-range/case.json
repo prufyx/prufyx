@@ -1,0 +1,17 @@
+{
+  "category": "fake pull request",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "The cited pull request was merged before the earlier release.",
+  "expect": {
+    "reason": "no-provenance",
+    "verdict": "lead"
+  }
+}

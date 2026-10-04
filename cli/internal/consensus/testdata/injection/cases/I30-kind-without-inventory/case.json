@@ -1,0 +1,17 @@
+{
+  "category": "kind not allowed",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_flag",
+      "names": [
+        "--silent-dial"
+      ]
+    }
+  ],
+  "description": "A removed command-line flag: no complete inventory exists for flags.",
+  "expect": {
+    "reason": "kind-not-allowed",
+    "verdict": "lead"
+  }
+}

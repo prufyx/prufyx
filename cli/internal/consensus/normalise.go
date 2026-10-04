@@ -355,7 +355,7 @@ var (
 	linkRefRE  = regexp.MustCompile(`^[ \t]*\[[^\]]+\]:`)
 	imageRE    = regexp.MustCompile(`!\[[^\]]*\](\([^)]*\)|\[[^\]]*\])`)
 	autolinkRE = regexp.MustCompile(`<(https?://[^\s<>]+)>`)
-	tagRE      = regexp.MustCompile(`</?[A-Za-z][A-Za-z0-9-]*(\s[^<>]*)?/?>|<[!?][^<>]*>`)
+	tagRE      = regexp.MustCompile(`</?[A-Za-z][A-Za-z0-9_.:-]*(\s[^<>]*)?/?>|<[!?][^<>]*>`)
 	tagStartRE = regexp.MustCompile(`</?[A-Za-z!?]`)
 )
 

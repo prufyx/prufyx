@@ -1,0 +1,17 @@
+{
+  "category": "fenced code",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "Removal wording and the gate name are only inside a code block under an item.",
+  "expect": {
+    "reason": "no-cited-cue",
+    "verdict": "dropped"
+  }
+}

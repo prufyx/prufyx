@@ -1,0 +1,15 @@
+{
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_api_version",
+      "names": [
+        "widgets.example.io/v1beta2"
+      ]
+    }
+  ],
+  "description": "A removed API version cited with a bare pull request URL.",
+  "expect": {
+    "verdict": "verified"
+  }
+}

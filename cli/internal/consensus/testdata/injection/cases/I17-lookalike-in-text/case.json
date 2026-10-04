@@ -1,0 +1,17 @@
+{
+  "category": "look-alike names",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "The item spells the gate with a Cyrillic letter; the claim uses the Latin name.",
+  "expect": {
+    "reason": "no-cited-cue",
+    "verdict": "dropped"
+  }
+}

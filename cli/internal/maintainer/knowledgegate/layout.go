@@ -83,6 +83,10 @@ type Layout struct {
 	// ApprovalKeysPath pins the owner-approval keys. It is read from the
 	// base tree only.
 	ApprovalKeysPath string
+	// ConsensusClaimsDir holds, as <pack>/<rule id>.json, the claims
+	// bundle of a consensus rule. The gate re-runs the consensus verifier
+	// on it and reports the verdict; it never admits the rule.
+	ConsensusClaimsDir string
 	// Generated are outputs that must regenerate byte-identically.
 	Generated []GeneratedPair
 	// AutoMergePaths lists the paths an automatically mergeable change may
@@ -108,6 +112,7 @@ const (
 	approvalDir    = "cli/knowledge/approvals"
 	trustRootPath  = "cli/knowledge/reattestation/trust-root.json"
 	approvalKeys   = "cli/knowledge/trust/web-approval-keys.json"
+	consensusDir   = "cli/knowledge/consensus-claims"
 )
 
 func readAll(t Tree, rels ...string) ([][]byte, error) {
@@ -172,11 +177,12 @@ func DefaultLayout() Layout {
 				CapabilityDigest: func() (string, error) { return constraintengine.EngineContractDigest(), nil },
 			},
 		},
-		PausePath:        "factory/PAUSE",
-		ReattestDir:      reattestDir,
-		TrustRootPath:    trustRootPath,
-		ApprovalDir:      approvalDir,
-		ApprovalKeysPath: approvalKeys,
+		PausePath:          "factory/PAUSE",
+		ReattestDir:        reattestDir,
+		TrustRootPath:      trustRootPath,
+		ApprovalDir:        approvalDir,
+		ApprovalKeysPath:   approvalKeys,
+		ConsensusClaimsDir: consensusDir,
 		Generated: []GeneratedPair{{
 			JSONPath: inventoryJSON, MarkdownPath: inventoryMD,
 			Generate: func(t Tree) ([]byte, string, error) {

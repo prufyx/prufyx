@@ -1,0 +1,17 @@
+{
+  "category": "nested list continuation",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "The removal cue is in the parent item; the gate name only in a nested item without a cue.",
+  "expect": {
+    "reason": "no-cited-cue",
+    "verdict": "dropped"
+  }
+}

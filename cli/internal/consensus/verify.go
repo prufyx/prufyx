@@ -333,15 +333,15 @@ func (v *verifier) pinSource(rep *Report) (*verdictError, error) {
 func (v *verifier) claim(c Claim, res *ClaimResult) (*verdictError, error) {
 	rule, ok := allowedKinds[c.Kind]
 	if !ok || (c.Component != "" && c.Component != "kubernetes") || v.repo.Key != KubernetesRepo {
-		return fail(VerdictLead, ReasonKindNotAllowed, "kind %q has no complete mechanical inventory", logSafe(c.Kind)), nil
+		return fail(VerdictLead, ReasonKindNotAllowed, "kind \"%s\" of component \"%s\" has no section rule and complete mechanical inventory", logSafe(c.Kind), logSafe(c.Component)), nil
 	}
 	seen := map[string]bool{}
 	for _, n := range c.Names {
 		if !rule.name.MatchString(n) {
-			return fail(VerdictDropped, ReasonNameInvalid, "%q is not a %s name", logSafe(n), c.Kind), nil
+			return fail(VerdictDropped, ReasonNameInvalid, "\"%s\" is not a %s name", logSafe(n), c.Kind), nil
 		}
 		if seen[n] {
-			return fail(VerdictDropped, ReasonNameInvalid, "%q is named twice", n), nil
+			return fail(VerdictDropped, ReasonNameInvalid, "\"%s\" is named twice", n), nil
 		}
 		seen[n] = true
 	}
@@ -618,8 +618,9 @@ var (
 
 // prReferences returns the pull request numbers of repo that text
 // references: inline links to the repository's pull requests, bare pull
-// request URLs and bare "#N". A link to another repository's pull request
-// is ignored, so its number never counts; consistent is false when a link
+// request URLs and bare "#N". Any other link, including one to another
+// repository's pull request, is ignored with its text, so its number never
+// counts; consistent is false when a link
 // text names a different number than its target.
 func prReferences(text string, repo extract.RepoRef) (refs []int, consistent bool) {
 	owner, name := repo.OwnerName()
@@ -630,9 +631,9 @@ func prReferences(text string, repo extract.RepoRef) (refs []int, consistent boo
 		m := inlineLinkRE.FindStringSubmatch(link)
 		u := pullURLRE.FindStringSubmatch(m[2])
 		if u == nil {
-			// Not a pull request link: its text stays, its target does
-			// not count.
-			return " " + m[1] + " "
+			// Not a pull request link: neither its text nor its target
+			// is a reference ("[#5](.../issues/5)" names an issue).
+			return " "
 		}
 		if !same(u[1], u[2]) {
 			return " "

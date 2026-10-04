@@ -1,0 +1,17 @@
+{
+  "category": "control characters",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "A terminal escape sequence inside the item.",
+  "expect": {
+    "reason": "hidden-content",
+    "verdict": "lead"
+  }
+}

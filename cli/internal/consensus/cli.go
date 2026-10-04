@@ -69,9 +69,10 @@ func (s *sourceFlags) register(f *flag.FlagSet) {
 	f.StringVar(&s.wantsOut, "wants-out", "", "write the files the mirror does not hold here")
 }
 
-// open returns the reader, tag source and history of the chosen source,
-// the reader wrapped so that files the mirror does not hold are recorded.
-func (s *sourceFlags) open() (*wantsReader, extract.TagSource, History, error) {
+// openSource opens the chosen source; tests replace it.
+var openSource = defaultOpenSource
+
+func defaultOpenSource(s *sourceFlags) (extract.PinnedReader, extract.TagSource, History, error) {
 	switch {
 	case s.mirror != "" && s.fixture == "":
 		r, err := factorymirror.OpenReader(s.mirror)
@@ -79,12 +80,22 @@ func (s *sourceFlags) open() (*wantsReader, extract.TagSource, History, error) {
 			return nil, nil, nil, fmt.Errorf("open mirror: %w", err)
 		}
 		m := extract.MirrorReader{R: r}
-		return newWantsReader(m), m, MirrorHistory{State: s.mirror}, nil
+		return m, m, MirrorHistory{State: s.mirror}, nil
 	case s.fixture != "" && s.mirror == "":
 		f := extract.FixtureReader{Root: s.fixture}
-		return newWantsReader(f), f, FixtureHistory{Root: s.fixture}, nil
+		return f, f, FixtureHistory{Root: s.fixture}, nil
 	}
 	return nil, nil, nil, errors.New("give exactly one of --mirror-state and --fixture")
+}
+
+// open returns the reader, tag source and history of the chosen source,
+// the reader wrapped so that files the mirror does not hold are recorded.
+func (s *sourceFlags) open() (*wantsReader, extract.TagSource, History, error) {
+	r, tags, history, err := openSource(s)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return newWantsReader(r), tags, history, nil
 }
 
 func newFlags(name string) *flag.FlagSet {

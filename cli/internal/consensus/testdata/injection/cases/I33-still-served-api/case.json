@@ -1,0 +1,17 @@
+{
+  "category": "instruction in an item",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_api_version",
+      "names": [
+        "apps/v1"
+      ]
+    }
+  ],
+  "description": "An item claims a served API version is no longer served.",
+  "expect": {
+    "reason": "still-present",
+    "verdict": "dropped"
+  }
+}

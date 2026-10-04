@@ -1,0 +1,18 @@
+{
+  "category": "pinned bytes",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "The bundle pins a different file digest than the bytes at the commit.",
+  "expect": {
+    "reason": "source-mismatch",
+    "verdict": "dropped"
+  },
+  "tamper": "fileSha256"
+}

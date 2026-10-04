@@ -1,0 +1,17 @@
+{
+  "category": "hidden HTML comment",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "A visible item with a removal cue; the gate name is only inside an inline comment.",
+  "expect": {
+    "reason": "no-cited-cue",
+    "verdict": "dropped"
+  }
+}

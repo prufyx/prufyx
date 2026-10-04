@@ -1,0 +1,17 @@
+{
+  "category": "pull request of another repository",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "The reference uses the owner/name#N form of another repository.",
+  "expect": {
+    "reason": "no-provenance",
+    "verdict": "lead"
+  }
+}

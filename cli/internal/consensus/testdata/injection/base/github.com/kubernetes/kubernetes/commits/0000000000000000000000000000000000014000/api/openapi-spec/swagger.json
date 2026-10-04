@@ -1,0 +1,79 @@
+{
+  "definitions": {
+    "io.example.apps.v1.Deployment": {
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "apps",
+          "kind": "Deployment",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.example.batch.v1.Job": {
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "batch",
+          "kind": "Job",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.example.core.v1.Pod": {
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "",
+          "kind": "Pod",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.example.gizmos_example_io.v1.Gizmo": {
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "gizmos.example.io",
+          "kind": "Gizmo",
+          "version": "v1"
+        }
+      ]
+    },
+    "io.example.gizmos_example_io.v1beta1.Gizmo": {
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "gizmos.example.io",
+          "kind": "Gizmo",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "io.example.legacy_example_io.v1alpha1.Relic": {
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "legacy.example.io",
+          "kind": "Relic",
+          "version": "v1alpha1"
+        }
+      ]
+    },
+    "io.example.widgets_example_io.v1beta2.Widget": {
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "widgets.example.io",
+          "kind": "Widget",
+          "version": "v1beta2"
+        }
+      ]
+    }
+  },
+  "info": {
+    "title": "Synthetic test fixture",
+    "version": "v0"
+  },
+  "swagger": "2.0"
+}

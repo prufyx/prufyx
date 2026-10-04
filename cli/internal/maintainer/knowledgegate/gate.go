@@ -372,6 +372,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 			admitReviewed(c, statements[c.Pack], loadKeys, opts)
 		case constraintengine.BasisConsensus:
 			c.fail("consensus evidence has no verifier in this gate; not admitted")
+			reportConsensus(ctx, c, opts)
 		case constraintengine.BasisEmpirical:
 			// Empirical evidence may pass, so it needs a reproduction proof
 			// this gate cannot check yet.

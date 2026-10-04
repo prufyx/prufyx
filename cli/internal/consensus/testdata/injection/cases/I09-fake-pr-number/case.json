@@ -1,0 +1,17 @@
+{
+  "category": "fake pull request",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "A real removal cited with a pull request number that no commit of the range carries.",
+  "expect": {
+    "reason": "no-provenance",
+    "verdict": "lead"
+  }
+}

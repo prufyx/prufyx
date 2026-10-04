@@ -1,0 +1,17 @@
+{
+  "category": "CRLF and mixed line endings",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "A lone carriage return joins two items that some readers show apart.",
+  "expect": {
+    "reason": "hidden-content",
+    "verdict": "lead"
+  }
+}

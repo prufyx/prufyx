@@ -61,6 +61,9 @@ type Change struct {
 	// OK reports whether the change is admitted; Detail says why not.
 	OK     bool   `json:"ok"`
 	Detail string `json:"detail,omitempty"`
+	// Consensus is the consensus verifier's verdict on the claims bundle
+	// of a consensus rule, reported only.
+	Consensus *ConsensusVerdict `json:"consensus,omitempty"`
 
 	base, head *entry
 	// rbase and rhead are a record change's base and head records;

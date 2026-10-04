@@ -1,0 +1,17 @@
+{
+  "category": "breakout text",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "An item closes a pseudo tag and addresses an automated reader.",
+  "expect": {
+    "reason": "hidden-content",
+    "verdict": "lead"
+  }
+}
