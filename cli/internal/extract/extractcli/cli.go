@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 	"github.com/prufyx/prufyx/cli/internal/extract/k8sfeaturegates"
 	"github.com/prufyx/prufyx/cli/internal/extract/k8sservedapis"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/factorymirror"
@@ -41,9 +42,11 @@ type Spec struct {
 	Oracle func(outDir string, expected []byte) ([]string, error)
 }
 
-// Catalog lists the registered extractors by id.
+// Catalog lists the registered extractors by id. The CRD version-removal
+// extractor is registered once per reviewed project, as
+// crd.version-removal.<project>, because a run reads one repository.
 func Catalog() map[string]Spec {
-	return map[string]Spec{
+	out := map[string]Spec{
 		k8sfeaturegates.ID: {
 			ID:     k8sfeaturegates.ID,
 			Repo:   k8sfeaturegates.Repo,
@@ -57,6 +60,16 @@ func Catalog() map[string]Spec {
 			Oracle: k8sservedapis.Oracle,
 		},
 	}
+	for _, t := range crdversions.Targets {
+		t := t
+		out[t.ExtractorID()] = Spec{
+			ID:     t.ExtractorID(),
+			Repo:   t.Repo,
+			New:    func(int) extract.Extractor { return crdversions.New(t) },
+			Oracle: crdversions.Oracle,
+		}
+	}
+	return out
 }
 
 // Main runs an "extract" subcommand (args exclude the word "extract").

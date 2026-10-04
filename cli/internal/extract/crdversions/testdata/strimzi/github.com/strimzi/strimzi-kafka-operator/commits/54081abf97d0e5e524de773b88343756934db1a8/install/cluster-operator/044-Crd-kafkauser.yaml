@@ -1,0 +1,128 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: kafkausers.kafka.strimzi.io
+  labels:
+    app: strimzi
+    strimzi.io/crd-install: "true"
+spec:
+  group: kafka.strimzi.io
+  names:
+    kind: KafkaUser
+    listKind: KafkaUserList
+    singular: kafkauser
+    plural: kafkausers
+    shortNames:
+    - ku
+    categories:
+    - strimzi
+  scope: Namespaced
+  conversion:
+    strategy: None
+  versions:
+  - name: v1
+    served: true
+    storage: false
+    subresources:
+      status: {}
+    additionalPrinterColumns:
+    - name: Cluster
+      description: The name of the Kafka cluster this user belongs to
+      jsonPath: .metadata.labels.strimzi\.io/cluster
+      type: string
+    - name: Authentication
+      description: How the user is authenticated
+      jsonPath: .spec.authentication.type
+      type: string
+    - name: Authorization
+      description: How the user is authorised
+      jsonPath: .spec.authorization.type
+      type: string
+    - name: Ready
+      description: The state of the custom resource
+      jsonPath: ".status.conditions[?(@.type==\"Ready\")].status"
+      type: string
+    schema:
+      openAPIV3Schema:
+        type: object
+  - name: v1beta2
+    served: true
+    storage: true
+    deprecated: true
+    deprecationWarning: Version v1beta2 of the KafkaUser API is deprecated. Please use the v1 version instead.
+    subresources:
+      status: {}
+    additionalPrinterColumns:
+    - name: Cluster
+      description: The name of the Kafka cluster this user belongs to
+      jsonPath: .metadata.labels.strimzi\.io/cluster
+      type: string
+    - name: Authentication
+      description: How the user is authenticated
+      jsonPath: .spec.authentication.type
+      type: string
+    - name: Authorization
+      description: How the user is authorised
+      jsonPath: .spec.authorization.type
+      type: string
+    - name: Ready
+      description: The state of the custom resource
+      jsonPath: ".status.conditions[?(@.type==\"Ready\")].status"
+      type: string
+    schema:
+      openAPIV3Schema:
+        type: object
+  - name: v1beta1
+    served: true
+    storage: false
+    deprecated: true
+    deprecationWarning: Version v1beta1 of the KafkaUser API is deprecated. Please use the v1 version instead.
+    subresources:
+      status: {}
+    additionalPrinterColumns:
+    - name: Cluster
+      description: The name of the Kafka cluster this user belongs to
+      jsonPath: .metadata.labels.strimzi\.io/cluster
+      type: string
+    - name: Authentication
+      description: How the user is authenticated
+      jsonPath: .spec.authentication.type
+      type: string
+    - name: Authorization
+      description: How the user is authorised
+      jsonPath: .spec.authorization.type
+      type: string
+    - name: Ready
+      description: The state of the custom resource
+      jsonPath: ".status.conditions[?(@.type==\"Ready\")].status"
+      type: string
+    schema:
+      openAPIV3Schema:
+        type: object
+  - name: v1alpha1
+    served: true
+    storage: false
+    deprecated: true
+    deprecationWarning: Version v1alpha1 of the KafkaUser API is deprecated. Please use the v1 version instead.
+    subresources:
+      status: {}
+    additionalPrinterColumns:
+    - name: Cluster
+      description: The name of the Kafka cluster this user belongs to
+      jsonPath: .metadata.labels.strimzi\.io/cluster
+      type: string
+    - name: Authentication
+      description: How the user is authenticated
+      jsonPath: .spec.authentication.type
+      type: string
+    - name: Authorization
+      description: How the user is authorised
+      jsonPath: .spec.authorization.type
+      type: string
+    - name: Ready
+      description: The state of the custom resource
+      jsonPath: ".status.conditions[?(@.type==\"Ready\")].status"
+      type: string
+    schema:
+      openAPIV3Schema:
+        type: object

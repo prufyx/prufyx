@@ -1,0 +1,170 @@
+{
+  "removals": [
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "member": "core.strimzi.io/v1beta2/StrimziPodSet",
+      "reason": "absent"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "member": "kafka.strimzi.io/v1alpha1/KafkaTopic",
+      "reason": "absent"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "member": "kafka.strimzi.io/v1alpha1/KafkaUser",
+      "reason": "absent"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "member": "kafka.strimzi.io/v1beta1/KafkaTopic",
+      "reason": "absent"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "member": "kafka.strimzi.io/v1beta1/KafkaUser",
+      "reason": "absent"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "member": "kafka.strimzi.io/v1beta2/Kafka",
+      "reason": "absent"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "member": "kafka.strimzi.io/v1beta2/KafkaBridge",
+      "reason": "absent"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "member": "kafka.strimzi.io/v1beta2/KafkaConnect",
+      "reason": "absent"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "member": "kafka.strimzi.io/v1beta2/KafkaConnector",
+      "reason": "absent"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "member": "kafka.strimzi.io/v1beta2/KafkaMirrorMaker2",
+      "reason": "absent"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "member": "kafka.strimzi.io/v1beta2/KafkaNodePool",
+      "reason": "absent"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "member": "kafka.strimzi.io/v1beta2/KafkaRebalance",
+      "reason": "absent"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "member": "kafka.strimzi.io/v1beta2/KafkaTopic",
+      "reason": "absent"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "member": "kafka.strimzi.io/v1beta2/KafkaUser",
+      "reason": "absent"
+    }
+  ],
+  "rules": [
+    {
+      "name": "strimzi.kafka-v1beta2-api-removed.1-0",
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "members": [
+        "kafka.strimzi.io/v1beta2/Kafka"
+      ]
+    }
+  ],
+  "storageChanges": [
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "crd": "kafkas.kafka.strimzi.io",
+      "fromStorage": "v1beta2",
+      "toStorage": "v1"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "crd": "kafkaconnects.kafka.strimzi.io",
+      "fromStorage": "v1beta2",
+      "toStorage": "v1"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "crd": "strimzipodsets.core.strimzi.io",
+      "fromStorage": "v1beta2",
+      "toStorage": "v1"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "crd": "kafkatopics.kafka.strimzi.io",
+      "fromStorage": "v1beta2",
+      "toStorage": "v1"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "crd": "kafkausers.kafka.strimzi.io",
+      "fromStorage": "v1beta2",
+      "toStorage": "v1"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "crd": "kafkanodepools.kafka.strimzi.io",
+      "fromStorage": "v1beta2",
+      "toStorage": "v1"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "crd": "kafkabridges.kafka.strimzi.io",
+      "fromStorage": "v1beta2",
+      "toStorage": "v1"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "crd": "kafkaconnectors.kafka.strimzi.io",
+      "fromStorage": "v1beta2",
+      "toStorage": "v1"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "crd": "kafkamirrormaker2s.kafka.strimzi.io",
+      "fromStorage": "v1beta2",
+      "toStorage": "v1"
+    },
+    {
+      "from": "0.51.0",
+      "to": "1.0.0",
+      "crd": "kafkarebalances.kafka.strimzi.io",
+      "fromStorage": "v1beta2",
+      "toStorage": "v1"
+    }
+  ]
+}

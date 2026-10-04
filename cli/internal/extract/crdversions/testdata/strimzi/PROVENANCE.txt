@@ -1,0 +1,13 @@
+Strimzi CustomResourceDefinition manifests, install/cluster-operator/04*-Crd-*.yaml,
+fetched from https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/<commit>/<path>
+at the commits the reviewed rule strimzi.kafka-v1beta2-api-removed.1-0 cites for
+0.51.0 (54081abf97d0e5e524de773b88343756934db1a8) and 1.0.0
+(4836c7dd74ce973f06d97936916ed7f20c1a2ff0).
+
+To keep the fixture small, the body of every version's "schema:" key was
+replaced by a minimal object schema; every other line is unchanged. Line
+numbers and file digests therefore differ from upstream; served and storage
+flags, version order, names and groups do not. Other files of the directory
+are not included (the extractor reads only the 04*-Crd-*.yaml names).
+The 1.0.0-rc1 tag is added to show that release candidates never form a pair.
+Licence: Apache-2.0 (upstream).

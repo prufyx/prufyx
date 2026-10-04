@@ -1,0 +1,9 @@
+Synthetic CustomResourceDefinition manifests under the Argo CD repository
+key and its listed path (manifests/crds). The group fixture.argoproj.io, the
+tags v90.x and the commit ids are invented; no byte comes from upstream.
+
+v90.0.0 -> v90.1.0: Widget v1alpha2 is dropped, Gadget v1beta1 becomes
+served: false, Gizmo moves its storage version from v1beta1 to v1 (no
+removal), Doohickey is unchanged. v90.1.0 -> v90.2.0: no change.
+v2.13.0 is before the first pair the target allows; v90.1.1 and
+v90.3.0-rc.1 are not final .0 releases.

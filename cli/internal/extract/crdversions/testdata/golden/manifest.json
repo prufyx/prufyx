@@ -1,0 +1,810 @@
+{
+  "codeFiles": [],
+  "commits": [
+    {
+      "commit": "0000000000000000000000000000000000900000",
+      "listings": 1,
+      "reads": 4,
+      "readsDigest": "sha256:fcc0da2f6b4d12852501729566f71c02bf72dc16aa2f4f5ce35ac24413788b1e"
+    },
+    {
+      "commit": "0000000000000000000000000000000000901000",
+      "listings": 1,
+      "reads": 4,
+      "readsDigest": "sha256:01fe83006560b3d1185373e839d7c5590dfa62bbca497e2cf89a013be2762313"
+    },
+    {
+      "commit": "0000000000000000000000000000000000902000",
+      "listings": 1,
+      "reads": 4,
+      "readsDigest": "sha256:01fe83006560b3d1185373e839d7c5590dfa62bbca497e2cf89a013be2762313"
+    }
+  ],
+  "derivedAt": "2026-10-04T00:00:00Z",
+  "extractor": {
+    "codeDigest": "sha256:CODE",
+    "id": "crd.version-removal.argo-cd",
+    "version": "1.0.0"
+  },
+  "outputs": {
+    "candidates.json": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000900000.tsv": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000901000.tsv": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000902000.tsv": "sha256:OUTPUT",
+    "vectors.json": "sha256:OUTPUT"
+  },
+  "pairs": [
+    {
+      "from": "90.0.0",
+      "fromCommit": "0000000000000000000000000000000000900000",
+      "fromTag": "v90.0.0",
+      "proof": {
+        "factId": "component.argo_cd.custom_resource_versions_set",
+        "from": {
+          "commit": "0000000000000000000000000000000000900000",
+          "complete": true,
+          "crds": [
+            {
+              "document": 2,
+              "group": "fixture.argoproj.io",
+              "kind": "Doohickey",
+              "name": "doohickeys.fixture.argoproj.io",
+              "path": "manifests/crds/more-crds.yaml",
+              "plural": "doohickeys",
+              "scope": "Namespaced",
+              "startLine": 32,
+              "storageVersion": "v1",
+              "versions": [
+                {
+                  "endLine": 53,
+                  "name": "v1",
+                  "served": true,
+                  "servedLine": 48,
+                  "startLine": 47,
+                  "storage": true,
+                  "storageLine": 49
+                }
+              ],
+              "versionsLine": 46
+            },
+            {
+              "document": 1,
+              "group": "fixture.argoproj.io",
+              "kind": "Gadget",
+              "name": "gadgets.fixture.argoproj.io",
+              "path": "manifests/crds/gadget-crd.yaml",
+              "plural": "gadgets",
+              "scope": "Namespaced",
+              "startLine": 1,
+              "storageVersion": "v1",
+              "versions": [
+                {
+                  "endLine": 22,
+                  "name": "v1",
+                  "served": true,
+                  "servedLine": 17,
+                  "startLine": 16,
+                  "storage": true,
+                  "storageLine": 18
+                },
+                {
+                  "endLine": 30,
+                  "name": "v1beta1",
+                  "served": true,
+                  "servedLine": 25,
+                  "startLine": 24,
+                  "storage": false,
+                  "storageLine": 26
+                }
+              ],
+              "versionsLine": 15
+            },
+            {
+              "document": 1,
+              "group": "fixture.argoproj.io",
+              "kind": "Gizmo",
+              "name": "gizmos.fixture.argoproj.io",
+              "path": "manifests/crds/more-crds.yaml",
+              "plural": "gizmos",
+              "scope": "Namespaced",
+              "startLine": 2,
+              "storageVersion": "v1beta1",
+              "versions": [
+                {
+                  "endLine": 23,
+                  "name": "v1beta1",
+                  "served": true,
+                  "servedLine": 18,
+                  "startLine": 17,
+                  "storage": true,
+                  "storageLine": 19
+                },
+                {
+                  "endLine": 30,
+                  "name": "v1",
+                  "served": true,
+                  "servedLine": 25,
+                  "startLine": 24,
+                  "storage": false,
+                  "storageLine": 26
+                }
+              ],
+              "versionsLine": 16
+            },
+            {
+              "document": 1,
+              "group": "fixture.argoproj.io",
+              "kind": "Widget",
+              "name": "widgets.fixture.argoproj.io",
+              "path": "manifests/crds/widget-crd.yaml",
+              "plural": "widgets",
+              "scope": "Namespaced",
+              "startLine": 1,
+              "storageVersion": "v1beta1",
+              "versions": [
+                {
+                  "endLine": 22,
+                  "name": "v1alpha2",
+                  "served": true,
+                  "servedLine": 17,
+                  "startLine": 16,
+                  "storage": false,
+                  "storageLine": 18
+                },
+                {
+                  "endLine": 29,
+                  "name": "v1beta1",
+                  "served": true,
+                  "servedLine": 24,
+                  "startLine": 23,
+                  "storage": true,
+                  "storageLine": 25
+                },
+                {
+                  "endLine": 36,
+                  "name": "v1",
+                  "served": true,
+                  "servedLine": 31,
+                  "startLine": 30,
+                  "storage": false,
+                  "storageLine": 32
+                }
+              ],
+              "versionsLine": 15
+            }
+          ],
+          "files": [
+            {
+              "crds": 1,
+              "documents": 1,
+              "lines": 30,
+              "otherDocuments": 0,
+              "path": "manifests/crds/gadget-crd.yaml",
+              "sha256": "sha256:38332f7e59687e98e2223a17cd7d7f480c88e292cd043ec6c5d0fdf112f22f17",
+              "size": 679
+            },
+            {
+              "crds": 0,
+              "documents": 1,
+              "lines": 6,
+              "otherDocuments": 1,
+              "path": "manifests/crds/kustomization.yaml",
+              "sha256": "sha256:86bcd1ca1d210f80a39057f2d158003d95ac7f8abcffbfc4ab49f6b98a94649c",
+              "size": 128
+            },
+            {
+              "crds": 2,
+              "documents": 2,
+              "lines": 53,
+              "otherDocuments": 0,
+              "path": "manifests/crds/more-crds.yaml",
+              "sha256": "sha256:4250a706bb15a34a30350bb9b8e848190b8dd4fa3f3bbeccbfb9e22326b8e0ce",
+              "size": 1158
+            },
+            {
+              "crds": 1,
+              "documents": 1,
+              "lines": 36,
+              "otherDocuments": 0,
+              "path": "manifests/crds/widget-crd.yaml",
+              "sha256": "sha256:a36769d8855145f768b38a528816e6cd8c2655152a31d94838c962ca3d69e1a3",
+              "size": 799
+            }
+          ],
+          "paths": [
+            {
+              "files": 4,
+              "ignored": 1,
+              "kind": "directory",
+              "path": "manifests/crds"
+            }
+          ],
+          "tag": "v90.0.0"
+        },
+        "removals": [
+          {
+            "crd": "gadgets.fixture.argoproj.io",
+            "fromEndLine": 30,
+            "fromPath": "manifests/crds/gadget-crd.yaml",
+            "fromStartLine": 24,
+            "member": "fixture.argoproj.io/v1beta1/Gadget",
+            "reason": "unserved",
+            "toPath": "manifests/crds/gadget-crd.yaml",
+            "toServedLine": 25,
+            "version": "v1beta1"
+          },
+          {
+            "crd": "widgets.fixture.argoproj.io",
+            "fromEndLine": 22,
+            "fromPath": "manifests/crds/widget-crd.yaml",
+            "fromStartLine": 16,
+            "member": "fixture.argoproj.io/v1alpha2/Widget",
+            "reason": "absent",
+            "toPath": "manifests/crds/widget-crd.yaml",
+            "toServedLine": 0,
+            "version": "v1alpha2"
+          }
+        ],
+        "storageChanges": [
+          {
+            "crd": "gizmos.fixture.argoproj.io",
+            "from": "v1beta1",
+            "to": "v1"
+          }
+        ],
+        "target": "argo-cd",
+        "to": {
+          "commit": "0000000000000000000000000000000000901000",
+          "complete": true,
+          "crds": [
+            {
+              "document": 2,
+              "group": "fixture.argoproj.io",
+              "kind": "Doohickey",
+              "name": "doohickeys.fixture.argoproj.io",
+              "path": "manifests/crds/more-crds.yaml",
+              "plural": "doohickeys",
+              "scope": "Namespaced",
+              "startLine": 32,
+              "storageVersion": "v1",
+              "versions": [
+                {
+                  "endLine": 53,
+                  "name": "v1",
+                  "served": true,
+                  "servedLine": 48,
+                  "startLine": 47,
+                  "storage": true,
+                  "storageLine": 49
+                }
+              ],
+              "versionsLine": 46
+            },
+            {
+              "document": 1,
+              "group": "fixture.argoproj.io",
+              "kind": "Gadget",
+              "name": "gadgets.fixture.argoproj.io",
+              "path": "manifests/crds/gadget-crd.yaml",
+              "plural": "gadgets",
+              "scope": "Namespaced",
+              "startLine": 1,
+              "storageVersion": "v1",
+              "versions": [
+                {
+                  "endLine": 22,
+                  "name": "v1",
+                  "served": true,
+                  "servedLine": 17,
+                  "startLine": 16,
+                  "storage": true,
+                  "storageLine": 18
+                },
+                {
+                  "endLine": 30,
+                  "name": "v1beta1",
+                  "served": false,
+                  "servedLine": 25,
+                  "startLine": 24,
+                  "storage": false,
+                  "storageLine": 26
+                }
+              ],
+              "versionsLine": 15
+            },
+            {
+              "document": 1,
+              "group": "fixture.argoproj.io",
+              "kind": "Gizmo",
+              "name": "gizmos.fixture.argoproj.io",
+              "path": "manifests/crds/more-crds.yaml",
+              "plural": "gizmos",
+              "scope": "Namespaced",
+              "startLine": 2,
+              "storageVersion": "v1",
+              "versions": [
+                {
+                  "endLine": 23,
+                  "name": "v1beta1",
+                  "served": true,
+                  "servedLine": 18,
+                  "startLine": 17,
+                  "storage": false,
+                  "storageLine": 19
+                },
+                {
+                  "endLine": 30,
+                  "name": "v1",
+                  "served": true,
+                  "servedLine": 25,
+                  "startLine": 24,
+                  "storage": true,
+                  "storageLine": 26
+                }
+              ],
+              "versionsLine": 16
+            },
+            {
+              "document": 1,
+              "group": "fixture.argoproj.io",
+              "kind": "Widget",
+              "name": "widgets.fixture.argoproj.io",
+              "path": "manifests/crds/widget-crd.yaml",
+              "plural": "widgets",
+              "scope": "Namespaced",
+              "startLine": 1,
+              "storageVersion": "v1beta1",
+              "versions": [
+                {
+                  "endLine": 22,
+                  "name": "v1beta1",
+                  "served": true,
+                  "servedLine": 17,
+                  "startLine": 16,
+                  "storage": true,
+                  "storageLine": 18
+                },
+                {
+                  "endLine": 29,
+                  "name": "v1",
+                  "served": true,
+                  "servedLine": 24,
+                  "startLine": 23,
+                  "storage": false,
+                  "storageLine": 25
+                }
+              ],
+              "versionsLine": 15
+            }
+          ],
+          "files": [
+            {
+              "crds": 1,
+              "documents": 1,
+              "lines": 30,
+              "otherDocuments": 0,
+              "path": "manifests/crds/gadget-crd.yaml",
+              "sha256": "sha256:1a738b9feb2eea98d667157a01a30f6ce76e1bb22db0a7cf4e5878d9464f9060",
+              "size": 680
+            },
+            {
+              "crds": 0,
+              "documents": 1,
+              "lines": 6,
+              "otherDocuments": 1,
+              "path": "manifests/crds/kustomization.yaml",
+              "sha256": "sha256:86bcd1ca1d210f80a39057f2d158003d95ac7f8abcffbfc4ab49f6b98a94649c",
+              "size": 128
+            },
+            {
+              "crds": 2,
+              "documents": 2,
+              "lines": 53,
+              "otherDocuments": 0,
+              "path": "manifests/crds/more-crds.yaml",
+              "sha256": "sha256:563754372d76953472b1201014277321ca541730a4f0499485adc44ca6c01ac5",
+              "size": 1158
+            },
+            {
+              "crds": 1,
+              "documents": 1,
+              "lines": 29,
+              "otherDocuments": 0,
+              "path": "manifests/crds/widget-crd.yaml",
+              "sha256": "sha256:990d14325c1c542ab2e31d02fbd45c9b46b3cf810f75e86832b85cb06fcb0f52",
+              "size": 637
+            }
+          ],
+          "paths": [
+            {
+              "files": 4,
+              "ignored": 1,
+              "kind": "directory",
+              "path": "manifests/crds"
+            }
+          ],
+          "tag": "v90.1.0"
+        }
+      },
+      "rules": [
+        "argo-cd.crd-version-removal.gadgets-fixture-argoproj-io.90-0-0-to-90-1-0",
+        "argo-cd.crd-version-removal.widgets-fixture-argoproj-io.90-0-0-to-90-1-0"
+      ],
+      "status": "derived",
+      "to": "90.1.0",
+      "toCommit": "0000000000000000000000000000000000901000",
+      "toTag": "v90.1.0"
+    },
+    {
+      "from": "90.1.0",
+      "fromCommit": "0000000000000000000000000000000000901000",
+      "fromTag": "v90.1.0",
+      "proof": {
+        "factId": "component.argo_cd.custom_resource_versions_set",
+        "from": {
+          "commit": "0000000000000000000000000000000000901000",
+          "complete": true,
+          "crds": [
+            {
+              "document": 2,
+              "group": "fixture.argoproj.io",
+              "kind": "Doohickey",
+              "name": "doohickeys.fixture.argoproj.io",
+              "path": "manifests/crds/more-crds.yaml",
+              "plural": "doohickeys",
+              "scope": "Namespaced",
+              "startLine": 32,
+              "storageVersion": "v1",
+              "versions": [
+                {
+                  "endLine": 53,
+                  "name": "v1",
+                  "served": true,
+                  "servedLine": 48,
+                  "startLine": 47,
+                  "storage": true,
+                  "storageLine": 49
+                }
+              ],
+              "versionsLine": 46
+            },
+            {
+              "document": 1,
+              "group": "fixture.argoproj.io",
+              "kind": "Gadget",
+              "name": "gadgets.fixture.argoproj.io",
+              "path": "manifests/crds/gadget-crd.yaml",
+              "plural": "gadgets",
+              "scope": "Namespaced",
+              "startLine": 1,
+              "storageVersion": "v1",
+              "versions": [
+                {
+                  "endLine": 22,
+                  "name": "v1",
+                  "served": true,
+                  "servedLine": 17,
+                  "startLine": 16,
+                  "storage": true,
+                  "storageLine": 18
+                },
+                {
+                  "endLine": 30,
+                  "name": "v1beta1",
+                  "served": false,
+                  "servedLine": 25,
+                  "startLine": 24,
+                  "storage": false,
+                  "storageLine": 26
+                }
+              ],
+              "versionsLine": 15
+            },
+            {
+              "document": 1,
+              "group": "fixture.argoproj.io",
+              "kind": "Gizmo",
+              "name": "gizmos.fixture.argoproj.io",
+              "path": "manifests/crds/more-crds.yaml",
+              "plural": "gizmos",
+              "scope": "Namespaced",
+              "startLine": 2,
+              "storageVersion": "v1",
+              "versions": [
+                {
+                  "endLine": 23,
+                  "name": "v1beta1",
+                  "served": true,
+                  "servedLine": 18,
+                  "startLine": 17,
+                  "storage": false,
+                  "storageLine": 19
+                },
+                {
+                  "endLine": 30,
+                  "name": "v1",
+                  "served": true,
+                  "servedLine": 25,
+                  "startLine": 24,
+                  "storage": true,
+                  "storageLine": 26
+                }
+              ],
+              "versionsLine": 16
+            },
+            {
+              "document": 1,
+              "group": "fixture.argoproj.io",
+              "kind": "Widget",
+              "name": "widgets.fixture.argoproj.io",
+              "path": "manifests/crds/widget-crd.yaml",
+              "plural": "widgets",
+              "scope": "Namespaced",
+              "startLine": 1,
+              "storageVersion": "v1beta1",
+              "versions": [
+                {
+                  "endLine": 22,
+                  "name": "v1beta1",
+                  "served": true,
+                  "servedLine": 17,
+                  "startLine": 16,
+                  "storage": true,
+                  "storageLine": 18
+                },
+                {
+                  "endLine": 29,
+                  "name": "v1",
+                  "served": true,
+                  "servedLine": 24,
+                  "startLine": 23,
+                  "storage": false,
+                  "storageLine": 25
+                }
+              ],
+              "versionsLine": 15
+            }
+          ],
+          "files": [
+            {
+              "crds": 1,
+              "documents": 1,
+              "lines": 30,
+              "otherDocuments": 0,
+              "path": "manifests/crds/gadget-crd.yaml",
+              "sha256": "sha256:1a738b9feb2eea98d667157a01a30f6ce76e1bb22db0a7cf4e5878d9464f9060",
+              "size": 680
+            },
+            {
+              "crds": 0,
+              "documents": 1,
+              "lines": 6,
+              "otherDocuments": 1,
+              "path": "manifests/crds/kustomization.yaml",
+              "sha256": "sha256:86bcd1ca1d210f80a39057f2d158003d95ac7f8abcffbfc4ab49f6b98a94649c",
+              "size": 128
+            },
+            {
+              "crds": 2,
+              "documents": 2,
+              "lines": 53,
+              "otherDocuments": 0,
+              "path": "manifests/crds/more-crds.yaml",
+              "sha256": "sha256:563754372d76953472b1201014277321ca541730a4f0499485adc44ca6c01ac5",
+              "size": 1158
+            },
+            {
+              "crds": 1,
+              "documents": 1,
+              "lines": 29,
+              "otherDocuments": 0,
+              "path": "manifests/crds/widget-crd.yaml",
+              "sha256": "sha256:990d14325c1c542ab2e31d02fbd45c9b46b3cf810f75e86832b85cb06fcb0f52",
+              "size": 637
+            }
+          ],
+          "paths": [
+            {
+              "files": 4,
+              "ignored": 1,
+              "kind": "directory",
+              "path": "manifests/crds"
+            }
+          ],
+          "tag": "v90.1.0"
+        },
+        "removals": [],
+        "storageChanges": [],
+        "target": "argo-cd",
+        "to": {
+          "commit": "0000000000000000000000000000000000902000",
+          "complete": true,
+          "crds": [
+            {
+              "document": 2,
+              "group": "fixture.argoproj.io",
+              "kind": "Doohickey",
+              "name": "doohickeys.fixture.argoproj.io",
+              "path": "manifests/crds/more-crds.yaml",
+              "plural": "doohickeys",
+              "scope": "Namespaced",
+              "startLine": 32,
+              "storageVersion": "v1",
+              "versions": [
+                {
+                  "endLine": 53,
+                  "name": "v1",
+                  "served": true,
+                  "servedLine": 48,
+                  "startLine": 47,
+                  "storage": true,
+                  "storageLine": 49
+                }
+              ],
+              "versionsLine": 46
+            },
+            {
+              "document": 1,
+              "group": "fixture.argoproj.io",
+              "kind": "Gadget",
+              "name": "gadgets.fixture.argoproj.io",
+              "path": "manifests/crds/gadget-crd.yaml",
+              "plural": "gadgets",
+              "scope": "Namespaced",
+              "startLine": 1,
+              "storageVersion": "v1",
+              "versions": [
+                {
+                  "endLine": 22,
+                  "name": "v1",
+                  "served": true,
+                  "servedLine": 17,
+                  "startLine": 16,
+                  "storage": true,
+                  "storageLine": 18
+                },
+                {
+                  "endLine": 30,
+                  "name": "v1beta1",
+                  "served": false,
+                  "servedLine": 25,
+                  "startLine": 24,
+                  "storage": false,
+                  "storageLine": 26
+                }
+              ],
+              "versionsLine": 15
+            },
+            {
+              "document": 1,
+              "group": "fixture.argoproj.io",
+              "kind": "Gizmo",
+              "name": "gizmos.fixture.argoproj.io",
+              "path": "manifests/crds/more-crds.yaml",
+              "plural": "gizmos",
+              "scope": "Namespaced",
+              "startLine": 2,
+              "storageVersion": "v1",
+              "versions": [
+                {
+                  "endLine": 23,
+                  "name": "v1beta1",
+                  "served": true,
+                  "servedLine": 18,
+                  "startLine": 17,
+                  "storage": false,
+                  "storageLine": 19
+                },
+                {
+                  "endLine": 30,
+                  "name": "v1",
+                  "served": true,
+                  "servedLine": 25,
+                  "startLine": 24,
+                  "storage": true,
+                  "storageLine": 26
+                }
+              ],
+              "versionsLine": 16
+            },
+            {
+              "document": 1,
+              "group": "fixture.argoproj.io",
+              "kind": "Widget",
+              "name": "widgets.fixture.argoproj.io",
+              "path": "manifests/crds/widget-crd.yaml",
+              "plural": "widgets",
+              "scope": "Namespaced",
+              "startLine": 1,
+              "storageVersion": "v1beta1",
+              "versions": [
+                {
+                  "endLine": 22,
+                  "name": "v1beta1",
+                  "served": true,
+                  "servedLine": 17,
+                  "startLine": 16,
+                  "storage": true,
+                  "storageLine": 18
+                },
+                {
+                  "endLine": 29,
+                  "name": "v1",
+                  "served": true,
+                  "servedLine": 24,
+                  "startLine": 23,
+                  "storage": false,
+                  "storageLine": 25
+                }
+              ],
+              "versionsLine": 15
+            }
+          ],
+          "files": [
+            {
+              "crds": 1,
+              "documents": 1,
+              "lines": 30,
+              "otherDocuments": 0,
+              "path": "manifests/crds/gadget-crd.yaml",
+              "sha256": "sha256:1a738b9feb2eea98d667157a01a30f6ce76e1bb22db0a7cf4e5878d9464f9060",
+              "size": 680
+            },
+            {
+              "crds": 0,
+              "documents": 1,
+              "lines": 6,
+              "otherDocuments": 1,
+              "path": "manifests/crds/kustomization.yaml",
+              "sha256": "sha256:86bcd1ca1d210f80a39057f2d158003d95ac7f8abcffbfc4ab49f6b98a94649c",
+              "size": 128
+            },
+            {
+              "crds": 2,
+              "documents": 2,
+              "lines": 53,
+              "otherDocuments": 0,
+              "path": "manifests/crds/more-crds.yaml",
+              "sha256": "sha256:563754372d76953472b1201014277321ca541730a4f0499485adc44ca6c01ac5",
+              "size": 1158
+            },
+            {
+              "crds": 1,
+              "documents": 1,
+              "lines": 29,
+              "otherDocuments": 0,
+              "path": "manifests/crds/widget-crd.yaml",
+              "sha256": "sha256:990d14325c1c542ab2e31d02fbd45c9b46b3cf810f75e86832b85cb06fcb0f52",
+              "size": 637
+            }
+          ],
+          "paths": [
+            {
+              "files": 4,
+              "ignored": 1,
+              "kind": "directory",
+              "path": "manifests/crds"
+            }
+          ],
+          "tag": "v90.2.0"
+        }
+      },
+      "rules": [],
+      "status": "derived",
+      "to": "90.2.0",
+      "toCommit": "0000000000000000000000000000000000902000",
+      "toTag": "v90.2.0"
+    }
+  ],
+  "repo": "github.com/argoproj/argo-cd",
+  "schema": "prufyx.io/extractor-run-manifest/v1",
+  "totals": {
+    "commitsRead": 3,
+    "derived": 2,
+    "pairs": 2,
+    "rules": 2,
+    "vectors": 6,
+    "withheld": 0
+  },
+  "validUntil": "2027-01-02T00:00:00Z"
+}

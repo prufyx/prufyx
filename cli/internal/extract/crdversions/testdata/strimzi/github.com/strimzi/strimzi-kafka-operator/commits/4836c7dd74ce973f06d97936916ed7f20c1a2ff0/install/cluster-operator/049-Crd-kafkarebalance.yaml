@@ -1,0 +1,43 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: kafkarebalances.kafka.strimzi.io
+  labels:
+    app: strimzi
+    strimzi.io/crd-install: "true"
+spec:
+  group: kafka.strimzi.io
+  names:
+    kind: KafkaRebalance
+    listKind: KafkaRebalanceList
+    singular: kafkarebalance
+    plural: kafkarebalances
+    shortNames:
+    - kr
+    categories:
+    - strimzi
+  scope: Namespaced
+  conversion:
+    strategy: None
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    subresources:
+      status: {}
+    additionalPrinterColumns:
+    - name: Cluster
+      description: The name of the Kafka cluster this resource rebalances
+      jsonPath: .metadata.labels.strimzi\.io/cluster
+      type: string
+    - name: Template
+      description: If this rebalance resource is a template
+      jsonPath: .metadata.annotations.strimzi\.io/rebalance-template
+      type: string
+    - name: Status
+      description: Status of the current rebalancing operation
+      jsonPath: ".status.conditions[*].type"
+      type: string
+    schema:
+      openAPIV3Schema:
+        type: object

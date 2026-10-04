@@ -1,0 +1,26 @@
+{
+  "removals": [
+    {
+      "from": "90.0.0",
+      "to": "90.1.0",
+      "member": "fixture.argoproj.io/v1alpha2/Widget",
+      "reason": "absent"
+    },
+    {
+      "from": "90.0.0",
+      "to": "90.1.0",
+      "member": "fixture.argoproj.io/v1beta1/Gadget",
+      "reason": "unserved"
+    }
+  ],
+  "rules": [],
+  "storageChanges": [
+    {
+      "from": "90.0.0",
+      "to": "90.1.0",
+      "crd": "gizmos.fixture.argoproj.io",
+      "fromStorage": "v1beta1",
+      "toStorage": "v1"
+    }
+  ]
+}

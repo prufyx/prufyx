@@ -1,0 +1,4 @@
+manifests/crds/gadget-crd.yaml	1a738b9feb2eea98d667157a01a30f6ce76e1bb22db0a7cf4e5878d9464f9060	680
+manifests/crds/kustomization.yaml	86bcd1ca1d210f80a39057f2d158003d95ac7f8abcffbfc4ab49f6b98a94649c	128
+manifests/crds/more-crds.yaml	563754372d76953472b1201014277321ca541730a4f0499485adc44ca6c01ac5	1158
+manifests/crds/widget-crd.yaml	990d14325c1c542ab2e31d02fbd45c9b46b3cf810f75e86832b85cb06fcb0f52	637
