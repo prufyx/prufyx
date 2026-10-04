@@ -23,9 +23,9 @@ const reasonTransitionNotReviewed = "RULE_TRANSITION_NOT_REVIEWED"
 // maxReviewedPairsShown bounds the reviewed-pairs list in one line.
 const maxReviewedPairsShown = 8
 
-// claimSummary partitions claims for quiet human output. One-way notices are
-// kept apart from every verdict claim: they are never collapsed with passes
-// and never counted as unreviewed, blocked or unknown.
+// claimSummary partitions claims for quiet human output. One-way notices and
+// leads are kept apart from every verdict claim: they are never collapsed
+// with passes and never counted as unreviewed, blocked or unknown.
 type claimSummary struct {
 	shown         []constraintengine.Claim
 	notices       []constraintengine.Claim
@@ -38,7 +38,7 @@ func summarizeClaims(claims []constraintengine.Claim, showPasses bool) claimSumm
 	var summary claimSummary
 	verdicts := 0
 	for _, claim := range claims {
-		if claim.IsNotice() {
+		if claim.IsVerdictNeutral() {
 			summary.notices = append(summary.notices, claim)
 			continue
 		}
@@ -92,28 +92,38 @@ func writeClaimHeadline(out io.Writer, claim constraintengine.Claim) (printed bo
 	return err == nil, err
 }
 
-// verdictClaims counts the claims that are not one-way notices.
+// verdictClaims counts the claims that are neither one-way notices nor
+// leads.
 func verdictClaims(claims []constraintengine.Claim) int {
 	verdicts := 0
 	for _, claim := range claims {
-		if !claim.IsNotice() {
+		if !claim.IsVerdictNeutral() {
 			verdicts++
 		}
 	}
 	return verdicts
 }
 
-// writeNoVerdictLine states, when a report holds one-way notices and nothing
-// else, that no verdict rule decided the transition.
+// writeNoVerdictLine states, when a report holds one-way notices or leads
+// and nothing else, that no verdict rule decided the transition.
 func writeNoVerdictLine(out io.Writer, claims []constraintengine.Claim) error {
 	if len(claims) == 0 || verdictClaims(claims) != 0 {
 		return nil
 	}
-	_, err := fmt.Fprintln(out, noVerdictLine)
+	line := noVerdictLine
+	for _, claim := range claims {
+		if claim.IsLead() {
+			line = noVerdictLeadLine
+		}
+	}
+	_, err := fmt.Fprintln(out, line)
 	return err
 }
 
-const noVerdictLine = "UNKNOWN: no reviewed rule decided this transition; a one-way notice is not a verdict"
+const (
+	noVerdictLine     = "UNKNOWN: no reviewed rule decided this transition; a one-way notice is not a verdict"
+	noVerdictLeadLine = "UNKNOWN: no reviewed rule decided this transition; a notice or unverified lead is not a verdict"
+)
 
 // writeUnreviewedTransition is the whole answer when no claim could be decided
 // because the pair is not one a reviewed rule covers.
