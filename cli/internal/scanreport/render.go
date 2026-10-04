@@ -342,17 +342,23 @@ func RedactValue(value string) string {
 
 // Redact replaces every file path, object name and namespace in the report,
 // and the knowledge database path, with its digest. Gaps, notes and
-// omissions never carry them.
+// omissions never carry them. Locations and omitted documents are then
+// ordered again by their redacted values, so their order does not reveal how
+// the hidden paths sort. Ties keep their earlier order, which never depended
+// on a redacted value: the sort keys are the file, document, item and reason,
+// and equal digests mean equal paths.
 func Redact(report *Report) {
 	for f := range report.Findings {
 		for l := range report.Findings[f].Locations {
 			location := &report.Findings[f].Locations[l]
 			location.File, location.Namespace, location.Name = RedactValue(location.File), RedactValue(location.Namespace), RedactValue(location.Name)
 		}
+		sortLocations(report.Findings[f].Locations)
 	}
 	for o := range report.Omitted {
 		report.Omitted[o].File = RedactValue(report.Omitted[o].File)
 	}
+	sortOmitted(report.Omitted)
 	if store := report.Provenance.KnowledgeStore; store != nil {
 		redacted := *store
 		redacted.Path = RedactValue(store.Path)

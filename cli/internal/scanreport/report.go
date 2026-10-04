@@ -398,7 +398,7 @@ func sortReport(report *Report) {
 	}
 	for f := range report.Findings {
 		finding := &report.Findings[f]
-		sort.SliceStable(finding.Locations, func(i, j int) bool { return locationLess(finding.Locations[i], finding.Locations[j]) })
+		sortLocations(finding.Locations)
 		sort.SliceStable(finding.AlsoAt, func(i, j int) bool { return finding.AlsoAt[i].order() < finding.AlsoAt[j].order() })
 	}
 	sort.SliceStable(report.Findings, func(i, j int) bool {
@@ -423,19 +423,7 @@ func sortReport(report *Report) {
 		}
 		return a.RuleID < b.RuleID
 	})
-	sort.SliceStable(report.Omitted, func(i, j int) bool {
-		a, b := report.Omitted[i], report.Omitted[j]
-		if a.File != b.File {
-			return a.File < b.File
-		}
-		if a.Document != b.Document {
-			return a.Document < b.Document
-		}
-		if a.Item != b.Item {
-			return a.Item < b.Item
-		}
-		return a.Reason < b.Reason
-	})
+	sortOmitted(report.Omitted)
 	if report.Inventory == nil {
 		report.Inventory = []Component{}
 	}
@@ -516,6 +504,30 @@ func sortReport(report *Report) {
 	if report.Notes == nil {
 		report.Notes = []string{}
 	}
+}
+
+// sortLocations orders a finding's locations by file, document and item.
+// Redact calls it again after replacing the file with its digest.
+func sortLocations(locations []Location) {
+	sort.SliceStable(locations, func(i, j int) bool { return locationLess(locations[i], locations[j]) })
+}
+
+// sortOmitted orders omitted documents by file, document, item and reason.
+// Redact calls it again after replacing the file with its digest.
+func sortOmitted(omitted []Omitted) {
+	sort.SliceStable(omitted, func(i, j int) bool {
+		a, b := omitted[i], omitted[j]
+		if a.File != b.File {
+			return a.File < b.File
+		}
+		if a.Document != b.Document {
+			return a.Document < b.Document
+		}
+		if a.Item != b.Item {
+			return a.Item < b.Item
+		}
+		return a.Reason < b.Reason
+	})
 }
 
 func locationLess(a, b Location) bool {
