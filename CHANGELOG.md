@@ -64,6 +64,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   `prufyx db update` and `--knowledge-db`. Standard output, the JSON, SARIF and
   Markdown formats and the exit status are unchanged. See the scan and
   community-checks guides.
+- A composite GitHub Action (`action.yml`) that runs `prufyx scan`: it installs
+  a checksum-verified release binary or builds from source, writes the
+  Markdown report to the job summary, and exposes the report file for SARIF
+  upload. See `cli/docs/github-action.md`.
 - Knowledge format: CNCF rule packs can carry an optional `distributions`
   section (pack schema `prufyx.io/cncf-source-rule-pack/v1alpha9`) with
   reviewed Kubernetes distribution records (control-plane model, and for

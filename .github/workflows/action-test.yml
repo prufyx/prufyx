@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Action
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - action.yml
+      - scripts/action/**
+      - .github/workflows/action-test.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - action.yml
+      - scripts/action/**
+      - .github/workflows/action-test.yml
+
+permissions:
+  contents: read
+
+jobs:
+  scripts:
+    name: Action scripts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Script tests
+        run: bash scripts/action/test.sh
+
+  run-from-source:
+    name: Run the action from source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Write a manifest with a removed API
+        run: |
+          mkdir -p "${RUNNER_TEMP}/m"
+          cat > "${RUNNER_TEMP}/m/cronjob.yaml" <<'YAML'
+          apiVersion: batch/v1beta1
+          kind: CronJob
+          metadata:
+            name: nightly-report
+            namespace: default
+          spec:
+            schedule: "0 2 * * *"
+          YAML
+          chmod 600 "${RUNNER_TEMP}/m/cronjob.yaml"
+
+      - name: Scan
+        id: scan
+        uses: ./
+        with:
+          version: source
+          paths: ${{ runner.temp }}/m
+          from: kubernetes=1.24.17
+          to: kubernetes=1.25.3
+          distribution: official_upstream
+          resource-scope-complete: "true"
+          target-api-apply-required: "true"
+          format: sarif
+          fail-on: none
+
+      - name: Expect blocked
+        env:
+          VERDICT: ${{ steps.scan.outputs.verdict }}
+        run: |
+          test "${VERDICT}" = blocked
