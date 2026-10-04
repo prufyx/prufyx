@@ -172,15 +172,15 @@ pick different baselines from the same data:
   after `v2.4.1` does not displace it.
 * The rule never guesses. A repository is **ambiguous** when strict tags carry
   a prefix other than none, `v` or `go` (a chart, SDK or API tag), or more than
-  one prefix, or when its newest release (highest release id) is not a strict
-  version while older strict ones exist (calendar tags such as `2025.1.0`, or
-  two-part tags). Its baseline is not chosen: the repository is
+  one prefix, or when no release has a strict version, or when any non-strict
+  release (calendar tags such as `2025.1.0`, or two-part tags) is newer
+  (higher release id) than the oldest strict one, so the project has moved to
+  another tag scheme, even if a later maintenance release on the old scheme
+  exists. Its baseline is not chosen: the repository is
   `PENDING_AMBIGUOUS_LATEST` and every citation that needs the latest baseline
   is `PENDING` with the reason in its detail, for a human to decide. In
   release-line mode a citation whose release line is proven still uses that
   line.
-* When no release tag is a strict version, the release with the highest id
-  wins.
 * For the tags fallback only strict-version tags count, under the same
   ambiguity rule; tags such as `weekly.2012-03-27` or `release.r60.3` never do.
   A repository with no such tag has no baseline and stays `PENDING`.
