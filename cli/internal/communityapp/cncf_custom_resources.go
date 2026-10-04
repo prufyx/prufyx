@@ -75,7 +75,7 @@ func (r runtime) cncfCustomResourceCheck(req customResourceRequest) int {
 		if _, err := fmt.Fprintln(r.stdout, string(encoded)); err != nil {
 			return ExitIntegrity
 		}
-		return cncfcheck.ClaimExit(report)
+		return customResourceExit(report)
 	}
 	if _, err := fmt.Fprintf(r.stdout, "%s custom-resource version review\nraw input digest: %s\nprepared input digest: %s\ncustom-resource set: %s\n", req.project, digest, prepared.InputDigest, customResourceSetLine(prepared.Reason)); err != nil {
 		return ExitIntegrity
@@ -97,13 +97,13 @@ func (r runtime) cncfCustomResourceCheck(req customResourceRequest) int {
 			return ExitIntegrity
 		}
 	}
-	if _, err := fmt.Fprintln(r.stdout, "scope: custom-resource versions the target release no longer serves; other changes, stored objects and conversion are not checked\naggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)"); err != nil {
+	if _, err := fmt.Fprintln(r.stdout, "scope: only custom-resource versions named by published rules; no record yet shows those rules name every version the target release stops serving, so this mode never passes (exit 11 at best)\nnot checked: other custom-resource versions, other changes, stored objects and conversion\naggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)"); err != nil {
 		return ExitIntegrity
 	}
 	if err := writeSourceFooter(r.stdout, summary.shown); err != nil {
 		return ExitIntegrity
 	}
-	return cncfcheck.ClaimExit(report)
+	return customResourceExit(report)
 }
 
 // customResourceSetLine says in words how complete the declared set is.
@@ -125,4 +125,18 @@ func customResourceSetLine(reason string) string {
 		return "not declared (a document contains unrendered templates or cannot be parsed)"
 	}
 	return "not declared (the manifests cannot be read as one apply set)"
+}
+
+// customResourceExit is ClaimExit capped at unknown: passing every
+// published rule only says that no version those rules name is used. No
+// record yet shows, per release pair, that the published rules are every
+// version the target release stops serving (a withheld or unpublished rule,
+// a version neither release serves or a kind no CRD defines would otherwise
+// pass), so this mode never exits 0.
+func customResourceExit(report cncfcheck.Report) int {
+	exit := cncfcheck.ClaimExit(report)
+	if exit == ExitOK {
+		return ExitUnknown
+	}
+	return exit
 }

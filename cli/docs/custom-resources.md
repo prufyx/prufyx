@@ -28,6 +28,16 @@ pinned commit:
 These are exactly the projects the extractor reads CRDs for. Adding a project
 is a code change to both.
 
+`argoproj.io` is shared upstream: Argo CD, Argo Workflows, Argo Rollouts and
+Argo Events all define CRDs in it. The catalog project `argo-cd` stands for the
+whole Argo project, so the group is listed once, for `argo-cd`, and objects of
+the other Argo components (a `Rollout`, a `Workflow`) join the `argo-cd` set.
+That cannot cause a wrong answer while the rules name only Argo CD's own
+kinds. If another project ever listed `argoproj.io` too, the group would become
+shared in the table: every `argoproj.io` object would then belong to no set
+and keep every set incomplete, so a removed Argo CD version would no longer
+block. Prufyx would first have to assign such objects by group and kind.
+
 ## What is recorded
 
 For one project and one upgrade (`--from`, `--to`), Prufyx reads your
@@ -64,7 +74,8 @@ versions it names. The set is complete only when all of these hold:
 
 When the documents cannot be read as one apply set (unrendered templates, a
 document that cannot be parsed, a document that is not a Kubernetes object, an
-empty input), or when a project's objects use more than 256 different
+object of a kind other than a `List` that carries a top-level `items` array,
+an empty input), or when a project's objects use more than 256 different
 `group/version/Kind` combinations, no set is recorded at all and every rule
 stays `UNKNOWN`.
 
@@ -99,7 +110,8 @@ raw input digest: sha256:0d08002f5c498c9ce126e92389518917be4ff0df0130ad7ade4ac62
 prepared input digest: sha256:90de632e6208586b85dfa4e1e72b80c05d7f885abad0c33910ec32981930e02a
 custom-resource set: complete
 no published rule reads the strimzi custom-resource version set for 0.51.0 -> 1.0.0; the result stays UNKNOWN
-scope: custom-resource versions the target release no longer serves; other changes, stored objects and conversion are not checked
+scope: only custom-resource versions named by published rules; no record yet shows those rules name every version the target release stops serving, so this mode never passes (exit 11 at best)
+not checked: other custom-resource versions, other changes, stored objects and conversion
 aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
 ```
 
@@ -120,9 +132,18 @@ Flags:
 Only rules over the project's custom-resource set are evaluated; the
 project's other rules need other evidence and are neither run nor reported.
 The mode reads embedded knowledge only: `--knowledge-db` and
-`--replay-report` are usage errors here. Exit codes are those of `check cncf`:
-0 every evaluated rule passed, 10 a rule blocked, 11 unknown, 2 usage, 3
-integrity.
+`--replay-report` are usage errors here.
+
+**This mode never exits 0.** Passing every published rule only says that none
+of the versions those rules name is used. It does not show that the published
+rules name every version the target release stops serving: a rule may be
+withheld or not yet published, and a version that neither release serves, or a
+kind that no CRD defines, is named by no rule at all. Until a reviewed
+per-release-pair record shows that the published rules are complete for the
+pair, the best answer is `UNKNOWN`. Exit codes: 10 a rule blocked, 11
+otherwise (including when every rule passed), 2 usage, 3 integrity. With
+`--format json` the claims (including `PASS` claims) are printed unchanged;
+only the exit code is capped.
 
 The line `custom-resource set:` says whether the set is complete and, if not,
 why.
@@ -135,7 +156,7 @@ manifests and with the same scope declaration as Kubernetes:
 
 - a version that a published rule says the target no longer serves is a
   finding (`BLOCKED`, exit 10) located at the file, document and object;
-- a rule that passes is listed as a passed check;
+- a rule that passes is listed as a passed check, never as coverage;
 - the project is never reported as covered, so the answer is never `PASS`
   while it is targeted: no review yet states that the published rules are
   every custom-resource version the target release stops serving. The gap

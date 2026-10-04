@@ -354,10 +354,10 @@ behavior. Pinned source evidence for the existing rule is the Strimzi
 `--custom-resources FILE` reads one private file of rendered manifests and
 records which `group/version/Kind` of the project's own custom-resource groups
 it uses; published rules about custom-resource versions the target release no
-longer serves are then evaluated over that set. A listed version blocks;
-absence passes only with `--custom-resources-complete` and when every object
-of a non-Kubernetes API group belongs to a group a reviewed table assigns to
-exactly one project. No such rule is shipped yet. See
+longer serves are then evaluated over that set. A listed version blocks (exit
+10). The mode never exits 0: passing every published rule does not show that
+the rules name every version the release stops serving, so the best answer is
+`UNKNOWN` (exit 11). No such rule is shipped yet. See
 [custom-resources.md](custom-resources.md).
 
 ```sh

@@ -210,10 +210,12 @@ records the group/version/Kind of every object in the API groups that the
 project's own CustomResourceDefinitions define (a reviewed, compiled table);
 objects of other projects' groups are ignored. It evaluates only published
 rules about custom-resource versions the target release no longer serves. A
-listed version blocks. Absence passes only with --custom-resources-complete
-and when every object of a non-Kubernetes API group in the file belongs to a
-group the table assigns to exactly one project; everything else stays
-UNKNOWN. Embedded knowledge only. See docs/custom-resources.md.
+listed version blocks (exit 10). A rule passes only with
+--custom-resources-complete and when every object of a non-Kubernetes API
+group in the file belongs to a group the table assigns to exactly one
+project, but the mode never exits 0: nothing yet shows that the published
+rules name every version a release stops serving, so the best answer is
+UNKNOWN (exit 11). Embedded knowledge only. See docs/custom-resources.md.
 The Kubernetes component-configuration mode reads one private selection
 document naming private local files (static pod manifests, kubelet flag files,
 argument lists, kubelet, scheduler, kube-proxy and admission configuration,

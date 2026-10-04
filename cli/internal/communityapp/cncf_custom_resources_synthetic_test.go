@@ -76,7 +76,9 @@ func TestCustomResourceCheckWithDerivedStrimziRules(t *testing.T) {
 		{"removed Kafka version blocks", []string{kafkaRemoved, topicServed, deployment}, true, ExitBlocked, []string{"kafka.strimzi.io/v1beta2/Kafka"}},
 		{"removed Kafka version blocks without a complete scope", []string{kafkaRemoved, deployment}, false, ExitBlocked, []string{"kafka.strimzi.io/v1beta2/Kafka"}},
 		{"removed versions block with an unattributed group", []string{kafkaRemoved, topicRemoved, certificate}, true, ExitBlocked, []string{"kafka.strimzi.io/v1beta2/Kafka", "kafka.strimzi.io/v1beta2/KafkaTopic"}},
-		{"served versions pass with a complete scope", []string{kafkaServed, topicServed, deployment}, true, ExitOK, nil},
+		{"served versions pass every rule but the mode never exits 0", []string{kafkaServed, topicServed, deployment}, true, ExitUnknown, nil},
+		{"a version neither release serves never passes", []string{strimziObject("kafka.strimzi.io/v1alpha1", "Kafka")}, true, ExitUnknown, nil},
+		{"a kind no CRD defines never passes", []string{strimziObject("kafka.strimzi.io/v1beta2", "KAFKA")}, true, ExitUnknown, nil},
 		{"served versions stay unknown without a complete scope", []string{kafkaServed, topicServed}, false, ExitUnknown, nil},
 		{"served versions stay unknown with an unattributed group", []string{kafkaServed, certificate}, true, ExitUnknown, nil},
 		{"templated manifests stay unknown", []string{kafkaRemoved, "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ .Values.name }}\n"}, true, ExitUnknown, nil},
@@ -100,6 +102,7 @@ func TestCustomResourceCheckWithDerivedStrimziRules(t *testing.T) {
 				t.Fatalf("%d claims: rules about other evidence must not be evaluated", len(report.Check.Claims))
 			}
 			var blocked []string
+			passed := 0
 			for _, claim := range report.Check.Claims {
 				if !strings.HasPrefix(claim.RuleID, "strimzi.crd-version-removal.") {
 					t.Fatalf("claim of rule %s", claim.RuleID)
@@ -108,10 +111,14 @@ func TestCustomResourceCheckWithDerivedStrimziRules(t *testing.T) {
 				case "BLOCKED":
 					blocked = append(blocked, claim.MatchedMembers...)
 				case "PASS":
+					passed++
 					if partial := !tc.complete || strings.Contains(strings.Join(tc.docs, ""), "cert-manager.io") || strings.Contains(strings.Join(tc.docs, ""), "{{"); partial {
 						t.Fatalf("PASS from a partial set: %s", claim.RuleID)
 					}
 				}
+			}
+			if tc.name == "served versions pass every rule but the mode never exits 0" && passed != 10 {
+				t.Fatalf("%d PASS claims, want 10", passed)
 			}
 			if strings.Join(blocked, ",") != strings.Join(tc.blocked, ",") {
 				t.Fatalf("blocked members %v, want %v", blocked, tc.blocked)

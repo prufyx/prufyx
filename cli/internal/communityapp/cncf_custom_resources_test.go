@@ -5,6 +5,8 @@ package communityapp
 import (
 	"strings"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 )
 
 const customResourceManifests = "apiVersion: kafka.strimzi.io/v1beta2\nkind: Kafka\nmetadata:\n  name: private-cluster\n  namespace: private-ns\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: private-app\n"
@@ -64,5 +66,31 @@ func TestCustomResourceCheckArguments(t *testing.T) {
 	open := writeCNCFFile(t, "open.yaml", []byte(customResourceManifests), 0o644)
 	if code, _, _ := runCNCFCLI(t, customResourceArgs(open)...); code != ExitUsage {
 		t.Fatalf("readable file: code=%d", code)
+	}
+}
+
+// The human set line names why a set is not complete.
+func TestCustomResourceSetLine(t *testing.T) {
+	path := writeCNCFFile(t, "manifests.yaml", []byte(customResourceManifests+"---\napiVersion: cert-manager.io/v1\nkind: Certificate\nmetadata:\n  name: private-tls\n"), 0o600)
+	code, stdout, _ := runCNCFCLI(t, customResourceArgs(path, "--custom-resources-complete")...)
+	if code != ExitUnknown || !strings.Contains(stdout, "custom-resource set: not complete (objects of a custom-resource group that no reviewed project owns are present)\n") {
+		t.Fatalf("code=%d %q", code, stdout)
+	}
+	seen := map[string]bool{}
+	for reason, want := range map[string]string{
+		cncfprepare.ReasonCustomResourcesComplete:        "complete",
+		cncfprepare.ReasonCustomResourcesScopeIncomplete: "not complete (the manifests are not declared",
+		cncfprepare.ReasonCustomResourcesUnattributed:    "not complete (objects of a custom-resource group",
+		cncfprepare.ReasonCustomResourcesPaginated:       "not complete (a list is paginated)",
+		cncfprepare.ReasonCustomResourcesMemberInvalid:   "not complete (an apiVersion is too long",
+		cncfprepare.ReasonCustomResourcesTooMany:         "not declared (too many",
+		cncfprepare.ReasonCustomResourcesRendering:       "not declared (a document contains unrendered templates",
+		cncfprepare.ReasonCustomResourcesUnresolved:      "not declared (the manifests cannot be read",
+	} {
+		line := customResourceSetLine(reason)
+		if !strings.HasPrefix(line, want) || seen[line] {
+			t.Fatalf("%s: %q", reason, line)
+		}
+		seen[line] = true
 	}
 }
