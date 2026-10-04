@@ -199,6 +199,9 @@ func TestGateConsensusBounds(t *testing.T) {
 	if _, err := cancelled.reader.Read(extract.RepoRef{Key: consensus.KubernetesRepo}, consensusTo, consensusPath); !errors.Is(err, context.Canceled) {
 		t.Fatalf("read after the budget: %v", err)
 	}
+	if _, err := cancelled.reader.List(extract.RepoRef{Key: consensus.KubernetesRepo}, consensusTo, ""); !errors.Is(err, context.Canceled) {
+		t.Fatalf("listing after the budget: %v", err)
+	}
 	if ConsensusBudget > 10*time.Minute {
 		t.Fatalf("budget %v", ConsensusBudget)
 	}
