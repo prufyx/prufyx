@@ -145,9 +145,14 @@ subsections or not (an HTML element such as `<details>` stays open in the
 browser across blank lines and headings); a line inside an HTML block or
 comment; a level-1 or level-2 heading indented by one to three spaces (what
 follows renders under another heading than the one read); the release
-heading inside an HTML block, comment or fenced code; and an HTML element
-GitHub keeps (`details`, `div`, `span`, `a`, `p` and the like) left open
-anywhere before the release heading.
+heading inside an HTML block, comment or fenced code; and the opening tag
+of an HTML element GitHub keeps (`details`, `summary`, `div`, `span`, `a`,
+`p`, `table`, `section` and the like), with or without its `>` on the same
+line, anywhere before the release heading. Closing tags are never counted
+against opening ones; the one exception is a `<code>...</code>` pair on one
+line. Fenced code is skipped. In a paragraph where any line has an escaped
+or unmatched backtick, code spans are not masked: the raw lines are
+checked.
 
 Problems are scoped to heading sections. A heading section runs from a
 heading to the next heading of the same or a higher level, its child
