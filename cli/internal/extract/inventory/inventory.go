@@ -223,16 +223,8 @@ func ParseSpec(src []byte) ([]GVK, error) {
 	for g := range set {
 		out = append(out, g)
 	}
-	sort.Slice(out, func(i, j int) bool {
-		a, b := out[i], out[j]
-		if a.Group != b.Group {
-			return a.Group < b.Group
-		}
-		if a.Version != b.Version {
-			return a.Version < b.Version
-		}
-		return a.Kind < b.Kind
-	})
+	key := func(g GVK) string { return g.Group + "\x00" + g.Version + "\x00" + g.Kind }
+	sort.Slice(out, func(i, j int) bool { return key(out[i]) < key(out[j]) })
 	return out, nil
 }
 
@@ -260,8 +252,8 @@ func crdVersions(ctx context.Context, ex extract.Extractor, r extract.PinnedRead
 		return nil, err
 	}
 	var proof struct {
-		Target string `json:"target"`
-		From   *struct {
+		Target  string `json:"target"`
+		Earlier *struct {
 			Complete bool   `json:"complete"`
 			Problem  string `json:"problem"`
 			CRDs     []CRD  `json:"crds"`
@@ -270,11 +262,11 @@ func crdVersions(ctx context.Context, ex extract.Extractor, r extract.PinnedRead
 	if err := json.Unmarshal(raw, &proof); err != nil {
 		return nil, err
 	}
-	if proof.From == nil || !proof.From.Complete || len(proof.From.CRDs) == 0 {
+	if proof.Earlier == nil || !proof.Earlier.Complete || len(proof.Earlier.CRDs) == 0 {
 		return nil, &Incomplete{Reason: "the custom resource inventory is not complete"}
 	}
-	crds := make([]CRD, 0, len(proof.From.CRDs))
-	for _, c := range proof.From.CRDs {
+	crds := make([]CRD, 0, len(proof.Earlier.CRDs))
+	for _, c := range proof.Earlier.CRDs {
 		vs := append([]CRDVersion{}, c.Versions...)
 		sort.Slice(vs, func(i, j int) bool { return vs[i].Name < vs[j].Name })
 		c.Versions = vs
