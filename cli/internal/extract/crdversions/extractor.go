@@ -193,6 +193,9 @@ func readInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, commi
 		for _, e := range entries {
 			name := path.Base(e.Path)
 			if e.Type != "blob" || !p.Match.MatchString(name) {
+				if p.Guard != nil && p.Guard.MatchString(name) {
+					return inv, problemf("%s looks like a CRD manifest but is not read (its name does not match the listed pattern)", e.Path)
+				}
 				pr.Ignored++
 				continue
 			}
@@ -362,11 +365,34 @@ func (x *Extractor) Extract(_ context.Context, r extract.PinnedReader, pair extr
 		}
 		out = append(out, c)
 	}
+	if err := uniqueIDs(out); err != nil {
+		return withhold(err)
+	}
 	return extract.Extraction{Candidates: out, Proof: proof}, nil
+}
+
+// nameSlug turns a CRD name into a rule id part without collisions: a
+// hyphen becomes two hyphens and a dot one. Valid names never hold ".-",
+// "-." or "..", so the mapping is injective on them.
+func nameSlug(s string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(s), "-", "--"), ".", "-")
 }
 
 func slug(s string) string {
 	return strings.NewReplacer(".", "-", "_", "-").Replace(strings.ToLower(s))
+}
+
+// uniqueIDs withholds a pair whose rules would share an id: the run would
+// otherwise fail as a whole.
+func uniqueIDs(cands []extract.Candidate) error {
+	seen := map[string]bool{}
+	for _, c := range cands {
+		if seen[c.Rule.ID] {
+			return problemf("two rules would have the id %s", c.Rule.ID)
+		}
+		seen[c.Rule.ID] = true
+	}
+	return nil
 }
 
 // versionRank orders Kubernetes version names: GA above beta above alpha,
@@ -432,7 +458,7 @@ func (x *Extractor) candidate(pair extract.VersionPair, f, t *CRD, removed []Rem
 		toSources = []extract.SourceRef{{ID: "crd-" + slug(pair.To), Repo: pair.Repo, Commit: pair.ToCommit, Path: t.Path}}
 	}
 	sources := append([]extract.SourceRef{{ID: "crd-versions-" + slug(pair.From), Repo: pair.Repo, Commit: pair.FromCommit, Path: f.Path, StartLine: start, EndLine: end}}, toSources...)
-	id := fmt.Sprintf("%s.crd-version-removal.%s.%s-to-%s", tg.Project, slug(f.Name), slug(pair.From), slug(pair.To))
+	id := fmt.Sprintf("%s.crd-version-removal.%s.%s-to-%s", tg.Project, nameSlug(f.Name), slug(pair.From), slug(pair.To))
 	if len(id) > maxIDBytes {
 		return extract.Candidate{}, problemf("rule id for %s would be %d bytes, over %d", f.Name, len(id), maxIDBytes)
 	}

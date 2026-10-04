@@ -31,22 +31,28 @@ type Target struct {
 }
 
 // PathSpec is a file, or a directory whose files with names matching Match
-// are read (not recursively). Every listed path must exist at both tags.
+// are read (not recursively). Every listed path must exist at both tags. A
+// directory file whose name matches Guard but not Match withholds the pair:
+// it may hold a definition the extractor would not read.
 type PathSpec struct {
 	Path  string
 	Dir   bool
 	Match *regexp.Regexp
+	Guard *regexp.Regexp
 }
 
 // yamlFiles matches the YAML file names of a directory.
 var yamlFiles = regexp.MustCompile(`^[^.][^/]*\.ya?ml$`)
+
+// crdNamed matches every file name that suggests a CRD manifest.
+var crdNamed = regexp.MustCompile(`(?i)crd`)
 
 // Targets is the reviewed source table, ordered by project.
 var Targets = []Target{
 	{
 		Project: "argo-cd", Name: "Argo CD", Repo: "github.com/argoproj/argo-cd", Component: "pkg:github/argoproj/argo-cd",
 		FactProject: "argo_cd", TagPrefix: "v", MinFrom: [2]int{2, 14},
-		Paths: []PathSpec{{Path: "manifests/crds", Dir: true, Match: yamlFiles}},
+		Paths: []PathSpec{{Path: "manifests/crds", Dir: true, Match: yamlFiles, Guard: crdNamed}},
 	},
 	{
 		Project: "istio", Name: "Istio", Repo: "github.com/istio/istio", Component: "pkg:github/istio/istio",
@@ -56,7 +62,7 @@ var Targets = []Target{
 	{
 		Project: "strimzi", Name: "Strimzi", Repo: "github.com/strimzi/strimzi-kafka-operator", Component: "pkg:github/strimzi/strimzi-kafka-operator",
 		FactProject: "strimzi", TagPrefix: "", MinFrom: [2]int{0, 51},
-		Paths: []PathSpec{{Path: "install/cluster-operator", Dir: true, Match: regexp.MustCompile(`^[0-9]{3}-Crd-[A-Za-z0-9-]+\.yaml$`)}},
+		Paths: []PathSpec{{Path: "install/cluster-operator", Dir: true, Match: regexp.MustCompile(`^[0-9A-Za-z]{3}-Crd-[A-Za-z0-9-]+\.ya?ml$`), Guard: crdNamed}},
 	},
 }
 

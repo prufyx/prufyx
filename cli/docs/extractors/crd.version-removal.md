@@ -18,12 +18,23 @@ paths that hold its rendered CRD manifests:
 
 | Extractor id | Repository | Final release tags | First pair from | CRD manifests |
 | --- | --- | --- | --- | --- |
-| `crd.version-removal.argo-cd` | `github.com/argoproj/argo-cd` | `vX.Y.0` | 2.14.0 | every `*.yaml`/`*.yml` file directly in `manifests/crds` |
+| `crd.version-removal.argo-cd` | `github.com/argoproj/argo-cd` | `vX.Y.0` | 2.14.0 | every `*.yaml`/`*.yml` file directly in `manifests/crds` (no current pair is derived: see below) |
 | `crd.version-removal.istio` | `github.com/istio/istio` | `X.Y.0` | 1.24.0 | `manifests/charts/base/files/crd-all.gen.yaml` |
-| `crd.version-removal.strimzi` | `github.com/strimzi/strimzi-kafka-operator` | `X.Y.0` | 0.51.0 | files named `NNN-Crd-*.yaml` directly in `install/cluster-operator` |
+| `crd.version-removal.strimzi` | `github.com/strimzi/strimzi-kafka-operator` | `X.Y.0` | 0.51.0 | files named `XXX-Crd-*.yaml` or `.yml` (`XXX` three letters or digits, such as `040` or `04A`) directly in `install/cluster-operator` |
+
+In a listed directory, a file whose name contains `crd` (in any case) but
+does not match the pattern withholds the pair: it may hold a definition the
+extractor would not read. Other files are ignored and counted.
 
 Rules of other projects are not derived. Adding or changing an entry is a
-code change and requires a new extractor version.
+code change and requires a new extractor version. The table is part of the
+code digest that every `crd.version-removal.<project>` id shares, so any
+table change gives all of them a new digest: rules derived by the previous
+version no longer re-derive and are re-derived or renewed together, in the
+same change.
+
+Argo CD's ApplicationSet definition nests deeper than the decoder's 32
+levels, so every current Argo CD pair is withheld.
 
 ## What it reads
 
@@ -52,8 +63,11 @@ A version is **no longer served** in release `To` when the earlier release
 list it or lists it with `served: false` (the API server stops serving it
 either way). For each CRD with such versions the extractor emits one rule:
 
-- id `<project>.crd-version-removal.<crd name, dots as hyphens>.<from>-to-<to>`
-  (versions with dots as hyphens);
+- id `<project>.crd-version-removal.<crd name>.<from>-to-<to>`, where the
+  CRD name has each `-` written as `--` and each `.` as `-` (so
+  `foo-bar.x.io` and `foo.bar.x.io` stay distinct), and the versions have
+  dots as hyphens; two rules of one pair that would still share an id
+  withhold the pair;
 - operator `forbid_set_member` over the proposed-side set fact
   `component.<project>.custom_resource_versions_set` (for Argo CD
   `component.argo_cd....`), whose members are `group/version/Kind`, for
@@ -66,7 +80,10 @@ either way). For each CRD with such versions the extractor emits one rule:
   or `migrate <Kind> objects before upgrading to <To>` when it serves none;
 - sources (each with the whole-file sha256 of the bytes read):
   `crd-versions-<from>`, the lines of the removed version entries at the
-  earlier tag (first to last); and either `crd-<to>`, the whole CRD file at
+  earlier tag (first to last; an entry ends at its last content line, so a
+  block scalar that ends in lines starting with `#` is cited whole, while
+  blank lines and comments indented less than the entry's keys before the
+  next entry are not); and either `crd-<to>`, the whole CRD file at
   the later tag when a version is absent from it, or
   `served-false-<version>-<to>`, the `served: false` line of each version the
   later tag still lists.
@@ -112,6 +129,9 @@ These field names are stable within major version 1.
 - Anything about storage versions: a storage version that changes while the
   old version stays served is recorded in the proof only. Stored objects,
   conversion webhooks and storage migration are not checked.
+- Anything a kustomization adds: kustomization documents in a listed
+  directory are counted and not applied, so a patch there that changes
+  `served` (none of the listed projects has one) is not seen.
 - Anything about schema or field changes inside a version, about CRDs that
   are only shipped templated (Helm charts) or only as release assets, or
   about CRDs other than those under the listed paths.
@@ -121,7 +141,10 @@ These field names are stable within major version 1.
 
 No adapter declares `component.<project>.custom_resource_versions_set` yet,
 and the fact is not in the published fact registry, so these rules cannot be
-added to the published pack and any input without the fact is UNKNOWN.
+added to the published pack and any input without the fact is UNKNOWN. They
+are also the first set rules of the CNCF pack, so the first change that
+publishes any of them raises the pack's schema level as well; the knowledge
+gate never admits a schema change on its own, so that change is reviewed.
 
 ## Running and verifying
 

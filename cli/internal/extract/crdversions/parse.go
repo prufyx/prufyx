@@ -241,13 +241,21 @@ func maxLine(n *yaml.Node) int {
 	return m
 }
 
-// trimEnd moves end back over blank, comment and document-marker lines, but
-// never before floor.
-func trimEnd(lines []string, end, floor int) int {
+// trimEnd moves end back over blank lines, document markers and comment
+// lines indented less than the entry's keys (keyIndent, 0-based), but never
+// before floor. Lines indented at or beyond the keys may be the content of a
+// block scalar, so they always stay in the span.
+func trimEnd(lines []string, end, floor, keyIndent int) int {
 	for end > floor && end >= 1 && end <= len(lines) {
-		t := strings.TrimSpace(lines[end-1])
-		if t != "" && !strings.HasPrefix(t, "#") && t != "---" && t != "..." {
-			break
+		l := lines[end-1]
+		t := strings.TrimSpace(l)
+		indent := len(l) - len(strings.TrimLeft(l, " \t"))
+		switch {
+		case t == "":
+		case (t == "---" || t == "...") && indent == 0:
+		case strings.HasPrefix(t, "#") && indent < keyIndent:
+		default:
+			return end
 		}
 		end--
 	}
@@ -327,7 +335,7 @@ func parseCRD(path string, doc int, obj map[string]any, root *yaml.Node, nextDoc
 			end = seqNode.Content[i+1].Line - 1
 		}
 		last := maxLine(node)
-		v.EndLine = max(trimEnd(lines, end, last), last)
+		v.EndLine = max(trimEnd(lines, end, last, node.Column-1), last)
 		if v.EndLine < v.StartLine || v.EndLine > len(lines) {
 			return CRD{}, problemf("%s: version %s of %s spans lines %d-%d of %d", where, v.Name, c.Name, v.StartLine, v.EndLine, len(lines))
 		}

@@ -11,7 +11,7 @@ trademarks.
 | Go runtime and standard library | Compiled into release binaries using Go 1.26.8 with CGO disabled. The Go Authors' BSD license is included at [LICENSES/Go-BSD-3-Clause.txt](LICENSES/Go-BSD-3-Clause.txt). |
 | External Go modules | The offline knowledge-database implementation uses the exact vendored module profile below. Release builds use `-mod=vendor` with network access disabled. |
 | Official upstream release and source references | Public URLs, identities, digests, short factual summaries, and narrowly scoped predicates. The TiKV target-preflight contribution example also retains three complete upstream files for local digest and span verification under the source licenses listed below. Upstream names identify the subject of a check; they imply no endorsement. |
-| Synthetic fixtures and checkpoint source | Prufyx-authored examples and recorded first-party source checkpoints. Recorded source paths describe checkpoint provenance, not independent origin attestations. |
+| Synthetic fixtures and checkpoint source | Prufyx-authored examples and recorded first-party source checkpoints, except the modified upstream test fixtures listed under [Modified upstream test fixtures](#modified-upstream-test-fixtures). Recorded source paths describe checkpoint provenance, not independent origin attestations. |
 
 The focused Community package contains only the files selected by its
 [source policy](cli/release/community-shipping-policy-v2.json). Its upstream
@@ -66,6 +66,19 @@ establish runtime behavior.
 
 The Apache-2.0 grant for first-party Prufyx material at the top of this file is
 separate from these upstream works and does not relicense the PingCAP document.
+
+## Modified upstream test fixtures
+
+The `crd.version-removal` extractor's tests include modified copies of the
+Strimzi CustomResourceDefinition manifests at two release commits. The body of
+every version's `schema:` key was replaced by a minimal object schema; every
+other line is unchanged, so names, groups, version order and the `served` and
+`storage` flags are the upstream ones. The copies serve only as test input and
+do not establish runtime behavior.
+
+| Retained material and attribution | Immutable source identity | Upstream terms included with the Community source |
+| --- | --- | --- |
+| Strimzi CustomResourceDefinition manifests (`040-Crd-kafka.yaml` to `049-Crd-kafkarebalance.yaml`, ten files per commit), Strimzi authors; modified (schema bodies replaced) | [`install/cluster-operator` at `54081abf97d0e5e524de773b88343756934db1a8`](https://github.com/strimzi/strimzi-kafka-operator/tree/54081abf97d0e5e524de773b88343756934db1a8/install/cluster-operator) (0.51.0) and [at `4836c7dd74ce973f06d97936916ed7f20c1a2ff0`](https://github.com/strimzi/strimzi-kafka-operator/tree/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator) (1.0.0), in `cli/internal/extract/crdversions/testdata/strimzi` | Apache-2.0; [license](LICENSES/Source-Strimzi-Apache-2.0.txt) |
 
 ## Go 1.26.8 notices included with binaries
 

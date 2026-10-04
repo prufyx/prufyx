@@ -146,21 +146,42 @@ func TestGateRederivesCRDRules(t *testing.T) {
 	}
 }
 
+// crdSetPackSchema is the pack level of a pack holding a set rule. The CRD
+// rules are the first set rules of the CNCF pack, so the head carries it;
+// the registry digest stays the compiled registry's.
+const crdSetPackSchema = "prufyx.io/cncf-source-rule-pack/v1alpha3"
+
+// crdHead returns base and head trees where the head adds the CRD-derived
+// rules with every pack-level condition of admission met (schema level,
+// sorted entries, the current registry digest), so admission can only
+// refuse at the fact check.
+func crdHead(t *testing.T, entries []map[string]any, registryDigest string) (Tree, Tree) {
+	t.Helper()
+	base, head := trees(t)
+	p := readPack(t, head, cncfRulesPath)
+	p.entries = append(p.entries, entries...)
+	p.sortByID()
+	p.fields["schema"] = json.RawMessage(`"` + crdSetPackSchema + `"`)
+	if registryDigest != "" {
+		p.fields["registryDigest"] = json.RawMessage(`"` + registryDigest + `"`)
+	}
+	p.write(t, head, cncfRulesPath)
+	return base, head
+}
+
 // A CRD-derived rule reads a set fact no adapter declares, and the fact
 // registry of this revision lacks it: even a rule the gate re-derives
-// exactly cannot enter the CNCF pack.
+// exactly cannot enter the CNCF pack. The synthetic-knowledge test
+// (crd_fact_synthetic_test.go) shows that registering the fact definition
+// alone makes the same rules admissible.
 func TestGateRefusesCRDRulesWithoutRegisteredFact(t *testing.T) {
 	for _, tg := range crdversions.Targets {
 		if cncfcheck.RegisteredFact(tg.FactID()) {
 			t.Fatalf("%s is registered: this test no longer shows why the rules stay out of the pack", tg.FactID())
 		}
 	}
-	base, head := trees(t)
 	entries := crdEntries(t, gateNow.Add(-time.Hour))
-	p := readPack(t, head, cncfRulesPath)
-	p.entries = append(p.entries, entries...)
-	p.sortByID()
-	p.write(t, head, cncfRulesPath)
+	base, head := crdHead(t, entries, "")
 	r := runGate(t, Options{Base: base, Head: head, Source: extract.FixtureReader{Root: strimziFixture}})
 	requireFail(t, r, "admit/cncf: the engine does not admit the pack")
 	for _, e := range entries {

@@ -10,4 +10,5 @@ numbers and file digests therefore differ from upstream; served and storage
 flags, version order, names and groups do not. Other files of the directory
 are not included (the extractor reads only the 04*-Crd-*.yaml names).
 The 1.0.0-rc1 tag is added to show that release candidates never form a pair.
-Licence: Apache-2.0 (upstream).
+Licence: Apache-2.0, Copyright Strimzi authors; see LICENSES/Source-Strimzi-Apache-2.0.txt
+and THIRD-PARTY.md (Modified upstream test fixtures).
