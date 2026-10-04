@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
@@ -168,5 +169,18 @@ func TestCheckRoutesUseTrustPolicy(t *testing.T) {
 	}
 	if checked < 40 {
 		t.Fatalf("only %d evaluation calls found; the scan no longer sees the routes", checked)
+	}
+}
+
+// TestTrustPolicyReachesExternalRequests: external requests carry the
+// command's trust policy.
+func TestTrustPolicyReachesExternalRequests(t *testing.T) {
+	policy, err := cncfcheck.ParseTrustPolicy("reviewed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := runtime{trust: policy}
+	if got := r.withTrustPolicy(cncfknowledge.Request{Project: "kyverno"}); got.TrustPolicy.String() != "reviewed" || got.Project != "kyverno" {
+		t.Fatalf("request=%+v", got)
 	}
 }

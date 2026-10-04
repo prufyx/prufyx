@@ -238,6 +238,17 @@ func TestTrustPolicySelection(t *testing.T) {
 		t.Fatalf("narrowed claims=%d disclosure=%+v", len(narrowed.Check.Claims), narrowed.TrustPolicy)
 	}
 
+	// A matching lead alone never narrows the selection: the pair has no
+	// verdict rule, so every containerd rule is reported, as without it.
+	otherLead := containerdBasisEntry("containerd.synthetic-f-other-lead", constraintengine.BasisLead, "")
+	otherLead.Rule = json.RawMessage(strings.Replace(string(otherLead.Rule), `"from":"1.7.28","to":"2.0.0"`, `"from":"1.7.0","to":"1.8.0"`, 1))
+	leadPolicy := mustPolicy(t, "reviewed,lead")
+	withOtherLead := evaluateSelection(t, basisBundle(t, otherLead), leadPolicy, "generic", []byte(other))
+	withoutLead := evaluateSelection(t, testBundle(t), leadPolicy, "generic", []byte(other))
+	if len(withoutLead.Check.Claims) == 0 || len(withOtherLead.Check.Claims) != len(withoutLead.Check.Claims)+1 {
+		t.Fatalf("lead narrowed the selection: %d vs %d claims", len(withOtherLead.Check.Claims), len(withoutLead.Check.Claims))
+	}
+
 	// The default policy over a pack without consensus or lead rules is
 	// exactly today's report.
 	plain := testBundle(t)
