@@ -1,0 +1,675 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package consensus
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+
+	"github.com/prufyx/prufyx/cli/internal/extract"
+)
+
+// CueVersion identifies the removal cue list below.
+const CueVersion = "1"
+
+// cueRE is the removal cue list: a cited list item must contain one.
+var cueRE = regexp.MustCompile(`(?i)remov|dropp|delet|no longer|\bgone\b|purg`)
+
+// Verdicts.
+const (
+	VerdictVerified = "verified"
+	VerdictLead     = "lead"
+	VerdictDropped  = "dropped"
+)
+
+// Reasons, in the order the steps run.
+const (
+	ReasonSourceMismatch        = "source-mismatch"
+	ReasonSourceRefused         = "source-refused"
+	ReasonReleaseMismatch       = "release-mismatch"
+	ReasonKindNotAllowed        = "kind-not-allowed"
+	ReasonNameInvalid           = "name-invalid"
+	ReasonNoCitedCue            = "no-cited-cue"
+	ReasonAmbiguousCitation     = "ambiguous-citation"
+	ReasonHiddenContent         = "hidden-content"
+	ReasonInventoryIncomplete   = "inventory-incomplete"
+	ReasonNotInInventory        = "not-in-inventory"
+	ReasonStillPresent          = "still-present"
+	ReasonNoProvenance          = "no-provenance"
+	ReasonProvenanceUnbounded   = "provenance-unbounded"
+	ReasonProvenanceUnavailable = "provenance-unavailable"
+)
+
+// kindRule is what a claim kind needs: a name form and the inventories
+// the name must be in (earlier release) and absent from (later release).
+type kindRule struct {
+	name        *regexp.Regexp
+	present, to string
+}
+
+// allowedKinds are the only kinds that can verify, and only for
+// Kubernetes: kinds without a complete mechanical inventory stay leads.
+var allowedKinds = map[string]kindRule{
+	"removed_feature_gate": {
+		name:    regexp.MustCompile(`^[A-Z][A-Za-z0-9]{2,60}$`),
+		present: InventoryFeatureGates, to: InventoryFeatureGateNames,
+	},
+	"removed_api_version": {
+		name:    regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*/v[1-9][0-9]{0,2}((alpha|beta)[1-9][0-9]{0,2})?$`),
+		present: InventoryServedAPIVersions, to: InventoryServedAPIVersions,
+	},
+}
+
+// AllowedKinds lists the kinds that can verify.
+func AllowedKinds() []string {
+	out := make([]string, 0, len(allowedKinds))
+	for k := range allowedKinds {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// Inputs are what Verify reads besides the bundle.
+type Inputs struct {
+	Reader extract.PinnedReader
+	Tags   extract.TagSource
+	// History lists the commits of the release range; nil means none is
+	// available (every claim that reaches provenance stays a lead).
+	History History
+	// Inventory serves the mechanical inventories.
+	Inventory Inventories
+	// HistoryLimit bounds the commit walk; 0 means DefaultHistoryLimit.
+	HistoryLimit int
+}
+
+// ErrInputsIncomplete means Verify could not read an input it needs. No
+// report is produced.
+var ErrInputsIncomplete = errors.New("consensus inputs are incomplete")
+
+// Citation is the list item a name was found in.
+type Citation struct {
+	Name string `json:"name"`
+	// NormalisedLines and OriginalLines are inclusive 1-based ranges, in
+	// the normalised section and in the source file.
+	NormalisedLines [2]int `json:"normalisedLines"`
+	OriginalLines   [2]int `json:"originalLines"`
+	// Quote is the item's full normalised text.
+	Quote string `json:"quote"`
+	// Occurrences counts identical copies of the item in the section.
+	Occurrences int `json:"occurrences"`
+}
+
+// InventoryRef names the inventories a claim was checked against.
+type InventoryRef struct {
+	FromDigest string `json:"fromDigest"`
+	ToDigest   string `json:"toDigest"`
+}
+
+// PRProvenance is one pull request reference of a cited item and the
+// commit of the release range whose subject carries it.
+type PRProvenance struct {
+	PR     int    `json:"pr"`
+	Commit string `json:"commit"`
+}
+
+// ClaimResult is the verdict on one claim.
+type ClaimResult struct {
+	ID         string         `json:"id"`
+	Kind       string         `json:"kind"`
+	Component  string         `json:"component,omitempty"`
+	Names      []string       `json:"names"`
+	Verdict    string         `json:"verdict"`
+	Reason     string         `json:"reason,omitempty"`
+	Detail     string         `json:"detail,omitempty"`
+	Citations  []Citation     `json:"citations"`
+	Inventory  *InventoryRef  `json:"inventory,omitempty"`
+	Provenance []PRProvenance `json:"provenance"`
+}
+
+// Summary counts verdicts.
+type Summary struct {
+	Verified int `json:"verified"`
+	Lead     int `json:"lead"`
+	Dropped  int `json:"dropped"`
+}
+
+// ReportRelease is a release as Verify resolved it.
+type ReportRelease struct {
+	Tag    string `json:"tag"`
+	Commit string `json:"commit"`
+}
+
+// Report is the verifier's result.
+type Report struct {
+	Schema            string        `json:"schema"`
+	NormaliserVersion string        `json:"normaliserVersion"`
+	CueVersion        string        `json:"cueVersion"`
+	HistoryLimit      int           `json:"historyLimit"`
+	Source            Source        `json:"source"`
+	FromRelease       ReportRelease `json:"fromRelease"`
+	ToRelease         ReportRelease `json:"toRelease"`
+	Claims            []ClaimResult `json:"claims"`
+	Summary           Summary       `json:"summary"`
+}
+
+// AllVerified reports whether every claim verified.
+func (r *Report) AllVerified() bool { return r.Summary.Verified == len(r.Claims) && len(r.Claims) > 0 }
+
+// Canonical renders the report as canonical JSON.
+func (r *Report) Canonical() ([]byte, error) { return extract.Canonical(r) }
+
+// verdictError carries a step failure.
+type verdictError struct {
+	verdict, reason, detail string
+}
+
+func fail(verdict, reason, format string, a ...any) *verdictError {
+	return &verdictError{verdict: verdict, reason: reason, detail: fmt.Sprintf(format, a...)}
+}
+
+// Verify checks every claim of a bundle. Steps run in order and the first
+// failure decides the claim:
+//
+//  1. the source is pinned: the file digest matches the bytes read by
+//     commit, the normalised digest is recomputed equal, and the releases
+//     match the section rule and the recorded tags;
+//  2. the kind is allowed;
+//  3. every name has the kind's form;
+//  4. every name is cited by exactly one distinct list item that carries
+//     a removal cue and no hidden content;
+//  5. every name is in the complete inventory of the earlier release;
+//  6. every name is absent from the complete inventory of the later one;
+//  7. every cited item references pull requests of the same repository,
+//     each in a commit subject of the release range.
+//
+// It returns an error wrapping ErrInputsIncomplete when an input cannot be
+// read; the caller must then not use any result.
+func Verify(ctx context.Context, b *Bundle, in Inputs) (*Report, error) {
+	if b == nil {
+		return nil, errors.New("no bundle")
+	}
+	if err := b.check(); err != nil {
+		return nil, err
+	}
+	limit := in.HistoryLimit
+	if limit <= 0 {
+		limit = DefaultHistoryLimit
+	}
+	rep := &Report{
+		Schema: ReportSchema, NormaliserVersion: NormaliserVersion, CueVersion: CueVersion, HistoryLimit: limit,
+		Source: b.Source, FromRelease: ReportRelease{Tag: b.FromRelease.Tag, Commit: b.FromRelease.Commit},
+		ToRelease: ReportRelease{Tag: b.ToRelease.Tag},
+		Claims:    []ClaimResult{},
+	}
+	v := &verifier{bundle: b, in: in, limit: limit, ctx: ctx}
+	repo, _ := extract.ParseRepo(b.Source.Repo)
+	v.repo = repo
+	sourceFail, err := v.pinSource(rep)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range b.Claims {
+		res := ClaimResult{ID: c.ID, Kind: c.Kind, Component: c.Component, Names: append([]string{}, c.Names...), Citations: []Citation{}, Provenance: []PRProvenance{}}
+		f := sourceFail
+		if f == nil {
+			f, err = v.claim(c, &res)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if f != nil {
+			res.Verdict, res.Reason, res.Detail = f.verdict, f.reason, f.detail
+		} else {
+			res.Verdict = VerdictVerified
+		}
+		switch res.Verdict {
+		case VerdictVerified:
+			rep.Summary.Verified++
+		case VerdictLead:
+			rep.Summary.Lead++
+		default:
+			rep.Summary.Dropped++
+		}
+		rep.Claims = append(rep.Claims, res)
+	}
+	return rep, nil
+}
+
+type verifier struct {
+	ctx      context.Context
+	bundle   *Bundle
+	in       Inputs
+	limit    int
+	repo     extract.RepoRef
+	norm     Normalised
+	items    []item
+	toCommit string
+
+	history     map[int]string
+	historyErr  *verdictError
+	historyDone bool
+}
+
+// pinSource runs step 1. A failure applies to every claim.
+func (v *verifier) pinSource(rep *Report) (*verdictError, error) {
+	b := v.bundle
+	s := b.Source
+	if b.FromRelease.Repo != s.Repo {
+		return fail(VerdictDropped, ReasonReleaseMismatch, "the releases and the source are of different repositories"), nil
+	}
+	if s.Section != b.ToRelease.Tag {
+		return fail(VerdictDropped, ReasonReleaseMismatch, "the section %q is not the later release %q", s.Section, b.ToRelease.Tag), nil
+	}
+	spec := SectionSpec{Repo: s.Repo, Path: s.Path, Version: s.Section}
+	if _, _, err := sectionHeading(spec); err != nil {
+		return fail(VerdictDropped, ReasonSourceRefused, "%v", err), nil
+	}
+	toMinor, okTo := KubernetesMinor(b.ToRelease.Tag)
+	fromMinor, okFrom := KubernetesMinor(b.FromRelease.Tag)
+	if !okTo || !okFrom || fromMinor+1 != toMinor {
+		return fail(VerdictDropped, ReasonReleaseMismatch, "the earlier release must be the minor release just before %s", b.ToRelease.Tag), nil
+	}
+	if v.in.Tags == nil {
+		return nil, fmt.Errorf("%w: no tag source", ErrInputsIncomplete)
+	}
+	tags, err := v.in.Tags.Tags(v.repo)
+	if err != nil {
+		return nil, fmt.Errorf("%w: tags of %s: %v", ErrInputsIncomplete, v.repo.Key, err)
+	}
+	var fromCommit, toCommit string
+	for _, t := range tags {
+		switch t.Name {
+		case b.FromRelease.Tag:
+			fromCommit = t.Commit
+		case b.ToRelease.Tag:
+			toCommit = t.Commit
+		}
+	}
+	if fromCommit == "" || toCommit == "" {
+		return nil, fmt.Errorf("%w: tag %s or %s is not recorded", ErrInputsIncomplete, b.FromRelease.Tag, b.ToRelease.Tag)
+	}
+	rep.ToRelease.Commit = toCommit
+	v.toCommit = toCommit
+	if fromCommit != b.FromRelease.Commit {
+		return fail(VerdictDropped, ReasonReleaseMismatch, "tag %s points at %s, not %s", b.FromRelease.Tag, fromCommit, b.FromRelease.Commit), nil
+	}
+	if v.in.Reader == nil {
+		return nil, fmt.Errorf("%w: no reader", ErrInputsIncomplete)
+	}
+	src, err := v.in.Reader.Read(v.repo, s.Commit, s.Path)
+	if err != nil {
+		if errors.Is(err, extract.ErrNotFound) {
+			return fail(VerdictDropped, ReasonSourceMismatch, "%s does not exist at %s", s.Path, s.Commit), nil
+		}
+		return nil, fmt.Errorf("%w: %s at %s: %v", ErrInputsIncomplete, s.Path, s.Commit, err)
+	}
+	if FileDigest(src) != s.FileSHA256 {
+		return fail(VerdictDropped, ReasonSourceMismatch, "the file digest does not match the bytes at the commit"), nil
+	}
+	if s.NormaliserVersion != NormaliserVersion {
+		return fail(VerdictDropped, ReasonSourceMismatch, "normaliser version %q, this verifier is %q", s.NormaliserVersion, NormaliserVersion), nil
+	}
+	norm, err := Normalise(src, spec)
+	if err != nil {
+		return fail(VerdictDropped, ReasonSourceRefused, "%v", err), nil
+	}
+	if norm.Digest() != s.NormalisedSHA256 {
+		return fail(VerdictDropped, ReasonSourceMismatch, "the normalised digest does not match"), nil
+	}
+	v.norm = norm
+	v.items = listItems(norm)
+	return nil, nil
+}
+
+// claim runs steps 2-7 for one claim.
+func (v *verifier) claim(c Claim, res *ClaimResult) (*verdictError, error) {
+	rule, ok := allowedKinds[c.Kind]
+	if !ok || (c.Component != "" && c.Component != "kubernetes") || v.repo.Key != KubernetesRepo {
+		return fail(VerdictLead, ReasonKindNotAllowed, "kind %q has no complete mechanical inventory", logSafe(c.Kind)), nil
+	}
+	seen := map[string]bool{}
+	for _, n := range c.Names {
+		if !rule.name.MatchString(n) {
+			return fail(VerdictDropped, ReasonNameInvalid, "%q is not a %s name", logSafe(n), c.Kind), nil
+		}
+		if seen[n] {
+			return fail(VerdictDropped, ReasonNameInvalid, "%q is named twice", n), nil
+		}
+		seen[n] = true
+	}
+
+	// Step 4: citation by code.
+	cited := map[int]bool{}
+	for _, n := range c.Names {
+		var withCue []int
+		for i, it := range v.items {
+			if containsToken(it.prose, n) && cueRE.MatchString(it.prose) {
+				withCue = append(withCue, i)
+			}
+		}
+		if len(withCue) == 0 {
+			return fail(VerdictDropped, ReasonNoCitedCue, "%s is not in a list item of the section with a removal cue", n), nil
+		}
+		first := v.items[withCue[0]]
+		for _, i := range withCue[1:] {
+			if v.items[i].key != first.key {
+				return fail(VerdictLead, ReasonAmbiguousCitation, "%s is cited by %d different list items", n, distinct(v.items, withCue)), nil
+			}
+		}
+		for _, i := range withCue {
+			if v.items[i].hidden {
+				return fail(VerdictLead, ReasonHiddenContent, "the list item citing %s held hidden content (%s)", n, strings.Join(v.items[i].flags, ", ")), nil
+			}
+		}
+		res.Citations = append(res.Citations, Citation{
+			Name: n, NormalisedLines: [2]int{first.start + 1, first.end + 1},
+			OriginalLines: [2]int{v.norm.Lines[first.start].Original, v.norm.Lines[first.end].Original},
+			Quote:         first.text, Occurrences: len(withCue),
+		})
+		cited[withCue[0]] = true
+	}
+
+	// Steps 5 and 6: existence in the earlier release, absence from the
+	// later one.
+	from, err := v.in.Inventory.Inventory(v.ctx, rule.present, v.repo, v.bundle.FromRelease.Commit)
+	if err != nil {
+		if IsIncomplete(err) {
+			return fail(VerdictLead, ReasonInventoryIncomplete, "%s at %s: %v", rule.present, v.bundle.FromRelease.Tag, err), nil
+		}
+		return nil, fmt.Errorf("%w: %v", ErrInputsIncomplete, err)
+	}
+	res.Inventory = &InventoryRef{FromDigest: from.Digest}
+	for _, n := range c.Names {
+		if !from.Names[n] {
+			return fail(VerdictDropped, ReasonNotInInventory, "%s is not in the %s of %s", n, rule.present, v.bundle.FromRelease.Tag), nil
+		}
+	}
+	to, err := v.in.Inventory.Inventory(v.ctx, rule.to, v.repo, v.toCommit)
+	if err != nil {
+		if IsIncomplete(err) {
+			return fail(VerdictLead, ReasonInventoryIncomplete, "%s at %s: %v", rule.to, v.bundle.ToRelease.Tag, err), nil
+		}
+		return nil, fmt.Errorf("%w: %v", ErrInputsIncomplete, err)
+	}
+	res.Inventory.ToDigest = to.Digest
+	for _, n := range c.Names {
+		if to.Names[n] {
+			return fail(VerdictDropped, ReasonStillPresent, "%s is still in the %s of %s", n, rule.to, v.bundle.ToRelease.Tag), nil
+		}
+	}
+
+	// Step 7: provenance.
+	idx := make([]int, 0, len(cited))
+	for i := range cited {
+		idx = append(idx, i)
+	}
+	sort.Ints(idx)
+	prs := map[int]bool{}
+	for _, i := range idx {
+		refs, consistent := prReferences(v.items[i].text, v.repo)
+		if !consistent {
+			return fail(VerdictLead, ReasonNoProvenance, "a pull request link of the cited item names a different number than its text"), nil
+		}
+		if len(refs) == 0 {
+			return fail(VerdictLead, ReasonNoProvenance, "the cited item references no pull request of %s", v.repo.Key), nil
+		}
+		for _, n := range refs {
+			prs[n] = true
+		}
+	}
+	merged, f, err := v.rangePRs()
+	if err != nil {
+		return nil, err
+	}
+	if f != nil {
+		return f, nil
+	}
+	numbers := make([]int, 0, len(prs))
+	for n := range prs {
+		numbers = append(numbers, n)
+	}
+	sort.Ints(numbers)
+	for _, n := range numbers {
+		commit, ok := merged[n]
+		if !ok {
+			return fail(VerdictLead, ReasonNoProvenance, "pull request #%d is in no commit subject of %s..%s", n, v.bundle.FromRelease.Tag, v.bundle.ToRelease.Tag), nil
+		}
+		res.Provenance = append(res.Provenance, PRProvenance{PR: n, Commit: commit})
+	}
+	return nil, nil
+}
+
+var (
+	squashSubjectRE = regexp.MustCompile(`\(#([1-9][0-9]{0,8})\)`)
+	mergeSubjectRE  = regexp.MustCompile(`^Merge pull request #([1-9][0-9]{0,8}) from `)
+)
+
+// rangePRs walks the release range once and indexes the pull request
+// numbers its commit subjects carry, each with the smallest commit id.
+func (v *verifier) rangePRs() (map[int]string, *verdictError, error) {
+	if v.historyDone {
+		return v.history, v.historyErr, nil
+	}
+	v.historyDone = true
+	if v.in.History == nil {
+		v.historyErr = fail(VerdictLead, ReasonProvenanceUnavailable, "%v", ErrHistoryUnavailable)
+		return nil, v.historyErr, nil
+	}
+	subjects, err := v.in.History.RangeSubjects(v.repo, v.bundle.FromRelease.Commit, v.toCommit, v.limit)
+	switch {
+	case errors.Is(err, ErrHistoryUnbounded):
+		v.historyErr = fail(VerdictLead, ReasonProvenanceUnbounded, "more than %d commits in %s..%s", v.limit, v.bundle.FromRelease.Tag, v.bundle.ToRelease.Tag)
+		return nil, v.historyErr, nil
+	case errors.Is(err, ErrHistoryUnavailable):
+		v.historyErr = fail(VerdictLead, ReasonProvenanceUnavailable, "%v", err)
+		return nil, v.historyErr, nil
+	case err != nil:
+		return nil, nil, fmt.Errorf("%w: %v", ErrInputsIncomplete, err)
+	}
+	v.history = map[int]string{}
+	add := func(num, commit string) {
+		n, err := strconv.Atoi(num)
+		if err != nil {
+			return
+		}
+		if old, ok := v.history[n]; !ok || commit < old {
+			v.history[n] = commit
+		}
+	}
+	for _, s := range subjects {
+		for _, m := range squashSubjectRE.FindAllStringSubmatch(s.Subject, -1) {
+			add(m[1], s.Commit)
+		}
+		if m := mergeSubjectRE.FindStringSubmatch(s.Subject); m != nil {
+			add(m[1], s.Commit)
+		}
+	}
+	return v.history, nil, nil
+}
+
+// item is one list item of the normalised section.
+type item struct {
+	start, end int // normalised line indexes, inclusive
+	text       string
+	prose      string // text without link targets and URLs
+	key        string // text without the list marker, for identity
+	hidden     bool
+	flags      []string
+}
+
+var (
+	itemStartRE   = regexp.MustCompile(`^[ \t]*([-*+]|[0-9]{1,9}[.)])([ \t]+|$)`)
+	headingLineRE = regexp.MustCompile(`^[ \t]{0,3}#{1,6}([ \t]|$)`)
+	linkTargetRE  = regexp.MustCompile(`\]\([^)]*\)`)
+	urlRE         = regexp.MustCompile(`https?://[^\s)\]>]+`)
+)
+
+// listItems splits the section into list items. An item is a line that
+// starts with a list marker and the non-empty lines after it that are not
+// themselves list items or headings. A nested item is its own item.
+func listItems(n Normalised) []item {
+	var out []item
+	cur := -1
+	flush := func(end int) {
+		if cur < 0 {
+			return
+		}
+		it := item{start: cur, end: end}
+		var lines []string
+		flags := map[string]bool{}
+		for i := cur; i <= end; i++ {
+			l := n.Lines[i]
+			lines = append(lines, l.Text)
+			if l.Hidden() {
+				it.hidden = true
+				for _, f := range l.Flags {
+					if hiddenFlags[f] {
+						flags[f] = true
+					}
+				}
+			}
+		}
+		it.flags = sortedFlags(flags)
+		it.text = strings.Join(lines, "\n")
+		joined := strings.Join(lines, " ")
+		it.prose = urlRE.ReplaceAllString(linkTargetRE.ReplaceAllString(joined, "]"), " ")
+		it.key = strings.Join(strings.Fields(itemStartRE.ReplaceAllString(joined, "")), " ")
+		out = append(out, it)
+		cur = -1
+	}
+	for i, l := range n.Lines {
+		switch {
+		case itemStartRE.MatchString(l.Text):
+			flush(i - 1)
+			cur = i
+		case strings.TrimSpace(l.Text) == "" || headingLineRE.MatchString(l.Text):
+			flush(i - 1)
+		}
+	}
+	flush(len(n.Lines) - 1)
+	return out
+}
+
+func distinct(items []item, idx []int) int {
+	set := map[string]bool{}
+	for _, i := range idx {
+		set[items[i].key] = true
+	}
+	return len(set)
+}
+
+// containsToken reports whether name occurs in text as a whole token: the
+// characters around it are not letters, digits, marks, "_", "-" or "/",
+// it is not preceded by "." and not followed by "." and a letter or digit.
+func containsToken(text, name string) bool {
+	if name == "" {
+		return false
+	}
+	for off := 0; off <= len(text)-len(name); {
+		i := strings.Index(text[off:], name)
+		if i < 0 {
+			return false
+		}
+		at := off + i
+		end := at + len(name)
+		before, after := true, true
+		if at > 0 {
+			r, _ := utf8.DecodeLastRuneInString(text[:at])
+			before = !nameRune(r) && r != '.'
+		}
+		if end < len(text) {
+			r, size := utf8.DecodeRuneInString(text[end:])
+			if r == '.' {
+				if end+size < len(text) {
+					r2, _ := utf8.DecodeRuneInString(text[end+size:])
+					after = !nameRune(r2)
+				}
+			} else {
+				after = !nameRune(r)
+			}
+		}
+		if before && after {
+			return true
+		}
+		off = at + 1
+	}
+	return false
+}
+
+func nameRune(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsMark(r) || r == '_' || r == '-' || r == '/'
+}
+
+var (
+	inlineLinkRE  = regexp.MustCompile(`\[([^\]]*)\]\(([^)\s]*)\)`)
+	pullURLRE     = regexp.MustCompile(`^https://github\.com/([A-Za-z0-9][A-Za-z0-9._-]*)/([A-Za-z0-9][A-Za-z0-9._-]*)/pull/([1-9][0-9]{0,8})/?$`)
+	barePullRE    = regexp.MustCompile(`https://github\.com/([A-Za-z0-9][A-Za-z0-9._-]*)/([A-Za-z0-9][A-Za-z0-9._-]*)/pull/([1-9][0-9]{0,8})\b`)
+	linkTextNumRE = regexp.MustCompile(`#([0-9]+)`)
+	bareRefRE     = regexp.MustCompile(`(^|[^A-Za-z0-9_/#&.\-])#([1-9][0-9]{0,8})\b`)
+)
+
+// prReferences returns the pull request numbers of repo that text
+// references: inline links to the repository's pull requests, bare pull
+// request URLs and bare "#N". A link to another repository's pull request
+// is ignored, so its number never counts; consistent is false when a link
+// text names a different number than its target.
+func prReferences(text string, repo extract.RepoRef) (refs []int, consistent bool) {
+	owner, name := repo.OwnerName()
+	same := func(o, n string) bool { return strings.EqualFold(o, owner) && strings.EqualFold(n, name) }
+	set := map[int]bool{}
+	consistent = true
+	rest := inlineLinkRE.ReplaceAllStringFunc(text, func(link string) string {
+		m := inlineLinkRE.FindStringSubmatch(link)
+		u := pullURLRE.FindStringSubmatch(m[2])
+		if u == nil {
+			// Not a pull request link: its text stays, its target does
+			// not count.
+			return " " + m[1] + " "
+		}
+		if !same(u[1], u[2]) {
+			return " "
+		}
+		n, _ := strconv.Atoi(u[3])
+		set[n] = true
+		for _, t := range linkTextNumRE.FindAllStringSubmatch(m[1], -1) {
+			if t[1] != u[3] {
+				consistent = false
+			}
+		}
+		return " "
+	})
+	for _, u := range barePullRE.FindAllStringSubmatch(rest, -1) {
+		if same(u[1], u[2]) {
+			n, _ := strconv.Atoi(u[3])
+			set[n] = true
+		}
+	}
+	rest = urlRE.ReplaceAllString(rest, " ")
+	for _, m := range bareRefRE.FindAllStringSubmatch(rest, -1) {
+		n, _ := strconv.Atoi(m[2])
+		set[n] = true
+	}
+	for n := range set {
+		refs = append(refs, n)
+	}
+	sort.Ints(refs)
+	return refs, consistent
+}
+
+// logSafe bounds and quotes text from a claim for a detail message.
+func logSafe(s string) string {
+	q := strconv.QuoteToASCII(s)
+	q = q[1 : len(q)-1]
+	if len(q) > 80 {
+		q = q[:80] + "..."
+	}
+	return q
+}
