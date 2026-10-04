@@ -44,7 +44,7 @@ ended:
 
 ```text
 prufyx: note: 166 knowledge rules expire within 30 days, the earliest on 2026-12-07 (in 17 days); update with `prufyx db update` and use --knowledge-db
-prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (3 days ago); update with `prufyx db update` and use --knowledge-db
+prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (2 days ago); update with `prufyx db update` and use --knowledge-db
 ```
 
 With the embedded knowledge the instant is `--now`; with `--knowledge-db` it is

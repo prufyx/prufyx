@@ -20,6 +20,9 @@ const syntheticHelmInput = `{"schema":"prufyx.io/operator-declared-constraint-in
 // and standard error without the knowledge age note: the note depends on the
 // wall clock when the test knowledge is a synthetic database whose rules end
 // within a day, and the age tests read it with runCNCFCLIRaw.
+//
+// New assertions that standard error is empty must use runCNCFCLIRaw: this
+// helper would hide a stray knowledge age note from them.
 func runCNCFCLI(t *testing.T, args ...string) (int, string, string) {
 	t.Helper()
 	code, stdout, stderr := runCNCFCLIRaw(t, args...)

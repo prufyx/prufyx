@@ -1,6 +1,6 @@
 kyverno source-constraint preview
 input authority: OPERATOR_DECLARED_MINIMIZED
-knowledge: embedded revision cncf-2026-09-13.2
+knowledge: embedded revision cncf-2026-09-13.3
 runtime transitions reproduced: 0
 network used: false
 kyverno.reports-chunk-size-removed.1-13: BLOCKED (REVIEWED_SOURCE_CONSTRAINT)
@@ -8,7 +8,7 @@ next action: For the declared official upstream bare reports-controller surface,
 evidence basis: reviewed by maintainer
 aggregate: UNKNOWN
 input digest: sha256:83faf6e3d00c2dd09282fcfc94f23e956ebb1230f9ca0eb6226863165ef7ca55
-knowledge pack digest: sha256:d91d0eca200dba55128726d1c5a497833f9ab74b2d95d5ef94c9e69cd0633922
+knowledge pack digest: sha256:da90eda6cc86fb25730c412a9f9d25a231a372c450d1cf4422590bcf89645ea6
 next action: review each scoped claim; whole-upgrade behavior and runtime evidence remain unverified
 
 exit 10

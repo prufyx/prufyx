@@ -35,6 +35,13 @@ func TestReportKnowledgeAge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A batch never mixes the two: with a database every CNCF item is
+	// evaluated against it, so no item can use the embedded CNCF pack.
+	for _, item := range report.Items {
+		if item.Kind == "cncf" && item.KnowledgeOrigin != "external_signed_local" {
+			t.Fatalf("item %d used %s knowledge in a database batch", item.Position, item.KnowledgeOrigin)
+		}
+	}
 	sources, embedded := report.KnowledgeAge()
 	if embedded || len(sources) != 1 || len(sources[0].Expiries) != 1 || sources[0].ID == "" {
 		t.Fatalf("sources=%+v embedded=%v", sources, embedded)
@@ -56,6 +63,27 @@ func TestReportKnowledgeAgeEmbedded(t *testing.T) {
 		t.Fatal(err)
 	}
 	if sources, embedded := report.KnowledgeAge(); embedded || len(sources) != 0 {
+		t.Fatalf("sources=%+v embedded=%v", sources, embedded)
+	}
+}
+
+// TestReportKnowledgeAgeEmbeddedCNCFItem: a batch without a database that has
+// a CNCF item reports that the embedded CNCF knowledge was used, and no
+// database targets.
+func TestReportKnowledgeAgeEmbeddedCNCFItem(t *testing.T) {
+	root := t.TempDir()
+	writeBatchFile(t, filepath.Join(root, "kyverno.json"), canonical("pkg:github/kyverno/kyverno", "1.12.5", "1.13.0", []any{}, []any{
+		map[string]any{"id": "component.kyverno.distribution", "state": "declared", "enumValue": "official_upstream"},
+		map[string]any{"id": "component.kyverno.execution_surface", "state": "declared", "enumValue": "reports_controller"},
+		map[string]any{"id": "component.kyverno.reports_chunk_size_flag_present", "state": "declared", "boolValue": true},
+	}))
+	plan := Plan{Schema: PlanSchema, Authority: PlanAuthority, Knowledge: KnowledgeSelection{Mode: "embedded_only"}, Items: []Item{{ID: "a", Kind: "cncf", Project: "kyverno", From: "1.12.5", To: "1.13.0", InputPath: "kyverno.json"}}}
+	planPath := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
+	report, _, err := Evaluate(planPath, root, time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sources, embedded := report.KnowledgeAge(); !embedded || len(sources) != 0 {
 		t.Fatalf("sources=%+v embedded=%v", sources, embedded)
 	}
 }

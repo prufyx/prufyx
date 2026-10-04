@@ -178,7 +178,7 @@ than 30 days after the evaluation instant (exactly 30 days counts), and when a
 rule has already ended, in which case it says so:
 
 ```text
-prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (3 days ago); update with `prufyx db update` and use --knowledge-db
+prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (2 days ago); update with `prufyx db update` and use --knowledge-db
 ```
 
 The knowledge in use is the knowledge built into the binary, or, with
