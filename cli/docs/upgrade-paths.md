@@ -156,6 +156,7 @@ pack carries exactly the schema of the newest feature it uses:
 | a one-way notice rule | `prufyx.io/cncf-source-rule-pack/v1alpha6` |
 | a consensus or lead rule | `prufyx.io/cncf-source-rule-pack/v1alpha7` |
 | a support-range rule (`severity`) | `prufyx.io/cncf-source-rule-pack/v1alpha8` |
+| distribution records ([kubernetes-distribution-versions.md](kubernetes-distribution-versions.md#distribution-records-and-applicability)) | `prufyx.io/cncf-source-rule-pack/v1alpha9` |
 
 So a pack with path policies and no notice rule, with or without line
 attestations, uses `v1alpha5`, and `v1alpha5` without path policies is refused. Binaries built

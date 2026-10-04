@@ -243,6 +243,18 @@ that side; a rule without a range never does. A component without a policy
 is never assumed to allow skipping lines. See
 [upgrade-paths.md](upgrade-paths.md).
 
+Whether a rule family applies to a Kubernetes distribution other than
+upstream (for example, whether the served-API removal rules hold on a managed
+service) is also a separate reviewed statement, a **distribution record**. To
+cite one, point at the provider's own statement in a Git repository at a
+pinned commit, exactly as for a rule source: the URL, the 40-character commit,
+the whole-file `sha256` and the line span of the sentence that says the
+distribution runs the upstream component for that Kubernetes minor (or that
+the family does not apply, and why). A web page that is not in a Git
+repository cannot be cited yet; until a pinned statement exists the
+distribution stays a gap. See
+[kubernetes-distribution-versions.md](kubernetes-distribution-versions.md#distribution-records-and-applicability).
+
 Every human finding prints one line before the pinned sources, one of
 `evidence basis: reviewed by maintainer`,
 `evidence basis: derived from source by <extractor id> v<version>`,

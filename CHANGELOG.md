@@ -9,6 +9,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Knowledge format: CNCF rule packs can carry an optional `distributions`
+  section (pack schema `prufyx.io/cncf-source-rule-pack/v1alpha9`) with
+  reviewed Kubernetes distribution records (control-plane model, and for
+  OpenShift a minor-line mapping to Kubernetes) and per-distribution
+  statements of which rule families apply. A distribution or family without a
+  current statement is a gap, and `not_applicable` never contributes to a
+  PASS. No records are shipped. The external target format, the per-project
+  split, `evidence reattest`, `evidence repin` and the support inventory
+  refuse a pack with the section for now. See
+  `cli/docs/kubernetes-distribution-versions.md`.
 - Maintainer tooling: the `crd.version-removal` extractor (registered as
   `crd.version-removal.<project>` for Argo CD, Istio and Strimzi) derives
   rules for custom-resource versions a release no longer serves, from the

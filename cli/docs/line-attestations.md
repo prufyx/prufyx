@@ -154,7 +154,8 @@ The pack's own top-level member names are matched exactly before the pack is
 decoded, by the same function in the pack loader and in
 `rulecheck.ValidatePackAttestations`: any name that is not exactly one of
 `schema`, `revision`, `policyId`, `policyDigest`, `landscapeFileDigest`,
-`registryDigest`, `entries`, `lineAttestations` or `pathPolicies` (for example
+`registryDigest`, `entries`, `lineAttestations`, `pathPolicies` or
+`distributions` (for example
 `LineAttestations`, or a spelling that only matches under Unicode case
 folding), and any name that repeats, rejects the pack. So every reader sees
 the same attestation section, or none.
