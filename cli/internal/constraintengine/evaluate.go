@@ -49,7 +49,7 @@ func evaluateRule(input inputDocument, rule rule, now time.Time) Claim {
 }
 
 func evaluateRuleVerdict(input inputDocument, rule rule, now time.Time) Claim {
-	claim := Claim{RuleID: rule.ID, RuleDigest: digestJSON(rule), Operator: rule.Operator, ReasonCode: rule.ReasonCode, NextAction: rule.NextAction, EvidenceReviewedAt: rule.Evidence.ReviewedAt, EvidenceValidUntil: rule.Evidence.ValidUntil, RequiredFacts: requiredFacts(rule), Sources: append([]SourceEvidence(nil), rule.Evidence.Sources...), EvidenceBasis: rule.Evidence.Basis, EvidenceDerivedAt: rule.Evidence.DerivedAt}
+	claim := Claim{RuleID: rule.ID, RuleDigest: digestJSON(rule), Operator: rule.Operator, ReasonCode: rule.ReasonCode, NextAction: rule.NextAction, EvidenceReviewedAt: rule.Evidence.ReviewedAt, EvidenceValidUntil: rule.Evidence.ValidUntil, RequiredFacts: requiredFacts(rule), Sources: append([]SourceEvidence(nil), rule.Evidence.Sources...), EvidenceBasis: rule.Evidence.Basis, EvidenceDerivedAt: rule.Evidence.DerivedAt, Severity: rule.Severity}
 	if rule.Evidence.Extractor != nil {
 		extractor := *rule.Evidence.Extractor
 		claim.EvidenceExtractor = &extractor
@@ -133,8 +133,9 @@ func evaluateMatchedRule(input inputDocument, rule rule, claim Claim) Claim {
 		comparison, comparable := compareVersions(component.Version, rule.Dependency.Version)
 		matches := comparable && (rule.Dependency.Comparison == "eq" && comparison == 0 || rule.Dependency.Comparison == "gte" && comparison >= 0 || rule.Dependency.Comparison == "lte" && comparison <= 0 || rule.Dependency.Comparison == "lt" && comparison < 0)
 		if !matches {
-			claim.Status = "BLOCKED"
-			return claim
+			// BLOCKED, or UNSUPPORTED for a support-range rule
+			// (severity.go).
+			return applySeverity(rule, claim)
 		}
 		// A passing inequality establishes only this cited numeric bound; it
 		// does not generalize support to every version satisfying that bound.
@@ -280,7 +281,7 @@ func issueReport(report Report) Report {
 // independently re-derive that same assessment. No block, no verdict —
 // however many claims passed. See legalAssessment.
 func MarshalReport(report Report) ([]byte, error) {
-	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !validSetClaims(report) || !validNoticeClaims(report) || !validBasisClaims(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
+	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !validSetClaims(report) || !validNoticeClaims(report) || !validBasisClaims(report) || !validSeverityClaims(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
 		return nil, ErrIntegrity
 	}
 	raw, err := json.Marshal(report)
@@ -297,7 +298,7 @@ func validClaims(claims []Claim) bool {
 		if ValidateBasis(claim.EvidenceBasis, claim.EvidenceExtractor, claim.EvidenceDerivedAt) != nil {
 			return false
 		}
-		if (i > 0 && claims[i-1].RuleID >= claim.RuleID) || !idRE.MatchString(claim.RuleID) || !digestRE.MatchString(claim.RuleDigest) || (claim.Status != "PASS" && claim.Status != "BLOCKED" && claim.Status != "UNKNOWN" && claim.Status != StatusNotice && claim.Status != StatusNoKnownIssue) || !reasonRE.MatchString(claim.ReasonCode) || !publicText(claim.NextAction) || !validRequiredFacts(claim.RequiredFacts) || reviewedErr != nil || validUntilErr != nil || !validUntil.After(reviewed) || (claim.EvidenceFreshness != "current" && claim.EvidenceFreshness != "stale" && claim.EvidenceFreshness != "withdrawn" && claim.EvidenceFreshness != "clock_before_review") {
+		if (i > 0 && claims[i-1].RuleID >= claim.RuleID) || !idRE.MatchString(claim.RuleID) || !digestRE.MatchString(claim.RuleDigest) || (claim.Status != "PASS" && claim.Status != "BLOCKED" && claim.Status != "UNKNOWN" && claim.Status != StatusNotice && claim.Status != StatusNoKnownIssue && claim.Status != StatusUnsupported) || !reasonRE.MatchString(claim.ReasonCode) || !publicText(claim.NextAction) || !validRequiredFacts(claim.RequiredFacts) || reviewedErr != nil || validUntilErr != nil || !validUntil.After(reviewed) || (claim.EvidenceFreshness != "current" && claim.EvidenceFreshness != "stale" && claim.EvidenceFreshness != "withdrawn" && claim.EvidenceFreshness != "clock_before_review") {
 			return false
 		}
 	}
@@ -313,7 +314,7 @@ func validClaimMatches(report Report) bool {
 		if match == nil {
 			continue
 		}
-		if (report.EngineContractDigest != engineContractDigestRanged() && report.EngineContractDigest != engineContractDigestSet() && report.EngineContractDigest != engineContractDigestNotice() && report.EngineContractDigest != engineContractDigestBasis()) || match.Mode != subjectMatchModeRange || claim.Status == "UNKNOWN" && claim.ReasonCode == "RULE_TRANSITION_NOT_REVIEWED" {
+		if (report.EngineContractDigest != engineContractDigestRanged() && report.EngineContractDigest != engineContractDigestSet() && report.EngineContractDigest != engineContractDigestNotice() && report.EngineContractDigest != engineContractDigestBasis() && report.EngineContractDigest != engineContractDigestSeverity()) || match.Mode != subjectMatchModeRange || claim.Status == "UNKNOWN" && claim.ReasonCode == "RULE_TRANSITION_NOT_REVIEWED" {
 			return false
 		}
 		if !validVersion(match.AnchorFrom) || !validVersion(match.AnchorTo) || !inBound(match.AnchorFrom, match.From) || !inBound(match.AnchorTo, match.To) {

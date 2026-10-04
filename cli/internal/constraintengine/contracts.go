@@ -291,9 +291,13 @@ type rule struct {
 	AppliesWhen  []factCondition `json:"appliesWhen,omitempty"`
 	Dependency   *componentCheck `json:"dependency,omitempty"`
 	Intermediate string          `json:"intermediate,omitempty"`
-	Evidence     evidence        `json:"evidence"`
-	ReasonCode   string          `json:"reasonCode"`
-	NextAction   string          `json:"nextAction"`
+	// Severity is optional and only "unsupported" on a
+	// require_component_version rule (severity.go). When absent the rule
+	// marshals, digests and evaluates exactly as before the field existed.
+	Severity   string   `json:"severity,omitempty"`
+	Evidence   evidence `json:"evidence"`
+	ReasonCode string   `json:"reasonCode"`
+	NextAction string   `json:"nextAction"`
 }
 
 type transition struct {
@@ -424,6 +428,7 @@ type RuleSet struct {
 	setOperator    bool
 	notice         bool
 	basis          bool
+	severity       bool
 	seal           *ruleSetSeal
 }
 type ruleSetSeal struct{}
@@ -463,6 +468,10 @@ type Claim struct {
 	// the forbidden members found in the declared set. Every other claim
 	// omits it and serializes exactly as before the operator existed.
 	MatchedMembers []string `json:"matchedMembers,omitempty"`
+	// Severity discloses the severity of a support-range rule. It is present
+	// only when the rule declares one, so every other claim serializes
+	// exactly as before the field existed.
+	Severity string `json:"severity,omitempty"`
 }
 
 // SubjectMatch discloses a range match: the reviewed anchor pair and the
@@ -570,6 +579,9 @@ func EngineContractDigest() string { return engineContractDigest() }
 func EngineContractDigestRanged() string { return engineContractDigestRanged() }
 
 func (r RuleSet) engineDigest() string {
+	if r.severity {
+		return engineContractDigestSeverity()
+	}
 	if r.basis {
 		return engineContractDigestBasis()
 	}
@@ -618,6 +630,8 @@ func scopeDigestFor(engineDigest string) string {
 		return scopeContractDigestNotice()
 	case engineContractDigestBasis():
 		return scopeContractDigestBasis()
+	case engineContractDigestSeverity():
+		return scopeContractDigestSeverity()
 	}
 	return ""
 }

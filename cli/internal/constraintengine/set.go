@@ -213,12 +213,12 @@ func EngineContractDigestSet() string { return engineContractDigestSet() }
 // validSetClaims binds the set disclosures to the set contract: only a
 // forbid_set_member claim may carry matched members, it must carry them
 // exactly when it is BLOCKED, and a forbid_set_member claim is legal only
-// under the set contract or the notice or basis contract, which admit set
-// rules.
+// under the set contract or the notice, basis or severity contract, which
+// admit set rules.
 func validSetClaims(report Report) bool {
 	for _, claim := range report.Claims {
 		setClaim := claim.Operator == OperatorForbidSetMember
-		if setClaim && report.EngineContractDigest != engineContractDigestSet() && report.EngineContractDigest != engineContractDigestNotice() && report.EngineContractDigest != engineContractDigestBasis() {
+		if setClaim && report.EngineContractDigest != engineContractDigestSet() && report.EngineContractDigest != engineContractDigestNotice() && report.EngineContractDigest != engineContractDigestBasis() && report.EngineContractDigest != engineContractDigestSeverity() {
 			return false
 		}
 		if !setClaim {

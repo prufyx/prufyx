@@ -234,7 +234,8 @@ func ScopeContractDigestBasis() string { return scopeContractDigestBasis() }
 // or BLOCKED; NO_KNOWN_ISSUE comes only from a consensus or lead rule with
 // current evidence and its fixed reason code.
 func validBasisClaims(report Report) bool {
-	basisContract := report.EngineContractDigest == engineContractDigestBasis()
+	// The severity contract admits every feature of the basis contract.
+	basisContract := report.EngineContractDigest == engineContractDigestBasis() || report.EngineContractDigest == engineContractDigestSeverity()
 	for _, claim := range report.Claims {
 		consensus, lead := claim.EvidenceBasis == BasisConsensus, claim.EvidenceBasis == BasisLead
 		if (consensus || lead) && (!basisContract || claim.IsNotice()) {

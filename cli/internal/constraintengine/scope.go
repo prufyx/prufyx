@@ -111,7 +111,10 @@ func buildScopeCompleteness(input inputDocument, rules ruleDocument, claims []Cl
 			}
 			// A consensus rule that found no issue was applicable but did not
 			// verify anything: the scope is not proven.
-			if claim.Status == StatusNoKnownIssue {
+			// A support-range rule that found the combination outside its
+			// documented range was applicable but verified nothing either:
+			// the scope is not proven, and nothing is blocked.
+			if claim.Status == StatusNoKnownIssue || claim.Status == StatusUnsupported {
 				target.NotEvaluated = append(target.NotEvaluated, NotEvaluatedRule{RuleID: candidate.ID, Applicability: ApplicabilityApplicable, ReasonCode: claim.ReasonCode})
 				continue
 			}
@@ -152,7 +155,7 @@ func deriveAssessment(scope *ScopeCompleteness, claims []Claim) (string, string,
 	}
 	required, verified := 0, 0
 	blockers := []validation.VerifiedBlocker{}
-	unattested, undetermined, emptyComponent, notAnchorReviewed, consensusOnly := false, false, false, false, false
+	unattested, undetermined, emptyComponent, notAnchorReviewed, consensusOnly, unsupported := false, false, false, false, false, false
 	for _, component := range scope.Components {
 		// Completeness stays anchor-only: a component's transition must
 		// equal the reviewed anchor pair of at least one evaluated rule. A
@@ -188,13 +191,19 @@ func deriveAssessment(scope *ScopeCompleteness, claims []Claim) (string, string,
 			if !found {
 				return "", "", ErrIntegrity
 			}
-			// NO_KNOWN_ISSUE is recorded as applicable and not verified, and
-			// nothing else is: the two are bound in both directions.
-			if (status == StatusNoKnownIssue) != (skipped.Applicability == ApplicabilityApplicable) {
+			// NO_KNOWN_ISSUE and UNSUPPORTED are recorded as applicable and
+			// not verified, and nothing else is: the two are bound in both
+			// directions.
+			if (status == StatusNoKnownIssue || status == StatusUnsupported) != (skipped.Applicability == ApplicabilityApplicable) {
 				return "", "", ErrIntegrity
 			}
 			if skipped.Applicability == ApplicabilityApplicable {
-				required, consensusOnly = required+1, true
+				required = required + 1
+				if status == StatusUnsupported {
+					unsupported = true
+				} else {
+					consensusOnly = true
+				}
 				continue
 			}
 			if skipped.Applicability == ApplicabilityUndetermined {
@@ -208,6 +217,11 @@ func deriveAssessment(scope *ScopeCompleteness, claims []Claim) (string, string,
 	switch {
 	case unattested:
 		unresolved = unresolvedComponentNotAttested
+	case unsupported:
+		// A decided finding about the declared combination outranks the
+		// gaps below it: it says why the scope cannot pass even if every
+		// other rule were decided.
+		unresolved = UnresolvedUnsupportedCombination
 	case undetermined:
 		unresolved = unresolvedApplicability
 	case consensusOnly:
@@ -267,7 +281,12 @@ func validScopeBlock(scope *ScopeCompleteness, claims []Claim, engineDigest stri
 	if scope.NoticeRules != notices || scope.LeadRules != leads {
 		return false
 	}
-	basisScope := scope.ContractDigest == scopeContractDigestBasis()
+	severityScope := scope.ContractDigest == scopeContractDigestSeverity()
+	basisScope := scope.ContractDigest == scopeContractDigestBasis() || severityScope
+	statuses, reasons := make(map[string]string, len(claims)), make(map[string]string, len(claims))
+	for _, claim := range claims {
+		statuses[claim.RuleID], reasons[claim.RuleID] = claim.Status, claim.ReasonCode
+	}
 	referenced := make(map[string]struct{}, len(claims))
 	for index, component := range scope.Components {
 		if !componentRE.MatchString(component.Component) || (index > 0 && scope.Components[index-1].Component >= component.Component) {
@@ -292,9 +311,16 @@ func validScopeBlock(scope *ScopeCompleteness, claims []Claim, engineDigest stri
 				return false
 			}
 			// APPLICABLE in the not-evaluated list is a consensus rule that
-			// found no issue, legal only under the basis scope contract.
-			if skipped.Applicability == ApplicabilityApplicable && (!basisScope || skipped.ReasonCode != ReasonConsensusNoKnownIssue) {
-				return false
+			// found no issue, legal only under the basis scope contract (or
+			// the severity one, which admits it), or a support-range rule
+			// that found the combination unsupported, legal only under the
+			// severity scope contract and only with the claim's own reason.
+			if skipped.Applicability == ApplicabilityApplicable {
+				consensusEntry := basisScope && skipped.ReasonCode == ReasonConsensusNoKnownIssue && statuses[skipped.RuleID] == StatusNoKnownIssue
+				unsupportedEntry := severityScope && statuses[skipped.RuleID] == StatusUnsupported && skipped.ReasonCode == reasons[skipped.RuleID]
+				if !consensusEntry && !unsupportedEntry {
+					return false
+				}
 			}
 			// NOT_APPLICABLE is legal only under a reason code that actually
 			// excludes the rule on declared evidence. Without this, relabelling
@@ -309,13 +335,14 @@ func validScopeBlock(scope *ScopeCompleteness, claims []Claim, engineDigest stri
 			}
 		}
 	}
-	// A PASS, BLOCKED or NO_KNOWN_ISSUE claim matched its subject and its
+	// A PASS, BLOCKED, NO_KNOWN_ISSUE or UNSUPPORTED claim matched its
+	// subject and its
 	// applicability held, and the declared scope is every input component,
 	// so its rule is applicable and in scope: it must be enumerated, never
 	// counted out of scope. Without this, moving a BLOCKED claim into
 	// outOfScopeRules would let the gate re-derive a scope-complete pass.
 	for _, claim := range claims {
-		decided := claim.Status == "PASS" || claim.Status == "BLOCKED" || claim.Status == StatusNoKnownIssue
+		decided := claim.Status == "PASS" || claim.Status == "BLOCKED" || claim.Status == StatusNoKnownIssue || claim.Status == StatusUnsupported
 		if _, enumerated := referenced[claim.RuleID]; decided && !claim.IsVerdictNeutral() && !enumerated {
 			return false
 		}

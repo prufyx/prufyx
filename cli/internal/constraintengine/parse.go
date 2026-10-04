@@ -140,10 +140,10 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	if err := decodeStrict(raw, &document); err != nil {
 		return RuleSet{}, err
 	}
-	if (document.Schema != RulesSchema && document.Schema != RulesSchemaRanged && document.Schema != RulesSchemaSet && document.Schema != RulesSchemaNotice && document.Schema != RulesSchemaBasis) || !idRE.MatchString(document.Revision) || !idRE.MatchString(document.PolicyID) || !digestRE.MatchString(document.PolicyDigest) || len(document.Rules) > maxRules {
+	if (document.Schema != RulesSchema && document.Schema != RulesSchemaRanged && document.Schema != RulesSchemaSet && document.Schema != RulesSchemaNotice && document.Schema != RulesSchemaBasis && document.Schema != RulesSchemaSeverity) || !idRE.MatchString(document.Revision) || !idRE.MatchString(document.PolicyID) || !digestRE.MatchString(document.PolicyDigest) || len(document.Rules) > maxRules {
 		return RuleSet{}, fmt.Errorf("ruleset identity: %w", ErrInvalid)
 	}
-	ranged, setOperator, notice, basis := false, false, false, false
+	ranged, setOperator, notice, basis, severity := false, false, false, false, false
 	for i, rule := range document.Rules {
 		if i > 0 && document.Rules[i-1].ID >= rule.ID {
 			return RuleSet{}, fmt.Errorf("rule order: %w", ErrInvalid)
@@ -155,19 +155,21 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 		setOperator = setOperator || rule.usesSetOperator()
 		notice = notice || rule.usesNoticeOperator()
 		basis = basis || rule.usesBasisSemantics()
+		severity = severity || rule.usesSeverity()
 	}
 	// The schema string states which contract the document needs, and it
 	// must be right in every direction: a document carries exactly the
 	// schema of the highest-level feature it uses. A document using
 	// notice_one_way carries the notice schema (which also admits ranges
 	// and set rules); a document holding a consensus or lead rule carries
-	// the basis schema above all of them; otherwise one using
+	// the basis schema above all of them, and one holding a rule with a
+	// severity carries the severity schema above that; otherwise one using
 	// forbid_set_member carries the set
 	// schema (which also admits ranges); otherwise an exact-only schema never
 	// admits a range, and the ranged schema is never used without one. Every
 	// document has exactly one schema and one engine contract.
-	if document.Schema != requiredRulesSchema(ranged, setOperator, notice, basis) {
-		return RuleSet{}, fmt.Errorf("ruleset schema does not match range, set, notice operator or basis use: %w", ErrInvalid)
+	if document.Schema != requiredRulesSchema(ranged, setOperator, notice, basis, severity) {
+		return RuleSet{}, fmt.Errorf("ruleset schema does not match range, set, notice operator, basis or severity use: %w", ErrInvalid)
 	}
 	if ranged {
 		if err := validateRangeOverlaps(document.Rules); err != nil {
@@ -177,7 +179,7 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	if err := validateCorpus(document); err != nil {
 		return RuleSet{}, err
 	}
-	return RuleSet{document: document, digest: digestJSON(document), registryDigest: registry.Digest(), ranged: ranged, setOperator: setOperator, notice: notice, basis: basis, seal: &ruleSetSeal{}}, nil
+	return RuleSet{document: document, digest: digestJSON(document), registryDigest: registry.Digest(), ranged: ranged, setOperator: setOperator, notice: notice, basis: basis, severity: severity, seal: &ruleSetSeal{}}, nil
 }
 
 // validateCorpus admits a completeness attestation only when the document can
@@ -220,6 +222,9 @@ func validateRule(rule rule, registry Registry) error {
 		return fmt.Errorf("rule evidence: %w", err)
 	}
 	if err := validateBasisRule(rule); err != nil {
+		return err
+	}
+	if err := validateSeverityRule(rule); err != nil {
 		return err
 	}
 	if err := validateRange(rule); err != nil {
@@ -475,9 +480,17 @@ func validateRuleShape(raw []byte) error {
 		return ErrInvalid
 	}
 	for _, ruleRaw := range rules {
-		rule, err := exactObject(ruleRaw, []string{"id", "operator", "subject", "evidence", "reasonCode", "nextAction"}, []string{"condition", "setCondition", "appliesWhen", "dependency", "intermediate", "range"})
+		rule, err := exactObject(ruleRaw, []string{"id", "operator", "subject", "evidence", "reasonCode", "nextAction"}, []string{"condition", "setCondition", "appliesWhen", "dependency", "intermediate", "range", "severity"})
 		if err != nil {
 			return err
+		}
+		// A present severity must be a real value: an empty string would
+		// otherwise decode to the same zero value as an absent field.
+		if raw, ok := rule["severity"]; ok {
+			var value string
+			if json.Unmarshal(raw, &value) != nil || value == "" {
+				return ErrInvalid
+			}
 		}
 		if _, err := exactObject(rule["subject"], []string{"component", "from", "to"}, nil); err != nil {
 			return err

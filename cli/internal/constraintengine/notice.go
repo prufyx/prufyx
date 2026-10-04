@@ -132,8 +132,9 @@ func ScopeContractDigestNotice() string { return scopeContractDigestNotice() }
 func validNoticeClaims(report Report) bool {
 	for _, claim := range report.Claims {
 		notice := claim.IsNotice()
-		// The basis contract admits every feature of the notice contract.
-		if notice && report.EngineContractDigest != engineContractDigestNotice() && report.EngineContractDigest != engineContractDigestBasis() {
+		// The basis and severity contracts admit every feature of the notice
+		// contract.
+		if notice && report.EngineContractDigest != engineContractDigestNotice() && report.EngineContractDigest != engineContractDigestBasis() && report.EngineContractDigest != engineContractDigestSeverity() {
 			return false
 		}
 		// NOTICE comes from a one-way notice, or from a lead that would have
