@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // attestationFixture proposes a reviewed line attestation for 1.25 beside
@@ -149,4 +150,29 @@ func TestApprovalSignAttestationRefusals(t *testing.T) {
 			t.Fatalf("exit %d: %s", r.code, r.stderr)
 		}
 	})
+}
+
+// Only reviewed line attestations are approvable: the gate admits a
+// mechanical attestation only by re-derivation and accepts no approval for
+// a path policy.
+func TestApprovalSignRecordKinds(t *testing.T) {
+	spec := recordLayout().Packs[0]
+	base, _, _ := recordPack(t, gateNow, false)
+	withMechanical, _, _ := recordPack(t, gateNow, true)
+	if _, err := AttestationApprovalSubject(spec, base, withMechanical, mechanicalAttestationID); err == nil || !strings.Contains(err.Error(), "admits only a reviewed attestation") {
+		t.Fatalf("mechanical attestation: %v", err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(base, &doc); err != nil {
+		t.Fatal(err)
+	}
+	ev := sectionRecord(doc, "pathPolicies", 0)["evidence"].(map[string]any)
+	ev["validUntil"] = shiftTime(t, ev["validUntil"], 24*time.Hour)
+	head, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := AttestationApprovalSubject(spec, base, head, reviewedPolicyID); err == nil || !strings.Contains(err.Error(), "is not a line attestation") {
+		t.Fatalf("path policy: %v", err)
+	}
 }
