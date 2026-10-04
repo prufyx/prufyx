@@ -74,7 +74,7 @@ func UseSyntheticKnowledge(definitions []constraintengine.FactDefinition, entrie
 	if err != nil {
 		return nil, err
 	}
-	pack.Schema = map[string]string{constraintengine.RulesSchema: packSchema, constraintengine.RulesSchemaRanged: packSchemaRanged, constraintengine.RulesSchemaSet: packSchemaSet, constraintengine.RulesSchemaNotice: packSchemaNotice, constraintengine.RulesSchemaBasis: packSchemaBasis}[schema]
+	pack.Schema = map[string]string{constraintengine.RulesSchema: packSchema, constraintengine.RulesSchemaRanged: packSchemaRanged, constraintengine.RulesSchemaSet: packSchemaSet, constraintengine.RulesSchemaNotice: packSchemaNotice, constraintengine.RulesSchemaBasis: packSchemaBasis, constraintengine.RulesSchemaSeverity: packSchemaSeverity}[schema]
 	pack.Revision, pack.RegistryDigest = "synthetic-test-only", registry.Digest()
 	encoded, err := json.Marshal(pack)
 	if err != nil {

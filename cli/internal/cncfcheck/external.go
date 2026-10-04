@@ -390,6 +390,11 @@ func validateExternalPack(base bundle, packValue rulePack, revision string) erro
 	if basis, err := constraintengine.AnyBasisRule(rules); err != nil || basis {
 		return ErrIntegrity
 	}
+	// Nor support-range rules (severity): an external pack holding one is
+	// refused.
+	if severity, err := constraintengine.AnySeverityRule(rules); err != nil || severity {
+		return ErrIntegrity
+	}
 	if !validPackSchema(packValue) || packValue.Revision != revision || packValue.PolicyID != base.pack.PolicyID || packValue.PolicyDigest != base.pack.PolicyDigest || packValue.LandscapeFileDigest != base.landscape.LandscapeFileDigest || packValue.RegistryDigest != base.registry.Digest() || len(packValue.Entries) > maxExternalEntries {
 		return ErrIntegrity
 	}

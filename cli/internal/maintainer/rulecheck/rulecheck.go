@@ -95,9 +95,12 @@ type ruleBody struct {
 	AppliesWhen  []factCondition                `json:"appliesWhen,omitempty"`
 	Dependency   *componentCheck                `json:"dependency,omitempty"`
 	Intermediate string                         `json:"intermediate,omitempty"`
-	Evidence     evidenceBody                   `json:"evidence"`
-	ReasonCode   string                         `json:"reasonCode"`
-	NextAction   string                         `json:"nextAction"`
+	// Severity is optional ("unsupported" on a support-range rule); the
+	// engine decides whether it is valid.
+	Severity   string       `json:"severity,omitempty"`
+	Evidence   evidenceBody `json:"evidence"`
+	ReasonCode string       `json:"reasonCode"`
+	NextAction string       `json:"nextAction"`
 }
 
 type transition struct {
@@ -366,7 +369,7 @@ func checkEntry(index int, entry Entry, opts Options) ([]Finding, string, bool) 
 	bodyDecoder := json.NewDecoder(bytes.NewReader(entry.Rule))
 	bodyDecoder.DisallowUnknownFields()
 	if err := bodyDecoder.Decode(&body); err != nil {
-		add("rule-schema", "rule object does not decode as the closed rule schema (id, operator, subject, condition/setCondition/appliesWhen/dependency/intermediate, evidence, reasonCode, nextAction): %v", err)
+		add("rule-schema", "rule object does not decode as the closed rule schema (id, operator, subject, condition/setCondition/appliesWhen/dependency/intermediate/severity, evidence, reasonCode, nextAction): %v", err)
 		return findings, "", false
 	}
 	if _, err := bodyDecoder.Token(); err != io.EOF {

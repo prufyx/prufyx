@@ -541,6 +541,10 @@ func validPackSchema(pack packDocument) bool {
 	if basis, err := constraintengine.AnyBasisRule(rules); err != nil || basis {
 		return false
 	}
+	// Nor support-range rules (severity).
+	if severity, err := constraintengine.AnySeverityRule(rules); err != nil || severity {
+		return false
+	}
 	ranged, err := constraintengine.AnyRanged(rules)
 	if err != nil {
 		return false

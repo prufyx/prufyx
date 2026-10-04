@@ -269,6 +269,9 @@ const (
 	// packSchemaBasis is the level of a pack holding a consensus or lead
 	// rule.
 	packSchemaBasis = "prufyx.io/cncf-source-rule-pack/v1alpha7"
+	// packSchemaSeverity is the level of a pack holding a rule with a
+	// severity (a support-range rule).
+	packSchemaSeverity = "prufyx.io/cncf-source-rule-pack/v1alpha8"
 )
 
 // packFeature is one pack feature and the schema that introduced it.
@@ -289,6 +292,9 @@ var packFeatureLevels = []packFeature{
 	{packSchemaPathPolicies, func(pack rulePack, _ []json.RawMessage) (bool, error) { return len(pack.PathPolicies) > 0, nil }},
 	{packSchemaNotice, func(_ rulePack, rules []json.RawMessage) (bool, error) { return constraintengine.AnyNoticeRule(rules) }},
 	{packSchemaBasis, func(_ rulePack, rules []json.RawMessage) (bool, error) { return constraintengine.AnyBasisRule(rules) }},
+	{packSchemaSeverity, func(_ rulePack, rules []json.RawMessage) (bool, error) {
+		return constraintengine.AnySeverityRule(rules)
+	}},
 }
 
 // requiredPackSchema is the schema of the highest-level feature the pack

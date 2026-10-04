@@ -60,12 +60,16 @@ func plural(count int, one, many string) string {
 	return many
 }
 
-// writeBasisHeadline prints the headline notes about evidence bases: the
-// trust policy's exclusions, and how many findings rely on model consensus.
-// It prints nothing for a report that has neither.
+// writeBasisHeadline prints the headline notes of a report: the trust
+// policy's exclusions, how many findings rely on model consensus, and how
+// many component combinations are outside their documented support range.
+// It prints nothing for a report that has none of them.
 func writeBasisHeadline(out io.Writer, claims []constraintengine.Claim, disclosure *cncfcheck.TrustPolicyDisclosure) error {
 	lines := trustPolicyLines(disclosure)
 	if note, ok := constraintengine.ConsensusNote(claims); ok {
+		lines = append(lines, note)
+	}
+	if note, ok := constraintengine.UnsupportedNote(claims); ok {
 		lines = append(lines, note)
 	}
 	for _, line := range lines {

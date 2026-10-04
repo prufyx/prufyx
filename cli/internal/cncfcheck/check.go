@@ -356,7 +356,9 @@ func (c Checker) Replay(project string, inputRaw []byte, now time.Time, expected
 // ClaimExit concerns only the selected nonempty set of source constraints.
 // Claims of one-way notice and lead rules are informational and never take
 // part: a report holding nothing else exits as one without claims. A
-// NO_KNOWN_ISSUE claim is not a pass: it exits as unknown.
+// NO_KNOWN_ISSUE claim is not a pass: it exits as unknown. An UNSUPPORTED
+// claim (a combination outside its documented support range) is neither a
+// pass nor a blocker: it exits as unknown, and a blocker still exits 10.
 func ClaimExit(report Report) int {
 	if _, err := MarshalReport(report); err != nil {
 		return 3
@@ -369,10 +371,13 @@ func ClaimExit(report Report) int {
 			continue
 		}
 		decided++
-		if claim.Status == "BLOCKED" {
+		switch claim.Status {
+		case "BLOCKED":
 			return 10
-		}
-		if claim.Status != "PASS" {
+		case "PASS":
+		case constraintengine.StatusUnsupported:
+			unknown = true
+		default:
 			unknown = true
 		}
 	}
