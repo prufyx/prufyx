@@ -96,6 +96,10 @@ func TestClassifyRecordEdits(t *testing.T) {
 			shift(ev(d, pol), "reviewedAt", time.Hour)
 			shift(ev(d, pol), "validUntil", time.Hour)
 		}, ClassLoosening, []string{KindWithdraw, KindRenew}, false},
+		"policy backdated renewal": {pol, func(d map[string]any) {
+			shift(ev(d, pol), "reviewedAt", -time.Hour)
+			shift(ev(d, pol), "validUntil", time.Hour)
+		}, ClassLoosening, []string{KindRenew}, false},
 		"policy renewed and changed": {pol, func(d map[string]any) {
 			shift(ev(d, pol), "reviewedAt", time.Hour)
 			shift(ev(d, pol), "validUntil", time.Hour)
