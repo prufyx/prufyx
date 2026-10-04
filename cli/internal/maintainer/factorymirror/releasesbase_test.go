@@ -4,10 +4,17 @@ package factorymirror
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -78,5 +85,43 @@ func TestTestReleasesAPIBaseServesReleases(t *testing.T) {
 	}
 	if len(fake.auth) == 0 || fake.auth[0] != "Bearer standin-token" {
 		t.Fatalf("credential not sent to the test base: %v", fake.auth)
+	}
+}
+
+// A GitHub App exchanges its key at the test base too, never at
+// api.github.com, and the installation token it gets is what the releases
+// requests carry.
+func TestTestReleasesAPIBaseReceivesTheAppExchange(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyFile := filepath.Join(t.TempDir(), "app.pem")
+	if err := os.WriteFile(keyFile, pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fake := newGHFake(t, [][]map[string]any{{rel(1, "v1", false)}})
+	var exchanged atomic.Int32
+	mux := http.NewServeMux()
+	mux.HandleFunc("/app/installations/7/access_tokens", func(w http.ResponseWriter, r *http.Request) {
+		exchanged.Add(1)
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"token":"installation-token","expires_at":"2099-01-01T00:00:00Z"}`))
+	})
+	mux.HandleFunc("/", fake.serve)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	fake.srv = srv // pagination links point at the combined server
+
+	e := newEnv(t, "github.com/acme/widget")
+	e.remote["github.com/acme/widget"].commit("one", map[string]string{"f": "1"})
+	env := map[string]string{"PRUFYX_GITHUB_APP_ID": "1", "PRUFYX_GITHUB_APP_INSTALLATION_ID": "7", "PRUFYX_GITHUB_APP_KEY_FILE": keyFile}
+	var stdout, stderr bytes.Buffer
+	args := mirrorArgs(t, e, "--test-allow-file-remote", "--test-releases-api-base", srv.URL)
+	if code := Main(args, nil, func(k string) string { return env[k] }, &stdout, &stderr); code != 0 {
+		t.Fatalf("mirror: %d %s", code, stderr.String())
+	}
+	if exchanged.Load() != 1 || len(fake.auth) == 0 || fake.auth[0] != "Bearer installation-token" {
+		t.Fatalf("exchanges %d, releases requests carried %v", exchanged.Load(), fake.auth)
 	}
 }

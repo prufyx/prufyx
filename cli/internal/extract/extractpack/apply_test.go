@@ -196,6 +196,35 @@ func TestApplyRefusesCollisions(t *testing.T) {
 	assertUnchanged(t, pack, pre)
 }
 
+// An attestation that is in the pack with different content refuses the merge
+// even when every rule of the run is already there unchanged.
+func TestApplyRefusesAttestationCollision(t *testing.T) {
+	run := runDir(t, cases[1], derivedAt)
+	pack := prunedPack(t, "cncf", run)
+	if _, err := apply(t, pack, run, false); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := os.ReadFile(pack)
+	p, err := extractpack.ParsePack(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var atts []map[string]any
+	if err := json.Unmarshal(p.Members["lineAttestations"], &atts); err != nil || len(atts) == 0 {
+		t.Fatalf("no attestations in the pack: %v", err)
+	}
+	atts[0]["evidence"].(map[string]any)["validUntil"] = "2027-01-01T00:00:00Z"
+	p.Members["lineAttestations"], _ = json.Marshal(atts)
+	pre, _ := p.Render()
+	if err := os.WriteFile(pack, pre, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := apply(t, pack, run, false); !errors.Is(err, extractpack.ErrCollision) || !strings.Contains(err.Error(), "attestation") {
+		t.Fatalf("%v", err)
+	}
+	assertUnchanged(t, pack, pre)
+}
+
 func assertUnchanged(t *testing.T, pack string, before []byte) {
 	t.Helper()
 	if after, _ := os.ReadFile(pack); !bytes.Equal(after, before) {
@@ -268,6 +297,18 @@ func TestApplyRefusesDamagedRuns(t *testing.T) {
 				pair := p.(map[string]any)
 				if r := pair["rules"].([]any); len(r) > 0 {
 					pair["rules"] = r[1:]
+					break
+				}
+			}
+			writeCanon(t, filepath.Join(dir, "manifest.json"), m)
+		},
+		"pair lists another id": func(t *testing.T, dir string) {
+			var m map[string]any
+			readJSON(t, filepath.Join(dir, "manifest.json"), &m)
+			for _, p := range m["pairs"].([]any) {
+				pair := p.(map[string]any)
+				if r := pair["rules"].([]any); len(r) > 0 {
+					r[0] = "kubernetes.some-other-rule"
 					break
 				}
 			}
