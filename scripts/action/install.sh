@@ -109,7 +109,7 @@ if [ "$verify" = auto ]; then verify=true; fi
 if [ "$verify" = true ]; then
   command -v gh >/dev/null 2>&1 || die "attestation check needs the GitHub CLI (gh) on the runner, and it was not found; install it or set 'verify-attestation: false' and pin 'archive-sha256'"
   gh attestation verify "$dl/$archive" --repo "$attest_repo" \
-    --signer-workflow "$attest_workflow" --source-ref "refs/tags/$version" >"$dl/attestation.txt" 2>&1 \
+    --signer-workflow "$attest_workflow" --deny-self-hosted-runners --source-ref "refs/tags/$version" >"$dl/attestation.txt" 2>&1 \
     || die "the build attestation of $archive could not be verified for $version; refusing to install"
   echo "build attestation verified"
 fi

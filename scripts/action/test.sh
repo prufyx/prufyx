@@ -27,6 +27,7 @@ for a in "$@"; do printf '%s\n' "$a"; done >>"$FAKE_ARGV"
 printf -- '--call--\n' >>"$FAKE_ARGV"
 printf '%s' "${FAKE_STDOUT:-fake-report}"
 [ -z "${FAKE_STDERR:-}" ] || printf '%s\n' "$FAKE_STDERR" >&2
+[ -z "${FAKE_STDERR_RAW:-}" ] || printf '%s' "$FAKE_STDERR_RAW" >&2
 exit "${FAKE_EXIT:-0}"
 FAKE
   chmod +x "$root/w/temp/prufyx-action/bin/prufyx"
@@ -149,6 +150,13 @@ check_stderr_case "stderr stop-commands" $'x\n::stop-commands::tok'
 check_stderr_case "stderr end token guess" $'x\n::endtoken::\n::error::after'
 check_stderr_case "stderr legacy ##[" $'note ##[error]legacy-format\n##[add-mask]x'
 check_stderr_case "stderr CR before ::" $'x\r::error::cr'
+# no trailing newline / CR-only output must still close the block on its own line
+for case_name in nonl cronly; do
+  new_env
+  if [ "$case_name" = nonl ]; then run_scan FAKE_EXIT=2 FAKE_STDERR_RAW='::error::tail-no-newline'; else run_scan FAKE_EXIT=2 FAKE_STDERR_RAW=$'a\r::error::cr-only\r'; fi
+  tok="$(grep -o '^::stop-commands::.*' "$root/w/log" | head -1 | sed 's/^::stop-commands:://')"
+  if [ -n "$tok" ] && grep -qx "::$tok::" "$root/w/log" && [ -z "$(unquoted_commands "$root/w/log")" ]; then ok "stderr $case_name: block closed on its own line"; else bad "stderr $case_name" "$(cat "$root/w/log")"; fi
+done
 new_env; run_scan FAKE_EXIT=2 FAKE_STDERR=$'x'
 t1="$(grep -o '^::stop-commands::.*' "$root/w/log" | head -1)"
 new_env; run_scan FAKE_EXIT=2 FAKE_STDERR=$'x'
@@ -290,7 +298,7 @@ run_install PRUFYX_IN_VERSION=source PRUFYX_IN_ARCHIVE_SHA256="$(printf 'a%.0s' 
 # --- attestation ---------------------------------------------------------------
 new_env; mk_curl; mk_release v0.1.0
 run_install PRUFYX_IN_VERSION=v0.1.0
-want_args="attestation verify $root/w/temp/prufyx-action/download/prufyx_v0.1.0_linux_arm64.tar.gz --repo prufyx/prufyx --signer-workflow prufyx/prufyx/.github/workflows/release.yml --source-ref refs/tags/v0.1.0"
+want_args="attestation verify $root/w/temp/prufyx-action/download/prufyx_v0.1.0_linux_arm64.tar.gz --repo prufyx/prufyx --signer-workflow prufyx/prufyx/.github/workflows/release.yml --deny-self-hosted-runners --source-ref refs/tags/v0.1.0"
 if [ "$RC" -eq 0 ] && [ "$(cat "$root/w/gh.log")" = "$want_args" ]; then ok "auto verifies the attestation for a release with the expected flags"; else bad "attestation auto" "rc=$RC gh: $(cat "$root/w/gh.log")"; fi
 run_install PRUFYX_IN_VERSION=v0.1.0 FAKE_GH_EXIT=1
 if [ "$RC" -ne 0 ] && [ ! -e "$root/w/temp/prufyx-action/bin/prufyx" ] && grep -q 'attestation' "$root/w/log"; then ok "failed attestation fails closed"; else bad "attestation fail" "rc=$RC"; fi

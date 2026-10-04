@@ -18,7 +18,9 @@ emit_untrusted() {
   [ "${#token}" -ge 32 ] || die "could not create a random token"
   printf '::stop-commands::%s\n' "$token"
   LC_ALL=C tr -d '\000-\010\013-\037\177' | sed 's/##\[/# #[/g'
-  printf '::%s::\n' "$token"
+  # Always start the end token on its own line, even when the text has no
+  # trailing newline.
+  printf '\n::%s::\n' "$token"
 }
 
 # die reports an error and stops. The message must not contain raw input.
