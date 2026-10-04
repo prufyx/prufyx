@@ -702,6 +702,24 @@ func TestTagLineAnnotatedHeadEndToEnd(t *testing.T) {
 	}
 }
 
+// A rate-limited or failing head lookup leaves the citation pending: it is
+// retried, never decided without the commit check.
+func TestTagLineHeadLookupFailureIsPending(t *testing.T) {
+	api, blobs, listing, citation := annotatedWorld("", nil)
+	api.responses["/repos/example/tags/git/ref/tags/v1.2.1"] = struct {
+		body   []byte
+		status int
+	}{nil, 403}
+	refs := &fixtureRefs{listings: map[string]RefListing{"example/tags": listing}}
+	wl, err := BuildWorklistWithBaseline(context.Background(), []Citation{citation}, nil, 0, newState(), withGitRefs{APIFetcher: api, refs: refs}, blobs, fixedNow(), DefaultMaxAge, nil, BaselineModeReleaseLine)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := wl.Citations[0]; got.Class != ClassPending || !strings.Contains(got.Detail, "tag line head not yet resolved") {
+		t.Fatalf("a failed head lookup must stay pending: %+v", got)
+	}
+}
+
 // A Releases line record and a tag line record for the same repository,
 // prefix and line live under different state keys.
 func TestTagLineStateKeyIsSeparateFromReleasesLine(t *testing.T) {
