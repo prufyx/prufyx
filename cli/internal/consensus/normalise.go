@@ -15,7 +15,7 @@ import (
 // NormaliserVersion identifies the section rules, the line grammar and
 // the character rules below. Any change to what Normalise outputs or
 // accepts must change it.
-const NormaliserVersion = "2"
+const NormaliserVersion = "3"
 
 // Bounds of a release notes file and of list nesting.
 const (

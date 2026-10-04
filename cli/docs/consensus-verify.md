@@ -62,7 +62,7 @@ $ cat norm/source.json
   "commit": "0000000000000000000000000000000000014100",
   "fileSha256": "7b4720a5fe333e8d792c2503992bc5ac2860d874dcade985ef85888857b5a122",
   "normalisedSha256": "02304dcf9c476e029b30f8d03bbd0e0023310c7a44042d13d9065799343fa5e2",
-  "normaliserVersion": "2",
+  "normaliserVersion": "3",
   "path": "CHANGELOG/CHANGELOG-1.41.md",
   "repo": "github.com/kubernetes/kubernetes",
   "section": "v1.41.0"
@@ -104,7 +104,7 @@ other repository or path is refused (`no-section-rule`).
 ## The line grammar
 
 Nothing in the selected subsections is rewritten or stripped. Instead every
-line must be inside a small, strict grammar (`normaliserVersion` 2):
+line must be inside a small, strict grammar (`normaliserVersion` 3):
 
 - blank lines;
 - ATX headings of level 3 to 6, starting at column 0 (`### Feature`);
