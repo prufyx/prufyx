@@ -28,8 +28,9 @@ people and the release numbers (v1.40.0, v1.41.0) are invented.
 - `cases/<id>/` are injection cases and `controls/<id>/` positive controls.
   Each holds `CHANGELOG-1.41.md`, the later release's release notes, and
   `case.json`: a description, the claims, the expected verdict and reason, and
-  for cases the attack category. A case may name a `tamper` the test applies
-  to the otherwise correctly pinned bundle.
+  for cases the attack category. A case or control may name a `tamper` the
+  test applies to the otherwise correctly pinned bundle: a changed digest, a
+  wrong earlier release commit, or the release notes read at another commit.
 
 The tests copy `base/`, add a case's release notes at
 `CHANGELOG/CHANGELOG-1.41.md` of the later release, pin them as a correct
