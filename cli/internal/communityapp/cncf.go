@@ -100,6 +100,7 @@ func (r runtime) cncf(args []string) int {
    or: prufyx check cncf --project prometheus --alertmanager-config FILE --from 2.55.1 --to 3.1.0 --alertmanager-config-complete --alertmanager-config-precedence-resolved (--now RFC3339 | --knowledge-db DIR) [--alertmanager-config-digest SHA256] [--replay-report FILE] [--format human|json]
    or: prufyx check cncf --project prometheus --prometheus-config FILE --prometheus-config-complete --prometheus-config-precedence-resolved --prometheus-rule remote-write-http2-default --prometheus-remote-write-name NAME --prometheus-remote-write-http2-required=true|false --from 2.55.1 --to 3.14.0 (--now RFC3339 | --knowledge-db DIR) [--prometheus-config-digest SHA256] [--replay-report FILE] [--format human|json]
    or: prufyx check cncf --project strimzi --kafka-resource FILE --strimzi-distribution official_upstream|custom_build --target-kafka-crd-admission-required --from 0.51.0 --to 1.0.0 (--now RFC3339 | --knowledge-db DIR) [--kafka-resource-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project argo-cd|istio|strimzi --custom-resources FILE --from VERSION --to VERSION --now RFC3339 [--custom-resources-complete] [--custom-resources-digest SHA256] [--format human|json]
    or: prufyx check cncf --project tekton --tekton-config-observability FILE --tekton-distribution official_upstream|custom_build --tekton-system-namespace NAME --tekton-config-observability-complete true|false --retain-prometheus-metrics-required true|false --from 1.9.0 --to 1.10.0 --now RFC3339 [--tekton-config-observability-digest SHA256] [--format human|json]
    or: prufyx check cncf --project kubeedge --keadm-init-argv FILE --kubeedge-distribution official_upstream|custom_build --keadm-argv-complete true|false --from 1.18.0 --to 1.19.0 --now RFC3339 [--keadm-init-argv-digest SHA256] [--format human|json]
    or: prufyx check cncf --project cloudnativepg --current-resource FILE --resource FILE --from 1.29.0 --to 1.30.0 (--now RFC3339 | --knowledge-db DIR) [--current-resource-digest SHA256] [--resource-digest SHA256] [--replay-report FILE] [--format human|json]
@@ -204,6 +205,15 @@ storage, pull, platform, or runtime behavior. The CNI mode reads one private
 configuration for specification 0.4.0 -> 1.0.0 and keeps library/plugin/runtime
 identity separate. It requires caller-declared configuration-spec-migration
 intent for a scoped result; missing or unsupported intent stays UNKNOWN.
+The custom-resource mode reads one private file of rendered manifests and
+records the group/version/Kind of every object in the API groups that the
+project's own CustomResourceDefinitions define (a reviewed, compiled table);
+objects of other projects' groups are ignored. It evaluates only published
+rules about custom-resource versions the target release no longer serves. A
+listed version blocks. Absence passes only with --custom-resources-complete
+and when every object of a non-Kubernetes API group in the file belongs to a
+group the table assigns to exactly one project; everything else stays
+UNKNOWN. Embedded knowledge only. See docs/custom-resources.md.
 The Kubernetes component-configuration mode reads one private selection
 document naming private local files (static pod manifests, kubelet flag files,
 argument lists, kubelet, scheduler, kube-proxy and admission configuration,
@@ -328,6 +338,9 @@ Add --show-passes with --format human on the Kubernetes native-resource route an
 	envoyBootstrapSelected := fs.Bool("envoy-bootstrap-selected", false, "caller declaration that this is the directly loaded Envoy bootstrap")
 	natsConfig := fs.String("nats-config", "", "private standalone NATS JSON-like configuration")
 	natsConfigPin := fs.String("nats-config-digest", "", "optional exact NATS configuration SHA-256")
+	customResources := fs.String("custom-resources", "", "private rendered manifests (YAML or JSON) whose custom-resource versions are checked")
+	customResourcesPin := fs.String("custom-resources-digest", "", "optional exact custom-resource manifests SHA-256")
+	customResourcesComplete := fs.Bool("custom-resources-complete", false, "caller declaration that the manifests are the complete set that is applied")
 	kafkaResource := fs.String("kafka-resource", "", "private selected rendered Strimzi Kafka resource or flat v1 List JSON")
 	kafkaResourcePin := fs.String("kafka-resource-digest", "", "optional exact Kafka resource SHA-256")
 	strimziDistribution := fs.String("strimzi-distribution", "", "Strimzi distribution: official_upstream or custom_build")
@@ -417,6 +430,14 @@ Add --show-passes with --format human on the Kubernetes native-resource route an
 	}
 	if flagProvided(args, "knowledge-db") && flagProvided(args, "now") {
 		return r.usage("external CNCF checks use verifier time; omit --now")
+	}
+	if anyFlagProvided(args, cncfCustomResourceFlags...) {
+		return r.cncfCustomResourceCheck(customResourceRequest{
+			project: *project, path: *customResources, pin: *customResourcesPin, complete: *customResourcesComplete,
+			from: *from, to: *to, nowText: *nowText, externalKnowledge: *knowledgeDB != "",
+			revision: *knowledgeRevision, bundle: *knowledgeBundleDigest, receipt: *knowledgeTrustReceiptDigest,
+			replayPath: *replay, format: *format, args: args,
+		})
 	}
 	componentConfigFlags := anyFlagProvided(args, "component-config", "component-config-digest")
 	if componentConfigFlags {
@@ -983,6 +1004,7 @@ var cncfModeInputFlags = []string{
 	"effective-config", "effective-config-complete",
 	"effective-config-digest", "diagd-argv", "diagd-argv-digest",
 	"jaeger-argv", "jaeger-argv-digest", "non-memory-storage-required", "official-jaeger-distribution",
+	"custom-resources", "custom-resources-digest", "custom-resources-complete",
 }
 
 func (r runtime) knativeInputFailure(err error) int {
