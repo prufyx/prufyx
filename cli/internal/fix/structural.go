@@ -5,6 +5,7 @@ package fix
 import (
 	"bytes"
 	"encoding/json"
+	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -367,10 +368,23 @@ func (f *parsedFile) removalSpan(document int, path Path, element bool) (Span, *
 	zeroSequence := !element && found.node.Kind == yaml.SequenceNode && found.node.Style&yaml.FlowStyle == 0 &&
 		len(found.node.Content) > 0 && found.node.Content[0].Line > found.key.Line &&
 		f.lineIndent(found.node.Content[0].Line-1) == indent
+	// A key that follows a lone "?" line is the text of an explicit key, not a
+	// mapping entry of its own.
+	for i := lineIndex - 1; i >= 0 && !element; i-- {
+		text := bytes.TrimSpace(f.lineText(i))
+		if len(text) == 0 || text[0] == '#' {
+			continue
+		}
+		if string(text) == "?" {
+			return Span{}, refuse(ReasonSpanNotIsolated, "the key follows an explicit key marker")
+		}
+		break
+	}
 	// The comment lines directly above a key (same indentation, no blank line
 	// between) describe it and go with it. Nothing else above does.
 	startLine := lineIndex
-	for !element && startLine > 0 {
+	quoted := f.quotedLineRanges()
+	for !element && startLine > 0 && !quoted.inside(startLine) {
 		text := f.lineText(startLine - 1)
 		trimmed := bytes.TrimLeft(text, " \t")
 		if len(trimmed) == 0 || trimmed[0] != '#' || len(text)-len(trimmed) != indent || bytes.IndexByte(text[:indent], '\t') >= 0 {
@@ -448,12 +462,19 @@ scan:
 		// would be left behind, so it is refused.
 		if node.Style&(yaml.LiteralStyle|yaml.FoldedStyle) != 0 {
 			if at, ok := f.offset(node.Line, node.Column); ok {
-				header := f.src[at:]
-				if end := bytes.IndexAny(header, " \t\r\n"); end >= 0 {
-					header = header[:end]
+				// The header may follow a tag (!!str |+), so every field of the
+				// line up to a comment is looked at.
+				line := f.src[at:]
+				if end := bytes.IndexAny(line, "\r\n"); end >= 0 {
+					line = line[:end]
 				}
-				if bytes.IndexByte(header, '+') >= 0 {
-					return Span{}, refuse(ReasonBlockScalar, "the entry holds a block scalar that keeps its trailing blank lines")
+				if cut := bytes.Index(line, []byte(" #")); cut >= 0 {
+					line = line[:cut]
+				}
+				for _, field := range bytes.Fields(line) {
+					if (field[0] == '|' || field[0] == '>') && bytes.IndexByte(field, '+') >= 0 {
+						return Span{}, refuse(ReasonBlockScalar, "the entry holds a block scalar that keeps its trailing blank lines")
+					}
 				}
 			}
 		}
@@ -574,4 +595,56 @@ func (f *parsedFile) lineText(i int) []byte {
 func (f *parsedFile) lineIndent(i int) int {
 	text := f.lineText(i)
 	return len(text) - len(bytes.TrimLeft(text, " "))
+}
+
+// lineRanges are the 1-based line ranges (first, last] of quoted scalars that
+// continue on later lines; text in them only looks like comments.
+type lineRanges [][2]int
+
+func (r lineRanges) inside(line int) bool {
+	for _, span := range r {
+		if line > span[0] && line <= span[1] {
+			return true
+		}
+	}
+	return false
+}
+
+// quotedLineRanges finds the multi-line quoted scalars of the file. A scalar
+// whose end cannot be found covers the rest of the file.
+func (f *parsedFile) quotedLineRanges() lineRanges {
+	var out lineRanges
+	var walk func(node *yaml.Node)
+	walk = func(node *yaml.Node) {
+		if node.Kind == yaml.ScalarNode && node.Style&(yaml.SingleQuotedStyle|yaml.DoubleQuotedStyle) != 0 {
+			end := len(f.lineStarts)
+			if at, ok := f.offset(node.Line, node.Column); ok {
+				quote := f.src[at]
+				for i := at + 1; i < len(f.src); i++ {
+					if quote == '"' && f.src[i] == '\\' {
+						i++
+						continue
+					}
+					if f.src[i] == quote {
+						if quote == '\'' && i+1 < len(f.src) && f.src[i+1] == '\'' {
+							i++
+							continue
+						}
+						end = sort.SearchInts(f.lineStarts, i+1)
+						break
+					}
+				}
+			}
+			if end > node.Line {
+				out = append(out, [2]int{node.Line, end})
+			}
+		}
+		for _, child := range node.Content {
+			walk(child)
+		}
+	}
+	for _, doc := range f.docs {
+		walk(doc.root)
+	}
+	return out
 }

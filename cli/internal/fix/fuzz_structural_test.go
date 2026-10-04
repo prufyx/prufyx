@@ -176,7 +176,15 @@ func FuzzRemovalSpan(f *testing.F) {
 								followed = true
 							}
 						}
-						if !(trimmed[0] == '#' && indent(line) == base && followed) {
+						// A sequence item written at the key's indentation may be
+						// split over lines (the item's text on the next line).
+						sequence := false
+						for _, earlier := range lines[:i] {
+							if et := bytes.TrimSpace(earlier); len(et) > 0 && et[0] == '-' && indent(earlier) == base {
+								sequence = true
+							}
+						}
+						if !(trimmed[0] == '#' && indent(line) == base && followed) && !(sequence && indent(line) == base) {
 							t.Fatalf("line %q is not part of the entry %+v in %q", line, path, src)
 						}
 					}
