@@ -41,19 +41,6 @@ const (
 	ProofApproval      = "approval"
 )
 
-// Evidence bases the gate knows of. Only mechanical and reviewed rules can
-// be admitted as loosening changes by this version.
-const (
-	basisConsensus = "consensus"
-	basisEmpirical = "empirical"
-)
-
-// blockOnlyBases lists the evidence bases the engine evaluates as
-// block-only (a non-match never contributes to a pass). It is empty: no
-// engine in this repository can yet evaluate consensus evidence that way,
-// so a consensus rule in a pack fails the gate.
-var blockOnlyBases = map[string]bool{}
-
 // Options configures a gate run.
 type Options struct {
 	Layout Layout
@@ -342,10 +329,14 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 			mechanical = append(mechanical, c)
 		case constraintengine.BasisReviewed:
 			admitReviewed(c, statements[c.Pack], loadKeys, opts)
-		case basisConsensus:
-			c.fail("consensus evidence may only block, and this gate has no consensus verifier; not admitted")
-		case basisEmpirical:
+		case constraintengine.BasisConsensus:
+			c.fail("consensus evidence has no verifier in this gate; not admitted")
+		case constraintengine.BasisEmpirical:
+			// Empirical evidence may pass, so it needs a reproduction proof
+			// this gate cannot check yet.
 			c.fail("empirical evidence cannot be verified by this gate yet; not admitted")
+		case constraintengine.BasisLead:
+			c.fail("a lead is never published through this gate")
 		default:
 			c.fail(fmt.Sprintf("evidence basis %q is not admitted", c.Basis))
 		}
@@ -583,17 +574,23 @@ func (r *Report) attestationCheck(spec PackSpec, opts Options) {
 	r.add("attestation/"+spec.Name, bytes.Equal(want, have), "committed corpus attestation %s regeneration", map[bool]string{true: "matches its", false: "differs from its"}[bytes.Equal(want, have)])
 }
 
-// basisCheck enforces that a consensus rule may only ever block: the engine
-// must evaluate its basis as block-only, which no engine here does yet.
+// basisCheck enforces, from the engine's own basis flags, that every active
+// rule's basis is known, that a consensus rule may only ever block and that a
+// lead never takes part in a verdict. It fails if the engine ever lets
+// consensus pass or a lead decide.
 func (r *Report) basisCheck(spec PackSpec, h *loadedPack) {
 	var bad []string
 	for _, id := range h.Order {
 		e := h.Entries[id]
-		if e.effectiveBasis() == basisConsensus && e.Evidence.State == "active" && !blockOnlyBases[basisConsensus] {
+		if e.Evidence.State != "active" {
+			continue
+		}
+		b := e.effectiveBasis()
+		if !constraintengine.KnownBasis(b) || (b == constraintengine.BasisConsensus && !constraintengine.BasisBlockOnly(b)) || (b == constraintengine.BasisLead && !constraintengine.BasisVerdictNeutral(b)) {
 			bad = append(bad, id)
 		}
 	}
-	r.add("block-only/"+spec.Name, len(bad) == 0, "%d active consensus rules without block-only evaluation%s", len(bad), listDetail(bad))
+	r.add("block-only/"+spec.Name, len(bad) == 0, "%d active rules whose basis is unknown, or that the engine does not evaluate as block-only (consensus) or verdict-neutral (lead)%s", len(bad), listDetail(bad))
 }
 
 func (r *Report) generatedChecks(opts Options) {

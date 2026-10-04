@@ -58,8 +58,10 @@ pack's `revision`.
 | --- | --- |
 | `mechanical` | the extractor named in `evidence.extractor`, as compiled into the gate, re-derives the rule from upstream bytes pinned by commit SHA and fetched by the gate itself, and the re-derived entry is byte-identical (canonical JSON) to the proposed one. The rule's own `derivedAt` and lease (`validUntil` − `derivedAt`) are reused, so a renewal is a re-derivation at a later time. `derivedAt` must lie between 24 hours before and 5 minutes after the gate's clock, so a rule cannot be derived ahead of time to become current later. The extractor id, version and code digest must equal the gate's. |
 | `reviewed` (or absent) | either the change appends one signed reattestation statement to the pack's statement chain and that statement passes every `evidence reattest verify` invariant, including the comparison with a worklist the gate's job produced with its own `evidence repin` run; or the change carries an owner approval for exactly that entry (see below) |
-| `consensus` | never as loosening. Consensus evidence may only block; while the engine cannot evaluate a consensus rule as block-only, any active consensus rule fails the gate |
-| `empirical`, any other | not admitted by this version |
+| `consensus` | never as loosening: the engine evaluates consensus as block-only, but this gate has no consensus verifier |
+| `empirical` | not admitted by this version: empirical evidence may pass, and the gate cannot yet check its reproduction |
+| `lead` | never: a lead is not published through this gate |
+| any other | not admitted |
 
 With `--source github` the gate reads upstream repositories directly from
 GitHub: directory listings from the git trees API (walking tree objects from
@@ -83,7 +85,7 @@ Run on every pack of the head, whatever the change:
 | `stagger/<pack>` | a loosening change moves a lease into an ISO week that then holds more than 15% of the pack's rules (at least one) |
 | `attestation/<pack>` | the committed corpus attestation differs from a regeneration from the head's pack |
 | `generated/…` | the committed support inventory differs from a regeneration from the head's files |
-| `block-only/<pack>` | an active rule has basis `consensus` (see above) |
+| `block-only/<pack>` | an active rule has an unknown basis, or the engine does not evaluate its basis safely: consensus must be block-only and a lead verdict-neutral |
 | `reattestation/<pack>` | the statement chain changed and the appended statement does not verify |
 | `tree` | the head holds a symbolic link or a special file under `cli/` |
 | `file-modes` | a knowledge file the automation may change has, or changes, an executable bit |

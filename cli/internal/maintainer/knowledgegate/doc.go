@@ -35,9 +35,13 @@
 //     comparison with a worklist the verifying job produced itself, or a
 //     signed owner approval for exactly that entry, verified against a
 //     pinned approval key;
-//   - consensus, empirical or any other basis: not admitted by this
-//     version. Consensus evidence may only ever block; until the engine
-//     evaluates it as block-only, a consensus rule fails the gate.
+//   - consensus, empirical, lead or any other basis: not admitted by this
+//     version. The engine evaluates consensus as block-only, but this gate
+//     has no consensus verifier; empirical evidence may pass and needs a
+//     reproduction proof the gate cannot check yet; a lead is never
+//     published. Every head pack must also hold only known bases, with
+//     consensus evaluated as block-only and leads as verdict-neutral by the
+//     engine (the block-only check).
 //   - removing a rule: never admitted; withdraw it instead.
 //
 // On top of that the gate checks every head pack (engine admission,

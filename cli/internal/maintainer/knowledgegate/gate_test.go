@@ -3,6 +3,7 @@
 package knowledgegate
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -204,15 +205,15 @@ func TestGateSizeAlarm(t *testing.T) {
 	}
 }
 
-// A consensus rule may only block: the gate never admits one as loosening
-// and fails any active one while the engine cannot evaluate it as
-// block-only.
+// A consensus rule may only block and has no verifier here, an empirical
+// rule may pass and has no proof the gate can check, and a lead is never
+// published: none is admitted as a loosening change. The engine's basis
+// flags back the block-only check of every head pack.
 func TestGateConsensusBlockOnly(t *testing.T) {
+	// A copied rule relabelled consensus, without derivedAt and under the
+	// old pack schema: refused as loosening and by admission.
 	base, head := trees(t)
 	ids := readPack(t, base, cncfRulesPath).activeReviewed()
-	// The engine of this revision does not know the basis, so nothing
-	// derived from the pack can be regenerated; the gate must still fail
-	// it cleanly.
 	p := readPack(t, head, cncfRulesPath)
 	added := deepCopy(p.find(t, ids[0])).(map[string]any)
 	ruleOf(added)["id"] = ids[0] + "-c"
@@ -221,9 +222,51 @@ func TestGateConsensusBlockOnly(t *testing.T) {
 	p.sortByID()
 	p.write(t, head, cncfRulesPath)
 	r := runGate(t, Options{Base: base, Head: head})
-	requireFail(t, r, "consensus evidence may only block")
-	requireFail(t, r, "block-only/cncf")
+	requireFail(t, r, "consensus evidence has no verifier in this gate")
 	requireFail(t, r, "admit/cncf")
+	requireNotFailed(t, r, "block-only/cncf")
+
+	// Well-formed consensus, lead and empirical entries under the pack schema
+	// they need: admission and the block-only check hold, and the proof step
+	// still refuses each one.
+	for _, tc := range []struct {
+		basis, schema, refusal string
+	}{
+		{"consensus", "prufyx.io/cncf-source-rule-pack/v1alpha7", "consensus evidence has no verifier in this gate"},
+		{"lead", "prufyx.io/cncf-source-rule-pack/v1alpha7", "a lead is never published through this gate"},
+		{"empirical", "", "empirical evidence cannot be verified by this gate yet"},
+	} {
+		t.Run(tc.basis, func(t *testing.T) {
+			base, head := trees(t)
+			ids := readPack(t, base, cncfRulesPath).activeReviewed()
+			p := readPack(t, head, cncfRulesPath)
+			added := deepCopy(p.find(t, ids[0])).(map[string]any)
+			ruleOf(added)["id"] = ids[0] + "-" + tc.basis
+			evidence := evidenceOf(added)
+			evidence["basis"], evidence["derivedAt"] = tc.basis, evidence["reviewedAt"]
+			p.entries = append(p.entries, added)
+			p.sortByID()
+			if tc.schema != "" {
+				p.fields["schema"] = json.RawMessage(`"` + tc.schema + `"`)
+			}
+			p.write(t, head, cncfRulesPath)
+			r := runGate(t, Options{Base: base, Head: head})
+			requireFail(t, r, tc.refusal)
+			requireNotFailed(t, r, "admit/cncf")
+			requireNotFailed(t, r, "block-only/cncf")
+		})
+	}
+}
+
+// requireNotFailed fails the test when a check whose text contains name
+// failed.
+func requireNotFailed(t *testing.T, r *Report, name string) {
+	t.Helper()
+	for _, f := range failedChecks(r) {
+		if strings.Contains(f, name) {
+			t.Fatalf("%s failed:\n%s", name, strings.Join(failedChecks(r), "\n"))
+		}
+	}
 }
 
 func TestGateStaggerCap(t *testing.T) {
