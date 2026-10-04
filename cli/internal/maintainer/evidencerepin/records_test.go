@@ -106,6 +106,12 @@ func TestLoadCitationsRejectsUnreadableRecordSections(t *testing.T) {
 		"rule with a record's ID": func(p map[string]any) {
 			p["entries"].([]map[string]any)[0]["rule"].(map[string]any)["id"] = PathPolicyRecordID("pkg:github/kubernetes/kubernetes")
 		},
+		"rule with the shape of a record ID": func(p map[string]any) {
+			p["entries"].([]map[string]any)[0]["rule"].(map[string]any)["id"] = "line-attestation." + strings.Repeat("f", 24)
+		},
+		"entry with a record project": func(p map[string]any) {
+			p["entries"].([]map[string]any)[0]["project"] = RecordProjectPathPolicies
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if citations, err := LoadCitations("rules.json", recordPack(t, mutate)); err == nil {
@@ -125,5 +131,45 @@ func TestLoadCitationsIncludesMechanicalRecordCitations(t *testing.T) {
 	citations, err := LoadCitations("rules.json", raw)
 	if err != nil || len(citations) != 3 || citations[1].Project != RecordProjectLineAttestations {
 		t.Fatalf("citations=%+v err=%v", citations, err)
+	}
+}
+
+// Two records with the same ID reject the pack (L1). Real IDs only collide
+// by a hash collision, so the test makes the ID functions constant.
+func TestPackRecordsRefusesDuplicateIDs(t *testing.T) {
+	raw := recordPack(t, func(p map[string]any) {
+		second := map[string]any{}
+		b, _ := json.Marshal(p["pathPolicies"].([]map[string]any)[0])
+		_ = json.Unmarshal(b, &second)
+		second["component"] = "pkg:github/kubernetes/a-kubernetes"
+		p["pathPolicies"] = []map[string]any{second, p["pathPolicies"].([]map[string]any)[0]}
+	})
+	if records, err := PackRecords(raw); err != nil || len(records) != 3 {
+		t.Fatalf("distinct IDs: %d records, %v", len(records), err)
+	}
+	same := func(string) string { return "path-policy." + strings.Repeat("a", 24) }
+	if _, err := packRecords(raw, LineAttestationRecordID, same); err == nil || !strings.Contains(err.Error(), "two records") {
+		t.Fatalf("duplicate policy IDs: %v", err)
+	}
+	sameAcross := func(string, string, string) string { return same("") }
+	if _, err := packRecords(raw, sameAcross, same); err == nil {
+		t.Fatal("an attestation and a policy with one ID were accepted")
+	}
+}
+
+func TestIsRecordID(t *testing.T) {
+	for id, want := range map[string]bool{
+		LineAttestationRecordID("pkg:github/a/b", "f", "1.2"): true,
+		PathPolicyRecordID("pkg:github/a/b"):                  true,
+		"path-policy." + strings.Repeat("0", 23):              false,
+		"path-policy." + strings.Repeat("0", 25):              false,
+		"path-policy." + strings.Repeat("A", 24):              false,
+		"line-attestation." + strings.Repeat("g", 24):         false,
+		"other." + strings.Repeat("0", 24):                    false,
+		"argo-cd.rule-1":                                      false,
+	} {
+		if IsRecordID(id) != want {
+			t.Fatalf("IsRecordID(%q) != %v", id, want)
+		}
 	}
 }

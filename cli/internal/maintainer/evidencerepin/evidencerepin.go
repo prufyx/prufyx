@@ -244,18 +244,18 @@ func LoadCitations(rulePackPath string, raw []byte) ([]Citation, error) {
 			})
 		}
 	}
-	ruleIDs := make(map[string]bool, len(document.Entries))
 	for _, entry := range document.Entries {
-		ruleIDs[entry.Rule.ID] = true
+		if err := CheckPackEntry(entry.Project, entry.Rule.ID); err != nil {
+			return nil, fmt.Errorf("%w: %s: %v", errRejected, rulePackPath, err)
+		}
 	}
-	return appendRecordCitations(out, rulePackPath, raw, ruleIDs)
+	return appendRecordCitations(out, rulePackPath, raw)
 }
 
 // appendRecordCitations adds the citations of the pack's line attestation
 // and path-policy records (see PackRecords), under their record IDs, so
-// source drift is monitored for them exactly as for rules. A record ID equal
-// to a rule ID rejects the pack.
-func appendRecordCitations(out []Citation, rulePackPath string, raw []byte, ruleIDs map[string]bool) ([]Citation, error) {
+// source drift is monitored for them exactly as for rules.
+func appendRecordCitations(out []Citation, rulePackPath string, raw []byte) ([]Citation, error) {
 	records, err := PackRecords(raw)
 	if err != nil {
 		return nil, fmt.Errorf("%w: pack records in %s: %v", errRejected, rulePackPath, err)
@@ -264,9 +264,6 @@ func appendRecordCitations(out []Citation, rulePackPath string, raw []byte, rule
 		return out, nil
 	}
 	for _, record := range records {
-		if ruleIDs[record.ID] {
-			return nil, fmt.Errorf("%w: record %s in %s has the ID of a rule", errRejected, record.ID, rulePackPath)
-		}
 		for _, source := range record.Sources {
 			owner, repo, commit, path, ok := parseCitationURL(source.URL)
 			if !ok {

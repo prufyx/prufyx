@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
@@ -22,8 +23,10 @@ import (
 // A record ID is "line-attestation." or "path-policy." followed by 24 hex
 // digits of a domain-separated sha256 over the record's scope. It matches
 // the rule ID syntax (so review records and file names can carry it) but
-// is derived from the scope alone, so it is stable across renewals; a pack
-// whose rule ID equals a record ID is rejected (see LoadCitations).
+// is derived from the scope alone, so it is stable across renewals. A pack
+// entry whose rule ID has the shape of a record ID, or whose project is a
+// record project, is rejected (CheckPackEntry), so a record ID always names
+// a record; two records with the same ID reject the pack (PackRecords).
 const (
 	// RecordProjectLineAttestations and RecordProjectPathPolicies stand in
 	// for a rule's project on a record's citations.
@@ -44,6 +47,33 @@ func PathPolicyRecordID(component string) string {
 	return "path-policy." + recordIDHash("path-policy", component)
 }
 
+const recordIDHexDigits = 24
+
+// IsRecordID reports whether id has the shape of a record ID: one of the two
+// prefixes followed by exactly 24 lowercase hex digits.
+func IsRecordID(id string) bool {
+	for _, prefix := range []string{"line-attestation.", "path-policy."} {
+		if rest, ok := strings.CutPrefix(id, prefix); ok {
+			return len(rest) == recordIDHexDigits && strings.Trim(rest, "0123456789abcdef") == ""
+		}
+	}
+	return false
+}
+
+// CheckPackEntry refuses a rule pack entry a record could be mistaken for: a
+// rule whose ID has the shape of a record ID, or an entry whose project is
+// RecordProjectLineAttestations or RecordProjectPathPolicies (which would
+// share a record's project-wide exclusions and review-record project).
+func CheckPackEntry(project, ruleID string) error {
+	if IsRecordID(ruleID) {
+		return fmt.Errorf("%w: rule %s has the shape of a record ID", errRejected, ruleID)
+	}
+	if project == RecordProjectLineAttestations || project == RecordProjectPathPolicies {
+		return fmt.Errorf("%w: rule %s has the project of a record, %s", errRejected, ruleID, project)
+	}
+	return nil
+}
+
 func recordIDHash(parts ...string) string {
 	h := sha256.New()
 	h.Write([]byte(recordIDDomain))
@@ -51,7 +81,7 @@ func recordIDHash(parts ...string) string {
 		h.Write([]byte(part))
 		h.Write([]byte{0})
 	}
-	return hex.EncodeToString(h.Sum(nil))[:24]
+	return hex.EncodeToString(h.Sum(nil))[:recordIDHexDigits]
 }
 
 // PackRecord is one line attestation or path-policy record of a rule pack,
@@ -93,6 +123,28 @@ type SourceRef struct {
 // not checked here (that needs the engine's view of the rules; the pack
 // loaders and evidence reattest do it).
 func PackRecords(raw []byte) ([]PackRecord, error) {
+	return packRecords(raw, LineAttestationRecordID, PathPolicyRecordID)
+}
+
+// packRecords is PackRecords with the record ID functions as parameters, so
+// a test can make two records share an ID. Two records with the same ID
+// reject the pack: one ID must never name two records.
+func packRecords(raw []byte, attestationID func(component, factFamily, line string) string, policyID func(component string) string) ([]PackRecord, error) {
+	out, err := readPackRecords(raw, attestationID, policyID)
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[string]bool, len(out))
+	for _, record := range out {
+		if seen[record.ID] {
+			return nil, fmt.Errorf("%w: two records have the ID %s", errRejected, record.ID)
+		}
+		seen[record.ID] = true
+	}
+	return out, nil
+}
+
+func readPackRecords(raw []byte, attestationID func(component, factFamily, line string) string, policyID func(component string) string) ([]PackRecord, error) {
 	var out []PackRecord
 	section, present, err := lineattest.PackMemberSection(raw, lineattest.PackMember)
 	if err != nil {
@@ -109,7 +161,7 @@ func PackRecords(raw []byte) ([]PackRecord, error) {
 		}
 		for i, a := range atts {
 			out = append(out, PackRecord{
-				ID: LineAttestationRecordID(a.Component, a.FactFamily, a.Line), Project: RecordProjectLineAttestations,
+				ID: attestationID(a.Component, a.FactFamily, a.Line), Project: RecordProjectLineAttestations,
 				Scope: "line attestation " + a.Component + " " + a.FactFamily + " " + a.Line, Raw: items[i],
 				Basis: a.Evidence.Basis, ReviewedAt: a.Evidence.ReviewedAt, ValidUntil: a.Evidence.ValidUntil,
 				State: upgradepath.StateActive, Sources: sourceRefs(a.Evidence.Sources), Mechanical: a.Evidence.Basis == constraintengine.BasisMechanical,
@@ -131,7 +183,7 @@ func PackRecords(raw []byte) ([]PackRecord, error) {
 		}
 		for i, r := range records {
 			out = append(out, PackRecord{
-				ID: PathPolicyRecordID(r.Component), Project: RecordProjectPathPolicies,
+				ID: policyID(r.Component), Project: RecordProjectPathPolicies,
 				Scope: "path policy " + r.Component, Raw: items[i],
 				Basis: r.Evidence.Basis, ReviewedAt: r.Evidence.ReviewedAt, ValidUntil: r.Evidence.ValidUntil,
 				State: r.Evidence.State, Sources: sourceRefs(r.Evidence.Sources), Mechanical: r.Evidence.Basis == constraintengine.BasisMechanical,
