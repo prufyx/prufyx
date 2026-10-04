@@ -31,7 +31,7 @@
 
 - Refreshed the example configuration. ([#140005](https://github.com/kubernetes/kubernetes/pull/140005), [@dev-x](https://github.com/dev-x))
   ```yaml
-  # removed: SilentDial
+  removed: SilentDial
   featureGates:
     SilentDial: false
   ```
