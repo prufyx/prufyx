@@ -374,21 +374,22 @@ func admitRecord(c *Change, stmt statementResult, loadKeys func() (*ApprovalKeys
 	}
 	approvalPath := opts.Layout.ApprovalDir + "/" + c.Pack + "/" + c.RuleID + ".json"
 	raw, err := opts.Head.ReadOptional(approvalPath, maxApprovalBytes+1)
-	var inBase []byte
+	var used string
 	if err == nil && raw != nil {
-		inBase, err = opts.Base.ReadOptional(approvalPath, maxApprovalBytes+1)
+		used, err = approvalInBase(opts, raw)
 	}
 	switch {
 	case err != nil:
 		reasons = append(reasons, "approval: "+err.Error())
 	case raw == nil:
 		reasons = append(reasons, "no owner approval")
-	case inBase != nil && bytes.Equal(inBase, raw):
+	case used != "":
 		// A record can be removed (tightening) and added again, so the
 		// base state alone does not stop an approval from admitting the
 		// same record twice: an approval admits the change it arrives
-		// with, never a later one.
-		reasons = append(reasons, "the owner approval is already in the base: an approval admits only the change that adds or changes it")
+		// with, never a later one, however its file is encoded and
+		// wherever a copy of it sits.
+		reasons = append(reasons, "the owner approval is already in the base ("+logSafe(used)+"): an approval admits only the change that adds it")
 	default:
 		keys, err := loadKeys()
 		if err != nil {
@@ -412,6 +413,55 @@ func admitRecord(c *Change, stmt statementResult, loadKeys func() (*ApprovalKeys
 	}
 	c.fail("a reviewed line attestation may change only by renewal through a verified reattestation statement, or with an owner approval and the extractor cross-check: " + strings.Join(reasons, "; "))
 }
+
+// decodeApproval decodes an approval file without verifying it.
+func decodeApproval(raw []byte) (ApprovalEnvelope, error) {
+	var env ApprovalEnvelope
+	if len(raw) > maxApprovalBytes {
+		return env, fmt.Errorf("approval too large")
+	}
+	err := strictDecode(bytes.TrimSuffix(raw, []byte("\n")), &env)
+	return env, err
+}
+
+// sameApproval reports whether two decoded approvals are the same decision:
+// the same signed record, or the same signature.
+func sameApproval(a, b ApprovalEnvelope) bool {
+	return a.Record == b.Record || (a.Signature != "" && a.Signature == b.Signature)
+}
+
+// approvalInBase returns the base path of an approval file that holds the
+// same decision as raw (sameApproval), searching every pack directory of
+// the base's approvals; "" when there is none. An approval the head offers
+// that does not decode is left to verification, which refuses it. A base
+// approval directory that cannot be read is an error (fail closed).
+func approvalInBase(opts Options, raw []byte) (string, error) {
+	head, err := decodeApproval(raw)
+	if err != nil {
+		return "", nil
+	}
+	for _, spec := range opts.Layout.Packs {
+		dir := opts.Layout.ApprovalDir + "/" + spec.Name
+		files, err := opts.Base.Dir(dir, maxApprovalBytes+1, maxApprovalFiles)
+		if err != nil {
+			return "", fmt.Errorf("base approvals: %v", err)
+		}
+		names := make([]string, 0, len(files))
+		for name := range files {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			if base, err := decodeApproval(files[name]); err == nil && sameApproval(base, head) {
+				return dir + "/" + name, nil
+			}
+		}
+	}
+	return "", nil
+}
+
+// maxApprovalFiles bounds one pack's approval directory.
+const maxApprovalFiles = 8192
 
 // freshRecordDerivation applies the derivation-time bound to a loosening
 // mechanical record change.

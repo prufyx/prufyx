@@ -197,7 +197,11 @@ func (r *Report) recordCheck(cls *Classification, statements map[string]statemen
 			continue // trustCheck
 		case strings.HasPrefix(p, opts.Layout.ApprovalDir+"/"):
 			n++
-			why = approvalPathReason(strings.TrimPrefix(p, opts.Layout.ApprovalDir+"/"), packs, admitted, opts.Head.Exists(p))
+			inHead := opts.Head.Exists(p)
+			why = approvalPathReason(strings.TrimPrefix(p, opts.Layout.ApprovalDir+"/"), packs, admitted, inHead)
+			if why == "" && !inHead {
+				why = liveRecordApproval(opts, p)
+			}
 		case strings.HasPrefix(p, opts.Layout.ReattestDir+"/"):
 			n++
 			why = reattestPathReason(strings.TrimPrefix(p, opts.Layout.ReattestDir+"/"), packs, statements, opts.Base.Exists(p), opts.Head.Exists(p))
@@ -209,6 +213,27 @@ func (r *Report) recordCheck(cls *Classification, statements map[string]statemen
 		}
 	}
 	r.add("knowledge-records", len(bad) == 0, "%d record files changed%s", n, listDetail(bad))
+}
+
+// liveRecordApproval refuses deleting a record approval that could still
+// verify (decided within MaxApprovalAge of the gate's clock): a removed
+// record's approval then stays in the base, where it cannot be used again
+// (see approvalInBase). Rule approvals, and files that are not record
+// approvals, are not affected.
+func liveRecordApproval(opts Options, p string) string {
+	raw, err := opts.Base.ReadOptional(p, maxApprovalBytes+1)
+	if err != nil || raw == nil {
+		return ""
+	}
+	env, err := decodeApproval(raw)
+	if err != nil || env.Record.Subject == "" {
+		return ""
+	}
+	decided, err := time.Parse(time.RFC3339, env.Record.DecidedAt)
+	if err != nil || opts.Now.Sub(decided) <= MaxApprovalAge {
+		return "a record approval may not be removed while it could still verify"
+	}
+	return ""
 }
 
 func approvalPathReason(rest string, packs map[string]bool, admitted map[string]*Change, inHead bool) string {

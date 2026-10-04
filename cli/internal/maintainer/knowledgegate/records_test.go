@@ -3,6 +3,7 @@
 package knowledgegate
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"sort"
@@ -281,6 +282,24 @@ func TestGateReviewedAttestationApproval(t *testing.T) {
 		// tree may not add the same record again in a later change.
 		"approval already in the base": {"1.25", func(t *testing.T, base, head Tree, id string, rec *ApprovalRecord) Options {
 			writeFile(t, approvalPath(base, id), key.sign(t, *rec))
+			return Options{}
+		}, "already in the base"},
+		// The same approval re-encoded: the decision, not the bytes, is
+		// compared.
+		"approval already in the base, re-encoded": {"1.25", func(t *testing.T, base, head Tree, id string, rec *ApprovalRecord) Options {
+			signed := key.sign(t, *rec)
+			writeFile(t, approvalPath(base, id), signed)
+			var compact bytes.Buffer
+			if err := json.Compact(&compact, signed); err != nil {
+				t.Fatal(err)
+			}
+			writeFile(t, approvalPath(head, id), append(compact.Bytes(), '\n'))
+			rec.RuleID = "" // the head file is written above
+			return Options{}
+		}, "already in the base"},
+		// A copy of the approval anywhere in the base's approvals.
+		"approval already in the base at another path": {"1.25", func(t *testing.T, base, head Tree, id string, rec *ApprovalRecord) Options {
+			writeFile(t, approvalPath(base, "some.other.rule"), key.sign(t, *rec))
 			return Options{}
 		}, "already in the base"},
 		"line at the declared first line": {"1.20", nil, "derives no pair into line 1.20"},
@@ -612,4 +631,43 @@ func TestGateMechanicalAttestation(t *testing.T) {
 		a["evidence"].(map[string]any)["sources"].([]any)[0].(map[string]any)["startLine"] = json.Number("2")
 	})
 	requireFail(t, runGate(t, Options{Base: head, Head: head, Source: fixtureSource, RederiveAll: true}), "rederive-all")
+}
+
+// A record approval stays in the tree while it could still verify: a change
+// that removes an attestation may not also delete its approval (which would
+// let the same approval re-add it later). Kept, the approval in the base
+// refuses a re-add, in any encoding.
+func TestRecordApprovalIsKeptWhileItCouldVerify(t *testing.T) {
+	key := newApprovalKey(t)
+	id := attestationID("1.25")
+	setup := func(t *testing.T, keepInHead bool) (Tree, Tree) {
+		base, head := attestedTrees(t, []string{"1.22", "1.25"}, []string{"1.22"}, nil)
+		key.pinBoth(t, base, head, "airstand")
+		signed := key.sign(t, recordApproval(id, "1.25", ApprovalBaseAbsent, recordDigest(t, base, id)))
+		writeFile(t, approvalPath(base, id), signed)
+		if keepInHead {
+			writeFile(t, approvalPath(head, id), signed)
+		}
+		return base, head
+	}
+	// Removing the attestation and deleting its approval: refused.
+	base, head := setup(t, false)
+	r := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})
+	requireFail(t, r, "a record approval may not be removed while it could still verify")
+	if c := change(t, r, id); !c.OK || c.Class != ClassTightening {
+		t.Fatalf("removal %+v", c)
+	}
+	// Removing it and keeping the approval: only the split refusal.
+	base, head = setup(t, true)
+	requireAdmittedButUnsplit(t, runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin}))
+	// Once the approval can no longer verify, it may go.
+	base, head = setup(t, false)
+	r = runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin, Now: gateNow.Add(MaxApprovalAge + 2*time.Hour)})
+	if c, _ := check(r, "knowledge-records"); !c.OK {
+		t.Fatalf("knowledge-records %+v", c)
+	}
+	// A rule approval's deletion is governed as before.
+	if why := liveRecordApproval(Options{Base: base, Now: gateNow}, "no/such/file.json"); why != "" {
+		t.Fatalf("missing file: %q", why)
+	}
 }
