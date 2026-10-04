@@ -74,6 +74,12 @@ func TestStoreScanKnowledgeReadsOnlyOpenedProjects(t *testing.T) {
 			t.Fatalf("rule %d: %s", i, rule.Scope.ID)
 		}
 	}
+	// An envelope changed after admission is refused.
+	changed := kubernetes
+	changed.pack.Entries = changed.pack.Entries[1:]
+	if _, err := NewStoreScanKnowledge(map[string]ExternalBundle{"kubernetes": changed}); err != ErrIntegrity {
+		t.Fatalf("changed envelope accepted: %v", err)
+	}
 	if _, err := NewStoreScanKnowledge(map[string]ExternalBundle{"kubernetes": {}}); err != ErrIntegrity {
 		t.Fatalf("unadmitted envelope accepted: %v", err)
 	}
