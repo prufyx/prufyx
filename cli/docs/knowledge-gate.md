@@ -591,7 +591,15 @@ prufyx-maintainer approval sign \
 | `--key FILE` | the private key file: a regular file owned by you with no group or other permission (mode `0600` or `0400`), not a symbolic link, with no symbolic link in its path and only one hard link |
 | `--key-stdin` | read the private key from standard input instead; standard input must be a pipe (a terminal, another device or a redirected file is refused; give a file with `--key`) |
 | `--output` | the approval file to create; its path must end in `<pack>/<rule id>.json` (the gate reads `cli/knowledge/approvals/<pack>/<rule id>.json`); an existing file or link there is never replaced, no directory in the path may be a symbolic link, missing directories are created, and the file gets mode `0644` |
-| `--subject` | what the approval is for; only `rule` (the default) |
+| `--subject` | what the approval is for: `rule` (the default), `lineAttestation` or `repinBaseline` |
+| `--record` | with `--subject lineAttestation`, in place of `--rule`: the line attestation's record ID; the proposed pack must hold it with evidence basis `reviewed`, and it must differ from the base record |
+
+A line attestation approval names `"subject": "lineAttestation"` and the
+record's `scope`, and its digests are those of the base and proposed record.
+Path policies and mechanical attestations cannot be approved. The gate uses a
+record approval once and only forward: it refuses an approval file already in
+the base, and one decided at or before an approval the base holds for the same
+record, so write a new one for each change (`decidedAt` is the current time).
 
 `decidedAt` is the current time. The key may end with line breaks and nothing
 else; any other text before or after the PEM block is refused. The command

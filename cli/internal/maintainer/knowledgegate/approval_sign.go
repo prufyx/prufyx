@@ -25,6 +25,8 @@ import (
 // for that base and head.
 
 // ApprovalSubjectRule is the subject kind of an approval for one pack entry.
+// Its record names no subject; a line attestation approval names
+// ApprovalSubjectLineAttestation.
 const ApprovalSubjectRule = "rule"
 
 // MaxApprovalKeyBytes bounds a private key file or stdin key.
@@ -73,10 +75,13 @@ func wipe(b []byte) {
 // ApprovalSubject is what one approval is for, read from the base and head
 // pack files exactly as the gate reads them.
 type ApprovalSubject struct {
-	Kind   string
-	Pack   string
+	// Kind is ApprovalSubjectRule or ApprovalSubjectLineAttestation.
+	Kind string
+	Pack string
+	// RuleID is the rule id, or the line attestation's record ID.
 	RuleID string
-	// Scope is set for a baseline approval: the repository.
+	// Scope is set for a baseline approval (the repository) and a line
+	// attestation approval ("<component> <factFamily> <line>").
 	Scope string
 	// Base is the canonical base entry (nil: the base has no such rule);
 	// Candidate the canonical proposed entry.
@@ -134,6 +139,46 @@ func RuleApprovalSubject(spec PackSpec, basePack, headPack []byte, ruleID string
 	return s, nil
 }
 
+// AttestationApprovalSubject reads one line attestation record, by record
+// ID, from the pack files of the base and the head, as the gate reads the
+// pack's records. It refuses a pack without records, a record the head does
+// not hold, two records with one ID, a path policy (the gate accepts no
+// approval for one), a record whose basis is not reviewed and a record the
+// change leaves as it is.
+func AttestationApprovalSubject(spec PackSpec, basePack, headPack []byte, recordID string) (ApprovalSubject, error) {
+	if !approvalTokenRE.MatchString(recordID) {
+		return ApprovalSubject{}, errors.New("the record ID is not a valid approval record ID")
+	}
+	if !spec.Records {
+		return ApprovalSubject{}, fmt.Errorf("pack %s carries no line attestations", spec.Name)
+	}
+	base, err := parsePack(spec, basePack)
+	if err != nil {
+		return ApprovalSubject{}, fmt.Errorf("base pack: %w", err)
+	}
+	head, err := parsePack(spec, headPack)
+	if err != nil {
+		return ApprovalSubject{}, fmt.Errorf("proposed pack: %w", err)
+	}
+	h := head.Records[recordID]
+	switch {
+	case h == nil:
+		return ApprovalSubject{}, fmt.Errorf("the proposed pack has no record %s", recordID)
+	case h.Section != sectionAttestations:
+		return ApprovalSubject{}, fmt.Errorf("record %s is not a line attestation; the gate accepts no approval for it", recordID)
+	case h.Basis != constraintengine.BasisReviewed:
+		return ApprovalSubject{}, fmt.Errorf("record %s has evidence basis %q; an approval admits only a reviewed attestation", recordID, logSafe(h.Basis))
+	}
+	s := ApprovalSubject{Kind: ApprovalSubjectLineAttestation, Pack: spec.Name, RuleID: recordID, Scope: h.Scope, Candidate: h.Canonical}
+	if b := base.Records[recordID]; b != nil {
+		if bytes.Equal(b.Canonical, h.Canonical) {
+			return ApprovalSubject{}, fmt.Errorf("record %s is the same in the base and the proposed pack; there is nothing to approve", recordID)
+		}
+		s.Base = b.Canonical
+	}
+	return s, nil
+}
+
 // LoadApprovalKeys checks a web-approval key file against its pinned digest
 // (sha256 of the file without its final newline, as the gate computes it)
 // and parses it.
@@ -164,7 +209,9 @@ type SignApprovalOptions struct {
 // refuses a key that is not pinned or has expired, an identity that is not
 // a pinned owner, and any record the gate's verifier would refuse at Now.
 func SignApproval(o SignApprovalOptions) ([]byte, ApprovalRecord, error) {
-	if o.Subject.Kind != ApprovalSubjectRule && o.Subject.Kind != ApprovalSubjectRepinBaseline {
+	switch o.Subject.Kind {
+	case ApprovalSubjectRule, ApprovalSubjectRepinBaseline, ApprovalSubjectLineAttestation:
+	default:
 		return nil, ApprovalRecord{}, fmt.Errorf("approval subject kind %q is not supported", logSafe(o.Subject.Kind))
 	}
 	if len(o.Key) != ed25519.PrivateKeySize {
@@ -205,12 +252,12 @@ func SignApproval(o SignApprovalOptions) ([]byte, ApprovalRecord, error) {
 		Pack:            o.Subject.Pack,
 		RuleID:          o.Subject.RuleID,
 	}
-	if o.Subject.Kind == ApprovalSubjectRepinBaseline {
-		rec.Subject, rec.Scope = ApprovalSubjectRepinBaseline, o.Subject.Scope
+	if o.Subject.Kind != ApprovalSubjectRule {
+		rec.Subject, rec.Scope = o.Subject.Kind, o.Subject.Scope
 	}
 	msg, err := SignedApprovalBytes(rec)
 	if err != nil {
-		return nil, ApprovalRecord{}, errors.New("approval record field out of range (candidate id, identity, pack or rule id)")
+		return nil, ApprovalRecord{}, errors.New("approval record field out of range (candidate id, identity, pack, rule id or scope)")
 	}
 	env := ApprovalEnvelope{Schema: ApprovalSchema, Record: rec, KeyID: keyID, Signature: base64.StdEncoding.EncodeToString(ed25519.Sign(o.Key, msg))}
 	raw, err := json.MarshalIndent(env, "", "  ")
@@ -229,12 +276,13 @@ func SignApproval(o SignApprovalOptions) ([]byte, ApprovalRecord, error) {
 func VerifyApprovalSubject(raw []byte, keys ApprovalKeys, s ApprovalSubject, now time.Time) error {
 	switch s.Kind {
 	case ApprovalSubjectRule:
+		return VerifyApproval(raw, keys, s.Pack, s.RuleID, s.Base, s.Candidate, now)
 	case ApprovalSubjectRepinBaseline:
 		return verifyBaselineSubject(raw, keys, s, now)
-	default:
-		return fmt.Errorf("approval subject kind %q is not supported", logSafe(s.Kind))
+	case ApprovalSubjectLineAttestation:
+		return VerifyRecordApproval(raw, keys, s.Pack, ApprovalSubjectLineAttestation, s.RuleID, s.Scope, s.Base, s.Candidate, now)
 	}
-	return VerifyApproval(raw, keys, s.Pack, s.RuleID, s.Base, s.Candidate, now)
+	return fmt.Errorf("approval subject kind %q is not supported", logSafe(s.Kind))
 }
 
 // ApprovalUsableUntil is when an approval stops being accepted: 14 days
