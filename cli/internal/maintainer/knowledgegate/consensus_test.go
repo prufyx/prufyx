@@ -159,8 +159,31 @@ func TestGateReportsVerifierVerdict(t *testing.T) {
 
 // One gate run verifies at most MaxConsensusBundles bundles and shares one
 // inventory cache between them.
+// countingSource counts reads of one path.
+type countingSource struct {
+	extract.FixtureReader
+	path  string
+	reads *int
+}
+
+func (c countingSource) Read(repo extract.RepoRef, commit, p string) ([]byte, error) {
+	if p == c.path {
+		*c.reads++
+	}
+	return c.FixtureReader.Read(repo, commit, p)
+}
+
+func (c countingSource) RangeSubjects(repo extract.RepoRef, from, to string, limit int) ([]consensus.CommitSubject, error) {
+	return consensus.FixtureHistory{Root: c.Root}.RangeSubjects(repo, from, to, limit)
+}
+
+func (c countingSource) OnBranch(repo extract.RepoRef, base, commit, branch string) (bool, error) {
+	return consensus.FixtureHistory{Root: c.Root}.OnBranch(repo, base, commit, branch)
+}
+
 func TestGateConsensusBounds(t *testing.T) {
-	src := consensusSource(t, consensusNotes)
+	reads := 0
+	src := countingSource{consensusSource(t, consensusNotes), "pkg/features/kube_features.go", &reads}
 	head := Tree{Root: t.TempDir()}
 	layout := DefaultLayout()
 	bundle := consensusBundle(t, consensusNotes, "SilentDial")
@@ -185,6 +208,9 @@ func TestGateConsensusBounds(t *testing.T) {
 		}
 	}
 	run.close()
+	if reads > 2 {
+		t.Fatalf("the feature gate registry was read %d times for %d bundles; the inventory cache is not shared", reads, MaxConsensusBundles)
+	}
 	// A cancelled run reports an error rather than a verdict, and its
 	// reads stop: the budget is shared by every bundle of the run.
 	ctx, cancel := context.WithCancel(context.Background())
