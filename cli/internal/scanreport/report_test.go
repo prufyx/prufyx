@@ -89,11 +89,11 @@ func TestFinalizeOrder(t *testing.T) {
 			{RuleID: "a", Component: "kubernetes", Hop: ref(2, "1.25", "1.26")},
 		},
 		Gaps: []Gap{
-			NewGap("kubernetes", &HopRef{Index: 2, From: "1.25", To: "1.26"}, GapLineNotAttested, "kubernetes", "1.26"),
+			NewGap("kubernetes", &HopRef{Index: 2, From: "1.25", To: "1.26"}, GapIntermediateLine, "r"),
 			NewGap("kubernetes", nil, GapDeclarationScope, "kubernetes"),
 			NewGap("etcd", nil, GapComponentNotCovered, "etcd"),
 			NewGap("kubernetes", &whole, GapRuleNotDecided, "r", "X"),
-			NewGap("kubernetes", &HopRef{Index: 1, From: "1.24.0", To: "1.25"}, GapIntermediateLine, "r"),
+			NewGap("kubernetes", &HopRef{Index: 1, From: "1.24.0", To: "1.25"}, GapLineNotAttested, "kubernetes", "1.25"),
 			NewGap("kubernetes", nil, GapDeclarationScope, "kubernetes"),
 		},
 		Paths: []Path{{Component: "kubernetes", Hops: []Hop{{Index: 1, Status: HopBlocked}}}},
@@ -124,7 +124,7 @@ func TestFinalizeOrder(t *testing.T) {
 		}
 		gaps = append(gaps, gap.Component+" "+hop+" "+gap.Reason)
 	}
-	want := []string{"etcd - COMPONENT_NOT_COVERED", "kubernetes - DECLARATION_MISSING", "kubernetes 1.25 INTERMEDIATE_LINE_NOT_COVERED_BY_RANGE", "kubernetes 1.26 LINE_NOT_ATTESTED", "kubernetes 1.30.0 RULE_NOT_DECIDED"}
+	want := []string{"etcd - COMPONENT_NOT_COVERED", "kubernetes - DECLARATION_MISSING", "kubernetes 1.25 LINE_NOT_ATTESTED", "kubernetes 1.26 INTERMEDIATE_LINE_NOT_COVERED_BY_RANGE", "kubernetes 1.30.0 RULE_NOT_DECIDED"}
 	if !reflect.DeepEqual(gaps, want) {
 		t.Fatalf("gaps %v", gaps)
 	}

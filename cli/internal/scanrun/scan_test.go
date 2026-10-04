@@ -550,13 +550,13 @@ func TestScanInconsistentLineReview(t *testing.T) {
 	extra := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true,
 		extraRuleIDs: map[string][]string{"1.30": {"kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0"}}})
 	result := mustScan(t, extra, args(paths, "--from", "kubernetes=1.29.6", "--to", "kubernetes=1.30.4")...)
-	if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"LINE_NOT_ATTESTED 1.29.6->1.30.4"}) || !strings.Contains(result.Report.Gaps[0].Detail, "lists rule") {
+	if result.Exit != scanreport.ExitUnknown || result.Report.Paths[0].Hops[0].Status != scanreport.HopPartial || !reflect.DeepEqual(gapReasons(result.Report), []string{"LINE_NOT_ATTESTED 1.29.6->1.30.4"}) || !strings.Contains(result.Report.Gaps[0].Detail, "lists rule") {
 		t.Fatalf("listed rule: exit %d gaps %+v", result.Exit, result.Report.Gaps)
 	}
 	dropped := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true,
 		dropRuleIDs: map[string][]string{"1.25": {"kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0"}}})
 	result = mustScan(t, dropped, args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3")...)
-	if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"LINE_NOT_ATTESTED 1.24.17->1.25.3"}) || !strings.Contains(result.Report.Gaps[0].Detail, "does not list it") {
+	if result.Exit != scanreport.ExitUnknown || result.Report.Paths[0].Hops[0].Status != scanreport.HopPartial || !reflect.DeepEqual(gapReasons(result.Report), []string{"LINE_NOT_ATTESTED 1.24.17->1.25.3"}) || !strings.Contains(result.Report.Gaps[0].Detail, "does not list it") {
 		t.Fatalf("unlisted rule: exit %d gaps %+v", result.Exit, result.Report.Gaps)
 	}
 }
@@ -598,5 +598,55 @@ func TestScanUnreviewedAPIVersion(t *testing.T) {
 	result := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3")...)
 	if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"API_VERSION_NOT_REVIEWED"}) {
 		t.Fatalf("exit %d gaps %v", result.Exit, gapReasons(result.Report))
+	}
+}
+
+// TestScanEmptyInput: no manifest at all is never a pass, even on a line
+// with no rule.
+func TestScanEmptyInput(t *testing.T) {
+	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
+	for _, from := range []string{"1.29.6", "1.24.17"} {
+		_, paths := files(t, map[string]string{"empty.yaml": "# nothing rendered\n---\n"})
+		result := mustScan(t, knowledge, args(paths, "--from", "kubernetes="+from, "--to", "kubernetes=1.30.4")...)
+		if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"DOCUMENTS_NOT_EVALUATED"}) || !strings.Contains(result.Report.Gaps[0].Detail, "no Kubernetes manifests") {
+			t.Fatalf("from %s: exit %d gaps %+v", from, result.Exit, result.Report.Gaps)
+		}
+	}
+}
+
+// TestJudgeClaims: every claim result other than PASS, BLOCKED and a rule
+// that does not apply leaves the rule undecided with a named gap.
+func TestJudgeClaims(t *testing.T) {
+	rule := cncfcheck.ScanRule{Scope: lineattest.RuleScope{ID: "r"}, Description: "Title.", NextAction: "fix"}
+	ref := scanreport.HopRef{Index: 1, From: "1.24.0", To: "1.25"}
+	cases := []struct {
+		status, reason, freshness string
+		decided                   bool
+		gap                       string
+	}{
+		{"PASS", "REVIEWED_SOURCE_CONSTRAINT", "current", true, ""},
+		{"BLOCKED", "REVIEWED_SOURCE_CONSTRAINT", "current", true, ""},
+		{"UNKNOWN", "RULE_APPLICABILITY_NOT_MATCHED", "current", true, ""},
+		{"UNKNOWN", "RULE_EVIDENCE_STALE", "stale", false, "EVIDENCE_EXPIRED"},
+		{"UNKNOWN", "RULE_EVIDENCE_WITHDRAWN", "withdrawn", false, "EVIDENCE_EXPIRED"},
+		{"UNKNOWN", "RULE_EVIDENCE_CLOCK_BEFORE_REVIEW", "clock_before_review", false, "EVIDENCE_EXPIRED"},
+		{"UNKNOWN", "RULE_OPERATOR_UNSUPPORTED", "current", false, "RULE_NOT_DECIDED"},
+		{"UNKNOWN", "RULE_DEPENDENCY_COMPONENT_MISSING", "current", false, "RULE_NOT_DECIDED"},
+		{"UNKNOWN", "SOMETHING_NEW", "current", false, "RULE_NOT_DECIDED"},
+		{"UNKNOWN", "REVIEWED_SOURCE_CONSTRAINT", "current", false, "RULE_NOT_DECIDED"},
+		{"NOTICE", "REVIEWED_SOURCE_CONSTRAINT", "current", false, "RULE_NOT_DECIDED"},
+	}
+	for _, tc := range cases {
+		report := &scanreport.Report{}
+		run := &kubernetesRun{report: report, findings: map[string]int{}, passes: map[string]bool{}}
+		claim := constraintengine.Claim{RuleID: "r", Status: tc.status, ReasonCode: tc.reason, EvidenceFreshness: tc.freshness}
+		judged := run.judge(rule, evaluation{claims: map[string]constraintengine.Claim{"r": claim}}, ref)
+		gap := ""
+		if len(report.Gaps) == 1 {
+			gap = report.Gaps[0].Reason
+		}
+		if judged.decided != tc.decided || gap != tc.gap || len(report.Gaps) > 1 || (tc.gap != "" && !reflect.DeepEqual(judged.reasons, []string{tc.gap})) {
+			t.Errorf("%s %s: decided %t gaps %+v", tc.status, tc.reason, judged.decided, report.Gaps)
+		}
 	}
 }

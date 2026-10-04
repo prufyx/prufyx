@@ -327,7 +327,7 @@ func (r *kubernetesRun) preparationGaps(prepared cncfprepare.Prepared, ruleID, c
 			}
 		}
 		if len(r.workspace.Documents) == 0 && len(r.workspace.Omissions) == 0 {
-			reasons = append(reasons, scanreport.GapDocumentsEmpty.Reason())
+			reasons = append(reasons, r.rootGap(scanreport.GapDocumentsEmpty))
 		}
 		if len(reasons) > 0 {
 			return reasons
