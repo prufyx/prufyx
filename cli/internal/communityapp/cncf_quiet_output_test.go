@@ -30,15 +30,15 @@ func nonEmptyLines(text string) []string {
 	return strings.Split(strings.TrimRight(text, "\n"), "\n")
 }
 
-func TestQuietHumanUnreviewedTransitionsPrintAtMostFiveLines(t *testing.T) {
+func TestQuietHumanUnreviewedTransitionsPrintAtMostSixLines(t *testing.T) {
 	path := writeCNCFFile(t, "kubernetes.json", []byte(quietCronJobJSON), 0o600)
 	for _, pair := range [][2]string{{"1.21.0", "1.25.0"}, {"1.28.0", "1.30.0"}, {"1.25.0", "1.24.0"}} {
 		code, human, stderr := runCNCFCLI(t, quietArgs(path, pair[0], pair[1], "--format", "human")...)
 		lines := nonEmptyLines(human)
-		if code != ExitUnknown || stderr != "" || len(lines) > 5 {
+		if code != ExitUnknown || stderr != "" || len(lines) > 6 {
 			t.Fatalf("%v: code=%d lines=%d stderr=%q\n%s", pair, code, len(lines), stderr, human)
 		}
-		for _, want := range []string{"UNKNOWN: kubernetes " + pair[0] + " -> " + pair[1] + " is not a reviewed transition", "reviewed pairs:", "1.24.0 -> 1.25.0", "check each reviewed pair in turn", "aggregate: UNKNOWN"} {
+		for _, want := range []string{"UNKNOWN: kubernetes " + pair[0] + " -> " + pair[1] + " is not a reviewed transition", "reviewed pairs:", "1.24.0 -> 1.25.0", "check each reviewed pair in turn", "scoped result: UNKNOWN\naggregate: UNKNOWN"} {
 			if !strings.Contains(human, want) {
 				t.Errorf("%v: missing %q in\n%s", pair, want, human)
 			}
@@ -61,13 +61,13 @@ func TestQuietHumanReviewedPairCollapsesPassesAndSharesSources(t *testing.T) {
 	path := writeCNCFFile(t, "kubernetes.json", []byte(quietCronJobJSON), 0o600)
 	code, human, stderr := runCNCFCLI(t, quietArgs(path, "1.24.0", "1.25.0", "--format", "human")...)
 	lines := nonEmptyLines(human)
-	if code != ExitBlocked || stderr != "" || len(lines) > 10 {
+	if code != ExitBlocked || stderr != "" || len(lines) > 11 {
 		t.Fatalf("code=%d lines=%d\n%s", code, len(lines), human)
 	}
 	if strings.Count(human, "pinned source:") != 2 || strings.Contains(human, ": PASS (") || !strings.Contains(human, "6 rules PASS (not listed; use --show-passes)") {
 		t.Fatalf("unexpected quiet output:\n%s", human)
 	}
-	if !strings.Contains(human, "BLOCKED (REVIEWED_SOURCE_CONSTRAINT)") {
+	if !strings.Contains(human, "BLOCKED (REVIEWED_SOURCE_CONSTRAINT)") || !strings.Contains(human, "scoped result: BLOCKED\naggregate: UNKNOWN") {
 		t.Fatalf("decisive claim missing:\n%s", human)
 	}
 	aggregate, claim := strings.Index(human, "aggregate: UNKNOWN"), strings.Index(human, "BLOCKED (")

@@ -17,6 +17,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   version among non-draft, non-pre-release releases; strict-version tags only
   for the tags fallback; other or mixed tag prefixes, or a non-strict newest
   release, leave the repository pending instead of choosing), documented in `cli/docs/evidence-repin.md`.
+- `check cncf --native-resource` and `check cncf --custom-resources` print
+  `scoped result: BLOCKED`, `UNKNOWN` or `PASS` before the `aggregate:` line.
+  It is the result of the checked rules and matches the exit code; the
+  aggregate line stays the whole-upgrade compatibility, which these modes
+  never decide.
 - The knowledge gate's default daily loosening limit is 50 (was 400). The
   repository variable `KNOWLEDGE_MAX_DAILY_LOOSENING` still raises it.
 - The CLA workflow no longer prints commit author e-mail addresses in its
@@ -481,8 +486,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   one templated, unparseable or non-Kubernetes document next to a
   `batch/v1beta1` CronJob turned `scan` from `BLOCKED` with one finding into
   exit 11 with no finding. A removed API version used by a document that was
-  read is now reported as `BLOCKED` (exit 10) whatever the other documents
-  hold. The unreadable documents are still listed as omitted and named as a
+  read is now reported as `BLOCKED` (exit 10) when that document is applied
+  as written whatever the unread documents hold. A document that may not be
+  rendered at all is not used: one in a file where an unread document opens
+  or closes a template action (`if`, `range`, `with`, `define`, `block`,
+  `else`, `end`) that it does not close within one value, a test template or
+  a document of a conditional or unlisted subchart of a raw Helm chart, and a
+  Helm test hook. The unreadable documents are still listed as omitted and named as a
   gap, so the answer is never a pass, and absence is never concluded from
   them: every other removed-API fact, and any rule that depends on what they
   contain, stays undecided. The same applies to
@@ -493,7 +503,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   read but could not be placed as a Kubernetes object (an `apiVersion` or
   `kind` that is not valid, or a list with invalid metadata) when every hop
   entered a release line without removed APIs. Such a document is now always
-  the gap `DOCUMENTS_NOT_EVALUATED`.
+  the gap `DOCUMENTS_NOT_EVALUATED`, whatever the declarations, and also
+  for projects checked for custom-resource versions when a rule blocks.
 - The rule parser rejects a `forbid_predicate_value` rule whose `appliesWhen`
   requires its own condition fact to hold a different value. Such a rule could
   never block, yet it passed and could make a component scope-complete.

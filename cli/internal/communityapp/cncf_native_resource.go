@@ -317,7 +317,7 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 		if err := writeNativeClaims(r.stdout, summary, report.Check.Claims); err != nil {
 			return ExitIntegrity
 		}
-		if _, err := fmt.Fprintln(r.stdout, "aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)"); err != nil {
+		if _, err := fmt.Fprintf(r.stdout, "%s\naggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)\n", scopedResultLine(cncfcheck.ClaimExit(report))); err != nil {
 			return ExitIntegrity
 		}
 		if err := writeSourceFooter(r.stdout, summary.shown); err != nil {
@@ -325,6 +325,19 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 		}
 	}
 	return cncfcheck.ClaimExit(report)
+}
+
+// scopedResultLine names the result of the checked rules, the one the exit
+// code reports. The aggregate line beside it is the whole-upgrade
+// compatibility, which a single route never decides.
+func scopedResultLine(exit int) string {
+	switch exit {
+	case ExitBlocked:
+		return "scoped result: BLOCKED"
+	case ExitOK:
+		return "scoped result: PASS"
+	}
+	return "scoped result: UNKNOWN"
 }
 
 func joinNativeDigests(values []string) string {

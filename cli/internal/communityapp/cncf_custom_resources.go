@@ -97,7 +97,7 @@ func (r runtime) cncfCustomResourceCheck(req customResourceRequest) int {
 			return ExitIntegrity
 		}
 	}
-	if _, err := fmt.Fprintln(r.stdout, "scope: only custom-resource versions named by published rules; no record yet shows those rules name every version the target release stops serving, so this mode never passes (exit 11 at best)\nnot checked: other custom-resource versions, other changes, stored objects and conversion\naggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)"); err != nil {
+	if _, err := fmt.Fprintf(r.stdout, "scope: only custom-resource versions named by published rules; no record yet shows those rules name every version the target release stops serving, so this mode never passes (exit 11 at best)\nnot checked: other custom-resource versions, other changes, stored objects and conversion\n%s\naggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)\n", scopedResultLine(customResourceExit(report))); err != nil {
 		return ExitIntegrity
 	}
 	if err := writeSourceFooter(r.stdout, summary.shown); err != nil {

@@ -63,6 +63,12 @@ uses `12` for stale source evidence and `13` when the evaluation clock precedes
 source review. The fixed aggregate precedence is integrity, input, blocked,
 not-yet-reviewed, stale, unknown, then pass.
 
+The same holds for a single `prufyx check cncf` run: its human output ends
+with `aggregate: UNKNOWN (whole-upgrade compatibility: ...)`, which a single
+route never decides. The line before it, `scoped result: BLOCKED`, `UNKNOWN`
+or `PASS`, is the result of the checked rules and always matches the exit code
+(`10`, `11` or `0`) of the `--native-resource` and `--custom-resources` modes.
+
 The [`embedded`](../examples/batch/embedded-mixed-plan.json) and
 [`signed`](../examples/batch/signed-mixed-plan.json) public synthetic plans use
 the same minimized Kyverno and Loki inputs. They contain no trust root or
