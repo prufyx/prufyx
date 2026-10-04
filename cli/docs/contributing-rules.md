@@ -156,6 +156,46 @@ document outright, and every document without the operator keeps its previous
 schema, digests and report bytes. Community project packs and external
 knowledge targets do not accept notices yet.
 
+## Support ranges (`severity: "unsupported"`)
+
+A `require_component_version` rule may carry `"severity": "unsupported"`. Use
+it when the cited source documents a support range (a supported-releases
+table, a tested-versions list) rather than a breakage: outside the range the
+combination is unsupported, not proven broken.
+
+```jsonc
+"operator": "require_component_version",
+"subject": { "component": "pkg:github/cert-manager/cert-manager", "from": "1.16.0", "to": "1.16.1" },
+"dependency": { "side": "proposed", "component": "pkg:github/kubernetes/kubernetes", "comparison": "lt", "version": "1.32.0" },
+"severity": "unsupported",
+"evidence": { "state": "active", "reviewedAt": "...", "validUntil": "...", "sources": [ /* pinned sources */ ] },
+"reasonCode": "ADDON_KUBERNETES_SUPPORT_RANGE",
+"nextAction": "upgrade cert-manager to a release line that supports the target Kubernetes minor"
+```
+
+- `severity` is optional, and `"unsupported"` is its only value. It is
+  accepted only on `require_component_version`, and not on a `lead` rule.
+- When the dependency is declared and the comparison holds, the claim is
+  `PASS`, exactly as without the field. When the comparison fails, the claim
+  is `UNSUPPORTED` with the rule's `reasonCode` and `nextAction`, never
+  `BLOCKED`. A missing dependency, stale or withdrawn evidence and the other
+  usual cases stay `UNKNOWN`.
+- `reasonCode` must be the rule's own code (for example
+  `ADDON_KUBERNETES_SUPPORT_RANGE`); codes that start with `RULE_` and the
+  other codes Prufyx itself issues are refused.
+- When the source says the combination does not work ("requires", "will not
+  work", a removed API it depends on), write an ordinary blocking rule without
+  `severity`. The field never changes a rule that does not carry it.
+
+A rule document or pack that contains a rule with a `severity` carries its own
+schema — rules `prufyx.io/deterministic-constraint-rules/v1alpha6`, CNCF pack
+`prufyx.io/cncf-source-rule-pack/v1alpha8` — and its reports carry a separate
+engine contract digest. The schema also admits every feature of the lower
+ones. Binaries that predate the field reject such a document, and every
+document without it keeps its schema, digests and report bytes. Community
+project packs and external knowledge targets do not accept support-range rules
+yet.
+
 ## Evidence basis
 
 A rule's `evidence` block may say how the rule was produced. The fields are

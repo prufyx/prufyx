@@ -89,6 +89,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   or lead rule use rules schema
   `prufyx.io/deterministic-constraint-rules/v1alpha5` and pack schema
   `prufyx.io/cncf-source-rule-pack/v1alpha7`. No such rules are shipped yet.
+- Support-range rules: a `require_component_version` rule may carry
+  `"severity": "unsupported"`. When the declared combination is outside the
+  documented support range the claim is `UNSUPPORTED` (the rule's own reason
+  code and next action), not `BLOCKED`: it is never a pass, the exit status is
+  11 unless another claim blocks, and a scope assessment stays UNKNOWN
+  (`UNSUPPORTED_COMBINATION`). Human output adds a headline line naming how
+  many component combinations are outside their documented support range.
+  Documents with such a rule use rules schema
+  `prufyx.io/deterministic-constraint-rules/v1alpha6` and pack schema
+  `prufyx.io/cncf-source-rule-pack/v1alpha8`. No such rules are shipped yet.
 - A scope-completeness report is now refused unless every PASS, BLOCKED or
   `NO_KNOWN_ISSUE` claim is listed under its component. Before, a hand-edited
   report could move a blocking claim into `outOfScopeRules` and still pass the

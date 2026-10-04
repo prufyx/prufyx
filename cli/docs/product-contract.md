@@ -46,6 +46,19 @@ claims are notices exits 11, and a notice beside passing or blocking claims
 leaves their exit status as it was. The absence of a notice means nothing; it
 does not say that a rollback is possible.
 
+A claim may also be `UNSUPPORTED`: a reviewed support-range rule found the
+declared combination outside a documented support range (for example an
+add-on release line on a Kubernetes minor its project does not list as
+supported). Outside the documented range means unsupported, not shown to be
+broken. `UNSUPPORTED` carries the rule's own reason code and next action; it
+is neither a pass nor a blocker, so the exit status is 11 unless another
+claim blocks (10), and a report with only passing and `UNSUPPORTED` claims
+exits 11. In a scope assessment the rule is applicable but not verified: the
+aggregate is UNKNOWN with `UNSUPPORTED_COMBINATION`, or BLOCKED when another
+rule blocks, and never a scope-complete pass. Human output adds a headline
+line `N component combinations are outside their documented support range`.
+A source that states a hard incompatibility is an ordinary blocking rule.
+
 ### Evidence bases and the trust policy
 
 Every rule states how it was produced, and the basis limits what it may
