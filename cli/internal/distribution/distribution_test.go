@@ -238,6 +238,41 @@ func TestRecordCountBound(t *testing.T) {
 	if err := Validate(s); !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "1-64 records") {
 		t.Fatalf("record bound: %v", err)
 	}
+	// Likewise seven distributions times six families never reach the
+	// statement bound.
+	s = testSection()
+	for len(s.Applicability) <= MaxApplicability {
+		s.Applicability = append(s.Applicability, s.Applicability[0])
+	}
+	if err := Validate(s); !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "at most 512") {
+		t.Fatalf("statement bound: %v", err)
+	}
+	// A Go caller must state the applicability list (Marshal writes []).
+	s = testSection()
+	s.Applicability = nil
+	if err := Validate(s); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("nil applicability: %v", err)
+	}
+	if raw, err := Marshal(s); err != nil || !bytes.Contains(raw, []byte(`"applicability":[]`)) {
+		t.Fatalf("Marshal of nil applicability: %s %v", raw, err)
+	}
+}
+
+// An index built, against its contract, from an unvalidated section never
+// answers for an id outside the distribution vocabulary or for an
+// upstream-equivalent id.
+func TestUnvalidatedIndexStaysClosed(t *testing.T) {
+	s := testSection()
+	s.Records = append(s.Records, Record{Distribution: "minikube", ControlPlane: ControlPlaneSelfManaged, Evidence: testEvidence()}, Record{Distribution: "kubeadm", ControlPlane: ControlPlaneSelfManaged, Evidence: testEvidence()})
+	s.Applicability = append(s.Applicability, Applicability{Distribution: "minikube", Family: FamilyNode, Status: StatusApplies, Evidence: testEvidence()}, Applicability{Distribution: "kubeadm", Family: FamilyNode, Status: StatusNotApplicable, Evidence: testEvidence()})
+	ix := NewIndex(s)
+	now := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	if got := ix.ApplicabilityFor("minikube", FamilyNode, now); got.Status != LookupAbsent || got.Applies() {
+		t.Fatalf("unknown id answered: %+v", got)
+	}
+	if got := ix.ApplicabilityFor("kubeadm", FamilyNode, now); got.Status != LookupUpstream || !got.Applies() {
+		t.Fatalf("upstream id answered from a record: %+v", got)
+	}
 }
 
 func TestDistributionFreshness(t *testing.T) {
