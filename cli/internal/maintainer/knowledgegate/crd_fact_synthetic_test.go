@@ -20,7 +20,7 @@ import (
 // unchanged, once the definition is in the registry (with the pack's
 // registry digest bumped to match), both by the engine's loader and by the
 // gate's CNCF admission check.
-func TestCRDFactRegistrationIsTheOnlySwitch(t *testing.T) {
+func TestCRDRuleAdmissionNeedsOnlyTheFact(t *testing.T) {
 	maps := crdEntries(t, gateNow.Add(-time.Hour))
 	var entries []cncfcheck.Entry
 	for _, e := range maps {
