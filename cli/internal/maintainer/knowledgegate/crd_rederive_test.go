@@ -95,7 +95,7 @@ func TestGateRederivesCRDRules(t *testing.T) {
 			ruleOf(e)["setCondition"].(map[string]any)["members"] = []any{"kafka.strimzi.io/v1beta1/Kafka"}
 		}, "differs from what extractor"},
 		"subject moved": {func(e map[string]any) { ruleOf(e)["subject"].(map[string]any)["to"] = "1.1.0" }, "differs from what extractor"},
-		"next action": {func(e map[string]any) { ruleOf(e)["nextAction"] = "nothing to do" }, "differs from what extractor"},
+		"next action":   {func(e map[string]any) { ruleOf(e)["nextAction"] = "nothing to do" }, "differs from what extractor"},
 		"cited lines": {func(e map[string]any) {
 			s := evidenceOf(e)["sources"].([]any)[1].(map[string]any)
 			s["startLine"] = s["endLine"]
