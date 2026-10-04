@@ -195,7 +195,10 @@ type LineMap struct {
 	Section           string `json:"section"`
 	// Problems lists the lines outside the line grammar; a section with
 	// any is not citable.
-	Problems []Problem     `json:"problems"`
+	Problems []Problem `json:"problems"`
+	// Barriers lists the places in the release section that can hide
+	// what follows them; no citation at or after one is verified.
+	Barriers []Problem     `json:"barriers"`
 	Lines    []LineMapLine `json:"lines"`
 }
 
@@ -210,7 +213,7 @@ type LineMapLine struct {
 // LineMapJSON renders the line map of a normalised section as canonical
 // JSON.
 func LineMapJSON(n Normalised) ([]byte, error) {
-	m := LineMap{NormaliserVersion: NormaliserVersion, Section: n.Section, Problems: append([]Problem{}, n.Problems...), Lines: make([]LineMapLine, len(n.Lines))}
+	m := LineMap{NormaliserVersion: NormaliserVersion, Section: n.Section, Problems: append([]Problem{}, n.Problems...), Barriers: append([]Problem{}, n.Barriers...), Lines: make([]LineMapLine, len(n.Lines))}
 	for i, l := range n.Lines {
 		m.Lines[i] = LineMapLine{Normalised: i + 1, Original: l.Original, Flags: l.Flags, Problem: l.Problem}
 	}

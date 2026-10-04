@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
 	"regexp"
 	"sort"
 	"strconv"
@@ -357,6 +358,17 @@ func (v *verifier) pinSource(rep *Report) (*verdictError, error) {
 	return nil, nil
 }
 
+// barrierBefore returns the first barrier of the release section at or
+// before an original line.
+func (v *verifier) barrierBefore(original int) *Problem {
+	for i := range v.norm.Barriers {
+		if v.norm.Barriers[i].Original <= original {
+			return &v.norm.Barriers[i]
+		}
+	}
+	return nil
+}
+
 // headingSections maps every line to the section it belongs to: the span
 // from its nearest heading to the next heading of the same or a higher
 // level. A section is unparsed when any line in that span (its child
@@ -462,7 +474,7 @@ func (v *verifier) claim(c Claim, res *ClaimResult) (*verdictError, error) {
 	cited := map[int]bool{}
 	for _, n := range c.Names {
 		for i, l := range v.norm.Lines {
-			if sec := v.sections[i]; sec.unparsed && containsToken(l.Text, n) {
+			if sec := v.sections[i]; sec.unparsed && containsToken(html.UnescapeString(l.Text), n) {
 				return fail(VerdictLead, ReasonUnparsedSection, "%s appears in a section outside the line grammar (%s)", n, sec.problem), nil
 			}
 		}
@@ -490,6 +502,26 @@ func (v *verifier) claim(c Claim, res *ClaimResult) (*verdictError, error) {
 			if v.items[i].hidden {
 				return fail(VerdictLead, ReasonHiddenContent, "the list item citing %s held hidden content (%s)", n, strings.Join(v.items[i].flags, ", ")), nil
 			}
+		}
+		// The name anywhere else in the read subsections (another item
+		// without a cue, a heading, a paragraph) is a statement the
+		// verifier cannot weigh against the cited one.
+		inCited := map[int]bool{}
+		for _, i := range withCue {
+			for k := v.items[i].start; k <= v.items[i].end; k++ {
+				inCited[k] = true
+			}
+		}
+		for k, l := range v.norm.Lines {
+			if !inCited[k] && containsToken(proseOf(l.Text), n) {
+				return fail(VerdictLead, ReasonAmbiguousCitation, "%s is also named on line %d, outside the cited item", n, l.Original), nil
+			}
+		}
+		if !containsToken(rawProseOf(first.text), n) {
+			return fail(VerdictLead, ReasonHiddenContent, "the list item citing %s spells it with character references", n), nil
+		}
+		if b := v.barrierBefore(v.norm.Lines[v.items[withCue[len(withCue)-1]].end].Original); b != nil {
+			return fail(VerdictLead, ReasonUnparsedSection, "line %d of the release section (%s) can hide the item citing %s when rendered", b.Original, b.Reason, n), nil
 		}
 		if m := hedgeRE.FindString(first.prose); m != "" {
 			return fail(VerdictLead, ReasonHedgedCue, "the list item citing %s says %q", n, m), nil
@@ -630,6 +662,19 @@ type item struct {
 	flags      []string
 }
 
+// proseOf is the text names and cues are matched in: character references
+// decoded, and every link (label and target) and URL removed, so a link
+// label never counts as a citation.
+func proseOf(s string) string { return html.UnescapeString(rawProseOf(s)) }
+
+// rawProseOf is proseOf without decoding character references.
+func rawProseOf(s string) string {
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = inlineLinkRE.ReplaceAllString(s, " ")
+	s = linkTargetRE.ReplaceAllString(s, "] ")
+	return urlRE.ReplaceAllString(s, " ")
+}
+
 var (
 	itemStartRE  = regexp.MustCompile(`^ *[-*] `)
 	headingRE    = regexp.MustCompile(`^#`)
@@ -664,7 +709,7 @@ func listItems(n Normalised) []item {
 		sort.Strings(it.flags)
 		it.text = strings.Join(lines, "\n")
 		joined := strings.Join(lines, " ")
-		it.prose = urlRE.ReplaceAllString(linkTargetRE.ReplaceAllString(joined, "]"), " ")
+		it.prose = proseOf(joined)
 		it.key = strings.Join(strings.Fields(itemStartRE.ReplaceAllString(joined, "")), " ")
 		out = append(out, it)
 		cur = -1
@@ -743,7 +788,17 @@ func prReferences(text string, repo extract.RepoRef) (refs []int, consistent boo
 	owner, name := repo.OwnerName()
 	set := map[int]bool{}
 	consistent = true
-	for _, m := range inlineLinkRE.FindAllStringSubmatch(codeSpans(text), -1) {
+	plain := codeSpans(text)
+	for _, loc := range inlineLinkRE.FindAllStringSubmatchIndex(plain, -1) {
+		// "\[" is a literal bracket, not a link.
+		bs := 0
+		for j := loc[0] - 1; j >= 0 && plain[j] == '\\'; j-- {
+			bs++
+		}
+		if bs%2 == 1 {
+			continue
+		}
+		m := []string{plain[loc[0]:loc[1]], plain[loc[2]:loc[3]], plain[loc[4]:loc[5]]}
 		u := pullURLRE.FindStringSubmatch(m[2])
 		if u == nil || u[1] != owner || u[2] != name {
 			continue

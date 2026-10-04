@@ -66,15 +66,12 @@ func TestNormaliseSectionSelection(t *testing.T) {
 	}
 	// One subsection is enough; the release section ends at a level-1
 	// heading with up to three leading spaces.
-	n = mustNormalise(t, "# v1.41.0\n\n## Changes by Kind\n\n- x\n   # v1.41.0-rc.1\n- rc\n")
-	if want := []string{"## Changes by Kind", "", "- x"}; !reflect.DeepEqual(texts(n), want) {
-		t.Fatalf("section %q, want %q", texts(n), want)
-	}
-	// A subsection after an indented level-1 heading belongs to the next
-	// release.
+	// An indented level-1 heading does not end the section for the
+	// verifier (it may sit in a list item), but it is a problem and a
+	// barrier: what follows it renders in another section.
 	n = mustNormalise(t, "# v1.41.0\n\n## Urgent Upgrade Notes\n\n- x\n\n   # v1.41.0-rc.1\n\n## Changes by Kind\n\n- rc\n")
-	if want := []string{"## Urgent Upgrade Notes", "", "- x", ""}; !reflect.DeepEqual(texts(n), want) {
-		t.Fatalf("section %q, want %q", texts(n), want)
+	if len(n.Barriers) != 1 || n.Barriers[0].Original != 7 || n.Parsed() {
+		t.Fatalf("barriers %v problems %v", n.Barriers, n.Problems)
 	}
 }
 
@@ -163,7 +160,11 @@ func TestNormaliseGrammarProblems(t *testing.T) {
 		{"- [#1](https://github.com/example/kubernetes/pull/1)", "link target"},
 		{"- [#1](http://github.com/kubernetes/kubernetes/pull/1)", "link target"},
 		{"- [someone](https://github.com/dev-x)", "link target"},
-		{"- [#1](https://github.com/kubernetes/kubernetes/pull/1/files)", "link target"},
+		{"- [x](https://github.com/example/kubernetes)", "link target"},
+		{"- [x](https://gitlab.com/kubernetes/kubernetes)", "link target"},
+		{"- a \\`b` c", "unmatched or escaped backtick"},
+		{"- a `b", "unmatched or escaped backtick"},
+		{"-     code after the marker", "item text indentation"},
 		{" - one space", "list item indentation"},
 		{" ### heading", "indented heading"},
 		{"#Heading", "heading form"},
@@ -176,7 +177,7 @@ func TestNormaliseGrammarProblems(t *testing.T) {
 	}
 	// Nesting: under an open item, at most MaxListDepth deep; continuation
 	// lines at most five columns past their item's marker.
-	for _, body := range []string{"- a\n  - b\n    - c\n      - d\n        - e", "Paragraph\n  - nested under nothing", "- a\n      six columns", "### H\n  - after a heading", "- a\n - odd", "- a\n   - three"} {
+	for _, body := range []string{"- a\n  - b\n    - c\n      - d\n        - e", "Paragraph\n  - nested under nothing", "- a\n      six columns", "### H\n  - after a heading", "- a\n - odd", "- a\n   - three", "- a\n    - jump", "- a\n\n      - jump after blank"} {
 		if mustNormalise(t, doc(body)).Parsed() {
 			t.Errorf("%q parsed", body)
 		}

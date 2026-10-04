@@ -92,6 +92,12 @@ type Normalised struct {
 	// construct left open before a subsection starts. A section with a
 	// problem is not citable.
 	Problems []Problem
+	// Barriers are places in the release section where rendering can
+	// hide what follows: raw HTML anywhere in the section (inside or
+	// outside the read subsections), a release heading inside an HTML
+	// construct, or an HTML element left open before it. A citation at or
+	// after a barrier is never verified.
+	Barriers []Problem
 }
 
 // Parsed reports whether every line of the section is inside the grammar.
@@ -140,6 +146,8 @@ type sectionRule struct {
 	// docsHosts are the hosts a link may point at besides the repository's
 	// pull requests and issues and a contributor's profile.
 	docsHosts []string
+	// orgRE matches links into the project's own GitHub organisations.
+	orgRE *regexp.Regexp
 }
 
 // ruleFor returns the section rule. Only Kubernetes has one:
@@ -158,7 +166,8 @@ func ruleFor(spec SectionSpec) (sectionRule, error) {
 		heading:     "# " + spec.Version,
 		subsections: []string{"## Urgent Upgrade Notes", "## Changes by Kind"},
 		owner:       "kubernetes", name: "kubernetes",
-		docsHosts: []string{"kubernetes.io", "k8s.io", "docs.k8s.io"},
+		docsHosts: []string{"kubernetes.io", "k8s.io", "docs.k8s.io", "pkg.go.dev"},
+		orgRE:     regexp.MustCompile(`^https://github\.com/kubernetes[a-z0-9-]*/[A-Za-z0-9._-]+(/[A-Za-z0-9._~%/#?=&+:@-]*)?$`),
 	}, nil
 }
 
@@ -192,8 +201,10 @@ func control(r rune) bool {
 }
 
 var (
-	level1RE = regexp.MustCompile(`^ {0,3}#([ \t]|$)`)
-	level2RE = regexp.MustCompile(`^ {0,3}#{1,2}([ \t]|$)`)
+	// Section and subsection ends are headings at column 0; an indented
+	// heading is a problem inside the section (it may sit in a list item).
+	level1RE = regexp.MustCompile(`^#([ \t]|$)`)
+	level2RE = regexp.MustCompile(`^#{1,2}([ \t]|$)`)
 )
 
 // Normalise selects the release's citable subsections of a release notes
@@ -247,6 +258,7 @@ func Normalise(src []byte, spec SectionSpec) (Normalised, error) {
 
 	out := Normalised{Section: spec.Version}
 	opens := blockStates(lines)
+	out.Barriers = barriers(lines, opens, start, end)
 	found := map[string]bool{}
 	for i := start + 1; i < end; i++ {
 		head := strings.TrimRight(lines[i].Text, " \t")
@@ -414,25 +426,33 @@ var (
 )
 
 // grammar checks the lines of one subsection. The grammar is: blank lines;
-// ATX headings of level 3-6 at column 0; list items "- " or "* " indented
-// by a multiple of 2, at most MaxListDepth deep (an indented item needs an
-// open item); continuation lines of an open item indented by at most five
-// columns more than its marker (never code); plain paragraph lines at
-// column 0. Inline, outside code spans: text, emphasis, entities,
-// and links whose target is a pull request or issue of the repository, a
-// contributor's profile ("[@login](https://github.com/login)") or a page
-// on a documentation host. Anything else is a problem.
+// ATX headings of level 3-6 at column 0; list items "- " or "* " with
+// their text one space after the marker, a child exactly two columns right
+// of its parent, at most MaxListDepth deep; continuation lines of an open
+// item indented by at most five columns more than its marker (never code);
+// plain paragraph lines at column 0. Inline, outside code spans (every
+// backtick run matched on its line, none escaped): text, emphasis,
+// entities, and links without a title whose target is a pull request or
+// issue of the repository, a contributor's profile
+// ("[@login](https://github.com/login)"), anything under the project's
+// GitHub organisations, or a page on a documentation host. Link text never
+// counts as a citation. Anything else is a problem.
 type grammar struct {
-	rule     sectionRule
-	item     int // marker indentation of the open item, -1 for none
-	started  bool
+	rule sectionRule
+	// open holds the marker indentations of the open list items,
+	// outermost first.
+	open     []int
 	sawBlank bool
 }
 
-func (g *grammar) line(t string) string {
-	if !g.started {
-		g.started, g.item = true, -1
+func (g *grammar) top() int {
+	if len(g.open) == 0 {
+		return -1
 	}
+	return g.open[len(g.open)-1]
+}
+
+func (g *grammar) line(t string) string {
 	if strings.TrimSpace(t) == "" {
 		g.sawBlank = true
 		return ""
@@ -448,7 +468,7 @@ func (g *grammar) line(t string) string {
 		if !headingLineRE.MatchString(rest) {
 			return "heading form"
 		}
-		g.item = -1
+		g.open = nil
 		return g.inline(strings.TrimLeft(rest, "#"))
 	}
 	if strings.HasPrefix(rest, "#") {
@@ -461,15 +481,23 @@ func (g *grammar) line(t string) string {
 		return "empty list item"
 	}
 	if m := itemLineRE.FindStringSubmatch(t); m != nil {
+		for len(g.open) > 0 && g.top() >= indent {
+			g.open = g.open[:len(g.open)-1]
+		}
 		switch {
 		case indent%2 != 0:
 			return "list item indentation"
 		case indent/2 >= MaxListDepth:
 			return "list nesting too deep"
-		case indent > 0 && g.item < 0:
+		case indent > 0 && g.top() != indent-2:
+			// A child sits exactly two columns right of its parent.
 			return "list item indentation"
+		case strings.HasPrefix(m[3], " "):
+			// Text must start one space after the marker, or it is
+			// indented code inside the item.
+			return "item text indentation"
 		}
-		g.item = indent
+		g.open = append(g.open, indent)
 		return g.inline(m[3])
 	}
 	if p := blockStart(rest); p != "" {
@@ -477,14 +505,14 @@ func (g *grammar) line(t string) string {
 	}
 	if indent == 0 {
 		if blank {
-			g.item = -1
+			g.open = nil
 		}
 		return g.inline(rest)
 	}
-	// A continuation line of an open item. Code inside an item needs at
-	// least four columns past the item's content (marker + 2), so up to
-	// marker + 5 is always text.
-	if g.item < 0 || indent > g.item+5 {
+	// A continuation line of the innermost open item. Its content starts
+	// two columns after the marker, and code would need four more, so up
+	// to marker + 5 is always text.
+	if len(g.open) == 0 || indent > g.top()+5 {
 		return "indented code or unaligned indentation"
 	}
 	return g.inline(rest)
@@ -512,7 +540,10 @@ func blockStart(rest string) string {
 
 // inline checks text outside code spans.
 func (g *grammar) inline(s string) string {
-	plain := codeSpans(s)
+	plain, ok := scanCodeSpans(s)
+	if !ok {
+		return "unmatched or escaped backtick"
+	}
 	if rawHTMLRE.MatchString(plain) {
 		return "raw HTML"
 	}
@@ -545,6 +576,9 @@ func (g *grammar) allowedLink(text, dest string) bool {
 	if m := profileRE.FindStringSubmatch(dest); m != nil {
 		return text == "@"+m[1]
 	}
+	if g.rule.orgRE != nil && g.rule.orgRE.MatchString(dest) {
+		return true
+	}
 	if m := docsURLRE.FindStringSubmatch(dest); m != nil {
 		return contains(g.rule.docsHosts, m[1])
 	}
@@ -552,16 +586,28 @@ func (g *grammar) allowedLink(text, dest string) bool {
 }
 
 // codeSpans replaces the content of inline code spans (a run of backticks
-// up to the next run of the same length) with spaces, keeping unmatched
-// runs as text.
-func codeSpans(s string) string {
+// up to the next run of the same length on the same line) with spaces.
+func codeSpans(s string) string { return looseCodeSpans(s) }
+
+// scanCodeSpans replaces code span content with spaces; ok is false when a
+// backtick run has no matching run on the line or a backtick is escaped by
+// a backslash. Spans are never paired across lines.
+func scanCodeSpans(s string) (plain string, ok bool) {
 	var b strings.Builder
+	ok = true
 	i := 0
 	for i < len(s) {
 		if s[i] != '`' {
 			b.WriteByte(s[i])
 			i++
 			continue
+		}
+		bs := 0
+		for j := i - 1; j >= 0 && s[j] == '\\'; j-- {
+			bs++
+		}
+		if bs%2 == 1 {
+			ok = false
 		}
 		n := 0
 		for i+n < len(s) && s[i+n] == '`' {
@@ -584,6 +630,7 @@ func codeSpans(s string) string {
 			j += m
 		}
 		if closeAt < 0 {
+			ok = false
 			b.WriteString(s[i : i+n])
 			i += n
 			continue
@@ -591,5 +638,93 @@ func codeSpans(s string) string {
 		b.WriteString(strings.Repeat(" ", closeAt+n-i))
 		i = closeAt + n
 	}
-	return b.String()
+	return b.String(), ok
+}
+
+// githubElements are the non-void HTML elements GitHub keeps when it
+// renders Markdown. One left open before the release heading wraps the
+// whole section (a <details> collapses it).
+var githubElements = map[string]bool{
+	"a": true, "abbr": true, "b": true, "bdo": true, "blockquote": true, "caption": true, "cite": true, "code": true,
+	"dd": true, "del": true, "details": true, "dfn": true, "div": true, "dl": true, "dt": true, "em": true,
+	"figcaption": true, "figure": true, "h1": true, "h2": true, "h3": true, "h4": true, "h5": true, "h6": true,
+	"i": true, "ins": true, "kbd": true, "li": true, "mark": true, "ol": true, "p": true, "pre": true, "q": true,
+	"rp": true, "rt": true, "ruby": true, "s": true, "samp": true, "small": true, "span": true, "strike": true,
+	"strong": true, "sub": true, "summary": true, "sup": true, "table": true, "tbody": true, "td": true,
+	"tfoot": true, "th": true, "thead": true, "time": true, "tr": true, "tt": true, "ul": true, "var": true,
+}
+
+var (
+	indentedHeadingRE = regexp.MustCompile(`^ {1,3}#{1,2}([ \t]|$)`)
+	tagRE             = regexp.MustCompile(`<(/?)([A-Za-z][A-Za-z0-9]*)\b[^<>]*?(/?)>`)
+	commentRE         = regexp.MustCompile(`<!--.*?-->`)
+)
+
+// barriers finds what can hide the release section when rendered: the
+// release heading inside an open construct, a GitHub element left open
+// before it, and every line of the section holding raw HTML outside code
+// spans or inside an HTML block or comment.
+func barriers(lines []Line, opens []string, start, end int) []Problem {
+	var out []Problem
+	if opens[start] != "" {
+		out = append(out, Problem{Original: lines[start].Original, Reason: "the release heading is inside " + opens[start]})
+	}
+	open := map[string]int{}
+	for i := 0; i < start; i++ {
+		if opens[i] == "fenced code" {
+			continue
+		}
+		t := commentRE.ReplaceAllString(looseCodeSpans(lines[i].Text), " ")
+		for _, m := range tagRE.FindAllStringSubmatch(t, -1) {
+			name := strings.ToLower(m[2])
+			if !githubElements[name] || m[3] == "/" {
+				continue
+			}
+			if m[1] == "/" {
+				if open[name] > 0 {
+					open[name]--
+				}
+			} else {
+				open[name]++
+			}
+		}
+	}
+	var left []string
+	for name, n := range open {
+		if n > 0 {
+			left = append(left, "<"+name+">")
+		}
+	}
+	if len(left) > 0 {
+		sortStrings(left)
+		out = append(out, Problem{Original: lines[start].Original, Reason: "HTML element " + strings.Join(left, ", ") + " left open before the release heading"})
+	}
+	for i := start + 1; i < end; i++ {
+		switch {
+		case indentedHeadingRE.MatchString(lines[i].Text) && opens[i] != "fenced code":
+			// Rendered as a level-1 or level-2 heading: what follows
+			// belongs to another section than the verifier reads.
+			out = append(out, Problem{Original: lines[i].Original, Reason: "indented level-1 or level-2 heading"})
+		case opens[i] == "fenced code":
+		case opens[i] != "":
+			out = append(out, Problem{Original: lines[i].Original, Reason: "inside " + opens[i]})
+		case rawHTMLRE.MatchString(looseCodeSpans(lines[i].Text)):
+			out = append(out, Problem{Original: lines[i].Original, Reason: "raw HTML"})
+		}
+	}
+	return out
+}
+
+func sortStrings(a []string) {
+	for i := 1; i < len(a); i++ {
+		for j := i; j > 0 && a[j] < a[j-1]; j-- {
+			a[j], a[j-1] = a[j-1], a[j]
+		}
+	}
+}
+
+// looseCodeSpans is codeSpans that keeps going over unmatched backticks.
+func looseCodeSpans(s string) string {
+	plain, _ := scanCodeSpans(s)
+	return plain
 }

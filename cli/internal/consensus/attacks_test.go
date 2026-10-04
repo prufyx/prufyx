@@ -9,10 +9,10 @@ import (
 	"testing"
 )
 
-// Attacks found in an independent review, kept as regression tests. Each
-// replaces one visible removal item of the C01 control with a variant that
-// a reader of the rendered page would not see, or would not read as a
-// cited removal, and must not verify.
+// Regression cases for hidden-content attacks. Each replaces one visible
+// removal item of the C01 control with a variant that a reader of the
+// rendered page would not see, or would not read as a cited removal, and
+// must not verify.
 
 const atkPR = "([#140005](https://github.com/kubernetes/kubernetes/pull/140005), [@dev-h](https://github.com/dev-h)) [SIG Node]"
 const atkItem = "- Removed the SilentDial feature gate. " + atkPR
@@ -37,7 +37,7 @@ type attack struct {
 // still holds).
 var mayVerify = map[string]bool{"X00": true, "X14": true, "X27": true, "X28": true}
 
-func TestReviewAttacksDoNotVerify(t *testing.T) {
+func TestHiddenContentAttacksDoNotVerify(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join(corpusDir, "controls", "C01-gate-link-squash", "CHANGELOG-1.41.md"))
 	if err != nil {
 		t.Fatal(err)
@@ -119,6 +119,98 @@ func TestReviewAttacksDoNotVerify(t *testing.T) {
 		id := "X" + strings.TrimPrefix(string(rune('0'+i/10))+string(rune('0'+i%10)), "")
 		if !ids[id] && !ids[id+"a"] {
 			t.Errorf("attack %s is missing", id)
+		}
+	}
+}
+
+const pr5 = "([#140005](https://github.com/kubernetes/kubernetes/pull/140005))"
+const pr6 = "([#140006](https://github.com/kubernetes/kubernetes/pull/140006))"
+
+// yMayVerify are the second-series variants that verify by design: Y00 is
+// the plain control; Y12 contradicts the item under "## Known Issues",
+// which is outside the subsections read (a documented limit); Y16 and Y19
+// keep the cited text visible and correct (an escaped "&lt;!--", a pull
+// request link inside emphasis); Y15 has a table in a later sibling
+// section, which cannot hide the item before it.
+var yMayVerify = map[string]bool{"Y00": true, "Y12": true, "Y15": true, "Y16": true, "Y19": true}
+
+func TestHiddenContentAttacksSecondSeries(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join(corpusDir, "controls", "C01-gate-link-squash", "CHANGELOG-1.41.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := string(raw)
+	sub := func(inject string) func(string) string {
+		return func(s string) string { return strings.Replace(s, retired, inject, 1) }
+	}
+	cases := []struct {
+		id, desc string
+		f        func(string) string
+	}{
+		{"Y00", "control", sub(atkItem)},
+		{"Y01", "escaped backtick: grammar sees a code span, CommonMark sees <span title=\"...\"> spanning lines", sub("- See \\`<span title=\"\\`\n  Removed the SilentDial feature gate. " + pr5 + "\n  \"> for details.")},
+		{"Y02", "multi-line code span pairs differently: <span title= hidden on line 2", sub("- Note `x\n  y` <span title=\"`z\n  Removed the SilentDial feature gate. " + pr5 + "\n  \"> done.")},
+		{"Y03", "name only as a contributor login [@SilentDial](https://github.com/SilentDial)", sub("- Removed stale docs. ([#140005](https://github.com/kubernetes/kubernetes/pull/140005), [@SilentDial](https://github.com/SilentDial)) [SIG Node]")},
+		{"Y04", "entity in PR link text [&#35;140005]", sub("- Removed the SilentDial feature gate. ([&#35;140005](https://github.com/kubernetes/kubernetes/pull/140005))")},
+		{"Y05a", "baseline: contradicting item with cue", sub(atkItem + "\n- The removal of the SilentDial feature gate was undone. " + pr6)},
+		{"Y05b", "entity in the contradicting item's name hides it from the ambiguity check", sub(atkItem + "\n- The removal of the Silent&#68;ial feature gate was undone. " + pr6)},
+		{"Y05c", "zero-width char in the contradicting item's name", sub(atkItem + "\n- The removal of the Silent\u200bDial feature gate was undone. " + pr6)},
+		{"Y05d", "contradicting item without a cue word", sub(atkItem + "\n- The SilentDial feature gate is back after a regression. " + pr6)},
+		{"Y06", "nested item jumps 0->6 after a blank line (CommonMark: indented code in the parent)", sub("- Parent item. " + pr6 + "\n\n      " + atkItem)},
+		{"Y07", "nested item jumps 0->6 without blank (CommonMark: lazy paragraph text)", sub("- Parent item. " + pr6 + "\n      " + atkItem)},
+		{"Y08", "marker followed by 5 spaces (CommonMark: indented code inside the item)", sub("-     Removed the SilentDial feature gate. " + pr5)},
+		{"Y09", "continuation at marker+5 after blank in a nested item", sub("- Parent. " + pr6 + "\n  - Child. " + pr6 + "\n\n       Removed the SilentDial feature gate. " + pr5)},
+		{"Y10", "release heading hidden in a comment (content renders under v1.41.1)", func(s string) string {
+			s = strings.Replace(s, retired, atkItem, 1)
+			return strings.Replace(s, "# v1.41.0\n", "<!--\n# v1.41.0\n-->\n", 1)
+		}},
+		{"Y11", "<details> opened in 'Changelog since' with no blank before Urgent heading", func(s string) string {
+			s = strings.Replace(s, retired, atkItem, 1)
+			return strings.Replace(s, "## Changelog since v1.40.0\n\n", "## Changelog since v1.40.0\n\n<details>\n", 1)
+		}},
+		{"Y12", "contradicting item in a non-citable subsection (## Known Issues)", func(s string) string {
+			s = strings.Replace(s, retired, atkItem, 1)
+			return strings.Replace(s, "# v1.41.0-rc.1", "## Known Issues\n\n- The removal of the SilentDial feature gate was reverted. "+pr6+"\n\n# v1.41.0-rc.1", 1)
+		}},
+		{"Y13", "fake '## Changes by Kind' heading twice", func(s string) string {
+			s = strings.Replace(s, retired, atkItem, 1)
+			return strings.Replace(s, "### Feature", "## Changes by Kind\n\n### Feature", 1)
+		}},
+		{"Y14", "'##  Changes by Kind' (two spaces) ends the real subsection; item under it uncitable", func(s string) string {
+			return strings.Replace(s, retired, "- Updated docs. "+pr6+"\n\n##  Changes by Kind\n\n"+atkItem, 1)
+		}},
+		{"Y15", "item in Urgent Upgrade Notes h3 whose sibling h3 has a problem", func(s string) string {
+			s = strings.Replace(s, retired, "- Updated docs. "+pr6, 1)
+			return strings.Replace(s, "### (Read this before you upgrade)\n", "### (Read this before you upgrade)\n\n"+atkItem+"\n\n### Other\n\n| table |\n", 1)
+		}},
+		{"Y16", "HTML entity &lt;!-- is literal text (no hiding)", sub(atkItem + "\n- Documented &lt;!-- markers. " + pr6)},
+		{"Y17", "docs link whose text carries the name and cue", sub("- See [Removed the SilentDial feature gate](https://kubernetes.io/docs/x). " + pr5)},
+		{"Y18", "angle autolink to PR", sub("- Removed the SilentDial feature gate. (<https://github.com/kubernetes/kubernetes/pull/140005>)")},
+		{"Y19", "PR link inside emphasis *[#140005](...)*", sub("- Removed the SilentDial feature gate. (*[#140005](https://github.com/kubernetes/kubernetes/pull/140005)*)")},
+		{"Y20", "backslash-escaped link opener: \\[#140005](...) renders literal text", sub("- Removed the SilentDial feature gate. (\\[#140005](https://github.com/kubernetes/kubernetes/pull/140005))")},
+		{"Y21", "link inside code span is literal text", sub("- Removed the SilentDial feature gate. (`[#140005](https://github.com/kubernetes/kubernetes/pull/140005)`)")},
+		{"Y22", "nested brackets: [[#140005](...)](https://evil)", sub("- Removed the SilentDial feature gate. ([[#140005](https://github.com/kubernetes/kubernetes/pull/140005)](https://evil.example))")},
+		{"Y11b", "<details> plus blank line in 'Changelog since' (outside citable subsections): element stays open in the browser", func(s string) string {
+			s = strings.Replace(s, retired, atkItem, 1)
+			return strings.Replace(s, "## Changelog since v1.40.0\n\n", "## Changelog since v1.40.0\n\n<details>\n\n", 1)
+		}},
+		{"Y11c", "<details> in the Urgent notes h3 (that section unparsed); Deprecation h3 later in the file collapsed", func(s string) string {
+			s = strings.Replace(s, retired, atkItem, 1)
+			return strings.Replace(s, "### (Read this before you upgrade)\n\n", "### (Read this before you upgrade)\n\n<details>\n\n", 1)
+		}},
+		{"Y24", "marker + 4 spaces (content at 5), blank, 4-space line: document-level indented code", sub("-    Parent item. " + pr6 + "\n\n    Removed the SilentDial feature gate. " + pr5)},
+		{"Y25", "level-1 heading inside an item ends the section early, hiding a contradicting item after it", sub(atkItem + "\n  # Notes\n- The removal of the SilentDial feature gate was undone. " + pr6)},
+		{"Y23", "hard line break + heading-looking line in continuation", sub("- Removed the SilentDial feature gate. " + pr5 + "\\\n  # not a heading")},
+	}
+	for _, c := range cases {
+		root := fixtureWith(t, []byte(c.f(base)))
+		rep := verifyFixture(t, root, honestBundle(t, root, []Claim{{ID: "c1", Kind: "removed_feature_gate", Names: []string{"SilentDial"}}}))
+		cl := rep.Claims[0]
+		switch {
+		case yMayVerify[c.id] && cl.Verdict != VerdictVerified:
+			t.Errorf("%s (%s): %s:%s (%s), want verified", c.id, c.desc, cl.Verdict, cl.Reason, cl.Detail)
+		case !yMayVerify[c.id] && cl.Verdict == VerdictVerified:
+			t.Errorf("%s (%s): verified", c.id, c.desc)
 		}
 	}
 }
