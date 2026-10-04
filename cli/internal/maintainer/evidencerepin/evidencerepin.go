@@ -409,7 +409,7 @@ var errNoReleaseBaseline = errors.New("repository has no releases and no tags")
 // resolution is resolutionTagFallback when the tags fallback was used
 // (weaker evidence: see latestTag), or "" when GitHub Releases resolved it.
 func ResolveCurrentCommit(ctx context.Context, fetcher APIFetcher, owner, repo string) (tag, commit, resolution string, err error) {
-	cur, err := resolveCurrent(ctx, fetcher, func(o, r string) (releaseList, error) { return fetchAllReleases(ctx, fetcher, o, r) }, owner, repo)
+	cur, err := resolveCurrent(ctx, fetcher, func(o, r string) (releaseList, error) { return fetchAllReleases(ctx, fetcher, o, r) }, func(o, r, t string) (string, error) { return resolveTagCommit(ctx, fetcher, o, r, t) }, owner, repo)
 	return cur.tag, cur.commit, cur.resolution, err
 }
 
@@ -427,7 +427,7 @@ func (e *ambiguousLatestError) Error() string { return "latest release is ambigu
 
 // resolveCurrent is ResolveCurrentCommit over a supplied release-list
 // source, so a run reads each repository's list once for every consumer.
-func resolveCurrent(ctx context.Context, fetcher APIFetcher, lists func(owner, repo string) (releaseList, error), owner, repo string) (cur currentResolution, err error) {
+func resolveCurrent(ctx context.Context, fetcher APIFetcher, lists func(owner, repo string) (releaseList, error), tagCommit func(owner, repo, tag string) (string, error), owner, repo string) (cur currentResolution, err error) {
 	tag, releasesEmpty, truncated, err := latestReleaseTag(lists, fetcher, owner, repo)
 	if err != nil {
 		return cur, err
@@ -448,7 +448,7 @@ func resolveCurrent(ctx context.Context, fetcher APIFetcher, lists func(owner, r
 	if tag == "" {
 		return cur, nil
 	}
-	commit, err := resolveTagCommit(ctx, fetcher, owner, repo, tag)
+	commit, err := tagCommit(owner, repo, tag)
 	if err != nil {
 		return cur, err
 	}
@@ -1180,7 +1180,7 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 			continue
 		}
 		target := repoSet[key]
-		cur, err := resolveCurrent(ctx, apiFetcher, resolver.fullList, target.owner, target.repo)
+		cur, err := resolveCurrent(ctx, apiFetcher, resolver.fullList, resolver.tagCommit, target.owner, target.repo)
 		tag, commit, tagResolution := cur.tag, cur.commit, cur.resolution
 		var ambiguous *ambiguousLatestError
 		resolution := RepoResolution{Owner: target.owner, Repo: target.repo, ResolvedAt: now().UTC().Format(time.RFC3339)}

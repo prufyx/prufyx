@@ -40,9 +40,14 @@ func TestSelectComparesNumbersNotText(t *testing.T) {
 	}
 }
 
-func TestSelectFallsBackToHighestIDWithoutStrictVersions(t *testing.T) {
-	if got := found(t, []Release{{ID: 2, Tag: "nightly"}, {ID: 7, Tag: "2024-05"}, {ID: 3, Tag: "weekly"}}); got.ID != 7 {
-		t.Fatalf("got %+v", got)
+func TestSelectIsAmbiguousWithoutAnyStrictVersion(t *testing.T) {
+	for name, rs := range map[string][]Release{
+		"unrelated families": {{ID: 2, Tag: "v1.30"}, {ID: 7, Tag: "chart-5.0"}},
+		"nightlies":          {{ID: 2, Tag: "nightly"}, {ID: 7, Tag: "2024-05"}},
+	} {
+		if res := Select(rs); res.Outcome != Ambiguous || res.Reason == "" {
+			t.Fatalf("%s: %+v", name, res)
+		}
 	}
 	if res := Select([]Release{{ID: 1, Tag: "v1.0.0", Draft: true}, {ID: 2, Tag: "v1.1.0", Prerelease: true}}); res.Outcome != None {
 		t.Fatal("only drafts and prereleases: no latest")
@@ -84,6 +89,11 @@ func TestSelectIsAmbiguousWhenTheNewestReleaseIsNotStrict(t *testing.T) {
 		if res.Outcome != Ambiguous || !strings.Contains(res.Reason, "not a strict version") {
 			t.Fatalf("%s: %+v", name, res)
 		}
+	}
+	// Any non-strict release newer than the strict winner counts, not only
+	// the newest one: a maintenance release on the old line does not hide it.
+	if res := Select([]Release{{ID: 1, Tag: "v3.2.1"}, {ID: 2, Tag: "2024.5.0"}, {ID: 3, Tag: "v3.2.2"}}); res.Outcome != Ambiguous {
+		t.Fatalf("%+v", res)
 	}
 	// A non-strict release that is older than the strict winner is ignored.
 	if got := found(t, []Release{{ID: 1, Tag: "v1.5"}, {ID: 2, Tag: "v2.0.0"}}); got.Tag != "v2.0.0" {

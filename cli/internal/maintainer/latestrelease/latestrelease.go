@@ -13,12 +13,14 @@
 //     another prefix, or the competing ones carry more than one prefix, the
 //     repository is AMBIGUOUS: no release is chosen (see AmbiguousPrefixes,
 //     which other code deriving versions from tags shares).
-//   - For releases, if the newest one (highest release id) is not a strict
-//     version while strict ones exist (calendar or two-part tags), the
-//     repository is AMBIGUOUS rather than left on an older strict release.
+//   - For releases, if any non-strict release (calendar or two-part tags)
+//     is newer (higher release id) than the oldest strict release, the
+//     repository is AMBIGUOUS: a project that moved on to another tag
+//     scheme is never left on its last strict release, even when a later
+//     maintenance release on the old scheme exists.
 //   - Otherwise the highest MAJOR, then MINOR, then PATCH wins.
-//   - When no candidate tag is a strict version, the release with the
-//     highest id wins.
+//   - When no release tag is a strict version the repository is AMBIGUOUS:
+//     the highest id is never taken across unrelated tag families.
 //   - For the tags fallback only strict-version tags count, with the same
 //     ambiguity rule; a repository with no such tag has no latest.
 //
@@ -36,7 +38,7 @@ import (
 )
 
 // Rule states the selection rule in one sentence for worklists.
-const Rule = "latest release: highest strict version (tag with no prefix, v or go, then MAJOR.MINOR.PATCH) among non-draft, non-prerelease releases, else the highest release id; ambiguous (no baseline) when strict tags carry other or mixed prefixes or the newest release is not a strict version; latest tag (releases-less repositories): the same over strict-version tags, else none; list order is never used"
+const Rule = "latest release: highest strict version (tag with no prefix, v or go, then MAJOR.MINOR.PATCH) among non-draft, non-prerelease releases, ambiguous (no baseline) when no release is a strict version, strict tags carry other or mixed prefixes, or a non-strict release is newer than the oldest strict one; latest tag (releases-less repositories): the same over strict-version tags, else none; list order is never used"
 
 // Outcome is the result class of a selection.
 type Outcome int
@@ -146,40 +148,46 @@ type Result struct {
 // Select returns the latest release under the rule.
 func Select(releases []Release) Result {
 	var (
-		newest  Release
-		haveAny bool
-		best    Release
-		bestV   Version
-		have    bool
-		prefs   []string
+		best       Release
+		bestV      Version
+		have       bool
+		prefs      []string
+		nonStrict  Release // the highest-id candidate that is not a strict version
+		haveNon    bool
+		oldest     Release // the lowest-id strict candidate
+		candidates int
 	)
 	for _, r := range releases {
 		if r.Draft || r.Prerelease || r.Tag == "" {
 			continue
 		}
-		if !haveAny || r.ID > newest.ID || (r.ID == newest.ID && r.Tag < newest.Tag) {
-			newest, haveAny = r, true
-		}
+		candidates++
 		v, ok := ParseStrict(r.Tag)
 		if !ok {
+			if !haveNon || r.ID > nonStrict.ID || (r.ID == nonStrict.ID && r.Tag < nonStrict.Tag) {
+				nonStrict, haveNon = r, true
+			}
 			continue
 		}
 		prefs = append(prefs, v.Prefix)
+		if !have || r.ID < oldest.ID {
+			oldest = r
+		}
 		if !have || higher(v, bestV) {
 			best, bestV, have = r, v, true
 		}
 	}
-	if !haveAny {
+	if candidates == 0 {
 		return Result{Outcome: None}
 	}
 	if !have {
-		return Result{Outcome: Found, Release: newest}
+		return Result{Outcome: Ambiguous, Reason: "no release has a strict version tag, so no latest can be ranked"}
 	}
 	if reason := AmbiguousPrefixes(prefs); reason != "" {
 		return Result{Outcome: Ambiguous, Reason: reason}
 	}
-	if _, ok := ParseStrict(newest.Tag); !ok {
-		return Result{Outcome: Ambiguous, Reason: fmt.Sprintf("the newest release %q is not a strict version, so the highest strict release %q may be stale", newest.Tag, best.Tag)}
+	if haveNon && nonStrict.ID > oldest.ID {
+		return Result{Outcome: Ambiguous, Reason: fmt.Sprintf("release %q is not a strict version and is newer than the strict release %q, so the strict releases may no longer be the latest line", nonStrict.Tag, oldest.Tag)}
 	}
 	return Result{Outcome: Found, Release: best}
 }

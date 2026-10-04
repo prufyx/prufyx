@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // In release-line mode every repository's release list is read once for
@@ -170,5 +171,61 @@ func TestTagsListIsBounded(t *testing.T) {
 	}
 	if api.pages != maxTagPages {
 		t.Fatalf("read %d tag pages, want the bound %d", api.pages, maxTagPages)
+	}
+}
+
+// An ambiguous repository whose resolution is older than --max-age and
+// could not be refreshed (an earlier repository hit the rate limit) must not
+// unlock a cached release line: the freshness bound applies on this path too.
+func TestStaleAmbiguousResolutionDoesNotUnlockALine(t *testing.T) {
+	f := newLineFixture(standardTags, nil, "v1.26.0")
+	f.blob("v1.25.0", "doc.md", "x")
+	f.blob("v1.25.3", "doc.md", "x")
+	c := f.citation("proj-v1-25-0-doc", "v1.25.0", "doc.md", "x", 1, 1)
+	limited := Citation{RulePack: "p", RuleID: "r0", Project: "a", SourceID: "s0", Owner: "aaa", Repo: "rate-limited", Path: "x", OldCommit: commitA, OldDigest: "sha256:x", StartLine: 1, EndLine: 1}
+	f.api.responses["/repos/aaa/rate-limited/releases?per_page=10"] = apiResponse{[]byte(`{}`), 403}
+
+	build := func(resolvedAt string) Worklist {
+		st := newState()
+		key, pin := cachedPin(c)
+		st.Pins[key] = pin
+		st.Lines[lineKey("example", "proj", "v", "1.25")] = LineResolution{Owner: "example", Repo: "proj", Prefix: "v", Line: "1.25", Status: lineResolved, Tag: "v1.25.3", Commit: f.commits["v1.25.3"], ResolvedAt: stamp(0)}
+		st.Repos[c.repoKey()] = RepoResolution{Owner: "example", Repo: "proj", Status: repoPendingAmbiguous, Detail: "ambiguous", ResolvedAt: resolvedAt}
+		w, err := BuildWorklistWithBaseline(context.Background(), []Citation{limited, c}, nil, 0, st, f.api, f.blobs, fixedNow(), 72*time.Hour, nil, BaselineModeReleaseLine)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, r := range w.Citations {
+			if r.Repo == "proj" {
+				return Worklist{Citations: []ClassResult{r}}
+			}
+		}
+		t.Fatal("citation missing")
+		return Worklist{}
+	}
+	if got := build(stamp(0)).Citations[0]; got.Baseline != BaselineReleaseLine {
+		t.Fatalf("a fresh ambiguous resolution still allows the proven line: %+v", got)
+	}
+	if got := build(stamp(-200 * time.Hour)).Citations[0]; got.Class != ClassPending || got.Baseline != "" {
+		t.Fatalf("a stale ambiguous resolution must not unlock the line: %+v", got)
+	}
+}
+
+// The latest release's tag ref is read through the line resolver's cache, so
+// a tag that is both the latest and a line's newest release costs one request.
+func TestLatestTagRefIsFetchedOnce(t *testing.T) {
+	f := newLineFixture(standardTags, nil, "v1.26.0")
+	f.blob("v1.26.0", "doc.md", "x")
+	c := f.citation("proj-v1-26-0-doc", "v1.26.0", "doc.md", "x", 1, 1)
+	f.api.calls = nil
+	f.run(t, BaselineModeReleaseLine, c)
+	n := 0
+	for _, call := range f.api.calls {
+		if strings.Contains(call, "/git/ref/tags/v1.26.0") {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Fatalf("tag ref requested %d times, want 1: %v", n, f.api.calls)
 	}
 }

@@ -428,8 +428,8 @@ func TestNoBaselineNotProvenStaysPending(t *testing.T) {
 		"releases not an array":     {{[]byte(`{"message":"x"}`), 200}, empty},
 		"releases null":             {{[]byte(`null`), 200}, empty},
 		"only prereleases listed":   {{[]byte(`[{"tag_name":"v1-rc1","prerelease":true}]`), 200}, empty},
-		"only drafts listed":        {{[]byte(`[{"tag_name":"v1","draft":true}]`), 200}, empty},
-		"tag listed but unresolved": {empty, {[]byte(`[{"name":"v1"}]`), 200}},
+		"only drafts listed":        {{[]byte(`[{"tag_name":"v1.0.0","draft":true}]`), 200}, empty},
+		"tag listed but unresolved": {empty, {[]byte(`[{"name":"v1.0.0"}]`), 200}},
 	}
 	for name, c := range cases {
 		f := noBaselineFetcher("example", "website", c[0], c[1])
@@ -459,8 +459,8 @@ func TestNoReleaseBaselineIsNotResumedOnceReleaseAppears(t *testing.T) {
 		body   []byte
 		status int
 	}{
-		"/repos/example/website/releases?per_page=10": {[]byte(`[{"tag_name":"v1"}]`), 200},
-		"/repos/example/website/git/ref/tags/v1":      {[]byte(`{"object":{"sha":"` + commitA + `","type":"commit"}}`), 200},
+		"/repos/example/website/releases?per_page=10": {[]byte(`[{"tag_name":"v1.0.0"}]`), 200},
+		"/repos/example/website/git/ref/tags/v1.0.0":      {[]byte(`{"object":{"sha":"` + commitA + `","type":"commit"}}`), 200},
 	}}
 	wl, err := BuildWorklist(context.Background(), noBaselineCitations(), nil, 0, state, released, fakeBlobFetcher{}, fixedNow(), DefaultMaxAge, nil)
 	if err != nil {
