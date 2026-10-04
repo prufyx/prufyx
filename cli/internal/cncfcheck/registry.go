@@ -13,8 +13,11 @@ func compiledDefinitions() []constraintengine.FactDefinition {
 	return append(packagedDefinitions(), additionalDefinitions()...)
 }
 
+// packagedDefinitions are the reviewed fact definitions, followed by one
+// custom-resource version set per project of the reviewed custom-resource
+// table (customResourceVersionDefinitions).
 func packagedDefinitions() []constraintengine.FactDefinition {
-	return []constraintengine.FactDefinition{
+	return append([]constraintengine.FactDefinition{
 		{ID: "component.argo_cd.disable_fine_grained_inheritance", Component: "pkg:github/argoproj/argo-cd", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.argo_cd.latest_distribution", Component: "pkg:github/argoproj/argo-cd", Type: constraintengine.FactEnum, EnumTokens: []string{"custom_build", "official_upstream"}},
 		{ID: "component.argo_cd.latest_execution_surface", Component: "pkg:github/argoproj/argo-cd", Type: constraintengine.FactEnum, EnumTokens: []string{"other", "repository_secret"}},
@@ -175,7 +178,7 @@ func packagedDefinitions() []constraintengine.FactDefinition {
 		{ID: "component.tuf.updater_bootstrap_keyword_present", Component: "pkg:github/theupdateframework/python-tuf", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.velero.crd_update_before_server", Component: "pkg:github/velero-io/velero", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.vitess.multi_statement_execute_fetch_as_dba", Component: "pkg:github/vitessio/vitess", Type: constraintengine.FactBool, EnumTokens: nil},
-	}
+	}, customResourceVersionDefinitions()...)
 }
 
 func compiledRegistry() (constraintengine.Registry, error) {

@@ -169,24 +169,42 @@ func crdHead(t *testing.T, entries []map[string]any, registryDigest string) (Tre
 	return base, head
 }
 
-// A CRD-derived rule reads a set fact no adapter declares, and the fact
-// registry of this revision lacks it: even a rule the gate re-derives
-// exactly cannot enter the CNCF pack. The synthetic-knowledge test
-// (crd_fact_synthetic_test.go) shows that registering the fact definition
-// alone makes the same rules admissible.
-func TestGateRefusesCRDRulesWithoutRegisteredFact(t *testing.T) {
+// The custom-resource version set of every CRD target is registered, so
+// the CRD-derived rules the gate re-derives are admitted by the CNCF
+// admission check. The head pack also raises the pack schema to the
+// set-rule level, a top-level pack member change that this gate never
+// admits on its own: it is the only failure, and it is reviewed with the
+// first published set rule.
+func TestGateAdmitsCRDRules(t *testing.T) {
 	for _, tg := range crdversions.Targets {
-		if cncfcheck.RegisteredFact(tg.FactID()) {
-			t.Fatalf("%s is registered: this test no longer shows why the rules stay out of the pack", tg.FactID())
+		if !cncfcheck.RegisteredFact(tg.FactID()) {
+			t.Fatalf("%s is not registered", tg.FactID())
 		}
 	}
 	entries := crdEntries(t, gateNow.Add(-time.Hour))
 	base, head := crdHead(t, entries, "")
+	// The factory regenerates the files derived from the pack.
+	regenerate(t, head)
 	r := runGate(t, Options{Base: base, Head: head, Source: extract.FixtureReader{Root: strimziFixture}})
-	requireFail(t, r, "admit/cncf: the engine does not admit the pack")
+	if c, ok := check(r, "admit/cncf"); !ok || !c.OK {
+		t.Fatalf("admit/cncf: %+v\n%s", c, strings.Join(failedChecks(r), "\n"))
+	}
 	for _, e := range entries {
 		if c := change(t, r, ruleID(e)); !c.OK || c.Proof != ProofRederived {
 			t.Fatalf("%s: re-derivation %+v", c.RuleID, c)
 		}
+	}
+	failed := failedChecks(r)
+	members := 0
+	for _, c := range r.Changes {
+		if c.Member != "" {
+			members++
+			if c.Member != "schema" || c.OK {
+				t.Fatalf("pack-member change %+v", c)
+			}
+		}
+	}
+	if r.Passed() || members != 1 || len(failed) != 1 || !strings.HasPrefix(failed[0], ": ") {
+		t.Fatalf("passed=%v, failures:\n%s", r.Passed(), strings.Join(failed, "\n"))
 	}
 }

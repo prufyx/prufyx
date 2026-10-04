@@ -11,16 +11,13 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
-	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 )
 
-// The fact definition is the single switch: the CRD-derived Strimzi rules
-// are refused by admission while their fact is unregistered and admitted,
-// unchanged, once the definition is in the registry (with the pack's
-// registry digest bumped to match), both by the engine's loader and by the
-// gate's CNCF admission check.
-func TestCRDRuleAdmissionNeedsOnlyTheFact(t *testing.T) {
+// The build registers the custom-resource version set, so the engine's
+// loader admits the CRD-derived Strimzi rules unchanged, with no extra fact
+// definition; registering the definition a second time is refused.
+func TestCRDRuleAdmissionUsesTheRegisteredFact(t *testing.T) {
 	maps := crdEntries(t, gateNow.Add(-time.Hour))
 	var entries []cncfcheck.Entry
 	for _, e := range maps {
@@ -34,40 +31,15 @@ func TestCRDRuleAdmissionNeedsOnlyTheFact(t *testing.T) {
 		}
 		entries = append(entries, entry)
 	}
-	if restore, err := cncfcheck.UseSyntheticKnowledge(nil, entries); err == nil {
-		restore()
-		t.Fatal("rules with an unregistered fact were admitted")
-	}
-	tg, _ := crdversions.TargetFor("strimzi")
-	def := []constraintengine.FactDefinition{{ID: tg.FactID(), Component: tg.Component, Type: constraintengine.FactSet}}
-	restore, err := cncfcheck.UseSyntheticKnowledge(def, entries)
+	restore, err := cncfcheck.UseSyntheticKnowledge(nil, entries)
 	if err != nil {
-		t.Fatalf("rules with the fact registered: %v", err)
+		t.Fatalf("rules over the registered fact refused: %v", err)
 	}
 	restore()
-
-	// The gate: register the definition only, and give the head pack the
-	// registry digest of the extended registry.
-	restore, err = cncfcheck.UseSyntheticKnowledge(def, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer restore()
-	raw, err := cncfcheck.ExportEmbeddedExternalBundle("1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var bundle struct {
-		Pack struct {
-			RegistryDigest string `json:"registryDigest"`
-		} `json:"pack"`
-	}
-	if err := json.Unmarshal(raw, &bundle); err != nil || bundle.Pack.RegistryDigest == "" {
-		t.Fatalf("registry digest: %v", err)
-	}
-	base, head := crdHead(t, maps, bundle.Pack.RegistryDigest)
-	r := runGate(t, Options{Base: base, Head: head, Source: extract.FixtureReader{Root: strimziFixture}})
-	if c, ok := check(r, "admit/cncf"); !ok || !c.OK {
-		t.Fatalf("admission with the fact registered: %+v\n%v", c, failedChecks(r))
+	tg, _ := crdversions.TargetFor("strimzi")
+	def := []constraintengine.FactDefinition{{ID: tg.FactID(), Component: tg.Component, Type: constraintengine.FactSet}}
+	if restore, err := cncfcheck.UseSyntheticKnowledge(def, entries); err == nil {
+		restore()
+		t.Fatal("a second definition of the registered fact was accepted")
 	}
 }

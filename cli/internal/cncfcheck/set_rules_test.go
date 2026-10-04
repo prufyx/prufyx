@@ -16,6 +16,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 )
 
 // These tests hold a synthetic forbid_set_member rule to every check the
@@ -27,7 +28,7 @@ const (
 	syntheticGate      = "SyntheticRemovedGate"
 	syntheticRevision  = "0000000000000000000000000000000000000001"
 	syntheticRuleID    = "kubernetes.synthetic-removed-gate.1-36-0-to-1-37-0"
-	embeddedPackSHA256 = "d91d0eca200dba55128726d1c5a497833f9ab74b2d95d5ef94c9e69cd0633922"
+	embeddedPackSHA256 = "5cc49e3d0457838277acb39f19c90f072466439b4e0c0e4f99f57fe1b11abdb6"
 )
 
 func syntheticSetDefinition() constraintengine.FactDefinition {
@@ -95,10 +96,23 @@ func TestEmbeddedKnowledgeCarriesNoSetFact(t *testing.T) {
 	if hex.EncodeToString(sum[:]) != embeddedPackSHA256 {
 		t.Fatalf("embedded pack changed: %x", sum)
 	}
+	// The only set facts of the compiled registry are the custom-resource
+	// version sets, one per project of the reviewed custom-resource table.
+	crd := map[string]bool{}
+	for _, p := range customresources.Projects() {
+		crd[p.FactID()] = true
+	}
+	sets := 0
 	for _, definition := range compiledDefinitions() {
 		if definition.Type == constraintengine.FactSet {
-			t.Fatalf("compiled registry registers set fact %s", definition.ID)
+			if !crd[definition.ID] {
+				t.Fatalf("compiled registry registers set fact %s", definition.ID)
+			}
+			sets++
 		}
+	}
+	if sets != len(crd) {
+		t.Fatalf("%d set facts registered, %d custom-resource projects", sets, len(crd))
 	}
 	for _, fact := range cncfprepare.KubernetesComponentConfigSetFacts() {
 		if RegisteredFact(fact) {

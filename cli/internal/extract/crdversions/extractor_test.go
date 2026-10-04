@@ -613,13 +613,13 @@ func TestCRDOracle(t *testing.T) {
 	}
 }
 
-// No adapter declares a custom-resource version set yet, so every derived
-// rule is UNKNOWN for an input without the fact; only a complete declared
-// set can pass.
+// Every target's custom-resource version set is registered, and every
+// derived rule is UNKNOWN for an input without the fact; only a complete
+// declared set can pass.
 func TestCandidatesAreUnknownWithoutTheFact(t *testing.T) {
 	for _, tg := range Targets {
-		if cncfcheck.RegisteredFact(tg.FactID()) {
-			t.Fatalf("%s is registered; review whether an adapter now declares it", tg.FactID())
+		if !cncfcheck.RegisteredFact(tg.FactID()) {
+			t.Fatalf("%s is not registered", tg.FactID())
 		}
 	}
 	out := fixtureOutput(t)
