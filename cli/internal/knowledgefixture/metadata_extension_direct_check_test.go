@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
@@ -78,7 +79,7 @@ func TestSyntheticMetadataExtensionActivatesStableRawAdapter(t *testing.T) {
 
 	externalArgs := []string{"check", "cncf", "--project", "distribution", "--image-manifest", rawPath, "--from", "3.0.0", "--to", "4.0.0", "--knowledge-db", store, "--format", "json"}
 	externalCode, externalOut, externalErr := runMetadataExtensionCLI(t, binary, externalArgs...)
-	if externalCode != 10 || len(externalErr) != 0 || !bytes.Contains(externalOut, []byte(`"status":"BLOCKED"`)) || !bytes.Contains(externalOut, []byte(`"knowledgeOrigin":"external_declared"`)) || !bytes.Contains(externalOut, []byte(`"purpose":"synthetic_test_only"`)) {
+	if externalCode != 10 || !emptyOrAgeNote(externalErr) || !bytes.Contains(externalOut, []byte(`"status":"BLOCKED"`)) || !bytes.Contains(externalOut, []byte(`"knowledgeOrigin":"external_declared"`)) || !bytes.Contains(externalOut, []byte(`"purpose":"synthetic_test_only"`)) {
 		t.Fatalf("external synthetic tuple code=%d stdout=%s stderr=%s", externalCode, externalOut, externalErr)
 	}
 	if bytes.Contains(externalOut, []byte("private-canary")) || bytes.Contains(externalOut, []byte("not-for-output")) || bytes.Contains(externalOut, []byte(rawPath)) || bytes.Contains(externalErr, []byte(rawPath)) {
@@ -198,6 +199,13 @@ func writeMetadataExtensionFile(t *testing.T, dir, name string, raw []byte) stri
 		t.Fatal(err)
 	}
 	return path
+}
+
+// emptyOrAgeNote reports whether standard error is empty or only the
+// knowledge age note: the synthetic database's rule ends within a day of the
+// wall clock, which the command says on standard error.
+func emptyOrAgeNote(stderr []byte) bool {
+	return len(stderr) == 0 || regexp.MustCompile(`^prufyx: note: \d+ knowledge rules? (expires?|has|have) [^\n]*\n$`).Match(stderr)
 }
 
 func runMetadataExtensionCLI(t *testing.T, binary string, args ...string) (int, []byte, []byte) {
