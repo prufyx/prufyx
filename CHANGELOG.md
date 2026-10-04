@@ -33,12 +33,17 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   never assigned, and keeps every set incomplete. Rules over the set block on
   a listed version and pass only when you declare the manifests complete.
   New `check cncf` mode `--custom-resources FILE`
-  (`--custom-resources-complete`, `--custom-resources-digest`), and `scan`
-  now checks these projects' custom-resource versions instead of reporting
-  them as not evaluated (they are never reported as covered). No rules are
-  shipped yet. The fact registry gains the three custom-resource version sets,
-  so the embedded pack's registry digest changes (no rule changes). See
+  (`--custom-resources-complete`, `--custom-resources-digest`), which can
+  block (exit 10) but never exits 0, and `scan` now checks these projects'
+  custom-resource versions instead of reporting them as not evaluated (they
+  are never reported as covered). No rules are shipped yet. See
   `cli/docs/custom-resources.md`.
+- Knowledge compatibility: the fact registry gains the three custom-resource
+  version sets, so its digest changes, and the embedded CNCF pack moves to
+  revision `cncf-2026-09-13.3` (same rules; only the registry digest and the
+  revision differ). External CNCF packs and knowledge databases built against
+  the previous registry, including revision `cncf-2026-09-13.2`, are refused
+  by this release until they are rebuilt.
 - Knowledge format: CNCF rule packs can carry an optional `distributions`
   section (pack schema `prufyx.io/cncf-source-rule-pack/v1alpha9`) with
   reviewed Kubernetes distribution records (control-plane model, and for
