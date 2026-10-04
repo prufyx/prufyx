@@ -8,6 +8,12 @@ name: CLA
 # only reads pull request metadata through the API.
 # Signatures are stored on the dedicated `cla-signatures` branch, so recording
 # one never writes to `main`.
+#
+# Why `contents: write`: the only write to repository contents is the commit
+# that appends a signature to signatures.json on the `cla-signatures` branch
+# (Git data and Contents API calls). Nothing here writes to `main`, and no pull
+# request code runs in this job. Narrowing the token to one branch would need a
+# separate GitHub App or deploy key, which this repository does not have yet.
 
 on:
   pull_request_target:
@@ -103,7 +109,7 @@ jobs:
             const unlinked = new Set();
             for (const c of commits) {
               const author = c.author;
-              if (!author) { unlinked.add(c.commit.author?.email || c.sha.slice(0, 12)); continue; }
+              if (!author) { unlinked.add(c.sha.slice(0, 12)); continue; }
               if (EXEMPT.has(author.login)) continue;
               if (!signed.has(author.id)) missing.add(author.login);
             }
@@ -124,7 +130,7 @@ jobs:
             if (missing.size) lines.push(`Not yet signed: ${[...missing].map(l => '@' + l).join(', ')}.`, '',
               'To sign, the pull request author replies with exactly:', '', '```text', SENTENCE, '```', '',
               'Co-authors must open their own pull request to sign, or ask a maintainer.');
-            if (unlinked.size) lines.push('', `Some commits are authored by an email address that is not linked to a GitHub account (${[...unlinked].join(', ')}). Link the address to your GitHub account or re-author the commits.`);
+            if (unlinked.size) lines.push('', `Some commits are authored by an email address that is not linked to a GitHub account (commits ${[...unlinked].join(', ')}). Link the address to your GitHub account or re-author the commits.`);
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: prNumber, per_page: 100 });
             const existing = comments.find(c => c.user.type === 'Bot' && c.body.includes(marker));
             if (existing) {
