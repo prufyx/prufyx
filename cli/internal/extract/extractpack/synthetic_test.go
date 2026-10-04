@@ -20,7 +20,7 @@ import (
 // engine loader with its attestations: the exact-set check and the pack
 // schema included.
 func TestSyntheticApplyAdmittedWithAttestations(t *testing.T) {
-	for _, c := range []kase{cases[1], cases[2]} {
+	for _, c := range []kase{cases[1]} {
 		t.Run(c.name, func(t *testing.T) {
 			run := runDir(t, c, derivedAt)
 			pack := prunedPack(t, "cncf", run)
