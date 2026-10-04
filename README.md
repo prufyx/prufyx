@@ -39,7 +39,7 @@ CI.
 | `PASS` | The input does not match the reviewed source condition for this rule. It is not a whole-upgrade certificate. | `0` |
 | `BLOCKED` | The input matches a reviewed condition that the target release enforces, such as a removed API or flag. The output names the remediation. | `10` |
 | `UNKNOWN` | The input does not contain enough to decide, or the transition is outside reviewed evidence. | `11` |
-| invalid input / integrity failure | The input was rejected, or embedded knowledge failed verification. | `2` / `3` |
+| invalid input / integrity failure | The input was rejected, or the built-in knowledge or the `--knowledge-db` database failed verification. | `2` / `3` |
 
 A rule applies to the exact reviewed version pair, or to a version range only
 where the cited evidence states that range. Outside it, the result is

@@ -107,12 +107,22 @@ The database is verified exactly as for `prufyx check cncf --knowledge-db`:
 the TUF metadata is checked again at the current time, rollback and clock
 floors apply, the selection's trust receipt must match, and in the
 per-project layout the index and the target of every targeted project are
-checked against the signed metadata. The scan is evaluated at that same
-instant, so `--now` is refused; the instant is printed in the report.
+checked against the signed metadata. Every project named with `--to` must
+verify, including one `scan` does not evaluate yet: a damaged target for any
+of them stops the scan. The scan is evaluated at that same instant, so
+`--now` is refused; the instant is printed in the report.
+
+`scan` never writes to the directory. Before the database is opened, the path
+must be an existing directory, not a symbolic link, with mode `0700` (as
+`db update` and `db import` create it), holding the database's profile or
+selection file. Otherwise the scan stops with exit `3` and names the reason:
+no directory at that path; the directory must be private to its owner (mode
+0700) and not a symbolic link; or the directory is not a knowledge database.
 
 - Any verification failure (a changed target, a missing project target, a
-  rolled-back selection or clock, a layout that does not match the store, an
-  empty database or a path that is not a directory) stops the scan with exit
+  rolled-back selection or clock, a layout that does not match the store, a
+  database with nothing selected, or a path that fails the checks above) stops
+  the scan with exit
   `3` and `KNOWLEDGE INTEGRITY FAILURE`, and nothing is printed on standard
   output. The built-in knowledge is never used instead.
 - A targeted project that the selected per-project index has no target for is
@@ -134,8 +144,12 @@ the selected target (the index in the per-project layout), and
 `knowledgeStore` gives the database path, its layout, the target path, the
 trust receipt digest, the purpose, when the revision was imported and, in the
 per-project layout, the revision and digest of each targeted project's target.
-With `--redact` the database path is replaced by its digest. The human output
-ends with, for example:
+SARIF output carries the same `knowledgeStore` object in its run properties,
+and Markdown output lists the same lines as the human output in its
+provenance block. With `--redact` the database path is replaced by its
+`sha256:` digest in every format. Like the other redacted values, this is a
+plain digest: a common path such as `~/.prufyx/db` can be recovered by
+guessing. The human output ends with, for example:
 
 ```
 evaluated at 2026-10-04T06:46:52Z; input sha256:706abd92d4968558d52e272d3f490af7280ce84a6011ae824a9fa9ae7b4c47f7; knowledge external_signed_local 5 sha256:8ee7da3043a69c79c8b75484444c996986abdad70f1f2157c9149a2807c9cf05
@@ -154,7 +168,7 @@ Prufyx knowledge feed or trust root is published yet.)
 | `11` | `NO BLOCKERS FOUND IN COVERED CHECKS: M areas were not checked` | Nothing blocked in what was checked, and `M` named gaps remain. |
 | `0` | `PASS FOR THE DECLARED SCOPE` | Every hop is covered and nothing is missing (see below). |
 | `2` | `prufyx: ...` on standard error | The command line or an input is not accepted. |
-| `3` | `prufyx: KNOWLEDGE INTEGRITY FAILURE` | The built-in knowledge failed its integrity checks. |
+| `3` | `prufyx: KNOWLEDGE INTEGRITY FAILURE` | The built-in knowledge, or the `--knowledge-db` database, failed verification. |
 
 **PASS is scoped and rare by design.** It requires all of the following:
 
