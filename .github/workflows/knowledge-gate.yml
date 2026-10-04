@@ -20,7 +20,7 @@ name: Knowledge gate
 on:
   pull_request_target:
     branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
   schedule:
     - cron: "23 4 * * *"
   workflow_dispatch:
@@ -47,12 +47,20 @@ jobs:
       REATTEST_TRUST_ROOT_DIGEST: ${{ vars.REATTEST_TRUST_ROOT_DIGEST }}
       WEB_APPROVAL_KEYS_DIGEST: ${{ vars.WEB_APPROVAL_KEYS_DIGEST }}
       MAX_LOOSENING: ${{ vars.KNOWLEDGE_MAX_LOOSENING || '200' }}
+      MAX_DAILY_LOOSENING: ${{ vars.KNOWLEDGE_MAX_DAILY_LOOSENING || '400' }}
+      MAX_WITHDRAW_PERCENT: ${{ vars.KNOWLEDGE_MAX_WITHDRAW_PERCENT || '5' }}
+      MAX_WITHDRAW_PROJECT: ${{ vars.KNOWLEDGE_MAX_WITHDRAW_PROJECT || '20' }}
+      # Shadow mode: a repository variable, or the "shadow" label on the
+      # pull request. It can only make the gate stricter.
+      SHADOW_VAR: ${{ vars.KNOWLEDGE_GATE_SHADOW }}
+      SHADOW_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'shadow') }}
     outputs:
       result: ${{ steps.verify.outputs.result }}
       auto-merge-eligible: ${{ steps.verify.outputs.auto_merge_eligible }}
       # A consumer that merges must merge exactly this commit, and only
       # when this job succeeded.
       head-sha: ${{ steps.verify.outputs.head_sha }}
+      alarm-count: ${{ steps.verify.outputs.alarm_count }}
     steps:
       - name: Resolve the base
         id: base
@@ -135,6 +143,31 @@ jobs:
             rm -f "${RUNNER_TEMP}/commits.json"
           fi
 
+      - name: Count the loosening changes the automation merged in the last day
+        if: github.event_name == 'pull_request_target'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Best effort: when anything here fails there is no count file,
+          # the gate is not told a count, and the change is not eligible
+          # for automatic merging (a missing count is never read as zero).
+          # The commits and their parents are already in the object store:
+          # the base fetch above brought the whole history of main.
+          rm -f "${RUNNER_TEMP}/daily-count.txt"
+          list="${RUNNER_TEMP}/daily-commits.json"
+          since="$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)"
+          if ! gh api --paginate "repos/${GITHUB_REPOSITORY}/commits?sha=${BASE_SHA}&since=${since}&per_page=100" \
+            --jq '.[] | {sha, parent: (.parents[0].sha // null), author: (.author.login // null)}' | jq -s '.' > "${list}"; then
+            echo "The history of main is unavailable; the change is not eligible for automatic merging."
+            exit 0
+          fi
+          if count="$("${RUNNER_TEMP}/prufyx-maintainer" gate daily-count --git-dir "${RUNNER_TEMP}/objects.git" --commits "${list}" --bot-login "${BOT_LOGIN}")"; then
+            echo "${count}" > "${RUNNER_TEMP}/daily-count.txt"
+          else
+            echo "The count is unavailable; the change is not eligible for automatic merging."
+          fi
+
       - name: Classify the change
         id: classify
         run: |
@@ -169,7 +202,17 @@ jobs:
           args=(gate verify --base base --head head --source github
                 --bot-login "${BOT_LOGIN}" --max-loosening "${MAX_LOOSENING}"
                 --head-sha "${HEAD_SHA}"
-                --report "${RUNNER_TEMP}/gate-report.json" --summary "${GITHUB_STEP_SUMMARY}")
+                --max-withdraw-percent "${MAX_WITHDRAW_PERCENT}" --max-withdraw-project "${MAX_WITHDRAW_PROJECT}"
+                --max-daily-loosening "${MAX_DAILY_LOOSENING}"
+                --report "${RUNNER_TEMP}/gate-report.json" --summary "${GITHUB_STEP_SUMMARY}"
+                --metrics "${RUNNER_TEMP}/gate-metrics.json"
+                --alarms "${RUNNER_TEMP}/gate-alarms.json" --alarms-markdown "${RUNNER_TEMP}/gate-alarms.md")
+          if [ "${SHADOW_VAR}" = "true" ] || [ "${SHADOW_LABEL}" = "true" ]; then
+            args+=(--shadow)
+          fi
+          if [ -f "${RUNNER_TEMP}/daily-count.txt" ]; then
+            args+=(--daily-loosening-count "$(cat "${RUNNER_TEMP}/daily-count.txt")")
+          fi
           if [ -n "${PR_AUTHOR}" ]; then
             args+=(--author "${PR_AUTHOR}")
           fi
@@ -201,6 +244,9 @@ jobs:
             echo "auto_merge_eligible=$(jq -r 'if .autoMerge.eligible == true then "true" else "false" end' "${RUNNER_TEMP}/gate-report.json")" >> "${GITHUB_OUTPUT}"
             echo "head_sha=${HEAD_SHA}" >> "${GITHUB_OUTPUT}"
           fi
+          if [ -f "${RUNNER_TEMP}/gate-alarms.json" ]; then
+            echo "alarm_count=$(jq -r '.alarms | length' "${RUNNER_TEMP}/gate-alarms.json")" >> "${GITHUB_OUTPUT}"
+          fi
           exit "${status}"
 
       - name: Keep the gate report
@@ -212,5 +258,71 @@ jobs:
             ${{ runner.temp }}/gate-report.json
             ${{ runner.temp }}/classify.json
             ${{ runner.temp }}/commits.json
+            ${{ runner.temp }}/gate-metrics.json
+            ${{ runner.temp }}/gate-alarms.json
+            ${{ runner.temp }}/gate-alarms.md
           if-no-files-found: ignore
           retention-days: 30
+
+  # Opens or updates an issue for the alarms, in a separate repository the
+  # owner names. It is a no-op until the owner creates the repository
+  # variable and the secret. It runs no code of the change and holds no
+  # repository permissions; it only posts text the gate wrote (every string
+  # made safe to print and cut to 256 bytes). Alarms of pull requests are
+  # reported only for the automation's own.
+  alarm:
+    name: Gate alarms
+    needs: gate
+    if: ${{ always() && needs.gate.outputs.alarm-count != '' && needs.gate.outputs.alarm-count != '0' && (github.event_name != 'pull_request_target' || github.event.pull_request.user.login == (vars.KNOWLEDGE_BOT_LOGIN || 'prufyx-factory[bot]')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions: {}
+    environment: knowledge-alarms
+    steps:
+      - name: Get the alarm records
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: knowledge-gate-report
+          path: gate-files
+
+      - name: Open or update the alarm issue
+        env:
+          OPS_ISSUES_REPO: ${{ vars.OPS_ISSUES_REPO }}
+          OPS_ISSUES_TOKEN: ${{ secrets.OPS_ISSUES_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ -z "${OPS_ISSUES_TOKEN}" ] || [ -z "${OPS_ISSUES_REPO}" ]; then
+            echo "No alarm channel is configured; the alarms stay in the gate report."
+            exit 0
+          fi
+          repo_re='^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
+          if ! [[ "${OPS_ISSUES_REPO}" =~ ${repo_re} ]]; then
+            echo "The alarm repository name is not valid."
+            exit 1
+          fi
+          files="$(find gate-files -name gate-alarms.md | head -n 1)"
+          if [ -z "${files}" ]; then
+            echo "No alarm records were kept."
+            exit 1
+          fi
+          if [ "${EVENT_NAME}" = "pull_request_target" ]; then
+            number_re='^[0-9]+$'
+            if ! [[ "${PR_NUMBER}" =~ ${number_re} ]]; then
+              echo "The pull request number is not valid."
+              exit 1
+            fi
+            title="Knowledge gate alarms: pull request ${PR_NUMBER}"
+          else
+            title="Knowledge gate alarms: scheduled run"
+          fi
+          body="$(cat "${files}"; printf '\nRun: %s\n' "${RUN_URL}")"
+          export GH_TOKEN="${OPS_ISSUES_TOKEN}"
+          existing="$(gh issue list --repo "${OPS_ISSUES_REPO}" --state open --search "\"${title}\" in:title" --json number,title --jq "[.[] | select(.title == \"${title}\")][0].number // empty")"
+          if [ -n "${existing}" ]; then
+            gh issue comment "${existing}" --repo "${OPS_ISSUES_REPO}" --body "${body}"
+          else
+            gh issue create --repo "${OPS_ISSUES_REPO}" --title "${title}" --body "${body}"
+          fi

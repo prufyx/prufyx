@@ -1,6 +1,6 @@
 # Knowledge gate
 
-`prufyx-maintainer gate export|classify|limits|verify` checks a proposed change to
+`prufyx-maintainer gate export|classify|limits|daily-count|verify` checks a proposed change to
 the published knowledge — the rule packs, their corpus attestations, the
 generated support inventory and the reattestation records — before it can
 merge. The `Knowledge gate` workflow (`.github/workflows/knowledge-gate.yml`)
@@ -96,6 +96,76 @@ The kill switch blocks every loosening change and lets tightening through. A
 change that adds `factory/PAUSE` pauses itself; a change that deletes it is
 still paused, because the base has it.
 
+## Circuit breakers, daily limit, shadow mode
+
+These checks only ever make the gate stricter: a tripped breaker or limit
+fails the run, shadow mode makes a change ineligible for automatic merging, and
+none of them can make a failing change pass.
+
+**Withdrawal breaker.** Withdrawing a rule is tightening, so without a limit one
+change could switch off a whole pack's checks. A change fails, with an alarm, when
+it withdraws more than `--max-withdraw-percent` percent (default 5) of a pack's
+active rules in the base, or more than `--max-withdraw-project` rules (default 20)
+of one project. Exactly the limit passes. Only an `active` to `withdrawn` change
+counts: expiring a lease or adding a rule that is already withdrawn does not. The
+checks are `breaker/withdrawals/<pack>` and `breaker/withdrawals-project`.
+Raise the limits with the repository variables below for a deliberate large
+withdrawal.
+
+**Daily limit.** The loosening changes the automation merged in the last 24
+hours, plus this change's, may not exceed `--max-daily-loosening` (default
+400); this is in addition to the per-change cap. Counting needs the history of
+`main`, so the caller counts and passes the number as `--daily-loosening-count`.
+`gate daily-count` does the counting: for each commit of `main` from the last
+day that the automation authored (or whose author GitHub does not know), it
+classifies the commit against its first parent with the same code a pull
+request is checked with and adds up the loosening changes; commits by other
+people do not count. A change that loosens nothing is never held back by the
+daily limit. When the count is not supplied, the change is never eligible for
+automatic merging; the workflow supplies it only when the GitHub API call and
+the count both succeed, so any failure fails closed (the gate still checks the
+change normally). A missing count is never read as zero.
+
+**Shadow mode.** With `--shadow` (the workflow sets it from the repository
+variable `KNOWLEDGE_GATE_SHADOW=true` or a pull request label `shadow`) the
+report is computed exactly as usual, `mode` is `shadow`, and `autoMerge.eligible`
+is always false. Labelling or unlabelling a pull request runs the gate again,
+and the run counts as triggered by the person who changed the label.
+
+## Metrics and alarm files
+
+`gate verify` can write two files per run; the workflow uploads both with the
+report.
+
+`--metrics FILE` writes `gate-metrics.json` (`prufyx.io/knowledge-gate-metrics/v1`):
+`mode`, `result`, `paused`, `totals`, `classes` (changes per class and kind; a
+change with two kinds counts under each), `projects` (tightening and loosening
+changes per project; at most 500 projects, the rest under `(other)`), `renewals`,
+`withdrawals`, `rederivations` (changed rules admitted by re-derivation),
+`rederivedUnchanged` (rules a `--rederive-all` run re-derived), `failures`
+(failed changes, failed checks and their names), `limits`, `breakers` (every
+breaker with what it observed and whether it tripped), `alarms`,
+`autoMergeEligible` and `durationMs`. Keys are sorted at every depth and the
+file is a function of the report, so identical runs give identical bytes except
+`durationMs`. It holds only statistics about knowledge changes; every string
+is at most 256 bytes.
+
+`--alarms FILE` writes `gate-alarms.json` (`prufyx.io/knowledge-gate-alarms/v1`):
+a list of `{kind, detail}` records, one per alarm. Kinds: `loosening-cap`,
+`daily-limit`, `withdrawal-breaker-pack`, `withdrawal-breaker-project`, `size`.
+Details are made safe to print and cut to 256 bytes. `--alarms-markdown FILE`
+writes the same list as Markdown.
+
+If the repository variable `OPS_ISSUES_REPO` (owner/name of a separate, private
+repository) and the secret `OPS_ISSUES_TOKEN` (a token that can write issues in
+that repository only, stored as a secret of the `knowledge-alarms`
+environment) exist, the `Gate alarms` job opens an issue titled
+`Knowledge gate alarms: pull request N` (or `scheduled run`), or comments on the
+open one. It runs only when the gate raised alarms, for pull requests only for
+the automation's own, holds no repository permission and runs no code of the
+change. Without the variable and secret it does nothing; the gate does not
+need either.
+
 ## Automatic merge eligibility
 
 The gate reports, and never acts on, whether a change would be eligible for
@@ -109,6 +179,8 @@ job output `head-sha`). It is eligible only when:
   automation account and carries a signature GitHub verified (`--commits`,
   GitHub's compare API for `base...head`), the list is complete and ends at
   `--head-sha`;
+- the daily count was supplied (`--daily-loosening-count`) and shadow mode is
+  off;
 - it touches only these files:
   - `cli/internal/cncfcheck/data/rules.json`, `cli/internal/cncfcheck/data/corpus-attestation.json`
   - `cli/internal/projectcheck/data/rules.json`, `cli/internal/projectcheck/data/corpus-attestation.json`
@@ -264,12 +336,31 @@ names the member (`member`) instead of a rule id.
 
 ### `gate limits`
 
-Only the loosening cap and the kill switch.
+Only the loosening cap, the withdrawal breakers, the daily limit and the kill
+switch.
 
 | Flag | Meaning |
 | --- | --- |
 | `--max-loosening N` | cap on loosening changes (default 200) |
+| `--max-withdraw-percent N` | breaker: percent of a pack's active rules one change may withdraw, 1–100 (default 5) |
+| `--max-withdraw-project N` | breaker: rules of one project one change may withdraw (default 20) |
+| `--daily-loosening-count N` | loosening changes the automation merged in the last day (default: unknown) |
+| `--max-daily-loosening N` | cap on that count plus this change (default 400) |
 | `--json` | print the report as JSON |
+
+### `gate daily-count`
+
+Prints the number of loosening changes in the listed commits of `main`
+that the automation authored (or whose author is unknown).
+
+| Flag | Meaning |
+| --- | --- |
+| `--git-dir DIR` | repository holding the commits and their parents |
+| `--commits FILE` | JSON list of `{sha, parent, author}` (the first parent, and the author's login or null), at most 300 commits |
+| `--bot-login LOGIN` | the automation account (default `prufyx-factory[bot]`) |
+
+A commit that cannot be compared with its first parent, or a list over 300
+commits, is an error (exit 2), never a smaller count.
 
 ### `gate verify`
 
@@ -286,6 +377,10 @@ The whole gate.
 | `--commits FILE` | the change's commits as GitHub's compare API returns them (`status`, `ahead_by`, `behind_by`, `total_commits`, and per commit `sha`, `author.login`, `committer.login`, `commit.verification.verified`) |
 | `--approval-keys-digest sha256:…` | pinned digest of the base's owner-approval key file; without it no approval is accepted |
 | `--max-loosening N` | cap on loosening changes (default 200) |
+| `--max-withdraw-percent N`, `--max-withdraw-project N` | the withdrawal breakers (defaults 5 and 20), see above |
+| `--daily-loosening-count N`, `--max-daily-loosening N` | the daily limit (default cap 400); without a count the change is not eligible |
+| `--shadow` | shadow mode: never eligible for automatic merging |
+| `--metrics FILE`, `--alarms FILE`, `--alarms-markdown FILE` | write the metrics and alarm files |
 | `--trust-root-digest sha256:…` | pinned digest of the base's reattestation trust root; without it no statement is accepted |
 | `--rerun-worklist FILE` | worklist from this job's own `evidence repin` run; without it no statement is accepted |
 | `--rederive-all` | also re-derive every active mechanical rule, changed or not |
@@ -299,7 +394,7 @@ Without `--source`, every mechanical loosening change fails.
 
 The report (`prufyx.io/knowledge-gate-report/v1`) lists `result` (`pass` or
 `fail`), `changes` (each with `class`, `kinds`, `basis`, `proof`, `ok` and
-`detail`), `checks`, `alarms`, `limits`, `changedPaths`, `chainsChanged`,
+`detail`), `checks`, `alarms`, `limits`, `daily`, `breakers`, `mode` (`enforce` or `shadow`), `changedPaths`, `chainsChanged`,
 `autoMerge` (`eligible` and the reasons it is not), `author`, `sender` and
 `headSha`.
 
@@ -321,8 +416,12 @@ ok   check registry/cncf: 160 of 256 facts
 ok   check trust-material: 0 trust files changed
 ok   check knowledge-records: 0 record files changed
 ok   check limits: 0 loosening changes, cap 200
-gate: PASS (0 tightening, 0 loosening; kill switch not set)
-auto-merge: not eligible (author "" is not the automation account "prufyx-factory[bot]"; the run was triggered by "", not the automation account; the change's commit list was not supplied; the change holds no knowledge change)
+ok   check limits/daily: the number of loosening changes merged in the last day was not supplied; the change is not eligible for automatic merging
+ok   check breaker/withdrawals/cncf: 0 of 190 active rules withdrawn, breaker above 5 percent
+ok   check breaker/withdrawals/community: 0 of 34 active rules withdrawn, breaker above 5 percent
+ok   check breaker/withdrawals-project: 0 projects with withdrawals, breaker above 20 rules of one project
+gate: PASS (0 tightening, 0 loosening; kill switch not set; mode enforce)
+auto-merge: not eligible (author "" is not the automation account "prufyx-factory[bot]"; the run was triggered by "", not the automation account; the change's commit list was not supplied; the change holds no knowledge change; the number of loosening changes merged by the automation in the last day is unknown)
 ```
 
 ## The workflow
@@ -338,8 +437,11 @@ change's commits with GitHub's compare API, then runs `gate classify` and
 `gate verify --source github` with the author, the event sender, the head
 commit and the commit list; gate output is printed with workflow commands
 stopped. When a statement chain changed it first runs `evidence repin` itself
-and passes the result as `--rerun-worklist`. The token is read-only and the
-workflow uses no secrets. On the daily run it adds `--rederive-all`.
+and passes the result as `--rerun-worklist`. For a pull request it also counts
+the loosening changes the automation merged in the last day (`gate daily-count`
+over the history of `main`) and passes the number. The token is read-only and
+the gate job uses no secrets; the only secret in the workflow belongs to the
+separate `Gate alarms` job. On the daily run it adds `--rederive-all`.
 
 It does not run for a merge queue: a `merge_group` run would use the workflow
 definition of the queued commit. Pull requests must instead be up to date with
@@ -350,9 +452,12 @@ Repository variables: `REATTEST_TRUST_ROOT_DIGEST` (the pinned trust root
 digest; unset means no statement is accepted), `WEB_APPROVAL_KEYS_DIGEST` (the
 pinned owner-approval key file digest; unset means no approval is accepted),
 `KNOWLEDGE_BOT_LOGIN` (default `prufyx-factory[bot]`), `KNOWLEDGE_MAX_LOOSENING`
-(default 200).
+(default 200), `KNOWLEDGE_MAX_DAILY_LOOSENING` (default 400),
+`KNOWLEDGE_MAX_WITHDRAW_PERCENT` (default 5), `KNOWLEDGE_MAX_WITHDRAW_PROJECT`
+(default 20), `KNOWLEDGE_GATE_SHADOW` (`true` for shadow mode) and, for alarm
+issues, `OPS_ISSUES_REPO`.
 
-The job's outputs `result`, `auto-merge-eligible` and `head-sha` and the
+The job's outputs `result`, `auto-merge-eligible`, `head-sha` and `alarm-count` and the
 uploaded `knowledge-gate-report` artifact carry the result. The workflow never
 merges. The factory must open its pull requests with its GitHub App token
 (pull requests opened with the workflow token start no workflows) and create

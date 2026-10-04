@@ -9,6 +9,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Maintainer tooling: the knowledge gate gains circuit breakers (a change that
+  withdraws more than 5 percent of a pack's active rules, or more than 20 rules
+  of one project, fails with an alarm), a per-day limit on loosening changes
+  counted from the history of `main` (`gate daily-count`, fails closed), a shadow
+  mode in which no change is ever eligible for automatic merging, and per-run
+  `gate-metrics.json` and `gate-alarms.json` files with an optional alarm issue
+  in a separate repository. See `cli/docs/knowledge-gate.md`.
 - The CNCF knowledge database can be published as one signed TUF target per
   project (`knowledge/cncf/projects/<project>.v1.json`) plus an index target
   (`knowledge/cncf/index.v1.json`), each capped at 1 MiB, through the new

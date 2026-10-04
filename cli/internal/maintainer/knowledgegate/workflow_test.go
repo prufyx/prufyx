@@ -21,6 +21,9 @@ type workflow struct {
 		Permissions map[string]string `yaml:"permissions"`
 		Env         map[string]string `yaml:"env"`
 		Outputs     map[string]string `yaml:"outputs"`
+		Needs       any               `yaml:"needs"`
+		If          string            `yaml:"if"`
+		Environment string            `yaml:"environment"`
 		Steps       []struct {
 			ID               string            `yaml:"id"`
 			Name             string            `yaml:"name"`
@@ -70,8 +73,13 @@ func TestWorkflowShape(t *testing.T) {
 	if len(wf.Permissions) != 1 || wf.Permissions["contents"] != "read" {
 		t.Fatalf("permissions %v, want contents: read only", wf.Permissions)
 	}
-	if strings.Contains(string(raw), "secrets.") {
+	// The gate job holds no secret. The only secret in the file is the
+	// alarm channel's token, in the separate alarm job (checked below).
+	if strings.Contains(string(raw), "secrets.") && strings.Count(string(raw), "secrets.") != 1 {
 		t.Fatal("the gate must not use secrets")
+	}
+	if n := strings.Count(string(raw), "secrets.OPS_ISSUES_TOKEN"); n != strings.Count(string(raw), "secrets.") {
+		t.Fatal("the only secret the workflow may name is OPS_ISSUES_TOKEN")
 	}
 	for _, forbidden := range []string{"gh pr merge", "--auto", "pulls/merge", "enable-auto-merge"} {
 		if strings.Contains(string(raw), forbidden) {
@@ -126,6 +134,101 @@ func TestWorkflowShape(t *testing.T) {
 				t.Fatalf("%s: gate output is printed without stopping workflow commands", s.Name)
 			}
 		}
+	}
+	// Monitoring: breakers, shadow mode, the daily count and the files.
+	for _, want := range []string{
+		`--max-withdraw-percent "${MAX_WITHDRAW_PERCENT}" --max-withdraw-project "${MAX_WITHDRAW_PROJECT}"`,
+		`--max-daily-loosening "${MAX_DAILY_LOOSENING}"`,
+		`--metrics "${RUNNER_TEMP}/gate-metrics.json"`,
+		`--alarms "${RUNNER_TEMP}/gate-alarms.json"`,
+		`args+=(--shadow)`,
+		`args+=(--daily-loosening-count "$(cat "${RUNNER_TEMP}/daily-count.txt")")`,
+		// The count comes from main's history, with the gate's own code,
+		// and only when the API and the count both succeed.
+		`gate daily-count --git-dir "${RUNNER_TEMP}/objects.git" --commits "${list}" --bot-login "${BOT_LOGIN}"`,
+		`commits?sha=${BASE_SHA}&since=`,
+		`rm -f "${RUNNER_TEMP}/daily-count.txt"`,
+	} {
+		if !strings.Contains(all, want) {
+			t.Fatalf("the workflow no longer runs %s", want)
+		}
+	}
+	if !strings.Contains(job.Env["SHADOW_VAR"], "vars.KNOWLEDGE_GATE_SHADOW") || !strings.Contains(job.Env["SHADOW_LABEL"], "labels.*.name, 'shadow'") {
+		t.Fatalf("shadow mode must come from the variable or the label: %q %q", job.Env["SHADOW_VAR"], job.Env["SHADOW_LABEL"])
+	}
+	if !strings.Contains(all, `if [ "${SHADOW_VAR}" = "true" ] || [ "${SHADOW_LABEL}" = "true" ]; then`) {
+		t.Fatal("either source switches shadow mode on")
+	}
+	// Defaults of the limits, as the gate documents them.
+	for name, want := range map[string]string{"MAX_DAILY_LOOSENING": "'400'", "MAX_WITHDRAW_PERCENT": "'5'", "MAX_WITHDRAW_PROJECT": "'20'"} {
+		if !strings.HasSuffix(strings.TrimSuffix(job.Env[name], " }}"), "|| "+want) {
+			t.Fatalf("%s = %q, want default %s", name, job.Env[name], want)
+		}
+	}
+	if !strings.Contains(job.Outputs["alarm-count"], "steps.verify.outputs.alarm_count") {
+		t.Fatal("the job must output the number of alarms")
+	}
+	// Nothing in the gate job uses a secret or an environment.
+	if job.Environment != "" {
+		t.Fatal("the gate job must not run in an environment")
+	}
+	for _, s := range job.Steps {
+		for _, e := range s.Env {
+			if strings.Contains(e, "secrets.") {
+				t.Fatalf("%s: a secret in the gate job", s.Name)
+			}
+		}
+		if strings.Contains(s.Run, "OPS_ISSUES") || strings.Contains(s.Run, "gh issue") {
+			t.Fatalf("%s: alarm posting belongs to the alarm job", s.Name)
+		}
+	}
+	// The alarm job: no repository permission, no checkout, no code of
+	// the change, one pinned download, and the secret only in the one
+	// step that posts, which does nothing when the channel is not set up.
+	alarm, ok := wf.Jobs["alarm"]
+	if !ok {
+		t.Fatal("no alarm job")
+	}
+	if alarm.Permissions == nil || len(alarm.Permissions) != 0 {
+		t.Fatalf("the alarm job must declare empty permissions, got %v", alarm.Permissions)
+	}
+	if alarm.Needs != "gate" || !strings.Contains(alarm.If, "needs.gate.outputs.alarm-count") || !strings.Contains(alarm.If, "always()") {
+		t.Fatalf("the alarm job runs after the gate on its alarms: needs=%v if=%q", alarm.Needs, alarm.If)
+	}
+	if !strings.Contains(alarm.If, "github.event.pull_request.user.login == (vars.KNOWLEDGE_BOT_LOGIN") {
+		t.Fatal("pull request alarms are for the automation's own pull requests")
+	}
+	if alarm.Environment != "knowledge-alarms" {
+		t.Fatalf("the alarm token lives in its own environment, got %q", alarm.Environment)
+	}
+	secretSteps := 0
+	for _, s := range alarm.Steps {
+		if strings.Contains(s.Run, "${{") {
+			t.Fatalf("%s: expressions must reach scripts through env, never inline", s.Name)
+		}
+		if s.Uses != "" {
+			at := strings.Index(s.Uses, "@")
+			if at < 0 || len(s.Uses[at+1:]) < 40 {
+				t.Fatalf("%s: action not pinned by commit", s.Name)
+			}
+			if !strings.HasPrefix(s.Uses, "actions/download-artifact@") {
+				t.Fatalf("%s: the alarm job may only download the report", s.Name)
+			}
+		}
+		for _, e := range s.Env {
+			if strings.Contains(e, "secrets.") {
+				secretSteps++
+				if !strings.Contains(s.Run, `if [ -z "${OPS_ISSUES_TOKEN}" ] || [ -z "${OPS_ISSUES_REPO}" ]; then`) || !strings.Contains(s.Run, "exit 0") {
+					t.Fatalf("%s: must do nothing when the channel is not configured", s.Name)
+				}
+			}
+		}
+		if strings.Contains(s.Run, "gh pr") || strings.Contains(s.Run, "--auto") || strings.Contains(s.Run, "merge") || strings.Contains(s.Run, "gh api") {
+			t.Fatalf("%s: the alarm job only opens or comments on an issue", s.Name)
+		}
+	}
+	if secretSteps != 1 {
+		t.Fatalf("the secret must appear in exactly one step, found %d", secretSteps)
 	}
 	sawBuild := false
 	for _, s := range job.Steps {
