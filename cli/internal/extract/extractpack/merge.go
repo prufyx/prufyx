@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
@@ -150,15 +151,18 @@ func withdraw(base *Pack, run *Run, rep *Report) (*Pack, map[string]bool, error)
 			continue
 		}
 		covered, produced := false, false
-		for _, pr := range run.Manifest.Pairs {
+		var covering *extract.PairRecord
+		for pi := range run.Manifest.Pairs {
+			pr := run.Manifest.Pairs[pi]
 			if pr.Status != extract.PairDerived {
 				continue
 			}
 			t := constraintengine.RuleTransition{Component: v.Rule.Subject.Component, From: v.Rule.Subject.From, To: v.Rule.Subject.To}
-			if !t.IsAnchor(pr.From, pr.To) {
+			if !t.IsAnchor(pr.From, pr.To) || v.Rule.Subject.Component != componentOf(run.Manifest.Repo) {
 				continue
 			}
 			covered = true
+			covering = &run.Manifest.Pairs[pi]
 			for _, id := range pr.Rules {
 				if id == v.Rule.ID {
 					produced = true
@@ -167,6 +171,9 @@ func withdraw(base *Pack, run *Run, rep *Report) (*Pack, map[string]bool, error)
 		}
 		if !covered || produced {
 			continue
+		}
+		if err := supersedes(run, covering, v); err != nil {
+			return nil, nil, err
 		}
 		c, err := setMember(e, []string{"rule", "evidence", "state"}, []byte(`"withdrawn"`))
 		if err != nil {
@@ -229,7 +236,7 @@ func audit(base, head *Pack, allowed map[string]bool, allowedAtt map[string]bool
 			continue
 		}
 		switch {
-		case !withdrawMode && name == "schema":
+		case !withdrawMode && name == "schema" && ok && schemaNotLower(bv, hv):
 		case !withdrawMode && name == lineattest.PackMember && ok && attestationsExtend(bv, hv, allowedAtt):
 		default:
 			return fmt.Errorf("%w: pack member %s", ErrForeignChange, name)
@@ -509,4 +516,58 @@ func newFactsHint(base, head *Pack, allowed map[string]bool) string {
 	}
 	sort.Strings(names)
 	return "\nhint: the added rules require facts no rule of the pack uses yet (the engine's fact registry must define them): " + strings.Join(names, ", ")
+}
+
+// componentOf is the rule subject component of a repository key
+// ("github.com/owner/name" is "pkg:github/owner/name").
+func componentOf(repo string) string {
+	return "pkg:github/" + strings.TrimPrefix(repo, "github.com/")
+}
+
+// supersedes requires that a run may withdraw a rule: the run is not older
+// than the rule, was produced by the code that derived the rule, and read the
+// commits the rule cites. A run that fails any of these says nothing about
+// whether the rule still holds.
+func supersedes(run *Run, pair *extract.PairRecord, v entryView) error {
+	ev := v.Rule.Evidence
+	runAt, err1 := time.Parse(time.RFC3339, run.Manifest.DerivedAt)
+	ruleAt, err2 := time.Parse(time.RFC3339, ev.DerivedAt)
+	if err1 != nil || err2 != nil {
+		return fmt.Errorf("%w: rule %s or the run has no readable derivedAt", ErrStale, v.Rule.ID)
+	}
+	if runAt.Before(ruleAt) {
+		return fmt.Errorf("%w: the run was derived at %s, before rule %s (%s)", ErrStale, run.Manifest.DerivedAt, v.Rule.ID, ev.DerivedAt)
+	}
+	if ev.Extractor == nil || ev.Extractor.CodeDigest == "" || ev.Extractor.CodeDigest != run.Manifest.Extractor.CodeDigest {
+		return fmt.Errorf("%w: rule %s was derived by other code than the run's", ErrStale, v.Rule.ID)
+	}
+	if len(ev.Sources) == 0 {
+		return fmt.Errorf("%w: rule %s cites no source", ErrStale, v.Rule.ID)
+	}
+	for _, s := range ev.Sources {
+		if s.Revision != pair.FromCommit && s.Revision != pair.ToCommit {
+			return fmt.Errorf("%w: rule %s cites commit %s, which the run's pair %s -> %s did not read", ErrStale, v.Rule.ID, s.Revision, pair.From, pair.To)
+		}
+	}
+	return nil
+}
+
+// schemaNotLower reports whether the head schema is the base schema or a
+// higher level of the same family (".../v1alphaN"); a schema that does not
+// have that shape must be unchanged.
+func schemaNotLower(base, head json.RawMessage) bool {
+	var b, h string
+	if json.Unmarshal(base, &b) != nil || json.Unmarshal(head, &h) != nil {
+		return false
+	}
+	if b == h {
+		return true
+	}
+	bm, hm := schemaRE.FindStringSubmatch(b), schemaRE.FindStringSubmatch(h)
+	if bm == nil || hm == nil || bm[1] != hm[1] {
+		return false
+	}
+	bn, _ := strconv.Atoi(bm[2])
+	hn, _ := strconv.Atoi(hm[2])
+	return hn >= bn
 }

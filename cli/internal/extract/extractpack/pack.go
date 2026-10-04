@@ -42,6 +42,10 @@ var (
 	// ErrAdmission means the merged pack is not admitted by rulecheck or the
 	// engine loader.
 	ErrAdmission = errors.New("extract apply: the merged pack is not admitted")
+	// ErrStale means a withdrawal would rest on a run that is older than a
+	// rule, built by other code, or pinned to other commits; nothing is
+	// written.
+	ErrStale = errors.New("extract apply: the run does not supersede the rule it would withdraw")
 	// ErrPack means the pack file cannot be read as a rule pack.
 	ErrPack = errors.New("extract apply: the pack file is not a readable rule pack")
 )
@@ -87,9 +91,14 @@ type entryView struct {
 		Evidence struct {
 			State     string `json:"state"`
 			Basis     string `json:"basis"`
+			DerivedAt string `json:"derivedAt"`
 			Extractor *struct {
-				ID string `json:"id"`
+				ID         string `json:"id"`
+				CodeDigest string `json:"codeDigest"`
 			} `json:"extractor"`
+			Sources []struct {
+				Revision string `json:"revision"`
+			} `json:"sources"`
 		} `json:"evidence"`
 	} `json:"rule"`
 }
@@ -310,6 +319,13 @@ type Options struct {
 	SchemaLevels int
 }
 
+// mergeStep and withdrawStep are the steps Apply runs. They are variables
+// only so a test can make one misbehave and show the final audit refuses it.
+var (
+	mergeStep    = merge
+	withdrawStep = withdraw
+)
+
 // Apply merges (or, with Withdraw, withdraws) and rewrites the pack file.
 func Apply(opts Options) (*Report, error) {
 	run, err := LoadRun(opts.RunDir)
@@ -328,9 +344,9 @@ func Apply(opts Options) (*Report, error) {
 	var allowed map[string]bool
 	rep := &Report{}
 	if opts.Withdraw {
-		head, allowed, err = withdraw(base, run, rep)
+		head, allowed, err = withdrawStep(base, run, rep)
 	} else {
-		head, allowed, err = merge(base, run, rep)
+		head, allowed, err = mergeStep(base, run, rep)
 	}
 	if err != nil {
 		return nil, err

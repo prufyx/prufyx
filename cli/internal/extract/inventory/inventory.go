@@ -153,8 +153,8 @@ func featureGates(ctx context.Context, ex extract.Extractor, r extract.PinnedRea
 		}
 		return nil, &Incomplete{Reason: reason}
 	}
-	if len(proof.From.Declared) == 0 {
-		return nil, &Incomplete{Reason: "no feature gate is declared at this commit"}
+	if len(proof.From.Declared) == 0 || len(proof.To.Names) == 0 {
+		return nil, &Incomplete{Reason: "the extractor recorded no feature gate at this commit"}
 	}
 	declared, names := append([]string{}, proof.From.Declared...), append([]string{}, proof.To.Names...)
 	sort.Strings(declared)

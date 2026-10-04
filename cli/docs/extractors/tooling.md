@@ -13,7 +13,7 @@ Exit codes of the `extract` subcommands:
 | 0 | success (`verify`: byte-identical; `apply`: merged, or nothing to do) |
 | 1 | `verify` or `oracle` found differences |
 | 2 | rejected input, or a failed run, merge or refusal |
-| 3 | `run --wants-out`: files the mirror does not hold are needed; `inventory`: the commit cannot be established completely |
+| 3 | `run --wants-out`: files or commits the mirror does not hold are needed; `inventory`: the commit cannot be established completely; `apply --withdraw`: the run does not supersede a rule it would withdraw |
 
 ## `extract apply`
 
@@ -111,7 +111,12 @@ run that meets files the mirror does not hold derives nothing that is kept:
 it writes `FILE` in the format `factory mirror --wants` reads (repository,
 commit and sorted paths, grouped and sorted), writes nothing to `--out`, and
 exits 3. Run `factory mirror --wants FILE` and then the same `extract run`
-again; repeat until the exit code is not 3. A single round may not list every
+again; repeat until the exit code is not 3. **Stop the loop** when `factory mirror`
+exits non-zero (it exits 1 when a want could not be materialized), when the wants
+file is byte-for-byte the one of the previous round, or after a bounded number of
+rounds. If the mirror does not hold a commit or repository at all the run prints
+`needs commit <repo>@<sha>`, writes no wants file for it and also exits 3: run
+`factory mirror` without `--wants` to fetch it, then run again. A single round may not list every
 file: an extractor decides what to read from the files it has already read, so
 the files after the first missing ones are listed in the next round. Files
 whose bytes the mirror already holds under another path or commit are never

@@ -178,7 +178,7 @@ func validateTestAPIBase(base string, allowTestRemotes bool) (string, error) {
 		return "", fmt.Errorf("%w: --test-releases-api-base needs --test-allow-file-remote", ErrInvalid)
 	}
 	u, err := url.Parse(base)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.Opaque != "" || strings.ContainsAny(base, "?#") {
 		return "", fmt.Errorf("%w: --test-releases-api-base must be an http(s) URL without credentials, query or fragment", ErrInvalid)
 	}
 	return strings.TrimRight(base, "/"), nil

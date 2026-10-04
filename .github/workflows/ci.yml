@@ -53,8 +53,8 @@ jobs:
       - name: Test command routes against synthetic knowledge
         working-directory: cli
         run: |
-          go vet -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/
-          go test -timeout 30m -tags prufyx_synthetic_knowledge -run Synthetic ./internal/cncfcheck/ ./internal/communityapp/
+          go vet -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/
+          go test -timeout 30m -tags prufyx_synthetic_knowledge -run Synthetic ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/
 
       - name: Validate community rule candidates
         working-directory: cli

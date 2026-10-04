@@ -13,7 +13,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/extract/inventory"
 )
 
-func cmdApply(args []string, existing []string, stdout io.Writer) (int, error) {
+func cmdApply(args []string, existing []string, stdout, stderr io.Writer) (int, error) {
 	f := flag.NewFlagSet("extract apply", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	var runDir, pack string
@@ -25,6 +25,10 @@ func cmdApply(args []string, existing []string, stdout io.Writer) (int, error) {
 		return 2, errors.New("command rejected\n" + usage)
 	}
 	rep, err := extractpack.Apply(extractpack.Options{PackPath: pack, RunDir: runDir, Withdraw: withdraw, ExistingRules: existing})
+	if errors.Is(err, extractpack.ErrStale) {
+		fmt.Fprintf(stderr, "extract: %v\n", err)
+		return 3, nil
+	}
 	if err != nil {
 		return 2, err
 	}

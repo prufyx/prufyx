@@ -29,7 +29,7 @@ import (
 const usage = `usage:
   prufyx-maintainer extract run    --extractor ID (--mirror-state DIR | --fixture DIR) --out DIR [--derived-at RFC3339] [--concurrency N] [--wants-out FILE]
   prufyx-maintainer extract verify --extractor ID (--mirror-state DIR | --fixture DIR) --out DIR [--concurrency N]
-  prufyx-maintainer extract apply  --out DIR --pack FILE [--withdraw]
+  prufyx-maintainer extract apply  --out DIR --pack FILE [--withdraw]   (exit 3: the run does not supersede a rule it would withdraw)
   prufyx-maintainer extract inventory --extractor ID (--mirror-state DIR | --fixture DIR) --repo OWNER/NAME --commit SHA
   prufyx-maintainer extract oracle --extractor ID --out DIR --expected FILE
   prufyx-maintainer extract list`
@@ -78,8 +78,9 @@ func Catalog() map[string]Spec {
 // existingRules are published pack files whose rule ids candidates must not
 // reuse. It returns 0 on success, 1 when verification or the oracle found
 // differences, 2 on rejected input or a failed run, and 3 when a run needs
-// blobs the mirror does not hold (run --wants-out) or an inventory cannot be
-// established completely (inventory).
+// blobs or commits the mirror does not hold (run --wants-out), an inventory
+// that cannot be established completely (inventory), or a withdrawal the run
+// is too old or too different to justify (apply --withdraw).
 func Main(args []string, existingRules []string, now func() time.Time, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
 		fmt.Fprintln(stderr, usage)
@@ -95,7 +96,7 @@ func Main(args []string, existingRules []string, now func() time.Time, stdout, s
 	case "oracle":
 		code, err = cmdOracle(args[1:], stdout)
 	case "apply":
-		code, err = cmdApply(args[1:], existingRules, stdout)
+		code, err = cmdApply(args[1:], existingRules, stdout, stderr)
 	case "inventory":
 		code, err = cmdInventory(args[1:], stdout, stderr)
 	case "list":
@@ -205,7 +206,7 @@ func cmdRun(args []string, existing []string, now func() time.Time, stdout io.Wr
 	var reader extract.PinnedReader = src
 	var wants *wantsReader
 	if wantsOut != "" {
-		wants = &wantsReader{inner: src, missing: map[wantKey]bool{}}
+		wants = &wantsReader{inner: src, missing: map[wantKey]bool{}, absent: map[string]bool{}}
 		reader = wants
 	}
 	out, err := extract.Run(ctx, ex, src, reader, extract.Options{Repo: repo, DerivedAt: at, ExistingRules: existing})
@@ -217,6 +218,15 @@ func cmdRun(args []string, existing []string, now func() time.Time, stdout io.Wr
 			return 2, err
 		}
 		fmt.Fprintf(stdout, "needs %d files the mirror does not hold; wants written to %s (nothing derived)\n", n, wantsOut)
+		return 3, nil
+	}
+	if wants != nil && len(wants.absent) > 0 {
+		// A commit or repository the mirror does not have is cured by
+		// "factory mirror" without --wants, not by a wants file.
+		for _, a := range wants.absentList() {
+			fmt.Fprintf(stdout, "needs commit %s\n", a)
+		}
+		fmt.Fprintln(stdout, "the mirror lacks commits the run needs; run factory mirror, then run again (nothing derived)")
 		return 3, nil
 	}
 	if err != nil {

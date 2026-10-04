@@ -25,6 +25,8 @@ type wantsReader struct {
 	inner   extract.PinnedReader
 	mu      sync.Mutex
 	missing map[wantKey]bool
+	// absent are commits (repo@commit) the mirror does not hold at all.
+	absent map[string]bool
 }
 
 func (w *wantsReader) Read(repo extract.RepoRef, commit, path string) ([]byte, error) {
@@ -35,11 +37,31 @@ func (w *wantsReader) Read(repo extract.RepoRef, commit, path string) ([]byte, e
 		w.mu.Unlock()
 		return []byte{}, nil
 	}
+	w.noteAbsent(repo, commit, err)
 	return data, err
 }
 
 func (w *wantsReader) List(repo extract.RepoRef, commit, dir string) ([]extract.TreeEntry, error) {
-	return w.inner.List(repo, commit, dir)
+	entries, err := w.inner.List(repo, commit, dir)
+	w.noteAbsent(repo, commit, err)
+	return entries, err
+}
+
+func (w *wantsReader) noteAbsent(repo extract.RepoRef, commit string, err error) {
+	if errors.Is(err, factorymirror.ErrCommitUnknown) || errors.Is(err, factorymirror.ErrRepoNotMirrored) {
+		w.mu.Lock()
+		w.absent[repo.Key+"@"+commit] = true
+		w.mu.Unlock()
+	}
+}
+
+func (w *wantsReader) absentList() []string {
+	out := make([]string, 0, len(w.absent))
+	for k := range w.absent {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // write renders the wants as the document "factory mirror --wants" reads,

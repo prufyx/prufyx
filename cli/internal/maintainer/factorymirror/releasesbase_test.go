@@ -42,6 +42,11 @@ func TestTestReleasesAPIBaseNeedsItsGuard(t *testing.T) {
 		{"credentials", []string{"--test-allow-file-remote", "--test-releases-api-base", "http://user:pw@127.0.0.1:1"}, "http(s) URL without credentials"},
 		{"scheme", []string{"--test-allow-file-remote", "--test-releases-api-base", "file:///tmp"}, "http(s) URL"},
 		{"query", []string{"--test-allow-file-remote", "--test-releases-api-base", "http://127.0.0.1:1/?x=1"}, "http(s) URL"},
+		{"empty query marker", []string{"--test-allow-file-remote", "--test-releases-api-base", "http://127.0.0.1:1/?"}, "http(s) URL"},
+		{"empty fragment marker", []string{"--test-allow-file-remote", "--test-releases-api-base", "http://127.0.0.1:1/#"}, "http(s) URL"},
+		{"fragment", []string{"--test-allow-file-remote", "--test-releases-api-base", "http://127.0.0.1:1/#x"}, "http(s) URL"},
+		{"empty host", []string{"--test-allow-file-remote", "--test-releases-api-base", "http:///x"}, "http(s) URL"},
+		{"opaque", []string{"--test-allow-file-remote", "--test-releases-api-base", "http:example.invalid"}, "http(s) URL"},
 	} {
 		var stdout, stderr bytes.Buffer
 		code := Main(mirrorArgs(t, e, tc.args...), nil, getenv, &stdout, &stderr)

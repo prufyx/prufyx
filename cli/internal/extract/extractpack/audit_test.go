@@ -6,7 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
 func entry(id, state string, extra string) json.RawMessage {
@@ -51,11 +55,11 @@ func TestAuditRefusesForeignChanges(t *testing.T) {
 			h.Members["policyId"] = json.RawMessage(`"x"`)
 			return h
 		}, nil, false, true},
-		{"schema move in add mode", func() *Pack {
+		{"unshaped schema move in add mode", func() *Pack {
 			h := mkPack(entry("a", "active", ""), entry("b", "active", ""))
 			h.Members["schema"] = json.RawMessage(`"s2"`)
 			return h
-		}, nil, false, false},
+		}, nil, false, true},
 		{"schema move in withdraw mode", func() *Pack {
 			h := mkPack(entry("a", "withdrawn", ""), entry("b", "active", ""))
 			h.Members["schema"] = json.RawMessage(`"s2"`)
@@ -83,6 +87,104 @@ func TestAuditRefusesForeignChanges(t *testing.T) {
 		}
 		if err != nil && !errors.Is(err, ErrForeignChange) {
 			t.Errorf("%s: wrong error type: %v", c.name, err)
+		}
+	}
+}
+
+// goldenAttestations reads two valid attestations (different scopes) from
+// the served-API golden file.
+func goldenAttestations(t *testing.T) (a, b json.RawMessage, keyB string) {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("testdata", "golden", "served-apis.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		LineAttestations []json.RawMessage `json:"lineAttestations"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil || len(doc.LineAttestations) < 2 {
+		t.Fatalf("golden attestations: %v", err)
+	}
+	atts, err := lineattest.Parse(joinRaw(doc.LineAttestations[1:2]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return doc.LineAttestations[0], doc.LineAttestations[1], atts[0].Key().String()
+}
+
+func joinRaw(items []json.RawMessage) []byte {
+	out, _ := json.Marshal(items)
+	return out
+}
+
+// The attestation section may only be extended by the attestations the run
+// brought: an unexpected one, a removed one and a changed one are refused.
+func TestAuditAttestationRows(t *testing.T) {
+	a, b, keyB := goldenAttestations(t)
+	withAtts := func(items ...json.RawMessage) *Pack {
+		p := mkPack(entry("a", "active", ""))
+		if items != nil {
+			p.Members[lineattest.PackMember] = joinRaw(items)
+		}
+		return p
+	}
+	rows := []struct {
+		name    string
+		base    *Pack
+		head    *Pack
+		allowed map[string]bool
+		refused bool
+	}{
+		{"same", withAtts(a), withAtts(a), nil, false},
+		{"extension by the run's attestation", withAtts(a), withAtts(a, b), map[string]bool{keyB: true}, false},
+		{"first attestations of a pack", withAtts(), withAtts(a, b), map[string]bool{keyB: true, keyOf(t, a): true}, false},
+		{"an attestation the run did not bring", withAtts(a), withAtts(a, b), nil, true},
+		{"first attestation the run did not bring", withAtts(), withAtts(a), nil, true},
+		{"an existing attestation removed", withAtts(a, b), withAtts(b), map[string]bool{keyB: true}, true},
+		{"the whole section removed", withAtts(a), withAtts(), nil, true},
+		{"an existing attestation replaced", withAtts(a), withAtts(b), map[string]bool{keyB: true}, true},
+	}
+	for _, r := range rows {
+		err := audit(r.base, r.head, nil, r.allowed, false)
+		if r.refused != (err != nil) {
+			t.Errorf("%s: err = %v, want refusal %v", r.name, err, r.refused)
+		}
+		if err != nil && !errors.Is(err, ErrForeignChange) {
+			t.Errorf("%s: wrong error %v", r.name, err)
+		}
+	}
+}
+
+func keyOf(t *testing.T, raw json.RawMessage) string {
+	t.Helper()
+	atts, err := lineattest.Parse(joinRaw([]json.RawMessage{raw}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return atts[0].Key().String()
+}
+
+// A merge never lowers the pack schema or moves it to another family.
+func TestAuditSchemaRows(t *testing.T) {
+	const fam = "prufyx.io/cncf-source-rule-pack/v1alpha"
+	for _, r := range []struct {
+		name, from, to string
+		withdraw       bool
+		refused        bool
+	}{
+		{"same", fam + "2", fam + "2", false, false},
+		{"raised", fam + "2", fam + "4", false, false},
+		{"lowered", fam + "4", fam + "2", false, true},
+		{"another family", fam + "2", "prufyx.io/community-project-source-rule-pack/v1alpha3", false, true},
+		{"unshaped schemas must be equal", "s1", "s2", false, true},
+		{"raised in withdraw mode", fam + "2", fam + "4", true, true},
+	} {
+		b, h := mkPack(entry("a", "active", "")), mkPack(entry("a", "active", ""))
+		b.Members["schema"], _ = json.Marshal(r.from)
+		h.Members["schema"], _ = json.Marshal(r.to)
+		err := audit(b, h, nil, nil, r.withdraw)
+		if r.refused != (err != nil) {
+			t.Errorf("%s: err = %v, want refusal %v", r.name, err, r.refused)
 		}
 	}
 }

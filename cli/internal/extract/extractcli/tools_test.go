@@ -441,9 +441,10 @@ func TestWantsOutWithNothingMissing(t *testing.T) {
 func TestApplyCommandOnTheShippedPack(t *testing.T) {
 	const id, fx = "k8s.served-api-removal", "../k8sservedapis/testdata/fixture"
 	const unregistered = "kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-32-0-to-1-33-0"
+	at := "2026-10-02T00:00:00Z"
 	mk := func(drop ...string) string {
 		dir := filepath.Join(t.TempDir(), "out")
-		if code, _, errs := run("run", "--extractor", id, "--fixture", fx, "--out", dir, "--derived-at", "2026-10-02T00:00:00Z"); code != 0 {
+		if code, _, errs := run("run", "--extractor", id, "--fixture", fx, "--out", dir, "--derived-at", at); code != 0 {
 			t.Fatalf("run: %d %s", code, errs)
 		}
 		dropSet := map[string]bool{}
@@ -551,5 +552,66 @@ func TestApplyCommandOnTheShippedPack(t *testing.T) {
 	}
 	if now := string(readFile(t, pack)); strings.Count(now, `"state": "withdrawn"`) != strings.Count(string(merged), `"state": "withdrawn"`)+1 {
 		t.Fatal("exactly one rule should have changed state")
+	}
+
+	// A run older than the rules cannot withdraw anything: exit 3, no write.
+	before := readFile(t, pack)
+	at = "2026-09-01T00:00:00Z"
+	stale := mk(unregistered, "kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0")
+	code, out, errs = run("apply", "--withdraw", "--out", stale, "--pack", pack)
+	if code != 3 || out != "" || !strings.Contains(errs, "before rule") || !bytes.Equal(readFile(t, pack), before) {
+		t.Fatalf("stale withdraw: %d\n%s\n%s", code, out, errs)
+	}
+}
+
+// A commit the mirror does not hold is a mirror gap, not a withheld pair:
+// with --wants-out the run says so, derives nothing and exits 3. (The cure is
+// "factory mirror" without --wants; a caller's loop stops when the mirror
+// exits non-zero.)
+func TestWantsOutReportsACommitTheMirrorLacks(t *testing.T) {
+	const id, fixture, key = "crd.version-removal.argo-cd", "../crdversions/testdata/fixture", "github.com/argoproj/argo-cd"
+	root := t.TempDir()
+	upstream(t, fixture, key, root, nil)
+	state := filepath.Join(t.TempDir(), "mirror")
+	remote := root + "|argoproj/argo-cd"
+	mirrorMain(t, state, remote)
+	out := filepath.Join(t.TempDir(), "out")
+	wantsFile := filepath.Join(t.TempDir(), "wants.json")
+	args := []string{"run", "--extractor", id, "--mirror-state", state, "--out", out, "--derived-at", "2026-10-02T00:00:00Z", "--wants-out", wantsFile}
+	for i := 0; ; i++ {
+		code, _, _ := run(args...)
+		if code == 0 {
+			break
+		}
+		if code != 3 || i > 5 {
+			t.Fatalf("exit %d after %d rounds", code, i)
+		}
+		mirrorMain(t, state, remote, "--wants", wantsFile)
+		os.RemoveAll(out)
+	}
+	os.RemoveAll(out)
+	// The index now names a release whose commit the mirror never fetched.
+	idxPath := filepath.Join(state, "mirror-index.json")
+	var idx map[string]any
+	if err := json.Unmarshal(readFile(t, idxPath), &idx); err != nil {
+		t.Fatal(err)
+	}
+	tags := idx["repos"].(map[string]any)[key].(map[string]any)["tags"].(map[string]any)
+	bogus := strings.Repeat("ab", 20)
+	tags["v90.3.0"] = map[string]any{"commit": bogus}
+	raw, _ := json.MarshalIndent(idx, "", "  ")
+	if err := os.WriteFile(idxPath, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, errs := run(args...)
+	if code != 3 || !strings.Contains(stdout, "needs commit "+key+"@"+bogus) {
+		t.Fatalf("exit %d\n%s\n%s", code, stdout, errs)
+	}
+	if items, err := os.ReadDir(out); err == nil && len(items) > 0 {
+		t.Fatalf("output written: %v", items)
+	}
+	// Without the flag the behaviour is what it was.
+	if c, o, _ := run("run", "--extractor", id, "--mirror-state", state, "--out", filepath.Join(t.TempDir(), "o2"), "--derived-at", "2026-10-02T00:00:00Z"); c == 3 || strings.Contains(o, "needs commit") {
+		t.Fatalf("the flag-less run changed: %d %s", c, o)
 	}
 }
