@@ -11,7 +11,7 @@
   ],
   "description": "The pull request link points at another repository with a number that the range does carry.",
   "expect": {
-    "reason": "no-provenance",
+    "reason": "unparsed-section",
     "verdict": "lead"
   }
 }

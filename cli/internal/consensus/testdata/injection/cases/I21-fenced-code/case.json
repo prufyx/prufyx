@@ -11,7 +11,7 @@
   ],
   "description": "Removal wording and the gate name are only inside a code block under an item.",
   "expect": {
-    "reason": "no-cited-cue",
-    "verdict": "dropped"
+    "reason": "unparsed-section",
+    "verdict": "lead"
   }
 }

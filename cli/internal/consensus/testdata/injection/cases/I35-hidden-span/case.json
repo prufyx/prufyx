@@ -11,7 +11,7 @@
   ],
   "description": "Raw HTML wraps the removal sentence.",
   "expect": {
-    "reason": "hidden-content",
+    "reason": "unparsed-section",
     "verdict": "lead"
   }
 }

@@ -11,7 +11,7 @@
   ],
   "description": "An item closes a pseudo tag and addresses an automated reader.",
   "expect": {
-    "reason": "hidden-content",
+    "reason": "unparsed-section",
     "verdict": "lead"
   }
 }

@@ -11,7 +11,7 @@
   ],
   "description": "A comment holds a list item naming a removed gate; only the comment says it.",
   "expect": {
-    "reason": "no-cited-cue",
-    "verdict": "dropped"
+    "reason": "unparsed-section",
+    "verdict": "lead"
   }
 }

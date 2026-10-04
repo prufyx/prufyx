@@ -29,7 +29,7 @@
 
 ### Deprecation
 
-- The OldPortal feature gate has been removed. (#140002, @dev-d) [SIG API Machinery]
+- Stopped serving `widgets.example.io/v1beta2`; the API version was removed after its deprecation period. ([#140004](https://github.com/kubernetes/kubernetes/pull/140004), [@dev-e](https://github.com/dev-e)) [SIG Apps]
 
 ### Feature
 

@@ -16,11 +16,17 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
-// CueVersion identifies the removal cue list below.
-const CueVersion = "1"
+// CueVersion identifies the removal cue list and the hedge list below.
+const CueVersion = "2"
 
 // cueRE is the removal cue list: a cited list item must contain one.
 var cueRE = regexp.MustCompile(`(?i)remov|dropp|delet|no longer|\bgone\b|purg`)
+
+// hedgeRE finds a removal cue that is negated ("not removed"), in the
+// future ("will be removed", "scheduled for removal") or undone
+// ("reverted", "restored"). A cited item that holds one is never verified,
+// whatever else it says.
+var hedgeRE = regexp.MustCompile(`(?i)\b(not|never|no)\s+(be\s+|been\s+|being\s+|yet\s+)?(remov|dropp|delet|purg)|n't\s+(be\s+|been\s+)?(remov|dropp|delet|purg)|\b(will|would|shall|to|may|might|could|should)\s+(be\s+|eventually\s+be\s+)?(remov|dropp|delet|purg)|\b(scheduled|planned|slated|targeted)\s+for\s+(remov|delet)|\b(revert\w*|restor\w*|re-?added|reintroduc\w*)\b`)
 
 // Verdicts.
 const (
@@ -34,11 +40,14 @@ const (
 	ReasonSourceMismatch        = "source-mismatch"
 	ReasonSourceRefused         = "source-refused"
 	ReasonReleaseMismatch       = "release-mismatch"
+	ReasonSourceUnbound         = "source-unbound"
+	ReasonUnparsedSection       = "unparsed-section"
 	ReasonKindNotAllowed        = "kind-not-allowed"
 	ReasonNameInvalid           = "name-invalid"
 	ReasonNoCitedCue            = "no-cited-cue"
 	ReasonAmbiguousCitation     = "ambiguous-citation"
 	ReasonHiddenContent         = "hidden-content"
+	ReasonHedgedCue             = "hedged-cue"
 	ReasonInventoryIncomplete   = "inventory-incomplete"
 	ReasonNotInInventory        = "not-in-inventory"
 	ReasonStillPresent          = "still-present"
@@ -178,9 +187,11 @@ func fail(verdict, reason, format string, a ...any) *verdictError {
 // Verify checks every claim of a bundle. Steps run in order and the first
 // failure decides the claim:
 //
-//  1. the source is pinned: the file digest matches the bytes read by
-//     commit, the normalised digest is recomputed equal, and the releases
-//     match the section rule and the recorded tags;
+//  1. the source is pinned: the releases match the section rule and the
+//     recorded tags, the release notes are read at the later release's tag
+//     commit (or a descendant of it on its release branch), the file digest
+//     matches the bytes read by commit, the normalised digest is recomputed
+//     equal, and every line of the section is inside the line grammar;
 //  2. the kind is allowed;
 //  3. every name has the kind's form;
 //  4. every name is cited by exactly one distinct list item that carries
@@ -217,6 +228,9 @@ func Verify(ctx context.Context, b *Bundle, in Inputs) (*Report, error) {
 		return nil, err
 	}
 	for _, c := range b.Claims {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		res := ClaimResult{ID: c.ID, Kind: c.Kind, Component: c.Component, Names: append([]string{}, c.Names...), Citations: []Citation{}, Provenance: []PRProvenance{}}
 		f := sourceFail
 		if f == nil {
@@ -252,6 +266,10 @@ type verifier struct {
 	norm     Normalised
 	items    []item
 	toCommit string
+	// cited memoises, per name, the items that cite it with a cue.
+	cited map[string][]int
+	// sections maps every normalised line to its heading section.
+	sections []section
 
 	history     map[int]string
 	historyErr  *verdictError
@@ -269,7 +287,7 @@ func (v *verifier) pinSource(rep *Report) (*verdictError, error) {
 		return fail(VerdictDropped, ReasonReleaseMismatch, "the section %q is not the later release %q", s.Section, b.ToRelease.Tag), nil
 	}
 	spec := SectionSpec{Repo: s.Repo, Path: s.Path, Version: s.Section}
-	if _, _, err := sectionHeading(spec); err != nil {
+	if _, err := ruleFor(spec); err != nil {
 		return fail(VerdictDropped, ReasonSourceRefused, "%v", err), nil
 	}
 	toMinor, okTo := KubernetesMinor(b.ToRelease.Tag)
@@ -285,12 +303,17 @@ func (v *verifier) pinSource(rep *Report) (*verdictError, error) {
 		return nil, fmt.Errorf("%w: tags of %s: %v", ErrInputsIncomplete, v.repo.Key, err)
 	}
 	var fromCommit, toCommit string
+	lineTags := map[string]bool{}
+	linePrefix := strings.TrimSuffix(b.ToRelease.Tag, "0")
 	for _, t := range tags {
 		switch t.Name {
 		case b.FromRelease.Tag:
 			fromCommit = t.Commit
 		case b.ToRelease.Tag:
 			toCommit = t.Commit
+		}
+		if rest, ok := strings.CutPrefix(t.Name, linePrefix); ok && patchRE.MatchString(rest) {
+			lineTags[t.Commit] = true
 		}
 	}
 	if fromCommit == "" || toCommit == "" {
@@ -300,6 +323,9 @@ func (v *verifier) pinSource(rep *Report) (*verdictError, error) {
 	v.toCommit = toCommit
 	if fromCommit != b.FromRelease.Commit {
 		return fail(VerdictDropped, ReasonReleaseMismatch, "tag %s points at %s, not %s", b.FromRelease.Tag, fromCommit, b.FromRelease.Commit), nil
+	}
+	if f, err := v.bindSource(toCommit, lineTags, toMinor); f != nil || err != nil {
+		return f, err
 	}
 	if v.in.Reader == nil {
 		return nil, fmt.Errorf("%w: no reader", ErrInputsIncomplete)
@@ -325,7 +351,93 @@ func (v *verifier) pinSource(rep *Report) (*verdictError, error) {
 		return fail(VerdictDropped, ReasonSourceMismatch, "the normalised digest does not match"), nil
 	}
 	v.norm = norm
+	v.sections = headingSections(norm)
 	v.items = listItems(norm)
+	v.cited = map[string][]int{}
+	return nil, nil
+}
+
+// headingSections maps every line to the section it belongs to: the span
+// from its nearest heading to the next heading of the same or a higher
+// level. A section is unparsed when any line in that span (its child
+// sections included) is outside the line grammar, or a construct was left
+// open at its heading.
+func headingSections(n Normalised) []section {
+	level := func(t string) int {
+		if m := sectionHeadingRE.FindStringSubmatch(t); m != nil {
+			return len(m[1])
+		}
+		return 0
+	}
+	var heads []int
+	for i, l := range n.Lines {
+		if level(l.Text) > 0 {
+			heads = append(heads, i)
+		}
+	}
+	unparsed := map[int]bool{}
+	firstProblem := map[int]string{}
+	for _, h := range heads {
+		lv := level(n.Lines[h].Text)
+		for j := h; j < len(n.Lines); j++ {
+			if j > h {
+				if l := level(n.Lines[j].Text); l > 0 && l <= lv {
+					break
+				}
+			}
+			if p := n.Lines[j].Problem; p != "" && !unparsed[h] {
+				unparsed[h] = true
+				firstProblem[h] = fmt.Sprintf("line %d, %s", n.Lines[j].Original, p)
+			}
+		}
+	}
+	out := make([]section, len(n.Lines))
+	cur := -1
+	for i, l := range n.Lines {
+		if level(l.Text) > 0 {
+			cur = i
+		}
+		out[i] = section{heading: cur, unparsed: cur < 0 || unparsed[cur], problem: firstProblem[cur]}
+	}
+	return out
+}
+
+// section is the heading section a line belongs to.
+type section struct {
+	heading  int
+	unparsed bool
+	problem  string
+}
+
+var sectionHeadingRE = regexp.MustCompile(`^(#{2,6})( |$)`)
+
+// patchRE is the patch part of a release tag of one minor line ("0",
+// "1", ... after "v1.N.").
+var patchRE = regexp.MustCompile(`^(0|[1-9][0-9]{0,3})$`)
+
+// bindSource requires the release notes to be read at the commit of a
+// recorded release tag of the later release's minor line, or at a commit
+// that descends from the later release's tag commit and is reachable from
+// its release branch. Any other commit (one that exists only in a fork,
+// say) is not the release's own text.
+func (v *verifier) bindSource(toCommit string, lineTags map[string]bool, toMinor int) (*verdictError, error) {
+	c := v.bundle.Source.Commit
+	if c == toCommit || lineTags[c] {
+		return nil, nil
+	}
+	if v.in.History == nil {
+		return fail(VerdictDropped, ReasonSourceUnbound, "%s is not a release tag commit and no history is available to place it", c), nil
+	}
+	branch := fmt.Sprintf("release-1.%d", toMinor)
+	ok, err := v.in.History.OnBranch(v.repo, toCommit, c, branch)
+	switch {
+	case errors.Is(err, ErrHistoryUnavailable):
+		return fail(VerdictDropped, ReasonSourceUnbound, "%s is not a release tag commit and no history is available to place it", c), nil
+	case err != nil:
+		return nil, fmt.Errorf("%w: %v", ErrInputsIncomplete, err)
+	case !ok:
+		return fail(VerdictDropped, ReasonSourceUnbound, "%s neither is a release tag commit nor descends from %s on %s", c, v.bundle.ToRelease.Tag, branch), nil
+	}
 	return nil, nil
 }
 
@@ -349,11 +461,22 @@ func (v *verifier) claim(c Claim, res *ClaimResult) (*verdictError, error) {
 	// Step 4: citation by code.
 	cited := map[int]bool{}
 	for _, n := range c.Names {
-		var withCue []int
-		for i, it := range v.items {
-			if containsToken(it.prose, n) && cueRE.MatchString(it.prose) {
-				withCue = append(withCue, i)
+		for i, l := range v.norm.Lines {
+			if sec := v.sections[i]; sec.unparsed && containsToken(l.Text, n) {
+				return fail(VerdictLead, ReasonUnparsedSection, "%s appears in a section outside the line grammar (%s)", n, sec.problem), nil
 			}
+		}
+		withCue, seen := v.cited[n]
+		if !seen {
+			for i, it := range v.items {
+				if v.sections[it.start].unparsed {
+					continue
+				}
+				if containsToken(it.prose, n) && cueRE.MatchString(it.prose) {
+					withCue = append(withCue, i)
+				}
+			}
+			v.cited[n] = withCue
 		}
 		if len(withCue) == 0 {
 			return fail(VerdictDropped, ReasonNoCitedCue, "%s is not in a list item of the section with a removal cue", n), nil
@@ -368,6 +491,9 @@ func (v *verifier) claim(c Claim, res *ClaimResult) (*verdictError, error) {
 			if v.items[i].hidden {
 				return fail(VerdictLead, ReasonHiddenContent, "the list item citing %s held hidden content (%s)", n, strings.Join(v.items[i].flags, ", ")), nil
 			}
+		}
+		if m := hedgeRE.FindString(first.prose); m != "" {
+			return fail(VerdictLead, ReasonHedgedCue, "the list item citing %s says %q", n, m), nil
 		}
 		res.Citations = append(res.Citations, Citation{
 			Name: n, NormalisedLines: [2]int{first.start + 1, first.end + 1},
@@ -506,10 +632,10 @@ type item struct {
 }
 
 var (
-	itemStartRE   = regexp.MustCompile(`^[ \t]*([-*+]|[0-9]{1,9}[.)])([ \t]+|$)`)
-	headingLineRE = regexp.MustCompile(`^[ \t]{0,3}#{1,6}([ \t]|$)`)
-	linkTargetRE  = regexp.MustCompile(`\]\([^)]*\)`)
-	urlRE         = regexp.MustCompile(`https?://[^\s)\]>]+`)
+	itemStartRE  = regexp.MustCompile(`^ *[-*] `)
+	headingRE    = regexp.MustCompile(`^#`)
+	linkTargetRE = regexp.MustCompile(`\]\([^)]*\)`)
+	urlRE        = regexp.MustCompile(`https?://[^\s)\]>]+`)
 )
 
 // listItems splits the section into list items. An item is a line that
@@ -528,16 +654,15 @@ func listItems(n Normalised) []item {
 		for i := cur; i <= end; i++ {
 			l := n.Lines[i]
 			lines = append(lines, l.Text)
-			if l.Hidden() {
+			for _, f := range l.Flags {
 				it.hidden = true
-				for _, f := range l.Flags {
-					if hiddenFlags[f] {
-						flags[f] = true
-					}
-				}
+				flags[f] = true
 			}
 		}
-		it.flags = sortedFlags(flags)
+		for f := range flags {
+			it.flags = append(it.flags, f)
+		}
+		sort.Strings(it.flags)
 		it.text = strings.Join(lines, "\n")
 		joined := strings.Join(lines, " ")
 		it.prose = urlRE.ReplaceAllString(linkTargetRE.ReplaceAllString(joined, "]"), " ")
@@ -550,7 +675,7 @@ func listItems(n Normalised) []item {
 		case itemStartRE.MatchString(l.Text):
 			flush(i - 1)
 			cur = i
-		case strings.TrimSpace(l.Text) == "" || headingLineRE.MatchString(l.Text):
+		case strings.TrimSpace(l.Text) == "" || headingRE.MatchString(l.Text):
 			flush(i - 1)
 		}
 	}
@@ -608,55 +733,27 @@ func nameRune(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsMark(r) || r == '_' || r == '-' || r == '/'
 }
 
-var (
-	inlineLinkRE  = regexp.MustCompile(`\[([^\]]*)\]\(([^)\s]*)\)`)
-	pullURLRE     = regexp.MustCompile(`^https://github\.com/([A-Za-z0-9][A-Za-z0-9._-]*)/([A-Za-z0-9][A-Za-z0-9._-]*)/pull/([1-9][0-9]{0,8})/?$`)
-	barePullRE    = regexp.MustCompile(`https://github\.com/([A-Za-z0-9][A-Za-z0-9._-]*)/([A-Za-z0-9][A-Za-z0-9._-]*)/pull/([1-9][0-9]{0,8})\b`)
-	linkTextNumRE = regexp.MustCompile(`#([0-9]+)`)
-	bareRefRE     = regexp.MustCompile(`(^|[^A-Za-z0-9_/#&.\-])#([1-9][0-9]{0,8})\b`)
-)
+var pullURLRE = regexp.MustCompile(`^https://github\.com/([A-Za-z0-9][A-Za-z0-9._-]*)/([A-Za-z0-9][A-Za-z0-9._-]*)/pull/([1-9][0-9]{0,8})$`)
 
 // prReferences returns the pull request numbers of repo that text
-// references: inline links to the repository's pull requests, bare pull
-// request URLs and bare "#N". Any other link, including one to another
-// repository's pull request, is ignored with its text, so its number never
-// counts; consistent is false when a link
-// text names a different number than its target.
+// references. Only inline link targets count, and only links outside code
+// spans whose target is exactly https://github.com/<repo>/pull/N: never a
+// bare "#N" or URL, a link title, an issue, another repository or another
+// host. consistent is false when such a link's text is not exactly "#N".
 func prReferences(text string, repo extract.RepoRef) (refs []int, consistent bool) {
 	owner, name := repo.OwnerName()
-	same := func(o, n string) bool { return strings.EqualFold(o, owner) && strings.EqualFold(n, name) }
 	set := map[int]bool{}
 	consistent = true
-	rest := inlineLinkRE.ReplaceAllStringFunc(text, func(link string) string {
-		m := inlineLinkRE.FindStringSubmatch(link)
+	for _, m := range inlineLinkRE.FindAllStringSubmatch(codeSpans(text), -1) {
 		u := pullURLRE.FindStringSubmatch(m[2])
-		if u == nil {
-			// Not a pull request link: neither its text nor its target
-			// is a reference ("[#5](.../issues/5)" names an issue).
-			return " "
-		}
-		if !same(u[1], u[2]) {
-			return " "
+		if u == nil || u[1] != owner || u[2] != name {
+			continue
 		}
 		n, _ := strconv.Atoi(u[3])
 		set[n] = true
-		for _, t := range linkTextNumRE.FindAllStringSubmatch(m[1], -1) {
-			if t[1] != u[3] {
-				consistent = false
-			}
+		if m[1] != "#"+u[3] {
+			consistent = false
 		}
-		return " "
-	})
-	for _, u := range barePullRE.FindAllStringSubmatch(rest, -1) {
-		if same(u[1], u[2]) {
-			n, _ := strconv.Atoi(u[3])
-			set[n] = true
-		}
-	}
-	rest = urlRE.ReplaceAllString(rest, " ")
-	for _, m := range bareRefRE.FindAllStringSubmatch(rest, -1) {
-		n, _ := strconv.Atoi(m[2])
-		set[n] = true
 	}
 	for n := range set {
 		refs = append(refs, n)

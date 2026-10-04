@@ -1,0 +1,18 @@
+{
+  "category": "unbound release notes",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "The bundle pins release notes at a commit that is neither a release tag nor in the release history (a fork commit, say).",
+  "expect": {
+    "reason": "source-unbound",
+    "verdict": "dropped"
+  },
+  "tamper": "strayCommit"
+}

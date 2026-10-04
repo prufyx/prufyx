@@ -62,7 +62,7 @@ func writeBundle(t *testing.T, b *Bundle) string {
 }
 
 func TestConsensusCommands(t *testing.T) {
-	root := fixtureWith(t, notes(silentDial+"\n- Removed the OldPortal feature gate. (#140002)"))
+	root := fixtureWith(t, notes(silentDial+"\n- Removed the OldPortal feature gate. "+prLink("140002")))
 	work := t.TempDir()
 
 	// normalise writes the source object a bundle pins, byte for byte.
@@ -78,7 +78,7 @@ func TestConsensusCommands(t *testing.T) {
 	}
 	text, _ := os.ReadFile(filepath.Join(out, "normalised.txt"))
 	lineMap, _ := os.ReadFile(filepath.Join(out, "linemap.json"))
-	if !strings.HasPrefix(string(text), "# v1.41.0\n") || !strings.Contains(string(lineMap), `"normalised": 1`) {
+	if !strings.HasPrefix(string(text), "## Changes by Kind\n") || !strings.Contains(string(lineMap), `"normalised": 1`) {
 		t.Fatalf("outputs:\n%s\n%s", text, lineMap)
 	}
 	// Run again: the same bytes.

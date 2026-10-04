@@ -12,10 +12,10 @@ import (
 
 var k8sSpec = SectionSpec{Repo: KubernetesRepo, Path: "CHANGELOG/CHANGELOG-1.41.md", Version: "v1.41.0"}
 
-// doc wraps body as the v1.41.0 section between a newer and an older
-// section.
+// doc wraps body as the "## Changes by Kind" subsection of the v1.41.0
+// section, between a newer and an older section. body starts on line 9.
 func doc(body string) string {
-	return "# v1.41.1\n\n- newer patch item\n\n# v1.41.0\n\n" + body + "\n# v1.41.0-rc.1\n\n- older item\n"
+	return "# v1.41.1\n\n- newer patch item\n\n# v1.41.0\n\n## Changes by Kind\n\n" + body + "\n\n# v1.41.0-rc.1\n\n- older item\n"
 }
 
 func mustNormalise(t *testing.T, src string) Normalised {
@@ -33,17 +33,6 @@ func texts(n Normalised) []string {
 		out[i] = l.Text
 	}
 	return out
-}
-
-func lineWith(t *testing.T, n Normalised, original int) Line {
-	t.Helper()
-	for _, l := range n.Lines {
-		if l.Original == original {
-			return l
-		}
-	}
-	t.Fatalf("no normalised line for original line %d", original)
-	return Line{}
 }
 
 func hasFlag(l Line, f string) bool {
@@ -64,18 +53,21 @@ func refusalCode(err error) string {
 }
 
 func TestNormaliseSectionSelection(t *testing.T) {
-	n := mustNormalise(t, doc("- one\n- two"))
-	want := []string{"# v1.41.0", "", "- one", "- two"}
+	src := "# v1.41.0\n\n[Documentation](https://docs.example.invalid)\n\n## Downloads for v1.41.0\n\n| file | hash |\n| --- | --- |\n\n" +
+		"## Changelog since v1.40.0\n\n## Urgent Upgrade Notes\n\n### (Read this)\n\n- a\n\n## Changes by Kind\n\n### Feature\n\n- b\n  more\n\n" +
+		"## Dependencies\n\n- github.com/x: v1 → v2\n\n # v1.41.0-rc.1\n\n- rc\n"
+	n := mustNormalise(t, src)
+	want := []string{"## Urgent Upgrade Notes", "", "### (Read this)", "", "- a", "", "## Changes by Kind", "", "### Feature", "", "- b", "  more", ""}
 	if !reflect.DeepEqual(texts(n), want) {
 		t.Fatalf("section %q, want %q", texts(n), want)
 	}
-	if n.Lines[0].Original != 5 || n.Lines[3].Original != 8 {
-		t.Fatalf("original lines %d..%d", n.Lines[0].Original, n.Lines[3].Original)
+	if n.Lines[0].Original != 12 || n.Lines[6].Original != 18 || !n.Parsed() {
+		t.Fatalf("original lines %d %d, problems %v", n.Lines[0].Original, n.Lines[6].Original, n.Problems)
 	}
-	// The last section of a file runs to its end; trailing spaces after the
-	// heading are allowed; "# v1.41.0-rc.1" is not "# v1.41.0".
-	n = mustNormalise(t, "# v1.41.0-rc.1\n- rc\n# v1.41.0  \n- last\n")
-	if want := []string{"# v1.41.0", "- last"}; !reflect.DeepEqual(texts(n), want) {
+	// One subsection is enough; the release section ends at a level-1
+	// heading with up to three leading spaces.
+	n = mustNormalise(t, "# v1.41.0\n\n## Changes by Kind\n\n- x\n   # v1.41.0-rc.1\n- rc\n")
+	if want := []string{"## Changes by Kind", "", "- x"}; !reflect.DeepEqual(texts(n), want) {
 		t.Fatalf("section %q, want %q", texts(n), want)
 	}
 }
@@ -91,9 +83,10 @@ func TestNormaliseSectionRefusals(t *testing.T) {
 		{"other path", SectionSpec{Repo: KubernetesRepo, Path: "CHANGELOG.md", Version: "v1.41.0"}, doc("- x"), "no-section-rule"},
 		{"minor mismatch", SectionSpec{Repo: KubernetesRepo, Path: "CHANGELOG/CHANGELOG-1.40.md", Version: "v1.41.0"}, doc("- x"), "no-section-rule"},
 		{"patch release", SectionSpec{Repo: KubernetesRepo, Path: k8sSpec.Path, Version: "v1.41.1"}, doc("- x"), "no-section-rule"},
-		{"no heading", k8sSpec, "# v1.40.0\n- x\n", "no-section"},
-		{"two headings", k8sSpec, doc("- x\n# v1.41.0\n- y"), "section-ambiguous"},
-		{"heading only in a comment", k8sSpec, "<!--\n# v1.41.0\n-->\n- x\n", "no-section"},
+		{"no heading", k8sSpec, "# v1.40.0\n## Changes by Kind\n- x\n", "no-section"},
+		{"two headings", k8sSpec, doc("- x\n# v1.41.0\n## Changes by Kind\n- y"), "section-ambiguous"},
+		{"no citable subsection", k8sSpec, "# v1.41.0\n\n## Downloads\n\n- x\n", "no-section"},
+		{"subsection twice", k8sSpec, doc("- x\n\n## Changes by Kind\n\n- y"), "section-ambiguous"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := Normalise([]byte(tc.src), tc.spec)
@@ -104,91 +97,102 @@ func TestNormaliseSectionRefusals(t *testing.T) {
 	}
 }
 
-func TestNormaliseHTMLComments(t *testing.T) {
-	n := mustNormalise(t, doc("- kept <!-- hidden --> text\n<!--\n- hidden item\n-->\n- after"))
-	want := []string{"# v1.41.0", "", "- kept  text", "", "", "", "- after"}
-	if !reflect.DeepEqual(texts(n), want) {
-		t.Fatalf("lines %q, want %q", texts(n), want)
+// Lines in the shape of real release notes are inside the grammar.
+func TestNormaliseGrammarAccepts(t *testing.T) {
+	body := strings.Join([]string{
+		"### Deprecation",
+		"",
+		"- Removed the `RetiredKnob` feature gate. ([#140001](https://github.com/kubernetes/kubernetes/pull/140001), [@dev-c](https://github.com/dev-c)) [SIG Node and Apps]",
+		"- Fixed `<none>` and `a | b` and `<!--` in code, a < b, R&amp;D, *emphasis* and __strong__. ([#7](https://github.com/kubernetes/kubernetes/issues/7))",
+		"  See [the guide](https://kubernetes.io/docs/concepts/) and [docs](https://k8s.io/x#y).",
+		"  - nested item",
+		"    - deeper item",
+		"      - deepest item",
+		"        continued",
+		"* star item",
+		"Paragraph text, with a bracket [SIG Node] and #140001.",
+		"",
+		"#### Heading four",
+		"",
+		"- last",
+	}, "\n")
+	n := mustNormalise(t, doc(body))
+	if !n.Parsed() {
+		t.Fatalf("problems %v", n.Problems)
 	}
-	for _, orig := range []int{7, 8, 9, 10} {
-		if !hasFlag(lineWith(t, n, orig), FlagHTMLComment) {
-			t.Fatalf("line %d not flagged: %v", orig, lineWith(t, n, orig).Flags)
+}
+
+func TestNormaliseGrammarProblems(t *testing.T) {
+	for _, tc := range []struct{ line, want string }{
+		{"<div>", "raw HTML"},
+		{"- text </span> more", "raw HTML"},
+		{"<!-- comment -->", "raw HTML"},
+		{"- a <!--", "raw HTML"},
+		{"<?php ?>", "raw HTML"},
+		{"<![CDATA[ x ]]>", "raw HTML"},
+		{"- see <https://github.com/kubernetes/kubernetes/pull/1>", "raw HTML"},
+		{"- <podname> path", "raw HTML"},
+		{"- end -->", "comment marker"},
+		{"- ![alt](https://kubernetes.io/a.png)", "image"},
+		{"- ![alt]", "image"},
+		{"[ref]: https://kubernetes.io/x", "link reference definition"},
+		{"[^1]: footnote", "link reference definition"},
+		{"- see[^1]", "footnote"},
+		{"- a [link][ref]", "reference link"},
+		{"    - indented code", "list item indentation"},
+		{"    plain indented", "indented code or unaligned indentation"},
+		{"```", "fenced code"},
+		{"~~~", "fenced code"},
+		{"===", "setext underline or thematic break"},
+		{"---", "setext underline or thematic break"},
+		{"* * *", "setext underline or thematic break"},
+		{"| a | b |", "table cell"},
+		{"- ~~struck~~", "strikethrough"},
+		{"- a\tb", "tab"},
+		{"1. ordered", "ordered list"},
+		{"+ plus", "list marker +"},
+		{"> quote", "block quote"},
+		{"- [x](https://kubernetes.io/a \"title\")", "link form"},
+		{"- [x](https://example.invalid/a)", "link target"},
+		{"- [#1](https://github.com/example/kubernetes/pull/1)", "link target"},
+		{"- [#1](http://github.com/kubernetes/kubernetes/pull/1)", "link target"},
+		{"- [someone](https://github.com/dev-x)", "link target"},
+		{"- [#1](https://github.com/kubernetes/kubernetes/pull/1/files)", "link target"},
+		{" - one space", "list item indentation"},
+		{" ### heading", "indented heading"},
+		{"#Heading", "heading form"},
+		{"-", "setext underline or thematic break"},
+	} {
+		n := mustNormalise(t, doc(tc.line))
+		if n.Parsed() || !strings.Contains(n.Problems[0].Reason, tc.want) || n.Problems[0].Original != 9 {
+			t.Errorf("%q: problems %v, want %q on line 9", tc.line, n.Problems, tc.want)
 		}
 	}
-	if hasFlag(lineWith(t, n, 11), FlagHTMLComment) || n.Truncated {
-		t.Fatal("a line after the comment is flagged")
-	}
-	if !lineWith(t, n, 7).Hidden() {
-		t.Fatal("a comment is hidden content")
-	}
-}
-
-func TestNormaliseUnterminatedComment(t *testing.T) {
-	n := mustNormalise(t, doc("- before\n- cut <!-- never closed\n- hidden item"))
-	if !n.Truncated {
-		t.Fatal("not truncated")
-	}
-	if !hasFlag(lineWith(t, n, 8), FlagUnterminatedComment) {
-		t.Fatalf("start line flags %v", lineWith(t, n, 8).Flags)
-	}
-	got := strings.Join(texts(n), "\n")
-	if strings.Contains(got, "hidden item") || strings.Contains(got, "older item") || !strings.Contains(got, "- before") {
-		t.Fatalf("section after an unterminated comment:\n%s", got)
-	}
-}
-
-func TestNormaliseHTMLTags(t *testing.T) {
-	n := mustNormalise(t, doc("- a <span hidden>b</span> c </release_notes>\n- link <https://github.com/kubernetes/kubernetes/pull/1>\n- code `<none>` stays\n- open <div\n- plain a < b"))
-	got := texts(n)
-	if got[2] != "- a b c" {
-		t.Fatalf("tags: %q", got[2])
-	}
-	if !hasFlag(n.Lines[2], FlagHTMLTag) {
-		t.Fatal("tags not flagged")
-	}
-	if got[3] != "- link https://github.com/kubernetes/kubernetes/pull/1" || hasFlag(n.Lines[3], FlagHTMLTag) {
-		t.Fatalf("autolink: %q %v", got[3], n.Lines[3].Flags)
-	}
-	if got[4] != "- code `<none>` stays" || hasFlag(n.Lines[4], FlagHTMLTag) {
-		t.Fatalf("code span: %q %v", got[4], n.Lines[4].Flags)
-	}
-	if !hasFlag(n.Lines[5], FlagHTMLTag) {
-		t.Fatal("a tag continued on the next line is not flagged")
-	}
-	if hasFlag(n.Lines[6], FlagHTMLTag) || got[6] != "- plain a < b" {
-		t.Fatalf("a comparison is not a tag: %q %v", got[6], n.Lines[6].Flags)
-	}
-}
-
-func TestNormaliseLinkReferences(t *testing.T) {
-	n := mustNormalise(t, doc("- item\n  [ref]: https://example.invalid \"Removed X\"\n[other]: https://example.invalid"))
-	got := texts(n)
-	if got[3] != "" || got[4] != "" || !hasFlag(n.Lines[3], FlagLinkReference) {
-		t.Fatalf("link references: %q", got)
-	}
-}
-
-func TestNormaliseImages(t *testing.T) {
-	n := mustNormalise(t, doc("- ![Removed X](https://example.invalid/a.png) shown ![alt][ref]"))
-	if got := texts(n)[2]; got != "-  shown" || !hasFlag(n.Lines[2], FlagImage) {
-		t.Fatalf("images: %q %v", got, n.Lines[2].Flags)
-	}
-}
-
-func TestNormaliseFencedCode(t *testing.T) {
-	n := mustNormalise(t, doc("- item\n  ```yaml\n  removed: X\n  ``` not a close\n  ```\n- after\n~~~~\nx\n~~~\n~~~~\n- end"))
-	got := texts(n)
-	for _, i := range []int{3, 4, 5, 6, 8, 9, 10, 11} {
-		if got[i] != "" || !hasFlag(n.Lines[i], FlagCodeBlock) {
-			t.Fatalf("line %d %q %v", i, got[i], n.Lines[i].Flags)
+	// Nesting: under an open item, at most MaxListDepth deep; continuation
+	// lines at most five columns past their item's marker.
+	for _, body := range []string{"- a\n  - b\n    - c\n      - d\n        - e", "Paragraph\n  - nested under nothing", "- a\n      six columns", "### H\n  - after a heading"} {
+		if mustNormalise(t, doc(body)).Parsed() {
+			t.Errorf("%q parsed", body)
 		}
 	}
-	if got[7] != "- after" || got[12] != "- end" || n.Truncated {
-		t.Fatalf("lines %q", got)
+}
+
+// A construct opened before a subsection and still open at its heading
+// swallows the heading when rendered.
+func TestNormaliseOpenConstructBeforeSubsection(t *testing.T) {
+	for _, opener := range []string{"<!--", "```", "<pre>", "<?", "<![CDATA[", "<!DOCTYPE"} {
+		src := "# v1.41.0\n\n" + opener + "\n\n## Changes by Kind\n\n- Removed the SilentDial feature gate.\n\n# v1.41.0-rc.1\n"
+		n := mustNormalise(t, src)
+		if n.Parsed() || !strings.Contains(n.Problems[0].Reason, "left open before the heading") {
+			t.Errorf("%q: problems %v", opener, n.Problems)
+		}
 	}
-	n = mustNormalise(t, doc("- item\n```\nremoved: X\n- hidden"))
-	if !n.Truncated || !hasFlag(n.Lines[3], FlagUnterminatedCodeBlock) || strings.Contains(string(n.Text()), "hidden") {
-		t.Fatalf("unterminated code block: %q", texts(n))
+	// Closed constructs before the subsection are fine.
+	for _, closed := range []string{"<!-- x -->", "<!-->", "```\nx\n```", "<pre>\nx\n</pre>", "<div>\nx"} {
+		src := "# v1.41.0\n\n" + closed + "\n\n## Changes by Kind\n\n- y\n"
+		if n := mustNormalise(t, src); !n.Parsed() {
+			t.Errorf("%q: problems %v", closed, n.Problems)
+		}
 	}
 }
 
@@ -210,10 +214,6 @@ func TestNormaliseControlCharacters(t *testing.T) {
 			t.Fatalf("%q: %q %v", c, l.Text, l.Flags)
 		}
 	}
-	// A tab is ordinary text.
-	if l := mustNormalise(t, doc("- a\tb")).Lines[2]; l.Text != "- a\tb" || len(l.Flags) != 0 {
-		t.Fatalf("tab: %q %v", l.Text, l.Flags)
-	}
 }
 
 func TestNormaliseLineEndings(t *testing.T) {
@@ -230,23 +230,25 @@ func TestNormaliseLineEndings(t *testing.T) {
 }
 
 func TestNormaliseLineMap(t *testing.T) {
-	n := mustNormalise(t, doc("- a\n<!--\nx\n-->\n- b"))
+	n := mustNormalise(t, doc("- a\n<div>\n- b"))
 	for i, l := range n.Lines {
-		if l.Original != 5+i {
-			t.Fatalf("normalised line %d maps to %d, want %d", i+1, l.Original, 5+i)
+		if l.Original != 7+i {
+			t.Fatalf("normalised line %d maps to %d, want %d", i+1, l.Original, 7+i)
 		}
 	}
 	raw, err := LineMapJSON(n)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(raw), `"normaliserVersion": "`+NormaliserVersion+`"`) || !strings.Contains(string(raw), `"original": 9`) {
-		t.Fatalf("line map:\n%s", raw)
+	for _, want := range []string{`"normaliserVersion": "` + NormaliserVersion + `"`, `"original": 11`, `"problem": "raw HTML"`, `"reason": "raw HTML"`} {
+		if !strings.Contains(string(raw), want) {
+			t.Fatalf("line map lacks %s:\n%s", want, raw)
+		}
 	}
 }
 
 func TestNormaliseDeterministic(t *testing.T) {
-	src := doc("- a <!-- c --> b\n- ![i](u) `x` <b>y</b>\n  ```\n  z\n  ```\n- Silent​Dial")
+	src := doc("- a `x` b\n- ![i](u) <b>y</b>\n  ```\n  z\n  ```\n- Silent\u200bDial")
 	a, b := mustNormalise(t, src), mustNormalise(t, src)
 	if !reflect.DeepEqual(a, b) || a.Digest() != b.Digest() {
 		t.Fatal("two runs differ")
@@ -278,11 +280,11 @@ func TestNormaliseBounds(t *testing.T) {
 func FuzzNormalise(f *testing.F) {
 	f.Add(doc("- Removed the X feature gate. (#1)"))
 	f.Add(doc("- a <!-- b\n- c --> d\n```\ne\n```"))
-	f.Add(doc("- ‮x‬ <b>y</b> ![z](w) [r]: s"))
+	f.Add(doc("- \u202ex\u202c <b>y</b> ![z](w) [r]: s"))
 	f.Fuzz(func(t *testing.T, src string) {
 		a, errA := Normalise([]byte(src), k8sSpec)
 		b, errB := Normalise([]byte(src), k8sSpec)
-		if (errA == nil) != (errB == nil) || (errA == nil && !bytes.Equal(a.Text(), b.Text())) {
+		if (errA == nil) != (errB == nil) || (errA == nil && (!bytes.Equal(a.Text(), b.Text()) || len(a.Problems) != len(b.Problems))) {
 			t.Fatal("not deterministic")
 		}
 		if errA != nil {
@@ -295,6 +297,18 @@ func FuzzNormalise(f *testing.F) {
 			for _, r := range l.Text {
 				if invisible(r) || control(r) {
 					t.Fatalf("line %q keeps U+%04X", l.Text, r)
+				}
+			}
+		}
+		// A parsed section has no raw HTML, image, fence or comment
+		// marker outside code spans.
+		if a.Parsed() {
+			for _, l := range a.Lines {
+				plain := codeSpans(l.Text)
+				for _, bad := range []string{"<!", "<?", "![", "-->", "\t"} {
+					if strings.Contains(plain, bad) {
+						t.Fatalf("parsed line %q holds %q", l.Text, bad)
+					}
 				}
 			}
 		}

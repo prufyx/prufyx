@@ -1,0 +1,16 @@
+{
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "MirrorFlag"
+      ]
+    }
+  ],
+  "description": "The release notes read at a later commit of the release branch.",
+  "expect": {
+    "verdict": "verified"
+  },
+  "tamper": "branchCommit"
+}

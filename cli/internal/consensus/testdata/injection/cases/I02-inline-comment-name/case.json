@@ -11,7 +11,7 @@
   ],
   "description": "A visible item with a removal cue; the gate name is only inside an inline comment.",
   "expect": {
-    "reason": "no-cited-cue",
-    "verdict": "dropped"
+    "reason": "unparsed-section",
+    "verdict": "lead"
   }
 }

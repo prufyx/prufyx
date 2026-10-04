@@ -11,7 +11,7 @@
   ],
   "description": "The removal sentence is only the alt text of an image.",
   "expect": {
-    "reason": "no-cited-cue",
-    "verdict": "dropped"
+    "reason": "unparsed-section",
+    "verdict": "lead"
   }
 }

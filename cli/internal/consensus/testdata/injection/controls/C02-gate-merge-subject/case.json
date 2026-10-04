@@ -8,7 +8,7 @@
       ]
     }
   ],
-  "description": "A removed feature gate cited with a bare pull request number; the pull request is a merge commit of the range.",
+  "description": "A removed feature gate whose pull request is a merge commit of the range.",
   "expect": {
     "verdict": "verified"
   }

@@ -29,7 +29,7 @@
 
 ### Deprecation
 
-- Stopped serving `widgets.example.io/v1beta2`; the API version was removed after its deprecation period. https://github.com/kubernetes/kubernetes/pull/140004 [SIG Apps]
+- Removed the MirrorFlag feature gate. ([#140005](https://github.com/kubernetes/kubernetes/pull/140005), [@dev-j](https://github.com/dev-j)) [SIG Node]
 
 ### Feature
 

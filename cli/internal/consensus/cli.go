@@ -185,16 +185,18 @@ func cmdNormalise(args []string, stdout, stderr io.Writer) (int, error) {
 			return ExitMisuse, err
 		}
 	}
-	fmt.Fprintf(stdout, "normalised %s %s: %d lines, sha256 %s\n", path, section, len(norm.Lines), norm.Digest())
+	fmt.Fprintf(stdout, "normalised %s %s: %d lines, %d outside the line grammar, sha256 %s\n", path, section, len(norm.Lines), len(norm.Problems), norm.Digest())
 	return ExitOK, nil
 }
 
 // LineMap is the line map document the normalise command writes.
 type LineMap struct {
-	NormaliserVersion string        `json:"normaliserVersion"`
-	Section           string        `json:"section"`
-	Truncated         bool          `json:"truncated"`
-	Lines             []LineMapLine `json:"lines"`
+	NormaliserVersion string `json:"normaliserVersion"`
+	Section           string `json:"section"`
+	// Problems lists the lines outside the line grammar; a section with
+	// any is not citable.
+	Problems []Problem     `json:"problems"`
+	Lines    []LineMapLine `json:"lines"`
 }
 
 // LineMapLine maps one normalised line to its original line.
@@ -202,14 +204,15 @@ type LineMapLine struct {
 	Normalised int      `json:"normalised"`
 	Original   int      `json:"original"`
 	Flags      []string `json:"flags,omitempty"`
+	Problem    string   `json:"problem,omitempty"`
 }
 
 // LineMapJSON renders the line map of a normalised section as canonical
 // JSON.
 func LineMapJSON(n Normalised) ([]byte, error) {
-	m := LineMap{NormaliserVersion: NormaliserVersion, Section: n.Section, Truncated: n.Truncated, Lines: make([]LineMapLine, len(n.Lines))}
+	m := LineMap{NormaliserVersion: NormaliserVersion, Section: n.Section, Problems: append([]Problem{}, n.Problems...), Lines: make([]LineMapLine, len(n.Lines))}
 	for i, l := range n.Lines {
-		m.Lines[i] = LineMapLine{Normalised: i + 1, Original: l.Original, Flags: l.Flags}
+		m.Lines[i] = LineMapLine{Normalised: i + 1, Original: l.Original, Flags: l.Flags, Problem: l.Problem}
 	}
 	return extract.Canonical(m)
 }

@@ -8,7 +8,7 @@
       ]
     }
   ],
-  "description": "A removed API version cited with a bare pull request URL.",
+  "description": "A removed API version written in a code span.",
   "expect": {
     "verdict": "verified"
   }

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,6 +39,15 @@ type stubHistory struct{ err error }
 
 func (s stubHistory) RangeSubjects(extract.RepoRef, string, string, int) ([]CommitSubject, error) {
 	return nil, s.err
+}
+
+func (s stubHistory) OnBranch(extract.RepoRef, string, string, string) (bool, error) {
+	return false, s.err
+}
+
+// prLink is a pull request reference as the line grammar accepts it.
+func prLink(n string) string {
+	return "([#" + n + "](https://github.com/kubernetes/kubernetes/pull/" + n + "))"
 }
 
 func onlyClaim(t *testing.T, rep *Report) ClaimResult {
@@ -76,12 +86,21 @@ func TestVerifyReasons(t *testing.T) {
 		{name: "no cue", body: "- The SilentDial feature gate is GA. (#140005)", want: "dropped:no-cited-cue"},
 		{name: "not an item", body: "Removed the SilentDial feature gate. (#140005)", want: "dropped:no-cited-cue"},
 		{name: "ambiguous", body: silentDial + "\n- Removed SilentDial and EchoSwitch. (#140010)", want: "lead:ambiguous-citation"},
-		{name: "hidden", body: "- Removed the SilentDial <b>feature</b> gate. (#140005)", want: "lead:hidden-content"},
+		{name: "hidden", body: "- Removed the Silent\u200bDial feature gate. " + prLink("140005"), want: "lead:hidden-content"},
+		{name: "unparsed", body: silentDial + "\n- Updated <b>docs</b>.", want: "lead:unparsed-section"},
+		{name: "unparsed outside the cited item", body: silentDial + "\n\n```\nx\n```", want: "lead:unparsed-section"},
+		{name: "name in another, unparsed section", body: silentDial + "\n\n### Other\n\n- Restored the SilentDial gate <b>here</b>.", want: "lead:unparsed-section"},
+		{name: "unparsed section without the name", body: silentDial + "\n\n### Other\n\n- Updated <b>docs</b>.", want: "verified:"},
+		{name: "negated cue", body: "- The SilentDial feature gate is not removed in this release. " + prLink("140005"), want: "lead:hedged-cue"},
+		{name: "future removal", body: "- The SilentDial feature gate will be removed in v1.43. " + prLink("140005"), want: "lead:hedged-cue"},
+		{name: "reverted removal", body: "- Reverted the removal of the SilentDial feature gate. " + prLink("140005"), want: "lead:hedged-cue"},
+		{name: "source unbound", body: silentDial, bundle: func(b *Bundle) { b.Source.Commit = strings.Repeat("f", 40) }, want: "dropped:source-unbound"},
 		{name: "inventory incomplete", body: silentDial, inputs: func(in *Inputs, _ string) { in.Inventory = stubInventories{&Incomplete{Reason: "test"}} }, want: "lead:inventory-incomplete"},
 		{name: "not in inventory", body: "- Removed the GhostGate feature gate. (#140005)", claims: gateClaim("GhostGate"), want: "dropped:not-in-inventory"},
 		{name: "still present", body: "- Removed the StableThing feature gate. (#140005)", claims: gateClaim("StableThing"), want: "dropped:still-present"},
 		{name: "no pull request", body: "- Removed the SilentDial feature gate. [SIG Node]", want: "lead:no-provenance"},
-		{name: "pull request not in range", body: "- Removed the SilentDial feature gate. (#140011)", want: "lead:no-provenance"},
+		{name: "pull request not in range", body: "- Removed the SilentDial feature gate. " + prLink("149999"), want: "lead:no-provenance"},
+		{name: "bare pull request number", body: "- Removed the SilentDial feature gate. (#140005)", want: "lead:no-provenance"},
 		{name: "range too long", body: silentDial, inputs: func(in *Inputs, _ string) { in.HistoryLimit = 3 }, want: "lead:provenance-unbounded"},
 		{name: "no history", body: silentDial, inputs: func(in *Inputs, _ string) { in.History = nil }, want: "lead:provenance-unavailable"},
 		{name: "fixture without history", body: silentDial, inputs: func(in *Inputs, root string) {
@@ -146,7 +165,7 @@ func TestVerifyStepOrder(t *testing.T) {
 // A phantom name is dropped even when every other check passes; a name in
 // the earlier release's inventory goes on to the next check.
 func TestExistenceCheck(t *testing.T) {
-	root := fixtureWith(t, notes("- Removed the GhostGate and SilentDial feature gates, and stopped serving ghosts.example.io/v1beta1 and gizmos.example.io/v1beta1. (#140005)"))
+	root := fixtureWith(t, notes("- Removed the GhostGate and SilentDial feature gates, and stopped serving ghosts.example.io/v1beta1 and gizmos.example.io/v1beta1. "+prLink("140005")))
 	rep := verifyFixture(t, root, honestBundle(t, root, []Claim{
 		{ID: "ghost", Kind: "removed_feature_gate", Names: []string{"GhostGate"}},
 		{ID: "pair", Kind: "removed_feature_gate", Names: []string{"SilentDial", "GhostGate"}},
@@ -204,24 +223,32 @@ func TestInventoryIncomplete(t *testing.T) {
 }
 
 func TestProvenance(t *testing.T) {
+	k := "https://github.com/kubernetes/kubernetes/pull/"
 	for _, tc := range []struct {
 		name, ref, want string
 	}{
-		{"squash subject, link", "([#140005](https://github.com/kubernetes/kubernetes/pull/140005))", "verified:"},
-		{"merge subject, bare number", "(#140006)", "verified:"},
-		{"bare URL", "https://github.com/kubernetes/kubernetes/pull/140005", "verified:"},
-		{"upper-case repository in the URL", "([#140005](https://github.com/Kubernetes/Kubernetes/pull/140005))", "verified:"},
-		{"merge commit with a parent before the range", "(#140010)", "verified:"},
-		{"not in range", "(#149999)", "lead:no-provenance"},
-		{"merged before the range", "(#139990)", "lead:no-provenance"},
-		{"another repository's link", "([#140005](https://github.com/example/kubernetes/pull/140005))", "lead:no-provenance"},
+		{"squash subject", prLink("140005"), "verified:"},
+		{"merge subject", prLink("140006"), "verified:"},
+		{"merge commit with a parent before the range", prLink("140010"), "verified:"},
+		{"two links in range", "([#140005](" + k + "140005), [#140006](" + k + "140006), [@dev-h](https://github.com/dev-h))", "verified:"},
+		{"not in range", prLink("149999"), "lead:no-provenance"},
+		{"merged before the range", prLink("139990"), "lead:no-provenance"},
+		{"one of two not in range", "([#140005](" + k + "140005), [#149999](" + k + "149999))", "lead:no-provenance"},
+		{"link text and target differ", "([#140005](" + k + "140006))", "lead:no-provenance"},
+		{"link text not a number", "([details](" + k + "140005))", "lead:no-provenance"},
+		{"issue link", "([#140005](https://github.com/kubernetes/kubernetes/issues/140005))", "lead:no-provenance"},
+		{"link in a code span", "(`[#140005](" + k + "140005)`)", "lead:no-provenance"},
+		{"bare number", "(#140005)", "lead:no-provenance"},
+		{"bare URL", k + "140005", "lead:no-provenance"},
+		{"URL inside another host's URL", "(https://evil.example/" + k + "140005)", "lead:no-provenance"},
 		{"another repository's URL", "https://github.com/example/kubernetes/pull/140005", "lead:no-provenance"},
 		{"another repository's shorthand", "(example/kubernetes#140005)", "lead:no-provenance"},
-		{"issue link", "([#140005](https://github.com/kubernetes/kubernetes/issues/140005))", "lead:no-provenance"},
-		{"link text and target differ", "([#140005](https://github.com/kubernetes/kubernetes/pull/140006))", "lead:no-provenance"},
-		{"one of two not in range", "(#140005, #149999)", "lead:no-provenance"},
-		{"HTML entity is not a reference", "(&#140005;)", "lead:no-provenance"},
+		{"HTML entity", "(&#140005;)", "lead:no-provenance"},
 		{"no reference", "[SIG Node]", "lead:no-provenance"},
+		{"another repository's link", "([#140005](https://github.com/example/kubernetes/pull/140005))", "lead:unparsed-section"},
+		{"upper-case repository in the link", "([#140005](https://github.com/Kubernetes/Kubernetes/pull/140005))", "lead:unparsed-section"},
+		{"link title", "([details](https://kubernetes.io/notes \"#140005\"))", "lead:unparsed-section"},
+		{"another host's link", "([#140005](https://evil.example/kubernetes/kubernetes/pull/140005))", "lead:unparsed-section"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := fixtureWith(t, notes("- Removed the SilentDial feature gate. "+tc.ref))
@@ -245,25 +272,96 @@ func TestProvenance(t *testing.T) {
 
 func TestPRReferences(t *testing.T) {
 	repo := extract.RepoRef{Key: KubernetesRepo}
+	k := "https://github.com/kubernetes/kubernetes/pull/"
 	for _, tc := range []struct {
 		text       string
 		refs       []int
 		consistent bool
 	}{
-		{"x (#1, #22)", []int{1, 22}, true},
-		{"[#5](https://github.com/kubernetes/kubernetes/pull/5) and [@u](https://github.com/u)", []int{5}, true},
+		{"x ([#1](" + k + "1), [#22](" + k + "22))", []int{1, 22}, true},
+		{"[#5](" + k + "5) and [@u](https://github.com/u)", []int{5}, true},
 		{"[#5](https://github.com/other/kubernetes/pull/5)", nil, true},
-		{"[#5](https://github.com/kubernetes/kubernetes/pull/6)", []int{6}, false},
-		{"other/repo#7 and a#8 and &#9;", nil, true},
-		{"see https://github.com/kubernetes/kubernetes/pull/10/files", []int{10}, true},
-		{"[#12](https://github.com/kubernetes/kubernetes/issues/12) [see #13](https://docs.example.invalid)", nil, true},
-		{"https://github.com/kubernetes/kubernetes/pull/11.", []int{11}, true},
-		{"#0 #012", nil, true},
+		{"[#5](" + k + "6)", []int{6}, false},
+		{"[see #5](" + k + "5)", []int{5}, false},
+		{"x (#1, #22) " + k + "3 other/repo#7", nil, true},
+		{"`[#5](" + k + "5)`", nil, true},
+		{"[#5](" + k + "5/files)", nil, true},
+		{"[#5](https://github.com/kubernetes/kubernetes/issues/5)", nil, true},
 	} {
 		refs, consistent := prReferences(tc.text, repo)
 		if !reflect.DeepEqual(refs, tc.refs) || consistent != tc.consistent {
 			t.Errorf("%q: %v %v, want %v %v", tc.text, refs, consistent, tc.refs, tc.consistent)
 		}
+	}
+}
+
+// The release notes must be the release's own: read at a release tag
+// commit of its minor line, or at a commit of its release branch after
+// the tag. Anything else is dropped before the notes are read.
+func TestSourceBinding(t *testing.T) {
+	for _, tc := range []struct {
+		name, commit string
+		inputs       func(*Inputs)
+		tags         string
+		want         string
+	}{
+		{name: "tag commit", commit: toCommit, want: "verified:"},
+		{name: "release branch after the tag", commit: branchCommit, want: "verified:"},
+		{name: "descends from the tag, not on the branch", commit: offBranchCommit, want: "dropped:source-unbound"},
+		{name: "not in the history", commit: strings.Repeat("f", 40), want: "dropped:source-unbound"},
+		{name: "earlier release's commit", commit: fromCommit, want: "dropped:source-unbound"},
+		{name: "branch commit without a history", commit: branchCommit, inputs: func(in *Inputs) { in.History = nil }, want: "dropped:source-unbound"},
+		{name: "branch commit, history unavailable", commit: branchCommit, inputs: func(in *Inputs) { in.History = stubHistory{ErrHistoryUnavailable} }, want: "dropped:source-unbound"},
+		{name: "patch tag commit without a history", commit: branchCommit, tags: `{"v1.40.0": "` + fromCommit + `", "v1.41.0": "` + toCommit + `", "v1.41.1": "` + branchCommit + `"}`,
+			inputs: func(in *Inputs) { in.History = nil }, want: "lead:provenance-unavailable"},
+		{name: "pre-release tag commit is not bound", commit: strings.Repeat("c", 40), tags: `{"v1.40.0": "` + fromCommit + `", "v1.41.0": "` + toCommit + `", "v1.41.0-rc.1": "` + strings.Repeat("c", 40) + `"}`,
+			inputs: func(in *Inputs) { in.History = nil }, want: "dropped:source-unbound"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			text := notes(silentDial)
+			root := fixtureWith(t, text)
+			if tc.commit != toCommit {
+				placeNotes(t, root, tc.commit, text)
+			}
+			if tc.tags != "" {
+				os.WriteFile(filepath.Join(root, "github.com", "kubernetes", "kubernetes", "tags.json"), []byte(tc.tags), 0o644)
+			}
+			b := honestBundle(t, root, gateClaim("SilentDial"))
+			b.Source.Commit = tc.commit
+			in := fixtureInputs(root)
+			if tc.inputs != nil {
+				tc.inputs(&in)
+			}
+			rep, err := Verify(context.Background(), b, in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			c := onlyClaim(t, rep)
+			if got := c.Verdict + ":" + c.Reason; got != tc.want {
+				t.Fatalf("%s (%s), want %s", got, c.Detail, tc.want)
+			}
+		})
+	}
+}
+
+// Every identical copy of a cited item is checked for hidden content, not
+// only the first.
+func TestHiddenContentOnEveryCopy(t *testing.T) {
+	hidden := strings.Replace(silentDial, "feature gate", "feature\u200b gate", 1)
+	root := fixtureWith(t, notes(silentDial+"\n"+hidden))
+	c := onlyClaim(t, verifyFixture(t, root, honestBundle(t, root, gateClaim("SilentDial"))))
+	if c.Verdict != VerdictLead || c.Reason != ReasonHiddenContent {
+		t.Fatalf("%s:%s (%s)", c.Verdict, c.Reason, c.Detail)
+	}
+}
+
+// Verify stops between claims when its context ends.
+func TestVerifyContext(t *testing.T) {
+	root := fixtureWith(t, notes(silentDial))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := Verify(ctx, honestBundle(t, root, gateClaim("SilentDial")), fixtureInputs(root)); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err %v", err)
 	}
 }
 
@@ -293,12 +391,12 @@ func TestContainsToken(t *testing.T) {
 }
 
 func TestListItems(t *testing.T) {
-	n := mustNormalise(t, doc("intro\n- a\n  cont\n  - nested\n* b\n1. c\n\n- d\n### h\nloose"))
+	n := mustNormalise(t, doc("intro\n- a\n  cont\n  - nested\n* b\n\n- d\n### h\nloose"))
 	var got []string
 	for _, it := range listItems(n) {
 		got = append(got, it.text)
 	}
-	want := []string{"- a\n  cont", "  - nested", "* b", "1. c", "- d"}
+	want := []string{"- a\n  cont", "  - nested", "* b", "- d"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("items %q, want %q", got, want)
 	}
@@ -339,6 +437,20 @@ func TestDecodeBundleStrict(t *testing.T) {
 	if _, err := DecodeBundle(append([]byte(" "), bytes.Repeat([]byte(" "), MaxBundleBytes)...)); err == nil {
 		t.Error("over-long bundle accepted")
 	}
+	// At most MaxClaims claims.
+	many := honestBundle(t, root, nil)
+	for i := 0; i <= MaxClaims; i++ {
+		many.Claims = append(many.Claims, Claim{ID: fmt.Sprintf("c%d", i), Kind: "removed_feature_gate", Names: []string{"X"}})
+	}
+	raw, _ := extract.Canonical(many)
+	if _, err := DecodeBundle(raw); err == nil || !strings.Contains(err.Error(), "claims, want 1-500") {
+		t.Errorf("%d claims: %v", len(many.Claims), err)
+	}
+	many.Claims = many.Claims[:MaxClaims]
+	raw, _ = extract.Canonical(many)
+	if _, err := DecodeBundle(raw); err != nil {
+		t.Errorf("%d claims: %v", len(many.Claims), err)
+	}
 }
 
 func FuzzDecodeBundle(f *testing.F) {
@@ -356,7 +468,7 @@ func FuzzDecodeBundle(f *testing.F) {
 }
 
 func TestReportDeterministic(t *testing.T) {
-	root := fixtureWith(t, notes(silentDial+"\n- Removed the OldPortal feature gate. (#140002)"))
+	root := fixtureWith(t, notes(silentDial+"\n- Removed the OldPortal feature gate. "+prLink("140002")))
 	b := honestBundle(t, root, []Claim{
 		{ID: "b", Kind: "removed_feature_gate", Names: []string{"OldPortal"}},
 		{ID: "a", Kind: "removed_feature_gate", Names: []string{"SilentDial"}},
@@ -379,19 +491,22 @@ func TestReportDeterministic(t *testing.T) {
 	}
 }
 
-// The mirror's commit walk reads commit objects with git, offline.
-func TestMirrorHistory(t *testing.T) {
+// mirrorRepo builds a bare mirror repository under state from commits
+// made in a work tree, and returns a git runner for the work tree, the
+// bare repository's directory and the commit ids by subject.
+func mirrorRepo(t *testing.T, state string, subjects ...string) (func(dir string, args ...string) string, string, []string) {
+	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git is not installed")
 	}
-	state := t.TempDir()
+	work := filepath.Join(state, "work")
 	dir := filepath.Join(state, "mirror", "github.com", "kubernetes", "kubernetes.git")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(work, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	git := func(args ...string) string {
+	git := func(in string, args ...string) string {
 		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
+		cmd.Dir = in
 		cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + state, "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull,
 			"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.invalid", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.invalid",
 			"GIT_AUTHOR_DATE=2026-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2026-01-01T00:00:00Z"}
@@ -401,15 +516,27 @@ func TestMirrorHistory(t *testing.T) {
 		}
 		return strings.TrimSpace(string(out))
 	}
-	git("init", "-q")
-	commit := func(subject string) string {
-		git("commit", "-q", "--allow-empty", "-m", subject)
-		return git("rev-parse", "HEAD")
+	git(work, "init", "-q", "-b", "main")
+	var ids []string
+	for _, s := range subjects {
+		git(work, "commit", "-q", "--allow-empty", "-m", s)
+		ids = append(ids, git(work, "rev-parse", "HEAD"))
 	}
-	commit("Merge pull request #1 from a/b")
-	from := commit("Release commit (#2)")
-	c3 := commit("Remove the X feature gate (#3)")
-	to := commit("Merge pull request #4 from c/d")
+	return git, dir, ids
+}
+
+// The mirror's commit walk reads commit objects with git, offline.
+func TestMirrorHistory(t *testing.T) {
+	state := t.TempDir()
+	git, dir, ids := mirrorRepo(t, state, "Merge pull request #1 from a/b", "Release commit (#2)", "Remove the X feature gate (#3)", "Merge pull request #4 from c/d", "Later (#5)")
+	from, c3, to, later := ids[1], ids[2], ids[3], ids[4]
+	work := filepath.Join(state, "work")
+	git(work, "branch", "release-1.41", to)
+	git(work, "checkout", "-q", "-b", "side", to)
+	git(work, "commit", "-q", "--allow-empty", "-m", "Side (#6)")
+	side := git(work, "rev-parse", "HEAD")
+	git(state, "clone", "-q", "--bare", work, dir)
+
 	repo := extract.RepoRef{Key: KubernetesRepo}
 	h := MirrorHistory{State: state}
 	got, err := h.RangeSubjects(repo, from, to, 10)
@@ -428,5 +555,78 @@ func TestMirrorHistory(t *testing.T) {
 	}
 	if _, err := (MirrorHistory{State: t.TempDir()}).RangeSubjects(repo, from, to, 10); !errors.Is(err, ErrHistoryIncomplete) {
 		t.Fatalf("not mirrored: %v", err)
+	}
+	for _, tc := range []struct {
+		base, commit, branch string
+		want                 bool
+	}{
+		{to, to, "release-1.41", true},
+		{c3, to, "release-1.41", true},
+		{to, later, "release-1.41", false},
+		{to, side, "release-1.41", false},
+		{to, from, "release-1.41", false},
+		{to, to, "release-1.42", false},
+	} {
+		ok, err := h.OnBranch(repo, tc.base, tc.commit, tc.branch)
+		if err != nil || ok != tc.want {
+			t.Errorf("OnBranch(%s, %s, %s) = %v, %v; want %v", tc.base[:7], tc.commit[:7], tc.branch, ok, err, tc.want)
+		}
+	}
+	if _, err := h.OnBranch(repo, to, strings.Repeat("e", 40), "release-1.41"); !errors.Is(err, ErrHistoryIncomplete) {
+		t.Fatalf("unknown commit: %v", err)
+	}
+}
+
+// A mirror's own configuration and refs cannot make the walk run a
+// program, fetch, or read replaced commits.
+func TestMirrorHistoryIsolated(t *testing.T) {
+	state := t.TempDir()
+	mark := t.TempDir()
+	git, dir, ids := mirrorRepo(t, state, "Release (#2)", "Remove X (#3)")
+	work := filepath.Join(state, "work")
+	from, c3 := ids[0], ids[1]
+	// A signed-looking commit, so a signature check would run gpg.program.
+	tree := git(work, "rev-parse", "HEAD^{tree}")
+	obj := "tree " + tree + "\nparent " + c3 + "\nauthor t <t@example.invalid> 1767225600 +0000\ncommitter t <t@example.invalid> 1767225600 +0000\ngpgsig -----BEGIN PGP SIGNATURE-----\n \n iQ==\n -----END PGP SIGNATURE-----\n\nSigned (#4)\n"
+	objFile := filepath.Join(mark, "obj")
+	os.WriteFile(objFile, []byte(obj), 0o644)
+	to := git(work, "hash-object", "-t", "commit", "-w", objFile)
+	git(work, "update-ref", "refs/heads/main", to)
+	git(state, "clone", "-q", "--bare", work, dir)
+	// A replacement object that would rename the commit carrying #3.
+	fake := strings.Replace(git(dir, "cat-file", "commit", c3), "Remove X (#3)", "Remove Y (#999)", 1)
+	os.WriteFile(objFile, []byte(fake+"\n"), 0o644)
+	git(dir, "replace", c3, git(dir, "hash-object", "-t", "commit", "-w", objFile))
+
+	script := func(name string) string {
+		p := filepath.Join(mark, "bin-"+name)
+		os.WriteFile(p, []byte("#!/bin/sh\ntouch "+filepath.Join(mark, "RAN-"+name)+"\nexit 0\n"), 0o755)
+		return p
+	}
+	inc := filepath.Join(mark, "inc.cfg")
+	os.WriteFile(inc, []byte("[core]\n\tfsmonitor = "+script("fsmonitor-include")+"\n"), 0o644)
+	for k, v := range map[string]string{
+		"log.showSignature": "true", "gpg.program": script("gpg"), "core.fsmonitor": script("fsmonitor"),
+		"core.pager": script("pager"), "include.path": inc, "core.hooksPath": mark,
+		"remote.origin.url": "ext::" + script("ext") + " %S", "remote.origin.promisor": "true",
+		"extensions.partialClone": "origin", "protocol.allow": "always",
+	} {
+		git(dir, "config", k, v)
+	}
+
+	h := MirrorHistory{State: state}
+	got, err := h.RangeSubjects(extract.RepoRef{Key: KubernetesRepo}, from, to, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[1].Subject != "Remove X (#3)" || got[0].Subject != "Signed (#4)" {
+		t.Fatalf("subjects %v", got)
+	}
+	h.RangeSubjects(extract.RepoRef{Key: KubernetesRepo}, from, strings.Repeat("e", 40), 10)
+	entries, _ := os.ReadDir(mark)
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "RAN-") {
+			t.Errorf("the walk ran %s", e.Name())
+		}
 	}
 }

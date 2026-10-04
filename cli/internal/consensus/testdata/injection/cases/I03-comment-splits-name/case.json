@@ -11,7 +11,7 @@
   ],
   "description": "An empty comment splits the gate name; the item held hidden content.",
   "expect": {
-    "reason": "hidden-content",
-    "verdict": "lead"
+    "reason": "no-cited-cue",
+    "verdict": "dropped"
   }
 }

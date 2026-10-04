@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
@@ -23,7 +24,23 @@ const (
 	fromTag     = "v1.40.0"
 	toTag       = "v1.41.0"
 	changelogAt = "CHANGELOG/CHANGELOG-1.41.md"
+	// branchCommit is on release-1.41 after the v1.41.0 tag;
+	// offBranchCommit descends from the tag but is not on the branch.
+	branchCommit    = "0000000000000000000000000000000000014101"
+	offBranchCommit = "0000000000000000000000000000000000014199"
 )
+
+// placeNotes writes release notes at another commit of a fixture.
+func placeNotes(t *testing.T, root, commit string, text []byte) {
+	t.Helper()
+	p := filepath.Join(root, "github.com", "kubernetes", "kubernetes", "commits", commit, filepath.FromSlash(changelogAt))
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, text, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
 
 type corpusCase struct {
 	Description string  `json:"description"`
@@ -147,6 +164,10 @@ func runCase(t *testing.T, kind, id string, c corpusCase) *Report {
 		b.Source.FileSHA256 = FileDigest([]byte("other bytes"))
 	case "fromCommit":
 		b.FromRelease.Commit = toCommit
+	case "strayCommit", "offBranchCommit", "branchCommit":
+		commit := map[string]string{"strayCommit": strings.Repeat("f", 40), "offBranchCommit": offBranchCommit, "branchCommit": branchCommit}[c.Tamper]
+		placeNotes(t, root, commit, text)
+		b.Source.Commit = commit
 	default:
 		t.Fatalf("%s: unknown tamper %q", id, c.Tamper)
 	}

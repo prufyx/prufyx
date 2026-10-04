@@ -12,35 +12,26 @@ import (
 	"unicode/utf8"
 )
 
-// NormaliserVersion identifies the section rules and stripping rules
-// below. Any change to what Normalise outputs must change it.
-const NormaliserVersion = "1"
+// NormaliserVersion identifies the section rules, the line grammar and
+// the character rules below. Any change to what Normalise outputs or
+// accepts must change it.
+const NormaliserVersion = "2"
 
-// Bounds of a release notes file.
+// Bounds of a release notes file and of list nesting.
 const (
 	MaxSourceBytes = 2 << 20
 	MaxLineBytes   = 64 << 10
+	// MaxListDepth bounds list nesting: item markers are indented by 0, 2,
+	// ... 2*(MaxListDepth-1) spaces.
+	MaxListDepth = 4
 )
 
-// Line flags. A flag in hiddenFlags marks a line that held content a
-// reader of the rendered page would not see, or would see differently;
-// a citation of such a line is never verified.
+// Line flags: characters removed from a line. Both make a line hidden
+// content; a citation of a hidden line is never verified.
 const (
-	FlagHTMLComment           = "html-comment"
-	FlagUnterminatedComment   = "unterminated-comment"
-	FlagHTMLTag               = "html-tag"
-	FlagInvisibleCharacter    = "invisible-character"
-	FlagControlCharacter      = "control-character"
-	FlagCodeBlock             = "code-block"
-	FlagUnterminatedCodeBlock = "unterminated-code-block"
-	FlagLinkReference         = "link-reference"
-	FlagImage                 = "image"
+	FlagInvisibleCharacter = "invisible-character"
+	FlagControlCharacter   = "control-character"
 )
-
-var hiddenFlags = map[string]bool{
-	FlagHTMLComment: true, FlagUnterminatedComment: true, FlagHTMLTag: true,
-	FlagInvisibleCharacter: true, FlagControlCharacter: true,
-}
 
 // SectionSpec names the release notes file and the release whose section
 // is selected.
@@ -71,33 +62,40 @@ func refuse(code, format string, a ...any) error {
 	return &Refusal{Code: code, Detail: fmt.Sprintf(format, a...)}
 }
 
-// Line is one normalised line of the selected section.
+// Line is one line of the selected section.
 type Line struct {
 	Text string
 	// Original is the 1-based line number in the source file.
 	Original int
 	// Flags name what was removed from the line, sorted.
 	Flags []string
+	// Problem is set when the line is outside the line grammar.
+	Problem string
 }
 
-// Hidden reports whether the line held hidden content.
-func (l Line) Hidden() bool {
-	for _, f := range l.Flags {
-		if hiddenFlags[f] {
-			return true
-		}
-	}
-	return false
+// Hidden reports whether characters were removed from the line.
+func (l Line) Hidden() bool { return len(l.Flags) > 0 }
+
+// Problem is a line of the section outside the line grammar.
+type Problem struct {
+	// Original is the 1-based line number in the source file.
+	Original int    `json:"original"`
+	Reason   string `json:"reason"`
 }
 
-// Normalised is the selected, normalised section.
+// Normalised is the selected section: the release's citable subsections,
+// in file order, each starting with its heading.
 type Normalised struct {
 	Section string
 	Lines   []Line
-	// Truncated is set when an unterminated comment or code block removed
-	// everything after it.
-	Truncated bool
+	// Problems lists every line outside the line grammar, and every
+	// construct left open before a subsection starts. A section with a
+	// problem is not citable.
+	Problems []Problem
 }
+
+// Parsed reports whether every line of the section is inside the grammar.
+func (n Normalised) Parsed() bool { return len(n.Problems) == 0 }
 
 // Text is the normalised section: its lines joined by LF, with a final LF.
 func (n Normalised) Text() []byte {
@@ -129,19 +127,39 @@ var (
 	k8sReleaseTag    = regexp.MustCompile(`^v1\.(0|[1-9][0-9]{0,2})\.0$`)
 )
 
-// sectionHeading returns the heading line that opens the release's section
-// and the prefix of a heading that ends it. Only Kubernetes has a rule:
-// CHANGELOG/CHANGELOG-1.N.md, from "# v1.N.0" to the next "# v" heading.
-func sectionHeading(spec SectionSpec) (string, string, error) {
+// sectionRule is how one repository's release notes are read.
+type sectionRule struct {
+	// heading opens the release's section (a level-1 heading); the
+	// section ends at the next level-1 heading.
+	heading string
+	// subsections are the level-2 headings whose content is citable; each
+	// ends at the next heading of level 1 or 2.
+	subsections []string
+	// owner and name of the repository whose pull requests are cited.
+	owner, name string
+	// docsHosts are the hosts a link may point at besides the repository's
+	// pull requests and issues and a contributor's profile.
+	docsHosts []string
+}
+
+// ruleFor returns the section rule. Only Kubernetes has one:
+// CHANGELOG/CHANGELOG-1.N.md, the section "# v1.N.0", and in it the
+// subsections "## Urgent Upgrade Notes" and "## Changes by Kind".
+func ruleFor(spec SectionSpec) (sectionRule, error) {
 	if spec.Repo != KubernetesRepo {
-		return "", "", refuse("no-section-rule", "no section rule for repository %q", spec.Repo)
+		return sectionRule{}, refuse("no-section-rule", "no section rule for repository %q", spec.Repo)
 	}
 	pm := k8sChangelogPath.FindStringSubmatch(spec.Path)
 	vm := k8sReleaseTag.FindStringSubmatch(spec.Version)
 	if pm == nil || vm == nil || pm[1] != vm[1] {
-		return "", "", refuse("no-section-rule", "the section rule needs CHANGELOG/CHANGELOG-1.N.md and v1.N.0 with the same N")
+		return sectionRule{}, refuse("no-section-rule", "the section rule needs CHANGELOG/CHANGELOG-1.N.md and v1.N.0 with the same N")
 	}
-	return "# " + spec.Version, "# v", nil
+	return sectionRule{
+		heading:     "# " + spec.Version,
+		subsections: []string{"## Urgent Upgrade Notes", "## Changes by Kind"},
+		owner:       "kubernetes", name: "kubernetes",
+		docsHosts: []string{"kubernetes.io", "k8s.io", "docs.k8s.io"},
+	}, nil
 }
 
 // KubernetesMinor returns N of a v1.N.0 tag.
@@ -173,23 +191,17 @@ func control(r rune) bool {
 	return (r < 0x20 && r != '\t') || r == 0x7F || (r >= 0x80 && r <= 0x9F)
 }
 
-type workLine struct {
-	text  string
-	orig  int
-	flags map[string]bool
-}
+var (
+	level1RE = regexp.MustCompile(`^ {0,3}#([ \t]|$)`)
+	level2RE = regexp.MustCompile(`^ {0,3}#{1,2}([ \t]|$)`)
+)
 
-func (w *workLine) flag(f string) {
-	if w.flags == nil {
-		w.flags = map[string]bool{}
-	}
-	w.flags[f] = true
-}
-
-// Normalise selects the release's own section of a release notes file and
-// normalises it. It is deterministic: equal input gives equal output.
+// Normalise selects the release's citable subsections of a release notes
+// file and checks every line against the line grammar. Characters are
+// removed only when invisible or control characters (and the line is
+// flagged); nothing else is rewritten. It is deterministic.
 func Normalise(src []byte, spec SectionSpec) (Normalised, error) {
-	open, next, err := sectionHeading(spec)
+	rule, err := ruleFor(spec)
 	if err != nil {
 		return Normalised{}, err
 	}
@@ -203,197 +215,351 @@ func Normalise(src []byte, spec SectionSpec) (Normalised, error) {
 	if len(raw) > 0 && raw[len(raw)-1] == "" {
 		raw = raw[:len(raw)-1]
 	}
-	lines := make([]*workLine, len(raw))
+	lines := make([]Line, len(raw))
 	for i, text := range raw {
 		if len(text) > MaxLineBytes {
 			return Normalised{}, refuse("line-too-long", "line %d has %d bytes, at most %d", i+1, len(text), MaxLineBytes)
 		}
 		// CRLF becomes LF; any other carriage return is a control
 		// character below.
-		text = strings.TrimSuffix(text, "\r")
-		lines[i] = &workLine{text: text, orig: i + 1}
-		stripCharacters(lines[i])
+		lines[i] = stripCharacters(strings.TrimSuffix(text, "\r"), i+1)
 	}
-	truncated := stripComments(lines)
 
 	start := -1
 	for i, l := range lines {
-		if strings.TrimRight(l.text, " \t") == open {
+		if strings.TrimRight(l.Text, " \t") == rule.heading {
 			if start >= 0 {
-				return Normalised{}, refuse("section-ambiguous", "%q appears on lines %d and %d", open, lines[start].orig, l.orig)
+				return Normalised{}, refuse("section-ambiguous", "%q appears on lines %d and %d", rule.heading, lines[start].Original, l.Original)
 			}
 			start = i
 		}
 	}
 	if start < 0 {
-		return Normalised{}, refuse("no-section", "no %q heading", open)
+		return Normalised{}, refuse("no-section", "no %q heading", rule.heading)
 	}
 	end := len(lines)
 	for i := start + 1; i < len(lines); i++ {
-		if strings.HasPrefix(lines[i].text, next) {
+		if level1RE.MatchString(lines[i].Text) {
 			end = i
 			break
 		}
 	}
-	section := lines[start:end]
-	if stripCodeBlocks(section) {
-		truncated = true
+
+	out := Normalised{Section: spec.Version}
+	opens := blockStates(lines)
+	found := map[string]bool{}
+	for i := start + 1; i < end; i++ {
+		head := strings.TrimRight(lines[i].Text, " \t")
+		if !contains(rule.subsections, head) {
+			continue
+		}
+		if found[head] {
+			return Normalised{}, refuse("section-ambiguous", "%q appears twice in the section", head)
+		}
+		found[head] = true
+		stop := end
+		for j := i + 1; j < end; j++ {
+			if level2RE.MatchString(lines[j].Text) {
+				stop = j
+				break
+			}
+		}
+		sub := append([]Line{}, lines[i:stop]...)
+		g := grammar{rule: rule}
+		for k := range sub {
+			var p string
+			if k > 0 {
+				p = g.line(sub[k].Text)
+			}
+			// A heading inside a construct opened before it is rendered
+			// as part of that construct.
+			if open := opens[i+k]; p == "" && open != "" && strings.HasPrefix(sub[k].Text, "#") {
+				p = open + " left open before the heading"
+			}
+			if p != "" {
+				sub[k].Problem = p
+				out.Problems = append(out.Problems, Problem{Original: sub[k].Original, Reason: p})
+			}
+		}
+		for k := range sub {
+			sub[k].Text = strings.TrimRight(sub[k].Text, " ")
+		}
+		out.Lines = append(out.Lines, sub...)
 	}
-	for _, l := range section {
-		stripMarkup(l)
-		l.text = strings.TrimRight(l.text, " \t")
-	}
-	out := Normalised{Section: spec.Version, Truncated: truncated, Lines: make([]Line, len(section))}
-	for i, l := range section {
-		out.Lines[i] = Line{Text: l.text, Original: l.orig, Flags: sortedFlags(l.flags)}
+	if len(found) == 0 {
+		return Normalised{}, refuse("no-section", "no citable subsection in %q", rule.heading)
 	}
 	return out, nil
 }
 
-func sortedFlags(m map[string]bool) []string {
-	if len(m) == 0 {
-		return nil
+func contains(list []string, s string) bool {
+	for _, x := range list {
+		if x == s {
+			return true
+		}
 	}
-	out := make([]string, 0, len(m))
-	for f := range m {
-		out = append(out, f)
+	return false
+}
+
+// stripCharacters removes invisible and control characters from one line.
+func stripCharacters(text string, original int) Line {
+	var b strings.Builder
+	flags := map[string]bool{}
+	for _, r := range text {
+		switch {
+		case invisible(r):
+			flags[FlagInvisibleCharacter] = true
+		case control(r):
+			flags[FlagControlCharacter] = true
+		default:
+			b.WriteRune(r)
+		}
 	}
-	for i := 1; i < len(out); i++ {
-		for j := i; j > 0 && out[j] < out[j-1]; j-- {
-			out[j], out[j-1] = out[j-1], out[j]
+	l := Line{Text: b.String(), Original: original}
+	for _, f := range []string{FlagControlCharacter, FlagInvisibleCharacter} {
+		if flags[f] {
+			l.Flags = append(l.Flags, f)
+		}
+	}
+	return l
+}
+
+var (
+	fenceOpenRE = regexp.MustCompile("^ {0,3}(`{3,}|~{3,})")
+	// CommonMark HTML block start conditions 1-5 (which end at a marker)
+	// and 6-7 (which end at a blank line).
+	htmlBlock1RE = regexp.MustCompile(`(?i)^ {0,3}<(script|pre|style|textarea)([ \t>]|$)`)
+	htmlBlock6RE = regexp.MustCompile(`(?i)^ {0,3}</?[a-z][a-z0-9-]*([ \t>]|/>|$)`)
+	html1EndRE   = regexp.MustCompile(`(?i)</(script|pre|style|textarea)>`)
+)
+
+// blockStates returns, for every line, the block construct that is open
+// at its start ("" when none): a fenced code block, an HTML block or an
+// HTML comment opened on an earlier line. A subsection that starts inside
+// one is rendered as part of it, not as a heading.
+func blockStates(lines []Line) []string {
+	out := make([]string, len(lines))
+	state, end, fence := "", "", ""
+	for i, l := range lines {
+		out[i] = state
+		t := l.Text
+		switch state {
+		case "fenced code":
+			if s := strings.TrimSpace(t); len(s) >= len(fence) && strings.Trim(s, fence[:1]) == "" {
+				state = ""
+			}
+			continue
+		case "HTML block":
+			if end == "" {
+				if strings.TrimSpace(t) == "" {
+					state = ""
+				}
+			} else if (end == "html1" && html1EndRE.MatchString(t)) || (end != "html1" && strings.Contains(t, end)) {
+				state = ""
+			}
+			continue
+		}
+		trimmed := strings.TrimLeft(t, " ")
+		lead := len(t) - len(trimmed)
+		skip := 0 // bytes of the opener, after which the end marker may close the block on its first line
+		switch {
+		case fenceOpenRE.MatchString(t):
+			state, fence = "fenced code", fenceOpenRE.FindStringSubmatch(t)[1]
+			continue
+		case lead <= 3 && strings.HasPrefix(trimmed, "<!--"):
+			// "<!-->" and "<!--->" are complete comments.
+			state, end, skip = "HTML block", "-->", 2
+		case htmlBlock1RE.MatchString(t):
+			state, end = "HTML block", "html1"
+		case lead <= 3 && strings.HasPrefix(trimmed, "<?"):
+			state, end, skip = "HTML block", "?>", 2
+		case lead <= 3 && strings.HasPrefix(trimmed, "<![CDATA["):
+			state, end, skip = "HTML block", "]]>", 9
+		case lead <= 3 && len(trimmed) > 2 && strings.HasPrefix(trimmed, "<!") && trimmed[2] >= 'A' && trimmed[2] <= 'Z':
+			state, end, skip = "HTML block", ">", 2
+		case htmlBlock6RE.MatchString(t):
+			// Ends at the next blank line.
+			state, end = "HTML block", ""
+			continue
+		default:
+			continue
+		}
+		if end == "html1" {
+			if html1EndRE.MatchString(t) {
+				state = ""
+			}
+		} else if strings.Contains(trimmed[skip:], end) {
+			state = ""
 		}
 	}
 	return out
 }
 
-// stripCharacters removes invisible and control characters from one line.
-func stripCharacters(l *workLine) {
-	var b strings.Builder
-	for _, r := range l.text {
-		switch {
-		case invisible(r):
-			l.flag(FlagInvisibleCharacter)
-		case control(r):
-			l.flag(FlagControlCharacter)
-		default:
-			b.WriteRune(r)
-		}
-	}
-	l.text = b.String()
-}
-
-// stripComments removes HTML comments across lines. An unterminated comment
-// removes everything after its start; the function then returns true.
-func stripComments(lines []*workLine) bool {
-	in := false
-	startLine := -1
-	for i, l := range lines {
-		var b strings.Builder
-		rest := l.text
-		touched := false
-		for {
-			if in {
-				touched = true
-				j := strings.Index(rest, "-->")
-				if j < 0 {
-					rest = ""
-					break
-				}
-				rest = rest[j+3:]
-				in = false
-				continue
-			}
-			j := strings.Index(rest, "<!--")
-			if j < 0 {
-				b.WriteString(rest)
-				break
-			}
-			b.WriteString(rest[:j])
-			rest = rest[j+4:]
-			in, startLine, touched = true, i, true
-		}
-		if touched {
-			l.flag(FlagHTMLComment)
-		}
-		l.text = b.String()
-	}
-	if in {
-		lines[startLine].flag(FlagUnterminatedComment)
-		return true
-	}
-	return false
-}
-
-var fenceRE = regexp.MustCompile("^[ \t]*(`{3,}|~{3,})")
-
-// stripCodeBlocks empties fenced code blocks, fences included. An
-// unterminated block empties everything after it and returns true.
-func stripCodeBlocks(lines []*workLine) bool {
-	var fence string
-	start := -1
-	for i, l := range lines {
-		m := fenceRE.FindStringSubmatch(l.text)
-		if fence == "" {
-			if m == nil {
-				continue
-			}
-			fence, start = m[1], i
-		} else if t := strings.TrimSpace(l.text); len(t) >= len(fence) && strings.Trim(t, fence[:1]) == "" {
-			fence = ""
-		}
-		l.text = ""
-		l.flag(FlagCodeBlock)
-	}
-	if fence != "" {
-		lines[start].flag(FlagUnterminatedCodeBlock)
-		return true
-	}
-	return false
-}
-
 var (
-	linkRefRE  = regexp.MustCompile(`^[ \t]*\[[^\]]+\]:`)
-	imageRE    = regexp.MustCompile(`!\[[^\]]*\](\([^)]*\)|\[[^\]]*\])`)
-	autolinkRE = regexp.MustCompile(`<(https?://[^\s<>]+)>`)
-	tagRE      = regexp.MustCompile(`</?[A-Za-z][A-Za-z0-9_.:-]*(\s[^<>]*)?/?>|<[!?][^<>]*>`)
-	tagStartRE = regexp.MustCompile(`</?[A-Za-z!?]`)
+	headingLineRE    = regexp.MustCompile(`^#{3,6}([ ]|$)`)
+	itemLineRE       = regexp.MustCompile(`^( *)([-*]) (.*)$`)
+	emptyItemRE      = regexp.MustCompile(`^( *)[-*]$`)
+	breakLineRE      = regexp.MustCompile(`^ *(=+|-+|\*+|_+|(- *){3,}|(\* *){3,}|(_ *){3,}) *$`)
+	orderedLineRE    = regexp.MustCompile(`^[0-9]{1,9}[.)]( |$)`)
+	linkRefDefRE     = regexp.MustCompile(`^\[[^\]]*\]:`)
+	inlineLinkRE     = regexp.MustCompile(`\[([^\[\]]*)\]\(([^()\s]*)\)`)
+	rawHTMLRE        = regexp.MustCompile(`<[A-Za-z!?/]`)
+	pullOrIssueRE    = regexp.MustCompile(`^https://github\.com/([A-Za-z0-9][A-Za-z0-9._-]*)/([A-Za-z0-9][A-Za-z0-9._-]*)/(pull|issues)/[1-9][0-9]{0,8}$`)
+	profileRE        = regexp.MustCompile(`^https://github\.com/([A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))$`)
+	docsURLRE        = regexp.MustCompile(`^https://([a-z0-9.-]+)(/[A-Za-z0-9._~%/#?=&+:@-]*)?$`)
+	forbiddenInlines = []struct{ token, reason string }{
+		{"-->", "comment marker"}, {"![", "image"}, {"|", "table cell"}, {"~", "strikethrough"},
+		{"[^", "footnote"}, {"][", "reference link"}, {"\t", "tab"},
+	}
 )
 
-// stripMarkup removes link reference definitions, images and raw HTML
-// from one line. Text inside inline code spans is left as written.
-func stripMarkup(l *workLine) {
-	if linkRefRE.MatchString(l.text) {
-		l.text = ""
-		l.flag(FlagLinkReference)
-		return
-	}
-	l.text = outsideCode(l.text, func(s string) string {
-		if imageRE.MatchString(s) {
-			s = imageRE.ReplaceAllString(s, "")
-			l.flag(FlagImage)
-		}
-		s = autolinkRE.ReplaceAllString(s, "$1")
-		if tagRE.MatchString(s) {
-			s = tagRE.ReplaceAllString(s, "")
-			l.flag(FlagHTMLTag)
-		}
-		if tagStartRE.MatchString(s) {
-			// The start of a tag that continues on another line.
-			l.flag(FlagHTMLTag)
-		}
-		return s
-	})
+// grammar checks the lines of one subsection. The grammar is: blank lines;
+// ATX headings of level 3-6 at column 0; list items "- " or "* " indented
+// by a multiple of 2, at most MaxListDepth deep (an indented item needs an
+// open item); continuation lines of an open item indented by at most five
+// columns more than its marker (never code); plain paragraph lines at
+// column 0. Inline, outside code spans: text, emphasis, entities,
+// and links whose target is a pull request or issue of the repository, a
+// contributor's profile ("[@login](https://github.com/login)") or a page
+// on a documentation host. Anything else is a problem.
+type grammar struct {
+	rule     sectionRule
+	item     int // marker indentation of the open item, -1 for none
+	started  bool
+	sawBlank bool
 }
 
-// outsideCode applies fn to the parts of s outside inline code spans (a
-// run of backticks up to the next run of the same length). An unmatched
-// run is ordinary text.
-func outsideCode(s string, fn func(string) string) string {
+func (g *grammar) line(t string) string {
+	if !g.started {
+		g.started, g.item = true, -1
+	}
+	if strings.TrimSpace(t) == "" {
+		g.sawBlank = true
+		return ""
+	}
+	blank := g.sawBlank
+	g.sawBlank = false
+	if strings.Contains(t, "\t") {
+		return "tab"
+	}
+	indent := len(t) - len(strings.TrimLeft(t, " "))
+	rest := t[indent:]
+	if indent == 0 && strings.HasPrefix(rest, "#") {
+		if !headingLineRE.MatchString(rest) {
+			return "heading form"
+		}
+		g.item = -1
+		return g.inline(strings.TrimLeft(rest, "#"))
+	}
+	if strings.HasPrefix(rest, "#") {
+		return "indented heading"
+	}
+	if breakLineRE.MatchString(rest) {
+		return "setext underline or thematic break"
+	}
+	if emptyItemRE.MatchString(t) {
+		return "empty list item"
+	}
+	if m := itemLineRE.FindStringSubmatch(t); m != nil {
+		switch {
+		case indent%2 != 0:
+			return "list item indentation"
+		case indent/2 >= MaxListDepth:
+			return "list nesting too deep"
+		case indent > 0 && g.item < 0:
+			return "list item indentation"
+		}
+		g.item = indent
+		return g.inline(m[3])
+	}
+	if p := blockStart(rest); p != "" {
+		return p
+	}
+	if indent == 0 {
+		if blank {
+			g.item = -1
+		}
+		return g.inline(rest)
+	}
+	// A continuation line of an open item. Code inside an item needs at
+	// least four columns past the item's content (marker + 2), so up to
+	// marker + 5 is always text.
+	if g.item < 0 || indent > g.item+5 {
+		return "indented code or unaligned indentation"
+	}
+	return g.inline(rest)
+}
+
+// blockStart names a block construct outside the grammar that starts a
+// line (after its indentation).
+func blockStart(rest string) string {
+	switch {
+	case strings.HasPrefix(rest, "```") || strings.HasPrefix(rest, "~~~"):
+		return "fenced code"
+	case strings.HasPrefix(rest, ">"):
+		return "block quote"
+	case strings.HasPrefix(rest, "+ ") || rest == "+":
+		return "list marker +"
+	case orderedLineRE.MatchString(rest):
+		return "ordered list"
+	case breakLineRE.MatchString(rest):
+		return "setext underline or thematic break"
+	case linkRefDefRE.MatchString(rest):
+		return "link reference definition"
+	}
+	return ""
+}
+
+// inline checks text outside code spans.
+func (g *grammar) inline(s string) string {
+	plain := codeSpans(s)
+	if rawHTMLRE.MatchString(plain) {
+		return "raw HTML"
+	}
+	for _, f := range forbiddenInlines {
+		if strings.Contains(plain, f.token) {
+			return f.reason
+		}
+	}
+	var bad string
+	rest := inlineLinkRE.ReplaceAllStringFunc(plain, func(link string) string {
+		m := inlineLinkRE.FindStringSubmatch(link)
+		if bad == "" && !g.allowedLink(m[1], m[2]) {
+			bad = "link target " + logSafe(m[2])
+		}
+		return " "
+	})
+	if bad != "" {
+		return bad
+	}
+	if strings.Contains(rest, "](") {
+		return "link form"
+	}
+	return ""
+}
+
+func (g *grammar) allowedLink(text, dest string) bool {
+	if m := pullOrIssueRE.FindStringSubmatch(dest); m != nil {
+		return m[1] == g.rule.owner && m[2] == g.rule.name
+	}
+	if m := profileRE.FindStringSubmatch(dest); m != nil {
+		return text == "@"+m[1]
+	}
+	if m := docsURLRE.FindStringSubmatch(dest); m != nil {
+		return contains(g.rule.docsHosts, m[1])
+	}
+	return false
+}
+
+// codeSpans replaces the content of inline code spans (a run of backticks
+// up to the next run of the same length) with spaces, keeping unmatched
+// runs as text.
+func codeSpans(s string) string {
 	var b strings.Builder
-	plain := 0
 	i := 0
 	for i < len(s) {
 		if s[i] != '`' {
+			b.WriteByte(s[i])
 			i++
 			continue
 		}
@@ -418,14 +584,12 @@ func outsideCode(s string, fn func(string) string) string {
 			j += m
 		}
 		if closeAt < 0 {
+			b.WriteString(s[i : i+n])
 			i += n
 			continue
 		}
-		b.WriteString(fn(s[plain:i]))
-		b.WriteString(s[i : closeAt+n])
+		b.WriteString(strings.Repeat(" ", closeAt+n-i))
 		i = closeAt + n
-		plain = i
 	}
-	b.WriteString(fn(s[plain:]))
 	return b.String()
 }
