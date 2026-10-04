@@ -147,8 +147,9 @@ prufyx-maintainer evidence reattest verify ... --rerun-worklist "$PWD/rerun-work
 `verify` then requires, for every citation of every rule the statement
 renews, exactly one citation in that worklist for the same pack path, rule
 and source with the same class, pinned commit, compared commit and, for the
-release-line baseline, the same line, pinned tag and compared tag, backed by
-a resolved line record in that worklist (V9). Any missing or differing
+release-line or tag-line baseline, the same baseline, line, pinned tag and
+compared tag, backed by a resolved line record of the same basis in that
+worklist (V9). Any missing or differing
 citation fails the gate. The command refuses to pass an automated statement
 that renews rules when `--rerun-worklist` is not given. Because both runs
 read the live upstream, run the verify job soon after the signing job; a
@@ -236,7 +237,7 @@ next pack, byte-for-byte.
 
 | # | Condition | What it means |
 |---|---|---|
-| E1 | The rule's citations, matched one-for-one against `evidence.sources[].id`, each classify `NO_NEW_RELEASE`, `FILE_IDENTICAL`, or `SPAN_IDENTICAL`, are not stale, were not resolved through the GitHub tags fallback, and each cite the exact commit their source pins; a citation compared against a release line (`baseline: release_line`, see [evidence-repin.md](evidence-repin.md)) must additionally have a consistent pinned tag, line and compared tag and be backed by a fresh, resolved line record in the worklist naming that exact tag and commit | A source with no citation, an extra citation with no source, a duplicate citation, or one bad citation excludes the whole rule, never just that citation. A citation classified `NO_RELEASE_BASELINE` (its repository has no releases and no tags, see [evidence-repin.md](evidence-repin.md)) is one of those bad citations: the rule is listed in `notExtended` with reason `NO_RELEASE_BASELINE` and goes to individual review or expires |
+| E1 | The rule's citations, matched one-for-one against `evidence.sources[].id`, each classify `NO_NEW_RELEASE`, `FILE_IDENTICAL`, or `SPAN_IDENTICAL`, are not stale, were not resolved through the GitHub tags fallback, and each cite the exact commit their source pins; a citation compared against a release line (`baseline: release_line`, see [evidence-repin.md](evidence-repin.md)) must additionally have a consistent pinned tag, line and compared tag and be backed by a fresh, resolved line record in the worklist naming that exact tag and commit; a citation compared on a line derived from git tags (`baseline: tag_line`) is checked the same way against a line record with `basis: "git_tags"`, and a line record of one basis never backs the other | A source with no citation, an extra citation with no source, a duplicate citation, or one bad citation excludes the whole rule, never just that citation. A citation classified `NO_RELEASE_BASELINE` (its repository has no releases and no tags, see [evidence-repin.md](evidence-repin.md)) is one of those bad citations: the rule is listed in `notExtended` with reason `NO_RELEASE_BASELINE` and goes to individual review or expires |
 | E2 | Across the whole worklist, no citation for this pack classifies `PENDING`, and the worklist's scope has no `--project`/`--limit` filter | A partial or still-resolving worklist disqualifies the entire batch, not just the rules it touches. `NO_RELEASE_BASELINE` is not `PENDING`: it is a settled finding about one repository, so it excludes only the rules citing it and does not disqualify the rest of the pack. This is computed by counting the citations themselves, never read from a self-reported summary field a caller could hand-edit |
 | E3 | (folded into E1) No citation's repository was resolved through the GitHub tags fallback | A tag-fallback baseline is weaker evidence and goes to individual review |
 | E4 | The worklist is within 72 hours of the attestation instant, and every cited repository's own resolution is too (and, for a release-line citation, so is its line record) | A stale worklist is never treated as current |
@@ -417,7 +418,9 @@ including the mechanical-rule exclusion, `NOT_YET_DUE` and
   therefore carry `baseline: release_line`, with a consistent pinned tag,
   line and compared tag backed by a resolved, fresh line record (E1). A
   rule with a citation compared with the repository's latest release is
-  listed as `LATEST_BASELINE_NOT_AUTOMATABLE` and left to a human
+  listed as `LATEST_BASELINE_NOT_AUTOMATABLE`, and one with a citation on a
+  line derived from git tags (`baseline: tag_line`) as
+  `TAG_LINE_BASELINE_NOT_AUTOMATABLE`; both are left to a human
   statement, whose path is unchanged. `verify` enforces the same rule on
   the statement (V8). A v1 worklist, which predates baseline records, is
   rejected.
@@ -465,14 +468,14 @@ whatever has become due since the last one, spread over the coming weeks.
 
 `notExtended` reasons are either the worst citation class found (E1), or
 one of: `WORKLIST_SCOPE_INCOMPLETE` (E2), `TAG_FALLBACK_BASELINE` (E3),
-`STALE_BASELINE` (E4, or a stale citation), `RELEASE_LINE_BASELINE_UNVERIFIED` (E1, a release-line citation whose pinned tag, line, compared tag or line record is missing or inconsistent), `RANGED_RULE_EXCLUDED` (E5),
+`STALE_BASELINE` (E4, or a stale citation), `RELEASE_LINE_BASELINE_UNVERIFIED` (E1, a release-line or tag-line citation whose pinned tag, line, compared tag or line record of the matching basis is missing or inconsistent), `RANGED_RULE_EXCLUDED` (E5),
 `CONSECUTIVE_BATCH_CYCLE_CAP` (E6), `EVIDENCE_NOT_ACTIVE` and
 `CORPUS_DIGEST_MISMATCH_IN_PROJECT` (E7), `SOURCE_WITHOUT_CITATION`,
 `CITATION_WITHOUT_SOURCE`, `DUPLICATE_CITATION_FOR_SOURCE`,
 `CITATION_COMMIT_DOES_NOT_MATCH_PINNED_SOURCE` (E1),
 `NOT_LATER_THAN_CURRENT` and `NOT_YET_DUE` (renewal timing, see above),
 `STAGGER_DEFERRED` (V7 cap), `MECHANICAL_RULE_EXCLUDED`, and, in automated
-mode only, `LATEST_BASELINE_NOT_AUTOMATABLE` and `REVIEWED_OUTSIDE_STATEMENT_CHAIN`.
+mode only, `LATEST_BASELINE_NOT_AUTOMATABLE`, `TAG_LINE_BASELINE_NOT_AUTOMATABLE` and `REVIEWED_OUTSIDE_STATEMENT_CHAIN`.
 
 ## Line attestations and path policies
 
