@@ -22,6 +22,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/intake"
+	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 	"github.com/prufyx/prufyx/cli/internal/scanconfig"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
@@ -42,6 +43,11 @@ type Options struct {
 type Result struct {
 	Report scanreport.Report
 	Exit   int
+	// KnowledgeAge is a one-line note for standard error, without the
+	// "prufyx: " prefix: some of the knowledge used has expired or expires
+	// within 30 days of the evaluation instant. It is empty otherwise and is
+	// never part of the report.
+	KnowledgeAge string
 }
 
 // Run performs the scan. A *UsageError is input the scan does not accept
@@ -210,7 +216,20 @@ func Run(request Request, options Options) (Result, error) {
 	if request.Redact {
 		scanreport.Redact(&report)
 	}
-	return Result{Report: report, Exit: scanreport.Exit(report)}, nil
+	return Result{Report: report, Exit: scanreport.Exit(report), KnowledgeAge: knowledgeAgeNote(knowledge, now)}, nil
+}
+
+// knowledgeAgeNote words the age note for the knowledge a scan used,
+// evaluated at now. Knowledge that cannot list its rules' end dates gives
+// no note.
+func knowledgeAgeNote(knowledge Knowledge, now time.Time) string {
+	aged, ok := knowledge.(interface {
+		KnowledgeAge() []knowledgeage.Source
+	})
+	if !ok {
+		return ""
+	}
+	return knowledgeage.Line(knowledgeage.Summarize(aged.KnowledgeAge(), now), now, knowledge.Store() == nil)
 }
 
 // componentCatalog names the catalog's projects and their components.

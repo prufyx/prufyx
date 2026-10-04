@@ -1,0 +1,7 @@
+batch check: STALE_EVIDENCE
+evaluated at: 2026-12-10T00:00:00Z
+knowledge: embedded_only
+item-001: UNKNOWN (STALE_EVIDENCE; RULE_EVIDENCE_STALE; knowledge embedded)
+compatibility decision: UNKNOWN
+
+exit 11

@@ -37,6 +37,9 @@ type runtime struct {
 	// trust is the evidence-basis trust policy of check cncf
 	// (--require-basis); the zero value is the default policy.
 	trust cncfcheck.TrustPolicy
+	// age collects the age of the knowledge a check command evaluated
+	// against; nil for commands that print no knowledge age note.
+	age *ageRecord
 }
 
 type envelope struct {
@@ -95,7 +98,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, version s
 		case "batch":
 			return r.batch(args[2:])
 		case "cncf":
-			return r.cncf(args[2:])
+			return r.checkCNCF(args[2:])
 		case "project":
 			return r.project(args[2:])
 		case "cert-manager-values":

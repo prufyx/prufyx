@@ -11,6 +11,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
+	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
@@ -195,6 +196,9 @@ func (k *Store) PathPolicyFor(component string, now time.Time) upgradepath.Statu
 func (k *Store) ServedAPIs(component, line string, now time.Time) ServedStatus {
 	return ServedStatus{}
 }
+
+// KnowledgeAge is the end dates of the active rules of the opened targets.
+func (k *Store) KnowledgeAge() []knowledgeage.Source { return k.snapshot.KnowledgeAge() }
 
 // Store describes the database.
 func (k *Store) Store() *StoreInfo {

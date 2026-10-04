@@ -66,6 +66,7 @@ func (r runtime) batch(args []string) int {
 		if n, writeErr := r.stdout.Write(encoded); writeErr != nil || n != len(encoded) {
 			return ExitIntegrity
 		}
+		r.knowledgeAgeNote(batchAgeNote(report))
 		return exit
 	}
 	var output bytes.Buffer
@@ -80,5 +81,6 @@ func (r runtime) batch(args []string) int {
 	if n, writeErr := r.stdout.Write(output.Bytes()); writeErr != nil || n != output.Len() {
 		return ExitIntegrity
 	}
+	r.knowledgeAgeNote(batchAgeNote(report))
 	return exit
 }

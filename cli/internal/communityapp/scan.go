@@ -34,6 +34,7 @@ func (r runtime) scan(args []string, stdin io.Reader) int {
 	if _, err := r.stdout.Write(output); err != nil {
 		return ExitIntegrity
 	}
+	r.knowledgeAgeNote(result.KnowledgeAge)
 	return result.Exit
 }
 

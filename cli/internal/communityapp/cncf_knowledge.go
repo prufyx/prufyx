@@ -38,7 +38,7 @@ func (r runtime) externalCNCF(req cncfknowledge.Request, replayPath, format stri
 		}
 		return cncfknowledge.HistoricalClaimExit(replay)
 	}
-	report, err := cncfknowledge.EvaluateCurrent(r.withTrustPolicy(req))
+	report, err := r.evaluateCurrent(req)
 	if err != nil {
 		return r.cncfKnowledgeError("external CNCF check failed", err)
 	}

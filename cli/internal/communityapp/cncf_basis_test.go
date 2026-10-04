@@ -183,7 +183,10 @@ func TestCheckRoutesUseTrustPolicy(t *testing.T) {
 				t.Fatalf("%s: external evaluation without the trust policy: %s", file, match[0])
 			}
 		}
+		// External evaluation goes through evaluateCurrent, which binds the
+		// policy (the match above checks its single call).
 		checked += bytes.Count(raw, []byte("r.cncfChecker()."))
+		checked += bytes.Count(raw, []byte("r.evaluateCurrent("))
 	}
 	if checked < 40 {
 		t.Fatalf("only %d evaluation calls found; the scan no longer sees the routes", checked)

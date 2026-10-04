@@ -1,0 +1,7 @@
+batch check: PASS
+evaluated at: 2026-11-20T00:00:00Z
+knowledge: embedded_only
+item-001: PASS (PASS; SCOPED_CLAIMS_PASS; knowledge embedded)
+compatibility decision: UNKNOWN
+
+exit 0

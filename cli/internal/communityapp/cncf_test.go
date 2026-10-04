@@ -9,18 +9,33 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
 
 const syntheticHelmInput = `{"schema":"prufyx.io/operator-declared-constraint-input/v1alpha1","authority":"OPERATOR_DECLARED_MINIMIZED","current":{"components":[{"component":"pkg:github/helm/helm","version":"3.14.4","facts":[]}]},"proposed":{"components":[{"component":"pkg:github/helm/helm","version":"4.0.0","facts":[{"id":"component.helm.post_renderer_mode","state":"declared","enumValue":"plugin_name"}]}]}}`
 
+// runCNCFCLI runs the command and returns its exit status, standard output
+// and standard error without the knowledge age note: the note depends on the
+// wall clock when the test knowledge is a synthetic database whose rules end
+// within a day, and the age tests read it with runCNCFCLIRaw.
 func runCNCFCLI(t *testing.T, args ...string) (int, string, string) {
+	t.Helper()
+	code, stdout, stderr := runCNCFCLIRaw(t, args...)
+	return code, stdout, ageNoteLine.ReplaceAllString(stderr, "")
+}
+
+// runCNCFCLIRaw is runCNCFCLI with standard error exactly as printed.
+func runCNCFCLIRaw(t *testing.T, args ...string) (int, string, string) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
 	code := Run(context.Background(), args, &stdout, &stderr, "test")
 	return code, stdout.String(), stderr.String()
 }
+
+// ageNoteLine matches the knowledge age note line on standard error.
+var ageNoteLine = regexp.MustCompile(`(?m)^prufyx: note: \d+ knowledge rules? (?:expires?|has|have) [^\n]*\n`)
 
 func writeCNCFFile(t *testing.T, name string, raw []byte, mode os.FileMode) string {
 	t.Helper()
