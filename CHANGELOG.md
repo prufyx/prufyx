@@ -58,6 +58,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   `cli/docs/evidence-reattestation.md`.
 - Maintainer tooling: `prufyx-maintainer` refuses a repeated option also when
   it is spelled with one dash (`-name`).
+- `prufyx scan`, `prufyx check cncf` and `prufyx check batch` print one line on
+  standard error when the knowledge they used has an active rule that ends
+  within 30 days of the evaluation instant, or has already ended, and point to
+  `prufyx db update` and `--knowledge-db`. Standard output, the JSON, SARIF and
+  Markdown formats and the exit status are unchanged. See the scan and
+  community-checks guides.
 - Knowledge format: CNCF rule packs can carry an optional `distributions`
   section (pack schema `prufyx.io/cncf-source-rule-pack/v1alpha9`) with
   reviewed Kubernetes distribution records (control-plane model, and for

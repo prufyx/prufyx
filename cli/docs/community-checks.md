@@ -35,6 +35,26 @@ never passes; a lead is listed only with `lead` and never blocks. See
 [product-contract.md](product-contract.md#evidence-bases-and-the-trust-policy).
 Use the same `--require-basis` to replay a report.
 
+## Knowledge age note
+
+`prufyx check cncf` and `prufyx check batch` print one line on standard error,
+after their normal output, when the knowledge they evaluated against has an
+active rule that ends within 30 days of the evaluation instant or has already
+ended:
+
+```text
+prufyx: note: 166 knowledge rules expire within 30 days, the earliest on 2026-12-07 (in 17 days); update with `prufyx db update` and use --knowledge-db
+prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (3 days ago); update with `prufyx db update` and use --knowledge-db
+```
+
+With the embedded knowledge the instant is `--now`; with `--knowledge-db` it is
+the verifier's clock and the line describes the database's selected target
+(and leaves out `and use --knowledge-db`). A batch describes the embedded
+CNCF knowledge only when an item used it. Standard output, JSON, the exit
+status and a replay report (`--replay-report`) are unchanged; a command that
+stops with an error, or prints help, prints no note. The same note is printed
+by `prufyx scan`; see [scan](scan.md#knowledge-age-note).
+
 ## Discovering embedded source-rule routes
 
 Use `catalog checks` to inspect the exact embedded source-rule identities for

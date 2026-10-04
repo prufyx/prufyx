@@ -164,6 +164,36 @@ knowledge for kubernetes: target knowledge/cncf/projects/kubernetes.v1.json revi
 (That database holds a test-signed copy of the built-in knowledge; no official
 Prufyx knowledge feed or trust root is published yet.)
 
+## Knowledge age note
+
+When the knowledge a scan used is close to the end of its review window,
+`scan` prints one line on standard error, after the report:
+
+```text
+prufyx: note: 166 knowledge rules expire within 30 days, the earliest on 2026-12-07 (in 17 days); update with `prufyx db update` and use --knowledge-db
+```
+
+The line appears when any active rule of the knowledge in use ends no later
+than 30 days after the evaluation instant (exactly 30 days counts), and when a
+rule has already ended, in which case it says so:
+
+```text
+prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (3 days ago); update with `prufyx db update` and use --knowledge-db
+```
+
+The knowledge in use is the knowledge built into the binary, or, with
+`--knowledge-db`, the targets opened from the database (the second form of the
+line leaves out `and use --knowledge-db`, which you already do). The count
+covers the active rules of that knowledge; withdrawn rules do not count. The
+evaluation instant is the one printed in the report, so the line is the same
+for the same `--now` and the same knowledge.
+
+The line is a note, not a result. Standard output, the JSON, SARIF and
+Markdown formats, the exit status and `--redact` are exactly what they are
+without it. It names no path and no input, so `--redact` has nothing to hide
+in it. `scan` has no option to silence it; redirect standard error if you do
+not want it. It is not printed when the scan stops with an error.
+
 ## Answers and exit codes
 
 | Exit | Headline | Meaning |
