@@ -130,8 +130,9 @@ func (b bundle) unfilteredCorpus() (CorpusInventory, error) {
 
 // corpusComponents is the sorted, deduplicated set of subject components that
 // actually have at least one reviewed verdict rule in the pack. It is the
-// upper bound on what any attestation may list. A one-way notice never
-// supports an attestation, so a component with only notices is left out.
+// upper bound on what any attestation may list. A one-way notice or a lead
+// never supports an attestation, so a component with only those is left
+// out.
 func (b bundle) corpusComponents() ([]string, error) {
 	seen := map[string]struct{}{}
 	for _, entry := range b.pack.Entries {
@@ -299,20 +300,29 @@ func BuildAttestation() (Attestation, error) {
 // validateCorpus), and the subset check below refuses it before that, so the
 // rejection does not depend on either one alone.
 func (b bundle) attestedRuleSet(attestationRaw []byte) (constraintengine.RuleSet, Attestation, error) {
+	selected, attestation, err := b.attestedSelection(attestationRaw)
+	return selected.rules, attestation, err
+}
+
+// attestedSelection is attestedRuleSet under the trust policy. The
+// attestation is checked against the whole pack first; the document then
+// goes through admit, which drops the attestation when the policy leaves
+// out a verdict rule, so the aggregate stays UNKNOWN.
+func (b bundle) attestedSelection(attestationRaw []byte) (selection, Attestation, error) {
 	attestation, err := ParseAttestation(attestationRaw)
 	if err != nil {
-		return constraintengine.RuleSet{}, Attestation{}, ErrIntegrity
+		return selection{}, Attestation{}, ErrIntegrity
 	}
 	if attestation.Revision != b.pack.Revision || attestation.PackDigest != b.packDigest || attestation.RuleCount != len(b.pack.Entries) {
-		return constraintengine.RuleSet{}, Attestation{}, ErrIntegrity
+		return selection{}, Attestation{}, ErrIntegrity
 	}
 	digest, err := b.unfilteredRuleSetDigest()
 	if err != nil || digest != attestation.RuleSetDigest {
-		return constraintengine.RuleSet{}, Attestation{}, ErrIntegrity
+		return selection{}, Attestation{}, ErrIntegrity
 	}
 	present, err := b.corpusComponents()
 	if err != nil {
-		return constraintengine.RuleSet{}, Attestation{}, ErrIntegrity
+		return selection{}, Attestation{}, ErrIntegrity
 	}
 	known := make(map[string]struct{}, len(present))
 	for _, component := range present {
@@ -320,14 +330,18 @@ func (b bundle) attestedRuleSet(attestationRaw []byte) (constraintengine.RuleSet
 	}
 	for _, component := range attestation.Components {
 		if _, ok := known[component]; !ok {
-			return constraintengine.RuleSet{}, Attestation{}, ErrIntegrity
+			return selection{}, Attestation{}, ErrIntegrity
 		}
 	}
-	parsed, err := b.unfilteredRuleSet(attestation.Components)
+	rules, err := b.unfilteredRules()
 	if err != nil {
-		return constraintengine.RuleSet{}, Attestation{}, ErrIntegrity
+		return selection{}, Attestation{}, ErrIntegrity
 	}
-	return parsed, attestation, nil
+	selected, err := b.admit(rules, attestation.Components)
+	if err != nil {
+		return selection{}, Attestation{}, ErrIntegrity
+	}
+	return selected, attestation, nil
 }
 
 // ScopeReport is a scope-completeness assessment over the declared component
@@ -351,8 +365,10 @@ type ScopeReport struct {
 	NextAction          string                  `json:"nextAction"`
 	Limitations         []string                `json:"limitations"`
 	Check               constraintengine.Report `json:"check"`
-	seal                *reportSeal
-	digest              string
+	// TrustPolicy is present only when the trust policy left out a rule.
+	TrustPolicy *TrustPolicyDisclosure `json:"trustPolicy,omitempty"`
+	seal        *reportSeal
+	digest      string
 }
 
 // AssessScope evaluates a caller-declared component scope against the whole
@@ -365,7 +381,14 @@ type ScopeReport struct {
 // Landscape. Nothing here consults cluster state, and nothing infers a fact the
 // caller did not declare.
 func AssessScope(inputRaw []byte, now time.Time) (ScopeReport, error) {
-	b, err := load()
+	return Checker{}.AssessScope(inputRaw, now)
+}
+
+// AssessScope is AssessScope under the checker's trust policy. A policy that
+// leaves out a verdict rule leaves the scope unattested: the assessment is
+// UNKNOWN.
+func (c Checker) AssessScope(inputRaw []byte, now time.Time) (ScopeReport, error) {
+	b, err := c.load()
 	if err != nil {
 		return ScopeReport{}, err
 	}
@@ -377,10 +400,11 @@ func AssessScope(inputRaw []byte, now time.Time) (ScopeReport, error) {
 }
 
 func assessScopeWith(b bundle, attestationRaw, inputRaw []byte, now time.Time) (ScopeReport, error) {
-	rules, attestation, err := b.attestedRuleSet(attestationRaw)
+	selected, attestation, err := b.attestedSelection(attestationRaw)
 	if err != nil {
 		return ScopeReport{}, ErrIntegrity
 	}
+	rules := selected.rules
 	declared, ok := declaredScope(inputRaw)
 	if !ok || len(declared) == 0 {
 		return ScopeReport{}, ErrInvalid
@@ -417,6 +441,7 @@ func assessScopeWith(b bundle, attestationRaw, inputRaw []byte, now time.Time) (
 		InputFileDigest: digest(inputRaw),
 		SourceAuthority: "PACKAGED_MAINTAINER_REVIEWED_SOURCE_RULES_NOT_RUNTIME_PROOF",
 		NextAction:      nextAction, Limitations: ScopeReportLimitations(), Check: result,
+		TrustPolicy: b.policy.disclosure(selected),
 	}
 	report.seal = &reportSeal{}
 	raw, err := json.Marshal(report)
@@ -431,7 +456,7 @@ func assessScopeWith(b bundle, attestationRaw, inputRaw []byte, now time.Time) (
 // scalar it carries: the aggregate must equal the engine's own, and the engine
 // report must itself pass constraintengine.MarshalReport.
 func MarshalScopeReport(report ScopeReport) ([]byte, error) {
-	if report.seal == nil || report.Schema != ScopeReportSchema || report.KnowledgeOrigin != "embedded" || report.NetworkUsed || report.RuntimeReproduced != 0 {
+	if report.seal == nil || report.Schema != ScopeReportSchema || report.KnowledgeOrigin != "embedded" || report.NetworkUsed || report.RuntimeReproduced != 0 || !validTrustPolicyDisclosure(report.TrustPolicy) {
 		return nil, ErrIntegrity
 	}
 	switch report.Assessment {

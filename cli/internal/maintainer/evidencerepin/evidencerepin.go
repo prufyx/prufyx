@@ -212,7 +212,7 @@ func LoadCitations(rulePackPath string, raw []byte) ([]Citation, error) {
 		// (drift is information), but a malformed basis is rejected here so a
 		// worklist is never built over a rule the engine would not parse.
 		evidence := entry.Rule.Evidence
-		if err := constraintengine.ValidateBasis(evidence.Basis, evidence.Extractor, evidence.DerivedAt); err != nil {
+		if err := constraintengine.ValidateReviewedOrMechanicalBasis(evidence.Basis, evidence.Extractor, evidence.DerivedAt); err != nil {
 			return nil, fmt.Errorf("%w: invalid evidence basis in %s: rule %s", errRejected, rulePackPath, entry.Rule.ID)
 		}
 		for _, source := range entry.Rule.Evidence.Sources {

@@ -30,6 +30,9 @@ type Request struct {
 	SelectedRuleID string
 	Input          []byte
 	InputDigest    string
+	// TrustPolicy selects the evidence bases evaluated; the zero value is
+	// the default policy.
+	TrustPolicy cncfcheck.TrustPolicy
 }
 
 // CheckInput contains only the item-specific values evaluated against an
@@ -40,6 +43,7 @@ type CheckInput struct {
 	SelectedRuleID string
 	Input          []byte
 	InputDigest    string
+	TrustPolicy    cncfcheck.TrustPolicy
 }
 
 type KnowledgeBinding struct {
@@ -124,7 +128,7 @@ func validateCheckInput(req CheckInput) error {
 }
 
 func (r Request) checkInput() CheckInput {
-	return CheckInput{Project: r.Project, SelectedRuleID: r.SelectedRuleID, Input: r.Input, InputDigest: r.InputDigest}
+	return CheckInput{Project: r.Project, SelectedRuleID: r.SelectedRuleID, Input: r.Input, InputDigest: r.InputDigest, TrustPolicy: r.TrustPolicy}
 }
 
 // EvaluateCurrent uses the verifier's actual current clock. An operator cannot
@@ -170,6 +174,7 @@ func evaluateSelected(req CheckInput, selected knowledge.VerifiedRevision) (Repo
 		return Report{}, ErrIntegrity
 	}
 	evaluatedAt := selected.VerifiedAt().UTC().Truncate(time.Second)
+	bundle = bundle.WithTrustPolicy(req.TrustPolicy)
 	var check cncfcheck.Report
 	if req.SelectedRuleID != "" {
 		check, err = bundle.EvaluateRule(req.Project, req.SelectedRuleID, req.Input, evaluatedAt)

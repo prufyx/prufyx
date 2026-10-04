@@ -133,7 +133,7 @@ func (e Evidence) validate() error {
 	if e.State != StateActive && e.State != StateWithdrawn {
 		return fmt.Errorf("%w: evidence.state must be %q or %q", ErrInvalid, StateActive, StateWithdrawn)
 	}
-	if err := constraintengine.ValidateBasis(e.Basis, e.Extractor, e.DerivedAt); err != nil {
+	if err := constraintengine.ValidateReviewedOrMechanicalBasis(e.Basis, e.Extractor, e.DerivedAt); err != nil {
 		return fmt.Errorf("%w: evidence.basis: %v", ErrInvalid, err)
 	}
 	reviewed, err := constraintengine.ParseUTC(e.ReviewedAt)

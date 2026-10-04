@@ -45,6 +45,9 @@ type ExternalBundle struct {
 	admission       ExternalAdmission
 	admissionDigest string
 	seal            *externalBundleSeal
+	// policy is the caller's trust policy (WithTrustPolicy). It is not part
+	// of the admitted bundle and changes none of its digests.
+	policy TrustPolicy
 }
 
 type externalBundleSeal struct{}
@@ -133,7 +136,7 @@ func parseExternalBundle(raw []byte, base *bundle) (ExternalBundle, error) {
 		return ExternalBundle{}, err
 	}
 	candidate := bundle{landscape: base.landscape, priority: base.priority, pack: packValue, registry: base.registry, packDigest: digest(raw), catalogueDigest: base.catalogueDigest}
-	rules, err := candidate.ruleSet("")
+	rules, err := candidate.parseRulesCorpus(candidate.packRules(), nil)
 	if err != nil {
 		return ExternalBundle{}, ErrIntegrity
 	}
@@ -249,6 +252,13 @@ func (b ExternalBundle) BundleDigest() string {
 	return b.bundleDigest
 }
 
+// WithTrustPolicy returns the bundle evaluating under policy. The zero
+// policy is the default one.
+func (b ExternalBundle) WithTrustPolicy(policy TrustPolicy) ExternalBundle {
+	b.policy = policy
+	return b
+}
+
 // Evaluate applies only the rules in this parsed external bundle. It never
 // falls back to the embedded pack and makes no source, signature, or runtime
 // authority claim.
@@ -287,21 +297,21 @@ func (b ExternalBundle) evaluate(project, selectedRuleID string, inputRaw []byte
 			return Report{}, ErrInvalid
 		}
 	}
-	selected := bundle{landscape: base.landscape, priority: base.priority, pack: b.pack, registry: b.registry, packDigest: b.bundleDigest, catalogueDigest: base.catalogueDigest}
+	selected := bundle{landscape: base.landscape, priority: base.priority, pack: b.pack, registry: b.registry, packDigest: b.bundleDigest, catalogueDigest: base.catalogueDigest, policy: b.policy}
 	input, err := constraintengine.ParseInput(inputRaw, selected.registry)
 	if err != nil {
 		return Report{}, ErrInvalid
 	}
-	var rules constraintengine.RuleSet
+	var rules selection
 	if selectedRuleID != "" {
-		rules, err = selected.selectedRuleSet(project, selectedRuleID)
+		rules, err = selected.selectRule(project, selectedRuleID)
 	} else {
-		rules, err = selected.rulesForAdmittedInput(project, inputRaw)
+		rules, err = selected.selectForInput(project, inputRaw)
 	}
 	if err != nil {
 		return Report{}, ErrIntegrity
 	}
-	result, err := constraintengine.Evaluate(input, rules, now)
+	result, err := constraintengine.Evaluate(input, rules.rules, now)
 	if err != nil {
 		return Report{}, ErrInvalid
 	}
@@ -314,8 +324,9 @@ func (b ExternalBundle) evaluate(project, selectedRuleID string, inputRaw []byte
 		CatalogueDigest: base.catalogueDigest, InputFileDigest: digest(inputRaw), SourceAuthority: externalSourceAuthority,
 		RequestedRuleID:   selectedRuleID,
 		RuntimeReproduced: 0, NetworkUsed: false,
-		NextAction: "review each scoped claim; whole-upgrade behavior and runtime evidence remain unverified",
-		Check:      result,
+		NextAction:  "review each scoped claim; whole-upgrade behavior and runtime evidence remain unverified",
+		Check:       result,
+		TrustPolicy: b.policy.disclosure(rules),
 	}
 	if selectedRuleID != "" && len(result.Claims) == 1 && result.Claims[0].RuleID == selectedRuleID {
 		report.SelectedRuleID = selectedRuleID
@@ -370,6 +381,10 @@ func validateExternalPack(base bundle, packValue rulePack, revision string) erro
 		rules = append(rules, entry.Rule)
 	}
 	if notice, err := constraintengine.AnyNoticeRule(rules); err != nil || notice {
+		return ErrIntegrity
+	}
+	// Nor consensus or lead rules: an external pack holding one is refused.
+	if basis, err := constraintengine.AnyBasisRule(rules); err != nil || basis {
 		return ErrIntegrity
 	}
 	if !validPackSchema(packValue) || packValue.Revision != revision || packValue.PolicyID != base.pack.PolicyID || packValue.PolicyDigest != base.pack.PolicyDigest || packValue.LandscapeFileDigest != base.landscape.LandscapeFileDigest || packValue.RegistryDigest != base.registry.Digest() || len(packValue.Entries) > maxExternalEntries {

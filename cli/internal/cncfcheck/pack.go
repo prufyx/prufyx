@@ -98,6 +98,10 @@ type bundle struct {
 	catalogueDigest string
 	attestations    lineattest.Index
 	pathPolicies    upgradepath.Index
+	// policy is the caller's trust policy. It is applied in exactly one
+	// place, admit, through which every rule document a check evaluates
+	// reaches the engine.
+	policy TrustPolicy
 }
 
 func load() (bundle, error) {
@@ -200,7 +204,7 @@ func assemble(landscapeRaw, priorityRaw, packRaw []byte, factDefinitions []const
 			}
 		}
 	}
-	if _, err := result.ruleSet(""); err != nil {
+	if _, err := result.parseRulesCorpus(result.packRules(), nil); err != nil {
 		return bundle{}, ErrIntegrity
 	}
 	if result.attestations, err = admitAttestations(attestationSection, attested, result.pack.Entries); err != nil {
@@ -262,6 +266,9 @@ const (
 	packSchemaPathPolicies = "prufyx.io/cncf-source-rule-pack/v1alpha5"
 	// packSchemaNotice is the level of a pack holding a notice_one_way rule.
 	packSchemaNotice = "prufyx.io/cncf-source-rule-pack/v1alpha6"
+	// packSchemaBasis is the level of a pack holding a consensus or lead
+	// rule.
+	packSchemaBasis = "prufyx.io/cncf-source-rule-pack/v1alpha7"
 )
 
 // packFeature is one pack feature and the schema that introduced it.
@@ -281,6 +288,7 @@ var packFeatureLevels = []packFeature{
 	{packSchemaAttested, func(pack rulePack, _ []json.RawMessage) (bool, error) { return len(pack.LineAttestations) > 0, nil }},
 	{packSchemaPathPolicies, func(pack rulePack, _ []json.RawMessage) (bool, error) { return len(pack.PathPolicies) > 0, nil }},
 	{packSchemaNotice, func(_ rulePack, rules []json.RawMessage) (bool, error) { return constraintengine.AnyNoticeRule(rules) }},
+	{packSchemaBasis, func(_ rulePack, rules []json.RawMessage) (bool, error) { return constraintengine.AnyBasisRule(rules) }},
 }
 
 // requiredPackSchema is the schema of the highest-level feature the pack
@@ -311,23 +319,77 @@ func validPackSchema(pack rulePack) bool {
 }
 
 func (b bundle) ruleSet(project string) (constraintengine.RuleSet, error) {
-	rules := make([]json.RawMessage, 0)
-	for _, entry := range b.pack.Entries {
-		if project == "" || entry.Project == project {
-			rules = append(rules, entry.Rule)
-		}
+	if project == "" {
+		return b.parseRules(b.packRules())
 	}
-	return b.parseRules(rules)
+	return b.parseRules(b.projectRules(project))
+}
+
+// packRules is every rule of the pack in pack order, whatever its basis. It
+// is used to admit the pack, never to evaluate it.
+func (b bundle) packRules() []json.RawMessage {
+	rules := make([]json.RawMessage, 0, len(b.pack.Entries))
+	for _, entry := range b.pack.Entries {
+		rules = append(rules, entry.Rule)
+	}
+	return rules
 }
 
 func (b bundle) parseRules(rules []json.RawMessage) (constraintengine.RuleSet, error) {
-	return b.parseRulesCorpus(rules, nil)
+	selected, err := b.admit(rules, nil)
+	return selected.rules, err
+}
+
+// selection is a parsed rule document and the candidate rules the trust
+// policy left out of it: verdict rules, and lead rules, which never take
+// part in a verdict.
+type selection struct {
+	rules         constraintengine.RuleSet
+	excluded      int
+	excludedLeads int
+}
+
+// admit is the single trust-policy seam: every rule document a check
+// evaluates is the result of admit over the rules its selector chose. It
+// leaves out each rule whose evidence basis the policy does not admit and
+// counts them. A document that lost a verdict rule also loses the corpus
+// attestation, because it no longer holds every reviewed rule; leaving out
+// lead rules, which never support an attestation, keeps it.
+func (b bundle) admit(rules []json.RawMessage, corpus []string) (selection, error) {
+	kept := make([]json.RawMessage, 0, len(rules))
+	var result selection
+	for _, rule := range rules {
+		basis, err := constraintengine.RawRuleBasis(rule)
+		if err != nil {
+			return selection{}, ErrIntegrity
+		}
+		if b.policy.Admits(basis) {
+			kept = append(kept, rule)
+			continue
+		}
+		if basis == constraintengine.BasisLead {
+			result.excludedLeads++
+		} else {
+			result.excluded++
+		}
+	}
+	if result.excluded > 0 {
+		corpus = nil
+	}
+	parsed, err := b.parseRulesCorpus(kept, corpus)
+	if err != nil {
+		return selection{}, err
+	}
+	result.rules = parsed
+	return result, nil
 }
 
 // parseRulesCorpus is the single seam through which every CNCF rule document
 // reaches the engine. corpus, when non-empty, attaches the maintainer's
 // completeness attestation; a filtered selection must always pass nil, because
 // a narrowed document cannot honestly claim it holds every reviewed rule.
+// Documents a check evaluates come through admit; only the admission of a
+// whole pack and the attestation digest read it directly.
 func (b bundle) parseRulesCorpus(rules []json.RawMessage, corpus []string) (constraintengine.RuleSet, error) {
 	if err := validateCNCFReviewWindows(rules); err != nil {
 		return constraintengine.RuleSet{}, err
@@ -447,12 +509,19 @@ func (s ruleShape) conditions() []conditionShape {
 }
 
 func (b bundle) rulesForAdmittedInput(project string, raw []byte) (constraintengine.RuleSet, error) {
+	selected, err := b.selectForInput(project, raw)
+	return selected.rules, err
+}
+
+// selectForInput selects the project's rules whose transition matches the
+// input, or every project rule when no verdict rule matches, and admits them.
+func (b bundle) selectForInput(project string, raw []byte) (selection, error) {
 	var input struct {
 		Current  sideShape `json:"current"`
 		Proposed sideShape `json:"proposed"`
 	}
 	if json.Unmarshal(raw, &input) != nil {
-		return constraintengine.RuleSet{}, ErrIntegrity
+		return selection{}, ErrIntegrity
 	}
 	versions := func(side sideShape) map[string]string {
 		values := map[string]string{}
@@ -470,13 +539,13 @@ func (b bundle) rulesForAdmittedInput(project string, raw []byte) (constrainteng
 		}
 		subject, err := constraintengine.RuleTransitionOf(entry.Rule)
 		if err != nil {
-			return constraintengine.RuleSet{}, ErrIntegrity
+			return selection{}, ErrIntegrity
 		}
 		if subject.Match(current[subject.Component], proposed[subject.Component]) != constraintengine.MatchNone {
 			matched = append(matched, entry.Rule)
 			notice, err := isNoticeRule(entry.Rule)
 			if err != nil {
-				return constraintengine.RuleSet{}, ErrIntegrity
+				return selection{}, ErrIntegrity
 			}
 			if !notice {
 				verdicts++
@@ -484,22 +553,42 @@ func (b bundle) rulesForAdmittedInput(project string, raw []byte) (constrainteng
 		}
 	}
 	// The fallback is decided on verdict rules only, so a matching one-way
-	// notice never changes which verdict claims a report holds.
+	// notice or lead never changes which verdict claims a report holds. It
+	// is decided before the trust policy, so a matching rule the policy
+	// leaves out is reported as left out, never replaced by the other pairs.
 	if verdicts == 0 {
-		return b.ruleSet(project)
+		return b.admit(b.projectRules(project), nil)
 	}
-	return b.parseRules(matched)
+	return b.admit(matched, nil)
 }
 
-// isNoticeRule reports whether one raw rule is a one-way notice.
+// projectRules is every rule of project, in pack order.
+func (b bundle) projectRules(project string) []json.RawMessage {
+	rules := make([]json.RawMessage, 0)
+	for _, entry := range b.pack.Entries {
+		if entry.Project == project {
+			rules = append(rules, entry.Rule)
+		}
+	}
+	return rules
+}
+
+// isNoticeRule reports whether one raw rule is verdict-neutral: a one-way
+// notice or a lead.
 func isNoticeRule(raw json.RawMessage) (bool, error) {
-	return constraintengine.AnyNoticeRule([]json.RawMessage{raw})
+	return constraintengine.RawRuleVerdictNeutral(raw)
 }
 
 // factFamilyRuleSet selects the project's rules whose condition and
 // applicability facts all belong to facts, narrowed to the rules whose
 // transition matches the input when any does.
 func (b bundle) factFamilyRuleSet(project string, facts []string, raw []byte) (constraintengine.RuleSet, error) {
+	selected, err := b.selectFamily(project, facts, raw)
+	return selected.rules, err
+}
+
+// selectFamily is factFamilyRuleSet's selection, admitted.
+func (b bundle) selectFamily(project string, facts []string, raw []byte) (selection, error) {
 	allowed := map[string]bool{}
 	for _, fact := range facts {
 		allowed[fact] = true
@@ -509,7 +598,7 @@ func (b bundle) factFamilyRuleSet(project string, facts []string, raw []byte) (c
 		Proposed sideShape `json:"proposed"`
 	}
 	if json.Unmarshal(raw, &input) != nil {
-		return constraintengine.RuleSet{}, ErrIntegrity
+		return selection{}, ErrIntegrity
 	}
 	versions := func(side sideShape) map[string]string {
 		values := map[string]string{}
@@ -528,7 +617,7 @@ func (b bundle) factFamilyRuleSet(project string, facts []string, raw []byte) (c
 		}
 		var shape ruleShape
 		if json.Unmarshal(entry.Rule, &shape) != nil {
-			return constraintengine.RuleSet{}, ErrIntegrity
+			return selection{}, ErrIntegrity
 		}
 		conditions := shape.conditions()
 		inFamily := len(conditions) > 0
@@ -541,27 +630,33 @@ func (b bundle) factFamilyRuleSet(project string, facts []string, raw []byte) (c
 		family = append(family, entry.Rule)
 		subject, err := constraintengine.RuleTransitionOf(entry.Rule)
 		if err != nil {
-			return constraintengine.RuleSet{}, ErrIntegrity
+			return selection{}, ErrIntegrity
 		}
 		if subject.Match(current[subject.Component], proposed[subject.Component]) != constraintengine.MatchNone {
 			matched = append(matched, entry.Rule)
 			notice, err := isNoticeRule(entry.Rule)
 			if err != nil {
-				return constraintengine.RuleSet{}, ErrIntegrity
+				return selection{}, ErrIntegrity
 			}
 			if !notice {
 				verdicts++
 			}
 		}
 	}
-	// As in rulesForAdmittedInput: a notice alone never narrows the family.
+	// As in selectForInput: a notice or lead alone never narrows the family.
 	if verdicts == 0 {
-		return b.parseRules(family)
+		return b.admit(family, nil)
 	}
-	return b.parseRules(matched)
+	return b.admit(matched, nil)
 }
 
 func (b bundle) selectedRuleSet(project, ruleID string) (constraintengine.RuleSet, error) {
+	selected, err := b.selectRule(project, ruleID)
+	return selected.rules, err
+}
+
+// selectRule selects and admits the one project rule with ruleID.
+func (b bundle) selectRule(project, ruleID string) (selection, error) {
 	selected := make([]json.RawMessage, 0, 1)
 	for _, entry := range b.pack.Entries {
 		if entry.Project != project {
@@ -571,13 +666,13 @@ func (b bundle) selectedRuleSet(project, ruleID string) (constraintengine.RuleSe
 			ID string `json:"id"`
 		}
 		if json.Unmarshal(entry.Rule, &shape) != nil {
-			return constraintengine.RuleSet{}, ErrIntegrity
+			return selection{}, ErrIntegrity
 		}
 		if shape.ID == ruleID {
 			selected = append(selected, entry.Rule)
 		}
 	}
-	return b.parseRules(selected)
+	return b.admit(selected, nil)
 }
 
 func (b bundle) ownsRuleID(project, ruleID string) (bool, error) {

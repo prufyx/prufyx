@@ -5,6 +5,7 @@ package cncfcheck
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
@@ -26,15 +27,134 @@ type Report struct {
 	NetworkUsed         bool                    `json:"networkUsed"`
 	NextAction          string                  `json:"nextAction"`
 	Check               constraintengine.Report `json:"check"`
-	seal                *reportSeal
-	digest              string
+	// TrustPolicy is present only when the caller's trust policy left out
+	// at least one candidate rule, so every report without exclusions keeps
+	// its bytes.
+	TrustPolicy *TrustPolicyDisclosure `json:"trustPolicy,omitempty"`
+	seal        *reportSeal
+	digest      string
 }
 type reportSeal struct{}
+
+// TrustPolicy is the set of evidence bases whose rules a check evaluates.
+// Rules of any other basis are left out when the rule document is
+// assembled, and the report says how many. The zero value is the default
+// policy: reviewed, mechanical, empirical and consensus; lead rules are left
+// out unless the caller asks for them.
+type TrustPolicy struct {
+	required []string
+}
+
+// TrustPolicyDisclosure states the trust policy of a report that left out
+// rules, and how many candidate rules it left out: ExcludedRules verdict
+// rules, and ExcludedLeadRules lead rules, which never take part in a
+// verdict.
+type TrustPolicyDisclosure struct {
+	RequiredBasis     []string `json:"requiredBasis"`
+	ExcludedRules     int      `json:"excludedRules"`
+	ExcludedLeadRules int      `json:"excludedLeadRules,omitempty"`
+}
+
+// DefaultTrustPolicy is the policy of a check that names none.
+func DefaultTrustPolicy() TrustPolicy {
+	return TrustPolicy{required: []string{constraintengine.BasisReviewed, constraintengine.BasisMechanical, constraintengine.BasisEmpirical, constraintengine.BasisConsensus}}
+}
+
+// ParseTrustPolicy reads a comma-separated list of evidence bases. Every
+// token must be one of the closed vocabulary, once; an empty list is
+// refused.
+func ParseTrustPolicy(list string) (TrustPolicy, error) {
+	if list == "" || len(list) > 256 {
+		return TrustPolicy{}, ErrInvalid
+	}
+	seen := map[string]bool{}
+	for _, token := range strings.Split(list, ",") {
+		if !constraintengine.KnownBasis(token) || seen[token] {
+			return TrustPolicy{}, ErrInvalid
+		}
+		seen[token] = true
+	}
+	policy := TrustPolicy{required: []string{}}
+	for _, basis := range constraintengine.Bases() {
+		if seen[basis] {
+			policy.required = append(policy.required, basis)
+		}
+	}
+	return policy, nil
+}
+
+// Bases lists the admitted bases in trust order.
+func (p TrustPolicy) Bases() []string {
+	if p.required == nil {
+		return DefaultTrustPolicy().required
+	}
+	return append([]string(nil), p.required...)
+}
+
+// Admits reports whether a rule of this effective basis is evaluated.
+func (p TrustPolicy) Admits(basis string) bool {
+	for _, admitted := range p.Bases() {
+		if admitted == constraintengine.EffectiveBasis(basis) {
+			return true
+		}
+	}
+	return false
+}
+
+// String is the policy as the comma-separated list ParseTrustPolicy reads.
+func (p TrustPolicy) String() string { return strings.Join(p.Bases(), ",") }
+
+// disclosure is the report field for a selection: nil when the policy left
+// out no rule.
+func (p TrustPolicy) disclosure(selected selection) *TrustPolicyDisclosure {
+	if selected.excluded == 0 && selected.excludedLeads == 0 {
+		return nil
+	}
+	return &TrustPolicyDisclosure{RequiredBasis: p.Bases(), ExcludedRules: selected.excluded, ExcludedLeadRules: selected.excludedLeads}
+}
+
+// validTrustPolicyDisclosure checks a report's disclosure: absent, or a
+// positive count with a nonempty list of known bases in trust order.
+func validTrustPolicyDisclosure(disclosure *TrustPolicyDisclosure) bool {
+	if disclosure == nil {
+		return true
+	}
+	if disclosure.ExcludedRules < 0 || disclosure.ExcludedLeadRules < 0 || disclosure.ExcludedRules+disclosure.ExcludedLeadRules == 0 || len(disclosure.RequiredBasis) == 0 {
+		return false
+	}
+	policy, err := ParseTrustPolicy(strings.Join(disclosure.RequiredBasis, ","))
+	return err == nil && strings.Join(policy.Bases(), ",") == strings.Join(disclosure.RequiredBasis, ",")
+}
+
+// Checker evaluates embedded knowledge under one trust policy. Its zero
+// value uses the default policy; the package-level functions are the zero
+// Checker's methods.
+type Checker struct {
+	policy TrustPolicy
+}
+
+// WithTrustPolicy returns a Checker that evaluates under policy.
+func WithTrustPolicy(policy TrustPolicy) Checker { return Checker{policy: policy} }
+
+// load returns the embedded bundle carrying the checker's trust policy.
+func (c Checker) load() (bundle, error) {
+	b, err := load()
+	if err != nil {
+		return bundle{}, err
+	}
+	b.policy = c.policy
+	return b, nil
+}
 
 // Check uses only the selected project's embedded rules. Local input is parsed
 // against the compiled registry; there is no external rule input or fallback.
 func Check(project string, inputRaw []byte, now time.Time) (Report, error) {
-	b, err := load()
+	return Checker{}.Check(project, inputRaw, now)
+}
+
+// Check is Check under the checker's trust policy.
+func (c Checker) Check(project string, inputRaw []byte, now time.Time) (Report, error) {
+	b, err := c.load()
 	if err != nil {
 		return Report{}, err
 	}
@@ -61,7 +181,13 @@ func ValidateCanonicalInput(project string, inputRaw []byte) error {
 // native routes whose parser inspected exactly that capability. Callers cannot
 // use it to suppress arbitrary unknown claims: the rule must belong to project.
 func CheckRule(project, ruleID string, inputRaw []byte, now time.Time) (Report, error) {
-	b, err := load()
+	return Checker{}.CheckRule(project, ruleID, inputRaw, now)
+}
+
+// CheckRule is CheckRule under the checker's trust policy. A selected rule
+// the policy leaves out yields a report without claims.
+func (c Checker) CheckRule(project, ruleID string, inputRaw []byte, now time.Time) (Report, error) {
+	b, err := c.load()
 	if err != nil {
 		return Report{}, err
 	}
@@ -79,7 +205,7 @@ func (b bundle) check(project, selectedRuleID string, inputRaw []byte, now time.
 	if err != nil {
 		return Report{}, ErrInvalid
 	}
-	var rules constraintengine.RuleSet
+	var selected selection
 	if selectedRuleID != "" {
 		owned, ownershipErr := b.ownsRuleID(project, selectedRuleID)
 		if ownershipErr != nil {
@@ -88,14 +214,14 @@ func (b bundle) check(project, selectedRuleID string, inputRaw []byte, now time.
 		if !owned {
 			return Report{}, ErrInvalid
 		}
-		rules, err = b.selectedRuleSet(project, selectedRuleID)
+		selected, err = b.selectRule(project, selectedRuleID)
 	} else {
-		rules, err = b.rulesForAdmittedInput(project, inputRaw)
+		selected, err = b.selectForInput(project, inputRaw)
 	}
 	if err != nil {
 		return Report{}, ErrIntegrity
 	}
-	return b.report(project, selectedRuleID, false, input, rules, inputRaw, now)
+	return b.reportSelection(project, selectedRuleID, false, input, selected, inputRaw, now)
 }
 
 // RegisteredFact reports whether the compiled fact registry declares id. A
@@ -116,7 +242,12 @@ func RegisteredFact(id string) bool {
 // family is evaluated, so the claims say why none applies; when the family is
 // empty the report has no claims.
 func CheckFacts(project string, facts []string, inputRaw []byte, now time.Time) (Report, error) {
-	b, err := load()
+	return Checker{}.CheckFacts(project, facts, inputRaw, now)
+}
+
+// CheckFacts is CheckFacts under the checker's trust policy.
+func (c Checker) CheckFacts(project string, facts []string, inputRaw []byte, now time.Time) (Report, error) {
+	b, err := c.load()
 	if err != nil {
 		return Report{}, err
 	}
@@ -127,15 +258,19 @@ func CheckFacts(project string, facts []string, inputRaw []byte, now time.Time) 
 	if err != nil {
 		return Report{}, ErrInvalid
 	}
-	rules, err := b.factFamilyRuleSet(project, facts, inputRaw)
+	selected, err := b.selectFamily(project, facts, inputRaw)
 	if err != nil {
 		return Report{}, ErrIntegrity
 	}
-	return b.report(project, "", true, input, rules, inputRaw, now)
+	return b.reportSelection(project, "", true, input, selected, inputRaw, now)
 }
 
 func (b bundle) report(project, selectedRuleID string, family bool, input constraintengine.Input, rules constraintengine.RuleSet, inputRaw []byte, now time.Time) (Report, error) {
-	result, err := constraintengine.Evaluate(input, rules, now)
+	return b.reportSelection(project, selectedRuleID, family, input, selection{rules: rules}, inputRaw, now)
+}
+
+func (b bundle) reportSelection(project, selectedRuleID string, family bool, input constraintengine.Input, selected selection, inputRaw []byte, now time.Time) (Report, error) {
+	result, err := constraintengine.Evaluate(input, selected.rules, now)
 	if err != nil {
 		return Report{}, ErrInvalid
 	}
@@ -150,6 +285,7 @@ func (b bundle) report(project, selectedRuleID string, family bool, input constr
 		SourceAuthority: "PACKAGED_MAINTAINER_REVIEWED_SOURCE_RULES_NOT_RUNTIME_PROOF",
 		NextAction:      "review each scoped claim; whole-upgrade behavior and runtime evidence remain unverified",
 		Check:           result,
+		TrustPolicy:     b.policy.disclosure(selected),
 	}
 	if selectedRuleID != "" && len(result.Claims) == 1 && result.Claims[0].RuleID == selectedRuleID {
 		report.SelectedRuleID = selectedRuleID
@@ -174,7 +310,7 @@ func (b bundle) report(project, selectedRuleID string, family bool, input constr
 }
 
 func MarshalReport(report Report) ([]byte, error) {
-	if report.seal == nil || report.Assessment != "UNKNOWN" || report.NetworkUsed || report.RuntimeReproduced != 0 {
+	if report.seal == nil || report.Assessment != "UNKNOWN" || report.NetworkUsed || report.RuntimeReproduced != 0 || !validTrustPolicyDisclosure(report.TrustPolicy) {
 		return nil, ErrIntegrity
 	}
 	if _, err := constraintengine.MarshalReport(report.Check); err != nil {
@@ -190,10 +326,16 @@ func MarshalReport(report Report) ([]byte, error) {
 // Replay checks exact local bytes at the explicitly supplied original clock.
 // It does not claim continuing source freshness, non-revocation or a signature.
 func Replay(project string, inputRaw []byte, now time.Time, expected []byte) (Report, error) {
+	return Checker{}.Replay(project, inputRaw, now, expected)
+}
+
+// Replay is Replay under the checker's trust policy, which must be the
+// policy the original report was made with.
+func (c Checker) Replay(project string, inputRaw []byte, now time.Time, expected []byte) (Report, error) {
 	if len(expected) == 0 || len(expected) > 4<<20 {
 		return Report{}, ErrInvalid
 	}
-	report, err := Check(project, inputRaw, now)
+	report, err := c.Check(project, inputRaw, now)
 	if err != nil {
 		return Report{}, err
 	}
@@ -205,15 +347,18 @@ func Replay(project string, inputRaw []byte, now time.Time, expected []byte) (Re
 }
 
 // ClaimExit concerns only the selected nonempty set of source constraints.
-// Claims of one-way notice rules are informational and never take part: a
-// report holding nothing else exits as one without claims.
+// Claims of one-way notice and lead rules are informational and never take
+// part: a report holding nothing else exits as one without claims. A
+// NO_KNOWN_ISSUE claim is not a pass: it exits as unknown.
 func ClaimExit(report Report) int {
 	if _, err := MarshalReport(report); err != nil {
 		return 3
 	}
-	decided, unknown := 0, false
+	// A verdict rule the trust policy left out was not evaluated: the
+	// result cannot be a pass.
+	decided, unknown := 0, report.TrustPolicy != nil && report.TrustPolicy.ExcludedRules > 0
 	for _, claim := range report.Check.Claims {
-		if claim.IsNotice() {
+		if claim.IsVerdictNeutral() {
 			continue
 		}
 		decided++

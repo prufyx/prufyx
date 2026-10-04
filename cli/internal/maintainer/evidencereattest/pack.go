@@ -89,7 +89,10 @@ func parseRuleFields(raw json.RawMessage) (ruleFields, error) {
 	if value, present := presence.Evidence["extractor"]; present && string(value) == "null" {
 		return ruleFields{}, fmt.Errorf("%w: rule %s evidence extractor", ErrRejected, fields.ID)
 	}
-	if err := constraintengine.ValidateBasis(fields.Evidence.Basis, fields.Evidence.Extractor, fields.Evidence.DerivedAt); err != nil {
+	// Only reviewed and mechanical rules are renewed here: an empirical,
+	// consensus or lead rule is renewed by its own evidence, never by a
+	// reviewer's reattestation.
+	if err := constraintengine.ValidateReviewedOrMechanicalBasis(fields.Evidence.Basis, fields.Evidence.Extractor, fields.Evidence.DerivedAt); err != nil {
 		return ruleFields{}, fmt.Errorf("%w: rule %s evidence basis", ErrRejected, fields.ID)
 	}
 	return fields, nil
