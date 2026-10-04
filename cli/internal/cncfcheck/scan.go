@@ -30,7 +30,9 @@ type ScanRule struct {
 	Facts   []string
 	Notice  bool
 	// Basis is the rule's effective evidence basis.
-	Basis       string
+	Basis string
+	// Severity is "unsupported" for a support-range rule, else empty.
+	Severity    string
 	Description string
 	NextAction  string
 }
@@ -45,6 +47,7 @@ func NewScanRule(project, description string, raw json.RawMessage) (ScanRule, er
 	var shape ruleShape
 	var action struct {
 		NextAction string `json:"nextAction"`
+		Severity   string `json:"severity"`
 		Evidence   struct {
 			Basis string `json:"basis"`
 		} `json:"evidence"`
@@ -57,7 +60,7 @@ func NewScanRule(project, description string, raw json.RawMessage) (ScanRule, er
 	if err != nil {
 		return ScanRule{}, ErrIntegrity
 	}
-	rule := ScanRule{Project: project, Scope: scope, Notice: notice, Basis: constraintengine.EffectiveBasis(action.Evidence.Basis), Description: description, NextAction: action.NextAction}
+	rule := ScanRule{Project: project, Scope: scope, Notice: notice, Basis: constraintengine.EffectiveBasis(action.Evidence.Basis), Severity: action.Severity, Description: description, NextAction: action.NextAction}
 	for _, condition := range shape.conditions() {
 		rule.Facts = append(rule.Facts, condition.FactID)
 	}

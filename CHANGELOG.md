@@ -28,7 +28,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   accepts files other users can read with a note (`--input-permissions
   strict` refuses them), prints digests instead of paths and names with
   `--redact`, lists one-way changes and unverified leads separately without letting them
-  change the answer, accepts `--require-basis` like `check cncf`, and writes JSON with schema `prufyx.io/scan-report/v1alpha1`
+  change the answer, lists combinations outside a documented support range
+  (never a pass, never a blocker), accepts `--require-basis` like `check cncf`, and writes JSON with schema `prufyx.io/scan-report/v1alpha1`
   (`cli/docs/generated/schemas/scan-report-v1alpha1.json`). See
   `cli/docs/scan.md`.
 - Maintainer tooling: the knowledge gate gains circuit breakers (a change that

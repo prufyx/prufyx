@@ -34,6 +34,7 @@ const (
 	ReasonDocumentsNotEvaluated      = "DOCUMENTS_NOT_EVALUATED"
 	ReasonEvidenceExpired            = "EVIDENCE_EXPIRED"
 	ReasonDowngradeNotReviewed       = "DOWNGRADE_NOT_REVIEWED"
+	ReasonUnsupportedCombination     = "UNSUPPORTED_COMBINATION"
 	ReasonAPIVersionNotServed        = "API_VERSION_NOT_SERVED"
 	ReasonAPIVersionNotReviewed      = "API_VERSION_NOT_REVIEWED"
 	ReasonAlphaAPINotCovered         = "ALPHA_API_NOT_COVERED"
@@ -81,6 +82,12 @@ const (
 	GapAlphaAPINotCovered      GapKey = ReasonAlphaAPINotCovered
 	GapRuleNotDecided          GapKey = ReasonRuleNotDecided
 	GapRuleNeedsOtherEvidence  GapKey = ReasonRuleNotDecided + "/other-evidence"
+	GapUnsupportedCombination  GapKey = ReasonUnsupportedCombination
+	GapLineTrustPolicy         GapKey = ReasonLineNotAttested + "/trust-policy"
+	GapPathPolicyTrustPolicy   GapKey = ReasonNoReviewedPathPolicy + "/trust-policy"
+	GapServedListTrustPolicy   GapKey = ReasonAPIVersionNotReviewed + "/trust-policy"
+	GapServedListNotCurrent    GapKey = ReasonAPIVersionNotReviewed + "/served-list-not-current"
+	GapServedListMismatch      GapKey = ReasonAPIVersionNotReviewed + "/served-list-mismatch"
 	GapRuleNoKnownIssue        GapKey = ReasonRuleNotDecided + "/no-known-issue"
 	GapRuleTrustPolicy         GapKey = ReasonRuleNotDecided + "/trust-policy"
 	GapRuleStatusNotUnderstood GapKey = ReasonRuleNotDecided + "/status"
@@ -173,6 +180,18 @@ var gapMessages = map[GapKey]gapMessage{
 		"run the hop with prufyx check cncf to see the rule's next action, or check by hand", 2},
 	GapRuleNeedsOtherEvidence: {"rule %[1]s applies to this hop but needs evidence that scan does not collect",
 		"run prufyx check cncf --project %[2]s for that rule, or check by hand", 2},
+	GapUnsupportedCombination: {"rule %[1]s finds the planned combination outside a documented support range (%[2]s)",
+		"see UNSUPPORTED COMBINATIONS for the rule's next action; the answer cannot pass while it stands", 2},
+	GapLineTrustPolicy: {"the review of %[1]s %[2]s rests on basis %[3]s, left out by --require-basis",
+		"add %[3]s to --require-basis, or check the %[1]s %[2]s release notes by hand", 3},
+	GapPathPolicyTrustPolicy: {"the upgrade-path policy for %[1]s rests on evidence basis %[2]s, which --require-basis leaves out",
+		"add %[2]s to --require-basis if you accept it, or upgrade one minor line at a time and scan each hop", 2},
+	GapServedListTrustPolicy: {"the served list of Kubernetes %[1]s rests on basis %[2]s, left out by --require-basis",
+		"add %[2]s to --require-basis, or check API versions against the Kubernetes %[1]s API reference", 2},
+	GapServedListNotCurrent: {"the served list of Kubernetes %[1]s is not current (%[2]s)",
+		"use a current list, or check API versions against the Kubernetes %[1]s API reference", 2},
+	GapServedListMismatch: {"the served list found for Kubernetes %[1]s names another line or component",
+		"check API versions against the Kubernetes %[1]s API reference, and report the knowledge", 1},
 	GapRuleNoKnownIssue: {"rule %[1]s found no known issue, but its evidence (%[2]s) can block and never pass",
 		"check this change by hand, or wait for reviewed or mechanical evidence", 2},
 	GapRuleTrustPolicy: {"rule %[1]s applies but its evidence basis (%[2]s) is left out by --require-basis",
@@ -184,7 +203,7 @@ var gapMessages = map[GapKey]gapMessage{
 // GapReasons lists the closed vocabulary in order.
 func GapReasons() []string {
 	return []string{
-		ReasonAlphaAPINotCovered, ReasonAPIVersionNotReviewed, ReasonAPIVersionNotServed, ReasonComponentNotCovered, ReasonDeclarationMissing,
+		ReasonAlphaAPINotCovered, ReasonAPIVersionNotReviewed, ReasonAPIVersionNotServed, ReasonUnsupportedCombination, ReasonComponentNotCovered, ReasonDeclarationMissing,
 		ReasonDistributionNotCovered, ReasonDocumentsNotEvaluated, ReasonDocumentsTemplated, ReasonDowngradeNotReviewed,
 		ReasonEvidenceExpired, ReasonIntermediateLineNotCovered, ReasonLineNotAttested, ReasonNoReviewedPathPolicy,
 		ReasonPathNotPlannable, ReasonPathPolicyNotCurrent, ReasonRuleNotDecided, ReasonVersionConflict, ReasonVersionNotDetected,
@@ -334,6 +353,8 @@ const (
 	labelNoticeUnresolved = "one-way notice not established: %s (%s)"
 	labelNoticeNext       = "next action: %s"
 	labelLeads            = "UNVERIFIED LEADS (%d)"
+	labelUnsupported      = "UNSUPPORTED COMBINATIONS (%d)"
+	labelUnsupportedRule  = "outside a documented support range: %s (%s)"
 	labelLeadRule         = "unverified lead (does not block): %s"
 	labelLeadCheck        = "worth checking: %s"
 	labelTrustExcluded    = "trust policy: evidence basis %s only; %d rule(s) that apply were left out, so the result cannot pass"

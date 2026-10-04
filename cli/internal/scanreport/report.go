@@ -61,6 +61,9 @@ type Report struct {
 	// Leads are unverified readings: informational, never part of the
 	// verdict, like notices.
 	Leads []Lead `json:"leads"`
+	// Unsupported are combinations outside a documented support range:
+	// never a blocker, never a pass; each keeps its hop undecided.
+	Unsupported []Unsupported `json:"unsupported"`
 	// TrustPolicy is present only when the trust policy left out a rule
 	// that applies to the upgrade.
 	TrustPolicy *TrustPolicy `json:"trustPolicy,omitempty"`
@@ -86,6 +89,7 @@ type Summary struct {
 	DocumentsOmitted   int `json:"documentsOmitted"`
 	Notices            int `json:"notices"`
 	Leads              int `json:"leads"`
+	Unsupported        int `json:"unsupported"`
 }
 
 // Component is one component named by a version declaration.
@@ -133,8 +137,13 @@ type Hop struct {
 	To     Endpoint `json:"to"`
 	Status string   `json:"status"`
 	// InputDigest is the digest of the engine input evaluated for the hop.
-	InputDigest string       `json:"inputDigest,omitempty"`
-	Attestation *Attestation `json:"attestation,omitempty"`
+	InputDigest string `json:"inputDigest,omitempty"`
+	// EngineContractDigest is the engine contract the hop's rules were
+	// evaluated under. It depends on the features of the selected rules
+	// (for example a one-way notice or a lead), so it can differ between
+	// hops and between knowledge revisions without any change of verdict.
+	EngineContractDigest string       `json:"engineContractDigest,omitempty"`
+	Attestation          *Attestation `json:"attestation,omitempty"`
 	// Reasons are the gap reasons that keep the hop from COVERED.
 	Reasons []string `json:"reasons,omitempty"`
 }
@@ -239,6 +248,19 @@ type Lead struct {
 	Citations []constraintengine.SourceEvidence `json:"citations"`
 }
 
+// Unsupported is a support-range rule that finds the planned combination
+// outside its documented support range on a hop.
+type Unsupported struct {
+	RuleID    string                            `json:"ruleId"`
+	Component string                            `json:"component"`
+	Hop       HopRef                            `json:"hop"`
+	AlsoAt    []HopRef                          `json:"alsoAt,omitempty"`
+	Reason    string                            `json:"reason"`
+	Fix       string                            `json:"fix"`
+	Basis     string                            `json:"basis"`
+	Citations []constraintengine.SourceEvidence `json:"citations"`
+}
+
 // TrustPolicy discloses the evidence bases a scan evaluated and how many
 // rules that apply to the upgrade it left out: verdict rules (so the answer
 // cannot pass) and lead rules (which never take part).
@@ -292,6 +314,7 @@ func Finalize(report *Report) {
 	report.Summary.DocumentsOmitted = len(report.Omitted)
 	report.Summary.Notices = len(report.Notices)
 	report.Summary.Leads = len(report.Leads)
+	report.Summary.Unsupported = len(report.Unsupported)
 	report.Verdict = verdict(*report)
 	report.Headline = headline(*report)
 }
@@ -438,6 +461,23 @@ func sortReport(report *Report) {
 	})
 	if report.Leads == nil {
 		report.Leads = []Lead{}
+	}
+	for u := range report.Unsupported {
+		entry := &report.Unsupported[u]
+		sort.SliceStable(entry.AlsoAt, func(i, j int) bool { return entry.AlsoAt[i].order() < entry.AlsoAt[j].order() })
+	}
+	sort.SliceStable(report.Unsupported, func(i, j int) bool {
+		a, b := report.Unsupported[i], report.Unsupported[j]
+		if a.Component != b.Component {
+			return a.Component < b.Component
+		}
+		if a.Hop.order() != b.Hop.order() {
+			return a.Hop.order() < b.Hop.order()
+		}
+		return a.RuleID < b.RuleID
+	})
+	if report.Unsupported == nil {
+		report.Unsupported = []Unsupported{}
 	}
 	if report.Omitted == nil {
 		report.Omitted = []Omitted{}

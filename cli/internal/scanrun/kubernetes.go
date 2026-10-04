@@ -84,6 +84,13 @@ func (r *kubernetesRun) evaluate(from, to string) error {
 		r.gap(nil, scanreport.GapPathPolicyNotCurrent, kubernetesSlug, status.Freshness)
 		return nil
 	}
+	if status.Policy() != nil && !r.policy.Admits(status.Record.Evidence.Basis) {
+		// A current policy whose evidence basis the trust policy leaves out
+		// is not used, and no direct hop stands in for it.
+		path.Gap = scanreport.ReasonNoReviewedPathPolicy
+		r.gap(nil, scanreport.GapPathPolicyTrustPolicy, kubernetesSlug, constraintengine.EffectiveBasis(status.Record.Evidence.Basis))
+		return nil
+	}
 	policy := status.Policy()
 	plan := upgradepath.PlanPath(r.component, from, to, policy)
 	if plan.Gap != upgradepath.GapNone {
@@ -212,7 +219,9 @@ func (r *kubernetesRun) apiVersionGaps(to string, crossed map[string]bool) {
 		return
 	}
 	removed := cncfprepare.KubernetesRemovedVersions()
-	served, listed := r.knowledge.ServedAPIs(r.component, targetLine)
+	status := r.knowledge.ServedAPIs(r.component, targetLine, r.now)
+	usable := status.Found && status.Freshness == lineattest.FreshnessCurrent && status.List.Line == targetLine &&
+		status.List.Component == r.component && r.policy.Admits(status.List.Basis)
 	notServed, notListed, builtIn := 0, 0, 0
 	for _, document := range r.workspace.Documents {
 		group, version, found := strings.Cut(document.APIVersion, "/")
@@ -230,16 +239,25 @@ func (r *kubernetesRun) apiVersionGaps(to string, crossed map[string]bool) {
 			continue
 		}
 		builtIn++
-		if listed && !served[document.APIVersion+" "+document.Kind] {
+		if usable && !status.List.APIs[document.APIVersion+" "+document.Kind] {
 			notListed++
 		}
 	}
 	if notServed > 0 {
 		r.rootGap(scanreport.GapAPIVersionNotServed, notServed, targetLine)
 	}
+	if builtIn == 0 {
+		return
+	}
 	switch {
-	case !listed && builtIn > 0:
+	case !status.Found:
 		r.rootGap(scanreport.GapAPIVersionNoServedList, builtIn, targetLine)
+	case status.List.Line != targetLine || status.List.Component != r.component:
+		r.rootGap(scanreport.GapServedListMismatch, targetLine)
+	case status.Freshness != lineattest.FreshnessCurrent:
+		r.rootGap(scanreport.GapServedListNotCurrent, targetLine, status.Freshness)
+	case !r.policy.Admits(status.List.Basis):
+		r.rootGap(scanreport.GapServedListTrustPolicy, targetLine, constraintengine.EffectiveBasis(status.List.Basis))
 	case notListed > 0:
 		r.rootGap(scanreport.GapAPIVersionNotListed, notListed, targetLine)
 	}
@@ -254,10 +272,11 @@ func containsString(values []string, value string) bool {
 	return false
 }
 
-// kubernetesGroupRE matches the API groups Kubernetes itself serves (and any
-// other *.k8s.io group): an alpha version there is outside every removed-API
-// review.
-var kubernetesGroupRE = regexp.MustCompile(`^(|apps|batch|autoscaling|policy|extensions|k8s\.io|[a-z0-9.-]+\.k8s\.io)$`)
+// kubernetesGroupRE matches the API groups Kubernetes itself serves: the core
+// group, every group without a dot (a custom resource group must contain
+// one) and every *.k8s.io group. Their objects must be on the served list of
+// the target, and their alpha versions are outside every removed-API review.
+var kubernetesGroupRE = regexp.MustCompile(`^([a-z0-9-]*|[a-z0-9.-]+\.k8s\.io)$`)
 
 var alphaVersionRE = regexp.MustCompile(`^v[0-9]+alpha[0-9]*$`)
 
@@ -296,8 +315,9 @@ func (r *kubernetesRun) gap(hop *scanreport.HopRef, key scanreport.GapKey, args 
 
 // evaluation is what the engine said for one transition.
 type evaluation struct {
-	scan   cncfprepare.KubernetesScan
-	claims map[string]constraintengine.Claim
+	scan     cncfprepare.KubernetesScan
+	contract string
+	claims   map[string]constraintengine.Claim
 	// refused is true when the knowledge cannot evaluate the input: it
 	// has no fact for a removal the preparation derives.
 	refused bool
@@ -355,16 +375,22 @@ func (r *kubernetesRun) evaluateTransition(from, to string) (evaluation, error) 
 			return evaluation{}, ErrIntegrity
 		case !r.policy.Admits(rule.Basis):
 			return evaluation{}, ErrIntegrity
+		case (claim.Status == constraintengine.StatusUnsupported) && rule.Severity != constraintengine.SeverityUnsupported:
+			return evaluation{}, ErrIntegrity
+		case rule.Severity != "" && (neutral || claim.Status == "BLOCKED"):
+			return evaluation{}, ErrIntegrity
 		}
 		claims[claim.RuleID] = claim
 	}
-	return evaluation{scan: scan, claims: claims}, nil
+	return evaluation{scan: scan, claims: claims, contract: result.EngineContractDigest}, nil
 }
 
 // judgement is the result of one applicable rule.
 type judgement struct {
 	decided, blocked bool
 	reasons          []string
+	// facts are the facts a PASS or BLOCKED claim judged.
+	facts []string
 }
 
 // judge decides one rule that covers the transition from its claim. A rule
@@ -379,14 +405,17 @@ func (r *kubernetesRun) judge(rule cncfcheck.ScanRule, eval evaluation, ref scan
 	switch claim.Status {
 	case "BLOCKED":
 		r.finding(rule, claim, eval, ref)
-		return judgement{decided: true, blocked: true}
+		return judgement{decided: true, blocked: true, facts: claimFacts(claim)}
 	case "PASS":
 		key := rule.Scope.ID + "\x00" + ref.From + "\x00" + ref.To + "\x00" + strconv.FormatBool(ref.WholeUpgrade)
 		if !r.passes[key] {
 			r.passes[key] = true
 			r.report.Passes = append(r.report.Passes, scanreport.Pass{RuleID: rule.Scope.ID, Component: kubernetesSlug, Hop: ref})
 		}
-		return judgement{decided: true}
+		return judgement{decided: true, facts: claimFacts(claim)}
+	case constraintengine.StatusUnsupported:
+		r.unsupported(rule, claim, ref)
+		return judgement{reasons: []string{r.gap(&ref, scanreport.GapUnsupportedCombination, rule.Scope.ID, claim.ReasonCode)}}
 	case constraintengine.StatusNoKnownIssue:
 		return judgement{reasons: []string{r.gap(&ref, scanreport.GapRuleNoKnownIssue, rule.Scope.ID, rule.Basis)}}
 	case "UNKNOWN":
@@ -486,7 +515,7 @@ func (r *kubernetesRun) hop(hop upgradepath.Hop, unplanned bool) (scanreport.Hop
 	if err != nil {
 		return scanreport.Hop{}, err
 	}
-	result.InputDigest = eval.scan.Prepared.InputDigest
+	result.InputDigest, result.EngineContractDigest = eval.scan.Prepared.InputDigest, eval.contract
 	if eval.refused {
 		_, toLine, _ := hopLines(hop)
 		result.Status = scanreport.HopNoData
@@ -519,6 +548,7 @@ func (r *kubernetesRun) hop(hop upgradepath.Hop, unplanned bool) (scanreport.Hop
 
 	decidedAll, blocked := true, false
 	decidedRules := map[string]bool{}
+	verdictFacts := map[string]bool{}
 	for _, rule := range applicable {
 		if !hop.CoveredBy(rule.Scope.Transition) {
 			// The rule applies to some releases of the hop and not to
@@ -535,6 +565,9 @@ func (r *kubernetesRun) hop(hop upgradepath.Hop, unplanned bool) (scanreport.Hop
 			continue
 		}
 		judged := r.judge(rule, eval, ref)
+		for _, fact := range judged.facts {
+			verdictFacts[fact] = true
+		}
 		result.Reasons = append(result.Reasons, judged.reasons...)
 		if judged.blocked {
 			blocked = true
@@ -548,10 +581,10 @@ func (r *kubernetesRun) hop(hop upgradepath.Hop, unplanned bool) (scanreport.Hop
 
 	attested, attestationCurrent := r.attestation(hop, ref, unplanned, applicable, decidedRules, &result)
 	if attested {
-		// A fact the preparation found true must be read by a rule that
-		// decided this hop; otherwise no review can cover the hop.
+		// A fact the preparation found true must have been judged by a PASS
+		// or BLOCKED claim on this hop; otherwise no review can cover it.
 		for fact := range eval.scan.Sources {
-			if !readByDecidedRule(fact, applicable, decidedRules) {
+			if !verdictFacts[fact] {
 				_, toLine, _ := hopLines(hop)
 				attested = false
 				result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapLineUndecidedFact, kubernetesSlug, toLine))
@@ -611,6 +644,11 @@ func (r *kubernetesRun) attestation(hop upgradepath.Hop, ref scanreport.HopRef, 
 		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapLineNotCurrent, kubernetesSlug, toLine, status.Freshness))
 		return false, false
 	}
+	if !r.policy.Admits(status.Attestation.Evidence.Basis) {
+		// The trust policy also selects the evidence a review rests on.
+		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapLineTrustPolicy, kubernetesSlug, toLine, constraintengine.EffectiveBasis(status.Attestation.Evidence.Basis)))
+		return false, false
+	}
 	attested := true
 	listed := map[string]bool{}
 	applicableIDs := map[string]bool{}
@@ -639,18 +677,13 @@ func (r *kubernetesRun) attestation(hop upgradepath.Hop, ref scanreport.HopRef, 
 	return attested, true
 }
 
-func readByDecidedRule(fact string, applicable []cncfcheck.ScanRule, decidedRules map[string]bool) bool {
-	for _, rule := range applicable {
-		if !decidedRules[rule.Scope.ID] {
-			continue
-		}
-		for _, read := range rule.Facts {
-			if read == fact {
-				return true
-			}
-		}
+// claimFacts are the facts a claim names as required.
+func claimFacts(claim constraintengine.Claim) []string {
+	facts := make([]string, 0, len(claim.RequiredFacts))
+	for _, fact := range claim.RequiredFacts {
+		facts = append(facts, fact.FactID)
 	}
-	return false
+	return facts
 }
 
 func containsFamily(families []string) bool {
@@ -876,4 +909,25 @@ func (r *kubernetesRun) lead(rule cncfcheck.ScanRule, eval evaluation, ref scanr
 		}
 	}
 	r.report.Leads = append(r.report.Leads, scanreport.Lead{RuleID: rule.Scope.ID, Component: kubernetesSlug, Hop: ref, Text: rule.NextAction, Citations: append([]constraintengine.SourceEvidence{}, claim.Sources...)})
+}
+
+// unsupported lists a support-range rule that finds the combination outside
+// its documented range on ref.
+func (r *kubernetesRun) unsupported(rule cncfcheck.ScanRule, claim constraintengine.Claim, ref scanreport.HopRef) {
+	for index := range r.report.Unsupported {
+		existing := &r.report.Unsupported[index]
+		if existing.RuleID == rule.Scope.ID {
+			if existing.Hop != ref {
+				for _, also := range existing.AlsoAt {
+					if also == ref {
+						return
+					}
+				}
+				existing.AlsoAt = append(existing.AlsoAt, ref)
+			}
+			return
+		}
+	}
+	r.report.Unsupported = append(r.report.Unsupported, scanreport.Unsupported{RuleID: rule.Scope.ID, Component: kubernetesSlug, Hop: ref, Reason: claim.ReasonCode, Fix: rule.NextAction,
+		Basis: constraintengine.EffectiveBasis(claim.EvidenceBasis), Citations: append([]constraintengine.SourceEvidence{}, claim.Sources...)})
 }

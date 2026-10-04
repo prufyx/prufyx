@@ -300,12 +300,17 @@ func TestScanNoticesAreVerdictNeutral(t *testing.T) {
 type claimEditor struct {
 	Knowledge
 	edit func([]constraintengine.Claim)
+	// extend, when set, returns the claims with more added.
+	extend func([]constraintengine.Claim) []constraintengine.Claim
 }
 
 func (k claimEditor) Evaluate(policy cncfcheck.TrustPolicy, project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error) {
 	evaluation, err := k.Knowledge.Evaluate(policy, project, facts, inputRaw, now)
-	if err == nil {
+	if err == nil && k.edit != nil {
 		k.edit(evaluation.Claims)
+	}
+	if err == nil && k.extend != nil {
+		evaluation.Claims = k.extend(evaluation.Claims)
 	}
 	return evaluation, err
 }

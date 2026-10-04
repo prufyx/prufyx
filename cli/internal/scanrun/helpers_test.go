@@ -53,11 +53,14 @@ var testBuild = buildidentity.Identity{
 // unchanged engine on the same prepared input and their claims added.
 type testKnowledge struct {
 	Embedded
-	attestations lineattest.Index
-	policies     upgradepath.Index
-	served       map[string]bool
-	synthetic    []cncfcheck.ScanRule
-	syntheticRaw []json.RawMessage
+	attestations    lineattest.Index
+	policies        upgradepath.Index
+	served          map[string]bool
+	servedLines     map[string]bool
+	servedOverride  ServedList
+	servedFreshness string
+	synthetic       []cncfcheck.ScanRule
+	syntheticRaw    []json.RawMessage
 }
 
 func (k testKnowledge) AttestationsFor(component, line, family string, now time.Time) []lineattest.Status {
@@ -68,8 +71,25 @@ func (k testKnowledge) PathPolicyFor(component string, now time.Time) upgradepat
 	return k.policies.Lookup(component, now)
 }
 
-func (k testKnowledge) ServedAPIs(component, line string) (map[string]bool, bool) {
-	return k.served, k.served != nil
+func (k testKnowledge) ServedAPIs(component, line string, now time.Time) ServedStatus {
+	if k.served == nil || !k.servedLines[line] {
+		return ServedStatus{}
+	}
+	list := ServedList{Component: component, Line: line, Basis: "reviewed", APIs: k.served}
+	if k.servedOverride.Component != "" {
+		list.Component = k.servedOverride.Component
+	}
+	if k.servedOverride.Line != "" {
+		list.Line = k.servedOverride.Line
+	}
+	if k.servedOverride.Basis != "" {
+		list.Basis = k.servedOverride.Basis
+	}
+	freshness := "current"
+	if k.servedFreshness != "" {
+		freshness = k.servedFreshness
+	}
+	return ServedStatus{Found: true, List: list, Freshness: freshness}
 }
 
 func (k testKnowledge) Rules(project string) []cncfcheck.ScanRule {
@@ -209,8 +229,19 @@ type knowledgeOptions struct {
 	extraRuleIDs map[string][]string
 	// dropRuleIDs lists rule ids to leave out of a line's review.
 	dropRuleIDs map[string][]string
-	// noServedList leaves out the reviewed served lists.
-	noServedList bool
+	// recordBasis is the evidence basis of the line reviews, the path
+	// policy and the served lists: "" (reviewed) or "mechanical".
+	recordBasis string
+	// reviewBasis and policyBasis override recordBasis for one kind.
+	reviewBasis, policyBasis string
+	// servedExtra adds "apiVersion kind" pairs to every served list.
+	servedExtra []string
+	// noServedList leaves out the reviewed served lists; servedOverride
+	// replaces the record's own component, line or basis; servedFreshness
+	// replaces "current".
+	noServedList    bool
+	servedOverride  ServedList
+	servedFreshness string
 	// synthetic are rules added to the published ones (raw rule JSON).
 	synthetic []string
 }
@@ -266,8 +297,8 @@ func newKnowledge(t testing.TB, options knowledgeOptions) Knowledge {
 		if ids == nil {
 			encoded = []byte("[]")
 		}
-		docs = append(docs, fmt.Sprintf(`{"component":%q,"line":%q,"factFamily":%q,"completeness":"COMPLETE_REVIEWED_RULES_FOR_LINE","ruleIds":%s,"evidence":{"basis":"reviewed","reviewedAt":%q,"validUntil":%q,"sources":[%s]}}`,
-			kubernetesKey, e.line, lineattest.FamilyKubernetesRemovedServedGVK, encoded, e.window[0], e.window[1], testSource))
+		docs = append(docs, fmt.Sprintf(`{"component":%q,"line":%q,"factFamily":%q,"completeness":"COMPLETE_REVIEWED_RULES_FOR_LINE","ruleIds":%s,"evidence":{%s,"reviewedAt":%q,"validUntil":%q,"sources":[%s]}}`,
+			kubernetesKey, e.line, lineattest.FamilyKubernetesRemovedServedGVK, encoded, basisFields(pick(options.reviewBasis, options.recordBasis), e.window[0]), e.window[0], e.window[1], testSource))
 	}
 	index := lineattest.NewIndex(nil)
 	if len(docs) > 0 {
@@ -293,17 +324,34 @@ func newKnowledge(t testing.TB, options knowledgeOptions) Knowledge {
 		if options.policy == "direct" {
 			policy = "direct"
 		}
-		records, err := upgradepath.Parse([]byte(fmt.Sprintf(`[{"component":%q,"policy":%q,"evidence":{"state":"active","reviewedAt":%q,"validUntil":%q,"sources":[%s]}}]`, kubernetesKey, policy, window[0], window[1], testSource)))
+		records, err := upgradepath.Parse([]byte(fmt.Sprintf(`[{"component":%q,"policy":%q,"evidence":{"state":"active",%s,"reviewedAt":%q,"validUntil":%q,"sources":[%s]}}]`, kubernetesKey, policy, basisFields(pick(options.policyBasis, options.recordBasis), window[0]), window[0], window[1], testSource)))
 		if err != nil {
 			t.Fatal(err)
 		}
 		policies = upgradepath.NewIndex(records)
 	}
 	served := testServed
+	if len(options.servedExtra) > 0 {
+		served = map[string]bool{}
+		for pair := range testServed {
+			served[pair] = true
+		}
+		for _, pair := range options.servedExtra {
+			served[pair] = true
+		}
+	}
 	if options.noServedList {
 		served = nil
 	}
-	return testKnowledge{Embedded: base, attestations: index, policies: policies, served: served, synthetic: synthetic, syntheticRaw: syntheticRaw}
+	servedLines := map[string]bool{}
+	for minor := 20; minor <= 40; minor++ {
+		servedLines[fmt.Sprintf("1.%d", minor)] = true
+	}
+	if options.recordBasis != "" && options.servedOverride.Basis == "" {
+		options.servedOverride.Basis = options.recordBasis
+	}
+	return testKnowledge{Embedded: base, attestations: index, policies: policies, served: served, servedLines: servedLines,
+		servedOverride: options.servedOverride, servedFreshness: options.servedFreshness, synthetic: synthetic, syntheticRaw: syntheticRaw}
 }
 
 // packRules are the raw rules of the embedded pack.
@@ -486,3 +534,18 @@ const (
 	cronjobV1beta1 = "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata:\n  name: nightly-report\n  namespace: default\nspec:\n  schedule: \"0 2 * * *\"\n---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: report-settings\n  namespace: default\ndata:\n  mode: nightly\n"
 	cronjobV1      = "apiVersion: batch/v1\nkind: CronJob\nmetadata:\n  name: nightly-report\n  namespace: default\nspec:\n  schedule: \"0 2 * * *\"\n---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: report-settings\n  namespace: default\ndata:\n  mode: nightly\n"
 )
+
+// basisFields are the evidence members of a record of the given basis.
+func basisFields(basis, reviewedAt string) string {
+	if basis == "mechanical" {
+		return `"basis":"mechanical","extractor":{"id":"k8s.served-api-removal","version":"1.1.0","codeDigest":"sha256:` + strings.Repeat("1", 64) + `"},"derivedAt":"` + reviewedAt + `"`
+	}
+	return `"basis":"reviewed"`
+}
+
+func pick(value, fallback string) string {
+	if value != "" {
+		return value
+	}
+	return fallback
+}

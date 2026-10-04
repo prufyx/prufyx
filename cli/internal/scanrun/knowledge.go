@@ -27,9 +27,9 @@ type Knowledge interface {
 	Evaluate(policy cncfcheck.TrustPolicy, project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error)
 	AttestationsFor(component, line, family string, now time.Time) []lineattest.Status
 	PathPolicyFor(component string, now time.Time) upgradepath.Status
-	// ServedAPIs returns the reviewed list of "apiVersion kind" pairs the
-	// component's line serves; ok is false when there is none.
-	ServedAPIs(component, line string) (served map[string]bool, ok bool)
+	// ServedAPIs looks up the reviewed list of "apiVersion kind" pairs the
+	// component's line serves, with its freshness at now.
+	ServedAPIs(component, line string, now time.Time) ServedStatus
 }
 
 // Evaluation is the result of one engine evaluation.
@@ -71,6 +71,27 @@ func (k Embedded) Evaluate(policy cncfcheck.TrustPolicy, project string, facts [
 	return Evaluation{Claims: report.Check.Claims, EngineContractDigest: report.Check.EngineContractDigest}, nil
 }
 
+// ServedList is one reviewed list of the API versions a release line
+// serves: the record's own component and line, its evidence basis and the
+// served "apiVersion kind" pairs.
+type ServedList struct {
+	Component string
+	Line      string
+	Basis     string
+	APIs      map[string]bool
+}
+
+// ServedStatus is a served-list lookup. Only a found list whose freshness is
+// "current", whose component and line are the ones asked for, and whose
+// basis the trust policy admits may be used.
+type ServedStatus struct {
+	Found     bool
+	List      ServedList
+	Freshness string
+}
+
 // ServedAPIs: the embedded knowledge carries no reviewed served lists yet,
 // so every Kubernetes API group document is a named gap.
-func (k Embedded) ServedAPIs(component, line string) (map[string]bool, bool) { return nil, false }
+func (k Embedded) ServedAPIs(component, line string, now time.Time) ServedStatus {
+	return ServedStatus{}
+}

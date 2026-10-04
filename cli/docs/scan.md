@@ -112,12 +112,15 @@ binary.
 - either the upgrade enters at most one new minor release line, or a current
   reviewed upgrade-path policy splits it so that every release line on the way
   is a hop;
-- every object is at an API version the target serves: none at a version
-  removed on a line no evaluated hop enters (for example a `batch/v1beta1`
-  CronJob when you are already on 1.25), and every object of a Kubernetes API
-  group (core, `apps`, `batch`, `autoscaling`, `policy`, `extensions`,
-  `*.k8s.io`) is at a version the reviewed list of the target line names as
-  served;
+- every object of a Kubernetes API group is at an API version the target
+  serves. A Kubernetes API group is the core group, any group without a dot
+  (`apps`, `batch`, but also misspellings such as `core` or `rbac`) and any
+  `*.k8s.io` group. No object may be at a version removed on a line no
+  evaluated hop enters (for example a `batch/v1beta1` CronJob when you are
+  already on 1.25), and each must be named, with its kind, by a reviewed list
+  of what the target line serves that is current and is for that line.
+  Objects of custom resource groups (a group with a dot, not `*.k8s.io`) are
+  not checked;
 - for every hop, every rule that applies to any release of the hop covers the
   whole hop and reached a verdict, and a current review of the target line says
   these are all the rules for removed API versions on that line;
@@ -170,8 +173,9 @@ Every gap has a reason, a detail and an action.
 | `DISTRIBUTION_NOT_COVERED` | The distribution is `custom_build`. | Check your distribution's release notes by hand. |
 | `DOCUMENTS_TEMPLATED` | Documents with `{{ ... }}` or `${...}`. | Render them (`helm template`, `kustomize build`) and scan the output. |
 | `DOCUMENTS_NOT_EVALUATED` | Nested or unresolved lists, paginated lists, documents that are not Kubernetes objects, skipped symlinks or special files, or no manifests at all. | Pass only rendered Kubernetes objects. |
+| `UNSUPPORTED_COMBINATION` | A support-range rule finds the planned combination outside its documented support range (see "Unsupported combinations"). | Follow the rule's next action, or accept the risk knowingly; the answer cannot pass. |
 | `API_VERSION_NOT_SERVED` | A manifest uses an API version that was removed on a release line at or below the target that no evaluated hop enters (typically one removed before your current version). | Migrate it to a served version and scan again. |
-| `API_VERSION_NOT_REVIEWED` | A manifest uses a version of a reviewed kind that the reviewed removals do not name, or a version of a Kubernetes API group that the reviewed list of the target line does not name as served, or there is no reviewed list of served versions for the target line. The built-in knowledge does not carry such lists yet, so today every scan with Kubernetes manifests names this gap. | Check those versions against the target's API reference by hand, or request coverage. |
+| `API_VERSION_NOT_REVIEWED` | A manifest uses a version of a reviewed kind that the reviewed removals do not name, or a version and kind of a Kubernetes API group that the reviewed list of the target line does not name as served; or that list is missing, not current, for another line or component, or rests on a basis `--require-basis` leaves out. The built-in knowledge does not carry such lists yet, so today every scan with Kubernetes manifests names this gap. | Check those versions against the target's API reference by hand, or request coverage. |
 | `ALPHA_API_NOT_COVERED` | A manifest uses an alpha version of a Kubernetes API group (core, `apps`, `batch`, `autoscaling`, `policy`, `extensions` or `*.k8s.io`); removed-API reviews cover beta and stable versions only. | Check alpha APIs by hand for every line. |
 | `EVIDENCE_EXPIRED` | The review of a rule is stale, withdrawn or not yet valid at `--now`. | Use a release with current knowledge, or check by hand. |
 | `RULE_NOT_DECIDED` | A rule that applies could not reach a verdict, needs evidence `scan` does not collect, rests on consensus evidence that found nothing, or was left out by `--require-basis`. | Run the matching `prufyx check cncf` route, or check by hand. |
@@ -215,6 +219,22 @@ changes the answer. Without `lead` in the list, leads are left out and only
 counted. When the trust policy leaves out a rule that applies, the first lines
 after the headline and `trustPolicy` in JSON say so.
 
+The trust policy also selects the evidence that completeness rests on. A line
+review, an upgrade-path policy or a served list whose evidence basis is not in
+`--require-basis` is not used: the hop names `LINE_NOT_ATTESTED`, the path
+names `NO_REVIEWED_PATH_POLICY`, and the manifests name
+`API_VERSION_NOT_REVIEWED`, each saying that `--require-basis` left the
+record out.
+
+## Unsupported combinations
+
+A support-range rule says that a combination is outside a documented support
+range, which is not the same as broken. When one applies to a hop, the human
+output lists it under `UNSUPPORTED COMBINATIONS (N)` with the rule, its reason
+and its next action (`unsupported` in JSON). It is never a blocker and never a
+pass: the hop names `UNSUPPORTED_COMBINATION`, so the answer cannot pass while
+it stands.
+
 ## What is not checked
 
 - Node and kubelet version skew.
@@ -256,13 +276,18 @@ See [scan-config.md](scan-config.md). A `prufyx.yaml` found among the inputs
 described by [`generated/schemas/scan-report-v1alpha1.json`](generated/schemas/scan-report-v1alpha1.json):
 `verdict` (`BLOCKED`, `UNKNOWN` or `SCOPE_COMPLETE_PASS`), `headline`,
 `summary`, `inventory`, `paths` (with every hop, its status, its engine input
-digest and the line review it used), `findings`, `gaps`, `passes`, `omitted`
+digest, the engine contract it was evaluated under and the line review it
+used), `findings`, `gaps`, `passes`, `omitted`
 (every document or file that was not evaluated, with the reason), `notices`
 (one-way changes; never part of the verdict), `leads` (unverified leads;
 never part of the verdict), `trustPolicy` (only when the trust policy left out
-a rule that applies), `omissions`, `notes` and `provenance` (evaluation instant, input digest, configuration
-digest, knowledge revision and digest, engine contract digest, build identity,
-`networkUsed: false`).
+a rule that applies), `unsupported` (combinations outside a documented support
+range), `omissions`, `notes` and `provenance` (evaluation instant, input digest, configuration
+digest, knowledge revision and digest, the engine contract digest of the first
+evaluated transition, build identity, `networkUsed: false`). The engine contract
+depends on the features of the rules a transition selects: when a one-way
+notice, a lead or a support-range rule is selected, it differs from a hop
+without one, with no change to the answer.
 
 ## Determinism
 

@@ -115,6 +115,14 @@ func Human(report Report, options HumanOptions) []byte {
 			}
 		}
 	}
+	if len(report.Unsupported) > 0 {
+		line("")
+		line(labelUnsupported, len(report.Unsupported))
+		for _, entry := range report.Unsupported {
+			line("  %s %s   "+labelUnsupportedRule, entry.Component, hopLabel(entry.Hop), entry.RuleID, entry.Reason)
+			line("    "+labelFix, entry.Fix)
+		}
+	}
 	if len(report.Leads) > 0 {
 		line("")
 		line(labelLeads, len(report.Leads))

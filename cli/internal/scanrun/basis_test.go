@@ -114,20 +114,16 @@ func TestScanConsensus(t *testing.T) {
 
 // TestScanRequireBasis: a rule that applies but that --require-basis leaves
 // out keeps the hop undecided, and the report says how many were left out.
+// The policy also selects the evidence the line reviews, the path policy and
+// the served lists rest on.
 func TestScanRequireBasis(t *testing.T) {
-	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
-	result := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", "mechanical")...)
+	command := args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", "mechanical")
+	mechanical := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", recordBasis: "mechanical"})
+	result := mustScan(t, mechanical, command...)
 	policy := result.Report.TrustPolicy
 	if result.Exit != scanreport.ExitUnknown || policy == nil || policy.ExcludedRules != 11 || !reflect.DeepEqual(policy.RequiredBasis, []string{"mechanical"}) || len(result.Report.Passes) != 0 {
-		t.Fatalf("exit %d policy %+v passes %d", result.Exit, policy, len(result.Report.Passes))
-	}
-	for _, hop := range result.Report.Paths[0].Hops {
-		if hop.Status == scanreport.HopCovered {
-			for _, reason := range hop.Reasons {
-				t.Fatalf("hop %+v %s", hop, reason)
-			}
-		}
+		t.Fatalf("exit %d policy %+v passes %d gaps %v", result.Exit, policy, len(result.Report.Passes), gapReasons(result.Report))
 	}
 	if !hasGap(result.Report, "RULE_NOT_DECIDED", "left out by --require-basis") {
 		t.Fatalf("gaps %+v", result.Report.Gaps)
@@ -135,7 +131,27 @@ func TestScanRequireBasis(t *testing.T) {
 	if human := string(scanreport.Human(result.Report, scanreport.HumanOptions{})); !strings.Contains(human, "trust policy: evidence basis mechanical only; 11 rule(s) that apply were left out") {
 		t.Fatalf("human:\n%s", human)
 	}
+	// Records whose basis the policy leaves out are not used.
+	records := []struct {
+		name           string
+		options        knowledgeOptions
+		reason, detail string
+	}{
+		{"path policy", knowledgeOptions{lines: allLines, policy: "current", recordBasis: "mechanical", policyBasis: "reviewed"}, "NO_REVIEWED_PATH_POLICY", "upgrade-path policy for kubernetes rests on evidence basis reviewed"},
+		{"line review", knowledgeOptions{lines: allLines, policy: "current", recordBasis: "mechanical", reviewBasis: "reviewed"}, "LINE_NOT_ATTESTED", "rests on basis reviewed"},
+		{"served list", knowledgeOptions{lines: allLines, policy: "current", recordBasis: "mechanical", servedOverride: ServedList{Basis: "reviewed"}}, "API_VERSION_NOT_REVIEWED", "served list of Kubernetes 1.30 rests on basis reviewed"},
+	}
+	for _, record := range records {
+		result := mustScan(t, newKnowledge(t, record.options), command...)
+		if result.Exit != scanreport.ExitUnknown || !hasGap(result.Report, record.reason, record.detail) {
+			t.Fatalf("%s: exit %d gaps %+v", record.name, result.Exit, result.Report.Gaps)
+		}
+	}
+	if result := mustScan(t, newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", recordBasis: "mechanical"}), args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...); result.Exit != scanreport.ExitPass {
+		t.Fatalf("mechanical records under the default policy: exit %d gaps %v", result.Exit, gapReasons(result.Report))
+	}
 	// The default policy and the explicit default list give the same report.
+	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	a := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...)
 	b := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", "reviewed,mechanical,empirical,consensus")...)
 	if string(jsonOf(t, a.Report)) != string(jsonOf(t, b.Report)) || a.Exit != scanreport.ExitPass {
