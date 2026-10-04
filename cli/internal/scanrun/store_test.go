@@ -721,3 +721,40 @@ func TestScanStoreRefusesOtherKnowledge(t *testing.T) {
 		}
 	})
 }
+
+// TestScanStoreCustomResourceProjectAbsent: a custom-resource project the
+// selected index has no target for is not checked at all, exactly as for
+// Kubernetes: one named gap, the component not covered, no path, and
+// nothing from the embedded knowledge.
+func TestScanStoreCustomResourceProjectAbsent(t *testing.T) {
+	pack := editPack(t, embeddedPack(t), func(project string, _ map[string]any) bool { return project != "strimzi" })
+	fixture := newStoreFixture(t, cncfknowledge.LayoutPerProject)
+	fixture.importPack(pack, "8")
+	opened, err := OpenStore(fixture.store, []string{"strimzi"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info := opened.Store(); info == nil || !info.Absent["strimzi"] {
+		t.Fatal("strimzi not absent from the index")
+	}
+	dir, _ := files(t, map[string]string{"kafka.yaml": settingsDoc + "---\n" + kafkaV1beta2Doc})
+	inDir(t, dir, func() {
+		for _, extra := range [][]string{nil, {"--resource-scope-complete"}} {
+			result := mustScan(t, opened, append([]string{"kafka.yaml", "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0"}, extra...)...)
+			report := result.Report
+			if result.Exit != scanreport.ExitUnknown || report.Verdict != scanreport.VerdictUnknown || len(report.Findings) != 0 || len(report.Paths) != 0 || len(report.Passes) != 0 {
+				t.Fatalf("exit %d verdict %s report %+v", result.Exit, report.Verdict, report)
+			}
+			if got := gapReasons(report); len(got) != 1 || got[0] != scanreport.ReasonProjectNotInKnowledge {
+				t.Fatalf("gaps %v", got)
+			}
+			if !hasComponentGap(report, "strimzi", scanreport.ReasonProjectNotInKnowledge, "") {
+				t.Fatalf("gap not on strimzi: %+v", report.Gaps)
+			}
+			if len(report.Inventory) != 1 || report.Inventory[0].Name != "strimzi" || report.Inventory[0].Covered || report.Summary.ComponentsCovered != 0 {
+				t.Fatalf("inventory %+v", report.Inventory)
+			}
+			conformReport(t, "absent custom-resource project", report)
+		}
+	})
+}
