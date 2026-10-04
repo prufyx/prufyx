@@ -113,7 +113,10 @@ const (
 	repoResolved           = "RESOLVED"
 	repoPendingRateLimited = "PENDING_RATE_LIMITED"
 	repoPendingError       = "PENDING_ERROR"
-	repoNoReleasesOrTags   = "NO_RELEASES_OR_TAGS"
+	// repoPendingAmbiguous: releases or tags exist but the shared latest
+	// rule refuses to choose (see package latestrelease).
+	repoPendingAmbiguous = "PENDING_AMBIGUOUS_LATEST"
+	repoNoReleasesOrTags = "NO_RELEASES_OR_TAGS"
 
 	// resolutionTagFallback marks a RepoResolution or ClassResult whose
 	// current-commit resolution came from the tags fallback rather than
@@ -352,6 +355,11 @@ type RepoResolution struct {
 	// tags fallback rather than GitHub Releases, so downstream tooling can
 	// treat it as weaker evidence. Empty means Releases resolved it.
 	Resolution string `json:"resolution,omitempty"`
+	// ReleaseListTruncated is true when the latest release was chosen from
+	// a release list cut short by the page bound (more than
+	// maxReleasePages*releasePageSize releases), so a higher release
+	// further back could not be seen.
+	ReleaseListTruncated bool `json:"releaseListTruncated,omitempty"`
 	// Determination records how a NO_RELEASES_OR_TAGS status was reached.
 	Determination *NoBaselineDetermination `json:"determination,omitempty"`
 	// Stale is true when this resolution is older than the run's --max-age
@@ -401,30 +409,60 @@ var errNoReleaseBaseline = errors.New("repository has no releases and no tags")
 // resolution is resolutionTagFallback when the tags fallback was used
 // (weaker evidence: see latestTag), or "" when GitHub Releases resolved it.
 func ResolveCurrentCommit(ctx context.Context, fetcher APIFetcher, owner, repo string) (tag, commit, resolution string, err error) {
-	tag, releasesEmpty, err := latestReleaseTag(ctx, fetcher, owner, repo)
+	cur, err := resolveCurrent(ctx, fetcher, func(o, r string) (releaseList, error) { return fetchAllReleases(ctx, fetcher, o, r) }, owner, repo)
+	return cur.tag, cur.commit, cur.resolution, err
+}
+
+// currentResolution is what resolveCurrent found.
+type currentResolution struct {
+	tag, commit, resolution string
+	// truncated: the release list was cut short by the page bound.
+	truncated bool
+}
+
+// ambiguousLatestError: the shared rule refused to choose a latest.
+type ambiguousLatestError struct{ reason string }
+
+func (e *ambiguousLatestError) Error() string { return "latest release is ambiguous: " + e.reason }
+
+// resolveCurrent is ResolveCurrentCommit over a supplied release-list
+// source, so a run reads each repository's list once for every consumer.
+func resolveCurrent(ctx context.Context, fetcher APIFetcher, lists func(owner, repo string) (releaseList, error), owner, repo string) (cur currentResolution, err error) {
+	tag, releasesEmpty, truncated, err := latestReleaseTag(lists, fetcher, owner, repo)
 	if err != nil {
-		return "", "", "", err
+		return cur, err
 	}
+	cur.truncated = truncated
 	if tag == "" {
 		var tagsEmpty bool
 		tag, tagsEmpty, err = latestTag(ctx, fetcher, owner, repo)
 		if err != nil {
-			return "", "", "", err
+			return cur, err
 		}
 		if tag != "" {
-			resolution = resolutionTagFallback
+			cur.resolution = resolutionTagFallback
 		} else if releasesEmpty && tagsEmpty {
-			return "", "", "", errNoReleaseBaseline
+			return cur, errNoReleaseBaseline
 		}
 	}
 	if tag == "" {
-		return "", "", "", nil
+		return cur, nil
 	}
-	commit, err = resolveTagCommit(ctx, fetcher, owner, repo, tag)
+	commit, err := resolveTagCommit(ctx, fetcher, owner, repo, tag)
 	if err != nil {
-		return "", "", "", err
+		return cur, err
 	}
-	return tag, commit, resolution, nil
+	cur.tag, cur.commit = tag, commit
+	return cur, nil
+}
+
+// detailSuffix appends the reason of an ambiguous latest to a citation's
+// pending detail, so the human renewal path sees why.
+func detailSuffix(r RepoResolution) string {
+	if r.Status == repoPendingAmbiguous && r.Detail != "" {
+		return " (" + r.Detail + ")"
+	}
+	return ""
 }
 
 func apiGet(ctx context.Context, fetcher APIFetcher, path string) ([]byte, error) {
@@ -453,22 +491,29 @@ func apiGet(ctx context.Context, fetcher APIFetcher, path string) ([]byte, error
 // only when the endpoint answered successfully with a JSON array that holds
 // no release at all; a 404 or a list holding only drafts and prereleases
 // is not "empty".
-func latestReleaseTag(ctx context.Context, fetcher APIFetcher, owner, repo string) (tag string, empty bool, err error) {
-	list, err := fetchAllReleases(ctx, fetcher, owner, repo)
+func latestReleaseTag(lists func(owner, repo string) (releaseList, error), fetcher APIFetcher, owner, repo string) (tag string, empty, truncated bool, err error) {
+	list, err := lists(owner, repo)
 	if err != nil {
-		return "", false, err
+		return "", false, false, err
 	}
 	if list.notFound {
-		return "", false, nil
+		return "", false, false, nil
+	}
+	truncated = !list.complete
+	if gate, ok := fetcher.(releaseScanGate); ok && !gate.CompleteReleaseScan(owner, repo) {
+		truncated = true
 	}
 	candidates := make([]latestrelease.Release, 0, len(list.entries))
 	for _, e := range list.entries {
 		candidates = append(candidates, latestrelease.Release{ID: e.ID, Tag: e.Tag, Draft: e.Draft, Prerelease: e.Prerelease})
 	}
-	if best, ok := latestrelease.Select(candidates); ok {
-		return best.Tag, false, nil
+	switch res := latestrelease.Select(candidates); res.Outcome {
+	case latestrelease.Found:
+		return res.Release.Tag, false, truncated, nil
+	case latestrelease.Ambiguous:
+		return "", false, truncated, &ambiguousLatestError{reason: res.Reason}
 	}
-	return "", len(list.entries) == 0, nil
+	return "", len(list.entries) == 0, truncated, nil
 }
 
 // tagsPageSize and maxTagPages bound the tags-list scan used when a
@@ -521,7 +566,10 @@ func latestTag(ctx context.Context, fetcher APIFetcher, owner, repo string) (tag
 	if len(names) == 0 {
 		return "", true, nil
 	}
-	best, _ := latestrelease.SelectTag(names)
+	best, outcome, reason := latestrelease.SelectTag(names)
+	if outcome == latestrelease.Ambiguous {
+		return "", false, &ambiguousLatestError{reason: "tags: " + reason}
+	}
 	return best, false, nil
 }
 
@@ -1132,7 +1180,9 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 			continue
 		}
 		target := repoSet[key]
-		tag, commit, tagResolution, err := ResolveCurrentCommit(ctx, apiFetcher, target.owner, target.repo)
+		cur, err := resolveCurrent(ctx, apiFetcher, resolver.fullList, target.owner, target.repo)
+		tag, commit, tagResolution := cur.tag, cur.commit, cur.resolution
+		var ambiguous *ambiguousLatestError
 		resolution := RepoResolution{Owner: target.owner, Repo: target.repo, ResolvedAt: now().UTC().Format(time.RFC3339)}
 		switch {
 		case errors.Is(err, errRateLimited):
@@ -1143,6 +1193,10 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 			resolution.Status = repoNoReleasesOrTags
 			resolution.Detail = noBaselineDetail
 			resolution.Determination = &NoBaselineDetermination{ReleasesListEmpty: true, TagsListEmpty: true}
+		case errors.As(err, &ambiguous):
+			resolution.Status = repoPendingAmbiguous
+			resolution.Detail = ambiguous.Error() + "; a human must choose the baseline"
+			resolution.ReleaseListTruncated = cur.truncated
 		case err != nil:
 			resolution.Status = repoPendingError
 			resolution.Detail = "resolution attempt failed; re-run with the same --state to retry"
@@ -1157,6 +1211,7 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 			resolution.CurrentTag = tag
 			resolution.CurrentCommit = commit
 			resolution.Resolution = tagResolution
+			resolution.ReleaseListTruncated = cur.truncated
 		}
 		state.Repos[key] = resolution
 		if progress != nil {
@@ -1187,6 +1242,9 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 		resolution := state.Repos[citation.repoKey()]
 		resolutionUsable := resolution.Status == repoResolved && isFresh(resolution.ResolvedAt, now(), maxAge)
 		noBaseline := resolution.Status == repoNoReleasesOrTags && resolution.Determination.definitive() && isFresh(resolution.ResolvedAt, now(), maxAge)
+		// An ambiguous latest still lets a citation whose release line is
+		// proven use that line; every other citation stays pending.
+		ambiguousUsable := resolution.Status == repoPendingAmbiguous && baselineMode == BaselineModeReleaseLine && isFresh(resolution.ResolvedAt, now(), maxAge)
 		var result ClassResult
 		switch {
 		case noBaseline:
@@ -1194,7 +1252,7 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 			result.Class = ClassNoReleaseBaseline
 			result.ClassifiedAt = now().UTC().Format(time.RFC3339)
 			result.BaselineMode = baselineMode
-		case resolutionUsable:
+		case resolutionUsable || ambiguousUsable:
 			baselineCommit, baselineTag := resolution.CurrentCommit, resolution.CurrentTag
 			var decision baselineDecision
 			if baselineMode == BaselineModeReleaseLine {
@@ -1205,6 +1263,11 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 			}
 			if decision.pending != "" {
 				result = pendingResult(citation, "baseline unresolved: "+decision.pending)
+				result.BaselineMode = baselineMode
+				break
+			}
+			if ambiguousUsable && decision.line == nil {
+				result = pendingResult(citation, "repository current commit unresolved: "+resolution.Status+detailSuffix(resolution))
 				result.BaselineMode = baselineMode
 				break
 			}
@@ -1235,7 +1298,7 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 			result = existing
 			result.Stale = true
 		default:
-			result = pendingResult(citation, "repository current commit unresolved: "+resolution.Status)
+			result = pendingResult(citation, "repository current commit unresolved: "+resolution.Status+detailSuffix(resolution))
 			result.BaselineMode = baselineMode
 		}
 		state.Results[citationKey] = result

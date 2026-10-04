@@ -383,19 +383,23 @@ func newLineResolver(ctx context.Context, fetcher APIFetcher, state *State, now 
 func (r *lineResolver) stamp() string { return r.now().UTC().Format(time.RFC3339) }
 
 func (r *lineResolver) releaseList(owner, repo string) (releaseList, error) {
+	if gate, ok := r.fetcher.(releaseScanGate); ok && !gate.CompleteReleaseScan(owner, repo) {
+		// The source knows its release list is cut short: report an
+		// incomplete scan, exactly as a scan that hit the page bound.
+		return releaseList{}, nil
+	}
+	return r.fullList(owner, repo)
+}
+
+// fullList reads a repository's release list once per run; the latest
+// release and the release lines are both derived from this one read.
+func (r *lineResolver) fullList(owner, repo string) (releaseList, error) {
 	key := owner + "/" + repo
 	if cached, ok := r.releases[key]; ok {
 		return cached.list, cached.err
 	}
 	if *r.rateLimited {
 		return releaseList{}, errRateLimited
-	}
-	if gate, ok := r.fetcher.(releaseScanGate); ok && !gate.CompleteReleaseScan(owner, repo) {
-		// The source knows its release list is cut short: report an
-		// incomplete scan, exactly as a scan that hit the page bound.
-		list := releaseList{}
-		r.releases[key] = &releaseResult{list: list}
-		return list, nil
 	}
 	list, err := fetchAllReleases(r.ctx, r.fetcher, owner, repo)
 	if errors.Is(err, errRateLimited) {

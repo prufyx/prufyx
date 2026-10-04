@@ -7,6 +7,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -22,6 +23,7 @@ type latestFixture struct {
 	Repo             string `json:"repo"`
 	ExpectTag        string `json:"expectTag"`
 	ExpectResolution string `json:"expectResolution"`
+	ExpectAmbiguous  bool   `json:"expectAmbiguous"`
 	Releases         []struct {
 		ID         int64  `json:"id"`
 		TagName    string `json:"tag_name"`
@@ -157,6 +159,14 @@ func TestLatestReleaseParityMirrorAndHTTP(t *testing.T) {
 		}
 		for variant, f := range map[string]latestFixture{"api order": fx, "reversed": reversed} {
 			httpTag, httpCommit, httpRes, err := ResolveCurrentCommit(context.Background(), &httpFixtureFetcher{f: f}, owner, repo)
+			if fx.ExpectAmbiguous {
+				var amb *ambiguousLatestError
+				_, _, _, merr := ResolveCurrentCommit(context.Background(), newMirrorAPIFetcher(fixtureMirror{f: f}, mirrorNotes{}), owner, repo)
+				if !errors.As(err, &amb) || !errors.As(merr, &amb) {
+					t.Fatalf("%s/%s: both sources must refuse to choose: http=%v mirror=%v", name, variant, err, merr)
+				}
+				continue
+			}
 			if err != nil {
 				t.Fatalf("%s/%s http: %v", name, variant, err)
 			}
@@ -181,7 +191,8 @@ func TestLatestReleaseHTTPUsesSmallPages(t *testing.T) {
 	for name, fx := range loadLatestFixtures(t) {
 		owner, repo, _ := strings.Cut(fx.Repo, "/")
 		h := &httpFixtureFetcher{f: fx}
-		if _, _, _, err := ResolveCurrentCommit(context.Background(), h, owner, repo); err != nil {
+		var amb *ambiguousLatestError
+		if _, _, _, err := ResolveCurrentCommit(context.Background(), h, owner, repo); err != nil && !errors.As(err, &amb) {
 			t.Fatalf("%s: %v", name, err)
 		}
 		for _, c := range h.calls {

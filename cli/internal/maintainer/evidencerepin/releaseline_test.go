@@ -349,8 +349,10 @@ func TestReleaseLineMultiplePrefixesOnSameLineFallBack(t *testing.T) {
 	f.blob("v1.2.0", "x.md", "same")
 	f.blob("v1.3.0", "x.md", "different")
 	w := f.run(t, BaselineModeReleaseLine, f.citation("proj-v1-2-0-x", "v1.2.0", "x.md", "same", 1, 1))
-	if got := w.Citations[0]; got.Baseline != BaselineLatest || got.Class != ClassContentChanged {
-		t.Fatalf("a line released under two prefixes is ambiguous and must fall back: %+v", got)
+	// The line is ambiguous and so is "latest" (two prefixes compete):
+	// nothing is chosen silently, the citation is pending with the reason.
+	if got := w.Citations[0]; got.Class != ClassPending || !strings.Contains(got.Detail, "PENDING_AMBIGUOUS_LATEST") || !strings.Contains(got.Detail, "compete") {
+		t.Fatalf("a line released under two prefixes must stay pending with a reason: %+v", got)
 	}
 }
 

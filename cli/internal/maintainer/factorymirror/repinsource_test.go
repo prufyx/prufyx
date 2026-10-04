@@ -95,3 +95,20 @@ func TestRepinSourceMapsReaderErrors(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 }
+
+// The repin source hands the release ids to the shared latest rule, which
+// falls back to the highest id when no tag is a strict version.
+func TestRepinSourceCarriesReleaseIDs(t *testing.T) {
+	e := newEnv(t, k1)
+	e.remote[k1].commit("one", map[string]string{"a": "1"})
+	e.opts.Releases = &fakeReleases{results: map[string]ReleaseResult{k1: {ETag: "e", Items: []Release{{ID: 30, Tag: "nightly-b"}, {ID: 10, Tag: "nightly-a"}}}}}
+	e.run()
+	src, err := OpenRepinSource(e.state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rel, err := src.Releases("acme", "widget")
+	if err != nil || len(rel.Items) != 2 || rel.Items[0].ID != 30 || rel.Items[1].ID != 10 {
+		t.Fatalf("%+v %v", rel, err)
+	}
+}

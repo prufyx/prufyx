@@ -8,15 +8,19 @@
 // The rule (Rule is the same text, recorded in worklists):
 //
 //   - Drafts and pre-releases are never candidates.
-//   - Among the remaining releases, those whose tag is a strict version
-//     (an optional prefix, then MAJOR.MINOR.PATCH and nothing after it) are
-//     compared by version: the highest MAJOR, then MINOR, then PATCH wins.
-//     A tie (the same version under two prefixes) goes to the shorter
-//     prefix, then to the lexicographically smaller tag.
-//   - When no candidate tag is a strict version, the candidate with the
-//     highest release ID wins.
-//   - For the tags fallback only strict-version tags are candidates, with
-//     the same ordering; a repository with no such tag has no latest.
+//   - Only tags with no prefix, "v" or "go" followed by MAJOR.MINOR.PATCH
+//     (nothing after it) compete. If any strict-version candidate carries
+//     another prefix, or the competing ones carry more than one prefix, the
+//     repository is AMBIGUOUS: no release is chosen (see AmbiguousPrefixes,
+//     which other code deriving versions from tags shares).
+//   - For releases, if the newest one (highest release id) is not a strict
+//     version while strict ones exist (calendar or two-part tags), the
+//     repository is AMBIGUOUS rather than left on an older strict release.
+//   - Otherwise the highest MAJOR, then MINOR, then PATCH wins.
+//   - When no candidate tag is a strict version, the release with the
+//     highest id wins.
+//   - For the tags fallback only strict-version tags count, with the same
+//     ambiguity rule; a repository with no such tag has no latest.
 //
 // The order in which a source lists releases plays no part, so a page
 // size, a creation-date reordering or a different sort between the two
@@ -24,13 +28,27 @@
 package latestrelease
 
 import (
+	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // Rule states the selection rule in one sentence for worklists.
-const Rule = "latest release: highest strict version (optional prefix, MAJOR.MINOR.PATCH) among non-draft, non-prerelease releases, else the highest release id; latest tag (releases-less repositories): highest strict version among all tags, else none; list order is never used"
+const Rule = "latest release: highest strict version (tag with no prefix, v or go, then MAJOR.MINOR.PATCH) among non-draft, non-prerelease releases, else the highest release id; ambiguous (no baseline) when strict tags carry other or mixed prefixes or the newest release is not a strict version; latest tag (releases-less repositories): the same over strict-version tags, else none; list order is never used"
+
+// Outcome is the result class of a selection.
+type Outcome int
+
+const (
+	// None: there is no candidate.
+	None Outcome = iota
+	// Found: a latest release or tag was chosen.
+	Found
+	// Ambiguous: candidates exist but the rule refuses to choose.
+	Ambiguous
+)
 
 // Release is the part of a release the rule looks at.
 type Release struct {
@@ -73,71 +91,123 @@ func ParseStrict(tag string) (Version, bool) {
 	return Version{Prefix: match[1], Major: major, Minor: minor, Patch: patch}, true
 }
 
-// better reports whether a beats b: higher numbers win; for equal numbers
-// the shorter prefix wins, then the lexicographically smaller tag.
-func better(a, b Version, atag, btag string) bool {
+// DefaultPrefix reports whether a tag prefix competes for "latest" by
+// default: none, "v" or "go".
+func DefaultPrefix(prefix string) bool { return prefix == "" || prefix == "v" || prefix == "go" }
+
+// AmbiguousPrefixes is the shared prefix rule. Given the prefixes of the
+// strict-version tags of one repository it returns "" when they all are the
+// same default prefix, and otherwise a reason naming the prefixes. It is
+// the one definition of "which prefixes may compete" for every caller that
+// derives versions from tags.
+func AmbiguousPrefixes(prefixes []string) string {
+	set := map[string]bool{}
+	other := false
+	for _, p := range prefixes {
+		set[p] = true
+		if !DefaultPrefix(p) {
+			other = true
+		}
+	}
+	if len(set) == 0 || (len(set) == 1 && !other) {
+		return ""
+	}
+	names := make([]string, 0, len(set))
+	for p := range set {
+		names = append(names, strconv.Quote(p))
+	}
+	sort.Strings(names)
+	kind := "mixed prefixes"
+	if other {
+		kind = "prefixes other than none, v or go"
+	}
+	return kind + " compete: " + strings.Join(names, ", ")
+}
+
+// higher reports whether a is a higher version than b.
+func higher(a, b Version) bool {
 	switch {
 	case a.Major != b.Major:
 		return a.Major > b.Major
 	case a.Minor != b.Minor:
 		return a.Minor > b.Minor
-	case a.Patch != b.Patch:
-		return a.Patch > b.Patch
-	case len(a.Prefix) != len(b.Prefix):
-		return len(a.Prefix) < len(b.Prefix)
 	}
-	return atag < btag
+	return a.Patch > b.Patch
 }
 
-// Select returns the latest release under the rule. ok is false when there
-// is no non-draft, non-prerelease release.
-func Select(releases []Release) (Release, bool) {
+// Result is the outcome of Select.
+type Result struct {
+	Outcome Outcome
+	Release Release
+	// Reason says why the outcome is Ambiguous.
+	Reason string
+}
+
+// Select returns the latest release under the rule.
+func Select(releases []Release) Result {
 	var (
-		best        Release
-		bestV       Version
-		haveVersion bool
-		fallback    Release
-		haveAny     bool
+		newest  Release
+		haveAny bool
+		best    Release
+		bestV   Version
+		have    bool
+		prefs   []string
 	)
 	for _, r := range releases {
 		if r.Draft || r.Prerelease || r.Tag == "" {
 			continue
 		}
-		if !haveAny || r.ID > fallback.ID || (r.ID == fallback.ID && r.Tag < fallback.Tag) {
-			fallback, haveAny = r, true
+		if !haveAny || r.ID > newest.ID || (r.ID == newest.ID && r.Tag < newest.Tag) {
+			newest, haveAny = r, true
 		}
 		v, ok := ParseStrict(r.Tag)
 		if !ok {
 			continue
 		}
-		if !haveVersion || better(v, bestV, r.Tag, best.Tag) {
-			best, bestV, haveVersion = r, v, true
+		prefs = append(prefs, v.Prefix)
+		if !have || higher(v, bestV) || (v == bestV && r.Tag < best.Tag) {
+			best, bestV, have = r, v, true
 		}
 	}
-	if haveVersion {
-		return best, true
+	if !haveAny {
+		return Result{Outcome: None}
 	}
-	return fallback, haveAny
+	if !have {
+		return Result{Outcome: Found, Release: newest}
+	}
+	if reason := AmbiguousPrefixes(prefs); reason != "" {
+		return Result{Outcome: Ambiguous, Reason: reason}
+	}
+	if _, ok := ParseStrict(newest.Tag); !ok {
+		return Result{Outcome: Ambiguous, Reason: fmt.Sprintf("the newest release %q is not a strict version, so the highest strict release %q may be stale", newest.Tag, best.Tag)}
+	}
+	return Result{Outcome: Found, Release: best}
 }
 
-// SelectTag returns the latest tag under the rule, or false when no tag is
-// a strict version.
-func SelectTag(tags []string) (string, bool) {
-	sorted := append([]string(nil), tags...)
-	sort.Strings(sorted)
+// SelectTag returns the latest tag under the rule. Tags carry no recency,
+// so only strict-version tags are candidates.
+func SelectTag(tags []string) (string, Outcome, string) {
 	var (
 		best  string
 		bestV Version
 		have  bool
+		prefs []string
 	)
-	for _, t := range sorted {
+	for _, t := range tags {
 		v, ok := ParseStrict(t)
 		if !ok {
 			continue
 		}
-		if !have || better(v, bestV, t, best) {
+		prefs = append(prefs, v.Prefix)
+		if !have || higher(v, bestV) || (v == bestV && t < best) {
 			best, bestV, have = t, v, true
 		}
 	}
-	return best, have
+	if !have {
+		return "", None, ""
+	}
+	if reason := AmbiguousPrefixes(prefs); reason != "" {
+		return "", Ambiguous, reason
+	}
+	return best, Found, ""
 }

@@ -1,0 +1,25 @@
+{
+ "repo": "acme/monorepo",
+ "expectAmbiguous": true,
+ "note": "a chart tag with a bigger number must not become latest",
+ "releases": [
+  {
+   "id": 50,
+   "tag_name": "v1.30.0",
+   "draft": false,
+   "prerelease": false
+  },
+  {
+   "id": 60,
+   "tag_name": "helm-chart-5.0.0",
+   "draft": false,
+   "prerelease": false
+  },
+  {
+   "id": 40,
+   "tag_name": "v1.29.9",
+   "draft": false,
+   "prerelease": false
+  }
+ ]
+}

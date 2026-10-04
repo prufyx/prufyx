@@ -194,3 +194,13 @@ func TestGitHubReleasesDeduplicatesAcrossShiftedPages(t *testing.T) {
 		t.Fatalf("items = %d", len(res.Items))
 	}
 }
+
+// A `null` page is a malformed answer, not an empty release list.
+func TestGitHubReleasesNullPageIsAnError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("null")) }))
+	defer srv.Close()
+	c := GitHubReleases{Tokens: StaticToken("t"), BaseURL: srv.URL}
+	if _, err := c.List(context.Background(), mustRepo(t, "acme/widget"), ""); err == nil {
+		t.Fatal("null page must be an error")
+	}
+}

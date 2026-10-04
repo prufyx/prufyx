@@ -383,13 +383,13 @@ func (g GitHubReleases) List(ctx context.Context, repo Repo, etag string) (Relea
 			CreatedAt       string `json:"created_at"`
 			PublishedAt     string `json:"published_at"`
 		}
-		if err := json.Unmarshal(resp.body, &raw); err != nil {
+		if err := json.Unmarshal(resp.body, &raw); err != nil || raw == nil {
 			return ReleaseResult{}, errors.New("github releases: malformed response")
 		}
 		for _, r := range raw {
 			// A release listed again because the list shifted between two
 			// page requests is kept once.
-			if seen[r.ID] {
+			if r.ID != 0 && seen[r.ID] {
 				continue
 			}
 			seen[r.ID] = true
