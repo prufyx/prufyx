@@ -11,6 +11,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
@@ -31,10 +32,11 @@ const MaxApprovalKeyBytes = 4 << 10
 const pemPrivateKeyType = "PRIVATE KEY"
 
 // ParseApprovalPrivateKey reads an Ed25519 private key in PKCS #8 PEM form
-// ("-----BEGIN PRIVATE KEY-----", as written by
-// "openssl genpkey -algorithm ed25519"). The input must start with the PEM
-// header and may end with line breaks only; nothing else is accepted. Errors
-// never contain any of the input.
+// (one PEM block of type PRIVATE KEY, as written by OpenSSL 3
+// "openssl genpkey -algorithm ed25519"). The input must start with that
+// block's BEGIN line and may end with line breaks only; nothing else is
+// accepted. Errors never contain any of the input. The decoded copies are
+// wiped on a best-effort basis only.
 func ParseApprovalPrivateKey(raw []byte) (ed25519.PrivateKey, error) {
 	refused := errors.New("the key is not one Ed25519 private key in PKCS #8 PEM form")
 	end := []byte("-----END " + pemPrivateKeyType + "-----")
@@ -89,7 +91,9 @@ func (s ApprovalSubject) BaseDigest() string {
 // RuleApprovalSubject reads one rule's base and proposed entries from the
 // pack files of the base and the head. It refuses a rule the head does not
 // hold, a rule held twice, an entry the gate would not admit by approval
-// (any basis other than reviewed) and an entry the change leaves as it is.
+// (any basis other than reviewed), an entry the change leaves as it is and
+// a change the gate classifies as tightening (it needs no approval, and an
+// approval file for it would fail the gate's records check).
 func RuleApprovalSubject(spec PackSpec, basePack, headPack []byte, ruleID string) (ApprovalSubject, error) {
 	if !approvalTokenRE.MatchString(ruleID) {
 		return ApprovalSubject{}, errors.New("the rule id is not a valid approval rule id")
@@ -114,7 +118,12 @@ func RuleApprovalSubject(spec PackSpec, basePack, headPack []byte, ruleID string
 		if bytes.Equal(b.Canonical, h.Canonical) {
 			return ApprovalSubject{}, fmt.Errorf("rule %s is the same in the base and the proposed pack; there is nothing to approve", ruleID)
 		}
+		if class, kinds := classifyEdit(b, h); class != ClassLoosening {
+			return ApprovalSubject{}, fmt.Errorf("the change to rule %s is %s (%s), not loosening: it needs no approval, and the gate refuses an approval file for it", ruleID, class, strings.Join(kinds, ", "))
+		}
 		s.Base = b.Canonical
+	} else if h.Evidence.State == "withdrawn" {
+		return ApprovalSubject{}, fmt.Errorf("rule %s is added withdrawn, which is not loosening: it needs no approval, and the gate refuses an approval file for it", ruleID)
 	}
 	return s, nil
 }
