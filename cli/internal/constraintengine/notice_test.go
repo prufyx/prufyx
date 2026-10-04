@@ -15,6 +15,9 @@ import (
 const (
 	noticeBefore                  = "take an etcd snapshot and verify that it restores before upgrading"
 	pinnedEngineContractDigestSet = "sha256:0031ceb6f769f52c67e45345eef2791607f32146ec70617030126f62b2eb5311"
+
+	pinnedEngineContractDigestNotice = "sha256:e555a3cae9f3f223cd77af9cac6b59a872baa4734ddf1f3ffae2a8d124f8fb90"
+	pinnedScopeContractDigestNotice  = "sha256:1ff71e40aee28b1c0d07e2a4374c5d99836bd665fa186256e1d67a4752540010"
 )
 
 // noticeRule renders a notice_one_way rule over component.
@@ -352,6 +355,25 @@ func TestContractDigestsStable(t *testing.T) {
 	}
 	if !digestRE.MatchString(notice) || noticeScope == pinnedScopeContractDigest || noticeScope == pinnedScopeContractDigestRanged || scopeDigestFor(notice) != noticeScope {
 		t.Fatal("notice scope contract is not distinct and paired")
+	}
+	// The notice contracts are pinned too: documents without a consensus or
+	// lead rule keep them.
+	if notice != pinnedEngineContractDigestNotice || noticeScope != pinnedScopeContractDigestNotice {
+		t.Fatalf("notice contracts changed: %s %s", notice, noticeScope)
+	}
+	basis, basisScope := EngineContractDigestBasis(), ScopeContractDigestBasis()
+	for _, existing := range []string{pinnedEngineContractDigest, pinnedEngineContractDigestRanged, pinnedEngineContractDigestSet, pinnedEngineContractDigestNotice} {
+		if basis == existing {
+			t.Fatal("basis contract is not distinct")
+		}
+	}
+	for _, existing := range []string{pinnedScopeContractDigest, pinnedScopeContractDigestRanged, pinnedScopeContractDigestNotice} {
+		if basisScope == existing {
+			t.Fatal("basis scope contract is not distinct")
+		}
+	}
+	if !digestRE.MatchString(basis) || scopeDigestFor(basis) != basisScope || scopeDigestFor(pinnedEngineContractDigestNotice) != pinnedScopeContractDigestNotice {
+		t.Fatal("basis scope contract is not paired")
 	}
 }
 

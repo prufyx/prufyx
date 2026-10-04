@@ -309,6 +309,14 @@ func validScopeBlock(scope *ScopeCompleteness, claims []Claim, engineDigest stri
 			}
 		}
 	}
+	// A NO_KNOWN_ISSUE claim matched its subject, and the declared scope is
+	// every input component, so it is in scope: it must be enumerated (as
+	// applicable, not verified) rather than counted out of scope.
+	for _, claim := range claims {
+		if _, enumerated := referenced[claim.RuleID]; claim.Status == StatusNoKnownIssue && !claim.IsLead() && !enumerated {
+			return false
+		}
+	}
 	// Every rule in the evaluated document is either a notice, a lead, out
 	// of scope, or accounted for exactly once. Dropping an undetermined rule
 	// from the enumeration therefore cannot buy a completeness claim.
