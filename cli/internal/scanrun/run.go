@@ -20,27 +20,10 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
-	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/intake"
-	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/scanconfig"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
-	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
-
-// Knowledge is the knowledge one scan reads. *cncfcheck.ScanKnowledge, the
-// embedded snapshot, is the only implementation the command uses.
-type Knowledge interface {
-	Origin() string
-	Revision() string
-	PackDigest() string
-	Projects() []string
-	Component(slug string) (string, bool)
-	Rules(project string) []cncfcheck.ScanRule
-	CheckFacts(project string, facts []string, inputRaw []byte, now time.Time) (cncfcheck.Report, error)
-	AttestationsFor(component, line, family string, now time.Time) []lineattest.Status
-	PathPolicyFor(component string, now time.Time) upgradepath.Status
-}
 
 // Options are the parts of a scan that do not come from the command line.
 type Options struct {
@@ -73,7 +56,7 @@ func Run(request Request, options Options) (Result, error) {
 	}
 	knowledge := options.Knowledge
 	if knowledge == nil {
-		loaded, err := cncfcheck.LoadScanKnowledge()
+		loaded, err := LoadEmbedded()
 		if err != nil {
 			return Result{}, ErrIntegrity
 		}

@@ -85,6 +85,19 @@ func Human(report Report, options HumanOptions) []byte {
 			line("  %s   %s - %s", gapScope(gap), gap.Detail, gap.Action)
 		}
 	}
+	if len(report.Notices) > 0 {
+		line("")
+		line(labelNotices, len(report.Notices))
+		for _, notice := range report.Notices {
+			if notice.Established {
+				line("  %s %s   "+labelNoticeRule, notice.Component, hopLabel(notice.Hop), notice.RuleID)
+				line("    "+labelNoticeBefore, notice.Text)
+			} else {
+				line("  %s %s   "+labelNoticeUnresolved, notice.Component, hopLabel(notice.Hop), notice.RuleID, notice.Reason)
+				line("    "+labelNoticeNext, notice.Text)
+			}
+		}
+	}
 	if options.ShowPasses && len(report.Passes) > 0 {
 		line("")
 		line(labelPassed, len(report.Passes))

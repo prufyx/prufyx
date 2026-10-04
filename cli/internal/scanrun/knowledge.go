@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package scanrun
+
+import (
+	"errors"
+	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
+	"github.com/prufyx/prufyx/cli/internal/upgradepath"
+)
+
+// Knowledge is the knowledge one scan reads. The command always uses the
+// embedded snapshot (Embedded); tests wrap it.
+type Knowledge interface {
+	Origin() string
+	Revision() string
+	PackDigest() string
+	Projects() []string
+	Component(slug string) (string, bool)
+	Rules(project string) []cncfcheck.ScanRule
+	// Evaluate evaluates the project's rules over the facts for one
+	// prepared input. ErrRefused means the knowledge cannot evaluate the
+	// input (a fact it does not register).
+	Evaluate(project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error)
+	AttestationsFor(component, line, family string, now time.Time) []lineattest.Status
+	PathPolicyFor(component string, now time.Time) upgradepath.Status
+	// ServedAPIs returns the reviewed list of "apiVersion kind" pairs the
+	// component's line serves; ok is false when there is none.
+	ServedAPIs(component, line string) (served map[string]bool, ok bool)
+}
+
+// Evaluation is the result of one engine evaluation.
+type Evaluation struct {
+	Claims               []constraintengine.Claim
+	EngineContractDigest string
+}
+
+// ErrRefused reports an input the knowledge cannot evaluate.
+var ErrRefused = errors.New("input refused by the knowledge")
+
+// Embedded is the embedded knowledge snapshot as scan reads it.
+type Embedded struct {
+	*cncfcheck.ScanKnowledge
+}
+
+// LoadEmbedded loads the embedded knowledge once.
+func LoadEmbedded() (Embedded, error) {
+	snapshot, err := cncfcheck.LoadScanKnowledge()
+	if err != nil {
+		return Embedded{}, err
+	}
+	return Embedded{snapshot}, nil
+}
+
+// Evaluate runs the native route's fact-family evaluation and checks the
+// report's integrity.
+func (k Embedded) Evaluate(project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error) {
+	report, err := k.CheckFacts(project, facts, inputRaw, now)
+	if errors.Is(err, cncfcheck.ErrInvalid) {
+		return Evaluation{}, ErrRefused
+	}
+	if err != nil {
+		return Evaluation{}, ErrIntegrity
+	}
+	if _, err := cncfcheck.MarshalReport(report); err != nil {
+		return Evaluation{}, ErrIntegrity
+	}
+	return Evaluation{Claims: report.Check.Claims, EngineContractDigest: report.Check.EngineContractDigest}, nil
+}
+
+// ServedAPIs: the embedded knowledge carries no reviewed served lists yet,
+// so every Kubernetes API group document is a named gap.
+func (k Embedded) ServedAPIs(component, line string) (map[string]bool, bool) { return nil, false }

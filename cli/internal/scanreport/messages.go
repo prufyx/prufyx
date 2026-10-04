@@ -34,6 +34,7 @@ const (
 	ReasonDocumentsNotEvaluated      = "DOCUMENTS_NOT_EVALUATED"
 	ReasonEvidenceExpired            = "EVIDENCE_EXPIRED"
 	ReasonDowngradeNotReviewed       = "DOWNGRADE_NOT_REVIEWED"
+	ReasonAPIVersionNotServed        = "API_VERSION_NOT_SERVED"
 	ReasonAPIVersionNotReviewed      = "API_VERSION_NOT_REVIEWED"
 	ReasonAlphaAPINotCovered         = "ALPHA_API_NOT_COVERED"
 	ReasonRuleNotDecided             = "RULE_NOT_DECIDED"
@@ -72,6 +73,10 @@ const (
 	GapDocumentsPaginated      GapKey = ReasonDocumentsNotEvaluated + "/paginated"
 	GapEvidenceExpired         GapKey = ReasonEvidenceExpired
 	GapDowngradeNotReviewed    GapKey = ReasonDowngradeNotReviewed
+	GapAPIVersionNotServed     GapKey = ReasonAPIVersionNotServed
+	GapAPIVersionNotListed     GapKey = ReasonAPIVersionNotReviewed + "/not-listed"
+	GapAPIVersionNoServedList  GapKey = ReasonAPIVersionNotReviewed + "/no-served-list"
+	GapLineUndecidedFact       GapKey = ReasonLineNotAttested + "/undecided-fact"
 	GapAPIVersionNotReviewed   GapKey = ReasonAPIVersionNotReviewed
 	GapAlphaAPINotCovered      GapKey = ReasonAlphaAPINotCovered
 	GapRuleNotDecided          GapKey = ReasonRuleNotDecided
@@ -152,6 +157,14 @@ var gapMessages = map[GapKey]gapMessage{
 		"none", 3},
 	GapAPIVersionNotReviewed: {"a manifest uses an API version of a reviewed kind that the reviewed removals do not name",
 		"check that API version against the release notes by hand", 0},
+	GapAPIVersionNotServed: {"%[1]d manifest(s) use API versions Kubernetes %[2]s no longer serves, removed before the evaluated hops",
+		"migrate them to a served API version, then scan again", 2},
+	GapAPIVersionNotListed: {"%[1]d manifest(s) use API versions that the review of Kubernetes %[2]s does not list as served",
+		"check those API versions against the Kubernetes %[2]s API reference by hand", 2},
+	GapAPIVersionNoServedList: {"no reviewed list of the API versions Kubernetes %[2]s serves; %[1]d manifest(s) cannot be checked",
+		"check them against the Kubernetes %[2]s API reference by hand, or request coverage", 2},
+	GapLineUndecidedFact: {"a manifest uses an API version removed on the way to %[1]s %[2]s that no reviewed rule decides",
+		"check the %[1]s %[2]s release notes for removed APIs by hand", 2},
 	GapAlphaAPINotCovered: {"%[1]d manifest(s) use alpha API versions of Kubernetes API groups, which removed-API reviews do not cover",
 		"check alpha APIs against the release notes of every line by hand", 1},
 	GapRuleNotDecided: {"rule %[1]s could not be decided (%[2]s)",
@@ -165,7 +178,7 @@ var gapMessages = map[GapKey]gapMessage{
 // GapReasons lists the closed vocabulary in order.
 func GapReasons() []string {
 	return []string{
-		ReasonAlphaAPINotCovered, ReasonAPIVersionNotReviewed, ReasonComponentNotCovered, ReasonDeclarationMissing,
+		ReasonAlphaAPINotCovered, ReasonAPIVersionNotReviewed, ReasonAPIVersionNotServed, ReasonComponentNotCovered, ReasonDeclarationMissing,
 		ReasonDistributionNotCovered, ReasonDocumentsNotEvaluated, ReasonDocumentsTemplated, ReasonDowngradeNotReviewed,
 		ReasonEvidenceExpired, ReasonIntermediateLineNotCovered, ReasonLineNotAttested, ReasonNoReviewedPathPolicy,
 		ReasonPathNotPlannable, ReasonPathPolicyNotCurrent, ReasonRuleNotDecided, ReasonVersionConflict, ReasonVersionNotDetected,
@@ -309,6 +322,11 @@ const (
 	labelComponents       = "%d components"
 	labelComponentOne     = "1 component"
 	labelNoName           = "(no name)"
+	labelNotices          = "ONE-WAY CHANGES (%d)"
+	labelNoticeRule       = "cannot be rolled back: %s"
+	labelNoticeBefore     = "before you upgrade: %s"
+	labelNoticeUnresolved = "one-way notice not established: %s (%s)"
+	labelNoticeNext       = "next action: %s"
 )
 
 // Usage and input errors. The command prints them after "prufyx: ".
@@ -357,6 +375,7 @@ with where it is and how to fix it, and every area that was not checked.
   --show-passes             list passed checks (human)
   --verbose                 show hop status and cited sources (human)
   --redact                  print digests instead of file paths, names and namespaces
+                            (plain digests: short names can be recovered by guessing)
   --input-permissions strict|refuse-writable   default refuse-writable
   --now RFC3339             evaluation instant, for exact replay (default: now, UTC)
 

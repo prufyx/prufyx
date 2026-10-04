@@ -5,221 +5,719 @@
   "description": "The JSON output of prufyx scan --format json.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "verdict", "headline", "summary", "inventory", "paths", "findings", "gaps", "passes", "omitted", "omissions", "notes", "provenance"],
+  "required": [
+    "schema",
+    "verdict",
+    "headline",
+    "summary",
+    "inventory",
+    "paths",
+    "findings",
+    "gaps",
+    "passes",
+    "notices",
+    "omitted",
+    "omissions",
+    "notes",
+    "provenance"
+  ],
   "properties": {
-    "schema": {"const": "prufyx.io/scan-report/v1alpha1"},
-    "verdict": {"enum": ["BLOCKED", "UNKNOWN", "SCOPE_COMPLETE_PASS"]},
-    "headline": {"type": "string", "maxLength": 256},
-    "summary": {"$ref": "#/$defs/summary"},
-    "inventory": {"type": "array", "items": {"$ref": "#/$defs/component"}},
-    "paths": {"type": "array", "items": {"$ref": "#/$defs/path"}},
-    "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}},
-    "gaps": {"type": "array", "items": {"$ref": "#/$defs/gap"}},
-    "passes": {"type": "array", "items": {"$ref": "#/$defs/pass"}},
-    "omitted": {"type": "array", "items": {"$ref": "#/$defs/omitted"}},
-    "omissions": {"type": "array", "items": {"type": "string", "maxLength": 256}},
-    "notes": {"type": "array", "items": {"type": "string", "maxLength": 256}},
-    "provenance": {"$ref": "#/$defs/provenance"}
+    "schema": {
+      "const": "prufyx.io/scan-report/v1alpha1"
+    },
+    "verdict": {
+      "enum": [
+        "BLOCKED",
+        "UNKNOWN",
+        "SCOPE_COMPLETE_PASS"
+      ]
+    },
+    "headline": {
+      "type": "string",
+      "maxLength": 256
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "inventory": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/component"
+      }
+    },
+    "paths": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/path"
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/gap"
+      }
+    },
+    "passes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/pass"
+      }
+    },
+    "notices": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/notice"
+      }
+    },
+    "omitted": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/omitted"
+      }
+    },
+    "omissions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 256
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 256
+      }
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    }
   },
   "$defs": {
     "summary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["blockers", "gaps", "passes", "componentsDetected", "componentsCovered", "hops", "documentsRead", "documentsOmitted"],
+      "required": [
+        "blockers",
+        "gaps",
+        "passes",
+        "componentsDetected",
+        "componentsCovered",
+        "hops",
+        "documentsRead",
+        "documentsOmitted",
+        "notices"
+      ],
       "properties": {
-        "blockers": {"type": "integer", "minimum": 0},
-        "gaps": {"type": "integer", "minimum": 0},
-        "passes": {"type": "integer", "minimum": 0},
-        "componentsDetected": {"type": "integer", "minimum": 0},
-        "componentsCovered": {"type": "integer", "minimum": 0},
-        "hops": {"type": "integer", "minimum": 0},
-        "documentsRead": {"type": "integer", "minimum": 0},
-        "documentsOmitted": {"type": "integer", "minimum": 0}
+        "blockers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "gaps": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "passes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "componentsDetected": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "componentsCovered": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hops": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "documentsRead": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "documentsOmitted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "notices": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "component": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "covered"],
+      "required": [
+        "name",
+        "covered"
+      ],
       "properties": {
-        "name": {"type": "string"},
-        "component": {"type": "string"},
-        "current": {"type": "string"},
-        "currentSource": {"enum": ["file", "flag"]},
-        "target": {"type": "string"},
-        "targetSource": {"enum": ["file", "flag"]},
-        "covered": {"type": "boolean"}
+        "name": {
+          "type": "string"
+        },
+        "component": {
+          "type": "string"
+        },
+        "current": {
+          "type": "string"
+        },
+        "currentSource": {
+          "enum": [
+            "file",
+            "flag"
+          ]
+        },
+        "target": {
+          "type": "string"
+        },
+        "targetSource": {
+          "enum": [
+            "file",
+            "flag"
+          ]
+        },
+        "covered": {
+          "type": "boolean"
+        }
       }
     },
     "endpoint": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "version": {"type": "string"},
-        "line": {"type": "string"}
+        "version": {
+          "type": "string"
+        },
+        "line": {
+          "type": "string"
+        }
       }
     },
     "path": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["component", "from", "to", "policy", "hops"],
+      "required": [
+        "component",
+        "from",
+        "to",
+        "policy",
+        "hops"
+      ],
       "properties": {
-        "component": {"type": "string"},
-        "from": {"type": "string"},
-        "to": {"type": "string"},
-        "policy": {"type": "string"},
-        "hops": {"type": "array", "items": {"$ref": "#/$defs/hop"}},
-        "gap": {"type": "string"}
+        "component": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "policy": {
+          "type": "string"
+        },
+        "hops": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hop"
+          }
+        },
+        "gap": {
+          "type": "string"
+        }
       }
     },
     "hop": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["index", "from", "to", "status"],
+      "required": [
+        "index",
+        "from",
+        "to",
+        "status"
+      ],
       "properties": {
-        "index": {"type": "integer", "minimum": 1},
-        "from": {"$ref": "#/$defs/endpoint"},
-        "to": {"$ref": "#/$defs/endpoint"},
-        "status": {"enum": ["BLOCKED", "COVERED", "PARTIAL", "NO_DATA"]},
-        "inputDigest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-        "attestation": {"$ref": "#/$defs/attestation"},
-        "reasons": {"type": "array", "items": {"type": "string"}}
+        "index": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "from": {
+          "$ref": "#/$defs/endpoint"
+        },
+        "to": {
+          "$ref": "#/$defs/endpoint"
+        },
+        "status": {
+          "enum": [
+            "BLOCKED",
+            "COVERED",
+            "PARTIAL",
+            "NO_DATA"
+          ]
+        },
+        "inputDigest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "attestation": {
+          "$ref": "#/$defs/attestation"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "attestation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["line", "family", "basis", "freshness", "validUntil"],
+      "required": [
+        "line",
+        "family",
+        "basis",
+        "freshness",
+        "validUntil"
+      ],
       "properties": {
-        "line": {"type": "string"},
-        "family": {"type": "string"},
-        "basis": {"type": "string"},
-        "freshness": {"type": "string"},
-        "validUntil": {"type": "string"}
+        "line": {
+          "type": "string"
+        },
+        "family": {
+          "type": "string"
+        },
+        "basis": {
+          "type": "string"
+        },
+        "freshness": {
+          "type": "string"
+        },
+        "validUntil": {
+          "type": "string"
+        }
       }
     },
     "hopRef": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["index", "from", "to"],
+      "required": [
+        "index",
+        "from",
+        "to"
+      ],
       "properties": {
-        "index": {"type": "integer", "minimum": 0},
-        "from": {"type": "string"},
-        "to": {"type": "string"},
-        "wholeUpgrade": {"type": "boolean"}
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "wholeUpgrade": {
+          "type": "boolean"
+        }
       }
     },
     "location": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["file", "document", "item", "kind", "name"],
+      "required": [
+        "file",
+        "document",
+        "item",
+        "kind",
+        "name"
+      ],
       "properties": {
-        "file": {"type": "string"},
-        "document": {"type": "integer", "minimum": 0},
-        "item": {"type": "integer", "minimum": -1},
-        "line": {"type": "integer", "minimum": 1},
-        "kind": {"type": "string"},
-        "namespace": {"type": "string"},
-        "name": {"type": "string"}
+        "file": {
+          "type": "string"
+        },
+        "document": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "item": {
+          "type": "integer",
+          "minimum": -1
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "kind": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
       }
     },
     "citation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "url", "revision", "contentDigest", "startLine", "endLine"],
+      "required": [
+        "id",
+        "url",
+        "revision",
+        "contentDigest",
+        "startLine",
+        "endLine"
+      ],
       "properties": {
-        "id": {"type": "string"},
-        "url": {"type": "string"},
-        "revision": {"type": "string"},
-        "contentDigest": {"type": "string"},
-        "startLine": {"type": "integer"},
-        "endLine": {"type": "integer"}
+        "id": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "contentDigest": {
+          "type": "string"
+        },
+        "startLine": {
+          "type": "integer"
+        },
+        "endLine": {
+          "type": "integer"
+        }
       }
     },
     "finding": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ruleId", "component", "hop", "title", "fix", "match", "locations", "basis", "citations", "ruleDigest"],
+      "required": [
+        "ruleId",
+        "component",
+        "hop",
+        "title",
+        "fix",
+        "match",
+        "locations",
+        "basis",
+        "citations",
+        "ruleDigest"
+      ],
       "properties": {
-        "ruleId": {"type": "string"},
-        "component": {"type": "string"},
-        "hop": {"$ref": "#/$defs/hopRef"},
-        "alsoAt": {"type": "array", "items": {"$ref": "#/$defs/hopRef"}},
-        "title": {"type": "string"},
-        "fix": {"type": "string"},
-        "match": {"enum": ["anchor", "range"]},
-        "locations": {"type": "array", "items": {"$ref": "#/$defs/location"}},
-        "basis": {"enum": ["reviewed", "mechanical"]},
-        "extractor": {"type": "string"},
-        "citations": {"type": "array", "items": {"$ref": "#/$defs/citation"}},
-        "ruleDigest": {"type": "string"}
+        "ruleId": {
+          "type": "string"
+        },
+        "component": {
+          "type": "string"
+        },
+        "hop": {
+          "$ref": "#/$defs/hopRef"
+        },
+        "alsoAt": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hopRef"
+          }
+        },
+        "title": {
+          "type": "string"
+        },
+        "fix": {
+          "type": "string"
+        },
+        "match": {
+          "enum": [
+            "anchor",
+            "range"
+          ]
+        },
+        "locations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/location"
+          }
+        },
+        "basis": {
+          "enum": [
+            "reviewed",
+            "mechanical"
+          ]
+        },
+        "extractor": {
+          "type": "string"
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/citation"
+          }
+        },
+        "ruleDigest": {
+          "type": "string"
+        }
       }
     },
     "gap": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["component", "reason", "detail", "action"],
+      "required": [
+        "component",
+        "reason",
+        "detail",
+        "action"
+      ],
       "properties": {
-        "component": {"type": "string"},
-        "hop": {"$ref": "#/$defs/hopRef"},
-        "reason": {"enum": ["ALPHA_API_NOT_COVERED", "API_VERSION_NOT_REVIEWED", "COMPONENT_NOT_COVERED", "DECLARATION_MISSING", "DISTRIBUTION_NOT_COVERED", "DOCUMENTS_NOT_EVALUATED", "DOCUMENTS_TEMPLATED", "DOWNGRADE_NOT_REVIEWED", "EVIDENCE_EXPIRED", "INTERMEDIATE_LINE_NOT_COVERED_BY_RANGE", "LINE_NOT_ATTESTED", "NO_REVIEWED_PATH_POLICY", "PATH_NOT_PLANNABLE", "PATH_POLICY_NOT_CURRENT", "RULE_NOT_DECIDED", "VERSION_CONFLICT", "VERSION_NOT_DETECTED"]},
-        "detail": {"type": "string", "maxLength": 256},
-        "action": {"type": "string", "maxLength": 256}
+        "component": {
+          "type": "string"
+        },
+        "hop": {
+          "$ref": "#/$defs/hopRef"
+        },
+        "reason": {
+          "enum": [
+            "ALPHA_API_NOT_COVERED",
+            "API_VERSION_NOT_REVIEWED",
+            "API_VERSION_NOT_SERVED",
+            "COMPONENT_NOT_COVERED",
+            "DECLARATION_MISSING",
+            "DISTRIBUTION_NOT_COVERED",
+            "DOCUMENTS_NOT_EVALUATED",
+            "DOCUMENTS_TEMPLATED",
+            "DOWNGRADE_NOT_REVIEWED",
+            "EVIDENCE_EXPIRED",
+            "INTERMEDIATE_LINE_NOT_COVERED_BY_RANGE",
+            "LINE_NOT_ATTESTED",
+            "NO_REVIEWED_PATH_POLICY",
+            "PATH_NOT_PLANNABLE",
+            "PATH_POLICY_NOT_CURRENT",
+            "RULE_NOT_DECIDED",
+            "VERSION_CONFLICT",
+            "VERSION_NOT_DETECTED"
+          ]
+        },
+        "detail": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "action": {
+          "type": "string",
+          "maxLength": 256
+        }
       }
     },
     "pass": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ruleId", "component", "hop"],
+      "required": [
+        "ruleId",
+        "component",
+        "hop"
+      ],
       "properties": {
-        "ruleId": {"type": "string"},
-        "component": {"type": "string"},
-        "hop": {"$ref": "#/$defs/hopRef"}
+        "ruleId": {
+          "type": "string"
+        },
+        "component": {
+          "type": "string"
+        },
+        "hop": {
+          "$ref": "#/$defs/hopRef"
+        }
+      }
+    },
+    "notice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ruleId",
+        "component",
+        "hop",
+        "established",
+        "text",
+        "basis",
+        "citations"
+      ],
+      "properties": {
+        "ruleId": {
+          "type": "string"
+        },
+        "component": {
+          "type": "string"
+        },
+        "hop": {
+          "$ref": "#/$defs/hopRef"
+        },
+        "alsoAt": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hopRef"
+          }
+        },
+        "established": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "basis": {
+          "enum": [
+            "reviewed",
+            "mechanical"
+          ]
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/citation"
+          }
+        }
       }
     },
     "omitted": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["file", "document", "item", "reason"],
+      "required": [
+        "file",
+        "document",
+        "item",
+        "reason"
+      ],
       "properties": {
-        "file": {"type": "string"},
-        "document": {"type": "integer", "minimum": 0},
-        "item": {"type": "integer", "minimum": -1},
-        "line": {"type": "integer", "minimum": 1},
-        "reason": {"enum": ["TEMPLATED", "UNPARSEABLE", "NOT_KUBERNETES_SHAPED", "NESTED_LIST", "LIST_SHAPE_UNRESOLVED", "SYMLINK_NOT_FOLLOWED", "NOT_REGULAR_FILE", "CONFIG_DOCUMENT"]}
+        "file": {
+          "type": "string"
+        },
+        "document": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "item": {
+          "type": "integer",
+          "minimum": -1
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reason": {
+          "enum": [
+            "TEMPLATED",
+            "UNPARSEABLE",
+            "NOT_KUBERNETES_SHAPED",
+            "NESTED_LIST",
+            "LIST_SHAPE_UNRESOLVED",
+            "SYMLINK_NOT_FOLLOWED",
+            "NOT_REGULAR_FILE",
+            "CONFIG_DOCUMENT"
+          ]
+        }
       }
     },
     "build": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["version", "releaseState", "sourceRevision", "sourceTreeDigest", "allowlistDigest", "buildProfile", "buildEpoch", "goVersion", "trustRootDigest", "candidateOnly"],
+      "required": [
+        "version",
+        "releaseState",
+        "sourceRevision",
+        "sourceTreeDigest",
+        "allowlistDigest",
+        "buildProfile",
+        "buildEpoch",
+        "goVersion",
+        "trustRootDigest",
+        "candidateOnly"
+      ],
       "properties": {
-        "version": {"type": "string"},
-        "releaseState": {"type": "string"},
-        "sourceRevision": {"type": "string"},
-        "sourceTreeDigest": {"type": "string"},
-        "allowlistDigest": {"type": "string"},
-        "buildProfile": {"type": "string"},
-        "buildEpoch": {"type": "string"},
-        "goVersion": {"type": "string"},
-        "trustRootDigest": {"type": "string"},
-        "candidateOnly": {"type": "boolean"}
+        "version": {
+          "type": "string"
+        },
+        "releaseState": {
+          "type": "string"
+        },
+        "sourceRevision": {
+          "type": "string"
+        },
+        "sourceTreeDigest": {
+          "type": "string"
+        },
+        "allowlistDigest": {
+          "type": "string"
+        },
+        "buildProfile": {
+          "type": "string"
+        },
+        "buildEpoch": {
+          "type": "string"
+        },
+        "goVersion": {
+          "type": "string"
+        },
+        "trustRootDigest": {
+          "type": "string"
+        },
+        "candidateOnly": {
+          "type": "boolean"
+        }
       }
     },
     "provenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["evaluatedAt", "inputDigest", "knowledgeOrigin", "knowledgeRevision", "knowledgeDigest", "engineContractDigest", "networkUsed", "build"],
+      "required": [
+        "evaluatedAt",
+        "inputDigest",
+        "knowledgeOrigin",
+        "knowledgeRevision",
+        "knowledgeDigest",
+        "engineContractDigest",
+        "networkUsed",
+        "build"
+      ],
       "properties": {
-        "evaluatedAt": {"type": "string"},
-        "inputDigest": {"type": "string"},
-        "configDigest": {"type": "string"},
-        "knowledgeOrigin": {"enum": ["embedded"]},
-        "knowledgeRevision": {"type": "string"},
-        "knowledgeDigest": {"type": "string"},
-        "engineContractDigest": {"type": "string"},
-        "networkUsed": {"const": false},
-        "build": {"$ref": "#/$defs/build"}
+        "evaluatedAt": {
+          "type": "string"
+        },
+        "inputDigest": {
+          "type": "string"
+        },
+        "configDigest": {
+          "type": "string"
+        },
+        "knowledgeOrigin": {
+          "enum": [
+            "embedded"
+          ]
+        },
+        "knowledgeRevision": {
+          "type": "string"
+        },
+        "knowledgeDigest": {
+          "type": "string"
+        },
+        "engineContractDigest": {
+          "type": "string"
+        },
+        "networkUsed": {
+          "const": false
+        },
+        "build": {
+          "$ref": "#/$defs/build"
+        }
       }
     }
   }

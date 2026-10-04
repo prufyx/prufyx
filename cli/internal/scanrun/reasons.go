@@ -4,6 +4,7 @@ package scanrun
 
 import (
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/intake"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
@@ -93,4 +94,10 @@ var otherRouteReasons = map[string]bool{
 	cncfprepare.ReasonKubernetesComponentNoReviewedRule:      true,
 	cncfprepare.ReasonKubernetesComponentDistribution:        true,
 	cncfprepare.ReasonKubernetesComponentSettingSetsComplete: true,
+}
+
+// noticeReasons are the reasons of one-way notices: neither decided claims
+// nor gaps. A notice never takes part in the verdict.
+var noticeReasons = map[string]bool{
+	constraintengine.ReasonOneWayTransition: true,
 }

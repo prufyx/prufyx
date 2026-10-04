@@ -40,7 +40,8 @@ func TestScanQuickstartBlocked(t *testing.T) {
 		for _, hop := range report.Paths[0].Hops {
 			statuses = append(statuses, hop.Status)
 		}
-		if !reflect.DeepEqual(statuses, []string{"BLOCKED", "COVERED", "COVERED", "COVERED", "COVERED", "COVERED"}) || len(report.Gaps) != 0 {
+		// The removed CronJob is also not on the served list of 1.30.
+		if !reflect.DeepEqual(statuses, []string{"BLOCKED", "COVERED", "COVERED", "COVERED", "COVERED", "COVERED"}) || !reflect.DeepEqual(gapReasons(report), []string{"API_VERSION_NOT_REVIEWED"}) {
 			t.Fatalf("hops %v gaps %v", statuses, gapReasons(report))
 		}
 		golden(t, "quickstart-blocked.txt", scanreport.Human(report, scanreport.HumanOptions{}))
@@ -78,7 +79,7 @@ func TestScanQuickstartMigrated(t *testing.T) {
 	golden(t, "quickstart-migrated-unknown.txt", scanreport.Human(unknown.Report, scanreport.HumanOptions{}))
 
 	embedded := run(nil)
-	if embedded.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(embedded.Report), []string{"NO_REVIEWED_PATH_POLICY"}) {
+	if embedded.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(embedded.Report), []string{"API_VERSION_NOT_REVIEWED", "NO_REVIEWED_PATH_POLICY"}) {
 		t.Fatalf("embedded knowledge: exit %d gaps %v", embedded.Exit, gapReasons(embedded.Report))
 	}
 }
@@ -514,11 +515,11 @@ func TestScanOmissionsExplainHops(t *testing.T) {
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	dir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1beta1, "values.yaml": "replicas: 2\n"})
 	result := mustScan(t, knowledge, args([]string{dir}, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...)
-	if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"DOCUMENTS_NOT_EVALUATED"}) {
+	if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"API_VERSION_NOT_REVIEWED", "DOCUMENTS_NOT_EVALUATED"}) {
 		t.Fatalf("exit %d gaps %v", result.Exit, gapReasons(result.Report))
 	}
-	if !strings.Contains(result.Report.Gaps[0].Detail, "1 document(s) are not Kubernetes objects") {
-		t.Fatalf("detail %q", result.Report.Gaps[0].Detail)
+	if !strings.Contains(result.Report.Gaps[1].Detail, "1 document(s) are not Kubernetes objects") {
+		t.Fatalf("detail %q", result.Report.Gaps[1].Detail)
 	}
 	hop := result.Report.Paths[0].Hops[0]
 	if hop.Status != scanreport.HopPartial || !reflect.DeepEqual(hop.Reasons, []string{"DOCUMENTS_NOT_EVALUATED"}) {
@@ -596,8 +597,12 @@ func TestScanUnreviewedAPIVersion(t *testing.T) {
 	_, paths := files(t, map[string]string{"applyset.yaml": "apiVersion: autoscaling/v2beta3\nkind: HorizontalPodAutoscaler\nmetadata: {name: web}\n"})
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	result := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3")...)
-	if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"API_VERSION_NOT_REVIEWED"}) {
+	if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"API_VERSION_NOT_REVIEWED", "API_VERSION_NOT_REVIEWED"}) {
 		t.Fatalf("exit %d gaps %v", result.Exit, gapReasons(result.Report))
+	}
+	hop := result.Report.Paths[0].Hops[0]
+	if hop.Status != scanreport.HopPartial || !reflect.DeepEqual(hop.Reasons, []string{"API_VERSION_NOT_REVIEWED"}) {
+		t.Fatalf("hop %+v", hop)
 	}
 }
 

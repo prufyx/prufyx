@@ -17,6 +17,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
@@ -46,13 +47,17 @@ var testBuild = buildidentity.Identity{
 	AllowlistDigest: "development", BuildProfile: "development", BuildEpoch: "development", GoVersion: "test", TrustRootDigest: "unpinned",
 }
 
-// testKnowledge is the embedded knowledge with line reviews and an upgrade
-// path policy added for tests. Rules and their evaluation are the published
-// ones; only the two lookups are replaced.
+// testKnowledge is the embedded knowledge with line reviews, an upgrade path
+// policy, served lists and synthetic rules added for tests. Published rules
+// and their evaluation are unchanged; synthetic rules are evaluated by the
+// unchanged engine on the same prepared input and their claims added.
 type testKnowledge struct {
-	*cncfcheck.ScanKnowledge
+	Embedded
 	attestations lineattest.Index
 	policies     upgradepath.Index
+	served       map[string]bool
+	synthetic    []cncfcheck.ScanRule
+	syntheticRaw []json.RawMessage
 }
 
 func (k testKnowledge) AttestationsFor(component, line, family string, now time.Time) []lineattest.Status {
@@ -61,6 +66,120 @@ func (k testKnowledge) AttestationsFor(component, line, family string, now time.
 
 func (k testKnowledge) PathPolicyFor(component string, now time.Time) upgradepath.Status {
 	return k.policies.Lookup(component, now)
+}
+
+func (k testKnowledge) ServedAPIs(component, line string) (map[string]bool, bool) {
+	return k.served, k.served != nil
+}
+
+func (k testKnowledge) Rules(project string) []cncfcheck.ScanRule {
+	rules := k.Embedded.Rules(project)
+	if project == "kubernetes" {
+		rules = append(rules, k.synthetic...)
+		sort.Slice(rules, func(i, j int) bool { return rules[i].Scope.ID < rules[j].Scope.ID })
+	}
+	return rules
+}
+
+func (k testKnowledge) Evaluate(project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error) {
+	evaluation, err := k.Embedded.Evaluate(project, facts, inputRaw, now)
+	if err != nil || len(k.syntheticRaw) == 0 {
+		return evaluation, err
+	}
+	claims, err := evaluateSynthetic(k.syntheticRaw, inputRaw, now)
+	if err != nil {
+		return Evaluation{}, err
+	}
+	evaluation.Claims = append(evaluation.Claims, claims...)
+	return evaluation, nil
+}
+
+// evaluateSynthetic evaluates synthetic rules with the engine over a
+// registry of every fact the input and the rules name.
+func evaluateSynthetic(rules []json.RawMessage, inputRaw []byte, now time.Time) ([]constraintengine.Claim, error) {
+	var input struct {
+		Proposed struct {
+			Components []struct {
+				Facts []struct {
+					ID string `json:"id"`
+				} `json:"facts"`
+			} `json:"components"`
+		} `json:"proposed"`
+	}
+	if err := json.Unmarshal(inputRaw, &input); err != nil {
+		return nil, err
+	}
+	ids := map[string]bool{}
+	for _, component := range input.Proposed.Components {
+		for _, fact := range component.Facts {
+			ids[fact.ID] = true
+		}
+	}
+	ordered := map[string]json.RawMessage{}
+	var order []string
+	for _, raw := range rules {
+		rule, err := cncfcheck.NewScanRule("kubernetes", "", raw)
+		if err != nil {
+			return nil, err
+		}
+		for _, fact := range rule.Facts {
+			ids[fact] = true
+		}
+		ordered[rule.Scope.ID] = raw
+		order = append(order, rule.Scope.ID)
+	}
+	sort.Strings(order)
+	rules = nil
+	for _, id := range order {
+		rules = append(rules, ordered[id])
+	}
+	var definitions []constraintengine.FactDefinition
+	for id := range ids {
+		definitions = append(definitions, constraintengine.FactDefinition{ID: id, Component: kubernetesKey, Type: constraintengine.FactBool})
+	}
+	sort.Slice(definitions, func(i, j int) bool { return definitions[i].ID < definitions[j].ID })
+	registry, err := constraintengine.NewCompiledRegistry(definitions)
+	if err != nil {
+		return nil, err
+	}
+	parsed, err := constraintengine.ParseInput(inputRaw, registry)
+	if err != nil {
+		return nil, err
+	}
+	schema, err := constraintengine.RulesSchemaFor(rules)
+	if err != nil {
+		return nil, err
+	}
+	document, err := json.Marshal(map[string]any{"schema": schema, "revision": "synthetic-test", "policyId": "synthetic-test", "policyDigest": "sha256:" + strings.Repeat("0", 64), "rules": rules})
+	if err != nil {
+		return nil, err
+	}
+	ruleSet, err := constraintengine.ParseRuleSet(document, registry)
+	if err != nil {
+		return nil, err
+	}
+	report, err := constraintengine.Evaluate(parsed, ruleSet, now)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := constraintengine.MarshalReport(report); err != nil {
+		return nil, err
+	}
+	return report.Claims, nil
+}
+
+// testServed is the served list the tests' reviews carry for every line.
+var testServed = map[string]bool{}
+
+func init() {
+	for _, pair := range []string{
+		"v1 ConfigMap", "v1 Secret", "v1 Service", "v1 Pod", "v1 Namespace", "batch/v1 CronJob", "batch/v1 Job",
+		"apps/v1 Deployment", "apps/v1 DaemonSet", "apps/v1 StatefulSet", "autoscaling/v2 HorizontalPodAutoscaler",
+		"policy/v1 PodDisruptionBudget", "networking.k8s.io/v1 Ingress", "flowcontrol.apiserver.k8s.io/v1 FlowSchema",
+		"flowcontrol.apiserver.k8s.io/v1 PriorityLevelConfiguration",
+	} {
+		testServed[pair] = true
+	}
 }
 
 // knowledgeOptions select the added reviews.
@@ -79,17 +198,30 @@ type knowledgeOptions struct {
 	extraRuleIDs map[string][]string
 	// dropRuleIDs lists rule ids to leave out of a line's review.
 	dropRuleIDs map[string][]string
+	// noServedList leaves out the reviewed served lists.
+	noServedList bool
+	// synthetic are rules added to the published ones (raw rule JSON).
+	synthetic []string
 }
 
 const testSource = `{"id":"kubernetes-website-v125-cronjob-v1beta1","url":"https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md","revision":"9f1af2971c32124bff0a1f42255ba5a2f3c8a16f","contentDigest":"sha256:96f34a49cbdd7bd53008cc7b7cc8aff58c373ad323e64eef0155cbbc44494f61","startLine":87,"endLine":93}`
 
 func newKnowledge(t testing.TB, options knowledgeOptions) Knowledge {
 	t.Helper()
-	base, err := cncfcheck.LoadScanKnowledge()
+	base, err := LoadEmbedded()
 	if err != nil {
 		t.Fatal(err)
 	}
-	rules := packRules(t)
+	var synthetic []cncfcheck.ScanRule
+	var syntheticRaw []json.RawMessage
+	for _, raw := range options.synthetic {
+		rule, err := cncfcheck.NewScanRule("kubernetes", "Synthetic test-only rule. Never published.", json.RawMessage(raw))
+		if err != nil {
+			t.Fatal(err)
+		}
+		synthetic, syntheticRaw = append(synthetic, rule), append(syntheticRaw, json.RawMessage(raw))
+	}
+	rules := append(packRules(t), syntheticRaw...)
 	byScope, _, err := lineattest.RulesByScope(rules)
 	if err != nil {
 		t.Fatal(err)
@@ -156,7 +288,11 @@ func newKnowledge(t testing.TB, options knowledgeOptions) Knowledge {
 		}
 		policies = upgradepath.NewIndex(records)
 	}
-	return testKnowledge{ScanKnowledge: base, attestations: index, policies: policies}
+	served := testServed
+	if options.noServedList {
+		served = nil
+	}
+	return testKnowledge{Embedded: base, attestations: index, policies: policies, served: served, synthetic: synthetic, syntheticRaw: syntheticRaw}
 }
 
 // packRules are the raw rules of the embedded pack.

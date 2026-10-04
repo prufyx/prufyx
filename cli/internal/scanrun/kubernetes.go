@@ -60,7 +60,11 @@ func (r *kubernetesRun) evaluate(from, to string) error {
 	}
 
 	path := scanreport.Path{Component: kubernetesSlug, From: from, To: to}
-	defer func() { r.report.Paths = append(r.report.Paths, path) }()
+	crossed := map[string]bool{}
+	defer func() {
+		r.report.Paths = append(r.report.Paths, path)
+		r.apiVersionGaps(to, crossed)
+	}()
 	if from == "" {
 		path.Gap = scanreport.ReasonVersionNotDetected
 		r.gap(nil, scanreport.GapVersionNotDetected, kubernetesSlug)
@@ -92,6 +96,9 @@ func (r *kubernetesRun) evaluate(from, to string) error {
 	unplanned := policy == nil && skipsLines(from, to)
 	if unplanned {
 		r.gap(nil, scanreport.GapNoReviewedPathPolicy, kubernetesSlug, from, to)
+	}
+	for line := range crossedLines(plan) {
+		crossed[line] = true
 	}
 	for _, hop := range plan.Hops {
 		evaluated, err := r.hop(hop, unplanned)
@@ -167,6 +174,78 @@ func (r *kubernetesRun) declarationGaps() []scanreport.GapKey {
 	return keys
 }
 
+// crossedLines are the minor lines whose removals a hop of the plan
+// evaluates: the line of every hop that enters it from the line before.
+func crossedLines(plan upgradepath.Plan) map[string]bool {
+	crossed := map[string]bool{}
+	for _, hop := range plan.Hops {
+		fromLine, toLine, ok := hopLines(hop)
+		if !ok {
+			continue
+		}
+		fromMajor, fromMinor, ok1 := majorMinor(fromLine + ".0")
+		toMajor, toMinor, ok2 := majorMinor(toLine + ".0")
+		// Only a hop that enters one line from the line before evaluates
+		// that line's removals; a hop that skips lines crosses nothing here.
+		if ok1 && ok2 && fromMajor == toMajor && toMinor == fromMinor+1 {
+			crossed[toLine] = true
+		}
+	}
+	return crossed
+}
+
+// apiVersionGaps checks every manifest against the target line: an object
+// at a version removed on a line at or below the target that no hop crosses
+// is not served, and an object of a Kubernetes API group must be at a
+// version the review of the target line lists as served.
+func (r *kubernetesRun) apiVersionGaps(to string, crossed map[string]bool) {
+	targetLine, ok := lineattest.LineOf(to)
+	if !ok {
+		return
+	}
+	removed := cncfprepare.KubernetesRemovedVersions()
+	served, listed := r.knowledge.ServedAPIs(r.component, targetLine)
+	notServed, notListed, builtIn := 0, 0, 0
+	for _, document := range r.workspace.Documents {
+		group, version, found := strings.Cut(document.APIVersion, "/")
+		if !found {
+			group, version = "", document.APIVersion
+		}
+		for _, removal := range removed {
+			if removal.Group == group && removal.Version == version && containsString(removal.Kinds, document.Kind) &&
+				!lineattest.LineLess(targetLine, removal.Line) && !crossed[removal.Line] {
+				notServed++
+				break
+			}
+		}
+		if !kubernetesGroupRE.MatchString(group) || alphaVersionRE.MatchString(version) {
+			continue
+		}
+		builtIn++
+		if listed && !served[document.APIVersion+" "+document.Kind] {
+			notListed++
+		}
+	}
+	if notServed > 0 {
+		r.rootGap(scanreport.GapAPIVersionNotServed, notServed, targetLine)
+	}
+	switch {
+	case !listed && builtIn > 0:
+		r.rootGap(scanreport.GapAPIVersionNoServedList, builtIn, targetLine)
+	case notListed > 0:
+		r.rootGap(scanreport.GapAPIVersionNotListed, notListed, targetLine)
+	}
+}
+
+func containsString(values []string, value string) bool {
+	for _, candidate := range values {
+		if candidate == value {
+			return true
+		}
+	}
+	return false
+}
+
 // kubernetesGroupRE matches the API groups Kubernetes itself serves (and any
 // other *.k8s.io group): an alpha version there is outside every removed-API
 // review.
@@ -227,8 +306,8 @@ func (r *kubernetesRun) evaluateTransition(from, to string) (evaluation, error) 
 	if scan.Prepared.InputDigest != "sha256:"+hex.EncodeToString(sum[:]) {
 		return evaluation{}, ErrIntegrity
 	}
-	report, err := r.knowledge.CheckFacts(kubernetesSlug, cncfprepare.KubernetesRemovedAPIAllFacts(), scan.Prepared.CanonicalInputJSON, r.now)
-	if errors.Is(err, cncfcheck.ErrInvalid) {
+	result, err := r.knowledge.Evaluate(kubernetesSlug, cncfprepare.KubernetesRemovedAPIAllFacts(), scan.Prepared.CanonicalInputJSON, r.now)
+	if errors.Is(err, ErrRefused) {
 		// The knowledge has no fact for a removal the preparation knows
 		// about on this line: no reviewed rule can decide it.
 		return evaluation{scan: scan, refused: true}, nil
@@ -236,18 +315,27 @@ func (r *kubernetesRun) evaluateTransition(from, to string) (evaluation, error) 
 	if err != nil {
 		return evaluation{}, ErrIntegrity
 	}
-	if _, err := cncfcheck.MarshalReport(report); err != nil {
-		return evaluation{}, ErrIntegrity
-	}
 	if r.report.Provenance.EngineContractDigest == "" {
-		r.report.Provenance.EngineContractDigest = report.Check.EngineContractDigest
+		r.report.Provenance.EngineContractDigest = result.EngineContractDigest
 	}
-	claims := make(map[string]constraintengine.Claim, len(report.Check.Claims))
-	for _, claim := range report.Check.Claims {
+	claims := make(map[string]constraintengine.Claim, len(result.Claims))
+	for _, claim := range result.Claims {
 		if _, dup := claims[claim.RuleID]; dup {
 			return evaluation{}, ErrIntegrity
 		}
-		if _, known := r.byID[claim.RuleID]; !known {
+		rule, known := r.byID[claim.RuleID]
+		if !known {
+			return evaluation{}, ErrIntegrity
+		}
+		// A notice comes only from a notice rule and is never a verdict;
+		// a verdict rule never returns NOTICE.
+		notice := claim.IsNotice()
+		switch {
+		case notice != rule.Notice:
+			return evaluation{}, ErrIntegrity
+		case notice && (claim.Status == "PASS" || claim.Status == "BLOCKED"):
+			return evaluation{}, ErrIntegrity
+		case !notice && claim.Status == constraintengine.StatusNotice:
 			return evaluation{}, ErrIntegrity
 		}
 		claims[claim.RuleID] = claim
@@ -389,16 +477,23 @@ func (r *kubernetesRun) hop(hop upgradepath.Hop, unplanned bool) (scanreport.Hop
 	// Every claim that decided something must belong to a rule that
 	// overlaps the hop: a decided claim matched the engine input, which
 	// lies inside the hop.
+	// One-way notice rules never take part in the verdict: they are kept
+	// out of the applicable set and only reported as notices.
 	overlapping := map[string]bool{}
 	var applicable []cncfcheck.ScanRule
 	for _, rule := range r.rules {
-		if rule.Scope.Component == r.component && hop.Overlaps(rule.Scope.Transition) {
-			overlapping[rule.Scope.ID] = true
-			applicable = append(applicable, rule)
+		if rule.Scope.Component != r.component || !hop.Overlaps(rule.Scope.Transition) {
+			continue
 		}
+		overlapping[rule.Scope.ID] = true
+		if rule.Notice {
+			r.notice(rule, eval, ref, hop.CoveredBy(rule.Scope.Transition))
+			continue
+		}
+		applicable = append(applicable, rule)
 	}
 	for id, claim := range eval.claims {
-		if (claim.Status == "PASS" || claim.Status == "BLOCKED") && !overlapping[id] {
+		if (claim.Status == "PASS" || claim.Status == "BLOCKED" || claim.Status == constraintengine.StatusNotice) && !overlapping[id] {
 			return scanreport.Hop{}, ErrIntegrity
 		}
 	}
@@ -426,6 +521,18 @@ func (r *kubernetesRun) hop(hop upgradepath.Hop, unplanned bool) (scanreport.Hop
 	}
 
 	attested, attestationCurrent := r.attestation(hop, ref, unplanned, applicable, decidedRules, &result)
+	if attested {
+		// A fact the preparation found true must be read by a rule that
+		// decided this hop; otherwise no review can cover the hop.
+		for fact := range eval.scan.Sources {
+			if !readByDecidedRule(fact, applicable, decidedRules) {
+				_, toLine, _ := hopLines(hop)
+				attested = false
+				result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapLineUndecidedFact, kubernetesSlug, toLine))
+				break
+			}
+		}
+	}
 
 	switch {
 	case blocked:
@@ -486,6 +593,10 @@ func (r *kubernetesRun) attestation(hop upgradepath.Hop, ref scanreport.HopRef, 
 	}
 	for _, id := range status.Attestation.RuleIDs {
 		listed[id] = true
+		if rule, known := r.byID[id]; known && rule.Notice {
+			// A one-way notice never supports a review.
+			continue
+		}
 		if !applicableIDs[id] {
 			attested = false
 			result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapLineListedRule, kubernetesSlug, toLine, id))
@@ -500,6 +611,20 @@ func (r *kubernetesRun) attestation(hop upgradepath.Hop, ref scanreport.HopRef, 
 		}
 	}
 	return attested, true
+}
+
+func readByDecidedRule(fact string, applicable []cncfcheck.ScanRule, decidedRules map[string]bool) bool {
+	for _, rule := range applicable {
+		if !decidedRules[rule.Scope.ID] {
+			continue
+		}
+		for _, read := range rule.Facts {
+			if read == fact {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func containsFamily(families []string) bool {
@@ -551,14 +676,19 @@ func (r *kubernetesRun) wholeUpgrade(from, to string) error {
 	}
 	for id, claim := range eval.claims {
 		rule := r.byID[id]
-		if (claim.Status == "PASS" || claim.Status == "BLOCKED") && rule.Scope.Transition.Match(from, to) == constraintengine.MatchNone {
+		if (claim.Status == "PASS" || claim.Status == "BLOCKED" || claim.Status == constraintengine.StatusNotice) && rule.Scope.Transition.Match(from, to) == constraintengine.MatchNone {
 			return ErrIntegrity
 		}
 	}
 	for _, rule := range r.rules {
-		if rule.Scope.Component == r.component && rule.Scope.Transition.Match(from, to) != constraintengine.MatchNone {
-			r.judge(rule, eval, ref)
+		if rule.Scope.Component != r.component || rule.Scope.Transition.Match(from, to) == constraintengine.MatchNone {
+			continue
 		}
+		if rule.Notice {
+			r.notice(rule, eval, ref, true)
+			continue
+		}
+		r.judge(rule, eval, ref)
 	}
 	return nil
 }
@@ -625,4 +755,50 @@ func title(description string) string {
 		text = scanreport.Text("%s", text)
 	}
 	return text
+}
+
+// noticeExclusions are the reasons a notice rule does not apply: its
+// absence says nothing, so they give no entry.
+var noticeExclusions = map[string]bool{
+	"RULE_TRANSITION_NOT_REVIEWED":   true,
+	"RULE_SUBJECT_COMPONENT_MISSING": true,
+	"RULE_APPLICABILITY_NOT_MATCHED": true,
+}
+
+// notice records a one-way notice rule that applies to ref. It never adds a
+// gap, a finding, a pass or a hop reason.
+func (r *kubernetesRun) notice(rule cncfcheck.ScanRule, eval evaluation, ref scanreport.HopRef, covers bool) {
+	entry := scanreport.Notice{RuleID: rule.Scope.ID, Component: kubernetesSlug, Hop: ref, Text: rule.NextAction, Basis: "reviewed", Citations: []constraintengine.SourceEvidence{}}
+	claim, found := eval.claims[rule.Scope.ID]
+	if found {
+		entry.Basis = constraintengine.EffectiveBasis(claim.EvidenceBasis)
+		entry.Citations = append(entry.Citations, claim.Sources...)
+	}
+	switch {
+	case !covers:
+		entry.Reason = scanreport.ReasonIntermediateLineNotCovered
+	case !found:
+		return
+	case claim.Status == constraintengine.StatusNotice:
+		entry.Established = true
+	case noticeExclusions[claim.ReasonCode]:
+		return
+	default:
+		entry.Reason = claim.ReasonCode
+	}
+	for index := range r.report.Notices {
+		existing := &r.report.Notices[index]
+		if existing.RuleID == entry.RuleID && existing.Established == entry.Established && existing.Reason == entry.Reason {
+			if existing.Hop != ref {
+				for _, also := range existing.AlsoAt {
+					if also == ref {
+						return
+					}
+				}
+				existing.AlsoAt = append(existing.AlsoAt, ref)
+			}
+			return
+		}
+	}
+	r.report.Notices = append(r.report.Notices, entry)
 }

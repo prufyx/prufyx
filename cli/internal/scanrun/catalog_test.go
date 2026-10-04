@@ -10,24 +10,35 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
 
-// typedConstants returns the string values of every constant of the named
-// type declared in the files matched by pattern (test files excluded).
-func typedConstants(t *testing.T, pattern, typeName string) []string {
+// reasonConstant is one string constant of a reason type.
+type reasonConstant struct {
+	name, value, file string
+}
+
+// packageReasons returns every string constant of the named type declared
+// anywhere in the package directory (test files excluded), in either form:
+// `X Type = "..."` or `X = Type("...")`, plus every untyped string constant
+// whose name starts with "Reason" or "reason". It also returns, per file, the
+// identifiers the file uses.
+func packageReasons(t *testing.T, dir, typeName string) ([]reasonConstant, map[string]map[string]bool) {
 	t.Helper()
-	matches, err := filepath.Glob(pattern)
+	matches, err := filepath.Glob(filepath.Join(dir, "*.go"))
 	if err != nil || len(matches) == 0 {
-		t.Fatalf("no files for %s", pattern)
+		t.Fatalf("no files in %s", dir)
 	}
-	var values []string
+	var out []reasonConstant
+	uses := map[string]map[string]bool{}
 	for _, file := range matches {
 		if strings.HasSuffix(file, "_test.go") {
 			continue
@@ -36,6 +47,14 @@ func typedConstants(t *testing.T, pattern, typeName string) []string {
 		if err != nil {
 			t.Fatal(err)
 		}
+		used := map[string]bool{}
+		ast.Inspect(parsed, func(node ast.Node) bool {
+			if ident, ok := node.(*ast.Ident); ok {
+				used[ident.Name] = true
+			}
+			return true
+		})
+		uses[filepath.Base(file)] = used
 		for _, decl := range parsed.Decls {
 			gen, ok := decl.(*ast.GenDecl)
 			if !ok || gen.Tok != token.CONST {
@@ -43,28 +62,75 @@ func typedConstants(t *testing.T, pattern, typeName string) []string {
 			}
 			for _, spec := range gen.Specs {
 				value := spec.(*ast.ValueSpec)
-				ident, ok := value.Type.(*ast.Ident)
-				if !ok || ident.Name != typeName {
-					continue
+				typed := false
+				if ident, ok := value.Type.(*ast.Ident); ok && ident.Name == typeName {
+					typed = true
 				}
-				for _, v := range value.Values {
-					if literal, ok := v.(*ast.BasicLit); ok && literal.Kind == token.STRING {
-						text, _ := strconv.Unquote(literal.Value)
-						if text != "" {
-							values = append(values, text)
+				for index, v := range value.Values {
+					if index >= len(value.Names) {
+						break
+					}
+					name := value.Names[index].Name
+					var literal *ast.BasicLit
+					switch expr := v.(type) {
+					case *ast.BasicLit:
+						if typed || value.Type == nil && strings.HasPrefix(strings.ToLower(name), "reason") {
+							literal = expr
 						}
+					case *ast.CallExpr:
+						if fun, ok := expr.Fun.(*ast.Ident); ok && fun.Name == typeName && len(expr.Args) == 1 {
+							literal, _ = expr.Args[0].(*ast.BasicLit)
+						}
+					}
+					if literal == nil || literal.Kind != token.STRING {
+						continue
+					}
+					text, _ := strconv.Unquote(literal.Value)
+					if text != "" {
+						out = append(out, reasonConstant{name: name, value: text, file: filepath.Base(file)})
 					}
 				}
 			}
 		}
 	}
+	return out, uses
+}
+
+// typedConstants returns the reason values of a whole package.
+func typedConstants(t *testing.T, dir, typeName string) []string {
+	t.Helper()
+	constants, _ := packageReasons(t, dir, typeName)
+	var values []string
+	for _, constant := range constants {
+		values = append(values, constant.value)
+	}
 	return values
 }
 
-// engineReasons returns every RULE_* reason literal of the engine.
+// kubernetesPreparationReasons are the preparation reasons the Kubernetes
+// files declare or use, wherever in the package they are declared.
+func kubernetesPreparationReasons(t *testing.T) []string {
+	t.Helper()
+	constants, uses := packageReasons(t, filepath.Join("..", "cncfprepare"), "Reason")
+	var values []string
+	for _, constant := range constants {
+		reached := strings.HasPrefix(constant.file, "kubernetes")
+		for file, used := range uses {
+			reached = reached || strings.HasPrefix(file, "kubernetes") && used[constant.name]
+		}
+		if reached {
+			values = append(values, constant.value)
+		}
+	}
+	return values
+}
+
+// engineReasons returns every RULE_* reason literal of the engine and every
+// reason constant it declares.
 func engineReasons(t *testing.T) []string {
 	t.Helper()
-	matches, _ := filepath.Glob(filepath.Join("..", "constraintengine", "*.go"))
+	dir := filepath.Join("..", "constraintengine")
+	matches, _ := filepath.Glob(filepath.Join(dir, "*.go"))
 	pattern := regexp.MustCompile(`^RULE_[A-Z0-9_]+$`)
 	set := map[string]bool{}
 	for _, file := range matches {
@@ -83,6 +149,9 @@ func engineReasons(t *testing.T) []string {
 			}
 			return true
 		})
+	}
+	for _, value := range typedConstants(t, dir, "Reason") {
+		set[value] = true
 	}
 	var out []string
 	for reason := range set {
@@ -107,9 +176,9 @@ func TestGapCatalogComplete(t *testing.T) {
 			enumerated[value] = origin
 		}
 	}
-	add("preparation", typedConstants(t, filepath.Join("..", "cncfprepare", "kubernetes*.go"), "Reason"))
-	add("intake", typedConstants(t, filepath.Join("..", "intake", "manifest.go"), "Reason"))
-	add("planner", typedConstants(t, filepath.Join("..", "upgradepath", "upgradepath.go"), "Reason"))
+	add("preparation", kubernetesPreparationReasons(t))
+	add("intake", typedConstants(t, filepath.Join("..", "intake"), "Reason"))
+	add("planner", typedConstants(t, filepath.Join("..", "upgradepath"), "Reason"))
 	add("engine", engineReasons(t))
 	var ruleReasons []string
 	for _, raw := range packRules(t) {
@@ -134,7 +203,7 @@ func TestGapCatalogComplete(t *testing.T) {
 	for reason, origin := range enumerated {
 		outcome, found := reasonOutcomes[reason]
 		switch {
-		case !found && otherRouteReasons[reason]:
+		case !found && (otherRouteReasons[reason] || noticeReasons[reason]):
 		case !found:
 			t.Errorf("%s reason %s has no outcome", origin, reason)
 		case outcome.decided, outcome.declarations:
@@ -199,7 +268,7 @@ type schemaNode struct {
 
 func readSchema(t *testing.T) *schemaNode {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "..", "docs", "generated", "schemas", "scan-report-v1alpha1.json"))
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(testdata), "..", "..", "docs", "generated", "schemas", "scan-report-v1alpha1.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,6 +291,9 @@ func conform(t *testing.T, root, node *schemaNode, value any, at string) {
 			t.Fatalf("%s: unknown reference %s", at, node.Ref)
 		}
 		node = def
+	}
+	if node.Type != "" && !jsonType(value, node.Type) {
+		t.Errorf("%s: %v is not of type %s", at, value, node.Type)
 	}
 	if len(node.Enum) > 0 {
 		text, _ := value.(string)
@@ -261,6 +333,124 @@ func conform(t *testing.T, root, node *schemaNode, value any, at string) {
 			for index, item := range typed {
 				conform(t, root, node.Items, item, at+"["+strconv.Itoa(index)+"]")
 			}
+		}
+	}
+}
+
+func jsonType(value any, want string) bool {
+	switch want {
+	case "object":
+		_, ok := value.(map[string]any)
+		return ok
+	case "array":
+		_, ok := value.([]any)
+		return ok
+	case "string":
+		_, ok := value.(string)
+		return ok
+	case "boolean":
+		_, ok := value.(bool)
+		return ok
+	case "integer":
+		number, ok := value.(json.Number)
+		if !ok {
+			return false
+		}
+		_, err := number.Int64()
+		return err == nil
+	}
+	return false
+}
+
+// conformReport checks one report against the schema.
+func conformReport(t *testing.T, name string, report scanreport.Report) {
+	t.Helper()
+	schema := readSchema(t)
+	raw := jsonOf(t, report)
+	if _, err := scanreport.DecodeJSON(raw); err != nil {
+		t.Fatalf("%s: strict decode: %v", name, err)
+	}
+	var value any
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	if err := decoder.Decode(&value); err != nil {
+		t.Fatal(err)
+	}
+	conform(t, schema, schema, value, name)
+}
+
+// TestScanJSONSchemaRichReports: reports with every optional part (gaps,
+// omitted documents, notes, hop reasons, a path gap, notices, alsoAt,
+// extractor, redaction) conform to the schema.
+func TestScanJSONSchemaRichReports(t *testing.T) {
+	knowledge := newKnowledge(t, knowledgeOptions{lines: without(allLines, "1.28"), policy: "current", unchecked: true,
+		synthetic: []string{noticeRule("kubernetes.synthetic-notice.1-25-0-to-1-26-0", "1.25.0", "1.26.0", lineRange("1.25", "1.26", "1.27"), currentWindow)}})
+	dir, paths := files(t, map[string]string{"a.yaml": cronjobV1beta1, "chart.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: '{{ x }}'}\n"})
+	if err := os.Chmod(paths[0], 0o644); err != nil {
+		t.Fatal(err)
+	}
+	inDir(t, dir, func() {
+		rich := mustScan(t, knowledge, ".", "--now", testNow, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--to", "etcd=3.6.0", "--redact").Report
+		if len(rich.Gaps) < 3 || len(rich.Omitted) == 0 || len(rich.Notes) == 0 || len(rich.Notices) == 0 {
+			t.Fatalf("report is not rich: %+v", rich.Summary)
+		}
+		golden(t, "rich-unknown.json", jsonOf(t, rich))
+		conformReport(t, "rich", rich)
+		downgrade := mustScan(t, knowledge, "a.yaml", "--now", testNow, "--from", "kubernetes=1.30.4", "--to", "kubernetes=1.29.1").Report
+		conformReport(t, "downgrade", downgrade)
+	})
+	constructed := scanreport.Report{
+		Inventory: []scanreport.Component{{Name: "kubernetes", Component: kubernetesKey, Current: "1.24.17", CurrentSource: "flag", Target: "1.30.4", TargetSource: "file", Covered: true}},
+		Paths:     []scanreport.Path{{Component: "kubernetes", From: "1.24.17", To: "1.30.4", Policy: "sequential_minor", Hops: []scanreport.Hop{{Index: 1, From: scanreport.Endpoint{Version: "1.24.17"}, To: scanreport.Endpoint{Line: "1.25"}, Status: scanreport.HopBlocked, InputDigest: "sha256:" + strings.Repeat("a", 64), Attestation: &scanreport.Attestation{Line: "1.25", Family: "f", Basis: "reviewed", Freshness: "current", ValidUntil: "2026-12-20T00:00:00Z"}, Reasons: []string{"LINE_NOT_ATTESTED"}}}}},
+		Findings: []scanreport.Finding{{RuleID: "r", Component: "kubernetes", Hop: scanreport.HopRef{Index: 1, From: "1.24.17", To: "1.25"}, AlsoAt: []scanreport.HopRef{{From: "1.24.17", To: "1.30.4", WholeUpgrade: true}}, Title: "t", Fix: "f", Match: "range", Basis: "mechanical", Extractor: "x@1",
+			Locations: []scanreport.Location{{File: "a", Document: 0, Item: 2, Line: 3, Kind: "CronJob", Namespace: "n", Name: "c"}}, Citations: []constraintengine.SourceEvidence{{ID: "s", URL: "u", Revision: "r", ContentDigest: "d", StartLine: 1, EndLine: 2}}, RuleDigest: "d"}},
+		Notices:    []scanreport.Notice{{RuleID: "n", Component: "kubernetes", Hop: scanreport.HopRef{Index: 1, From: "1.24.17", To: "1.25"}, AlsoAt: []scanreport.HopRef{{Index: 2, From: "1.25", To: "1.26"}}, Established: false, Reason: "RULE_EVIDENCE_STALE", Text: "x", Basis: "reviewed", Citations: []constraintengine.SourceEvidence{}}},
+		Provenance: scanreport.Provenance{EvaluatedAt: testNow, InputDigest: "i", ConfigDigest: "c", KnowledgeOrigin: "embedded", KnowledgeRevision: "r", KnowledgeDigest: "k", EngineContractDigest: "e", Build: testBuild},
+	}
+	scanreport.Finalize(&constructed)
+	conformReport(t, "constructed", constructed)
+}
+
+// TestScanSchemaRequiredFields: every report field that is always present
+// in JSON (no omitempty) is required by the schema, and every optional one
+// is not.
+func TestScanSchemaRequiredFields(t *testing.T) {
+	schema := readSchema(t)
+	types := map[string]reflect.Type{
+		"": reflect.TypeOf(scanreport.Report{}), "summary": reflect.TypeOf(scanreport.Summary{}), "component": reflect.TypeOf(scanreport.Component{}),
+		"path": reflect.TypeOf(scanreport.Path{}), "hop": reflect.TypeOf(scanreport.Hop{}), "attestation": reflect.TypeOf(scanreport.Attestation{}),
+		"hopRef": reflect.TypeOf(scanreport.HopRef{}), "location": reflect.TypeOf(scanreport.Location{}), "finding": reflect.TypeOf(scanreport.Finding{}),
+		"gap": reflect.TypeOf(scanreport.Gap{}), "pass": reflect.TypeOf(scanreport.Pass{}), "notice": reflect.TypeOf(scanreport.Notice{}),
+		"omitted": reflect.TypeOf(scanreport.Omitted{}), "provenance": reflect.TypeOf(scanreport.Provenance{}), "endpoint": reflect.TypeOf(scanreport.Endpoint{}),
+		"citation": reflect.TypeOf(constraintengine.SourceEvidence{}), "build": reflect.TypeOf(testBuild),
+	}
+	for name, typ := range types {
+		node := schema
+		if name != "" {
+			node = schema.Defs[name]
+		}
+		if node == nil {
+			t.Fatalf("schema has no definition %s", name)
+		}
+		required := map[string]bool{}
+		for _, field := range node.Required {
+			required[field] = true
+		}
+		for index := 0; index < typ.NumField(); index++ {
+			tag := typ.Field(index).Tag.Get("json")
+			if tag == "" || tag == "-" {
+				continue
+			}
+			field, options, _ := strings.Cut(tag, ",")
+			if _, known := node.Properties[field]; !known {
+				t.Errorf("%s.%s is not in the schema", name, field)
+			}
+			if required[field] == strings.Contains(options, "omitempty") {
+				t.Errorf("%s.%s: required %t, omitempty %t", name, field, required[field], strings.Contains(options, "omitempty"))
+			}
+		}
+		if len(node.Properties) != typ.NumField() {
+			t.Errorf("%s: schema has %d properties, type %d fields", name, len(node.Properties), typ.NumField())
 		}
 	}
 }

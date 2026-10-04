@@ -55,6 +55,9 @@ type Report struct {
 	Findings  []Finding   `json:"findings"`
 	Gaps      []Gap       `json:"gaps"`
 	Passes    []Pass      `json:"passes"`
+	// Notices are one-way changes: informational, never part of the
+	// verdict, the headline, the exit code or any count but their own.
+	Notices []Notice `json:"notices"`
 	// Omitted lists every document or file that was seen but not
 	// evaluated, with the reason.
 	Omitted []Omitted `json:"omitted"`
@@ -75,6 +78,7 @@ type Summary struct {
 	Hops               int `json:"hops"`
 	DocumentsRead      int `json:"documentsRead"`
 	DocumentsOmitted   int `json:"documentsOmitted"`
+	Notices            int `json:"notices"`
 }
 
 // Component is one component named by a version declaration.
@@ -201,6 +205,22 @@ type Pass struct {
 	Hop       HopRef `json:"hop"`
 }
 
+// Notice is a one-way notice rule that applies to a hop: the reviewed
+// transition cannot be rolled back. Established is false when the notice
+// rule applies but could not be evaluated (Reason says why); the absence of a
+// notice never says that a rollback is possible.
+type Notice struct {
+	RuleID      string                            `json:"ruleId"`
+	Component   string                            `json:"component"`
+	Hop         HopRef                            `json:"hop"`
+	AlsoAt      []HopRef                          `json:"alsoAt,omitempty"`
+	Established bool                              `json:"established"`
+	Reason      string                            `json:"reason,omitempty"`
+	Text        string                            `json:"text"`
+	Basis       string                            `json:"basis"`
+	Citations   []constraintengine.SourceEvidence `json:"citations"`
+}
+
 // Omitted is one document or file that was seen and not evaluated.
 type Omitted struct {
 	File     string `json:"file"`
@@ -243,6 +263,7 @@ func Finalize(report *Report) {
 		report.Summary.Hops += len(path.Hops)
 	}
 	report.Summary.DocumentsOmitted = len(report.Omitted)
+	report.Summary.Notices = len(report.Notices)
 	report.Verdict = verdict(*report)
 	report.Headline = headline(*report)
 }
@@ -355,6 +376,23 @@ func sortReport(report *Report) {
 	}
 	if report.Passes == nil {
 		report.Passes = []Pass{}
+	}
+	for n := range report.Notices {
+		notice := &report.Notices[n]
+		sort.SliceStable(notice.AlsoAt, func(i, j int) bool { return notice.AlsoAt[i].order() < notice.AlsoAt[j].order() })
+	}
+	sort.SliceStable(report.Notices, func(i, j int) bool {
+		a, b := report.Notices[i], report.Notices[j]
+		if a.Component != b.Component {
+			return a.Component < b.Component
+		}
+		if a.Hop.order() != b.Hop.order() {
+			return a.Hop.order() < b.Hop.order()
+		}
+		return a.RuleID < b.RuleID
+	})
+	if report.Notices == nil {
+		report.Notices = []Notice{}
 	}
 	if report.Omitted == nil {
 		report.Omitted = []Omitted{}

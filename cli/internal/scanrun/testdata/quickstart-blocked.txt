@@ -5,6 +5,9 @@ kubernetes 1.24.17 -> 1.30.4: 6 hops (path policy sequential_minor)
                     applyset.yaml:1  CronJob default/nightly-report
                     fix: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 
+NOT CHECKED (1)
+  kubernetes   1 manifest(s) use API versions that the review of Kubernetes 1.30 does not list as served - check those API versions against the Kubernetes 1.30 API reference by hand
+
 Checked 6 hops, 2 documents, 1 component (1 covered). 10 checks passed (--show-passes).
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
 Evidence: every finding cites pinned upstream source (--verbose). No network used.
