@@ -6,5 +6,5 @@
    a: 1
 -  b: 2
  ---
+ apiVersion: v1
  kind: Pod
- data:

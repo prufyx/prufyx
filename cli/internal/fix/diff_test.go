@@ -131,6 +131,7 @@ func TestUnifiedDiffDeletions(t *testing.T) {
 		for _, edits := range [][]Edit{
 			{{StartByte: 1, EndByte: 5}},                             // not from a line start
 			{{StartByte: 0, EndByte: 6, Replacement: "x"}},           // replaces lines
+			{{StartByte: 0, EndByte: 6}},                             // ends inside a line
 			{{StartByte: 0, EndByte: 6}, {StartByte: 5, EndByte: 6}}, // overlap
 		} {
 			if _, err := UnifiedDiff("x.yaml", []byte("a: b\nc: d\n"), edits); ReasonOf(err) != ReasonInvalidEdit {

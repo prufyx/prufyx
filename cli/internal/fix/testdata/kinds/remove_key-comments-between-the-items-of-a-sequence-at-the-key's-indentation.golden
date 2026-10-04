@@ -1,0 +1,12 @@
+--- a/deploy/app.yaml
++++ b/deploy/app.yaml
+@@ -1,9 +1,2 @@
+-args:
+-- a
+-# between
+-- b
+-  # deeper
+-# last
+-- c
+ # next
+ next: 1

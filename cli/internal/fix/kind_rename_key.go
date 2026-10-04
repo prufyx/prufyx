@@ -53,7 +53,7 @@ func (renameKeyKind) PlanOperations(doc intake.Document, src []byte, parsed any)
 		return nil, nil
 	}
 	for other := range mapping {
-		if other != key && strings.EqualFold(other, p.NewKey) || other == p.NewKey {
+		if other != key && strings.EqualFold(other, p.NewKey) {
 			return nil, kindRefused("the new key is already used by a sibling key")
 		}
 	}

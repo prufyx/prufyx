@@ -369,6 +369,15 @@ func (f *parsedFile) removalSpan(document int, path Path, element bool) (Span, *
 	zeroSequence := !element && found.node.Kind == yaml.SequenceNode && found.node.Style&yaml.FlowStyle == 0 &&
 		len(found.node.Content) > 0 && found.node.Content[0].Line > found.key.Line &&
 		f.lineIndent(found.node.Content[0].Line-1) == indent
+	// Items of a sequence written at the key's own indentation may be
+	// separated by comment lines at that indentation: everything up to the
+	// last item belongs to the entry.
+	reach := -1
+	if zeroSequence {
+		for _, item := range found.node.Content {
+			reach = max(reach, item.Line-1)
+		}
+	}
 	last := lineIndex
 scan:
 	for i := lineIndex + 1; i < len(f.lineStarts); i++ {
@@ -382,7 +391,7 @@ scan:
 			return Span{}, refuse(ReasonSpanNotIsolated, "a tab is used for indentation")
 		}
 		switch {
-		case len(lead) > indent:
+		case len(lead) > indent, i <= reach:
 		case len(lead) == indent && zeroSequence && trimmed[0] == '-' && (len(trimmed) == 1 || trimmed[1] == ' '):
 		default:
 			break scan
@@ -428,7 +437,7 @@ scan:
 	// What follows the entry must be a new construct: a token on its own
 	// line, a document marker or the end of the file, not a stray piece of a
 	// value.
-	if r := f.checkEntryEnd(endLine); r != nil {
+	if r := f.checkEntryEnd(endLine, inside); r != nil {
 		return Span{}, r
 	}
 	for _, doc := range f.docs {
@@ -457,9 +466,10 @@ scan:
 }
 
 // checkEntryEnd requires the first line after the entry, past blank and
-// comment lines, to start a token of the document, to be a document marker,
-// or not to exist. next is the 0-based index of the line after the entry.
-func (f *parsedFile) checkEntryEnd(next int) *Refusal {
+// comment lines, to start a token of the document that is not part of the
+// entry, to be a document marker, or not to exist. next is the 0-based index
+// of the line after the entry.
+func (f *parsedFile) checkEntryEnd(next int, inside map[*yaml.Node]bool) *Refusal {
 	for i := next; i < len(f.lineStarts); i++ {
 		text := f.lineText(i)
 		trimmed := bytes.TrimLeft(text, " \t")
@@ -473,7 +483,7 @@ func (f *parsedFile) checkEntryEnd(next int) *Refusal {
 			var starts bool
 			var walk func(node *yaml.Node)
 			walk = func(node *yaml.Node) {
-				if node.Line == i+1 && !(node.Kind == yaml.ScalarNode && node.Value == "" && node.Style == 0) {
+				if node.Line == i+1 && !inside[node] && !(node.Kind == yaml.ScalarNode && node.Value == "" && node.Style == 0) {
 					starts = true
 				}
 				for _, child := range node.Content {

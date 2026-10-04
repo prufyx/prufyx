@@ -594,3 +594,93 @@ func TestApplyWritesRemovals(t *testing.T) {
 		t.Fatalf("%v %+v", err, again.Edits)
 	}
 }
+
+// Declared operations that are malformed, or whose edits are not on the token
+// they claim, are refused for their own reasons.
+func TestOperationEditsMustBeTokens(t *testing.T) {
+	src := opsSource
+	key, _ := at(t, src, "b: 2")
+	t.Run("empty declared paths", func(t *testing.T) {
+		for _, item := range []opItem{
+			{Op: "remove_key", Path: []any{}, Explicit: true, Start: 0, End: 5},
+			{Op: "remove_element", Path: []any{}, Explicit: true, Start: 0, End: 5},
+			{Op: "rename", Path: []any{}, NewKey: "k", Explicit: true, Start: 0, End: 3, Replacement: "k"},
+			{Op: "set", Path: []any{}, Scalar: json.RawMessage(`1`), Explicit: true, Start: 0, End: 3, Replacement: "1"},
+		} {
+			_, _, err := planOps(src, item)
+			wantReason(t, err, ReasonInvalidEdit)
+		}
+	})
+	t.Run("edits that start inside a token or cover part of one", func(t *testing.T) {
+		for _, item := range []opItem{
+			{Op: "rename", Path: []any{"top", "b"}, NewKey: "bee", Explicit: true, Start: key + 1, End: key + 1 + 1, Replacement: "e"},
+			{Op: "set", Path: []any{"top", "c"}, Scalar: json.RawMessage(`"x"`), Explicit: true, Start: strings.Index(src, "three") + 1, End: strings.Index(src, "three") + 3, Replacement: `"x"`},
+			{Op: "set", Path: []any{"top", "c"}, Scalar: json.RawMessage(`"x"`), Explicit: true, Start: strings.Index(src, "three"), End: strings.Index(src, "three") + 2, Replacement: `"x"`},
+			{Op: "set", Path: []any{"top", "c"}, Scalar: json.RawMessage(`"x"`), Explicit: true, Start: strings.Index(src, "  c:"), End: strings.Index(src, "three") + 5, Replacement: `"x"`},
+		} {
+			_, _, err := planOps(src, item)
+			wantReason(t, err, ReasonSpanNotIsolated)
+		}
+	})
+	t.Run("plain spellings that other YAML readers take for something else", func(t *testing.T) {
+		for _, text := range []string{"on", "off", "yes", "No", "y", "~", "NULL", "True", "1_000", "0x10", "0b11", "012", "1e3", "2001-01-02", "1:30"} {
+			_, _, err := planOps(src, opItem{Op: "set", Path: []any{"top", "c"}, Scalar: json.RawMessage(`"` + text + `"`), Replacement: text})
+			wantReason(t, err, ReasonInvalidEdit)
+			_, _, err = planOps(src, opItem{Op: "rename", Path: []any{"top", "c"}, NewKey: text, Replacement: text})
+			wantReason(t, err, ReasonInvalidEdit)
+			// Quoted, the same text is fine.
+			if _, after, err := planOps(src, opItem{Op: "set", Path: []any{"top", "c"}, Scalar: json.RawMessage(`"` + text + `"`), Replacement: `"` + text + `"`}); err != nil || !strings.Contains(after, `c: "`+text+`"`) {
+				t.Fatalf("%s: %v %q", text, err, after)
+			}
+		}
+		// true, false and null are the same for both readings.
+		for scalar, text := range map[string]string{"true": "true", "false": "false", "null": "null"} {
+			if _, _, err := planOps(src, opItem{Op: "set", Path: []any{"top", "c"}, Scalar: json.RawMessage(scalar), Replacement: text}); err != nil {
+				t.Fatalf("%s: %v", scalar, err)
+			}
+		}
+	})
+	t.Run("two operations with the same edit are not merged", func(t *testing.T) {
+		_, _, err := planOps(src,
+			opItem{Op: "remove_key", Path: []any{"top", "b"}},
+			opItem{Op: "remove_key", Path: []any{"top", "c"}, Explicit: true, Start: strings.Index(src, "  b: 2\n"), End: strings.Index(src, "  b: 2\n") + len("  b: 2\n")})
+		wantReason(t, err, ReasonConflictingEdits)
+	})
+	t.Run("a plain edit and an operation with the same edit are not merged", func(t *testing.T) {
+		_, err := Plan(display, []byte(src), []Request{
+			setRequest("key", "", "bee", "top", "b"),
+			opsRequest(opItem{Op: "rename", Path: []any{"top", "b"}, NewKey: "bee", Replacement: "bee"}),
+		}, Options{})
+		wantReason(t, err, ReasonConflictingEdits)
+	})
+	t.Run("renames at two depths", func(t *testing.T) {
+		_, after, err := planOps(src,
+			opItem{Op: "rename", Path: []any{"top", "a"}, NewKey: "aa", Replacement: "aa"},
+			opItem{Op: "rename", Path: []any{"top"}, NewKey: "TOP", Replacement: "TOP"})
+		if err != nil || !strings.HasPrefix(after, "TOP:\n  aa: 1\n") {
+			t.Fatalf("%v %q", err, after)
+		}
+	})
+}
+
+// opsMutateKind writes into the source bytes it is given from PlanOperations.
+type opsMutateKind struct{}
+
+func init() { Register(opsMutateKind{}) }
+
+func (opsMutateKind) ID() string                                        { return "test_ops_mutate" }
+func (opsMutateKind) Validate(Params) (any, error)                      { return nil, nil }
+func (opsMutateKind) Plan(intake.Document, []byte, any) ([]Edit, error) { return nil, nil }
+func (opsMutateKind) PlanOperations(_ intake.Document, src []byte, _ any) ([]Planned, error) {
+	src[0] ^= 0x20
+	return nil, nil
+}
+
+func TestPlanOperationsGetsACopyOfTheSource(t *testing.T) {
+	src := []byte("a: 1\nb: 2\n")
+	_, err := Plan(display, src, []Request{{Kind: "test_ops_mutate"}}, Options{})
+	wantReason(t, err, ReasonKindRefused)
+	if string(src) != "a: 1\nb: 2\n" {
+		t.Fatal("the caller's bytes were changed")
+	}
+}

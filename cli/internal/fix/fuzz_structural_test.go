@@ -164,7 +164,17 @@ func FuzzRemovalSpan(f *testing.F) {
 						t.Fatalf("empty first line in %q", src[span.Start:span.End])
 					}
 					if i > 0 && len(trimmed) > 0 && indent(line) <= base && !(trimmed[0] == '-' && indent(line) == base) {
-						t.Fatalf("line %q is not part of the entry %+v in %q", line, path, src)
+						// A comment between items of a sequence at the key's
+						// indentation is inside the entry when another item follows.
+						followed := false
+						for _, later := range lines[i+1:] {
+							if lt := bytes.TrimSpace(later); len(lt) > 0 && lt[0] == '-' && indent(later) == base {
+								followed = true
+							}
+						}
+						if !(trimmed[0] == '#' && indent(line) == base && followed) {
+							t.Fatalf("line %q is not part of the entry %+v in %q", line, path, src)
+						}
 					}
 				}
 				if last := bytes.TrimSpace(lines[len(lines)-1]); len(last) == 0 {
