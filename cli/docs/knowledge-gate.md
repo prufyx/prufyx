@@ -422,10 +422,16 @@ file it writes is accepted for that base and head until it is 14 days old (or
 the key's `notAfter`, if earlier).
 
 The web-approval key is an Ed25519 private key in PKCS #8 PEM form. Keep it
-outside any checkout, for example in a password manager. To create one:
+outside any checkout, for example in a password manager. Creating one needs
+OpenSSL 3.x (`openssl version` prints `OpenSSL 3.…`). On macOS,
+`/usr/bin/openssl` is LibreSSL, which cannot generate Ed25519 keys
+("Algorithm ed25519 not found"); use OpenSSL 3 from Homebrew
+(`brew install openssl@3`, then `"$(brew --prefix openssl@3)/bin/openssl"` in
+place of `openssl` below), or any Linux system with OpenSSL 3. To create one:
 
 ```sh
 umask 077
+openssl version   # must print OpenSSL 3.x
 openssl genpkey -algorithm ed25519 -out "$HOME/web-approval-key.pem"
 prufyx-maintainer approval public-key --key "$HOME/web-approval-key.pem"
 # {"keyId":"sha256:…","publicKey":"…"}
@@ -458,14 +464,14 @@ prufyx-maintainer approval sign \
 | Option | Meaning |
 | --- | --- |
 | `--pack` | `cncf` or `community` |
-| `--rule` | the rule id; the proposed pack must hold it exactly once with evidence basis `reviewed`, and it must differ from the base entry |
+| `--rule` | the rule id; the proposed pack must hold it exactly once with evidence basis `reviewed`, and the change to it must be one the gate classifies as loosening (a change that only withdraws the rule or moves its `validUntil` earlier needs no approval and is refused) |
 | `--base-pack`, `--head-pack` | the pack file on the base branch and as proposed; a rule the base does not hold gets `baseDigest` `absent` |
 | `--keys`, `--keys-digest` | the base branch's `web-approval-keys.json` and the digest pinned for it; the file must match the digest |
 | `--identity` | the owner's login; it must be one of the key file's `owners` |
 | `--candidate-id` | a reference for the change, such as its pull request (letters, digits, `.`, `_`, `:`, `-`) |
 | `--key FILE` | the private key file: a regular file owned by you with no group or other permission (mode `0600` or `0400`), not a symbolic link, with no symbolic link in its path and only one hard link |
-| `--key-stdin` | read the private key from standard input instead; standard input must be a pipe, not a terminal |
-| `--output` | the approval file to create; an existing file or link there is never replaced |
+| `--key-stdin` | read the private key from standard input instead; standard input must be a pipe (a terminal, another device or a redirected file is refused; give a file with `--key`) |
+| `--output` | the approval file to create; its path must end in `<pack>/<rule id>.json` (the gate reads `cli/knowledge/approvals/<pack>/<rule id>.json`); an existing file or link there is never replaced, no directory in the path may be a symbolic link, missing directories are created, and the file gets mode `0644` |
 | `--subject` | what the approval is for; only `rule` (the default) |
 
 `decidedAt` is the current time. The key may end with line breaks and nothing
@@ -486,7 +492,8 @@ prufyx-maintainer approval verify \
   --keys /path/to/base-keys.json --keys-digest sha256:…
 ```
 
-`--now RFC3339` (UTC, `Z`) checks at another time. Exit codes for `approval`:
+`--now RFC3339` (UTC, `Z`) checks at another time. `--help` on `approval` or
+any of its commands prints the usage and exits `0`. Exit codes for `approval`:
 `0` signed, or the approval is accepted; `1` (`verify` only) the approval is
 refused, with the reason; `2` rejected input or a refused signing. Nothing
 uses the network.
