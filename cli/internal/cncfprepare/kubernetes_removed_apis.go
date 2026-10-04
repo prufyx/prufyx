@@ -234,7 +234,26 @@ func prepareKubernetesRemovedAPIs(read func() (kubernetesApplySet, error), sourc
 		return Prepared{}, nil, ErrInvalid
 	}
 	if set.reason != "" {
-		return prepare(unsupported(), StateUnknown, set.reason, nil)
+		if !complete || set.readablePaginated {
+			return prepare(unsupported(), StateUnknown, set.reason, nil)
+		}
+		// Some documents could not be read or placed. The documents that
+		// were read still prove a removed version present: that fact is
+		// declared true. They never prove one absent, so every other fact
+		// stays unsupported and the set stays UNKNOWN for its own reason.
+		facts := make([]inputFact, 0, len(removals))
+		sources := map[string][]intake.Source{}
+		for _, removal := range removals {
+			present, unreviewed, matched := classifyKubernetesRemoval(set.readable, removal)
+			if present && !unreviewed {
+				v := true
+				facts = append(facts, inputFact{ID: removal.Fact, State: "declared", BoolValue: &v})
+				sources[removal.Fact] = matched
+				continue
+			}
+			facts = append(facts, inputFact{ID: removal.Fact, State: "unsupported"})
+		}
+		return prepare(facts, StateUnknown, set.reason, sources)
 	}
 	if !complete {
 		return prepare(unsupported(), StateUnknown, ReasonKubernetesScopeIncomplete, nil)
@@ -314,6 +333,12 @@ type kubernetesApplySet struct {
 	documents []kubernetesDocument
 	paginated bool
 	reason    Reason
+	// readable are, for an unresolved set only, the documents that were
+	// read and placed as Kubernetes objects, and readablePaginated whether
+	// one of their lists is paginated. They can show that an object is
+	// present, never that one is absent.
+	readable          []kubernetesDocument
+	readablePaginated bool
 }
 
 // kubernetesApplySetFromBytes reads the caller's apply set through the shared
@@ -330,31 +355,44 @@ func kubernetesApplySetFromBytes(raw []byte) (kubernetesApplySet, error) {
 // kubernetesApplySetOf resolves decoded documents into an apply set. Anything
 // the decoder could not place as a Kubernetes object (template syntax, a
 // nested list, a document that is not Kubernetes shaped, invalid list
-// metadata) leaves the set unresolved.
+// metadata) leaves the set unresolved. An unresolved set keeps the documents
+// that were placed in readable.
 func kubernetesApplySetOf(workspace intake.Workspace) kubernetesApplySet {
+	var reason Reason
 	for _, omission := range workspace.Omissions {
 		if omission.Reason == intake.ReasonTemplated || omission.Reason == intake.ReasonUnparseable {
-			return kubernetesApplySet{reason: ReasonKubernetesTemplated}
+			reason = ReasonKubernetesTemplated
+			break
 		}
 	}
-	if len(workspace.Omissions) > 0 || len(workspace.Documents) == 0 {
-		return kubernetesApplySet{reason: ReasonKubernetesUnresolved}
+	if reason == "" && (len(workspace.Omissions) > 0 || len(workspace.Documents) == 0) {
+		reason = ReasonKubernetesUnresolved
 	}
-	set := kubernetesApplySet{documents: make([]kubernetesDocument, 0, len(workspace.Documents))}
+	placed := make([]kubernetesDocument, 0, len(workspace.Documents))
+	paginated := false
 	for _, document := range workspace.Documents {
 		if _, _, ok := kubernetesGVK(document.Value); !ok {
-			return kubernetesApplySet{reason: ReasonKubernetesUnresolved}
+			if reason == "" {
+				reason = ReasonKubernetesUnresolved
+			}
+			continue
 		}
 		if document.Source.Item >= 0 {
 			listPaginated, metadataOK := kubernetesListPagination(map[string]any{"metadata": document.ListMetadata})
 			if !metadataOK {
-				return kubernetesApplySet{reason: ReasonKubernetesUnresolved}
+				if reason == "" {
+					reason = ReasonKubernetesUnresolved
+				}
+				continue
 			}
-			set.paginated = set.paginated || listPaginated
+			paginated = paginated || listPaginated
 		}
-		set.documents = append(set.documents, kubernetesDocument{value: document.Value, source: document.Source})
+		placed = append(placed, kubernetesDocument{value: document.Value, source: document.Source})
 	}
-	return set
+	if reason != "" {
+		return kubernetesApplySet{reason: reason, readable: placed, readablePaginated: paginated}
+	}
+	return kubernetesApplySet{documents: placed, paginated: paginated}
 }
 
 // kubernetesApplySetDocuments is kubernetesApplySetFromBytes in its original

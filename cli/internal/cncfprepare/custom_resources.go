@@ -90,8 +90,11 @@ func CustomResourceVersionsFact(project string) (string, bool) {
 //     members found are declared with complete=false: a forbidden member
 //     still blocks, and nothing passes.
 //   - An apply set that cannot be resolved (templates, unparseable or
-//     omitted documents, no document, an object of a non-List kind with a
-//     top-level items array) declares no set: the fact is unsupported.
+//     omitted documents, no document) declares only the members of the
+//     documents that were read, with complete=false, so a forbidden member
+//     still blocks; with no such member the fact is unsupported. An object
+//     of a non-List kind with a top-level items array makes the fact
+//     unsupported.
 func PrepareCustomResourceVersions(workspace intake.Workspace, project, from, to string, complete bool) (CustomResourceScan, error) {
 	return prepareCustomResourceVersions(customresources.DefaultIndex(), workspace, project, from, to, complete)
 }
@@ -137,23 +140,25 @@ func prepareCustomResourceVersions(index customresources.Index, workspace intake
 		return finish(inputFact{ID: p.FactID(), State: "unsupported"}, StateUnknown, reason)
 	}
 	set := kubernetesApplySetOf(workspace)
+	documents := set.documents
+	var unresolved Reason
 	switch set.reason {
 	case "":
 	case ReasonKubernetesTemplated:
-		return unsupported(ReasonCustomResourcesRendering)
+		unresolved, documents = ReasonCustomResourcesRendering, set.readable
 	default:
-		return unsupported(ReasonCustomResourcesUnresolved)
+		unresolved, documents = ReasonCustomResourcesUnresolved, set.readable
 	}
 	// An object of any kind with a top-level items array may be read as a
 	// list by the API machinery; only List kinds are flattened, so its
 	// items would never be seen. Such a set cannot be read.
-	for _, document := range set.documents {
+	for _, document := range documents {
 		if _, isList := document.value["items"].([]any); isList {
 			return unsupported(ReasonCustomResourcesUnresolved)
 		}
 	}
 	invalid := false
-	for _, document := range set.documents {
+	for _, document := range documents {
 		api, kind, _ := kubernetesGVK(document.value)
 		group := customresources.GroupOf(api)
 		if customresources.KubernetesGroup(group) {
@@ -182,6 +187,17 @@ func prepareCustomResourceVersions(index customresources.Index, workspace intake
 		members = append(members, member)
 	}
 	sort.Strings(members)
+	if unresolved != "" {
+		if len(members) == 0 {
+			scan.Unattributed = nil
+			return unsupported(unresolved)
+		}
+		// Some documents could not be read or placed. The members of the
+		// documents that were read form a set that is never complete: a
+		// forbidden member present still decides, and nothing is taken as
+		// absent.
+		return finish(setFact(p.FactID(), members, false), StateUnknown, unresolved)
+	}
 	reason := ReasonCustomResourcesComplete
 	switch {
 	case !complete:

@@ -62,6 +62,13 @@ func prepareKubernetesFlowControl(read func() (kubernetesApplySet, error), sourc
 		fact = inputFact{ID: KubernetesFlowControlFact, State: "declared", BoolValue: &v}
 		state = StatePrepared
 	}
+	if inspected.PresentOnly {
+		// The set is unresolved, but a document that was read is at the
+		// removed version: the fact is true and the set stays UNKNOWN.
+		v := true
+		fact = inputFact{ID: KubernetesFlowControlFact, State: "declared", BoolValue: &v}
+		sources = map[string][]intake.Source{KubernetesFlowControlFact: inspected.Matched}
+	}
 	prepared, err := kubernetesPrepared(sourceDigest, from, to, fact, state, reason)
 	if err != nil {
 		return Prepared{}, nil, err
@@ -74,21 +81,54 @@ func prepareKubernetesFlowControl(read func() (kubernetesApplySet, error), sourc
 // outside this adapter's one-level reviewed set contract.
 type kubernetesInspection struct {
 	Removed, Complete, Paginated bool
-	Reason                       Reason
+	// PresentOnly is set when the apply set is unresolved but a document
+	// that was read is at the removed version. Reason is then the reason
+	// the set is unresolved.
+	PresentOnly bool
+	Reason      Reason
 	// Matched lists the documents at the removed version.
 	Matched []intake.Source
 }
 
 func inspectKubernetesFlowControl(set kubernetesApplySet, complete bool) kubernetesInspection {
 	if set.reason != "" {
+		// The documents that were read can only show the removed version
+		// present; they never show it absent.
+		if complete && !set.readablePaginated {
+			if removed, matched, reason := classifyKubernetesFlowControl(set.readable); reason == "" && removed {
+				return kubernetesInspection{Removed: true, PresentOnly: true, Reason: set.reason, Matched: matched}
+			}
+		}
 		return kubernetesInspection{Reason: set.reason}
 	}
+	removed, matched, reason := classifyKubernetesFlowControl(set.documents)
+	if reason != "" {
+		return kubernetesInspection{Reason: reason}
+	}
+	result := kubernetesInspection{Removed: removed, Complete: complete, Paginated: set.paginated, Matched: matched}
+	switch {
+	case !complete:
+		result.Reason = ReasonKubernetesScopeIncomplete
+	case set.paginated:
+		result.Reason = ReasonKubernetesPagination
+	case removed:
+		result.Reason = ReasonKubernetesRemovedWitness
+	default:
+		result.Reason = ReasonKubernetesSelectedSetClear
+	}
+	return result
+}
+
+// classifyKubernetesFlowControl reports whether a document is at the removed
+// flow-control version and which ones are. A non-empty reason means the
+// documents cannot establish the fact either way.
+func classifyKubernetesFlowControl(documents []kubernetesDocument) (bool, []intake.Source, Reason) {
 	removed := false
 	var matched []intake.Source
-	for _, document := range set.documents {
+	for _, document := range documents {
 		api, kind, ok := kubernetesGVK(document.value)
 		if !ok {
-			return kubernetesInspection{Reason: ReasonKubernetesUnresolved}
+			return false, nil, ReasonKubernetesUnresolved
 		}
 		if kind != "FlowSchema" && kind != "PriorityLevelConfiguration" {
 			continue
@@ -105,21 +145,10 @@ func inspectKubernetesFlowControl(set kubernetesApplySet, complete bool) kuberne
 		if api != "flowcontrol.apiserver.k8s.io/v1" {
 			// The two reviewed served GVKs are v1beta3 and v1. A group/kind
 			// match with another version cannot establish either predicate.
-			return kubernetesInspection{Reason: ReasonKubernetesUnreviewed}
+			return false, nil, ReasonKubernetesUnreviewed
 		}
 	}
-	result := kubernetesInspection{Removed: removed, Complete: complete, Paginated: set.paginated, Matched: matched}
-	switch {
-	case !complete:
-		result.Reason = ReasonKubernetesScopeIncomplete
-	case set.paginated:
-		result.Reason = ReasonKubernetesPagination
-	case removed:
-		result.Reason = ReasonKubernetesRemovedWitness
-	default:
-		result.Reason = ReasonKubernetesSelectedSetClear
-	}
-	return result
+	return removed, matched, ""
 }
 
 func kubernetesGVK(value map[string]any) (string, string, bool) {
