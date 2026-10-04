@@ -140,7 +140,7 @@ func (b bundle) corpusComponents() ([]string, error) {
 		if json.Unmarshal(entry.Rule, &shape) != nil || shape.Subject.Component == "" {
 			return nil, ErrIntegrity
 		}
-		notice, err := isNoticeRule(entry.Rule)
+		notice, err := isVerdictNeutralRule(entry.Rule)
 		if err != nil {
 			return nil, ErrIntegrity
 		}

@@ -549,7 +549,7 @@ func (b bundle) selectForInput(project string, raw []byte) (selection, error) {
 		}
 		if subject.Match(current[subject.Component], proposed[subject.Component]) != constraintengine.MatchNone {
 			matched = append(matched, entry.Rule)
-			notice, err := isNoticeRule(entry.Rule)
+			notice, err := isVerdictNeutralRule(entry.Rule)
 			if err != nil {
 				return selection{}, ErrIntegrity
 			}
@@ -600,9 +600,9 @@ func (b bundle) projectRules(project string) []json.RawMessage {
 	return rules
 }
 
-// isNoticeRule reports whether one raw rule is verdict-neutral: a one-way
+// isVerdictNeutralRule reports whether one raw rule is verdict-neutral: a one-way
 // notice or a lead.
-func isNoticeRule(raw json.RawMessage) (bool, error) {
+func isVerdictNeutralRule(raw json.RawMessage) (bool, error) {
 	return constraintengine.RawRuleVerdictNeutral(raw)
 }
 
@@ -661,7 +661,7 @@ func (b bundle) selectFamily(project string, facts []string, raw []byte) (select
 		}
 		if subject.Match(current[subject.Component], proposed[subject.Component]) != constraintengine.MatchNone {
 			matched = append(matched, entry.Rule)
-			notice, err := isNoticeRule(entry.Rule)
+			notice, err := isVerdictNeutralRule(entry.Rule)
 			if err != nil {
 				return selection{}, ErrIntegrity
 			}
