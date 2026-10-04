@@ -265,3 +265,29 @@ func servedGroupVersions(src []byte) ([]string, error) {
 	sort.Strings(out)
 	return out, nil
 }
+
+// ContextReader returns a reader whose every call fails once ctx ends, so
+// a deadline bounds the reads of a verification and of the inventories it
+// builds, not only the steps between them.
+func ContextReader(ctx context.Context, r extract.PinnedReader) extract.PinnedReader {
+	return ctxReader{ctx: ctx, inner: r}
+}
+
+type ctxReader struct {
+	ctx   context.Context
+	inner extract.PinnedReader
+}
+
+func (c ctxReader) Read(repo extract.RepoRef, commit, path string) ([]byte, error) {
+	if err := c.ctx.Err(); err != nil {
+		return nil, err
+	}
+	return c.inner.Read(repo, commit, path)
+}
+
+func (c ctxReader) List(repo extract.RepoRef, commit, dir string) ([]extract.TreeEntry, error) {
+	if err := c.ctx.Err(); err != nil {
+		return nil, err
+	}
+	return c.inner.List(repo, commit, dir)
+}

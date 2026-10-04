@@ -328,6 +328,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 
 	var mechanical []*Change
 	consensusChecks := &consensusRun{}
+	defer consensusChecks.close()
 	for _, c := range cls.Changes {
 		if c.Class == ClassTightening {
 			c.OK, c.Proof = true, ProofNoneRequired

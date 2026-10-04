@@ -45,8 +45,9 @@ const (
 	// MaxConsensusBundles is how many claims bundles one run verifies;
 	// further bundles are reported as not run.
 	MaxConsensusBundles = 20
-	// ConsensusTimeout bounds the verification of one bundle.
-	ConsensusTimeout = 2 * time.Minute
+	// ConsensusBudget bounds the verification of all bundles of one run
+	// together; every upstream read honours it.
+	ConsensusBudget = 10 * time.Minute
 )
 
 // consensusRun is the consensus verifier's state for one gate run: one
@@ -54,6 +55,16 @@ const (
 type consensusRun struct {
 	inventories *consensus.ExtractorInventories
 	bundles     int
+	ctx         context.Context
+	cancel      context.CancelFunc
+	reader      extract.PinnedReader
+}
+
+// close releases the run's deadline.
+func (r *consensusRun) close() {
+	if r.cancel != nil {
+		r.cancel()
+	}
 }
 
 // report re-runs the consensus verifier, with the code this gate was built
@@ -93,19 +104,19 @@ func (r *consensusRun) report(ctx context.Context, c *Change, opts Options) {
 		v.Error = "no upstream source"
 		return
 	}
-	if r.inventories == nil {
-		r.inventories = &consensus.ExtractorInventories{Reader: opts.Source, Concurrency: opts.Concurrency}
+	if r.ctx == nil {
+		r.ctx, r.cancel = context.WithTimeout(ctx, ConsensusBudget)
+		r.reader = consensus.ContextReader(r.ctx, opts.Source)
+		r.inventories = &consensus.ExtractorInventories{Reader: r.reader, Concurrency: opts.Concurrency}
 	}
-	in := consensus.Inputs{Reader: opts.Source, Tags: opts.Source, Inventory: r.inventories}
+	in := consensus.Inputs{Reader: r.reader, Tags: opts.Source, Inventory: r.inventories}
 	switch src := opts.Source.(type) {
 	case extract.FixtureReader:
 		in.History = consensus.FixtureHistory{Root: src.Root}
 	case consensus.History:
 		in.History = src
 	}
-	ctx, cancel := context.WithTimeout(ctx, ConsensusTimeout)
-	defer cancel()
-	rep, err := consensus.Verify(ctx, bundle, in)
+	rep, err := consensus.Verify(r.ctx, bundle, in)
 	if err != nil {
 		v.Error = err.Error()
 		return

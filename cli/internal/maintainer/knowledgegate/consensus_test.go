@@ -5,12 +5,14 @@ package knowledgegate
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/consensus"
 	"github.com/prufyx/prufyx/cli/internal/extract"
@@ -182,12 +184,22 @@ func TestGateConsensusBounds(t *testing.T) {
 			t.Fatalf("bundle over the cap: %+v", c.Consensus)
 		}
 	}
-	// A cancelled run reports an error rather than a verdict.
+	run.close()
+	// A cancelled run reports an error rather than a verdict, and its
+	// reads stop: the budget is shared by every bundle of the run.
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	c := &Change{Pack: "cncf", RuleID: "rule-0"}
-	(&consensusRun{}).report(ctx, c, Options{Layout: layout, Head: head, Source: src})
+	cancelled := &consensusRun{}
+	defer cancelled.close()
+	cancelled.report(ctx, c, Options{Layout: layout, Head: head, Source: src})
 	if c.Consensus.Error == "" || c.OK {
 		t.Fatalf("cancelled: %+v", c.Consensus)
+	}
+	if _, err := cancelled.reader.Read(extract.RepoRef{Key: consensus.KubernetesRepo}, consensusTo, consensusPath); !errors.Is(err, context.Canceled) {
+		t.Fatalf("read after the budget: %v", err)
+	}
+	if ConsensusBudget > 10*time.Minute {
+		t.Fatalf("budget %v", ConsensusBudget)
 	}
 }
