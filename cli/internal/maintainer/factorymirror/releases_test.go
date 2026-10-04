@@ -239,7 +239,7 @@ func (g *ghFake) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("ETag", etag)
 	if page < len(g.pages) {
-		w.Header().Set("Link", `<`+g.srv.URL+`/repos/acme/widget/releases?per_page=100&page=`+strconv.Itoa(page+1)+`>; rel="next"`)
+		w.Header().Set("Link", `<`+g.srv.URL+`/repos/acme/widget/releases?per_page=20&page=`+strconv.Itoa(page+1)+`>; rel="next"`)
 	}
 	_, _ = w.Write(body)
 }
@@ -260,7 +260,7 @@ func TestGitHubReleasesPaginatesAndRevalidatesEveryPage(t *testing.T) {
 	if err != nil || len(res.Items) != 4 || res.Truncated || res.NotModified || res.Items[0].Tag != "v9" || !res.Items[2].Prerelease {
 		t.Fatalf("%+v %v", res, err)
 	}
-	if got := len(strings.Split(res.ETag, "\n")); got != 3 {
+	if got := len(strings.Split(res.ETag, "\n")); got != 4 { // layout line + 3 validators
 		t.Fatalf("ETag must cover all 3 pages: %q", res.ETag)
 	}
 	for _, a := range fake.auth {
@@ -297,15 +297,15 @@ func TestGitHubReleasesPaginatesAndRevalidatesEveryPage(t *testing.T) {
 	// A page that disappears (releases deleted) is noticed as well.
 	fake.set([][]map[string]any{{rel(9, "v9", false), rel(8, "v8", false)}, {rel(7, "v7", true)}})
 	shrunk, err := c.List(context.Background(), repo, changed.ETag)
-	if err != nil || shrunk.NotModified || len(shrunk.Items) != 3 || len(strings.Split(shrunk.ETag, "\n")) != 2 {
+	if err != nil || shrunk.NotModified || len(shrunk.Items) != 3 || len(strings.Split(shrunk.ETag, "\n")) != 3 {
 		t.Fatalf("%+v %v", shrunk, err)
 	}
 }
 
 func TestGitHubReleasesPageBoundAndCompleteScan(t *testing.T) {
 	var pages [][]map[string]any
-	for i := 0; i < 25; i++ {
-		pages = append(pages, []map[string]any{rel(100-i, "v"+strconv.Itoa(i), false)})
+	for i := 0; i < DefaultReleasePages+5; i++ {
+		pages = append(pages, []map[string]any{rel(1000-i, "v"+strconv.Itoa(i), false)})
 	}
 	fake := newGHFake(t, pages)
 	repo := mustRepo(t, "acme/widget")
@@ -319,7 +319,7 @@ func TestGitHubReleasesPageBoundAndCompleteScan(t *testing.T) {
 		t.Fatalf("explicit bound: %+v", res)
 	}
 	full := GitHubReleases{Tokens: StaticToken("t"), BaseURL: fake.srv.URL, MaxPages: 2, CompleteScan: true}
-	if res, err = full.List(context.Background(), repo, ""); err != nil || res.Truncated || len(res.Items) != 25 {
+	if res, err = full.List(context.Background(), repo, ""); err != nil || res.Truncated || len(res.Items) != DefaultReleasePages+5 {
 		t.Fatalf("complete scan: truncated=%v items=%d err=%v", res.Truncated, len(res.Items), err)
 	}
 }

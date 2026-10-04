@@ -268,7 +268,8 @@ type GitHubReleases struct {
 	// BaseURL defaults to the public API; tests point it at a local server.
 	BaseURL string
 	Client  *http.Client
-	// MaxPages bounds pagination (100 releases per page); default 20. A
+	// MaxPages bounds pagination (ReleasesPerPage releases per page);
+	// default DefaultReleasePages. A
 	// listing cut short by the bound is marked Truncated and must not be
 	// used to derive release lines.
 	MaxPages int
@@ -278,18 +279,32 @@ type GitHubReleases struct {
 }
 
 const (
+	// maxReleasePageBytes bounds one response page. Release notes make a
+	// page large: at per_page=100 real pages reach 16.5 MB (dapr), which
+	// this bound rejected, leaving the repository's releases unknown. At
+	// ReleasesPerPage a page is a fifth of that, well inside the bound, and
+	// the bound itself stays at 8 MiB.
 	maxReleasePageBytes = 8 << 20
-	// DefaultReleasePages is the default page bound (100 releases per page).
-	DefaultReleasePages = 20
+	// ReleasesPerPage is the page size requested from the releases API.
+	ReleasesPerPage = 20
+	// DefaultReleasePages is the default page bound: 100 pages of
+	// ReleasesPerPage releases, i.e. the 2000 newest releases.
+	DefaultReleasePages = 100
 	// absoluteMaxReleasePages bounds even a complete scan.
-	absoluteMaxReleasePages = 1000
+	absoluteMaxReleasePages = 5000
+	// etagLayout tags the validator string with the page size it was made
+	// for, so validators from another page size are never replayed.
+	etagLayout = "per_page=" + "20" // keep in step with ReleasesPerPage
 )
 
+// splitETags returns the per-page validators of an ETag string written by
+// List. A string made for another page size yields none.
 func splitETags(etag string) []string {
-	if etag == "" {
+	lines := strings.Split(etag, "\n")
+	if len(lines) < 2 || lines[0] != etagLayout {
 		return nil
 	}
-	return strings.Split(etag, "\n")
+	return lines[1:]
 }
 
 // List implements ReleaseClient. Only github.com repositories are supported.
@@ -317,7 +332,7 @@ func (g GitHubReleases) List(ctx context.Context, repo Repo, etag string) (Relea
 		return ReleaseResult{}, err
 	}
 	pageURL := func(n int) string {
-		return base + "/repos/" + url.PathEscape(repo.Owner) + "/" + url.PathEscape(repo.Name) + "/releases?per_page=100&page=" + strconv.Itoa(n)
+		return base + "/repos/" + url.PathEscape(repo.Owner) + "/" + url.PathEscape(repo.Name) + "/releases?per_page=" + strconv.Itoa(ReleasesPerPage) + "&page=" + strconv.Itoa(n)
 	}
 
 	// Revalidate every page we saw last time; only when all of them are
@@ -346,6 +361,7 @@ func (g GitHubReleases) List(ctx context.Context, repo Repo, etag string) (Relea
 	var result ReleaseResult
 	var etags []string
 	missingValidator := false
+	seen := map[int64]bool{}
 	next := pageURL(1)
 	for page := 1; next != ""; page++ {
 		resp, err := g.fetchPage(ctx, client, base, next, token, "")
@@ -371,6 +387,12 @@ func (g GitHubReleases) List(ctx context.Context, repo Repo, etag string) (Relea
 			return ReleaseResult{}, errors.New("github releases: malformed response")
 		}
 		for _, r := range raw {
+			// A release listed again because the list shifted between two
+			// page requests is kept once.
+			if seen[r.ID] {
+				continue
+			}
+			seen[r.ID] = true
 			result.Items = append(result.Items, Release{ID: r.ID, Tag: r.TagName, Name: r.Name, Draft: r.Draft, Prerelease: r.Prerelease, TargetCommitish: r.TargetCommitish, CreatedAt: r.CreatedAt, PublishedAt: r.PublishedAt})
 		}
 		next = nextLink(resp.header.Get("Link"))
@@ -380,7 +402,7 @@ func (g GitHubReleases) List(ctx context.Context, repo Repo, etag string) (Relea
 		}
 	}
 	if !missingValidator {
-		result.ETag = strings.Join(etags, "\n")
+		result.ETag = etagLayout + "\n" + strings.Join(etags, "\n")
 	}
 	return result, nil
 }
