@@ -378,6 +378,10 @@ func validateExternalPack(base bundle, packValue rulePack, revision string) erro
 	if len(packValue.PathPolicies) > 0 {
 		return ErrIntegrity
 	}
+	// Nor distribution records.
+	if len(packValue.Distributions) > 0 {
+		return ErrIntegrity
+	}
 	// Nor one-way notices: an external pack holding one is refused.
 	rules := make([]json.RawMessage, 0, len(packValue.Entries))
 	for _, entry := range packValue.Entries {

@@ -17,9 +17,10 @@ const PackMember = "lineAttestations"
 
 // PackMembers are the exact top-level member names of a rule pack. The pack
 // loader's document type must name exactly these (a test pins it).
-// "pathPolicies" is the upgrade-path policy section (upgradepath.PackMember;
-// spelled out here because that package builds on this one).
-var PackMembers = []string{"schema", "revision", "policyId", "policyDigest", "landscapeFileDigest", "registryDigest", "entries", PackMember, "pathPolicies"}
+// "pathPolicies" is the upgrade-path policy section (upgradepath.PackMember)
+// and "distributions" the distribution section (distribution.PackMember);
+// both are spelled out here because those packages build on this one.
+var PackMembers = []string{"schema", "revision", "policyId", "policyDigest", "landscapeFileDigest", "registryDigest", "entries", PackMember, "pathPolicies", "distributions"}
 
 // PackSection reads the top level of a rule pack and returns its raw
 // attestation section; present is false when the pack has none. It is the

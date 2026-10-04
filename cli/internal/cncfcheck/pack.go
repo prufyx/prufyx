@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/distribution"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
@@ -87,6 +88,10 @@ type rulePack struct {
 	// PathPolicies is the optional upgrade-path policy section, under the
 	// same rule: a pack that carries it uses the path-policy pack schema.
 	PathPolicies json.RawMessage `json:"pathPolicies,omitempty"`
+	// Distributions is the optional distribution section (identity
+	// records and rule-family applicability), under the same rule: a pack
+	// that carries it uses the distribution pack schema.
+	Distributions json.RawMessage `json:"distributions,omitempty"`
 }
 
 type bundle struct {
@@ -98,6 +103,7 @@ type bundle struct {
 	catalogueDigest string
 	attestations    lineattest.Index
 	pathPolicies    upgradepath.Index
+	distributions   distribution.Index
 	// policy is the caller's trust policy. It is applied in exactly one
 	// place, admit, through which every rule document a check evaluates
 	// reaches the engine.
@@ -213,6 +219,9 @@ func assemble(landscapeRaw, priorityRaw, packRaw []byte, factDefinitions []const
 	if result.pathPolicies, err = admitPathPolicies(policySection, hasPolicies, result.landscape.Projects); err != nil {
 		return bundle{}, err
 	}
+	if result.distributions, err = admitDistributions(packRaw, result.pack.Distributions); err != nil {
+		return bundle{}, err
+	}
 	return result, nil
 }
 
@@ -272,6 +281,9 @@ const (
 	// packSchemaSeverity is the level of a pack holding a rule with a
 	// severity (a support-range rule).
 	packSchemaSeverity = "prufyx.io/cncf-source-rule-pack/v1alpha8"
+	// packSchemaDistributions is the level of a pack holding a distribution
+	// section.
+	packSchemaDistributions = "prufyx.io/cncf-source-rule-pack/v1alpha9"
 )
 
 // packFeature is one pack feature and the schema that introduced it.
@@ -295,6 +307,7 @@ var packFeatureLevels = []packFeature{
 	{packSchemaSeverity, func(_ rulePack, rules []json.RawMessage) (bool, error) {
 		return constraintengine.AnySeverityRule(rules)
 	}},
+	{packSchemaDistributions, func(pack rulePack, _ []json.RawMessage) (bool, error) { return len(pack.Distributions) > 0, nil }},
 }
 
 // requiredPackSchema is the schema of the highest-level feature the pack
