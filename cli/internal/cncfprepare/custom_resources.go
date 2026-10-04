@@ -79,15 +79,19 @@ func CustomResourceVersionsFact(project string) (string, bool) {
 // the complete apply set the caller declares (complete) or a part of it.
 //
 //   - An object is attributed to the project only when the reviewed table
-//     lists its API group for that project and no other.
+//     lists its API group for that project and no other. Attribution is by
+//     group, not kind: an object of another component that shares the group
+//     (an Argo Rollout in argoproj.io) joins the owning project's set, which
+//     is harmless while rules name only that project's kinds; see the
+//     customresources table on shared groups.
 //   - The set is declared complete only when complete is declared, no list
 //     is paginated, every object of a custom-resource group is attributed to
 //     exactly one project and every member is representable. Otherwise the
 //     members found are declared with complete=false: a forbidden member
 //     still blocks, and nothing passes.
 //   - An apply set that cannot be resolved (templates, unparseable or
-//     omitted documents, no document) declares no set: the fact is
-//     unsupported.
+//     omitted documents, no document, an object of a non-List kind with a
+//     top-level items array) declares no set: the fact is unsupported.
 func PrepareCustomResourceVersions(workspace intake.Workspace, project, from, to string, complete bool) (CustomResourceScan, error) {
 	return prepareCustomResourceVersions(customresources.DefaultIndex(), workspace, project, from, to, complete)
 }
@@ -139,6 +143,14 @@ func prepareCustomResourceVersions(index customresources.Index, workspace intake
 		return unsupported(ReasonCustomResourcesRendering)
 	default:
 		return unsupported(ReasonCustomResourcesUnresolved)
+	}
+	// An object of any kind with a top-level items array may be read as a
+	// list by the API machinery; only List kinds are flattened, so its
+	// items would never be seen. Such a set cannot be read.
+	for _, document := range set.documents {
+		if _, isList := document.value["items"].([]any); isList {
+			return unsupported(ReasonCustomResourcesUnresolved)
+		}
 	}
 	invalid := false
 	for _, document := range set.documents {

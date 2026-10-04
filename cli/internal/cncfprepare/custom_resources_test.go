@@ -164,6 +164,32 @@ func TestCustomResourceVersionsAmbiguousGroup(t *testing.T) {
 	}
 }
 
+// argoproj.io is listed for argo-cd only (the catalog project is the whole
+// Argo project): objects of other Argo components join argo-cd's set by
+// group. If a second project ever listed the group, it would become
+// ambiguous and these objects would join no set (see the table's note).
+func TestCustomResourceVersionsSharedArgoGroup(t *testing.T) {
+	application := crObject("argoproj.io/v1alpha1", "Application", "app")
+	rollout := crObject("argoproj.io/v1alpha1", "Rollout", "web")
+	scan := prepareCR(t, crDocs(application, rollout), "argo-cd", true)
+	f := crFact(t, scan.Prepared)
+	if !f.SetValue.Complete || !reflect.DeepEqual(f.SetValue.Members, []string{"argoproj.io/v1alpha1/Application", "argoproj.io/v1alpha1/Rollout"}) {
+		t.Fatalf("argo-cd fact %+v", f)
+	}
+	if owner, attribution := customresources.DefaultIndex().Owner("argoproj.io"); attribution != customresources.Owned || owner != "argo-cd" {
+		t.Fatalf("argoproj.io: %q %v", owner, attribution)
+	}
+	shared := customresources.Projects()
+	shared = append(shared, customresources.Project{Slug: "argo-workflows", FactProject: "argo_workflows", Component: "pkg:github/argoproj/argo-workflows", Groups: []customresources.Group{{Name: "argoproj.io"}}})
+	ambiguous, err := prepareCustomResourceVersions(customresources.NewIndex(shared), crWorkspace(t, crDocs(application)), "argo-cd", "2.14.0", "3.0.0", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f := crFact(t, ambiguous.Prepared); f.SetValue.Complete || len(f.SetValue.Members) != 0 || len(ambiguous.Unattributed) != 1 {
+		t.Fatalf("shared argoproj.io: %+v", f)
+	}
+}
+
 func TestCustomResourceVersionsPaginatedList(t *testing.T) {
 	list := `{"apiVersion":"v1","kind":"List","metadata":{"continue":"next"},"items":[{"apiVersion":"kafka.strimzi.io/v1","kind":"Kafka","metadata":{"name":"a","namespace":"k"}}]}`
 	scan := prepareCR(t, []byte(list), "strimzi", true)
@@ -178,10 +204,12 @@ func TestCustomResourceVersionsUnresolvedSet(t *testing.T) {
 		raw    []byte
 		reason Reason
 	}{
-		"templated":  {crDocs(kafkaV1beta2, "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ .Values.name }}\n"), ReasonCustomResourcesRendering},
-		"values":     {crDocs(kafkaV1beta2, "replicas: 3\nimage: x\n"), ReasonCustomResourcesUnresolved},
-		"bad kind":   {crDocs(kafkaV1beta2, "apiVersion: v1\nkind: configMap\nmetadata:\n  name: x\n"), ReasonCustomResourcesUnresolved},
-		"empty file": {[]byte("# nothing\n"), ReasonCustomResourcesUnresolved},
+		"templated":                {crDocs(kafkaV1beta2, "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ .Values.name }}\n"), ReasonCustomResourcesRendering},
+		"values":                   {crDocs(kafkaV1beta2, "replicas: 3\nimage: x\n"), ReasonCustomResourcesUnresolved},
+		"bad kind":                 {crDocs(kafkaV1beta2, "apiVersion: v1\nkind: configMap\nmetadata:\n  name: x\n"), ReasonCustomResourcesUnresolved},
+		"empty file":               {[]byte("# nothing\n"), ReasonCustomResourcesUnresolved},
+		"items under another kind": {crDocs(kafkaV1, "apiVersion: kafka.strimzi.io/v1\nkind: Kafkalist\nmetadata:\n  name: l\nitems:\n- apiVersion: kafka.strimzi.io/v1beta2\n  kind: Kafka\n  metadata:\n    name: hidden\n"), ReasonCustomResourcesUnresolved},
+		"empty items array":        {crDocs(kafkaV1, "apiVersion: example.io/v1\nkind: Bag\nmetadata:\n  name: b\nitems: []\n"), ReasonCustomResourcesUnresolved},
 	} {
 		t.Run(name, func(t *testing.T) {
 			scan := prepareCR(t, tc.raw, "strimzi", true)

@@ -54,6 +54,17 @@ func FactID(factProject string) string {
 // table is the reviewed table, ordered by slug. Every source is the
 // manifest whose spec.group line names the group, at the commit the
 // extractor's paths were checked at.
+//
+// Shared groups: argoproj.io is defined upstream by Argo CD and by Argo
+// Workflows, Rollouts and Events. The catalog project argo-cd is the whole
+// Argo project, so the group is listed once, for argo-cd, and objects of the
+// other Argo components (a Rollout, a Workflow) join argo-cd's set. That is
+// harmless while rules name only Argo CD's own kinds. Listing argoproj.io for
+// a second project would make it ambiguous: every argoproj.io object would
+// then join no set and keep every set incomplete, so a removed Argo CD
+// version would no longer block (a missed blocker, never a false pass).
+// Before a second project shares a group, attribution must move to
+// (group, kind), with kinds taken from the extractor inventory.
 var table = []Project{
 	{
 		Slug: "argo-cd", FactProject: "argo_cd", Component: "pkg:github/argoproj/argo-cd",
