@@ -64,8 +64,10 @@ establish runtime behavior.
 | TiKV backup endpoint, TiKV Project Authors (copyright 2019) | [`components/backup/src/endpoint.rs` at `3f446cfa9eb1d5c653031d261e185911495d0359`](https://github.com/tikv/tikv/blob/3f446cfa9eb1d5c653031d261e185911495d0359/components/backup/src/endpoint.rs), SHA-256 `c111331404f6e8af7fc9b80426d1f989473741c93009f2202488113897f3db46` | Apache-2.0; [license](LICENSES/Source-TiKV-Apache-2.0.txt) |
 | *TiKV Configuration File*, PingCAP and contributors to the PingCAP docs repository; no file-level author is stated | [`tikv-configuration-file.md` at `8d85871d64efa8bcad2d3c3c4c7edc2f4f3045be`](https://github.com/pingcap/docs/blob/8d85871d64efa8bcad2d3c3c4c7edc2f4f3045be/tikv-configuration-file.md), SHA-256 `9b3e8421658de1e93f6d2fa8833688c0bdbd3a02545262e221c9794ca0cca021` | CC BY-SA 3.0 Unported; [license](LICENSES/Source-PingCAP-docs-CC-BY-SA-3.0.txt) |
 
-The Apache-2.0 grant for first-party Prufyx material at the top of this file is
-separate from these upstream works and does not relicense the PingCAP document.
+The AGPL-3.0-only grant for first-party Prufyx source and the CC BY-SA 4.0
+grant for first-party knowledge data, both stated at the top of this file, are
+separate from these upstream works and do not relicense them, including the
+PingCAP document.
 
 ## Modified upstream test fixtures
 
@@ -79,6 +81,21 @@ do not establish runtime behavior.
 | Retained material and attribution | Immutable source identity | Upstream terms included with the Community source |
 | --- | --- | --- |
 | Strimzi CustomResourceDefinition manifests (`040-Crd-kafka.yaml` to `049-Crd-kafkarebalance.yaml`, ten files per commit), Strimzi authors; modified (schema bodies replaced) | [`install/cluster-operator` at `54081abf97d0e5e524de773b88343756934db1a8`](https://github.com/strimzi/strimzi-kafka-operator/tree/54081abf97d0e5e524de773b88343756934db1a8/install/cluster-operator) (0.51.0) and [at `4836c7dd74ce973f06d97936916ed7f20c1a2ff0`](https://github.com/strimzi/strimzi-kafka-operator/tree/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator) (1.0.0), in `cli/internal/extract/crdversions/testdata/strimzi` | Apache-2.0; [license](LICENSES/Source-Strimzi-Apache-2.0.txt) |
+
+The `k8s.served-api-removal` and `k8s.feature-gate-removal` extractors' tests
+include trimmed copies of Kubernetes source files at synthetic fixture commit
+identifiers. Each Go file keeps its upstream license header ("Copyright The
+Kubernetes Authors", with the upstream year). The fixture directories'
+`PROVENANCE.txt` files list, for every file, the upstream release tag, the
+upstream commit and the SHA-256 of the whole upstream file. Files marked
+"verbatim" there are unchanged; every other file was cut down (see the
+modifications column) and is therefore a modified copy. The copies serve only
+as test input and do not establish runtime behavior.
+
+| Retained material and attribution | Immutable source identity | Upstream terms included with the Community source |
+| --- | --- | --- |
+| Kubernetes API registration and lifecycle files (`zz_generated.prerelease-lifecycle.go` verbatim; each `register.go` trimmed to its license header, package clause and `GroupName` constant) and `api/openapi-spec/swagger.json` reduced to the `x-kubernetes-group-version-kind` entries of the autoscaling, batch, policy, flowcontrol, authentication, apiextensions and apiregistration groups, The Kubernetes Authors; modified (trimmed), in `cli/internal/extract/k8sservedapis/testdata/fixture/github.com/kubernetes/kubernetes` | [`kubernetes/kubernetes`](https://github.com/kubernetes/kubernetes) at v1.24.0 `4ce5a8954017644c5420bae81d72b09b735c21f0`, v1.25.0 `a866cbe2e5bbaa01cfd5e969aa3e033f3282a8a2`, v1.30.0 `7c48c2bd72b9bf5c44d21d7338cc7bea77d0ad2a`, v1.31.0 `9edcffcde5595e8a5b1a35f88c421764e575afce`, v1.32.0 `70d3cc986aa8221cd1dfb1121852688902d3bf53`, v1.33.0 `60a317eadfcb839692a68eab88b2096f4d708f4f`; per-file upstream SHA-256 values in `cli/internal/extract/k8sservedapis/testdata/fixture/PROVENANCE.txt` | Apache-2.0; [license](LICENSES/Source-Kubernetes-Apache-2.0.txt) |
+| Kubernetes feature-gate definitions (`kube_features.go`, `feature_gate.go`, `known_features.go` and the feature-list YAML files), The Kubernetes Authors; modified (each cut down to a few feature gates and formatted with gofmt) unless `PROVENANCE.txt` marks the file verbatim, in `cli/internal/extract/k8sfeaturegates/testdata/fixture/github.com/kubernetes/kubernetes` | [`kubernetes/kubernetes`](https://github.com/kubernetes/kubernetes) at v1.22.0 `c2b5237ccd9c0f1d600d3072634ca66cefdf272f`, v1.23.0 `ab69524f795c42094a6630298ff53f3c3ebab7f4`, v1.31.0 `9edcffcde5595e8a5b1a35f88c421764e575afce`, v1.32.0 `70d3cc986aa8221cd1dfb1121852688902d3bf53`, v1.36.0 `ecf6decece6a6de25a57aad9ba90b6ce580f6f78`, v1.37.0 `f54c212e3a2f75d674b717a9b29052b20b60aefc`; per-file upstream SHA-256 values in `cli/internal/extract/k8sfeaturegates/testdata/fixture/PROVENANCE.txt` | Apache-2.0; [license](LICENSES/Source-Kubernetes-Apache-2.0.txt) |
 
 ## Go 1.26.8 notices included with binaries
 
