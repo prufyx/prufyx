@@ -15,7 +15,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   pages of 20 (default 100). `evidence repin` chooses the latest release or
   tag with one rule shared by the HTTP and mirror sources (highest strict
   version among non-draft, non-pre-release releases; strict-version tags only
-  for the tags fallback), documented in `cli/docs/evidence-repin.md`.
+  for the tags fallback; other or mixed tag prefixes, or a non-strict newest
+  release, leave the repository pending instead of choosing), documented in `cli/docs/evidence-repin.md`.
 - The knowledge gate's default daily loosening limit is 50 (was 400). The
   repository variable `KNOWLEDGE_MAX_DAILY_LOOSENING` still raises it.
 - The CLA workflow no longer prints commit author e-mail addresses in its

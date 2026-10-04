@@ -165,7 +165,7 @@ func Select(releases []Release) Result {
 			continue
 		}
 		prefs = append(prefs, v.Prefix)
-		if !have || higher(v, bestV) || (v == bestV && r.Tag < best.Tag) {
+		if !have || higher(v, bestV) {
 			best, bestV, have = r, v, true
 		}
 	}
@@ -199,7 +199,7 @@ func SelectTag(tags []string) (string, Outcome, string) {
 			continue
 		}
 		prefs = append(prefs, v.Prefix)
-		if !have || higher(v, bestV) || (v == bestV && t < best) {
+		if !have || higher(v, bestV) {
 			best, bestV, have = t, v, true
 		}
 	}
