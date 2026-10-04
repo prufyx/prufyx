@@ -228,7 +228,7 @@ func TestReviewRecordNewPrepareSignVerify(t *testing.T) {
 		}
 	}
 	if err := run(f.newArgs(f.sampled, filepath.Join(f.dir, f.sampled+".json"), "--rule", f.sampled), &stdout, &stderr); exitCode(err) != 2 {
-		t.Fatalf("duplicate flag: %v", err)
+		t.Fatalf("duplicate flag (refused by the command dispatcher): %v", err)
 	}
 	for _, bad := range []string{f.at.Add(5 * time.Minute).In(time.FixedZone("x", 3600)).Format(time.RFC3339), "2026-11-24", "relative/path"} {
 		args := f.newArgs(f.sampled, filepath.Join(f.dir, f.sampled+".json"))

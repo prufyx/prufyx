@@ -50,7 +50,7 @@ func runReviewRecordNew(args []string, stdout, stderr io.Writer) error {
 		}
 		return rejected()
 	}
-	if flags.NArg() != 0 || duplicateFlag(args) || statementPath == "" || rulesPath == "" || worklistPath == "" || ruleID == "" || reviewer == "" || decidedAtFlag == "" || output == "" || !filepath.IsAbs(output) {
+	if flags.NArg() != 0 || statementPath == "" || rulesPath == "" || worklistPath == "" || ruleID == "" || reviewer == "" || decidedAtFlag == "" || output == "" || !filepath.IsAbs(output) {
 		return rejected()
 	}
 	if packName != evidencereattest.PackCNCF && packName != evidencereattest.PackCommunity {
@@ -104,32 +104,4 @@ func runReviewRecordNew(args []string, stdout, stderr io.Writer) error {
 	}
 	fmt.Fprintf(stdout, "review-record new: rule=%s recordDigest=%s\n", ruleID, sourcecorpus.SHA(record))
 	return nil
-}
-
-// duplicateFlag reports whether any flag is given more than once.
-func duplicateFlag(args []string) bool {
-	seen := map[string]bool{}
-	for _, arg := range args {
-		if len(arg) < 2 || arg[0] != '-' || arg == "--" {
-			continue
-		}
-		name := arg[1:]
-		if name[0] == '-' {
-			name = name[1:]
-		}
-		for i := 0; i < len(name); i++ {
-			if name[i] == '=' {
-				name = name[:i]
-				break
-			}
-		}
-		if name == "" {
-			continue
-		}
-		if seen[name] {
-			return true
-		}
-		seen[name] = true
-	}
-	return false
 }

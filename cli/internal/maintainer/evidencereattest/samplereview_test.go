@@ -595,3 +595,47 @@ func TestNewSampleReviewRefusesAutomatedStatementsAndRecords(t *testing.T) {
 		t.Fatalf("automated statement: %v", err)
 	}
 }
+
+// ParseSampleReview on its own refuses records whose shape is wrong even
+// where a later binding comparison would also catch them.
+func TestParseSampleReviewRefusesMalformedRecords(t *testing.T) {
+	s := newSampleFlow(t)
+	raw, err := NewSampleReview(s.options(s.sampled()[0]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ParseSampleReview(raw); err != nil {
+		t.Fatalf("control: %v", err)
+	}
+	for name, edit := range map[string]func(*SampleReviewRecord){
+		"schema":             func(r *SampleReviewRecord) { r.Schema = "prufyx.io/declared-knowledge-review-record/v1" },
+		"limitation dropped": func(r *SampleReviewRecord) { r.Limitations = r.Limitations[:2] },
+		"limitation added":   func(r *SampleReviewRecord) { r.Limitations = append(r.Limitations, "x") },
+		"no limitations":     func(r *SampleReviewRecord) { r.Limitations = nil },
+		"digest shape":       func(r *SampleReviewRecord) { r.Bindings.CitationsDigest = "sha256:" + strings.Repeat("A", 64) },
+		"digest empty":       func(r *SampleReviewRecord) { r.Bindings.WorklistDigest = "" },
+		"pack":               func(r *SampleReviewRecord) { r.Subject.Pack = "other" },
+		"revision empty":     func(r *SampleReviewRecord) { r.Subject.PriorRevision = "" },
+		"project empty":      func(r *SampleReviewRecord) { r.Subject.Project = "" },
+		"rule empty":         func(r *SampleReviewRecord) { r.Subject.RuleID = "" },
+		"rule is a record id": func(r *SampleReviewRecord) {
+			r.Subject.RuleID = evidencerepin.PathPolicyRecordID("pkg:github/kubernetes/kubernetes")
+		},
+		"decidedAt offset": func(r *SampleReviewRecord) { r.Decision.DecidedAt = "2026-10-06T13:00:00+01:00" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			record, err := ParseSampleReview(raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			edit(&record)
+			out, err := canonicalBytes(record)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := ParseSampleReview(append(out, '\n')); err == nil {
+				t.Fatal("ParseSampleReview accepted a malformed record")
+			}
+		})
+	}
+}
