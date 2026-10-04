@@ -113,6 +113,7 @@ func TestSeverityStructure(t *testing.T) {
 		"other severity value":              ruleDocumentJSON(RulesSchemaSeverity, nil, strings.Replace(support, `"severity":"unsupported"`, `"severity":"blocking"`, 1)),
 		"severity in another case":          ruleDocumentJSON(RulesSchemaSeverity, nil, strings.Replace(support, `"severity":"unsupported"`, `"severity":"Unsupported"`, 1)),
 		"empty severity":                    ruleDocumentJSON(RulesSchemaSeverity, nil, strings.Replace(support, `"severity":"unsupported"`, `"severity":""`, 1)),
+		"empty severity, exact schema":      ruleDocumentJSON(RulesSchema, nil, strings.Replace(support, `"severity":"unsupported"`, `"severity":""`, 1)),
 		"numeric severity":                  ruleDocumentJSON(RulesSchemaSeverity, nil, strings.Replace(support, `"severity":"unsupported"`, `"severity":1`, 1)),
 		"null severity":                     ruleDocumentJSON(RulesSchemaSeverity, nil, strings.Replace(support, `"severity":"unsupported"`, `"severity":null`, 1)),
 		"severity key alias":                ruleDocumentJSON(RulesSchemaSeverity, nil, strings.Replace(support, `"severity":"unsupported"`, `"Severity":"unsupported"`, 1)),
@@ -563,6 +564,12 @@ func TestUnsupportedIntegrity(t *testing.T) {
 		if _, err := Replay(scopedSupportInput(t, "2.0.0", false), rules, testNow(t), raw); err == nil {
 			t.Fatal("replay accepted a relabelled UNSUPPORTED claim")
 		}
+	}
+	// Without scope, a severity claim is never BLOCKED.
+	plainBlocked := clone(evaluateSealed(t, supportInput(t, false, "1.5.0"), parseSeverity(t, nil, supportRule("rule-a-support", "active", activeUntil, ""))))
+	plainBlocked.Claims[0].Status = "BLOCKED"
+	if _, err := MarshalReport(reseal(plainBlocked)); err == nil {
+		t.Fatal("BLOCKED severity claim accepted without scope")
 	}
 	// Without scope, an UNSUPPORTED claim is still bound to the contract.
 	plain := evaluateSealed(t, supportInput(t, false, "1.5.0"), parseSeverity(t, nil, supportRule("rule-a-support", "active", activeUntil, "")))
