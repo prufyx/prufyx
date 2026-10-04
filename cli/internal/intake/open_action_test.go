@@ -13,6 +13,7 @@ func TestOmissionOpenAction(t *testing.T) {
 	}{
 		"if left open":              {"apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata: {x: \"{{- if .Values.on }}\"}\n", true},
 		"end of an earlier action":  {"apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata: {x: \"{{- end }}\"}\n", true},
+		"end before a new action":   {"apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata: {x: \"{{ end }}{{ if .a }}\"}\n", true},
 		"else alone":                {"apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata: {x: \"{{ else }}\"}\n", true},
 		"range in a block scalar":   {"apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata:\n  x: |\n    {{- range .Values.jobs }}\n", true},
 		"with in a key":             {"apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata: {\"{{ with .x }}\": y}\n", true},

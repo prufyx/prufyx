@@ -439,6 +439,10 @@ func TestScanWitnessMustBeRenderedUnconditionally(t *testing.T) {
 			"Chart.yaml":                           "apiVersion: v2\nname: app\nversion: 1.0.0\ndependencies:\n- name: legacy\n  version: 1.0.0\n  tags: [old]\n",
 			"charts/legacy/templates/cronjob.yaml": cron,
 		}, false},
+		"aliased subchart": {map[string]string{
+			"Chart.yaml":                           "apiVersion: v2\nname: app\nversion: 1.0.0\ndependencies:\n- name: legacy\n  version: 1.0.0\n  alias: old\n",
+			"charts/legacy/templates/cronjob.yaml": cron,
+		}, false},
 		"subchart not listed": {map[string]string{
 			"Chart.yaml":                           "apiVersion: v2\nname: app\nversion: 1.0.0\n",
 			"charts/legacy/templates/cronjob.yaml": cron,
