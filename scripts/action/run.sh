@@ -17,10 +17,11 @@ here="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)"
 . "$here/lib.sh"
 
 temp="${RUNNER_TEMP:?RUNNER_TEMP is not set}"
-bin="${PRUFYX_BIN:-$temp/prufyx-action/bin/prufyx}"
-outdir="$temp/prufyx-action/out"
-rm -rf "$outdir"
-mkdir -p "$outdir"
+bin="$temp/prufyx-action/bin/prufyx"
+# One directory per invocation, so a second use of the action in the same job
+# does not delete the first one's report.
+mkdir -p "$temp/prufyx-action"
+outdir="$(mktemp -d "$temp/prufyx-action/out.XXXXXX")"
 chmod 700 "$outdir"
 
 one_line() { # one_line NAME VALUE: no newline or control characters
@@ -125,11 +126,12 @@ fi
 
 # fail-on: "none", or a comma separated list of blocked and unknown.
 one_line fail-on "$in_failon"
+# "unknown" means unknown or worse, so it also fails on BLOCKED.
 fail_blocked=0; fail_unknown=0
 case "$in_failon" in
   none) ;;
   blocked) fail_blocked=1 ;;
-  unknown) fail_unknown=1 ;;
+  unknown) fail_blocked=1; fail_unknown=1 ;;
   blocked,unknown | unknown,blocked) fail_blocked=1; fail_unknown=1 ;;
   *) die "input 'fail-on' must be none, blocked, unknown or blocked,unknown" ;;
 esac
@@ -143,10 +145,11 @@ set +e
 "$bin" scan "${args[@]}" --format "$in_format" >"$report" 2>"$errfile"
 code=$?
 set -e
-# Standard error is the tool's own text; strip control characters before it
-# reaches the log so it cannot form a workflow command.
+# Standard error is the tool's own text and can carry file names from the
+# repository (including names with newlines), so it is printed only inside a
+# stop-commands block.
 if [ -s "$errfile" ]; then
-  LC_ALL=C tr -d '\000-\010\013-\037\177' <"$errfile" | sed 's/^::/ ::/' >&2
+  emit_untrusted <"$errfile" >&2
 fi
 
 case "$code" in
@@ -195,6 +198,9 @@ case "$code" in
   10) echo "Prufyx: BLOCKED."
       if [ "$fail_blocked" = 1 ]; then die "prufyx found problems that must be fixed (exit 10)"; fi ;;
   11) echo "Prufyx: no blockers found in covered checks, some areas were not checked."
+      if [ "$fail_unknown" != 1 ]; then
+        printf '::warning title=Prufyx::%s\n' "Not every area was checked (exit 11). The report names what was not checked."
+      fi
       if [ "$fail_unknown" = 1 ]; then die "prufyx could not decide everything (exit 11)"; fi ;;
   3) die "prufyx knowledge integrity failure (exit 3); nothing was checked" ;;
   2) die "prufyx did not accept the inputs (exit 2); see the message above" ;;

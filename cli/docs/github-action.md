@@ -32,6 +32,7 @@ jobs:
     permissions:
       contents: read
       security-events: write # only to upload SARIF
+      # actions: read        # also needed to upload SARIF in a private repository
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -52,15 +53,16 @@ jobs:
           format: sarif
 
       - name: Upload SARIF
-        if: ${{ !cancelled() && steps.prufyx.outputs.report-file != '' }}
-        uses: github/codeql-action/upload-sarif@v3 # pin to a full commit SHA
+        if: ${{ !cancelled() && steps.prufyx.outputs.report-file != '' && github.event.pull_request.head.repo.full_name == github.repository }}
+        uses: github/codeql-action/upload-sarif@1190a975f95ce23525efb6a3fc21ea29567c1b52 # v3.38.2
         with:
           sarif_file: ${{ steps.prufyx.outputs.report-file }}
 ```
 
 The upload step is not part of the action, so you choose whether to use it. It
-needs `security-events: write`, which a pull request from a fork does not get;
-leave the step out there. Run the workflow on `pull_request`. The action is
+needs `security-events: write`. A pull request from a fork gets a read-only
+token, so the upload would fail there; the `if:` condition above skips it for
+forks. Run the workflow on `pull_request`. The action is
 written for code that has been checked out with read-only permissions and is
 not documented for `pull_request_target`.
 
@@ -69,6 +71,7 @@ not documented for `pull_request_target`.
 | Input | Required | Meaning |
 | --- | --- | --- |
 | `version` | yes | A release tag such as `v0.1.0`, or `source`. `latest` is refused. |
+| `verify-attestation` | no | `auto` (default), `true` or `false`. When on, `gh attestation verify` checks that the archive was built by the release workflow for that tag. The install fails if the check fails or `gh` is not on the runner. `auto` is on for a release and off for `source`; `true` with `source` is refused. |
 | `archive-sha256` | no | The SHA-256 of the release archive for the runner's platform. When given, the archive must match it in addition to the release's `SHA256SUMS`. Not valid with `source`. |
 | `paths` | yes | Manifest files or directories, one per line. A line must not start with `-`. |
 | `to` | yes, unless `config` sets targets | `COMPONENT=VERSION`, one per line. |
@@ -81,10 +84,11 @@ not documented for `pull_request_target`.
 | `redact` | no | `true` replaces paths and object names with digests in the report and the summary. Default `false`. |
 | `require-basis` | no | Comma separated evidence bases, as for `--require-basis`. |
 | `knowledge-db` | no | A verified [knowledge database](scan.md#knowledge-database) directory. |
-| `fail-on` | no | When the step fails: `none`, `blocked` (default), `unknown`, or `blocked,unknown`. |
+| `fail-on` | no | When the step fails: `none`, `blocked` (default), or `unknown`, which means "unknown or worse" and also fails on BLOCKED (`blocked,unknown` is the same). |
 
 `blocked` is exit code `10` and `unknown` is exit code `11`, "no blockers found
-in covered checks" (see [answers and exit codes](scan.md#answers-and-exit-codes)).
+in covered checks". Under the default, exit `11` leaves the step green and adds a
+warning annotation that not every area was checked (see [answers and exit codes](scan.md#answers-and-exit-codes)).
 Invalid input (exit `2`) and a knowledge integrity failure (exit `3`) always
 fail the step, whatever `fail-on` says. Because `scan` rarely answers PASS
 today, `blocked` is the sensible default.
@@ -101,7 +105,10 @@ names the input and not its value.
 | `report-file` | The report in the requested format. Empty when nothing was written. |
 
 Use `if: ${{ !cancelled() }}` on steps that read the report, so they run when
-the scan step failed because of a blocker.
+the scan step failed because of a blocker. When an input is refused, or `prufyx`
+does not run, no output is set and `exit-code` is empty. Each use of the action
+writes its report to its own directory, so two uses in one job keep both
+reports. Container jobs are not tested.
 
 ## Job summary
 
@@ -122,18 +129,27 @@ a short note. With `redact: "true"` the summary has digests, not paths.
   arm64.
   `SHA256SUMS` comes from the same release as the archive, so it detects a
   damaged or swapped file but not a release that was published with the wrong
-  contents. To pin the content, set `archive-sha256` from a source you trust,
-  and check the release's build attestation with `gh attestation verify`.
+  contents. The build attestation closes that gap: with `verify-attestation`
+  on, `gh attestation verify` requires the archive to match the provenance of
+  the release workflow run for the tag. Offline alternative: verify the archive
+  once yourself with `gh attestation verify`, then set `archive-sha256` to its
+  digest and `verify-attestation: "false"`. The archive may hold only the
+  package directory and one regular file, `prufyx`, with no repeated names or
+  links; anything else stops the job.
 - **`source`.** The action sets up Go from `cli/go.mod` and builds
   `cmd/prufyx-community` from the vendored sources at the ref the action was
-  loaded from. Nothing is downloaded except the Go toolchain.
+  loaded from, with `GOWORK=off`, `GOTOOLCHAIN=local` and `GOENV=off`. Nothing
+  is downloaded except the Go toolchain.
 
 ## How inputs are handled
 
 Inputs reach the scripts as environment variables, never inside a shell
 command line. Each one is checked against a fixed pattern, then added to an
 argument list and passed to `prufyx` without a shell, so a quote, `$(...)`, a
-backtick, a semicolon or a newline in a value is treated as text. Values that
+backtick, a semicolon or a newline in a value is treated as text. Text printed
+by `prufyx` can contain file names from your repository, so it is printed inside
+a `stop-commands` block with a random token and cannot create workflow
+annotations. Values that
 could be read as a flag (a path or database starting with `-`) are refused. The
 tests in `scripts/action/test.sh` feed such values to the scripts; run them
 with `bash scripts/action/test.sh`.

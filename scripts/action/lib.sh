@@ -7,13 +7,18 @@
 # quotes or "${array[@]}"; nothing is passed to eval, a shell string or a
 # workflow command.
 
-# show prints a value for a message with control characters removed and a
-# length limit, so an input value cannot add a workflow command (::...::) or
-# extra lines to the log.
-show() {
-  local v
-  v="$(printf '%s' "$1" | LC_ALL=C tr -d '\000-\037\177' | cut -c1-80)"
-  printf '%s' "$v"
+# emit_untrusted copies standard input to standard output inside a
+# stop-commands block with an unguessable token, so nothing in the text can
+# act as a workflow command. Control characters are removed and the legacy
+# "##[" command form is broken as well (belt and braces: the token already
+# makes the runner ignore commands inside the block).
+emit_untrusted() {
+  local token
+  token="$(LC_ALL=C head -c 24 /dev/urandom | LC_ALL=C od -An -tx1 | LC_ALL=C tr -d ' \n')"
+  [ "${#token}" -ge 32 ] || die "could not create a random token"
+  printf '::stop-commands::%s\n' "$token"
+  LC_ALL=C tr -d '\000-\010\013-\037\177' | sed 's/##\[/# #[/g'
+  printf '::%s::\n' "$token"
 }
 
 # die reports an error and stops. The message must not contain raw input.

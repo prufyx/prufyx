@@ -23,6 +23,14 @@ inputs:
       archive must match it in addition to the release's own SHA256SUMS.
     required: false
     default: ""
+  verify-attestation:
+    description: >-
+      auto (default), true or false. When on, `gh attestation verify` checks
+      that the release archive was built by the release workflow for that tag,
+      and the install fails if the check fails or gh is missing. auto is on for
+      a release and off for `source`.
+    required: false
+    default: auto
   paths:
     description: Manifest files or directories to scan, one per line.
     required: true
@@ -99,6 +107,8 @@ runs:
       env:
         PRUFYX_IN_VERSION: ${{ inputs.version }}
         PRUFYX_IN_ARCHIVE_SHA256: ${{ inputs.archive-sha256 }}
+        PRUFYX_IN_VERIFY_ATTESTATION: ${{ inputs.verify-attestation }}
+        GH_TOKEN: ${{ github.token }}
         PRUFYX_ACTION_PATH: ${{ github.action_path }}
       run: bash "$PRUFYX_ACTION_PATH/scripts/action/install.sh"
 

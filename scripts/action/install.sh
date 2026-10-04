@@ -6,6 +6,8 @@
 # Inputs (environment):
 #   PRUFYX_IN_VERSION          a release tag such as v0.1.0, or "source"
 #   PRUFYX_IN_ARCHIVE_SHA256   optional pinned SHA-256 of the release archive
+#   PRUFYX_IN_VERIFY_ATTESTATION   auto (default), true or false
+#   GH_TOKEN                   token for `gh attestation verify`
 #   PRUFYX_ACTION_PATH         the action's own checkout (for "source")
 #   RUNNER_OS, RUNNER_ARCH, RUNNER_TEMP   set by the runner
 # Output: $RUNNER_TEMP/prufyx-action/bin/prufyx
@@ -22,7 +24,10 @@ version="${PRUFYX_IN_VERSION:-}"
 pin="${PRUFYX_IN_ARCHIVE_SHA256:-}"
 temp="${RUNNER_TEMP:?RUNNER_TEMP is not set}"
 bindir="$temp/prufyx-action/bin"
-repo_url="${PRUFYX_RELEASE_BASE:-https://github.com/prufyx/prufyx/releases/download}"
+verify="${PRUFYX_IN_VERIFY_ATTESTATION:-auto}"
+repo_url="https://github.com/prufyx/prufyx/releases/download"
+attest_repo="prufyx/prufyx"
+attest_workflow="prufyx/prufyx/.github/workflows/release.yml"
 
 [ -n "$version" ] || die "input 'version' is empty; pass a release tag such as v0.1.0, or 'source'"
 if has_control "$version" || [ "$(printf '%s' "$version" | wc -l)" -gt 0 ]; then
@@ -32,16 +37,24 @@ if [ -n "$pin" ] && ! printf '%s' "$pin" | grep -Eqx '[0-9a-f]{64}'; then
   die "input 'archive-sha256' must be 64 lowercase hexadecimal characters"
 fi
 
-rm -rf "$temp/prufyx-action"
+case "$verify" in
+  auto | true | false) ;;
+  *) die "input 'verify-attestation' must be auto, true or false" ;;
+esac
+
+# Only the binary and download directories are replaced: report files of an
+# earlier use of the action in the same job stay.
+rm -rf "$temp/prufyx-action/bin" "$temp/prufyx-action/download"
 mkdir -p "$bindir"
 chmod 700 "$temp/prufyx-action" "$bindir"
 
 if [ "$version" = "source" ]; then
+  [ "$verify" != true ] || die "'verify-attestation: true' needs a release archive and cannot be used with version 'source'"
   [ -z "$pin" ] || die "'archive-sha256' applies to a release archive and cannot be used with version 'source'"
   src="${PRUFYX_ACTION_PATH:?PRUFYX_ACTION_PATH is not set}/cli"
   [ -f "$src/go.mod" ] || die "version 'source' needs the Prufyx source tree at the action's ref, but cli/go.mod was not found"
   command -v go >/dev/null 2>&1 || die "version 'source' needs Go on the runner; the action sets it up from cli/go.mod"
-  (cd "$src" && GOFLAGS="-mod=vendor" CGO_ENABLED=0 go build -trimpath -buildvcs=false -o "$bindir/prufyx" ./cmd/prufyx-community) \
+  (cd "$src" && GOWORK=off GOTOOLCHAIN=local GOENV=off GOFLAGS="-mod=vendor" CGO_ENABLED=0 go build -trimpath -buildvcs=false -o "$bindir/prufyx" ./cmd/prufyx-community) \
     || die "building prufyx from source failed"
   echo "built prufyx from the action's source tree"
   exit 0
@@ -71,7 +84,7 @@ dl="$temp/prufyx-action/download"
 mkdir -p "$dl"
 
 fetch() { # fetch URL DEST
-  curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+  curl -q --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
     --retry 2 --connect-timeout 20 --max-time 300 --output "$2" "$1"
 }
 no_release() {
@@ -92,13 +105,33 @@ if [ -n "$pin" ] && [ "$got" != "$pin" ]; then
   die "$archive does not match the pinned 'archive-sha256'; refusing to install"
 fi
 
-member="$name/prufyx"
-# The archive must hold the expected file and nothing outside its directory.
-if tar -tzf "$dl/$archive" | grep -Evx "$name/?|$name/[A-Za-z0-9._-]+" | grep -q .; then
-  die "$archive contains unexpected paths; refusing to install"
+if [ "$verify" = auto ]; then verify=true; fi
+if [ "$verify" = true ]; then
+  command -v gh >/dev/null 2>&1 || die "attestation check needs the GitHub CLI (gh) on the runner, and it was not found; install it or set 'verify-attestation: false' and pin 'archive-sha256'"
+  gh attestation verify "$dl/$archive" --repo "$attest_repo" \
+    --signer-workflow "$attest_workflow" --source-ref "refs/tags/$version" >"$dl/attestation.txt" 2>&1 \
+    || die "the build attestation of $archive could not be verified for $version; refusing to install"
+  echo "build attestation verified"
 fi
-tar -tvzf "$dl/$archive" "$member" | grep -q '^-' || die "$archive does not hold a regular file $member; refusing to install"
+
+member="$name/prufyx"
+listing="$dl/listing.txt"
+tar -tzf "$dl/$archive" >"$listing" 2>/dev/null || die "$archive is not a readable archive; refusing to install"
+# No name may appear twice, every entry must be the package directory or one
+# plain name inside it (compared as text, not as a pattern).
+[ -z "$(sort "$listing" | uniq -d)" ] || die "$archive lists a name more than once; refusing to install"
+bad="$(awk -v n="$name" 'BEGIN{p=n "/"}
+  $0==n || $0==p {next}
+  substr($0,1,length(p))==p { r=substr($0,length(p)+1); if (r!="" && r!=".." && index(r,"/")==0) next }
+  {print; exit}' "$listing")"
+[ -z "$bad" ] || die "$archive contains unexpected paths; refusing to install"
+[ "$(grep -Fxc -- "$member" "$listing")" = 1 ] || die "$archive does not hold $member exactly once; refusing to install"
+# Entry types: only plain files and directories (no links, devices, fifos).
+if tar -tvzf "$dl/$archive" | cut -c1 | grep -qv '[-d]'; then
+  die "$archive holds a link or special file; refusing to install"
+fi
 tar -xzf "$dl/$archive" -C "$dl" "$member"
-cp "$dl/$member" "$bindir/prufyx"
+{ [ -f "$dl/$member" ] && [ ! -L "$dl/$member" ]; } || die "$member is not a regular file; refusing to install"
+cp -P "$dl/$member" "$bindir/prufyx"
 chmod 755 "$bindir/prufyx"
 echo "installed prufyx $version ($goos/$goarch), archive sha256 $got"
