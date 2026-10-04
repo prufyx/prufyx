@@ -151,7 +151,9 @@ changed projects and the index move to the new revision, which must be
 greater than the previous index revision. Building does not sign anything.
 The [publisher workflow](knowledge-publisher.md) and `package-knowledge`
 still prepare only the single-target layout; signing per-project targets is
-not part of this source preview yet.
+not part of this source preview yet. A pack that carries line attestations
+or upgrade-path policies cannot be split into per-project targets yet:
+`knowledge-targets build` refuses it rather than dropping those sections.
 
 The size check fails when any target reaches 80% of the 1 MiB per-target cap
 (838861 bytes or more), or when the summed size of all targets reaches 80% of

@@ -13,6 +13,10 @@ computed from a retained `evidence repin` worklist, never declared by a
 caller, and never trusted from the statement itself: `verify` reruns the
 whole computation from scratch and requires an exact byte match.
 
+A pack's line attestations and upgrade-path policies (its `lineAttestations`
+and `pathPolicies` sections) renew the same way; see
+[Line attestations and path policies](#line-attestations-and-path-policies).
+
 This tool is separate from, and does not replace, individual rule review
 (`review-record`). A rule whose citations show any real drift (a moved,
 changed, or gone span, or a corpus-integrity mismatch) is never eligible for
@@ -335,7 +339,52 @@ one of: `WORKLIST_SCOPE_INCOMPLETE` (E2), `TAG_FALLBACK_BASELINE` (E3),
 `STAGGER_DEFERRED` (V7 cap), `MECHANICAL_RULE_EXCLUDED`, and, in automated
 mode only, `LATEST_BASELINE_NOT_AUTOMATABLE` and `REVIEWED_OUTSIDE_STATEMENT_CHAIN`.
 
-## What `verify` checks (V1–V9)
+## Line attestations and path policies
+
+A pack that carries [line attestations](line-attestations.md) or
+[upgrade-path policies](upgrade-paths.md) is renewed like any other pack.
+Each reviewed attestation and each reviewed path-policy record is a renewable
+item next to the rules:
+
+- **Name.** An item is named by a record ID: `line-attestation.` or
+  `path-policy.` followed by 24 hex digits derived from the record's scope
+  (component, and for an attestation its fact family and line). The ID is
+  stable across renewals. `evidence repin` lists each record's citations
+  under that ID, with the project `line-attestations` or `path-policies`
+  (see [evidence-repin.md](evidence-repin.md)). The statement lists a renewed
+  record in `rules` under its record ID, and `notExtended` lists a record
+  that is not renewed in the same way. `summary.txt` lists every record in
+  the pack with its ID, scope, basis, `validUntil`, record digest, and
+  whether this batch renews it.
+- **Rules that apply.** E1–E7, `NOT_LATER_THAN_CURRENT`, `NOT_YET_DUE`, the
+  stagger cap, the seeded sample, the two-cycle cap and the statement chain
+  apply to records exactly as to rules, and records count toward the pack
+  size the stagger cap is computed from. A line attestation has no
+  `evidence.state`; while it is in the pack it is in force.
+- **What changes.** Only `evidence.reviewedAt` and `evidence.validUntil` of
+  a renewed record, replaced in place inside the record. Every other byte of
+  both sections, including member order inside each record, is carried as it
+  is (the next pack is re-indented as a whole, exactly as for rules).
+- **Review records.** A review record for a record (in `--review-record-dir`
+  as `<record ID>.json`) names the record ID as `subject.ruleId`, the
+  project `line-attestations` or `path-policies` as `subject.project`, and
+  binds the record digest from `summary.txt` as `bindings.ruleDigest`. It is
+  checked exactly as a rule's (see [Known scope limits](#known-scope-limits)).
+- **Mechanical records.** An attestation or policy derived by an extractor
+  is never renewed here: it is listed in `notExtended` with
+  `MECHANICAL_RECORD_EXCLUDED`, and it is renewed only by re-deriving it.
+  Re-deriving it moves its `reviewedAt` outside any statement; that does not
+  count as a change outside the statement chain.
+- **Loading.** The sections are found by their exact member names, parsed
+  strictly, and every line attestation must still list exactly the pack's
+  rules for its scope, each covering the whole line, on the prior pack and
+  on the next pack. A rule whose ID equals a record ID rejects the pack.
+
+Per-project knowledge targets (`knowledge-targets build`) still refuse a
+pack that carries either section (see
+[cncf-knowledge-per-project.md](cncf-knowledge-per-project.md)).
+
+## What `verify` checks (V1–V10)
 
 `verify` is deterministic and side-effect-free. It takes the statement, the
 prior and next rule pack bytes, the retained worklist, the pack's statement
@@ -405,6 +454,14 @@ the first violation it finds:
 - **V9** — only with `--rerun-worklist`: every citation of every renewed
   rule matches an independently produced worklist (see
   [The gate](#the-gate-what-it-trusts)).
+
+- **V10** — the record sections, independent of V1/V3: the prior and next
+  packs carry the same sections with the same records in the same order, and
+  each record is identical apart from `evidence.reviewedAt` and
+  `evidence.validUntil`. V6 and V7 cover records as they cover rules, and
+  V8 applies to a renewed record as to a renewed rule. The next pack's
+  records are also parsed strictly and re-checked against its rules on load
+  (see [Line attestations and path policies](#line-attestations-and-path-policies)).
 
 `verify` also requires a valid signature under a pinned trust root whenever
 the statement renews at least one rule or records an individual review
@@ -758,6 +815,11 @@ statements, never on the machine that prepares them.
   Ed25519 key in the encrypted PEM format the other signers in this
   repository use works; its public key is added with
   `trust-root migrate --add-automation-key`.
+- **Review records for line attestations and path policies.** The review
+  record format is the rule review format; `review-record` does not produce
+  or verify a record for an attestation or a path policy. Such a record is
+  checked here only structurally and bound to the record's ID, project and
+  exact bytes (its record digest).
 - **Review record content.** `--review-record-dir` records are checked
   structurally and bound to the rule, its project, its exact prior-pack
   version, and the chain's review history (see

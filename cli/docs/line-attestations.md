@@ -161,8 +161,8 @@ the same attestation section, or none.
 
 The pack digest covers the attestations, as it covers every other byte of
 the pack. The external knowledge target format does not carry attestations
-yet: an external pack with `lineAttestations` is refused. `evidence
-reattest` also refuses a pack that carries them.
+yet: an external pack with `lineAttestations` is refused, and so is a pack
+with attestations given to `knowledge-targets build`.
 
 Library callers look attestations up with
 `cncfcheck.AttestationsFor(component, line, family, now)`, which returns the
@@ -214,8 +214,12 @@ Attestations expire like rules, and must be renewed the same way.
   `validUntil` and nothing else changed. A new extractor version or build also changes
   `evidence.extractor`, which is a loosening change but not a plain renewal. `extract verify` proves it is reproducible from the pinned bytes.
   A person does not renew a mechanical attestation.
-- **Reviewed**: renewed only by a maintainer who reads the sources again.
-  `evidence reattest` does not cover attestations yet.
+- **Reviewed**: renewed by `evidence reattest` like a reviewed rule, when
+  `evidence repin` finds every cited source unchanged (see
+  [evidence-reattestation.md](evidence-reattestation.md#line-attestations-and-path-policies)).
+  Only `evidence.reviewedAt` and `evidence.validUntil` change, and the
+  attestation must still list exactly the pack's rules for its scope. Any
+  other change is a new review.
 
 Every change between two attestation sets is classified by
 `lineattest.Classify`. Each set may hold at most one attestation per

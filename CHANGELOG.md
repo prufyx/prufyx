@@ -16,6 +16,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   mode in which no change is ever eligible for automatic merging, and per-run
   `gate-metrics.json` and `gate-alarms.json` files with an optional alarm issue
   in a separate repository. See `cli/docs/knowledge-gate.md`.
+- `prufyx-maintainer evidence reattest` renews reviewed line attestations and
+  reviewed upgrade-path policies like reviewed rules, so a pack carrying them
+  is no longer refused. Only each renewed record's `evidence.reviewedAt` and
+  `evidence.validUntil` change; a new check (V10) refuses any other change to
+  either section, and every attestation must still list exactly the pack's
+  rules for its scope. Mechanical records are never renewed by it. `evidence
+  repin` now also classifies the citations of attestations and path policies,
+  and the support inventory accepts packs with set rules, attestations or
+  path policies. See `cli/docs/evidence-reattestation.md`.
 - The CNCF knowledge database can be published as one signed TUF target per
   project (`knowledge/cncf/projects/<project>.v1.json`) plus an index target
   (`knowledge/cncf/index.v1.json`), each capped at 1 MiB, through the new

@@ -170,9 +170,12 @@ is not a catalog subject component, rejects the whole pack. The pack digest
 covers the section.
 
 The external knowledge target format does not carry path policies yet: an
-external pack with `pathPolicies` is refused. `evidence reattest` also
-refuses a pack that carries them, so a record is never silently dropped on
-renewal; it expires instead, and its paths become gaps again.
+external pack with `pathPolicies` is refused, and so is a pack with path
+policies given to `knowledge-targets build`. A reviewed record is renewed by
+`evidence reattest` like a reviewed rule (see
+[evidence-reattestation.md](evidence-reattestation.md#line-attestations-and-path-policies));
+`evidence repin` monitors its citations. A record that is not renewed
+expires, and its paths become gaps again.
 
 ## For library callers
 

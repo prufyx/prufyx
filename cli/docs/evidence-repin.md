@@ -112,6 +112,14 @@ Only `NO_NEW_RELEASE`, `FILE_IDENTICAL` and `SPAN_IDENTICAL` can make a rule
 eligible for batch renewal (see [evidence-reattestation.md](evidence-reattestation.md)).
 The other classes need a human reviewer.
 
+Repin also classifies the citations of a pack's line attestations and
+upgrade-path policies. Their `ruleId` is the record ID (`line-attestation.…`
+or `path-policy.…`, see
+[evidence-reattestation.md](evidence-reattestation.md#line-attestations-and-path-policies))
+and their `project` is `line-attestations` or `path-policies`. A pack whose
+attestation or policy section does not parse, or whose top-level member names
+are not exact, is refused.
+
 ### `NO_RELEASE_BASELINE` versus `PENDING`
 
 `PENDING` means the answer is not known yet and a later run can supply it;
