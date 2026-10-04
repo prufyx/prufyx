@@ -363,7 +363,7 @@ func TestApprovalSignSubjectRefusals(t *testing.T) {
 	t.Run("unsupported subject kind", func(t *testing.T) {
 		f := newRuleFixture(t)
 		requireCode(t, runApproval(t, f.key.pemKey(t), signNow, append(f.signArgs("--key-stdin"), "--subject", "lineAttestation")...), 2, "not supported")
-		if _, err := SignApproval(SignApprovalOptions{Subject: ApprovalSubject{Kind: "lineAttestation"}}); err == nil {
+		if _, _, err := SignApproval(SignApprovalOptions{Subject: ApprovalSubject{Kind: "lineAttestation"}}); err == nil {
 			t.Fatal("unsupported subject kind signed")
 		}
 	})
@@ -389,16 +389,16 @@ func TestApprovalSignSubjectRefusals(t *testing.T) {
 	})
 	t.Run("duplicate subject in the proposed pack", func(t *testing.T) {
 		f := newRuleFixture(t)
-		editPack(t, f.head, cncfRulesPath, func(p *packDoc) {
-			p.entries = append(p.entries, deepCopy(p.find(t, f.id)).(map[string]any))
-		})
+		p := readPack(t, f.head, cncfRulesPath)
+		p.entries = append(p.entries, deepCopy(p.find(t, f.id)).(map[string]any))
+		p.write(t, f.head, cncfRulesPath)
 		requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.signArgs("--key-stdin")...), 2, "appears twice")
 	})
 	t.Run("duplicate subject in the base pack", func(t *testing.T) {
 		f := changedRuleFixture(t)
-		editPack(t, f.base, cncfRulesPath, func(p *packDoc) {
-			p.entries = append(p.entries, deepCopy(p.find(t, f.id)).(map[string]any))
-		})
+		p := readPack(t, f.base, cncfRulesPath)
+		p.entries = append(p.entries, deepCopy(p.find(t, f.id)).(map[string]any))
+		p.write(t, f.base, cncfRulesPath)
 		requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.signArgs("--key-stdin")...), 2, "appears twice")
 	})
 	t.Run("subject named twice", func(t *testing.T) {
@@ -421,7 +421,7 @@ func TestApprovalSignSubjectRefusals(t *testing.T) {
 // hard link), owned by the user, with no group or other permission.
 func TestApprovalSignKeyFileRefusals(t *testing.T) {
 	f := newRuleFixture(t)
-	for _, perm := range []os.FileMode{0o644, 0o640, 0o604, 0o660, 0o602, 0o620, 0o610, 0o601, 0o666, 0o4600, 0o2600, 0o1600} {
+	for _, perm := range []os.FileMode{0o644, 0o640, 0o604, 0o660, 0o602, 0o620, 0o610, 0o601, 0o666, os.ModeSetuid | 0o600, os.ModeSetgid | 0o600, os.ModeSticky | 0o600} {
 		path := f.key.keyFile(t, perm)
 		r := runApproval(t, nil, signNow, f.signArgs("--key", path)...)
 		if r.code != 2 || !strings.Contains(r.stderr, "group or others") {

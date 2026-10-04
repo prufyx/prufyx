@@ -12,6 +12,9 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 )
 
+// currentUID is the user a key file must belong to; tests replace it.
+var currentUID = os.Getuid
+
 // readApprovalKeyFile reads a private key file. It refuses a symbolic link
 // (at any path component), anything but a regular file with one link, a
 // file not owned by the current user, and any mode with a group or other
@@ -30,10 +33,10 @@ func readApprovalKeyFile(path string) ([]byte, error) {
 	}
 	if info.Mode().Perm()&0o077 != 0 || info.Mode()&(os.ModeSetuid|os.ModeSetgid|os.ModeSticky) != 0 {
 		wipe(raw)
-		return nil, errors.New("the key file is readable or writable by group or others; run chmod 600 on it")
+		return nil, errors.New("the key file mode gives group or others access or sets a special bit; run chmod 600 on it")
 	}
 	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok || int(stat.Uid) != os.Getuid() {
+	if !ok || int(stat.Uid) != currentUID() {
 		wipe(raw)
 		return nil, errors.New("the key file is not owned by the current user")
 	}

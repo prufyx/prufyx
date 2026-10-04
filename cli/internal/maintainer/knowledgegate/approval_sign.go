@@ -37,7 +37,9 @@ const pemPrivateKeyType = "PRIVATE KEY"
 // never contain any of the input.
 func ParseApprovalPrivateKey(raw []byte) (ed25519.PrivateKey, error) {
 	refused := errors.New("the key is not one Ed25519 private key in PKCS #8 PEM form")
-	if len(raw) > MaxApprovalKeyBytes || !bytes.HasPrefix(raw, []byte("-----BEGIN "+pemPrivateKeyType+"-----")) {
+	end := []byte("-----END " + pemPrivateKeyType + "-----")
+	if len(raw) > MaxApprovalKeyBytes || !bytes.HasPrefix(raw, []byte("-----BEGIN "+pemPrivateKeyType+"-----")) ||
+		bytes.Count(raw, end) != 1 || len(bytes.Trim(raw[bytes.Index(raw, end)+len(end):], "\r\n")) != 0 {
 		return nil, refused
 	}
 	block, rest := pem.Decode(raw)
