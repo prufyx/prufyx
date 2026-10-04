@@ -41,6 +41,15 @@ var known = map[Distribution]bool{
 	K3s: true, RKE2: true, Talos: true, OpenShift: true,
 }
 
+// Known reports whether id is one of the closed distribution identifiers
+// (case-sensitive).
+func Known(id string) bool { return known[Distribution(id)] }
+
+// OpenShiftMap maps an OpenShift 4.x minor to the upstream Kubernetes 1.x
+// minor it is based on, for example 16 -> 29 for "OpenShift 4.16 is based on
+// Kubernetes 1.29". ParseWith reads it; Parse never does.
+type OpenShiftMap map[int]int
+
 // Confidence says how the distribution and upstream version were derived.
 type Confidence string
 
@@ -98,7 +107,22 @@ const (
 var openshiftToKubernetes = map[int][2]int{}
 
 // Parse normalises raw. declared may be empty or a known distribution id.
+// OpenShift versions are looked up in the compiled-in mapping only.
 func Parse(raw, declared string) (Version, error) {
+	return parse(raw, declared, nil)
+}
+
+// ParseWith is Parse with an injected OpenShift mapping table, for example
+// one built from current distribution records. With a nil table it behaves
+// exactly as Parse. With a table, an OpenShift version is looked up in that
+// table only; a minor the table does not hold is ErrUnknownOpenShift. The
+// result carries the Kubernetes minor only (Semver.PatchKnown is false): no
+// patch is invented. Every other format is parsed exactly as Parse does.
+func ParseWith(raw, declared string, table OpenShiftMap) (Version, error) {
+	return parse(raw, declared, table)
+}
+
+func parse(raw, declared string, table OpenShiftMap) (Version, error) {
 	d := Distribution(declared)
 	if declared != "" && !known[d] {
 		return Version{}, fmt.Errorf("%w: %q", ErrUnknownDistribution, declared)
@@ -112,7 +136,7 @@ func Parse(raw, declared string) (Version, error) {
 		}
 	}
 	if d == OpenShift {
-		return parseOpenShift(raw)
+		return parseOpenShift(raw, table)
 	}
 
 	core, marker, suffix, err := split(raw)
@@ -250,7 +274,7 @@ func parseTriple(s string, _ bool, _ string) (Semver, error) {
 	return Semver{n[0], n[1], n[2], true}, nil
 }
 
-func parseOpenShift(raw string) (Version, error) {
+func parseOpenShift(raw string, table OpenShiftMap) (Version, error) {
 	s := strings.TrimPrefix(raw, "v")
 	parts := strings.Split(s, ".")
 	if len(parts) != 2 && len(parts) != 3 {
@@ -267,6 +291,10 @@ func parseOpenShift(raw string) (Version, error) {
 		}
 	}
 	k, found := openshiftToKubernetes[min]
+	if table != nil {
+		minor, ok := table[min]
+		k, found = [2]int{1, minor}, ok && minor >= 0 && minor <= maxNumber
+	}
 	if !found {
 		return Version{}, fmt.Errorf("%w: 4.%d", ErrUnknownOpenShift, min)
 	}
