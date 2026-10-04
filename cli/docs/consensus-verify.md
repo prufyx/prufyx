@@ -94,12 +94,12 @@ $ echo $?
 Only Kubernetes has a section rule today. The file must be
 `CHANGELOG/CHANGELOG-1.N.md` and the release `v1.N.0`. The release's section
 starts at the line `# v1.N.0`, which must appear exactly once, and ends at the
-next level-1 heading (`#` after up to three spaces). Inside it, only the
-subsections `## Urgent Upgrade Notes` and `## Changes by Kind` are read (each
-heading matched exactly, at most once, at least one present); each ends at the
-next heading of level 1 or 2. Download tables, dependency lists and anything
-else in the section are not read. Any other repository or path is refused
-(`no-section-rule`).
+next level-1 heading at column 0. Inside it, only the subsections
+`## Urgent Upgrade Notes` and `## Changes by Kind` are read (each heading
+matched exactly, at most once, at least one present); each ends at the next
+heading of level 1 or 2 at column 0. Download tables, dependency lists, known
+issues and anything else in the section are not read for citations. Any
+other repository or path is refused (`no-section-rule`).
 
 ## The line grammar
 
@@ -108,18 +108,24 @@ line must be inside a small, strict grammar (`normaliserVersion` 2):
 
 - blank lines;
 - ATX headings of level 3 to 6, starting at column 0 (`### Feature`);
-- list items `- ` or `* `, indented by a multiple of 2 spaces, at most 4
-  levels deep; an indented item needs an open item above it;
+- list items `- ` or `* ` with their text exactly one space after the
+  marker; a top-level item at column 0 and a child exactly two columns right
+  of its parent, at most 4 levels deep;
 - continuation lines of an open item, indented by at most five columns more
   than the item's marker (never deep enough to be code);
 - paragraph lines starting at column 0.
 
 Inside a line, outside inline code spans: plain text, emphasis, character
-references, and inline links whose target is exactly a pull request or issue
-of the repository (`https://github.com/kubernetes/kubernetes/pull/N` or
-`/issues/N`), a contributor's profile written as
-`[@login](https://github.com/login)`, or a page on the project's
-documentation hosts (`kubernetes.io`, `k8s.io`, `docs.k8s.io`).
+references, and inline links without a title whose target is a pull request
+or issue of the repository (`https://github.com/kubernetes/kubernetes/pull/N`
+or `/issues/N`), a contributor's profile written as
+`[@login](https://github.com/login)`, anything under the project's GitHub
+organisations (`https://github.com/kubernetes*/...`, which includes
+`kubernetes-sigs`), or a page on `kubernetes.io`, `k8s.io`, `docs.k8s.io` or
+`pkg.go.dev`. Code spans never pair across lines: a backtick run without a
+matching run on its line, or a backtick escaped with a backslash, is a
+problem. Link text is never read as a citation, and only an exact pull
+request link of the repository counts as provenance.
 
 Anything else is a problem, among them: raw HTML of any kind (`<` followed by
 a letter, `!`, `?` or `/`, which includes comments, CDATA, processing
@@ -127,9 +133,21 @@ instructions and autolinks), the comment marker `-->`, images (`![`), link
 reference definitions, footnotes, reference-style links, links with a title
 or to any other target, fenced code, indented code, block quotes, ordered
 lists, `+` list markers, setext underlines and thematic breaks, tables (`|`),
-strikethrough (`~`), tabs, and badly indented items or headings. A block
-construct (fenced code, an HTML block or comment) left open when a heading is
-reached is a problem at that heading.
+strikethrough (`~`), tabs, and badly indented items or headings (a `#` line
+inside a list item included). A block construct (fenced code, an HTML block
+or comment) left open when a heading is reached is a problem at that
+heading.
+
+Some things can hide later text when the page renders, whatever section they
+are in. They are barriers: no citation at or after one verifies (`lead`,
+`unparsed-section`). They are raw HTML anywhere in the release section, read
+subsections or not (an HTML element such as `<details>` stays open in the
+browser across blank lines and headings); a line inside an HTML block or
+comment; a level-1 or level-2 heading indented by one to three spaces (what
+follows renders under another heading than the one read); the release
+heading inside an HTML block, comment or fenced code; and an HTML element
+GitHub keeps (`details`, `div`, `span`, `a`, `p` and the like) left open
+anywhere before the release heading.
 
 Problems are scoped to heading sections. A heading section runs from a
 heading to the next heading of the same or a higher level, its child
@@ -138,6 +156,11 @@ sections included. When any line of a heading section is a problem:
 - no item in it is cited;
 - every claim whose name appears anywhere in it is `lead` (`unparsed-section`),
   even when another, clean section also cites the name.
+
+Names are matched after character references are decoded (`&#68;` is `D`),
+so a name spelled with references elsewhere still counts against the
+citation; the cited item itself must spell the name literally, or the claim
+is `lead` (`hidden-content`).
 
 Characters that render as nothing or reorder text are removed and the line is
 flagged: zero-width characters and joiners (U+200B–U+200F), bidirectional
@@ -190,7 +213,7 @@ For each claim, in order; the first failure decides:
 | 1 | The releases match the section rule and the source's recorded tags (`fromRelease` is the previous minor and its tag points at the given commit). The release notes are read at the commit of a recorded `v1.N.P` tag of the later release's line, or at a commit that descends from the `v1.N.0` tag commit and is reachable from the `release-1.N` branch head; a source without commit history accepts tag commits only. The file digest matches the bytes, and the normalised digest is recomputed equal with the same normaliser version. | `dropped`: `release-mismatch`, `source-unbound`, `source-mismatch` or `source-refused` |
 | 2 | The kind is `removed_feature_gate` or `removed_api_version` of Kubernetes. | `lead`: `kind-not-allowed` |
 | 3 | Every name has the kind's form: a feature gate `[A-Z][A-Za-z0-9]{2,60}`; an API version `group/version` such as `apps.example.io/v1beta1` or `batch/v2alpha1`. | `dropped`: `name-invalid` |
-| 4 | No name appears in a heading section outside the line grammar. Every name occurs, as a whole token, in a list item that contains a removal cue; all such items are identical copies; none held hidden content; the cited item has no negated, future or undone cue. | `lead`: `unparsed-section`, `ambiguous-citation`, `hidden-content`, `hedged-cue`; `dropped`: `no-cited-cue` |
+| 4 | No name appears in a heading section outside the line grammar. Every name occurs, as a whole token, in a list item that contains a removal cue; all such items are identical copies; the name appears nowhere else in the read subsections; no copy held hidden content and the cited item spells the name literally; no barrier precedes the item; the cited item has no negated, future or undone cue. | `lead`: `unparsed-section`, `ambiguous-citation`, `hidden-content`, `hedged-cue`; `dropped`: `no-cited-cue` |
 | 5 | Every name is in the complete inventory of the earlier release (feature gates the release declares; group/versions its OpenAPI specification declares a kind for). | `lead`: `inventory-incomplete`; `dropped`: `not-in-inventory` |
 | 6 | No name is in the complete inventory of the later release (every feature gate name its source spells; the served group/versions). | `lead`: `inventory-incomplete`; `dropped`: `still-present` |
 | 7 | The cited item links to at least one pull request of the same repository, and every such pull request appears as `(#N)` or `Merge pull request #N from` in the subject of a commit reachable from the later release's tag and not from the earlier one. | `lead`: `no-provenance`, `provenance-unbounded`, `provenance-unavailable` |
@@ -227,8 +250,14 @@ is gone after. The checks do not prove:
   condition worded another way ("removal is not planned", "only on Windows")
   is not recognised.
 
-Both are bounded by step 6: a verified name is always one the later release's
-complete inventory no longer has.
+- that nothing outside the read subsections contradicts the item: a note
+  under "Known Issues", say, that the removal was reverted, is not read;
+- that the mirror's branches are upstream's: the release-branch check of step
+  1 trusts the mirror to be an honest copy of the upstream repository (it
+  fetches the upstream branch heads as they are).
+
+All are bounded by step 6: a verified name is always one the later
+release's complete inventory no longer has.
 
 ## Bounds
 
@@ -238,8 +267,9 @@ complete inventory no longer has.
   `provenance-unbounded`.
 - `Verify` checks its context between claims and stops when it ends.
 - The knowledge gate verifies at most 20 claims bundles per run (further ones
-  are reported as not run), gives each bundle at most two minutes, and shares
-  one inventory cache between the bundles of a run.
+  are reported as not run), gives all bundles of a run one budget of ten
+  minutes together (every upstream read honours it), and shares one
+  inventory cache between them.
 
 ## Report
 
