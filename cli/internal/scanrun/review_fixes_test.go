@@ -327,15 +327,22 @@ func TestScanNoticeIntegrity(t *testing.T) {
 		},
 		"PASS from a notice rule": func(claims []constraintengine.Claim) {
 			for i := range claims {
-				if claims[i].IsNotice() {
+				if claims[i].IsNotice() && claims[i].Status == constraintengine.StatusNotice {
 					claims[i].Status = "PASS"
 				}
 			}
 		},
 		"verdict rule claims to be a notice": func(claims []constraintengine.Claim) {
 			for i := range claims {
-				if !claims[i].IsNotice() && claims[i].Status == "PASS" {
+				if !claims[i].IsNotice() && claims[i].Status == "UNKNOWN" {
 					claims[i].Operator = constraintengine.OperatorNoticeOneWay
+				}
+			}
+		},
+		"notice rule claims to be a verdict rule": func(claims []constraintengine.Claim) {
+			for i := range claims {
+				if claims[i].IsNotice() && claims[i].Status == "UNKNOWN" {
+					claims[i].Operator = "forbid_predicate_value"
 				}
 			}
 		},
@@ -347,6 +354,37 @@ func TestScanNoticeIntegrity(t *testing.T) {
 		_, err := scan(t, claimEditor{Knowledge: base, edit: edit}, args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...)
 		if !errors.Is(err, ErrIntegrity) {
 			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
+// TestScanWholeUpgradeNotice: a notice reviewed for the exact end-to-end
+// pair is listed on the whole upgrade and does not change a pass.
+func TestScanWholeUpgradeNotice(t *testing.T) {
+	const id = "kubernetes.synthetic-notice-whole.1-24-17-to-1-30-4"
+	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true, synthetic: []string{noticeRule(id, "1.24.17", "1.30.4", "", currentWindow)}})
+	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
+	result := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...)
+	if result.Exit != scanreport.ExitPass || len(result.Report.Notices) != 1 || !result.Report.Notices[0].Hop.WholeUpgrade || !result.Report.Notices[0].Established {
+		t.Fatalf("exit %d gaps %v notices %+v", result.Exit, gapReasons(result.Report), result.Report.Notices)
+	}
+}
+
+// TestScanDirectPolicyRemovedVersion: a direct hop across several lines
+// evaluates none of their removals, so an object removed on one of them is
+// still named as not served.
+func TestScanDirectPolicyRemovedVersion(t *testing.T) {
+	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1beta1})
+	direct := newKnowledge(t, knowledgeOptions{lines: append([]string{"1.24"}, allLines...), policy: "direct"})
+	// Removed on a line inside the hop, and on the hop's own target line.
+	for _, from := range []string{"1.24.17", "1.23.17"} {
+		to := "1.30.4"
+		if from == "1.23.17" {
+			to = "1.25.3"
+		}
+		result := mustScan(t, direct, args(paths, "--from", "kubernetes="+from, "--to", "kubernetes="+to)...)
+		if result.Exit == scanreport.ExitPass || !hasGap(result.Report, "API_VERSION_NOT_SERVED", "no longer serves") {
+			t.Fatalf("%s: exit %d gaps %+v", from, result.Exit, result.Report.Gaps)
 		}
 	}
 }
