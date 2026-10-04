@@ -65,6 +65,11 @@ func loadPack(t Tree, spec PackSpec) (*loadedPack, error) {
 	if err != nil {
 		return nil, err
 	}
+	return parsePack(spec, raw)
+}
+
+// parsePack reads one pack file's bytes as loadPack does.
+func parsePack(spec PackSpec, raw []byte) (*loadedPack, error) {
 	if err := strictjson.Check(raw); err != nil {
 		return nil, fmt.Errorf("%s: %w", spec.Path, err)
 	}

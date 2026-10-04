@@ -17,3 +17,12 @@ func runGate(args []string, stdout, stderr io.Writer) error {
 	}
 	return nil
 }
+
+// runApproval wires the owner approval subcommands (sign, verify,
+// public-key, keys-digest). None uses the network.
+func runApproval(args []string, stdout, stderr io.Writer) error {
+	if code := knowledgegate.ApprovalMain(args, os.Stdin, stdout, stderr); code != 0 {
+		return &commandError{code: code, message: "approval failed", printed: true}
+	}
+	return nil
+}
