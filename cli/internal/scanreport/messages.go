@@ -39,6 +39,7 @@ const (
 	ReasonAPIVersionNotReviewed      = "API_VERSION_NOT_REVIEWED"
 	ReasonAlphaAPINotCovered         = "ALPHA_API_NOT_COVERED"
 	ReasonRuleNotDecided             = "RULE_NOT_DECIDED"
+	ReasonProjectNotInKnowledge      = "PROJECT_NOT_IN_KNOWLEDGE"
 )
 
 // GapKey selects one gap message: a reason, or a reason and a variant.
@@ -91,6 +92,7 @@ const (
 	GapRuleNoKnownIssue        GapKey = ReasonRuleNotDecided + "/no-known-issue"
 	GapRuleTrustPolicy         GapKey = ReasonRuleNotDecided + "/trust-policy"
 	GapRuleStatusNotUnderstood GapKey = ReasonRuleNotDecided + "/status"
+	GapProjectNotInKnowledge   GapKey = ReasonProjectNotInKnowledge
 )
 
 // Reason is the gap reason of the key.
@@ -134,6 +136,8 @@ var gapMessages = map[GapKey]gapMessage{
 		"check the versions, or scan each upgrade step separately", 3},
 	GapComponentNotCovered: {"%[1]s is not evaluated by scan yet",
 		"run prufyx check cncf --project %[1]s, or verify its upgrade notes by hand", 1},
+	GapProjectNotInKnowledge: {"the selected knowledge database has no knowledge for %[1]s, so nothing about it was checked",
+		"update the knowledge database to a revision that covers %[1]s, or verify its upgrade notes by hand", 1},
 	GapVersionNotDetected: {"the current %[1]s version is not declared; scan never reads it from manifests",
 		"declare it with --from %[1]s=VERSION or under current: in prufyx.yaml", 1},
 	GapVersionConflict: {"different versions of %[1]s were declared",
@@ -206,7 +210,7 @@ func GapReasons() []string {
 		ReasonAlphaAPINotCovered, ReasonAPIVersionNotReviewed, ReasonAPIVersionNotServed, ReasonUnsupportedCombination, ReasonComponentNotCovered, ReasonDeclarationMissing,
 		ReasonDistributionNotCovered, ReasonDocumentsNotEvaluated, ReasonDocumentsTemplated, ReasonDowngradeNotReviewed,
 		ReasonEvidenceExpired, ReasonIntermediateLineNotCovered, ReasonLineNotAttested, ReasonNoReviewedPathPolicy,
-		ReasonPathNotPlannable, ReasonPathPolicyNotCurrent, ReasonRuleNotDecided, ReasonVersionConflict, ReasonVersionNotDetected,
+		ReasonPathNotPlannable, ReasonPathPolicyNotCurrent, ReasonProjectNotInKnowledge, ReasonRuleNotDecided, ReasonVersionConflict, ReasonVersionNotDetected,
 	}
 }
 
@@ -320,47 +324,50 @@ func PermissionNote(files int) string {
 
 // Human labels.
 const (
-	labelPath             = "%s %s -> %s: %s"
-	labelHops             = "%d hops"
-	labelHopOne           = "1 hop"
-	labelPolicy           = "%s (path policy %s)"
-	labelNoPolicy         = "%s (no reviewed path policy)"
-	labelNoPath           = "no path (%s)"
-	labelWholeUpgrade     = "whole upgrade"
-	labelMore             = "... and %d more"
-	labelFix              = "fix: %s"
-	labelEvidenceReviewed = "evidence: reviewed"
-	labelEvidenceMech     = "evidence: mechanical (%s)"
-	labelSource           = "source: %s lines %d-%d; revision %s; digest %s"
-	labelSharedSources    = "Sources cited by several findings:"
-	labelNotChecked       = "NOT CHECKED (%d)"
-	labelPassed           = "PASSED (%d)"
-	labelChecked          = "Checked %s, %s, %s (%d covered)."
-	labelPassCount        = " %d checks passed (--show-passes)."
-	labelPassCountOne     = " 1 check passed (--show-passes)."
-	labelNotEvaluated     = "Scope limits: %s."
-	labelEvidence         = "Evidence: every finding cites pinned upstream source (--verbose). No network used."
-	labelProvenance       = "evaluated at %s; input %s; knowledge %s %s %s"
-	labelHopStatus        = "  hop %d %s -> %s: %s"
-	labelDocuments        = "%d documents"
-	labelDocumentOne      = "1 document"
-	labelComponents       = "%d components"
-	labelComponentOne     = "1 component"
-	labelNoName           = "(no name)"
-	labelNotices          = "ONE-WAY CHANGES (%d)"
-	labelNoticeRule       = "cannot be rolled back: %s"
-	labelNoticeBefore     = "before you upgrade: %s"
-	labelNoticeUnresolved = "one-way notice not established: %s (%s)"
-	labelNoticeNext       = "next action: %s"
-	labelLeads            = "UNVERIFIED LEADS (%d)"
-	labelUnsupported      = "UNSUPPORTED COMBINATIONS (%d)"
-	labelUnsupportedRule  = "outside a documented support range: %s (%s)"
-	labelLeadRule         = "unverified lead (does not block): %s"
-	labelLeadCheck        = "worth checking: %s"
-	labelTrustExcluded    = "trust policy: evidence basis %s only; %d rule(s) that apply were left out, so the result cannot pass"
-	labelTrustLeads       = "trust policy: %d unverified lead(s) not shown; add lead to --require-basis to list them"
-	labelConsensus        = "%d finding(s) rely on model consensus"
-	labelGapLine          = "%s - %s"
+	labelPath                   = "%s %s -> %s: %s"
+	labelHops                   = "%d hops"
+	labelHopOne                 = "1 hop"
+	labelPolicy                 = "%s (path policy %s)"
+	labelNoPolicy               = "%s (no reviewed path policy)"
+	labelNoPath                 = "no path (%s)"
+	labelWholeUpgrade           = "whole upgrade"
+	labelMore                   = "... and %d more"
+	labelFix                    = "fix: %s"
+	labelEvidenceReviewed       = "evidence: reviewed"
+	labelEvidenceMech           = "evidence: mechanical (%s)"
+	labelSource                 = "source: %s lines %d-%d; revision %s; digest %s"
+	labelSharedSources          = "Sources cited by several findings:"
+	labelNotChecked             = "NOT CHECKED (%d)"
+	labelPassed                 = "PASSED (%d)"
+	labelChecked                = "Checked %s, %s, %s (%d covered)."
+	labelPassCount              = " %d checks passed (--show-passes)."
+	labelPassCountOne           = " 1 check passed (--show-passes)."
+	labelNotEvaluated           = "Scope limits: %s."
+	labelEvidence               = "Evidence: every finding cites pinned upstream source (--verbose). No network used."
+	labelProvenance             = "evaluated at %s; input %s; knowledge %s %s %s"
+	labelKnowledgeStore         = "knowledge database %s; layout %s; target %s; trust receipt %s"
+	labelKnowledgeProject       = "knowledge for %s: target %s revision %s digest %s"
+	labelKnowledgeProjectAbsent = "knowledge for %s: absent from the selected index"
+	labelHopStatus              = "  hop %d %s -> %s: %s"
+	labelDocuments              = "%d documents"
+	labelDocumentOne            = "1 document"
+	labelComponents             = "%d components"
+	labelComponentOne           = "1 component"
+	labelNoName                 = "(no name)"
+	labelNotices                = "ONE-WAY CHANGES (%d)"
+	labelNoticeRule             = "cannot be rolled back: %s"
+	labelNoticeBefore           = "before you upgrade: %s"
+	labelNoticeUnresolved       = "one-way notice not established: %s (%s)"
+	labelNoticeNext             = "next action: %s"
+	labelLeads                  = "UNVERIFIED LEADS (%d)"
+	labelUnsupported            = "UNSUPPORTED COMBINATIONS (%d)"
+	labelUnsupportedRule        = "outside a documented support range: %s (%s)"
+	labelLeadRule               = "unverified lead (does not block): %s"
+	labelLeadCheck              = "worth checking: %s"
+	labelTrustExcluded          = "trust policy: evidence basis %s only; %d rule(s) that apply were left out, so the result cannot pass"
+	labelTrustLeads             = "trust policy: %d unverified lead(s) not shown; add lead to --require-basis to list them"
+	labelConsensus              = "%d finding(s) rely on model consensus"
+	labelGapLine                = "%s - %s"
 )
 
 // SARIF and Markdown labels.
@@ -413,7 +420,8 @@ const (
 	UsageUnknownComponent   = "unknown component %s; closest: %s"
 	UsageConflict           = "%s is given two different versions for %s"
 	UsageNoTarget           = "at least one target is required: --to COMPONENT=VERSION or target: in prufyx.yaml"
-	UsageKnowledgeDB        = "--knowledge-db is not supported by scan yet: external knowledge carries no line reviews or path policies, so no line could be checked; scan uses the embedded knowledge"
+	UsageKnowledgeDBNow     = "--now cannot be used with --knowledge-db: a knowledge database is verified and evaluated at the current time"
+	UsageKnowledgeDBFailed  = "KNOWLEDGE INTEGRITY FAILURE: the knowledge database could not be verified (%s); nothing was evaluated and the embedded knowledge was not used"
 	UsageNow                = "--now must be canonical UTC with whole seconds, for example 2026-10-04T00:00:00Z"
 	UsageStdinTwice         = "standard input (-) can be read only once"
 	UsageConfig             = "configuration file: %s"
@@ -427,6 +435,19 @@ const (
 	UsageConfigInputs       = "inputs in prufyx.yaml are relative to its directory and must stay inside it"
 	UsageUnsupportedVersion = "%s %s is not a version scan can plan"
 	UsageRequireBasis       = "--require-basis takes a comma-separated list of reviewed, mechanical, empirical, consensus, lead"
+)
+
+// Knowledge database failure reasons, shown in UsageKnowledgeDBFailed.
+const (
+	KnowledgeDBMissing       = "no knowledge database directory at that path"
+	KnowledgeDBNoSelection   = "no verified revision is selected; run prufyx db update or db import first"
+	KnowledgeDBLayout        = "the database layout does not match its profile marker"
+	KnowledgeDBRollback      = "rollback or clock rollback rejected"
+	KnowledgeDBExpired       = "trust metadata expired"
+	KnowledgeDBTrustAdvanced = "trust state advanced beyond the selection; run prufyx db update again"
+	KnowledgeDBRecovery      = "an interrupted import needs recovery"
+	KnowledgeDBInvalid       = "the database path or contents are not accepted"
+	KnowledgeDBIntegrity     = "integrity check failed"
 )
 
 // Usage is the help text of the scan command.
@@ -452,7 +473,11 @@ with where it is and how to fix it, and every area that was not checked.
   --input-permissions strict|refuse-writable   default refuse-writable
   --require-basis LIST      evidence bases to evaluate (default reviewed,mechanical,empirical,consensus);
                             a rule left out that applies keeps the answer from passing
-  --now RFC3339             evaluation instant, for exact replay (default: now, UTC)
+  --knowledge-db DIR        read the knowledge from this verified local knowledge database
+                            (prufyx db update or db import) instead of the embedded knowledge;
+                            any verification failure exits 3, never falls back to embedded knowledge
+  --now RFC3339             evaluation instant, for exact replay (default: now, UTC;
+                            not with --knowledge-db, which always evaluates at the current time)
 
 Exit status: 0 PASS FOR THE DECLARED SCOPE, 10 BLOCKED, 11 not every area checked,
 2 input not accepted, 3 knowledge integrity failure.`

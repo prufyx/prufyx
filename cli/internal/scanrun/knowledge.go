@@ -12,8 +12,9 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
-// Knowledge is the knowledge one scan reads. The command always uses the
-// embedded snapshot (Embedded); tests wrap it.
+// Knowledge is the knowledge one scan reads: the embedded snapshot
+// (Embedded), or knowledge selected from a verified local knowledge
+// database (Store); tests wrap either.
 type Knowledge interface {
 	Origin() string
 	Revision() string
@@ -30,6 +31,9 @@ type Knowledge interface {
 	// ServedAPIs looks up the reviewed list of "apiVersion kind" pairs the
 	// component's line serves, with its freshness at now.
 	ServedAPIs(component, line string, now time.Time) ServedStatus
+	// Store describes the verified knowledge database the knowledge was
+	// selected from; nil for the embedded knowledge.
+	Store() *StoreInfo
 }
 
 // Evaluation is the result of one engine evaluation.
@@ -58,6 +62,16 @@ func LoadEmbedded() (Embedded, error) {
 // Evaluate runs the native route's fact-family evaluation under the trust
 // policy and checks the report's integrity.
 func (k Embedded) Evaluate(policy cncfcheck.TrustPolicy, project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error) {
+	return evaluateSnapshot(k.ScanKnowledge, "embedded", k.PackDigest(), policy, project, facts, inputRaw, now)
+}
+
+// Store is nil: the embedded knowledge comes from no database.
+func (k Embedded) Store() *StoreInfo { return nil }
+
+// evaluateSnapshot evaluates one prepared input over a snapshot and checks
+// that the report is intact and came from the expected knowledge: its
+// origin and the digest of the pack or target that holds the rules.
+func evaluateSnapshot(k *cncfcheck.ScanKnowledge, origin, packDigest string, policy cncfcheck.TrustPolicy, project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error) {
 	report, err := k.CheckFactsWithPolicy(policy, project, facts, inputRaw, now)
 	if errors.Is(err, cncfcheck.ErrInvalid) {
 		return Evaluation{}, ErrRefused
@@ -65,7 +79,7 @@ func (k Embedded) Evaluate(policy cncfcheck.TrustPolicy, project string, facts [
 	if err != nil {
 		return Evaluation{}, ErrIntegrity
 	}
-	if _, err := cncfcheck.MarshalReport(report); err != nil {
+	if _, err := cncfcheck.MarshalReport(report); err != nil || report.KnowledgeOrigin != origin || report.KnowledgePackDigest != packDigest {
 		return Evaluation{}, ErrIntegrity
 	}
 	return Evaluation{Claims: report.Check.Claims, EngineContractDigest: report.Check.EngineContractDigest}, nil

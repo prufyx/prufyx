@@ -166,6 +166,16 @@ func Human(report Report, options HumanOptions) []byte {
 	line("%s", labelEvidence)
 	p := report.Provenance
 	line(labelProvenance, p.EvaluatedAt, p.InputDigest, p.KnowledgeOrigin, p.KnowledgeRevision, p.KnowledgeDigest)
+	if store := p.KnowledgeStore; store != nil {
+		line(labelKnowledgeStore, store.Path, store.Layout, store.TargetPath, store.TrustReceiptDigest)
+		for _, project := range store.Projects {
+			if project.Status != "present" {
+				line(labelKnowledgeProjectAbsent, project.Project)
+				continue
+			}
+			line(labelKnowledgeProject, project.Project, project.TargetPath, project.Revision, project.Digest)
+		}
+	}
 	return out.Bytes()
 }
 
@@ -319,8 +329,9 @@ func RedactValue(value string) string {
 	return digestPrefix + hex.EncodeToString(sum[:])
 }
 
-// Redact replaces every file path, object name and namespace in the report
-// with its digest. Gaps, notes and omissions never carry them.
+// Redact replaces every file path, object name and namespace in the report,
+// and the knowledge database path, with its digest. Gaps, notes and
+// omissions never carry them.
 func Redact(report *Report) {
 	for f := range report.Findings {
 		for l := range report.Findings[f].Locations {
@@ -330,5 +341,10 @@ func Redact(report *Report) {
 	}
 	for o := range report.Omitted {
 		report.Omitted[o].File = RedactValue(report.Omitted[o].File)
+	}
+	if store := report.Provenance.KnowledgeStore; store != nil {
+		redacted := *store
+		redacted.Path = RedactValue(store.Path)
+		report.Provenance.KnowledgeStore = &redacted
 	}
 }

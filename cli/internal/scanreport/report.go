@@ -290,6 +290,34 @@ type Provenance struct {
 	EngineContractDigest string                 `json:"engineContractDigest"`
 	NetworkUsed          bool                   `json:"networkUsed"`
 	Build                buildidentity.Identity `json:"build"`
+	// KnowledgeStore is set when the knowledge was selected from a verified
+	// local knowledge database (--knowledge-db). KnowledgeRevision and
+	// KnowledgeDigest then identify the selected target.
+	KnowledgeStore *KnowledgeStore `json:"knowledgeStore,omitempty"`
+}
+
+// KnowledgeStore identifies the knowledge database a scan read: where it is,
+// its layout, the selected target and trust receipt, and each project
+// target the scan opened from it.
+type KnowledgeStore struct {
+	Path               string                  `json:"path"`
+	Layout             string                  `json:"layout"`
+	TargetPath         string                  `json:"targetPath"`
+	TrustReceiptDigest string                  `json:"trustReceiptDigest"`
+	Purpose            string                  `json:"purpose"`
+	ImportedVerifiedAt string                  `json:"importedVerifiedAt"`
+	Projects           []KnowledgeStoreProject `json:"projects,omitempty"`
+}
+
+// KnowledgeStoreProject is one project target opened from a per-project
+// knowledge database. Status is "present", or "absent_from_index" when the
+// selected index has no target for the project.
+type KnowledgeStoreProject struct {
+	Project    string `json:"project"`
+	Status     string `json:"status"`
+	TargetPath string `json:"targetPath,omitempty"`
+	Revision   string `json:"revision,omitempty"`
+	Digest     string `json:"digest,omitempty"`
 }
 
 // Finalize puts the report in its canonical order, fills the summary and

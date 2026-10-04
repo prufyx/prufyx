@@ -31,8 +31,11 @@ type Request struct {
 	// default policy.
 	TrustPolicy cncfcheck.TrustPolicy
 	// Now is the evaluation instant; zero means the current time.
-	Now  time.Time
-	Help bool
+	Now time.Time
+	// KnowledgeDB is the --knowledge-db directory; empty means the embedded
+	// knowledge.
+	KnowledgeDB string
+	Help        bool
 }
 
 // UsageError is a command line or input the scan does not accept. Its text
@@ -232,7 +235,17 @@ func ParseArgs(args []string) (Request, error) {
 			}
 			request.TrustPolicy = policy
 		case "knowledge-db":
-			return Request{}, usage(scanreport.UsageKnowledgeDB)
+			if err := once(display); err != nil {
+				return Request{}, err
+			}
+			v, err := next()
+			if err != nil {
+				return Request{}, err
+			}
+			if v == "" || len(v) > 4096 || !printable(v) {
+				return Request{}, usage(scanreport.UsageBadValue, display)
+			}
+			request.KnowledgeDB = v
 		default:
 			return Request{}, usage(scanreport.UsageUnknownFlag, display)
 		}
@@ -246,7 +259,21 @@ func ParseArgs(args []string) (Request, error) {
 	if stdin > 1 {
 		return Request{}, usage(scanreport.UsageStdinTwice)
 	}
+	if request.KnowledgeDB != "" && !request.Now.IsZero() {
+		return Request{}, usage(scanreport.UsageKnowledgeDBNow)
+	}
 	return request, nil
+}
+
+// printable reports text without control characters, so it can be shown
+// in the report as given.
+func printable(text string) bool {
+	for _, r := range text {
+		if r < 0x20 || r == 0x7f {
+			return false
+		}
+	}
+	return true
 }
 
 // addVersion records COMPONENT=VERSION. The component name is checked

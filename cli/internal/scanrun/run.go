@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/intake"
 	"github.com/prufyx/prufyx/cli/internal/scanconfig"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
@@ -46,21 +47,25 @@ type Result struct {
 // Run performs the scan. A *UsageError is input the scan does not accept
 // (exit 2); ErrIntegrity is a knowledge or report integrity failure (exit 3).
 func Run(request Request, options Options) (Result, error) {
-	now := request.Now
-	if now.IsZero() {
-		clock := options.Clock
-		if clock == nil {
-			clock = time.Now
-		}
-		now = clock().UTC().Truncate(time.Second)
-	}
 	knowledge := options.Knowledge
-	if knowledge == nil {
+	// The catalog checks component names. With --knowledge-db it is the
+	// compiled catalog alone: the database is opened once the targets are
+	// known, and nothing else of the embedded knowledge is read.
+	var catalog componentCatalog = knowledge
+	switch {
+	case knowledge != nil:
+	case request.KnowledgeDB != "":
+		loaded, err := cncfcheck.LoadScanCatalog()
+		if err != nil {
+			return Result{}, ErrIntegrity
+		}
+		catalog = loaded
+	default:
 		loaded, err := LoadEmbedded()
 		if err != nil {
 			return Result{}, ErrIntegrity
 		}
-		knowledge = loaded
+		knowledge, catalog = loaded, loaded
 	}
 	build := options.Build
 	if build == nil {
@@ -79,7 +84,7 @@ func Run(request Request, options Options) (Result, error) {
 		Inputs: request.Paths, Current: request.From, Target: request.To,
 		Distribution: request.Distribution, ResourceScopeComplete: request.ResourceScopeComplete, TargetApplyRequired: request.TargetApplyRequired,
 	})
-	if err := checkComponents(knowledge, effective); err != nil {
+	if err := checkComponents(catalog, effective); err != nil {
 		return Result{}, err
 	}
 	if len(effective.Target) == 0 {
@@ -93,12 +98,44 @@ func Run(request Request, options Options) (Result, error) {
 	if err != nil {
 		return Result{}, inputError(err, request)
 	}
+	if knowledge == nil {
+		targets := make([]string, 0, len(effective.Target))
+		for slug := range effective.Target {
+			targets = append(targets, slug)
+		}
+		sort.Strings(targets)
+		opened, err := OpenStore(request.KnowledgeDB, targets)
+		if err != nil {
+			return Result{}, err
+		}
+		knowledge = opened
+	}
+	store := knowledge.Store()
+	now := request.Now
+	switch {
+	case store != nil && !now.IsZero():
+		return Result{}, usage(scanreport.UsageKnowledgeDBNow)
+	case store != nil:
+		// A verified database is evaluated at the verifier's clock only.
+		now = store.EvaluatedAt.UTC().Truncate(time.Second)
+	case now.IsZero():
+		clock := options.Clock
+		if clock == nil {
+			clock = time.Now
+		}
+		now = clock().UTC().Truncate(time.Second)
+	}
 
 	report := scanreport.Report{Provenance: scanreport.Provenance{
 		EvaluatedAt: now.Format(time.RFC3339), InputDigest: workspace.Digest, ConfigDigest: config.Digest,
 		KnowledgeOrigin: knowledge.Origin(), KnowledgeRevision: knowledge.Revision(), KnowledgeDigest: knowledge.PackDigest(),
 		Build: *build,
 	}}
+	if store != nil {
+		provenance := store.Provenance
+		provenance.Projects = append([]scanreport.KnowledgeStoreProject(nil), store.Provenance.Projects...)
+		report.Provenance.KnowledgeStore = &provenance
+	}
 	manifests := splitConfigDocuments(workspace, &report)
 	report.Summary.DocumentsRead = len(manifests.Documents)
 	readable := 0
@@ -133,6 +170,14 @@ func Run(request Request, options Options) (Result, error) {
 			report.Inventory = append(report.Inventory, *component)
 			continue
 		}
+		if store != nil && store.Absent[slug] {
+			// The selected index has no target for the component: no rule,
+			// review or policy can apply, and nothing is borrowed from the
+			// embedded knowledge.
+			report.Gaps = append(report.Gaps, scanreport.NewGap(slug, nil, scanreport.GapProjectNotInKnowledge, slug))
+			report.Inventory = append(report.Inventory, *component)
+			continue
+		}
 		component.Covered = true
 		report.Inventory = append(report.Inventory, *component)
 		run := &kubernetesRun{
@@ -152,7 +197,13 @@ func Run(request Request, options Options) (Result, error) {
 	return Result{Report: report, Exit: scanreport.Exit(report)}, nil
 }
 
-func entry(inventory map[string]*scanreport.Component, knowledge Knowledge, slug string, slugs *[]string) *scanreport.Component {
+// componentCatalog names the catalog's projects and their components.
+type componentCatalog interface {
+	Projects() []string
+	Component(slug string) (string, bool)
+}
+
+func entry(inventory map[string]*scanreport.Component, knowledge componentCatalog, slug string, slugs *[]string) *scanreport.Component {
 	if component, found := inventory[slug]; found {
 		return component
 	}
@@ -232,7 +283,7 @@ func inputError(err error, request Request) error {
 
 // checkComponents refuses a component name that is not in the catalog,
 // naming the closest ones.
-func checkComponents(knowledge Knowledge, effective scanconfig.Effective) error {
+func checkComponents(knowledge componentCatalog, effective scanconfig.Effective) error {
 	names := make([]string, 0, len(effective.Current)+len(effective.Target))
 	for slug := range effective.Current {
 		names = append(names, slug)

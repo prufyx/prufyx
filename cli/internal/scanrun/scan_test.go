@@ -476,7 +476,8 @@ func TestScanUsage(t *testing.T) {
 	for _, command := range [][]string{
 		{"--to"}, {"--to", "kubernetes"}, {"--to", "=1.2.3"}, {"--format", "xml"}, {"--format", "SARIF"}, {"--now", "2026-10-04T00:00:00+02:00"},
 		{"--now", "2026-10-04T00:00:00.5Z"}, {"--input-permissions", "loose"}, {"--distribution", "eks"}, {"--bogus"},
-		{"--knowledge-db", "dir"}, {"-", "-"}, {"--to", "kubernetes=1.2.3", "--to", "kubernetes=1.2.4"}, {"--redact=maybe"},
+		{"--knowledge-db", "dir", "--knowledge-db", "dir"}, {"--knowledge-db", ""}, {"--knowledge-db", "a\nb"}, {"--knowledge-db"},
+		{"--knowledge-db", "dir", "--now", "2026-10-04T00:00:00Z"}, {"-", "-"}, {"--to", "kubernetes=1.2.3", "--to", "kubernetes=1.2.4"}, {"--redact=maybe"},
 		{"--format", "json", "--format", "human"},
 	} {
 		if _, err := ParseArgs(command); !isUsage(err) {
@@ -487,8 +488,11 @@ func TestScanUsage(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(request.Paths, []string{"a", "b", "--c", "-"}) || request.To["kubernetes"] != "1.30.4" || request.Format != "human" {
 		t.Fatalf("request %+v %v", request, err)
 	}
-	if _, err := ParseArgs([]string{"--knowledge-db", "x"}); err == nil || !strings.Contains(err.Error(), "embedded") {
-		t.Fatalf("knowledge-db: %v", err)
+	if request, err := ParseArgs([]string{"--knowledge-db", "x"}); err != nil || request.KnowledgeDB != "x" {
+		t.Fatalf("knowledge-db: %+v %v", request, err)
+	}
+	if _, err := ParseArgs([]string{"--now", testNow, "--knowledge-db=x"}); err == nil || !strings.Contains(err.Error(), "--now cannot be used with --knowledge-db") {
+		t.Fatalf("knowledge-db with --now: %v", err)
 	}
 }
 

@@ -42,6 +42,10 @@ func (r runtime) scanError(err error) int {
 	if errors.As(err, &usageErr) {
 		return r.fail(usageErr.Message, ExitUsage)
 	}
+	var storeErr *scanrun.StoreError
+	if errors.As(err, &storeErr) {
+		return r.fail(storeErr.Error(), ExitIntegrity)
+	}
 	return r.fail(scanreport.UsageIntegrity, ExitIntegrity)
 }
 

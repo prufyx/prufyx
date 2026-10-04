@@ -52,7 +52,7 @@ var testBuild = buildidentity.Identity{
 // and their evaluation are unchanged; synthetic rules are evaluated by the
 // unchanged engine on the same prepared input and their claims added.
 type testKnowledge struct {
-	Embedded
+	Knowledge
 	attestations    lineattest.Index
 	policies        upgradepath.Index
 	served          map[string]bool
@@ -93,7 +93,7 @@ func (k testKnowledge) ServedAPIs(component, line string, now time.Time) ServedS
 }
 
 func (k testKnowledge) Rules(project string) []cncfcheck.ScanRule {
-	rules := k.Embedded.Rules(project)
+	rules := k.Knowledge.Rules(project)
 	if project == "kubernetes" {
 		rules = append(rules, k.synthetic...)
 		sort.Slice(rules, func(i, j int) bool { return rules[i].Scope.ID < rules[j].Scope.ID })
@@ -102,7 +102,7 @@ func (k testKnowledge) Rules(project string) []cncfcheck.ScanRule {
 }
 
 func (k testKnowledge) Evaluate(policy cncfcheck.TrustPolicy, project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error) {
-	evaluation, err := k.Embedded.Evaluate(policy, project, facts, inputRaw, now)
+	evaluation, err := k.Knowledge.Evaluate(policy, project, facts, inputRaw, now)
 	if err != nil {
 		return evaluation, err
 	}
@@ -244,15 +244,22 @@ type knowledgeOptions struct {
 	servedFreshness string
 	// synthetic are rules added to the published ones (raw rule JSON).
 	synthetic []string
+	// base is the knowledge the reviews are added to; nil is the embedded
+	// knowledge.
+	base Knowledge
 }
 
 const testSource = `{"id":"kubernetes-website-v125-cronjob-v1beta1","url":"https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md","revision":"9f1af2971c32124bff0a1f42255ba5a2f3c8a16f","contentDigest":"sha256:96f34a49cbdd7bd53008cc7b7cc8aff58c373ad323e64eef0155cbbc44494f61","startLine":87,"endLine":93}`
 
 func newKnowledge(t testing.TB, options knowledgeOptions) Knowledge {
 	t.Helper()
-	base, err := LoadEmbedded()
-	if err != nil {
-		t.Fatal(err)
+	base := options.base
+	if base == nil {
+		embedded, err := LoadEmbedded()
+		if err != nil {
+			t.Fatal(err)
+		}
+		base = embedded
 	}
 	var synthetic []cncfcheck.ScanRule
 	var syntheticRaw []json.RawMessage
@@ -350,7 +357,7 @@ func newKnowledge(t testing.TB, options knowledgeOptions) Knowledge {
 	if options.recordBasis != "" && options.servedOverride.Basis == "" {
 		options.servedOverride.Basis = options.recordBasis
 	}
-	return testKnowledge{Embedded: base, attestations: index, policies: policies, served: served, servedLines: servedLines,
+	return testKnowledge{Knowledge: base, attestations: index, policies: policies, served: served, servedLines: servedLines,
 		servedOverride: options.servedOverride, servedFreshness: options.servedFreshness, synthetic: synthetic, syntheticRaw: syntheticRaw}
 }
 

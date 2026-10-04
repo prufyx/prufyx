@@ -536,6 +536,7 @@
             "NO_REVIEWED_PATH_POLICY",
             "PATH_NOT_PLANNABLE",
             "PATH_POLICY_NOT_CURRENT",
+            "PROJECT_NOT_IN_KNOWLEDGE",
             "RULE_NOT_DECIDED",
             "UNSUPPORTED_COMBINATION",
             "VERSION_CONFLICT",
@@ -856,7 +857,8 @@
         },
         "knowledgeOrigin": {
           "enum": [
-            "embedded"
+            "embedded",
+            "external_signed_local"
           ]
         },
         "knowledgeRevision": {
@@ -873,6 +875,78 @@
         },
         "build": {
           "$ref": "#/$defs/build"
+        },
+        "knowledgeStore": {
+          "$ref": "#/$defs/knowledgeStore"
+        }
+      }
+    },
+    "knowledgeStore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "layout",
+        "targetPath",
+        "trustReceiptDigest",
+        "purpose",
+        "importedVerifiedAt"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "layout": {
+          "enum": [
+            "cncf",
+            "cncf-projects"
+          ]
+        },
+        "targetPath": {
+          "type": "string"
+        },
+        "trustReceiptDigest": {
+          "type": "string"
+        },
+        "purpose": {
+          "type": "string"
+        },
+        "importedVerifiedAt": {
+          "type": "string"
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/knowledgeStoreProject"
+          }
+        }
+      }
+    },
+    "knowledgeStoreProject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project",
+        "status"
+      ],
+      "properties": {
+        "project": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "present",
+            "absent_from_index"
+          ]
+        },
+        "targetPath": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
         }
       }
     }
