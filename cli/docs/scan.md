@@ -42,7 +42,8 @@ kubernetes 1.24.17 -> 1.25.3: 1 hop (no reviewed path policy)
                       applyset.yaml:1  CronJob default/nightly-report
                       fix: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 
-NOT CHECKED (1)
+NOT CHECKED (2)
+  kubernetes   no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the Kubernetes 1.25 API reference by hand, or request coverage
   kubernetes 1.24.17 -> 1.25.3   kubernetes 1.25 has not been reviewed for removed APIs - check the kubernetes 1.25 release notes for removed APIs by hand, or request coverage
 
 Checked 1 hop, 2 documents, 1 component (1 covered). 6 checks passed (--show-passes).
@@ -52,8 +53,9 @@ evaluated at 2026-10-04T00:00:00Z; input sha256:706abd92d4968558d52e272d3f490af7
 ```
 
 The exit code is `10`. The built-in knowledge does not yet carry reviews of
-whole release lines, so the hop also names the gap `LINE_NOT_ATTESTED`: the
-answer can be `BLOCKED` or "not every area checked", but not yet a pass. `applyset.yaml:1` is the line of the CronJob's
+whole release lines or reviewed lists of served API versions, so the answer
+also names `LINE_NOT_ATTESTED` and `API_VERSION_NOT_REVIEWED`: it can be
+`BLOCKED` or "not every area checked", but not yet a pass. `applyset.yaml:1` is the line of the CronJob's
 `apiVersion`; for a document without a known line the location is
 `file#document` (and `/item` for an object inside a `List`).
 
@@ -106,8 +108,15 @@ binary.
 - every input document was read: none is templated, unparseable, a nested or
   unresolved list, a non-Kubernetes document, or a skipped symlink or special
   file;
-- a reviewed upgrade-path policy that is current, so every release line on the
-  way is a hop;
+- either the upgrade enters at most one new minor release line, or a current
+  reviewed upgrade-path policy splits it so that every release line on the way
+  is a hop;
+- every object is at an API version the target serves: none at a version
+  removed on a line no evaluated hop enters (for example a `batch/v1beta1`
+  CronJob when you are already on 1.25), and every object of a Kubernetes API
+  group (core, `apps`, `batch`, `autoscaling`, `policy`, `extensions`,
+  `*.k8s.io`) is at a version the reviewed list of the target line names as
+  served;
 - for every hop, every rule that applies to any release of the hop covers the
   whole hop and reached a verdict, and a current review of the target line says
   these are all the rules for removed API versions on that line;
@@ -160,7 +169,8 @@ Every gap has a reason, a detail and an action.
 | `DISTRIBUTION_NOT_COVERED` | The distribution is `custom_build`. | Check your distribution's release notes by hand. |
 | `DOCUMENTS_TEMPLATED` | Documents with `{{ ... }}` or `${...}`. | Render them (`helm template`, `kustomize build`) and scan the output. |
 | `DOCUMENTS_NOT_EVALUATED` | Nested or unresolved lists, paginated lists, documents that are not Kubernetes objects, skipped symlinks or special files, or no manifests at all. | Pass only rendered Kubernetes objects. |
-| `API_VERSION_NOT_REVIEWED` | A manifest uses a version of a reviewed kind that the reviewed removals do not name. | Check that version against the release notes by hand. |
+| `API_VERSION_NOT_SERVED` | A manifest uses an API version that was removed on a release line at or below the target that no evaluated hop enters (typically one removed before your current version). | Migrate it to a served version and scan again. |
+| `API_VERSION_NOT_REVIEWED` | A manifest uses a version of a reviewed kind that the reviewed removals do not name, or a version of a Kubernetes API group that the reviewed list of the target line does not name as served, or there is no reviewed list of served versions for the target line. The built-in knowledge does not carry such lists yet, so today every scan with Kubernetes manifests names this gap. | Check those versions against the target's API reference by hand, or request coverage. |
 | `ALPHA_API_NOT_COVERED` | A manifest uses an alpha version of a Kubernetes API group (core, `apps`, `batch`, `autoscaling`, `policy`, `extensions` or `*.k8s.io`); removed-API reviews cover beta and stable versions only. | Check alpha APIs by hand for every line. |
 | `EVIDENCE_EXPIRED` | The review of a rule is stale, withdrawn or not yet valid at `--now`. | Use a release with current knowledge, or check by hand. |
 | `RULE_NOT_DECIDED` | A rule that applies could not reach a verdict, or needs evidence `scan` does not collect. | Run the matching `prufyx check cncf` route, or check by hand. |
@@ -169,6 +179,26 @@ When any input document cannot be read as part of the apply set (for example a
 templated document next to rendered ones), the removed-API facts of the whole
 set stay undecided, exactly as for one file in `prufyx check cncf`. Fix the
 named documents first.
+
+A patch upgrade within one minor line (for example `1.30.4 -> 1.30.5`) is
+never covered by a line review and always names `LINE_NOT_ATTESTED`; check the
+patch release notes by hand.
+
+When the plan has more than one hop, the whole upgrade is also evaluated as one
+transition. For an upgrade across several lines that transition carries only
+the flow-control fact, so a rule reviewed for that exact pair but reading
+another removal fact cannot be decided there; it is reported as a gap, never
+as a pass, and a blocker is never lost.
+
+## One-way changes
+
+Some reviewed transitions cannot be rolled back. When such a notice applies to
+a hop, the human output lists it after the gaps under `ONE-WAY CHANGES (N)` as
+`cannot be rolled back: <rule>` with `before you upgrade: <reviewed text>`, and
+JSON lists it in `notices`. A notice that applies but could not be established
+(for example its review expired) is listed as not established, with the
+reason. Notices never change the headline, the exit code, the gaps or the
+findings, and the absence of a notice never means a rollback is possible.
 
 ## What is not checked
 
@@ -184,7 +214,10 @@ document index, item index inside a `List` (`-1` otherwise), the line of its
 `apiVersion` when known, kind, namespace and name. Values are never printed,
 and Secret payloads are dropped when the input is read. With `--redact`, the
 file, namespace and name are replaced by `sha256:` digests of their text, and
-error messages leave out paths.
+error messages leave out paths. These are plain digests, not anonymisation:
+the same name always gives the same digest, so a short or common name (such as
+the namespace `default`) can be recovered by guessing. Locations keep their
+order by the original path.
 
 ## Input permissions
 
@@ -209,8 +242,9 @@ described by [`generated/schemas/scan-report-v1alpha1.json`](generated/schemas/s
 `verdict` (`BLOCKED`, `UNKNOWN` or `SCOPE_COMPLETE_PASS`), `headline`,
 `summary`, `inventory`, `paths` (with every hop, its status, its engine input
 digest and the line review it used), `findings`, `gaps`, `passes`, `omitted`
-(every document or file that was not evaluated, with the reason), `omissions`,
-`notes` and `provenance` (evaluation instant, input digest, configuration
+(every document or file that was not evaluated, with the reason), `notices`
+(one-way changes; never part of the verdict), `omissions`, `notes` and
+`provenance` (evaluation instant, input digest, configuration
 digest, knowledge revision and digest, engine contract digest, build identity,
 `networkUsed: false`).
 

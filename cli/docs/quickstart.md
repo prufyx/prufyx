@@ -321,7 +321,8 @@ kubernetes 1.24.17 -> 1.25.3: 1 hop (no reviewed path policy)
                       applyset.yaml:2  CronJob default/nightly-report
                       fix: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 
-NOT CHECKED (1)
+NOT CHECKED (2)
+  kubernetes   no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the Kubernetes 1.25 API reference by hand, or request coverage
   kubernetes 1.24.17 -> 1.25.3   kubernetes 1.25 has not been reviewed for removed APIs - check the kubernetes 1.25 release notes for removed APIs by hand, or request coverage
 
 Checked 1 hop, 2 documents, 1 component (1 covered). 6 checks passed (--show-passes).

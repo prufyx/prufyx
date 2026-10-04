@@ -27,7 +27,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   at a time when a reviewed upgrade-path policy exists, reads `prufyx.yaml`,
   accepts files other users can read with a note (`--input-permissions
   strict` refuses them), prints digests instead of paths and names with
-  `--redact`, and writes JSON with schema `prufyx.io/scan-report/v1alpha1`
+  `--redact`, lists one-way changes separately without letting them change the
+  answer, and writes JSON with schema `prufyx.io/scan-report/v1alpha1`
   (`cli/docs/generated/schemas/scan-report-v1alpha1.json`). See
   `cli/docs/scan.md`.
 - Maintainer tooling: the knowledge gate gains circuit breakers (a change that
