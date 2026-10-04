@@ -5,7 +5,9 @@ package knowledgegate
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -300,6 +302,26 @@ func TestGateReviewedAttestationApproval(t *testing.T) {
 		// A copy of the approval anywhere in the base's approvals.
 		"approval already in the base at another path": {"1.25", func(t *testing.T, base, head Tree, id string, rec *ApprovalRecord) Options {
 			writeFile(t, approvalPath(base, "some.other.rule"), key.sign(t, *rec))
+			return Options{}
+		}, "already in the base"},
+		// The same decision signed again with another pinned key: the
+		// signed record, not only the signature, is compared.
+		"approval already in the base, signed by another key": {"1.25", func(t *testing.T, base, head Tree, id string, rec *ApprovalRecord) Options {
+			other := newApprovalKey(t)
+			for _, tr := range []Tree{base, head} {
+				raw, err := json.MarshalIndent(ApprovalKeys{
+					Schema: ApprovalKeysSchema, Role: ApprovalKeyRole, Owners: []string{"airstand"},
+					Keys: []ApprovalKey{
+						{KeyID: ApprovalKeyID(key.public), PublicKey: hex.EncodeToString(key.public), NotAfter: "2027-10-01T00:00:00Z"},
+						{KeyID: ApprovalKeyID(other.public), PublicKey: hex.EncodeToString(other.public), NotAfter: "2027-10-01T00:00:00Z"},
+					},
+				}, "", "  ")
+				if err != nil {
+					t.Fatal(err)
+				}
+				writeFile(t, filepath.Join(tr.Root, filepath.FromSlash(DefaultLayout().ApprovalKeysPath)), raw)
+			}
+			writeFile(t, approvalPath(base, id), other.sign(t, *rec))
 			return Options{}
 		}, "already in the base"},
 		"line at the declared first line": {"1.20", nil, "derives no pair into line 1.20"},
