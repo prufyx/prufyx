@@ -253,7 +253,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	f.IntVar(&max, "max-loosening", DefaultMaxLoosening, "cap on loosening changes")
 	f.StringVar(&digest, "trust-root-digest", "", "pinned digest of the reattestation trust root")
 	f.StringVar(&rerun, "rerun-worklist", "", "worklist from this job's own evidence repin run")
-	f.BoolVar(&all, "rederive-all", false, "re-derive every active mechanical rule")
+	f.BoolVar(&all, "rederive-all", false, "re-derive every active mechanical rule and mechanical line attestation")
 	f.IntVar(&concurrency, "concurrency", 0, "concurrent upstream reads for re-derivation")
 	f.StringVar(&now, "now", "", "the gate's clock, RFC 3339 UTC (default: now)")
 	f.StringVar(&report, "report", "", "write the JSON report to this file")

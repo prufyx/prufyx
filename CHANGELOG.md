@@ -117,6 +117,21 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   as tool notifications, verdict and provenance as run properties) and
   `--format markdown` (tables for pull request comments and change tickets).
   The exit code does not depend on the format; `--redact` applies to both.
+- Maintainer tooling: the knowledge gate compares the CNCF pack's line
+  attestations and upgrade-path policies record by record instead of refusing
+  every change to them. Removing a line attestation, withdrawing a path policy
+  or moving a record's `validUntil` earlier is tightening. A reviewed record
+  renews only through one verified automated reattestation statement that
+  renews it and changes nothing but its `reviewedAt` and `validUntil`, exactly
+  as the statement gives them; a mechanical line attestation only when the
+  extractor in the gate re-derives it byte for byte; a reviewed line
+  attestation otherwise only with an owner approval for exactly that record
+  plus a cross-check against the extractor's own derivation of the line.
+  Record changes count toward the loosening limits and the kill switch, a new
+  breaker limits how many records one change may switch off, and review
+  records for records are refused. A CNCF pack holding records still fails
+  the per-project target check until that split supports them. See
+  `cli/docs/knowledge-gate.md`.
 - Maintainer tooling: the knowledge gate gains circuit breakers (a change that
   withdraws more than 5 percent of a pack's active rules, or more than 20 rules
   of one project, fails with an alarm), a per-day limit on loosening changes

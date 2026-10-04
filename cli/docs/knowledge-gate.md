@@ -46,11 +46,16 @@ whose names differ only in letter case (`"rule"` and `"Rule"`), is refused
 outright, by the gate and by the engine, because different JSON readers would
 read it differently. Top-level member names must be spelled exactly.
 
-Only `entries` has classification rules. A change to any other top-level pack
-member (`schema`, `revision`, the policy and digest members,
-`lineAttestations`, or a new member) is a loosening change that this version
-of the gate never admits. A reattestation statement must therefore keep the
-pack's `revision`.
+Only `entries` and, in the CNCF pack, the line attestations
+(`lineAttestations`) and upgrade-path policies (`pathPolicies`) have
+classification rules (see [Line attestations and path
+policies](#line-attestations-and-path-policies)). A change to any other
+top-level pack member (`schema`, `revision`, the policy and digest members, or
+a new member) is a loosening change that this version of the gate never
+admits. A reattestation statement must therefore keep the pack's `revision`,
+and adding the first record of a section, or removing the last one, changes
+the pack's `schema` and is not admitted either. In the community pack the
+record sections have no classification rules.
 
 ### Proofs for loosening changes
 
@@ -62,6 +67,58 @@ pack's `revision`.
 | `empirical` | not admitted by this version: empirical evidence may pass, and the gate cannot yet check its reproduction |
 | `lead` | never: a lead is not published through this gate |
 | any other | not admitted |
+
+## Line attestations and path policies
+
+The CNCF pack's line attestations and upgrade-path policies are compared
+record by record. Each record is keyed by its record ID, the same ID `evidence
+repin` and `evidence reattest` use (`line-attestation.` or `path-policy.`
+followed by 24 hex digits, derived from the record's scope), never by its
+position in the section. Both sections are read strictly, exactly as the
+engine reads them; a pack whose records cannot be read is refused.
+
+| Class | What qualifies |
+| --- | --- |
+| Tightening | removing a line attestation (its line becomes a gap again); withdrawing a path policy (`evidence.state` `active` → `withdrawn`); moving a record's `evidence.validUntil` earlier. Every other byte of the record must stay the same. |
+| Loosening | anything else: a new record (also a path policy that is already withdrawn), a renewal, any change to a record's content, and removing a path policy (without a record a path is planned as one direct hop; withdraw it instead) |
+
+A loosening record change is admitted only with one of these proofs:
+
+| Record | Admitted when |
+| --- | --- |
+| reviewed line attestation or path policy, renewed | the change appends one signed statement to the pack's statement chain that verifies (as for rules, including the comparison with the gate's own worklist), the statement is an automated one (`signerRole` `automation`), it renews this record, and the record differs from the base only in a later `evidence.reviewedAt` and a later `evidence.validUntil`, set exactly to the statement's `attestedAt` and the `validUntil` the statement gives the record. The gate checks the dates itself; it does not infer them from the statement verifying. |
+| reviewed line attestation, added or changed otherwise | an owner approval for exactly that record (see [Owner approvals](#owner-approvals)), and the cross-check below |
+| reviewed path policy, changed otherwise | never |
+| mechanical line attestation | the extractor named in `evidence.extractor`, as compiled into the gate, derives exactly this attestation (canonical JSON) from upstream bytes pinned by commit SHA, with the record's own `derivedAt` and lease, under the same 24-hour derivation-time bound as a mechanical rule. A statement or an approval never admits one. |
+| mechanical path policy | never: no extractor derives path policies |
+
+**Cross-check of a reviewed line attestation.** A line attestation states that
+the rules it lists are all the pack's rules for one line and fact family. The
+pack checks prove the list matches the pack; they cannot prove that upstream
+removed nothing else on that line. So the gate also runs the extractor that
+attests the attestation's fact family over pinned upstream bytes, at its own
+clock, and requires:
+
+- for a line before the first line the extractor derives: nothing more (the
+  approval alone decides);
+- for any other line: the extractor derives and attests that line, and every
+  fact of the family it derives for the line is read by a rule the attestation
+  lists.
+
+An attestation of a line the extractor does not derive (for example a line
+that has no release yet), or one that leaves out a removal upstream makes, is
+refused even with an approval. Without an upstream source (`--source`) the
+cross-check fails.
+
+Record changes count like rule changes: toward the loosening cap, the daily
+limit and the kill switch, and switching records off counts toward the record
+breaker (see below). A record change appears in the report with `section`
+(`lineAttestations` or `pathPolicies`) and the record ID as `ruleId`.
+
+The CNCF knowledge is published as one target per project, and that split
+does not carry records yet: a CNCF pack holding any record still fails the
+`targets/cncf` check, so no such change can merge through the gate until the
+split supports them.
 
 With `--source github` the gate reads upstream repositories directly from
 GitHub: directory listings from the git trees API (walking tree objects from
@@ -83,6 +140,8 @@ Run on every pack of the head, whatever the change:
 | `size/<pack>` | the published target exceeds its size cap, or is at or above 80 percent of it and the change loosens and grows the pack. At or above 80 percent an alarm is reported |
 | `targets/cncf` | the CNCF pack, split into the per-project targets and the index it is published as, has a target over the per-target cap or a total over the package bound (the limits of `knowledge-targets check-size`), or a target or the total is at or above its alarm and the change loosens and grows the pack. Alarms are reported. The single-target size above is still checked, because the publisher still produces that layout |
 | `stagger/<pack>` | a loosening change moves a lease into an ISO week that then holds more than 15% of the pack's rules (at least one) |
+| `stagger/<pack>/records` | (a pack holding records) a loosening change of a rule or a record moves a lease into an ISO week that then holds more than 15% of the pack's rules and records together (at least one), as a reattestation statement's own check counts them |
+| `rulecheck/<pack>/lineAttestations` | (a pack holding line attestations) an attestation does not list exactly the pack's rules for its line and fact family, or lists a rule that does not match every transition into the line; for example, a rule was added to an attested line without the attestation being updated |
 | `attestation/<pack>` | the committed corpus attestation differs from a regeneration from the head's pack |
 | `generated/…` | the committed support inventory differs from a regeneration from the head's files |
 | `block-only/<pack>` | an active rule has an unknown basis, or the engine does not evaluate its basis safely: consensus must be block-only and a lead verdict-neutral |
@@ -111,6 +170,12 @@ active rules in the base, or more than `--max-withdraw-project` rules (default 2
 of one project. Exactly the limit passes. Only an `active` to `withdrawn` change
 counts: expiring a lease or adding a rule that is already withdrawn does not. The
 checks are `breaker/withdrawals/<pack>` and `breaker/withdrawals-project`.
+For a pack holding records, `breaker/withdrawals/<pack>/records` also fails
+when a change switches off (removes a line attestation, withdraws a path
+policy) more records than the same percent of the pack's active rules and
+active records together; those records count toward the project breaker
+under the projects `line-attestations` and `path-policies`. The rule breaker
+counts rules only, as before.
 Raise the limits with the repository variables below for a deliberate large
 withdrawal.
 
@@ -147,7 +212,7 @@ report.
 change with two kinds counts under each), `projects` (tightening and loosening
 changes per project; at most 500 projects, the rest under `(other)`), `renewals`,
 `withdrawals`, `rederivations` (changed rules admitted by re-derivation),
-`rederivedUnchanged` (rules a `--rederive-all` run re-derived), `failures`
+`rederivedUnchanged` (rules and line attestations a `--rederive-all` run re-derived), `failures`
 (failed changes, failed checks and their names), `limits`, `breakers` (every
 breaker with what it observed and whether it tripped), `alarms`,
 `autoMergeEligible` and `durationMs`. Keys are sorted at every depth and the
@@ -216,12 +281,15 @@ gate. `CODEOWNERS` requires the owner's review for these paths.
 
 - `cli/knowledge/approvals/<pack>/<rule id>.json` may be added or changed only
   together with a change to that rule that the approval admitted; it may be
-  removed only together with an admitted change to that rule.
+  removed only together with an admitted change to that rule. The same holds
+  for `cli/knowledge/approvals/<pack>/<record id>.json` and a line attestation.
 - `cli/knowledge/reattestation/<pack>/worklists/<stem>.worklist.json` may only
   be added, and only for the statement `<stem>` the same change appends and the
   gate verifies.
 - `cli/knowledge/reattestation/<pack>/review-records/<rule id>.json` may be
-  added or changed (never removed) only for rules that statement renews.
+  added or changed (never removed) only for rules that statement renews. A
+  review record named for a line attestation or path policy record ID is
+  refused: no tool produces or verifies one yet.
 - Any other file under these directories fails the `knowledge-records` check.
 
 ## File layout
@@ -233,7 +301,7 @@ gate. `CODEOWNERS` requires the owner's review for these paths.
 | `cli/knowledge/reattestation/<pack>/worklists/<stem>.worklist.json` | head | the worklist the statement `<stem>` was prepared from |
 | `cli/knowledge/reattestation/<pack>/review-records/<rule id>.json` | head | individual review records, when a human statement uses them |
 | `cli/knowledge/reattestation/trust-root.json` | base only | the reattestation trust root; its digest is passed separately (`--trust-root-digest`) |
-| `cli/knowledge/approvals/<pack>/<rule id>.json` | head | owner approvals |
+| `cli/knowledge/approvals/<pack>/<rule id>.json` | head | owner approvals (`<record id>.json` for a line attestation) |
 | `cli/knowledge/trust/web-approval-keys.json` | base only | the pinned owner-approval keys; their digest is passed separately (`--approval-keys-digest`) |
 
 `<pack>` is `cncf` or `community`. A reattestation worklist names each pack by
@@ -280,6 +348,23 @@ state. The committed file is:
 
 Version 1 approvals (without `baseDigest`) are refused.
 
+An approval for a line attestation has the same form, with two more members
+at the end of `record`, in this order:
+
+```json
+    "ruleId": "line-attestation.…",
+    "scope": "pkg:github/kubernetes/kubernetes kubernetes.removed_served_gvk 1.33",
+    "subject": "lineAttestation"
+```
+
+`ruleId` is the attestation's record ID and `scope` is its component, fact
+family and line separated by single spaces. `candidateDigest` and
+`baseDigest` are taken over the attestation record (its object in the
+`lineAttestations` section, in the same canonical JSON), and `baseDigest` is
+`absent` when the base has no attestation for that scope. A rule approval
+has neither member, so a rule approval never verifies for an attestation, and
+the reverse. Approvals for path policies are not accepted.
+
 The gate accepts an approval only if the base's `web-approval-keys.json`
 matches `--approval-keys-digest`, the key is pinned in it
 (`"role": "web-approval"`) and not past its
@@ -288,7 +373,7 @@ one of the pinned `owners`, the pack and rule id match, the decision time is
 not in the future (five minutes of clock skew allowed) and at most 14 days
 old, the candidate digest matches the proposed entry and the base digest
 matches the base. Changing anything in the entry after approval invalidates
-it. Approvals never admit a mechanical rule.
+it. Approvals never admit a mechanical rule or a mechanical line attestation.
 
 ```json
 {
@@ -388,7 +473,7 @@ The whole gate.
 | `--metrics FILE`, `--alarms FILE`, `--alarms-markdown FILE` | write the metrics and alarm files |
 | `--trust-root-digest sha256:…` | pinned digest of the base's reattestation trust root; without it no statement is accepted |
 | `--rerun-worklist FILE` | worklist from this job's own `evidence repin` run; without it no statement is accepted |
-| `--rederive-all` | also re-derive every active mechanical rule, changed or not |
+| `--rederive-all` | also re-derive every active mechanical rule and every mechanical line attestation, changed or not |
 | `--concurrency N` | concurrent upstream reads during re-derivation (0–64) |
 | `--now RFC3339` | the gate's clock, UTC (default: now); for reproducing a past run |
 | `--report FILE` | write the JSON report |
