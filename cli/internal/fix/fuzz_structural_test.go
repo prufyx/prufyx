@@ -157,6 +157,10 @@ func FuzzRemovalSpan(f *testing.F) {
 					line = bytes.TrimSuffix(line, []byte("\r"))
 					return len(line) - len(bytes.TrimLeft(line, " "))
 				}
+				// Comment lines directly above a key belong to it.
+				for len(lines) > 1 && bytes.HasPrefix(bytes.TrimSpace(lines[0]), []byte("#")) {
+					lines = lines[1:]
+				}
 				base := indent(lines[0])
 				for i, line := range lines {
 					trimmed := bytes.TrimSpace(line)
@@ -226,8 +230,8 @@ func fuzzKindSeeds(f *testing.F) {
 }
 
 var removeKeyFuzzParams = []string{
-	`{"path":["a"]}`, `{"path":["b"]}`, `{"path":["a","x"]}`, `{"path":["top","mid","b"]}`, `{"path":["l",1,"j"]}`,
-	`{"path":["m","a"]}`, `{"path":["args"]}`, `{"path":["c"]}`, `{"path":["y"]}`,
+	`{"valuesFile":true,"path":["a"]}`, `{"valuesFile":true,"path":["b"]}`, `{"valuesFile":true,"path":["a","x"]}`, `{"valuesFile":true,"path":["top","mid","b"]}`, `{"valuesFile":true,"path":["l",1,"j"]}`,
+	`{"valuesFile":true,"path":["m","a"]}`, `{"valuesFile":true,"path":["args"]}`, `{"valuesFile":true,"path":["c"]}`, `{"valuesFile":true,"path":["y"]}`,
 }
 
 func FuzzRemoveKey(f *testing.F) {
@@ -254,8 +258,8 @@ func FuzzRemoveElement(f *testing.F) {
 }
 
 var renameKeyFuzzParams = []string{
-	`{"path":["a"],"newKey":"alpha"}`, `{"path":["b"],"newKey":"B"}`, `{"path":["a"],"newKey":"on"}`, `{"path":["l",0,"k"],"newKey":"kk"}`,
-	`{"path":["top","mid","a"],"newKey":"z z"}`, `{"path":["m","a"],"newKey":"b"}`, `{"path":["\"c\""],"newKey":"it's"}`, `{"path":["c"],"newKey":"d"}`,
+	`{"valuesFile":true,"path":["a"],"newKey":"alpha"}`, `{"valuesFile":true,"path":["b"],"newKey":"B"}`, `{"valuesFile":true,"path":["a"],"newKey":"on"}`, `{"valuesFile":true,"path":["l",0,"k"],"newKey":"kk"}`,
+	`{"valuesFile":true,"path":["top","mid","a"],"newKey":"z z"}`, `{"valuesFile":true,"path":["m","a"],"newKey":"b"}`, `{"valuesFile":true,"path":["\"c\""],"newKey":"it's"}`, `{"valuesFile":true,"path":["c"],"newKey":"d"}`,
 }
 
 func FuzzRenameKey(f *testing.F) {
@@ -268,8 +272,8 @@ func FuzzRenameKey(f *testing.F) {
 }
 
 var setValueFuzzParams = []string{
-	`{"path":["a"],"value":"s"}`, `{"path":["b"],"value":5}`, `{"path":["a"],"value":true}`, `{"path":["b"],"value":null}`,
-	`{"path":["l",0,"k"],"value":"it's"}`, `{"path":["top","mid","a"],"value":-1.5}`, `{"path":["m","a"],"value":"on"}`, `{"path":["c"],"value":"q\"b"}`,
+	`{"valuesFile":true,"path":["a"],"value":"s"}`, `{"valuesFile":true,"path":["b"],"value":5}`, `{"valuesFile":true,"path":["a"],"value":true}`, `{"valuesFile":true,"path":["b"],"value":null}`,
+	`{"valuesFile":true,"path":["l",0,"k"],"value":"it's"}`, `{"valuesFile":true,"path":["top","mid","a"],"value":-1.5}`, `{"valuesFile":true,"path":["m","a"],"value":"on"}`, `{"valuesFile":true,"path":["c"],"value":"q\"b"}`,
 }
 
 func FuzzSetValue(f *testing.F) {

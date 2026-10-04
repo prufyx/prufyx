@@ -24,12 +24,11 @@ var (
 
 // removeFeatureGateKind drops one gate from a --feature-gates list. Removing
 // the last entry of a list deletes the whole argument (a sequence element
-// as whole lines; in the two-element form the flag element goes too), and a
-// featureGates map entry is removed as a mapping entry. Both are structural
-// operations that the framework proves on the decoded document. They are
-// refused when the removal would leave an args or command list or a mapping
-// empty, in flow-style lists, and when the gate is a key of featureGates
-// mappings in more than one place (nothing says which component each belongs to).
+// as whole lines; in the two-element form the flag element goes too), a
+// structural operation that the framework proves on the decoded document. It
+// is refused when the removal would leave an args or command list empty and
+// in flow-style lists. A featureGates map entry is never removed: any such
+// mapping holding the gate, anywhere in the file, refuses the file.
 //
 // Limits: only the regular containers of a workload are read (init containers
 // are left alone); only the double-dash flag --feature-gates is recognised
@@ -89,31 +88,19 @@ type gatePlan struct {
 }
 
 func (removeFeatureGateKind) Plan(doc intake.Document, src []byte, parsed any) ([]Edit, error) {
-	plan, err := planGate(doc, src, parsed.(removeFeatureGateParams))
+	plan, err := planGate(src, doc, parsed.(removeFeatureGateParams))
 	return plan.edits, err
 }
 
 func (removeFeatureGateKind) PlanOperations(doc intake.Document, src []byte, parsed any) ([]Planned, error) {
-	plan, err := planGate(doc, src, parsed.(removeFeatureGateParams))
+	plan, err := planGate(src, doc, parsed.(removeFeatureGateParams))
 	return plan.ops, err
 }
 
-func planGate(doc intake.Document, src []byte, p removeFeatureGateParams) (gatePlan, error) {
+func planGate(src []byte, doc intake.Document, p removeFeatureGateParams) (gatePlan, error) {
 	var plan gatePlan
-	gatePaths, err := gateMapPaths(doc, p)
-	if err != nil {
+	if err := checkGateMap(src, p); err != nil {
 		return plan, err
-	}
-	if len(gatePaths) > 0 {
-		locator, err := NewLocator(src)
-		if err != nil {
-			return plan, err
-		}
-		edit, err := locator.RemoveKeyEdit(doc.Source.Display, doc.Source.Document, gatePaths[0])
-		if err != nil {
-			return plan, err
-		}
-		plan.ops = append(plan.ops, Planned{Op: RemoveKey{Path: gatePaths[0]}, Edit: edit})
 	}
 	refs, err := containers(doc)
 	if err != nil || len(refs) == 0 {
@@ -198,40 +185,44 @@ func planGate(doc intake.Document, src []byte, p removeFeatureGateParams) (gateP
 	return plan, nil
 }
 
-// gateMapPaths returns the paths of the gate as a key of a featureGates
-// mapping. More than one such place is refused: the mappings carry no
-// component, so which of them the fix means cannot be told.
-func gateMapPaths(doc intake.Document, p removeFeatureGateParams) ([]Path, error) {
-	var found []Path
-	if tooDeep := walkGateMaps(doc.Value, nil, p.Gate, &found, 0); tooDeep {
-		return nil, kindRefused("the document is too deeply nested to inspect for featureGates mappings")
+// checkGateMap refuses the whole file when any featureGates mapping, at any
+// depth in any document, holds the gate as a key. Such a mapping says nothing
+// about which component it configures, and gate names are shared between
+// products, so removing the entry could change another component.
+func checkGateMap(src []byte, p removeFeatureGateParams) error {
+	locator, err := NewLocator(src)
+	if err != nil {
+		return err
 	}
-	if len(found) > 1 {
-		return nil, kindRefused("the gate is a featureGates map entry in more than one place")
+	for _, doc := range locator.file.docs {
+		if gateInMap(doc.value, p.Gate, 0) {
+			return kindRefused("the gate is a featureGates map entry; which component it configures cannot be told")
+		}
 	}
-	return found, nil
+	return nil
 }
 
-func walkGateMaps(value any, path Path, gate string, found *[]Path, depth int) (tooDeep bool) {
+func gateInMap(value any, gate string, depth int) bool {
 	if depth > 256 {
-		return true
+		return true // too deep to inspect: refuse
 	}
 	switch typed := value.(type) {
 	case map[string]any:
 		for key, child := range typed {
-			at := append(path[:len(path):len(path)], Key(key))
-			if gates, ok := child.(map[string]any); ok && key == "featureGates" {
-				if _, present := gates[gate]; present {
-					*found = append(*found, append(at[:len(at):len(at)], Key(gate)))
+			if key == "featureGates" {
+				if gates, ok := child.(map[string]any); ok {
+					if _, present := gates[gate]; present {
+						return true
+					}
 				}
 			}
-			if walkGateMaps(child, at, gate, found, depth+1) {
+			if gateInMap(child, gate, depth+1) {
 				return true
 			}
 		}
 	case []any:
-		for i, child := range typed {
-			if walkGateMaps(child, append(path[:len(path):len(path)], Index(i)), gate, found, depth+1) {
+		for _, child := range typed {
+			if gateInMap(child, gate, depth+1) {
 				return true
 			}
 		}

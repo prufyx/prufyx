@@ -329,8 +329,9 @@ func (l *Locator) removal(file string, document int, path Path, element bool) (E
 // indentation (a block sequence written at the key's own indentation counts as
 // deeper). That includes comment lines indented deeper than the entry that
 // follow its value. Blank lines, and comment lines at the entry's own
-// indentation or less (the head comment of the next entry), stay. Comment
-// lines above the entry stay too.
+// indentation or less (the head comment of the next entry), stay. The
+// contiguous comment lines directly above a key, at its indentation and with
+// no blank line between, go with it.
 func (f *parsedFile) removalSpan(document int, path Path, element bool) (Span, *Refusal) {
 	if len(path) == 0 || path[len(path)-1].isIndex != element {
 		return Span{}, refuse(ReasonPathNotFound, "the path does not end in the kind of segment to remove")
@@ -358,9 +359,6 @@ func (f *parsedFile) removalSpan(document int, path Path, element bool) (Span, *
 		return Span{}, refuse(ReasonSpanNotIsolated, "the entry position is outside the file")
 	}
 	lineIndex := first.Line - 1
-	if lineIndex == 0 && bytes.HasPrefix(f.src, bom) {
-		return Span{}, refuse(ReasonSpanNotIsolated, "the entry is on the first line of a file that starts with a byte order mark")
-	}
 	prefix := f.src[f.lineStarts[lineIndex]:at]
 	indent, ok := entryIndent(prefix, element)
 	if !ok {
@@ -369,6 +367,20 @@ func (f *parsedFile) removalSpan(document int, path Path, element bool) (Span, *
 	zeroSequence := !element && found.node.Kind == yaml.SequenceNode && found.node.Style&yaml.FlowStyle == 0 &&
 		len(found.node.Content) > 0 && found.node.Content[0].Line > found.key.Line &&
 		f.lineIndent(found.node.Content[0].Line-1) == indent
+	// The comment lines directly above a key (same indentation, no blank line
+	// between) describe it and go with it. Nothing else above does.
+	startLine := lineIndex
+	for !element && startLine > 0 {
+		text := f.lineText(startLine - 1)
+		trimmed := bytes.TrimLeft(text, " \t")
+		if len(trimmed) == 0 || trimmed[0] != '#' || len(text)-len(trimmed) != indent || bytes.IndexByte(text[:indent], '\t') >= 0 {
+			break
+		}
+		startLine--
+	}
+	if startLine == 0 && bytes.HasPrefix(f.src, bom) {
+		return Span{}, refuse(ReasonSpanNotIsolated, "the entry is on the first line of a file that starts with a byte order mark")
+	}
 	// Items of a sequence written at the key's own indentation may be
 	// separated by comment lines at that indentation: everything up to the
 	// last item belongs to the entry.
@@ -398,6 +410,18 @@ scan:
 		}
 		last = i
 	}
+	// Blank lines after the entry stay. A line of only spaces among them could
+	// turn into content of a block scalar above once the entry is gone, so such
+	// lines are refused; truly empty lines are harmless.
+	for i := last + 1; i < len(f.lineStarts); i++ {
+		text := f.lineText(i)
+		if len(bytes.TrimLeft(text, " \t")) != 0 {
+			break
+		}
+		if len(text) != 0 {
+			return Span{}, refuse(ReasonSpanNotIsolated, "a line of only blanks follows the entry")
+		}
+	}
 	endLine := last + 1 // the 1-based number of the last line; also the 0-based index of the next line
 	// The scan is a guess; these checks keep it honest. Every token of the
 	// entry must lie on its lines, and no other token may.
@@ -419,6 +443,19 @@ scan:
 		}
 		if node.Line < first.Line || node.Line > endLine {
 			return Span{}, refuse(ReasonSpanNotIsolated, "a token of the entry lies outside its lines")
+		}
+		// A keep-chomped block scalar owns the blank lines after it; they
+		// would be left behind, so it is refused.
+		if node.Style&(yaml.LiteralStyle|yaml.FoldedStyle) != 0 {
+			if at, ok := f.offset(node.Line, node.Column); ok {
+				header := f.src[at:]
+				if end := bytes.IndexAny(header, " \t\r\n"); end >= 0 {
+					header = header[:end]
+				}
+				if bytes.IndexByte(header, '+') >= 0 {
+					return Span{}, refuse(ReasonBlockScalar, "the entry holds a block scalar that keeps its trailing blank lines")
+				}
+			}
 		}
 		// A plain or quoted scalar that continues on the next line has an end
 		// that the scan cannot see (its text may look like indentation or a
@@ -457,7 +494,7 @@ scan:
 			return Span{}, refuse(ReasonSpanNotIsolated, "another token shares a line with the entry")
 		}
 	}
-	start := f.lineStarts[lineIndex]
+	start := f.lineStarts[startLine]
 	end := len(f.src)
 	if endLine < len(f.lineStarts) {
 		end = f.lineStarts[endLine]

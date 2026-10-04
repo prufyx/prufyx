@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func rkParams(path string) Params { return Params(`{"path":` + path + `}`) }
+func rkParams(path string) Params { return Params(`{"valuesFile":true,"path":` + path + `}`) }
 
 // ---- remove_key ----
 
@@ -30,8 +30,27 @@ func TestRemoveKey(t *testing.T) {
 			src: "a:\n  x: 1\n# about b\nb: 2\n", want: "# about b\nb: 2\n", edits: 1},
 		{name: "deeper comment after the value goes with the entry", params: rkParams(`["a"]`),
 			src: "a:\n  x: 1\n  # end of a\n# about b\nb: 2\n", want: "# about b\nb: 2\n", edits: 1},
-		{name: "comment above the key stays", params: rkParams(`["b"]`),
-			src: "a: 1\n# about b\nb: 2\nc: 3\n", want: "a: 1\n# about b\nc: 3\n", edits: 1},
+		{name: "comment directly above the key goes with it", params: rkParams(`["b"]`),
+			src: "a: 1\n# about b\nb: 2\nc: 3\n", want: "a: 1\nc: 3\n", edits: 1},
+		{name: "comment block directly above the key goes with it", params: rkParams(`["image","tag"]`),
+			src:  "image:\n  # -- image repository\n  repository: app\n  # -- image tag\n  # (defaults to the chart appVersion)\n  tag: \"1.0\"\n  pullPolicy: Always\n",
+			want: "image:\n  # -- image repository\n  repository: app\n  pullPolicy: Always\n", edits: 1},
+		{name: "schema hint above the key goes with it", params: rkParams(`["image","tag"]`),
+			src:  "image:\n  repository: app\n  # @schema\n  # type: [string, integer]\n  # @schema\n  tag: \"1.0\"\n  pullPolicy: Always\n",
+			want: "image:\n  repository: app\n  pullPolicy: Always\n", edits: 1},
+		{name: "helm-docs comment above a removed key", params: rkParams(`["repository"]`),
+			src:  "# -- image repository\nrepository: app\n# -- image tag\ntag: \"1.0\"\n",
+			want: "# -- image tag\ntag: \"1.0\"\n", edits: 1},
+		{name: "comment separated by a blank line stays", params: rkParams(`["b"]`),
+			src: "a: 1\n# section\n\n# about b\nb: 2\nc: 3\n", want: "a: 1\n# section\n\nc: 3\n", edits: 1},
+		{name: "comment at another indentation stays", params: rkParams(`["top","b"]`),
+			src: "top:\n  a: 1\n    # deeper\n# shallower\n  b: 2\n  c: 3\n", want: "top:\n  a: 1\n    # deeper\n# shallower\n  c: 3\n", edits: 1},
+		{name: "tail comment of the previous entry stays", params: rkParams(`["b"]`),
+			src: "a:\n  x: 1\n  # tail of a\nb: 2\nc: 3\n", want: "a:\n  x: 1\n  # tail of a\nc: 3\n", edits: 1},
+		{name: "comment above the first key of a nested mapping", params: rkParams(`["top","a"]`),
+			src: "top:\n  # about a\n  a: 1\n  b: 2\n", want: "top:\n  b: 2\n", edits: 1},
+		{name: "head comment of an entry with a block value", params: rkParams(`["b"]`),
+			src: "a: 1\n# about b\nb:\n  x: 1\n# about c\nc: 3\n", want: "a: 1\n# about c\nc: 3\n", edits: 1},
 		{name: "blank lines stay", params: rkParams(`["b"]`),
 			src: "a: 1\n\nb:\n  x: 1\n\nc: 3\n", want: "a: 1\n\n\nc: 3\n", edits: 1},
 		{name: "crlf", params: rkParams(`["b"]`),
@@ -67,6 +86,10 @@ func TestRemoveKey(t *testing.T) {
 			src: "a:\n b: 1\n c: 2\nd: 3\n", want: "d: 3\n", edits: 1},
 		{name: "a key that starts with a dash follows a sequence at the key's indentation", params: rkParams(`["args"]`),
 			src: "args:\n- a\n-b: 1\n", want: "-b: 1\n", edits: 1},
+		{name: "a string key that looks like an index is a key", params: rkParams(`["0"]`),
+			src: "\"0\": x\nb: 1\n", want: "b: 1\n", edits: 1},
+		{name: "a string key that looks like an index does not address a sequence", params: rkParams(`["l","0"]`),
+			src: "l:\n- a: 1\n  b: 2\n"},
 		{name: "missing key", params: rkParams(`["z"]`), src: "a: 1\nb: 2\n"},
 		{name: "missing parent", params: rkParams(`["z","y"]`), src: "a: 1\nb: 2\n"},
 		{name: "index out of range", params: rkParams(`["l",5,"y"]`), src: "l:\n- {y: 1, z: 2}\n"},
@@ -88,36 +111,42 @@ func TestRemoveKeyRefusals(t *testing.T) {
 		reason Reason
 	}
 	cases := map[string]refusal{
-		"parent would become empty":                                   {"a: 1\n", `["a"]`, ReasonInvalidEdit},
-		"nested parent would become empty":                            {"top:\n  only: 1\nother: 2\n", `["top","only"]`, ReasonInvalidEdit},
-		"sequence item would become empty":                            {"l:\n- k: 1\n- z\n", `["l",0,"k"]`, ReasonInvalidEdit},
-		"tab in the indentation of a comment":                         {"a:\n  x: 1\n\t# tab\nb: 1\n", `["a"]`, ReasonUnsupportedYAML},
-		"tab in the indentation of a comment below a nested key":      {"t:\n  a: 1\n\t# tab\n  b: 1\n", `["t","a"]`, ReasonUnsupportedYAML},
-		"tab in the indentation of block scalar text":                 {"a: |\n  \ttext\nb: 1\n", `["a"]`, ReasonUnsupportedYAML},
-		"tab in the indentation of block scalar text in a nested key": {"t:\n  a: |\n    \ttext\n  b: 1\n", `["t","a"]`, ReasonUnsupportedYAML},
-		"flow mapping parent":                                         {"{a: 1, b: 2}\n", `["a"]`, ReasonSpanNotIsolated},
-		"flow mapping parent on several lines":                        {"top: {a: 1,\n  b: 2}\n", `["top","a"]`, ReasonSpanNotIsolated},
-		"flow sequence parent":                                        {"l: [{a: 1, b: 2}, 3]\n", `["l",0,"a"]`, ReasonSpanNotIsolated},
-		"json document":                                               {"{\"a\": 1, \"b\": 2}", `["a"]`, ReasonSpanNotIsolated},
-		"first key of a sequence item":                                {"l:\n- a: 1\n  b: 2\n", `["l",0,"a"]`, ReasonSpanNotIsolated},
-		"anchor on the entry":                                         {"a: &x 1\nb: 2\n", `["a"]`, ReasonUnsupportedYAML},
-		"alias in the file":                                           {"a: &x 1\nb: *x\nc: 2\n", `["c"]`, ReasonUnsupportedYAML},
-		"merge key in the file":                                       {"a: &x {k: 1}\nb:\n  <<: *x\nc: 1\n", `["c"]`, ReasonUnsupportedYAML},
-		"explicit key":                                                {"? a\n: 1\nb: 2\n", `["a"]`, ReasonSpanNotIsolated},
-		"key on the line of a document marker":                        {"--- a: 1\n", `["a"]`, ReasonUnsupportedYAML},
-		"templated":                                                   {"a: 1\nb: {{ .x }}\n", `["a"]`, ReasonTemplated},
-		"secret file":                                                 {"kind: Secret\nstringData: {a: 1}\n---\nx: 1\ny: 2\n", `["x"]`, ReasonSecretDocument},
-		"multi-line plain value":                                      {"a: first\n  second\nb: 1\n", `["a"]`, ReasonMultiLineScalar},
-		"multi-line quoted value":                                     {"a: \"first\n  second\"\nb: 1\n", `["a"]`, ReasonMultiLineScalar},
-		"quoted value continuing at column zero":                      {"A: \nB: '00\n'", `["B"]`, ReasonMultiLineScalar},
-		"quoted value with comment-like text":                         {"A: 1\nB: \"x\n# y\"\n", `["B"]`, ReasonMultiLineScalar},
-		"multi-line scalar deep in the value":                         {"b:\n  c: 'x\n    y'\nd: 1\n", `["b"]`, ReasonMultiLineScalar},
-		"flow mapping with an entry per line":                         {"top: {\n  a: 1,\n  b: 2\n}\nz: 1\n", `["top","a"]`, ReasonSpanNotIsolated},
-		"flow mapping, last entry per line":                           {"top: {\n  a: 1,\n  b: 2\n}\nz: 1\n", `["top","b"]`, ReasonSpanNotIsolated},
-		"mapping in a flow sequence, entry per line":                  {"top: [\n  {\n    a: 1,\n    b: 2\n  }\n]\nz: 1\n", `["top",0,"a"]`, ReasonSpanNotIsolated},
-		"flow closing bracket on its own line":                        {"a: [1, 2,\n]\nb: 1\n", `["a"]`, ReasonSpanNotIsolated},
-		"multi-line flow closing at column zero":                      {"a: [1,\n2\n]\nb: 1\n", `["a"]`, ReasonSpanNotIsolated},
-		"value is a multi-line flow collection":                       {"a: [1,\n2]\nb: 1\n", `["a"]`, ReasonSpanNotIsolated},
+		"parent would become empty":                                       {"a: 1\n", `["a"]`, ReasonInvalidEdit},
+		"nested parent would become empty":                                {"top:\n  only: 1\nother: 2\n", `["top","only"]`, ReasonInvalidEdit},
+		"sequence item would become empty":                                {"l:\n- k: 1\n- z\n", `["l",0,"k"]`, ReasonInvalidEdit},
+		"tab in the indentation of a comment":                             {"a:\n  x: 1\n\t# tab\nb: 1\n", `["a"]`, ReasonUnsupportedYAML},
+		"tab in the indentation of a comment below a nested key":          {"t:\n  a: 1\n\t# tab\n  b: 1\n", `["t","a"]`, ReasonUnsupportedYAML},
+		"tab in the indentation of block scalar text":                     {"a: |\n  \ttext\nb: 1\n", `["a"]`, ReasonUnsupportedYAML},
+		"tab in the indentation of block scalar text in a nested key":     {"t:\n  a: |\n    \ttext\n  b: 1\n", `["t","a"]`, ReasonUnsupportedYAML},
+		"flow mapping parent":                                             {"{a: 1, b: 2}\n", `["a"]`, ReasonSpanNotIsolated},
+		"flow mapping parent on several lines":                            {"top: {a: 1,\n  b: 2}\n", `["top","a"]`, ReasonSpanNotIsolated},
+		"flow sequence parent":                                            {"l: [{a: 1, b: 2}, 3]\n", `["l",0,"a"]`, ReasonSpanNotIsolated},
+		"json document":                                                   {"{\"a\": 1, \"b\": 2}", `["a"]`, ReasonSpanNotIsolated},
+		"first key of a sequence item":                                    {"l:\n- a: 1\n  b: 2\n", `["l",0,"a"]`, ReasonSpanNotIsolated},
+		"anchor on the entry":                                             {"a: &x 1\nb: 2\n", `["a"]`, ReasonUnsupportedYAML},
+		"alias in the file":                                               {"a: &x 1\nb: *x\nc: 2\n", `["c"]`, ReasonUnsupportedYAML},
+		"merge key in the file":                                           {"a: &x {k: 1}\nb:\n  <<: *x\nc: 1\n", `["c"]`, ReasonUnsupportedYAML},
+		"explicit key":                                                    {"? a\n: 1\nb: 2\n", `["a"]`, ReasonSpanNotIsolated},
+		"key on the line of a document marker":                            {"--- a: 1\n", `["a"]`, ReasonUnsupportedYAML},
+		"templated":                                                       {"a: 1\nb: {{ .x }}\n", `["a"]`, ReasonTemplated},
+		"secret file":                                                     {"kind: Secret\nstringData: {a: 1}\n---\nx: 1\ny: 2\n", `["x"]`, ReasonSecretDocument},
+		"comment reaches the first line of a file with a byte order mark": {"\uFEFF# about a\na: 1\nb: 2\n", `["a"]`, ReasonSpanNotIsolated},
+		"blanks-only line after the entry":                                {"A: |\n 0\nB:\n  ", `["B"]`, ReasonSpanNotIsolated},
+		"blanks-only line between entries":                                {"a: 1\nb: 2\n  \nc: 3\n", `["b"]`, ReasonSpanNotIsolated},
+		"keep-chomped block scalar":                                       {"a: |+\n  x\n\nb: 1\n", `["a"]`, ReasonBlockScalar},
+		"keep-chomped folded scalar with a digit":                         {"a: >2+\n   x\n\nb: 1\n", `["a"]`, ReasonBlockScalar},
+		"keep-chomped block scalar deeper down":                           {"a:\n  c: |+\n    x\n\nb: 1\n", `["a"]`, ReasonBlockScalar},
+		"multi-line plain value":                                          {"a: first\n  second\nb: 1\n", `["a"]`, ReasonMultiLineScalar},
+		"multi-line quoted value":                                         {"a: \"first\n  second\"\nb: 1\n", `["a"]`, ReasonMultiLineScalar},
+		"quoted value continuing at column zero":                          {"A: \nB: '00\n'", `["B"]`, ReasonMultiLineScalar},
+		"quoted value with comment-like text":                             {"A: 1\nB: \"x\n# y\"\n", `["B"]`, ReasonMultiLineScalar},
+		"multi-line scalar deep in the value":                             {"b:\n  c: 'x\n    y'\nd: 1\n", `["b"]`, ReasonMultiLineScalar},
+		"flow mapping with an entry per line":                             {"top: {\n  a: 1,\n  b: 2\n}\nz: 1\n", `["top","a"]`, ReasonSpanNotIsolated},
+		"flow mapping, last entry per line":                               {"top: {\n  a: 1,\n  b: 2\n}\nz: 1\n", `["top","b"]`, ReasonSpanNotIsolated},
+		"mapping in a flow sequence, entry per line":                      {"top: [\n  {\n    a: 1,\n    b: 2\n  }\n]\nz: 1\n", `["top",0,"a"]`, ReasonSpanNotIsolated},
+		"flow closing bracket on its own line":                            {"a: [1, 2,\n]\nb: 1\n", `["a"]`, ReasonSpanNotIsolated},
+		"multi-line flow closing at column zero":                          {"a: [1,\n2\n]\nb: 1\n", `["a"]`, ReasonSpanNotIsolated},
+		"value is a multi-line flow collection":                           {"a: [1,\n2]\nb: 1\n", `["a"]`, ReasonSpanNotIsolated},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -127,18 +156,30 @@ func TestRemoveKeyRefusals(t *testing.T) {
 			}
 		})
 	}
+	t.Run("strip and clip block scalars are removed", func(t *testing.T) {
+		for _, header := range []string{"|", "|-", ">", ">-", "|2"} {
+			_, after, err := planKind(t, "a: "+header+"\n  x\nb: 1\n", "remove_key", rkParams(`["a"]`))
+			if err != nil || after != "b: 1\n" {
+				t.Fatalf("%s: %v %q", header, err, after)
+			}
+		}
+	})
 	t.Run("a List holding a matching document", func(t *testing.T) {
 		_, _, err := planKind(t, "apiVersion: v1\nkind: List\nitems:\n- apiVersion: v1\n  kind: ConfigMap\n  data: {a: 1}\n",
 			"remove_key", Params(`{"apiVersion":"v1","kind":"ConfigMap","path":["data","a"]}`))
 		wantReason(t, err, ReasonKindRefused)
 	})
 	runInvalidParams(t, "remove_key", []string{
-		``, `{}`, `{"path":[]}`, `{"path":"a"}`, `{"path":[1]}`, `{"path":["a",-1]}`, `{"path":["a",1.5]}`, `{"path":["a",true]}`,
-		`{"path":["a",null]}`, `{"path":["a",-0,"b"]}`, `{"path":["a",-1,"b"]}`, `{"path":["a",1e0,"b"]}`, `{"path":["a",0.0,"b"]}`, `{"path":["a",1.5,"b"]}`, `{"path":[""]}`, `{"path":["<<"]}`, `{"path":["a\nb"]}`, `{"path":["{{x}}"]}`,
-		`{"path":["a","b","c","d","e","f","g","h","i","j","k","l","m"]}`, `{"path":[1,2]}`,
-		`{"path":["a"],"extra":1}`, `{"kind":"ConfigMap","path":["a"]}`, `{"apiVersion":"v1","path":["a"]}`,
+		// No selector, an empty one, or a selector mixed with valuesFile.
+		`{"path":["a"]}`, `{"apiVersion":"","kind":"","path":["a"]}`, `{"valuesFile":false,"path":["a"]}`,
+		`{"valuesFile":true,"apiVersion":"v1","kind":"ConfigMap","path":["a"]}`, `{"valuesFile":true,"kind":"ConfigMap","path":["a"]}`,
+		`{"valuesFile":"yes","path":["a"]}`,
+		``, `{}`, `{"valuesFile":true,"path":[]}`, `{"valuesFile":true,"path":"a"}`, `{"valuesFile":true,"path":[1]}`, `{"valuesFile":true,"path":["a",-1]}`, `{"valuesFile":true,"path":["a",1.5]}`, `{"valuesFile":true,"path":["a",true]}`,
+		`{"valuesFile":true,"path":["a",null]}`, `{"valuesFile":true,"path":["a",-0,"b"]}`, `{"valuesFile":true,"path":["a",-1,"b"]}`, `{"valuesFile":true,"path":["a",1e0,"b"]}`, `{"valuesFile":true,"path":["a",0.0,"b"]}`, `{"valuesFile":true,"path":["a",1.5,"b"]}`, `{"valuesFile":true,"path":[""]}`, `{"valuesFile":true,"path":["<<"]}`, `{"valuesFile":true,"path":["a\nb"]}`, `{"valuesFile":true,"path":["{{x}}"]}`,
+		`{"valuesFile":true,"path":["a","b","c","d","e","f","g","h","i","j","k","l","m"]}`, `{"valuesFile":true,"path":[1,2]}`,
+		`{"valuesFile":true,"path":["a"],"extra":1}`, `{"kind":"ConfigMap","path":["a"]}`, `{"apiVersion":"v1","path":["a"]}`,
 		`{"apiVersion":"v1","kind":"Secret","path":["a"]}`, `{"apiVersion":"v1","kind":"List","path":["a"]}`,
-		`{"apiVersion":"V1","kind":"ConfigMap","path":["a"]}`, `{"path":["a"],"path":["b"]}`,
+		`{"apiVersion":"V1","kind":"ConfigMap","path":["a"]}`, `{"valuesFile":true,"path":["a"],"path":["b"]}`,
 	})
 }
 
@@ -224,7 +265,7 @@ func TestRemovalSpans(t *testing.T) {
 // ---- rename_key ----
 
 func renParams(path, newKey string) Params {
-	return Params(`{"path":` + path + `,"newKey":"` + newKey + `"}`)
+	return Params(`{"valuesFile":true,"path":` + path + `,"newKey":"` + newKey + `"}`)
 }
 
 func TestRenameKey(t *testing.T) {
@@ -308,9 +349,9 @@ func TestRenameKeyRefusals(t *testing.T) {
 		})
 	}
 	runInvalidParams(t, "rename_key", []string{
-		``, `{}`, `{"path":["a"]}`, `{"newKey":"b"}`, `{"path":["a"],"newKey":""}`, `{"path":["a"],"newKey":"<<"}`,
-		`{"path":["a"],"newKey":"x\ny"}`, `{"path":["a"],"newKey":"{{x}}"}`, `{"path":["a"],"newKey":1}`,
-		`{"path":["a",0],"newKey":"b"}`, `{"path":[],"newKey":"b"}`, `{"path":["a"],"newKey":"b","to":"c"}`,
+		``, `{}`, `{"valuesFile":true,"path":["a"]}`, `{"newKey":"b"}`, `{"valuesFile":true,"path":["a"],"newKey":""}`, `{"valuesFile":true,"path":["a"],"newKey":"<<"}`,
+		`{"valuesFile":true,"path":["a"],"newKey":"x\ny"}`, `{"valuesFile":true,"path":["a"],"newKey":"{{x}}"}`, `{"valuesFile":true,"path":["a"],"newKey":1}`,
+		`{"valuesFile":true,"path":["a",0],"newKey":"b"}`, `{"valuesFile":true,"path":[],"newKey":"b"}`, `{"valuesFile":true,"path":["a"],"newKey":"b","to":"c"}`,
 		`{"apiVersion":"v1","path":["a"],"newKey":"b"}`, `{"apiVersion":"v1","kind":"Secret","path":["a"],"newKey":"b"}`,
 	})
 }
@@ -318,7 +359,7 @@ func TestRenameKeyRefusals(t *testing.T) {
 // ---- set_value ----
 
 func svParams(path, value string) Params {
-	return Params(`{"path":` + path + `,"value":` + value + `}`)
+	return Params(`{"valuesFile":true,"path":` + path + `,"value":` + value + `}`)
 }
 
 func TestSetValue(t *testing.T) {
@@ -406,11 +447,11 @@ func TestSetValueRefusals(t *testing.T) {
 		})
 	}
 	runInvalidParams(t, "set_value", []string{
-		``, `{}`, `{"path":["a"]}`, `{"value":1}`, `{"path":[],"value":1}`,
-		`{"path":["a"],"value":[1]}`, `{"path":["a"],"value":{"b":1}}`, `{"path":["a"],"value":1e3}`, `{"path":["a"],"value":1E3}`,
-		`{"path":["a"],"value":-2.5e-1}`, `{"path":["a"],"value":"a\nb"}`, `{"path":["a"],"value":"a\u0000"}`,
-		`{"path":["a"],"value":"{{x}}"}`, `{"path":["a"],"value":"${x}"}`, `{"path":["a"],"value":"a\u2028b"}`,
-		`{"path":["a"],"value":1,"extra":2}`, `{"path":["a"],"value":1,"value":2}`, `{"path":["a"],"value":nul}`,
+		``, `{}`, `{"valuesFile":true,"path":["a"]}`, `{"value":1}`, `{"valuesFile":true,"path":[],"value":1}`,
+		`{"valuesFile":true,"path":["a"],"value":[1]}`, `{"valuesFile":true,"path":["a"],"value":{"b":1}}`, `{"valuesFile":true,"path":["a"],"value":1e3}`, `{"valuesFile":true,"path":["a"],"value":1E3}`,
+		`{"valuesFile":true,"path":["a"],"value":-2.5e-1}`, `{"valuesFile":true,"path":["a"],"value":"a\nb"}`, `{"valuesFile":true,"path":["a"],"value":"a\u0000"}`,
+		`{"valuesFile":true,"path":["a"],"value":"{{x}}"}`, `{"valuesFile":true,"path":["a"],"value":"${x}"}`, `{"valuesFile":true,"path":["a"],"value":"a\u2028b"}`,
+		`{"valuesFile":true,"path":["a"],"value":1,"extra":2}`, `{"valuesFile":true,"path":["a"],"value":1,"value":2}`, `{"valuesFile":true,"path":["a"],"value":nul}`,
 		`{"apiVersion":"v1","kind":"Secret","path":["a"],"value":1}`, `{"kind":"Pod","path":["a"],"value":1}`,
 	})
 }
@@ -451,52 +492,51 @@ func TestRemoveFeatureGateStructural(t *testing.T) {
 		{name: "last gate in a list at the key's indentation", params: params,
 			src:  workload("Deployment", container(img, "        args:\n        - --feature-gates=ServerSideApply=true\n        - --v=2\n")),
 			want: workload("Deployment", container(img, "        args:\n        - --v=2\n")), edits: 1},
+		{name: "a comment above the removed argument stays", params: params,
+			src:  workload("Deployment", args("        - --v=2\n        # the gates\n        - --feature-gates=ServerSideApply=true\n        - --other\n")),
+			want: workload("Deployment", args("        - --v=2\n        # the gates\n        - --other\n")), edits: 1},
 		{name: "last gate in command", params: params,
 			src:  workload("Deployment", container(img, "        command:\n        - /app\n        - --feature-gates=ServerSideApply=true\n")),
 			want: workload("Deployment", container(img, "        command:\n        - /app\n")), edits: 1},
 		{name: "gate in the second of two flags is the last gate", params: params,
 			src:  workload("Deployment", args("        - --feature-gates=A=true\n        - --feature-gates=ServerSideApply=true\n")),
 			want: workload("Deployment", args("        - --feature-gates=A=true\n")), edits: 1},
-		{name: "map entry", params: params,
-			src:  "apiVersion: config.cert-manager.io/v1alpha1\nkind: ControllerConfiguration\nfeatureGates:\n  A: true\n  ServerSideApply: true\n  B: false\nother: 1\n",
-			want: "apiVersion: config.cert-manager.io/v1alpha1\nkind: ControllerConfiguration\nfeatureGates:\n  A: true\n  B: false\nother: 1\n", edits: 1},
-		{name: "map entry with a comment", params: params,
-			src:  "featureGates:\n  # the gate\n  ServerSideApply: true # on\n  A: true\n",
-			want: "featureGates:\n  # the gate\n  A: true\n", edits: 1},
-		{name: "map entry nested in a list", params: params,
-			src:  "components:\n- name: x\n  featureGates:\n    A: true\n    ServerSideApply: false\n",
-			want: "components:\n- name: x\n  featureGates:\n    A: true\n", edits: 1},
-		{name: "a map in each of two documents", params: params,
-			src:  "featureGates:\n  ServerSideApply: true\n  X: 1\n---\nfeatureGates:\n  ServerSideApply: false\n  Y: 1\n",
-			want: "featureGates:\n  X: 1\n---\nfeatureGates:\n  Y: 1\n", edits: 2},
-		{name: "map entry and the argument of a workload in one file", params: params,
-			src: "featureGates:\n  A: true\n  ServerSideApply: true\n---\n" +
-				workload("Deployment", args("        - --feature-gates=ServerSideApply=true\n        - --v=2\n")),
-			want: "featureGates:\n  A: true\n---\n" +
-				workload("Deployment", args("        - --v=2\n")), edits: 2},
-		{name: "map entry and a list rewrite in one file", params: params,
-			src: "featureGates:\n  A: true\n  ServerSideApply: true\n---\n" +
-				workload("Deployment", args("        - --feature-gates=A=true,ServerSideApply=true\n")),
-			want: "featureGates:\n  A: true\n---\n" +
-				workload("Deployment", args("        - --feature-gates=A=true\n")), edits: 2},
 	})
 }
 
 func TestRemoveFeatureGateStructuralRefusals(t *testing.T) {
 	params := kindParams(t, map[string]string{"component": cmID, "gate": "ServerSideApply"})
 	img := "quay.io/jetstack/cert-manager-controller:v1.16.2"
+	// A featureGates map says nothing about the component it configures, so
+	// any map holding the gate, anywhere in the file, refuses the file.
+	maps := map[string]string{
+		"map entry":             "apiVersion: config.cert-manager.io/v1alpha1\nkind: ControllerConfiguration\nfeatureGates:\n  A: true\n  ServerSideApply: true\n  B: false\nother: 1\n",
+		"kubelet configuration": "apiVersion: kubelet.config.k8s.io/v1beta1\nkind: KubeletConfiguration\nfeatureGates:\n  ServerSideApply: true\n  Other: true\n",
+		"kubelet configuration and a custom resource": "apiVersion: kubelet.config.k8s.io/v1beta1\nkind: KubeletConfiguration\nfeatureGates:\n  ServerSideApply: true\n  Other: true\n---\napiVersion: example.com/v1\nkind: X\nspec:\n  featureGates:\n    ServerSideApply: false\n    Y: 1\n",
+		"a map in each of two documents":              "featureGates:\n  ServerSideApply: true\n  X: 1\n---\nfeatureGates:\n  ServerSideApply: false\n  Y: 1\n",
+		"map nested in a list":                        "components:\n- name: x\n  featureGates:\n    A: true\n    ServerSideApply: false\n",
+		"only entry of the map":                       "featureGates:\n  ServerSideApply: true\nother: 1\n",
+		"flow map":                                    "featureGates: {ServerSideApply: true, A: true}\n",
+		"map in a flow parent":                        "top: {featureGates: {ServerSideApply: true, A: true}, b: 1}\n",
+		"two places in one document":                  "a:\n  featureGates:\n    ServerSideApply: true\n    X: 1\nb:\n  featureGates:\n    ServerSideApply: false\n    Y: 1\n",
+		"map in a later document":                     workload("Deployment", container(img, "        args:\n        - --feature-gates=ServerSideApply=true\n        - --v=2\n")) + "---\nfeatureGates:\n  ServerSideApply: true\n  A: true\n",
+		"map beside a fixable argument": "featureGates:\n  A: true\n  ServerSideApply: true\n---\n" +
+			workload("Deployment", container(img, "        args:\n        - --feature-gates=ServerSideApply=true\n        - --v=2\n")),
+	}
+	for name, src := range maps {
+		t.Run("never removed: "+name, func(t *testing.T) {
+			_, _, err := planKind(t, src, "remove_feature_gate", params)
+			wantReason(t, err, ReasonKindRefused)
+		})
+	}
 	reasons := map[string]struct {
 		src    string
 		reason Reason
 	}{
-		"only argument of args would leave it empty": {workload("Deployment", container(img, "        args:\n        - --feature-gates=ServerSideApply=true\n")), ReasonInvalidEdit},
-		"separate form that is all of args":          {workload("Deployment", container(img, "        args:\n        - --feature-gates\n        - ServerSideApply=true\n")), ReasonInvalidEdit},
-		"flow list":                                  {workload("Deployment", container(img, "        args: [--v=2, --feature-gates=ServerSideApply=true]\n")), ReasonSpanNotIsolated},
-		"flow list, separate form":                   {workload("Deployment", container(img, "        args: [--v=2, --feature-gates, ServerSideApply=true]\n")), ReasonSpanNotIsolated},
-		"only map entry would leave the map empty":   {"featureGates:\n  ServerSideApply: true\nother: 1\n", ReasonInvalidEdit},
-		"flow map":                                            {"featureGates: {ServerSideApply: true, A: true}\n", ReasonSpanNotIsolated},
-		"map in a flow parent":                                {"top: {featureGates: {ServerSideApply: true, A: true}, b: 1}\n", ReasonSpanNotIsolated},
-		"gate maps in two places":                             {"a:\n  featureGates:\n    ServerSideApply: true\n    X: 1\nb:\n  featureGates:\n    ServerSideApply: false\n    Y: 1\n", ReasonKindRefused},
+		"only argument of args would leave it empty":          {workload("Deployment", container(img, "        args:\n        - --feature-gates=ServerSideApply=true\n")), ReasonInvalidEdit},
+		"separate form that is all of args":                   {workload("Deployment", container(img, "        args:\n        - --feature-gates\n        - ServerSideApply=true\n")), ReasonInvalidEdit},
+		"flow list":                                           {workload("Deployment", container(img, "        args: [--v=2, --feature-gates=ServerSideApply=true]\n")), ReasonSpanNotIsolated},
+		"flow list, separate form":                            {workload("Deployment", container(img, "        args: [--v=2, --feature-gates, ServerSideApply=true]\n")), ReasonSpanNotIsolated},
 		"unknown image with the last gate":                    {workload("Deployment", container("example.com/x:1", "        args:\n        - --v=2\n        - --feature-gates=ServerSideApply=true\n")), ReasonKindRefused},
 		"gate twice, one of them the last":                    {workload("Deployment", container(img, "        args:\n        - --feature-gates=ServerSideApply=true\n        - --feature-gates=ServerSideApply=true\n        - --v=2\n")), ReasonKindRefused},
 		"malformed entry beside the last gate":                {workload("Deployment", container(img, "        args:\n        - --feature-gates=ServerSideApply=true,A\n        - --v=2\n")), ReasonKindRefused},
@@ -533,15 +573,14 @@ func TestStructuralKindsAreRegistered(t *testing.T) {
 // Every positive row is also a stable plan: the same bytes plan the same
 // edits every time (map iteration order must not decide).
 func TestStructuralKindsArePlannedDeterministically(t *testing.T) {
-	src := "featureGates:\n  A: 1\n  ServerSideApply: true\n  B: 2\nrest:\n  one: 1\n  two: 2\n  three: 3\n"
+	src := "keep:\n  A: 1\nrest:\n  one: 1\n  two: 2\n  three: 3\n"
 	requests := []Request{
-		{Kind: "remove_feature_gate", Params: kindParams(t, map[string]string{"component": cmID, "gate": "ServerSideApply"})},
 		{Kind: "remove_key", Params: rkParams(`["rest","two"]`)},
 		{Kind: "rename_key", Params: renParams(`["rest","one"]`, "uno")},
 		{Kind: "set_value", Params: svParams(`["rest","three"]`, `"tres"`)},
 	}
 	first, err := Plan(display, []byte(src), requests, Options{})
-	if err != nil || len(first.Edits) != 4 {
+	if err != nil || len(first.Edits) != 3 {
 		t.Fatalf("%v %+v", err, first.Edits)
 	}
 	for i := 0; i < 30; i++ {
@@ -551,7 +590,7 @@ func TestStructuralKindsArePlannedDeterministically(t *testing.T) {
 		}
 	}
 	after, err := ApplyInMemory([]byte(src), first, Options{})
-	want := "featureGates:\n  A: 1\n  B: 2\nrest:\n  uno: 1\n  three: \"tres\"\n"
+	want := "keep:\n  A: 1\nrest:\n  uno: 1\n  three: \"tres\"\n"
 	if err != nil || string(after) != want {
 		t.Fatalf("%v\n%s", err, after)
 	}

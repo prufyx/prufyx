@@ -63,16 +63,23 @@ func usableKey(key string) bool {
 		!strings.Contains(key, "{{") && !strings.Contains(key, "${")
 }
 
-// selector says which documents a structural kind edits. Both fields empty
-// select documents that have neither apiVersion nor kind (values files);
-// otherwise both must be given and match exactly.
+// selector says which documents a structural kind edits: documents with
+// exactly this apiVersion and kind, or, with valuesFile true and no
+// apiVersion or kind, documents that have neither (values files). An empty
+// selector is refused, so a rule that forgets the fields does not match every
+// YAML file in a tree. A caller that sets valuesFile should also restrict the
+// files it offers (for example to a chart directory).
 type selector struct {
 	APIVersion string `json:"apiVersion"`
 	Kind       string `json:"kind"`
+	ValuesFile bool   `json:"valuesFile"`
 }
 
 func (s selector) validate() error {
-	if s.APIVersion == "" && s.Kind == "" {
+	if s.ValuesFile {
+		if s.APIVersion != "" || s.Kind != "" {
+			return errors.New("valuesFile excludes apiVersion and kind")
+		}
 		return nil
 	}
 	if !apiVersionRE.MatchString(s.APIVersion) || !kindNameRE.MatchString(s.Kind) || s.Kind == "Secret" || s.Kind == "List" {

@@ -1,0 +1,7 @@
+--- a/deploy/app.yaml
++++ b/deploy/app.yaml
+@@ -1,4 +1,2 @@
+ a: 1
+-# about b
+-b: 2
+ c: 3

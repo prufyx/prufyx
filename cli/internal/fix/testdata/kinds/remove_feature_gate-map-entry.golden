@@ -1,9 +1,0 @@
---- a/deploy/app.yaml
-+++ b/deploy/app.yaml
-@@ -2,6 +2,5 @@
- kind: ControllerConfiguration
- featureGates:
-   A: true
--  ServerSideApply: true
-   B: false
- other: 1

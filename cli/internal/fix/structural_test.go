@@ -304,9 +304,20 @@ func TestRemovalMustCoverExactlyTheEntryLines(t *testing.T) {
 	// The comment of the next key goes with it: the data is right, the span is not.
 	_, _, err = planOps(src, explicit(t, declared, src, "  b: 2\n  # about c\n", ""))
 	wantReason(t, err, ReasonInvalidEdit)
-	// The comment above the entry goes with it.
+	// The comment block directly above the entry goes with it, and nothing less will do.
 	withHead := "top:\n  a: 1\n  # about b\n  b: 2\n  c: 3\n"
-	_, _, err = planOps(withHead, explicit(t, declared, withHead, "  # about b\n  b: 2\n", ""))
+	_, _, err = planOps(withHead, explicit(t, declared, withHead, "  b: 2\n", ""))
+	wantReason(t, err, ReasonInvalidEdit)
+	_, after, err = planOps(withHead, explicit(t, declared, withHead, "  # about b\n  b: 2\n", ""))
+	if err != nil || after != "top:\n  a: 1\n  c: 3\n" {
+		t.Fatalf("%v %q", err, after)
+	}
+	// More than the block (a blank-separated comment above it) is refused.
+	apart := "top:\n  # section\n\n  # about b\n  b: 2\n  c: 3\n"
+	_, _, err = planOps(apart, explicit(t, declared, apart, "  # section\n\n  # about b\n  b: 2\n", ""))
+	wantReason(t, err, ReasonInvalidEdit)
+	apart2 := "top:\n  a: 1\n  # section\n  # about b\n  b: 2\n  c: 3\n"
+	_, _, err = planOps(apart2, explicit(t, declared, apart2, "  # about b\n  b: 2\n", ""))
 	wantReason(t, err, ReasonInvalidEdit)
 	// Fewer lines than the entry owns (a trailing deeper comment stays behind).
 	owned := "top:\n  b:\n    x: 1\n    # tail\n  c: 3\n"
@@ -564,9 +575,9 @@ func TestApplyWritesRemovals(t *testing.T) {
 	file := filepath.Join(root, "values.yaml")
 	writeMode(t, file, source, 0o640)
 	requests := []Request{
-		{Kind: "remove_key", Params: Params(`{"path":["values","drop"]}`)},
-		{Kind: "rename_key", Params: Params(`{"path":["values","last"],"newKey":"final"}`)},
-		{Kind: "set_value", Params: Params(`{"path":["values","keep"],"value":"one"}`)},
+		{Kind: "remove_key", Params: Params(`{"valuesFile":true,"path":["values","drop"]}`)},
+		{Kind: "rename_key", Params: Params(`{"valuesFile":true,"path":["values","last"],"newKey":"final"}`)},
+		{Kind: "set_value", Params: Params(`{"valuesFile":true,"path":["values","keep"],"value":"one"}`)},
 	}
 	plan, err := Plan("values.yaml", []byte(source), requests, Options{})
 	if err != nil {

@@ -1,7 +1,0 @@
---- a/deploy/app.yaml
-+++ b/deploy/app.yaml
-@@ -2,4 +2,3 @@
- - name: x
-   featureGates:
-     A: true
--    ServerSideApply: false
