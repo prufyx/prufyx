@@ -334,6 +334,7 @@ func (r *kubernetesRun) evaluateTransition(from, to string) (evaluation, error) 
 	if scan.Prepared.InputDigest != "sha256:"+hex.EncodeToString(sum[:]) {
 		return evaluation{}, ErrIntegrity
 	}
+	r.unresolvedSetGap(scan.Prepared.Reason)
 	result, err := r.knowledge.Evaluate(r.policy, kubernetesSlug, cncfprepare.KubernetesRemovedAPIAllFacts(), scan.Prepared.CanonicalInputJSON, r.now)
 	if errors.Is(err, ErrRefused) {
 		// The knowledge has no fact for a removal the preparation knows
@@ -483,6 +484,30 @@ func (r *kubernetesRun) preparationGaps(prepared cncfprepare.Prepared, ruleID, c
 		}
 	}
 	return []string{r.gap(&ref, scanreport.GapRuleNotDecided, ruleID, claimReason)}
+}
+
+// documentGaps are the component-level gaps that name documents the apply
+// set could not read or place.
+var documentGaps = []scanreport.GapKey{
+	scanreport.GapDocumentsTemplated, scanreport.GapDocumentsLists, scanreport.GapDocumentsFiles,
+	scanreport.GapDocumentsShape, scanreport.GapDocumentsUnresolved, scanreport.GapDocumentsEmpty,
+}
+
+// unresolvedSetGap makes an apply set the preparation could not resolve a
+// gap whatever the rules decide: the documents that were read can show a
+// removed version present, never that nothing else is there. Omitted
+// documents are gaps already; a document that was read but cannot be placed
+// (an invalid apiVersion or kind, a list with invalid metadata) is named here.
+func (r *kubernetesRun) unresolvedSetGap(reason cncfprepare.Reason) {
+	if reason != cncfprepare.ReasonKubernetesUnresolved && reason != cncfprepare.ReasonKubernetesTemplated {
+		return
+	}
+	for _, key := range documentGaps {
+		if _, found := r.rootGaps[key]; found {
+			return
+		}
+	}
+	r.rootGap(scanreport.GapDocumentsUnresolved)
 }
 
 // rootGap adds a component-level gap once and returns its reason.

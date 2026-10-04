@@ -35,6 +35,9 @@ var unreadable = map[string]struct {
 	"nested list":                {map[string]string{"list.yaml": nestedList}, "DOCUMENTS_NOT_EVALUATED", 1},
 	"several templated":          {map[string]string{"chart/a.yaml": templatedConfigMap, "chart/b.yaml": unparseableTemplate, "chart/c.yaml": templatedConfigMap}, "DOCUMENTS_TEMPLATED", 3},
 	"templated and values files": {map[string]string{"chart.yaml": templatedConfigMap, "values.yaml": valuesFile}, "DOCUMENTS_TEMPLATED", 2},
+	// Read, but not placed as a Kubernetes object: never omitted.
+	"invalid apiVersion":         {map[string]string{"odd.yaml": "apiVersion: Batch/V1\nkind: Widget\nmetadata: {name: w}\n"}, "DOCUMENTS_NOT_EVALUATED", 0},
+	"list with invalid metadata": {map[string]string{"odd.yaml": "apiVersion: v1\nkind: List\nmetadata: {continue: 1}\nitems:\n- {apiVersion: example.io/v1, kind: Widget, metadata: {name: s}}\n"}, "DOCUMENTS_NOT_EVALUATED", 0},
 }
 
 func withFiles(base map[string]string, extra map[string]string) map[string]string {
@@ -278,8 +281,10 @@ func TestScanCustomResourceBlockerNotHidden(t *testing.T) {
 }
 
 // TestScanNeverPassesWithAGap: over every combination of readable documents
-// and unreadable inputs, on paths through removal lines and quiet lines:
-//   - a scan with any gap or omitted document is never PASS;
+// and unreadable inputs, on paths through removal lines and quiet lines (a
+// line with no removal, where no rule is left undecided to name the gap):
+//   - unreadable input is always a named gap, and a scan with any gap or
+//     omitted document is never PASS;
 //   - adding unreadable input never adds a finding, never removes one, and
 //     never turns an answer into PASS.
 func TestScanNeverPassesWithAGap(t *testing.T) {
@@ -295,7 +300,7 @@ func TestScanNeverPassesWithAGap(t *testing.T) {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	pairs := [][2]string{{"1.24.17", "1.30.4"}, {"1.29.6", "1.30.4"}, {"1.31.0", "1.32.0"}}
+	pairs := [][2]string{{"1.24.17", "1.30.4"}, {"1.27.3", "1.28.1"}, {"1.29.6", "1.30.4"}, {"1.31.0", "1.32.0"}}
 	ruleIDs := func(report scanreport.Report) []string {
 		var ids []string
 		for _, finding := range report.Findings {
@@ -322,7 +327,7 @@ func TestScanNeverPassesWithAGap(t *testing.T) {
 				report := result.Report
 				checked++
 				label := fmt.Sprintf("mask %b %s->%s %s", mask, pair[0], pair[1], name)
-				if len(report.Gaps) == 0 || len(report.Omitted) == 0 {
+				if len(report.Gaps) == 0 || len(report.Omitted) != unreadable[name].omitted || !gapNamed(report, unreadable[name].gap) {
 					t.Fatalf("%s: no gap or omission: %v", label, gapReasons(report))
 				}
 				if report.Verdict == scanreport.VerdictPass || result.Exit == scanreport.ExitPass {

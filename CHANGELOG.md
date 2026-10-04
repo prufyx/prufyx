@@ -489,6 +489,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   `check cncf --project kubernetes --native-resource` and to custom-resource
   versions (`scan` and `check cncf --custom-resources`), where the versions
   read are recorded as an incomplete set.
+- `scan` could answer `PASS FOR THE DECLARED SCOPE` with a document that was
+  read but could not be placed as a Kubernetes object (an `apiVersion` or
+  `kind` that is not valid, or a list with invalid metadata) when every hop
+  entered a release line without removed APIs. Such a document is now always
+  the gap `DOCUMENTS_NOT_EVALUATED`.
 - The rule parser rejects a `forbid_predicate_value` rule whose `appliesWhen`
   requires its own condition fact to hold a different value. Such a rule could
   never block, yet it passed and could make a component scope-complete.
