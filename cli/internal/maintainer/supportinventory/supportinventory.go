@@ -24,6 +24,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/checkroutemetadata"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/distribution"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
@@ -576,6 +577,7 @@ var cncfPackLevels = []packLevel{
 	{"prufyx.io/cncf-source-rule-pack/v1alpha6", anyRule(constraintengine.AnyNoticeRule)},
 	{"prufyx.io/cncf-source-rule-pack/v1alpha7", anyRule(constraintengine.AnyBasisRule)},
 	{"prufyx.io/cncf-source-rule-pack/v1alpha8", anyRule(constraintengine.AnySeverityRule)},
+	{"prufyx.io/cncf-source-rule-pack/v1alpha9", hasMember(distribution.PackMember)},
 }
 
 // communityPackLevels is the community-project pack loader's table.
@@ -647,6 +649,13 @@ func cncfPackMembersExact(pack map[string]any) bool {
 func genericProjects(rules map[string]any, identities map[string]identity, preparers map[string]bool) ([]map[string]any, int, []map[string]any, error) {
 	if !cncfPackMembersExact(rules) || !packSchemaMatches(rules, cncfPackSchema, cncfPackLevels) {
 		return nil, 0, nil, invalid("invalid rule-pack schema")
+	}
+	// Distribution records say which rule families apply to which
+	// Kubernetes distribution. The inventory has no wording for that yet,
+	// and listing the pack's rules without it would let a reader take them
+	// as checked for every distribution, so it refuses such a pack.
+	if _, ok := rules[distribution.PackMember]; ok {
+		return nil, 0, nil, invalid("the inventory does not list distribution records yet")
 	}
 	entries, ok := array(rules["entries"])
 	if !ok || len(entries) == 0 {

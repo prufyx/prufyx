@@ -665,33 +665,44 @@ func checkOnline(ctx context.Context, entries []Entry, fetcher Fetcher) ([]Findi
 		if json.Unmarshal(entry.Rule, &body) != nil {
 			continue
 		}
-		for sourceIndex, source := range body.Evidence.Sources {
-			label := fmt.Sprintf("rule.evidence.sources[%d]", sourceIndex)
-			owner, repo, revision, ok := githubBlobURL(source.URL)
-			if !ok || revision != source.Revision {
-				continue // already reported offline
-			}
-			raw, ok := rawBlobURL(owner, repo, revision, source.URL)
-			if !ok {
-				findings = append(findings, Finding{EntryIndex: index, RuleID: body.ID, Check: "fetch-url", Message: fmt.Sprintf("%s.url could not be converted to a raw.githubusercontent.com URL", label)})
-				continue
-			}
-			content, err := fetcher.FetchRawBlob(ctx, raw)
-			if err != nil {
-				findings = append(findings, Finding{EntryIndex: index, RuleID: body.ID, Check: "fetch-failed", Message: fmt.Sprintf("%s: could not fetch %s: %v", label, raw, err)})
-				continue
-			}
-			gotDigest := digestOf(content)
-			if gotDigest != source.ContentDigest {
-				findings = append(findings, Finding{EntryIndex: index, RuleID: body.ID, Check: "content-digest-mismatch", Message: fmt.Sprintf("%s.contentDigest is %s but the whole-file sha256 of %s at revision %s is %s", label, source.ContentDigest, raw, revision, gotDigest)})
-			}
-			lineCount := countLines(content)
-			if source.EndLine > lineCount {
-				findings = append(findings, Finding{EntryIndex: index, RuleID: body.ID, Check: "line-range-fetched", Message: fmt.Sprintf("%s.endLine is %d but %s has only %d lines at revision %s", label, source.EndLine, raw, lineCount, revision)})
-			}
-		}
+		findings = append(findings, checkOnlineSources(ctx, index, body.ID, "rule.evidence.sources", body.Evidence.Sources, fetcher)...)
 	}
 	return findings, nil
+}
+
+// checkOnlineSources downloads each pinned source and compares its
+// whole-file digest and line count with the citation. It is the one online
+// check for every cited source, a rule's or a record's; label names the
+// source list in findings. A source whose URL does not pin its revision is
+// skipped here (the offline checks report it).
+func checkOnlineSources(ctx context.Context, index int, id, label string, sources []constraintengine.SourceEvidence, fetcher Fetcher) []Finding {
+	var findings []Finding
+	for sourceIndex, source := range sources {
+		label := fmt.Sprintf("%s[%d]", label, sourceIndex)
+		owner, repo, revision, ok := githubBlobURL(source.URL)
+		if !ok || revision != source.Revision {
+			continue // already reported offline
+		}
+		raw, ok := rawBlobURL(owner, repo, revision, source.URL)
+		if !ok {
+			findings = append(findings, Finding{EntryIndex: index, RuleID: id, Check: "fetch-url", Message: fmt.Sprintf("%s.url could not be converted to a raw.githubusercontent.com URL", label)})
+			continue
+		}
+		content, err := fetcher.FetchRawBlob(ctx, raw)
+		if err != nil {
+			findings = append(findings, Finding{EntryIndex: index, RuleID: id, Check: "fetch-failed", Message: fmt.Sprintf("%s: could not fetch %s: %v", label, raw, err)})
+			continue
+		}
+		gotDigest := digestOf(content)
+		if gotDigest != source.ContentDigest {
+			findings = append(findings, Finding{EntryIndex: index, RuleID: id, Check: "content-digest-mismatch", Message: fmt.Sprintf("%s.contentDigest is %s but the whole-file sha256 of %s at revision %s is %s", label, source.ContentDigest, raw, revision, gotDigest)})
+		}
+		lineCount := countLines(content)
+		if source.EndLine > lineCount {
+			findings = append(findings, Finding{EntryIndex: index, RuleID: id, Check: "line-range-fetched", Message: fmt.Sprintf("%s.endLine is %d but %s has only %d lines at revision %s", label, source.EndLine, raw, lineCount, revision)})
+		}
+	}
+	return findings
 }
 
 func countLines(content []byte) int {

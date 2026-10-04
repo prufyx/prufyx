@@ -84,6 +84,19 @@ func levelPolicies() []any {
 	}}
 }
 
+// levelDistributions is a synthetic distribution section (test data, not
+// knowledge).
+func levelDistributions() map[string]any {
+	evidence := func() map[string]any {
+		return map[string]any{"state": "active", "reviewedAt": "2026-09-20T00:00:00Z", "validUntil": "2026-12-19T00:00:00Z",
+			"sources": []any{levelSource("versions", "website", "content/en/releases/version-skew-policy.md", 1, 2)}}
+	}
+	return map[string]any{
+		"records":       []any{map[string]any{"distribution": "eks", "controlPlane": "managed", "evidence": evidence()}},
+		"applicability": []any{map[string]any{"distribution": "eks", "family": "kubernetes.removed_served_gvk", "status": "applies", "evidence": evidence()}},
+	}
+}
+
 // generateWithPack runs Generate over the repository inputs with the CNCF
 // pack replaced by the embedded pack after edit.
 func generateWithPack(t *testing.T, edit func(pack map[string]any)) (map[string]any, error) {
@@ -121,8 +134,9 @@ func generateWithPack(t *testing.T, edit func(pack map[string]any)) (map[string]
 // The inventory reads every CNCF pack schema of the loader's feature-level
 // table: set rules (v1alpha3), line attestations (v1alpha4) and path
 // policies (v1alpha5), notice rules (v1alpha6), consensus and lead rules
-// (v1alpha7) and support-range rules (v1alpha8) each require exactly their
-// level. Notices, consensus, lead and support-range rules are then refused:
+// (v1alpha7), support-range rules (v1alpha8) and distribution records
+// (v1alpha9) each require exactly their level. Notices, consensus, lead and
+// support-range rules, and distribution records, are then refused:
 // the inventory does not list them yet. Attestations and
 // policies add no capability, so the inventory is otherwise unchanged.
 func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
@@ -149,6 +163,7 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 		"prufyx.io/cncf-source-rule-pack/v1alpha1", "prufyx.io/cncf-source-rule-pack/v1alpha2", "prufyx.io/cncf-source-rule-pack/v1alpha3",
 		"prufyx.io/cncf-source-rule-pack/v1alpha4", "prufyx.io/cncf-source-rule-pack/v1alpha5", "prufyx.io/cncf-source-rule-pack/v1alpha6",
 		"prufyx.io/cncf-source-rule-pack/v1alpha7", "prufyx.io/cncf-source-rule-pack/v1alpha8", "prufyx.io/cncf-source-rule-pack/v1alpha9",
+		"prufyx.io/cncf-source-rule-pack/v1alpha10",
 	}
 	for _, tc := range []struct {
 		name      string
@@ -185,6 +200,11 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 			addNoticeRule(p)
 			p["lineAttestations"] = levelAttestations()
 		}, want: schemas[7], refusal: "does not list"},
+		{name: "distributions", edit: func(p map[string]any) { p["distributions"] = levelDistributions() }, want: schemas[8], refusal: "does not list distribution records"},
+		{name: "distributions, set rule, attestations and policies", edit: func(p map[string]any) {
+			addSetRule(p)
+			p["distributions"], p["lineAttestations"], p["pathPolicies"] = levelDistributions(), levelAttestations(), levelPolicies()
+		}, want: schemas[8], refusal: "does not list distribution records"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, schema := range schemas {
@@ -232,7 +252,7 @@ func TestSupportInventory_SetRuleIsListed(t *testing.T) {
 // A section under a variant spelling of its member name is refused, never
 // skipped.
 func TestSupportInventory_RefusesVariantPackMembers(t *testing.T) {
-	for _, name := range []string{"LineAttestations", "PATHPOLICIES", "pathPolicieſ", "notices"} {
+	for _, name := range []string{"LineAttestations", "PATHPOLICIES", "pathPolicieſ", "notices", "Distributions", "distribution"} {
 		if _, err := generateWithPack(t, func(p map[string]any) { p[name] = levelPolicies() }); err == nil {
 			t.Fatalf("member %q accepted", name)
 		}

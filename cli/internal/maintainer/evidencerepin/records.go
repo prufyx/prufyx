@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/distribution"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
@@ -146,6 +147,14 @@ func packRecords(raw []byte, attestationID func(component, factFamily, line stri
 
 func readPackRecords(raw []byte, attestationID func(component, factFamily, line string) string, policyID func(component string) string) ([]PackRecord, error) {
 	var out []PackRecord
+	// Distribution records cite sources too, but have no record ID and no
+	// renewal yet. A pack carrying them is refused rather than read with
+	// their citations left unmonitored.
+	if _, present, err := lineattest.PackMemberSection(raw, distribution.PackMember); err != nil {
+		return nil, err
+	} else if present {
+		return nil, fmt.Errorf("%w: the pack carries distribution records, whose citations are not monitored yet", errRejected)
+	}
 	section, present, err := lineattest.PackMemberSection(raw, lineattest.PackMember)
 	if err != nil {
 		return nil, err
