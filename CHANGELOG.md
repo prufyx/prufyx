@@ -7,6 +7,22 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- The knowledge gate's default daily loosening limit is 50 (was 400). The
+  repository variable `KNOWLEDGE_MAX_DAILY_LOOSENING` still raises it.
+- The CLA workflow no longer prints commit author e-mail addresses in its
+  comment; it names the commits instead.
+
+### Documentation
+
+- README and the `scan` and quickstart guides now state how rules are
+  established, which input permissions `check` and `scan` accept, what `scan`
+  covers today and why it cannot yet answer PASS, and the date the rule counts
+  were taken.
+- THIRD-PARTY.md lists the Kubernetes-derived test fixtures with their
+  upstream commits, and `LICENSES/` includes the Kubernetes Apache-2.0 text.
+
 ### Added
 
 - Knowledge format: CNCF rule packs can carry an optional `distributions`

@@ -40,7 +40,9 @@ decide something. Rules that came back `PASS` are counted, not listed (add
 
 ## 3. A file, mode 0600
 
-Every input file Prufyx reads must be **owner-only, mode 0600**. This is a
+Every input file the `check` commands read must be **owner-only, mode 0600**
+(`prufyx scan` is less strict by default: it refuses files other users can
+write and only notes files they can read; see [scan.md](scan.md)). This is a
 deliberate privacy control: the files you point Prufyx at (rendered
 manifests, config, argv) can contain internal names, hosts, or other
 operational detail, and Prufyx refuses to read anything a co-tenant on the

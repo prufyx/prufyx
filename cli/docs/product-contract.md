@@ -5,7 +5,17 @@ upstream revision. A report records its input and knowledge identities, the
 finding, source references, omissions and next action. The same admitted inputs
 and evaluation parameters produce the same output.
 
-## Current checks
+## Commands
+
+`prufyx scan` is the primary command: it reads rendered Kubernetes manifests
+and a target version and reports removed API versions along the upgrade path.
+It cannot answer `PASS` with the knowledge built into the binary; see
+[scan.md](scan.md). The checks below are the named `check` commands that
+`scan` complements, together with the rule-based `check cncf` and
+`check project` commands listed in the
+[support inventory](community-support-inventory.md).
+
+## Current named checks
 
 | Check | Scope |
 | --- | --- |
