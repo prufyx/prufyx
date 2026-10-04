@@ -77,8 +77,8 @@ type Metrics struct {
 	Projects map[string]ProjectCounts  `json:"projects"`
 	// Renewals and Withdrawals count changes of that kind;
 	// Rederivations the changed rules admitted by re-derivation, and
-	// RederivedUnchanged the unchanged rules a --rederive-all run
-	// re-derived.
+	// RederivedUnchanged the rules a --rederive-all run re-derived: every
+	// active mechanical rule the change did not already re-derive.
 	Renewals           int             `json:"renewals"`
 	Withdrawals        int             `json:"withdrawals"`
 	Rederivations      int             `json:"rederivations"`

@@ -264,3 +264,37 @@ func TestGateRederiveAllSkipsAFailedChangedRule(t *testing.T) {
 		t.Fatalf("rederivedUnchanged %d, want %d", r.rederivedUnchanged, want)
 	}
 }
+
+// A tightening edit to a mechanical rule (an earlier validUntil) is admitted
+// without proof and never re-derived by the change, so the scheduled
+// re-derivation re-derives and counts it.
+func TestGateRederiveAllRederivesATighteningMechanicalEdit(t *testing.T) {
+	_, base, entries := mechanicalTrees(t, nil)
+	tightened := ruleID(entries[0])
+	head := copyTree(t, base)
+	editPack(t, head, cncfRulesPath, func(p *packDoc) {
+		for _, e := range p.entries {
+			if ruleID(e) == tightened {
+				evidenceOf(e)["validUntil"] = shiftTime(t, evidenceOf(e)["validUntil"], -24*time.Hour)
+			}
+		}
+	})
+	r := runGate(t, Options{Base: base, Head: head, Source: extract.FixtureReader{Root: servedFixture}, RederiveAll: true})
+	if len(r.Changes) != 1 {
+		t.Fatalf("changes %+v", r.Changes)
+	}
+	if c := change(t, r, tightened); c.Class != ClassTightening || c.Proof != ProofNoneRequired || !c.OK {
+		t.Fatalf("change %+v", c)
+	}
+	c, ok := check(r, "rederive-all")
+	if !ok || !c.OK || !strings.HasPrefix(c.Detail, fmt.Sprintf("%d mechanical rules re-derived, 0 failed", len(entries))) {
+		t.Fatalf("rederive-all %+v", c)
+	}
+	if r.rederivedUnchanged != len(entries) {
+		t.Fatalf("rederivedUnchanged %d, want %d", r.rederivedUnchanged, len(entries))
+	}
+	// The re-derivation is real: the same edit with a source that cannot
+	// derive it fails rederive-all.
+	r = runGate(t, Options{Base: base, Head: head, Source: extract.FixtureReader{Root: t.TempDir()}, RederiveAll: true})
+	requireFail(t, r, "rederive-all")
+}

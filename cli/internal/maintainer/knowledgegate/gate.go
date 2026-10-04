@@ -146,8 +146,9 @@ type Report struct {
 
 	// alarmKinds runs parallel to Alarms.
 	alarmKinds []string
-	// rederivedUnchanged counts rules re-derived by --rederive-all that
-	// the change did not touch.
+	// rederivedUnchanged counts rules re-derived by --rederive-all: every
+	// active mechanical rule the change did not already re-derive (see
+	// rederiveAll).
 	rederivedUnchanged int
 }
 
@@ -403,7 +404,11 @@ func admitReviewed(c *Change, stmt statementResult, loadKeys func() (*ApprovalKe
 // rederiveAll re-derives every active mechanical head rule the change did
 // not already re-derive. A changed rule handed to rederive is skipped whether
 // its re-derivation passed or failed: a failure is reported once, on the
-// change, and the count covers unchanged rules only.
+// change, and is not counted here. Every other active mechanical rule is
+// re-derived and counted, including a changed one that never reached
+// rederive: a tightening edit (an earlier validUntil, admitted without
+// proof) and a change stopped by the kill switch or a stale derivation. For
+// a tightening edit this is the only re-derivation it gets, so it must stay.
 func (r *Report) rederiveAll(ctx context.Context, cls *Classification, rederived []*Change, opts Options) {
 	done := map[string]bool{}
 	for _, c := range rederived {

@@ -399,8 +399,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   their redacted values, so the order no longer reveals how the hidden paths
   sort.
 - The knowledge gate's full re-derivation no longer re-derives a changed
-  mechanical rule a second time: each failure is reported once, and the count
-  of re-derived unchanged rules excludes the changed ones.
+  mechanical rule that the change itself already re-derived: each failure is
+  reported once, and the count excludes changed rules that were already
+  re-derived. A tightening edit to a mechanical rule (an earlier expiry) is
+  still re-derived and counted.
 - Immutable upstream file paths may start a segment with an underscore, allowing
   paths such as Karmada's `_crds`. Owner, repository, revision, network and path
   traversal restrictions remain enforced.
