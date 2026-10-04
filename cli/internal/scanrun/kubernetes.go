@@ -159,11 +159,19 @@ func (r *kubernetesRun) componentGaps() map[scanreport.GapKey]scanreport.Gap {
 	if len(r.workspace.Documents) == 0 && len(r.workspace.Omissions) == 0 {
 		add(scanreport.GapDocumentsEmpty)
 	}
-	alpha := 0
+	alpha, items := 0, false
 	for _, document := range r.workspace.Documents {
 		if alphaKubernetesAPI(document.APIVersion) {
 			alpha++
 		}
+		// An object that is not a List but holds an items array is not
+		// flattened, so the objects in it are never read.
+		if _, isList := document.Value["items"].([]any); isList {
+			items = true
+		}
+	}
+	if items {
+		add(scanreport.GapDocumentsUnresolved)
 	}
 	if alpha > 0 {
 		add(scanreport.GapAlphaAPINotCovered, alpha)

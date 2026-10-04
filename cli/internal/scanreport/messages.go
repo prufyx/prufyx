@@ -164,7 +164,7 @@ var gapMessages = map[GapKey]gapMessage{
 		"pass the files themselves; symlinks are never followed", 1},
 	GapDocumentsShape: {"%[1]d document(s) are not Kubernetes objects, so the manifests cannot be read as one apply set",
 		"remove them from the inputs, or pass only rendered manifests", 1},
-	GapDocumentsUnresolved: {"the manifests cannot be read as one apply set (an apiVersion or kind is not valid)",
+	GapDocumentsUnresolved: {"the manifests cannot be read as one apply set (an apiVersion or kind is not valid, or an object that is not a List holds items)",
 		"pass only valid rendered Kubernetes objects", 0},
 	GapDocumentsEmpty: {"no Kubernetes manifests were read",
 		"pass the rendered manifests to scan", 0},

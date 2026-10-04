@@ -38,6 +38,7 @@ var unreadable = map[string]struct {
 	// Read, but not placed as a Kubernetes object: never omitted.
 	"invalid apiVersion":         {map[string]string{"odd.yaml": "apiVersion: Batch/V1\nkind: Widget\nmetadata: {name: w}\n"}, "DOCUMENTS_NOT_EVALUATED", 0},
 	"list with invalid metadata": {map[string]string{"odd.yaml": "apiVersion: v1\nkind: List\nmetadata: {continue: 1}\nitems:\n- {apiVersion: example.io/v1, kind: Widget, metadata: {name: s}}\n"}, "DOCUMENTS_NOT_EVALUATED", 0},
+	"object with items":          {map[string]string{"bundle.yaml": "apiVersion: example.io/v1\nkind: Bundle\nmetadata: {name: b}\nitems:\n- {apiVersion: batch/v1, kind: CronJob, metadata: {name: hidden}}\n"}, "DOCUMENTS_NOT_EVALUATED", 0},
 }
 
 func withFiles(base map[string]string, extra map[string]string) map[string]string {
@@ -276,6 +277,12 @@ func TestScanCustomResourceBlockerNotHidden(t *testing.T) {
 	if unplaced.Exit != scanreport.ExitBlocked || len(unplaced.Report.Findings) != 1 || !hasComponentGap(unplaced.Report, "strimzi", scanreport.ReasonDocumentsNotEvaluated, "cannot be read as one apply set") {
 		t.Fatalf("unplaced: exit %d findings %d gaps %v", unplaced.Exit, len(unplaced.Report.Findings), gapReasons(unplaced.Report))
 	}
+	// An object with items under a non-List kind is left out and named; the
+	// rule still blocks on the Kafka beside it.
+	items := run(map[string]string{"kafka.yaml": kafkaV1beta2Doc, "bundle.yaml": "apiVersion: example.io/v1\nkind: Bundle\nmetadata: {name: b}\nitems: []\n"})
+	if items.Exit != scanreport.ExitBlocked || len(items.Report.Findings) != 1 || !reflect.DeepEqual(items.Report.Findings, alone.Report.Findings) || !hasComponentGap(items.Report, "strimzi", scanreport.ReasonDocumentsNotEvaluated, "cannot be read as one apply set") {
+		t.Fatalf("items: exit %d findings %+v gaps %v", items.Exit, items.Report.Findings, gapReasons(items.Report))
+	}
 	served := run(map[string]string{"kafka.yaml": kafkaV1Doc, "chart.yaml": templatedConfigMap})
 	if served.Exit != scanreport.ExitUnknown || len(served.Report.Findings) != 0 || len(served.Report.Passes) != 0 || !hasComponentGap(served.Report, "strimzi", scanreport.ReasonDocumentsTemplated, "unrendered templates") {
 		t.Fatalf("served: exit %d passes %+v gaps %v", served.Exit, served.Report.Passes, gapReasons(served.Report))
@@ -475,5 +482,29 @@ func TestScanWitnessMustBeRenderedUnconditionally(t *testing.T) {
 				t.Fatalf("exit %d", result.Exit)
 			}
 		})
+	}
+}
+
+// TestScanItemsObjectIsNeverAWitness: an object at a removed version that
+// carries a top-level items array is left out of the apply set, so it is
+// never a finding; the answer is UNKNOWN with the documents named. Beside it
+// a removed CronJob that is read still blocks (exit 10).
+func TestScanItemsObjectIsNeverAWitness(t *testing.T) {
+	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
+	run := func(contents map[string]string) Result {
+		var result Result
+		dir, _ := files(t, contents)
+		inDir(t, dir, func() {
+			result = mustScan(t, knowledge, args([]string{"."}, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.5")...)
+		})
+		return result
+	}
+	witness := run(map[string]string{"cronjob.yaml": "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: n}\nitems: []\n"})
+	if witness.Exit != scanreport.ExitUnknown || len(witness.Report.Findings) != 0 || len(witness.Report.Passes) != 0 || !gapNamed(witness.Report, scanreport.ReasonDocumentsNotEvaluated) {
+		t.Fatalf("items object: exit %d findings %+v gaps %v", witness.Exit, witness.Report.Findings, gapReasons(witness.Report))
+	}
+	probe := run(map[string]string{"cronjob.yaml": removedCronJobOnly, "settings.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: c}\nitems: []\n"})
+	if probe.Exit != scanreport.ExitBlocked || len(probe.Report.Findings) != 1 || probe.Report.Findings[0].RuleID != cronjobRuleID || !gapNamed(probe.Report, scanreport.ReasonDocumentsNotEvaluated) {
+		t.Fatalf("probe: exit %d findings %+v gaps %v", probe.Exit, probe.Report.Findings, gapReasons(probe.Report))
 	}
 }
