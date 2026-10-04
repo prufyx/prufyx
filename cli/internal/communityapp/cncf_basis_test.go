@@ -145,7 +145,12 @@ func TestCheckRoutesUseTrustPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	direct := regexp.MustCompile(`cncfcheck\.(Check|CheckRule|CheckFacts|Replay|AssessScope)\(|\.(Evaluate|EvaluateRule)\(project|cncfknowledge\.EvaluateVerified\(`)
+	direct := regexp.MustCompile(`cncfcheck\.(Check|CheckRule|CheckFacts|Replay|AssessScope)\(|cncfcheck\.Checker\{|cncfknowledge\.EvaluateVerified\(`)
+	// Any Evaluate call is an ExternalBundle evaluation unless it belongs
+	// to one of these packages, which hold no CNCF rules.
+	evaluate := regexp.MustCompile(`(\w+)\.(Evaluate|EvaluateRule)\(`)
+	otherEvaluators := map[string]bool{"certmanagervalues": true, "prometheusmode": true, "batchcheck": true}
+	policyBinding := regexp.MustCompile(`WithTrustPolicy\(|TrustPolicy:|\.trust\s*=`)
 	external := regexp.MustCompile(`cncfknowledge\.(EvaluateCurrent|ReplayHistorical)\(([^)]*)`)
 	checked := 0
 	for _, file := range files {
@@ -158,6 +163,19 @@ func TestCheckRoutesUseTrustPolicy(t *testing.T) {
 		}
 		if match := direct.Find(raw); match != nil {
 			t.Fatalf("%s evaluates without the trust policy: %s", file, match)
+		}
+		for _, match := range evaluate.FindAllSubmatch(raw, -1) {
+			if !otherEvaluators[string(match[1])] {
+				t.Fatalf("%s evaluates a bundle directly: %s", file, match[0])
+			}
+		}
+		// Only the policy helpers bind a policy, and only the flag parser
+		// sets the command's policy.
+		for _, match := range policyBinding.FindAll(raw, -1) {
+			setter := file == "cncf.go" && bytes.HasPrefix(match, []byte(".trust"))
+			if file != "cncf_trust_policy.go" && !setter {
+				t.Fatalf("%s binds a trust policy outside the helpers: %s", file, match)
+			}
 		}
 		for _, match := range external.FindAllSubmatch(raw, -1) {
 			checked++
@@ -182,5 +200,22 @@ func TestTrustPolicyReachesExternalRequests(t *testing.T) {
 	r := runtime{trust: policy}
 	if got := r.withTrustPolicy(cncfknowledge.Request{Project: "kyverno"}); got.TrustPolicy.String() != "reviewed" || got.Project != "kyverno" {
 		t.Fatalf("request=%+v", got)
+	}
+}
+
+// TestExternalRouteShowsTrustPolicy: the external printer states the trust
+// policy's exclusions, and the check cannot pass.
+func TestExternalRouteShowsTrustPolicy(t *testing.T) {
+	fixture := makeExternalCLIFixture(t)
+	importExternalCLIRevision2(t, &fixture)
+	input := writeCNCFFile(t, "active-input.json", []byte(kyvernoInputTrue), 0o600)
+	args := append(externalCLIArgs(fixture, input, "2", fixture.manifest.Revisions[1].BundleDigest, fixture.receipt2.TrustReceiptDigest), "--require-basis", "mechanical")
+	code, stdout, stderr := runCNCFCLI(t, args...)
+	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "trust policy: evidence basis mechanical only; 1 rule left out, so the result cannot pass\n") {
+		t.Fatalf("code=%d stderr=%s stdout:\n%s", code, stderr, stdout)
+	}
+	code, stdout, _ = runCNCFCLI(t, append(args, "--format", "json")...)
+	if code != ExitUnknown || !strings.Contains(stdout, `"trustPolicy":{"requiredBasis":["mechanical"],"excludedRules":1}`) {
+		t.Fatalf("code=%d json:\n%s", code, stdout)
 	}
 }

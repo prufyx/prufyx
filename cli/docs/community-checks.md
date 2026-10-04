@@ -26,9 +26,11 @@ a maintainer reviewed:
 prufyx check cncf --project containerd --input input.json --now 2026-09-20T00:00:00Z --require-basis reviewed
 ```
 
-A check that left out a rule prints
+A check that left out a verdict rule (any basis other than lead) prints
 `trust policy: evidence basis reviewed only; N rules left out, so the result cannot pass`
-(and `trustPolicy` in JSON) and never exits 0. A consensus rule may block but
+(and `trustPolicy` in JSON) and never exits 0; leaving out leads changes no
+result. `check batch` has no `--require-basis` and always uses the default
+policy. A consensus rule may block but
 never passes; a lead is listed only with `lead` and never blocks. See
 [product-contract.md](product-contract.md#evidence-bases-and-the-trust-policy).
 Use the same `--require-basis` to replay a report.

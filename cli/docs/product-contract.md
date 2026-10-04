@@ -82,6 +82,7 @@ attestation, so it stays UNKNOWN; leaving out only leads changes no verdict.
 An unknown or repeated token, or an empty list, is a usage error (exit 2).
 Replay a report with the `--require-basis` it was made with. Human output
 states `N findings rely on model consensus` when any finding does.
+`check batch` has no `--require-basis`; it always uses the default policy.
 
 The whole-upgrade aggregate remains UNKNOWN. No result in this release
 authorizes a rollout or establishes full runtime, data, rollback or component

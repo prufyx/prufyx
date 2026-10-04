@@ -309,11 +309,14 @@ func validScopeBlock(scope *ScopeCompleteness, claims []Claim, engineDigest stri
 			}
 		}
 	}
-	// A NO_KNOWN_ISSUE claim matched its subject, and the declared scope is
-	// every input component, so it is in scope: it must be enumerated (as
-	// applicable, not verified) rather than counted out of scope.
+	// A PASS, BLOCKED or NO_KNOWN_ISSUE claim matched its subject and its
+	// applicability held, and the declared scope is every input component,
+	// so its rule is applicable and in scope: it must be enumerated, never
+	// counted out of scope. Without this, moving a BLOCKED claim into
+	// outOfScopeRules would let the gate re-derive a scope-complete pass.
 	for _, claim := range claims {
-		if _, enumerated := referenced[claim.RuleID]; claim.Status == StatusNoKnownIssue && !claim.IsLead() && !enumerated {
+		decided := claim.Status == "PASS" || claim.Status == "BLOCKED" || claim.Status == StatusNoKnownIssue
+		if _, enumerated := referenced[claim.RuleID]; decided && !claim.IsVerdictNeutral() && !enumerated {
 			return false
 		}
 	}

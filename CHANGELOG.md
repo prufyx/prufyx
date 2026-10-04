@@ -81,13 +81,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   `NO_KNOWN_ISSUE` (exit 11) and a scope assessment stays UNKNOWN
   (`CONSENSUS_ONLY_SCOPE`). A lead (one unverified model reading) never blocks
   or passes and is evaluated only when `lead` is listed. The default admits
-  `reviewed,mechanical,empirical,consensus`; a check that left out a rule says
-  how many (`trustPolicy` in JSON, a `trust policy:` line in human output) and
-  never exits 0. Every finding prints its evidence basis, and human output
+  `reviewed,mechanical,empirical,consensus`; a check that left out rules says
+  how many (`trustPolicy` in JSON, a `trust policy:` line in human output),
+  and one that left out a verdict rule (any basis other than lead) never exits
+  0. `check batch` has no `--require-basis` and always uses the default. Every finding prints its evidence basis, and human output
   states how many findings rely on model consensus. Documents with a consensus
   or lead rule use rules schema
   `prufyx.io/deterministic-constraint-rules/v1alpha5` and pack schema
   `prufyx.io/cncf-source-rule-pack/v1alpha7`. No such rules are shipped yet.
+- A scope-completeness report is now refused unless every PASS, BLOCKED or
+  `NO_KNOWN_ISSUE` claim is listed under its component. Before, a hand-edited
+  report could move a blocking claim into `outOfScopeRules` and still pass the
+  report's self-consistency check as a scope-complete pass (replay already
+  caught it). Reports produced by Prufyx are unchanged.
 - Upgrade-path policies: a knowledge pack may carry an optional
   `pathPolicies` section saying how a component's upgrades are split into
   hops (`sequential_minor`, `direct` or `sequential_major`), each record with

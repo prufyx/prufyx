@@ -557,9 +557,30 @@ func (b bundle) selectForInput(project string, raw []byte) (selection, error) {
 	// is decided before the trust policy, so a matching rule the policy
 	// leaves out is reported as left out, never replaced by the other pairs.
 	if verdicts == 0 {
-		return b.admit(b.projectRules(project), nil)
+		return b.admit(b.fallbackRules(b.projectRules(project), matched), nil)
 	}
 	return b.admit(matched, nil)
+}
+
+// fallbackRules is a fallback selection: every candidate except a lead for
+// another transition that the trust policy leaves out anyway. Such a lead
+// could never have said anything about this transition, so it is neither
+// evaluated nor counted as left out.
+func (b bundle) fallbackRules(candidates, matched []json.RawMessage) []json.RawMessage {
+	matching := make(map[string]bool, len(matched))
+	for _, rule := range matched {
+		matching[string(rule)] = true
+	}
+	kept := make([]json.RawMessage, 0, len(candidates))
+	for _, rule := range candidates {
+		if !matching[string(rule)] && !b.policy.Admits(constraintengine.BasisLead) {
+			if basis, err := constraintengine.RawRuleBasis(rule); err == nil && basis == constraintengine.BasisLead {
+				continue
+			}
+		}
+		kept = append(kept, rule)
+	}
+	return kept
 }
 
 // projectRules is every rule of project, in pack order.
@@ -645,7 +666,7 @@ func (b bundle) selectFamily(project string, facts []string, raw []byte) (select
 	}
 	// As in selectForInput: a notice or lead alone never narrows the family.
 	if verdicts == 0 {
-		return b.admit(family, nil)
+		return b.admit(b.fallbackRules(family, matched), nil)
 	}
 	return b.admit(matched, nil)
 }

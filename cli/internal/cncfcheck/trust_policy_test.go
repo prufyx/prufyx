@@ -249,6 +249,24 @@ func TestTrustPolicySelection(t *testing.T) {
 		t.Fatalf("lead narrowed the selection: %d vs %d claims", len(withOtherLead.Check.Claims), len(withoutLead.Check.Claims))
 	}
 
+	// In a fallback selection only a lead that matches the transition is
+	// counted as left out; a lead for another transition is not.
+	unrelated := evaluateSelection(t, basisBundle(t, lead), TrustPolicy{}, "generic", []byte(other))
+	if unrelated.TrustPolicy != nil {
+		t.Fatalf("a lead for another transition was counted: %+v", unrelated.TrustPolicy)
+	}
+	related := evaluateSelection(t, basisBundle(t, otherLead), TrustPolicy{}, "generic", []byte(other))
+	if related.TrustPolicy == nil || related.TrustPolicy.ExcludedLeadRules != 1 || related.TrustPolicy.ExcludedRules != 0 {
+		t.Fatalf("matching lead not counted: %+v", related.TrustPolicy)
+	}
+	if !reflect.DeepEqual(unrelated.Check.Claims, related.Check.Claims) {
+		t.Fatal("fallback verdict claims differ")
+	}
+	familyUnrelated := evaluateSelection(t, basisBundle(t, containerdBasisEntry("containerd.synthetic-g-lead-fact", constraintengine.BasisLead, containerdShimFact)), TrustPolicy{}, "family", []byte(other))
+	if familyUnrelated.TrustPolicy != nil {
+		t.Fatalf("family counted a lead for another transition: %+v", familyUnrelated.TrustPolicy)
+	}
+
 	// The default policy over a pack without consensus or lead rules is
 	// exactly today's report.
 	plain := testBundle(t)
@@ -524,5 +542,68 @@ func TestExternalPackRefusesBasis(t *testing.T) {
 	pack.Schema = packSchema
 	if err := validateExternalPack(base, pack, pack.Revision); err != nil {
 		t.Fatalf("empirical external pack refused: %v", err)
+	}
+}
+
+// TestCorpusInventorySkipsLeadOnlyComponents: the inventory an attestation
+// is built from leaves out a component whose only rule is a lead, so the
+// generated attestation still binds and admits.
+func TestCorpusInventorySkipsLeadOnlyComponents(t *testing.T) {
+	const aeraki = "pkg:github/aeraki-mesh/aeraki"
+	lead := containerdBasisEntry("aeraki-mesh.synthetic-lead", constraintengine.BasisLead, "")
+	lead.Project = "aeraki-mesh"
+	lead.Rule = json.RawMessage(strings.NewReplacer(containerdComponent, aeraki, "github.com/containerd/containerd", "github.com/aeraki-mesh/aeraki").Replace(string(lead.Rule)))
+	b := basisBundle(t, lead)
+	inventory, err := b.unfilteredCorpus()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, component := range inventory.Components {
+		if component == aeraki {
+			t.Fatal("a lead-only component is in the corpus inventory")
+		}
+	}
+	attestation, err := json.Marshal(Attestation{
+		Schema: CorpusAttestationSchema, Attestation: constraintengine.CorpusAttestation,
+		Revision: inventory.Revision, PackDigest: inventory.PackDigest, RuleSetDigest: inventory.RuleSetDigest,
+		RuleCount: inventory.RuleCount, Components: inventory.Components, Limitations: AttestationLimitations(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, policy := range []TrustPolicy{{}, mustPolicy(t, "reviewed,lead")} {
+		b.policy = policy
+		if _, _, err := b.attestedSelection(attestation); err != nil {
+			t.Fatalf("policy %s: attestation over a pack with a lead-only component refused: %v", policy, err)
+		}
+	}
+}
+
+// TestScopeReportDisclosureIntegrity: a scope report's disclosure is checked
+// like a check report's.
+func TestScopeReportDisclosureIntegrity(t *testing.T) {
+	report, err := WithTrustPolicy(mustPolicy(t, "mechanical")).AssessScope(containerdInput(t), mustTime(t, "2026-09-20T00:00:00Z"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	reseal := func(r ScopeReport) ScopeReport {
+		r.seal = &reportSeal{}
+		raw, _ := json.Marshal(r)
+		r.digest = digest(raw)
+		return r
+	}
+	if _, err := MarshalScopeReport(reseal(report)); err != nil {
+		t.Fatal(err)
+	}
+	for name, disclosure := range map[string]*TrustPolicyDisclosure{
+		"zero count":    {RequiredBasis: []string{"mechanical"}},
+		"unknown basis": {RequiredBasis: []string{"model"}, ExcludedRules: 1},
+		"unordered":     {RequiredBasis: []string{"mechanical", "reviewed"}, ExcludedRules: 1},
+	} {
+		forged := report
+		forged.TrustPolicy = disclosure
+		if _, err := MarshalScopeReport(reseal(forged)); err == nil {
+			t.Fatalf("%s: accepted", name)
+		}
 	}
 }
