@@ -460,7 +460,7 @@ func TestNoReleaseBaselineIsNotResumedOnceReleaseAppears(t *testing.T) {
 		status int
 	}{
 		"/repos/example/website/releases?per_page=10": {[]byte(`[{"tag_name":"v1.0.0"}]`), 200},
-		"/repos/example/website/git/ref/tags/v1.0.0":      {[]byte(`{"object":{"sha":"` + commitA + `","type":"commit"}}`), 200},
+		"/repos/example/website/git/ref/tags/v1.0.0":  {[]byte(`{"object":{"sha":"` + commitA + `","type":"commit"}}`), 200},
 	}}
 	wl, err := BuildWorklist(context.Background(), noBaselineCitations(), nil, 0, state, released, fakeBlobFetcher{}, fixedNow(), DefaultMaxAge, nil)
 	if err != nil {
