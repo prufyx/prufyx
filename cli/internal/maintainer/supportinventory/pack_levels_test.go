@@ -131,6 +131,9 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 		edit      func(map[string]any)
 		want      string
 		unchanged bool
+		// refusal is the error the right schema still meets (the
+		// inventory does not list notices yet).
+		refusal string
 	}{
 		{name: "ranged (published)", edit: func(map[string]any) {}, want: schemas[1], unchanged: true},
 		{name: "set rule", edit: addSetRule, want: schemas[2]},
@@ -140,12 +143,12 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 			p["lineAttestations"], p["pathPolicies"] = levelAttestations(), levelPolicies()
 		}, want: schemas[4], unchanged: true},
 		{name: "set rule and attestations", edit: func(p map[string]any) { addSetRule(p); p["lineAttestations"] = levelAttestations() }, want: schemas[3]},
-		{name: "notice rule", edit: addNoticeRule, want: schemas[5]},
+		{name: "notice rule", edit: addNoticeRule, want: schemas[5], refusal: "does not list notices"},
 		{name: "notice rule, set rule, attestations and policies", edit: func(p map[string]any) {
 			addNoticeRule(p)
 			addSetRule(p)
 			p["lineAttestations"], p["pathPolicies"] = levelAttestations(), levelPolicies()
-		}, want: schemas[5]},
+		}, want: schemas[5], refusal: "does not list notices"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, schema := range schemas {
@@ -153,6 +156,12 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 				if schema != tc.want {
 					if err == nil || !strings.Contains(err.Error(), "invalid rule-pack schema") {
 						t.Fatalf("schema %s accepted for a pack whose level is %s: %v", schema, tc.want, err)
+					}
+					continue
+				}
+				if tc.refusal != "" {
+					if err == nil || !strings.Contains(err.Error(), tc.refusal) {
+						t.Fatalf("schema %s: expected %q, got %v", schema, tc.refusal, err)
 					}
 					continue
 				}
@@ -190,6 +199,56 @@ func TestSupportInventory_RefusesVariantPackMembers(t *testing.T) {
 	for _, name := range []string{"LineAttestations", "PATHPOLICIES", "pathPolicieſ", "notices"} {
 		if _, err := generateWithPack(t, func(p map[string]any) { p[name] = levelPolicies() }); err == nil {
 			t.Fatalf("member %q accepted", name)
+		}
+	}
+}
+
+// A notice rule is never listed or counted as an executable rule: the
+// inventory refuses a pack with one, under its right schema, until notices
+// have their own section.
+func TestSupportInventory_RefusesNoticeRules(t *testing.T) {
+	_, err := generateWithPack(t, func(p map[string]any) {
+		p["schema"] = "prufyx.io/cncf-source-rule-pack/v1alpha6"
+		p["entries"] = append(p["entries"].([]any), map[string]any{"description": "d", "project": "kubernetes", "requiredFacts": []any{}, "rule": levelNoticeRule()})
+	})
+	if err == nil || !strings.Contains(err.Error(), "the inventory does not list notices yet") {
+		t.Fatalf("a notice rule was accepted: %v", err)
+	}
+}
+
+// The community-project table stops at the ranged level: a community pack
+// with a set rule is refused under the CNCF set level's number (v1alpha3)
+// and above. (Its v1alpha1/v1alpha2 acceptance mirrors the community pack
+// loader's schema check; the engine refuses set rules there.)
+func TestSupportInventory_CommunityPackStopsAtRanged(t *testing.T) {
+	cfg, root := repositoryConfig(t)
+	raw, err := os.ReadFile(filepath.Join(root, "internal/projectcheck/data/rules.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pack map[string]any
+	if err := json.Unmarshal(raw, &pack); err != nil {
+		t.Fatal(err)
+	}
+	entries := pack["entries"].([]any)
+	first := entries[0].(map[string]any)
+	rule := levelSetRule()
+	rule["subject"] = first["rule"].(map[string]any)["subject"]
+	pack["entries"] = append(entries, map[string]any{"description": "d", "project": first["project"], "requiredFacts": []any{}, "rule": rule})
+	for _, schema := range []string{
+		"prufyx.io/community-project-source-rule-pack/v1alpha3", "prufyx.io/community-project-source-rule-pack/v1alpha4",
+	} {
+		pack["schema"] = schema
+		edited, err := json.Marshal(pack)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cfg.ProjectRules = filepath.Join(t.TempDir(), "rules.json")
+		if err := os.WriteFile(cfg.ProjectRules, edited, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := Generate(cfg); err == nil || !strings.Contains(err.Error(), "invalid community-project source schema") {
+			t.Fatalf("schema %s: a community set-rule pack was not refused for its schema: %v", schema, err)
 		}
 	}
 }

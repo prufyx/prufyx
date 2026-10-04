@@ -672,6 +672,12 @@ func genericProjects(rules map[string]any, identities map[string]identity, prepa
 			return nil, 0, nil, invalid("duplicate rule")
 		}
 		seen[id] = true
+		// A one-way notice is verdict-neutral: it is not an executable rule
+		// and must not be counted or listed as one. Until the inventory has a
+		// section of its own for notices it refuses them rather than overclaim.
+		if rule["operator"] == constraintengine.OperatorNoticeOneWay {
+			return nil, 0, nil, invalid("the inventory does not list notices yet")
+		}
 		evidence, ok := object(rule["evidence"])
 		if !ok || (evidence["state"] != "active" && evidence["state"] != "withdrawn") {
 			return nil, 0, nil, invalid("inactive evidence")
