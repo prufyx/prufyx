@@ -30,6 +30,25 @@ func levelSetRule() map[string]any {
 	return rule
 }
 
+// levelSeverityRule is a test-only support-range rule.
+func levelSeverityRule() map[string]any {
+	rule := levelSetRule()
+	delete(rule, "setCondition")
+	rule["id"] = "kubernetes.synthetic-support-range.1-36-0-to-1-37-0"
+	rule["operator"] = "require_component_version"
+	rule["severity"] = "unsupported"
+	rule["reasonCode"] = "SYNTHETIC_OUTSIDE_SUPPORT_RANGE"
+	return rule
+}
+
+// levelLeadRule is a test-only rule with a lead basis.
+func levelLeadRule() map[string]any {
+	rule := levelSetRule()
+	rule["id"] = "kubernetes.synthetic-lead.1-36-0-to-1-37-0"
+	rule["evidence"].(map[string]any)["basis"] = "lead"
+	return rule
+}
+
 // levelNoticeRule is a test-only notice_one_way rule.
 func levelNoticeRule() map[string]any {
 	rule := levelSetRule()
@@ -101,8 +120,10 @@ func generateWithPack(t *testing.T, edit func(pack map[string]any)) (map[string]
 
 // The inventory reads every CNCF pack schema of the loader's feature-level
 // table: set rules (v1alpha3), line attestations (v1alpha4) and path
-// policies (v1alpha5) and notice rules (v1alpha6) each require exactly
-// their level. Attestations and
+// policies (v1alpha5), notice rules (v1alpha6), consensus and lead rules
+// (v1alpha7) and support-range rules (v1alpha8) each require exactly their
+// level. Notices, consensus, lead and support-range rules are then refused:
+// the inventory does not list them yet. Attestations and
 // policies add no capability, so the inventory is otherwise unchanged.
 func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 	base, err := generateWithPack(t, func(map[string]any) {})
@@ -116,6 +137,9 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 			"rule":          levelSetRule(),
 		})
 	}
+	addRule := func(p map[string]any, rule map[string]any) {
+		p["entries"] = append(p["entries"].([]any), map[string]any{"description": "d", "project": "kubernetes", "requiredFacts": []any{}, "rule": rule})
+	}
 	addNoticeRule := func(p map[string]any) {
 		p["entries"] = append(p["entries"].([]any), map[string]any{
 			"description": "Synthetic test-only one-way transition.", "project": "kubernetes", "requiredFacts": []any{}, "rule": levelNoticeRule(),
@@ -124,7 +148,7 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 	schemas := []string{
 		"prufyx.io/cncf-source-rule-pack/v1alpha1", "prufyx.io/cncf-source-rule-pack/v1alpha2", "prufyx.io/cncf-source-rule-pack/v1alpha3",
 		"prufyx.io/cncf-source-rule-pack/v1alpha4", "prufyx.io/cncf-source-rule-pack/v1alpha5", "prufyx.io/cncf-source-rule-pack/v1alpha6",
-		"prufyx.io/cncf-source-rule-pack/v1alpha7",
+		"prufyx.io/cncf-source-rule-pack/v1alpha7", "prufyx.io/cncf-source-rule-pack/v1alpha8", "prufyx.io/cncf-source-rule-pack/v1alpha9",
 	}
 	for _, tc := range []struct {
 		name      string
@@ -149,6 +173,18 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 			addSetRule(p)
 			p["lineAttestations"], p["pathPolicies"] = levelAttestations(), levelPolicies()
 		}, want: schemas[5], refusal: "does not list notices"},
+		{name: "lead rule", edit: func(p map[string]any) { addRule(p, levelLeadRule()) }, want: schemas[6], refusal: "does not list consensus or lead rules"},
+		{name: "consensus rule", edit: func(p map[string]any) {
+			rule := levelLeadRule()
+			rule["evidence"].(map[string]any)["basis"] = "consensus"
+			addRule(p, rule)
+		}, want: schemas[6], refusal: "does not list consensus or lead rules"},
+		{name: "support-range rule", edit: func(p map[string]any) { addRule(p, levelSeverityRule()) }, want: schemas[7], refusal: "does not list support-range rules"},
+		{name: "support-range rule, notice and attestations", edit: func(p map[string]any) {
+			addRule(p, levelSeverityRule())
+			addNoticeRule(p)
+			p["lineAttestations"] = levelAttestations()
+		}, want: schemas[7], refusal: "does not list"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, schema := range schemas {

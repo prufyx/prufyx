@@ -574,6 +574,8 @@ var cncfPackLevels = []packLevel{
 	{"prufyx.io/cncf-source-rule-pack/v1alpha4", hasMember(lineattest.PackMember)},
 	{"prufyx.io/cncf-source-rule-pack/v1alpha5", hasMember(upgradepath.PackMember)},
 	{"prufyx.io/cncf-source-rule-pack/v1alpha6", anyRule(constraintengine.AnyNoticeRule)},
+	{"prufyx.io/cncf-source-rule-pack/v1alpha7", anyRule(constraintengine.AnyBasisRule)},
+	{"prufyx.io/cncf-source-rule-pack/v1alpha8", anyRule(constraintengine.AnySeverityRule)},
 }
 
 // communityPackLevels is the community-project pack loader's table.
@@ -677,6 +679,18 @@ func genericProjects(rules map[string]any, identities map[string]identity, prepa
 		// section of its own for notices it refuses them rather than overclaim.
 		if rule["operator"] == constraintengine.OperatorNoticeOneWay {
 			return nil, 0, nil, invalid("the inventory does not list notices yet")
+		}
+		// A support-range rule (severity "unsupported") never blocks: its
+		// failing outcome is UNSUPPORTED, so listing it under the rule limit
+		// text (PASS, BLOCKED or UNKNOWN) and counting it as executable
+		// coverage would overclaim. A lead decides nothing and a consensus
+		// rule only ever blocks. Each needs its own wording before the
+		// inventory lists it; until then the inventory refuses them.
+		if _, ok := rule["severity"]; ok {
+			return nil, 0, nil, invalid("the inventory does not list support-range rules yet")
+		}
+		if ruleEvidence, ok := object(rule["evidence"]); ok && (ruleEvidence["basis"] == constraintengine.BasisConsensus || ruleEvidence["basis"] == constraintengine.BasisLead) {
+			return nil, 0, nil, invalid("the inventory does not list consensus or lead rules yet")
 		}
 		evidence, ok := object(rule["evidence"])
 		if !ok || (evidence["state"] != "active" && evidence["state"] != "withdrawn") {
