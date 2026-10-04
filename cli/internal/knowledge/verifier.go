@@ -276,37 +276,8 @@ func roleAuthorityUnchanged(oldRaw, newRaw []byte, roleName string) bool {
 	return true
 }
 
-func priorValue(prior *trustMaterial, name string) []byte {
-	if prior == nil {
-		return nil
-	}
-	switch name {
-	case "timestamp":
-		return prior.timestamp
-	case "snapshot":
-		return prior.snapshot
-	case "targets":
-		return prior.targets
-	}
-	return nil
-}
-
 type versionedRole interface {
 	metadata.SnapshotType | metadata.TargetsType
-}
-
-func versionedRoleRaw[T versionedRole](role *metadata.Metadata[T], name string, pkg importPackage, prior []byte) []byte {
-	if role == nil {
-		return nil
-	}
-	version := roleVersion(role.Signed)
-	if raw := pkg.files[fmt.Sprintf("metadata/%d.%s.json", version, name)]; len(raw) > 0 {
-		return append([]byte(nil), raw...)
-	}
-	if parsedVersion(prior, name) == version {
-		return append([]byte(nil), prior...)
-	}
-	return nil
 }
 
 func trustedVersionedRaw[T versionedRole](role *metadata.Metadata[T], name string, accepted []byte) []byte {
@@ -366,19 +337,6 @@ func acceptedCacheBytes(metaDir string, root []byte, profile profileSpec) (map[s
 		// returned; the caller will verify required metadata before use.
 	}
 	return result, nil
-}
-
-func roleRaw(role *metadata.Metadata[metadata.TimestampType], name string, pkg importPackage, prior []byte) []byte {
-	if role == nil {
-		return nil
-	}
-	if raw := pkg.files[name]; len(raw) > 0 && parsedVersion(raw, "timestamp") == role.Signed.Version {
-		return append([]byte(nil), raw...)
-	}
-	if parsedVersion(prior, "timestamp") == role.Signed.Version {
-		return append([]byte(nil), prior...)
-	}
-	return nil
 }
 
 func parsedVersion(raw []byte, name string) int64 {
@@ -485,10 +443,6 @@ func validateRootPolicy(root *metadata.Metadata[metadata.RootType]) error {
 		}
 	}
 	return nil
-}
-
-func validateTrustedSet(trusted trustedmetadata.TrustedMetadata) error {
-	return validateTrustedSetForProfile(trusted, certManagerProfile())
 }
 
 func validateTrustedSetForProfile(trusted trustedmetadata.TrustedMetadata, profile profileSpec) error {
