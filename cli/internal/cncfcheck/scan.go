@@ -3,6 +3,7 @@
 package cncfcheck
 
 import (
+	"encoding/json"
 	"sort"
 	"time"
 
@@ -20,11 +21,12 @@ type ScanKnowledge struct {
 
 // ScanRule is the selection view of one admitted rule: its scope for line
 // attestations (id, subject component, line, fact families, reviewed
-// transition) and its rule-provided description.
+// transition), its rule-provided description and its next action.
 type ScanRule struct {
 	Project     string
 	Scope       lineattest.RuleScope
 	Description string
+	NextAction  string
 }
 
 // LoadScanKnowledge admits the embedded knowledge exactly as every check
@@ -37,10 +39,13 @@ func LoadScanKnowledge() (*ScanKnowledge, error) {
 	k := &ScanKnowledge{b: b, rules: map[string][]ScanRule{}}
 	for _, entry := range b.pack.Entries {
 		scope, err := lineattest.ScopeOf(entry.Rule)
-		if err != nil {
+		var action struct {
+			NextAction string `json:"nextAction"`
+		}
+		if err != nil || json.Unmarshal(entry.Rule, &action) != nil {
 			return nil, ErrIntegrity
 		}
-		k.rules[entry.Project] = append(k.rules[entry.Project], ScanRule{Project: entry.Project, Scope: scope, Description: entry.Description})
+		k.rules[entry.Project] = append(k.rules[entry.Project], ScanRule{Project: entry.Project, Scope: scope, Description: entry.Description, NextAction: action.NextAction})
 	}
 	for project := range k.rules {
 		rules := k.rules[project]

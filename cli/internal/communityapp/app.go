@@ -113,6 +113,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, version s
 		}
 	case "db":
 		return r.database(ctx, args[1:])
+	case "scan":
+		return r.scan(args[1:], scanStdin)
 	case "community-preview":
 		if len(args) >= 2 && args[1] == "example" {
 			return r.communityExample(args[2:])
@@ -133,6 +135,7 @@ func (r runtime) rootHelp() int {
 	fmt.Fprintln(r.stdout, `prufyx Community
 
 Usage:
+  prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...] [--config FILE] [--format human|json] [--redact] [--now RFC3339]
   prufyx assess --kubeconfig FILE --acknowledge-kubeconfig-exec-risk [--allow-partial] [--component-configuration-profile v2|v3] [--output DIR] [--format human|json] CONTEXT...
   prufyx prepare project --project grafana|kibana|loki --effective-config FILE --from VERSION --to VERSION --effective-config-complete --precedence-resolved [--effective-config-digest SHA256] [--format human|json|input]
   prufyx prepare project --project mariadb --effective-config FILE --from 10.11.8 --to 11.4.2 --effective-config-complete --precedence-resolved --upstream-distribution --require-innodb-defragmentation true|false [--effective-config-digest SHA256] [--format human|json|input]

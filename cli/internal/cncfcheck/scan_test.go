@@ -58,7 +58,7 @@ func TestScanKnowledgeMatchesPackageFunctions(t *testing.T) {
 		if len(rule.Scope.Families) > 0 {
 			family++
 		}
-		if rule.Description == "" || rule.Project != "kubernetes" {
+		if rule.Description == "" || rule.NextAction == "" || rule.Project != "kubernetes" {
 			t.Fatalf("rule %+v", rule)
 		}
 	}
