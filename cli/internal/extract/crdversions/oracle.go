@@ -171,8 +171,8 @@ func Oracle(outDir string, expectedRaw []byte) ([]string, error) {
 		for _, sc := range info.proof.StorageChanges {
 			if sc.CRD == s.CRD {
 				found = true
-				if sc.From != s.FromStorage || sc.To != s.ToStorage {
-					diffs = append(diffs, fmt.Sprintf("STORAGE %s: expected %s -> %s, extractor %s -> %s", what, s.FromStorage, s.ToStorage, sc.From, sc.To))
+				if sc.Earlier != s.FromStorage || sc.Later != s.ToStorage {
+					diffs = append(diffs, fmt.Sprintf("STORAGE %s: expected %s -> %s, extractor %s -> %s", what, s.FromStorage, s.ToStorage, sc.Earlier, sc.Later))
 				}
 			}
 		}
@@ -184,7 +184,7 @@ func Oracle(outDir string, expectedRaw []byte) ([]string, error) {
 		for _, info := range pairs {
 			for _, sc := range info.proof.StorageChanges {
 				if _, ok := expectedStorage[key(info.rec.From, info.rec.To)+"\x00"+sc.CRD]; !ok {
-					diffs = append(diffs, fmt.Sprintf("EXTRA storage change of %s in %s: %s -> %s", sc.CRD, info.rec.To, sc.From, sc.To))
+					diffs = append(diffs, fmt.Sprintf("EXTRA storage change of %s in %s: %s -> %s", sc.CRD, info.rec.To, sc.Earlier, sc.Later))
 				}
 			}
 		}

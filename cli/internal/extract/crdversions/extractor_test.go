@@ -173,7 +173,7 @@ func TestCRDGolden(t *testing.T) {
 	if len(proof.Removals) != 2 || proof.Removals[0].Reason != "unserved" || proof.Removals[1].Reason != "absent" {
 		t.Fatalf("removals %+v", proof.Removals)
 	}
-	if !slices.Equal(proof.StorageChanges, []StorageChange{{CRD: "gizmos." + group, From: "v1beta1", To: "v1"}}) {
+	if !slices.Equal(proof.StorageChanges, []StorageChange{{CRD: "gizmos." + group, Earlier: "v1beta1", Later: "v1"}}) {
 		t.Fatalf("storage changes %+v", proof.StorageChanges)
 	}
 	for _, e := range out.Entries {

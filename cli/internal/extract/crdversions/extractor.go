@@ -268,9 +268,9 @@ type Removal struct {
 // StorageChange records a CRD whose storage version differs between the
 // tags. It is never a removal by itself.
 type StorageChange struct {
-	CRD  string `json:"crd"`
-	From string `json:"from"`
-	To   string `json:"to"`
+	CRD     string `json:"crd"`
+	Earlier string `json:"from"`
+	Later   string `json:"to"`
 }
 
 // PairProof is recorded in the run manifest for every pair.
@@ -330,7 +330,7 @@ func (x *Extractor) Extract(_ context.Context, r extract.PinnedReader, pair extr
 			return withhold(problemf("CustomResourceDefinition %s names %s/%s at %s and %s/%s at %s", f.Name, f.Group, f.Kind, pair.FromTag, t.Group, t.Kind, pair.ToTag))
 		}
 		if f.StorageVersion != t.StorageVersion {
-			proof.StorageChanges = append(proof.StorageChanges, StorageChange{CRD: f.Name, From: f.StorageVersion, To: t.StorageVersion})
+			proof.StorageChanges = append(proof.StorageChanges, StorageChange{CRD: f.Name, Earlier: f.StorageVersion, Later: t.StorageVersion})
 		}
 		cr := crdRemovals{from: f, to: t}
 		for _, v := range f.Versions {
