@@ -477,6 +477,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- A blocker is no longer hidden by unrelated input that cannot be read. Before,
+  one templated, unparseable or non-Kubernetes document next to a
+  `batch/v1beta1` CronJob turned `scan` from `BLOCKED` with one finding into
+  exit 11 with no finding. A removed API version used by a document that was
+  read is now reported as `BLOCKED` (exit 10) whatever the other documents
+  hold. The unreadable documents are still listed as omitted and named as a
+  gap, so the answer is never a pass, and absence is never concluded from
+  them: every other removed-API fact, and any rule that depends on what they
+  contain, stays undecided. The same applies to
+  `check cncf --project kubernetes --native-resource` and to custom-resource
+  versions (`scan` and `check cncf --custom-resources`), where the versions
+  read are recorded as an incomplete set.
 - The rule parser rejects a `forbid_predicate_value` rule whose `appliesWhen`
   requires its own condition fact to hold a different value. Such a rule could
   never block, yet it passed and could make a component scope-complete.

@@ -522,20 +522,23 @@ func TestScanDefaultNow(t *testing.T) {
 
 // TestScanOmissionsExplainHops: when an omitted document leaves the apply set
 // unresolved, the hops name the omission's gap, and no other cause is
-// invented.
+// invented. The removed version in the readable document still blocks.
 func TestScanOmissionsExplainHops(t *testing.T) {
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	dir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1beta1, "values.yaml": "replicas: 2\n"})
 	result := mustScan(t, knowledge, args([]string{dir}, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...)
-	if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"API_VERSION_NOT_REVIEWED", "DOCUMENTS_NOT_EVALUATED"}) {
-		t.Fatalf("exit %d gaps %v", result.Exit, gapReasons(result.Report))
+	if result.Exit != scanreport.ExitBlocked || len(result.Report.Findings) != 1 || !reflect.DeepEqual(gapReasons(result.Report), []string{"API_VERSION_NOT_REVIEWED", "DOCUMENTS_NOT_EVALUATED"}) {
+		t.Fatalf("exit %d findings %d gaps %v", result.Exit, len(result.Report.Findings), gapReasons(result.Report))
 	}
 	if !strings.Contains(result.Report.Gaps[1].Detail, "1 document(s) are not Kubernetes objects") {
 		t.Fatalf("detail %q", result.Report.Gaps[1].Detail)
 	}
-	hop := result.Report.Paths[0].Hops[0]
-	if hop.Status != scanreport.HopPartial || !reflect.DeepEqual(hop.Reasons, []string{"DOCUMENTS_NOT_EVALUATED"}) {
-		t.Fatalf("hop %+v", hop)
+	hops := result.Report.Paths[0].Hops
+	if hops[0].Status != scanreport.HopBlocked || !reflect.DeepEqual(hops[0].Reasons, []string{"DOCUMENTS_NOT_EVALUATED"}) {
+		t.Fatalf("hop %+v", hops[0])
+	}
+	if hops[1].Status != scanreport.HopPartial || !reflect.DeepEqual(hops[1].Reasons, []string{"DOCUMENTS_NOT_EVALUATED"}) {
+		t.Fatalf("hop %+v", hops[1])
 	}
 }
 

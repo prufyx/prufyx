@@ -167,6 +167,8 @@ single or multi-document YAML, such as the output of `helm template` or
 `kustomize build`, and `kubectl get -o yaml` lists. Nothing is rendered or
 executed: a document that still contains template syntax (`{{ ... }}` or
 `${...}` in a value) makes the result `UNKNOWN` and asks for rendered output.
+A removed API version in another, readable document is still reported as
+`BLOCKED`.
 
 ```sh
 cd /tmp/prufyx-quickstart

@@ -73,9 +73,12 @@ versions it names. The set is complete only when all of these hold:
 - every recorded `group/version/Kind` is at most 128 bytes.
 
 When the documents cannot be read as one apply set (unrendered templates, a
-document that cannot be parsed, a document that is not a Kubernetes object, an
-object of a kind other than a `List` that carries a top-level `items` array,
-an empty input), or when a project's objects use more than 256 different
+document that cannot be parsed, a document that is not a Kubernetes object),
+the versions of the project's objects in the documents that were read are
+recorded as an incomplete set: a listed version among them still blocks, and
+nothing passes. With no such object the set is not recorded. When an object
+of a kind other than a `List` carries a top-level `items` array, when the
+input is empty, or when a project's objects use more than 256 different
 `group/version/Kind` combinations, no set is recorded at all and every rule
 stays `UNKNOWN`.
 

@@ -198,11 +198,17 @@ not want it. It is not printed when the scan stops with an error.
 
 | Exit | Headline | Meaning |
 | --- | --- | --- |
-| `10` | `BLOCKED: N problems must be fixed before this upgrade` | At least one reviewed rule matched an object in your manifests. |
+| `10` | `BLOCKED: N problems must be fixed before this upgrade` | At least one reviewed rule matched an object in your manifests. Gaps may remain; they are still listed. |
 | `11` | `NO BLOCKERS FOUND IN COVERED CHECKS: M areas were not checked` | Nothing blocked in what was checked, and `M` named gaps remain. |
 | `0` | `PASS FOR THE DECLARED SCOPE` | Every hop is covered and nothing is missing (see below). |
 | `2` | `prufyx: ...` on standard error | The command line or an input is not accepted. |
 | `3` | `prufyx: KNOWLEDGE INTEGRITY FAILURE` | The built-in knowledge, or the `--knowledge-db` database, failed verification. |
+
+The answers rank `BLOCKED` (`10`) over not checked (`11`) over `PASS` (`0`).
+A blocker is reported whenever the documents that were read establish it,
+even when other inputs could not be read or other areas could not be
+checked: those still appear as gaps and omitted documents, and the findings
+are always listed. A gap never hides a blocker, and it always prevents a pass.
 
 **PASS is scoped and rare by design.** It requires all of the following:
 
@@ -283,10 +289,15 @@ Every gap has a reason, a detail and an action.
 | `EVIDENCE_EXPIRED` | The review of a rule is stale, withdrawn or not yet valid at `--now`. | Use a release with current knowledge, or check by hand. |
 | `RULE_NOT_DECIDED` | A rule that applies could not reach a verdict, needs evidence `scan` does not collect, rests on consensus evidence that found nothing, or was left out by `--require-basis`. | Run the matching `prufyx check cncf` route, or check by hand. |
 
-When any input document cannot be read as part of the apply set (for example a
-templated document next to rendered ones), the removed-API facts of the whole
-set stay undecided, exactly as for one file in `prufyx check cncf`. Fix the
-named documents first.
+When an input document cannot be read as part of the apply set (for example a
+templated document next to rendered ones), a removed API version used by a
+document that was read is still a blocker: nothing in the other documents can
+undo it. Absence is never concluded from a partial set, so every other
+removed-API fact stays undecided, a rule that also depends on what the
+unreadable documents contain stays undecided, the unreadable documents are
+listed as omitted with their gap, and the answer is never a pass. This is the
+same as for one file in `prufyx check cncf`. Fix the named documents and scan
+again: a blocker may also be hidden inside them.
 
 A patch upgrade within one minor line (for example `1.30.4 -> 1.30.5`) is
 never covered by a line review and always names `LINE_NOT_ATTESTED`; check the

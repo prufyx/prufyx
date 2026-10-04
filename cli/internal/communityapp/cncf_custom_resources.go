@@ -77,7 +77,7 @@ func (r runtime) cncfCustomResourceCheck(req customResourceRequest) int {
 		}
 		return customResourceExit(report)
 	}
-	if _, err := fmt.Fprintf(r.stdout, "%s custom-resource version review\nraw input digest: %s\nprepared input digest: %s\ncustom-resource set: %s\n", req.project, digest, prepared.InputDigest, customResourceSetLine(prepared.Reason)); err != nil {
+	if _, err := fmt.Fprintf(r.stdout, "%s custom-resource version review\nraw input digest: %s\nprepared input digest: %s\ncustom-resource set: %s\n", req.project, digest, prepared.InputDigest, customResourceSetLine(prepared.Reason, customResourceSetRecorded(prepared.CanonicalInputJSON))); err != nil {
 		return ExitIntegrity
 	}
 	if err := writeBasisHeadline(r.stdout, report.Check.Claims, report.TrustPolicy); err != nil {
@@ -106,8 +106,36 @@ func (r runtime) cncfCustomResourceCheck(req customResourceRequest) int {
 	return customResourceExit(report)
 }
 
+// customResourceSetRecorded reports whether the prepared input declares a
+// set at all. A set that cannot be read as one apply set is still declared,
+// never complete, from the documents that were read when they hold a
+// version of the project.
+func customResourceSetRecorded(canonical []byte) bool {
+	var input struct {
+		Proposed struct {
+			Components []struct {
+				Facts []struct {
+					State string `json:"state"`
+				} `json:"facts"`
+			} `json:"components"`
+		} `json:"proposed"`
+	}
+	if json.Unmarshal(canonical, &input) != nil {
+		return false
+	}
+	for _, component := range input.Proposed.Components {
+		for _, fact := range component.Facts {
+			if fact.State == "declared" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // customResourceSetLine says in words how complete the declared set is.
-func customResourceSetLine(reason string) string {
+// recorded is whether a set is declared at all.
+func customResourceSetLine(reason string, recorded bool) string {
 	switch reason {
 	case cncfprepare.ReasonCustomResourcesComplete:
 		return "complete"
@@ -122,7 +150,13 @@ func customResourceSetLine(reason string) string {
 	case cncfprepare.ReasonCustomResourcesTooMany:
 		return "not declared (too many custom-resource versions)"
 	case cncfprepare.ReasonCustomResourcesRendering:
+		if recorded {
+			return "not complete (a document contains unrendered templates or cannot be parsed; only the versions in the documents that were read are recorded)"
+		}
 		return "not declared (a document contains unrendered templates or cannot be parsed)"
+	}
+	if recorded {
+		return "not complete (the manifests cannot be read as one apply set; only the versions in the documents that were read are recorded)"
 	}
 	return "not declared (the manifests cannot be read as one apply set)"
 }
