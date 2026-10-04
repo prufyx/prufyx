@@ -344,8 +344,38 @@ func TestDuplicateOptionInEitherSpellingIsRefused(t *testing.T) {
 	if _, err := os.Stat(out); !os.IsNotExist(err) {
 		t.Fatal("a record was written")
 	}
-	if !duplicateLongFlag([]string{"--a", "1", "-a", "2"}, nil) || duplicateLongFlag([]string{"--n", "-1", "--m", "-1"}, nil) || duplicateLongFlag([]string{"--a", "x", "--", "--a"}, nil) {
-		t.Fatal("duplicateLongFlag spelling rules")
+	// "--" as the value of an option does not end the scan: Go's flag
+	// package keeps parsing after it.
+	{
+		args := f.newArgs(f.sampled, out)
+		for i, a := range args {
+			if a == "--reviewer" {
+				args[i+1] = "--"
+			}
+		}
+		args = append(args, "--rule", f.unsampled)
+		var stdout, stderr bytes.Buffer
+		err := run(args, &stdout, &stderr)
+		var command *commandError
+		if !errors.As(err, &command) || command.message != "prufyx-maintainer: duplicate option rejected" {
+			t.Fatalf("--reviewer -- then a repeated --rule: %v", err)
+		}
+	}
+	for _, tc := range []struct {
+		args []string
+		dup  bool
+	}{
+		{[]string{"--a", "1", "-a", "2"}, true},
+		{[]string{"--n", "-1", "--m", "-1"}, false},
+		{[]string{"--a", "x", "--", "--a"}, false},
+		{[]string{"--a=x", "--", "--a"}, false},
+		{[]string{"--reviewer", "--", "--rule", "a", "--rule", "b"}, true},
+		{[]string{"--reviewer", "--", "--", "--rule", "a", "--rule", "b"}, false},
+		{[]string{"--a", "--b", "--b"}, true},
+	} {
+		if duplicateLongFlag(tc.args, nil) != tc.dup {
+			t.Fatalf("duplicateLongFlag(%q) = %v", tc.args, !tc.dup)
+		}
 	}
 }
 
@@ -388,5 +418,34 @@ func TestWriteNewFileLeavesNothingBehind(t *testing.T) {
 	info, err := os.Stat(filepath.Join(dir, "d.json"))
 	if err != nil || info.Mode().Perm() != 0o644 {
 		t.Fatalf("mode: %v %v", info, err)
+	}
+}
+
+// A temporary file left by an interrupted review-record new makes prepare
+// and verify refuse the directory with a message naming that file.
+func TestLeftoverTemporaryRecordFileIsNamed(t *testing.T) {
+	f := newReattestFixture(t)
+	leftover := ".review-record-123456.tmp"
+	writeFile(t, filepath.Join(f.reviews, leftover), []byte("{"))
+	var stdout, stderr bytes.Buffer
+	err := run([]string{"evidence", "reattest", "prepare", "--worklist", f.worklist, "--pack", "cncf", "--rules", f.rules,
+		"--rules-worklist-path", reattestWorklistPackPath, "--next-revision", "rev-2", "--wave", "1", "--output-dir", filepath.Join(f.dir, "out-leftover"),
+		"--statement-chain-dir", f.chain, "--review-record-dir", f.reviews}, &stdout, &stderr)
+	if exitCode(err) != 2 || !strings.Contains(stderr.String(), leftover+" is a temporary file an interrupted review-record new left behind") {
+		t.Fatalf("prepare: %v %q", err, stderr.String())
+	}
+	stderr.Reset()
+	err = run(f.verifyArgs("--structural-only"), &stdout, &stderr)
+	if exitCode(err) != 2 || !strings.Contains(stderr.String(), leftover) {
+		t.Fatalf("verify: %v %q", err, stderr.String())
+	}
+	// Any other file without the .json extension stays a generic refusal.
+	if err := os.Remove(filepath.Join(f.reviews, leftover)); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(f.reviews, "notes.txt"), []byte("x"))
+	stderr.Reset()
+	if err := run(f.verifyArgs("--structural-only"), &stdout, &stderr); exitCode(err) != 2 || strings.Contains(stderr.String(), "temporary file") {
+		t.Fatalf("other file: %v %q", err, stderr.String())
 	}
 }

@@ -97,7 +97,7 @@ func runReviewRecordNew(args []string, stdout, stderr io.Writer) error {
 		if errors.Is(err, os.ErrExist) {
 			fmt.Fprintf(stderr, "review-record new: %s already exists; a record the statement chain already counted is replaced by deleting it first (the change then modifies it)\n", filepath.Base(output))
 		} else {
-			fmt.Fprintf(stderr, "review-record new: cannot write %s\n", filepath.Base(output))
+			fmt.Fprintf(stderr, "review-record new: cannot write %s (the directory must allow creating a file and a hard link to it): %v\n", filepath.Base(output), err)
 		}
 		return &commandError{code: 2, message: "review-record new: rejected", printed: true}
 	}
@@ -112,7 +112,7 @@ func writeNewFile(path string, data []byte) error {
 	if _, err := os.Lstat(path); err == nil {
 		return os.ErrExist
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".review-record-*.tmp")
+	tmp, err := os.CreateTemp(filepath.Dir(path), reviewRecordTempPrefix+"*"+reviewRecordTempSuffix)
 	if err != nil {
 		return err
 	}

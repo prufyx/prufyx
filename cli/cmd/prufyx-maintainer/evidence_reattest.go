@@ -90,6 +90,33 @@ func readCanonicalInput(path string, limit int) ([]byte, error) {
 // ID that itself contains dots maps unambiguously to its file.
 const reviewRecordSuffix = ".json"
 
+// reviewRecordTempPrefix and reviewRecordTempSuffix name the temporary
+// file review-record new writes before linking the record into place. One
+// is left behind only if that command was killed mid-write.
+const (
+	reviewRecordTempPrefix = ".review-record-"
+	reviewRecordTempSuffix = ".tmp"
+)
+
+// leftoverTempError is a review-record new temporary file found in a
+// review record directory.
+type leftoverTempError struct{ name string }
+
+func (e leftoverTempError) Error() string {
+	return e.name + " is a temporary file an interrupted review-record new left behind; delete it and run the command again"
+}
+
+// reviewRecordDirError reports why a review record directory was refused:
+// a leftover temporary file by name, anything else generically.
+func reviewRecordDirError(err error, stderr io.Writer) error {
+	var leftover leftoverTempError
+	if errors.As(err, &leftover) {
+		fmt.Fprintf(stderr, "evidence reattest: review record directory: %v\n", leftover)
+		return &commandError{code: 2, message: "evidence reattest: command rejected", printed: true}
+	}
+	return evidenceReattestError()
+}
+
 // loadReviewRecords reads every file in dir (non-recursive) and maps its
 // rule ID, the file name without its ".json" extension, to the file's
 // exact bytes. It rejects anything that is not a regular file (including
@@ -119,6 +146,9 @@ func loadReviewRecords(dir string) (map[string][]byte, error) {
 			return nil, knowledgesign.ErrRejected
 		}
 		name := entry.Name()
+		if strings.HasPrefix(name, reviewRecordTempPrefix) && strings.HasSuffix(name, reviewRecordTempSuffix) {
+			return nil, leftoverTempError{name: name}
+		}
 		if !strings.HasSuffix(name, reviewRecordSuffix) {
 			return nil, knowledgesign.ErrRejected
 		}
@@ -274,7 +304,7 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	}
 	reviewRecords, err := loadReviewRecords(reviewRecordDir)
 	if err != nil {
-		return evidenceReattestError()
+		return reviewRecordDirError(err, stderr)
 	}
 	capabilityDigest, err := engineCapabilityDigestFor(packName)
 	if err != nil {
@@ -587,7 +617,7 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 	}
 	reviewRecords, err := loadReviewRecords(reviewRecordDir)
 	if err != nil {
-		return evidenceReattestError()
+		return reviewRecordDirError(err, stderr)
 	}
 	capabilityDigest, err := engineCapabilityDigestFor(packName)
 	if err != nil {

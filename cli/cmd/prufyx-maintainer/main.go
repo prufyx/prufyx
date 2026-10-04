@@ -218,19 +218,33 @@ func duplicateLongFlag(args []string, repeatable []string) bool {
 		allowed[name] = true
 	}
 	seen := map[string]bool{}
+	// awaitingValue is true right after an option written without "=": the
+	// next token may be that option's value.
+	awaitingValue := false
 	for _, arg := range args {
 		if arg == "--" {
+			// Go's flag package takes "--" right after a value-taking option
+			// as that option's value and keeps parsing, so the scan goes on
+			// too. Anywhere else "--" ends the options. (After a boolean
+			// option this reads on into positional arguments, which can only
+			// add a refusal.)
+			if awaitingValue {
+				awaitingValue = false
+				continue
+			}
 			break
 		}
 		// Go's flag package accepts -name as well as --name: both spell
 		// the same option. A lone "-" and negative numbers are values.
 		if !strings.HasPrefix(arg, "--") {
 			if len(arg) < 2 || arg[0] != '-' || (arg[1] >= '0' && arg[1] <= '9') {
+				awaitingValue = false
 				continue
 			}
 			arg = "-" + arg
 		}
-		name := strings.SplitN(arg, "=", 2)[0]
+		name, _, hasValue := strings.Cut(arg, "=")
+		awaitingValue = !hasValue
 		if seen[name] && !allowed[name] {
 			return true
 		}

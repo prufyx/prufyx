@@ -307,7 +307,7 @@ prufyx-maintainer review-record new \
 | `--rule` | the sampled rule's ID |
 | `--reviewer` | the reviewer's public name or handle: 1–128 printable characters, no surrounding spaces, no `/` or `\` |
 | `--decided-at` | the decision time, exact UTC RFC 3339 in whole seconds (`...Z`); not before the statement's `attestedAt` and not in the future |
-| `--output` | the new record file; it must be named `<ruleId>.json` and must not exist yet (an existing file is never overwritten). It is written to a temporary file in the same directory and then linked into place, so a failed write leaves nothing behind |
+| `--output` | the new record file; it must be named `<ruleId>.json` and must not exist yet (an existing file is never overwritten). It is written to a temporary file `.review-record-*.tmp` in the same directory and then hard-linked into place, so a failed write leaves nothing behind. The directory must be on a file system that supports hard links (as APFS, ext4 and other local POSIX file systems do; FAT, exFAT and some network mounts do not); otherwise the command fails and names the cause |
 | `--individual` | write an individual review instead of a sample review (see [Individual reviews](#individual-reviews-review-record-new---individual)) |
 
 The command asks nothing interactively and makes no network access. It
@@ -347,8 +347,9 @@ of a renewal. The output is canonical JSON and one newline; the same
 inputs always give the same bytes.
 
 `prepare` and `verify` check a sample review record again, from their own
-inputs: the rule must be sampled by the statement being prepared or
-verified, the decision must not be earlier than the worklist's
+inputs: the rule must be renewed by the statement being prepared or
+verified, and sampled by it (for an individual review, see below, renewed
+is enough), the decision must not be earlier than the worklist's
 `generatedAt` nor later than `attestedAt`, and the subject and every
 binding must equal what that statement and the prior pack give. So a
 record edited by hand, copied to another rule, or made for another
@@ -364,6 +365,11 @@ rule still counts as that rule's individual review, but `prepare` leaves
 the sample entry empty and says so in `summary.txt` (`MISSING REVIEW RECORD
 (a declared review record does not satisfy the sample ...)`), and `sign`
 and `verify` refuse the statement until it is replaced.
+
+If `review-record new` is killed in the middle of writing, a
+`.review-record-*.tmp` file can be left in the directory. `prepare` and
+`verify` then refuse the directory and name that file; delete it and run
+`review-record new` again.
 
 **A rule sampled again.** There is one record file per rule, and records
 the chain has already counted stay in the directory. When a rule whose
@@ -967,11 +973,12 @@ statements, never on the machine that prepares them.
   produce or verify a review of an attestation or a path policy, so such a
   review cannot be recorded: records are renewed by automated statements
   only, and a review record naming a record is refused.
-- **Review record content.** A sample review record (`review-record new`)
-  is bound to the statement's prior pack, worklist and engine, to the
-  rule's exact prior-pack version and to its compared citations, and is
-  accepted only for a sampled rule; it binds no packet, corpus, vectors or
-  target. A declared review record (`review-record verify`'s format) is
+- **Review record content.** A record written by `review-record new` is
+  bound to the statement's prior pack, worklist and engine, to the rule's
+  exact prior-pack version and to its compared citations. It is accepted
+  only for a rule the statement renews, and in the sample scope only for a
+  sampled rule (`--individual` writes the individual scope, which needs no
+  sample membership). It binds no packet, corpus, vectors or target. A declared review record (`review-record verify`'s format) is
   checked structurally and bound to the rule, its project, its exact
   prior-pack version, and the chain's review history (see
   [The statement chain](#the-statement-chain-v5)), but not against the
