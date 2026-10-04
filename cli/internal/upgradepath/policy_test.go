@@ -96,6 +96,15 @@ func TestParseStrictness(t *testing.T) {
 		"bad component":           record(func(r *Record) { r.Component = "kubernetes" }),
 		"unknown state":           record(func(r *Record) { r.Evidence.State = "retired" }),
 		"unknown basis":           record(func(r *Record) { r.Evidence.Basis = "guessed" }),
+		"consensus basis": record(func(r *Record) {
+			r.Evidence.Basis, r.Evidence.DerivedAt = constraintengine.BasisConsensus, "2026-10-01T00:00:00Z"
+		}),
+		"lead basis": record(func(r *Record) {
+			r.Evidence.Basis, r.Evidence.DerivedAt = constraintengine.BasisLead, "2026-10-01T00:00:00Z"
+		}),
+		"empirical basis": record(func(r *Record) {
+			r.Evidence.Basis, r.Evidence.DerivedAt = constraintengine.BasisEmpirical, "2026-10-01T00:00:00Z"
+		}),
 		"reviewed with extractor": record(func(r *Record) { r.Evidence.DerivedAt = "2026-10-01T00:00:00Z" }),
 		"mechanical no extractor": record(func(r *Record) { r.Evidence.Basis = constraintengine.BasisMechanical }),
 		"non-UTC review":          record(func(r *Record) { r.Evidence.ReviewedAt = "2026-10-01T02:00:00+02:00" }),

@@ -38,7 +38,7 @@ func (r runtime) cncfArgoCDLatestRepository(path, pin, from, to, distribution st
 	if err != nil || prepared.SourceDigest != sourceDigest || prepared.InputDigest != digestCommunityBytes(prepared.CanonicalInputJSON) || !json.Valid(prepared.CanonicalInputJSON) {
 		return r.fail("ARGO_CD_REPOSITORY_INPUT_INVALID", ExitUsage)
 	}
-	report, err := cncfcheck.Check("argo-cd", prepared.CanonicalInputJSON, now)
+	report, err := r.cncfChecker().Check("argo-cd", prepared.CanonicalInputJSON, now)
 	if err != nil {
 		return r.cncfError("CNCF source-constraint check failed", err)
 	}
@@ -50,6 +50,11 @@ func (r runtime) cncfArgoCDLatestRepository(path, pin, from, to, distribution st
 		if _, err := fmt.Fprintln(r.stdout, string(encoded)); err != nil {
 			return ExitIntegrity
 		}
+		return cncfcheck.ClaimExit(report)
+	}
+	if done, err := writeTrustPolicyOutcome(r.stdout, report.Check.Claims, report.TrustPolicy); err != nil {
+		return ExitIntegrity
+	} else if done {
 		return cncfcheck.ClaimExit(report)
 	}
 	if _, err := fmt.Fprintf(r.stdout, "Argo CD repository review\ntransition: %s -> %s\nraw Secret digest: %s\nprepared input digest: %s\nscope: one caller-selected pre-apply repository Secret only; connectivity, Helm execution, and whole upgrade remain UNKNOWN\naggregate: UNKNOWN\nnetwork used: false\n", from, to, sourceDigest, prepared.InputDigest); err != nil {

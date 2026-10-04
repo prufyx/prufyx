@@ -53,7 +53,7 @@ func (r runtime) cncfContainerdConfig(path, pin, handler, from, to string, compl
 	if err != nil || now.Nanosecond() != 0 || now.Format(time.RFC3339) != nowText {
 		return r.usage("CNCF check time must be explicit canonical UTC with whole seconds")
 	}
-	report, err := cncfcheck.CheckRule("containerd", containerdRemovedOfficialShimRuleID, prepared.CanonicalInputJSON, now)
+	report, err := r.cncfChecker().CheckRule("containerd", containerdRemovedOfficialShimRuleID, prepared.CanonicalInputJSON, now)
 	if err != nil {
 		return r.cncfError("CNCF source-constraint check failed", err)
 	}
@@ -65,6 +65,11 @@ func (r runtime) cncfContainerdConfig(path, pin, handler, from, to string, compl
 		if _, err := fmt.Fprintln(r.stdout, string(encoded)); err != nil {
 			return ExitIntegrity
 		}
+		return cncfcheck.ClaimExit(report)
+	}
+	if done, err := writeTrustPolicyOutcome(r.stdout, report.Check.Claims, report.TrustPolicy); err != nil {
+		return ExitIntegrity
+	} else if done {
 		return cncfcheck.ClaimExit(report)
 	}
 	if len(report.Check.Claims) != 1 {

@@ -55,7 +55,7 @@ func (r runtime) cncfNativeFormat(project, path, pin, from, to, operation string
 		return r.cncfNativeFormatExternal(project, *selection, replayPath, format, from, to, operation, rawDigest, prepared)
 	}
 
-	report, err := cncfcheck.Check(project, prepared.CanonicalInputJSON, now)
+	report, err := r.cncfChecker().Check(project, prepared.CanonicalInputJSON, now)
 	if err != nil {
 		return r.cncfError("CNCF source-constraint check failed", err)
 	}
@@ -67,6 +67,11 @@ func (r runtime) cncfNativeFormat(project, path, pin, from, to, operation string
 		if _, err := fmt.Fprintln(r.stdout, string(encoded)); err != nil {
 			return ExitIntegrity
 		}
+		return cncfcheck.ClaimExit(report)
+	}
+	if done, err := writeTrustPolicyOutcome(r.stdout, report.Check.Claims, report.TrustPolicy); err != nil {
+		return ExitIntegrity
+	} else if done {
 		return cncfcheck.ClaimExit(report)
 	}
 	if err := writeNativeFormatHuman(r.stdout, report, project, from, to, operation, rawDigest, prepared); err != nil {
@@ -82,7 +87,7 @@ func (r runtime) cncfNativeFormatExternal(project string, selection knowledge.Se
 		if err != nil {
 			return r.cncfError("external CNCF replay report failed local admission", err)
 		}
-		replay, err := cncfknowledge.ReplayHistorical(req, expected)
+		replay, err := cncfknowledge.ReplayHistorical(r.withTrustPolicy(req), expected)
 		if err != nil {
 			return r.cncfKnowledgeError("external CNCF historical replay failed", err)
 		}
@@ -100,13 +105,20 @@ func (r runtime) cncfNativeFormatExternal(project string, selection knowledge.Se
 		}
 		return cncfknowledge.HistoricalClaimExit(replay)
 	}
-	report, err := cncfknowledge.EvaluateCurrent(req)
+	report, err := cncfknowledge.EvaluateCurrent(r.withTrustPolicy(req))
 	if err != nil {
 		return r.cncfKnowledgeError("external CNCF check failed", err)
 	}
 	encoded, err := cncfknowledge.MarshalReport(report)
 	if err != nil {
 		return r.fail("external CNCF report integrity failure", ExitIntegrity)
+	}
+	if format != "json" {
+		if done, err := writeTrustPolicyOutcome(r.stdout, report.Check.Check.Claims, report.Check.TrustPolicy); err != nil {
+			return ExitIntegrity
+		} else if done {
+			return cncfknowledge.ClaimExit(report)
+		}
 	}
 	if format == "json" {
 		_, err = fmt.Fprintln(r.stdout, string(encoded))

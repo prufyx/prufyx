@@ -33,7 +33,7 @@ func (r runtime) cncfTektonConfigObservabilityCheck(path, pin, from, to, distrib
 	if err != nil || prepared.SourceDigest != sourceDigest || prepared.InputDigest != digestCommunityBytes(prepared.CanonicalInputJSON) || !json.Valid(prepared.CanonicalInputJSON) {
 		return r.fail("TEKTON_CONFIG_OBSERVABILITY_INPUT_INVALID", ExitUsage)
 	}
-	report, err := cncfcheck.Check("tekton", prepared.CanonicalInputJSON, now)
+	report, err := r.cncfChecker().Check("tekton", prepared.CanonicalInputJSON, now)
 	if err != nil {
 		return r.cncfError("CNCF source-constraint check failed", err)
 	}
@@ -45,6 +45,11 @@ func (r runtime) cncfTektonConfigObservabilityCheck(path, pin, from, to, distrib
 		if _, err := fmt.Fprintln(r.stdout, string(encoded)); err != nil {
 			return ExitIntegrity
 		}
+		return cncfcheck.ClaimExit(report)
+	}
+	if done, err := writeTrustPolicyOutcome(r.stdout, report.Check.Claims, report.TrustPolicy); err != nil {
+		return ExitIntegrity
+	} else if done {
 		return cncfcheck.ClaimExit(report)
 	}
 	if _, err := fmt.Fprintf(r.stdout, "Tekton config-observability review\ntransition: %s -> %s\nraw ConfigMap digest: %s\nprepared input digest: %s\nscope: the one reviewed metrics-protocol data key in one caller-selected config-observability ConfigMap only; the removed legacy metrics.backend-destination key is never read as a protocol, effective composition, endpoint configuration, scrape availability, dashboards, alerts, runtime rollout and whole upgrade remain UNKNOWN\naggregate: UNKNOWN\nnetwork used: false\n", from, to, sourceDigest, prepared.InputDigest); err != nil {

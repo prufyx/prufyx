@@ -36,7 +36,7 @@ func (r runtime) cncfCiliumPolicyCheck(path, pin, from, to, completeSetText stri
 	if err != nil || prepared.SourceDigest != sourceDigest || prepared.InputDigest != digestCommunityBytes(prepared.CanonicalInputJSON) || !json.Valid(prepared.CanonicalInputJSON) {
 		return r.fail("CILIUM_POLICY_INPUT_INVALID", ExitUsage)
 	}
-	report, err := cncfcheck.Check("cilium", prepared.CanonicalInputJSON, now)
+	report, err := r.cncfChecker().Check("cilium", prepared.CanonicalInputJSON, now)
 	if err != nil {
 		return r.cncfError("CNCF source-constraint check failed", err)
 	}
@@ -48,6 +48,11 @@ func (r runtime) cncfCiliumPolicyCheck(path, pin, from, to, completeSetText stri
 		if _, err := fmt.Fprintln(r.stdout, string(encoded)); err != nil {
 			return ExitIntegrity
 		}
+		return cncfcheck.ClaimExit(report)
+	}
+	if done, err := writeTrustPolicyOutcome(r.stdout, report.Check.Claims, report.TrustPolicy); err != nil {
+		return ExitIntegrity
+	} else if done {
 		return cncfcheck.ClaimExit(report)
 	}
 	if _, err := fmt.Fprintf(r.stdout, "Cilium policy review\ntransition: %s -> %s\nraw policy digest: %s\nprepared input digest: %s\nscope: one caller-selected CiliumNetworkPolicy, CiliumClusterwideNetworkPolicy, or flat list only; CNP/CCNP set completeness is operator-declared, pagination is never assumed complete, and whole upgrade remains UNKNOWN\naggregate: UNKNOWN\nnetwork used: false\n", from, to, sourceDigest, prepared.InputDigest); err != nil {

@@ -61,7 +61,7 @@ func (r runtime) cncfKubernetesComponentConfig(path, pin, from, to, distribution
 	if _, err := cncfcheck.Catalog(false, "kubernetes"); err != nil {
 		return r.cncfError("CNCF project selection failed", err)
 	}
-	report, err := cncfcheck.CheckFacts("kubernetes", cncfprepare.KubernetesComponentConfigAllFacts(), prepared.CanonicalInputJSON, now)
+	report, err := r.cncfChecker().CheckFacts("kubernetes", cncfprepare.KubernetesComponentConfigAllFacts(), prepared.CanonicalInputJSON, now)
 	if err != nil {
 		return r.cncfError("CNCF source-constraint check failed", err)
 	}
@@ -73,6 +73,11 @@ func (r runtime) cncfKubernetesComponentConfig(path, pin, from, to, distribution
 		if _, err := fmt.Fprintln(r.stdout, string(encoded)); err != nil {
 			return ExitIntegrity
 		}
+		return cncfcheck.ClaimExit(report)
+	}
+	if done, err := writeTrustPolicyOutcome(r.stdout, report.Check.Claims, report.TrustPolicy); err != nil {
+		return ExitIntegrity
+	} else if done {
 		return cncfcheck.ClaimExit(report)
 	}
 	if _, err := fmt.Fprintf(r.stdout, "Kubernetes component configuration review\ntransition: %s -> %s\nselected sources: %d\npreparation: %s (%s)\nprepared input digest: %s\naggregate: UNKNOWN\nevaluated at: %s\nknowledge: embedded revision %s\nknowledge pack digest: %s\nnetwork used: false\npaths, argument values and raw documents retained: false\nscope: removed component settings named by reviewed rules only; component startup, runtime behavior, and whole-upgrade compatibility remain unverified\n", from, to, len(selection.Sources), prepared.State, prepared.Reason, prepared.InputDigest, report.Check.EvaluatedAt, report.KnowledgeRevision, report.KnowledgePackDigest); err != nil {

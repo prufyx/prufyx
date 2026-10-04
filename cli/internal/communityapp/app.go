@@ -16,6 +16,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 	"github.com/prufyx/prufyx/cli/internal/certmanagervalues"
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 	"github.com/prufyx/prufyx/cli/internal/observation"
 	"github.com/prufyx/prufyx/cli/internal/prometheusmode"
@@ -33,6 +34,9 @@ const (
 type runtime struct {
 	stdout, stderr io.Writer
 	version        string
+	// trust is the evidence-basis trust policy of check cncf
+	// (--require-basis); the zero value is the default policy.
+	trust cncfcheck.TrustPolicy
 }
 
 type envelope struct {

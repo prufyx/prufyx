@@ -57,7 +57,7 @@ func (r runtime) cncfArgoCDConfigMap(path, pin, from, to, intentText string, now
 	if err != nil {
 		return r.argoCDIntegrityFailure()
 	}
-	report, err := cncfcheck.CheckRule("argo-cd", "argo-cd.required-rbac-inheritance.3-0", prepared.CanonicalInputJSON, now)
+	report, err := r.cncfChecker().CheckRule("argo-cd", "argo-cd.required-rbac-inheritance.3-0", prepared.CanonicalInputJSON, now)
 	if err != nil {
 		return r.cncfError("CNCF source-constraint check failed", err)
 	}
@@ -69,6 +69,11 @@ func (r runtime) cncfArgoCDConfigMap(path, pin, from, to, intentText string, now
 		if _, err := fmt.Fprintln(r.stdout, string(encoded)); err != nil {
 			return ExitIntegrity
 		}
+		return cncfcheck.ClaimExit(report)
+	}
+	if done, err := writeTrustPolicyOutcome(r.stdout, report.Check.Claims, report.TrustPolicy); err != nil {
+		return ExitIntegrity
+	} else if done {
 		return cncfcheck.ClaimExit(report)
 	}
 	if err := writeArgoCDHumanReview(r.stdout, report, from, to, sourceDigest, setting, preparedIntent); err != nil {

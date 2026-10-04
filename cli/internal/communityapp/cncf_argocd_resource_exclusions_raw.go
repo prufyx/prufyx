@@ -31,7 +31,7 @@ func (r runtime) cncfArgoCDResourceExclusions(path, pin, from, to string, comple
 	if err != nil || prepared.SourceDigest != sourceDigest || prepared.InputDigest != digestCommunityBytes(prepared.CanonicalInputJSON) || !json.Valid(prepared.CanonicalInputJSON) {
 		return r.fail("ARGO_CD_RESOURCE_EXCLUSIONS_INPUT_INVALID", ExitUsage)
 	}
-	report, err := cncfcheck.CheckRule("argo-cd", argoCDResourceExclusionsRuleID, prepared.CanonicalInputJSON, now)
+	report, err := r.cncfChecker().CheckRule("argo-cd", argoCDResourceExclusionsRuleID, prepared.CanonicalInputJSON, now)
 	if err != nil {
 		return r.cncfError("CNCF source-constraint check failed", err)
 	}
@@ -43,6 +43,11 @@ func (r runtime) cncfArgoCDResourceExclusions(path, pin, from, to string, comple
 		if _, err := fmt.Fprintln(r.stdout, string(encoded)); err != nil {
 			return ExitIntegrity
 		}
+		return cncfcheck.ClaimExit(report)
+	}
+	if done, err := writeTrustPolicyOutcome(r.stdout, report.Check.Claims, report.TrustPolicy); err != nil {
+		return ExitIntegrity
+	} else if done {
 		return cncfcheck.ClaimExit(report)
 	}
 	if len(report.Check.Claims) != 1 {

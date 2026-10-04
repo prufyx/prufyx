@@ -20,7 +20,7 @@ func (r runtime) externalCNCF(req cncfknowledge.Request, replayPath, format stri
 		if err != nil {
 			return r.cncfError("external CNCF replay report failed local admission", err)
 		}
-		replay, err := cncfknowledge.ReplayHistorical(req, expected)
+		replay, err := cncfknowledge.ReplayHistorical(r.withTrustPolicy(req), expected)
 		if err != nil {
 			return r.cncfKnowledgeError("external CNCF historical replay failed", err)
 		}
@@ -38,7 +38,7 @@ func (r runtime) externalCNCF(req cncfknowledge.Request, replayPath, format stri
 		}
 		return cncfknowledge.HistoricalClaimExit(replay)
 	}
-	report, err := cncfknowledge.EvaluateCurrent(req)
+	report, err := cncfknowledge.EvaluateCurrent(r.withTrustPolicy(req))
 	if err != nil {
 		return r.cncfKnowledgeError("external CNCF check failed", err)
 	}
@@ -51,6 +51,7 @@ func (r runtime) externalCNCF(req cncfknowledge.Request, replayPath, format stri
 	} else {
 		var output bytes.Buffer
 		fmt.Fprintf(&output, "%s source-constraint check\nwhole-upgrade assessment: UNKNOWN\nknowledge: external signed local revision %s\npurpose: %s\ntrust source: %s\nsource references: operator-declared; runtime behavior unverified\n", report.Check.Project, report.Knowledge.Revision, report.Knowledge.Purpose, report.Knowledge.TrustSource)
+		_ = writeBasisHeadline(&output, report.Check.Check.Claims, report.Check.TrustPolicy)
 		_ = writeExternalClaims(&output, report.Check.Check.Claims)
 		fmt.Fprintf(&output, "input digest: %s\nbundle digest: %s\ntrust receipt digest: %s\nevaluated at: %s\ncurrent non-revocation: not checked offline\nnetwork used: false\nnext action: %s\n", report.Check.InputFileDigest, report.Knowledge.BundleDigest, report.Knowledge.TrustReceiptDigest, report.Knowledge.EvaluatedAt, report.Check.NextAction)
 		if report.Knowledge.Purpose == "synthetic_test_only" {

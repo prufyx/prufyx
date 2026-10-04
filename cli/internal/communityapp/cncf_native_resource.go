@@ -269,13 +269,13 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 	}
 	var report cncfcheck.Report
 	if selectedRuleID != "" {
-		report, err = cncfcheck.CheckRule(project, selectedRuleID, prepared.CanonicalInputJSON, now)
+		report, err = r.cncfChecker().CheckRule(project, selectedRuleID, prepared.CanonicalInputJSON, now)
 	} else if project == "kubernetes" {
 		// The rendered apply-set adapter decides only removed-API rules; other
 		// Kubernetes rules on the same transition need other evidence.
-		report, err = cncfcheck.CheckFacts(project, cncfprepare.KubernetesRemovedAPIAllFacts(), prepared.CanonicalInputJSON, now)
+		report, err = r.cncfChecker().CheckFacts(project, cncfprepare.KubernetesRemovedAPIAllFacts(), prepared.CanonicalInputJSON, now)
 	} else {
-		report, err = cncfcheck.Check(project, prepared.CanonicalInputJSON, now)
+		report, err = r.cncfChecker().Check(project, prepared.CanonicalInputJSON, now)
 	}
 	if err != nil {
 		return r.cncfError("CNCF source-constraint check failed", err)
@@ -290,6 +290,9 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 		}
 	} else {
 		if _, err := fmt.Fprintf(r.stdout, "%s native input review\nraw input digests: %s\nprepared input digest: %s\n", project, joinNativeDigests(rawDigests), prepared.InputDigest); err != nil {
+			return ExitIntegrity
+		}
+		if err := writeBasisHeadline(r.stdout, report.Check.Claims, report.TrustPolicy); err != nil {
 			return ExitIntegrity
 		}
 		summary := summarizeClaims(report.Check.Claims, flagProvided(args, "show-passes"))
