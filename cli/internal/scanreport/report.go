@@ -560,7 +560,30 @@ func gapLess(a, b Gap) bool {
 	if a.Detail != b.Detail {
 		return a.Detail < b.Detail
 	}
-	return a.Action < b.Action
+	if a.Action != b.Action {
+		return a.Action < b.Action
+	}
+	return hopRefLess(a.Hop, b.Hop)
+}
+
+// hopRefLess breaks the last tie between gaps: two hop references with the
+// same order but different fields. Callers do not produce such hops today;
+// the tie-break keeps the order total, so it never depends on input order,
+// and keeps exact duplicates adjacent for uniqueGaps.
+func hopRefLess(a, b *HopRef) bool {
+	if a == nil || b == nil {
+		return a == nil && b != nil
+	}
+	if a.Index != b.Index {
+		return a.Index < b.Index
+	}
+	if a.From != b.From {
+		return a.From < b.From
+	}
+	if a.To != b.To {
+		return a.To < b.To
+	}
+	return !a.WholeUpgrade && b.WholeUpgrade
 }
 
 // uniqueGaps drops exact repeats of a sorted gap list.
