@@ -76,7 +76,10 @@ When the documents cannot be read as one apply set (unrendered templates, a
 document that cannot be parsed, a document that is not a Kubernetes object),
 the versions of the project's objects in the documents that were read are
 recorded as an incomplete set: a listed version among them still blocks, and
-nothing passes. With no such object the set is not recorded. When an object
+nothing passes. A document that may not be rendered at all (inside a template
+action of another document of its file, a conditional subchart or a test of a
+raw Helm chart, a Helm test hook; see `scan.md`, "Gaps") is not read for this.
+With no such object the set is not recorded. When an object
 of a kind other than a `List` carries a top-level `items` array, when the
 input is empty, or when a project's objects use more than 256 different
 `group/version/Kind` combinations, no set is recorded at all and every rule

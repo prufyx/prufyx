@@ -291,8 +291,21 @@ Every gap has a reason, a detail and an action.
 
 When an input document cannot be read as part of the apply set (for example a
 templated document next to rendered ones), a removed API version used by a
-document that was read is still a blocker: nothing in the other documents can
-undo it. Absence is never concluded from a partial set, so every other
+document that was read is still a blocker, as long as that document is applied
+as written whatever the unread documents hold. A document that may not be
+rendered at all is not used as evidence:
+
+- a document in a file where an unread document opens or closes a template
+  action (`if`, `range`, `with`, `define`, `block`, `else`, `end`) that it does
+  not close within one value, because the action can enclose the other
+  documents of the file;
+- in a raw Helm chart (a directory with a `Chart.yaml`), a document under
+  `templates/tests/`, or under `charts/` in a subchart that `Chart.yaml` does
+  not list as a dependency without a `condition`, `tags` or an `alias`;
+- a Helm test hook (`helm.sh/hook: test...`), which only `helm test` applies.
+
+Template actions in YAML comments are not seen; pass rendered output to be
+sure. Absence is never concluded from a partial set, so every other
 removed-API fact stays undecided, a rule that also depends on what the
 unreadable documents contain stays undecided, the unreadable documents are
 listed as omitted with their gap, and the answer is never a pass. This is the

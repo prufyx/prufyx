@@ -71,6 +71,10 @@ func TestK8sRemovedAPIsUnresolvedSetNeverDeclaresWithoutReadableWitness(t *testi
 		"paginated list":                       {yamlDocs(unreadableTemplated, "apiVersion: v1\nkind: List\nmetadata: {continue: next}\nitems:\n- {apiVersion: batch/v1beta1, kind: CronJob, metadata: {name: n}}\n"), full},
 		"unreviewed version of the same kind":  {yamlDocs(cronjobRemoved, "apiVersion: batch/v2alpha1\nkind: CronJob\nmetadata: {name: b}\n", unreadableTemplated), full},
 		"removed version in a bad list":        {yamlDocs(unreadableValues, "apiVersion: v1\nkind: List\nmetadata: {continue: 1}\nitems:\n- {apiVersion: batch/v1beta1, kind: CronJob, metadata: {name: n}}\n"), full},
+		"if opened before, closed after":       {yamlDocs("apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata: {x: \"{{- if .Values.on }}\"}\n", cronjobRemoved, "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: b}\ndata: {y: \"{{- end }}\"}\n"), full},
+		"range opened in a block scalar":       {yamlDocs("apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata:\n  x: |\n    {{- range .Values.jobs }}\n", cronjobRemoved), full},
+		"end of an action opened before":       {yamlDocs(cronjobRemoved, "z: \"{{ end }}\"\n"), full},
+		"helm test hook":                       {yamlDocs("apiVersion: batch/v1beta1\nkind: CronJob\nmetadata:\n  name: t\n  annotations: {helm.sh/hook: test}\n", unreadableTemplated), full},
 	} {
 		t.Run(name, func(t *testing.T) {
 			prepared, err := PrepareKubernetesRemovedAPIs(tc.raw, from125, to125, tc.distribution, tc.apply, tc.complete)
@@ -140,5 +144,25 @@ func TestPrepareKubernetesFlowControlUnresolvedSetKeepsPresentFact(t *testing.T)
 				t.Fatalf("fact %+v, want unsupported", fact)
 			}
 		})
+	}
+}
+
+// A template action closed within the templated document's own value
+// cannot enclose another document: the readable witness stays.
+func TestK8sRemovedAPIsClosedActionKeepsWitness(t *testing.T) {
+	raw := yamlDocs(cronjobRemoved, "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata:\n  x: |\n    {{- if .Values.on }}on{{- else }}off{{- end }}\n")
+	wantBool(t, k8sProposedFacts(t, prepareK8s(t, raw, from125, to125, true)), factCronJob, true)
+}
+
+// The flow-control and custom-resource routes withhold the same witnesses.
+func TestUnresolvedSetWithholdsEnclosedWitness(t *testing.T) {
+	open := "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata: {x: \"{{- if .Values.on }}\"}\n"
+	flow, err := PrepareKubernetesFlowControl(yamlDocs(open, "apiVersion: flowcontrol.apiserver.k8s.io/v1beta3\nkind: FlowSchema\nmetadata: {name: a}\n"), "1.31.0", "1.32.0", "official_upstream", true, true)
+	if err != nil || k8sProposedFacts(t, flow)[KubernetesFlowControlFact].State != "unsupported" {
+		t.Fatalf("flow control %+v %v", flow, err)
+	}
+	scan := prepareCR(t, crDocs(open, kafkaV1beta2), "strimzi", true)
+	if fact := crFact(t, scan.Prepared); fact.State != "unsupported" || len(scan.Members) != 0 {
+		t.Fatalf("custom resources %+v", fact)
 	}
 }

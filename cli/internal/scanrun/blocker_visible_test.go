@@ -346,3 +346,67 @@ func TestScanNeverPassesWithAGap(t *testing.T) {
 		t.Fatal("nothing checked")
 	}
 }
+
+// TestScanWitnessMustBeRenderedUnconditionally: a readable document is a
+// witness only when it is applied as written whatever the unreadable input
+// holds. A document that a template action of another document in its file
+// may enclose, a document of a conditional subchart of a raw chart, a test
+// template and a test hook are not witnesses: the answer stays UNKNOWN.
+// Documents that are rendered unconditionally still block.
+func TestScanWitnessMustBeRenderedUnconditionally(t *testing.T) {
+	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
+	cron := "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: legacy}\n"
+	templated := "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: '{{ .Release.Name }}'}\n"
+	cases := map[string]struct {
+		files   map[string]string
+		blocked bool
+	}{
+		"if and end in string scalars of the documents around it":   {map[string]string{"chart.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata: {x: \"{{- if .Values.legacy }}\"}\n---\n" + cron + "---\napiVersion: v1\nkind: ConfigMap\nmetadata: {name: b}\ndata: {y: \"{{- end }}\"}\n"}, false},
+		"range and end in block scalars of the documents around it": {map[string]string{"chart.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata:\n  x: |\n    {{- range .Values.jobs }}\n---\n" + cron + "---\napiVersion: v1\nkind: ConfigMap\nmetadata: {name: b}\ndata:\n  y: |\n    {{- end }}\n"}, false},
+		"open action in a document that is not Kubernetes shaped":   {map[string]string{"chart.yaml": "x: \"{{- with .Values.legacy }}\"\n---\n" + cron + "---\ny: \"{{- end }}\"\n"}, false},
+		"else of an action opened elsewhere":                        {map[string]string{"chart.yaml": cron + "---\napiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata: {x: \"{{- else }}\"}\n"}, false},
+		"conditional subchart": {map[string]string{
+			"Chart.yaml":                           "apiVersion: v2\nname: app\nversion: 1.0.0\ndependencies:\n- name: legacy\n  version: 1.0.0\n  condition: legacy.enabled\n",
+			"values.yaml":                          "legacy:\n  enabled: false\n",
+			"charts/legacy/Chart.yaml":             "apiVersion: v2\nname: legacy\nversion: 1.0.0\n",
+			"charts/legacy/templates/cronjob.yaml": cron,
+			"templates/configmap.yaml":             templated,
+		}, false},
+		"subchart gated by tags": {map[string]string{
+			"Chart.yaml":                           "apiVersion: v2\nname: app\nversion: 1.0.0\ndependencies:\n- name: legacy\n  version: 1.0.0\n  tags: [old]\n",
+			"charts/legacy/templates/cronjob.yaml": cron,
+		}, false},
+		"subchart not listed": {map[string]string{
+			"Chart.yaml":                           "apiVersion: v2\nname: app\nversion: 1.0.0\n",
+			"charts/legacy/templates/cronjob.yaml": cron,
+		}, false},
+		"test template":  {map[string]string{"Chart.yaml": "apiVersion: v2\nname: app\nversion: 1.0.0\n", "templates/tests/cronjob.yaml": cron}, false},
+		"test hook":      {map[string]string{"cron.yaml": "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata:\n  name: legacy\n  annotations: {helm.sh/hook: test}\n", "chart.yaml": templated}, false},
+		"test hook list": {map[string]string{"cron.yaml": "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata:\n  name: legacy\n  annotations: {helm.sh/hook: 'pre-install,test-success'}\n", "chart.yaml": templated}, false},
+		// Rendered unconditionally: still a blocker.
+		"action closed within the templated document": {map[string]string{"chart.yaml": cron + "---\napiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata:\n  x: |\n    {{- if .Values.on }}on{{- else }}off{{- end }}\n"}, true},
+		"open action in another file":                 {map[string]string{"cron.yaml": cron, "chart.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata: {x: \"{{- if .Values.legacy }}\"}\n"}, true},
+		"template of the chart itself":                {map[string]string{"Chart.yaml": "apiVersion: v2\nname: app\nversion: 1.0.0\n", "templates/cronjob.yaml": cron}, true},
+		"unconditional subchart": {map[string]string{
+			"Chart.yaml":                           "apiVersion: v2\nname: app\nversion: 1.0.0\ndependencies:\n- name: legacy\n  version: 1.0.0\n",
+			"charts/legacy/templates/cronjob.yaml": cron,
+		}, true},
+		"other hook": {map[string]string{"cron.yaml": "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata:\n  name: legacy\n  annotations: {helm.sh/hook: pre-install}\n", "chart.yaml": templated}, true},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			dir, _ := files(t, tc.files)
+			result := mustScan(t, knowledge, args([]string{dir}, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.5")...)
+			report := result.Report
+			if len(report.Gaps) == 0 || report.Verdict == scanreport.VerdictPass {
+				t.Fatalf("no gap: %v", gapReasons(report))
+			}
+			if tc.blocked != (result.Exit == scanreport.ExitBlocked) || tc.blocked != (len(report.Findings) == 1) {
+				t.Fatalf("exit %d findings %d gaps %v, want blocked %v", result.Exit, len(report.Findings), gapReasons(report), tc.blocked)
+			}
+			if !tc.blocked && result.Exit != scanreport.ExitUnknown {
+				t.Fatalf("exit %d", result.Exit)
+			}
+		})
+	}
+}

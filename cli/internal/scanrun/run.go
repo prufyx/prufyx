@@ -363,7 +363,9 @@ const omittedConfigDocument = "CONFIG_DOCUMENT"
 // manifests and lists them, with every intake omission, as omitted. The
 // returned workspace is the apply set the preparation reads.
 func splitConfigDocuments(workspace intake.Workspace, report *scanreport.Report) intake.Workspace {
-	manifests := intake.Workspace{Omissions: workspace.Omissions, Digest: workspace.Digest}
+	// Auxiliary documents (a chart's Chart.yaml) say which documents of a raw
+	// chart may not be rendered.
+	manifests := intake.Workspace{Omissions: workspace.Omissions, Auxiliary: workspace.Auxiliary, Digest: workspace.Digest}
 	for _, document := range workspace.Documents {
 		if scanconfig.IsConfigDocument(document.APIVersion, document.Kind) {
 			report.Omitted = append(report.Omitted, omitted(document.Source, omittedConfigDocument))

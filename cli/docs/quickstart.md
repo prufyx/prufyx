@@ -168,7 +168,9 @@ single or multi-document YAML, such as the output of `helm template` or
 executed: a document that still contains template syntax (`{{ ... }}` or
 `${...}` in a value) makes the result `UNKNOWN` and asks for rendered output.
 A removed API version in another, readable document is still reported as
-`BLOCKED`.
+`BLOCKED`, unless that document may not be rendered at all (for example when a
+template action of another document in the same file can enclose it); see
+`scan.md`, "Gaps".
 
 ```sh
 cd /tmp/prufyx-quickstart
