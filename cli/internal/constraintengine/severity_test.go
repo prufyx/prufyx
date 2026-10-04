@@ -19,8 +19,8 @@ const (
 
 	pinnedEngineContractDigestBasis    = "sha256:446ca648caf8997ffd08c56dbf61802d34ea4604fceaf56d8d33c6e54e00bd49"
 	pinnedScopeContractDigestBasis     = "sha256:582aa96905519b22e50fd88b936570f5451cec883a9248243946fc0f7d2bc486"
-	pinnedEngineContractDigestSeverity = "sha256:207bb2ac5847a1f6653d8b233f0ec91a10293cd3019d3b82b015b97c6d54dfa3"
-	pinnedScopeContractDigestSeverity  = "sha256:4cdad6a4f7a17305f528f5715beb89d2957965ef21696c2e4d9ea14db53713f3"
+	pinnedEngineContractDigestSeverity = "sha256:833d9066b705faa8b4b04ef751a1d21c8ac493be4a899205b423095b2321acae"
+	pinnedScopeContractDigestSeverity  = "sha256:5023fc85690dced31e2944b465c914bf7c766c71e463939f28cbb829df8ec0fd"
 )
 
 // dependencyOn renders a require_component_version dependency.
@@ -67,7 +67,6 @@ func TestSeverityStructure(t *testing.T) {
 		"support-range rule":              {support},
 		"beside a blocking rule":          {blocking, support},
 		"beside notice and consensus":     {notice, support, consensus},
-		"consensus support-range rule":    {withBasis(support, BasisConsensus)},
 		"empirical support-range rule":    {withBasis(support, BasisEmpirical)},
 		"ranged support-range rule":       {rangedSupport},
 		"support-range rule beside range": {ranged, support},
@@ -123,6 +122,7 @@ func TestSeverityStructure(t *testing.T) {
 		"on require_intermediate_version":   ruleDocumentJSON(RulesSchemaSeverity, nil, onOperator("require_intermediate_version", `,"intermediate":"1.5.0"`)),
 		"on a one-way notice":               ruleDocumentJSON(RulesSchemaSeverity, nil, strings.Replace(notice, `"evidence":{`, `"severity":"unsupported","evidence":{`, 1)),
 		"on a lead":                         ruleDocumentJSON(RulesSchemaSeverity, nil, withBasis(support, BasisLead)),
+		"on a consensus rule":               ruleDocumentJSON(RulesSchemaSeverity, nil, withBasis(support, BasisConsensus)),
 		"engine reason RULE_":               ruleDocumentJSON(RulesSchemaSeverity, nil, withReason("RULE_DEPENDENCY_COMPONENT_MISSING")),
 		"exclusion reason":                  ruleDocumentJSON(RulesSchemaSeverity, nil, withReason("RULE_TRANSITION_NOT_REVIEWED")),
 		"unresolved reason":                 ruleDocumentJSON(RulesSchemaSeverity, nil, withReason(UnresolvedUnsupportedCombination)),
@@ -205,14 +205,6 @@ func TestSeverityEvaluation(t *testing.T) {
 		if claim.Status != "UNKNOWN" || claim.ReasonCode != tc.reason || claim.Severity != SeverityUnsupported {
 			t.Fatalf("%s: %+v", name, claim)
 		}
-	}
-	// A consensus support-range rule never passes either.
-	consensus := parseSeverity(t, nil, withBasis(supportRule("rule-a-support", "active", activeUntil, ""), BasisConsensus))
-	if claim := evaluateSealed(t, supportInput(t, false, "1.5.0"), consensus).Claims[0]; claim.Status != StatusUnsupported {
-		t.Fatalf("consensus outside: %+v", claim)
-	}
-	if claim := evaluateSealed(t, supportInput(t, false, "2.0.0"), consensus).Claims[0]; claim.Status != StatusNoKnownIssue {
-		t.Fatalf("consensus inside: %+v", claim)
 	}
 	// Through a range the claim discloses the range like every other.
 	spec := defaultRangeSpec()
@@ -362,11 +354,13 @@ func TestSeverityProperty(t *testing.T) {
 				dependencyRule = true
 				rule = scopeRule(id, "require_component_version", component, "1.0.0", to, state, until, dependencyOn(pick(components...), pick("gte", "lt", "eq", "lte"), pick("2.0.0", "3.0.0"))+extra)
 			}
-			if random.Intn(5) == 0 {
+			consensus := random.Intn(5) == 0
+			if consensus {
 				rule = withBasis(rule, BasisConsensus)
 			}
 			base = append(base, rule)
-			if dependencyRule && random.Intn(3) != 0 {
+			// A consensus rule cannot carry a severity.
+			if dependencyRule && !consensus && random.Intn(3) != 0 {
 				severities++
 				rule = strings.Replace(rule, `"evidence":{`, `"severity":"unsupported","evidence":{`, 1)
 			}
@@ -484,11 +478,14 @@ func TestUnsupportedIntegrity(t *testing.T) {
 		"UNSUPPORTED from a rule without severity": func(r *Report) {
 			r.Claims[0].Status, r.Claims[0].ReasonCode = StatusUnsupported, supportRangeReason
 		},
-		"severity claim BLOCKED":        func(r *Report) { r.Claims[2].Status = "BLOCKED" },
-		"severity claim NOTICE":         func(r *Report) { r.Claims[2].Status = StatusNotice },
-		"severity on another operator":  func(r *Report) { r.Claims[1].Severity = SeverityUnsupported },
-		"severity of another value":     func(r *Report) { r.Claims[2].Severity = "blocking" },
-		"severity on a lead":            func(r *Report) { r.Claims[2].EvidenceBasis, r.Claims[2].EvidenceDerivedAt = BasisLead, basisDerivedAt },
+		"severity claim BLOCKED":       func(r *Report) { r.Claims[2].Status = "BLOCKED" },
+		"severity claim NOTICE":        func(r *Report) { r.Claims[2].Status = StatusNotice },
+		"severity on another operator": func(r *Report) { r.Claims[1].Severity = SeverityUnsupported },
+		"severity of another value":    func(r *Report) { r.Claims[2].Severity = "blocking" },
+		"severity on a lead":           func(r *Report) { r.Claims[2].EvidenceBasis, r.Claims[2].EvidenceDerivedAt = BasisLead, basisDerivedAt },
+		"severity on a consensus claim": func(r *Report) {
+			r.Claims[2].EvidenceBasis, r.Claims[2].EvidenceDerivedAt = BasisConsensus, basisDerivedAt
+		},
 		"UNSUPPORTED on stale evidence": func(r *Report) { r.Claims[2].EvidenceFreshness = "stale" },
 		"UNSUPPORTED with engine reason": func(r *Report) {
 			r.Claims[2].ReasonCode = "RULE_DEPENDENCY_COMPONENT_MISSING"

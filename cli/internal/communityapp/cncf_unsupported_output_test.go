@@ -65,3 +65,12 @@ func TestUnsupportedHumanOutput(t *testing.T) {
 		}
 	}
 }
+
+// TestCheckHelpExitLegend: the check cncf exit legend names every status
+// that exits 11.
+func TestCheckHelpExitLegend(t *testing.T) {
+	code, stdout, _ := runCNCFCLI(t, "check", "cncf", "--help")
+	if code != 0 || !strings.Contains(stdout, "11: UNKNOWN, UNSUPPORTED, NO_KNOWN_ISSUE or no rules;") {
+		t.Fatalf("code=%d help:\n%s", code, stdout)
+	}
+}

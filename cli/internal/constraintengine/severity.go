@@ -12,6 +12,7 @@ import (
 // severity "unsupported". It states that the declared combination is
 // outside a documented support range, which is not the same as broken:
 //
+//   - only a reviewed, mechanical or empirical rule may carry a severity;
 //   - when the dependency is present and the comparison holds, the claim is
 //     PASS, exactly as without the severity;
 //   - when the dependency is present and the comparison fails, the claim is
@@ -53,7 +54,7 @@ const (
 	// an applicable claim is UNSUPPORTED.
 	UnresolvedUnsupportedCombination = "UNSUPPORTED_COMBINATION"
 
-	severitySemantics = "severity:" + SeverityUnsupported + ";operator:require_component_version;comparison-fails-becomes:" + StatusUnsupported + ";reason:rule;never-pass;never-blocks;applicable-not-verified;unresolved:" + UnresolvedUnsupportedCombination + ";basis:" + BasisLead + ":refused"
+	severitySemantics = "severity:" + SeverityUnsupported + ";operator:require_component_version;comparison-fails-becomes:" + StatusUnsupported + ";reason:rule;never-pass;never-blocks;applicable-not-verified;unresolved:" + UnresolvedUnsupportedCombination + ";basis:" + BasisLead + ":refused;basis:" + BasisConsensus + ":refused"
 )
 
 // reservedSeverityReasons are reason codes the engine itself issues. A
@@ -87,8 +88,8 @@ func reservedSeverityReason(reason string) bool {
 func (r rule) usesSeverity() bool { return r.Severity != "" }
 
 // validateSeverityRule checks the severity of one rule: absent, or
-// "unsupported" on a require_component_version rule that is not a lead and
-// whose reason code is its own.
+// "unsupported" on a require_component_version rule that is neither a
+// consensus nor a lead rule and whose reason code is its own.
 func validateSeverityRule(r rule) error {
 	if !r.usesSeverity() {
 		return nil
@@ -99,10 +100,12 @@ func validateSeverityRule(r rule) error {
 	if r.Operator != "require_component_version" {
 		return fmt.Errorf("severity is only valid for require_component_version: %w", ErrInvalid)
 	}
-	// A lead never blocks or passes; a support range read by one unverified
-	// model reading is not defined.
-	if r.Evidence.Basis == BasisLead {
-		return fmt.Errorf("a lead cannot carry a severity: %w", ErrInvalid)
+	// A lead never blocks or passes, and a consensus rule may only block:
+	// a severity would remove its only decisive outcome, and an unverified
+	// model reading would read as a documented support range. Neither may
+	// carry a severity.
+	if r.Evidence.Basis == BasisLead || r.Evidence.Basis == BasisConsensus {
+		return fmt.Errorf("a consensus or lead rule cannot carry a severity: %w", ErrInvalid)
 	}
 	if reservedSeverityReason(r.ReasonCode) {
 		return fmt.Errorf("a support-range rule needs its own reason code: %w", ErrInvalid)
@@ -162,13 +165,13 @@ func ScopeContractDigestSeverity() string { return scopeContractDigestSeverity()
 // validSeverityClaims binds the severity semantics to the severity
 // contract: a claim that discloses a severity, and an UNSUPPORTED claim, is
 // legal only under it; a severity claim comes from require_component_version
-// and is never BLOCKED or NOTICE and never a lead; UNSUPPORTED comes only
+// and is never BLOCKED or NOTICE and never a consensus or lead claim; UNSUPPORTED comes only
 // from a severity claim with current evidence and a reason code of its own.
 func validSeverityClaims(report Report) bool {
 	severityContract := report.EngineContractDigest == engineContractDigestSeverity()
 	for _, claim := range report.Claims {
 		if claim.Severity != "" {
-			if !severityContract || claim.Severity != SeverityUnsupported || claim.Operator != "require_component_version" || claim.IsLead() || claim.Status == "BLOCKED" || claim.Status == StatusNotice || claim.MatchedMembers != nil {
+			if !severityContract || claim.Severity != SeverityUnsupported || claim.Operator != "require_component_version" || claim.IsLead() || claim.EvidenceBasis == BasisConsensus || claim.Status == "BLOCKED" || claim.Status == StatusNotice || claim.MatchedMembers != nil {
 				return false
 			}
 		}

@@ -228,7 +228,7 @@ runtime behavior. Optional raw-input digests bind supplied bytes.
 Selected-store checks have no embedded fallback. Historical replay requires
 the matching raw native-input digest and all three knowledge pins.
 Exit 0: all selected nonempty claims PASS; 10: at least one claim BLOCKED;
-11: UNKNOWN or no rules; 2: invalid input; 3: integrity failure.
+11: UNKNOWN, UNSUPPORTED, NO_KNOWN_ISSUE or no rules; 2: invalid input; 3: integrity failure.
 Whole-upgrade compatibility remains UNKNOWN in every case.
 Add --show-passes with --format human on the Kubernetes native-resource route and the generic --input preview to list PASS claims; by default they are counted. JSON is unaffected.
 --require-basis LIST (every route, embedded and external knowledge) evaluates only rules whose evidence basis is in LIST, a comma-separated subset of reviewed, mechanical, empirical, consensus, lead. The default is reviewed,mechanical,empirical,consensus. The report counts the rules it left out; a check that left out a rule never passes. A consensus rule may block but never passes: where it finds nothing its claim is NO_KNOWN_ISSUE (exit 11). A lead is shown only when lead is listed, and never blocks.`)

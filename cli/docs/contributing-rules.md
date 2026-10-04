@@ -174,7 +174,9 @@ combination is unsupported, not proven broken.
 ```
 
 - `severity` is optional, and `"unsupported"` is its only value. It is
-  accepted only on `require_component_version`, and not on a `lead` rule.
+  accepted only on `require_component_version`, and only on a `reviewed`,
+  `mechanical` or `empirical` rule: a `consensus` or `lead` rule cannot carry
+  it.
 - When the dependency is declared and the comparison holds, the claim is
   `PASS`, exactly as without the field. When the comparison fails, the claim
   is `UNSUPPORTED` with the rule's `reasonCode` and `nextAction`, never
