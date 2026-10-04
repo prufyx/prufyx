@@ -65,3 +65,77 @@ func TestScanCommand(t *testing.T) {
 		t.Fatal("root help does not list scan")
 	}
 }
+
+func scanFormatsFixture(t *testing.T) (string, []string) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "applyset.yaml")
+	if err := os.WriteFile(path, []byte(scanCronJob), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path, []string{"--distribution", "official_upstream", "--resource-scope-complete", "--target-api-apply-required", "--now", "2026-10-04T00:00:00Z"}
+}
+
+// TestScanFormatsExitCodes: human, json, sarif and markdown exit the same
+// for a blocked scan (10) and a scan with unchecked areas (11); the passing
+// case needs line reviews the embedded knowledge does not carry, so it is
+// covered at the scan level with test knowledge.
+func TestScanFormatsExitCodes(t *testing.T) {
+	path, declared := scanFormatsFixture(t)
+	for name, tc := range map[string]struct {
+		to   string
+		exit int
+	}{"blocked": {"kubernetes=1.25.3", ExitBlocked}, "unknown": {"kubernetes=1.30.4", ExitUnknown}} {
+		for _, format := range []string{"human", "json", "sarif", "markdown"} {
+			code, stdout, stderr := runScan(t, append([]string{path, "--from", "kubernetes=1.24.17", "--to", tc.to, "--format", format}, declared...)...)
+			if code != tc.exit || stdout == "" || stderr != "" {
+				t.Errorf("%s/%s: exit %d, stdout %d bytes, stderr %q", name, format, code, len(stdout), stderr)
+			}
+		}
+	}
+}
+
+// TestScanFormatsDeterministic: two runs print the same bytes.
+func TestScanFormatsDeterministic(t *testing.T) {
+	path, declared := scanFormatsFixture(t)
+	for _, format := range []string{"human", "json", "sarif", "markdown"} {
+		command := append([]string{path, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--format", format}, declared...)
+		_, first, _ := runScan(t, command...)
+		_, second, _ := runScan(t, command...)
+		if first != second || !strings.HasSuffix(first, "\n") {
+			t.Errorf("%s differs between runs", format)
+		}
+	}
+}
+
+// TestScanRedactFormats: --redact removes the file, namespace and name from
+// every format, SARIF and Markdown included, and keeps the exit code.
+func TestScanRedactFormats(t *testing.T) {
+	path, declared := scanFormatsFixture(t)
+	for _, format := range []string{"human", "json", "sarif", "markdown"} {
+		code, stdout, _ := runScan(t, append([]string{path, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--format", format, "--redact", "--verbose"}, declared...)...)
+		if code != ExitBlocked {
+			t.Errorf("%s: exit %d", format, code)
+		}
+		for _, secret := range []string{"applyset", "nightly-report", filepath.Dir(path), "default/"} {
+			if strings.Contains(stdout, secret) {
+				t.Errorf("%s leaks %q:\n%s", format, secret, stdout)
+			}
+		}
+	}
+	_, stdout, _ := runScan(t, append([]string{path, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--format", "sarif"}, declared...)...)
+	if !strings.Contains(stdout, `"uri": "`+filepath.Base(path)+`"`) && !strings.Contains(stdout, filepath.Base(path)) {
+		t.Fatalf("unredacted sarif lacks the path:\n%s", stdout)
+	}
+}
+
+// TestScanFormatRejected: an unknown format is a usage error with nothing
+// on standard output.
+func TestScanFormatRejected(t *testing.T) {
+	path, declared := scanFormatsFixture(t)
+	for _, format := range []string{"xml", "SARIF", "sarif2", ""} {
+		code, stdout, stderr := runScan(t, append([]string{path, "--to", "kubernetes=1.25.3", "--format", format}, declared...)...)
+		if code != ExitUsage || stdout != "" || !strings.HasPrefix(stderr, "prufyx: ") {
+			t.Errorf("%q: exit %d stdout %q stderr %q", format, code, stdout, stderr)
+		}
+	}
+}

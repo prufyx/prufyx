@@ -474,7 +474,7 @@ func TestScanConfigFile(t *testing.T) {
 // TestScanUsage: malformed command lines are refused before anything is read.
 func TestScanUsage(t *testing.T) {
 	for _, command := range [][]string{
-		{"--to"}, {"--to", "kubernetes"}, {"--to", "=1.2.3"}, {"--format", "sarif"}, {"--now", "2026-10-04T00:00:00+02:00"},
+		{"--to"}, {"--to", "kubernetes"}, {"--to", "=1.2.3"}, {"--format", "xml"}, {"--format", "SARIF"}, {"--now", "2026-10-04T00:00:00+02:00"},
 		{"--now", "2026-10-04T00:00:00.5Z"}, {"--input-permissions", "loose"}, {"--distribution", "eks"}, {"--bogus"},
 		{"--knowledge-db", "dir"}, {"-", "-"}, {"--to", "kubernetes=1.2.3", "--to", "kubernetes=1.2.4"}, {"--redact=maybe"},
 		{"--format", "json", "--format", "human"},

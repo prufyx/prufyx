@@ -1,0 +1,83 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "prufyx",
+          "version": "development",
+          "informationUri": "https://github.com/prufyx/prufyx",
+          "rules": []
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "exitCode": 11,
+          "exitCodeDescription": "NO BLOCKERS FOUND IN COVERED CHECKS: 2 areas were not checked",
+          "startTimeUtc": "2026-10-04T00:00:00Z",
+          "toolExecutionNotifications": [
+            {
+              "level": "warning",
+              "message": {
+                "text": "kubernetes 1.28 has not been reviewed for removed APIs - check the kubernetes 1.28 release notes for removed APIs by hand, or request coverage"
+              },
+              "descriptor": {
+                "id": "LINE_NOT_ATTESTED"
+              },
+              "properties": {
+                "kind": "gap",
+                "component": "kubernetes",
+                "hop": "1.27 -> 1.28"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "kubernetes 1.30 has not been reviewed for removed APIs - check the kubernetes 1.30 release notes for removed APIs by hand, or request coverage"
+              },
+              "descriptor": {
+                "id": "LINE_NOT_ATTESTED"
+              },
+              "properties": {
+                "kind": "gap",
+                "component": "kubernetes",
+                "hop": "1.29 -> 1.30.4"
+              }
+            }
+          ]
+        }
+      ],
+      "results": [],
+      "properties": {
+        "verdict": "UNKNOWN",
+        "headline": "NO BLOCKERS FOUND IN COVERED CHECKS: 2 areas were not checked",
+        "summary": {
+          "blockers": 0,
+          "gaps": 2,
+          "passes": 11,
+          "componentsDetected": 1,
+          "componentsCovered": 1,
+          "hops": 6,
+          "documentsRead": 2,
+          "documentsOmitted": 0,
+          "notices": 0,
+          "leads": 0,
+          "unsupported": 0
+        },
+        "evaluatedAt": "2026-10-04T00:00:00Z",
+        "inputDigest": "sha256:f97b2da482d3ad4454ea833ec04bdf3e2b1b8e8a7daecc26b9ea26c8142261c1",
+        "knowledgeOrigin": "embedded",
+        "knowledgeRevision": "cncf-2026-09-13.2",
+        "knowledgeDigest": "sha256:d91d0eca200dba55128726d1c5a497833f9ab74b2d95d5ef94c9e69cd0633922",
+        "engineContractDigest": "sha256:2cc7bb0052068bd2668d1c4419782bacd6fcbf34e73f9bf9cf08206cd1363fa6",
+        "networkUsed": false,
+        "omissions": [
+          "node and kubelet version skew not evaluated",
+          "Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not"
+        ]
+      }
+    }
+  ]
+}

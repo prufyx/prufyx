@@ -27,14 +27,9 @@ func (r runtime) scan(args []string, stdin io.Reader) int {
 	if err != nil {
 		return r.scanError(err)
 	}
-	var output []byte
-	if request.Format == "json" {
-		output, err = scanreport.MarshalJSON(result.Report)
-		if err != nil {
-			return r.fail(scanreport.UsageIntegrity, ExitIntegrity)
-		}
-	} else {
-		output = scanreport.Human(result.Report, scanreport.HumanOptions{ShowPasses: request.ShowPasses, Verbose: request.Verbose})
+	output, err := scanreport.Render(result.Report, request.Format, scanreport.RenderOptions{ShowPasses: request.ShowPasses, Verbose: request.Verbose})
+	if err != nil {
+		return r.fail(scanreport.UsageIntegrity, ExitIntegrity)
 	}
 	if _, err := r.stdout.Write(output); err != nil {
 		return ExitIntegrity

@@ -4,6 +4,7 @@ package scanrun
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"time"
 
@@ -167,7 +168,7 @@ func ParseArgs(args []string) (Request, error) {
 			if err != nil {
 				return Request{}, err
 			}
-			if v != "human" && v != "json" {
+			if !slices.Contains(scanreport.Formats(), v) {
 				return Request{}, usage(scanreport.UsageBadValue, display)
 			}
 			request.Format = v

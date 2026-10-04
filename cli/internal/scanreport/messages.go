@@ -360,6 +360,44 @@ const (
 	labelTrustExcluded    = "trust policy: evidence basis %s only; %d rule(s) that apply were left out, so the result cannot pass"
 	labelTrustLeads       = "trust policy: %d unverified lead(s) not shown; add lead to --require-basis to list them"
 	labelConsensus        = "%d finding(s) rely on model consensus"
+	labelGapLine          = "%s - %s"
+)
+
+// SARIF and Markdown labels.
+const (
+	labelResultMessage    = "%s \u2014 fix: %s"
+	labelNoticeMessage    = "This is a one-way change that cannot be rolled back. Before you upgrade: %s"
+	labelNoticeNotEstab   = "A one-way change was not established (%s). Next action: %s"
+	labelLeadMessage      = "Unverified lead; it does not block. Worth checking: %s"
+	labelUnsupportedMsg   = "Outside a documented support range: %s. Fix: %s"
+	labelSarifTruncated   = "SARIF output is limited to %d results; %d more are in the JSON report"
+	labelMDProblems       = "PROBLEMS TO FIX (%d)"
+	labelMDPath           = "%s %s -> %s"
+	labelMDHopHeader      = "Hop"
+	labelMDProblemHeader  = "Problem"
+	labelMDWhereHeader    = "Where"
+	labelMDFixHeader      = "Fix"
+	labelMDAreaHeader     = "Area"
+	labelMDDetailHeader   = "What"
+	labelMDActionHeader   = "Next step"
+	labelMDRuleHeader     = "Rule"
+	labelMDRulesHeader    = "Rules"
+	labelMDSourceHeader   = "Source"
+	labelMDLinesHeader    = "Lines"
+	labelMDRevisionHeader = "Revision"
+	labelMDStatusHeader   = "Status"
+	labelMDSources        = "SOURCES"
+	labelMDHops           = "HOPS"
+	labelMDDetails        = "Evidence and provenance"
+	labelMDEvaluatedAt    = "evaluated at: %s"
+	labelMDInput          = "input: %s"
+	labelMDConfig         = "config: %s"
+	labelMDKnowledge      = "knowledge: %s %s %s"
+	labelMDEngine         = "engine contract: %s"
+	labelMDBuild          = "build: %s"
+	labelMDNoNetwork      = "network used: no"
+	labelMDNetwork        = "network used: yes"
+	labelMDMore           = "... and %d more"
 )
 
 // Usage and input errors. The command prints them after "prufyx: ".
@@ -405,9 +443,10 @@ with where it is and how to fix it, and every area that was not checked.
   --distribution D          official_upstream or custom_build (Kubernetes)
   --resource-scope-complete[=true|false]   the inputs are every manifest you apply
   --target-api-apply-required[=true|false] the inputs are applied to the target API
-  --format human|json       output format (default human)
-  --show-passes             list passed checks (human)
-  --verbose                 show hop status and cited sources (human)
+  --format human|json|sarif|markdown   output format (default human); sarif is SARIF 2.1.0 for
+                            code scanning, markdown is for pull request comments and tickets
+  --show-passes             list passed checks (human, markdown)
+  --verbose                 show hop status and cited sources (human, markdown)
   --redact                  print digests instead of file paths, names and namespaces
                             (plain digests: short names can be recovered by guessing)
   --input-permissions strict|refuse-writable   default refuse-writable
