@@ -12,8 +12,10 @@
 package scanreport
 
 import (
+	"cmp"
 	"math"
 	"sort"
+	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
@@ -569,21 +571,19 @@ func gapLess(a, b Gap) bool {
 // hopRefLess breaks the last tie between gaps: two hop references with the
 // same order but different fields. Callers do not produce such hops today;
 // the tie-break keeps the order total, so it never depends on input order,
-// and keeps exact duplicates adjacent for uniqueGaps.
+// and keeps exact duplicates adjacent for uniqueGaps. It only orders hops;
+// it never decides whether a transition matches a rule.
 func hopRefLess(a, b *HopRef) bool {
 	if a == nil || b == nil {
 		return a == nil && b != nil
 	}
-	if a.Index != b.Index {
-		return a.Index < b.Index
+	whole := func(h *HopRef) int {
+		if h.WholeUpgrade {
+			return 1
+		}
+		return 0
 	}
-	if a.From != b.From {
-		return a.From < b.From
-	}
-	if a.To != b.To {
-		return a.To < b.To
-	}
-	return !a.WholeUpgrade && b.WholeUpgrade
+	return cmp.Or(cmp.Compare(a.Index, b.Index), strings.Compare(a.From, b.From), strings.Compare(a.To, b.To), cmp.Compare(whole(a), whole(b))) < 0
 }
 
 // uniqueGaps drops exact repeats of a sorted gap list.
