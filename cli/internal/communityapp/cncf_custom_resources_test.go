@@ -25,7 +25,7 @@ func TestCustomResourceCheckWithoutPublishedRules(t *testing.T) {
 		if code != ExitUnknown || stderr != "" || strings.Contains(stdout, "private-") || strings.Contains(stdout, path) {
 			t.Fatalf("%s: code=%d stdout=%q stderr=%q", format, code, stdout, stderr)
 		}
-		if format == "human" && (!strings.Contains(stdout, "strimzi custom-resource version review") || !strings.Contains(stdout, "custom-resource set: complete")) {
+		if format == "human" && (!strings.Contains(stdout, "strimzi custom-resource version review") || !strings.Contains(stdout, "custom-resource set: complete") || !strings.Contains(stdout, "scoped result: UNKNOWN\naggregate: UNKNOWN")) {
 			t.Fatalf("human output %q", stdout)
 		}
 		if format == "json" && (!strings.Contains(stdout, `"claims":[]`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`)) {
