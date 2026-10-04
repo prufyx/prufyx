@@ -37,3 +37,10 @@ Examples, synthetic fixtures, documentation, roadmap items, and scoped
 `PASS` results are not production security controls or whole-upgrade safety
 claims.
 
+
+## Key management
+
+[Key management](cli/docs/key-management.md) lists every signing key and
+pinned digest the code defines, where each public part is pinned, and the
+rotation, loss and compromise procedures. No production key or trust root is
+pinned in this repository today.
