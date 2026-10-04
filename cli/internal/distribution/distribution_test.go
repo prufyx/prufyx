@@ -179,6 +179,12 @@ func TestParseStrictness(t *testing.T) {
 		"statements unsorted by distribution": section(func(s *Section) {
 			s.Applicability[0], s.Applicability[2] = s.Applicability[2], s.Applicability[0]
 		}),
+		"statement distribution before an earlier one": section(func(s *Section) {
+			s.Applicability = []Applicability{s.Applicability[2], s.Applicability[0], s.Applicability[1]}
+		}),
+		"duplicate statement apart": section(func(s *Section) {
+			s.Applicability = []Applicability{s.Applicability[1], s.Applicability[2], s.Applicability[1]}
+		}),
 		"duplicate statement":     section(func(s *Section) { s.Applicability[0] = s.Applicability[1] }),
 		"reason too long":         section(func(s *Section) { s.Applicability[0].Reason = strings.Repeat("a", MaxText+1) }),
 		"reason control":          section(func(s *Section) { s.Applicability[0].Reason = "a\nb" }),
