@@ -344,7 +344,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	rederive(ctx, opts.Source, opts.Catalog, opts.Concurrency, opts.Layout, mechanical)
 
 	if opts.RederiveAll {
-		r.rederiveAll(ctx, cls, opts)
+		r.rederiveAll(ctx, cls, mechanical, opts)
 	}
 	r.packChecks(cls, opts)
 	r.generatedChecks(opts)
@@ -401,13 +401,13 @@ func admitReviewed(c *Change, stmt statementResult, loadKeys func() (*ApprovalKe
 }
 
 // rederiveAll re-derives every active mechanical head rule the change did
-// not already re-derive.
-func (r *Report) rederiveAll(ctx context.Context, cls *Classification, opts Options) {
+// not already re-derive. A changed rule handed to rederive is skipped whether
+// its re-derivation passed or failed: a failure is reported once, on the
+// change, and the count covers unchanged rules only.
+func (r *Report) rederiveAll(ctx context.Context, cls *Classification, rederived []*Change, opts Options) {
 	done := map[string]bool{}
-	for _, c := range cls.Changes {
-		if c.Proof == ProofRederived {
-			done[c.Pack+"\x00"+c.RuleID] = true
-		}
+	for _, c := range rederived {
+		done[c.Pack+"\x00"+c.RuleID] = true
 	}
 	var all []*Change
 	for _, spec := range opts.Layout.Packs {

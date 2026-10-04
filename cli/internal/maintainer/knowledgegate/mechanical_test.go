@@ -5,6 +5,7 @@ package knowledgegate
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -231,4 +232,35 @@ func TestGateRederiveAll(t *testing.T) {
 	}
 	r = runGate(t, Options{Base: head, Head: head, Source: extract.FixtureReader{Root: t.TempDir()}, RederiveAll: true})
 	requireFail(t, r, "rederive-all")
+}
+
+// A changed mechanical rule whose re-derivation fails is reported once, on
+// the change; the scheduled re-derivation neither repeats nor counts it.
+func TestGateRederiveAllSkipsAFailedChangedRule(t *testing.T) {
+	_, base, entries := mechanicalTrees(t, nil)
+	tampered := ruleID(entries[0])
+	head := copyTree(t, base)
+	editPack(t, head, cncfRulesPath, func(p *packDoc) {
+		for _, e := range p.entries {
+			if ruleID(e) == tampered {
+				ruleOf(e)["nextAction"] = "Upgrade; nothing to do."
+			}
+		}
+	})
+	r := runGate(t, Options{Base: base, Head: head, Source: extract.FixtureReader{Root: servedFixture}, RederiveAll: true})
+	requireFail(t, r, "differs from what extractor")
+	if c := change(t, r, tampered); c.OK {
+		t.Fatal("the tampered rule was admitted")
+	}
+	if len(r.Changes) != 1 {
+		t.Fatalf("changes %+v", r.Changes)
+	}
+	want := len(entries) - 1
+	c, ok := check(r, "rederive-all")
+	if !ok || !c.OK || !strings.HasPrefix(c.Detail, fmt.Sprintf("%d mechanical rules re-derived, 0 failed", want)) || strings.Contains(c.Detail, tampered) {
+		t.Fatalf("rederive-all %+v", c)
+	}
+	if r.rederivedUnchanged != want {
+		t.Fatalf("rederivedUnchanged %d, want %d", r.rederivedUnchanged, want)
+	}
 }
