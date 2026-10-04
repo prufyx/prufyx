@@ -81,6 +81,13 @@ func TestOfflineBoundaryLinuxCommunityJourneys(t *testing.T) {
 	}
 	run("cilium-check", 10, "check", "cncf", "--project", "cilium", "--input", ciliumInput, "--input-digest", offlineDigest([]byte(ciliumPrepared.Stdout)), "--now", "2026-09-09T06:00:00Z", "--format", "json")
 
+	scanInput := offlineWrite(t, work, "scan-applyset.yaml", []byte("apiVersion: batch/v1beta1\nkind: CronJob\nmetadata:\n  name: OFFLINE-BOUNDARY-SCAN-CANARY\n"))
+	scanned := run("scan", 10, "scan", scanInput, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--distribution", "official_upstream", "--resource-scope-complete", "--target-api-apply-required", "--redact", "--now", "2026-10-04T00:00:00Z", "--format", "json")
+	assertJSON("scan", scanned.Stdout, map[string]string{"verdict": "BLOCKED"})
+	if strings.Contains(scanned.Stdout, "OFFLINE-BOUNDARY-SCAN-CANARY") || !strings.Contains(scanned.Stdout, `"networkUsed":false`) {
+		t.Fatal("redacted scan leaked an object name or claimed network use")
+	}
+
 	// The subprocess verifies TUF expiry against its real clock. Generate the
 	// ephemeral fixture now so this boundary test does not expire with its seed.
 	artifacts, err := knowledgefixture.GenerateConstraints(time.Now().UTC())
