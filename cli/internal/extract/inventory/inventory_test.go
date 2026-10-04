@@ -24,7 +24,7 @@ type kase struct{ name, id, fixture string }
 
 var cases = []kase{
 	{"feature-gates", "k8s.feature-gate-removal", "../k8sfeaturegates/testdata/fixture"},
-	{"served-apis", "k8s.served-api-removal", "../k8sservedapis/testdata/fixture"},
+	{"served-apis", "k8s.served-api-removal", "../k8sservedapis/testdata/fixture"}, // gitleaks:allow (fixture name, not a secret)
 	{"strimzi", "crd.version-removal.strimzi", "../crdversions/testdata/strimzi"},
 	{"argo-cd", "crd.version-removal.argo-cd", "../crdversions/testdata/fixture"},
 }
