@@ -617,6 +617,11 @@ func TestCRDOracle(t *testing.T) {
 // rule is UNKNOWN for an input without the fact; only a complete declared
 // set can pass.
 func TestCandidatesAreUnknownWithoutTheFact(t *testing.T) {
+	for _, tg := range Targets {
+		if cncfcheck.RegisteredFact(tg.FactID()) {
+			t.Fatalf("%s is registered; review whether an adapter now declares it", tg.FactID())
+		}
+	}
 	out := fixtureOutput(t)
 	var vectors []extract.Vector
 	for _, v := range out.Vectors {

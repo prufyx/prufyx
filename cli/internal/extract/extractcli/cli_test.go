@@ -90,3 +90,36 @@ func TestServedAPIRunVerifyOracleOnFixture(t *testing.T) {
 		t.Fatalf("list: %d %s", code, out)
 	}
 }
+
+func TestCRDRunVerifyOracleOnFixture(t *testing.T) {
+	for _, tc := range []struct{ id, fx, expected, summary string }{
+		{"crd.version-removal.strimzi", "../crdversions/testdata/strimzi", "../crdversions/testdata/oracle-strimzi.json", "1 pairs (1 derived, 0 withheld), 10 rules, 30 vectors"},
+		{"crd.version-removal.argo-cd", "../crdversions/testdata/fixture", "../crdversions/testdata/oracle-fixture.json", "2 pairs (2 derived, 0 withheld), 2 rules, 6 vectors"},
+	} {
+		dir := filepath.Join(t.TempDir(), "out")
+		code, out, errs := run("run", "--extractor", tc.id, "--fixture", tc.fx, "--out", dir, "--derived-at", "2026-10-04T00:00:00Z")
+		if code != 0 || !strings.Contains(out, tc.summary) {
+			t.Fatalf("%s run: %d %s %s", tc.id, code, out, errs)
+		}
+		if code, out, errs := run("verify", "--extractor", tc.id, "--fixture", tc.fx, "--out", dir); code != 0 || !strings.Contains(out, "byte-identical") {
+			t.Fatalf("%s verify: %d %s %s", tc.id, code, out, errs)
+		}
+		if code, out, _ := run("oracle", "--extractor", tc.id, "--out", dir, "--expected", tc.expected); code != 0 {
+			t.Fatalf("%s oracle: %d %s", tc.id, code, out)
+		}
+		p := filepath.Join(dir, "candidates.json")
+		data, _ := os.ReadFile(p)
+		if err := os.WriteFile(p, bytes.Replace(data, []byte("/v1beta"), []byte("/v2beta"), 1), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if code, out, _ := run("verify", "--extractor", tc.id, "--fixture", tc.fx, "--out", dir); code != 1 || !strings.Contains(out, "DIFFERS candidates.json") {
+			t.Fatalf("%s tampered verify: %d %s", tc.id, code, out)
+		}
+	}
+	code, out, _ := run("list")
+	for _, id := range []string{"crd.version-removal.argo-cd\tgithub.com/argoproj/argo-cd", "crd.version-removal.istio\tgithub.com/istio/istio", "crd.version-removal.strimzi\tgithub.com/strimzi/strimzi-kafka-operator"} {
+		if code != 0 || !strings.Contains(out, id) {
+			t.Fatalf("list: %d %s", code, out)
+		}
+	}
+}
