@@ -44,6 +44,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   revision differ). External CNCF packs and knowledge databases built against
   the previous registry, including revision `cncf-2026-09-13.2`, are refused
   by this release until they are rebuilt.
+- Maintainer tooling: `review-record new` writes the review record for a rule
+  that an `evidence reattest` human statement sampled for full review. It
+  checks the prepared statement against the rule pack, the worklist and the
+  engine, refuses a rule the statement did not sample and a line attestation
+  or path-policy record, and computes every binding (prior pack, worklist,
+  engine, the rule's exact version and its compared citations) from the
+  checked statement. `evidence reattest prepare` and `verify` check every
+  binding again and refuse a record for a rule the statement does not sample.
+  See `cli/docs/evidence-reattestation.md`.
 - Knowledge format: CNCF rule packs can carry an optional `distributions`
   section (pack schema `prufyx.io/cncf-source-rule-pack/v1alpha9`) with
   reviewed Kubernetes distribution records (control-plane model, and for

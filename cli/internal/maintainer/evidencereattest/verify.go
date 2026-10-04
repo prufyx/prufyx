@@ -61,9 +61,11 @@ type VerifyOptions struct {
 	// statement whose declared individualReviews or reviewRecordDigest does
 	// not match the supplied records fails to reproduce) and, via checkV6,
 	// as the individually-reviewed alternative for a rule whose dates
-	// changed outside this statement's own batch. This package does not
-	// re-verify a record against its packet, corpus, vectors and target;
-	// that is maintainer/reviewrecord's job.
+	// changed outside this statement's own batch. A sample review record
+	// (SampleReviewSchema) is also checked against the statement being
+	// recomputed (checkSampleReviews). This package does not re-verify a
+	// declared review record against its packet, corpus, vectors and
+	// target; that is maintainer/reviewrecord's job.
 	ReviewRecords map[string][]byte
 	// PreSign selects the explicit pre-sign structural mode: the statement
 	// need not yet be appended to Chain, so Chain may equal BaseChain. It

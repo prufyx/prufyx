@@ -90,9 +90,11 @@ prufyx-maintainer evidence reattest prepare \
 #    (Automated mode: --mode automated instead of --wave; see below.)
 
 # 3. A human, at a terminal, reads out/$SEQ/summary.txt, individually
-#    reviews every rule it lists as sampled, adds each review record to
-#    reviews/ as <ruleId>.json, reruns step 2, and then signs. Records
-#    already recorded in the chain may stay in reviews/; they are skipped.
+#    reviews every rule it lists as sampled, writes each review record to
+#    reviews/<ruleId>.json with `review-record new` (see "Reviewing the
+#    sample" below), reruns step 2 into a fresh output directory, and then
+#    signs. Records already recorded in the chain may stay in reviews/;
+#    they are skipped.
 prufyx-maintainer evidence reattest sign \
   --statement "$PWD/out/$SEQ/statement.json" \
   --trust-root "$PWD/evidence-reattest-trust-root.json" --trust-root-digest "$ROOT_DIGEST" \
@@ -269,6 +271,84 @@ must be supplied in `--review-record-dir`, and it must be a new individual
 review (see [The statement chain](#the-statement-chain-v5)). The seed is
 a function of inputs nobody controls after the worklist is generated, so the
 sample cannot be predicted or chosen.
+
+### Reviewing the sample: `review-record new`
+
+For each sampled rule, the reviewer opens the rule in the pack and every
+source it cites at the compared commit the statement lists for it
+(`rules[].citations[].comparedCommit`, also in `summary.txt`), and checks
+that the rule still holds. If it does, `review-record new` writes the
+rule's sample review record:
+
+```sh
+prufyx-maintainer review-record new \
+  --statement "$PWD/out/$SEQ/statement.json" --pack cncf \
+  --rules "$PWD/current-rules.json" --rules-worklist-path "$REPIN_RULES_PATH" \
+  --worklist "$PWD/worklist.json" \
+  --rule <ruleId> --reviewer "<your name or handle>" \
+  --decided-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --output "$PWD/reviews/<ruleId>.json"
+# review-record new: rule=<ruleId> recordDigest=sha256:...
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--statement` | the `statement.json` the first `prepare` wrote (absolute path) |
+| `--pack` | `cncf` or `community` |
+| `--rules` | the rule pack the statement was prepared from (absolute path) |
+| `--rules-worklist-path` | the pack path as the worklist records it, when it differs from `--rules` (as for `prepare`) |
+| `--worklist` | the worklist the statement was prepared from (absolute path) |
+| `--rule` | the sampled rule's ID |
+| `--reviewer` | the reviewer's public name or handle: 1–128 printable characters, no surrounding spaces, no `/` or `\` |
+| `--decided-at` | the decision time, exact UTC RFC 3339 in whole seconds (`...Z`); not before the statement's `attestedAt` and not in the future |
+| `--output` | the new record file; it must be named `<ruleId>.json` and must not exist yet (an existing file is never overwritten) |
+
+The command asks nothing interactively and makes no network access. It
+refuses, with exit code 2 and a reason on standard error, unless:
+
+- the statement is a canonical human statement for that pack, prepared from
+  exactly these pack bytes and revision, this worklist (by digest) and this
+  binary's engine capability;
+- the statement's sample is the seeded sample of its renewed rules, and the
+  rule is in it. A record for a rule the statement renews but did not
+  sample is refused;
+- the rule is a rule of the pack: a line attestation or path-policy record
+  takes no review record (see
+  [Line attestations and path policies](#line-attestations-and-path-policies));
+- the statement lists the rule under its own project, with the rule's
+  digest and sources digest from the pack, and with exactly the citations
+  the worklist gives it.
+
+Nothing in the record is taken from a flag except the rule ID, the
+reviewer's name and the decision time. Its bindings are computed from the
+checked statement:
+
+| Binding | Value |
+| --- | --- |
+| `priorPackDigest` | the statement's `pack.prior.packDigest` (SHA-256 of the prior pack bytes) |
+| `worklistDigest` | the statement's `worklist.digest`, which also seeds the sample |
+| `engineCapabilityDigest` | the statement's `pack.engineCapabilityDigest` |
+| `ruleDigest`, `ruleEvidenceDigest`, `sourcesDigest` | the rule, its evidence block and its sources exactly as they are in the prior pack |
+| `citationsDigest` | the rule's citations as the statement lists them: source, class, pinned and compared commit and tag, baseline |
+
+The record also names the pack, the prior revision, the project and the
+rule (`subject`), and carries fixed limitations: the reviewer and the
+decision time are declared, not authenticated, and the record binds no
+contribution packet, source corpus, reviewed vectors or exported target,
+because a renewal changes no rule content and none of those is an input
+of a renewal. The output is canonical JSON and one newline; the same
+inputs always give the same bytes.
+
+`prepare` and `verify` check a sample review record again, from their own
+inputs: the rule must be sampled by the statement being prepared or
+verified, the decision must not be earlier than the worklist's
+`generatedAt` nor later than `attestedAt`, and the subject and every
+binding must equal what that statement and the prior pack give. So a
+record edited by hand, copied to another rule, or made for another
+worklist (for example before a fresh repin) rejects the statement. When a
+statement is prepared again from a new worklist, delete the sampled
+rules' records that the chain has not recorded yet and write them again
+after reviewing the newly compared commits.
 
 ## Automated mode
 
@@ -554,9 +634,13 @@ function), and treat it as authoritative:
   rule ID is the file name with exactly the `.json` extension removed, so
   dotted rule IDs work; a file with any other name rejects the command) —
   whose digest (the SHA-256 of its exact bytes) the chain has not already
-  recorded for that rule. Such a record must be a structurally valid
+  recorded for that rule. Such a record must be either a sample review
+  record written by `review-record new`
+  (`prufyx.io/reattestation-sample-review-record/v1`, see
+  [Reviewing the sample](#reviewing-the-sample-review-record-new), which
+  is also checked against the statement) or a structurally valid declared
   `review-record` record (`prufyx.io/declared-knowledge-review-record/v1`,
-  with that format's fixed decision, authority and scope) whose
+  with that format's fixed decision, authority and scope), whose
   `subject.ruleId` and `subject.project` are the rule's own, whose
   `bindings.ruleDigest` is the digest of the rule exactly as it is in the
   prior pack (the same canonical scheme `review-record` uses), and whose
@@ -573,8 +657,8 @@ function), and treat it as authoritative:
   and does not reset the rule a second time. A sampled rule's review is
   recorded the same way. A chain entry that lists an individual review
   for a rule in neither its `rules` nor its `notExtended` is rejected. As
-  everywhere else in this tool, the record is not checked against its
-  packet, corpus, vectors and target here (see
+  everywhere else in this tool, a declared review record is not checked
+  against its packet, corpus, vectors and target here (see
   [Known scope limits](#known-scope-limits)); its digest is bound into the
   signed statement, and the signer vouches for it.
 - **Editing the pack between cycles does not reset anything.** The chain
@@ -834,10 +918,14 @@ statements, never on the machine that prepares them.
   produce or verify a review of an attestation or a path policy, so such a
   review cannot be recorded: records are renewed by automated statements
   only, and a review record naming a record is refused.
-- **Review record content.** `--review-record-dir` records are checked
-  structurally and bound to the rule, its project, its exact prior-pack
-  version, and the chain's review history (see
+- **Review record content.** A sample review record (`review-record new`)
+  is bound to the statement's prior pack, worklist and engine, to the
+  rule's exact prior-pack version and to its compared citations, and is
+  accepted only for a sampled rule; it binds no packet, corpus, vectors or
+  target. A declared review record (`review-record verify`'s format) is
+  checked structurally and bound to the rule, its project, its exact
+  prior-pack version, and the chain's review history (see
   [The statement chain](#the-statement-chain-v5)), but not against the
-  rule's evidence packet, source corpus, vectors and target (see
-  `review-record`), which this tool does not take. The record's declared
-  `decidedAt` is not authenticated.
+  rule's evidence packet, source corpus, vectors and target, which this
+  tool does not take. Neither record's reviewer nor `decidedAt` is
+  authenticated: the signature on the statement is what vouches for them.

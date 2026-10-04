@@ -5,6 +5,13 @@ CNCF rule. It proves that a closed declared decision is consistent with the
 existing contribution, retained-source, embedded-target, and evaluator
 contracts. It does not authenticate the named maintainer or perform promotion.
 
+A rule that an `evidence reattest` human statement samples for full review
+takes a different record, written by `prufyx-maintainer review-record new`
+and bound to that prepared statement instead of to a packet, corpus, vectors
+and target. See
+[Reviewing the sample](evidence-reattestation.md#reviewing-the-sample-review-record-new).
+`review-record verify` does not accept that record.
+
 The v1 command is deliberately narrow:
 
 ```text

@@ -118,8 +118,9 @@ type PrepareOptions struct {
 	// projectcheck and stays testable with synthetic packs.
 	EngineCapabilityDigest string
 	// ReviewRecords maps a rule ID to the exact bytes of its individual
-	// review record (maintainer/reviewrecord's format), when one has been
-	// produced for it. A record whose digest the chain has not recorded
+	// review record (maintainer/reviewrecord's format, or a sample review
+	// record written by NewSampleReview), when one has been produced for
+	// it. A record whose digest the chain has not recorded
 	// for that rule before must pass chainState.reviewsFromRecords' checks
 	// or Prepare fails; a record that does is a new individual review: it
 	// is listed in the statement's individualReviews and resets the rule's
