@@ -409,7 +409,7 @@ var (
 	docsURLRE        = regexp.MustCompile(`^https://([a-z0-9.-]+)(/[A-Za-z0-9._~%/#?=&+:@-]*)?$`)
 	forbiddenInlines = []struct{ token, reason string }{
 		{"-->", "comment marker"}, {"![", "image"}, {"|", "table cell"}, {"~", "strikethrough"},
-		{"[^", "footnote"}, {"][", "reference link"}, {"\t", "tab"},
+		{"[^", "footnote"}, {"][", "reference link"},
 	}
 )
 

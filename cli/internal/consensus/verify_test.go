@@ -91,6 +91,7 @@ func TestVerifyReasons(t *testing.T) {
 		{name: "unparsed outside the cited item", body: silentDial + "\n\n```\nx\n```", want: "lead:unparsed-section"},
 		{name: "name in another, unparsed section", body: silentDial + "\n\n### Other\n\n- Restored the SilentDial gate <b>here</b>.", want: "lead:unparsed-section"},
 		{name: "unparsed section without the name", body: silentDial + "\n\n### Other\n\n- Updated <b>docs</b>.", want: "verified:"},
+		{name: "unparsed child section", body: silentDial + "\n\n#### Child\n\n- Updated <b>docs</b>.", want: "lead:unparsed-section"},
 		{name: "negated cue", body: "- The SilentDial feature gate is not removed in this release. " + prLink("140005"), want: "lead:hedged-cue"},
 		{name: "future removal", body: "- The SilentDial feature gate will be removed in v1.43. " + prLink("140005"), want: "lead:hedged-cue"},
 		{name: "reverted removal", body: "- Reverted the removal of the SilentDial feature gate. " + prLink("140005"), want: "lead:hedged-cue"},

@@ -70,6 +70,12 @@ func TestNormaliseSectionSelection(t *testing.T) {
 	if want := []string{"## Changes by Kind", "", "- x"}; !reflect.DeepEqual(texts(n), want) {
 		t.Fatalf("section %q, want %q", texts(n), want)
 	}
+	// A subsection after an indented level-1 heading belongs to the next
+	// release.
+	n = mustNormalise(t, "# v1.41.0\n\n## Urgent Upgrade Notes\n\n- x\n\n   # v1.41.0-rc.1\n\n## Changes by Kind\n\n- rc\n")
+	if want := []string{"## Urgent Upgrade Notes", "", "- x", ""}; !reflect.DeepEqual(texts(n), want) {
+		t.Fatalf("section %q, want %q", texts(n), want)
+	}
 }
 
 func TestNormaliseSectionRefusals(t *testing.T) {
@@ -170,7 +176,7 @@ func TestNormaliseGrammarProblems(t *testing.T) {
 	}
 	// Nesting: under an open item, at most MaxListDepth deep; continuation
 	// lines at most five columns past their item's marker.
-	for _, body := range []string{"- a\n  - b\n    - c\n      - d\n        - e", "Paragraph\n  - nested under nothing", "- a\n      six columns", "### H\n  - after a heading"} {
+	for _, body := range []string{"- a\n  - b\n    - c\n      - d\n        - e", "Paragraph\n  - nested under nothing", "- a\n      six columns", "### H\n  - after a heading", "- a\n - odd", "- a\n   - three"} {
 		if mustNormalise(t, doc(body)).Parsed() {
 			t.Errorf("%q parsed", body)
 		}

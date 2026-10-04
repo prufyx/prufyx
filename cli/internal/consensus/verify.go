@@ -468,10 +468,9 @@ func (v *verifier) claim(c Claim, res *ClaimResult) (*verdictError, error) {
 		}
 		withCue, seen := v.cited[n]
 		if !seen {
+			// Items of unparsed sections never get here: a name in any
+			// unparsed section has already made the claim a lead.
 			for i, it := range v.items {
-				if v.sections[it.start].unparsed {
-					continue
-				}
 				if containsToken(it.prose, n) && cueRE.MatchString(it.prose) {
 					withCue = append(withCue, i)
 				}
