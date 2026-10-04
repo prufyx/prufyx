@@ -37,17 +37,26 @@ const (
 	// reasonMechanicalRecord is reasonMechanicalRule for a line
 	// attestation or path-policy record an extractor derived: it is renewed
 	// only by re-deriving it.
-	reasonMechanicalRecord       = "MECHANICAL_RECORD_EXCLUDED"
-	reasonConsecutiveCycleCap    = "CONSECUTIVE_BATCH_CYCLE_CAP"
-	reasonInactiveOrWithdrawn    = "EVIDENCE_NOT_ACTIVE"
-	reasonCorpusMismatchProject  = "CORPUS_DIGEST_MISMATCH_IN_PROJECT"
-	reasonUncoveredSource        = "SOURCE_WITHOUT_CITATION"
-	reasonUnknownCitation        = "CITATION_WITHOUT_SOURCE"
-	reasonDuplicateCitation      = "DUPLICATE_CITATION_FOR_SOURCE"
-	reasonCitationCommitMismatch = "CITATION_COMMIT_DOES_NOT_MATCH_PINNED_SOURCE"
-	reasonStaggerDeferred        = "STAGGER_DEFERRED"
-	reasonNotLaterThanCurrent    = "NOT_LATER_THAN_CURRENT"
-	reasonNotYetDue              = "NOT_YET_DUE"
+	reasonMechanicalRecord = "MECHANICAL_RECORD_EXCLUDED"
+	// reasonRecordReviewUnsupported is human mode only: a line attestation
+	// or path-policy record is left out of a human batch, because the
+	// review-record format is the rule format and no tool produces or
+	// verifies a review of a record, so a sampled record could not be
+	// reviewed. Automated mode, which takes no review record, renews them.
+	reasonRecordReviewUnsupported = "RECORD_REVIEW_UNSUPPORTED"
+	// reasonCorpusMismatchRepository: a record citing a repository in which
+	// any citation of this pack classified CORPUS_DIGEST_MISMATCH.
+	reasonCorpusMismatchRepository = "CORPUS_DIGEST_MISMATCH_IN_REPOSITORY"
+	reasonConsecutiveCycleCap      = "CONSECUTIVE_BATCH_CYCLE_CAP"
+	reasonInactiveOrWithdrawn      = "EVIDENCE_NOT_ACTIVE"
+	reasonCorpusMismatchProject    = "CORPUS_DIGEST_MISMATCH_IN_PROJECT"
+	reasonUncoveredSource          = "SOURCE_WITHOUT_CITATION"
+	reasonUnknownCitation          = "CITATION_WITHOUT_SOURCE"
+	reasonDuplicateCitation        = "DUPLICATE_CITATION_FOR_SOURCE"
+	reasonCitationCommitMismatch   = "CITATION_COMMIT_DOES_NOT_MATCH_PINNED_SOURCE"
+	reasonStaggerDeferred          = "STAGGER_DEFERRED"
+	reasonNotLaterThanCurrent      = "NOT_LATER_THAN_CURRENT"
+	reasonNotYetDue                = "NOT_YET_DUE"
 	// reasonLatestBaselineNotAutomatable is automated mode only: a
 	// citation compared with the repository's latest release rather than
 	// with the newest release on its pinned tag's own release line. The
@@ -259,6 +268,7 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 
 	citationsByRule := map[string][]evidencerepin.ClassResult{}
 	mismatchProjects := map[string]bool{}
+	mismatchRepos := map[string]bool{}
 	for _, citation := range wl.Citations {
 		if !matchesPack(citation.RulePack, opts.PackPath) {
 			continue
@@ -266,6 +276,7 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		citationsByRule[citation.RuleID] = append(citationsByRule[citation.RuleID], citation)
 		if citation.Class == evidencerepin.ClassCorpusDigestMismatch {
 			mismatchProjects[citation.Project] = true
+			mismatchRepos[citation.Owner+"/"+citation.Repo] = true
 		}
 	}
 	candidates, priorRules, err := packCandidates(doc)
@@ -307,6 +318,9 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		_, reviewedNow := fresh[candidate.RuleID]
 		cycles := state.expectedCycles(candidate.RuleID, reviewedNow)
 		reason, ok := evaluateEligibility(candidate, e2ok, e4worklist, attestedAt, repoByKey, lines, mismatchProjects, cycles, automated)
+		if ok && candidate.Fields.record && citesAny(candidate, mismatchRepos) {
+			reason, ok = reasonCorpusMismatchRepository, false
+		}
 		if !ok {
 			notExtended = append(notExtended, NotExtendedEntry{RuleID: candidate.RuleID, WorstClass: reason})
 			continue
@@ -601,6 +615,9 @@ func evaluateEligibility(
 		}
 		return reasonMechanicalRule, false
 	}
+	if candidate.Fields.record && !automated {
+		return reasonRecordReviewUnsupported, false
+	}
 
 	// E1 is recomputed here from the citations themselves; the worklist's
 	// own BatchEligible/WorstClass verdict is never trusted (a caller could
@@ -702,6 +719,18 @@ func evaluateEligibility(
 		return reasonCorpusMismatchProject, false
 	}
 	return "", true
+}
+
+// citesAny reports whether any of candidate's citations is in one of repos
+// ("owner/repo"). A record has no project of its own, so E7's project-wide
+// corpus-mismatch exclusion applies to it per cited repository.
+func citesAny(candidate ruleCandidate, repos map[string]bool) bool {
+	for _, citation := range candidate.Citations {
+		if repos[citation.Owner+"/"+citation.Repo] {
+			return true
+		}
+	}
+	return false
 }
 
 // matchingLine finds the worklist line record a release-line citation's
@@ -1020,7 +1049,7 @@ func renderSummary(statement Statement, opts PrepareOptions, entries []packEntry
 		for _, ra := range statement.Rules {
 			renewed[ra.RuleID] = true
 		}
-		fmt.Fprintf(&b, "records in the pack (line attestations and path policies; a review record names the record ID and binds the record digest):\n")
+		fmt.Fprintf(&b, "records in the pack (line attestations and path policies; renewed by automated statements only, never by a review record):\n")
 		for _, record := range records {
 			digest, _, _, _ := ruleDigestAndEvidence(record.Raw)
 			status := "not renewed"

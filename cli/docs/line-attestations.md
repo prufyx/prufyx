@@ -214,8 +214,9 @@ Attestations expire like rules, and must be renewed the same way.
   `validUntil` and nothing else changed. A new extractor version or build also changes
   `evidence.extractor`, which is a loosening change but not a plain renewal. `extract verify` proves it is reproducible from the pinned bytes.
   A person does not renew a mechanical attestation.
-- **Reviewed**: renewed by `evidence reattest` like a reviewed rule, when
-  `evidence repin` finds every cited source unchanged (see
+- **Reviewed**: renewed by an automated `evidence reattest` statement, when
+  `evidence repin` finds every cited source unchanged on its release line, at
+  most twice in a row (see
   [evidence-reattestation.md](evidence-reattestation.md#line-attestations-and-path-policies)).
   Only `evidence.reviewedAt` and `evidence.validUntil` change, and the
   attestation must still list exactly the pack's rules for its scope. Any

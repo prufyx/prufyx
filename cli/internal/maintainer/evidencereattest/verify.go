@@ -599,6 +599,9 @@ func checkRolePolicy(statement Statement, prior map[string]ruleCandidate) error 
 		if candidate.Fields.isMechanical() || hasRange(candidate.Fields.Range) || candidate.Fields.Evidence.State != "active" {
 			return fmt.Errorf("%w: V8: rule %s is not renewable by reattestation", ErrRejected, ra.RuleID)
 		}
+		if candidate.Fields.record && role != RoleAutomation {
+			return fmt.Errorf("%w: V8: record %s is renewed only by an automated statement", ErrRejected, ra.RuleID)
+		}
 		if ra.ConsecutiveBatchCycles < 1 || ra.ConsecutiveBatchCycles > maxConsecutiveBatchCycles {
 			return fmt.Errorf("%w: V8: rule %s consecutiveBatchCycles is outside 1..%d", ErrRejected, ra.RuleID, maxConsecutiveBatchCycles)
 		}

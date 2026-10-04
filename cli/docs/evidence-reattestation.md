@@ -356,20 +356,32 @@ item next to the rules:
   that is not renewed in the same way. `summary.txt` lists every record in
   the pack with its ID, scope, basis, `validUntil`, record digest, and
   whether this batch renews it.
+- **Automated mode only.** Records are renewed only by an automated
+  statement. A human batch lists every record in `notExtended` as
+  `RECORD_REVIEW_UNSUPPORTED`, because a human batch is sampled for full
+  review and no review of a record can be recorded yet (see below); V8
+  refuses a human statement that renews a record. Automated mode renews a
+  record only when every one of its citations is compared on its own
+  release line, so a record citing a repository without releases (such as a
+  documentation site) is not renewed at all and expires.
 - **Rules that apply.** E1–E7, `NOT_LATER_THAN_CURRENT`, `NOT_YET_DUE`, the
-  stagger cap, the seeded sample, the two-cycle cap and the statement chain
-  apply to records exactly as to rules, and records count toward the pack
-  size the stagger cap is computed from. A line attestation has no
-  `evidence.state`; while it is in the pack it is in force.
+  stagger cap, the two-cycle cap and the statement chain apply to records
+  exactly as to rules, and records count toward the pack size the stagger
+  cap is computed from. For E7 a record has no project of its own: it is
+  left out (`CORPUS_DIGEST_MISMATCH_IN_REPOSITORY`) when any citation of
+  the pack in a repository it cites classified `CORPUS_DIGEST_MISMATCH`.
+  A line attestation has no `evidence.state`; while it is in the pack it is
+  in force.
 - **What changes.** Only `evidence.reviewedAt` and `evidence.validUntil` of
   a renewed record, replaced in place inside the record. Every other byte of
   both sections, including member order inside each record, is carried as it
   is (the next pack is re-indented as a whole, exactly as for rules).
-- **Review records.** A review record for a record (in `--review-record-dir`
-  as `<record ID>.json`) names the record ID as `subject.ruleId`, the
-  project `line-attestations` or `path-policies` as `subject.project`, and
-  binds the record digest from `summary.txt` as `bindings.ruleDigest`. It is
-  checked exactly as a rule's (see [Known scope limits](#known-scope-limits)).
+- **No review records.** A review record whose subject is a record is
+  refused by `prepare` and `verify` (V5), and so is a chain entry that
+  records an individual review of one. Nothing therefore resets a record's
+  two-cycle count: after two automated renewals in a row a record is
+  `CONSECUTIVE_BATCH_CYCLE_CAP` and must be published again with a new
+  review before it can be renewed.
 - **Mechanical records.** An attestation or policy derived by an extractor
   is never renewed here: it is listed in `notExtended` with
   `MECHANICAL_RECORD_EXCLUDED`, and it is renewed only by re-deriving it.
@@ -378,7 +390,9 @@ item next to the rules:
 - **Loading.** The sections are found by their exact member names, parsed
   strictly, and every line attestation must still list exactly the pack's
   rules for its scope, each covering the whole line, on the prior pack and
-  on the next pack. A rule whose ID equals a record ID rejects the pack.
+  on the next pack. Two records with the same ID, a rule whose ID has the
+  shape of a record ID, and a pack entry whose project is
+  `line-attestations` or `path-policies` each reject the pack.
 
 Per-project knowledge targets (`knowledge-targets build`) still refuse a
 pack that carries either section (see
@@ -816,10 +830,10 @@ statements, never on the machine that prepares them.
   repository use works; its public key is added with
   `trust-root migrate --add-automation-key`.
 - **Review records for line attestations and path policies.** The review
-  record format is the rule review format; `review-record` does not produce
-  or verify a record for an attestation or a path policy. Such a record is
-  checked here only structurally and bound to the record's ID, project and
-  exact bytes (its record digest).
+  record format is the rule review format, and `review-record` does not
+  produce or verify a review of an attestation or a path policy, so such a
+  review cannot be recorded: records are renewed by automated statements
+  only, and a review record naming a record is refused.
 - **Review record content.** `--review-record-dir` records are checked
   structurally and bound to the rule, its project, its exact prior-pack
   version, and the chain's review history (see

@@ -133,15 +133,16 @@ func loadPack(raw []byte) (packDocument, error) {
 	if doc.Schema == "" || doc.Revision == "" || len(doc.Entries) == 0 {
 		return packDocument{}, fmt.Errorf("%w: rule pack missing required fields", ErrRejected)
 	}
-	ruleIDs := map[string]bool{}
 	for _, entry := range doc.Entries {
 		fields, err := parseRuleFields(entry.Rule)
 		if err != nil {
 			return packDocument{}, err
 		}
-		ruleIDs[fields.ID] = true
+		if err := evidencerepin.CheckPackEntry(entry.Project, fields.ID); err != nil {
+			return packDocument{}, fmt.Errorf("%w: %v", ErrRejected, err)
+		}
 	}
-	if err := loadRecords(raw, &doc, ruleIDs); err != nil {
+	if err := loadRecords(raw, &doc); err != nil {
 		return packDocument{}, err
 	}
 	return doc, nil
@@ -154,8 +155,9 @@ func loadPack(raw []byte) (packDocument, error) {
 // fields must hold exactly those bytes. Every line attestation must list
 // exactly the pack's rules for its scope, each covering the whole line
 // (lineattest.CheckRuleSets), so a renewal can never carry an attestation
-// the pack no longer supports. No record ID may equal a rule ID.
-func loadRecords(raw []byte, doc *packDocument, ruleIDs map[string]bool) error {
+// the pack no longer supports. (No rule ID has the shape of a record ID:
+// loadPack runs evidencerepin.CheckPackEntry on every entry.)
+func loadRecords(raw []byte, doc *packDocument) error {
 	records, err := evidencerepin.PackRecords(raw)
 	if err != nil {
 		return fmt.Errorf("%w: pack records: %v", ErrRejected, err)
@@ -181,11 +183,6 @@ func loadRecords(raw []byte, doc *packDocument, ruleIDs map[string]bool) error {
 		problems, err := lineattest.CheckRuleSets(atts, rules)
 		if err != nil || len(problems) > 0 {
 			return fmt.Errorf("%w: line attestations do not match the pack's rules (%d problems): %v", ErrRejected, len(problems), err)
-		}
-	}
-	for _, record := range records {
-		if ruleIDs[record.ID] {
-			return fmt.Errorf("%w: record %s has the ID of a rule", ErrRejected, record.ID)
 		}
 	}
 	doc.records = records

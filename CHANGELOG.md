@@ -17,8 +17,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   `gate-metrics.json` and `gate-alarms.json` files with an optional alarm issue
   in a separate repository. See `cli/docs/knowledge-gate.md`.
 - `prufyx-maintainer evidence reattest` renews reviewed line attestations and
-  reviewed upgrade-path policies like reviewed rules, so a pack carrying them
-  is no longer refused. Only each renewed record's `evidence.reviewedAt` and
+  reviewed upgrade-path policies in automated mode, so a pack carrying them
+  is no longer refused; human batches leave them out, and a review record for
+  one is refused. Only each renewed record's `evidence.reviewedAt` and
   `evidence.validUntil` change; a new check (V10) refuses any other change to
   either section, and every attestation must still list exactly the pack's
   rules for its scope. Mechanical records are never renewed by it. `evidence

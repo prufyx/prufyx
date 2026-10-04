@@ -187,33 +187,32 @@ func reviewRecordFor(t *testing.T, project, id, digest string, decidedAt time.Ti
 	return append(raw, '\n')
 }
 
-// prepareRecordCycle prepares a human batch over prior against f's chain,
-// then again with a review record for every sampled item.
-func prepareRecordCycle(t *testing.T, f *chainFixture, prior []byte, at time.Time, revision string, extra map[string][]byte) cycle {
+// prepareRecordCycle prepares an automated batch over prior against f's
+// chain, from a fresh worklist in which every citation is compared on its
+// release line (the only baseline automated mode renews). Records renew in
+// automated mode only (see TestHumanBatchesLeaveRecordsOut). mutate may edit
+// the worklist.
+func prepareRecordCycle(t *testing.T, f *roleFixture, prior []byte, at time.Time, revision string, mutate func(*evidencerepin.Worklist)) cycle {
 	t.Helper()
-	worklistRaw := worklistFromPack(t, prior, at, nil)
-	reviews := map[string][]byte{}
-	for id, raw := range extra {
-		reviews[id] = raw
-	}
-	opts := PrepareOptions{
-		WorklistRaw: worklistRaw, PackName: PackCNCF, PackPath: chainPackPath, PackRaw: prior, Chain: f.chain(),
-		Wave: 1, AttestedAt: at, Now: at, NextRevision: revision, EngineCapabilityDigest: testEngineCapabilityDigest, ReviewRecords: reviews,
-	}
-	first, err := Prepare(opts)
-	if err != nil {
-		t.Fatalf("Prepare %s: %v", revision, err)
-	}
-	for _, sample := range first.Statement.SampledForFullReview {
-		if sample.ReviewRecordDigest == "" {
-			reviews[sample.RuleID] = itemReviewRecord(t, prior, sample.RuleID, at.Add(-time.Hour))
+	worklistRaw := worklistFromPack(t, prior, at, func(wl *evidencerepin.Worklist) {
+		lineBaselined(wl)
+		if mutate != nil {
+			mutate(wl)
+		}
+	})
+	return prepareAutomatedWith(t, f.chainFixture, prior, at, worklistRaw, revision, nil)
+}
+
+// renewedUntil is the validUntil statement gives id.
+func renewedUntil(t *testing.T, c cycle, id string) string {
+	t.Helper()
+	for _, ra := range c.res.Statement.Rules {
+		if ra.RuleID == id {
+			return renewedValidUntil(c.res.Statement, ra)
 		}
 	}
-	res, err := Prepare(opts)
-	if err != nil {
-		t.Fatalf("Prepare %s: %v", revision, err)
-	}
-	return cycle{res: res, worklistRaw: worklistRaw, prior: prior, at: at, reviews: reviews}
+	t.Fatalf("%s not renewed", id)
+	return ""
 }
 
 func statementLists(c cycle, id string) bool {
@@ -249,11 +248,12 @@ func standardRecordPack(t *testing.T, at time.Time) []byte {
 }
 
 // Acceptance: one reviewed attestation and one reviewed path policy are
-// prepared, signed with a test key and verified against the chain, and the
+// prepared, signed with a test key (the automation key) and verified against
+// the chain, and the
 // next pack differs from the prior one only in their validity windows (and
 // the renewed rule's and the revision).
 func TestRecordsRenewThroughPrepareSignVerify(t *testing.T) {
-	f := newChainFixture(t)
+	f := newRoleFixture(t)
 	prior := standardRecordPack(t, baseNow)
 	c := prepareRecordCycle(t, f, prior, baseNow, "rev-2", nil)
 	for _, id := range []string{"rule-a", reviewedAttestationID, reviewedPolicyID} {
@@ -281,7 +281,7 @@ func TestRecordsRenewThroughPrepareSignVerify(t *testing.T) {
 	if err := verifyCycle(c, f.chain()); err != nil {
 		t.Fatalf("pre-sign verify: %v", err)
 	}
-	f.append("0001", c.res.StatementCanonical)
+	f.appendAutomated("0001", c.res.StatementCanonical)
 	if err := verifyCycle(c, f.chain()); err != nil {
 		t.Fatalf("verify: %v", err)
 	}
@@ -295,8 +295,8 @@ func TestRecordsRenewThroughPrepareSignVerify(t *testing.T) {
 	// The renewed records carry exactly the statement's dates.
 	for _, id := range []string{reviewedAttestationID, reviewedPolicyID} {
 		next := recordByID(t, c.res.NextPack, id)
-		if next.ReviewedAt != c.res.Statement.AttestedAt || next.ValidUntil != c.res.Statement.ValidUntil {
-			t.Fatalf("%s renewed to %s..%s, statement says %s..%s", id, next.ReviewedAt, next.ValidUntil, c.res.Statement.AttestedAt, c.res.Statement.ValidUntil)
+		if want := renewedUntil(t, c, id); next.ReviewedAt != c.res.Statement.AttestedAt || next.ValidUntil != want {
+			t.Fatalf("%s renewed to %s..%s, statement says %s..%s", id, next.ReviewedAt, next.ValidUntil, c.res.Statement.AttestedAt, want)
 		}
 	}
 
@@ -336,9 +336,9 @@ func TestRecordsRenewThroughPrepareSignVerify(t *testing.T) {
 // ones is also caught by a check independent of the byte-for-byte
 // recomputation (V1): the next pack's strict load, V6 or V10.
 func TestVerifyRejectsTamperedRecordSections(t *testing.T) {
-	f := newChainFixture(t)
+	f := newRoleFixture(t)
 	c := prepareRecordCycle(t, f, standardRecordPack(t, baseNow), baseNow, "rev-2", nil)
-	f.append("0001", c.res.StatementCanonical)
+	f.appendAutomated("0001", c.res.StatementCanonical)
 	if err := verifyCycle(c, f.chain()); err != nil {
 		t.Fatalf("untampered: %v", err)
 	}
@@ -473,7 +473,7 @@ func independentRecordFinding(t *testing.T, c cycle, next []byte) error {
 // out (MECHANICAL_RECORD_EXCLUDED) with its bytes untouched, and a statement
 // or next pack that alters it is refused.
 func TestMechanicalAttestationIsNeverRenewed(t *testing.T) {
-	f := newChainFixture(t)
+	f := newRoleFixture(t)
 	mechanical := dueAt(baseNow)
 	prior := buildRecordPack(t, recordPackSpec{at: baseNow, attestation: dueAt(baseNow), policy: dueAt(baseNow), mechanical: &mechanical, ruleDue: true, pad: 30})
 	c := prepareRecordCycle(t, f, prior, baseNow, "rev-2", nil)
@@ -486,7 +486,7 @@ func TestMechanicalAttestationIsNeverRenewed(t *testing.T) {
 	if compact(t, recordByID(t, prior, mechanicalAttestationID).Raw) != compact(t, recordByID(t, c.res.NextPack, mechanicalAttestationID).Raw) {
 		t.Fatal("the mechanical attestation's bytes changed")
 	}
-	f.append("0001", c.res.StatementCanonical)
+	f.appendAutomated("0001", c.res.StatementCanonical)
 	if err := verifyCycle(c, f.chain()); err != nil {
 		t.Fatalf("verify: %v", err)
 	}
@@ -505,7 +505,7 @@ func TestMechanicalAttestationIsNeverRenewed(t *testing.T) {
 			t.Fatal(err)
 		}
 		e := atts[1]["evidence"].(map[string]any)
-		e["reviewedAt"], e["validUntil"] = c.res.Statement.AttestedAt, c.res.Statement.ValidUntil
+		e["reviewedAt"], e["validUntil"] = c.res.Statement.AttestedAt, renewedUntil(t, c, reviewedAttestationID)
 		if derived {
 			e["derivedAt"] = c.res.Statement.AttestedAt
 		}
@@ -537,7 +537,7 @@ func TestMechanicalAttestationIsNeverRenewed(t *testing.T) {
 	priorByID, _ := rulesByID(doc)
 	nextByID, _ := rulesByID(alteredDoc)
 	statement := c.res.Statement
-	statement.Rules = append(append([]RuleAttestation(nil), statement.Rules...), RuleAttestation{RuleID: mechanicalAttestationID})
+	statement.Rules = append(append([]RuleAttestation(nil), statement.Rules...), RuleAttestation{RuleID: mechanicalAttestationID, ValidUntil: renewedUntil(t, c, reviewedAttestationID)})
 	if err := checkV6(priorByID, nextByID, statement, map[string]string{mechanicalAttestationID: "sha256:" + strings.Repeat("ee", 32)}, true); err == nil || !strings.Contains(err.Error(), "mechanical") {
 		t.Fatalf("V6 on a mechanical attestation's dates: %v", err)
 	}
@@ -551,34 +551,44 @@ func TestMechanicalAttestationIsNeverRenewed(t *testing.T) {
 	ra := listed.Rules[0]
 	ra.RuleID = mechanicalAttestationID
 	listed.Rules = []RuleAttestation{ra}
-	if err := checkRolePolicy(listed, candidatesByID(candidates)); err == nil || !strings.Contains(err.Error(), "V8:") {
+	if err := checkRolePolicy(listed, candidatesByID(candidates)); err == nil || !strings.Contains(err.Error(), "is not renewable by reattestation") {
 		t.Fatalf("V8 on a statement renewing a mechanical attestation: %v", err)
 	}
 }
 
 // A mechanical attestation re-derived after the chain head moves its
 // reviewedAt outside any statement; that is not a sign of a truncated chain
-// and does not stop the next human batch. A reviewed record whose dates
-// moved outside the chain does, exactly as a rule's.
+// and stops neither the next automated nor the next human batch. A reviewed
+// record whose dates moved outside the chain is left out of an automated
+// batch (REVIEWED_OUTSIDE_STATEMENT_CHAIN) and stops a human batch as a
+// truncated chain, which no review record can lift for a record.
 func TestRecordDatesMovedOutsideTheChain(t *testing.T) {
-	f := newChainFixture(t)
+	f := newRoleFixture(t)
 	mechanical := dueAt(baseNow)
 	prior := buildRecordPack(t, recordPackSpec{at: baseNow, attestation: dueAt(baseNow), policy: dueAt(baseNow), mechanical: &mechanical, ruleDue: true, pad: 30})
 	c := prepareRecordCycle(t, f, prior, baseNow, "rev-2", nil)
-	f.append("0001", c.res.StatementCanonical)
+	f.appendAutomated("0001", c.res.StatementCanonical)
 
-	next := baseNow.Add(cycleSpacing)
+	next := baseNow.Add(automatedSpacing)
 	doc, err := loadPack(c.res.NextPack)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rederivedAt := next.Add(-24 * time.Hour)
 	rederived := setMechanicalDates(t, doc, rederivedAt)
-	if _, err := Prepare(PrepareOptions{
-		WorklistRaw: worklistFromPack(t, rederived, next, nil), PackName: PackCNCF, PackPath: chainPackPath, PackRaw: rederived, Chain: f.chain(),
-		Wave: 1, AttestedAt: next, Now: next, NextRevision: "rev-3", EngineCapabilityDigest: testEngineCapabilityDigest,
-	}); err != nil && !strings.Contains(err.Error(), "sample") {
-		t.Fatalf("a re-derived mechanical attestation stopped the next batch: %v", err)
+	again := prepareRecordCycle(t, f, rederived, next, "rev-3", nil)
+	if worstClassOf(again, mechanicalAttestationID) != reasonMechanicalRecord {
+		t.Fatalf("re-derived mechanical attestation: %s", worstClassOf(again, mechanicalAttestationID))
+	}
+	human := func(pack []byte, records map[string][]byte) error {
+		_, err := Prepare(PrepareOptions{
+			WorklistRaw: worklistFromPack(t, pack, next, nil), PackName: PackCNCF, PackPath: chainPackPath, PackRaw: pack, Chain: f.chain(),
+			Wave: 1, AttestedAt: next, Now: next, NextRevision: "rev-3", EngineCapabilityDigest: testEngineCapabilityDigest, ReviewRecords: records,
+		})
+		return err
+	}
+	if err := human(rederived, nil); err != nil {
+		t.Fatalf("a re-derived mechanical attestation stopped a human batch: %v", err)
 	}
 
 	// The reviewed attestation's dates moved outside the chain.
@@ -590,20 +600,15 @@ func TestRecordDatesMovedOutsideTheChain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = Prepare(PrepareOptions{
-		WorklistRaw: worklistFromPack(t, movedRaw, next, nil), PackName: PackCNCF, PackPath: chainPackPath, PackRaw: movedRaw, Chain: f.chain(),
-		Wave: 1, AttestedAt: next, Now: next, NextRevision: "rev-3", EngineCapabilityDigest: testEngineCapabilityDigest,
-	})
-	if err == nil || !strings.Contains(err.Error(), "truncated") {
+	automated := prepareRecordCycle(t, f, movedRaw, next, "rev-3", nil)
+	if got := worstClassOf(automated, reviewedAttestationID); got != reasonReviewedOutsideChain {
+		t.Fatalf("automated batch over a record moved outside the chain: %s", got)
+	}
+	if err := human(movedRaw, nil); err == nil || !strings.Contains(err.Error(), "truncated") {
 		t.Fatalf("a reviewed attestation renewed outside the chain was accepted: %v", err)
 	}
-	// With a review record for it, the batch proceeds.
-	if _, err := Prepare(PrepareOptions{
-		WorklistRaw: worklistFromPack(t, movedRaw, next, nil), PackName: PackCNCF, PackPath: chainPackPath, PackRaw: movedRaw, Chain: f.chain(),
-		Wave: 1, AttestedAt: next, Now: next, NextRevision: "rev-3", EngineCapabilityDigest: testEngineCapabilityDigest,
-		ReviewRecords: map[string][]byte{reviewedAttestationID: itemReviewRecord(t, movedRaw, reviewedAttestationID, rederivedAt)},
-	}); err != nil {
-		t.Fatalf("with a review record: %v", err)
+	if err := human(movedRaw, map[string][]byte{reviewedAttestationID: itemReviewRecord(t, movedRaw, reviewedAttestationID, rederivedAt)}); err == nil || !strings.Contains(err.Error(), "records take no review record") {
+		t.Fatalf("a review record for a record was accepted: %v", err)
 	}
 }
 
@@ -634,15 +639,13 @@ func setMechanicalDates(t *testing.T, doc packDocument, at time.Time) []byte {
 
 // Acceptance: NOT_YET_DUE and NOT_LATER_THAN_CURRENT apply to records.
 func TestRecordsThatAreNotDueAreNotRenewed(t *testing.T) {
-	f := newChainFixture(t)
+	f := newRoleFixture(t)
+	// Not due: the lease ends after the renewal window. Not later: the lease
+	// already ends at or after the latest automated slot.
 	notDue := recordDatesSpec{rfc3339(baseNow.Add(-10 * 24 * time.Hour)), rfc3339(baseNow.Add(30 * 24 * time.Hour))}
-	notLater := recordDatesSpec{rfc3339(baseNow.Add(-10 * 24 * time.Hour)), rfc3339(baseNow.Add(60 * 24 * time.Hour))}
+	notLater := recordDatesSpec{rfc3339(baseNow), rfc3339(baseNow.Add(maxLease))}
 	prior := buildRecordPack(t, recordPackSpec{at: baseNow, attestation: notDue, policy: notLater, ruleDue: true, pad: 30})
 	c := prepareRecordCycle(t, f, prior, baseNow, "rev-2", nil)
-	slot, _ := SlotDate(1, baseNow)
-	if !slot.After(baseNow.Add(30*24*time.Hour)) || slot.After(baseNow.Add(60*24*time.Hour)) {
-		t.Fatalf("slot %s does not separate the two leases", rfc3339(slot))
-	}
 	if got := worstClassOf(c, reviewedAttestationID); got != reasonNotYetDue {
 		t.Fatalf("attestation: %s", got)
 	}
@@ -651,37 +654,39 @@ func TestRecordsThatAreNotDueAreNotRenewed(t *testing.T) {
 	}
 }
 
-// Acceptance: the stagger cap counts records and defers them like rules, in
-// prepare and in V7.
+// Acceptance: the stagger cap counts records like rules, in prepare and in
+// V7. With rule-a (not due) and the two records the cap is one per week, so
+// the schedule must give the two records different weeks, neither of them
+// rule-a's.
 func TestStaggerCapAppliesToRecords(t *testing.T) {
-	f := newChainFixture(t)
-	// rule-a (not due), the attestation and the policy: three items, a cap
-	// of one per week.
+	f := newRoleFixture(t)
 	prior := buildRecordPack(t, recordPackSpec{at: baseNow, attestation: dueAt(baseNow), policy: dueAt(baseNow)})
 	c := prepareRecordCycle(t, f, prior, baseNow, "rev-2", nil)
-	if len(c.res.Statement.Rules) != 1 {
-		t.Fatalf("expected one renewal under a cap of one, got %+v", c.res.Statement.Rules)
+	if statementLists(c, "rule-a") || !statementLists(c, reviewedAttestationID) || !statementLists(c, reviewedPolicyID) {
+		t.Fatalf("rules=%+v notExtended=%+v", c.res.Statement.Rules, c.res.Statement.NotExtended)
 	}
-	renewed := c.res.Statement.Rules[0].RuleID
-	other := reviewedPolicyID
-	if renewed == reviewedPolicyID {
-		other = reviewedAttestationID
-	}
-	if worstClassOf(c, other) != reasonStaggerDeferred || statementLists(c, "rule-a") {
-		t.Fatalf("notExtended: %+v", c.res.Statement.NotExtended)
+	ruleUntil := mustParse(rfc3339(baseNow.Add(60 * 24 * time.Hour)))
+	weeks := map[string]bool{isoWeek(ruleUntil): true}
+	for _, id := range []string{reviewedAttestationID, reviewedPolicyID} {
+		week := isoWeek(mustParse(renewedUntil(t, c, id)))
+		if weeks[week] {
+			t.Fatalf("%s was scheduled into week %s, which already holds an item", id, week)
+		}
+		weeks[week] = true
 	}
 	if err := verifyCycle(c, f.chain()); err != nil {
 		t.Fatalf("verify: %v", err)
 	}
 
-	// V7 counts records: renewing both into the slot week exceeds the cap.
+	// V7 counts records: renewing both into one week exceeds the cap.
 	doc, err := loadPack(prior)
 	if err != nil {
 		t.Fatal(err)
 	}
+	week := renewedUntil(t, c, reviewedAttestationID)
 	both, _, err := renewRecords(doc, map[string]recordDates{
-		reviewedAttestationID: {c.res.Statement.AttestedAt, c.res.Statement.ValidUntil},
-		reviewedPolicyID:      {c.res.Statement.AttestedAt, c.res.Statement.ValidUntil},
+		reviewedAttestationID: {c.res.Statement.AttestedAt, week},
+		reviewedPolicyID:      {c.res.Statement.AttestedAt, week},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -691,16 +696,18 @@ func TestStaggerCapAppliesToRecords(t *testing.T) {
 		t.Fatal(err)
 	}
 	statement := c.res.Statement
-	statement.Rules = []RuleAttestation{{RuleID: reviewedAttestationID}, {RuleID: reviewedPolicyID}}
+	statement.Rules = []RuleAttestation{{RuleID: reviewedAttestationID, ValidUntil: week}, {RuleID: reviewedPolicyID, ValidUntil: week}}
 	if err := checkV7(statement, nextByID); err == nil || !strings.Contains(err.Error(), "V7:") {
 		t.Fatalf("V7 with two records in a week capped at one: %v", err)
 	}
 }
 
-// Records follow the consecutive-cycle cap, and a review record for the
-// record (the seeded sample's) resets it, exactly as for a rule.
+// Records follow the consecutive-cycle cap: two automated renewals, then
+// CONSECUTIVE_BATCH_CYCLE_CAP. Nothing resets it for a record (records take
+// no review record), so a capped record must be published again with a new
+// review.
 func TestRecordsFollowTheConsecutiveCycleCap(t *testing.T) {
-	f := newChainFixture(t)
+	f := newRoleFixture(t)
 	pack := standardRecordPack(t, baseNow)
 	at := baseNow
 	cycles := map[string]int{}
@@ -730,12 +737,12 @@ func TestRecordsFollowTheConsecutiveCycleCap(t *testing.T) {
 		if err := verifyCycle(c, f.chain()); err != nil {
 			t.Fatalf("round %d pre-sign: %v", round, err)
 		}
-		f.append(fmt.Sprintf("%04d", round), c.res.StatementCanonical)
+		f.appendAutomated(fmt.Sprintf("%04d", round), c.res.StatementCanonical)
 		if err := verifyCycle(c, f.chain()); err != nil {
 			t.Fatalf("round %d: %v", round, err)
 		}
 		pack = c.res.NextPack
-		at = at.Add(cycleSpacing)
+		at = at.Add(automatedSpacing)
 	}
 	if capped == 0 {
 		t.Fatal("no item reached the cap in five rounds; the test does not exercise it")
@@ -751,16 +758,18 @@ func sampledOrReviewed(c cycle, id string) bool {
 	return false
 }
 
-// A review record for a record must name its record ID and project and
-// bind its exact bytes.
-func TestRecordReviewRecordsAreBoundToTheRecord(t *testing.T) {
+// A review record whose subject is a record is refused, in prepare and in
+// verify, whatever it binds: no tool produces or verifies one.
+func TestReviewRecordsForRecordsAreRefused(t *testing.T) {
 	prior := standardRecordPack(t, baseNow)
 	record := recordByID(t, prior, reviewedAttestationID)
 	digest, _, _, err := ruleDigestAndEvidence(record.Raw)
 	if err != nil {
 		t.Fatal(err)
 	}
+	bound := reviewRecordFor(t, evidencerepin.RecordProjectLineAttestations, reviewedAttestationID, digest, baseNow.Add(-time.Hour))
 	for name, raw := range map[string][]byte{
+		"correctly bound":  bound,
 		"wrong project":    reviewRecordFor(t, "kubernetes", reviewedAttestationID, digest, baseNow.Add(-time.Hour)),
 		"wrong digest":     reviewRecordFor(t, evidencerepin.RecordProjectLineAttestations, reviewedAttestationID, "sha256:"+strings.Repeat("0", 64), baseNow.Add(-time.Hour)),
 		"decided too late": reviewRecordFor(t, evidencerepin.RecordProjectLineAttestations, reviewedAttestationID, digest, baseNow.Add(time.Hour)),
@@ -775,6 +784,79 @@ func TestRecordReviewRecordsAreBoundToTheRecord(t *testing.T) {
 				t.Fatalf("expected a V5 rejection, got %v", err)
 			}
 		})
+	}
+
+	// Verify refuses the same record (a human statement over the pack,
+	// with the record supplied as a review record).
+	res, err := Prepare(PrepareOptions{
+		WorklistRaw: worklistFromPack(t, prior, baseNow, nil), PackName: PackCNCF, PackPath: chainPackPath, PackRaw: prior, Chain: &Chain{},
+		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest,
+		ReviewRecords: map[string][]byte{"rule-a": itemReviewRecord(t, prior, "rule-a", baseNow.Add(-time.Hour))},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := defaultVerifyOptions(t, baseNow)
+	opts.StatementRaw, opts.PriorPackRaw, opts.NextPackRaw = res.StatementCanonical, prior, res.NextPack
+	opts.WorklistRaw = worklistFromPack(t, prior, baseNow, nil)
+	opts.PackName, opts.PackPath, opts.EngineCapabilityDigest = PackCNCF, chainPackPath, testEngineCapabilityDigest
+	opts.ReviewRecords = map[string][]byte{"rule-a": itemReviewRecord(t, prior, "rule-a", baseNow.Add(-time.Hour))}
+	if _, err := Verify(opts); err != nil {
+		t.Fatalf("the human statement itself: %v", err)
+	}
+	opts.ReviewRecords[reviewedAttestationID] = bound
+	if _, err := Verify(opts); err == nil || !strings.Contains(err.Error(), "records take no review record") {
+		t.Fatalf("verify with a review record for a record: %v", err)
+	}
+
+	// A chain entry recording an individual review of a record is refused.
+	state := newChainState()
+	statement := res.Statement
+	statement.NotExtended = append([]NotExtendedEntry(nil), statement.NotExtended...)
+	statement.IndividualReviews = []IndividualReview{{RuleID: reviewedAttestationID, ReviewRecordDigest: "sha256:" + strings.Repeat("ab", 32)}}
+	if err := state.apply(statement); err == nil || !strings.Contains(err.Error(), "records take no review record") {
+		t.Fatalf("a chain entry reviewing a record: %v", err)
+	}
+}
+
+// Records are left out of human batches (RECORD_REVIEW_UNSUPPORTED): a
+// human batch is sampled for review, and a record cannot be reviewed. The
+// rules beside them renew as before, and V8 refuses a human statement that
+// lists a record.
+func TestHumanBatchesLeaveRecordsOut(t *testing.T) {
+	prior := standardRecordPack(t, baseNow)
+	records := map[string][]byte{"rule-a": itemReviewRecord(t, prior, "rule-a", baseNow.Add(-time.Hour))}
+	res, err := Prepare(PrepareOptions{
+		WorklistRaw: worklistFromPack(t, prior, baseNow, nil), PackName: PackCNCF, PackPath: chainPackPath, PackRaw: prior, Chain: &Chain{},
+		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, ReviewRecords: records,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := cycle{res: res}
+	if !statementLists(c, "rule-a") || len(res.Statement.Rules) != 1 {
+		t.Fatalf("human batch renewed %+v", res.Statement.Rules)
+	}
+	for _, id := range []string{reviewedAttestationID, reviewedPolicyID} {
+		if got := worstClassOf(c, id); got != reasonRecordReviewUnsupported {
+			t.Fatalf("%s: %s", id, got)
+		}
+	}
+	doc, err := loadPack(prior)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates, _, err := packCandidates(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	listed := res.Statement
+	ra := listed.Rules[0]
+	ra.RuleID = reviewedPolicyID
+	ra.Citations = []CitationAttestation{{SourceID: "skew-policy", Class: evidencerepin.ClassFileIdentical, PinnedCommit: strings.Repeat("e", 40)}}
+	listed.Rules = []RuleAttestation{ra}
+	if err := checkRolePolicy(listed, candidatesByID(candidates)); err == nil || !strings.Contains(err.Error(), "renewed only by an automated statement") {
+		t.Fatalf("V8 on a human statement renewing a record: %v", err)
 	}
 }
 
@@ -828,27 +910,41 @@ func TestRecordsRenewInAutomatedMode(t *testing.T) {
 
 // A record whose citation drifted is not renewed, like a rule.
 func TestRecordWithDriftedCitationIsNotRenewed(t *testing.T) {
-	prior := standardRecordPack(t, baseNow)
-	worklistRaw := worklistFromPack(t, prior, baseNow, func(wl *evidencerepin.Worklist) {
+	c := prepareRecordCycle(t, newRoleFixture(t), standardRecordPack(t, baseNow), baseNow, "rev-2", func(wl *evidencerepin.Worklist) {
 		for i := range wl.Citations {
 			if wl.Citations[i].RuleID == reviewedAttestationID && wl.Citations[i].SourceID == "k8s-openapi-1-30" {
 				wl.Citations[i].Class = evidencerepin.ClassContentChanged
 			}
 		}
 	})
-	res, err := Prepare(PrepareOptions{
-		WorklistRaw: worklistRaw, PackName: PackCNCF, PackPath: chainPackPath, PackRaw: prior, Chain: &Chain{},
-		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest,
+	if got := worstClassOf(c, reviewedAttestationID); got != evidencerepin.ClassContentChanged {
+		t.Fatalf("drifted attestation: %s", got)
+	}
+	if !statementLists(c, reviewedPolicyID) {
+		t.Fatal("the policy beside it was not renewed")
+	}
+}
+
+// E7 for records: a corpus-digest mismatch on any citation of the pack
+// excludes every record that cites the same repository; records citing
+// other repositories still renew.
+func TestCorpusMismatchExcludesRecordsCitingTheRepository(t *testing.T) {
+	prior := standardRecordPack(t, baseNow)
+	c := prepareRecordCycle(t, newRoleFixture(t), prior, baseNow, "rev-2", func(wl *evidencerepin.Worklist) {
+		// A padding rule of another project, citing the attestation's
+		// repository, has a corpus-digest mismatch.
+		wl.Citations = append(wl.Citations, evidencerepin.ClassResult{
+			RulePack: chainPackPath, RuleID: "past-000", Project: "proj-past", SourceID: "past-src-0",
+			Owner: "kubernetes", Repo: "kubernetes", Path: "VERSION", OldCommit: strings.Repeat("f", 40), NewCommit: strings.Repeat("f", 40),
+			Class: evidencerepin.ClassCorpusDigestMismatch,
+		})
 	})
-	if err != nil {
-		t.Fatal(err)
+	if got := worstClassOf(c, reviewedAttestationID); got != reasonCorpusMismatchRepository {
+		t.Fatalf("attestation citing the same repository: %s", got)
 	}
-	for _, ne := range res.Statement.NotExtended {
-		if ne.RuleID == reviewedAttestationID && ne.WorstClass == evidencerepin.ClassContentChanged {
-			return
-		}
+	if !statementLists(c, reviewedPolicyID) || !statementLists(c, "rule-a") {
+		t.Fatalf("items citing other repositories: %+v", c.res.Statement.NotExtended)
 	}
-	t.Fatalf("drifted attestation: %+v", res.Statement.NotExtended)
 }
 
 // loadPack reads the record sections strictly and re-runs the attestation
@@ -895,6 +991,12 @@ func TestLoadPackChecksRecordSections(t *testing.T) {
 		}),
 		"rule with a record ID": edit(func(d map[string]any) {
 			d["entries"].([]any)[0].(map[string]any)["rule"].(map[string]any)["id"] = reviewedPolicyID
+		}),
+		"rule with the shape of a record ID": edit(func(d map[string]any) {
+			d["entries"].([]any)[0].(map[string]any)["rule"].(map[string]any)["id"] = "path-policy." + strings.Repeat("0", 24)
+		}),
+		"entry with a record project": edit(func(d map[string]any) {
+			d["entries"].([]any)[0].(map[string]any)["project"] = evidencerepin.RecordProjectLineAttestations
 		}),
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -1083,7 +1185,7 @@ func TestWithdrawnPathPolicyIsNotRenewed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := prepareRecordCycle(t, newChainFixture(t), prior, baseNow, "rev-2", nil)
+	c := prepareRecordCycle(t, newRoleFixture(t), prior, baseNow, "rev-2", nil)
 	if statementLists(c, reviewedPolicyID) || worstClassOf(c, reviewedPolicyID) != reasonInactiveOrWithdrawn {
 		t.Fatalf("withdrawn policy: %+v", c.res.Statement.NotExtended)
 	}
@@ -1098,9 +1200,8 @@ func TestWithdrawnPathPolicyIsNotRenewed(t *testing.T) {
 	listed := c.res.Statement
 	ra := listed.Rules[0]
 	ra.RuleID = reviewedPolicyID
-	ra.Citations = []CitationAttestation{{SourceID: "skew-policy", Class: evidencerepin.ClassFileIdentical, PinnedCommit: strings.Repeat("e", 40)}}
 	listed.Rules = []RuleAttestation{ra}
-	if err := checkRolePolicy(listed, candidatesByID(candidates)); err == nil || !strings.Contains(err.Error(), "not renewable") {
+	if err := checkRolePolicy(listed, candidatesByID(candidates)); err == nil || !strings.Contains(err.Error(), "is not renewable by reattestation") {
 		t.Fatalf("V8 on a withdrawn policy: %v", err)
 	}
 }
@@ -1112,5 +1213,71 @@ func TestRenewRecordsRefusesAnUnknownRecord(t *testing.T) {
 	}
 	if _, _, err := renewRecords(doc, map[string]recordDates{"path-policy.000000000000000000000000": {rfc3339(baseNow), rfc3339(baseNow.Add(time.Hour))}}); !errors.Is(err, ErrRejected) {
 		t.Fatalf("got %v", err)
+	}
+}
+
+// V10 alone catches a change of only ruleIds (R5).
+func TestCheckV10CatchesARuleIDsChange(t *testing.T) {
+	priorDoc, err := loadPack(standardRecordPack(t, baseNow))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var atts []map[string]any
+	if err := json.Unmarshal(priorDoc.LineAttestations, &atts); err != nil {
+		t.Fatal(err)
+	}
+	atts[0]["ruleIds"] = []string{"rule-a"}
+	next := priorDoc
+	next.LineAttestations, _ = json.Marshal(atts)
+	next.records = nil
+	raw, err := buildNextPack(next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The exact-set check refuses it on load; V10 must refuse it on its own.
+	if _, err := loadPack(raw); err == nil {
+		t.Fatal("a pack whose attestation lists a rule of another scope loaded")
+	}
+	records, err := evidencerepin.PackRecords(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next.records = records
+	if err := checkV10(priorDoc, next); err == nil || !strings.Contains(err.Error(), "V10:") {
+		t.Fatalf("V10 on a ruleIds-only change: %v", err)
+	}
+}
+
+// Rule behaviour is unchanged (R6): a mechanical rule whose reviewedAt moved
+// after the chain head still stops a human batch as a truncated chain. Only
+// mechanical records are exempt.
+func TestMechanicalRuleMovedAfterTheChainHeadStillStopsAHumanBatch(t *testing.T) {
+	f := newRoleFixture(t)
+	prior := standardRecordPack(t, baseNow)
+	c := prepareRecordCycle(t, f, prior, baseNow, "rev-2", nil)
+	f.appendAutomated("0001", c.res.StatementCanonical)
+	next := baseNow.Add(automatedSpacing)
+	var doc map[string]any
+	if err := json.Unmarshal(c.res.NextPack, &doc); err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range doc["entries"].([]any) {
+		rule := item.(map[string]any)["rule"].(map[string]any)
+		if rule["id"] == "past-000" {
+			markMechanical(rule, rfc3339(next.Add(-24*time.Hour)))
+			e := rule["evidence"].(map[string]any)
+			e["reviewedAt"], e["validUntil"] = rfc3339(next.Add(-24*time.Hour)), rfc3339(next.Add(60*24*time.Hour))
+		}
+	}
+	pack, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = Prepare(PrepareOptions{
+		WorklistRaw: worklistFromPack(t, pack, next, nil), PackName: PackCNCF, PackPath: chainPackPath, PackRaw: pack, Chain: f.chain(),
+		Wave: 1, AttestedAt: next, Now: next, NextRevision: "rev-3", EngineCapabilityDigest: testEngineCapabilityDigest,
+	})
+	if err == nil || !strings.Contains(err.Error(), "truncated") {
+		t.Fatalf("a mechanical rule moved after the chain head: %v", err)
 	}
 }

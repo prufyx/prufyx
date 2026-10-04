@@ -18,9 +18,10 @@
 // A pack's line attestations and path-policy records (its lineAttestations
 // and pathPolicies sections) renew the same way, as items named by their
 // record IDs (evidencerepin.LineAttestationRecordID, PathPolicyRecordID):
-// the same eligibility, lease, stagger, chain and review-record rules, and
-// only the same two fields change, in place inside the record (see
-// renewRecords and checkV10). A mechanical record is never renewed here.
+// the same eligibility, lease, stagger and chain rules, and only the same
+// two fields change, in place inside the record (see renewRecords and
+// checkV10). Records renew in automated mode only and take no review record
+// (no tool reviews a record yet). A mechanical record is never renewed here.
 //
 // The three subcommands are a pipeline:
 //

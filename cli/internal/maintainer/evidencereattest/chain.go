@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/reviewrecord"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
@@ -159,6 +160,9 @@ func (s chainState) reviewsFromRecords(rules map[string]ruleCandidate, records m
 		if !ok {
 			return nil, fmt.Errorf("%w: V5: review record %s names no rule in the pack", ErrRejected, id)
 		}
+		if rule.Fields.record {
+			return nil, fmt.Errorf("%w: V5: review record %s names a line attestation or path-policy record; records take no review record", ErrRejected, id)
+		}
 		if len(raw) == 0 || len(raw) > MaxReviewRecordBytes {
 			return nil, fmt.Errorf("%w: V5: review record for rule %s is empty or too large", ErrRejected, id)
 		}
@@ -242,6 +246,9 @@ func (s *chainState) apply(statement Statement) error {
 		previousID = review.RuleID
 		if !listed[review.RuleID] {
 			return fmt.Errorf("%w: V5: rule %s has an individual review but is in neither the statement's rules nor its notExtended list", ErrRejected, review.RuleID)
+		}
+		if evidencerepin.IsRecordID(review.RuleID) {
+			return fmt.Errorf("%w: V5: rule %s individual review names a line attestation or path-policy record; records take no review record", ErrRejected, review.RuleID)
 		}
 		if !validDigest(review.ReviewRecordDigest) {
 			return fmt.Errorf("%w: V5: rule %s individual review record digest is malformed", ErrRejected, review.RuleID)
