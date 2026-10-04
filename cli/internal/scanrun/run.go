@@ -53,6 +53,10 @@ func Run(request Request, options Options) (Result, error) {
 	// known, and nothing else of the embedded knowledge is read.
 	var catalog componentCatalog = knowledge
 	switch {
+	case knowledge != nil && request.KnowledgeDB != "" && knowledge.Store() == nil:
+		// A database was asked for but the caller supplied knowledge that
+		// does not come from one: never answer from it instead.
+		return Result{}, ErrIntegrity
 	case knowledge != nil:
 	case request.KnowledgeDB != "":
 		loaded, err := cncfcheck.LoadScanCatalog()

@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/intake"
@@ -265,11 +267,16 @@ func ParseArgs(args []string) (Request, error) {
 	return request, nil
 }
 
-// printable reports text without control characters, so it can be shown
-// in the report as given.
+// printable reports valid UTF-8 text without control characters (C0, DEL,
+// C1), line or paragraph separators, or format characters (direction marks,
+// overrides and isolates, zero-width characters, the byte order mark), so it
+// can be shown in a terminal and in the report as given.
 func printable(text string) bool {
+	if !utf8.ValidString(text) {
+		return false
+	}
 	for _, r := range text {
-		if r < 0x20 || r == 0x7f {
+		if unicode.IsControl(r) || r == 0x2028 || r == 0x2029 || unicode.Is(unicode.Cf, r) {
 			return false
 		}
 	}

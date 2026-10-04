@@ -81,7 +81,7 @@ func TestScanKnowledgeDB(t *testing.T) {
 	if err := os.Mkdir(empty, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	for _, tc := range []struct{ store, reason string }{{store, scanreport.KnowledgeDBIntegrity}, {empty, scanreport.KnowledgeDBNoSelection}} {
+	for _, tc := range []struct{ store, reason string }{{store, scanreport.KnowledgeDBIntegrity}, {empty, scanreport.KnowledgeDBNotAStore}} {
 		for _, format := range []string{"human", "json"} {
 			code, stdout, stderr = runScan(t, append(scanArgs, "--knowledge-db", tc.store, "--format", format)...)
 			want := "prufyx: " + scanreport.Text(scanreport.UsageKnowledgeDBFailed, tc.reason) + "\n"

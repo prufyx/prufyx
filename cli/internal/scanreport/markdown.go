@@ -206,6 +206,9 @@ func Markdown(report Report, options MarkdownOptions) []byte {
 	}
 	provenance = append(provenance,
 		fmt.Sprintf(labelMDKnowledge, p.KnowledgeOrigin, p.KnowledgeRevision, p.KnowledgeDigest),
+	)
+	provenance = append(provenance, knowledgeStoreLines(p.KnowledgeStore)...)
+	provenance = append(provenance,
 		fmt.Sprintf(labelMDEngine, p.EngineContractDigest),
 		fmt.Sprintf(labelMDBuild, p.Build.Version),
 		network,

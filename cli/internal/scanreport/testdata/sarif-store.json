@@ -1,0 +1,646 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "prufyx",
+          "version": "1.2.3",
+          "informationUri": "https://github.com/prufyx/prufyx",
+          "rules": [
+            {
+              "id": "kubernetes.cronjob-removed",
+              "shortDescription": {
+                "text": "Kubernetes 1.25 stops serving CronJob through batch/v1beta1"
+              },
+              "help": {
+                "text": "Migrate the manifest to batch/v1."
+              },
+              "helpUri": "https://example.test/blob/0123456789abcdef0123456789abcdef01234567/doc.md",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "basis": "mechanical",
+                "kind": "blocker"
+              }
+            },
+            {
+              "id": "kubernetes.lead-a",
+              "shortDescription": {
+                "text": "Look at the ingress class."
+              },
+              "help": {
+                "text": "Look at the ingress class."
+              },
+              "helpUri": "https://example.test/blob/0123456789abcdef0123456789abcdef01234567/doc.md",
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "basis": "lead",
+                "kind": "lead"
+              }
+            },
+            {
+              "id": "kubernetes.notice-a",
+              "shortDescription": {
+                "text": "Back up etcd first."
+              },
+              "help": {
+                "text": "Back up etcd first."
+              },
+              "helpUri": "https://example.test/blob/0123456789abcdef0123456789abcdef01234567/doc.md",
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "basis": "reviewed",
+                "kind": "notice"
+              }
+            },
+            {
+              "id": "kubernetes.notice-b",
+              "shortDescription": {
+                "text": "Run the check by hand."
+              },
+              "help": {
+                "text": "Run the check by hand."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "basis": "reviewed",
+                "kind": "notice"
+              }
+            },
+            {
+              "id": "kubernetes.psp-removed",
+              "shortDescription": {
+                "text": "PodSecurityPolicy | is removed"
+              },
+              "help": {
+                "text": "Use Pod Security Admission."
+              },
+              "helpUri": "https://example.test/blob/0123456789abcdef0123456789abcdef01234567/doc.md",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "basis": "consensus",
+                "kind": "blocker"
+              }
+            },
+            {
+              "id": "kubernetes.support-a",
+              "shortDescription": {
+                "text": "node skew over 3 minor versions"
+              },
+              "help": {
+                "text": "Upgrade nodes first."
+              },
+              "helpUri": "https://example.test/blob/0123456789abcdef0123456789abcdef01234567/doc.md",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "basis": "reviewed",
+                "kind": "unsupported"
+              }
+            },
+            {
+              "id": "kubernetes.whole",
+              "shortDescription": {
+                "text": "Whole upgrade rule"
+              },
+              "help": {
+                "text": "Do the thing."
+              },
+              "helpUri": "https://example.test/blob/0123456789abcdef0123456789abcdef01234567/doc.md",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "basis": "reviewed",
+                "kind": "blocker"
+              }
+            }
+          ]
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "exitCode": 10,
+          "exitCodeDescription": "BLOCKED: 3 problems must be fixed before this upgrade",
+          "startTimeUtc": "2026-10-04T00:00:00Z",
+          "toolExecutionNotifications": [
+            {
+              "level": "warning",
+              "message": {
+                "text": "etcd is not evaluated by scan yet - run prufyx check cncf --project etcd, or verify its upgrade notes by hand"
+              },
+              "descriptor": {
+                "id": "COMPONENT_NOT_COVERED"
+              },
+              "properties": {
+                "kind": "gap",
+                "component": "etcd"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "the kubernetes manifests are not declared to be the complete set you apply - if they are, add resourceScopeComplete: true to prufyx.yaml or pass --resource-scope-complete"
+              },
+              "descriptor": {
+                "id": "DECLARATION_MISSING"
+              },
+              "properties": {
+                "kind": "gap",
+                "component": "kubernetes"
+              }
+            },
+            {
+              "level": "note",
+              "message": {
+                "text": "Unverified lead; it does not block. Worth checking: Look at the ingress class."
+              },
+              "descriptor": {
+                "id": "kubernetes.lead-a"
+              },
+              "associatedRule": {
+                "id": "kubernetes.lead-a",
+                "index": 1
+              },
+              "properties": {
+                "kind": "lead",
+                "component": "kubernetes",
+                "hop": "1.24.17 -> 1.25"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "rule kubernetes.x could not be decided (STALE) - run the hop with prufyx check cncf to see the rule's next action, or check by hand"
+              },
+              "descriptor": {
+                "id": "RULE_NOT_DECIDED"
+              },
+              "properties": {
+                "kind": "gap",
+                "component": "kubernetes",
+                "hop": "1.25 -> 1.26"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Outside a documented support range: node skew over 3 minor versions. Fix: Upgrade nodes first."
+              },
+              "descriptor": {
+                "id": "kubernetes.support-a"
+              },
+              "associatedRule": {
+                "id": "kubernetes.support-a",
+                "index": 5
+              },
+              "properties": {
+                "kind": "unsupported",
+                "component": "kubernetes",
+                "hop": "1.25 -> 1.26"
+              }
+            },
+            {
+              "level": "note",
+              "message": {
+                "text": "This is a one-way change that cannot be rolled back. Before you upgrade: Back up etcd first."
+              },
+              "descriptor": {
+                "id": "kubernetes.notice-a"
+              },
+              "associatedRule": {
+                "id": "kubernetes.notice-a",
+                "index": 2
+              },
+              "properties": {
+                "kind": "notice",
+                "component": "kubernetes",
+                "hop": "1.25 -> 1.26"
+              }
+            },
+            {
+              "level": "note",
+              "message": {
+                "text": "A one-way change was not established (NO_DATA). Next action: Run the check by hand."
+              },
+              "descriptor": {
+                "id": "kubernetes.notice-b"
+              },
+              "associatedRule": {
+                "id": "kubernetes.notice-b",
+                "index": 3
+              },
+              "properties": {
+                "kind": "notice",
+                "component": "kubernetes",
+                "hop": "1.25 -> 1.26"
+              }
+            }
+          ]
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "kubernetes.cronjob-removed",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Kubernetes 1.25 stops serving CronJob through batch/v1beta1 — fix: Migrate the manifest to batch/v1."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "deploy/app%200.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "job-0",
+                  "fullyQualifiedName": "CronJob prod/job-0",
+                  "kind": "resource"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "9fdcfdb6e14743ccc0939fa4adb44f07fcfa8f87062ce65c54cc79d46c1e63cc"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "1.24.17 -> 1.25",
+            "basis": "mechanical",
+            "match": "anchor"
+          }
+        },
+        {
+          "ruleId": "kubernetes.cronjob-removed",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Kubernetes 1.25 stops serving CronJob through batch/v1beta1 — fix: Migrate the manifest to batch/v1."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "deploy/app%201.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 2
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "job-1",
+                  "fullyQualifiedName": "CronJob prod/job-1",
+                  "kind": "resource"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "817bc4cb0bc1a866b44ed20a192d6d9fc0eeb740cdbf9e5b4370ac5645c1fb4e"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "1.24.17 -> 1.25",
+            "basis": "mechanical",
+            "match": "anchor"
+          }
+        },
+        {
+          "ruleId": "kubernetes.cronjob-removed",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Kubernetes 1.25 stops serving CronJob through batch/v1beta1 — fix: Migrate the manifest to batch/v1."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "deploy/app%202.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 3
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "job-2",
+                  "fullyQualifiedName": "CronJob prod/job-2",
+                  "kind": "resource"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "9606280a8a20440c9660bace82bcb657b2a35c3319664661b06178213d81398d"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "1.24.17 -> 1.25",
+            "basis": "mechanical",
+            "match": "anchor"
+          }
+        },
+        {
+          "ruleId": "kubernetes.cronjob-removed",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Kubernetes 1.25 stops serving CronJob through batch/v1beta1 — fix: Migrate the manifest to batch/v1."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "deploy/app%203.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 4
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "job-3",
+                  "fullyQualifiedName": "CronJob prod/job-3",
+                  "kind": "resource"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "74e8350a2322c1046ceac45be06aa51b006417c4df01c097917cc225385e2330"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "1.24.17 -> 1.25",
+            "basis": "mechanical",
+            "match": "anchor"
+          }
+        },
+        {
+          "ruleId": "kubernetes.cronjob-removed",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Kubernetes 1.25 stops serving CronJob through batch/v1beta1 — fix: Migrate the manifest to batch/v1."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "deploy/app%204.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 5
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "job-4",
+                  "fullyQualifiedName": "CronJob prod/job-4",
+                  "kind": "resource"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "d0572f0318f235607f03aa6f6320b696474054741f137acfd472ed9e5419b8ec"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "1.24.17 -> 1.25",
+            "basis": "mechanical",
+            "match": "anchor"
+          }
+        },
+        {
+          "ruleId": "kubernetes.cronjob-removed",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Kubernetes 1.25 stops serving CronJob through batch/v1beta1 — fix: Migrate the manifest to batch/v1."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "deploy/app%205.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 6
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "job-5",
+                  "fullyQualifiedName": "CronJob prod/job-5",
+                  "kind": "resource"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "1332533a67ad44c4f1ac5f15364911d273c81e8d38d6f968d1f95138c699838e"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "1.24.17 -> 1.25",
+            "basis": "mechanical",
+            "match": "anchor"
+          }
+        },
+        {
+          "ruleId": "kubernetes.cronjob-removed",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Kubernetes 1.25 stops serving CronJob through batch/v1beta1 — fix: Migrate the manifest to batch/v1."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "deploy/app%206.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 7
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "job-6",
+                  "fullyQualifiedName": "CronJob prod/job-6",
+                  "kind": "resource"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "a7bcc39b81f6863a22d4e0a46c548c95edd8c94e2a7746d83713088e6e61a1d1"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "1.24.17 -> 1.25",
+            "basis": "mechanical",
+            "match": "anchor"
+          }
+        },
+        {
+          "ruleId": "kubernetes.psp-removed",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "PodSecurityPolicy | is removed — fix: Use Pod Security Admission."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "psp.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "restricted",
+                  "fullyQualifiedName": "PodSecurityPolicy restricted",
+                  "kind": "resource"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "bfe5092bfeae5839c1860e485ece6428ad5ef730321eccf747795f4f51e7a0b0"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "1.24.17 -> 1.25",
+            "basis": "consensus",
+            "match": "range"
+          }
+        },
+        {
+          "ruleId": "kubernetes.whole",
+          "ruleIndex": 6,
+          "level": "error",
+          "message": {
+            "text": "Whole upgrade rule — fix: Do the thing."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "w.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 3
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "(no name)",
+                  "fullyQualifiedName": "Thing (no name)",
+                  "kind": "resource"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "7a2f22c55b7653cc16fd617f1e464efa68bf506a627200b7bf3c598dc63d3d8a"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "whole upgrade 1.24.17 -> 1.30.4",
+            "basis": "reviewed",
+            "match": "anchor"
+          }
+        }
+      ],
+      "properties": {
+        "verdict": "BLOCKED",
+        "headline": "BLOCKED: 3 problems must be fixed before this upgrade",
+        "summary": {
+          "blockers": 3,
+          "gaps": 3,
+          "passes": 1,
+          "componentsDetected": 1,
+          "componentsCovered": 1,
+          "hops": 2,
+          "documentsRead": 9,
+          "documentsOmitted": 1,
+          "notices": 2,
+          "leads": 1,
+          "unsupported": 1
+        },
+        "evaluatedAt": "2026-10-04T00:00:00Z",
+        "inputDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "configDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "knowledgeOrigin": "external_signed_local",
+        "knowledgeRevision": "rev-1",
+        "knowledgeDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "engineContractDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "networkUsed": false,
+        "omissions": [
+          "node and kubelet version skew not evaluated"
+        ],
+        "trustPolicy": {
+          "requiredBasis": [
+            "reviewed",
+            "mechanical"
+          ],
+          "excludedRules": 2,
+          "excludedLeadRules": 1
+        },
+        "knowledgeStore": {
+          "path": "/var/lib/prufyx/knowledge-db",
+          "layout": "cncf-projects",
+          "targetPath": "knowledge/cncf/index.v1.json",
+          "trustReceiptDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "purpose": "operator_provided",
+          "importedVerifiedAt": "2026-10-03T00:00:00Z",
+          "projects": [
+            {
+              "project": "etcd",
+              "status": "absent_from_index"
+            },
+            {
+              "project": "kubernetes",
+              "status": "present",
+              "targetPath": "knowledge/cncf/projects/kubernetes.v1.json",
+              "revision": "5",
+              "digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

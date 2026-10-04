@@ -166,7 +166,7 @@ func (v *sarifValidator) run(value any) {
 				}
 			})
 		})
-		v.object("run.properties", run["properties"], []string{"verdict", "headline", "summary", "evaluatedAt", "inputDigest", "knowledgeOrigin", "knowledgeRevision", "knowledgeDigest", "engineContractDigest", "networkUsed", "omissions"}, []string{"configDigest", "trustPolicy"}, nil)
+		v.object("run.properties", run["properties"], []string{"verdict", "headline", "summary", "evaluatedAt", "inputDigest", "knowledgeOrigin", "knowledgeRevision", "knowledgeDigest", "engineContractDigest", "networkUsed", "omissions"}, []string{"configDigest", "trustPolicy", "knowledgeStore"}, nil)
 		for i, result := range v.array("run.results", run["results"]) {
 			v.result(fmt.Sprintf("results[%d]", i), result, ruleIDs)
 		}

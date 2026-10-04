@@ -2,6 +2,15 @@
 
 package cncfcheck
 
+// ExportExternalBundleFromPack and BuildExternalTargetsFromPack are not a
+// publication path. They admit a rule pack only by the checks the embedded
+// pack passes (catalog, policy, fact registry, review windows); they do not
+// apply the knowledge gate, sign anything, or establish that the pack's rules
+// were reviewed. Their output is unsigned bytes that every reader re-admits
+// after TUF verification. Published knowledge must come only from gated
+// sources; a publisher must never feed these an arbitrary pack file. Today
+// only tests call them.
+//
 // ExportExternalBundleFromPack is ExportEmbeddedExternalBundle over a given
 // rule pack instead of the embedded one: the pack is first admitted by every
 // check the embedded pack passes (against the compiled catalog, policy and

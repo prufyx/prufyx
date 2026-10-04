@@ -192,6 +192,8 @@ type sarifRunProps struct {
 	NetworkUsed          bool         `json:"networkUsed"`
 	Omissions            []string     `json:"omissions"`
 	TrustPolicy          *TrustPolicy `json:"trustPolicy,omitempty"`
+	// KnowledgeStore names the knowledge database of a --knowledge-db scan.
+	KnowledgeStore *KnowledgeStore `json:"knowledgeStore,omitempty"`
 }
 
 // SARIF renders the report as a SARIF 2.1.0 log: one result per finding
@@ -227,7 +229,7 @@ func SARIF(report Report) ([]byte, error) {
 			InputDigest: p.InputDigest, ConfigDigest: p.ConfigDigest, KnowledgeOrigin: p.KnowledgeOrigin,
 			KnowledgeRevision: p.KnowledgeRevision, KnowledgeDigest: p.KnowledgeDigest,
 			EngineContractDigest: p.EngineContractDigest, NetworkUsed: p.NetworkUsed,
-			Omissions: omissions, TrustPolicy: report.TrustPolicy,
+			Omissions: omissions, TrustPolicy: report.TrustPolicy, KnowledgeStore: p.KnowledgeStore,
 		},
 	}}}
 	var out bytes.Buffer

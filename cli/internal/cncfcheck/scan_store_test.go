@@ -53,6 +53,19 @@ func TestStoreScanKnowledgeReadsOnlyOpenedProjects(t *testing.T) {
 	if store.AttestationsFor(component, "1.0", "f", now) != nil || store.PathPolicyFor(component, now).Found {
 		t.Fatal("unopened project has records")
 	}
+	// Directly: an unopened component has no bundle at all, so no line
+	// review or path policy can come from anywhere else; an opened one has
+	// exactly its own.
+	if _, ok := store.bundleForComponent(component); ok {
+		t.Fatal("unopened component has a bundle")
+	}
+	kubernetesComponent, _ := store.Component("kubernetes")
+	if b, ok := store.bundleForComponent(kubernetesComponent); !ok || !b.external || b.packDigest != kubernetes.BundleDigest() {
+		t.Fatalf("opened component bundle ok=%v external=%v", ok, b.external)
+	}
+	if _, ok := store.bundleForComponent("pkg:github/no/such"); ok {
+		t.Fatal("unknown component has a bundle")
+	}
 	// A single-target envelope serves only the opened project's rules.
 	raw, err := ExportEmbeddedExternalBundle("3")
 	if err != nil {

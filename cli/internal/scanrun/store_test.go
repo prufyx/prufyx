@@ -407,6 +407,12 @@ func TestScanStoreRedact(t *testing.T) {
 				t.Fatalf("redacted output names the database:\n%s", output)
 			}
 		}
+		for _, format := range []string{"sarif", "markdown"} {
+			out, err := scanreport.Render(result.Report, format, scanreport.RenderOptions{ShowPasses: true, Verbose: true})
+			if err != nil || bytes.Contains(out, []byte("zz-private-store")) || !bytes.Contains(out, []byte(scanreport.RedactValue(private))) || !bytes.Contains(out, []byte("knowledge/cncf/projects/kubernetes.v1.json")) {
+				t.Fatalf("%s: database provenance not shown redacted (%v):\n%s", format, err, out)
+			}
+		}
 		if got := result.Report.Provenance.KnowledgeStore.Path; got != scanreport.RedactValue(private) {
 			t.Fatalf("path %q", got)
 		}
@@ -582,7 +588,53 @@ func TestScanStoreVerificationFailures(t *testing.T) {
 	if err := os.Mkdir(empty, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	check(t, "empty database", empty, scanreport.KnowledgeDBNoSelection)
+	check(t, "empty directory", empty, scanreport.KnowledgeDBNotAStore)
+	// Refused before any lock: nothing is written into a directory that is
+	// not a database.
+	if entries, err := os.ReadDir(empty); err != nil || len(entries) != 0 {
+		t.Fatalf("scan wrote into a directory that is not a database: %v %v", entries, err)
+	}
+	other := filepath.Join(t.TempDir(), "other")
+	if err := os.Mkdir(other, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(other, "notes.txt"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	check(t, "unrelated directory", other, scanreport.KnowledgeDBNotAStore)
+	if _, err := os.Lstat(filepath.Join(other, ".lock")); !os.IsNotExist(err) {
+		t.Fatalf("scan created a lock in an unrelated directory: %v", err)
+	}
+	// A marked database with nothing selected yet.
+	marked := newStoreFixture(t, cncfknowledge.LayoutPerProject)
+	marked.importPack(nil, "5")
+	profile, err := os.ReadFile(filepath.Join(marked.store, "profile.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	unselected := filepath.Join(t.TempDir(), "unselected")
+	if err := os.Mkdir(unselected, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(unselected, "profile.json"), profile, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	check(t, "marked database without a selection", unselected, scanreport.KnowledgeDBNoSelection)
+	// Not private, or a symbolic link to a database.
+	public := newStoreFixture(t, cncfknowledge.LayoutPerProject)
+	public.importPack(nil, "5")
+	if err := os.Chmod(public.store, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	check(t, "database readable by others", public.store, scanreport.KnowledgeDBNotPrivate)
+	if err := os.Chmod(public.store, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(public.store, link); err != nil {
+		t.Fatal(err)
+	}
+	check(t, "symbolic link to a database", link, scanreport.KnowledgeDBNotPrivate)
 	// A path that does not exist is refused and not created.
 	missing := filepath.Join(t.TempDir(), "missing")
 	check(t, "missing database", missing, scanreport.KnowledgeDBMissing)
@@ -633,6 +685,39 @@ func TestScanStoreEvaluationIdentity(t *testing.T) {
 			if _, err := scan(t, k, scanArgs...); !errors.Is(err, ErrIntegrity) {
 				t.Fatalf("%s: %v", name, err)
 			}
+		}
+	})
+}
+
+// TestScanStoreRefusesOtherKnowledge: a caller that asks for a database and
+// also supplies knowledge that does not come from one gets an integrity
+// error, never an answer from the supplied knowledge.
+func TestScanStoreRefusesOtherKnowledge(t *testing.T) {
+	fixture := newStoreFixture(t, cncfknowledge.LayoutPerProject)
+	fixture.importPack(nil, "5")
+	dir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1beta1})
+	inDir(t, dir, func() {
+		request, err := ParseArgs(storeArgs([]string{"applyset.yaml"}, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--knowledge-db", fixture.store))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for name, k := range map[string]Knowledge{"embedded": nil, "test knowledge": newKnowledge(t, knowledgeOptions{})} {
+			if name == "embedded" {
+				embedded, err := LoadEmbedded()
+				if err != nil {
+					t.Fatal(err)
+				}
+				k = embedded
+			}
+			result, err := Run(request, Options{Knowledge: k, Build: &testBuild})
+			if !errors.Is(err, ErrIntegrity) || result.Report.Schema != "" {
+				t.Fatalf("%s: err %v exit %d", name, err, result.Exit)
+			}
+		}
+		// Knowledge from a database is accepted with the flag.
+		result, err := Run(request, Options{Knowledge: openAt(t, fixture.store, testNow), Build: &testBuild})
+		if err != nil || result.Report.Provenance.KnowledgeStore == nil {
+			t.Fatalf("store-backed knowledge refused: %v", err)
 		}
 	})
 }

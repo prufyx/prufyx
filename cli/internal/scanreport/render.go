@@ -166,17 +166,28 @@ func Human(report Report, options HumanOptions) []byte {
 	line("%s", labelEvidence)
 	p := report.Provenance
 	line(labelProvenance, p.EvaluatedAt, p.InputDigest, p.KnowledgeOrigin, p.KnowledgeRevision, p.KnowledgeDigest)
-	if store := p.KnowledgeStore; store != nil {
-		line(labelKnowledgeStore, store.Path, store.Layout, store.TargetPath, store.TrustReceiptDigest)
-		for _, project := range store.Projects {
-			if project.Status != "present" {
-				line(labelKnowledgeProjectAbsent, project.Project)
-				continue
-			}
-			line(labelKnowledgeProject, project.Project, project.TargetPath, project.Revision, project.Digest)
-		}
+	for _, text := range knowledgeStoreLines(p.KnowledgeStore) {
+		line("%s", text)
 	}
 	return out.Bytes()
+}
+
+// knowledgeStoreLines are the provenance lines that name a knowledge
+// database: the database and selected target, then each project target. They
+// are empty for the embedded knowledge.
+func knowledgeStoreLines(store *KnowledgeStore) []string {
+	if store == nil {
+		return nil
+	}
+	lines := []string{fmt.Sprintf(labelKnowledgeStore, store.Path, store.Layout, store.TargetPath, store.TrustReceiptDigest)}
+	for _, project := range store.Projects {
+		if project.Status != "present" {
+			lines = append(lines, fmt.Sprintf(labelKnowledgeProjectAbsent, project.Project))
+			continue
+		}
+		lines = append(lines, fmt.Sprintf(labelKnowledgeProject, project.Project, project.TargetPath, project.Revision, project.Digest))
+	}
+	return lines
 }
 
 func count(n int, one, many string) string {

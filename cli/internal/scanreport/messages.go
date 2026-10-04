@@ -439,6 +439,8 @@ const (
 
 // Knowledge database failure reasons, shown in UsageKnowledgeDBFailed.
 const (
+	KnowledgeDBNotPrivate    = "the database directory must be private to its owner (mode 0700) and not a symbolic link"
+	KnowledgeDBNotAStore     = "the directory is not a knowledge database (no profile or selection file); run prufyx db update or db import first"
 	KnowledgeDBMissing       = "no knowledge database directory at that path"
 	KnowledgeDBNoSelection   = "no verified revision is selected; run prufyx db update or db import first"
 	KnowledgeDBLayout        = "the database layout does not match its profile marker"

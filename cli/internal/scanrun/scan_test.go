@@ -477,6 +477,8 @@ func TestScanUsage(t *testing.T) {
 		{"--to"}, {"--to", "kubernetes"}, {"--to", "=1.2.3"}, {"--format", "xml"}, {"--format", "SARIF"}, {"--now", "2026-10-04T00:00:00+02:00"},
 		{"--now", "2026-10-04T00:00:00.5Z"}, {"--input-permissions", "loose"}, {"--distribution", "eks"}, {"--bogus"},
 		{"--knowledge-db", "dir", "--knowledge-db", "dir"}, {"--knowledge-db", ""}, {"--knowledge-db", "a\nb"}, {"--knowledge-db"},
+		{"--knowledge-db", "a\u009b31mX"}, {"--knowledge-db", "a\x9bb"}, {"--knowledge-db", "db\u202egnp.txt"}, {"--knowledge-db", "a\u200bb"},
+		{"--knowledge-db", "a\u2028b"}, {"--knowledge-db", "a\x7fb"},
 		{"--knowledge-db", "dir", "--now", "2026-10-04T00:00:00Z"}, {"-", "-"}, {"--to", "kubernetes=1.2.3", "--to", "kubernetes=1.2.4"}, {"--redact=maybe"},
 		{"--format", "json", "--format", "human"},
 	} {
@@ -490,6 +492,12 @@ func TestScanUsage(t *testing.T) {
 	}
 	if request, err := ParseArgs([]string{"--knowledge-db", "x"}); err != nil || request.KnowledgeDB != "x" {
 		t.Fatalf("knowledge-db: %+v %v", request, err)
+	}
+	// Every output format accepts a database; non-ASCII printable paths are fine.
+	for _, format := range []string{"human", "json", "sarif", "markdown"} {
+		if request, err := ParseArgs([]string{"--format", format, "--knowledge-db", "/srv/données/db"}); err != nil || request.Format != format || request.KnowledgeDB != "/srv/données/db" {
+			t.Fatalf("--format %s with --knowledge-db: %+v %v", format, request, err)
+		}
 	}
 	if _, err := ParseArgs([]string{"--now", testNow, "--knowledge-db=x"}); err == nil || !strings.Contains(err.Error(), "--now cannot be used with --knowledge-db") {
 		t.Fatalf("knowledge-db with --now: %v", err)

@@ -58,9 +58,8 @@ func (e *StoreError) Unwrap() error { return ErrIntegrity }
 // database at path for the named catalog projects, with the verification
 // every check with --knowledge-db uses. Any failure is a *StoreError.
 func OpenStore(path string, projects []string) (*Store, error) {
-	// The database must exist: a scan never creates one.
-	if info, err := os.Stat(path); err != nil || !info.IsDir() {
-		return nil, &StoreError{Reason: scanreport.KnowledgeDBMissing}
+	if reason := precheckStore(path); reason != "" {
+		return nil, &StoreError{Reason: reason}
 	}
 	selection, err := cncfknowledge.OpenScan(path, projects)
 	if err != nil {
@@ -94,6 +93,38 @@ func OpenStore(path string, projects []string) (*Store, error) {
 		return nil, &StoreError{Reason: scanreport.KnowledgeDBIntegrity}
 	}
 	return &Store{snapshot: snapshot, digests: digests, revision: selection.Revision, digest: selection.BundleDigest, info: info}, nil
+}
+
+// storeMarkers are the files of which an existing knowledge database holds
+// at least one: the profile marker, the selection, or a pending import that
+// needs recovery.
+var storeMarkers = []string{"profile.json", "selection.json", "import-pending.json"}
+
+// precheckStore refuses, without writing anything, a path that is not an
+// existing knowledge database: scan is read-only, and the database opener
+// takes a lock (creating its lock file) and creates a missing directory. The
+// path must be a directory, not a symbolic link, private to its owner (mode
+// 0700, as the database requires), holding a profile, selection or pending
+// import file. It returns the failure class, or "" when the opener may run;
+// the opener still verifies everything, without following symbolic links.
+func precheckStore(path string) string {
+	info, err := os.Lstat(path)
+	switch {
+	case err != nil:
+		return scanreport.KnowledgeDBMissing
+	case info.Mode()&os.ModeSymlink != 0:
+		return scanreport.KnowledgeDBNotPrivate
+	case !info.IsDir():
+		return scanreport.KnowledgeDBMissing
+	case info.Mode().Perm() != 0o700:
+		return scanreport.KnowledgeDBNotPrivate
+	}
+	for _, name := range storeMarkers {
+		if marker, err := os.Lstat(filepath.Join(path, name)); err == nil && marker.Mode().IsRegular() {
+			return ""
+		}
+	}
+	return scanreport.KnowledgeDBNotAStore
 }
 
 // storeFailure names the class of a database failure.
