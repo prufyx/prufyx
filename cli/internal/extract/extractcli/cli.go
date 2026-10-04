@@ -27,8 +27,10 @@ import (
 )
 
 const usage = `usage:
-  prufyx-maintainer extract run    --extractor ID (--mirror-state DIR | --fixture DIR) --out DIR [--derived-at RFC3339] [--concurrency N]
+  prufyx-maintainer extract run    --extractor ID (--mirror-state DIR | --fixture DIR) --out DIR [--derived-at RFC3339] [--concurrency N] [--wants-out FILE]
   prufyx-maintainer extract verify --extractor ID (--mirror-state DIR | --fixture DIR) --out DIR [--concurrency N]
+  prufyx-maintainer extract apply  --out DIR --pack FILE [--withdraw]
+  prufyx-maintainer extract inventory --extractor ID (--mirror-state DIR | --fixture DIR) --repo OWNER/NAME --commit SHA
   prufyx-maintainer extract oracle --extractor ID --out DIR --expected FILE
   prufyx-maintainer extract list`
 
@@ -75,7 +77,9 @@ func Catalog() map[string]Spec {
 // Main runs an "extract" subcommand (args exclude the word "extract").
 // existingRules are published pack files whose rule ids candidates must not
 // reuse. It returns 0 on success, 1 when verification or the oracle found
-// differences, 2 on rejected input or a failed run.
+// differences, 2 on rejected input or a failed run, and 3 when a run needs
+// blobs the mirror does not hold (run --wants-out) or an inventory cannot be
+// established completely (inventory).
 func Main(args []string, existingRules []string, now func() time.Time, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
 		fmt.Fprintln(stderr, usage)
@@ -90,6 +94,10 @@ func Main(args []string, existingRules []string, now func() time.Time, stdout, s
 		code, err = cmdVerify(args[1:], existingRules, stdout)
 	case "oracle":
 		code, err = cmdOracle(args[1:], stdout)
+	case "apply":
+		code, err = cmdApply(args[1:], existingRules, stdout)
+	case "inventory":
+		code, err = cmdInventory(args[1:], stdout, stderr)
 	case "list":
 		if len(args) != 1 {
 			fmt.Fprintln(stderr, usage)
@@ -174,6 +182,8 @@ func cmdRun(args []string, existing []string, now func() time.Time, stdout io.Wr
 	var derivedAt string
 	f := flags("extract run", &c, true)
 	f.StringVar(&derivedAt, "derived-at", "", "derivation time, RFC 3339 UTC (default now)")
+	var wantsOut string
+	f.StringVar(&wantsOut, "wants-out", "", "write the pinned files the mirror does not hold here (exit 3) instead of deriving")
 	if err := f.Parse(args); err != nil || f.NArg() != 0 || c.extractor == "" || c.out == "" {
 		return 2, errors.New("command rejected\n" + usage)
 	}
@@ -192,7 +202,23 @@ func cmdRun(args []string, existing []string, now func() time.Time, stdout io.Wr
 	}
 	ctx, stop := signalContext()
 	defer stop()
-	out, err := extract.Run(ctx, ex, src, src, extract.Options{Repo: repo, DerivedAt: at, ExistingRules: existing})
+	var reader extract.PinnedReader = src
+	var wants *wantsReader
+	if wantsOut != "" {
+		wants = &wantsReader{inner: src, missing: map[wantKey]bool{}}
+		reader = wants
+	}
+	out, err := extract.Run(ctx, ex, src, reader, extract.Options{Repo: repo, DerivedAt: at, ExistingRules: existing})
+	if wants != nil && len(wants.missing) > 0 {
+		// Whatever the run did next, it read stand-in bytes for the
+		// missing files: nothing it derived is written.
+		n, err := wants.write(wantsOut)
+		if err != nil {
+			return 2, err
+		}
+		fmt.Fprintf(stdout, "needs %d files the mirror does not hold; wants written to %s (nothing derived)\n", n, wantsOut)
+		return 3, nil
+	}
 	if err != nil {
 		return 2, err
 	}

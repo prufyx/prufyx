@@ -1,0 +1,638 @@
+{
+  "entries": [
+    {
+      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaBridge (CustomResourceDefinition kafkabridges.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "strimzi",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "description": "Custom-resource versions (group/version/Kind) of the Strimzi custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.strimzi.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-10-04T00:00:00Z",
+          "extractor": {
+            "codeDigest": "sha256:4e699ae95ac1e5684d834c8cb4c201e224c42bc10b19a1531948e7aa67abee84",
+            "id": "crd.version-removal.strimzi",
+            "version": "1.0.0"
+          },
+          "reviewedAt": "2026-10-04T00:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:7207edaba584a621968fbf01668fd778174db70c9c6ee7184a1fda4f92d092b4",
+              "endLine": 48,
+              "id": "crd-1-0-0",
+              "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+              "startLine": 1,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/046-Crd-kafkabridge.yaml"
+            },
+            {
+              "contentDigest": "sha256:8f8cdde2f279b32df334a989b7ef82ecc1083d71ee85ba39be2587d3bd0f726d",
+              "endLine": 76,
+              "id": "crd-versions-0-51-0",
+              "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+              "startLine": 49,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/54081abf97d0e5e524de773b88343756934db1a8/install/cluster-operator/046-Crd-kafkabridge.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-02T00:00:00Z"
+        },
+        "id": "strimzi.crd-version-removal.kafkabridges-kafka-strimzi-io.0-51-0-to-1-0-0",
+        "nextAction": "change apiVersion of KafkaBridge to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "factId": "component.strimzi.custom_resource_versions_set",
+          "members": [
+            "kafka.strimzi.io/v1beta2/KafkaBridge"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "from": "0.51.0",
+          "to": "1.0.0"
+        }
+      }
+    },
+    {
+      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaConnector (CustomResourceDefinition kafkaconnectors.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "strimzi",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "description": "Custom-resource versions (group/version/Kind) of the Strimzi custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.strimzi.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-10-04T00:00:00Z",
+          "extractor": {
+            "codeDigest": "sha256:4e699ae95ac1e5684d834c8cb4c201e224c42bc10b19a1531948e7aa67abee84",
+            "id": "crd.version-removal.strimzi",
+            "version": "1.0.0"
+          },
+          "reviewedAt": "2026-10-04T00:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:76035c83ec04efe73715eb0be66bcfc2c0b83292255ece854108f097d8d90a6e",
+              "endLine": 50,
+              "id": "crd-1-0-0",
+              "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+              "startLine": 1,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/047-Crd-kafkaconnector.yaml"
+            },
+            {
+              "contentDigest": "sha256:d65d364c7bd5dcb02f94a9ea7169da3dff3484be61279121cde555b2dc706a63",
+              "endLine": 80,
+              "id": "crd-versions-0-51-0",
+              "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+              "startLine": 51,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/54081abf97d0e5e524de773b88343756934db1a8/install/cluster-operator/047-Crd-kafkaconnector.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-02T00:00:00Z"
+        },
+        "id": "strimzi.crd-version-removal.kafkaconnectors-kafka-strimzi-io.0-51-0-to-1-0-0",
+        "nextAction": "change apiVersion of KafkaConnector to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "factId": "component.strimzi.custom_resource_versions_set",
+          "members": [
+            "kafka.strimzi.io/v1beta2/KafkaConnector"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "from": "0.51.0",
+          "to": "1.0.0"
+        }
+      }
+    },
+    {
+      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaConnect (CustomResourceDefinition kafkaconnects.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "strimzi",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "description": "Custom-resource versions (group/version/Kind) of the Strimzi custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.strimzi.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-10-04T00:00:00Z",
+          "extractor": {
+            "codeDigest": "sha256:4e699ae95ac1e5684d834c8cb4c201e224c42bc10b19a1531948e7aa67abee84",
+            "id": "crd.version-removal.strimzi",
+            "version": "1.0.0"
+          },
+          "reviewedAt": "2026-10-04T00:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:a66435ebf54ee2bf8c4f7e9adda9bcdc64623d0587d76d0a26f353c5edcad140",
+              "endLine": 43,
+              "id": "crd-1-0-0",
+              "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+              "startLine": 1,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/041-Crd-kafkaconnect.yaml"
+            },
+            {
+              "contentDigest": "sha256:d42888f221b75cbe2b31aa53979808b3448f48698cbab70da9e0a13b021f294c",
+              "endLine": 66,
+              "id": "crd-versions-0-51-0",
+              "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+              "startLine": 44,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/54081abf97d0e5e524de773b88343756934db1a8/install/cluster-operator/041-Crd-kafkaconnect.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-02T00:00:00Z"
+        },
+        "id": "strimzi.crd-version-removal.kafkaconnects-kafka-strimzi-io.0-51-0-to-1-0-0",
+        "nextAction": "change apiVersion of KafkaConnect to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "factId": "component.strimzi.custom_resource_versions_set",
+          "members": [
+            "kafka.strimzi.io/v1beta2/KafkaConnect"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "from": "0.51.0",
+          "to": "1.0.0"
+        }
+      }
+    },
+    {
+      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaMirrorMaker2 (CustomResourceDefinition kafkamirrormaker2s.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "strimzi",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "description": "Custom-resource versions (group/version/Kind) of the Strimzi custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.strimzi.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-10-04T00:00:00Z",
+          "extractor": {
+            "codeDigest": "sha256:4e699ae95ac1e5684d834c8cb4c201e224c42bc10b19a1531948e7aa67abee84",
+            "id": "crd.version-removal.strimzi",
+            "version": "1.0.0"
+          },
+          "reviewedAt": "2026-10-04T00:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:9ea679ea08950d3e47ef6babe8b77b1bcc5b62e5436939b2eb82de92612ffe5f",
+              "endLine": 43,
+              "id": "crd-1-0-0",
+              "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+              "startLine": 1,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/048-Crd-kafkamirrormaker2.yaml"
+            },
+            {
+              "contentDigest": "sha256:bb8a6ed5d8411d7752c35b5aaf178ebea74faa10eb94a10c3d6506fca3c1ec17",
+              "endLine": 66,
+              "id": "crd-versions-0-51-0",
+              "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+              "startLine": 44,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/54081abf97d0e5e524de773b88343756934db1a8/install/cluster-operator/048-Crd-kafkamirrormaker2.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-02T00:00:00Z"
+        },
+        "id": "strimzi.crd-version-removal.kafkamirrormaker2s-kafka-strimzi-io.0-51-0-to-1-0-0",
+        "nextAction": "change apiVersion of KafkaMirrorMaker2 to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "factId": "component.strimzi.custom_resource_versions_set",
+          "members": [
+            "kafka.strimzi.io/v1beta2/KafkaMirrorMaker2"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "from": "0.51.0",
+          "to": "1.0.0"
+        }
+      }
+    },
+    {
+      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaNodePool (CustomResourceDefinition kafkanodepools.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "strimzi",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "description": "Custom-resource versions (group/version/Kind) of the Strimzi custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.strimzi.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-10-04T00:00:00Z",
+          "extractor": {
+            "codeDigest": "sha256:4e699ae95ac1e5684d834c8cb4c201e224c42bc10b19a1531948e7aa67abee84",
+            "id": "crd.version-removal.strimzi",
+            "version": "1.0.0"
+          },
+          "reviewedAt": "2026-10-04T00:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:06f71302e4c4d84cfca1ff576fef1bf310cf1723f7c6639cdf50d2b40c81c22a",
+              "endLine": 47,
+              "id": "crd-1-0-0",
+              "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+              "startLine": 1,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/045-Crd-kafkanodepool.yaml"
+            },
+            {
+              "contentDigest": "sha256:5dc672f65bae98d21c8af01b49d2b862285948328eff68fe51d9f9b0aeb8d94c",
+              "endLine": 74,
+              "id": "crd-versions-0-51-0",
+              "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+              "startLine": 48,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/54081abf97d0e5e524de773b88343756934db1a8/install/cluster-operator/045-Crd-kafkanodepool.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-02T00:00:00Z"
+        },
+        "id": "strimzi.crd-version-removal.kafkanodepools-kafka-strimzi-io.0-51-0-to-1-0-0",
+        "nextAction": "change apiVersion of KafkaNodePool to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "factId": "component.strimzi.custom_resource_versions_set",
+          "members": [
+            "kafka.strimzi.io/v1beta2/KafkaNodePool"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "from": "0.51.0",
+          "to": "1.0.0"
+        }
+      }
+    },
+    {
+      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaRebalance (CustomResourceDefinition kafkarebalances.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "strimzi",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "description": "Custom-resource versions (group/version/Kind) of the Strimzi custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.strimzi.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-10-04T00:00:00Z",
+          "extractor": {
+            "codeDigest": "sha256:4e699ae95ac1e5684d834c8cb4c201e224c42bc10b19a1531948e7aa67abee84",
+            "id": "crd.version-removal.strimzi",
+            "version": "1.0.0"
+          },
+          "reviewedAt": "2026-10-04T00:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:c15a424ee0c0f23f99c1a4a9cf4104bf6cf4e3cd2ccd728734a5a4eb3e02e874",
+              "endLine": 43,
+              "id": "crd-1-0-0",
+              "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+              "startLine": 1,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/049-Crd-kafkarebalance.yaml"
+            },
+            {
+              "contentDigest": "sha256:8439c278b36fa643fb3a1592aad01a6c972ac2d3dbb2de6ae538e0c51a13fc91",
+              "endLine": 66,
+              "id": "crd-versions-0-51-0",
+              "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+              "startLine": 44,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/54081abf97d0e5e524de773b88343756934db1a8/install/cluster-operator/049-Crd-kafkarebalance.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-02T00:00:00Z"
+        },
+        "id": "strimzi.crd-version-removal.kafkarebalances-kafka-strimzi-io.0-51-0-to-1-0-0",
+        "nextAction": "change apiVersion of KafkaRebalance to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "factId": "component.strimzi.custom_resource_versions_set",
+          "members": [
+            "kafka.strimzi.io/v1beta2/KafkaRebalance"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "from": "0.51.0",
+          "to": "1.0.0"
+        }
+      }
+    },
+    {
+      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of Kafka (CustomResourceDefinition kafkas.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "strimzi",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "description": "Custom-resource versions (group/version/Kind) of the Strimzi custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.strimzi.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-10-04T00:00:00Z",
+          "extractor": {
+            "codeDigest": "sha256:4e699ae95ac1e5684d834c8cb4c201e224c42bc10b19a1531948e7aa67abee84",
+            "id": "crd.version-removal.strimzi",
+            "version": "1.0.0"
+          },
+          "reviewedAt": "2026-10-04T00:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:9fb9dc12f8a4f9b5e601beb1e53651ea18ac0d6d65bea7feb282e8e77191ce52",
+              "endLine": 47,
+              "id": "crd-1-0-0",
+              "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+              "startLine": 1,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/040-Crd-kafka.yaml"
+            },
+            {
+              "contentDigest": "sha256:d5ce41615456e6ff86281600638c2b11decd60b472cd025851fdfe64f91e1670",
+              "endLine": 74,
+              "id": "crd-versions-0-51-0",
+              "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+              "startLine": 48,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/54081abf97d0e5e524de773b88343756934db1a8/install/cluster-operator/040-Crd-kafka.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-02T00:00:00Z"
+        },
+        "id": "strimzi.crd-version-removal.kafkas-kafka-strimzi-io.0-51-0-to-1-0-0",
+        "nextAction": "change apiVersion of Kafka to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "factId": "component.strimzi.custom_resource_versions_set",
+          "members": [
+            "kafka.strimzi.io/v1beta2/Kafka"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "from": "0.51.0",
+          "to": "1.0.0"
+        }
+      }
+    },
+    {
+      "description": "Strimzi 1.0.0 no longer serves versions v1alpha1, v1beta1, v1beta2 of KafkaTopic (CustomResourceDefinition kafkatopics.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "strimzi",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "description": "Custom-resource versions (group/version/Kind) of the Strimzi custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.strimzi.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-10-04T00:00:00Z",
+          "extractor": {
+            "codeDigest": "sha256:4e699ae95ac1e5684d834c8cb4c201e224c42bc10b19a1531948e7aa67abee84",
+            "id": "crd.version-removal.strimzi",
+            "version": "1.0.0"
+          },
+          "reviewedAt": "2026-10-04T00:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:7ae4fbe57780210700a431e034312d91a1ba509192740b0b5a453068f405689d",
+              "endLine": 47,
+              "id": "crd-1-0-0",
+              "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+              "startLine": 1,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/043-Crd-kafkatopic.yaml"
+            },
+            {
+              "contentDigest": "sha256:5a0c28bc05763062f33ec0d2f7c395bcb7c5504b8a1418aec783075bcebbce5d",
+              "endLine": 128,
+              "id": "crd-versions-0-51-0",
+              "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+              "startLine": 48,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/54081abf97d0e5e524de773b88343756934db1a8/install/cluster-operator/043-Crd-kafkatopic.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-02T00:00:00Z"
+        },
+        "id": "strimzi.crd-version-removal.kafkatopics-kafka-strimzi-io.0-51-0-to-1-0-0",
+        "nextAction": "change apiVersion of KafkaTopic to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "factId": "component.strimzi.custom_resource_versions_set",
+          "members": [
+            "kafka.strimzi.io/v1alpha1/KafkaTopic",
+            "kafka.strimzi.io/v1beta1/KafkaTopic",
+            "kafka.strimzi.io/v1beta2/KafkaTopic"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "from": "0.51.0",
+          "to": "1.0.0"
+        }
+      }
+    },
+    {
+      "description": "Strimzi 1.0.0 no longer serves versions v1alpha1, v1beta1, v1beta2 of KafkaUser (CustomResourceDefinition kafkausers.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "strimzi",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "description": "Custom-resource versions (group/version/Kind) of the Strimzi custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.strimzi.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-10-04T00:00:00Z",
+          "extractor": {
+            "codeDigest": "sha256:4e699ae95ac1e5684d834c8cb4c201e224c42bc10b19a1531948e7aa67abee84",
+            "id": "crd.version-removal.strimzi",
+            "version": "1.0.0"
+          },
+          "reviewedAt": "2026-10-04T00:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:5f148b0340ad21e9e182a36f062026888f5747995c9a8fae247c34faed1d9693",
+              "endLine": 47,
+              "id": "crd-1-0-0",
+              "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+              "startLine": 1,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/044-Crd-kafkauser.yaml"
+            },
+            {
+              "contentDigest": "sha256:dc1c68c1e3e3725fcef5c6e5d25a391e26d873ed2acbd4b76c30f90a3481f700",
+              "endLine": 128,
+              "id": "crd-versions-0-51-0",
+              "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+              "startLine": 48,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/54081abf97d0e5e524de773b88343756934db1a8/install/cluster-operator/044-Crd-kafkauser.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-02T00:00:00Z"
+        },
+        "id": "strimzi.crd-version-removal.kafkausers-kafka-strimzi-io.0-51-0-to-1-0-0",
+        "nextAction": "change apiVersion of KafkaUser to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "factId": "component.strimzi.custom_resource_versions_set",
+          "members": [
+            "kafka.strimzi.io/v1alpha1/KafkaUser",
+            "kafka.strimzi.io/v1beta1/KafkaUser",
+            "kafka.strimzi.io/v1beta2/KafkaUser"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "from": "0.51.0",
+          "to": "1.0.0"
+        }
+      }
+    },
+    {
+      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of StrimziPodSet (CustomResourceDefinition strimzipodsets.core.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "strimzi",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "description": "Custom-resource versions (group/version/Kind) of the Strimzi custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.strimzi.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-10-04T00:00:00Z",
+          "extractor": {
+            "codeDigest": "sha256:4e699ae95ac1e5684d834c8cb4c201e224c42bc10b19a1531948e7aa67abee84",
+            "id": "crd.version-removal.strimzi",
+            "version": "1.0.0"
+          },
+          "reviewedAt": "2026-10-04T00:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:7184a0a90afc667b327196146e881809a869ee1e67aeaf7c76cbe7c8164c1c00",
+              "endLine": 47,
+              "id": "crd-1-0-0",
+              "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+              "startLine": 1,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/042-Crd-strimzipodset.yaml"
+            },
+            {
+              "contentDigest": "sha256:5d131f334b596c9f7e6d9a9b7aa58c175fe238bdc3308e623e443a4f95313d74",
+              "endLine": 74,
+              "id": "crd-versions-0-51-0",
+              "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+              "startLine": 48,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/54081abf97d0e5e524de773b88343756934db1a8/install/cluster-operator/042-Crd-strimzipodset.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-02T00:00:00Z"
+        },
+        "id": "strimzi.crd-version-removal.strimzipodsets-core-strimzi-io.0-51-0-to-1-0-0",
+        "nextAction": "change apiVersion of StrimziPodSet to core.strimzi.io/v1 before upgrading to 1.0.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "factId": "component.strimzi.custom_resource_versions_set",
+          "members": [
+            "core.strimzi.io/v1beta2/StrimziPodSet"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "from": "0.51.0",
+          "to": "1.0.0"
+        }
+      }
+    }
+  ]
+}

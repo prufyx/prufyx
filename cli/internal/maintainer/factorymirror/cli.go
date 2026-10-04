@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -19,6 +20,8 @@ import (
 
 const usage = `usage:
   prufyx-maintainer factory mirror --state DIR --registry FILE [--wants FILE] [--concurrency N] [--force]
+                                   [--release-pages N] [--remote-base URL]
+                                   [--test-allow-file-remote [--test-releases-api-base URL]]
   prufyx-maintainer factory registry derive --out FILE [--rules FILE]... [--extra FILE]... [--wants-out FILE]
   prufyx-maintainer factory ack --state DIR --repo OWNER/REPO [--alarm ID] --note TEXT
   prufyx-maintainer factory status --state DIR`
@@ -87,6 +90,7 @@ func cmdMirror(args []string, getenv func(string) string, stdout, stderr io.Writ
 	remoteBase := f.String("remote-base", "https://", "URL prefix for upstream repositories (https:// only)")
 	releasePages := f.Int("release-pages", DefaultReleasePages, "release pages (100 per page) to read per repository; 0 reads all of them")
 	allowFile := f.Bool("test-allow-file-remote", false, "testing only: permit a file:// --remote-base")
+	testAPIBase := f.String("test-releases-api-base", "", "testing only (needs --test-allow-file-remote): read release metadata from this http(s) base URL instead of api.github.com")
 	gitTimeout := f.Duration("git-timeout", 45*time.Minute, "limit for one clone or fetch")
 	staleAfter := f.Duration("lock-stale-after", DefaultLockStaleAfter, "age after which an unrefreshed lock is abandoned")
 	if err := f.Parse(args); err != nil || f.NArg() != 0 {
@@ -118,7 +122,11 @@ func cmdMirror(args []string, getenv func(string) string, stdout, stderr io.Writ
 		}
 		wants = doc.Wants
 	}
-	tokens, err := TokenSourceFromEnv(getenv, time.Now)
+	apiBase, err := validateTestAPIBase(*testAPIBase, *allowFile)
+	if err != nil {
+		return 0, err
+	}
+	tokens, err := TokenSourceFromEnvBase(getenv, time.Now, apiBase)
 	if err != nil {
 		return 0, err
 	}
@@ -128,7 +136,7 @@ func cmdMirror(args []string, getenv func(string) string, stdout, stderr io.Writ
 		LockStaleAfter: *staleAfter, Progress: stderr,
 	}
 	if tokens != nil {
-		opts.Releases = GitHubReleases{Tokens: tokens, MaxPages: *releasePages, CompleteScan: *releasePages == 0}
+		opts.Releases = GitHubReleases{Tokens: tokens, BaseURL: apiBase, MaxPages: *releasePages, CompleteScan: *releasePages == 0}
 	} else {
 		fmt.Fprintln(stderr, "mirror: no GitHub credential configured; release metadata is recorded as unknown")
 	}
@@ -156,6 +164,24 @@ func cmdMirror(args []string, getenv func(string) string, stdout, stderr io.Writ
 		}
 	}
 	return 0, nil
+}
+
+// validateTestAPIBase checks the test-only releases API base. It is refused
+// unless the test flag that permits a file:// remote is also set, so a
+// production run can never send its credential to another host. It returns
+// the base without a trailing slash, or "" when none was given.
+func validateTestAPIBase(base string, allowTestRemotes bool) (string, error) {
+	if base == "" {
+		return "", nil
+	}
+	if !allowTestRemotes {
+		return "", fmt.Errorf("%w: --test-releases-api-base needs --test-allow-file-remote", ErrInvalid)
+	}
+	u, err := url.Parse(base)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		return "", fmt.Errorf("%w: --test-releases-api-base must be an http(s) URL without credentials, query or fragment", ErrInvalid)
+	}
+	return strings.TrimRight(base, "/"), nil
 }
 
 func cmdDerive(args []string, defaultPacks []string, stdout io.Writer) error {

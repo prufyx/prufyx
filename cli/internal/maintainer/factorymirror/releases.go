@@ -102,6 +102,13 @@ func (t StaticToken) Token(context.Context) (string, error) { return string(t), 
 // PRUFYX_GITHUB_APP_KEY_FILE are all set, otherwise GITHUB_TOKEN (or
 // GH_TOKEN). It returns nil when no credential is configured.
 func TokenSourceFromEnv(getenv func(string) string, now func() time.Time) (TokenSource, error) {
+	return TokenSourceFromEnvBase(getenv, now, "")
+}
+
+// TokenSourceFromEnvBase is TokenSourceFromEnv with the GitHub API base URL
+// a GitHub App exchanges its key at ("" is the public API). It exists so a
+// test API base receives the app exchange instead of api.github.com.
+func TokenSourceFromEnvBase(getenv func(string) string, now func() time.Time, apiBase string) (TokenSource, error) {
 	appID, inst, keyFile := getenv("PRUFYX_GITHUB_APP_ID"), getenv("PRUFYX_GITHUB_APP_INSTALLATION_ID"), getenv("PRUFYX_GITHUB_APP_KEY_FILE")
 	if appID != "" || inst != "" || keyFile != "" {
 		if appID == "" || inst == "" || keyFile == "" {
@@ -111,7 +118,7 @@ func TokenSourceFromEnv(getenv func(string) string, now func() time.Time) (Token
 		if err != nil {
 			return nil, fmt.Errorf("%w: GitHub App key: %v", ErrInvalid, err)
 		}
-		return NewAppTokenSource(appID, inst, pemBytes, "", nil, now)
+		return NewAppTokenSource(appID, inst, pemBytes, apiBase, nil, now)
 	}
 	for _, name := range []string{"GITHUB_TOKEN", "GH_TOKEN"} {
 		if v := strings.TrimSpace(getenv(name)); v != "" {
