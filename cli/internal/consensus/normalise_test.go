@@ -332,7 +332,7 @@ func TestNormaliseBarriers(t *testing.T) {
 		{"raw HTML outside the read subsections", "# v1.41.0\n\n## Changelog since v1.40.0\n\n<details>\n\n" + tail, "raw HTML"},
 		{"inside a comment", "# v1.41.0\n\n## Changelog since v1.40.0\n\n<!--\nnote\n-->\n\n" + tail, "inside HTML block"},
 		{"release heading inside a comment", "<!--\n# v1.41.0\n-->\n\n" + tail, "the release heading is inside HTML block"},
-		{"element left open before the release heading", "# v1.41.1\n\n<details>\n\n- newer\n\n# v1.41.0\n\n" + tail, "HTML element <details> left open"},
+		{"element left open before the release heading", "# v1.41.1\n\n<details>\n\n- newer\n\n# v1.41.0\n\n" + tail, "HTML element <details> opened before the release heading"},
 		{"indented level-2 heading", "# v1.41.0\n\n  ## Changes by Kind\n\n" + tail, "indented level-1 or level-2 heading"},
 	} {
 		n := mustNormalise(t, tc.src)

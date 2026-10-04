@@ -642,8 +642,8 @@ func scanCodeSpans(s string) (plain string, ok bool) {
 }
 
 // githubElements are the non-void HTML elements GitHub keeps when it
-// renders Markdown. One left open before the release heading wraps the
-// whole section (a <details> collapses it).
+// renders Markdown. One opened before the release heading may wrap the
+// whole section (a <details> collapses it), whatever closes it later.
 var githubElements = map[string]bool{
 	"a": true, "abbr": true, "b": true, "bdo": true, "blockquote": true, "caption": true, "cite": true, "code": true,
 	"dd": true, "del": true, "details": true, "dfn": true, "div": true, "dl": true, "dt": true, "em": true,
@@ -652,67 +652,104 @@ var githubElements = map[string]bool{
 	"rp": true, "rt": true, "ruby": true, "s": true, "samp": true, "small": true, "span": true, "strike": true,
 	"strong": true, "sub": true, "summary": true, "sup": true, "table": true, "tbody": true, "td": true,
 	"tfoot": true, "th": true, "thead": true, "time": true, "tr": true, "tt": true, "ul": true, "var": true,
+	"section": true, "article": true, "aside": true, "nav": true, "header": true, "footer": true, "main": true,
+	"center": true, "font": true, "u": true, "big": true, "picture": true, "video": true, "audio": true,
 }
 
 var (
 	indentedHeadingRE = regexp.MustCompile(`^ {1,3}#{1,2}([ \t]|$)`)
-	tagRE             = regexp.MustCompile(`<(/?)([A-Za-z][A-Za-z0-9]*)\b[^<>]*?(/?)>`)
-	commentRE         = regexp.MustCompile(`<!--.*?-->`)
 )
 
 // barriers finds what can hide the release section when rendered: the
-// release heading inside an open construct, a GitHub element left open
-// before it, and every line of the section holding raw HTML outside code
-// spans or inside an HTML block or comment.
+// release heading inside an open construct; the start of a GitHub-kept
+// container element (with or without its ">" on the line) anywhere before
+// the release section, since closes are never balanced; and every line of
+// the section holding raw HTML or inside an HTML block or comment. Fenced
+// code is skipped. Code spans are masked only in paragraphs whose every
+// line has its backticks matched and unescaped; elsewhere the raw line is
+// checked. A same-line <code>...</code> pair is the one exception.
 func barriers(lines []Line, opens []string, start, end int) []Problem {
 	var out []Problem
 	if opens[start] != "" {
 		out = append(out, Problem{Original: lines[start].Original, Reason: "the release heading is inside " + opens[start]})
 	}
-	open := map[string]int{}
-	for i := 0; i < start; i++ {
-		if opens[i] == "fenced code" {
+	texts := barrierTexts(lines[:end], opens)
+	for i := 0; i < end; i++ {
+		if i == start || texts[i] == "" {
 			continue
 		}
-		t := commentRE.ReplaceAllString(looseCodeSpans(lines[i].Text), " ")
-		for _, m := range tagRE.FindAllStringSubmatch(t, -1) {
-			name := strings.ToLower(m[2])
-			if !githubElements[name] || m[3] == "/" {
-				continue
+		t := codePairRE.ReplaceAllString(texts[i], " ")
+		if i < start {
+			if m := containerOpenRE.FindStringSubmatch(t); m != nil {
+				out = append(out, Problem{Original: lines[i].Original, Reason: "HTML element <" + strings.ToLower(m[1]) + "> opened before the release heading"})
 			}
-			if m[1] == "/" {
-				if open[name] > 0 {
-					open[name]--
-				}
-			} else {
-				open[name]++
-			}
+			continue
 		}
-	}
-	var left []string
-	for name, n := range open {
-		if n > 0 {
-			left = append(left, "<"+name+">")
-		}
-	}
-	if len(left) > 0 {
-		sortStrings(left)
-		out = append(out, Problem{Original: lines[start].Original, Reason: "HTML element " + strings.Join(left, ", ") + " left open before the release heading"})
-	}
-	for i := start + 1; i < end; i++ {
 		switch {
-		case indentedHeadingRE.MatchString(lines[i].Text) && opens[i] != "fenced code":
+		case indentedHeadingRE.MatchString(lines[i].Text):
 			// Rendered as a level-1 or level-2 heading: what follows
 			// belongs to another section than the verifier reads.
 			out = append(out, Problem{Original: lines[i].Original, Reason: "indented level-1 or level-2 heading"})
-		case opens[i] == "fenced code":
 		case opens[i] != "":
 			out = append(out, Problem{Original: lines[i].Original, Reason: "inside " + opens[i]})
-		case rawHTMLRE.MatchString(looseCodeSpans(lines[i].Text)):
+		case rawHTMLRE.MatchString(t):
 			out = append(out, Problem{Original: lines[i].Original, Reason: "raw HTML"})
 		}
 	}
 	return out
+}
+
+// barrierTexts returns, per line, the text checked for HTML: "" for fenced
+// code (fences included); the line with code spans masked when every line
+// of its paragraph has matched, unescaped backticks; the raw line
+// otherwise.
+func barrierTexts(lines []Line, opens []string) []string {
+	out := make([]string, len(lines))
+	for i := 0; i < len(lines); {
+		if strings.TrimSpace(lines[i].Text) == "" {
+			i++
+			continue
+		}
+		j := i
+		clean := true
+		for j < len(lines) && strings.TrimSpace(lines[j].Text) != "" {
+			if _, ok := scanCodeSpans(lines[j].Text); !ok {
+				clean = false
+			}
+			j++
+		}
+		for k := i; k < j; k++ {
+			switch {
+			case opens[k] == "fenced code" || (opens[k] == "" && fenceOpenRE.MatchString(lines[k].Text)):
+			case clean:
+				out[k] = looseCodeSpans(lines[k].Text)
+			default:
+				out[k] = lines[k].Text
+			}
+		}
+		i = j
+	}
+	return out
+}
+
+var (
+	codePairRE      = regexp.MustCompile(`(?i)<code>[^<]*</code>`)
+	containerOpenRE = regexp.MustCompile(`(?i)<(` + containerNames() + `)([\s>/]|$)`)
+)
+
+func containerNames() string {
+	var names []string
+	for n := range githubElements {
+		names = append(names, n)
+	}
+	sortStrings(names)
+	// Longer names first, so "abbr" is not read as "a".
+	for i := 1; i < len(names); i++ {
+		for j := i; j > 0 && len(names[j]) > len(names[j-1]); j-- {
+			names[j], names[j-1] = names[j-1], names[j]
+		}
+	}
+	return strings.Join(names, "|")
 }
 
 func sortStrings(a []string) {

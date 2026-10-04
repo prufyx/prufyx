@@ -214,3 +214,40 @@ func TestHiddenContentAttacksSecondSeries(t *testing.T) {
 		}
 	}
 }
+
+// Third series: HTML opened before the release heading or outside the read
+// subsections, in forms a tag-balancing check would miss. Every one is a
+// lead.
+func TestHiddenContentAttacksThirdSeries(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join(corpusDir, "controls", "C01-gate-link-squash", "CHANGELOG-1.41.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := strings.Replace(string(raw), retired, atkItem, 1)
+	beforeRelease := func(ins string) string { return strings.Replace(base, "# v1.41.0\n", ins+"# v1.41.0\n", 1) }
+	inChangelogSince := func(ins string) string {
+		return strings.Replace(base, "## Changelog since v1.40.0\n\n", "## Changelog since v1.40.0\n\n"+ins, 1)
+	}
+	for _, c := range []struct{ id, desc, text string }{
+		{"B01", "<details> opened before the release heading, closed after the cited item", strings.Replace(beforeRelease("<details>\n\n"), "### Feature", "</details>\n\n### Feature", 1)},
+		{"B02", "open tag split over two lines before the release heading", beforeRelease("<details\nopen>\n\n")},
+		{"B03", "the close tag in an indented code block", beforeRelease("<details>\n\n    </details>\n\n")},
+		{"B04", "the close tag inside a multi-line comment", beforeRelease("<details>\n\n<!--\n</details>\n-->\n\n")},
+		{"B05", "an escaped close tag", beforeRelease("<details>\n\nsee \\</details> here\n\n")},
+		{"B06", "escaped backticks around <details> outside the read subsections", inChangelogSince("note \\`<details>\\` here\n\n")},
+		{"B07", "escaped backticks around <details> before the release heading", beforeRelease("note \\`<details>\\` here\n\n")},
+		{"B08", "a code span paired across lines leaves <details> raw", inChangelogSince("note `x\ny` <details> `z\n\n")},
+	} {
+		root := fixtureWith(t, []byte(c.text))
+		cl := verifyFixture(t, root, honestBundle(t, root, []Claim{{ID: "c1", Kind: "removed_feature_gate", Names: []string{"SilentDial"}}})).Claims[0]
+		if cl.Verdict != VerdictLead {
+			t.Errorf("%s (%s): %s:%s, want a lead", c.id, c.desc, cl.Verdict, cl.Reason)
+		}
+	}
+	// The plain item and same-line <code> pairs or unknown tags before
+	// the release stay citable.
+	root := fixtureWith(t, []byte(beforeRelease("- [<code>x</code>](#x) /api/<version>/watch\n\n")))
+	if cl := verifyFixture(t, root, honestBundle(t, root, []Claim{{ID: "c1", Kind: "removed_feature_gate", Names: []string{"SilentDial"}}})).Claims[0]; cl.Verdict != VerdictVerified {
+		t.Errorf("control: %s:%s (%s)", cl.Verdict, cl.Reason, cl.Detail)
+	}
+}
