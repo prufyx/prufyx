@@ -524,6 +524,11 @@ func TestRedactedRenderingsLeakNothing(t *testing.T) {
 			}
 		}
 	}
+	// Like the human output, Markdown shows a redacted value as a digest prefix.
+	md := string(Markdown(report, MarkdownOptions{}))
+	if !strings.Contains(md, RedactValue("canary-name-3")[:19]+"`") || strings.Contains(md, RedactValue("canary-name-3")) || strings.Contains(md, RedactValue("canary-ns")) {
+		t.Errorf("redacted names are not shown as a digest prefix:\n%s", md)
+	}
 	raw, _ := SARIF(report)
 	if err := validateSARIF(raw); err != nil {
 		t.Fatal(err)
