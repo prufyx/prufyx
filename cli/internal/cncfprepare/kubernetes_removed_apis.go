@@ -398,6 +398,14 @@ func kubernetesApplySetOf(workspace intake.Workspace) kubernetesApplySet {
 	return kubernetesApplySet{documents: placed, paginated: paginated}
 }
 
+// KubernetesApplySetReason is the reason the documents of a workspace cannot
+// be read as one apply set (ReasonKubernetesTemplated or
+// ReasonKubernetesUnresolved), or "" when they can. It reads the documents
+// whatever the declarations are.
+func KubernetesApplySetReason(workspace intake.Workspace) Reason {
+	return kubernetesApplySetOf(workspace).reason
+}
+
 // appliedAsWritten keeps, of the placed documents of an unresolved set, the
 // ones that are applied as written whatever the unread documents hold. A
 // document is left out when it cannot be shown to be rendered and applied

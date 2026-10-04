@@ -65,6 +65,7 @@ func (r *customResourceRun) evaluate(from, to string) error {
 	r.findings, r.passes, r.excluded = map[string]int{}, map[string]bool{}, map[string]bool{}
 	r.rootGaps = map[scanreport.GapKey]scanreport.Gap{}
 	r.componentGaps()
+	r.unresolvedSetGap(cncfprepare.KubernetesApplySetReason(r.workspace))
 
 	path := scanreport.Path{Component: r.slug, From: from, To: to}
 	defer func() {
@@ -321,6 +322,21 @@ func (r *customResourceRun) gap(hop *scanreport.HopRef, key scanreport.GapKey, a
 	gap := scanreport.NewGap(r.slug, hop, key, args...)
 	r.report.Gaps = append(r.report.Gaps, gap)
 	return gap.Reason
+}
+
+// unresolvedSetGap names an apply set the preparation could not resolve as
+// a gap whatever the rules decide, as the Kubernetes run does: a document
+// that was read but could not be placed is never an omission.
+func (r *customResourceRun) unresolvedSetGap(reason cncfprepare.Reason) {
+	if reason != cncfprepare.ReasonKubernetesUnresolved && reason != cncfprepare.ReasonKubernetesTemplated {
+		return
+	}
+	for _, key := range documentGaps {
+		if _, found := r.rootGaps[key]; found {
+			return
+		}
+	}
+	r.rootGap(scanreport.GapDocumentsUnresolved)
 }
 
 // rootGap adds a component-level gap once and returns its reason.

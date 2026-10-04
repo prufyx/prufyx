@@ -270,6 +270,12 @@ func TestScanCustomResourceBlockerNotHidden(t *testing.T) {
 	if hop := strimziHop(t, with.Report); hop.Status != scanreport.HopBlocked {
 		t.Fatalf("hop %+v", hop)
 	}
+	// A document that was read but cannot be placed is named as a gap while
+	// the rule blocks.
+	unplaced := run(map[string]string{"kafka.yaml": kafkaV1beta2Doc, "odd.yaml": "apiVersion: Batch/V1\nkind: Widget\nmetadata: {name: w}\n"})
+	if unplaced.Exit != scanreport.ExitBlocked || len(unplaced.Report.Findings) != 1 || !hasComponentGap(unplaced.Report, "strimzi", scanreport.ReasonDocumentsNotEvaluated, "cannot be read as one apply set") {
+		t.Fatalf("unplaced: exit %d findings %d gaps %v", unplaced.Exit, len(unplaced.Report.Findings), gapReasons(unplaced.Report))
+	}
 	served := run(map[string]string{"kafka.yaml": kafkaV1Doc, "chart.yaml": templatedConfigMap})
 	if served.Exit != scanreport.ExitUnknown || len(served.Report.Findings) != 0 || len(served.Report.Passes) != 0 || !hasComponentGap(served.Report, "strimzi", scanreport.ReasonDocumentsTemplated, "unrendered templates") {
 		t.Fatalf("served: exit %d passes %+v gaps %v", served.Exit, served.Report.Passes, gapReasons(served.Report))
@@ -280,13 +286,18 @@ func TestScanCustomResourceBlockerNotHidden(t *testing.T) {
 	}
 }
 
-// TestScanNeverPassesWithAGap: over every combination of readable documents
-// and unreadable inputs, on paths through removal lines and quiet lines (a
-// line with no removal, where no rule is left undecided to name the gap):
+// TestScanNeverPassesWithAGap: over combinations of readable documents
+// (including an unreviewed sibling version, a paginated list, a witness
+// inside a List and an object with items under a non-List kind), unreadable
+// inputs, declarations (complete, open scope, no target apply, a custom
+// build), and paths through removal lines and quiet lines (a line with no
+// removal, where no rule is left undecided to name the gap):
 //   - unreadable input is always a named gap, and a scan with any gap or
 //     omitted document is never PASS;
-//   - adding unreadable input never adds a finding, never removes one, and
-//     never turns an answer into PASS.
+//   - adding unrelated unreadable input never adds a finding, never removes
+//     one, and never turns an answer into PASS.
+//
+// The same holds for a project checked for custom-resource versions.
 func TestScanNeverPassesWithAGap(t *testing.T) {
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	pool := []string{
@@ -294,13 +305,29 @@ func TestScanNeverPassesWithAGap(t *testing.T) {
 		removedCronJobOnly,
 		"apiVersion: policy/v1\nkind: PodDisruptionBudget\nmetadata: {name: pdb}\n",
 		"apiVersion: flowcontrol.apiserver.k8s.io/v1beta3\nkind: FlowSchema\nmetadata: {name: exempt}\n",
+		"apiVersion: batch/v2alpha1\nkind: CronJob\nmetadata: {name: sibling}\n",
+		"apiVersion: v1\nkind: List\nmetadata: {continue: next}\nitems:\n- {apiVersion: batch/v1beta1, kind: CronJob, metadata: {name: paged}}\n",
+		"apiVersion: v1\nkind: List\nitems:\n- {apiVersion: batch/v1beta1, kind: CronJob, metadata: {name: listed}}\n- {apiVersion: v1, kind: ConfigMap, metadata: {name: c}}\n",
+		"apiVersion: example.io/v1\nkind: Bundle\nmetadata: {name: b}\nitems: []\n",
 	}
 	names := make([]string, 0, len(unreadable))
 	for name := range unreadable {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	pairs := [][2]string{{"1.24.17", "1.30.4"}, {"1.27.3", "1.28.1"}, {"1.29.6", "1.30.4"}, {"1.31.0", "1.32.0"}}
+	type variant struct {
+		declarations []string
+		pairs        [][2]string
+		maxDocs      int
+	}
+	allPairs := [][2]string{{"1.24.17", "1.30.4"}, {"1.27.3", "1.28.1"}, {"1.29.6", "1.30.4"}, {"1.31.0", "1.32.0"}}
+	somePairs := [][2]string{{"1.24.17", "1.25.5"}, {"1.29.6", "1.30.4"}}
+	variants := map[string]variant{
+		"complete":     {declared, allPairs, 2},
+		"open scope":   {[]string{"--distribution", "official_upstream", "--target-api-apply-required"}, somePairs, 1},
+		"no apply":     {[]string{"--distribution", "official_upstream", "--resource-scope-complete"}, somePairs, 1},
+		"custom build": {[]string{"--distribution", "custom_build", "--resource-scope-complete", "--target-api-apply-required"}, somePairs, 1},
+	}
 	ruleIDs := func(report scanreport.Report) []string {
 		var ids []string
 		for _, finding := range report.Findings {
@@ -309,35 +336,71 @@ func TestScanNeverPassesWithAGap(t *testing.T) {
 		return ids
 	}
 	checked := 0
-	for mask := 1; mask < 1<<len(pool); mask++ {
-		contents := map[string]string{}
-		for index, doc := range pool {
-			if mask&(1<<index) != 0 {
-				contents[fmt.Sprintf("doc%d.yaml", index)] = doc
+	for variantName, v := range variants {
+		for mask := 1; mask < 1<<len(pool); mask++ {
+			contents := map[string]string{}
+			for index, doc := range pool {
+				if mask&(1<<index) != 0 {
+					contents[fmt.Sprintf("doc%d.yaml", index)] = doc
+				}
+			}
+			if len(contents) > v.maxDocs {
+				continue
+			}
+			for _, pair := range v.pairs {
+				scanOf := func(input map[string]string) Result {
+					dir, _ := files(t, input)
+					command := append(append([]string{dir}, v.declarations...), "--now", testNow, "--from", "kubernetes="+pair[0], "--to", "kubernetes="+pair[1])
+					return mustScan(t, knowledge, command...)
+				}
+				readable := scanOf(contents)
+				for _, name := range names {
+					result := scanOf(withFiles(contents, unreadable[name].files))
+					report := result.Report
+					checked++
+					label := fmt.Sprintf("%s mask %b %s->%s %s", variantName, mask, pair[0], pair[1], name)
+					if len(report.Gaps) == 0 || len(report.Omitted) != unreadable[name].omitted || !gapNamed(report, unreadable[name].gap) {
+						t.Fatalf("%s: gap or omission missing: %v", label, gapReasons(report))
+					}
+					if report.Verdict == scanreport.VerdictPass || result.Exit == scanreport.ExitPass {
+						t.Fatalf("%s: PASS with gaps %v", label, gapReasons(report))
+					}
+					if !reflect.DeepEqual(ruleIDs(report), ruleIDs(readable.Report)) {
+						t.Fatalf("%s: findings %v, readable documents alone %v", label, ruleIDs(report), ruleIDs(readable.Report))
+					}
+					if (readable.Exit == scanreport.ExitBlocked) != (result.Exit == scanreport.ExitBlocked) {
+						t.Fatalf("%s: exit %d, readable documents alone %d", label, result.Exit, readable.Exit)
+					}
+				}
 			}
 		}
-		for _, pair := range pairs {
-			scanOf := func(files_ map[string]string) Result {
-				dir, _ := files(t, files_)
-				return mustScan(t, knowledge, args([]string{dir}, "--from", "kubernetes="+pair[0], "--to", "kubernetes="+pair[1])...)
+	}
+
+	// A project checked for custom-resource versions.
+	crd := newCRDKnowledge(t)
+	crPool := []string{kafkaV1Doc, kafkaV1beta2Doc, certificateDoc, settingsDoc}
+	for _, scope := range [][]string{{"--resource-scope-complete"}, nil} {
+		for mask := 1; mask < 1<<len(crPool); mask++ {
+			contents := map[string]string{}
+			for index, doc := range crPool {
+				if mask&(1<<index) != 0 {
+					contents[fmt.Sprintf("doc%d.yaml", index)] = doc
+				}
+			}
+			scanOf := func(input map[string]string) Result {
+				dir, _ := files(t, input)
+				return mustScan(t, crd, append([]string{dir, "--now", testNow, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0"}, scope...)...)
 			}
 			readable := scanOf(contents)
 			for _, name := range names {
 				result := scanOf(withFiles(contents, unreadable[name].files))
-				report := result.Report
 				checked++
-				label := fmt.Sprintf("mask %b %s->%s %s", mask, pair[0], pair[1], name)
-				if len(report.Gaps) == 0 || len(report.Omitted) != unreadable[name].omitted || !gapNamed(report, unreadable[name].gap) {
-					t.Fatalf("%s: no gap or omission: %v", label, gapReasons(report))
+				label := fmt.Sprintf("strimzi %v mask %b %s", scope, mask, name)
+				if result.Exit == scanreport.ExitPass || !gapNamed(result.Report, unreadable[name].gap) || len(result.Report.Passes) != 0 {
+					t.Fatalf("%s: exit %d passes %d gaps %v", label, result.Exit, len(result.Report.Passes), gapReasons(result.Report))
 				}
-				if report.Verdict == scanreport.VerdictPass || result.Exit == scanreport.ExitPass {
-					t.Fatalf("%s: PASS with gaps %v", label, gapReasons(report))
-				}
-				if !reflect.DeepEqual(ruleIDs(report), ruleIDs(readable.Report)) {
-					t.Fatalf("%s: findings %v, readable documents alone %v", label, ruleIDs(report), ruleIDs(readable.Report))
-				}
-				if (readable.Exit == scanreport.ExitBlocked) != (result.Exit == scanreport.ExitBlocked) {
-					t.Fatalf("%s: exit %d, readable documents alone %d", label, result.Exit, readable.Exit)
+				if !reflect.DeepEqual(ruleIDs(result.Report), ruleIDs(readable.Report)) {
+					t.Fatalf("%s: findings %v, readable documents alone %v", label, ruleIDs(result.Report), ruleIDs(readable.Report))
 				}
 			}
 		}
