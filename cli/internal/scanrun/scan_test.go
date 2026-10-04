@@ -503,3 +503,22 @@ func TestScanDefaultNow(t *testing.T) {
 		t.Fatalf("%v %+v", err, result.Report.Provenance)
 	}
 }
+
+// TestScanOmissionsExplainHops: when an omitted document leaves the apply set
+// unresolved, the hops name the omission's gap, and no other cause is
+// invented.
+func TestScanOmissionsExplainHops(t *testing.T) {
+	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
+	dir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1beta1, "values.yaml": "replicas: 2\n"})
+	result := mustScan(t, knowledge, args([]string{dir}, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...)
+	if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"DOCUMENTS_NOT_EVALUATED"}) {
+		t.Fatalf("exit %d gaps %v", result.Exit, gapReasons(result.Report))
+	}
+	if !strings.Contains(result.Report.Gaps[0].Detail, "1 document(s) are not Kubernetes objects") {
+		t.Fatalf("detail %q", result.Report.Gaps[0].Detail)
+	}
+	hop := result.Report.Paths[0].Hops[0]
+	if hop.Status != scanreport.HopPartial || !reflect.DeepEqual(hop.Reasons, []string{"DOCUMENTS_NOT_EVALUATED"}) {
+		t.Fatalf("hop %+v", hop)
+	}
+}

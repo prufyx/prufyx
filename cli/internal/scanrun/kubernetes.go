@@ -317,6 +317,21 @@ func (r *kubernetesRun) preparationGaps(prepared cncfprepare.Prepared, ruleID, c
 		// same set stays unsupported: a document uses a version the reviews
 		// do not name.
 		return []string{r.rootGap(scanreport.GapAPIVersionNotReviewed)}
+	case known && outcome.gap == scanreport.GapDocumentsUnresolved && (len(r.workspace.Omissions) > 0 || len(r.workspace.Documents) == 0):
+		// The omitted documents (or the empty input) are the cause; they
+		// are component-level gaps already.
+		var reasons []string
+		for _, omission := range r.workspace.Omissions {
+			if documentGap, found := reasonOutcomes[string(omission.Reason)]; found {
+				reasons = append(reasons, documentGap.gap.Reason())
+			}
+		}
+		if len(r.workspace.Documents) == 0 && len(r.workspace.Omissions) == 0 {
+			reasons = append(reasons, scanreport.GapDocumentsEmpty.Reason())
+		}
+		if len(reasons) > 0 {
+			return reasons
+		}
 	case known && !outcome.decided && outcome.gap != "":
 		if gap, found := r.rootGaps[outcome.gap]; found {
 			return []string{gap.Reason}
