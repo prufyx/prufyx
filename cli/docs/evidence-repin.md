@@ -236,10 +236,12 @@ baseline it actually used, so the two kinds of result are never confused.
    list is too long to scan completely, when the pinned tag is not a published
    release, when the same numeric line is released under more than one prefix,
    or when any release on the line has a tag the strict grammar rejects.
-   A release whose tag names a pre-release of the line (`-alpha`, `-beta`,
-   `-rc`, `-pre`, `-preview` or `-dev`, in any case, for example
-   `v1.30.0-rc1` or `v2.10.17-RC.1`) is skipped even when GitHub does not
-   flag it as a pre-release; any other suffix (`-hotfix-1`, `-binary`) still
+   A release whose tag names a pre-release of the line is skipped even when
+   GitHub does not flag it as a pre-release. A pre-release suffix is one of
+   the whole words `alpha`, `beta`, `rc`, `pre`, `preview` or `dev`, in any
+   case, optionally after `-` or `.`, followed only by numbers (for example
+   `v1.30.0-rc1`, `v2.10.17-RC.1`, `v1.9.0-dev-20250601`). Any other suffix
+   (`-hotfix-1`, `-binary`, `-prebuilt`, `-rc1-hotfix`, `-devsecfix`) still
    makes the line ambiguous.
    If the scan is cut short by a rate limit or an error, the citation stays
    `PENDING` rather than falling back silently.
@@ -273,13 +275,25 @@ prove a line from. In release-line mode its citations are compared on a
 4. **Line members.** Every tag on the pinned tag's numeric line is
    classified. Release tags with the pinned prefix are members; recognised
    pre-releases (as above, and Go's `go1.26rc1` form) are ignored and listed
-   in the line record. The same numeric line under a second prefix, or any
-   other tag on the line (`v1.9.0-hotfix-1`, `v2.10.27-binary`, a four-part
+   in the line record. The same numeric line under a second prefix (also in a
+   tag that is not a release, such as `1.2.9-hotfix` next to `v1.2.3`), a
+   zero-padded number on the line (`v1.02.9`), or any other tag on the line
+   (`v1.9.0-hotfix-1`, `v2.10.27-binary`, `v1.2.4-prebuilt`, a four-part
    version, a bare `go1.20`) makes the line unusable: a release this code
    cannot order might be newer than the head it would pick. Tags on other
    lines, and tags that are not versions at all, are ignored.
 5. **Compared tag.** The highest `PATCH` among the members. It always has the
-   pinned tag's prefix and line and is never older than the pinned tag.
+   pinned tag's prefix and line and is never older than the pinned tag. The
+   ref listing cannot tell a commit from a tree or blob, so the compared tag
+   is also resolved through the GitHub tag API (one or two requests per line,
+   peeling an annotated tag): it must resolve to a commit, and to the same
+   commit the listing names, or the line is unusable. If that lookup fails
+   (for example a rate limit) the citation stays `PENDING`.
+
+The line record's `tagsDigest` is recorded for audit; nothing verifies it. A
+tag moved between the run that prepared a renewal and the gate's independent
+run changes the compared tag or commit and is caught there; a tag moved before
+both runs is not detectable from tags alone, as with Releases lines.
 
 When no tag line can be used the citation keeps the tags fallback
 (`baseline: latest`, `resolution: tag_fallback`) and `baselineNote` gives the
