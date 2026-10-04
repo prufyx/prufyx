@@ -1,0 +1,12 @@
+--- a/deploy/app.yaml
++++ b/deploy/app.yaml
+@@ -1,9 +1,2 @@
+ a: 1
+-b:
+-  x:
+-    deep: 1
+-  y:
+-  - one
+-  - two: 2
+-    three: 3
+ c: 3

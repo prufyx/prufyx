@@ -97,21 +97,51 @@ func Locate(src []byte, document int, path Path, part Part) (Span, error) {
 // scalars, multi-line scalars, tagged or empty scalars, collections and
 // tokens whose bytes cannot be isolated are refused.
 func (l *Locator) Locate(document int, path Path, part Part) (Span, error) {
+	found, r := l.file.resolve(document, path, part)
+	if r != nil {
+		return Span{}, r
+	}
+	span, r := l.file.tokenSpan(found.node, part)
+	if r != nil {
+		return Span{}, r
+	}
+	return span, nil
+}
+
+// resolved is the node a path leads to and the nodes around it.
+type resolved struct {
+	// node is the key token (PartKey) or the value or item the path ends in.
+	node *yaml.Node
+	// key is the key node of the last segment, nil for a sequence item.
+	key *yaml.Node
+	// parent is the mapping or sequence that holds the last segment.
+	parent *yaml.Node
+	// flow reports a flow-style collection on the way, parent included.
+	flow bool
+}
+
+// resolve follows path in the document with the given index.
+func (f *parsedFile) resolve(document int, path Path, part Part) (resolved, *Refusal) {
 	if len(path) > MaxPathSegments {
-		return Span{}, refuse(ReasonLimit, "the path has too many segments")
+		return resolved{}, refuse(ReasonLimit, "the path has too many segments")
 	}
-	if document < 0 || document >= len(l.file.docs) {
-		return Span{}, refuse(ReasonPathNotFound, "the document does not exist")
+	if document < 0 || document >= len(f.docs) {
+		return resolved{}, refuse(ReasonPathNotFound, "the document does not exist")
 	}
-	doc := l.file.docs[document]
+	doc := f.docs[document]
 	if doc.secret {
-		return Span{}, refuse(ReasonSecretDocument, "Secret documents are never edited")
+		return resolved{}, refuse(ReasonSecretDocument, "Secret documents are never edited")
 	}
 	if part == PartKey && (len(path) == 0 || path[len(path)-1].isIndex) {
-		return Span{}, refuse(ReasonPathNotFound, "a key target needs a path ending in a key")
+		return resolved{}, refuse(ReasonPathNotFound, "a key target needs a path ending in a key")
 	}
+	out := resolved{node: doc.root}
 	node := doc.root
 	for i, segment := range path {
+		if node.Style&yaml.FlowStyle != 0 {
+			out.flow = true
+		}
+		out.parent, out.key = node, nil
 		switch {
 		case node.Kind == yaml.MappingNode && !segment.isIndex:
 			var keyNode, valueNode *yaml.Node
@@ -122,8 +152,9 @@ func (l *Locator) Locate(document int, path Path, part Part) (Span, error) {
 				}
 			}
 			if keyNode == nil {
-				return Span{}, refuse(ReasonPathNotFound, "the path does not exist in the document")
+				return resolved{}, refuse(ReasonPathNotFound, "the path does not exist in the document")
 			}
+			out.key = keyNode
 			if i == len(path)-1 && part == PartKey {
 				node = keyNode
 			} else {
@@ -131,18 +162,15 @@ func (l *Locator) Locate(document int, path Path, part Part) (Span, error) {
 			}
 		case node.Kind == yaml.SequenceNode && segment.isIndex:
 			if segment.index < 0 || segment.index >= len(node.Content) {
-				return Span{}, refuse(ReasonPathNotFound, "the path does not exist in the document")
+				return resolved{}, refuse(ReasonPathNotFound, "the path does not exist in the document")
 			}
 			node = node.Content[segment.index]
 		default:
-			return Span{}, refuse(ReasonPathNotFound, "the path does not exist in the document")
+			return resolved{}, refuse(ReasonPathNotFound, "the path does not exist in the document")
 		}
 	}
-	span, r := l.file.tokenSpan(node, part)
-	if r != nil {
-		return Span{}, r
-	}
-	return span, nil
+	out.node = node
+	return out, nil
 }
 
 // tokenSpan finds the bytes of one scalar token from its decoder position

@@ -1,0 +1,7 @@
+--- a/manifests/cron.yaml
++++ b/manifests/cron.yaml
+@@ -1,4 +1,2 @@
+ a: 1
+-b:
+-  x: 1
+ c: 3

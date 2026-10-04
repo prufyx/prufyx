@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"flag"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -114,7 +115,40 @@ func runPositive(t *testing.T, kind string, cases []kindCase) {
 			if plan.Diff != string(want) {
 				t.Fatalf("diff differs from %s:\n%s", golden, plan.Diff)
 			}
+			gitApplies(t, tc.src, plan.Diff, wantAfter)
 		})
+	}
+}
+
+// gitApplies checks the diff with git: applied to the original file it must
+// give the edited bytes. It is skipped where git is not installed.
+func gitApplies(t *testing.T, src, diff, want string) {
+	t.Helper()
+	if diff == "" {
+		return
+	}
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Log("git not found; diff not checked with git apply")
+		return
+	}
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "deploy"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dir, "deploy", "app.yaml")
+	if err := os.WriteFile(file, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	command := exec.Command(git, "apply", "--whitespace=nowarn", "-")
+	command.Dir = dir
+	command.Stdin = strings.NewReader(diff)
+	if out, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("git apply: %v\n%s\n%s", err, out, diff)
+	}
+	got, err := os.ReadFile(file)
+	if err != nil || string(got) != want {
+		t.Fatalf("git apply gave %q (%v), want %q", got, err, want)
 	}
 }
 
@@ -146,7 +180,7 @@ var _ = flag.Bool // the update flag lives in diff_test.go
 
 func TestKindsAreRegistered(t *testing.T) {
 	ids := Kinds()
-	for _, want := range []string{"set_api_version", "rename_flag", "remove_feature_gate"} {
+	for _, want := range []string{"set_api_version", "rename_flag", "remove_feature_gate", "rename_key", "remove_key", "set_value"} {
 		found := false
 		for _, id := range ids {
 			found = found || id == want
@@ -363,21 +397,14 @@ func TestRemoveFeatureGateRefusals(t *testing.T) {
 	params := kindParams(t, map[string]string{"component": cmID, "gate": "ServerSideApply"})
 	img := "quay.io/jetstack/cert-manager-controller:v1.16.2"
 	runRefusals(t, "remove_feature_gate", params, map[string]string{
-		"only gate in the list":          workload("Deployment", container(img, "        args: [--feature-gates=ServerSideApply=true]\n")),
-		"only gate in separate form":     workload("Deployment", container(img, "        args: [--feature-gates, ServerSideApply=false]\n")),
-		"gate twice in a list":           workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=true,ServerSideApply=false,A=true\"]\n")),
-		"gate in two flags":              workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=true,A=true\", \"--feature-gates=ServerSideApply=true,B=true\"]\n")),
-		"malformed entry":                workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=yes,A=true\"]\n")),
-		"spaces in the list":             workload("Deployment", container(img, "        args: [\"--feature-gates=A=true, ServerSideApply=true\"]\n")),
-		"unknown image":                  workload("Deployment", container("example.com/x:1", "        args: [\"--feature-gates=ServerSideApply=true,A=true\"]\n")),
-		"escaped token":                  workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=true,A=true\\x21\"]\n")),
-		"gate map entry":                 "apiVersion: config.cert-manager.io/v1alpha1\nkind: ControllerConfiguration\nfeatureGates:\n  ServerSideApply: true\n  A: true\n",
-		"gate map in any document":       "apiVersion: kubelet.config.k8s.io/v1beta1\nkind: KubeletConfiguration\nfeatureGates:\n  ServerSideApply: true\n",
-		"gate map nested":                "a:\n  b:\n  - featureGates:\n      ServerSideApply: false\n",
-		"gate map beside a fixable flag": workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=true,A=true\"]\n")) + "---\nfeatureGates: {ServerSideApply: true}\n",
-		"gate map only entry":            "apiVersion: config.cert-manager.io/v1alpha1\nkind: WebhookConfiguration\nfeatureGates: {ServerSideApply: true}\n",
-		"list of workloads":              "apiVersion: v1\nkind: List\nitems:\n- kind: Pod\n",
-		"junk in a flow list":            workload("Deployment", container(img, "        args: [--v=2, \"--feature-gates=ServerSideApply=true;x\"]\n")),
+		"gate twice in a list": workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=true,ServerSideApply=false,A=true\"]\n")),
+		"gate in two flags":    workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=true,A=true\", \"--feature-gates=ServerSideApply=true,B=true\"]\n")),
+		"malformed entry":      workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=yes,A=true\"]\n")),
+		"spaces in the list":   workload("Deployment", container(img, "        args: [\"--feature-gates=A=true, ServerSideApply=true\"]\n")),
+		"unknown image":        workload("Deployment", container("example.com/x:1", "        args: [\"--feature-gates=ServerSideApply=true,A=true\"]\n")),
+		"escaped token":        workload("Deployment", container(img, "        args: [\"--feature-gates=ServerSideApply=true,A=true\\x21\"]\n")),
+		"list of workloads":    "apiVersion: v1\nkind: List\nitems:\n- kind: Pod\n",
+		"junk in a flow list":  workload("Deployment", container(img, "        args: [--v=2, \"--feature-gates=ServerSideApply=true;x\"]\n")),
 	})
 	runInvalidParams(t, "remove_feature_gate", []string{
 		``, `{}`, `{"component":"pkg:oci/cert-manager/cert-manager"}`,
@@ -427,7 +454,7 @@ func FuzzKindValidate(f *testing.F) {
 	}
 	src := []byte("apiVersion: batch/v1beta1\nkind: CronJob\n")
 	f.Fuzz(func(t *testing.T, params []byte) {
-		for _, id := range []string{"set_api_version", "rename_flag", "remove_feature_gate"} {
+		for _, id := range []string{"set_api_version", "rename_flag", "remove_feature_gate", "rename_key", "remove_key", "set_value"} {
 			plan, err := Plan(display, src, []Request{{Kind: id, Params: params}}, Options{})
 			if err != nil {
 				r, ok := err.(*Refusal)

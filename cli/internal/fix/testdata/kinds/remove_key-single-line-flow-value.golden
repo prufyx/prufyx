@@ -1,0 +1,5 @@
+--- a/deploy/app.yaml
++++ b/deploy/app.yaml
+@@ -1,2 +1 @@
+-a: {x: 1, y: [2, 3]}
+ b: 1

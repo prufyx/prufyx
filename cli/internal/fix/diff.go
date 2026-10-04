@@ -14,23 +14,41 @@ const diffContext = 3
 // UnifiedDiff renders the change that edits make to src as a unified diff
 // with three lines of context, fixed headers ("--- a/<display>",
 // "+++ b/<display>") and no timestamps. Edits must be valid for src, sorted
-// and non-overlapping, and must not add or remove line breaks, as edits from
-// Plan are. It returns "" when nothing changes.
+// and non-overlapping. An edit is either confined to one line (no line break
+// in its span or replacement), as token edits from Plan are, or deletes whole
+// lines (empty replacement, span from a line start to a line start or the end
+// of the file). It returns "" when nothing changes.
 func UnifiedDiff(display string, src []byte, edits []Edit) (string, error) {
 	if r := checkDisplay(display); r != nil {
 		return "", r
 	}
+	invalid := refuse(ReasonInvalidEdit, "the edits are not sorted, single-line or whole-line deletions, and within the file")
+	lines := splitLines(string(src))
+	deleted := map[int]bool{}
 	for i, edit := range edits {
 		if edit.StartByte < 0 || edit.StartByte >= edit.EndByte || edit.EndByte > len(src) ||
-			i > 0 && edit.StartByte < edits[i-1].EndByte ||
-			strings.ContainsAny(string(src[edit.StartByte:edit.EndByte])+edit.Replacement, "\n\r") {
-			return "", refuse(ReasonInvalidEdit, "the edits are not sorted, single-line and within the file")
+			i > 0 && edit.StartByte < edits[i-1].EndByte {
+			return "", invalid
+		}
+		first, last := lineOf(lines, edit.StartByte), lineOf(lines, edit.EndByte-1)
+		wholeLines := edit.Replacement == "" && lines[first].start == edit.StartByte &&
+			(edit.EndByte == len(src) || last+1 < len(lines) && lines[last+1].start == edit.EndByte)
+		if !wholeLines {
+			if strings.ContainsAny(string(src[edit.StartByte:edit.EndByte])+edit.Replacement, "\n\r") {
+				return "", invalid
+			}
+			continue
+		}
+		for line := first; line <= last; line++ {
+			deleted[line] = true
 		}
 	}
-	lines := splitLines(string(src))
 	changed := map[int]string{}
 	for _, edit := range edits {
 		line := lineOf(lines, edit.StartByte)
+		if deleted[line] {
+			continue
+		}
 		if _, seen := changed[line]; !seen {
 			changed[line] = lines[line].text
 		}
@@ -40,20 +58,29 @@ func UnifiedDiff(display string, src []byte, edits []Edit) (string, error) {
 	for i := len(edits) - 1; i >= 0; i-- {
 		edit := edits[i]
 		line := lineOf(lines, edit.StartByte)
+		if deleted[line] {
+			continue
+		}
 		text := changed[line]
 		start, end := edit.StartByte-lines[line].start, edit.EndByte-lines[line].start
 		changed[line] = text[:start] + edit.Replacement + text[end:]
 	}
+	touched := func(line int) bool {
+		if deleted[line] {
+			return true
+		}
+		text, ok := changed[line]
+		return ok && text != lines[line].text
+	}
 	var numbers []int
-	for line, text := range changed {
-		if text != lines[line].text {
+	for line := range lines {
+		if touched(line) {
 			numbers = append(numbers, line)
 		}
 	}
 	if len(numbers) == 0 {
 		return "", nil
 	}
-	sort.Ints(numbers)
 	var out strings.Builder
 	out.WriteString("--- a/" + display + "\n+++ b/" + display + "\n")
 	for first := 0; first < len(numbers); {
@@ -63,23 +90,38 @@ func UnifiedDiff(display string, src []byte, edits []Edit) (string, error) {
 		}
 		from := max(numbers[first]-diffContext, 0)
 		to := min(numbers[last]+diffContext, len(lines)-1)
-		count := to - from + 1
-		out.WriteString("@@ -" + hunkRange(from+1, count) + " +" + hunkRange(from+1, count) + " @@\n")
+		removedBefore, removedIn := 0, 0
+		for line := range deleted {
+			if line < from {
+				removedBefore++
+			} else if line <= to {
+				removedIn++
+			}
+		}
+		oldCount := to - from + 1
+		newCount := oldCount - removedIn
+		newStart := from + 1 - removedBefore
+		if newCount == 0 {
+			newStart--
+		}
+		out.WriteString("@@ -" + hunkRange(from+1, oldCount) + " +" + hunkRange(newStart, newCount) + " @@\n")
 		for line := from; line <= to; {
-			if _, isChanged := changed[line]; !isChanged || changed[line] == lines[line].text {
+			if !touched(line) {
 				writeLine(&out, ' ', lines[line])
 				line++
 				continue
 			}
 			run := line
-			for run <= to && changed[run] != lines[run].text && hasKey(changed, run) {
+			for run <= to && touched(run) {
 				run++
 			}
 			for i := line; i < run; i++ {
 				writeLine(&out, '-', lines[i])
 			}
 			for i := line; i < run; i++ {
-				writeLine(&out, '+', diffLine{text: changed[i], newline: lines[i].newline})
+				if !deleted[i] {
+					writeLine(&out, '+', diffLine{text: changed[i], newline: lines[i].newline})
+				}
 			}
 			line = run
 		}
@@ -110,11 +152,6 @@ func splitLines(src string) []diffLine {
 
 func lineOf(lines []diffLine, offset int) int {
 	return sort.Search(len(lines), func(i int) bool { return lines[i].start > offset }) - 1
-}
-
-func hasKey(m map[int]string, key int) bool {
-	_, ok := m[key]
-	return ok
 }
 
 func hunkRange(start, count int) string {

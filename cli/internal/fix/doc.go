@@ -8,8 +8,18 @@
 //   - A fix kind is compiled code registered at start-up. Kinds are looked up
 //     by id from a closed set; nothing is generated, templated or fetched.
 //   - An edit replaces the exact bytes of one YAML key or scalar token in the
-//     original file. Files are never re-serialised: comments, ordering,
-//     quoting and whitespace outside the edited tokens stay byte-identical.
+//     original file, or deletes whole lines for a declared removal. Files are
+//     never re-serialised: comments, ordering, quoting and whitespace outside
+//     the edited tokens and removed lines stay byte-identical.
+//   - A kind may also declare a structural operation (rename a key, remove a
+//     mapping entry or a sequence element, set a scalar value) together with
+//     its byte edit. The expected decoded result is computed here from the
+//     declared operation and the original decoded documents, never from the
+//     kind's edit: the edited bytes must decode to exactly that. Removals
+//     delete whole lines (the entry, its whole value, comment lines indented
+//     deeper that follow it) and are refused in flow-style collections, next
+//     to other tokens on a line, when they would leave a mapping or sequence
+//     empty, and when they overlap another change.
 //   - Anything ambiguous is refused, never approximated. Every refusal names
 //     a reason from a closed list (see Reason).
 //   - After the edits are applied in memory the result is decoded again with

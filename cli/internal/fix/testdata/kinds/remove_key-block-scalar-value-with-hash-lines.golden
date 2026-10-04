@@ -1,0 +1,9 @@
+--- a/deploy/app.yaml
++++ b/deploy/app.yaml
+@@ -1,6 +1 @@
+-a: |
+-  text
+-  # not a comment
+-
+-  more
+ b: 1

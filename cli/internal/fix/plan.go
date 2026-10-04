@@ -109,11 +109,11 @@ func Plan(display string, src []byte, requests []Request, opts Options) (FilePla
 		return FilePlan{}, r
 	}
 	digest := digestOf(src)
-	edits, r := collect(file, display, digest, bound)
+	planned, r := collect(file, display, digest, bound)
 	if r != nil {
 		return FilePlan{}, r
 	}
-	edits, _, r = verify(file, display, edits, bound, opts)
+	edits, _, r := verify(file, display, planned, bound, opts)
 	if r != nil {
 		return FilePlan{}, r
 	}
@@ -159,11 +159,11 @@ func applyPlan(src []byte, plan FilePlan, opts Options) ([]byte, string, error) 
 	if r != nil {
 		return nil, "", r
 	}
-	edits, r := collect(file, plan.Display, plan.Digest, bound)
+	planned, r := collect(file, plan.Display, plan.Digest, bound)
 	if r != nil {
 		return nil, "", r
 	}
-	applied, after, r := verify(file, plan.Display, edits, bound, opts)
+	applied, after, r := verify(file, plan.Display, planned, bound, opts)
 	if r != nil {
 		return nil, "", r
 	}
@@ -200,11 +200,18 @@ func checkDisplay(display string) *Refusal {
 	return nil
 }
 
+// collected is what the kinds proposed for a file: token edits and
+// declared structural operations with their edits.
+type collected struct {
+	edits []Edit
+	ops   []opEdit
+}
+
 // collect runs the requested kinds over the selected mapping documents. The
 // kinds get one private copy of the source; a kind that changes it is
 // refused.
-func collect(file *parsedFile, display, digest string, bound []boundRequest) ([]Edit, *Refusal) {
-	var edits []Edit
+func collect(file *parsedFile, display, digest string, bound []boundRequest) (collected, *Refusal) {
+	var out collected
 	scratch := bytes.Clone(file.src)
 	for _, bound := range bound {
 		indexes := bound.request.Documents
@@ -216,7 +223,7 @@ func collect(file *parsedFile, display, digest string, bound []boundRequest) ([]
 		}
 		for _, index := range indexes {
 			if index < 0 || index >= len(file.docs) {
-				return nil, refuse(ReasonPathNotFound, "a requested document does not exist in the file")
+				return collected{}, refuse(ReasonPathNotFound, "a requested document does not exist in the file")
 			}
 			object, ok := file.docs[index].value.(map[string]any)
 			if !ok {
@@ -224,18 +231,30 @@ func collect(file *parsedFile, display, digest string, bound []boundRequest) ([]
 			}
 			planned, err := bound.kind.Plan(documentFor(display, digest, index, object), scratch, bound.parsed)
 			if !bytes.Equal(scratch, file.src) {
-				return nil, refuse(ReasonKindRefused, "the fix kind modified the source bytes it was given")
+				return collected{}, refuse(ReasonKindRefused, "the fix kind modified the source bytes it was given")
 			}
 			if err != nil {
-				return nil, kindError(err)
+				return collected{}, kindError(err)
 			}
-			edits = append(edits, planned...)
-			if len(edits) > MaxEditsPerFile {
-				return nil, refuse(ReasonLimit, "too many edits for one file")
+			out.edits = append(out.edits, planned...)
+			if structural, ok := bound.kind.(OperationKind); ok {
+				operations, err := structural.PlanOperations(documentFor(display, digest, index, object), scratch, bound.parsed)
+				if !bytes.Equal(scratch, file.src) {
+					return collected{}, refuse(ReasonKindRefused, "the fix kind modified the source bytes it was given")
+				}
+				if err != nil {
+					return collected{}, kindError(err)
+				}
+				for _, p := range operations {
+					out.ops = append(out.ops, opEdit{document: index, op: p.Op, edit: p.Edit})
+				}
+			}
+			if len(out.edits)+len(out.ops) > MaxEditsPerFile {
+				return collected{}, refuse(ReasonLimit, "too many edits for one file")
 			}
 		}
 	}
-	return edits, nil
+	return out, nil
 }
 
 func documentFor(display, digest string, index int, object map[string]any) intake.Document {
@@ -262,51 +281,103 @@ type target struct {
 	value    any
 }
 
-// verify validates the edits, applies them in memory and proves the result.
-// It returns the normalised edits (sorted, without exact duplicates and
-// without edits that change nothing) and the new bytes.
-func verify(file *parsedFile, display string, edits []Edit, bound []boundRequest, opts Options) ([]Edit, []byte, *Refusal) {
-	if len(edits) > MaxEditsPerFile {
+// planEntry is one proposed edit; op is nil for a plain token edit.
+type planEntry struct {
+	edit Edit
+	op   *opEdit
+}
+
+// verify validates the edits and operations, applies them in memory and
+// proves the result. It returns the normalised edits (sorted, without exact
+// duplicates and without edits that change nothing) and the new bytes.
+//
+// The expected result is computed here, from the original decoded documents:
+// a plain token edit stands for the standalone value of its replacement, a
+// declared operation for its own effect. The edited bytes must decode to
+// exactly that. A kind never supplies the expectation of its own byte edit.
+func verify(file *parsedFile, display string, planned collected, bound []boundRequest, opts Options) ([]Edit, []byte, *Refusal) {
+	if len(planned.edits)+len(planned.ops) > MaxEditsPerFile {
 		return nil, nil, refuse(ReasonLimit, "too many edits for one file")
 	}
-	for _, edit := range edits {
+	entries := make([]planEntry, 0, len(planned.edits)+len(planned.ops))
+	for _, edit := range planned.edits {
+		entries = append(entries, planEntry{edit: edit})
+	}
+	for i := range planned.ops {
+		entries = append(entries, planEntry{edit: planned.ops[i].edit, op: &planned.ops[i]})
+	}
+	for _, entry := range entries {
+		edit := entry.edit
 		if edit.File != display {
 			return nil, nil, refuse(ReasonInvalidEdit, "an edit names another file")
 		}
 		if edit.StartByte < 0 || edit.StartByte >= edit.EndByte || edit.EndByte > len(file.src) {
 			return nil, nil, refuse(ReasonInvalidEdit, "an edit span is empty or out of bounds")
 		}
+		if entry.op != nil {
+			if entry.op.document < 0 || entry.op.document >= len(file.docs) {
+				return nil, nil, refuse(ReasonPathNotFound, "a requested document does not exist in the file")
+			}
+			if r := validateDeclared(entry.op.op); r != nil {
+				return nil, nil, r
+			}
+			if entry.op.removes() {
+				if edit.Replacement != "" {
+					return nil, nil, refuse(ReasonInvalidEdit, "a removal edit has a replacement")
+				}
+				if !file.lineAligned(edit.StartByte) || !file.lineAligned(edit.EndByte) {
+					return nil, nil, refuse(ReasonInvalidEdit, "a removal edit does not cover whole lines")
+				}
+				continue
+			}
+		}
 		if r := checkReplacement(edit.Replacement); r != nil {
 			return nil, nil, r
 		}
 	}
-	sorted := append([]Edit(nil), edits...)
-	sort.Slice(sorted, func(i, j int) bool {
-		a, b := sorted[i], sorted[j]
+	sort.SliceStable(entries, func(i, j int) bool {
+		a, b := entries[i].edit, entries[j].edit
 		if a.StartByte != b.StartByte {
 			return a.StartByte < b.StartByte
 		}
 		if a.EndByte != b.EndByte {
 			return a.EndByte < b.EndByte
 		}
-		return a.Replacement < b.Replacement
+		if a.Replacement != b.Replacement {
+			return a.Replacement < b.Replacement
+		}
+		return entries[i].op == nil && entries[j].op != nil
 	})
-	normalized := sorted[:0:0]
-	for _, edit := range sorted {
+	normalized := entries[:0:0]
+	for _, entry := range entries {
 		if n := len(normalized); n > 0 {
 			previous := normalized[n-1]
-			if edit == previous {
-				continue
+			if entry.edit == previous.edit {
+				switch {
+				case entry.op == nil && previous.op == nil:
+					continue
+				case entry.op != nil && previous.op != nil && reflect.DeepEqual(*entry.op, *previous.op):
+					continue
+				}
+				return nil, nil, refuse(ReasonConflictingEdits, "two edits on the file overlap")
 			}
-			if edit.StartByte < previous.EndByte {
+			if entry.edit.StartByte < previous.edit.EndByte {
 				return nil, nil, refuse(ReasonConflictingEdits, "two edits on the file overlap")
 			}
 		}
-		normalized = append(normalized, edit)
+		normalized = append(normalized, entry)
 	}
 	tokens := file.tokenIndex()
 	var targets []target
-	for _, edit := range normalized {
+	var ops []opEdit
+	var result []Edit
+	for _, entry := range normalized {
+		edit := entry.edit
+		if entry.op != nil && entry.op.removes() {
+			ops = append(ops, *entry.op)
+			result = append(result, edit)
+			continue
+		}
 		token, ok := tokens[edit.StartByte]
 		if !ok {
 			return nil, nil, refuse(ReasonSpanNotIsolated, "an edit does not start at a key or scalar token")
@@ -318,23 +389,30 @@ func verify(file *parsedFile, display string, edits []Edit, bound []boundRequest
 		if span.Start != edit.StartByte || span.End != edit.EndByte {
 			return nil, nil, refuse(ReasonSpanNotIsolated, "an edit does not cover exactly one key or scalar token")
 		}
-		if string(file.src[edit.StartByte:edit.EndByte]) == edit.Replacement {
+		same := string(file.src[edit.StartByte:edit.EndByte]) == edit.Replacement
+		if same && entry.op == nil {
 			continue
 		}
 		value, r := replacementValue(edit.Replacement, token.part)
 		if r != nil {
 			return nil, nil, r
 		}
-		targets = append(targets, target{edit: edit, document: token.document, path: token.path, part: token.part, value: value})
+		if entry.op != nil {
+			ops = append(ops, *entry.op)
+		} else {
+			targets = append(targets, target{edit: edit, document: token.document, path: token.path, part: token.part, value: value})
+		}
+		if !same {
+			result = append(result, edit)
+		}
 	}
-	result := make([]Edit, len(targets))
-	for i, t := range targets {
-		result[i] = t.edit
-	}
-	if len(targets) == 0 {
+	if len(targets) == 0 && len(ops) == 0 {
 		return result, file.src, nil
 	}
-	expected, r := expectedValues(file, targets)
+	if r := checkRemovalConflicts(ops, targets); r != nil {
+		return nil, nil, r
+	}
+	expected, r := expectedValues(file, targets, ops)
 	if r != nil {
 		return nil, nil, r
 	}
@@ -349,19 +427,108 @@ func verify(file *parsedFile, display string, edits []Edit, bound []boundRequest
 	if r := sameDocuments(edited, expected); r != nil {
 		return nil, nil, r
 	}
+	// The result is right; now the edits must also sit where their declared
+	// operations say, so that nothing else (a comment, a quote style) moved.
+	for _, o := range ops {
+		if r := checkLocation(file, o); r != nil {
+			return nil, nil, r
+		}
+	}
 	if !opts.SkipIdempotenceCheck {
 		again, r := collect(edited, display, digestOf(after), bound)
 		if r != nil {
 			return nil, nil, refuse(ReasonNotIdempotent, "planning the fix again on its output was refused")
 		}
-		for _, edit := range again {
-			if edit.File != display || edit.StartByte < 0 || edit.StartByte > edit.EndByte || edit.EndByte > len(after) ||
-				string(after[edit.StartByte:edit.EndByte]) != edit.Replacement {
+		for _, edit := range again.edits {
+			if !noOp(after, display, edit) {
+				return nil, nil, refuse(ReasonNotIdempotent, "planning the fix again on its output yields further edits")
+			}
+		}
+		for _, o := range again.ops {
+			if o.removes() || !noOp(after, display, o.edit) {
 				return nil, nil, refuse(ReasonNotIdempotent, "planning the fix again on its output yields further edits")
 			}
 		}
 	}
 	return result, after, nil
+}
+
+// noOp reports an edit that rewrites its span to its own bytes.
+func noOp(src []byte, display string, edit Edit) bool {
+	return edit.File == display && edit.StartByte >= 0 && edit.StartByte <= edit.EndByte && edit.EndByte <= len(src) &&
+		string(src[edit.StartByte:edit.EndByte]) == edit.Replacement
+}
+
+// lineAligned reports whether offset is the start of a line or the end of
+// the file.
+func (f *parsedFile) lineAligned(offset int) bool {
+	if offset == len(f.src) {
+		return true
+	}
+	i := sort.SearchInts(f.lineStarts, offset)
+	return i < len(f.lineStarts) && f.lineStarts[i] == offset
+}
+
+// checkLocation requires the edit of an operation to be the one the
+// framework would compute for the declared path itself.
+func checkLocation(file *parsedFile, o opEdit) *Refusal {
+	var span Span
+	switch op := o.op.(type) {
+	case RenameKey, SetValue:
+		part := PartValue
+		if _, rename := op.(RenameKey); rename {
+			part = PartKey
+		}
+		found, r := file.resolve(o.document, o.path(), part)
+		if r != nil {
+			return r
+		}
+		if span, r = file.tokenSpan(found.node, part); r != nil {
+			return r
+		}
+	default:
+		var r *Refusal
+		_, element := op.(RemoveElement)
+		if span, r = file.removalSpan(o.document, o.path(), element); r != nil {
+			return r
+		}
+	}
+	if span.Start != o.edit.StartByte || span.End != o.edit.EndByte {
+		return refuse(ReasonInvalidEdit, "an edit is not at the location of its declared operation")
+	}
+	return nil
+}
+
+// checkRemovalConflicts refuses a removal that shares its path, or a part of
+// it, with any other change in the same document.
+func checkRemovalConflicts(ops []opEdit, targets []target) *Refusal {
+	hasPrefix := func(path, prefix Path) bool {
+		if len(path) < len(prefix) {
+			return false
+		}
+		for i := range prefix {
+			if path[i] != prefix[i] {
+				return false
+			}
+		}
+		return true
+	}
+	for i, removal := range ops {
+		if !removal.removes() {
+			continue
+		}
+		for j, other := range ops {
+			if i != j && other.document == removal.document && hasPrefix(other.path(), removal.path()) {
+				return refuse(ReasonConflictingEdits, "a removal overlaps another change in the same entry")
+			}
+		}
+		for _, t := range targets {
+			if t.document == removal.document && hasPrefix(t.path, removal.path()) {
+				return refuse(ReasonConflictingEdits, "a removal overlaps another change in the same entry")
+			}
+		}
+	}
+	return nil
 }
 
 // sameDocuments requires the edited file to hold exactly the expected
@@ -451,9 +618,10 @@ func replacementValue(replacement string, part Part) (any, *Refusal) {
 }
 
 // expectedValues returns the decoded documents with the targeted
-// substitutions: values first, then keys from the deepest path up, so every
-// step navigates by the original key names.
-func expectedValues(file *parsedFile, targets []target) ([]any, *Refusal) {
+// substitutions and the declared operations: values first, then removals,
+// then keys from the deepest path up, so every step navigates by the
+// original key names and indexes.
+func expectedValues(file *parsedFile, targets []target, ops []opEdit) ([]any, *Refusal) {
 	expected := make([]any, len(file.docs))
 	for i, doc := range file.docs {
 		expected[i] = copyValue(doc.value)
@@ -465,10 +633,20 @@ func expectedValues(file *parsedFile, targets []target) ([]any, *Refusal) {
 		}
 		return len(ordered[i].path) > len(ordered[j].path)
 	})
+	// Plain value substitutions come first, the plain key renames after the
+	// operations (see applyOperations), still deepest first.
+	var plainKeys []target
 	for _, t := range ordered {
+		if t.part == PartKey {
+			plainKeys = append(plainKeys, t)
+			continue
+		}
 		if !substitute(&expected[t.document], t.path, t.part, t.value) {
 			return nil, refuse(ReasonDecodeMismatch, "the substitution cannot be expressed on the decoded values")
 		}
+	}
+	if r := applyOperations(expected, ops, plainKeys); r != nil {
+		return nil, r
 	}
 	return expected, nil
 }

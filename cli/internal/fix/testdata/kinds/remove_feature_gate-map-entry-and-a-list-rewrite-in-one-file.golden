@@ -1,0 +1,15 @@
+--- a/deploy/app.yaml
++++ b/deploy/app.yaml
+@@ -1,6 +1,5 @@
+ featureGates:
+   A: true
+-  ServerSideApply: true
+ ---
+ apiVersion: apps/v1
+ kind: Deployment
+@@ -13,4 +12,4 @@
+       - name: c
+         image: quay.io/jetstack/cert-manager-controller:v1.16.2
+         args:
+-        - --feature-gates=A=true,ServerSideApply=true
++        - --feature-gates=A=true

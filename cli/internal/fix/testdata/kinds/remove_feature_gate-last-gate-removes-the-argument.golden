@@ -1,0 +1,8 @@
+--- a/deploy/app.yaml
++++ b/deploy/app.yaml
+@@ -10,5 +10,4 @@
+         image: quay.io/jetstack/cert-manager-controller:v1.16.2
+         args:
+         - --v=2
+-        - --feature-gates=ServerSideApply=true
+         - --other
