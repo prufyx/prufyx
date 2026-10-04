@@ -297,7 +297,48 @@ Exit code is again `10`. The 1.21 → 1.22 pair reviews thirteen separate
 removals at once (webhooks, CRDs, RBAC, leases, and more); the twelve that do
 not match are counted. Add `--show-passes` to list them.
 
-## 7. Where to go next
+## 7. One command for the whole upgrade: `prufyx scan`
+
+`prufyx scan` takes your manifests (files, directories or `-` for standard
+input) and the versions you are moving between, and answers first. It accepts
+files other users can read (with a note) and refuses files they can write. On
+the YAML file from step 5a:
+
+```sh
+cd /tmp/prufyx-quickstart
+/tmp/prufyx scan applyset.yaml --from kubernetes=1.24.17 --to kubernetes=1.25.3 \
+  --distribution official_upstream --resource-scope-complete --target-api-apply-required \
+  --now 2026-10-04T00:00:00Z
+```
+
+Verified output:
+
+```
+BLOCKED: 1 problem must be fixed before this upgrade
+
+kubernetes 1.24.17 -> 1.25.3: 1 hop (no reviewed path policy)
+  1.24.17 -> 1.25.3   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
+                      applyset.yaml:2  CronJob default/nightly-report
+                      fix: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
+
+NOT CHECKED (1)
+  kubernetes 1.24.17 -> 1.25.3   kubernetes 1.25 has not been reviewed for removed APIs - check the kubernetes 1.25 release notes for removed APIs by hand, or request coverage
+
+Checked 1 hop, 2 documents, 1 component (1 covered). 6 checks passed (--show-passes).
+Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
+Evidence: every finding cites pinned upstream source (--verbose). No network used.
+evaluated at 2026-10-04T00:00:00Z; input sha256:cac5facf042643aa2ca473b53dbc8e3de6e3001562dc1a16c4a0d15115aa07b0; knowledge embedded cncf-2026-09-13.2 sha256:d91d0eca200dba55128726d1c5a497833f9ab74b2d95d5ef94c9e69cd0633922
+```
+
+The exit code is `10`, and the finding names the file, the line of the
+object's `apiVersion`, its kind and its name. Every area that was not checked
+is listed with what to do about it. A jump across several minor lines, such as
+`--to kubernetes=1.30.4`, exits `11` with the gap `NO_REVIEWED_PATH_POLICY`
+until the knowledge carries a reviewed upgrade-path policy for Kubernetes: scan
+each minor upgrade instead. See [`scan.md`](scan.md) for every flag, the
+gaps, `--redact`, JSON output and `prufyx.yaml`.
+
+## 8. Where to go next
 
 - [`community-checks.md`](community-checks.md) documents every embedded
   project route, including the other native-resource checks besides

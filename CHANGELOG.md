@@ -17,6 +17,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   run manifest. No rules are shipped: the custom-resource version set they
   read is not declared by any adapter yet. See
   `cli/docs/extractors/crd.version-removal.md`.
+- `prufyx scan`: one command that reads rendered manifests (files,
+  directories or standard input) and an upgrade target, and answers with one
+  headline: `BLOCKED` (exit 10) with the file, object and fix for every
+  blocker, `NO BLOCKERS FOUND IN COVERED CHECKS` (exit 11) with every area that
+  was not checked and what to do about it, or `PASS FOR THE DECLARED SCOPE`
+  (exit 0) only when nothing is missing. It evaluates Kubernetes API versions
+  that a release on the way stops serving, plans the upgrade one release line
+  at a time when a reviewed upgrade-path policy exists, reads `prufyx.yaml`,
+  accepts files other users can read with a note (`--input-permissions
+  strict` refuses them), prints digests instead of paths and names with
+  `--redact`, and writes JSON with schema `prufyx.io/scan-report/v1alpha1`
+  (`cli/docs/generated/schemas/scan-report-v1alpha1.json`). See
+  `cli/docs/scan.md`.
 - Maintainer tooling: the knowledge gate gains circuit breakers (a change that
   withdraws more than 5 percent of a pack's active rules, or more than 20 rules
   of one project, fails with an alarm), a per-day limit on loosening changes

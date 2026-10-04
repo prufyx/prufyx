@@ -2,11 +2,7 @@
 
 A repository can keep a small file named `prufyx.yaml` that records the inputs,
 versions and declarations a scan would otherwise take from command-line flags.
-This page describes the file format.
-
-The `scan` command that reads this file is not available yet. The format and
-its checks are fixed now so files written today keep working; this page will
-say so when the command ships.
+This page describes the file format; [`prufyx scan`](scan.md) reads it.
 
 ## Example
 
