@@ -5,11 +5,13 @@ package knowledgegate
 import (
 	"bytes"
 	"crypto/ed25519"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -65,7 +67,7 @@ type approvalRun struct {
 func runApproval(t *testing.T, stdin []byte, now time.Time, args ...string) approvalRun {
 	t.Helper()
 	var out, errOut bytes.Buffer
-	env := approvalEnv{stdin: bytes.NewReader(stdin), now: func() time.Time { return now }, isTerm: func(io.Reader) bool { return false }}
+	env := approvalEnv{stdin: bytes.NewReader(stdin), now: func() time.Time { return now }, checkStdin: func(io.Reader) error { return nil }}
 	code := approvalMain(args, env, DefaultLayout(), &out, &errOut)
 	return approvalRun{code, out.String(), errOut.String()}
 }
@@ -518,11 +520,11 @@ func TestApprovalSignKeyStdin(t *testing.T) {
 			t.Fatalf("CRLF key refused: %v", err)
 		}
 	})
-	t.Run("terminal", func(t *testing.T) {
+	t.Run("standard input refused", func(t *testing.T) {
 		f := newRuleFixture(t)
 		var out, errOut bytes.Buffer
-		env := approvalEnv{stdin: bytes.NewReader(f.key.pemKey(t)), now: func() time.Time { return signNow }, isTerm: func(io.Reader) bool { return true }}
-		if code := approvalMain(f.signArgs("--key-stdin"), env, DefaultLayout(), &out, &errOut); code != 2 || !strings.Contains(errOut.String(), "not a terminal") {
+		env := approvalEnv{stdin: bytes.NewReader(f.key.pemKey(t)), now: func() time.Time { return signNow }, checkStdin: func(io.Reader) error { return errors.New("not a pipe") }}
+		if code := approvalMain(f.signArgs("--key-stdin"), env, DefaultLayout(), &out, &errOut); code != 2 || !strings.Contains(errOut.String(), "not a pipe") {
 			t.Fatalf("exit %d: %s", code, errOut.String())
 		}
 	})
@@ -550,4 +552,110 @@ func TestApprovalPublicKeyAndKeysDigest(t *testing.T) {
 	bad := filepath.Join(t.TempDir(), "keys.json")
 	writeFile(t, bad, []byte(`{"schema":"prufyx.io/web-approval-keys/v1","role":"human","owners":["a"],"keys":[]}`))
 	requireCode(t, runApproval(t, nil, signNow, "keys-digest", "--keys", bad), 2, "wrong schema")
+}
+
+// The digest "approval keys-digest" prints for a key file is the one the
+// gate pins: sha256 of the file without one final newline (not what
+// sha256sum prints for a file that ends in a newline). Checked against an
+// independent computation, for the endings editors and tools write, through
+// the whole gate.
+func TestApprovalKeysDigestOfNewlineTerminatedFile(t *testing.T) {
+	for name, ending := range map[string]string{"LF": "\n", "two LF": "\n\n", "CRLF": "\r\n"} {
+		t.Run(name, func(t *testing.T) {
+			f := newRuleFixture(t)
+			raw, err := os.ReadFile(f.keysPath())
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw = append(raw, ending...)
+			for _, tr := range []Tree{f.base, f.head} {
+				writeFile(t, filepath.Join(tr.Root, filepath.FromSlash(DefaultLayout().ApprovalKeysPath)), raw)
+			}
+			pinned := sha256.Sum256(bytes.TrimSuffix(raw, []byte("\n")))
+			want := "sha256:" + hex.EncodeToString(pinned[:])
+			whole := sha256.Sum256(raw)
+			if want == "sha256:"+hex.EncodeToString(whole[:]) {
+				t.Fatal("test file does not end in a newline")
+			}
+			r := runApproval(t, nil, signNow, "keys-digest", "--keys", f.keysPath())
+			if r.code != 0 || r.stdout != want+"\n" {
+				t.Fatalf("keys-digest printed %q (exit %d), want %s", r.stdout, r.code, want)
+			}
+			f.keysDigest = strings.TrimSpace(r.stdout)
+			requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.signArgs("--key-stdin")...), 0, "approval written")
+			report := runGate(t, Options{Base: f.base, Head: f.head, ApprovalKeysDigest: f.keysDigest})
+			requirePass(t, report)
+			if c := change(t, report, f.id); c.Proof != ProofApproval {
+				t.Fatalf("proof %q", c.Proof)
+			}
+			// What sha256sum prints is not the pinned digest.
+			requireFail(t, runGate(t, Options{Base: f.base, Head: f.head, ApprovalKeysDigest: "sha256:" + hex.EncodeToString(whole[:])}), "does not match the pinned digest")
+		})
+	}
+}
+
+// A change the gate classifies as tightening needs no approval; the signer
+// refuses it instead of writing a file the gate's records check would fail.
+func TestApprovalSignRefusesTightening(t *testing.T) {
+	for name, edit := range map[string]func(e map[string]any){
+		"withdrawn": func(e map[string]any) { evidenceOf(e)["state"] = "withdrawn" },
+		"earlier lease end": func(e map[string]any) {
+			evidenceOf(e)["validUntil"] = shiftTime(t, evidenceOf(e)["validUntil"], -24*time.Hour)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			base, head := trees(t)
+			id := readPack(t, base, cncfRulesPath).activeReviewed()[0]
+			editPack(t, head, cncfRulesPath, func(p *packDoc) { edit(p.find(t, id)) })
+			f := pinFixture(t, base, head, id)
+			requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.signArgs("--key-stdin")...), 2, "not loosening")
+			if _, err := os.Lstat(f.out()); !os.IsNotExist(err) {
+				t.Fatal("an approval was written")
+			}
+		})
+	}
+	t.Run("new rule added withdrawn", func(t *testing.T) {
+		f := newRuleFixture(t)
+		editPack(t, f.head, cncfRulesPath, func(p *packDoc) { evidenceOf(p.find(t, f.id))["state"] = "withdrawn" })
+		requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.signArgs("--key-stdin")...), 2, "not loosening")
+	})
+}
+
+func TestApprovalSignOutputName(t *testing.T) {
+	f := newRuleFixture(t)
+	for _, out := range []string{
+		filepath.Join(t.TempDir(), "approval.json"),
+		filepath.Join(t.TempDir(), "community", f.id+".json"),
+		filepath.Join(t.TempDir(), "cncf", "other.json"),
+	} {
+		args := f.signArgs("--key-stdin")
+		args[len(args)-2] = out
+		requireCode(t, runApproval(t, f.key.pemKey(t), signNow, args...), 2, "--output must end in cncf/"+f.id+".json")
+		if _, err := os.Lstat(out); !os.IsNotExist(err) {
+			t.Fatalf("%s written", out)
+		}
+	}
+}
+
+// Help prints the usage on standard output and exits 0; a refused command
+// line prints the reason and then the usage, line by line.
+func TestApprovalHelpAndUsage(t *testing.T) {
+	for _, args := range [][]string{{"--help"}, {"sign", "--help"}, {"sign", "-h"}, {"verify", "--help"}, {"public-key", "-help"}, {"keys-digest", "--help"}} {
+		r := runApproval(t, nil, signNow, args...)
+		if r.code != 0 || !strings.HasPrefix(r.stdout, "usage: prufyx-maintainer approval") || !strings.Contains(r.stdout, "\n  verify ") || r.stderr != "" {
+			t.Fatalf("%v: exit %d stdout %q stderr %q", args, r.code, r.stdout, r.stderr)
+		}
+	}
+	for args, want := range map[string]string{
+		"sign":                            "approval: --identity, --candidate-id and --output are required\nusage: prufyx-maintainer approval",
+		"keys-digest":                     "approval: --keys is required\nusage:",
+		"keys-digest --keys k.json extra": "approval: unexpected argument extra\nusage:",
+		"verify --approval a.json more":   "approval: unexpected argument more\nusage:",
+		"sign --nope":                     "approval: flag provided but not defined: -nope\nusage:",
+	} {
+		r := runApproval(t, nil, signNow, strings.Fields(args)...)
+		if r.code != 2 || !strings.HasPrefix(r.stderr, want) || strings.Contains(r.stderr, "%0A") || !strings.Contains(r.stderr, "\n  keys-digest --keys FILE") {
+			t.Fatalf("%s: exit %d stderr %q", args, r.code, r.stderr)
+		}
+	}
 }
