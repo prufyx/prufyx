@@ -438,7 +438,7 @@ func TestApprovalSignKeyFileRefusals(t *testing.T) {
 	if err := os.Symlink(good, link); err != nil {
 		t.Fatal(err)
 	}
-	requireCode(t, runApproval(t, nil, signNow, f.signArgs("--key", link)...), 2, "symbolic link")
+	requireCode(t, runApproval(t, nil, signNow, f.signArgs("--key", link)...), 2, "the key file is a symbolic link")
 
 	linkedDir := filepath.Join(t.TempDir(), "keys")
 	if err := os.Symlink(filepath.Dir(good), linkedDir); err != nil {
