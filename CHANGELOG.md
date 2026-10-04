@@ -74,6 +74,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   human output (`cannot be rolled back: ...`, `before you upgrade: ...`); it
   never changes a verdict, an aggregate or the exit status. No notice rules
   are shipped yet.
+- Evidence bases `empirical`, `consensus` and `lead` for rules, and
+  `check cncf --require-basis LIST` on every route, embedded and external
+  knowledge. A consensus rule (two independent model readings, citations
+  verified) may block but never passes: where it finds nothing its claim is
+  `NO_KNOWN_ISSUE` (exit 11) and a scope assessment stays UNKNOWN
+  (`CONSENSUS_ONLY_SCOPE`). A lead (one unverified model reading) never blocks
+  or passes and is evaluated only when `lead` is listed. The default admits
+  `reviewed,mechanical,empirical,consensus`; a check that left out a rule says
+  how many (`trustPolicy` in JSON, a `trust policy:` line in human output) and
+  never exits 0. Every finding prints its evidence basis, and human output
+  states how many findings rely on model consensus. Documents with a consensus
+  or lead rule use rules schema
+  `prufyx.io/deterministic-constraint-rules/v1alpha5` and pack schema
+  `prufyx.io/cncf-source-rule-pack/v1alpha7`. No such rules are shipped yet.
 - Upgrade-path policies: a knowledge pack may carry an optional
   `pathPolicies` section saying how a component's upgrades are split into
   hops (`sequential_minor`, `direct` or `sequential_major`), each record with

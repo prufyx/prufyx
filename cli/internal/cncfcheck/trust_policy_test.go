@@ -330,8 +330,8 @@ func TestPolicyAppliedEverywhere(t *testing.T) {
 		if report.TrustPolicy == nil || report.TrustPolicy.ExcludedRules == 0 || !reflect.DeepEqual(report.TrustPolicy.RequiredBasis, []string{"mechanical"}) {
 			t.Fatalf("%s: policy not applied: %+v", name, report.TrustPolicy)
 		}
-		if len(report.Check.Claims) != 0 || ClaimExit(report) == 0 {
-			t.Fatalf("%s: claims=%d exit=%d", name, len(report.Check.Claims), ClaimExit(report))
+		if len(report.Check.Claims) != 0 || ClaimExit(report) == 0 || report.NextAction != trustPolicyNextAction {
+			t.Fatalf("%s: claims=%d exit=%d next=%q", name, len(report.Check.Claims), ClaimExit(report), report.NextAction)
 		}
 	}
 	report, err := checker.Check("containerd", input, now)

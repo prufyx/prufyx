@@ -338,6 +338,9 @@ func (b ExternalBundle) evaluate(project, selectedRuleID string, inputRaw []byte
 		} else {
 			report.NextAction = "no rules are packaged for this project; retain UNKNOWN and request reviewed coverage"
 		}
+		if rules.excluded > 0 {
+			report.NextAction = trustPolicyNextAction
+		}
 	}
 	report.seal = &reportSeal{}
 	encoded, err := json.Marshal(report)

@@ -159,14 +159,27 @@ knowledge targets do not accept notices yet.
 ## Evidence basis
 
 A rule's `evidence` block may say how the rule was produced. The fields are
-optional and never change a verdict; they are parsed strictly and shown next to
-every finding.
+optional; they are parsed strictly and shown next to every finding. Only a
+`consensus` or `lead` basis changes what the rule may decide (see the table in
+[product-contract.md](product-contract.md#evidence-bases-and-the-trust-policy)).
 
 | Field | Meaning |
 | --- | --- |
-| `basis` | `"reviewed"` (interpreted by a maintainer) or `"mechanical"` (derived from pinned upstream source by a versioned extractor). Absent means `reviewed`. Any other value is rejected. |
+| `basis` | `"reviewed"` (interpreted by a maintainer), `"mechanical"` (derived from pinned upstream source by a versioned extractor), `"empirical"` (reproduced with upstream artifacts), `"consensus"` (two independent model readings agree and every citation was verified; may block, never passes) or `"lead"` (one unverified model reading; never blocks or passes). Absent means `reviewed`. Any other value is rejected. |
 | `extractor` | `{ "id", "version", "codeDigest" }`: the extractor id, a strict `major.minor.patch` version and the `sha256:<64 lowercase hex>` digest of the extractor's source. Required when `basis` is `mechanical`, and rejected otherwise. |
-| `derivedAt` | RFC 3339 UTC time the extractor produced this rule. Required when `basis` is `mechanical`, rejected otherwise, and earlier than `validUntil`. |
+| `derivedAt` | RFC 3339 UTC time the rule was produced. Required when `basis` is `mechanical`, `empirical`, `consensus` or `lead`, rejected otherwise, and earlier than `validUntil`. |
+
+A rule document or pack that contains a `consensus` or `lead` rule carries its
+own schema — rules `prufyx.io/deterministic-constraint-rules/v1alpha5`, CNCF
+pack `prufyx.io/cncf-source-rule-pack/v1alpha7` — and its reports carry a
+separate engine contract digest. Binaries that predate these bases reject
+such a document, and every other document keeps its schema, digests and report
+bytes. An `empirical` rule decides like a reviewed one and needs no new
+schema. A `consensus` or `lead` basis cannot be put on a `notice_one_way`
+rule, a lead cannot support a completeness attestation, and community project
+packs and external knowledge targets do not accept `consensus` or `lead`
+rules yet. Upgrade-path policies, line attestations and evidence
+reattestation accept only `reviewed` and `mechanical` evidence.
 
 Community contributions are reviewed rules: a candidate that declares
 `basis: "mechanical"` is rejected by `prufyx-maintainer rule validate`. A
@@ -188,14 +201,19 @@ that side; a rule without a range never does. A component without a policy
 is never assumed to allow skipping lines. See
 [upgrade-paths.md](upgrade-paths.md).
 
-Every human finding prints one line before the pinned sources, either
-`evidence basis: reviewed by maintainer` or
-`evidence basis: derived from source by <extractor id> v<version>`. In JSON
+Every human finding prints one line before the pinned sources, one of
+`evidence basis: reviewed by maintainer`,
+`evidence basis: derived from source by <extractor id> v<version>`,
+`evidence basis: reproduced with upstream artifacts; may block or pass`,
+`evidence basis: two independent model readings, citations verified; may block, never passes`
+or `evidence basis: one unverified model reading; never blocks or passes`. In JSON
 output a finding that comes from a mechanical rule carries `evidenceBasis`,
 `evidenceExtractor` (`id`, `version`, `codeDigest`) and `evidenceDerivedAt` on
-its claim. These fields are omitted for rules with no declared basis, so
-existing reports keep their exact bytes; an absent `evidenceBasis` means the
-rule was reviewed by a maintainer. Neither form changes the exit code.
+its claim; a finding from any other declared basis carries `evidenceBasis`
+and `evidenceDerivedAt`. These fields are omitted for rules with no declared
+basis, so existing reports keep their exact bytes; an absent `evidenceBasis`
+means the rule was reviewed by a maintainer. A reviewed, mechanical or
+empirical basis never changes the exit code.
 
 ## Evidence discipline
 

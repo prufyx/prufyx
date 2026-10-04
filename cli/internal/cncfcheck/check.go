@@ -126,6 +126,10 @@ func validTrustPolicyDisclosure(disclosure *TrustPolicyDisclosure) bool {
 	return err == nil && strings.Join(policy.Bases(), ",") == strings.Join(disclosure.RequiredBasis, ",")
 }
 
+// trustPolicyNextAction is the next action of a report whose rules the trust
+// policy left out entirely.
+const trustPolicyNextAction = "the trust policy left out every rule for this check; the result stays UNKNOWN unless you admit more evidence bases"
+
 // Checker evaluates embedded knowledge under one trust policy. Its zero
 // value uses the default policy; the package-level functions are the zero
 // Checker's methods.
@@ -298,6 +302,9 @@ func (b bundle) reportSelection(project, selectedRuleID string, family bool, inp
 			report.NextAction = "the selected reviewed native-input rule is unavailable; retain UNKNOWN and select knowledge that contains that exact rule"
 		} else {
 			report.NextAction = "no generic rules are packaged for this project; inspect its existing named checks in the catalogue or contribute an exact transition with primary source evidence"
+		}
+		if selected.excluded > 0 {
+			report.NextAction = trustPolicyNextAction
 		}
 	}
 	report.seal = &reportSeal{}

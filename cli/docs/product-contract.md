@@ -46,6 +46,43 @@ claims are notices exits 11, and a notice beside passing or blocking claims
 leaves their exit status as it was. The absence of a notice means nothing; it
 does not say that a rollback is possible.
 
+### Evidence bases and the trust policy
+
+Every rule states how it was produced, and the basis limits what it may
+decide:
+
+| Basis | Produced by | May block | May pass |
+| --- | --- | --- | --- |
+| `reviewed` (or none) | a maintainer read the cited source | yes | yes |
+| `mechanical` | a versioned extractor over pinned upstream source | yes | yes |
+| `empirical` | the behaviour was reproduced with upstream artifacts | yes | yes |
+| `consensus` | two independent model readings agree, every citation verified | yes | no |
+| `lead` | one unverified model reading | no | no |
+
+A `consensus` rule that would pass yields the claim `NO_KNOWN_ISSUE`
+(`CONSENSUS_NO_KNOWN_ISSUE`). It is not a pass: the exit status is 11, and in a
+scope assessment it is applicable but not verified, so the aggregate stays
+UNKNOWN with `CONSENSUS_ONLY_SCOPE`. A `consensus` rule that would block
+yields `BLOCKED` like any other. A `lead` that would block yields `NOTICE`
+(`LEAD_NOT_VERIFIED`), printed as `unverified lead (does not block): <rule>`;
+otherwise it yields `NO_KNOWN_ISSUE` (`LEAD_NO_KNOWN_ISSUE`) and prints
+nothing. Leads never change an exit status or an aggregate, exactly like
+one-way notices.
+
+`check cncf --require-basis LIST` selects which bases are evaluated, as a
+comma-separated subset of `reviewed,mechanical,empirical,consensus,lead`
+without spaces. The default is `reviewed,mechanical,empirical,consensus`:
+leads are left out unless listed. Rules of any other basis are left out when
+the rule document is assembled, on every route and for embedded and external
+knowledge alike. A report that left out rules carries
+`trustPolicy: {requiredBasis, excludedRules, excludedLeadRules}` in JSON and a
+`trust policy:` line in human output. When a verdict rule was left out the
+check never exits 0 and a scope assessment loses its completeness
+attestation, so it stays UNKNOWN; leaving out only leads changes no verdict.
+An unknown or repeated token, or an empty list, is a usage error (exit 2).
+Replay a report with the `--require-basis` it was made with. Human output
+states `N findings rely on model consensus` when any finding does.
+
 The whole-upgrade aggregate remains UNKNOWN. No result in this release
 authorizes a rollout or establishes full runtime, data, rollback or component
 compatibility. The older `validate-prometheus-mode` command retains its

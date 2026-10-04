@@ -13,6 +13,26 @@ JSON file readable only by its owner because Helm values commonly contain
 credentials. Relative paths are accepted. Create inputs under `umask 077`, or
 run `chmod 600 values.json` before the check.
 
+## Choosing which evidence to trust
+
+Every `check cncf` route, with embedded or external knowledge, takes
+`--require-basis LIST`: a comma-separated subset of
+`reviewed,mechanical,empirical,consensus,lead` without spaces. Only rules
+whose evidence basis is listed are evaluated. The default is
+`reviewed,mechanical,empirical,consensus`. For example, to rely only on rules
+a maintainer reviewed:
+
+```sh
+prufyx check cncf --project containerd --input input.json --now 2026-09-20T00:00:00Z --require-basis reviewed
+```
+
+A check that left out a rule prints
+`trust policy: evidence basis reviewed only; N rules left out, so the result cannot pass`
+(and `trustPolicy` in JSON) and never exits 0. A consensus rule may block but
+never passes; a lead is listed only with `lead` and never blocks. See
+[product-contract.md](product-contract.md#evidence-bases-and-the-trust-policy).
+Use the same `--require-basis` to replay a report.
+
 ## Discovering embedded source-rule routes
 
 Use `catalog checks` to inspect the exact embedded source-rule identities for
