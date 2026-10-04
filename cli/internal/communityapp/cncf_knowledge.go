@@ -96,5 +96,8 @@ func writeExternalClaims(out io.Writer, claims []constraintengine.Claim) error {
 			return err
 		}
 	}
-	return writeNoVerdictLine(out, claims)
+	if err := writeNoVerdictLine(out, claims); err != nil {
+		return err
+	}
+	return writeCustomResourceScope(out, claims)
 }

@@ -433,14 +433,20 @@ type claimView struct{ Status, ReasonCode, EvidenceFreshness string }
 
 // cncfClaimViews keeps the claims that decide an outcome. One-way notices and
 // leads are informational and never do: an item whose only claims are such
-// keeps the UNKNOWN outcome of an item without claims.
+// keeps the UNKNOWN outcome of an item without claims. A pass of a rule that
+// reads a custom-resource version set counts as unknown: nothing yet shows
+// that the published rules name every version a release stops serving.
 func cncfClaimViews(claims []constraintengine.Claim) []claimView {
 	views := make([]claimView, 0, len(claims))
 	for _, claim := range claims {
 		if claim.IsVerdictNeutral() {
 			continue
 		}
-		views = append(views, claimView{Status: claim.Status, ReasonCode: claim.ReasonCode, EvidenceFreshness: claim.EvidenceFreshness})
+		view := claimView{Status: claim.Status, ReasonCode: claim.ReasonCode, EvidenceFreshness: claim.EvidenceFreshness}
+		if view.Status == "PASS" && cncfcheck.ReadsCustomResourceVersions(claim) {
+			view.Status, view.ReasonCode = "UNKNOWN", ""
+		}
+		views = append(views, view)
 	}
 	return views
 }
