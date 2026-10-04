@@ -44,6 +44,17 @@
 //     engine (the block-only check).
 //   - removing a rule: never admitted; withdraw it instead.
 //
+// A pack's line attestations and upgrade-path policies are diffed record by
+// record, keyed by record ID, and classified the same way (removing a line
+// attestation is tightening; withdrawing a path policy or moving a record's
+// validUntil earlier is tightening; anything else is loosening). A
+// loosening record change is admitted only by re-derivation (a mechanical
+// line attestation), by a verified automated reattestation statement that
+// renews the record and changes nothing but its two dates (a reviewed
+// record), or, for a reviewed line attestation, by an owner approval for
+// exactly that record plus a cross-check against the attesting extractor's
+// own derivation of the line. See records.go.
+//
 // On top of that the gate checks every head pack (engine admission,
 // rulecheck, fact registry and size caps, the stagger cap for renewed
 // leases, corpus attestation and support inventory regeneration), enforces a

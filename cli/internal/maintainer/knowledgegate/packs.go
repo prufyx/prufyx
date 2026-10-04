@@ -46,6 +46,10 @@ type loadedPack struct {
 	Members map[string]json.RawMessage
 	Entries map[string]*entry
 	Order   []string
+	// Records are the pack's line attestations and path policies by
+	// record ID, read only for a pack whose spec has Records.
+	Records     map[string]*record
+	RecordOrder []string
 }
 
 // loadPack reads a pack as the engine admits it: a pack with a repeated or
@@ -56,7 +60,7 @@ type loadedPack struct {
 func loadPack(t Tree, spec PackSpec) (*loadedPack, error) {
 	raw, err := t.Read(spec.Path, MaxFileBytes)
 	if errors.Is(err, ErrMissing) {
-		return &loadedPack{Spec: spec, Members: map[string]json.RawMessage{}, Entries: map[string]*entry{}}, nil
+		return &loadedPack{Spec: spec, Members: map[string]json.RawMessage{}, Entries: map[string]*entry{}, Records: map[string]*record{}}, nil
 	}
 	if err != nil {
 		return nil, err
@@ -68,7 +72,12 @@ func loadPack(t Tree, spec PackSpec) (*loadedPack, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: the engine cannot read the pack: %w", spec.Path, err)
 	}
-	p := &loadedPack{Spec: spec, Present: true, Raw: raw, Members: members, Entries: map[string]*entry{}}
+	p := &loadedPack{Spec: spec, Present: true, Raw: raw, Members: members, Entries: map[string]*entry{}, Records: map[string]*record{}}
+	if spec.Records {
+		if p.Records, p.RecordOrder, err = loadRecords(raw); err != nil {
+			return nil, fmt.Errorf("%s: the pack's records cannot be read: %w", spec.Path, err)
+		}
+	}
 	for i, admitted := range entries {
 		e, err := newEntry(admitted)
 		if err != nil {

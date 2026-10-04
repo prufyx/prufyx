@@ -29,6 +29,8 @@ type statementResult struct {
 	Role    string
 	Stem    string
 	Renewed map[string]bool
+	// Statement is the verified statement.
+	Statement evidencereattest.Statement
 }
 
 // readChain reads one chain directory into entries ordered by stem. Every
@@ -164,5 +166,5 @@ func verifyStatement(layout Layout, spec PackSpec, base, head Tree, basePack, he
 	if len(renewed) != result.RuleCount {
 		return fail("statement %s: renewed rule count mismatch", stmt.Name)
 	}
-	return statementResult{OK: true, Role: sig.SignerRole, Stem: stmt.Name, Renewed: renewed}
+	return statementResult{OK: true, Role: sig.SignerRole, Stem: stmt.Name, Renewed: renewed, Statement: statement}
 }

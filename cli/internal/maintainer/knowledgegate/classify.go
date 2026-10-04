@@ -45,7 +45,10 @@ type Change struct {
 	RuleID string `json:"ruleId"`
 	// Member names the top-level pack member a pack-member change
 	// concerns; RuleID is then empty.
-	Member  string   `json:"member,omitempty"`
+	Member string `json:"member,omitempty"`
+	// Section names the record section (lineAttestations or pathPolicies)
+	// of a record change; RuleID is then the record ID.
+	Section string   `json:"section,omitempty"`
 	Project string   `json:"project"`
 	Class   string   `json:"class"`
 	Kinds   []string `json:"kinds"`
@@ -60,12 +63,19 @@ type Change struct {
 	Detail string `json:"detail,omitempty"`
 
 	base, head *entry
+	// rbase and rhead are a record change's base and head records;
+	// renewal is true when the head differs from the base only in a later
+	// evidence.reviewedAt and a later evidence.validUntil.
+	rbase, rhead *record
+	renewal      bool
 }
 
 // diffPacks classifies every top-level member and every rule that differs
-// between two loads of a pack. Only entries have classification rules:
-// any other member that differs is a loosening change that is never
-// admitted.
+// between two loads of a pack. Entries, and the record sections of a pack
+// whose records the gate reads, have classification rules: any other
+// member that differs is a loosening change that is never admitted. A
+// record section that differs although no record of it does is also such
+// a member change.
 func diffPacks(base, head *loadedPack) []*Change {
 	var out []*Change
 	members := map[string]bool{}
@@ -85,6 +95,12 @@ func diffPacks(base, head *loadedPack) []*Change {
 		h, hok := head.Members[m]
 		if bok == hok && bytes.Equal(canonicalRaw(b), canonicalRaw(h)) {
 			continue
+		}
+		if recordSection(head.Spec, m) {
+			if records := diffRecords(base, head, m); len(records) > 0 {
+				out = append(out, records...)
+				continue
+			}
 		}
 		out = append(out, &Change{Pack: head.Spec.Name, Member: m, Class: ClassLoosening, Kinds: []string{KindPackMember}})
 	}

@@ -400,6 +400,9 @@ func (c *Change) subject() string {
 	if c.Member != "" {
 		return "member:" + logSafe(c.Member)
 	}
+	if c.Section != "" {
+		return logSafe(c.Section) + ":" + logSafe(c.RuleID)
+	}
 	return logSafe(c.RuleID)
 }
 

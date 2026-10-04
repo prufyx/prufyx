@@ -26,6 +26,12 @@ import (
 // Version 2 binds the base state. Version 1 records, which bound only the
 // proposed entry and could be replayed after the rule was withdrawn, are
 // refused.
+//
+// An approval may also cover one line attestation record of a pack: it
+// then names the subject lineAttestation, the record ID in ruleId and the
+// record's scope ("<component> <factFamily> <line>"), and its digests are
+// those of the record (canonical JSON). A rule approval names no subject
+// and no scope, so one never verifies as the other.
 const (
 	ApprovalSchema     = "prufyx.io/knowledge-approval/v2"
 	ApprovalKeysSchema = "prufyx.io/web-approval-keys/v1"
@@ -59,6 +65,11 @@ type ApprovalRecord struct {
 	Identity        string `json:"identity"`
 	Pack            string `json:"pack"`
 	RuleID          string `json:"ruleId"`
+	// Scope and Subject are set only on a record approval (see
+	// ApprovalSubjectLineAttestation); a rule approval has neither, and its
+	// signed bytes do not contain them.
+	Scope   string `json:"scope,omitempty"`
+	Subject string `json:"subject,omitempty"`
 }
 
 // ApprovalEnvelope is the committed file: the record, the signing key id
@@ -93,6 +104,9 @@ var (
 	approvalLoginRE  = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$`)
 	approvalDigestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 	approvalTimeRE   = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$`)
+	// approvalScopeRE is a line attestation scope: a package URL, a fact
+	// family and a minor line, separated by single spaces.
+	approvalScopeRE = regexp.MustCompile(`^pkg:[a-z0-9][a-z0-9+._/-]{0,199} [a-z0-9][a-z0-9._-]{0,127} (0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$`)
 )
 
 // SignedApprovalBytes returns the exact bytes an approval signature covers.
@@ -110,6 +124,18 @@ func SignedApprovalBytes(r ApprovalRecord) ([]byte, error) {
 func (r ApprovalRecord) validate() error {
 	if (r.BaseDigest != ApprovalBaseAbsent && !approvalDigestRE.MatchString(r.BaseDigest)) || !approvalDigestRE.MatchString(r.CandidateDigest) || !approvalTokenRE.MatchString(r.CandidateID) || !approvalTimeRE.MatchString(r.DecidedAt) ||
 		!approvalTokenRE.MatchString(r.Decision) || !approvalLoginRE.MatchString(r.Identity) || !approvalTokenRE.MatchString(r.Pack) || !approvalTokenRE.MatchString(r.RuleID) {
+		return errors.New("approval record field out of range")
+	}
+	switch r.Subject {
+	case "":
+		if r.Scope != "" {
+			return errors.New("approval record field out of range")
+		}
+	case ApprovalSubjectLineAttestation:
+		if !approvalScopeRE.MatchString(r.Scope) {
+			return errors.New("approval record field out of range")
+		}
+	default:
 		return errors.New("approval record field out of range")
 	}
 	return nil
@@ -177,6 +203,21 @@ func ParseApprovalKeys(raw []byte) (ApprovalKeys, error) {
 // digest of the base entry's canonical bytes (baseEntry nil: the base has
 // no such rule, and the record must say ApprovalBaseAbsent).
 func VerifyApproval(raw []byte, keys ApprovalKeys, pack, ruleID string, baseEntry, canonicalEntry []byte, now time.Time) error {
+	return verifyApproval(raw, keys, pack, "", ruleID, "", baseEntry, canonicalEntry, now)
+}
+
+// VerifyRecordApproval is VerifyApproval for one record of a pack: the
+// approval must name subject, the record ID and the record's scope, and its
+// digests are those of the base record (nil: the base has no such record)
+// and the proposed record, each in canonical JSON.
+func VerifyRecordApproval(raw []byte, keys ApprovalKeys, pack, subject, recordID, scope string, baseRecord, canonicalRecord []byte, now time.Time) error {
+	if subject == "" || scope == "" {
+		return errors.New("approval: a record approval names a subject and a scope")
+	}
+	return verifyApproval(raw, keys, pack, subject, recordID, scope, baseRecord, canonicalRecord, now)
+}
+
+func verifyApproval(raw []byte, keys ApprovalKeys, pack, subject, ruleID, scope string, baseEntry, canonicalEntry []byte, now time.Time) error {
 	if len(raw) > maxApprovalBytes {
 		return errors.New("approval too large")
 	}
@@ -222,7 +263,9 @@ func VerifyApproval(raw []byte, keys ApprovalKeys, pack, ruleID string, baseEntr
 		return fmt.Errorf("approval: %s is not an owner", r.Identity)
 	case r.Decision != ApprovalDecisionApprove:
 		return fmt.Errorf("approval: decision is %q", r.Decision)
-	case r.Pack != pack || r.RuleID != ruleID:
+	case r.Subject != subject:
+		return errors.New("approval: approves a different kind of subject")
+	case r.Pack != pack || r.RuleID != ruleID || r.Scope != scope:
 		return errors.New("approval: approves a different rule")
 	}
 	decided, err := time.Parse(time.RFC3339, r.DecidedAt)

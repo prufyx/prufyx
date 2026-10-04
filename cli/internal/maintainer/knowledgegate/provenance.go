@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 	"github.com/prufyx/prufyx/cli/internal/strictjson"
 )
@@ -247,6 +248,10 @@ func reattestPathReason(rest string, packs map[string]bool, statements map[strin
 	case "review-records":
 		id := strings.TrimSuffix(parts[2], reviewRecordSuffix)
 		switch {
+		case evidencerepin.IsRecordID(id):
+			// No tool produces or verifies a review record for a line
+			// attestation or a path policy yet.
+			return "review records for line attestations and path policies are not accepted"
 		case !stmt.OK:
 			return "no verified statement appended in this change"
 		case !inHead:

@@ -5,6 +5,8 @@ package knowledgegate
 import (
 	"fmt"
 	"sort"
+
+	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
 // Modes of a gate run.
@@ -75,8 +77,16 @@ func withdrawalTripped(n, total, percent int) bool {
 func (r *Report) breakerChecks(cls *Classification, opts Options) {
 	perPack := map[string]int{}
 	perProject := map[string]int{}
+	recordsPerPack := map[string]int{}
 	for _, c := range cls.Changes {
-		if containsKind(c.Kinds, KindWithdraw) {
+		switch {
+		case c.Section != "" && withdrawsRecord(c):
+			// A record switched off: a path policy withdrawn, a line
+			// attestation removed. Counted apart from rules, so the
+			// rule breaker is unchanged by records.
+			recordsPerPack[c.Pack]++
+			perProject[c.Project]++
+		case c.Section == "" && containsKind(c.Kinds, KindWithdraw):
 			perPack[c.Pack]++
 			perProject[c.Project]++
 		}
@@ -103,6 +113,7 @@ func (r *Report) breakerChecks(cls *Classification, opts Options) {
 		if b.Tripped {
 			r.alarm(AlarmWithdrawPack, "withdrawal breaker: %d of %d active rules of pack %s withdrawn, above %d percent; nothing is published", n, active, name, opts.MaxWithdrawPercent)
 		}
+		r.recordBreaker(cls, name, recordsPerPack[name], opts)
 	}
 	projects := make([]string, 0, len(perProject))
 	for p := range perProject {
@@ -143,5 +154,46 @@ func (r *Report) dailyCheck(opts Options) {
 	r.add("limits/daily", d.OK, "%d merged in the last day plus %d in this change, cap %d", d.Before, d.Change, d.Cap)
 	if !d.OK {
 		r.alarm(AlarmDailyLimit, "daily loosening limit exceeded: %d merged in the last day plus %d in this change is above %d", d.Before, d.Change, d.Cap)
+	}
+}
+
+// Breaker kind for records.
+const BreakerWithdrawRecords = "withdrawal-records"
+
+// withdrawsRecord reports whether a record change switches a record off:
+// a line attestation removed or a path policy withdrawn.
+func withdrawsRecord(c *Change) bool {
+	return c.Class == ClassTightening && (containsKind(c.Kinds, KindWithdraw) || (c.Section == sectionAttestations && containsKind(c.Kinds, KindRemove)))
+}
+
+// recordBreaker is the pack breaker for records: a change that switches
+// off records (removes line attestations, withdraws path policies) of more
+// than MaxWithdrawPercent of the pack's active items fails. The active
+// items are the base's active rules and active records together, so a pack
+// with few records may still lose one; the rule breaker above counts rules
+// alone and is unchanged by records. It is reported only for a pack that
+// holds records.
+func (r *Report) recordBreaker(cls *Classification, name string, n int, opts Options) {
+	b := cls.base[name]
+	if b == nil || !b.Spec.Records || (len(b.Records) == 0 && n == 0) {
+		return
+	}
+	active := 0
+	for _, e := range b.Entries {
+		if e.Evidence.State == "active" {
+			active++
+		}
+	}
+	for _, rec := range b.Records {
+		if rec.State == upgradepath.StateActive {
+			active++
+		}
+	}
+	br := Breaker{Kind: BreakerWithdrawRecords, Subject: name, Observed: n, Of: active, Limit: opts.MaxWithdrawPercent}
+	br.Tripped = withdrawalTripped(n, active, opts.MaxWithdrawPercent)
+	r.Breakers = append(r.Breakers, br)
+	r.add("breaker/withdrawals/"+name+"/records", !br.Tripped, "%d records switched off of %d active rules and records, breaker above %d percent", n, active, opts.MaxWithdrawPercent)
+	if br.Tripped {
+		r.alarm(AlarmWithdrawPack, "withdrawal breaker: %d records of pack %s switched off, of %d active rules and records, above %d percent; nothing is published", n, name, active, opts.MaxWithdrawPercent)
 	}
 }

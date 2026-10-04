@@ -303,6 +303,26 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		return approvalKeys, approvalKeysErr
 	}
 
+	// The extractor run a reviewed line attestation is cross-checked
+	// against, made once per fact family at the gate's clock.
+	attesterRuns := map[string]*attesterRun{}
+	crossCheck := func(pack string, rec *record) error {
+		a := rec.attestation
+		if a == nil {
+			return errors.New("not a line attestation")
+		}
+		run := attesterRuns[a.FactFamily]
+		if run == nil {
+			run = &attesterRun{}
+			run.out, run.err = runAttester(ctx, opts.Source, opts.Catalog, opts.Concurrency, a.FactFamily, opts.Now)
+			attesterRuns[a.FactFamily] = run
+		}
+		if run.err != nil {
+			return run.err
+		}
+		return crossCheckAttestation(run.out, *a, cls.head[pack])
+	}
+
 	var mechanical []*Change
 	for _, c := range cls.Changes {
 		if c.Class == ClassTightening {
@@ -314,7 +334,24 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 			continue
 		}
 		if c.Member != "" {
-			c.fail("only the pack's entries may change through this gate; the top-level member " + logSafe(c.Member) + " changed")
+			c.fail("only the pack's entries and records may change through this gate; the top-level member " + logSafe(c.Member) + " changed")
+			continue
+		}
+		if c.Section != "" {
+			// A record: mechanical ones only by re-derivation, never
+			// through a statement or an approval.
+			switch {
+			case c.rhead != nil && c.rhead.mechanical() && c.Section != sectionAttestations:
+				c.fail("no extractor derives path policies: a mechanical path policy cannot be re-derived")
+			case c.rhead != nil && c.rhead.mechanical():
+				if err := freshRecordDerivation(c.rhead, opts.Now); err != nil {
+					c.fail(err.Error())
+					continue
+				}
+				mechanical = append(mechanical, c)
+			default:
+				admitRecord(c, statements[c.Pack], loadKeys, crossCheck, opts)
+			}
 			continue
 		}
 		if c.head == nil {
@@ -424,16 +461,33 @@ func (r *Report) rederiveAll(ctx context.Context, cls *Classification, rederived
 			}
 			all = append(all, &Change{Pack: spec.Name, RuleID: id, head: e})
 		}
+		// Mechanical line attestations, too. They have no state: one in
+		// the pack is in force.
+		for _, id := range h.RecordOrder {
+			rec := h.Records[id]
+			if !rec.mechanical() || rec.attestation == nil || done[spec.Name+"\x00"+id] {
+				continue
+			}
+			all = append(all, &Change{Pack: spec.Name, RuleID: id, Section: rec.Section, rhead: rec})
+		}
 	}
 	rederive(ctx, opts.Source, opts.Catalog, opts.Concurrency, opts.Layout, all)
 	var failed []string
+	attestations := 0
 	for _, c := range all {
+		if c.rhead != nil {
+			attestations++
+		}
 		if !c.OK {
 			failed = append(failed, c.Pack+"/"+c.RuleID+": "+c.Detail)
 		}
 	}
 	r.rederivedUnchanged = len(all)
-	r.add("rederive-all", len(failed) == 0, "%d mechanical rules re-derived, %d failed%s", len(all), len(failed), listDetail(failed))
+	records := ""
+	if attestations > 0 {
+		records = fmt.Sprintf(" (%d of them line attestations)", attestations)
+	}
+	r.add("rederive-all", len(failed) == 0, "%d mechanical rules re-derived, %d failed%s%s", len(all), len(failed), records, listDetail(failed))
 }
 
 func listDetail(items []string) string {
@@ -491,7 +545,9 @@ func (r *Report) packChecks(cls *Classification, opts Options) {
 			}
 		}
 		r.rulecheck(spec, h)
+		r.attestationRulecheck(spec, h)
 		r.staggerCheck(spec, h, loosenedWeeks[spec.Name])
+		r.recordStaggerCheck(cls, spec, b, h, loosenedWeeks[spec.Name])
 		r.attestationCheck(spec, opts)
 		r.basisCheck(spec, h)
 	}

@@ -52,6 +52,11 @@ type PackSpec struct {
 	// CapabilityDigest is the engine identity reattestation statements
 	// for this pack are bound to.
 	CapabilityDigest func() (string, error)
+	// Records is true for a pack that may carry line attestations and
+	// path policies: they are then read and diffed record by record.
+	// For any other pack a change to those members is a pack-member
+	// change.
+	Records bool
 }
 
 // GeneratedPair is a generated JSON and Markdown output pair.
@@ -144,6 +149,7 @@ func DefaultLayout() Layout {
 					return corpusattest.DocumentFromFiles(corpusattest.PackCNCF, t.readUnder(cliDir))
 				},
 				CapabilityDigest: cncfcheck.ExternalCapabilityDigest,
+				Records:          true,
 			},
 			{
 				Name: evidencereattest.PackCommunity, Path: commRulesPath,
