@@ -214,3 +214,21 @@ func TestApplyDamagedRunChecksByName(t *testing.T) {
 		assertUnchanged(t, pack, pre)
 	}
 }
+
+// A rule that cites no source cannot be tied to the run's commits, so it is
+// not withdrawn by a run.
+func TestWithdrawRefusesARuleWithoutSources(t *testing.T) {
+	pack, later, dropped, _ := firstThenLater(t, derivedAt.Add(time.Hour))
+	pre := mustModifyPack(t, pack, func(entries []map[string]any) []map[string]any {
+		for _, e := range entries {
+			if e["rule"].(map[string]any)["id"] == dropped {
+				e["rule"].(map[string]any)["evidence"].(map[string]any)["sources"] = []any{}
+			}
+		}
+		return entries
+	})
+	if _, err := apply(t, pack, later, true); !errors.Is(err, extractpack.ErrStale) || !strings.Contains(err.Error(), "no source") {
+		t.Fatalf("%v", err)
+	}
+	assertUnchanged(t, pack, pre)
+}
