@@ -390,6 +390,17 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- The rule parser rejects a `forbid_predicate_value` rule whose `appliesWhen`
+  requires its own condition fact to hold a different value. Such a rule could
+  never block, yet it passed and could make a component scope-complete.
+  `prufyx-maintainer rule validate` reports it as `vacuous-condition`. No
+  published rule is affected.
+- `--redact` output now orders finding locations and omitted documents by
+  their redacted values, so the order no longer reveals how the hidden paths
+  sort.
+- The knowledge gate's full re-derivation no longer re-derives a changed
+  mechanical rule a second time: each failure is reported once, and the count
+  of re-derived unchanged rules excludes the changed ones.
 - Immutable upstream file paths may start a segment with an underscore, allowing
   paths such as Karmada's `_crds`. Owner, repository, revision, network and path
   traversal restrictions remain enforced.
