@@ -9,7 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
 
@@ -520,5 +523,80 @@ func TestScanOmissionsExplainHops(t *testing.T) {
 	hop := result.Report.Paths[0].Hops[0]
 	if hop.Status != scanreport.HopPartial || !reflect.DeepEqual(hop.Reasons, []string{"DOCUMENTS_NOT_EVALUATED"}) {
 		t.Fatalf("hop %+v", hop)
+	}
+}
+
+// TestFindingAttribution: a rule that blocks at several hops is reported
+// once, at the first, with the later hops (and the whole upgrade) in alsoAt.
+func TestFindingAttribution(t *testing.T) {
+	report := &scanreport.Report{}
+	run := &kubernetesRun{report: report, findings: map[string]int{}}
+	rule := cncfcheck.ScanRule{Scope: lineattest.RuleScope{ID: "r"}, Description: "Title. More.", NextAction: "fix"}
+	first, second := scanreport.HopRef{Index: 1, From: "1.24.0", To: "1.25"}, scanreport.HopRef{Index: 3, From: "1.26", To: "1.27"}
+	whole := scanreport.HopRef{From: "1.24.0", To: "1.30.0", WholeUpgrade: true}
+	for _, ref := range []scanreport.HopRef{first, second, second, whole} {
+		run.finding(rule, constraintengine.Claim{RuleID: "r"}, evaluation{}, ref)
+	}
+	if len(report.Findings) != 1 || report.Findings[0].Hop != first || !reflect.DeepEqual(report.Findings[0].AlsoAt, []scanreport.HopRef{second, whole}) || report.Findings[0].Title != "Title" {
+		t.Fatalf("findings %+v", report.Findings)
+	}
+}
+
+// TestScanInconsistentLineReview: a line review that lists a rule which does
+// not apply to the hop, or leaves out a rule of the line that does, never
+// covers the hop.
+func TestScanInconsistentLineReview(t *testing.T) {
+	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
+	extra := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true,
+		extraRuleIDs: map[string][]string{"1.30": {"kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0"}}})
+	result := mustScan(t, extra, args(paths, "--from", "kubernetes=1.29.6", "--to", "kubernetes=1.30.4")...)
+	if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"LINE_NOT_ATTESTED 1.29.6->1.30.4"}) || !strings.Contains(result.Report.Gaps[0].Detail, "lists rule") {
+		t.Fatalf("listed rule: exit %d gaps %+v", result.Exit, result.Report.Gaps)
+	}
+	dropped := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true,
+		dropRuleIDs: map[string][]string{"1.25": {"kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0"}}})
+	result = mustScan(t, dropped, args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3")...)
+	if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"LINE_NOT_ATTESTED 1.24.17->1.25.3"}) || !strings.Contains(result.Report.Gaps[0].Detail, "does not list it") {
+		t.Fatalf("unlisted rule: exit %d gaps %+v", result.Exit, result.Report.Gaps)
+	}
+}
+
+// TestScanHopShape: line reviews cover a hop from the line before; a direct
+// hop that skips lines, or a patch upgrade within one line, is not covered by
+// them, whatever policy planned it.
+func TestScanHopShape(t *testing.T) {
+	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
+	direct := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "direct"})
+	result := mustScan(t, direct, args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...)
+	if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"LINE_NOT_ATTESTED 1.24.17->1.30.4"}) || result.Report.Paths[0].Policy != "direct" {
+		t.Fatalf("direct policy: exit %d gaps %v", result.Exit, gapReasons(result.Report))
+	}
+	sequential := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
+	result = mustScan(t, sequential, args(paths, "--from", "kubernetes=1.30.1", "--to", "kubernetes=1.30.4")...)
+	if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"LINE_NOT_ATTESTED 1.30.1->1.30.4"}) || !strings.Contains(result.Report.Gaps[0].Detail, "within kubernetes 1.30") {
+		t.Fatalf("same line: exit %d gaps %+v", result.Exit, result.Report.Gaps)
+	}
+}
+
+// TestScanRuleNeedsOtherEvidence: a rule that applies to a hop but reads
+// evidence scan does not collect (the 1.24 dockershim rule) leaves the hop
+// undecided even when the line review lists no removed-API rule.
+func TestScanRuleNeedsOtherEvidence(t *testing.T) {
+	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
+	knowledge := newKnowledge(t, knowledgeOptions{lines: []string{"1.24"}, policy: "current"})
+	result := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.23.17", "--to", "kubernetes=1.24.0")...)
+	if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"RULE_NOT_DECIDED 1.23.17->1.24.0"}) || !strings.Contains(result.Report.Gaps[0].Detail, "dockershim") {
+		t.Fatalf("exit %d gaps %+v", result.Exit, result.Report.Gaps)
+	}
+}
+
+// TestScanUnreviewedAPIVersion: a version of a reviewed kind that no
+// reviewed removal names keeps the hop's rule undecided.
+func TestScanUnreviewedAPIVersion(t *testing.T) {
+	_, paths := files(t, map[string]string{"applyset.yaml": "apiVersion: autoscaling/v2beta3\nkind: HorizontalPodAutoscaler\nmetadata: {name: web}\n"})
+	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
+	result := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3")...)
+	if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"API_VERSION_NOT_REVIEWED"}) {
+		t.Fatalf("exit %d gaps %v", result.Exit, gapReasons(result.Report))
 	}
 }

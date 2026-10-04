@@ -8,6 +8,7 @@ package scanrun
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -62,5 +63,34 @@ func TestScanWholeUpgradeRule(t *testing.T) {
 	}
 	if !passed {
 		t.Fatalf("passes %+v", result.Report.Passes)
+	}
+}
+
+// TestScanRuleInsideLine: a rule reviewed for one patch inside an
+// intermediate line (1.25.7 -> 1.26.0) does not match the engine input
+// 1.25.0 -> 1.26.0, but it applies to the hop 1.25 -> 1.26. It is found by
+// overlap and keeps the hop undecided, even when the line review leaves it
+// out. (Its fact is one no published rule on 1.26 reads: the engine refuses
+// two rules for the same fact whose transitions overlap.)
+func TestScanRuleInsideLine(t *testing.T) {
+	const id = "kubernetes.synthetic-inside-line.1-25-7-to-1-26-0"
+	rule := `{"id":"` + id + `","operator":"forbid_predicate_value","subject":{"component":"pkg:github/kubernetes/kubernetes","from":"1.25.7","to":"1.26.0"},` +
+		`"condition":{"side":"proposed","component":"pkg:github/kubernetes/kubernetes","factId":"component.kubernetes.flowcontrol_v1beta3_removed_gvk_present","boolValue":true},` +
+		`"evidence":{"state":"active","reviewedAt":"2026-09-23T00:00:00Z","validUntil":"2026-12-20T00:00:00Z","sources":[` + testSource + `]},` +
+		`"reasonCode":"REVIEWED_SOURCE_CONSTRAINT","nextAction":"synthetic test-only action"}`
+	entry := cncfcheck.Entry{Project: "kubernetes", Description: "Synthetic test-only rule inside a line. Never published.",
+		RequiredFacts: []cncfcheck.Fact{{Side: "proposed", ID: "component.kubernetes.flowcontrol_v1beta3_removed_gvk_present", Component: kubernetesKey, Type: constraintengine.FactBool, Description: "Synthetic."}},
+		Rule:          json.RawMessage(rule)}
+	restore, err := cncfcheck.UseSyntheticKnowledge(nil, []cncfcheck.Entry{entry})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restore()
+	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true, dropRuleIDs: map[string][]string{"1.26": {id}}})
+	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
+	result := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...)
+	hop := result.Report.Paths[0].Hops[1]
+	if result.Exit != scanreport.ExitUnknown || hop.Status != scanreport.HopPartial || !reflect.DeepEqual(gapReasons(result.Report), []string{"INTERMEDIATE_LINE_NOT_COVERED_BY_RANGE 1.25->1.26", "LINE_NOT_ATTESTED 1.25->1.26"}) {
+		t.Fatalf("exit %d hop %+v gaps %v", result.Exit, hop, gapReasons(result.Report))
 	}
 }

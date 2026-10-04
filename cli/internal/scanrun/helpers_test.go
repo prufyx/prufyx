@@ -68,7 +68,8 @@ type knowledgeOptions struct {
 	// lines are attested current; stale lines are attested with an expired
 	// review.
 	lines, stale []string
-	// policy is "" (no record), "current" or "stale" sequential_minor.
+	// policy is "" (no record), "current" or "stale" sequential_minor, or
+	// "direct" (a current direct policy).
 	policy string
 	// unchecked skips the admission check of the attestations, to model an
 	// index built without it.
@@ -76,6 +77,8 @@ type knowledgeOptions struct {
 	// extraRuleIDs lists rule ids to add to a line's review regardless of
 	// the pack.
 	extraRuleIDs map[string][]string
+	// dropRuleIDs lists rule ids to leave out of a line's review.
+	dropRuleIDs map[string][]string
 }
 
 const testSource = `{"id":"kubernetes-website-v125-cronjob-v1beta1","url":"https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md","revision":"9f1af2971c32124bff0a1f42255ba5a2f3c8a16f","contentDigest":"sha256:96f34a49cbdd7bd53008cc7b7cc8aff58c373ad323e64eef0155cbbc44494f61","startLine":87,"endLine":93}`
@@ -107,6 +110,14 @@ func newKnowledge(t testing.TB, options knowledgeOptions) Knowledge {
 	for _, e := range entries {
 		ids := byScope[lineattest.Key{Component: kubernetesKey, Line: e.line, Family: lineattest.FamilyKubernetesRemovedServedGVK}]
 		ids = append(append([]string{}, ids...), options.extraRuleIDs[e.line]...)
+		for _, drop := range options.dropRuleIDs[e.line] {
+			for i, id := range ids {
+				if id == drop {
+					ids = append(ids[:i], ids[i+1:]...)
+					break
+				}
+			}
+		}
 		sort.Strings(ids)
 		encoded, _ := json.Marshal(ids)
 		if ids == nil {
@@ -135,7 +146,11 @@ func newKnowledge(t testing.TB, options knowledgeOptions) Knowledge {
 		if options.policy == "stale" {
 			window = [2]string{"2026-06-01T00:00:00Z", "2026-08-01T00:00:00Z"}
 		}
-		records, err := upgradepath.Parse([]byte(fmt.Sprintf(`[{"component":%q,"policy":"sequential_minor","evidence":{"state":"active","reviewedAt":%q,"validUntil":%q,"sources":[%s]}}]`, kubernetesKey, window[0], window[1], testSource)))
+		policy := "sequential_minor"
+		if options.policy == "direct" {
+			policy = "direct"
+		}
+		records, err := upgradepath.Parse([]byte(fmt.Sprintf(`[{"component":%q,"policy":%q,"evidence":{"state":"active","reviewedAt":%q,"validUntil":%q,"sources":[%s]}}]`, kubernetesKey, policy, window[0], window[1], testSource)))
 		if err != nil {
 			t.Fatal(err)
 		}
