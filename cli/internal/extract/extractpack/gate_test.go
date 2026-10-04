@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -59,31 +60,38 @@ func TestGateClassifiesExactlyTheRunsChanges(t *testing.T) {
 			}
 			head, _ := os.ReadFile(pack)
 			res := classify(t, base, head)
-			var gotRules, gotMembers []string
+			// The gate classifies line attestations record by record (section
+			// lineAttestations), not as a pack member.
+			var gotRules []string
+			records := 0
 			for _, ch := range res.Changes {
-				switch {
-				case ch.Member != "":
-					gotMembers = append(gotMembers, ch.Member)
-					if ch.Class != knowledgegate.ClassLoosening || len(ch.Kinds) != 1 || ch.Kinds[0] != knowledgegate.KindPackMember {
-						t.Fatalf("member change %+v", ch)
-					}
-				default:
-					gotRules = append(gotRules, ch.RuleID)
-					if ch.Class != knowledgegate.ClassLoosening || len(ch.Kinds) != 1 || ch.Kinds[0] != knowledgegate.KindNew || ch.Basis != "mechanical" {
-						t.Fatalf("rule change %+v", ch)
-					}
+				if ch.Member != "" {
+					t.Fatalf("unexpected pack member change %+v", ch)
 				}
+				if ch.Class != knowledgegate.ClassLoosening || len(ch.Kinds) != 1 || ch.Kinds[0] != knowledgegate.KindNew || ch.Basis != "mechanical" {
+					t.Fatalf("change %+v", ch)
+				}
+				if ch.Section != "" {
+					records++
+					if ch.Section != "lineAttestations" || !strings.HasPrefix(ch.RuleID, "line-attestation.") || ch.Project != "line-attestations" {
+						t.Fatalf("record change %+v", ch)
+					}
+					continue
+				}
+				gotRules = append(gotRules, ch.RuleID)
 			}
 			sort.Strings(gotRules)
 			if !equalStrings(gotRules, ruleIDs(t, run)) {
 				t.Fatalf("classified rules\n%v\nwant\n%v", gotRules, ruleIDs(t, run))
 			}
-			wantMembers := []string(nil)
+			wantRecords := 0
 			if _, err := os.Stat(filepath.Join(run, "attestations.json")); err == nil {
-				wantMembers = []string{"lineAttestations"}
+				var atts []json.RawMessage
+				readJSON(t, filepath.Join(run, "attestations.json"), &atts)
+				wantRecords = len(atts)
 			}
-			if !equalStrings(gotMembers, wantMembers) {
-				t.Fatalf("classified members %v, want %v", gotMembers, wantMembers)
+			if records != wantRecords {
+				t.Fatalf("classified %d attestation records, the run produced %d", records, wantRecords)
 			}
 
 			// Withdraw two rules the extractor stops producing.
