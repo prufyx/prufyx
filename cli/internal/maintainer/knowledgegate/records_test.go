@@ -228,7 +228,7 @@ func TestGateReviewedAttestationApproval(t *testing.T) {
 
 	// 1.25: the extractor derives four removals; the listed shipped rules
 	// read every one of them.
-	for _, line := range []string{"1.25", "1.23"} {
+	for _, line := range []string{"1.25", "1.19"} {
 		t.Run("valid "+line, func(t *testing.T) {
 			base, head, id := setup(t, line)
 			sign(t, head, id, recordApproval(id, line, ApprovalBaseAbsent, recordDigest(t, head, id)))
@@ -248,7 +248,7 @@ func TestGateReviewedAttestationApproval(t *testing.T) {
 	}{
 		// No 1.33 rule in the pack, but upstream 1.33 removes the
 		// SelfSubjectReview beta: an empty attestation is refused.
-		"upstream removal not listed":        {"1.33", nil, "no rule the attestation lists reads them"},
+		"upstream removal not listed":        {"1.33", nil, "no rule the attestation lists decides it the same way"},
 		"line the extractor does not derive": {"1.28", nil, "derives no pair into line 1.28"},
 		"no upstream source": {"1.25", func(t *testing.T, base, head Tree, id string, rec *ApprovalRecord) Options {
 			return Options{Base: base, Head: head, Author: DefaultBotLogin}
@@ -277,6 +277,13 @@ func TestGateReviewedAttestationApproval(t *testing.T) {
 			rec.BaseDigest = rec.CandidateDigest
 			return Options{}
 		}, "base digest does not match"},
+		// Removing an attestation is tightening; an approval left in the
+		// tree may not add the same record again in a later change.
+		"approval already in the base": {"1.25", func(t *testing.T, base, head Tree, id string, rec *ApprovalRecord) Options {
+			writeFile(t, approvalPath(base, id), key.sign(t, *rec))
+			return Options{}
+		}, "already in the base"},
+		"line at the declared first line": {"1.20", nil, "derives no pair into line 1.20"},
 		"kill switch": {"1.25", func(t *testing.T, base, head Tree, id string, rec *ApprovalRecord) Options {
 			writeFile(t, head.Root+"/factory/PAUSE", nil)
 			return Options{}
@@ -307,14 +314,14 @@ func TestGateReviewedAttestationApproval(t *testing.T) {
 	// lease may not land in a week that already holds more than the cap.
 	t.Run("stagger", func(t *testing.T) {
 		base, head := attestedTrees(t, []string{"1.22"}, []string{"1.22"}, func(p *packDoc, atts []map[string]any) []map[string]any {
-			a := reviewedAttestation(t, p, "1.23")
+			a := reviewedAttestation(t, p, "1.19")
 			// 2026-W50, where most of the shipped pack's leases end.
 			a["evidence"].(map[string]any)["validUntil"] = "2026-12-08T12:00:00Z"
 			return append(atts, a)
 		})
 		key.pinBoth(t, base, head, "airstand")
-		id := attestationID("1.23")
-		sign(t, head, id, recordApproval(id, "1.23", ApprovalBaseAbsent, recordDigest(t, head, id)))
+		id := attestationID("1.19")
+		sign(t, head, id, recordApproval(id, "1.19", ApprovalBaseAbsent, recordDigest(t, head, id)))
 		r := runGate(t, Options{Base: base, Head: head, Source: fixtureSource, Author: DefaultBotLogin})
 		requireFail(t, r, "stagger/cncf/records")
 		if c, _ := check(r, "stagger/cncf"); !c.OK {
@@ -356,11 +363,14 @@ func TestGateReviewedAttestationApproval(t *testing.T) {
 }
 
 // crossCheckAttestation on its own: the extractor's run over the fixture
-// derives lines 1.25, 1.31, 1.32 and 1.33.
+// derives lines 1.25, 1.31, 1.32 and 1.33; its declared first line is 1.20.
 func TestCrossCheckAttestation(t *testing.T) {
-	out, err := runAttester(context.Background(), fixtureSource, extractcli.Catalog(), 0, lineattest.FamilyKubernetesRemovedServedGVK, gateNow)
+	out, floor, err := runAttester(context.Background(), fixtureSource, extractcli.Catalog(), 0, lineattest.FamilyKubernetesRemovedServedGVK, gateNow)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if floor != "1.20" {
+		t.Fatalf("floor %q", floor)
 	}
 	base, _ := trees(t)
 	pack, err := loadPack(base, DefaultLayout().Packs[0])
@@ -371,39 +381,108 @@ func TestCrossCheckAttestation(t *testing.T) {
 		return lineattest.LineAttestation{Component: recordComponent, Line: line, FactFamily: lineattest.FamilyKubernetesRemovedServedGVK, RuleIDs: ids}
 	}
 	r125 := packLineRules(t, readPack(t, base, cncfRulesPath))["1.25"]
+	// rewritten is the pack with every 1.25 rule changed by edit.
+	rewritten := func(edit func(rule map[string]any)) *loadedPack {
+		p := *pack
+		p.Entries = map[string]*entry{}
+		for id, e := range pack.Entries {
+			p.Entries[id] = e
+		}
+		for _, id := range r125 {
+			var doc map[string]any
+			if err := json.Unmarshal(pack.Entries[id].Raw, &doc); err != nil {
+				t.Fatal(err)
+			}
+			edit(doc["rule"].(map[string]any))
+			raw, err := json.Marshal(doc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			e := *pack.Entries[id]
+			e.Raw = raw
+			p.Entries[id] = &e
+		}
+		return &p
+	}
+	cond := func(rule map[string]any) map[string]any { return rule["condition"].(map[string]any) }
 	for name, tc := range map[string]struct {
-		a    lineattest.LineAttestation
-		want string
+		a     lineattest.LineAttestation
+		pack  *loadedPack
+		floor string
+		want  string
 	}{
-		"all derived facts listed":   {att("1.25", r125...), ""},
-		"quiet line":                 {att("1.31"), ""},
-		"before the first line":      {att("1.20"), ""},
-		"a derived fact not listed":  {att("1.25", without(r125, "kubernetes.psp-v1beta1-removed.1-24-0-to-1-25-0")...), "psp_v1beta1_removed_gvk_present"},
-		"listed rule not in pack":    {att("1.25", append([]string{"no.such.rule"}, r125...)...), "not in the pack"},
-		"line not derived":           {att("1.29"), "derives no pair into line 1.29"},
-		"line after the last":        {att("1.40"), "derives no pair into line 1.40"},
-		"unknown family":             {lineattest.LineAttestation{Line: "1.25", FactFamily: "x"}, "unknown fact family"},
-		"removal upstream, no rules": {att("1.32"), "flowcontrol_v1beta3_removed_gvk_present"},
+		"all derived rules listed":          {att("1.25", r125...), nil, "", ""},
+		"quiet line":                        {att("1.31"), nil, "", ""},
+		"before the declared first line":    {att("1.19"), nil, "", ""},
+		"at the declared first line":        {att("1.20"), nil, "", "derives no pair into line 1.20"},
+		"no declared first line":            {att("1.19"), nil, "none", "derives no pair into line 1.19"},
+		"a derived rule not listed":         {att("1.25", without(r125, "kubernetes.psp-v1beta1-removed.1-24-0-to-1-25-0")...), nil, "", "psp_v1beta1_removed_gvk_present"},
+		"listed rule not in pack":           {att("1.25", append([]string{"no.such.rule"}, r125...)...), nil, "", "not in the pack"},
+		"line not derived":                  {att("1.29"), nil, "", "derives no pair into line 1.29"},
+		"line after the last":               {att("1.40"), nil, "", "derives no pair into line 1.40"},
+		"unknown family":                    {lineattest.LineAttestation{Line: "1.25", FactFamily: "x"}, nil, "", "unknown fact family"},
+		"removal upstream, no rules":        {att("1.32"), nil, "", "flowcontrol_v1beta3_removed_gvk_present"},
+		"listed rules read the other side":  {att("1.25", r125...), rewritten(func(r map[string]any) { cond(r)["side"] = "current" }), "", "hpa_v2beta1_removed_gvk_present"},
+		"listed rules expect the opposite":  {att("1.25", r125...), rewritten(func(r map[string]any) { cond(r)["boolValue"] = false }), "", "cronjob_v1beta1_removed_gvk_present"},
+		"listed rules use another operator": {att("1.25", r125...), rewritten(func(r map[string]any) { r["operator"] = "forbid_target_version" }), "", "pdb_v1beta1_removed_gvk_present"},
+		"listed rules are notices":          {att("1.25", r125...), rewritten(func(r map[string]any) { r["operator"] = "notice_one_way" }), "", "psp_v1beta1_removed_gvk_present"},
+		"listed rules are leads": {att("1.25", r125...), rewritten(func(r map[string]any) {
+			r["evidence"].(map[string]any)["basis"] = "lead"
+		}), "", "hpa_v2beta1_removed_gvk_present"},
+		"listed rules only gate on the fact": {att("1.25", r125...), rewritten(func(r map[string]any) {
+			r["appliesWhen"] = []any{cond(r)}
+			r["condition"] = map[string]any{"side": "proposed", "component": recordComponent, "factId": "component.kubernetes.other_fact", "boolValue": true}
+		}), "", "cronjob_v1beta1_removed_gvk_present"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			err := crossCheckAttestation(out, tc.a, pack)
+			p, f := pack, floor
+			if tc.pack != nil {
+				p = tc.pack
+			}
+			switch tc.floor {
+			case "none":
+				f = ""
+			case "":
+			default:
+				f = tc.floor
+			}
+			err := crossCheckAttestation(out, f, tc.a, p)
 			if (err == nil) != (tc.want == "") || (err != nil && !strings.Contains(err.Error(), tc.want)) {
 				t.Fatalf("err %v, want %q", err, tc.want)
 			}
 		})
 	}
 
-	// A withheld or not attested pair is refused.
-	for i := range out.Manifest.Pairs {
-		if strings.HasPrefix(out.Manifest.Pairs[i].To, "1.31") {
-			out.Manifest.Pairs[i].Attestation.Status = extract.PairNotAttested
-			out.Manifest.Pairs[i].Attestation.Reason = "test"
+	// An attested pair that is not derived, and a derived pair that is not
+	// attested, are refused.
+	setPair := func(line string, edit func(p *extract.PairRecord)) *extract.Output {
+		copied := *out
+		copied.Manifest.Pairs = nil
+		for _, p := range out.Manifest.Pairs {
+			if strings.HasPrefix(p.To, line+".") {
+				a := *p.Attestation
+				p.Attestation = &a
+				edit(&p)
+			}
+			copied.Manifest.Pairs = append(copied.Manifest.Pairs, p)
 		}
+		return &copied
 	}
-	if err := crossCheckAttestation(out, att("1.31"), pack); err == nil || !strings.Contains(err.Error(), "does not attest line 1.31") {
+	notDerived := setPair("1.31", func(p *extract.PairRecord) { p.Status = extract.PairWithheld })
+	if err := crossCheckAttestation(notDerived, floor, att("1.31"), pack); err == nil || !strings.Contains(err.Error(), "does not attest line 1.31") {
+		t.Fatalf("pair not derived: %v", err)
+	}
+	notAttested := setPair("1.31", func(p *extract.PairRecord) {
+		p.Attestation.Status, p.Attestation.Reason = extract.PairNotAttested, "test"
+	})
+	if err := crossCheckAttestation(notAttested, floor, att("1.31"), pack); err == nil || !strings.Contains(err.Error(), "does not attest line 1.31") {
 		t.Fatalf("not attested pair: %v", err)
 	}
-	if _, err := runAttester(context.Background(), fixtureSource, extractcli.Catalog(), 0, "no.family", gateNow); err == nil {
+	otherFamily := setPair("1.31", func(p *extract.PairRecord) { p.Attestation.Families = []string{"other.family"} })
+	if err := crossCheckAttestation(otherFamily, floor, att("1.31"), pack); err == nil || !strings.Contains(err.Error(), "does not attest line 1.31") {
+		t.Fatalf("pair of another family: %v", err)
+	}
+	if _, _, err := runAttester(context.Background(), fixtureSource, extractcli.Catalog(), 0, "no.family", gateNow); err == nil {
 		t.Fatal("an unknown family found an extractor")
 	}
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/extractcli"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 )
 
@@ -164,17 +165,21 @@ func rederiveGroup(ctx context.Context, src Source, catalog map[string]extractcl
 	return entries, attestations, nil
 }
 
-// attesterRun is one run of the extractor that attests a fact family.
+// attesterRun is one run of the extractor that attests a fact family,
+// with the first line the extractor declares it derives ("" when it
+// declares none).
 type attesterRun struct {
-	out *extract.Output
-	err error
+	out   *extract.Output
+	floor string
+	err   error
 }
 
 // runAttester runs the extractor of the catalog that attests family over
-// the pinned upstream bytes, derived at now.
-func runAttester(ctx context.Context, src Source, catalog map[string]extractcli.Spec, concurrency int, family string, now time.Time) (*extract.Output, error) {
+// the pinned upstream bytes, derived at now, and returns its output and its
+// declared first line.
+func runAttester(ctx context.Context, src Source, catalog map[string]extractcli.Spec, concurrency int, family string, now time.Time) (*extract.Output, string, error) {
 	if src == nil {
-		return nil, fmt.Errorf("no upstream source is configured")
+		return nil, "", fmt.Errorf("no upstream source is configured")
 	}
 	ids := make([]string, 0, len(catalog))
 	for id := range catalog {
@@ -190,11 +195,16 @@ func runAttester(ctx context.Context, src Source, catalog map[string]extractcli.
 		}
 		repo, err := extract.ParseRepo(spec.Repo)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
-		return extract.Run(ctx, ex, src, src, extract.Options{Repo: repo, DerivedAt: now.UTC().Truncate(time.Second)})
+		floor := attesterFloors[id]
+		if floor != "" && !lineattest.ValidLine(floor) {
+			return nil, "", fmt.Errorf("extractor %s has an invalid first line %q", id, floor)
+		}
+		out, err := extract.Run(ctx, ex, src, src, extract.Options{Repo: repo, DerivedAt: now.UTC().Truncate(time.Second)})
+		return out, floor, err
 	}
-	return nil, fmt.Errorf("no extractor of this gate attests fact family %s", logSafe(family))
+	return nil, "", fmt.Errorf("no extractor of this gate attests fact family %s", logSafe(family))
 }
 
 // admittedCanonical is the canonical JSON of an entry as admission reads it.

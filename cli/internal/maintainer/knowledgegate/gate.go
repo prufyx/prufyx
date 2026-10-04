@@ -314,13 +314,13 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		run := attesterRuns[a.FactFamily]
 		if run == nil {
 			run = &attesterRun{}
-			run.out, run.err = runAttester(ctx, opts.Source, opts.Catalog, opts.Concurrency, a.FactFamily, opts.Now)
+			run.out, run.floor, run.err = runAttester(ctx, opts.Source, opts.Catalog, opts.Concurrency, a.FactFamily, opts.Now)
 			attesterRuns[a.FactFamily] = run
 		}
 		if run.err != nil {
 			return run.err
 		}
-		return crossCheckAttestation(run.out, *a, cls.head[pack])
+		return crossCheckAttestation(run.out, run.floor, *a, cls.head[pack])
 	}
 
 	var mechanical []*Change

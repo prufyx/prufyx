@@ -99,16 +99,18 @@ removed nothing else on that line. So the gate also runs the extractor that
 attests the attestation's fact family over pinned upstream bytes, at its own
 clock, and requires:
 
-- for a line before the first line the extractor derives: nothing more (the
-  approval alone decides);
-- for any other line: the extractor derives and attests that line, and every
-  fact of the family it derives for the line is read by a rule the attestation
-  lists.
+- for a line before the first line the extractor is built to derive (1.20 for
+  `k8s.served-api-removal`): nothing more (the approval alone decides);
+- for any other line: the extractor derives and attests that line in this run,
+  and for every rule it derives for the line the attestation lists a rule with
+  the same operator and the identical condition (side, component, fact and
+  value) that is neither a one-way notice nor a lead.
 
 An attestation of a line the extractor does not derive (for example a line
-that has no release yet), or one that leaves out a removal upstream makes, is
-refused even with an approval. Without an upstream source (`--source`) the
-cross-check fails.
+that has no release yet, or whose release could not be resolved), one that
+leaves out a removal upstream makes, or one that covers it only with a rule
+reading the fact differently, is refused even with an approval. Without an
+upstream source (`--source`) the cross-check fails.
 
 Record changes count like rule changes: toward the loosening cap, the daily
 limit and the kill switch, and switching records off counts toward the record
@@ -364,6 +366,11 @@ family and line separated by single spaces. `candidateDigest` and
 `absent` when the base has no attestation for that scope. A rule approval
 has neither member, so a rule approval never verifies for an attestation, and
 the reverse. Approvals for path policies are not accepted.
+
+An attestation can be removed (tightening) and added again later, so the base
+state alone does not stop an approval from being used twice. A record
+approval therefore admits only the change that adds or changes the approval
+file: an approval file that is byte-identical in the base is refused.
 
 The gate accepts an approval only if the base's `web-approval-keys.json`
 matches `--approval-keys-digest`, the key is pinned in it

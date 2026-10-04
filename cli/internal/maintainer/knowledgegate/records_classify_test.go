@@ -161,6 +161,38 @@ func TestClassifyRecordEdits(t *testing.T) {
 	}
 }
 
+// A withdrawn path policy whose dates move later is no renewal (and not
+// tightening): a withdrawn record is never renewed.
+func TestWithdrawnPolicyWithLaterDatesIsNoRenewal(t *testing.T) {
+	withdraw := func(doc map[string]any) {
+		sectionRecord(doc, "pathPolicies", 0)["evidence"].(map[string]any)["state"] = "withdrawn"
+	}
+	raw, _, _ := recordPack(t, gateNow, false)
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	withdraw(doc)
+	baseRaw, _ := json.Marshal(doc)
+	ev := sectionRecord(doc, "pathPolicies", 0)["evidence"].(map[string]any)
+	ev["reviewedAt"] = shiftTime(t, ev["reviewedAt"], time.Hour)
+	ev["validUntil"] = shiftTime(t, ev["validUntil"], time.Hour)
+	headRaw, _ := json.Marshal(doc)
+	load := func(raw []byte) *loadedPack {
+		root := t.TempDir()
+		writeFile(t, root+"/"+synthPackPath, raw)
+		p, err := loadPack(Tree{Root: root}, recordLayout().Packs[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	c := recordChange(t, load(baseRaw), load(headRaw), reviewedPolicyID)
+	if c == nil || c.Class != ClassLoosening || c.renewal || !slices.Equal(c.Kinds, []string{KindRenew}) {
+		t.Fatalf("change %+v renewal=%v", c, c != nil && c.renewal)
+	}
+}
+
 // A record section that differs while no record does is a pack-member
 // change: the section never changes unseen.
 func TestRecordSectionFallsBackToMemberChange(t *testing.T) {

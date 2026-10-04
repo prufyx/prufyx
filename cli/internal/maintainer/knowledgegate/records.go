@@ -12,6 +12,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/extract/k8sservedapis"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
@@ -95,60 +96,94 @@ func attestationScope(a lineattest.LineAttestation) string {
 	return a.Component + " " + a.FactFamily + " " + a.Line
 }
 
-// loadRecords reads the pack's record sections exactly as evidence repin
-// and evidence reattest read them (evidencerepin.PackRecords: exact member
-// names, strict parse, one record per ID) and indexes them by record ID.
+// loadRecords reads the pack's two record sections exactly as the engine
+// and evidence reattest locate and parse them (lineattest.PackMemberSection:
+// exact member names, the shared strict check; then the strict section
+// parsers), computes each record's ID from its scope as evidence repin does
+// (evidencerepin.LineAttestationRecordID, PathPolicyRecordID) and indexes
+// the records by ID; two records with one ID refuse the pack. Any other
+// pack member, such as a distributions section, is not read here: it stays
+// a pack-member change.
 func loadRecords(raw []byte) (map[string]*record, []string, error) {
-	records, err := evidencerepin.PackRecords(raw)
-	if err != nil {
-		return nil, nil, err
-	}
 	out := map[string]*record{}
 	var order []string
-	for _, pr := range records {
-		r := &record{ID: pr.ID, Project: pr.Project, Raw: pr.Raw}
-		doc := append(append([]byte("["), pr.Raw...), ']')
-		switch pr.Project {
-		case evidencerepin.RecordProjectLineAttestations:
-			atts, err := lineattest.Parse(doc)
-			if err != nil || len(atts) != 1 {
-				return nil, nil, fmt.Errorf("record %s: %v", pr.ID, err)
-			}
-			a := atts[0]
-			if evidencerepin.LineAttestationRecordID(a.Component, a.FactFamily, a.Line) != pr.ID {
-				return nil, nil, fmt.Errorf("record %s does not match its scope", pr.ID)
-			}
-			r.Section, r.Scope, r.attestation = sectionAttestations, attestationScope(a), &a
-			r.Basis, r.State = constraintengine.EffectiveBasis(a.Evidence.Basis), upgradepath.StateActive
-			r.Extractor, r.DerivedAt, r.ReviewedAt, r.ValidUntil = a.Evidence.Extractor, a.Evidence.DerivedAt, a.Evidence.ReviewedAt, a.Evidence.ValidUntil
-		case evidencerepin.RecordProjectPathPolicies:
-			policies, err := upgradepath.Parse(doc)
-			if err != nil || len(policies) != 1 {
-				return nil, nil, fmt.Errorf("record %s: %v", pr.ID, err)
-			}
-			p := policies[0]
-			if evidencerepin.PathPolicyRecordID(p.Component) != pr.ID {
-				return nil, nil, fmt.Errorf("record %s does not match its scope", pr.ID)
-			}
-			r.Section, r.Scope, r.policy = sectionPolicies, p.Component, &p
-			r.Basis, r.State = constraintengine.EffectiveBasis(p.Evidence.Basis), p.Evidence.State
-			r.Extractor, r.DerivedAt, r.ReviewedAt, r.ValidUntil = p.Evidence.Extractor, p.Evidence.DerivedAt, p.Evidence.ReviewedAt, p.Evidence.ValidUntil
-		default:
-			return nil, nil, fmt.Errorf("record %s of unknown kind", pr.ID)
+	add := func(r *record) error {
+		var err error
+		if r.Canonical, err = extract.Canonical(r.Raw); err != nil {
+			return fmt.Errorf("record %s: %w", r.ID, err)
 		}
-		if r.Canonical, err = extract.Canonical(pr.Raw); err != nil {
-			return nil, nil, fmt.Errorf("record %s: %w", pr.ID, err)
-		}
-		if r.generic, err = decodeGeneric(pr.Raw); err != nil {
-			return nil, nil, fmt.Errorf("record %s: %w", pr.ID, err)
+		if r.generic, err = decodeGeneric(r.Raw); err != nil {
+			return fmt.Errorf("record %s: %w", r.ID, err)
 		}
 		if _, dup := out[r.ID]; dup {
-			return nil, nil, fmt.Errorf("two records have the ID %s", r.ID)
+			return fmt.Errorf("two records have the ID %s", r.ID)
 		}
 		out[r.ID] = r
 		order = append(order, r.ID)
+		return nil
+	}
+	section, present, err := lineattest.PackMemberSection(raw, sectionAttestations)
+	if err != nil {
+		return nil, nil, err
+	}
+	if present {
+		atts, err := lineattest.Parse(section)
+		if err != nil {
+			return nil, nil, err
+		}
+		items, err := splitRecords(section, len(atts))
+		if err != nil {
+			return nil, nil, err
+		}
+		for i := range atts {
+			a := atts[i]
+			r := &record{
+				ID: evidencerepin.LineAttestationRecordID(a.Component, a.FactFamily, a.Line), Section: sectionAttestations,
+				Project: evidencerepin.RecordProjectLineAttestations, Scope: attestationScope(a), Raw: items[i], attestation: &a,
+				Basis: constraintengine.EffectiveBasis(a.Evidence.Basis), State: upgradepath.StateActive,
+				Extractor: a.Evidence.Extractor, DerivedAt: a.Evidence.DerivedAt, ReviewedAt: a.Evidence.ReviewedAt, ValidUntil: a.Evidence.ValidUntil,
+			}
+			if err := add(r); err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+	section, present, err = lineattest.PackMemberSection(raw, sectionPolicies)
+	if err != nil {
+		return nil, nil, err
+	}
+	if present {
+		policies, err := upgradepath.Parse(section)
+		if err != nil {
+			return nil, nil, err
+		}
+		items, err := splitRecords(section, len(policies))
+		if err != nil {
+			return nil, nil, err
+		}
+		for i := range policies {
+			p := policies[i]
+			r := &record{
+				ID: evidencerepin.PathPolicyRecordID(p.Component), Section: sectionPolicies,
+				Project: evidencerepin.RecordProjectPathPolicies, Scope: p.Component, Raw: items[i], policy: &p,
+				Basis: constraintengine.EffectiveBasis(p.Evidence.Basis), State: p.Evidence.State,
+				Extractor: p.Evidence.Extractor, DerivedAt: p.Evidence.DerivedAt, ReviewedAt: p.Evidence.ReviewedAt, ValidUntil: p.Evidence.ValidUntil,
+			}
+			if err := add(r); err != nil {
+				return nil, nil, err
+			}
+		}
 	}
 	return out, order, nil
+}
+
+// splitRecords returns the exact bytes of each element of a parsed section.
+func splitRecords(section json.RawMessage, want int) ([]json.RawMessage, error) {
+	var items []json.RawMessage
+	if err := json.Unmarshal(section, &items); err != nil || len(items) != want {
+		return nil, fmt.Errorf("the section does not split into its %d records", want)
+	}
+	return items, nil
 }
 
 // recordSection reports whether member is a record section the pack's
@@ -337,12 +372,23 @@ func admitRecord(c *Change, stmt statementResult, loadKeys func() (*ApprovalKeys
 		c.fail("a reviewed path policy changes only by renewal through a verified reattestation statement: " + strings.Join(reasons, "; "))
 		return
 	}
-	raw, err := opts.Head.ReadOptional(opts.Layout.ApprovalDir+"/"+c.Pack+"/"+c.RuleID+".json", maxApprovalBytes+1)
+	approvalPath := opts.Layout.ApprovalDir + "/" + c.Pack + "/" + c.RuleID + ".json"
+	raw, err := opts.Head.ReadOptional(approvalPath, maxApprovalBytes+1)
+	var inBase []byte
+	if err == nil && raw != nil {
+		inBase, err = opts.Base.ReadOptional(approvalPath, maxApprovalBytes+1)
+	}
 	switch {
 	case err != nil:
 		reasons = append(reasons, "approval: "+err.Error())
 	case raw == nil:
 		reasons = append(reasons, "no owner approval")
+	case inBase != nil && bytes.Equal(inBase, raw):
+		// A record can be removed (tightening) and added again, so the
+		// base state alone does not stop an approval from admitting the
+		// same record twice: an approval admits the change it arrives
+		// with, never a later one.
+		reasons = append(reasons, "the owner approval is already in the base: an approval admits only the change that adds or changes it")
 	default:
 		keys, err := loadKeys()
 		if err != nil {
@@ -376,33 +422,64 @@ func freshRecordDerivation(r *record, now time.Time) error {
 // factRef is one fact a rule reads.
 type factRef struct{ component, factID string }
 
-// ruleFacts lists the facts a raw rule reads: its condition, its set
-// condition and its applicability conditions.
-func ruleFacts(rule json.RawMessage) ([]factRef, error) {
+// ruleShape is what the cross-check compares of a rule: its operator, its
+// evidence basis, its condition (canonical JSON) and the facts it reads.
+type ruleShape struct {
+	operator  string
+	basis     string
+	condition []byte
+	facts     []factRef
+}
+
+// readRuleShape reads a raw rule: the facts it reads are its condition, its
+// set condition and its applicability conditions.
+func readRuleShape(rule json.RawMessage) (ruleShape, error) {
 	type cond struct {
 		Component string `json:"component"`
 		FactID    string `json:"factId"`
 	}
 	var shape struct {
-		Condition    *cond  `json:"condition"`
-		SetCondition *cond  `json:"setCondition"`
-		AppliesWhen  []cond `json:"appliesWhen"`
+		Operator     string          `json:"operator"`
+		Condition    json.RawMessage `json:"condition"`
+		SetCondition *cond           `json:"setCondition"`
+		AppliesWhen  []cond          `json:"appliesWhen"`
+		Evidence     struct {
+			Basis string `json:"basis"`
+		} `json:"evidence"`
 	}
 	if err := json.Unmarshal(rule, &shape); err != nil {
-		return nil, err
+		return ruleShape{}, err
 	}
+	out := ruleShape{operator: shape.Operator, basis: constraintengine.EffectiveBasis(shape.Evidence.Basis)}
 	conds := append([]cond(nil), shape.AppliesWhen...)
-	if shape.Condition != nil {
-		conds = append(conds, *shape.Condition)
+	if len(shape.Condition) > 0 && string(shape.Condition) != "null" {
+		var c cond
+		if err := json.Unmarshal(shape.Condition, &c); err != nil {
+			return ruleShape{}, err
+		}
+		conds = append(conds, c)
+		canonical, err := extract.Canonical(shape.Condition)
+		if err != nil {
+			return ruleShape{}, err
+		}
+		out.condition = canonical
 	}
 	if shape.SetCondition != nil {
 		conds = append(conds, *shape.SetCondition)
 	}
-	out := make([]factRef, 0, len(conds))
 	for _, c := range conds {
-		out = append(out, factRef{c.Component, c.FactID})
+		out.facts = append(out.facts, factRef{c.Component, c.FactID})
 	}
 	return out, nil
+}
+
+// decides reports whether a listed rule decides what a derived rule
+// decides: the same operator and the identical condition (side, component,
+// fact and value), and a rule that takes part in verdicts (not a notice,
+// not a lead).
+func (listed ruleShape) decides(derived ruleShape) bool {
+	return listed.operator != constraintengine.OperatorNoticeOneWay && listed.basis != constraintengine.BasisLead &&
+		listed.operator == derived.operator && derived.condition != nil && bytes.Equal(listed.condition, derived.condition)
 }
 
 // entryRule returns the rule member of a raw pack entry.
@@ -416,43 +493,44 @@ func entryRule(raw json.RawMessage) (json.RawMessage, error) {
 	return shape.Rule, nil
 }
 
+// attesterFloors is the first line each attesting extractor derives (and so
+// may attest), taken from the extractor's own declared lower bound. A line
+// before it is outside what the extractor can check. An attesting
+// extractor missing here has no such lines: every line it attests is
+// cross-checked.
+var attesterFloors = map[string]string{
+	k8sservedapis.ID: fmt.Sprintf("1.%d", k8sservedapis.MinFromMinor+1),
+}
+
 // crossCheckAttestation checks a reviewed line attestation against the
-// attesting extractor's own run over pinned upstream bytes (out): a person
-// may attest a line by approval, but for a line the extractor derives, the
-// claim must agree with what the extractor reads upstream.
+// attesting extractor's own run over pinned upstream bytes (out), whose
+// declared first line is floor: a person may attest a line by approval, but
+// for a line the extractor derives, the claim must agree with what the
+// extractor reads upstream.
 //
-//   - A line before the first line the extractor derives is outside what it
-//     can check: the approval alone decides.
+//   - A line before floor is outside what the extractor can check: the
+//     approval alone decides. Without a declared floor there is no such
+//     line.
 //   - Any other line must be one the extractor derived and attested for the
-//     attestation's family, and every fact of that family the extractor
-//     derives for the line must be read by a rule the attestation lists.
-//     So an attestation that leaves out a removal upstream makes is
-//     refused, even with an approval.
-func crossCheckAttestation(out *extract.Output, a lineattest.LineAttestation, head *loadedPack) error {
-	family, ok := lineattest.LookupFamily(a.FactFamily)
-	if !ok {
+//     attestation's family (so a missing upstream release refuses rather
+//     than exempts), and for every rule the extractor derives for the line
+//     the attestation must list a rule that decides the same thing: the
+//     same operator and the identical condition (side, component, fact and
+//     value), neither a notice nor a lead. So an attestation that leaves out
+//     a removal upstream makes, or covers it only with a rule that reads
+//     the fact differently, is refused, even with an approval.
+func crossCheckAttestation(out *extract.Output, floor string, a lineattest.LineAttestation, head *loadedPack) error {
+	if _, ok := lineattest.LookupFamily(a.FactFamily); !ok {
 		return fmt.Errorf("unknown fact family %s", logSafe(a.FactFamily))
 	}
-	var first string
+	if floor != "" && lineattest.LineLess(a.Line, floor) {
+		return nil
+	}
 	var pair *extract.PairRecord
 	for i := range out.Manifest.Pairs {
-		p := &out.Manifest.Pairs[i]
-		line, ok := lineattest.LineOf(p.To)
-		if !ok {
-			continue
+		if line, ok := lineattest.LineOf(out.Manifest.Pairs[i].To); ok && line == a.Line {
+			pair = &out.Manifest.Pairs[i]
 		}
-		if first == "" || lineattest.LineLess(line, first) {
-			first = line
-		}
-		if line == a.Line {
-			pair = p
-		}
-	}
-	if first == "" {
-		return fmt.Errorf("the extractor derives no line from the pinned upstream bytes")
-	}
-	if lineattest.LineLess(a.Line, first) {
-		return nil
 	}
 	if pair == nil {
 		return fmt.Errorf("the extractor derives no pair into line %s from the pinned upstream bytes", a.Line)
@@ -468,7 +546,7 @@ func crossCheckAttestation(out *extract.Output, a lineattest.LineAttestation, he
 	for _, e := range out.Entries {
 		derived[e.Rule.ID] = e
 	}
-	read := map[factRef]bool{}
+	var listed []ruleShape
 	for _, id := range a.RuleIDs {
 		e := head.Entries[id]
 		if e == nil {
@@ -478,13 +556,11 @@ func crossCheckAttestation(out *extract.Output, a lineattest.LineAttestation, he
 		if err != nil {
 			return err
 		}
-		facts, err := ruleFacts(rule)
+		shape, err := readRuleShape(rule)
 		if err != nil {
 			return err
 		}
-		for _, f := range facts {
-			read[f] = true
-		}
+		listed = append(listed, shape)
 	}
 	var missing []string
 	for _, id := range pair.Rules {
@@ -496,19 +572,25 @@ func crossCheckAttestation(out *extract.Output, a lineattest.LineAttestation, he
 		if err != nil {
 			return err
 		}
-		facts, err := ruleFacts(raw)
+		want, err := readRuleShape(raw)
 		if err != nil {
 			return err
 		}
-		for _, f := range facts {
-			if family.Covers(f.component, f.factID) && !read[f] {
-				missing = append(missing, f.factID)
+		found := false
+		for _, l := range listed {
+			found = found || l.decides(want)
+		}
+		if !found {
+			name := id
+			if len(want.facts) > 0 {
+				name = want.facts[len(want.facts)-1].factID
 			}
+			missing = append(missing, name)
 		}
 	}
 	if len(missing) > 0 {
 		sort.Strings(missing)
-		return fmt.Errorf("upstream line %s removes what facts %s describe, and no rule the attestation lists reads them", a.Line, strings.Join(missing, ", "))
+		return fmt.Errorf("upstream line %s removes what %s describe, and no rule the attestation lists decides it the same way (same operator and condition)", a.Line, strings.Join(missing, ", "))
 	}
 	return nil
 }
