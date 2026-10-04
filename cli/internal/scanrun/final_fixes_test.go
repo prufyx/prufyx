@@ -111,8 +111,9 @@ func TestScanPolicyExcludedClaimIntegrity(t *testing.T) {
 	command := args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")
 	mustScan(t, claimEditor{Knowledge: base}, command...)
 	extend := func(claims []constraintengine.Claim) []constraintengine.Claim {
+		// Only on the hop the lead covers, so no other guard trips first.
 		for _, claim := range claims {
-			if claim.Status == "PASS" {
+			if claim.Status == "PASS" && claim.RuleID == "kubernetes.flowcontrol-v1beta1-removed.1-25-0-to-1-26-0" {
 				claim.RuleID, claim.EvidenceBasis, claim.Status, claim.ReasonCode = id, constraintengine.BasisLead, constraintengine.StatusNotice, constraintengine.ReasonLeadNotVerified
 				return append(claims, claim)
 			}
