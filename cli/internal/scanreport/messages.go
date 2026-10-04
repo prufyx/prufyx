@@ -93,6 +93,12 @@ const (
 	GapRuleTrustPolicy         GapKey = ReasonRuleNotDecided + "/trust-policy"
 	GapRuleStatusNotUnderstood GapKey = ReasonRuleNotDecided + "/status"
 	GapProjectNotInKnowledge   GapKey = ReasonProjectNotInKnowledge
+	// GapCustomResourcesOnly: a project whose custom-resource versions
+	// scan checks, and nothing else.
+	GapCustomResourcesOnly GapKey = ReasonComponentNotCovered + "/custom-resources-only"
+	// GapDocumentsCustomGroup: objects of custom-resource groups no
+	// reviewed project owns.
+	GapDocumentsCustomGroup GapKey = ReasonDocumentsNotEvaluated + "/custom-resource-group"
 )
 
 // Reason is the gap reason of the key.
@@ -202,6 +208,10 @@ var gapMessages = map[GapKey]gapMessage{
 		"add %[2]s to --require-basis if you accept that evidence, or check this change by hand", 2},
 	GapRuleStatusNotUnderstood: {"rule %[1]s returned a result this version of scan does not understand (%[2]s)",
 		"use a newer Prufyx release, or check by hand", 2},
+	GapCustomResourcesOnly: {"scan checks %[1]s only for custom-resource versions its target release no longer serves; nothing else about it is evaluated yet",
+		"verify the rest of the %[1]s upgrade notes by hand", 1},
+	GapDocumentsCustomGroup: {"%[1]d manifest(s) use custom-resource groups that no reviewed project owns, so no custom-resource set is complete",
+		"check those custom resources by hand; they are never assigned to a project by guess", 1},
 }
 
 // GapReasons lists the closed vocabulary in order.
