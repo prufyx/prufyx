@@ -365,10 +365,8 @@ key, and it cannot sign or approve anything.
 the gate and the kill switch (`factory/PAUSE`). Loss of that one account leaves no
 person who can approve a change to trust material.
 
-<!-- OWNER DECISION REQUIRED: second emergency code owner. -->
-
-**Second emergency code owner: OWNER DECISION REQUIRED.** The project owner has not
-named a second person. This page deliberately names nobody. When the owner decides,
+**Second emergency code owner: not yet named.** The project owner has not
+named a second person yet, so this page names nobody. When the owner decides,
 add that person's account to `.github/CODEOWNERS` for the trust-material entries and
 record the change here.
 
