@@ -105,7 +105,7 @@ func TestScanFormatGoldens(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		golden(t, "scan-"+run.name+".sarif.json", sarif)
+		golden(t, "scan-"+run.name+".sarif", sarif)
 		golden(t, "scan-"+run.name+".md", scanreport.Markdown(report, scanreport.MarkdownOptions{}))
 	}
 }
