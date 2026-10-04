@@ -67,6 +67,9 @@ var reasonOutcomes = map[string]outcome{
 	"RULE_SET_FACT_INCOMPLETE":            {}, // the preparation reason explains it
 	"RULE_DEPENDENCY_COMPONENT_MISSING":   gapOutcome(scanreport.GapRuleNotDecided),
 	"RULE_OPERATOR_UNSUPPORTED":           gapOutcome(scanreport.GapRuleNotDecided),
+
+	// A consensus rule that finds nothing never passes.
+	constraintengine.ReasonConsensusNoKnownIssue: gapOutcome(scanreport.GapRuleNoKnownIssue),
 }
 
 // decidedClaimReasons are the reasons rules give their PASS and BLOCKED
@@ -96,8 +99,10 @@ var otherRouteReasons = map[string]bool{
 	cncfprepare.ReasonKubernetesComponentSettingSetsComplete: true,
 }
 
-// noticeReasons are the reasons of one-way notices: neither decided claims
-// nor gaps. A notice never takes part in the verdict.
+// noticeReasons are the reasons of verdict-neutral claims (one-way notices
+// and leads): neither decided claims nor gaps.
 var noticeReasons = map[string]bool{
 	constraintengine.ReasonOneWayTransition: true,
+	constraintengine.ReasonLeadNotVerified:  true,
+	constraintengine.ReasonLeadNoKnownIssue: true,
 }

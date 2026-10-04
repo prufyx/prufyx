@@ -53,6 +53,23 @@ func Human(report Report, options HumanOptions) []byte {
 	var out bytes.Buffer
 	line := func(format string, args ...any) { fmt.Fprintf(&out, format+"\n", args...) }
 	line("%s", report.Headline)
+	if policy := report.TrustPolicy; policy != nil {
+		if policy.ExcludedRules > 0 {
+			line(labelTrustExcluded, strings.Join(policy.RequiredBasis, ", "), policy.ExcludedRules)
+		}
+		if policy.ExcludedLeadRules > 0 {
+			line(labelTrustLeads, policy.ExcludedLeadRules)
+		}
+	}
+	consensus := 0
+	for _, finding := range report.Findings {
+		if finding.Basis == "consensus" {
+			consensus++
+		}
+	}
+	if consensus > 0 {
+		line(labelConsensus, consensus)
+	}
 
 	for _, path := range report.Paths {
 		line("")
@@ -96,6 +113,14 @@ func Human(report Report, options HumanOptions) []byte {
 				line("  %s %s   "+labelNoticeUnresolved, notice.Component, hopLabel(notice.Hop), notice.RuleID, notice.Reason)
 				line("    "+labelNoticeNext, notice.Text)
 			}
+		}
+	}
+	if len(report.Leads) > 0 {
+		line("")
+		line(labelLeads, len(report.Leads))
+		for _, lead := range report.Leads {
+			line("  %s %s   "+labelLeadRule, lead.Component, hopLabel(lead.Hop), lead.RuleID)
+			line("    "+labelLeadCheck, lead.Text)
 		}
 	}
 	if options.ShowPasses && len(report.Passes) > 0 {

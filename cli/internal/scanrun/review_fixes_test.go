@@ -181,8 +181,8 @@ func (k hiddenRules) Rules(project string) []cncfcheck.ScanRule {
 	return out
 }
 
-func (k hiddenRules) Evaluate(project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error) {
-	evaluation, err := k.Knowledge.Evaluate(project, facts, inputRaw, now)
+func (k hiddenRules) Evaluate(policy cncfcheck.TrustPolicy, project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error) {
+	evaluation, err := k.Knowledge.Evaluate(policy, project, facts, inputRaw, now)
 	var claims []constraintengine.Claim
 	for _, claim := range evaluation.Claims {
 		if !k.hidden[claim.RuleID] {
@@ -302,8 +302,8 @@ type claimEditor struct {
 	edit func([]constraintengine.Claim)
 }
 
-func (k claimEditor) Evaluate(project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error) {
-	evaluation, err := k.Knowledge.Evaluate(project, facts, inputRaw, now)
+func (k claimEditor) Evaluate(policy cncfcheck.TrustPolicy, project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error) {
+	evaluation, err := k.Knowledge.Evaluate(policy, project, facts, inputRaw, now)
 	if err == nil {
 		k.edit(evaluation.Claims)
 	}

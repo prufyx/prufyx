@@ -83,9 +83,48 @@ func TestScanKnowledgeMatchesPackageFunctions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	viaPolicy, err := k.CheckFactsWithPolicy(TrustPolicy{}, "kubernetes", facts, input, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, _ := MarshalReport(viaPolicy)
+	mechanicalOnly, _ := ParseTrustPolicy("mechanical")
+	viaChecker, err := WithTrustPolicy(mechanicalOnly).CheckFacts("kubernetes", facts, input, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	viaMechanical, err := k.CheckFactsWithPolicy(mechanicalOnly, "kubernetes", facts, input, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, _ := MarshalReport(viaChecker)
+	e, _ := MarshalReport(viaMechanical)
+	if string(d) != string(e) || viaMechanical.TrustPolicy == nil {
+		t.Fatal("snapshot evaluation under a trust policy differs from the checker")
+	}
+	for _, rule := range rules {
+		if rule.Basis != "reviewed" {
+			t.Fatalf("basis %q", rule.Basis)
+		}
+	}
 	a, _ := MarshalReport(viaPackage)
 	b, _ := MarshalReport(viaSnapshot)
-	if string(a) != string(b) || len(a) == 0 {
+	if string(a) != string(b) || string(a) != string(c) || len(a) == 0 {
 		t.Fatal("snapshot evaluation differs")
+	}
+}
+
+// TestNewScanRuleBasisAndNotice: a lead is told by its basis, not as a
+// one-way notice; the facts a rule reads are listed.
+func TestNewScanRuleBasisAndNotice(t *testing.T) {
+	lead := `{"id":"kubernetes.x","operator":"forbid_predicate_value","subject":{"component":"pkg:github/kubernetes/kubernetes","from":"1.25.0","to":"1.26.0"},"condition":{"side":"proposed","component":"pkg:github/kubernetes/kubernetes","factId":"component.kubernetes.hpa_v2beta2_removed_gvk_present","boolValue":true},"evidence":{"basis":"lead"},"nextAction":"x"}`
+	rule, err := NewScanRule("kubernetes", "d", []byte(lead))
+	if err != nil || rule.Notice || rule.Basis != "lead" || len(rule.Facts) != 1 || rule.Facts[0] != "component.kubernetes.hpa_v2beta2_removed_gvk_present" {
+		t.Fatalf("lead %+v %v", rule, err)
+	}
+	notice := `{"id":"kubernetes.y","operator":"notice_one_way","subject":{"component":"pkg:github/kubernetes/kubernetes","from":"1.25.0","to":"1.26.0"},"evidence":{},"nextAction":"x"}`
+	rule, err = NewScanRule("kubernetes", "d", []byte(notice))
+	if err != nil || !rule.Notice || rule.Basis != "reviewed" || len(rule.Facts) != 0 {
+		t.Fatalf("notice %+v %v", rule, err)
 	}
 }

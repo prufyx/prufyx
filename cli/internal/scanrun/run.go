@@ -137,7 +137,7 @@ func Run(request Request, options Options) (Result, error) {
 		report.Inventory = append(report.Inventory, *component)
 		run := &kubernetesRun{
 			knowledge: knowledge, now: now, report: &report, workspace: manifests,
-			component: component.Component, declarations: declarationsOf(effective),
+			component: component.Component, declarations: declarationsOf(effective), policy: request.TrustPolicy,
 		}
 		if err := run.evaluate(component.Current, component.Target); err != nil {
 			return Result{}, err

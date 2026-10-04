@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/intake"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
@@ -25,6 +26,9 @@ type Request struct {
 	Redact                bool
 	Permissions           intake.PermissionPolicy
 	PermissionsName       string
+	// TrustPolicy is the --require-basis policy; the zero value is the
+	// default policy.
+	TrustPolicy cncfcheck.TrustPolicy
 	// Now is the evaluation instant; zero means the current time.
 	Now  time.Time
 	Help bool
@@ -213,6 +217,19 @@ func ParseArgs(args []string) (Request, error) {
 				return Request{}, usage(scanreport.UsageNow)
 			}
 			request.Now = now
+		case "require-basis":
+			if err := once(display); err != nil {
+				return Request{}, err
+			}
+			v, err := next()
+			if err != nil {
+				return Request{}, err
+			}
+			policy, parseErr := cncfcheck.ParseTrustPolicy(v)
+			if parseErr != nil {
+				return Request{}, usage(scanreport.UsageRequireBasis)
+			}
+			request.TrustPolicy = policy
 		case "knowledge-db":
 			return Request{}, usage(scanreport.UsageKnowledgeDB)
 		default:

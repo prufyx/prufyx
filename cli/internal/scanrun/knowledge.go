@@ -21,10 +21,10 @@ type Knowledge interface {
 	Projects() []string
 	Component(slug string) (string, bool)
 	Rules(project string) []cncfcheck.ScanRule
-	// Evaluate evaluates the project's rules over the facts for one
-	// prepared input. ErrRefused means the knowledge cannot evaluate the
+	// Evaluate evaluates the project's rules the trust policy admits over
+	// the facts for one prepared input. ErrRefused means the knowledge cannot evaluate the
 	// input (a fact it does not register).
-	Evaluate(project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error)
+	Evaluate(policy cncfcheck.TrustPolicy, project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error)
 	AttestationsFor(component, line, family string, now time.Time) []lineattest.Status
 	PathPolicyFor(component string, now time.Time) upgradepath.Status
 	// ServedAPIs returns the reviewed list of "apiVersion kind" pairs the
@@ -55,10 +55,10 @@ func LoadEmbedded() (Embedded, error) {
 	return Embedded{snapshot}, nil
 }
 
-// Evaluate runs the native route's fact-family evaluation and checks the
-// report's integrity.
-func (k Embedded) Evaluate(project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error) {
-	report, err := k.CheckFacts(project, facts, inputRaw, now)
+// Evaluate runs the native route's fact-family evaluation under the trust
+// policy and checks the report's integrity.
+func (k Embedded) Evaluate(policy cncfcheck.TrustPolicy, project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error) {
+	report, err := k.CheckFactsWithPolicy(policy, project, facts, inputRaw, now)
 	if errors.Is(err, cncfcheck.ErrInvalid) {
 		return Evaluation{}, ErrRefused
 	}

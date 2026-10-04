@@ -81,12 +81,23 @@ func (k testKnowledge) Rules(project string) []cncfcheck.ScanRule {
 	return rules
 }
 
-func (k testKnowledge) Evaluate(project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error) {
-	evaluation, err := k.Embedded.Evaluate(project, facts, inputRaw, now)
-	if err != nil || len(k.syntheticRaw) == 0 {
+func (k testKnowledge) Evaluate(policy cncfcheck.TrustPolicy, project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error) {
+	evaluation, err := k.Embedded.Evaluate(policy, project, facts, inputRaw, now)
+	if err != nil {
 		return evaluation, err
 	}
-	claims, err := evaluateSynthetic(k.syntheticRaw, inputRaw, now)
+	// The trust policy leaves synthetic rules out exactly as it leaves out
+	// published ones.
+	var admitted []json.RawMessage
+	for index, rule := range k.synthetic {
+		if policy.Admits(rule.Basis) {
+			admitted = append(admitted, k.syntheticRaw[index])
+		}
+	}
+	if len(admitted) == 0 {
+		return evaluation, nil
+	}
+	claims, err := evaluateSynthetic(admitted, inputRaw, now)
 	if err != nil {
 		return Evaluation{}, err
 	}

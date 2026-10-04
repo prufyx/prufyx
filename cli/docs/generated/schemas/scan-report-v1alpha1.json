@@ -16,6 +16,7 @@
     "gaps",
     "passes",
     "notices",
+    "leads",
     "omitted",
     "omissions",
     "notes",
@@ -75,6 +76,15 @@
         "$ref": "#/$defs/notice"
       }
     },
+    "leads": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/lead"
+      }
+    },
+    "trustPolicy": {
+      "$ref": "#/$defs/trustPolicy"
+    },
     "omitted": {
       "type": "array",
       "items": {
@@ -112,7 +122,8 @@
         "hops",
         "documentsRead",
         "documentsOmitted",
-        "notices"
+        "notices",
+        "leads"
       ],
       "properties": {
         "blockers": {
@@ -148,6 +159,10 @@
           "minimum": 0
         },
         "notices": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "leads": {
           "type": "integer",
           "minimum": 0
         }
@@ -452,7 +467,10 @@
         "basis": {
           "enum": [
             "reviewed",
-            "mechanical"
+            "mechanical",
+            "empirical",
+            "consensus",
+            "lead"
           ]
         },
         "extractor": {
@@ -577,7 +595,10 @@
         "basis": {
           "enum": [
             "reviewed",
-            "mechanical"
+            "mechanical",
+            "empirical",
+            "consensus",
+            "lead"
           ]
         },
         "citations": {
@@ -585,6 +606,73 @@
           "items": {
             "$ref": "#/$defs/citation"
           }
+        }
+      }
+    },
+    "lead": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ruleId",
+        "component",
+        "hop",
+        "text",
+        "citations"
+      ],
+      "properties": {
+        "ruleId": {
+          "type": "string"
+        },
+        "component": {
+          "type": "string"
+        },
+        "hop": {
+          "$ref": "#/$defs/hopRef"
+        },
+        "alsoAt": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hopRef"
+          }
+        },
+        "text": {
+          "type": "string"
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/citation"
+          }
+        }
+      }
+    },
+    "trustPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requiredBasis",
+        "excludedRules"
+      ],
+      "properties": {
+        "requiredBasis": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "reviewed",
+              "mechanical",
+              "empirical",
+              "consensus",
+              "lead"
+            ]
+          }
+        },
+        "excludedRules": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "excludedLeadRules": {
+          "type": "integer",
+          "minimum": 1
         }
       }
     },

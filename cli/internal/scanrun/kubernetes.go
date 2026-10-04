@@ -34,6 +34,7 @@ type kubernetesRun struct {
 	workspace    intake.Workspace
 	component    string
 	declarations declarations
+	policy       cncfcheck.TrustPolicy
 
 	rules    []cncfcheck.ScanRule
 	byID     map[string]cncfcheck.ScanRule
@@ -42,6 +43,9 @@ type kubernetesRun struct {
 	// rootGaps are the component-level gaps (declarations, documents)
 	// that keep a claim from being decided, keyed by their message.
 	rootGaps map[scanreport.GapKey]scanreport.Gap
+	// excluded and excludedLeads are the rules that apply to the upgrade
+	// but that the trust policy left out.
+	excluded, excludedLeads map[string]bool
 }
 
 func (r *kubernetesRun) evaluate(from, to string) error {
@@ -54,6 +58,7 @@ func (r *kubernetesRun) evaluate(from, to string) error {
 		r.byID[rule.Scope.ID] = rule
 	}
 	r.findings, r.passes = map[string]int{}, map[string]bool{}
+	r.excluded, r.excludedLeads = map[string]bool{}, map[string]bool{}
 	r.rootGaps = r.componentGaps()
 	for _, gap := range r.rootGaps {
 		r.report.Gaps = append(r.report.Gaps, gap)
@@ -64,6 +69,9 @@ func (r *kubernetesRun) evaluate(from, to string) error {
 	defer func() {
 		r.report.Paths = append(r.report.Paths, path)
 		r.apiVersionGaps(to, crossed)
+		if len(r.excluded)+len(r.excludedLeads) > 0 {
+			r.report.TrustPolicy = &scanreport.TrustPolicy{RequiredBasis: r.policy.Bases(), ExcludedRules: len(r.excluded), ExcludedLeadRules: len(r.excludedLeads)}
+		}
 	}()
 	if from == "" {
 		path.Gap = scanreport.ReasonVersionNotDetected
@@ -306,7 +314,7 @@ func (r *kubernetesRun) evaluateTransition(from, to string) (evaluation, error) 
 	if scan.Prepared.InputDigest != "sha256:"+hex.EncodeToString(sum[:]) {
 		return evaluation{}, ErrIntegrity
 	}
-	result, err := r.knowledge.Evaluate(kubernetesSlug, cncfprepare.KubernetesRemovedAPIAllFacts(), scan.Prepared.CanonicalInputJSON, r.now)
+	result, err := r.knowledge.Evaluate(r.policy, kubernetesSlug, cncfprepare.KubernetesRemovedAPIAllFacts(), scan.Prepared.CanonicalInputJSON, r.now)
 	if errors.Is(err, ErrRefused) {
 		// The knowledge has no fact for a removal the preparation knows
 		// about on this line: no reviewed rule can decide it.
@@ -329,13 +337,23 @@ func (r *kubernetesRun) evaluateTransition(from, to string) (evaluation, error) 
 		}
 		// A notice comes only from a notice rule and is never a verdict;
 		// a verdict rule never returns NOTICE.
-		notice := claim.IsNotice()
+		// A notice or a lead is never a verdict; NOTICE comes only from
+		// them; NO_KNOWN_ISSUE only from consensus or lead evidence; a rule
+		// the trust policy leaves out has no claim.
+		notice, lead := claim.IsNotice(), claim.IsLead()
+		neutral := rule.Notice || rule.Basis == constraintengine.BasisLead
 		switch {
 		case notice != rule.Notice:
 			return evaluation{}, ErrIntegrity
-		case notice && (claim.Status == "PASS" || claim.Status == "BLOCKED"):
+		case lead != (rule.Basis == constraintengine.BasisLead):
 			return evaluation{}, ErrIntegrity
-		case !notice && claim.Status == constraintengine.StatusNotice:
+		case neutral && (claim.Status == "PASS" || claim.Status == "BLOCKED"):
+			return evaluation{}, ErrIntegrity
+		case !neutral && claim.Status == constraintengine.StatusNotice:
+			return evaluation{}, ErrIntegrity
+		case claim.Status == constraintengine.StatusNoKnownIssue && rule.Basis != constraintengine.BasisConsensus && rule.Basis != constraintengine.BasisLead:
+			return evaluation{}, ErrIntegrity
+		case !r.policy.Admits(rule.Basis):
 			return evaluation{}, ErrIntegrity
 		}
 		claims[claim.RuleID] = claim
@@ -369,6 +387,8 @@ func (r *kubernetesRun) judge(rule cncfcheck.ScanRule, eval evaluation, ref scan
 			r.report.Passes = append(r.report.Passes, scanreport.Pass{RuleID: rule.Scope.ID, Component: kubernetesSlug, Hop: ref})
 		}
 		return judgement{decided: true}
+	case constraintengine.StatusNoKnownIssue:
+		return judgement{reasons: []string{r.gap(&ref, scanreport.GapRuleNoKnownIssue, rule.Scope.ID, rule.Basis)}}
 	case "UNKNOWN":
 	default:
 		return judgement{reasons: []string{r.gap(&ref, scanreport.GapRuleStatusNotUnderstood, rule.Scope.ID, quote(claim.Status))}}
@@ -486,8 +506,7 @@ func (r *kubernetesRun) hop(hop upgradepath.Hop, unplanned bool) (scanreport.Hop
 			continue
 		}
 		overlapping[rule.Scope.ID] = true
-		if rule.Notice {
-			r.notice(rule, eval, ref, hop.CoveredBy(rule.Scope.Transition))
+		if r.neutral(rule, eval, ref, hop.CoveredBy(rule.Scope.Transition)) {
 			continue
 		}
 		applicable = append(applicable, rule)
@@ -506,6 +525,13 @@ func (r *kubernetesRun) hop(hop upgradepath.Hop, unplanned bool) (scanreport.Hop
 			// others; whatever it said at the engine input is downgraded.
 			decidedAll = false
 			result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapIntermediateLine, rule.Scope.ID))
+			continue
+		}
+		if !r.policy.Admits(rule.Basis) {
+			// The trust policy left the rule out: it was not evaluated.
+			r.excluded[rule.Scope.ID] = true
+			decidedAll = false
+			result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapRuleTrustPolicy, rule.Scope.ID, rule.Basis))
 			continue
 		}
 		judged := r.judge(rule, eval, ref)
@@ -593,8 +619,8 @@ func (r *kubernetesRun) attestation(hop upgradepath.Hop, ref scanreport.HopRef, 
 	}
 	for _, id := range status.Attestation.RuleIDs {
 		listed[id] = true
-		if rule, known := r.byID[id]; known && rule.Notice {
-			// A one-way notice never supports a review.
+		if rule, known := r.byID[id]; known && (rule.Notice || rule.Basis == constraintengine.BasisLead) {
+			// A one-way notice or a lead never supports a review.
 			continue
 		}
 		if !applicableIDs[id] {
@@ -684,8 +710,12 @@ func (r *kubernetesRun) wholeUpgrade(from, to string) error {
 		if rule.Scope.Component != r.component || rule.Scope.Transition.Match(from, to) == constraintengine.MatchNone {
 			continue
 		}
-		if rule.Notice {
-			r.notice(rule, eval, ref, true)
+		if r.neutral(rule, eval, ref, true) {
+			continue
+		}
+		if !r.policy.Admits(rule.Basis) {
+			r.excluded[rule.Scope.ID] = true
+			r.gap(&ref, scanreport.GapRuleTrustPolicy, rule.Scope.ID, rule.Basis)
 			continue
 		}
 		r.judge(rule, eval, ref)
@@ -801,4 +831,49 @@ func (r *kubernetesRun) notice(rule cncfcheck.ScanRule, eval evaluation, ref sca
 		}
 	}
 	r.report.Notices = append(r.report.Notices, entry)
+}
+
+// neutral handles a verdict-neutral rule (a one-way notice or a lead) that
+// applies to ref and reports whether the rule was one. Neutral rules never
+// add a gap, a finding, a pass or a hop reason.
+func (r *kubernetesRun) neutral(rule cncfcheck.ScanRule, eval evaluation, ref scanreport.HopRef, covers bool) bool {
+	switch {
+	case rule.Notice:
+		if r.policy.Admits(rule.Basis) {
+			r.notice(rule, eval, ref, covers)
+		}
+		return true
+	case rule.Basis == constraintengine.BasisLead:
+		if !r.policy.Admits(rule.Basis) {
+			r.excludedLeads[rule.Scope.ID] = true
+			return true
+		}
+		r.lead(rule, eval, ref, covers)
+		return true
+	}
+	return false
+}
+
+// lead lists a lead rule that would block on ref. A lead that finds
+// nothing, or that cannot be evaluated, says nothing and is not listed.
+func (r *kubernetesRun) lead(rule cncfcheck.ScanRule, eval evaluation, ref scanreport.HopRef, covers bool) {
+	claim, found := eval.claims[rule.Scope.ID]
+	if !covers || !found || claim.Status != constraintengine.StatusNotice {
+		return
+	}
+	for index := range r.report.Leads {
+		existing := &r.report.Leads[index]
+		if existing.RuleID == rule.Scope.ID {
+			if existing.Hop != ref {
+				for _, also := range existing.AlsoAt {
+					if also == ref {
+						return
+					}
+				}
+				existing.AlsoAt = append(existing.AlsoAt, ref)
+			}
+			return
+		}
+	}
+	r.report.Leads = append(r.report.Leads, scanreport.Lead{RuleID: rule.Scope.ID, Component: kubernetesSlug, Hop: ref, Text: rule.NextAction, Citations: append([]constraintengine.SourceEvidence{}, claim.Sources...)})
 }

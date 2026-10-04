@@ -81,6 +81,8 @@ const (
 	GapAlphaAPINotCovered      GapKey = ReasonAlphaAPINotCovered
 	GapRuleNotDecided          GapKey = ReasonRuleNotDecided
 	GapRuleNeedsOtherEvidence  GapKey = ReasonRuleNotDecided + "/other-evidence"
+	GapRuleNoKnownIssue        GapKey = ReasonRuleNotDecided + "/no-known-issue"
+	GapRuleTrustPolicy         GapKey = ReasonRuleNotDecided + "/trust-policy"
 	GapRuleStatusNotUnderstood GapKey = ReasonRuleNotDecided + "/status"
 )
 
@@ -171,6 +173,10 @@ var gapMessages = map[GapKey]gapMessage{
 		"run the hop with prufyx check cncf to see the rule's next action, or check by hand", 2},
 	GapRuleNeedsOtherEvidence: {"rule %[1]s applies to this hop but needs evidence that scan does not collect",
 		"run prufyx check cncf --project %[2]s for that rule, or check by hand", 2},
+	GapRuleNoKnownIssue: {"rule %[1]s found no known issue, but its evidence (%[2]s) can block and never pass",
+		"check this change by hand, or wait for reviewed or mechanical evidence", 2},
+	GapRuleTrustPolicy: {"rule %[1]s applies but its evidence basis (%[2]s) is left out by --require-basis",
+		"add %[2]s to --require-basis if you accept that evidence, or check this change by hand", 2},
 	GapRuleStatusNotUnderstood: {"rule %[1]s returned a result this version of scan does not understand (%[2]s)",
 		"use a newer Prufyx release, or check by hand", 2},
 }
@@ -327,6 +333,12 @@ const (
 	labelNoticeBefore     = "before you upgrade: %s"
 	labelNoticeUnresolved = "one-way notice not established: %s (%s)"
 	labelNoticeNext       = "next action: %s"
+	labelLeads            = "UNVERIFIED LEADS (%d)"
+	labelLeadRule         = "unverified lead (does not block): %s"
+	labelLeadCheck        = "worth checking: %s"
+	labelTrustExcluded    = "trust policy: evidence basis %s only; %d rule(s) that apply were left out, so the result cannot pass"
+	labelTrustLeads       = "trust policy: %d unverified lead(s) not shown; add lead to --require-basis to list them"
+	labelConsensus        = "%d finding(s) rely on model consensus"
 )
 
 // Usage and input errors. The command prints them after "prufyx: ".
@@ -355,6 +367,7 @@ const (
 	UsageInputDetail        = "%s (%s)"
 	UsageConfigInputs       = "inputs in prufyx.yaml are relative to its directory and must stay inside it"
 	UsageUnsupportedVersion = "%s %s is not a version scan can plan"
+	UsageRequireBasis       = "--require-basis takes a comma-separated list of reviewed, mechanical, empirical, consensus, lead"
 )
 
 // Usage is the help text of the scan command.
@@ -377,6 +390,8 @@ with where it is and how to fix it, and every area that was not checked.
   --redact                  print digests instead of file paths, names and namespaces
                             (plain digests: short names can be recovered by guessing)
   --input-permissions strict|refuse-writable   default refuse-writable
+  --require-basis LIST      evidence bases to evaluate (default reviewed,mechanical,empirical,consensus);
+                            a rule left out that applies keeps the answer from passing
   --now RFC3339             evaluation instant, for exact replay (default: now, UTC)
 
 Exit status: 0 PASS FOR THE DECLARED SCOPE, 10 BLOCKED, 11 not every area checked,

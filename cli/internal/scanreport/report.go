@@ -58,6 +58,12 @@ type Report struct {
 	// Notices are one-way changes: informational, never part of the
 	// verdict, the headline, the exit code or any count but their own.
 	Notices []Notice `json:"notices"`
+	// Leads are unverified readings: informational, never part of the
+	// verdict, like notices.
+	Leads []Lead `json:"leads"`
+	// TrustPolicy is present only when the trust policy left out a rule
+	// that applies to the upgrade.
+	TrustPolicy *TrustPolicy `json:"trustPolicy,omitempty"`
 	// Omitted lists every document or file that was seen but not
 	// evaluated, with the reason.
 	Omitted []Omitted `json:"omitted"`
@@ -79,6 +85,7 @@ type Summary struct {
 	DocumentsRead      int `json:"documentsRead"`
 	DocumentsOmitted   int `json:"documentsOmitted"`
 	Notices            int `json:"notices"`
+	Leads              int `json:"leads"`
 }
 
 // Component is one component named by a version declaration.
@@ -221,6 +228,26 @@ type Notice struct {
 	Citations   []constraintengine.SourceEvidence `json:"citations"`
 }
 
+// Lead is an unverified lead rule that would block on a hop. It never
+// blocks, never passes and never changes the answer.
+type Lead struct {
+	RuleID    string                            `json:"ruleId"`
+	Component string                            `json:"component"`
+	Hop       HopRef                            `json:"hop"`
+	AlsoAt    []HopRef                          `json:"alsoAt,omitempty"`
+	Text      string                            `json:"text"`
+	Citations []constraintengine.SourceEvidence `json:"citations"`
+}
+
+// TrustPolicy discloses the evidence bases a scan evaluated and how many
+// rules that apply to the upgrade it left out: verdict rules (so the answer
+// cannot pass) and lead rules (which never take part).
+type TrustPolicy struct {
+	RequiredBasis     []string `json:"requiredBasis"`
+	ExcludedRules     int      `json:"excludedRules"`
+	ExcludedLeadRules int      `json:"excludedLeadRules,omitempty"`
+}
+
 // Omitted is one document or file that was seen and not evaluated.
 type Omitted struct {
 	File     string `json:"file"`
@@ -264,6 +291,7 @@ func Finalize(report *Report) {
 	}
 	report.Summary.DocumentsOmitted = len(report.Omitted)
 	report.Summary.Notices = len(report.Notices)
+	report.Summary.Leads = len(report.Leads)
 	report.Verdict = verdict(*report)
 	report.Headline = headline(*report)
 }
@@ -393,6 +421,23 @@ func sortReport(report *Report) {
 	})
 	if report.Notices == nil {
 		report.Notices = []Notice{}
+	}
+	for l := range report.Leads {
+		lead := &report.Leads[l]
+		sort.SliceStable(lead.AlsoAt, func(i, j int) bool { return lead.AlsoAt[i].order() < lead.AlsoAt[j].order() })
+	}
+	sort.SliceStable(report.Leads, func(i, j int) bool {
+		a, b := report.Leads[i], report.Leads[j]
+		if a.Component != b.Component {
+			return a.Component < b.Component
+		}
+		if a.Hop.order() != b.Hop.order() {
+			return a.Hop.order() < b.Hop.order()
+		}
+		return a.RuleID < b.RuleID
+	})
+	if report.Leads == nil {
+		report.Leads = []Lead{}
 	}
 	if report.Omitted == nil {
 		report.Omitted = []Omitted{}

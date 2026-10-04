@@ -7,6 +7,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
@@ -24,10 +25,12 @@ type ScanKnowledge struct {
 // transition), the facts it reads, whether it is a one-way notice, its
 // rule-provided description and its next action.
 type ScanRule struct {
-	Project     string
-	Scope       lineattest.RuleScope
-	Facts       []string
-	Notice      bool
+	Project string
+	Scope   lineattest.RuleScope
+	Facts   []string
+	Notice  bool
+	// Basis is the rule's effective evidence basis.
+	Basis       string
 	Description string
 	NextAction  string
 }
@@ -42,15 +45,19 @@ func NewScanRule(project, description string, raw json.RawMessage) (ScanRule, er
 	var shape ruleShape
 	var action struct {
 		NextAction string `json:"nextAction"`
+		Evidence   struct {
+			Basis string `json:"basis"`
+		} `json:"evidence"`
 	}
 	if json.Unmarshal(raw, &shape) != nil || json.Unmarshal(raw, &action) != nil {
 		return ScanRule{}, ErrIntegrity
 	}
-	notice, err := isNoticeRule(raw)
+	// Only the one-way notice operator; a lead is told by its basis.
+	notice, err := constraintengine.AnyNoticeRule([]json.RawMessage{raw})
 	if err != nil {
 		return ScanRule{}, ErrIntegrity
 	}
-	rule := ScanRule{Project: project, Scope: scope, Notice: notice, Description: description, NextAction: action.NextAction}
+	rule := ScanRule{Project: project, Scope: scope, Notice: notice, Basis: constraintengine.EffectiveBasis(action.Evidence.Basis), Description: description, NextAction: action.NextAction}
 	for _, condition := range shape.conditions() {
 		rule.Facts = append(rule.Facts, condition.FactID)
 	}
@@ -123,6 +130,14 @@ func (k *ScanKnowledge) Rules(project string) []ScanRule {
 // CheckFacts is CheckFacts over this snapshot.
 func (k *ScanKnowledge) CheckFacts(project string, facts []string, inputRaw []byte, now time.Time) (Report, error) {
 	return k.b.checkFacts(project, facts, inputRaw, now)
+}
+
+// CheckFactsWithPolicy is Checker.CheckFacts under policy, over this
+// snapshot.
+func (k *ScanKnowledge) CheckFactsWithPolicy(policy TrustPolicy, project string, facts []string, inputRaw []byte, now time.Time) (Report, error) {
+	b := k.b
+	b.policy = policy
+	return b.checkFacts(project, facts, inputRaw, now)
 }
 
 // AttestationsFor is AttestationsFor over this snapshot, with the same

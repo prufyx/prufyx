@@ -67,7 +67,7 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
     [--distribution official_upstream|custom_build]
     [--resource-scope-complete[=true|false]] [--target-api-apply-required[=true|false]]
     [--format human|json] [--show-passes] [--verbose] [--redact]
-    [--input-permissions strict|refuse-writable] [--now RFC3339]
+    [--input-permissions strict|refuse-writable] [--require-basis LIST] [--now RFC3339]
 ```
 
 | Flag | Meaning |
@@ -84,6 +84,7 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
 | `--verbose` | Shows the status of every hop and the pinned sources of each finding (human output). |
 | `--redact` | Prints `sha256:` digests instead of file paths, object names and namespaces. Human output shows the first 12 hex characters. |
 | `--input-permissions` | `refuse-writable` (default) or `strict`. See below. |
+| `--require-basis` | The evidence bases whose rules are evaluated, a comma-separated subset of `reviewed`, `mechanical`, `empirical`, `consensus`, `lead`. Default: `reviewed,mechanical,empirical,consensus`, the same as `prufyx check cncf`. A rule left out that applies to a hop keeps the hop undecided (`RULE_NOT_DECIDED`) and the report says how many were left out. |
 | `--now` | The evaluation instant, canonical UTC with whole seconds (`2026-10-04T00:00:00Z`). Default: the current time, truncated to the second. It is printed in every report; pass it to replay a scan exactly. |
 
 A component version is `X.Y.Z` with no prefix, suffix or leading zeros. An
@@ -173,7 +174,7 @@ Every gap has a reason, a detail and an action.
 | `API_VERSION_NOT_REVIEWED` | A manifest uses a version of a reviewed kind that the reviewed removals do not name, or a version of a Kubernetes API group that the reviewed list of the target line does not name as served, or there is no reviewed list of served versions for the target line. The built-in knowledge does not carry such lists yet, so today every scan with Kubernetes manifests names this gap. | Check those versions against the target's API reference by hand, or request coverage. |
 | `ALPHA_API_NOT_COVERED` | A manifest uses an alpha version of a Kubernetes API group (core, `apps`, `batch`, `autoscaling`, `policy`, `extensions` or `*.k8s.io`); removed-API reviews cover beta and stable versions only. | Check alpha APIs by hand for every line. |
 | `EVIDENCE_EXPIRED` | The review of a rule is stale, withdrawn or not yet valid at `--now`. | Use a release with current knowledge, or check by hand. |
-| `RULE_NOT_DECIDED` | A rule that applies could not reach a verdict, or needs evidence `scan` does not collect. | Run the matching `prufyx check cncf` route, or check by hand. |
+| `RULE_NOT_DECIDED` | A rule that applies could not reach a verdict, needs evidence `scan` does not collect, rests on consensus evidence that found nothing, or was left out by `--require-basis`. | Run the matching `prufyx check cncf` route, or check by hand. |
 
 When any input document cannot be read as part of the apply set (for example a
 templated document next to rendered ones), the removed-API facts of the whole
@@ -199,6 +200,20 @@ JSON lists it in `notices`. A notice that applies but could not be established
 (for example its review expired) is listed as not established, with the
 reason. Notices never change the headline, the exit code, the gaps or the
 findings, and the absence of a notice never means a rollback is possible.
+
+## Evidence bases
+
+Each finding names its evidence basis. A `consensus` rule (two independent
+model readings with verified citations) may block, and the human output says
+how many findings rely on model consensus; where a consensus rule finds
+nothing, its hop is not decided (`RULE_NOT_DECIDED`), because consensus never
+establishes a pass. A `lead` rule (one unverified model reading) never blocks
+and never passes: when you add `lead` to `--require-basis`, a lead that would
+block is listed under `UNVERIFIED LEADS (N)` (`leads` in JSON) as
+`unverified lead (does not block)` with what is worth checking, and it never
+changes the answer. Without `lead` in the list, leads are left out and only
+counted. When the trust policy leaves out a rule that applies, the first lines
+after the headline and `trustPolicy` in JSON say so.
 
 ## What is not checked
 
@@ -243,8 +258,9 @@ described by [`generated/schemas/scan-report-v1alpha1.json`](generated/schemas/s
 `summary`, `inventory`, `paths` (with every hop, its status, its engine input
 digest and the line review it used), `findings`, `gaps`, `passes`, `omitted`
 (every document or file that was not evaluated, with the reason), `notices`
-(one-way changes; never part of the verdict), `omissions`, `notes` and
-`provenance` (evaluation instant, input digest, configuration
+(one-way changes; never part of the verdict), `leads` (unverified leads;
+never part of the verdict), `trustPolicy` (only when the trust policy left out
+a rule that applies), `omissions`, `notes` and `provenance` (evaluation instant, input digest, configuration
 digest, knowledge revision and digest, engine contract digest, build identity,
 `networkUsed: false`).
 

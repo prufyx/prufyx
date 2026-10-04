@@ -421,6 +421,7 @@ func TestScanSchemaRequiredFields(t *testing.T) {
 		"path": reflect.TypeOf(scanreport.Path{}), "hop": reflect.TypeOf(scanreport.Hop{}), "attestation": reflect.TypeOf(scanreport.Attestation{}),
 		"hopRef": reflect.TypeOf(scanreport.HopRef{}), "location": reflect.TypeOf(scanreport.Location{}), "finding": reflect.TypeOf(scanreport.Finding{}),
 		"gap": reflect.TypeOf(scanreport.Gap{}), "pass": reflect.TypeOf(scanreport.Pass{}), "notice": reflect.TypeOf(scanreport.Notice{}),
+		"lead": reflect.TypeOf(scanreport.Lead{}), "trustPolicy": reflect.TypeOf(scanreport.TrustPolicy{}),
 		"omitted": reflect.TypeOf(scanreport.Omitted{}), "provenance": reflect.TypeOf(scanreport.Provenance{}), "endpoint": reflect.TypeOf(scanreport.Endpoint{}),
 		"citation": reflect.TypeOf(constraintengine.SourceEvidence{}), "build": reflect.TypeOf(testBuild),
 	}
