@@ -257,7 +257,13 @@ func validateRule(rule rule, registry Registry) error {
 		if rule.Condition == nil || rule.Dependency != nil || rule.Intermediate != "" {
 			return fmt.Errorf("forbid predicate structure: %w", ErrInvalid)
 		}
-		return validateCondition(*rule.Condition, registry)
+		if err := validateCondition(*rule.Condition, registry); err != nil {
+			return err
+		}
+		if conditionContradictsApplicability(*rule.Condition, rule.AppliesWhen) {
+			return fmt.Errorf("condition contradicts appliesWhen, so the rule can never block: %w", ErrInvalid)
+		}
+		return nil
 	case "require_component_version":
 		if rule.Condition != nil || rule.Dependency == nil || rule.Intermediate != "" {
 			return fmt.Errorf("dependency structure: %w", ErrInvalid)
@@ -286,6 +292,42 @@ func validateRule(rule rule, registry Registry) error {
 		return fmt.Errorf("operator: %w", ErrInvalid)
 	}
 	return nil
+}
+
+// conditionContradictsApplicability reports whether a forbid_predicate_value
+// condition reads the same fact (side, component and fact id) as one of the
+// rule's appliesWhen entries but with a different value. Each bool or enum
+// fact holds exactly one value, so such a rule is applicable only when its
+// condition cannot match: it can never block, yet every applicable
+// evaluation is a PASS that would count towards scope completeness. The rule
+// is structurally vacuous and is rejected. A condition equal to its
+// appliesWhen entry is not vacuous: it blocks whenever it applies.
+//
+// The other operators cannot contradict their appliesWhen this way:
+// forbid_set_member reads a set fact, which appliesWhen never names (it
+// admits bool and enum facts only); require_component_version reads a
+// component version, not a fact; require_intermediate_version,
+// forbid_target_version and notice_one_way carry no condition.
+func conditionContradictsApplicability(condition factCondition, appliesWhen []factCondition) bool {
+	for _, applicability := range appliesWhen {
+		if applicability.Side != condition.Side || applicability.Component != condition.Component || applicability.FactID != condition.FactID {
+			continue
+		}
+		if !sameConditionValue(applicability, condition) {
+			return true
+		}
+	}
+	return false
+}
+
+func sameConditionValue(a, b factCondition) bool {
+	if (a.BoolValue == nil) != (b.BoolValue == nil) {
+		return false
+	}
+	if a.BoolValue != nil && *a.BoolValue != *b.BoolValue {
+		return false
+	}
+	return a.EnumValue == b.EnumValue
 }
 
 func validateCondition(condition factCondition, registry Registry) error {

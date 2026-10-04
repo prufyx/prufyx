@@ -44,6 +44,11 @@ checks.
 `requiredFacts` may be empty for an operator that carries no fact condition
 (for example `require_component_version`, which only compares a declared
 dependency version).
+A `forbid_predicate_value` rule may not have an `appliesWhen` entry that reads
+the same fact as its `condition` (same side, component and fact ID) with a
+different value. Such a rule would apply only when its condition cannot match,
+so it could never block; the engine and `rule validate` reject it
+(`vacuous-condition`).
 
 A candidate file is a JSON array of one or more entries in exactly this
 schema — nothing more, nothing less. See the worked example below, and
@@ -350,6 +355,8 @@ This checks, without touching the network:
 - `rule.subject.from` and `rule.subject.to` are strict semver and differ;
 - every fact ID a `condition` or `appliesWhen` entry references appears in
   `requiredFacts` under the same side and component;
+- no `appliesWhen` entry reads the `condition` fact with a different value
+  (`vacuous-condition`);
 - `rule.evidence.state` is `active`;
 - the candidate is then re-parsed by `constraintengine.ParseRuleSet` itself,
   as a final authoritative gate.

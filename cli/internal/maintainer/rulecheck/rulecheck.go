@@ -431,6 +431,9 @@ func checkEntry(index int, entry Entry, opts Options) ([]Finding, string, bool) 
 	for i := range body.AppliesWhen {
 		checkFactReference(fmt.Sprintf("rule.appliesWhen[%d]", i), &body.AppliesWhen[i])
 	}
+	if index, ok := contradictingApplicability(body); ok {
+		addRule(ruleID, "vacuous-condition", "rule.condition and rule.appliesWhen[%d] read the same fact %q (side=%s, component=%s) with different values, so the rule applies only when its condition cannot match and can never block; drop the guard or fix the value", index, body.Condition.FactID, body.Condition.Side, body.Condition.Component)
+	}
 
 	// A community candidate must always declare active evidence: submitting
 	// a brand-new rule as already withdrawn makes no sense. AllowRange (see
@@ -521,6 +524,29 @@ func runEngineParse(ruleRaw json.RawMessage, registry constraintengine.Registry)
 	}
 	_, err = constraintengine.ParseRuleSet(raw, registry)
 	return err
+}
+
+// contradictingApplicability mirrors the engine's unexported
+// conditionContradictsApplicability (internal/constraintengine/parse.go): a
+// forbid_predicate_value condition and an appliesWhen entry on the same side,
+// component and fact id with different values make the rule vacuous. It
+// returns the index of the first such appliesWhen entry. The engine parse
+// below still rejects the rule; this gives the author a precise message.
+func contradictingApplicability(body ruleBody) (int, bool) {
+	if body.Operator != "forbid_predicate_value" || body.Condition == nil {
+		return 0, false
+	}
+	condition := *body.Condition
+	for index, applicability := range body.AppliesWhen {
+		if applicability.Side != condition.Side || applicability.Component != condition.Component || applicability.FactID != condition.FactID {
+			continue
+		}
+		sameBool := (applicability.BoolValue == nil) == (condition.BoolValue == nil) && (applicability.BoolValue == nil || *applicability.BoolValue == *condition.BoolValue)
+		if !sameBool || applicability.EnumValue != condition.EnumValue {
+			return index, true
+		}
+	}
+	return 0, false
 }
 
 func digestOf(data []byte) string {

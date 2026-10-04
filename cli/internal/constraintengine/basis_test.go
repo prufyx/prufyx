@@ -380,6 +380,10 @@ func TestConsensusNeverPassesProperty(t *testing.T) {
 		extra := applicability(component)
 		switch operator := random.Intn(10); {
 		case operator < 5:
+			// The condition forbids the fact being true; a guard that
+			// requires it false would make the rule vacuous, which the
+			// parser refuses, so the guard here always agrees.
+			extra = strings.Replace(extra, `"boolValue":false`, `"boolValue":true`, 1)
 			return scopeRule(id, "forbid_predicate_value", component, "1.0.0", to, state, until, forbidFact(component, facts[component])+extra)
 		case operator < 7:
 			return scopeRule(id, "forbid_target_version", component, "1.0.0", to, state, until, extra)
