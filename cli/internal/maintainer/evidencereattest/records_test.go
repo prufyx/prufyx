@@ -962,6 +962,22 @@ func TestCheckV10(t *testing.T) {
 			}
 		})
 	}
+	// The same sections, one attestation fewer at the end (so no record
+	// differs by position).
+	mechanical := dueAt(baseNow)
+	twoAttestations, err := loadPack(buildRecordPack(t, recordPackSpec{at: baseNow, attestation: dueAt(baseNow), mechanical: &mechanical, noPath: true, pad: 3}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	oneAttestation, err := loadPack(buildRecordPack(t, recordPackSpec{at: baseNow, attestation: dueAt(baseNow), noPath: true, pad: 3}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, pair := range [][2]packDocument{{twoAttestations, oneAttestation}, {oneAttestation, twoAttestations}} {
+		if err := checkV10(pair[0], pair[1]); err == nil || !strings.Contains(err.Error(), "V10:") {
+			t.Fatalf("a record dropped or added within a section: %v", err)
+		}
+	}
 	// Records reordered across sections cannot happen (sections are
 	// canonically ordered); a section added where the prior had none is
 	// refused.
@@ -1051,5 +1067,50 @@ func TestPackWithoutRecordsGetsNoSections(t *testing.T) {
 	}
 	if bytes.Contains(res.Summary, []byte("records in the pack")) {
 		t.Fatal("the summary of a pack without records lists records")
+	}
+}
+
+// A withdrawn path policy is not renewed (E7), and a statement renewing it
+// is refused by V8.
+func TestWithdrawnPathPolicyIsNotRenewed(t *testing.T) {
+	raw := buildRecordPack(t, recordPackSpec{at: baseNow, attestation: dueAt(baseNow), policy: dueAt(baseNow), ruleDue: true, pad: 30})
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	doc["pathPolicies"].([]any)[0].(map[string]any)["evidence"].(map[string]any)["state"] = "withdrawn"
+	prior, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := prepareRecordCycle(t, newChainFixture(t), prior, baseNow, "rev-2", nil)
+	if statementLists(c, reviewedPolicyID) || worstClassOf(c, reviewedPolicyID) != reasonInactiveOrWithdrawn {
+		t.Fatalf("withdrawn policy: %+v", c.res.Statement.NotExtended)
+	}
+	loaded, err := loadPack(prior)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates, _, err := packCandidates(loaded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	listed := c.res.Statement
+	ra := listed.Rules[0]
+	ra.RuleID = reviewedPolicyID
+	ra.Citations = []CitationAttestation{{SourceID: "skew-policy", Class: evidencerepin.ClassFileIdentical, PinnedCommit: strings.Repeat("e", 40)}}
+	listed.Rules = []RuleAttestation{ra}
+	if err := checkRolePolicy(listed, candidatesByID(candidates)); err == nil || !strings.Contains(err.Error(), "not renewable") {
+		t.Fatalf("V8 on a withdrawn policy: %v", err)
+	}
+}
+
+func TestRenewRecordsRefusesAnUnknownRecord(t *testing.T) {
+	doc, err := loadPack(standardRecordPack(t, baseNow))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := renewRecords(doc, map[string]recordDates{"path-policy.000000000000000000000000": {rfc3339(baseNow), rfc3339(baseNow.Add(time.Hour))}}); !errors.Is(err, ErrRejected) {
+		t.Fatalf("got %v", err)
 	}
 }
