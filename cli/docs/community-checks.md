@@ -349,6 +349,23 @@ behavior. Pinned source evidence for the existing rule is the Strimzi
 `con-api-conversion-v1.adoc` upgrade module. Whole-upgrade safety remains
 `UNKNOWN`.
 
+## Custom-resource versions (Argo CD, Istio, Strimzi)
+
+`--custom-resources FILE` reads one private file of rendered manifests and
+records which `group/version/Kind` of the project's own custom-resource groups
+it uses; published rules about custom-resource versions the target release no
+longer serves are then evaluated over that set. A listed version blocks;
+absence passes only with `--custom-resources-complete` and when every object
+of a non-Kubernetes API group belongs to a group a reviewed table assigns to
+exactly one project. No such rule is shipped yet. See
+[custom-resources.md](custom-resources.md).
+
+```sh
+./prufyx check cncf --project strimzi --custom-resources manifests.yaml \
+  --custom-resources-complete --from 0.51.0 --to 1.0.0 \
+  --now 2026-10-04T00:00:00Z
+```
+
 ## Falco removed 0.40 CLI spellings
 
 The native Falco argv route decides whether one caller-declared explicit

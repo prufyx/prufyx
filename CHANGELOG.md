@@ -25,6 +25,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Custom-resource versions: Prufyx records which custom-resource versions
+  (`group/version/Kind`) your rendered manifests use for Argo CD, Istio and
+  Strimzi, the projects whose CRDs the `crd.version-removal` extractor reads.
+  An object is assigned to a project only through a reviewed, compiled table
+  of the API groups each project's CRDs define; an unknown or shared group is
+  never assigned, and keeps every set incomplete. Rules over the set block on
+  a listed version and pass only when you declare the manifests complete.
+  New `check cncf` mode `--custom-resources FILE`
+  (`--custom-resources-complete`, `--custom-resources-digest`), and `scan`
+  now checks these projects' custom-resource versions instead of reporting
+  them as not evaluated (they are never reported as covered). No rules are
+  shipped yet. The fact registry gains the three custom-resource version sets,
+  so the embedded pack's registry digest changes (no rule changes). See
+  `cli/docs/custom-resources.md`.
 - Knowledge format: CNCF rule packs can carry an optional `distributions`
   section (pack schema `prufyx.io/cncf-source-rule-pack/v1alpha9`) with
   reviewed Kubernetes distribution records (control-plane model, and for
@@ -56,8 +70,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   rules for custom-resource versions a release no longer serves, from the
   CustomResourceDefinition manifests in the project's repository at two
   release tags, and records every CRD's served and storage versions in the
-  run manifest. No rules are shipped: the custom-resource version set they
-  read is not declared by any adapter yet. See
+  run manifest. No rules are shipped. See
   `cli/docs/extractors/crd.version-removal.md`.
 - `prufyx scan`: one command that reads rendered manifests (files,
   directories or standard input) and an upgrade target, and answers with one

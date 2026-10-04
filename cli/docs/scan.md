@@ -5,8 +5,12 @@ answer: can this upgrade go ahead, what must be fixed first (with the file and
 object), and what was not checked. It never contacts a cluster or the network.
 
 Today `scan` evaluates **Kubernetes**: API versions in your manifests that a
-Kubernetes release on the way to the target stops serving. Other projects are
-reported as not covered, with the `prufyx check cncf` command that covers them.
+Kubernetes release on the way to the target stops serving. For Argo CD, Istio
+and Strimzi it checks the custom-resource versions in your manifests against
+published rules about versions the target release no longer serves (see
+[custom-resources.md](custom-resources.md)); those projects are never reported
+as covered. Other projects are reported as not covered, with the
+`prufyx check cncf` command that covers them.
 
 ## Example
 
@@ -234,14 +238,14 @@ Every gap has a reason, a detail and an action.
 | `PATH_POLICY_NOT_CURRENT` | A path policy exists but its review is expired or withdrawn. | Use knowledge with a current policy; until then scan one line at a time. |
 | `PATH_NOT_PLANNABLE` | The versions cannot be planned (equal versions, too many hops, a major change). | Check the versions, or scan each step. |
 | `DOWNGRADE_NOT_REVIEWED` | The target is older than the current version. | None: downgrades are not evaluated. |
-| `COMPONENT_NOT_COVERED` | A targeted project is not evaluated by `scan` yet. | Run `prufyx check cncf --project NAME`. |
+| `COMPONENT_NOT_COVERED` | A targeted project is not evaluated by `scan` yet, or (Argo CD, Istio, Strimzi) only its custom-resource versions are. | Run `prufyx check cncf --project NAME`, or verify the rest of its upgrade notes by hand. |
 | `PROJECT_NOT_IN_KNOWLEDGE` | With `--knowledge-db`, the selected per-project index has no target for a targeted project, so nothing about it was checked. | Update the knowledge database to a revision that covers it, or check by hand. |
 | `VERSION_NOT_DETECTED` | No current version was declared. | Pass `--from kubernetes=VERSION` or set `current:` in `prufyx.yaml`. |
 | `VERSION_CONFLICT` | Two different versions were declared for one project. | Declare one. |
 | `DECLARATION_MISSING` | Scope completeness, target apply or the distribution is not declared. | Declare it with the flag or in `prufyx.yaml`, if it is true. |
 | `DISTRIBUTION_NOT_COVERED` | The distribution is `custom_build`. | Check your distribution's release notes by hand. |
 | `DOCUMENTS_TEMPLATED` | Documents with `{{ ... }}` or `${...}`. | Render them (`helm template`, `kustomize build`) and scan the output. |
-| `DOCUMENTS_NOT_EVALUATED` | Nested or unresolved lists, paginated lists, documents that are not Kubernetes objects, skipped symlinks or special files, or no manifests at all. | Pass only rendered Kubernetes objects. |
+| `DOCUMENTS_NOT_EVALUATED` | Nested or unresolved lists, paginated lists, documents that are not Kubernetes objects, skipped symlinks or special files, or no manifests at all; for a project with custom-resource versions, also objects of custom-resource groups that no reviewed project owns. | Pass only rendered Kubernetes objects; check unowned custom resources by hand. |
 | `UNSUPPORTED_COMBINATION` | A support-range rule finds the planned combination outside its documented support range (see "Unsupported combinations"). | Follow the rule's next action, or accept the risk knowingly; the answer cannot pass. |
 | `API_VERSION_NOT_SERVED` | A manifest uses an API version that was removed on a release line at or below the target that no evaluated hop enters (typically one removed before your current version). | Migrate it to a served version and scan again. |
 | `API_VERSION_NOT_REVIEWED` | A manifest uses a version of a reviewed kind that the reviewed removals do not name, or a version and kind of a Kubernetes API group that the reviewed list of the target line does not name as served; or that list is missing, not current, for another line or component, or rests on a basis `--require-basis` leaves out. The built-in knowledge does not carry such lists yet, so today every scan with Kubernetes manifests names this gap. | Check those versions against the target's API reference by hand, or request coverage. |
@@ -309,7 +313,8 @@ it stands.
 - Node and kubelet version skew.
 - Anything other than API versions in the supplied manifests: live cluster
   objects, CRDs, stored versions, admission, and component configuration.
-- Projects other than Kubernetes (reported as `COMPONENT_NOT_COVERED`).
+- Projects other than Kubernetes (reported as `COMPONENT_NOT_COVERED`); for
+  Argo CD, Istio and Strimzi only custom-resource versions are checked.
 
 ## Locations and `--redact`
 

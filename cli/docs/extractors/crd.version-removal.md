@@ -139,12 +139,16 @@ These field names are stable within major version 1.
   declared set of custom-resource versions holds none of the versions no
   longer served.
 
-No adapter declares `component.<project>.custom_resource_versions_set` yet,
-and the fact is not in the published fact registry, so these rules cannot be
-added to the published pack and any input without the fact is UNKNOWN. They
-are also the first set rules of the CNCF pack, so the first change that
-publishes any of them raises the pack's schema level as well; the knowledge
-gate never admits a schema change on its own, so that change is reviewed.
+`component.<project>.custom_resource_versions_set` is registered for every
+project of the table, and `check cncf --custom-resources` and `scan` declare it
+from rendered manifests (see [../custom-resources.md](../custom-resources.md)),
+so the knowledge gate admits these rules into the CNCF pack once it
+re-derives them. No rule is shipped yet. They are the first set rules of the
+CNCF pack, so the first change that publishes any of them raises the pack's
+schema level as well; the knowledge gate never admits a schema change on its
+own, so that change is reviewed. The projects and the API groups their CRDs
+define are also listed in a compiled table that the preparation reads; a test
+keeps it equal to the targets above.
 
 ## Running and verifying
 
