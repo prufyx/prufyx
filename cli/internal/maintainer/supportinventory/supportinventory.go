@@ -17,11 +17,15 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/checkroutemetadata"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
+	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
 const Schema = "prufyx.io/community-support-inventory/v1alpha1"
@@ -550,22 +554,85 @@ func transition(rule map[string]any) (map[string]any, error) {
 	return result, nil
 }
 
-// packSchemaMatchesRanges accepts the ranged pack schema exactly when at least
-// one rule declares a range, mirroring the embedded pack loaders.
-func packSchemaMatchesRanges(rules map[string]any, exactSchema, rangedSchema string) bool {
-	entries, _ := array(rules["entries"])
-	ranged := false
-	for _, item := range entries {
-		entry, _ := object(item)
-		rule, _ := object(entry["rule"])
-		if _, ok := rule["range"]; ok {
-			ranged = true
+// packLevel is one row of a rule pack's feature-level table: the schema a
+// pack carries when it uses this feature and none of a higher level.
+type packLevel struct {
+	schema  string
+	present func(pack map[string]any) (bool, error)
+}
+
+// cncfPackLevels mirrors the CNCF pack loader's feature-level table, in
+// ascending level; a pack using none of the features carries
+// cncfPackSchema. A new pack feature adds one row here, as in the loader.
+// Line attestations and path policies add no capability to the inventory
+// (they are not checks), so only their schema level is read.
+const cncfPackSchema = "prufyx.io/cncf-source-rule-pack/v1alpha1"
+
+var cncfPackLevels = []packLevel{
+	{"prufyx.io/cncf-source-rule-pack/v1alpha2", anyRule(constraintengine.AnyRanged)},
+	{"prufyx.io/cncf-source-rule-pack/v1alpha3", anyRule(constraintengine.AnySetRule)},
+	{"prufyx.io/cncf-source-rule-pack/v1alpha4", hasMember(lineattest.PackMember)},
+	{"prufyx.io/cncf-source-rule-pack/v1alpha5", hasMember(upgradepath.PackMember)},
+}
+
+// communityPackLevels is the community-project pack loader's table.
+const communityPackSchema = "prufyx.io/community-project-source-rule-pack/v1alpha1"
+
+var communityPackLevels = []packLevel{
+	{"prufyx.io/community-project-source-rule-pack/v1alpha2", anyRule(constraintengine.AnyRanged)},
+}
+
+// anyRule applies one of the engine's own feature tests to the pack's rules.
+func anyRule(test func([]json.RawMessage) (bool, error)) func(map[string]any) (bool, error) {
+	return func(pack map[string]any) (bool, error) {
+		entries, _ := array(pack["entries"])
+		rules := make([]json.RawMessage, 0, len(entries))
+		for _, item := range entries {
+			entry, _ := object(item)
+			raw, err := json.Marshal(entry["rule"])
+			if err != nil {
+				return false, err
+			}
+			rules = append(rules, raw)
+		}
+		return test(rules)
+	}
+}
+
+func hasMember(name string) func(map[string]any) (bool, error) {
+	return func(pack map[string]any) (bool, error) {
+		_, ok := pack[name]
+		return ok, nil
+	}
+}
+
+// packSchemaMatches requires the pack schema to be exactly the level of the
+// highest-level feature the pack uses, and base when it uses none,
+// mirroring the embedded pack loaders.
+func packSchemaMatches(pack map[string]any, base string, levels []packLevel) bool {
+	want := base
+	for _, level := range levels {
+		present, err := level.present(pack)
+		if err != nil {
+			return false
+		}
+		if present {
+			want = level.schema
 		}
 	}
-	if ranged {
-		return rules["schema"] == rangedSchema
+	return pack["schema"] == want
+}
+
+// cncfPackMembersExact requires every top-level member of the CNCF pack to
+// be exactly one of the pack's member names (case-sensitive), so a section
+// under a variant spelling is never silently skipped.
+func cncfPackMembersExact(pack map[string]any) bool {
+	for name := range pack {
+		if !slices.Contains(lineattest.PackMembers, name) {
+			return false
+		}
 	}
-	return rules["schema"] == exactSchema
+	return true
 }
 
 // genericProjects reads the embedded CNCF source-rule pack. A rule whose
@@ -575,7 +642,7 @@ func packSchemaMatchesRanges(rules map[string]any, exactSchema, rangedSchema str
 // withdrawn return value so the generated inventory can say explicitly why
 // coverage shrank, rather than silently dropping it.
 func genericProjects(rules map[string]any, identities map[string]identity, preparers map[string]bool) ([]map[string]any, int, []map[string]any, error) {
-	if !packSchemaMatchesRanges(rules, "prufyx.io/cncf-source-rule-pack/v1alpha1", "prufyx.io/cncf-source-rule-pack/v1alpha2") {
+	if !cncfPackMembersExact(rules) || !packSchemaMatches(rules, cncfPackSchema, cncfPackLevels) {
 		return nil, 0, nil, invalid("invalid rule-pack schema")
 	}
 	entries, ok := array(rules["entries"])
@@ -781,7 +848,7 @@ var nativeCNCFInputMetadata = map[string][]nativeCNCFInputRoute{
 }
 
 func communityProjects(rules, registry map[string]any) ([]map[string]any, int, error) {
-	if !packSchemaMatchesRanges(rules, "prufyx.io/community-project-source-rule-pack/v1alpha1", "prufyx.io/community-project-source-rule-pack/v1alpha2") || registry["schema"] != "prufyx.io/community-project-registry/v1alpha1" {
+	if !packSchemaMatches(rules, communityPackSchema, communityPackLevels) || registry["schema"] != "prufyx.io/community-project-registry/v1alpha1" {
 		return nil, 0, invalid("invalid community-project source schema")
 	}
 	rawIdentities, ok := array(registry["projects"])
