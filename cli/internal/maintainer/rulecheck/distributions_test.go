@@ -200,3 +200,76 @@ func TestValidatePackDistributions(t *testing.T) {
 		t.Fatal("variant member spelling accepted")
 	}
 }
+
+// The online check's messages and its line-count boundary are pinned, for a
+// rule and for a distribution record, and every source of a record is
+// checked, not only the first.
+func TestOnlineCheckMessagesAndEverySource(t *testing.T) {
+	revA, revB := strings.Repeat("a", 40), strings.Repeat("b", 40)
+	content := []byte("line1\nline2\nline3\n")
+	urlA := "https://github.com/example/docs/blob/" + revA + "/a.md"
+	urlB := "https://github.com/example/docs/blob/" + revB + "/b.md"
+	rawA := "https://raw.githubusercontent.com/example/docs/" + revA + "/a.md"
+	rawB := "https://raw.githubusercontent.com/example/docs/" + revB + "/b.md"
+	src := func(id, url, rev string, end int) map[string]any {
+		return map[string]any{"id": id, "url": url, "revision": rev, "contentDigest": digestOf(content), "startLine": 1, "endLine": end}
+	}
+
+	// Rule: endLine equal to the line count is valid; one past it is not.
+	entry := firstRealEntry(t)
+	setRuleID(t, entry, "smoke.fetch-messages.1-0-0-to-2-0-0")
+	rule(entry)["evidence"].(map[string]any)["sources"] = []any{src("a-source", urlA, revA, 3)}
+	online := func(findings []Finding) []Finding {
+		var out []Finding
+		for _, f := range findings {
+			switch f.Check {
+			case "content-digest-mismatch", "line-range-fetched", "fetch-failed", "fetch-url":
+				out = append(out, f)
+			}
+		}
+		return out
+	}
+	r, err := Validate(candidateFile(t, entry), Options{Fetch: true, Fetcher: fakeFetcher{content: map[string][]byte{rawA: content}}})
+	if err != nil || len(online(r.Findings)) != 0 {
+		t.Fatalf("endLine at the line count: %+v %v", online(r.Findings), err)
+	}
+	short := []byte("line1\nline2\n")
+	r, err = Validate(candidateFile(t, entry), Options{Fetch: true, Fetcher: fakeFetcher{content: map[string][]byte{rawA: short}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"rule.evidence.sources[0].contentDigest is " + digestOf(content) + " but the whole-file sha256 of " + rawA + " at revision " + revA + " is " + digestOf(short),
+		"rule.evidence.sources[0].endLine is 3 but " + rawA + " has only 2 lines at revision " + revA,
+	}
+	got := online(r.Findings)
+	if len(got) != 2 || got[0].Message != want[0] || got[1].Message != want[1] {
+		t.Fatalf("rule messages %+v", got)
+	}
+
+	// Record with two sources; only the second differs.
+	evidence := map[string]any{"state": "active", "reviewedAt": "2026-10-01T00:00:00Z", "validUntil": "2026-12-30T00:00:00Z",
+		"sources": []any{src("a-source", urlA, revA, 3), src("b-source", urlB, revB, 3)}}
+	section := distributionSection(t, evidence, evidence)
+	fetcher := fakeFetcher{content: map[string][]byte{rawA: content, rawB: short}}
+	res, err := ValidateDistributions(section, DistributionOptions{Fetch: true, Fetcher: fetcher})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantRecord := []string{
+		"evidence.sources[1].contentDigest is " + digestOf(content) + " but the whole-file sha256 of " + rawB + " at revision " + revB + " is " + digestOf(short),
+		"evidence.sources[1].endLine is 3 but " + rawB + " has only 2 lines at revision " + revB,
+	}
+	if len(res.Findings) != 4 {
+		t.Fatalf("record findings %+v", res.Findings)
+	}
+	for i, f := range res.Findings {
+		if f.Message != wantRecord[i%2] || f.EntryIndex != i/2 {
+			t.Fatalf("record finding %d: %+v", i, f)
+		}
+	}
+	fetcher = fakeFetcher{content: map[string][]byte{rawA: content, rawB: content}}
+	if res, err := ValidateDistributions(section, DistributionOptions{Fetch: true, Fetcher: fetcher}); err != nil || !res.Valid {
+		t.Fatalf("matching two-source record: %+v %v", res, err)
+	}
+}
