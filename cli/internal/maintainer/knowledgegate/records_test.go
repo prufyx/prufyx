@@ -689,7 +689,91 @@ func TestRecordApprovalIsKeptWhileItCouldVerify(t *testing.T) {
 		t.Fatalf("knowledge-records %+v", c)
 	}
 	// A rule approval's deletion is governed as before.
-	if why := liveRecordApproval(Options{Base: base, Now: gateNow}, "no/such/file.json"); why != "" {
+	if why := liveRecordApproval(Options{Base: base, Now: gateNow}, "no/such/file.json", false); why != "" {
 		t.Fatalf("missing file: %q", why)
+	}
+}
+
+// Decisions about one record only move forward. The owner approved adding X
+// (A1) and later replacing it with X′ (A2, overwriting A1); X′ was then
+// removed, and A2 stayed. Re-adding X with A1 written back over A2 is
+// refused twice: A1 is older than the base's A2, and a live record approval
+// may be overwritten only by a later one. The owner's real replacement
+// (X → X′ with A2 over A1) still passes.
+func TestSupersededRecordApprovalCannotReturn(t *testing.T) {
+	key := newApprovalKey(t)
+	id := attestationID("1.25")
+	laterX2 := func(p *packDoc, atts []map[string]any) []map[string]any {
+		for _, a := range atts {
+			if a["line"] == "1.25" {
+				a["evidence"].(map[string]any)["validUntil"] = gateNow.Add(55 * 24 * time.Hour).Format(time.RFC3339)
+			}
+		}
+		return atts
+	}
+	_, withX := attestedTrees(t, []string{"1.22"}, []string{"1.22", "1.25"}, nil)
+	_, withX2 := attestedTrees(t, []string{"1.22"}, []string{"1.22", "1.25"}, laterX2)
+	dX, dX2 := recordDigest(t, withX, id), recordDigest(t, withX2, id)
+	a1 := recordApproval(id, "1.25", ApprovalBaseAbsent, dX)
+	a1.DecidedAt = gateNow.Add(-72 * time.Hour).Format(time.RFC3339)
+	a2 := recordApproval(id, "1.25", dX, dX2)
+	a2.CandidateID, a2.DecidedAt = "cand-2", gateNow.Add(-48*time.Hour).Format(time.RFC3339)
+
+	// The replay (the reviewer's probe).
+	base, head := attestedTrees(t, []string{"1.22"}, []string{"1.22", "1.25"}, nil)
+	key.pinBoth(t, base, head, "airstand")
+	writeFile(t, approvalPath(base, id), key.sign(t, a2))
+	writeFile(t, approvalPath(head, id), key.sign(t, a1))
+	r := runGate(t, Options{Base: base, Head: head, Source: fixtureSource, Author: DefaultBotLogin})
+	requireFail(t, r, "decided at the same time or later")
+	if c := change(t, r, id); c.OK {
+		t.Fatalf("superseded approval admitted: %+v", c)
+	}
+	// The overwrite of the live A2 is refused on its own as well.
+	path := DefaultLayout().ApprovalDir + "/cncf/" + id + ".json"
+	if why := liveRecordApproval(Options{Base: base, Head: head, Now: gateNow}, path, true); !strings.Contains(why, "decided strictly later") {
+		t.Fatalf("overwrite with an older approval: %q", why)
+	}
+	writeFile(t, approvalPath(head, id), []byte("{}\n"))
+	if why := liveRecordApproval(Options{Base: base, Head: head, Now: gateNow}, path, true); !strings.Contains(why, "replaced only by a later record approval") {
+		t.Fatalf("overwrite with a non-approval: %q", why)
+	}
+	a3 := a2
+	a3.CandidateID, a3.DecidedAt = "cand-3", gateNow.Add(-time.Hour).Format(time.RFC3339)
+	writeFile(t, approvalPath(head, id), key.sign(t, a3))
+	if why := liveRecordApproval(Options{Base: base, Head: head, Now: gateNow}, path, true); why != "" {
+		t.Fatalf("overwrite with a later approval: %q", why)
+	}
+	if why := liveRecordApproval(Options{Base: base, Head: head, Now: gateNow.Add(MaxApprovalAge + 49*time.Hour)}, path, true); why != "" {
+		t.Fatalf("overwrite of an expired approval: %q", why)
+	}
+
+	// The same replay with A1 at another path: still older than A2.
+	base, head = attestedTrees(t, []string{"1.22"}, []string{"1.22", "1.25"}, nil)
+	key.pinBoth(t, base, head, "airstand")
+	writeFile(t, approvalPath(base, "some.other.rule"), key.sign(t, a2))
+	writeFile(t, approvalPath(head, id), key.sign(t, a1))
+	r = runGate(t, Options{Base: base, Head: head, Source: fixtureSource, Author: DefaultBotLogin})
+	requireFail(t, r, "decided at the same time or later")
+
+	// The owner's replacement X → X′: A2 (later) overwrites A1.
+	base, head = attestedTrees(t, []string{"1.22", "1.25"}, []string{"1.22", "1.25"}, laterX2)
+	key.pinBoth(t, base, head, "airstand")
+	writeFile(t, approvalPath(base, id), key.sign(t, a1))
+	writeFile(t, approvalPath(head, id), key.sign(t, a2))
+	r = runGate(t, Options{Base: base, Head: head, Source: fixtureSource, Author: DefaultBotLogin})
+	requireAdmittedButUnsplit(t, r)
+	if c := change(t, r, id); c.Proof != ProofApproval {
+		t.Fatalf("replacement %+v", c)
+	}
+
+	// A decision at the same time as the base's is not later.
+	a2same := a2
+	a2same.DecidedAt = a1.DecidedAt
+	writeFile(t, approvalPath(head, id), key.sign(t, a2same))
+	r = runGate(t, Options{Base: base, Head: head, Source: fixtureSource, Author: DefaultBotLogin})
+	requireFail(t, r, "decided at the same time or later")
+	if why := liveRecordApproval(Options{Base: base, Head: head, Now: gateNow}, DefaultLayout().ApprovalDir+"/cncf/"+id+".json", true); !strings.Contains(why, "decided strictly later") {
+		t.Fatalf("overwrite at the same time: %q", why)
 	}
 }

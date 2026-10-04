@@ -369,8 +369,26 @@ the reverse. Approvals for path policies are not accepted.
 
 An attestation can be removed (tightening) and added again later, so the base
 state alone does not stop an approval from being used twice. A record
-approval therefore admits only the change that adds or changes the approval
-file: an approval file that is byte-identical in the base is refused.
+approval therefore admits only the change that adds it:
+
+- the gate decodes every approval file in the base's approval directories
+  (every pack) and refuses a record approval when any of them holds the same
+  signed record or the same signature, whatever its encoding or file name;
+- decisions about one record only move forward: a record approval is refused
+  when the base holds a record approval for the same record ID, at any path
+  and in any pack, decided at the same time or later, so an approval the
+  owner superseded cannot be put back;
+- a record approval in the base that could still verify (decided less than
+  14 days before the gate's clock, or at a time that cannot be read) may not
+  be deleted, and may be overwritten only by a record approval decided
+  strictly later (the `knowledge-records` check).
+
+If any entry of the base's approval directories cannot be read (for example
+a file over the size bound, a subdirectory or a link), every record approval
+is refused until the entry is fixed: the gate fails closed rather than
+admit an approval it could not compare. A file that is not a valid approval
+is skipped, because it can never verify. Rule approvals are not affected by
+these checks.
 
 The gate accepts an approval only if the base's `web-approval-keys.json`
 matches `--approval-keys-digest`, the key is pinned in it

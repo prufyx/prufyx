@@ -323,6 +323,9 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		return crossCheckAttestation(run.out, run.floor, *a, cls.head[pack])
 	}
 
+	// The base's approvals, decoded once for every record change.
+	approvals := &baseApprovals{opts: opts}
+
 	var mechanical []*Change
 	for _, c := range cls.Changes {
 		if c.Class == ClassTightening {
@@ -350,7 +353,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 				}
 				mechanical = append(mechanical, c)
 			default:
-				admitRecord(c, statements[c.Pack], loadKeys, crossCheck, opts)
+				admitRecord(c, statements[c.Pack], loadKeys, crossCheck, approvals, opts)
 			}
 			continue
 		}

@@ -337,7 +337,7 @@ func renewedValidUntil(stmt evidencereattest.Statement, id string) (string, bool
 
 // admitRecord decides a loosening change of a reviewed record. Mechanical
 // record changes go to re-derivation instead (see Verify).
-func admitRecord(c *Change, stmt statementResult, loadKeys func() (*ApprovalKeys, error), crossCheck func(pack string, r *record) error, opts Options) {
+func admitRecord(c *Change, stmt statementResult, loadKeys func() (*ApprovalKeys, error), crossCheck func(pack string, r *record) error, base *baseApprovals, opts Options) {
 	h := c.rhead
 	if h == nil {
 		c.fail("a path policy may not be removed (without it a path is planned as one direct hop); withdraw it instead")
@@ -376,7 +376,7 @@ func admitRecord(c *Change, stmt statementResult, loadKeys func() (*ApprovalKeys
 	raw, err := opts.Head.ReadOptional(approvalPath, maxApprovalBytes+1)
 	var used string
 	if err == nil && raw != nil {
-		used, err = approvalInBase(opts, raw)
+		used, err = base.refuse(raw)
 	}
 	switch {
 	case err != nil:
@@ -384,12 +384,7 @@ func admitRecord(c *Change, stmt statementResult, loadKeys func() (*ApprovalKeys
 	case raw == nil:
 		reasons = append(reasons, "no owner approval")
 	case used != "":
-		// A record can be removed (tightening) and added again, so the
-		// base state alone does not stop an approval from admitting the
-		// same record twice: an approval admits the change it arrives
-		// with, never a later one, however its file is encoded and
-		// wherever a copy of it sits.
-		reasons = append(reasons, "the owner approval is already in the base ("+logSafe(used)+"): an approval admits only the change that adds it")
+		reasons = append(reasons, used)
 	default:
 		keys, err := loadKeys()
 		if err != nil {
@@ -430,21 +425,35 @@ func sameApproval(a, b ApprovalEnvelope) bool {
 	return a.Record == b.Record || (a.Signature != "" && a.Signature == b.Signature)
 }
 
-// approvalInBase returns the base path of an approval file that holds the
-// same decision as raw (sameApproval), searching every pack directory of
-// the base's approvals; "" when there is none. An approval the head offers
-// that does not decode is left to verification, which refuses it. A base
-// approval directory that cannot be read is an error (fail closed).
-func approvalInBase(opts Options, raw []byte) (string, error) {
-	head, err := decodeApproval(raw)
-	if err != nil {
-		return "", nil
+// baseApproval is one decoded approval file of the base.
+type baseApproval struct {
+	path string
+	env  ApprovalEnvelope
+}
+
+// baseApprovals reads and decodes every approval file of the base's
+// approval directories (every pack) once per gate run. A file that does
+// not decode is skipped: it never verifies, so it is no decision. A base
+// approval directory or entry that cannot be read is an error, and every
+// record approval is then refused (fail closed).
+type baseApprovals struct {
+	opts   Options
+	loaded bool
+	list   []baseApproval
+	err    error
+}
+
+func (b *baseApprovals) load() ([]baseApproval, error) {
+	if b.loaded {
+		return b.list, b.err
 	}
-	for _, spec := range opts.Layout.Packs {
-		dir := opts.Layout.ApprovalDir + "/" + spec.Name
-		files, err := opts.Base.Dir(dir, maxApprovalBytes+1, maxApprovalFiles)
+	b.loaded = true
+	for _, spec := range b.opts.Layout.Packs {
+		dir := b.opts.Layout.ApprovalDir + "/" + spec.Name
+		files, err := b.opts.Base.Dir(dir, maxApprovalBytes+1, maxApprovalFiles)
 		if err != nil {
-			return "", fmt.Errorf("base approvals: %v", err)
+			b.list, b.err = nil, fmt.Errorf("base approvals: %v", err)
+			return nil, b.err
 		}
 		names := make([]string, 0, len(files))
 		for name := range files {
@@ -452,9 +461,47 @@ func approvalInBase(opts Options, raw []byte) (string, error) {
 		}
 		sort.Strings(names)
 		for _, name := range names {
-			if base, err := decodeApproval(files[name]); err == nil && sameApproval(base, head) {
-				return dir + "/" + name, nil
+			if env, err := decodeApproval(files[name]); err == nil {
+				b.list = append(b.list, baseApproval{path: dir + "/" + name, env: env})
 			}
+		}
+	}
+	return b.list, nil
+}
+
+// refuse says why a record approval the head offers may not be used, or ""
+// when nothing in the base stands against it:
+//
+//   - a base approval file holds the same decision (sameApproval), however
+//     encoded and wherever it sits: an approval admits the change it arrives
+//     with, never a later one (a record can be removed, tightening, and
+//     added again, so the base state alone does not stop a replay);
+//   - a base record approval for the same record ID (any pack, any path) was
+//     decided at the same time or later: decisions about one record only
+//     move forward, so an approval the owner superseded cannot be put back.
+//
+// An approval that does not decode is left to verification, which refuses
+// it.
+func (b *baseApprovals) refuse(raw []byte) (string, error) {
+	head, err := decodeApproval(raw)
+	if err != nil {
+		return "", nil
+	}
+	list, err := b.load()
+	if err != nil {
+		return "", err
+	}
+	headAt, headErr := time.Parse(time.RFC3339, head.Record.DecidedAt)
+	for _, base := range list {
+		if sameApproval(base.env, head) {
+			return "the owner approval is already in the base (" + logSafe(base.path) + "): an approval admits only the change that adds it", nil
+		}
+		if base.env.Record.Subject == "" || base.env.Record.RuleID != head.Record.RuleID {
+			continue
+		}
+		baseAt, err := time.Parse(time.RFC3339, base.env.Record.DecidedAt)
+		if headErr != nil || err != nil || !headAt.After(baseAt) {
+			return "the base holds an approval for this record decided at the same time or later (" + logSafe(base.path) + "): an earlier or concurrent decision cannot replace it", nil
 		}
 	}
 	return "", nil

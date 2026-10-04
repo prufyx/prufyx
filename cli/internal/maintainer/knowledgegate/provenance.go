@@ -199,8 +199,8 @@ func (r *Report) recordCheck(cls *Classification, statements map[string]statemen
 			n++
 			inHead := opts.Head.Exists(p)
 			why = approvalPathReason(strings.TrimPrefix(p, opts.Layout.ApprovalDir+"/"), packs, admitted, inHead)
-			if why == "" && !inHead {
-				why = liveRecordApproval(opts, p)
+			if why == "" {
+				why = liveRecordApproval(opts, p, inHead)
 			}
 		case strings.HasPrefix(p, opts.Layout.ReattestDir+"/"):
 			n++
@@ -215,12 +215,15 @@ func (r *Report) recordCheck(cls *Classification, statements map[string]statemen
 	r.add("knowledge-records", len(bad) == 0, "%d record files changed%s", n, listDetail(bad))
 }
 
-// liveRecordApproval refuses deleting a record approval that could still
-// verify (decided within MaxApprovalAge of the gate's clock): a removed
-// record's approval then stays in the base, where it cannot be used again
-// (see approvalInBase). Rule approvals, and files that are not record
-// approvals, are not affected.
-func liveRecordApproval(opts Options, p string) string {
+// liveRecordApproval guards a record approval of the base that could still
+// verify (decided within MaxApprovalAge of the gate's clock, or at an
+// unreadable time): it may not be deleted, so a removed record's approval
+// stays in the base where it cannot be used again (baseApprovals.refuse),
+// and it may be overwritten only by a record approval decided strictly
+// later, so a superseded decision cannot be written back over it. Rule
+// approvals, and base files that are not record approvals, are not
+// affected.
+func liveRecordApproval(opts Options, p string, inHead bool) string {
 	raw, err := opts.Base.ReadOptional(p, maxApprovalBytes+1)
 	if err != nil || raw == nil {
 		return ""
@@ -230,8 +233,23 @@ func liveRecordApproval(opts Options, p string) string {
 		return ""
 	}
 	decided, err := time.Parse(time.RFC3339, env.Record.DecidedAt)
-	if err != nil || opts.Now.Sub(decided) <= MaxApprovalAge {
+	if err == nil && opts.Now.Sub(decided) > MaxApprovalAge {
+		return ""
+	}
+	if !inHead {
 		return "a record approval may not be removed while it could still verify"
+	}
+	headRaw, herr := opts.Head.ReadOptional(p, maxApprovalBytes+1)
+	if herr != nil || headRaw == nil {
+		return "a record approval may not be removed while it could still verify"
+	}
+	head, herr := decodeApproval(headRaw)
+	if herr != nil || head.Record.Subject == "" {
+		return "a live record approval may be replaced only by a later record approval"
+	}
+	headAt, herr := time.Parse(time.RFC3339, head.Record.DecidedAt)
+	if herr != nil || err != nil || !headAt.After(decided) {
+		return "a live record approval may be replaced only by a record approval decided strictly later"
 	}
 	return ""
 }
