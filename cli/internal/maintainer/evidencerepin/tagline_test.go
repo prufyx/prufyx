@@ -3,11 +3,15 @@
 package evidencerepin
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -175,6 +179,11 @@ func TestClassifyNonRelease(t *testing.T) {
 		{"go1.21rc4", "go", 1, 21, formPrerelease},
 		{"v1.0.0-rc1", "v", 1, 0, formPrerelease},
 		{"v1.9.0-hotfix-1", "v", 1, 9, formUnrecognised},
+		{"v1.2.4-prebuilt", "v", 1, 2, formUnrecognised},
+		{"v1.2.4-rc1-hotfix", "v", 1, 2, formUnrecognised},
+		{"v1.2.4-devsecfix", "v", 1, 2, formUnrecognised},
+		{"v1.2.4-preview-fix", "v", 1, 2, formUnrecognised},
+		{"v1.2.4-rc.1.2", "v", 1, 2, formPrerelease},
 		{"v2.10.27-binary", "v", 2, 10, formUnrecognised},
 		{"v1.25.2.1", "v", 1, 25, formUnrecognised},
 		{"go1.20", "go", 1, 20, formUnrecognised},
@@ -302,7 +311,13 @@ func TestDeriveTagLineEdgeCases(t *testing.T) {
 		"nested go module prefix":                   {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/sdk/go/v2.0.0"}, c(1), "", "prefixes other than none, v or go: \"sdk/go/v\", \"v\""},
 		"calendar tags next to v tags":              {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/2024.10.15"}, c(1), "", "mixed prefixes: \"\", \"v\""},
 		"mixed allowed prefixes":                    {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/1.3.0"}, c(1), "", "mixed prefixes: \"\", \"v\""},
-		"pre-release under another prefix is fine":  {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/chart-1.2.1-rc.1"}, c(1), "v1.2.0", ""},
+		"pre-release under another prefix":          {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/chart-1.2.1-rc.1"}, c(1), "", "another prefix or a zero-padded version (chart-1.2.1-rc.1)"},
+		"non-strict tag without the prefix":         {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/1.2.9-hotfix"}, c(1), "", "another prefix or a zero-padded version (1.2.9-hotfix)"},
+		"zero-padded minor on the line":             {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/v1.02.9"}, c(1), "", "another prefix or a zero-padded version (v1.02.9)"},
+		"post-release word starting like pre":       {[]string{c(1) + "\trefs/tags/v1.2.3", c(2) + "\trefs/tags/v1.2.4-prebuilt"}, c(1), "", "v1.2.4-prebuilt"},
+		"hotfix of a release candidate":             {[]string{c(1) + "\trefs/tags/v1.2.3", c(2) + "\trefs/tags/v1.2.4-rc1-hotfix"}, c(1), "", "v1.2.4-rc1-hotfix"},
+		"post-release word starting like dev":       {[]string{c(1) + "\trefs/tags/v1.2.3", c(2) + "\trefs/tags/v1.2.4-devsecfix"}, c(1), "", "v1.2.4-devsecfix"},
+		"numbered pre-release is ignored":           {[]string{c(1) + "\trefs/tags/v1.2.3", c(2) + "\trefs/tags/v1.2.4-rc.1"}, c(1), "v1.2.3", ""},
 		"two release tags at the pin":               {[]string{c(1) + "\trefs/tags/v1.2.0", c(1) + "\trefs/tags/v1.2.1"}, c(1), "", "more than one release tag"},
 		"two lines at the pin":                      {[]string{c(1) + "\trefs/tags/v1.2.0", c(1) + "\trefs/tags/v1.3.0"}, c(1), "", "more than one release line"},
 		"zero-padded tag on the line":               {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/v1.2.07"}, c(1), "", "v1.2.07"},
@@ -374,8 +389,10 @@ func TestNewestOnLineSkipsUnflaggedPrereleaseReleases(t *testing.T) {
 	if reason != "" || tag != "v1.30.1" {
 		t.Fatalf("got %q %q; want v1.30.1", tag, reason)
 	}
-	if _, _, reason := newestOnLine(pinned, []releaseEntry{rel("v1.30.0", false), rel("v1.30.1-binary", false)}); reason == "" {
-		t.Fatal("an unrecognised suffix on the line must still make it ambiguous")
+	for _, suffix := range []string{"-binary", "-prebuilt", "-rc1-hotfix", "-devsecfix"} {
+		if tag, _, reason := newestOnLine(pinned, []releaseEntry{rel("v1.30.0", false), rel("v1.30.1"+suffix, false)}); reason == "" {
+			t.Errorf("an unflagged v1.30.1%s release must keep the line ambiguous, got head %q", suffix, tag)
+		}
 	}
 }
 
@@ -420,6 +437,12 @@ func goWorld(t *testing.T) (*fakeAPIFetcher, fakeBlobFetcher) {
 		body   []byte
 		status int
 	}{[]byte(`{"object":{"sha":"3895b5051df256b442d0b0af50debfffd8d75164","type":"commit"}}`), 200}
+	for tag, commit := range map[string]string{"go1.21.13": goTag12113Commit, "go1.26.8": goTag1268Commit, "go1.21.4": goTag1214Commit} {
+		api.responses["/repos/golang/go/git/ref/tags/"+tag] = struct {
+			body   []byte
+			status int
+		}{[]byte(`{"object":{"sha":"` + commit + `","type":"commit"}}`), 200}
+	}
 	blobs := fakeBlobFetcher{}
 	put := func(commit, body string) {
 		blobs["/golang/go/"+commit+"/src/flag/flag.go"] = sourcecapture.FetchResult{Kind: "HTTP_200", StatusCode: 200, Body: []byte(body)}
@@ -537,5 +560,169 @@ func TestGitHubRefFetcherRefusesBadNames(t *testing.T) {
 		if _, err := (GitHubRefFetcher{}).GitRefs(ctx, name[0], name[1]); !errors.Is(err, errRejected) || strings.Contains(fmt.Sprint(err), "transport") {
 			t.Errorf("%v: expected a refusal before any request, got %v", name, err)
 		}
+	}
+}
+
+// ---------------------------------------------------------------------
+// The smart-HTTP fetcher, through a test transport (no network)
+// ---------------------------------------------------------------------
+
+type fakeTransport struct {
+	handle   func(*http.Request) *http.Response
+	requests []*http.Request
+}
+
+func (f *fakeTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	f.requests = append(f.requests, r)
+	return f.handle(r), nil
+}
+
+func httpResponse(status int, contentType string, body []byte, header map[string]string) *http.Response {
+	h := http.Header{}
+	if contentType != "" {
+		h.Set("Content-Type", contentType)
+	}
+	for k, v := range header {
+		h.Set(k, v)
+	}
+	return &http.Response{StatusCode: status, Header: h, Body: io.NopCloser(bytes.NewReader(body)), ContentLength: int64(len(body))}
+}
+
+const advertisementType = "application/x-git-upload-pack-advertisement"
+
+func TestGitHubRefFetcherOverATestTransport(t *testing.T) {
+	good := advertisement(string(recordedRaw(t, "golang_go")))
+	ok := &fakeTransport{handle: func(*http.Request) *http.Response { return httpResponse(200, advertisementType, good, nil) }}
+	listing, err := GitHubRefFetcher{transport: ok}.GitRefs(context.Background(), "golang", "go")
+	if err != nil || listing.Tags["go1.21.4"].Commit != goTag1214Commit {
+		t.Fatalf("a valid advertisement must parse: %v", err)
+	}
+	r := ok.requests[0]
+	if r.URL.String() != "https://github.com/golang/go.git/info/refs?service=git-upload-pack" || r.Method != http.MethodGet || r.Header.Get("Authorization") != "" {
+		t.Fatalf("unexpected request %s %s auth=%q", r.Method, r.URL, r.Header.Get("Authorization"))
+	}
+
+	cases := map[string]func(*http.Request) *http.Response{
+		"redirect to another host": func(r *http.Request) *http.Response {
+			if r.URL.Host == "github.com" {
+				return httpResponse(302, "", nil, map[string]string{"Location": "https://example.invalid/refs"})
+			}
+			return httpResponse(200, advertisementType, good, nil)
+		},
+		"wrong content type": func(*http.Request) *http.Response { return httpResponse(200, "text/plain", good, nil) },
+		"no content type":    func(*http.Request) *http.Response { return httpResponse(200, "", good, nil) },
+		"not found":          func(*http.Request) *http.Response { return httpResponse(404, advertisementType, good, nil) },
+		"server error":       func(*http.Request) *http.Response { return httpResponse(500, advertisementType, good, nil) },
+		"oversized body": func(*http.Request) *http.Response {
+			return httpResponse(200, advertisementType, make([]byte, maxRefListingBytes+1), nil)
+		},
+		"malformed body": func(*http.Request) *http.Response { return httpResponse(200, advertisementType, []byte("0000"), nil) },
+		"protocol v2 answer": func(*http.Request) *http.Response {
+			return httpResponse(200, advertisementType, []byte(pktLine("version 2\n")+"0000"), nil)
+		},
+	}
+	for name, handle := range cases {
+		tr := &fakeTransport{handle: handle}
+		if _, err := (GitHubRefFetcher{transport: tr}).GitRefs(context.Background(), "golang", "go"); err == nil {
+			t.Errorf("%s: must be refused", name)
+		}
+		for _, r := range tr.requests {
+			if r.URL.Host != "github.com" {
+				t.Errorf("%s: a request reached %s", name, r.URL.Host)
+			}
+		}
+	}
+}
+
+// ---------------------------------------------------------------------
+// An annotated line head, end to end, and a head that is not a commit
+// ---------------------------------------------------------------------
+
+func annotatedWorld(headRef string, extra map[string]string) (*fakeAPIFetcher, fakeBlobFetcher, RefListing, Citation) {
+	pin, headObject, headCommit, latest := strings.Repeat("1", 40), strings.Repeat("2", 40), strings.Repeat("3", 40), strings.Repeat("4", 40)
+	listing, _ := ParseLsRemote([]byte(pin + "\trefs/tags/v1.2.0\n" + headObject + "\trefs/tags/v1.2.1\n" + headCommit + "\trefs/tags/v1.2.1^{}\n" + latest + "\trefs/tags/v1.3.0\n"))
+	api := &fakeAPIFetcher{responses: map[string]struct {
+		body   []byte
+		status int
+	}{}}
+	set := func(path, body string) {
+		api.responses[path] = struct {
+			body   []byte
+			status int
+		}{[]byte(body), 200}
+	}
+	set("/repos/example/tags/releases?per_page=10", `[]`)
+	set("/repos/example/tags/tags?per_page=30", `[{"name":"v1.3.0"}]`)
+	set("/repos/example/tags/git/ref/tags/v1.3.0", `{"object":{"sha":"`+latest+`","type":"commit"}}`)
+	set("/repos/example/tags/git/ref/tags/v1.2.1", headRef)
+	for path, body := range extra {
+		set(path, body)
+	}
+	blobs := fakeBlobFetcher{}
+	for _, commit := range []string{pin, headCommit, latest} {
+		blobs["/example/tags/"+commit+"/a.txt"] = sourcecapture.FetchResult{Kind: "HTTP_200", StatusCode: 200, Body: []byte("one\ntwo\n")}
+	}
+	citation := Citation{RulePack: "p", RuleID: "r", Project: "p", SourceID: "s", Owner: "example", Repo: "tags", Path: "a.txt",
+		OldCommit: pin, OldDigest: sourcecorpus.SHA([]byte("one\ntwo\n")), StartLine: 1, EndLine: 1}
+	return api, blobs, listing, citation
+}
+
+func TestTagLineAnnotatedHeadEndToEnd(t *testing.T) {
+	headObject, headCommit := strings.Repeat("2", 40), strings.Repeat("3", 40)
+	run := func(headRef string, extra map[string]string) (ClassResult, []LineResolution) {
+		t.Helper()
+		api, blobs, listing, citation := annotatedWorld(headRef, extra)
+		refs := &fixtureRefs{listings: map[string]RefListing{"example/tags": listing}}
+		wl, err := BuildWorklistWithBaseline(context.Background(), []Citation{citation}, nil, 0, newState(), withGitRefs{APIFetcher: api, refs: refs}, blobs, fixedNow(), DefaultMaxAge, nil, BaselineModeReleaseLine)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return wl.Citations[0], wl.Lines
+	}
+	annotated := `{"object":{"sha":"` + headObject + `","type":"tag"}}`
+	got, lines := run(annotated, map[string]string{"/repos/example/tags/git/tags/" + headObject: `{"object":{"sha":"` + headCommit + `","type":"commit"}}`})
+	if got.Baseline != BaselineTagLine || got.BaselineTag != "v1.2.1" || got.NewCommit != headCommit || got.Class != ClassFileIdentical ||
+		len(lines) != 1 || lines[0].Commit != headCommit || lines[0].Tag != "v1.2.1" {
+		t.Fatalf("an annotated head is compared at its peeled commit: %+v %+v", got, lines)
+	}
+
+	for name, tc := range map[string]struct {
+		ref   string
+		extra map[string]string
+	}{
+		"head tag points at a tree":          {`{"object":{"sha":"` + headCommit + `","type":"tree"}}`, nil},
+		"annotated head peels to a blob":     {annotated, map[string]string{"/repos/example/tags/git/tags/" + headObject: `{"object":{"sha":"` + headCommit + `","type":"blob"}}`}},
+		"tag API names another commit":       {`{"object":{"sha":"` + strings.Repeat("9", 40) + `","type":"commit"}}`, nil},
+		"tag API does not know the head tag": {`not json`, nil},
+	} {
+		got, lines := run(tc.ref, tc.extra)
+		if got.Baseline != BaselineLatest || got.Resolution != resolutionTagFallback || !strings.Contains(got.BaselineNote, "does not resolve to the commit") || len(lines) != 0 {
+			t.Errorf("%s: must keep the tags fallback: %+v %+v", name, got, lines)
+		}
+	}
+}
+
+// A Releases line record and a tag line record for the same repository,
+// prefix and line live under different state keys.
+func TestTagLineStateKeyIsSeparateFromReleasesLine(t *testing.T) {
+	api, blobs := goWorld(t)
+	refs := &fixtureRefs{listings: map[string]RefListing{"golang/go": recordedListing(t, "golang_go")}}
+	state := newState()
+	seeded := LineResolution{Owner: "golang", Repo: "go", Prefix: "go", Line: "1.21", Status: lineResolved, Tag: "go1.21.5", Commit: strings.Repeat("5", 40), ResolvedAt: fixedNow()().Format(time.RFC3339)}
+	state.Lines[lineKey("golang", "go", "go", "1.21")] = seeded
+	if _, err := BuildWorklistWithBaseline(context.Background(), []Citation{goCitation("a", goTag1214Commit, "a\nb\nc\n")}, nil, 0, state, withGitRefs{APIFetcher: api, refs: refs}, blobs, fixedNow(), DefaultMaxAge, nil, BaselineModeReleaseLine); err != nil {
+		t.Fatal(err)
+	}
+	if got := state.Lines[lineKey("golang", "go", "go", "1.21")]; !reflect.DeepEqual(got, seeded) {
+		t.Fatalf("the Releases line record was overwritten: %+v", got)
+	}
+	if got := state.Lines[tagLineKey("golang", "go", "go", "1.21")]; got.Basis != LineBasisGitTags || got.Tag != "go1.21.13" {
+		t.Fatalf("the tag line record is missing: %+v", got)
+	}
+}
+
+func TestParseLsRemoteRejectsNUL(t *testing.T) {
+	if _, err := ParseLsRemote([]byte(strings.Repeat("a", 40) + "\trefs/tags/v1.0.0\x00x\n")); !errors.Is(err, errRefListingMalformed) {
+		t.Fatalf("a NUL in a ref must be refused, got %v", err)
 	}
 }

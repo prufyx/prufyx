@@ -34,7 +34,11 @@ package evidencerepin
 //     "v1.2.3.4", a bare "go1.20") or the same numeric line under a
 //     second prefix makes the line UNKNOWN: a release this code cannot
 //     order could be newer than the head it would otherwise pick.
-//   - The compared tag is the highest PATCH among the line's release tags.
+//   - A tag naming the line's MAJOR.MINOR under another prefix or with a
+//     zero-padded number also makes the line UNKNOWN.
+//   - The compared tag is the highest PATCH among the line's release tags,
+//     and it must also resolve through the tag API to the same commit (the
+//     ref listing cannot tell a commit from a tree or blob).
 //     It has the pinned tag's prefix, MAJOR and MINOR and a PATCH not below
 //     the pinned one, so the comparison never moves to another line and
 //     never to an older release than the pin.
@@ -82,7 +86,7 @@ var (
 	errRefListingTooLarge  = errors.New("the ref listing is too large")
 
 	tagLinePrefixPattern = regexp.MustCompile(`^(?:[A-Za-z][A-Za-z0-9_.]*[-_/])*(?:v|[a-z]+)?$`)
-	prereleasePattern    = regexp.MustCompile(`^(?i)[-.]?(?:alpha|beta|rc|pre|preview|dev)(?:[-.]?[0-9a-z]+)*$`)
+	prereleasePattern    = regexp.MustCompile(`^(?i)[-.]?(?:alpha|beta|rc|pre|preview|dev)(?:[-.]?[0-9]+)*$`)
 	refObjectPattern     = regexp.MustCompile(`^[0-9a-f]{40}$`)
 )
 
@@ -124,7 +128,7 @@ func ParseLsRemote(raw []byte) (RefListing, error) {
 			continue
 		}
 		object, ref, ok := strings.Cut(line, "\t")
-		if !ok || !refObjectPattern.MatchString(object) || ref == "" || strings.ContainsAny(ref, "\t\r ") {
+		if !ok || !refObjectPattern.MatchString(object) || ref == "" || strings.ContainsAny(ref, "\t\r \x00") {
 			return RefListing{}, fmt.Errorf("%w: unexpected line", errRefListingMalformed)
 		}
 		if seen[ref] {
@@ -220,10 +224,13 @@ func parseUploadPackAdvertisement(raw []byte) ([]byte, error) {
 // GitHubRefFetcher lists a repository's refs from github.com's smart-HTTP
 // endpoint, the request "git ls-remote" makes. It sends no credentials,
 // never follows a redirect and never contacts another host.
-type GitHubRefFetcher struct{}
+type GitHubRefFetcher struct {
+	// transport replaces the network transport in tests only.
+	transport http.RoundTripper
+}
 
 // GitRefs implements GitRefSource.
-func (GitHubRefFetcher) GitRefs(ctx context.Context, owner, repo string) (RefListing, error) {
+func (f GitHubRefFetcher) GitRefs(ctx context.Context, owner, repo string) (RefListing, error) {
 	if !repoNamePattern.MatchString(owner) || !repoNamePattern.MatchString(repo) || owner == "." || owner == ".." || repo == "." || repo == ".." {
 		return RefListing{}, errRejected
 	}
@@ -233,14 +240,18 @@ func (GitHubRefFetcher) GitRefs(ctx context.Context, owner, repo string) (RefLis
 	}
 	request.Header.Set("User-Agent", "git/2.0 (prufyx-evidence-repin/1)")
 	request.Header.Set("Accept-Encoding", "identity")
+	var transport http.RoundTripper = &http.Transport{
+		Proxy: nil, DisableCompression: true, DisableKeepAlives: true,
+		MaxResponseHeaderBytes: 16 << 10,
+		TLSClientConfig:        &tls.Config{ServerName: "github.com", MinVersion: tls.VersionTLS12},
+	}
+	if f.transport != nil {
+		transport = f.transport
+	}
 	client := &http.Client{
 		Timeout:       60 * time.Second,
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
-		Transport: &http.Transport{
-			Proxy: nil, DisableCompression: true, DisableKeepAlives: true,
-			MaxResponseHeaderBytes: 16 << 10,
-			TLSClientConfig:        &tls.Config{ServerName: "github.com", MinVersion: tls.VersionTLS12},
-		},
+		Transport:     transport,
 	}
 	response, err := client.Do(request)
 	if err != nil {
@@ -351,6 +362,37 @@ func classifyNonRelease(tag, prefix string, major, minor int) onLineForm {
 		return formPrerelease
 	}
 	return formUnrecognised
+}
+
+// looseLine reads the first MAJOR.MINOR of a tag, whatever surrounds it:
+// the text before the first digit is the prefix, and padded reports a
+// leading zero in either number. It finds the line a tag names even when
+// the tag is not a release tag, so that such a tag can never be ignored.
+func looseLine(tag string) (prefix string, major, minor int, padded, ok bool) {
+	i := strings.IndexAny(tag, "0123456789")
+	if i < 0 {
+		return "", 0, 0, false, false
+	}
+	digits := func(s string) string {
+		n := 0
+		for n < len(s) && s[n] >= '0' && s[n] <= '9' {
+			n++
+		}
+		return s[:n]
+	}
+	a := digits(tag[i:])
+	rest := tag[i+len(a):]
+	if !strings.HasPrefix(rest, ".") {
+		return "", 0, 0, false, false
+	}
+	b := digits(rest[1:])
+	if b == "" || len(a) > 6 || len(b) > 6 {
+		return "", 0, 0, false, false
+	}
+	major, _ = strconv.Atoi(a)
+	minor, _ = strconv.Atoi(b)
+	padded = (len(a) > 1 && a[0] == '0') || (len(b) > 1 && b[0] == '0')
+	return tag[:i], major, minor, padded, true
 }
 
 // IgnoredTag is a tag on a line that was deliberately not considered as
@@ -485,6 +527,12 @@ func deriveTagLine(listing RefListing, pinnedCommit string) tagLine {
 			}
 			continue
 		}
+		if prefix, major, minor, padded, ok := looseLine(name); ok && major == pinned.Major && minor == pinned.Minor && (prefix != pinned.Prefix || padded) {
+			// The numeric line under another prefix, or zero-padded: a
+			// form nothing here can order against the line's releases.
+			result.unknown = "a tag on the line has another prefix or a zero-padded version (" + name + ")"
+			return result
+		}
 		switch classifyNonRelease(name, pinned.Prefix, pinned.Major, pinned.Minor) {
 		case formPrerelease:
 			result.ignoredN++
@@ -554,7 +602,19 @@ func (r *lineResolver) decideTagLine(c Citation) baselineDecision {
 		r.state.Lines[key] = line
 		return baselineDecision{pin: pin, note: "tag line not usable: " + derived.unknown}
 	}
-	line.Status, line.Tag, line.Commit = lineResolved, derived.headTag, derived.head.Commit
+	// The ref listing cannot tell a commit from a tree or blob: resolve the
+	// head tag through the tag API too, which peels annotated tags and
+	// answers only for a commit, and require the same commit.
+	headCommit, err := r.tagCommit(c.Owner, c.Repo, derived.headTag)
+	if err != nil {
+		return baselineDecision{pending: "tag line head not yet resolved; re-run to retry"}
+	}
+	if headCommit == "" || headCommit != derived.head.Commit {
+		line.Status, line.Detail = lineUnderivable, "the line's newest release tag does not resolve to the commit the ref listing names"
+		r.state.Lines[key] = line
+		return baselineDecision{pin: pin, note: "tag line not usable: " + line.Detail}
+	}
+	line.Status, line.Tag, line.Commit = lineResolved, derived.headTag, headCommit
 	line.TagsDigest, line.IgnoredTags, line.IgnoredTagCount = derived.digest, derived.ignored, derived.ignoredN
 	r.state.Lines[key] = line
 	return baselineDecision{line: &line, pin: pin, basis: LineBasisGitTags}
