@@ -38,7 +38,7 @@ const (
 	// redactedDir holds the digest names that stand in for redacted paths.
 	redactedDir = "redacted"
 	// fingerprintKey names the partial fingerprint.
-	fingerprintKey = "prufyxResult/v1"
+	fingerprintKey = "prufyxResult/v1" // gitleaks:allow (a fingerprint name, not a secret)
 	// truncatedID is the descriptor of the notification for dropped results.
 	truncatedID = "RESULTS_TRUNCATED"
 )

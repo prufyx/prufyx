@@ -1,0 +1,60 @@
+name: Merge policy
+
+# Every change reaches main through a pull request from a topic branch and is
+# merged with a merge commit (no fast-forward, no squash, no rebase). The
+# repository ruleset enforces this for everyone; this workflow is the required
+# status check that makes the rule visible and catches anything that slips
+# past it.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  merge-policy:
+    name: Merge policy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Pull request comes from a topic branch
+        if: github.event_name == 'pull_request'
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          if [ "${HEAD_REF}" = "main" ]; then
+            echo "::error title=Merge policy::open the pull request from a topic branch, not from main"
+            exit 1
+          fi
+          echo "topic branch: ${HEAD_REF}"
+
+      - name: Checkout full history
+        if: github.event_name == 'push'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Every change on main since the policy start is a merge commit
+        if: github.event_name == 'push'
+        env:
+          # The last commit on main before the merge-commit policy took effect.
+          POLICY_START: faa34b5a851fa0116ab4390f22bc63b8dd18353c
+        run: |
+          set -euo pipefail
+          if ! git merge-base --is-ancestor "${POLICY_START}" HEAD; then
+            echo "::error title=Merge policy::main no longer contains the policy start commit; history was rewritten"
+            exit 1
+          fi
+          direct="$(git rev-list --first-parent --no-merges "${POLICY_START}..HEAD")"
+          if [ -n "${direct}" ]; then
+            echo "::error title=Merge policy::commits on main that did not arrive as a merge commit:"
+            printf '%s\n' "${direct}"
+            exit 1
+          fi
+          echo "every change on main since ${POLICY_START} arrived as a merge commit"

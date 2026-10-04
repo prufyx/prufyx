@@ -132,6 +132,15 @@ your first pull request; reply with the sentence it asks for. You sign once.
 Every commit must be authored by an email address linked to your GitHub
 account, so the check can match it to your signature.
 
+## Branches and merges
+
+Every change, including the maintainer's, goes on a topic branch and reaches
+`main` through a pull request merged with a merge commit. Fast-forward, squash
+and rebase merges, direct pushes to `main`, force pushes and branch deletion are
+refused by the repository ruleset for everyone. A pull request merges only when
+the `CI` and `Merge policy` checks pass on a branch that is up to date with
+`main`.
+
 ## Review
 
 The maintainer may ask for narrower scope, clearer evidence, a data-boundary
