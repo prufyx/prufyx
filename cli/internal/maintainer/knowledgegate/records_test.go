@@ -199,6 +199,15 @@ func TestGateRecordBreaker(t *testing.T) {
 	if ch, ok := check(r, "breaker/withdrawals/cncf"); !ok || !ch.OK {
 		t.Fatalf("rule breaker %+v", ch)
 	}
+	found := false
+	for _, b := range r.Breakers {
+		if b.Kind == BreakerWithdrawProject && b.Subject == evidencerepin.RecordProjectLineAttestations && b.Observed == 12 {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("no project breaker for the removed attestations: %+v", r.Breakers)
+	}
 	// Raised, the same change passes.
 	r = runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin, MaxWithdrawPercent: 10})
 	requireAdmittedButUnsplit(t, r)
@@ -237,7 +246,7 @@ func TestGateReviewedAttestationApproval(t *testing.T) {
 		edit func(t *testing.T, base, head Tree, id string, rec *ApprovalRecord) Options
 		want string
 	}{
-		// LA1 M3: no 1.33 rule in the pack, but upstream 1.33 removes the
+		// No 1.33 rule in the pack, but upstream 1.33 removes the
 		// SelfSubjectReview beta: an empty attestation is refused.
 		"upstream removal not listed":        {"1.33", nil, "no rule the attestation lists reads them"},
 		"line the extractor does not derive": {"1.28", nil, "derives no pair into line 1.28"},
@@ -293,6 +302,25 @@ func TestGateReviewedAttestationApproval(t *testing.T) {
 			}
 		})
 	}
+
+	// The stagger cap counts rules and records together: a new record's
+	// lease may not land in a week that already holds more than the cap.
+	t.Run("stagger", func(t *testing.T) {
+		base, head := attestedTrees(t, []string{"1.22"}, []string{"1.22"}, func(p *packDoc, atts []map[string]any) []map[string]any {
+			a := reviewedAttestation(t, p, "1.23")
+			// 2026-W50, where most of the shipped pack's leases end.
+			a["evidence"].(map[string]any)["validUntil"] = "2026-12-08T12:00:00Z"
+			return append(atts, a)
+		})
+		key.pinBoth(t, base, head, "airstand")
+		id := attestationID("1.23")
+		sign(t, head, id, recordApproval(id, "1.23", ApprovalBaseAbsent, recordDigest(t, head, id)))
+		r := runGate(t, Options{Base: base, Head: head, Source: fixtureSource, Author: DefaultBotLogin})
+		requireFail(t, r, "stagger/cncf/records")
+		if c, _ := check(r, "stagger/cncf"); !c.OK {
+			t.Fatalf("rule stagger %+v", c)
+		}
+	})
 
 	// A rule approval never verifies as a record approval, and the reverse.
 	t.Run("record approval for a rule", func(t *testing.T) {

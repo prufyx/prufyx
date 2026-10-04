@@ -274,7 +274,7 @@ func TestGateRecordRenewalRejects(t *testing.T) {
 			editHeadPack(t, f, func(doc map[string]any) {
 				sectionRecord(doc, "pathPolicies", 0)["policy"] = "direct"
 			})
-		}, "V1", reviewedPolicyID},
+		}, "a reviewed path policy changes only by renewal", reviewedPolicyID},
 		"dates other than the statement's": {func(t *testing.T, f recordFixture, o *Options) {
 			editHeadPack(t, f, func(doc map[string]any) {
 				ev := sectionRecord(doc, "lineAttestations", 0)["evidence"].(map[string]any)
