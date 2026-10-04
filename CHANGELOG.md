@@ -9,6 +9,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- `factory mirror` reads release metadata in pages of 20 (it was 100), so
+  repositories with long release notes no longer exceed the 8 MiB page bound
+  and are no longer left with unknown releases; `--release-pages` now counts
+  pages of 20 (default 100). `evidence repin` chooses the latest release or
+  tag with one rule shared by the HTTP and mirror sources (highest strict
+  version among non-draft, non-pre-release releases; strict-version tags only
+  for the tags fallback), documented in `cli/docs/evidence-repin.md`.
 - The knowledge gate's default daily loosening limit is 50 (was 400). The
   repository variable `KNOWLEDGE_MAX_DAILY_LOOSENING` still raises it.
 - The CLA workflow no longer prints commit author e-mail addresses in its

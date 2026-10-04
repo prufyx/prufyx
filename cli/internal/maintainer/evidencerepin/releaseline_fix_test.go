@@ -38,15 +38,16 @@ func (f *lineFixture) runState(t *testing.T, state *State, mode string, citation
 }
 
 // truncatedPages makes every page up to maxReleasePages non-empty, with
-// v1.25.0 on page 1 and v1.25.1 beyond the scan.
+// v1.26.0 and v1.25.0 on page 1 and v1.25.1 beyond the scan.
 func (f *lineFixture) truncatedPages() {
 	for page := 1; page <= maxReleasePages; page++ {
 		var rs []map[string]any
 		for i := 0; i < releasePageSize; i++ {
-			rs = append(rs, map[string]any{"tag_name": fmt.Sprintf("v9.%d.%d", page, i)})
+			rs = append(rs, map[string]any{"tag_name": fmt.Sprintf("v0.%d.%d", page, i)})
 		}
 		if page == 1 {
-			rs[0] = map[string]any{"tag_name": "v1.25.0"}
+			rs[0] = map[string]any{"tag_name": "v1.26.0"}
+			rs[1] = map[string]any{"tag_name": "v1.25.0"}
 		}
 		raw, _ := json.Marshal(rs)
 		f.setPage(page, 200, string(raw))

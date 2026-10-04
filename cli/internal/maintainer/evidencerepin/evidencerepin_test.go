@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -275,7 +276,39 @@ func (f *fakeAPIFetcher) Fetch(_ context.Context, path string) ([]byte, int, err
 	if response, ok := f.responses[path]; ok {
 		return response.body, response.status, nil
 	}
+	// Single-page fixtures are keyed by the first page of a list
+	// ("releases?per_page=10", "tags?per_page=30"); the paged requests the
+	// code makes read that fixture as page 1 and an empty page 2 and later.
+	for _, list := range []struct{ paged, legacy string }{
+		{"/releases?per_page=" + strconv.Itoa(releasePageSize) + "&page=", "/releases?per_page=10"},
+		{"/tags?per_page=" + strconv.Itoa(tagsPageSize) + "&page=", "/tags?per_page=30"},
+	} {
+		if i := strings.Index(path, list.paged); i >= 0 {
+			base, page := path[:i], path[i+len(list.paged):]
+			if f.hasPaged(base + list.paged) {
+				continue
+			}
+			response, ok := f.responses[base+list.legacy]
+			switch {
+			case !ok:
+			case page == "1":
+				return response.body, response.status, nil
+			case response.status == 200:
+				return []byte("[]"), 200, nil
+			}
+		}
+	}
 	return nil, 404, nil
+}
+
+// hasPaged reports whether a fixture defines any explicit page of a list.
+func (f *fakeAPIFetcher) hasPaged(prefix string) bool {
+	for key := range f.responses {
+		if strings.HasPrefix(key, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func TestResolveCurrentCommitLightweightTag(t *testing.T) {

@@ -386,7 +386,7 @@ func TestReleaseLineTagFallbackRepoKeepsLatestAndMarker(t *testing.T) {
 		t.Fatalf("tag-fallback repositories keep the latest baseline and the marker: %+v", got)
 	}
 	for _, call := range api.calls {
-		if strings.Contains(call, "&page=") {
+		if strings.Contains(call, "/releases?") && !strings.HasSuffix(call, "&page=1") {
 			t.Fatalf("a no-release repository must not be scanned for lines: %v", api.calls)
 		}
 	}

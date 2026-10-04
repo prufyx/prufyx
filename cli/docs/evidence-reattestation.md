@@ -938,7 +938,7 @@ statements, never on the machine that prepares them.
   `constraintengine.EngineContractDigest()`, the generic engine contract
   digest. This is a known, narrower binding, not a silent substitution.
 - **`upstreamReleasesSincePrior`.** `evidence repin` resolves only each
-  repository's single most recent release, not a full release history
+  repository's latest release (chosen by the shared latest-release rule), not a full release history
   since the prior attestation. This field therefore lists the latest
   resolved tag per cited repository (the compared tag of each citation, which
   for a release-line citation is the newest release on its line), not a

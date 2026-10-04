@@ -148,7 +148,7 @@ func (w *httpWorld) Fetch(_ context.Context, path string) ([]byte, int, error) {
 		list := w.releases[key]
 		out := []map[string]any{}
 		for i := (page - 1) * per; i < len(list) && i < page*per; i++ {
-			out = append(out, map[string]any{"tag_name": list[i].Tag, "draft": false, "prerelease": list[i].Prerelease})
+			out = append(out, map[string]any{"id": 1000 - i, "tag_name": list[i].Tag, "draft": false, "prerelease": list[i].Prerelease})
 		}
 		raw, _ := json.Marshal(out)
 		return raw, 200, nil
@@ -158,9 +158,14 @@ func (w *httpWorld) Fetch(_ context.Context, path string) ([]byte, int, error) {
 			names = append(names, name)
 		}
 		sort.Strings(names)
+		per, _ := strconv.Atoi(q.Get("per_page"))
+		page := 1
+		if v := q.Get("page"); v != "" {
+			page, _ = strconv.Atoi(v)
+		}
 		out := []map[string]string{}
-		for _, n := range names {
-			out = append(out, map[string]string{"name": n})
+		for i := (page - 1) * per; i < len(names) && i < page*per; i++ {
+			out = append(out, map[string]string{"name": names[i]})
 		}
 		raw, _ := json.Marshal(out)
 		return raw, 200, nil

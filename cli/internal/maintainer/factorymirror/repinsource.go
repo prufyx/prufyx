@@ -79,7 +79,7 @@ func (s *RepinSource) Releases(owner, repo string) (evidencerepin.MirrorReleases
 	}
 	out := evidencerepin.MirrorReleases{Truncated: rel.Truncated}
 	for _, item := range rel.Items {
-		out.Items = append(out.Items, evidencerepin.MirrorRelease{Tag: item.Tag, Draft: item.Draft, Prerelease: item.Prerelease})
+		out.Items = append(out.Items, evidencerepin.MirrorRelease{ID: item.ID, Tag: item.Tag, Draft: item.Draft, Prerelease: item.Prerelease})
 	}
 	return out, nil
 }

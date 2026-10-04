@@ -156,10 +156,33 @@ releases of the same line (patch releases and errata).
 * `--baseline release-line` (the default) compares a citation with the newest
   GitHub Release on the release line of its pinned tag when that line can be
   proven, and with the repository's most recent release otherwise.
-* `--baseline latest` compares every citation with the repository's most recent
-  non-draft, non-pre-release GitHub Release (or, for a repository with no
-  Releases, its highest tag, marked `tag_fallback`). This is the original
-  behaviour.
+* `--baseline latest` compares every citation with the repository's latest
+  release under the rule below (or, for a repository with no Releases, its
+  latest tag, marked `tag_fallback`).
+
+### The "latest" rule (the same for `--source http` and `--source mirror`)
+
+One function chooses the latest release for both sources, so the two cannot
+pick different baselines from the same data:
+
+* Drafts and pre-releases are never candidates.
+* Among the other releases, those whose tag is a strict version (an optional
+  prefix such as `v`, `go`, `release-` or `api/v`, then `MAJOR.MINOR.PATCH`
+  and nothing after it) are compared by number, so `v1.10.0` is newer than
+  `v1.9.0` and a backport such as `v1.7.36` published after `v2.4.1` does not
+  displace it. The same version under two prefixes goes to the shorter prefix,
+  then to the smaller tag.
+* When no candidate tag is a strict version, the candidate with the highest
+  release id wins.
+* For the tags fallback only strict-version tags count; tags such as
+  `weekly.2012-03-27` or `release.r60.3` never do. A repository with no such
+  tag has no baseline and stays `PENDING`.
+* The order in which a source lists releases or tags plays no part. The whole
+  release list is read in pages of 20 (at most 100 pages, that is the 2000
+  newest releases; a longer list is judged on the pages read) and the whole
+  tags list in pages of 100 (at most 50 pages; a longer list is not trusted).
+
+The rule is recorded in the worklist limitations.
 
 ### Why release-line is the default, and what it does not cover
 

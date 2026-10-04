@@ -60,6 +60,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/latestrelease"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecapture"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
@@ -391,11 +392,12 @@ func (d *NoBaselineDetermination) definitive() bool {
 // lists were fetched and were provably empty.
 var errNoReleaseBaseline = errors.New("repository has no releases and no tags")
 
-// ResolveCurrentCommit finds an owner/repo's most recent published release
+// ResolveCurrentCommit finds an owner/repo's latest published release
 // (falling back to its most recent tag when the project publishes no
 // GitHub Releases) and resolves that tag to a commit SHA. It makes at most
-// three api.github.com requests and never guesses or searches beyond the
-// single most-recent release, or the tags fallback described on latestTag.
+// a bounded number of api.github.com requests (the release list or, when
+// there are no releases, the tags list, then the tag's ref) and selects the
+// latest release or tag with the shared rule of package latestrelease.
 // resolution is resolutionTagFallback when the tags fallback was used
 // (weaker evidence: see latestTag), or "" when GitHub Releases resolved it.
 func ResolveCurrentCommit(ctx context.Context, fetcher APIFetcher, owner, repo string) (tag, commit, resolution string, err error) {
@@ -442,130 +444,84 @@ func apiGet(ctx context.Context, fetcher APIFetcher, path string) ([]byte, error
 	return body, nil
 }
 
-// releaseListPageSize is fetched in a single request so the first
-// non-draft, non-prerelease entry can be picked without extra round trips
-// in the common case; GitHub returns releases ordered by creation date
-// descending.
-const releaseListPageSize = "10"
-
-// latestReleaseTag returns the newest published non-prerelease tag. empty is
-// true only when the endpoint answered successfully with a JSON array that
-// holds no release at all; a 404, an undecodable body, or a list holding only
-// drafts and prereleases is not "empty".
+// latestReleaseTag returns the latest published release tag under the
+// shared selection rule (package latestrelease): drafts and pre-releases
+// are skipped and the highest strict version wins, whatever order the
+// source lists releases in. The whole release list is read (pages of
+// releasePageSize, at most maxReleasePages pages; a longer list is judged
+// on the pages read, exactly as a truncated mirror list is). empty is true
+// only when the endpoint answered successfully with a JSON array that holds
+// no release at all; a 404 or a list holding only drafts and prereleases
+// is not "empty".
 func latestReleaseTag(ctx context.Context, fetcher APIFetcher, owner, repo string) (tag string, empty bool, err error) {
-	body, err := apiGet(ctx, fetcher, "/repos/"+owner+"/"+repo+"/releases?per_page="+releaseListPageSize)
+	list, err := fetchAllReleases(ctx, fetcher, owner, repo)
 	if err != nil {
 		return "", false, err
 	}
-	if body == nil {
+	if list.notFound {
 		return "", false, nil
 	}
-	var releases []struct {
-		TagName    string `json:"tag_name"`
-		Draft      bool   `json:"draft"`
-		Prerelease bool   `json:"prerelease"`
+	candidates := make([]latestrelease.Release, 0, len(list.entries))
+	for _, e := range list.entries {
+		candidates = append(candidates, latestrelease.Release{ID: e.ID, Tag: e.Tag, Draft: e.Draft, Prerelease: e.Prerelease})
 	}
-	if err := json.Unmarshal(body, &releases); err != nil {
-		return "", false, nil
+	if best, ok := latestrelease.Select(candidates); ok {
+		return best.Tag, false, nil
 	}
-	// "Current release" means the latest published, non-prerelease
-	// version: a release candidate is not what an operator upgrades to,
-	// so it should not stand in as the staleness baseline.
-	for _, release := range releases {
-		if !release.Draft && !release.Prerelease {
-			return release.TagName, false, nil
-		}
-	}
-	return "", releases != nil && len(releases) == 0, nil
+	return "", len(list.entries) == 0, nil
 }
 
-// tagsFallbackPageSize bounds the single tags-list request used when a
-// project publishes no GitHub Releases. GitHub's tags list endpoint carries
-// no documented sort guarantee (unlike the releases endpoint, which is
-// creation-date descending): a repo can return its tags in an order that is
-// not version-recency order at all, so naively taking the first entry (as
-// this fallback used to under per_page=1) can select an older tag, e.g.
-// "v9.0.0" sorting ahead of "v10.0.0" under a lexicographic ordering. To
-// stay correct without adding API requests, this fetches a wider single
-// page and ranks candidates by their parsed dotted-numeric version instead
-// of trusting positional order.
-const tagsFallbackPageSize = "30"
-
-var tagVersionPattern = regexp.MustCompile(`\d+(?:\.\d+){1,3}`)
-
-// parseTagVersion extracts a dotted numeric version from a tag name (for
-// example "v1.2.3" -> [1,2,3]) for recency comparison. ok is false when the
-// tag name contains no such pattern.
-func parseTagVersion(tag string) (parts []int, ok bool) {
-	match := tagVersionPattern.FindString(tag)
-	if match == "" {
-		return nil, false
-	}
-	for _, segment := range strings.Split(match, ".") {
-		n, err := strconv.Atoi(segment)
-		if err != nil {
-			return nil, false
-		}
-		parts = append(parts, n)
-	}
-	return parts, true
-}
-
-// compareTagVersions returns -1, 0, or 1 comparing a to b component-wise,
-// treating a missing trailing component as 0 (so "1.2" == "1.2.0").
-func compareTagVersions(a, b []int) int {
-	for i := 0; i < len(a) || i < len(b); i++ {
-		var x, y int
-		if i < len(a) {
-			x = a[i]
-		}
-		if i < len(b) {
-			y = b[i]
-		}
-		if x != y {
-			if x < y {
-				return -1
-			}
-			return 1
-		}
-	}
-	return 0
-}
+// tagsPageSize and maxTagPages bound the tags-list scan used when a
+// project publishes no GitHub Releases. GitHub's tags endpoint has no
+// documented sort order, so the highest strict version is chosen over the
+// whole list (package latestrelease) rather than from its first page; a
+// list longer than the bound is not trusted and the repository stays
+// pending. A mirror source serves every recorded tag, so it is subject to
+// the same bound.
+const (
+	tagsPageSize = 100
+	maxTagPages  = 50
+)
 
 // latestTag is the tags fallback. empty has the same meaning as for
 // latestReleaseTag: a successful response holding an empty JSON array.
 func latestTag(ctx context.Context, fetcher APIFetcher, owner, repo string) (tag string, empty bool, err error) {
-	body, err := apiGet(ctx, fetcher, "/repos/"+owner+"/"+repo+"/tags?per_page="+tagsFallbackPageSize)
-	if err != nil {
-		return "", false, err
-	}
-	if body == nil {
-		return "", false, nil
-	}
-	var tags []struct {
-		Name string `json:"name"`
-	}
-	if err := json.Unmarshal(body, &tags); err != nil {
-		return "", false, nil
-	}
-	if len(tags) == 0 {
-		return "", tags != nil, nil
-	}
-	// Prefer the numerically highest parsed version among candidates that
-	// parse as one; a strictly-greater comparison keeps the first API-order
-	// occurrence on ties, matching the old behaviour when nothing (or only
-	// one entry) parses as a version.
-	best := tags[0].Name
-	bestVersion, bestOK := parseTagVersion(best)
-	for _, candidate := range tags[1:] {
-		version, ok := parseTagVersion(candidate.Name)
-		if !ok {
-			continue
+	var names []string
+	seen := map[string]bool{}
+	for page := 1; ; page++ {
+		if page > maxTagPages {
+			return "", false, fmt.Errorf("%w: tags list longer than %d pages", errRejected, maxTagPages)
 		}
-		if !bestOK || compareTagVersions(version, bestVersion) > 0 {
-			best, bestVersion, bestOK = candidate.Name, version, true
+		body, err := apiGet(ctx, fetcher, "/repos/"+owner+"/"+repo+"/tags?per_page="+strconv.Itoa(tagsPageSize)+"&page="+strconv.Itoa(page))
+		if err != nil {
+			return "", false, err
+		}
+		if body == nil {
+			if page == 1 {
+				return "", false, nil
+			}
+			return "", false, fmt.Errorf("%w: tags page %d not found", errRejected, page)
+		}
+		var tags []struct {
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal(body, &tags); err != nil || tags == nil {
+			return "", false, fmt.Errorf("%w: tags page %d is not an array", errRejected, page)
+		}
+		if len(tags) == 0 {
+			break
+		}
+		for _, t := range tags {
+			if !seen[t.Name] {
+				seen[t.Name] = true
+				names = append(names, t.Name)
+			}
 		}
 	}
+	if len(names) == 0 {
+		return "", true, nil
+	}
+	best, _ := latestrelease.SelectTag(names)
 	return best, false, nil
 }
 
@@ -1108,7 +1064,7 @@ type WorklistScope struct {
 var worklistLimitations = []string{
 	"this worklist is a mechanical drift classification, not a compatibility claim, a review, or a rule change",
 	"it reads existing rule packs and writes only this worklist and an optional state file; it cannot modify a pack or a rule",
-	"a repository's \"current release commit\" is its single most recent non-draft GitHub Release, or its single most recent tag when the project publishes no Releases; this is a proxy for \"upstream now\", not a guarantee of the true latest stable line",
+	"a repository's \"current release commit\" is its latest release under one shared rule (" + latestrelease.Rule + "), the same rule the local mirror source applies; this is a proxy for \"upstream now\", not a guarantee of the true latest stable line",
 	"SPAN_MOVED, CONTENT_CHANGED, PATH_GONE, and CORPUS_DIGEST_MISMATCH all require a human reviewer; this tool only narrows where reviewer time goes",
 	"CORPUS_DIGEST_MISMATCH means the file fetched at the citation's own pinned commit does not hash to the recorded contentDigest (or is not reachable there at all); this is a corpus integrity problem, not citation drift, and should be investigated separately",
 	"a repo resolution or citation classification resumed from --state is reported as current only if it is within --max-age of this run; an older entry is either recomputed or, when this run could not recompute it, kept and marked \"stale\": true rather than reported as fresh",

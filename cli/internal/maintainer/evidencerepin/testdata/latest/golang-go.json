@@ -1,0 +1,23 @@
+{
+ "repo": "golang/go",
+ "expectTag": "go1.24.2",
+ "expectResolution": "tag_fallback",
+ "note": "no releases; tags in an arbitrary order",
+ "releases": [],
+ "tags": [
+  "weekly.2012-03-27",
+  "release.r60.3",
+  "release.r59",
+  "go1.9",
+  "go1.22.5",
+  "go1.22rc1",
+  "go1.23.1",
+  "go1.23.0",
+  "go1.23rc2",
+  "go1.24.2",
+  "go1.24beta1",
+  "go1",
+  "weekly.2012-03-22",
+  "go1.10.8"
+ ]
+}

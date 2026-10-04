@@ -192,6 +192,7 @@ func lessInts(a, b []int) bool {
 
 // releaseEntry is one entry of a repository's GitHub Releases list.
 type releaseEntry struct {
+	ID         int64
 	Tag        string
 	Draft      bool
 	Prerelease bool
@@ -204,10 +205,14 @@ type releaseList struct {
 	complete bool
 	// none is true when the repository publishes no Releases at all.
 	none bool
+	// notFound is true when the first page answered 404 (the repository
+	// has no readable release list), as opposed to an empty array.
+	notFound bool
 }
 
 func fetchAllReleases(ctx context.Context, fetcher APIFetcher, owner, repo string) (releaseList, error) {
 	var list releaseList
+	seen := map[int64]bool{}
 	for page := 1; page <= maxReleasePages; page++ {
 		path := "/repos/" + owner + "/" + repo + "/releases?per_page=" + strconv.Itoa(releasePageSize) + "&page=" + strconv.Itoa(page)
 		body, err := apiGet(ctx, fetcher, path)
@@ -216,22 +221,29 @@ func fetchAllReleases(ctx context.Context, fetcher APIFetcher, owner, repo strin
 		}
 		if body == nil {
 			if page == 1 {
-				return releaseList{complete: true, none: true}, nil
+				return releaseList{complete: true, none: true, notFound: true}, nil
 			}
 			// A missing page after the first is an anomaly, not the end
 			// of the list: only an empty page array ends the scan.
 			return releaseList{}, fmt.Errorf("%w: releases page %d not found", errRejected, page)
 		}
 		var raw []struct {
+			ID         int64  `json:"id"`
 			TagName    string `json:"tag_name"`
 			Draft      bool   `json:"draft"`
 			Prerelease bool   `json:"prerelease"`
 		}
-		if err := json.Unmarshal(body, &raw); err != nil {
-			return releaseList{}, fmt.Errorf("%w: decode releases: %v", errRejected, err)
+		if err := json.Unmarshal(body, &raw); err != nil || raw == nil {
+			return releaseList{}, fmt.Errorf("%w: releases page %d is not an array", errRejected, page)
 		}
 		for _, r := range raw {
-			list.entries = append(list.entries, releaseEntry{Tag: r.TagName, Draft: r.Draft, Prerelease: r.Prerelease})
+			// A release listed again because the list shifted between
+			// two page requests is kept once.
+			if r.ID != 0 && seen[r.ID] {
+				continue
+			}
+			seen[r.ID] = true
+			list.entries = append(list.entries, releaseEntry{ID: r.ID, Tag: r.TagName, Draft: r.Draft, Prerelease: r.Prerelease})
 		}
 		// Only an empty page ends the scan: a short page proves nothing,
 		// because the API may drop entries (drafts) after paginating.
