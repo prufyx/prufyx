@@ -35,6 +35,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   split, `evidence reattest`, `evidence repin` and the support inventory
   refuse a pack with the section for now. See
   `cli/docs/kubernetes-distribution-versions.md`.
+- `prufyx scan --knowledge-db DIR` reads the rules from a verified local CNCF
+  knowledge database (`cncf` or `cncf-projects` layout, filled by `db update`
+  or `db import`) instead of the knowledge built into the binary, so renewed
+  or withdrawn rules reach `scan` without a new binary. The database is
+  verified exactly as for `check cncf --knowledge-db` and the scan is evaluated
+  at that verification time (`--now` is refused with it). Any verification
+  failure exits 3 and never falls back to the built-in knowledge. A targeted
+  project the per-project index does not list is reported with the new gap
+  `PROJECT_NOT_IN_KNOWLEDGE`. The report's provenance names the database
+  (`knowledgeStore`: path, layout, target, trust receipt and each project
+  target); `--redact` replaces the path with its digest. Without the flag the
+  output is unchanged.
+
 - Maintainer tooling: the `crd.version-removal` extractor (registered as
   `crd.version-removal.<project>` for Argo CD, Istio and Strimzi) derives
   rules for custom-resource versions a release no longer serves, from the

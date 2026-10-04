@@ -67,7 +67,8 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
     [--distribution official_upstream|custom_build]
     [--resource-scope-complete[=true|false]] [--target-api-apply-required[=true|false]]
     [--format human|json|sarif|markdown] [--show-passes] [--verbose] [--redact]
-    [--input-permissions strict|refuse-writable] [--require-basis LIST] [--now RFC3339]
+    [--input-permissions strict|refuse-writable] [--require-basis LIST]
+    [--knowledge-db DIR | --now RFC3339]
 ```
 
 | Flag | Meaning |
@@ -85,12 +86,65 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
 | `--redact` | Prints `sha256:` digests instead of file paths, object names and namespaces. Human and Markdown output show the first 12 hex characters; SARIF uses a name under `redacted/`. |
 | `--input-permissions` | `refuse-writable` (default) or `strict`. See below. |
 | `--require-basis` | The evidence bases whose rules are evaluated, a comma-separated subset of `reviewed`, `mechanical`, `empirical`, `consensus`, `lead`. Default: `reviewed,mechanical,empirical,consensus`, the same as `prufyx check cncf`. A rule left out that applies to a hop keeps the hop undecided (`RULE_NOT_DECIDED`) and the report says how many were left out. |
-| `--now` | The evaluation instant, canonical UTC with whole seconds (`2026-10-04T00:00:00Z`). Default: the current time, truncated to the second. It is printed in every report; pass it to replay a scan exactly. |
+| `--knowledge-db` | Read the knowledge from this verified local knowledge database instead of the knowledge built into the binary. See "Knowledge database" below. |
+| `--now` | The evaluation instant, canonical UTC with whole seconds (`2026-10-04T00:00:00Z`). Default: the current time, truncated to the second. It is printed in every report; pass it to replay a scan exactly. Not accepted with `--knowledge-db`. |
 
 A component version is `X.Y.Z` with no prefix, suffix or leading zeros. An
 unknown component name is refused and the three closest names are listed.
-`--knowledge-db` is not accepted: `scan` uses the knowledge built into the
-binary.
+
+## Knowledge database
+
+Without `--knowledge-db`, `scan` uses the knowledge built into the binary, and
+its rules expire with that binary's reviews. With `--knowledge-db DIR`, `scan`
+reads the rules from a local CNCF knowledge database that
+`prufyx db update` or `prufyx db import` filled, in either layout: `cncf` (one
+target) or `cncf-projects` (one target per project). A renewed or withdrawn
+rule therefore reaches `scan` without a new binary. See
+[Explicit knowledge downloads](knowledge-updates.md) and
+[Per-project CNCF knowledge targets](cncf-knowledge-per-project.md).
+
+The database is verified exactly as for `prufyx check cncf --knowledge-db`:
+the TUF metadata is checked again at the current time, rollback and clock
+floors apply, the selection's trust receipt must match, and in the
+per-project layout the index and the target of every targeted project are
+checked against the signed metadata. The scan is evaluated at that same
+instant, so `--now` is refused; the instant is printed in the report.
+
+- Any verification failure (a changed target, a missing project target, a
+  rolled-back selection or clock, a layout that does not match the store, an
+  empty database or a path that is not a directory) stops the scan with exit
+  `3` and `KNOWLEDGE INTEGRITY FAILURE`, and nothing is printed on standard
+  output. The built-in knowledge is never used instead.
+- A targeted project that the selected per-project index has no target for is
+  not checked: it is reported with the gap `PROJECT_NOT_IN_KNOWLEDGE` and the
+  answer cannot pass.
+- Expired, not yet valid and withdrawn rules in the database behave exactly
+  like built-in ones (`EVIDENCE_EXPIRED`). `--require-basis` applies to the
+  database's rules and records as it does to the built-in ones.
+- The knowledge database format does not carry line reviews, upgrade-path
+  policies or reviewed served-API lists yet, and the built-in knowledge
+  carries none either, so the related gaps (`LINE_NOT_ATTESTED`,
+  `NO_REVIEWED_PATH_POLICY`, `API_VERSION_NOT_REVIEWED`) are named exactly as
+  with the built-in knowledge. A database that carried such records would be
+  refused when it is imported.
+
+The report's provenance names the database: `knowledgeOrigin` is
+`external_signed_local`, `knowledgeRevision` and `knowledgeDigest` identify
+the selected target (the index in the per-project layout), and
+`knowledgeStore` gives the database path, its layout, the target path, the
+trust receipt digest, the purpose, when the revision was imported and, in the
+per-project layout, the revision and digest of each targeted project's target.
+With `--redact` the database path is replaced by its digest. The human output
+ends with, for example:
+
+```
+evaluated at 2026-10-04T06:46:52Z; input sha256:706abd92d4968558d52e272d3f490af7280ce84a6011ae824a9fa9ae7b4c47f7; knowledge external_signed_local 5 sha256:8ee7da3043a69c79c8b75484444c996986abdad70f1f2157c9149a2807c9cf05
+knowledge database knowledge-db; layout cncf-projects; target knowledge/cncf/index.v1.json; trust receipt sha256:7d92352be22ec77c9ceebe8c46a29bfd92dc53c9a5f8a33f690ba4e4b598be93
+knowledge for kubernetes: target knowledge/cncf/projects/kubernetes.v1.json revision 5 digest sha256:f52033c5f46cb594b8a6d4fcb057cc3284df7b92f5c1702aeb950f6b4f937cad
+```
+
+(That database holds a test-signed copy of the built-in knowledge; no official
+Prufyx knowledge feed or trust root is published yet.)
 
 ## Answers and exit codes
 
@@ -167,6 +221,7 @@ Every gap has a reason, a detail and an action.
 | `PATH_NOT_PLANNABLE` | The versions cannot be planned (equal versions, too many hops, a major change). | Check the versions, or scan each step. |
 | `DOWNGRADE_NOT_REVIEWED` | The target is older than the current version. | None: downgrades are not evaluated. |
 | `COMPONENT_NOT_COVERED` | A targeted project is not evaluated by `scan` yet. | Run `prufyx check cncf --project NAME`. |
+| `PROJECT_NOT_IN_KNOWLEDGE` | With `--knowledge-db`, the selected per-project index has no target for a targeted project, so nothing about it was checked. | Update the knowledge database to a revision that covers it, or check by hand. |
 | `VERSION_NOT_DETECTED` | No current version was declared. | Pass `--from kubernetes=VERSION` or set `current:` in `prufyx.yaml`. |
 | `VERSION_CONFLICT` | Two different versions were declared for one project. | Declare one. |
 | `DECLARATION_MISSING` | Scope completeness, target apply or the distribution is not declared. | Declare it with the flag or in `prufyx.yaml`, if it is true. |
@@ -283,8 +338,9 @@ used), `findings`, `gaps`, `passes`, `omitted`
 never part of the verdict), `trustPolicy` (only when the trust policy left out
 a rule that applies), `unsupported` (combinations outside a documented support
 range), `omissions`, `notes` and `provenance` (evaluation instant, input digest, configuration
-digest, knowledge revision and digest, the engine contract digest of the first
-evaluated transition, build identity, `networkUsed: false`). The engine contract
+digest, knowledge origin, revision and digest, the engine contract digest of
+the first evaluated transition, build identity, `networkUsed: false`, and
+`knowledgeStore` when `--knowledge-db` was used). The engine contract
 depends on the features of the rules a transition selects: when a one-way
 notice, a lead or a support-range rule is selected, it differs from a hop
 without one, with no change to the answer.
@@ -355,6 +411,9 @@ accepts `--show-passes` and `--verbose` like the human output.
 ## Determinism
 
 The same inputs, configuration, knowledge and `--now` give byte-identical
-human, JSON, SARIF and Markdown output. The order of the paths on the command line does not
+human, JSON, SARIF and Markdown output. With `--knowledge-db` the instant is the time of the
+run; scanning the same inputs with the built-in knowledge and `--now` set to
+the printed instant gives the same answer when the database holds the same
+rules. The order of the paths on the command line does not
 matter. Findings are ordered by hop, then rule id; locations by file, document
 and item; gaps by component, hop and reason.

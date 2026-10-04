@@ -90,6 +90,11 @@ fallback. The report's `knowledge` section identifies the selected index
 `projectTarget` object with the evaluated project's target path, revision and
 digest, or `"status": "absent_from_index"`; for an absent project the report's
 pack digest identifies a synthesized empty envelope that was never published.
+
+`prufyx scan --knowledge-db` reads the same stores the same way, opening the
+index and the target of every targeted project. A targeted project the index
+does not list is reported with the gap `PROJECT_NOT_IN_KNOWLEDGE`; see
+[`prufyx scan`](scan.md#knowledge-database).
 A damaged stored project target blocks only checks of that project, while
 `db status` reports the store failure. Historical replay uses the index
 identities from the report:

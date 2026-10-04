@@ -116,6 +116,16 @@ body limit; with `--profile cncf-projects` the limit is 8 MiB (see
 command starts. For an offline environment, transfer the package separately and
 use `db import`.
 
+## Use the database with `prufyx scan`
+
+A CNCF store filled by `db update` or `db import` (`--profile cncf` or
+`--profile cncf-projects`) can be read by `prufyx scan` with
+`--knowledge-db DIR`. The scan verifies the selected revision exactly as
+`check cncf --knowledge-db` does, is evaluated at the current time, and stops
+with exit 3 on any verification failure instead of using the knowledge built
+into the binary. This is how renewed or withdrawn rules reach `scan` without
+a new binary. See [`prufyx scan`](scan.md#knowledge-database).
+
 ## Privacy and failure behavior
 
 The downloader accepts only the explicit URL and cancellation context. It
