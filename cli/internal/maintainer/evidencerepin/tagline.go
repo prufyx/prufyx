@@ -376,30 +376,35 @@ type tagLine struct {
 }
 
 // tagLineRepositoryAmbiguity applies the repository-wide prefix rule shared
-// with the latest-release selection: only version tags with no prefix, "v"
-// or "go" compete. A version tag (anything ending in MAJOR.MINOR.PATCH)
-// under any other prefix ("helm-chart-5.0.0", "sdk/go/v2.0.0",
-// "spec-v1.0.0"), or version tags under more than one of the allowed
-// prefixes, make the whole repository ambiguous: no tag line is derived.
-// It returns "" when the repository is not ambiguous.
-func tagLineRepositoryAmbiguity(names []string) string {
-	prefixes := map[string]bool{}
-	for _, name := range names {
-		match := strictTagPattern.FindStringSubmatch(name)
-		if match == nil {
-			continue
-		}
-		switch prefix := match[1]; prefix {
-		case "", "v", "go":
-			prefixes[prefix] = true
-		default:
-			return "the repository tags versions under a prefix other than none, v or go (" + name + ")"
+// with the latest-release selection to the prefixes of every version tag (any
+// tag ending in MAJOR.MINOR.PATCH, whatever its prefix): only the prefixes
+// none, "v" and "go" may carry versions, and only one of them. A prefix
+// outside those ("helm-chart-", "sdk/go/v", "spec-v") or two different
+// prefixes (including none and "v" together) make the repository ambiguous
+// and no tag line is derived. It returns "" when the repository is not
+// ambiguous, and otherwise the reason.
+func tagLineRepositoryAmbiguity(prefixes []string) string {
+	set := map[string]bool{}
+	other := false
+	for _, prefix := range prefixes {
+		set[prefix] = true
+		if prefix != "" && prefix != "v" && prefix != "go" {
+			other = true
 		}
 	}
-	if len(prefixes) > 1 {
-		return "the repository tags versions under more than one prefix"
+	if len(set) == 0 || (len(set) == 1 && !other) {
+		return ""
 	}
-	return ""
+	names := make([]string, 0, len(set))
+	for prefix := range set {
+		names = append(names, strconv.Quote(prefix))
+	}
+	sort.Strings(names)
+	kind := "mixed prefixes"
+	if other {
+		kind = "prefixes other than none, v or go"
+	}
+	return "the repository tags versions under " + kind + ": " + strings.Join(names, ", ")
 }
 
 // deriveTagLine places pinnedCommit on a release line of listing and finds
@@ -411,7 +416,13 @@ func deriveTagLine(listing RefListing, pinnedCommit string) tagLine {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	if reason := tagLineRepositoryAmbiguity(names); reason != "" {
+	var versionPrefixes []string
+	for _, name := range names {
+		if match := strictTagPattern.FindStringSubmatch(name); match != nil {
+			versionPrefixes = append(versionPrefixes, match[1])
+		}
+	}
+	if reason := tagLineRepositoryAmbiguity(versionPrefixes); reason != "" {
 		return tagLine{pinUnknown: true, unknown: reason}
 	}
 

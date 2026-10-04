@@ -259,7 +259,7 @@ func TestDeriveTagLineFromRecordedListings(t *testing.T) {
 		"bare go1.20 release is unorderable":      {"golang_go", goTag1205Commit, "go1.20", false},
 		"hotfix tag on the line":                  {"longhorn_longhorn-manager", longhornV190, "v1.9.0-hotfix-1", false},
 		"unrecognised -binary tag on the line":    {"nats-io_nats-server", natsV21029Commit, "v2.10.27-binary", false},
-		"same commit under two prefixes":          {"containernetworking_cni", cniV100Commit, "prefix other than none, v or go (spec-v1.0.0)", true},
+		"same commit under two prefixes":          {"containernetworking_cni", cniV100Commit, "prefixes other than none, v or go: \"spec-v\", \"v\"", true},
 		"docs commit with no ref":                 {"etcd-io_website", etcdWebsitePin, "no tag points at the pinned commit", true},
 		"docs pin that is no ref head":            {"kubernetes_website", k8sWebsitePin, "no tag points at the pinned commit", true},
 		"docs release branch head has no release": {"kubernetes_website", k8sWebsite133Head, "head of branch release-1.33", true},
@@ -297,11 +297,11 @@ func TestDeriveTagLineEdgeCases(t *testing.T) {
 		contains string
 	}{
 		"higher patch on the line wins numerically": {[]string{c(1) + "\trefs/tags/v1.2.9", c(2) + "\trefs/tags/v1.2.10", c(3) + "\trefs/tags/v1.3.0"}, c(1), "v1.2.10", ""},
-		"same numeric line under another prefix":    {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/api/v1.2.3"}, c(1), "", "prefix other than none, v or go (api/v1.2.3)"},
-		"another component's prefix anywhere":       {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/helm-chart-5.0.0"}, c(1), "", "prefix other than none, v or go (helm-chart-5.0.0)"},
-		"nested go module prefix":                   {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/sdk/go/v2.0.0"}, c(1), "", "prefix other than none, v or go (sdk/go/v2.0.0)"},
-		"calendar tags next to v tags":              {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/2024.10.15"}, c(1), "", "more than one prefix"},
-		"mixed allowed prefixes":                    {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/1.3.0"}, c(1), "", "more than one prefix"},
+		"same numeric line under another prefix":    {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/api/v1.2.3"}, c(1), "", "prefixes other than none, v or go: \"api/v\", \"v\""},
+		"another component's prefix anywhere":       {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/helm-chart-5.0.0"}, c(1), "", "prefixes other than none, v or go: \"helm-chart-\", \"v\""},
+		"nested go module prefix":                   {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/sdk/go/v2.0.0"}, c(1), "", "prefixes other than none, v or go: \"sdk/go/v\", \"v\""},
+		"calendar tags next to v tags":              {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/2024.10.15"}, c(1), "", "mixed prefixes: \"\", \"v\""},
+		"mixed allowed prefixes":                    {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/1.3.0"}, c(1), "", "mixed prefixes: \"\", \"v\""},
 		"pre-release under another prefix is fine":  {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/chart-1.2.1-rc.1"}, c(1), "v1.2.0", ""},
 		"two release tags at the pin":               {[]string{c(1) + "\trefs/tags/v1.2.0", c(1) + "\trefs/tags/v1.2.1"}, c(1), "", "more than one release tag"},
 		"two lines at the pin":                      {[]string{c(1) + "\trefs/tags/v1.2.0", c(1) + "\trefs/tags/v1.3.0"}, c(1), "", "more than one release line"},
@@ -328,6 +328,20 @@ func TestDeriveTagLineEdgeCases(t *testing.T) {
 	listing, _ := ParseLsRemote([]byte(c(1) + "\trefs/tags/v1.2.0\n" + c(7) + "\trefs/tags/v1.2.1\n" + c(2) + "\trefs/tags/v1.2.1^{}\n"))
 	if got := deriveTagLine(listing, c(1)); got.head.Commit != c(2) {
 		t.Fatalf("the compared commit of an annotated head is its peeled commit, got %s", got.head.Commit)
+	}
+}
+
+// The rule must keep the shared latest-release semantics exactly.
+func TestTagLineRepositoryAmbiguity(t *testing.T) {
+	for _, ok := range [][]string{nil, {"v"}, {"v", "v"}, {""}, {"go", "go"}} {
+		if got := tagLineRepositoryAmbiguity(ok); got != "" {
+			t.Errorf("%q: unexpected ambiguity %q", ok, got)
+		}
+	}
+	for _, bad := range [][]string{{"", "v"}, {"v", "go"}, {"release-"}, {"v", "api/v"}, {"helm-chart-"}} {
+		if got := tagLineRepositoryAmbiguity(bad); got == "" {
+			t.Errorf("%q: must be ambiguous", bad)
+		}
 	}
 }
 
