@@ -94,7 +94,8 @@ prufyx-maintainer evidence reattest prepare \
 #    reviews/<ruleId>.json with `review-record new` (see "Reviewing the
 #    sample" below), reruns step 2 into a fresh output directory, and then
 #    signs. Records already recorded in the chain may stay in reviews/;
-#    they are skipped.
+#    they are skipped (a rule sampled again needs its old file deleted
+#    first, see below).
 prufyx-maintainer evidence reattest sign \
   --statement "$PWD/out/$SEQ/statement.json" \
   --trust-root "$PWD/evidence-reattest-trust-root.json" --trust-root-digest "$ROOT_DIGEST" \
@@ -268,9 +269,14 @@ them, seeded by `sha256(worklistDigest ‖ ruleId)`, and lists them in
 `sampledForFullReview`. Each one needs a full individual review before
 `sign` — or `verify` — will accept the statement: a review record for it
 must be supplied in `--review-record-dir`, and it must be a new individual
-review (see [The statement chain](#the-statement-chain-v5)). The seed is
-a function of inputs nobody controls after the worklist is generated, so the
-sample cannot be predicted or chosen.
+review (see [The statement chain](#the-statement-chain-v5)), written by
+`review-record new` (see below). The sample is fixed once the worklist bytes
+and the renewed rules are, but it is not an audit the signer cannot steer:
+the seed covers the worklist's exact bytes (whitespace and key order
+included, which no check of the citations looks at), and `--wave`,
+`--attested-at` and a new individual review all change which rules are
+renewed. Each of these can move the sample before signing. The signature,
+not the sample, is what vouches for the batch.
 
 ### Reviewing the sample: `review-record new`
 
@@ -301,7 +307,8 @@ prufyx-maintainer review-record new \
 | `--rule` | the sampled rule's ID |
 | `--reviewer` | the reviewer's public name or handle: 1–128 printable characters, no surrounding spaces, no `/` or `\` |
 | `--decided-at` | the decision time, exact UTC RFC 3339 in whole seconds (`...Z`); not before the statement's `attestedAt` and not in the future |
-| `--output` | the new record file; it must be named `<ruleId>.json` and must not exist yet (an existing file is never overwritten) |
+| `--output` | the new record file; it must be named `<ruleId>.json` and must not exist yet (an existing file is never overwritten). It is written to a temporary file in the same directory and then linked into place, so a failed write leaves nothing behind |
+| `--individual` | write an individual review instead of a sample review (see [Individual reviews](#individual-reviews-review-record-new---individual)) |
 
 The command asks nothing interactively and makes no network access. It
 refuses, with exit code 2 and a reason on standard error, unless:
@@ -311,7 +318,7 @@ refuses, with exit code 2 and a reason on standard error, unless:
   binary's engine capability;
 - the statement's sample is the seeded sample of its renewed rules, and the
   rule is in it. A record for a rule the statement renews but did not
-  sample is refused;
+  sample is refused (unless `--individual` is given);
 - the rule is a rule of the pack: a line attestation or path-policy record
   takes no review record (see
   [Line attestations and path policies](#line-attestations-and-path-policies));
@@ -329,7 +336,7 @@ checked statement:
 | `worklistDigest` | the statement's `worklist.digest`, which also seeds the sample |
 | `engineCapabilityDigest` | the statement's `pack.engineCapabilityDigest` |
 | `ruleDigest`, `ruleEvidenceDigest`, `sourcesDigest` | the rule, its evidence block and its sources exactly as they are in the prior pack |
-| `citationsDigest` | the rule's citations as the statement lists them: source, class, pinned and compared commit and tag, baseline |
+| `citationsDigest` | the rule's citations as the worklist gives them and the statement lists them: source, class, pinned and compared commit and tag, baseline |
 
 The record also names the pack, the prior revision, the project and the
 rule (`subject`), and carries fixed limitations: the reviewer and the
@@ -349,6 +356,48 @@ worklist (for example before a fresh repin) rejects the statement. When a
 statement is prepared again from a new worklist, delete the sampled
 rules' records that the chain has not recorded yet and write them again
 after reviewing the newly compared commits.
+
+Only a record written by `review-record new` (either scope) satisfies a
+sampled rule. A declared `review-record` record
+(`prufyx.io/declared-knowledge-review-record/v1`) supplied for a sampled
+rule still counts as that rule's individual review, but `prepare` leaves
+the sample entry empty and says so in `summary.txt` (`MISSING REVIEW RECORD
+(a declared review record does not satisfy the sample ...)`), and `sign`
+and `verify` refuse the statement until it is replaced.
+
+**A rule sampled again.** There is one record file per rule, and records
+the chain has already counted stay in the directory. When a rule whose
+record an earlier statement counted is sampled again, `prepare` skips the
+old file and lists the rule as `MISSING REVIEW RECORD`, and
+`review-record new` refuses to overwrite it. Delete the old
+`<ruleId>.json` first, then write the new record. The change then modifies
+that file, which the knowledge gate allows for a rule the appended
+statement renews; it refuses removing a record file.
+
+### Individual reviews: `review-record new --individual`
+
+A rule renewed by batch twice in a row is held back with
+`CONSECUTIVE_BATCH_CYCLE_CAP` until a statement records an individual
+review of it. `review-record new --individual` writes that review, for a
+rule the prepared statement renews or holds back only by that cap; the
+rule need not be sampled. The record has the same subject and the same
+bindings as a sample review, with its citations computed from the worklist
+and the prior pack (a capped rule has no entry in the statement's
+`rules`), and its scope is
+`ONE_INDIVIDUALLY_REVIEWED_RULE_OF_ONE_PREPARED_STATEMENT`. It satisfies a
+sampled rule too. `prepare` and `verify` accept it only for a rule the
+statement renews, so a record for a rule left out for another reason (for
+example `STAGGER_DEFERRED`) rejects the statement; delete it and write it
+again in the statement that renews the rule.
+
+An individual review changes which rules are renewed, and so the sample.
+Write the records in this order:
+
+1. `prepare`;
+2. `review-record new --individual` for each capped rule you reviewed;
+3. `prepare` again (into a fresh output directory);
+4. `review-record new` for each rule this statement samples;
+5. `prepare` again, then `sign`.
 
 ## Automated mode
 

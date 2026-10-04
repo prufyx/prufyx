@@ -52,7 +52,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   engine, the rule's exact version and its compared citations) from the
   checked statement. `evidence reattest prepare` and `verify` check every
   binding again and refuse a record for a rule the statement does not sample.
-  See `cli/docs/evidence-reattestation.md`.
+  `review-record new --individual` writes an individual review of a rule the
+  statement renews or holds back only by the consecutive-cycle cap. A declared
+  review record no longer satisfies a sampled rule. See
+  `cli/docs/evidence-reattestation.md`.
+- Maintainer tooling: `prufyx-maintainer` refuses a repeated option also when
+  it is spelled with one dash (`-name`).
 - Knowledge format: CNCF rule packs can carry an optional `distributions`
   section (pack schema `prufyx.io/cncf-source-rule-pack/v1alpha9`) with
   reviewed Kubernetes distribution records (control-plane model, and for
