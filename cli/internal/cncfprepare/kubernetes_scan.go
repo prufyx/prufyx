@@ -3,6 +3,8 @@
 package cncfprepare
 
 import (
+	"sort"
+
 	"github.com/prufyx/prufyx/cli/internal/intake"
 )
 
@@ -44,4 +46,39 @@ func PrepareKubernetesScan(workspace intake.Workspace, from, to, distribution st
 		sources = map[string][]intake.Source{}
 	}
 	return KubernetesScan{Prepared: prepared, Sources: sources}, nil
+}
+
+// KubernetesRemovedVersion is one reviewed removal of a served API version:
+// the kinds of Group at Version stop being served when a cluster enters Line.
+type KubernetesRemovedVersion struct {
+	Line    string
+	Group   string
+	Version string
+	Kinds   []string
+}
+
+// KubernetesRemovedVersions lists every removal the rendered apply-set route
+// knows, including the 1.32 flow-control removal, ordered by line, group,
+// version. It is read-only provenance for callers that must notice an
+// object at a version removed on a line no evaluated transition crosses.
+func KubernetesRemovedVersions() []KubernetesRemovedVersion {
+	out := []KubernetesRemovedVersion{{Line: "1.32", Group: "flowcontrol.apiserver.k8s.io", Version: "v1beta3", Kinds: []string{"FlowSchema", "PriorityLevelConfiguration"}}}
+	for line, removals := range kubernetesRemovalsByTargetMinor {
+		for _, removal := range removals {
+			out = append(out, KubernetesRemovedVersion{Line: line, Group: removal.Group, Version: removal.Removed, Kinds: append([]string(nil), removal.Kinds...)})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		a, b := out[i], out[j]
+		if a.Line != b.Line {
+			am, _ := kubernetesVersionParts(a.Line + ".0")
+			bm, _ := kubernetesVersionParts(b.Line + ".0")
+			return am[0] < bm[0] || am[0] == bm[0] && am[1] < bm[1]
+		}
+		if a.Group != b.Group {
+			return a.Group < b.Group
+		}
+		return a.Version < b.Version
+	})
+	return out
 }

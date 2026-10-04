@@ -21,12 +21,41 @@ type ScanKnowledge struct {
 
 // ScanRule is the selection view of one admitted rule: its scope for line
 // attestations (id, subject component, line, fact families, reviewed
-// transition), its rule-provided description and its next action.
+// transition), the facts it reads, whether it is a one-way notice, its
+// rule-provided description and its next action.
 type ScanRule struct {
 	Project     string
 	Scope       lineattest.RuleScope
+	Facts       []string
+	Notice      bool
 	Description string
 	NextAction  string
+}
+
+// NewScanRule reads the selection view of one raw rule. It does not
+// validate the rule: only admitted rules reach a scan.
+func NewScanRule(project, description string, raw json.RawMessage) (ScanRule, error) {
+	scope, err := lineattest.ScopeOf(raw)
+	if err != nil {
+		return ScanRule{}, ErrIntegrity
+	}
+	var shape ruleShape
+	var action struct {
+		NextAction string `json:"nextAction"`
+	}
+	if json.Unmarshal(raw, &shape) != nil || json.Unmarshal(raw, &action) != nil {
+		return ScanRule{}, ErrIntegrity
+	}
+	notice, err := isNoticeRule(raw)
+	if err != nil {
+		return ScanRule{}, ErrIntegrity
+	}
+	rule := ScanRule{Project: project, Scope: scope, Notice: notice, Description: description, NextAction: action.NextAction}
+	for _, condition := range shape.conditions() {
+		rule.Facts = append(rule.Facts, condition.FactID)
+	}
+	sort.Strings(rule.Facts)
+	return rule, nil
 }
 
 // LoadScanKnowledge admits the embedded knowledge exactly as every check
@@ -38,14 +67,11 @@ func LoadScanKnowledge() (*ScanKnowledge, error) {
 	}
 	k := &ScanKnowledge{b: b, rules: map[string][]ScanRule{}}
 	for _, entry := range b.pack.Entries {
-		scope, err := lineattest.ScopeOf(entry.Rule)
-		var action struct {
-			NextAction string `json:"nextAction"`
+		rule, err := NewScanRule(entry.Project, entry.Description, entry.Rule)
+		if err != nil {
+			return nil, err
 		}
-		if err != nil || json.Unmarshal(entry.Rule, &action) != nil {
-			return nil, ErrIntegrity
-		}
-		k.rules[entry.Project] = append(k.rules[entry.Project], ScanRule{Project: entry.Project, Scope: scope, Description: entry.Description, NextAction: action.NextAction})
+		k.rules[entry.Project] = append(k.rules[entry.Project], rule)
 	}
 	for project := range k.rules {
 		rules := k.rules[project]

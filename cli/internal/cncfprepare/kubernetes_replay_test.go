@@ -239,3 +239,23 @@ func TestKubernetesScanSources(t *testing.T) {
 		t.Fatalf("sources without a declared fact %+v %v", scan.Sources, err)
 	}
 }
+
+// TestKubernetesRemovedVersions: the exported list is the removal table plus
+// the 1.32 flow-control removal, in line order.
+func TestKubernetesRemovedVersions(t *testing.T) {
+	list := KubernetesRemovedVersions()
+	count := 1
+	for _, removals := range kubernetesRemovalsByTargetMinor {
+		count += len(removals)
+	}
+	if len(list) != count || list[0].Line != "1.22" || list[len(list)-1].Line != "1.37" {
+		t.Fatalf("list %d of %d, %v .. %v", len(list), count, list[0], list[len(list)-1])
+	}
+	found := false
+	for _, removal := range list {
+		found = found || removal.Line == "1.32" && removal.Version == "v1beta3" && removal.Group == "flowcontrol.apiserver.k8s.io"
+	}
+	if !found {
+		t.Fatal("1.32 flow-control removal missing")
+	}
+}
