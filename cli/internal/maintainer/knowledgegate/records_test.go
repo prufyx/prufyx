@@ -767,7 +767,21 @@ func TestSupersededRecordApprovalCannotReturn(t *testing.T) {
 		t.Fatalf("replacement %+v", c)
 	}
 
+	// A later approval of another record does not stand in the way.
+	base, head = attestedTrees(t, []string{"1.22"}, []string{"1.22", "1.25"}, nil)
+	key.pinBoth(t, base, head, "airstand")
+	other := recordApproval(attestationID("1.30"), "1.30", ApprovalBaseAbsent, dX)
+	other.CandidateID, other.DecidedAt = "cand-other", gateNow.Add(-10*time.Minute).Format(time.RFC3339)
+	for _, tr := range []Tree{base, head} {
+		writeFile(t, approvalPath(tr, attestationID("1.30")), key.sign(t, other))
+	}
+	writeFile(t, approvalPath(head, id), key.sign(t, recordApproval(id, "1.25", ApprovalBaseAbsent, dX)))
+	requireAdmittedButUnsplit(t, runGate(t, Options{Base: base, Head: head, Source: fixtureSource, Author: DefaultBotLogin}))
+
 	// A decision at the same time as the base's is not later.
+	base, head = attestedTrees(t, []string{"1.22", "1.25"}, []string{"1.22", "1.25"}, laterX2)
+	key.pinBoth(t, base, head, "airstand")
+	writeFile(t, approvalPath(base, id), key.sign(t, a1))
 	a2same := a2
 	a2same.DecidedAt = a1.DecidedAt
 	writeFile(t, approvalPath(head, id), key.sign(t, a2same))
