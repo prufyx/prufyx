@@ -9,6 +9,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Maintainer tooling: the `crd.version-removal` extractor (registered as
+  `crd.version-removal.<project>` for Argo CD, Istio and Strimzi) derives
+  rules for custom-resource versions a release no longer serves, from the
+  CustomResourceDefinition manifests in the project's repository at two
+  release tags, and records every CRD's served and storage versions in the
+  run manifest. No rules are shipped: the custom-resource version set they
+  read is not declared by any adapter yet. See
+  `cli/docs/extractors/crd.version-removal.md`.
 - Maintainer tooling: the knowledge gate gains circuit breakers (a change that
   withdraws more than 5 percent of a pack's active rules, or more than 20 rules
   of one project, fails with an alarm), a per-day limit on loosening changes
