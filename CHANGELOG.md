@@ -58,6 +58,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   (never a pass, never a blocker), accepts `--require-basis` like `check cncf`, and writes JSON with schema `prufyx.io/scan-report/v1alpha1`
   (`cli/docs/generated/schemas/scan-report-v1alpha1.json`). See
   `cli/docs/scan.md`.
+- `prufyx scan --format sarif` (SARIF 2.1.0 for GitHub code scanning: one error
+  result per finding and location, not-checked areas, one-way changes and leads
+  as tool notifications, verdict and provenance as run properties) and
+  `--format markdown` (tables for pull request comments and change tickets).
+  The exit code does not depend on the format; `--redact` applies to both.
 - Maintainer tooling: the knowledge gate gains circuit breakers (a change that
   withdraws more than 5 percent of a pack's active rules, or more than 20 rules
   of one project, fails with an alarm), a per-day limit on loosening changes

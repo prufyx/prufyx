@@ -66,7 +66,7 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
     [--config FILE]
     [--distribution official_upstream|custom_build]
     [--resource-scope-complete[=true|false]] [--target-api-apply-required[=true|false]]
-    [--format human|json] [--show-passes] [--verbose] [--redact]
+    [--format human|json|sarif|markdown] [--show-passes] [--verbose] [--redact]
     [--input-permissions strict|refuse-writable] [--require-basis LIST] [--now RFC3339]
 ```
 
@@ -79,10 +79,10 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
 | `--distribution` | `official_upstream` or `custom_build`. Only `official_upstream` is evaluated. |
 | `--resource-scope-complete` | Declares that the inputs are every manifest you apply. |
 | `--target-api-apply-required` | Declares that the inputs are applied to the target Kubernetes API. |
-| `--format` | `human` (default) or `json`. |
-| `--show-passes` | Lists every passed check (human output). |
-| `--verbose` | Shows the status of every hop and the pinned sources of each finding (human output). |
-| `--redact` | Prints `sha256:` digests instead of file paths, object names and namespaces. Human output shows the first 12 hex characters. |
+| `--format` | `human` (default), `json`, `sarif` or `markdown`. The format changes only what is printed: the verdict and the exit code are the same. |
+| `--show-passes` | Lists every passed check (human and Markdown output). |
+| `--verbose` | Shows the status of every hop and the pinned sources of each finding (human and Markdown output). |
+| `--redact` | Prints `sha256:` digests instead of file paths, object names and namespaces. Human and Markdown output show the first 12 hex characters; SARIF uses a name under `redacted/`. |
 | `--input-permissions` | `refuse-writable` (default) or `strict`. See below. |
 | `--require-basis` | The evidence bases whose rules are evaluated, a comma-separated subset of `reviewed`, `mechanical`, `empirical`, `consensus`, `lead`. Default: `reviewed,mechanical,empirical,consensus`, the same as `prufyx check cncf`. A rule left out that applies to a hop keeps the hop undecided (`RULE_NOT_DECIDED`) and the report says how many were left out. |
 | `--now` | The evaluation instant, canonical UTC with whole seconds (`2026-10-04T00:00:00Z`). Default: the current time, truncated to the second. It is printed in every report; pass it to replay a scan exactly. |
@@ -289,9 +289,72 @@ depends on the features of the rules a transition selects: when a one-way
 notice, a lead or a support-range rule is selected, it differs from a hop
 without one, with no change to the answer.
 
+## SARIF
+
+`--format sarif` prints a [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html)
+log that GitHub code scanning accepts. Redirect it to a file:
+
+```sh
+prufyx scan manifests/ --from kubernetes=1.24.17 --to kubernetes=1.25.3 \
+  --distribution official_upstream --resource-scope-complete --target-api-apply-required \
+  --format sarif > prufyx.sarif
+```
+
+The exit code is the same as for any other format (`10` for a blocker, `11`
+for unchecked areas), so a workflow step that uploads the file should run even
+when the scan fails:
+
+```yaml
+- name: Scan upgrade
+  run: prufyx scan manifests/ --from kubernetes=1.24.17 --to kubernetes=1.25.3 --distribution official_upstream --resource-scope-complete --target-api-apply-required --format sarif > prufyx.sarif
+  continue-on-error: true
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: prufyx.sarif
+```
+
+What the log holds:
+
+- `tool.driver` is `prufyx` with the build version; `rules` has one rule per
+  rule id in the report (`helpUri` is the first cited source at its pinned
+  revision, `properties.basis` the evidence basis).
+- One `results` entry per finding and location, with `level: "error"`, the
+  message `<title> — fix: <fix>`, `physicalLocation.artifactLocation.uri`
+  (the path relative to the repository root, forward slashes, percent-encoded)
+  and `region.startLine` when the line of the `apiVersion` is known. Run
+  `prufyx scan` from the repository root with relative paths so the paths match
+  the repository; an absolute path or a path outside the working directory is
+  written without its leading `/` or `..`. A stable `partialFingerprints`
+  entry depends on the rule, the path and the position of the object in its
+  file, not on the line.
+- One `toolExecutionNotifications` entry per not-checked area (`warning`), per
+  combination outside a documented support range (`warning`), per one-way
+  change (`note`) and per unverified lead (`note`). Only a finding is an
+  `error`; nothing that is not a blocker ever is.
+- `runs[0].properties` holds the verdict, the headline, the summary counts, the
+  evaluation instant, the digests needed to replay the scan, the trust policy
+  when it left rules out, and `networkUsed: false`. The invocation carries the
+  exit code.
+
+Code scanning shows the results. The not-checked areas are in the uploaded
+file, not in the alerts list; use the Markdown or human output to read them in
+a job log. With `--redact`, every path becomes `redacted/<12 hex>` and every
+name and namespace a digest, so the alerts cannot be placed in the repository.
+
+## Markdown
+
+`--format markdown` prints GitHub-flavoured Markdown for a pull request
+comment or a change ticket: the headline, a table of problems per path (hop,
+problem, where, fix), the not-checked areas, one-way changes, unsupported
+combinations and unverified leads, a table of the cited sources (pinned
+revision and lines), the scope limits and a `<details>` block with the
+provenance. File paths and object names are in code spans; any other text from
+rules or manifests is escaped, so a `|` or a backtick cannot break a table. It
+accepts `--show-passes` and `--verbose` like the human output.
+
 ## Determinism
 
 The same inputs, configuration, knowledge and `--now` give byte-identical
-human and JSON output. The order of the paths on the command line does not
+human, JSON, SARIF and Markdown output. The order of the paths on the command line does not
 matter. Findings are ordered by hop, then rule id; locations by file, document
 and item; gaps by component, hop and reason.
