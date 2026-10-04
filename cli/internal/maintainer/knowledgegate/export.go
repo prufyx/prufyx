@@ -35,6 +35,22 @@ type ExportOptions struct {
 	Commit string
 	// Out is the directory to create; it must not exist.
 	Out string
+	// Only, when set, limits what is written to these repository paths: a
+	// file, or a directory (everything below it). Every path of the commit
+	// is still checked, written or not.
+	Only []string
+}
+
+func (o ExportOptions) wanted(p string) bool {
+	if len(o.Only) == 0 {
+		return true
+	}
+	for _, w := range o.Only {
+		if p == w || strings.HasPrefix(p, strings.TrimSuffix(w, "/")+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 type treeEntry struct {
@@ -68,6 +84,15 @@ func Export(ctx context.Context, opts ExportOptions) error {
 	entries, err := parseLsTree(listing)
 	if err != nil {
 		return err
+	}
+	if len(opts.Only) > 0 {
+		kept := entries[:0]
+		for _, e := range entries {
+			if opts.wanted(e.path) {
+				kept = append(kept, e)
+			}
+		}
+		entries = kept
 	}
 	if err := os.Mkdir(opts.Out, 0o755); err != nil {
 		return err

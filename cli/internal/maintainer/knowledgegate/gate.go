@@ -27,6 +27,10 @@ const (
 	// SizeAlarmPercent is the share of a size cap at which the gate raises
 	// an alarm, and fails a change that loosens and grows the pack.
 	SizeAlarmPercent = 80
+	// Circuit breaker and daily limit defaults.
+	DefaultMaxWithdrawPercent = 5
+	DefaultMaxWithdrawProject = 20
+	DefaultMaxDailyLoosening  = 400
 )
 
 // Proofs.
@@ -86,6 +90,21 @@ type Options struct {
 	// RederiveAll re-derives every active mechanical rule of the head,
 	// changed or not (the scheduled run on the main branch).
 	RederiveAll bool
+	// MaxWithdrawPercent and MaxWithdrawProject are the withdrawal circuit
+	// breakers: a change that withdraws more than this percent of a pack's
+	// active rules, or more than this many rules of one project, fails. 0
+	// means the defaults.
+	MaxWithdrawPercent, MaxWithdrawProject int
+	// Shadow computes everything as usual but never makes the change
+	// eligible for automatic merging.
+	Shadow bool
+	// DailyLoosening is the number of loosening changes already merged by
+	// the automation in the last day, counted by the caller. Nil means it
+	// is unknown: the change is then never eligible for automatic merging.
+	DailyLoosening *int
+	// MaxDailyLoosening caps DailyLoosening plus this change; 0 means
+	// DefaultMaxDailyLoosening.
+	MaxDailyLoosening int
 }
 
 // Check is one named pass/fail check.
@@ -117,14 +136,18 @@ type AutoMerge struct {
 
 // Report is the gate's result.
 type Report struct {
-	Schema        string      `json:"schema"`
-	Result        string      `json:"result"`
-	Paused        bool        `json:"paused"`
-	Totals        Totals      `json:"totals"`
-	Limits        LimitReport `json:"limits"`
-	Changes       []*Change   `json:"changes"`
-	Checks        []Check     `json:"checks"`
-	Alarms        []string    `json:"alarms"`
+	Schema  string      `json:"schema"`
+	Result  string      `json:"result"`
+	Paused  bool        `json:"paused"`
+	Totals  Totals      `json:"totals"`
+	Limits  LimitReport `json:"limits"`
+	Changes []*Change   `json:"changes"`
+	Checks  []Check     `json:"checks"`
+	Alarms  []string    `json:"alarms"`
+	// Mode is "enforce" or "shadow".
+	Mode          string      `json:"mode"`
+	Breakers      []Breaker   `json:"breakers"`
+	Daily         DailyReport `json:"daily"`
 	ChangedPaths  []string    `json:"changedPaths"`
 	ChainsChanged []string    `json:"chainsChanged"`
 	AutoMerge     AutoMerge   `json:"autoMerge"`
@@ -133,6 +156,12 @@ type Report struct {
 	// HeadSHA is the head commit this result is for. A merge must be made
 	// with exactly this commit.
 	HeadSHA string `json:"headSha,omitempty"`
+
+	// alarmKinds runs parallel to Alarms.
+	alarmKinds []string
+	// rederivedUnchanged counts rules re-derived by --rederive-all that
+	// the change did not touch.
+	rederivedUnchanged int
 }
 
 // Passed reports whether every change was admitted and every check passed.
@@ -149,6 +178,15 @@ func (o *Options) defaults() {
 	o.Now = o.Now.UTC()
 	if o.MaxLoosening <= 0 {
 		o.MaxLoosening = DefaultMaxLoosening
+	}
+	if o.MaxWithdrawPercent <= 0 {
+		o.MaxWithdrawPercent = DefaultMaxWithdrawPercent
+	}
+	if o.MaxWithdrawProject <= 0 {
+		o.MaxWithdrawProject = DefaultMaxWithdrawProject
+	}
+	if o.MaxDailyLoosening <= 0 {
+		o.MaxDailyLoosening = DefaultMaxDailyLoosening
 	}
 	if o.BotLogin == "" {
 		o.BotLogin = DefaultBotLogin
@@ -167,15 +205,19 @@ func Limits(opts Options) (*Report, error) {
 		return nil, err
 	}
 	r := newReport(cls, opts)
-	r.limitChecks(cls)
+	r.limitChecks(cls, opts)
 	r.finish(false)
 	return r, nil
 }
 
 func newReport(cls *Classification, opts Options) *Report {
 	t, l := cls.Counts()
+	mode := ModeEnforce
+	if opts.Shadow {
+		mode = ModeShadow
+	}
 	return &Report{
-		Schema: ReportSchema, Paused: cls.Paused, Totals: Totals{Tightening: t, Loosening: l},
+		Mode: mode, Breakers: []Breaker{}, Schema: ReportSchema, Paused: cls.Paused, Totals: Totals{Tightening: t, Loosening: l},
 		Limits:  LimitReport{MaxLoosening: opts.MaxLoosening, Loosening: l, OK: l <= opts.MaxLoosening},
 		Changes: cls.Changes, Checks: []Check{}, Alarms: []string{}, ChangedPaths: []string{}, ChainsChanged: append([]string{}, cls.ChainsChanged...),
 		Author: opts.Author, Sender: opts.Sender, HeadSHA: opts.HeadSHA,
@@ -186,11 +228,13 @@ func (r *Report) add(name string, ok bool, format string, args ...any) {
 	r.Checks = append(r.Checks, Check{Name: name, OK: ok, Detail: fmt.Sprintf(format, args...)})
 }
 
-func (r *Report) limitChecks(cls *Classification) {
+func (r *Report) limitChecks(cls *Classification, opts Options) {
 	r.add("limits", r.Limits.OK, "%d loosening changes, cap %d", r.Limits.Loosening, r.Limits.MaxLoosening)
 	if !r.Limits.OK {
-		r.Alarms = append(r.Alarms, fmt.Sprintf("loosening cap exceeded: %d > %d", r.Limits.Loosening, r.Limits.MaxLoosening))
+		r.alarm(AlarmLooseningCap, "loosening cap exceeded: %d > %d", r.Limits.Loosening, r.Limits.MaxLoosening)
 	}
+	r.dailyCheck(opts)
+	r.breakerChecks(cls, opts)
 	if cls.Paused {
 		ok := r.Totals.Loosening == 0
 		r.add("kill-switch", ok, "the kill switch is set; %d loosening changes", r.Totals.Loosening)
@@ -316,7 +360,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	r.trustCheck(opts)
 	r.modeCheck(opts)
 	r.recordCheck(cls, statements, opts)
-	r.limitChecks(cls)
+	r.limitChecks(cls, opts)
 	r.finish(true)
 	r.autoMerge(opts)
 	return r, nil
@@ -392,6 +436,7 @@ func (r *Report) rederiveAll(ctx context.Context, cls *Classification, opts Opti
 			failed = append(failed, c.Pack+"/"+c.RuleID+": "+c.Detail)
 		}
 	}
+	r.rederivedUnchanged = len(all)
 	r.add("rederive-all", len(failed) == 0, "%d mechanical rules re-derived, %d failed%s", len(all), len(failed), listDetail(failed))
 }
 
@@ -465,7 +510,7 @@ func (r *Report) sizeCheck(spec PackSpec, stats PackStats, baseLen, headLen int,
 	ok := stats.TargetBytes <= stats.MaxTargetBytes && !(alarm && loosens && headLen > baseLen)
 	detail := fmt.Sprintf("target %d of %d bytes (%d percent)", stats.TargetBytes, stats.MaxTargetBytes, pct)
 	if alarm {
-		r.Alarms = append(r.Alarms, fmt.Sprintf("%s target is at %d percent of its size cap", spec.Name, pct))
+		r.alarm(AlarmSize, "%s target is at %d percent of its size cap", spec.Name, pct)
 		if !ok {
 			detail += fmt.Sprintf("; at or above %d percent a change may not loosen and grow the pack", SizeAlarmPercent)
 		}
@@ -590,6 +635,12 @@ func (r *Report) autoMerge(opts Options) {
 	if len(outside) > 0 {
 		reasons = append(reasons, "the change touches files outside the knowledge files"+listDetail(outside))
 	}
+	if opts.Shadow {
+		reasons = append(reasons, "shadow mode: nothing merges automatically")
+	}
+	if opts.DailyLoosening == nil {
+		reasons = append(reasons, "the number of loosening changes merged by the automation in the last day is unknown")
+	}
 	r.AutoMerge = AutoMerge{Eligible: len(reasons) == 0, Reasons: reasons}
 }
 
@@ -633,10 +684,10 @@ func (r *Report) targetsCheck(spec PackSpec, stats PackStats, baseLen, headLen i
 	alarmed := knowledgetargets.Alarms(stats.Targets, limit)
 	total, totalAlarm := knowledgetargets.TotalAlarmed(stats.Targets, limit)
 	for _, t := range alarmed {
-		r.Alarms = append(r.Alarms, fmt.Sprintf("%s target %s is at or above %d bytes", spec.Name, t.Path, limit.Alarm))
+		r.alarm(AlarmSize, "%s target %s is at or above %d bytes", spec.Name, t.Path, limit.Alarm)
 	}
 	if totalAlarm {
-		r.Alarms = append(r.Alarms, fmt.Sprintf("%s targets total %d bytes, at or above %d", spec.Name, total, limit.TotalAlarm))
+		r.alarm(AlarmSize, "%s targets total %d bytes, at or above %d", spec.Name, total, limit.TotalAlarm)
 	}
 	grows := loosens && headLen > baseLen
 	ok := len(over) == 0 && total <= limit.TotalCap && !((len(alarmed) > 0 || totalAlarm) && grows)

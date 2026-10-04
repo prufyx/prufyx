@@ -79,7 +79,10 @@ func TestCLI(t *testing.T) {
 	if code, out = runCLI(t, bot...); code != 0 || strings.Contains(out, "auto-merge: eligible") {
 		t.Fatalf("verify tightening without provenance: %d %s", code, out)
 	}
-	if code, out = runCLI(t, append(bot, "--sender", DefaultBotLogin, "--head-sha", testHeadSHA, "--commits", commits)...); code != 0 || !strings.Contains(out, "auto-merge: eligible") {
+	if code, out = runCLI(t, append(bot, "--sender", DefaultBotLogin, "--head-sha", testHeadSHA, "--commits", commits)...); code != 0 || strings.Contains(out, "auto-merge: eligible") {
+		t.Fatalf("verify tightening without a daily count must not be eligible: %d %s", code, out)
+	}
+	if code, out = runCLI(t, append(bot, "--sender", DefaultBotLogin, "--head-sha", testHeadSHA, "--commits", commits, "--daily-loosening-count", "0")...); code != 0 || !strings.Contains(out, "auto-merge: eligible") {
 		t.Fatalf("verify tightening: %d %s", code, out)
 	}
 
@@ -93,6 +96,14 @@ func TestCLI(t *testing.T) {
 		{"verify", "--base", base.Root, "--head", head.Root, "--rerun-worklist", filepath.Join(dir, "missing.json")},
 		{"limits", "--base", base.Root, "--head", head.Root, "--max-loosening", "0"},
 		{"verify", "--base", base.Root, "--head", head.Root, "extra"},
+		{"verify", "--base", base.Root, "--head", head.Root, "--max-withdraw-percent", "0"},
+		{"verify", "--base", base.Root, "--head", head.Root, "--max-withdraw-percent", "101"},
+		{"verify", "--base", base.Root, "--head", head.Root, "--max-withdraw-project", "0"},
+		{"verify", "--base", base.Root, "--head", head.Root, "--max-daily-loosening", "0"},
+		{"verify", "--base", base.Root, "--head", head.Root, "--daily-loosening-count", "-2"},
+		{"limits", "--base", base.Root, "--head", head.Root, "--max-withdraw-percent", "0"},
+		{"daily-count", "--git-dir", dir},
+		{"daily-count", "--git-dir", dir, "--commits", filepath.Join(dir, "missing.json")},
 	} {
 		if code, out := runCLI(t, args...); code != 2 {
 			t.Fatalf("%v: exit %d, want 2: %s", args, code, out)

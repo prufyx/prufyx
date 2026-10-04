@@ -285,5 +285,11 @@ func botCommits() *CommitList {
 func fromBot(opts *Options) {
 	if opts.Author == DefaultBotLogin && opts.Sender == "" && opts.Commits == nil {
 		opts.Sender, opts.HeadSHA, opts.Commits = DefaultBotLogin, testHeadSHA, botCommits()
+		if opts.DailyLoosening == nil {
+			// The workflow counts the day's loosening changes from the
+			// main branch's history; a test change sees an empty day.
+			none := 0
+			opts.DailyLoosening = &none
+		}
 	}
 }

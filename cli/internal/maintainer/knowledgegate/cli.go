@@ -3,6 +3,7 @@
 package knowledgegate
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -23,14 +24,20 @@ import (
 const usage = `usage:
   prufyx-maintainer gate export   --git-dir DIR --commit SHA --out DIR
   prufyx-maintainer gate classify --base DIR --head DIR [--json]
+  prufyx-maintainer gate daily-count --git-dir DIR --commits FILE [--bot-login LOGIN]
   prufyx-maintainer gate limits   --base DIR --head DIR [--max-loosening N] [--json]
+                                  [--max-withdraw-percent N] [--max-withdraw-project N]
+                                  [--daily-loosening-count N] [--max-daily-loosening N]
   prufyx-maintainer gate verify   --base DIR --head DIR [--source github|fixture:DIR]
                                   [--author LOGIN] [--sender LOGIN] [--bot-login LOGIN]
                                   [--head-sha SHA] [--commits FILE] [--max-loosening N]
                                   [--trust-root-digest sha256:...] [--approval-keys-digest sha256:...]
                                   [--rerun-worklist FILE]
                                   [--rederive-all] [--concurrency N] [--now RFC3339]
-                                  [--report FILE] [--summary FILE]`
+                                  [--max-withdraw-percent N] [--max-withdraw-project N]
+                                  [--daily-loosening-count N] [--max-daily-loosening N] [--shadow]
+                                  [--report FILE] [--summary FILE]
+                                  [--metrics FILE] [--alarms FILE] [--alarms-markdown FILE]`
 
 // Main runs a "gate" subcommand (args exclude the word "gate"). getenv
 // supplies GITHUB_TOKEN or GH_TOKEN for the GitHub source. It returns 0
@@ -51,6 +58,8 @@ func mainWith(args []string, getenv func(string) string, stdout, stderr io.Write
 		code, err = cmdExport(args[1:])
 	case "classify":
 		code, err = cmdClassify(args[1:], layout, stdout)
+	case "daily-count":
+		code, err = cmdDailyCount(args[1:], layout, stdout)
 	case "limits":
 		code, err = cmdLimits(args[1:], layout, stdout)
 	case "verify":
@@ -181,19 +190,26 @@ func onOff(b bool) string {
 func cmdLimits(args []string, layout Layout, stdout io.Writer) (int, error) {
 	var t treeFlags
 	var max int
+	var m monitorFlags
 	f := newFlags("gate limits", &t)
 	f.IntVar(&max, "max-loosening", DefaultMaxLoosening, "cap on loosening changes")
+	m.register(f)
 	if err := parse(f, args); err != nil {
 		return 2, err
 	}
 	if max < 1 {
 		return 2, errors.New("--max-loosening must be at least 1")
 	}
+	if err := m.validate(); err != nil {
+		return 2, err
+	}
 	base, head, err := t.trees()
 	if err != nil {
 		return 2, err
 	}
-	r, err := Limits(Options{Layout: layout, Base: base, Head: head, MaxLoosening: max})
+	opts := Options{Layout: layout, Base: base, Head: head, MaxLoosening: max}
+	m.apply(&opts)
+	r, err := Limits(opts)
 	if err != nil {
 		return 2, err
 	}
@@ -218,8 +234,15 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	var t treeFlags
 	var source, author, sender, bot, headSHA, commits, digest, keysDigest, rerun, now, report, summary string
 	var max, concurrency int
-	var all bool
+	var all, shadow bool
+	var metricsFile, alarmsFile, alarmsMD string
+	var m monitorFlags
 	f := newFlags("gate verify", &t)
+	m.register(f)
+	f.BoolVar(&shadow, "shadow", false, "shadow mode: compute everything, never be eligible for automatic merging")
+	f.StringVar(&metricsFile, "metrics", "", "write the metrics JSON to this file")
+	f.StringVar(&alarmsFile, "alarms", "", "write the alarms JSON to this file")
+	f.StringVar(&alarmsMD, "alarms-markdown", "", "write the alarms as a Markdown list to this file")
 	f.StringVar(&source, "source", "", "upstream source for re-derivation: github or fixture:DIR")
 	f.StringVar(&author, "author", "", "the change's author login")
 	f.StringVar(&sender, "sender", "", "the login of the account whose action triggered this run")
@@ -238,6 +261,9 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	if err := parse(f, args); err != nil {
 		return 2, err
 	}
+	if err := m.validate(); err != nil {
+		return 2, err
+	}
 	base, head, err := t.trees()
 	if err != nil {
 		return 2, err
@@ -245,7 +271,8 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	if max < 1 || concurrency < 0 || concurrency > 64 {
 		return 2, errors.New("--max-loosening must be at least 1 and --concurrency 0-64")
 	}
-	opts := Options{Layout: layout, Base: base, Head: head, Author: author, Sender: sender, BotLogin: bot, HeadSHA: headSHA, MaxLoosening: max, TrustRootDigest: digest, ApprovalKeysDigest: keysDigest, RederiveAll: all, Concurrency: concurrency}
+	opts := Options{Layout: layout, Base: base, Head: head, Author: author, Sender: sender, BotLogin: bot, HeadSHA: headSHA, MaxLoosening: max, TrustRootDigest: digest, ApprovalKeysDigest: keysDigest, RederiveAll: all, Concurrency: concurrency, Shadow: shadow}
+	m.apply(&opts)
 	if commits != "" {
 		raw, err := readBoundedFile(commits, maxCommitListBytes)
 		if err != nil {
@@ -280,9 +307,38 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	started := time.Now()
 	r, err := Verify(ctx, opts)
 	if err != nil {
 		return 2, err
+	}
+	if metricsFile != "" {
+		raw, err := marshalFile(NewMetrics(r, time.Since(started)))
+		if err != nil {
+			return 2, err
+		}
+		if err := os.WriteFile(metricsFile, raw, 0o644); err != nil {
+			return 2, err
+		}
+	}
+	if alarmsFile != "" || alarmsMD != "" {
+		doc := NewAlarmsDocument(r)
+		if alarmsFile != "" {
+			raw, err := marshalFile(doc)
+			if err != nil {
+				return 2, err
+			}
+			if err := os.WriteFile(alarmsFile, raw, 0o644); err != nil {
+				return 2, err
+			}
+		}
+		if alarmsMD != "" {
+			var b bytes.Buffer
+			WriteAlarmsMarkdown(&b, doc)
+			if err := os.WriteFile(alarmsMD, b.Bytes(), 0o644); err != nil {
+				return 2, err
+			}
+		}
 	}
 	if report != "" {
 		raw, err := json.MarshalIndent(r, "", "  ")
@@ -368,7 +424,7 @@ func printChecks(w io.Writer, r *Report) {
 	for _, a := range r.Alarms {
 		fmt.Fprintf(w, "ALARM %s\n", logSafe(a))
 	}
-	fmt.Fprintf(w, "gate: %s (%d tightening, %d loosening; kill switch %s)\n", strings.ToUpper(r.Result), r.Totals.Tightening, r.Totals.Loosening, onOff(r.Paused))
+	fmt.Fprintf(w, "gate: %s (%d tightening, %d loosening; kill switch %s; mode %s)\n", strings.ToUpper(r.Result), r.Totals.Tightening, r.Totals.Loosening, onOff(r.Paused), r.Mode)
 	if r.AutoMerge.Eligible {
 		fmt.Fprintln(w, "auto-merge: eligible")
 	} else if r.Schema != "" && r.AutoMerge.Reasons != nil {
@@ -385,6 +441,9 @@ func mdEscape(s string) string {
 
 func writeSummary(w io.Writer, r *Report) {
 	fmt.Fprintf(w, "## Knowledge gate: %s\n\n", strings.ToUpper(r.Result))
+	if r.Mode == ModeShadow {
+		fmt.Fprint(w, "Shadow mode: this change is never eligible for automatic merging.\n\n")
+	}
 	fmt.Fprintf(w, "%d tightening, %d loosening (cap %d); kill switch %s.\n\n", r.Totals.Tightening, r.Totals.Loosening, r.Limits.MaxLoosening, onOff(r.Paused))
 	if len(r.Changes) > 0 {
 		fmt.Fprintln(w, "| | Class | Pack | Rule | Kinds | Basis | Proof or reason |\n|---|---|---|---|---|---|---|")
@@ -440,4 +499,70 @@ func logSafe(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// monitorFlags are the breaker and daily-limit flags shared by "limits"
+// and "verify".
+type monitorFlags struct {
+	withdrawPercent, withdrawProject, dailyCount, maxDaily int
+}
+
+func (m *monitorFlags) register(f *flag.FlagSet) {
+	f.IntVar(&m.withdrawPercent, "max-withdraw-percent", DefaultMaxWithdrawPercent, "breaker: percent of a pack's active rules one change may withdraw")
+	f.IntVar(&m.withdrawProject, "max-withdraw-project", DefaultMaxWithdrawProject, "breaker: rules of one project one change may withdraw")
+	f.IntVar(&m.dailyCount, "daily-loosening-count", -1, "loosening changes the automation merged in the last day (default: unknown)")
+	f.IntVar(&m.maxDaily, "max-daily-loosening", DefaultMaxDailyLoosening, "cap on the daily count plus this change")
+}
+
+func (m monitorFlags) validate() error {
+	switch {
+	case m.withdrawPercent < 1 || m.withdrawPercent > 100:
+		return errors.New("--max-withdraw-percent must be 1-100")
+	case m.withdrawProject < 1:
+		return errors.New("--max-withdraw-project must be at least 1")
+	case m.maxDaily < 1:
+		return errors.New("--max-daily-loosening must be at least 1")
+	case m.dailyCount < -1 || m.dailyCount > 1_000_000:
+		return errors.New("--daily-loosening-count must be 0-1000000")
+	}
+	return nil
+}
+
+func (m monitorFlags) apply(o *Options) {
+	o.MaxWithdrawPercent, o.MaxWithdrawProject, o.MaxDailyLoosening = m.withdrawPercent, m.withdrawProject, m.maxDaily
+	if m.dailyCount >= 0 {
+		n := m.dailyCount
+		o.DailyLoosening = &n
+	}
+}
+
+func cmdDailyCount(args []string, layout Layout, stdout io.Writer) (int, error) {
+	var gitDir, commits, bot string
+	f := flag.NewFlagSet("gate daily-count", flag.ContinueOnError)
+	f.SetOutput(io.Discard)
+	f.StringVar(&gitDir, "git-dir", "", "repository holding the commits and their parents")
+	f.StringVar(&commits, "commits", "", "the main branch's commits of the last day (JSON)")
+	f.StringVar(&bot, "bot-login", DefaultBotLogin, "the automation account's login")
+	if err := parse(f, args); err != nil {
+		return 2, err
+	}
+	if gitDir == "" || commits == "" {
+		return 2, errors.New("--git-dir and --commits are required\n" + usage)
+	}
+	raw, err := readBoundedFile(commits, maxDailyCommitsFile)
+	if err != nil {
+		return 2, err
+	}
+	list, err := ParseDailyCommits(raw)
+	if err != nil {
+		return 2, err
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	n, err := DailyCount(ctx, layout, gitDir, list, bot)
+	if err != nil {
+		return 2, err
+	}
+	fmt.Fprintln(stdout, n)
+	return 0, nil
 }
