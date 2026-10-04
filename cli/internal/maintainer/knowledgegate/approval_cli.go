@@ -30,21 +30,47 @@ const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|public-key
 // approvalEnv is what the approval commands take from the process; tests
 // replace it.
 type approvalEnv struct {
-	stdin  io.Reader
-	now    func() time.Time
-	isTerm func(io.Reader) bool
+	stdin io.Reader
+	now   func() time.Time
+	// checkStdin accepts standard input as a key source or says why not.
+	checkStdin func(io.Reader) error
 }
 
-func stdinIsTerminal(r io.Reader) bool {
+// checkKeyStdin accepts only a pipe. A terminal would echo a typed or
+// pasted key, and a regular file redirected to standard input would skip
+// the permission checks --key applies.
+func checkKeyStdin(r io.Reader) error {
 	f, ok := r.(*os.File)
-	return ok && term.IsTerminal(int(f.Fd()))
+	if !ok {
+		return errors.New("--key-stdin reads a pipe; standard input is not one")
+	}
+	info, err := f.Stat()
+	if err != nil {
+		return errors.New("--key-stdin: standard input cannot be checked")
+	}
+	switch m := info.Mode(); {
+	case m&os.ModeNamedPipe != 0:
+		return nil
+	case m&os.ModeCharDevice != 0 || term.IsTerminal(int(f.Fd())):
+		return errors.New("--key-stdin reads a pipe, not a terminal or device (a typed or pasted key would be echoed); pipe the key in")
+	case m.IsRegular():
+		return errors.New("--key-stdin reads a pipe, not a file; give the file with --key FILE so its permissions are checked")
+	default:
+		return errors.New("--key-stdin reads a pipe; standard input is not one")
+	}
 }
+
+// usageError is a refused command line: its message is printed, then the
+// usage text as it is.
+type usageError struct{ msg string }
+
+func (e usageError) Error() string { return e.msg }
 
 // ApprovalMain runs "prufyx-maintainer approval". Exit codes: 0 done (for
 // verify: the approval is accepted), 1 verify refused the approval, 2
 // rejected input or a refused signing.
 func ApprovalMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	return approvalMain(args, approvalEnv{stdin: stdin, now: time.Now, isTerm: stdinIsTerminal}, DefaultLayout(), stdout, stderr)
+	return approvalMain(args, approvalEnv{stdin: stdin, now: time.Now, checkStdin: checkKeyStdin}, DefaultLayout(), stdout, stderr)
 }
 
 func approvalMain(args []string, env approvalEnv, layout Layout, stdout, stderr io.Writer) int {
@@ -70,11 +96,19 @@ func approvalMain(args []string, env approvalEnv, layout Layout, stdout, stderr 
 		fmt.Fprintln(stderr, approvalUsage)
 		return 2
 	}
-	if err != nil {
+	var usage usageError
+	switch {
+	case err == nil:
+	case errors.Is(err, flag.ErrHelp):
+		fmt.Fprintln(stdout, approvalUsage)
+		return 0
+	case errors.As(err, &usage):
+		fmt.Fprintf(stderr, "approval: %s\n%s\n", logSafe(usage.msg), approvalUsage)
+	default:
 		fmt.Fprintf(stderr, "approval: %s\n", logSafe(err.Error()))
-		if code == 0 {
-			code = 2
-		}
+	}
+	if err != nil && code == 0 {
+		code = 2
 	}
 	return code
 }
@@ -88,13 +122,19 @@ func parseApprovalFlags(f *flag.FlagSet, args []string) error {
 		if strings.HasPrefix(a, "-") {
 			name := strings.SplitN(strings.TrimLeft(a, "-"), "=", 2)[0]
 			if seen[name] {
-				return fmt.Errorf("option -%s given twice", logSafe(name))
+				return usageError{"option -" + name + " given twice"}
 			}
 			seen[name] = true
 		}
 	}
-	if err := f.Parse(args); err != nil || f.NArg() != 0 {
-		return errors.New("command rejected\n" + approvalUsage)
+	if err := f.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return err
+		}
+		return usageError{err.Error()}
+	}
+	if f.NArg() != 0 {
+		return usageError{"unexpected argument " + f.Arg(0)}
 	}
 	return nil
 }
@@ -117,7 +157,7 @@ func (s *subjectFlags) register(f *flag.FlagSet) {
 
 func (s *subjectFlags) load(layout Layout) (ApprovalSubject, ApprovalKeys, error) {
 	if s.pack == "" || s.rule == "" || s.basePack == "" || s.headPack == "" || s.keys == "" || s.keysDigest == "" {
-		return ApprovalSubject{}, ApprovalKeys{}, errors.New("--pack, --rule, --base-pack, --head-pack, --keys and --keys-digest are required\n" + approvalUsage)
+		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--pack, --rule, --base-pack, --head-pack, --keys and --keys-digest are required"}
 	}
 	if s.subject != ApprovalSubjectRule {
 		return ApprovalSubject{}, ApprovalKeys{}, fmt.Errorf("--subject %q is not supported (supported: rule)", s.subject)
@@ -162,19 +202,21 @@ type keyFlags struct {
 
 func (k *keyFlags) register(f *flag.FlagSet) {
 	f.StringVar(&k.file, "key", "", "private key file (mode 0600 or stricter, owned by you)")
-	f.BoolVar(&k.stdin, "key-stdin", false, "read the private key from standard input (a pipe, never a terminal)")
+	f.BoolVar(&k.stdin, "key-stdin", false, "read the private key from standard input (a pipe only)")
 }
 
-// load reads and parses the private key. The caller wipes it.
+// load reads and parses the private key. The caller wipes it; wiping is
+// best effort (the PEM and PKCS #8 decoders and the signer keep their own
+// copies until they are collected).
 func (k keyFlags) load(env approvalEnv) (ed25519.PrivateKey, error) {
 	if (k.file == "") == !k.stdin {
-		return nil, errors.New("give exactly one of --key FILE and --key-stdin")
+		return nil, usageError{"give exactly one of --key FILE and --key-stdin"}
 	}
 	var raw []byte
 	var err error
 	if k.stdin {
-		if env.isTerm(env.stdin) {
-			return nil, errors.New("--key-stdin reads a pipe, not a terminal (typed keys would be echoed); pipe the key in")
+		if err := env.checkStdin(env.stdin); err != nil {
+			return nil, err
 		}
 		raw, err = io.ReadAll(io.LimitReader(env.stdin, MaxApprovalKeyBytes+1))
 		if err != nil {
@@ -205,14 +247,17 @@ func cmdApprovalSign(args []string, env approvalEnv, layout Layout, stdout io.Wr
 		return 2, err
 	}
 	if identity == "" || candidateID == "" || output == "" {
-		return 2, errors.New("--identity, --candidate-id and --output are required\n" + approvalUsage)
-	}
-	if _, err := os.Lstat(output); err == nil {
-		return 2, fmt.Errorf("%s already exists; remove the old approval first", output)
+		return 2, usageError{"--identity, --candidate-id and --output are required"}
 	}
 	subject, keys, err := s.load(layout)
 	if err != nil {
 		return 2, err
+	}
+	if want := filepath.Join(subject.Pack, subject.RuleID+".json"); filepath.Join(filepath.Base(filepath.Dir(output)), filepath.Base(output)) != want {
+		return 2, fmt.Errorf("--output must end in %s, the path under the approvals directory the gate reads", want)
+	}
+	if _, err := os.Lstat(output); err == nil {
+		return 2, fmt.Errorf("%s already exists; remove the old approval first", output)
 	}
 	key, err := k.load(env)
 	if err != nil {
@@ -224,7 +269,7 @@ func cmdApprovalSign(args []string, env approvalEnv, layout Layout, stdout io.Wr
 	if err != nil {
 		return 2, err
 	}
-	if err := writeNewFile(output, raw); err != nil {
+	if err := writeApprovalFile(output, raw); err != nil {
 		return 2, err
 	}
 	var pinned ApprovalKey
@@ -247,30 +292,6 @@ func printApproval(w io.Writer, rec ApprovalRecord, key ApprovalKey) {
 	fmt.Fprintf(w, "  decided    %s, accepted until %s\n", rec.DecidedAt, ApprovalUsableUntil(rec, key))
 }
 
-// writeNewFile creates path (never replacing anything, never through a
-// link) with the approval's bytes.
-func writeNewFile(path string, raw []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
-	if err != nil {
-		return fmt.Errorf("cannot create %s: %w", path, err)
-	}
-	_, werr := f.Write(raw)
-	if werr == nil {
-		werr = f.Sync()
-	}
-	if cerr := f.Close(); werr == nil {
-		werr = cerr
-	}
-	if werr != nil {
-		_ = os.Remove(path)
-		return werr
-	}
-	return nil
-}
-
 func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.Writer) (int, error) {
 	var s subjectFlags
 	var approval, now string
@@ -283,7 +304,7 @@ func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.
 		return 2, err
 	}
 	if approval == "" {
-		return 2, errors.New("--approval is required\n" + approvalUsage)
+		return 2, usageError{"--approval is required"}
 	}
 	at := env.now()
 	if now != "" {
@@ -353,7 +374,7 @@ func cmdApprovalKeysDigest(args []string, stdout io.Writer) (int, error) {
 		return 2, err
 	}
 	if keys == "" {
-		return 2, errors.New("--keys is required\n" + approvalUsage)
+		return 2, usageError{"--keys is required"}
 	}
 	raw, err := readBoundedFile(keys, maxApprovalBytes*4)
 	if err != nil {
