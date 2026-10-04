@@ -16,7 +16,9 @@ people and the release numbers (v1.40.0, v1.41.0) are invented.
     the shape the feature-gate extractor reads) and an OpenAPI specification
     (`api/openapi-spec/swagger.json`) declaring a few kinds;
   - `history.json`, the commit graph between them, whose subjects carry pull
-    requests #140001-#140010 in the range and #139990 before it.
+    requests #140001-#140010 in the range and #139990 before it, plus two
+    commits after `v1.41.0`: `...14101`, the head of branch `release-1.41`,
+    and `...14199`, which is on no branch.
 
   Removed between the two releases: the gates `CloakedLever`, `EchoSwitch`,
   `MirrorFlag`, `NestedToggle`, `OldPortal`, `RetiredKnob`, `SilentDial`,

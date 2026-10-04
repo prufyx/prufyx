@@ -8,10 +8,11 @@ no network service, and publishes nothing.
 
 A claim names only a kind and the names it is about. Everything else, the
 quote, the line numbers and the pull request, is computed by this tool from
-the pinned release notes, the mechanical inventories of the two releases and
-the commit history between them. A claim passes only when every check
-passes; anything that fails or cannot be checked leaves the claim a `lead`
-(not usable as evidence, worth a human look) or `dropped` (contradicted).
+the release's own release notes, the mechanical inventories of the two
+releases and the commit history between them. A claim passes only when every
+check passes; anything that fails or cannot be checked leaves the claim a
+`lead` (not usable as evidence, worth a human look) or `dropped`
+(contradicted).
 
 The knowledge gate re-runs the same verifier, built from the base branch, on
 any consensus rule a change adds, and reports the verdict. It still does not
@@ -38,12 +39,13 @@ prufyx-maintainer consensus verify --claims FILE (--mirror-state DIR | --fixture
 
 ### normalise
 
-`normalise` selects the release's own section of a release notes file,
-normalises it and writes three files:
+`normalise` selects the release's citable subsections of a release notes
+file, checks every line against the line grammar and writes three files:
 
-- `normalised.txt`: the normalised section;
-- `linemap.json`: for every normalised line, its line in the original file and
-  what was removed from it;
+- `normalised.txt`: the selected subsections;
+- `linemap.json`: for every normalised line, its line in the original file,
+  the characters removed from it, and why it is outside the grammar, if it
+  is; and the list of such problems;
 - `source.json`: the `source` object of a claims bundle, with the file digest
   and the normalised digest.
 
@@ -54,13 +56,13 @@ Whatever proposes claims must work from `normalised.txt`, and copies
 $ prufyx-maintainer consensus normalise --fixture fixture --repo kubernetes/kubernetes \
     --commit 0000000000000000000000000000000000014100 --path CHANGELOG/CHANGELOG-1.41.md \
     --section v1.41.0 --out norm
-normalised CHANGELOG/CHANGELOG-1.41.md v1.41.0: 26 lines, sha256 7e55647bb1132074d014dcca30f7aa8a1eb0f0b3a3bd6a3334dd5bca1acdd3b3
+normalised CHANGELOG/CHANGELOG-1.41.md v1.41.0: 20 lines, 0 outside the line grammar, sha256 02304dcf9c476e029b30f8d03bbd0e0023310c7a44042d13d9065799343fa5e2
 $ cat norm/source.json
 {
   "commit": "0000000000000000000000000000000000014100",
   "fileSha256": "7b4720a5fe333e8d792c2503992bc5ac2860d874dcade985ef85888857b5a122",
-  "normalisedSha256": "7e55647bb1132074d014dcca30f7aa8a1eb0f0b3a3bd6a3334dd5bca1acdd3b3",
-  "normaliserVersion": "1",
+  "normalisedSha256": "02304dcf9c476e029b30f8d03bbd0e0023310c7a44042d13d9065799343fa5e2",
+  "normaliserVersion": "2",
   "path": "CHANGELOG/CHANGELOG-1.41.md",
   "repo": "github.com/kubernetes/kubernetes",
   "section": "v1.41.0"
@@ -84,44 +86,69 @@ $ echo $?
 | --- | --- | --- |
 | 0 | Files written. | Report written; every claim verified. |
 | 2 | Misuse, or the file or section was refused. | Misuse, or the bundle was refused. |
-| 3 | The file is not held by the mirror (see `--wants-out`). | An input is missing: the release notes, a file an inventory needs, a tag, or a commit of the range. No report is written. |
+| 3 | The file is not held by the mirror (see `--wants-out`). | An input is missing: the release notes, a file an inventory needs, a tag, or a commit. No report is written. |
 | 4 | — | Report written; at least one claim is not verified. This is a normal outcome. |
 
 ## Release sections
 
-Only Kubernetes has a section rule today: the file must be
-`CHANGELOG/CHANGELOG-1.N.md`, the release `v1.N.0`, and the section runs from
-the line `# v1.N.0` to the next line starting with `# v`. The heading must
-appear exactly once (outside HTML comments). Any other repository or path is
-refused (`no-section-rule`).
+Only Kubernetes has a section rule today. The file must be
+`CHANGELOG/CHANGELOG-1.N.md` and the release `v1.N.0`. The release's section
+starts at the line `# v1.N.0`, which must appear exactly once, and ends at the
+next level-1 heading (`#` after up to three spaces). Inside it, only the
+subsections `## Urgent Upgrade Notes` and `## Changes by Kind` are read (each
+heading matched exactly, at most once, at least one present); each ends at the
+next heading of level 1 or 2. Download tables, dependency lists and anything
+else in the section are not read. Any other repository or path is refused
+(`no-section-rule`).
 
-## Normalisation
+## The line grammar
 
-Applied in this order; every rule is deterministic and versioned
-(`normaliserVersion`, currently `1`):
+Nothing in the selected subsections is rewritten or stripped. Instead every
+line must be inside a small, strict grammar (`normaliserVersion` 2):
 
-1. The file must be valid UTF-8, at most 2 MiB, with lines of at most 64 KiB.
-2. CRLF line endings become LF.
-3. Invisible characters are removed: zero-width characters and joiners
-   (U+200B–U+200F), bidirectional controls (U+202A–U+202E, U+2066–U+2069),
-   invisible operators (U+2060–U+2065), the byte order mark (U+FEFF), the
-   soft hyphen, line and paragraph separators, variation selectors, tag
-   characters and blank fillers. C0 and C1 control characters other than tab
-   are removed, including NUL and a carriage return that is not part of CRLF.
-4. HTML comments are removed, also across lines. An unterminated comment
-   removes everything after its start.
-5. The release's section is selected.
-6. Fenced code blocks (```` ``` ```` or `~~~`) are emptied with their fences;
-   an unterminated block empties everything after it.
-7. Link reference definitions are emptied; images (`![alt](url)`, alt text
-   included) are removed; autolinks `<https://...>` keep their URL; raw HTML
-   tags are removed outside inline code spans.
+- blank lines;
+- ATX headings of level 3 to 6, starting at column 0 (`### Feature`);
+- list items `- ` or `* `, indented by a multiple of 2 spaces, at most 4
+  levels deep; an indented item needs an open item above it;
+- continuation lines of an open item, indented by at most five columns more
+  than the item's marker (never deep enough to be code);
+- paragraph lines starting at column 0.
 
-Lines are never joined or split, so normalised line N maps to exactly one
-original line. Every line records what was removed from it. Comments, raw
-HTML, invisible characters and control characters are hidden content: they
-can make a page show something other than its bytes, and a claim is never
-verified from a list item that held any of them.
+Inside a line, outside inline code spans: plain text, emphasis, character
+references, and inline links whose target is exactly a pull request or issue
+of the repository (`https://github.com/kubernetes/kubernetes/pull/N` or
+`/issues/N`), a contributor's profile written as
+`[@login](https://github.com/login)`, or a page on the project's
+documentation hosts (`kubernetes.io`, `k8s.io`, `docs.k8s.io`).
+
+Anything else is a problem, among them: raw HTML of any kind (`<` followed by
+a letter, `!`, `?` or `/`, which includes comments, CDATA, processing
+instructions and autolinks), the comment marker `-->`, images (`![`), link
+reference definitions, footnotes, reference-style links, links with a title
+or to any other target, fenced code, indented code, block quotes, ordered
+lists, `+` list markers, setext underlines and thematic breaks, tables (`|`),
+strikethrough (`~`), tabs, and badly indented items or headings. A block
+construct (fenced code, an HTML block or comment) left open when a heading is
+reached is a problem at that heading.
+
+Problems are scoped to heading sections. A heading section runs from a
+heading to the next heading of the same or a higher level, its child
+sections included. When any line of a heading section is a problem:
+
+- no item in it is cited;
+- every claim whose name appears anywhere in it is `lead` (`unparsed-section`),
+  even when another, clean section also cites the name.
+
+Characters that render as nothing or reorder text are removed and the line is
+flagged: zero-width characters and joiners (U+200B–U+200F), bidirectional
+controls (U+202A–U+202E, U+2066–U+2069), invisible operators (U+2060–U+2065),
+the byte order mark, the soft hyphen, line and paragraph separators,
+variation selectors, tag characters and blank fillers, and C0 and C1 control
+characters other than tab (including NUL and a carriage return that is not
+part of CRLF). CRLF line endings become LF. A cited item with a flagged line
+is `lead` (`hidden-content`).
+
+The file must be valid UTF-8, at most 2 MiB, with lines of at most 64 KiB.
 
 Unicode normalisation (NFC) is not applied. Instead, names must be ASCII
 (see the kinds below) and a name only matches where the characters around it
@@ -160,32 +187,59 @@ For each claim, in order; the first failure decides:
 
 | Step | Check | On failure |
 | --- | --- | --- |
-| 1 | The file digest matches the bytes at the commit, the normalised digest is recomputed equal with the same normaliser version, the section is `toRelease`, `fromRelease` is the previous minor and its tag points at the given commit. | `dropped`: `source-mismatch`, `source-refused` or `release-mismatch` |
+| 1 | The releases match the section rule and the source's recorded tags (`fromRelease` is the previous minor and its tag points at the given commit). The release notes are read at the commit of a recorded `v1.N.P` tag of the later release's line, or at a commit that descends from the `v1.N.0` tag commit and is reachable from the `release-1.N` branch head; a source without commit history accepts tag commits only. The file digest matches the bytes, and the normalised digest is recomputed equal with the same normaliser version. | `dropped`: `release-mismatch`, `source-unbound`, `source-mismatch` or `source-refused` |
 | 2 | The kind is `removed_feature_gate` or `removed_api_version` of Kubernetes. | `lead`: `kind-not-allowed` |
 | 3 | Every name has the kind's form: a feature gate `[A-Z][A-Za-z0-9]{2,60}`; an API version `group/version` such as `apps.example.io/v1beta1` or `batch/v2alpha1`. | `dropped`: `name-invalid` |
-| 4 | Every name occurs, as a whole token, in a list item of the section that contains a removal cue; all such items are identical copies; none held hidden content. | `dropped`: `no-cited-cue`; `lead`: `ambiguous-citation`, `hidden-content` |
+| 4 | No name appears in a heading section outside the line grammar. Every name occurs, as a whole token, in a list item that contains a removal cue; all such items are identical copies; none held hidden content; the cited item has no negated, future or undone cue. | `lead`: `unparsed-section`, `ambiguous-citation`, `hidden-content`, `hedged-cue`; `dropped`: `no-cited-cue` |
 | 5 | Every name is in the complete inventory of the earlier release (feature gates the release declares; group/versions its OpenAPI specification declares a kind for). | `lead`: `inventory-incomplete`; `dropped`: `not-in-inventory` |
 | 6 | No name is in the complete inventory of the later release (every feature gate name its source spells; the served group/versions). | `lead`: `inventory-incomplete`; `dropped`: `still-present` |
-| 7 | The cited item references at least one pull request of the same repository (`#N`, a link to `https://github.com/<repo>/pull/N`, or that URL), and every such number appears as `(#N)` or `Merge pull request #N from` in the subject of a commit reachable from the later release's tag and not from the earlier one. | `lead`: `no-provenance`, `provenance-unbounded`, `provenance-unavailable` |
+| 7 | The cited item links to at least one pull request of the same repository, and every such pull request appears as `(#N)` or `Merge pull request #N from` in the subject of a commit reachable from the later release's tag and not from the earlier one. | `lead`: `no-provenance`, `provenance-unbounded`, `provenance-unavailable` |
 
-A list item is a line starting with `-`, `*`, `+` or `N.`/`N)` and the
-non-empty lines after it that are neither list items nor headings; a nested
-item is its own item. Names and cues are matched in the item's text with
-link targets and URLs removed. A link to another repository's pull request,
-`owner/name#N`, and the text of any non-pull-request link are not references.
-When a link's text names a different number than its target, there is no
+A list item is a line starting with `- ` or `* ` and the non-empty lines after
+it that are neither list items nor headings; a nested item is its own item.
+Names and cues are matched in the item's text with link targets and URLs
+removed.
+
+Only inline link targets count as pull request references, and only outside
+code spans, when the target is exactly `https://github.com/<repo>/pull/N` and
+the link text is exactly `#N`. A bare `#N`, a bare URL, a link title, an
+issue, a link to another repository or host, or `owner/name#N` is never a
+reference. When a pull request link's text is not exactly `#N`, there is no
 provenance.
 
-The removal cue list (`cueVersion` 1) is: `remov`, `dropp`, `delet`,
-`no longer`, `gone`, `purg` (case-insensitive).
+The removal cue list (`cueVersion` 2) is `remov`, `dropp`, `delet`,
+`no longer`, `gone`, `purg` (case-insensitive). A cited item is `hedged-cue`
+when a cue is negated (`not removed`, `never deleted`, `isn't removed`), in
+the future (`will be removed`, `to be removed`, `may be dropped`,
+`scheduled for removal`) or undone (`reverted`, `restored`, `re-added`,
+`reintroduced`).
 
-The commit walk is bounded to 50,000 commits per range. The mirror holds
-commit objects even where it holds no file contents, so the walk is offline.
+## What the checks prove, and what they do not
 
-What the checks prove: the pinned release notes visibly say the name was
-removed in a list item tied to merged pull requests of the release, and the
-releases' own source agrees that the name existed before and is gone after.
-They do not prove that the pull request is the one that removed the name.
+When a claim verifies, the release's own notes show the name, visibly and
+unambiguously, in a removal item that links to merged pull requests of the
+release, and the releases' own source agrees that the name existed before and
+is gone after. The checks do not prove:
+
+- that a linked pull request is the one that removed the name: any merged
+  pull request of the release satisfies step 7;
+- that the item means what its cue says beyond the hedge list: a negation or
+  condition worded another way ("removal is not planned", "only on Windows")
+  is not recognised.
+
+Both are bounded by step 6: a verified name is always one the later release's
+complete inventory no longer has.
+
+## Bounds
+
+- Release notes: 2 MiB per file, 64 KiB per line; claims bundle: 1 MiB, at
+  most 500 claims of at most 16 names.
+- Commit walk: at most 50,000 commits per release range; more is
+  `provenance-unbounded`.
+- `Verify` checks its context between claims and stops when it ends.
+- The knowledge gate verifies at most 20 claims bundles per run (further ones
+  are reported as not run), gives each bundle at most two minutes, and shares
+  one inventory cache between the bundles of a run.
 
 ## Report
 
@@ -196,19 +250,28 @@ reason and detail, its citations (normalised and original line ranges, the
 full item text as the quote, the number of identical copies), the digests of
 the two inventories, and each pull request with the commit that carries it.
 
+## Mirror isolation
+
+The commit walk runs git against the mirror repository named explicitly
+(`--git-dir`), with no system or global configuration, every transport,
+lazy fetching and replace objects disabled, hooks and the file system monitor
+off, signatures never checked (both by option and by configuration), and
+repository discovery bounded by `GIT_CEILING_DIRECTORIES`.
+
 ## Fixture layout
 
 A fixture tree has the layout of `extract --fixture`, plus an optional commit
-graph for the walk:
+graph for the walk and the source check:
 
 ```
 <root>/github.com/<owner>/<name>/tags.json            {"v1.41.0": "<commit>", ...}
 <root>/github.com/<owner>/<name>/commits/<commit>/... the tree at that commit
-<root>/github.com/<owner>/<name>/history.json         {"commits": [{"commit": "...", "parents": ["..."], "subject": "..."}]}
+<root>/github.com/<owner>/<name>/history.json         {"commits": [{"commit": "...", "parents": ["..."], "subject": "..."}],
+                                                        "branches": {"release-1.41": "<commit>"}}
 ```
 
-Without `history.json`, every claim that reaches step 7 is
-`provenance-unavailable`.
+Without `history.json`, release notes must be read at a tag commit, and every
+claim that reaches step 7 is `provenance-unavailable`.
 
 ## The knowledge gate
 
@@ -217,9 +280,9 @@ at `cli/knowledge/consensus-claims/<pack>/<rule id>.json` in the proposed
 change, runs `verify` against the gate's own upstream source, and adds the
 counts and per-claim verdicts to the change in the gate report (`consensus`)
 and to its detail line. The change is refused exactly as before. With
-`--source github` there is no commit history, so claims stop at
-`provenance-unavailable`; with `--source fixture:DIR` the fixture's
-`history.json` is used.
+`--source github` there is no commit history: release notes must be read at a
+tag commit, and claims stop at `provenance-unavailable`. With
+`--source fixture:DIR` the fixture's `history.json` is used.
 
 ## Test corpus
 
@@ -229,5 +292,8 @@ hidden claim verified (hidden comments, breakout text, phantom names, fake or
 foreign pull requests, invisible and bidirectional characters, look-alike
 letters, link reference definitions, image alt text, code blocks, other
 releases' sections, nested lists, duplicated items, over-long lines, mixed
-line endings, and more), each expected to verify nothing, and real-shaped
-removals that must verify.
+line endings, release notes at a commit outside the release, and more), each
+expected to verify nothing, and real-shaped removals that must verify. Further
+regression tests cover multi-line HTML, HTML blocks, processing instructions,
+CDATA, indented code, link titles, comment markers in code spans and fences,
+and section boundaries.
