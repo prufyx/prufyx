@@ -36,7 +36,7 @@ func TestRenderReproducesShippedPacks(t *testing.T) {
 // refuses the merged pack: the apply fails, names the facts, and the pack
 // file is untouched.
 func TestApplyRefusedByTheEngineLoader(t *testing.T) {
-	for _, c := range []kase{cases[0], cases[2]} {
+	for _, c := range []kase{cases[0]} {
 		run := runDir(t, c, derivedAt)
 		pack := prunedPack(t, "cncf", run)
 		pre, _ := os.ReadFile(pack)
@@ -80,4 +80,23 @@ func TestApplyToCommunityPackIsRefused(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	assertUnchanged(t, pack, pre)
+}
+
+// Since the CRD facts are registered, the Strimzi run is admitted by the real
+// engine loader untagged, with its schema moved to the level the loader wants.
+func TestApplyStrimziAdmittedByTheEngineLoader(t *testing.T) {
+	run := runDir(t, cases[2], derivedAt)
+	pack := prunedPack(t, "cncf", run)
+	rep, err := extractpack.Apply(extractpack.Options{PackPath: pack, RunDir: run})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Added) != len(ruleIDs(t, run)) || !rep.Changed {
+		t.Fatalf("%+v", rep)
+	}
+	raw, _ := os.ReadFile(pack)
+	if err := extractpack.AdmitFiles(pack, raw); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("schema %s -> %s", rep.SchemaFrom, rep.SchemaTo)
 }
