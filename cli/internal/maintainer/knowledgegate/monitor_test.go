@@ -560,7 +560,7 @@ func TestDailyLimit(t *testing.T) {
 		n := DefaultMaxDailyLoosening
 		r := runGate(t, Options{Base: base, Head: tight, DailyLoosening: &n})
 		requirePass(t, r)
-		if r.Daily.Cap != 400 {
+		if r.Daily.Cap != 50 {
 			t.Fatalf("cap %d", r.Daily.Cap)
 		}
 	})

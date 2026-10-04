@@ -30,7 +30,7 @@ const (
 	// Circuit breaker and daily limit defaults.
 	DefaultMaxWithdrawPercent = 5
 	DefaultMaxWithdrawProject = 20
-	DefaultMaxDailyLoosening  = 400
+	DefaultMaxDailyLoosening  = 50
 )
 
 // Proofs.

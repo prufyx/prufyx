@@ -160,7 +160,7 @@ func TestWorkflowShape(t *testing.T) {
 		t.Fatal("either source switches shadow mode on")
 	}
 	// Defaults of the limits, as the gate documents them.
-	for name, want := range map[string]string{"MAX_DAILY_LOOSENING": "'400'", "MAX_WITHDRAW_PERCENT": "'5'", "MAX_WITHDRAW_PROJECT": "'20'"} {
+	for name, want := range map[string]string{"MAX_DAILY_LOOSENING": "'50'", "MAX_WITHDRAW_PERCENT": "'5'", "MAX_WITHDRAW_PROJECT": "'20'"} {
 		if !strings.HasSuffix(strings.TrimSuffix(job.Env[name], " }}"), "|| "+want) {
 			t.Fatalf("%s = %q, want default %s", name, job.Env[name], want)
 		}

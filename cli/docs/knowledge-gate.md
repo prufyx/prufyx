@@ -116,7 +116,10 @@ withdrawal.
 
 **Daily limit.** The loosening changes the automation merged in the last 24
 hours, plus this change's, may not exceed `--max-daily-loosening` (default
-400); this is in addition to the per-change cap. Counting needs the history of
+50); this is in addition to the per-change cap. Because the daily total
+includes the change itself, no single change can loosen more than 50 rules
+unless the limit is raised. A deliberate large renewal wave needs the
+repository variable below to be raised first, and lowered again afterwards. Counting needs the history of
 `main`, so the caller counts and passes the number as `--daily-loosening-count`.
 `gate daily-count` does the counting: for each commit of `main` from the last
 day that the automation authored (or whose author GitHub does not know), it
@@ -347,7 +350,7 @@ switch.
 | `--max-withdraw-percent N` | breaker: percent of a pack's active rules one change may withdraw, 1–100 (default 5) |
 | `--max-withdraw-project N` | breaker: rules of one project one change may withdraw (default 20) |
 | `--daily-loosening-count N` | loosening changes the automation merged in the last day (default: unknown) |
-| `--max-daily-loosening N` | cap on that count plus this change (default 400) |
+| `--max-daily-loosening N` | cap on that count plus this change (default 50) |
 | `--json` | print the report as JSON |
 
 ### `gate daily-count`
@@ -380,7 +383,7 @@ The whole gate.
 | `--approval-keys-digest sha256:…` | pinned digest of the base's owner-approval key file; without it no approval is accepted |
 | `--max-loosening N` | cap on loosening changes (default 200) |
 | `--max-withdraw-percent N`, `--max-withdraw-project N` | the withdrawal breakers (defaults 5 and 20), see above |
-| `--daily-loosening-count N`, `--max-daily-loosening N` | the daily limit (default cap 400); without a count the change is not eligible |
+| `--daily-loosening-count N`, `--max-daily-loosening N` | the daily limit (default cap 50); without a count the change is not eligible |
 | `--shadow` | shadow mode: never eligible for automatic merging |
 | `--metrics FILE`, `--alarms FILE`, `--alarms-markdown FILE` | write the metrics and alarm files |
 | `--trust-root-digest sha256:…` | pinned digest of the base's reattestation trust root; without it no statement is accepted |
@@ -454,7 +457,7 @@ Repository variables: `REATTEST_TRUST_ROOT_DIGEST` (the pinned trust root
 digest; unset means no statement is accepted), `WEB_APPROVAL_KEYS_DIGEST` (the
 pinned owner-approval key file digest; unset means no approval is accepted),
 `KNOWLEDGE_BOT_LOGIN` (default `prufyx-factory[bot]`), `KNOWLEDGE_MAX_LOOSENING`
-(default 200), `KNOWLEDGE_MAX_DAILY_LOOSENING` (default 400),
+(default 200), `KNOWLEDGE_MAX_DAILY_LOOSENING` (default 50),
 `KNOWLEDGE_MAX_WITHDRAW_PERCENT` (default 5), `KNOWLEDGE_MAX_WITHDRAW_PROJECT`
 (default 20), `KNOWLEDGE_GATE_SHADOW` (`true` for shadow mode) and, for alarm
 issues, `OPS_ISSUES_REPO`.
