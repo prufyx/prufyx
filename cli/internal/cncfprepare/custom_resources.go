@@ -113,7 +113,7 @@ func PrepareCustomResourceVersionsBytes(raw []byte, project, from, to string, co
 
 func prepareCustomResourceVersions(index customresources.Index, workspace intake.Workspace, project, from, to string, complete bool) (CustomResourceScan, error) {
 	p, ok := customresources.ProjectFor(project)
-	if !ok || !validVersionSyntax(from) || !validVersionSyntax(to) || from == to {
+	if !ok || !validVersionSyntax(from) || !validVersionSyntax(to) || constraintengine.SameVersion(from, to) {
 		return CustomResourceScan{}, ErrInvalid
 	}
 	scan := CustomResourceScan{Fact: p.FactID(), Members: map[string][]intake.Source{}}
