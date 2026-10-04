@@ -166,7 +166,7 @@ func evaluateSelected(req CheckInput, selected knowledge.VerifiedRevision) (Repo
 	if err != nil {
 		return Report{}, err
 	}
-	if receipt.TrustSource != "OPERATOR_PROVISIONED" || receipt.TargetDigest != selected.BundleDigest() || admission.Revision != selected.Revision() || admission.Revision != receipt.KnowledgeRevision || admission.Purpose != receipt.Purpose || admission.EngineCapabilityDigest != receipt.EngineCapabilityDigest || admission.HasRule != receipt.HasRule || admission.RuleDigest != receipt.RuleDigest || admission.EvidenceExpiresAt != receipt.EvidenceExpiresAt {
+	if !admissionMatchesSelection(admission, selected) {
 		return Report{}, ErrIntegrity
 	}
 	packAdmission, err := bundle.Admission()
@@ -223,6 +223,13 @@ func evaluateSelected(req CheckInput, selected knowledge.VerifiedRevision) (Repo
 	}
 	report.seal, report.digest = &reportSeal{}, digestBytes(raw)
 	return report, nil
+}
+
+// admissionMatchesSelection binds the admission of the selected target to
+// the store's trust receipt and selection.
+func admissionMatchesSelection(admission cncfcheck.ExternalAdmission, selected knowledge.VerifiedRevision) bool {
+	receipt := selected.TrustReceipt()
+	return receipt.TrustSource == "OPERATOR_PROVISIONED" && receipt.TargetDigest == selected.BundleDigest() && admission.Revision == selected.Revision() && admission.Revision == receipt.KnowledgeRevision && admission.Purpose == receipt.Purpose && admission.EngineCapabilityDigest == receipt.EngineCapabilityDigest && admission.HasRule == receipt.HasRule && admission.RuleDigest == receipt.RuleDigest && admission.EvidenceExpiresAt == receipt.EvidenceExpiresAt
 }
 
 // selectedBundle returns the envelope to evaluate and the admission of the

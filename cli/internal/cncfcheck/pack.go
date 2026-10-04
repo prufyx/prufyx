@@ -108,6 +108,9 @@ type bundle struct {
 	// place, admit, through which every rule document a check evaluates
 	// reaches the engine.
 	policy TrustPolicy
+	// external marks a bundle built from an external envelope selected
+	// from a verified store, so its reports name that origin.
+	external bool
 }
 
 func load() (bundle, error) {

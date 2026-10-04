@@ -295,6 +295,9 @@ func (b bundle) reportSelection(project, selectedRuleID string, family bool, inp
 		Check:           result,
 		TrustPolicy:     b.policy.disclosure(selected),
 	}
+	if b.external {
+		report.KnowledgeOrigin, report.SourceAuthority = "external_declared", externalSourceAuthority
+	}
 	if selectedRuleID != "" && len(result.Claims) == 1 && result.Claims[0].RuleID == selectedRuleID {
 		report.SelectedRuleID = selectedRuleID
 		report.NextAction = "review the selected native-input claim; other project rules, configuration and whole-upgrade behavior remain unassessed"

@@ -18,6 +18,11 @@ import (
 type ScanKnowledge struct {
 	b     bundle
 	rules map[string][]ScanRule
+	// selected is nil for the embedded knowledge, whose bundle b serves
+	// every project. For knowledge selected from a verified store it holds
+	// the bundle of each opened project, and b carries only the compiled
+	// catalog and registry, never a rule, a line review or a policy.
+	selected map[string]bundle
 }
 
 // ScanRule is the selection view of one admitted rule: its scope for line
@@ -90,8 +95,14 @@ func LoadScanKnowledge() (*ScanKnowledge, error) {
 	return k, nil
 }
 
-// Origin is where the knowledge came from: always "embedded".
-func (k *ScanKnowledge) Origin() string { return "embedded" }
+// Origin is where the knowledge came from: "embedded", or
+// "external_signed_local" for knowledge selected from a verified store.
+func (k *ScanKnowledge) Origin() string {
+	if k.selected != nil {
+		return "external_signed_local"
+	}
+	return "embedded"
+}
 
 // Revision is the pack revision.
 func (k *ScanKnowledge) Revision() string { return k.b.pack.Revision }
@@ -100,20 +111,24 @@ func (k *ScanKnowledge) Revision() string { return k.b.pack.Revision }
 func (k *ScanKnowledge) PackDigest() string { return k.b.packDigest }
 
 // Projects lists every catalog project slug in order.
-func (k *ScanKnowledge) Projects() []string {
-	out := make([]string, 0, len(k.b.landscape.Projects))
-	for _, project := range k.b.landscape.Projects {
+func (k *ScanKnowledge) Projects() []string { return catalogProjects(k.b) }
+
+// Component returns the subject component of a catalog project.
+func (k *ScanKnowledge) Component(slug string) (string, bool) { return catalogComponent(k.b, slug) }
+
+func catalogProjects(b bundle) []string {
+	out := make([]string, 0, len(b.landscape.Projects))
+	for _, project := range b.landscape.Projects {
 		out = append(out, project.Slug)
 	}
 	return out
 }
 
-// Component returns the subject component of a catalog project.
-func (k *ScanKnowledge) Component(slug string) (string, bool) {
-	if !k.b.hasProject(slug) {
+func catalogComponent(b bundle, slug string) (string, bool) {
+	if !b.hasProject(slug) {
 		return "", false
 	}
-	for _, project := range k.b.landscape.Projects {
+	for _, project := range b.landscape.Projects {
 		if project.Slug == slug {
 			component := subjectComponent(project.Slug, project.RepositoryURL)
 			return component, component != ""
@@ -132,13 +147,20 @@ func (k *ScanKnowledge) Rules(project string) []ScanRule {
 
 // CheckFacts is CheckFacts over this snapshot.
 func (k *ScanKnowledge) CheckFacts(project string, facts []string, inputRaw []byte, now time.Time) (Report, error) {
-	return k.b.checkFacts(project, facts, inputRaw, now)
+	b, ok := k.bundleFor(project)
+	if !ok {
+		return Report{}, ErrIntegrity
+	}
+	return b.checkFacts(project, facts, inputRaw, now)
 }
 
 // CheckFactsWithPolicy is Checker.CheckFacts under policy, over this
 // snapshot.
 func (k *ScanKnowledge) CheckFactsWithPolicy(policy TrustPolicy, project string, facts []string, inputRaw []byte, now time.Time) (Report, error) {
-	b := k.b
+	b, ok := k.bundleFor(project)
+	if !ok {
+		return Report{}, ErrIntegrity
+	}
 	b.policy = policy
 	return b.checkFacts(project, facts, inputRaw, now)
 }
@@ -146,11 +168,19 @@ func (k *ScanKnowledge) CheckFactsWithPolicy(policy TrustPolicy, project string,
 // AttestationsFor is AttestationsFor over this snapshot, with the same
 // contract: only a current attestation may be relied on.
 func (k *ScanKnowledge) AttestationsFor(component, line, family string, now time.Time) []lineattest.Status {
-	return k.b.attestations.AttestationsFor(component, line, family, now)
+	b, ok := k.bundleForComponent(component)
+	if !ok {
+		return nil
+	}
+	return b.attestations.AttestationsFor(component, line, family, now)
 }
 
 // PathPolicyFor is PathPolicyFor over this snapshot, with the same contract:
 // only Status.Policy may be used to plan.
 func (k *ScanKnowledge) PathPolicyFor(component string, now time.Time) upgradepath.Status {
-	return k.b.pathPolicyFor(component, now)
+	b, ok := k.bundleForComponent(component)
+	if !ok {
+		return upgradepath.Status{}
+	}
+	return b.pathPolicyFor(component, now)
 }
