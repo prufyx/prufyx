@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
-	"github.com/prufyx/prufyx/cli/internal/maintainer/reviewrecord"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
 
@@ -138,7 +137,8 @@ func (s chainState) expectedLastReview(ruleID string, reviewedNow bool, attested
 //
 // A record whose digest the chain already recorded for that rule is not a
 // new review and is skipped. Every other record must be a structurally
-// valid review record (maintainer/reviewrecord's format) that names the
+// valid review record (maintainer/reviewrecord's format, or a sample review
+// record, whose further bindings checkSampleReviews checks) that names the
 // same rule and the same project, is bound to the exact version of the
 // rule in the prior pack (its bindings.ruleDigest), and was decided after
 // the rule's last individual review recorded in the chain and not after
@@ -170,7 +170,7 @@ func (s chainState) reviewsFromRecords(rules map[string]ruleCandidate, records m
 		if s.recordedReviews[id][digest] {
 			continue
 		}
-		fields, err := reviewrecord.ParseRecordFields(raw)
+		fields, err := parseReviewRecordFields(raw)
 		if err != nil {
 			return nil, fmt.Errorf("%w: V5: review record for rule %s is not a well-formed review record", ErrRejected, id)
 		}

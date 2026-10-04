@@ -137,6 +137,13 @@ func run(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	case "review-record":
+		if len(args) > 1 && args[1] == "new" {
+			return runReviewRecordNew(args[2:], stdout, stderr)
+		}
+		if len(args) == 2 && (args[1] == "help" || args[1] == "-h" || args[1] == "--help") {
+			_, err := fmt.Fprintln(stdout, "usage: prufyx-maintainer review-record <new|verify> [options]")
+			return err
+		}
 		if err := reviewrecord.Run(args[1:], stdout); err != nil {
 			return &commandError{code: 2, message: "review-record: record rejected", err: err}
 		}

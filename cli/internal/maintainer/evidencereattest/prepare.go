@@ -435,28 +435,11 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 			return PrepareResult{}, fmt.Errorf("%w: sources digest changed under mutation", ErrRejected)
 		}
 
-		contentDigestBySource := map[string]string{}
-		for _, source := range candidate.Fields.Evidence.Sources {
-			contentDigestBySource[source.ID] = source.ContentDigest
-		}
 		citations := citationsByRule[fields.ID]
-		sort.Slice(citations, func(i, j int) bool { return citations[i].SourceID < citations[j].SourceID })
-		citationAttestations := make([]CitationAttestation, 0, len(citations))
-		for _, c := range citations {
-			repo := repoByKey[c.Owner+"/"+c.Repo]
-			attestation := CitationAttestation{
-				SourceID: c.SourceID, Class: c.Class, PinnedCommit: c.OldCommit,
-				ComparedTag: repo.CurrentTag, ComparedCommit: c.NewCommit, ContentDigest: contentDigestBySource[c.SourceID],
-			}
-			if c.Baseline == evidencerepin.BaselineReleaseLine {
-				attestation.ComparedTag = c.BaselineTag
-				attestation.Baseline = c.Baseline
-				attestation.BaselineLine = c.BaselineLine
-				attestation.PinnedTag = c.PinnedTag
-			}
-			citationAttestations = append(citationAttestations, attestation)
+		citationAttestations := citationAttestationsFor(candidate, citations, repoByKey)
+		for i, attestation := range citationAttestations {
 			if attestation.ComparedTag != "" {
-				repoName := c.Owner + "/" + c.Repo
+				repoName := citations[i].Owner + "/" + citations[i].Repo
 				if repoTags[repoName] == nil {
 					repoTags[repoName] = map[string]bool{}
 				}
@@ -557,6 +540,11 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		UpstreamReleasesSincePrior: releases,
 		Statement:                  text,
 	}
+	// A sample review record must be for a rule this statement samples and
+	// carry exactly the bindings this statement gives it.
+	if err := checkSampleReviews(statement, records, fresh, candidateByID); err != nil {
+		return PrepareResult{}, err
+	}
 	canonical, err := CanonicalStatement(statement)
 	if err != nil {
 		return PrepareResult{}, err
@@ -590,6 +578,33 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		Statement: statement, StatementCanonical: canonical, NextPack: nextPackRaw, Summary: summary,
 		EligibleRuleCount: len(rules), SampledRuleCount: len(sampledEntries), NotExtendedRuleCount: len(notExtended),
 	}, nil
+}
+
+// citationAttestationsFor renders a renewed rule's citations as the
+// statement carries them. It sorts citations by source ID in place, so the
+// i-th attestation describes citations[i] on return.
+func citationAttestationsFor(candidate ruleCandidate, citations []evidencerepin.ClassResult, repoByKey map[string]evidencerepin.RepoResolution) []CitationAttestation {
+	contentDigestBySource := map[string]string{}
+	for _, source := range candidate.Fields.Evidence.Sources {
+		contentDigestBySource[source.ID] = source.ContentDigest
+	}
+	sort.Slice(citations, func(i, j int) bool { return citations[i].SourceID < citations[j].SourceID })
+	out := make([]CitationAttestation, 0, len(citations))
+	for _, c := range citations {
+		repo := repoByKey[c.Owner+"/"+c.Repo]
+		attestation := CitationAttestation{
+			SourceID: c.SourceID, Class: c.Class, PinnedCommit: c.OldCommit,
+			ComparedTag: repo.CurrentTag, ComparedCommit: c.NewCommit, ContentDigest: contentDigestBySource[c.SourceID],
+		}
+		if c.Baseline == evidencerepin.BaselineReleaseLine {
+			attestation.ComparedTag = c.BaselineTag
+			attestation.Baseline = c.Baseline
+			attestation.BaselineLine = c.BaselineLine
+			attestation.PinnedTag = c.PinnedTag
+		}
+		out = append(out, attestation)
+	}
+	return out
 }
 
 // evaluateEligibility checks E1-E7 for one rule and returns the worst
