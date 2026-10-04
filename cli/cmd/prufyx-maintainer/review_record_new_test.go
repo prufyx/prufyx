@@ -216,6 +216,11 @@ func TestReviewRecordNewPrepareSignVerify(t *testing.T) {
 	if err := run(f.newArgs(f.sampled, filepath.Join(f.dir, "other.json")), &stdout, &stderr); exitCode(err) != 2 {
 		t.Fatalf("misnamed output: %v", err)
 	}
+	stderr.Reset()
+	if err := run(f.newArgs(f.sampled, filepath.Join(f.dir, "missing-dir", f.sampled+".json")), &stdout, &stderr); exitCode(err) != 2 ||
+		!strings.Contains(stderr.String(), "hard link") || !strings.Contains(stderr.String(), "no such file or directory") {
+		t.Fatalf("write failure must name its cause: %v %q", err, stderr.String())
+	}
 	for _, drop := range []string{"--statement", "--pack", "--rules", "--worklist", "--rule", "--reviewer", "--decided-at", "--output"} {
 		args := f.newArgs(f.sampled, filepath.Join(f.dir, f.sampled+".json"))
 		for i, a := range args {
