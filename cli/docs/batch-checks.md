@@ -69,6 +69,13 @@ route never decides. The line before it, `scoped result: BLOCKED`, `UNKNOWN`
 or `PASS`, is the result of the checked rules and always matches the exit code
 (`10`, `11` or `0`) of the `--native-resource` and `--custom-resources` modes.
 
+A CNCF item whose rules include one over a custom-resource version set
+(`component.<project>.custom_resource_versions_set`) is never `PASS`: a pass
+of such a rule counts as unknown, because no record yet shows that the
+published rules name every custom-resource version a release stops serving.
+A blocker over the set still blocks. See
+[custom-resources.md](custom-resources.md).
+
 The [`embedded`](../examples/batch/embedded-mixed-plan.json) and
 [`signed`](../examples/batch/signed-mixed-plan.json) public synthetic plans use
 the same minimized Kyverno and Loki inputs. They contain no trust root or

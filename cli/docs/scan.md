@@ -215,8 +215,9 @@ are always listed. A gap never hides a blocker, and it always prevents a pass.
 - the resource scope is declared complete, the target apply is declared
   required, and the distribution is `official_upstream`;
 - every input document was read: none is templated, unparseable, a nested or
-  unresolved list, a non-Kubernetes document, or a skipped symlink or special
-  file;
+  unresolved list, an object of a kind other than `List` that holds a
+  top-level `items` array, a non-Kubernetes document, or a skipped symlink or
+  special file;
 - either the upgrade enters at most one new minor release line, or a current
   reviewed upgrade-path policy splits it so that every release line on the way
   is a hop;
@@ -281,7 +282,7 @@ Every gap has a reason, a detail and an action.
 | `DECLARATION_MISSING` | Scope completeness, target apply or the distribution is not declared. | Declare it with the flag or in `prufyx.yaml`, if it is true. |
 | `DISTRIBUTION_NOT_COVERED` | The distribution is `custom_build`. | Check your distribution's release notes by hand. |
 | `DOCUMENTS_TEMPLATED` | Documents with `{{ ... }}` or `${...}`. | Render them (`helm template`, `kustomize build`) and scan the output. |
-| `DOCUMENTS_NOT_EVALUATED` | Nested or unresolved lists, paginated lists, documents that are not Kubernetes objects, skipped symlinks or special files, or no manifests at all; for a project with custom-resource versions, also objects of custom-resource groups that no reviewed project owns. | Pass only rendered Kubernetes objects; check unowned custom resources by hand. |
+| `DOCUMENTS_NOT_EVALUATED` | Nested or unresolved lists, paginated lists, objects of a kind other than `List` that hold a top-level `items` array, documents that are not Kubernetes objects, skipped symlinks or special files, or no manifests at all; for a project with custom-resource versions, also objects of custom-resource groups that no reviewed project owns. | Pass only rendered Kubernetes objects; check unowned custom resources by hand. |
 | `UNSUPPORTED_COMBINATION` | A support-range rule finds the planned combination outside its documented support range (see "Unsupported combinations"). | Follow the rule's next action, or accept the risk knowingly; the answer cannot pass. |
 | `API_VERSION_NOT_SERVED` | A manifest uses an API version that was removed on a release line at or below the target that no evaluated hop enters (typically one removed before your current version). | Migrate it to a served version and scan again. |
 | `API_VERSION_NOT_REVIEWED` | A manifest uses a version of a reviewed kind that the reviewed removals do not name, or a version and kind of a Kubernetes API group that the reviewed list of the target line does not name as served; or that list is missing, not current, for another line or component, or rests on a basis `--require-basis` leaves out. The built-in knowledge does not carry such lists yet, so today every scan with Kubernetes manifests names this gap. | Check those versions against the target's API reference by hand, or request coverage. |
