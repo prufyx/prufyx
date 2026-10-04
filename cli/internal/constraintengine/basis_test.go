@@ -380,10 +380,12 @@ func TestConsensusNeverPassesProperty(t *testing.T) {
 		extra := applicability(component)
 		switch operator := random.Intn(10); {
 		case operator < 5:
-			// The condition forbids the fact being true; a guard that
-			// requires it false would make the rule vacuous, which the
-			// parser refuses, so the guard here always agrees.
-			extra = strings.Replace(extra, `"boolValue":false`, `"boolValue":true`, 1)
+			// The condition forbids the proposed fact being true. A
+			// proposed guard requiring it false would make the rule
+			// vacuous, which the parser refuses, so a false guard moves
+			// to the current side: an independent fact, so the rule can
+			// still PASS (proposed false, current false) or BLOCK.
+			extra = strings.Replace(extra, `"side":"proposed","component":"`+component+`","factId":"`+facts[component]+`","boolValue":false`, `"side":"current","component":"`+component+`","factId":"`+facts[component]+`","boolValue":false`, 1)
 			return scopeRule(id, "forbid_predicate_value", component, "1.0.0", to, state, until, forbidFact(component, facts[component])+extra)
 		case operator < 7:
 			return scopeRule(id, "forbid_target_version", component, "1.0.0", to, state, until, extra)
@@ -392,6 +394,10 @@ func TestConsensusNeverPassesProperty(t *testing.T) {
 		}
 	}
 	cases, relabelled, tally := 0, 0, map[string]int{}
+	// guardedPass counts PASS claims of guarded predicate rules (the
+	// guard on the current side), and guardedRelabelled those relabelled
+	// to consensus.
+	guardedPass, guardedRelabelled := 0, 0
 	for iteration := 0; cases < 2000; iteration++ {
 		if iteration > 20000 {
 			t.Fatalf("only %d usable cases", cases)
@@ -432,14 +438,17 @@ func TestConsensusNeverPassesProperty(t *testing.T) {
 			present = []string{pick(components...)}
 		}
 		for _, component := range present {
-			fact := ""
-			switch random.Intn(4) {
+			// The current fact follows the same draw, so the random
+			// stream is unchanged: a current-side guard (false) holds in
+			// cases 0 and 1, is contradicted in case 2 and absent in 3.
+			fact, current := "", ""
+			switch draw := random.Intn(4); draw {
 			case 0:
-				fact = declaredFact(facts[component], true)
+				fact, current = declaredFact(facts[component], true), declaredFact(facts[component], false)
 			case 1, 2:
-				fact = declaredFact(facts[component], false)
+				fact, current = declaredFact(facts[component], false), declaredFact(facts[component], draw == 2)
 			}
-			inputs = append(inputs, componentInput{Component: component, From: "1.0.0", To: pick("2.0.0", "2.0.0", "3.0.0"), Fact: fact})
+			inputs = append(inputs, componentInput{Component: component, From: "1.0.0", To: pick("2.0.0", "2.0.0", "3.0.0"), Fact: fact, CurrentFact: current})
 		}
 		baseRules, err := ParseRuleSet(ruleDocumentJSON(RulesSchema, corpus, rules...), registry)
 		if err != nil {
@@ -519,10 +528,25 @@ func TestConsensusNeverPassesProperty(t *testing.T) {
 		if !reflect.DeepEqual(base.Claims, verdicts) {
 			t.Fatalf("case %d: leads changed verdict claims", cases)
 		}
+		for index, claim := range base.Claims {
+			raw := rules[index]
+			if ruleIDOf(raw) != claim.RuleID {
+				t.Fatalf("case %d: claim %s is not aligned with rule %s", cases, claim.RuleID, ruleIDOf(raw))
+			}
+			if claim.Status == "PASS" && strings.Contains(raw, `"operator":"forbid_predicate_value"`) && strings.Contains(raw, `"appliesWhen":[{"side":"current"`) {
+				guardedPass++
+				if withConsensus.Claims[index].EvidenceBasis == BasisConsensus {
+					guardedRelabelled++
+				}
+			}
+		}
 		tally[base.Assessment+"->"+withConsensus.Assessment]++
 		cases++
 	}
-	t.Logf("aggregates over %d cases (%d relabelled): %v", cases, relabelled, tally)
+	t.Logf("aggregates over %d cases (%d relabelled): %v; guarded predicate PASS %d (%d relabelled)", cases, relabelled, tally, guardedPass, guardedRelabelled)
+	if guardedPass == 0 || guardedRelabelled == 0 {
+		t.Fatalf("no guarded predicate PASS was generated and relabelled: pass=%d relabelled=%d", guardedPass, guardedRelabelled)
+	}
 	for _, transition := range []string{AssessmentScopeCompletePass + "->" + AssessmentUnknown, AssessmentBlocked + "->" + AssessmentBlocked, AssessmentUnknown + "->" + AssessmentUnknown} {
 		if tally[transition] == 0 {
 			t.Fatalf("no case reached %s: %v", transition, tally)

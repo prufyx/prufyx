@@ -331,7 +331,9 @@ func TestDeclaredScopeWithoutAnAttestedCorpusStaysUnknown(t *testing.T) {
 	}
 }
 
-type componentInput struct{ Component, From, To, Fact string }
+// componentInput is one component of a scoped input: Fact is its proposed
+// fact (or empty), CurrentFact its current fact (or empty).
+type componentInput struct{ Component, From, To, Fact, CurrentFact string }
 
 func scopeRegistry(t *testing.T) Registry {
 	t.Helper()
@@ -364,7 +366,7 @@ func scopeInput(t *testing.T, registry Registry, withScope bool, components ...c
 	t.Helper()
 	current, proposed, names := make([]string, 0, len(components)), make([]string, 0, len(components)), make([]string, 0, len(components))
 	for _, component := range components {
-		current = append(current, `{"component":"`+component.Component+`","version":"`+component.From+`","facts":[]}`)
+		current = append(current, `{"component":"`+component.Component+`","version":"`+component.From+`","facts":[`+component.CurrentFact+`]}`)
 		proposed = append(proposed, `{"component":"`+component.Component+`","version":"`+component.To+`","facts":[`+component.Fact+`]}`)
 		names = append(names, `"`+component.Component+`"`)
 	}

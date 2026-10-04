@@ -4,6 +4,8 @@ package constraintengine
 
 import (
 	"errors"
+	"math/rand"
+	"strings"
 	"testing"
 )
 
@@ -113,4 +115,108 @@ func TestPredicateWithoutContradictingGuardStillBlocks(t *testing.T) {
 	if report.Claims[0].Status != "BLOCKED" {
 		t.Fatalf("claim=%+v", report.Claims[0])
 	}
+}
+
+// TestPredicateRuleAdmittedIffSatisfiable: for random forbid_predicate_value
+// rules over bool and enum facts on both sides, the parser admits a rule
+// exactly when some declared input satisfies its condition and every guard
+// together, found by brute force over all fact values. An admitted rule
+// then blocks on that witness input, so no admitted rule is unblockable.
+func TestPredicateRuleAdmittedIffSatisfiable(t *testing.T) {
+	registry := vacuousRegistry(t)
+	type key struct{ side, fact string }
+	values := map[string][]string{scopeFactA: {"true", "false"}, "component.example.guard_enabled": {"true", "false"}, vacuousEnumFact: {"legacy", "modern", "off"}}
+	facts := []string{scopeFactA, "component.example.guard_enabled", vacuousEnumFact}
+	var keys []key
+	for _, side := range []string{"current", "proposed"} {
+		for _, fact := range facts {
+			keys = append(keys, key{side, fact})
+		}
+	}
+	render := func(k key, value string) string {
+		if k.fact == vacuousEnumFact {
+			return enumCondition(k.side, value)
+		}
+		return boolCondition(k.side, k.fact, value == "true")
+	}
+	declared := func(fact, value string) string {
+		if fact == vacuousEnumFact {
+			return `{"id":"` + fact + `","state":"declared","enumValue":"` + value + `"}`
+		}
+		return `{"id":"` + fact + `","state":"declared","boolValue":` + value + `}`
+	}
+	// assignments enumerates every value of every key.
+	var assignments []map[key]string
+	var walk func(index int, current map[key]string)
+	walk = func(index int, current map[key]string) {
+		if index == len(keys) {
+			copyOf := map[key]string{}
+			for k, v := range current {
+				copyOf[k] = v
+			}
+			assignments = append(assignments, copyOf)
+			return
+		}
+		for _, value := range values[keys[index].fact] {
+			current[keys[index]] = value
+			walk(index+1, current)
+		}
+	}
+	walk(0, map[key]string{})
+
+	random := rand.New(rand.NewSource(7))
+	admitted, rejected := 0, 0
+	for iteration := 0; iteration < 3000; iteration++ {
+		conditionKey := keys[random.Intn(len(keys))]
+		conditionValue := values[conditionKey.fact][random.Intn(len(values[conditionKey.fact]))]
+		required := map[key][]string{conditionKey: {conditionValue}}
+		var guards []string
+		for _, index := range random.Perm(len(keys))[:random.Intn(4)] {
+			k := keys[index]
+			value := values[k.fact][random.Intn(len(values[k.fact]))]
+			guards = append(guards, render(k, value))
+			required[k] = append(required[k], value)
+		}
+		var witness map[key]string
+		for _, assignment := range assignments {
+			holds := true
+			for k, wanted := range required {
+				for _, value := range wanted {
+					holds = holds && assignment[k] == value
+				}
+			}
+			if holds {
+				witness = assignment
+				break
+			}
+		}
+		rule := predicateRule(render(conditionKey, conditionValue), guards...)
+		err := parsePredicateRule(t, registry, rule)
+		if (err == nil) != (witness != nil) {
+			t.Fatalf("iteration %d: satisfiable=%v but parse err=%v\n%s", iteration, witness != nil, err, rule)
+		}
+		if err != nil {
+			rejected++
+			continue
+		}
+		admitted++
+		sides := map[string][]string{}
+		for _, k := range keys {
+			sides[k.side] = append(sides[k.side], declared(k.fact, witness[k]))
+		}
+		raw := `{"schema":"` + InputSchema + `","authority":"` + InputAuthority + `","current":{"components":[{"component":"` + scopeComponentA + `","version":"1.0.0","facts":[` + strings.Join(sides["current"], ",") + `]}]},"proposed":{"components":[{"component":"` + scopeComponentA + `","version":"2.0.0","facts":[` + strings.Join(sides["proposed"], ",") + `]}]}}`
+		input, err := ParseInput([]byte(raw), registry)
+		if err != nil {
+			t.Fatalf("iteration %d: witness input: %v", iteration, err)
+		}
+		ruleSet := scopeRuleSet(t, registry, nil, rule)
+		report, err := Evaluate(input, ruleSet, testNow(t))
+		if err != nil || report.Claims[0].Status != "BLOCKED" {
+			t.Fatalf("iteration %d: admitted rule does not block on its witness: err=%v claim=%+v", iteration, err, report.Claims[0])
+		}
+	}
+	if admitted == 0 || rejected == 0 {
+		t.Fatalf("admitted=%d rejected=%d", admitted, rejected)
+	}
+	t.Logf("admitted %d, rejected %d", admitted, rejected)
 }
