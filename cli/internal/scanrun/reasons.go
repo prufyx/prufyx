@@ -82,3 +82,15 @@ var factReasons = map[string]bool{
 	"RULE_FACT_UNAVAILABLE":               true,
 	"RULE_SET_FACT_INCOMPLETE":            true,
 }
+
+// otherRouteReasons are Kubernetes preparation reasons of the component
+// configuration route, which reads kubelet and control-plane configuration,
+// not manifests. Scan never runs that route, so it never meets them.
+var otherRouteReasons = map[string]bool{
+	cncfprepare.ReasonKubernetesComponentSettingPresent:      true,
+	cncfprepare.ReasonKubernetesComponentSettingAbsent:       true,
+	cncfprepare.ReasonKubernetesComponentEvidenceIncomplete:  true,
+	cncfprepare.ReasonKubernetesComponentNoReviewedRule:      true,
+	cncfprepare.ReasonKubernetesComponentDistribution:        true,
+	cncfprepare.ReasonKubernetesComponentSettingSetsComplete: true,
+}
