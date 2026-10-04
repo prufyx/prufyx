@@ -50,8 +50,9 @@ func derivedEntries(t *testing.T) []map[string]any {
 // mechanicalTrees returns a base and a head where the head adds the rules
 // the extractor derives (with tamper applied to the entries first). The
 // engine refuses two rules constraining the same fact, so both trees first
-// drop the reviewed rules for the derived facts, and derived rules whose
-// fact this revision's registry lacks are left out.
+// drop the reviewed rules for the derived facts. Every derived rule is kept:
+// the registry declares every fact the extractor's table names, including
+// the 1.33 removal no published rule reads yet.
 func mechanicalTrees(t *testing.T, tamper func(entries []map[string]any)) (Tree, Tree, []map[string]any) {
 	t.Helper()
 	base, head := trees(t)
@@ -59,9 +60,6 @@ func mechanicalTrees(t *testing.T, tamper func(entries []map[string]any)) (Tree,
 	facts := map[string]bool{}
 	for _, e := range derivedEntries(t) {
 		fact := ruleOf(e)["condition"].(map[string]any)["factId"].(string)
-		if fact == "component.kubernetes.selfsubjectreview_v1beta1_removed_gvk_present" {
-			continue
-		}
 		facts[fact] = true
 		entries = append(entries, e)
 	}
@@ -91,6 +89,13 @@ func TestGateMechanicalRederived(t *testing.T) {
 	base, head, entries := mechanicalTrees(t, nil)
 	r := runGate(t, Options{Base: base, Head: head, Source: extract.FixtureReader{Root: servedFixture}, Author: DefaultBotLogin})
 	requirePass(t, r)
+	newFact := false
+	for _, e := range entries {
+		newFact = newFact || ruleOf(e)["condition"].(map[string]any)["factId"] == "component.kubernetes.selfsubjectreview_v1beta1_removed_gvk_present"
+	}
+	if !newFact {
+		t.Fatal("the derived rule over the 1.33 removal fact is not part of the change")
+	}
 	if r.Totals.Loosening != len(entries) {
 		t.Fatalf("loosening %d, want %d", r.Totals.Loosening, len(entries))
 	}
@@ -224,10 +229,10 @@ func TestGateMechanicalNeedsUpstream(t *testing.T) {
 // The scheduled run re-derives every active mechanical rule, changed or
 // not.
 func TestGateRederiveAll(t *testing.T) {
-	_, head, _ := mechanicalTrees(t, nil)
+	_, head, entries := mechanicalTrees(t, nil)
 	r := runGate(t, Options{Base: head, Head: head, Source: extract.FixtureReader{Root: servedFixture}, RederiveAll: true})
 	requirePass(t, r)
-	if c, ok := check(r, "rederive-all"); !ok || !strings.HasPrefix(c.Detail, "5 mechanical rules re-derived, 0 failed") {
+	if c, ok := check(r, "rederive-all"); !ok || !strings.HasPrefix(c.Detail, fmt.Sprintf("%d mechanical rules re-derived, 0 failed", len(entries))) {
 		t.Fatalf("rederive-all %+v", c)
 	}
 	r = runGate(t, Options{Base: head, Head: head, Source: extract.FixtureReader{Root: t.TempDir()}, RederiveAll: true})

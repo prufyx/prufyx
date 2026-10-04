@@ -174,6 +174,26 @@ func TestScanRefusedLine(t *testing.T) {
 	}
 }
 
+// TestScanRegisteredLineWithARule: once a rule reads one of a line's
+// removal facts, the hop is evaluated: a removed version blocks, and a
+// served one is not reported as a line without rules.
+func TestScanRegisteredLineWithARule(t *testing.T) {
+	const id = "kubernetes.synthetic-volumeattributesclass.1-36-0-to-1-37-0"
+	rule := verdictRule(id, "1.36.0", "1.37.0", "", "component.kubernetes.volumeattributesclass_v1beta1_removed_gvk_present")
+	knowledge := newKnowledge(t, knowledgeOptions{lines: []string{"1.37"}, policy: "current", unchecked: true, synthetic: []string{rule}})
+	_, paths := files(t, map[string]string{"applyset.yaml": "apiVersion: storage.k8s.io/v1beta1\nkind: VolumeAttributesClass\nmetadata: {name: a}\n"})
+	result := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.36.0", "--to", "kubernetes=1.37.0")...)
+	if result.Exit != scanreport.ExitBlocked || len(result.Report.Findings) != 1 || result.Report.Findings[0].RuleID != id {
+		t.Fatalf("exit %d findings %+v gaps %+v", result.Exit, result.Report.Findings, result.Report.Gaps)
+	}
+	_, paths = files(t, map[string]string{"applyset.yaml": "apiVersion: storage.k8s.io/v1\nkind: VolumeAttributesClass\nmetadata: {name: a}\n"})
+	result = mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.36.0", "--to", "kubernetes=1.37.0")...)
+	hop := result.Report.Paths[0].Hops[0]
+	if result.Exit == scanreport.ExitBlocked || hop.Status == scanreport.HopNoData || hasGap(result.Report, "LINE_NOT_ATTESTED", "no reviewed rule covers yet") {
+		t.Fatalf("exit %d hop %+v gaps %+v", result.Exit, hop, result.Report.Gaps)
+	}
+}
+
 // hiddenRules is test knowledge without some published rules (and their
 // claims): a pack that lacks the rule for a removal the preparation knows.
 type hiddenRules struct {
