@@ -679,7 +679,9 @@ type ClassResult struct {
 	// or BaselineModeReleaseLine) this result was computed under.
 	BaselineMode string `json:"baselineMode,omitempty"`
 	// Baseline records which baseline NewCommit came from:
-	// BaselineReleaseLine (the newest release on the pinned tag's line) or
+	// BaselineReleaseLine (the newest release on the pinned tag's line),
+	// BaselineTagLine (the newest release tag on that line, derived from
+	// git tags for a repository without usable GitHub Releases) or
 	// BaselineLatest (the repository's most recent release).
 	Baseline string `json:"baseline,omitempty"`
 	// BaselineTag is the release tag NewCommit belongs to.
@@ -1117,6 +1119,7 @@ var worklistLimitations = []string{
 	"CORPUS_DIGEST_MISMATCH means the file fetched at the citation's own pinned commit does not hash to the recorded contentDigest (or is not reachable there at all); this is a corpus integrity problem, not citation drift, and should be investigated separately",
 	"a repo resolution or citation classification resumed from --state is reported as current only if it is within --max-age of this run; an older entry is either recomputed or, when this run could not recompute it, kept and marked \"stale\": true rather than reported as fresh",
 	"a citation with \"baseline\": \"release_line\" was compared with the newest GitHub Release on the release line of the release tag proven to point at its pinned commit, not with the repository's most recent release; it answers whether the cited content changed in later releases of that line and says nothing about other release lines",
+	"a citation with \"baseline\": \"tag_line\" belongs to a repository without usable GitHub Releases; it was compared with the highest release tag (MAJOR.MINOR.PATCH, pre-releases excluded) on the line of the release tag that points at its pinned commit, from the repository's complete git ref listing; the line record has \"basis\": \"git_tags\"",
 	"a citation with \"baseline\": \"latest\" under a release-line request fell back because its release line could not be proven unambiguously; the reason is in baselineNote",
 	"a repo resolution with \"resolution\": \"tag_fallback\" was resolved from the tags list, not from GitHub Releases; the tags list endpoint carries no documented recency guarantee, so this is weaker evidence and should not be treated as batch-attestable without review",
 }
@@ -1278,6 +1281,12 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 			result.BaselineTag = baselineTag
 			if decision.line != nil {
 				result.Baseline = BaselineReleaseLine
+				if decision.basis == LineBasisGitTags {
+					// The compared commit is the line's newest release
+					// tag, not the tags fallback's single "latest" tag.
+					result.Baseline = BaselineTagLine
+					result.Resolution = ""
+				}
 				result.BaselineLine = decision.line.Line
 				result.PinnedTag = decision.pin.Tag
 				if decision.pin.Tag == decision.line.Tag {
@@ -1344,10 +1353,10 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 	lineSet := map[string]bool{}
 	var lines []LineResolution
 	for _, result := range results {
-		if result.Baseline != BaselineReleaseLine {
+		key, ok := resultLineKey(result)
+		if !ok {
 			continue
 		}
-		key := lineKey(result.Owner, result.Repo, linePrefixOf(result.PinnedTag), result.BaselineLine)
 		if lineSet[key] {
 			continue
 		}
@@ -1372,7 +1381,10 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 		if a.Prefix != b.Prefix {
 			return a.Prefix < b.Prefix
 		}
-		return a.Line < b.Line
+		if a.Line != b.Line {
+			return a.Line < b.Line
+		}
+		return a.Basis < b.Basis
 	})
 
 	worklist := Worklist{
@@ -1416,11 +1428,25 @@ func linePrefixOf(tag string) string {
 // lineStillFresh reports whether a resumable result's release-line
 // resolution is still within maxAge; a latest-baseline result has none.
 func lineStillFresh(state *State, result ClassResult, now time.Time, maxAge time.Duration) bool {
-	if result.Baseline != BaselineReleaseLine {
+	key, isLine := resultLineKey(result)
+	if !isLine {
 		return true
 	}
-	line, ok := state.Lines[lineKey(result.Owner, result.Repo, linePrefixOf(result.PinnedTag), result.BaselineLine)]
+	line, ok := state.Lines[key]
 	return ok && line.Status == lineResolved && line.Tag == result.BaselineTag && isFresh(line.ResolvedAt, now, maxAge)
+}
+
+// resultLineKey is the state key of the line record a line-baseline result
+// relies on; ok is false for a latest-baseline result.
+func resultLineKey(result ClassResult) (key string, ok bool) {
+	switch result.Baseline {
+	case BaselineReleaseLine:
+		return lineKey(result.Owner, result.Repo, linePrefixOf(result.PinnedTag), result.BaselineLine), true
+	case BaselineTagLine:
+		parsed, _ := parseTagLineTag(result.PinnedTag)
+		return tagLineKey(result.Owner, result.Repo, parsed.Prefix, result.BaselineLine), true
+	}
+	return "", false
 }
 
 func filterCitations(citations []Citation, projects []string, limit int) []Citation {
@@ -1477,6 +1503,9 @@ type Deps struct {
 	// OpenMirror opens the local mirror in a state directory for
 	// --source mirror. Nil rejects that source.
 	OpenMirror func(stateDir string) (MirrorSource, error)
+	// Refs lists a repository's git refs for tag-derived release lines
+	// (--source http). Nil derives no such line.
+	Refs GitRefSource
 }
 
 // RunWith is Run with the full set of dependencies.
@@ -1563,6 +1592,9 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps 
 		if err != nil {
 			fmt.Fprintf(stderr, "evidence repin: %v\n", err)
 			return 2
+		}
+		if deps.Refs != nil {
+			apiFetcher = withGitRefs{APIFetcher: apiFetcher, refs: deps.Refs}
 		}
 		worklist, err = BuildWorklistWithBaseline(ctx, citations, projects, *limit, state, apiFetcher, blobFetcher, now, *maxAge, stderr, *baseline)
 		if err != nil {

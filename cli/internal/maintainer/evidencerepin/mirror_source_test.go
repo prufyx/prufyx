@@ -181,6 +181,23 @@ func (w *httpWorld) Fetch(_ context.Context, path string) ([]byte, int, error) {
 	return nil, 500, nil
 }
 
+// GitRefs serves the repository's refs exactly as "git ls-remote" prints
+// them, so the HTTP side derives tag lines from real ls-remote output.
+func (w *httpWorld) GitRefs(_ context.Context, owner, repo string) (evidencerepin.RefListing, error) {
+	w.calls.Add(1)
+	up := w.ups[owner+"/"+repo]
+	if up == nil {
+		return evidencerepin.RefListing{}, fmt.Errorf("no such repository")
+	}
+	cmd := exec.Command("git", "ls-remote", up.bare)
+	cmd.Env = gitEnv()
+	out, err := cmd.Output()
+	if err != nil {
+		return evidencerepin.RefListing{}, err
+	}
+	return evidencerepin.ParseLsRemote(out)
+}
+
 func (w *httpWorld) FetchBlob(_ context.Context, path string) sourcecapture.FetchResult {
 	w.calls.Add(1)
 	parts := strings.SplitN(strings.TrimPrefix(path, "/"), "/", 4)
@@ -444,9 +461,17 @@ func TestMirrorAndHTTPClassifyIdentically(t *testing.T) {
 			t.Errorf("%s: unexpected baseline %+v", id, got)
 		}
 	}
+	// A tags-only repository is compared on the line of its pinned tag
+	// (v0.1.0, the newest release tag of line 0.1), not with the tags
+	// fallback's v0.2.0.
 	g := classOf(wl, "-g")
-	if g.Resolution != "tag_fallback" || g.NewCommit != w.gizmo.tags["v0.2.0"] {
-		t.Errorf("tags-only repository: %+v", g)
+	if g.Baseline != evidencerepin.BaselineTagLine || g.Resolution != "" || g.BaselineTag != "v0.1.0" || g.PinnedTag != "v0.1.0" ||
+		g.NewCommit != w.gizmo.tags["v0.1.0"] || g.Class != evidencerepin.ClassNoNewRelease {
+		t.Errorf("tags-only repository on its tag line: %+v", g)
+	}
+	latest, _ := w.mirrorWorklist(evidencerepin.BaselineModeLatest)
+	if g := classOf(latest, "-g"); g.Resolution != "tag_fallback" || g.NewCommit != w.gizmo.tags["v0.2.0"] {
+		t.Errorf("tags-only repository under --baseline latest: %+v", g)
 	}
 }
 
@@ -538,8 +563,9 @@ func TestMirrorMissingBlobIsPendingAndTwoStepFlowConverges(t *testing.T) {
 	// Refs and release metadata only: no file contents were requested.
 	w.mirror(nil)
 	wl, wants := w.mirrorWorklist(evidencerepin.BaselineModeReleaseLine)
-	// A path that does not exist at the baseline needs no file contents.
-	if wl.Summary.Pending != len(w.cites)-1 || classOf(wl, "-d").Class != evidencerepin.ClassPathGone {
+	// A path that does not exist at the baseline needs no file contents,
+	// nor does a citation whose pinned tag is its line's newest release.
+	if wl.Summary.Pending != len(w.cites)-2 || classOf(wl, "-d").Class != evidencerepin.ClassPathGone || classOf(wl, "-g").Class != evidencerepin.ClassNoNewRelease {
 		t.Fatalf("every other citation needs file contents, got %+v", wl.Summary)
 	}
 	for _, c := range wl.Citations {
@@ -555,8 +581,8 @@ func TestMirrorMissingBlobIsPendingAndTwoStepFlowConverges(t *testing.T) {
 		}
 	}
 	for _, c := range w.cites {
-		if c.Path == "d.txt" {
-			continue // deleted at the baseline: no contents to read
+		if c.Path == "d.txt" || c.Repo == "gizmo" {
+			continue // deleted at the baseline, or pinned at its line's newest tag: no contents to read
 		}
 		if !covered[c.OldCommit+":"+c.Path] {
 			t.Errorf("pinned file %s@%s is not in the wants", c.Path, c.OldCommit)
@@ -672,8 +698,10 @@ func TestMirrorUnknownOrTruncatedReleases(t *testing.T) {
 		if got.Baseline != evidencerepin.BaselineLatest || got.BaselineTag != "v1.1.0" || got.BaselineNote == "" || got.Class != evidencerepin.ClassContentChanged {
 			t.Fatalf("a truncated list must not derive a line: %+v", got)
 		}
-		if len(wl.Lines) != 0 {
-			t.Fatalf("no line resolution may exist: %+v", wl.Lines)
+		for _, line := range wl.Lines {
+			if line.Owner == "acme" && line.Repo == "widget" {
+				t.Fatalf("no release line may be derived for the truncated repository: %+v", line)
+			}
 		}
 	})
 	t.Run("stale releases leave the repository pending", func(t *testing.T) {

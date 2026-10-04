@@ -64,6 +64,11 @@ const (
 	// on their release line only, so such a rule is left to a human
 	// statement.
 	reasonLatestBaselineNotAutomatable = "LATEST_BASELINE_NOT_AUTOMATABLE"
+	// reasonTagLineNotAutomatable is automated mode only: a citation
+	// compared on a release line derived from git tags rather than from
+	// GitHub Releases. That evidence is not covered by the owner's approval
+	// of automated renewal, so the rule is left to a human statement.
+	reasonTagLineNotAutomatable = "TAG_LINE_BASELINE_NOT_AUTOMATABLE"
 	// reasonReviewedOutsideChain is automated mode only: the rule's
 	// reviewedAt in the prior pack is later than the chain head's
 	// attestedAt, so its evidence dates were moved by something the chain
@@ -604,7 +609,7 @@ func citationAttestationsFor(candidate ruleCandidate, citations []evidencerepin.
 			SourceID: c.SourceID, Class: c.Class, PinnedCommit: c.OldCommit,
 			ComparedTag: repo.CurrentTag, ComparedCommit: c.NewCommit, ContentDigest: contentDigestBySource[c.SourceID],
 		}
-		if c.Baseline == evidencerepin.BaselineReleaseLine {
+		if isLineBaseline(c.Baseline) {
 			attestation.ComparedTag = c.BaselineTag
 			attestation.Baseline = c.Baseline
 			attestation.BaselineLine = c.BaselineLine
@@ -697,6 +702,15 @@ func evaluateEligibility(
 			if !lineBaselineVerified(citation, lines) {
 				return reasonLineBaselineUnverified, false
 			}
+		case evidencerepin.BaselineTagLine:
+			// A line derived from git tags is checked exactly like one
+			// proven by Releases, and is never renewed unattended.
+			if !lineBaselineVerified(citation, lines) {
+				return reasonLineBaselineUnverified, false
+			}
+			if automated {
+				return reasonTagLineNotAutomatable, false
+			}
 		default:
 			return reasonLineBaselineUnverified, false
 		}
@@ -721,7 +735,7 @@ func evaluateEligibility(
 		if !ok || repo.Stale || attestedAt.Before(resolvedAt) || attestedAt.Sub(resolvedAt) > freshnessBound {
 			return reasonStaleBaseline, false
 		}
-		if citation.Baseline == evidencerepin.BaselineReleaseLine {
+		if isLineBaseline(citation.Baseline) {
 			line, _ := matchingLine(citation, lines)
 			lineResolvedAt, ok := line.EvidenceAt()
 			if !ok || line.Stale || attestedAt.Before(lineResolvedAt) || attestedAt.Sub(lineResolvedAt) > freshnessBound {
@@ -756,12 +770,30 @@ func citesAny(candidate ruleCandidate, repos map[string]bool) bool {
 	return false
 }
 
-// matchingLine finds the worklist line record a release-line citation's
-// baseline must be backed by: same repository and line, resolved, and
-// naming exactly the compared tag and commit.
+// isLineBaseline reports whether a citation baseline is a release line,
+// proven from GitHub Releases or derived from git tags.
+func isLineBaseline(baseline string) bool {
+	return baseline == evidencerepin.BaselineReleaseLine || baseline == evidencerepin.BaselineTagLine
+}
+
+// lineBasisFor is the line-record basis a line baseline must be backed by.
+func lineBasisFor(baseline string) string {
+	if baseline == evidencerepin.BaselineTagLine {
+		return evidencerepin.LineBasisGitTags
+	}
+	return ""
+}
+
+// matchingLine finds the worklist line record a line citation's baseline
+// must be backed by: same repository, line and basis (a tag-derived line
+// never backs a Releases baseline, nor the reverse), resolved, and naming
+// exactly the compared tag and commit.
 func matchingLine(citation evidencerepin.ClassResult, lines []evidencerepin.LineResolution) (evidencerepin.LineResolution, bool) {
+	if !isLineBaseline(citation.Baseline) {
+		return evidencerepin.LineResolution{}, false
+	}
 	for _, line := range lines {
-		if line.Owner == citation.Owner && line.Repo == citation.Repo && line.Line == citation.BaselineLine &&
+		if line.Owner == citation.Owner && line.Repo == citation.Repo && line.Line == citation.BaselineLine && line.Basis == lineBasisFor(citation.Baseline) &&
 			line.Status == "RESOLVED" && line.Tag == citation.BaselineTag && line.Commit == citation.NewCommit && line.Commit != "" {
 			return line, true
 		}
@@ -773,7 +805,16 @@ func lineBaselineVerified(citation evidencerepin.ClassResult, lines []evidencere
 	if citation.PinnedTag == "" || citation.BaselineTag == "" || citation.BaselineLine == "" || citation.NewCommit == "" {
 		return false
 	}
-	if !evidencerepin.LineBaselineConsistent(citation.PinnedTag, citation.BaselineTag, citation.BaselineLine) {
+	switch citation.Baseline {
+	case evidencerepin.BaselineReleaseLine:
+		if !evidencerepin.LineBaselineConsistent(citation.PinnedTag, citation.BaselineTag, citation.BaselineLine) {
+			return false
+		}
+	case evidencerepin.BaselineTagLine:
+		if !evidencerepin.TagLineBaselineConsistent(citation.PinnedTag, citation.BaselineTag, citation.BaselineLine) {
+			return false
+		}
+	default:
 		return false
 	}
 	_, ok := matchingLine(citation, lines)
