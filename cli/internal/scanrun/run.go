@@ -172,6 +172,10 @@ func Run(request Request, options Options) (Result, error) {
 		if run, ok := newCustomResourceRun(knowledge, now, &report, manifests, slug, component.Component, declarationsOf(effective), request.TrustPolicy); ok {
 			// Checked for custom-resource versions only: never covered.
 			report.Inventory = append(report.Inventory, *component)
+			if store != nil && store.Absent[slug] {
+				report.Gaps = append(report.Gaps, scanreport.NewGap(slug, nil, scanreport.GapProjectNotInKnowledge, slug))
+				continue
+			}
 			if err := run.evaluate(component.Current, component.Target); err != nil {
 				return Result{}, err
 			}
