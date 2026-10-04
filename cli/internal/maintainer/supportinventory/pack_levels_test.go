@@ -30,6 +30,17 @@ func levelSetRule() map[string]any {
 	return rule
 }
 
+// levelNoticeRule is a test-only notice_one_way rule.
+func levelNoticeRule() map[string]any {
+	rule := levelSetRule()
+	delete(rule, "setCondition")
+	rule["id"] = "kubernetes.synthetic-one-way.1-36-0-to-1-37-0"
+	rule["operator"] = "notice_one_way"
+	rule["reasonCode"] = "ONE_WAY_TRANSITION"
+	rule["nextAction"] = "take an etcd snapshot and verify that it restores before upgrading"
+	return rule
+}
+
 func levelSource(id, repo, path string, start, end int) map[string]any {
 	return map[string]any{
 		"id": id, "url": "https://github.com/kubernetes/" + repo + "/blob/" + levelTestRevision + "/" + path,
@@ -90,7 +101,8 @@ func generateWithPack(t *testing.T, edit func(pack map[string]any)) (map[string]
 
 // The inventory reads every CNCF pack schema of the loader's feature-level
 // table: set rules (v1alpha3), line attestations (v1alpha4) and path
-// policies (v1alpha5) each require exactly their level. Attestations and
+// policies (v1alpha5) and notice rules (v1alpha6) each require exactly
+// their level. Attestations and
 // policies add no capability, so the inventory is otherwise unchanged.
 func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 	base, err := generateWithPack(t, func(map[string]any) {})
@@ -104,9 +116,15 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 			"rule":          levelSetRule(),
 		})
 	}
+	addNoticeRule := func(p map[string]any) {
+		p["entries"] = append(p["entries"].([]any), map[string]any{
+			"description": "Synthetic test-only one-way transition.", "project": "kubernetes", "requiredFacts": []any{}, "rule": levelNoticeRule(),
+		})
+	}
 	schemas := []string{
 		"prufyx.io/cncf-source-rule-pack/v1alpha1", "prufyx.io/cncf-source-rule-pack/v1alpha2", "prufyx.io/cncf-source-rule-pack/v1alpha3",
 		"prufyx.io/cncf-source-rule-pack/v1alpha4", "prufyx.io/cncf-source-rule-pack/v1alpha5", "prufyx.io/cncf-source-rule-pack/v1alpha6",
+		"prufyx.io/cncf-source-rule-pack/v1alpha7",
 	}
 	for _, tc := range []struct {
 		name      string
@@ -122,6 +140,12 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 			p["lineAttestations"], p["pathPolicies"] = levelAttestations(), levelPolicies()
 		}, want: schemas[4], unchanged: true},
 		{name: "set rule and attestations", edit: func(p map[string]any) { addSetRule(p); p["lineAttestations"] = levelAttestations() }, want: schemas[3]},
+		{name: "notice rule", edit: addNoticeRule, want: schemas[5]},
+		{name: "notice rule, set rule, attestations and policies", edit: func(p map[string]any) {
+			addNoticeRule(p)
+			addSetRule(p)
+			p["lineAttestations"], p["pathPolicies"] = levelAttestations(), levelPolicies()
+		}, want: schemas[5]},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, schema := range schemas {
