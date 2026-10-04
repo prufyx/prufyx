@@ -76,6 +76,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   a checksum-verified release binary or builds from source, writes the
   Markdown report to the job summary, and exposes the report file for SARIF
   upload. See `cli/docs/github-action.md`.
+- Maintainer tooling: `prufyx-maintainer consensus normalise` and
+  `consensus verify` check a removal claim read from upstream release notes
+  against pinned bytes, offline and without a model: the release's own
+  section is normalised (HTML comments, raw HTML, images, link reference
+  definitions, code blocks, invisible and control characters removed), the
+  name must be cited by exactly one list item with a removal cue and no
+  hidden content, must exist in the earlier release's mechanical inventory and
+  be absent from the later one's, and the item's pull requests must appear in
+  the release range's commit subjects. Exit codes 0, 2, 3 and 4. The
+  knowledge gate re-runs the verifier on a consensus rule's claims bundle and
+  reports the verdict; consensus rules are still not admitted. See
+  `cli/docs/consensus-verify.md`.
+
 - Knowledge format: CNCF rule packs can carry an optional `distributions`
   section (pack schema `prufyx.io/cncf-source-rule-pack/v1alpha9`) with
   reviewed Kubernetes distribution records (control-plane model, and for
