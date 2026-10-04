@@ -26,7 +26,9 @@ package evidencerepin
 //     no release tag, and a pin with no tag at all are UNKNOWN.
 //   - A release tag is MAJOR.MINOR.PATCH behind the conservative prefix
 //     grammar of releaseline.go, extended by a single bare lowercase word
-//     ("go1.26.6"). Every tag on the pinned line is classified: release,
+//     ("go1.26.6"). Repository-wide, only the prefixes none, "v" and "go"
+//     may carry version tags, and only one of them: anything else makes the
+//     repository ambiguous (the rule the latest-release selection uses). Every tag on the pinned line is classified: release,
 //     pre-release (alpha, beta, rc, pre, preview, dev; never a line head)
 //     or unrecognised. One unrecognised tag on the line ("v1.9.0-hotfix-1",
 //     "v1.2.3.4", a bare "go1.20") or the same numeric line under a
@@ -373,6 +375,33 @@ type tagLine struct {
 	pinUnknown bool
 }
 
+// tagLineRepositoryAmbiguity applies the repository-wide prefix rule shared
+// with the latest-release selection: only version tags with no prefix, "v"
+// or "go" compete. A version tag (anything ending in MAJOR.MINOR.PATCH)
+// under any other prefix ("helm-chart-5.0.0", "sdk/go/v2.0.0",
+// "spec-v1.0.0"), or version tags under more than one of the allowed
+// prefixes, make the whole repository ambiguous: no tag line is derived.
+// It returns "" when the repository is not ambiguous.
+func tagLineRepositoryAmbiguity(names []string) string {
+	prefixes := map[string]bool{}
+	for _, name := range names {
+		match := strictTagPattern.FindStringSubmatch(name)
+		if match == nil {
+			continue
+		}
+		switch prefix := match[1]; prefix {
+		case "", "v", "go":
+			prefixes[prefix] = true
+		default:
+			return "the repository tags versions under a prefix other than none, v or go (" + name + ")"
+		}
+	}
+	if len(prefixes) > 1 {
+		return "the repository tags versions under more than one prefix"
+	}
+	return ""
+}
+
 // deriveTagLine places pinnedCommit on a release line of listing and finds
 // that line's newest release tag. It is pure and deterministic: the result
 // depends only on the listing's content, never on its order.
@@ -382,6 +411,9 @@ func deriveTagLine(listing RefListing, pinnedCommit string) tagLine {
 		names = append(names, name)
 	}
 	sort.Strings(names)
+	if reason := tagLineRepositoryAmbiguity(names); reason != "" {
+		return tagLine{pinUnknown: true, unknown: reason}
+	}
 
 	var atPin []string
 	var prereleaseAtPin bool

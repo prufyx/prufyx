@@ -258,14 +258,19 @@ prove a line from. In release-line mode its citations are compared on a
    annotated tag counts as its peeled commit, a lightweight tag as its own
    object. A malformed or oversized listing derives nothing; a listing that
    cannot be fetched leaves the citation `PENDING`.
-2. **Pinned tag.** The pinned commit must be exactly the commit of a release
+2. **One version prefix per repository.** Only tags with no prefix, `v` or
+   `go` may carry versions (any tag ending in `MAJOR.MINOR.PATCH` counts), and
+   only one of the three. A repository that also tags versions under another
+   prefix (`helm-chart-5.0.0`, `sdk/go/v2.0.0`, `spec-v1.0.0`) or under two of
+   them (`v1.2.0` and `2024.10.15`) gets no tag line.
+3. **Pinned tag.** The pinned commit must be exactly the commit of a release
    tag: the strict grammar above, whose prefix may also be one bare lowercase
    word (`go1.21.4`). A pin with no tag, a pin that is only a branch head, a
    pin carrying only pre-release tags, and a pin carrying two release tags or
    tags of two lines derive nothing. Branches never name a line and are never
    compared with: a line that has a release branch but no release tag has no
    tag line.
-3. **Line members.** Every tag on the pinned tag's numeric line is
+4. **Line members.** Every tag on the pinned tag's numeric line is
    classified. Release tags with the pinned prefix are members; recognised
    pre-releases (as above, and Go's `go1.26rc1` form) are ignored and listed
    in the line record. The same numeric line under a second prefix, or any
@@ -273,7 +278,7 @@ prove a line from. In release-line mode its citations are compared on a
    version, a bare `go1.20`) makes the line unusable: a release this code
    cannot order might be newer than the head it would pick. Tags on other
    lines, and tags that are not versions at all, are ignored.
-4. **Compared tag.** The highest `PATCH` among the members. It always has the
+5. **Compared tag.** The highest `PATCH` among the members. It always has the
    pinned tag's prefix and line and is never older than the pinned tag.
 
 When no tag line can be used the citation keeps the tags fallback
