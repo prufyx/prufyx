@@ -17,6 +17,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
+	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 )
 
 var (
@@ -92,7 +93,14 @@ type Report struct {
 	Check      cncfcheck.Report `json:"check"`
 	seal       *reportSeal
 	digest     string
+	// age is the end dates of the evaluated envelope's active rules. It is
+	// not part of the report and is never encoded.
+	age knowledgeage.Source
 }
+
+// KnowledgeAge is the end dates of the active rules of the envelope the
+// report was evaluated against.
+func (r Report) KnowledgeAge() knowledgeage.Source { return r.age }
 
 type reportSeal struct{}
 
@@ -216,6 +224,7 @@ func evaluateSelected(req CheckInput, selected knowledge.VerifiedRevision) (Repo
 		},
 		Engine: EngineBinding{Identity: identity, IdentityDigest: digestBytes(identityRaw), Strength: strength},
 		Check:  check,
+		age:    bundle.KnowledgeAge(),
 	}
 	raw, err := json.Marshal(report)
 	if err != nil {

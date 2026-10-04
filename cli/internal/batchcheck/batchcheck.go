@@ -26,6 +26,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
+	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 	"github.com/prufyx/prufyx/cli/internal/projectcheck"
 )
 
@@ -85,6 +86,8 @@ type ItemResult struct {
 	ReasonCode      string          `json:"reasonCode"`
 	Categories      []string        `json:"categories"`
 	Report          json.RawMessage `json:"report,omitempty"`
+	// age is set for an item evaluated against a selected store; not encoded.
+	age *knowledgeage.Source
 }
 
 type Report struct {
@@ -99,6 +102,17 @@ type Report struct {
 	Decision                    string       `json:"decision"`
 	AggregateCategory           string       `json:"aggregateCategory"`
 	Items                       []ItemResult `json:"items"`
+	// ages and embeddedCNCF describe the CNCF knowledge the items used. They
+	// are not part of the report and are never encoded.
+	ages         []knowledgeage.Source
+	embeddedCNCF bool
+}
+
+// KnowledgeAge lists the end dates of the active rules of the CNCF
+// knowledge the batch used from the selected store, and reports whether any
+// item was evaluated against the embedded CNCF knowledge instead.
+func (r Report) KnowledgeAge() (sources []knowledgeage.Source, embedded bool) {
+	return append([]knowledgeage.Source(nil), r.ages...), r.embeddedCNCF
 }
 
 type loadedItem struct {
@@ -212,6 +226,16 @@ func evaluate(planPath, root string, now time.Time, storeRoot string, acquireRoo
 	// fixed category precedence and is therefore order independent.
 	category, exit := aggregate(results)
 	report := Report{Schema: ReportSchema, PlanDigest: digest(planRaw), EvaluatedAt: now.Format(time.RFC3339), KnowledgeMode: plan.Knowledge.Mode, NetworkUsed: false, Decision: "UNKNOWN", AggregateCategory: category, Items: results}
+	seen := map[string]bool{}
+	for _, result := range results {
+		switch {
+		case result.age != nil && !seen[result.age.ID]:
+			seen[result.age.ID] = true
+			report.ages = append(report.ages, *result.age)
+		case result.Kind == "cncf" && result.KnowledgeOrigin == "embedded":
+			report.embeddedCNCF = true
+		}
+	}
 	if signed {
 		report.KnowledgeRevision = selected.Revision()
 		report.KnowledgeBundleDigest = selected.BundleDigest()
@@ -400,6 +424,8 @@ func evaluateExternalCNCF(result ItemResult, item Item, raw []byte, selected kno
 		return result
 	}
 	result.Report = append(json.RawMessage(nil), sealed...)
+	age := report.KnowledgeAge()
+	result.age = &age
 	return fromClaims(result, cncfClaimViews(report.Check.Check.Claims))
 }
 
