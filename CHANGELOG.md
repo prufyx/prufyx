@@ -24,6 +24,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   `approval sign|verify --subject repinBaseline` signs and checks it.
   The ambiguity rule itself is unchanged.
 
+### Fixed
+
+- `evidence reattest verify --rerun-worklist` (V9) now also compares the signing
+  job's worklist with the independent one on `resolution` and every other
+  baseline-selecting field (stale flag, baseline mode, baseline, line, pinned and
+  compared tag, owner entry digest), in both directions. A forged worklist that
+  drops `resolution: tag_fallback` from a latest-baseline citation is refused.
+
 ### Changed
 
 - `extract apply --withdraw` now requires the rule to cite both commits of the run's pair (from and to), not just a subset of them; otherwise it refuses with exit 3.

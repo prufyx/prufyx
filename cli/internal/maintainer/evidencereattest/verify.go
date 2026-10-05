@@ -211,6 +211,9 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 		if err := checkIndependentWorklist(statement, options.PackPath, options.IndependentWorklistRaw); err != nil {
 			return VerifyResult{}, err
 		}
+		if err := checkSignerWorklistAgrees(statement, options.PackPath, options.WorklistRaw, options.IndependentWorklistRaw); err != nil {
+			return VerifyResult{}, err
+		}
 		if err := checkV11(statement, options.PackPath, options.IndependentWorklistRaw); err != nil {
 			return VerifyResult{}, err
 		}
@@ -713,6 +716,13 @@ func checkIndependentWorklist(statement Statement, packPath string, independentR
 			} else if isLineBaseline(got.Baseline) {
 				return fmt.Errorf("%w: V9: rule %s citation %s baseline differs from the independent worklist", ErrRejected, ra.RuleID, claimed.SourceID)
 			}
+			// A renewed citation was eligible, so it was resolved from
+			// Releases and was not stale; an independent citation that
+			// carries a tags-fallback resolution or a stale flag
+			// contradicts it, whatever baseline the statement records.
+			if got.Resolution != "" || got.Stale {
+				return fmt.Errorf("%w: V9: rule %s citation %s is resolved from a tags fallback or is stale in the independent worklist", ErrRejected, ra.RuleID, claimed.SourceID)
+			}
 			// An owner-chosen baseline is the same on both sides: the
 			// independent run read the same baseline file and found the
 			// tag at the recorded commit.
@@ -722,6 +732,64 @@ func checkIndependentWorklist(statement Statement, packPath string, independentR
 				}
 			} else if got.Baseline == evidencerepin.BaselineOwnerChoice {
 				return fmt.Errorf("%w: V9: rule %s citation %s baseline differs from the independent worklist", ErrRejected, ra.RuleID, claimed.SourceID)
+			}
+		}
+	}
+	return nil
+}
+
+// baselineSelectors lists the fields of a worklist citation that select or
+// qualify the baseline it was compared with. V9 requires the signing job's
+// worklist and the independent one to agree on every one of them.
+func baselineSelectors(c evidencerepin.ClassResult) [8]string {
+	stale := ""
+	if c.Stale {
+		stale = "stale"
+	}
+	return [8]string{c.Resolution, stale, c.BaselineMode, c.Baseline, c.BaselineLine, c.PinnedTag, c.BaselineTag, c.BaselineEntryDigest}
+}
+
+// checkSignerWorklistAgrees (V9) compares, for every citation of every rule
+// the statement renews, the baseline-selecting fields (resolution, stale,
+// baseline mode, baseline, line, pinned tag, compared tag, owner entry
+// digest) of the signing job's worklist with those of the independent
+// worklist, both ways: a field present on one side only is a difference.
+// A forged signer worklist that drops "resolution: tag_fallback" is thereby
+// refused. Without a retained signer worklist nothing can be compared.
+func checkSignerWorklistAgrees(statement Statement, packPath string, signerRaw, independentRaw []byte) error {
+	if len(signerRaw) == 0 {
+		return nil
+	}
+	index := func(raw []byte) (map[[2]string][]evidencerepin.ClassResult, error) {
+		var wl evidencerepin.Worklist
+		if err := json.Unmarshal(raw, &wl); err != nil {
+			return nil, fmt.Errorf("%w: V9: worklist does not decode", ErrRejected)
+		}
+		out := map[[2]string][]evidencerepin.ClassResult{}
+		for _, c := range wl.Citations {
+			if matchesPack(c.RulePack, packPath) {
+				k := [2]string{c.RuleID, c.SourceID}
+				out[k] = append(out[k], c)
+			}
+		}
+		return out, nil
+	}
+	signer, err := index(signerRaw)
+	if err != nil {
+		return err
+	}
+	independent, err := index(independentRaw)
+	if err != nil {
+		return err
+	}
+	for _, ra := range statement.Rules {
+		for _, claimed := range ra.Citations {
+			k := [2]string{ra.RuleID, claimed.SourceID}
+			if len(signer[k]) != 1 || len(independent[k]) != 1 {
+				return fmt.Errorf("%w: V9: rule %s citation %s has no single counterpart in both worklists", ErrRejected, ra.RuleID, claimed.SourceID)
+			}
+			if baselineSelectors(signer[k][0]) != baselineSelectors(independent[k][0]) {
+				return fmt.Errorf("%w: V9: rule %s citation %s resolution or baseline fields differ between the signing and the independent worklist", ErrRejected, ra.RuleID, claimed.SourceID)
 			}
 		}
 	}
