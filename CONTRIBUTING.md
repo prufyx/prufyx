@@ -65,8 +65,9 @@ CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
   GOFLAGS='-mod=vendor -buildvcs=false' go build -trimpath -o ../prufyx ./cmd/prufyx-community
 ```
 
-The CLI module declares `go 1.26.8`, which makes older toolchains fail. A Go
-`toolchain` directive would only select a preferred version when toolchain
+The CLI module declares `go 1.26`, so any Go 1.26.x toolchain can build it.
+Release builds require exactly Go 1.26.8, which `make toolchain-check` enforces.
+A Go `toolchain` directive would only select a preferred version when toolchain
 switching is permitted; `GOTOOLCHAIN=local` always uses the invoked Go
 executable and does not validate that executable's patch release. Before an
 offline check, use the explicit local gate:
