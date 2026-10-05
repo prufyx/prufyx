@@ -1,0 +1,132 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Prufyx scan
+description: >-
+  Check rendered Kubernetes manifests against a target version with prufyx
+  scan, offline. Installs a pinned, checksum-verified release binary, or
+  builds from the action's own ref.
+author: Prufyx
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  version:
+    description: >-
+      Release tag of prufyx to install (for example v0.1.0), or "source" to
+      build from the ref this action was loaded from. "latest" is not accepted.
+      With a tag, the download fails closed if the release does not exist or
+      its checksum does not match.
+    required: true
+  archive-sha256:
+    description: >-
+      Optional SHA-256 of the release archive for your platform. When set, the
+      archive must match it in addition to the release's own SHA256SUMS.
+    required: false
+    default: ""
+  verify-attestation:
+    description: >-
+      auto (default), true or false. When on, `gh attestation verify` checks
+      that the release archive was built by the release workflow for that tag,
+      and the install fails if the check fails or gh is missing. auto is on for
+      a release and off for `source`.
+    required: false
+    default: auto
+  paths:
+    description: Manifest files or directories to scan, one per line.
+    required: true
+  to:
+    description: Target versions, COMPONENT=VERSION, one per line (for example kubernetes=1.25.3).
+    required: false
+    default: ""
+  from:
+    description: Versions in use now, COMPONENT=VERSION, one per line.
+    required: false
+    default: ""
+  config:
+    description: Path to a prufyx.yaml; flags given here override the file.
+    required: false
+    default: ""
+  distribution:
+    description: official_upstream or custom_build. Empty leaves it to prufyx.yaml.
+    required: false
+    default: ""
+  resource-scope-complete:
+    description: "true or false: declares the paths are every manifest you apply. Empty leaves it to prufyx.yaml."
+    required: false
+    default: ""
+  target-api-apply-required:
+    description: "true or false: declares the paths are applied to the target Kubernetes API. Empty leaves it to prufyx.yaml."
+    required: false
+    default: ""
+  format:
+    description: Report file format, json, sarif or markdown.
+    required: false
+    default: json
+  redact:
+    description: "true replaces file paths and object names with digests in the report and summary."
+    required: false
+    default: "false"
+  require-basis:
+    description: Comma separated evidence bases to evaluate (reviewed, mechanical, empirical, consensus, lead).
+    required: false
+    default: ""
+  knowledge-db:
+    description: Path to a verified local knowledge database to use instead of the built-in knowledge.
+    required: false
+    default: ""
+  fail-on:
+    description: >-
+      When the step fails: none, blocked (default), unknown, or blocked,unknown.
+      Invalid input and knowledge integrity failures always fail the step.
+    required: false
+    default: blocked
+
+outputs:
+  exit-code:
+    description: "Exit code of prufyx scan: 0 pass, 10 blocked, 11 undecided, 2 invalid input, 3 integrity failure."
+    value: ${{ steps.scan.outputs.exit-code }}
+  verdict:
+    description: pass, blocked, unknown, invalid-input, integrity-failure or error.
+    value: ${{ steps.scan.outputs.verdict }}
+  report-file:
+    description: Path of the report file in the requested format.
+    value: ${{ steps.scan.outputs.report-file }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Go for a source build
+      if: ${{ inputs.version == 'source' }}
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+      with:
+        go-version-file: ${{ github.action_path }}/cli/go.mod
+        cache: false
+
+    - name: Install prufyx
+      shell: bash
+      env:
+        PRUFYX_IN_VERSION: ${{ inputs.version }}
+        PRUFYX_IN_ARCHIVE_SHA256: ${{ inputs.archive-sha256 }}
+        PRUFYX_IN_VERIFY_ATTESTATION: ${{ inputs.verify-attestation }}
+        GH_TOKEN: ${{ github.token }}
+        PRUFYX_ACTION_PATH: ${{ github.action_path }}
+      run: bash "$PRUFYX_ACTION_PATH/scripts/action/install.sh"
+
+    - name: Scan
+      id: scan
+      shell: bash
+      env:
+        PRUFYX_IN_PATHS: ${{ inputs.paths }}
+        PRUFYX_IN_TO: ${{ inputs.to }}
+        PRUFYX_IN_FROM: ${{ inputs.from }}
+        PRUFYX_IN_CONFIG: ${{ inputs.config }}
+        PRUFYX_IN_DISTRIBUTION: ${{ inputs.distribution }}
+        PRUFYX_IN_RESOURCE_SCOPE_COMPLETE: ${{ inputs.resource-scope-complete }}
+        PRUFYX_IN_TARGET_API_APPLY_REQUIRED: ${{ inputs.target-api-apply-required }}
+        PRUFYX_IN_FORMAT: ${{ inputs.format }}
+        PRUFYX_IN_REDACT: ${{ inputs.redact }}
+        PRUFYX_IN_REQUIRE_BASIS: ${{ inputs.require-basis }}
+        PRUFYX_IN_KNOWLEDGE_DB: ${{ inputs.knowledge-db }}
+        PRUFYX_IN_FAIL_ON: ${{ inputs.fail-on }}
+        PRUFYX_ACTION_PATH: ${{ github.action_path }}
+      run: bash "$PRUFYX_ACTION_PATH/scripts/action/run.sh"

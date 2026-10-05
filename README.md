@@ -97,7 +97,8 @@ yet: reviews that a release line has no other removed APIs, a reviewed upgrade
 path policy for skipping release lines, and a reviewed list of the API versions
 each target release serves. Until they are, a scan with Kubernetes manifests
 ends in `BLOCKED` (exit `10`) or "not every area checked" (exit `11`). See the
-[`scan` guide](cli/docs/scan.md).
+[`scan` guide](cli/docs/scan.md). To run it in a workflow, see the
+[GitHub Action](cli/docs/github-action.md).
 
 ## Privacy and offline operation
 
