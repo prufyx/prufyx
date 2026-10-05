@@ -185,6 +185,10 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, version s
 	}
 }
 
+// openObservationRoot is a variable so the unsupported-platform refusal can be
+// tested on hosts where observation is supported.
+var openObservationRoot = observation.OpenPath
+
 func (r runtime) rootHelp() int {
 	fmt.Fprintln(r.stdout, `prufyx Community
 
@@ -406,8 +410,11 @@ func (r runtime) prometheus(ctx context.Context, args []string, legacy bool) int
 		}
 		return r.fail("proposed workload failed local verification", ExitIntegrity)
 	}
-	root, err := observation.OpenPath(*observationPath)
+	root, err := openObservationRoot(*observationPath)
 	if err != nil {
+		if errors.Is(err, observation.ErrUnsupportedPlatform) {
+			return r.fail("real observation is not supported on this platform", ExitUsage)
+		}
 		return r.fail("observation root failed admission", ExitUsage)
 	}
 	defer root.Close()
