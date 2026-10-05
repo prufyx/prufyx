@@ -1,0 +1,17 @@
+{
+  "category": "link reference definition",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "A link reference definition under an item carries a removal sentence in its title.",
+  "expect": {
+    "reason": "unparsed-section",
+    "verdict": "lead"
+  }
+}

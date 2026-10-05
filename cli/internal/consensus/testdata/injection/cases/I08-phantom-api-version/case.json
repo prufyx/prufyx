@@ -1,0 +1,17 @@
+{
+  "category": "phantom name",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_api_version",
+      "names": [
+        "phantoms.example.io/v1beta1"
+      ]
+    }
+  ],
+  "description": "A visible, well-formed item names an API version that was never served.",
+  "expect": {
+    "reason": "not-in-inventory",
+    "verdict": "dropped"
+  }
+}

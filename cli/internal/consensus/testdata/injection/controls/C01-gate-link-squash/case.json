@@ -1,0 +1,15 @@
+{
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "RetiredKnob"
+      ]
+    }
+  ],
+  "description": "A removed feature gate cited with a pull request link; the pull request is a squash commit of the range.",
+  "expect": {
+    "verdict": "verified"
+  }
+}

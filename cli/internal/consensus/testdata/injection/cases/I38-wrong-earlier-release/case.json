@@ -1,0 +1,18 @@
+{
+  "category": "pinned bytes",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "The bundle names an earlier release commit the tag does not point at.",
+  "expect": {
+    "reason": "release-mismatch",
+    "verdict": "dropped"
+  },
+  "tamper": "fromCommit"
+}

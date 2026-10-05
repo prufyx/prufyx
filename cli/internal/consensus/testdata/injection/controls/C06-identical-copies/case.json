@@ -1,0 +1,15 @@
+{
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_api_version",
+      "names": [
+        "legacy.example.io/v1alpha1"
+      ]
+    }
+  ],
+  "description": "The same item appears twice, under the upgrade notes and under the changes; identical copies are one citation.",
+  "expect": {
+    "verdict": "verified"
+  }
+}

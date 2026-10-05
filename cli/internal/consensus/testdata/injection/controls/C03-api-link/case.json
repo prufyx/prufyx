@@ -1,0 +1,15 @@
+{
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_api_version",
+      "names": [
+        "gizmos.example.io/v1beta1"
+      ]
+    }
+  ],
+  "description": "A removed API version cited with a pull request link; a newer version of the same group appears in the same item.",
+  "expect": {
+    "verdict": "verified"
+  }
+}

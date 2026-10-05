@@ -1,0 +1,17 @@
+{
+  "category": "not a list item",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "The removal sentence is a heading, not a list item.",
+  "expect": {
+    "reason": "no-cited-cue",
+    "verdict": "dropped"
+  }
+}

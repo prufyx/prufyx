@@ -1,0 +1,17 @@
+{
+  "category": "hidden HTML comment",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "An empty comment splits the gate name; the item held hidden content.",
+  "expect": {
+    "reason": "no-cited-cue",
+    "verdict": "dropped"
+  }
+}

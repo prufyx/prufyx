@@ -1,0 +1,16 @@
+{
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "TwinGateA",
+        "TwinGateB"
+      ]
+    }
+  ],
+  "description": "One claim naming two feature gates removed in the same list item.",
+  "expect": {
+    "verdict": "verified"
+  }
+}

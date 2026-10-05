@@ -1,0 +1,17 @@
+{
+  "category": "phantom name",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "PhantomAccelerator"
+      ]
+    }
+  ],
+  "description": "A visible, well-formed item names a feature gate that never existed.",
+  "expect": {
+    "reason": "not-in-inventory",
+    "verdict": "dropped"
+  }
+}

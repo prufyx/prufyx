@@ -1,0 +1,15 @@
+{
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "OldPortal"
+      ]
+    }
+  ],
+  "description": "A removed feature gate whose pull request is a merge commit of the range.",
+  "expect": {
+    "verdict": "verified"
+  }
+}

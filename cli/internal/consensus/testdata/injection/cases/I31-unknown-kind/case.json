@@ -1,0 +1,17 @@
+{
+  "category": "kind not allowed",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_everything",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "An unknown kind over a real removal item.",
+  "expect": {
+    "reason": "kind-not-allowed",
+    "verdict": "lead"
+  }
+}

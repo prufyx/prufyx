@@ -1,0 +1,17 @@
+{
+  "category": "no removal cue",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "The item names a gate of the range but says nothing about removal.",
+  "expect": {
+    "reason": "no-cited-cue",
+    "verdict": "dropped"
+  }
+}

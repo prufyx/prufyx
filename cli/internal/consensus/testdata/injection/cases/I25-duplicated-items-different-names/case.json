@@ -1,0 +1,17 @@
+{
+  "category": "duplicated items",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "Two different removal items name the same gate.",
+  "expect": {
+    "reason": "ambiguous-citation",
+    "verdict": "lead"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "category": "bidirectional override",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "A right-to-left override reorders the removal word on screen.",
+  "expect": {
+    "reason": "hidden-content",
+    "verdict": "lead"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "category": "pull request of another repository",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "The pull request link points at another repository with a number that the range does carry.",
+  "expect": {
+    "reason": "unparsed-section",
+    "verdict": "lead"
+  }
+}

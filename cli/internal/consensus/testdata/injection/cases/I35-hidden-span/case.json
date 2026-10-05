@@ -1,0 +1,17 @@
+{
+  "category": "raw HTML",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "Raw HTML wraps the removal sentence.",
+  "expect": {
+    "reason": "unparsed-section",
+    "verdict": "lead"
+  }
+}

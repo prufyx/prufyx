@@ -1,0 +1,18 @@
+{
+  "category": "kind not allowed",
+  "claims": [
+    {
+      "component": "etcd",
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "A feature gate claim for a component without a section rule or inventory.",
+  "expect": {
+    "reason": "kind-not-allowed",
+    "verdict": "lead"
+  }
+}

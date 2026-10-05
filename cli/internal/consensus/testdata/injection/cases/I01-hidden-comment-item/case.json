@@ -1,0 +1,17 @@
+{
+  "category": "hidden HTML comment",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "removed_feature_gate",
+      "names": [
+        "SilentDial"
+      ]
+    }
+  ],
+  "description": "A comment holds a list item naming a removed gate; only the comment says it.",
+  "expect": {
+    "reason": "unparsed-section",
+    "verdict": "lead"
+  }
+}
