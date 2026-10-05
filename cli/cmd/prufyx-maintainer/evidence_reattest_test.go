@@ -458,3 +458,40 @@ func TestEvidenceReattestPrepareRejectsFutureAttestedAt(t *testing.T) {
 		t.Fatalf("prepare with a future --attested-at: exit %d, stderr %q", got, stderr.String())
 	}
 }
+
+func TestEvidenceReattestPrepareNowIsRehearsalOnly(t *testing.T) {
+	f := newReattestFixture(t)
+	out := filepath.Join(f.dir, "out-rehearsal")
+	var stdout, stderr bytes.Buffer
+	args := []string{"evidence", "reattest", "prepare", "--worklist", f.worklist, "--pack", "cncf", "--rules", f.rules,
+		"--rules-worklist-path", reattestWorklistPackPath, "--next-revision", "rev-2", "--wave", "1",
+		"--output-dir", out, "--statement-chain-dir", f.chain, "--review-record-dir", f.reviews,
+		"--now", time.Now().UTC().Add(6 * time.Hour).Truncate(time.Second).Format(time.RFC3339)}
+	if err := run(args, &stdout, &stderr); err != nil {
+		t.Fatalf("prepare --now: %v, stderr %q", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "REHEARSAL") {
+		t.Fatalf("prepare --now must say it is a rehearsal: %q", stdout.String())
+	}
+	statement, err := os.ReadFile(filepath.Join(out, "statement.json"))
+	if err != nil || !strings.Contains(string(statement), `"rehearsal":true`) {
+		t.Fatalf("the statement must be marked: %v %s", err, statement)
+	}
+	verify := f.verifyArgs()
+	for i, arg := range verify {
+		if arg == "--statement" {
+			verify[i+1] = filepath.Join(out, "statement.json")
+		}
+		if arg == "--next-pack" {
+			verify[i+1] = filepath.Join(out, "rules.next.json")
+		}
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if got := exitCode(run(verify, &stdout, &stderr)); got == 0 {
+		t.Fatalf("verify accepted a rehearsal statement: %q %q", stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "rehearsal") {
+		t.Fatalf("verify must name the rehearsal refusal, stderr %q", stderr.String())
+	}
+}

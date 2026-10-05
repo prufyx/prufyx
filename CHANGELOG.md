@@ -10,6 +10,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ### Changed
 
 - `extract apply --withdraw` now requires the rule to cite both commits of the run's pair (from and to), not just a subset of them; otherwise it refuses with exit 3.
+- `evidence reattest`: a pending citation now excludes only the rules that cite
+  it (`CITATION_PENDING`) instead of every rule of the pack. The statement
+  records the pending citations and `verify` re-derives them. `prepare` and
+  `evidence repin` name the pending repositories with the number of rules they
+  affect. `prepare --now` overrides the clock for rehearsals only; such a
+  statement is marked and is refused by `sign` and `verify`.
 - `factory mirror` reads release metadata in pages of 20 (it was 100), so
   repositories with long release notes no longer exceed the 8 MiB page bound
   and are no longer left with unknown releases; `--release-pages` now counts

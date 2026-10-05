@@ -376,6 +376,18 @@ type IndividualReview struct {
 type NotExtendedEntry struct {
 	RuleID     string `json:"ruleId"`
 	WorstClass string `json:"worstClass"`
+	// PendingRepositories names, sorted, every repository (owner/repo)
+	// whose citation by this rule is still pending. It is set for every
+	// rule with a pending citation, whatever its worst reason is.
+	PendingRepositories []string `json:"pendingRepositories,omitempty"`
+}
+
+// PendingCitation is one citation of this pack the worklist could not
+// classify yet. A rule that cites one is never renewed.
+type PendingCitation struct {
+	Repo     string `json:"repo"`
+	RuleID   string `json:"ruleId"`
+	SourceID string `json:"sourceId"`
 }
 
 // UpstreamRelease is the single most recent published release repin found
@@ -421,6 +433,13 @@ type Statement struct {
 	IndividualReviews          []IndividualReview `json:"individualReviews"`
 	NotExtended                []NotExtendedEntry `json:"notExtended"`
 	UpstreamReleasesSincePrior []UpstreamRelease  `json:"upstreamReleasesSincePrior"`
+	// PendingCitations lists, sorted, every pending citation of this pack
+	// in the worklist, so that no pending citation is dropped silently.
+	// Verify re-derives it from the worklist.
+	PendingCitations []PendingCitation `json:"pendingCitations,omitempty"`
+	// Rehearsal marks a statement prepared with an overridden clock. It
+	// can never be signed or verified as a real statement.
+	Rehearsal bool `json:"rehearsal,omitempty"`
 	// Statement is the fixed text a human signs (see FixedStatementText).
 	Statement string `json:"statement"`
 }

@@ -29,6 +29,7 @@ const resolutionTagFallback = "tag_fallback"
 // when the exclusion is E1: a citation not batch-attestable).
 const (
 	reasonScopeIncomplete        = "WORKLIST_SCOPE_INCOMPLETE"
+	reasonCitationPending        = "CITATION_PENDING"
 	reasonTagFallbackBaseline    = "TAG_FALLBACK_BASELINE"
 	reasonStaleBaseline          = "STALE_BASELINE"
 	reasonLineBaselineUnverified = "RELEASE_LINE_BASELINE_UNVERIFIED"
@@ -133,6 +134,10 @@ type PrepareOptions struct {
 	// record gets an empty reviewRecordDigest in the statement, which Sign
 	// refuses to sign.
 	ReviewRecords map[string][]byte
+	// Rehearsal marks the statement as prepared with an overridden clock
+	// (the CLI's --now). Such a statement is refused by Sign, Verify and
+	// VerifySignature, and by the chain.
+	Rehearsal bool
 }
 
 // PrepareResult is everything Prepare produces.
@@ -247,19 +252,22 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	validUntil := validUntilAt.Format(time.RFC3339)
 	attestedAtString := attestedAt.Format(time.RFC3339)
 
-	// E2 is a single worklist-wide gate: an incompletely scoped or still-
-	// pending worklist disqualifies every rule, not just the ones it
-	// happens to touch. Pending is counted directly from this pack's own
-	// citations, never taken from the worklist's self-reported
-	// Summary.Pending, which a caller could hand-edit independently of the
-	// citations it actually carries.
-	pendingCount := 0
+	// E2 has two parts. The worklist-wide part: the worklist must cover the
+	// whole pack (no project or limit scope) and every citation of this
+	// pack must be classified or explicitly pending (an empty class is a
+	// missing classification). The per-rule part: a pending citation
+	// makes only the rules that cite it not renewable (CITATION_PENDING),
+	// and the statement records the pending citations. Pending is derived
+	// directly from this pack's own citations, never from the worklist's
+	// self-reported Summary.Pending.
+	pendingCitations, pendingReposByRule := pendingFromWorklist(wl, opts.PackPath)
+	unclassified := false
 	for _, citation := range wl.Citations {
-		if matchesPack(citation.RulePack, opts.PackPath) && citation.Class == evidencerepin.ClassPending {
-			pendingCount++
+		if matchesPack(citation.RulePack, opts.PackPath) && citation.Class == "" {
+			unclassified = true
 		}
 	}
-	e2ok := pendingCount == 0 && len(wl.Scope.Projects) == 0 && wl.Scope.Limit == 0
+	e2ok := !unclassified && len(wl.Scope.Projects) == 0 && wl.Scope.Limit == 0
 	// E4's worklist-wide half: this run's own age relative to attestedAt.
 	generatedAt, genErr := time.Parse(time.RFC3339, wl.GeneratedAt)
 	e4worklist := genErr == nil && !attestedAt.Before(generatedAt) && !attestedAt.After(generatedAt.Add(freshnessBound))
@@ -327,8 +335,12 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		if ok && candidate.Fields.record && citesAny(candidate, mismatchRepos) {
 			reason, ok = reasonCorpusMismatchRepository, false
 		}
+		pendingRepos := pendingReposByRule[candidate.RuleID]
+		if len(pendingRepos) > 0 && (ok || reason == evidencerepin.ClassPending) {
+			reason, ok = reasonCitationPending, false
+		}
 		if !ok {
-			notExtended = append(notExtended, NotExtendedEntry{RuleID: candidate.RuleID, WorstClass: reason})
+			notExtended = append(notExtended, NotExtendedEntry{RuleID: candidate.RuleID, WorstClass: reason, PendingRepositories: pendingRepos})
 			continue
 		}
 		eligibleIDs = append(eligibleIDs, candidate.RuleID)
@@ -551,6 +563,8 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		Wave: wave, AttestedAt: attestedAtString, ValidUntil: validUntil,
 		Rules: rules, SampledForFullReview: sampledEntries, IndividualReviews: individualReviews, NotExtended: notExtended,
 		UpstreamReleasesSincePrior: releases,
+		PendingCitations:           pendingCitations,
+		Rehearsal:                  opts.Rehearsal,
 		Statement:                  text,
 	}
 	// A sample review record must be for a rule this statement samples and
@@ -591,6 +605,42 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		Statement: statement, StatementCanonical: canonical, NextPack: nextPackRaw, Summary: summary,
 		EligibleRuleCount: len(rules), SampledRuleCount: len(sampledEntries), NotExtendedRuleCount: len(notExtended),
 	}, nil
+}
+
+// pendingFromWorklist returns this pack's pending citations, sorted, and for
+// each rule the sorted repositories of its pending citations.
+func pendingFromWorklist(wl evidencerepin.Worklist, packPath string) ([]PendingCitation, map[string][]string) {
+	var list []PendingCitation
+	byRule := map[string]map[string]bool{}
+	for _, citation := range wl.Citations {
+		if !matchesPack(citation.RulePack, packPath) || citation.Class != evidencerepin.ClassPending {
+			continue
+		}
+		repo := citation.Owner + "/" + citation.Repo
+		list = append(list, PendingCitation{Repo: repo, RuleID: citation.RuleID, SourceID: citation.SourceID})
+		if byRule[citation.RuleID] == nil {
+			byRule[citation.RuleID] = map[string]bool{}
+		}
+		byRule[citation.RuleID][repo] = true
+	}
+	sort.Slice(list, func(i, j int) bool {
+		a, b := list[i], list[j]
+		if a.Repo != b.Repo {
+			return a.Repo < b.Repo
+		}
+		if a.RuleID != b.RuleID {
+			return a.RuleID < b.RuleID
+		}
+		return a.SourceID < b.SourceID
+	})
+	repos := map[string][]string{}
+	for rule, set := range byRule {
+		for repo := range set {
+			repos[rule] = append(repos[rule], repo)
+		}
+		sort.Strings(repos[rule])
+	}
+	return list, repos
 }
 
 // citationAttestationsFor renders a renewed rule's citations as the
@@ -1104,6 +1154,15 @@ func renderSummary(statement Statement, opts PrepareOptions, entries []packEntry
 	for _, class := range classes {
 		fmt.Fprintf(&b, "  %s: %d\n", class, classCounts[class])
 	}
+	if statement.Rehearsal {
+		fmt.Fprintf(&b, "REHEARSAL: prepared with an overridden clock; this statement can never be signed or verified\n")
+	}
+	if len(statement.PendingCitations) > 0 {
+		fmt.Fprintf(&b, "pending repositories (rules not renewed because they cite them):\n")
+		for _, entry := range PendingRepositorySummary(statement) {
+			fmt.Fprintf(&b, "  %s: %d rules, %d citations\n", entry.Repo, entry.Rules, entry.Citations)
+		}
+	}
 	fmt.Fprintf(&b, "extended rules by project:\n")
 	for _, project := range projects {
 		ids := byProject[project]
@@ -1164,4 +1223,32 @@ func renderSummary(statement Statement, opts PrepareOptions, entries []packEntry
 	}
 	fmt.Fprintf(&b, "statementDigest: %s\n", statementDigest)
 	return []byte(b.String())
+}
+
+// PendingRepository is one repository with pending citations in a
+// statement, with how many distinct rules and citations it affects.
+type PendingRepository struct {
+	Repo      string `json:"repo"`
+	Rules     int    `json:"rules"`
+	Citations int    `json:"citations"`
+}
+
+// PendingRepositorySummary groups a statement's pending citations by
+// repository, sorted by repository.
+func PendingRepositorySummary(statement Statement) []PendingRepository {
+	rules := map[string]map[string]bool{}
+	citations := map[string]int{}
+	for _, pc := range statement.PendingCitations {
+		if rules[pc.Repo] == nil {
+			rules[pc.Repo] = map[string]bool{}
+		}
+		rules[pc.Repo][pc.RuleID] = true
+		citations[pc.Repo]++
+	}
+	out := make([]PendingRepository, 0, len(rules))
+	for repo, set := range rules {
+		out = append(out, PendingRepository{Repo: repo, Rules: len(set), Citations: citations[repo]})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Repo < out[j].Repo })
+	return out
 }
