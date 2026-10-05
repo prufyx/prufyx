@@ -413,6 +413,91 @@ No approval key is pinned in this repository yet, so no approval is accepted.
 `candidateId` is not checked for reuse; within its 14 days an approval is
 bounded by the base digest instead.
 
+### Signing and checking approvals
+
+`prufyx-maintainer approval` signs and checks approval files offline. It reads
+both packs exactly as the gate does, signs the bytes the gate checks, and runs
+the gate's own approval check on the result before it writes anything, so a
+file it writes is accepted for that base and head until it is 14 days old (or
+the key's `notAfter`, if earlier).
+
+The web-approval key is an Ed25519 private key in PKCS #8 PEM form. Keep it
+outside any checkout, for example in a password manager. Creating one needs
+OpenSSL 3.x (`openssl version` prints `OpenSSL 3.…`). On macOS,
+`/usr/bin/openssl` is LibreSSL, which cannot generate Ed25519 keys
+("Algorithm ed25519 not found"); use OpenSSL 3 from Homebrew
+(`brew install openssl@3`, then `"$(brew --prefix openssl@3)/bin/openssl"` in
+place of `openssl` below), or any Linux system with OpenSSL 3. To create one:
+
+```sh
+umask 077
+openssl version   # must print OpenSSL 3.x
+openssl genpkey -algorithm ed25519 -out "$HOME/web-approval-key.pem"
+prufyx-maintainer approval public-key --key "$HOME/web-approval-key.pem"
+# {"keyId":"sha256:…","publicKey":"…"}
+```
+
+Add the printed `keyId` and `publicKey`, with a `notAfter`, to
+`cli/knowledge/trust/web-approval-keys.json` (format above), then print the
+digest to pin in `WEB_APPROVAL_KEYS_DIGEST`:
+
+```sh
+prufyx-maintainer approval keys-digest --keys cli/knowledge/trust/web-approval-keys.json
+```
+
+To approve one rule of a change, give the pack file as it is on the base
+branch and as the change proposes it:
+
+```sh
+git show origin/main:cli/internal/cncfcheck/data/rules.json > /path/to/base-rules.json
+git show origin/main:cli/knowledge/trust/web-approval-keys.json > /path/to/base-keys.json
+prufyx-maintainer approval sign \
+  --pack cncf --rule RULE_ID \
+  --base-pack /path/to/base-rules.json \
+  --head-pack cli/internal/cncfcheck/data/rules.json \
+  --keys /path/to/base-keys.json --keys-digest sha256:… \
+  --identity OWNER_LOGIN --candidate-id pr-123 \
+  --key "$HOME/web-approval-key.pem" \
+  --output cli/knowledge/approvals/cncf/RULE_ID.json
+```
+
+| Option | Meaning |
+| --- | --- |
+| `--pack` | `cncf` or `community` |
+| `--rule` | the rule id; the proposed pack must hold it exactly once with evidence basis `reviewed`, and the change to it must be one the gate classifies as loosening (a change that only withdraws the rule or moves its `validUntil` earlier needs no approval and is refused) |
+| `--base-pack`, `--head-pack` | the pack file on the base branch and as proposed; a rule the base does not hold gets `baseDigest` `absent` |
+| `--keys`, `--keys-digest` | the base branch's `web-approval-keys.json` and the digest pinned for it; the file must match the digest |
+| `--identity` | the owner's login; it must be one of the key file's `owners` |
+| `--candidate-id` | a reference for the change, such as its pull request (letters, digits, `.`, `_`, `:`, `-`) |
+| `--key FILE` | the private key file: a regular file owned by you with no group or other permission (mode `0600` or `0400`), not a symbolic link, with no symbolic link in its path and only one hard link |
+| `--key-stdin` | read the private key from standard input instead; standard input must be a pipe (a terminal, another device or a redirected file is refused; give a file with `--key`) |
+| `--output` | the approval file to create; its path must end in `<pack>/<rule id>.json` (the gate reads `cli/knowledge/approvals/<pack>/<rule id>.json`); an existing file or link there is never replaced, no directory in the path may be a symbolic link, missing directories are created, and the file gets mode `0644` |
+| `--subject` | what the approval is for; only `rule` (the default) |
+
+`decidedAt` is the current time. The key may end with line breaks and nothing
+else; any other text before or after the PEM block is refused. The command
+never prints key material, and its messages never include the key file's
+content. To read the key from a password manager without writing it to disk,
+pipe it in, for example `op read "op://…/web-approval-key" | prufyx-maintainer
+approval sign … --key-stdin`.
+
+`approval verify` runs the gate's approval check for one file:
+
+```sh
+prufyx-maintainer approval verify \
+  --approval cli/knowledge/approvals/cncf/RULE_ID.json \
+  --pack cncf --rule RULE_ID \
+  --base-pack /path/to/base-rules.json \
+  --head-pack cli/internal/cncfcheck/data/rules.json \
+  --keys /path/to/base-keys.json --keys-digest sha256:…
+```
+
+`--now RFC3339` (UTC, `Z`) checks at another time. `--help` on `approval` or
+any of its commands prints the usage and exits `0`. Exit codes for `approval`:
+`0` signed, or the approval is accepted; `1` (`verify` only) the approval is
+refused, with the reason; `2` rejected input or a refused signing. Nothing
+uses the network.
+
 ## Commands
 
 `classify`, `limits` and `verify` take `--base DIR` and `--head DIR`

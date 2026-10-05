@@ -33,6 +33,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- `prufyx-maintainer approval sign` writes an owner approval for one reviewed
+  rule of a change, checked with the knowledge gate's own verifier before it is
+  written; `approval verify` checks one approval file offline. The key comes
+  from a file only its owner can read (mode `0600` or `0400`, no link) or from
+  a pipe on standard input. `approval public-key` and `approval keys-digest`
+  print the values needed to pin the key.
+
 - Custom-resource versions: Prufyx records which custom-resource versions
   (`group/version/Kind`) your rendered manifests use for Argo CD, Istio and
   Strimzi, the projects whose CRDs the `crd.version-removal` extractor reads.
