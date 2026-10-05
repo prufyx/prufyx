@@ -171,7 +171,7 @@ func (s *subjectFlags) loadBaseline() (ApprovalSubject, ApprovalKeys, error) {
 	if s.repository == "" || s.headBaselines == "" || s.keys == "" || s.keysDigest == "" {
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--repository, --head-baselines, --keys and --keys-digest are required"}
 	}
-	if s.pack != "" || s.rule != "" || s.basePack != "" || s.headPack != "" {
+	if s.pack != "" || s.rule != "" || s.record != "" || s.basePack != "" || s.headPack != "" {
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--pack, --rule, --base-pack and --head-pack belong to --subject rule"}
 	}
 	keysRaw, err := readBoundedFile(s.keys, maxApprovalBytes*4)

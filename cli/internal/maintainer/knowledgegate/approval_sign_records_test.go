@@ -176,3 +176,56 @@ func TestApprovalSignRecordKinds(t *testing.T) {
 		t.Fatalf("path policy: %v", err)
 	}
 }
+
+// A signed record approval follows the gate's single-use and forward-only
+// rules, which the signer does not see (it reads no base approvals): the
+// owner moves the file out of the way and signs again. The first approval
+// sits in the base as the one a former change used; the gate refuses the
+// same file again, refuses a new one decided at the same time, and admits
+// one decided later.
+func TestApprovalSignAttestationSingleUseAndForwardOnly(t *testing.T) {
+	f := attestationFixture(t)
+	signAt := func(now time.Time, candidate string) {
+		t.Helper()
+		args := f.recordSignArgs("--key-stdin")
+		for i := range args {
+			if args[i] == "pr-42" {
+				args[i] = candidate
+			}
+		}
+		requireCode(t, runApproval(t, f.key.pemKey(t), now, args...), 0, "approval written")
+	}
+	gate := func() *Report {
+		return runGate(t, Options{Base: f.base, Head: f.head, Source: fixtureSource, Author: DefaultBotLogin, ApprovalKeysDigest: f.keysDigest})
+	}
+	refused := func(want string) {
+		t.Helper()
+		c := change(t, gate(), f.id)
+		if c.OK || !strings.Contains(c.Detail, want) {
+			t.Fatalf("want a refusal containing %q, got ok=%v %q", want, c.OK, c.Detail)
+		}
+	}
+
+	signAt(signNow, "pr-42")
+	spent, err := os.ReadFile(f.out())
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, approvalPath(f.base, f.id), spent) // an earlier change used it
+	refused("already in the base")
+
+	if err := os.Remove(f.out()); err != nil {
+		t.Fatal(err)
+	}
+	signAt(signNow, "pr-43") // a different decision, same time
+	refused("decided at the same time or later")
+
+	if err := os.Remove(f.out()); err != nil {
+		t.Fatal(err)
+	}
+	signAt(signNow.Add(time.Minute), "pr-44")
+	requireAdmittedButUnsplit(t, gate())
+	if c := change(t, gate(), f.id); c.Proof != ProofApproval {
+		t.Fatalf("proof %q", c.Proof)
+	}
+}

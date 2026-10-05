@@ -600,6 +600,15 @@ Path policies and mechanical attestations cannot be approved. The gate uses a
 record approval once and only forward: it refuses an approval file already in
 the base, and one decided at or before an approval the base holds for the same
 record, so write a new one for each change (`decidedAt` is the current time).
+The signer reads no base approvals, so it cannot warn about either rule.
+
+```sh
+prufyx-maintainer approval sign --subject lineAttestation --pack cncf \
+  --record <record id> --base-pack "$T/base-cncf.json" --head-pack cli/knowledge/targets/cncf/rules.json \
+  --keys "$T/base-keys.json" --keys-digest "$(gh variable get WEB_APPROVAL_KEYS_DIGEST)" \
+  --identity airstand --candidate-id pr-15 --key-stdin \
+  --output cli/knowledge/approvals/cncf/<record id>.json
+```
 
 `decidedAt` is the current time. The key may end with line breaks and nothing
 else; any other text before or after the PEM block is refused. The command

@@ -114,8 +114,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   any other change are refused with exit 3 and nothing is written.
   Documented in `cli/docs/extractors/tooling.md`.
 - `prufyx-maintainer approval sign` writes an owner approval for one reviewed
-  rule or line attestation of a change, checked with the knowledge gate's own verifier before it is
-  written; `approval verify` checks one approval file offline. The key comes
+  rule of a change, checked with the knowledge gate's own verifier before it is
+  written; `--subject lineAttestation --record ID` does the same for one
+  reviewed line attestation (mechanical attestations and path policies cannot
+  be approved; the gate uses a record approval once and only forward);
+  `approval verify` checks one approval file offline. The key comes
   from a file only its owner can read (mode `0600` or `0400`, no link) or from
   a pipe on standard input. `approval public-key` and `approval keys-digest`
   print the values needed to pin the key.
