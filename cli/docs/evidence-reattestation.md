@@ -279,6 +279,33 @@ included, which no check of the citations looks at), and `--wave`,
 renewed. Each of these can move the sample before signing. The signature,
 not the sample, is what vouches for the batch.
 
+### Owner baseline choice
+
+A repository whose latest release the shared rule refuses to choose (see
+[evidence-repin.md](evidence-repin.md)) keeps its rules from being renewed.
+The owner may choose its baseline in `cli/knowledge/repin-baselines.json`;
+`evidence repin --baselines` then compares such a repository's otherwise
+pending citations with the chosen tag (`baseline: owner_choice`, only while the
+tag resolves to the recorded commit).
+
+A rule is renewed on an owner baseline only by a **human** statement, and only
+if `prepare --baselines FILE` finds the exact entry in the owner's file (same
+repository, tag, commit and entry digest) and the worklist's repository
+resolution carries the same verified choice. Otherwise the rule is listed with
+`OWNER_BASELINE_UNVERIFIED`. An automated statement never renews on it
+(`OWNER_BASELINE_NOT_AUTOMATABLE`). The statement's citation carries
+`baseline: "owner_choice"`, `comparedTag`, `comparedCommit` and
+`baselineEntryDigest`.
+
+`verify` re-derives it: V3 reruns `prepare` with the same file (`--baselines`),
+V9 requires the independent worklist (the CI job's own `evidence repin`, run
+with the same file from the base) to agree on baseline, tag, commit and entry
+digest, and V12 checks the entry against the file. A statement that renews on
+an owner baseline is rejected without `--baselines` and `--rerun-worklist`. The
+gate reads the file from the **base**, so the entry must be admitted and merged
+before a statement relies on it; adding the entry and the statement in one
+change fails V9/V12.
+
 ### Reviewing the sample: `review-record new`
 
 For each sampled rule, the reviewer opens the rule in the pack and every
@@ -536,7 +563,7 @@ Per-project knowledge targets (`knowledge-targets build`) still refuse a
 pack that carries either section (see
 [cncf-knowledge-per-project.md](cncf-knowledge-per-project.md)).
 
-## What `verify` checks (V1–V10)
+## What `verify` checks (V1–V12)
 
 `verify` is deterministic and side-effect-free. It takes the statement, the
 prior and next rule pack bytes, the retained worklist, the pack's statement
@@ -596,7 +623,8 @@ the first violation it finds:
   reviewed (not mechanical), active rule with no `range`, and is listed
   with exactly one citation per evidence source, each pinned to the
   source's own revision and classified `NO_NEW_RELEASE`, `FILE_IDENTICAL`
-  or `SPAN_IDENTICAL` against the latest release or its release line (an
+  or `SPAN_IDENTICAL` against the latest release, its release line or (a
+  human statement only) the owner-chosen baseline of its repository (an
   automated statement: its own release line only); its
   `consecutiveBatchCycles` is between 1 and 2; a human statement has a
   wave, no per-rule `validUntil`, and a sample whenever it renews anything;
@@ -605,7 +633,10 @@ the first violation it finds:
 
 - **V9** — only with `--rerun-worklist`: every citation of every renewed
   rule matches an independently produced worklist (see
-  [The gate](#the-gate-what-it-trusts)).
+  [The gate](#the-gate-what-it-trusts)). A citation compared with an
+  owner-chosen baseline must show the same baseline, tag, commit and entry
+  digest in the independent worklist (see
+  [Owner baseline choice](#owner-baseline-choice)).
 
 - **V10** — the record sections, independent of V1/V3: the prior and next
   packs carry the same sections with the same records in the same order, and
@@ -614,6 +645,13 @@ the first violation it finds:
   V8 applies to a renewed record as to a renewed rule. The next pack's
   records are also parsed strictly and re-checked against its rules on load
   (see [Line attestations and path policies](#line-attestations-and-path-policies)).
+
+- **V12** — owner baselines: every citation compared with an owner-chosen
+  baseline names an entry of the owner's baseline file (`--baselines`, read
+  from the base) with exactly that digest, tag and commit; the statement is
+  rejected without the file, and without an independent worklist. A baseline
+  digest on a citation that is not an owner-choice citation is rejected, and
+  V8 refuses an automated statement that uses one.
 
 `verify` also requires a valid signature under a pinned trust root whenever
 the statement renews at least one rule or records an individual review

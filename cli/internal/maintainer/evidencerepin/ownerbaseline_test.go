@@ -110,24 +110,33 @@ func TestOwnerBaselineLookupIgnoresCase(t *testing.T) {
 // the citation stays pending and says why.
 func TestOwnerBaselineRefusesAMovedTagOrAWrongCommit(t *testing.T) {
 	other := strings.Repeat("d", 40)
-	cases := map[string]func(f *lineFixture, e *repinbaselines.Entry){
-		"moved tag":    func(f *lineFixture, e *repinbaselines.Entry) { setRef(f, "v1.3.0", other) },
-		"wrong commit": func(f *lineFixture, e *repinbaselines.Entry) { e.Commit = other },
-		"missing tag": func(f *lineFixture, e *repinbaselines.Entry) {
+	cases := map[string]struct {
+		mutate func(f *lineFixture, e *repinbaselines.Entry)
+		why    string
+	}{
+		"moved tag":    {func(f *lineFixture, e *repinbaselines.Entry) { setRef(f, "v1.3.0", other) }, "now resolves to"},
+		"wrong commit": {func(f *lineFixture, e *repinbaselines.Entry) { e.Commit = other }, "now resolves to"},
+		"missing tag": {func(f *lineFixture, e *repinbaselines.Entry) {
 			delete(f.api.responses, "/repos/example/proj/git/ref/tags/v1.3.0")
-		},
+		}, "does not exist"},
+		"unreadable tag": {func(f *lineFixture, e *repinbaselines.Entry) {
+			f.api.responses["/repos/example/proj/git/ref/tags/v1.3.0"] = struct {
+				body   []byte
+				status int
+			}{[]byte(`{}`), 500}
+		}, "could not be resolved"},
 	}
-	for name, mutate := range cases {
+	for name, tc := range cases {
 		for _, mode := range []string{BaselineModeReleaseLine, BaselineModeLatest} {
 			f, c := ambiguousFixture()
 			entry := baselineEntry(f, "v1.3.0")
-			mutate(f, &entry)
+			tc.mutate(f, &entry)
 			w := f.runWith(t, mode, newState(), BuildOptions{Baselines: baselineFile(entry)}, c)
 			got := w.Citations[0]
 			if got.Class != ClassPending || got.Baseline != "" || got.BaselineEntryDigest != "" {
 				t.Fatalf("%s/%s: %+v", name, mode, got)
 			}
-			if w.Repos[0].OwnerBaseline != nil || w.Repos[0].Status != repoPendingAmbiguous || !strings.Contains(w.Repos[0].Detail, "owner baseline v1.3.0 refused") {
+			if w.Repos[0].OwnerBaseline != nil || w.Repos[0].Status != repoPendingAmbiguous || !strings.Contains(w.Repos[0].Detail, "owner baseline v1.3.0 refused") || !strings.Contains(w.Repos[0].Detail, tc.why) {
 				t.Fatalf("%s/%s: %+v", name, mode, w.Repos[0])
 			}
 			if !strings.Contains(got.Detail, "owner baseline v1.3.0 refused") {
@@ -282,5 +291,25 @@ func TestRunReadsAndRecordsTheBaselineFile(t *testing.T) {
 	stderr.Reset()
 	if code := Run(context.Background(), args, &stdout, &stderr, f.api, f.blobs, fixedNow(), nil); code != 2 || !strings.Contains(stderr.String(), "repin baselines") {
 		t.Fatalf("code=%d err=%q", code, stderr.String())
+	}
+}
+
+// The mirror build reads the same baseline file and records the verified
+// choice on the repository.
+func TestMirrorWorklistUsesTheOwnerBaseline(t *testing.T) {
+	fx := loadLatestFixtures(t)["calendar"]
+	owner, repo, _ := strings.Cut(fx.Repo, "/")
+	entry := repinbaselines.Entry{Approval: "pr-1", Commit: fixtureSHA("v3.2.1"), DecidedAt: "2026-10-05T10:00:00Z", Reason: "r", Repository: fx.Repo, Tag: "v3.2.1"}
+	cite := Citation{RulePack: "p", RuleID: "r1", Project: "proj", SourceID: "s1", Owner: owner, Repo: repo, Path: "x.md", OldCommit: fixtureSHA("v3.2.2"), OldDigest: "sha256:x", StartLine: 1, EndLine: 1}
+	wl, _, err := BuildMirrorWorklistWithOptions(context.Background(), []Citation{cite}, nil, 0, fixtureMirror{f: fx}, fixedNow(), DefaultMaxAge, nil, BaselineModeLatest, BuildOptions{Baselines: baselineFile(entry)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := wl.Repos[0]; got.Status != repoPendingAmbiguous || got.OwnerBaseline == nil || got.OwnerBaseline.Commit != entry.Commit {
+		t.Fatalf("%+v", got)
+	}
+	wl, _, err = BuildMirrorWorklistWithOptions(context.Background(), []Citation{cite}, nil, 0, fixtureMirror{f: fx}, fixedNow(), DefaultMaxAge, nil, BaselineModeLatest, BuildOptions{})
+	if err != nil || wl.Repos[0].OwnerBaseline != nil {
+		t.Fatalf("no file, no choice: %v %+v", err, wl.Repos[0])
 	}
 }
