@@ -457,15 +457,57 @@ func TestScanWitnessMustBeRenderedUnconditionally(t *testing.T) {
 		"test template":  {map[string]string{"Chart.yaml": "apiVersion: v2\nname: app\nversion: 1.0.0\n", "templates/tests/cronjob.yaml": cron}, false},
 		"test hook":      {map[string]string{"cron.yaml": "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata:\n  name: legacy\n  annotations: {helm.sh/hook: test}\n", "chart.yaml": templated}, false},
 		"test hook list": {map[string]string{"cron.yaml": "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata:\n  name: legacy\n  annotations: {helm.sh/hook: 'pre-install,test-success'}\n", "chart.yaml": templated}, false},
+		"subchart listed twice, once with a condition": {map[string]string{
+			"Chart.yaml":                           "apiVersion: v2\nname: app\nversion: 1.0.0\ndependencies:\n- name: legacy\n  version: 1.0.0\n- name: legacy\n  version: 1.0.0\n  condition: legacy.enabled\n",
+			"charts/legacy/Chart.yaml":             "apiVersion: v2\nname: legacy\nversion: 1.0.0\n",
+			"charts/legacy/templates/cronjob.yaml": cron,
+		}, false},
+		"subchart listed twice, condition first": {map[string]string{
+			"Chart.yaml":                           "apiVersion: v2\nname: app\nversion: 1.0.0\ndependencies:\n- name: legacy\n  version: 1.0.0\n  condition: legacy.enabled\n- name: legacy\n  version: 1.0.0\n",
+			"charts/legacy/Chart.yaml":             "apiVersion: v2\nname: legacy\nversion: 1.0.0\n",
+			"charts/legacy/templates/cronjob.yaml": cron,
+		}, false},
+		"directory name differs from chart name": {map[string]string{
+			"Chart.yaml":                           "apiVersion: v2\nname: app\nversion: 1.0.0\ndependencies:\n- name: legacy\n  version: 1.0.0\n- name: old\n  version: 1.0.0\n  condition: old.enabled\n",
+			"charts/legacy/Chart.yaml":             "apiVersion: v2\nname: old\nversion: 1.0.0\n",
+			"charts/legacy/templates/cronjob.yaml": cron,
+		}, false},
+		"subchart without a readable name": {map[string]string{
+			"Chart.yaml":                           "apiVersion: v2\nname: app\nversion: 1.0.0\ndependencies:\n- name: legacy\n  version: 1.0.0\n",
+			"charts/legacy/templates/cronjob.yaml": cron,
+		}, false},
+		"file sibling dependency with a condition": {map[string]string{
+			"app/Chart.yaml":                "apiVersion: v2\nname: app\nversion: 1.0.0\ndependencies:\n- name: legacy\n  version: 1.0.0\n  repository: file://../legacy\n  condition: legacy.enabled\n",
+			"legacy/Chart.yaml":             "apiVersion: v2\nname: legacy\nversion: 1.0.0\n",
+			"legacy/templates/cronjob.yaml": cron,
+		}, false},
+		"test hook as a YAML list": {map[string]string{"cron.yaml": "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata:\n  name: legacy\n  annotations:\n    helm.sh/hook: [pre-install, test]\n", "chart.yaml": templated}, false},
 		// Rendered unconditionally: still a blocker.
 		"action closed within the templated document": {map[string]string{"chart.yaml": cron + "---\napiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata:\n  x: |\n    {{- if .Values.on }}on{{- else }}off{{- end }}\n"}, true},
 		"open action in another file":                 {map[string]string{"cron.yaml": cron, "chart.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata: {x: \"{{- if .Values.legacy }}\"}\n"}, true},
 		"template of the chart itself":                {map[string]string{"Chart.yaml": "apiVersion: v2\nname: app\nversion: 1.0.0\n", "templates/cronjob.yaml": cron}, true},
 		"unconditional subchart": {map[string]string{
 			"Chart.yaml":                           "apiVersion: v2\nname: app\nversion: 1.0.0\ndependencies:\n- name: legacy\n  version: 1.0.0\n",
+			"charts/legacy/Chart.yaml":             "apiVersion: v2\nname: legacy\nversion: 1.0.0\n",
 			"charts/legacy/templates/cronjob.yaml": cron,
 		}, true},
-		"other hook": {map[string]string{"cron.yaml": "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata:\n  name: legacy\n  annotations: {helm.sh/hook: pre-install}\n", "chart.yaml": templated}, true},
+		"subchart listed twice, both unconditional": {map[string]string{
+			"Chart.yaml":                           "apiVersion: v2\nname: app\nversion: 1.0.0\ndependencies:\n- name: legacy\n  version: 1.0.0\n- name: legacy\n  version: 2.0.0\n",
+			"charts/legacy/Chart.yaml":             "apiVersion: v2\nname: legacy\nversion: 1.0.0\n",
+			"charts/legacy/templates/cronjob.yaml": cron,
+		}, true},
+		"directory differs from chart name, listed unconditionally": {map[string]string{
+			"Chart.yaml":                           "apiVersion: v2\nname: app\nversion: 1.0.0\ndependencies:\n- name: old\n  version: 1.0.0\n",
+			"charts/legacy/Chart.yaml":             "apiVersion: v2\nname: old\nversion: 1.0.0\n",
+			"charts/legacy/templates/cronjob.yaml": cron,
+		}, true},
+		"file sibling dependency without a condition": {map[string]string{
+			"app/Chart.yaml":                "apiVersion: v2\nname: app\nversion: 1.0.0\ndependencies:\n- name: legacy\n  version: 1.0.0\n  repository: file://../legacy\n",
+			"legacy/Chart.yaml":             "apiVersion: v2\nname: legacy\nversion: 1.0.0\n",
+			"legacy/templates/cronjob.yaml": cron,
+		}, true},
+		"hook list without a test hook": {map[string]string{"cron.yaml": "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata:\n  name: legacy\n  annotations:\n    helm.sh/hook: [pre-install, post-install]\n", "chart.yaml": templated}, true},
+		"other hook":                    {map[string]string{"cron.yaml": "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata:\n  name: legacy\n  annotations: {helm.sh/hook: pre-install}\n", "chart.yaml": templated}, true},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

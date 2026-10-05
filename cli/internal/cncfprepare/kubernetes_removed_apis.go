@@ -428,13 +428,19 @@ func KubernetesApplySetReason(workspace intake.Workspace) Reason {
 //   - it is a Helm test hook, which is applied only by helm test.
 func appliedAsWritten(workspace intake.Workspace, placed []kubernetesDocument) []kubernetesDocument {
 	spanned := map[string]bool{}
-	charts := map[string]map[string]bool{} // chart directory -> unconditional subcharts
+	charts := map[string]*rawChart{}
+	chartAt := func(dir string) *rawChart {
+		if charts[dir] == nil {
+			charts[dir] = &rawChart{dependencies: map[string]bool{}}
+		}
+		return charts[dir]
+	}
 	for _, omission := range workspace.Omissions {
 		if omission.OpenAction {
 			spanned[omission.Source.Display] = true
 		}
-		if dir, ok := chartDirectory(omission.Source.Display); ok && charts[dir] == nil {
-			charts[dir] = map[string]bool{}
+		if dir, ok := chartDirectory(omission.Source.Display); ok {
+			chartAt(dir)
 		}
 	}
 	for _, auxiliary := range workspace.Auxiliary {
@@ -442,9 +448,8 @@ func appliedAsWritten(workspace intake.Workspace, placed []kubernetesDocument) [
 		if !ok || auxiliary.Source.Document != 0 {
 			continue
 		}
-		if charts[dir] == nil {
-			charts[dir] = map[string]bool{}
-		}
+		chart := chartAt(dir)
+		chart.name, _ = auxiliary.Value["name"].(string)
 		dependencies, _ := auxiliary.Value["dependencies"].([]any)
 		for _, entry := range dependencies {
 			dependency, _ := entry.(map[string]any)
@@ -452,8 +457,33 @@ func appliedAsWritten(workspace intake.Workspace, placed []kubernetesDocument) [
 			_, conditional := dependency["condition"]
 			_, tagged := dependency["tags"]
 			_, aliased := dependency["alias"]
-			if name != "" && !conditional && !tagged && !aliased {
-				charts[dir][name] = true
+			gated := conditional || tagged || aliased
+			if name != "" {
+				// A name is unconditional only if no entry for it is gated.
+				if _, seen := chart.dependencies[name]; !seen {
+					chart.dependencies[name] = true
+				}
+				if gated {
+					chart.dependencies[name] = false
+				}
+			}
+			if gated {
+				chart.gatedNames = append(chart.gatedNames, name)
+				if repository, _ := dependency["repository"].(string); strings.HasPrefix(repository, "file://") {
+					chart.gatedPaths = append(chart.gatedPaths, path.Clean(path.Join(dir, strings.TrimPrefix(repository, "file://"))))
+				}
+			}
+		}
+	}
+	// A chart that another input chart lists with a condition, tags or an
+	// alias (by its own name or by a file:// path) may not be rendered.
+	for dir, chart := range charts {
+		for otherDir, other := range charts {
+			if otherDir == dir {
+				continue
+			}
+			if chart.name != "" && containsString(other.gatedNames, chart.name) || containsString(other.gatedPaths, dir) {
+				chart.gated = true
 			}
 		}
 	}
@@ -467,6 +497,15 @@ func appliedAsWritten(workspace intake.Workspace, placed []kubernetesDocument) [
 	return kept
 }
 
+// rawChart is what a Chart.yaml of the input says about its chart.
+type rawChart struct {
+	name         string
+	dependencies map[string]bool // dependency name -> no entry for it is gated
+	gatedNames   []string        // names listed with condition, tags or alias
+	gatedPaths   []string        // file:// targets listed with condition, tags or alias
+	gated        bool            // another input chart lists this one as gated
+}
+
 // chartDirectory returns the directory of a file named Chart.yaml.
 func chartDirectory(display string) (string, bool) {
 	clean := path.Clean(filepath.ToSlash(display))
@@ -477,11 +516,12 @@ func chartDirectory(display string) (string, bool) {
 }
 
 // insideConditionalChart reports whether a file of a raw chart may not be
-// rendered: a test template, or a file of a subchart that is not listed as
-// an unconditional dependency.
-func insideConditionalChart(charts map[string]map[string]bool, display string) bool {
+// rendered: a file of a chart that another input chart lists as gated, a
+// test template, or a file of a subchart whose own Chart.yaml name is not
+// listed as an unconditional dependency (or that has no readable name).
+func insideConditionalChart(charts map[string]*rawChart, display string) bool {
 	clean := path.Clean(filepath.ToSlash(display))
-	for dir, unconditional := range charts {
+	for dir, chart := range charts {
 		prefix := dir + "/"
 		if dir == "." {
 			prefix = ""
@@ -489,13 +529,17 @@ func insideConditionalChart(charts map[string]map[string]bool, display string) b
 		if !strings.HasPrefix(clean, prefix) {
 			continue
 		}
+		if chart.gated {
+			return true
+		}
 		rest := strings.TrimPrefix(clean, prefix)
 		if strings.HasPrefix(rest, "templates/tests/") {
 			return true
 		}
 		if sub, found := strings.CutPrefix(rest, "charts/"); found {
-			name, _, _ := strings.Cut(sub, "/")
-			if !unconditional[name] {
+			directory, _, _ := strings.Cut(sub, "/")
+			subchart := charts[path.Join(dir, "charts", directory)]
+			if subchart == nil || subchart.name == "" || !chart.dependencies[subchart.name] {
 				return true
 			}
 		}
@@ -503,12 +547,32 @@ func insideConditionalChart(charts map[string]map[string]bool, display string) b
 	return false
 }
 
-// helmTestHook reports a document annotated as a Helm test hook.
+// helmTestHook reports a document annotated as a Helm test hook. A hook
+// given as a list is read element by element; a value of any other type
+// cannot be read, so it is treated as a test hook.
 func helmTestHook(value map[string]any) bool {
 	metadata, _ := value["metadata"].(map[string]any)
 	annotations, _ := metadata["annotations"].(map[string]any)
-	hooks, _ := annotations["helm.sh/hook"].(string)
-	for _, hook := range strings.Split(hooks, ",") {
+	raw, present := annotations["helm.sh/hook"]
+	if !present {
+		return false
+	}
+	var hooks []string
+	switch typed := raw.(type) {
+	case string:
+		hooks = strings.Split(typed, ",")
+	case []any:
+		for _, element := range typed {
+			text, ok := element.(string)
+			if !ok {
+				return true
+			}
+			hooks = append(hooks, strings.Split(text, ",")...)
+		}
+	default:
+		return true
+	}
+	for _, hook := range hooks {
 		if strings.HasPrefix(strings.TrimSpace(hook), "test") {
 			return true
 		}
