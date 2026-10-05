@@ -32,6 +32,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- `prufyx scan` no longer reports a removed API from a Helm subchart that may not be
+  rendered: a subchart listed twice in `Chart.yaml` with a condition on any entry,
+  a subchart matched by its own `Chart.yaml` name rather than its directory, a
+  `file://` sibling chart that another chart lists with a condition, tags or an
+  alias, and a `helm.sh/hook` annotation given as a list that includes `test`
+  now leave the answer UNKNOWN instead of BLOCKED.
 - `evidence reattest verify --rerun-worklist` (V9) now also compares the signing
   job's worklist with the independent one on `resolution` and every other
   baseline-selecting field (stale flag, baseline mode, baseline, line, pinned and
