@@ -1,0 +1,25 @@
+{
+ "repo": "acme/calendar",
+ "expectAmbiguous": true,
+ "note": "a calendar release is newer than the strict winner; a later maintenance release on the old line must not hide it",
+ "releases": [
+  {
+   "id": 10,
+   "tag_name": "v3.2.1",
+   "draft": false,
+   "prerelease": false
+  },
+  {
+   "id": 20,
+   "tag_name": "2024.5.0",
+   "draft": false,
+   "prerelease": false
+  },
+  {
+   "id": 30,
+   "tag_name": "v3.2.2",
+   "draft": false,
+   "prerelease": false
+  }
+ ]
+}

@@ -88,7 +88,7 @@ func cmdMirror(args []string, getenv func(string) string, stdout, stderr io.Writ
 	concurrency := f.Int("concurrency", 4, "simultaneous repositories (1-16)")
 	force := f.Bool("force", false, "fetch even when upstream looks unchanged")
 	remoteBase := f.String("remote-base", "https://", "URL prefix for upstream repositories (https:// only)")
-	releasePages := f.Int("release-pages", DefaultReleasePages, "release pages (100 per page) to read per repository; 0 reads all of them")
+	releasePages := f.Int("release-pages", DefaultReleasePages, "release pages (20 per page) to read per repository; 0 reads all of them")
 	allowFile := f.Bool("test-allow-file-remote", false, "testing only: permit a file:// --remote-base")
 	testAPIBase := f.String("test-releases-api-base", "", "testing only (needs --test-allow-file-remote): read release metadata from this http(s) base URL instead of api.github.com")
 	gitTimeout := f.Duration("git-timeout", 45*time.Minute, "limit for one clone or fetch")

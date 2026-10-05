@@ -81,6 +81,7 @@ var (
 
 // MirrorRelease is one entry of a repository's release list, newest first.
 type MirrorRelease struct {
+	ID         int64
 	Tag        string
 	Draft      bool
 	Prerelease bool
@@ -305,7 +306,7 @@ func (f *mirrorAPIFetcher) Fetch(_ context.Context, path string) ([]byte, int, e
 	case len(kind) == 1 && kind[0] == "releases":
 		return f.serveReleases(owner, repo, query)
 	case len(kind) == 1 && kind[0] == "tags":
-		return f.serveTags(owner, repo)
+		return f.serveTags(owner, repo, query)
 	case len(kind) >= 3 && kind[0] == "git" && kind[1] == "ref" && kind[2] == "tags":
 		tag, err := url.PathUnescape(strings.Join(kind[3:], "/"))
 		if err != nil {
@@ -333,6 +334,7 @@ func (f *mirrorAPIFetcher) serveReleases(owner, repo string, query url.Values) (
 		}
 	}
 	type entry struct {
+		ID         int64  `json:"id"`
 		TagName    string `json:"tag_name"`
 		Draft      bool   `json:"draft"`
 		Prerelease bool   `json:"prerelease"`
@@ -341,16 +343,28 @@ func (f *mirrorAPIFetcher) serveReleases(owner, repo string, query url.Values) (
 	start := (page - 1) * perPage
 	for i := start; i < len(list.Items) && i < start+perPage; i++ {
 		item := list.Items[i]
-		out = append(out, entry{TagName: item.Tag, Draft: item.Draft, Prerelease: item.Prerelease})
+		out = append(out, entry{ID: item.ID, TagName: item.Tag, Draft: item.Draft, Prerelease: item.Prerelease})
 	}
 	body, _ := json.Marshal(out)
 	return body, 200, nil
 }
 
-// serveTags lists every recorded tag, by name. Unlike the paged GitHub
-// endpoint, which returns an arbitrary window, the mirror holds them all,
-// so the highest version is never missed.
-func (f *mirrorAPIFetcher) serveTags(owner, repo string) ([]byte, int, error) {
+// serveTags lists every recorded tag, by name, in pages like the GitHub
+// endpoint. Unlike GitHub's arbitrary order, the mirror's is by name, so
+// a full scan sees each tag exactly once.
+func (f *mirrorAPIFetcher) serveTags(owner, repo string, query url.Values) ([]byte, int, error) {
+	perPage, page := 30, 1
+	var err error
+	if v := query.Get("per_page"); v != "" {
+		if perPage, err = strconv.Atoi(v); err != nil || perPage < 1 {
+			return nil, 0, errMirrorUnsupported
+		}
+	}
+	if v := query.Get("page"); v != "" {
+		if page, err = strconv.Atoi(v); err != nil || page < 1 {
+			return nil, 0, errMirrorUnsupported
+		}
+	}
 	tags, err := f.tagMap(owner, repo)
 	if err != nil {
 		return nil, 0, err
@@ -363,9 +377,10 @@ func (f *mirrorAPIFetcher) serveTags(owner, repo string) ([]byte, int, error) {
 	type entry struct {
 		Name string `json:"name"`
 	}
-	out := make([]entry, 0, len(names))
-	for _, name := range names {
-		out = append(out, entry{Name: name})
+	out := make([]entry, 0, perPage)
+	start := (page - 1) * perPage
+	for i := start; i < len(names) && i < start+perPage; i++ {
+		out = append(out, entry{Name: names[i]})
 	}
 	body, _ := json.Marshal(out)
 	return body, 200, nil

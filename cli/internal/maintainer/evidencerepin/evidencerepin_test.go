@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -275,7 +276,39 @@ func (f *fakeAPIFetcher) Fetch(_ context.Context, path string) ([]byte, int, err
 	if response, ok := f.responses[path]; ok {
 		return response.body, response.status, nil
 	}
+	// Single-page fixtures are keyed by the first page of a list
+	// ("releases?per_page=10", "tags?per_page=30"); the paged requests the
+	// code makes read that fixture as page 1 and an empty page 2 and later.
+	for _, list := range []struct{ paged, legacy string }{
+		{"/releases?per_page=" + strconv.Itoa(releasePageSize) + "&page=", "/releases?per_page=10"},
+		{"/tags?per_page=" + strconv.Itoa(tagsPageSize) + "&page=", "/tags?per_page=30"},
+	} {
+		if i := strings.Index(path, list.paged); i >= 0 {
+			base, page := path[:i], path[i+len(list.paged):]
+			if f.hasPaged(base + list.paged) {
+				continue
+			}
+			response, ok := f.responses[base+list.legacy]
+			switch {
+			case !ok:
+			case page == "1":
+				return response.body, response.status, nil
+			case response.status == 200:
+				return []byte("[]"), 200, nil
+			}
+		}
+	}
 	return nil, 404, nil
+}
+
+// hasPaged reports whether a fixture defines any explicit page of a list.
+func (f *fakeAPIFetcher) hasPaged(prefix string) bool {
+	for key := range f.responses {
+		if strings.HasPrefix(key, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func TestResolveCurrentCommitLightweightTag(t *testing.T) {
@@ -384,8 +417,8 @@ func TestBuildWorklistBatchAttestableArithmetic(t *testing.T) {
 		body   []byte
 		status int
 	}{
-		"/repos/argoproj/argo-cd/releases?per_page=10": {[]byte(`[{"tag_name":"v1","draft":false}]`), 200},
-		"/repos/argoproj/argo-cd/git/ref/tags/v1":      {[]byte(`{"object":{"sha":"` + commitB + `","type":"commit"}}`), 200},
+		"/repos/argoproj/argo-cd/releases?per_page=10": {[]byte(`[{"tag_name":"v1.0.0","draft":false}]`), 200},
+		"/repos/argoproj/argo-cd/git/ref/tags/v1.0.0":  {[]byte(`{"object":{"sha":"` + commitB + `","type":"commit"}}`), 200},
 	}}
 	blobFetcher := fakeBlobFetcher{
 		"/argoproj/argo-cd/" + commitB + "/a.go": {Kind: "HTTP_200", StatusCode: 200, Body: newBody},
@@ -441,8 +474,8 @@ func TestBuildWorklistFalsificationConditionFires(t *testing.T) {
 		body   []byte
 		status int
 	}{
-		"/repos/argoproj/argo-cd/releases?per_page=10": {[]byte(`[{"tag_name":"v1","draft":false}]`), 200},
-		"/repos/argoproj/argo-cd/git/ref/tags/v1":      {[]byte(`{"object":{"sha":"` + commitB + `","type":"commit"}}`), 200},
+		"/repos/argoproj/argo-cd/releases?per_page=10": {[]byte(`[{"tag_name":"v1.0.0","draft":false}]`), 200},
+		"/repos/argoproj/argo-cd/git/ref/tags/v1.0.0":  {[]byte(`{"object":{"sha":"` + commitB + `","type":"commit"}}`), 200},
 	}}
 	blobFetcher := fakeBlobFetcher{
 		"/argoproj/argo-cd/" + commitB + "/a.go": {Kind: "HTTP_200", StatusCode: 200, Body: newBody},
@@ -497,8 +530,8 @@ func TestStateRoundTripResumesWithoutReclassifying(t *testing.T) {
 		body   []byte
 		status int
 	}{
-		"/repos/owner1/repo1/releases?per_page=10": {[]byte(`[{"tag_name":"v1","draft":false}]`), 200},
-		"/repos/owner1/repo1/git/ref/tags/v1":      {[]byte(`{"object":{"sha":"` + commitA + `","type":"commit"}}`), 200},
+		"/repos/owner1/repo1/releases?per_page=10": {[]byte(`[{"tag_name":"v1.0.0","draft":false}]`), 200},
+		"/repos/owner1/repo1/git/ref/tags/v1.0.0":  {[]byte(`{"object":{"sha":"` + commitA + `","type":"commit"}}`), 200},
 	}}
 
 	state, err := LoadState(statePath)
@@ -568,8 +601,8 @@ func TestRunWritesWorklistAndRejectsMissingOutput(t *testing.T) {
 		body   []byte
 		status int
 	}{
-		"/repos/argoproj/argo-cd/releases?per_page=10": {[]byte(`[{"tag_name":"v1","draft":false}]`), 200},
-		"/repos/argoproj/argo-cd/git/ref/tags/v1":      {[]byte(`{"object":{"sha":"` + commitA + `","type":"commit"}}`), 200},
+		"/repos/argoproj/argo-cd/releases?per_page=10": {[]byte(`[{"tag_name":"v1.0.0","draft":false}]`), 200},
+		"/repos/argoproj/argo-cd/git/ref/tags/v1.0.0":  {[]byte(`{"object":{"sha":"` + commitA + `","type":"commit"}}`), 200},
 	}}
 
 	var stdout, stderr strings.Builder
@@ -618,8 +651,8 @@ func TestRunNeverWritesRulePack(t *testing.T) {
 		body   []byte
 		status int
 	}{
-		"/repos/argoproj/argo-cd/releases?per_page=10": {[]byte(`[{"tag_name":"v1","draft":false}]`), 200},
-		"/repos/argoproj/argo-cd/git/ref/tags/v1":      {[]byte(`{"object":{"sha":"` + commitA + `","type":"commit"}}`), 200},
+		"/repos/argoproj/argo-cd/releases?per_page=10": {[]byte(`[{"tag_name":"v1.0.0","draft":false}]`), 200},
+		"/repos/argoproj/argo-cd/git/ref/tags/v1.0.0":  {[]byte(`{"object":{"sha":"` + commitA + `","type":"commit"}}`), 200},
 	}}
 	var stdout, stderr strings.Builder
 	outputPath := filepath.Join(dir, "worklist.json")
@@ -721,8 +754,8 @@ func TestStaleStateIsRecomputedNotReStamped(t *testing.T) {
 		body   []byte
 		status int
 	}{
-		"/repos/owner1/repo1/releases?per_page=10": {[]byte(`[{"tag_name":"v2","draft":false}]`), 200},
-		"/repos/owner1/repo1/git/ref/tags/v2":      {[]byte(`{"object":{"sha":"` + commitB + `","type":"commit"}}`), 200},
+		"/repos/owner1/repo1/releases?per_page=10": {[]byte(`[{"tag_name":"v2.0.0","draft":false}]`), 200},
+		"/repos/owner1/repo1/git/ref/tags/v2.0.0":  {[]byte(`{"object":{"sha":"` + commitB + `","type":"commit"}}`), 200},
 	}}
 
 	worklist, err := BuildWorklist(context.Background(), []Citation{citation}, nil, 0, state, apiFetcher, fakeBlobFetcher{}, fixedNow(), 72*time.Hour, nil)

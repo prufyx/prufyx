@@ -1,0 +1,25 @@
+{
+ "repo": "acme/nightly",
+ "expectAmbiguous": true,
+ "note": "no strict version anywhere: the highest id is never taken across families",
+ "releases": [
+  {
+   "id": 10,
+   "tag_name": "nightly-2024-05-01",
+   "draft": false,
+   "prerelease": false
+  },
+  {
+   "id": 30,
+   "tag_name": "nightly-2024-05-02",
+   "draft": false,
+   "prerelease": false
+  },
+  {
+   "id": 25,
+   "tag_name": "weekly-3",
+   "draft": false,
+   "prerelease": false
+  }
+ ]
+}

@@ -156,10 +156,46 @@ releases of the same line (patch releases and errata).
 * `--baseline release-line` (the default) compares a citation with the newest
   GitHub Release on the release line of its pinned tag when that line can be
   proven, and with the repository's most recent release otherwise.
-* `--baseline latest` compares every citation with the repository's most recent
-  non-draft, non-pre-release GitHub Release (or, for a repository with no
-  Releases, its highest tag, marked `tag_fallback`). This is the original
-  behaviour.
+* `--baseline latest` compares every citation with the repository's latest
+  release under the rule below (or, for a repository with no Releases, its
+  latest tag, marked `tag_fallback`).
+
+### The "latest" rule (the same for `--source http` and `--source mirror`)
+
+One function chooses the latest release for both sources, so the two cannot
+pick different baselines from the same data:
+
+* Drafts and pre-releases are never candidates.
+* Only tags with no prefix, `v` or `go`, followed by `MAJOR.MINOR.PATCH` and
+  nothing after it (a strict version), compete. The highest version wins, so
+  `v1.10.0` is newer than `v1.9.0` and a backport such as `v1.7.36` published
+  after `v2.4.1` does not displace it.
+* The rule never guesses. A repository is **ambiguous** when strict tags carry
+  a prefix other than none, `v` or `go` (a chart, SDK or API tag), or more than
+  one prefix, or when no release has a strict version, or when any non-strict
+  release (calendar tags such as `2025.1.0`, or two-part tags) is newer
+  (higher release id) than the oldest strict one, so the project has moved to
+  another tag scheme, even if a later maintenance release on the old scheme
+  exists. Its baseline is not chosen: the repository is
+  `PENDING_AMBIGUOUS_LATEST` and every citation that needs the latest baseline
+  is `PENDING` with the reason in its detail, for a human to decide. In
+  release-line mode a citation whose release line is proven still uses that
+  line.
+* For the tags fallback only strict-version tags count, under the same
+  ambiguity rule; tags such as `weekly.2012-03-27` or `release.r60.3` never do.
+  A repository with no such tag has no baseline and stays `PENDING`.
+* The order in which a source lists releases or tags plays no part. The whole
+  release list is read once per run, in pages of 20 (at most 100 pages, that
+  is the 2000 newest releases), and shared by the latest rule and the release
+  lines; a list cut by that bound is marked `releaseListTruncated` on the
+  repository. The whole tags list is read in pages of 100 (at most 50 pages; a
+  longer list is not trusted).
+
+The prefix rule lives in `latestrelease.AmbiguousPrefixes`
+(`cli/internal/maintainer/latestrelease`); code that derives versions from tags
+uses it rather than its own definition.
+
+The rule is recorded in the worklist limitations.
 
 ### Why release-line is the default, and what it does not cover
 

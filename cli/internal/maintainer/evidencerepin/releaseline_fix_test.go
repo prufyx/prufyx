@@ -38,15 +38,16 @@ func (f *lineFixture) runState(t *testing.T, state *State, mode string, citation
 }
 
 // truncatedPages makes every page up to maxReleasePages non-empty, with
-// v1.25.0 on page 1 and v1.25.1 beyond the scan.
+// v1.26.0 and v1.25.0 on page 1 and v1.25.1 beyond the scan.
 func (f *lineFixture) truncatedPages() {
 	for page := 1; page <= maxReleasePages; page++ {
 		var rs []map[string]any
 		for i := 0; i < releasePageSize; i++ {
-			rs = append(rs, map[string]any{"tag_name": fmt.Sprintf("v9.%d.%d", page, i)})
+			rs = append(rs, map[string]any{"tag_name": fmt.Sprintf("v0.%d.%d", page, i)})
 		}
 		if page == 1 {
-			rs[0] = map[string]any{"tag_name": "v1.25.0"}
+			rs[0] = map[string]any{"tag_name": "v1.26.0"}
+			rs[1] = map[string]any{"tag_name": "v1.25.0"}
 		}
 		raw, _ := json.Marshal(rs)
 		f.setPage(page, 200, string(raw))
@@ -427,8 +428,8 @@ func TestNoBaselineNotProvenStaysPending(t *testing.T) {
 		"releases not an array":     {{[]byte(`{"message":"x"}`), 200}, empty},
 		"releases null":             {{[]byte(`null`), 200}, empty},
 		"only prereleases listed":   {{[]byte(`[{"tag_name":"v1-rc1","prerelease":true}]`), 200}, empty},
-		"only drafts listed":        {{[]byte(`[{"tag_name":"v1","draft":true}]`), 200}, empty},
-		"tag listed but unresolved": {empty, {[]byte(`[{"name":"v1"}]`), 200}},
+		"only drafts listed":        {{[]byte(`[{"tag_name":"v1.0.0","draft":true}]`), 200}, empty},
+		"tag listed but unresolved": {empty, {[]byte(`[{"name":"v1.0.0"}]`), 200}},
 	}
 	for name, c := range cases {
 		f := noBaselineFetcher("example", "website", c[0], c[1])
@@ -458,8 +459,8 @@ func TestNoReleaseBaselineIsNotResumedOnceReleaseAppears(t *testing.T) {
 		body   []byte
 		status int
 	}{
-		"/repos/example/website/releases?per_page=10": {[]byte(`[{"tag_name":"v1"}]`), 200},
-		"/repos/example/website/git/ref/tags/v1":      {[]byte(`{"object":{"sha":"` + commitA + `","type":"commit"}}`), 200},
+		"/repos/example/website/releases?per_page=10": {[]byte(`[{"tag_name":"v1.0.0"}]`), 200},
+		"/repos/example/website/git/ref/tags/v1.0.0":  {[]byte(`{"object":{"sha":"` + commitA + `","type":"commit"}}`), 200},
 	}}
 	wl, err := BuildWorklist(context.Background(), noBaselineCitations(), nil, 0, state, released, fakeBlobFetcher{}, fixedNow(), DefaultMaxAge, nil)
 	if err != nil {
