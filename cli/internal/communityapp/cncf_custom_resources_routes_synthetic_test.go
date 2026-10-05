@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/batchcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
@@ -103,5 +104,44 @@ func TestGenericInputNeverPassesCustomResourceRules(t *testing.T) {
 	}
 	if code != ExitUnknown || len(batch.Items) != 1 || batch.Items[0].Outcome != "UNKNOWN" || batch.Items[0].Category != "UNKNOWN_CLAIM" {
 		t.Fatalf("batch: code=%d items=%+v", code, batch.Items)
+	}
+}
+
+// customResourceExit caps ClaimExit at exit 11. ClaimExit already refuses
+// exit 0 for every claim that names the custom-resource version set, so for
+// the rules of the set mode the cap is a second line: the only reports on
+// which it acts are ones ClaimExit passes. This test builds such a report
+// (the reviewed Kafka rule alone, passing; it names no set) and requires
+// ClaimExit to say 0 and customResourceExit to say 11 for the same report.
+// With the derived set rules loaded and every one passing, both agree on 11.
+func TestSyntheticCustomResourceExitNeverReturnsZero(t *testing.T) {
+	now := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	kafkaOnly, err := cncfcheck.Check("strimzi", strimziHandWrittenInput(strimziKafkaRuleFacts), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cncfcheck.ClaimExit(kafkaOnly); got != ExitOK {
+		t.Fatalf("setup: ClaimExit = %d, want the would-be exit %d", got, ExitOK)
+	}
+	if got := customResourceExit(kafkaOnly); got != ExitUnknown {
+		t.Fatalf("customResourceExit over a report ClaimExit passes = %d, want %d", got, ExitUnknown)
+	}
+
+	useStrimziCRDKnowledge(t)
+	setRules, err := cncfcheck.Check("strimzi", strimziHandWrittenInput(strimziServedSet+","+strimziKafkaRuleFacts), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	passed := 0
+	for _, claim := range setRules.Check.Claims {
+		if claim.Status == "PASS" && cncfcheck.ReadsCustomResourceVersions(claim) {
+			passed++
+		}
+	}
+	if passed != 10 {
+		t.Fatalf("%d passing set-rule claims, want 10", passed)
+	}
+	if got := customResourceExit(setRules); got != ExitUnknown {
+		t.Fatalf("customResourceExit over passing set rules = %d, want %d", got, ExitUnknown)
 	}
 }
