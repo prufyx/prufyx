@@ -308,10 +308,13 @@ func (a LineAttestation) Validate() error {
 			return fmt.Errorf("%w: ruleIds must be strictly ascending; %q follows %q", ErrInvalid, id, a.RuleIDs[i-1])
 		}
 	}
-	return a.Evidence.validate()
+	return a.Evidence.Validate()
 }
 
-func (e Evidence) validate() error {
+// Validate checks the evidence on its own: basis, extractor and derivation,
+// the validity window and the cited sources. Records of other kinds that
+// carry the same provenance (served lists) use it.
+func (e Evidence) Validate() error {
 	if e.Basis != constraintengine.BasisReviewed && e.Basis != constraintengine.BasisMechanical {
 		return fmt.Errorf("%w: evidence.basis must be %q or %q", ErrInvalid, constraintengine.BasisReviewed, constraintengine.BasisMechanical)
 	}

@@ -21,6 +21,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/distribution"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
+	"github.com/prufyx/prufyx/cli/internal/servedapis"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
@@ -92,6 +93,10 @@ type rulePack struct {
 	// records and rule-family applicability), under the same rule: a pack
 	// that carries it uses the distribution pack schema.
 	Distributions json.RawMessage `json:"distributions,omitempty"`
+	// ServedAPIs is the optional served-API list section (one list of
+	// served "apiVersion kind" pairs per component and line), under the
+	// same rule: a pack that carries it uses the served-list pack schema.
+	ServedAPIs json.RawMessage `json:"servedAPIs,omitempty"`
 }
 
 type bundle struct {
@@ -104,6 +109,7 @@ type bundle struct {
 	attestations    lineattest.Index
 	pathPolicies    upgradepath.Index
 	distributions   distribution.Index
+	servedAPIs      servedapis.Index
 	// policy is the caller's trust policy. It is applied in exactly one
 	// place, admit, through which every rule document a check evaluates
 	// reaches the engine.
@@ -225,6 +231,9 @@ func assemble(landscapeRaw, priorityRaw, packRaw []byte, factDefinitions []const
 	if result.distributions, err = admitDistributions(packRaw, result.pack.Distributions); err != nil {
 		return bundle{}, err
 	}
+	if result.servedAPIs, err = admitServedAPIs(packRaw, result.pack.ServedAPIs, result.landscape.Projects); err != nil {
+		return bundle{}, err
+	}
 	return result, nil
 }
 
@@ -287,6 +296,8 @@ const (
 	// packSchemaDistributions is the level of a pack holding a distribution
 	// section.
 	packSchemaDistributions = "prufyx.io/cncf-source-rule-pack/v1alpha9"
+	// packSchemaServedAPIs is the level of a pack holding served-API lists.
+	packSchemaServedAPIs = "prufyx.io/cncf-source-rule-pack/v1alpha10"
 )
 
 // packFeature is one pack feature and the schema that introduced it.
@@ -311,6 +322,7 @@ var packFeatureLevels = []packFeature{
 		return constraintengine.AnySeverityRule(rules)
 	}},
 	{packSchemaDistributions, func(pack rulePack, _ []json.RawMessage) (bool, error) { return len(pack.Distributions) > 0, nil }},
+	{packSchemaServedAPIs, func(pack rulePack, _ []json.RawMessage) (bool, error) { return len(pack.ServedAPIs) > 0, nil }},
 }
 
 // requiredPackSchema is the schema of the highest-level feature the pack
