@@ -58,6 +58,10 @@ type Options struct {
 	// Author is the change's author login; Sender the login of the
 	// account whose action triggered this run; BotLogin the automation's.
 	Author, Sender, BotLogin string
+	// Owner is the repository owner's login; empty means
+	// DefaultOwnerLogin. Only the owner's own change (author and sender)
+	// may supersede a reviewed rule.
+	Owner string
 	// HeadSHA is the head commit the gate checks; Commits the change's
 	// commit range (base..head) with authors, committers and signature
 	// verification. Both are required for automatic-merge eligibility.
@@ -129,8 +133,11 @@ type Report struct {
 	Totals  Totals      `json:"totals"`
 	Limits  LimitReport `json:"limits"`
 	Changes []*Change   `json:"changes"`
-	Checks  []Check     `json:"checks"`
-	Alarms  []string    `json:"alarms"`
+	// Supersedes lists the supersede pairs: the removed reviewed rule
+	// and the added mechanical rule that replaces it.
+	Supersedes []Supersede `json:"supersedes"`
+	Checks     []Check     `json:"checks"`
+	Alarms     []string    `json:"alarms"`
 	// Mode is "enforce" or "shadow".
 	Mode          string      `json:"mode"`
 	Breakers      []Breaker   `json:"breakers"`
@@ -183,6 +190,9 @@ func (o *Options) defaults() {
 	if o.BotLogin == "" {
 		o.BotLogin = DefaultBotLogin
 	}
+	if o.Owner == "" {
+		o.Owner = DefaultOwnerLogin
+	}
 	if o.Catalog == nil {
 		o.Catalog = extractcli.Catalog()
 	}
@@ -211,7 +221,7 @@ func newReport(cls *Classification, opts Options) *Report {
 	return &Report{
 		Mode: mode, Breakers: []Breaker{}, Schema: ReportSchema, Paused: cls.Paused, Totals: Totals{Tightening: t, Loosening: l},
 		Limits:  LimitReport{MaxLoosening: opts.MaxLoosening, Loosening: l, OK: l <= opts.MaxLoosening},
-		Changes: cls.Changes, Checks: []Check{}, Alarms: []string{}, ChangedPaths: []string{}, ChainsChanged: append([]string{}, cls.ChainsChanged...),
+		Changes: cls.Changes, Supersedes: supersedeReport(cls), Checks: []Check{}, Alarms: []string{}, ChangedPaths: []string{}, ChainsChanged: append([]string{}, cls.ChainsChanged...),
 		Author: opts.Author, Sender: opts.Sender, HeadSHA: opts.HeadSHA,
 	}
 }
@@ -330,7 +340,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	// The base's approvals, decoded once for every record change.
 	approvals := &baseApprovals{opts: opts}
 
-	var mechanical []*Change
+	var mechanical, removals []*Change
 	consensusChecks := &consensusRun{}
 	defer consensusChecks.close()
 	for _, c := range cls.Changes {
@@ -364,7 +374,12 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 			continue
 		}
 		if c.head == nil {
-			c.fail("a rule may not be removed (it can turn BLOCKED into a scope-complete PASS); withdraw it instead")
+			if c.supersededBy != nil {
+				// Decided once the added rule has been re-derived.
+				removals = append(removals, c)
+				continue
+			}
+			c.fail("a rule may not be removed (it can turn BLOCKED into a scope-complete PASS); withdraw it instead, or replace a reviewed rule through a supersede: an owner change that adds a re-derived mechanical rule with an equal constraint key covering its region")
 			continue
 		}
 		switch c.Basis {
@@ -390,6 +405,10 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		}
 	}
 	rederive(ctx, opts.Source, opts.Catalog, opts.Concurrency, opts.Layout, mechanical)
+	for _, c := range removals {
+		admitSupersede(c, opts)
+	}
+	r.Supersedes = supersedeReport(cls)
 
 	if opts.RederiveAll {
 		r.rederiveAll(ctx, cls, mechanical, opts)
@@ -692,6 +711,12 @@ func (r *Report) autoMerge(opts Options) {
 		reasons = append(reasons, fmt.Sprintf("the run was triggered by %q, not the automation account", logSafe(opts.Sender)))
 	}
 	reasons = append(reasons, commitReasons(opts)...)
+	for _, c := range r.Changes {
+		if c.isSupersede() {
+			reasons = append(reasons, "the change supersedes a reviewed rule; that is made and merged by the owner, never automatically")
+			break
+		}
+	}
 	if len(r.Changes) == 0 && len(r.ChainsChanged) == 0 {
 		reasons = append(reasons, "the change holds no knowledge change")
 	}
