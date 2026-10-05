@@ -16,7 +16,7 @@ var updateAgeGoldens = flag.Bool("update-age", false, "rewrite the knowledge age
 // ageClocks are evaluation instants before, inside and after the last
 // 30 days of the embedded knowledge's rules.
 var ageClocks = []struct{ name, now string }{
-	{"before", "2026-10-04T00:00:00Z"},
+	{"before", "2026-11-06T00:00:00Z"},
 	{"inside", "2026-11-20T00:00:00Z"},
 	{"after", "2026-12-10T00:00:00Z"},
 }
