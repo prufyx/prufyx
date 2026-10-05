@@ -164,6 +164,40 @@ func TestWithdrawRefusesARunThatReadOtherCommits(t *testing.T) {
 	}
 }
 
+// The rule must cite both commits of the run's pair: a rule citing only one
+// side cannot be tied to what the run read on the other side.
+func TestWithdrawRequiresBothPairCommits(t *testing.T) {
+	for _, keep := range []string{"fromCommit", "toCommit"} {
+		pack, later, dropped, _ := firstThenLater(t, derivedAt.Add(time.Hour))
+		var m map[string]any
+		readJSON(t, filepath.Join(later, "manifest.json"), &m)
+		commit := m["pairs"].([]any)[0].(map[string]any)[keep].(string)
+		pre := mustModifyPack(t, pack, func(entries []map[string]any) []map[string]any {
+			for _, e := range entries {
+				ev := e["rule"].(map[string]any)["evidence"].(map[string]any)
+				if e["rule"].(map[string]any)["id"] != dropped {
+					continue
+				}
+				var kept []any
+				for _, s := range ev["sources"].([]any) {
+					if s.(map[string]any)["revision"] == commit {
+						kept = append(kept, s)
+					}
+				}
+				if len(kept) == 0 || len(kept) == len(ev["sources"].([]any)) {
+					t.Fatalf("%s: cannot isolate one side (%d kept)", keep, len(kept))
+				}
+				ev["sources"] = kept
+			}
+			return entries
+		})
+		if _, err := apply(t, pack, later, true); !errors.Is(err, extractpack.ErrStale) || !strings.Contains(err.Error(), "both commits") {
+			t.Fatalf("%s only: %v", keep, err)
+		}
+		assertUnchanged(t, pack, pre)
+	}
+}
+
 // A run for another repository covers none of this pack's rules, even when the
 // versions coincide: nothing is withdrawn (and nothing is refused).
 func TestWithdrawChecksTheSubjectComponent(t *testing.T) {

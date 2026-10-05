@@ -525,8 +525,8 @@ func componentOf(repo string) string {
 }
 
 // supersedes requires that a run may withdraw a rule: the run is not older
-// than the rule, was produced by the code that derived the rule, and read the
-// commits the rule cites. A run that fails any of these says nothing about
+// than the rule, was produced by the code that derived the rule, and read both
+// commits of its pair, each of which the rule cites (and no other). A run that fails any of these says nothing about
 // whether the rule still holds.
 func supersedes(run *Run, pair *extract.PairRecord, v entryView) error {
 	ev := v.Rule.Evidence
@@ -544,10 +544,16 @@ func supersedes(run *Run, pair *extract.PairRecord, v entryView) error {
 	if len(ev.Sources) == 0 {
 		return fmt.Errorf("%w: rule %s cites no source", ErrStale, v.Rule.ID)
 	}
+	var citesFrom, citesTo bool
 	for _, s := range ev.Sources {
 		if s.Revision != pair.FromCommit && s.Revision != pair.ToCommit {
 			return fmt.Errorf("%w: rule %s cites commit %s, which the run's pair %s -> %s did not read", ErrStale, v.Rule.ID, s.Revision, pair.From, pair.To)
 		}
+		citesFrom = citesFrom || s.Revision == pair.FromCommit
+		citesTo = citesTo || s.Revision == pair.ToCommit
+	}
+	if !citesFrom || !citesTo {
+		return fmt.Errorf("%w: rule %s does not cite both commits of the run's pair %s -> %s", ErrStale, v.Rule.ID, pair.From, pair.To)
 	}
 	return nil
 }
