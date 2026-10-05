@@ -345,3 +345,46 @@ func TestStaleOwnerBaselineResolutionIsNotUsed(t *testing.T) {
 		t.Fatalf("a stale resolution must not supply a baseline: %+v", got)
 	}
 }
+
+// F1: a verified choice kept in --state by an earlier run is not used when
+// this run has no baseline file or a file whose entry changed, even when a
+// rate limit stops the repository being re-resolved.
+func TestStoredOwnerChoiceNeedsThisRunsFile(t *testing.T) {
+	f, c := ambiguousFixture()
+	entry := baselineEntry(f, "v1.3.0")
+	limited := Citation{RulePack: "p", RuleID: "r0", Project: "a", SourceID: "s0", Owner: "aaa", Repo: "rate-limited", Path: "x", OldCommit: commitA, OldDigest: "sha256:x", StartLine: 1, EndLine: 1}
+	f.api.responses["/repos/aaa/rate-limited/releases?per_page=10"] = apiResponse{[]byte(`{}`), 403}
+	changed := entry
+	changed.Reason = "a changed entry"
+	otherTag := entry
+	otherTag.Tag = "v1.2.5"
+	otherCommit := entry
+	otherCommit.Commit = strings.Repeat("d", 40)
+	for name, file := range map[string]*repinbaselines.File{"no file": nil, "empty file": baselineFile(), "changed entry": baselineFile(changed), "other tag": baselineFile(otherTag), "other commit": baselineFile(otherCommit), "same entry": baselineFile(entry)} {
+		st := newState()
+		st.Repos[c.repoKey()] = RepoResolution{
+			Owner: "example", Repo: "proj", Status: repoPendingAmbiguous, Detail: "ambiguous", ResolvedAt: stamp(-time.Hour),
+			OwnerBaseline: &OwnerBaseline{Tag: entry.Tag, Commit: entry.Commit, EntryDigest: entry.Digest()},
+		}
+		st.Results[c.key()] = ClassResult{RulePack: c.RulePack, RuleID: c.RuleID, SourceID: c.SourceID, Owner: "example", Repo: "proj", OldCommit: c.OldCommit, NewCommit: entry.Commit, Class: ClassFileIdentical, ClassifiedAt: stamp(-time.Hour), BaselineMode: BaselineModeLatest, Baseline: BaselineOwnerChoice, BaselineTag: entry.Tag, BaselineEntryDigest: entry.Digest()}
+		w, err := BuildWorklistWithOptions(context.Background(), []Citation{limited, c}, nil, 0, st, f.api, f.blobs, fixedNow(), 72*time.Hour, nil, BaselineModeLatest, BuildOptions{Baselines: file})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got ClassResult
+		for _, r := range w.Citations {
+			if r.Repo == "proj" {
+				got = r
+			}
+		}
+		if name == "same entry" {
+			continue
+		}
+		if got.Baseline == BaselineOwnerChoice || got.BaselineEntryDigest != "" {
+			t.Errorf("%s: a stored choice must not outlive this run's file: %+v", name, got)
+		}
+		if len(w.Summary.OwnerBaselines) != 0 {
+			t.Errorf("%s: owner baselines listed: %+v", name, w.Summary.OwnerBaselines)
+		}
+	}
+}

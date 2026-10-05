@@ -333,3 +333,23 @@ func TestOwnerBaselineRoleCheck(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 }
+
+// F3: digest and commit match the file entry but the compared tag does not.
+func TestVerifyV12ComparesTheTag(t *testing.T) {
+	wl, pack := ownerWorklist(t)
+	result, opts := ownerPrepare(t, wl, pack, ownerFile(t, ownerEntry()))
+	st := result.Statement
+	st.Rules = append([]RuleAttestation(nil), st.Rules...)
+	for i := range st.Rules {
+		if st.Rules[i].RuleID == "rule-b" {
+			st.Rules[i].Citations = append([]CitationAttestation(nil), st.Rules[i].Citations...)
+			st.Rules[i].Citations[0].ComparedTag = "v2.0.1"
+		}
+	}
+	raw, err := CanonicalStatement(st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts.StatementRaw = raw
+	assertVerifyRejects(t, opts, "V12: citation")
+}

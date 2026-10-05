@@ -1340,6 +1340,14 @@ func BuildWorklistWithOptions(ctx context.Context, citations []Citation, project
 	// already rate-limited when this run started): mark it stale so the
 	// worklist never presents it as current, without touching its
 	// ResolvedAt.
+	// A verified owner choice kept from an earlier run counts only while
+	// this run's baseline file still holds the same entry.
+	for key, resolution := range state.Repos {
+		if resolution.OwnerBaseline != nil && !ownerBaselineHeld(resolution.OwnerBaseline, key, buildOpts.Baselines) {
+			resolution.OwnerBaseline = nil
+			state.Repos[key] = resolution
+		}
+	}
 	for key, resolution := range state.Repos {
 		if resolution.Status == repoResolved && !isFresh(resolution.ResolvedAt, now(), maxAge) {
 			resolution.Stale = true
@@ -1351,7 +1359,7 @@ func BuildWorklistWithOptions(ctx context.Context, citations []Citation, project
 	for _, citation := range filtered {
 		citationKey := citation.key()
 		existing, hadExisting := state.Results[citationKey]
-		if hadExisting && existing.Class != ClassPending && existing.Class != ClassNoReleaseBaseline && isFresh(existing.ClassifiedAt, now(), maxAge) && resultMode(existing) == baselineMode && lineStillFresh(state, existing, now(), maxAge) && ownerChoiceStillHolds(existing, state.Repos[citation.repoKey()]) {
+		if hadExisting && existing.Class != ClassPending && existing.Class != ClassNoReleaseBaseline && isFresh(existing.ClassifiedAt, now(), maxAge) && resultMode(existing) == baselineMode && lineStillFresh(state, existing, now(), maxAge) && ownerChoiceStillHolds(existing, state.Repos[citation.repoKey()], buildOpts.Baselines) {
 			// Still fresh: resume without reclassifying or re-stamping.
 			results = append(results, existing)
 			continue
@@ -1364,7 +1372,7 @@ func BuildWorklistWithOptions(ctx context.Context, citations []Citation, project
 		ambiguousUsable := resolution.Status == repoPendingAmbiguous && baselineMode == BaselineModeReleaseLine && isFresh(resolution.ResolvedAt, now(), maxAge)
 		// The owner's choice supplies a baseline only where the citation
 		// would otherwise be pending: a proven release line still wins.
-		ownerUsable := resolution.Status == repoPendingAmbiguous && resolution.OwnerBaseline != nil && isFresh(resolution.ResolvedAt, now(), maxAge)
+		ownerUsable := resolution.Status == repoPendingAmbiguous && resolution.OwnerBaseline != nil && ownerBaselineHeld(resolution.OwnerBaseline, citation.Owner+"/"+citation.Repo, buildOpts.Baselines) && isFresh(resolution.ResolvedAt, now(), maxAge)
 		var result ClassResult
 		switch {
 		case noBaseline:
@@ -1423,7 +1431,7 @@ func BuildWorklistWithOptions(ctx context.Context, citations []Citation, project
 				result.Baseline = BaselineLatest
 				result.BaselineNote = decision.note
 			}
-		case hadExisting && existing.Class != ClassPending && resultMode(existing) == baselineMode && ownerChoiceStillHolds(existing, resolution):
+		case hadExisting && existing.Class != ClassPending && resultMode(existing) == baselineMode && ownerChoiceStillHolds(existing, resolution, buildOpts.Baselines):
 			// The prior classification is stale, but this run cannot
 			// recompute it (its repo's resolution is itself stale and
 			// unrefreshed this run, typically due to an earlier rate
@@ -1562,15 +1570,27 @@ func applyOwnerBaseline(resolution *RepoResolution, baselines *repinbaselines.Fi
 	}
 }
 
+// ownerBaselineHeld reports whether this run's baseline file still holds the
+// entry a stored verified choice was made from (same digest, tag and
+// commit). A choice kept in --state from an earlier run is never used on the
+// strength of that run's file.
+func ownerBaselineHeld(ob *OwnerBaseline, repository string, baselines *repinbaselines.File) bool {
+	if ob == nil || baselines == nil {
+		return false
+	}
+	e, ok := baselines.Lookup(repository)
+	return ok && e.Digest() == ob.EntryDigest && e.Tag == ob.Tag && e.Commit == ob.Commit
+}
+
 // ownerChoiceStillHolds is false for a resumed owner-choice result whose
 // repository no longer has the same verified owner baseline: the tag moved,
 // the entry changed or the file no longer holds it.
-func ownerChoiceStillHolds(result ClassResult, repo RepoResolution) bool {
+func ownerChoiceStillHolds(result ClassResult, repo RepoResolution, baselines *repinbaselines.File) bool {
 	if result.Baseline != BaselineOwnerChoice {
 		return true
 	}
 	ob := repo.OwnerBaseline
-	return repo.Status == repoPendingAmbiguous && ob != nil && ob.EntryDigest == result.BaselineEntryDigest && ob.Commit == result.NewCommit && ob.Tag == result.BaselineTag
+	return ownerBaselineHeld(ob, result.Owner+"/"+result.Repo, baselines) && repo.Status == repoPendingAmbiguous && ob != nil && ob.EntryDigest == result.BaselineEntryDigest && ob.Commit == result.NewCommit && ob.Tag == result.BaselineTag
 }
 
 // resultMode is the baseline mode a result was computed under; a result
