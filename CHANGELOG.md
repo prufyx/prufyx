@@ -90,6 +90,17 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   private (0700) knowledge database is refused before it is opened. Without
   the flag the output is unchanged.
 
+- Maintainer tooling for automated runs of the extractors: `extract apply`
+  merges a run's rules and line attestations into a rule pack (sorted, refusing
+  an id that exists with different content and any change to a rule the run did
+  not produce, and admitted by the rule checks and the engine loader), or with
+  `--withdraw` marks the rules the extractor no longer produces as withdrawn;
+  `extract inventory` prints the complete feature-gate, served-kind or
+  custom-resource inventory parsed at one commit, or exits 3 without a list;
+  `extract run --wants-out` lists the files the offline mirror lacks (exit 3)
+  instead of withholding silently; and `factory mirror --test-releases-api-base`
+  (tests only, refused without `--test-allow-file-remote`) reads release
+  metadata from a local server. See `cli/docs/extractors/tooling.md`.
 - Maintainer tooling: the `crd.version-removal` extractor (registered as
   `crd.version-removal.<project>` for Argo CD, Istio and Strimzi) derives
   rules for custom-resource versions a release no longer serves, from the

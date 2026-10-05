@@ -1,0 +1,130 @@
+{
+  "entries": [
+    {
+      "description": "Argo CD 90.1.0 no longer serves version v1beta1 of Gadget (CustomResourceDefinition gadgets.fixture.argoproj.io), which 90.0.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "argo-cd",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/argoproj/argo-cd",
+          "description": "Custom-resource versions (group/version/Kind) of the Argo CD custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.argo_cd.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-10-04T00:00:00Z",
+          "extractor": {
+            "codeDigest": "sha256:4e699ae95ac1e5684d834c8cb4c201e224c42bc10b19a1531948e7aa67abee84",
+            "id": "crd.version-removal.argo-cd",
+            "version": "1.0.0"
+          },
+          "reviewedAt": "2026-10-04T00:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:38332f7e59687e98e2223a17cd7d7f480c88e292cd043ec6c5d0fdf112f22f17",
+              "endLine": 30,
+              "id": "crd-versions-90-0-0",
+              "revision": "0000000000000000000000000000000000900000",
+              "startLine": 24,
+              "url": "https://github.com/argoproj/argo-cd/blob/0000000000000000000000000000000000900000/manifests/crds/gadget-crd.yaml"
+            },
+            {
+              "contentDigest": "sha256:1a738b9feb2eea98d667157a01a30f6ce76e1bb22db0a7cf4e5878d9464f9060",
+              "endLine": 25,
+              "id": "served-false-v1beta1-90-1-0",
+              "revision": "0000000000000000000000000000000000901000",
+              "startLine": 25,
+              "url": "https://github.com/argoproj/argo-cd/blob/0000000000000000000000000000000000901000/manifests/crds/gadget-crd.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-02T00:00:00Z"
+        },
+        "id": "argo-cd.crd-version-removal.gadgets-fixture-argoproj-io.90-0-0-to-90-1-0",
+        "nextAction": "change apiVersion of Gadget to fixture.argoproj.io/v1 before upgrading to 90.1.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/argoproj/argo-cd",
+          "factId": "component.argo_cd.custom_resource_versions_set",
+          "members": [
+            "fixture.argoproj.io/v1beta1/Gadget"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/argoproj/argo-cd",
+          "from": "90.0.0",
+          "to": "90.1.0"
+        }
+      }
+    },
+    {
+      "description": "Argo CD 90.1.0 no longer serves version v1alpha2 of Widget (CustomResourceDefinition widgets.fixture.argoproj.io), which 90.0.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "argo-cd",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/argoproj/argo-cd",
+          "description": "Custom-resource versions (group/version/Kind) of the Argo CD custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.argo_cd.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-10-04T00:00:00Z",
+          "extractor": {
+            "codeDigest": "sha256:4e699ae95ac1e5684d834c8cb4c201e224c42bc10b19a1531948e7aa67abee84",
+            "id": "crd.version-removal.argo-cd",
+            "version": "1.0.0"
+          },
+          "reviewedAt": "2026-10-04T00:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:990d14325c1c542ab2e31d02fbd45c9b46b3cf810f75e86832b85cb06fcb0f52",
+              "endLine": 29,
+              "id": "crd-90-1-0",
+              "revision": "0000000000000000000000000000000000901000",
+              "startLine": 1,
+              "url": "https://github.com/argoproj/argo-cd/blob/0000000000000000000000000000000000901000/manifests/crds/widget-crd.yaml"
+            },
+            {
+              "contentDigest": "sha256:a36769d8855145f768b38a528816e6cd8c2655152a31d94838c962ca3d69e1a3",
+              "endLine": 22,
+              "id": "crd-versions-90-0-0",
+              "revision": "0000000000000000000000000000000000900000",
+              "startLine": 16,
+              "url": "https://github.com/argoproj/argo-cd/blob/0000000000000000000000000000000000900000/manifests/crds/widget-crd.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-02T00:00:00Z"
+        },
+        "id": "argo-cd.crd-version-removal.widgets-fixture-argoproj-io.90-0-0-to-90-1-0",
+        "nextAction": "change apiVersion of Widget to fixture.argoproj.io/v1 before upgrading to 90.1.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/argoproj/argo-cd",
+          "factId": "component.argo_cd.custom_resource_versions_set",
+          "members": [
+            "fixture.argoproj.io/v1alpha2/Widget"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/argoproj/argo-cd",
+          "from": "90.0.0",
+          "to": "90.1.0"
+        }
+      }
+    }
+  ]
+}
