@@ -128,7 +128,7 @@ extractor's code).
 ## Running and verifying
 
 ```
-prufyx-maintainer extract run    --extractor k8s.served-api-removal --mirror-state DIR --out OUT [--derived-at 2026-10-03T00:00:00Z]
+prufyx-maintainer extract run    --extractor k8s.served-api-removal --mirror-state DIR --out OUT [--derived-at 2026-10-03T00:00:00Z] [--lease-days 80]
 prufyx-maintainer extract verify --extractor k8s.served-api-removal --mirror-state DIR --out OUT
 prufyx-maintainer extract oracle --extractor k8s.served-api-removal --out OUT --expected EXPECTED.json
 ```

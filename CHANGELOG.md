@@ -9,6 +9,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- `extract run --lease-days N` (1-365, default 90) sets the validity window of the
+  derived rules.
 - One exit-code table for `scan` and `check` ([exit-codes.md](cli/docs/exit-codes.md)),
   and an opt-in `--strict-exit` flag on every `check` route: a scoped `PASS`
   exits `14` instead of `0`, so CI cannot read one passed rule as a complete
