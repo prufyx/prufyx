@@ -1,0 +1,37 @@
+{
+  "added": [
+    "kubernetes.feature-gate-removal.kube-apiserver.1-22-0-to-1-23-0.1",
+    "kubernetes.feature-gate-removal.kube-apiserver.1-31-0-to-1-32-0.1",
+    "kubernetes.feature-gate-removal.kube-apiserver.1-36-0-to-1-37-0.1",
+    "kubernetes.feature-gate-removal.kube-controller-manager.1-22-0-to-1-23-0.1",
+    "kubernetes.feature-gate-removal.kube-controller-manager.1-31-0-to-1-32-0.1",
+    "kubernetes.feature-gate-removal.kube-controller-manager.1-36-0-to-1-37-0.1",
+    "kubernetes.feature-gate-removal.kube-proxy.1-22-0-to-1-23-0.1",
+    "kubernetes.feature-gate-removal.kube-proxy.1-31-0-to-1-32-0.1",
+    "kubernetes.feature-gate-removal.kube-proxy.1-36-0-to-1-37-0.1",
+    "kubernetes.feature-gate-removal.kube-scheduler.1-22-0-to-1-23-0.1",
+    "kubernetes.feature-gate-removal.kube-scheduler.1-31-0-to-1-32-0.1",
+    "kubernetes.feature-gate-removal.kube-scheduler.1-36-0-to-1-37-0.1",
+    "kubernetes.feature-gate-removal.kubelet.1-22-0-to-1-23-0.1",
+    "kubernetes.feature-gate-removal.kubelet.1-31-0-to-1-32-0.1",
+    "kubernetes.feature-gate-removal.kubelet.1-36-0-to-1-37-0.1"
+  ],
+  "map": {
+    "kubernetes.feature-gate-removal.kube-apiserver.1-22-0-to-1-23-0.1-reviewed": "kubernetes.feature-gate-removal.kube-apiserver.1-22-0-to-1-23-0.1",
+    "kubernetes.feature-gate-removal.kube-apiserver.1-31-0-to-1-32-0.1-reviewed": "kubernetes.feature-gate-removal.kube-apiserver.1-31-0-to-1-32-0.1",
+    "kubernetes.feature-gate-removal.kube-apiserver.1-36-0-to-1-37-0.1-reviewed": "kubernetes.feature-gate-removal.kube-apiserver.1-36-0-to-1-37-0.1",
+    "kubernetes.feature-gate-removal.kube-controller-manager.1-22-0-to-1-23-0.1-reviewed": "kubernetes.feature-gate-removal.kube-controller-manager.1-22-0-to-1-23-0.1",
+    "kubernetes.feature-gate-removal.kube-controller-manager.1-31-0-to-1-32-0.1-reviewed": "kubernetes.feature-gate-removal.kube-controller-manager.1-31-0-to-1-32-0.1",
+    "kubernetes.feature-gate-removal.kube-controller-manager.1-36-0-to-1-37-0.1-reviewed": "kubernetes.feature-gate-removal.kube-controller-manager.1-36-0-to-1-37-0.1",
+    "kubernetes.feature-gate-removal.kube-proxy.1-22-0-to-1-23-0.1-reviewed": "kubernetes.feature-gate-removal.kube-proxy.1-22-0-to-1-23-0.1",
+    "kubernetes.feature-gate-removal.kube-proxy.1-31-0-to-1-32-0.1-reviewed": "kubernetes.feature-gate-removal.kube-proxy.1-31-0-to-1-32-0.1",
+    "kubernetes.feature-gate-removal.kube-proxy.1-36-0-to-1-37-0.1-reviewed": "kubernetes.feature-gate-removal.kube-proxy.1-36-0-to-1-37-0.1",
+    "kubernetes.feature-gate-removal.kube-scheduler.1-22-0-to-1-23-0.1-reviewed": "kubernetes.feature-gate-removal.kube-scheduler.1-22-0-to-1-23-0.1",
+    "kubernetes.feature-gate-removal.kube-scheduler.1-31-0-to-1-32-0.1-reviewed": "kubernetes.feature-gate-removal.kube-scheduler.1-31-0-to-1-32-0.1",
+    "kubernetes.feature-gate-removal.kube-scheduler.1-36-0-to-1-37-0.1-reviewed": "kubernetes.feature-gate-removal.kube-scheduler.1-36-0-to-1-37-0.1",
+    "kubernetes.feature-gate-removal.kubelet.1-22-0-to-1-23-0.1-reviewed": "kubernetes.feature-gate-removal.kubelet.1-22-0-to-1-23-0.1",
+    "kubernetes.feature-gate-removal.kubelet.1-31-0-to-1-32-0.1-reviewed": "kubernetes.feature-gate-removal.kubelet.1-31-0-to-1-32-0.1",
+    "kubernetes.feature-gate-removal.kubelet.1-36-0-to-1-37-0.1-reviewed": "kubernetes.feature-gate-removal.kubelet.1-36-0-to-1-37-0.1"
+  },
+  "unchanged": []
+}

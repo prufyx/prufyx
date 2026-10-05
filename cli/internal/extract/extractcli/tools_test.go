@@ -623,3 +623,76 @@ func TestWantsOutReportsACommitTheMirrorLacks(t *testing.T) {
 		t.Fatalf("the flag-less run changed: %d %s", c, o)
 	}
 }
+
+// ---- supersede and apply --rules-only -------------------------------------
+
+func TestSupersedeCommand(t *testing.T) {
+	const id, fx = "k8s.served-api-removal", "../k8sservedapis/testdata/fixture"
+	dir := filepath.Join(t.TempDir(), "out")
+	if code, _, errs := run("run", "--extractor", id, "--fixture", fx, "--out", dir, "--derived-at", "2026-10-02T00:00:00Z"); code != 0 {
+		t.Fatalf("run: %d %s", code, errs)
+	}
+	packDir := t.TempDir()
+	for _, f := range []string{"rules.json", "landscape-projects.json", "priority-portfolio.json"} {
+		if err := os.WriteFile(filepath.Join(packDir, f), readFile(t, "../../cncfcheck/data/"+f), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pack := filepath.Join(packDir, "rules.json")
+	before := readFile(t, pack)
+
+	// A run no reviewed rule of the pack matches: refused, exit 3, nothing written, nothing on stdout.
+	gates := filepath.Join(t.TempDir(), "gates")
+	if code, _, errs := run("run", "--extractor", "k8s.feature-gate-removal", "--fixture", "../k8sfeaturegates/testdata/fixture", "--out", gates, "--derived-at", "2026-10-02T00:00:00Z"); code != 0 {
+		t.Fatalf("run: %d %s", code, errs)
+	}
+	code, out, errs := run("supersede", "--out", gates, "--pack", pack)
+	if code != 3 || out != "" || !strings.Contains(errs, "extract supersede:") {
+		t.Fatalf("supersede: %d %q %s", code, out, errs)
+	}
+	if !bytes.Equal(readFile(t, pack), before) {
+		t.Fatal("a refused supersede changed the pack")
+	}
+
+	// The run covers five shipped reviewed rules: replaced, the map printed, the engine loader admits the result.
+	code, out, errs = run("supersede", "--out", dir, "--pack", pack)
+	if code != 0 || errs != "" {
+		t.Fatalf("supersede: %d %s", code, errs)
+	}
+	var doc struct {
+		Added     []string          `json:"added"`
+		Map       map[string]string `json:"map"`
+		Unchanged []string          `json:"unchanged"`
+	}
+	if err := json.Unmarshal([]byte(out), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.Added) != 6 || len(doc.Map) != 5 || len(doc.Unchanged) != 0 ||
+		doc.Map["kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0"] != "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0" {
+		t.Fatalf("map %s", out)
+	}
+	after := readFile(t, pack)
+	if bytes.Equal(after, before) || strings.Contains(string(after), `"kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0"`) {
+		t.Fatal("the reviewed rule is still in the pack")
+	}
+	// The same run again replaces nothing and changes nothing.
+	if code, out, _ := run("supersede", "--out", dir, "--pack", pack); code != 0 || strings.Contains(out, "removed") || !bytes.Equal(readFile(t, pack), after) {
+		t.Fatalf("second supersede: %d %s", code, out)
+	}
+	for _, args := range [][]string{
+		{"supersede", "--out", dir},
+		{"supersede", "--pack", pack},
+		{"supersede", "--out", dir, "--pack", pack, "extra"},
+		{"supersede", "--out", filepath.Join(t.TempDir(), "nope"), "--pack", pack},
+		{"supersede", "--out", dir, "--pack", filepath.Join(t.TempDir(), "nope.json")},
+		{"supersede", "--out", dir, "--pack", pack, "--withdraw"},
+		{"apply", "--out", dir, "--pack", pack, "--rules-only", "--withdraw"},
+	} {
+		if code, out, _ := run(args...); code != 2 || out != "" {
+			t.Fatalf("%v: exit %d %q", args, code, out)
+		}
+	}
+	if !bytes.Equal(readFile(t, pack), after) {
+		t.Fatal("a rejected command changed the pack")
+	}
+}

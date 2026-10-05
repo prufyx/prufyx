@@ -314,6 +314,9 @@ type Options struct {
 	// Admit admits a merged pack as the engine loaders do. Nil uses
 	// AdmitFiles. It must be set for any real use; tests inject their own.
 	Admit func(packPath string, raw []byte) error
+	// RulesOnly applies the run's rules without its attestations and without
+	// any change to the pack schema.
+	RulesOnly bool
 	// SchemaLevels bounds how many schema levels above the pack's own a merge
 	// may move to (default 12).
 	SchemaLevels int
@@ -339,6 +342,12 @@ func Apply(opts Options) (*Report, error) {
 	base, err := ParsePack(baseRaw)
 	if err != nil {
 		return nil, err
+	}
+	if opts.RulesOnly {
+		if opts.Withdraw {
+			return nil, errors.New("extract apply: --rules-only does not combine with --withdraw")
+		}
+		run.Attestations = nil
 	}
 	var head *Pack
 	var allowed map[string]bool
@@ -368,7 +377,9 @@ func Apply(opts Options) (*Report, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := admit(opts.PackPath, out); err != nil {
+	if err := admit(opts.PackPath, out); err != nil && opts.RulesOnly {
+		return nil, fmt.Errorf("%w: the engine loader refuses the merged pack at its own schema (--rules-only never changes it): %v%s", ErrAdmission, err, newFactsHint(base, head, allowed))
+	} else if err != nil {
 		levels := opts.SchemaLevels
 		if levels == 0 {
 			levels = 12

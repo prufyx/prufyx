@@ -47,6 +47,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- `prufyx-maintainer extract apply --rules-only` merges only the run's rules,
+  without attestations and without changing the pack schema. The new
+  `prufyx-maintainer extract supersede --out RUN --pack FILE` removes the
+  reviewed rules that rules of the run cover (same constraint key, a region
+  containing the reviewed rule's), adds the run's rules and prints the old to
+  new map as JSON; partial coverage, a run that matches no reviewed rule and
+  any other change are refused with exit 3 and nothing is written.
+  Documented in `cli/docs/extractors/tooling.md`.
 - `prufyx-maintainer approval sign` writes an owner approval for one reviewed
   rule of a change, checked with the knowledge gate's own verifier before it is
   written; `approval verify` checks one approval file offline. The key comes

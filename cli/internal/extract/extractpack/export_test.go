@@ -23,3 +23,17 @@ func SetSteps(m, w Step) (restore func()) {
 	}
 	return func() { mergeStep, withdrawStep = om, ow }
 }
+
+// SupersedeStep is the shape of Supersede's planning step.
+type SupersedeStep = func(base *Pack, run *Run, rep *SupersedeReport) (*Pack, map[string]bool, map[string]bool, error)
+
+// RealSupersede is the production planning step.
+var RealSupersede SupersedeStep = planSupersede
+
+// SetSupersedeStep replaces the planning step and returns the function that
+// restores it.
+func SetSupersedeStep(s SupersedeStep) (restore func()) {
+	o := supersedeStep
+	supersedeStep = s
+	return func() { supersedeStep = o }
+}

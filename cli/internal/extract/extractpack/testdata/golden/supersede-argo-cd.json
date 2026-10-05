@@ -1,0 +1,11 @@
+{
+  "added": [
+    "argo-cd.crd-version-removal.gadgets-fixture-argoproj-io.90-0-0-to-90-1-0",
+    "argo-cd.crd-version-removal.widgets-fixture-argoproj-io.90-0-0-to-90-1-0"
+  ],
+  "map": {
+    "argo-cd.crd-version-removal.gadgets-fixture-argoproj-io.90-0-0-to-90-1-0-reviewed": "argo-cd.crd-version-removal.gadgets-fixture-argoproj-io.90-0-0-to-90-1-0",
+    "argo-cd.crd-version-removal.widgets-fixture-argoproj-io.90-0-0-to-90-1-0-reviewed": "argo-cd.crd-version-removal.widgets-fixture-argoproj-io.90-0-0-to-90-1-0"
+  },
+  "unchanged": []
+}
