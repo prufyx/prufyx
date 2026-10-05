@@ -18,6 +18,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgesign"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/repinbaselines"
 )
 
 func evidenceReattestError() error {
@@ -245,7 +246,7 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("evidence reattest prepare", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	var nowFlag string
-	var worklistPath, packName, rulesPath, rulesWorklistPath, nextRevision, reviewRecordDir, outputDir, attestedAtFlag, statementChainDir, trustRootPath, trustRootDigest string
+	var worklistPath, packName, rulesPath, rulesWorklistPath, nextRevision, reviewRecordDir, outputDir, attestedAtFlag, statementChainDir, trustRootPath, trustRootDigest, baselinesPath string
 	wave := flags.Int("wave", 0, "1..7 stagger slot this batch renews into (human mode only)")
 	mode := flags.String("mode", evidencereattest.ModeHuman, "human (a reviewer's batch: wave, sample, terminal signing) or automated (no sample, per-rule schedule, automation-key signing)")
 	flags.StringVar(&worklistPath, "worklist", "", "retained evidence-repin worklist (absolute path)")
@@ -258,11 +259,12 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	flags.StringVar(&nextRevision, "next-revision", "", "new pack revision string for rules.next.json")
 	flags.StringVar(&reviewRecordDir, "review-record-dir", "", "directory of <ruleId>.json individual review records, one per rule (absolute path; optional)")
 	flags.StringVar(&outputDir, "output-dir", "", "new directory to write statement.json, rules.next.json, and summary.txt into")
+	flags.StringVar(&baselinesPath, "baselines", "", "the owner baseline file (absolute path); a rule is renewed on an owner-chosen baseline only if this file holds that exact entry (human mode)")
 	flags.StringVar(&nowFlag, "now", "", "REHEARSAL ONLY: override the clock (exact UTC RFC3339). The statement is marked as a rehearsal and sign and verify refuse it")
 	flags.StringVar(&attestedAtFlag, "attested-at", "", "exact UTC RFC3339 attestation instant, not in the future (default: now)")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest prepare --worklist ABS --pack cncf|community --rules ABS --next-revision STR (--wave N | --mode automated) --output-dir ABS --statement-chain-dir ABS [--trust-root ABS --trust-root-digest sha256:...] [--rules-worklist-path STR] [--review-record-dir ABS] [--attested-at RFC3339] [--now RFC3339, rehearsal only]")
+			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest prepare --worklist ABS --pack cncf|community --rules ABS --next-revision STR (--wave N | --mode automated) --output-dir ABS --statement-chain-dir ABS [--trust-root ABS --trust-root-digest sha256:...] [--rules-worklist-path STR] [--review-record-dir ABS] [--baselines ABS] [--attested-at RFC3339] [--now RFC3339, rehearsal only]")
 			return e
 		}
 		return evidenceReattestError()
@@ -319,12 +321,18 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return evidenceReattestError()
 	}
+	var baselinesRaw []byte
+	if baselinesPath != "" {
+		if baselinesRaw, err = readReattestInput(baselinesPath, repinbaselines.MaxBytes); err != nil {
+			return evidenceReattestError()
+		}
+	}
 
 	result, err := evidencereattest.Prepare(evidencereattest.PrepareOptions{
 		WorklistRaw: worklistRaw, PackName: packName, PackPath: rulesWorklistPath, PackRaw: packRaw,
 		Chain: chain, Mode: *mode, Wave: *wave, AttestedAt: attestedAt, Now: now, NextRevision: nextRevision,
 		EngineCapabilityDigest: capabilityDigest, ReviewRecords: reviewRecords,
-		Rehearsal: nowFlag != "",
+		Rehearsal: nowFlag != "", BaselinesRaw: baselinesRaw,
 	})
 	if err != nil {
 		fmt.Fprintf(stderr, "evidence reattest prepare: %v\n", err)
@@ -556,7 +564,7 @@ func (l *stringList) Set(value string) error {
 func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("evidence reattest verify", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
-	var statementPath, priorPackPath, nextPackPath, worklistPath, rerunWorklistPath, packName, rulesWorklistPath, reviewRecordDir, envelopePath, trustRootPath, trustRootDigest, statementChainDir, baseStatementChainDir string
+	var statementPath, priorPackPath, nextPackPath, worklistPath, rerunWorklistPath, packName, rulesWorklistPath, reviewRecordDir, envelopePath, trustRootPath, trustRootDigest, statementChainDir, baseStatementChainDir, baselinesPath string
 	var structuralOnly bool
 	flags.StringVar(&statementPath, "statement", "", "statement.json to verify (absolute path)")
 	flags.StringVar(&priorPackPath, "prior-pack", "", "the base-branch rule pack (absolute path)")
@@ -566,6 +574,7 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 	flags.StringVar(&packName, "pack", "", "cncf or community, for the eligibility recomputation")
 	flags.StringVar(&rulesWorklistPath, "rules-worklist-path", "", "the rule pack path as it appears in the worklist, if different from --prior-pack")
 	flags.StringVar(&reviewRecordDir, "review-record-dir", "", "directory of <ruleId>.json individual review records, one per rule (absolute path; optional)")
+	flags.StringVar(&baselinesPath, "baselines", "", "the owner baseline file as it is on the base branch (absolute path); required, with --rerun-worklist, when the statement renews on an owner-chosen baseline")
 	flags.StringVar(&statementChainDir, "statement-chain-dir", "", "this pack's statement chain directory of <stem>.statement.json and <stem>.statement.sig.json pairs (absolute path; required, may be empty)")
 	flags.StringVar(&baseStatementChainDir, "base-statement-chain-dir", "", "the same pack's statement chain directory as it is on the base branch, checked out separately (absolute path; required, may be empty); --statement-chain-dir must equal it plus at most the statement under verification")
 	flags.StringVar(&envelopePath, "envelope", "", "statement.sig.json; required, with --trust-root and --trust-root-digest, whenever the statement renews at least one rule")
@@ -574,7 +583,7 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 	flags.BoolVar(&structuralOnly, "structural-only", false, "run only the structural checks, skipping the signature requirement; this NEVER counts as a passing publish gate and always exits non-zero, even when every structural check passes")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest verify --statement ABS --prior-pack ABS --next-pack ABS --worklist ABS --pack cncf|community --statement-chain-dir ABS --base-statement-chain-dir ABS (--envelope ABS --trust-root ABS --trust-root-digest sha256:... | --structural-only [--trust-root ABS --trust-root-digest sha256:...]) [--rerun-worklist ABS] [--rules-worklist-path STR] [--review-record-dir ABS]")
+			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest verify --statement ABS --prior-pack ABS --next-pack ABS --worklist ABS --pack cncf|community --statement-chain-dir ABS --base-statement-chain-dir ABS (--envelope ABS --trust-root ABS --trust-root-digest sha256:... | --structural-only [--trust-root ABS --trust-root-digest sha256:...]) [--rerun-worklist ABS] [--baselines ABS] [--rules-worklist-path STR] [--review-record-dir ABS]")
 			return e
 		}
 		return evidenceReattestError()
@@ -639,13 +648,19 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return evidenceReattestError()
 	}
+	var baselinesRaw []byte
+	if baselinesPath != "" {
+		if baselinesRaw, err = readReattestInput(baselinesPath, repinbaselines.MaxBytes); err != nil {
+			return evidenceReattestError()
+		}
+	}
 
 	result, err := evidencereattest.Verify(evidencereattest.VerifyOptions{
 		StatementRaw: statementRaw, PriorPackRaw: priorPackRaw, NextPackRaw: nextPackRaw,
 		WorklistRaw: worklistRaw, Chain: chain, BaseChain: baseChain,
 		PackName: packName, PackPath: rulesWorklistPathOrDefault(rulesWorklistPath, priorPackPath), EngineCapabilityDigest: capabilityDigest,
 		ReviewRecords: reviewRecords, AttestedAtNow: time.Now().UTC(),
-		PreSign: structuralOnly, IndependentWorklistRaw: rerunWorklistRaw,
+		PreSign: structuralOnly, IndependentWorklistRaw: rerunWorklistRaw, BaselinesRaw: baselinesRaw,
 	})
 	if err != nil {
 		fmt.Fprintf(stderr, "evidence reattest verify: FAIL: %v\n", err)

@@ -44,7 +44,9 @@ package evidencerepin
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -61,6 +63,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/latestrelease"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/repinbaselines"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecapture"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
@@ -362,6 +365,12 @@ type RepoResolution struct {
 	ReleaseListTruncated bool `json:"releaseListTruncated,omitempty"`
 	// Determination records how a NO_RELEASES_OR_TAGS status was reached.
 	Determination *NoBaselineDetermination `json:"determination,omitempty"`
+	// OwnerBaseline is set on a PENDING_AMBIGUOUS_LATEST repository when
+	// the owner's baseline file holds an entry whose tag exists and
+	// resolves to exactly the commit the entry records. The status stays
+	// ambiguous: the choice supplies a baseline for the citations that
+	// would otherwise be pending, it does not make "latest" unambiguous.
+	OwnerBaseline *OwnerBaseline `json:"ownerBaseline,omitempty"`
 	// Stale is true when this resolution is older than the run's --max-age
 	// bound but could not be refreshed this run (for example because an
 	// earlier repository in the same run hit the GitHub API rate limit).
@@ -375,6 +384,14 @@ type RepoResolution struct {
 	Source           string `json:"source,omitempty"`
 	MirrorCheckedAt  string `json:"mirrorCheckedAt,omitempty"`
 	MirrorReleasesAt string `json:"mirrorReleasesAt,omitempty"`
+}
+
+// OwnerBaseline is a verified entry of the owner's baseline file: the tag
+// still resolves to the recorded commit.
+type OwnerBaseline struct {
+	Tag         string `json:"tag"`
+	Commit      string `json:"commit"`
+	EntryDigest string `json:"entryDigest"`
 }
 
 var errRateLimited = errors.New("github api rate limited")
@@ -708,6 +725,9 @@ type ClassResult struct {
 	// BaselineNote says why a release-line request used the latest
 	// baseline instead.
 	BaselineNote string `json:"baselineNote,omitempty"`
+	// BaselineEntryDigest is the digest of the owner baseline file entry
+	// a BaselineOwnerChoice comparison used.
+	BaselineEntryDigest string `json:"baselineEntryDigest,omitempty"`
 }
 
 // costRank orders the worklist cheapest-reviewer-cost first: batch-attestable
@@ -974,6 +994,42 @@ type Summary struct {
 	// PendingRepositories names every repository with a pending citation,
 	// with how many distinct rules (per rule pack) and citations it holds.
 	PendingRepositories []PendingRepository `json:"pendingRepositories,omitempty"`
+	// OwnerBaselines lists every repository whose citations were compared
+	// with an owner-chosen baseline in this run.
+	OwnerBaselines []OwnerBaselineUse `json:"ownerBaselines,omitempty"`
+}
+
+// OwnerBaselineUse is one owner baseline in use.
+type OwnerBaselineUse struct {
+	Repo        string `json:"repo"`
+	Tag         string `json:"tag"`
+	Commit      string `json:"commit"`
+	EntryDigest string `json:"entryDigest"`
+	Citations   int    `json:"citations"`
+}
+
+// ownerBaselineUses counts the citations compared with each owner baseline.
+func ownerBaselineUses(results []ClassResult, repos []RepoResolution) []OwnerBaselineUse {
+	by := map[string]*OwnerBaselineUse{}
+	for _, repo := range repos {
+		if repo.OwnerBaseline != nil {
+			name := repo.Owner + "/" + repo.Repo
+			by[name] = &OwnerBaselineUse{Repo: name, Tag: repo.OwnerBaseline.Tag, Commit: repo.OwnerBaseline.Commit, EntryDigest: repo.OwnerBaseline.EntryDigest}
+		}
+	}
+	for _, result := range results {
+		if result.Baseline == BaselineOwnerChoice {
+			if use := by[result.Owner+"/"+result.Repo]; use != nil {
+				use.Citations++
+			}
+		}
+	}
+	out := make([]OwnerBaselineUse, 0, len(by))
+	for _, use := range by {
+		out = append(out, *use)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Repo < out[j].Repo })
+	return out
 }
 
 // PendingRepository is one repository holding pending citations.
@@ -1135,6 +1191,9 @@ type Worklist struct {
 	// means GitHub over HTTP. Mirror identifies the mirror snapshot used.
 	Source string            `json:"source,omitempty"`
 	Mirror *MirrorProvenance `json:"mirror,omitempty"`
+	// BaselinesDigest is the digest of the owner baseline file this run
+	// read (sha256 of its bytes); empty when none was given.
+	BaselinesDigest string `json:"baselinesDigest,omitempty"`
 }
 
 // WorklistScope records what subset of the corpus this run covered.
@@ -1187,6 +1246,22 @@ func BuildWorklist(ctx context.Context, citations []Citation, projects []string,
 // can be proven (see releaseline.go) and with the most recent release
 // otherwise. Each result records the baseline it used.
 func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projects []string, limit int, state *State, apiFetcher APIFetcher, blobFetcher sourcecapture.Fetcher, now func() time.Time, maxAge time.Duration, progress io.Writer, baselineMode string) (Worklist, error) {
+	return BuildWorklistWithOptions(ctx, citations, projects, limit, state, apiFetcher, blobFetcher, now, maxAge, progress, baselineMode, BuildOptions{})
+}
+
+// BuildOptions holds the optional inputs of a worklist run.
+type BuildOptions struct {
+	// Baselines are the owner's per-repository baseline choices. A
+	// repository that would be PENDING_AMBIGUOUS_LATEST uses the chosen tag
+	// only if the tag exists and resolves to exactly the recorded commit;
+	// otherwise it stays pending with the reason in its detail.
+	Baselines *repinbaselines.File
+	// BaselinesDigest is recorded in the worklist (sha256 of the file).
+	BaselinesDigest string
+}
+
+// BuildWorklistWithOptions is BuildWorklistWithBaseline with BuildOptions.
+func BuildWorklistWithOptions(ctx context.Context, citations []Citation, projects []string, limit int, state *State, apiFetcher APIFetcher, blobFetcher sourcecapture.Fetcher, now func() time.Time, maxAge time.Duration, progress io.Writer, baselineMode string, buildOpts BuildOptions) (Worklist, error) {
 	if baselineMode != BaselineModeLatest && baselineMode != BaselineModeReleaseLine {
 		return Worklist{}, fmt.Errorf("%w: unknown baseline mode", errRejected)
 	}
@@ -1238,6 +1313,7 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 			resolution.Status = repoPendingAmbiguous
 			resolution.Detail = ambiguous.Error() + "; a human must choose the baseline"
 			resolution.ReleaseListTruncated = cur.truncated
+			applyOwnerBaseline(&resolution, buildOpts.Baselines, resolver.tagCommit, &rateLimited)
 		case err != nil:
 			resolution.Status = repoPendingError
 			resolution.Detail = "resolution attempt failed; re-run with the same --state to retry"
@@ -1275,7 +1351,7 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 	for _, citation := range filtered {
 		citationKey := citation.key()
 		existing, hadExisting := state.Results[citationKey]
-		if hadExisting && existing.Class != ClassPending && existing.Class != ClassNoReleaseBaseline && isFresh(existing.ClassifiedAt, now(), maxAge) && resultMode(existing) == baselineMode && lineStillFresh(state, existing, now(), maxAge) {
+		if hadExisting && existing.Class != ClassPending && existing.Class != ClassNoReleaseBaseline && isFresh(existing.ClassifiedAt, now(), maxAge) && resultMode(existing) == baselineMode && lineStillFresh(state, existing, now(), maxAge) && ownerChoiceStillHolds(existing, state.Repos[citation.repoKey()]) {
 			// Still fresh: resume without reclassifying or re-stamping.
 			results = append(results, existing)
 			continue
@@ -1286,6 +1362,9 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 		// An ambiguous latest still lets a citation whose release line is
 		// proven use that line; every other citation stays pending.
 		ambiguousUsable := resolution.Status == repoPendingAmbiguous && baselineMode == BaselineModeReleaseLine && isFresh(resolution.ResolvedAt, now(), maxAge)
+		// The owner's choice supplies a baseline only where the citation
+		// would otherwise be pending: a proven release line still wins.
+		ownerUsable := resolution.Status == repoPendingAmbiguous && resolution.OwnerBaseline != nil && isFresh(resolution.ResolvedAt, now(), maxAge)
 		var result ClassResult
 		switch {
 		case noBaseline:
@@ -1293,8 +1372,11 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 			result.Class = ClassNoReleaseBaseline
 			result.ClassifiedAt = now().UTC().Format(time.RFC3339)
 			result.BaselineMode = baselineMode
-		case resolutionUsable || ambiguousUsable:
+		case resolutionUsable || ambiguousUsable || ownerUsable:
 			baselineCommit, baselineTag := resolution.CurrentCommit, resolution.CurrentTag
+			if ownerUsable {
+				baselineCommit, baselineTag = resolution.OwnerBaseline.Commit, resolution.OwnerBaseline.Tag
+			}
 			var decision baselineDecision
 			if baselineMode == BaselineModeReleaseLine {
 				decision = resolver.decide(citation, resolution)
@@ -1307,7 +1389,7 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 				result.BaselineMode = baselineMode
 				break
 			}
-			if ambiguousUsable && decision.line == nil {
+			if ambiguousUsable && !ownerUsable && decision.line == nil {
 				result = pendingResult(citation, "repository current commit unresolved: "+resolution.Status+detailSuffix(resolution))
 				result.BaselineMode = baselineMode
 				break
@@ -1332,11 +1414,16 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 				} else {
 					result.LineStatus = LineStatusLaterReleases
 				}
+			} else if ownerUsable {
+				result.Baseline = BaselineOwnerChoice
+				result.BaselineEntryDigest = resolution.OwnerBaseline.EntryDigest
+				result.BaselineNote = decision.note
+				result.Resolution = ""
 			} else {
 				result.Baseline = BaselineLatest
 				result.BaselineNote = decision.note
 			}
-		case hadExisting && existing.Class != ClassPending && resultMode(existing) == baselineMode:
+		case hadExisting && existing.Class != ClassPending && resultMode(existing) == baselineMode && ownerChoiceStillHolds(existing, resolution):
 			// The prior classification is stale, but this run cannot
 			// recompute it (its repo's resolution is itself stale and
 			// unrefreshed this run, typically due to an earlier rate
@@ -1386,6 +1473,7 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 	summary := summarize(results)
 	summary.OldestResolvedAt = oldestResolvedAt(repos)
 	summary.PendingRepositories = pendingRepositories(results, repos)
+	summary.OwnerBaselines = ownerBaselineUses(results, repos)
 
 	// List every release line a reported baseline relies on, marking any
 	// that this run could not refresh as stale instead of re-stamping it.
@@ -1435,8 +1523,54 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 		Rules:       ruleVerdicts(results),
 		Summary:     summary,
 		Limitations: worklistLimitations,
+
+		BaselinesDigest: buildOpts.BaselinesDigest,
 	}
 	return worklist, nil
+}
+
+// applyOwnerBaseline looks the repository up in the owner's baseline file.
+// The entry is used only if its tag exists and resolves to exactly the
+// recorded commit; otherwise the reason is added to the resolution's detail
+// and the repository stays pending. Rate limiting is not a refusal: the
+// repository is marked rate limited like any other resolution.
+func applyOwnerBaseline(resolution *RepoResolution, baselines *repinbaselines.File, tagCommit func(owner, repo, tag string) (string, error), rateLimited *bool) {
+	if baselines == nil {
+		return
+	}
+	entry, ok := baselines.Lookup(resolution.Owner + "/" + resolution.Repo)
+	if !ok {
+		return
+	}
+	refuse := func(format string, args ...any) {
+		resolution.Detail += "; owner baseline " + entry.Tag + " refused: " + fmt.Sprintf(format, args...)
+	}
+	commit, err := tagCommit(resolution.Owner, resolution.Repo, entry.Tag)
+	switch {
+	case errors.Is(err, errRateLimited):
+		resolution.Status = repoPendingRateLimited
+		resolution.Detail = "github api rate limit reached; re-run with the same --state to resume"
+		*rateLimited = true
+	case err != nil:
+		refuse("the tag could not be resolved")
+	case commit == "":
+		refuse("the tag does not exist or does not resolve to a commit")
+	case commit != entry.Commit:
+		refuse("the tag now resolves to %s, the baseline file records %s", commit, entry.Commit)
+	default:
+		resolution.OwnerBaseline = &OwnerBaseline{Tag: entry.Tag, Commit: entry.Commit, EntryDigest: entry.Digest()}
+	}
+}
+
+// ownerChoiceStillHolds is false for a resumed owner-choice result whose
+// repository no longer has the same verified owner baseline: the tag moved,
+// the entry changed or the file no longer holds it.
+func ownerChoiceStillHolds(result ClassResult, repo RepoResolution) bool {
+	if result.Baseline != BaselineOwnerChoice {
+		return true
+	}
+	ob := repo.OwnerBaseline
+	return repo.Status == repoPendingAmbiguous && ob != nil && ob.EntryDigest == result.BaselineEntryDigest && ob.Commit == result.NewCommit && ob.Tag == result.BaselineTag
 }
 
 // resultMode is the baseline mode a result was computed under; a result
@@ -1566,6 +1700,7 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps 
 	source := flags.String("source", SourceHTTP, "where tags, releases and file bytes come from: \"http\" (GitHub, the default) or \"mirror\" (a local factory mirror, strictly offline; needs --mirror-state)")
 	mirrorState := flags.String("mirror-state", "", "factory mirror state directory (with --source mirror)")
 	wantsOut := flags.String("wants-out", "", "with --source mirror: write the pinned files the mirror is missing as a wants file for \"factory mirror --wants\"")
+	baselinesPath := flags.String("baselines", "", "owner baseline file (cli/knowledge/repin-baselines.json): a repository whose latest release is ambiguous uses the tag the owner chose, only while that tag resolves to the recorded commit")
 	flags.Var(&rulePacks, "rules", "rule pack path (repeatable; default: the shipped CNCF and community packs)")
 	flags.Var(&projects, "project", "restrict to this project slug (repeatable; default: all)")
 	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 || *outputPath == "" {
@@ -1603,6 +1738,22 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps 
 		citations = append(citations, parsed...)
 	}
 
+	var buildOpts BuildOptions
+	if *baselinesPath != "" {
+		raw, err := os.ReadFile(*baselinesPath)
+		if err != nil {
+			fmt.Fprintf(stderr, "evidence repin: cannot read the baseline file: %v\n", err)
+			return 2
+		}
+		file, err := repinbaselines.Parse(raw)
+		if err != nil {
+			fmt.Fprintf(stderr, "evidence repin: %v\n", err)
+			return 2
+		}
+		sum := sha256.Sum256(raw)
+		buildOpts = BuildOptions{Baselines: &file, BaselinesDigest: "sha256:" + hex.EncodeToString(sum[:])}
+	}
+
 	var worklist Worklist
 	var missing int
 	if *source == SourceMirror {
@@ -1612,7 +1763,7 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps 
 			return 2
 		}
 		var wants MirrorWants
-		worklist, wants, err = BuildMirrorWorklist(ctx, citations, projects, *limit, src, now, *maxAge, stderr, *baseline)
+		worklist, wants, err = BuildMirrorWorklistWithOptions(ctx, citations, projects, *limit, src, now, *maxAge, stderr, *baseline, buildOpts)
 		if err != nil {
 			fmt.Fprintf(stderr, "evidence repin: %v\n", err)
 			return 2
@@ -1635,7 +1786,7 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps 
 		if deps.Refs != nil {
 			apiFetcher = withGitRefs{APIFetcher: apiFetcher, refs: deps.Refs}
 		}
-		worklist, err = BuildWorklistWithBaseline(ctx, citations, projects, *limit, state, apiFetcher, blobFetcher, now, *maxAge, stderr, *baseline)
+		worklist, err = BuildWorklistWithOptions(ctx, citations, projects, *limit, state, apiFetcher, blobFetcher, now, *maxAge, stderr, *baseline, buildOpts)
 		if err != nil {
 			fmt.Fprintf(stderr, "evidence repin: %v\n", err)
 			return 2
@@ -1659,6 +1810,9 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps 
 		worklist.Summary.TotalCitations, worklist.Summary.Classified, worklist.Summary.Pending, len(worklist.Rules), worklist.Summary.BatchAttestableFraction)
 	for _, pending := range worklist.Summary.PendingRepositories {
 		fmt.Fprintf(stdout, "evidence repin: pending repository %s (%s): %d rules, %d citations\n", pending.Repo, pending.Status, pending.Rules, pending.Citations)
+	}
+	for _, use := range worklist.Summary.OwnerBaselines {
+		fmt.Fprintf(stdout, "evidence repin: owner baseline %s -> %s (%s): %d citations\n", use.Repo, use.Tag, use.EntryDigest, use.Citations)
 	}
 	if *source == SourceMirror && missing > 0 {
 		fmt.Fprintf(stdout, "evidence repin: %d file(s) are not in the mirror; add them with \"factory mirror --wants\" (see --wants-out) and run again\n", missing)

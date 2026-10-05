@@ -528,12 +528,17 @@ func (f *mirrorBlobFetcher) canRead(owner, repo, file string) func(commit string
 // recomputed from the mirror, which is cheap and always current. The
 // returned wants list every file the mirror was missing.
 func BuildMirrorWorklist(ctx context.Context, citations []Citation, projects []string, limit int, src MirrorSource, now func() time.Time, maxAge time.Duration, progress io.Writer, baselineMode string) (Worklist, MirrorWants, error) {
+	return BuildMirrorWorklistWithOptions(ctx, citations, projects, limit, src, now, maxAge, progress, baselineMode, BuildOptions{})
+}
+
+// BuildMirrorWorklistWithOptions is BuildMirrorWorklist with BuildOptions.
+func BuildMirrorWorklistWithOptions(ctx context.Context, citations []Citation, projects []string, limit int, src MirrorSource, now func() time.Time, maxAge time.Duration, progress io.Writer, baselineMode string, buildOpts BuildOptions) (Worklist, MirrorWants, error) {
 	notes := mirrorNotes{}
 	filtered := filterCitations(citations, projects, limit)
 	wants := newMirrorWantsCollector(filtered)
 	api := newMirrorAPIFetcher(src, notes)
 	blobs := &mirrorBlobFetcher{src: src, notes: notes, wants: wants}
-	worklist, err := BuildWorklistWithBaseline(ctx, citations, projects, limit, newState(), api, blobs, now, maxAge, progress, baselineMode)
+	worklist, err := BuildWorklistWithOptions(ctx, citations, projects, limit, newState(), api, blobs, now, maxAge, progress, baselineMode, buildOpts)
 	if err != nil {
 		return Worklist{}, MirrorWants{}, err
 	}

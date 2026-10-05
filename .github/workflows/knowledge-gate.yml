@@ -187,10 +187,18 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # The owner baseline file is read from the base, like the rule
+          # packs: a statement can rely on an owner-chosen baseline only after
+          # the file entry itself was admitted and merged.
+          baselines=()
+          if [ -f cli/knowledge/repin-baselines.json ]; then
+            baselines=(--baselines cli/knowledge/repin-baselines.json)
+          fi
           "${RUNNER_TEMP}/prufyx-maintainer" evidence repin \
             --rules cli/internal/cncfcheck/data/rules.json \
             --rules cli/internal/projectcheck/data/rules.json \
             --baseline release-line \
+            "${baselines[@]}" \
             --output "${RUNNER_TEMP}/rerun-worklist.json"
 
       - name: Verify the change

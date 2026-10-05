@@ -12,6 +12,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/corpusattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgetargets"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/repinbaselines"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/supportinventory"
 	"github.com/prufyx/prufyx/cli/internal/projectcheck"
 )
@@ -83,6 +84,10 @@ type Layout struct {
 	// ApprovalKeysPath pins the owner-approval keys. It is read from the
 	// base tree only.
 	ApprovalKeysPath string
+	// BaselinesPath is the owner baseline file (package repinbaselines). A
+	// change to it needs an owner approval per entry, kept under
+	// ApprovalDir/repin-baselines/.
+	BaselinesPath string
 	// ConsensusClaimsDir holds, as <pack>/<rule id>.json, the claims
 	// bundle of a consensus rule. The gate re-runs the consensus verifier
 	// on it and reports the verdict; it never admits the rule.
@@ -182,6 +187,7 @@ func DefaultLayout() Layout {
 		TrustRootPath:      trustRootPath,
 		ApprovalDir:        approvalDir,
 		ApprovalKeysPath:   approvalKeys,
+		BaselinesPath:      repinbaselines.DefaultPath,
 		ConsensusClaimsDir: consensusDir,
 		Generated: []GeneratedPair{{
 			JSONPath: inventoryJSON, MarkdownPath: inventoryMD,

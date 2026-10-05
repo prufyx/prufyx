@@ -62,6 +62,10 @@ const (
 	// which baseline was actually used.
 	BaselineLatest      = "latest"
 	BaselineReleaseLine = "release_line"
+	// BaselineOwnerChoice marks a citation compared with the tag the owner
+	// chose for a repository whose latest release is ambiguous (see
+	// package repinbaselines).
+	BaselineOwnerChoice = "owner_choice"
 
 	// LineStatusPinnedIsLatest and LineStatusLaterReleases are the
 	// per-citation lineStatus of a release-line baseline.

@@ -133,6 +133,12 @@ func verifyStatement(layout Layout, spec PackSpec, base, head Tree, basePack, he
 		}
 		records[id] = raw
 	}
+	var baselines []byte
+	if layout.BaselinesPath != "" {
+		if baselines, err = base.ReadOptional(layout.BaselinesPath, maxBaselineFileBytes); err != nil {
+			return fail("base owner baseline file: %v", err)
+		}
+	}
 	capability, err := spec.CapabilityDigest()
 	if err != nil {
 		return fail("engine capability digest: %v", err)
@@ -144,7 +150,7 @@ func verifyStatement(layout Layout, spec PackSpec, base, head Tree, basePack, he
 		StatementRaw: stmt.Statement, PriorPackRaw: basePack.Raw, NextPackRaw: headPack.Raw,
 		WorklistRaw: worklist, Chain: headCh, BaseChain: baseCh,
 		PackName: spec.Name, PackPath: spec.Path, EngineCapabilityDigest: capability,
-		AttestedAtNow: now, ReviewRecords: records, IndependentWorklistRaw: opts.RerunWorklist,
+		AttestedAtNow: now, ReviewRecords: records, IndependentWorklistRaw: opts.RerunWorklist, BaselinesRaw: baselines,
 	})
 	if err != nil {
 		return fail("statement %s: %v", stmt.Name, err)

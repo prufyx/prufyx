@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/maintainer/repinbaselines"
 	"github.com/prufyx/prufyx/cli/internal/strictjson"
 )
 
@@ -106,7 +107,10 @@ var (
 	approvalTimeRE   = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$`)
 	// approvalScopeRE is a line attestation scope: a package URL, a fact
 	// family and a minor line, separated by single spaces.
-	approvalScopeRE = regexp.MustCompile(`^pkg:[a-z0-9][a-z0-9+._/-]{0,199} [a-z0-9][a-z0-9._-]{0,127} (0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$`)
+	// approvalRepoScopeRE is the scope of a repinBaseline approval: the
+	// repository, owner/repo.
+	approvalRepoScopeRE = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9]|-[A-Za-z0-9]){0,38}/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`)
+	approvalScopeRE     = regexp.MustCompile(`^pkg:[a-z0-9][a-z0-9+._/-]{0,199} [a-z0-9][a-z0-9._-]{0,127} (0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$`)
 )
 
 // SignedApprovalBytes returns the exact bytes an approval signature covers.
@@ -133,6 +137,10 @@ func (r ApprovalRecord) validate() error {
 		}
 	case ApprovalSubjectLineAttestation:
 		if !approvalScopeRE.MatchString(r.Scope) {
+			return errors.New("approval record field out of range")
+		}
+	case ApprovalSubjectRepinBaseline:
+		if !approvalRepoScopeRE.MatchString(r.Scope) {
 			return errors.New("approval record field out of range")
 		}
 	default:
@@ -204,6 +212,15 @@ func ParseApprovalKeys(raw []byte) (ApprovalKeys, error) {
 // no such rule, and the record must say ApprovalBaseAbsent).
 func VerifyApproval(raw []byte, keys ApprovalKeys, pack, ruleID string, baseEntry, canonicalEntry []byte, now time.Time) error {
 	return verifyApproval(raw, keys, pack, "", ruleID, "", baseEntry, canonicalEntry, now)
+}
+
+// VerifyBaselineApproval is VerifyApproval for one owner baseline entry:
+// the approval names subject repinBaseline, the pack name of the baselines
+// approvals, the entry's approval id as the rule id and the repository as
+// its scope; its digests are those of the base entry (nil: the base has no
+// entry for the repository) and the proposed entry, each in canonical JSON.
+func VerifyBaselineApproval(raw []byte, keys ApprovalKeys, approvalID, repository string, baseEntry, canonicalEntry []byte, now time.Time) error {
+	return verifyApproval(raw, keys, repinbaselines.ApprovalPack, ApprovalSubjectRepinBaseline, approvalID, repository, baseEntry, canonicalEntry, now)
 }
 
 // VerifyRecordApproval is VerifyApproval for one record of a pack: the

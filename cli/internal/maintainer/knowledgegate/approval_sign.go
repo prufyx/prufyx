@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/repinbaselines"
 )
 
 // Signing owner approvals. The signer builds the record from the same pack
@@ -75,9 +76,14 @@ type ApprovalSubject struct {
 	Kind   string
 	Pack   string
 	RuleID string
+	// Scope is set for a baseline approval: the repository.
+	Scope string
 	// Base is the canonical base entry (nil: the base has no such rule);
 	// Candidate the canonical proposed entry.
 	Base, Candidate []byte
+	// BaseEntry and HeadEntry are the decoded entries of a baseline
+	// subject (BaseEntry nil: none in the base).
+	BaseEntry, HeadEntry *repinbaselines.Entry
 }
 
 // BaseDigest is the record's baseDigest for the subject.
@@ -158,7 +164,7 @@ type SignApprovalOptions struct {
 // refuses a key that is not pinned or has expired, an identity that is not
 // a pinned owner, and any record the gate's verifier would refuse at Now.
 func SignApproval(o SignApprovalOptions) ([]byte, ApprovalRecord, error) {
-	if o.Subject.Kind != ApprovalSubjectRule {
+	if o.Subject.Kind != ApprovalSubjectRule && o.Subject.Kind != ApprovalSubjectRepinBaseline {
 		return nil, ApprovalRecord{}, fmt.Errorf("approval subject kind %q is not supported", logSafe(o.Subject.Kind))
 	}
 	if len(o.Key) != ed25519.PrivateKeySize {
@@ -199,6 +205,9 @@ func SignApproval(o SignApprovalOptions) ([]byte, ApprovalRecord, error) {
 		Pack:            o.Subject.Pack,
 		RuleID:          o.Subject.RuleID,
 	}
+	if o.Subject.Kind == ApprovalSubjectRepinBaseline {
+		rec.Subject, rec.Scope = ApprovalSubjectRepinBaseline, o.Subject.Scope
+	}
 	msg, err := SignedApprovalBytes(rec)
 	if err != nil {
 		return nil, ApprovalRecord{}, errors.New("approval record field out of range (candidate id, identity, pack or rule id)")
@@ -209,7 +218,7 @@ func SignApproval(o SignApprovalOptions) ([]byte, ApprovalRecord, error) {
 		return nil, ApprovalRecord{}, err
 	}
 	raw = append(raw, '\n')
-	if err := VerifyApproval(raw, o.Keys, o.Subject.Pack, o.Subject.RuleID, o.Subject.Base, o.Subject.Candidate, now); err != nil {
+	if err := VerifyApprovalSubject(raw, o.Keys, o.Subject, now); err != nil {
 		return nil, ApprovalRecord{}, fmt.Errorf("the signed approval does not verify: %w", err)
 	}
 	return raw, rec, nil
@@ -218,7 +227,11 @@ func SignApproval(o SignApprovalOptions) ([]byte, ApprovalRecord, error) {
 // VerifyApprovalSubject is the gate's check of one approval file for one
 // subject at now.
 func VerifyApprovalSubject(raw []byte, keys ApprovalKeys, s ApprovalSubject, now time.Time) error {
-	if s.Kind != ApprovalSubjectRule {
+	switch s.Kind {
+	case ApprovalSubjectRule:
+	case ApprovalSubjectRepinBaseline:
+		return verifyBaselineSubject(raw, keys, s, now)
+	default:
 		return fmt.Errorf("approval subject kind %q is not supported", logSafe(s.Kind))
 	}
 	return VerifyApproval(raw, keys, s.Pack, s.RuleID, s.Base, s.Candidate, now)

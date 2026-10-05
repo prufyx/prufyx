@@ -144,6 +144,10 @@ type Report struct {
 	// with exactly this commit.
 	HeadSHA string `json:"headSha,omitempty"`
 
+	// baselineApprovalsUsed names (by approval id) the baseline approval
+	// files this change's baseline check admitted entries with.
+	baselineApprovalsUsed map[string]bool
+
 	// alarmKinds runs parallel to Alarms.
 	alarmKinds []string
 	// rederivedUnchanged counts rules re-derived by --rederive-all: every
@@ -394,6 +398,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	r.generatedChecks(opts)
 	r.trustCheck(opts)
 	r.modeCheck(opts)
+	r.baselineApprovalsUsed = r.baselinesCheck(opts, loadKeys, approvals)
 	r.recordCheck(cls, statements, opts)
 	r.limitChecks(cls, opts)
 	r.finish(true)
