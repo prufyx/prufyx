@@ -13,6 +13,13 @@ JSON file readable only by its owner because Helm values commonly contain
 credentials. Relative paths are accepted. Create inputs under `umask 077`, or
 run `chmod 600 values.json` before the check.
 
+## Exit codes
+
+A `check` exit `0` means one scoped rule passed, not that the upgrade is safe.
+Add `--strict-exit` to any `check` route to exit `14` instead of `0` on a scoped
+PASS. The single table of exit codes for `check` and `scan` is in
+[exit-codes.md](exit-codes.md).
+
 ## Choosing which evidence to trust
 
 Every `check cncf` route, with embedded or external knowledge, takes

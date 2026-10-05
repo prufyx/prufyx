@@ -34,6 +34,11 @@ CI.
 
 ## What the verdicts mean
 
+The table is for `check`, where `PASS` is scoped to one rule. `scan` exit `0`
+means a complete scope. See [exit codes](cli/docs/exit-codes.md) for the single
+table of both, and for `check --strict-exit`, which makes a scoped `PASS` exit
+`14` so CI cannot read it as a complete pass.
+
 | Verdict | Meaning | Exit code |
 | --- | --- | --- |
 | `PASS` | The input does not match the reviewed source condition for this rule. It is not a whole-upgrade certificate. | `0` |
