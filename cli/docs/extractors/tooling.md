@@ -71,6 +71,15 @@ and a rule of another extractor or of a reviewed rule is never touched. The
 result is audited the same way, and the knowledge gate classifies each such
 change as a tightening change (`withdraw`).
 
+A rule is withdrawn only when the run supersedes it: the run is not older than
+the rule, carries the same extractor code digest, and its pair read both
+commits (from and to) that the rule cites; the rule must cite exactly those two
+and no other. Otherwise the command refuses with exit 3 and touches nothing.
+Because extractors are deterministic, a rerun with the same code over the same
+commits re-derives the same rules, so today this applies to a run that was
+edited or trimmed. When extractor upgrades or upstream re-tags should trigger
+withdrawals is a separate decision, not covered here.
+
 The command prints what it did, one line per rule. `gate classify` on the
 tree before and after reports exactly those rules (`new` for a merge,
 `withdraw` for a withdrawal) and, when attestations are merged or the schema
