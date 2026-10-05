@@ -244,6 +244,7 @@ func readStatementChain(dir, trustRootPath, trustRootDigest string) (*evidencere
 func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("evidence reattest prepare", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
+	var nowFlag string
 	var worklistPath, packName, rulesPath, rulesWorklistPath, nextRevision, reviewRecordDir, outputDir, attestedAtFlag, statementChainDir, trustRootPath, trustRootDigest string
 	wave := flags.Int("wave", 0, "1..7 stagger slot this batch renews into (human mode only)")
 	mode := flags.String("mode", evidencereattest.ModeHuman, "human (a reviewer's batch: wave, sample, terminal signing) or automated (no sample, per-rule schedule, automation-key signing)")
@@ -257,10 +258,11 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	flags.StringVar(&nextRevision, "next-revision", "", "new pack revision string for rules.next.json")
 	flags.StringVar(&reviewRecordDir, "review-record-dir", "", "directory of <ruleId>.json individual review records, one per rule (absolute path; optional)")
 	flags.StringVar(&outputDir, "output-dir", "", "new directory to write statement.json, rules.next.json, and summary.txt into")
+	flags.StringVar(&nowFlag, "now", "", "REHEARSAL ONLY: override the clock (exact UTC RFC3339). The statement is marked as a rehearsal and sign and verify refuse it")
 	flags.StringVar(&attestedAtFlag, "attested-at", "", "exact UTC RFC3339 attestation instant, not in the future (default: now)")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest prepare --worklist ABS --pack cncf|community --rules ABS --next-revision STR (--wave N | --mode automated) --output-dir ABS --statement-chain-dir ABS [--trust-root ABS --trust-root-digest sha256:...] [--rules-worklist-path STR] [--review-record-dir ABS] [--attested-at RFC3339]")
+			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest prepare --worklist ABS --pack cncf|community --rules ABS --next-revision STR (--wave N | --mode automated) --output-dir ABS --statement-chain-dir ABS [--trust-root ABS --trust-root-digest sha256:...] [--rules-worklist-path STR] [--review-record-dir ABS] [--attested-at RFC3339] [--now RFC3339, rehearsal only]")
 			return e
 		}
 		return evidenceReattestError()
@@ -281,6 +283,13 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 		rulesWorklistPath = rulesPath
 	}
 	now := time.Now().UTC()
+	if nowFlag != "" {
+		parsed, err := time.Parse(time.RFC3339, nowFlag)
+		if err != nil {
+			return evidenceReattestError()
+		}
+		now = parsed.UTC()
+	}
 	attestedAt := now
 	if attestedAtFlag != "" {
 		parsed, err := time.Parse(time.RFC3339, attestedAtFlag)
@@ -315,6 +324,7 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 		WorklistRaw: worklistRaw, PackName: packName, PackPath: rulesWorklistPath, PackRaw: packRaw,
 		Chain: chain, Mode: *mode, Wave: *wave, AttestedAt: attestedAt, Now: now, NextRevision: nextRevision,
 		EngineCapabilityDigest: capabilityDigest, ReviewRecords: reviewRecords,
+		Rehearsal: nowFlag != "",
 	})
 	if err != nil {
 		fmt.Fprintf(stderr, "evidence reattest prepare: %v\n", err)
@@ -335,6 +345,12 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	}
 	fmt.Fprintf(stdout, "evidence reattest prepare: mode=%s signerRole=%s eligible=%d sampled=%d notExtended=%d\n",
 		*mode, result.Statement.SignerRole, result.EligibleRuleCount, result.SampledRuleCount, result.NotExtendedRuleCount)
+	if result.Statement.Rehearsal {
+		fmt.Fprintln(stdout, "evidence reattest prepare: REHEARSAL (--now): this statement can never be signed or verified")
+	}
+	for _, pending := range evidencereattest.PendingRepositorySummary(result.Statement) {
+		fmt.Fprintf(stdout, "evidence reattest prepare: pending repository %s: %d rules not renewed, %d pending citations\n", pending.Repo, pending.Rules, pending.Citations)
+	}
 	return nil
 }
 

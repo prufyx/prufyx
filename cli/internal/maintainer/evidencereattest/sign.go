@@ -98,6 +98,9 @@ func Sign(options SignOptions) ([]byte, error) {
 	if err != nil {
 		return nil, ErrRejected
 	}
+	if err := refuseRehearsal(statement); err != nil {
+		return nil, err
+	}
 	if attestedAt, err := parseUTC(statement.AttestedAt); err != nil || attestedAt.After(now) {
 		return nil, fmt.Errorf("%w: attestedAt is in the future", ErrRejected)
 	}
@@ -220,6 +223,9 @@ func VerifySignature(options VerifySignatureOptions) (VerifySignatureResult, err
 	statement, err := ParseStatement(options.Statement)
 	if err != nil {
 		return VerifySignatureResult{}, ErrRejected
+	}
+	if err := refuseRehearsal(statement); err != nil {
+		return VerifySignatureResult{}, err
 	}
 	role, err := statementRole(statement)
 	if err != nil {

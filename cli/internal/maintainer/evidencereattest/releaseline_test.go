@@ -131,7 +131,7 @@ func TestPrepareNoReleaseBaselineExcludesOnlyItsOwnRule(t *testing.T) {
 	}
 }
 
-// PENDING next to a NO_RELEASE_BASELINE citation still blocks the batch.
+// PENDING next to a NO_RELEASE_BASELINE citation is still recorded.
 func TestPrepareNoReleaseBaselineDoesNotMaskPending(t *testing.T) {
 	packPath := "/repo/cli/internal/cncfcheck/data/rules.json"
 	bare := freshSpec("rule-b", "proj-b", baseNow)
@@ -142,7 +142,12 @@ func TestPrepareNoReleaseBaselineDoesNotMaskPending(t *testing.T) {
 		Owner: "owner", Repo: "repo-x", Class: evidencerepin.ClassPending,
 	})
 	result := prepareSingle(t, wl, pack, packPath)
-	if len(result.Statement.Rules) != 0 {
-		t.Fatalf("a PENDING citation must still block the whole batch: %+v", result.Statement.Rules)
+	if len(result.Statement.PendingCitations) != 1 {
+		t.Fatalf("a PENDING citation must be recorded next to a NO_RELEASE_BASELINE one: %+v", result.Statement.PendingCitations)
+	}
+	for _, ne := range result.Statement.NotExtended {
+		if ne.RuleID == "rule-b" && ne.WorstClass != evidencerepin.ClassNoReleaseBaseline {
+			t.Fatalf("rule-b keeps its own reason: %+v", ne)
+		}
 	}
 }

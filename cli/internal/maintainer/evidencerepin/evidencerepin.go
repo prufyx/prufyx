@@ -971,6 +971,44 @@ type Summary struct {
 	// BaselineDistribution counts classified citations by the baseline
 	// they were compared against (BaselineReleaseLine, BaselineLatest).
 	BaselineDistribution map[string]int `json:"baselineDistribution,omitempty"`
+	// PendingRepositories names every repository with a pending citation,
+	// with how many distinct rules (per rule pack) and citations it holds.
+	PendingRepositories []PendingRepository `json:"pendingRepositories,omitempty"`
+}
+
+// PendingRepository is one repository holding pending citations.
+type PendingRepository struct {
+	Repo      string `json:"repo"`
+	Status    string `json:"status,omitempty"`
+	Rules     int    `json:"rules"`
+	Citations int    `json:"citations"`
+}
+
+// pendingRepositories groups the pending citations by repository.
+func pendingRepositories(results []ClassResult, repos []RepoResolution) []PendingRepository {
+	status := map[string]string{}
+	for _, repo := range repos {
+		status[repo.Owner+"/"+repo.Repo] = repo.Status
+	}
+	rules := map[string]map[string]bool{}
+	citations := map[string]int{}
+	for _, result := range results {
+		if result.Class != ClassPending {
+			continue
+		}
+		name := result.Owner + "/" + result.Repo
+		if rules[name] == nil {
+			rules[name] = map[string]bool{}
+		}
+		rules[name][result.RulePack+"\x00"+result.RuleID] = true
+		citations[name]++
+	}
+	out := make([]PendingRepository, 0, len(rules))
+	for name, set := range rules {
+		out = append(out, PendingRepository{Repo: name, Status: status[name], Rules: len(set), Citations: citations[name]})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Repo < out[j].Repo })
+	return out
 }
 
 // isFresh reports whether an RFC3339 UTC timestamp is within maxAge of now.
@@ -1347,6 +1385,7 @@ func BuildWorklistWithBaseline(ctx context.Context, citations []Citation, projec
 
 	summary := summarize(results)
 	summary.OldestResolvedAt = oldestResolvedAt(repos)
+	summary.PendingRepositories = pendingRepositories(results, repos)
 
 	// List every release line a reported baseline relies on, marking any
 	// that this run could not refresh as stale instead of re-stamping it.
@@ -1618,6 +1657,9 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps 
 	}
 	fmt.Fprintf(stdout, "evidence repin: %d citations, %d classified, %d pending, %d rules, batch-attestable fraction %.2f\n",
 		worklist.Summary.TotalCitations, worklist.Summary.Classified, worklist.Summary.Pending, len(worklist.Rules), worklist.Summary.BatchAttestableFraction)
+	for _, pending := range worklist.Summary.PendingRepositories {
+		fmt.Fprintf(stdout, "evidence repin: pending repository %s (%s): %d rules, %d citations\n", pending.Repo, pending.Status, pending.Rules, pending.Citations)
+	}
 	if *source == SourceMirror && missing > 0 {
 		fmt.Fprintf(stdout, "evidence repin: %d file(s) are not in the mirror; add them with \"factory mirror --wants\" (see --wants-out) and run again\n", missing)
 	}

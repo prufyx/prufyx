@@ -339,34 +339,9 @@ func TestPrepareExcludesEntireProjectOnCorpusDigestMismatch(t *testing.T) {
 	}
 }
 
-func TestPrepareExcludesEverythingOnPendingCitations(t *testing.T) {
-	packPath := "/repo/cli/internal/cncfcheck/data/rules.json"
-	spec := freshSpec("rule-a", "proj-a", baseNow)
-	wl, pack := buildWorklistAndPack(t, packPath, baseNow, []ruleSpec{spec})
-	// E2's pending count is computed from the citations themselves, never
-	// from a self-reported Summary.Pending a caller could hand-edit
-	// independently: add an actual PENDING-class citation for this pack.
-	wl.Citations = append(wl.Citations, evidencerepin.ClassResult{
-		RulePack: packPath, RuleID: "rule-x", Project: "proj-a", SourceID: "rule-x-src",
-		Owner: "owner", Repo: "repo-x", Class: evidencerepin.ClassPending,
-	})
-
-	result, err := Prepare(PrepareOptions{
-		WorklistRaw: marshalWorklist(t, wl), PackName: PackCNCF, PackPath: packPath, PackRaw: pack,
-		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
-	})
-	if err != nil {
-		t.Fatalf("Prepare: %v", err)
-	}
-	if len(result.Statement.Rules) != 0 || result.Statement.NotExtended[0].WorstClass != reasonScopeIncomplete {
-		t.Fatalf("expected everything excluded by E2, got %+v / %+v", result.Statement.Rules, result.Statement.NotExtended)
-	}
-}
-
-// TestPrepareIgnoresHandEditedSummaryPending checks that E2 never trusts
-// Worklist.Summary.Pending: hand-editing that field to 0 while real PENDING
-// citations remain must not resurrect eligibility.
-func TestPrepareIgnoresHandEditedSummaryPending(t *testing.T) {
+// A pending citation of a rule that is not in the pack renews nothing and
+// excludes nothing else, but is recorded.
+func TestPrepareRecordsPendingCitationOfUnknownRule(t *testing.T) {
 	packPath := "/repo/cli/internal/cncfcheck/data/rules.json"
 	spec := freshSpec("rule-a", "proj-a", baseNow)
 	wl, pack := buildWorklistAndPack(t, packPath, baseNow, []ruleSpec{spec})
@@ -374,17 +349,13 @@ func TestPrepareIgnoresHandEditedSummaryPending(t *testing.T) {
 		RulePack: packPath, RuleID: "rule-x", Project: "proj-a", SourceID: "rule-x-src",
 		Owner: "owner", Repo: "repo-x", Class: evidencerepin.ClassPending,
 	})
-	wl.Summary.Pending = 0 // hand-edited to look clean
-
-	result, err := Prepare(PrepareOptions{
-		WorklistRaw: marshalWorklist(t, wl), PackName: PackCNCF, PackPath: packPath, PackRaw: pack,
-		Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
-	})
-	if err != nil {
-		t.Fatalf("Prepare: %v", err)
+	wl.Summary.Pending = 0 // hand-edited to look clean: the citations decide
+	result := prepareSingle(t, wl, pack, packPath)
+	if len(result.Statement.Rules) != 1 || len(result.Statement.NotExtended) != 0 {
+		t.Fatalf("rule-a must keep its verdict: %+v / %+v", result.Statement.Rules, result.Statement.NotExtended)
 	}
-	if len(result.Statement.Rules) != 0 {
-		t.Fatalf("expected everything still excluded despite Summary.Pending==0, got %+v", result.Statement.Rules)
+	if got := result.Statement.PendingCitations; len(got) != 1 || got[0] != (PendingCitation{Repo: "owner/repo-x", RuleID: "rule-x", SourceID: "rule-x-src"}) {
+		t.Fatalf("pending citation not recorded: %+v", got)
 	}
 }
 

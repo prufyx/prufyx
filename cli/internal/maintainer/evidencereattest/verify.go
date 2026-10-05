@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
@@ -121,6 +122,9 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 	if err != nil {
 		return VerifyResult{}, fmt.Errorf("%w: statement does not parse", ErrRejected)
 	}
+	if err := refuseRehearsal(statement); err != nil {
+		return VerifyResult{}, err
+	}
 	attestedAt, err := time.Parse(time.RFC3339, statement.AttestedAt)
 	if err != nil || attestedAt.After(options.AttestedAtNow.UTC()) {
 		return VerifyResult{}, fmt.Errorf("%w: attestedAt is in the future", ErrRejected)
@@ -167,6 +171,9 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 		return VerifyResult{}, err
 	}
 
+	if err := checkV11(statement, options.PackPath, options.WorklistRaw); err != nil {
+		return VerifyResult{}, err
+	}
 	if err := checkV1AndV3(statement, options.StatementRaw, options, state); err != nil {
 		return VerifyResult{}, err
 	}
@@ -193,6 +200,9 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 	}
 	if len(options.IndependentWorklistRaw) > 0 {
 		if err := checkIndependentWorklist(statement, options.PackPath, options.IndependentWorklistRaw); err != nil {
+			return VerifyResult{}, err
+		}
+		if err := checkV11(statement, options.PackPath, options.IndependentWorklistRaw); err != nil {
 			return VerifyResult{}, err
 		}
 	}
@@ -689,6 +699,57 @@ func checkIndependentWorklist(statement Statement, packPath string, independentR
 			} else if isLineBaseline(got.Baseline) {
 				return fmt.Errorf("%w: V9: rule %s citation %s baseline differs from the independent worklist", ErrRejected, ra.RuleID, claimed.SourceID)
 			}
+		}
+	}
+	return nil
+}
+
+// refuseRehearsal rejects a statement prepared with an overridden clock.
+func refuseRehearsal(statement Statement) error {
+	if statement.Rehearsal {
+		return fmt.Errorf("%w: rehearsal: a statement prepared with --now is never signed or verified", ErrRejected)
+	}
+	return nil
+}
+
+// checkV11 re-derives the pending citations of this pack from the worklist
+// and requires the statement to record exactly them, to renew no rule that
+// cites one, and to list every such rule as not extended with the pending
+// repositories it cites.
+func checkV11(statement Statement, packPath string, worklistRaw []byte) error {
+	var wl evidencerepin.Worklist
+	if err := json.Unmarshal(worklistRaw, &wl); err != nil {
+		return fmt.Errorf("%w: V11: worklist does not decode", ErrRejected)
+	}
+	want, byRule := pendingFromWorklist(wl, packPath)
+	if len(want) != len(statement.PendingCitations) {
+		return fmt.Errorf("%w: V11: the statement records %d pending citations, the worklist has %d", ErrRejected, len(statement.PendingCitations), len(want))
+	}
+	for i := range want {
+		if want[i] != statement.PendingCitations[i] {
+			return fmt.Errorf("%w: V11: pending citation %d differs from the worklist", ErrRejected, i)
+		}
+	}
+	renewed := map[string]bool{}
+	for _, ra := range statement.Rules {
+		renewed[ra.RuleID] = true
+	}
+	excluded := map[string]NotExtendedEntry{}
+	for _, ne := range statement.NotExtended {
+		excluded[ne.RuleID] = ne
+	}
+	for rule, repos := range byRule {
+		if renewed[rule] {
+			return fmt.Errorf("%w: V11: rule %s cites a pending citation and must not be renewed", ErrRejected, rule)
+		}
+		ne, ok := excluded[rule]
+		if !ok {
+			// A pending rule absent from the pack is not this
+			// statement's concern.
+			continue
+		}
+		if !slices.Equal(ne.PendingRepositories, repos) {
+			return fmt.Errorf("%w: V11: rule %s does not name its pending repositories", ErrRejected, rule)
 		}
 	}
 	return nil
