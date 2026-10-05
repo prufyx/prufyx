@@ -643,6 +643,9 @@ func TestSupersedesPredicate(t *testing.T) {
 		{"range covers the anchor", withRange("1.24.0", "1.25.0", "1.25.0", "1.26.0"), nil, true},
 		{"range covers a range", withRange("1.23.0", "1.25.0", "1.25.0", "1.27.0"), withRange("1.24.0", "1.25.0", "1.25.0", "1.26.0"), true},
 		{"equal ranges", withRange("1.24.0", "1.25.0", "1.25.0", "1.26.0"), withRange("1.24.0", "1.25.0", "1.25.0", "1.26.0"), true},
+		{"R anchor inside M's range, another anchor", withRange("1.24.0", "1.25.0", "1.25.0", "1.26.0"), func(r map[string]any) {
+			r["subject"].(map[string]any)["from"], r["subject"].(map[string]any)["to"] = "1.24.5", "1.25.1"
+		}, true},
 		{"exact M does not cover a range", nil, withRange("1.24.0", "1.25.0", "1.25.0", "1.26.0"), false},
 		{"from partly outside", withRange("1.24.0", "1.25.0", "1.25.0", "1.26.0"), withRange("1.23.0", "1.25.0", "1.25.0", "1.26.0"), false},
 		{"to partly outside", withRange("1.24.0", "1.25.0", "1.25.0", "1.26.0"), withRange("1.24.0", "1.25.0", "1.25.0", "1.27.0"), false},
