@@ -72,6 +72,25 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   revision differ). External CNCF packs and knowledge databases built against
   the previous registry, including revision `cncf-2026-09-13.2`, are refused
   by this release until they are rebuilt.
+- Knowledge compatibility: the fact registry gains the four Kubernetes
+  removed-API facts of the 1.33 (`authentication.k8s.io/v1beta1`
+  SelfSubjectReview), 1.34 (`admissionregistration.k8s.io/v1beta1`
+  ValidatingAdmissionPolicy and ValidatingAdmissionPolicyBinding) and 1.37
+  (`networking.k8s.io/v1beta1` IPAddress and ServiceCIDR,
+  `storage.k8s.io/v1beta1` VolumeAttributesClass) lines, which the
+  `k8s.served-api-removal` extractor derives rules over. The embedded CNCF
+  pack moves to revision `cncf-2026-09-13.4` (same rules; only the registry
+  digest and the revision differ). External CNCF packs and knowledge
+  databases built against the previous registry, including revision
+  `cncf-2026-09-13.3`, are refused by this release until they are rebuilt.
+  No rule reads the four facts yet. A `check cncf` or `check batch` input
+  that declares one of them is now evaluated instead of refused (exit 2):
+  `check cncf --project kubernetes` (`--native-resource` or `--input`) and
+  `check batch` on a transition into 1.33, 1.34 or 1.37 report UNKNOWN
+  (exit 11, no reviewed transition), and an input for another transition
+  that also declares one of these facts is decided by that transition's own
+  rules, as for any other fact the rules do not read. `scan` still reports a
+  hop into 1.33, 1.34 or 1.37 as having no reviewed rule.
 - Maintainer tooling: `review-record new` writes the review record for a rule
   that an `evidence reattest` human statement sampled for full review. It
   checks the prepared statement against the rule pack, the worklist and the

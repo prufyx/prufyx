@@ -324,6 +324,33 @@ type evaluation struct {
 	refused bool
 }
 
+// readsAnyRemoval reports whether some rule of the knowledge reads one of
+// the removal facts the preparation derives for the transition. It is true
+// when the transition crosses no line with removals.
+func (r *kubernetesRun) readsAnyRemoval(from, to string) bool {
+	facts := cncfprepare.KubernetesRemovedAPIFacts(from, to)
+	if len(facts) == 0 {
+		return true
+	}
+	for _, rule := range r.rules {
+		for _, fact := range rule.Facts {
+			if containsFact(facts, fact) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func containsFact(facts []string, fact string) bool {
+	for _, candidate := range facts {
+		if candidate == fact {
+			return true
+		}
+	}
+	return false
+}
+
 // evaluateTransition prepares the engine input for one concrete transition
 // exactly as the single-file route does and evaluates it.
 func (r *kubernetesRun) evaluateTransition(from, to string) (evaluation, error) {
@@ -334,6 +361,12 @@ func (r *kubernetesRun) evaluateTransition(from, to string) (evaluation, error) 
 	sum := sha256.Sum256(scan.Prepared.CanonicalInputJSON)
 	if scan.Prepared.InputDigest != "sha256:"+hex.EncodeToString(sum[:]) {
 		return evaluation{}, ErrIntegrity
+	}
+	if !r.readsAnyRemoval(from, to) {
+		// The knowledge knows the line's removal facts but publishes no
+		// rule over any of them: as when it lacks the facts, no review of
+		// the line can stand for a decision.
+		return evaluation{scan: scan, refused: true}, nil
 	}
 	result, err := r.knowledge.Evaluate(r.policy, kubernetesSlug, cncfprepare.KubernetesRemovedAPIAllFacts(), scan.Prepared.CanonicalInputJSON, r.now)
 	if errors.Is(err, ErrRefused) {

@@ -151,16 +151,54 @@ func TestScanWholeUpgradeRule(t *testing.T) {
 }
 
 // TestScanRefusedLine: a hop into a line whose removals the knowledge has no
-// fact for is NO_DATA, even when a (malformed) review of the line exists.
+// rule for is NO_DATA, even when a (malformed) review of the line exists:
+// whether the knowledge lacks the line's facts or only the rules over them.
 func TestScanRefusedLine(t *testing.T) {
-	knowledge := newKnowledge(t, knowledgeOptions{lines: []string{"1.33"}, policy: "current", unchecked: true})
-	for _, manifest := range []string{"apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\n", "apiVersion: authentication.k8s.io/v1beta1\nkind: SelfSubjectReview\nmetadata: {name: a}\n"} {
-		_, paths := files(t, map[string]string{"applyset.yaml": manifest})
-		result := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.32.4", "--to", "kubernetes=1.33.1")...)
-		hop := result.Report.Paths[0].Hops[0]
-		if result.Exit != scanreport.ExitUnknown || hop.Status != scanreport.HopNoData || !hasGap(result.Report, "LINE_NOT_ATTESTED", "no reviewed rule covers yet") {
-			t.Fatalf("exit %d hop %+v gaps %+v", result.Exit, hop, result.Report.Gaps)
+	for _, line := range []struct {
+		line, from, to, removed string
+	}{
+		{"1.33", "1.32.4", "1.33.1", "apiVersion: authentication.k8s.io/v1beta1\nkind: SelfSubjectReview\nmetadata: {name: a}\n"},
+		{"1.34", "1.33.2", "1.34.0", "apiVersion: admissionregistration.k8s.io/v1beta1\nkind: ValidatingAdmissionPolicy\nmetadata: {name: a}\n"},
+		{"1.37", "1.36.5", "1.37.1", "apiVersion: networking.k8s.io/v1beta1\nkind: IPAddress\nmetadata: {name: a}\n"},
+		{"1.37", "1.36.0", "1.37.0", "apiVersion: storage.k8s.io/v1beta1\nkind: VolumeAttributesClass\nmetadata: {name: a}\n"},
+	} {
+		knowledge := newKnowledge(t, knowledgeOptions{lines: []string{line.line}, policy: "current", unchecked: true})
+		for _, manifest := range []string{"apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\n", line.removed} {
+			_, paths := files(t, map[string]string{"applyset.yaml": manifest})
+			result := mustScan(t, knowledge, args(paths, "--from", "kubernetes="+line.from, "--to", "kubernetes="+line.to)...)
+			hop := result.Report.Paths[0].Hops[0]
+			if result.Exit != scanreport.ExitUnknown || hop.Status != scanreport.HopNoData || !hasGap(result.Report, "LINE_NOT_ATTESTED", "no reviewed rule covers yet") {
+				t.Fatalf("%s: exit %d hop %+v gaps %+v", line.line, result.Exit, hop, result.Report.Gaps)
+			}
 		}
+	}
+}
+
+// TestScanRegisteredLineWithARule: once a rule reads one of a line's
+// removal facts, the hop is evaluated: a removed version blocks, and a
+// served one is not reported as a line without rules.
+func TestScanRegisteredLineWithARule(t *testing.T) {
+	const id = "kubernetes.synthetic-volumeattributesclass.1-36-0-to-1-37-0"
+	rule := verdictRule(id, "1.36.0", "1.37.0", "", "component.kubernetes.volumeattributesclass_v1beta1_removed_gvk_present")
+	knowledge := newKnowledge(t, knowledgeOptions{lines: []string{"1.37"}, policy: "current", unchecked: true, synthetic: []string{rule}})
+	_, paths := files(t, map[string]string{"applyset.yaml": "apiVersion: storage.k8s.io/v1beta1\nkind: VolumeAttributesClass\nmetadata: {name: a}\n"})
+	result := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.36.0", "--to", "kubernetes=1.37.0")...)
+	if result.Exit != scanreport.ExitBlocked || len(result.Report.Findings) != 1 || result.Report.Findings[0].RuleID != id {
+		t.Fatalf("exit %d findings %+v gaps %+v", result.Exit, result.Report.Findings, result.Report.Gaps)
+	}
+	// Served version, and no review of the line: the rule decides (a
+	// pass) and the hop stays PARTIAL for want of the review, never
+	// COVERED and never a line without rules.
+	knowledge = newKnowledge(t, knowledgeOptions{lines: []string{}, policy: "current", unchecked: true, synthetic: []string{rule}})
+	_, paths = files(t, map[string]string{"applyset.yaml": "apiVersion: storage.k8s.io/v1\nkind: VolumeAttributesClass\nmetadata: {name: a}\n"})
+	result = mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.36.0", "--to", "kubernetes=1.37.0")...)
+	hop := result.Report.Paths[0].Hops[0]
+	passed := false
+	for _, pass := range result.Report.Passes {
+		passed = passed || pass.RuleID == id
+	}
+	if result.Exit != scanreport.ExitUnknown || hop.Status != scanreport.HopPartial || !passed || !hasGap(result.Report, "LINE_NOT_ATTESTED", "") || hasGap(result.Report, "LINE_NOT_ATTESTED", "no reviewed rule covers yet") {
+		t.Fatalf("exit %d hop %+v passes %+v gaps %+v", result.Exit, hop, result.Report.Passes, result.Report.Gaps)
 	}
 }
 

@@ -49,7 +49,7 @@ where the cited evidence states that range. Outside it, the result is
 
 The [generated support inventory](cli/docs/community-support-inventory.md)
 is the authoritative list. The numbers below were counted on 2026-10-04 from
-the knowledge built into this source tree (revision `cncf-2026-09-13.3`) and
+the knowledge built into this source tree (revision `cncf-2026-09-13.4`) and
 will drift as the knowledge changes. To recount the Kubernetes and CNCF rules:
 
 ```sh

@@ -63,7 +63,7 @@ func TestSyntheticApplyAdmittedWithAttestations(t *testing.T) {
 			seen := map[string]bool{}
 			for _, e := range cands {
 				for _, f := range e.RequiredFacts {
-					if !known[f.ID] && !seen[f.ID] {
+					if !known[f.ID] && !cncfcheck.RegisteredFact(f.ID) && !seen[f.ID] {
 						seen[f.ID] = true
 						defs = append(defs, constraintengine.FactDefinition{ID: f.ID, Component: f.Component, Type: constraintengine.FactType(f.Type), EnumTokens: f.EnumTokens})
 					}
