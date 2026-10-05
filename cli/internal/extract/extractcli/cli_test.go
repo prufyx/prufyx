@@ -143,7 +143,7 @@ func TestRunLeaseDays(t *testing.T) {
 	for _, tc := range []struct {
 		days string
 		want string
-	}{{"", "2027-01-01T00:00:00Z"}, {"76", "2026-12-18T00:00:00Z"}, {"1", "2026-10-04T00:00:00Z"}, {"365", "2027-10-03T00:00:00Z"}} {
+	}{{"", "2027-01-01T00:00:00Z"}, {"76", "2026-12-18T00:00:00Z"}, {"1", "2026-10-04T00:00:00Z"}, {"90", "2027-01-01T00:00:00Z"}} {
 		dir := filepath.Join(t.TempDir(), "out")
 		args := []string{"run", "--extractor", id, "--fixture", fx, "--out", dir, "--derived-at", "2026-10-03T00:00:00Z"}
 		if tc.days != "" {
@@ -158,6 +158,10 @@ func TestRunLeaseDays(t *testing.T) {
 		if code, out, errs := run("verify", "--extractor", id, "--fixture", fx, "--out", dir); code != 0 {
 			t.Fatalf("verify lease %q: %d %s %s", tc.days, code, out, errs)
 		}
+	}
+	// Rule validation allows at most 90 days from the review: longer leases are refused by the run.
+	if code, _, _ := run("run", "--extractor", id, "--fixture", fx, "--out", t.TempDir()+"/o", "--derived-at", "2026-10-03T00:00:00Z", "--lease-days", "91"); code == 0 {
+		t.Fatal("--lease-days 91: run succeeded")
 	}
 	for _, bad := range []string{"0", "-1", "366", "x"} {
 		if code, _, _ := run("run", "--extractor", id, "--fixture", fx, "--out", t.TempDir()+"/o", "--derived-at", "2026-10-03T00:00:00Z", "--lease-days", bad); code != 2 {

@@ -133,6 +133,8 @@ prufyx-maintainer extract verify --extractor k8s.served-api-removal --mirror-sta
 prufyx-maintainer extract oracle --extractor k8s.served-api-removal --out OUT --expected EXPECTED.json
 ```
 
+`--lease-days` sets how long the derived rules stay valid (1-365, default 90). A rule's validity may not exceed 90 days from its review, so the run refuses larger values.
+
 `oracle` compares the run with an expected list of removals
 (`{"removals": [{"line": "1.25", "group": "batch", "version": "v1beta1",
 "kinds": ["CronJob"]}]}`) and reports `MISSING`, `WITHHELD`, `KINDS`, `NOFACT`,
