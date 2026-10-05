@@ -229,3 +229,48 @@ func TestApprovalSignAttestationSingleUseAndForwardOnly(t *testing.T) {
 		t.Fatalf("proof %q", c.Proof)
 	}
 }
+
+// An approval for a record the base already holds binds the base record's
+// digest: signing, verification and the gate agree on it.
+func TestApprovalSignAttestationChangedRecord(t *testing.T) {
+	base, head := attestedTrees(t, []string{"1.22"}, []string{"1.22"}, func(p *packDoc, atts []map[string]any) []map[string]any {
+		ev := atts[0]["evidence"].(map[string]any)
+		ev["validUntil"] = shiftTime(t, ev["validUntil"], 24*time.Hour)
+		return atts
+	})
+	f := pinFixture(t, base, head, attestationID("1.22"))
+	requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.recordSignArgs("--key-stdin")...), 0, "approval written")
+	var env ApprovalEnvelope
+	raw, err := os.ReadFile(f.out())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &env); err != nil {
+		t.Fatal(err)
+	}
+	if env.Record.BaseDigest == ApprovalBaseAbsent || env.Record.BaseDigest == env.Record.CandidateDigest {
+		t.Fatalf("base digest %q", env.Record.BaseDigest)
+	}
+	requireCode(t, runApproval(t, nil, gateNow, f.recordVerifyArgs()...), 0, "approval OK")
+	r := runGate(t, Options{Base: f.base, Head: f.head, Source: fixtureSource, Author: DefaultBotLogin, ApprovalKeysDigest: f.keysDigest})
+	// The fixture's pinned upstream bytes derive no pair into line 1.22, so
+	// the extractor cross-check refuses; the approval itself is not the
+	// reason.
+	c := change(t, r, f.id)
+	if c.OK || strings.Contains(c.Detail, "approval:") || strings.Contains(c.Detail, "no owner approval") || !strings.Contains(c.Detail, "cross-check with the extractor") {
+		t.Fatalf("gate: ok=%v %s", c.OK, c.Detail)
+	}
+}
+
+func TestApprovalSignSubjectFlagCombinations(t *testing.T) {
+	f := attestationFixture(t)
+	t.Run("record with the rule subject", func(t *testing.T) {
+		args := append(f.signArgs("--key-stdin"), "--record", f.id)
+		requireCode(t, runApproval(t, f.key.pemKey(t), signNow, args...), 2, "--subject rule takes --rule ID, not --record")
+	})
+	t.Run("record id outside the alphabet", func(t *testing.T) {
+		g := f
+		g.id = "bad id"
+		requireCode(t, runApproval(t, f.key.pemKey(t), signNow, g.recordSignArgs("--key-stdin")...), 2, "not a valid approval record ID")
+	})
+}
