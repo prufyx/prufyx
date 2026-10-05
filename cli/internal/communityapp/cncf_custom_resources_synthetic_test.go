@@ -61,7 +61,7 @@ func strimziObject(api, kind string) string {
 	return "apiVersion: " + api + "\nkind: " + kind + "\nmetadata:\n  name: private-name\n  namespace: private-ns\n"
 }
 
-func TestCustomResourceCheckWithDerivedStrimziRules(t *testing.T) {
+func TestSyntheticCustomResourceCheckWithDerivedStrimziRules(t *testing.T) {
 	useStrimziCRDKnowledge(t)
 	kafkaRemoved, kafkaServed := strimziObject("kafka.strimzi.io/v1beta2", "Kafka"), strimziObject("kafka.strimzi.io/v1", "Kafka")
 	topicServed, topicRemoved := strimziObject("kafka.strimzi.io/v1", "KafkaTopic"), strimziObject("kafka.strimzi.io/v1beta2", "KafkaTopic")
