@@ -53,8 +53,9 @@ type ruleFacts struct {
 	members   []string
 	// rest is the canonical form of every other part of the rule that
 	// can decide a verdict: the rule without its id, evidence, reason,
-	// next action, operator, range, subject versions, and the key and
-	// members of its fact. Two rules are the same constraint when the
+	// next action, operator, range, subject (its component is compared
+	// on its own, its versions as the region), and the key and members of
+	// its fact. Two rules are the same constraint when the
 	// key, and this, are equal.
 	rest []byte
 }
@@ -93,12 +94,8 @@ func factsOf(e *entry) (ruleFacts, error) {
 	if !ok {
 		return ruleFacts{}, fmt.Errorf("rule %s: not an object", e.RuleID)
 	}
-	for _, k := range []string{"id", "evidence", "reasonCode", "nextAction", "operator", "range"} {
+	for _, k := range []string{"id", "evidence", "reasonCode", "nextAction", "operator", "range", "subject"} {
 		delete(m, k)
-	}
-	if s, ok := m["subject"].(map[string]any); ok {
-		delete(s, "from")
-		delete(s, "to")
 	}
 	for _, k := range []string{"condition", "setCondition", "dependency"} {
 		if f, ok := m[k].(map[string]any); ok {
@@ -176,7 +173,7 @@ func supersedes(m, r ruleFacts) bool {
 	if !bytes.Equal(m.rest, r.rest) {
 		return false
 	}
-	if m.isSet != r.isSet || (r.isSet && !subsetOf(r.members, m.members)) {
+	if r.isSet && !subsetOf(r.members, m.members) {
 		return false
 	}
 	mf, mt := m.region()
