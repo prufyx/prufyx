@@ -206,7 +206,7 @@ func cmdRun(args []string, existing []string, now func() time.Time, stdout io.Wr
 	var reader extract.PinnedReader = src
 	var wants *wantsReader
 	if wantsOut != "" {
-		wants = &wantsReader{inner: src, missing: map[wantKey]bool{}, absent: map[string]bool{}}
+		wants = &wantsReader{inner: src, missing: map[wantKey]bool{}, absent: map[string]bool{}, listed: map[string][]string{}}
 		reader = wants
 	}
 	out, err := extract.Run(ctx, ex, src, reader, extract.Options{Repo: repo, DerivedAt: at, ExistingRules: existing})
