@@ -12,6 +12,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedefixture"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 )
 
 // repoRoot is this source tree's repository root.
@@ -58,9 +61,39 @@ func copyKnowledge(t *testing.T) Tree {
 		if err != nil {
 			t.Fatal(err)
 		}
+		if rel == cncfRulesPath {
+			// The pack as it was before the served-API supersede: the
+			// mechanical Kubernetes rules cannot be re-derived from the
+			// small upstream fixtures these tests use.
+			var err error
+			if raw, err = supersedefixture.Reviewed(raw); err != nil {
+				t.Fatal(err)
+			}
+		}
 		writeFile(t, filepath.Join(root, filepath.FromSlash(rel)), raw)
 	}
-	return Tree{Root: root}
+	tree := Tree{Root: root}
+	// The generated files follow the rebuilt pack.
+	layout := DefaultLayout()
+	for _, spec := range layout.Packs {
+		if spec.Name != evidencereattest.PackCNCF {
+			continue
+		}
+		attestation, err := spec.Attest(tree)
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(root, filepath.FromSlash(spec.AttestationPath)), attestation)
+	}
+	for _, g := range layout.Generated {
+		jsonRaw, markdown, err := g.Generate(tree)
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(root, filepath.FromSlash(g.JSONPath)), jsonRaw)
+		writeFile(t, filepath.Join(root, filepath.FromSlash(g.MarkdownPath)), []byte(markdown))
+	}
+	return tree
 }
 
 // trees returns a base and a head copy of the repository's knowledge.

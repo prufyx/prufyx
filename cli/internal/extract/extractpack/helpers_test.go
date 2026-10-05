@@ -16,6 +16,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/extractcli"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedefixture"
 )
 
 var derivedAt = time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC)
@@ -69,6 +70,13 @@ func packDir(t *testing.T, family string) string {
 		b, err := os.ReadFile(src + f)
 		if err != nil {
 			t.Fatal(err)
+		}
+		if family != "community" && f == "rules.json" {
+			// The pack as it was before the served-API supersede, so that
+			// the reviewed Kubernetes rules exist to be replaced.
+			if b, err = supersedefixture.Reviewed(b); err != nil {
+				t.Fatal(err)
+			}
 		}
 		if err := os.WriteFile(filepath.Join(dir, f), b, 0o644); err != nil {
 			t.Fatal(err)

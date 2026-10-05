@@ -23,13 +23,13 @@ import (
 const k8sComponent = "pkg:github/kubernetes/kubernetes"
 
 var line125Rules = []string{
-	"kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0",
-	"kubernetes.endpointslice-v1beta1-removed.1-24-0-to-1-25-0",
-	"kubernetes.event-v1beta1-removed.1-24-0-to-1-25-0",
-	"kubernetes.hpa-v2beta1-removed.1-24-0-to-1-25-0",
-	"kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0",
-	"kubernetes.psp-v1beta1-removed.1-24-0-to-1-25-0",
-	"kubernetes.runtimeclass-v1beta1-removed.1-24-0-to-1-25-0",
+	"kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0",
+	"kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0",
+	"kubernetes.served-api-removal.discovery-k8s-io-v1beta1.1-24-0-to-1-25-0",
+	"kubernetes.served-api-removal.events-k8s-io-v1beta1.1-24-0-to-1-25-0",
+	"kubernetes.served-api-removal.node-k8s-io-v1beta1.1-24-0-to-1-25-0",
+	"kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0",
+	"kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0",
 }
 
 func testAttestation(line string, ids []string) lineattest.LineAttestation {
@@ -168,7 +168,7 @@ func TestLineAttestationSchemaGating(t *testing.T) {
 func TestPackRejectsAttestationThatIsNotTheExactRuleSet(t *testing.T) {
 	missing := line125Rules[:6]
 	extra := append(append([]string{}, line125Rules...), "kubernetes.zz-not-a-rule")
-	otherLine := append(append([]string{}, line125Rules...), "kubernetes.flowcontrol-v1beta1-removed.1-25-0-to-1-26-0")
+	otherLine := append(append([]string{}, line125Rules...), "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta1.1-25-0-to-1-26-0")
 	sort.Strings(otherLine)
 	for name, ids := range map[string][]string{"missing": missing, "extra": extra, "another line": otherLine, "falsely quiet": nil} {
 		t.Run(name, func(t *testing.T) {
@@ -234,33 +234,37 @@ func TestExternalBundleRefusesAttestations(t *testing.T) {
 	}
 }
 
-// The published flowcontrol v1beta3 rule matches its anchor pair only, so a
-// 1.32 attestation listing it would present a hop such as 1.31.4 -> 1.32.1 as
-// covered while no rule matches it. The loader refuses it, and an attestation
-// leaving it out is a missing rule: 1.32 cannot be attested over this pack.
-func TestPackRejectsAttestationListingARuleThatIsNotLineWide(t *testing.T) {
-	const id = "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0"
-	for _, entry := range func() []Entry {
-		b, err := load()
-		if err != nil {
-			t.Fatal(err)
+// The published flowcontrol v1beta3 rule is a mechanical range rule: it
+// matches every hop into 1.32, so a 1.32 attestation lists it and an
+// attestation leaving it out is a missing rule.
+func TestPackAttestationOfTheLineWideFlowControlRule(t *testing.T) {
+	const id = "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0"
+	b, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := false
+	for _, entry := range b.pack.Entries {
+		if ruleID(t, entry) != id {
+			continue
 		}
-		return b.pack.Entries
-	}() {
+		seen = true
 		tr, err := constraintengine.RuleTransitionOf(entry.Rule)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if strings.Contains(string(entry.Rule), `"id":"`+id+`"`) && tr.Match("1.31.4", "1.32.1") != constraintengine.MatchNone {
-			t.Fatal("fixture assumption broken: the 1.32 rule now matches every hop into 1.32")
+		if tr.Match("1.31.4", "1.32.1") == constraintengine.MatchNone {
+			t.Fatal("the 1.32 rule no longer matches every hop into 1.32")
 		}
 	}
-	for name, ids := range map[string][]string{"listed": {id}, "left out": nil} {
-		t.Run(name, func(t *testing.T) {
-			if _, err := assembleSynthetic(attestedPack(t, packSchemaAttested, section(t, testAttestation("1.32", ids))), nil); !errors.Is(err, ErrIntegrity) {
-				t.Fatalf("accepted: %v", err)
-			}
-		})
+	if !seen {
+		t.Fatalf("%s is not in the embedded pack", id)
+	}
+	if _, err := assembleSynthetic(attestedPack(t, packSchemaAttested, section(t, testAttestation("1.32", []string{id}))), nil); err != nil {
+		t.Fatalf("complete 1.32 attestation refused: %v", err)
+	}
+	if _, err := assembleSynthetic(attestedPack(t, packSchemaAttested, section(t, testAttestation("1.32", nil))), nil); !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("incomplete 1.32 attestation accepted: %v", err)
 	}
 }
 

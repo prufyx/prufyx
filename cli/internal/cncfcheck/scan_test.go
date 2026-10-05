@@ -4,6 +4,7 @@ package cncfcheck
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,7 +18,7 @@ func TestScanKnowledgeMatchesPackageFunctions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	now := time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
 	catalogue, err := Catalog(false, "")
 	if err != nil {
 		t.Fatal(err)
@@ -88,7 +89,9 @@ func TestScanKnowledgeMatchesPackageFunctions(t *testing.T) {
 		t.Fatal(err)
 	}
 	c, _ := MarshalReport(viaPolicy)
-	mechanicalOnly, _ := ParseTrustPolicy("mechanical")
+	// The Kubernetes rules are mechanical, so a reviewed-only policy is
+	// the one that leaves rules out and must disclose it.
+	mechanicalOnly, _ := ParseTrustPolicy("reviewed")
 	viaChecker, err := WithTrustPolicy(mechanicalOnly).CheckFacts("kubernetes", facts, input, now)
 	if err != nil {
 		t.Fatal(err)
@@ -103,8 +106,12 @@ func TestScanKnowledgeMatchesPackageFunctions(t *testing.T) {
 		t.Fatal("snapshot evaluation under a trust policy differs from the checker")
 	}
 	for _, rule := range rules {
-		if rule.Basis != "reviewed" {
-			t.Fatalf("basis %q", rule.Basis)
+		want := "mechanical"
+		if !strings.HasPrefix(rule.Scope.ID, "kubernetes.served-api-removal.") {
+			want = "reviewed"
+		}
+		if rule.Basis != want {
+			t.Fatalf("basis %q, want %q", rule.Basis, want)
 		}
 	}
 	a, _ := MarshalReport(viaPackage)

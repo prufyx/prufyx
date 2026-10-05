@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/extract/extractpack"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgesign"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
@@ -535,6 +536,13 @@ func TestWeeklyBatchSimulationOnRealPacks(t *testing.T) {
 			t.Fatal(err)
 		}
 		f := newChainFixture(t)
+		if tc.pack == PackCNCF {
+			// Mechanical rules are renewed by re-derivation, never by a
+			// reattestation statement. The human path (V5) still rejects a
+			// mechanical rule reviewed after the chain head, so the
+			// simulation runs over the reviewed rules only.
+			raw = withoutMechanicalRules(t, raw)
+		}
 		start := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
 		renewals, notLater, notDue, lapsed := 0, 0, 0, 0
 		capped := map[string]bool{}
@@ -627,4 +635,35 @@ func TestWeeklyBatchSimulationOnRealPacks(t *testing.T) {
 			t.Fatalf("%s: %d rules reached the consecutive-cycle cap within %d weeks, more than %d", tc.pack, len(capped), weeks, tc.maxCapped)
 		}
 	}
+}
+
+// withoutMechanicalRules drops every mechanical-basis rule from a pack.
+func withoutMechanicalRules(t *testing.T, raw []byte) []byte {
+	t.Helper()
+	p, err := extractpack.ParsePack(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var kept []json.RawMessage
+	for _, entry := range p.Entries {
+		var e struct {
+			Rule struct {
+				Evidence struct {
+					Basis string `json:"basis"`
+				} `json:"evidence"`
+			} `json:"rule"`
+		}
+		if err := json.Unmarshal(entry, &e); err != nil {
+			t.Fatal(err)
+		}
+		if e.Rule.Evidence.Basis != "mechanical" {
+			kept = append(kept, entry)
+		}
+	}
+	p.Entries = kept
+	out, err := p.Render()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
 }

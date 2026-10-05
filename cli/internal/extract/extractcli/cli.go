@@ -27,7 +27,7 @@ import (
 )
 
 const usage = `usage:
-  prufyx-maintainer extract run    --extractor ID (--mirror-state DIR | --fixture DIR) --out DIR [--derived-at RFC3339] [--concurrency N] [--wants-out FILE]
+  prufyx-maintainer extract run    --extractor ID (--mirror-state DIR | --fixture DIR) --out DIR [--derived-at RFC3339] [--lease-days N] [--concurrency N] [--wants-out FILE]
   prufyx-maintainer extract verify --extractor ID (--mirror-state DIR | --fixture DIR) --out DIR [--concurrency N]
   prufyx-maintainer extract apply  --out DIR --pack FILE [--withdraw | --rules-only]   (exit 3: the run does not supersede a rule it would withdraw)
   prufyx-maintainer extract supersede --out DIR --pack FILE   (replaces the reviewed rules the run covers; exit 3: refused, nothing written)
@@ -186,10 +186,15 @@ func cmdRun(args []string, existing []string, now func() time.Time, stdout io.Wr
 	var derivedAt string
 	f := flags("extract run", &c, true)
 	f.StringVar(&derivedAt, "derived-at", "", "derivation time, RFC 3339 UTC (default now)")
+	var leaseDays int
+	f.IntVar(&leaseDays, "lease-days", 0, "validity window in days, 1-365 (default 90)")
 	var wantsOut string
 	f.StringVar(&wantsOut, "wants-out", "", "write the pinned files the mirror does not hold here (exit 3) instead of deriving")
 	if err := f.Parse(args); err != nil || f.NArg() != 0 || c.extractor == "" || c.out == "" {
 		return 2, errors.New("command rejected\n" + usage)
+	}
+	if leaseDays < 0 || leaseDays > 365 {
+		return 2, errors.New("--lease-days must be 1-365")
 	}
 	_, ex, src, repo, err := c.open()
 	if err != nil {
@@ -212,7 +217,7 @@ func cmdRun(args []string, existing []string, now func() time.Time, stdout io.Wr
 		wants = &wantsReader{inner: src, missing: map[wantKey]bool{}, absent: map[string]bool{}, listed: map[string][]string{}}
 		reader = wants
 	}
-	out, err := extract.Run(ctx, ex, src, reader, extract.Options{Repo: repo, DerivedAt: at, ExistingRules: existing})
+	out, err := extract.Run(ctx, ex, src, reader, extract.Options{Repo: repo, DerivedAt: at, Lease: time.Duration(leaseDays) * 24 * time.Hour, ExistingRules: existing})
 	if wants != nil && len(wants.missing) > 0 {
 		// Whatever the run did next, it read stand-in bytes for the
 		// missing files: nothing it derived is written.

@@ -52,14 +52,14 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 		t.Fatal(err)
 	}
 	vectors := reviewedVectors(t)
-	if len(b.pack.Entries) != 191 || len(vectors) != 191 {
+	if len(b.pack.Entries) != 195 || len(vectors) != 195 {
 		t.Fatal("unexpected reviewed rule or vector count")
 	}
 	caseCount := 0
 	for _, vector := range vectors {
 		caseCount += len(vector.Cases)
 	}
-	if caseCount != 963 {
+	if caseCount != 979 {
 		t.Fatal("unexpected reviewed case count")
 	}
 	if len(vectors) != len(b.pack.Entries) {
@@ -72,13 +72,22 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 		for _, scenario := range vector.Cases {
 			t.Run(vector.RuleID+"/"+scenario.Name, func(t *testing.T) {
 				clock := reviewClock(t)
-				switch vector.RuleID {
-				case "kubernetes.admissionwebhook-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.apiservice-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.crd-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.csr-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.ingress-extensions-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.ingress-networking-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.ingressclass-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.lease-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.priorityclass-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.rbac-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.storage-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.subjectaccessreview-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.tokenreview-v1beta1-removed.1-21-0-to-1-22-0":
-					clock = time.Date(2026, 9, 23, 13, 56, 0, 0, time.UTC)
-				}
-				switch vector.RuleID {
-				case "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0", "kubernetes.csistoragecapacity-v1beta1-removed.1-26-0-to-1-27-0", "kubernetes.endpointslice-v1beta1-removed.1-24-0-to-1-25-0", "kubernetes.event-v1beta1-removed.1-24-0-to-1-25-0", "kubernetes.flowcontrol-v1beta1-removed.1-25-0-to-1-26-0", "kubernetes.flowcontrol-v1beta2-removed.1-28-0-to-1-29-0", "kubernetes.hpa-v2beta1-removed.1-24-0-to-1-25-0", "kubernetes.hpa-v2beta2-removed.1-25-0-to-1-26-0", "kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0", "kubernetes.psp-v1beta1-removed.1-24-0-to-1-25-0", "kubernetes.runtimeclass-v1beta1-removed.1-24-0-to-1-25-0":
-					clock = time.Date(2026, 9, 23, 12, 36, 0, 0, time.UTC)
+				// Mechanical rules are reviewed at their derivation time: the
+				// vectors run one hour after it, inside the lease.
+				if strings.HasPrefix(vector.RuleID, "kubernetes.served-api-removal.") {
+					var rule struct {
+						Evidence struct {
+							ReviewedAt string `json:"reviewedAt"`
+						} `json:"evidence"`
+					}
+					if err := json.Unmarshal(b.pack.Entries[i].Rule, &rule); err != nil {
+						t.Fatal(err)
+					}
+					reviewed, err := time.Parse(time.RFC3339, rule.Evidence.ReviewedAt)
+					if err != nil {
+						t.Fatal(err)
+					}
+					clock = reviewed.Add(time.Hour)
 				}
 				// This source review completed after the historical corpus clock;
 				// preserve its real reviewedAt timestamp in the rule data.
@@ -131,7 +140,7 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 				if strings.HasPrefix(vector.RuleID, "flux.latest-beta-api-removal.") {
 					clock = time.Date(2026, 9, 12, 10, 0, 0, 0, time.UTC)
 				}
-				if vector.RuleID == "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0" || vector.RuleID == "cilium.cluster-name-invalid.1-16-19-to-1-17-18" {
+				if vector.RuleID == "cilium.cluster-name-invalid.1-16-19-to-1-17-18" {
 					clock = time.Date(2026, 9, 12, 10, 0, 0, 0, time.UTC)
 				}
 				if strings.HasPrefix(vector.RuleID, "jaeger.explicit-config-required-for-non-memory.target.") {

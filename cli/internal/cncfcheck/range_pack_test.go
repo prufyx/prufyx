@@ -12,7 +12,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
-const cronJobRuleID = "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0"
+const cronJobRuleID = "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0"
 
 // anchorOnlyRange returns a range that licenses nothing beyond the anchor
 // pair: from [anchor.from, anchor.from+1 patch), to [anchor.to, anchor.to+1
@@ -78,7 +78,7 @@ func kubernetesInput(t *testing.T, from, to string, cronJobPresent bool) []byte 
 	return []byte(`{"schema":"` + constraintengine.InputSchema + `","authority":"` + constraintengine.InputAuthority + `","current":{"components":[{"component":"pkg:github/kubernetes/kubernetes","version":"` + from + `","facts":[]}]},"proposed":{"components":[{"component":"pkg:github/kubernetes/kubernetes","version":"` + to + `","facts":[{"id":"component.kubernetes.cronjob_v1beta1_removed_gvk_present","state":"declared","boolValue":` + value + `}]}]}}`)
 }
 
-var rangeReviewClock = time.Date(2026, 9, 23, 12, 36, 0, 0, time.UTC)
+var rangeReviewClock = time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
 
 // withoutRanges strips the range field from every entry's rule, so tests can
 // exercise the exact-only schema gate against a pack derived from the real
@@ -206,26 +206,25 @@ func TestRangeAwarePrefilterSelectsThroughTheMatcher(t *testing.T) {
 	if _, err := MarshalReport(report); err != nil {
 		t.Fatal(err)
 	}
-	// Rules selected for a pair with no ranged rule -- the 1.32 flow-control
-	// rule stays exact-only by design (see EXCLUDED in the ranges tooling) --
-	// still render under the exact schema.
+	// The 1.32 flow-control rule is a ranged mechanical rule like the rest, so
+	// selecting it renders under the ranged contract.
 	exactOnly, err := ranged.rulesForAdmittedInput("kubernetes", kubernetesInput(t, "1.31.0", "1.32.0", true))
 	if err != nil {
 		t.Fatal(err)
 	}
 	engine, err := constraintengine.Evaluate(mustInput(t, ranged, kubernetesInput(t, "1.31.0", "1.32.0", true)), exactOnly, rangeReviewClock)
-	if err != nil || engine.EngineContractDigest != constraintengine.EngineContractDigest() {
+	if err != nil || engine.EngineContractDigest != constraintengine.EngineContractDigestRanged() {
 		t.Fatalf("exact selection digest=%s err=%v", engine.EngineContractDigest, err)
 	}
 	// The fact-family selection, which is what the generic path uses once a
-	// family has component-configuration rules, renders the same exact-only
-	// rule under the exact schema.
+	// family has component-configuration rules, renders the same rule
+	// under the ranged contract.
 	family, err := ranged.factFamilyRuleSet("kubernetes", []string{"component.kubernetes.flowcontrol_v1beta3_removed_gvk_present"}, kubernetesInput(t, "1.31.0", "1.32.0", true))
 	if err != nil {
 		t.Fatal(err)
 	}
 	engine, err = constraintengine.Evaluate(mustInput(t, ranged, kubernetesInput(t, "1.31.0", "1.32.0", true)), family, rangeReviewClock)
-	if err != nil || engine.EngineContractDigest != constraintengine.EngineContractDigest() {
+	if err != nil || engine.EngineContractDigest != constraintengine.EngineContractDigestRanged() {
 		t.Fatalf("fact-family selection digest=%s err=%v", engine.EngineContractDigest, err)
 	}
 }

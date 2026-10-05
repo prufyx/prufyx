@@ -3,7 +3,6 @@
 package cncfcheck
 
 import (
-	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
@@ -15,8 +14,8 @@ import (
 )
 
 // laterRemovalFacts are the removals of the 1.33, 1.34 and 1.37 lines: the
-// rendered apply-set adapter derives them and the served-API extractor
-// derives rules over them, but no published rule reads them yet.
+// rendered apply-set adapter derives them and the embedded pack carries one
+// mechanical rule over each.
 var laterRemovalFacts = []struct {
 	fact, group string
 	line        int
@@ -32,29 +31,6 @@ func minorVersion(minor int, patch int) string {
 	return "1." + strconv.Itoa(minor) + "." + strconv.Itoa(patch)
 }
 
-// removalEntry is a test-only rule of the shape the served-API extractor
-// derives for one removal: line-wide range, mechanical evidence. It is never
-// published.
-func removalEntry(fact string, line int) Entry {
-	from, to, next := minorVersion(line-1, 0), minorVersion(line, 0), minorVersion(line+1, 0)
-	slug := strings.ReplaceAll(from, ".", "-") + "-to-" + strings.ReplaceAll(to, ".", "-")
-	id := "kubernetes.synthetic-removal-" + strings.TrimSuffix(strings.TrimPrefix(fact, "component.kubernetes."), "_v1beta1_removed_gvk_present") + "." + slug
-	source := func(sourceID string) string {
-		return `{"id":"` + sourceID + `","url":"https://github.com/kubernetes/kubernetes/blob/` + syntheticRevision + `/api/openapi-spec/swagger.json","revision":"` + syntheticRevision + `","contentDigest":"sha256:` + strings.Repeat("0", 64) + `","startLine":1,"endLine":2}`
-	}
-	bound := func(name, basis string) string {
-		return `{"bound":"` + name + `","basis":"` + basis + `","sourceId":"lifecycle"}`
-	}
-	rule := `{"id":"` + id + `","operator":"forbid_predicate_value","subject":{"component":"` + kubernetesComponent + `","from":"` + from + `","to":"` + to + `"},` +
-		`"range":{"from":{"gte":"` + from + `","lt":"` + to + `"},"to":{"gte":"` + to + `","lt":"` + next + `"},"bounds":[` +
-		bound("from.gte", "PREVIOUS_MINOR_LINE") + `,` + bound("from.lt", "REMOVED_IN_RELEASE") + `,` + bound("to.gte", "REMOVED_IN_RELEASE") + `,` + bound("to.lt", "TARGET_SERIES") + `]},` +
-		`"condition":{"side":"proposed","component":"` + kubernetesComponent + `","factId":"` + fact + `","boolValue":true},` +
-		`"evidence":{"state":"active","basis":"mechanical","derivedAt":"2026-10-03T00:00:00Z","reviewedAt":"2026-10-03T00:00:00Z","validUntil":"2026-12-19T00:00:00Z",` +
-		`"extractor":{"id":"k8s.served-api-removal","version":"1.1.0","codeDigest":"sha256:` + strings.Repeat("1", 64) + `"},"sources":[` + source("lifecycle") + `]},` +
-		`"reasonCode":"KUBERNETES_SERVED_API_REMOVED","nextAction":"synthetic test-only action"}`
-	return Entry{Project: "kubernetes", Description: "Synthetic test-only served API removal.", RequiredFacts: []Fact{{Side: "proposed", ID: fact, Component: kubernetesComponent, Type: constraintengine.FactBool, Description: "Whether the apply set contains the removed version."}}, Rule: json.RawMessage(rule)}
-}
-
 // withoutFact is the compiled registry without one fact.
 func withoutFact(fact string) []constraintengine.FactDefinition {
 	var out []constraintengine.FactDefinition
@@ -64,31 +40,6 @@ func withoutFact(fact string) []constraintengine.FactDefinition {
 		}
 	}
 	return out
-}
-
-// removalPack is the embedded pack plus entries, at its own schema, bound
-// to the registry of definitions.
-func removalPack(t *testing.T, definitions []constraintengine.FactDefinition, entries ...Entry) []byte {
-	t.Helper()
-	raw, err := packagedFiles.ReadFile("data/rules.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var pack rulePack
-	if err := strictJSON(raw, &pack); err != nil {
-		t.Fatal(err)
-	}
-	schema := pack.Schema
-	encoded := crdPack(t, definitions, entries...)
-	if err := strictJSON(encoded, &pack); err != nil {
-		t.Fatal(err)
-	}
-	pack.Schema = schema
-	encoded, err = json.Marshal(pack)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return encoded
 }
 
 // Every fact the rendered apply-set adapter derives is registered once, as
@@ -115,31 +66,43 @@ func TestKubernetesRemovalFactsRegistered(t *testing.T) {
 	}
 }
 
-// Registration is what admits a rule over each fact: the same pack is
-// refused against the registry without the fact and admitted with it. The
-// embedded pack itself reads none of them.
+// embeddedRemovalRule is the embedded pack's rule over a later removal fact.
+func embeddedRemovalRule(t *testing.T, b bundle, fact string, line int) (Entry, string) {
+	t.Helper()
+	slug := "1-" + strconv.Itoa(line-1) + "-0-to-1-" + strconv.Itoa(line) + "-0"
+	var found []Entry
+	for _, e := range b.pack.Entries {
+		for _, rf := range e.RequiredFacts {
+			if rf.ID == fact && strings.HasSuffix(ruleID(t, e), "."+slug) {
+				found = append(found, e)
+			}
+		}
+	}
+	if len(found) != 1 {
+		t.Fatalf("%s: %d embedded rules for line 1.%d", fact, len(found), line)
+	}
+	return found[0], ruleID(t, found[0])
+}
+
+// Registration is what admits a rule over each fact: the embedded pack is
+// refused against the registry without the fact and admitted with it.
 func TestKubernetesRemovalRuleAdmissionNeedsTheRegisteredFact(t *testing.T) {
-	for _, f := range laterRemovalFacts {
-		entry := removalEntry(f.fact, f.line)
-		if _, err := assembleWith(removalPack(t, withoutFact(f.fact), entry), withoutFact(f.fact)); !errors.Is(err, ErrIntegrity) {
-			t.Fatalf("%s: rule over the unregistered fact admitted: %v", f.fact, err)
-		}
-		if _, err := assembleWith(removalPack(t, compiledDefinitions(), entry), compiledDefinitions()); err != nil {
-			t.Fatalf("%s: rule over the registered fact refused: %v", f.fact, err)
-		}
+	raw, err := packagedFiles.ReadFile("data/rules.json")
+	if err != nil {
+		t.Fatal(err)
 	}
 	b, err := load()
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, e := range b.pack.Entries {
-		for _, rf := range e.RequiredFacts {
-			for _, f := range laterRemovalFacts {
-				if rf.ID == f.fact {
-					t.Fatalf("embedded pack reads %s", f.fact)
-				}
-			}
+	for _, f := range laterRemovalFacts {
+		embeddedRemovalRule(t, b, f.fact, f.line)
+		if _, err := assembleWith(raw, withoutFact(f.fact)); !errors.Is(err, ErrIntegrity) {
+			t.Fatalf("%s: rule over the unregistered fact admitted: %v", f.fact, err)
 		}
+	}
+	if _, err := assembleWith(raw, compiledDefinitions()); err != nil {
+		t.Fatalf("embedded pack refused against the compiled registry: %v", err)
 	}
 }
 
@@ -149,7 +112,11 @@ func TestKubernetesRemovalRuleAdmissionNeedsTheRegisteredFact(t *testing.T) {
 // UNKNOWN for an unreviewed version, an incomplete scope, or a transition
 // outside the rule's lines.
 func TestKubernetesRemovalFactsDecideTheirRules(t *testing.T) {
-	now := time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+	b, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
 	doc := func(api, kind string) string {
 		return `{"apiVersion":"` + api + `","kind":"` + kind + `","metadata":{"name":"x"}}`
 	}
@@ -157,12 +124,7 @@ func TestKubernetesRemovalFactsDecideTheirRules(t *testing.T) {
 		return []byte(`{"apiVersion":"v1","kind":"List","items":[` + strings.Join(items, ",") + `]}`)
 	}
 	for _, f := range laterRemovalFacts {
-		entry := removalEntry(f.fact, f.line)
-		id := ruleID(t, entry)
-		b, err := assembleWith(removalPack(t, compiledDefinitions(), entry), compiledDefinitions())
-		if err != nil {
-			t.Fatal(err)
-		}
+		_, id := embeddedRemovalRule(t, b, f.fact, f.line)
 		for _, kind := range f.kinds {
 			removed, served, unreviewed := doc(f.group+"/v1beta1", kind), doc(f.group+"/v1", kind), doc(f.group+"/v1alpha1", kind)
 			other := doc("v1", "ConfigMap")
@@ -192,8 +154,8 @@ func TestKubernetesRemovalFactsDecideTheirRules(t *testing.T) {
 					for _, claim := range report.Check.Claims {
 						if claim.RuleID == id {
 							found = append(found, claim)
-						} else if claim.Status == "PASS" || claim.Status == "BLOCKED" {
-							t.Fatalf("another rule decided: %s %s", claim.RuleID, claim.Status)
+						} else if claim.Status == "BLOCKED" {
+							t.Fatalf("another rule blocked: %s", claim.RuleID)
 						}
 					}
 					if len(found) != 1 || found[0].Status != tc.status || found[0].ReasonCode != tc.reason {
@@ -213,7 +175,7 @@ func TestKubernetesRemovalFactsDecideTheirRules(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, claim := range report.Check.Claims {
-			if claim.Status == "PASS" || claim.Status == "BLOCKED" {
+			if claim.RuleID == id && (claim.Status == "PASS" || claim.Status == "BLOCKED") {
 				t.Fatalf("%s: %s decided %s on the next line", f.fact, claim.RuleID, claim.Status)
 			}
 		}

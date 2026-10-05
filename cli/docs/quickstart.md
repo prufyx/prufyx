@@ -104,7 +104,7 @@ they are counted rather than listed):
 kubernetes native input review
 raw input digests: sha256:74b724b3dbe66cdea762575500e4fce48a5469b669668a7108280e026456a355
 prepared input digest: sha256:619e1cfad17ce822d3ad4d36b1cdc3ef3024e9ec37720096f2af8076b92660b2
-kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0: BLOCKED (REVIEWED_SOURCE_CONSTRAINT)
+kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0: BLOCKED (REVIEWED_SOURCE_CONSTRAINT)
 next action: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 evidence basis: reviewed by maintainer
 6 rules PASS (not listed; use --show-passes)
@@ -214,7 +214,7 @@ Verified output:
 kubernetes native input review
 raw input digests: sha256:97307ffffabe0fdddbf2b527079b10ddf8559876f3cf1c356a7f424db023a654
 prepared input digest: sha256:619e1cfad17ce822d3ad4d36b1cdc3ef3024e9ec37720096f2af8076b92660b2
-kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0: BLOCKED (REVIEWED_SOURCE_CONSTRAINT)
+kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0: BLOCKED (REVIEWED_SOURCE_CONSTRAINT)
 next action: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 evidence basis: reviewed by maintainer
 6 rules PASS (not listed; use --show-passes)
@@ -293,7 +293,7 @@ Verified output:
 kubernetes native input review
 raw input digests: sha256:6670657e4ad5888348b0fa1ab708309940610063bcc9cbed1914e2283652f924
 prepared input digest: sha256:f7bd070cd7f335de92cd6824fd7454e80df20312b9fbc22cefc05508674fab9a
-kubernetes.ingress-extensions-v1beta1-removed.1-21-0-to-1-22-0: BLOCKED (REVIEWED_SOURCE_CONSTRAINT)
+kubernetes.served-api-removal.extensions-v1beta1.1-21-0-to-1-22-0: BLOCKED (REVIEWED_SOURCE_CONSTRAINT)
 next action: Migrate the named Ingress manifest to networking.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 evidence basis: reviewed by maintainer
 12 rules PASS (not listed; use --show-passes)

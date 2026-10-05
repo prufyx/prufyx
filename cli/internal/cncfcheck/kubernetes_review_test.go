@@ -13,8 +13,8 @@ func TestKubernetesFlowControlReviewClock_BoundsStaticRule(t *testing.T) {
 	for _, test := range []struct {
 		name, now, reason string
 	}{
-		{"before review", "2026-09-12T09:59:59Z", "RULE_EVIDENCE_CLOCK_BEFORE_REVIEW"},
-		{"at expiry", "2026-12-11T10:00:00Z", "RULE_EVIDENCE_STALE"},
+		{"before review", "2026-11-11T23:59:59Z", "RULE_EVIDENCE_CLOCK_BEFORE_REVIEW"},
+		{"at expiry", "2027-02-03T00:00:00Z", "RULE_EVIDENCE_STALE"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			now, err := time.Parse(time.RFC3339, test.now)
@@ -23,7 +23,7 @@ func TestKubernetesFlowControlReviewClock_BoundsStaticRule(t *testing.T) {
 			}
 			// Select the flow-control rule itself: other rules on the same
 			// transition need other evidence and are not what this test bounds.
-			report, err := CheckRule("kubernetes", "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0", input, now)
+			report, err := CheckRule("kubernetes", "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0", input, now)
 			if err != nil || len(report.Check.Claims) != 1 || report.Check.Claims[0].Status != "UNKNOWN" || report.Check.Claims[0].ReasonCode != test.reason {
 				t.Fatalf("report=%+v err=%v", report, err)
 			}

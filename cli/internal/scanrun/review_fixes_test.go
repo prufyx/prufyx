@@ -150,26 +150,54 @@ func TestScanWholeUpgradeRule(t *testing.T) {
 	}
 }
 
-// TestScanRefusedLine: a hop into a line whose removals the knowledge has no
-// rule for is NO_DATA, even when a (malformed) review of the line exists:
-// whether the knowledge lacks the line's facts or only the rules over them.
-func TestScanRefusedLine(t *testing.T) {
+// TestScanLaterLinesWithoutAttestation: the published rules read every
+// removal fact of the 1.33, 1.34 and 1.37 lines, and no line attestation
+// exists for them yet (mechanical rules ship without line attestations). A
+// hop into such a line is evaluated rather than refused: the rule over a
+// removed kind blocks, the rules over served or unrelated manifests pass,
+// and the hop stays PARTIAL for want of the review, never COVERED and never
+// a line without rules.
+func TestScanLaterLinesWithoutAttestation(t *testing.T) {
 	for _, line := range []struct {
-		line, from, to, removed string
+		line, from, to, removed, rule string
 	}{
-		{"1.33", "1.32.4", "1.33.1", "apiVersion: authentication.k8s.io/v1beta1\nkind: SelfSubjectReview\nmetadata: {name: a}\n"},
-		{"1.34", "1.33.2", "1.34.0", "apiVersion: admissionregistration.k8s.io/v1beta1\nkind: ValidatingAdmissionPolicy\nmetadata: {name: a}\n"},
-		{"1.37", "1.36.5", "1.37.1", "apiVersion: networking.k8s.io/v1beta1\nkind: IPAddress\nmetadata: {name: a}\n"},
-		{"1.37", "1.36.0", "1.37.0", "apiVersion: storage.k8s.io/v1beta1\nkind: VolumeAttributesClass\nmetadata: {name: a}\n"},
+		{"1.33", "1.32.4", "1.33.1", "apiVersion: authentication.k8s.io/v1beta1\nkind: SelfSubjectReview\nmetadata: {name: a}\n", "authentication-k8s-io-v1beta1.1-32-0-to-1-33-0"},
+		{"1.34", "1.33.2", "1.34.0", "apiVersion: admissionregistration.k8s.io/v1beta1\nkind: ValidatingAdmissionPolicy\nmetadata: {name: a}\n", "admissionregistration-k8s-io-v1beta1.1-33-0-to-1-34-0"},
+		{"1.37", "1.36.5", "1.37.1", "apiVersion: networking.k8s.io/v1beta1\nkind: IPAddress\nmetadata: {name: a}\n", "networking-k8s-io-v1beta1.1-36-0-to-1-37-0"},
+		{"1.37", "1.36.0", "1.37.0", "apiVersion: storage.k8s.io/v1beta1\nkind: VolumeAttributesClass\nmetadata: {name: a}\n", "storage-k8s-io-v1beta1.1-36-0-to-1-37-0"},
 	} {
-		knowledge := newKnowledge(t, knowledgeOptions{lines: []string{line.line}, policy: "current", unchecked: true})
-		for _, manifest := range []string{"apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\n", line.removed} {
-			_, paths := files(t, map[string]string{"applyset.yaml": manifest})
-			result := mustScan(t, knowledge, args(paths, "--from", "kubernetes="+line.from, "--to", "kubernetes="+line.to)...)
-			hop := result.Report.Paths[0].Hops[0]
-			if result.Exit != scanreport.ExitUnknown || hop.Status != scanreport.HopNoData || !hasGap(result.Report, "LINE_NOT_ATTESTED", "no reviewed rule covers yet") {
-				t.Fatalf("%s: exit %d hop %+v gaps %+v", line.line, result.Exit, hop, result.Report.Gaps)
-			}
+		knowledge := newKnowledge(t, knowledgeOptions{lines: []string{}, policy: "current", unchecked: true})
+		_, paths := files(t, map[string]string{"applyset.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\n"})
+		result := mustScan(t, knowledge, args(paths, "--from", "kubernetes="+line.from, "--to", "kubernetes="+line.to)...)
+		hop := result.Report.Paths[0].Hops[0]
+		if result.Exit != scanreport.ExitUnknown || hop.Status != scanreport.HopPartial || !hasGap(result.Report, "LINE_NOT_ATTESTED", "") || hasGap(result.Report, "LINE_NOT_ATTESTED", "no reviewed rule covers yet") || len(result.Report.Passes) == 0 {
+			t.Fatalf("%s unrelated: exit %d hop %+v gaps %+v", line.line, result.Exit, hop, result.Report.Gaps)
+		}
+		_, paths = files(t, map[string]string{"applyset.yaml": line.removed})
+		result = mustScan(t, knowledge, args(paths, "--from", "kubernetes="+line.from, "--to", "kubernetes="+line.to)...)
+		if result.Exit != scanreport.ExitBlocked || len(result.Report.Findings) != 1 || result.Report.Findings[0].RuleID != "kubernetes.served-api-removal."+line.rule {
+			t.Fatalf("%s removed: exit %d findings %+v gaps %+v", line.line, result.Exit, result.Report.Findings, result.Report.Gaps)
+		}
+	}
+}
+
+// TestScanLineAttestationNeedsEveryRemovalRule: a review of a line that
+// claims completeness while a pack lacks the rule over one of the line's
+// removal facts must not make a hop into that line COVERED. 1.37 removes two
+// kinds, each with its own rule; the pack here has only one of them.
+func TestScanLineAttestationNeedsEveryRemovalRule(t *testing.T) {
+	const ipAddress = "kubernetes.served-api-removal.networking-k8s-io-v1beta1.1-36-0-to-1-37-0"
+	base := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true, dropRuleIDs: map[string][]string{"1.37": {ipAddress}}})
+	knowledge := hiddenRules{Knowledge: base, hidden: map[string]bool{ipAddress: true}}
+	for name, manifest := range map[string]string{
+		"unrelated": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\n",
+		"removed":   "apiVersion: networking.k8s.io/v1beta1\nkind: IPAddress\nmetadata: {name: a}\n",
+	} {
+		_, paths := files(t, map[string]string{"applyset.yaml": manifest})
+		result := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.36.0", "--to", "kubernetes=1.37.0")...)
+		hop := result.Report.Paths[0].Hops[0]
+		if result.Exit == scanreport.ExitPass || result.Exit == scanreport.ExitBlocked || hop.Status == scanreport.HopCovered {
+			t.Fatalf("%s: exit %d hop %+v gaps %+v", name, result.Exit, hop, result.Report.Gaps)
 		}
 	}
 }
@@ -178,9 +206,8 @@ func TestScanRefusedLine(t *testing.T) {
 // removal facts, the hop is evaluated: a removed version blocks, and a
 // served one is not reported as a line without rules.
 func TestScanRegisteredLineWithARule(t *testing.T) {
-	const id = "kubernetes.synthetic-volumeattributesclass.1-36-0-to-1-37-0"
-	rule := verdictRule(id, "1.36.0", "1.37.0", "", "component.kubernetes.volumeattributesclass_v1beta1_removed_gvk_present")
-	knowledge := newKnowledge(t, knowledgeOptions{lines: []string{"1.37"}, policy: "current", unchecked: true, synthetic: []string{rule}})
+	const id = "kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-36-0-to-1-37-0"
+	knowledge := newKnowledge(t, knowledgeOptions{lines: []string{"1.37"}, policy: "current", unchecked: true})
 	_, paths := files(t, map[string]string{"applyset.yaml": "apiVersion: storage.k8s.io/v1beta1\nkind: VolumeAttributesClass\nmetadata: {name: a}\n"})
 	result := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.36.0", "--to", "kubernetes=1.37.0")...)
 	if result.Exit != scanreport.ExitBlocked || len(result.Report.Findings) != 1 || result.Report.Findings[0].RuleID != id {
@@ -189,7 +216,7 @@ func TestScanRegisteredLineWithARule(t *testing.T) {
 	// Served version, and no review of the line: the rule decides (a
 	// pass) and the hop stays PARTIAL for want of the review, never
 	// COVERED and never a line without rules.
-	knowledge = newKnowledge(t, knowledgeOptions{lines: []string{}, policy: "current", unchecked: true, synthetic: []string{rule}})
+	knowledge = newKnowledge(t, knowledgeOptions{lines: []string{}, policy: "current", unchecked: true})
 	_, paths = files(t, map[string]string{"applyset.yaml": "apiVersion: storage.k8s.io/v1\nkind: VolumeAttributesClass\nmetadata: {name: a}\n"})
 	result = mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.36.0", "--to", "kubernetes=1.37.0")...)
 	hop := result.Report.Paths[0].Hops[0]
@@ -235,7 +262,7 @@ func (k hiddenRules) Evaluate(policy cncfcheck.TrustPolicy, project string, fact
 // rule deciding the hop reads keeps the hop from COVERED, even when the
 // line's review lists every remaining rule.
 func TestScanTrueFactWithoutRule(t *testing.T) {
-	const cronjob = "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0"
+	const cronjob = "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0"
 	base := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true, dropRuleIDs: map[string][]string{"1.25": {cronjob}}})
 	knowledge := hiddenRules{Knowledge: base, hidden: map[string]bool{cronjob: true}}
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1beta1})

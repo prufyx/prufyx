@@ -8,33 +8,15 @@
           "name": "prufyx",
           "version": "development",
           "informationUri": "https://github.com/prufyx/prufyx",
-          "rules": [
-            {
-              "id": "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0",
-              "shortDescription": {
-                "text": "Kubernetes 1.25 stops serving CronJob through batch/v1beta1"
-              },
-              "help": {
-                "text": "Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
-              },
-              "helpUri": "https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md",
-              "defaultConfiguration": {
-                "level": "error"
-              },
-              "properties": {
-                "basis": "reviewed",
-                "kind": "blocker"
-              }
-            }
-          ]
+          "rules": []
         }
       },
       "invocations": [
         {
           "executionSuccessful": true,
-          "exitCode": 10,
-          "exitCodeDescription": "BLOCKED: 1 problem must be fixed before this upgrade",
-          "startTimeUtc": "2026-10-04T00:00:00Z",
+          "exitCode": 11,
+          "exitCodeDescription": "NO BLOCKERS FOUND IN COVERED CHECKS: 9 areas were not checked",
+          "startTimeUtc": "2026-11-06T00:00:00Z",
           "toolExecutionNotifications": [
             {
               "level": "warning",
@@ -47,6 +29,104 @@
               "properties": {
                 "kind": "gap",
                 "component": "kubernetes"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "the review of rule kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0 is not current (clock_before_review) - use a Prufyx release with current knowledge, or check this change by hand"
+              },
+              "descriptor": {
+                "id": "EVIDENCE_EXPIRED"
+              },
+              "properties": {
+                "kind": "gap",
+                "component": "kubernetes",
+                "hop": "1.24.17 -> 1.25.3"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "the review of rule kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0 is not current (clock_before_review) - use a Prufyx release with current knowledge, or check this change by hand"
+              },
+              "descriptor": {
+                "id": "EVIDENCE_EXPIRED"
+              },
+              "properties": {
+                "kind": "gap",
+                "component": "kubernetes",
+                "hop": "1.24.17 -> 1.25.3"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "the review of rule kubernetes.served-api-removal.discovery-k8s-io-v1beta1.1-24-0-to-1-25-0 is not current (clock_before_review) - use a Prufyx release with current knowledge, or check this change by hand"
+              },
+              "descriptor": {
+                "id": "EVIDENCE_EXPIRED"
+              },
+              "properties": {
+                "kind": "gap",
+                "component": "kubernetes",
+                "hop": "1.24.17 -> 1.25.3"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "the review of rule kubernetes.served-api-removal.events-k8s-io-v1beta1.1-24-0-to-1-25-0 is not current (clock_before_review) - use a Prufyx release with current knowledge, or check this change by hand"
+              },
+              "descriptor": {
+                "id": "EVIDENCE_EXPIRED"
+              },
+              "properties": {
+                "kind": "gap",
+                "component": "kubernetes",
+                "hop": "1.24.17 -> 1.25.3"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "the review of rule kubernetes.served-api-removal.node-k8s-io-v1beta1.1-24-0-to-1-25-0 is not current (clock_before_review) - use a Prufyx release with current knowledge, or check this change by hand"
+              },
+              "descriptor": {
+                "id": "EVIDENCE_EXPIRED"
+              },
+              "properties": {
+                "kind": "gap",
+                "component": "kubernetes",
+                "hop": "1.24.17 -> 1.25.3"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "the review of rule kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0 is not current (clock_before_review) - use a Prufyx release with current knowledge, or check this change by hand"
+              },
+              "descriptor": {
+                "id": "EVIDENCE_EXPIRED"
+              },
+              "properties": {
+                "kind": "gap",
+                "component": "kubernetes",
+                "hop": "1.24.17 -> 1.25.3"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "the review of rule kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0 is not current (clock_before_review) - use a Prufyx release with current knowledge, or check this change by hand"
+              },
+              "descriptor": {
+                "id": "EVIDENCE_EXPIRED"
+              },
+              "properties": {
+                "kind": "gap",
+                "component": "kubernetes",
+                "hop": "1.24.17 -> 1.25.3"
               }
             },
             {
@@ -66,52 +146,14 @@
           ]
         }
       ],
-      "results": [
-        {
-          "ruleId": "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0",
-          "ruleIndex": 0,
-          "level": "error",
-          "message": {
-            "text": "Kubernetes 1.25 stops serving CronJob through batch/v1beta1 — fix: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
-          },
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "applyset.yaml",
-                  "uriBaseId": "%SRCROOT%"
-                },
-                "region": {
-                  "startLine": 1
-                }
-              },
-              "logicalLocations": [
-                {
-                  "name": "nightly-report",
-                  "fullyQualifiedName": "CronJob default/nightly-report",
-                  "kind": "resource"
-                }
-              ]
-            }
-          ],
-          "partialFingerprints": {
-            "prufyxResult/v1": "2b140161e3ac0757d21dac898fd83df1fb55b91f6df47fc4a97bc55ebe73c1e4"
-          },
-          "properties": {
-            "component": "kubernetes",
-            "hop": "1.24.17 -> 1.25.3",
-            "basis": "reviewed",
-            "match": "range"
-          }
-        }
-      ],
+      "results": [],
       "properties": {
-        "verdict": "BLOCKED",
-        "headline": "BLOCKED: 1 problem must be fixed before this upgrade",
+        "verdict": "UNKNOWN",
+        "headline": "NO BLOCKERS FOUND IN COVERED CHECKS: 9 areas were not checked",
         "summary": {
-          "blockers": 1,
-          "gaps": 2,
-          "passes": 6,
+          "blockers": 0,
+          "gaps": 9,
+          "passes": 0,
           "componentsDetected": 1,
           "componentsCovered": 1,
           "hops": 1,
@@ -121,11 +163,11 @@
           "leads": 0,
           "unsupported": 0
         },
-        "evaluatedAt": "2026-10-04T00:00:00Z",
+        "evaluatedAt": "2026-11-06T00:00:00Z",
         "inputDigest": "sha256:706abd92d4968558d52e272d3f490af7280ce84a6011ae824a9fa9ae7b4c47f7",
         "knowledgeOrigin": "embedded",
         "knowledgeRevision": "cncf-2026-09-13.4",
-        "knowledgeDigest": "sha256:4d2718043fbc41bb0f99ce8a69ea9ef253c52249bb88254b969d1ebdab46e5c5",
+        "knowledgeDigest": "sha256:54c40b58a69b6f99126b0dab01c99d2bf6be00a0f53adc57922a81640da17684",
         "engineContractDigest": "sha256:2cc7bb0052068bd2668d1c4419782bacd6fcbf34e73f9bf9cf08206cd1363fa6",
         "networkUsed": false,
         "omissions": [

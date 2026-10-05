@@ -36,7 +36,7 @@ var testdata = func() string {
 }()
 
 const (
-	testNow       = "2026-10-04T00:00:00Z"
+	testNow       = "2026-11-20T00:00:00Z"
 	kubernetesKey = "pkg:github/kubernetes/kubernetes"
 )
 

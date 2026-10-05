@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	cronjobRuleID = "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0"
-	pdbRuleID     = "kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0"
+	cronjobRuleID = "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0"
+	pdbRuleID     = "kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0"
 	cronjobFact   = "component.kubernetes.cronjob_v1beta1_removed_gvk_present"
 )
 
@@ -113,7 +113,7 @@ func TestScanPolicyExcludedClaimIntegrity(t *testing.T) {
 	extend := func(claims []constraintengine.Claim) []constraintengine.Claim {
 		// Only on the hop the lead covers, so no other guard trips first.
 		for _, claim := range claims {
-			if claim.Status == "PASS" && claim.RuleID == "kubernetes.flowcontrol-v1beta1-removed.1-25-0-to-1-26-0" {
+			if claim.Status == "PASS" && claim.RuleID == "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta1.1-25-0-to-1-26-0" {
 				claim.RuleID, claim.EvidenceBasis, claim.Status, claim.ReasonCode = id, constraintengine.BasisLead, constraintengine.StatusNotice, constraintengine.ReasonLeadNotVerified
 				return append(claims, claim)
 			}

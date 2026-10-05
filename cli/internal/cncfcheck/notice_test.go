@@ -18,11 +18,11 @@ import (
 
 const (
 	noticeComponent = "pkg:github/kubernetes/kubernetes"
-	noticeRuleID    = "kubernetes.synthetic-one-way.1-36-0-to-1-37-0"
+	noticeRuleID    = "kubernetes.synthetic-one-way.1-35-0-to-1-36-0"
 )
 
 func syntheticKubernetesRule(id, operator, reason, nextAction, extra, reviewedAt, validUntil string) string {
-	return `{"id":"` + id + `","operator":"` + operator + `","subject":{"component":"` + noticeComponent + `","from":"1.36.0","to":"1.37.0"}` + extra + `,` +
+	return `{"id":"` + id + `","operator":"` + operator + `","subject":{"component":"` + noticeComponent + `","from":"1.35.0","to":"1.36.0"}` + extra + `,` +
 		`"evidence":{"state":"active","reviewedAt":"` + reviewedAt + `","validUntil":"` + validUntil + `","sources":[{"id":"synthetic-source","url":"https://github.com/kubernetes/kubernetes/blob/` + syntheticRevision + `/CHANGELOG.md","revision":"` + syntheticRevision + `","contentDigest":"sha256:` + strings.Repeat("0", 64) + `","startLine":1,"endLine":2}]},` +
 		`"reasonCode":"` + reason + `","nextAction":"` + nextAction + `"}`
 }
@@ -58,7 +58,7 @@ func TestPackNoticeLevel(t *testing.T) {
 	}
 	// The project's whole rule set now evaluates under the notice contract,
 	// and the notice claim is NOTICE.
-	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
 	inputRaw := noticeInput()
 	input, err := constraintengine.ParseInput(inputRaw, b.registry)
 	if err != nil {
@@ -80,7 +80,7 @@ func TestPackNoticeLevel(t *testing.T) {
 			notices = append(notices, claim)
 		}
 	}
-	if len(notices) != 1 || notices[0].Status != constraintengine.StatusNotice || len(report.Check.Claims) != 27 || report.Check.EngineContractDigest != constraintengine.EngineContractDigestNotice() || ClaimExit(report) != 11 {
+	if len(notices) != 1 || notices[0].Status != constraintengine.StatusNotice || len(report.Check.Claims) != 31 || report.Check.EngineContractDigest != constraintengine.EngineContractDigestNotice() || ClaimExit(report) != 11 {
 		t.Fatalf("claims=%+v exit=%d", report.Check.Claims, ClaimExit(report))
 	}
 	if _, err := MarshalReport(report); err != nil {
@@ -89,7 +89,7 @@ func TestPackNoticeLevel(t *testing.T) {
 }
 
 func noticeInput() []byte {
-	return []byte(`{"schema":"` + constraintengine.InputSchema + `","authority":"` + constraintengine.InputAuthority + `","current":{"components":[{"component":"` + noticeComponent + `","version":"1.36.0","facts":[]}]},"proposed":{"components":[{"component":"` + noticeComponent + `","version":"1.37.0","facts":[]}]}}`)
+	return []byte(`{"schema":"` + constraintengine.InputSchema + `","authority":"` + constraintengine.InputAuthority + `","current":{"components":[{"component":"` + noticeComponent + `","version":"1.35.0","facts":[]}]},"proposed":{"components":[{"component":"` + noticeComponent + `","version":"1.36.0","facts":[]}]}}`)
 }
 
 func TestClaimExitNotice(t *testing.T) {
@@ -98,12 +98,12 @@ func TestClaimExitNotice(t *testing.T) {
 		t.Fatal(err)
 	}
 	const reviewed, until = "2026-09-20T00:00:00Z", "2026-12-19T00:00:00Z"
-	pass := syntheticKubernetesRule("kubernetes.synthetic-a-pass", "require_component_version", "REVIEWED_SOURCE_CONSTRAINT", "keep the reviewed version", `,"dependency":{"side":"proposed","component":"`+noticeComponent+`","comparison":"gte","version":"1.37.0"}`, reviewed, until)
+	pass := syntheticKubernetesRule("kubernetes.synthetic-a-pass", "require_component_version", "REVIEWED_SOURCE_CONSTRAINT", "keep the reviewed version", `,"dependency":{"side":"proposed","component":"`+noticeComponent+`","comparison":"gte","version":"1.36.0"}`, reviewed, until)
 	blocked := syntheticKubernetesRule("kubernetes.synthetic-b-blocked", "forbid_target_version", "REVIEWED_SOURCE_CONSTRAINT", "plan a reviewed route", "", reviewed, until)
 	notice := syntheticNoticeRule("kubernetes.synthetic-c-notice", reviewed, until)
 	staleNotice := syntheticNoticeRule("kubernetes.synthetic-d-notice-stale", "2026-06-01T00:00:00Z", "2026-08-30T00:00:00Z")
-	notApplicable := strings.Replace(syntheticNoticeRule("kubernetes.synthetic-e-notice-other", reviewed, until), `"to":"1.37.0"`, `"to":"1.38.0"`, 1)
-	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	notApplicable := strings.Replace(syntheticNoticeRule("kubernetes.synthetic-e-notice-other", reviewed, until), `"to":"1.36.0"`, `"to":"1.37.0"`, 1)
+	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
 	inputRaw := noticeInput()
 	input, err := constraintengine.ParseInput(inputRaw, b.registry)
 	if err != nil {
@@ -166,13 +166,13 @@ func TestNoticeNeverChangesRuleSelection(t *testing.T) {
 	const pspFact = "component.kubernetes.psp_v1beta1_removed_gvk_present"
 	family := []string{pspFact, "component.kubernetes.cronjob_v1beta1_removed_gvk_present"}
 	guarded := syntheticNoticeEntry()
-	guarded.Rule = json.RawMessage(strings.Replace(syntheticNoticeRule("kubernetes.synthetic-one-way-guarded.1-36-0-to-1-37-0", "2026-09-20T00:00:00Z", "2026-12-19T00:00:00Z"), `,"evidence":`, `,"appliesWhen":[{"side":"proposed","component":"`+noticeComponent+`","factId":"`+pspFact+`","boolValue":true}],"evidence":`, 1))
+	guarded.Rule = json.RawMessage(strings.Replace(syntheticNoticeRule("kubernetes.synthetic-one-way-guarded.1-35-0-to-1-36-0", "2026-09-20T00:00:00Z", "2026-12-19T00:00:00Z"), `,"evidence":`, `,"appliesWhen":[{"side":"proposed","component":"`+noticeComponent+`","factId":"`+pspFact+`","boolValue":true}],"evidence":`, 1))
 	guarded.RequiredFacts = []Fact{{Side: "proposed", ID: pspFact, Component: noticeComponent, Type: constraintengine.FactBool, Description: "A removed PodSecurityPolicy v1beta1 object is present."}}
 	withNotice, err := assembleSynthetic(syntheticPack(t, packSchemaNotice, nil, syntheticNoticeEntry(), guarded), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
 	inputRaw := noticeInput()
 	evaluate := func(b bundle, familySelector bool) Report {
 		t.Helper()
@@ -206,8 +206,8 @@ func TestNoticeNeverChangesRuleSelection(t *testing.T) {
 				t.Fatalf("family=%v: claim %+v", familySelector, claim)
 			}
 		}
-		if !familySelector && len(verdicts) != 26 {
-			t.Fatalf("generic selection holds %d verdict claims, want the 26 Kubernetes rules", len(verdicts))
+		if !familySelector && len(verdicts) != 30 {
+			t.Fatalf("generic selection holds %d verdict claims, want the 30 Kubernetes rules", len(verdicts))
 		}
 		if len(with.Check.Claims) == len(verdicts) || ClaimExit(with) != ClaimExit(without) {
 			t.Fatalf("family=%v: notices=%d exit %d vs %d", familySelector, len(with.Check.Claims)-len(verdicts), ClaimExit(with), ClaimExit(without))
@@ -220,7 +220,7 @@ func TestNoticeNeverChangesRuleSelection(t *testing.T) {
 // generated attestation still binds.
 func TestCorpusInventorySkipsNoticeOnlyComponents(t *testing.T) {
 	const aeraki = "pkg:github/aeraki-mesh/aeraki"
-	notice := Entry{Project: "aeraki-mesh", Description: "Synthetic test-only one-way transition.", RequiredFacts: []Fact{}, Rule: json.RawMessage(strings.Replace(syntheticNoticeRule("aeraki-mesh.synthetic-one-way.1-36-0-to-1-37-0", "2026-09-20T00:00:00Z", "2026-12-19T00:00:00Z"), noticeComponent, aeraki, 1))}
+	notice := Entry{Project: "aeraki-mesh", Description: "Synthetic test-only one-way transition.", RequiredFacts: []Fact{}, Rule: json.RawMessage(strings.Replace(syntheticNoticeRule("aeraki-mesh.synthetic-one-way.1-35-0-to-1-36-0", "2026-09-20T00:00:00Z", "2026-12-19T00:00:00Z"), noticeComponent, aeraki, 1))}
 	b, err := assembleSynthetic(syntheticPack(t, packSchemaNotice, nil, notice), nil)
 	if err != nil {
 		t.Fatal(err)

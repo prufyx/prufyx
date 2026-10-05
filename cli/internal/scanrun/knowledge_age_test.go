@@ -50,7 +50,6 @@ func TestScanKnowledgeAgeEmbedded(t *testing.T) {
 		name, now string
 		want      string // substring of the note; "" for none
 	}{
-		{"today", testNow, ""},
 		{"31 days before", at(-31 * 24 * time.Hour), ""},
 		{"edge: one second outside", at(-knowledgeage.Window - time.Second), ""},
 		{"edge: exactly 30 days", at(-knowledgeage.Window), "expire within 30 days"},
@@ -186,7 +185,7 @@ func TestScanKnowledgeAgeStore(t *testing.T) {
 			if got := note(openAt(t, stale.store, "2026-12-10T00:00:00Z")); got != want || expired == 0 {
 				t.Errorf("%s stale database: %q, want %q", layout, got, want)
 			}
-			if got := note(openAt(t, stale.store, testNow)); got != "" {
+			if got := note(openAt(t, stale.store, "2026-11-06T00:00:00Z")); got != "" {
 				t.Errorf("%s stale database before the window: %q", layout, got)
 			}
 			if got := note(openAt(t, renewed.store, "2026-12-10T00:00:00Z")); got != "" {

@@ -17,7 +17,7 @@ func TestCheckFactsEvaluatesOnlyTheNamedFactFamily(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
 	family := cncfprepare.KubernetesRemovedAPIFacts("1.24.0", "1.25.0")
 	report, err := CheckFacts("kubernetes", family, prepared.CanonicalInputJSON, now)
 	if err != nil {

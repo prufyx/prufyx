@@ -53,7 +53,7 @@ func doc(t *testing.T, atts ...lineattest.LineAttestation) []byte {
 	return raw
 }
 
-var rules126 = []string{"kubernetes.flowcontrol-v1beta1-removed.1-25-0-to-1-26-0", "kubernetes.hpa-v2beta2-removed.1-25-0-to-1-26-0"}
+var rules126 = []string{"kubernetes.served-api-removal.autoscaling-v2beta2.1-25-0-to-1-26-0", "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta1.1-25-0-to-1-26-0"}
 
 func TestAttestationMatchingThePackIsValid(t *testing.T) {
 	r := ValidateLineAttestations(doc(t, attestation("1.26", rules126...), attestation("1.30")), publishedRules(t), AttestationOptions{})
@@ -73,11 +73,9 @@ func TestAttestationMustListExactlyThePackRules(t *testing.T) {
 	}{
 		"missing rule":         {attestation("1.26", rules126[0]), CheckAttestationMissingRule, rules126[1]},
 		"extra rule":           {attestation("1.26", append(append([]string{}, rules126...), "kubernetes.zz-extra")...), CheckAttestationExtraRule, "kubernetes.zz-extra"},
-		"rule of another line": {attestation("1.27", "kubernetes.csistoragecapacity-v1beta1-removed.1-26-0-to-1-27-0", rules126[1]), CheckAttestationExtraRule, rules126[1]},
-		"falsely quiet line":   {attestation("1.32"), CheckAttestationMissingRule, "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0"},
+		"rule of another line": {attestation("1.27", rules126[0], "kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-26-0-to-1-27-0"), CheckAttestationExtraRule, rules126[0]},
+		"falsely quiet line":   {attestation("1.32"), CheckAttestationMissingRule, "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0"},
 		"other family":         {attestation("1.24", "kubernetes.in-tree-dockershim-removed.1-24"), CheckAttestationExtraRule, "kubernetes.in-tree-dockershim-removed.1-24"},
-		// The published 1.32 rule matches its anchor pair only.
-		"rule not line-wide": {attestation("1.32", "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0"), CheckAttestationRuleNotLineWide, "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			r := ValidateLineAttestations(doc(t, c.att), rules, AttestationOptions{})
@@ -85,6 +83,39 @@ func TestAttestationMustListExactlyThePackRules(t *testing.T) {
 				t.Fatalf("%+v", r.Findings)
 			}
 		})
+	}
+}
+
+// A rule that matches its anchor pair only cannot be listed in a line review:
+// the published 1.32 rule is a range rule, so the case strips its range.
+func TestAttestationRuleNotLineWide(t *testing.T) {
+	const id = "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0"
+	var rules []json.RawMessage
+	stripped := false
+	for _, raw := range publishedRules(t) {
+		var rule map[string]any
+		if err := json.Unmarshal(raw, &rule); err != nil {
+			t.Fatal(err)
+		}
+		if rule["id"] == id {
+			delete(rule, "range")
+			stripped = true
+			var err error
+			if raw, err = json.Marshal(rule); err != nil {
+				t.Fatal(err)
+			}
+		}
+		rules = append(rules, raw)
+	}
+	if !stripped {
+		t.Fatalf("%s is not in the pack", id)
+	}
+	r := ValidateLineAttestations(doc(t, attestation("1.32", id)), rules, AttestationOptions{})
+	if r.Valid || len(r.Findings) != 1 || r.Findings[0].Check != CheckAttestationRuleNotLineWide || r.Findings[0].RuleID != id {
+		t.Fatalf("%+v", r.Findings)
+	}
+	if r := ValidateLineAttestations(doc(t, attestation("1.32", id)), publishedRules(t), AttestationOptions{}); !r.Valid {
+		t.Fatalf("the published range rule is refused: %+v", r.Findings)
 	}
 }
 

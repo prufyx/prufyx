@@ -3,7 +3,7 @@ BLOCKED: 1 problem must be fixed before this upgrade
 kubernetes 1.24.17 -> 1.30.4: 6 hops (path policy sequential_minor)
   1.24.17 -> 1.25   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
                     applyset.yaml:1  CronJob default/nightly-report
-                    fix: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
+                    fix: Migrate the named manifests to batch/v1, then reassess the complete target apply set. Validate CRDs, stored objects, clients and API-server configuration separately.
 
 NOT CHECKED (1)
   kubernetes   1 manifest(s) use API versions that the review of Kubernetes 1.30 does not list as served - check those API versions against the Kubernetes 1.30 API reference by hand
@@ -11,4 +11,4 @@ NOT CHECKED (1)
 Checked 6 hops, 2 documents, 1 component (1 covered). 10 checks passed (--show-passes).
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
 Evidence: every finding cites pinned upstream source (--verbose). No network used.
-evaluated at 2026-10-04T00:00:00Z; input sha256:706abd92d4968558d52e272d3f490af7280ce84a6011ae824a9fa9ae7b4c47f7; knowledge embedded cncf-2026-09-13.4 sha256:4d2718043fbc41bb0f99ce8a69ea9ef253c52249bb88254b969d1ebdab46e5c5
+evaluated at 2026-11-20T00:00:00Z; input sha256:706abd92d4968558d52e272d3f490af7280ce84a6011ae824a9fa9ae7b4c47f7; knowledge embedded cncf-2026-09-13.4 sha256:54c40b58a69b6f99126b0dab01c99d2bf6be00a0f53adc57922a81640da17684
