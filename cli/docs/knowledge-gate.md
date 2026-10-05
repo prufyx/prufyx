@@ -604,7 +604,7 @@ The signer reads no base approvals, so it cannot warn about either rule.
 
 ```sh
 prufyx-maintainer approval sign --subject lineAttestation --pack cncf \
-  --record <record id> --base-pack "$T/base-cncf.json" --head-pack cli/knowledge/targets/cncf/rules.json \
+  --record <record id> --base-pack "$T/base-cncf.json" --head-pack cli/internal/cncfcheck/data/rules.json \
   --keys "$T/base-keys.json" --keys-digest "$(gh variable get WEB_APPROVAL_KEYS_DIGEST)" \
   --identity airstand --candidate-id pr-15 --key-stdin \
   --output cli/knowledge/approvals/cncf/<record id>.json
