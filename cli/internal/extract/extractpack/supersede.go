@@ -410,9 +410,6 @@ func auditSupersede(base, final *Pack, removed, added map[string]bool) error {
 	if err := audit(rest, final, added, nil, false); err != nil {
 		return err
 	}
-	if len(final.Members) != len(base.Members) {
-		return fmt.Errorf("%w: the pack members differ", ErrForeignChange)
-	}
 	for name, bv := range base.Members {
 		if hv, ok := final.Members[name]; !ok || !bytes.Equal(canonOrRaw(bv), canonOrRaw(hv)) {
 			return fmt.Errorf("%w: pack member %s", ErrForeignChange, name)

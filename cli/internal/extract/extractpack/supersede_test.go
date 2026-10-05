@@ -355,10 +355,36 @@ func TestSupersedeAuditsTheResult(t *testing.T) {
 		"member changed": func(h *extractpack.Pack, _, _ map[string]bool) {
 			h.Members["revision"] = json.RawMessage(`"cncf-9999-01-01.1"`)
 		},
+		"a mechanical rule removed": func(h *extractpack.Pack, removed, _ map[string]bool) {
+			for i, e := range h.Entries {
+				var v struct {
+					Rule struct {
+						ID       string `json:"id"`
+						Evidence struct {
+							Basis string `json:"basis"`
+						} `json:"evidence"`
+					} `json:"rule"`
+				}
+				_ = json.Unmarshal(e, &v)
+				if v.Rule.Evidence.Basis == "mechanical" && v.Rule.ID == "unrelated-mechanical" {
+					removed[v.Rule.ID] = true
+					h.Entries = append(h.Entries[:i], h.Entries[i+1:]...)
+					return
+				}
+			}
+			panic("no mechanical rule in the pack")
+		},
 		"removed rule was never in the pack": func(_ *extractpack.Pack, removed, _ map[string]bool) { removed["ghost"] = true },
 	} {
 		t.Run(name, func(t *testing.T) {
 			pack := reviewedBase(t, c, run, nil)
+			mustModifyPack(t, pack, func(base []map[string]any) []map[string]any {
+				m := deepCopy(t, runEntries(t, run)[0])
+				r := m["rule"].(map[string]any)
+				r["id"] = "unrelated-mechanical"
+				r["subject"].(map[string]any)["component"] = "pkg:github/other/other"
+				return append(base, m)
+			})
 			pre, _ := os.ReadFile(pack)
 			restore := extractpack.SetSupersedeStep(func(b *extractpack.Pack, r *extractpack.Run, rep *extractpack.SupersedeReport) (*extractpack.Pack, map[string]bool, map[string]bool, error) {
 				head, removed, added, err := extractpack.RealSupersede(b, r, rep)
@@ -429,13 +455,37 @@ func TestApplyRulesOnlyRefusals(t *testing.T) {
 	}
 	// A loader that admits the pack only at another schema: rules-only never moves it.
 	_, err := extractpack.Apply(extractpack.Options{PackPath: pack, RunDir: run, RulesOnly: true, Admit: func(_ string, raw []byte) error {
-		if strings.Contains(string(raw), "v1alpha2") {
+		var head struct {
+			Schema string `json:"schema"`
+		}
+		_ = json.Unmarshal(raw, &head)
+		if strings.HasSuffix(head.Schema, "v1alpha2") {
 			return errors.New("needs a higher schema")
 		}
 		return nil
 	}})
 	if !errors.Is(err, extractpack.ErrAdmission) {
 		t.Fatalf("got %v", err)
+	}
+	assertUnchanged(t, pack, pre)
+}
+
+// The added rules pass rule validation against the pack without the
+// reviewed rules that go, and against the other published packs.
+func TestSupersedeRuleChecks(t *testing.T) {
+	c := cases[1]
+	run := runDir(t, c, derivedAt)
+	id := ruleIDs(t, run)[0]
+	other := filepath.Join(t.TempDir(), "other.json")
+	doc := `{"entries":[{"project":"p","description":"d","requiredFacts":[],"rule":{"id":"` + id + `"}}]}`
+	if err := os.WriteFile(other, []byte(doc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pack := reviewedBase(t, c, run, nil)
+	pre, _ := os.ReadFile(pack)
+	_, err := extractpack.Supersede(extractpack.Options{PackPath: pack, RunDir: run, Admit: admitAll, ExistingRules: []string{other}})
+	if !errors.Is(err, extractpack.ErrAdmission) || !strings.Contains(err.Error(), "rule-id-collision") {
+		t.Fatalf("id used by another pack: %v", err)
 	}
 	assertUnchanged(t, pack, pre)
 }
