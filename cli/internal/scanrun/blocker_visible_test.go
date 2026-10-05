@@ -503,6 +503,12 @@ func TestScanItemsObjectIsNeverAWitness(t *testing.T) {
 	if witness.Exit != scanreport.ExitUnknown || len(witness.Report.Findings) != 0 || len(witness.Report.Passes) != 0 || !gapNamed(witness.Report, scanreport.ReasonDocumentsNotEvaluated) {
 		t.Fatalf("items object: exit %d findings %+v gaps %v", witness.Exit, witness.Report.Findings, gapReasons(witness.Report))
 	}
+	// Beside a templated document the object with items is still named in
+	// its own right, not only through the templated gap.
+	both := run(map[string]string{"cronjob.yaml": removedCronJobOnly, "chart.yaml": templatedConfigMap, "bundle.yaml": "apiVersion: example.io/v1\nkind: Bundle\nmetadata: {name: b}\nitems: []\n"})
+	if both.Exit != scanreport.ExitBlocked || !gapNamed(both.Report, scanreport.ReasonDocumentsTemplated) || !gapNamed(both.Report, scanreport.ReasonDocumentsNotEvaluated) {
+		t.Fatalf("templated and items: exit %d gaps %v", both.Exit, gapReasons(both.Report))
+	}
 	probe := run(map[string]string{"cronjob.yaml": removedCronJobOnly, "settings.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: c}\nitems: []\n"})
 	if probe.Exit != scanreport.ExitBlocked || len(probe.Report.Findings) != 1 || probe.Report.Findings[0].RuleID != cronjobRuleID || !gapNamed(probe.Report, scanreport.ReasonDocumentsNotEvaluated) {
 		t.Fatalf("probe: exit %d findings %+v gaps %v", probe.Exit, probe.Report.Findings, gapReasons(probe.Report))
