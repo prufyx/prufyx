@@ -112,6 +112,25 @@ do not require a cluster or separate Python or jq runtimes. Follow the exact
 staged-source instructions in
 [the source gate](cli/release/COMMUNITY-SOURCE-GATE.md).
 
+### Mutation checks
+
+`cli/testdata/mutants.json` lists small source changes ("mutants") on the
+verdict path, each with the test that must fail when the change is made. From
+`cli`, `make mutants` applies them one at a time and prints `killed` or
+`survived` for each. It exits non-zero if a mutant that should be killed
+survives, if its `find` text no longer occurs exactly once in the file (a stale
+entry is an error, not a skip), or if the mutant does not compile. The working
+tree is never modified: the changed file is passed to `go test -overlay`.
+The run is serial, with `go test -p 2` and `GOMAXPROCS=4`, and takes several
+minutes, so it is not part of the default CI run. `make mutants MUTANT_ARGS="-only CE-1,CR-1"`
+runs some of them.
+
+Each entry has `id`, `description`, `file` (relative to `cli`), `find`,
+`replace`, `package`, `run` (a `go test -run` pattern) and `expect`
+(`killed`, or `survived` for a documented equivalent mutant). When you add a
+safety check, add a mutant that removes it and keep the entry when you move
+the code.
+
 Keep changes focused. Add a regression test when behavior changes, and include
 the exact commands and outcomes in the pull request description. Changes to
 collection fields need a compatibility-predicate justification and disclosure

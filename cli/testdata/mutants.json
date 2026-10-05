@@ -1,0 +1,306 @@
+{
+ "schema": "prufyx-mutants-v1",
+ "mutants": [
+  {
+   "id": "CE-1",
+   "description": "condition/appliesWhen contradiction never reported",
+   "file": "internal/constraintengine/parse.go",
+   "find": "if !sameConditionValue(applicability, condition) {\n\t\t\treturn true",
+   "replace": "if !sameConditionValue(applicability, condition) {\n\t\t\treturn false",
+   "package": "./internal/constraintengine",
+   "run": ".",
+   "expect": "killed"
+  },
+  {
+   "id": "CE-2",
+   "description": "contradiction ignores the enum value",
+   "file": "internal/constraintengine/parse.go",
+   "find": "return a.EnumValue == b.EnumValue",
+   "replace": "return true",
+   "package": "./internal/constraintengine",
+   "run": ".",
+   "expect": "killed"
+  },
+  {
+   "id": "CE-3",
+   "description": "contradiction ignores the bool value",
+   "file": "internal/constraintengine/parse.go",
+   "find": "if a.BoolValue != nil && *a.BoolValue != *b.BoolValue {\n\t\treturn false\n\t}",
+   "replace": "",
+   "package": "./internal/constraintengine",
+   "run": ".",
+   "expect": "killed"
+  },
+  {
+   "id": "CE-4",
+   "description": "contradiction check skips the side",
+   "file": "internal/constraintengine/parse.go",
+   "find": "applicability.Side != condition.Side || ",
+   "replace": "",
+   "package": "./internal/constraintengine",
+   "run": ".",
+   "expect": "killed"
+  },
+  {
+   "id": "SRP-1",
+   "description": "redaction leaves locations in path order",
+   "file": "internal/scanreport/render.go",
+   "find": "\t\tsortLocations(report.Findings[f].Locations)\n",
+   "replace": "",
+   "package": "./internal/scanreport",
+   "run": "TestRedactOrder",
+   "expect": "killed"
+  },
+  {
+   "id": "SRP-2",
+   "description": "redaction leaves omitted documents in path order",
+   "file": "internal/scanreport/render.go",
+   "find": "\tsortOmitted(report.Omitted)\n\tif store",
+   "replace": "\tif store",
+   "package": "./internal/scanreport",
+   "run": "TestRedactOrder",
+   "expect": "killed"
+  },
+  {
+   "id": "SRP-3",
+   "description": "redaction leaves object names in the clear",
+   "file": "internal/scanreport/render.go",
+   "find": "RedactValue(location.Namespace), RedactValue(location.Name)",
+   "replace": "RedactValue(location.Namespace), location.Name",
+   "package": "./internal/scanreport",
+   "run": "Redact",
+   "expect": "killed"
+  },
+  {
+   "id": "SRP-4",
+   "description": "redaction leaves omitted file paths in the clear",
+   "file": "internal/scanreport/render.go",
+   "find": "report.Omitted[o].File = RedactValue(report.Omitted[o].File)",
+   "replace": "_ = o",
+   "package": "./internal/scanreport",
+   "run": "Redact",
+   "expect": "killed"
+  },
+  {
+   "id": "SRP-5",
+   "description": "redaction leaves the knowledge store path in the clear",
+   "file": "internal/scanreport/render.go",
+   "find": "redacted.Path = RedactValue(store.Path)",
+   "replace": "redacted.Path = store.Path",
+   "package": "./internal/scanreport",
+   "run": "Redact",
+   "expect": "killed"
+  },
+  {
+   "id": "SC-1",
+   "description": "unresolved apply set adds no gap (kubernetes)",
+   "file": "internal/scanrun/kubernetes.go",
+   "find": "\tr.rootGap(scanreport.GapDocumentsUnresolved)\n}",
+   "replace": "\t_ = scanreport.GapDocumentsUnresolved\n}",
+   "package": "./internal/scanrun",
+   "run": "Unresolved|Gap|Templated|Partial",
+   "expect": "killed"
+  },
+  {
+   "id": "SC-2",
+   "description": "unresolved (not templated) apply set is not a gap (kubernetes)",
+   "file": "internal/scanrun/kubernetes.go",
+   "find": "reason != cncfprepare.ReasonKubernetesUnresolved && reason != cncfprepare.ReasonKubernetesTemplated",
+   "replace": "reason != cncfprepare.ReasonKubernetesTemplated",
+   "package": "./internal/scanrun",
+   "run": "Unresolved|Gap|Templated|Partial",
+   "expect": "killed"
+  },
+  {
+   "id": "SC-3",
+   "description": "unresolved apply set adds no gap (custom resources)",
+   "file": "internal/scanrun/customresources.go",
+   "find": "\tr.rootGap(scanreport.GapDocumentsUnresolved)\n}",
+   "replace": "\t_ = scanreport.GapDocumentsUnresolved\n}",
+   "package": "./internal/scanrun",
+   "run": "CustomResource",
+   "expect": "killed"
+  },
+  {
+   "id": "KG-1",
+   "description": "a used approval already in the base is accepted again",
+   "file": "internal/maintainer/knowledgegate/records.go",
+   "find": "if sameApproval(base.env, head) {",
+   "replace": "if false && sameApproval(base.env, head) {",
+   "package": "./internal/maintainer/knowledgegate",
+   "run": "SingleUse|Approval",
+   "expect": "killed"
+  },
+  {
+   "id": "KG-2",
+   "description": "an equal or earlier decision may replace a later approval",
+   "file": "internal/maintainer/knowledgegate/records.go",
+   "find": "!headAt.After(baseAt)",
+   "replace": "headAt.Before(baseAt)",
+   "package": "./internal/maintainer/knowledgegate",
+   "run": "SingleUse|Approval",
+   "expect": "killed"
+  },
+  {
+   "id": "KG-3",
+   "description": "an unused baseline approval file is admitted",
+   "file": "internal/maintainer/knowledgegate/baselines.go",
+   "find": "if inHead && !used[id] {",
+   "replace": "if false && inHead && !used[id] {",
+   "package": "./internal/maintainer/knowledgegate",
+   "run": "Baseline",
+   "expect": "killed"
+  },
+  {
+   "id": "KG-4",
+   "description": "approval age limit not enforced",
+   "file": "internal/maintainer/knowledgegate/approval.go",
+   "find": "now.Sub(decided) > MaxApprovalAge",
+   "replace": "false",
+   "package": "./internal/maintainer/knowledgegate",
+   "run": "Approval",
+   "expect": "killed"
+  },
+  {
+   "id": "KG-5",
+   "description": "approval signed for another rule is accepted",
+   "file": "internal/maintainer/knowledgegate/approval.go",
+   "find": "r.Pack != pack || r.RuleID != ruleID || r.Scope != scope",
+   "replace": "r.Pack != pack",
+   "package": "./internal/maintainer/knowledgegate",
+   "run": "Approval",
+   "expect": "killed"
+  },
+  {
+   "id": "KG-6",
+   "description": "approval base digest is not compared",
+   "file": "internal/maintainer/knowledgegate/approval.go",
+   "find": "if r.BaseDigest != wantBase {",
+   "replace": "if false && r.BaseDigest != wantBase {",
+   "package": "./internal/maintainer/knowledgegate",
+   "run": "Approval|Gate",
+   "expect": "killed"
+  },
+  {
+   "id": "V9-1",
+   "description": "independent worklist tags-fallback or stale citation accepted",
+   "file": "internal/maintainer/evidencereattest/verify.go",
+   "find": "if got.Resolution != \"\" || got.Stale {",
+   "replace": "if false && (got.Resolution != \"\" || got.Stale) {",
+   "package": "./internal/maintainer/evidencereattest",
+   "run": "V9|Verify",
+   "expect": "killed"
+  },
+  {
+   "id": "V9-3",
+   "description": "signer and independent worklists need not agree",
+   "file": "internal/maintainer/evidencereattest/verify.go",
+   "find": "\t\t\t\treturn fmt.Errorf(\"%w: V9: rule %s citation %s resolution or baseline fields differ",
+   "replace": "\t\t\t\tcontinue\n\t\t\t\treturn fmt.Errorf(\"%w: V9: rule %s citation %s resolution or baseline fields differ",
+   "package": "./internal/maintainer/evidencereattest",
+   "run": "V9|Verify",
+   "expect": "killed"
+  },
+  {
+   "id": "V11-1",
+   "description": "pending citation count not compared",
+   "file": "internal/maintainer/evidencereattest/verify.go",
+   "find": "if len(want) != len(statement.PendingCitations) {",
+   "replace": "if false {",
+   "package": "./internal/maintainer/evidencereattest",
+   "run": "Pending",
+   "expect": "killed"
+  },
+  {
+   "id": "V11-2",
+   "description": "a rule citing a pending citation may be renewed",
+   "file": "internal/maintainer/evidencereattest/verify.go",
+   "find": "\t\tif renewed[rule] {",
+   "replace": "\t\tif false && renewed[rule] {",
+   "package": "./internal/maintainer/evidencereattest",
+   "run": "Pending",
+   "expect": "killed"
+  },
+  {
+   "id": "V11-3",
+   "description": "excluded rule need not name its pending repositories",
+   "file": "internal/maintainer/evidencereattest/verify.go",
+   "find": "!slices.Equal(ne.PendingRepositories, repos)",
+   "replace": "false && !slices.Equal(ne.PendingRepositories, repos)",
+   "package": "./internal/maintainer/evidencereattest",
+   "run": "Pending",
+   "expect": "killed"
+  },
+  {
+   "id": "V12-1",
+   "description": "owner baseline file not required",
+   "file": "internal/maintainer/evidencereattest/verify.go",
+   "find": "if len(baselinesRaw) == 0 {",
+   "replace": "if false {",
+   "package": "./internal/maintainer/evidencereattest",
+   "run": "V12|Baseline",
+   "expect": "killed"
+  },
+  {
+   "id": "V12-2",
+   "description": "owner baseline tag not compared",
+   "file": "internal/maintainer/evidencereattest/verify.go",
+   "find": "e.Tag == c.ComparedTag && ",
+   "replace": "",
+   "package": "./internal/maintainer/evidencereattest",
+   "run": "V12|Baseline",
+   "expect": "killed"
+  },
+  {
+   "id": "V12-3",
+   "description": "independent worklist not required for owner baselines",
+   "file": "internal/maintainer/evidencereattest/verify.go",
+   "find": "if !haveIndependent {",
+   "replace": "if false {",
+   "package": "./internal/maintainer/evidencereattest",
+   "run": "V12|Baseline",
+   "expect": "killed"
+  },
+  {
+   "id": "CR-1",
+   "description": "a blocked claim exits 11 instead of 10",
+   "file": "internal/cncfcheck/check.go",
+   "find": "case \"BLOCKED\":\n\t\t\treturn 10",
+   "replace": "case \"BLOCKED\":\n\t\t\treturn 11",
+   "package": "./internal/cncfcheck",
+   "run": ".",
+   "expect": "killed"
+  },
+  {
+   "id": "CR-2",
+   "description": "a blocked custom-resource check is capped to UNKNOWN",
+   "file": "internal/communityapp/cncf_custom_resources.go",
+   "find": "\treturn exit\n}",
+   "replace": "\treturn ExitUnknown\n}",
+   "package": "./internal/communityapp",
+   "run": "CustomResource",
+   "expect": "killed",
+   "tags": "prufyx_synthetic_knowledge"
+  },
+  {
+   "id": "CC-1",
+   "description": "unknown claim no longer prevents exit 0",
+   "file": "internal/cncfcheck/check.go",
+   "find": "if decided == 0 || unknown {",
+   "replace": "if decided == 0 || (unknown && false) {",
+   "package": "./internal/cncfcheck",
+   "run": "Exit|Claim|Unknown",
+   "expect": "killed"
+  },
+  {
+   "id": "CC-2",
+   "description": "excluded verdict rule no longer prevents a pass",
+   "file": "internal/cncfcheck/check.go",
+   "find": "unknown := 0, report.TrustPolicy != nil && report.TrustPolicy.ExcludedRules > 0",
+   "replace": "unknown := 0, false",
+   "package": "./internal/cncfcheck",
+   "run": "Exit|Claim|Trust|Exclu",
+   "expect": "killed"
+  }
+ ]
+}
