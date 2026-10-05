@@ -45,7 +45,9 @@ What the mirror cannot answer is `PENDING`, never "unchanged". The citation's
 A repository with a complete, known, empty release list falls back to its tags
 exactly as over HTTP (`tag_fallback`, never batch-attestable). With the mirror,
 that fallback considers every recorded tag rather than the first page GitHub
-returns.
+returns. In release-line mode such a repository's citations are compared on a
+tag line (see "Repositories without GitHub Releases" below), derived from the
+mirror's recorded tags exactly as over HTTP from the live ref listing.
 
 ### Getting the files into the mirror: a two-step flow
 
@@ -230,12 +232,74 @@ baseline it actually used, so the two kinds of result are never confused.
    scanning the repository's complete Releases list.
 4. **Ambiguity falls back.** The citation keeps the latest baseline when the
    pinned commit has no proven release tag, when the repository publishes no
-   Releases (tags-only repositories are never given a line), when the Releases
+   Releases (a tags-only repository may get a tag line instead, see below), when the Releases
    list is too long to scan completely, when the pinned tag is not a published
    release, when the same numeric line is released under more than one prefix,
    or when any release on the line has a tag the strict grammar rejects.
+   A release whose tag names a pre-release of the line is skipped even when
+   GitHub does not flag it as a pre-release. A pre-release suffix is one of
+   the whole words `alpha`, `beta`, `rc`, `pre`, `preview` or `dev`, in any
+   case, optionally after `-` or `.`, followed only by numbers (for example
+   `v1.30.0-rc1`, `v2.10.17-RC.1`, `v1.9.0-dev-20250601`). Any other suffix
+   (`-hotfix-1`, `-binary`, `-prebuilt`, `-rc1-hotfix`, `-devsecfix`) still
+   makes the line ambiguous.
    If the scan is cut short by a rate limit or an error, the citation stays
    `PENDING` rather than falling back silently.
+
+### Repositories without GitHub Releases: tag lines
+
+A repository that publishes no usable GitHub Releases (its newest release
+came from the tags fallback, for example `golang/go`) has no Releases list to
+prove a line from. In release-line mode its citations are compared on a
+**tag line** instead, recorded as `baseline: tag_line`:
+
+1. **Ref listing.** Repin reads the repository's complete list of tags and
+   branch heads, the data `git ls-remote https://github.com/<owner>/<repo>.git`
+   prints, once per repository and run (over HTTP from github.com, with no
+   credentials; with `--source mirror` from the mirror's recorded tags). An
+   annotated tag counts as its peeled commit, a lightweight tag as its own
+   object. A malformed or oversized listing derives nothing; a listing that
+   cannot be fetched leaves the citation `PENDING`.
+2. **One version prefix per repository.** Only tags with no prefix, `v` or
+   `go` may carry versions (any tag ending in `MAJOR.MINOR.PATCH` counts), and
+   only one of the three. A repository that also tags versions under another
+   prefix (`helm-chart-5.0.0`, `sdk/go/v2.0.0`, `spec-v1.0.0`) or under two of
+   them (`v1.2.0` and `2024.10.15`) gets no tag line.
+3. **Pinned tag.** The pinned commit must be exactly the commit of a release
+   tag: the strict grammar above, whose prefix may also be one bare lowercase
+   word (`go1.21.4`). A pin with no tag, a pin that is only a branch head, a
+   pin carrying only pre-release tags, and a pin carrying two release tags or
+   tags of two lines derive nothing. Branches never name a line and are never
+   compared with: a line that has a release branch but no release tag has no
+   tag line.
+4. **Line members.** Every tag on the pinned tag's numeric line is
+   classified. Release tags with the pinned prefix are members; recognised
+   pre-releases (as above, and Go's `go1.26rc1` form) are ignored and listed
+   in the line record. The same numeric line under a second prefix (also in a
+   tag that is not a release, such as `1.2.9-hotfix` next to `v1.2.3`), a
+   zero-padded number on the line (`v1.02.9`), or any other tag on the line
+   (`v1.9.0-hotfix-1`, `v2.10.27-binary`, `v1.2.4-prebuilt`, a four-part
+   version, a bare `go1.20`) makes the line unusable: a release this code
+   cannot order might be newer than the head it would pick. Tags on other
+   lines, and tags that are not versions at all, are ignored.
+5. **Compared tag.** The highest `PATCH` among the members. It always has the
+   pinned tag's prefix and line and is never older than the pinned tag. The
+   ref listing cannot tell a commit from a tree or blob, so the compared tag
+   is also resolved through the GitHub tag API (one or two requests per line,
+   peeling an annotated tag): it must resolve to a commit, and to the same
+   commit the listing names, or the line is unusable. If that lookup fails
+   (for example a rate limit) the citation stays `PENDING`.
+
+The line record's `tagsDigest` is recorded for audit; nothing verifies it. A
+tag moved between the run that prepared a renewal and the gate's independent
+run changes the compared tag or commit and is caught there; a tag moved before
+both runs is not detectable from tags alone, as with Releases lines.
+
+When no tag line can be used the citation keeps the tags fallback
+(`baseline: latest`, `resolution: tag_fallback`) and `baselineNote` gives the
+reason. A tag-line citation carries no `tag_fallback` marker, because the
+compared commit is the line's newest release tag, not the fallback's tag.
+`--baseline latest` is unchanged.
 
 ### What the worklist records
 
@@ -247,17 +311,21 @@ carries:
 | Field | Meaning |
 |---|---|
 | `baselineMode` | The requested mode, `release-line` or `latest`. |
-| `baseline` | The baseline actually used, `release_line` or `latest`. |
+| `baseline` | The baseline actually used, `release_line`, `tag_line` or `latest`. |
 | `baselineTag` | The release tag whose commit was compared (`newCommit`). |
-| `baselineLine` | The `MAJOR.MINOR` line, for `release_line`. |
-| `pinnedTag` | The release tag proven to point at `oldCommit`, for `release_line`. |
-| `lineStatus` | For `release_line`: `pinned_is_latest` when the pinned tag is itself the newest release of its line (the line can no longer change, so the comparison is trivially unchanged), otherwise `later_releases_on_line`. Recorded for downstream policy; eligibility does not depend on it. |
+| `baselineLine` | The `MAJOR.MINOR` line, for `release_line` and `tag_line`. |
+| `pinnedTag` | The release tag proven to point at `oldCommit`, for `release_line` and `tag_line`. |
+| `lineStatus` | For `release_line` and `tag_line`: `pinned_is_latest` when the pinned tag is itself the newest release of its line (the line can no longer change, so the comparison is trivially unchanged), otherwise `later_releases_on_line`. Recorded for downstream policy; eligibility does not depend on it. |
 | `baselineNote` | Why a release-line request used `latest` instead. |
 | `observedDigest`, `observedSize` | For `CORPUS_DIGEST_MISMATCH` only: the digest and byte size of the file actually served at the citation's own pinned commit. |
 
 The top-level `lines` list holds one resolution per release line a baseline
 relies on (`owner`, `repo`, `prefix`, `line`, `tag`, `commit`, `resolvedAt`),
-and `summary.baselineDistribution` counts citations by baseline. The state
+and `summary.baselineDistribution` counts citations by baseline. A tag line's
+record also has `basis: "git_tags"`, `tagsDigest` (SHA-256 of the line's
+release tags and their commits, one `<tag> <commit>` line each, sorted by tag),
+`ignoredTags` (up to 20 pre-release tags on the line, each with its reason) and
+`ignoredTagCount`. A record without `basis` was proven from GitHub Releases. The state
 file schema is `prufyx.io/evidence-repin-state/v2`; a `v1` state keeps its
 repository resolutions and recomputes citation results.
 

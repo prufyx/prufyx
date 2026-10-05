@@ -325,8 +325,9 @@ type CitationAttestation struct {
 	ContentDigest  string `json:"contentDigest"`
 	// Baseline, BaselineLine and PinnedTag are set only when the citation
 	// was compared with the newest release on its pinned tag's release line
-	// rather than with the repository's most recent release; ComparedTag
-	// is then that line's tag.
+	// rather than with the repository's most recent release (Baseline is
+	// then "release_line", or "tag_line" for a line derived from git tags);
+	// ComparedTag is then that line's tag.
 	Baseline     string `json:"baseline,omitempty"`
 	BaselineLine string `json:"baselineLine,omitempty"`
 	PinnedTag    string `json:"pinnedTag,omitempty"`

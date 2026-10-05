@@ -291,6 +291,16 @@ type LineResolution struct {
 	Source           string `json:"source,omitempty"`
 	MirrorCheckedAt  string `json:"mirrorCheckedAt,omitempty"`
 	MirrorReleasesAt string `json:"mirrorReleasesAt,omitempty"`
+	// Basis is LineBasisGitTags for a line derived from the repository's
+	// git tags (see tagline.go) and empty for a line proven from GitHub
+	// Releases. TagsDigest is then the SHA-256 of the line's release tags
+	// and their commits ("<tag> <commit>" lines, sorted by tag), and
+	// IgnoredTags names the pre-release tags on the line that were not
+	// considered as its head (at most 20; IgnoredTagCount counts them all).
+	Basis           string       `json:"basis,omitempty"`
+	TagsDigest      string       `json:"tagsDigest,omitempty"`
+	IgnoredTags     []IgnoredTag `json:"ignoredTags,omitempty"`
+	IgnoredTagCount int          `json:"ignoredTagCount,omitempty"`
 }
 
 // pinKey keys a pin by repository, commit and the hint set that was tried,
@@ -319,7 +329,8 @@ func lineKey(owner, repo, prefix, line string) string {
 // ambiguous when any non-pre-release release carries the same numeric
 // line under a different prefix, or carries the same prefix and numeric
 // line in a form the strict grammar rejects. Drafts and releases GitHub
-// flags as pre-releases never count.
+// flags as pre-releases never count, and neither does a release whose tag
+// names a pre-release of the line (alpha, beta, rc, pre, preview, dev).
 func newestOnLine(pinned tagVersion, entries []releaseEntry) (tag string, version tagVersion, reason string) {
 	pinnedPresent := false
 	for _, entry := range entries {
@@ -339,6 +350,11 @@ func newestOnLine(pinned tagVersion, entries []releaseEntry) (tag string, versio
 				tag, version = entry.Tag, parsed
 			}
 		case !strict && onLineLoosely(entry.Tag, pinned.Prefix, pinned.Major, pinned.Minor):
+			// A release named as a pre-release of the line ("v1.25.4-rc.1")
+			// is never its newest release, whether or not GitHub flags it.
+			if classifyNonRelease(entry.Tag, pinned.Prefix, pinned.Major, pinned.Minor) == formPrerelease {
+				continue
+			}
 			return "", tagVersion{}, "a release on the line has a tag the strict version grammar does not accept"
 		}
 	}
@@ -366,6 +382,7 @@ type lineResolver struct {
 
 	releases map[string]*releaseResult
 	tags     map[string]tagResolution
+	refs     map[string]refResult
 }
 
 type releaseResult struct {
@@ -376,7 +393,7 @@ type releaseResult struct {
 func newLineResolver(ctx context.Context, fetcher APIFetcher, state *State, now func() time.Time, maxAge time.Duration, rateLimited *bool) *lineResolver {
 	return &lineResolver{
 		ctx: ctx, fetcher: fetcher, state: state, now: now, maxAge: maxAge, rateLimited: rateLimited,
-		releases: map[string]*releaseResult{}, tags: map[string]tagResolution{},
+		releases: map[string]*releaseResult{}, tags: map[string]tagResolution{}, refs: map[string]refResult{},
 	}
 }
 
@@ -599,11 +616,13 @@ type baselineDecision struct {
 	pin  PinResolution
 	// note explains a fallback to the latest baseline.
 	note string
+	// basis is LineBasisGitTags when line was derived from git tags.
+	basis string
 }
 
 func (r *lineResolver) decide(c Citation, repo RepoResolution) baselineDecision {
 	if repo.Resolution == resolutionTagFallback {
-		return baselineDecision{note: "the repository publishes no GitHub Releases; the tags fallback has no release line"}
+		return r.decideTagLine(c)
 	}
 	pin := r.pin(c)
 	switch pin.Status {

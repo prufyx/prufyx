@@ -22,6 +22,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   It is the result of the checked rules and matches the exit code; the
   aggregate line stays the whole-upgrade compatibility, which these modes
   never decide.
+- `prufyx-maintainer evidence repin` compares citations in repositories
+  without GitHub Releases (for example `golang/go`) with the newest release
+  tag on their pinned tag's own line (`baseline: tag_line`), derived from the
+  repository's git tags, instead of one repository-wide tag. Anything it
+  cannot order keeps the previous baseline with the reason. Releases named
+  as pre-releases (`-rc1`, `-RC.1`, `-beta.0`) no longer make a release line
+  ambiguous when GitHub does not flag them. `evidence reattest` accepts
+  tag-line citations in human statements only.
 - The knowledge gate's default daily loosening limit is 50 (was 400). The
   repository variable `KNOWLEDGE_MAX_DAILY_LOOSENING` still raises it.
 - The CLA workflow no longer prints commit author e-mail addresses in its

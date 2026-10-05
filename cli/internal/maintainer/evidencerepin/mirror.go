@@ -282,6 +282,24 @@ func (f *mirrorAPIFetcher) CompleteReleaseScan(owner, repo string) bool {
 	return err == nil && !m.Truncated
 }
 
+// GitRefs implements GitRefSource from the mirror's recorded tags (each
+// already peeled to its commit). The mirror records no branch heads for
+// repin, which only ever explain why a pin has no line.
+func (f *mirrorAPIFetcher) GitRefs(_ context.Context, owner, repo string) (RefListing, error) {
+	tags, err := f.tagMap(owner, repo)
+	if err != nil {
+		return RefListing{}, err
+	}
+	listing := RefListing{Tags: make(map[string]TagRef, len(tags)), Heads: map[string]string{}}
+	for name, commit := range tags {
+		if !refObjectPattern.MatchString(commit) {
+			return RefListing{}, fmt.Errorf("%w: tag %s has no commit", errRefListingMalformed, name)
+		}
+		listing.Tags[name] = TagRef{Object: commit, Commit: commit}
+	}
+	return listing, nil
+}
+
 // releaseScanGate lets an APIFetcher declare that its release list is cut
 // short without the line resolver paging through it.
 type releaseScanGate interface {

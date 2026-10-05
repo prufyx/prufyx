@@ -564,8 +564,10 @@ func checkV7(statement Statement, nextByID map[string]json.RawMessage) error {
 //     mechanical) rule, is active, carries no version range, and is listed
 //     with exactly one citation per evidence source, each classified
 //     NO_NEW_RELEASE, FILE_IDENTICAL or SPAN_IDENTICAL against the latest
-//     release or its own release line (an automated statement: its own
-//     release line only), pinned to the source's own revision;
+//     release or its own release line, proven from GitHub Releases or
+//     derived from git tags (an automated statement: its own release line
+//     proven from GitHub Releases only), pinned to the source's own
+//     revision;
 //   - its consecutiveBatchCycles is within 1..the cap;
 //   - a human statement has a wave, no per-rule validUntil, and a non-empty
 //     sample whenever it renews anything (the sample's reviews are
@@ -627,7 +629,7 @@ func checkRolePolicy(statement Statement, prior map[string]ruleCandidate) error 
 				return fmt.Errorf("%w: V8: rule %s citation %s is classified %s", ErrRejected, ra.RuleID, citation.SourceID, citation.Class)
 			}
 			switch citation.Baseline {
-			case "", evidencerepin.BaselineLatest, evidencerepin.BaselineReleaseLine:
+			case "", evidencerepin.BaselineLatest, evidencerepin.BaselineReleaseLine, evidencerepin.BaselineTagLine:
 			default:
 				return fmt.Errorf("%w: V8: rule %s citation %s has an unknown baseline", ErrRejected, ra.RuleID, citation.SourceID)
 			}
@@ -645,9 +647,10 @@ func checkRolePolicy(statement Statement, prior map[string]ruleCandidate) error 
 // worklist produced independently of the signing job. For every citation
 // of every rule the statement renews, the independent worklist must hold
 // exactly one citation for the same pack path, rule and source with the
-// same class, pinned commit, compared commit and, for a release-line
-// baseline, the same baseline, line, pinned tag and compared tag, and a
-// resolved line record naming that tag and commit. Any missing or
+// same class, pinned commit, compared commit and, for a line baseline
+// (release_line or tag_line), the same baseline, line, pinned tag and
+// compared tag, and a resolved line record of the same basis naming that
+// tag and commit. Any missing or
 // differing citation rejects the statement: the statement's own worklist
 // is only as trustworthy as the job that signed it.
 func checkIndependentWorklist(statement Statement, packPath string, independentRaw []byte) error {
@@ -676,14 +679,14 @@ func checkIndependentWorklist(statement Statement, packPath string, independentR
 			if got.Class != claimed.Class || got.OldCommit != claimed.PinnedCommit || got.NewCommit != claimed.ComparedCommit {
 				return fmt.Errorf("%w: V9: rule %s citation %s differs from the independent worklist", ErrRejected, ra.RuleID, claimed.SourceID)
 			}
-			if claimed.Baseline == evidencerepin.BaselineReleaseLine {
+			if isLineBaseline(claimed.Baseline) {
 				if got.Baseline != claimed.Baseline || got.BaselineLine != claimed.BaselineLine || got.PinnedTag != claimed.PinnedTag || got.BaselineTag != claimed.ComparedTag {
 					return fmt.Errorf("%w: V9: rule %s citation %s baseline differs from the independent worklist", ErrRejected, ra.RuleID, claimed.SourceID)
 				}
 				if !lineBaselineVerified(got, wl.Lines) {
 					return fmt.Errorf("%w: V9: rule %s citation %s is not backed by a line record in the independent worklist", ErrRejected, ra.RuleID, claimed.SourceID)
 				}
-			} else if got.Baseline == evidencerepin.BaselineReleaseLine {
+			} else if isLineBaseline(got.Baseline) {
 				return fmt.Errorf("%w: V9: rule %s citation %s baseline differs from the independent worklist", ErrRejected, ra.RuleID, claimed.SourceID)
 			}
 		}
