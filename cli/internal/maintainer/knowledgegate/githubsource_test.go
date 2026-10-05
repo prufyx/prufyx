@@ -3,6 +3,7 @@
 package knowledgegate
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha1" //nolint:gosec // test tree ids only
 	"encoding/hex"
@@ -18,8 +19,10 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/extract/k8sservedapis"
 )
 
 // fakeGitHub serves a fixture tree the way GitHub's git API and
@@ -32,7 +35,12 @@ type fakeGitHub struct {
 	trees    map[string][2]string // tree id -> commit, dir
 	tamper   map[string][]byte    // path -> bytes served instead
 	truncate bool
-	requests int
+	// truncateRecursive truncates only ?recursive=1 listings.
+	truncateRecursive bool
+	requests          int // every request
+	rest              int // api requests (commits and trees)
+	recursive         int // tree requests with ?recursive=1
+	raw               int // raw file requests
 }
 
 func newFakeGitHub(root string) *fakeGitHub {
@@ -47,6 +55,15 @@ func fakeTreeID(commit, dir string) string {
 func (f *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	f.requests++
+	if len(r.URL.Path) > 4 && r.URL.Path[:5] == "/raw/" {
+		f.raw++
+	} else {
+		f.rest++
+	}
+	rec := r.URL.Query().Get("recursive") == "1"
+	if rec {
+		f.recursive++
+	}
 	f.mu.Unlock()
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
 	switch {
@@ -76,18 +93,35 @@ func (f *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		trunc := f.truncate || (rec && f.truncateRecursive)
 		var out []map[string]string
-		for _, e := range entries {
-			sha := e.SHA
-			if e.Type == "tree" {
-				sha = fakeTreeID(loc[0], e.Path)
-				f.mu.Lock()
-				f.trees[sha] = [2]string{loc[0], e.Path}
-				f.mu.Unlock()
+		var emit func(loc [2]string, prefix string, entries []extract.TreeEntry) error
+		emit = func(loc [2]string, prefix string, entries []extract.TreeEntry) error {
+			for _, e := range entries {
+				sha := e.SHA
+				if e.Type == "tree" {
+					f.mu.Lock()
+					f.trees[sha] = [2]string{loc[0], e.Path}
+					f.mu.Unlock()
+				}
+				out = append(out, map[string]string{"path": prefix + path.Base(e.Path), "mode": e.Mode, "type": e.Type, "sha": sha})
+				if rec && e.Type == "tree" {
+					sub, err := f.fixture.List(repo, loc[0], e.Path)
+					if err != nil {
+						return err
+					}
+					if err := emit(loc, prefix+path.Base(e.Path)+"/", sub); err != nil {
+						return err
+					}
+				}
 			}
-			out = append(out, map[string]string{"path": path.Base(e.Path), "mode": e.Mode, "type": e.Type, "sha": sha})
+			return nil
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"sha": parts[5], "tree": out, "truncated": f.truncate})
+		if err := emit(loc, "", entries); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"sha": parts[5], "tree": out, "truncated": trunc})
 	case len(parts) >= 5 && parts[0] == "raw":
 		repo, _ := extract.ParseRepo("github.com/" + parts[1] + "/" + parts[2])
 		p := strings.Join(parts[4:], "/")
@@ -228,4 +262,102 @@ func TestParseLsRemoteTags(t *testing.T) {
 			t.Fatalf("%q accepted", bad)
 		}
 	}
+}
+
+func deriveFiles(t *testing.T, r interface {
+	extract.PinnedReader
+	extract.TagSource
+}) map[string][]byte {
+	t.Helper()
+	repo, err := extract.ParseRepo(k8sservedapis.Repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	derived := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	out, err := extract.Run(context.Background(), k8sservedapis.New(0), r, r, extract.Options{Repo: repo, DerivedAt: derived, Lease: 90 * 24 * time.Hour})
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, err := out.Files()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return files
+}
+
+func requireSameFiles(t *testing.T, want, got map[string][]byte) {
+	t.Helper()
+	if len(want) == 0 || len(want) != len(got) {
+		t.Fatalf("file sets differ: %d vs %d\n%s", len(want), len(got), string(got["manifest.json"]))
+	}
+	for name, w := range want {
+		if g, ok := got[name]; !ok || !bytes.Equal(w, g) {
+			t.Fatalf("%s differs between the sources", name)
+		}
+	}
+}
+
+// The GitHub source (recursive trees, cached) derives byte for byte what
+// the mirror-backed reader derives: the fixture tree stands in for the
+// mirror, which serves the same pinned bytes.
+func TestGitHubSourceDerivesLikeTheMirror(t *testing.T) {
+	want := deriveFiles(t, extract.FixtureReader{Root: servedFixture})
+	for name, mod := range map[string]func(*fakeGitHub){
+		"recursive":           func(*fakeGitHub) {},
+		"recursive truncated": func(f *fakeGitHub) { f.truncateRecursive = true },
+	} {
+		fake := newFakeGitHub(servedFixture)
+		mod(fake)
+		got := deriveFiles(t, githubSourceFor(t, fake))
+		requireSameFiles(t, want, got)
+		t.Logf("%s: %d files identical, rest=%d recursive=%d raw=%d", name, len(want), fake.rest, fake.recursive, fake.raw)
+	}
+}
+
+// Call budget for the fixture: one commit lookup per tag, a few non
+// recursive tree lookups to reach each directory, one recursive lookup per
+// distinct directory subtree, and nothing for any directory below it. The
+// per-directory reader needed one call per directory per commit.
+func TestGitHubSourceRequestBudget(t *testing.T) {
+	run := func(truncateRecursive bool) (rest, rec, raw int, st GitHubStats) {
+		fake := newFakeGitHub(servedFixture)
+		fake.truncateRecursive = truncateRecursive
+		src := githubSourceFor(t, fake)
+		deriveFiles(t, src)
+		return fake.rest, fake.recursive, fake.raw, src.Stats()
+	}
+	rest, rec, raw, st := run(false)
+	if int64(rest) != st.RESTCalls || int64(raw) != st.RawFetches || int64(rec) != st.RecursiveTreeCalls {
+		t.Fatalf("stats disagree with the server: server rest=%d rec=%d raw=%d, stats %+v", rest, rec, raw, st)
+	}
+	if st.TruncatedFallbacks != 0 {
+		t.Fatalf("unexpected truncation %+v", st)
+	}
+	tfRest, _, _, tfSt := run(true)
+	if tfSt.TruncatedFallbacks == 0 || tfRest <= rest {
+		t.Fatalf("a truncated listing must fall back to per-directory reads: rest %d vs %d, %+v", tfRest, rest, tfSt)
+	}
+	t.Logf("recursive: %+v; truncated fallback: %+v", st, tfSt)
+	if rest > budgetRest || raw > budgetRaw {
+		t.Fatalf("over budget: rest=%d (max %d) raw=%d (max %d) %+v", rest, budgetRest, raw, budgetRaw, st)
+	}
+	if rest >= tfRest {
+		t.Fatalf("recursive reads (%d) are not cheaper than the fallback (%d)", rest, tfRest)
+	}
+}
+
+const budgetRest, budgetRaw = 44, 23
+
+// The same tree or blob is read once, however many callers ask.
+func TestGitHubSourceCachesAcrossCallers(t *testing.T) {
+	fake := newFakeGitHub(servedFixture)
+	src := githubSourceFor(t, fake)
+	deriveFiles(t, src)
+	before := src.Stats()
+	again := deriveFiles(t, src)
+	after := src.Stats()
+	if after.RESTCalls != before.RESTCalls || after.RawFetches != before.RawFetches {
+		t.Fatalf("a second derivation repeated requests: %+v then %+v", before, after)
+	}
+	requireSameFiles(t, again, deriveFiles(t, extract.FixtureReader{Root: servedFixture}))
 }
