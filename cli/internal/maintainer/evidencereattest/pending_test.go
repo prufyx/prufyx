@@ -27,6 +27,11 @@ func pendingSetup(t *testing.T) (PrepareResult, VerifyOptions) {
 			wl.Citations[i].Owner, wl.Citations[i].Repo = "owner", "shared"
 		}
 	}
+	// The worklist lists the pending citations in reverse order: the
+	// statement must still record them sorted.
+	for i, j := 0, len(wl.Citations)-1; i < j; i, j = i+1, j-1 {
+		wl.Citations[i], wl.Citations[j] = wl.Citations[j], wl.Citations[i]
+	}
 	pack = padPackWithSpreadRules(t, pack, 12)
 	raw := marshalWorklist(t, wl)
 	prepare := PrepareOptions{
@@ -117,6 +122,27 @@ func TestVerifyRejectsStatementDroppingAPendingCitation(t *testing.T) {
 	statement.PendingCitations = nil
 	raw, _ = CanonicalStatement(statement)
 	opts.StatementRaw = raw
+	assertVerifyRejects(t, opts, "V11")
+}
+
+func TestVerifyRejectsStatementWithSwappedPendingCitation(t *testing.T) {
+	result, opts := pendingSetup(t)
+	statement := result.Statement
+	statement.PendingCitations = append([]PendingCitation(nil), statement.PendingCitations...)
+	statement.PendingCitations[1].SourceID = "other-src"
+	raw, _ := CanonicalStatement(statement)
+	opts.StatementRaw = raw
+	assertVerifyRejects(t, opts, "V11")
+}
+
+func TestVerifyRejectsPendingCitationMissingFromIndependentWorklist(t *testing.T) {
+	_, opts := pendingSetup(t)
+	var wl evidencerepin.Worklist
+	if err := json.Unmarshal(opts.WorklistRaw, &wl); err != nil {
+		t.Fatal(err)
+	}
+	wl.Citations = append(wl.Citations, evidencerepin.ClassResult{RulePack: pendingPackPath, RuleID: "rule-a", SourceID: "rule-a-src2", Owner: "owner", Repo: "other", Class: evidencerepin.ClassPending})
+	opts.IndependentWorklistRaw = marshalWorklist(t, wl)
 	assertVerifyRejects(t, opts, "V11")
 }
 
