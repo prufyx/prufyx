@@ -83,6 +83,9 @@ type shape struct {
 	Evidence     struct {
 		Basis string `json:"basis"`
 	} `json:"evidence"`
+
+	// constraint is the engine's constraint key (constraintengine.ConstraintKey).
+	constraint string
 }
 
 func shapeOf(raw json.RawMessage) (shape, error) {
@@ -92,20 +95,18 @@ func shapeOf(raw json.RawMessage) (shape, error) {
 	if err := json.Unmarshal(raw, &v); err != nil || v.Rule.ID == "" {
 		return shape{}, fmt.Errorf("%w: an entry has no rule id", ErrPack)
 	}
-	return v.Rule, nil
-}
-
-// key is the engine's constraint key: operator plus the constrained fact.
-func (s shape) key() string {
-	switch {
-	case s.SetCondition != nil:
-		return s.Operator + "\x00" + s.SetCondition.Side + "\x00" + s.SetCondition.Component + "\x00" + s.SetCondition.FactID
-	case s.Condition != nil:
-		return s.Operator + "\x00" + s.Condition.Side + "\x00" + s.Condition.Component + "\x00" + s.Condition.FactID
-	case s.Dependency != nil:
-		return s.Operator + "\x00" + s.Dependency.Side + "\x00" + s.Dependency.Component
+	var obj struct {
+		Rule json.RawMessage `json:"rule"`
 	}
-	return s.Operator
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return shape{}, fmt.Errorf("%w: an entry has no rule id", ErrPack)
+	}
+	key, err := constraintengine.ConstraintKey(obj.Rule)
+	if err != nil {
+		return shape{}, fmt.Errorf("%w: rule %s: %v", ErrPack, v.Rule.ID, err)
+	}
+	v.Rule.constraint = key
+	return v.Rule, nil
 }
 
 type span struct {
@@ -191,7 +192,7 @@ func subset(a, b []string) bool {
 // region: same component, equal constraint key, a common set member, and
 // overlapping match regions.
 func relevant(m, r shape) bool {
-	if m.Subject.Component != r.Subject.Component || m.key() != r.key() {
+	if m.Subject.Component != r.Subject.Component || m.constraint != r.constraint {
 		return false
 	}
 	if m.SetCondition != nil && !intersects(m.members(), r.members()) {

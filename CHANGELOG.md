@@ -34,6 +34,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- `constraintengine.ConstraintKey` is now the one exported constraint-key function; `extract supersede` and the gate call it instead of keeping their own copies.
 - `extract apply --withdraw` now requires the rule to cite both commits of the run's pair (from and to), not just a subset of them; otherwise it refuses with exit 3.
 - `evidence reattest`: a pending citation now excludes only the rules that cite
   it (`CITATION_PENDING`) instead of every rule of the pack. The statement
@@ -78,6 +79,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Knowledge gate: a **supersede** class. A reviewed rule may be removed when the
+  same change adds an active mechanical rule that re-derives from the pinned
+  upstream bytes, has an equal constraint key and an otherwise identical
+  predicate, and covers its region (and, for a set rule, its members). Only
+  the owner's own change is admitted (`--owner-login`, default `airstand`, for
+  both author and sender); it is never eligible for automatic merging, counts
+  as one loosening, is not a withdrawal for the circuit breakers, and the
+  report lists each `R -> M` pair under `supersedes`.
 - `prufyx-maintainer extract apply --rules-only` merges only the run's rules,
   without attestations and without changing the pack schema. The new
   `prufyx-maintainer extract supersede --out RUN --pack FILE` removes the

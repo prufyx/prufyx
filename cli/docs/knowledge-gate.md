@@ -35,7 +35,9 @@ A new rule is loosening even when it only adds `BLOCKED`, because a rule also
 makes a scope-complete `PASS` reachable for inputs it does not match.
 Narrowing a range is loosening too: when another rule's reviewed pair equals
 the transition, a range-matched `BLOCKED` can become a scope-complete `PASS`.
-Removing a rule is never admitted; withdraw it instead.
+Removing a rule is not admitted; withdraw it instead. The one exception is a
+reviewed rule replaced by a re-derived mechanical one: see [Superseding a
+reviewed rule](#superseding-a-reviewed-rule).
 
 The comparison is on canonical JSON (keys sorted), so re-formatting a pack
 file is not a change. The list of changed files compares content and the
@@ -67,6 +69,50 @@ record sections have no classification rules.
 | `empirical` | not admitted by this version: empirical evidence may pass, and the gate cannot yet check its reproduction |
 | `lead` | never: a lead is not published through this gate |
 | any other | not admitted |
+
+### Superseding a reviewed rule
+
+A reviewed rule R can turn a `BLOCKED` answer into a scope-complete `PASS`
+when it is deleted, so a removal is refused unless the same change adds a
+mechanical rule M that replaces it. The gate pairs the two from the pack diff
+alone. A removal is paired with an addition when all of these hold:
+
+- R is a removed rule whose basis is `reviewed` (or absent), in any state;
+  M is a new rule with basis `mechanical` and state `active`;
+- M and R are in the same project and the same subject component and have an
+  **equal constraint key**: the operator and the constrained fact (side,
+  component and fact id; for a dependency rule side and component). The key is
+  computed by `constraintengine.ConstraintKey`, the function the engine's
+  overlap lint uses, so the gate cannot drift from it;
+- the rest of the predicate is identical: the condition's values, `appliesWhen`,
+  the dependency's comparison and version, `intermediate` and `severity`.
+  Only `id`, `evidence`, `reasonCode`, `nextAction` and `range` may differ;
+- M's match region contains R's region on both sides (an exact anchor counts as
+  a single version, a range as `[gte, lt)`; a version that is not a release
+  version covers nothing), and for a set rule M's forbidden members include all
+  of R's.
+
+The pairing is one to one: a removal that several additions could replace, or
+an addition that could replace several removals, stays a plain removal and is
+refused. A pair is **admitted** only when
+
+1. M is itself admitted by re-derivation (the extractor re-derives it from the
+   pinned upstream bytes, byte for byte), checked after the re-derivation step;
+2. the change's author (`--author`) **and** the account that triggered the run
+   (`--sender`) are the repository owner (`--owner-login`, default `airstand`,
+   the CODEOWNERS entry), and the owner is not the automation account.
+
+R then has kinds `remove, supersede`, proof `superseded` and `supersededBy`
+naming M; M carries `supersedes`. A supersede is never eligible for automatic
+merging (a reason is added to `autoMerge`), even though the pack checks still
+apply and the engine must admit the head pack (its overlap lint would refuse
+M next to R, which is why R must go in the same change).
+
+Counting: a pair is **one** loosening for the cap, the daily limit and the
+totals (counted on M). Neither half is a withdrawal for the circuit breakers.
+The report lists the pairs under `supersedes` (`pack`, `old`, `new`, `ok`,
+`detail`), the log prints `supersede <pack>: R -> M` and the Markdown summary
+has a table. Any refusal leaves R's change failed with the reason.
 
 ## Line attestations and path policies
 
@@ -586,7 +632,7 @@ statement chain changed, and whether the kill switch is set.
 
 Change kinds: `withdraw`, `expire`, `add-withdrawn` (tightening); `new`,
 `remove`, `reactivate`, `renew`, `repin`, `widen`, `narrow`, `range-change`,
-`basis-change`, `modify`, `pack-member` (loosening). A `pack-member` change
+`basis-change`, `modify`, `pack-member` (loosening). A removal that is half of a supersede pair also has the kind `supersede`. A `pack-member` change
 names the member (`member`) instead of a rule id.
 
 ### `gate limits`
@@ -613,6 +659,7 @@ that the automation authored (or whose author is unknown).
 | `--git-dir DIR` | repository holding the commits and their parents |
 | `--commits FILE` | JSON list of `{sha, parent, author}` (the first parent, and the author's login or null), at most 300 commits |
 | `--bot-login LOGIN` | the automation account (default `prufyx-factory[bot]`) |
+| `--owner-login LOGIN` | the repository owner (default `airstand`); only the owner's own change (author and sender) may supersede a reviewed rule |
 
 A commit that cannot be compared with its first parent, or a list over 300
 commits, is an error (exit 2), never a smaller count.
@@ -649,7 +696,7 @@ Without `--source`, every mechanical loosening change fails.
 
 The report (`prufyx.io/knowledge-gate-report/v1`) lists `result` (`pass` or
 `fail`), `changes` (each with `class`, `kinds`, `basis`, `proof`, `ok` and
-`detail`), `checks`, `alarms`, `limits`, `daily`, `breakers`, `mode` (`enforce` or `shadow`), `changedPaths`, `chainsChanged`,
+`detail`, and `supersededBy` or `supersedes` on a supersede pair), `supersedes` (the pairs), `checks`, `alarms`, `limits`, `daily`, `breakers`, `mode` (`enforce` or `shadow`), `changedPaths`, `chainsChanged`,
 `autoMerge` (`eligible` and the reasons it is not), `author`, `sender` and
 `headSha`.
 

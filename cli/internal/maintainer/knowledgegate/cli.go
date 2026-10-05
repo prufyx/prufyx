@@ -29,7 +29,7 @@ const usage = `usage:
                                   [--max-withdraw-percent N] [--max-withdraw-project N]
                                   [--daily-loosening-count N] [--max-daily-loosening N]
   prufyx-maintainer gate verify   --base DIR --head DIR [--source github|fixture:DIR]
-                                  [--author LOGIN] [--sender LOGIN] [--bot-login LOGIN]
+                                  [--author LOGIN] [--sender LOGIN] [--owner-login LOGIN] [--bot-login LOGIN]
                                   [--head-sha SHA] [--commits FILE] [--max-loosening N]
                                   [--trust-root-digest sha256:...] [--approval-keys-digest sha256:...]
                                   [--rerun-worklist FILE]
@@ -232,7 +232,7 @@ func exitFor(r *Report) int {
 
 func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout io.Writer) (int, error) {
 	var t treeFlags
-	var source, author, sender, bot, headSHA, commits, digest, keysDigest, rerun, now, report, summary string
+	var source, author, sender, owner, bot, headSHA, commits, digest, keysDigest, rerun, now, report, summary string
 	var max, concurrency int
 	var all, shadow bool
 	var metricsFile, alarmsFile, alarmsMD string
@@ -249,6 +249,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	f.StringVar(&headSHA, "head-sha", "", "the head commit being checked")
 	f.StringVar(&commits, "commits", "", "the change's commit list (GitHub compare API JSON)")
 	f.StringVar(&keysDigest, "approval-keys-digest", "", "pinned digest of the owner approval key file")
+	f.StringVar(&owner, "owner-login", DefaultOwnerLogin, "the repository owner's login; only the owner's change may supersede a reviewed rule")
 	f.StringVar(&bot, "bot-login", DefaultBotLogin, "the automation account's login")
 	f.IntVar(&max, "max-loosening", DefaultMaxLoosening, "cap on loosening changes")
 	f.StringVar(&digest, "trust-root-digest", "", "pinned digest of the reattestation trust root")
@@ -271,7 +272,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	if max < 1 || concurrency < 0 || concurrency > 64 {
 		return 2, errors.New("--max-loosening must be at least 1 and --concurrency 0-64")
 	}
-	opts := Options{Layout: layout, Base: base, Head: head, Author: author, Sender: sender, BotLogin: bot, HeadSHA: headSHA, MaxLoosening: max, TrustRootDigest: digest, ApprovalKeysDigest: keysDigest, RederiveAll: all, Concurrency: concurrency, Shadow: shadow}
+	opts := Options{Layout: layout, Base: base, Head: head, Author: author, Sender: sender, Owner: owner, BotLogin: bot, HeadSHA: headSHA, MaxLoosening: max, TrustRootDigest: digest, ApprovalKeysDigest: keysDigest, RederiveAll: all, Concurrency: concurrency, Shadow: shadow}
 	m.apply(&opts)
 	if commits != "" {
 		raw, err := readBoundedFile(commits, maxCommitListBytes)
@@ -424,6 +425,9 @@ func printChecks(w io.Writer, r *Report) {
 	for _, c := range r.Checks {
 		fmt.Fprintf(w, "%s check %s: %s\n", mark(c.OK), c.Name, logSafe(c.Detail))
 	}
+	for _, p := range r.Supersedes {
+		fmt.Fprintf(w, "%s supersede %s: %s -> %s\n", mark(p.OK), p.Pack, logSafe(p.Old), logSafe(p.New))
+	}
 	for _, a := range r.Alarms {
 		fmt.Fprintf(w, "ALARM %s\n", logSafe(a))
 	}
@@ -456,6 +460,13 @@ func writeSummary(w io.Writer, r *Report) {
 				detail = c.Detail
 			}
 			fmt.Fprintf(w, "| %s | %s | %s | %s | %s | %s | %s |\n", strings.TrimSpace(mark(c.OK)), c.Class, c.Pack, mdEscape(c.subject()), strings.Join(c.Kinds, ", "), mdEscape(c.Basis), mdEscape(detail))
+		}
+		fmt.Fprintln(w)
+	}
+	if len(r.Supersedes) > 0 {
+		fmt.Fprintln(w, "| | Superseded rule | Replaced by |\n|---|---|---|")
+		for _, p := range r.Supersedes {
+			fmt.Fprintf(w, "| %s | %s | %s |\n", strings.TrimSpace(mark(p.OK)), mdEscape(p.Pack+"/"+p.Old), mdEscape(p.New))
 		}
 		fmt.Fprintln(w)
 	}

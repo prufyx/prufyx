@@ -79,6 +79,11 @@ func (r *Report) breakerChecks(cls *Classification, opts Options) {
 	perProject := map[string]int{}
 	recordsPerPack := map[string]int{}
 	for _, c := range cls.Changes {
+		if c.isSupersede() {
+			// A superseded rule is replaced, not switched off: its
+			// pair is no withdrawal.
+			continue
+		}
 		switch {
 		case c.Section != "" && withdrawsRecord(c):
 			// A record switched off: a path policy withdrawn, a line

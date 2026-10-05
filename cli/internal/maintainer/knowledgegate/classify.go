@@ -65,7 +65,15 @@ type Change struct {
 	// of a consensus rule, reported only.
 	Consensus *ConsensusVerdict `json:"consensus,omitempty"`
 
+	// SupersededBy names the added mechanical rule that replaces this
+	// removed reviewed rule; Supersedes the removed rule this added rule
+	// replaces (the supersede class, see supersede.go).
+	SupersededBy string `json:"supersededBy,omitempty"`
+	Supersedes   string `json:"supersedes,omitempty"`
+
 	base, head *entry
+	// supersededBy and supersedes are the pair's other half.
+	supersededBy, supersedes *Change
 	// rbase and rhead are a record change's base and head records;
 	// renewal is true when the head differs from the base only in a later
 	// evidence.reviewedAt and a later evidence.validUntil.
@@ -284,6 +292,11 @@ type Classification struct {
 // Counts returns the number of tightening and loosening changes.
 func (c Classification) Counts() (tightening, loosening int) {
 	for _, ch := range c.Changes {
+		if ch.supersededBy != nil {
+			// A supersede pair is one loosening, counted on its added
+			// rule.
+			continue
+		}
 		if ch.Class == ClassLoosening {
 			loosening++
 		} else {
@@ -307,7 +320,9 @@ func Classify(layout Layout, base, head Tree) (*Classification, error) {
 			return nil, err
 		}
 		out.base[spec.Name], out.head[spec.Name] = b, h
-		out.Changes = append(out.Changes, diffPacks(b, h)...)
+		changes := diffPacks(b, h)
+		pairSupersedes(changes)
+		out.Changes = append(out.Changes, changes...)
 		changed, err := chainChanged(layout, spec, base, head)
 		if err != nil {
 			return nil, err
