@@ -45,6 +45,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   baseline-selecting field (stale flag, baseline mode, baseline, line, pinned and
   compared tag, owner entry digest), in both directions. A forged worklist that
   drops `resolution: tag_fallback` from a latest-baseline citation is refused.
+- `evidence reattest prepare|verify` (V5) no longer rejects a pack whose
+  mechanical rules were re-derived after the chain head's `attestedAt`; like
+  mechanical records they are renewed by re-derivation, not the human chain.
+  Reviewed rules still need chain coverage.
 
 ### Changed
 

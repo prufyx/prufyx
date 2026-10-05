@@ -332,11 +332,12 @@ func (s chainState) checkPriorPackCovered(priorRules []ruleFields, fresh map[str
 		return outside, nil
 	}
 	for _, rule := range priorRules {
-		// A mechanical line attestation or path-policy record is renewed by
-		// re-deriving it, which moves its reviewedAt (its derivedAt) outside
-		// any statement; no statement ever renews one (V6, V8), so its dates
-		// say nothing about the chain.
-		if rule.record && rule.isMechanical() {
+		// A mechanical rule, line attestation or path-policy record is
+		// renewed by re-deriving it, which moves its reviewedAt (its
+		// derivedAt) outside any statement; no statement ever renews one
+		// (V6, V8), so its dates say nothing about the chain. A reviewed
+		// rule is never exempt.
+		if rule.isMechanical() {
 			continue
 		}
 		reviewedAt, err := parseUTC(rule.Evidence.ReviewedAt)
