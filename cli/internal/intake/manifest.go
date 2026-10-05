@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
@@ -67,6 +68,11 @@ type Document struct {
 type Omission struct {
 	Source Source
 	Reason Reason
+	// OpenAction is set when the omitted document holds a template control
+	// action (if, range, with, define, block, else, end) that it does not
+	// open and close within one value. Such an action can span the other
+	// documents of the same file, so they may not be rendered at all.
+	OpenAction bool
 }
 
 // Workspace is the decoded content of one file (Decode) or of every input
@@ -146,16 +152,16 @@ func decodeFile(display string, raw []byte, bounds decodeOptions) (Workspace, er
 	return workspace, nil
 }
 
-func (w *Workspace) omit(source Source, reason Reason) {
-	w.Omissions = append(w.Omissions, Omission{Source: source, Reason: reason})
-}
-
 // add classifies one decoded top-level value.
 // itemLines holds the apiVersion line of each item when value is a List.
 func (w *Workspace) add(source Source, value any, listMetadata any, listAPI, itemKind string, itemLines []int) {
+	open := valueHasOpenAction(value)
+	omit := func(reason Reason) {
+		w.Omissions = append(w.Omissions, Omission{Source: source, Reason: reason, OpenAction: open})
+	}
 	object, ok := value.(map[string]any)
 	if !ok {
-		w.omit(source, ReasonNotKubernetesShaped)
+		omit(ReasonNotKubernetesShaped)
 		return
 	}
 	// Scan for template syntax before the Secret payload is removed, then
@@ -173,7 +179,7 @@ func (w *Workspace) add(source Source, value any, listMetadata any, listAPI, ite
 		stripSecret(object)
 	}
 	if !apiOK || !kindOK || api == "" || kind == "" {
-		w.omit(source, ReasonNotKubernetesShaped)
+		omit(ReasonNotKubernetesShaped)
 		w.retainAuxiliary(source, object, api, kind, templated)
 		if source.Item < 0 && HasSOPSMetadata(object) {
 			w.Encrypted = append(w.Encrypted, source)
@@ -181,22 +187,22 @@ func (w *Workspace) add(source Source, value any, listMetadata any, listAPI, ite
 		return
 	}
 	if templated {
-		w.omit(source, ReasonTemplated)
+		omit(ReasonTemplated)
 		return
 	}
 	isList := kind == "List" || strings.HasSuffix(kind, "List")
 	if isList {
 		if source.Item >= 0 {
-			w.omit(source, ReasonNestedList)
+			omit(ReasonNestedList)
 			return
 		}
 		if kind == "List" && api != "v1" {
-			w.omit(source, ReasonListShape)
+			omit(ReasonListShape)
 			return
 		}
 		items, found := object["items"].([]any)
 		if !found || len(items) == 0 {
-			w.omit(source, ReasonListShape)
+			omit(ReasonListShape)
 			return
 		}
 		inferred := ""
@@ -235,6 +241,53 @@ func stripSecret(object map[string]any) {
 
 func hasTemplateSyntax(text string) bool {
 	return strings.Contains(text, "{{") || strings.Contains(text, "${")
+}
+
+// templateActionRE matches the start of a template control action.
+var templateActionRE = regexp.MustCompile(`\{\{-?\s*(if|range|with|define|block|else|end)\b`)
+
+// hasOpenAction reports whether text holds a control action it does not
+// balance: an end or else with nothing open, or an action left open.
+func hasOpenAction(text string) bool {
+	depth := 0
+	for _, match := range templateActionRE.FindAllStringSubmatch(text, -1) {
+		switch match[1] {
+		case "end":
+			depth--
+			if depth < 0 {
+				return true
+			}
+		case "else":
+			if depth == 0 {
+				return true
+			}
+		default:
+			depth++
+		}
+	}
+	return depth != 0
+}
+
+// valueHasOpenAction reports whether any key or string value holds a
+// control action it does not balance on its own.
+func valueHasOpenAction(value any) bool {
+	switch typed := value.(type) {
+	case string:
+		return hasOpenAction(typed)
+	case map[string]any:
+		for key, child := range typed {
+			if hasOpenAction(key) || valueHasOpenAction(child) {
+				return true
+			}
+		}
+	case []any:
+		for _, child := range typed {
+			if valueHasOpenAction(child) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func valueHasTemplateSyntax(value any) bool {

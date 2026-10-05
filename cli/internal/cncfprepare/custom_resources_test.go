@@ -198,15 +198,16 @@ func TestCustomResourceVersionsPaginatedList(t *testing.T) {
 	}
 }
 
-// An apply set that cannot be resolved declares no set at all.
+// An apply set that cannot be resolved, with no member among the documents
+// that were read, declares no set at all.
 func TestCustomResourceVersionsUnresolvedSet(t *testing.T) {
 	for name, tc := range map[string]struct {
 		raw    []byte
 		reason Reason
 	}{
 		"templated":                {crDocs(kafkaV1beta2, "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ .Values.name }}\n"), ReasonCustomResourcesRendering},
-		"values":                   {crDocs(kafkaV1beta2, "replicas: 3\nimage: x\n"), ReasonCustomResourcesUnresolved},
-		"bad kind":                 {crDocs(kafkaV1beta2, "apiVersion: v1\nkind: configMap\nmetadata:\n  name: x\n"), ReasonCustomResourcesUnresolved},
+		"values":                   {crDocs("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: c\n", "replicas: 3\nimage: x\n"), ReasonCustomResourcesUnresolved},
+		"bad kind":                 {crDocs("apiVersion: v1\nkind: configMap\nmetadata:\n  name: x\n"), ReasonCustomResourcesUnresolved},
 		"empty file":               {[]byte("# nothing\n"), ReasonCustomResourcesUnresolved},
 		"items under another kind": {crDocs(kafkaV1, "apiVersion: kafka.strimzi.io/v1\nkind: Kafkalist\nmetadata:\n  name: l\nitems:\n- apiVersion: kafka.strimzi.io/v1beta2\n  kind: Kafka\n  metadata:\n    name: hidden\n"), ReasonCustomResourcesUnresolved},
 		"empty items array":        {crDocs(kafkaV1, "apiVersion: example.io/v1\nkind: Bag\nmetadata:\n  name: b\nitems: []\n"), ReasonCustomResourcesUnresolved},
@@ -216,6 +217,35 @@ func TestCustomResourceVersionsUnresolvedSet(t *testing.T) {
 			fact := crFact(t, scan.Prepared)
 			if fact.State != "unsupported" || fact.SetValue != nil || scan.Prepared.State != StateUnknown || scan.Prepared.Reason != tc.reason || len(scan.Members) != 0 {
 				t.Fatalf("fact %+v scan %+v", fact, scan.Prepared)
+			}
+		})
+	}
+}
+
+// An apply set that cannot be resolved still declares the members of the
+// documents that were read, as a set that is never complete: a forbidden
+// member present decides, and nothing is taken as absent.
+func TestCustomResourceVersionsUnresolvedSetKeepsReadMembers(t *testing.T) {
+	templatedScalar := "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: '{{ .Values.name }}'}\n"
+	for name, tc := range map[string]struct {
+		raw      []byte
+		complete bool
+		reason   Reason
+	}{
+		"templated document":     {crDocs(kafkaV1beta2, templatedScalar), true, ReasonCustomResourcesRendering},
+		"templated, scope open":  {crDocs(kafkaV1beta2, templatedScalar), false, ReasonCustomResourcesRendering},
+		"values document":        {crDocs(kafkaV1beta2, "replicas: 3\nimage: x\n"), true, ReasonCustomResourcesUnresolved},
+		"not a Kubernetes kind":  {crDocs(kafkaV1beta2, "apiVersion: v1\nkind: configMap\nmetadata:\n  name: x\n"), true, ReasonCustomResourcesUnresolved},
+		"templated and unshaped": {crDocs(kafkaV1beta2, templatedScalar, "replicas: 3\n"), true, ReasonCustomResourcesRendering},
+	} {
+		t.Run(name, func(t *testing.T) {
+			scan := prepareCR(t, tc.raw, "strimzi", tc.complete)
+			fact := crFact(t, scan.Prepared)
+			if fact.State != "declared" || fact.SetValue == nil || fact.SetValue.Complete || !reflect.DeepEqual(fact.SetValue.Members, []string{"kafka.strimzi.io/v1beta2/Kafka"}) {
+				t.Fatalf("fact %+v", fact)
+			}
+			if scan.Prepared.State != StateUnknown || scan.Prepared.Reason != tc.reason || len(scan.Members["kafka.strimzi.io/v1beta2/Kafka"]) != 1 {
+				t.Fatalf("state %s reason %s members %+v", scan.Prepared.State, scan.Prepared.Reason, scan.Members)
 			}
 		})
 	}
@@ -275,5 +305,21 @@ func TestCustomResourceVersionsArguments(t *testing.T) {
 	}
 	if _, err := PrepareCustomResourceVersionsBytes(nil, "strimzi", "0.51.0", "1.0.0", true); !errors.Is(err, ErrInvalid) {
 		t.Fatal("empty input accepted")
+	}
+}
+
+// An unresolved set is not read at all when a readable object of a non-List
+// kind carries a top-level items array, even beside a forbidden member; and
+// an unresolved set with no member of the project keeps no unattributed
+// documents, so nothing else is reported about it.
+func TestCustomResourceVersionsUnresolvedSetEdges(t *testing.T) {
+	templated := "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: '{{ .Values.name }}'}\n"
+	items := prepareCR(t, crDocs(kafkaV1beta2, templated, "apiVersion: example.io/v1\nkind: Bundle\nmetadata:\n  name: b\nitems: []\n"), "strimzi", true)
+	if fact := crFact(t, items.Prepared); fact.State != "unsupported" || items.Prepared.Reason != ReasonCustomResourcesUnresolved || len(items.Members) != 0 {
+		t.Fatalf("items: fact %+v reason %s", fact, items.Prepared.Reason)
+	}
+	unattributed := prepareCR(t, crDocs("apiVersion: cert-manager.io/v1\nkind: Certificate\nmetadata:\n  name: tls\n", templated), "strimzi", true)
+	if fact := crFact(t, unattributed.Prepared); fact.State != "unsupported" || len(unattributed.Unattributed) != 0 || unattributed.Prepared.Reason != ReasonCustomResourcesRendering {
+		t.Fatalf("unattributed: fact %+v unattributed %+v", fact, unattributed.Unattributed)
 	}
 }

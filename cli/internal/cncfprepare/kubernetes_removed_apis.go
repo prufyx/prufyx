@@ -3,11 +3,14 @@
 package cncfprepare
 
 import (
-	"github.com/prufyx/prufyx/cli/internal/intake"
+	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/prufyx/prufyx/cli/internal/intake"
 )
 
 const (
@@ -234,7 +237,26 @@ func prepareKubernetesRemovedAPIs(read func() (kubernetesApplySet, error), sourc
 		return Prepared{}, nil, ErrInvalid
 	}
 	if set.reason != "" {
-		return prepare(unsupported(), StateUnknown, set.reason, nil)
+		if !complete || set.readablePaginated {
+			return prepare(unsupported(), StateUnknown, set.reason, nil)
+		}
+		// Some documents could not be read or placed. The documents that
+		// were read still prove a removed version present: that fact is
+		// declared true. They never prove one absent, so every other fact
+		// stays unsupported and the set stays UNKNOWN for its own reason.
+		facts := make([]inputFact, 0, len(removals))
+		sources := map[string][]intake.Source{}
+		for _, removal := range removals {
+			present, unreviewed, matched := classifyKubernetesRemoval(set.readable, removal)
+			if present && !unreviewed {
+				v := true
+				facts = append(facts, inputFact{ID: removal.Fact, State: "declared", BoolValue: &v})
+				sources[removal.Fact] = matched
+				continue
+			}
+			facts = append(facts, inputFact{ID: removal.Fact, State: "unsupported"})
+		}
+		return prepare(facts, StateUnknown, set.reason, sources)
 	}
 	if !complete {
 		return prepare(unsupported(), StateUnknown, ReasonKubernetesScopeIncomplete, nil)
@@ -314,6 +336,12 @@ type kubernetesApplySet struct {
 	documents []kubernetesDocument
 	paginated bool
 	reason    Reason
+	// readable are, for an unresolved set only, the documents that were
+	// read and placed as Kubernetes objects, and readablePaginated whether
+	// one of their lists is paginated. They can show that an object is
+	// present, never that one is absent.
+	readable          []kubernetesDocument
+	readablePaginated bool
 }
 
 // kubernetesApplySetFromBytes reads the caller's apply set through the shared
@@ -330,31 +358,153 @@ func kubernetesApplySetFromBytes(raw []byte) (kubernetesApplySet, error) {
 // kubernetesApplySetOf resolves decoded documents into an apply set. Anything
 // the decoder could not place as a Kubernetes object (template syntax, a
 // nested list, a document that is not Kubernetes shaped, invalid list
-// metadata) leaves the set unresolved.
+// metadata) leaves the set unresolved. An unresolved set keeps the documents
+// that were placed in readable.
 func kubernetesApplySetOf(workspace intake.Workspace) kubernetesApplySet {
+	var reason Reason
 	for _, omission := range workspace.Omissions {
 		if omission.Reason == intake.ReasonTemplated || omission.Reason == intake.ReasonUnparseable {
-			return kubernetesApplySet{reason: ReasonKubernetesTemplated}
+			reason = ReasonKubernetesTemplated
+			break
 		}
 	}
-	if len(workspace.Omissions) > 0 || len(workspace.Documents) == 0 {
-		return kubernetesApplySet{reason: ReasonKubernetesUnresolved}
+	if reason == "" && (len(workspace.Omissions) > 0 || len(workspace.Documents) == 0) {
+		reason = ReasonKubernetesUnresolved
 	}
-	set := kubernetesApplySet{documents: make([]kubernetesDocument, 0, len(workspace.Documents))}
+	placed := make([]kubernetesDocument, 0, len(workspace.Documents))
+	paginated := false
 	for _, document := range workspace.Documents {
 		if _, _, ok := kubernetesGVK(document.Value); !ok {
-			return kubernetesApplySet{reason: ReasonKubernetesUnresolved}
+			if reason == "" {
+				reason = ReasonKubernetesUnresolved
+			}
+			continue
 		}
 		if document.Source.Item >= 0 {
 			listPaginated, metadataOK := kubernetesListPagination(map[string]any{"metadata": document.ListMetadata})
 			if !metadataOK {
-				return kubernetesApplySet{reason: ReasonKubernetesUnresolved}
+				if reason == "" {
+					reason = ReasonKubernetesUnresolved
+				}
+				continue
 			}
-			set.paginated = set.paginated || listPaginated
+			paginated = paginated || listPaginated
 		}
-		set.documents = append(set.documents, kubernetesDocument{value: document.Value, source: document.Source})
+		placed = append(placed, kubernetesDocument{value: document.Value, source: document.Source})
 	}
-	return set
+	if reason != "" {
+		return kubernetesApplySet{reason: reason, readable: appliedAsWritten(workspace, placed), readablePaginated: paginated}
+	}
+	return kubernetesApplySet{documents: placed, paginated: paginated}
+}
+
+// KubernetesApplySetReason is the reason the documents of a workspace cannot
+// be read as one apply set (ReasonKubernetesTemplated or
+// ReasonKubernetesUnresolved), or "" when they can. It reads the documents
+// whatever the declarations are.
+func KubernetesApplySetReason(workspace intake.Workspace) Reason {
+	return kubernetesApplySetOf(workspace).reason
+}
+
+// appliedAsWritten keeps, of the placed documents of an unresolved set, the
+// ones that are applied as written whatever the unread documents hold. A
+// document is left out when it cannot be shown to be rendered and applied
+// unconditionally:
+//   - its file holds an omitted document with a template control action
+//     that the document does not close (the action can span the file's
+//     other documents);
+//   - it belongs to a raw Helm chart (a directory with a Chart.yaml) and sits
+//     under templates/tests/, or under charts/ in a subchart that the
+//     Chart.yaml does not list as a dependency without a condition or tags;
+//   - it is a Helm test hook, which is applied only by helm test.
+func appliedAsWritten(workspace intake.Workspace, placed []kubernetesDocument) []kubernetesDocument {
+	spanned := map[string]bool{}
+	charts := map[string]map[string]bool{} // chart directory -> unconditional subcharts
+	for _, omission := range workspace.Omissions {
+		if omission.OpenAction {
+			spanned[omission.Source.Display] = true
+		}
+		if dir, ok := chartDirectory(omission.Source.Display); ok && charts[dir] == nil {
+			charts[dir] = map[string]bool{}
+		}
+	}
+	for _, auxiliary := range workspace.Auxiliary {
+		dir, ok := chartDirectory(auxiliary.Source.Display)
+		if !ok || auxiliary.Source.Document != 0 {
+			continue
+		}
+		if charts[dir] == nil {
+			charts[dir] = map[string]bool{}
+		}
+		dependencies, _ := auxiliary.Value["dependencies"].([]any)
+		for _, entry := range dependencies {
+			dependency, _ := entry.(map[string]any)
+			name, _ := dependency["name"].(string)
+			_, conditional := dependency["condition"]
+			_, tagged := dependency["tags"]
+			_, aliased := dependency["alias"]
+			if name != "" && !conditional && !tagged && !aliased {
+				charts[dir][name] = true
+			}
+		}
+	}
+	kept := make([]kubernetesDocument, 0, len(placed))
+	for _, document := range placed {
+		if spanned[document.source.Display] || helmTestHook(document.value) || insideConditionalChart(charts, document.source.Display) {
+			continue
+		}
+		kept = append(kept, document)
+	}
+	return kept
+}
+
+// chartDirectory returns the directory of a file named Chart.yaml.
+func chartDirectory(display string) (string, bool) {
+	clean := path.Clean(filepath.ToSlash(display))
+	if path.Base(clean) != "Chart.yaml" {
+		return "", false
+	}
+	return path.Dir(clean), true
+}
+
+// insideConditionalChart reports whether a file of a raw chart may not be
+// rendered: a test template, or a file of a subchart that is not listed as
+// an unconditional dependency.
+func insideConditionalChart(charts map[string]map[string]bool, display string) bool {
+	clean := path.Clean(filepath.ToSlash(display))
+	for dir, unconditional := range charts {
+		prefix := dir + "/"
+		if dir == "." {
+			prefix = ""
+		}
+		if !strings.HasPrefix(clean, prefix) {
+			continue
+		}
+		rest := strings.TrimPrefix(clean, prefix)
+		if strings.HasPrefix(rest, "templates/tests/") {
+			return true
+		}
+		if sub, found := strings.CutPrefix(rest, "charts/"); found {
+			name, _, _ := strings.Cut(sub, "/")
+			if !unconditional[name] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// helmTestHook reports a document annotated as a Helm test hook.
+func helmTestHook(value map[string]any) bool {
+	metadata, _ := value["metadata"].(map[string]any)
+	annotations, _ := metadata["annotations"].(map[string]any)
+	hooks, _ := annotations["helm.sh/hook"].(string)
+	for _, hook := range strings.Split(hooks, ",") {
+		if strings.HasPrefix(strings.TrimSpace(hook), "test") {
+			return true
+		}
+	}
+	return false
 }
 
 // kubernetesApplySetDocuments is kubernetesApplySetFromBytes in its original

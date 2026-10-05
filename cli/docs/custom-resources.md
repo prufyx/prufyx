@@ -73,9 +73,15 @@ versions it names. The set is complete only when all of these hold:
 - every recorded `group/version/Kind` is at most 128 bytes.
 
 When the documents cannot be read as one apply set (unrendered templates, a
-document that cannot be parsed, a document that is not a Kubernetes object, an
-object of a kind other than a `List` that carries a top-level `items` array,
-an empty input), or when a project's objects use more than 256 different
+document that cannot be parsed, a document that is not a Kubernetes object),
+the versions of the project's objects in the documents that were read are
+recorded as an incomplete set: a listed version among them still blocks, and
+nothing passes. A document that may not be rendered at all (inside a template
+action of another document of its file, a conditional subchart or a test of a
+raw Helm chart, a Helm test hook; see `scan.md`, "Gaps") is not read for this.
+With no such object the set is not recorded. When an object
+of a kind other than a `List` carries a top-level `items` array, when the
+input is empty, or when a project's objects use more than 256 different
 `group/version/Kind` combinations, no set is recorded at all and every rule
 stays `UNKNOWN`.
 
@@ -112,6 +118,7 @@ custom-resource set: complete
 no published rule reads the strimzi custom-resource version set for 0.51.0 -> 1.0.0; the result stays UNKNOWN
 scope: only custom-resource versions named by published rules; no record yet shows those rules name every version the target release stops serving, so this mode never passes (exit 11 at best)
 not checked: other custom-resource versions, other changes, stored objects and conversion
+scoped result: UNKNOWN
 aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
 ```
 

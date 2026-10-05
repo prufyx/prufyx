@@ -108,6 +108,7 @@ kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0: BLOCKED (REVIEWED_SOURCE_CO
 next action: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 evidence basis: reviewed by maintainer
 6 rules PASS (not listed; use --show-passes)
+scoped result: BLOCKED
 aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
 pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md lines 87-93; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:96f34a49cbdd7bd53008cc7b7cc8aff58c373ad323e64eef0155cbbc44494f61
 pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md lines 189-193; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:7d33809eeb313cbd589018a8dde893974065c50f5ee8cde27d99e879d0dde81f
@@ -167,6 +168,10 @@ single or multi-document YAML, such as the output of `helm template` or
 `kustomize build`, and `kubectl get -o yaml` lists. Nothing is rendered or
 executed: a document that still contains template syntax (`{{ ... }}` or
 `${...}` in a value) makes the result `UNKNOWN` and asks for rendered output.
+A removed API version in another, readable document is still reported as
+`BLOCKED`, unless that document may not be rendered at all (for example when a
+template action of another document in the same file can enclose it); see
+`scan.md`, "Gaps".
 
 ```sh
 cd /tmp/prufyx-quickstart
@@ -213,6 +218,7 @@ kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0: BLOCKED (REVIEWED_SOURCE_CO
 next action: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 evidence basis: reviewed by maintainer
 6 rules PASS (not listed; use --show-passes)
+scoped result: BLOCKED
 aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
 pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md lines 87-93; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:96f34a49cbdd7bd53008cc7b7cc8aff58c373ad323e64eef0155cbbc44494f61
 pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md lines 189-193; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:7d33809eeb313cbd589018a8dde893974065c50f5ee8cde27d99e879d0dde81f
@@ -243,6 +249,7 @@ kubernetes native input review
 raw input digests: sha256:74b724b3dbe66cdea762575500e4fce48a5469b669668a7108280e026456a355
 prepared input digest: sha256:0590394cb84c8f90bf0a765b6bd580a14bb2d2e203ce8645da7adf40a0cec443
 UNKNOWN: kubernetes 1.21.0 -> 1.25.0 is not a reviewed transition; reviewed pairs: 1.21.0 -> 1.22.0, 1.23.17 -> 1.24.0, 1.24.0 -> 1.25.0, 1.25.0 -> 1.26.0, 1.26.0 -> 1.27.0, 1.28.0 -> 1.29.0, 1.31.0 -> 1.32.0; for a multi-minor upgrade, check each reviewed pair in turn
+scoped result: UNKNOWN
 aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
 ```
 
@@ -290,6 +297,7 @@ kubernetes.ingress-extensions-v1beta1-removed.1-21-0-to-1-22-0: BLOCKED (REVIEWE
 next action: Migrate the named Ingress manifest to networking.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 evidence basis: reviewed by maintainer
 12 rules PASS (not listed; use --show-passes)
+scoped result: BLOCKED
 aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
 pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md lines 257-269; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:96f34a49cbdd7bd53008cc7b7cc8aff58c373ad323e64eef0155cbbc44494f61
 pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md lines 189-193; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:7d33809eeb313cbd589018a8dde893974065c50f5ee8cde27d99e879d0dde81f

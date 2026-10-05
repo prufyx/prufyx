@@ -25,7 +25,7 @@ func TestCustomResourceCheckWithoutPublishedRules(t *testing.T) {
 		if code != ExitUnknown || stderr != "" || strings.Contains(stdout, "private-") || strings.Contains(stdout, path) {
 			t.Fatalf("%s: code=%d stdout=%q stderr=%q", format, code, stdout, stderr)
 		}
-		if format == "human" && (!strings.Contains(stdout, "strimzi custom-resource version review") || !strings.Contains(stdout, "custom-resource set: complete")) {
+		if format == "human" && (!strings.Contains(stdout, "strimzi custom-resource version review") || !strings.Contains(stdout, "custom-resource set: complete") || !strings.Contains(stdout, "scoped result: UNKNOWN\naggregate: UNKNOWN")) {
 			t.Fatalf("human output %q", stdout)
 		}
 		if format == "json" && (!strings.Contains(stdout, `"claims":[]`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`)) {
@@ -87,10 +87,40 @@ func TestCustomResourceSetLine(t *testing.T) {
 		cncfprepare.ReasonCustomResourcesRendering:       "not declared (a document contains unrendered templates",
 		cncfprepare.ReasonCustomResourcesUnresolved:      "not declared (the manifests cannot be read",
 	} {
-		line := customResourceSetLine(reason)
+		line := customResourceSetLine(reason, reason != cncfprepare.ReasonCustomResourcesRendering && reason != cncfprepare.ReasonCustomResourcesUnresolved && reason != cncfprepare.ReasonCustomResourcesTooMany)
 		if !strings.HasPrefix(line, want) || seen[line] {
 			t.Fatalf("%s: %q", reason, line)
 		}
 		seen[line] = true
+	}
+	for reason, want := range map[string]string{
+		cncfprepare.ReasonCustomResourcesRendering:  "not complete (a document contains unrendered templates or cannot be parsed; only the versions",
+		cncfprepare.ReasonCustomResourcesUnresolved: "not complete (the manifests cannot be read as one apply set; only the versions",
+	} {
+		if line := customResourceSetLine(reason, true); !strings.HasPrefix(line, want) || seen[line] {
+			t.Fatalf("%s recorded: %q", reason, line)
+		}
+	}
+}
+
+// A document that cannot be read beside one of the project's objects keeps
+// that object's version as an incomplete set; with no such object no set is
+// declared. Neither ever passes.
+func TestCustomResourceSetBesideUnreadableDocument(t *testing.T) {
+	templated := "---\napiVersion: v1\nkind: ConfigMap\nmetadata: {name: '{{ .Release.Name }}'}\n"
+	for name, tc := range map[string]struct {
+		manifests, line string
+	}{
+		"object read":       {customResourceManifests + templated, "custom-resource set: not complete (a document contains unrendered templates or cannot be parsed; only the versions in the documents that were read are recorded)\n"},
+		"no object read":    {"apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: private-app\n" + templated, "custom-resource set: not declared (a document contains unrendered templates or cannot be parsed)\n"},
+		"values beside one": {customResourceManifests + "---\nreplicas: 2\n", "custom-resource set: not complete (the manifests cannot be read as one apply set; only the versions in the documents that were read are recorded)\n"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := writeCNCFFile(t, "manifests.yaml", []byte(tc.manifests), 0o600)
+			code, stdout, _ := runCNCFCLI(t, customResourceArgs(path, "--custom-resources-complete")...)
+			if code != ExitUnknown || !strings.Contains(stdout, tc.line) {
+				t.Fatalf("code=%d %q", code, stdout)
+			}
+		})
 	}
 }

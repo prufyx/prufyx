@@ -23,19 +23,25 @@ func formatRuns(t *testing.T) []formatRun {
 	partial := newKnowledge(t, knowledgeOptions{lines: without(allLines, "1.28", "1.30"), policy: "current"})
 	blockedDir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1beta1})
 	passDir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1})
-	in := func(dir string, knowledge Knowledge) func(format string, extra ...string) Result {
+	// The blocker beside two unrelated templated documents.
+	templatedDir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1beta1, "chart/settings.yaml": templatedConfigMap, "chart/service.yaml": unparseableTemplate})
+	inputs := func(dir string, knowledge Knowledge, paths ...string) func(format string, extra ...string) Result {
 		return func(format string, extra ...string) Result {
 			var result Result
 			inDir(t, dir, func() {
-				result = mustScan(t, knowledge, args([]string{"applyset.yaml"}, append([]string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--format", format}, extra...)...)...)
+				result = mustScan(t, knowledge, args(paths, append([]string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--format", format}, extra...)...)...)
 			})
 			return result
 		}
+	}
+	in := func(dir string, knowledge Knowledge) func(format string, extra ...string) Result {
+		return inputs(dir, knowledge, "applyset.yaml")
 	}
 	return []formatRun{
 		{"blocked", scanreport.ExitBlocked, in(blockedDir, full)},
 		{"unknown", scanreport.ExitUnknown, in(passDir, partial)},
 		{"pass", scanreport.ExitPass, in(passDir, full)},
+		{"blocked-templated", scanreport.ExitBlocked, inputs(templatedDir, full, "applyset.yaml", "chart")},
 	}
 }
 
