@@ -110,7 +110,14 @@ func (c supersedeCase) build(t *testing.T) (Tree, Tree, []map[string]any, []map[
 }
 
 func ownerOpts(base, head Tree) Options {
-	return Options{Base: base, Head: head, Source: extract.FixtureReader{Root: servedFixture}, Author: ownerLogin, Sender: ownerLogin}
+	return Options{Base: base, Head: head, Source: extract.FixtureReader{Root: servedFixture}, Author: ownerLogin, Sender: ownerLogin,
+		HeadSHA: testHeadSHA, Commits: loginCommits(ownerLogin, ownerLogin)}
+}
+
+// loginCommits is a complete commit list of one commit ending at testHeadSHA.
+func loginCommits(author, committer string) *CommitList {
+	c := CommitRecord{SHA: testHeadSHA, Author: &loginField{author}, Committer: &loginField{committer}}
+	return &CommitList{Status: "ahead", AheadBy: 1, TotalCommits: 1, Commits: []CommitRecord{c}}
 }
 
 func supersedeChange(t *testing.T, r *Report, id string) *Change { return change(t, r, id) }
@@ -165,15 +172,19 @@ func TestSupersedeOnlyTheOwner(t *testing.T) {
 		edit func(o *Options)
 		want string
 	}{
-		"bot author":          {func(o *Options) { o.Author = DefaultBotLogin }, "is not the owner"},
-		"other author":        {func(o *Options) { o.Author = "someone" }, "is not the owner"},
-		"no author":           {func(o *Options) { o.Author = "" }, "is not the owner"},
-		"bot sender":          {func(o *Options) { o.Sender = DefaultBotLogin }, "not the owner"},
-		"other sender":        {func(o *Options) { o.Sender = "someone" }, "not the owner"},
-		"no sender":           {func(o *Options) { o.Sender = "" }, "not the owner"},
-		"owner is the bot":    {func(o *Options) { o.Owner, o.BotLogin = "x", "x"; o.Author, o.Sender = "x", "x" }, "no owner is configured"},
-		"owner other login":   {func(o *Options) { o.Owner = "someone-else" }, "is not the owner"},
-		"configured owner ok": {func(o *Options) { o.Owner = "maintainer"; o.Author, o.Sender = "maintainer", "maintainer" }, ""},
+		"bot author":        {func(o *Options) { o.Author = DefaultBotLogin }, "is not the owner"},
+		"other author":      {func(o *Options) { o.Author = "someone" }, "is not the owner"},
+		"no author":         {func(o *Options) { o.Author = "" }, "is not the owner"},
+		"bot sender":        {func(o *Options) { o.Sender = DefaultBotLogin }, "not the owner"},
+		"other sender":      {func(o *Options) { o.Sender = "someone" }, "not the owner"},
+		"no sender":         {func(o *Options) { o.Sender = "" }, "not the owner"},
+		"owner is the bot":  {func(o *Options) { o.Owner, o.BotLogin = "x", "x"; o.Author, o.Sender = "x", "x" }, "no owner is configured"},
+		"owner other login": {func(o *Options) { o.Owner = "someone-else" }, "is not the owner"},
+		"configured owner ok": {func(o *Options) {
+			o.Owner = "maintainer"
+			o.Author, o.Sender = "maintainer", "maintainer"
+			o.Commits = loginCommits("maintainer", "maintainer")
+		}, ""},
 	}
 	base, head, rs, _ := supersedeCase{ids: pairIDs[:1]}.build(t)
 	for name, tc := range cases {
@@ -573,8 +584,11 @@ func TestSupersedeReportText(t *testing.T) {
 // The owner login flag defaults to the repository owner and can be set.
 func TestSupersedeOwnerFlag(t *testing.T) {
 	base, head, _, _ := supersedeCase{ids: pairIDs[:1]}.build(t)
+	commits := filepath.Join(t.TempDir(), "commits.json")
+	writeFile(t, commits, mustJSON(t, map[string]any{"status": "ahead", "ahead_by": 1, "behind_by": 0, "total_commits": 1, "commits": []any{
+		map[string]any{"sha": testHeadSHA, "author": map[string]any{"login": "maintainer"}, "committer": map[string]any{"login": "maintainer"}}}}))
 	run := func(owner string) int {
-		args := []string{"verify", "--base", base.Root, "--head", head.Root, "--source", "fixture:" + servedFixture, "--author", "maintainer", "--sender", "maintainer", "--now", gateNow.Format("2006-01-02T15:04:05Z")}
+		args := []string{"verify", "--base", base.Root, "--head", head.Root, "--source", "fixture:" + servedFixture, "--author", "maintainer", "--sender", "maintainer", "--head-sha", testHeadSHA, "--commits", commits, "--now", gateNow.Format("2006-01-02T15:04:05Z")}
 		if owner != "" {
 			args = append(args, "--owner-login", owner)
 		}
@@ -708,5 +722,113 @@ func TestSupersedeUsesEngineKey(t *testing.T) {
 	}
 	if _, err := factsOf(&entry{RuleID: "x", Raw: []byte(`{"rule":"no"}`)}); err == nil {
 		t.Fatal("a rule that is not an object was read")
+	}
+}
+
+// The owner's own commits: a foreign commit on the owner's change, or an
+// unusable list, means no pair is admitted.
+func TestSupersedeOwnerCommits(t *testing.T) {
+	base, head, rs, _ := supersedeCase{ids: pairIDs[:1]}.build(t)
+	foreign := loginCommits(ownerLogin, ownerLogin)
+	foreign.Commits = append([]CommitRecord{{SHA: "1123456789abcdef0123456789abcdef01234567", Author: &loginField{"collaborator"}, Committer: &loginField{ownerLogin}}}, foreign.Commits...)
+	foreign.AheadBy, foreign.TotalCommits = 2, 2
+	incomplete := loginCommits(ownerLogin, ownerLogin)
+	incomplete.TotalCommits = 2
+	notHead := loginCommits(ownerLogin, ownerLogin)
+	notHead.Commits[0].SHA = "2123456789abcdef0123456789abcdef01234567"
+	behind := loginCommits(ownerLogin, ownerLogin)
+	behind.Status = "diverged"
+	cases := map[string]struct {
+		edit func(o *Options)
+		want string
+	}{
+		"foreign author":     {func(o *Options) { o.Commits = foreign }, "is not authored by the owner"},
+		"foreign committer":  {func(o *Options) { o.Commits = loginCommits(ownerLogin, "web-flow") }, "is not committed by the owner"},
+		"bot author":         {func(o *Options) { o.Commits = loginCommits(DefaultBotLogin, ownerLogin) }, "is not authored by the owner"},
+		"no list":            {func(o *Options) { o.Commits = nil }, "commit list was not supplied"},
+		"incomplete list":    {func(o *Options) { o.Commits = incomplete }, "incomplete"},
+		"not ending at head": {func(o *Options) { o.Commits = notHead }, "does not end at the head"},
+		"no head sha":        {func(o *Options) { o.HeadSHA = "" }, "head commit was not supplied"},
+		"not ahead":          {func(o *Options) { o.Commits = behind }, "not strictly ahead"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			opts := ownerOpts(base, head)
+			tc.edit(&opts)
+			r := runGate(t, opts)
+			c := supersedeChange(t, r, ruleID(rs[0]))
+			if r.Passed() || c.OK || !strings.Contains(c.Detail, tc.want) || c.SupersededBy == "" {
+				t.Fatalf("passed %v, removal %+v", r.Passed(), c)
+			}
+		})
+	}
+	// An unsigned list is fine: only authorship is required of the owner.
+	requirePass(t, runGate(t, ownerOpts(base, head)))
+}
+
+// A rule whose canonical form cannot be computed is never paired.
+func TestSupersedeFailsClosedOnCanonicalForm(t *testing.T) {
+	old := canonicalRule
+	defer func() { canonicalRule = old }()
+	canonicalRule = func(any) []byte { return nil }
+	if _, err := factsOf(&entry{RuleID: "x", Raw: mustJSON(t, map[string]any{"project": "p", "rule": map[string]any{"id": "x", "operator": "forbid_fact"}})}); err == nil {
+		t.Fatal("a rule without a canonical form has facts")
+	}
+	r, m := synth(t, "R1", "", "active", nil), synth(t, "M1", "mechanical", "active", withRange("1.24.0", "1.25.0", "1.25.0", "1.26.0"))
+	pairSupersedes([]*Change{r, m})
+	if r.supersededBy != nil {
+		t.Fatal("paired although no canonical form exists")
+	}
+	canonicalRule = old
+	pairSupersedes([]*Change{r, m})
+	if r.supersededBy == nil {
+		t.Fatal("control: not paired with a canonical form")
+	}
+}
+
+func mustJSON(t *testing.T, v any) []byte {
+	t.Helper()
+	raw, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+
+func dependency(comparison, version string) func(r map[string]any) {
+	return func(r map[string]any) {
+		r["operator"] = "require_component_version"
+		delete(r, "condition")
+		r["dependency"] = map[string]any{"side": "to", "component": "etcd", "comparison": comparison, "version": version}
+	}
+}
+
+// A dependency rule is the same constraint only with the same comparison and
+// version: a lower minimum version would turn BLOCKED into PASS.
+func TestPairSupersedesDependency(t *testing.T) {
+	wide := func(dep func(r map[string]any)) func(r map[string]any) {
+		return func(r map[string]any) { dep(r); withRange("1.24.0", "1.25.0", "1.25.0", "1.26.0")(r) }
+	}
+	cases := []struct {
+		name string
+		r, m func(r map[string]any)
+		want bool
+	}{
+		{"same dependency", dependency("gte", "1.5.0"), wide(dependency("gte", "1.5.0")), true},
+		{"only the version differs", dependency("gte", "1.5.0"), wide(dependency("gte", "1.2.0")), false},
+		{"only the comparison differs", dependency("gte", "1.5.0"), wide(dependency("gt", "1.5.0")), false},
+		{"other dependency component", dependency("gte", "1.5.0"), wide(func(r map[string]any) {
+			dependency("gte", "1.5.0")(r)
+			r["dependency"].(map[string]any)["component"] = "coredns"
+		}), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r, m := synth(t, "R1", "", "active", tc.r), synth(t, "M1", "mechanical", "active", tc.m)
+			pairSupersedes([]*Change{r, m})
+			if got := r.supersededBy != nil; got != tc.want {
+				t.Fatalf("paired = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }

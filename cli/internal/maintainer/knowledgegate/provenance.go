@@ -78,6 +78,14 @@ func ParseCommitList(raw []byte) (*CommitList, error) {
 // committed by it and carry a signature GitHub verified, the list must be
 // complete, and its last commit must be the head the gate checked.
 func commitReasons(opts Options) []string {
+	return commitListReasons(opts, opts.BotLogin, true, "the automation account")
+}
+
+// commitListReasons is the commit list check for one account: the list must
+// be supplied, complete, strictly ahead and end at the head, and every commit
+// must be authored and committed by login (and, when verified is set, carry a
+// signature GitHub verified).
+func commitListReasons(opts Options, login string, verified bool, who string) []string {
 	list := opts.Commits
 	if list == nil {
 		return []string{"the change's commit list was not supplied"}
@@ -91,11 +99,11 @@ func commitReasons(opts Options) []string {
 	}
 	for _, c := range list.Commits {
 		switch {
-		case c.Author == nil || c.Author.Login != opts.BotLogin:
-			reasons = append(reasons, fmt.Sprintf("commit %s is not authored by the automation account", shortSHA(c.SHA)))
-		case c.Committer == nil || c.Committer.Login != opts.BotLogin:
-			reasons = append(reasons, fmt.Sprintf("commit %s is not committed by the automation account", shortSHA(c.SHA)))
-		case !c.Commit.Verification.Verified:
+		case c.Author == nil || c.Author.Login != login:
+			reasons = append(reasons, fmt.Sprintf("commit %s is not authored by %s", shortSHA(c.SHA), who))
+		case c.Committer == nil || c.Committer.Login != login:
+			reasons = append(reasons, fmt.Sprintf("commit %s is not committed by %s", shortSHA(c.SHA), who))
+		case verified && !c.Commit.Verification.Verified:
 			reasons = append(reasons, fmt.Sprintf("commit %s has no verified signature", shortSHA(c.SHA)))
 		}
 	}
