@@ -19,7 +19,7 @@ evidence does not decide the question, the answer is `UNKNOWN`, not a guess.
 
 ## Quickstart
 
-Requires Go 1.26.8.
+Requires Go 1.26 (release builds use 1.26.8; see CONTRIBUTING.md).
 
 ```sh
 git clone https://github.com/prufyx/prufyx.git
