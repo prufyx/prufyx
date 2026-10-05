@@ -636,7 +636,13 @@ the first violation it finds:
   [The gate](#the-gate-what-it-trusts)). A citation compared with an
   owner-chosen baseline must show the same baseline, tag, commit and entry
   digest in the independent worklist (see
-  [Owner baseline choice](#owner-baseline-choice)).
+  [Owner baseline choice](#owner-baseline-choice)). V9 also compares the
+  signing job's retained worklist with the independent one, field by field and
+  in both directions, on every field that selects or qualifies a baseline:
+  `resolution` (a `tag_fallback` or stale citation is never renewable), `stale`,
+  the baseline mode, the baseline, its line, the pinned tag, the compared tag
+  and the owner entry digest. A worklist that dropped `resolution:
+  tag_fallback` from a latest-baseline citation no longer passes.
 
 - **V10** — the record sections, independent of V1/V3: the prior and next
   packs carry the same sections with the same records in the same order, and
