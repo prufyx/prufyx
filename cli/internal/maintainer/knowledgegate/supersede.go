@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
@@ -104,15 +105,23 @@ func factsOf(e *entry) (ruleFacts, error) {
 			}
 		}
 	}
+	f0rest := canonicalRule(m)
+	if len(f0rest) == 0 {
+		return ruleFacts{}, fmt.Errorf("rule %s: no canonical form", e.RuleID)
+	}
 	f := ruleFacts{
 		project: obj.Project, key: key, component: typed.Subject.Component, from: typed.Subject.From, to: typed.Subject.To,
-		rng: typed.Range, rest: canonicalOf(m),
+		rng: typed.Range, rest: f0rest,
 	}
 	if typed.SetCondition != nil {
 		f.isSet, f.members = true, typed.SetCondition.Members
 	}
 	return f, nil
 }
+
+// canonicalRule is the canonical form of the predicate; a variable only so a
+// test can make it fail.
+var canonicalRule = func(v any) []byte { return canonicalOf(v) }
 
 // span is one side of a rule's match region: [lo, hi) for a range, or the
 // single version lo for an exact anchor.
@@ -254,6 +263,8 @@ func admitSupersede(c *Change, opts Options) {
 		c.fail(fmt.Sprintf("a reviewed rule is superseded only by the owner's own change: author %q is not the owner", logSafe(opts.Author)))
 	case opts.Sender != opts.Owner:
 		c.fail(fmt.Sprintf("a reviewed rule is superseded only by the owner's own change: the run was triggered by %q, not the owner", logSafe(opts.Sender)))
+	case len(commitListReasons(opts, opts.Owner, false, "the owner")) > 0:
+		c.fail("a reviewed rule is superseded only by the owner's own commits: " + strings.Join(commitListReasons(opts, opts.Owner, false, "the owner"), "; "))
 	case !m.OK || m.Proof != ProofRederived:
 		c.fail(fmt.Sprintf("the superseding rule %s is not re-derived from the pinned upstream bytes: %s", logSafe(m.RuleID), logSafe(m.Detail)))
 	default:

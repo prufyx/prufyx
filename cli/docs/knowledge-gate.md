@@ -100,13 +100,31 @@ refused. A pair is **admitted** only when
    pinned upstream bytes, byte for byte), checked after the re-derivation step;
 2. the change's author (`--author`) **and** the account that triggered the run
    (`--sender`) are the repository owner (`--owner-login`, default `airstand`,
-   the CODEOWNERS entry), and the owner is not the automation account.
+   the CODEOWNERS entry), and the owner is not the automation account;
+3. the commit list (`--commits`, `--head-sha`) is supplied, complete, strictly
+   ahead of the base and ends at the head, and **every commit is authored and
+   committed by the owner** (a foreign commit pushed to the owner's branch
+   refuses the pair). Unlike the automation's commits, no signature is required.
 
 R then has kinds `remove, supersede`, proof `superseded` and `supersededBy`
 naming M; M carries `supersedes`. A supersede is never eligible for automatic
 merging (a reason is added to `autoMerge`), even though the pack checks still
 apply and the engine must admit the head pack (its overlap lint would refuse
 M next to R, which is why R must go in the same change).
+
+Consequences to know:
+
+- A rule that is already `withdrawn` may be superseded too; only its reviewed
+  basis matters.
+- The superseded rule's lease is replaced by M's mechanical lease: at expiry
+  the answer is `UNKNOWN`, never `PASS`.
+- Users who run `--trust-policy reviewed` lose the rule (the assessment is
+  `UNKNOWN`), because M is mechanical, not reviewed.
+- Pairing is 1:1: one M replacing two reviewed rules is refused; make it two
+  changes.
+- The entry's `description` and `requiredFacts` are not compared; only the rule
+  object decides a verdict.
+- A rule whose canonical form cannot be computed is never paired (fail closed).
 
 Counting: a pair is **one** loosening for the cap, the daily limit and the
 totals (counted on M). Neither half is a withdrawal for the circuit breakers.
