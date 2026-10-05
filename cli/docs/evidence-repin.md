@@ -199,6 +199,53 @@ uses it rather than its own definition.
 
 The rule is recorded in the worklist limitations.
 
+### Owner baseline choice: `--baselines`
+
+The rule above stays strict. Where it refuses, the owner may decide, for one
+repository, which tag its citations are compared with. The decision is a
+reviewed file, `cli/knowledge/repin-baselines.json`:
+
+```json
+{
+  "entries": [
+    {
+      "approval": "pr-15",
+      "commit": "<40 lowercase hex digits>",
+      "decidedAt": "2026-10-05T10:00:00Z",
+      "reason": "why this tag is the baseline",
+      "repository": "owner/repo",
+      "tag": "v1.2.3"
+    }
+  ],
+  "schema": "prufyx.io/repin-baselines/v1"
+}
+```
+
+The file is strict: no other member, entries sorted by repository, one entry
+per repository (names are case-insensitive), `commit` the exact commit the tag
+must resolve to, `approval` the candidate id of the owner approval that admitted
+the entry. `evidence repin --baselines FILE` reads it. A repository that would
+be `PENDING_AMBIGUOUS_LATEST` and has an entry uses the chosen tag **only if the
+tag exists and resolves (peeling an annotated tag) to exactly the recorded
+commit**. A tag that moved, was deleted or never existed, or an entry that
+records another commit, leaves the repository pending and says why in the
+repository and citation detail (`owner baseline <tag> refused: ...`). The
+repository status stays `PENDING_AMBIGUOUS_LATEST`; the verified choice is
+recorded as `ownerBaseline` (`tag`, `commit`, `entryDigest`) on the repository.
+
+The choice only fills in where a citation would otherwise be pending: in
+release-line mode a citation whose release line is proven still uses its line.
+Every other citation of that repository is compared with the chosen tag's
+commit and records `baseline: "owner_choice"`, `baselineTag`, and
+`baselineEntryDigest` (sha256 of the entry's canonical JSON: keys sorted,
+two-space indent, one final newline). The worklist records `baselinesDigest`
+(sha256 of the file) and `summary.ownerBaselines`. A stored classification made
+on a choice is not resumed once the choice no longer holds.
+
+Who may change the file, and what a renewal needs, is in
+[evidence-reattestation.md](evidence-reattestation.md#owner-baseline-choice) and
+[knowledge-gate.md](knowledge-gate.md#owner-baseline-choices).
+
 ### Why release-line is the default, and what it does not cover
 
 A release-line comparison is not strictly "never weaker" than a latest
@@ -311,12 +358,13 @@ carries:
 | Field | Meaning |
 |---|---|
 | `baselineMode` | The requested mode, `release-line` or `latest`. |
-| `baseline` | The baseline actually used, `release_line`, `tag_line` or `latest`. |
+| `baseline` | The baseline actually used, `release_line`, `tag_line`, `owner_choice` or `latest`. |
 | `baselineTag` | The release tag whose commit was compared (`newCommit`). |
 | `baselineLine` | The `MAJOR.MINOR` line, for `release_line` and `tag_line`. |
 | `pinnedTag` | The release tag proven to point at `oldCommit`, for `release_line` and `tag_line`. |
 | `lineStatus` | For `release_line` and `tag_line`: `pinned_is_latest` when the pinned tag is itself the newest release of its line (the line can no longer change, so the comparison is trivially unchanged), otherwise `later_releases_on_line`. Recorded for downstream policy; eligibility does not depend on it. |
 | `baselineNote` | Why a release-line request used `latest` instead. |
+| `baselineEntryDigest` | For `owner_choice`: the digest of the baseline file entry that chose `baselineTag`. |
 | `observedDigest`, `observedSize` | For `CORPUS_DIGEST_MISMATCH` only: the digest and byte size of the file actually served at the citation's own pinned commit. |
 
 The top-level `lines` list holds one resolution per release line a baseline

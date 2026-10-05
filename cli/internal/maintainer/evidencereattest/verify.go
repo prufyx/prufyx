@@ -11,6 +11,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/repinbaselines"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
 
@@ -88,6 +89,11 @@ type VerifyOptions struct {
 	// checkIndependentWorklist). WorklistRaw is the signing job's retained
 	// worklist and is only as trustworthy as that job.
 	IndependentWorklistRaw []byte
+	// BaselinesRaw is the owner's baseline file (repinbaselines) the
+	// verifier trusts, read from the base. A statement with an
+	// owner-choice citation is accepted only with it and with
+	// IndependentWorklistRaw (see checkOwnerBaselines).
+	BaselinesRaw []byte
 }
 
 // VerifyResult reports what Verify established. Every field is filled in
@@ -172,6 +178,9 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 	}
 
 	if err := checkV11(statement, options.PackPath, options.WorklistRaw); err != nil {
+		return VerifyResult{}, err
+	}
+	if err := checkOwnerBaselines(statement, options.BaselinesRaw, len(options.IndependentWorklistRaw) > 0); err != nil {
 		return VerifyResult{}, err
 	}
 	if err := checkV1AndV3(statement, options.StatementRaw, options, state); err != nil {
@@ -291,6 +300,7 @@ func checkV1AndV3(statement Statement, statementRaw []byte, options VerifyOption
 		PackRaw: options.PriorPackRaw,
 		Wave:    statement.Wave, AttestedAt: mustParse(statement.AttestedAt), NextRevision: statement.Pack.Next.Revision,
 		EngineCapabilityDigest: options.EngineCapabilityDigest, ReviewRecords: options.ReviewRecords,
+		BaselinesRaw: options.BaselinesRaw,
 	}, state)
 	if err != nil {
 		return fmt.Errorf("%w: V3: recomputation failed: %v", ErrRejected, err)
@@ -640,6 +650,10 @@ func checkRolePolicy(statement Statement, prior map[string]ruleCandidate) error 
 			}
 			switch citation.Baseline {
 			case "", evidencerepin.BaselineLatest, evidencerepin.BaselineReleaseLine, evidencerepin.BaselineTagLine:
+			case evidencerepin.BaselineOwnerChoice:
+				if role != RoleHuman {
+					return fmt.Errorf("%w: V8: rule %s citation %s uses an owner-chosen baseline, which only a human statement may renew on", ErrRejected, ra.RuleID, citation.SourceID)
+				}
 			default:
 				return fmt.Errorf("%w: V8: rule %s citation %s has an unknown baseline", ErrRejected, ra.RuleID, citation.SourceID)
 			}
@@ -699,6 +713,61 @@ func checkIndependentWorklist(statement Statement, packPath string, independentR
 			} else if isLineBaseline(got.Baseline) {
 				return fmt.Errorf("%w: V9: rule %s citation %s baseline differs from the independent worklist", ErrRejected, ra.RuleID, claimed.SourceID)
 			}
+			// An owner-chosen baseline is the same on both sides: the
+			// independent run read the same baseline file and found the
+			// tag at the recorded commit.
+			if claimed.Baseline == evidencerepin.BaselineOwnerChoice {
+				if got.Baseline != claimed.Baseline || got.BaselineTag != claimed.ComparedTag || got.BaselineEntryDigest != claimed.BaselineEntryDigest {
+					return fmt.Errorf("%w: V9: rule %s citation %s owner baseline differs from the independent worklist", ErrRejected, ra.RuleID, claimed.SourceID)
+				}
+			} else if got.Baseline == evidencerepin.BaselineOwnerChoice {
+				return fmt.Errorf("%w: V9: rule %s citation %s baseline differs from the independent worklist", ErrRejected, ra.RuleID, claimed.SourceID)
+			}
+		}
+	}
+	return nil
+}
+
+// checkOwnerBaselines (V12) re-derives every owner-chosen baseline of the
+// statement from the owner's baseline file: the entry for the repository
+// must exist and carry the statement's tag, commit and entry digest. The
+// statement's repository is not recorded per citation, so the check is
+// by digest: some entry of the file must have exactly that digest, tag and
+// commit. Without the file, or (when the statement renews on an owner
+// baseline) without an independent worklist, the statement is rejected.
+func checkOwnerBaselines(statement Statement, baselinesRaw []byte, haveIndependent bool) error {
+	var used []CitationAttestation
+	for _, ra := range statement.Rules {
+		for _, c := range ra.Citations {
+			if c.Baseline == evidencerepin.BaselineOwnerChoice {
+				used = append(used, c)
+			} else if c.BaselineEntryDigest != "" {
+				return fmt.Errorf("%w: V12: citation %s carries an owner baseline digest without an owner-choice baseline", ErrRejected, c.SourceID)
+			}
+		}
+	}
+	if len(used) == 0 {
+		return nil
+	}
+	if len(baselinesRaw) == 0 {
+		return fmt.Errorf("%w: V12: the statement renews on an owner-chosen baseline; the owner baseline file is required", ErrRejected)
+	}
+	if !haveIndependent {
+		return fmt.Errorf("%w: V12: the statement renews on an owner-chosen baseline; an independent worklist is required", ErrRejected)
+	}
+	file, err := repinbaselines.Parse(baselinesRaw)
+	if err != nil {
+		return fmt.Errorf("%w: V12: %v", ErrRejected, err)
+	}
+	for _, c := range used {
+		found := false
+		for _, e := range file.Entries {
+			if e.Digest() == c.BaselineEntryDigest && e.Tag == c.ComparedTag && e.Commit == c.ComparedCommit {
+				found = true
+			}
+		}
+		if !found {
+			return fmt.Errorf("%w: V12: citation %s names an owner baseline the owner baseline file does not hold", ErrRejected, c.SourceID)
 		}
 	}
 	return nil

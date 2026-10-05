@@ -15,6 +15,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/repinbaselines"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
 
@@ -70,6 +71,15 @@ const (
 	// GitHub Releases. That evidence is not covered by the owner's approval
 	// of automated renewal, so the rule is left to a human statement.
 	reasonTagLineNotAutomatable = "TAG_LINE_BASELINE_NOT_AUTOMATABLE"
+	// reasonOwnerBaselineNotAutomatable is automated mode only: a citation
+	// compared with a tag the owner chose for a repository whose latest
+	// release is ambiguous. The owner's choice was approved for human
+	// statements; automation never renews on it.
+	reasonOwnerBaselineNotAutomatable = "OWNER_BASELINE_NOT_AUTOMATABLE"
+	// reasonOwnerBaselineUnverified: an owner-choice citation that does not
+	// match the owner's baseline file (no file given, no entry, another
+	// tag, commit or entry digest) or the repository resolution behind it.
+	reasonOwnerBaselineUnverified = "OWNER_BASELINE_UNVERIFIED"
 	// reasonReviewedOutsideChain is automated mode only: the rule's
 	// reviewedAt in the prior pack is later than the chain head's
 	// attestedAt, so its evidence dates were moved by something the chain
@@ -134,6 +144,10 @@ type PrepareOptions struct {
 	// record gets an empty reviewRecordDigest in the statement, which Sign
 	// refuses to sign.
 	ReviewRecords map[string][]byte
+	// BaselinesRaw is the owner's baseline file (repinbaselines). A
+	// citation compared with an owner-chosen baseline is eligible only if
+	// the file holds that exact entry; without the file it never is.
+	BaselinesRaw []byte
 	// Rehearsal marks the statement as prepared with an overridden clock
 	// (the CLI's --now). Such a statement is refused by Sign, Verify and
 	// VerifySignature, and by the chain.
@@ -229,6 +243,14 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		return PrepareResult{}, fmt.Errorf("%w: automated mode requires a current-schema worklist", ErrRejected)
 	}
 	worklistDigest := sourcecorpus.SHA(opts.WorklistRaw)
+	var baselines *repinbaselines.File
+	if len(opts.BaselinesRaw) > 0 {
+		parsed, err := repinbaselines.Parse(opts.BaselinesRaw)
+		if err != nil {
+			return PrepareResult{}, fmt.Errorf("%w: owner baseline file: %v", ErrRejected, err)
+		}
+		baselines = &parsed
+	}
 
 	doc, err := loadPack(opts.PackRaw)
 	if err != nil {
@@ -331,7 +353,7 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		}
 		_, reviewedNow := fresh[candidate.RuleID]
 		cycles := state.expectedCycles(candidate.RuleID, reviewedNow)
-		reason, ok := evaluateEligibility(candidate, e2ok, e4worklist, attestedAt, repoByKey, lines, mismatchProjects, cycles, automated)
+		reason, ok := evaluateEligibility(candidate, e2ok, e4worklist, attestedAt, repoByKey, lines, mismatchProjects, cycles, automated, baselines)
 		if ok && candidate.Fields.record && citesAny(candidate, mismatchRepos) {
 			reason, ok = reasonCorpusMismatchRepository, false
 		}
@@ -659,6 +681,11 @@ func citationAttestationsFor(candidate ruleCandidate, citations []evidencerepin.
 			SourceID: c.SourceID, Class: c.Class, PinnedCommit: c.OldCommit,
 			ComparedTag: repo.CurrentTag, ComparedCommit: c.NewCommit, ContentDigest: contentDigestBySource[c.SourceID],
 		}
+		if c.Baseline == evidencerepin.BaselineOwnerChoice {
+			attestation.ComparedTag = c.BaselineTag
+			attestation.Baseline = c.Baseline
+			attestation.BaselineEntryDigest = c.BaselineEntryDigest
+		}
 		if isLineBaseline(c.Baseline) {
 			attestation.ComparedTag = c.BaselineTag
 			attestation.Baseline = c.Baseline
@@ -677,7 +704,7 @@ func citationAttestationsFor(candidate ruleCandidate, citations []evidencerepin.
 func evaluateEligibility(
 	candidate ruleCandidate, e2ok, e4worklist bool, attestedAt time.Time,
 	repoByKey map[string]evidencerepin.RepoResolution, lines []evidencerepin.LineResolution, mismatchProjects map[string]bool,
-	consecutiveCycles int, automated bool,
+	consecutiveCycles int, automated bool, baselines *repinbaselines.File,
 ) (string, bool) {
 	if !e2ok {
 		return reasonScopeIncomplete, false
@@ -761,6 +788,13 @@ func evaluateEligibility(
 			if automated {
 				return reasonTagLineNotAutomatable, false
 			}
+		case evidencerepin.BaselineOwnerChoice:
+			if automated {
+				return reasonOwnerBaselineNotAutomatable, false
+			}
+			if !ownerBaselineVerified(citation, repoByKey[citation.Owner+"/"+citation.Repo], baselines) {
+				return reasonOwnerBaselineUnverified, false
+			}
 		default:
 			return reasonLineBaselineUnverified, false
 		}
@@ -818,6 +852,22 @@ func citesAny(candidate ruleCandidate, repos map[string]bool) bool {
 		}
 	}
 	return false
+}
+
+// ownerBaselineVerified reports whether an owner-choice citation matches
+// the owner's baseline file entry for its repository (same tag, commit and
+// entry digest) and the repository resolution recorded in the worklist
+// (still ambiguous, with the same verified baseline).
+func ownerBaselineVerified(citation evidencerepin.ClassResult, repo evidencerepin.RepoResolution, baselines *repinbaselines.File) bool {
+	if baselines == nil || citation.BaselineTag == "" || citation.NewCommit == "" || citation.BaselineEntryDigest == "" {
+		return false
+	}
+	entry, ok := baselines.Lookup(citation.Owner + "/" + citation.Repo)
+	if !ok || entry.Tag != citation.BaselineTag || entry.Commit != citation.NewCommit || entry.Digest() != citation.BaselineEntryDigest {
+		return false
+	}
+	ob := repo.OwnerBaseline
+	return repo.Status == "PENDING_AMBIGUOUS_LATEST" && ob != nil && ob.Tag == entry.Tag && ob.Commit == entry.Commit && ob.EntryDigest == citation.BaselineEntryDigest
 }
 
 // isLineBaseline reports whether a citation baseline is a release line,

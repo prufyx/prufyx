@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/repinbaselines"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 	"github.com/prufyx/prufyx/cli/internal/strictjson"
 )
@@ -195,6 +196,13 @@ func (r *Report) recordCheck(cls *Classification, statements map[string]statemen
 		switch {
 		case opts.Layout.trustPath(p):
 			continue // trustCheck
+		case strings.HasPrefix(p, opts.Layout.ApprovalDir+"/"+repinbaselines.ApprovalPack+"/"):
+			n++
+			inHead := opts.Head.Exists(p)
+			why = baselineApprovalPathReason(strings.TrimPrefix(p, opts.Layout.ApprovalDir+"/"+repinbaselines.ApprovalPack+"/"), r.baselineApprovalsUsed, inHead)
+			if why == "" {
+				why = liveRecordApproval(opts, p, inHead)
+			}
 		case strings.HasPrefix(p, opts.Layout.ApprovalDir+"/"):
 			n++
 			inHead := opts.Head.Exists(p)

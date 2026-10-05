@@ -16,6 +16,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/repinbaselines"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/rulecheck"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
@@ -448,8 +449,12 @@ func (b *baseApprovals) load() ([]baseApproval, error) {
 		return b.list, b.err
 	}
 	b.loaded = true
+	dirs := []string{repinbaselines.ApprovalPack}
 	for _, spec := range b.opts.Layout.Packs {
-		dir := b.opts.Layout.ApprovalDir + "/" + spec.Name
+		dirs = append(dirs, spec.Name)
+	}
+	for _, name := range dirs {
+		dir := b.opts.Layout.ApprovalDir + "/" + name
 		files, err := b.opts.Base.Dir(dir, maxApprovalBytes+1, maxApprovalFiles)
 		if err != nil {
 			b.list, b.err = nil, fmt.Errorf("base approvals: %v", err)

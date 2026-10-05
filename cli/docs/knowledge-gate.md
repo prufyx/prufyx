@@ -279,6 +279,42 @@ hex sha256 of the file without its final newline). Update the variable first,
 then merge the file. Other files under `cli/knowledge/trust/` cannot pass the
 gate. `CODEOWNERS` requires the owner's review for these paths.
 
+## Owner baseline choices
+
+`cli/knowledge/repin-baselines.json` (see [evidence-repin.md](evidence-repin.md))
+holds the owner's choice of the tag a repository's citations are compared with
+when its latest release is ambiguous. It is not a rule pack and not trust
+material, but a change to it is not routine either, so the gate admits it only
+with an owner approval per entry and the check `repin-baselines`:
+
+- An entry that is new or differs from the base needs an owner approval for
+  exactly that entry: `cli/knowledge/approvals/repin-baselines/<owner>--<repo>.json`
+  (names lower-cased; an owner login has no `--`, so the first `--` splits it),
+  approval v2 with `subject: "repinBaseline"`, `pack: "repin-baselines"`,
+  `ruleId: "<owner>--<repo>"` and `scope: "<owner>/<repo>"`. Its
+  `candidateDigest` is the digest of the proposed entry's canonical JSON, its
+  `baseDigest` that of the base entry (`absent` for a new one). The entry's
+  `approval` must equal the approval's `candidateId`, the entry may not be
+  decided after the approval, and a changed entry must be decided strictly after
+  the entry it replaces.
+- The approval is single-use and forward-only like a record approval: an approval
+  already in the base admits nothing, a base approval for the same repository
+  decided at the same time or later refuses it, and a live approval may not be
+  deleted or replaced by a not strictly later one (`knowledge-records`).
+- Removing an entry needs no approval (the repository returns to pending). The
+  automation account may not change the file. A change to it is never eligible
+  for automatic merging (the file is outside the automatic-merge paths) and is
+  owned by the owner in CODEOWNERS.
+- The file is read as the gate reads every owner input: the base for what is
+  trusted. The independent re-run of `evidence repin` and the statement checks
+  (V9, V12) use the **base** file, so a statement can rely on an entry only after
+  the change that adds the entry has merged.
+- It does not count in the loosening totals or limits: it supplies a baseline, it
+  changes no rule.
+
+Sign it with `prufyx-maintainer approval sign --subject repinBaseline`, see
+[Signing and checking approvals](#signing-and-checking-approvals).
+
 ## Records that belong to a change
 
 - `cli/knowledge/approvals/<pack>/<rule id>.json` may be added or changed only
@@ -292,6 +328,9 @@ gate. `CODEOWNERS` requires the owner's review for these paths.
   added or changed (never removed) only for rules that statement renews. A
   review record named for a line attestation or path policy record ID is
   refused: no tool produces or verifies one yet.
+- `cli/knowledge/approvals/repin-baselines/<owner>--<repo>.json` may be added or
+  changed only together with the baseline entry it admitted, and removed only
+  when it can no longer verify.
 - Any other file under these directories fails the `knowledge-records` check.
 
 ## File layout
@@ -414,6 +453,22 @@ No approval key is pinned in this repository yet, so no approval is accepted.
 bounded by the base digest instead.
 
 ### Signing and checking approvals
+
+For an owner baseline entry (see [Owner baseline choices](#owner-baseline-choices)),
+`--subject repinBaseline` replaces the pack flags:
+
+```sh
+prufyx-maintainer approval sign --subject repinBaseline \
+  --repository owner/repo --head-baselines cli/knowledge/repin-baselines.json \
+  --base-baselines "$T/base-baselines.json" \
+  --keys "$T/base-keys.json" --keys-digest "$(gh variable get WEB_APPROVAL_KEYS_DIGEST)" \
+  --identity airstand --candidate-id pr-15 --key-stdin \
+  --output cli/knowledge/approvals/repin-baselines/owner--repo.json
+```
+
+`--base-baselines` is omitted when the base has no file. `--repository` must be
+spelled as the entry spells it, and `--candidate-id` must equal the entry's
+`approval`. `approval verify` takes the same subject flags.
 
 `prufyx-maintainer approval` signs and checks approval files offline. It reads
 both packs exactly as the gate does, signs the bytes the gate checks, and runs

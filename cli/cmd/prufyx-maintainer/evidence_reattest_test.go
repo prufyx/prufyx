@@ -18,6 +18,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgesign"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/repinbaselines"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 	"github.com/theupdateframework/go-tuf/v2/metadata"
 )
@@ -493,5 +494,99 @@ func TestEvidenceReattestPrepareNowIsRehearsalOnly(t *testing.T) {
 	}
 	if !strings.Contains(stderr.String(), "rehearsal") {
 		t.Fatalf("verify must name the rehearsal refusal, stderr %q", stderr.String())
+	}
+}
+
+// A rule is renewed on an owner-chosen baseline only with the owner's
+// baseline file: prepare reads it with --baselines, verify with --baselines
+// and an independent worklist.
+func TestEvidenceReattestOwnerBaselineFlags(t *testing.T) {
+	f := newReattestFixture(t)
+	at := time.Now().UTC().Truncate(time.Second).Add(-time.Hour)
+	commit := strings.Repeat("a", 40)
+	entry := repinbaselines.Entry{
+		Approval: "pr-15", Commit: strings.Repeat("e", 40), DecidedAt: "2026-10-05T10:00:00Z",
+		Reason: "the project publishes this tag as its stable line", Repository: "owner/repo", Tag: "v9.9.9",
+	}
+	file, err := repinbaselines.File{Schema: repinbaselines.Schema, Entries: []repinbaselines.Entry{entry}}.Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	baselines := filepath.Join(f.dir, "repin-baselines.json")
+	writeFile(t, baselines, file)
+	worklist, err := json.Marshal(evidencerepin.Worklist{
+		Schema: evidencerepin.Schema, Authority: evidencerepin.Authority, GeneratedAt: at.Add(-time.Hour).Format(time.RFC3339),
+		Scope: evidencerepin.WorklistScope{RulePacks: []string{reattestWorklistPackPath}},
+		Repos: []evidencerepin.RepoResolution{{
+			Owner: "owner", Repo: "repo", Status: "PENDING_AMBIGUOUS_LATEST", ResolvedAt: at.Add(-time.Hour).Format(time.RFC3339),
+			OwnerBaseline: &evidencerepin.OwnerBaseline{Tag: entry.Tag, Commit: entry.Commit, EntryDigest: entry.Digest()},
+		}},
+		Citations: []evidencerepin.ClassResult{{
+			RulePack: reattestWorklistPackPath, RuleID: "rule-a", Project: "proj-a", SourceID: "rule-a-src",
+			Owner: "owner", Repo: "repo", Path: "VERSION", OldCommit: commit, NewCommit: entry.Commit, Class: evidencerepin.ClassFileIdentical,
+			Baseline: evidencerepin.BaselineOwnerChoice, BaselineTag: entry.Tag, BaselineEntryDigest: entry.Digest(),
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owl := filepath.Join(f.dir, "owner-worklist.json")
+	writeFile(t, owl, worklist)
+
+	reviews := filepath.Join(f.dir, "owner-reviews")
+	if err := os.Mkdir(reviews, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	prepare := func(out string, extra ...string) (string, int) {
+		var stdout, stderr bytes.Buffer
+		args := append([]string{"evidence", "reattest", "prepare", "--worklist", owl, "--pack", "cncf", "--rules", f.rules,
+			"--rules-worklist-path", reattestWorklistPackPath, "--next-revision", "rev-2", "--wave", "1",
+			"--output-dir", out, "--statement-chain-dir", f.chain, "--review-record-dir", reviews}, extra...)
+		code := exitCode(run(args, &stdout, &stderr))
+		return stdout.String() + stderr.String(), code
+	}
+	if out, code := prepare(filepath.Join(f.dir, "o0")); code != 0 || !strings.Contains(out, "eligible=0") {
+		t.Fatalf("without the baseline file nothing renews: %d %q", code, out)
+	}
+	bad := filepath.Join(f.dir, "bad-baselines.json")
+	writeFile(t, bad, []byte(`{"schema":"x"}`))
+	if _, code := prepare(filepath.Join(f.dir, "o1"), "--baselines", bad); code == 0 {
+		t.Fatal("a malformed baseline file must be refused")
+	}
+	if _, code := prepare(filepath.Join(f.dir, "o2"), "--baselines", "relative.json"); code == 0 {
+		t.Fatal("the baseline path must be absolute")
+	}
+	text, code := prepare(filepath.Join(f.dir, "o3"), "--baselines", baselines, "--attested-at", at.Format(time.RFC3339))
+	if code != 0 || !strings.Contains(text, "eligible=1") {
+		t.Fatalf("with the baseline file the rule renews: %d %q", code, text)
+	}
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"review-record", "new", "--statement", filepath.Join(f.dir, "o3", "statement.json"), "--pack", "cncf",
+		"--rules", f.rules, "--rules-worklist-path", reattestWorklistPackPath, "--worklist", owl, "--rule", "rule-a",
+		"--reviewer", "airstand", "--decided-at", at.Add(time.Minute).Format(time.RFC3339), "--output", filepath.Join(reviews, "rule-a.json")}, &stdout, &stderr); err != nil {
+		t.Fatalf("review-record new: %v %s", err, stderr.String())
+	}
+	out := filepath.Join(f.dir, "o4")
+	if text, code = prepare(out, "--baselines", baselines, "--attested-at", at.Add(2*time.Minute).Format(time.RFC3339)); code != 0 || !strings.Contains(text, "eligible=1") {
+		t.Fatalf("second prepare: %d %q", code, text)
+	}
+
+	verify := func(extra ...string) string {
+		var stdout, stderr bytes.Buffer
+		args := []string{"evidence", "reattest", "verify", "--structural-only",
+			"--statement", filepath.Join(out, "statement.json"), "--prior-pack", f.rules, "--next-pack", filepath.Join(out, "rules.next.json"),
+			"--worklist", owl, "--pack", "cncf", "--rules-worklist-path", reattestWorklistPackPath,
+			"--statement-chain-dir", f.chain, "--base-statement-chain-dir", f.base, "--review-record-dir", reviews}
+		_ = run(append(args, extra...), &stdout, &stderr)
+		return stdout.String() + stderr.String()
+	}
+	if got := verify("--rerun-worklist", owl); !strings.Contains(got, "V12") || !strings.Contains(got, "baseline file is required") {
+		t.Fatalf("verify without --baselines: %q", got)
+	}
+	if got := verify("--baselines", baselines); !strings.Contains(got, "V12") || !strings.Contains(got, "independent worklist is required") {
+		t.Fatalf("verify without --rerun-worklist: %q", got)
+	}
+	if got := verify("--baselines", baselines, "--rerun-worklist", owl); !strings.Contains(got, "structural checks passed") {
+		t.Fatalf("verify with both: %q", got)
 	}
 }

@@ -7,6 +7,10 @@
 **/trust-root*.json @airstand
 **/*approval-keys*.json @airstand
 
+# The owner baseline choices (a change also needs an owner approval the gate
+# verifies).
+/cli/knowledge/repin-baselines.json @airstand
+
 # The kill switch.
 /factory/PAUSE @airstand
 

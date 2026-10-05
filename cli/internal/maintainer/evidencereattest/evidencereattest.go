@@ -331,6 +331,10 @@ type CitationAttestation struct {
 	Baseline     string `json:"baseline,omitempty"`
 	BaselineLine string `json:"baselineLine,omitempty"`
 	PinnedTag    string `json:"pinnedTag,omitempty"`
+	// BaselineEntryDigest is set only when Baseline is "owner_choice": the
+	// digest of the owner baseline file entry that chose ComparedTag
+	// (ComparedCommit is the commit that entry records).
+	BaselineEntryDigest string `json:"baselineEntryDigest,omitempty"`
 }
 
 // RuleAttestation is one batch-renewed rule.

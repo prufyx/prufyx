@@ -7,6 +7,23 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Per-repository owner baseline choice for repositories whose latest release the
+  shared rule refuses to choose (`PENDING_AMBIGUOUS_LATEST`). The owner records
+  the chosen tag and the exact commit it must resolve to in
+  `cli/knowledge/repin-baselines.json` (strict schema). `evidence repin
+  --baselines FILE` compares the repository's otherwise pending citations with
+  that tag, only while the tag exists and resolves to exactly the recorded commit;
+  they record `baseline: owner_choice` and the entry digest. A human statement can
+  renew on it (`evidence reattest prepare|verify --baselines`; new `verify` check
+  V12 and V9 comparison; automation never does). The knowledge gate admits a
+  change to the file only with an owner approval per entry (approval v2,
+  `subject: repinBaseline`, single-use and forward-only like records; check
+  `repin-baselines`), and re-runs the evidence check with the base file.
+  `approval sign|verify --subject repinBaseline` signs and checks it.
+  The ambiguity rule itself is unchanged.
+
 ### Changed
 
 - `extract apply --withdraw` now requires the rule to cite both commits of the run's pair (from and to), not just a subset of them; otherwise it refuses with exit 3.
