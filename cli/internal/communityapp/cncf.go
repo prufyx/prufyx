@@ -216,6 +216,9 @@ group in the file belongs to a group the table assigns to exactly one
 project, but the mode never exits 0: nothing yet shows that the published
 rules name every version a release stops serving, so the best answer is
 UNKNOWN (exit 11). Embedded knowledge only. See docs/custom-resources.md.
+The same cap holds for the generic --input route (embedded or --knowledge-db,
+and replay): when any evaluated rule reads a custom-resource version set, the
+check never exits 0.
 The Kubernetes component-configuration mode reads one private selection
 document naming private local files (static pod manifests, kubelet flag files,
 argument lists, kubelet, scheduler, kube-proxy and admission configuration,
@@ -918,6 +921,9 @@ Add --show-passes with --format human on the Kubernetes native-resource route an
 			return ExitIntegrity
 		}
 		if err := writeNoVerdictLine(r.stdout, report.Check.Claims); err != nil {
+			return ExitIntegrity
+		}
+		if err := writeCustomResourceScope(r.stdout, report.Check.Claims); err != nil {
 			return ExitIntegrity
 		}
 		if !summary.allUnreviewed {

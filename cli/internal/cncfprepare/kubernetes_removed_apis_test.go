@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"sort"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/intake"
 )
 
 type k8sFactView struct {
@@ -408,5 +410,82 @@ func TestK8sRemovedAPIsLaterLines(t *testing.T) {
 			facts = k8sProposedFacts(t, prepareK8s(t, k8sList(k8sDoc(tc.group+"/v1alpha1", kind)), tc.from, tc.to, true))
 			wantUnsupported(t, facts, tc.fact)
 		}
+	}
+}
+
+// An object of a kind that is not a List but carries a top-level items
+// array is never flattened, so the objects in it would never be read. The
+// apply set is unresolved on every route that reads it: the removed-API
+// route, the flow-control route and the scan's documents route.
+func TestK8sRemovedAPIsItemsUnderAnotherKind(t *testing.T) {
+	hidden := `{"apiVersion":"example.io/v1","kind":"Bundle","metadata":{"name":"b"},"items":[` + k8sDoc("batch/v1beta1", "CronJob") + `,` + k8sDoc("flowcontrol.apiserver.k8s.io/v1beta3", "FlowSchema") + `]}`
+	inputs := map[string][]byte{
+		"hidden removed objects":  []byte(hidden),
+		"beside a served object":  []byte(k8sDoc("batch/v1", "CronJob") + "\n---\n" + hidden),
+		"empty items array":       []byte(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"c"},"items":[]}`),
+		"inside a v1 List":        k8sList(k8sDoc("batch/v1", "CronJob"), `{"apiVersion":"example.io/v1","kind":"Bundle","items":[]}`),
+		"items under a core kind": []byte("apiVersion: v1\nkind: ConfigMap\nmetadata: {name: c}\nitems:\n- apiVersion: batch/v1beta1\n  kind: CronJob\n  metadata: {name: hidden}\n"),
+		// An object at a removed version that carries items is left out, so
+		// it is never a witness of the removal.
+		"items on a removed object": []byte("apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: n}\nitems: []\n---\napiVersion: flowcontrol.apiserver.k8s.io/v1beta3\nkind: FlowSchema\nmetadata: {name: f}\nitems: []\n"),
+	}
+	for name, raw := range inputs {
+		t.Run(name, func(t *testing.T) {
+			for _, pair := range [][2]string{{from125, to125}, {"1.31.0", "1.32.0"}} {
+				prepared := prepareK8s(t, raw, pair[0], pair[1], true)
+				if prepared.State != StateUnknown || prepared.Reason != ReasonKubernetesUnresolved {
+					t.Fatalf("%s->%s: state/reason = %s/%s, want UNKNOWN/%s", pair[0], pair[1], prepared.State, prepared.Reason, ReasonKubernetesUnresolved)
+				}
+				facts := k8sProposedFacts(t, prepared)
+				if len(facts) == 0 {
+					t.Fatalf("%s->%s: no facts", pair[0], pair[1])
+				}
+				for id := range facts {
+					wantUnsupported(t, facts, id)
+				}
+				workspace, err := intake.Decode("input", raw)
+				if err != nil {
+					t.Fatal(err)
+				}
+				scan, err := PrepareKubernetesScan(workspace, pair[0], pair[1], "official_upstream", true, true)
+				if err != nil || scan.Prepared.State != StateUnknown || scan.Prepared.Reason != ReasonKubernetesUnresolved || len(scan.Sources) != 0 {
+					t.Fatalf("%s->%s scan: %v %s/%s %v", pair[0], pair[1], err, scan.Prepared.State, scan.Prepared.Reason, scan.Sources)
+				}
+			}
+		})
+	}
+}
+
+// The object with items is left out, but the other documents are still
+// read: a removed version among them is a witness. Its fact is declared
+// true (the route blocks) while every other fact stays unsupported and the
+// set UNKNOWN for its own reason.
+func TestK8sRemovedAPIsItemsBesideAWitness(t *testing.T) {
+	for name, raw := range map[string][]byte{
+		"beside a bundle with items":                   []byte(k8sDoc("batch/v1beta1", "CronJob") + "\n---\n" + `{"apiVersion":"example.io/v1","kind":"Bundle","metadata":{"name":"b"},"items":[` + k8sDoc("batch/v1", "CronJob") + `]}`),
+		"beside a ConfigMap with an empty items array": []byte("apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: n}\n---\napiVersion: v1\nkind: ConfigMap\nmetadata: {name: c}\nitems: []\n"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			prepared := prepareK8s(t, raw, from125, to125, true)
+			if prepared.State != StateUnknown || prepared.Reason != ReasonKubernetesUnresolved {
+				t.Fatalf("state/reason = %s/%s", prepared.State, prepared.Reason)
+			}
+			facts := k8sProposedFacts(t, prepared)
+			for id := range facts {
+				if id == factCronJob {
+					wantBool(t, facts, id, true)
+					continue
+				}
+				wantUnsupported(t, facts, id)
+			}
+			workspace, err := intake.Decode("input", raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			scan, err := PrepareKubernetesScan(workspace, from125, to125, "official_upstream", true, true)
+			if err != nil || string(scan.Prepared.CanonicalInputJSON) != string(prepared.CanonicalInputJSON) || len(scan.Sources[factCronJob]) != 1 || scan.Sources[factCronJob][0].Document != 0 {
+				t.Fatalf("scan: %v %+v", err, scan.Sources)
+			}
+		})
 	}
 }

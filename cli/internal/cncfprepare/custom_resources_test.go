@@ -209,8 +209,8 @@ func TestCustomResourceVersionsUnresolvedSet(t *testing.T) {
 		"values":                   {crDocs("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: c\n", "replicas: 3\nimage: x\n"), ReasonCustomResourcesUnresolved},
 		"bad kind":                 {crDocs("apiVersion: v1\nkind: configMap\nmetadata:\n  name: x\n"), ReasonCustomResourcesUnresolved},
 		"empty file":               {[]byte("# nothing\n"), ReasonCustomResourcesUnresolved},
-		"items under another kind": {crDocs(kafkaV1, "apiVersion: kafka.strimzi.io/v1\nkind: Kafkalist\nmetadata:\n  name: l\nitems:\n- apiVersion: kafka.strimzi.io/v1beta2\n  kind: Kafka\n  metadata:\n    name: hidden\n"), ReasonCustomResourcesUnresolved},
-		"empty items array":        {crDocs(kafkaV1, "apiVersion: example.io/v1\nkind: Bag\nmetadata:\n  name: b\nitems: []\n"), ReasonCustomResourcesUnresolved},
+		"items under another kind": {crDocs("apiVersion: kafka.strimzi.io/v1\nkind: Kafkalist\nmetadata:\n  name: l\nitems:\n- apiVersion: kafka.strimzi.io/v1beta2\n  kind: Kafka\n  metadata:\n    name: hidden\n"), ReasonCustomResourcesUnresolved},
+		"empty items array":        {crDocs("apiVersion: example.io/v1\nkind: Bag\nmetadata:\n  name: b\nitems: []\n"), ReasonCustomResourcesUnresolved},
 	} {
 		t.Run(name, func(t *testing.T) {
 			scan := prepareCR(t, tc.raw, "strimzi", true)
@@ -237,6 +237,10 @@ func TestCustomResourceVersionsUnresolvedSetKeepsReadMembers(t *testing.T) {
 		"values document":        {crDocs(kafkaV1beta2, "replicas: 3\nimage: x\n"), true, ReasonCustomResourcesUnresolved},
 		"not a Kubernetes kind":  {crDocs(kafkaV1beta2, "apiVersion: v1\nkind: configMap\nmetadata:\n  name: x\n"), true, ReasonCustomResourcesUnresolved},
 		"templated and unshaped": {crDocs(kafkaV1beta2, templatedScalar, "replicas: 3\n"), true, ReasonCustomResourcesRendering},
+		// An object with items is left out: its own kind is no member and
+		// the objects in its items are never read.
+		"items under another kind":       {crDocs(kafkaV1beta2, "apiVersion: kafka.strimzi.io/v1\nkind: Kafkalist\nmetadata:\n  name: l\nitems:\n- apiVersion: kafka.strimzi.io/v1\n  kind: Kafka\n  metadata:\n    name: hidden\n"), true, ReasonCustomResourcesUnresolved},
+		"empty items under another kind": {crDocs(kafkaV1beta2, "apiVersion: example.io/v1\nkind: Bundle\nmetadata:\n  name: b\nitems: []\n"), true, ReasonCustomResourcesUnresolved},
 	} {
 		t.Run(name, func(t *testing.T) {
 			scan := prepareCR(t, tc.raw, "strimzi", tc.complete)
@@ -308,15 +312,32 @@ func TestCustomResourceVersionsArguments(t *testing.T) {
 	}
 }
 
-// An unresolved set is not read at all when a readable object of a non-List
-// kind carries a top-level items array, even beside a forbidden member; and
-// an unresolved set with no member of the project keeps no unattributed
-// documents, so nothing else is reported about it.
+// An object of a non-List kind with a top-level items array is left out of
+// the documents that were read: beside a forbidden member the set still
+// holds that member (and blocks), the object is neither a member nor an
+// unattributed document, and an object at a removed version that carries
+// items is never a member at all. An unresolved set with no member of the
+// project keeps no unattributed documents, so nothing else is reported
+// about it.
 func TestCustomResourceVersionsUnresolvedSetEdges(t *testing.T) {
 	templated := "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: '{{ .Values.name }}'}\n"
-	items := prepareCR(t, crDocs(kafkaV1beta2, templated, "apiVersion: example.io/v1\nkind: Bundle\nmetadata:\n  name: b\nitems: []\n"), "strimzi", true)
-	if fact := crFact(t, items.Prepared); fact.State != "unsupported" || items.Prepared.Reason != ReasonCustomResourcesUnresolved || len(items.Members) != 0 {
-		t.Fatalf("items: fact %+v reason %s", fact, items.Prepared.Reason)
+	bundle := "apiVersion: example.io/v1\nkind: Bundle\nmetadata:\n  name: b\nitems: []\n"
+	for name, tc := range map[string]struct {
+		raw    []byte
+		reason Reason
+	}{
+		"beside a removed member":                {crDocs(kafkaV1beta2, bundle), ReasonCustomResourcesUnresolved},
+		"beside a removed member and a template": {crDocs(kafkaV1beta2, templated, bundle), ReasonCustomResourcesRendering},
+	} {
+		items := prepareCR(t, tc.raw, "strimzi", true)
+		fact := crFact(t, items.Prepared)
+		if fact.State != "declared" || fact.SetValue == nil || fact.SetValue.Complete || !reflect.DeepEqual(fact.SetValue.Members, []string{"kafka.strimzi.io/v1beta2/Kafka"}) || items.Prepared.Reason != tc.reason || len(items.Unattributed) != 0 {
+			t.Fatalf("%s: fact %+v reason %s unattributed %+v", name, fact, items.Prepared.Reason, items.Unattributed)
+		}
+	}
+	witness := prepareCR(t, crDocs("apiVersion: kafka.strimzi.io/v1beta2\nkind: Kafka\nmetadata:\n  name: k\nitems: []\n"), "strimzi", true)
+	if fact := crFact(t, witness.Prepared); fact.State != "unsupported" || len(witness.Members) != 0 || witness.Prepared.Reason != ReasonCustomResourcesUnresolved {
+		t.Fatalf("items object as witness: fact %+v reason %s", fact, witness.Prepared.Reason)
 	}
 	unattributed := prepareCR(t, crDocs("apiVersion: cert-manager.io/v1\nkind: Certificate\nmetadata:\n  name: tls\n", templated), "strimzi", true)
 	if fact := crFact(t, unattributed.Prepared); fact.State != "unsupported" || len(unattributed.Unattributed) != 0 || unattributed.Prepared.Reason != ReasonCustomResourcesRendering {

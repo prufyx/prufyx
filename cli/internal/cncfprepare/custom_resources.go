@@ -149,14 +149,8 @@ func prepareCustomResourceVersions(index customresources.Index, workspace intake
 	default:
 		unresolved, documents = ReasonCustomResourcesUnresolved, set.readable
 	}
-	// An object of any kind with a top-level items array may be read as a
-	// list by the API machinery; only List kinds are flattened, so its
-	// items would never be seen. Such a set cannot be read.
-	for _, document := range documents {
-		if _, isList := document.value["items"].([]any); isList {
-			return unsupported(ReasonCustomResourcesUnresolved)
-		}
-	}
+	// kubernetesApplySetOf leaves the set unresolved, and the object out of
+	// readable, for an object of any kind with a top-level items array.
 	invalid := false
 	for _, document := range documents {
 		api, kind, _ := kubernetesGVK(document.value)

@@ -63,6 +63,9 @@ func kubernetesReplayInputs(t *testing.T) map[string][]byte {
 	inputs["invalid-gvk"] = []byte("apiVersion: Batch/V1\nkind: CronJob\n")
 	inputs["empty-documents"] = []byte("---\n---\n")
 	inputs["not-yaml"] = []byte("a: [\n")
+	inputs["items-under-another-kind"] = []byte(`{"apiVersion":"example.io/v1","kind":"Bundle","metadata":{"name":"b"},"items":[{"apiVersion":"batch/v1beta1","kind":"CronJob","metadata":{"name":"hidden"}},{"apiVersion":"flowcontrol.apiserver.k8s.io/v1beta3","kind":"FlowSchema","metadata":{"name":"hidden"}}]}`)
+	inputs["items-beside-removed-cronjob"] = []byte("apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: n}\n---\napiVersion: v1\nkind: ConfigMap\nmetadata: {name: c}\nitems: []\n")
+	inputs["items-empty-under-another-kind"] = []byte("apiVersion: v1\nkind: ConfigMap\nmetadata: {name: c}\nitems: []\n")
 	return inputs
 }
 

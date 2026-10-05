@@ -103,3 +103,24 @@ func TestKubernetesPrepareFlowControlFeedsBatch(t *testing.T) {
 		t.Fatalf("batch code=%d stdout=%q stderr=%q", code, report, stderr)
 	}
 }
+
+// An object of a non-List kind with a top-level items array is left out of
+// the apply set, but a removed version among the other documents still
+// blocks (exit 10); the object itself is never a witness.
+func TestKubernetesNativeItemsBesideARemovedVersion(t *testing.T) {
+	configMap := "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: c}\nitems: []\n"
+	for _, tc := range []struct {
+		name, from, to, docs string
+		want                 int
+	}{
+		{"removed CronJob beside items", "1.24.0", "1.25.0", "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: n}\n---\n" + configMap, ExitBlocked},
+		{"removed FlowSchema beside items", "1.31.0", "1.32.0", "apiVersion: flowcontrol.apiserver.k8s.io/v1beta3\nkind: FlowSchema\nmetadata: {name: f}\n---\n" + configMap, ExitBlocked},
+		{"removed CronJob carrying items", "1.24.0", "1.25.0", "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: n}\nitems: []\n", ExitUnknown},
+	} {
+		path := writeCNCFFile(t, "applyset.yaml", []byte(tc.docs), 0o600)
+		code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", tc.from, "--to", tc.to, "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", "2026-10-01T00:00:00Z", "--format", "json")
+		if code != tc.want || stderr != "" || (tc.want == ExitBlocked) != strings.Contains(stdout, `"status":"BLOCKED"`) {
+			t.Fatalf("%s: code=%d stdout=%q stderr=%q", tc.name, code, stdout, stderr)
+		}
+	}
+}

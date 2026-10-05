@@ -358,8 +358,11 @@ func kubernetesApplySetFromBytes(raw []byte) (kubernetesApplySet, error) {
 // kubernetesApplySetOf resolves decoded documents into an apply set. Anything
 // the decoder could not place as a Kubernetes object (template syntax, a
 // nested list, a document that is not Kubernetes shaped, invalid list
-// metadata) leaves the set unresolved. An unresolved set keeps the documents
-// that were placed in readable.
+// metadata) leaves the set unresolved. So does an object of any kind with a
+// top-level items array: the API machinery may read it as a list, but only
+// List kinds are flattened, so its items would never be seen; the object
+// itself is left out of readable, the other documents are kept. An
+// unresolved set keeps the documents that were placed in readable.
 func kubernetesApplySetOf(workspace intake.Workspace) kubernetesApplySet {
 	var reason Reason
 	for _, omission := range workspace.Omissions {
@@ -375,6 +378,12 @@ func kubernetesApplySetOf(workspace intake.Workspace) kubernetesApplySet {
 	paginated := false
 	for _, document := range workspace.Documents {
 		if _, _, ok := kubernetesGVK(document.Value); !ok {
+			if reason == "" {
+				reason = ReasonKubernetesUnresolved
+			}
+			continue
+		}
+		if _, isList := document.Value["items"].([]any); isList {
 			if reason == "" {
 				reason = ReasonKubernetesUnresolved
 			}

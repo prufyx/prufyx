@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/checkroutemetadata"
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
@@ -119,6 +120,20 @@ func writeNoVerdictLine(out io.Writer, claims []constraintengine.Claim) error {
 	_, err := fmt.Fprintln(out, line)
 	return err
 }
+
+// writeCustomResourceScope states, when a claim's rule reads a
+// custom-resource version set, why the check cannot exit 0.
+func writeCustomResourceScope(out io.Writer, claims []constraintengine.Claim) error {
+	for _, claim := range claims {
+		if cncfcheck.ReadsCustomResourceVersions(claim) {
+			_, err := fmt.Fprintln(out, customResourceScopeLine)
+			return err
+		}
+	}
+	return nil
+}
+
+const customResourceScopeLine = "scope: a rule over a custom-resource version set never makes this check pass (exit 11 at best): no record yet shows that the published rules name every version the target release stops serving"
 
 const (
 	noVerdictLine     = "UNKNOWN: no reviewed rule decided this transition; a one-way notice is not a verdict"

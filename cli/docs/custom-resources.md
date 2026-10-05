@@ -73,14 +73,15 @@ versions it names. The set is complete only when all of these hold:
 - every recorded `group/version/Kind` is at most 128 bytes.
 
 When the documents cannot be read as one apply set (unrendered templates, a
-document that cannot be parsed, a document that is not a Kubernetes object),
-the versions of the project's objects in the documents that were read are
+document that cannot be parsed, a document that is not a Kubernetes object, or
+an object of a kind other than a `List` that carries a top-level `items`
+array: only `List` kinds are flattened, so its items are never read, and the
+object itself is left out and never counts), the versions of the project's objects in the documents that were read are
 recorded as an incomplete set: a listed version among them still blocks, and
 nothing passes. A document that may not be rendered at all (inside a template
 action of another document of its file, a conditional subchart or a test of a
 raw Helm chart, a Helm test hook; see `scan.md`, "Gaps") is not read for this.
-With no such object the set is not recorded. When an object
-of a kind other than a `List` carries a top-level `items` array, when the
+With no such object the set is not recorded. When the
 input is empty, or when a project's objects use more than 256 different
 `group/version/Kind` combinations, no set is recorded at all and every rule
 stays `UNKNOWN`.
@@ -151,6 +152,24 @@ pair, the best answer is `UNKNOWN`. Exit codes: 10 a rule blocked, 11
 otherwise (including when every rule passed), 2 usage, 3 integrity. With
 `--format json` the claims (including `PASS` claims) are printed unchanged;
 only the exit code is capped.
+
+The same cap holds on every other route that can evaluate a rule over a
+custom-resource version set (`component.<project>.custom_resource_versions_set`),
+until that per-release-pair record exists:
+
+- `check cncf --project P --input FILE`, where you write the set by hand,
+  with embedded knowledge or with `--knowledge-db`, and its `--replay-report`
+  replay: when any evaluated rule reads the set, the exit code is 11 at best,
+  never 0. The claims are printed unchanged, and the human output adds the
+  line `scope: a rule over a custom-resource version set never makes this
+  check pass (exit 11 at best): ...`;
+- `check batch`: a CNCF item with such a rule is `UNKNOWN`, never `PASS`, so
+  the batch never exits 0 because of it;
+- `scan` never reports these projects as covered (see below).
+
+`assess --scope-input` evaluates only the attested community-project corpus,
+which has no custom-resource version facts and cannot load a rule over a set,
+so it never evaluates such a rule.
 
 The line `custom-resource set:` says whether the set is complete and, if not,
 why.

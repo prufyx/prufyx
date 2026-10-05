@@ -366,6 +366,8 @@ func (c Checker) Replay(project string, inputRaw []byte, now time.Time, expected
 // NO_KNOWN_ISSUE claim is not a pass: it exits as unknown. An UNSUPPORTED
 // claim (a combination outside its documented support range) is neither a
 // pass nor a blocker: it exits as unknown, and a blocker still exits 10.
+// A report holding a claim of a rule that reads a custom-resource version
+// set never exits 0 (see ReadsCustomResourceVersions).
 func ClaimExit(report Report) int {
 	if _, err := MarshalReport(report); err != nil {
 		return 3
@@ -390,6 +392,11 @@ func ClaimExit(report Report) int {
 	}
 	if decided == 0 || unknown {
 		return 11
+	}
+	for _, claim := range report.Check.Claims {
+		if ReadsCustomResourceVersions(claim) {
+			return 11
+		}
 	}
 	return 0
 }

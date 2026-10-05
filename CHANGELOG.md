@@ -509,6 +509,24 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- Rules over a custom-resource version set can no longer make a check exit 0
+  outside the `--custom-resources` mode. The generic
+  `check cncf --project P --input FILE` route (embedded or `--knowledge-db`
+  knowledge, and its replay) exits 11 at best whenever an evaluated rule reads
+  `component.<project>.custom_resource_versions_set`, and its human output
+  says why; a `check batch` CNCF item with such a rule is never `PASS`. This
+  holds until a per-release-pair record shows that the published rules name
+  every version a release stops serving. `assess --scope-input` cannot
+  evaluate such rules. No such rule is shipped yet.
+- An object of a kind other than `List` with a top-level `items` array is no
+  longer read as a resolved part of the apply set (`check cncf --project
+  kubernetes --native-resource`, `check cncf --custom-resources` and `scan`):
+  only `List` kinds are flattened, so the objects in its `items` were never
+  read, and a removed API version inside them could pass. Such an object is
+  now left out like any document that cannot be placed: the set is
+  unresolved, `scan` names the gap `DOCUMENTS_NOT_EVALUATED` (also on lines
+  without removed APIs), and the object is never a witness. A removed version
+  in the other documents still blocks (exit 10).
 - A blocker is no longer hidden by unrelated input that cannot be read. Before,
   one templated, unparseable or non-Kubernetes document next to a
   `batch/v1beta1` CronJob turned `scan` from `BLOCKED` with one finding into
