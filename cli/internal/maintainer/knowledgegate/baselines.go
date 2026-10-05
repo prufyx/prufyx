@@ -193,9 +193,6 @@ func admitBaselineEntry(opts Options, loadKeys func() (*ApprovalKeys, error), ap
 	if err := verifyBaselineSubject(raw, *keys, s, opts.Now); err != nil {
 		return err.Error()
 	}
-	if h.DecidedAt > opts.Now.Add(approvalClockSkew).UTC().Format("2006-01-02T15:04:05Z") {
-		return "the entry is decided in the future"
-	}
 	return ""
 }
 
