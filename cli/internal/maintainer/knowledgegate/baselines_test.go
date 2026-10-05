@@ -100,7 +100,7 @@ func TestGateAdmitsAChangedEntryWithANewerApproval(t *testing.T) {
 	}
 }
 
-func TestGateAdmitsRemovingAnEntryWithoutAnApproval(t *testing.T) {
+func TestGateAdmitsRemovingABaselineEntryWithoutAnApproval(t *testing.T) {
 	f := newBaselineFixture(t)
 	old := baselineEntryAt("2026-10-01T10:00:00Z")
 	writeBaselines(t, f.base, old)
@@ -291,5 +291,18 @@ func TestGateWithoutABaselineFileHasNoBaselineCheck(t *testing.T) {
 	r = runGate(t, Options{Layout: l, Base: f.base, Head: f.head, Author: "airstand"})
 	if _, ok := check(r, "repin-baselines"); ok {
 		t.Fatal("a layout without a baseline file path adds no check")
+	}
+}
+
+func TestBaselineApprovalRecordScopeIsARepository(t *testing.T) {
+	rec := baselineRecord(baselineEntryAt("2026-10-03T10:00:00Z"), nil, gateNow)
+	if _, err := SignedApprovalBytes(rec); err != nil {
+		t.Fatal(err)
+	}
+	for _, scope := range []string{"", "cloud-custodian", "cloud-custodian/", "/repo", "a b/c", "pkg:generic/x fam 1.2", "own--er/repo", "a/b/c"} {
+		rec.Scope = scope
+		if _, err := SignedApprovalBytes(rec); err == nil {
+			t.Errorf("scope %q accepted", scope)
+		}
 	}
 }

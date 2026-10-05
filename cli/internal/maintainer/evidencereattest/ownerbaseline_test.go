@@ -140,6 +140,7 @@ func TestOwnerBaselineNeedsTheVerifiedRepositoryResolution(t *testing.T) {
 	for name, mutate := range map[string]func(*evidencerepin.RepoResolution){
 		"repository resolved normally": func(r *evidencerepin.RepoResolution) { r.Status = "RESOLVED"; r.OwnerBaseline = nil },
 		"no verified baseline":         func(r *evidencerepin.RepoResolution) { r.OwnerBaseline = nil },
+		"resolved with a baseline":     func(r *evidencerepin.RepoResolution) { r.Status = "RESOLVED" },
 		"other tag":                    func(r *evidencerepin.RepoResolution) { r.OwnerBaseline.Tag = "v2.0.1" },
 		"other commit":                 func(r *evidencerepin.RepoResolution) { r.OwnerBaseline.Commit = strings.Repeat("d", 40) },
 		"other digest": func(r *evidencerepin.RepoResolution) {
@@ -214,11 +215,11 @@ func TestVerifyRequiresTheOwnerBaselineFileAndTheIndependentWorklist(t *testing.
 
 	noFile := opts
 	noFile.BaselinesRaw = nil
-	assertVerifyRejects(t, noFile, "V12")
+	assertVerifyRejects(t, noFile, "owner baseline file is required")
 
 	noRerun := opts
 	noRerun.IndependentWorklistRaw = nil
-	assertVerifyRejects(t, noRerun, "V12")
+	assertVerifyRejects(t, noRerun, "an independent worklist is required")
 
 	// A file that holds another entry for the repository (a newer decision)
 	// no longer vouches for the statement's.

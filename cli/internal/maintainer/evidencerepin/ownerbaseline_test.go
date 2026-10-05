@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/maintainer/repinbaselines"
 )
@@ -311,5 +312,36 @@ func TestMirrorWorklistUsesTheOwnerBaseline(t *testing.T) {
 	wl, _, err = BuildMirrorWorklistWithOptions(context.Background(), []Citation{cite}, nil, 0, fixtureMirror{f: fx}, fixedNow(), DefaultMaxAge, nil, BaselineModeLatest, BuildOptions{})
 	if err != nil || wl.Repos[0].OwnerBaseline != nil {
 		t.Fatalf("no file, no choice: %v %+v", err, wl.Repos[0])
+	}
+}
+
+// A verified owner baseline on a resolution older than --max-age that this
+// run could not refresh (an earlier repository hit the rate limit) is not
+// used: the freshness bound applies to it as to every other baseline.
+func TestStaleOwnerBaselineResolutionIsNotUsed(t *testing.T) {
+	f, c := ambiguousFixture()
+	entry := baselineEntry(f, "v1.3.0")
+	limited := Citation{RulePack: "p", RuleID: "r0", Project: "a", SourceID: "s0", Owner: "aaa", Repo: "rate-limited", Path: "x", OldCommit: commitA, OldDigest: "sha256:x", StartLine: 1, EndLine: 1}
+	f.api.responses["/repos/aaa/rate-limited/releases?per_page=10"] = apiResponse{[]byte(`{}`), 403}
+	build := func(resolvedAt string) ClassResult {
+		st := newState()
+		st.Repos[c.repoKey()] = RepoResolution{
+			Owner: "example", Repo: "proj", Status: repoPendingAmbiguous, Detail: "ambiguous", ResolvedAt: resolvedAt,
+			OwnerBaseline: &OwnerBaseline{Tag: entry.Tag, Commit: entry.Commit, EntryDigest: entry.Digest()},
+		}
+		w, err := BuildWorklistWithOptions(context.Background(), []Citation{limited, c}, nil, 0, st, f.api, f.blobs, fixedNow(), 72*time.Hour, nil, BaselineModeLatest, BuildOptions{Baselines: baselineFile(entry)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, r := range w.Citations {
+			if r.Repo == "proj" {
+				return r
+			}
+		}
+		t.Fatal("citation missing")
+		return ClassResult{}
+	}
+	if got := build(stamp(-200 * time.Hour)); got.Class != ClassPending || got.Baseline != "" {
+		t.Fatalf("a stale resolution must not supply a baseline: %+v", got)
 	}
 }
