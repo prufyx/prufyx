@@ -124,3 +124,52 @@ func TestVerifyRefusesDifferingResolutionBetweenWorklists(t *testing.T) {
 		t.Errorf("a signer worklist carrying tag_fallback must be refused")
 	}
 }
+
+// A renewed citation was resolved from Releases and was not stale, so an
+// independent citation flagged stale contradicts it. checkIndependentWorklist
+// is called directly: the signer comparison also catches a stale flag, and
+// would hide a missing independent check behind it.
+func TestV9IndependentWorklistStaleCitationIsRefused(t *testing.T) {
+	packPath := "/p/rules.json"
+	wl, pack := buildWorklistAndPack(t, packPath, baseNow, []ruleSpec{freshSpec("rule-a", "proj-a", baseNow)})
+	statement := prepareSingle(t, wl, pack, packPath).Statement
+	if len(statement.Rules) != 1 {
+		t.Fatalf("setup: %+v", statement.NotExtended)
+	}
+	if err := checkIndependentWorklist(statement, packPath, marshalWorklist(t, wl)); err != nil {
+		t.Fatalf("normal case: %v", err)
+	}
+	stale := cloneWorklist(t, wl)
+	stale.Citations[0].Stale = true
+	requireV9(t, "independent citation is stale", checkIndependentWorklist(statement, packPath, marshalWorklist(t, stale)))
+}
+
+// Each field of an owner-chosen baseline is compared with the independent
+// worklist on its own: the baseline kind, the tag and the entry digest.
+func TestV9OwnerBaselineFieldsAreComparedOneByOne(t *testing.T) {
+	wl, pack := ownerWorklist(t)
+	result, _ := ownerPrepare(t, wl, pack, ownerFile(t, ownerEntry()))
+	if !renews(result, "rule-b") {
+		t.Fatalf("setup: rule-b not renewed: %+v", result.Statement.NotExtended)
+	}
+	statement := result.Statement
+	if err := checkIndependentWorklist(statement, ownerPackPath, marshalWorklist(t, wl)); err != nil {
+		t.Fatalf("normal case: %v", err)
+	}
+	for name, mutate := range map[string]func(*evidencerepin.ClassResult){
+		"baseline kind only": func(c *evidencerepin.ClassResult) { c.Baseline = evidencerepin.BaselineLatest },
+		"baseline tag only":  func(c *evidencerepin.ClassResult) { c.BaselineTag = "v2.0.1" },
+		"entry digest only":  func(c *evidencerepin.ClassResult) { c.BaselineEntryDigest = "sha256:" + strings.Repeat("0", 64) },
+	} {
+		indep := cloneWorklist(t, wl)
+		for i := range indep.Citations {
+			if indep.Citations[i].RuleID == "rule-b" {
+				mutate(&indep.Citations[i])
+			}
+		}
+		err := checkIndependentWorklist(statement, ownerPackPath, marshalWorklist(t, indep))
+		if err == nil || !strings.Contains(err.Error(), "V9") || !strings.Contains(err.Error(), "owner baseline differs") {
+			t.Errorf("%s: expected the owner baseline V9 failure, got %v", name, err)
+		}
+	}
+}

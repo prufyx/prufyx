@@ -301,6 +301,47 @@
    "package": "./internal/cncfcheck",
    "run": "Exit|Claim|Trust|Exclu",
    "expect": "killed"
+  },
+  {
+   "id": "V9-4",
+   "description": "independent worklist stale citation accepted (Stale term dropped)",
+   "file": "internal/maintainer/evidencereattest/verify.go",
+   "find": "if got.Resolution != \"\" || got.Stale {",
+   "replace": "if got.Resolution != \"\" {",
+   "package": "./internal/maintainer/evidencereattest",
+   "run": "V9",
+   "expect": "killed"
+  },
+  {
+   "id": "V9-5",
+   "description": "owner baseline kind not compared with the independent worklist",
+   "file": "internal/maintainer/evidencereattest/verify.go",
+   "find": "if got.Baseline != claimed.Baseline || got.BaselineTag != claimed.ComparedTag || got.BaselineEntryDigest != claimed.BaselineEntryDigest {",
+   "replace": "if got.BaselineTag != claimed.ComparedTag || got.BaselineEntryDigest != claimed.BaselineEntryDigest {",
+   "package": "./internal/maintainer/evidencereattest",
+   "run": "V9",
+   "expect": "killed"
+  },
+  {
+   "id": "V9-6",
+   "description": "owner baseline tag not compared with the independent worklist",
+   "file": "internal/maintainer/evidencereattest/verify.go",
+   "find": "if got.Baseline != claimed.Baseline || got.BaselineTag != claimed.ComparedTag || got.BaselineEntryDigest != claimed.BaselineEntryDigest {",
+   "replace": "if got.Baseline != claimed.Baseline || got.BaselineEntryDigest != claimed.BaselineEntryDigest {",
+   "package": "./internal/maintainer/evidencereattest",
+   "run": "V9",
+   "expect": "killed"
+  },
+  {
+   "id": "CR-3",
+   "description": "custom-resource exit cap from 0 to 11 removed",
+   "file": "internal/communityapp/cncf_custom_resources.go",
+   "find": "if exit == ExitOK {",
+   "replace": "if false {",
+   "package": "./internal/communityapp",
+   "run": "CustomResource",
+   "expect": "killed",
+   "tags": "prufyx_synthetic_knowledge"
   }
  ]
 }
