@@ -1,0 +1,19 @@
+{
+  "added": [
+    "kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-32-0-to-1-33-0",
+    "kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0",
+    "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0",
+    "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0",
+    "kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0",
+    "kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0"
+  ],
+  "map": {
+    "kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-32-0-to-1-33-0-reviewed": "kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-32-0-to-1-33-0",
+    "kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0-reviewed": "kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0",
+    "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0-reviewed": "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0",
+    "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0-reviewed": "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0",
+    "kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0-reviewed": "kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0",
+    "kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0-reviewed": "kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0"
+  },
+  "unchanged": []
+}

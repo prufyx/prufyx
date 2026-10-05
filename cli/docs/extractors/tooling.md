@@ -13,12 +13,12 @@ Exit codes of the `extract` subcommands:
 | 0 | success (`verify`: byte-identical; `apply`: merged, or nothing to do) |
 | 1 | `verify` or `oracle` found differences |
 | 2 | rejected input, or a failed run, merge or refusal |
-| 3 | `run --wants-out`: files or commits the mirror does not hold are needed; `inventory`: the commit cannot be established completely; `apply --withdraw`: the run does not supersede a rule it would withdraw |
+| 3 | `supersede`: refused, nothing written (see below); `run --wants-out`: files or commits the mirror does not hold are needed; `inventory`: the commit cannot be established completely; `apply --withdraw`: the run does not supersede a rule it would withdraw |
 
 ## `extract apply`
 
 ```
-prufyx-maintainer extract apply --out DIR --pack FILE [--withdraw]
+prufyx-maintainer extract apply --out DIR --pack FILE [--withdraw | --rules-only]
 ```
 
 `--out DIR` is the directory of an `extract run`; `--pack FILE` is a rule pack
@@ -84,6 +84,61 @@ The command prints what it did, one line per rule. `gate classify` on the
 tree before and after reports exactly those rules (`new` for a merge,
 `withdraw` for a withdrawal) and, when attestations are merged or the schema
 moves, the pack members that changed.
+
+**With `--rules-only`** only the run's rules are merged. The run's
+attestations are ignored, so the pack's `lineAttestations` member stays as it
+was, and the pack schema never changes: if the engine loader refuses the
+merged pack at its own schema the merge is refused (a schema move is part of
+an attested apply). It does not combine with `--withdraw`. Every other check
+above applies unchanged.
+
+## `extract supersede`
+
+```
+prufyx-maintainer extract supersede --out DIR --pack FILE
+```
+
+Replaces reviewed rules by the rules of a run that cover them. It is not part
+of the automated flow: a reviewed rule is superseded only by a change the
+owner makes and the knowledge gate admits as a supersede.
+
+A reviewed rule is any rule whose evidence basis is not `mechanical`, in any
+state. A rule of the run replaces a reviewed rule when both are for the same
+component and have the same constraint key (the operator and the constrained
+fact: side, component and fact id) and their match regions overlap. The run's
+rule must then cover the reviewed rule completely: its from and to regions
+contain the reviewed rule's (a range contains an anchor pair inside it; an
+anchor-only rule covers only the same anchor pair), and for set rules its
+members include all of the reviewed rule's. The command then removes exactly
+those reviewed rules, adds the run's rules, and prints the old to new map as
+canonical JSON on stdout:
+
+```
+{"added":[...new rule ids...],"map":{"<old id>":"<new id>"},"unchanged":[...]}
+```
+
+`unchanged` lists run rules already in the pack with identical content; a
+second supersede of the same run changes nothing and prints an empty map.
+
+Refused with exit 3, a message on stderr, nothing on stdout and the pack file
+untouched:
+
+- a reviewed rule that a run rule overlaps with the same key but covers only
+  in part (a wider region, or set members the run's rule lacks);
+- a reviewed rule that overlaps more than one run rule;
+- a mechanical rule of the pack that a run rule overlaps (only reviewed rules
+  can be superseded);
+- a run that adds rules but matches no reviewed rule (use `extract apply`);
+- a run rule whose id is in the pack with different content;
+- a result that differs from the base in anything but the removed reviewed
+  rules and the run's rules (the final audit, the same one `apply` runs; the
+  schema and every other pack member must be unchanged).
+
+A run rule that replaces nothing is simply added. The checks of `apply` on the
+added rules (`rule validate`, the engine loader, the attestation exact-set
+check) run on the result; a pack that the loader refuses at its own schema is
+refused, since supersede never moves the schema. A damaged run or an unreadable
+pack exits 2, as in `apply`.
 
 ## `extract inventory`
 

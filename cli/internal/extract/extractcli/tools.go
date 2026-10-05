@@ -17,14 +17,18 @@ func cmdApply(args []string, existing []string, stdout, stderr io.Writer) (int, 
 	f := flag.NewFlagSet("extract apply", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	var runDir, pack string
-	var withdraw bool
+	var withdraw, rulesOnly bool
+	f.BoolVar(&rulesOnly, "rules-only", false, "apply the run's rules only: no attestations, no schema change")
 	f.StringVar(&runDir, "out", "", "run output directory (from extract run)")
 	f.StringVar(&pack, "pack", "", "rule pack file to edit in place")
 	f.BoolVar(&withdraw, "withdraw", false, "withdraw the rules the run no longer produces instead of adding its rules")
 	if err := f.Parse(args); err != nil || f.NArg() != 0 || runDir == "" || pack == "" {
 		return 2, errors.New("command rejected\n" + usage)
 	}
-	rep, err := extractpack.Apply(extractpack.Options{PackPath: pack, RunDir: runDir, Withdraw: withdraw, ExistingRules: existing})
+	if rulesOnly && withdraw {
+		return 2, errors.New("command rejected: --rules-only does not combine with --withdraw\n" + usage)
+	}
+	rep, err := extractpack.Apply(extractpack.Options{PackPath: pack, RunDir: runDir, Withdraw: withdraw, RulesOnly: rulesOnly, ExistingRules: existing})
 	if errors.Is(err, extractpack.ErrStale) {
 		fmt.Fprintf(stderr, "extract: %v\n", err)
 		return 3, nil
@@ -50,6 +54,33 @@ func cmdApply(args []string, existing []string, stdout, stderr io.Writer) (int, 
 		fmt.Fprintf(stdout, "schema %s -> %s\n", rep.SchemaFrom, rep.SchemaTo)
 	}
 	return 0, nil
+}
+
+// cmdSupersede replaces reviewed rules by the run's rules. A refusal (exit
+// 3) writes nothing and prints nothing on stdout.
+func cmdSupersede(args []string, existing []string, stdout, stderr io.Writer) (int, error) {
+	f := flag.NewFlagSet("extract supersede", flag.ContinueOnError)
+	f.SetOutput(io.Discard)
+	var runDir, pack string
+	f.StringVar(&runDir, "out", "", "run output directory (from extract run)")
+	f.StringVar(&pack, "pack", "", "rule pack file to edit in place")
+	if err := f.Parse(args); err != nil || f.NArg() != 0 || runDir == "" || pack == "" {
+		return 2, errors.New("command rejected\n" + usage)
+	}
+	rep, err := extractpack.Supersede(extractpack.Options{PackPath: pack, RunDir: runDir, ExistingRules: existing})
+	if errors.Is(err, extractpack.ErrSupersede) || errors.Is(err, extractpack.ErrForeignChange) || errors.Is(err, extractpack.ErrCollision) {
+		fmt.Fprintf(stderr, "extract: %v\n", err)
+		return 3, nil
+	}
+	if err != nil {
+		return 2, err
+	}
+	doc, err := rep.Map()
+	if err != nil {
+		return 2, err
+	}
+	_, err = stdout.Write(doc)
+	return 0, err
 }
 
 func cmdInventory(args []string, stdout, stderr io.Writer) (int, error) {
