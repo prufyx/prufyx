@@ -3,7 +3,7 @@ MAINTAINER ?= go run ./cmd/prufyx-maintainer
 RELEASE_POLICY := release/community-shipping-policy-v2.json
 STATICCHECK ?= staticcheck
 
-.PHONY: toolchain-check staticcheck staticcheck-full dco-check release-gate-test release-manifest
+.PHONY: mutants toolchain-check staticcheck staticcheck-full dco-check release-gate-test release-manifest
 
 toolchain-check:
 	@version="$$(GOTOOLCHAIN=local $(GO) env GOVERSION)"; test "$$version" = go1.26.8 || { echo "Go 1.26.8 is required; found $$version" >&2; exit 1; }
@@ -30,3 +30,8 @@ release-gate-test:
 release-manifest:
 	@test -n "$(OUTPUT)" || { echo "OUTPUT=/absolute/path/SOURCE-MANIFEST.json is required" >&2; exit 2; }
 	$(MAINTAINER) release-gate generate --source-root .. --policy $(RELEASE_POLICY) --go $(GO) --output "$(OUTPUT)"
+
+# Source mutation checks (see CONTRIBUTING.md). Slow; not part of default CI.
+# One mutant at a time, go test -p 2, GOMAXPROCS=4. MUTANT_ARGS="-only ID,ID" selects some.
+mutants:
+	GOMAXPROCS=4 GOFLAGS=-mod=vendor nice -n 10 $(GO) run ./internal/tools/mutants -data testdata/mutants.json $(MUTANT_ARGS)
