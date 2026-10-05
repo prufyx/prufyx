@@ -61,6 +61,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/maintainer/latestrelease"
 )
 
 const (
@@ -417,38 +419,6 @@ type tagLine struct {
 	pinUnknown bool
 }
 
-// tagLineRepositoryAmbiguity applies the repository-wide prefix rule shared
-// with the latest-release selection to the prefixes of every version tag (any
-// tag ending in MAJOR.MINOR.PATCH, whatever its prefix): only the prefixes
-// none, "v" and "go" may carry versions, and only one of them. A prefix
-// outside those ("helm-chart-", "sdk/go/v", "spec-v") or two different
-// prefixes (including none and "v" together) make the repository ambiguous
-// and no tag line is derived. It returns "" when the repository is not
-// ambiguous, and otherwise the reason.
-func tagLineRepositoryAmbiguity(prefixes []string) string {
-	set := map[string]bool{}
-	other := false
-	for _, prefix := range prefixes {
-		set[prefix] = true
-		if prefix != "" && prefix != "v" && prefix != "go" {
-			other = true
-		}
-	}
-	if len(set) == 0 || (len(set) == 1 && !other) {
-		return ""
-	}
-	names := make([]string, 0, len(set))
-	for prefix := range set {
-		names = append(names, strconv.Quote(prefix))
-	}
-	sort.Strings(names)
-	kind := "mixed prefixes"
-	if other {
-		kind = "prefixes other than none, v or go"
-	}
-	return "the repository tags versions under " + kind + ": " + strings.Join(names, ", ")
-}
-
 // deriveTagLine places pinnedCommit on a release line of listing and finds
 // that line's newest release tag. It is pure and deterministic: the result
 // depends only on the listing's content, never on its order.
@@ -464,8 +434,12 @@ func deriveTagLine(listing RefListing, pinnedCommit string) tagLine {
 			versionPrefixes = append(versionPrefixes, match[1])
 		}
 	}
-	if reason := tagLineRepositoryAmbiguity(versionPrefixes); reason != "" {
-		return tagLine{pinUnknown: true, unknown: reason}
+	// The repository-wide prefix rule is the one the latest-release
+	// selection uses: only none, "v" or "go", and only one of them. The
+	// input is the prefix of every version-looking tag, so a prefix the
+	// strict grammar rejects also makes the repository ambiguous.
+	if reason := latestrelease.AmbiguousPrefixes(versionPrefixes); reason != "" {
+		return tagLine{pinUnknown: true, unknown: "the repository tags versions under " + reason}
 	}
 
 	var atPin []string

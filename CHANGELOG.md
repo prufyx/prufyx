@@ -30,7 +30,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   as pre-releases (`-rc1`, `-RC.1`, `-beta.0`) no longer make a release line
   ambiguous when GitHub does not flag them. `evidence reattest` accepts
   tag-line citations in human statements only.
-
 - The knowledge gate's default daily loosening limit is 50 (was 400). The
   repository variable `KNOWLEDGE_MAX_DAILY_LOOSENING` still raises it.
 - The CLA workflow no longer prints commit author e-mail addresses in its

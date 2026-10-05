@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/maintainer/latestrelease"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecapture"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
@@ -268,7 +269,7 @@ func TestDeriveTagLineFromRecordedListings(t *testing.T) {
 		"bare go1.20 release is unorderable":      {"golang_go", goTag1205Commit, "go1.20", false},
 		"hotfix tag on the line":                  {"longhorn_longhorn-manager", longhornV190, "v1.9.0-hotfix-1", false},
 		"unrecognised -binary tag on the line":    {"nats-io_nats-server", natsV21029Commit, "v2.10.27-binary", false},
-		"same commit under two prefixes":          {"containernetworking_cni", cniV100Commit, "prefixes other than none, v or go: \"spec-v\", \"v\"", true},
+		"same commit under two prefixes":          {"containernetworking_cni", cniV100Commit, "prefixes other than none, v or go compete: \"spec-v\", \"v\"", true},
 		"docs commit with no ref":                 {"etcd-io_website", etcdWebsitePin, "no tag points at the pinned commit", true},
 		"docs pin that is no ref head":            {"kubernetes_website", k8sWebsitePin, "no tag points at the pinned commit", true},
 		"docs release branch head has no release": {"kubernetes_website", k8sWebsite133Head, "head of branch release-1.33", true},
@@ -306,11 +307,11 @@ func TestDeriveTagLineEdgeCases(t *testing.T) {
 		contains string
 	}{
 		"higher patch on the line wins numerically": {[]string{c(1) + "\trefs/tags/v1.2.9", c(2) + "\trefs/tags/v1.2.10", c(3) + "\trefs/tags/v1.3.0"}, c(1), "v1.2.10", ""},
-		"same numeric line under another prefix":    {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/api/v1.2.3"}, c(1), "", "prefixes other than none, v or go: \"api/v\", \"v\""},
-		"another component's prefix anywhere":       {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/helm-chart-5.0.0"}, c(1), "", "prefixes other than none, v or go: \"helm-chart-\", \"v\""},
-		"nested go module prefix":                   {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/sdk/go/v2.0.0"}, c(1), "", "prefixes other than none, v or go: \"sdk/go/v\", \"v\""},
-		"calendar tags next to v tags":              {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/2024.10.15"}, c(1), "", "mixed prefixes: \"\", \"v\""},
-		"mixed allowed prefixes":                    {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/1.3.0"}, c(1), "", "mixed prefixes: \"\", \"v\""},
+		"same numeric line under another prefix":    {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/api/v1.2.3"}, c(1), "", "prefixes other than none, v or go compete: \"api/v\", \"v\""},
+		"another component's prefix anywhere":       {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/helm-chart-5.0.0"}, c(1), "", "prefixes other than none, v or go compete: \"helm-chart-\", \"v\""},
+		"nested go module prefix":                   {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/sdk/go/v2.0.0"}, c(1), "", "prefixes other than none, v or go compete: \"sdk/go/v\", \"v\""},
+		"calendar tags next to v tags":              {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/2024.10.15"}, c(1), "", "mixed prefixes compete: \"\", \"v\""},
+		"mixed allowed prefixes":                    {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/1.3.0"}, c(1), "", "mixed prefixes compete: \"\", \"v\""},
 		"pre-release under another prefix":          {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/chart-1.2.1-rc.1"}, c(1), "", "another prefix or a zero-padded version (chart-1.2.1-rc.1)"},
 		"non-strict tag without the prefix":         {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/1.2.9-hotfix"}, c(1), "", "another prefix or a zero-padded version (1.2.9-hotfix)"},
 		"zero-padded minor on the line":             {[]string{c(1) + "\trefs/tags/v1.2.0", c(2) + "\trefs/tags/v1.02.9"}, c(1), "", "another prefix or a zero-padded version (v1.02.9)"},
@@ -347,14 +348,14 @@ func TestDeriveTagLineEdgeCases(t *testing.T) {
 }
 
 // The rule must keep the shared latest-release semantics exactly.
-func TestTagLineRepositoryAmbiguity(t *testing.T) {
+func TestTagLinePrefixRuleIsTheSharedRule(t *testing.T) {
 	for _, ok := range [][]string{nil, {"v"}, {"v", "v"}, {""}, {"go", "go"}} {
-		if got := tagLineRepositoryAmbiguity(ok); got != "" {
+		if got := latestrelease.AmbiguousPrefixes(ok); got != "" {
 			t.Errorf("%q: unexpected ambiguity %q", ok, got)
 		}
 	}
 	for _, bad := range [][]string{{"", "v"}, {"v", "go"}, {"release-"}, {"v", "api/v"}, {"helm-chart-"}} {
-		if got := tagLineRepositoryAmbiguity(bad); got == "" {
+		if got := latestrelease.AmbiguousPrefixes(bad); got == "" {
 			t.Errorf("%q: must be ambiguous", bad)
 		}
 	}
@@ -425,14 +426,19 @@ func goWorld(t *testing.T) (*fakeAPIFetcher, fakeBlobFetcher) {
 		body   []byte
 		status int
 	}{}}
-	api.responses["/repos/golang/go/releases?per_page=10"] = struct {
+	// No GitHub Releases; the tags fallback picks the highest strict tag.
+	api.responses["/repos/golang/go/releases?per_page=20&page=1"] = struct {
 		body   []byte
 		status int
 	}{[]byte(`[]`), 200}
-	api.responses["/repos/golang/go/tags?per_page=30"] = struct {
+	api.responses["/repos/golang/go/tags?per_page=100&page=1"] = struct {
 		body   []byte
 		status int
-	}{[]byte(`[{"name":"weekly.2012-03-27"}]`), 200}
+	}{[]byte(`[{"name":"weekly.2012-03-27"},{"name":"go1.21.13"},{"name":"go1.26.8"}]`), 200}
+	api.responses["/repos/golang/go/tags?per_page=100&page=2"] = struct {
+		body   []byte
+		status int
+	}{[]byte(`[]`), 200}
 	api.responses["/repos/golang/go/git/ref/tags/weekly.2012-03-27"] = struct {
 		body   []byte
 		status int
@@ -651,8 +657,9 @@ func annotatedWorld(headRef string, extra map[string]string) (*fakeAPIFetcher, f
 			status int
 		}{[]byte(body), 200}
 	}
-	set("/repos/example/tags/releases?per_page=10", `[]`)
-	set("/repos/example/tags/tags?per_page=30", `[{"name":"v1.3.0"}]`)
+	set("/repos/example/tags/releases?per_page=20&page=1", `[]`)
+	set("/repos/example/tags/tags?per_page=100&page=1", `[{"name":"v1.3.0"},{"name":"v1.2.1"},{"name":"v1.2.0"}]`)
+	set("/repos/example/tags/tags?per_page=100&page=2", `[]`)
 	set("/repos/example/tags/git/ref/tags/v1.3.0", `{"object":{"sha":"`+latest+`","type":"commit"}}`)
 	set("/repos/example/tags/git/ref/tags/v1.2.1", headRef)
 	for path, body := range extra {
