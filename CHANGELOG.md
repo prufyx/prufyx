@@ -34,6 +34,23 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- The 25 reviewed Kubernetes API-removal rules are replaced by 29 rules that the
+  `k8s.served-api-removal` extractor derives from the Kubernetes API lifecycle
+  declarations and OpenAPI specifications of each release (the four additions
+  cover `authentication.k8s.io/v1beta1` SelfSubjectReview in 1.33,
+  `admissionregistration.k8s.io/v1beta1` ValidatingAdmissionPolicy in 1.34, and
+  `networking.k8s.io/v1beta1` IPAddress and ServiceCIDR and
+  `storage.k8s.io/v1beta1` VolumeAttributesClass in 1.37). Rule ids now read
+  `kubernetes.served-api-removal.<group>-<version>.<from>-to-<to>`, so SARIF
+  results, suppressions and baselines that name a former `kubernetes.*-removed.*`
+  id must be updated. The reason code is `KUBERNETES_SERVED_API_REMOVED` instead
+  of `REVIEWED_SOURCE_CONSTRAINT`, the evidence basis is `mechanical` (pinned
+  upstream source files instead of the website deprecation guide), and a rule
+  covers every patch release of the two lines instead of one pair. Hops into
+  Kubernetes 1.33, 1.34 and 1.37 are now checked (`PARTIAL` with
+  `LINE_NOT_ATTESTED` until line reviews exist) instead of reported as not
+  reviewed. `--require-basis reviewed` leaves these rules out.
+
 - `constraintengine.ConstraintKey` is now the one exported constraint-key function; `extract supersede` and the gate call it instead of keeping their own copies.
 - `extract apply --withdraw` now requires the rule to cite both commits of the run's pair (from and to), not just a subset of them; otherwise it refuses with exit 3.
 - `evidence reattest`: a pending citation now excludes only the rules that cite
