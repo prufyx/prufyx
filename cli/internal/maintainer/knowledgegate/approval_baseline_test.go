@@ -163,8 +163,8 @@ func TestApprovalSignRepinBaselineRefusals(t *testing.T) {
 			return replaceArg(f.signArgs(false, "--key", key(f)), "--identity", "mallory")
 		}, "is not an owner"},
 		"another subject takes the rule flags": {func(f baselineSignFixture) []string {
-			return replaceArg(f.signArgs(false, "--key", key(f)), "--subject", "lineAttestation")
-		}, "--pack, --rule"},
+			return replaceArg(f.signArgs(false, "--key", key(f)), "--subject", "pathPolicy")
+		}, "is not supported (supported: rule, lineAttestation, repinBaseline)"},
 	}
 	for name, tc := range cases {
 		f := newBaselineSignFixture(t)
