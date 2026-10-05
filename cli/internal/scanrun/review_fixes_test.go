@@ -186,11 +186,19 @@ func TestScanRegisteredLineWithARule(t *testing.T) {
 	if result.Exit != scanreport.ExitBlocked || len(result.Report.Findings) != 1 || result.Report.Findings[0].RuleID != id {
 		t.Fatalf("exit %d findings %+v gaps %+v", result.Exit, result.Report.Findings, result.Report.Gaps)
 	}
+	// Served version, and no review of the line: the rule decides (a
+	// pass) and the hop stays PARTIAL for want of the review, never
+	// COVERED and never a line without rules.
+	knowledge = newKnowledge(t, knowledgeOptions{lines: []string{}, policy: "current", unchecked: true, synthetic: []string{rule}})
 	_, paths = files(t, map[string]string{"applyset.yaml": "apiVersion: storage.k8s.io/v1\nkind: VolumeAttributesClass\nmetadata: {name: a}\n"})
 	result = mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.36.0", "--to", "kubernetes=1.37.0")...)
 	hop := result.Report.Paths[0].Hops[0]
-	if result.Exit == scanreport.ExitBlocked || hop.Status == scanreport.HopNoData || hasGap(result.Report, "LINE_NOT_ATTESTED", "no reviewed rule covers yet") {
-		t.Fatalf("exit %d hop %+v gaps %+v", result.Exit, hop, result.Report.Gaps)
+	passed := false
+	for _, pass := range result.Report.Passes {
+		passed = passed || pass.RuleID == id
+	}
+	if result.Exit != scanreport.ExitUnknown || hop.Status != scanreport.HopPartial || !passed || !hasGap(result.Report, "LINE_NOT_ATTESTED", "") || hasGap(result.Report, "LINE_NOT_ATTESTED", "no reviewed rule covers yet") {
+		t.Fatalf("exit %d hop %+v passes %+v gaps %+v", result.Exit, hop, result.Report.Passes, result.Report.Gaps)
 	}
 }
 
