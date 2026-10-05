@@ -196,6 +196,10 @@ not want it. It is not printed when the scan stops with an error.
 
 ## Answers and exit codes
 
+See [exit-codes.md](exit-codes.md) for the one table covering `scan` and
+`check`. Exit `0` here means the declared scope is complete; `check` exit `0`
+means one scoped rule passed (use `check --strict-exit` to tell them apart).
+
 | Exit | Headline | Meaning |
 | --- | --- | --- |
 | `10` | `BLOCKED: N problems must be fixed before this upgrade` | At least one reviewed rule matched an object in your manifests. Gaps may remain; they are still listed. |

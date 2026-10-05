@@ -9,6 +9,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- One exit-code table for `scan` and `check` ([exit-codes.md](cli/docs/exit-codes.md)),
+  and an opt-in `--strict-exit` flag on every `check` route: a scoped `PASS`
+  exits `14` instead of `0`, so CI cannot read one passed rule as a complete
+  pass (`scan` exit `0` means a complete scope). Without the flag, exit codes,
+  output and replay reports are unchanged. A line on standard error notes the
+  scoped pass when the flag is used.
 - Per-repository owner baseline choice for repositories whose latest release the
   shared rule refuses to choose (`PENDING_AMBIGUOUS_LATEST`). The owner records
   the chosen tag and the exact commit it must resolve to in

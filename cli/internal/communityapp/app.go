@@ -23,11 +23,14 @@ import (
 )
 
 const (
-	ExitOK                   = 0
-	ExitUsage                = 2
-	ExitIntegrity            = 3
-	ExitBlocked              = 10
-	ExitUnknown              = 11
+	ExitOK        = 0
+	ExitUsage     = 2
+	ExitIntegrity = 3
+	ExitBlocked   = 10
+	ExitUnknown   = 11
+	// ExitScopedPass is what a check route exits with, instead of ExitOK,
+	// when --strict-exit is given and the route's one scoped rule passed.
+	ExitScopedPass           = 14
 	legacyEnvelopeAPIVersion = "prufyx.io/v1alpha1"
 )
 
@@ -56,7 +59,55 @@ type envelopeResult struct {
 	Messages []string `json:"messages,omitempty"`
 }
 
+// Run executes one command. For a check route, --strict-exit (see
+// cli/docs/exit-codes.md) turns the exit status 0 of a scoped PASS into
+// ExitScopedPass; without the flag nothing here changes.
 func Run(ctx context.Context, args []string, stdout, stderr io.Writer, version string) int {
+	if len(args) > 0 && args[0] == "check" {
+		if rest, strict := stripStrictExit(args); strict {
+			code := run(ctx, rest, stdout, stderr, version)
+			return strictExitCode(rest, code, stderr)
+		} else if len(rest) != len(args) {
+			return run(ctx, rest, stdout, stderr, version)
+		}
+	}
+	return run(ctx, args, stdout, stderr, version)
+}
+
+// stripStrictExit removes --strict-exit, --strict-exit=true and
+// --strict-exit=false from a check command line; the last one given decides.
+func stripStrictExit(args []string) ([]string, bool) {
+	rest := make([]string, 0, len(args))
+	strict := false
+	for _, a := range args {
+		switch a {
+		case "--strict-exit", "--strict-exit=true":
+			strict = true
+		case "--strict-exit=false":
+			strict = false
+		default:
+			rest = append(rest, a)
+		}
+	}
+	return rest, strict
+}
+
+// strictExitCode maps a check route's exit 0 to ExitScopedPass. Help output
+// is not a result and keeps 0; every other exit status is unchanged.
+func strictExitCode(args []string, code int, stderr io.Writer) int {
+	if code != ExitOK {
+		return code
+	}
+	for _, a := range args[1:] {
+		if help(a) {
+			return code
+		}
+	}
+	fmt.Fprintf(stderr, "prufyx: note: scoped PASS: exit %d (--strict-exit); this is not a complete PASS, see cli/docs/exit-codes.md\n", ExitScopedPass)
+	return ExitScopedPass
+}
+
+func run(ctx context.Context, args []string, stdout, stderr io.Writer, version string) int {
 	r := runtime{stdout: stdout, stderr: stderr, version: version}
 	if len(args) == 0 || help(args[0]) {
 		return r.rootHelp()
