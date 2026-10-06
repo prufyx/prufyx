@@ -67,6 +67,7 @@ func tufExternalArgs(t *testing.T, f tufExternalFixture, path, from, to, format 
 }
 
 func TestTUFUpdaterRawExternalAuthorityAndHistoricalReplay(t *testing.T) {
+	t.Parallel()
 	f := makeTUFExternalFixture(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "updater.py")

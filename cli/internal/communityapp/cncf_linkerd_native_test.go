@@ -36,6 +36,7 @@ func linkerdNativeArgs(path, from, to string) []string {
 // authors no new compatibility claim: the preparer already existed and
 // evaluated the reviewed 2.13.7 -> 2.14.0 pair before this route was wired.
 func TestLinkerdNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name   string
 		spec   map[string]any
@@ -60,6 +61,7 @@ func TestLinkerdNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 // The aggregate gate is unchanged by this route: even a scoped PASS keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestLinkerdNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	raw := linkerdNativeResource(t, map[string]any{"identities": []any{"spiffe://synthetic.example/id"}}, "private-linkerd-canary")
 	path := writeCNCFFile(t, "linkerd-pass.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, linkerdNativeArgs(path, "2.13.7", "2.14.0")...)
@@ -72,6 +74,7 @@ func TestLinkerdNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
 }
 
 func TestLinkerdNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	raw := linkerdNativeResource(t, map[string]any{"identities": []any{}}, "private-linkerd-canary")
 	path := writeCNCFFile(t, "linkerd.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, linkerdNativeArgs(path, "2.13.7", "2.14.1")...)
@@ -85,6 +88,7 @@ func TestLinkerdNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T)
 }
 
 func TestLinkerdNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	raw := linkerdNativeResource(t, map[string]any{"identities": []any{}}, "private-linkerd-canary")
 	path := writeCNCFFile(t, "linkerd.json", raw, 0o600)
 	other := linkerdNativeResource(t, map[string]any{"identities": []any{"spiffe://synthetic.example/id"}}, "other")
@@ -96,6 +100,7 @@ func TestLinkerdNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
 }
 
 func TestLinkerdPrepareFeedsNativeCheckEquivalently(t *testing.T) {
+	t.Parallel()
 	raw := linkerdNativeResource(t, map[string]any{"identities": []any{}}, "private-linkerd-canary")
 	path := writeCNCFFile(t, "linkerd.json", raw, 0o600)
 	code, canonical, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "linkerd", "--input", path, "--from", "2.13.7", "--to", "2.14.0", "--distribution", "official_upstream", "--schema-validation", "required", "--format", "input")

@@ -27,6 +27,7 @@ func inTotoRawArgs(path, from, to, format string) []string {
 }
 
 func TestInTotoRunRawArgvEditAndRepeat(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "operator-argv.json")
 	writeInTotoArgv(t, path, "--key", "BEFORE", "--key", "wrapped", "--", "later")
@@ -53,6 +54,7 @@ func TestInTotoRunRawArgvEditAndRepeat(t *testing.T) {
 }
 
 func TestInTotoRunRawUnknownAndModeGuards(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "argv.json")
 	raw := writeInTotoArgv(t, path, "--key", "PRIVATE")

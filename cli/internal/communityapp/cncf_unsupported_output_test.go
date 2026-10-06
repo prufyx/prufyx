@@ -15,6 +15,7 @@ import (
 // report holds an UNSUPPORTED claim, and the claim line carries the rule's
 // next action.
 func TestUnsupportedHumanOutput(t *testing.T) {
+	t.Parallel()
 	unsupported := constraintengine.Claim{RuleID: "cert-manager.k8s-support.1-16", Operator: "require_component_version", Status: constraintengine.StatusUnsupported, ReasonCode: "ADDON_KUBERNETES_SUPPORT_RANGE", NextAction: "upgrade cert-manager to a release line that supports the target Kubernetes minor", Severity: constraintengine.SeverityUnsupported}
 	supported := unsupported
 	supported.RuleID, supported.Status = "cert-manager.k8s-support.1-17", "PASS"
@@ -69,6 +70,7 @@ func TestUnsupportedHumanOutput(t *testing.T) {
 // TestCheckHelpExitLegend: the check cncf exit legend names every status
 // that exits 11.
 func TestCheckHelpExitLegend(t *testing.T) {
+	t.Parallel()
 	code, stdout, _ := runCNCFCLI(t, "check", "cncf", "--help")
 	if code != 0 || !strings.Contains(stdout, "11: UNKNOWN, UNSUPPORTED, NO_KNOWN_ISSUE or no rules;") {
 		t.Fatalf("code=%d help:\n%s", code, stdout)

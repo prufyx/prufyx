@@ -85,6 +85,7 @@ func knativeExternalArgs(fixture knativeExternalFixture, service, format string)
 }
 
 func TestKnativeRawExternalKnowledgeIsAuthoritativeAndUsesStableObservation(t *testing.T) {
+	t.Parallel()
 	fixture := makeKnativeExternalFixture(t)
 	dir := t.TempDir()
 	service := filepath.Join(dir, "operator-service.json")
@@ -132,6 +133,7 @@ func TestKnativeRawExternalKnowledgeIsAuthoritativeAndUsesStableObservation(t *t
 }
 
 func TestKnativeRawExternalReplayBindsCanonicalObservationNotRawService(t *testing.T) {
+	t.Parallel()
 	fixture := makeKnativeExternalFixture(t)
 	fixture.importRevision2(t)
 	dir := t.TempDir()
@@ -223,6 +225,7 @@ func assertKnativeExternalJSONRedacted(t *testing.T, output string, paths ...str
 }
 
 func TestKnativeRawExternalModeGuards(t *testing.T) {
+	t.Parallel()
 	fixture := makeKnativeExternalFixture(t)
 	service := filepath.Join(t.TempDir(), "service.json")
 	raw := writeKnativeOperatorService(t, service, "http1", "h2c")

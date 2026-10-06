@@ -34,6 +34,7 @@ func perProjectPackage(t *testing.T, repo *knowledgefixture.ProjectsRepository, 
 }
 
 func TestKnowledgeUpdatePerProjectProfileUsesPerProjectTransport(t *testing.T) {
+	t.Parallel()
 	repo, err := knowledgefixture.NewProjectsRepository(time.Now().UTC().Truncate(time.Second))
 	if err != nil {
 		t.Fatal(err)
@@ -69,6 +70,7 @@ func TestKnowledgeUpdatePerProjectProfileUsesPerProjectTransport(t *testing.T) {
 }
 
 func TestKnowledgeUpdateSingleTargetProfileRejectsPerProjectPackageClearly(t *testing.T) {
+	t.Parallel()
 	artifacts, err := knowledgefixture.GenerateConstraints(time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)

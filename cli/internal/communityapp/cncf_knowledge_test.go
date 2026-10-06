@@ -67,6 +67,7 @@ func externalCLIArgs(fixture externalCLIFixture, input, revision, bundle, receip
 }
 
 func TestExternalCNCFCLIUsesSeparateStoreAndVerifierClock(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	input := writeCNCFFile(t, "empty-input.json", []byte(kyvernoInputFalse), 0o600)
 	args := externalCLIArgs(fixture, input, "1", fixture.manifest.Revisions[0].BundleDigest, fixture.receipt1.TrustReceiptDigest)
@@ -95,6 +96,7 @@ func TestExternalCNCFCLIUsesSeparateStoreAndVerifierClock(t *testing.T) {
 }
 
 func TestExternalCNCFCLIReplayRequiresAllPinsAndExactReport(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	inputRaw := []byte(kyvernoInputFalse)
 	input := writeCNCFFile(t, "replay-input.json", inputRaw, 0o600)
@@ -127,6 +129,7 @@ func TestExternalCNCFCLIReplayRequiresAllPinsAndExactReport(t *testing.T) {
 }
 
 func TestExternalCNCFCLIPrivateInputAndMalformedCanaryStayLocal(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	canary := "PRIVATE-CNCF-SECRET-CANARY-7e1a"
 	malformedRaw := []byte(`{"schema":"prufyx.io/operator-declared-constraint-input/v1alpha1","authority":"OPERATOR_DECLARED_MINIMIZED","secret":"` + canary + `","current":{"components":[]},"proposed":{"components":[]}}`)

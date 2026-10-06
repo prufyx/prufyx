@@ -23,6 +23,7 @@ func kyvernoNativeArgs(path, from, to, distribution string) []string {
 // adapter; this exercises it end to end for the 1.12.5 -> 1.13.0 pair without
 // a separate prepare step.
 func TestKyvernoNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name                 string
 		command, args        []string
@@ -49,6 +50,7 @@ func TestKyvernoNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 // The aggregate gate is unchanged by this route: even a scoped PASS keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestKyvernoNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	raw := kyvernoProposal(t, []string{"reports-controller"}, nil, "private-canary-agg")
 	path := writeCNCFFile(t, "kyverno.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, kyvernoNativeArgs(path, "1.12.5", "1.13.0", "official_upstream")...)
@@ -62,6 +64,7 @@ func TestKyvernoNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
 
 // All five reviewed 1.19.1 origins are routed through the same native path.
 func TestKyvernoNativeCheck_AllLatestOriginsAreRouted(t *testing.T) {
+	t.Parallel()
 	for _, from := range []string{"1.14.5", "1.15.3", "1.16.4", "1.17.2", "1.18.2"} {
 		t.Run(from, func(t *testing.T) {
 			blockedRaw := kyvernoProposal(t, []string{"reports-controller"}, []string{"--reportsChunkSize=16"}, "private-canary-lb-"+from)
@@ -81,6 +84,7 @@ func TestKyvernoNativeCheck_AllLatestOriginsAreRouted(t *testing.T) {
 }
 
 func TestKyvernoNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	raw := kyvernoProposal(t, []string{"reports-controller"}, []string{"--reportsChunkSize=16"}, "private-canary-wr")
 	path := writeCNCFFile(t, "kyverno.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, kyvernoNativeArgs(path, "1.12.5", "1.13.1", "official_upstream")...)
@@ -106,6 +110,7 @@ func TestKyvernoNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T)
 }
 
 func TestKyvernoNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	raw := kyvernoProposal(t, []string{"reports-controller"}, []string{"--reportsChunkSize=16"}, "private-canary-pin")
 	path := writeCNCFFile(t, "kyverno.json", raw, 0o600)
 	otherRaw := kyvernoProposal(t, []string{"reports-controller"}, nil, "private-canary-pin-other")
@@ -117,6 +122,7 @@ func TestKyvernoNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
 }
 
 func TestKyvernoPrepareResourceFeedsNativeCheckEquivalently(t *testing.T) {
+	t.Parallel()
 	raw := kyvernoProposal(t, []string{"reports-controller"}, []string{"--reportsChunkSize=16"}, "private-canary-equiv")
 	path := writeCNCFFile(t, "kyverno.json", raw, 0o600)
 	code, canonical, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "kyverno", "--input", path, "--container", "selected", "--from", "1.12.5", "--to", "1.13.0", "--distribution", "official_upstream", "--format", "input")

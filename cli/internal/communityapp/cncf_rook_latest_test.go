@@ -9,6 +9,7 @@ import (
 )
 
 func TestRookLatestCLIExactEndpointsAndKubernetesMinimum(t *testing.T) {
+	t.Parallel()
 	input := func(from, to, kubernetes string) []byte {
 		dependency := ""
 		if kubernetes != "" {
@@ -63,6 +64,7 @@ func TestRookLatestCLIExactEndpointsAndKubernetesMinimum(t *testing.T) {
 }
 
 func TestRookPreviousExactRoutesRemainAvailable(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		raw    []byte
 		code   int

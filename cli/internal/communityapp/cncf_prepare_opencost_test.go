@@ -9,6 +9,7 @@ import (
 )
 
 func TestOpenCostSourceSelectionPreparationFeedsCNCFRule(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name, current, proposed, status string
 		prepareCode, checkCode          int
@@ -64,6 +65,7 @@ func TestOpenCostSourceSelectionPreparationFeedsCNCFRule(t *testing.T) {
 }
 
 func TestOpenCostPreparationRejectsCrossProjectOptionsBeforeReadingInput(t *testing.T) {
+	t.Parallel()
 	args := []string{"prepare", "cncf", "--project", "opencost", "--input", "/private/not-opened", "--from", "1.119.0", "--to", "1.120.0", "--operation", "configuration-spec-migration"}
 	code, stdout, stderr := runCNCFCLI(t, args...)
 	if code != ExitUsage || stdout != "" || stderr == "" || strings.Contains(stderr, "/private/not-opened") {
@@ -72,6 +74,7 @@ func TestOpenCostPreparationRejectsCrossProjectOptionsBeforeReadingInput(t *test
 }
 
 func TestOpenCostPreparationRejectsInvalidRequiredArgumentsBeforeReadingInput(t *testing.T) {
+	t.Parallel()
 	const privatePath = "/private/opencost-source-must-not-be-opened"
 	tests := [][]string{
 		{"prepare", "cncf", "--project", "opencost", "--from", "1.119.0", "--to", "1.120.0"},
@@ -87,6 +90,7 @@ func TestOpenCostPreparationRejectsInvalidRequiredArgumentsBeforeReadingInput(t 
 }
 
 func TestOpenCostPreparationRejectsMalformedWithoutEcho(t *testing.T) {
+	t.Parallel()
 	const canary = "opencost-private-malformed-canary"
 	raw := []byte(`{"schema":"prufyx.io/opencost-cloud-cost-source-selection/v1alpha1","current":{"cloudCostEnabled":"` + canary + `"},"proposed":{}}`)
 	path := writeCNCFFile(t, canary+".json", raw, 0o600)
@@ -97,6 +101,7 @@ func TestOpenCostPreparationRejectsMalformedWithoutEcho(t *testing.T) {
 }
 
 func TestOpenCostLatestFiveOriginRoutes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name, proposed, status string
 		prepareCode, checkCode int

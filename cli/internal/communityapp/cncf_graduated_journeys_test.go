@@ -29,6 +29,7 @@ type graduatedJourney struct {
 }
 
 func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
+	t.Parallel()
 	journeys := []graduatedJourney{
 		{
 			name:      "Dragonfly manager debug retention",

@@ -10,6 +10,7 @@ import (
 )
 
 func TestEtcdPreparationCLIUsesPrivateMinimizedInput(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"apiVersion":"prufyx.io/etcd-effective-argv/v1alpha1","kind":"EtcdEffectiveArguments","effectiveArgvDeclared":true,"argv":["--name=private-node","--enable-v2=false"]}`)
 	path := writeCNCFFile(t, "etcd-argv.json", raw, 0o600)
 	code, input, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "etcd", "--input", path, "--from", "3.5.17", "--to", "3.6.0", "--format", "input")
@@ -27,6 +28,7 @@ func TestEtcdPreparationCLIUsesPrivateMinimizedInput(t *testing.T) {
 }
 
 func TestEtcdPreparationCLIUnknownDoesNotEmitFalse(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"apiVersion":"prufyx.io/etcd-effective-argv/v1alpha1","kind":"EtcdEffectiveArguments","effectiveArgvDeclared":true,"argv":["--initial-cluster","--enable-v2=true"]}`)
 	path := writeCNCFFile(t, "etcd-unknown.json", raw, 0o600)
 	code, input, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "etcd", "--input", path, "--from", "3.5.17", "--to", "3.6.0", "--format", "input")
@@ -36,6 +38,7 @@ func TestEtcdPreparationCLIUnknownDoesNotEmitFalse(t *testing.T) {
 }
 
 func TestEtcdLatestPreparationCLIAllExactOrigins(t *testing.T) {
+	t.Parallel()
 	for _, from := range []string{"3.6.14", "3.5.33", "3.4.45", "3.3.27", "3.2.32"} {
 		for _, tc := range []struct {
 			name       string
@@ -67,6 +70,7 @@ func TestEtcdLatestPreparationCLIAllExactOrigins(t *testing.T) {
 }
 
 func TestEtcdLatestPreparationCLIUnknownBoundaries(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name     string
 		declared bool

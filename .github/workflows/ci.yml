@@ -38,8 +38,18 @@ jobs:
 
       - name: Test
         working-directory: cli
-        # Some packages exceed go test's default 10-minute limit on hosted runners; communityapp alone takes ~28m (DD-05 will speed it up).
-        run: go test -timeout 60m ./...
+        # Some packages exceed go test's default 10-minute limit on hosted runners; keep the generous limit (the communityapp tests now run in parallel).
+        run: |
+          go test -timeout 60m -covermode=atomic -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out | tail -1
+
+      - name: Upload coverage profile
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-out
+          path: cli/coverage.out
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Check knowledge target sizes
         # Fails when any per-project CNCF knowledge target or the index
@@ -73,6 +83,76 @@ jobs:
               status=1
             fi
           done
+          exit "${status}"
+
+  race:
+    name: Race detector (verdict packages)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Test with the race detector
+        working-directory: cli
+        env:
+          CGO_ENABLED: "1"
+        # Published binaries stay CGO_ENABLED=0; only this job needs cgo for -race.
+        run: |
+          go test -race -timeout 60m \
+            ./internal/scanreport/ ./internal/scanrun/ ./internal/cncfcheck/ \
+            ./internal/constraintengine/ ./internal/knowledge/ \
+            ./internal/maintainer/rulecheck/ ./internal/maintainer/knowledgegate/
+
+  staticcheck:
+    name: Staticcheck
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # Advisory until the four existing findings are fixed (separate package);
+    # then drop this line so the job gates merges.
+    continue-on-error: true
+    env:
+      STATICCHECK_VERSION: 2026.2.1
+      STATICCHECK_SHA256: 91186205a78db3f2d40efb3c102749aef66f85c2204793de7488d163b655aa7c
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Install staticcheck
+        # Not vendored (go.mod/go.sum/vendor stay untouched): the release
+        # binary is pinned by version and verified against a hard-coded digest.
+        run: |
+          set -euo pipefail
+          curl -sSLO "https://github.com/dominikh/go-tools/releases/download/${STATICCHECK_VERSION}/staticcheck_linux_amd64.tar.gz"
+          echo "${STATICCHECK_SHA256}  staticcheck_linux_amd64.tar.gz" | sha256sum -c -
+          tar -xzf staticcheck_linux_amd64.tar.gz staticcheck/staticcheck
+          install -m 0755 staticcheck/staticcheck /usr/local/bin/staticcheck
+          rm -rf staticcheck staticcheck_linux_amd64.tar.gz
+          staticcheck -version
+
+      - name: Staticcheck (SA checks, default and parityreview tags)
+        working-directory: cli
+        env:
+          GOWORK: "off"
+          GOPROXY: "off"
+          GOSUMDB: "off"
+          GOFLAGS: -mod=vendor -buildvcs=false
+        run: |
+          status=0
+          staticcheck -checks='SA*' ./... || status=1
+          staticcheck -checks='SA*' -tags parityreview ./... || status=1
           exit "${status}"
 
   gitleaks:

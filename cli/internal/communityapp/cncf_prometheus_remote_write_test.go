@@ -11,6 +11,7 @@ import (
 )
 
 func TestPrometheusRemoteWriteHTTP2CheckedInExamples(t *testing.T) {
+	t.Parallel()
 	for name, want := range map[string]struct {
 		code   int
 		status string
@@ -39,6 +40,7 @@ func prometheusRemoteWriteArgs(path string) []string {
 }
 
 func TestPrometheusRemoteWriteHTTP2PublicCheckAndPrepareParity(t *testing.T) {
+	t.Parallel()
 	raw := []byte("global:\n  scrape_interval: 30s\nremote_write:\n  - name: primary-private-canary\n    url: https://PRIVATE-ENDPOINT-CANARY.invalid/write\n")
 	path := writeCNCFFile(t, "PRIVATE-PATH-CANARY.yml", raw, 0o600)
 	common := prometheusRemoteWriteArgs(path)
@@ -73,6 +75,7 @@ func TestPrometheusRemoteWriteHTTP2PublicCheckAndPrepareParity(t *testing.T) {
 }
 
 func TestPrometheusRemoteWriteHTTP2PublicVerdicts(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name, raw string
 		mutate    func([]string) []string
@@ -109,6 +112,7 @@ func TestPrometheusRemoteWriteHTTP2PublicVerdicts(t *testing.T) {
 }
 
 func TestPrometheusRemoteWriteHTTP2HelpAndSafeFailures(t *testing.T) {
+	t.Parallel()
 	code, stdout, stderr := runCNCFCLI(t, "--help")
 	if code != ExitOK || stderr != "" || !strings.Contains(stdout, "--prometheus-config") || !strings.Contains(stdout, "remote-write-http2-default") {
 		t.Fatalf("root help code=%d stdout=%q stderr=%q", code, stdout, stderr)

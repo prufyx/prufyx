@@ -32,6 +32,7 @@ func karmadaPreparationArgs(path string) []string {
 }
 
 func TestKarmadaPreparationFeedsOnlyBlockerWitnesses(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name, kind, mode string
 		prepare, check   int
@@ -63,6 +64,7 @@ func TestKarmadaPreparationFeedsOnlyBlockerWitnesses(t *testing.T) {
 }
 
 func TestKarmadaPreparationFlagsAndInputStayPrivate(t *testing.T) {
+	t.Parallel()
 	path := "/private/karmada-canary.json"
 	for _, args := range [][]string{
 		append(karmadaPreparationArgs(path), "--container", "selected"),
@@ -87,6 +89,7 @@ func TestKarmadaPreparationFlagsAndInputStayPrivate(t *testing.T) {
 }
 
 func TestKarmadaPreparationJSONHumanAndWriteFailures(t *testing.T) {
+	t.Parallel()
 	raw := karmadaPreparationResource(t, "PropagationPolicy", "Immediately", "private-human-karmada")
 	path := writeCNCFFile(t, "karmada.json", raw, 0o600)
 	for _, format := range []string{"json", "human"} {

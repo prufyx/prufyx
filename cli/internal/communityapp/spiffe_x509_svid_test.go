@@ -27,6 +27,7 @@ import (
 )
 
 func TestSPIFFEX509SVIDEmbeddedOwnFileFixAndPrivacy(t *testing.T) {
+	t.Parallel()
 	dir := privateDir(t)
 	certPath := filepath.Join(dir, "private-certificate.pem")
 	writePrivate(t, certPath, makeCertificate(t, "https://private-canary.example/secret", false))
@@ -48,6 +49,7 @@ func TestSPIFFEX509SVIDEmbeddedOwnFileFixAndPrivacy(t *testing.T) {
 }
 
 func TestSPIFFEX509SVIDExternalNoFallbackAdvanceReplayAndPins(t *testing.T) {
+	t.Parallel()
 	artifacts, err := knowledgefixture.GenerateSPIFFEX509SVID(time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
@@ -130,6 +132,7 @@ func assertTreeExcludes(t *testing.T, root string, forbidden []string) {
 }
 
 func TestSPIFFEX509SVIDModeAndFlagBoundaries(t *testing.T) {
+	t.Parallel()
 	dir := privateDir(t)
 	certPath := filepath.Join(dir, "private-certificate.pem")
 	writePrivate(t, certPath, makeCertificate(t, "spiffe://example.org/workload", false))

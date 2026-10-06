@@ -19,6 +19,7 @@ func spireNativeArgs(path string) []string {
 }
 
 func TestSpireNativeArgvCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, raw, reason string
 		want              int
@@ -47,6 +48,7 @@ func TestSpireNativeArgvCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 // The aggregate gate is unchanged by this route: even a scoped PASS keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestSpireNativeArgvCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "spire.json", []byte(spireCleanArgvInput), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, spireNativeArgs(path)...)
 	if code != ExitOK || stderr != "" || !strings.Contains(stdout, `"status":"PASS"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
@@ -58,6 +60,7 @@ func TestSpireNativeArgvCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
 }
 
 func TestSpireNativeArgvCheck_CustomBuildAndMissingDistributionStayUnknown(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "spire.json", []byte(spireRemovedArgvInput), 0o600)
 	for _, test := range []struct {
 		name string
@@ -86,6 +89,7 @@ func TestSpireNativeArgvCheck_CustomBuildAndMissingDistributionStayUnknown(t *te
 }
 
 func TestSpireNativeArgvCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "spire.json", []byte(spireRemovedArgvInput), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "spire", "--spire-entry-argv", path, "--spire-distribution", "official_upstream", "--from", "1.10.4", "--to", "1.12.0", "--now", "2026-09-18T10:00:00Z", "--format", "json")
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "RULE_TRANSITION_NOT_REVIEWED") {
@@ -106,6 +110,7 @@ func TestSpireNativeArgvCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.
 }
 
 func TestSpireNativeArgvCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "spire.json", []byte(spireRemovedArgvInput), 0o600)
 	args := append(spireNativeArgs(path), "--spire-entry-argv-digest", cncfDigest([]byte(spireCleanArgvInput)))
 	code, stdout, stderr := runCNCFCLI(t, args...)
@@ -115,6 +120,7 @@ func TestSpireNativeArgvCheck_RejectsIntegrityPinMismatch(t *testing.T) {
 }
 
 func TestSpirePrepareArgvFeedsCheck(t *testing.T) {
+	t.Parallel()
 	raw := []byte(spireRemovedArgvInput)
 	path := writeCNCFFile(t, "spire.json", raw, 0o600)
 	code, canonical, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "spire", "--spire-entry-argv", path, "--spire-entry-argv-digest", cncfDigest(raw), "--from", "1.10.4", "--to", "1.11.0", "--spire-distribution", "official_upstream", "--format", "input")

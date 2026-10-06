@@ -36,6 +36,7 @@ func linkerdPreparationBaseArgs(path, from, to string) []string {
 }
 
 func TestLinkerdPreparationFeedsScopedCheckAndRetainsUnknowns(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		spec    map[string]any
@@ -67,6 +68,7 @@ func TestLinkerdPreparationFeedsScopedCheckAndRetainsUnknowns(t *testing.T) {
 }
 
 func TestLinkerdPreparationGuardAndEndpointStates(t *testing.T) {
+	t.Parallel()
 	raw := linkerdPreparationResource(t, map[string]any{"identities": []any{"synthetic"}}, "private")
 	for _, tc := range []struct {
 		name, from, to, distribution, schema string
@@ -104,6 +106,7 @@ func TestLinkerdPreparationGuardAndEndpointStates(t *testing.T) {
 }
 
 func TestLinkerdPreparationRejectsCrossProjectFlagsBeforeOpeningInput(t *testing.T) {
+	t.Parallel()
 	// The input path is deliberately absent: project-specific argument errors
 	// must be reported before any private file admission is attempted.
 	path := "/private/canary/linkerd.json"
@@ -127,6 +130,7 @@ func TestLinkerdPreparationRejectsCrossProjectFlagsBeforeOpeningInput(t *testing
 }
 
 func TestLinkerdPreparationRejectsMalformedInputWithoutCanary(t *testing.T) {
+	t.Parallel()
 	raw := linkerdPreparationResource(t, map[string]any{"identities": []any{}, "identityRefs": []any{"wrong"}}, "private-malformed-linkerd")
 	path := writeCNCFFile(t, "linkerd-invalid.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, append(linkerdPreparationArgs(path), "--format", "json")...)
@@ -136,6 +140,7 @@ func TestLinkerdPreparationRejectsMalformedInputWithoutCanary(t *testing.T) {
 }
 
 func TestLinkerdPreparationHumanOmissionAndIntegrityCode(t *testing.T) {
+	t.Parallel()
 	raw := linkerdPreparationResource(t, map[string]any{"identities": []any{"synthetic"}}, "private-human-linkerd")
 	path := writeCNCFFile(t, "linkerd-human.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, append(linkerdPreparationArgs(path), "--format", "human")...)

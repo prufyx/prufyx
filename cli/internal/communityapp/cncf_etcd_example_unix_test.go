@@ -14,6 +14,7 @@ import (
 )
 
 func TestSyntheticEtcdWalkthrough(t *testing.T) {
+	t.Parallel()
 	_, file, _, ok := goruntime.Caller(0)
 	if !ok {
 		t.Fatal("resolve etcd walkthrough source location")

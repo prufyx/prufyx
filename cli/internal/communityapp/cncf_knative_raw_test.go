@@ -51,6 +51,7 @@ func knativeRawReviewArgs(path, from, to, format string) []string {
 }
 
 func TestKnativeRawServiceReviewSupportsEditAndRepeatWithoutIntermediateFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "operator-chosen-service.json")
 	writeKnativeOperatorService(t, path, "http1", "h2c")
@@ -79,6 +80,7 @@ func TestKnativeRawServiceReviewSupportsEditAndRepeatWithoutIntermediateFiles(t 
 }
 
 func TestKnativeRawServiceReviewPreservesUnknownBoundaries(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "service.json")
 	tests := []struct {
@@ -120,6 +122,7 @@ func TestKnativeRawServiceReviewPreservesUnknownBoundaries(t *testing.T) {
 }
 
 func TestKnativeRawServiceReviewJSONDigestAndModeGuards(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "service.json")
 	raw := writeKnativeOperatorService(t, path, "h2c", "http1")

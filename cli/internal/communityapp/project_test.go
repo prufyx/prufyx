@@ -11,6 +11,7 @@ import (
 )
 
 func TestProjectCLIEndToEndAndPrivacy(t *testing.T) {
+	t.Parallel()
 	now := "2026-09-12T00:00:00Z"
 	for _, tc := range []struct {
 		name, project, from, to, body string
@@ -42,6 +43,7 @@ func TestProjectCLIEndToEndAndPrivacy(t *testing.T) {
 }
 
 func TestProjectCLILokiPinnedSourcesAndScopedOutput(t *testing.T) {
+	t.Parallel()
 	path := writePrivateProjectFixture(t, "compactor:\n  shared_store_key_prefix: private-index/\n")
 	var stdout, stderr bytes.Buffer
 	exit := Run(t.Context(), []string{"check", "project", "--project", "loki", "--effective-config", path, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T00:00:00Z"}, &stdout, &stderr, "test")
@@ -64,6 +66,7 @@ func TestProjectCLILokiPinnedSourcesAndScopedOutput(t *testing.T) {
 }
 
 func TestProjectCLILokiExamples(t *testing.T) {
+	t.Parallel()
 	for name, want := range map[string]int{"broken.yml": ExitBlocked, "fixed.yml": ExitOK, "unknown.yml": ExitUnknown} {
 		raw, err := os.ReadFile(filepath.Join("..", "..", "examples", "projects", "loki", name))
 		if err != nil {
@@ -79,6 +82,7 @@ func TestProjectCLILokiExamples(t *testing.T) {
 }
 
 func TestProjectCLILokiStructuredMetadataRoute(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name, body string
 		want       int
@@ -133,6 +137,7 @@ func TestProjectCLILokiStructuredMetadataRoute(t *testing.T) {
 }
 
 func TestProjectCLILokiStructuredMetadataExamples(t *testing.T) {
+	t.Parallel()
 	for name, want := range map[string]int{"schema-structured-broken.yml": ExitBlocked, "schema-structured-fixed.yml": ExitOK, "schema-structured-unknown.yml": ExitUnknown} {
 		raw, err := os.ReadFile(filepath.Join("..", "..", "examples", "projects", "loki", name))
 		if err != nil {
@@ -148,6 +153,7 @@ func TestProjectCLILokiStructuredMetadataExamples(t *testing.T) {
 }
 
 func TestProjectCLILokiRejectsConflictingModeAndDigest(t *testing.T) {
+	t.Parallel()
 	path := writePrivateProjectFixture(t, "compactor:\n  working_directory: /var/loki\n")
 	for _, extra := range [][]string{{"--knowledge-db", "store"}, {"--profile", "cncf"}, {"--workload", path}, {"--effective-config-digest="}} {
 		args := []string{"check", "project", "--project", "loki", "--effective-config", path, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T00:00:00Z"}
@@ -165,6 +171,7 @@ func TestProjectCLILokiRejectsConflictingModeAndDigest(t *testing.T) {
 }
 
 func TestProjectCLIRejectsExternalSelectorsAndUnsafeFiles(t *testing.T) {
+	t.Parallel()
 	path := writePrivateProjectFixture(t, "[alerting]\nenabled=false\n")
 	for _, extra := range [][]string{{"--knowledge-db", "store"}, {"--profile", "cncf"}, {"--replay-report", "receipt"}, {"--effective-config", path}} {
 		args := []string{"check", "project", "--project", "grafana", "--effective-config", path, "--from", "10.4.0", "--to", "11.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-11T20:00:00Z"}
@@ -221,6 +228,7 @@ func TestProjectCLIRejectsExternalSelectorsAndUnsafeFiles(t *testing.T) {
 }
 
 func TestProjectCLIHelpAndPreparation(t *testing.T) {
+	t.Parallel()
 	path := writePrivateProjectFixture(t, "xpack.reporting.roles.allow: [reporting_user]\n")
 	var stdout, stderr bytes.Buffer
 	if exit := Run(t.Context(), []string{"prepare", "project", "--project", "kibana", "--effective-config", path, "--from", "8.18.0", "--to", "9.0.0", "--effective-config-complete", "--precedence-resolved", "--format", "input"}, &stdout, &stderr, "test"); exit != ExitOK {
@@ -237,6 +245,7 @@ func TestProjectCLIHelpAndPreparation(t *testing.T) {
 }
 
 func TestProjectCLIHumanShowsPinnedSourcesWithoutPrivateInput(t *testing.T) {
+	t.Parallel()
 	path := writePrivateProjectFixture(t, "xpack.reporting.roles.allow: [private-role]\n")
 	var stdout, stderr bytes.Buffer
 	exit := Run(t.Context(), []string{"check", "project", "--project", "kibana", "--effective-config", path, "--from", "8.18.0", "--to", "9.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-11T20:00:00Z"}, &stdout, &stderr, "test")
@@ -256,6 +265,7 @@ func TestProjectCLIHumanShowsPinnedSourcesWithoutPrivateInput(t *testing.T) {
 }
 
 func TestProjectCLIUnreviewedTransitionIsExplicitUnknown(t *testing.T) {
+	t.Parallel()
 	path := writePrivateProjectFixture(t, "server.host: private-host\n")
 	var stdout, stderr bytes.Buffer
 	exit := Run(t.Context(), []string{"check", "project", "--project", "kibana", "--effective-config", path, "--from", "8.17.0", "--to", "9.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-11T20:00:00Z"}, &stdout, &stderr, "test")
@@ -274,6 +284,7 @@ func writePrivateProjectFixture(t *testing.T, body string) string {
 }
 
 func TestProjectCLILatestGrafanaAndKibanaScopes(t *testing.T) {
+	t.Parallel()
 	grafanaBlocked := writePrivateProjectFixture(t, "[alerting]\nenabled = true\n")
 	grafanaFixed := writePrivateProjectFixture(t, "[unified_alerting]\nenabled = true\n")
 	for _, from := range []string{"12.2.10", "12.3.11", "12.4.10", "13.0.8", "13.1.5"} {

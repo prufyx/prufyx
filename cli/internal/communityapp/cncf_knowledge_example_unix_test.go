@@ -14,6 +14,7 @@ import (
 )
 
 func TestSyntheticCNCFKnowledgeWalkthrough(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	_, file, _, ok := goruntime.Caller(0)
 	if !ok {

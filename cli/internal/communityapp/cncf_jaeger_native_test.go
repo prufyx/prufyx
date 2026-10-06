@@ -37,6 +37,7 @@ func jaegerNativeArgs(path, from, to string, nonMemory, official string) []strin
 // true and the config is definitely absent; declared presence yields a
 // genuine positive-witness PASS, never a negative-presence one.
 func TestJaegerNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	const canary = "private-jaeger-native-canary-9c31"
 	for _, test := range []struct {
 		name, configArg, nonMemory, official, reason string
@@ -60,6 +61,7 @@ func TestJaegerNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 // The aggregate gate is unchanged by this route: even a scoped PASS keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestJaegerNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	raw := jaegerNativeDeclaration("/etc/jaeger/config.yaml")
 	path := writeCNCFFile(t, "jaeger.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, jaegerNativeArgs(path, "1.76.0", "2.20.0", "true", "true")...)
@@ -74,6 +76,7 @@ func TestJaegerNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
 // All five reviewed 2.20.0 target-only origins are routed through the same
 // native path.
 func TestJaegerNativeCheck_AllTargetOriginsAreRouted(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct{ from, ruleID string }{
 		{"2.15.1", "jaeger.explicit-config-required-for-non-memory.target.2-15-to-2-20"},
 		{"2.16.0", "jaeger.explicit-config-required-for-non-memory.target.2-16-to-2-20"},
@@ -93,6 +96,7 @@ func TestJaegerNativeCheck_AllTargetOriginsAreRouted(t *testing.T) {
 }
 
 func TestJaegerNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	raw := jaegerNativeDeclaration("/etc/jaeger/config.yaml")
 	path := writeCNCFFile(t, "jaeger.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, jaegerNativeArgs(path, "1.76.0", "2.20.1", "true", "true")...)
@@ -114,6 +118,7 @@ func TestJaegerNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) 
 }
 
 func TestJaegerNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	raw := jaegerNativeDeclaration("/etc/jaeger/config.yaml")
 	path := writeCNCFFile(t, "jaeger.json", raw, 0o600)
 	otherRaw := jaegerNativeDeclaration("/etc/jaeger/other.yaml")
@@ -125,6 +130,7 @@ func TestJaegerNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
 }
 
 func TestJaegerPrepareFeedsNativeCheckEquivalently(t *testing.T) {
+	t.Parallel()
 	raw := jaegerNativeDeclaration("/etc/jaeger/config.yaml")
 	path := writeCNCFFile(t, "jaeger.json", raw, 0o600)
 	code, canonical, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "jaeger", "--input", path, "--from", "1.76.0", "--to", "2.20.0", "--non-memory-storage-required", "true", "--official-jaeger-distribution", "true", "--format", "input")

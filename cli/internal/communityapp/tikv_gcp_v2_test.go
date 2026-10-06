@@ -20,6 +20,7 @@ const tikvArgsTarget = "8.5.8"
 const tikvArgsOperation = "gcs-full-backup-wif"
 
 func TestTiKVGCPV2WIFBackupOwnFileFixAndPrivacy(t *testing.T) {
+	t.Parallel()
 	dir := privateDir(t)
 	configPath := filepath.Join(dir, "private-tikv.toml")
 	before := []byte("[backup]\ngcp-v2-enable = false\n[server]\naddr = 'PRIVATE-CANARY'\n")
@@ -48,6 +49,7 @@ func TestTiKVGCPV2WIFBackupOwnFileFixAndPrivacy(t *testing.T) {
 }
 
 func TestTiKVGCPV2WIFBackupExternalNoFallbackAdvanceReplay(t *testing.T) {
+	t.Parallel()
 	artifacts, err := knowledgefixture.GenerateTiKVGCPV2WIFBackup(time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
@@ -105,6 +107,7 @@ func TestTiKVGCPV2WIFBackupExternalNoFallbackAdvanceReplay(t *testing.T) {
 }
 
 func TestTiKVGCPV2WIFBackupModeAndInputBoundaries(t *testing.T) {
+	t.Parallel()
 	dir := privateDir(t)
 	p := filepath.Join(dir, "tikv.toml")
 	writePrivate(t, p, []byte("[backup]\ngcp-v2-enable=true\n"))

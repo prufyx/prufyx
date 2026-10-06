@@ -67,6 +67,7 @@ func kubeflowExternalArgs(t *testing.T, f kubeflowExternalFixture, path, from, t
 }
 
 func TestKubeflowKFPRawExternalAuthorityAndHistoricalReplay(t *testing.T) {
+	t.Parallel()
 	f := makeKubeflowExternalFixture(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "component.py")

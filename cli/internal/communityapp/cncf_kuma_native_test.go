@@ -19,6 +19,7 @@ func kumaNativeArgs(path string) []string {
 }
 
 func TestKumaNativeArgvCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, raw, reason string
 		want              int
@@ -46,6 +47,7 @@ func TestKumaNativeArgvCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 // The aggregate gate is unchanged by this route: even a scoped PASS keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestKumaNativeArgvCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "kuma.json", []byte(kumaCleanArgvInput), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, kumaNativeArgs(path)...)
 	if code != ExitOK || stderr != "" || !strings.Contains(stdout, `"status":"PASS"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
@@ -57,6 +59,7 @@ func TestKumaNativeArgvCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
 }
 
 func TestKumaNativeArgvCheck_CustomBuildAndMissingDistributionStayUnknown(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "kuma.json", []byte(kumaRemovedArgvInput), 0o600)
 	for _, test := range []struct {
 		name string
@@ -85,6 +88,7 @@ func TestKumaNativeArgvCheck_CustomBuildAndMissingDistributionStayUnknown(t *tes
 }
 
 func TestKumaNativeArgvCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "kuma.json", []byte(kumaRemovedArgvInput), 0o600)
 	args := kumaNativeArgs(path)
 	for index := range args {
@@ -115,6 +119,7 @@ func TestKumaNativeArgvCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T
 }
 
 func TestKumaNativeArgvCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "kuma.json", []byte(kumaRemovedArgvInput), 0o600)
 	args := append(kumaNativeArgs(path), "--kumactl-argv-digest", cncfDigest([]byte(kumaCleanArgvInput)))
 	code, stdout, stderr := runCNCFCLI(t, args...)
@@ -124,6 +129,7 @@ func TestKumaNativeArgvCheck_RejectsIntegrityPinMismatch(t *testing.T) {
 }
 
 func TestKumaPrepareArgvFeedsCheck(t *testing.T) {
+	t.Parallel()
 	raw := []byte(kumaRemovedArgvInput)
 	path := writeCNCFFile(t, "kuma.json", raw, 0o600)
 	code, canonical, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "kuma", "--kumactl-argv", path, "--kumactl-argv-digest", cncfDigest(raw), "--from", "2.8.0", "--to", "2.9.0", "--kuma-distribution", "official_upstream", "--format", "input")

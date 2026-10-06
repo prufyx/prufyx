@@ -16,6 +16,7 @@ func openFGAPreparationArgs(path string, complete bool) []string {
 }
 
 func TestOpenFGAEffectiveConfigPreparationFeedsScopedCheck(t *testing.T) {
+	t.Parallel()
 	const canary = "openfga-private-canary-91d2"
 	missing := []byte(`{"authn":{"method":"oidc","oidc":{"audience":"aud"}},"unrelated":{"private":"` + canary + `"}}`)
 	missingPath := writeCNCFFile(t, "openfga-missing.json", missing, 0o600)
@@ -43,6 +44,7 @@ func TestOpenFGAEffectiveConfigPreparationFeedsScopedCheck(t *testing.T) {
 }
 
 func TestOpenFGAIncompleteAndCrossProjectFlagStayUnknownOrRejected(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"authn":{"method":"oidc","oidc":{"issuer":"issuer","audience":"aud"}}}`)
 	path := writeCNCFFile(t, "openfga-incomplete.json", raw, 0o600)
 	code, input, stderr := runCNCFCLI(t, openFGAPreparationArgs(path, false)...)

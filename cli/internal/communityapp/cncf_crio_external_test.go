@@ -66,6 +66,7 @@ func crioExternalArgs(f crioExternalFixture, path, from, to, format string) []st
 }
 
 func TestCRIOArtifactNameRawExternalAuthorityAndHistoricalReplay(t *testing.T) {
+	t.Parallel()
 	f := makeCRIOExternalFixture(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "image-status-request.json")

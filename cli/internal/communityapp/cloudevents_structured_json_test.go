@@ -17,6 +17,7 @@ import (
 )
 
 func TestCloudEventsStructuredJSONOwnFileFixAndPrivacy(t *testing.T) {
+	t.Parallel()
 	dir := privateDir(t)
 	eventPath := filepath.Join(dir, "private-event.json")
 	writePrivate(t, eventPath, []byte(`{"specversion":"1.0","id":"PRIVATE-ID-CANARY","source":"PRIVATE-SOURCE-CANARY","data":{"PRIVATE-DATA-CANARY":true}}`))
@@ -39,6 +40,7 @@ func TestCloudEventsStructuredJSONOwnFileFixAndPrivacy(t *testing.T) {
 }
 
 func TestCloudEventsStructuredJSONExternalNoFallbackAdvanceReplay(t *testing.T) {
+	t.Parallel()
 	artifacts, err := knowledgefixture.GenerateCloudEventsStructuredJSON(time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
@@ -95,6 +97,7 @@ func TestCloudEventsStructuredJSONExternalNoFallbackAdvanceReplay(t *testing.T) 
 }
 
 func TestCloudEventsStructuredJSONModeAndInputBoundaries(t *testing.T) {
+	t.Parallel()
 	dir := privateDir(t)
 	eventPath := filepath.Join(dir, "event.json")
 	writePrivate(t, eventPath, []byte(`{"specversion":"1.0","id":"a","source":"x","type":"t"}`))
@@ -125,6 +128,7 @@ func cloudEventsTestDigest(raw []byte) string {
 }
 
 func TestCloudEventsInputRemainsUnchanged(t *testing.T) {
+	t.Parallel()
 	dir := privateDir(t)
 	p := filepath.Join(dir, "event.json")
 	raw := []byte(`{"specversion":"1.0","id":"a","source":"x","type":"t"}`)

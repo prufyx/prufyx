@@ -19,6 +19,7 @@ func crossplaneNativeArgs(path string) []string {
 }
 
 func TestCrossplaneNativeCompositionCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, raw, reason string
 		want              int
@@ -45,6 +46,7 @@ func TestCrossplaneNativeCompositionCheck_BoundedOutcomesAndPrivacy(t *testing.T
 // The aggregate gate is unchanged by this route: even a scoped PASS keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestCrossplaneNativeCompositionCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "crossplane.json", []byte(crossplanePipelineCompositionResource), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, crossplaneNativeArgs(path)...)
 	if code != ExitOK || stderr != "" || !strings.Contains(stdout, `"status":"PASS"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
@@ -56,6 +58,7 @@ func TestCrossplaneNativeCompositionCheck_KeepsWholeUpgradeAggregateUnknown(t *t
 }
 
 func TestCrossplaneNativeCompositionCheck_CustomBuildAndUndeclaredIntentStayUnknown(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "crossplane.json", []byte(crossplaneResourcesCompositionResource), 0o600)
 	for _, test := range []struct {
 		name   string
@@ -88,6 +91,7 @@ func TestCrossplaneNativeCompositionCheck_CustomBuildAndUndeclaredIntentStayUnkn
 }
 
 func TestCrossplaneNativeCompositionCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	selected := writeCNCFFile(t, "crossplane.json", []byte(`{"apiVersion":"apiextensions.crossplane.io/v1","kind":"Composition","metadata":{"name":"a"},"spec":{"mode":"Resources"}}`), 0o600)
 	args := crossplaneNativeArgs(selected)
 	for index := range args {
@@ -114,6 +118,7 @@ func TestCrossplaneNativeCompositionCheck_RejectsMalformedWrongPairAndWrongRoute
 }
 
 func TestCrossplaneNativeCompositionCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	raw := []byte(crossplaneResourcesCompositionResource)
 	path := writeCNCFFile(t, "crossplane.json", raw, 0o600)
 	args := append(crossplaneNativeArgs(path), "--composition-digest", cncfDigest([]byte(crossplanePipelineCompositionResource)))
@@ -124,6 +129,7 @@ func TestCrossplaneNativeCompositionCheck_RejectsIntegrityPinMismatch(t *testing
 }
 
 func TestCrossplanePrepareCompositionFeedsCheck(t *testing.T) {
+	t.Parallel()
 	raw := []byte(crossplaneResourcesCompositionResource)
 	path := writeCNCFFile(t, "crossplane.json", raw, 0o600)
 	code, canonical, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "crossplane", "--composition", path, "--composition-digest", cncfDigest(raw), "--from", "1.20.0", "--to", "2.0.0", "--crossplane-distribution", "official_upstream", "--crossplane-schema-validation-required", "--format", "input")

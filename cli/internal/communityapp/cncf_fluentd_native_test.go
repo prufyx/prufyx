@@ -26,6 +26,7 @@ func fluentdNativeArgs(path, from, to string) []string {
 // adapter (shape-dispatched by PrepareFluentD) for the Ruby-minimum rules;
 // this exercises both shapes end to end without a separate prepare step.
 func TestFluentDNativeCheck_RubyTargetBoundedOutcomes(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, status, reason string
 		distribution         string
@@ -55,6 +56,7 @@ func TestFluentDNativeCheck_RubyTargetBoundedOutcomes(t *testing.T) {
 // The aggregate gate is unchanged by this route: even a scoped PASS keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestFluentDNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	raw := fluentdRubyTargetInput("official_upstream", "3.2.0", true)
 	path := writeCNCFFile(t, "fluentd-ruby.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, fluentdNativeArgs(path, "1.18.0", "1.19.3")...)
@@ -69,6 +71,7 @@ func TestFluentDNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
 // All five reviewed 1.19.3 target-only origins, plus the separate direct
 // 1.16.0 to 1.17.0 rule, are routed through the same native path.
 func TestFluentDNativeCheck_AllReviewedPairsAreRouted(t *testing.T) {
+	t.Parallel()
 	for _, pair := range []struct{ from, to string }{
 		{"1.14.6", "1.19.3"},
 		{"1.15.3", "1.19.3"},
@@ -96,6 +99,7 @@ func TestFluentDNativeCheck_AllReviewedPairsAreRouted(t *testing.T) {
 // shape (current/proposed selected values), unchanged by the new
 // distribution/rubyVersion shape added to the same PrepareFluentD dispatcher.
 func TestFluentDNativeCheck_LiteralTreatmentShapeStillRoutes(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"current":"{\"path\":\"plain\"}","proposed":"{\"path\":\"plain\"}","selectedValueComplete":true,"currentDefaultUsed":true,"preserveLiteralTreatment":true}`)
 	path := writeCNCFFile(t, "fluentd-literal.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, fluentdNativeArgs(path, "1.17.1", "1.18.0")...)
@@ -105,6 +109,7 @@ func TestFluentDNativeCheck_LiteralTreatmentShapeStillRoutes(t *testing.T) {
 }
 
 func TestFluentDNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "fluentd-ruby.json", fluentdRubyTargetInput("official_upstream", "3.1.0", true), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, fluentdNativeArgs(path, "1.18.0", "1.19.4")...)
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
@@ -117,6 +122,7 @@ func TestFluentDNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T)
 }
 
 func TestFluentDNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "fluentd-ruby.json", fluentdRubyTargetInput("official_upstream", "3.1.0", true), 0o600)
 	args := append(fluentdNativeArgs(path, "1.18.0", "1.19.3"), "--native-resource-digest", cncfDigest(fluentdRubyTargetInput("official_upstream", "3.2.0", true)))
 	code, stdout, stderr := runCNCFCLI(t, args...)
@@ -126,6 +132,7 @@ func TestFluentDNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
 }
 
 func TestFluentDPrepareFeedsNativeCheckEquivalently(t *testing.T) {
+	t.Parallel()
 	raw := fluentdRubyTargetInput("official_upstream", "3.1.0", true)
 	path := writeCNCFFile(t, "fluentd-ruby.json", raw, 0o600)
 	code, canonical, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "fluentd", "--input", path, "--from", "1.18.0", "--to", "1.19.3", "--format", "input")

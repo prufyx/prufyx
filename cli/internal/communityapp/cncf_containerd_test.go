@@ -22,6 +22,7 @@ func containerdCheckArgs(path, handler, now string) []string {
 }
 
 func TestContainerdNativeCheckBlockedPassUnknownAndPrivacy(t *testing.T) {
+	t.Parallel()
 	const (
 		v2Plugin = "io.containerd.grpc.v1.cri"
 		v3Plugin = "io.containerd.cri.v1.runtime"
@@ -70,6 +71,7 @@ func TestContainerdNativeCheckBlockedPassUnknownAndPrivacy(t *testing.T) {
 }
 
 func TestContainerdNativeCheckFreshnessAndPinnedEvidence(t *testing.T) {
+	t.Parallel()
 	raw := containerdNativeTOML("2", "io.containerd.grpc.v1.cri", "selected", "io.containerd.runc.v1", "")
 	path := writeCNCFFile(t, "config.toml", raw, 0o600)
 	activeArgs := append(containerdCheckArgs(path, "selected", "2026-09-12T12:30:00Z"), "--containerd-config-digest", cncfDigest(raw))
@@ -85,6 +87,7 @@ func TestContainerdNativeCheckFreshnessAndPinnedEvidence(t *testing.T) {
 }
 
 func TestContainerdNativeCheckHumanUnsupportedVersionDoesNotClaimAdmission(t *testing.T) {
+	t.Parallel()
 	raw := containerdNativeTOML("1", "io.containerd.grpc.v1.cri", "selected", "io.containerd.runc.v1", "")
 	path := writeCNCFFile(t, "unsupported.toml", raw, 0o600)
 	args := containerdCheckArgs(path, "selected", "2026-09-12T12:30:00Z")
@@ -96,6 +99,7 @@ func TestContainerdNativeCheckHumanUnsupportedVersionDoesNotClaimAdmission(t *te
 }
 
 func TestContainerdNativeCheckRejectsExternalNowBeforePrivateRead(t *testing.T) {
+	t.Parallel()
 	args := []string{"check", "cncf", "--project", "containerd", "--containerd-config", "PRIVATE-NOT-READ.toml", "--runtime-handler", "selected", "--from", "1.7.28", "--to", "2.0.0", "--containerd-config-complete", "--containerd-config-precedence-resolved", "--containerd-official-upstream", "--containerd-official-bundled-runtimes-only", "--knowledge-db", "PRIVATE-NOT-OPENED-STORE", "--now=", "--format", "json"}
 	code, stdout, stderr := runCNCFCLI(t, args...)
 	if code != ExitUsage || stdout != "" || strings.Contains(stderr, "PRIVATE-NOT-READ.toml") || strings.Contains(stderr, "PRIVATE-NOT-OPENED-STORE") {
@@ -104,6 +108,7 @@ func TestContainerdNativeCheckRejectsExternalNowBeforePrivateRead(t *testing.T) 
 }
 
 func TestContainerdPrepareProducesBatchInputAndUnknown(t *testing.T) {
+	t.Parallel()
 	raw := containerdNativeTOML("2", "io.containerd.grpc.v1.cri", "PRIVATE-HANDLER", "io.containerd.runc.v1", "")
 	path := writeCNCFFile(t, "config.toml", raw, 0o600)
 	base := []string{"prepare", "cncf", "--project", "containerd", "--input", path, "--runtime-handler", "PRIVATE-HANDLER", "--from", "1.7.28", "--to", "2.0.0", "--containerd-config-complete", "--containerd-config-precedence-resolved", "--containerd-official-upstream", "--containerd-official-bundled-runtimes-only", "--input-digest", cncfDigest(raw)}
@@ -131,6 +136,7 @@ func TestContainerdPrepareProducesBatchInputAndUnknown(t *testing.T) {
 }
 
 func TestContainerdModesRejectCrossProjectAndExplicitFalseFlags(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "config.toml", containerdNativeTOML("2", "io.containerd.grpc.v1.cri", "selected", "io.containerd.runc.v2", ""), 0o600)
 	for _, args := range [][]string{
 		{"check", "cncf", "--project", "helm", "--input", path, "--runtime-handler", "selected", "--containerd-config-complete=false", "--now", "2026-09-12T12:30:00Z"},
@@ -145,6 +151,7 @@ func TestContainerdModesRejectCrossProjectAndExplicitFalseFlags(t *testing.T) {
 }
 
 func TestContainerdNativeCheckUsesSelectedExternalPackWithoutFallback(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	raw := containerdNativeTOML("2", "io.containerd.grpc.v1.cri", "PRIVATE-HANDLER", "io.containerd.runc.v1", "")
 	path := writeCNCFFile(t, "PRIVATE-containerd.toml", raw, 0o600)

@@ -10,6 +10,7 @@ import (
 )
 
 func TestFluentDLiteralPreparationAndCheckStayPrivateAndFailClosed(t *testing.T) {
+	t.Parallel()
 	canary := "${FLUENTD_PRIVATE_PLACEHOLDER}"
 	raw := []byte(`{"current":"{\"path\":\"` + canary + `\"}","proposed":"{\"path\":\"` + canary + `\"}","selectedValueComplete":true,"currentDefaultUsed":true,"preserveLiteralTreatment":true}`)
 	path := writeCNCFFile(t, "fluentd-expansion.json", raw, 0o600)
@@ -26,6 +27,7 @@ func TestFluentDLiteralPreparationAndCheckStayPrivateAndFailClosed(t *testing.T)
 }
 
 func TestFluentDLiteralCLIReportsPassAndBlockedForSupportedLiterals(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name, current  string
 		prepare, check int
@@ -55,6 +57,7 @@ func TestFluentDLiteralCLIReportsPassAndBlockedForSupportedLiterals(t *testing.T
 }
 
 func TestFluentDLiteralPreparationRejectsInvalidUTF8AndDigest(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"current":"{\"path\":\"plain\"}","proposed":"{\"path\":\"plain\"}","selectedValueComplete":true,"currentDefaultUsed":true,"preserveLiteralTreatment":true}`)
 	path := writeCNCFFile(t, "fluentd-valid.json", raw, 0o600)
 	base := []string{"prepare", "cncf", "--project", "fluentd", "--input", path, "--from", "1.17.1", "--to", "1.18.0", "--format", "input"}

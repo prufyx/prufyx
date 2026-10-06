@@ -41,6 +41,7 @@ func karmadaNativeArgs(path, from, to string) []string {
 // Karmada can witness a legacy purgeMode blocker but never proves aggregate
 // absence, so it never emits a PASS.
 func TestKarmadaNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, kind, mode, status string
 		want                     int
@@ -64,6 +65,7 @@ func TestKarmadaNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 // The aggregate gate is unchanged by this route: a scoped BLOCKED keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestKarmadaNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	raw := karmadaNativeResource(t, "PropagationPolicy", "Immediately", "private-karmada-canary")
 	path := writeCNCFFile(t, "karmada-blocked.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, karmadaNativeArgs(path, "1.18.3", "1.19.0")...)
@@ -76,6 +78,7 @@ func TestKarmadaNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
 }
 
 func TestKarmadaNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	raw := karmadaNativeResource(t, "PropagationPolicy", "", "private-karmada-canary")
 	path := writeCNCFFile(t, "karmada.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, karmadaNativeArgs(path, "1.18.3", "1.19.1")...)
@@ -89,6 +92,7 @@ func TestKarmadaNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T)
 }
 
 func TestKarmadaNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	raw := karmadaNativeResource(t, "PropagationPolicy", "Immediately", "private-karmada-canary")
 	path := writeCNCFFile(t, "karmada.json", raw, 0o600)
 	other := karmadaNativeResource(t, "PropagationPolicy", "", "other")
@@ -100,6 +104,7 @@ func TestKarmadaNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
 }
 
 func TestKarmadaPrepareFeedsNativeCheckEquivalently(t *testing.T) {
+	t.Parallel()
 	raw := karmadaNativeResource(t, "PropagationPolicy", "Immediately", "private-karmada-canary")
 	path := writeCNCFFile(t, "karmada.json", raw, 0o600)
 	code, canonical, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "karmada", "--input", path, "--from", "1.18.3", "--to", "1.19.0", "--distribution", "official_upstream", "--target-policy-crd-admission", "required", "--format", "input")

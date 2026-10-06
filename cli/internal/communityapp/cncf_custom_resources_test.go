@@ -19,6 +19,7 @@ func customResourceArgs(path string, extra ...string) []string {
 // manifests, prepares the set and stays UNKNOWN, without naming any private
 // value.
 func TestCustomResourceCheckWithoutPublishedRules(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "manifests.yaml", []byte(customResourceManifests), 0o600)
 	for _, format := range []string{"json", "human"} {
 		code, stdout, stderr := runCNCFCLI(t, customResourceArgs(path, "--custom-resources-complete", "--format", format)...)
@@ -39,6 +40,7 @@ func TestCustomResourceCheckWithoutPublishedRules(t *testing.T) {
 }
 
 func TestCustomResourceCheckArguments(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "manifests.yaml", []byte(customResourceManifests), 0o600)
 	for name, args := range map[string][]string{
 		"project without a set":  {"check", "cncf", "--project", "kubernetes", "--custom-resources", path, "--from", "1.30.0", "--to", "1.31.0", "--now", "2026-10-04T00:00:00Z"},
@@ -71,6 +73,7 @@ func TestCustomResourceCheckArguments(t *testing.T) {
 
 // The human set line names why a set is not complete.
 func TestCustomResourceSetLine(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "manifests.yaml", []byte(customResourceManifests+"---\napiVersion: cert-manager.io/v1\nkind: Certificate\nmetadata:\n  name: private-tls\n"), 0o600)
 	code, stdout, _ := runCNCFCLI(t, customResourceArgs(path, "--custom-resources-complete")...)
 	if code != ExitUnknown || !strings.Contains(stdout, "custom-resource set: not complete (objects of a custom-resource group that no reviewed project owns are present)\n") {
@@ -107,6 +110,7 @@ func TestCustomResourceSetLine(t *testing.T) {
 // that object's version as an incomplete set; with no such object no set is
 // declared. Neither ever passes.
 func TestCustomResourceSetBesideUnreadableDocument(t *testing.T) {
+	t.Parallel()
 	templated := "---\napiVersion: v1\nkind: ConfigMap\nmetadata: {name: '{{ .Release.Name }}'}\n"
 	for name, tc := range map[string]struct {
 		manifests, line string

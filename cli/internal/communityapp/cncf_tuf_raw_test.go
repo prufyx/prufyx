@@ -17,6 +17,7 @@ func tufRawArgs(t *testing.T, path, from, to, format string) []string {
 }
 
 func TestTUFUpdaterRawSourceEditAndRepeatWithoutSourceExecution(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "updater.py")
 	canary := filepath.Join(dir, "MUST_NOT_EXIST")
@@ -49,6 +50,7 @@ func TestTUFUpdaterRawSourceEditAndRepeatWithoutSourceExecution(t *testing.T) {
 }
 
 func TestTUFUpdaterRawUnknownPrivacyAndModeGuards(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "updater.py")
 	tests := []struct{ name, source, from, to, category string }{

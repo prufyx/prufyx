@@ -25,6 +25,7 @@ func parsesAsRouteFlags(args ...string) bool {
 }
 
 func TestDeclarationsMapToRouteFlags(t *testing.T) {
+	t.Parallel()
 	if !parsesAsRouteFlags("--native-resource=x") || parsesAsRouteFlags("--no-such-flag-zz") || parsesAsRouteFlags("--no-such-flag-zz=true") {
 		t.Fatal("the flag-parsing probe does not tell an unknown flag from a known route")
 	}

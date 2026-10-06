@@ -43,6 +43,7 @@ func tektonNativeArgs(path, from, to, distribution, namespace, complete, retain 
 // the pinned v1.9 parser plus the v1.10 legacy note establish that
 // metrics.backend-destination is the removed spelling.
 func TestTektonConfigObservabilityNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name   string
 		data   string
@@ -71,6 +72,7 @@ func TestTektonConfigObservabilityNativeCheck_BoundedOutcomesAndPrivacy(t *testi
 // The reviewed _example block is a data value, not a protocol source; it is
 // never scanned.
 func TestTektonConfigObservabilityNativeCheck_IgnoresExampleBlock(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "config-observability-example.yaml", tektonNativeConfigMap(`data:
   metrics-protocol: prometheus
   _example: |
@@ -86,6 +88,7 @@ func TestTektonConfigObservabilityNativeCheck_IgnoresExampleBlock(t *testing.T) 
 // Every guard is a caller declaration; none is inferred, and the identity
 // binding is never assumed.
 func TestTektonConfigObservabilityNativeCheck_GuardsAreNeverInferred(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "config-observability.yaml", tektonNativeConfigMap("data:\n  metrics-protocol: prometheus\n"), 0o600)
 	for _, test := range []struct {
 		name                                      string
@@ -111,6 +114,7 @@ func TestTektonConfigObservabilityNativeCheck_GuardsAreNeverInferred(t *testing.
 // The aggregate gate is unchanged by this route: even a scoped PASS keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestTektonConfigObservabilityNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "config-observability-clean.yaml", tektonNativeConfigMap("data:\n  metrics-protocol: prometheus\n"), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, tektonNativeArgs(path, "1.9.0", "1.10.0", "official_upstream", "private-tekton-pipelines", "true", "true")...)
 	if code != ExitOK || stderr != "" || !strings.Contains(stdout, `"status":"PASS"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
@@ -122,6 +126,7 @@ func TestTektonConfigObservabilityNativeCheck_KeepsWholeUpgradeAggregateUnknown(
 }
 
 func TestTektonConfigObservabilityNativeCheck_RejectsWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "config-observability.yaml", tektonNativeConfigMap("data:\n  metrics-protocol: prometheus\n"), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, tektonNativeArgs(path, "1.9.1", "1.10.0", "official_upstream", "private-tekton-pipelines", "true", "true")...)
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
@@ -138,6 +143,7 @@ func TestTektonConfigObservabilityNativeCheck_RejectsWrongPairAndWrongRoute(t *t
 }
 
 func TestTektonConfigObservabilityNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "config-observability.yaml", tektonNativeConfigMap("data:\n  metrics-protocol: grpc\n"), 0o600)
 	args := append(tektonNativeArgs(path, "1.9.0", "1.10.0", "official_upstream", "private-tekton-pipelines", "true", "true"),
 		"--tekton-config-observability-digest", cncfDigest(tektonNativeConfigMap("data:\n  metrics-protocol: prometheus\n")))
@@ -150,6 +156,7 @@ func TestTektonConfigObservabilityNativeCheck_RejectsIntegrityPinMismatch(t *tes
 // The native route and the hand-authored canonical declaration reach the same
 // scoped outcome for the same reviewed rule.
 func TestTektonConfigObservabilityNativeCheckMatchesCanonicalDeclaration(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "config-observability.yaml", tektonNativeConfigMap("data:\n  metrics-protocol: prometheus\n"), 0o600)
 	nativeCode, nativeReport, nativeErr := runCNCFCLI(t, tektonNativeArgs(path, "1.9.0", "1.10.0", "official_upstream", "private-tekton-pipelines", "true", "true")...)
 	if nativeCode != ExitOK || nativeErr != "" || !strings.Contains(nativeReport, `"ruleId":"tekton.metrics-protocol-prometheus.1-10"`) || !strings.Contains(nativeReport, `"status":"PASS"`) {

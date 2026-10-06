@@ -19,6 +19,7 @@ func cloudCustodianNativeArgs(path, from, to string) []string {
 // authors no new compatibility claim: the preparer already existed and
 // evaluated all six reviewed rule pairs before this route was wired.
 func TestCloudCustodianNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, raw, status string
 		want              int
@@ -40,6 +41,7 @@ func TestCloudCustodianNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 // The aggregate gate is unchanged by this route: even a scoped PASS keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestCloudCustodianNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	raw := `{"policies":[{"name":"private-policy","resource":"iam-access-key","filters":[]}]}`
 	path := writeCNCFFile(t, "cloud-custodian-clear.json", []byte(raw), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, cloudCustodianNativeArgs(path, "0.9.50", "0.9.51")...)
@@ -54,6 +56,7 @@ func TestCloudCustodianNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.
 // All five reviewed 0.9.52 latest-target origins are routed through the same
 // native path.
 func TestCloudCustodianNativeCheck_AllLatestOriginsAreRouted(t *testing.T) {
+	t.Parallel()
 	for _, from := range []string{"0.9.47", "0.9.48", "0.9.49", "0.9.50", "0.9.51"} {
 		t.Run(from, func(t *testing.T) {
 			blocked := writeCNCFFile(t, "cloud-custodian-latest-blocked.json", []byte(`{"policies":[{"name":"private-policy","resource":"iam-access-key","filters":[{"type":"json-diff","selector":"previous"}]}]}`), 0o600)
@@ -71,6 +74,7 @@ func TestCloudCustodianNativeCheck_AllLatestOriginsAreRouted(t *testing.T) {
 }
 
 func TestCloudCustodianNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "cloud-custodian.json", []byte(`{"policies":[{"name":"private-policy","resource":"iam-access-key","filters":[]}]}`), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, cloudCustodianNativeArgs(path, "0.9.50", "0.9.53")...)
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
@@ -83,6 +87,7 @@ func TestCloudCustodianNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *tes
 }
 
 func TestCloudCustodianNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "cloud-custodian.json", []byte(`{"policies":[{"name":"private-policy","resource":"iam-access-key","filters":[{"type":"json-diff","selector":"previous"}]}]}`), 0o600)
 	args := append(cloudCustodianNativeArgs(path, "0.9.50", "0.9.51"), "--native-resource-digest", cncfDigest([]byte(`{"policies":[{"name":"private-policy","resource":"iam-access-key","filters":[]}]}`)))
 	code, stdout, stderr := runCNCFCLI(t, args...)
@@ -92,6 +97,7 @@ func TestCloudCustodianNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
 }
 
 func TestCloudCustodianPrepareFeedsNativeCheckEquivalently(t *testing.T) {
+	t.Parallel()
 	raw := `{"policies":[{"name":"private-policy","resource":"iam-access-key","filters":[{"type":"json-diff","selector":"previous"}]}]}`
 	path := writeCNCFFile(t, "cloud-custodian.json", []byte(raw), 0o600)
 	code, canonical, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "cloud-custodian", "--input", path, "--from", "0.9.50", "--to", "0.9.51", "--format", "input")

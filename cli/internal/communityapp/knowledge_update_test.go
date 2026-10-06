@@ -47,6 +47,7 @@ func updateCLIArgs(t *testing.T, store, name string) ([]string, string) {
 }
 
 func TestKnowledgeUpdateChangesCoverageWithOneBinaryAndRetainsExactPackage(t *testing.T) {
+	t.Parallel()
 	artifacts, err := knowledgefixture.GenerateConstraints(time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
@@ -96,6 +97,7 @@ func TestKnowledgeUpdateChangesCoverageWithOneBinaryAndRetainsExactPackage(t *te
 }
 
 func TestKnowledgeUpdateTransportFailurePreservesStoreAndRemovesOutput(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	before := snapshotUpdateTree(t, fixture.store)
 	for _, err := range []error{knowledgefetch.ErrTransfer, knowledgefetch.ErrOversized, errors.New("PRIVATE-URL-SECRET")} {
@@ -118,6 +120,7 @@ func TestKnowledgeUpdateTransportFailurePreservesStoreAndRemovesOutput(t *testin
 }
 
 func TestKnowledgeUpdatePartialTrustFailureKeepsRecoveryPackage(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	// A second independently generated fixture tests semantic rejection with
 	// valid TUF signatures. The existing store above also checks isolation.
@@ -152,6 +155,7 @@ func TestKnowledgeUpdatePartialTrustFailureKeepsRecoveryPackage(t *testing.T) {
 }
 
 func TestKnowledgeUpdateRejectsUnsafeArgumentsBeforeFetch(t *testing.T) {
+	t.Parallel()
 	store := filepath.Join(t.TempDir(), "store")
 	if err := os.Mkdir(store, 0o700); err != nil {
 		t.Fatal(err)
@@ -203,6 +207,7 @@ func TestKnowledgeUpdateRejectsUnsafeArgumentsBeforeFetch(t *testing.T) {
 }
 
 func TestKnowledgeUpdateHelpAndContext(t *testing.T) {
+	t.Parallel()
 	var stdout, stderr bytes.Buffer
 	r := runtime{stdout: &stdout, stderr: &stderr}
 	if code := r.databaseUpdateWithFetch(context.Background(), []string{"--help"}, func(context.Context, string) ([]byte, error) { t.Fatal("help fetched"); return nil, nil }); code != ExitOK {
@@ -222,6 +227,7 @@ func TestKnowledgeUpdateHelpAndContext(t *testing.T) {
 }
 
 func TestKnowledgeUpdateReplacementCannotChangeImportedPackage(t *testing.T) {
+	t.Parallel()
 	a, err := knowledgefixture.GenerateConstraints(time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
@@ -262,6 +268,7 @@ func TestKnowledgeUpdateReplacementCannotChangeImportedPackage(t *testing.T) {
 }
 
 func TestKnowledgeUpdateReportsFailedPartialCleanup(t *testing.T) {
+	t.Parallel()
 	if os.Geteuid() == 0 {
 		t.Skip("requires directory permission enforcement for non-root user")
 	}
@@ -293,6 +300,7 @@ func TestKnowledgeUpdateReportsFailedPartialCleanup(t *testing.T) {
 }
 
 func TestKnowledgeUpdateRejectsPhysicalStoreAliases(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	store := filepath.Join(dir, "StoreCase")
 	if err := os.Mkdir(store, 0o700); err != nil {
@@ -312,6 +320,7 @@ func TestKnowledgeUpdateRejectsPhysicalStoreAliases(t *testing.T) {
 }
 
 func TestKnowledgeUpdateRejectsMalformedLocalAssertionsBeforeFetch(t *testing.T) {
+	t.Parallel()
 	base, _ := updateCLIArgs(t, filepath.Join(t.TempDir(), "store"), "out.tar")
 	for _, extra := range [][]string{
 		{"--expected-revision", "00"},

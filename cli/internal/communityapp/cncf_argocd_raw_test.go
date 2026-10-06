@@ -46,6 +46,7 @@ func argoCDRawReviewArgs(path, from, to string, intent *string, format string) [
 }
 
 func TestArgoCDRawConfigReviewSupportsEditAndRepeatWithoutIntermediateFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "operator-chosen-name.json")
 	writeArgoCDOperatorConfig(t, path, "true", true)
@@ -75,6 +76,7 @@ func TestArgoCDRawConfigReviewSupportsEditAndRepeatWithoutIntermediateFiles(t *t
 }
 
 func TestArgoCDRawConfigReviewExplainsUnknownBoundaries(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "argocd-cm.json")
 	trueIntent, falseIntent := "true", "false"
@@ -132,6 +134,7 @@ func TestArgoCDRawConfigReviewExplainsUnknownBoundaries(t *testing.T) {
 }
 
 func TestArgoCDRawConfigReviewPreservesJSONReportAndRejectsMixedModes(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "argocd-cm.json")
 	raw := writeArgoCDOperatorConfig(t, path, "true", true)
@@ -173,6 +176,7 @@ func TestArgoCDRawConfigReviewPreservesJSONReportAndRejectsMixedModes(t *testing
 }
 
 func TestArgoCDRawConfigReviewRequiresCanonicalExplicitTime(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "argocd-cm.json")
 	writeArgoCDOperatorConfig(t, path, "true", true)
 	intent := "true"
@@ -201,6 +205,7 @@ func assertArgoCDRawReviewRedacted(t *testing.T, output, path string) {
 }
 
 func TestArgoCDRawConfigReviewDoesNotChangeExistingCanonicalMode(t *testing.T) {
+	t.Parallel()
 	raw := argoCDPreparationResource(t, "true", true)
 	path := writeCNCFFile(t, "argocd-cm.json", raw, 0o600)
 	preparedCode, input, stderr := runCNCFCLI(t, append(argoCDPreparationArgs(path), "--requires-inherited-application-permissions", "true", "--format", "input")...)
@@ -217,6 +222,7 @@ func TestArgoCDRawConfigReviewDoesNotChangeExistingCanonicalMode(t *testing.T) {
 }
 
 func TestArgoCDRawConfigReviewKeepsOldRuleSealedAtGenericClock(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "argocd-cm.json")
 	writeArgoCDOperatorConfig(t, path, "false", true)
 	intent := "true"

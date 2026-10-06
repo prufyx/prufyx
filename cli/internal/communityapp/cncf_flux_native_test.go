@@ -9,6 +9,7 @@ import (
 )
 
 func TestFluxNativeResourceCheckSelectedSet(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, raw string
 		complete  bool
@@ -38,6 +39,7 @@ func TestFluxNativeResourceCheckSelectedSet(t *testing.T) {
 }
 
 func TestFluxNativeResourceCheckRejectsInvalidMixedAndWrongPair(t *testing.T) {
+	t.Parallel()
 	valid := []byte(`{"apiVersion":"v1","kind":"List","items":[{"apiVersion":"source.toolkit.fluxcd.io/v1","kind":"GitRepository","metadata":{"name":"app"}}]}`)
 	path := writeCNCFFile(t, "flux.json", valid, 0o600)
 	for _, args := range [][]string{
@@ -62,6 +64,7 @@ func TestFluxNativeResourceCheckRejectsInvalidMixedAndWrongPair(t *testing.T) {
 }
 
 func TestFluxNativeResourceExternalStoreHasNoFallbackAndReplayPinsRawInput(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	raw := []byte(`{"apiVersion":"v1","kind":"List","items":[{"apiVersion":"source.toolkit.fluxcd.io/v1","kind":"GitRepository","metadata":{"name":"private-app"}}]}`)
 	path := writeCNCFFile(t, "flux.json", raw, 0o600)
@@ -94,6 +97,7 @@ func TestFluxNativeResourceExternalStoreHasNoFallbackAndReplayPinsRawInput(t *te
 }
 
 func TestFluxNativeResourceLatestCoversFiveOrigins(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"apiVersion":"source.toolkit.fluxcd.io/v1beta2","kind":"GitRepository","metadata":{"name":"app"}}`)
 	path := writeCNCFFile(t, "flux-latest.json", raw, 0o600)
 	for _, from := range []string{"2.4.0", "2.5.1", "2.6.4", "2.7.5", "2.8.8"} {

@@ -14,6 +14,7 @@ import (
 )
 
 func TestCertManagerRouteReturnsScopedExitAndSafeOutput(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "secret-name-values.json")
 	if err := os.WriteFile(path, []byte(`{"prometheus":{"servicemonitor":{"path":"private-custom-value"}}}`), 0o600); err != nil {
@@ -35,6 +36,7 @@ func TestCertManagerRouteReturnsScopedExitAndSafeOutput(t *testing.T) {
 }
 
 func TestCertManagerCleanRouteReturnsScopedPass(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "values.json")
 	if err := os.WriteFile(path, []byte(`{"prometheus":{"servicemonitor":{"enabled":true}}}`), 0o600); err != nil {
 		t.Fatal(err)
@@ -47,6 +49,7 @@ func TestCertManagerCleanRouteReturnsScopedPass(t *testing.T) {
 }
 
 func TestCertManagerLatestRouteCoversFiveChartOriginsAndPinsDigests(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "values.json")
 	if err := os.WriteFile(path, []byte(`{"prometheus":{"servicemonitor":{"enabled":true}}}`), 0o600); err != nil {
 		t.Fatal(err)
@@ -79,6 +82,7 @@ func TestCertManagerLatestRouteCoversFiveChartOriginsAndPinsDigests(t *testing.T
 }
 
 func TestCertManagerLatestRouteFalsifiersAcrossFiveOrigins(t *testing.T) {
+	t.Parallel()
 	blockedPath := filepath.Join(t.TempDir(), "blocked.json")
 	unknownPath := filepath.Join(t.TempDir(), "unknown.json")
 	if err := os.WriteFile(blockedPath, []byte(`{"prometheus":{"servicemonitor":{"path":"/custom"}}}`), 0o600); err != nil {
@@ -129,6 +133,7 @@ func TestCertManagerLatestRouteFalsifiersAcrossFiveOrigins(t *testing.T) {
 }
 
 func TestPrometheusDemoPreservesAggregateUnknownExit(t *testing.T) {
+	t.Parallel()
 	var stdout, stderr bytes.Buffer
 	code := Run(context.Background(), []string{"check", "prometheus-mode", "--demo", "--format", "json"}, &stdout, &stderr, "test")
 	if code != ExitUnknown || !strings.Contains(stdout.String(), `"aggregate":"UNKNOWN"`) {
@@ -137,6 +142,7 @@ func TestPrometheusDemoPreservesAggregateUnknownExit(t *testing.T) {
 }
 
 func TestLegacyPrometheusDemoEnvelope(t *testing.T) {
+	t.Parallel()
 	var stdout, stderr bytes.Buffer
 	code := Run(context.Background(), []string{"community-preview", "demo-prometheus-mode"}, &stdout, &stderr, "test")
 	if code != ExitUnknown || !strings.Contains(stdout.String(), `"schemaVersion":"prufyx.io/prometheus-mode-synthetic-demo/v1alpha1"`) || !strings.Contains(stdout.String(), `"reasonCode":"prometheus_mode_synthetic_demo_completed"`) {
@@ -145,6 +151,7 @@ func TestLegacyPrometheusDemoEnvelope(t *testing.T) {
 }
 
 func TestVersionUsesValidatedBuildIdentityEnvelope(t *testing.T) {
+	t.Parallel()
 	var stdout, stderr bytes.Buffer
 	code := Run(context.Background(), []string{"version"}, &stdout, &stderr, "ignored")
 	if code != ExitOK || !strings.Contains(stdout.String(), `"schemaVersion":"prufyx.io/v1alpha1"`) || !strings.Contains(stdout.String(), `"reasonCode":"build_identity_reported"`) || !strings.Contains(stdout.String(), `"releaseState":"development"`) {
@@ -153,6 +160,7 @@ func TestVersionUsesValidatedBuildIdentityEnvelope(t *testing.T) {
 }
 
 func TestCheckHelpAndUnsupportedTransition(t *testing.T) {
+	t.Parallel()
 	var stdout, stderr bytes.Buffer
 	if code := Run(context.Background(), []string{"check", "--help"}, &stdout, &stderr, "test"); code != ExitOK || !strings.Contains(stdout.String(), "cert-manager-values") {
 		t.Fatalf("code=%d output=%s", code, stdout.String())
@@ -170,6 +178,7 @@ func TestCheckHelpAndUnsupportedTransition(t *testing.T) {
 }
 
 func TestDisabledSchemaValidationReturnsAttention(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "values.json")
 	if err := os.WriteFile(path, []byte(`{"prometheus":{"servicemonitor":{"path":"/custom"}}}`), 0o600); err != nil {
 		t.Fatal(err)
@@ -182,6 +191,7 @@ func TestDisabledSchemaValidationReturnsAttention(t *testing.T) {
 }
 
 func TestHelpNamesPublicBinary(t *testing.T) {
+	t.Parallel()
 	var stdout, stderr bytes.Buffer
 	if code := Run(context.Background(), []string{"--help"}, &stdout, &stderr, "test"); code != ExitOK {
 		t.Fatal(code)
@@ -192,6 +202,7 @@ func TestHelpNamesPublicBinary(t *testing.T) {
 }
 
 func TestPrometheusRouteClassifiesProposedAdmissionErrors(t *testing.T) {
+	t.Parallel()
 	valid := []byte(`{"apiVersion":"apps/v1","kind":"Deployment","spec":{"template":{"spec":{"containers":[]}}}}`)
 	malformed := []byte(`{bad-json`)
 	dir := t.TempDir()

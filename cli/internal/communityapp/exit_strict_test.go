@@ -106,6 +106,7 @@ func strictRoutes(t *testing.T) []strictRoute {
 // flag the status, stdout and stderr are the existing ones; with it only the
 // scoped PASS (0) changes, to ExitScopedPass, and stdout stays byte-identical.
 func TestStrictExitEveryCheckRoute(t *testing.T) {
+	t.Parallel()
 	for _, route := range strictRoutes(t) {
 		for _, c := range route.cases {
 			t.Run(route.name+"/"+c.label, func(t *testing.T) {
@@ -144,6 +145,7 @@ func TestStrictExitEveryCheckRoute(t *testing.T) {
 }
 
 func TestStrictExitLeavesHelpAndOtherCommandsAlone(t *testing.T) {
+	t.Parallel()
 	for _, args := range [][]string{{"check", "--help"}, {"check", "cncf", "--help"}, {"check", "batch", "--help"}} {
 		code, _, _ := runCNCFCLI(t, append(args, "--strict-exit")...)
 		if code != ExitOK {

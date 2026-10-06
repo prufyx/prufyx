@@ -14,6 +14,7 @@ import (
 const mariadbOperatorTestResource = `{"apiVersion":"k8s.mariadb.com/v1alpha1","kind":"MariaDB","metadata":{"name":"PRIVATE_OPERATOR_NATIVE"},"spec":{"galera":{"enabled":true},"updateStrategy":{"autoUpdateDataPlane":true}}}`
 
 func TestMariaDBOperatorNativeGuardsRemainUnknownWhenOmitted(t *testing.T) {
+	t.Parallel()
 	resourcePath := filepath.Join(t.TempDir(), "resource.json")
 	if err := os.WriteFile(resourcePath, []byte(mariadbOperatorTestResource), 0o600); err != nil {
 		t.Fatal(err)
@@ -31,6 +32,7 @@ func TestMariaDBOperatorNativeGuardsRemainUnknownWhenOmitted(t *testing.T) {
 }
 
 func TestMariaDBOperatorPreparedGuardsPropagateThroughBatch(t *testing.T) {
+	t.Parallel()
 	resourcePath := filepath.Join(t.TempDir(), "resource.json")
 	if err := os.WriteFile(resourcePath, []byte(mariadbOperatorTestResource), 0o600); err != nil {
 		t.Fatal(err)

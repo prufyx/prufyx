@@ -21,6 +21,7 @@ import (
 )
 
 func TestRotatedPackage_InitializedStoreImportsAndContinuesAtSuccessor(t *testing.T) {
+	t.Parallel()
 	now := time.Now().UTC().Truncate(time.Second)
 	private, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {

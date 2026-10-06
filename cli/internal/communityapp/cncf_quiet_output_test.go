@@ -31,6 +31,7 @@ func nonEmptyLines(text string) []string {
 }
 
 func TestQuietHumanUnreviewedTransitionsPrintAtMostSixLines(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "kubernetes.json", []byte(quietCronJobJSON), 0o600)
 	for _, pair := range [][2]string{{"1.21.0", "1.25.0"}, {"1.28.0", "1.30.0"}, {"1.25.0", "1.24.0"}} {
 		code, human, stderr := runCNCFCLI(t, quietArgs(path, pair[0], pair[1], "--format", "human")...)
@@ -58,6 +59,7 @@ func TestQuietHumanUnreviewedTransitionsPrintAtMostSixLines(t *testing.T) {
 const RuleTransitionNotReviewedText = "(RULE_TRANSITION_NOT_REVIEWED)"
 
 func TestQuietHumanReviewedPairCollapsesPassesAndSharesSources(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "kubernetes.json", []byte(quietCronJobJSON), 0o600)
 	code, human, stderr := runCNCFCLI(t, quietArgs(path, "1.24.0", "1.25.0", "--format", "human")...)
 	lines := nonEmptyLines(human)
@@ -82,6 +84,7 @@ func TestQuietHumanReviewedPairCollapsesPassesAndSharesSources(t *testing.T) {
 }
 
 func TestQuietHumanLeavesJSONUntouched(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "kubernetes.json", []byte(quietCronJobJSON), 0o600)
 	_, plain, _ := runCNCFCLI(t, quietArgs(path, "1.24.0", "1.25.0", "--format", "json")...)
 	_, shown, _ := runCNCFCLI(t, quietArgs(path, "1.24.0", "1.25.0", "--format", "json", "--show-passes")...)
@@ -91,6 +94,7 @@ func TestQuietHumanLeavesJSONUntouched(t *testing.T) {
 }
 
 func TestKubernetesNativeAcceptsYAMLWithSameVerdicts(t *testing.T) {
+	t.Parallel()
 	jsonPath := writeCNCFFile(t, "a.json", []byte(quietCronJobJSON), 0o600)
 	yamlPath := writeCNCFFile(t, "a.yaml", []byte(quietCronJobYAML), 0o600)
 	jsonCode, jsonHuman, _ := runCNCFCLI(t, quietArgs(jsonPath, "1.24.0", "1.25.0", "--format", "human")...)
@@ -114,6 +118,7 @@ func TestKubernetesNativeAcceptsYAMLWithSameVerdicts(t *testing.T) {
 }
 
 func TestKubernetesNativeYAMLTemplatedAndMalformed(t *testing.T) {
+	t.Parallel()
 	templated := writeCNCFFile(t, "t.yaml", []byte("apiVersion: batch/v1\nkind: CronJob\nmetadata:\n  name: \"{{ .Values.name }}\"\n"), 0o600)
 	code, out, stderr := runCNCFCLI(t, quietArgs(templated, "1.24.0", "1.25.0", "--format", "json")...)
 	if code != ExitUnknown || stderr != "" || !strings.Contains(out, "RULE_FACT_UNAVAILABLE") {
@@ -140,6 +145,7 @@ func hasDuplicateLines(text string) bool {
 }
 
 func TestGenericPreviewQuietHumanOutput(t *testing.T) {
+	t.Parallel()
 	run := func(raw string, extra ...string) (int, string) {
 		path := writeCNCFFile(t, "vector.json", []byte(raw), 0o600)
 		code, stdout, stderr := runCNCFCLI(t, append(cncfArgs(path), extra...)...)
@@ -170,6 +176,7 @@ func TestGenericPreviewQuietHumanOutput(t *testing.T) {
 }
 
 func TestCompareVersionsOrdersNumerically(t *testing.T) {
+	t.Parallel()
 	if compareVersions("1.9.0", "1.10.0") >= 0 || compareVersions("1.23.17", "1.24.0") >= 0 || compareVersions("1.24.0", "1.24.0") != 0 {
 		t.Fatal("numeric order broken")
 	}

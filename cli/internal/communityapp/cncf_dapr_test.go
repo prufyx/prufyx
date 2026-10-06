@@ -39,6 +39,7 @@ func daprExampleDeclaration(t *testing.T, complete, present *bool, currentVersio
 }
 
 func TestDaprCanonicalExampleFeedsExistingScopedRule(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "examples", "cncf", "dapr-input.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -64,6 +65,7 @@ func TestDaprCanonicalExampleFeedsExistingScopedRule(t *testing.T) {
 }
 
 func TestDaprCanonicalExampleRejectsMalformedFactWithoutEcho(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "examples", "cncf", "dapr-input.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -83,6 +85,7 @@ func TestDaprCanonicalExampleRejectsMalformedFactWithoutEcho(t *testing.T) {
 }
 
 func TestDaprOperatorDeclarationsPreservePassAndUnknownBoundaries(t *testing.T) {
+	t.Parallel()
 	yes, no := true, false
 	for _, tc := range []struct {
 		name              string

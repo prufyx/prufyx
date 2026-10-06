@@ -22,6 +22,7 @@ func argoCDLatestNativeArgs(path, from, to string) []string {
 // compatibility claim: the preparer already existed and evaluated all five
 // reviewed origins before this route was wired.
 func TestArgoCDLatestNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	blocked := writeCNCFFile(t, "argocd-repository-blocked.json", []byte(`{"apiVersion":"v1","kind":"Secret","metadata":{"name":"private-repository","labels":{"argocd.argoproj.io/secret-type":"repository"}},"stringData":{"type":"helm","enableOCI":"true","url":"charts.example.invalid/team","insecureOCIForceHttp":"false","insecure":"false"}}`), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, argoCDLatestNativeArgs(blocked, "3.4.8", "3.5.2")...)
 	if code != ExitBlocked || stderr != "" || !strings.Contains(stdout, `"status":"BLOCKED"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) || strings.Contains(stdout, blocked) || strings.Contains(stdout, "private-repository") {
@@ -40,6 +41,7 @@ func TestArgoCDLatestNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 // All five reviewed 3.5.2 latest-target origins are routed through the same
 // native path.
 func TestArgoCDLatestNativeCheck_AllOriginsAreRouted(t *testing.T) {
+	t.Parallel()
 	for _, from := range []string{"3.0.23", "3.1.16", "3.2.12", "3.3.14", "3.4.8"} {
 		t.Run(from, func(t *testing.T) {
 			blocked := writeCNCFFile(t, "argocd-repository-latest-blocked.json", []byte(`{"apiVersion":"v1","kind":"Secret","metadata":{"name":"private-repository","labels":{"argocd.argoproj.io/secret-type":"repository"}},"stringData":{"type":"helm","enableOCI":"true","url":"charts.example.invalid/team","insecureOCIForceHttp":"false","insecure":"false"}}`), 0o600)
@@ -52,6 +54,7 @@ func TestArgoCDLatestNativeCheck_AllOriginsAreRouted(t *testing.T) {
 }
 
 func TestArgoCDLatestNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "argocd-repository.json", []byte(`{"apiVersion":"v1","kind":"Secret","metadata":{"name":"private-repository","labels":{"argocd.argoproj.io/secret-type":"repository"}},"stringData":{"type":"helm","enableOCI":"true","url":"charts.example.invalid/team","insecureOCIForceHttp":"true","insecure":"false"}}`), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, argoCDLatestNativeArgs(path, "3.4.8", "3.5.3")...)
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
@@ -64,6 +67,7 @@ func TestArgoCDLatestNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testi
 }
 
 func TestArgoCDLatestNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "argocd-repository.json", []byte(`{"apiVersion":"v1","kind":"Secret","metadata":{"name":"private-repository","labels":{"argocd.argoproj.io/secret-type":"repository"}},"stringData":{"type":"helm","enableOCI":"true","url":"charts.example.invalid/team","insecureOCIForceHttp":"false","insecure":"false"}}`), 0o600)
 	args := append(argoCDLatestNativeArgs(path, "3.4.8", "3.5.2"), "--repository-secret-digest", cncfDigest([]byte(`{"apiVersion":"v1","kind":"Secret","metadata":{"name":"other","labels":{"argocd.argoproj.io/secret-type":"repository"}},"stringData":{"type":"helm","enableOCI":"true","url":"charts.example.invalid/team","insecureOCIForceHttp":"true","insecure":"false"}}`)))
 	code, stdout, stderr := runCNCFCLI(t, args...)
@@ -73,6 +77,7 @@ func TestArgoCDLatestNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
 }
 
 func TestArgoCDLatestPrepareFeedsNativeCheckEquivalently(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"apiVersion":"v1","kind":"Secret","metadata":{"name":"private-repository","labels":{"argocd.argoproj.io/secret-type":"repository"}},"stringData":{"type":"helm","enableOCI":"true","url":"charts.example.invalid/team","insecureOCIForceHttp":"false","insecure":"false"}}`)
 	path := writeCNCFFile(t, "argocd-repository.json", raw, 0o600)
 	code, canonical, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "argo-cd", "--input", path, "--from", "3.4.8", "--to", "3.5.2", "--distribution", "official_upstream", "--repository-settings-resolved", "true", "--repository-uses-plain-http", "true", "--format", "input")

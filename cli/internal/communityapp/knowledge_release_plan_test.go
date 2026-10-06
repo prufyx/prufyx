@@ -43,6 +43,7 @@ const (
 )
 
 func TestKnowledgeReleasePlanNonemptyReviewedRuleProducerToAdopter(t *testing.T) {
+	t.Parallel()
 	rootRaw, rootDigest, releases := publishedNonemptyReleaseFixture(t)
 	dir := t.TempDir()
 	if err := os.Chmod(dir, 0o700); err != nil {
@@ -190,6 +191,7 @@ func TestKnowledgeReleasePlanNonemptyReviewedRuleProducerToAdopter(t *testing.T)
 }
 
 func TestKnowledgeReleasePlanPublisherToClientFirstAndSecondUpdate(t *testing.T) {
+	t.Parallel()
 	rootRaw, rootDigest, releases := publishedReleaseFixture(t)
 	dir := t.TempDir()
 	if err := os.Chmod(dir, 0o700); err != nil {
@@ -234,6 +236,7 @@ func TestKnowledgeReleasePlanPublisherToClientFirstAndSecondUpdate(t *testing.T)
 }
 
 func TestKnowledgeReleasePlanWrongPackageDigestPrecedesStoreMutation(t *testing.T) {
+	t.Parallel()
 	rootRaw, rootDigest, releases := publishedReleaseFixture(t)
 	dir := t.TempDir()
 	if err := os.Chmod(dir, 0o700); err != nil {
@@ -269,6 +272,7 @@ func TestKnowledgeReleasePlanWrongPackageDigestPrecedesStoreMutation(t *testing.
 }
 
 func TestKnowledgeReleasePlanVerifiedBindingMismatchesCannotSelect(t *testing.T) {
+	t.Parallel()
 	rootRaw, rootDigest, releases := publishedReleaseFixture(t)
 	dir := t.TempDir()
 	if err := os.Chmod(dir, 0o700); err != nil {
@@ -338,6 +342,7 @@ func TestKnowledgeReleasePlanVerifiedBindingMismatchesCannotSelect(t *testing.T)
 }
 
 func TestKnowledgeReleasePlanRejectsConflictAndMalformedPlanBeforeFetch(t *testing.T) {
+	t.Parallel()
 	_, _, releases := publishedReleaseFixture(t)
 	dir := t.TempDir()
 	if err := os.Chmod(dir, 0o700); err != nil {

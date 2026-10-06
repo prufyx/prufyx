@@ -10,6 +10,7 @@ import (
 )
 
 func TestCoreDNSNativeCorefileRoute(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name, raw, status string
 		code              int
@@ -29,6 +30,7 @@ func TestCoreDNSNativeCorefileRoute(t *testing.T) {
 }
 
 func TestCoreDNSNativeCorefileUnknownBoundaries(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, raw string
 	}{
@@ -55,6 +57,7 @@ func TestCoreDNSNativeCorefileUnknownBoundaries(t *testing.T) {
 }
 
 func TestCoreDNSNativeCorefileGuardsAndClosedFlags(t *testing.T) {
+	t.Parallel()
 	raw := []byte(". {\n forward . 1.1.1.1\n}\n")
 	path := writeCNCFFile(t, "Corefile", raw, 0o600)
 	base := []string{"check", "cncf", "--project", "coredns", "--coredns-corefile", path, "--coredns-corefile-complete", "--coredns-distribution", "official", "--from", "1.13.2", "--to", "1.14.7", "--now", "2026-09-13T10:30:00Z", "--format", "json"}
@@ -88,6 +91,7 @@ func TestCoreDNSNativeCorefileGuardsAndClosedFlags(t *testing.T) {
 }
 
 func TestCoreDNSCorefilePrepareRoute(t *testing.T) {
+	t.Parallel()
 	raw := []byte(".:53 {\n health\n federation\n}\n")
 	path := writeCNCFFile(t, "Corefile", raw, 0o600)
 	args := []string{"prepare", "cncf", "--project", "coredns", "--coredns-corefile", path, "--coredns-corefile-digest", cncfDigest(raw), "--coredns-corefile-complete", "--coredns-distribution", "official", "--from", "1.13.2", "--to", "1.14.7", "--format", "input"}
@@ -108,6 +112,7 @@ func TestCoreDNSCorefilePrepareRoute(t *testing.T) {
 }
 
 func TestCoreDNSCorefileAuthorityGuardsMatchPrepareAndCheck(t *testing.T) {
+	t.Parallel()
 	raw := []byte(". {\n forward . 1.1.1.1\n}\n")
 	path := writeCNCFFile(t, "Corefile", raw, 0o600)
 	base := []string{"--project", "coredns", "--coredns-corefile", path, "--from", "1.13.2"}
@@ -151,6 +156,7 @@ func TestCoreDNSCorefileAuthorityGuardsMatchPrepareAndCheck(t *testing.T) {
 }
 
 func TestCoreDNSCorefileExamples(t *testing.T) {
+	t.Parallel()
 	exampleRoot := filepath.Join("..", "..", "examples", "cncf", "coredns-corefile")
 	for _, tc := range []struct {
 		name, status string

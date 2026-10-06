@@ -19,6 +19,7 @@ func strimziNativeArgs(path string) []string {
 }
 
 func TestStrimziNativeKafkaAPICheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, raw, reason string
 		want              int
@@ -44,6 +45,7 @@ func TestStrimziNativeKafkaAPICheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 // The aggregate gate is unchanged by this route: even a scoped PASS keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestStrimziNativeKafkaAPICheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "strimzi.json", []byte(strimziTargetKafkaResource), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, strimziNativeArgs(path)...)
 	if code != ExitOK || stderr != "" || !strings.Contains(stdout, `"status":"PASS"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
@@ -55,6 +57,7 @@ func TestStrimziNativeKafkaAPICheck_KeepsWholeUpgradeAggregateUnknown(t *testing
 }
 
 func TestStrimziNativeKafkaAPICheck_CustomBuildAndUndeclaredIntentStayUnknown(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "strimzi.json", []byte(strimziRemovedKafkaResource), 0o600)
 	for _, test := range []struct {
 		name   string
@@ -87,6 +90,7 @@ func TestStrimziNativeKafkaAPICheck_CustomBuildAndUndeclaredIntentStayUnknown(t 
 }
 
 func TestStrimziNativeKafkaAPICheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	duplicate := writeCNCFFile(t, "strimzi.json", []byte(`{"apiVersion":"kafka.strimzi.io/v1beta2","kind":"Kafka","metadata":{"name":"a","namespace":"b"}}`), 0o600)
 	args := strimziNativeArgs(duplicate)
 	for index := range args {
@@ -113,6 +117,7 @@ func TestStrimziNativeKafkaAPICheck_RejectsMalformedWrongPairAndWrongRoute(t *te
 }
 
 func TestStrimziNativeKafkaAPICheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	raw := []byte(strimziRemovedKafkaResource)
 	path := writeCNCFFile(t, "strimzi.json", raw, 0o600)
 	args := append(strimziNativeArgs(path), "--kafka-resource-digest", cncfDigest([]byte(strimziTargetKafkaResource)))
@@ -123,6 +128,7 @@ func TestStrimziNativeKafkaAPICheck_RejectsIntegrityPinMismatch(t *testing.T) {
 }
 
 func TestStrimziPrepareKafkaResourceFeedsCheck(t *testing.T) {
+	t.Parallel()
 	raw := []byte(strimziRemovedKafkaResource)
 	path := writeCNCFFile(t, "strimzi.json", raw, 0o600)
 	code, canonical, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "strimzi", "--kafka-resource", path, "--kafka-resource-digest", cncfDigest(raw), "--from", "0.51.0", "--to", "1.0.0", "--strimzi-distribution", "official_upstream", "--target-kafka-crd-admission-required", "--format", "input")

@@ -42,6 +42,7 @@ func ciliumPreparationResourceKind(t *testing.T, kind string, requires []any, me
 }
 
 func TestCiliumPreparationFeedsExistingScopedRule(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name                   string
 		raw                    []byte
@@ -77,6 +78,7 @@ func TestCiliumPreparationFeedsExistingScopedRule(t *testing.T) {
 }
 
 func TestCiliumPreparationRejectsCrossProjectFlags(t *testing.T) {
+	t.Parallel()
 	raw := ciliumPreparationResource(t, []any{}, nil)
 	path := writeCNCFFile(t, "cilium.json", raw, 0o600)
 	for _, extra := range [][]string{{"--complete-cnp-ccnp-set", "yes"}, {"--distribution", "official_upstream"}, {"--requires-inherited-application-permissions", "true"}} {
@@ -88,6 +90,7 @@ func TestCiliumPreparationRejectsCrossProjectFlags(t *testing.T) {
 }
 
 func TestCiliumPreparationHelpListsReviewedExactPairs(t *testing.T) {
+	t.Parallel()
 	code, stdout, stderr := runCNCFCLI(t, "prepare", "cncf", "--help")
 	if code != ExitOK || stderr != "" {
 		t.Fatalf("code=%d stderr=%q", code, stderr)

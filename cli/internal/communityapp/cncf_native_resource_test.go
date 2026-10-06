@@ -10,6 +10,7 @@ import (
 )
 
 func TestCNCFNativeResourceExamplesUseDirectRawFiles(t *testing.T) {
+	t.Parallel()
 	root := filepath.Join("..", "..", "examples", "cncf", "native-resources")
 	read := func(parts ...string) string {
 		t.Helper()
@@ -52,6 +53,7 @@ func TestCNCFNativeResourceExamplesUseDirectRawFiles(t *testing.T) {
 }
 
 func TestCNCFNativeResourceChecksPrepareAndEvaluateInMemory(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name, project, from, to string
 		current, proposed       []byte
@@ -112,6 +114,7 @@ func TestCNCFNativeResourceChecksPrepareAndEvaluateInMemory(t *testing.T) {
 }
 
 func TestCNCFNativeResourceChecksRejectCrossModeAndBadPinsBeforeEvaluation(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"config","namespace":"metallb-system"},"data":{"config":"address-pools: []"}}`)
 	path := writeCNCFFile(t, "resource.json", raw, 0o600)
 	for _, args := range [][]string{
@@ -129,6 +132,7 @@ func TestCNCFNativeResourceChecksRejectCrossModeAndBadPinsBeforeEvaluation(t *te
 }
 
 func TestCNCFNativeResourceHumanOutputIncludesScopedVerdictAndEvidence(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"config","namespace":"metallb-system"},"data":{"config":"address-pools: []"}}`)
 	path := writeCNCFFile(t, "resource.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "metallb", "--native-resource", path, "--from", "0.12.1", "--to", "0.13.2", "--now", "2026-09-11T18:00:00Z")
@@ -138,6 +142,7 @@ func TestCNCFNativeResourceHumanOutputIncludesScopedVerdictAndEvidence(t *testin
 }
 
 func TestCNCFNativeResourceWrongPairAndMissingFileRemainSafeUnknownOrInputError(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"apiVersion":"metallb.io/v1beta1","kind":"IPAddressPool","metadata":{"name":"pool","namespace":"metallb-system"},"spec":{"addresses":["192.0.2.10-192.0.2.20"]}}`)
 	path := writeCNCFFile(t, "resource.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "metallb", "--native-resource", path, "--from", "0.12.1", "--to", "0.13.3", "--now", "2026-09-11T18:00:00Z", "--format", "json")
@@ -152,6 +157,7 @@ func TestCNCFNativeResourceWrongPairAndMissingFileRemainSafeUnknownOrInputError(
 }
 
 func TestCNCFNativeResourceExternalKnowledgeHasNoEmbeddedFallbackAndReplayPinsRawInput(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	raw := []byte(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"config","namespace":"metallb-system"},"data":{"config":"address-pools: []"}}`)
 	resource := writeCNCFFile(t, "metallb.json", raw, 0o600)
@@ -182,6 +188,7 @@ func TestCNCFNativeResourceExternalKnowledgeHasNoEmbeddedFallbackAndReplayPinsRa
 }
 
 func TestCNCFModeAdmissionRejectsEveryForeignSelector(t *testing.T) {
+	t.Parallel()
 	nativeAllowed := []string{"native-resource", "native-resource-digest", "current-resource", "current-resource-digest", "resource", "resource-digest"}
 	for _, name := range []string{"input", "config-map", "python-source", "nats-config", "nats-config-digest", "image-manifest", "image-manifest-digest", "cni-configuration", "cni-configuration-digest", "operation", "effective-config", "effective-config-digest", "effective-config-complete", "diagd-argv", "diagd-argv-digest"} {
 		if !cncfUnexpectedModeFlag([]string{"--native-resource=resource.json", "--" + name + "=other"}, nativeAllowed...) {
@@ -197,6 +204,7 @@ func TestCNCFModeAdmissionRejectsEveryForeignSelector(t *testing.T) {
 }
 
 func TestCNCFDirectEmissaryAndOpenFGARoutes(t *testing.T) {
+	t.Parallel()
 	emissaryBroken := writeCNCFFile(t, "emissary-broken.json", []byte(`["diagd","--metrics-endpoint","https://example.invalid/metrics"]`), 0o600)
 	emissaryFixed := writeCNCFFile(t, "emissary-fixed.json", []byte(`["diagd","--port","-1"]`), 0o600)
 	openFGABroken := writeCNCFFile(t, "openfga-broken.json", []byte(`{"authn":{"method":"oidc","oidc":{"audience":"aud"}}}`), 0o600)
@@ -245,6 +253,7 @@ func TestCNCFDirectEmissaryAndOpenFGARoutes(t *testing.T) {
 // (0600) file with identical content still succeeds, so the permission
 // control itself is exactly as strict as before this change.
 func TestCNCFNativeResourceGroupOrWorldReadableInputGetsAnActionableHint(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"apiVersion":"prufyx.io/etcd-effective-argv/v1alpha1","kind":"EtcdEffectiveArguments","effectiveArgvDeclared":true,"argv":["--name=n"]}`)
 	args := func(path string) []string {
 		return []string{
@@ -289,6 +298,7 @@ func TestCNCFNativeResourceGroupOrWorldReadableInputGetsAnActionableHint(t *test
 }
 
 func TestCNCFHumanAndJSONOutputShowEvidenceBasisWithoutChangingExit(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"config","namespace":"metallb-system"},"data":{"config":"address-pools: []"}}`)
 	path := writeCNCFFile(t, "resource.json", raw, 0o600)
 	args := []string{"check", "cncf", "--project", "metallb", "--native-resource", path, "--from", "0.12.1", "--to", "0.13.2", "--now", "2026-09-11T18:00:00Z"}

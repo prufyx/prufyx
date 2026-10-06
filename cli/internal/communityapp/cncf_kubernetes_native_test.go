@@ -13,6 +13,7 @@ func kubernetesNativeArgs(path string) []string {
 }
 
 func TestKubernetesNativeFlowControlCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, raw, reason string
 		want              int
@@ -44,6 +45,7 @@ func TestKubernetesNativeFlowControlCheck_BoundedOutcomesAndPrivacy(t *testing.T
 }
 
 func TestKubernetesNativeFlowControlCheck_RejectsMalformedAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "kubernetes.json", []byte(`{"apiVersion":"flowcontrol.apiserver.k8s.io/v1beta3","apiVersion":"flowcontrol.apiserver.k8s.io/v1","kind":"FlowSchema"}`), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, kubernetesNativeArgs(path)...)
 	if code != ExitUsage || stdout != "" || strings.Contains(stderr, path) {
@@ -63,6 +65,7 @@ func TestKubernetesNativeFlowControlCheck_RejectsMalformedAndWrongRoute(t *testi
 }
 
 func TestKubernetesNativeFlowControlExternalStoreHasNoEmbeddedFallback(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	raw := []byte(`{"apiVersion":"flowcontrol.apiserver.k8s.io/v1beta3","kind":"FlowSchema","metadata":{"name":"private-flow"}}`)
 	path := writeCNCFFile(t, "kubernetes.json", raw, 0o600)
@@ -78,6 +81,7 @@ func TestKubernetesNativeFlowControlExternalStoreHasNoEmbeddedFallback(t *testin
 }
 
 func TestNewNativeExternalModesRejectExplicitNowBeforePrivateRead(t *testing.T) {
+	t.Parallel()
 	for _, args := range [][]string{
 		{"check", "cncf", "--project", "kubernetes", "--native-resource", "PRIVATE-NOT-READ.json", "--from", "1.31.0", "--to", "1.32.0", "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--knowledge-db", "PRIVATE-NOT-OPENED-STORE", "--now=", "--format", "json"},
 		{"check", "cncf", "--project", "cilium", "--cilium-config-map", "PRIVATE-NOT-READ.yaml", "--from", "1.16.19", "--to", "1.17.18", "--cilium-distribution", "official_upstream", "--cilium-config-complete", "--cilium-config-precedence-resolved", "--knowledge-db", "PRIVATE-NOT-OPENED-STORE", "--now=", "--format", "json"},
@@ -90,6 +94,7 @@ func TestNewNativeExternalModesRejectExplicitNowBeforePrivateRead(t *testing.T) 
 }
 
 func TestKubernetesPrepareFlowControlFeedsBatch(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"apiVersion":"flowcontrol.apiserver.k8s.io/v1beta3","kind":"FlowSchema","metadata":{"name":"private-flow"}}`)
 	path := writeCNCFFile(t, "kubernetes.json", raw, 0o600)
 	prepareArgs := []string{"prepare", "cncf", "--project", "kubernetes", "--input", path, "--from", "1.31.0", "--to", "1.32.0", "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--format", "input"}
@@ -108,6 +113,7 @@ func TestKubernetesPrepareFlowControlFeedsBatch(t *testing.T) {
 // the apply set, but a removed version among the other documents still
 // blocks (exit 10); the object itself is never a witness.
 func TestKubernetesNativeItemsBesideARemovedVersion(t *testing.T) {
+	t.Parallel()
 	configMap := "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: c}\nitems: []\n"
 	for _, tc := range []struct {
 		name, from, to, docs string

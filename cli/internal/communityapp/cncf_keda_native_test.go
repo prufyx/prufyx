@@ -23,6 +23,7 @@ func kedaNativeArgs(path string, declaration ...string) []string {
 }
 
 func TestKEDANativeScaledObjectCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, raw, reason string
 		declaration       []string
@@ -52,6 +53,7 @@ func TestKEDANativeScaledObjectCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 // The aggregate gate is unchanged by this route: even a scoped PASS keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestKEDANativeScaledObjectCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "keda.json", []byte(kedaExternalNoCertFileInput), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, kedaNativeArgs(path)...)
 	if code != ExitOK || stderr != "" || !strings.Contains(stdout, `"status":"PASS"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
@@ -66,6 +68,7 @@ func TestKEDANativeScaledObjectCheck_KeepsWholeUpgradeAggregateUnknown(t *testin
 // condition fact, so this route must never turn its presence into a BLOCKED
 // claim on its own.
 func TestKEDANativeScaledObjectCheck_PresenceAloneNeverBlocks(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "keda.json", []byte(kedaExternalWithCertFileInput), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, kedaNativeArgs(path)...)
 	if code != ExitUnknown || stderr != "" {
@@ -77,6 +80,7 @@ func TestKEDANativeScaledObjectCheck_PresenceAloneNeverBlocks(t *testing.T) {
 }
 
 func TestKEDANativeScaledObjectCheck_UndeclaredSelectionScopeStaysUnknown(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "keda.json", []byte(kedaExternalNoCertFileInput), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "keda", "--keda-scaled-object", path, "--from", "2.16.0", "--to", "2.17.0", "--now", "2026-09-18T10:00:00Z", "--format", "json")
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "RULE_APPLICABILITY") {
@@ -88,6 +92,7 @@ func TestKEDANativeScaledObjectCheck_UndeclaredSelectionScopeStaysUnknown(t *tes
 }
 
 func TestKEDANativeScaledObjectCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "keda.json", []byte(kedaExternalWithCertFileInput), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "keda", "--keda-scaled-object", path, "--keda-scaled-object-complete", "--keda-legacy-tls-transport-required", "true", "--from", "2.16.0", "--to", "2.18.0", "--now", "2026-09-18T10:00:00Z", "--format", "json")
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "RULE_TRANSITION_NOT_REVIEWED") {
@@ -108,6 +113,7 @@ func TestKEDANativeScaledObjectCheck_RejectsMalformedWrongPairAndWrongRoute(t *t
 }
 
 func TestKEDANativeScaledObjectCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "keda.json", []byte(kedaExternalWithCertFileInput), 0o600)
 	args := append(kedaNativeArgs(path, "true"), "--keda-scaled-object-digest", cncfDigest([]byte(kedaExternalNoCertFileInput)))
 	code, stdout, stderr := runCNCFCLI(t, args...)
@@ -117,6 +123,7 @@ func TestKEDANativeScaledObjectCheck_RejectsIntegrityPinMismatch(t *testing.T) {
 }
 
 func TestKEDAPrepareScaledObjectFeedsCheck(t *testing.T) {
+	t.Parallel()
 	raw := []byte(kedaExternalWithCertFileInput)
 	path := writeCNCFFile(t, "keda.json", raw, 0o600)
 	code, canonical, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "keda", "--keda-scaled-object", path, "--keda-scaled-object-digest", cncfDigest(raw), "--keda-scaled-object-complete", "--keda-legacy-tls-transport-required", "true", "--from", "2.16.0", "--to", "2.17.0", "--format", "input")
