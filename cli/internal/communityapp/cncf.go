@@ -445,7 +445,7 @@ Add --show-passes with --format human on the Kubernetes native-resource route an
 	if flagProvided(args, "knowledge-db") && flagProvided(args, "now") {
 		return r.usage("external CNCF checks use verifier time; omit --now")
 	}
-	if code, stop := r.resolveCNCFKnowledge(args, *knowledgeMode, *project, knowledgeDB, nowText, *replay); stop {
+	if code, stop := r.resolveCNCFKnowledge(args, *knowledgeMode, *project, knowledgeDB, knowledgeRevision, knowledgeBundleDigest, knowledgeTrustReceiptDigest, nowText, *replay); stop {
 		return code
 	}
 	if anyFlagProvided(args, cncfCustomResourceFlags...) {

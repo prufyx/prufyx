@@ -37,6 +37,9 @@ func (r runtime) scan(args []string, stdin io.Reader) int {
 	if result.KnowledgeSource != "" {
 		fmt.Fprintln(r.stderr, "prufyx: "+result.KnowledgeSource)
 	}
+	if result.KnowledgeNote != "" {
+		fmt.Fprintln(r.stderr, "prufyx: note: "+result.KnowledgeNote)
+	}
 	r.knowledgeAgeNote(result.KnowledgeAge)
 	return result.Exit
 }

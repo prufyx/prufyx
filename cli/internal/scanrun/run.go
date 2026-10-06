@@ -21,6 +21,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/intake"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeauto"
@@ -60,13 +61,16 @@ type Result struct {
 	// knowledge an automatic selection used; empty when the source was
 	// explicit (--knowledge-db, --now, supplied knowledge) or not automatic.
 	KnowledgeSource string
+	// KnowledgeNote is the staleness note of an automatic database, for
+	// standard error; it changes no verdict.
+	KnowledgeNote string
 }
 
 // Run performs the scan. A *UsageError is input the scan does not accept
 // (exit 2); ErrIntegrity is a knowledge or report integrity failure (exit 3).
 func Run(request Request, options Options) (Result, error) {
 	knowledge := options.Knowledge
-	knowledgeSource := ""
+	knowledgeSource, knowledgeNote := "", ""
 	autoStore := false
 	if knowledge == nil && options.AutoLocalDB && request.KnowledgeDB == "" && request.Now.IsZero() && request.KnowledgeMode != "embedded" {
 		root, present, err := knowledgeauto.Locate()
@@ -156,12 +160,18 @@ func Run(request Request, options Options) (Result, error) {
 				err = &StoreError{Reason: scanreport.KnowledgeDBPinMismatch}
 			}
 		}
+		if err == nil && autoStore && opened.info.Provenance.Layout != cncfknowledge.LayoutPerProject {
+			err = &StoreError{Reason: scanreport.KnowledgeDBLayout}
+		}
 		if err != nil {
 			var storeErr *StoreError
 			if autoStore && errors.As(err, &storeErr) {
 				storeErr.Auto = true
 			}
 			return Result{}, err
+		}
+		if autoStore {
+			knowledgeNote = knowledgeauto.StalenessNote(opened.info.Provenance.ImportedVerifiedAt, "")
 		}
 		if autoStore {
 			knowledgeSource = "knowledge source: local-db, revision " + opened.Revision() + ", bundle digest " + opened.PackDigest()
@@ -264,7 +274,7 @@ func Run(request Request, options Options) (Result, error) {
 	if request.Redact {
 		scanreport.Redact(&report)
 	}
-	return Result{Report: report, Exit: scanreport.Exit(report), KnowledgeAge: knowledgeAgeNote(knowledge, now), KnowledgeSource: knowledgeSource}, nil
+	return Result{Report: report, Exit: scanreport.Exit(report), KnowledgeAge: knowledgeAgeNote(knowledge, now), KnowledgeSource: knowledgeSource, KnowledgeNote: knowledgeNote}, nil
 }
 
 // knowledgeAgeNote words the age note for the knowledge a scan used,

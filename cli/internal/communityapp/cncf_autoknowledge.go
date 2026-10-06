@@ -39,7 +39,7 @@ var autoClock = time.Now
 //
 // The chosen source is recorded in r.knowledgeSource and written to
 // standard error; the report bytes are not changed.
-func (r *runtime) resolveCNCFKnowledge(args []string, mode, project string, knowledgeDB, nowText *string, replay string) (code int, stop bool) {
+func (r *runtime) resolveCNCFKnowledge(args []string, mode, project string, knowledgeDB, knowledgeRevision, knowledgeBundleDigest, knowledgeTrustReceiptDigest, nowText *string, replay string) (code int, stop bool) {
 	if mode != "" && mode != knowledgeauto.ModeAuto && mode != knowledgeauto.ModeEmbedded {
 		return r.usage("invalid --knowledge; use auto or embedded"), true
 	}
@@ -72,7 +72,7 @@ func (r *runtime) resolveCNCFKnowledge(args []string, mode, project string, know
 		return r.fail(err.Error(), ExitIntegrity), true
 	}
 	selected, err := autoOpenStore(knowledge.SelectionRequest{StoreRoot: root}, []string{project})
-	if err == nil && (!selected.Valid() || selected.Mode() != knowledge.SelectionCurrent) {
+	if err == nil && (!selected.Valid() || selected.Mode() != knowledge.SelectionCurrent || !selected.PerProject()) {
 		err = knowledge.ErrIntegrity
 	}
 	if err == nil {
@@ -85,12 +85,20 @@ func (r *runtime) resolveCNCFKnowledge(args []string, mode, project string, know
 		}
 		return r.fail(err.Error(), ExitIntegrity), true
 	}
+	// Bind the evaluation to what was just verified and pin-checked: the
+	// store is opened again by the explicit path, and that open refuses any
+	// other revision, bundle or trust receipt (which commits to the initial
+	// root, so the pin carries over). A store swapped or advanced in between
+	// is an integrity failure, never evaluated.
 	*knowledgeDB = root
+	*knowledgeRevision, *knowledgeBundleDigest, *knowledgeTrustReceiptDigest = selected.Revision(), selected.BundleDigest(), selected.TrustReceiptDigest()
 	r.knowledgeSource = fmt.Sprintf("local-db (revision %s, bundle digest %s)", selected.Revision(), selected.BundleDigest())
 	embeddedRevision := "unknown"
 	if catalog, cerr := cncfcheck.Catalog(false, project); cerr == nil {
 		embeddedRevision = catalog.KnowledgeRevision
 	}
 	fmt.Fprintf(r.stderr, "prufyx: knowledge source: local-db, revision %s, bundle digest %s (embedded would be %s; the verified local database is preferred)\n", selected.Revision(), selected.BundleDigest(), embeddedRevision)
+	receipt := selected.TrustReceipt()
+	fmt.Fprintf(r.stderr, "prufyx: note: %s\n", knowledgeauto.StalenessNote(receipt.VerifiedAt, receipt.EvidenceExpiresAt))
 	return 0, false
 }
