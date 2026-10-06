@@ -218,7 +218,7 @@ func EngineContractDigestSet() string { return engineContractDigestSet() }
 func validSetClaims(report Report) bool {
 	for _, claim := range report.Claims {
 		setClaim := claim.Operator == OperatorForbidSetMember
-		if setClaim && report.EngineContractDigest != engineContractDigestSet() && report.EngineContractDigest != engineContractDigestNotice() && report.EngineContractDigest != engineContractDigestBasis() && report.EngineContractDigest != engineContractDigestSeverity() {
+		if setClaim && report.EngineContractDigest != engineContractDigestSet() && report.EngineContractDigest != engineContractDigestNotice() && report.EngineContractDigest != engineContractDigestBasis() && !atLeastSeverityContract(report.EngineContractDigest) {
 			return false
 		}
 		if !setClaim {

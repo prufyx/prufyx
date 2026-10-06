@@ -761,8 +761,10 @@ func Discover(selectedProject, selectedFrom, selectedTo string) (Result, error) 
 			return
 		}
 		item := Check{Family: family, Project: project, Component: component, RuleID: ruleID, From: from, To: to, GenericDeclarationRoute: genericRoute(family, project, from, to), NativeDescriptor: Route{State: DescriptorNone}, Range: subject.Range}
-		if selectedFrom != "" && selectedTo != "" && subject.Match(selectedFrom, selectedTo) == constraintengine.MatchRange {
-			item.MatchMode = string(constraintengine.MatchRange)
+		if selectedFrom != "" && selectedTo != "" {
+			if mode := subject.Match(selectedFrom, selectedTo); mode == constraintengine.MatchRange || mode == constraintengine.MatchCrossing {
+				item.MatchMode = string(mode)
+			}
 		}
 		if descriptor, found := descriptors[identityKey(family, project, component, ruleID, from, to)]; found {
 			item.NativeDescriptor = Route{State: DescriptorExact, Command: descriptor.command, Limit: descriptor.limit, NativePass: descriptor.nativePass}

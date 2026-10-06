@@ -485,3 +485,31 @@ Kubernetes only; component checks ask for the target in the native check. A
 hop that crosses the change version but is wider than the reviewed range is
 reported INDETERMINATE_HOP_OUTSIDE_REVIEWED_RANGE, never not applicable, and an
 observed version that is not a strict X.Y.Z is INDETERMINATE_VERSION_UNPARSEABLE.
+
+## Removal crossings in contributed rules
+
+A `forbid_predicate_value` or `forbid_set_member` rule may carry a `crossing`
+object so a removal at release C blocks every strict upgrade hop A -> B with
+A < C <= B, however many minor lines the hop skips. A crossing only blocks: a
+hop it matches never passes. When the rule's fact does not block, the result
+is UNKNOWN with reason `RULE_CROSSING_PASS_NOT_REVIEWED`. `rule validate`
+accepts it only in this shape:
+
+- `change` is `{version, basis, sourceId}` with basis `REMOVED_IN_RELEASE`;
+  the version is a minor-line start `X.Y.0`, and the anchor pair crosses it;
+- `horizon` is `{lt, basis, sourceId}` with basis `REVIEWED_THROUGH_MINOR_LINE`
+  and a finite minor-line start above C. An empty, wildcard or uncited horizon
+  is rejected. Beyond the horizon the result is UNKNOWN, never BLOCKED;
+- `restored`, optional, is `{version, basis, sourceId}` with basis
+  `RESTORED_IN_RELEASE`; from that release on the result is UNKNOWN;
+- every `sourceId` names one of the rule's own `evidence.sources`;
+- `distributions`, optional, is a non-empty, strictly ascending list drawn from
+  the reviewed normalisers (`gke`, `upstream`); the default is `upstream`
+  only. A version from any other distribution, a downgrade or an unparseable
+  version never matches.
+
+A document holding a crossing rule carries rules schema `v1alpha7` and its own
+engine and scope contract digests; a pack holding one is pack level
+`v1alpha11`. External and project packs do not accept crossing rules. A
+crossing rule cannot be folded into the published pack without the
+maintainer's review and the owner's signature.

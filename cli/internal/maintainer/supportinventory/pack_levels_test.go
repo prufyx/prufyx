@@ -163,7 +163,7 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 		"prufyx.io/cncf-source-rule-pack/v1alpha1", "prufyx.io/cncf-source-rule-pack/v1alpha2", "prufyx.io/cncf-source-rule-pack/v1alpha3",
 		"prufyx.io/cncf-source-rule-pack/v1alpha4", "prufyx.io/cncf-source-rule-pack/v1alpha5", "prufyx.io/cncf-source-rule-pack/v1alpha6",
 		"prufyx.io/cncf-source-rule-pack/v1alpha7", "prufyx.io/cncf-source-rule-pack/v1alpha8", "prufyx.io/cncf-source-rule-pack/v1alpha9",
-		"prufyx.io/cncf-source-rule-pack/v1alpha10",
+		"prufyx.io/cncf-source-rule-pack/v1alpha10", "prufyx.io/cncf-source-rule-pack/v1alpha11",
 	}
 	for _, tc := range []struct {
 		name      string

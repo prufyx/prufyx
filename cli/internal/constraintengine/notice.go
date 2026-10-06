@@ -134,7 +134,7 @@ func validNoticeClaims(report Report) bool {
 		notice := claim.IsNotice()
 		// The basis and severity contracts admit every feature of the notice
 		// contract.
-		if notice && report.EngineContractDigest != engineContractDigestNotice() && report.EngineContractDigest != engineContractDigestBasis() && report.EngineContractDigest != engineContractDigestSeverity() {
+		if notice && report.EngineContractDigest != engineContractDigestNotice() && report.EngineContractDigest != engineContractDigestBasis() && !atLeastSeverityContract(report.EngineContractDigest) {
 			return false
 		}
 		// NOTICE comes from a one-way notice, or from a lead that would have

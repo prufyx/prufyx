@@ -140,10 +140,10 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	if err := decodeStrict(raw, &document); err != nil {
 		return RuleSet{}, err
 	}
-	if (document.Schema != RulesSchema && document.Schema != RulesSchemaRanged && document.Schema != RulesSchemaSet && document.Schema != RulesSchemaNotice && document.Schema != RulesSchemaBasis && document.Schema != RulesSchemaSeverity) || !idRE.MatchString(document.Revision) || !idRE.MatchString(document.PolicyID) || !digestRE.MatchString(document.PolicyDigest) || len(document.Rules) > maxRules {
+	if (document.Schema != RulesSchema && document.Schema != RulesSchemaRanged && document.Schema != RulesSchemaSet && document.Schema != RulesSchemaNotice && document.Schema != RulesSchemaBasis && document.Schema != RulesSchemaSeverity && document.Schema != RulesSchemaCrossing) || !idRE.MatchString(document.Revision) || !idRE.MatchString(document.PolicyID) || !digestRE.MatchString(document.PolicyDigest) || len(document.Rules) > maxRules {
 		return RuleSet{}, fmt.Errorf("ruleset identity: %w", ErrInvalid)
 	}
-	ranged, setOperator, notice, basis, severity := false, false, false, false, false
+	ranged, setOperator, notice, basis, severity, crossing := false, false, false, false, false, false
 	for i, rule := range document.Rules {
 		if i > 0 && document.Rules[i-1].ID >= rule.ID {
 			return RuleSet{}, fmt.Errorf("rule order: %w", ErrInvalid)
@@ -156,6 +156,7 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 		notice = notice || rule.usesNoticeOperator()
 		basis = basis || rule.usesBasisSemantics()
 		severity = severity || rule.usesSeverity()
+		crossing = crossing || rule.usesCrossing()
 	}
 	// The schema string states which contract the document needs, and it
 	// must be right in every direction: a document carries exactly the
@@ -168,10 +169,10 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	// schema (which also admits ranges); otherwise an exact-only schema never
 	// admits a range, and the ranged schema is never used without one. Every
 	// document has exactly one schema and one engine contract.
-	if document.Schema != requiredRulesSchema(ranged, setOperator, notice, basis, severity) {
-		return RuleSet{}, fmt.Errorf("ruleset schema does not match range, set, notice operator, basis or severity use: %w", ErrInvalid)
+	if document.Schema != requiredRulesSchema(ranged, setOperator, notice, basis, severity, crossing) {
+		return RuleSet{}, fmt.Errorf("ruleset schema does not match range, set, notice operator, basis, severity or crossing use: %w", ErrInvalid)
 	}
-	if ranged {
+	if ranged || crossing {
 		if err := validateRangeOverlaps(document.Rules); err != nil {
 			return RuleSet{}, err
 		}
@@ -179,7 +180,7 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	if err := validateCorpus(document); err != nil {
 		return RuleSet{}, err
 	}
-	return RuleSet{document: document, digest: digestJSON(document), registryDigest: registry.Digest(), ranged: ranged, setOperator: setOperator, notice: notice, basis: basis, severity: severity, seal: &ruleSetSeal{}}, nil
+	return RuleSet{document: document, digest: digestJSON(document), registryDigest: registry.Digest(), ranged: ranged, setOperator: setOperator, notice: notice, basis: basis, severity: severity, crossing: crossing, seal: &ruleSetSeal{}}, nil
 }
 
 // validateCorpus admits a completeness attestation only when the document can
@@ -225,6 +226,9 @@ func validateRule(rule rule, registry Registry) error {
 		return err
 	}
 	if err := validateSeverityRule(rule); err != nil {
+		return err
+	}
+	if err := validateCrossingRule(rule); err != nil {
 		return err
 	}
 	if err := validateRange(rule); err != nil {
@@ -480,9 +484,15 @@ func validateInputShape(raw []byte) error {
 			return ErrInvalid
 		}
 		for _, componentRaw := range components {
-			component, err := exactObject(componentRaw, []string{"component", "version", "facts"}, nil)
+			component, err := exactObject(componentRaw, []string{"component", "version", "facts"}, []string{"distribution"})
 			if err != nil {
 				return err
+			}
+			if raw, ok := component["distribution"]; ok {
+				var name string
+				if json.Unmarshal(raw, &name) != nil || !ReviewedDistribution(name) {
+					return ErrInvalid
+				}
 			}
 			facts, err := exactArray(component["facts"])
 			if err != nil || len(facts) > maxFacts {
@@ -522,7 +532,7 @@ func validateRuleShape(raw []byte) error {
 		return ErrInvalid
 	}
 	for _, ruleRaw := range rules {
-		rule, err := exactObject(ruleRaw, []string{"id", "operator", "subject", "evidence", "reasonCode", "nextAction"}, []string{"condition", "setCondition", "appliesWhen", "dependency", "intermediate", "range", "severity"})
+		rule, err := exactObject(ruleRaw, []string{"id", "operator", "subject", "evidence", "reasonCode", "nextAction"}, []string{"condition", "setCondition", "appliesWhen", "dependency", "intermediate", "range", "severity", "crossing"})
 		if err != nil {
 			return err
 		}
@@ -532,6 +542,11 @@ func validateRuleShape(raw []byte) error {
 			var value string
 			if json.Unmarshal(raw, &value) != nil || value == "" {
 				return ErrInvalid
+			}
+		}
+		if crossingRaw, ok := rule["crossing"]; ok {
+			if err := validateCrossingShape(crossingRaw); err != nil {
+				return err
 			}
 		}
 		if _, err := exactObject(rule["subject"], []string{"component", "from", "to"}, nil); err != nil {

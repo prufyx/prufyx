@@ -81,6 +81,10 @@ func evaluateRuleVerdict(input inputDocument, rule rule, now time.Time) Claim {
 		}
 		return claim
 	}
+	if mode == MatchCrossing {
+		// A crossing match may block and never passes (crossing.go).
+		return applyCrossing(evaluateMatchedRule(input, rule, claim), rule)
+	}
 	if mode == MatchRange {
 		// Every verdict reached through a range discloses it, whatever the
 		// status, so a range claim can never be read as an anchor review.
@@ -168,6 +172,11 @@ func subjectAvailability(input inputDocument, subject RuleTransition) (MatchMode
 	}
 	mode := subject.Match(current.Version, proposed.Version)
 	if mode == MatchNone {
+		return MatchNone, "RULE_TRANSITION_NOT_REVIEWED"
+	}
+	// A crossing match compares versions across distributions only when both
+	// sides come through a reviewed normaliser the rule lists.
+	if mode == MatchCrossing && !subject.CrossingAdmits(current.Distribution, proposed.Distribution) {
 		return MatchNone, "RULE_TRANSITION_NOT_REVIEWED"
 	}
 	return mode, ""
@@ -281,7 +290,7 @@ func issueReport(report Report) Report {
 // independently re-derive that same assessment. No block, no verdict —
 // however many claims passed. See legalAssessment.
 func MarshalReport(report Report) ([]byte, error) {
-	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !validSetClaims(report) || !validNoticeClaims(report) || !validBasisClaims(report) || !validSeverityClaims(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
+	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !validSetClaims(report) || !validNoticeClaims(report) || !validBasisClaims(report) || !validSeverityClaims(report) || !validCrossingClaims(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
 		return nil, ErrIntegrity
 	}
 	raw, err := json.Marshal(report)
@@ -314,7 +323,7 @@ func validClaimMatches(report Report) bool {
 		if match == nil {
 			continue
 		}
-		if (report.EngineContractDigest != engineContractDigestRanged() && report.EngineContractDigest != engineContractDigestSet() && report.EngineContractDigest != engineContractDigestNotice() && report.EngineContractDigest != engineContractDigestBasis() && report.EngineContractDigest != engineContractDigestSeverity()) || match.Mode != subjectMatchModeRange || claim.Status == "UNKNOWN" && claim.ReasonCode == "RULE_TRANSITION_NOT_REVIEWED" {
+		if (report.EngineContractDigest != engineContractDigestRanged() && report.EngineContractDigest != engineContractDigestSet() && report.EngineContractDigest != engineContractDigestNotice() && report.EngineContractDigest != engineContractDigestBasis() && !atLeastSeverityContract(report.EngineContractDigest)) || match.Mode != subjectMatchModeRange || claim.Status == "UNKNOWN" && claim.ReasonCode == "RULE_TRANSITION_NOT_REVIEWED" {
 			return false
 		}
 		if !validVersion(match.AnchorFrom) || !validVersion(match.AnchorTo) || !inBound(match.AnchorFrom, match.From) || !inBound(match.AnchorTo, match.To) {

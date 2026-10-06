@@ -403,6 +403,10 @@ func validateExternalPack(base bundle, packValue rulePack, revision string) erro
 	if severity, err := constraintengine.AnySeverityRule(rules); err != nil || severity {
 		return ErrIntegrity
 	}
+	// Nor removal-crossing rules: they carry the owner's signature only.
+	if crossing, err := constraintengine.AnyCrossingRule(rules); err != nil || crossing {
+		return ErrIntegrity
+	}
 	if !validPackSchema(packValue) || packValue.Revision != revision || packValue.PolicyID != base.pack.PolicyID || packValue.PolicyDigest != base.pack.PolicyDigest || packValue.LandscapeFileDigest != base.landscape.LandscapeFileDigest || packValue.RegistryDigest != base.registry.Digest() || len(packValue.Entries) > maxExternalEntries {
 		return ErrIntegrity
 	}

@@ -60,6 +60,7 @@ type RuleTransition struct {
 	From      string
 	To        string
 	Range     *VersionRange
+	Crossing  *CrossingSpec
 }
 
 // Match reports how the declared transition matches this subject. A version
@@ -71,19 +72,29 @@ func (t RuleTransition) Match(from, to string) MatchMode {
 	if t.Range != nil && inBound(from, t.Range.From) && inBound(to, t.Range.To) {
 		return MatchRange
 	}
+	if t.Crossing != nil && t.Crossing.contains(from, to) {
+		return MatchCrossing
+	}
 	return MatchNone
+}
+
+// CrossingAdmits reports whether the observed distributions of the two sides
+// are inside a crossing subject's reviewed distribution scope. A subject
+// without a crossing never admits a crossing match.
+func (t RuleTransition) CrossingAdmits(fromDistribution, toDistribution string) bool {
+	return t.Crossing != nil && t.Crossing.admits(fromDistribution, toDistribution)
 }
 
 // MatchesFrom reports whether a declared current version alone falls under
 // this subject. It serves partial catalogue filters; rule selection and
 // evaluation always use Match.
 func (t RuleTransition) MatchesFrom(from string) bool {
-	return from == t.From || t.Range != nil && inBound(from, t.Range.From)
+	return from == t.From || t.Range != nil && inBound(from, t.Range.From) || t.Crossing != nil && VersionLess(from, t.Crossing.Change.Version)
 }
 
 // MatchesTo is the proposed-version counterpart of MatchesFrom.
 func (t RuleTransition) MatchesTo(to string) bool {
-	return to == t.To || t.Range != nil && inBound(to, t.Range.To)
+	return to == t.To || t.Range != nil && inBound(to, t.Range.To) || t.Crossing != nil && !VersionLess(to, t.Crossing.Change.Version) && VersionLess(to, t.Crossing.Cap())
 }
 
 // IsAnchorFrom reports whether the declared current version is exactly the
@@ -128,22 +139,31 @@ func RuleTransitionOf(raw []byte) (RuleTransition, error) {
 			From      string `json:"from"`
 			To        string `json:"to"`
 		} `json:"subject"`
-		Range *VersionRange `json:"range"`
+		Range    *VersionRange `json:"range"`
+		Crossing *CrossingSpec `json:"crossing"`
 	}
 	if err := json.Unmarshal(raw, &shape); err != nil {
 		return RuleTransition{}, fmt.Errorf("rule subject: %w", ErrInvalid)
 	}
-	return RuleTransition{Component: shape.Subject.Component, From: shape.Subject.From, To: shape.Subject.To, Range: shape.Range}, nil
+	return RuleTransition{Component: shape.Subject.Component, From: shape.Subject.From, To: shape.Subject.To, Range: shape.Range, Crossing: shape.Crossing}, nil
 }
 
 // RulesSchemaFor returns the rules schema a document holding exactly these
-// rules must carry: the severity schema when at least one rule declares a
+// rules must carry: the crossing schema when at least one rule declares a
+// crossing, else the severity schema when at least one rule declares a
 // severity, else the basis schema when at least one rule has a consensus
 // or lead basis, else the notice schema when at least one rule uses
 // notice_one_way, else the set schema when at least one rule uses
 // forbid_set_member, else the ranged schema when at least one rule has a
 // range, the original exact-only schema otherwise.
 func RulesSchemaFor(rules []json.RawMessage) (string, error) {
+	crossing, err := AnyCrossingRule(rules)
+	if err != nil {
+		return "", err
+	}
+	if crossing {
+		return RulesSchemaCrossing, nil
+	}
 	severity, err := AnySeverityRule(rules)
 	if err != nil {
 		return "", err
@@ -198,8 +218,10 @@ func AnyRanged(rules []json.RawMessage) (bool, error) {
 
 // requiredRulesSchema is the schema of the highest-level feature a parsed
 // document uses; RulesSchemaFor is its raw-rule counterpart.
-func requiredRulesSchema(ranged, setOperator, notice, basis, severity bool) string {
+func requiredRulesSchema(ranged, setOperator, notice, basis, severity, crossing bool) string {
 	switch {
+	case crossing:
+		return RulesSchemaCrossing
 	case severity:
 		return RulesSchemaSeverity
 	case basis:
@@ -215,7 +237,7 @@ func requiredRulesSchema(ranged, setOperator, notice, basis, severity bool) stri
 }
 
 func (r rule) transition() RuleTransition {
-	return RuleTransition{Component: r.Subject.Component, From: r.Subject.From, To: r.Subject.To, Range: r.Range}
+	return RuleTransition{Component: r.Subject.Component, From: r.Subject.From, To: r.Subject.To, Range: r.Range, Crossing: r.Crossing}
 }
 
 // sameVersion is the one exact version equality used by structural guards.
@@ -404,7 +426,7 @@ func validateRangeOverlaps(rules []rule) error {
 	for i := range rules {
 		for j := i + 1; j < len(rules); j++ {
 			a, b := rules[i], rules[j]
-			if a.Range == nil && b.Range == nil || a.Subject.Component != b.Subject.Component {
+			if a.Range == nil && b.Range == nil && a.Crossing == nil && b.Crossing == nil || a.Subject.Component != b.Subject.Component {
 				continue
 			}
 			if constraintKey(a) != constraintKey(b) {
@@ -452,9 +474,27 @@ func constraintKey(r rule) string {
 }
 
 func regionsOverlap(a, b RuleTransition) bool {
-	fromA, toA := region(a)
-	fromB, toB := region(b)
-	return intervalsOverlap(fromA, fromB) && intervalsOverlap(toA, toB)
+	for _, ra := range regions(a) {
+		for _, rb := range regions(b) {
+			if intervalsOverlap(ra[0], rb[0]) && intervalsOverlap(ra[1], rb[1]) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// regions lists every (from, to) region a subject matches: its anchor or
+// range, and for a crossing subject also the crossing region
+// {(a, b): a < C <= b < Cap}.
+func regions(t RuleTransition) [][2]interval {
+	from, to := region(t)
+	out := [][2]interval{{from, to}}
+	if t.Crossing != nil {
+		cf, ct := crossingRegions(t.Crossing)
+		out = append(out, [2]interval{cf, ct})
+	}
+	return out
 }
 
 // region returns the half-open from and to intervals a subject matches. An
