@@ -442,6 +442,7 @@ const (
 	labelSource                 = "source: %s lines %d-%d; revision %s; digest %s"
 	labelSharedSources          = "Sources cited by several findings:"
 	labelNotChecked             = "NOT CHECKED (%d)"
+	labelOnlyBlocked            = "Hidden by --only-blocked: %d not-checked gap(s), %d other item(s) (notices, unsupported, leads). Run without the flag or use --format json to see them."
 	labelPassed                 = "PASSED (%d)"
 	labelChecked                = "Read %s over %s; %s."
 	labelComponentsRulesOne     = "%d of 1 component has rules"
@@ -589,6 +590,11 @@ with where it is and how to fix it, and every area that was not checked.
                             code scanning, markdown is for pull request comments and tickets,
                             csv is one row per finding location and gap for spreadsheets
   --show-passes             list passed checks (human, markdown)
+  --only-blocked            list only BLOCKED findings (human, markdown) and count what is hidden;
+                            json and sarif stay complete
+  --fail-on blocked|unknown|none   which verdicts give a failing exit code (default unknown:
+                            10 blocked, 11 unknown); blocked exits 0 for unknown; none always
+                            exits 0; usage (2) and integrity (3) errors are never suppressed
   --verbose                 show hop status and cited sources (human, markdown)
   --redact                  print digests instead of file paths, names and namespaces
                             (plain digests: short names can be recovered by guessing)

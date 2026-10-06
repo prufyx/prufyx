@@ -154,6 +154,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   names), on only when stdout is a terminal. `NO_COLOR`, `PRUFYX_COLOR=never`
   and `TERM=dumb` turn it off; `PRUFYX_COLOR=always` forces it on. Report
   output is never coloured.
+- `prufyx scan --fail-on blocked|unknown|none` (default `unknown`, exit codes
+  unchanged): `blocked` exits 0 for an undecided scan but still 10 for BLOCKED,
+  `none` always exits 0. Usage (2) and integrity (3) errors are never
+  suppressed; the report is unchanged.
+- `prufyx scan --only-blocked`: human and Markdown output list only BLOCKED
+  findings and print one line counting the hidden items; JSON and SARIF stay
+  complete.
 - `prufyx-maintainer corpus-attestation generate|check --tree DIR` attests the
   pack files of a checked-out tree (its root or its `cli/` directory) instead of
   the pack embedded in the binary, so a mechanical candidate can be re-attested
