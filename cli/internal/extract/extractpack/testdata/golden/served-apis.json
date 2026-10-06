@@ -24,9 +24,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:255668d75ccaffaff82efeea594e969a0054630d4ef298426c18a1e5f7dd1e3f",
+            "codeDigest": "sha256:17d1b43b4dcc48f1fb6905246d25ce59c1a0f51d3e894f42060d8264070eb31d",
             "id": "k8s.served-api-removal",
-            "version": "1.1.0"
+            "version": "1.2.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -59,7 +59,7 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-32-0-to-1-33-0",
-        "nextAction": "Migrate the named manifests to authentication.k8s.io/v1, then reassess the complete target apply set. Validate CRDs, stored objects, clients and API-server configuration separately.",
+        "nextAction": "Migrate the named SelfSubjectReview manifests to authentication.k8s.io/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.",
         "operator": "forbid_predicate_value",
         "range": {
           "bounds": [
@@ -125,9 +125,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:255668d75ccaffaff82efeea594e969a0054630d4ef298426c18a1e5f7dd1e3f",
+            "codeDigest": "sha256:17d1b43b4dcc48f1fb6905246d25ce59c1a0f51d3e894f42060d8264070eb31d",
             "id": "k8s.served-api-removal",
-            "version": "1.1.0"
+            "version": "1.2.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -160,7 +160,7 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0",
-        "nextAction": "Migrate the named manifests to autoscaling/v2, then reassess the complete target apply set. Validate CRDs, stored objects, clients and API-server configuration separately.",
+        "nextAction": "Migrate the named HorizontalPodAutoscaler manifests to autoscaling/v2. Use target.averageUtilization. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.",
         "operator": "forbid_predicate_value",
         "range": {
           "bounds": [
@@ -226,9 +226,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:255668d75ccaffaff82efeea594e969a0054630d4ef298426c18a1e5f7dd1e3f",
+            "codeDigest": "sha256:17d1b43b4dcc48f1fb6905246d25ce59c1a0f51d3e894f42060d8264070eb31d",
             "id": "k8s.served-api-removal",
-            "version": "1.1.0"
+            "version": "1.2.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -261,7 +261,7 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0",
-        "nextAction": "Migrate the named manifests to batch/v1, then reassess the complete target apply set. Validate CRDs, stored objects, clients and API-server configuration separately.",
+        "nextAction": "Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.",
         "operator": "forbid_predicate_value",
         "range": {
           "bounds": [
@@ -327,9 +327,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:255668d75ccaffaff82efeea594e969a0054630d4ef298426c18a1e5f7dd1e3f",
+            "codeDigest": "sha256:17d1b43b4dcc48f1fb6905246d25ce59c1a0f51d3e894f42060d8264070eb31d",
             "id": "k8s.served-api-removal",
-            "version": "1.1.0"
+            "version": "1.2.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -362,7 +362,7 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0",
-        "nextAction": "Migrate the named manifests to flowcontrol.apiserver.k8s.io/v1, then reassess the complete target apply set. Validate CRDs, stored objects, clients and API-server configuration separately.",
+        "nextAction": "Migrate the named FlowSchema or PriorityLevelConfiguration manifests to flowcontrol.apiserver.k8s.io/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.",
         "operator": "forbid_predicate_value",
         "range": {
           "bounds": [
@@ -428,9 +428,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:255668d75ccaffaff82efeea594e969a0054630d4ef298426c18a1e5f7dd1e3f",
+            "codeDigest": "sha256:17d1b43b4dcc48f1fb6905246d25ce59c1a0f51d3e894f42060d8264070eb31d",
             "id": "k8s.served-api-removal",
-            "version": "1.1.0"
+            "version": "1.2.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -463,7 +463,7 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0",
-        "nextAction": "Migrate the named manifests to policy/v1, then reassess the complete target apply set. Validate CRDs, stored objects, clients and API-server configuration separately.",
+        "nextAction": "Migrate the named PodDisruptionBudget manifests to policy/v1. An empty selector now selects all pods. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.",
         "operator": "forbid_predicate_value",
         "range": {
           "bounds": [
@@ -529,9 +529,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:255668d75ccaffaff82efeea594e969a0054630d4ef298426c18a1e5f7dd1e3f",
+            "codeDigest": "sha256:17d1b43b4dcc48f1fb6905246d25ce59c1a0f51d3e894f42060d8264070eb31d",
             "id": "k8s.served-api-removal",
-            "version": "1.1.0"
+            "version": "1.2.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -564,7 +564,7 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0",
-        "nextAction": "Remove the named manifests or replace them with a kind and version the target release serves, then reassess the complete target apply set. Validate CRDs, stored objects, clients and API-server configuration separately.",
+        "nextAction": "Remove PodSecurityPolicy (policy/v1beta1) from the target apply set; it has no served replacement API. Migrate to Pod Security Admission or a 3rd party admission webhook. Reassess the complete target apply set.",
         "operator": "forbid_predicate_value",
         "range": {
           "bounds": [
@@ -615,9 +615,9 @@
         "basis": "mechanical",
         "derivedAt": "2026-10-04T00:00:00Z",
         "extractor": {
-          "codeDigest": "sha256:255668d75ccaffaff82efeea594e969a0054630d4ef298426c18a1e5f7dd1e3f",
+          "codeDigest": "sha256:17d1b43b4dcc48f1fb6905246d25ce59c1a0f51d3e894f42060d8264070eb31d",
           "id": "k8s.served-api-removal",
-          "version": "1.1.0"
+          "version": "1.2.0"
         },
         "reviewedAt": "2026-10-04T00:00:00Z",
         "sources": [
@@ -656,9 +656,9 @@
         "basis": "mechanical",
         "derivedAt": "2026-10-04T00:00:00Z",
         "extractor": {
-          "codeDigest": "sha256:255668d75ccaffaff82efeea594e969a0054630d4ef298426c18a1e5f7dd1e3f",
+          "codeDigest": "sha256:17d1b43b4dcc48f1fb6905246d25ce59c1a0f51d3e894f42060d8264070eb31d",
           "id": "k8s.served-api-removal",
-          "version": "1.1.0"
+          "version": "1.2.0"
         },
         "reviewedAt": "2026-10-04T00:00:00Z",
         "sources": [
@@ -692,9 +692,9 @@
         "basis": "mechanical",
         "derivedAt": "2026-10-04T00:00:00Z",
         "extractor": {
-          "codeDigest": "sha256:255668d75ccaffaff82efeea594e969a0054630d4ef298426c18a1e5f7dd1e3f",
+          "codeDigest": "sha256:17d1b43b4dcc48f1fb6905246d25ce59c1a0f51d3e894f42060d8264070eb31d",
           "id": "k8s.served-api-removal",
-          "version": "1.1.0"
+          "version": "1.2.0"
         },
         "reviewedAt": "2026-10-04T00:00:00Z",
         "sources": [
@@ -730,9 +730,9 @@
         "basis": "mechanical",
         "derivedAt": "2026-10-04T00:00:00Z",
         "extractor": {
-          "codeDigest": "sha256:255668d75ccaffaff82efeea594e969a0054630d4ef298426c18a1e5f7dd1e3f",
+          "codeDigest": "sha256:17d1b43b4dcc48f1fb6905246d25ce59c1a0f51d3e894f42060d8264070eb31d",
           "id": "k8s.served-api-removal",
-          "version": "1.1.0"
+          "version": "1.2.0"
         },
         "reviewedAt": "2026-10-04T00:00:00Z",
         "sources": [
