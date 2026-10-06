@@ -22,11 +22,13 @@ const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|public-key
   sign        --pack cncf|community --rule ID --base-pack FILE --head-pack FILE
               --keys FILE --keys-digest sha256:... --identity LOGIN --candidate-id ID
               (--key FILE | --key-stdin) --output FILE [--subject rule]
+  sign        --subject lineAttestation --record ID (in place of --rule ID; the other options as above)
   sign        --subject repinBaseline --repository OWNER/REPO --head-baselines FILE [--base-baselines FILE]
               --keys FILE --keys-digest sha256:... --identity LOGIN --candidate-id ID
               (--key FILE | --key-stdin) --output FILE
   verify      --approval FILE --pack cncf|community --rule ID --base-pack FILE --head-pack FILE
               --keys FILE --keys-digest sha256:... [--now RFC3339] [--subject rule]
+  verify      --subject lineAttestation --record ID (in place of --rule ID; the other options as above)
   verify      --approval FILE --subject repinBaseline --repository OWNER/REPO --head-baselines FILE
               [--base-baselines FILE] --keys FILE --keys-digest sha256:... [--now RFC3339]
   public-key  (--key FILE | --key-stdin)
@@ -146,13 +148,14 @@ func parseApprovalFlags(f *flag.FlagSet, args []string) error {
 
 // subjectFlags are the flags naming what an approval is for.
 type subjectFlags struct {
-	subject, pack, rule, basePack, headPack  string
-	keys, keysDigest                         string
-	repository, baseBaselines, headBaselines string
+	subject, pack, rule, record, basePack, headPack string
+	keys, keysDigest                                string
+	repository, baseBaselines, headBaselines        string
 }
 
 func (s *subjectFlags) register(f *flag.FlagSet) {
-	f.StringVar(&s.subject, "subject", ApprovalSubjectRule, "what the approval is for: rule or repinBaseline")
+	f.StringVar(&s.subject, "subject", ApprovalSubjectRule, "what the approval is for: rule, lineAttestation or repinBaseline")
+	f.StringVar(&s.record, "record", "", "lineAttestation: the line attestation record ID (in place of --rule)")
 	f.StringVar(&s.repository, "repository", "", "repinBaseline: the repository (owner/repo), spelled as its entry spells it")
 	f.StringVar(&s.baseBaselines, "base-baselines", "", "repinBaseline: the baseline file as it is on the base branch (omit when the base has none)")
 	f.StringVar(&s.headBaselines, "head-baselines", "", "repinBaseline: the baseline file as the change proposes it")
@@ -168,7 +171,7 @@ func (s *subjectFlags) loadBaseline() (ApprovalSubject, ApprovalKeys, error) {
 	if s.repository == "" || s.headBaselines == "" || s.keys == "" || s.keysDigest == "" {
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--repository, --head-baselines, --keys and --keys-digest are required"}
 	}
-	if s.pack != "" || s.rule != "" || s.basePack != "" || s.headPack != "" {
+	if s.pack != "" || s.rule != "" || s.record != "" || s.basePack != "" || s.headPack != "" {
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--pack, --rule, --base-pack and --head-pack belong to --subject rule"}
 	}
 	keysRaw, err := readBoundedFile(s.keys, maxApprovalBytes*4)
@@ -200,11 +203,16 @@ func (s *subjectFlags) load(layout Layout) (ApprovalSubject, ApprovalKeys, error
 	if s.subject == ApprovalSubjectRepinBaseline {
 		return s.loadBaseline()
 	}
-	if s.pack == "" || s.rule == "" || s.basePack == "" || s.headPack == "" || s.keys == "" || s.keysDigest == "" {
-		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--pack, --rule, --base-pack, --head-pack, --keys and --keys-digest are required"}
+	switch {
+	case s.subject == ApprovalSubjectRule && s.record != "":
+		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--subject rule takes --rule ID, not --record"}
+	case s.subject == ApprovalSubjectLineAttestation && (s.record == "" || s.rule != ""):
+		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--subject lineAttestation takes --record ID, not --rule"}
+	case s.subject != ApprovalSubjectRule && s.subject != ApprovalSubjectLineAttestation:
+		return ApprovalSubject{}, ApprovalKeys{}, fmt.Errorf("--subject %q is not supported (supported: rule, lineAttestation, repinBaseline)", s.subject)
 	}
-	if s.subject != ApprovalSubjectRule {
-		return ApprovalSubject{}, ApprovalKeys{}, fmt.Errorf("--subject %q is not supported (supported: rule, repinBaseline)", s.subject)
+	if s.pack == "" || (s.rule == "" && s.record == "") || s.basePack == "" || s.headPack == "" || s.keys == "" || s.keysDigest == "" {
+		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--pack, --rule (or --record), --base-pack, --head-pack, --keys and --keys-digest are required"}
 	}
 	var spec *PackSpec
 	for i := range layout.Packs {
@@ -231,7 +239,12 @@ func (s *subjectFlags) load(layout Layout) (ApprovalSubject, ApprovalKeys, error
 	if err != nil {
 		return ApprovalSubject{}, ApprovalKeys{}, err
 	}
-	subject, err := RuleApprovalSubject(*spec, base, head, s.rule)
+	var subject ApprovalSubject
+	if s.subject == ApprovalSubjectLineAttestation {
+		subject, err = AttestationApprovalSubject(*spec, base, head, s.record)
+	} else {
+		subject, err = RuleApprovalSubject(*spec, base, head, s.rule)
+	}
 	if err != nil {
 		return ApprovalSubject{}, ApprovalKeys{}, err
 	}
@@ -328,9 +341,12 @@ func cmdApprovalSign(args []string, env approvalEnv, layout Layout, stdout io.Wr
 }
 
 func printApproval(w io.Writer, rec ApprovalRecord, key ApprovalKey) {
-	if rec.Subject == ApprovalSubjectRepinBaseline {
+	switch rec.Subject {
+	case ApprovalSubjectRepinBaseline:
 		fmt.Fprintf(w, "  subject    repinBaseline %s\n", rec.Scope)
-	} else {
+	case ApprovalSubjectLineAttestation:
+		fmt.Fprintf(w, "  subject    line attestation %s/%s (%s)\n", rec.Pack, rec.RuleID, rec.Scope)
+	default:
 		fmt.Fprintf(w, "  subject    rule %s/%s\n", rec.Pack, rec.RuleID)
 	}
 	fmt.Fprintf(w, "  base       %s\n", rec.BaseDigest)

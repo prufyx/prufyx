@@ -364,8 +364,8 @@ func TestApprovalSignDecidedAtWindow(t *testing.T) {
 func TestApprovalSignSubjectRefusals(t *testing.T) {
 	t.Run("unsupported subject kind", func(t *testing.T) {
 		f := newRuleFixture(t)
-		requireCode(t, runApproval(t, f.key.pemKey(t), signNow, append(f.signArgs("--key-stdin"), "--subject", "lineAttestation")...), 2, "not supported")
-		if _, _, err := SignApproval(SignApprovalOptions{Subject: ApprovalSubject{Kind: "lineAttestation"}}); err == nil {
+		requireCode(t, runApproval(t, f.key.pemKey(t), signNow, append(f.signArgs("--key-stdin"), "--subject", "pathPolicy")...), 2, "not supported")
+		if _, _, err := SignApproval(SignApprovalOptions{Subject: ApprovalSubject{Kind: "pathPolicy"}}); err == nil {
 			t.Fatal("unsupported subject kind signed")
 		}
 	})
