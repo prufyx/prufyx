@@ -81,8 +81,8 @@ const maxMissingLevels = 8
 // EnsureRoot creates the default store directory and its missing parents
 // below the first existing ancestor, each private to the owner (0700)
 // whatever the process umask is, and returns it. Existing directories are not
-// changed. A symbolic link at the first existing ancestor, or anywhere among
-// the directories it creates, is refused.
+// changed. The first existing ancestor may be a symbolic link to a directory;
+// a symbolic link among the directories it creates is refused.
 func EnsureRoot() (string, error) {
 	root, ok := DefaultRoot()
 	if !ok {
@@ -92,8 +92,18 @@ func EnsureRoot() (string, error) {
 	for dir := root; ; dir = filepath.Dir(dir) {
 		info, err := os.Lstat(dir)
 		if err == nil {
-			if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
-				return "", errors.New("default knowledge database location has a parent that is not a real directory")
+			// The first existing ancestor may be (or be below) a symbolic
+			// link, as Locate and the store layer accept for the base; it
+			// must resolve to a directory. Links are refused only among the
+			// directories created below.
+			if info.Mode()&os.ModeSymlink != 0 {
+				info, err = os.Stat(dir)
+				if err != nil {
+					return "", errors.New("default knowledge database location has a parent that cannot be read")
+				}
+			}
+			if !info.IsDir() {
+				return "", errors.New("default knowledge database location has a parent that is not a directory")
 			}
 			break
 		} else if !errors.Is(err, fs.ErrNotExist) {

@@ -127,19 +127,24 @@ func TestEnsureRootEmptyHomeAnyUmask(t *testing.T) {
 	}
 }
 
-func TestEnsureRootRefusesSymlinks(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("XDG_DATA_HOME", "")
-	elsewhere := t.TempDir()
-	if err := os.Symlink(elsewhere, filepath.Join(home, ".local")); err != nil {
+func TestEnsureRootAcceptsSymlinkedBase(t *testing.T) {
+	// A symlinked base (XDG_DATA_HOME or ~/.local/share) with no prufyx yet.
+	real := t.TempDir()
+	link := filepath.Join(t.TempDir(), "share")
+	if err := os.Symlink(real, link); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := EnsureRoot(); err == nil {
-		t.Fatal("a symbolic link parent was followed")
+	t.Setenv("XDG_DATA_HOME", link)
+	root, err := EnsureRoot()
+	if err != nil {
+		t.Fatalf("symlinked base refused: %v", err)
 	}
-	if entries, _ := os.ReadDir(elsewhere); len(entries) != 0 {
-		t.Fatalf("created through a link: %v", entries)
+	info, err := os.Lstat(filepath.Join(real, "prufyx", "knowledge", "cncf-projects"))
+	if err != nil || info.Mode().Perm() != 0o700 {
+		t.Fatalf("not created privately below the link target: %v %v", info, err)
+	}
+	if _, present, err := Locate(); err != nil || present {
+		t.Fatalf("Locate under a symlinked base: root=%s present=%v err=%v", root, present, err)
 	}
 }
 
