@@ -166,7 +166,7 @@ func (c Collector) Collect(ctx context.Context, opts Options, stdout, stderr io.
 			}
 
 			if isWorkload(q.name) {
-				payload, err := projectWorkload(root, adapter, opts.ComponentConfigurationProfile)
+				payload, err := projectWorkload(root, adapter, opts.ComponentConfigurationProfile, now)
 				if err != nil {
 					addOmission(&omissions, q.name, "projection_filter_rejected")
 					histogram["projection_filter_rejected"]++

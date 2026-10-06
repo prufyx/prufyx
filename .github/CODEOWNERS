@@ -25,6 +25,10 @@
 /cli/internal/maintainer/evidencereattest/ @airstand
 /cli/internal/extract/ @airstand
 
+# The reviewed image-to-project registry: a wrong entry misidentifies a
+# component, so each change needs the owner's review.
+/cli/internal/imageidentity/data/ @airstand
+
 # Dependencies.
 /cli/go.mod @airstand
 /cli/go.sum @airstand

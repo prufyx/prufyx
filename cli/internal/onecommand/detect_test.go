@@ -1,0 +1,121 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package onecommand
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/imageidentity"
+	"github.com/prufyx/prufyx/cli/internal/localcollector"
+)
+
+// imagesRunner answers Deployments with one container per configured image and
+// everything else like fakeRunner.
+type imagesRunner struct {
+	fakeRunner
+	images []string
+}
+
+func (r *imagesRunner) Run(ctx context.Context, argv, env []string, timeout time.Duration) (localcollector.CommandResult, error) {
+	if strings.Contains(strings.Join(argv, " "), " deployments.apps ") {
+		items := []any{}
+		for _, image := range r.images {
+			items = append(items, map[string]any{"kind": "Deployment", "spec": map[string]any{"template": map[string]any{"spec": map[string]any{
+				"containers": []any{map[string]any{"image": image, "args": []any{}}},
+			}}}})
+		}
+		raw, _ := json.Marshal(map[string]any{"items": items})
+		return localcollector.CommandResult{Stdout: raw}, nil
+	}
+	return r.fakeRunner.Run(ctx, argv, env, timeout)
+}
+
+func TestImageRegistryMakesProjectsObservableWithFailClosedVersions(t *testing.T) {
+	runner := &imagesRunner{fakeRunner: fakeRunner{t: t}, images: []string{
+		"ghcr.io/cloudnative-pg/cloudnative-pg:1.29.0",           // operator image: its own project at 1.29.0
+		"docker.io/velero/velero:latest",                         // present, no version
+		"goharbor/harbor-core@sha256:" + strings.Repeat("a", 64), // digest-only: no version
+		"mariadb:10.11.8",
+		"ghcr.io/mariadb-operator/mariadb-operator:26.3.0",
+		"docker.io/library/nats:2.10.0-alpine",                               // alpine scheme
+		"us-central1-artifactregistry.gcr.io/gke-release/etcd:v3.5.17-gke.1", // distribution: ignored
+		"registry.example.com/mirror/projectcontour/contour:v1.19.0",         // mirror: unknown image
+	}}
+	var stdout, stderr bytes.Buffer
+	report, code := Run(context.Background(), baseTestOptions(t, runner), &stdout, &stderr)
+	if code != ExitOK {
+		t.Fatalf("code=%d stderr=%s", code, stderr.String())
+	}
+	checks := report.Contexts[0].Checks
+	applicable := func(c CheckAssessment) bool {
+		return c.Applicability == ApplicableNeedsDeclaration || c.Applicability == ApplicableFullySatisfied
+	}
+	for _, tc := range []struct{ project, from, version string }{
+		{"cloudnativepg", "1.29.0", "1.29.0"}, {"mariadb", "10.11.8", "10.11.8"}, {"mariadb-operator", "26.3.0", "26.3.0"}, {"nats", "2.10.0", "2.10.0"},
+	} {
+		c := findCheck(t, checks, tc.project, tc.from)
+		if !applicable(c) || c.ObservedVersion != tc.version {
+			t.Fatalf("%s: %+v", tc.project, c)
+		}
+	}
+	// present with an unknown version: indeterminate, never a version mismatch.
+	for _, c := range checks {
+		switch c.Project {
+		case "velero", "harbor":
+			if c.Applicability != IndeterminateNotObservable || c.ObservedVersion != "" {
+				t.Fatalf("%s %s: %+v", c.Project, c.RuleID, c)
+			}
+		case "contour", "kubeedge", "opencost", "etcd", "grafana", "thanos":
+			// observable but not seen: absence of a complete collection.
+			if c.Applicability != NotApplicableComponentAbsent {
+				t.Fatalf("%s %s: %+v", c.Project, c.RuleID, c)
+			}
+		case "loki", "keycloak", "jaeger":
+			if c.Applicability != IndeterminateNotObservable {
+				t.Fatalf("%s must stay not observable: %+v", c.Project, c)
+			}
+		}
+	}
+}
+
+func TestObservableComponentDerivesFromRegistryAndHonoursValidity(t *testing.T) {
+	now := time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC)
+	for project, id := range observableComponents {
+		if got, ok := observableComponent(project, now); !ok || got != id {
+			t.Fatalf("adapter project %s lost", project)
+		}
+	}
+	if id, ok := observableComponent("cloudnativepg", now); !ok || id != "pkg:oci/cloudnative-pg/cloudnative-pg" {
+		t.Fatalf("cloudnativepg: %q %v", id, ok)
+	}
+	for _, p := range []string{"mariadb", "mariadb-operator"} {
+		if _, ok := observableComponent(p, now); !ok {
+			t.Fatalf("%s is not observable", p)
+		}
+	}
+	if _, ok := observableComponent("loki", now); ok {
+		t.Fatal("loki must not be observable")
+	}
+	if _, ok := observableComponent("cloudnativepg", time.Date(2031, 1, 1, 0, 0, 0, 0, time.UTC)); ok {
+		t.Fatal("an expired record must make the project not observable")
+	}
+	// The two sources never disagree or overlap on a project or component.
+	registry := imageidentity.ObservableComponents(now)
+	adapterComponents := map[string]bool{}
+	for project, id := range observableComponents {
+		adapterComponents[id] = true
+		if _, dup := registry[project]; dup {
+			t.Fatalf("%s is in both maps", project)
+		}
+	}
+	for project, id := range registry {
+		if adapterComponents[id] {
+			t.Fatalf("%s shares component %s with the adapter map", project, id)
+		}
+	}
+}
