@@ -457,3 +457,31 @@ the claim, checking the fact and operator choice, and deciding whether it
 belongs in the CNCF pack or the community-project pack. Only a maintainer
 folds an accepted candidate into the published `rules.json` and re-runs the
 maintainer corpus-attestation tooling; this validator never does either.
+
+## Version ranges in contributed rules
+
+A contributed rule may carry a reviewed `range` so it applies to any hop that
+crosses the change release C, not only to the exact anchor pair. `rule validate`
+accepts a range only in this shape, and rejects anything open-ended or uncited:
+
+- all four bounds (`from.gte`, `from.lt`, `to.gte`, `to.lt`) are finite release
+  versions, and the anchor `subject.from`/`subject.to` lies inside them;
+- `from.lt` and `to.gte` are the same version C, each with basis
+  `REMOVED_IN_RELEASE` or `CHANGED_IN_RELEASE` (the same basis), so every
+  matched hop satisfies `from < C <= to`;
+- `range.bounds` has four entries in order, each citing a `sourceId` that is
+  one of the rule's own `evidence.sources`;
+- each side spans at most one minor line (the engine's width cap).
+
+A hop outside the range, or an unknown version, is never matched and the
+engine reports UNKNOWN. A contributed rule is validated alone: overlap with
+published rules is checked only when a maintainer folds it into the pack, which
+rejects an overlapping range.
+
+`prufyx assess --to X.Y.Z` (strict version; `1.25`, `v1.25.4` and
+`1.25.4-gke.100` are usage errors) declares the Kubernetes target for checks
+whose reviewed origin range contains the observed version. It applies to
+Kubernetes only; component checks ask for the target in the native check. A
+hop that crosses the change version but is wider than the reviewed range is
+reported INDETERMINATE_HOP_OUTSIDE_REVIEWED_RANGE, never not applicable, and an
+observed version that is not a strict X.Y.Z is INDETERMINATE_VERSION_UNPARSEABLE.

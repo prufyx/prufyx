@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/onecommand"
 )
 
@@ -35,6 +36,7 @@ func (r runtime) assess(ctx context.Context, args []string) int {
 	output := fs.String("output", "", "private working directory for the collected bundle (default: a fresh temporary directory)")
 	format := fs.String("format", "human", "human or json")
 	scopeInput := fs.String("scope-input", "", "operator-declared constraint input carrying a scope declaration")
+	to := fs.String("to", "", "Kubernetes target version (strict X.Y.Z) for checks whose reviewed origin range contains the observed version")
 	var execEnv stringsFlag
 	fs.Var(&execEnv, "exec-env", "forward one named ambient variable; repeatable")
 	if duplicateFlags(args) || fs.Parse(args) != nil {
@@ -45,6 +47,9 @@ func (r runtime) assess(ctx context.Context, args []string) int {
 		return r.usage("invalid assess arguments; use --help")
 	}
 
+	if *to != "" && !constraintengine.SameVersion(*to, *to) {
+		return r.usage("invalid --to " + *to + ": use a strict X.Y.Z release version such as 1.25.4 (not 1.25, v1.25.4 or 1.25.4-gke.100)")
+	}
 	opts := onecommand.Options{
 		OutputRoot:                    *output,
 		Kubeconfig:                    *kubeconfig,
@@ -55,6 +60,7 @@ func (r runtime) assess(ctx context.Context, args []string) int {
 		Kubectl:                       *kubectl,
 		ComponentConfigurationProfile: *profile,
 		ScopeInput:                    *scopeInput,
+		To:                            *to,
 	}
 	// Collector progress lines go to stderr so stdout carries only the
 	// report; `--format json` output must parse as JSON.
@@ -93,6 +99,12 @@ func writeAssessHuman(w io.Writer, report onecommand.Report) {
 		fmt.Fprintf(w, "  not applicable (component absent):     %d\n", s.NotApplicableComponentAbsent)
 		fmt.Fprintf(w, "  indeterminate (not observable):        %d\n", s.IndeterminateNotObservable)
 		fmt.Fprintf(w, "  indeterminate (partial collection):    %d\n", s.IndeterminatePartialCollection)
+		if s.IndeterminateVersionUnparseable > 0 {
+			fmt.Fprintf(w, "  indeterminate (version unparseable):   %d\n", s.IndeterminateVersionUnparseable)
+		}
+		if s.IndeterminateHopOutsideReviewedRange > 0 {
+			fmt.Fprintf(w, "  indeterminate (hop outside range):     %d\n", s.IndeterminateHopOutsideReviewedRange)
+		}
 
 		actionable := make([]onecommand.CheckAssessment, 0)
 		for _, check := range c.Checks {
@@ -215,6 +227,7 @@ taken on trust.
 Options:
   --scope-input FILE                        operator-declared constraint input carrying a scope declaration
   --component-configuration-profile v2|v3   default v2
+  --to VERSION                              Kubernetes target, strict X.Y.Z; needed only for checks whose reviewed origin range contains the observed version
   --allow-partial                           classify anyway when collection is partial (absence conclusions are downgraded to indeterminate)
   --kubectl PATH                            kubectl executable (default PATH lookup)
   --output DIR                              private working directory for the collected bundle (default: a fresh temporary directory)

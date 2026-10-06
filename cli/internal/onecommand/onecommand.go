@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/checkroutemetadata"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 	"github.com/prufyx/prufyx/cli/internal/localcollector"
 	"github.com/prufyx/prufyx/cli/internal/observation"
@@ -41,6 +42,13 @@ const (
 	NotApplicableComponentAbsent   = "NOT_APPLICABLE_COMPONENT_ABSENT"
 	IndeterminateNotObservable     = "INDETERMINATE_NOT_OBSERVABLE"
 	IndeterminatePartialCollection = "INDETERMINATE_PARTIAL_COLLECTION"
+	// IndeterminateVersionUnparseable: the observed version is not a strict
+	// X.Y.Z, so it cannot be compared with any reviewed range.
+	IndeterminateVersionUnparseable = "INDETERMINATE_VERSION_UNPARSEABLE"
+	// IndeterminateHopOutsideReviewedRange: the declared hop crosses the
+	// rule's change version but is wider than the reviewed range, so nothing
+	// reviewed covers it. It is never "not applicable".
+	IndeterminateHopOutsideReviewedRange = "INDETERMINATE_HOP_OUTSIDE_REVIEWED_RANGE"
 
 	freshnessPolicyID = "prufyx.io.one-command-flow-same-run.v1"
 	freshnessMaxAge   = time.Hour
@@ -103,6 +111,14 @@ type Options struct {
 	// synthesised from collected state: a scope declaration is the operator's
 	// statement to make, and an absent one is not a default.
 	ScopeInput string
+	// To is the operator-declared target version (assess --to). It is only
+	// consulted for a check whose observed origin lies inside the rule's
+	// reviewed origin range but is not the anchor origin: such a check needs a
+	// target to decide whether the hop crosses the rule's change version. An
+	// empty To never defaults to a guess; the check reports
+	// APPLICABLE_NEEDS_DECLARATION naming --to. The anchor origin keeps its
+	// exact-pair behaviour and ignores To.
+	To string
 }
 
 // Report is the combined, single-file output of the one-command flow.
@@ -147,6 +163,10 @@ type ApplicabilitySummary struct {
 	NotApplicableComponentAbsent   int `json:"notApplicableComponentAbsent"`
 	IndeterminateNotObservable     int `json:"indeterminateNotObservable"`
 	IndeterminatePartialCollection int `json:"indeterminatePartialCollection"`
+	// The two counters below are omitted when zero so existing reports keep
+	// their exact bytes.
+	IndeterminateVersionUnparseable      int `json:"indeterminateVersionUnparseable,omitempty"`
+	IndeterminateHopOutsideReviewedRange int `json:"indeterminateHopOutsideReviewedRange,omitempty"`
 }
 
 type Declaration struct {
@@ -165,8 +185,11 @@ type CheckAssessment struct {
 	Reason              string        `json:"reason"`
 	ObservedVersion     string        `json:"observedVersion,omitempty"`
 	MissingDeclarations []Declaration `json:"missingDeclarations,omitempty"`
-	Command             []string      `json:"command,omitempty"`
-	Result              *RunResult    `json:"result,omitempty"`
+	// MatchMode is "range" when the check applies through the rule's reviewed
+	// range rather than its anchor origin; omitted for anchor matches.
+	MatchMode string     `json:"matchMode,omitempty"`
+	Command   []string   `json:"command,omitempty"`
+	Result    *RunResult `json:"result,omitempty"`
 }
 
 // RunResult is reserved for a future ApplicableFullySatisfied check: one
@@ -369,7 +392,7 @@ func assessOneContext(ctx context.Context, opts Options, contextName, outputRoot
 		Checks:           make([]CheckAssessment, 0, len(routes)),
 	}
 	for _, route := range routes {
-		checkAssessment := classify(route, bundle, partial)
+		checkAssessment := classify(route, bundle, partial, opts.To)
 		assessment.Checks = append(assessment.Checks, checkAssessment)
 		tally(&assessment.Summary, checkAssessment.Applicability)
 	}
@@ -396,10 +419,14 @@ func tally(summary *ApplicabilitySummary, applicability string) {
 		summary.IndeterminateNotObservable++
 	case IndeterminatePartialCollection:
 		summary.IndeterminatePartialCollection++
+	case IndeterminateVersionUnparseable:
+		summary.IndeterminateVersionUnparseable++
+	case IndeterminateHopOutsideReviewedRange:
+		summary.IndeterminateHopOutsideReviewedRange++
 	}
 }
 
-func classify(route checkroutemetadata.Check, bundle currentbundle.CurrentBundle, contextPartial bool) CheckAssessment {
+func classify(route checkroutemetadata.Check, bundle currentbundle.CurrentBundle, contextPartial bool, to string) CheckAssessment {
 	base := CheckAssessment{
 		Project:   route.Project,
 		Component: route.Component,
@@ -410,7 +437,7 @@ func classify(route checkroutemetadata.Check, bundle currentbundle.CurrentBundle
 	}
 
 	if route.Project == kubernetesProject {
-		return classifyKubernetes(base, route, bundle, contextPartial)
+		return classifyKubernetes(base, route, bundle, contextPartial, to)
 	}
 	componentID, observable := observableComponents[route.Project]
 	if !observable {
@@ -430,15 +457,106 @@ func classify(route checkroutemetadata.Check, bundle currentbundle.CurrentBundle
 		return base
 	}
 	base.ObservedVersion = component.Version.Value
-	if component.Version.State != "exact" || !route.Transition().IsAnchorFrom(component.Version.Value) {
-		base.Applicability = NotApplicableVersionMismatch
-		base.Reason = "The component is present but its observed version does not match this check's declared origin version."
-		return base
-	}
-	return withDeclarations(base, route)
+	// assess --to names a Kubernetes target only; a component's target is its
+	// own declaration, so the component path never consumes it.
+	return classifyOrigin(base, route, component.Version.State == "exact", component.Version.Value, "", false, "The component is present but its observed version does not match this check's declared origin version.")
 }
 
-func classifyKubernetes(base CheckAssessment, route checkroutemetadata.Check, bundle currentbundle.CurrentBundle, contextPartial bool) CheckAssessment {
+// classifyOrigin is the one version gate for both the Kubernetes and the
+// component paths. An observed origin equal to the reviewed anchor origin
+// keeps the exact-pair behaviour (a contradictory declared target is noted).
+// An origin that is not the anchor but lies inside the rule's reviewed origin
+// range (the engine's own range semantics) is applicable only against a
+// target. NOT_APPLICABLE is returned only when the hop provably does not cross
+// the rule's change version C (target at or below the origin, or below C). A
+// hop that crosses C but exceeds the reviewed range is INDETERMINATE, never
+// not applicable, and an observed version that is not a strict X.Y.Z is
+// INDETERMINATE. A rule without a range behaves exactly as before. targetOK
+// says whether this project accepts assess --to at all.
+func classifyOrigin(base CheckAssessment, route checkroutemetadata.Check, exact bool, observed, to string, targetOK bool, mismatch string) CheckAssessment {
+	transition := route.Transition()
+	if !exact || !constraintengine.SameVersion(observed, observed) {
+		base.Applicability = IndeterminateVersionUnparseable
+		base.Reason = "The observed version " + observed + " is not a strict X.Y.Z release version, so it cannot be compared with this check's reviewed versions. Declare the version explicitly with the native check; no applicability conclusion is drawn."
+		return base
+	}
+	if transition.IsAnchorFrom(observed) {
+		out := withDeclarations(base, route)
+		if to != "" && !constraintengine.SameVersion(to, route.To) {
+			out.Reason += " Note: the declared --to " + to + " differs from this check's reviewed anchor target " + route.To + "; this assessment describes the anchor hop only."
+		}
+		return out
+	}
+	if route.Range == nil || !route.Range.From.Contains(observed) {
+		base.Applicability = NotApplicableVersionMismatch
+		base.Reason = mismatch
+		return base
+	}
+	base.MatchMode = "range"
+	if !targetOK || to == "" {
+		base.Applicability = ApplicableNeedsDeclaration
+		base.Reason = "The observed version " + observed + " is not the reviewed anchor origin " + route.From + " but lies inside this rule's reviewed origin range [" + route.Range.From.Gte + ", " + route.Range.From.Lt + "). Whether the upgrade crosses the rule's change version depends on the target, which is not declared"
+		if targetOK {
+			base.Reason += ": declare it with assess --to."
+		} else {
+			base.Reason += " and assess --to applies to Kubernetes only: pass the target to the native check."
+		}
+		base.Reason += " The command below shows the anchor pair; adapt --from/--to to your hop."
+		base.MissingDeclarations = append([]Declaration{targetDeclaration}, missingDeclarations(route.NativeDescriptor.Command)...)
+		base.Command = rangeCommand(base.Command, observed, to)
+		return base
+	}
+	if !constraintengine.SameVersion(to, to) {
+		base.Applicability = IndeterminateVersionUnparseable
+		base.Reason = "The declared target " + to + " is not a strict X.Y.Z release version, so it cannot be compared with this rule's reviewed range."
+		return base
+	}
+	boundaryKnown := constraintengine.SameVersion(route.Range.From.Lt, route.Range.To.Gte)
+	switch {
+	case !constraintengine.VersionLess(observed, to):
+		base.Applicability = NotApplicableVersionMismatch
+		base.Reason = "The declared target " + to + " is not above the observed version " + observed + ", so this is not an upgrade hop and cannot cross the rule's change version."
+	case boundaryKnown && constraintengine.VersionLess(to, route.Range.To.Gte):
+		base.Applicability = NotApplicableVersionMismatch
+		base.Reason = "The declared target " + to + " is below the rule's change version " + route.Range.To.Gte + ", so the hop does not cross it."
+	case route.Range.To.Contains(to):
+		base.Applicability = ApplicableNeedsDeclaration
+		base.Reason = "The observed version " + observed + " and declared target " + to + " are inside this rule's reviewed origin and target ranges. The command below shows the anchor pair " + route.From + " -> " + route.To + "; adapt --from/--to to your hop (" + observed + " -> " + to + ")."
+		base.MissingDeclarations = missingDeclarations(route.NativeDescriptor.Command)
+		base.Command = rangeCommand(base.Command, observed, to)
+	default:
+		base.Applicability = IndeterminateHopOutsideReviewedRange
+		base.Reason = "The hop " + observed + " -> " + to + " is not covered by this rule's reviewed range (targets [" + route.Range.To.Gte + ", " + route.Range.To.Lt + ")); it may cross the rule's change version, so it is not reported as not applicable. Step through intermediate minor versions or request coverage."
+	}
+	return base
+}
+
+// rangeCommand substitutes the operator's own hop into a rendered command's
+// --from/--to values, so a copied command describes the hop being assessed.
+// The native check re-matches the pair, so nothing is widened. An undeclared
+// target is shown as TARGET.
+func rangeCommand(command []string, from, to string) []string {
+	if command == nil {
+		return nil
+	}
+	if to == "" {
+		to = "TARGET"
+	}
+	out := append([]string(nil), command...)
+	for i := 0; i+1 < len(out); i++ {
+		switch out[i] {
+		case "--from":
+			out[i+1] = from
+		case "--to":
+			out[i+1] = to
+		}
+	}
+	return out
+}
+
+var targetDeclaration = Declaration{Flag: "--to", Kind: "target_version_declaration", Description: "The version you plan to upgrade to (assess --to for Kubernetes; the native check's own --to otherwise). It is never inferred from cluster state; without it the check cannot tell whether the upgrade crosses this rule's change version."}
+
+func classifyKubernetes(base CheckAssessment, route checkroutemetadata.Check, bundle currentbundle.CurrentBundle, contextPartial bool, to string) CheckAssessment {
 	kube := bundle.Environment.Kubernetes
 	if kube.State != "observed" {
 		base.Applicability = IndeterminatePartialCollection
@@ -446,13 +564,8 @@ func classifyKubernetes(base CheckAssessment, route checkroutemetadata.Check, bu
 		return base
 	}
 	base.ObservedVersion = kube.Value
-	if !route.Transition().IsAnchorFrom(kube.Value) {
-		base.Applicability = NotApplicableVersionMismatch
-		base.Reason = "The observed Kubernetes server version does not match this check's declared origin version."
-		return base
-	}
 	_ = contextPartial // Kubernetes version comes from a base query attempted for every context; a partial collection elsewhere does not weaken a positive read here.
-	return withDeclarations(base, route)
+	return classifyOrigin(base, route, true, kube.Value, to, true, "The observed Kubernetes server version does not match this check's declared origin version.")
 }
 
 func withDeclarations(base CheckAssessment, route checkroutemetadata.Check) CheckAssessment {
