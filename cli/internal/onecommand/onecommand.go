@@ -134,7 +134,10 @@ type ContextAssessment struct {
 	CollectionStatus string               `json:"collectionStatus"`
 	BundleDigest     string               `json:"bundleDigest"`
 	Summary          ApplicabilitySummary `json:"summary"`
-	Checks           []CheckAssessment    `json:"checks"`
+	// Observed is additive: what the collector actually saw (versions,
+	// counts, omission reason codes). Consumers of earlier output ignore it.
+	Observed Observed          `json:"observed"`
+	Checks   []CheckAssessment `json:"checks"`
 }
 
 type ApplicabilitySummary struct {
@@ -362,6 +365,7 @@ func assessOneContext(ctx context.Context, opts Options, contextName, outputRoot
 		RunDirectory:     runDir,
 		CollectionStatus: entry.CollectionStatus,
 		BundleDigest:     artifact.Digest,
+		Observed:         readObserved(filepath.Join(runDir, entry.Directory)),
 		Checks:           make([]CheckAssessment, 0, len(routes)),
 	}
 	for _, route := range routes {
