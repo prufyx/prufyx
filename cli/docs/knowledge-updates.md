@@ -116,6 +116,28 @@ body limit; with `--profile cncf-projects` the limit is 8 MiB (see
 command starts. For an offline environment, transfer the package separately and
 use `db import`.
 
+## Pinned root for official profiles
+
+A profile can carry a product-pinned root: the SHA-256 of its initial TUF root is
+compiled into the binary (`cli/internal/knowledgepin`). For such a profile,
+`db update` trusts only that root.
+
+- First install: pass only `--bootstrap-root ./root.json`. The file must hash to the
+  pin; `--bootstrap-root-digest` is optional and, if given, must equal the pin.
+- Later updates: no root flags. A store whose initial root is not the pin is refused
+  and left unchanged.
+- Rotation: a new root version is accepted only through the signed root chain that
+  starts at the pinned root, exactly as for any other store.
+
+An empty pin means the profile has no pinned root. Then an explicit
+`--bootstrap-root` and `--bootstrap-root-digest` are required, as described above.
+No profile is pinned until a pin is set in a reviewed source change; `db verify`,
+`db import`, `scan` and `check` are not affected by pins.
+
+To set a pin, compute the digest of the offline-created version 1 `root.json`
+(`shasum -a 256 root.json`, written as `sha256:<hex>`), put it in the `pins` table of
+`cli/internal/knowledgepin/pin.go`, and submit it as a reviewed change.
+
 ## Use the database with `prufyx scan`
 
 A CNCF store filled by `db update` or `db import` (`--profile cncf` or

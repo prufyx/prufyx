@@ -166,6 +166,15 @@ func importWithProfile(req ImportRequest, profile profileSpec, admit AdmitFunc, 
 			}
 		}
 	}
+	if req.PinnedRootDigest != "" {
+		pin, pinErr := normalizeDigest(req.PinnedRootDigest)
+		if pinErr != nil {
+			return ImportReceipt{}, fmt.Errorf("pinned root digest: %w", pinErr)
+		}
+		if initialDigest != pin {
+			return ImportReceipt{}, fmt.Errorf("initial root is not the pinned root: %w", ErrIntegrity)
+		}
+	}
 	var pkg importPackage
 	if pinnedPackage != nil {
 		pkg = *pinnedPackage
