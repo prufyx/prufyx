@@ -24,7 +24,7 @@ func TestRegistryImagesAreProjectedMinimallyAndFailClosed(t *testing.T) {
 		map[string]any{"image": "docker.io/velero/velero:latest"},
 		map[string]any{"image": "goharbor/harbor-core" + digest},
 		map[string]any{"image": "docker.io/library/nats:2.15.0-alpine"},
-		map[string]any{"image": "us-central1-artifactregistry.gcr.io/gke-release/etcd:v3.5.17-gke.1"},
+		map[string]any{"image": "example-artifactregistry.gcr.io/gke-release/etcd:v3.5.17-gke.1"},
 		map[string]any{"image": "private.invalid/team/private:secret"},
 		map[string]any{"image": "docker.io/envoyproxy/envoy:distroless-v1.38.4"},
 		map[string]any{"image": "quay.io/jetstack/cert-manager-controller:v1.17.2"}, // adapter registry, not the image registry
