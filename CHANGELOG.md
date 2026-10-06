@@ -32,6 +32,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   supplied by path. A disabled draft workflow
   (`.github/workflows/knowledge-release.yml`) documents the secrets a hosted
   release needs. See [knowledge-publisher.md](cli/docs/knowledge-publisher.md).
+- Product-pinned knowledge root: a profile can embed the SHA-256 of its initial TUF
+  root, and `db update` then trusts only that root (rotation follows the signed root
+  chain). The `cncf-projects` entry ships empty, so behaviour is unchanged until a pin
+  is set; see [knowledge-updates.md](cli/docs/knowledge-updates.md).
 - `extract run --lease-days N` (1-365, default 90) sets the validity window of the
   derived rules.
 - One exit-code table for `scan` and `check` ([exit-codes.md](cli/docs/exit-codes.md)),
@@ -56,6 +60,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   The ambiguity rule itself is unchanged.
 
 ### Fixed
+
+- `prufyx assess --format json`: the collector progress lines ("Context …", "Created local API observation directory …", "Verify context files with …") now go to stderr, so stdout carries only the JSON report and parses as JSON.
 
 - `scan` human and Markdown output, and its usage and input error messages, no
   longer print text taken from the scanned input or from knowledge as itself when
@@ -150,6 +156,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   both author and sender); it is never eligible for automatic merging, counts
   as one loosening, is not a withdrawal for the circuit breakers, and the
   report lists each `R -> M` pair under `supersedes`.
+- `prufyx` builds for Windows (amd64 and arm64). File and directory input,
+  the knowledge store and the `check prometheus-mode` real-observation path are
+  Unix-only and refuse on Windows (the observation route exits 2 with "real
+  observation is not supported on this platform"); standard input still works.
 - `prufyx-maintainer extract apply --rules-only` merges only the run's rules,
   without attestations and without changing the pack schema. The new
   `prufyx-maintainer extract supersede --out RUN --pack FILE` removes the

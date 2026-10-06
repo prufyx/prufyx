@@ -56,7 +56,9 @@ func (r runtime) assess(ctx context.Context, args []string) int {
 		ComponentConfigurationProfile: *profile,
 		ScopeInput:                    *scopeInput,
 	}
-	report, code := onecommand.Run(ctx, opts, r.stdout, r.stderr)
+	// Collector progress lines go to stderr so stdout carries only the
+	// report; `--format json` output must parse as JSON.
+	report, code := onecommand.Run(ctx, opts, r.stderr, r.stderr)
 	if code != onecommand.ExitOK {
 		return code
 	}
@@ -83,6 +85,7 @@ func writeAssessHuman(w io.Writer, report onecommand.Report) {
 	writeScopeHuman(w, report)
 	for _, c := range report.Contexts {
 		fmt.Fprintf(w, "\ncontext %s (%s)\n", c.ContextHash, c.CollectionStatus)
+		writeObservedHuman(w, c.Observed)
 		s := c.Summary
 		fmt.Fprintf(w, "  fully satisfiable (not yet auto-run):  %d\n", s.ApplicableFullySatisfied)
 		fmt.Fprintf(w, "  applicable, needs your declarations:   %d\n", s.ApplicableNeedsDeclaration)
@@ -121,6 +124,48 @@ func writeAssessHuman(w io.Writer, report onecommand.Report) {
 			}
 		}
 	}
+}
+
+// writeObservedHuman states what the collector actually saw, before any
+// applicability counts, so "not observed" is never mistaken for "absent".
+// Versions, counts and reason codes only; no object names.
+func writeObservedHuman(w io.Writer, o onecommand.Observed) {
+	fmt.Fprintln(w, "  observed:")
+	if o.KubernetesVersion == "" {
+		fmt.Fprintln(w, "    kubernetes server: not observed")
+	} else {
+		fmt.Fprintf(w, "    kubernetes server: %s\n", o.KubernetesVersion)
+	}
+	if len(o.Kubelets.Versions) == 0 {
+		fmt.Fprintln(w, "    kubelets: not observed")
+	} else {
+		parts := make([]string, 0, len(o.Kubelets.Versions))
+		for _, v := range o.Kubelets.Versions {
+			parts = append(parts, fmt.Sprintf("%s x%d", v.Version, v.Nodes))
+		}
+		fmt.Fprintf(w, "    kubelets: %d nodes (min %s, max %s): %s\n", o.Kubelets.NodeCount, o.Kubelets.Min, o.Kubelets.Max, strings.Join(parts, ", "))
+	}
+	if len(o.Components) == 0 {
+		fmt.Fprintln(w, "    components: none observed")
+	} else {
+		fmt.Fprintln(w, "    components:")
+		for _, c := range o.Components {
+			version := c.Version
+			if version == "" {
+				version = "unknown version"
+			}
+			fmt.Fprintf(w, "      %s %s (%s)\n", c.ComponentID, version, c.State)
+		}
+	}
+	if len(o.Omissions) == 0 {
+		fmt.Fprintln(w, "    omissions: none")
+	} else {
+		fmt.Fprintf(w, "    omissions: %d\n", len(o.Omissions))
+		for _, om := range o.Omissions {
+			fmt.Fprintf(w, "      %s: %s -- %s\n", om.Resource, om.Code, om.Hint)
+		}
+	}
+	fmt.Fprintln(w)
 }
 
 // writeScopeHuman prints the declared-scope aggregate's evidence. Everything

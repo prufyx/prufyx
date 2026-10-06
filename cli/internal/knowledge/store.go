@@ -247,12 +247,6 @@ func splitRelative(rel string) ([]string, error) {
 	}
 	return parts, nil
 }
-func fileNlink(i os.FileInfo) uint64 {
-	if st, ok := i.Sys().(*syscall.Stat_t); ok {
-		return uint64(st.Nlink)
-	}
-	return 0
-}
 func checkPrivateDir(f *os.File) error {
 	i, e := f.Stat()
 	if e != nil || !i.IsDir() || i.Mode().Perm() != 0o700 || fileNlink(i) < 1 {
@@ -430,13 +424,13 @@ func (s *storeFS) lock(wait time.Duration) (*os.File, error) {
 	}
 	until := time.Now().Add(wait)
 	for {
-		e = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+		e = lockFileExclusiveNonBlocking(f)
 		if e == nil {
 			return f, nil
 		}
-		if !errors.Is(e, syscall.EWOULDBLOCK) || time.Now().After(until) {
+		if !lockWouldBlock(e) || time.Now().After(until) {
 			f.Close()
-			if errors.Is(e, syscall.EWOULDBLOCK) {
+			if lockWouldBlock(e) {
 				return nil, fmt.Errorf("store lock timeout: %w", ErrInvalid)
 			}
 			return nil, e
@@ -445,7 +439,7 @@ func (s *storeFS) lock(wait time.Duration) (*os.File, error) {
 	}
 }
 func unlockStore(f *os.File) error {
-	e := syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	e := unlockFile(f)
 	c := f.Close()
 	if e != nil {
 		return e

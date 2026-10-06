@@ -204,3 +204,37 @@ which apply" to "here are the N that apply to what you actually have
 running, and exactly what each one still needs from you" is the whole
 value: it turns an hour of guessing which of 194 routes are even worth
 hand-authoring input for into a single command's output.
+
+## The `observed` section
+
+Each context in the report (human and `--format json`) carries an `observed`
+block, printed before the applicability counts in human output, so a reader can
+tell "not observed" from "observed absent". It is derived only from files the
+collector already writes in that context directory; nothing new is collected.
+
+JSON (additive to `prufyx.io/one-command-flow-report/v1alpha1`; the schema id
+is unchanged and no existing field moved or changed meaning):
+
+```
+contexts[].observed = {
+  "kubernetesVersion": "v1.31.0",          // server-version.json gitVersion; "" if not observed
+  "kubelets": {                             // node-profiles.json
+    "nodeCount": 3, "min": "v1.30.2", "max": "v1.31.0",
+    "versions": [{"version": "v1.30.2", "nodes": 2}, ...]
+  },
+  "components": [                           // component-configuration-surface.json
+    {"componentId": "pkg:oci/...", "version": "2.55.1", "state": "observed"}
+  ],
+  "omissions": [                            // omissions.tsv
+    {"resource": "storageclasses", "code": "<reason code>", "hint": "<short operator hint>"}
+  ]
+}
+```
+
+Privacy: only versions, counts, fixed collector resource names (the collector's
+own file names without `.json`) and reason codes appear; never namespace,
+workload or node names. Hints are fixed text keyed on the reason code, for
+example `unsupported_not_found_api` ("API not served by this cluster
+(component likely not installed)"), `projection_filter_rejected` (allow-list
+rejection; please report), and RBAC-forbidden codes ("grant read access to ...").
+An unknown code gets a generic "please report" hint.
