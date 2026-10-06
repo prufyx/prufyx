@@ -84,7 +84,7 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
 | `--distribution` | `official_upstream` or `custom_build`. Only `official_upstream` is evaluated. |
 | `--resource-scope-complete` | Declares that the inputs are every manifest you apply. |
 | `--target-api-apply-required` | Declares that the inputs are applied to the target Kubernetes API. |
-| `--format` | `human` (default), `json`, `sarif` or `markdown`. The format changes only what is printed: the verdict and the exit code are the same. |
+| `--format` | `human` (default), `json`, `sarif`, `markdown` or `csv` (one row per blocking finding location, then one row per gap and, with passes shown, per pass; cells are escaped and guarded against spreadsheet formulas). The format changes only what is printed: the verdict and the exit code are the same. |
 | `--show-passes` | Lists every passed check (human and Markdown output). |
 | `--verbose` | Shows the status of every hop and the pinned sources of each finding (human and Markdown output). |
 | `--redact` | Prints `sha256:` digests instead of file paths, object names and namespaces. Human and Markdown output show the first 12 hex characters; SARIF uses a name under `redacted/`. |

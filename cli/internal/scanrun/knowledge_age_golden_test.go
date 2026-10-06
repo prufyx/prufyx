@@ -22,7 +22,7 @@ var ageClocks = []struct{ name, now string }{
 // they record differs between them.
 func TestScanOutputUnchangedNearExpiry(t *testing.T) {
 	dir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1beta1})
-	extensions := map[string]string{"human": "txt", "json": "json", "sarif": "sarif", "markdown": "md"}
+	extensions := map[string]string{"human": "txt", "json": "json", "sarif": "sarif", "markdown": "md", "csv": "csv"}
 	inDir(t, dir, func() {
 		for _, clock := range ageClocks {
 			result := mustScan(t, nil, append(append([]string{"applyset.yaml"}, declared...), "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--now", clock.now)...)
