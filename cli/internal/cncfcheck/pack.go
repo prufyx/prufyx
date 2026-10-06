@@ -119,7 +119,9 @@ type bundle struct {
 	external bool
 }
 
-func load() (bundle, error) {
+// loadUncached parses and strictly validates the packaged knowledge. load
+// (knowledge_source*.go) is the only caller besides tests.
+func loadUncached() (bundle, error) {
 	landscapeRaw, err := packagedFiles.ReadFile("data/landscape-projects.json")
 	if err != nil {
 		return bundle{}, ErrIntegrity
