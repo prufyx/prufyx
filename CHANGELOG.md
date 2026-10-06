@@ -49,6 +49,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   path cannot clear the screen, retitle the terminal or forge a report line.
   JSON and SARIF now write the same characters as `\u` escapes; the decoded
   values are unchanged. Ordinary printable text is byte for byte as before.
+- Maintainer rule check and knowledge gate HTTP clients now apply a total request
+  timeout, ignore proxy environment variables, fetch only over https (plain http
+  only to a loopback address), and follow redirects only within the original host
+  and scheme (at most three), so a redirect can no longer reach another host or
+  downgrade to http. Oversized or stalled responses fail the run with an error.
+
 - `prufyx scan` no longer reports a removed API from a Helm subchart that may not be
   rendered: a subchart listed twice in `Chart.yaml` with a condition on any entry,
   a subchart matched by its own `Chart.yaml` name rather than its directory, a
