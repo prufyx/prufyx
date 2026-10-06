@@ -61,6 +61,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- `prufyx assess --format json`: the collector progress lines ("Context …", "Created local API observation directory …", "Verify context files with …") now go to stderr, so stdout carries only the JSON report and parses as JSON.
+
 - `scan` human and Markdown output, and its usage and input error messages, no
   longer print text taken from the scanned input or from knowledge as itself when
   it holds terminal escape sequences, carriage returns, line breaks, other control
