@@ -336,35 +336,68 @@ func TestValidate_CommunityContributionAcceptsWellFormedRange(t *testing.T) {
 }
 
 func TestValidate_CommunityRangeRejections(t *testing.T) {
-	mutate := func(f func(rng map[string]any, r map[string]any)) map[string]any {
-		entry := firstRangedEntry(t)
-		r := rule(entry)
-		f(r["range"].(map[string]any), r)
-		return entry
-	}
 	bound := func(rng map[string]any, i int) map[string]any { return rng["bounds"].([]any)[i].(map[string]any) }
 	side := func(rng map[string]any, name string) map[string]any { return rng[name].(map[string]any) }
-	cases := map[string]func(rng map[string]any, r map[string]any){
-		"open-ended: empty to.lt":       func(rng, r map[string]any) { side(rng, "to")["lt"] = "" },
-		"open-ended: empty from.gte":    func(rng, r map[string]any) { side(rng, "from")["gte"] = "" },
-		"open-ended: wildcard":          func(rng, r map[string]any) { side(rng, "to")["lt"] = "*" },
-		"uncited: empty source":         func(rng, r map[string]any) { bound(rng, 2)["sourceId"] = "" },
-		"uncited: source not in rule":   func(rng, r map[string]any) { bound(rng, 3)["sourceId"] = "invented-source" },
-		"uncited: bounds missing":       func(rng, r map[string]any) { rng["bounds"] = []any{} },
-		"boundary not a release basis":  func(rng, r map[string]any) { bound(rng, 1)["basis"] = "UPGRADE_FROM_SERIES" },
-		"boundary bases differ":         func(rng, r map[string]any) { bound(rng, 2)["basis"] = "CHANGED_IN_RELEASE" },
-		"from.lt and to.gte differ":     func(rng, r map[string]any) { side(rng, "from")["lt"] = "1.21.5" },
-		"anchor outside range":          func(rng, r map[string]any) { side(rng, "from")["gte"] = "1.21.1" },
-		"wider than one minor per side": func(rng, r map[string]any) { side(rng, "to")["lt"] = "1.25.0" },
-		"downgrade-capable (from>=to)":  func(rng, r map[string]any) { side(rng, "from")["lt"] = "1.23.0" },
+	setBases := func(rng map[string]any, bases ...string) {
+		for i, b := range bases {
+			bound(rng, i)["basis"] = b
+		}
 	}
-	for name, f := range cases {
-		result, err := Validate(candidateFile(t, mutate(f)), Options{})
+	type mutation struct {
+		fragment   string // must appear in a Check=="range" finding (or the engine finding for engineOnly)
+		engineOnly bool   // the engine, not the contribution gate, owns this rule
+		gateOnly   bool   // the engine accepts it; only the gate rejects it
+		mutate     func(rng map[string]any)
+	}
+	cases := map[string]mutation{
+		"open-ended: empty to.lt":       {fragment: "open-ended", mutate: func(rng map[string]any) { side(rng, "to")["lt"] = "" }},
+		"open-ended: empty from.gte":    {fragment: "open-ended", mutate: func(rng map[string]any) { side(rng, "from")["gte"] = "" }},
+		"open-ended: wildcard":          {fragment: "open-ended", mutate: func(rng map[string]any) { side(rng, "to")["lt"] = "*" }},
+		"open-ended: pre-release":       {fragment: "open-ended", mutate: func(rng map[string]any) { side(rng, "to")["lt"] = "1.23.0-rc.1" }},
+		"uncited: empty source":         {fragment: "uncited", mutate: func(rng map[string]any) { bound(rng, 2)["sourceId"] = "" }},
+		"uncited: source not in rule":   {fragment: "uncited", mutate: func(rng map[string]any) { bound(rng, 3)["sourceId"] = "invented-source" }},
+		"uncited: bounds missing":       {fragment: "cite all four", mutate: func(rng map[string]any) { rng["bounds"] = []any{} }},
+		"boundary not a release basis":  {fragment: "REMOVED_IN_RELEASE or CHANGED_IN_RELEASE", mutate: func(rng map[string]any) { bound(rng, 1)["basis"] = "UPGRADE_FROM_SERIES" }},
+		"boundary bases differ":         {fragment: "REMOVED_IN_RELEASE or CHANGED_IN_RELEASE", mutate: func(rng map[string]any) { bound(rng, 2)["basis"] = "CHANGED_IN_RELEASE" }},
+		"from.lt and to.gte differ":     {fragment: "same change version", mutate: func(rng map[string]any) { side(rng, "from")["lt"] = "1.21.5" }},
+		"anchor outside range":          {fragment: "anchor", mutate: func(rng map[string]any) { side(rng, "from")["gte"] = "1.21.1" }},
+		"wider than one minor per side": {fragment: "wider than one minor", engineOnly: true, mutate: func(rng map[string]any) { side(rng, "to")["lt"] = "1.25.0" }},
+		"series shape on all four bounds (no release C)": {fragment: "REMOVED_IN_RELEASE or CHANGED_IN_RELEASE", gateOnly: true, mutate: func(rng map[string]any) {
+			setBases(rng, "UPGRADE_FROM_SERIES", "UPGRADE_FROM_SERIES", "TARGET_SERIES", "TARGET_SERIES")
+		}},
+		"ANCHOR_ONLY on all four bounds": {fragment: "REMOVED_IN_RELEASE or CHANGED_IN_RELEASE", gateOnly: true, mutate: func(rng map[string]any) {
+			setBases(rng, "ANCHOR_ONLY", "ANCHOR_ONLY", "ANCHOR_ONLY", "ANCHOR_ONLY")
+			side(rng, "from")["gte"], side(rng, "from")["lt"] = "1.21.0", "1.21.1"
+			side(rng, "to")["gte"], side(rng, "to")["lt"] = "1.22.0", "1.22.1"
+		}},
+	}
+	for name, c := range cases {
+		entry := firstRangedEntry(t)
+		c.mutate(rule(entry)["range"].(map[string]any))
+		result, err := Validate(candidateFile(t, entry), Options{})
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
 		if result.Valid {
 			t.Errorf("%s: mutated community range was accepted", name)
+			continue
+		}
+		var gate, engine bool
+		for _, f := range result.Findings {
+			if f.Check == "range" && strings.Contains(f.Message, c.fragment) {
+				gate = true
+			}
+			if f.Check == "engine-rejected" {
+				engine = true
+			}
+		}
+		switch {
+		case c.engineOnly && (!engine || gate):
+			t.Errorf("%s: want engine-only rejection, gate=%v engine=%v: %+v", name, gate, engine, result.Findings)
+		case !c.engineOnly && !gate:
+			t.Errorf("%s: no range finding containing %q: %+v", name, c.fragment, result.Findings)
+		case c.gateOnly && engine:
+			t.Errorf("%s: expected the gate alone to reject, engine also did: %+v", name, result.Findings)
 		}
 	}
 }

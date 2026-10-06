@@ -474,5 +474,14 @@ accepts a range only in this shape, and rejects anything open-ended or uncited:
 - each side spans at most one minor line (the engine's width cap).
 
 A hop outside the range, or an unknown version, is never matched and the
-engine reports UNKNOWN. `prufyx assess --to VERSION` declares the target for
-checks whose reviewed origin range contains the observed version.
+engine reports UNKNOWN. A contributed rule is validated alone: overlap with
+published rules is checked only when a maintainer folds it into the pack, which
+rejects an overlapping range.
+
+`prufyx assess --to X.Y.Z` (strict version; `1.25`, `v1.25.4` and
+`1.25.4-gke.100` are usage errors) declares the Kubernetes target for checks
+whose reviewed origin range contains the observed version. It applies to
+Kubernetes only; component checks ask for the target in the native check. A
+hop that crosses the change version but is wider than the reviewed range is
+reported INDETERMINATE_HOP_OUTSIDE_REVIEWED_RANGE, never not applicable, and an
+observed version that is not a strict X.Y.Z is INDETERMINATE_VERSION_UNPARSEABLE.

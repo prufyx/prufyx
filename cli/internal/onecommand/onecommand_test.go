@@ -296,38 +296,37 @@ func kubernetesObservedBundle(value string) currentbundle.CurrentBundle {
 	return currentbundle.CurrentBundle{Environment: currentbundle.Environment{Kubernetes: currentbundle.FieldValue{State: "observed", Value: value}}}
 }
 
-// TestClassifyKubernetesRangeApplicability: an observed origin inside the
-// rule's reviewed origin range is never a version mismatch. Without a target
-// it needs --to; with a target inside the reviewed target range it is
-// applicable; outside, a mismatch. The anchor origin keeps its exact-pair
-// behaviour and ignores the target.
+// TestClassifyKubernetesRangeApplicability: anchor 1.24.0 -> 1.25.0, change
+// version C = 1.25.0, origin range [1.24.0,1.25.0), target range [1.25.0,1.26.0).
+// NOT_APPLICABLE only when the hop provably does not cross C; a hop that
+// crosses C but is wider than the reviewed range is INDETERMINATE.
 func TestClassifyKubernetesRangeApplicability(t *testing.T) {
-	route := rangedKubernetesRoute() // anchor 1.24.0 -> 1.25.0, from [1.24.0,1.25.0), to [1.25.0,1.26.0)
+	route := rangedKubernetesRoute()
 	cases := []struct {
 		name, observed, to, want string
 		needsTo                  bool
 	}{
 		{"anchor origin, no target", "1.24.0", "", ApplicableFullySatisfied, false},
-		{"anchor origin ignores a foreign target", "1.24.0", "9.9.9", ApplicableFullySatisfied, false},
+		{"anchor origin, matching target", "1.24.0", "1.25.0", ApplicableFullySatisfied, false},
+		{"anchor origin, contradictory target still the anchor hop", "1.24.0", "9.9.9", ApplicableFullySatisfied, false},
 		{"in range, no target", "1.24.17", "", ApplicableNeedsDeclaration, true},
-		{"in range, target at C", "1.24.17", "1.25.0", ApplicableFullySatisfied, false},
-		{"in range, target above C", "1.24.0", "1.25.9", ApplicableFullySatisfied, false},
-		{"in range, target still below C", "1.24.17", "1.24.99", NotApplicableVersionMismatch, false},
-		{"in range, target past reviewed range", "1.24.17", "1.26.0", NotApplicableVersionMismatch, false},
-		{"in range, multi-minor target", "1.24.17", "1.28.1", NotApplicableVersionMismatch, false},
+		{"in range, target at C", "1.24.17", "1.25.0", ApplicableNeedsDeclaration, false},
+		{"in range, target above C", "1.24.5", "1.25.9", ApplicableNeedsDeclaration, false},
+		{"target below C: does not cross", "1.24.17", "1.24.99", NotApplicableVersionMismatch, false},
+		{"target equals origin", "1.24.17", "1.24.17", NotApplicableVersionMismatch, false},
+		{"downgrade", "1.24.17", "1.23.0", NotApplicableVersionMismatch, false},
+		{"crosses C, past reviewed range", "1.24.17", "1.26.0", IndeterminateHopOutsideReviewedRange, false},
+		{"crosses C, multi-minor target", "1.24.17", "1.35.6", IndeterminateHopOutsideReviewedRange, false},
 		{"origin at C (already past)", "1.25.0", "1.25.4", NotApplicableVersionMismatch, false},
 		{"origin below range", "1.23.9", "1.25.1", NotApplicableVersionMismatch, false},
 		{"origin far above", "1.35.6", "1.36.0", NotApplicableVersionMismatch, false},
-		{"unparseable origin", "v1.24.17", "1.25.1", NotApplicableVersionMismatch, false},
+		{"unparseable origin v-prefix", "v1.24.17", "1.25.1", IndeterminateVersionUnparseable, false},
+		{"unparseable origin eks suffix", "1.24.17-eks-abc", "1.25.1", IndeterminateVersionUnparseable, false},
 	}
 	for _, tc := range cases {
 		got := classifyKubernetes(CheckAssessment{Project: route.Project, From: route.From, To: route.To}, route, kubernetesObservedBundle(tc.observed), false, tc.to)
-		want := tc.want
-		if want == ApplicableFullySatisfied && tc.observed != route.From {
-			want = ApplicableNeedsDeclaration // range hops always point at the pinned command with explicit versions
-		}
-		if got.Applicability != want && !(tc.observed == route.From && got.Applicability == ApplicableNeedsDeclaration) {
-			t.Errorf("%s: applicability=%q, want %q", tc.name, got.Applicability, want)
+		if got.Applicability != tc.want {
+			t.Errorf("%s: applicability=%q, want %q", tc.name, got.Applicability, tc.want)
 		}
 		hasTo := false
 		for _, d := range got.MissingDeclarations {
@@ -336,6 +335,52 @@ func TestClassifyKubernetesRangeApplicability(t *testing.T) {
 		if hasTo != tc.needsTo {
 			t.Errorf("%s: --to declaration present=%v, want %v", tc.name, hasTo, tc.needsTo)
 		}
+	}
+}
+
+// The reviewer's malformed targets never reach classification: the assess
+// flag rejects them as a usage error (see communityapp). If one did reach it
+// anyway, it must not become NOT_APPLICABLE.
+func TestClassifyMalformedTargetNeverNotApplicable(t *testing.T) {
+	route := rangedKubernetesRoute()
+	for _, to := range []string{"1.25", "v1.25.1", "1.25.1-gke.100", "1.25.1-rc.0", "garbage"} {
+		got := classifyKubernetes(CheckAssessment{}, route, kubernetesObservedBundle("1.24.17"), false, to)
+		if got.Applicability == NotApplicableVersionMismatch {
+			t.Errorf("to=%q: malformed target produced NOT_APPLICABLE", to)
+		}
+	}
+}
+
+func TestRangeHopRendersTheOperatorsOwnCommand(t *testing.T) {
+	route := rangedKubernetesRoute()
+	route.NativeDescriptor = checkroutemetadata.Route{State: checkroutemetadata.DescriptorExact, Command: []checkroutemetadata.Argument{
+		{Kind: "literal", Literal: "check"}, {Kind: "literal", Literal: "--from"}, {Kind: "literal", Literal: "1.24.0"}, {Kind: "literal", Literal: "--to"}, {Kind: "literal", Literal: "1.25.0"}}}
+	base := CheckAssessment{Command: renderCommand(route.NativeDescriptor.Command)}
+	got := classifyKubernetes(base, route, kubernetesObservedBundle("1.24.17"), false, "1.25.3")
+	if strings.Join(got.Command, " ") != "check --from 1.24.17 --to 1.25.3" || got.MatchMode != "range" {
+		t.Fatalf("command=%v mode=%q", got.Command, got.MatchMode)
+	}
+	anchor := classifyKubernetes(base, route, kubernetesObservedBundle("1.24.0"), false, "")
+	if strings.Join(anchor.Command, " ") != "check --from 1.24.0 --to 1.25.0" || anchor.MatchMode != "" {
+		t.Fatalf("anchor command=%v mode=%q", anchor.Command, anchor.MatchMode)
+	}
+}
+
+// assess --to is a Kubernetes target: a ranged component route never consumes
+// it, so a Kubernetes target cannot turn a component check NOT_APPLICABLE.
+func TestComponentRouteIgnoresKubernetesTarget(t *testing.T) {
+	route := rangedKubernetesRoute()
+	route.Project = "cilium"
+	for _, to := range []string{"", "1.30.4"} {
+		got := classifyOrigin(CheckAssessment{}, route, true, "1.24.17", "", false, "mismatch")
+		if got.Applicability != ApplicableNeedsDeclaration || !strings.Contains(got.Reason, "native check") {
+			t.Fatalf("to=%q component classified %q: %s", to, got.Applicability, got.Reason)
+		}
+	}
+	// via classify(), a Kubernetes --to is not forwarded to component routes
+	got := classifyOrigin(CheckAssessment{}, route, false, "1.24.17", "", false, "mismatch")
+	if got.Applicability != IndeterminateVersionUnparseable {
+		t.Fatalf("inexact component version: %q", got.Applicability)
 	}
 }
 
@@ -352,23 +397,40 @@ func TestClassifyKubernetesExactRuleIgnoresTarget(t *testing.T) {
 	}
 }
 
-// Mutation check: loosening the origin range by one patch past its end must
-// change the classification of the probe origin, so the table above is not
-// vacuous.
+// Mutation check: each mutant of the reviewed range must flip at least one
+// row of a fixed probe table, so the table is not vacuous.
 func TestClassifyRangeMutationCheck(t *testing.T) {
+	probes := [][2]string{{"1.24.17", ""}, {"1.24.17", "1.24.99"}, {"1.24.17", "1.25.0"}, {"1.24.17", "1.25.9"}, {"1.24.17", "1.26.0"}, {"1.24.17", "1.26.5"}, {"1.25.0", "1.25.4"}, {"1.23.9", "1.25.1"}, {"1.24.0", "1.25.1"}, {"1.22.0", "1.25.1"}}
+	render := func(r checkroutemetadata.Check) string {
+		out := ""
+		for _, p := range probes {
+			out += classifyKubernetes(CheckAssessment{}, r, kubernetesObservedBundle(p[0]), false, p[1]).Applicability + "|"
+		}
+		return out
+	}
 	route := rangedKubernetesRoute()
-	probe := func(r checkroutemetadata.Check) string {
-		return classifyKubernetes(CheckAssessment{}, r, kubernetesObservedBundle("1.25.0"), false, "1.25.4").Applicability
+	baseline := render(route)
+	mutate := func(f func(v *constraintengine.VersionRange)) checkroutemetadata.Check {
+		m := route
+		v := *route.Range
+		f(&v)
+		m.Range = &v
+		return m
 	}
-	if probe(route) != NotApplicableVersionMismatch {
-		t.Fatal("baseline: origin at C must not apply")
+	mutants := map[string]checkroutemetadata.Check{
+		"from.lt widened past C": mutate(func(v *constraintengine.VersionRange) { v.From.Lt = "1.25.1" }),
+		"to.gte lowered below C": mutate(func(v *constraintengine.VersionRange) { v.To.Gte = "1.24.50" }),
+		"to.gte raised past C":   mutate(func(v *constraintengine.VersionRange) { v.To.Gte = "1.25.3" }),
+		"to.lt widened":          mutate(func(v *constraintengine.VersionRange) { v.To.Lt = "1.27.0" }),
+		"to.lt narrowed":         mutate(func(v *constraintengine.VersionRange) { v.To.Lt = "1.25.5" }),
+		"from.gte lowered":       mutate(func(v *constraintengine.VersionRange) { v.From.Gte = "1.22.0" }),
+		"from.gte raised":        mutate(func(v *constraintengine.VersionRange) { v.From.Gte = "1.24.20" }),
+		"range dropped":          func() checkroutemetadata.Check { m := route; m.Range = nil; return m }(),
 	}
-	mutant := route
-	widened := *route.Range
-	widened.From.Lt = "1.25.1"
-	mutant.Range = &widened
-	if probe(mutant) == probe(route) {
-		t.Fatal("mutant survived: widening from.lt past C did not change the verdict")
+	for name, m := range mutants {
+		if render(m) == baseline {
+			t.Errorf("mutant %q survived", name)
+		}
 	}
 }
 

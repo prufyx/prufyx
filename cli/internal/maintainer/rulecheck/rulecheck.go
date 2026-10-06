@@ -205,10 +205,11 @@ type Options struct {
 	// AllowRange opts in to accepting a rule.range field. It is for the
 	// maintainer's own publish-time self-check against already-published,
 	// reviewed packs, never for the public "rule validate" CLI a community
-	// contributor runs: only a maintainer adds a range when publishing, so a
-	// community candidate carrying one is rejected with a clear message
-	// instead. When true, a candidate's range is not re-validated by hand
-	// here; it is checked exactly as the compiled engine checks a published
+	// contributor runs: a community candidate's range is accepted only in the
+	// release-boundary shape of communityRangeProblems (finite, cited bounds
+	// pinning the crossed release C) and is otherwise rejected with a clear
+	// message; the maintainer path is not restricted to that shape.
+	// When true, a candidate's range is not re-validated by hand here; it is checked exactly as the compiled engine checks a published
 	// rule, via constraintengine.ParseRuleSet in runEngineParse below.
 	AllowRange bool
 }
