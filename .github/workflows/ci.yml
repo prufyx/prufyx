@@ -17,7 +17,7 @@ jobs:
   build-test:
     name: Build, vet, test
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -38,8 +38,8 @@ jobs:
 
       - name: Test
         working-directory: cli
-        # Some packages exceed go test's default 10-minute limit on hosted runners.
-        run: go test -timeout 30m ./...
+        # Some packages exceed go test's default 10-minute limit on hosted runners; communityapp alone takes ~28m (DD-05 will speed it up).
+        run: go test -timeout 60m ./...
 
       - name: Check knowledge target sizes
         # Fails when any per-project CNCF knowledge target or the index
