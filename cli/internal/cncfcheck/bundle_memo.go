@@ -7,25 +7,31 @@ import (
 	"sync"
 )
 
-// bundleMemo memoizes one bundle load for the life of the process. The first
-// get runs the loader (digest and strict checks included) under sync.Once; a
-// failure is stored and returned to every later caller, with no retry and no
-// fallback. Each caller receives its own copy of the parts a caller could
-// mutate (landscape, priority list, rule pack and its byte sections); the
-// registry and the section indexes have only unexported state and copying
-// accessors, so they are shared.
+// bundleMemo memoizes one bundle load for the life of the process. The
+// first get runs the loader (digest and strict checks included) once, through
+// sync.OnceValues: a failure is stored and returned to every later caller
+// (no retry, no fallback), and a loader panic re-panics on every call, so an
+// empty bundle is never served. Each caller receives its own copy of the
+// parts a caller could mutate (landscape, priority list, rule pack and its
+// byte sections); the registry and the section indexes have only unexported
+// state and copying accessors, so they are shared.
 type bundleMemo struct {
-	once sync.Once
-	b    bundle
-	err  error
+	mu   sync.Mutex
+	load func() (bundle, error)
 }
 
 func (m *bundleMemo) get(loader func() (bundle, error)) (bundle, error) {
-	m.once.Do(func() { m.b, m.err = loader() })
-	if m.err != nil {
-		return bundle{}, m.err
+	m.mu.Lock()
+	if m.load == nil {
+		m.load = sync.OnceValues(loader)
 	}
-	return m.b.clone(), nil
+	load := m.load
+	m.mu.Unlock()
+	b, err := load()
+	if err != nil {
+		return bundle{}, err
+	}
+	return b.clone(), nil
 }
 
 func cloneBytes(b json.RawMessage) json.RawMessage {
@@ -42,8 +48,9 @@ func cloneStrings(s []string) []string {
 	return append([]string{}, s...)
 }
 
-// clone deep-copies every slice, map-free field and byte section of the
-// bundle that is reachable and writable from outside the indexes.
+// clone deep-copies every slice and byte section of the bundle (landscape,
+// priority list, pack entries and sections). The registry and indexes are not
+// copied: they are immutable through their accessors.
 func (b bundle) clone() bundle {
 	out := b
 	if b.landscape.Projects != nil {
