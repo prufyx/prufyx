@@ -11,6 +11,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/prufyx/prufyx/cli/internal/extract/safefs"
 	"io"
 	"os"
 	"os/signal"
@@ -242,7 +243,11 @@ func cmdRun(args []string, existing []string, now func() time.Time, stdout io.Wr
 	if err != nil {
 		return 2, err
 	}
-	if err := out.Write(c.out); err != nil {
+	files, err := out.Files()
+	if err != nil {
+		return 2, err
+	}
+	if err := safefs.WriteTree(c.out, files); err != nil {
 		return 2, err
 	}
 	t := out.Manifest.Totals
