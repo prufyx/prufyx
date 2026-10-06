@@ -68,6 +68,10 @@ var reasonOutcomes = map[string]outcome{
 	"RULE_DEPENDENCY_COMPONENT_MISSING":   gapOutcome(scanreport.GapRuleNotDecided),
 	"RULE_OPERATOR_UNSUPPORTED":           gapOutcome(scanreport.GapRuleNotDecided),
 
+	// A removal crossing never passes: a fact that does not block leaves
+	// the hop undecided.
+	constraintengine.ReasonCrossingPassNotReviewed: gapOutcome(scanreport.GapRuleNotDecided),
+
 	// A consensus rule that finds nothing never passes.
 	constraintengine.ReasonConsensusNoKnownIssue: gapOutcome(scanreport.GapRuleNoKnownIssue),
 }
