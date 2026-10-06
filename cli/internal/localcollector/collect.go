@@ -150,6 +150,7 @@ func (c Collector) Collect(ctx context.Context, opts Options, stdout, stderr io.
 		configuration := []any{}
 		componentOmissions := []any{}
 		certManagerSeen := false
+		var discoveredGroups map[string]bool
 
 		for _, q := range baseQueries {
 			totalReads++
@@ -199,6 +200,9 @@ func (c Collector) Collect(ctx context.Context, opts Options, stdout, stderr io.
 				histogram["projection_filter_rejected"]++
 				continue
 			}
+			if q.name == "grouped-api-versions.json" {
+				discoveredGroups = groupSet(projected)
+			}
 			if err := writeJSON(filepath.Join(dir, q.name), projected); err != nil {
 				fmt.Fprintln(stderr, "Cannot write private projected output.")
 				return "", 2
@@ -218,7 +222,7 @@ func (c Collector) Collect(ctx context.Context, opts Options, stdout, stderr io.
 
 		if opts.IncludeComponentConfiguration {
 			if certManagerSeen {
-				reads, failures := c.captureCertManager(ctx, env, opts, contextName, dir, &omissions, histogram, &configuration, &componentOmissions)
+				reads, failures := c.captureCertManager(ctx, env, opts, contextName, dir, discoveredGroups, &omissions, histogram, &configuration, &componentOmissions)
 				totalReads += reads
 				failedReads += failures
 			}

@@ -449,3 +449,66 @@ func TestCollectPartialIsBoundedAndRedacted(t *testing.T) {
 		}
 	}
 }
+
+type notServedRunner struct {
+	fakeRunner
+	class string
+}
+
+func (r *notServedRunner) Run(ctx context.Context, argv, env []string, timeout time.Duration) (CommandResult, error) {
+	if strings.Contains(strings.Join(argv, " "), "monitoring.coreos.com") {
+		return CommandResult{Exit: 1, Class: r.class}, nil
+	}
+	return r.fakeRunner.Run(ctx, argv, env, timeout)
+}
+
+func runCertManagerCapture(t *testing.T, class string, groups map[string]bool) ([]omission, int, string) {
+	t.Helper()
+	tmp := t.TempDir()
+	runner := &notServedRunner{fakeRunner: fakeRunner{t: t, private: "ctx"}, class: class}
+	c := Collector{Runner: runner}
+	opts := Options{Kubeconfig: filepath.Join(tmp, "kc")}
+	omissions := []omission{}
+	var configuration, componentOmissions []any
+	_, failures := c.captureCertManager(context.Background(), nil, opts, "ctx", tmp, groups, &omissions, map[string]int{}, &configuration, &componentOmissions)
+	return omissions, failures, tmp
+}
+
+func TestUnservedMonitoringAPIIsObservedAbsenceNotOmission(t *testing.T) {
+	omissions, failures, dir := runCertManagerCapture(t, "unsupported_not_found_api", map[string]bool{"apps": true})
+	for _, o := range omissions {
+		if strings.Contains(o.Name, "monitors") {
+			t.Fatalf("absent API recorded as omission: %+v", o)
+		}
+	}
+	if failures != 0 {
+		t.Fatalf("failures=%d", failures)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "cert-manager-servicemonitors.json"))
+	if err != nil || !strings.Contains(strings.Join(strings.Fields(string(raw)), ""), `"apiServed":false`) {
+		t.Fatalf("absence not recorded: %q %v", raw, err)
+	}
+}
+
+func TestUnservedMonitoringAPIFailsClosed(t *testing.T) {
+	for name, tc := range map[string]struct {
+		class  string
+		groups map[string]bool
+	}{
+		"group still served":      {"unsupported_not_found_api", map[string]bool{"monitoring.coreos.com": true}},
+		"no discovery":            {"unsupported_not_found_api", nil},
+		"forbidden not not-found": {"authorization_rbac_forbidden", map[string]bool{"apps": true}},
+		"generic failure":         {"", map[string]bool{"apps": true}},
+	} {
+		omissions, _, _ := runCertManagerCapture(t, tc.class, tc.groups)
+		found := 0
+		for _, o := range omissions {
+			if strings.Contains(o.Name, "monitors") {
+				found++
+			}
+		}
+		if found != 2 {
+			t.Fatalf("%s: monitor omissions=%d want 2", name, found)
+		}
+	}
+}
