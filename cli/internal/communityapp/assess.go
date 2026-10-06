@@ -56,7 +56,9 @@ func (r runtime) assess(ctx context.Context, args []string) int {
 		ComponentConfigurationProfile: *profile,
 		ScopeInput:                    *scopeInput,
 	}
-	report, code := onecommand.Run(ctx, opts, r.stdout, r.stderr)
+	// Collector progress lines go to stderr so stdout carries only the
+	// report; `--format json` output must parse as JSON.
+	report, code := onecommand.Run(ctx, opts, r.stderr, r.stderr)
 	if code != onecommand.ExitOK {
 		return code
 	}
