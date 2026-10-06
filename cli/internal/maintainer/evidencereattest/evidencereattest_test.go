@@ -1739,6 +1739,30 @@ func TestPriorPackRuleReviewedAfterChainHeadNeedsNewReviewRecord(t *testing.T) {
 	}
 }
 
+// A mechanical rule reviewed after the chain head is exempt from V5 on the
+// human path; a reviewed one is not. A reviewed-to-mechanical basis change
+// cannot ride a reattestation (V6 refuses it, see TestCheckV6RejectsBasisChange)
+// and V5 reads the prior pack's basis, so the exemption never applies to the
+// reviewed state of a rule.
+func TestPriorPackMechanicalRuleReviewedAfterChainHeadIsExempt(t *testing.T) {
+	state := chainStateAt(t, "2026-08-20T12:00:00Z", 1)
+	mech := ruleFields{ID: "rule-m"}
+	mech.Evidence.Basis = "mechanical"
+	mech.Evidence.ReviewedAt = "2026-09-01T00:00:00Z"
+	if _, err := state.checkPriorPackCovered([]ruleFields{mech}, nil, false); err != nil {
+		t.Fatalf("a mechanical rule reviewed after the chain head must pass: %v", err)
+	}
+	rev := ruleFields{ID: "rule-r"}
+	rev.Evidence.Basis = "reviewed"
+	rev.Evidence.ReviewedAt = "2026-09-01T00:00:00Z"
+	if _, err := state.checkPriorPackCovered([]ruleFields{mech, rev}, nil, false); err == nil || !strings.Contains(err.Error(), "rule-r") || !strings.Contains(err.Error(), "truncated") {
+		t.Fatalf("a reviewed rule beside it must still fail V5: %v", err)
+	}
+	if out, err := state.checkPriorPackCovered([]ruleFields{mech, rev}, nil, true); err != nil || out["rule-m"] || !out["rule-r"] {
+		t.Fatalf("automated path: mech exempt, reviewed outside; got %v %v", out, err)
+	}
+}
+
 // ---------------------------------------------------------------------
 // Stagger cap (V7) on Prepare's output
 // ---------------------------------------------------------------------

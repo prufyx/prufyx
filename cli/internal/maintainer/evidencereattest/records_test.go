@@ -1244,10 +1244,10 @@ func TestCheckV10CatchesARuleIDsChange(t *testing.T) {
 	}
 }
 
-// Rule behaviour is unchanged (R6): a mechanical rule whose reviewedAt moved
-// after the chain head still stops a human batch as a truncated chain. Only
-// mechanical records are exempt.
-func TestMechanicalRuleMovedAfterTheChainHeadStillStopsAHumanBatch(t *testing.T) {
+// A mechanical rule whose reviewedAt moved after the chain head is renewed
+// by re-derivation, not by the chain: a human batch is not stopped by it
+// (K8R-V5), exactly as for a mechanical record.
+func TestMechanicalRuleMovedAfterTheChainHeadDoesNotStopAHumanBatch(t *testing.T) {
 	f := newRoleFixture(t)
 	prior := standardRecordPack(t, baseNow)
 	c := prepareRecordCycle(t, f, prior, baseNow, "rev-2", nil)
@@ -1269,11 +1269,37 @@ func TestMechanicalRuleMovedAfterTheChainHeadStillStopsAHumanBatch(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
+	res, err := Prepare(PrepareOptions{
+		WorklistRaw: worklistFromPack(t, pack, next, nil), PackName: PackCNCF, PackPath: chainPackPath, PackRaw: pack, Chain: f.chain(),
+		Wave: 1, AttestedAt: next, Now: next, NextRevision: "rev-3", EngineCapabilityDigest: testEngineCapabilityDigest,
+	})
+	if err != nil {
+		t.Fatalf("a mechanical rule moved after the chain head must not stop a human batch: %v", err)
+	}
+	for _, r := range res.Statement.Rules {
+		if r.RuleID == "past-000" {
+			t.Fatal("the mechanical rule was renewed by the statement")
+		}
+	}
+	// The same pack with that rule reviewed (not mechanical) still stops.
+	for _, item := range doc["entries"].([]any) {
+		rule := item.(map[string]any)["rule"].(map[string]any)
+		if rule["id"] == "past-000" {
+			e := rule["evidence"].(map[string]any)
+			e["basis"] = "reviewed"
+			delete(e, "extractor")
+			delete(e, "derivedAt")
+		}
+	}
+	pack, err = json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = Prepare(PrepareOptions{
 		WorklistRaw: worklistFromPack(t, pack, next, nil), PackName: PackCNCF, PackPath: chainPackPath, PackRaw: pack, Chain: f.chain(),
 		Wave: 1, AttestedAt: next, Now: next, NextRevision: "rev-3", EngineCapabilityDigest: testEngineCapabilityDigest,
 	})
 	if err == nil || !strings.Contains(err.Error(), "truncated") {
-		t.Fatalf("a mechanical rule moved after the chain head: %v", err)
+		t.Fatalf("a reviewed rule moved after the chain head must still stop: %v", err)
 	}
 }
