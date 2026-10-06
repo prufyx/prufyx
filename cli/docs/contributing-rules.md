@@ -457,3 +457,22 @@ the claim, checking the fact and operator choice, and deciding whether it
 belongs in the CNCF pack or the community-project pack. Only a maintainer
 folds an accepted candidate into the published `rules.json` and re-runs the
 maintainer corpus-attestation tooling; this validator never does either.
+
+## Version ranges in contributed rules
+
+A contributed rule may carry a reviewed `range` so it applies to any hop that
+crosses the change release C, not only to the exact anchor pair. `rule validate`
+accepts a range only in this shape, and rejects anything open-ended or uncited:
+
+- all four bounds (`from.gte`, `from.lt`, `to.gte`, `to.lt`) are finite release
+  versions, and the anchor `subject.from`/`subject.to` lies inside them;
+- `from.lt` and `to.gte` are the same version C, each with basis
+  `REMOVED_IN_RELEASE` or `CHANGED_IN_RELEASE` (the same basis), so every
+  matched hop satisfies `from < C <= to`;
+- `range.bounds` has four entries in order, each citing a `sourceId` that is
+  one of the rule's own `evidence.sources`;
+- each side spans at most one minor line (the engine's width cap).
+
+A hop outside the range, or an unknown version, is never matched and the
+engine reports UNKNOWN. `prufyx assess --to VERSION` declares the target for
+checks whose reviewed origin range contains the observed version.

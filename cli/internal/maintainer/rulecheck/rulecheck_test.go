@@ -323,21 +323,50 @@ func firstRangedEntry(t *testing.T) map[string]any {
 	return nil
 }
 
-func TestValidate_CommunityContributionRejectsRange(t *testing.T) {
-	entry := firstRangedEntry(t)
-	result, err := Validate(candidateFile(t, entry), Options{})
+// A community contribution may carry a range only in the validated
+// release-boundary shape; the published reviewed range has exactly that shape.
+func TestValidate_CommunityContributionAcceptsWellFormedRange(t *testing.T) {
+	result, err := Validate(candidateFile(t, firstRangedEntry(t)), Options{})
 	if err != nil {
-		t.Fatalf("Validate returned error: %v", err)
+		t.Fatal(err)
 	}
-	if result.Valid {
-		t.Fatal("expected a community-mode candidate with a range to be rejected")
+	if !result.Valid {
+		t.Fatalf("well-formed cited range rejected: %+v", result.Findings)
 	}
-	for _, f := range result.Findings {
-		if f.Check == "range" && strings.Contains(f.Message, "maintainer") {
-			return
+}
+
+func TestValidate_CommunityRangeRejections(t *testing.T) {
+	mutate := func(f func(rng map[string]any, r map[string]any)) map[string]any {
+		entry := firstRangedEntry(t)
+		r := rule(entry)
+		f(r["range"].(map[string]any), r)
+		return entry
+	}
+	bound := func(rng map[string]any, i int) map[string]any { return rng["bounds"].([]any)[i].(map[string]any) }
+	side := func(rng map[string]any, name string) map[string]any { return rng[name].(map[string]any) }
+	cases := map[string]func(rng map[string]any, r map[string]any){
+		"open-ended: empty to.lt":       func(rng, r map[string]any) { side(rng, "to")["lt"] = "" },
+		"open-ended: empty from.gte":    func(rng, r map[string]any) { side(rng, "from")["gte"] = "" },
+		"open-ended: wildcard":          func(rng, r map[string]any) { side(rng, "to")["lt"] = "*" },
+		"uncited: empty source":         func(rng, r map[string]any) { bound(rng, 2)["sourceId"] = "" },
+		"uncited: source not in rule":   func(rng, r map[string]any) { bound(rng, 3)["sourceId"] = "invented-source" },
+		"uncited: bounds missing":       func(rng, r map[string]any) { rng["bounds"] = []any{} },
+		"boundary not a release basis":  func(rng, r map[string]any) { bound(rng, 1)["basis"] = "UPGRADE_FROM_SERIES" },
+		"boundary bases differ":         func(rng, r map[string]any) { bound(rng, 2)["basis"] = "CHANGED_IN_RELEASE" },
+		"from.lt and to.gte differ":     func(rng, r map[string]any) { side(rng, "from")["lt"] = "1.21.5" },
+		"anchor outside range":          func(rng, r map[string]any) { side(rng, "from")["gte"] = "1.21.1" },
+		"wider than one minor per side": func(rng, r map[string]any) { side(rng, "to")["lt"] = "1.25.0" },
+		"downgrade-capable (from>=to)":  func(rng, r map[string]any) { side(rng, "from")["lt"] = "1.23.0" },
+	}
+	for name, f := range cases {
+		result, err := Validate(candidateFile(t, mutate(f)), Options{})
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if result.Valid {
+			t.Errorf("%s: mutated community range was accepted", name)
 		}
 	}
-	t.Fatalf("expected a %q finding naming the maintainer-only rule, got: %+v", "range", result.Findings)
 }
 
 func TestValidate_MaintainerSelfCheckAcceptsPublishedRange(t *testing.T) {

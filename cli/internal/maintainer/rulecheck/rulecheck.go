@@ -380,7 +380,9 @@ func checkEntry(index int, entry Entry, opts Options) ([]Finding, string, bool) 
 	ruleID := body.ID
 
 	if body.Range != nil && !opts.AllowRange {
-		addRule(ruleID, "range", "rule.range is not accepted from a community contribution; only a maintainer adds a reviewed range when publishing")
+		for _, problem := range communityRangeProblems(body) {
+			addRule(ruleID, "range", "rule.range is not accepted from a community contribution: %s", problem)
+		}
 	}
 
 	if !ruleIDPattern.MatchString(body.ID) {
@@ -810,4 +812,62 @@ var readFile = os.ReadFile
 func sha256Sum(data []byte) []byte {
 	sum := sha256.Sum256(data)
 	return sum[:]
+}
+
+// communityRangeProblems is the contribution-time gate for rule.range. A
+// community rule may widen its anchor only to the shape "this change release C
+// lies in (from, to]": from.lt and to.gte are both the same version C under
+// REMOVED_IN_RELEASE or CHANGED_IN_RELEASE, so every matched hop A -> B has
+// A < C <= B. All four bounds must be finite versions, each cited to one of
+// the rule's own evidence sources, and the anchor must sit inside the range.
+// The engine's own ParseRuleSet check (width cap of one minor line per side,
+// basis structure, strict-upgrade guarantee) still runs afterwards on the same
+// rule; this gate only adds the contribution-specific requirements and
+// readable messages. It returns no problem for an acceptable range.
+func communityRangeProblems(body ruleBody) []string {
+	r := body.Range
+	var problems []string
+	finite := func(name, v string) bool {
+		if v == "" || !constraintengine.SameVersion(v, v) {
+			problems = append(problems, fmt.Sprintf("range bound %s %q is missing or not a release version; open-ended ranges are rejected", name, v))
+			return false
+		}
+		return true
+	}
+	ok := finite("from.gte", r.From.Gte)
+	ok = finite("from.lt", r.From.Lt) && ok
+	ok = finite("to.gte", r.To.Gte) && ok
+	ok = finite("to.lt", r.To.Lt) && ok
+	sources := map[string]bool{}
+	for _, source := range body.Evidence.Sources {
+		sources[source.ID] = true
+	}
+	want := []string{"from.gte", "from.lt", "to.gte", "to.lt"}
+	if len(r.Bounds) != len(want) {
+		problems = append(problems, "range.bounds must cite all four bounds (from.gte, from.lt, to.gte, to.lt) in that order")
+	} else {
+		for i, bound := range r.Bounds {
+			if bound.Bound != want[i] {
+				problems = append(problems, fmt.Sprintf("range.bounds[%d].bound is %q, want %q", i, bound.Bound, want[i]))
+			}
+			if bound.SourceID == "" || !sources[bound.SourceID] {
+				problems = append(problems, fmt.Sprintf("range.bounds[%d].sourceId %q does not name one of the rule's evidence sources; an uncited bound is rejected", i, bound.SourceID))
+			}
+		}
+		release := func(basis string) bool {
+			return basis == constraintengine.BasisRemovedInRelease || basis == constraintengine.BasisChangedInRelease
+		}
+		if !release(r.Bounds[1].Basis) || r.Bounds[1].Basis != r.Bounds[2].Basis {
+			problems = append(problems, "range.bounds from.lt and to.gte must both carry basis REMOVED_IN_RELEASE or CHANGED_IN_RELEASE (the same one): a community range must pin the release C that the upgrade crosses")
+		}
+	}
+	if ok {
+		if r.From.Lt != r.To.Gte {
+			problems = append(problems, "range.from.lt and range.to.gte must be the same change version C so every matched hop satisfies from < C <= to")
+		}
+		if !r.From.Contains(body.Subject.From) || !r.To.Contains(body.Subject.To) {
+			problems = append(problems, "the anchor subject.from/subject.to must lie inside the range")
+		}
+	}
+	return problems
 }

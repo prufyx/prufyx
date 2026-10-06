@@ -296,26 +296,79 @@ func kubernetesObservedBundle(value string) currentbundle.CurrentBundle {
 	return currentbundle.CurrentBundle{Environment: currentbundle.Environment{Kubernetes: currentbundle.FieldValue{State: "observed", Value: value}}}
 }
 
-// TestClassifyKubernetesRangeMatchIsNotApplicable proves fix 1: an observed
-// origin that falls inside a rule's reviewed range but is not the reviewed
-// anchor must never classify as applicable (fully satisfied or needing
-// declaration). Applicability -- and by extension the native command
-// onecommand hands back -- stays pinned to the reviewed anchor origin;
-// widening which origins a rule's verdict covers must never widen which
-// origins classify() and classifyKubernetes() call applicable.
-func TestClassifyKubernetesRangeMatchIsNotApplicable(t *testing.T) {
-	route := rangedKubernetesRoute()
-	inRangeNotAnchor := classifyKubernetes(CheckAssessment{Project: route.Project, RuleID: route.RuleID, From: route.From, To: route.To}, route, kubernetesObservedBundle("1.24.17"), false)
-	if inRangeNotAnchor.Applicability == ApplicableFullySatisfied || inRangeNotAnchor.Applicability == ApplicableNeedsDeclaration {
-		t.Fatalf("in-range non-anchor origin 1.24.17 classified applicable: %+v", inRangeNotAnchor)
+// TestClassifyKubernetesRangeApplicability: an observed origin inside the
+// rule's reviewed origin range is never a version mismatch. Without a target
+// it needs --to; with a target inside the reviewed target range it is
+// applicable; outside, a mismatch. The anchor origin keeps its exact-pair
+// behaviour and ignores the target.
+func TestClassifyKubernetesRangeApplicability(t *testing.T) {
+	route := rangedKubernetesRoute() // anchor 1.24.0 -> 1.25.0, from [1.24.0,1.25.0), to [1.25.0,1.26.0)
+	cases := []struct {
+		name, observed, to, want string
+		needsTo                  bool
+	}{
+		{"anchor origin, no target", "1.24.0", "", ApplicableFullySatisfied, false},
+		{"anchor origin ignores a foreign target", "1.24.0", "9.9.9", ApplicableFullySatisfied, false},
+		{"in range, no target", "1.24.17", "", ApplicableNeedsDeclaration, true},
+		{"in range, target at C", "1.24.17", "1.25.0", ApplicableFullySatisfied, false},
+		{"in range, target above C", "1.24.0", "1.25.9", ApplicableFullySatisfied, false},
+		{"in range, target still below C", "1.24.17", "1.24.99", NotApplicableVersionMismatch, false},
+		{"in range, target past reviewed range", "1.24.17", "1.26.0", NotApplicableVersionMismatch, false},
+		{"in range, multi-minor target", "1.24.17", "1.28.1", NotApplicableVersionMismatch, false},
+		{"origin at C (already past)", "1.25.0", "1.25.4", NotApplicableVersionMismatch, false},
+		{"origin below range", "1.23.9", "1.25.1", NotApplicableVersionMismatch, false},
+		{"origin far above", "1.35.6", "1.36.0", NotApplicableVersionMismatch, false},
+		{"unparseable origin", "v1.24.17", "1.25.1", NotApplicableVersionMismatch, false},
 	}
-	if inRangeNotAnchor.Applicability != NotApplicableVersionMismatch {
-		t.Fatalf("applicability=%q, want NOT_APPLICABLE_VERSION_MISMATCH", inRangeNotAnchor.Applicability)
+	for _, tc := range cases {
+		got := classifyKubernetes(CheckAssessment{Project: route.Project, From: route.From, To: route.To}, route, kubernetesObservedBundle(tc.observed), false, tc.to)
+		want := tc.want
+		if want == ApplicableFullySatisfied && tc.observed != route.From {
+			want = ApplicableNeedsDeclaration // range hops always point at the pinned command with explicit versions
+		}
+		if got.Applicability != want && !(tc.observed == route.From && got.Applicability == ApplicableNeedsDeclaration) {
+			t.Errorf("%s: applicability=%q, want %q", tc.name, got.Applicability, want)
+		}
+		hasTo := false
+		for _, d := range got.MissingDeclarations {
+			hasTo = hasTo || d.Flag == "--to"
+		}
+		if hasTo != tc.needsTo {
+			t.Errorf("%s: --to declaration present=%v, want %v", tc.name, hasTo, tc.needsTo)
+		}
 	}
+}
 
-	anchor := classifyKubernetes(CheckAssessment{Project: route.Project, RuleID: route.RuleID, From: route.From, To: route.To}, route, kubernetesObservedBundle("1.24.0"), false)
-	if anchor.Applicability != ApplicableFullySatisfied && anchor.Applicability != ApplicableNeedsDeclaration {
-		t.Fatalf("anchor origin 1.24.0 not classified applicable: %+v", anchor)
+// A rule without a range is unchanged: only the anchor origin applies, and
+// --to never widens it.
+func TestClassifyKubernetesExactRuleIgnoresTarget(t *testing.T) {
+	route := rangedKubernetesRoute()
+	route.Range = nil
+	for _, to := range []string{"", "1.25.1"} {
+		got := classifyKubernetes(CheckAssessment{Project: route.Project}, route, kubernetesObservedBundle("1.24.17"), false, to)
+		if got.Applicability != NotApplicableVersionMismatch {
+			t.Fatalf("exact rule, to=%q: %q", to, got.Applicability)
+		}
+	}
+}
+
+// Mutation check: loosening the origin range by one patch past its end must
+// change the classification of the probe origin, so the table above is not
+// vacuous.
+func TestClassifyRangeMutationCheck(t *testing.T) {
+	route := rangedKubernetesRoute()
+	probe := func(r checkroutemetadata.Check) string {
+		return classifyKubernetes(CheckAssessment{}, r, kubernetesObservedBundle("1.25.0"), false, "1.25.4").Applicability
+	}
+	if probe(route) != NotApplicableVersionMismatch {
+		t.Fatal("baseline: origin at C must not apply")
+	}
+	mutant := route
+	widened := *route.Range
+	widened.From.Lt = "1.25.1"
+	mutant.Range = &widened
+	if probe(mutant) == probe(route) {
+		t.Fatal("mutant survived: widening from.lt past C did not change the verdict")
 	}
 }
 

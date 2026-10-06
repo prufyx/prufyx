@@ -103,6 +103,14 @@ type Options struct {
 	// synthesised from collected state: a scope declaration is the operator's
 	// statement to make, and an absent one is not a default.
 	ScopeInput string
+	// To is the operator-declared target version (assess --to). It is only
+	// consulted for a check whose observed origin lies inside the rule's
+	// reviewed origin range but is not the anchor origin: such a check needs a
+	// target to decide whether the hop crosses the rule's change version. An
+	// empty To never defaults to a guess; the check reports
+	// APPLICABLE_NEEDS_DECLARATION naming --to. The anchor origin keeps its
+	// exact-pair behaviour and ignores To.
+	To string
 }
 
 // Report is the combined, single-file output of the one-command flow.
@@ -369,7 +377,7 @@ func assessOneContext(ctx context.Context, opts Options, contextName, outputRoot
 		Checks:           make([]CheckAssessment, 0, len(routes)),
 	}
 	for _, route := range routes {
-		checkAssessment := classify(route, bundle, partial)
+		checkAssessment := classify(route, bundle, partial, opts.To)
 		assessment.Checks = append(assessment.Checks, checkAssessment)
 		tally(&assessment.Summary, checkAssessment.Applicability)
 	}
@@ -399,7 +407,7 @@ func tally(summary *ApplicabilitySummary, applicability string) {
 	}
 }
 
-func classify(route checkroutemetadata.Check, bundle currentbundle.CurrentBundle, contextPartial bool) CheckAssessment {
+func classify(route checkroutemetadata.Check, bundle currentbundle.CurrentBundle, contextPartial bool, to string) CheckAssessment {
 	base := CheckAssessment{
 		Project:   route.Project,
 		Component: route.Component,
@@ -410,7 +418,7 @@ func classify(route checkroutemetadata.Check, bundle currentbundle.CurrentBundle
 	}
 
 	if route.Project == kubernetesProject {
-		return classifyKubernetes(base, route, bundle, contextPartial)
+		return classifyKubernetes(base, route, bundle, contextPartial, to)
 	}
 	componentID, observable := observableComponents[route.Project]
 	if !observable {
@@ -430,15 +438,52 @@ func classify(route checkroutemetadata.Check, bundle currentbundle.CurrentBundle
 		return base
 	}
 	base.ObservedVersion = component.Version.Value
-	if component.Version.State != "exact" || !route.Transition().IsAnchorFrom(component.Version.Value) {
+	if component.Version.State != "exact" {
 		base.Applicability = NotApplicableVersionMismatch
 		base.Reason = "The component is present but its observed version does not match this check's declared origin version."
 		return base
 	}
-	return withDeclarations(base, route)
+	return classifyOrigin(base, route, component.Version.Value, to, "The component is present but its observed version does not match this check's declared origin version.")
 }
 
-func classifyKubernetes(base CheckAssessment, route checkroutemetadata.Check, bundle currentbundle.CurrentBundle, contextPartial bool) CheckAssessment {
+// classifyOrigin is the one version gate for both the Kubernetes and the
+// component paths. An observed origin equal to the reviewed anchor origin
+// keeps the exact-pair behaviour untouched. An origin that is not the anchor
+// but lies inside the rule's reviewed origin range (the engine's own range
+// semantics, constraintengine.RuleTransition) is applicable only against a
+// target: without one the check asks for --to, with one it must lie inside
+// the reviewed target range. Anything else is a version mismatch. A rule
+// without a range has no range to fall in, so it behaves exactly as before.
+func classifyOrigin(base CheckAssessment, route checkroutemetadata.Check, observed, to, mismatch string) CheckAssessment {
+	transition := route.Transition()
+	if transition.IsAnchorFrom(observed) {
+		return withDeclarations(base, route)
+	}
+	if route.Range == nil || !route.Range.From.Contains(observed) {
+		base.Applicability = NotApplicableVersionMismatch
+		base.Reason = mismatch
+		return base
+	}
+	if to == "" {
+		base.Applicability = ApplicableNeedsDeclaration
+		base.Reason = "The observed version " + observed + " is not the reviewed anchor origin " + route.From + " but lies inside this rule's reviewed origin range [" + route.Range.From.Gte + ", " + route.Range.From.Lt + "). Whether the upgrade crosses the rule's change version depends on the target: declare it with --to. The command below is pinned to the anchor pair; for this origin run it with --from " + observed + " and your --to."
+		base.MissingDeclarations = append([]Declaration{targetDeclaration}, missingDeclarations(route.NativeDescriptor.Command)...)
+		return base
+	}
+	if !route.Range.To.Contains(to) {
+		base.Applicability = NotApplicableVersionMismatch
+		base.Reason = "The declared target " + to + " is outside this rule's reviewed target range [" + route.Range.To.Gte + ", " + route.Range.To.Lt + "); no verdict is derivable from this rule for that hop."
+		return base
+	}
+	base.Applicability = ApplicableNeedsDeclaration
+	base.Reason = "The observed version " + observed + " and declared target " + to + " are inside this rule's reviewed origin and target ranges. The command below is pinned to the anchor pair " + route.From + " -> " + route.To + "; run it with --from " + observed + " --to " + to + " to get the verdict for this hop."
+	base.MissingDeclarations = missingDeclarations(route.NativeDescriptor.Command)
+	return base
+}
+
+var targetDeclaration = Declaration{Flag: "--to", Kind: "target_version_declaration", Description: "The version you plan to upgrade to. It is never inferred from cluster state; without it the check cannot tell whether the upgrade crosses this rule's change version."}
+
+func classifyKubernetes(base CheckAssessment, route checkroutemetadata.Check, bundle currentbundle.CurrentBundle, contextPartial bool, to string) CheckAssessment {
 	kube := bundle.Environment.Kubernetes
 	if kube.State != "observed" {
 		base.Applicability = IndeterminatePartialCollection
@@ -446,13 +491,8 @@ func classifyKubernetes(base CheckAssessment, route checkroutemetadata.Check, bu
 		return base
 	}
 	base.ObservedVersion = kube.Value
-	if !route.Transition().IsAnchorFrom(kube.Value) {
-		base.Applicability = NotApplicableVersionMismatch
-		base.Reason = "The observed Kubernetes server version does not match this check's declared origin version."
-		return base
-	}
 	_ = contextPartial // Kubernetes version comes from a base query attempted for every context; a partial collection elsewhere does not weaken a positive read here.
-	return withDeclarations(base, route)
+	return classifyOrigin(base, route, kube.Value, to, "The observed Kubernetes server version does not match this check's declared origin version.")
 }
 
 func withDeclarations(base CheckAssessment, route checkroutemetadata.Check) CheckAssessment {
