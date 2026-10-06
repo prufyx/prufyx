@@ -19,8 +19,13 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgecheck"
 	"github.com/prufyx/prufyx/cli/internal/knowledgefetch"
+	"github.com/prufyx/prufyx/cli/internal/knowledgepin"
 	"github.com/prufyx/prufyx/cli/internal/knowledgereleaseplan"
 )
+
+// pinnedRootDigest is the product-embedded trust root pin of a profile. It is a
+// variable only so tests can pin throwaway roots.
+var pinnedRootDigest = knowledgepin.Digest
 
 const updateUsage = "Usage: prufyx db update (--source HTTPS_URL [--profile cert-manager|cncf|cncf-projects|spiffe-x509-svid|cloudevents-structured-json|tikv-gcp-v2-wif-backup] [--expected-revision REVISION] [--expected-bundle-digest SHA256] | --release-plan LOCAL_FILE) --package-out FILE --db-root DIR [--bootstrap-root FILE --bootstrap-root-digest SHA256] [--format human|json]"
 
@@ -53,7 +58,7 @@ func (r runtime) databaseUpdateWithFetch(ctx context.Context, args []string, fet
 // per-project CNCF package may be larger than a single-target package.
 func (r runtime) databaseUpdateWithFetches(ctx context.Context, args []string, fetch, fetchPerProject func(context.Context, string) ([]byte, error)) int {
 	if hasHelp(args) {
-		fmt.Fprintln(r.stdout, updateUsage+"\n\nExplicitly fetch a complete package, retain it privately, then verify and import\nlocally. A release plan supplies unsigned routing and exact verification assertions;\nit never supplies bootstrap trust. The output must be new, outside the store, in\nan existing 0700 directory. Obtain the initial root and its identity independently.\nNo official Prufyx feed or root is configured. Checks, replay, import and status\nremain offline.")
+		fmt.Fprintln(r.stdout, updateUsage+"\n\nExplicitly fetch a complete package, retain it privately, then verify and import\nlocally. A release plan supplies unsigned routing and exact verification assertions;\nit never supplies bootstrap trust. The output must be new, outside the store, in\nan existing 0700 directory. Obtain the initial root and its identity independently.\nA profile with a product-pinned root accepts only that root: its initial root file\nmust match the pin (--bootstrap-root-digest is then optional) and later root\nversions need the signed root chain. Other profiles require an explicit root and\ndigest. Checks, replay, import and status\nremain offline.")
 		return ExitOK
 	}
 	fs := flag.NewFlagSet("db update", flag.ContinueOnError)
@@ -68,7 +73,7 @@ func (r runtime) databaseUpdateWithFetches(ctx context.Context, args []string, f
 	expectedRevision := fs.String("expected-revision", "", "optional exact semantic revision assertion")
 	expectedBundle := fs.String("expected-bundle-digest", "", "optional exact target SHA-256 assertion")
 	format := fs.String("format", "human", "human or json")
-	if duplicateFlags(args) || fs.Parse(args) != nil || fs.NArg() != 0 || *packageOut == "" || *dbRoot == "" || (*format != "human" && *format != "json") || (*bootstrapRoot == "") != (*bootstrapDigest == "") {
+	if duplicateFlags(args) || fs.Parse(args) != nil || fs.NArg() != 0 || *packageOut == "" || *dbRoot == "" || (*format != "human" && *format != "json") {
 		return r.usage("invalid database update arguments; use --help")
 	}
 	planMode := *releasePlan != ""
@@ -90,6 +95,19 @@ func (r runtime) databaseUpdateWithFetches(ctx context.Context, args []string, f
 		req.ExpectedRevision = plan.Target.Revision
 		req.ExpectedBundleDigest = plan.Target.Digest
 		req.ExpectedVerification = &assertions
+	}
+	// A pinned profile trusts only its embedded root. An explicit root must be
+	// that root; the digest may be omitted and then is the pin itself.
+	if pin := pinnedRootDigest(*profile); pin != "" {
+		req.PinnedRootDigest = pin
+		if *bootstrapRoot != "" && *bootstrapDigest == "" {
+			req.BootstrapRootDigest = pin
+		}
+		if req.BootstrapRootDigest != "" && req.BootstrapRootDigest != pin && strings.TrimPrefix(req.BootstrapRootDigest, "sha256:") != strings.TrimPrefix(pin, "sha256:") {
+			return r.usage("the bootstrap root digest is not the pinned root for this profile; use --help")
+		}
+	} else if (*bootstrapRoot == "") != (*bootstrapDigest == "") {
+		return r.usage("invalid database update arguments; use --help")
 	}
 	if err := knowledge.ValidateImportAssertions(req); err != nil {
 		return r.knowledgeError("invalid local database update assertions", err)

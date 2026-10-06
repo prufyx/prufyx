@@ -47,10 +47,13 @@ type Admission struct {
 type AdmitFunc func(target []byte) (Admission, error)
 
 type ImportRequest struct {
-	PackagePath          string
-	StoreRoot            string
-	BootstrapRootPath    string
-	BootstrapRootDigest  string
+	PackagePath         string
+	StoreRoot           string
+	BootstrapRootPath   string
+	BootstrapRootDigest string
+	// PinnedRootDigest, when set, requires the store's initial root to be
+	// exactly this digest. Later root versions still need the TUF chain.
+	PinnedRootDigest     string
 	ExpectedRevision     string
 	ExpectedBundleDigest string
 	// ExpectedPackageDigest binds the exact canonical package bytes read from

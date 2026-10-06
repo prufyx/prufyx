@@ -9,6 +9,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Product-pinned knowledge root: a profile can embed the SHA-256 of its initial TUF
+  root, and `db update` then trusts only that root (rotation follows the signed root
+  chain). The `cncf-projects` entry ships empty, so behaviour is unchanged until a pin
+  is set; see [knowledge-updates.md](cli/docs/knowledge-updates.md).
 - `extract run --lease-days N` (1-365, default 90) sets the validity window of the
   derived rules.
 - One exit-code table for `scan` and `check` ([exit-codes.md](cli/docs/exit-codes.md)),
