@@ -8,7 +8,7 @@
       "extractor": {
         "codeDigest": "sha256:CODE",
         "id": "k8s.served-api-removal",
-        "version": "1.1.0"
+        "version": "1.2.0"
       },
       "reviewedAt": "2026-10-03T00:00:00Z",
       "sources": [
@@ -49,7 +49,7 @@
       "extractor": {
         "codeDigest": "sha256:CODE",
         "id": "k8s.served-api-removal",
-        "version": "1.1.0"
+        "version": "1.2.0"
       },
       "reviewedAt": "2026-10-03T00:00:00Z",
       "sources": [
@@ -85,7 +85,7 @@
       "extractor": {
         "codeDigest": "sha256:CODE",
         "id": "k8s.served-api-removal",
-        "version": "1.1.0"
+        "version": "1.2.0"
       },
       "reviewedAt": "2026-10-03T00:00:00Z",
       "sources": [
@@ -123,7 +123,7 @@
       "extractor": {
         "codeDigest": "sha256:CODE",
         "id": "k8s.served-api-removal",
-        "version": "1.1.0"
+        "version": "1.2.0"
       },
       "reviewedAt": "2026-10-03T00:00:00Z",
       "sources": [

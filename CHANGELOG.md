@@ -61,6 +61,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ### Changed
 
 - `constraintengine.ConstraintKey` is now the one exported constraint-key function; `extract supersede` and the gate call it instead of keeping their own copies.
+- `k8s.served-api-removal` 1.2.0: the next action of each derived API-removal rule
+  names the removed kinds and the exact version to migrate to (for example
+  CronJob to `batch/v1`, Ingress to `networking.k8s.io/v1`), says to validate
+  admission, CRDs, stored objects, runtime clients and API-server configuration
+  separately, and for PodSecurityPolicy says to remove it and migrate to Pod
+  Security Admission or an admission webhook. The text comes from a reviewed
+  table; it is offline and deterministic. Rule ids, constraints and ranges do
+  not change. See [the extractor](cli/docs/extractors/k8s.served-api-removal.md).
 - `extract apply --withdraw` now requires the rule to cite both commits of the run's pair (from and to), not just a subset of them; otherwise it refuses with exit 3.
 - `evidence reattest`: a pending citation now excludes only the rules that cite
   it (`CITATION_PENDING`) instead of every rule of the pack. The statement

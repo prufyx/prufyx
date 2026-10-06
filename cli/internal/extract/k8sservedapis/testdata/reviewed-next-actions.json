@@ -1,0 +1,127 @@
+[
+ {
+  "id": "admissionwebhook-v1beta1-removed.1-21-0-to-1-22-0",
+  "fact": "component.kubernetes.admissionwebhook_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named MutatingWebhookConfiguration or ValidatingWebhookConfiguration manifest to admissionregistration.k8s.io/v1 and reassess the complete target apply set; validate CRDs, stored objects, clients and API-server configuration separately."
+ },
+ {
+  "id": "apiservice-v1beta1-removed.1-21-0-to-1-22-0",
+  "fact": "component.kubernetes.apiservice_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named APIService manifest to apiregistration.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "crd-v1beta1-removed.1-21-0-to-1-22-0",
+  "fact": "component.kubernetes.crd_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named CustomResourceDefinition manifest to apiextensions.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "cronjob-v1beta1-removed.1-24-0-to-1-25-0",
+  "fact": "component.kubernetes.cronjob_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "csistoragecapacity-v1beta1-removed.1-26-0-to-1-27-0",
+  "fact": "component.kubernetes.csistoragecapacity_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named CSIStorageCapacity manifest to storage.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "csr-v1beta1-removed.1-21-0-to-1-22-0",
+  "fact": "component.kubernetes.csr_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named CertificateSigningRequest manifest to certificates.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "endpointslice-v1beta1-removed.1-24-0-to-1-25-0",
+  "fact": "component.kubernetes.endpointslice_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named EndpointSlice manifest to discovery.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "event-v1beta1-removed.1-24-0-to-1-25-0",
+  "fact": "component.kubernetes.event_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named Event manifest to events.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "flowcontrol-v1beta1-removed.1-25-0-to-1-26-0",
+  "fact": "component.kubernetes.flowcontrol_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named FlowSchema or PriorityLevelConfiguration manifest to flowcontrol.apiserver.k8s.io/v1beta2, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "flowcontrol-v1beta2-removed.1-28-0-to-1-29-0",
+  "fact": "component.kubernetes.flowcontrol_v1beta2_removed_gvk_present",
+  "nextAction": "Migrate the named FlowSchema or PriorityLevelConfiguration manifest to flowcontrol.apiserver.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "flowcontrol-v1beta3-removed.1-31-0-to-1-32-0",
+  "fact": "component.kubernetes.flowcontrol_v1beta3_removed_gvk_present",
+  "nextAction": "Migrate the named FlowSchema or PriorityLevelConfiguration manifest to flowcontrol.apiserver.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "hpa-v2beta1-removed.1-24-0-to-1-25-0",
+  "fact": "component.kubernetes.hpa_v2beta1_removed_gvk_present",
+  "nextAction": "Migrate the named HorizontalPodAutoscaler manifest to autoscaling/v2, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "hpa-v2beta2-removed.1-25-0-to-1-26-0",
+  "fact": "component.kubernetes.hpa_v2beta2_removed_gvk_present",
+  "nextAction": "Migrate the named HorizontalPodAutoscaler manifest to autoscaling/v2, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "ingress-extensions-v1beta1-removed.1-21-0-to-1-22-0",
+  "fact": "component.kubernetes.ingress_extensions_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named Ingress manifest to networking.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "ingress-networking-v1beta1-removed.1-21-0-to-1-22-0",
+  "fact": "component.kubernetes.ingress_networking_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named Ingress manifest to networking.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "ingressclass-v1beta1-removed.1-21-0-to-1-22-0",
+  "fact": "component.kubernetes.ingressclass_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named IngressClass manifest to networking.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "lease-v1beta1-removed.1-21-0-to-1-22-0",
+  "fact": "component.kubernetes.lease_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named Lease manifest to coordination.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "pdb-v1beta1-removed.1-24-0-to-1-25-0",
+  "fact": "component.kubernetes.pdb_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named PodDisruptionBudget manifest to policy/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "priorityclass-v1beta1-removed.1-21-0-to-1-22-0",
+  "fact": "component.kubernetes.priorityclass_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named PriorityClass manifest to scheduling.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "psp-v1beta1-removed.1-24-0-to-1-25-0",
+  "fact": "component.kubernetes.psp_v1beta1_removed_gvk_present",
+  "nextAction": "Remove PodSecurityPolicy (policy/v1beta1) from the target apply set; it has no served replacement API. Migrate to Pod Security Admission or an admission webhook, then reassess the complete target apply set."
+ },
+ {
+  "id": "rbac-v1beta1-removed.1-21-0-to-1-22-0",
+  "fact": "component.kubernetes.rbac_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named ClusterRole, ClusterRoleBinding, Role or RoleBinding manifest to rbac.authorization.k8s.io/v1 and reassess the complete target apply set; validate CRDs, stored objects, clients and API-server configuration separately."
+ },
+ {
+  "id": "runtimeclass-v1beta1-removed.1-24-0-to-1-25-0",
+  "fact": "component.kubernetes.runtimeclass_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named RuntimeClass manifest to node.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "storage-v1beta1-removed.1-21-0-to-1-22-0",
+  "fact": "component.kubernetes.storage_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named CSIDriver, CSINode, StorageClass or VolumeAttachment manifest to storage.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "subjectaccessreview-v1beta1-removed.1-21-0-to-1-22-0",
+  "fact": "component.kubernetes.subjectaccessreview_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named SubjectAccessReview resources manifest to authorization.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ },
+ {
+  "id": "tokenreview-v1beta1-removed.1-21-0-to-1-22-0",
+  "fact": "component.kubernetes.tokenreview_v1beta1_removed_gvk_present",
+  "nextAction": "Migrate the named TokenReview manifest to authentication.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+ }
+]

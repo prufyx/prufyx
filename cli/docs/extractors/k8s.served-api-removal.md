@@ -1,6 +1,6 @@
 # Extractor `k8s.served-api-removal`
 
-Version 1.1.0. Derives `forbid_predicate_value` rules for Kubernetes API
+Version 1.2.0. Derives `forbid_predicate_value` rules for Kubernetes API
 versions that a minor release stops serving. It is deterministic, reads only
 upstream source pinned by full commit SHA, parses Go with `go/parser` (nothing
 is compiled or executed), and involves no model. It also attests every line
@@ -91,6 +91,32 @@ the extractor identity. Sources (three): the lifecycle method lines at the
 earlier tag (`lifecycle-<group>-<version>-<from>`, which every bound cites) and
 the whole specification at each tag (`openapi-<from>`, `openapi-<to>`).
 
+## Next-action text
+
+Each rule's next action (what `scan` and `check` print as the fix) names the
+removed kinds and the version to migrate to, then tells the reader to
+reassess the complete target apply set and to validate admission, CRDs, stored
+objects, runtime clients and API-server configuration separately. For example
+CronJob: "Migrate the named CronJob manifests to batch/v1. Reassess the
+complete target apply set. Validate admission, CRDs, stored objects, runtime
+clients, and API-server configuration separately."
+
+The text comes from a reviewed table keyed by group, version and kind
+(`hints.go`), written from the upstream deprecation guide and the next actions
+of the reviewed API-removal rules. It is not read at run time, so it is the same
+on every run and needs no network. The table holds, per kind: the target API
+(for flow control 1.26 both `v1beta2` and `v1beta3`; for PodSecurityPolicy no
+target, only "remove it, and migrate to Pod Security Admission or a 3rd party
+admission webhook"), and where the text has room one short note about the
+change the guide stresses (for example Ingress `pathType` is required,
+HorizontalPodAutoscaler `target.averageUtilization`, PodDisruptionBudget empty
+selector, webhook `failurePolicy`). A next action is limited to 256 bytes, so the
+note is dropped first when the kind list is long. A removal whose kind is not in the table
+(a kind added by a later Kubernetes release before the table is reviewed) gets
+the generic text: migrate to the newest version the target serves for all of
+the kinds, or remove the manifests when there is none. Adding a kind to the
+adapter table without a hint is caught by a test.
+
 ## Line attestations
 
 Version 1.1.0 adds a [line attestation](../line-attestations.md) for every
@@ -115,6 +141,10 @@ Version 1.1.0 changes no rule: only the extractor identity in each rule's
 evidence differs from 1.0.0 (`evidence.extractor.version`, and
 `evidence.extractor.codeDigest`, which changes with any change to the
 extractor's code).
+
+Version 1.2.0 changes only the next-action text of each rule (see "Next-action
+text") and, with it, the extractor identity in each rule's evidence. Rule ids,
+constraints, ranges, facts, sources and attestations are unchanged.
 
 ## What it never claims
 
