@@ -175,7 +175,7 @@ type Index struct {
 func NewIndex(records []Record) Index {
 	ix := Index{byKey: make(map[[2]string]Record, len(records))}
 	for _, r := range records {
-		r.APIs = append([]string(nil), r.APIs...)
+		r = copyRecord(r)
 		ix.byKey[[2]string{r.Component, r.Line}] = r
 	}
 	return ix
@@ -189,9 +189,22 @@ func (ix Index) For(component, line string, now time.Time) (Status, bool) {
 	if !ok {
 		return Status{}, false
 	}
-	r.APIs = append([]string(nil), r.APIs...)
+	r = copyRecord(r)
 	return Status{Record: r, Freshness: r.Evidence.Freshness(now)}, true
 }
 
 // Len is the number of indexed records.
 func (ix Index) Len() int { return len(ix.byKey) }
+
+// copyRecord deep-copies every slice and pointer of a record, as
+// lineattest.copyOf does, so neither the index nor a caller's copy shares
+// memory with the other.
+func copyRecord(r Record) Record {
+	r.APIs = append([]string(nil), r.APIs...)
+	r.Evidence.Sources = append([]constraintengine.SourceEvidence(nil), r.Evidence.Sources...)
+	if r.Evidence.Extractor != nil {
+		x := *r.Evidence.Extractor
+		r.Evidence.Extractor = &x
+	}
+	return r
+}

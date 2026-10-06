@@ -16,6 +16,11 @@ import (
 // which no release build sets. It lets end-to-end tests run the real command
 // routes against synthetic rules and facts that are never published.
 
+// load never caches under this tag: the pack and registry change with every
+// UseSyntheticKnowledge call, and a cached production bundle must never reach
+// a synthetic run (nor the reverse).
+func load() (bundle, error) { return loadUncached() }
+
 var syntheticKnowledge struct {
 	sync.Mutex
 	pack        []byte
