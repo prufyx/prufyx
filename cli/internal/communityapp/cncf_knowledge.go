@@ -51,6 +51,9 @@ func (r runtime) externalCNCF(req cncfknowledge.Request, replayPath, format stri
 	} else {
 		var output bytes.Buffer
 		fmt.Fprintf(&output, "%s source-constraint check\nwhole-upgrade assessment: UNKNOWN\nknowledge: external signed local revision %s\npurpose: %s\ntrust source: %s\nsource references: operator-declared; runtime behavior unverified\n", report.Check.Project, report.Knowledge.Revision, report.Knowledge.Purpose, report.Knowledge.TrustSource)
+		if r.knowledgeSource != "" {
+			fmt.Fprintf(&output, "knowledge source: %s\n", r.knowledgeSource)
+		}
 		_ = writeBasisHeadline(&output, report.Check.Check.Claims, report.Check.TrustPolicy)
 		_ = writeExternalClaims(&output, report.Check.Check.Claims)
 		fmt.Fprintf(&output, "input digest: %s\nbundle digest: %s\ntrust receipt digest: %s\nevaluated at: %s\ncurrent non-revocation: not checked offline\nnetwork used: false\nnext action: %s\n", report.Check.InputFileDigest, report.Knowledge.BundleDigest, report.Knowledge.TrustReceiptDigest, report.Knowledge.EvaluatedAt, report.Check.NextAction)

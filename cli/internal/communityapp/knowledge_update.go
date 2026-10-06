@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
+	"github.com/prufyx/prufyx/cli/internal/knowledgeauto"
 	"github.com/prufyx/prufyx/cli/internal/knowledgecheck"
 	"github.com/prufyx/prufyx/cli/internal/knowledgefetch"
 	"github.com/prufyx/prufyx/cli/internal/knowledgepin"
@@ -26,7 +27,7 @@ import (
 // variable only so tests can pin throwaway roots.
 var pinnedRootDigest = knowledgepin.Digest
 
-const updateUsage = "Usage: prufyx db update (--source HTTPS_URL [--profile cert-manager|cncf|cncf-projects|spiffe-x509-svid|cloudevents-structured-json|tikv-gcp-v2-wif-backup] [--expected-revision REVISION] [--expected-bundle-digest SHA256] | --release-plan LOCAL_FILE) --package-out FILE --db-root DIR [--bootstrap-root FILE --bootstrap-root-digest SHA256] [--format human|json]"
+const updateUsage = "Usage: prufyx db update (--source HTTPS_URL [--profile cert-manager|cncf|cncf-projects|spiffe-x509-svid|cloudevents-structured-json|tikv-gcp-v2-wif-backup] [--expected-revision REVISION] [--expected-bundle-digest SHA256] | --release-plan LOCAL_FILE) --package-out FILE [--db-root DIR] [--bootstrap-root FILE --bootstrap-root-digest SHA256] [--format human|json]"
 
 type knowledgeUpdateOutput struct {
 	APIVersion             string                   `json:"apiVersion"`
@@ -72,7 +73,7 @@ func (r runtime) databaseUpdateWithFetches(ctx context.Context, args []string, f
 	expectedRevision := fs.String("expected-revision", "", "optional exact semantic revision assertion")
 	expectedBundle := fs.String("expected-bundle-digest", "", "optional exact target SHA-256 assertion")
 	format := fs.String("format", "human", "human or json")
-	if duplicateFlags(args) || fs.Parse(args) != nil || fs.NArg() != 0 || *packageOut == "" || *dbRoot == "" || (*format != "human" && *format != "json") {
+	if duplicateFlags(args) || fs.Parse(args) != nil || fs.NArg() != 0 || *packageOut == "" || (*dbRoot == "" && flagProvided(args, "db-root")) || (*format != "human" && *format != "json") {
 		return r.usage("invalid database update arguments; use --help")
 	}
 	planMode := *releasePlan != ""
@@ -95,6 +96,19 @@ func (r runtime) databaseUpdateWithFetches(ctx context.Context, args []string, f
 		req.ExpectedBundleDigest = plan.Target.Digest
 		req.ExpectedVerification = &assertions
 	}
+	// Without --db-root the official profile installs into the default store
+	// location, where check and scan find it on their own.
+	defaultStore := *dbRoot == ""
+	if defaultStore {
+		if *profile != knowledgeauto.Profile {
+			return r.usage("--db-root is required for this profile; use --help")
+		}
+		root, ok := knowledgeauto.DefaultRoot()
+		if !ok {
+			return r.usage("no default knowledge database location; pass --db-root")
+		}
+		*dbRoot, req.StoreRoot = root, root
+	}
 	// A pinned profile trusts only its embedded root. An explicit root must be
 	// that root; the digest may be omitted and then is the pin itself.
 	if pin := pinnedRootDigest(*profile); pin != "" {
@@ -110,6 +124,11 @@ func (r runtime) databaseUpdateWithFetches(ctx context.Context, args []string, f
 	}
 	if err := knowledge.ValidateImportAssertions(req); err != nil {
 		return r.knowledgeError("invalid local database update assertions", err)
+	}
+	if defaultStore {
+		if _, err := knowledgeauto.EnsureRoot(); err != nil {
+			return r.fail("the default knowledge database location cannot be created privately", ExitUsage)
+		}
 	}
 	parent, name, packagePath, err := reserveKnowledgeDownload(*packageOut, *dbRoot)
 	if err != nil {

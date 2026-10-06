@@ -419,36 +419,38 @@ const (
 
 // Usage and input errors. The command prints them after "prufyx: ".
 const (
-	UsageInputNotAccepted   = "INPUT NOT ACCEPTED: %s"
-	UsageIntegrity          = "KNOWLEDGE INTEGRITY FAILURE"
-	UsageUnknownFlag        = "unknown flag %s; use prufyx scan --help"
-	UsageFlagValue          = "flag %s needs a value; use prufyx scan --help"
-	UsageBadValue           = "invalid value for %s; use prufyx scan --help"
-	UsageRepeated           = "%s given more than once"
-	UsageComponentVersion   = "%s takes COMPONENT=VERSION, for example kubernetes=1.30.4"
-	UsageVersion            = "version %s of %s is not X.Y.Z"
-	UsageUnknownComponent   = "unknown component %s; closest: %s"
-	UsageConflict           = "%s is given two different versions for %s"
-	UsageNoTarget           = "at least one target is required: --to COMPONENT=VERSION or target: in prufyx.yaml"
-	UsageKnowledgeDBNow     = "--now cannot be used with --knowledge-db: a knowledge database is verified and evaluated at the current time"
-	UsageKnowledgeDBFailed  = "KNOWLEDGE INTEGRITY FAILURE: the knowledge database could not be verified (%s); nothing was evaluated and the embedded knowledge was not used"
-	UsageNow                = "--now must be canonical UTC with whole seconds, for example 2026-10-04T00:00:00Z"
-	UsageStdinTwice         = "standard input (-) can be read only once"
-	UsageConfig             = "configuration file: %s"
-	UsageConfigNotAccepted  = "configuration file is not accepted"
-	UsagePermissions        = "an input file's permissions are refused by --input-permissions %s; run chmod go-rwx on it, or use --input-permissions refuse-writable"
-	UsagePermissionsWrite   = "an input file is writable by other users; run chmod go-w on it"
-	UsageInputUnreadable    = "an input path cannot be read"
-	UsageInputLimit         = "the inputs exceed a size limit"
-	UsageInputDecode        = "an input file is not valid YAML or JSON within the supported subset"
-	UsageInputDetail        = "%s (%s)"
-	UsageConfigInputs       = "inputs in prufyx.yaml are relative to its directory and must stay inside it"
-	UsageUnsupportedVersion = "%s %s is not a version scan can plan"
-	UsageRequireBasis       = "--require-basis takes a comma-separated list of reviewed, mechanical, empirical, consensus, lead"
+	UsageInputNotAccepted    = "INPUT NOT ACCEPTED: %s"
+	UsageIntegrity           = "KNOWLEDGE INTEGRITY FAILURE"
+	UsageUnknownFlag         = "unknown flag %s; use prufyx scan --help"
+	UsageFlagValue           = "flag %s needs a value; use prufyx scan --help"
+	UsageBadValue            = "invalid value for %s; use prufyx scan --help"
+	UsageRepeated            = "%s given more than once"
+	UsageComponentVersion    = "%s takes COMPONENT=VERSION, for example kubernetes=1.30.4"
+	UsageVersion             = "version %s of %s is not X.Y.Z"
+	UsageUnknownComponent    = "unknown component %s; closest: %s"
+	UsageConflict            = "%s is given two different versions for %s"
+	UsageNoTarget            = "at least one target is required: --to COMPONENT=VERSION or target: in prufyx.yaml"
+	UsageKnowledgeDBNow      = "--now cannot be used with --knowledge-db: a knowledge database is verified and evaluated at the current time"
+	UsageKnowledgeEmbeddedDB = "--knowledge=embedded cannot be used with --knowledge-db"
+	UsageKnowledgeDBFailed   = "KNOWLEDGE INTEGRITY FAILURE: the knowledge database could not be verified (%s); nothing was evaluated and the embedded knowledge was not used"
+	UsageNow                 = "--now must be canonical UTC with whole seconds, for example 2026-10-04T00:00:00Z"
+	UsageStdinTwice          = "standard input (-) can be read only once"
+	UsageConfig              = "configuration file: %s"
+	UsageConfigNotAccepted   = "configuration file is not accepted"
+	UsagePermissions         = "an input file's permissions are refused by --input-permissions %s; run chmod go-rwx on it, or use --input-permissions refuse-writable"
+	UsagePermissionsWrite    = "an input file is writable by other users; run chmod go-w on it"
+	UsageInputUnreadable     = "an input path cannot be read"
+	UsageInputLimit          = "the inputs exceed a size limit"
+	UsageInputDecode         = "an input file is not valid YAML or JSON within the supported subset"
+	UsageInputDetail         = "%s (%s)"
+	UsageConfigInputs        = "inputs in prufyx.yaml are relative to its directory and must stay inside it"
+	UsageUnsupportedVersion  = "%s %s is not a version scan can plan"
+	UsageRequireBasis        = "--require-basis takes a comma-separated list of reviewed, mechanical, empirical, consensus, lead"
 )
 
 // Knowledge database failure reasons, shown in UsageKnowledgeDBFailed.
 const (
+	KnowledgeDBPinMismatch   = "its trust root is not the root pinned in this build"
 	KnowledgeDBNotPrivate    = "the database directory must be private to its owner (mode 0700) and not a symbolic link"
 	KnowledgeDBNotAStore     = "the directory is not a knowledge database (no profile or selection file); run prufyx db update or db import first"
 	KnowledgeDBMissing       = "no knowledge database directory at that path"
@@ -488,6 +490,10 @@ with where it is and how to fix it, and every area that was not checked.
   --knowledge-db DIR        read the knowledge from this verified local knowledge database
                             (prufyx db update or db import) instead of the embedded knowledge;
                             any verification failure exits 3, never falls back to embedded knowledge
+  --knowledge auto|embedded without --knowledge-db and --now, auto (default) uses the verified database that
+                            prufyx db update installed in the default store location, else the embedded
+                            knowledge; a default store that is present but invalid or expired is refused
+                            (exit 3); embedded forces the embedded knowledge
   --now RFC3339             evaluation instant, for exact replay (default: now, UTC;
                             not with --knowledge-db, which always evaluates at the current time)
 

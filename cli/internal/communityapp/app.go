@@ -43,6 +43,9 @@ type runtime struct {
 	// age collects the age of the knowledge a check command evaluated
 	// against; nil for commands that print no knowledge age note.
 	age *ageRecord
+	// knowledgeSource is set when the knowledge source of a check was
+	// chosen automatically (not by --knowledge-db or --now); empty otherwise.
+	knowledgeSource string
 }
 
 type envelope struct {

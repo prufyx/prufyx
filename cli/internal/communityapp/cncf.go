@@ -110,6 +110,14 @@ Inspect inputs with: prufyx catalog cncf --project SLUG --format json
 Input and replay files must be regular private files (mode 0600 or stricter, with no group or other access), without symlinks.
 Embedded rules use explicit canonical UTC with whole-second precision. Replay
 compares the exact prior JSON at its original time, without current freshness.
+Without --knowledge-db and --now, the check uses the verified knowledge database
+that prufyx db update installed in the default store location
+($XDG_DATA_HOME/prufyx/knowledge/cncf-projects, else ~/.local/share/...), and
+the embedded knowledge when none is installed. A default store that is present
+but invalid or expired is refused, never replaced silently; --knowledge=embedded
+forces the embedded knowledge at the current time. --now keeps selecting the
+embedded knowledge for replay. The source is shown on standard error and in the
+human output.
 Select a separate local signed CNCF store with --knowledge-db DIR. Current
 external checks use the verifier's actual clock; omit --now. External replay
 with --input FILE requires --replay-report FILE, --input-digest SHA256,
@@ -413,6 +421,7 @@ Add --show-passes with --format human on the Kubernetes native-resource route an
 	nowText := fs.String("now", "", "explicit UTC evaluation time")
 	replay := fs.String("replay-report", "", "prior exact JSON output")
 	knowledgeDB := fs.String("knowledge-db", "", "explicit separate signed CNCF store")
+	knowledgeMode := fs.String("knowledge", "", "auto (default) or embedded")
 	knowledgeRevision := fs.String("knowledge-revision", "", "optional exact selected revision")
 	knowledgeBundleDigest := fs.String("knowledge-bundle-digest", "", "optional exact target digest")
 	knowledgeTrustReceiptDigest := fs.String("knowledge-trust-receipt-digest", "", "optional exact trust receipt digest")
@@ -435,6 +444,9 @@ Add --show-passes with --format human on the Kubernetes native-resource route an
 	}
 	if flagProvided(args, "knowledge-db") && flagProvided(args, "now") {
 		return r.usage("external CNCF checks use verifier time; omit --now")
+	}
+	if code, stop := r.resolveCNCFKnowledge(args, *knowledgeMode, *project, knowledgeDB, nowText, *replay); stop {
+		return code
 	}
 	if anyFlagProvided(args, cncfCustomResourceFlags...) {
 		return r.cncfCustomResourceCheck(customResourceRequest{
@@ -900,6 +912,9 @@ Add --show-passes with --format human on the Kubernetes native-resource route an
 		}
 	} else {
 		fmt.Fprintf(r.stdout, "%s source-constraint preview\ninput authority: %s\nknowledge: embedded revision %s\nruntime transitions reproduced: 0\nnetwork used: false\n", report.Project, report.Check.InputAuthority, report.KnowledgeRevision)
+		if r.knowledgeSource != "" {
+			fmt.Fprintf(r.stdout, "knowledge source: %s\n", r.knowledgeSource)
+		}
 		if err := writeBasisHeadline(r.stdout, report.Check.Claims, report.TrustPolicy); err != nil {
 			return ExitIntegrity
 		}

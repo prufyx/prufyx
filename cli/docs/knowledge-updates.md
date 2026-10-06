@@ -138,6 +138,42 @@ To set a pin, compute the digest of the offline-created version 1 `root.json`
 (`shasum -a 256 root.json`, written as `sha256:<hex>`), put it in the `pins` table of
 `cli/internal/knowledgepin/pin.go`, and submit it as a reviewed change.
 
+## Automatic use of the local database
+
+`prufyx db update --profile cncf-projects` (or a release plan for that profile) may
+omit `--db-root`; the database is then installed in the default store location:
+`$XDG_DATA_HOME/prufyx/knowledge/cncf-projects` when `XDG_DATA_HOME` is an absolute
+path, otherwise `~/.local/share/prufyx/knowledge/cncf-projects`. Missing directories
+are created private to you (mode 0700), whatever your umask is.
+
+`prufyx check cncf` and `prufyx scan` choose their knowledge in this order:
+
+| Command line and store | Knowledge used | Shown |
+| --- | --- | --- |
+| `--knowledge-db DIR` | that database, verified as before | as before |
+| `--now TIME` (replay form) | embedded | as before |
+| `--knowledge=embedded` | embedded, evaluated at the current time | standard error |
+| nothing given, default store verifies | the local database | standard error, human output |
+| nothing given, no default store (absent or empty directory) | embedded, evaluated at the current time | standard error |
+| nothing given, default store present but invalid, expired, rolled back, not private, or rooted in a different trust root than the pin of this build | none: exit 3 | standard error |
+
+An invalid store is never silently replaced by the embedded knowledge, because that
+could hide tampering or serve stale knowledge. The error says so and names the way
+out: repair it with `prufyx db update`, remove the store, or use
+`--knowledge=embedded`. A store that has expired is refused the same way. When the
+build pins a root, only a store whose initial root is that root is used; with no pin,
+any store the normal verification accepts is used.
+
+The embedded knowledge is never preferred because it "looks newer": its revision (a
+dated label) and a database revision (a whole number) have no common order, and a
+verified refresh is the point of the database. The check line on standard error shows
+both revisions. `--now` always selects the embedded knowledge, so historical replays
+stay byte-identical whether or not a store is installed. Check routes that read the
+embedded knowledge only (such as the Argo CD ConfigMap and custom-resource modes) still
+need `--now`. The source line is not part of the JSON report; the report's own origin,
+revision and digest fields already state the source. Human output adds a
+`knowledge source:` line.
+
 ## Use the database with `prufyx scan`
 
 A CNCF store filled by `db update` or `db import` (`--profile cncf` or
