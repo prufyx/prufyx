@@ -101,7 +101,7 @@ func validate(config Config) error {
 		return ErrInvalidConfig
 	}
 
-	info, err = os.Stat(config.WorkDir)
+	info, err = os.Lstat(config.WorkDir)
 	if err != nil || !info.IsDir() || info.Mode().Perm()&0o077 != 0 {
 		return ErrInvalidConfig
 	}
@@ -126,13 +126,18 @@ func trace(ctx context.Context, config Config, name string, argv []string) (Resu
 	if err := safeName(name); err != nil {
 		return Result{}, err
 	}
-	prefix := filepath.Join(config.WorkDir, "strace-"+name)
+	traceDir, err := newTraceDir(config.WorkDir, name)
+	if err != nil {
+		return Result{}, fmt.Errorf("prepare isolated %s trace: %w", name, err)
+	}
+	defer os.RemoveAll(traceDir)
+	prefix := filepath.Join(traceDir, "trace")
 	args := []string{"-n", "unshare", "--net", "--", "setpriv", "--reuid", strconv.Itoa(config.UID), "--regid", strconv.Itoa(config.GID), "--clear-groups", "--", "strace", "-ff", "-o", prefix, "-e", "trace=%network", "--"}
 	args = append(args, argv...)
 	command := exec.CommandContext(ctx, "sudo", args...)
 	var stdout, stderr strings.Builder
 	command.Stdout, command.Stderr = &stdout, &stderr
-	err := command.Run()
+	err = command.Run()
 	result := Result{Name: name, Stdout: stdout.String(), Stderr: stderr.String()}
 	if err != nil {
 		var exitError *exec.ExitError
@@ -144,7 +149,7 @@ func trace(ctx context.Context, config Config, name string, argv []string) (Resu
 	if strings.Contains(result.Stderr, "sudo:") {
 		return Result{}, fmt.Errorf("run isolated %s: sudo diagnostic", name)
 	}
-	files, err := filepath.Glob(prefix + "*")
+	files, err := traceFiles(traceDir)
 	if err != nil || len(files) == 0 {
 		return Result{}, fmt.Errorf("read isolated %s trace", name)
 	}
@@ -172,4 +177,37 @@ func safeName(value string) error {
 		}
 	}
 	return nil
+}
+
+// newTraceDir creates a fresh private directory per trace so stale, planted or
+// prefix-colliding files in WorkDir can never be read as trace evidence.
+func newTraceDir(workDir, name string) (string, error) {
+	dir, err := os.MkdirTemp(workDir, "strace-"+name+"-")
+	if err != nil {
+		return "", err
+	}
+	if err := os.Chmod(dir, 0o700); err != nil {
+		_ = os.RemoveAll(dir)
+		return "", err
+	}
+	return dir, nil
+}
+
+// traceFiles lists the regular trace files in dir and refuses anything else
+// (symlinks, directories, devices).
+func traceFiles(dir string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	files := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		path := filepath.Join(dir, entry.Name())
+		info, err := os.Lstat(path)
+		if err != nil || !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("unsafe trace entry %q", entry.Name())
+		}
+		files = append(files, path)
+	}
+	return files, nil
 }
