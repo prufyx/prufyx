@@ -160,6 +160,48 @@ after both exist durably. If plan creation fails, the already durable package an
 any pre-existing plan file remain untouched and the command fails without a
 finalization receipt on stdout. Retry with new output paths.
 
+## One-command release
+
+`knowledge-publish release` builds a complete signed release from the knowledge
+embedded in this source tree in one offline, deterministic step. It exports the
+embedded CNCF knowledge at the given revision, prepares the targets, snapshot
+and timestamp roles, signs each with its encrypted role key, finalizes and
+verifies the package through the consumer verifier, and writes the files into a
+new `0700` directory.
+
+```sh
+prufyx-maintainer knowledge-publish release \
+  --revision 81 --version 1 \
+  --root /absolute/root.json --root-digest sha256:<root> \
+  --targets-key /absolute/targets.key.pem \
+  --snapshot-key /absolute/snapshot.key.pem \
+  --timestamp-key /absolute/timestamp.key.pem \
+  --passphrase-file /absolute/passphrase \
+  --package-url https://metadata.example.org/cncf-81.tar \
+  --output-dir /absolute/release-81
+```
+
+The output directory holds `root.json`, `constraints.v1.json`,
+`<version>.targets.json`, `<version>.snapshot.json`, `timestamp.json`,
+`cncf-<revision>.tar` and `cncf-<revision>.release-plan.json`; the JSON receipt
+goes to standard output. Host the package at `--package-url`; clients run
+`prufyx db update --release-plan cncf-<revision>.release-plan.json ...` as
+described in [knowledge-updates.md](knowledge-updates.md).
+
+- Key paths come from flags. The command never creates or stores keys. Role keys
+  are the encrypted files made by `knowledge-sign init`; the passphrase is read
+  from `--passphrase-file`, which must be a regular file readable only by its
+  owner. Keep the root key offline: it is not used here.
+- Every role expires at the earliest evidence expiry of the exported rules, so
+  metadata never outlives the reviewed knowledge. `--expires` can only make it
+  earlier. A release whose knowledge has already expired is refused.
+- No clock enters the metadata and Ed25519 signing is deterministic, so the
+  same inputs produce byte-identical files.
+- `--version` must be larger than the previous release: clients may keep a rollback
+  floor and refuse an older version.
+- It does not choose a trust root and does not change what `scan` uses by
+  default; a client still needs the independently verified root and digest.
+
 ## Root-transition preparation
 
 A root transition is a separate, offline producer step. It does not publish a

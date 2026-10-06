@@ -1,0 +1,88 @@
+# DRAFT, DISABLED: builds one signed knowledge-database release from the
+# reviewed knowledge in this repository.
+#
+# The job runs only when the repository variable KNOWLEDGE_RELEASE_ENABLED is
+# exactly "true". Until the owner provides the signing material below it stays
+# off, and the workflow can only be started by hand (workflow_dispatch).
+#
+# Required, all provided by the owner (none exist in the repository):
+#   secrets.KNOWLEDGE_TARGETS_KEY      targets role key file (encrypted PEM)
+#   secrets.KNOWLEDGE_SNAPSHOT_KEY     snapshot role key file (encrypted PEM)
+#   secrets.KNOWLEDGE_TIMESTAMP_KEY    timestamp role key file (encrypted PEM)
+#   secrets.KNOWLEDGE_KEY_PASSPHRASE   passphrase of the three role keys
+#   vars.KNOWLEDGE_ROOT_B64            base64 of the signed public root.json
+#   vars.KNOWLEDGE_ROOT_DIGEST         "sha256:<hex>" of that root, checked
+#                                      independently of this repository
+#   vars.KNOWLEDGE_PACKAGE_BASE_URL    HTTPS directory the files are hosted in
+# The root signing key is never used here and must stay offline.
+#
+# The job only produces a workflow artifact. Hosting it (for example static
+# pages) is a separate, deliberate step the owner adds later.
+
+name: Knowledge release (draft)
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Positive knowledge revision
+        required: true
+      version:
+        description: Positive TUF metadata version (greater than the last release)
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: ${{ vars.KNOWLEDGE_RELEASE_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+      - name: Build the signed release
+        working-directory: cli
+        env:
+          TARGETS_KEY: ${{ secrets.KNOWLEDGE_TARGETS_KEY }}
+          SNAPSHOT_KEY: ${{ secrets.KNOWLEDGE_SNAPSHOT_KEY }}
+          TIMESTAMP_KEY: ${{ secrets.KNOWLEDGE_TIMESTAMP_KEY }}
+          PASSPHRASE: ${{ secrets.KNOWLEDGE_KEY_PASSPHRASE }}
+          ROOT_B64: ${{ vars.KNOWLEDGE_ROOT_B64 }}
+          ROOT_DIGEST: ${{ vars.KNOWLEDGE_ROOT_DIGEST }}
+          BASE_URL: ${{ vars.KNOWLEDGE_PACKAGE_BASE_URL }}
+          REVISION: ${{ inputs.revision }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          umask 077
+          secrets_dir="$(mktemp -d "${RUNNER_TEMP}/knowledge-keys.XXXXXX")"
+          trap 'rm -rf "${secrets_dir}"' EXIT
+          printf '%s' "${TARGETS_KEY}" > "${secrets_dir}/targets.key.pem"
+          printf '%s' "${SNAPSHOT_KEY}" > "${secrets_dir}/snapshot.key.pem"
+          printf '%s' "${TIMESTAMP_KEY}" > "${secrets_dir}/timestamp.key.pem"
+          printf '%s' "${PASSPHRASE}" > "${secrets_dir}/passphrase"
+          printf '%s' "${ROOT_B64}" | base64 -d > "${secrets_dir}/root.json"
+          go run -buildvcs=false ./cmd/prufyx-maintainer knowledge-publish release \
+            --revision "${REVISION}" --version "${VERSION}" \
+            --root "${secrets_dir}/root.json" --root-digest "${ROOT_DIGEST}" \
+            --targets-key "${secrets_dir}/targets.key.pem" \
+            --snapshot-key "${secrets_dir}/snapshot.key.pem" \
+            --timestamp-key "${secrets_dir}/timestamp.key.pem" \
+            --passphrase-file "${secrets_dir}/passphrase" \
+            --package-url "${BASE_URL%/}/cncf-${REVISION}.tar" \
+            --output-dir "${RUNNER_TEMP}/knowledge-release" \
+            > "${RUNNER_TEMP}/knowledge-release.receipt.json"
+      - name: Upload the release files
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: knowledge-release-${{ inputs.revision }}
+          path: ${{ runner.temp }}/knowledge-release
+          if-no-files-found: error

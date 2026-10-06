@@ -766,3 +766,13 @@ func TestGateCommandIsWired(t *testing.T) {
 		t.Fatalf("gate classify: %v %q", err, stdout.String())
 	}
 }
+
+func TestMaintainerCLIKnowledgeReleaseRejectsIncompleteArguments(t *testing.T) {
+	var out bytes.Buffer
+	if err := runKnowledgePublish([]string{"release", "--revision", "1"}, &out); err == nil || out.Len() != 0 {
+		t.Fatalf("incomplete release accepted: err=%v out=%q", err, out.String())
+	}
+	if err := runKnowledgePublish([]string{"release", "--bogus"}, &out); err == nil {
+		t.Fatal("unknown flag accepted")
+	}
+}
