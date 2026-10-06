@@ -21,8 +21,11 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/intake"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
+	"github.com/prufyx/prufyx/cli/internal/knowledgeauto"
+	"github.com/prufyx/prufyx/cli/internal/knowledgepin"
 	"github.com/prufyx/prufyx/cli/internal/scanconfig"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
@@ -37,6 +40,12 @@ type Options struct {
 	Clock func() time.Time
 	// Build, when nil, is this binary's build identity.
 	Build *buildidentity.Identity
+	// AutoLocalDB lets a scan with no --knowledge-db and no --now use the
+	// verified database of the default store location (see knowledgeauto).
+	AutoLocalDB bool
+	// PinnedRoot gives the pinned initial root digest of a knowledge
+	// profile; nil means the product pin (knowledgepin.Digest).
+	PinnedRoot func(profile string) string
 }
 
 // Result is a finished scan.
@@ -48,12 +57,38 @@ type Result struct {
 	// within 30 days of the evaluation instant. It is empty otherwise and is
 	// never part of the report.
 	KnowledgeAge string
+	// KnowledgeSource is a one-line note for standard error saying which
+	// knowledge an automatic selection used; empty when the source was
+	// explicit (--knowledge-db, --now, supplied knowledge) or not automatic.
+	KnowledgeSource string
+	// KnowledgeNote is the staleness note of an automatic database, for
+	// standard error; it changes no verdict.
+	KnowledgeNote string
 }
 
 // Run performs the scan. A *UsageError is input the scan does not accept
 // (exit 2); ErrIntegrity is a knowledge or report integrity failure (exit 3).
 func Run(request Request, options Options) (Result, error) {
 	knowledge := options.Knowledge
+	knowledgeSource, knowledgeNote := "", ""
+	autoStore := false
+	if knowledge == nil && options.AutoLocalDB && request.KnowledgeDB == "" && request.Now.IsZero() && request.KnowledgeMode != "embedded" {
+		root, present, err := knowledgeauto.Locate()
+		if err != nil {
+			var refused *knowledgeauto.Refused
+			if errors.As(err, &refused) {
+				return Result{}, &StoreError{Reason: refused.Reason, Auto: true}
+			}
+			return Result{}, ErrIntegrity
+		}
+		if present {
+			request.KnowledgeDB, autoStore = root, true
+		} else {
+			knowledgeSource = "knowledge source: embedded, no local knowledge database installed"
+		}
+	} else if knowledge == nil && options.AutoLocalDB && request.KnowledgeDB == "" && request.KnowledgeMode == "embedded" {
+		knowledgeSource = "knowledge source: embedded, forced by --knowledge=embedded"
+	}
 	// The catalog checks component names. With --knowledge-db it is the
 	// compiled catalog alone: the database is opened once the targets are
 	// known, and nothing else of the embedded knowledge is read.
@@ -115,8 +150,31 @@ func Run(request Request, options Options) (Result, error) {
 		}
 		sort.Strings(targets)
 		opened, err := OpenStore(request.KnowledgeDB, targets)
+		if err == nil && autoStore {
+			pinned := options.PinnedRoot
+			if pinned == nil {
+				pinned = knowledgepin.Digest
+			}
+			err = knowledgeauto.CheckPin(pinned(knowledgeauto.Profile), opened.InitialRootDigest())
+			if err != nil {
+				err = &StoreError{Reason: scanreport.KnowledgeDBPinMismatch}
+			}
+		}
+		if err == nil && autoStore && opened.info.Provenance.Layout != cncfknowledge.LayoutPerProject {
+			err = &StoreError{Reason: scanreport.KnowledgeDBLayout}
+		}
 		if err != nil {
+			var storeErr *StoreError
+			if autoStore && errors.As(err, &storeErr) {
+				storeErr.Auto = true
+			}
 			return Result{}, err
+		}
+		if autoStore {
+			knowledgeNote = knowledgeauto.StalenessNote(opened.info.Provenance.ImportedVerifiedAt, "")
+		}
+		if autoStore {
+			knowledgeSource = "knowledge source: local-db, revision " + opened.Revision() + ", bundle digest " + opened.PackDigest()
 		}
 		knowledge = opened
 	}
@@ -216,7 +274,7 @@ func Run(request Request, options Options) (Result, error) {
 	if request.Redact {
 		scanreport.Redact(&report)
 	}
-	return Result{Report: report, Exit: scanreport.Exit(report), KnowledgeAge: knowledgeAgeNote(knowledge, now)}, nil
+	return Result{Report: report, Exit: scanreport.Exit(report), KnowledgeAge: knowledgeAgeNote(knowledge, now), KnowledgeSource: knowledgeSource, KnowledgeNote: knowledgeNote}, nil
 }
 
 // knowledgeAgeNote words the age note for the knowledge a scan used,

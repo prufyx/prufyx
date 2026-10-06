@@ -12,6 +12,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
+	"github.com/prufyx/prufyx/cli/internal/knowledgeauto"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
@@ -40,15 +41,24 @@ type Store struct {
 	digests  map[string]string
 	revision string
 	digest   string
+	root     string
 	info     StoreInfo
 }
 
 // StoreError is a knowledge database that could not be opened or verified.
 // Reason is catalog text naming the class of failure; it never names the
 // path.
-type StoreError struct{ Reason string }
+type StoreError struct {
+	Reason string
+	// Auto marks a database found in the default store location, not named
+	// with --knowledge-db: the error then says how to force embedded.
+	Auto bool
+}
 
 func (e *StoreError) Error() string {
+	if e.Auto {
+		return (&knowledgeauto.Refused{Reason: e.Reason}).Error()
+	}
 	return scanreport.Text(scanreport.UsageKnowledgeDBFailed, e.Reason)
 }
 
@@ -93,7 +103,7 @@ func OpenStore(path string, projects []string) (*Store, error) {
 	if err != nil {
 		return nil, &StoreError{Reason: scanreport.KnowledgeDBIntegrity}
 	}
-	return &Store{snapshot: snapshot, digests: digests, revision: selection.Revision, digest: selection.BundleDigest, info: info}, nil
+	return &Store{snapshot: snapshot, digests: digests, revision: selection.Revision, digest: selection.BundleDigest, root: selection.InitialRootDigest, info: info}, nil
 }
 
 // storeMarkers are the files of which an existing knowledge database holds
@@ -150,6 +160,9 @@ func storeFailure(err error) string {
 	}
 	return scanreport.KnowledgeDBIntegrity
 }
+
+// InitialRootDigest is the digest of the database's initial trust root.
+func (k *Store) InitialRootDigest() string { return k.root }
 
 // Origin is "external_signed_local".
 func (k *Store) Origin() string { return k.snapshot.Origin() }

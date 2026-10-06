@@ -23,7 +23,7 @@ func (r runtime) scan(args []string, stdin io.Reader) int {
 		fmt.Fprintln(r.stdout, scanreport.Usage)
 		return ExitOK
 	}
-	result, err := scanrun.Run(request, scanrun.Options{Stdin: stdin})
+	result, err := scanrun.Run(request, scanrun.Options{Stdin: stdin, AutoLocalDB: true, PinnedRoot: pinnedRootDigest})
 	if err != nil {
 		return r.scanError(err)
 	}
@@ -33,6 +33,12 @@ func (r runtime) scan(args []string, stdin io.Reader) int {
 	}
 	if _, err := r.stdout.Write(output); err != nil {
 		return ExitIntegrity
+	}
+	if result.KnowledgeSource != "" {
+		fmt.Fprintln(r.stderr, "prufyx: "+result.KnowledgeSource)
+	}
+	if result.KnowledgeNote != "" {
+		fmt.Fprintln(r.stderr, "prufyx: note: "+result.KnowledgeNote)
 	}
 	r.knowledgeAgeNote(result.KnowledgeAge)
 	return result.Exit

@@ -37,7 +37,11 @@ type Request struct {
 	// KnowledgeDB is the --knowledge-db directory; empty means the embedded
 	// knowledge.
 	KnowledgeDB string
-	Help        bool
+	// KnowledgeMode is "" or "auto" (use the verified default local
+	// database when one is installed) or "embedded" (force the embedded
+	// knowledge).
+	KnowledgeMode string
+	Help          bool
 }
 
 // UsageError is a command line or input the scan does not accept. Its text
@@ -248,6 +252,18 @@ func ParseArgs(args []string) (Request, error) {
 				return Request{}, usage(scanreport.UsageBadValue, display)
 			}
 			request.KnowledgeDB = v
+		case "knowledge":
+			if err := once(display); err != nil {
+				return Request{}, err
+			}
+			v, err := next()
+			if err != nil {
+				return Request{}, err
+			}
+			if v != "auto" && v != "embedded" {
+				return Request{}, usage(scanreport.UsageBadValue, display)
+			}
+			request.KnowledgeMode = v
 		default:
 			return Request{}, usage(scanreport.UsageUnknownFlag, display)
 		}
@@ -260,6 +276,9 @@ func ParseArgs(args []string) (Request, error) {
 	}
 	if stdin > 1 {
 		return Request{}, usage(scanreport.UsageStdinTwice)
+	}
+	if request.KnowledgeDB != "" && request.KnowledgeMode == "embedded" {
+		return Request{}, usage(scanreport.UsageKnowledgeEmbeddedDB)
 	}
 	if request.KnowledgeDB != "" && !request.Now.IsZero() {
 		return Request{}, usage(scanreport.UsageKnowledgeDBNow)

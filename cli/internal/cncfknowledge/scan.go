@@ -30,6 +30,8 @@ type ScanSelection struct {
 	TrustReceiptDigest string
 	Purpose            string
 	ImportedVerifiedAt string
+	// InitialRootDigest is the digest of the store's initial trust root.
+	InitialRootDigest string
 	// EvaluatedAt is the verifier's clock, truncated to the second. A scan
 	// over this selection is evaluated at this instant and no other.
 	EvaluatedAt time.Time
@@ -71,7 +73,7 @@ func OpenScan(storeRoot string, projects []string) (ScanSelection, error) {
 	result := ScanSelection{
 		Layout: LayoutSingleTarget, TargetPath: receipt.TargetPath, Revision: selected.Revision(),
 		BundleDigest: selected.BundleDigest(), TrustReceiptDigest: selected.TrustReceiptDigest(),
-		ImportedVerifiedAt: receipt.VerifiedAt, EvaluatedAt: selected.VerifiedAt().UTC().Truncate(time.Second),
+		ImportedVerifiedAt: receipt.VerifiedAt, InitialRootDigest: receipt.InitialRootDigest, EvaluatedAt: selected.VerifiedAt().UTC().Truncate(time.Second),
 	}
 	if selected.PerProject() {
 		result.Layout = LayoutPerProject

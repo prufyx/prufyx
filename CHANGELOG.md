@@ -32,6 +32,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   supplied by path. A disabled draft workflow
   (`.github/workflows/knowledge-release.yml`) documents the secrets a hosted
   release needs. See [knowledge-publisher.md](cli/docs/knowledge-publisher.md).
+- `check cncf` (without `--now` or `--knowledge-db`) and `scan` (without `--knowledge-db`
+  or `--now`) use the verified knowledge database that `prufyx db update` installed in
+  the default store location, so knowledge refreshes need no new build. With no store
+  they use the embedded knowledge. A store that is present but invalid, expired or
+  rooted in another trust root is refused (exit 3), never replaced silently;
+  `--knowledge=embedded` forces the embedded knowledge. `--now` and `--knowledge-db`
+  behave as before and replay reports are unchanged. `db update` for `cncf-projects`
+  may omit `--db-root`. See [knowledge-updates.md](cli/docs/knowledge-updates.md).
 - Product-pinned knowledge root: a profile can embed the SHA-256 of its initial TUF
   root, and `db update` then trusts only that root (rotation follows the signed root
   chain). The `cncf-projects` entry ships empty, so behaviour is unchanged until a pin

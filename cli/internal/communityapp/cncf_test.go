@@ -68,7 +68,8 @@ func TestCNCFCLIValidationRejectsMissingAndDuplicateFlags(t *testing.T) {
 	}{
 		{name: "missing project", args: []string{"check", "cncf", "--input", "unused", "--now", "2026-09-08T12:10:00Z"}},
 		{name: "missing input", args: []string{"check", "cncf", "--project", "helm", "--now", "2026-09-08T12:10:00Z"}},
-		{name: "missing now", args: []string{"check", "cncf", "--project", "helm", "--input", "unused"}},
+		// A missing --now is no longer a usage error: the knowledge source is then
+		// chosen automatically (see cncf_autoknowledge_test.go).
 		{name: "duplicate project", args: []string{"check", "cncf", "--project", "helm", "--project", "helm", "--input", "unused", "--now", "2026-09-08T12:10:00Z"}},
 		{name: "duplicate digest", args: []string{"check", "cncf", "--project", "helm", "--input", "unused", "--input-digest", "sha256:" + strings.Repeat("a", 64), "--input-digest", "sha256:" + strings.Repeat("b", 64), "--now", "2026-09-08T12:10:00Z"}},
 		{name: "invalid digest syntax", args: []string{"check", "cncf", "--project", "helm", "--input", "unused", "--input-digest", "not-a-digest", "--now", "2026-09-08T12:10:00Z"}},
