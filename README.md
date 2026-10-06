@@ -105,6 +105,35 @@ ends in `BLOCKED` (exit `10`) or "not every area checked" (exit `11`). See the
 [`scan` guide](cli/docs/scan.md). To run it in a workflow, see the
 [GitHub Action](cli/docs/github-action.md).
 
+## Recent changes
+
+The [changelog](CHANGELOG.md) is the full list. User-visible changes merged
+since the last counts above:
+
+- **`check --strict-exit`:** a scoped `PASS` exits `14` instead of `0`, so CI
+  cannot read one passed rule as a complete pass. See
+  [exit codes](cli/docs/exit-codes.md).
+- **`scan` output is escaped.** Terminal escape sequences, carriage returns,
+  line breaks and bidirectional controls taken from the scanned input or from
+  knowledge are shown as visible `\xNN` or `\uXXXX` escapes in human and
+  Markdown output and in error messages, so a name or path cannot forge a
+  report line. JSON and SARIF carry the same characters as `\u` escapes.
+- **Per-kind migration hints:** the next action of each derived Kubernetes
+  API-removal rule names the removed kinds and the version to migrate to (for
+  example CronJob to `batch/v1`). See the
+  [extractor](cli/docs/extractors/k8s.served-api-removal.md).
+- **Helm subcharts:** `scan` leaves the answer `UNKNOWN` instead of `BLOCKED`
+  for a removed API in a subchart that may not be rendered (conditions, tags,
+  aliases and `test` hooks).
+- **`extract run --lease-days N`** (1-365, default 90) sets how long derived
+  rules stay valid; this is a maintainer command.
+
+Maintainer tooling also gained a gate class for replacing a reviewed rule with
+a rule re-derived from upstream source, and signed owner approvals for
+single records. Scan-side support for reviewed served-API lists is in the code,
+but no such list is shipped, so `scan` still cannot answer `PASS` as described
+above.
+
 ## Privacy and offline operation
 
 - Checks read local files you select. They do not contact a cluster, registry,
