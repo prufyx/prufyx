@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os/exec"
@@ -133,11 +134,65 @@ func (g *GitHubSource) init() {
 	}
 }
 
-func (g *GitHubSource) client() *http.Client {
-	if g.Client != nil {
-		return g.Client
+// httpTimeout bounds one whole request, body included.
+var httpTimeout = 60 * time.Second
+
+const maxHTTPRedirects = 3
+
+// noProxyTransport is the default transport minus proxy environment lookup.
+var noProxyTransport = func() *http.Transport {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.Proxy = nil
+	return t
+}()
+
+// newHTTPClient returns the one HTTP client this package uses. It ignores
+// proxy environment variables, applies httpTimeout, and follows redirects
+// only within the original host and scheme (so the token never reaches
+// another host and a request never drops from https to http).
+func newHTTPClient(base *http.Client) *http.Client {
+	var c http.Client
+	if base != nil {
+		c = *base
+	} else {
+		c.Transport = noProxyTransport
 	}
-	return &http.Client{Timeout: 60 * time.Second}
+	if c.Timeout <= 0 || c.Timeout > httpTimeout {
+		c.Timeout = httpTimeout
+	}
+	c.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) > maxHTTPRedirects {
+			return fmt.Errorf("stopped after %d redirects", maxHTTPRedirects)
+		}
+		first := via[0].URL
+		if req.URL.Scheme != first.Scheme || req.URL.Host != first.Host {
+			return fmt.Errorf("redirect to another host or scheme refused")
+		}
+		return nil
+	}
+	return &c
+}
+
+// checkHTTPURL refuses anything but https, except plain http to a loopback
+// address (local test servers).
+func checkHTTPURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil || u.Hostname() == "" {
+		return fmt.Errorf("not a fetchable URL")
+	}
+	switch u.Scheme {
+	case "https":
+		return nil
+	case "http":
+		if ip := net.ParseIP(u.Hostname()); ip != nil && ip.IsLoopback() {
+			return nil
+		}
+	}
+	return fmt.Errorf("only https URLs are fetched")
+}
+
+func (g *GitHubSource) client() *http.Client {
+	return newHTTPClient(g.Client)
 }
 
 func orDefault(v, d string) string {
@@ -148,6 +203,9 @@ func orDefault(v, d string) string {
 }
 
 func (g *GitHubSource) get(ctx context.Context, u string, api bool, limit int64) ([]byte, int, error) {
+	if err := checkHTTPURL(u); err != nil {
+		return nil, 0, err
+	}
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
