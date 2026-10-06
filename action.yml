@@ -28,7 +28,9 @@ inputs:
       auto (default), true or false. When on, `gh attestation verify` checks
       that the release archive was built by the release workflow for that tag,
       and the install fails if the check fails or gh is missing. auto is on for
-      a release and off for `source`.
+      a release and off for `source`. false is only accepted together with
+      `archive-sha256` for a release, because the release's own checksum alone
+      does not show who built the archive.
     required: false
     default: auto
   paths:

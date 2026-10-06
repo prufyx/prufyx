@@ -100,6 +100,36 @@ class ValidationError(ValueError):
 def fail(message: str) -> None:
     raise ValidationError(message)
 
+def safe_child(root: Path, relative: Any) -> Path:
+    """Resolve a corpus-relative path without leaving the corpus: no absolute
+    path, no "..", no backslash or NUL, and no symbolic link anywhere on it."""
+    if not isinstance(relative, str) or not relative or "\x00" in relative or "\\" in relative:
+        fail("corpus path must be a non-empty plain relative path")
+    parts = relative.split("/")
+    if relative.startswith("/") or any(p in ("", ".", "..") for p in parts):
+        fail(f"corpus path escapes the corpus: {relative!r}")
+    current = root
+    for part in parts:
+        current = current / part
+        if current.is_symlink():
+            fail(f"corpus path goes through a symbolic link: {relative!r}")
+    return current
+
+def corpus_files(root: Path) -> list[Path]:
+    """Every regular file below root (not __pycache__). A symbolic link, or
+    anything that is not a plain file or directory, fails closed."""
+    files = []
+    for path in sorted(root.rglob("*")):
+        if "__pycache__" in path.relative_to(root).parts:
+            continue
+        if path.is_symlink():
+            fail(f"symbolic link in the corpus tree: {path.relative_to(root).as_posix()}")
+        if path.is_file():
+            files.append(path)
+        elif not path.is_dir():
+            fail(f"unexpected entry in the corpus tree: {path.relative_to(root).as_posix()}")
+    return files
+
 def canonical(value: Any) -> bytes:
     return (json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False) + "\n").encode()
 
@@ -247,7 +277,7 @@ def check_mutation_recipes(index: dict, scenario_ids: set[str]) -> list[Path]:
         if row["recipeId"] in seen or row["baselineScenarioId"] not in scenario_ids or row["expectedRejectionClass"] != "INTEGRITY":
             fail("mutation recipe index binding invalid")
         seen.add(row["recipeId"])
-        path = ROOT / row["path"]
+        path = safe_child(ROOT, row["path"])
         if not path.is_file():
             fail(f"{row['recipeId']}: missing mutation recipe")
         recipe = read_json(path)
@@ -613,7 +643,7 @@ def scan_privacy(paths: list[Path]) -> None:
 
 def tree_digest(root: Path) -> tuple[int, str, list[tuple[str, str]]]:
     rows = []
-    for path in sorted(x for x in root.rglob("*") if x.is_file() and "__pycache__" not in x.parts):
+    for path in corpus_files(root):
         relative = path.relative_to(root).as_posix()
         rows.append((relative, "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()))
     payload = "".join(f"{relative}\0{file_digest}\n" for relative, file_digest in rows).encode()
@@ -658,7 +688,7 @@ def check_migration_provenance(index: dict, refs: list[dict]) -> Path:
         fail("migration v2-to-v3 file digest mapping drift")
     added = migration["addedFiles"]
     mapped_paths = {row["v3Path"] for row in mappings}
-    expected_added = [{"path": p, "v3Digest": "sha256:" + hashlib.sha256((ROOT / p).read_bytes()).hexdigest()} for p in sorted(x.relative_to(ROOT).as_posix() for x in ROOT.rglob("*") if x.is_file() and "__pycache__" not in x.parts and x.name != "migration-provenance.json" and x.relative_to(ROOT).as_posix() not in mapped_paths)]
+    expected_added = [{"path": p, "v3Digest": "sha256:" + hashlib.sha256((ROOT / p).read_bytes()).hexdigest()} for p in sorted(x.relative_to(ROOT).as_posix() for x in corpus_files(ROOT) if x.name != "migration-provenance.json" and x.relative_to(ROOT).as_posix() not in mapped_paths)]
     if added != expected_added:
         fail("migration v3 added-file binding drift")
     chain = migration["chain"]
@@ -709,7 +739,7 @@ def validate_all() -> str:
     for ref in refs:
         if ref["scenarioId"] in scenario_docs:
             fail("duplicate scenario reference")
-        sp = ROOT / ref["scenarioPath"]; op = ROOT / ref["oraclePath"]
+        sp = safe_child(ROOT, ref["scenarioPath"]); op = safe_child(ROOT, ref["oraclePath"])
         if not sp.is_file() or not op.is_file():
             fail(f"{ref['scenarioId']}: missing canonical scenario/oracle")
         scenario = read_json(sp); oracle = read_json(op)
@@ -756,7 +786,7 @@ def validate_all() -> str:
         expected = {"synthetic-20x": (20,20), "synthetic-50x": (50,50), "synthetic-1000x": (1000,250)}[d["id"]]
         if d["multiplier"] != expected[0] or d["rootCount"] != expected[0] or d["partitionSize"] != expected[1]:
             fail("generation descriptor cardinality drift")
-    scan_privacy([ROOT / "corpus-index.json", ROOT / "replay-bridge-gate.json", migration_path, *[ROOT / r["scenarioPath"] for r in refs], *[ROOT / r["oraclePath"] for r in refs], *mutation_paths])
+    scan_privacy([ROOT / "corpus-index.json", ROOT / "replay-bridge-gate.json", migration_path, *[safe_child(ROOT, r["scenarioPath"]) for r in refs], *[safe_child(ROOT, r["oraclePath"]) for r in refs], *mutation_paths])
     # Equivalence proof is semantic: member labels and scenario IDs are excluded.
     a = next(r for r in refs if r["scenarioId"] == "syn-v4-fleet-equivalence-member-a")
     b = next(r for r in refs if r["scenarioId"] == "syn-v4-fleet-equivalence-member-b")

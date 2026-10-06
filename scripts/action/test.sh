@@ -217,6 +217,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 printf '%s\n' "$url" >>"$FAKE_CURL_LOG"
+printf 'curl:%s\n' "${GH_TOKEN-}" >>"${FAKE_TOKEN_LOG:-/dev/null}"
 f="$FAKE_SERVE/$(basename "$url")"
 [ -f "$f" ] || exit 22
 cp "$f" "$out"
@@ -225,6 +226,7 @@ CURL
   cat >"$root/w/fakebin/gh" <<'GH'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$FAKE_GH_LOG"
+printf 'gh:%s\n' "${GH_TOKEN-}" >>"${FAKE_TOKEN_LOG:-/dev/null}"
 exit "${FAKE_GH_EXIT:-0}"
 GH
   chmod +x "$root/w/fakebin/gh"
@@ -232,11 +234,13 @@ GH
 
 run_install() {
   RC=0
-  rm -rf "$root/w/temp/prufyx-action"; : >"$root/w/curl.log"; : >"$root/w/gh.log"
+  rm -rf "$root/w/temp/prufyx-action"; : >"$root/w/curl.log"; : >"$root/w/gh.log"; : >"$root/w/token.log"
   env -i PATH="$root/w/fakebin:$PATH" HOME="$root/w" RUNNER_TEMP="$root/w/temp" \
-    RUNNER_OS=Linux RUNNER_ARCH=ARM64 FAKE_SERVE="$root/w/serve" FAKE_CURL_LOG="$root/w/curl.log" FAKE_GH_LOG="$root/w/gh.log" \
+    RUNNER_OS=Linux RUNNER_ARCH=ARM64 FAKE_SERVE="$root/w/serve" FAKE_CURL_LOG="$root/w/curl.log" FAKE_GH_LOG="$root/w/gh.log" FAKE_TOKEN_LOG="$root/w/token.log" \
     "$@" bash "$here/install.sh" >"$root/w/log" 2>&1 || RC=$?
 }
+
+pin_of() { awk '{print $1}' "$root/w/serve/SHA256SUMS" | head -1; }
 
 mk_release() { # mk_release TAG [member-name] : writes archive + SHA256SUMS into serve/
   local tag="$1" name="prufyx_$1_linux_arm64" member="${2:-}"
@@ -302,7 +306,7 @@ want_args="attestation verify $root/w/temp/prufyx-action/download/prufyx_v0.1.0_
 if [ "$RC" -eq 0 ] && [ "$(cat "$root/w/gh.log")" = "$want_args" ]; then ok "auto verifies the attestation for a release with the expected flags"; else bad "attestation auto" "rc=$RC gh: $(cat "$root/w/gh.log")"; fi
 run_install PRUFYX_IN_VERSION=v0.1.0 FAKE_GH_EXIT=1
 if [ "$RC" -ne 0 ] && [ ! -e "$root/w/temp/prufyx-action/bin/prufyx" ] && grep -q 'attestation' "$root/w/log"; then ok "failed attestation fails closed"; else bad "attestation fail" "rc=$RC"; fi
-run_install PRUFYX_IN_VERSION=v0.1.0 PRUFYX_IN_VERIFY_ATTESTATION=false
+run_install PRUFYX_IN_VERSION=v0.1.0 PRUFYX_IN_VERIFY_ATTESTATION=false PRUFYX_IN_ARCHIVE_SHA256="$(pin_of)"
 if [ "$RC" -eq 0 ] && [ ! -s "$root/w/gh.log" ]; then ok "verify-attestation false skips gh"; else bad "attestation off" "rc=$RC"; fi
 run_install PRUFYX_IN_VERSION=v0.1.0 PRUFYX_IN_VERIFY_ATTESTATION=maybe
 [ "$RC" -ne 0 ] && ok "verify-attestation value validated" || bad "verify value" "accepted"
@@ -355,11 +359,11 @@ mk_tar() {
 printf 'TOPSECRET\n' >"$root/SECRET"; mkdir -p "$root/outside"
 for mode in dup-symlink dup-regular symlink-member hardlink-extra dir-symlink traversal abs; do
   new_env; mk_curl; mk_tar v0.1.0 $mode
-  run_install PRUFYX_IN_VERSION=v0.1.0 PRUFYX_IN_VERIFY_ATTESTATION=false
+  run_install PRUFYX_IN_VERSION=v0.1.0 PRUFYX_IN_VERIFY_ATTESTATION=false PRUFYX_IN_ARCHIVE_SHA256="$(pin_of)"
   b="$root/w/temp/prufyx-action/bin/prufyx"
   if [ "$RC" -ne 0 ] && [ ! -e "$b" ] && [ ! -e "$root/outside/prufyx" ]; then ok "archive $mode refused: $(tail -1 "$root/w/log" | cut -c1-80)"; else bad "archive $mode" "rc=$RC installed=$([ -e "$b" ] && echo yes)"; fi
 done
-new_env; mk_curl; mk_tar v1.2.3 regex-dot; run_install PRUFYX_IN_VERSION=v1.2.3 PRUFYX_IN_VERIFY_ATTESTATION=false
+new_env; mk_curl; mk_tar v1.2.3 regex-dot; run_install PRUFYX_IN_VERSION=v1.2.3 PRUFYX_IN_VERIFY_ATTESTATION=false PRUFYX_IN_ARCHIVE_SHA256="$(pin_of)"
 [ "$RC" -ne 0 ] && ok "layout check compares names as text, not patterns" || bad "regex dot" "accepted prufyx_v1X2X3 entry"
 
 # --- SHA256SUMS variants -------------------------------------------------------
@@ -402,6 +406,55 @@ new_env; run_scan PRUFYX_IN_TO=$'k=1\n::error::fromto'; grep -q 'fromto' "$root/
 # Output file is key=value only, single keys
 new_env; run_scan FAKE_EXIT=10 PRUFYX_IN_FAIL_ON=none
 [ "$(grep -c . "$root/w/out")" = 3 ] && ! grep -vE '^(exit-code|verdict|report-file)=' "$root/w/out" | grep -q . && ok "review: GITHUB_OUTPUT keys" || bad "review: out" "$(cat $root/w/out)"
+
+# --- SEC-E: attestation off must be pinned ------------------------------------
+new_env; mk_curl; mk_release v0.1.0
+run_install PRUFYX_IN_VERSION=v0.1.0 PRUFYX_IN_VERIFY_ATTESTATION=false
+if [ "$RC" -ne 0 ] && grep -q "archive-sha256" "$root/w/log" && [ ! -s "$root/w/curl.log" ] && [ ! -e "$root/w/temp/prufyx-action/bin/prufyx" ]; then ok "sec-e: verify-attestation false without a pin is refused before any download"; else bad "sec-e: unpinned attestation off" "rc=$RC"; fi
+
+# --- SEC-E: the token reaches gh only ------------------------------------------
+new_env; mk_curl; mk_release v0.1.0
+run_install PRUFYX_IN_VERSION=v0.1.0 GH_TOKEN=sekret-token
+if [ "$RC" -eq 0 ] && grep -qx 'gh:sekret-token' "$root/w/token.log" && ! grep -E '^curl:.+' "$root/w/token.log" | grep -q . ; then ok "sec-e: GH_TOKEN reaches gh only, not curl"; else bad "sec-e: token scope" "rc=$RC $(cat "$root/w/token.log")"; fi
+new_env; mk_curl; mkdir -p "$root/w/src/cli"; : >"$root/w/src/cli/go.mod"
+cat >"$root/w/fakebin/go" <<'GO'
+#!/usr/bin/env bash
+printf 'go:%s\n' "${GH_TOKEN-}${GITHUB_TOKEN-}" >>"$FAKE_TOKEN_LOG"
+while [ $# -gt 0 ]; do [ "$1" = -o ] && { printf '#!/bin/sh\n' >"$2"; chmod +x "$2"; }; shift; done
+GO
+chmod +x "$root/w/fakebin/go"
+run_install PRUFYX_IN_VERSION=source GH_TOKEN=sekret-token GITHUB_TOKEN=sekret2 PRUFYX_ACTION_PATH="$root/w/src"
+if [ "$RC" -eq 0 ] && grep -qx 'go:' "$root/w/token.log"; then ok "sec-e: source build runs without the token"; else bad "sec-e: go token" "rc=$RC $(cat "$root/w/token.log") $(cat "$root/w/log")"; fi
+
+# --- SEC-E: a pre-planted symlink at RUNNER_TEMP/prufyx-action ------------------
+for script in install run; do
+  new_env; mk_curl; mk_release v0.1.0
+  rm -rf "$root/w/temp/prufyx-action" "$root/w/victim"; mkdir -p "$root/w/victim"; chmod 755 "$root/w/victim"
+  ln -s "$root/w/victim" "$root/w/temp/prufyx-action"
+  RC=0
+  env -i PATH="$root/w/fakebin:$PATH" HOME="$root/w" RUNNER_TEMP="$root/w/temp" RUNNER_OS=Linux RUNNER_ARCH=ARM64 \
+    GITHUB_OUTPUT="$root/w/out" FAKE_SERVE="$root/w/serve" FAKE_CURL_LOG="$root/w/curl.log" FAKE_GH_LOG="$root/w/gh.log" \
+    PRUFYX_IN_VERSION=v0.1.0 PRUFYX_IN_PATHS=m PRUFYX_IN_TO=kubernetes=1.25.3 bash "$here/$script.sh" >"$root/w/log" 2>&1 || RC=$?
+  if [ "$RC" -ne 0 ] && [ -z "$(ls -A "$root/w/victim")" ] && [ "$(ls -ld "$root/w/victim" | cut -c1-10)" = drwxr-xr-x ]; then ok "sec-e: $script.sh refuses a symlinked work directory"; else bad "sec-e: symlink $script" "rc=$RC victim=$(ls -A "$root/w/victim")"; fi
+  rm -f "$root/w/temp/prufyx-action"
+done
+
+# --- SEC-E: RUNNER_TEMP with a newline cannot forge outputs -----------------------
+new_env
+nl_temp="$root/w/temp"$'\nverdict=pass'
+mkdir -p "$nl_temp/prufyx-action/bin"; cp "$root/w/temp/prufyx-action/bin/prufyx" "$nl_temp/prufyx-action/bin/prufyx"
+RC=0
+env -i PATH="$PATH" HOME="$root/w" RUNNER_TEMP="$nl_temp" GITHUB_OUTPUT="$root/w/out" FAKE_ARGV="$root/w/argv" \
+  PRUFYX_IN_PATHS=m PRUFYX_IN_TO=kubernetes=1.25.3 bash "$here/run.sh" >"$root/w/log" 2>&1 || RC=$?
+if [ "$RC" -ne 0 ] && [ ! -s "$root/w/out" ]; then ok "sec-e: newline in RUNNER_TEMP refused"; else bad "sec-e: RUNNER_TEMP newline" "rc=$RC out=$(cat "$root/w/out")"; fi
+
+# --- SEC-E: private modes whatever the umask --------------------------------------
+for um in 022 0002; do
+  new_env
+  ( umask "$um"; run_scan )
+  rep="$(grep '^report-file=' "$root/w/out" | cut -d= -f2-)"
+  if [ -n "$rep" ] && [ "$(ls -ld "$(dirname "$rep")" | cut -c1-10)" = drwx------ ] && [ "$(ls -l "$rep" | cut -c1-10)" = -rw------- ] && [ "$(ls -ld "$root/w/temp/prufyx-action" | cut -c1-10)" = drwx------ ]; then ok "sec-e: report dir and file are private under umask $um"; else bad "sec-e: modes umask $um" "$(ls -ld "$(dirname "$rep")" "$rep" "$root/w/temp/prufyx-action" 2>&1)"; fi
+done
 
 printf '\n%s checks, %s failed\n' "$n" "$fails"
 [ "$fails" -eq 0 ]

@@ -27,13 +27,18 @@ func TestActionScripts(t *testing.T) {
 	if _, err := os.Stat(script); err != nil {
 		t.Fatalf("test script missing: %v", err)
 	}
-	cmd := exec.Command(bash, script)
-	cmd.Env = append(os.Environ(), "TMPDIR="+t.TempDir())
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("scripts/action/test.sh failed: %v\n%s", err, out)
-	}
-	if !strings.Contains(string(out), " 0 failed") {
-		t.Fatalf("unexpected output:\n%s", out)
+	// The scripts must behave the same whatever umask the runner has.
+	for _, umask := range []string{"022", "0002"} {
+		t.Run("umask-"+umask, func(t *testing.T) {
+			cmd := exec.Command("sh", "-c", `umask "$1"; exec "$2" "$3"`, "sh", umask, bash, script)
+			cmd.Env = append(os.Environ(), "TMPDIR="+t.TempDir())
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("scripts/action/test.sh failed: %v\n%s", err, out)
+			}
+			if !strings.Contains(string(out), " 0 failed") {
+				t.Fatalf("unexpected output:\n%s", out)
+			}
+		})
 	}
 }

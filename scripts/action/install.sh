@@ -25,6 +25,10 @@ pin="${PRUFYX_IN_ARCHIVE_SHA256:-}"
 temp="${RUNNER_TEMP:?RUNNER_TEMP is not set}"
 bindir="$temp/prufyx-action/bin"
 verify="${PRUFYX_IN_VERIFY_ATTESTATION:-auto}"
+# The token is only for `gh attestation verify`. Take it out of the
+# environment so curl, tar and the source build never see it.
+gh_token="${GH_TOKEN:-}"
+unset GH_TOKEN GITHUB_TOKEN
 repo_url="https://github.com/prufyx/prufyx/releases/download"
 attest_repo="prufyx/prufyx"
 attest_workflow="prufyx/prufyx/.github/workflows/release.yml"
@@ -41,12 +45,19 @@ case "$verify" in
   auto | true | false) ;;
   *) die "input 'verify-attestation' must be auto, true or false" ;;
 esac
+# Without the attestation the checksum comes from the same release as the
+# archive, so it proves nothing about who built it. Turning the check off is
+# only accepted together with a pin the caller holds.
+if [ "$verify" = false ] && [ "$version" != source ] && [ -z "$pin" ]; then
+  die "'verify-attestation: false' needs 'archive-sha256': without the attestation the release's own checksum is the only check, so pin the archive digest"
+fi
 
 # Only the binary and download directories are replaced: report files of an
 # earlier use of the action in the same job stay.
+prepare_workdir
 rm -rf "$temp/prufyx-action/bin" "$temp/prufyx-action/download"
 mkdir -p "$bindir"
-chmod 700 "$temp/prufyx-action" "$bindir"
+chmod 700 "$bindir"
 
 if [ "$version" = "source" ]; then
   [ "$verify" != true ] || die "'verify-attestation: true' needs a release archive and cannot be used with version 'source'"
@@ -108,7 +119,7 @@ fi
 if [ "$verify" = auto ]; then verify=true; fi
 if [ "$verify" = true ]; then
   command -v gh >/dev/null 2>&1 || die "attestation check needs the GitHub CLI (gh) on the runner, and it was not found; install it or set 'verify-attestation: false' and pin 'archive-sha256'"
-  gh attestation verify "$dl/$archive" --repo "$attest_repo" \
+  GH_TOKEN="$gh_token" gh attestation verify "$dl/$archive" --repo "$attest_repo" \
     --signer-workflow "$attest_workflow" --deny-self-hosted-runners --source-ref "refs/tags/$version" >"$dl/attestation.txt" 2>&1 \
     || die "the build attestation of $archive could not be verified for $version; refusing to install"
   echo "build attestation verified"
