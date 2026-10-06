@@ -239,7 +239,7 @@ func SARIF(report Report) ([]byte, error) {
 	if err := encoder.Encode(log); err != nil {
 		return nil, err
 	}
-	return out.Bytes(), nil
+	return escapeJSON(out.Bytes()), nil
 }
 
 // sarifRules lists one rule per distinct rule id of the report, by id, and

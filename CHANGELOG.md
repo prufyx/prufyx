@@ -34,6 +34,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- `scan` human and Markdown output, and its usage and input error messages, no
+  longer print text taken from the scanned input or from knowledge as itself when
+  it holds terminal escape sequences, carriage returns, line breaks, other control
+  or format characters, or bidirectional controls. Each is shown as a visible
+  `\xNN` or `\uXXXX` escape (bytes that are not UTF-8 as `\xNN`), so a name or
+  path cannot clear the screen, retitle the terminal or forge a report line.
+  JSON and SARIF now write the same characters as `\u` escapes; the decoded
+  values are unchanged. Ordinary printable text is byte for byte as before.
 - `prufyx scan` no longer reports a removed API from a Helm subchart that may not be
   rendered: a subchart listed twice in `Chart.yaml` with a condition on any entry,
   a subchart matched by its own `Chart.yaml` name rather than its directory, a

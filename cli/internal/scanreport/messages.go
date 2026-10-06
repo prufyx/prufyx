@@ -496,5 +496,5 @@ Exit status: 0 PASS FOR THE DECLARED SCOPE, 10 BLOCKED, 11 not every area checke
 
 // Text renders a usage or input message from this catalog, bounded.
 func Text(format string, args ...any) string {
-	return bound(fmt.Sprintf(format, args...))
+	return bound(fmt.Sprintf(format, sanitizeArgs(args)...))
 }
