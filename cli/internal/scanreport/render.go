@@ -29,7 +29,7 @@ func MarshalJSON(report Report) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return append(raw, '\n'), nil
+	return append(escapeJSON(raw), '\n'), nil
 }
 
 // DecodeJSON reads a report strictly: unknown members and trailing data are
@@ -51,7 +51,7 @@ func DecodeJSON(raw []byte) (Report, error) {
 // colour is used.
 func Human(report Report, options HumanOptions) []byte {
 	var out bytes.Buffer
-	line := func(format string, args ...any) { fmt.Fprintf(&out, format+"\n", args...) }
+	line := func(format string, args ...any) { fmt.Fprintf(&out, format+"\n", sanitizeArgs(args)...) }
 	line("%s", report.Headline)
 	if policy := report.TrustPolicy; policy != nil {
 		if policy.ExcludedRules > 0 {
@@ -232,28 +232,28 @@ func gapScope(gap Gap) string {
 }
 
 func writeFinding(out *bytes.Buffer, finding Finding, options HumanOptions, shared map[string]bool) {
-	label := "  " + hopLabel(finding.Hop)
+	label := "  " + Sanitize(hopLabel(finding.Hop))
 	indent := strings.Repeat(" ", len(label)+3)
-	fmt.Fprintf(out, "%s   %s\n", label, finding.Title)
+	fmt.Fprintf(out, "%s   %s\n", sanitizeArgs([]any{label, finding.Title})...)
 	for index, location := range finding.Locations {
 		if index == maxLocations {
-			fmt.Fprintf(out, "%s"+labelMore+"\n", indent, len(finding.Locations)-maxLocations)
+			fmt.Fprintf(out, "%s"+labelMore+"\n", sanitizeArgs([]any{indent, len(finding.Locations) - maxLocations})...)
 			break
 		}
-		fmt.Fprintf(out, "%s%s\n", indent, locationText(location))
+		fmt.Fprintf(out, "%s%s\n", sanitizeArgs([]any{indent, locationText(location)})...)
 	}
-	fmt.Fprintf(out, "%s"+labelFix+"\n", indent, finding.Fix)
+	fmt.Fprintf(out, "%s"+labelFix+"\n", sanitizeArgs([]any{indent, finding.Fix})...)
 	if !options.Verbose {
 		return
 	}
 	if finding.Basis == "mechanical" {
-		fmt.Fprintf(out, "%s"+labelEvidenceMech+"\n", indent, finding.Extractor)
+		fmt.Fprintf(out, "%s"+labelEvidenceMech+"\n", sanitizeArgs([]any{indent, finding.Extractor})...)
 	} else {
-		fmt.Fprintf(out, "%s%s\n", indent, labelEvidenceReviewed)
+		fmt.Fprintf(out, "%s%s\n", sanitizeArgs([]any{indent, labelEvidenceReviewed})...)
 	}
 	for _, source := range finding.Citations {
 		if !shared[citationKey(source)] {
-			fmt.Fprintf(out, "%s"+labelSource+"\n", indent, source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest)
+			fmt.Fprintf(out, "%s"+labelSource+"\n", sanitizeArgs([]any{indent, source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest})...)
 		}
 	}
 }

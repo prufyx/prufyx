@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
@@ -213,6 +214,9 @@ func Markdown(report Report, options MarkdownOptions) []byte {
 		fmt.Sprintf(labelMDBuild, p.Build.Version),
 		network,
 	)
+	for i := range provenance {
+		provenance[i] = Sanitize(provenance[i])
+	}
 	body := strings.Join(provenance, "\n")
 	fence := strings.Repeat("`", max(3, longestRun(body, '`')+1))
 	line("")
@@ -335,12 +339,7 @@ func shortRevision(revision string) string {
 // number is escaped so the text cannot start a heading, list or quote.
 func mdText(text string) string {
 	var out strings.Builder
-	text = strings.TrimSpace(strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) {
-			return ' '
-		}
-		return r
-	}, text))
+	text = strings.TrimSpace(Sanitize(spaceControls(text)))
 	for index, r := range text {
 		switch r {
 		case '\\', '`', '*', '_', '[', ']', '<', '|', '~', '&':
@@ -380,12 +379,7 @@ func isDigits(text string) bool {
 // mdCode puts text in a code span that the text cannot close, with the
 // table pipe escaped.
 func mdCode(text string) string {
-	text = strings.ReplaceAll(strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) {
-			return ' '
-		}
-		return r
-	}, text), "|", "\\|")
+	text = strings.ReplaceAll(Sanitize(spaceControls(text)), "|", "\\|")
 	if text == "" {
 		return "` `"
 	}
@@ -413,5 +407,22 @@ func longestRun(text string, r rune) int {
 // mdURL percent-encodes the characters that would end an autolink or a
 // table cell.
 func mdURL(url string) string {
-	return strings.NewReplacer("|", "%7C", "<", "%3C", ">", "%3E", " ", "%20", "\n", "%0A", "\r", "%0D").Replace(url)
+	return Sanitize(strings.NewReplacer("|", "%7C", "<", "%3C", ">", "%3E", " ", "%20", "\n", "%0A", "\r", "%0D").Replace(url))
+}
+
+// spaceControls turns control characters and line breaks into spaces, so
+// text stays on one line of a paragraph or table cell. Sanitize then makes
+// the other unsafe runes visible.
+func spaceControls(text string) string {
+	var out strings.Builder
+	for index := 0; index < len(text); {
+		r, size := utf8.DecodeRuneInString(text[index:])
+		if size == 1 && r == utf8.RuneError || !unicode.IsControl(r) {
+			out.WriteString(text[index : index+size])
+		} else {
+			out.WriteByte(' ')
+		}
+		index += size
+	}
+	return out.String()
 }
