@@ -71,6 +71,7 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
     [--distribution official_upstream|custom_build]
     [--resource-scope-complete[=true|false]] [--target-api-apply-required[=true|false]]
     [--format human|json|sarif|markdown] [--show-passes] [--verbose] [--redact]
+    [--only-blocked] [--fail-on blocked|unknown|none]
     [--input-permissions strict|refuse-writable] [--require-basis LIST]
     [--knowledge-db DIR | --now RFC3339]
 ```
@@ -86,6 +87,8 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
 | `--target-api-apply-required` | Declares that the inputs are applied to the target Kubernetes API. |
 | `--format` | `human` (default), `json`, `sarif`, `markdown` or `csv` (one row per blocking finding location, then one row per gap and, with passes shown, per pass; cells are escaped and guarded against spreadsheet formulas). The format changes only what is printed: the verdict and the exit code are the same. |
 | `--show-passes` | Lists every passed check (human and Markdown output). |
+| `--only-blocked` | Human and Markdown output list only BLOCKED findings and end with one line counting the hidden not-checked gaps and other items (notices, unsupported combinations, leads); the headline, verdict and exit code are unchanged. JSON and SARIF always stay complete. Like Pluto's `--only-show-removed`. There is no CSV format. |
+| `--fail-on` | `unknown` (default), `blocked` or `none`: which verdicts give a failing exit code. See "Answers and exit codes". |
 | `--verbose` | Shows the status of every hop and the pinned sources of each finding (human and Markdown output). |
 | `--redact` | Prints `sha256:` digests instead of file paths, object names and namespaces. Human and Markdown output show the first 12 hex characters; SARIF uses a name under `redacted/`. |
 | `--input-permissions` | `refuse-writable` (default) or `strict`. See below. |
@@ -207,6 +210,11 @@ means one scoped rule passed (use `check --strict-exit` to tell them apart).
 | `0` | `PASS FOR THE DECLARED SCOPE` | Every hop is covered and nothing is missing (see below). |
 | `2` | `prufyx: ...` on standard error | The command line or an input is not accepted. |
 | `3` | `prufyx: KNOWLEDGE INTEGRITY FAILURE` | The built-in knowledge, or the `--knowledge-db` database, failed verification. |
+
+`--fail-on` changes only the exit code, never the report. `unknown` (default)
+keeps the table above. `blocked` exits `0` for an undecided scan (`11`) and
+still exits `10` for BLOCKED. `none` always exits `0`. Exit `2` and `3` are never
+suppressed.
 
 The answers rank `BLOCKED` (`10`) over not checked (`11`) over `PASS` (`0`).
 A blocker is reported whenever the documents that were read establish it,

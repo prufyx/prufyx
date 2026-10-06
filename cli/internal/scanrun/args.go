@@ -25,10 +25,14 @@ type Request struct {
 	ResourceScopeComplete *bool
 	TargetApplyRequired   *bool
 	Format                string
-	ShowPasses, Verbose   bool
-	Redact                bool
-	Permissions           intake.PermissionPolicy
-	PermissionsName       string
+	// FailOn is the --fail-on policy: unknown (default), blocked or none.
+	FailOn string
+	// OnlyBlocked is --only-blocked: human and markdown list only BLOCKED findings.
+	OnlyBlocked         bool
+	ShowPasses, Verbose bool
+	Redact              bool
+	Permissions         intake.PermissionPolicy
+	PermissionsName     string
 	// TrustPolicy is the --require-basis policy; the zero value is the
 	// default policy.
 	TrustPolicy cncfcheck.TrustPolicy
@@ -38,6 +42,26 @@ type Request struct {
 	// knowledge.
 	KnowledgeDB string
 	Help        bool
+}
+
+// The --fail-on policies.
+const (
+	FailOnUnknown = "unknown"
+	FailOnBlocked = "blocked"
+	FailOnNone    = "none"
+)
+
+// ExitCode maps the scan's verdict exit code to the process exit code under
+// --fail-on. Only the verdict codes (blocked, unknown) are ever changed;
+// usage and integrity errors never reach this and are never suppressed.
+func (r Request) ExitCode(verdict int) int {
+	switch {
+	case r.FailOn == FailOnNone:
+		return scanreport.ExitPass
+	case r.FailOn == FailOnBlocked && verdict == scanreport.ExitUnknown:
+		return scanreport.ExitPass
+	}
+	return verdict
 }
 
 // UsageError is a command line or input the scan does not accept. Its text
@@ -60,7 +84,7 @@ const maxArgs = 4096
 // "--" ends the flags and "-" is standard input. A flag takes its value as
 // the next argument or after "=". Boolean flags accept "=true" and "=false".
 func ParseArgs(args []string) (Request, error) {
-	request := Request{Format: "human", Permissions: intake.RefuseWritable, PermissionsName: "refuse-writable"}
+	request := Request{Format: "human", FailOn: FailOnUnknown, Permissions: intake.RefuseWritable, PermissionsName: "refuse-writable"}
 	if len(args) > maxArgs {
 		return Request{}, usage(scanreport.UsageBadValue, "arguments")
 	}
@@ -177,7 +201,19 @@ func ParseArgs(args []string) (Request, error) {
 				return Request{}, usage(scanreport.UsageBadValue, display)
 			}
 			request.Format = v
-		case "show-passes", "verbose", "redact":
+		case "fail-on":
+			if err := once(display); err != nil {
+				return Request{}, err
+			}
+			v, err := next()
+			if err != nil {
+				return Request{}, err
+			}
+			if v != FailOnUnknown && v != FailOnBlocked && v != FailOnNone {
+				return Request{}, usage(scanreport.UsageBadValue, display)
+			}
+			request.FailOn = v
+		case "show-passes", "verbose", "redact", "only-blocked":
 			if err := once(display); err != nil {
 				return Request{}, err
 			}
@@ -190,6 +226,8 @@ func ParseArgs(args []string) (Request, error) {
 				request.ShowPasses = v
 			case "verbose":
 				request.Verbose = v
+			case "only-blocked":
+				request.OnlyBlocked = v
 			default:
 				request.Redact = v
 			}
