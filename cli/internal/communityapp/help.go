@@ -135,7 +135,9 @@ func (r runtime) commandHelp(name string) int {
 			}
 		}
 	}
-	fmt.Fprintf(r.stdout, "%s - %s\n\n", p.bold("prufyx "+name), summary)
+	if name != "scan" { // scan keeps its long-standing help text byte for byte
+		fmt.Fprintf(r.stdout, "%s - %s\n\n", p.bold("prufyx "+name), summary)
+	}
 	lines := strings.Split(body, "\n")
 	for i, l := range lines {
 		if strings.HasPrefix(l, "Usage:") {
