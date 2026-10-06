@@ -424,6 +424,20 @@ func validateRangeOverlaps(rules []rule) error {
 	return nil
 }
 
+// ConstraintKey is the engine's constraint key of one rule object (the JSON
+// under an entry's "rule"): the operator and the fact the rule constrains.
+// Two rules for one component constrain the same thing exactly when their
+// keys are equal, which is what the overlap lint compares. Everything that
+// needs that notion (the knowledge gate's supersede class, extract
+// supersede) calls this one function, so none can drift from the engine's.
+func ConstraintKey(ruleJSON []byte) (string, error) {
+	var r rule
+	if err := json.Unmarshal(ruleJSON, &r); err != nil {
+		return "", fmt.Errorf("constraint key: %w", ErrInvalid)
+	}
+	return constraintKey(r), nil
+}
+
 func constraintKey(r rule) string {
 	switch {
 	case r.SetCondition != nil:
