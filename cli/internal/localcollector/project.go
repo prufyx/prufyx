@@ -49,7 +49,7 @@ func project(name string, root any) (any, error) {
 	case "aggregated-apis.json":
 		return projectAggregated(root)
 	case "mutating-webhooks.json", "validating-webhooks.json":
-		return projectWebhooks(root)
+		return projectWebhooks(name, root)
 	case "admission-policy-surface.json":
 		return projectAdmissionPolicies(root)
 	case "admission-policy-bindings.json":
@@ -161,31 +161,57 @@ func projectAggregated(root any) (any, error) {
 	return sortedValues(out), nil
 }
 
-func projectWebhooks(root any) (any, error) {
+// optionalArray returns an absent or null field as an empty array. Kubernetes
+// serializes empty slices with omitempty, so an absent list is a valid shape
+// (for example a configuration with no webhooks, or a rule without resources).
+// A present value of any other type is still rejected.
+func optionalArray(v any) ([]any, bool) {
+	if v == nil {
+		return []any{}, true
+	}
+	return array(v)
+}
+
+func projectWebhooks(name string, root any) (any, error) {
 	items, err := listRoot(root, 10000)
 	if err != nil {
 		return nil, err
 	}
+	// Items of a typed list may omit kind; the file name determines it.
+	defaultKind := "ValidatingWebhookConfiguration"
+	if name == "mutating-webhooks.json" {
+		defaultKind = "MutatingWebhookConfiguration"
+	}
 	out := make([]any, 0, len(items))
 	for _, it := range items {
-		kind, ok := stringValue(at(it, "kind"))
-		hooks, ok2 := array(at(it, "webhooks"))
-		if !ok || !ok2 {
+		kind := defaultKind
+		if v := at(it, "kind"); v != nil {
+			k, ok := stringValue(v)
+			if !ok || k != defaultKind {
+				return nil, errProjection
+			}
+			kind = k
+		}
+		hooks, ok2 := optionalArray(at(it, "webhooks"))
+		if !ok2 {
 			return nil, errProjection
 		}
 		ph := make([]any, 0, len(hooks))
 		for _, h := range hooks {
-			versions, vok := array(at(h, "admissionReviewVersions"))
-			rules, rok := array(at(h, "rules"))
+			if _, ok := object(h); !ok {
+				return nil, errProjection
+			}
+			versions, vok := optionalArray(at(h, "admissionReviewVersions"))
+			rules, rok := optionalArray(at(h, "rules"))
 			if !vok || !rok {
 				return nil, errProjection
 			}
 			pr := make([]any, 0, len(rules))
 			for _, r := range rules {
-				groups, g := array(at(r, "apiGroups"))
-				vers, v := array(at(r, "apiVersions"))
-				ops, o := array(at(r, "operations"))
-				res, q := array(at(r, "resources"))
+				groups, g := optionalArray(at(r, "apiGroups"))
+				vers, v := optionalArray(at(r, "apiVersions"))
+				ops, o := optionalArray(at(r, "operations"))
+				res, q := optionalArray(at(r, "resources"))
 				if !g || !v || !o || !q {
 					return nil, errProjection
 				}
