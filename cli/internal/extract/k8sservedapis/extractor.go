@@ -33,7 +33,7 @@ import (
 // Identity.
 const (
 	ID      = "k8s.served-api-removal"
-	Version = "1.1.0"
+	Version = "1.2.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/k8sservedapis"
 )
@@ -699,10 +699,7 @@ func candidate(pair extract.VersionPair, line int, rp removalProof, u useSpan, s
 		lifeID += "-" + u.slug
 	}
 	kinds := joinKinds(u.use.Kinds)
-	next := "Remove the named manifests or replace them with a kind and version the target release serves, then reassess the complete target apply set. Validate CRDs, stored objects, clients and API-server configuration separately."
-	if n := len(u.use.Replacements); n > 0 {
-		next = fmt.Sprintf("Migrate the named manifests to %s, then reassess the complete target apply set. Validate CRDs, stored objects, clients and API-server configuration separately.", groupVersion(rp.Group, u.use.Replacements[n-1]))
-	}
+	next := migrationAction(rp.Group, rp.Version, u.use.Kinds, u.use.Replacements)
 	yes := true
 	bounds := []constraintengine.RangeBound{
 		{Bound: "from.gte", Basis: constraintengine.BasisPreviousMinorLine, SourceID: lifeID},
