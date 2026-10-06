@@ -124,6 +124,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- `prufyx scan --format csv`: one row per blocking finding location (verdict, rule id, project, file, line, kind, namespace, name, title, fix), then one row per gap and, with passes shown, one per pass. Cells use the same escaping as the other formats and cells that could start a spreadsheet formula get a leading quote.
+
 - `prufyx-maintainer corpus-attestation generate|check --tree DIR` attests the
   pack files of a checked-out tree (its root or its `cli/` directory) instead of
   the pack embedded in the binary, so a mechanical candidate can be re-attested

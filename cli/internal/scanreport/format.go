@@ -3,7 +3,7 @@
 package scanreport
 
 // Formats lists the output formats of the scan command.
-func Formats() []string { return []string{"human", "json", "sarif", "markdown"} }
+func Formats() []string { return []string{"human", "json", "sarif", "markdown", "csv"} }
 
 // RenderOptions selects the optional sections of the human and Markdown
 // formats.
@@ -22,6 +22,8 @@ func Render(report Report, format string, options RenderOptions) ([]byte, error)
 		return SARIF(report)
 	case "markdown":
 		return Markdown(report, MarkdownOptions(options)), nil
+	case "csv":
+		return renderCSV(report, options)
 	}
 	return Human(report, HumanOptions(options)), nil
 }
