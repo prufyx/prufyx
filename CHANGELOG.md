@@ -150,6 +150,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - `prufyx scan --format csv`: a header row, a summary row (the verdict and the headline), then one row per blocking finding location (verdict, rule id, project, file, line, kind, namespace, name, title, fix), then one row per gap and, with passes shown, one per pass. Cells use the same escaping as the other formats and cells that could start a spreadsheet formula get a leading quote.
 
+- Optional colour in help output only (bold headings, highlighted command
+  names), on only when stdout is a terminal. `NO_COLOR`, `PRUFYX_COLOR=never`
+  and `TERM=dumb` turn it off; `PRUFYX_COLOR=always` forces it on. Report
+  output is never coloured.
 - `prufyx-maintainer corpus-attestation generate|check --tree DIR` attests the
   pack files of a checked-out tree (its root or its `cli/` directory) instead of
   the pack embedded in the binary, so a mechanical candidate can be re-attested
@@ -378,6 +382,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- `prufyx` and `prufyx help` now print a short overview (about 20 lines) with
+  the commands grouped by purpose, instead of every usage line. Exit status
+  is unchanged (0). The full usage moved to per-command help:
+  `prufyx <command> help`, `--help`, `-h` and `prufyx help <command>`.
+- Help text no longer uses MariaDB or MariaDB Operator in examples; the
+  MariaDB rules and knowledge are unchanged.
 - `knowledge-targets check-size` prints first what it checked (the embedded pack,
   a `--dir` directory or a `--tree` checkout) and the single-target line names its
   target.

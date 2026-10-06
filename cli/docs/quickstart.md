@@ -19,6 +19,24 @@ go build -o /tmp/prufyx ./cmd/prufyx-community
 (If your Go toolchain rejects VCS stamping outside a clean checkout, add
 `-buildvcs=false`: `go build -buildvcs=false -o /tmp/prufyx ./cmd/prufyx-community`.)
 
+## Finding your way around the CLI
+
+`prufyx` (or `prufyx help`) prints a short overview of the commands grouped by
+purpose. `prufyx <command> help`, `prufyx <command> --help`,
+`prufyx <command> -h` and `prufyx help <command>` print the detailed usage of
+one command, for example `prufyx help check`.
+
+Help output is coloured (bold headings, highlighted command names) only when
+standard output is a terminal. Report output is never coloured. Control it with
+environment variables:
+
+| Variable | Effect |
+| --- | --- |
+| `NO_COLOR` (any non-empty value, see https://no-color.org) | no colour |
+| `PRUFYX_COLOR=never` | no colour |
+| `PRUFYX_COLOR=always` | colour even when piped (overrides `NO_COLOR` and `TERM=dumb`) |
+| `TERM=dumb` | no colour |
+
 ## 2. What the verdicts mean
 
 Every `prufyx check` prints one aggregate assessment and the rules that

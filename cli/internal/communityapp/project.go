@@ -139,8 +139,6 @@ func (r runtime) prepareProject(args []string) int {
 		fmt.Fprintln(r.stdout, "   or: prufyx prepare project --project argo-workflows --workload FILE --from 3.5.0 --to 3.6.0 --workload-complete [--workload-digest SHA256] [--format human|json|input]")
 		fmt.Fprintln(r.stdout, "   or: prufyx prepare project --project argo-workflows --workload FILE --from 3.4.18|3.5.15|3.6.19|3.7.18|4.0.11 --to 4.1.3 --workload-complete [--workload-digest SHA256] [--format human|json|input]")
 		fmt.Fprintln(r.stdout, "   or: prufyx prepare project --project ceph --selected-osd-metadata FILE --selected-osd-id ID --from VERSION --to VERSION --selected-osd-metadata-complete [--selected-osd-metadata-digest SHA256] [--format human|json|input]")
-		fmt.Fprintln(r.stdout, "   or: prufyx prepare project --project mariadb --effective-config FILE --from 10.11.8 --to 11.4.2 --effective-config-complete --precedence-resolved --upstream-distribution --require-innodb-defragmentation true|false [--effective-config-digest SHA256] [--format human|json|input]")
-		fmt.Fprintln(r.stdout, "   or: prufyx prepare project --project mariadb-operator --mariadb-resource FILE --from 26.3.0 --to 26.6.0 --resource-complete --pre-operator-update [--mariadb-resource-digest SHA256] [--format human|json|input]")
 		return ExitOK
 	}
 	request, ok := parseProjectArguments(args, false)
@@ -200,8 +198,6 @@ func (r runtime) project(args []string) int {
 		fmt.Fprintln(r.stdout, "   or: prufyx check project --project argo-workflows --workload FILE --from 3.5.0 --to 3.6.0 --workload-complete --now RFC3339 [--workload-digest SHA256] [--format human|json]")
 		fmt.Fprintln(r.stdout, "   or: prufyx check project --project argo-workflows --workload FILE --from 3.4.18|3.5.15|3.6.19|3.7.18|4.0.11 --to 4.1.3 --workload-complete --now RFC3339 [--workload-digest SHA256] [--format human|json]")
 		fmt.Fprintln(r.stdout, "   or: prufyx check project --project ceph --selected-osd-metadata FILE --selected-osd-id ID --from VERSION --to VERSION --selected-osd-metadata-complete --now RFC3339 [--selected-osd-metadata-digest SHA256] [--format human|json]")
-		fmt.Fprintln(r.stdout, "   or: prufyx check project --project mariadb --effective-config FILE --from 10.11.8 --to 11.4.2 --effective-config-complete --precedence-resolved --upstream-distribution --require-innodb-defragmentation true|false --now RFC3339 [--effective-config-digest SHA256] [--format human|json]")
-		fmt.Fprintln(r.stdout, "   or: prufyx check project --project mariadb-operator --mariadb-resource FILE --from 26.3.0 --to 26.6.0 --resource-complete --pre-operator-update --now RFC3339 [--mariadb-resource-digest SHA256] [--format human|json]")
 		fmt.Fprintln(r.stdout, "This preview is embedded-only. --knowledge-db, --profile, and replay flags are not supported for community projects.")
 		return ExitOK
 	}
