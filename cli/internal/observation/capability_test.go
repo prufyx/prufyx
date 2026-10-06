@@ -82,6 +82,10 @@ func TestInventoryRejectsDirectorySwapAndRestore(t *testing.T) {
 			return nil
 		}
 		triggered = true
+		// Swap detection compares the directory's ctime. Linux stamps ctime
+		// from a coarse clock, so a rename in the same tick as the open can
+		// keep the old value; wait past the tick so the swap is observable.
+		time.Sleep(50 * time.Millisecond)
 		original := filepath.Join(rootPath, contextName)
 		saved := original + "-saved"
 		if err := os.Rename(original, saved); err != nil {
