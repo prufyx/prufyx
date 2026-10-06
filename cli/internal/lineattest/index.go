@@ -19,9 +19,13 @@ const (
 // the engine evaluates a rule's: before reviewedAt it is not yet usable, at
 // or after validUntil it is stale. Only a current attestation may be relied
 // on; any other state must be treated as if the attestation were absent.
-func (a LineAttestation) Freshness(now time.Time) string {
-	reviewed, err1 := constraintengine.ParseUTC(a.Evidence.ReviewedAt)
-	until, err2 := constraintengine.ParseUTC(a.Evidence.ValidUntil)
+func (a LineAttestation) Freshness(now time.Time) string { return a.Evidence.Freshness(now) }
+
+// Freshness evaluates the evidence's validity window at now (see
+// LineAttestation.Freshness).
+func (e Evidence) Freshness(now time.Time) string {
+	reviewed, err1 := constraintengine.ParseUTC(e.ReviewedAt)
+	until, err2 := constraintengine.ParseUTC(e.ValidUntil)
 	if err1 != nil || err2 != nil {
 		return FreshnessStale
 	}

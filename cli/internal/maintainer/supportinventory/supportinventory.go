@@ -26,6 +26,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/distribution"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
+	"github.com/prufyx/prufyx/cli/internal/servedapis"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
@@ -578,6 +579,7 @@ var cncfPackLevels = []packLevel{
 	{"prufyx.io/cncf-source-rule-pack/v1alpha7", anyRule(constraintengine.AnyBasisRule)},
 	{"prufyx.io/cncf-source-rule-pack/v1alpha8", anyRule(constraintengine.AnySeverityRule)},
 	{"prufyx.io/cncf-source-rule-pack/v1alpha9", hasMember(distribution.PackMember)},
+	{"prufyx.io/cncf-source-rule-pack/v1alpha10", hasMember(servedapis.PackMember)},
 }
 
 // communityPackLevels is the community-project pack loader's table.
@@ -656,6 +658,9 @@ func genericProjects(rules map[string]any, identities map[string]identity, prepa
 	// as checked for every distribution, so it refuses such a pack.
 	if _, ok := rules[distribution.PackMember]; ok {
 		return nil, 0, nil, invalid("the inventory does not list distribution records yet")
+	}
+	if _, ok := rules[servedapis.PackMember]; ok {
+		return nil, 0, nil, invalid("the inventory does not list served-API lists yet")
 	}
 	entries, ok := array(rules["entries"])
 	if !ok || len(entries) == 0 {

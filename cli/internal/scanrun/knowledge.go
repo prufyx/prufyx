@@ -104,8 +104,21 @@ type ServedStatus struct {
 	Freshness string
 }
 
-// ServedAPIs: the embedded knowledge carries no reviewed served lists yet,
-// so every Kubernetes API group document is a named gap.
+// ServedAPIs reads the embedded pack's served-API list for the component and
+// line. A pack without one yields no list, so every Kubernetes API group
+// document is a named gap.
 func (k Embedded) ServedAPIs(component, line string, now time.Time) ServedStatus {
-	return ServedStatus{}
+	status, found := k.ScanKnowledge.ServedAPIsFor(component, line, now)
+	if !found {
+		return ServedStatus{}
+	}
+	apis := make(map[string]bool, len(status.Record.APIs))
+	for _, pair := range status.Record.APIs {
+		apis[pair] = true
+	}
+	return ServedStatus{
+		Found:     true,
+		List:      ServedList{Component: status.Record.Component, Line: status.Record.Line, Basis: status.Record.Evidence.Basis, APIs: apis},
+		Freshness: status.Freshness,
+	}
 }

@@ -42,6 +42,23 @@ func additionalDefinitions() []constraintengine.FactDefinition {
 // returned restore function runs. The resulting knowledge must pass every
 // check the embedded knowledge passes.
 func UseSyntheticKnowledge(definitions []constraintengine.FactDefinition, entries []Entry) (func(), error) {
+	return UseSyntheticRecords(definitions, entries, SyntheticRecords{})
+}
+
+// SyntheticRecords are the optional record sections of a synthetic pack, as
+// raw JSON documents (line attestations, upgrade-path policies, served-API
+// lists). Each is admitted by exactly the checks the embedded pack's
+// sections pass; a section that fails them makes UseSyntheticRecords fail.
+type SyntheticRecords struct {
+	LineAttestations json.RawMessage
+	PathPolicies     json.RawMessage
+	ServedAPIs       json.RawMessage
+}
+
+// UseSyntheticRecords is UseSyntheticKnowledge with record sections added to
+// the pack, so a test can run the real loader, the real scan and the real
+// pack schema level over knowledge that is never published.
+func UseSyntheticRecords(definitions []constraintengine.FactDefinition, entries []Entry, records SyntheticRecords) (func(), error) {
 	raw, err := packagedFiles.ReadFile("data/rules.json")
 	if err != nil {
 		return nil, err
@@ -51,6 +68,7 @@ func UseSyntheticKnowledge(definitions []constraintengine.FactDefinition, entrie
 		return nil, err
 	}
 	pack.Entries = append(pack.Entries, entries...)
+	pack.LineAttestations, pack.PathPolicies, pack.ServedAPIs = records.LineAttestations, records.PathPolicies, records.ServedAPIs
 	ruleIDs := make([]string, len(pack.Entries))
 	for index, entry := range pack.Entries {
 		var shape struct {
@@ -70,11 +88,11 @@ func UseSyntheticKnowledge(definitions []constraintengine.FactDefinition, entrie
 	for _, entry := range pack.Entries {
 		rules = append(rules, entry.Rule)
 	}
-	schema, err := constraintengine.RulesSchemaFor(rules)
+	schema, err := requiredPackSchema(pack)
 	if err != nil {
 		return nil, err
 	}
-	pack.Schema = map[string]string{constraintengine.RulesSchema: packSchema, constraintengine.RulesSchemaRanged: packSchemaRanged, constraintengine.RulesSchemaSet: packSchemaSet, constraintengine.RulesSchemaNotice: packSchemaNotice, constraintengine.RulesSchemaBasis: packSchemaBasis, constraintengine.RulesSchemaSeverity: packSchemaSeverity}[schema]
+	pack.Schema = schema
 	pack.Revision, pack.RegistryDigest = "synthetic-test-only", registry.Digest()
 	encoded, err := json.Marshal(pack)
 	if err != nil {

@@ -12,6 +12,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/distribution"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
+	"github.com/prufyx/prufyx/cli/internal/servedapis"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
@@ -154,6 +155,12 @@ func readPackRecords(raw []byte, attestationID func(component, factFamily, line 
 		return nil, err
 	} else if present {
 		return nil, fmt.Errorf("%w: the pack carries distribution records, whose citations are not monitored yet", errRejected)
+	}
+	// Served-API lists are not renewed by the weekly re-attestation yet.
+	if _, present, err := lineattest.PackMemberSection(raw, servedapis.PackMember); err != nil {
+		return nil, err
+	} else if present {
+		return nil, fmt.Errorf("%w: the pack carries served-API lists, whose citations are not monitored yet", errRejected)
 	}
 	section, present, err := lineattest.PackMemberSection(raw, lineattest.PackMember)
 	if err != nil {

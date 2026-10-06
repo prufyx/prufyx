@@ -298,9 +298,9 @@ func TestPackSchemaLevelDistributions(t *testing.T) {
 			}
 		}
 	}
-	// The distributions row is the last of the level table.
-	if last := packFeatureLevels[len(packFeatureLevels)-1]; last.schema != packSchemaDistributions {
-		t.Fatalf("last level %s", last.schema)
+	// The distributions row is followed only by the served-list row.
+	if rows := packFeatureLevels; rows[len(rows)-2].schema != packSchemaDistributions || rows[len(rows)-1].schema != packSchemaServedAPIs {
+		t.Fatalf("last levels %s %s", rows[len(rows)-2].schema, rows[len(rows)-1].schema)
 	}
 	// A binary that predates distributions rejects such a pack twice: the
 	// member is unknown to its pack type, and so is the schema.

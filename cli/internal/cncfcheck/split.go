@@ -278,10 +278,10 @@ func buildEmbeddedExternalTargets(revision, purpose string, revisionFor func(str
 // buildExternalTargets splits base's pack into project targets. A project
 // target carries rule entries only, so a source pack holding a section the
 // targets cannot carry (line attestations, upgrade-path policies,
-// distribution records) is refused
+// distribution records, served-API lists) is refused
 // rather than published without it.
 func buildExternalTargets(base bundle, revision, purpose string, revisionFor func(string, func(string) ([]byte, error)) (string, error)) (ExternalTarget, []ExternalTarget, error) {
-	if len(base.pack.LineAttestations) > 0 || len(base.pack.PathPolicies) > 0 || len(base.pack.Distributions) > 0 {
+	if len(base.pack.LineAttestations) > 0 || len(base.pack.PathPolicies) > 0 || len(base.pack.Distributions) > 0 || len(base.pack.ServedAPIs) > 0 {
 		return ExternalTarget{}, nil, ErrIntegrity
 	}
 	capability, err := externalCapabilityDigest(base)
