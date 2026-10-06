@@ -71,8 +71,8 @@ func TestImageRegistryMakesProjectsObservableWithFailClosedVersions(t *testing.T
 				t.Fatalf("%s %s: %+v", c.Project, c.RuleID, c)
 			}
 		case "contour", "kubeedge", "opencost", "etcd", "grafana", "thanos":
-			// observable but not seen: absence of a complete collection.
-			if c.Applicability != NotApplicableComponentAbsent {
+			// registry-only and not seen: mirrors hide images, so never "absent".
+			if c.Applicability != IndeterminateNotObservable {
 				t.Fatalf("%s %s: %+v", c.Project, c.RuleID, c)
 			}
 		case "loki", "keycloak", "jaeger":

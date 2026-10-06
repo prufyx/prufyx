@@ -436,6 +436,14 @@ func classify(route checkroutemetadata.Check, bundle currentbundle.CurrentBundle
 	}
 	component, found := findComponent(bundle, componentID)
 	if !found {
+		if _, adapter := observableComponents[route.Project]; !adapter {
+			// Registry-only component: the image registry sees only images,
+			// and a private mirror or rebuilt image is invisible to it, so a
+			// missing image never proves the component is absent.
+			base.Applicability = IndeterminateNotObservable
+			base.Reason = "No image of this component was recognised, but image identification cannot see mirrored or rebuilt images, so absence is not established. Determine applicability manually with the expert-path command shown below."
+			return base
+		}
 		if contextPartial {
 			base.Applicability = IndeterminatePartialCollection
 			base.Reason = "The component was not found, but this context's collection was partial (a declared API read failed or was rejected). Absence is not confirmed; rerun collection without omissions before concluding this check does not apply."

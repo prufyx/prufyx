@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// Operator semantics: for the operator-role records (cloudnativepg, rook,
+// mariadb-operator) the catalog project IS the operator, so the operator
+// image's version is the project's version. It is never used to infer an
+// operand version (PostgreSQL, Ceph, MariaDB server); operandRule must be
+// "none" and the validator rejects anything else.
+//
 // Package imageidentity is the reviewed registry that ties a container image
 // repository to a project and says how its tag becomes a project version.
 //
