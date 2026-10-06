@@ -7,6 +7,22 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Security
+
+- GitHub Action: `verify-attestation: false` is now accepted only together with
+  `archive-sha256` (a release's own checksum does not show who built the
+  archive); without the pin the install stops before any download. Existing
+  workflows that turned the attestation off without a pin must add the pin.
+- GitHub Action: `GH_TOKEN` is passed only to `gh attestation verify` (not to
+  curl, tar or the source build); the action's work directory under
+  `RUNNER_TEMP` is refused if it is a symbolic link or not owned by the runner
+  user, a `RUNNER_TEMP` with a newline is refused, and report files are created
+  private (mode 600 in a 700 directory) whatever the runner's umask.
+- Synthetic scenario corpus validator: refuses symbolic links in the corpus
+  tree and index paths that are absolute, contain `..` or pass through a link;
+  `tests/run-conformance.sh` now runs the v4 corpus it lives in (it pointed at
+  v3).
+
 ### Added
 
 - `prufyx-maintainer knowledge-publish release`: one offline, deterministic step

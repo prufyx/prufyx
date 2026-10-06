@@ -20,7 +20,7 @@ temp="${RUNNER_TEMP:?RUNNER_TEMP is not set}"
 bin="$temp/prufyx-action/bin/prufyx"
 # One directory per invocation, so a second use of the action in the same job
 # does not delete the first one's report.
-mkdir -p "$temp/prufyx-action"
+prepare_workdir
 outdir="$(mktemp -d "$temp/prufyx-action/out.XXXXXX")"
 chmod 700 "$outdir"
 

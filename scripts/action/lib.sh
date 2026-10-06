@@ -58,3 +58,23 @@ sha256_of() {
     die "no sha256sum or shasum on this runner; cannot verify the download"
   fi
 }
+
+# prepare_workdir checks RUNNER_TEMP and creates a private
+# $RUNNER_TEMP/prufyx-action owned by the current user. It refuses a value
+# with a newline or control character (the path is written to GITHUB_OUTPUT),
+# a relative path, and a symlink or foreign-owned directory left there by an
+# earlier step (rm -rf and chmod would follow it). Files are created with
+# umask 077 whatever the runner's umask is.
+prepare_workdir() {
+  umask 077
+  local temp="${RUNNER_TEMP:?RUNNER_TEMP is not set}" base
+  if has_control "$temp" || [ "$(printf '%s' "$temp" | wc -l)" -gt 0 ]; then
+    die "RUNNER_TEMP has a control character or a newline"
+  fi
+  case "$temp" in /*) ;; *) die "RUNNER_TEMP must be an absolute path" ;; esac
+  base="$temp/prufyx-action"
+  if [ -L "$base" ]; then die "$base is a symbolic link; refusing to use it"; fi
+  mkdir -p "$base"
+  { [ -d "$base" ] && [ -O "$base" ]; } || die "$base is not a directory owned by the current user; refusing to use it"
+  chmod 700 "$base"
+}
