@@ -26,12 +26,14 @@ type CLIOptions struct {
 // not even be decoded.
 func Run(args []string, stdout, stderr io.Writer, defaults CLIOptions) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: prufyx-maintainer rule validate --file <candidate.json> [--fetch] [--print-span]")
+		fmt.Fprintln(stderr, "usage: prufyx-maintainer rule <validate|verify-citations> ...")
 		return 2
 	}
 	switch args[0] {
 	case "validate":
 		return runValidate(args[1:], stdout, stderr, defaults)
+	case "verify-citations":
+		return runVerifyCitations(args[1:], stdout, stderr, defaults, nil)
 	default:
 		fmt.Fprintf(stderr, "rule: unknown subcommand %q\n", args[0])
 		return 2
