@@ -199,6 +199,29 @@ knowledge feed, and automated GitOps release gates. None exists today.
 - Knowledge can be refreshed explicitly with `prufyx db update` from a signed
   package you choose; nothing updates automatically.
 
+## Support Prufyx
+
+Prufyx is built in the open by an independent maintainer. Every check is tied to a
+cited upstream source, and the tool runs locally with no account and no model in
+the verdict path. Keeping that knowledge current across hundreds of cloud-native
+projects takes real compute.
+
+**What we need now: one build-and-research workstation.**
+
+| Component | Target | What it unlocks |
+|---|---|---|
+| CPU | 32+ cores | Run the full test suite and knowledge re-verification in parallel instead of in one queue |
+| Memory | 128 GB+ | Mirror and re-check upstream sources for many projects at once |
+| GPU | 24 GB+ VRAM | Evaluate open-weight models locally for candidate discovery, so no source or user data has to leave the machine |
+| Storage | 2 TB NVMe | Pinned upstream source mirrors and reproducible builds |
+
+If you or your company would like to fund or provide hardware, please get in touch
+by email at [airstand@gmail.com](mailto:airstand@gmail.com) or on
+[LinkedIn](https://www.linkedin.com/in/spasatanasov/). Hardware sponsors are
+acknowledged here and on [prufyx.com](https://prufyx.com) with their permission.
+We will publish what any support paid for. Sponsorship does not buy influence over
+verdicts: every rule still needs cited upstream evidence and review.
+
 ## Contributing
 
 The most useful contribution is a reviewed upgrade fact: a public project, an
