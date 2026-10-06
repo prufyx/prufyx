@@ -6,9 +6,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"os"
+	"github.com/prufyx/prufyx/cli/internal/extract/safefs"
 	"path"
-	"path/filepath"
 	"sort"
 	"sync"
 
@@ -114,23 +113,10 @@ func (w *wantsReader) write(file string) (int, error) {
 	if err := enc.Encode(map[string]any{"wants": wants}); err != nil {
 		return 0, err
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(file), ".wants-*")
-	if err != nil {
+	if err := safefs.WriteFile(file, buf.Bytes(), 0o644); err != nil {
 		return 0, err
 	}
-	defer os.Remove(tmp.Name())
-	if _, err := tmp.Write(buf.Bytes()); err != nil {
-		tmp.Close()
-		return 0, err
-	}
-	if err := tmp.Chmod(0o644); err != nil {
-		tmp.Close()
-		return 0, err
-	}
-	if err := tmp.Close(); err != nil {
-		return 0, err
-	}
-	return n, os.Rename(tmp.Name(), file)
+	return n, nil
 }
 
 // expanded returns the missing files plus, for each, the blobs of the same
