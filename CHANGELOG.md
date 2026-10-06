@@ -25,6 +25,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- `prufyx scan --fail-on blocked|unknown|none` (default `unknown`, exit codes
+  unchanged): `blocked` exits 0 for an undecided scan but still 10 for BLOCKED,
+  `none` always exits 0. Usage (2) and integrity (3) errors are never
+  suppressed; the report is unchanged.
+- `prufyx scan --only-blocked`: human and Markdown output list only BLOCKED
+  findings and print one line counting the hidden items; JSON and SARIF stay
+  complete.
 - `prufyx-maintainer knowledge-publish release`: one offline, deterministic step
   that builds a signed knowledge-database release (TUF targets, snapshot and
   timestamp, package and release plan) from the reviewed embedded knowledge,
