@@ -9,6 +9,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- `prufyx-maintainer knowledge-publish release`: one offline, deterministic step
+  that builds a signed knowledge-database release (TUF targets, snapshot and
+  timestamp, package and release plan) from the reviewed embedded knowledge,
+  with expiry taken from the knowledge's evidence validity and signing keys
+  supplied by path. A disabled draft workflow
+  (`.github/workflows/knowledge-release.yml`) documents the secrets a hosted
+  release needs. See [knowledge-publisher.md](cli/docs/knowledge-publisher.md).
 - `extract run --lease-days N` (1-365, default 90) sets the validity window of the
   derived rules.
 - One exit-code table for `scan` and `check` ([exit-codes.md](cli/docs/exit-codes.md)),

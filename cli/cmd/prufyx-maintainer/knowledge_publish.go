@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgepublish"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgerelease"
 )
 
 func runKnowledgePublish(args []string, stdout io.Writer) error {
@@ -32,6 +34,8 @@ func runKnowledgePublish(args []string, stdout io.Writer) error {
 		return runFinalizeRootTransition(args[1:], stdout)
 	case "finalize-rotated-package":
 		return runFinalizeRotatedPackage(args[1:], stdout)
+	case "release":
+		return runKnowledgeRelease(args[1:], stdout)
 	case "finalize-package":
 		return runFinalizeKnowledgePackage(args[1:], stdout)
 	default:
@@ -376,4 +380,44 @@ func readPublishInput(path string, limit int) ([]byte, error) {
 
 func knowledgePublishError() error {
 	return &commandError{code: 2, message: "knowledge-publish: operation rejected"}
+}
+
+func runKnowledgeRelease(args []string, stdout io.Writer) error {
+	flags := flag.NewFlagSet("knowledge-publish release", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	var o knowledgerelease.Options
+	flags.StringVar(&o.Revision, "revision", "", "positive knowledge revision")
+	flags.Int64Var(&o.Version, "version", 0, "positive TUF metadata version for targets, snapshot and timestamp")
+	flags.StringVar(&o.Root, "root", "", "signed public TUF root")
+	flags.StringVar(&o.RootDigest, "root-digest", "", "independently verified root SHA-256")
+	flags.StringVar(&o.TargetsKey, "targets-key", "", "encrypted targets role key file")
+	flags.StringVar(&o.SnapshotKey, "snapshot-key", "", "encrypted snapshot role key file")
+	flags.StringVar(&o.TimestampKey, "timestamp-key", "", "encrypted timestamp role key file")
+	flags.StringVar(&o.PassphraseFile, "passphrase-file", "", "file holding the key passphrase (mode 0600)")
+	flags.StringVar(&o.PackageURL, "package-url", "", "exact HTTPS URL the package will be served from")
+	flags.StringVar(&o.OutputDir, "output-dir", "", "new absolute output directory")
+	flags.StringVar(&o.Expires, "expires", "", "optional earlier role expiry as exact UTC RFC3339")
+	if err := flags.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer knowledge-publish release --revision N --version N --root ABS --root-digest sha256:... --targets-key ABS --snapshot-key ABS --timestamp-key ABS --passphrase-file ABS --package-url https://... --output-dir ABS [--expires UTC]")
+			return e
+		}
+		return knowledgePublishError()
+	}
+	if flags.NArg() != 0 {
+		return knowledgePublishError()
+	}
+	o.Now = time.Now().UTC()
+	result, err := knowledgerelease.Run(o)
+	if err != nil {
+		return knowledgePublishError()
+	}
+	raw, err := json.Marshal(result)
+	if err != nil {
+		return knowledgePublishError()
+	}
+	if _, err := fmt.Fprintln(stdout, string(raw)); err != nil {
+		return &commandError{code: 2, message: "knowledge-publish: receipt output failed"}
+	}
+	return nil
 }
