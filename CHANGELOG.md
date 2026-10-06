@@ -150,6 +150,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   both author and sender); it is never eligible for automatic merging, counts
   as one loosening, is not a withdrawal for the circuit breakers, and the
   report lists each `R -> M` pair under `supersedes`.
+- `prufyx` builds for Windows (amd64 and arm64). File and directory input,
+  the knowledge store and the `check prometheus-mode` real-observation path are
+  Unix-only and refuse on Windows (the observation route exits 2 with "real
+  observation is not supported on this platform"); standard input still works.
 - `prufyx-maintainer extract apply --rules-only` merges only the run's rules,
   without attestations and without changing the pack schema. The new
   `prufyx-maintainer extract supersede --out RUN --pack FILE` removes the

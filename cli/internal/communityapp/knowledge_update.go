@@ -14,7 +14,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgecheck"
@@ -298,8 +297,7 @@ func reserveKnowledgeDownload(output, store string) (*os.Root, string, string, e
 		root.Close()
 		return nil, "", "", err
 	}
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !info.IsDir() || info.Mode().Perm() != 0o700 || !ok || stat.Uid != uint32(os.Geteuid()) {
+	if !info.IsDir() || info.Mode().Perm() != 0o700 || !ownedByEffectiveUser(info) {
 		root.Close()
 		return nil, "", "", knowledge.ErrInvalid
 	}
@@ -318,7 +316,7 @@ func retainedKnowledgeDownloadMatches(parent *os.Root, name string, original os.
 	if err != nil || !os.SameFile(parentInfo, pathInfo) {
 		return false
 	}
-	f, err := parent.OpenFile(name, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	f, err := parent.OpenFile(name, os.O_RDONLY|openNoFollowNonblock, 0)
 	if err != nil {
 		return false
 	}
@@ -327,8 +325,7 @@ func retainedKnowledgeDownloadMatches(parent *os.Root, name string, original os.
 	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0o600 || !os.SameFile(info, original) || info.Size() != int64(len(raw)) {
 		return false
 	}
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok || stat.Nlink != 1 || stat.Uid != uint32(os.Geteuid()) {
+	if !singleLinkOwnedByEffectiveUser(info) {
 		return false
 	}
 	retained, err := io.ReadAll(io.LimitReader(f, int64(len(raw))+1))
@@ -339,8 +336,7 @@ func retainedKnowledgeDownloadMatches(parent *os.Root, name string, original os.
 	if err != nil || !os.SameFile(info, after) || !after.Mode().IsRegular() || after.Mode().Perm() != 0o600 || after.Size() != info.Size() || !after.ModTime().Equal(info.ModTime()) {
 		return false
 	}
-	finalStat, ok := after.Sys().(*syscall.Stat_t)
-	return ok && finalStat.Nlink == 1 && finalStat.Uid == uint32(os.Geteuid())
+	return singleLinkOwnedByEffectiveUser(after)
 }
 
 func (r runtime) writeKnowledgeUpdate(output knowledgeUpdateOutput, format string, code int) int {
