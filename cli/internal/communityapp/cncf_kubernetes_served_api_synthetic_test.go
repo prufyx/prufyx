@@ -24,8 +24,7 @@ import (
 //
 // The served-API removal extractor runs over a synthetic Kubernetes tree
 // (v1.32.0 to v1.37.0) whose lifecycle declarations and OpenAPI
-// specifications remove the four API versions of the 1.33, 1.34 and 1.37
-// lines. The rules it derives are loaded as synthetic, never published
+// specifications remove the API versions of the 1.37 line (1.33 and 1.34 are published). The rules it derives are loaded as synthetic, never published
 // knowledge, with no extra fact definition (the build registers the facts),
 // and the Kubernetes rendered apply-set route of check cncf is run end to end
 // against them.
@@ -39,8 +38,6 @@ type servedRemoval struct {
 }
 
 var servedRemovals = []servedRemoval{
-	{"authentication", "authentication.k8s.io", 33, []string{"SelfSubjectReview"}, "component.kubernetes.selfsubjectreview_v1beta1_removed_gvk_present"},
-	{"admissionregistration", "admissionregistration.k8s.io", 34, []string{"ValidatingAdmissionPolicy", "ValidatingAdmissionPolicyBinding"}, "component.kubernetes.validatingadmissionpolicy_v1beta1_removed_gvk_present"},
 	{"networking", "networking.k8s.io", 37, []string{"IPAddress", "ServiceCIDR"}, "component.kubernetes.ipaddress_servicecidr_v1beta1_removed_gvk_present"},
 	{"storage", "storage.k8s.io", 37, []string{"VolumeAttributesClass"}, "component.kubernetes.volumeattributesclass_v1beta1_removed_gvk_present"},
 }

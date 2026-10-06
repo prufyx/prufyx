@@ -84,7 +84,8 @@ var reasonOutcomes = map[string]outcome{
 // claims: decided claims, not gaps. They are never looked up for an UNKNOWN
 // claim.
 var decidedClaimReasons = map[string]bool{
-	"REVIEWED_SOURCE_CONSTRAINT": true,
+	"REVIEWED_SOURCE_CONSTRAINT":    true,
+	"KUBERNETES_SERVED_API_REMOVED": true,
 }
 
 // factReasons are engine reasons whose cause is the prepared input: the

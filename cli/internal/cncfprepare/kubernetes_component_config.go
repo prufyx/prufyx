@@ -109,8 +109,12 @@ type KubernetesComponentSelection struct {
 	// source is meaningful.
 	KubeletNoConfigFile bool
 	KubeletNoConfigDir  bool
-	Sources             []KubernetesComponentSource
-	selection           []byte
+	// MinimumKubeletVersion is the caller's declaration of the lowest kubelet
+	// version (x.y.z) of any node the cluster will run after the control plane
+	// upgrade. It is the one input of the version-skew fact.
+	MinimumKubeletVersion string
+	Sources               []KubernetesComponentSource
+	selection             []byte
 }
 
 // ParseKubernetesComponentSelection strictly parses the caller's selection
@@ -146,7 +150,7 @@ func ParseKubernetesComponentSelection(raw []byte) (KubernetesComponentSelection
 	}
 	if value, exists := root["declarations"]; exists {
 		declarations, ok := value.(map[string]any)
-		if !ok || allowFields(declarations, map[string]bool{"linuxNodeCgroupV1": true, "kubeletNoConfigFile": true, "kubeletNoConfigDir": true}) != nil {
+		if !ok || allowFields(declarations, map[string]bool{"linuxNodeCgroupV1": true, "kubeletNoConfigFile": true, "kubeletNoConfigDir": true, "minimumKubeletVersion": true}) != nil {
 			return KubernetesComponentSelection{}, ErrInvalid
 		}
 		for key, target := range map[string]*bool{"kubeletNoConfigFile": &selection.KubeletNoConfigFile, "kubeletNoConfigDir": &selection.KubeletNoConfigDir} {
@@ -157,6 +161,13 @@ func ParseKubernetesComponentSelection(raw []byte) (KubernetesComponentSelection
 				}
 				*target = declared
 			}
+		}
+		if value, exists := declarations["minimumKubeletVersion"]; exists {
+			declared, ok := value.(string)
+			if _, parsed := kubernetesVersionParts(declared); !ok || !parsed {
+				return KubernetesComponentSelection{}, ErrInvalid
+			}
+			selection.MinimumKubeletVersion = declared
 		}
 		if value, exists := declarations["linuxNodeCgroupV1"]; exists {
 			declared, ok := value.(bool)
@@ -242,7 +253,7 @@ func PrepareKubernetesComponentConfig(selection KubernetesComponentSelection, co
 	predicates := make([]k8sPredicate, 0)
 	if line, ok := kubernetesCrossedMinorLine(from, to); ok {
 		for _, predicate := range k8sComponentPredicates {
-			if predicate.Line == line && registered(predicate.Fact) {
+			if (predicate.Line == line || (predicate.Line == k8sEveryLine && selection.MinimumKubeletVersion != "")) && registered(predicate.Fact) {
 				predicates = append(predicates, predicate)
 			}
 		}
@@ -260,6 +271,8 @@ func PrepareKubernetesComponentConfig(selection KubernetesComponentSelection, co
 		}
 	}
 	model := buildK8sComponentModel(selection, contents)
+	model.minKubelet, model.minKubeletOK = kubernetesVersionParts(selection.MinimumKubeletVersion)
+	model.target, model.targetOK = kubernetesVersionParts(to)
 	facts := make([]inputFact, 0, len(predicates)+len(sets))
 	state, reason := StatePrepared, ReasonKubernetesComponentSettingAbsent
 	if len(predicates) == 0 {
@@ -342,6 +355,11 @@ type k8sComponentModel struct {
 	complete map[string]bool
 	cgroupV1 *bool
 	kubeadm  []map[string]any
+
+	// minKubelet is the declared minimum kubelet version and target the
+	// control plane version of the transition, both as major, minor, patch.
+	minKubelet, target     [3]uint64
+	minKubeletOK, targetOK bool
 
 	kubeletNoConfigFile, kubeletNoConfigDir bool
 }

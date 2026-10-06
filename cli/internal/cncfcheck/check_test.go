@@ -52,14 +52,14 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 		t.Fatal(err)
 	}
 	vectors := reviewedVectors(t)
-	if len(b.pack.Entries) != 191 || len(vectors) != 191 {
+	if len(b.pack.Entries) != 197 || len(vectors) != 197 {
 		t.Fatal("unexpected reviewed rule or vector count")
 	}
 	caseCount := 0
 	for _, vector := range vectors {
 		caseCount += len(vector.Cases)
 	}
-	if caseCount != 963 {
+	if caseCount != 985 {
 		t.Fatal("unexpected reviewed case count")
 	}
 	if len(vectors) != len(b.pack.Entries) {
@@ -130,6 +130,10 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 				}
 				if strings.HasPrefix(vector.RuleID, "flux.latest-beta-api-removal.") {
 					clock = time.Date(2026, 9, 12, 10, 0, 0, 0, time.UTC)
+				}
+				// Derived rules are mechanical: reviewedAt is the derivation time.
+				if strings.HasPrefix(vector.RuleID, "kubernetes.served-api-removal.") || strings.HasPrefix(vector.RuleID, "kubernetes.kubelet-version-skew.") {
+					clock = time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC)
 				}
 				if vector.RuleID == "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0" || vector.RuleID == "cilium.cluster-name-invalid.1-16-19-to-1-17-18" {
 					clock = time.Date(2026, 9, 12, 10, 0, 0, 0, time.UTC)

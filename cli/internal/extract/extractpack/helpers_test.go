@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -228,3 +229,45 @@ func prunedPack(t *testing.T, family, run string) string {
 }
 
 func asString(v any) string { s, _ := v.(string); return s }
+
+// dropPublishedDerivations removes the mechanical served-API rules the shipped
+// pack carries (the 1.33 and 1.34 removals), so that a run derived from a
+// fixture can add its own rules of the same ids.
+func dropPublishedDerivations(t *testing.T, pack string) {
+	t.Helper()
+	raw, err := os.ReadFile(pack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	var entries []json.RawMessage
+	if err := json.Unmarshal(doc["entries"], &entries); err != nil {
+		t.Fatal(err)
+	}
+	kept := entries[:0:0]
+	for _, e := range entries {
+		var v struct {
+			Rule struct {
+				ID       string `json:"id"`
+				Evidence struct {
+					Basis string `json:"basis"`
+				} `json:"evidence"`
+			} `json:"rule"`
+		}
+		if err := json.Unmarshal(e, &v); err != nil {
+			t.Fatal(err)
+		}
+		if v.Rule.Evidence.Basis == "mechanical" && strings.HasPrefix(v.Rule.ID, "kubernetes.served-api-removal.") {
+			continue
+		}
+		kept = append(kept, e)
+	}
+	doc["entries"], _ = json.Marshal(kept)
+	out, _ := json.MarshalIndent(doc, "", "  ")
+	if err := os.WriteFile(pack, out, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}

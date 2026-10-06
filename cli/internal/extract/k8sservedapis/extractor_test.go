@@ -297,8 +297,6 @@ func kindsOf(desc string) []string {
 
 // unpublishedRemovalFacts are adapter facts with no rule in the published pack.
 var unpublishedRemovalFacts = []string{
-	"component.kubernetes.selfsubjectreview_v1beta1_removed_gvk_present",
-	"component.kubernetes.validatingadmissionpolicy_v1beta1_removed_gvk_present",
 	"component.kubernetes.ipaddress_servicecidr_v1beta1_removed_gvk_present",
 	"component.kubernetes.volumeattributesclass_v1beta1_removed_gvk_present",
 }
@@ -353,7 +351,7 @@ func TestRulesHaveTheReviewedShape(t *testing.T) {
 		}
 		checked++
 	}
-	if checked != 5 {
+	if checked != 6 {
 		t.Fatalf("checked %d rules", checked)
 	}
 }

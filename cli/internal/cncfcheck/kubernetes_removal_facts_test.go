@@ -14,16 +14,15 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
-// laterRemovalFacts are the removals of the 1.33, 1.34 and 1.37 lines: the
-// rendered apply-set adapter derives them and the served-API extractor
-// derives rules over them, but no published rule reads them yet.
+// laterRemovalFacts are the removals of the 1.37 line: the rendered apply-set
+// adapter derives them and the served-API extractor derives rules over them,
+// but no published rule reads them yet. The 1.33 and 1.34 removals are
+// published (see TestPublishedLaterRemovalRules).
 var laterRemovalFacts = []struct {
 	fact, group string
 	line        int
 	kinds       []string
 }{
-	{"component.kubernetes.selfsubjectreview_v1beta1_removed_gvk_present", "authentication.k8s.io", 33, []string{"SelfSubjectReview"}},
-	{"component.kubernetes.validatingadmissionpolicy_v1beta1_removed_gvk_present", "admissionregistration.k8s.io", 34, []string{"ValidatingAdmissionPolicy", "ValidatingAdmissionPolicyBinding"}},
 	{"component.kubernetes.ipaddress_servicecidr_v1beta1_removed_gvk_present", "networking.k8s.io", 37, []string{"IPAddress", "ServiceCIDR"}},
 	{"component.kubernetes.volumeattributesclass_v1beta1_removed_gvk_present", "storage.k8s.io", 37, []string{"VolumeAttributesClass"}},
 }
@@ -217,5 +216,48 @@ func TestKubernetesRemovalFactsDecideTheirRules(t *testing.T) {
 				t.Fatalf("%s: %s decided %s on the next line", f.fact, claim.RuleID, claim.Status)
 			}
 		}
+	}
+}
+
+// The 1.33 and 1.34 removals are published as mechanical rules derived by
+// k8s.served-api-removal: one rule per removed group version, a line-wide
+// range, the extractor's own sources.
+func TestPublishedLaterRemovalRules(t *testing.T) {
+	want := map[string]struct {
+		fact     string
+		from, to string
+	}{
+		"kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-32-0-to-1-33-0":        {"component.kubernetes.selfsubjectreview_v1beta1_removed_gvk_present", "1.32.0", "1.33.0"},
+		"kubernetes.served-api-removal.admissionregistration-k8s-io-v1beta1.1-33-0-to-1-34-0": {"component.kubernetes.validatingadmissionpolicy_v1beta1_removed_gvk_present", "1.33.0", "1.34.0"},
+	}
+	b, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := 0
+	for _, e := range b.pack.Entries {
+		var r struct {
+			ID      string `json:"id"`
+			Subject struct{ From, To string }
+			Cond    struct {
+				FactID string `json:"factId"`
+			} `json:"condition"`
+			Evidence struct{ Basis string }
+			Range    *struct{} `json:"range"`
+		}
+		if err := json.Unmarshal(e.Rule, &r); err != nil {
+			t.Fatal(err)
+		}
+		w, ok := want[r.ID]
+		if !ok {
+			continue
+		}
+		found++
+		if r.Cond.FactID != w.fact || r.Subject.From != w.from || r.Subject.To != w.to || r.Evidence.Basis != "mechanical" || r.Range == nil {
+			t.Fatalf("%s: %+v", r.ID, r)
+		}
+	}
+	if found != len(want) {
+		t.Fatalf("found %d of %d published rules", found, len(want))
 	}
 }

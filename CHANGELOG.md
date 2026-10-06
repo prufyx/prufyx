@@ -32,6 +32,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Kubernetes knowledge for the minor lines 1.33 to 1.36: two mechanical
+  served-API removal rules derived by `k8s.served-api-removal` (1.32 to 1.33
+  `authentication.k8s.io/v1beta1` SelfSubjectReview; 1.33 to 1.34
+  `admissionregistration.k8s.io/v1beta1` ValidatingAdmissionPolicy and binding;
+  1.34 to 1.35 and 1.35 to 1.36 remove nothing), and four reviewed kubelet
+  version-skew rules (kubelet at most three minor versions older than the
+  target control plane, never newer) over the new declaration
+  `declarations.minimumKubeletVersion` of the component-configuration
+  selection. See [kubernetes-component-config.md](cli/docs/kubernetes-component-config.md).
 - `prufyx-maintainer knowledge-publish release`: one offline, deterministic step
   that builds a signed knowledge-database release (TUF targets, snapshot and
   timestamp, package and release plan) from the reviewed embedded knowledge,

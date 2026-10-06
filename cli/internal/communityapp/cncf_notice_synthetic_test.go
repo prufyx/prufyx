@@ -40,7 +40,7 @@ func TestSyntheticNoticeThroughTheCommandRoute(t *testing.T) {
 	}{
 		// No verdict rule reviews 1.36.0 -> 1.37.0: every Kubernetes rule is
 		// still reported as not reviewed, exactly as without the notice.
-		{"a notice for an unreviewed pair keeps the unreviewed answer", []cncfcheck.Entry{notice}, ExitUnknown, true, 27},
+		{"a notice for an unreviewed pair keeps the unreviewed answer", []cncfcheck.Entry{notice}, ExitUnknown, true, 33},
 		{"a notice beside a pass keeps the pass", []cncfcheck.Entry{notice, pass}, 0, false, 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -50,7 +50,7 @@ func TestSyntheticNoticeThroughTheCommandRoute(t *testing.T) {
 			}
 			defer restore()
 			path := writeCNCFFile(t, "input.json", input, 0o600)
-			code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", "2026-10-01T00:00:00Z")
+			code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", "2026-10-07T00:00:00Z")
 			if code != tc.exit || stderr != "" {
 				t.Fatalf("code=%d stderr=%s stdout=%s", code, stderr, stdout)
 			}
@@ -60,7 +60,7 @@ func TestSyntheticNoticeThroughTheCommandRoute(t *testing.T) {
 			if !strings.Contains(stdout, "cannot be rolled back: kubernetes.synthetic-one-way.1-36-0-to-1-37-0\nbefore you upgrade: "+noticeBeforeText+"\n") || strings.Contains(strings.ToLower(stdout), "safe") || strings.Contains(stdout, "NOTICE (") {
 				t.Fatalf("stdout:\n%s", stdout)
 			}
-			code, report, _ := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", "2026-10-01T00:00:00Z", "--format", "json")
+			code, report, _ := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", "2026-10-07T00:00:00Z", "--format", "json")
 			if code != tc.exit || strings.Count(report, `"ruleId":`) != tc.claims || !strings.Contains(report, `"status":"NOTICE"`) || !strings.Contains(report, `"engineContractDigest":"`+constraintengine.EngineContractDigestNotice()+`"`) {
 				t.Fatalf("code=%d report=%s", code, report)
 			}
@@ -82,7 +82,7 @@ func TestSyntheticNoticeOnlyProjectSaysNoRuleDecided(t *testing.T) {
 	defer restore()
 	input := []byte(`{"schema":"` + constraintengine.InputSchema + `","authority":"` + constraintengine.InputAuthority + `","current":{"components":[{"component":"` + component + `","version":"1.36.0","facts":[]}]},"proposed":{"components":[{"component":"` + component + `","version":"1.37.0","facts":[]}]}}`)
 	path := writeCNCFFile(t, "input.json", input, 0o600)
-	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "aeraki-mesh", "--input", path, "--now", "2026-10-01T00:00:00Z")
+	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "aeraki-mesh", "--input", path, "--now", "2026-10-07T00:00:00Z")
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, noVerdictLine+"\n") || !strings.Contains(stdout, "cannot be rolled back: aeraki-mesh.synthetic-one-way") {
 		t.Fatalf("code=%d stderr=%s stdout:\n%s", code, stderr, stdout)
 	}

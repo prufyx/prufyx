@@ -458,6 +458,7 @@ func TestApplyRuleChecks(t *testing.T) {
 
 	served := runDir(t, cases[1], derivedAt)
 	pack = packDir(t, "cncf") // reviewed rules of the same scope stay
+	dropPublishedDerivations(t, pack)
 	pre, _ = os.ReadFile(pack)
 	_, err = apply(t, pack, served, false)
 	if !errors.Is(err, extractpack.ErrAdmission) || !strings.Contains(err.Error(), "attestation-missing-rule") {

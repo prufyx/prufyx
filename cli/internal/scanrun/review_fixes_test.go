@@ -157,8 +157,6 @@ func TestScanRefusedLine(t *testing.T) {
 	for _, line := range []struct {
 		line, from, to, removed string
 	}{
-		{"1.33", "1.32.4", "1.33.1", "apiVersion: authentication.k8s.io/v1beta1\nkind: SelfSubjectReview\nmetadata: {name: a}\n"},
-		{"1.34", "1.33.2", "1.34.0", "apiVersion: admissionregistration.k8s.io/v1beta1\nkind: ValidatingAdmissionPolicy\nmetadata: {name: a}\n"},
 		{"1.37", "1.36.5", "1.37.1", "apiVersion: networking.k8s.io/v1beta1\nkind: IPAddress\nmetadata: {name: a}\n"},
 		{"1.37", "1.36.0", "1.37.0", "apiVersion: storage.k8s.io/v1beta1\nkind: VolumeAttributesClass\nmetadata: {name: a}\n"},
 	} {
@@ -170,6 +168,31 @@ func TestScanRefusedLine(t *testing.T) {
 			if result.Exit != scanreport.ExitUnknown || hop.Status != scanreport.HopNoData || !hasGap(result.Report, "LINE_NOT_ATTESTED", "no reviewed rule covers yet") {
 				t.Fatalf("%s: exit %d hop %+v gaps %+v", line.line, result.Exit, hop, result.Report.Gaps)
 			}
+		}
+	}
+}
+
+// TestScanLaterLinesWithoutAttestation: the 1.33 and 1.34 removals are
+// published as mechanical rules, so a removed kind blocks, but the lines are
+// not attested yet, so a clean set stays PARTIAL and never reaches PASS.
+func TestScanLaterLinesWithoutAttestation(t *testing.T) {
+	const now = "2026-10-07T00:00:00Z"
+	for _, line := range []struct {
+		from, to, removed string
+	}{
+		{"1.32.4", "1.33.1", "apiVersion: authentication.k8s.io/v1beta1\nkind: SelfSubjectReview\nmetadata: {name: a}\n"},
+		{"1.33.2", "1.34.0", "apiVersion: admissionregistration.k8s.io/v1beta1\nkind: ValidatingAdmissionPolicy\nmetadata: {name: a}\n"},
+	} {
+		knowledge := newKnowledge(t, knowledgeOptions{policy: "current", unchecked: true})
+		_, clean := files(t, map[string]string{"applyset.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\n"})
+		result := mustScan(t, knowledge, append(append([]string{}, clean...), append(declared, "--now", now, "--from", "kubernetes="+line.from, "--to", "kubernetes="+line.to)...)...)
+		if result.Exit != scanreport.ExitUnknown || !hasGap(result.Report, "LINE_NOT_ATTESTED", "") {
+			t.Fatalf("%s: clean set exit %d gaps %+v", line.to, result.Exit, result.Report.Gaps)
+		}
+		_, bad := files(t, map[string]string{"applyset.yaml": line.removed})
+		result = mustScan(t, knowledge, append(append([]string{}, bad...), append(declared, "--now", now, "--from", "kubernetes="+line.from, "--to", "kubernetes="+line.to)...)...)
+		if result.Exit != scanreport.ExitBlocked {
+			t.Fatalf("%s: removed kind exit %d findings %+v", line.to, result.Exit, result.Report.Findings)
 		}
 	}
 }
