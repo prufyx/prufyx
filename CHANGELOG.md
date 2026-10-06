@@ -57,6 +57,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- `extract` file writes no longer follow or replace symlinks and no longer depend on
+  the umask. `extract run` builds the output in a staging directory beside `--out`
+  and renames it into place after an fsync (no partial output on failure; a symlink
+  or non-empty `--out` is refused; directories 0755, files 0644). `--wants` files and
+  pack writes (`extract apply`, supersede) refuse a symlink or non-regular target and
+  fsync before the rename. Extractor outputs and code digests are unchanged.
 - `scan` human and Markdown output, and its usage and input error messages, no
   longer print text taken from the scanned input or from knowledge as itself when
   it holds terminal escape sequences, carriage returns, line breaks, other control
