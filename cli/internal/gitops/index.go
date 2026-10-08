@@ -241,7 +241,9 @@ func newAnalysis(ws intake.Workspace, opts Options) *analysis {
 		case kustomizationNames[base]:
 			a.kustFiles[dir] = append(a.kustFiles[dir], base)
 		case base == "Chart.yaml":
-			a.chartDocs[dir] = a.chartDocs[dir] // marks a chart directory
+			if _, ok := a.chartDocs[dir]; !ok {
+				a.chartDocs[dir] = nil // marks a chart directory
+			}
 		}
 	}
 	for dir := range a.kustFiles {

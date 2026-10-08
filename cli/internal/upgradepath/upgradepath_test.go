@@ -429,7 +429,7 @@ func TestHopOverlapsProperty(t *testing.T) {
 			return []string{e.Version}
 		}
 		var low, highest string
-		inEnd := func(x string) bool { return false }
+		var inEnd func(x string) bool
 		if e.MinorLine() {
 			low, highest = e.Line+".0", e.Line+".4294967295"
 			inEnd = func(x string) bool { return strings.HasPrefix(x, e.Line+".") && strings.Count(x, ".") == 2 }
