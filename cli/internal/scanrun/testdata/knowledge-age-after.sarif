@@ -171,7 +171,7 @@
           "ruleIndex": 2,
           "level": "warning",
           "message": {
-            "text": "kubernetes 1.25 has not been reviewed for removed APIs - check the kubernetes 1.25 release notes for removed APIs by hand, or request coverage"
+            "text": "no review confirms that the removed-API rules for kubernetes 1.25 name every API that line removes - check the kubernetes 1.25 release notes for other removed APIs by hand, or request a line review"
           },
           "locations": [
             {
@@ -187,7 +187,7 @@
             }
           ],
           "partialFingerprints": {
-            "prufyxResult/v1": "e23d0718d9f5edcc94d34bf890f0052d3674dde15250ecce8a409cd7b5bf9336"
+            "prufyxResult/v1": "a089ff894abb35f0e5fb327bddc285ec3874be86005e0bb200919db6d0f94718"
           },
           "properties": {
             "component": "kubernetes",

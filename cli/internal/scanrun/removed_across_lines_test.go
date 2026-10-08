@@ -85,7 +85,7 @@ func TestScanC1RemovedAPIAcrossSkippedLines(t *testing.T) {
 	result := mustScan(t, embeddedOnly(t), args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...)
 	report := result.Report
 	notPassLike(t, report)
-	if result.Exit != scanreport.ExitBlocked || report.Verdict != scanreport.VerdictBlocked || report.Headline != "BLOCKED: 1 problem must be fixed before this upgrade" {
+	if result.Exit != scanreport.ExitBlocked || report.Verdict != scanreport.VerdictBlocked || report.Headline != "BLOCKED: 1 problem must be fixed; 2 areas were not checked" {
 		t.Fatalf("exit %d verdict %s headline %q gaps %v", result.Exit, report.Verdict, report.Headline, gapReasons(report))
 	}
 	finding := findingFor(t, report, cronjobRuleID)
@@ -229,7 +229,7 @@ func TestScanRemovedAPIAcrossSkippedLinesFormats(t *testing.T) {
 		exit      int
 		headline  string
 	}{
-		{"blocked", embeddedOnly(t), scanreport.ExitBlocked, "BLOCKED: 1 problem must be fixed before this upgrade"},
+		{"blocked", embeddedOnly(t), scanreport.ExitBlocked, "BLOCKED: 1 problem must be fixed; 2 areas were not checked"},
 		{"unknown", hiddenRules{Knowledge: embeddedOnly(t), hidden: map[string]bool{cronjobRuleID: true}}, scanreport.ExitUnknown,
 			"UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (3 other areas were not checked)"},
 	}
@@ -279,7 +279,7 @@ func TestScanRemovedAPIAcrossSkippedLinesFormats(t *testing.T) {
 						t.Fatal(err)
 					}
 					results := log.Runs[0].Results
-					if run.exit == scanreport.ExitBlocked && (len(results) != 1 || results[0].Properties.CrossedLine == nil || results[0].Properties.CrossedLine.Line != "1.25") {
+					if run.exit == scanreport.ExitBlocked && (len(results) != 1+len(result.Report.Gaps) || results[0].Properties.CrossedLine == nil || results[0].Properties.CrossedLine.Line != "1.25") {
 						t.Fatalf("SARIF results %+v", results)
 					}
 				}
@@ -351,7 +351,7 @@ func TestScanServedVersionsAcrossSkippedLinesAreClean(t *testing.T) {
 	manifest := "apiVersion: batch/v1\nkind: CronJob\nmetadata:\n  name: nightly\n  namespace: demo\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\n  namespace: demo\n"
 	_, paths := files(t, map[string]string{"applyset.yaml": manifest})
 	result := mustScan(t, embeddedOnly(t), args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...)
-	if len(result.Report.Findings) != 0 || hasGap(result.Report, scanreport.ReasonAPIVersionNotServed, "") || strings.HasPrefix(result.Report.Headline, "UNKNOWN") {
+	if len(result.Report.Findings) != 0 || hasGap(result.Report, scanreport.ReasonAPIVersionNotServed, "") || strings.Contains(result.Report.Headline, "does not serve") {
 		t.Fatalf("headline %q findings %+v gaps %v", result.Report.Headline, result.Report.Findings, gapReasons(result.Report))
 	}
 }

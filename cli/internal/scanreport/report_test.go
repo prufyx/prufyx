@@ -191,7 +191,7 @@ func TestVerdict(t *testing.T) {
 	// A blocker still leads.
 	report.Findings = []Finding{{RuleID: "r", Component: "kubernetes", Hop: ref(1, "1.24.0", "1.25")}}
 	Finalize(&report)
-	if report.Verdict != VerdictBlocked || report.Headline != "BLOCKED: 1 problem must be fixed before this upgrade" {
+	if report.Verdict != VerdictBlocked || report.Headline != "BLOCKED: 1 problem must be fixed; 3 areas were not checked" {
 		t.Fatal(report.Headline)
 	}
 }

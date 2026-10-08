@@ -25,7 +25,7 @@
 | --- | --- | --- | --- |
 | `kubernetes.synthetic-notice.1-25-0-to-1-26-0` | <https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md> | 189-193 | `9f1af2971c32` |
 
-Checked 6 hops, 2 documents, 2 components (1 covered).
+Read 2 documents over 6 hops; 1 of 2 components have rules (partially evaluated).
 
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
 

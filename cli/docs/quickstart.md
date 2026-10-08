@@ -254,6 +254,7 @@ kubernetes native input review
 raw input digests: sha256:74b724b3dbe66cdea762575500e4fce48a5469b669668a7108280e026456a355
 prepared input digest: sha256:0590394cb84c8f90bf0a765b6bd580a14bb2d2e203ce8645da7adf40a0cec443
 UNKNOWN: kubernetes 1.21.0 -> 1.25.0 is not a reviewed transition; reviewed pairs: 1.21.0 -> 1.22.0, 1.23.17 -> 1.24.0, 1.24.0 -> 1.25.0, 1.25.0 -> 1.26.0, 1.26.0 -> 1.27.0, 1.28.0 -> 1.29.0, 1.31.0 -> 1.32.0; for a multi-minor upgrade, check each minor step; a step without a reviewed pair stays UNKNOWN
+20 rules about release boundaries (1.22.0, 1.25.0) this hop crosses are not reviewed for this hop
 scoped result: UNKNOWN
 aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
 ```
@@ -337,13 +338,8 @@ kubernetes 1.24.17 -> 1.25.3: 1 hop (no reviewed path policy)
                       fix: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 
 NOT CHECKED (2)
-<<<<<<< HEAD
-  kubernetes   no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the Kubernetes 1.25 API reference by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml
-  kubernetes 1.24.17 -> 1.25.3   no review confirms that the removed-API rules for kubernetes 1.25 name every API that line removes - check the kubernetes 1.25 release notes for other removed APIs by hand, or request a line review
-=======
   kubernetes   no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the API reference of that Kubernetes release by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml
-  kubernetes 1.24.17 -> 1.25.3   kubernetes 1.25 has not been reviewed for removed APIs - check the kubernetes 1.25 release notes for removed APIs by hand, or request coverage
->>>>>>> 29db857f (Match the quickstart and scan guide to the served-list gap wording)
+  kubernetes 1.24.17 -> 1.25.3   no review confirms that the removed-API rules for kubernetes 1.25 name every API that line removes - check the kubernetes 1.25 release notes for other removed APIs by hand, or request a line review
 
 Read 2 documents over 1 hop; 1 of 1 component has rules (partially evaluated). 6 checks passed (--show-passes).
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
