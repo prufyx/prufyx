@@ -593,7 +593,7 @@ func TestGateMechanicalAttestation(t *testing.T) {
 		ev["validUntil"] = shiftTime(t, ev["validUntil"], -24*time.Hour)
 	})
 	requireAdmittedButUnsplit(t, runGate(t, Options{Base: base, Head: head, Source: fixtureSource, Author: DefaultBotLogin}))
-	base, head = add(nil)
+	_, head = add(nil)
 
 	// --rederive-all re-derives it again on a scheduled run.
 	r = runGate(t, Options{Base: head, Head: head, Source: fixtureSource, RederiveAll: true})

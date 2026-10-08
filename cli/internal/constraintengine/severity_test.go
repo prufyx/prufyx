@@ -391,7 +391,8 @@ func TestSeverityProperty(t *testing.T) {
 			inputs = append(inputs, componentInput{Component: component, From: "1.0.0", To: pick("2.0.0", "2.0.0", "3.0.0"), Fact: fact})
 		}
 		if random.Intn(3) == 0 {
-			inputs = inputs[:1+random.Intn(1)]
+			random.Int31() // keeps the seeded stream identical to the former Intn(1) draw
+			inputs = inputs[:1]
 		}
 		baseRules, err := ParseRuleSet(ruleDocumentJSON(schemaOf(base), corpus, base...), registry)
 		if err != nil {
