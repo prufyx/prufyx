@@ -9,12 +9,15 @@ in the knowledge shipped today was reviewed by a person. Prufyx is built to
 accept other ways of establishing a rule as well, for example deriving it
 mechanically from upstream source with a program that is re-run and checked
 before the rule is accepted; each rule states which way it was established, and
-you can limit a `scan` to the ways you trust. Prufyx runs locally and offline,
-uploads nothing, and a model never decides a verdict on your machine. When the
+you can limit a `scan` to the ways you trust (by default `scan` uses every
+basis except `lead`; `--require-basis reviewed` keeps only rules a person
+reviewed). Prufyx evaluates locally and offline, uploads nothing, and a
+deterministic engine computes every verdict: no model runs on your machine. When the
 evidence does not decide the question, the answer is `UNKNOWN`, not a guess.
 
 > **Status: early alpha.** Build from source. There is no published release,
-> prebuilt binary, or official knowledge feed yet. Results are scoped findings,
+> prebuilt binary, or official knowledge feed yet (release workflows exist in
+> the repository but have not published anything). Results are scoped findings,
 > not a guarantee that a whole upgrade is safe.
 
 ## Quickstart
@@ -36,8 +39,10 @@ CI.
 
 The table is for `check`, where `PASS` is scoped to one rule. `scan` exit `0`
 means a complete scope. See [exit codes](cli/docs/exit-codes.md) for the single
-table of both, and for `check --strict-exit`, which makes a scoped `PASS` exit
-`14` so CI cannot read it as a complete pass.
+table of both. In CI use `check --strict-exit`: a scoped `PASS` then exits
+`14`, so a pipeline cannot read one passed rule as a complete pass (without the
+flag a scoped `PASS` exits `0` while the whole-upgrade aggregate is still
+`UNKNOWN`).
 
 | Verdict | Meaning | Exit code |
 | --- | --- | --- |
@@ -53,35 +58,60 @@ where the cited evidence states that range. Outside it, the result is
 ## What is covered
 
 The [generated support inventory](cli/docs/community-support-inventory.md)
-is the authoritative list. The numbers below were counted on 2026-10-04 from
-the knowledge built into this source tree (revision `cncf-2026-09-13.4`) and
-will drift as the knowledge changes. To recount the Kubernetes and CNCF rules:
+is the authoritative list of checks. A check covers exact reviewed versions;
+the numbers below separate how many rules exist from how much of the recent
+upgrade surface they decide.
 
-```sh
-jq '[.entries[] | select(.rule.evidence.state == "active")] | {rules: length, projects: (map(.project) | unique | length)}' \
-  cli/internal/cncfcheck/data/rules.json
-```
+## Coverage
 
-At that date it contains:
+<!-- coverage:begin -->
+Generated on 2026-10-08 by `scripts/readme-coverage.sh` (do not edit this block by hand).
 
-- **190 active CNCF source rules across 53 projects** (one further rule is
-  withdrawn and not used), including Kubernetes
-  API removals and changes for upgrades to 1.22, 1.24–1.27, 1.29 and 1.32.
-- **34 rules across 8 further projects:** Argo Workflows, Ceph,
-  Fluent Bit, Grafana, Grafana Loki, Kibana, MariaDB and MariaDB Operator.
-- **65 projects with at least one executable check**, plus named checks and
-  profiles for cert-manager, Prometheus, SPIFFE X.509-SVID, CloudEvents and
-  TiKV.
+| Executable rules | Count |
+| --- | --- |
+| CNCF source rules, active | 190 across 53 projects (1 withdrawn, not used) |
+| Rules for further, non-CNCF projects | 34 across 8 projects |
+| Projects with at least one executable check | 65 |
+| Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
+
+Version-coverage depth, measured over the last five minor upgrades of each of the 55 projects with a release-line snapshot (275 upgrades between consecutive release lines):
+
+| Status | Upgrades | Share |
+| --- | --- | --- |
+| Decided for the whole release-line pair (A attested, B bounded) | 0 | 0% |
+| Rule for one exact version pair only (S) | 44 | 16% |
+| Gap, no valid rule (G) | 231 | 84% |
+
+Kubernetes: 26 valid rules, but 0 fall in its window 1.32 to 1.37; 5 of 5 upgrades in that window are gaps.
+
+Decided means a valid rule or attestation covers every version of both release lines, so the answer is BLOCKED or UNKNOWN, never a whole-upgrade PASS. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
+<!-- coverage:end -->
+
+Update the block with `scripts/readme-coverage.sh` (`--check` fails when it is
+stale). The method and the full per-project table are in the
+[coverage report guide](cli/docs/coverage-report.md).
+
+In plain terms: the rules are exact, reviewed transitions, mostly for older
+releases. No upgrade between two release lines is decided as a whole yet, and
+Kubernetes has no rule for upgrades after 1.32. Reviewed Kubernetes API
+removals exist for upgrades to 1.22, 1.24-1.27, 1.29 and 1.32.
+
+Further projects with executable checks: Argo Workflows, Ceph, Fluent Bit,
+Grafana, Grafana Loki, Kibana, MariaDB and MariaDB Operator (community
+projects), and named checks and profiles for cert-manager, Prometheus, SPIFFE
+X.509-SVID, CloudEvents and TiKV.
 
 CNCF projects with rules include Argo CD, Cilium, containerd, Contour, CoreDNS,
-Cortex, CRI-O, Crossplane, Envoy, etcd, Falco, Flux, Harbor, Helm, Istio,
+Cortex, CRI-O (its one rule is withdrawn), Crossplane, Envoy, etcd, Falco, Flux, Harbor, Helm, Istio,
 Jaeger, Karmada, KEDA, Knative, KubeEdge, KubeVirt, Kyverno, Linkerd, Longhorn,
 MetalLB, OPA, OpenTelemetry, Prometheus, Rook, SPIRE, Strimzi, Tekton, Thanos,
 Velero and others.
 
-Every rule is time-limited. The rules shipped today stop being valid between
-2026-12-07 and 2026-12-22 unless their review is renewed; after that date a
-build without newer knowledge answers `UNKNOWN` for them.
+Every rule in the CNCF and community-project packs is time-limited. The rules
+shipped today stop being valid between 2026-12-07 and 2026-12-22 unless their
+review is renewed; after that date a build without newer knowledge answers
+`UNKNOWN` for them. The named cert-manager and Prometheus checks are pinned to
+fixed versions and do not expire.
 
 Run `prufyx catalog checks --project PROJECT` (for example `kubernetes`) to
 list a project's embedded rules and the exact command and input each one reads. The [community checks reference](cli/docs/community-checks.md)
@@ -107,37 +137,55 @@ ends in `BLOCKED` (exit `10`) or "not every area checked" (exit `11`). See the
 
 ## Recent changes
 
-The [changelog](CHANGELOG.md) is the full list. User-visible changes merged
-since the last counts above:
+The [changelog](CHANGELOG.md) is the full list. Merged and user-visible, by
+status:
 
-- **`check --strict-exit`:** a scoped `PASS` exits `14` instead of `0`, so CI
-  cannot read one passed rule as a complete pass. See
+**Implemented in the source tree**
+
+- **Coverage report** (maintainer command): measures how much of each
+  project's last five minor upgrades the rules decide. See
+  [coverage report](cli/docs/coverage-report.md).
+- **Release-boundary rules:** a rule whose range pins a removal or change
+  boundary no longer lets a hop that crosses that boundary pass; the result is
+  `UNKNOWN` (`RULE_RELEASE_BOUNDARY_NOT_REVIEWED`), and `catalog checks` lists
+  the `boundary-unreviewed` and `crossing` match modes.
+- **Image-based detection for `assess`** (reads a cluster, opt-in): a reviewed
+  registry maps container images to projects and reads a version only from a
+  tag that follows the declared scheme. Unlisted, digest-only, `latest` and
+  mirrored images give no version, so the component is indeterminate rather
+  than a mismatch.
+- **Knowledge store:** `check cncf` and `scan` use a verified database that
+  `prufyx db update` installed, and refuse an invalid or expired one;
+  `--knowledge=embedded` forces the built-in knowledge.
+- **`check --strict-exit`:** a scoped `PASS` exits `14` instead of `0`. See
   [exit codes](cli/docs/exit-codes.md).
-- **`scan` output is escaped.** Terminal escape sequences, carriage returns,
-  line breaks and bidirectional controls taken from the scanned input or from
-  knowledge are shown as visible `\xNN` or `\uXXXX` escapes in human and
-  Markdown output and in error messages, so a name or path cannot forge a
-  report line. JSON and SARIF carry the same characters as `\u` escapes.
-- **Per-kind migration hints:** the next action of each derived Kubernetes
-  API-removal rule names the removed kinds and the version to migrate to (for
-  example CronJob to `batch/v1`). See the
-  [extractor](cli/docs/extractors/k8s.served-api-removal.md).
-- **Helm subcharts:** `scan` leaves the answer `UNKNOWN` instead of `BLOCKED`
-  for a removed API in a subchart that may not be rendered (conditions, tags,
-  aliases and `test` hooks).
-- **`extract run --lease-days N`** (1-365, default 90) sets how long derived
-  rules stay valid; this is a maintainer command.
+- **`scan` output is escaped:** terminal escape sequences, line breaks and
+  bidirectional controls from the input or knowledge are shown as visible
+  escapes, so a name or path cannot forge a report line.
+- **Per-kind migration hints** with cited upstream passages for derived
+  Kubernetes API-removal rules.
+- **Helm subcharts:** `scan` answers `UNKNOWN` instead of `BLOCKED` for a
+  removed API in a subchart that may not be rendered.
+- **Hardening:** filesystem writes by maintainer tools and the collector do
+  not follow symlinks; the GitHub Action passes its token only to the
+  attestation check and requires an archive checksum to skip attestation;
+  tagged release builds are reproducible and carry their build identity. See
+  [releasing](cli/docs/releasing.md).
 
-Maintainer tooling also gained a gate class for replacing a reviewed rule with
-a rule re-derived from upstream source, and signed owner approvals for
-single records. Scan-side support for reviewed served-API lists is in the code,
-but no such list is shipped, so `scan` still cannot answer `PASS` as described
-above.
+**Internal, not yet shipped in knowledge:** support for reviewed served-API
+lists in `scan`. No such list is shipped, so `scan` still cannot answer `PASS`
+as described above.
+
+**Planned:** a published release with prebuilt binaries, an official signed
+knowledge feed, and automated GitOps release gates. None exists today.
 
 ## Privacy and offline operation
 
-- Checks read local files you select. They do not contact a cluster, registry,
-  or upstream project, and they do not execute supplied content.
+- `check` and `scan` read local files you select. They do not contact a
+  cluster, registry, or upstream project, and they do not execute supplied
+  content. `prufyx assess` is the only command that reads a cluster: read-only,
+  through kubectl, and only with an explicit kubeconfig, context and
+  `--acknowledge-kubeconfig-exec-risk`.
 - The `check` commands accept only private input files (owner-only, for
   example mode `0600`) and refuse anything group- or world-accessible. `scan`
   refuses files other users can write; by default it accepts files other users
