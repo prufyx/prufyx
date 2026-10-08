@@ -198,25 +198,39 @@ func (r *run) fetchBlobs(ctx context.Context, dest string, oids []string) {
 }
 
 // absent returns, in order, the ids that are not present in dest. It never
-// touches the network.
+// touches the network. One "cat-file --batch-check" answers for all of them;
+// a git that cannot answer that way for objects it lacks (it dies instead of
+// printing "missing" when lazy fetching is off) is asked one id at a time.
 func (r *run) absent(ctx context.Context, dest string, oids []string) ([]string, error) {
 	if len(oids) == 0 {
 		return nil, nil
 	}
 	out, err := r.offline().RunStdin(ctx, dest, []byte(strings.Join(oids, "\n")+"\n"), "cat-file", "--batch-check")
-	if err != nil {
-		return nil, err
-	}
-	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
-	if len(lines) != len(oids) {
-		return nil, fmt.Errorf("%w: cat-file answer", ErrInvalid)
+	if err == nil {
+		lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
+		if len(lines) == len(oids) {
+			var missing []string
+			ok := true
+			for i, l := range lines {
+				switch {
+				case strings.HasSuffix(l, " missing"):
+					missing = append(missing, oids[i])
+				case !strings.HasPrefix(l, oids[i]+" blob "):
+					ok = false
+				}
+			}
+			if ok {
+				return missing, nil
+			}
+		}
 	}
 	var missing []string
-	for i, l := range lines {
-		if strings.HasSuffix(l, " missing") {
-			missing = append(missing, oids[i])
-		} else if !strings.HasPrefix(l, oids[i]+" blob ") {
-			return nil, fmt.Errorf("%w: cat-file answer", ErrInvalid)
+	for _, oid := range oids {
+		if _, err := r.offline().Run(ctx, dest, "cat-file", "-e", oid); err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			missing = append(missing, oid)
 		}
 	}
 	return missing, nil
