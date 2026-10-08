@@ -185,5 +185,6 @@ prufyx-maintainer extract oracle --extractor k8s.served-api-removal --out OUT --
 (`{"removals": [{"line": "1.25", "group": "batch", "version": "v1beta1",
 "kinds": ["CronJob"]}]}`) and reports `MISSING`, `WITHHELD`, `KINDS`, `NOFACT`,
 `NORULE` and `EXTRA` differences. The output files, canonical encoding and
-code digest are those of every extractor (see `internal/extract`), plus
+code digest (which also covers any reviewed `*.json` data file a source set
+embeds) are those of every extractor (see `internal/extract`), plus
 `attestations.json`.

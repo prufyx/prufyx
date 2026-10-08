@@ -99,7 +99,8 @@ verdict it must give; all are evaluated through the engine before writing),
 from the pinned bytes with the recorded `derivedAt` and fails unless every
 output file is byte-identical. The code digest is sha256 over the sorted
 lines `<dir>/<file> NUL <sha256> LF` of the non-test Go files of
-`internal/extract` and `internal/extract/k8sfeaturegates`; the manifest lists
+`internal/extract` and `internal/extract/k8sfeaturegates`, plus any reviewed
+`*.json` data file a source set embeds next to its code; the manifest lists
 them.
 
 The mirror must hold the blobs of the walked files at every tag; a blob that
