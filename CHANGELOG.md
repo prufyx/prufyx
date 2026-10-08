@@ -103,6 +103,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- `k8s.served-api-removal` 1.3.0: every reviewed migration hint now cites the
+  passage of the upstream deprecation guide (kubernetes/website at a pinned
+  revision, with start and end line) that supports it, and a test checks each
+  citation against a pinned copy of the guide. The six kinds removed after that
+  guide keep the generic text and carry no citation. Rule ids, constraints and
+  ranges do not change; the guide's v1beta3 alternative for flow control v1beta1
+  is cited as a second passage. See
+  [the extractor](cli/docs/extractors/k8s.served-api-removal.md).
 - `constraintengine.ConstraintKey` is now the one exported constraint-key function; `extract supersede` and the gate call it instead of keeping their own copies.
 - `k8s.served-api-removal` 1.2.0: the next action of each derived API-removal rule
   names the removed kinds and the exact version to migrate to (for example

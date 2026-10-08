@@ -33,7 +33,7 @@ import (
 // Identity.
 const (
 	ID      = "k8s.served-api-removal"
-	Version = "1.2.0"
+	Version = "1.3.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/k8sservedapis"
 )

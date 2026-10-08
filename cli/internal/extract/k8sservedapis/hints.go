@@ -8,7 +8,9 @@ import (
 )
 
 // hint is the reviewed migration guidance for one removed (group, version,
-// kind). The table is hand-reviewed against the upstream deprecation guide
+// kind). Every entry whose removal the guide covers carries a citation (a
+// line range of the guide at a pinned revision), checked by a test. The table
+// is hand-reviewed against the upstream deprecation guide
 // (the revision the earlier reviewed rules cite) and the next-action texts of
 // those reviewed rules. The extractor reads no guide at run time: the text is
 // a pure function of the removed group, version and kinds, so it is
@@ -30,7 +32,68 @@ type hint struct {
 	Label string
 	// NoReplacement marks a kind with no served replacement API.
 	NoReplacement bool
+	// Cite is the passage of the upstream deprecation guide that supports the
+	// entry: the removal statement, the target API and the note. The zero
+	// value is allowed only for the kinds removed after the guide's revision
+	// (see uncitedHints in the test); those keep the generic text.
+	Cite citation
+	// Cite2 is a second passage, set only when the entry names a target the
+	// first one does not (the flow control v1beta3 alternative of v1beta1).
+	Cite2 citation
 }
+
+// The upstream guide every citation points into. The citation is data only:
+// the extractor reads no guide at run time. TestHintCitations checks each one
+// mechanically against the pinned copy in testdata.
+const (
+	guideURL      = "https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md"
+	guideRevision = "9f1af2971c32124bff0a1f42255ba5a2f3c8a16f"
+)
+
+// citation is an inclusive 1-based line range of the guide. Keys are
+// "|"-separated words that must all occur in the range (the note keywords, or
+// for a second passage the target it supports).
+type citation struct {
+	URL       string
+	Revision  string
+	StartLine int
+	EndLine   int
+	Keys      string
+}
+
+func cite(start, end int, keys string) citation {
+	return citation{URL: guideURL, Revision: guideRevision, StartLine: start, EndLine: end, Keys: keys}
+}
+
+// One citation per section of the guide (shared by the kinds the section
+// covers).
+var (
+	flowV1beta3Cite    = cite(29, 31, "")
+	flowV1beta2Cite    = cite(42, 47, "assuredConcurrencyShares|nominalConcurrencyShares")
+	csiCapacityCite    = cite(55, 59, "")
+	flowV1beta1Cite    = cite(69, 71, "")
+	flowV1beta3AltCite = cite(42, 44, "flowcontrol.apiserver.k8s.io/v1beta3")
+	hpaV2beta2Cite     = cite(75, 82, "target.averageUtilization")
+	cronJobCite        = cite(87, 91, "")
+	endpointSliceCite  = cite(95, 103, "nodeName|zone|topology")
+	eventCite          = cite(106, 114, "involvedObject|regarding")
+	hpaV2beta1Cite     = cite(128, 135, "target.averageUtilization")
+	pdbCite            = cite(137, 145, "spec.selector|selects all")
+	pspCite            = cite(148, 155, "no longer served|Pod Security Admission|3rd party admission webhook")
+	runtimeClassCite   = cite(158, 162, "")
+	webhookCite        = cite(170, 178, "failurePolicy|Fail")
+	crdCite            = cite(187, 202, "spec.versions[*].schema|required")
+	apiServiceCite     = cite(208, 212, "")
+	tokenReviewCite    = cite(216, 220, "")
+	accessReviewCite   = cite(223, 230, "spec.group|spec.groups")
+	csrCite            = cite(232, 240, "spec.signerName|required")
+	leaseCite          = cite(249, 253, "")
+	ingressCite        = cite(257, 269, "pathType|required")
+	ingressClassCite   = cite(271, 275, "")
+	rbacCite           = cite(279, 284, "")
+	priorityClassCite  = cite(288, 292, "")
+	storageCite        = cite(296, 304, "")
+)
 
 // maxNextAction is the limit of a rule's next action (rulecheck).
 const maxNextAction = 256
@@ -59,51 +122,53 @@ const (
 
 var hints = map[string]hint{
 	// 1.22 removals (deprecation guide v1.22).
-	"admissionregistration.k8s.io/v1beta1/MutatingWebhookConfiguration":   {Target: "admissionregistration.k8s.io/v1", Note: webhookNote},
-	"admissionregistration.k8s.io/v1beta1/ValidatingWebhookConfiguration": {Target: "admissionregistration.k8s.io/v1", Note: webhookNote},
-	"apiextensions.k8s.io/v1beta1/CustomResourceDefinition":               {Target: "apiextensions.k8s.io/v1", Note: "spec.versions[*].schema is required."},
-	"apiregistration.k8s.io/v1beta1/APIService":                           {Target: "apiregistration.k8s.io/v1"},
-	"authentication.k8s.io/v1beta1/TokenReview":                           {Target: "authentication.k8s.io/v1"},
-	"authorization.k8s.io/v1beta1/LocalSubjectAccessReview":               {Target: "authorization.k8s.io/v1", Note: reviewNote, Label: "SubjectAccessReview resources"},
-	"authorization.k8s.io/v1beta1/SelfSubjectAccessReview":                {Target: "authorization.k8s.io/v1", Note: reviewNote, Label: "SubjectAccessReview resources"},
-	"authorization.k8s.io/v1beta1/SelfSubjectRulesReview":                 {Target: "authorization.k8s.io/v1", Note: reviewNote, Label: "SubjectAccessReview resources"},
-	"authorization.k8s.io/v1beta1/SubjectAccessReview":                    {Target: "authorization.k8s.io/v1", Note: reviewNote, Label: "SubjectAccessReview resources"},
-	"certificates.k8s.io/v1beta1/CertificateSigningRequest":               {Target: "certificates.k8s.io/v1", Note: "spec.signerName is required."},
-	"coordination.k8s.io/v1beta1/Lease":                                   {Target: "coordination.k8s.io/v1"},
-	"extensions/v1beta1/Ingress":                                          {Target: "networking.k8s.io/v1", Note: ingressNote},
-	"networking.k8s.io/v1beta1/Ingress":                                   {Target: "networking.k8s.io/v1", Note: ingressNote},
-	"networking.k8s.io/v1beta1/IngressClass":                              {Target: "networking.k8s.io/v1"},
-	"rbac.authorization.k8s.io/v1beta1/ClusterRole":                       {Target: "rbac.authorization.k8s.io/v1"},
-	"rbac.authorization.k8s.io/v1beta1/ClusterRoleBinding":                {Target: "rbac.authorization.k8s.io/v1"},
-	"rbac.authorization.k8s.io/v1beta1/Role":                              {Target: "rbac.authorization.k8s.io/v1"},
-	"rbac.authorization.k8s.io/v1beta1/RoleBinding":                       {Target: "rbac.authorization.k8s.io/v1"},
-	"scheduling.k8s.io/v1beta1/PriorityClass":                             {Target: "scheduling.k8s.io/v1"},
-	"storage.k8s.io/v1beta1/CSIDriver":                                    {Target: "storage.k8s.io/v1"},
-	"storage.k8s.io/v1beta1/CSINode":                                      {Target: "storage.k8s.io/v1"},
-	"storage.k8s.io/v1beta1/StorageClass":                                 {Target: "storage.k8s.io/v1"},
-	"storage.k8s.io/v1beta1/VolumeAttachment":                             {Target: "storage.k8s.io/v1"},
+	"admissionregistration.k8s.io/v1beta1/MutatingWebhookConfiguration":   {Target: "admissionregistration.k8s.io/v1", Note: webhookNote, Cite: webhookCite},
+	"admissionregistration.k8s.io/v1beta1/ValidatingWebhookConfiguration": {Target: "admissionregistration.k8s.io/v1", Note: webhookNote, Cite: webhookCite},
+	"apiextensions.k8s.io/v1beta1/CustomResourceDefinition":               {Target: "apiextensions.k8s.io/v1", Note: "spec.versions[*].schema is required.", Cite: crdCite},
+	"apiregistration.k8s.io/v1beta1/APIService":                           {Target: "apiregistration.k8s.io/v1", Cite: apiServiceCite},
+	"authentication.k8s.io/v1beta1/TokenReview":                           {Target: "authentication.k8s.io/v1", Cite: tokenReviewCite},
+	"authorization.k8s.io/v1beta1/LocalSubjectAccessReview":               {Target: "authorization.k8s.io/v1", Note: reviewNote, Label: "SubjectAccessReview resources", Cite: accessReviewCite},
+	"authorization.k8s.io/v1beta1/SelfSubjectAccessReview":                {Target: "authorization.k8s.io/v1", Note: reviewNote, Label: "SubjectAccessReview resources", Cite: accessReviewCite},
+	"authorization.k8s.io/v1beta1/SelfSubjectRulesReview":                 {Target: "authorization.k8s.io/v1", Note: reviewNote, Label: "SubjectAccessReview resources", Cite: accessReviewCite},
+	"authorization.k8s.io/v1beta1/SubjectAccessReview":                    {Target: "authorization.k8s.io/v1", Note: reviewNote, Label: "SubjectAccessReview resources", Cite: accessReviewCite},
+	"certificates.k8s.io/v1beta1/CertificateSigningRequest":               {Target: "certificates.k8s.io/v1", Note: "spec.signerName is required.", Cite: csrCite},
+	"coordination.k8s.io/v1beta1/Lease":                                   {Target: "coordination.k8s.io/v1", Cite: leaseCite},
+	"extensions/v1beta1/Ingress":                                          {Target: "networking.k8s.io/v1", Note: ingressNote, Cite: ingressCite},
+	"networking.k8s.io/v1beta1/Ingress":                                   {Target: "networking.k8s.io/v1", Note: ingressNote, Cite: ingressCite},
+	"networking.k8s.io/v1beta1/IngressClass":                              {Target: "networking.k8s.io/v1", Cite: ingressClassCite},
+	"rbac.authorization.k8s.io/v1beta1/ClusterRole":                       {Target: "rbac.authorization.k8s.io/v1", Cite: rbacCite},
+	"rbac.authorization.k8s.io/v1beta1/ClusterRoleBinding":                {Target: "rbac.authorization.k8s.io/v1", Cite: rbacCite},
+	"rbac.authorization.k8s.io/v1beta1/Role":                              {Target: "rbac.authorization.k8s.io/v1", Cite: rbacCite},
+	"rbac.authorization.k8s.io/v1beta1/RoleBinding":                       {Target: "rbac.authorization.k8s.io/v1", Cite: rbacCite},
+	"scheduling.k8s.io/v1beta1/PriorityClass":                             {Target: "scheduling.k8s.io/v1", Cite: priorityClassCite},
+	"storage.k8s.io/v1beta1/CSIDriver":                                    {Target: "storage.k8s.io/v1", Cite: storageCite},
+	"storage.k8s.io/v1beta1/CSINode":                                      {Target: "storage.k8s.io/v1", Cite: storageCite},
+	"storage.k8s.io/v1beta1/StorageClass":                                 {Target: "storage.k8s.io/v1", Cite: storageCite},
+	"storage.k8s.io/v1beta1/VolumeAttachment":                             {Target: "storage.k8s.io/v1", Cite: storageCite},
 
 	// 1.25 removals (guide v1.25).
-	"batch/v1beta1/CronJob":                       {Target: "batch/v1"},
-	"discovery.k8s.io/v1beta1/EndpointSlice":      {Target: "discovery.k8s.io/v1", Note: "Use nodeName and zone, not topology."},
-	"events.k8s.io/v1beta1/Event":                 {Target: "events.k8s.io/v1", Note: "involvedObject is now regarding."},
-	"autoscaling/v2beta1/HorizontalPodAutoscaler": {Target: "autoscaling/v2", Note: hpaNote},
-	"policy/v1beta1/PodDisruptionBudget":          {Target: "policy/v1", Note: "An empty selector now selects all pods."},
-	"policy/v1beta1/PodSecurityPolicy":            {NoReplacement: true},
-	"node.k8s.io/v1beta1/RuntimeClass":            {Target: "node.k8s.io/v1"},
+	"batch/v1beta1/CronJob":                       {Target: "batch/v1", Cite: cronJobCite},
+	"discovery.k8s.io/v1beta1/EndpointSlice":      {Target: "discovery.k8s.io/v1", Note: "Use nodeName and zone, not topology.", Cite: endpointSliceCite},
+	"events.k8s.io/v1beta1/Event":                 {Target: "events.k8s.io/v1", Note: "involvedObject is now regarding.", Cite: eventCite},
+	"autoscaling/v2beta1/HorizontalPodAutoscaler": {Target: "autoscaling/v2", Note: hpaNote, Cite: hpaV2beta1Cite},
+	"policy/v1beta1/PodDisruptionBudget":          {Target: "policy/v1", Note: "An empty selector now selects all pods.", Cite: pdbCite},
+	"policy/v1beta1/PodSecurityPolicy":            {NoReplacement: true, Cite: pspCite},
+	"node.k8s.io/v1beta1/RuntimeClass":            {Target: "node.k8s.io/v1", Cite: runtimeClassCite},
 
 	// 1.26, 1.27, 1.29 and 1.32 removals (guides v1.26, v1.27, v1.29, v1.32).
-	"flowcontrol.apiserver.k8s.io/v1beta1/FlowSchema":                 {Target: "flowcontrol.apiserver.k8s.io/v1beta2", Alternative: "flowcontrol.apiserver.k8s.io/v1beta3"},
-	"flowcontrol.apiserver.k8s.io/v1beta1/PriorityLevelConfiguration": {Target: "flowcontrol.apiserver.k8s.io/v1beta2", Alternative: "flowcontrol.apiserver.k8s.io/v1beta3"},
-	"autoscaling/v2beta2/HorizontalPodAutoscaler":                     {Target: "autoscaling/v2", Note: hpaNote},
-	"storage.k8s.io/v1beta1/CSIStorageCapacity":                       {Target: "storage.k8s.io/v1"},
-	"flowcontrol.apiserver.k8s.io/v1beta2/FlowSchema":                 {Target: "flowcontrol.apiserver.k8s.io/v1", Alternative: "flowcontrol.apiserver.k8s.io/v1beta3", Note: flowNote},
-	"flowcontrol.apiserver.k8s.io/v1beta2/PriorityLevelConfiguration": {Target: "flowcontrol.apiserver.k8s.io/v1", Alternative: "flowcontrol.apiserver.k8s.io/v1beta3", Note: flowNote},
-	"flowcontrol.apiserver.k8s.io/v1beta3/FlowSchema":                 {Target: "flowcontrol.apiserver.k8s.io/v1"},
-	"flowcontrol.apiserver.k8s.io/v1beta3/PriorityLevelConfiguration": {Target: "flowcontrol.apiserver.k8s.io/v1"},
+	"flowcontrol.apiserver.k8s.io/v1beta1/FlowSchema":                 {Target: "flowcontrol.apiserver.k8s.io/v1beta2", Alternative: "flowcontrol.apiserver.k8s.io/v1beta3", Cite: flowV1beta1Cite, Cite2: flowV1beta3AltCite},
+	"flowcontrol.apiserver.k8s.io/v1beta1/PriorityLevelConfiguration": {Target: "flowcontrol.apiserver.k8s.io/v1beta2", Alternative: "flowcontrol.apiserver.k8s.io/v1beta3", Cite: flowV1beta1Cite, Cite2: flowV1beta3AltCite},
+	"autoscaling/v2beta2/HorizontalPodAutoscaler":                     {Target: "autoscaling/v2", Note: hpaNote, Cite: hpaV2beta2Cite},
+	"storage.k8s.io/v1beta1/CSIStorageCapacity":                       {Target: "storage.k8s.io/v1", Cite: csiCapacityCite},
+	"flowcontrol.apiserver.k8s.io/v1beta2/FlowSchema":                 {Target: "flowcontrol.apiserver.k8s.io/v1", Alternative: "flowcontrol.apiserver.k8s.io/v1beta3", Note: flowNote, Cite: flowV1beta2Cite},
+	"flowcontrol.apiserver.k8s.io/v1beta2/PriorityLevelConfiguration": {Target: "flowcontrol.apiserver.k8s.io/v1", Alternative: "flowcontrol.apiserver.k8s.io/v1beta3", Note: flowNote, Cite: flowV1beta2Cite},
+	"flowcontrol.apiserver.k8s.io/v1beta3/FlowSchema":                 {Target: "flowcontrol.apiserver.k8s.io/v1", Cite: flowV1beta3Cite},
+	"flowcontrol.apiserver.k8s.io/v1beta3/PriorityLevelConfiguration": {Target: "flowcontrol.apiserver.k8s.io/v1", Cite: flowV1beta3Cite},
 
 	// Removals later than the reviewed guide (1.33, 1.34, 1.37): the stable
-	// version of the same group.
+	// version of the same group. The guide at the pinned revision does not
+	// mention these kinds, so they carry no citation and keep the generic
+	// reviewed text.
 	"authentication.k8s.io/v1beta1/SelfSubjectReview":                       {Target: "authentication.k8s.io/v1"},
 	"admissionregistration.k8s.io/v1beta1/ValidatingAdmissionPolicy":        {Target: "admissionregistration.k8s.io/v1"},
 	"admissionregistration.k8s.io/v1beta1/ValidatingAdmissionPolicyBinding": {Target: "admissionregistration.k8s.io/v1"},
