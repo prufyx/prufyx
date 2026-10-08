@@ -208,15 +208,21 @@ func TestScanStoreMatchesEmbedded(t *testing.T) {
 		exit     int
 	}
 	// The pack's own single basis: the Kubernetes removal rules are reviewed
-	// today and mechanical once the served-API supersede is on main.
+	// today and mechanical once the served-API supersede is on main. The line
+	// attestations stay reviewed, so a mechanical-only path cannot be decided
+	// (UNKNOWN) while a reviewed-only one is (BLOCKED).
 	ownBasis, _ := kubernetesRuleBases()
+	ownBasisExit := scanreport.ExitBlocked
+	if supersedeids.Superseded() {
+		ownBasisExit = scanreport.ExitUnknown
+	}
 	scenarios := []scenario{
 		{"one line, no reviews", knowledgeOptions{}, cronjobV1beta1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3"}, scanreport.ExitBlocked},
 		{"reviewed path, blocked", knowledgeOptions{lines: allLines, policy: "current"}, cronjobV1beta1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4"}, scanreport.ExitBlocked},
 		{"reviewed path, pass", knowledgeOptions{lines: allLines, policy: "current"}, cronjobV1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4"}, scanreport.ExitPass},
 		{"one line unreviewed", knowledgeOptions{lines: without(allLines, "1.28"), policy: "current"}, cronjobV1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4"}, scanreport.ExitUnknown},
 		{"require mechanical", knowledgeOptions{lines: allLines, policy: "current"}, cronjobV1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", "mechanical"}, scanreport.ExitUnknown},
-		{"require the pack's own basis only", knowledgeOptions{lines: allLines, policy: "current"}, cronjobV1beta1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", ownBasis}, scanreport.ExitBlocked},
+		{"require the pack's own basis only", knowledgeOptions{lines: allLines, policy: "current"}, cronjobV1beta1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", ownBasis}, ownBasisExit},
 		{"require reviewed and mechanical", knowledgeOptions{lines: allLines, policy: "current"}, cronjobV1beta1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", "reviewed,mechanical"}, scanreport.ExitBlocked},
 		{"other component", knowledgeOptions{}, cronjobV1beta1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--to", "etcd=3.5.0"}, scanreport.ExitBlocked},
 	}
