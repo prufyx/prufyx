@@ -756,6 +756,7 @@ func TestClassifyDowngradeAcrossBoundary(t *testing.T) {
 // BOUNDARY-1 on the shipped pack: a cluster at 1.20.x assessed with --to
 // 1.22.x must not report the 13 removals of 1.22 as not applicable.
 func TestShippedPackBoundaryOriginIsNotHidden(t *testing.T) {
+	now := time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC)
 	discovered, err := checkroutemetadata.Discover("kubernetes", "", "")
 	if err != nil {
 		t.Fatal(err)
@@ -767,14 +768,14 @@ func TestShippedPackBoundaryOriginIsNotHidden(t *testing.T) {
 		}
 		removals++
 		bundle := kubernetesObservedBundle("1.20.15")
-		hop := classify(route, bundle, false, "1.22.3")
+		hop := classify(route, bundle, false, "1.22.3", now)
 		if hop.Applicability != IndeterminateHopOutsideReviewedRange || hop.MatchMode != "boundary-unreviewed" {
 			t.Errorf("%s 1.20.15 -> 1.22.3: %q/%q", route.RuleID, hop.Applicability, hop.MatchMode)
 		}
-		if open := classify(route, bundle, false, ""); open.Applicability != ApplicableNeedsDeclaration {
+		if open := classify(route, bundle, false, "", now); open.Applicability != ApplicableNeedsDeclaration {
 			t.Errorf("%s 1.20.15, no --to: %q", route.RuleID, open.Applicability)
 		}
-		if short := classify(route, bundle, false, "1.21.9"); short.Applicability != NotApplicableVersionMismatch {
+		if short := classify(route, bundle, false, "1.21.9", now); short.Applicability != NotApplicableVersionMismatch {
 			t.Errorf("%s 1.20.15 -> 1.21.9: %q", route.RuleID, short.Applicability)
 		}
 	}
