@@ -19,6 +19,9 @@ import (
 // who wants the answer first: the claims that decide something, then one
 // aggregate, then the sources once. JSON output is never produced here.
 
+// An unreviewed transition is one the rules do not cover: either a pair
+// outside every reviewed subject, or a hop that crosses a ranged rule's
+// release boundary outside its range. Quiet output collapses both.
 const reasonTransitionNotReviewed = "RULE_TRANSITION_NOT_REVIEWED"
 
 // maxReviewedPairsShown bounds the reviewed-pairs list in one line.
@@ -45,7 +48,7 @@ func summarizeClaims(claims []constraintengine.Claim, showPasses bool) claimSumm
 		}
 		verdicts++
 		switch {
-		case claim.Status == "UNKNOWN" && claim.ReasonCode == reasonTransitionNotReviewed:
+		case claim.Status == "UNKNOWN" && (claim.ReasonCode == reasonTransitionNotReviewed || claim.ReasonCode == constraintengine.ReasonReleaseBoundaryNotReviewed):
 			summary.unreviewed++
 		case claim.Status == "PASS" && !showPasses:
 			summary.passes++

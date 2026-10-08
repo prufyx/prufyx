@@ -44,12 +44,17 @@ func TestQuietHumanUnreviewedTransitionsPrintAtMostSixLines(t *testing.T) {
 				t.Errorf("%v: missing %q in\n%s", pair, want, human)
 			}
 		}
-		if strings.Contains(human, RuleTransitionNotReviewedText) {
+		if strings.Contains(human, RuleTransitionNotReviewedText) || strings.Contains(human, "(RULE_RELEASE_BOUNDARY_NOT_REVIEWED)") {
 			t.Errorf("per-rule lines were not collapsed:\n%s", human)
 		}
 		jsonCode, jsonOut, _ := runCNCFCLI(t, quietArgs(path, pair[0], pair[1], "--format", "json")...)
-		if jsonCode != code || strings.Count(jsonOut, "RULE_TRANSITION_NOT_REVIEWED") < 20 {
+		if jsonCode != code || strings.Count(jsonOut, "RULE_TRANSITION_NOT_REVIEWED")+strings.Count(jsonOut, "RULE_RELEASE_BOUNDARY_NOT_REVIEWED") < 20 {
 			t.Errorf("%v: JSON must still carry every claim (code %d)", pair, jsonCode)
+		}
+		// 1.21.0 -> 1.25.0 crosses the 1.22.0 removals outside their ranges:
+		// the JSON carries them as boundary-unreviewed, never as excluded.
+		if pair[0] == "1.21.0" && !strings.Contains(jsonOut, "RULE_RELEASE_BOUNDARY_NOT_REVIEWED") {
+			t.Errorf("%v: JSON lacks the release-boundary claims", pair)
 		}
 	}
 }
