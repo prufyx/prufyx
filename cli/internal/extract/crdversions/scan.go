@@ -278,7 +278,7 @@ type blobInfo struct {
 	decoded bool
 	// kindLike: the bytes hold the kind as the value of a kind key.
 	kindLike bool
-	crds    []CRD
+	crds     []CRD
 	// kinds counts the mappings whose kind is CustomResourceDefinition,
 	// at any depth; embedded is set when a string value holds a manifest
 	// line naming the kind.
