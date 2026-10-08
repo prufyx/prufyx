@@ -32,6 +32,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Kubernetes knowledge for the minor lines 1.33 to 1.36: four reviewed kubelet
+  version-skew rules (kubelet at most three minor versions older than the
+  target control plane, never newer) over the new declaration
+  `declarations.minimumKubeletVersion` of the component-configuration
+  selection. See [kubernetes-component-config.md](cli/docs/kubernetes-component-config.md).
 - `prufyx-maintainer knowledge-publish release`: one offline, deterministic step
   that builds a signed knowledge-database release (TUF targets, snapshot and
   timestamp, package and release plan) from the reviewed embedded knowledge,

@@ -37,7 +37,7 @@ func TestDiscoverCompleteEmbeddedIdentityCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Schema != Schema || len(result.Checks) != 225 {
+	if result.Schema != Schema || len(result.Checks) != 229 {
 		t.Fatalf("catalog schema/count = %q/%d", result.Schema, len(result.Checks))
 	}
 	if result.Scope.SourceEvidenceFreshness != "NOT_EVALUATED" {

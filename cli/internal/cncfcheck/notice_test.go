@@ -58,7 +58,7 @@ func TestPackNoticeLevel(t *testing.T) {
 	}
 	// The project's whole rule set now evaluates under the notice contract,
 	// and the notice claim is NOTICE.
-	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC)
 	inputRaw := noticeInput()
 	input, err := constraintengine.ParseInput(inputRaw, b.registry)
 	if err != nil {
@@ -80,7 +80,7 @@ func TestPackNoticeLevel(t *testing.T) {
 			notices = append(notices, claim)
 		}
 	}
-	if len(notices) != 1 || notices[0].Status != constraintengine.StatusNotice || len(report.Check.Claims) != 27 || report.Check.EngineContractDigest != constraintengine.EngineContractDigestNotice() || ClaimExit(report) != 11 {
+	if len(notices) != 1 || notices[0].Status != constraintengine.StatusNotice || len(report.Check.Claims) != 31 || report.Check.EngineContractDigest != constraintengine.EngineContractDigestNotice() || ClaimExit(report) != 11 {
 		t.Fatalf("claims=%+v exit=%d", report.Check.Claims, ClaimExit(report))
 	}
 	if _, err := MarshalReport(report); err != nil {
@@ -103,7 +103,7 @@ func TestClaimExitNotice(t *testing.T) {
 	notice := syntheticNoticeRule("kubernetes.synthetic-c-notice", reviewed, until)
 	staleNotice := syntheticNoticeRule("kubernetes.synthetic-d-notice-stale", "2026-06-01T00:00:00Z", "2026-08-30T00:00:00Z")
 	notApplicable := strings.Replace(syntheticNoticeRule("kubernetes.synthetic-e-notice-other", reviewed, until), `"to":"1.37.0"`, `"to":"1.38.0"`, 1)
-	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC)
 	inputRaw := noticeInput()
 	input, err := constraintengine.ParseInput(inputRaw, b.registry)
 	if err != nil {
@@ -172,7 +172,7 @@ func TestNoticeNeverChangesRuleSelection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC)
 	inputRaw := noticeInput()
 	evaluate := func(b bundle, familySelector bool) Report {
 		t.Helper()
@@ -206,8 +206,8 @@ func TestNoticeNeverChangesRuleSelection(t *testing.T) {
 				t.Fatalf("family=%v: claim %+v", familySelector, claim)
 			}
 		}
-		if !familySelector && len(verdicts) != 26 {
-			t.Fatalf("generic selection holds %d verdict claims, want the 26 Kubernetes rules", len(verdicts))
+		if !familySelector && len(verdicts) != 30 {
+			t.Fatalf("generic selection holds %d verdict claims, want the 30 Kubernetes rules", len(verdicts))
 		}
 		if len(with.Check.Claims) == len(verdicts) || ClaimExit(with) != ClaimExit(without) {
 			t.Fatalf("family=%v: notices=%d exit %d vs %d", familySelector, len(with.Check.Claims)-len(verdicts), ClaimExit(with), ClaimExit(without))

@@ -34,7 +34,7 @@ Evidence: every finding cites pinned upstream source (--verbose). No network use
 ```
 evaluated at: 2026-10-04T00:00:00Z
 input: sha256:b98fcd349edbc6da86b0c9d4b792af158ac5c7558db0015339077cc23daec186
-knowledge: embedded cncf-2026-09-13.4 sha256:4d2718043fbc41bb0f99ce8a69ea9ef253c52249bb88254b969d1ebdab46e5c5
+knowledge: embedded cncf-2026-09-13.4 sha256:b8bca5facdc3081165459bc726fe269e1321abb4690dbe0be090bc313850d548
 engine contract: sha256:2cc7bb0052068bd2668d1c4419782bacd6fcbf34e73f9bf9cf08206cd1363fa6
 build: development
 network used: no

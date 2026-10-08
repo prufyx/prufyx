@@ -37,6 +37,7 @@ kind: ComponentConfigSelection
 complete: [kube-apiserver, kube-controller-manager, kube-scheduler, kubelet, kube-proxy, kubeadm, static-pods, workloads]
 declarations:
   linuxNodeCgroupV1: false   # optional: does any Linux node use cgroup v1?
+  # minimumKubeletVersion: "1.33.2"  # optional: lowest kubelet version of any node, x.y.z
   # kubeletNoConfigFile: true  # optional: no kubelet uses --config
   # kubeletNoConfigDir: true   # optional: no kubelet uses --config-dir
 sources:
@@ -155,6 +156,14 @@ A missing source is never read as absence. In particular:
   the result unknown, because the selection does not map kubelet settings to
   the nodes that run the pods.
 - The cgroup v1 predicate (1.35) needs `declarations.linuxNodeCgroupV1`.
+- The version-skew predicate needs `declarations.minimumKubeletVersion`, the
+  lowest kubelet version of any node, written `x.y.z` (strip any distribution
+  build suffix). It applies to every one-minor control plane upgrade and is
+  true when that kubelet is more than three minor versions older than `--to`
+  (two below 1.25), or newer than it, as the upstream version-skew policy
+  allows. Without the declaration the fact is not emitted and the rule stays
+  `UNKNOWN`. It does not cover mixed-version control planes, kube-proxy or
+  kubectl.
   `false` passes. `true` blocks when a kubelet source sets `failCgroupV1` (or
   `--fail-cgroupv1`) to true, or when the kubelet scope is complete and no
   source overrides it; it passes when every occurrence sets it to `false` and

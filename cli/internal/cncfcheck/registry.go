@@ -123,6 +123,7 @@ func packagedDefinitions() []constraintengine.FactDefinition {
 		{ID: "component.kubernetes.validatingadmissionpolicy_v1beta1_removed_gvk_present", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.kubernetes.ipaddress_servicecidr_v1beta1_removed_gvk_present", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.kubernetes.volumeattributesclass_v1beta1_removed_gvk_present", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactBool, EnumTokens: nil},
+		{ID: "component.kubernetes.kubelet_version_skew_unsupported_for_target", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.kubeedge.distribution", Component: "pkg:github/kubeedge/kubeedge", Type: constraintengine.FactEnum, EnumTokens: []string{"custom_build", "official_upstream"}},
 		{ID: "component.kubeedge.effective_argv_complete", Component: "pkg:github/kubeedge/kubeedge", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.kubeedge.execution_surface", Component: "pkg:github/kubeedge/kubeedge", Type: constraintengine.FactEnum, EnumTokens: []string{"keadm_init", "other"}},
