@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -52,7 +53,31 @@ type GitHubStats struct {
 	RawFetches, RawBytes int64
 	// RawCacheHits counts file reads answered from the per-run blob cache.
 	RawCacheHits int64
+	// APIRequests are the HTTP requests actually sent to api.github.com
+	// (retries after a server error count; each one costs rate limit).
+	// It is the number the budget is checked against.
+	APIRequests int64
+	// DiskTreeHits and DiskBlobHits are objects answered from the on-disk
+	// cache (CacheDir) instead of the network.
+	DiskTreeHits, DiskBlobHits int64
+	// RateLimitRemaining is the last X-RateLimit-Remaining GitHub
+	// reported, or -1 when none was seen.
+	RateLimitRemaining int64
+	// BudgetExhausted reports that a request was refused (or GitHub
+	// refused it) because the REST budget ran out; Reason says which.
+	BudgetExhausted bool
+	BudgetReason    string
 }
+
+// ErrBudgetExhausted marks work that could not run because the GitHub REST
+// budget (the caller's cap or GitHub's own rate limit) is used up. It is not
+// a verdict about the data: a gate that meets it reports "could not run" and
+// never passes.
+var ErrBudgetExhausted = errors.New("GitHub REST budget exhausted")
+
+// DefaultRESTReserve is how many requests of GitHub's own remaining count
+// the gate leaves for the rest of the job.
+const DefaultRESTReserve = 25
 
 // GitHubSource fetches pinned upstream bytes straight from GitHub,
 // independently of any mirror: directory listings from the git trees API
@@ -71,6 +96,17 @@ type GitHubSource struct {
 	// LsRemote returns "git ls-remote --tags" output for a repository URL;
 	// nil runs git.
 	LsRemote func(ctx context.Context, repoURL string) ([]byte, error)
+	// MaxRESTRequests caps the api.github.com requests of this source; 0
+	// means no cap of our own (GitHub's rate limit still applies). A
+	// request over the cap is not sent and fails with ErrBudgetExhausted.
+	MaxRESTRequests int64
+	// RESTReserve is the number of requests of GitHub's reported
+	// remaining count that are never used; negative means none, 0 means
+	// DefaultRESTReserve.
+	RESTReserve int64
+	// CacheDir, when set, keeps verified git trees and small blobs on disk
+	// between runs. An entry is used only if it hashes to its own object id.
+	CacheDir string
 
 	mu        sync.Mutex
 	roots     map[string]string              // repo NUL commit -> root tree id
@@ -80,6 +116,12 @@ type GitHubSource struct {
 	noRecurse map[string]bool                // repo NUL tree id -> GitHub truncated its recursive listing
 
 	nCommit, nTree, nRecursive, nTruncated, nRaw, nRawBytes, nRawHit atomic.Int64
+	nAPI, nDiskTree, nDiskBlob                                       atomic.Int64
+
+	remaining atomic.Int64 // last X-RateLimit-Remaining + 1; 0 means none seen
+	exhausted atomic.Bool
+	reasonMu  sync.Mutex
+	reason    string
 }
 
 // flight is one request in progress; concurrent callers of the same key
@@ -122,7 +164,65 @@ func (g *GitHubSource) once(key string, done func() bool, fn func() error) error
 func (g *GitHubSource) Stats() GitHubStats {
 	c, t, r := g.nCommit.Load(), g.nTree.Load(), g.nRecursive.Load()
 	return GitHubStats{RESTCalls: c + t, CommitCalls: c, TreeCalls: t, RecursiveTreeCalls: r,
-		TruncatedFallbacks: g.nTruncated.Load(), RawFetches: g.nRaw.Load(), RawBytes: g.nRawBytes.Load(), RawCacheHits: g.nRawHit.Load()}
+		TruncatedFallbacks: g.nTruncated.Load(), RawFetches: g.nRaw.Load(), RawBytes: g.nRawBytes.Load(), RawCacheHits: g.nRawHit.Load(),
+		APIRequests: g.nAPI.Load(), DiskTreeHits: g.nDiskTree.Load(), DiskBlobHits: g.nDiskBlob.Load(),
+		RateLimitRemaining: g.remaining.Load() - 1, BudgetExhausted: g.exhausted.Load(), BudgetReason: g.budgetReason()}
+}
+
+func (g *GitHubSource) budgetReason() string {
+	g.reasonMu.Lock()
+	defer g.reasonMu.Unlock()
+	return g.reason
+}
+
+// exhaust records that the budget ran out and returns the error to give.
+func (g *GitHubSource) exhaust(why string) error {
+	g.reasonMu.Lock()
+	if g.reason == "" {
+		g.reason = why
+	}
+	why = g.reason
+	g.reasonMu.Unlock()
+	g.exhausted.Store(true)
+	return fmt.Errorf("%w: %s", ErrBudgetExhausted, why)
+}
+
+// admitAPI decides, before an api.github.com request is sent, whether the
+// budget still allows it.
+func (g *GitHubSource) admitAPI() error {
+	if g.exhausted.Load() {
+		return fmt.Errorf("%w: %s", ErrBudgetExhausted, g.budgetReason())
+	}
+	if g.MaxRESTRequests > 0 && g.nAPI.Load() >= g.MaxRESTRequests {
+		return g.exhaust(fmt.Sprintf("the cap of %d REST requests for this run is used up", g.MaxRESTRequests))
+	}
+	reserve := g.RESTReserve
+	if reserve == 0 {
+		reserve = DefaultRESTReserve
+	}
+	if reserve < 0 {
+		reserve = 0
+	}
+	if rem := g.remaining.Load() - 1; g.remaining.Load() > 0 && rem <= reserve {
+		return g.exhaust(fmt.Sprintf("GitHub reports %d requests left, %d are kept for the rest of the job", rem, reserve))
+	}
+	return nil
+}
+
+// noteRateLimit reads GitHub's rate limit headers from an API response.
+func (g *GitHubSource) noteRateLimit(resp *http.Response) error {
+	if v := resp.Header.Get("X-RateLimit-Remaining"); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n >= 0 {
+			g.remaining.Store(n + 1)
+		}
+	}
+	// A refusal because of the rate limit: primary (remaining 0) or
+	// secondary (Retry-After). Both are "could not run", not "not found".
+	if resp.StatusCode == http.StatusTooManyRequests ||
+		(resp.StatusCode == http.StatusForbidden && (resp.Header.Get("X-RateLimit-Remaining") == "0" || resp.Header.Get("Retry-After") != "")) {
+		return g.exhaust(fmt.Sprintf("GitHub refused the request (HTTP %d, rate limit)", resp.StatusCode))
+	}
+	return nil
 }
 
 func (g *GitHubSource) init() {
@@ -208,6 +308,12 @@ func (g *GitHubSource) get(ctx context.Context, u string, api bool, limit int64)
 	}
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
+		if api {
+			if err := g.admitAPI(); err != nil {
+				return nil, 0, err
+			}
+			g.nAPI.Add(1)
+		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 		if err != nil {
 			return nil, 0, err
@@ -225,6 +331,11 @@ func (g *GitHubSource) get(ctx context.Context, u string, api bool, limit int64)
 		} else {
 			body, readErr := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 			resp.Body.Close()
+			if api {
+				if err := g.noteRateLimit(resp); err != nil {
+					return nil, resp.StatusCode, err
+				}
+			}
 			switch {
 			case readErr != nil:
 				lastErr = readErr
@@ -317,6 +428,13 @@ func (g *GitHubSource) tree(ctx context.Context, repo extract.RepoRef, id string
 	}
 	if cached, ok := lookup(); ok {
 		return cached, nil
+	}
+	if entries, ok := g.diskLoadTree(id); ok {
+		g.mu.Lock()
+		g.trees[key] = entries
+		g.mu.Unlock()
+		g.nDiskTree.Add(1)
+		return entries, nil
 	}
 	g.mu.Lock()
 	skip := g.noRecurse[key]
@@ -429,6 +547,7 @@ func (g *GitHubSource) fetchTree(ctx context.Context, repo extract.RepoRef, id s
 			gitOrder(list)
 		}
 		g.trees[repo.Key+"\x00"+did] = list
+		g.diskStoreTree(did, list)
 	}
 	return nil
 }
@@ -526,6 +645,15 @@ func (g *GitHubSource) Read(repo extract.RepoRef, commit, p string) ([]byte, err
 	g.mu.Lock()
 	cached, hit := g.blobs[bkey]
 	g.mu.Unlock()
+	if !hit {
+		if b, ok := g.diskLoadBlob(blob); ok {
+			g.mu.Lock()
+			g.blobs[bkey] = b
+			g.mu.Unlock()
+			g.nDiskBlob.Add(1)
+			cached, hit = b, true
+		}
+	}
 	if hit {
 		g.nRawHit.Add(1)
 		return append([]byte(nil), cached...), nil
@@ -551,6 +679,7 @@ func (g *GitHubSource) Read(repo extract.RepoRef, commit, p string) ([]byte, err
 			g.mu.Lock()
 			g.blobs[bkey] = b
 			g.mu.Unlock()
+			g.diskStoreBlob(blob, b)
 			body = append([]byte(nil), b...)
 		}
 		return nil

@@ -79,16 +79,22 @@ type Metrics struct {
 	// Rederivations the changed rules admitted by re-derivation, and
 	// RederivedUnchanged the rules a --rederive-all run re-derived: every
 	// active mechanical rule the change did not already re-derive.
-	Renewals           int             `json:"renewals"`
-	Withdrawals        int             `json:"withdrawals"`
-	Rederivations      int             `json:"rederivations"`
-	RederivedUnchanged int             `json:"rederivedUnchanged"`
-	Failures           MetricsFailures `json:"failures"`
-	Limits             MetricsLimits   `json:"limits"`
-	Breakers           []Breaker       `json:"breakers"`
-	Alarms             int             `json:"alarms"`
-	AutoMergeEligible  bool            `json:"autoMergeEligible"`
-	DurationMs         int64           `json:"durationMs"`
+	Renewals           int `json:"renewals"`
+	Withdrawals        int `json:"withdrawals"`
+	Rederivations      int `json:"rederivations"`
+	RederivedUnchanged int `json:"rederivedUnchanged"`
+	// Shard is the --rederive-all shard ("" when not re-deriving all);
+	// RESTRequests the api.github.com requests the run spent (-1: not
+	// counted); CouldNotRun that the budget ran out.
+	Shard             string          `json:"shard,omitempty"`
+	RESTRequests      int64           `json:"restRequests"`
+	CouldNotRun       bool            `json:"couldNotRun"`
+	Failures          MetricsFailures `json:"failures"`
+	Limits            MetricsLimits   `json:"limits"`
+	Breakers          []Breaker       `json:"breakers"`
+	Alarms            int             `json:"alarms"`
+	AutoMergeEligible bool            `json:"autoMergeEligible"`
+	DurationMs        int64           `json:"durationMs"`
 }
 
 // NewMetrics derives the metrics of a report; d is the run's duration.
@@ -103,7 +109,10 @@ func NewMetrics(r *Report, d time.Duration) Metrics {
 			DailyKnown: r.Daily.Known, DailyBefore: r.Daily.Before, MaxDailyLoosening: r.Daily.Cap,
 		},
 		Breakers: append([]Breaker{}, r.Breakers...), Alarms: len(r.Alarms), AutoMergeEligible: r.AutoMerge.Eligible,
-		DurationMs: d.Milliseconds(),
+		DurationMs: d.Milliseconds(), Shard: r.Shard, RESTRequests: -1, CouldNotRun: r.CouldNotRun != "",
+	}
+	if r.Upstream != nil {
+		m.RESTRequests = r.Upstream.RESTRequests
 	}
 	for i := range m.Breakers {
 		m.Breakers[i].Subject = capString(m.Breakers[i].Subject, maxMonitorString)

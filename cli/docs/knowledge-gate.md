@@ -194,6 +194,18 @@ the commit it points at). Every file is checked against the git blob id its
 commit records. It never reads the factory mirror. A `GITHUB_TOKEN` or
 `GH_TOKEN` in the environment is used for API requests (rate limit only).
 
+**Request budget.** A full re-derivation of the CRD wave costs about a thousand
+REST requests, as much as the workflow token's hourly limit. A pull request
+re-derives only the rules it changes. The scheduled run re-derives one shard a
+day (`--shard day/7`), so every project is fully re-derived at least weekly. Git
+trees are cached by id within a run (and between runs with `--cache-dir`);
+git objects never change, so a cache hit replaces a conditional request. Every
+run reports its REST requests (report `upstream`, metrics `restRequests`, the
+step summary). If the budget runs out (`--rest-budget`, or GitHub refuses or
+reports too few requests left) the run fails with a `rest-budget` check
+"could not run", `couldNotRun` set, and exit status 3: a starved run is never a
+pass, and nothing it did compute counts as one.
+
 ## Pack checks
 
 Run on every pack of the head, whatever the change:
@@ -284,7 +296,7 @@ report.
 change with two kinds counts under each), `projects` (tightening and loosening
 changes per project; at most 500 projects, the rest under `(other)`), `renewals`,
 `withdrawals`, `rederivations` (changed rules admitted by re-derivation),
-`rederivedUnchanged` (rules and line attestations a `--rederive-all` run re-derived), `failures`
+`rederivedUnchanged` (rules and line attestations a `--rederive-all` run re-derived), `shard`, `restRequests` (api.github.com requests; -1 when not counted), `couldNotRun`, `failures`
 (failed changes, failed checks and their names), `limits`, `breakers` (every
 breaker with what it observed and whether it tripped), `alarms`,
 `autoMergeEligible` and `durationMs`. Keys are sorted at every depth and the
@@ -742,6 +754,9 @@ The whole gate.
 | `--trust-root-digest sha256:…` | pinned digest of the base's reattestation trust root; without it no statement is accepted |
 | `--rerun-worklist FILE` | worklist from this job's own `evidence repin` run; without it no statement is accepted |
 | `--rederive-all` | also re-derive every active mechanical rule and every mechanical line attestation, changed or not |
+| `--shard all\|i/n\|day/n` | with `--rederive-all`: re-derive one deterministic slice of the extractors. An extractor belongs to the shard chosen by a hash of its id (stable when others are added); `day/n` uses the UTC day number mod n, so a daily run covers every extractor every n days. The scheduled run uses `day/7` |
+| `--rest-budget N` | cap on api.github.com requests (0: only GitHub's own limit). The gate also keeps 25 of GitHub's reported remaining requests for the rest of the job and treats a rate-limit refusal as exhausted |
+| `--cache-dir DIR` | keep git trees and small blobs on disk between runs; an entry is used only if it hashes to its own object id |
 | `--concurrency N` | concurrent upstream reads during re-derivation (0–64) |
 | `--citations-timeout D` | overall deadline of the citation verification (default 20m); a run that does not finish in time fails the `citations` check |
 | `--now RFC3339` | the gate's clock, UTC (default: now); for reproducing a past run |

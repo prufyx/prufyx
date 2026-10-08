@@ -55,8 +55,10 @@ func TestReaderReadListAndOfflineGuarantee(t *testing.T) {
 	if !res.Wants[1].Complete || res.Wants[1].Fetched != 1 {
 		t.Fatalf("want 1: %+v", res.Wants[1])
 	}
-	if e.git.count("fetch") != 0 {
-		t.Fatalf("unexpected fetch: %v", e.git.calls)
+	// The three missing blobs of both wants arrive in one batched fetch,
+	// not as lazy single-object reads.
+	if e.git.count("fetch") != 1 {
+		t.Fatalf("want exactly one batched blob fetch: %v", e.git.calls)
 	}
 
 	r, _ = OpenReader(e.state)
@@ -239,4 +241,87 @@ func TestReaderRejectsSymlinksAndNeverFollowsThem(t *testing.T) {
 	if _, err := r.List(k1, c, "dirlink"); err == nil {
 		t.Fatal("symlinked directory was listed")
 	}
+}
+
+func TestBatchedBlobFetchIsOneRequestAndVerified(t *testing.T) {
+	e := newEnv(t, k1)
+	u := e.remote[k1]
+	files := map[string]string{}
+	var paths []string
+	for i := 0; i < 40; i++ {
+		p := "docs/f" + string(rune('a'+i/10)) + string(rune('0'+i%10)) + ".txt"
+		files[p] = "content " + p + "\n"
+		paths = append(paths, p)
+	}
+	c1 := u.commit("many", files)
+	e.run()
+	e.opts.Wants = []Want{{Repo: k1, Commit: c1, Paths: paths}}
+	e.git.reset()
+	res := e.run()
+	if len(res.Wants) != 1 || !res.Wants[0].Complete || res.Wants[0].Fetched != 40 {
+		t.Fatalf("%+v", res.Wants)
+	}
+	if n := e.git.count("fetch"); n != 1 {
+		t.Fatalf("40 blobs must cost one fetch, got %d: %v", n, e.git.calls)
+	}
+	r, _ := OpenReader(e.state)
+	for _, p := range paths {
+		got, err := r.Read(k1, c1, p)
+		if err != nil || string(got) != files[p] {
+			t.Fatalf("%s: %q %v", p, got, err)
+		}
+	}
+	// A second run finds everything present and fetches nothing.
+	e.git.reset()
+	if res := e.run(); !res.Wants[0].Complete || res.Wants[0].Fetched != 0 || e.git.count("fetch") != 0 {
+		t.Fatalf("%+v %v", res.Wants, e.git.calls)
+	}
+}
+
+func TestBatchedBlobFetchFallsBackToLazyRead(t *testing.T) {
+	e := newEnv(t, k1)
+	u := e.remote[k1]
+	c1 := u.commit("one", map[string]string{"a.txt": "a\n", "b.txt": "b\n"})
+	e.run()
+	e.git.failFirst = func(args []string) bool {
+		for _, a := range args {
+			if a == "--stdin" {
+				return true
+			}
+		}
+		return false
+	}
+	e.opts.Wants = []Want{{Repo: k1, Commit: c1, Paths: []string{"a.txt", "b.txt"}}}
+	res := e.run()
+	if !res.Wants[0].Complete || res.Wants[0].Fetched != 2 {
+		t.Fatalf("%+v", res.Wants)
+	}
+}
+
+func TestMissingBlobAfterFetchIsIncomplete(t *testing.T) {
+	e := newEnv(t, k1)
+	u := e.remote[k1]
+	c1 := u.commit("one", map[string]string{"a.txt": "a\n"})
+	e.run()
+	// Every way of getting the blob fails: the want must not be complete.
+	e.opts.Git = failBlobGit{e.git}
+	e.opts.Wants = []Want{{Repo: k1, Commit: c1, Paths: []string{"a.txt"}}}
+	res := e.run()
+	if res.Wants[0].Complete || res.Wants[0].Fetched != 0 {
+		t.Fatalf("%+v", res.Wants)
+	}
+}
+
+// failBlobGit refuses blob transfers (fetch --stdin and cat-file).
+type failBlobGit struct{ GitRunner }
+
+func (f failBlobGit) RunStdin(ctx context.Context, dir string, stdin []byte, args ...string) ([]byte, error) {
+	if len(stdin) > 0 {
+		for _, a := range args {
+			if a == "--stdin" || a == "cat-file" {
+				return nil, &GitError{Args: args, Err: os.ErrPermission}
+			}
+		}
+	}
+	return f.GitRunner.RunStdin(ctx, dir, stdin, args...)
 }

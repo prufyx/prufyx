@@ -136,7 +136,11 @@ func (c *countingGit) reset() {
 func (c *countingGit) enter(args []string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.calls[args[0]]++
+	name := args[0]
+	if name == "-c" && len(args) > 2 {
+		name = args[2] // git -c key=value <subcommand>
+	}
+	c.calls[name]++
 	c.cur++
 	if c.cur > c.max {
 		c.max = c.cur
