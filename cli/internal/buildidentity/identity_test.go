@@ -34,7 +34,7 @@ func TestReportPinnedIdentityUsesExactInputsAndUTCBackendEpoch(t *testing.T) {
 	AllowlistDigest = "sha256:" + strings.Repeat("b", 64)
 	BuildProfile = "linux-amd64"
 	BuildEpoch = "1700000000"
-	TrustRootDigest = "unpinned"
+	TrustRootDigest = UnpinnedTrustRoot
 	EmbeddedIdentity = Marker(Identity{Version: Version, ReleaseState: ReleaseStateRelease, SourceRevision: SourceRevision, SourceTreeDigest: SourceTreeDigest, AllowlistDigest: AllowlistDigest, BuildProfile: BuildProfile, BuildEpoch: "2023-11-14T22:13:20Z", GoVersion: runtime.Version(), TrustRootDigest: TrustRootDigest, CandidateOnly: true})
 
 	identity, err := Report()
@@ -135,7 +135,7 @@ func TestReportForVersionPreservesDeterministicPinnedFields(t *testing.T) {
 	AllowlistDigest = "sha256:" + strings.Repeat("b", 64)
 	BuildProfile = "linux-arm64"
 	BuildEpoch = "0"
-	TrustRootDigest = "sha256:" + strings.Repeat("c", 64)
+	TrustRootDigest = UnpinnedTrustRoot
 	EmbeddedIdentity = Marker(Identity{Version: "1.2.3", ReleaseState: ReleaseStateRelease, SourceRevision: SourceRevision, SourceTreeDigest: SourceTreeDigest, AllowlistDigest: AllowlistDigest, BuildProfile: BuildProfile, BuildEpoch: "1970-01-01T00:00:00Z", GoVersion: runtime.Version(), TrustRootDigest: TrustRootDigest, CandidateOnly: true})
 	first, err := ReportForVersion("1.2.3")
 	if err != nil {

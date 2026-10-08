@@ -9,6 +9,24 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Security
 
+- Build identity: a release identity now accepts only `trustRootDigest:
+  UNPINNED`. A linker flag could set any `sha256:` digest (or a lowercase
+  `unpinned`) and `prufyx version` and every report repeated it as a trust root
+  claim that nothing in the binary checks. A development identity is now
+  reported only when the embedded identity marker is also at its development
+  default.
+- Release workflow: the tag build no longer restores the `actions/setup-go`
+  cache (a cache written by another run on the default branch could reach an
+  attested binary), checkout does not keep the job token, a tag that is not a
+  v-prefixed semantic version stops the run before any build, each binary must
+  carry the build identity the workflow computed (the native target also runs
+  `prufyx version`), and the archives are byte-reproducible (sorted members,
+  the tagged commit's time, numeric root owner, normalized modes, `gzip -n`).
+- `prufyx-maintainer evidence reattest prepare` writes its three files into a
+  new `--output-dir` only: an existing path or symbolic link there is refused,
+  and a failed write leaves no directory. `evidence reattest sign` creates
+  `--output` as a new file and never replaces or writes through an existing
+  file or symbolic link.
 - Offline-boundary probes now write each strace capture into a fresh private
   directory and read only regular files from it, so stale, planted or
   prefix-colliding files in the work directory can no longer be mistaken for

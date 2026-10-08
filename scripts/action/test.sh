@@ -467,7 +467,7 @@ if [ -f "$rel" ]; then
   else bad "release contract: archive name" "release.yml and install.sh disagree or pattern not found"; fi
   # the binary sits at <name>/prufyx inside the archive, and tar packs <name> relative to dist
   if grep -Fq -- '-o dist/prufyx_${VERSION}_${GOOS}_${GOARCH}/prufyx' "$rel" && grep -Fq 'member="$name/prufyx"' "$here/install.sh" \
-    && grep -E 'tar .*-C dist' "$rel" | grep -Fq '.tar.gz'; then
+    && sed -n '/# BEGIN deterministic archives/,/# END deterministic archives/p' "$rel" | tr '\n' ' ' | grep -Eq 'tar .*-C dist .*dist/\$\{name\}\.tar\.gz'; then
     ok "release contract: binary at <name>/prufyx, archive built from dist"
   else bad "release contract: binary path" "release.yml build output or tar command does not match install.sh"; fi
   # checksum file name

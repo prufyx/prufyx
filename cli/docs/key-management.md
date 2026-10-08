@@ -332,9 +332,13 @@ entry they name, and none lasts beyond 14 days.
 
 ## Build identity `trustRootDigest`
 
-Every build identity carries a `trustRootDigest`, either `sha256:<64 hex>` or
-`UNPINNED`. The release workflow sets `UNPINNED` for every build, because the binary
-is built before any statement that could pin a root exists. `UNPINNED` together with
+Every release build identity carries `trustRootDigest: UNPINNED`; the binary
+refuses any other value (`prufyx version` then reports an integrity failure).
+The release workflows set `UNPINNED` for every build, because the binary is built
+before any statement that could pin a root exists, and nothing in the binary
+could check a digest written there. The knowledge trust root a binary enforces is
+the product pin described in [knowledge updates](knowledge-updates.md), not this
+field. `UNPINNED` together with
 `candidateOnly: true` means the binary makes no trust-root claim, and local reports
 are not signed Prufyx compatibility evidence. Nothing to rotate until a release is
 signed.
