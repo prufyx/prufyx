@@ -11,6 +11,7 @@ import (
 )
 
 func TestCiliumClusterNameNativeAndPrepareRoutes(t *testing.T) {
+	t.Parallel()
 	valid := []byte("apiVersion: v1\nkind: ConfigMap\nimmutable: false\nmetadata:\n  name: cilium-config\n  creationTimestamp: null\ndata:\n  cluster-name: mesh-1\n")
 	blocked := []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: cilium-config\ndata:\n  cluster-name: Mesh\n")
 	for _, tc := range []struct {
@@ -44,6 +45,7 @@ func TestCiliumClusterNameNativeAndPrepareRoutes(t *testing.T) {
 }
 
 func TestCiliumClusterNameExternalStoreHasNoEmbeddedFallback(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	raw := []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: cilium-config\ndata:\n  cluster-name: private-mesh\n")
 	path := writeCNCFFile(t, "cilium-config.yaml", raw, 0o600)
@@ -56,6 +58,7 @@ func TestCiliumClusterNameExternalStoreHasNoEmbeddedFallback(t *testing.T) {
 }
 
 func TestCiliumClusterNameFlagsAreClosedToCiliumCheckMode(t *testing.T) {
+	t.Parallel()
 	privateInput := filepath.Join(t.TempDir(), "private-not-read.json")
 	for _, extra := range [][]string{
 		{"--cilium-config-map", privateInput},

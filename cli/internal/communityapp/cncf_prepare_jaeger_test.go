@@ -35,6 +35,7 @@ func jaegerExampleFixture(t *testing.T, name string) []byte {
 }
 
 func TestJaegerPreparationFeedsExistingScopedRuleWithoutLeakingArguments(t *testing.T) {
+	t.Parallel()
 	const canary = "private-jaeger-cli-canary-4ed2"
 	raw := jaegerPreparationDeclaration(t, []any{"--config=/etc/jaeger/" + canary + ".yaml"})
 	path := writeCNCFFile(t, "jaeger.json", raw, 0o600)
@@ -51,6 +52,7 @@ func TestJaegerPreparationFeedsExistingScopedRuleWithoutLeakingArguments(t *test
 }
 
 func TestJaegerPreparationAmbiguitiesRemainUnknownAndRedacted(t *testing.T) {
+	t.Parallel()
 	const canary = "private-jaeger-ambiguous-canary-761c"
 	for _, tc := range []struct {
 		name string
@@ -85,6 +87,7 @@ func TestJaegerPreparationAmbiguitiesRemainUnknownAndRedacted(t *testing.T) {
 }
 
 func TestJaegerPreparationAdmissionAndCrossProjectFlagsStaySanitized(t *testing.T) {
+	t.Parallel()
 	const canary = "private-jaeger-admission-canary-82d5"
 	raw := jaegerPreparationDeclaration(t, []any{"--config=/" + canary})
 	private := writeCNCFFile(t, "private.json", raw, 0o600)
@@ -103,6 +106,7 @@ func TestJaegerPreparationAdmissionAndCrossProjectFlagsStaySanitized(t *testing.
 }
 
 func TestJaegerLatestTargetPairRoute(t *testing.T) {
+	t.Parallel()
 	raw := jaegerPreparationDeclaration(t, []any{"--config=/etc/jaeger/config.yaml"})
 	path := writeCNCFFile(t, "jaeger-latest.json", raw, 0o600)
 	args := []string{"prepare", "cncf", "--project", "jaeger", "--input", path, "--from", "2.19.0", "--to", "2.20.0", "--non-memory-storage-required", "true", "--official-jaeger-distribution", "true", "--format", "input"}
@@ -118,6 +122,7 @@ func TestJaegerLatestTargetPairRoute(t *testing.T) {
 }
 
 func TestJaegerExampleFixturesKeepNativeAndOperatorDeclaredScopesSeparate(t *testing.T) {
+	t.Parallel()
 	nativeRaw := jaegerExampleFixture(t, "unknown-empty.json")
 	native := writeCNCFFile(t, "unknown-empty.json", nativeRaw, 0o600)
 	prepareArgs := []string{"prepare", "cncf", "--project", "jaeger", "--input", native, "--from", "2.19.0", "--to", "2.20.0", "--non-memory-storage-required", "true", "--official-jaeger-distribution", "true", "--format", "input"}

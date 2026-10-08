@@ -9,6 +9,7 @@ import (
 )
 
 func TestCortexNativeWorkloadCheckEvaluatesLiteralTargetArgs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name, raw, from, to string
 		want                int
@@ -51,6 +52,7 @@ func TestCortexNativeWorkloadCheckEvaluatesLiteralTargetArgs(t *testing.T) {
 }
 
 func TestCortexNativeWorkloadRejectsUnlistedLatestExpansionPair(t *testing.T) {
+	t.Parallel()
 	raw := cortexNativeWorkload(`{"name":"cortex","image":"quay.io/cortexproject/cortex:v1.21.1","command":["/bin/cortex"],"args":["--target=all"]}`)
 	path := writeCNCFFile(t, "cortex-workload.json", []byte(raw), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "cortex", "--native-resource", path, "--from", "1.20.2", "--to", "1.21.1", "--now", "2026-09-12T07:38:00Z", "--format", "json")
@@ -60,6 +62,7 @@ func TestCortexNativeWorkloadRejectsUnlistedLatestExpansionPair(t *testing.T) {
 }
 
 func TestCortexLatestTargetPairsEndToEnd(t *testing.T) {
+	t.Parallel()
 	for _, from := range []string{"1.16.1", "1.17.2", "1.18.1", "1.19.1", "1.20.1"} {
 		for _, tc := range []struct {
 			name, container, reason string
@@ -81,6 +84,7 @@ func TestCortexLatestTargetPairsEndToEnd(t *testing.T) {
 }
 
 func TestCortexNativeWorkloadRejectsMixedOrMissingInput(t *testing.T) {
+	t.Parallel()
 	raw := []byte(cortexNativeWorkload(`{"name":"cortex","image":"quay.io/cortexproject/cortex:v1.21.1","command":["/bin/cortex"],"args":[]}`))
 	path := writeCNCFFile(t, "cortex-workload.json", raw, 0o600)
 	for _, args := range [][]string{

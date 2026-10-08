@@ -34,6 +34,7 @@ func argoCDPreparationArgs(path string) []string {
 }
 
 func TestArgoCDPreparationFeedsScopedExistingRule(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name                   string
 		value                  any
@@ -85,6 +86,7 @@ func TestArgoCDPreparationFeedsScopedExistingRule(t *testing.T) {
 }
 
 func TestArgoCDPreparationRejectsUnsafeFlagsAndBadPin(t *testing.T) {
+	t.Parallel()
 	raw := argoCDPreparationResource(t, "true", true)
 	path := writeCNCFFile(t, "argocd-cm.json", raw, 0o600)
 	for _, extra := range [][]string{
@@ -113,6 +115,7 @@ func TestArgoCDPreparationRejectsUnsafeFlagsAndBadPin(t *testing.T) {
 }
 
 func TestArgoCDLatestPreparationFiveOriginsAndPrivacy(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "examples", "cncf", "argocd-35-plain-http-repository-secret.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -138,6 +141,7 @@ func TestArgoCDLatestPreparationFiveOriginsAndPrivacy(t *testing.T) {
 }
 
 func TestArgoCDLatestPreparationGuardAndRoutingPreflight(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"apiVersion":"v1","kind":"Secret","metadata":{"name":"private-repository","labels":{"argocd.argoproj.io/secret-type":"repository"}},"stringData":{"type":"helm","enableOCI":"true","url":"private.invalid/charts","insecureOCIForceHttp":"true"}}`)
 	path := writeCNCFFile(t, "private-argocd-repository.json", raw, 0o600)
 	base := []string{"prepare", "cncf", "--project", "argo-cd", "--input", path, "--from", "3.4.8", "--to", "3.5.2"}

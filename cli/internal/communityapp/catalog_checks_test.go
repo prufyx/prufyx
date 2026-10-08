@@ -17,6 +17,7 @@ import (
 // pinned to the anchor pair and would misdescribe the queried, off-anchor
 // pair as if it were the reviewed anchor's own transition.
 func TestRenderCatalogCheckRangeMatchShowsModeNotAnchorCommand(t *testing.T) {
+	t.Parallel()
 	item := checkroutemetadata.Check{
 		Project: "kubernetes", RuleID: "kubernetes.example", From: "1.24.0", To: "1.25.0",
 		MatchMode: "range",
@@ -50,6 +51,7 @@ func TestRenderCatalogCheckRangeMatchShowsModeNotAnchorCommand(t *testing.T) {
 }
 
 func TestCatalogChecksPublicRouteReportsExactNativeBindings(t *testing.T) {
+	t.Parallel()
 	tests := []struct{ project, from, to, ruleID string }{
 		{"prometheus", "2.55.1", "3.1.0", "prometheus.alertmanager-api-v1-removed.3-1"},
 		{"prometheus", "3.9.1", "3.14.0", "prometheus.alertmanager-api-v1.target-config.3-9-1-to-3-14-0"},
@@ -103,6 +105,7 @@ func TestCatalogChecksPublicRouteReportsExactNativeBindings(t *testing.T) {
 }
 
 func TestCatalogChecksKnownWrongPairAndGenericCommunityBoundary(t *testing.T) {
+	t.Parallel()
 	code, stdout, stderr := runCNCFCLI(t, "catalog", "checks", "--project", "envoy", "--from", "1.17.2", "--to", "1.18.0", "--format", "json")
 	if code != ExitOK || stderr != "" || !strings.Contains(stdout, `"state":"NO_NATIVE_DESCRIPTOR"`) {
 		t.Fatalf("historical Envoy=(%d,%q,%q)", code, stdout, stderr)
@@ -118,6 +121,7 @@ func TestCatalogChecksKnownWrongPairAndGenericCommunityBoundary(t *testing.T) {
 }
 
 func TestCatalogChecksRejectsIncompleteOrUnsafeQueryWithoutEchoingIt(t *testing.T) {
+	t.Parallel()
 	for _, args := range [][]string{
 		{"catalog", "checks", "--format", "json"},
 		{"catalog", "checks", "--project", "envoy", "--from", "1.38.4"},
@@ -138,6 +142,7 @@ func TestCatalogChecksRejectsIncompleteOrUnsafeQueryWithoutEchoingIt(t *testing.
 }
 
 func TestCatalogChecksAllowsAbsentPairAsAnUnfilteredProjectQuery(t *testing.T) {
+	t.Parallel()
 	code, stdout, stderr := runCNCFCLI(t, "catalog", "checks", "--project", "envoy", "--format", "json")
 	var result checkroutemetadata.Result
 	if code != ExitOK || stderr != "" || json.Unmarshal([]byte(stdout), &result) != nil || result.Query.Project != "envoy" || result.Query.From != "" || result.Query.To != "" || len(result.Checks) < 2 {
@@ -146,6 +151,7 @@ func TestCatalogChecksAllowsAbsentPairAsAnUnfilteredProjectQuery(t *testing.T) {
 }
 
 func TestCatalogNativeBindingsPopulatePublicRun(t *testing.T) {
+	t.Parallel()
 	tests := []catalogRouteCase{
 		{"prometheus", "2.55.1", "3.1.0", "prometheus.alertmanager-api-v1-removed.3-1", "alert", ExitBlocked},
 		{"prometheus", "3.9.1", "3.14.0", "prometheus.alertmanager-api-v1.target-config.3-9-1-to-3-14-0", "alert", ExitBlocked},
@@ -288,6 +294,7 @@ func hasEmittedRuleID(value any, ruleID string) bool {
 }
 
 func TestCatalogNativeBindingsRejectWrongPairAndCrossMode(t *testing.T) {
+	t.Parallel()
 	alert := writeCNCFFile(t, "alert-wrong-pair.yml", []byte("api_version: v1\nscheme: http\n"), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "prometheus", "--alertmanager-config", alert, "--alertmanager-config-complete", "--alertmanager-config-precedence-resolved", "--from", "2.55.1", "--to", "3.14.0", "--now", "2026-09-12T09:03:00Z", "--format", "json")
 	if code != ExitUnknown || stderr != "" || strings.Contains(stdout, `"selectedRuleId":"prometheus.alertmanager-api-v1-removed.3-1"`) {
@@ -301,6 +308,7 @@ func TestCatalogNativeBindingsRejectWrongPairAndCrossMode(t *testing.T) {
 }
 
 func TestCatalogGenericCommandUsesCanonicalInputPair(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"schema":"prufyx.io/operator-declared-constraint-input/v1alpha1","authority":"OPERATOR_DECLARED_MINIMIZED","current":{"components":[{"component":"pkg:github/envoyproxy/envoy","version":"1.38.4","facts":[]}]},"proposed":{"components":[{"component":"pkg:github/envoyproxy/envoy","version":"1.39.1","facts":[{"id":"component.envoy.xds_api_major","state":"declared","enumValue":"v2"}]}]}}`)
 	path := writeCNCFFile(t, "generic-envoy.json", raw, 0o600)
 	tc := catalogRouteCase{"envoy", "1.38.4", "1.39.1", "envoy.xds-v2-unsupported-at-1-39-1-from-1-38-4", "", ExitBlocked}

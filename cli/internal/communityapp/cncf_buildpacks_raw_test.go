@@ -27,6 +27,7 @@ func buildpacksRawArgs(current, proposed, proposedAPI, format string) []string {
 }
 
 func TestBuildpacksRawLifecyclePlanEditAndRepeat(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	current := filepath.Join(dir, "current-private.json")
 	proposed := filepath.Join(dir, "proposed-private.json")
@@ -61,6 +62,7 @@ func TestBuildpacksRawLifecyclePlanEditAndRepeat(t *testing.T) {
 }
 
 func TestBuildpacksRawLifecycleUnknownAndModeGuards(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	current := filepath.Join(dir, "current.json")
 	proposed := filepath.Join(dir, "proposed.json")

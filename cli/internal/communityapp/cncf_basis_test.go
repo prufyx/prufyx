@@ -22,6 +22,7 @@ const containerdCanonicalInput = `{"schema":"prufyx.io/operator-declared-constra
 // rules out says so in JSON and human output and never exits 0; an invalid
 // list is a usage error.
 func TestRequireBasisFlag(t *testing.T) {
+	t.Parallel()
 	const now = "2026-09-20T00:00:00Z"
 	input := writeCNCFFile(t, "input.json", []byte(containerdCanonicalInput), 0o600)
 	config := writeCNCFFile(t, "config.toml", containerdNativeTOML("2", "io.containerd.grpc.v1.cri", "selected", "io.containerd.runc.v2", ""), 0o600)
@@ -79,6 +80,7 @@ func TestRequireBasisFlag(t *testing.T) {
 // about model consensus appears exactly when a finding relies on it; a lead
 // prints as an unverified lead and never as a status line.
 func TestBasisOutput(t *testing.T) {
+	t.Parallel()
 	consensusBlocked := constraintengine.Claim{RuleID: "kubernetes.consensus-blocked", Operator: "forbid_target_version", Status: "BLOCKED", ReasonCode: "FEATURE_REMOVED", NextAction: "plan the reviewed route", EvidenceBasis: constraintengine.BasisConsensus}
 	consensusQuiet := constraintengine.Claim{RuleID: "kubernetes.consensus-quiet", Operator: "forbid_predicate_value", Status: constraintengine.StatusNoKnownIssue, ReasonCode: constraintengine.ReasonConsensusNoKnownIssue, NextAction: "remove the setting", EvidenceBasis: constraintengine.BasisConsensus}
 	lead := constraintengine.Claim{RuleID: "kubernetes.lead", Operator: "forbid_target_version", Status: constraintengine.StatusNotice, ReasonCode: constraintengine.ReasonLeadNotVerified, NextAction: "check the release notes", EvidenceBasis: constraintengine.BasisLead}
@@ -141,6 +143,7 @@ func TestBasisOutput(t *testing.T) {
 // the command's trust policy. No route file calls a policy-less evaluation
 // entry, and every external evaluation binds the policy.
 func TestCheckRoutesUseTrustPolicy(t *testing.T) {
+	t.Parallel()
 	files, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatal(err)
@@ -196,6 +199,7 @@ func TestCheckRoutesUseTrustPolicy(t *testing.T) {
 // TestTrustPolicyReachesExternalRequests: external requests carry the
 // command's trust policy.
 func TestTrustPolicyReachesExternalRequests(t *testing.T) {
+	t.Parallel()
 	policy, err := cncfcheck.ParseTrustPolicy("reviewed")
 	if err != nil {
 		t.Fatal(err)
@@ -209,6 +213,7 @@ func TestTrustPolicyReachesExternalRequests(t *testing.T) {
 // TestExternalRouteShowsTrustPolicy: the external printer states the trust
 // policy's exclusions, and the check cannot pass.
 func TestExternalRouteShowsTrustPolicy(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	importExternalCLIRevision2(t, &fixture)
 	input := writeCNCFFile(t, "active-input.json", []byte(kyvernoInputTrue), 0o600)

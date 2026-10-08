@@ -14,6 +14,7 @@ import (
 )
 
 func TestSyntheticOpenTelemetryCollectorWalkthrough(t *testing.T) {
+	t.Parallel()
 	_, file, _, ok := goruntime.Caller(0)
 	if !ok {
 		t.Fatal("resolve OpenTelemetry Collector walkthrough source location")

@@ -49,6 +49,7 @@ func assertComponentOutputRedacted(t *testing.T, fixture componentFixture, outpu
 }
 
 func TestKubernetesComponentConfigCheckWithoutReviewedRuleStaysUnknown(t *testing.T) {
+	t.Parallel()
 	fixture := writeComponentFixture(t, 0o600, "")
 	// No predicate covers the 1.38 line, so no rule can be selected.
 	args := componentConfigArgs(fixture.selection)
@@ -71,6 +72,7 @@ func TestKubernetesComponentConfigCheckWithoutReviewedRuleStaysUnknown(t *testin
 // flag blocks once a reviewed rule consumes its fact; until then the route
 // reports UNKNOWN and never PASS.
 func TestKubernetesComponentConfigCheckFollowsPublication(t *testing.T) {
+	t.Parallel()
 	fixture := writeComponentFixture(t, 0o600, "")
 	want := ExitUnknown
 	if cncfcheck.RegisteredFact("component.kubernetes.kubelet_dockershim_flags_removed") {
@@ -84,6 +86,7 @@ func TestKubernetesComponentConfigCheckFollowsPublication(t *testing.T) {
 }
 
 func TestKubernetesComponentConfigCheckRejectsUnsafeInputs(t *testing.T) {
+	t.Parallel()
 	t.Run("source not owner-only", func(t *testing.T) {
 		fixture := writeComponentFixture(t, 0o644, "")
 		code, stdout, stderr := runCNCFCLI(t, componentConfigArgs(fixture.selection)...)
@@ -130,6 +133,7 @@ func TestKubernetesComponentConfigCheckRejectsUnsafeInputs(t *testing.T) {
 }
 
 func TestKubernetesComponentConfigCheckRejectsWrongModesBeforeReading(t *testing.T) {
+	t.Parallel()
 	for _, args := range [][]string{
 		{"check", "cncf", "--project", "helm", "--component-config", "PRIVATE-NOT-READ.yaml", "--from", "1.23.0", "--to", "1.24.0", "--now", "2026-10-01T00:00:00Z"},
 		{"check", "cncf", "--project", "kubernetes", "--component-config", "PRIVATE-NOT-READ.yaml", "--native-resource", "PRIVATE-NOT-READ.json", "--from", "1.23.0", "--to", "1.24.0", "--now", "2026-10-01T00:00:00Z"},
@@ -150,6 +154,7 @@ func TestKubernetesComponentConfigCheckRejectsWrongModesBeforeReading(t *testing
 // human writer, each claim prints its evidence basis once, before its pinned
 // sources, for both a reviewed and a mechanically derived rule.
 func TestKubernetesComponentConfigHumanOutputShowsEvidenceBasis(t *testing.T) {
+	t.Parallel()
 	sources := []constraintengine.SourceEvidence{{ID: "s", URL: "https://example.com/a", Revision: "r1", ContentDigest: "sha256:aa", StartLine: 3, EndLine: 4}}
 	for _, test := range []struct {
 		name  string
@@ -178,6 +183,7 @@ func TestKubernetesComponentConfigHumanOutputShowsEvidenceBasis(t *testing.T) {
 // claim names the forbidden members it found; every other claim prints
 // exactly as before.
 func TestKubernetesComponentConfigHumanOutputNamesMatchedMembers(t *testing.T) {
+	t.Parallel()
 	blocked := constraintengine.Claim{RuleID: "kubernetes.example", Operator: constraintengine.OperatorForbidSetMember, Status: "BLOCKED", ReasonCode: "X", NextAction: "act", MatchedMembers: []string{"GateA", "GateB"}}
 	var out strings.Builder
 	if err := writeKubernetesComponentClaims(&out, []constraintengine.Claim{blocked}); err != nil {

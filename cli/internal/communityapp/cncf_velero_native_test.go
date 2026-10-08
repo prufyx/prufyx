@@ -24,6 +24,7 @@ func veleroNativeArgs(path, from string) []string {
 }
 
 func TestVeleroNativeCRDOrderCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, raw, reason string
 		want              int
@@ -49,6 +50,7 @@ func TestVeleroNativeCRDOrderCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 // The aggregate gate is unchanged by this route: even a scoped PASS keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestVeleroNativeCRDOrderCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "velero.json", []byte(veleroPlanDocument(veleroBackupCRDDocument, veleroServerDeploymentDocument)), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, veleroNativeArgs(path, "1.17.0")...)
 	if code != ExitOK || stderr != "" || !strings.Contains(stdout, `"status":"PASS"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
@@ -63,6 +65,7 @@ func TestVeleroNativeCRDOrderCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.
 // any native input: even the plan that scores a scoped PASS at 1.17.0 -> 1.18.0
 // stays BLOCKED on the direct pair.
 func TestVeleroNativeIntermediateVersionGateIsNotBypassable(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "velero.json", []byte(veleroPlanDocument(veleroBackupCRDDocument, veleroServerDeploymentDocument)), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, veleroNativeArgs(path, "1.16.2")...)
 	if code != ExitBlocked || stderr != "" || !strings.Contains(stdout, `"status":"BLOCKED"`) || !strings.Contains(stdout, "velero.intermediate-1-17.1-18") {
@@ -74,6 +77,7 @@ func TestVeleroNativeIntermediateVersionGateIsNotBypassable(t *testing.T) {
 }
 
 func TestVeleroNativeCRDOrderCheck_UndeclaredPlanOrderOrServerStaysUnknown(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "velero.json", []byte(veleroPlanDocument(veleroBackupCRDDocument, veleroServerDeploymentDocument)), 0o600)
 	for _, test := range []struct {
 		name   string
@@ -106,6 +110,7 @@ func TestVeleroNativeCRDOrderCheck_UndeclaredPlanOrderOrServerStaysUnknown(t *te
 }
 
 func TestVeleroNativeCRDOrderCheck_RejectsWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	selected := writeCNCFFile(t, "velero.json", []byte(veleroPlanDocument(veleroBackupCRDDocument, veleroServerDeploymentDocument)), 0o600)
 	args := veleroNativeArgs(selected, "1.17.0")
 	for index := range args {
@@ -128,6 +133,7 @@ func TestVeleroNativeCRDOrderCheck_RejectsWrongPairAndWrongRoute(t *testing.T) {
 }
 
 func TestVeleroNativeCRDOrderCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	raw := []byte(veleroPlanDocument(veleroBackupCRDDocument, veleroServerDeploymentDocument))
 	path := writeCNCFFile(t, "velero.json", raw, 0o600)
 	args := append(veleroNativeArgs(path, "1.17.0"), "--upgrade-plan-digest", cncfDigest([]byte(veleroPlanDocument(veleroServerDeploymentDocument, veleroBackupCRDDocument))))
@@ -138,6 +144,7 @@ func TestVeleroNativeCRDOrderCheck_RejectsIntegrityPinMismatch(t *testing.T) {
 }
 
 func TestVeleroPrepareUpgradePlanFeedsCheck(t *testing.T) {
+	t.Parallel()
 	raw := []byte(veleroPlanDocument(veleroServerDeploymentDocument, veleroBackupCRDDocument))
 	path := writeCNCFFile(t, "velero.json", raw, 0o600)
 	code, canonical, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "velero", "--upgrade-plan", path, "--upgrade-plan-digest", cncfDigest(raw), "--from", "1.17.0", "--to", "1.18.0", "--velero-server-deployment", "private-server", "--velero-plan-order-declared", "--format", "input")

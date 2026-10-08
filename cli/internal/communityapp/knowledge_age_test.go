@@ -56,6 +56,7 @@ func embeddedNote(t *testing.T, now string) string {
 // standard error, after its output, only inside the window or after it, and
 // the exit code is the verdict's either way.
 func TestKnowledgeAgeCheckCNCFEmbedded(t *testing.T) {
+	t.Parallel()
 	input := writeCNCFFile(t, "input.json", []byte(kyvernoInputTrue), 0o600)
 	end := embeddedEnd(t)
 	instants := []string{
@@ -96,6 +97,7 @@ func TestKnowledgeAgeCheckCNCFEmbedded(t *testing.T) {
 // not accept, a missing time and help print no note, and the exit codes are
 // the usual ones.
 func TestKnowledgeAgeCheckCNCFNoNoteWithoutEvaluation(t *testing.T) {
+	t.Parallel()
 	input := writeCNCFFile(t, "input.json", []byte(kyvernoInputTrue), 0o600)
 	cases := [][]string{
 		{"check", "cncf", "--project", "kyverno", "--input", input, "--now", "2026-11-20T00:00:00"},
@@ -120,6 +122,7 @@ func TestKnowledgeAgeCheckCNCFNoNoteWithoutEvaluation(t *testing.T) {
 // without the hint to use a database. The synthetic database's rule ends the
 // next day.
 func TestKnowledgeAgeCheckCNCFStore(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	importExternalCLIRevision2(t, &fixture)
 	input := writeCNCFFile(t, "active-input.json", []byte(kyvernoInputTrue), 0o600)
@@ -148,6 +151,7 @@ func TestKnowledgeAgeCheckCNCFStore(t *testing.T) {
 // TestKnowledgeAgeScan: scan prints the note after its report, the same
 // stdout and exit code as the scan itself gives, --redact included.
 func TestKnowledgeAgeScan(t *testing.T) {
+	t.Parallel()
 	path, base := scanFormatsFixture(t)
 	for _, clock := range []string{"2026-10-04T00:00:00Z", "2026-11-20T00:00:00Z", "2026-12-10T00:00:00Z"} {
 		for _, redact := range []bool{false, true} {
@@ -184,6 +188,7 @@ func TestKnowledgeAgeScan(t *testing.T) {
 // TestKnowledgeAgeScanNoNoteOnFailure: a scan that stops (usage error,
 // output failure) prints no note.
 func TestKnowledgeAgeScanNoNoteOnFailure(t *testing.T) {
+	t.Parallel()
 	path, _ := scanFormatsFixture(t)
 	code, _, stderr := runScan(t, path, "--to", "kubernets=1.25.3", "--now", "2026-11-20T00:00:00Z")
 	if code != ExitUsage || ageNoteLine.MatchString(stderr) {
@@ -199,6 +204,7 @@ func TestKnowledgeAgeScanNoNoteOnFailure(t *testing.T) {
 // TestKnowledgeAgeBatchEmbedded: check batch prints the note for embedded
 // CNCF knowledge in both formats; the output is unchanged.
 func TestKnowledgeAgeBatchEmbedded(t *testing.T) {
+	t.Parallel()
 	root, plan := writeEmbeddedCLIBatch(t)
 	for _, now := range []string{"2026-10-04T00:00:00Z", "2026-11-20T00:00:00Z", "2026-12-10T00:00:00Z"} {
 		for _, format := range []string{"human", "json"} {
@@ -225,6 +231,7 @@ func TestKnowledgeAgeBatchEmbedded(t *testing.T) {
 // TestKnowledgeAgeBatchStore: a batch over a knowledge database describes
 // the database's rules, in the same words and without the hint to use one.
 func TestKnowledgeAgeBatchStore(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	importExternalCLIRevision2(t, &fixture)
 	root := t.TempDir()

@@ -21,6 +21,7 @@ import (
 // answer at the same instant; any verification failure exits 3 with nothing
 // on standard output.
 func TestScanKnowledgeDB(t *testing.T) {
+	t.Parallel()
 	repo, err := knowledgefixture.NewProjectsRepository(time.Now().UTC().Truncate(time.Second))
 	if err != nil {
 		t.Fatal(err)

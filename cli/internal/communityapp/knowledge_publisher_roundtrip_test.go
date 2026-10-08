@@ -22,6 +22,7 @@ import (
 // the client imports it with throwaway keys and must reach the same verdicts
 // as the embedded knowledge for the same inputs.
 func TestPublisherReleaseRoundTripMatchesEmbeddedVerdicts(t *testing.T) {
+	t.Parallel()
 	dir, err := filepath.EvalSymlinks(privateDir(t))
 	if err != nil {
 		t.Fatal(err)

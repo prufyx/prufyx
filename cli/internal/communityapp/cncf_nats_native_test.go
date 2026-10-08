@@ -9,6 +9,7 @@ import (
 )
 
 func TestNATSNativeConfigChecksSelectedLiteralNames(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name, raw, from, to string
 		want                int
@@ -31,6 +32,7 @@ func TestNATSNativeConfigChecksSelectedLiteralNames(t *testing.T) {
 }
 
 func TestNATSLatestNativeConfigAllExactOrigins(t *testing.T) {
+	t.Parallel()
 	for _, from := range []string{"2.12.15", "2.11.17", "2.10.29", "2.9.25", "2.8.4"} {
 		for _, tc := range []struct {
 			name, raw, status string
@@ -65,6 +67,7 @@ func TestNATSLatestNativeConfigAllExactOrigins(t *testing.T) {
 }
 
 func TestNATSNativeConfigRejectsInvalidAndMixedModes(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"server_name":"edge"}`)
 	path := writeCNCFFile(t, "nats.json", raw, 0o600)
 	for _, args := range [][]string{
@@ -81,6 +84,7 @@ func TestNATSNativeConfigRejectsInvalidAndMixedModes(t *testing.T) {
 }
 
 func TestNATSNativeConfigExternalStoreHasNoFallbackAndReplayPinsRawInput(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	raw := []byte(`{"server_name":"edge"}`)
 	path := writeCNCFFile(t, "nats.json", raw, 0o600)

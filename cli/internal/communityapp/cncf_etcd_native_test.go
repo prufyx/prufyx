@@ -24,6 +24,7 @@ func etcdNativeArgs(path, from, to string) []string {
 // v2/proxy flag; a clean argv (no witness) stays UNKNOWN rather than becoming
 // a negative-presence PASS.
 func TestEtcdNativeCheck_V2ProxyPairBoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, raw, reason string
 		want              int
@@ -51,6 +52,7 @@ func TestEtcdNativeCheck_V2ProxyPairBoundedOutcomesAndPrivacy(t *testing.T) {
 // origin with no competing direct-minor-skip blocker, so a clean argv there
 // can reach a full aggregate PASS.
 func TestEtcdNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	raw := `{"apiVersion":"prufyx.io/etcd-effective-argv/v1alpha1","kind":"EtcdEffectiveArguments","effectiveArgvDeclared":true,"argv":["--name=private-node"]}`
 	path := writeCNCFFile(t, "etcd.json", []byte(raw), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, etcdNativeArgs(path, "3.6.14", "3.7.1")...)
@@ -69,6 +71,7 @@ func TestEtcdNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
 // batch's scope and keeps the aggregate BLOCKED regardless of the
 // experimental-flags claim. Only 3.6.14 has no such blocker.
 func TestEtcdNativeCheck_AllLatestOriginsAreRouted(t *testing.T) {
+	t.Parallel()
 	blockedRaw := `{"apiVersion":"prufyx.io/etcd-effective-argv/v1alpha1","kind":"EtcdEffectiveArguments","effectiveArgvDeclared":true,"argv":["--name=private-node","--experimental-compact-hash-check-enabled=true"]}`
 	cleanRaw := `{"apiVersion":"prufyx.io/etcd-effective-argv/v1alpha1","kind":"EtcdEffectiveArguments","effectiveArgvDeclared":true,"argv":["--name=private-node"]}`
 	minorSkipOrigins := map[string]bool{"3.2.32": true, "3.3.27": true, "3.4.45": true, "3.5.33": true}
@@ -108,6 +111,7 @@ func TestEtcdNativeCheck_AllLatestOriginsAreRouted(t *testing.T) {
 }
 
 func TestEtcdNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "etcd.json", []byte(etcdRemovedArgvInput), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, etcdNativeArgs(path, "3.5.17", "3.6.1")...)
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
@@ -123,6 +127,7 @@ func TestEtcdNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
 }
 
 func TestEtcdNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "etcd.json", []byte(etcdRemovedArgvInput), 0o600)
 	args := append(etcdNativeArgs(path, "3.5.17", "3.6.0"), "--native-resource-digest", cncfDigest([]byte(etcdCleanArgvInput)))
 	code, stdout, stderr := runCNCFCLI(t, args...)

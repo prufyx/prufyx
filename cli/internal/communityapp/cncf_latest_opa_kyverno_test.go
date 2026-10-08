@@ -33,6 +33,7 @@ func latestOPAInput(t *testing.T, from, to, producerState string, producerValue 
 }
 
 func TestLatestOPAExactOriginsGenericCLI(t *testing.T) {
+	t.Parallel()
 	truth, falsity := true, false
 	for _, from := range []string{"1.15.2", "1.16.2", "1.17.1", "1.18.2", "1.19.1"} {
 		for _, tc := range []struct {
@@ -59,6 +60,7 @@ func TestLatestOPAExactOriginsGenericCLI(t *testing.T) {
 }
 
 func TestLatestKyvernoExactOriginsNativeCLI(t *testing.T) {
+	t.Parallel()
 	for _, from := range []string{"1.14.5", "1.15.3", "1.16.4", "1.17.2", "1.18.2"} {
 		for _, tc := range []struct {
 			name, to, distribution, status string
@@ -95,6 +97,7 @@ func TestLatestKyvernoExactOriginsNativeCLI(t *testing.T) {
 }
 
 func TestKyvernoMisleading11520TagIsNotAdmitted(t *testing.T) {
+	t.Parallel()
 	raw := kyvernoProposal(t, []string{"reports-controller"}, []string{"--reportsChunkSize=16"}, "private-rejected-kyverno-tag")
 	path := writeCNCFFile(t, "kyverno-rejected-origin.json", raw, 0o600)
 	prepareCode, prepared, prepareErr := runCNCFCLI(t, "prepare", "cncf", "--project", "kyverno", "--input", path, "--container", "selected", "--from", "1.15.20", "--to", "1.19.1", "--distribution", "official_upstream", "--format", "input")

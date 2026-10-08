@@ -84,6 +84,7 @@ const crdRouteInput = `{"schema":"prufyx.io/operator-declared-constraint-input/v
 // both for the current check and for its historical replay, and the human
 // output says why.
 func TestExternalGenericInputNeverPassesCustomResourceRules(t *testing.T) {
+	t.Parallel()
 	now := time.Now().UTC().Truncate(time.Second)
 	bundle, err := cncfcheck.ExportExternalBundleFromPack(crdRoutePack(t, now), "9")
 	if err != nil {
@@ -132,6 +133,7 @@ func TestExternalGenericInputNeverPassesCustomResourceRules(t *testing.T) {
 // No custom-resource rule is published, so the embedded generic route keeps
 // its outputs: no claim reads a set and no scope line is added.
 func TestGenericInputWithoutCustomResourceRulesHasNoScopeLine(t *testing.T) {
+	t.Parallel()
 	input := writeCNCFFile(t, "strimzi.json", []byte(strings.Replace(crdRouteInput, `{"id":"`+crdRouteFact+`","state":"declared","setValue":{"members":["kafka.strimzi.io/v1/Kafka"],"complete":true}}`, `{"id":"component.strimzi.distribution","state":"declared","enumValue":"official_upstream"},{"id":"component.strimzi.execution_surface","state":"declared","enumValue":"kafka_custom_resource"},{"id":"component.strimzi.kafka_v1beta2_api_present","state":"declared","boolValue":false},{"id":"component.strimzi.target_kafka_crd_admission_required","state":"declared","boolValue":true}`, 1)), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "strimzi", "--input", input, "--now", "2026-10-04T00:00:00Z")
 	if code != ExitOK || stderr != "" || strings.Contains(stdout, customResourceScopeLine) {

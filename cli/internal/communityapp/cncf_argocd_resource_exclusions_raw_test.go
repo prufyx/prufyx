@@ -27,6 +27,7 @@ func argoExclusionsArgs(path string, intent bool) []string {
 	return a
 }
 func TestArgoCDResourceExclusionsNativeRouteSealsSelectionAndPrivacy(t *testing.T) {
+	t.Parallel()
 	p, raw := writeArgoExclusionsConfig(t, "[]")
 	code, out, errout := runCNCFCLI(t, argoExclusionsArgs(p, true)...)
 	if code != ExitOK || errout != "" || strings.Contains(out, "hidden-value") || strings.Contains(out, "resource.exclusions: [") {
@@ -54,6 +55,7 @@ func TestArgoCDResourceExclusionsNativeRouteSealsSelectionAndPrivacy(t *testing.
 }
 
 func TestArgoCDResourceExclusionsNativeRouteRejectsMismatchedPinWithoutLeak(t *testing.T) {
+	t.Parallel()
 	p, _ := writeArgoExclusionsConfig(t, "[]")
 	args := append(argoExclusionsArgs(p, true), "--resource-exclusions-config-map-digest", digestCommunityBytes([]byte("different")))
 	code, out, errout := runCNCFCLI(t, args...)

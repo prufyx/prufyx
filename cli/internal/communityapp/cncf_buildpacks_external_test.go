@@ -84,6 +84,7 @@ func buildpacksExternalArgs(fixture buildpacksExternalFixture, current, proposed
 }
 
 func TestBuildpacksRawExternalKnowledgeIsAuthoritative(t *testing.T) {
+	t.Parallel()
 	fixture := makeBuildpacksExternalFixture(t)
 	dir := t.TempDir()
 	current := filepath.Join(dir, "current.json")
@@ -121,6 +122,7 @@ func TestBuildpacksRawExternalKnowledgeIsAuthoritative(t *testing.T) {
 }
 
 func TestBuildpacksRawExternalReplayBindsCanonicalPlanNotRawConfigs(t *testing.T) {
+	t.Parallel()
 	fixture := makeBuildpacksExternalFixture(t)
 	fixture.importRevision2(t)
 	dir := t.TempDir()
@@ -180,6 +182,7 @@ func TestBuildpacksRawExternalReplayBindsCanonicalPlanNotRawConfigs(t *testing.T
 }
 
 func TestBuildpacksRawExternalModeAndSelectionGuards(t *testing.T) {
+	t.Parallel()
 	fixture := makeBuildpacksExternalFixture(t)
 	dir := t.TempDir()
 	current, proposed := filepath.Join(dir, "current.json"), filepath.Join(dir, "proposed.json")

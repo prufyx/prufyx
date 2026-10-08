@@ -9,6 +9,7 @@ import (
 )
 
 func TestCephSelectedOSDProjectCLI(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name, body string
 		complete   bool
@@ -40,6 +41,7 @@ func TestCephSelectedOSDProjectCLI(t *testing.T) {
 }
 
 func TestCephLatestSelectedOSDAllExactOrigins(t *testing.T) {
+	t.Parallel()
 	for _, from := range []string{"19.2.6", "18.2.8", "17.2.9", "16.2.15", "15.2.17"} {
 		for _, tc := range []struct {
 			name, store, status string
@@ -85,6 +87,7 @@ func TestCephLatestSelectedOSDAllExactOrigins(t *testing.T) {
 }
 
 func TestCephSelectedOSDProjectAdmissionAndHumanScope(t *testing.T) {
+	t.Parallel()
 	path := writePrivateProjectFixture(t, `{"id":7,"osd_objectstore":"filestore"}`)
 	base := []string{"check", "project", "--project", "ceph", "--selected-osd-metadata", path, "--selected-osd-id", "7", "--from", "17.2.7", "--to", "18.2.0", "--selected-osd-metadata-complete", "--now", "2026-09-11T21:00:00Z"}
 	var stdout, stderr bytes.Buffer
@@ -118,6 +121,7 @@ func TestCephSelectedOSDProjectAdmissionAndHumanScope(t *testing.T) {
 }
 
 func TestProjectExplicitEmptyDigestPinsAreRejected(t *testing.T) {
+	t.Parallel()
 	config := writePrivateProjectFixture(t, "[alerting]\nenabled=false\n")
 	workload := writePrivateProjectFixture(t, `{"apiVersion":"apps/v1","kind":"Deployment","spec":{"template":{"spec":{"containers":[{"name":"argo-server","image":"quay.io/argoproj/argocli:v3.6.0","args":["server"]}]}}}}`)
 	osd := writePrivateProjectFixture(t, `{"id":7,"osd_objectstore":"bluestore"}`)

@@ -66,6 +66,7 @@ func cubeFSExternalArgs(f cubeFSExternalFixture, path, from, to, format string) 
 }
 
 func TestCubeFSMetaNodeRawExternalAuthorityAndHistoricalReplay(t *testing.T) {
+	t.Parallel()
 	f := makeCubeFSExternalFixture(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "metanode.json")

@@ -24,6 +24,7 @@ func opencostNativeArgs(path, from, to string) []string {
 // compatibility claim: the preparer already existed and evaluated all six
 // reviewed rule pairs before this route was wired.
 func TestOpenCostNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, source, config, status string
 		want                         int
@@ -46,6 +47,7 @@ func TestOpenCostNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 // The aggregate gate is unchanged by this route: even a scoped PASS keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestOpenCostNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	raw := opencostNativeInput("cloud_integration", "present")
 	path := writeCNCFFile(t, "opencost.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, opencostNativeArgs(path, "1.119.0", "1.120.0")...)
@@ -60,6 +62,7 @@ func TestOpenCostNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
 // All five reviewed 1.121.2 latest-target origins are routed through the
 // same native path.
 func TestOpenCostNativeCheck_AllLatestOriginsAreRouted(t *testing.T) {
+	t.Parallel()
 	for _, from := range []string{"1.116.0", "1.117.6", "1.118.0", "1.119.2", "1.120.4"} {
 		t.Run(from, func(t *testing.T) {
 			blocked := writeCNCFFile(t, "opencost-latest-blocked.json", opencostNativeInput("provider_derived", "absent"), 0o600)
@@ -77,6 +80,7 @@ func TestOpenCostNativeCheck_AllLatestOriginsAreRouted(t *testing.T) {
 }
 
 func TestOpenCostNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "opencost.json", opencostNativeInput("cloud_integration", "present"), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, opencostNativeArgs(path, "1.119.0", "1.120.1")...)
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
@@ -89,6 +93,7 @@ func TestOpenCostNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T
 }
 
 func TestOpenCostNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "opencost.json", opencostNativeInput("provider_derived", "absent"), 0o600)
 	args := append(opencostNativeArgs(path, "1.119.0", "1.120.0"), "--native-resource-digest", cncfDigest(opencostNativeInput("cloud_integration", "present")))
 	code, stdout, stderr := runCNCFCLI(t, args...)
@@ -98,6 +103,7 @@ func TestOpenCostNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
 }
 
 func TestOpenCostPrepareFeedsNativeCheckEquivalently(t *testing.T) {
+	t.Parallel()
 	raw := opencostNativeInput("provider_derived", "absent")
 	path := writeCNCFFile(t, "opencost.json", raw, 0o600)
 	code, canonical, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "opencost", "--input", path, "--from", "1.119.0", "--to", "1.120.0", "--format", "input")

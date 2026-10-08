@@ -62,6 +62,7 @@ func cncfArgs(input string) []string {
 }
 
 func TestCNCFCLIValidationRejectsMissingAndDuplicateFlags(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		args []string
@@ -88,6 +89,7 @@ func TestCNCFCLIValidationRejectsMissingAndDuplicateFlags(t *testing.T) {
 }
 
 func TestCNCFCLIRequiresCanonicalWholeSecondUTC(t *testing.T) {
+	t.Parallel()
 	cases := []string{
 		"2026-09-08T12:10:00+00:00",
 		"2026-09-08T14:10:00+02:00",
@@ -105,6 +107,7 @@ func TestCNCFCLIRequiresCanonicalWholeSecondUTC(t *testing.T) {
 }
 
 func TestCNCFCLIRejectsWrongDigestBeforeParsing(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "input.json", []byte(syntheticHelmInput), 0o600)
 	args := cncfArgs(path)
 	args = append(args, "--input-digest", "sha256:"+strings.Repeat("0", 64), "--format", "json")
@@ -115,6 +118,7 @@ func TestCNCFCLIRejectsWrongDigestBeforeParsing(t *testing.T) {
 }
 
 func TestCNCFCLIPrivateInputAdmissionRejectsPermissiveSymlinkAndHardlink(t *testing.T) {
+	t.Parallel()
 	raw := []byte(syntheticHelmInput)
 	private := writeCNCFFile(t, "private-input.json", raw, 0o600)
 	permissive := writeCNCFFile(t, "permissive-input.json", raw, 0o644)
@@ -158,6 +162,7 @@ func TestCNCFCLIPrivateInputAdmissionRejectsPermissiveSymlinkAndHardlink(t *test
 }
 
 func TestCNCFCLIRejectsMalformedSecretCanaryWithoutEcho(t *testing.T) {
+	t.Parallel()
 	const canary = "cncf-private-secret-canary-7f7c1d"
 	raw := []byte(`{"schema":"prufyx.io/operator-declared-constraint-input/v1alpha1","authority":"OPERATOR_DECLARED_MINIMIZED","secret":"` + canary + `"}`)
 	path := writeCNCFFile(t, "malformed-private-input.json", raw, 0o600)
@@ -171,6 +176,7 @@ func TestCNCFCLIRejectsMalformedSecretCanaryWithoutEcho(t *testing.T) {
 }
 
 func TestCNCFCLIHelmReviewedVectors(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name       string
 		raw        []byte
@@ -199,6 +205,7 @@ func TestCNCFCLIHelmReviewedVectors(t *testing.T) {
 }
 
 func TestCNCFCLIReplayRequiresExactCanonicalJSONAndPrivateReport(t *testing.T) {
+	t.Parallel()
 	raw := []byte(syntheticHelmInput)
 	input := writeCNCFFile(t, "replay-input.json", raw, 0o600)
 	args := cncfArgs(input)

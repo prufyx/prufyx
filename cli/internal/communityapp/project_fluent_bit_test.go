@@ -11,6 +11,7 @@ import (
 )
 
 func TestFluentBitProjectRouteAndPrivacy(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "fluent-bit.conf")
 	raw := "[OUTPUT]\n  Name opentelemetry\n  Host collector.private.invalid\n  http2 on\n"
 	if err := os.WriteFile(path, []byte(raw), 0600); err != nil {
@@ -48,6 +49,7 @@ func TestFluentBitProjectRouteAndPrivacy(t *testing.T) {
 }
 
 func TestFluentBitLatestTargetRequirementRoute(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "fluent-bit.conf")
 	if err := os.WriteFile(path, []byte("[OUTPUT]\n  Name opentelemetry\n  http2 off\n"), 0600); err != nil {
 		t.Fatal(err)

@@ -41,6 +41,7 @@ func prepareArgs(input string) []string {
 }
 
 func TestKyvernoPreparationScopedOutputIsMinimizedAndBindsExactBytes(t *testing.T) {
+	t.Parallel()
 	var previousInput, previousSource string
 	for _, canary := range []string{"private-canary-a-881df1", "private-canary-b-2765ca"} {
 		raw := kyvernoProposal(t, []string{"reports-controller"}, nil, canary)
@@ -82,6 +83,7 @@ func TestKyvernoPreparationScopedOutputIsMinimizedAndBindsExactBytes(t *testing.
 }
 
 func TestKyvernoPreparationFeedsOnlyScopedCheck(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name                   string
 		command, args          []string
@@ -122,6 +124,7 @@ func TestKyvernoPreparationFeedsOnlyScopedCheck(t *testing.T) {
 }
 
 func TestKyvernoPreparationPreflightAndPrivateAdmissionStaySanitized(t *testing.T) {
+	t.Parallel()
 	const canary = "private-malformed-canary-f82f8d"
 	raw := kyvernoProposal(t, []string{"reports-controller"}, nil, canary)
 	private := writeCNCFFile(t, canary+".json", raw, 0o600)
@@ -154,6 +157,7 @@ func TestKyvernoPreparationPreflightAndPrivateAdmissionStaySanitized(t *testing.
 }
 
 func TestCNCFPreparationRejectsKubernetesAndCiliumFlagsBeforeInputRead(t *testing.T) {
+	t.Parallel()
 	privateInput := filepath.Join(t.TempDir(), "private-not-read.json")
 	base := []string{"prepare", "cncf", "--project", "kyverno", "--input", privateInput, "--container", "selected", "--from", "1.12.5", "--to", "1.13.0"}
 	for _, extra := range [][]string{
@@ -179,6 +183,7 @@ func (failedPreparationWriter) Write([]byte) (int, error) {
 }
 
 func TestKyvernoPreparationDoesNotSucceedWhenOutputFails(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "proposal.json", kyvernoProposal(t, []string{"reports-controller"}, nil, "private"), 0o600)
 	for _, format := range []string{"human", "json", "input"} {
 		var stderr bytes.Buffer

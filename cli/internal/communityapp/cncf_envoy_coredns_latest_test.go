@@ -9,6 +9,7 @@ import (
 )
 
 func TestEnvoyLatestGenericInputAllExactOrigins(t *testing.T) {
+	t.Parallel()
 	input := func(from, to, major string) []byte {
 		fact := ""
 		if major != "" {
@@ -49,6 +50,7 @@ func TestEnvoyLatestGenericInputAllExactOrigins(t *testing.T) {
 }
 
 func TestCoreDNSLatestGenericInputAllExactOrigins(t *testing.T) {
+	t.Parallel()
 	input := func(from, to, distribution, directive string) []byte {
 		facts := ""
 		if distribution != "" {

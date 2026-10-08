@@ -38,6 +38,7 @@ func ciliumPolicyNativeArgs(path, from, to string, completeSet bool) []string {
 // both reviewed pairs. It authors no new compatibility claim: the preparer
 // already existed and evaluated both pairs before this route was wired.
 func TestCiliumPolicyNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name        string
 		from, to    string
@@ -65,6 +66,7 @@ func TestCiliumPolicyNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 // The aggregate gate is unchanged by this route: even a scoped PASS keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestCiliumPolicyNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	raw := ciliumPolicyNativeResource(t, []any{})
 	path := writeCNCFFile(t, "cilium-policy-clean.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, ciliumPolicyNativeArgs(path, "1.18.13", "1.19.7", true)...)
@@ -77,6 +79,7 @@ func TestCiliumPolicyNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T)
 }
 
 func TestCiliumPolicyNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	raw := ciliumPolicyNativeResource(t, []any{})
 	path := writeCNCFFile(t, "cilium-policy.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, ciliumPolicyNativeArgs(path, "1.18.6", "1.19.1", false)...)
@@ -90,6 +93,7 @@ func TestCiliumPolicyNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testi
 }
 
 func TestCiliumPolicyNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	raw := ciliumPolicyNativeResource(t, []any{map[string]any{}})
 	path := writeCNCFFile(t, "cilium-policy.json", raw, 0o600)
 	other := ciliumPolicyNativeResource(t, []any{})
@@ -101,6 +105,7 @@ func TestCiliumPolicyNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
 }
 
 func TestCiliumPolicyPrepareFeedsNativeCheckEquivalently(t *testing.T) {
+	t.Parallel()
 	raw := ciliumPolicyNativeResource(t, []any{map[string]any{}})
 	path := writeCNCFFile(t, "cilium-policy.json", raw, 0o600)
 	code, canonical, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "cilium", "--input", path, "--from", "1.18.6", "--to", "1.19.0", "--format", "input")

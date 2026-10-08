@@ -38,6 +38,7 @@ func writeEmbeddedCLIBatch(t *testing.T) (string, string) {
 }
 
 func TestBatchCheckCLIEmitsMachineActionableOutcomesWithoutPrivatePaths(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	input := map[string]any{
 		"schema": "prufyx.io/operator-declared-constraint-input/v1alpha1", "authority": "OPERATOR_DECLARED_MINIMIZED",
@@ -63,6 +64,7 @@ func TestBatchCheckCLIEmitsMachineActionableOutcomesWithoutPrivatePaths(t *testi
 }
 
 func TestBatchCheckCLIEvaluatesOpenTelemetryInternalMetricsRule(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	facts := []any{
 		map[string]any{"id": "component.opentelemetry.config_complete", "state": "declared", "boolValue": true},
@@ -102,6 +104,7 @@ func TestBatchCheckCLIEvaluatesOpenTelemetryInternalMetricsRule(t *testing.T) {
 }
 
 func TestBatchCheckCLIRejectsMalformedPlanWithoutReadingItem(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	planPath := filepath.Join(root, "plan.json")
 	if err := os.WriteFile(planPath, []byte(`{"schema":"prufyx.io/batch-check-plan/v1alpha1","authority":"OPERATOR_DECLARED_LOCAL_CANONICAL_INPUTS","knowledge":{"mode":"embedded_only"},"items":[]}`), 0o600); err != nil {
@@ -115,6 +118,7 @@ func TestBatchCheckCLIRejectsMalformedPlanWithoutReadingItem(t *testing.T) {
 }
 
 func TestBatchCheckCLIRejectsEmptyOppositeModeFlagsAndNoncanonicalTime(t *testing.T) {
+	t.Parallel()
 	root, planPath := writeEmbeddedCLIBatch(t)
 	for _, args := range [][]string{
 		{"check", "batch", "--plan", planPath, "--root", root, "--knowledge-db=/missing", "--now="},
@@ -129,6 +133,7 @@ func TestBatchCheckCLIRejectsEmptyOppositeModeFlagsAndNoncanonicalTime(t *testin
 }
 
 func TestBatchCheckCLIPropagatesOutputFailures(t *testing.T) {
+	t.Parallel()
 	root, planPath := writeEmbeddedCLIBatch(t)
 	for _, format := range []string{"json", "human"} {
 		var stderr bytes.Buffer

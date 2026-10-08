@@ -37,6 +37,7 @@ func kubeEdgeNativeArgs(path, from, to, distribution, argvComplete string) []str
 // whole grammar, and the pinned v1.18 install path, v1.18 --profile flag help,
 // v1.19 install path and v1.19 release note establish each accepted form.
 func TestKubeEdgeInitArgvNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name   string
 		tokens []string
@@ -68,6 +69,7 @@ func TestKubeEdgeInitArgvNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 
 // The scoped PASS requires both caller declarations; neither is inferred.
 func TestKubeEdgeInitArgvNativeCheck_GuardsAreNeverInferred(t *testing.T) {
+	t.Parallel()
 	path := keadmInitArgvFile(t, "keadm-init-argv.json", "keadm", "init", "--kubeedge-version=v1.19.0")
 	for _, test := range []struct {
 		name                       string
@@ -91,6 +93,7 @@ func TestKubeEdgeInitArgvNativeCheck_GuardsAreNeverInferred(t *testing.T) {
 // The aggregate gate is unchanged by this route: even a scoped PASS keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestKubeEdgeInitArgvNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	path := keadmInitArgvFile(t, "keadm-init-argv-clean.json", "keadm", "init", "--kubeedge-version=v1.19.0")
 	code, stdout, stderr := runCNCFCLI(t, kubeEdgeNativeArgs(path, "1.18.0", "1.19.0", "official_upstream", "true")...)
 	if code != ExitOK || stderr != "" || !strings.Contains(stdout, `"status":"PASS"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
@@ -102,6 +105,7 @@ func TestKubeEdgeInitArgvNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testin
 }
 
 func TestKubeEdgeInitArgvNativeCheck_RejectsWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	path := keadmInitArgvFile(t, "keadm-init-argv.json", "keadm", "init", "--profile", "version=v1.19.0")
 	code, stdout, stderr := runCNCFCLI(t, kubeEdgeNativeArgs(path, "1.18.1", "1.19.0", "official_upstream", "true")...)
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
@@ -118,6 +122,7 @@ func TestKubeEdgeInitArgvNativeCheck_RejectsWrongPairAndWrongRoute(t *testing.T)
 }
 
 func TestKubeEdgeInitArgvNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	path := keadmInitArgvFile(t, "keadm-init-argv.json", "keadm", "init", "--profile", "version=v1.19.0")
 	other, err := json.Marshal([]string{"keadm", "init", "--kubeedge-version=v1.19.0"})
 	if err != nil {
@@ -133,6 +138,7 @@ func TestKubeEdgeInitArgvNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
 // The native route and the hand-authored canonical declaration reach the same
 // scoped outcome for the same reviewed rule.
 func TestKubeEdgeInitArgvNativeCheckMatchesCanonicalDeclaration(t *testing.T) {
+	t.Parallel()
 	path := keadmInitArgvFile(t, "keadm-init-argv.json", "keadm", "init", "--profile", "version=v1.19.0")
 	nativeCode, nativeReport, nativeErr := runCNCFCLI(t, kubeEdgeNativeArgs(path, "1.18.0", "1.19.0", "official_upstream", "true")...)
 	if nativeCode != ExitBlocked || nativeErr != "" || !strings.Contains(nativeReport, `"ruleId":"kubeedge.keadm-init-profile-version-selector.1-18-to-1-19"`) || !strings.Contains(nativeReport, `"status":"BLOCKED"`) {

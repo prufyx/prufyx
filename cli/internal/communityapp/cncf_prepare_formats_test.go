@@ -11,6 +11,7 @@ import (
 )
 
 func TestDistributionManifestPreparationFeedsScopedRule(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name, raw, status      string
 		prepareCode, checkCode int
@@ -37,6 +38,7 @@ func TestDistributionManifestPreparationFeedsScopedRule(t *testing.T) {
 }
 
 func TestNativeFormatDirectCheckSelectedEmptyStoreHasNoEmbeddedFallback(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"schemaVersion":1,"name":"private/example","tag":"latest","architecture":"amd64","fsLayers":[],"history":[]}`)
 	path := writeCNCFFile(t, "manifest.json", raw, 0o600)
 	store := filepath.Join(t.TempDir(), "store")
@@ -50,6 +52,7 @@ func TestNativeFormatDirectCheckSelectedEmptyStoreHasNoEmbeddedFallback(t *testi
 }
 
 func TestNativeFormatSelectedCurrentAndHistoricalReplayBindRawAndKnowledgePins(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	raw := []byte(`{"schemaVersion":1,"name":"private/example","tag":"latest","architecture":"amd64","fsLayers":[],"history":[],"private-canary":"secret"}`)
 	path := writeCNCFFile(t, "manifest.json", raw, 0o600)
@@ -81,6 +84,7 @@ func TestNativeFormatSelectedCurrentAndHistoricalReplayBindRawAndKnowledgePins(t
 }
 
 func TestCNISpecPreparationRequiresShapeEditAndIntent(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name, raw, operation, status string
 		prepareCode, checkCode       int
@@ -113,6 +117,7 @@ func TestCNISpecPreparationRequiresShapeEditAndIntent(t *testing.T) {
 }
 
 func TestNativeFormatPreparationRejectsCrossModeFlagsWithoutOpeningInput(t *testing.T) {
+	t.Parallel()
 	for _, args := range [][]string{
 		{"prepare", "cncf", "--project", "distribution", "--input", "/private/not-opened", "--from", "2.8.3", "--to", "3.0.0", "--operation", "configuration-spec-migration"},
 		{"prepare", "cncf", "--project", "container-network-interface-cni", "--input", "/private/not-opened", "--from", "0.4.0", "--to", "1.0.0", "--distribution", "official_upstream"},
@@ -125,6 +130,7 @@ func TestNativeFormatPreparationRejectsCrossModeFlagsWithoutOpeningInput(t *test
 }
 
 func TestNativeFormatDirectCheckUsesPrivateSourceWithoutCanonicalHandOff(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name, project, flag, raw, operation, status string
 		wantCode                                    int
@@ -162,6 +168,7 @@ func TestNativeFormatDirectCheckUsesPrivateSourceWithoutCanonicalHandOff(t *test
 }
 
 func TestNativeFormatDirectCheckFuturePairExtractsFactsButRuleRemainsUnknown(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		project, flag, raw, from, to, operation string
 	}{
@@ -184,6 +191,7 @@ func TestNativeFormatDirectCheckFuturePairExtractsFactsButRuleRemainsUnknown(t *
 }
 
 func TestNativeFormatDirectCheckRejectsCrossModeBeforeOpeningInput(t *testing.T) {
+	t.Parallel()
 	tests := [][]string{
 		{"check", "cncf", "--project", "distribution", "--image-manifest", "/private/not-opened", "--cni-configuration", "/private/also-not-opened", "--from", "2.8.3", "--to", "3.0.0", "--now", "2026-09-11T16:30:00Z"},
 		{"check", "cncf", "--project", "knative", "--image-manifest", "/private/not-opened", "--from", "2.8.3", "--to", "3.0.0", "--now", "2026-09-11T16:30:00Z"},

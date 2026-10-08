@@ -64,6 +64,7 @@ func inTotoExternalArgs(f inTotoExternalFixture, path, from, to, format string) 
 }
 
 func TestInTotoRunRawExternalAuthorityAndHistoricalReplay(t *testing.T) {
+	t.Parallel()
 	f := makeInTotoExternalFixture(t)
 	d := t.TempDir()
 	real := filepath.Join(d, "real.json")

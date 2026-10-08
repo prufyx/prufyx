@@ -12,6 +12,7 @@ import (
 )
 
 func TestPrometheusSelectedAlertmanagerExamples(t *testing.T) {
+	t.Parallel()
 	root := filepath.Join("..", "..", "examples", "cncf", "native-resources", "prometheus")
 	for name, want := range map[string]int{
 		"alertmanager-broken.yml":     ExitBlocked,
@@ -35,6 +36,7 @@ func TestPrometheusSelectedAlertmanagerExamples(t *testing.T) {
 }
 
 func TestPrometheusSelectedAlertmanagerDirectChecks(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, raw, from, to  string
 		complete, precedence bool
@@ -73,6 +75,7 @@ func TestPrometheusSelectedAlertmanagerDirectChecks(t *testing.T) {
 }
 
 func TestPrometheusSelectedAlertmanagerHumanScope(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "private-alertmanager.yml", []byte("scheme: http\nstatic_configs:\n  - targets: [private.example:9093]\n"), 0o600)
 	code, stdout, stderr := runCNCFCLI(t,
 		"check", "cncf", "--project", "prometheus", "--alertmanager-config", path,
@@ -89,6 +92,7 @@ func TestPrometheusSelectedAlertmanagerHumanScope(t *testing.T) {
 }
 
 func TestPrometheusSelectedAlertmanagerRejectsMixedModesAndBadPins(t *testing.T) {
+	t.Parallel()
 	raw := []byte("api_version: v2\nscheme: http\n")
 	path := writeCNCFFile(t, "private-alertmanager.yml", raw, 0o600)
 	base := []string{"check", "cncf", "--project", "prometheus", "--alertmanager-config", path, "--from", "2.55.1", "--to", "3.1.0", "--alertmanager-config-complete", "--alertmanager-config-precedence-resolved", "--now", "2026-09-12T00:30:00Z"}
@@ -108,6 +112,7 @@ func TestPrometheusSelectedAlertmanagerRejectsMixedModesAndBadPins(t *testing.T)
 }
 
 func TestPrometheusSelectedAlertmanagerExternalStoreNoFallbackAndReplayPinsRaw(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	raw := []byte("api_version: v2\nscheme: http\n")
 	path := writeCNCFFile(t, "private-alertmanager.yml", raw, 0o600)
@@ -144,6 +149,7 @@ func TestPrometheusSelectedAlertmanagerExternalStoreNoFallbackAndReplayPinsRaw(t
 }
 
 func TestPrometheusLatestAlertmanagerTargetPairsEndToEnd(t *testing.T) {
+	t.Parallel()
 	for _, from := range []string{"3.9.1", "3.10.0", "3.11.3", "3.12.0", "3.13.3"} {
 		t.Run(from, func(t *testing.T) {
 			for _, scenario := range []struct {
@@ -164,6 +170,7 @@ func TestPrometheusLatestAlertmanagerTargetPairsEndToEnd(t *testing.T) {
 }
 
 func TestPrometheusLatestAlertmanagerExamples(t *testing.T) {
+	t.Parallel()
 	root := filepath.Join("..", "..", "examples", "cncf", "native-resources", "prometheus")
 	for name, want := range map[string]int{
 		"latest-v3.14.0-alertmanager-blocked.yml": ExitBlocked,

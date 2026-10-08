@@ -8,6 +8,7 @@ import (
 )
 
 func TestCloudCustodianPreparationFeedsScopedRule(t *testing.T) {
+	t.Parallel()
 	blocked := writeCNCFFile(t, "cloud-custodian-blocked.json", []byte(`{"policies":[{"name":"private-policy","resource":"aws.iam-access-key","filters":[{"type":"json-diff","selector":"previous"}]}]}`), 0o600)
 	code, prepared, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "cloud-custodian", "--input", blocked, "--from", "0.9.50", "--to", "0.9.51", "--format", "input")
 	if code != ExitOK || stderr != "" || !strings.Contains(prepared, `"boolValue":true`) || strings.Contains(prepared, "private-policy") || strings.Contains(prepared, blocked) {
@@ -32,6 +33,7 @@ func TestCloudCustodianPreparationFeedsScopedRule(t *testing.T) {
 }
 
 func TestCloudCustodianPreparationArgumentErrorsIdentifyProject(t *testing.T) {
+	t.Parallel()
 	code, stdout, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "cloud-custodian", "--input", "unused", "--to", "0.9.51", "--format", "json")
 	if code != ExitUsage || stdout != "" || !strings.Contains(stderr, "CLOUD_CUSTODIAN_PREPARATION_INPUT_INVALID") || strings.Contains(stderr, "ARGO_CD") {
 		t.Fatalf("missing from code=%d stdout=%q stderr=%q", code, stdout, stderr)
@@ -39,6 +41,7 @@ func TestCloudCustodianPreparationArgumentErrorsIdentifyProject(t *testing.T) {
 }
 
 func TestCloudCustodianPreparationUnknownAndPrivateFileAdmission(t *testing.T) {
+	t.Parallel()
 	raw := []byte("{\"vars\":{\"private\":\"canary\"},\"policies\":[{\"name\":\"private-policy\",\"resource\":\"iam-access-key\",\"filters\":[]}]}")
 	unknown := writeCNCFFile(t, "cloud-custodian-root-vars.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "cloud-custodian", "--input", unknown, "--from", "0.9.50", "--to", "0.9.51", "--format", "json")
@@ -58,6 +61,7 @@ func TestCloudCustodianPreparationUnknownAndPrivateFileAdmission(t *testing.T) {
 }
 
 func TestCloudCustodianPreparationRejectsPrivateInputPinAndMalformedJSON(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "cloud-custodian-invalid.json", []byte(`{"policies":[{"name":"private-policy","resource":"iam-access-key","filters":[],}]}`), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "cloud-custodian", "--input", path, "--from", "0.9.50", "--to", "0.9.51", "--format", "json")
 	if code != ExitUsage || stdout != "" || strings.Contains(stderr, path) || strings.Contains(stderr, "private-policy") {
@@ -71,6 +75,7 @@ func TestCloudCustodianPreparationRejectsPrivateInputPinAndMalformedJSON(t *test
 }
 
 func TestCloudCustodianLatestFiveOriginRoutes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name, raw, status      string
 		prepareCode, checkCode int

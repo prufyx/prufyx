@@ -12,6 +12,7 @@ import (
 )
 
 func TestDatabaseCapabilitiesReportsExactCNCFContract(t *testing.T) {
+	t.Parallel()
 	contract, err := cncfcheck.ExternalProfileContractForCNCF()
 	if err != nil {
 		t.Fatal(err)
@@ -31,6 +32,7 @@ func TestDatabaseCapabilitiesReportsExactCNCFContract(t *testing.T) {
 }
 
 func TestDatabaseCapabilitiesRejectsMalformedArgumentsWithoutEchoingThem(t *testing.T) {
+	t.Parallel()
 	canary := "PRIVATE_ARGUMENT_CANARY"
 	for _, args := range [][]string{
 		{"--profile", "cncf", "--profile", "cncf"},

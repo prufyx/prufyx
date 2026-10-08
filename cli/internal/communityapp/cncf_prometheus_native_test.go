@@ -10,6 +10,7 @@ import (
 )
 
 func TestPrometheusSelectedScrapeConfigExamples(t *testing.T) {
+	t.Parallel()
 	root := filepath.Join("..", "..", "examples", "cncf", "native-resources", "prometheus")
 	for name, want := range map[string]int{"broken.yml": ExitBlocked, "fixed.yml": ExitOK, "unknown.yml": ExitUnknown} {
 		raw, err := os.ReadFile(filepath.Join(root, name))
@@ -25,6 +26,7 @@ func TestPrometheusSelectedScrapeConfigExamples(t *testing.T) {
 }
 
 func TestPrometheusSelectedScrapeConfigDirectChecks(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, raw, from, to  string
 		complete, precedence bool
@@ -60,6 +62,7 @@ func TestPrometheusSelectedScrapeConfigDirectChecks(t *testing.T) {
 }
 
 func TestPrometheusSelectedScrapeConfigRejectsMixedModesAndBadPins(t *testing.T) {
+	t.Parallel()
 	raw := []byte("job_name: private-job\nalways_scrape_classic_histograms: true\n")
 	path := writeCNCFFile(t, "selected-private.yml", raw, 0o600)
 	base := []string{"check", "cncf", "--project", "prometheus", "--scrape-config", path, "--scrape-job", "private-job", "--from", "2.55.1", "--to", "3.1.0", "--scrape-config-complete", "--scrape-config-precedence-resolved", "--now", "2026-09-11T23:00:00Z"}
@@ -78,6 +81,7 @@ func TestPrometheusSelectedScrapeConfigRejectsMixedModesAndBadPins(t *testing.T)
 }
 
 func TestPrometheusSelectedScrapeConfigAmbiguousYAMLNeverPasses(t *testing.T) {
+	t.Parallel()
 	for _, raw := range []string{
 		"job_name: private-job\nalways_scrape_classic_histograms: true#suffix\n",
 		"job_name: private-job\n\"\\x73crape_classic_histograms\": true\nalways_scrape_classic_histograms: true\n",
@@ -92,6 +96,7 @@ func TestPrometheusSelectedScrapeConfigAmbiguousYAMLNeverPasses(t *testing.T) {
 }
 
 func TestPrometheusSelectedScrapeConfigExternalStoreNoFallbackAndReplayPinsRaw(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	raw := []byte("job_name: private-job\nalways_scrape_classic_histograms: true\n")
 	path := writeCNCFFile(t, "selected-private.yml", raw, 0o600)
@@ -126,6 +131,7 @@ func TestPrometheusSelectedScrapeConfigExternalStoreNoFallbackAndReplayPinsRaw(t
 }
 
 func TestPrometheusLatestScrapeTargetPairsEndToEnd(t *testing.T) {
+	t.Parallel()
 	for _, from := range []string{"3.9.1", "3.10.0", "3.11.3", "3.12.0", "3.13.3"} {
 		t.Run(from, func(t *testing.T) {
 			for _, scenario := range []struct {
@@ -151,6 +157,7 @@ func TestPrometheusLatestScrapeTargetPairsEndToEnd(t *testing.T) {
 }
 
 func TestPrometheusLatestScrapeExamples(t *testing.T) {
+	t.Parallel()
 	root := filepath.Join("..", "..", "examples", "cncf", "native-resources", "prometheus")
 	for name, want := range map[string]int{
 		"latest-v3.14.0-scrape-blocked.yml": ExitBlocked,

@@ -19,6 +19,7 @@ func cubeFSRawArgs(path, from, to, phase, format string) []string {
 }
 
 func TestCubeFSMetaNodeRawConfigEditAndRepeat(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "metanode.json")
 	beforeRaw := []byte(`{"role":"metanode","listen":"17210","masterAddr":["private.example:17010"],"secretKey":"PRIVATE_CUBEFS"}`)
@@ -57,6 +58,7 @@ func TestCubeFSMetaNodeRawConfigEditAndRepeat(t *testing.T) {
 }
 
 func TestCubeFSMetaNodeRawUnknownPrivacyAndModeGuards(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "metanode.json")
 	tests := []struct {

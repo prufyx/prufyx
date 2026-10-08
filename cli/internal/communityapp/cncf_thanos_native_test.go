@@ -9,6 +9,7 @@ import (
 )
 
 func TestThanosNativeWorkloadCheckEvaluatesLiteralTargetArgs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name, raw, from, to string
 		want                int
@@ -43,6 +44,7 @@ func TestThanosNativeWorkloadCheckEvaluatesLiteralTargetArgs(t *testing.T) {
 }
 
 func TestThanosNativeWorkloadRejectsUnlistedLatestExpansionPair(t *testing.T) {
+	t.Parallel()
 	raw := thanosNativeWorkload(`{"name":"thanos","image":"quay.io/thanos/thanos:v0.42.4","command":["/bin/thanos"],"args":["receive","--log.level=info"]}`)
 	path := writeCNCFFile(t, "thanos-workload.json", []byte(raw), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "thanos", "--native-resource", path, "--from", "0.41.1", "--to", "0.42.4", "--now", "2026-09-12T07:38:00Z", "--format", "json")
@@ -52,6 +54,7 @@ func TestThanosNativeWorkloadRejectsUnlistedLatestExpansionPair(t *testing.T) {
 }
 
 func TestThanosLatestTargetPairsEndToEnd(t *testing.T) {
+	t.Parallel()
 	origins := []string{"0.37.2", "0.38.0", "0.39.2", "0.40.1", "0.41.0"}
 	for i, from := range origins {
 		blockerArgs := `["receive","--shipper.ignore-unequal-block-size"]`
@@ -78,6 +81,7 @@ func TestThanosLatestTargetPairsEndToEnd(t *testing.T) {
 }
 
 func TestThanosNativeWorkloadCheckRejectsMissingAndMixedInputModes(t *testing.T) {
+	t.Parallel()
 	raw := []byte(thanosNativeWorkload(`{"name":"thanos","image":"quay.io/thanos/thanos:v0.42.0","command":["thanos"],"args":["receive"]}`))
 	path := writeCNCFFile(t, "thanos-workload.json", raw, 0o600)
 	for _, args := range [][]string{
@@ -97,6 +101,7 @@ func thanosNativeWorkload(containers string) string {
 }
 
 func TestThanosNativeWorkloadExternalStoreHasNoFallbackAndReplayPinsRawBytes(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	raw := []byte(thanosNativeWorkload(`{"name":"thanos","image":"quay.io/thanos/thanos:v0.42.0","command":["thanos"],"args":["receive","--log.level=info"]}`))
 	resource := writeCNCFFile(t, "thanos-workload.json", raw, 0o600)

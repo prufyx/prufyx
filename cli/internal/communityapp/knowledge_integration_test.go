@@ -20,6 +20,7 @@ import (
 )
 
 func TestKnowledgeCLIEmptyToActiveAndHistoricalReplay(t *testing.T) {
+	t.Parallel()
 	artifacts, err := knowledgefixture.Generate(time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
@@ -86,6 +87,7 @@ func TestKnowledgeCLIEmptyToActiveAndHistoricalReplay(t *testing.T) {
 }
 
 func TestKnowledgeVerifyCLIIsBootstrapOnlyAndRedacted(t *testing.T) {
+	t.Parallel()
 	now := time.Now().UTC().Truncate(time.Second)
 	type fixture struct {
 		profile, rootDigest, packageDigest, bundleDigest, revision string
@@ -160,6 +162,7 @@ func TestKnowledgeVerifyCLIIsBootstrapOnlyAndRedacted(t *testing.T) {
 }
 
 func TestKnowledgeVerifyCLIRejectsStoreModeAndUntrustedRoot(t *testing.T) {
+	t.Parallel()
 	code, stdout, stderr := runKnowledgeCLI(t, "db", "verify", "/PRIVATE/package.tar", "--db-root", "/PRIVATE/store", "--bootstrap-root", "/PRIVATE/root.json", "--bootstrap-root-digest", strings.Repeat("0", 64))
 	if code != ExitUsage || stdout != "" || !strings.Contains(stderr, "invalid database verify arguments") || strings.Contains(stderr, "/PRIVATE/") {
 		t.Fatalf("store-mode rejection code=%d stdout=%s stderr=%s", code, stdout, stderr)
@@ -175,6 +178,7 @@ func TestKnowledgeVerifyCLIRejectsStoreModeAndUntrustedRoot(t *testing.T) {
 }
 
 func TestKnowledgeVerifyCLIRejectsPackageForOtherFixedProfile(t *testing.T) {
+	t.Parallel()
 	now := time.Now().UTC().Truncate(time.Second)
 	cert, err := knowledgefixture.Generate(now)
 	if err != nil {
@@ -230,6 +234,7 @@ func TestKnowledgeVerifyCLIRejectsPackageForOtherFixedProfile(t *testing.T) {
 }
 
 func TestKnowledgeStatusExitParityForNoSelectionAndReady(t *testing.T) {
+	t.Parallel()
 	for _, format := range []string{"human", "json"} {
 		code, stdout, _ := runKnowledgeCLI(t, "db", "status", "--db-root", filepath.Join(t.TempDir(), "empty-store"), "--format", format)
 		if code != ExitUnknown {
@@ -258,6 +263,7 @@ func TestKnowledgeStatusExitParityForNoSelectionAndReady(t *testing.T) {
 }
 
 func TestKnowledgeImportRecoveryMessagesRequireExactOriginalTransaction(t *testing.T) {
+	t.Parallel()
 	receipt := knowledge.ImportReceipt{
 		APIVersion: "prufyx.io/knowledge-import-receipt/v1", Status: "REJECTED",
 		TrustStateAdvanced: true, SelectionChanged: false,

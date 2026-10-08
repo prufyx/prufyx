@@ -17,6 +17,7 @@ func kubeflowRawArgs(t *testing.T, path, from, to, format string) []string {
 }
 
 func TestKubeflowKFPRawSourceEditAndRepeatWithoutSourceExecution(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "component.py")
 	canary := filepath.Join(dir, "MUST_NOT_EXIST")
@@ -49,6 +50,7 @@ func TestKubeflowKFPRawSourceEditAndRepeatWithoutSourceExecution(t *testing.T) {
 }
 
 func TestKubeflowKFPRawUnknownPrivacyAndModeGuards(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "component.py")
 	tests := []struct{ name, source, from, to, category string }{

@@ -10,6 +10,7 @@ import (
 )
 
 func TestReadCNCFPrivateAcceptsOwnerOnlyModes(t *testing.T) {
+	t.Parallel()
 	for mode, want := range map[os.FileMode]bool{0o600: true, 0o400: true, 0o700: true, 0o500: true, 0o750: false, 0o705: false, 0o640: false, 0o644: false, 0o660: false, 0o666: false} {
 		path := filepath.Join(t.TempDir(), "in.json")
 		if err := os.WriteFile(path, []byte("{}"), 0o600); err != nil {

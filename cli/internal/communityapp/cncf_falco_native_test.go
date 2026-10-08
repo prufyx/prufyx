@@ -19,6 +19,7 @@ func falcoNativeArgs(path, to string) []string {
 }
 
 func TestFalcoNativeArgvCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, raw, reason string
 		want              int
@@ -45,6 +46,7 @@ func TestFalcoNativeArgvCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 // The aggregate gate is unchanged by this route: even a scoped PASS keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestFalcoNativeArgvCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "falco.json", []byte(falcoCleanArgvInput), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, falcoNativeArgs(path, "0.41.0")...)
 	if code != ExitOK || stderr != "" || !strings.Contains(stdout, `"status":"PASS"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
@@ -56,6 +58,7 @@ func TestFalcoNativeArgvCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
 }
 
 func TestFalcoNativeArgvCheck_BothReviewedTargetsAreRouted(t *testing.T) {
+	t.Parallel()
 	blocked := writeCNCFFile(t, "falco-blocked.json", []byte(falcoRemovedArgvInput), 0o600)
 	clean := writeCNCFFile(t, "falco-clean.json", []byte(falcoCleanArgvInput), 0o600)
 	for _, to := range []string{"0.41.0", "0.42.0"} {
@@ -71,6 +74,7 @@ func TestFalcoNativeArgvCheck_BothReviewedTargetsAreRouted(t *testing.T) {
 }
 
 func TestFalcoNativeArgvCheck_CustomBuildAndMissingDistributionStayUnknown(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "falco.json", []byte(falcoRemovedArgvInput), 0o600)
 	for _, test := range []struct {
 		name string
@@ -99,6 +103,7 @@ func TestFalcoNativeArgvCheck_CustomBuildAndMissingDistributionStayUnknown(t *te
 }
 
 func TestFalcoNativeArgvCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "falco.json", []byte(falcoRemovedArgvInput), 0o600)
 	args := falcoNativeArgs(path, "0.43.0")
 	code, stdout, stderr := runCNCFCLI(t, args...)
@@ -120,6 +125,7 @@ func TestFalcoNativeArgvCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.
 }
 
 func TestFalcoNativeArgvCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "falco.json", []byte(falcoRemovedArgvInput), 0o600)
 	args := append(falcoNativeArgs(path, "0.41.0"), "--falco-argv-digest", cncfDigest([]byte(falcoCleanArgvInput)))
 	code, stdout, stderr := runCNCFCLI(t, args...)
@@ -129,6 +135,7 @@ func TestFalcoNativeArgvCheck_RejectsIntegrityPinMismatch(t *testing.T) {
 }
 
 func TestFalcoPrepareArgvFeedsCheck(t *testing.T) {
+	t.Parallel()
 	raw := []byte(falcoRemovedArgvInput)
 	path := writeCNCFFile(t, "falco.json", raw, 0o600)
 	code, canonical, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "falco", "--falco-argv", path, "--falco-argv-digest", cncfDigest(raw), "--from", "0.40.0", "--to", "0.41.0", "--falco-distribution", "official_upstream", "--format", "input")

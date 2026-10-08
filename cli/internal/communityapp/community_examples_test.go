@@ -11,6 +11,7 @@ import (
 )
 
 func TestCommunityExampleRunsNativeSyntheticCNCFJourneys(t *testing.T) {
+	t.Parallel()
 
 	if _, err := (runtime{}).runEtcdExample(); err != nil {
 		t.Fatalf("direct etcd example: %v", err)
@@ -43,6 +44,7 @@ func TestCommunityExampleRunsNativeSyntheticCNCFJourneys(t *testing.T) {
 }
 
 func TestCommunityExampleRejectsUnknownName(t *testing.T) {
+	t.Parallel()
 	var stdout, stderr bytes.Buffer
 	if code := Run(context.Background(), []string{"community-preview", "example", "unknown"}, &stdout, &stderr, "test"); code != ExitUsage || stdout.Len() != 0 || stderr.Len() == 0 {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())

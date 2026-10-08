@@ -14,6 +14,7 @@ func harborCLIInput(declared bool, argv ...string) []byte {
 }
 
 func TestHarborPreparationFeedsScopedCheck(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name, status string
 		argv         []string
@@ -42,6 +43,7 @@ func TestHarborPreparationFeedsScopedCheck(t *testing.T) {
 }
 
 func TestHarborLatestPreparationFeedsScopedCheck(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name, from, status string
 		argv               []string
@@ -67,6 +69,7 @@ func TestHarborLatestPreparationFeedsScopedCheck(t *testing.T) {
 }
 
 func TestHarborPreparationRejectsMalformedInputAndPinsBytes(t *testing.T) {
+	t.Parallel()
 	raw := harborCLIInput(true, "--with-chartmuseum")
 	path := writeCNCFFile(t, "harbor-private.json", raw, 0o600)
 	code, output, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "harbor", "--input", path, "--from", "2.7.0", "--to", "2.8.0", "--input-digest", "sha256:"+strings.Repeat("0", 64), "--format", "json")

@@ -46,6 +46,7 @@ func ageGolden(t *testing.T, name string, got []byte) {
 // knowledge is to its end. The golden files were written before the age note
 // existed; only the clock they record differs between them.
 func TestCheckOutputUnchangedNearExpiry(t *testing.T) {
+	t.Parallel()
 	input := writeCNCFFile(t, "input.json", []byte(kyvernoInputTrue), 0o600)
 	root, plan := writeEmbeddedCLIBatch(t)
 	for _, clock := range ageClocks {

@@ -54,6 +54,7 @@ func runKubeEdgeDeclaration(t *testing.T, raw []byte) (int, string, string) {
 }
 
 func TestKubeEdgeCanonicalExampleFeedsExistingScopedRule(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "examples", "cncf", "kubeedge-input.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -75,6 +76,7 @@ func TestKubeEdgeCanonicalExampleFeedsExistingScopedRule(t *testing.T) {
 }
 
 func TestKubeEdgeDeclarationsPreserveIntentAndApplicabilityBoundaries(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name                                  string
 		selectorState, selectorValue          string
@@ -103,6 +105,7 @@ func TestKubeEdgeDeclarationsPreserveIntentAndApplicabilityBoundaries(t *testing
 }
 
 func TestKubeEdgeCanonicalExampleRejectsMalformedIntentWithoutEcho(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "examples", "cncf", "kubeedge-input.json"))
 	if err != nil {
 		t.Fatal(err)

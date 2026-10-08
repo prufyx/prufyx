@@ -80,6 +80,7 @@ func scanFormatsFixture(t *testing.T) (string, []string) {
 // case needs line reviews the embedded knowledge does not carry, so it is
 // covered at the scan level with test knowledge.
 func TestScanFormatsExitCodes(t *testing.T) {
+	t.Parallel()
 	path, declared := scanFormatsFixture(t)
 	for name, tc := range map[string]struct {
 		to   string
@@ -96,6 +97,7 @@ func TestScanFormatsExitCodes(t *testing.T) {
 
 // TestScanFormatsDeterministic: two runs print the same bytes.
 func TestScanFormatsDeterministic(t *testing.T) {
+	t.Parallel()
 	path, declared := scanFormatsFixture(t)
 	for _, format := range []string{"human", "json", "sarif", "markdown"} {
 		command := append([]string{path, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--format", format}, declared...)
@@ -110,6 +112,7 @@ func TestScanFormatsDeterministic(t *testing.T) {
 // TestScanRedactFormats: --redact removes the file, namespace and name from
 // every format, SARIF and Markdown included, and keeps the exit code.
 func TestScanRedactFormats(t *testing.T) {
+	t.Parallel()
 	path, declared := scanFormatsFixture(t)
 	for _, format := range []string{"human", "json", "sarif", "markdown"} {
 		code, stdout, _ := runScan(t, append([]string{path, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--format", format, "--redact", "--verbose"}, declared...)...)
@@ -131,6 +134,7 @@ func TestScanRedactFormats(t *testing.T) {
 // TestScanFormatRejected: an unknown format is a usage error with nothing
 // on standard output.
 func TestScanFormatRejected(t *testing.T) {
+	t.Parallel()
 	path, declared := scanFormatsFixture(t)
 	for _, format := range []string{"xml", "SARIF", "sarif2", ""} {
 		code, stdout, stderr := runScan(t, append([]string{path, "--to", "kubernetes=1.25.3", "--format", format}, declared...)...)

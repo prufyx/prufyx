@@ -16,6 +16,7 @@ service:
 `
 
 func TestCNCFOpenTelemetryNativeRouteUsesSelectedConfig(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "collector.yaml", []byte(otelRouteConfig), 0o600)
 	args := []string{"check", "cncf", "--project", "opentelemetry", "--otel-collector-config", path, "--otel-collector-config-digest", cncfDigest([]byte(otelRouteConfig)), "--otel-distribution", "official", "--otel-config-complete", "--otel-config-precedence-resolved", "--from", "0.110.0", "--to", "0.111.0", "--now", "2026-09-12T02:35:00Z", "--format", "json"}
 	code, stdout, stderr := runCNCFCLI(t, args...)
@@ -28,6 +29,7 @@ func TestCNCFOpenTelemetryNativeRouteUsesSelectedConfig(t *testing.T) {
 }
 
 func TestCNCFOpenTelemetryNativeRouteBoundaries(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "collector.yaml", []byte("exporters:\n  debug: {}\n"), 0o600)
 	base := []string{"check", "cncf", "--project", "opentelemetry", "--otel-collector-config", path, "--otel-distribution", "official", "--otel-config-complete", "--otel-config-precedence-resolved", "--from", "0.110.0", "--to", "0.111.0", "--now", "2026-09-12T02:35:00Z", "--format", "json"}
 	code, stdout, stderr := runCNCFCLI(t, base...)
@@ -57,6 +59,7 @@ func TestCNCFOpenTelemetryNativeRouteBoundaries(t *testing.T) {
 }
 
 func TestCNCFOpenTelemetryNativeRouteRejectsBadPinAndMode(t *testing.T) {
+	t.Parallel()
 	raw := []byte("exporters:\n  debug: {}\n")
 	private := writeCNCFFile(t, "collector.yaml", raw, 0o600)
 	base := []string{"check", "cncf", "--project", "opentelemetry", "--otel-collector-config", private, "--otel-distribution", "official", "--otel-config-complete", "--otel-config-precedence-resolved", "--from", "0.110.0", "--to", "0.111.0", "--now", "2026-09-12T02:35:00Z"}
@@ -73,6 +76,7 @@ func TestCNCFOpenTelemetryNativeRouteRejectsBadPinAndMode(t *testing.T) {
 }
 
 func TestCNCFOpenTelemetryInternalMetricsSelectorTruthTable(t *testing.T) {
+	t.Parallel()
 	raw := []byte("exporters:\n  debug: {}\n")
 	path := writeCNCFFile(t, "collector-metrics.yaml", raw, 0o600)
 	base := []string{"check", "cncf", "--project", "opentelemetry", "--otel-collector-config", path, "--otel-collector-config-digest", cncfDigest(raw), "--otel-distribution", "official", "--otel-config-complete", "--otel-config-precedence-resolved", "--otel-rule", "internal-telemetry-default-bind", "--from", "0.110.0", "--to", "0.111.0", "--now", "2026-09-13T10:00:00Z", "--format", "json"}

@@ -19,6 +19,7 @@ func crioRawArgs(path, operation, format string) []string {
 }
 
 func TestCRIOArtifactNameRawEditAndRepeat(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "image-status-request.json")
 	shortRaw := []byte(`{"image":{"image":"private-repository/widget:v1"},"auth":{"password":"PRIVATE_CRIO"}}`)
@@ -58,6 +59,7 @@ func TestCRIOArtifactNameRawEditAndRepeat(t *testing.T) {
 }
 
 func TestCRIOArtifactNameRawUnknownPrivacyAndModeGuards(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "image-status-request.json")
 	tests := []struct {

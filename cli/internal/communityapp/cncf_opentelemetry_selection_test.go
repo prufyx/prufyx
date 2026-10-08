@@ -11,6 +11,7 @@ import (
 const otelSelectionClock = "2026-09-12T02:41:00Z"
 
 func TestOpenTelemetryNativeSelectionSealsExistingRule(t *testing.T) {
+	t.Parallel()
 	raw := []byte("exporters:\n  debug: {}\n")
 	path := writeCNCFFile(t, "collector.yaml", raw, 0o600)
 	args := []string{
@@ -33,6 +34,7 @@ func TestOpenTelemetryNativeSelectionSealsExistingRule(t *testing.T) {
 }
 
 func TestOpenTelemetryExternalSelectionHasNoFallbackAndReplayPins(t *testing.T) {
+	t.Parallel()
 	fixture := makeExternalCLIFixture(t)
 	raw := []byte("exporters:\n  debug: {}\n")
 	path := writeCNCFFile(t, "collector.yaml", raw, 0o600)

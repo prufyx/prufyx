@@ -26,6 +26,7 @@ func harborNativeArgs(path, from, to string) []string {
 // modeled literal argv covering the complete closed option set, never for an
 // unreviewed absence.
 func TestHarborNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, status, reason string
 		declared             bool
@@ -54,6 +55,7 @@ func TestHarborNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 // The aggregate gate is unchanged by this route: even a scoped PASS keeps the
 // whole-upgrade assessment UNKNOWN.
 func TestHarborNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
+	t.Parallel()
 	raw := harborNativeInput(true, "--with-trivy")
 	path := writeCNCFFile(t, "harbor.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, harborNativeArgs(path, "2.7.0", "2.8.0")...)
@@ -68,6 +70,7 @@ func TestHarborNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
 // All five reviewed 2.15.2 target-only origins are routed through the same
 // native path.
 func TestHarborNativeCheck_AllLatestOriginsAreRouted(t *testing.T) {
+	t.Parallel()
 	for _, from := range []string{"2.10.3", "2.11.2", "2.12.4", "2.13.5", "2.14.4"} {
 		t.Run(from, func(t *testing.T) {
 			blocked := writeCNCFFile(t, "harbor-latest-blocked.json", harborNativeInput(true, "--with-chartmuseum"), 0o600)
@@ -85,6 +88,7 @@ func TestHarborNativeCheck_AllLatestOriginsAreRouted(t *testing.T) {
 }
 
 func TestHarborNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "harbor.json", harborNativeInput(true, "--with-chartmuseum"), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, harborNativeArgs(path, "2.7.0", "2.8.1")...)
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
@@ -97,6 +101,7 @@ func TestHarborNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) 
 }
 
 func TestHarborNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
+	t.Parallel()
 	path := writeCNCFFile(t, "harbor.json", harborNativeInput(true, "--with-chartmuseum"), 0o600)
 	args := append(harborNativeArgs(path, "2.7.0", "2.8.0"), "--native-resource-digest", cncfDigest(harborNativeInput(true, "--with-trivy")))
 	code, stdout, stderr := runCNCFCLI(t, args...)
@@ -106,6 +111,7 @@ func TestHarborNativeCheck_RejectsIntegrityPinMismatch(t *testing.T) {
 }
 
 func TestHarborPrepareFeedsNativeCheckEquivalently(t *testing.T) {
+	t.Parallel()
 	raw := harborNativeInput(true, "--with-chartmuseum")
 	path := writeCNCFFile(t, "harbor.json", raw, 0o600)
 	code, canonical, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "harbor", "--input", path, "--from", "2.7.0", "--to", "2.8.0", "--format", "input")

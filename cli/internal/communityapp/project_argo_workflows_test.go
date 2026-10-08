@@ -11,6 +11,7 @@ import (
 )
 
 func TestArgoWorkflowsProjectCLIEndToEndAndPrivacy(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name, args string
 		want       int
@@ -42,6 +43,7 @@ func TestArgoWorkflowsProjectCLIEndToEndAndPrivacy(t *testing.T) {
 }
 
 func TestArgoWorkflowsProjectCLIModeAndPinAdmission(t *testing.T) {
+	t.Parallel()
 	body := []byte(`{"apiVersion":"apps/v1","kind":"Deployment","spec":{"template":{"spec":{"containers":[{"name":"argo-server","image":"quay.io/argoproj/argocli:v3.6.0","command":["argo"],"args":["server"],"env":[]}]}}}}`)
 	path := filepath.Join(t.TempDir(), "workload.json")
 	if err := os.WriteFile(path, body, 0600); err != nil {
@@ -90,6 +92,7 @@ func TestArgoWorkflowsProjectCLIModeAndPinAdmission(t *testing.T) {
 }
 
 func TestArgoWorkflowsLatestProjectCLIFiveOrigins(t *testing.T) {
+	t.Parallel()
 	for _, from := range []string{"3.4.18", "3.5.15", "3.6.19", "3.7.18", "4.0.11"} {
 		for _, tc := range []struct {
 			arg  string
@@ -110,6 +113,7 @@ func TestArgoWorkflowsLatestProjectCLIFiveOrigins(t *testing.T) {
 }
 
 func TestArgoWorkflowsPrepareInput(t *testing.T) {
+	t.Parallel()
 	path := writePrivateProjectFixture(t, `{"apiVersion":"apps/v1","kind":"Deployment","spec":{"template":{"spec":{"containers":[{"name":"argo-server","image":"quay.io/argoproj/argocli:v3.6.0","command":["argo"],"args":["server"],"env":[]}]}}}}`)
 	var stdout, stderr bytes.Buffer
 	exit := Run(t.Context(), []string{"prepare", "project", "--project", "argo-workflows", "--workload", path, "--from", "3.5.0", "--to", "3.6.0", "--workload-complete", "--format", "input"}, &stdout, &stderr, "test")
@@ -119,6 +123,7 @@ func TestArgoWorkflowsPrepareInput(t *testing.T) {
 }
 
 func TestArgoWorkflowsPublicExamples(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name string
 		want int
@@ -146,6 +151,7 @@ func TestArgoWorkflowsPublicExamples(t *testing.T) {
 }
 
 func TestArgoWorkflowsLatestPublicExamples(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name string
 		want int

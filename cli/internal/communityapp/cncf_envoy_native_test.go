@@ -8,6 +8,7 @@ import (
 )
 
 func TestEnvoyBootstrapNativeCheckAndPrepare(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"dynamic_resources":{"ads_config":{"api_type":"GRPC","transport_api_version":"V2"}}}`)
 	path := writeCNCFFile(t, "bootstrap.json", raw, 0o600)
 	base := []string{"--project", "envoy", "--envoy-bootstrap", path, "--envoy-bootstrap-digest", cncfDigest(raw), "--envoy-bootstrap-selected", "--from", "1.38.4", "--to", "1.39.1"}
@@ -24,6 +25,7 @@ func TestEnvoyBootstrapNativeCheckAndPrepare(t *testing.T) {
 }
 
 func TestEnvoyBootstrapNativeUnknownAndGuards(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"dynamic_resources":{"ads_config":{"api_type":"GRPC","transport_api_version":"V3"}}}`)
 	path := writeCNCFFile(t, "bootstrap.json", raw, 0o600)
 	base := []string{"--project", "envoy", "--envoy-bootstrap", path, "--from", "1.38.4"}

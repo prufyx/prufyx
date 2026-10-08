@@ -21,6 +21,7 @@ func noticeClaim(id, status, reason, nextAction string) constraintengine.Claim {
 // unreviewed; a notice that does not apply prints nothing; and no notice
 // line says anything is safe.
 func TestNoticeHumanOutput(t *testing.T) {
+	t.Parallel()
 	pass := constraintengine.Claim{RuleID: "rule-pass", Operator: "forbid_predicate_value", Status: "PASS", ReasonCode: "FEATURE_REMOVED"}
 	unreviewed := constraintengine.Claim{RuleID: "rule-other", Operator: "forbid_target_version", Status: "UNKNOWN", ReasonCode: reasonTransitionNotReviewed}
 	claims := []constraintengine.Claim{
@@ -74,6 +75,7 @@ func TestNoticeHumanOutput(t *testing.T) {
 // as a plain status line, and a report holding only notices says that no
 // rule decided the transition.
 func TestNoticeWritersOnEveryRoute(t *testing.T) {
+	t.Parallel()
 	notice := noticeClaim("notice-applies", constraintengine.StatusNotice, constraintengine.ReasonOneWayTransition, noticeBeforeText)
 	other := noticeClaim("notice-other-pair", "UNKNOWN", reasonTransitionNotReviewed, "no rule for declared pair")
 	blocked := constraintengine.Claim{RuleID: "rule-blocked", Operator: "forbid_target_version", Status: "BLOCKED", ReasonCode: "FEATURE_REMOVED", NextAction: "plan a reviewed route"}
