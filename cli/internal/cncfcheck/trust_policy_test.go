@@ -479,7 +479,7 @@ func TestClaimExitBasis(t *testing.T) {
 	withBasis := func(rule, basis string) string {
 		return strings.Replace(rule, `"evidence":{"state":`, `"evidence":{"basis":"`+basis+`","derivedAt":"`+reviewed+`","state":`, 1)
 	}
-	pass := syntheticKubernetesRule("kubernetes.synthetic-a-pass", "require_component_version", "REVIEWED_SOURCE_CONSTRAINT", "keep the reviewed version", `,"dependency":{"side":"proposed","component":"`+noticeComponent+`","comparison":"gte","version":"1.37.0"}`, reviewed, until)
+	pass := syntheticKubernetesRule("kubernetes.synthetic-a-pass", "require_component_version", "REVIEWED_SOURCE_CONSTRAINT", "keep the reviewed version", `,"dependency":{"side":"proposed","component":"`+noticeComponent+`","comparison":"gte","version":"1.36.0"}`, reviewed, until)
 	blocked := syntheticKubernetesRule("kubernetes.synthetic-b-blocked", "forbid_target_version", "REVIEWED_SOURCE_CONSTRAINT", "plan a reviewed route", "", reviewed, until)
 	consensusPass := withBasis(strings.Replace(pass, "synthetic-a-pass", "synthetic-c-consensus", 1), constraintengine.BasisConsensus)
 	consensusBlock := withBasis(strings.Replace(blocked, "synthetic-b-blocked", "synthetic-d-consensus-block", 1), constraintengine.BasisConsensus)

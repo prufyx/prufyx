@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedefixture"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/factorymirror"
 )
 
@@ -505,7 +506,7 @@ func TestApplyCommandOnTheShippedPack(t *testing.T) {
 	// The shipped pack with the reviewed rules this run collides with removed.
 	packDir := t.TempDir()
 	for _, f := range []string{"rules.json", "landscape-projects.json", "priority-portfolio.json"} {
-		if err := os.WriteFile(filepath.Join(packDir, f), readFile(t, "../../cncfcheck/data/"+f), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(packDir, f), shippedFile(t, f), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -634,7 +635,7 @@ func TestSupersedeCommand(t *testing.T) {
 	}
 	packDir := t.TempDir()
 	for _, f := range []string{"rules.json", "landscape-projects.json", "priority-portfolio.json"} {
-		if err := os.WriteFile(filepath.Join(packDir, f), readFile(t, "../../cncfcheck/data/"+f), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(packDir, f), shippedFile(t, f), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -695,4 +696,20 @@ func TestSupersedeCommand(t *testing.T) {
 	if !bytes.Equal(readFile(t, pack), after) {
 		t.Fatal("a rejected command changed the pack")
 	}
+}
+
+// shippedFile reads a shipped pack file; the rule pack is returned as it was
+// before the served-API supersede, so that reviewed Kubernetes rules exist
+// to be replaced.
+func shippedFile(t *testing.T, name string) []byte {
+	t.Helper()
+	raw := readFile(t, "../../cncfcheck/data/"+name)
+	if name != "rules.json" {
+		return raw
+	}
+	out, err := supersedefixture.Reviewed(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
 }

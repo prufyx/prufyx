@@ -6,10 +6,31 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
+// servedReason is the reason code the shipped Kubernetes API-removal rules
+// decide with: that of the reviewed rules, or of the mechanical ones that
+// replace them.
+func servedReason() string {
+	if supersedeids.Superseded() {
+		return "KUBERNETES_SERVED_API_REMOVED"
+	}
+	return "REVIEWED_SOURCE_CONSTRAINT"
+}
+
+// kubernetesRuleExtra is how many more Kubernetes verdict rules the embedded
+// pack holds once the mechanical rules replace the reviewed ones.
+func kubernetesRuleExtra() int {
+	if supersedeids.Superseded() {
+		return 4
+	}
+	return 0
+}
+
 func kubernetesNativeArgs(path string) []string {
-	return []string{"check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", "1.31.0", "--to", "1.32.0", "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", "2026-09-12T10:00:00Z", "--format", "json"}
+	return []string{"check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", "1.31.0", "--to", "1.32.0", "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", "2026-11-20T00:00:00Z", "--format", "json"}
 }
 
 func TestKubernetesNativeFlowControlCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
@@ -19,8 +40,8 @@ func TestKubernetesNativeFlowControlCheck_BoundedOutcomesAndPrivacy(t *testing.T
 		want              int
 		complete          bool
 	}{
-		{"removed blocks", `{"apiVersion":"flowcontrol.apiserver.k8s.io/v1beta3","kind":"FlowSchema","metadata":{"name":"private-flow"}}`, "REVIEWED_SOURCE_CONSTRAINT", ExitBlocked, true},
-		{"v1 passes", `{"apiVersion":"v1","kind":"List","items":[{"apiVersion":"flowcontrol.apiserver.k8s.io/v1","kind":"PriorityLevelConfiguration","metadata":{"name":"private-flow"}},{"apiVersion":"v1","kind":"Service"}]}`, "REVIEWED_SOURCE_CONSTRAINT", ExitOK, true},
+		{"removed blocks", `{"apiVersion":"flowcontrol.apiserver.k8s.io/v1beta3","kind":"FlowSchema","metadata":{"name":"private-flow"}}`, servedReason(), ExitBlocked, true},
+		{"v1 passes", `{"apiVersion":"v1","kind":"List","items":[{"apiVersion":"flowcontrol.apiserver.k8s.io/v1","kind":"PriorityLevelConfiguration","metadata":{"name":"private-flow"}},{"apiVersion":"v1","kind":"Service"}]}`, servedReason(), ExitOK, true},
 		{"incomplete remains unknown", `{"apiVersion":"flowcontrol.apiserver.k8s.io/v1","kind":"FlowSchema"}`, "RULE_FACT_UNAVAILABLE", ExitUnknown, false},
 		{"unreviewed version remains unknown", `{"apiVersion":"flowcontrol.apiserver.k8s.io/v9","kind":"FlowSchema"}`, "RULE_FACT_UNAVAILABLE", ExitUnknown, true},
 		{"nested list remains unknown", `{"apiVersion":"v1","kind":"List","items":[{"apiVersion":"v1","kind":"List","items":[]}]}`, "RULE_FACT_UNAVAILABLE", ExitUnknown, true},
@@ -53,9 +74,13 @@ func TestKubernetesNativeFlowControlCheck_RejectsMalformedAndWrongRoute(t *testi
 	}
 	clear := writeCNCFFile(t, "clear.json", []byte(`{"apiVersion":"flowcontrol.apiserver.k8s.io/v1","kind":"FlowSchema"}`), 0o600)
 	args := kubernetesNativeArgs(clear)
+	// A pair no rule covers: 1.30 -> 1.31.
 	for i := range args {
-		if args[i] == "1.32.0" {
-			args[i] = "1.32.1"
+		switch args[i] {
+		case "1.32.0":
+			args[i] = "1.31.0"
+		case "1.31.0":
+			args[i] = "1.30.0"
 		}
 	}
 	code, stdout, stderr = runCNCFCLI(t, args...)
@@ -103,7 +128,7 @@ func TestKubernetesPrepareFlowControlFeedsBatch(t *testing.T) {
 		t.Fatalf("prepare code=%d stdout=%q stderr=%q", code, canonical, stderr)
 	}
 	prepared := writeCNCFFile(t, "kubernetes-canonical.json", []byte(canonical), 0o600)
-	code, report, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", prepared, "--input-digest", cncfDigest([]byte(canonical)), "--now", "2026-09-12T10:00:00Z", "--format", "json")
+	code, report, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", prepared, "--input-digest", cncfDigest([]byte(canonical)), "--now", "2026-11-20T00:00:00Z", "--format", "json")
 	if code != ExitBlocked || stderr != "" || !strings.Contains(report, `"status":"BLOCKED"`) {
 		t.Fatalf("batch code=%d stdout=%q stderr=%q", code, report, stderr)
 	}
@@ -124,7 +149,7 @@ func TestKubernetesNativeItemsBesideARemovedVersion(t *testing.T) {
 		{"removed CronJob carrying items", "1.24.0", "1.25.0", "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: n}\nitems: []\n", ExitUnknown},
 	} {
 		path := writeCNCFFile(t, "applyset.yaml", []byte(tc.docs), 0o600)
-		code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", tc.from, "--to", tc.to, "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", "2026-10-01T00:00:00Z", "--format", "json")
+		code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", tc.from, "--to", tc.to, "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", "2026-11-20T00:00:00Z", "--format", "json")
 		if code != tc.want || stderr != "" || (tc.want == ExitBlocked) != strings.Contains(stdout, `"status":"BLOCKED"`) {
 			t.Fatalf("%s: code=%d stdout=%q stderr=%q", tc.name, code, stdout, stderr)
 		}

@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 	"github.com/prufyx/prufyx/cli/internal/servedapis"
@@ -201,7 +202,7 @@ func TestScanFirstPassStillBlocksRemovedAPI(t *testing.T) {
 	if result.Exit != scanreport.ExitBlocked || result.Report.Verdict == scanreport.VerdictPass || len(result.Report.Findings) == 0 {
 		t.Fatalf("exit %d verdict %s findings %d gaps %v", result.Exit, result.Report.Verdict, len(result.Report.Findings), gapReasons(result.Report))
 	}
-	if !strings.Contains(result.Report.Findings[0].RuleID, "flowcontrol-v1beta2-removed") {
+	if result.Report.Findings[0].RuleID != supersedeids.ID("kubernetes.flowcontrol-v1beta2-removed.1-28-0-to-1-29-0") {
 		t.Fatalf("finding %+v", result.Report.Findings[0])
 	}
 	// Removed on an earlier line (1.25) and no hop enters it: never served.

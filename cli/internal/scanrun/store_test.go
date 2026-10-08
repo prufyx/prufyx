@@ -14,6 +14,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
@@ -212,7 +213,7 @@ func TestScanStoreMatchesEmbedded(t *testing.T) {
 		{"reviewed path, pass", knowledgeOptions{lines: allLines, policy: "current"}, cronjobV1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4"}, scanreport.ExitPass},
 		{"one line unreviewed", knowledgeOptions{lines: without(allLines, "1.28"), policy: "current"}, cronjobV1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4"}, scanreport.ExitUnknown},
 		{"require mechanical", knowledgeOptions{lines: allLines, policy: "current"}, cronjobV1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", "mechanical"}, scanreport.ExitUnknown},
-		{"require reviewed", knowledgeOptions{lines: allLines, policy: "current"}, cronjobV1beta1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", "reviewed"}, scanreport.ExitBlocked},
+		{"require reviewed and mechanical", knowledgeOptions{lines: allLines, policy: "current"}, cronjobV1beta1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", "reviewed,mechanical"}, scanreport.ExitBlocked},
 		{"other component", knowledgeOptions{}, cronjobV1beta1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--to", "etcd=3.5.0"}, scanreport.ExitBlocked},
 	}
 	for _, layout := range storeLayouts {
@@ -289,15 +290,36 @@ func renewedPack(t *testing.T) []byte {
 	})
 }
 
-// afterExpiry is an instant after every embedded Kubernetes rule expired
-// and inside the renewed leases.
-const afterExpiry = "2027-01-15T00:00:00Z"
+// afterExpiry is an instant after every embedded Kubernetes rule expired (the
+// day after the latest validUntil) and inside the renewed leases.
+func afterExpiry(t *testing.T) string {
+	t.Helper()
+	var latest time.Time
+	editPack(t, embeddedPack(t), func(project string, rule map[string]any) bool {
+		if project == kubernetesSlug {
+			until, err := time.Parse(time.RFC3339, rule["evidence"].(map[string]any)["validUntil"].(string))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if until.After(latest) {
+				latest = until
+			}
+		}
+		return true
+	})
+	at := latest.Truncate(24*time.Hour).AddDate(0, 0, 1)
+	if renewed := time.Date(2027, 2, 28, 0, 0, 0, 0, time.UTC); !at.Before(renewed) {
+		t.Fatalf("embedded Kubernetes leases end %s, not before the renewed leases (%s)", latest, renewed)
+	}
+	return at.Format(time.RFC3339)
+}
 
 // TestScanStoreRenewedRule: after the embedded rules expired, a database
 // holding renewed rules evaluates them as current, and the scan finds the
 // blocker the stale embedded rule can no longer decide. A database holding
 // the stale pack behaves exactly like the embedded knowledge.
 func TestScanStoreRenewedRule(t *testing.T) {
+	afterExpiry := afterExpiry(t)
 	scanArgs := []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3"}
 	for _, layout := range storeLayouts {
 		dir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1beta1})
@@ -310,7 +332,7 @@ func TestScanStoreRenewedRule(t *testing.T) {
 			renewed := newStoreFixture(t, layout)
 			renewed.importPack(renewedPack(t), "6")
 			result := mustScan(t, openAt(t, renewed.store, afterExpiry), storeArgs([]string{"applyset.yaml"}, scanArgs...)...)
-			if result.Exit != scanreport.ExitBlocked || len(result.Report.Findings) != 1 || result.Report.Findings[0].RuleID != "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0" || contains(gapReasons(result.Report), "EVIDENCE_EXPIRED 1.24.17->1.25.3") {
+			if result.Exit != scanreport.ExitBlocked || len(result.Report.Findings) != 1 || result.Report.Findings[0].RuleID != supersedeids.ID("kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0") || contains(gapReasons(result.Report), "EVIDENCE_EXPIRED 1.24.17->1.25.3") {
 				t.Fatalf("%s renewed: exit %d findings %+v gaps %v", layout, result.Exit, result.Report.Findings, gapReasons(result.Report))
 			}
 			if result.Report.Provenance.EvaluatedAt != afterExpiry || result.Report.Provenance.KnowledgeRevision != "6" {
@@ -337,7 +359,7 @@ func TestScanStoreRenewedRule(t *testing.T) {
 // exactly as a withdrawn embedded rule: the hop is not decided, no finding.
 func TestScanStoreWithdrawnRule(t *testing.T) {
 	withdrawn := editPack(t, embeddedPack(t), func(project string, rule map[string]any) bool {
-		if rule["id"] == "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0" {
+		if rule["id"] == supersedeids.ID("kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0") {
 			rule["evidence"].(map[string]any)["state"] = "withdrawn"
 		}
 		return true

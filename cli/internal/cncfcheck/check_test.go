@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 type reviewedVector struct {
@@ -51,24 +52,45 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	vectors := reviewedVectors(t)
-	if len(b.pack.Entries) != 191 || len(vectors) != 191 {
-		t.Fatal("unexpected reviewed rule or vector count")
+	// The vector file holds the vectors of both generations of the Kubernetes
+	// API-removal rules; the pack's rules select theirs.
+	extra := 0
+	if supersedeids.Superseded() {
+		extra = 4
 	}
+	byRule := map[string]reviewedVector{}
+	for _, vector := range reviewedVectors(t) {
+		byRule[vector.RuleID] = vector
+	}
+	var vectors []reviewedVector
 	caseCount := 0
-	for _, vector := range vectors {
+	for i := range b.pack.Entries {
+		var rule struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(b.pack.Entries[i].Rule, &rule); err != nil {
+			t.Fatal(err)
+		}
+		vector, ok := byRule[rule.ID]
+		if !ok {
+			t.Fatalf("rule %s has no source-reviewed vectors", rule.ID)
+		}
+		delete(byRule, rule.ID)
+		vectors = append(vectors, vector)
 		caseCount += len(vector.Cases)
 	}
-	if caseCount != 963 {
+	for id := range byRule {
+		if !strings.HasPrefix(id, "kubernetes.") || supersedeids.Superseded() == strings.HasPrefix(id, supersedeids.MechanicalPrefix) {
+			t.Fatalf("vectors of %s match no rule of the pack", id)
+		}
+	}
+	if len(b.pack.Entries) != 191+extra || len(vectors) != 191+extra {
+		t.Fatal("unexpected reviewed rule or vector count")
+	}
+	if caseCount != 963+4*extra {
 		t.Fatal("unexpected reviewed case count")
 	}
-	if len(vectors) != len(b.pack.Entries) {
-		t.Fatal("each admitted rule needs source-reviewed vectors")
-	}
-	for i, vector := range vectors {
-		if vector.RuleID == "" || !bytes.Contains(b.pack.Entries[i].Rule, []byte(vector.RuleID)) {
-			t.Fatal("vector coverage does not match ordered rule pack")
-		}
+	for _, vector := range vectors {
 		for _, scenario := range vector.Cases {
 			t.Run(vector.RuleID+"/"+scenario.Name, func(t *testing.T) {
 				clock := reviewClock(t)
@@ -145,6 +167,11 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 				}
 				if vector.RuleID == "prometheus.remote-write-http2-default.2-55-1-to-3-14-0" {
 					clock = time.Date(2026, 9, 13, 9, 0, 0, 0, time.UTC)
+				}
+				// A mechanical rule is reviewed at its derivation time: the
+				// vectors run one hour after it, inside the lease.
+				if strings.HasPrefix(vector.RuleID, supersedeids.MechanicalPrefix) {
+					clock = mechanicalReviewClock(t, vector.RuleID)
 				}
 				report, err := Check(vector.Project, scenario.Input, clock)
 				if err != nil {
@@ -742,4 +769,11 @@ func TestKarmadaClosedInputFailures(t *testing.T) {
 			}
 		})
 	}
+}
+
+// mechanicalReviewClock is one hour after the reviewedAt of the pack's rule.
+func mechanicalReviewClock(t *testing.T, ruleID string) time.Time {
+	t.Helper()
+	reviewed, _ := ruleEvidenceBounds(t, ruleID)
+	return reviewed.Add(time.Hour)
 }

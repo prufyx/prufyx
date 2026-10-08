@@ -16,7 +16,7 @@
           "executionSuccessful": true,
           "exitCode": 0,
           "exitCodeDescription": "PASS FOR THE DECLARED SCOPE",
-          "startTimeUtc": "2026-10-04T00:00:00Z",
+          "startTimeUtc": "2026-11-20T00:00:00Z",
           "toolExecutionNotifications": []
         }
       ],
@@ -37,7 +37,7 @@
           "leads": 0,
           "unsupported": 0
         },
-        "evaluatedAt": "2026-10-04T00:00:00Z",
+        "evaluatedAt": "2026-11-20T00:00:00Z",
         "inputDigest": "sha256:f97b2da482d3ad4454ea833ec04bdf3e2b1b8e8a7daecc26b9ea26c8142261c1",
         "knowledgeOrigin": "embedded",
         "knowledgeRevision": "cncf-2026-09-13.4",

@@ -7,6 +7,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 // TestProjectFilterUsesTheSharedMatcher: version filters select by anchor or
@@ -90,7 +91,8 @@ func TestDiscoverPatchPairOnRangedPack(t *testing.T) {
 			t.Fatalf("anchor check missing its published range: %+v", check)
 		}
 	}
-	// The exact-only flow-control rule never matches off its anchor.
+	// The exact-only reviewed flow-control rule never matches off its anchor
+	// (the mechanical rule that replaces it is a range rule and does).
 	offAnchor, err := Discover("kubernetes", "1.31.17", "1.32.3")
 	if err != nil {
 		t.Fatal(err)
@@ -99,7 +101,7 @@ func TestDiscoverPatchPairOnRangedPack(t *testing.T) {
 		t.Fatalf("1.32 off-anchor pair=%+v", offAnchor)
 	}
 	for _, check := range offAnchor.Checks {
-		if check.RuleID == "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0" || check.Range == nil {
+		if (!supersedeids.Superseded() && check.RuleID == "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0") || check.Range == nil {
 			t.Fatalf("flow-control off-anchor pair=%+v", offAnchor)
 		}
 	}

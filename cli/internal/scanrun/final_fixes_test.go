@@ -9,13 +9,15 @@ import (
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
 
-const (
-	cronjobRuleID = "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0"
-	pdbRuleID     = "kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0"
-	cronjobFact   = "component.kubernetes.cronjob_v1beta1_removed_gvk_present"
+const cronjobFact = "component.kubernetes.cronjob_v1beta1_removed_gvk_present"
+
+var (
+	cronjobRuleID = supersedeids.ID("kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0")
+	pdbRuleID     = supersedeids.ID("kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0")
 )
 
 // rangedRule is a synthetic removed-API family rule over the whole lines
@@ -113,7 +115,7 @@ func TestScanPolicyExcludedClaimIntegrity(t *testing.T) {
 	extend := func(claims []constraintengine.Claim) []constraintengine.Claim {
 		// Only on the hop the lead covers, so no other guard trips first.
 		for _, claim := range claims {
-			if claim.Status == "PASS" && claim.RuleID == "kubernetes.flowcontrol-v1beta1-removed.1-25-0-to-1-26-0" {
+			if claim.Status == "PASS" && claim.RuleID == supersedeids.ID("kubernetes.flowcontrol-v1beta1-removed.1-25-0-to-1-26-0") {
 				claim.RuleID, claim.EvidenceBasis, claim.Status, claim.ReasonCode = id, constraintengine.BasisLead, constraintengine.StatusNotice, constraintengine.ReasonLeadNotVerified
 				return append(claims, claim)
 			}

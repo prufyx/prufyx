@@ -274,6 +274,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   temporary file, flushes it and renames it into place, and refuses a symbolic
   link, FIFO or other non-regular file at the asset or any link among its parent
   directories (previously a link was followed and its target overwritten).
+- `scan` treats the reason code `KUBERNETES_SERVED_API_REMOVED` (carried by the mechanical
+  Kubernetes API-removal rules) as a decided claim, like `REVIEWED_SOURCE_CONSTRAINT`, and the
+  check-route catalog describes the native routes of both generations of the Kubernetes
+  API-removal rules (the reviewed ones now shipped and the mechanical ones that will replace
+  them), so the catalog stays exact on either side of that replacement. No shipped rule
+  changes.
 - `k8s.served-api-removal` 1.3.0: every reviewed migration hint now cites the
   passage of the upstream deprecation guide (kubernetes/website at a pinned
   revision, with start and end line) that supports it, and a test checks each

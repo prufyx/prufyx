@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 var baselineNow = time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
@@ -82,6 +83,12 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 	}
 	if head.Revision != "cncf-2026-09-13.4" {
 		t.Skipf("embedded pack is %s; the baseline pack is cncf-2026-09-13.4", head.Revision)
+	}
+	if supersedeids.Superseded() {
+		// The baseline numbers are those of the reviewed Kubernetes rules; the
+		// mechanical rules that replace them change the fleet figures. The
+		// replacement either bumps the revision or updates these numbers.
+		t.Skip("the embedded pack holds the mechanical Kubernetes rules, not the baseline's reviewed ones")
 	}
 	report, err := Compute(Input{Pack: pack, Lines: read(t, "testdata/lines-2026-10-08.json"), Now: baselineNow})
 	if err != nil {

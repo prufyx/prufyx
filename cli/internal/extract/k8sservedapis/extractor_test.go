@@ -24,6 +24,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 var update = flag.Bool("update", false, "rewrite the golden files")
@@ -295,7 +296,8 @@ func kindsOf(desc string) []string {
 	return strings.Split(list, ", ")
 }
 
-// unpublishedRemovalFacts are adapter facts with no rule in the published pack.
+// unpublishedRemovalFacts are adapter facts with no rule in the published pack
+// until the mechanical rules ship (they then carry a rule over every fact).
 var unpublishedRemovalFacts = []string{
 	"component.kubernetes.selfsubjectreview_v1beta1_removed_gvk_present",
 	"component.kubernetes.validatingadmissionpolicy_v1beta1_removed_gvk_present",
@@ -329,7 +331,7 @@ func TestRulesHaveTheReviewedShape(t *testing.T) {
 		if !ok {
 			// Facts the adapter derives but the published pack carries no
 			// rule for yet have nothing to compare against.
-			if slices.Contains(unpublishedRemovalFacts, e.Rule.Condition.FactID) {
+			if !supersedeids.Superseded() && slices.Contains(unpublishedRemovalFacts, e.Rule.Condition.FactID) {
 				continue
 			}
 			t.Fatalf("%s: fact %s is not a reviewed removal fact", e.Rule.ID, e.Rule.Condition.FactID)
@@ -353,8 +355,12 @@ func TestRulesHaveTheReviewedShape(t *testing.T) {
 		}
 		checked++
 	}
-	if checked != 5 {
-		t.Fatalf("checked %d rules", checked)
+	want := 5
+	if supersedeids.Superseded() {
+		want = 6
+	}
+	if checked != want {
+		t.Fatalf("checked %d rules, want %d", checked, want)
 	}
 }
 

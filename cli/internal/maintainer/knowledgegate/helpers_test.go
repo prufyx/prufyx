@@ -10,9 +10,12 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedefixture"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/rulecheck"
 )
 
@@ -50,19 +53,94 @@ func writeFile(t *testing.T, path string, raw []byte) {
 	}
 }
 
+// knowledgeTemplate holds the bytes of the knowledge files every test tree
+// starts from, built once per test binary.
+var (
+	knowledgeTemplateOnce  sync.Once
+	knowledgeTemplateFiles map[string][]byte
+	knowledgeTemplateErr   error
+)
+
 // copyKnowledge copies the knowledge files of this repository into a new
-// tree.
+// tree. The pack is the one as it was before the served-API supersede (the
+// mechanical Kubernetes rules cannot be re-derived from the small upstream
+// fixtures these tests use); the files generated from the pack follow it. On
+// a shipped pack that holds the reviewed rules this is the repository's own
+// bytes.
 func copyKnowledge(t *testing.T) Tree {
 	t.Helper()
+	knowledgeTemplateOnce.Do(func() { knowledgeTemplateFiles, knowledgeTemplateErr = buildKnowledgeTemplate() })
+	if knowledgeTemplateErr != nil {
+		t.Fatal(knowledgeTemplateErr)
+	}
 	root := t.TempDir()
-	for _, rel := range knowledgeFiles {
-		raw, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel)))
-		if err != nil {
-			t.Fatal(err)
-		}
+	for rel, raw := range knowledgeTemplateFiles {
 		writeFile(t, filepath.Join(root, filepath.FromSlash(rel)), raw)
 	}
 	return Tree{Root: root}
+}
+
+func buildKnowledgeTemplate() (map[string][]byte, error) {
+	files := map[string][]byte{}
+	rebuilt := false
+	for _, rel := range knowledgeFiles {
+		raw, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel)))
+		if err != nil {
+			return nil, err
+		}
+		if rel == cncfRulesPath {
+			reviewed, err := supersedefixture.Reviewed(raw)
+			if err != nil {
+				return nil, err
+			}
+			rebuilt = !bytes.Equal(raw, reviewed)
+			raw = reviewed
+		}
+		files[rel] = raw
+	}
+	if !rebuilt {
+		return files, nil
+	}
+	// The generated files follow the rebuilt pack.
+	root, err := os.MkdirTemp("", "knowledge-template-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(root)
+	for rel, raw := range files {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return nil, err
+		}
+		if err := os.WriteFile(path, raw, 0o644); err != nil {
+			return nil, err
+		}
+	}
+	tree := Tree{Root: root}
+	layout := DefaultLayout()
+	for _, spec := range layout.Packs {
+		if spec.Name != evidencereattest.PackCNCF {
+			continue
+		}
+		attestation, err := spec.Attest(tree)
+		if err != nil {
+			return nil, err
+		}
+		files[spec.AttestationPath] = attestation
+		// The generated files below read the attestation from the tree.
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(spec.AttestationPath)), attestation, 0o644); err != nil {
+			return nil, err
+		}
+	}
+	for _, g := range layout.Generated {
+		jsonRaw, markdown, err := g.Generate(tree)
+		if err != nil {
+			return nil, err
+		}
+		files[g.JSONPath] = jsonRaw
+		files[g.MarkdownPath] = []byte(markdown)
+	}
+	return files, nil
 }
 
 // trees returns a base and a head copy of the repository's knowledge.

@@ -310,17 +310,34 @@ func TestValidate_EveryPublishedEntryValidatesCleanly(t *testing.T) {
 // --- Range: community-contribution refusal, maintainer self-check accepts --
 
 // firstRangedEntry returns the first entry in the cncfcheck pack that
-// carries a rule.range, so tests exercise a genuine reviewed range rather
-// than a hand-built approximation.
+// carries a rule.range, so tests exercise a genuine range rather than a
+// hand-built approximation. Once the shipped ranged rules are all mechanical
+// (which a community contribution cannot be), the first is returned as the
+// reviewed rule it would be if a person had written it: the mechanical
+// derivation members removed.
 func firstRangedEntry(t *testing.T) map[string]any {
 	t.Helper()
+	var mechanical map[string]any
 	for _, entry := range realEntries(t, filepath.Join("..", "..", "cncfcheck", "data", "rules.json")) {
-		if _, ok := rule(entry)["range"]; ok {
+		if _, ok := rule(entry)["range"]; !ok {
+			continue
+		}
+		evidence, _ := rule(entry)["evidence"].(map[string]any)
+		if evidence["basis"] != "mechanical" {
 			return clone(t, entry)
 		}
+		if mechanical == nil {
+			mechanical = clone(t, entry)
+		}
 	}
-	t.Fatal("cncfcheck rules.json has no entry with a range")
-	return nil
+	if mechanical == nil {
+		t.Fatal("cncfcheck rules.json has no entry with a range")
+	}
+	evidence := rule(mechanical)["evidence"].(map[string]any)
+	delete(evidence, "basis")
+	delete(evidence, "extractor")
+	delete(evidence, "derivedAt")
+	return mechanical
 }
 
 // A community contribution may carry a range only in the validated

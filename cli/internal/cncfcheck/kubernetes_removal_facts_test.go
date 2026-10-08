@@ -12,6 +12,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 // laterRemovalFacts are the removals of the 1.33, 1.34 and 1.37 lines: the
@@ -115,10 +116,71 @@ func TestKubernetesRemovalFactsRegistered(t *testing.T) {
 	}
 }
 
+// embeddedRemovalRule is the embedded pack's rule over a later removal fact.
+func embeddedRemovalRule(t *testing.T, b bundle, fact string, line int) (Entry, string) {
+	t.Helper()
+	slug := "1-" + strconv.Itoa(line-1) + "-0-to-1-" + strconv.Itoa(line) + "-0"
+	var found []Entry
+	for _, e := range b.pack.Entries {
+		for _, rf := range e.RequiredFacts {
+			if rf.ID == fact && strings.HasSuffix(ruleID(t, e), "."+slug) {
+				found = append(found, e)
+			}
+		}
+	}
+	if len(found) != 1 {
+		t.Fatalf("%s: %d embedded rules for line 1.%d", fact, len(found), line)
+	}
+	return found[0], ruleID(t, found[0])
+}
+
+// laterRemovalRule returns a bundle holding a rule over the later removal fact
+// and the rule's id: the embedded pack's own mechanical rule once the shipped
+// pack holds them, a test-only rule of the same shape before.
+func laterRemovalRule(t *testing.T, fact string, line int) (bundle, string) {
+	t.Helper()
+	if supersedeids.Superseded() {
+		b, err := load()
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, id := embeddedRemovalRule(t, b, fact, line)
+		return b, id
+	}
+	entry := removalEntry(fact, line)
+	b, err := assembleWith(removalPack(t, compiledDefinitions(), entry), compiledDefinitions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b, ruleID(t, entry)
+}
+
 // Registration is what admits a rule over each fact: the same pack is
 // refused against the registry without the fact and admitted with it. The
 // embedded pack itself reads none of them.
 func TestKubernetesRemovalRuleAdmissionNeedsTheRegisteredFact(t *testing.T) {
+	if supersedeids.Superseded() {
+		// The embedded pack holds a rule over each fact: it is refused
+		// against the registry without the fact and admitted with it.
+		raw, err := packagedFiles.ReadFile("data/rules.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, err := load()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, f := range laterRemovalFacts {
+			embeddedRemovalRule(t, b, f.fact, f.line)
+			if _, err := assembleWith(raw, withoutFact(f.fact)); !errors.Is(err, ErrIntegrity) {
+				t.Fatalf("%s: rule over the unregistered fact admitted: %v", f.fact, err)
+			}
+		}
+		if _, err := assembleWith(raw, compiledDefinitions()); err != nil {
+			t.Fatalf("embedded pack refused against the compiled registry: %v", err)
+		}
+		return
+	}
 	for _, f := range laterRemovalFacts {
 		entry := removalEntry(f.fact, f.line)
 		if _, err := assembleWith(removalPack(t, withoutFact(f.fact), entry), withoutFact(f.fact)); !errors.Is(err, ErrIntegrity) {
@@ -149,7 +211,7 @@ func TestKubernetesRemovalRuleAdmissionNeedsTheRegisteredFact(t *testing.T) {
 // UNKNOWN for an unreviewed version, an incomplete scope, or a transition
 // outside the rule's lines.
 func TestKubernetesRemovalFactsDecideTheirRules(t *testing.T) {
-	now := time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
 	doc := func(api, kind string) string {
 		return `{"apiVersion":"` + api + `","kind":"` + kind + `","metadata":{"name":"x"}}`
 	}
@@ -157,12 +219,7 @@ func TestKubernetesRemovalFactsDecideTheirRules(t *testing.T) {
 		return []byte(`{"apiVersion":"v1","kind":"List","items":[` + strings.Join(items, ",") + `]}`)
 	}
 	for _, f := range laterRemovalFacts {
-		entry := removalEntry(f.fact, f.line)
-		id := ruleID(t, entry)
-		b, err := assembleWith(removalPack(t, compiledDefinitions(), entry), compiledDefinitions())
-		if err != nil {
-			t.Fatal(err)
-		}
+		b, id := laterRemovalRule(t, f.fact, f.line)
 		for _, kind := range f.kinds {
 			removed, served, unreviewed := doc(f.group+"/v1beta1", kind), doc(f.group+"/v1", kind), doc(f.group+"/v1alpha1", kind)
 			other := doc("v1", "ConfigMap")
@@ -192,7 +249,8 @@ func TestKubernetesRemovalFactsDecideTheirRules(t *testing.T) {
 					for _, claim := range report.Check.Claims {
 						if claim.RuleID == id {
 							found = append(found, claim)
-						} else if claim.Status == "PASS" || claim.Status == "BLOCKED" {
+						} else if claim.Status == "BLOCKED" || claim.Status == "PASS" && !supersedeids.Superseded() {
+							// The mechanical rules pass beside this one on a shared hop.
 							t.Fatalf("another rule decided: %s %s", claim.RuleID, claim.Status)
 						}
 					}
@@ -213,7 +271,7 @@ func TestKubernetesRemovalFactsDecideTheirRules(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, claim := range report.Check.Claims {
-			if claim.Status == "PASS" || claim.Status == "BLOCKED" {
+			if claim.RuleID == id && (claim.Status == "PASS" || claim.Status == "BLOCKED") {
 				t.Fatalf("%s: %s decided %s on the next line", f.fact, claim.RuleID, claim.Status)
 			}
 		}

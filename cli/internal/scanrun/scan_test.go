@@ -12,6 +12,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
@@ -29,7 +30,7 @@ func TestScanQuickstartBlocked(t *testing.T) {
 			t.Fatalf("exit %d verdict %s findings %d", result.Exit, report.Verdict, len(report.Findings))
 		}
 		finding := report.Findings[0]
-		if finding.RuleID != "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0" || finding.Hop != (scanreport.HopRef{Index: 1, From: "1.24.17", To: "1.25"}) || len(finding.AlsoAt) != 0 {
+		if finding.RuleID != supersedeids.ID("kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0") || finding.Hop != (scanreport.HopRef{Index: 1, From: "1.24.17", To: "1.25"}) || len(finding.AlsoAt) != 0 {
 			t.Fatalf("finding %+v", finding)
 		}
 		want := []scanreport.Location{{File: "applyset.yaml", Document: 0, Item: -1, Line: 1, Kind: "CronJob", Namespace: "default", Name: "nightly-report"}}
@@ -84,8 +85,9 @@ func TestScanQuickstartMigrated(t *testing.T) {
 	}
 }
 
-// TestScanIntermediateLineCoverage: the only rule for 1.32 is reviewed for
-// the exact pair 1.31.0 -> 1.32.0. On a hop whose ends are whole lines it
+// TestScanIntermediateLineCoverage: a rule for 1.32 is reviewed for the
+// exact pair 1.31.0 -> 1.32.0 only (a synthetic anchor-only rule stands in for
+// the published one, which is a range rule once mechanical). On a hop whose ends are whole lines it
 // cannot decide, whatever it says at 1.31.0 -> 1.32.0: its claim is
 // downgraded, never a blocker and never a pass, even when a (malformed) line
 // review lists it.
@@ -95,7 +97,12 @@ func TestScanIntermediateLineCoverage(t *testing.T) {
 	lines := []string{"1.31", "1.32", "1.33"}
 	// The review of 1.32 lists the anchor-only rule; the pack admission
 	// would refuse it (the rule is not line-wide), so it is built unchecked.
-	knowledge := newKnowledge(t, knowledgeOptions{lines: lines, policy: "current", unchecked: true})
+	// The shipped rule for the line may be a range rule (the mechanical one
+	// is), so a synthetic anchor-only rule stands in for it in either case.
+	published := supersedeids.ID("kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0")
+	anchorOnly := verdictRule("kubernetes.synthetic-flowcontrol-v1beta3-removed.1-31-0-to-1-32-0", "1.31.0", "1.32.0", "", "component.kubernetes.flowcontrol_v1beta3_removed_gvk_present")
+	base := newKnowledge(t, knowledgeOptions{lines: lines, policy: "current", unchecked: true, synthetic: []string{anchorOnly}, dropRuleIDs: map[string][]string{"1.32": {published}}})
+	var knowledge Knowledge = hiddenRules{Knowledge: base, hidden: map[string]bool{published: true}}
 	for name, manifest := range map[string]string{"removed": removed, "served": served} {
 		t.Run(name, func(t *testing.T) {
 			dir, _ := files(t, map[string]string{"apf.yaml": manifest})
@@ -362,9 +369,9 @@ func TestScanDeterministic(t *testing.T) {
 			order = append(order, finding.Hop.To+" "+finding.RuleID)
 		}
 		want := []string{
-			"1.25 kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0",
-			"1.25 kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0",
-			"1.26 kubernetes.hpa-v2beta2-removed.1-25-0-to-1-26-0",
+			"1.25 " + supersedeids.ID("kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0"),
+			"1.25 " + supersedeids.ID("kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0"),
+			"1.26 " + supersedeids.ID("kubernetes.hpa-v2beta2-removed.1-25-0-to-1-26-0"),
 		}
 		if !reflect.DeepEqual(order, want) {
 			t.Fatalf("findings out of order: %q", order)
@@ -565,13 +572,13 @@ func TestFindingAttribution(t *testing.T) {
 func TestScanInconsistentLineReview(t *testing.T) {
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
 	extra := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true,
-		extraRuleIDs: map[string][]string{"1.30": {"kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0"}}})
+		extraRuleIDs: map[string][]string{"1.30": {supersedeids.ID("kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0")}}})
 	result := mustScan(t, extra, args(paths, "--from", "kubernetes=1.29.6", "--to", "kubernetes=1.30.4")...)
 	if result.Exit != scanreport.ExitUnknown || result.Report.Paths[0].Hops[0].Status != scanreport.HopPartial || !reflect.DeepEqual(gapReasons(result.Report), []string{"LINE_NOT_ATTESTED 1.29.6->1.30.4"}) || !strings.Contains(result.Report.Gaps[0].Detail, "lists rule") {
 		t.Fatalf("listed rule: exit %d gaps %+v", result.Exit, result.Report.Gaps)
 	}
 	dropped := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true,
-		dropRuleIDs: map[string][]string{"1.25": {"kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0"}}})
+		dropRuleIDs: map[string][]string{"1.25": {supersedeids.ID("kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0")}}})
 	result = mustScan(t, dropped, args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3")...)
 	if result.Exit != scanreport.ExitUnknown || result.Report.Paths[0].Hops[0].Status != scanreport.HopPartial || !reflect.DeepEqual(gapReasons(result.Report), []string{"LINE_NOT_ATTESTED 1.24.17->1.25.3"}) || !strings.Contains(result.Report.Gaps[0].Detail, "does not list it") {
 		t.Fatalf("unlisted rule: exit %d gaps %+v", result.Exit, result.Report.Gaps)

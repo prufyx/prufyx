@@ -18,6 +18,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/k8sservedapis"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 // Run with: go test -tags prufyx_synthetic_knowledge -run Synthetic ./internal/communityapp/ (as CI does)
@@ -159,6 +160,9 @@ func servedObject(api, kind string) string {
 }
 
 func TestSyntheticServedAPIRemovalCheckWithDerivedRules(t *testing.T) {
+	if supersedeids.Superseded() {
+		t.Skip("the embedded pack holds these rules: derived ones would collide; see TestKubernetesLaterRemovalsThroughTheCommandRoute")
+	}
 	ids := useServedAPIKnowledge(t)
 	configMap := servedObject("v1", "ConfigMap")
 	for _, removal := range servedRemovals {

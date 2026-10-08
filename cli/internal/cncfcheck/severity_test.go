@@ -26,7 +26,7 @@ func syntheticSupportEntry(id, minimum string) Entry {
 }
 
 func TestPackSeverityLevel(t *testing.T) {
-	entry := syntheticSupportEntry("kubernetes.synthetic-support.1-36-0-to-1-37-0", "1.38.0")
+	entry := syntheticSupportEntry("kubernetes.synthetic-support.1-35-0-to-1-36-0", "1.37.0")
 	b, err := assembleSynthetic(syntheticPack(t, packSchemaSeverity, nil, entry), nil)
 	if err != nil {
 		t.Fatalf("support-range pack under the severity schema refused: %v", err)
@@ -42,13 +42,13 @@ func TestPackSeverityLevel(t *testing.T) {
 	// A severity on another operator is refused by the engine.
 	wrong := entry
 	wrong.Rule = json.RawMessage(strings.Replace(string(entry.Rule), `"operator":"require_component_version"`, `"operator":"forbid_target_version"`, 1))
-	wrong.Rule = json.RawMessage(strings.Replace(string(wrong.Rule), `"dependency":{"side":"proposed","component":"`+noticeComponent+`","comparison":"gte","version":"1.38.0"},`, "", 1))
+	wrong.Rule = json.RawMessage(strings.Replace(string(wrong.Rule), `"dependency":{"side":"proposed","component":"`+noticeComponent+`","comparison":"gte","version":"1.37.0"},`, "", 1))
 	if _, err := assembleSynthetic(syntheticPack(t, packSchemaSeverity, nil, wrong), nil); err == nil {
 		t.Fatal("severity on forbid_target_version accepted")
 	}
 	// The generic selector picks the support-range rule as a verdict rule:
 	// the pair is reviewed, the claim is UNSUPPORTED and the check exits 11.
-	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
 	inputRaw := noticeInput()
 	input, err := constraintengine.ParseInput(inputRaw, b.registry)
 	if err != nil {
@@ -77,12 +77,12 @@ func TestClaimExitUnsupported(t *testing.T) {
 		t.Fatal(err)
 	}
 	const reviewed, until = "2026-09-20T00:00:00Z", "2026-12-19T00:00:00Z"
-	pass := syntheticKubernetesRule("kubernetes.synthetic-a-pass", "require_component_version", "REVIEWED_SOURCE_CONSTRAINT", "keep the reviewed version", `,"dependency":{"side":"proposed","component":"`+noticeComponent+`","comparison":"gte","version":"1.37.0"}`, reviewed, until)
+	pass := syntheticKubernetesRule("kubernetes.synthetic-a-pass", "require_component_version", "REVIEWED_SOURCE_CONSTRAINT", "keep the reviewed version", `,"dependency":{"side":"proposed","component":"`+noticeComponent+`","comparison":"gte","version":"1.36.0"}`, reviewed, until)
 	blocked := syntheticKubernetesRule("kubernetes.synthetic-b-blocked", "forbid_target_version", "REVIEWED_SOURCE_CONSTRAINT", "plan a reviewed route", "", reviewed, until)
-	unsupported := syntheticSupportRule("kubernetes.synthetic-c-unsupported", "1.38.0")
-	supported := syntheticSupportRule("kubernetes.synthetic-d-supported", "1.37.0")
+	unsupported := syntheticSupportRule("kubernetes.synthetic-c-unsupported", "1.37.0")
+	supported := syntheticSupportRule("kubernetes.synthetic-d-supported", "1.36.0")
 	notice := syntheticNoticeRule("kubernetes.synthetic-e-notice", reviewed, until)
-	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
 	inputRaw := noticeInput()
 	input, err := constraintengine.ParseInput(inputRaw, b.registry)
 	if err != nil {

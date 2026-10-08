@@ -4,9 +4,11 @@ package cncfcheck
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
@@ -17,7 +19,7 @@ func TestScanKnowledgeMatchesPackageFunctions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	now := time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
 	catalogue, err := Catalog(false, "")
 	if err != nil {
 		t.Fatal(err)
@@ -88,7 +90,14 @@ func TestScanKnowledgeMatchesPackageFunctions(t *testing.T) {
 		t.Fatal(err)
 	}
 	c, _ := MarshalReport(viaPolicy)
-	mechanicalOnly, _ := ParseTrustPolicy("mechanical")
+	// The Kubernetes rules have one basis, reviewed or mechanical, depending
+	// on the shipped pack; a policy of the other basis leaves them out and
+	// must disclose it.
+	otherBasis := "mechanical"
+	if supersedeids.Superseded() {
+		otherBasis = "reviewed"
+	}
+	mechanicalOnly, _ := ParseTrustPolicy(otherBasis)
 	viaChecker, err := WithTrustPolicy(mechanicalOnly).CheckFacts("kubernetes", facts, input, now)
 	if err != nil {
 		t.Fatal(err)
@@ -103,8 +112,12 @@ func TestScanKnowledgeMatchesPackageFunctions(t *testing.T) {
 		t.Fatal("snapshot evaluation under a trust policy differs from the checker")
 	}
 	for _, rule := range rules {
-		if rule.Basis != "reviewed" {
-			t.Fatalf("basis %q", rule.Basis)
+		want := "reviewed"
+		if strings.HasPrefix(rule.Scope.ID, supersedeids.MechanicalPrefix) {
+			want = "mechanical"
+		}
+		if rule.Basis != want {
+			t.Fatalf("basis %q, want %q", rule.Basis, want)
 		}
 	}
 	a, _ := MarshalReport(viaPackage)

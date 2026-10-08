@@ -37,7 +37,7 @@ Evidence: every finding cites pinned upstream source (--verbose). No network use
 <summary>Evidence and provenance</summary>
 
 ```
-evaluated at: 2026-10-04T00:00:00Z
+evaluated at: 2026-11-20T00:00:00Z
 input: sha256:e82ec12fddc5793f21b09d3c46f07b142b8bd96ab4ea1c1e338133948dd8a07d
 knowledge: embedded cncf-2026-09-13.4 sha256:4d2718043fbc41bb0f99ce8a69ea9ef253c52249bb88254b969d1ebdab46e5c5
 engine contract: sha256:0d46478e7a818c192fa57367bf17bf5a066ec7e414d0b745e0f900fd319fd463

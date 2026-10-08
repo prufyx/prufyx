@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
@@ -22,14 +23,21 @@ import (
 
 const k8sComponent = "pkg:github/kubernetes/kubernetes"
 
-var line125Rules = []string{
-	"kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0",
-	"kubernetes.endpointslice-v1beta1-removed.1-24-0-to-1-25-0",
-	"kubernetes.event-v1beta1-removed.1-24-0-to-1-25-0",
-	"kubernetes.hpa-v2beta1-removed.1-24-0-to-1-25-0",
-	"kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0",
-	"kubernetes.psp-v1beta1-removed.1-24-0-to-1-25-0",
-	"kubernetes.runtimeclass-v1beta1-removed.1-24-0-to-1-25-0",
+// line125Rules are the rules of the 1.25 line in the ascending order a line
+// attestation lists them (the order depends on which ids the pack carries).
+var line125Rules = sortedIDs(
+	supersedeids.ID("kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0"),
+	supersedeids.ID("kubernetes.endpointslice-v1beta1-removed.1-24-0-to-1-25-0"),
+	supersedeids.ID("kubernetes.event-v1beta1-removed.1-24-0-to-1-25-0"),
+	supersedeids.ID("kubernetes.hpa-v2beta1-removed.1-24-0-to-1-25-0"),
+	supersedeids.ID("kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0"),
+	supersedeids.ID("kubernetes.psp-v1beta1-removed.1-24-0-to-1-25-0"),
+	supersedeids.ID("kubernetes.runtimeclass-v1beta1-removed.1-24-0-to-1-25-0"),
+)
+
+func sortedIDs(ids ...string) []string {
+	sort.Strings(ids)
+	return ids
 }
 
 func testAttestation(line string, ids []string) lineattest.LineAttestation {
@@ -168,7 +176,7 @@ func TestLineAttestationSchemaGating(t *testing.T) {
 func TestPackRejectsAttestationThatIsNotTheExactRuleSet(t *testing.T) {
 	missing := line125Rules[:6]
 	extra := append(append([]string{}, line125Rules...), "kubernetes.zz-not-a-rule")
-	otherLine := append(append([]string{}, line125Rules...), "kubernetes.flowcontrol-v1beta1-removed.1-25-0-to-1-26-0")
+	otherLine := append(append([]string{}, line125Rules...), supersedeids.ID("kubernetes.flowcontrol-v1beta1-removed.1-25-0-to-1-26-0"))
 	sort.Strings(otherLine)
 	for name, ids := range map[string][]string{"missing": missing, "extra": extra, "another line": otherLine, "falsely quiet": nil} {
 		t.Run(name, func(t *testing.T) {
@@ -234,12 +242,52 @@ func TestExternalBundleRefusesAttestations(t *testing.T) {
 	}
 }
 
+// The published flowcontrol v1beta3 rule is a mechanical range rule: it
+// matches every hop into 1.32, so a 1.32 attestation lists it and an
+// attestation leaving it out is a missing rule.
+func TestPackAttestationOfTheLineWideFlowControlRule(t *testing.T) {
+	if !supersedeids.Superseded() {
+		t.Skip("the shipped pack still holds the anchor-only reviewed 1.32 rule")
+	}
+	const id = "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0"
+	b, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := false
+	for _, entry := range b.pack.Entries {
+		if ruleID(t, entry) != id {
+			continue
+		}
+		seen = true
+		tr, err := constraintengine.RuleTransitionOf(entry.Rule)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tr.Match("1.31.4", "1.32.1") == constraintengine.MatchNone {
+			t.Fatal("the 1.32 rule no longer matches every hop into 1.32")
+		}
+	}
+	if !seen {
+		t.Fatalf("%s is not in the embedded pack", id)
+	}
+	if _, err := assembleSynthetic(attestedPack(t, packSchemaAttested, section(t, testAttestation("1.32", []string{id}))), nil); err != nil {
+		t.Fatalf("complete 1.32 attestation refused: %v", err)
+	}
+	if _, err := assembleSynthetic(attestedPack(t, packSchemaAttested, section(t, testAttestation("1.32", nil))), nil); !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("incomplete 1.32 attestation accepted: %v", err)
+	}
+}
+
 // The published flowcontrol v1beta3 rule matches its anchor pair only, so a
 // 1.32 attestation listing it would present a hop such as 1.31.4 -> 1.32.1 as
 // covered while no rule matches it. The loader refuses it, and an attestation
 // leaving it out is a missing rule: 1.32 cannot be attested over this pack.
 func TestPackRejectsAttestationListingARuleThatIsNotLineWide(t *testing.T) {
-	const id = "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0"
+	if supersedeids.Superseded() {
+		t.Skip("the published 1.32 rule is a range rule: see TestPackAttestationOfTheLineWideFlowControlRule")
+	}
+	id := "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0"
 	for _, entry := range func() []Entry {
 		b, err := load()
 		if err != nil {
