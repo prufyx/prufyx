@@ -1,0 +1,186 @@
+{
+  "schema": "prufyx.io/crd-version-targets/v1",
+  "targets": [
+    {
+      "project": "argo-cd",
+      "name": "Argo CD",
+      "repo": "github.com/argoproj/argo-cd",
+      "component": "pkg:github/argoproj/argo-cd",
+      "factProject": "argo_cd",
+      "tagPrefixes": ["v"],
+      "minFrom": "3.0",
+      "paths": [
+        {"path": "manifests/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": [
+        {"path": "resource_customizations/", "reason": "health-check Lua scripts and their sample objects for third-party kinds; no definition Argo CD installs"}
+      ]
+    },
+    {
+      "project": "cert-manager",
+      "name": "cert-manager",
+      "repo": "github.com/cert-manager/cert-manager",
+      "component": "pkg:github/cert-manager/cert-manager",
+      "factProject": "cert_manager",
+      "tagPrefixes": ["v"],
+      "minFrom": "1.16",
+      "paths": [
+        {"path": "deploy/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": [
+        {"path": "deploy/charts/cert-manager/templates/", "reason": "Helm chart templates; the chart's CRD templates are rendered from the same generated definitions as deploy/crds and are not read"},
+        {"path": "make/", "reason": "build scripts and the Helm template header used to generate chart CRD templates; no installed definition"}
+      ]
+    },
+    {
+      "project": "cilium",
+      "name": "Cilium",
+      "repo": "github.com/cilium/cilium",
+      "component": "pkg:github/cilium/cilium",
+      "factProject": "cilium",
+      "tagPrefixes": ["v"],
+      "minFrom": "1.15",
+      "paths": [
+        {"path": "pkg/k8s/apis/cilium.io/client/crds/v2", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+        {"path": "pkg/k8s/apis/cilium.io/client/crds/v2alpha1", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "crossplane",
+      "name": "Crossplane",
+      "repo": "github.com/crossplane/crossplane",
+      "component": "pkg:github/crossplane/crossplane",
+      "factProject": "crossplane",
+      "tagPrefixes": ["v"],
+      "minFrom": "1.20",
+      "paths": [
+        {"path": "cluster/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": [
+        {"path": "cluster/meta/", "reason": "schemas of package metadata (meta.pkg.crossplane.io) read from package files by the package manager; never installed as CustomResourceDefinitions"}
+      ]
+    },
+    {
+      "project": "istio",
+      "name": "Istio",
+      "repo": "github.com/istio/istio",
+      "component": "pkg:github/istio/istio",
+      "factProject": "istio",
+      "tagPrefixes": [""],
+      "minFrom": "1.26",
+      "paths": [
+        {"path": "manifests/charts/base/files/crd-all.gen.yaml"}
+      ],
+      "exclude": [
+        {"path": "common/scripts/", "reason": "scripts and third-party manifests (MetalLB) used by the test infrastructure; no Istio definition"},
+        {"path": "prow/", "reason": "continuous-integration configuration and third-party manifests (Calico) for test clusters; no Istio definition"},
+        {"path": "samples/", "reason": "sample applications and third-party integrations (SPIRE); no Istio definition"}
+      ]
+    },
+    {
+      "project": "keda",
+      "name": "KEDA",
+      "repo": "github.com/kedacore/keda",
+      "component": "pkg:github/kedacore/keda",
+      "factProject": "keda",
+      "tagPrefixes": ["v"],
+      "minFrom": "2.16",
+      "paths": [
+        {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "kuma",
+      "name": "Kuma",
+      "repo": "github.com/kumahq/kuma",
+      "component": "pkg:github/kumahq/kuma",
+      "factProject": "kuma",
+      "tagPrefixes": ["v", ""],
+      "minFrom": "2.9",
+      "paths": [
+        {"path": "deployments/charts/kuma/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "kyverno",
+      "name": "Kyverno",
+      "repo": "github.com/kyverno/kyverno",
+      "component": "pkg:github/kyverno/kyverno",
+      "factProject": "kyverno",
+      "tagPrefixes": ["v"],
+      "minFrom": "1.14",
+      "paths": [
+        {"path": "config/crds", "directory": true, "recursive": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": [
+        {"path": "charts/kyverno/charts/crds/templates/", "reason": "Helm chart templates rendered from the same generated definitions as config/crds; not read"},
+        {"path": "cmd/cli/kubectl-kyverno/config/crds/", "reason": "schemas of the kyverno CLI test and values files (cli.kyverno.io); never installed into a cluster"},
+        {"path": "cmd/cli/kubectl-kyverno/data/api-group-resources.json", "reason": "API discovery data embedded in the CLI; lists resource kinds and defines no CustomResourceDefinition"},
+        {"path": "cmd/cli/kubectl-kyverno/data/crds/cli.kyverno.io_*", "reason": "copies of the CLI file schemas (cli.kyverno.io) embedded in the CLI; never installed into a cluster"}
+      ]
+    },
+    {
+      "project": "longhorn",
+      "name": "Longhorn",
+      "repo": "github.com/longhorn/longhorn",
+      "component": "pkg:github/longhorn/longhorn",
+      "factProject": "longhorn",
+      "tagPrefixes": ["v"],
+      "minFrom": "1.8",
+      "paths": [
+        {"path": "deploy/longhorn.yaml"}
+      ],
+      "exclude": [
+        {"path": "chart/templates/", "reason": "Helm chart templates; the chart's CRD template is rendered from the same generated definitions as deploy/longhorn.yaml and is not read"}
+      ]
+    },
+    {
+      "project": "rook",
+      "name": "Rook",
+      "repo": "github.com/rook/rook",
+      "component": "pkg:github/rook/rook",
+      "factProject": "rook",
+      "tagPrefixes": ["v"],
+      "minFrom": "1.16",
+      "paths": [
+        {"path": "deploy/examples/crds.yaml"}
+      ],
+      "exclude": [
+        {"path": "deploy/charts/rook-ceph/templates/", "reason": "Helm chart templates rendered from the same generated definitions as deploy/examples/crds.yaml; not read"}
+      ]
+    },
+    {
+      "project": "strimzi",
+      "name": "Strimzi",
+      "repo": "github.com/strimzi/strimzi-kafka-operator",
+      "component": "pkg:github/strimzi/strimzi-kafka-operator",
+      "factProject": "strimzi",
+      "tagPrefixes": [""],
+      "minFrom": "0.49",
+      "paths": [
+        {"path": "install/access-operator", "directory": true, "optional": true, "match": "^[0-9A-Za-z]{3}-Crd-[A-Za-z0-9-]+\\.ya?ml$", "guard": "(?i)crd"},
+        {"path": "install/cluster-operator", "directory": true, "match": "^[0-9A-Za-z]{3}-Crd-[A-Za-z0-9-]+\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "velero",
+      "name": "Velero",
+      "repo": "github.com/velero-io/velero",
+      "component": "pkg:github/velero-io/velero",
+      "factProject": "velero",
+      "tagPrefixes": ["v"],
+      "minFrom": "1.13",
+      "paths": [
+        {"path": "config/crd/v1/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+        {"path": "config/crd/v2alpha1/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": [
+        {"path": "design/", "reason": "design proposals and proof-of-concept manifests; not shipped by a release"}
+      ]
+    }
+  ]
+}

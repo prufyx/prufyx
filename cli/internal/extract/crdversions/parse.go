@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"regexp"
 	"strings"
 
@@ -16,12 +15,11 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
-	"github.com/prufyx/prufyx/cli/internal/intake"
 )
 
 // Bounds. A file, a tag or a CRD beyond them withholds the pair.
 const (
-	MaxFileBytes       = 4 << 20
+	MaxFileBytes       = 8 << 20
 	MaxCRDsPerTag      = 512
 	MaxVersionsPerCRD  = 64
 	crdAPIGroupPrefix  = "apiextensions.k8s.io/"
@@ -116,13 +114,9 @@ func parseFile(path string, data []byte) (FileRecord, []CRD, error) {
 	if bytes.Contains(data, []byte(templateMarker)) {
 		return rec, nil, problemf("%s contains template syntax (%q): it is not a rendered manifest", path, templateMarker)
 	}
-	values, err := intake.DecodeDocuments(data)
+	nodes, values, err := decodeStrict(data)
 	if err != nil {
 		return rec, nil, problemf("%s is not decodable within the strict YAML subset (anchors, aliases, tags, duplicate keys and oversized documents are refused)", path)
-	}
-	nodes, err := documentNodes(data)
-	if err != nil || len(nodes) != len(values) {
-		return rec, nil, problemf("%s: the document structure could not be read for line positions", path)
 	}
 	rec.Documents = len(values)
 	lines := splitLines(data)
@@ -160,34 +154,6 @@ func parseFile(path string, data []byte) (FileRecord, []CRD, error) {
 	}
 	rec.CRDs = len(crds)
 	return rec, crds, nil
-}
-
-// documentNodes returns the root node of every non-empty document, skipping
-// exactly what intake.DecodeDocuments skips.
-func documentNodes(data []byte) ([]*yaml.Node, error) {
-	dec := yaml.NewDecoder(bytes.NewReader(data))
-	var out []*yaml.Node
-	for {
-		var node yaml.Node
-		err := dec.Decode(&node)
-		if err == io.EOF {
-			return out, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		if node.Kind != yaml.DocumentNode || len(node.Content) != 1 {
-			if node.Kind == yaml.DocumentNode && len(node.Content) == 0 {
-				continue
-			}
-			return nil, errors.New("unexpected document")
-		}
-		root := node.Content[0]
-		if root.Kind == yaml.ScalarNode && root.ShortTag() == "!!null" {
-			continue
-		}
-		out = append(out, root)
-	}
 }
 
 func splitLines(data []byte) []string {

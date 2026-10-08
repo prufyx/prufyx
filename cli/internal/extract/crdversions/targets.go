@@ -2,13 +2,33 @@
 
 package crdversions
 
-import "regexp"
+import (
+	"bytes"
+	_ "embed"
+	"encoding/json"
+	"fmt"
+	"path"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"github.com/prufyx/prufyx/cli/internal/extract"
+)
+
+// TargetsSchema identifies targets.json.
+const TargetsSchema = "prufyx.io/crd-version-targets/v1"
+
+// targetsJSON is the reviewed source table. It is data, not code, but it is
+// embedded next to the code and covered by the extractor's code digest, so
+// any change to it is a new extractor version and is reviewed as one.
+//
+//go:embed targets.json
+var targetsJSON []byte
 
 // Target is one reviewed source entry: where a catalog project keeps the
-// rendered CustomResourceDefinition manifests it ships, and which release
-// tags form pairs. The paths are part of the extractor code: a project that
-// moves its manifests makes the listed paths incomplete, which withholds the
-// pair rather than turning a move into a removal.
+// rendered CustomResourceDefinition manifests it ships, which release tags
+// form its lines, and which parts of its repository the full-tree scan
+// skips (each with the reason a reviewer accepted).
 type Target struct {
 	// Project is the catalog project slug, also the rule id prefix.
 	Project string
@@ -21,49 +41,299 @@ type Target struct {
 	// FactProject is the project part of the set fact id
 	// component.<FactProject>.custom_resource_versions_set.
 	FactProject string
-	// TagPrefix is the prefix of final release tags ("v" or "").
-	TagPrefix string
-	// MinFrom is the first earlier release (major, minor) a pair may start
-	// from: the first release at which the listed paths were checked.
+	// TagPrefixes are the prefixes of final release tags ("v", ""), in
+	// order of preference. A version tagged under two prefixes must name
+	// one commit.
+	TagPrefixes []string
+	// MinFrom is the first earlier line (major, minor) a pair may start
+	// from.
 	MinFrom [2]int
-	// Paths are the CRD manifest locations, read at both tags of a pair.
+	// Paths are the CRD manifest locations, read at every tag of a line.
 	Paths []PathSpec
+	// Exclude lists the parts of the repository the full-tree scan does
+	// not read, each with its reviewed reason. Default exclusions (test,
+	// example and vendored directories) apply to every target; a listed
+	// path is never excluded.
+	Exclude []Exclusion
 }
 
 // PathSpec is a file, or a directory whose files with names matching Match
-// are read (not recursively). Every listed path must exist at both tags. A
-// directory file whose name matches Guard but not Match withholds the pair:
-// it may hold a definition the extractor would not read.
+// are read (with Recursive, also in its subdirectories). A path that is not
+// Optional must exist at every tag. A directory file whose name matches
+// Guard but not Match makes the inventory incomplete: it may hold a
+// definition the extractor would not read.
 type PathSpec struct {
-	Path  string
-	Dir   bool
-	Match *regexp.Regexp
-	Guard *regexp.Regexp
+	Path      string
+	Dir       bool
+	Recursive bool
+	Optional  bool
+	Match     *regexp.Regexp
+	Guard     *regexp.Regexp
 }
 
-// yamlFiles matches the YAML file names of a directory.
-var yamlFiles = regexp.MustCompile(`^[^.][^/]*\.ya?ml$`)
+// Exclusion is a reviewed part of the repository the scan skips. Path is a
+// directory prefix (ending in "/"), an exact file path, or a path.Match
+// pattern over the whole path (a wildcard never crosses "/").
+type Exclusion struct {
+	Path   string
+	Reason string
+}
 
-// crdNamed matches every file name that suggests a CRD manifest.
-var crdNamed = regexp.MustCompile(`(?i)crd`)
+// DefaultExcludedSegments are the directory names the scan never descends
+// into, in any target: tests, test data, examples and vendored code are
+// not what a project installs. A listed path inside one is still read.
+var DefaultExcludedSegments = []string{"_testdata", "e2e", "example", "examples", "test", "testdata", "tests", "third_party", "vendor"}
 
 // Targets is the reviewed source table, ordered by project.
-var Targets = []Target{
-	{
-		Project: "argo-cd", Name: "Argo CD", Repo: "github.com/argoproj/argo-cd", Component: "pkg:github/argoproj/argo-cd",
-		FactProject: "argo_cd", TagPrefix: "v", MinFrom: [2]int{2, 14},
-		Paths: []PathSpec{{Path: "manifests/crds", Dir: true, Match: yamlFiles, Guard: crdNamed}},
-	},
-	{
-		Project: "istio", Name: "Istio", Repo: "github.com/istio/istio", Component: "pkg:github/istio/istio",
-		FactProject: "istio", TagPrefix: "", MinFrom: [2]int{1, 24},
-		Paths: []PathSpec{{Path: "manifests/charts/base/files/crd-all.gen.yaml"}},
-	},
-	{
-		Project: "strimzi", Name: "Strimzi", Repo: "github.com/strimzi/strimzi-kafka-operator", Component: "pkg:github/strimzi/strimzi-kafka-operator",
-		FactProject: "strimzi", TagPrefix: "", MinFrom: [2]int{0, 51},
-		Paths: []PathSpec{{Path: "install/cluster-operator", Dir: true, Match: regexp.MustCompile(`^[0-9A-Za-z]{3}-Crd-[A-Za-z0-9-]+\.ya?ml$`), Guard: crdNamed}},
-	},
+var Targets = mustLoadTargets(targetsJSON)
+
+type targetsFile struct {
+	Schema  string       `json:"schema"`
+	Targets []targetJSON `json:"targets"`
+}
+
+type targetJSON struct {
+	Project     string          `json:"project"`
+	Name        string          `json:"name"`
+	Repo        string          `json:"repo"`
+	Component   string          `json:"component"`
+	FactProject string          `json:"factProject"`
+	TagPrefixes []string        `json:"tagPrefixes"`
+	MinFrom     string          `json:"minFrom"`
+	Paths       []pathJSON      `json:"paths"`
+	Exclude     []exclusionJSON `json:"exclude"`
+}
+
+type pathJSON struct {
+	Path      string `json:"path"`
+	Directory bool   `json:"directory"`
+	Recursive bool   `json:"recursive"`
+	Optional  bool   `json:"optional"`
+	Match     string `json:"match"`
+	Guard     string `json:"guard"`
+}
+
+type exclusionJSON struct {
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
+}
+
+var (
+	projectRE     = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+	factProjectRE = regexp.MustCompile(`^[a-z0-9]+(_[a-z0-9]+)*$`)
+	lineRE        = regexp.MustCompile(`^(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})$`)
+	globMeta      = "*?["
+)
+
+func mustLoadTargets(raw []byte) []Target {
+	ts, err := LoadTargets(raw)
+	if err != nil {
+		panic("crdversions: targets.json: " + err.Error())
+	}
+	return ts
+}
+
+// LoadTargets decodes and validates a targets document. Unknown fields,
+// unsorted or duplicate projects, invalid patterns, paths that are not
+// clean repository paths and exclusions without a reason are refused.
+func LoadTargets(raw []byte) ([]Target, error) {
+	var doc targetsFile
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&doc); err != nil {
+		return nil, err
+	}
+	if dec.More() {
+		return nil, fmt.Errorf("trailing data")
+	}
+	if doc.Schema != TargetsSchema {
+		return nil, fmt.Errorf("schema %q, want %q", doc.Schema, TargetsSchema)
+	}
+	if len(doc.Targets) == 0 {
+		return nil, fmt.Errorf("no targets")
+	}
+	var out []Target
+	seen := map[string]string{}
+	for i, tj := range doc.Targets {
+		t, err := tj.target()
+		if err != nil {
+			return nil, fmt.Errorf("target %d (%s): %w", i, tj.Project, err)
+		}
+		if i > 0 && doc.Targets[i-1].Project >= t.Project {
+			return nil, fmt.Errorf("targets are not sorted by project at %s", t.Project)
+		}
+		for _, k := range []string{"project " + t.Project, "fact " + t.FactProject, "repo " + t.Repo, "component " + t.Component} {
+			if prev, dup := seen[k]; dup {
+				return nil, fmt.Errorf("%s is used by %s and %s", k, prev, t.Project)
+			}
+			seen[k] = t.Project
+		}
+		out = append(out, t)
+	}
+	return out, nil
+}
+
+func (tj targetJSON) target() (Target, error) {
+	t := Target{Project: tj.Project, Name: tj.Name, Repo: tj.Repo, Component: tj.Component, FactProject: tj.FactProject, TagPrefixes: tj.TagPrefixes}
+	switch {
+	case !projectRE.MatchString(t.Project) || len(t.ExtractorID()) > 128:
+		return t, fmt.Errorf("project slug")
+	case strings.TrimSpace(t.Name) != t.Name || t.Name == "" || len(t.Name) > 64:
+		return t, fmt.Errorf("name")
+	case !factProjectRE.MatchString(t.FactProject):
+		return t, fmt.Errorf("factProject")
+	}
+	repo, err := extract.ParseRepo(t.Repo)
+	if err != nil || repo.Key != t.Repo {
+		return t, fmt.Errorf("repo %q", t.Repo)
+	}
+	if t.Component != "pkg:github/"+strings.TrimPrefix(t.Repo, "github.com/") {
+		return t, fmt.Errorf("component %q does not name repository %s", t.Component, t.Repo)
+	}
+	if len(t.TagPrefixes) == 0 || len(t.TagPrefixes) > 2 {
+		return t, fmt.Errorf("tagPrefixes: one or two of \"v\" and \"\"")
+	}
+	for i, p := range t.TagPrefixes {
+		if (p != "" && p != "v") || (i > 0 && p == t.TagPrefixes[0]) {
+			return t, fmt.Errorf("tagPrefixes: one or two of \"v\" and \"\"")
+		}
+	}
+	m := lineRE.FindStringSubmatch(tj.MinFrom)
+	if m == nil {
+		return t, fmt.Errorf("minFrom %q is not major.minor", tj.MinFrom)
+	}
+	t.MinFrom[0], _ = strconv.Atoi(m[1])
+	t.MinFrom[1], _ = strconv.Atoi(m[2])
+	if len(tj.Paths) == 0 {
+		return t, fmt.Errorf("no paths")
+	}
+	seenPath := map[string]bool{}
+	required := false
+	for _, pj := range tj.Paths {
+		ps, err := pj.spec()
+		if err != nil {
+			return t, fmt.Errorf("path %q: %w", pj.Path, err)
+		}
+		for other := range seenPath {
+			if other == ps.Path || strings.HasPrefix(ps.Path, other+"/") || strings.HasPrefix(other, ps.Path+"/") {
+				return t, fmt.Errorf("paths %q and %q overlap", other, ps.Path)
+			}
+		}
+		seenPath[ps.Path] = true
+		required = required || !ps.Optional
+		t.Paths = append(t.Paths, ps)
+	}
+	if !required {
+		return t, fmt.Errorf("every path is optional")
+	}
+	for i, ej := range tj.Exclude {
+		if err := validExclusion(ej); err != nil {
+			return t, fmt.Errorf("exclusion %q: %w", ej.Path, err)
+		}
+		if i > 0 && tj.Exclude[i-1].Path >= ej.Path {
+			return t, fmt.Errorf("exclusions are not sorted at %q", ej.Path)
+		}
+		for _, ps := range t.Paths {
+			if exclusionMatches(ej.Path, ps.Path) || (strings.HasSuffix(ej.Path, "/") && strings.HasPrefix(ej.Path, ps.Path+"/")) {
+				return t, fmt.Errorf("exclusion %q covers the listed path %s", ej.Path, ps.Path)
+			}
+		}
+		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Reason: ej.Reason})
+	}
+	return t, nil
+}
+
+func cleanRepoPath(p string) bool {
+	return p != "" && !strings.HasPrefix(p, "/") && path.Clean(p) == p && p != "." && p != ".." && !strings.HasPrefix(p, "../") && !strings.ContainsAny(p, "\x00\n\\")
+}
+
+func (pj pathJSON) spec() (PathSpec, error) {
+	ps := PathSpec{Path: pj.Path, Dir: pj.Directory, Recursive: pj.Recursive, Optional: pj.Optional}
+	if !cleanRepoPath(pj.Path) {
+		return ps, fmt.Errorf("not a clean repository path")
+	}
+	if !pj.Directory {
+		if pj.Recursive || pj.Match != "" || pj.Guard != "" {
+			return ps, fmt.Errorf("a file path takes no recursive, match or guard")
+		}
+		return ps, nil
+	}
+	if pj.Match == "" || pj.Guard == "" {
+		return ps, fmt.Errorf("a directory needs match and guard")
+	}
+	var err error
+	if ps.Match, err = regexp.Compile(pj.Match); err != nil {
+		return ps, fmt.Errorf("match: %w", err)
+	}
+	if ps.Guard, err = regexp.Compile(pj.Guard); err != nil {
+		return ps, fmt.Errorf("guard: %w", err)
+	}
+	return ps, nil
+}
+
+func validExclusion(ej exclusionJSON) error {
+	p := strings.TrimSuffix(ej.Path, "/")
+	if !cleanRepoPath(p) {
+		return fmt.Errorf("not a clean repository path")
+	}
+	if strings.ContainsAny(ej.Path, globMeta) {
+		if strings.HasSuffix(ej.Path, "/") {
+			return fmt.Errorf("a pattern names files, not a directory")
+		}
+		if _, err := path.Match(ej.Path, ""); err != nil {
+			return fmt.Errorf("pattern: %w", err)
+		}
+	}
+	if r := strings.TrimSpace(ej.Reason); r != ej.Reason || len(r) < 12 || len(r) > 300 {
+		return fmt.Errorf("a reason of 12 to 300 characters is required")
+	}
+	return nil
+}
+
+// exclusionMatches reports whether one exclusion entry covers a file path.
+func exclusionMatches(entry, p string) bool {
+	switch {
+	case strings.HasSuffix(entry, "/"):
+		return strings.HasPrefix(p, entry)
+	case strings.ContainsAny(entry, globMeta):
+		ok, _ := path.Match(entry, p)
+		return ok
+	default:
+		return entry == p
+	}
+}
+
+// excludedDir reports whether the scan skips a whole directory, and why:
+// a default segment or a reviewed directory prefix.
+func (t Target) excludedDir(dir string) (string, bool) {
+	for _, seg := range strings.Split(dir, "/") {
+		for _, d := range DefaultExcludedSegments {
+			if seg == d {
+				return "default: " + d, true
+			}
+		}
+	}
+	for _, e := range t.Exclude {
+		if strings.HasSuffix(e.Path, "/") && strings.HasPrefix(dir+"/", e.Path) {
+			return e.Path, true
+		}
+	}
+	return "", false
+}
+
+// excludedFile reports the reviewed exclusion that covers a file, if any.
+func (t Target) excludedFile(p string) (string, bool) {
+	if dir := path.Dir(p); dir != "." {
+		if why, ok := t.excludedDir(dir); ok {
+			return why, true
+		}
+	}
+	for _, e := range t.Exclude {
+		if exclusionMatches(e.Path, p) {
+			return e.Path, true
+		}
+	}
+	return "", false
 }
 
 // TargetFor returns the target of a project slug.

@@ -3,6 +3,7 @@
 package crdversions
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -10,15 +11,34 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
+// pendingRegistration lists the targets whose custom-resource version set
+// is not registered yet: their candidates are derived, and the knowledge
+// gate refuses them (the fact is unknown to the engine) until the fact and
+// the project's API groups are added to the reviewed custom-resource table
+// in their own reviewed change.
+var pendingRegistration = []string{"cert-manager", "cilium", "crossplane", "keda", "kuma", "kyverno", "longhorn", "rook", "velero"}
+
 // The reviewed custom-resource table (which the fact registry and the
-// preparation read) names exactly the extractor's targets, with the same
-// fact ids and components, in the same order.
+// preparation read) names exactly the extractor's targets that are not
+// pending registration, with the same fact ids and components, in the same
+// order; every pending target is a target.
 func TestTargetsMatchCustomResourceTable(t *testing.T) {
 	projects := customresources.Projects()
-	if len(projects) != len(Targets) {
-		t.Fatalf("%d table projects, %d targets", len(projects), len(Targets))
+	var registered []Target
+	for _, tg := range Targets {
+		if !slices.Contains(pendingRegistration, tg.Project) {
+			registered = append(registered, tg)
+		}
 	}
-	for i, tg := range Targets {
+	for _, p := range pendingRegistration {
+		if _, ok := TargetFor(p); !ok {
+			t.Fatalf("pending project %s is not a target", p)
+		}
+	}
+	if len(projects) != len(registered) {
+		t.Fatalf("%d table projects, %d registered targets", len(projects), len(registered))
+	}
+	for i, tg := range registered {
 		p := projects[i]
 		if p.Slug != tg.Project || p.FactProject != tg.FactProject || p.Component != tg.Component || p.FactID() != tg.FactID() {
 			t.Fatalf("table %+v differs from target %s/%s/%s", p, tg.Project, tg.FactProject, tg.Component)
@@ -47,7 +67,7 @@ func targetPathCovers(tg Target, source string) bool {
 		if !spec.Dir && path == spec.Path {
 			return true
 		}
-		if spec.Dir && strings.HasPrefix(path, spec.Path+"/") && !strings.Contains(path[len(spec.Path)+1:], "/") && spec.Match.MatchString(path[len(spec.Path)+1:]) {
+		if spec.Dir && strings.HasPrefix(path, spec.Path+"/") && (spec.Recursive || !strings.Contains(path[len(spec.Path)+1:], "/")) && spec.Match.MatchString(path[strings.LastIndex(path, "/")+1:]) {
 			return true
 		}
 	}
