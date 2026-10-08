@@ -30,7 +30,7 @@ release-gate-test:
 # Regenerate the test artefacts that follow the embedded CNCF rule pack, then run
 # the tests that read it (see the script's header).
 regenerate-pack-goldens:
-	./scripts/regenerate-pack-goldens.sh
+	./scripts/regenerate-pack-goldens.sh $(ARGS)
 
 release-manifest:
 	@test -n "$(OUTPUT)" || { echo "OUTPUT=/absolute/path/SOURCE-MANIFEST.json is required" >&2; exit 2; }

@@ -3,7 +3,6 @@
 package scanrun
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -19,6 +18,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
+	"github.com/prufyx/prufyx/cli/internal/goldenfile"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
@@ -494,25 +494,11 @@ func inDir(t testing.TB, dir string, f func()) {
 	f()
 }
 
-// golden compares output with testdata/name, rewriting it with -update.
+// golden compares output with testdata/name; with -update it rewrites the
+// file and logs what changed, and does not compare it with itself.
 func golden(t testing.TB, name string, got []byte) {
 	t.Helper()
-	path := filepath.Join(testdata, name)
-	if *update {
-		if err := os.MkdirAll(testdata, 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, got, 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	want, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(got, want) {
-		t.Fatalf("%s differs from the golden file:\n%s", name, got)
-	}
+	goldenfile.Check(t, filepath.Join(testdata, name), got, *update, "")
 }
 
 func jsonOf(t testing.TB, report scanreport.Report) []byte {

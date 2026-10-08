@@ -3,11 +3,10 @@
 package communityapp
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
-	"os"
+	"github.com/prufyx/prufyx/cli/internal/goldenfile"
 	"path/filepath"
 	"testing"
 	"time"
@@ -28,22 +27,7 @@ var ageClocks = func() []struct{ name, now string } {
 
 func ageGolden(t *testing.T, name string, got []byte) {
 	t.Helper()
-	path := filepath.Join("testdata", "knowledge-age", name)
-	if *updateAgeGoldens {
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, got, 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	want, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(got, want) {
-		t.Fatalf("%s differs from the golden file:\n%s", name, got)
-	}
+	goldenfile.Check(t, filepath.Join("testdata", "knowledge-age", name), got, *updateAgeGoldens, "")
 }
 
 // TestCheckOutputUnchangedNearExpiry: stdout and the exit code of check cncf

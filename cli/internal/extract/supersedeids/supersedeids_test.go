@@ -142,7 +142,11 @@ func goList(t *testing.T, args ...string) []string {
 const (
 	supersedeidsPath     = "github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	supersedefixturePath = "github.com/prufyx/prufyx/cli/internal/extract/supersedefixture"
+	goldenfilePath       = "github.com/prufyx/prufyx/cli/internal/goldenfile"
 )
+
+// testOnly are the packages that exist for tests only.
+var testOnly = []string{supersedeidsPath, supersedefixturePath, goldenfilePath}
 
 func withTags(tags string, args ...string) []string {
 	if tags == "" {
@@ -151,7 +155,7 @@ func withTags(tags string, args ...string) []string {
 	return append([]string{"-tags", tags}, args...)
 }
 
-// The two test-only packages must not reach a binary: supersedeids reads the
+// The test-only packages (supersedeids, supersedefixture, goldenfile) must not reach a binary: supersedeids reads the
 // pack from the source tree through runtime.Caller and panics without it, and
 // supersedefixture rebuilds a pack that was never shipped. Neither is a
 // dependency of anything under cmd, with or without the synthetic-knowledge
@@ -163,15 +167,20 @@ func TestTestOnlyPackagesAreNotInAnyBinary(t *testing.T) {
 			t.Fatalf("tags %q: only %d dependencies listed, the guard is not looking at the binaries", tags, len(deps))
 		}
 		for _, dep := range deps {
-			if dep == supersedeidsPath || dep == supersedefixturePath {
-				t.Errorf("tags %q: %s is a dependency of a binary", tags, dep)
+			for _, forbidden := range testOnly {
+				if dep == forbidden {
+					t.Errorf("tags %q: %s is a dependency of a binary", tags, dep)
+				}
 			}
 		}
 		// Imports without _test files: a non-test importer anywhere, even of a
 		// package no binary links today, is the first step to a binary.
-		for _, importer := range goList(t, withTags(tags, "-f", `{{range .Imports}}{{if or (eq . "`+supersedeidsPath+`") (eq . "`+supersedefixturePath+`")}}{{$.ImportPath}} {{end}}{{end}}`, "./...")...) {
-			if importer != supersedefixturePath {
-				t.Errorf("tags %q: %s imports a test-only package outside its tests", tags, importer)
+		for _, forbidden := range testOnly {
+			for _, importer := range goList(t, withTags(tags, "-f", `{{range .Imports}}{{if eq . "`+forbidden+`"}}{{$.ImportPath}} {{end}}{{end}}`, "./...")...) {
+				// The fixture package builds on the id package.
+				if importer != supersedefixturePath || forbidden != supersedeidsPath {
+					t.Errorf("tags %q: %s imports %s outside its tests", tags, importer, forbidden)
+				}
 			}
 		}
 	}
