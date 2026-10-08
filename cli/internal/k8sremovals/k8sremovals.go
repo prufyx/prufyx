@@ -29,7 +29,7 @@ type Removal struct {
 	Served  []string
 }
 
-// ByTargetMinor maps a target minor line to the reviewed
+// byTargetMinor (read through ByTargetMinor) maps a target minor line to the reviewed
 // removals that take effect when a cluster crosses into it. The default path
 // (cncfprepare.kubernetesRemovalsForCrossedMinorLine) selects a line by crossing exactly
 // one minor boundary from any patch of the previous line to any patch of the
@@ -39,7 +39,7 @@ type Removal struct {
 // tests that compare the table against the rule pack's own anchors. The 1.32
 // line is handled by PrepareKubernetesFlowControl and deliberately absent
 // here.
-var ByTargetMinor = map[string][]Removal{
+var byTargetMinor = map[string][]Removal{
 	"1.22": {
 		{Fact: "component.kubernetes.admissionwebhook_v1beta1_removed_gvk_present", Group: "admissionregistration.k8s.io", Kinds: []string{"MutatingWebhookConfiguration", "ValidatingWebhookConfiguration"}, Removed: "v1beta1", Served: []string{"v1"}},
 		{Fact: "component.kubernetes.crd_v1beta1_removed_gvk_present", Group: "apiextensions.k8s.io", Kinds: []string{"CustomResourceDefinition"}, Removed: "v1beta1", Served: []string{"v1"}},
@@ -86,6 +86,22 @@ var ByTargetMinor = map[string][]Removal{
 	},
 }
 
+// ByTargetMinor returns a deep copy of the reviewed removal table, so no
+// caller can change the table the admission check and the adapters read.
+func ByTargetMinor() map[string][]Removal {
+	out := make(map[string][]Removal, len(byTargetMinor))
+	for line, removals := range byTargetMinor {
+		copied := make([]Removal, len(removals))
+		for i, removal := range removals {
+			removal.Kinds = append([]string(nil), removal.Kinds...)
+			removal.Served = append([]string(nil), removal.Served...)
+			copied[i] = removal
+		}
+		out[line] = copied
+	}
+	return out
+}
+
 // RemovedVersion is one reviewed removal of a served API version: the kinds
 // of Group at Version stop being served when a cluster enters Line.
 type RemovedVersion struct {
@@ -99,7 +115,7 @@ type RemovedVersion struct {
 // including the 1.32 flow-control removal, ordered by line, group, version.
 func RemovedVersions() []RemovedVersion {
 	out := []RemovedVersion{{Line: "1.32", Group: "flowcontrol.apiserver.k8s.io", Version: "v1beta3", Kinds: []string{"FlowSchema", "PriorityLevelConfiguration"}}}
-	for line, removals := range ByTargetMinor {
+	for line, removals := range byTargetMinor {
 		for _, removal := range removals {
 			out = append(out, RemovedVersion{Line: line, Group: removal.Group, Version: removal.Removed, Kinds: append([]string(nil), removal.Kinds...)})
 		}
@@ -130,4 +146,41 @@ func lineParts(line string) (uint64, uint64) {
 	m, _ := strconv.ParseUint(major, 10, 32)
 	n, _ := strconv.ParseUint(minor, 10, 32)
 	return m, n
+}
+
+// preV122Removals are the API removals before the 1.22 start of the table
+// above. They are used only to admit served lists (AdmissionRemovedVersions),
+// never as scan or cncfprepare facts. Source: the Kubernetes deprecation
+// guide, section "v1.16" (kubernetes/website, content/en/docs/reference/
+// using-api/deprecation-guide.md at commit
+// 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f): NetworkPolicy
+// extensions/v1beta1; DaemonSet extensions/v1beta1 and apps/v1beta2;
+// Deployment and ReplicaSet extensions/v1beta1, apps/v1beta1 and
+// apps/v1beta2; StatefulSet apps/v1beta1 and apps/v1beta2; PodSecurityPolicy
+// extensions/v1beta1. Only what that section names is listed.
+var preV122Removals = []RemovedVersion{
+	{Line: "1.16", Group: "apps", Version: "v1beta1", Kinds: []string{"Deployment", "ReplicaSet", "StatefulSet"}},
+	{Line: "1.16", Group: "apps", Version: "v1beta2", Kinds: []string{"DaemonSet", "Deployment", "ReplicaSet", "StatefulSet"}},
+	{Line: "1.16", Group: "extensions", Version: "v1beta1", Kinds: []string{"DaemonSet", "Deployment", "NetworkPolicy", "PodSecurityPolicy", "ReplicaSet"}},
+}
+
+// AdmissionRemovedVersions is RemovedVersions plus the pre-1.22 removals,
+// ordered by line, group, version. Only the served-list admission reads it.
+func AdmissionRemovedVersions() []RemovedVersion {
+	out := RemovedVersions()
+	for _, removal := range preV122Removals {
+		removal.Kinds = append([]string(nil), removal.Kinds...)
+		out = append(out, removal)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		a, b := out[i], out[j]
+		if a.Line != b.Line {
+			return lineLess(a.Line, b.Line)
+		}
+		if a.Group != b.Group {
+			return a.Group < b.Group
+		}
+		return a.Version < b.Version
+	})
+	return out
 }

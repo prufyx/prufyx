@@ -532,7 +532,8 @@ prufyx-maintainer approval sign --subject repinBaseline \
 
 `--base-baselines` is omitted when the base has no file. `--repository` must be
 spelled as the entry spells it, and `--candidate-id` must equal the entry's
-`approval`. `approval verify` takes the same subject flags.
+`approval`. `approval verify` takes the same subject flags plus `--base-root DIR` (the base
+checkout; see below).
 
 `prufyx-maintainer approval` signs and checks approval files offline. It reads
 both packs exactly as the gate does, signs the bytes the gate checks, and runs
@@ -592,7 +593,7 @@ prufyx-maintainer approval sign \
 | `--key-stdin` | read the private key from standard input instead; standard input must be a pipe (a terminal, another device or a redirected file is refused; give a file with `--key`) |
 | `--output` | the approval file to create; its path must end in `<pack>/<rule id>.json` (the gate reads `cli/knowledge/approvals/<pack>/<rule id>.json`); an existing file or link there is never replaced, no directory in the path may be a symbolic link, missing directories are created, and the file gets mode `0644` |
 | `--subject` | what the approval is for: `rule` (the default), `lineAttestation` or `repinBaseline` |
-| `--record` | with `--subject lineAttestation`, in place of `--rule`: the line attestation's record ID; the proposed pack must hold it with evidence basis `reviewed`, and it must differ from the base record |
+| `--record` | with `--subject lineAttestation`, in place of `--rule`: the line attestation's record ID; the proposed pack must hold it with evidence basis `reviewed`, it must differ from the base record, the base record must not be mechanical, and the change must loosen (a change that only shortens `validUntil` is refused) |
 
 A line attestation approval names `"subject": "lineAttestation"` and the
 record's `scope`, and its digests are those of the base and proposed record.
@@ -600,7 +601,8 @@ Path policies and mechanical attestations cannot be approved. The gate uses a
 record approval once and only forward: it refuses an approval file already in
 the base, and one decided at or before an approval the base holds for the same
 record, so write a new one for each change (`decidedAt` is the current time).
-The signer reads no base approvals, so it cannot warn about either rule.
+The signer reads no base approvals, so it cannot warn about either rule;
+`approval verify --base-root DIR` applies both before it prints `approval OK`.
 
 ```sh
 prufyx-maintainer approval sign --subject lineAttestation --pack cncf \
@@ -632,7 +634,11 @@ For a line attestation or a repin baseline, `approval verify` also needs
 `--base-root DIR`, the base checkout. It then applies the gate's checks of the
 base's approvals before it prints `approval OK`: an approval the base already
 holds, and an approval for the same record that the base superseded with a
-decision made at the same time or later, are refused. `--base-root` is refused
+decision made at the same time or later, are refused. `--base-root` must be a
+base checkout: it has to hold the layout's pack file(s), and the file it holds
+must equal `--base-pack` (or `--base-baselines`, when given; a base checkout that
+holds a baseline file needs `--base-baselines` too); an empty or other directory
+is an error, never `approval OK`. `--base-root` is refused
 for a rule approval. The baseline flags (`--repository`, `--base-baselines`,
 `--head-baselines`) belong to `--subject repinBaseline` and are refused for the
 other subjects.

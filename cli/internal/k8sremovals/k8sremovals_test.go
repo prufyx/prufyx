@@ -9,7 +9,7 @@ import "testing"
 func TestRemovedVersionsOrderAndContent(t *testing.T) {
 	list := RemovedVersions()
 	count := 1
-	for _, removals := range ByTargetMinor {
+	for _, removals := range ByTargetMinor() {
 		count += len(removals)
 	}
 	if len(list) != count {
@@ -29,5 +29,33 @@ func TestRemovedVersionsOrderAndContent(t *testing.T) {
 	}
 	if !lineLess("1.9", "1.10") || lineLess("1.10", "1.9") || lineLess("1.10", "1.10") {
 		t.Fatal("lines are not ordered numerically")
+	}
+}
+
+// The accessor hands out a copy: changing it cannot change the table.
+func TestByTargetMinorReturnsCopy(t *testing.T) {
+	first := ByTargetMinor()
+	first["1.22"][0].Kinds[0] = "Tampered"
+	first["1.22"][0].Removed = "v9"
+	delete(first, "1.25")
+	second := ByTargetMinor()
+	if second["1.22"][0].Kinds[0] == "Tampered" || second["1.22"][0].Removed == "v9" || len(second["1.25"]) == 0 {
+		t.Fatal("a change to the returned table reached the shared table")
+	}
+}
+
+// The admission list adds the 1.16 removals and leaves RemovedVersions alone.
+func TestAdmissionRemovedVersionsAddsPreV122(t *testing.T) {
+	base, adm := RemovedVersions(), AdmissionRemovedVersions()
+	if len(adm) != len(base)+len(preV122Removals) {
+		t.Fatalf("%d admission entries, want %d", len(adm), len(base)+len(preV122Removals))
+	}
+	for _, r := range base {
+		if lineLess(r.Line, "1.22") {
+			t.Fatalf("RemovedVersions holds the pre-1.22 line %s", r.Line)
+		}
+	}
+	if adm[0].Line != "1.16" {
+		t.Fatalf("first admission entry is line %s", adm[0].Line)
 	}
 }

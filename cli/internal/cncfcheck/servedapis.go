@@ -34,7 +34,7 @@ func admitServedAPIs(packRaw []byte, field json.RawMessage, projects []projectId
 		return servedapis.Index{}, ErrIntegrity
 	}
 	subjects := subjectComponents(projects)
-	removed := k8sremovals.RemovedVersions()
+	removed := k8sremovals.AdmissionRemovedVersions()
 	for _, record := range records {
 		if !subjects[record.Component] || namesRemovedAPI(record, removed) {
 			return servedapis.Index{}, ErrIntegrity

@@ -26,7 +26,7 @@ type kubernetesRemoval = k8sremovals.Removal
 
 // kubernetesRemovalsByTargetMinor is the reviewed removal table, keyed by the
 // target minor line that takes each removal effect (see k8sremovals).
-var kubernetesRemovalsByTargetMinor = k8sremovals.ByTargetMinor
+var kubernetesRemovalsByTargetMinor = k8sremovals.ByTargetMinor()
 
 // kubernetesRemovalsByTransition is the anchor-pair view of the table: each
 // target line M.m keyed by its M.(m-1).0 -> M.m.0 pair, the pair the reviewed

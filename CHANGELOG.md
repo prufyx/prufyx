@@ -140,6 +140,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   approval the base already holds or has superseded, before it prints OK.
   `approval` refuses the baseline flags (`--repository`, `--base-baselines`,
   `--head-baselines`) for the `rule` and `lineAttestation` subjects.
+  `approval verify --base-root` must be a base checkout: it needs the layout's
+  pack file and refuses a pack that differs from `--base-pack` or
+  `--base-baselines`. The pack loader also refuses a served list that names a
+  1.16 removal (`apps/v1beta1`, `apps/v1beta2`, `extensions/v1beta1`).
 - `prufyx assess --format json`: the collector progress lines ("Context …", "Created local API observation directory …", "Verify context files with …") now go to stderr, so stdout carries only the JSON report and parses as JSON.
 - `extract` file writes are never made through a symlink and no longer depend on
   the umask. `extract run` builds the output in a staging directory beside `--out`

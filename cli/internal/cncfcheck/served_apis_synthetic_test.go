@@ -75,6 +75,8 @@ func TestServedAPIsRefusesRemovedAPIs(t *testing.T) {
 		{"reviewer case: 1.29 list with three removed APIs", "1.29", []string{"batch/v1beta1 CronJob", "extensions/v1beta1 Ingress", "flowcontrol.apiserver.k8s.io/v1beta2 FlowSchema"}},
 		{"removed on the list's own line", "1.29", []string{"flowcontrol.apiserver.k8s.io/v1beta2 FlowSchema", "v1 ConfigMap"}},
 		{"removed on an earlier line", "1.29", []string{"batch/v1beta1 CronJob", "v1 ConfigMap"}},
+		{"pre-1.22 removal: apps/v1beta2 Deployment", "1.30", []string{"apps/v1beta2 Deployment", "apps/v1 Deployment"}},
+		{"pre-1.22 removal: extensions/v1beta1 NetworkPolicy", "1.30", []string{"extensions/v1beta1 NetworkPolicy"}},
 		{"removed long before", "1.29", []string{"extensions/v1beta1 Ingress", "v1 ConfigMap"}},
 	}
 	for _, tc := range refused {

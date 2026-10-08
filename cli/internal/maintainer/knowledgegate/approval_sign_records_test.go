@@ -347,6 +347,26 @@ func TestApprovalSignSubjectFlagCombinations(t *testing.T) {
 		args = append(args[:3], args[5:]...) // drop --base-root DIR
 		requireCode(t, runApproval(t, nil, gateNow, args...), 2, "--base-root is required")
 	})
+	// --base-root must be a base checkout: an empty directory (or one whose
+	// pack differs from --base-pack) is an error, never "approval OK".
+	t.Run("verify with an empty base root", func(t *testing.T) {
+		g := attestationFixture(t)
+		requireCode(t, runApproval(t, g.key.pemKey(t), signNow, g.recordSignArgs("--key-stdin")...), 0, "approval written")
+		args := g.recordVerifyArgs()
+		args[4] = t.TempDir()
+		r := runApproval(t, nil, gateNow, args...)
+		requireCode(t, r, 2, "not a base checkout")
+		if strings.Contains(r.stdout, "approval OK") {
+			t.Fatal("verify printed OK against an empty base root")
+		}
+	})
+	t.Run("verify with a base root whose pack differs from --base-pack", func(t *testing.T) {
+		g := attestationFixture(t)
+		requireCode(t, runApproval(t, g.key.pemKey(t), signNow, g.recordSignArgs("--key-stdin")...), 0, "approval written")
+		args := g.recordVerifyArgs()
+		args[4] = g.head.Root // a checkout, but not the base the pack came from
+		requireCode(t, runApproval(t, nil, gateNow, args...), 2, "differs from")
+	})
 	t.Run("verify a rule with a base checkout", func(t *testing.T) {
 		g := newRuleFixture(t)
 		args := append(g.verifyArgs(""), "--base-root", g.base.Root)

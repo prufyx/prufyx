@@ -417,11 +417,15 @@ A pack that holds the member uses the schema
 byte-for-byte what it was before. The built-in knowledge carries no list yet.
 
 The loader refuses the whole pack when a list for line L names an API that the
-removal table marks as removed on a line at or below L, so a list cannot
-contradict what the binary already knows. A list is checked only on the target
-line: on a multi-hop path an object must also be served on the lines in
-between, which holds because the served set of an API only shrinks and earlier
-removals are caught by the removal table.
+removal table marks as removed on a line at or below L. The table covers the
+removals from 1.22 on; the loader also checks a separate list of the 1.16
+removals (`apps/v1beta1`, `apps/v1beta2`, `extensions/v1beta1`), taken from the
+upstream deprecation guide. A removal that is in neither list is not caught by
+the loader and rests on the list's review until the GATE-SERVED cross-check
+exists. A list is checked only on the target line: on a multi-hop path an
+object must also be served on the lines in between, which holds because the
+served set of an API only shrinks; the scan itself reports a removal from 1.22
+on that no hop crosses as `API_VERSION_NOT_SERVED`.
 
 When a `SCOPE_COMPLETE_PASS` rests on a list, the report's `paths[].servedList`
 names it: `line`, `basis`, `freshness`, `validUntil` and `digest`

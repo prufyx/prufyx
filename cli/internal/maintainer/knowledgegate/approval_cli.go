@@ -3,6 +3,7 @@
 package knowledgegate
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"encoding/hex"
 	"encoding/json"
@@ -255,6 +256,53 @@ func (s *subjectFlags) load(layout Layout) (ApprovalSubject, ApprovalKeys, error
 	return subject, keys, nil
 }
 
+// checkBaseRoot requires --base-root to be a base checkout the gate would
+// read: it must hold the layout's pack file (the named pack for a line
+// attestation, every pack for a baseline approval), and what it holds must
+// equal the --base-pack / --base-baselines file given. A directory that is
+// not such a checkout would otherwise make the base-approval check pass
+// against nothing.
+func (s *subjectFlags) checkBaseRoot(layout Layout, baseRoot string) error {
+	base := Tree{Root: baseRoot}
+	same := func(flagName, file, rel string, required bool) error {
+		inRoot, err := base.ReadOptional(rel, MaxFileBytes)
+		if err != nil {
+			return fmt.Errorf("--base-root: %w", err)
+		}
+		if inRoot == nil && required {
+			return fmt.Errorf("--base-root %s does not hold %s: it is not a base checkout", baseRoot, rel)
+		}
+		if file == "" {
+			if inRoot != nil && !required {
+				return fmt.Errorf("--base-root holds %s but no %s was given", rel, flagName)
+			}
+			return nil
+		}
+		given, err := readBoundedFile(file, MaxFileBytes)
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(given, inRoot) {
+			return fmt.Errorf("%s differs from %s in --base-root", flagName, rel)
+		}
+		return nil
+	}
+	if s.subject == ApprovalSubjectLineAttestation {
+		for _, spec := range layout.Packs {
+			if spec.Name == s.pack {
+				return same("--base-pack", s.basePack, spec.Path, true)
+			}
+		}
+		return fmt.Errorf("unknown pack %q", s.pack)
+	}
+	for _, spec := range layout.Packs {
+		if !base.Exists(spec.Path) {
+			return fmt.Errorf("--base-root %s does not hold %s: it is not a base checkout", baseRoot, spec.Path)
+		}
+	}
+	return same("--base-baselines", s.baseBaselines, layout.BaselinesPath, false)
+}
+
 // keyFlags select where the private key comes from.
 type keyFlags struct {
 	file  string
@@ -402,6 +450,9 @@ func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.
 		return 1, nil
 	}
 	if checksBase {
+		if err := s.checkBaseRoot(layout, baseRoot); err != nil {
+			return 2, err
+		}
 		used, err := (&baseApprovals{opts: Options{Base: Tree{Root: baseRoot}, Layout: layout}}).refuse(raw)
 		if err != nil {
 			fmt.Fprintf(stdout, "approval REFUSED: %s\n", logSafe(err.Error()))
