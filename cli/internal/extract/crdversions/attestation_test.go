@@ -3,6 +3,7 @@
 package crdversions
 
 import (
+	"context"
 	"encoding/json"
 	"slices"
 	"strings"
@@ -196,5 +197,49 @@ func TestAttestingTargetsAreTheRegisteredProjects(t *testing.T) {
 		if x.AttestedComponent() != tg.Component {
 			t.Fatalf("%s attests %s", tg.Project, x.AttestedComponent())
 		}
+	}
+}
+
+// tampering wraps the extractor and changes the attestation it proposes.
+type tampering struct {
+	*Extractor
+	change func(c *extract.AttestationCandidate)
+}
+
+func (x tampering) Extract(ctx context.Context, r extract.PinnedReader, pair extract.VersionPair) (extract.Extraction, error) {
+	res, err := x.Extractor.Extract(ctx, r, pair)
+	for i := range res.Attestations {
+		x.change(&res.Attestations[i])
+	}
+	return res, err
+}
+
+// The framework refuses an attestation of another component, or one that
+// names a release the extractor did not read at a recorded release tag.
+func TestFrameworkChecksAttestedComponentAndReleases(t *testing.T) {
+	alpha := crd("Alpha", "v1beta1", "v1")
+	s := newSynth(release{"v1.0.0", map[string]string{"deploy/crds/a.yaml": alpha}}, release{"v1.1.0", map[string]string{"deploy/crds/a.yaml": alpha}},
+		release{"v1.1.1", map[string]string{"deploy/crds/a.yaml": alpha}})
+	repo, err := extract.ParseRepo(attestingTarget().Repo)
+	must(t, err)
+	for name, tc := range map[string]struct {
+		change func(c *extract.AttestationCandidate)
+		want   string
+	}{
+		"other component": {func(c *extract.AttestationCandidate) { c.Component = "pkg:github/strimzi/strimzi-kafka-operator" }, "the extractor attests"},
+		"release not read": {func(c *extract.AttestationCandidate) {
+			c.Releases.To = append(c.Releases.To, lineattest.Release{Version: "1.1.2", Commit: commitOf("v1.1.2")})
+		}, "not a recorded release tag the extractor read"},
+		"release at another commit": {func(c *extract.AttestationCandidate) { c.Releases.To[1].Commit = commitOf("v1.1.0") }, "not a recorded release tag"},
+		"version of another tag": {func(c *extract.AttestationCandidate) { c.Releases.To[0].Version = "1.1.5" }, "not a recorded release tag"},
+		"no releases":            {func(c *extract.AttestationCandidate) { c.Releases = nil }, "releases is required"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			x := tampering{New(attestingTarget()), tc.change}
+			_, err := extract.Run(context.Background(), x, s, s, extract.Options{Repo: repo, DerivedAt: derivedAt})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("got %v, want %q", err, tc.want)
+			}
+		})
 	}
 }
