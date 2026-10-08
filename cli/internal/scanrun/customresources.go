@@ -243,6 +243,11 @@ func (r *customResourceRun) hop(hop upgradepath.Hop) (scanreport.Hop, error) {
 		}
 	}
 	if family := r.lineReview(hop, ref, fromVersion, toVersion, prepared, applicableIDs, decided, blocks, &result); family != nil {
+		if blocked {
+			// Every rule here reads only the set: a hop that blocks is
+			// never a pass of the family.
+			family.Status = scanreport.FamilyBlocked
+		}
 		result.Families = []scanreport.FamilyResult{*family}
 	}
 	// Nothing covers this hop: the component is only partly evaluated.
