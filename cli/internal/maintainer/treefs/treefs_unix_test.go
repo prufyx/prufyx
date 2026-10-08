@@ -93,3 +93,21 @@ func TestReadAndWriteRefuseLinksAndSpecialFiles(t *testing.T) {
 		}
 	}
 }
+
+// A FIFO given as the root fails at once with "not a directory"; opening it
+// for reading would block forever.
+func TestOpenDirRefusesAFIFORootWithoutBlocking(t *testing.T) {
+	fifo := filepath.Join(t.TempDir(), "pipe")
+	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
+		t.Skip("fifo unavailable")
+	}
+	within(t, "OpenDir fifo", func() {
+		d, err := OpenDir(fifo, "")
+		if err == nil {
+			d.Close()
+			t.Error("FIFO root accepted")
+		} else if !strings.Contains(err.Error(), "not a directory") {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+}

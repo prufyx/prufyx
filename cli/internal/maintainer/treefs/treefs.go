@@ -44,6 +44,13 @@ func cleanRel(rel string) error {
 // OpenDir opens the directory rel below root ("" for root itself) component
 // by component, never following a symbolic link below root.
 func OpenDir(root, rel string) (*os.File, error) {
+	// Refuse a non-directory before opening it: opening a FIFO for reading
+	// blocks until a writer appears. The descriptor is checked again below.
+	if pre, err := os.Stat(root); err != nil {
+		return nil, err
+	} else if !pre.IsDir() {
+		return nil, fmt.Errorf("%s is not a directory", root)
+	}
 	dir, err := os.Open(root)
 	if err != nil {
 		return nil, err

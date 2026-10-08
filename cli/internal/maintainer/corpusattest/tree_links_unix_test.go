@@ -179,3 +179,39 @@ func TestExplicitOutputIsNotFollowed(t *testing.T) {
 		}
 	}
 }
+
+// A FIFO as --tree, --output's directory or --rules is refused at once.
+func TestFIFOAsTreeOutputDirOrRulesDoesNotHang(t *testing.T) {
+	fifo := filepath.Join(t.TempDir(), "pipe")
+	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
+		t.Skip("fifo unavailable")
+	}
+	for _, args := range [][]string{
+		{"generate", "--tree", fifo},
+		{"check", "--tree", fifo},
+		{"generate", "--output", filepath.Join(fifo, "x.json")},
+		{"generate", "--rules", fifo},
+		{"check", "--rules", fifo},
+	} {
+		if code, _ := runWithin(t, args, cliRoot(t)); code == 0 {
+			t.Fatalf("%v accepted a FIFO", args)
+		}
+	}
+}
+
+// --output naming a directory (trailing slash or existing) is an error and
+// writes nothing inside it.
+func TestOutputDirectoryIsRefused(t *testing.T) {
+	dir := t.TempDir()
+	for _, value := range []string{dir + "/", dir, dir + "//"} {
+		for _, mode := range []string{"generate", "check"} {
+			code, msg := runWithin(t, []string{mode, "--output", value}, cliRoot(t))
+			if code == 0 || !strings.Contains(msg, "is a directory") {
+				t.Fatalf("%s --output %q: code %d, %q", mode, value, code, msg)
+			}
+		}
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Fatalf("directory target was written into: %v", entries)
+	}
+}

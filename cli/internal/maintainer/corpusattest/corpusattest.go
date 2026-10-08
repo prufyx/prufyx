@@ -21,8 +21,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
@@ -242,11 +244,18 @@ type location struct{ dir, rel string }
 // resolveLocation is the flag value when given (its directory is the
 // caller's own choice, its last element is not followed) and otherwise the
 // default path below root.
-func resolveLocation(flagValue, root, defaultRel string) location {
+func resolveLocation(flagValue, root, defaultRel string) (location, error) {
 	if flagValue != "" {
-		return location{dir: filepath.Dir(flagValue), rel: filepath.Base(flagValue)}
+		if strings.HasSuffix(flagValue, "/") || strings.HasSuffix(flagValue, string(filepath.Separator)) {
+			return location{}, fmt.Errorf("%s is a directory", flagValue)
+		}
+		clean := filepath.Clean(flagValue)
+		if info, err := os.Stat(clean); err == nil && info.IsDir() {
+			return location{}, fmt.Errorf("%s is a directory", flagValue)
+		}
+		return location{dir: filepath.Dir(clean), rel: filepath.Base(clean)}, nil
 	}
-	return location{dir: root, rel: defaultRel}
+	return location{dir: root, rel: defaultRel}, nil
 }
 
 // Run is the maintainer subcommand adapter. It follows the same
@@ -297,8 +306,16 @@ func Run(args []string, stdout, stderr io.Writer, cliRoot string) int {
 		fmt.Fprintln(stderr, "corpus-attestation: CLI root is unavailable")
 		return 2
 	}
-	outLoc := resolveLocation(*output, cliRoot, path.Join(selected.packageDir, selected.assetPath))
-	packLoc := resolveLocation(*pack, cliRoot, selected.rulesPath)
+	outLoc, outErr := resolveLocation(*output, cliRoot, path.Join(selected.packageDir, selected.assetPath))
+	if outErr != nil {
+		fmt.Fprintf(stderr, "corpus-attestation: --output: %v\n", outErr)
+		return 2
+	}
+	packLoc, packErr := resolveLocation(*pack, cliRoot, selected.rulesPath)
+	if packErr != nil {
+		fmt.Fprintf(stderr, "corpus-attestation: --rules: %v\n", packErr)
+		return 2
+	}
 	if err != nil {
 		fmt.Fprintln(stderr, "corpus-attestation: attestation rejected")
 		return 2
