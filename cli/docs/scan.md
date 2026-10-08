@@ -452,10 +452,14 @@ names it: `line`, `basis`, `freshness`, `validUntil` and `digest`
 (`sha256:` over the list's sorted pairs, one per line). The member is not
 present in a report with another verdict.
 
-The external knowledge target format, `knowledge-targets build`, `evidence
-repin`, `evidence reattest` and the support inventory refuse a pack with the
-member, and the knowledge gate treats any change to it as a change to a
-top-level pack member, which it never admits.
+The external knowledge target format carries served lists in the kubernetes
+project target (a records envelope; see
+[Records in project targets](cncf-knowledge-per-project.md#records-in-project-targets)),
+and a scan with `--knowledge-db` reads them from the database exactly as it
+reads them from the embedded pack. `evidence repin`, `evidence reattest` and
+the support inventory refuse a pack with the member, and the knowledge gate
+treats any change to it as a change to a top-level pack member, which it
+never admits.
 
 ## JSON
 

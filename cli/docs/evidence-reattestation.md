@@ -559,9 +559,9 @@ item next to the rules:
   shape of a record ID, and a pack entry whose project is
   `line-attestations` or `path-policies` each reject the pack.
 
-Per-project knowledge targets (`knowledge-targets build`) still refuse a
-pack that carries either section (see
-[cncf-knowledge-per-project.md](cncf-knowledge-per-project.md)).
+Per-project knowledge targets (`knowledge-targets build`) carry both
+sections, each record in its own project's target (see
+[cncf-knowledge-per-project.md](cncf-knowledge-per-project.md#records-in-project-targets)).
 
 ## What `verify` checks (V1–V12)
 

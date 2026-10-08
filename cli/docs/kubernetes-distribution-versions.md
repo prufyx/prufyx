@@ -113,7 +113,8 @@ is byte-for-byte what it was before, and the pack digest covers the section.
 
 For now the section is fenced off everywhere it cannot yet be handled: the
 external knowledge target format and `knowledge-targets build` refuse a pack
-with it, `evidence reattest` and `evidence repin` refuse it (its records are
+with it (distribution records are not scoped to one project, so no
+per-project target carries them), `evidence reattest` and `evidence repin` refuse it (its records are
 not renewed and expire), the support inventory refuses it, and the knowledge
 gate treats any change to it as a change to a top-level pack member, which it
 never admits. Maintainers can validate a section with

@@ -145,7 +145,10 @@ workload names or input file paths. Neither operation contacts Prufyx, a model,
 an upstream source URL or a cluster. Hashes bind bytes; they are not anonymity
 proofs. Review a report before choosing to share it.
 
-The generic envelope uses `prufyx.io/operator-cncf-knowledge/v1alpha1`, a positive
+The generic envelope uses `prufyx.io/operator-cncf-knowledge/v1alpha1`
+(`v1alpha2` when the pack also carries line attestations, upgrade-path
+policies or served-API lists; see
+[Records in project targets](cncf-knowledge-per-project.md#records-in-project-targets)), a positive
 decimal revision, `operator_provided` or `synthetic_test_only` purpose, the exact
 compiled capability digest, and a complete source-rule pack. It cannot define
 new registries, operators, collection fields or authority labels. The parser
