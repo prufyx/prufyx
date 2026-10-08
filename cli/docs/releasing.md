@@ -11,7 +11,7 @@ A pre-release is a candidate build. It is not a signed compatibility statement
 ## Tag name
 
 Tags must match `v<major>.<minor>.<patch>[-<prerelease>]`, for example
-`v0.0.1-alpha.1`. The workflow triggers on any tag starting with `v`, and
+`v0.0.1-alpha.1`; build metadata (`+...`) is refused. The workflow triggers on any tag starting with `v`, and
 `scripts/action/install.sh` accepts only that shape. Do not reuse a tag that was
 ever pushed, even if its release was deleted: the tag, the attestation and the
 `SHA256SUMS` of a version must stay one-to-one.
@@ -21,8 +21,8 @@ ever pushed, even if its release was deleted: the tag, the attestation and the
 1. Decide the commit. It must be on `main`, merged through the normal pull
    request flow, with CI green on that exact commit.
 2. Update the release notes file `cli/docs/release-notes-<tag>.md` in a normal
-   pull request before tagging. The workflow's draft release text is a stub and
-   does not read this file.
+   pull request before tagging. The workflow uses this file as the draft
+   release text and fails if it is missing.
 3. Check the embedded rule expiry dates against the planned publication date.
    After a rule expires its verdict is `UNKNOWN` by design, so a release
    published shortly before an expiry date ships rules that are about to lapse.
@@ -37,8 +37,8 @@ ever pushed, even if its release was deleted: the tag, the attestation and the
 5. Watch the `Release` workflow. When it succeeds it leaves a **draft** GitHub
    release. Nothing is public until a maintainer publishes the draft.
 6. Before publishing, download the draft's assets and run the verification
-   steps below against them. Mark the release as a pre-release when publishing
-   (the workflow does not set that flag).
+   steps below against them. A tag with a hyphen (`-alpha.1`) is created as a
+   pre-release by the workflow; keep that flag when publishing.
 7. Publish the draft. Then run the verification once more from the public
    download URLs, and run `scripts/action/install.sh` through the composite
    action with `version: <tag>` on a throwaway repository.
@@ -67,7 +67,8 @@ The workflow has three jobs. Third-party actions are pinned by commit SHA.
    provenance attestation (`actions/attest-build-provenance`) for every
    `.tar.gz`. `SHA256SUMS` itself is not an attested subject.
 3. **Draft release.** Creates a draft release for the tag with the archives and
-   `SHA256SUMS` attached.
+   `SHA256SUMS` attached, using `cli/docs/release-notes-<tag>.md` as the text and
+   marking hyphenated tags as pre-releases.
 
 The workflow does not run the test suite, does not sign with any maintainer key
 and does not publish. Maintainer-side signing with an offline key is a separate
@@ -163,9 +164,14 @@ identity; a release tag therefore fixes the pin for that version.
 
 Binaries are built with `-trimpath -buildvcs=false` and the build epoch is the
 tagged commit's own commit time, so rebuilding the same tag with the same Go
-toolchain yields byte-identical binaries. Archive byte-reproducibility depends
-on how the workflow runs `tar` and `gzip`; compare the extracted binaries, not
-the `.tar.gz` digests, unless the workflow documents otherwise.
+toolchain yields byte-identical binaries. The workflow pins the exact Go patch
+release (`go-version: "1.26.8"`; the build identity records it) and packs the
+archives deterministically (sorted members, the tagged commit's time as every
+mtime, numeric root ownership, normalized modes, no gzip name or time). A
+rebuild with the same Go release and GNU `tar` and `gzip` therefore yields
+identical `.tar.gz` files: compare the `.tar.gz` digests with `SHA256SUMS`.
+If a different `tar` or `gzip` implementation is used, compare the extracted
+binaries instead.
 
 ## Pre-release checks that can run before tagging
 

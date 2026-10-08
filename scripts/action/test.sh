@@ -462,7 +462,7 @@ done
 rel="$here/../../.github/workflows/release.yml"
 if [ -f "$rel" ]; then
   # archive and directory name: prufyx_<tag>_<os>_<arch>
-  if grep -Fq 'prufyx_${VERSION}_${GOOS}_${GOARCH}' "$rel" && grep -Fq 'name="prufyx_${version}_${goos}_${goarch}"' "$here/install.sh"; then
+  if grep -Fq 'for name in "prufyx_${VERSION}_${GOOS}_${GOARCH}"' "$rel" && grep -Fq 'name="prufyx_${version}_${goos}_${goarch}"' "$here/install.sh"; then
     ok "release contract: archive name prufyx_<tag>_<os>_<arch> in release.yml and install.sh"
   else bad "release contract: archive name" "release.yml and install.sh disagree or pattern not found"; fi
   # the binary sits at <name>/prufyx inside the archive, and tar packs <name> relative to dist
