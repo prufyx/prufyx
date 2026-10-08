@@ -178,9 +178,13 @@ folding), and any name that repeats, rejects the pack. So every reader sees
 the same attestation section, or none.
 
 The pack digest covers the attestations, as it covers every other byte of
-the pack. The external knowledge target format does not carry attestations
-yet: an external pack with `lineAttestations` is refused, and so is a pack
-with attestations given to `knowledge-targets build`.
+the pack. The external knowledge target format carries attestations in a
+records envelope (`prufyx.io/operator-cncf-knowledge/v1alpha2`):
+`knowledge-targets build` puts each attestation in the target of the
+project whose component it names, and a client admits it with the same
+exact-rule-set check (see
+[Records in project targets](cncf-knowledge-per-project.md#records-in-project-targets)).
+A `v1alpha1` envelope with `lineAttestations` is refused.
 
 Library callers look attestations up with
 `cncfcheck.AttestationsFor(component, line, family, now)`, which returns the

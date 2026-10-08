@@ -9,6 +9,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Knowledge targets carry records: per-project CNCF targets (and the single
+  target) now carry line attestations, upgrade-path policies and served-API
+  lists, each record in the target of the project whose component it names.
+  A target with records uses the envelope
+  `prufyx.io/operator-cncf-knowledge/v1alpha2` and its index
+  `prufyx.io/cncf-knowledge-index/v2` (entries flag `records: true`); a pack
+  without records produces the same v1 bytes as before. Clients admit each
+  record with the checks of the embedded pack and refuse a record in another
+  project's target; binaries without this support refuse such a database
+  rather than read it without its records. `scan --knowledge-db` reads
+  served-API lists from the database. The knowledge gate's `targets/cncf`
+  check now passes for a pack with records, and a new `records-trust` check
+  refuses a change that changes records and trust material together.
+  Distribution records still have no target and are refused.
 - Line attestations per component: the fact family
   `crd.custom_resource_versions` covers, for each project of the
   custom-resource table, the rules over its own custom-resource version set.

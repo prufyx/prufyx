@@ -186,10 +186,16 @@ limit and the kill switch, and switching records off counts toward the record
 breaker (see below). A record change appears in the report with `section`
 (`lineAttestations` or `pathPolicies`) and the record ID as `ruleId`.
 
-The CNCF knowledge is published as one target per project, and that split
-does not carry records yet: a CNCF pack holding any record still fails the
-`targets/cncf` check, so no such change can merge through the gate until the
-split supports them.
+The CNCF knowledge is published as one target per project, and each record
+rides in the target of the project whose component it names (see
+[Records in project targets](cncf-knowledge-per-project.md#records-in-project-targets)).
+`targets/cncf` sizes those targets with their records. A pack holding
+distribution records still cannot be split and fails `targets/cncf`.
+
+A change that changes a record and trust material together fails the
+`records-trust` check, whoever makes it: a record would otherwise be admitted
+under trust material (for example an approval key) that no earlier gate run
+accepted. Change the trust material in its own change first.
 
 With `--source github` the gate reads upstream repositories directly from
 GitHub: directory listings from the git trees API (walking tree objects from
@@ -255,6 +261,7 @@ Run on every pack of the head, whatever the change:
 | `tree` | the head holds a symbolic link or a special file under `cli/` |
 | `file-modes` | a knowledge file the automation may change has, or changes, an executable bit |
 | `trust-material` | the change touches trust material (see below) and is not a person's change matching the pinned digest |
+| `records-trust` | the change changes a pack record (line attestation or path policy) and trust material together |
 | `knowledge-records` | an approval file, worklist or review record changed without the rule change or statement it belongs to (see below) |
 | `limits` | the change holds more loosening changes than the cap (default 200) |
 | `kill-switch` | the file `factory/PAUSE` exists in the base or the head and the change holds any loosening change |
@@ -830,6 +837,7 @@ ok   check admit/cncf: 191 entries admitted
 ok   check registry/cncf: 160 of 256 facts
 …
 ok   check trust-material: 0 trust files changed
+ok   check records-trust: 0 record changes, 0 trust files changed
 ok   check knowledge-records: 0 record files changed
 ok   check limits: 0 loosening changes, cap 200
 ok   check limits/daily: the number of loosening changes merged in the last day was not supplied; the change is not eligible for automatic merging
