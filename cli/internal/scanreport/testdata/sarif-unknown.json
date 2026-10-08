@@ -33,7 +33,7 @@
         {
           "executionSuccessful": true,
           "exitCode": 11,
-          "exitCodeDescription": "NO BLOCKERS FOUND IN COVERED CHECKS: 7 areas were not checked",
+          "exitCodeDescription": "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (8 areas were not checked)",
           "startTimeUtc": "2026-10-04T00:00:00Z",
           "toolExecutionNotifications": [
             {
@@ -56,6 +56,19 @@
               },
               "descriptor": {
                 "id": "API_VERSION_NOT_REVIEWED"
+              },
+              "properties": {
+                "kind": "gap",
+                "component": "kubernetes"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "1 manifest(s) use API versions Kubernetes 1.30 does not serve, removed on a line this upgrade enters - no reviewed rule decided them; migrate them to a served API version before upgrading, and see the other gaps for why"
+              },
+              "descriptor": {
+                "id": "API_VERSION_NOT_SERVED"
               },
               "properties": {
                 "kind": "gap",
@@ -135,7 +148,7 @@
             {
               "level": "warning",
               "message": {
-                "text": "kubernetes 1.28 has not been reviewed for removed APIs - check the kubernetes 1.28 release notes for removed APIs by hand, or request coverage"
+                "text": "no review confirms that the removed-API rules for kubernetes 1.28 name every API that line removes - check the kubernetes 1.28 release notes for other removed APIs by hand, or request a line review"
               },
               "descriptor": {
                 "id": "LINE_NOT_ATTESTED"
@@ -152,10 +165,10 @@
       "results": [],
       "properties": {
         "verdict": "UNKNOWN",
-        "headline": "NO BLOCKERS FOUND IN COVERED CHECKS: 7 areas were not checked",
+        "headline": "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (8 areas were not checked)",
         "summary": {
           "blockers": 0,
-          "gaps": 7,
+          "gaps": 8,
           "passes": 0,
           "componentsDetected": 2,
           "componentsCovered": 1,

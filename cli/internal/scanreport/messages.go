@@ -76,23 +76,26 @@ const (
 	GapEvidenceExpired         GapKey = ReasonEvidenceExpired
 	GapDowngradeNotReviewed    GapKey = ReasonDowngradeNotReviewed
 	GapAPIVersionNotServed     GapKey = ReasonAPIVersionNotServed
-	GapAPIVersionNotListed     GapKey = ReasonAPIVersionNotReviewed + "/not-listed"
-	GapAPIVersionNoServedList  GapKey = ReasonAPIVersionNotReviewed + "/no-served-list"
-	GapLineUndecidedFact       GapKey = ReasonLineNotAttested + "/undecided-fact"
-	GapAPIVersionNotReviewed   GapKey = ReasonAPIVersionNotReviewed
-	GapAlphaAPINotCovered      GapKey = ReasonAlphaAPINotCovered
-	GapRuleNotDecided          GapKey = ReasonRuleNotDecided
-	GapRuleNeedsOtherEvidence  GapKey = ReasonRuleNotDecided + "/other-evidence"
-	GapUnsupportedCombination  GapKey = ReasonUnsupportedCombination
-	GapLineTrustPolicy         GapKey = ReasonLineNotAttested + "/trust-policy"
-	GapPathPolicyTrustPolicy   GapKey = ReasonNoReviewedPathPolicy + "/trust-policy"
-	GapServedListTrustPolicy   GapKey = ReasonAPIVersionNotReviewed + "/trust-policy"
-	GapServedListNotCurrent    GapKey = ReasonAPIVersionNotReviewed + "/served-list-not-current"
-	GapServedListMismatch      GapKey = ReasonAPIVersionNotReviewed + "/served-list-mismatch"
-	GapRuleNoKnownIssue        GapKey = ReasonRuleNotDecided + "/no-known-issue"
-	GapRuleTrustPolicy         GapKey = ReasonRuleNotDecided + "/trust-policy"
-	GapRuleStatusNotUnderstood GapKey = ReasonRuleNotDecided + "/status"
-	GapProjectNotInKnowledge   GapKey = ReasonProjectNotInKnowledge
+	// GapAPIVersionNotServedCrossed: the removal is on a release line the
+	// upgrade enters, and no reviewed rule decided the object.
+	GapAPIVersionNotServedCrossed GapKey = ReasonAPIVersionNotServed + "/crossed-undecided"
+	GapAPIVersionNotListed        GapKey = ReasonAPIVersionNotReviewed + "/not-listed"
+	GapAPIVersionNoServedList     GapKey = ReasonAPIVersionNotReviewed + "/no-served-list"
+	GapLineUndecidedFact          GapKey = ReasonLineNotAttested + "/undecided-fact"
+	GapAPIVersionNotReviewed      GapKey = ReasonAPIVersionNotReviewed
+	GapAlphaAPINotCovered         GapKey = ReasonAlphaAPINotCovered
+	GapRuleNotDecided             GapKey = ReasonRuleNotDecided
+	GapRuleNeedsOtherEvidence     GapKey = ReasonRuleNotDecided + "/other-evidence"
+	GapUnsupportedCombination     GapKey = ReasonUnsupportedCombination
+	GapLineTrustPolicy            GapKey = ReasonLineNotAttested + "/trust-policy"
+	GapPathPolicyTrustPolicy      GapKey = ReasonNoReviewedPathPolicy + "/trust-policy"
+	GapServedListTrustPolicy      GapKey = ReasonAPIVersionNotReviewed + "/trust-policy"
+	GapServedListNotCurrent       GapKey = ReasonAPIVersionNotReviewed + "/served-list-not-current"
+	GapServedListMismatch         GapKey = ReasonAPIVersionNotReviewed + "/served-list-mismatch"
+	GapRuleNoKnownIssue           GapKey = ReasonRuleNotDecided + "/no-known-issue"
+	GapRuleTrustPolicy            GapKey = ReasonRuleNotDecided + "/trust-policy"
+	GapRuleStatusNotUnderstood    GapKey = ReasonRuleNotDecided + "/status"
+	GapProjectNotInKnowledge      GapKey = ReasonProjectNotInKnowledge
 	// GapCustomResourcesOnly: a project whose custom-resource versions
 	// scan checks, and nothing else.
 	GapCustomResourcesOnly GapKey = ReasonComponentNotCovered + "/custom-resources-only"
@@ -116,8 +119,8 @@ type gapMessage struct {
 // gapMessages holds detail and action per key. Arguments are referenced by
 // explicit index so detail and action can use them in any order.
 var gapMessages = map[GapKey]gapMessage{
-	GapLineNotAttested: {"%[1]s %[2]s has not been reviewed for removed APIs",
-		"check the %[1]s %[2]s release notes for removed APIs by hand, or request coverage", 2},
+	GapLineNotAttested: {"no review confirms that the removed-API rules for %[1]s %[2]s name every API that line removes",
+		"check the %[1]s %[2]s release notes for other removed APIs by hand, or request a line review", 2},
 	GapLineNotCurrent: {"the review of %[1]s %[2]s for removed APIs is not current (%[3]s)",
 		"use knowledge with a current review, or check the %[1]s %[2]s release notes by hand", 3},
 	GapLineHopShape: {"the hop %[2]s -> %[3]s does not enter one release line from the line before it, so line reviews do not apply",
@@ -173,11 +176,13 @@ var gapMessages = map[GapKey]gapMessage{
 	GapEvidenceExpired: {"the review of rule %[1]s is not current (%[2]s)",
 		"use a Prufyx release with current knowledge, or check this change by hand", 2},
 	GapDowngradeNotReviewed: {"downgrades are not evaluated (%[1]s %[2]s -> %[3]s)",
-		"none", 3},
+		"Prufyx evaluates upgrades only; check the %[1]s rollback notes by hand, or swap --from and --to if this is an upgrade", 3},
 	GapAPIVersionNotReviewed: {"a manifest uses an API version of a reviewed kind that the reviewed removals do not name",
 		"check that API version against the release notes by hand", 0},
-	GapAPIVersionNotServed: {"%[1]d manifest(s) use API versions Kubernetes %[2]s no longer serves, removed before the evaluated hops",
-		"migrate them to a served API version, then scan again", 2},
+	GapAPIVersionNotServed: {"%[1]d manifest(s) use API versions that Kubernetes %[2]s does not serve (removed at or before that release)",
+		"migrate them to a served API version before upgrading, then scan again", 2},
+	GapAPIVersionNotServedCrossed: {"%[1]d manifest(s) use API versions Kubernetes %[2]s does not serve, removed on a line this upgrade enters",
+		"no reviewed rule decided them; migrate them to a served API version before upgrading, and see the other gaps for why", 2},
 	GapAPIVersionNotListed: {"%[1]d manifest(s) use API versions that the review of Kubernetes %[2]s does not list as served",
 		"check those API versions against the Kubernetes %[2]s API reference by hand", 2},
 	GapAPIVersionNoServedList: {"no reviewed list of the API versions Kubernetes %[2]s serves; %[1]d manifest(s) cannot be checked",
@@ -294,7 +299,12 @@ const (
 	headlineUnknownOne  = "NO BLOCKERS FOUND IN COVERED CHECKS: 1 area was not checked"
 	headlineUnknownMany = "NO BLOCKERS FOUND IN COVERED CHECKS: %d areas were not checked"
 	headlineUnknownNone = "NO BLOCKERS FOUND IN COVERED CHECKS: some areas were not checked"
-	headlinePass        = "PASS FOR THE DECLARED SCOPE"
+	// An undecided report that names a manifest the target does not serve
+	// never leads with "no blockers": the object fails on the target
+	// whatever else was checked.
+	headlineNotServedOne  = "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (1 area was not checked)"
+	headlineNotServedMany = "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (%d areas were not checked)"
+	headlinePass          = "PASS FOR THE DECLARED SCOPE"
 )
 
 func headline(report Report) string {
@@ -306,6 +316,14 @@ func headline(report Report) string {
 		return fmt.Sprintf(headlineBlockedMany, len(report.Findings))
 	case VerdictPass:
 		return headlinePass
+	}
+	for _, gap := range report.Gaps {
+		if gap.Reason == ReasonAPIVersionNotServed {
+			if len(report.Gaps) == 1 {
+				return headlineNotServedOne
+			}
+			return fmt.Sprintf(headlineNotServedMany, len(report.Gaps))
+		}
 	}
 	switch len(report.Gaps) {
 	case 0:

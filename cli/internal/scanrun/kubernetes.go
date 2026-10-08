@@ -47,6 +47,9 @@ type kubernetesRun struct {
 	// excluded and excludedLeads are the rules that apply to the upgrade
 	// but that the trust policy left out.
 	excluded, excludedLeads map[string]bool
+	// blocked are the objects a BLOCKED finding names: a reviewed rule
+	// decided them.
+	blocked map[intake.Source]bool
 }
 
 func (r *kubernetesRun) evaluate(from, to string) error {
@@ -60,6 +63,7 @@ func (r *kubernetesRun) evaluate(from, to string) error {
 	}
 	r.findings, r.passes = map[string]int{}, map[string]bool{}
 	r.excluded, r.excludedLeads = map[string]bool{}, map[string]bool{}
+	r.blocked = map[intake.Source]bool{}
 	r.rootGaps = r.componentGaps()
 	for _, gap := range r.rootGaps {
 		r.report.Gaps = append(r.report.Gaps, gap)
@@ -67,9 +71,11 @@ func (r *kubernetesRun) evaluate(from, to string) error {
 	r.unresolvedSetGap(cncfprepare.KubernetesApplySetReason(r.workspace))
 
 	path := scanreport.Path{Component: kubernetesSlug, From: from, To: to}
-	crossed := map[string]bool{}
+	// entered are the release lines the planned upgrade enters; it stays
+	// empty when no upgrade can be planned.
+	entered := map[string]bool{}
 	defer func() {
-		path.ServedList = r.apiVersionGaps(to, crossed)
+		path.ServedList = r.apiVersionGaps(to, entered)
 		r.report.Paths = append(r.report.Paths, path)
 		if len(r.excluded)+len(r.excludedLeads) > 0 {
 			r.report.TrustPolicy = &scanreport.TrustPolicy{RequiredBasis: r.policy.Bases(), ExcludedRules: len(r.excluded), ExcludedLeadRules: len(r.excludedLeads)}
@@ -114,8 +120,8 @@ func (r *kubernetesRun) evaluate(from, to string) error {
 	if unplanned {
 		r.gap(nil, scanreport.GapNoReviewedPathPolicy, kubernetesSlug, from, to)
 	}
-	for line := range crossedLines(plan) {
-		crossed[line] = true
+	for _, line := range enteredLines(from, to) {
+		entered[line] = true
 	}
 	for _, hop := range plan.Hops {
 		evaluated, err := r.hop(hop, unplanned)
@@ -199,32 +205,32 @@ func (r *kubernetesRun) declarationGaps() []scanreport.GapKey {
 	return keys
 }
 
-// crossedLines are the minor lines whose removals a hop of the plan
-// evaluates: the line of every hop that enters it from the line before.
-func crossedLines(plan upgradepath.Plan) map[string]bool {
-	crossed := map[string]bool{}
-	for _, hop := range plan.Hops {
-		fromLine, toLine, ok := hopLines(hop)
-		if !ok {
-			continue
-		}
-		fromMajor, fromMinor, ok1 := majorMinor(fromLine + ".0")
-		toMajor, toMinor, ok2 := majorMinor(toLine + ".0")
-		// Only a hop that enters one line from the line before evaluates
-		// that line's removals; a hop that skips lines crosses nothing here.
-		if ok1 && ok2 && fromMajor == toMajor && toMinor == fromMinor+1 {
-			crossed[toLine] = true
-		}
+// enteredLines are the minor lines an upgrade from one exact version to
+// another enters, in order: every line above the line of from up to the line
+// of to, within one major version. A downgrade, a patch upgrade or a major
+// change enters none.
+func enteredLines(from, to string) []string {
+	fromMajor, fromMinor, ok1 := majorMinor(from)
+	toMajor, toMinor, ok2 := majorMinor(to)
+	if !ok1 || !ok2 || fromMajor != toMajor {
+		return nil
 	}
-	return crossed
+	var lines []string
+	for minor := fromMinor + 1; minor <= toMinor; minor++ {
+		lines = append(lines, strconv.FormatUint(fromMajor, 10)+"."+strconv.FormatUint(minor, 10))
+	}
+	return lines
 }
 
 // apiVersionGaps checks every manifest against the target line: an object
-// at a version removed on a line at or below the target that no hop crosses
-// is not served, and an object of a Kubernetes API group must be at a
-// version the review of the target line lists as served. It returns the
-// served list the check relied on, nil when none was consulted.
-func (r *kubernetesRun) apiVersionGaps(to string, crossed map[string]bool) *scanreport.ServedList {
+// at a version removed on a line at or below the target is not served unless
+// a reviewed rule decided it (a BLOCKED finding names it), and an object of
+// a Kubernetes API group must be at a version the review of the target line
+// lists as served. An object removed on a line the upgrade enters is named
+// apart from one removed before it, because there a rule could have decided.
+// It returns the served list the check relied on, nil when none was
+// consulted.
+func (r *kubernetesRun) apiVersionGaps(to string, entered map[string]bool) *scanreport.ServedList {
 	targetLine, ok := lineattest.LineOf(to)
 	if !ok {
 		return nil
@@ -233,18 +239,25 @@ func (r *kubernetesRun) apiVersionGaps(to string, crossed map[string]bool) *scan
 	status := r.knowledge.ServedAPIs(r.component, targetLine, r.now)
 	usable := status.Found && status.Freshness == lineattest.FreshnessCurrent && status.List.Line == targetLine &&
 		status.List.Component == r.component && r.policy.Admits(status.List.Basis)
-	notServed, notListed, builtIn := 0, 0, 0
+	notServed, notServedEntered, notListed, builtIn := 0, 0, 0, 0
 	for _, document := range r.workspace.Documents {
 		group, version, found := strings.Cut(document.APIVersion, "/")
 		if !found {
 			group, version = "", document.APIVersion
 		}
 		for _, removal := range removed {
-			if removal.Group == group && removal.Version == version && containsString(removal.Kinds, document.Kind) &&
-				!lineattest.LineLess(targetLine, removal.Line) && !crossed[removal.Line] {
-				notServed++
-				break
+			if removal.Group != group || removal.Version != version || !containsString(removal.Kinds, document.Kind) ||
+				lineattest.LineLess(targetLine, removal.Line) {
+				continue
 			}
+			switch {
+			case r.blocked[document.Source]:
+			case entered[removal.Line]:
+				notServedEntered++
+			default:
+				notServed++
+			}
+			break
 		}
 		if !kubernetesGroupRE.MatchString(group) || alphaVersionRE.MatchString(version) {
 			continue
@@ -256,6 +269,9 @@ func (r *kubernetesRun) apiVersionGaps(to string, crossed map[string]bool) *scan
 	}
 	if notServed > 0 {
 		r.rootGap(scanreport.GapAPIVersionNotServed, notServed, targetLine)
+	}
+	if notServedEntered > 0 {
+		r.rootGap(scanreport.GapAPIVersionNotServedCrossed, notServedEntered, targetLine)
 	}
 	if builtIn == 0 {
 		return nil
@@ -614,6 +630,13 @@ func (r *kubernetesRun) hop(hop upgradepath.Hop, unplanned bool) (scanreport.Hop
 		_, toLine, _ := hopLines(hop)
 		result.Status = scanreport.HopNoData
 		result.Reasons = []string{r.gap(&ref, scanreport.GapLineNoRules, kubernetesSlug, toLine)}
+		blocked, err := r.enteredLineBlockers(hop, ref)
+		if err != nil {
+			return scanreport.Hop{}, err
+		}
+		if blocked {
+			result.Status = scanreport.HopBlocked
+		}
 		return result, nil
 	}
 
@@ -683,6 +706,15 @@ func (r *kubernetesRun) hop(hop upgradepath.Hop, unplanned bool) (scanreport.Hop
 		}
 	}
 
+	// A hop that skips release lines prepares no removal fact of the lines
+	// it skips; the step of the hop that enters each of them is evaluated
+	// on its own, and a reviewed rule that blocks it blocks the hop.
+	enteredBlocked, err := r.enteredLineBlockers(hop, ref)
+	if err != nil {
+		return scanreport.Hop{}, err
+	}
+	blocked = blocked || enteredBlocked
+
 	attested, attestationCurrent := r.attestation(hop, ref, unplanned, applicable, decidedRules, &result)
 	if attested {
 		// A fact the preparation found true must have been judged by a PASS
@@ -709,6 +741,88 @@ func (r *kubernetesRun) hop(hop upgradepath.Hop, unplanned bool) (scanreport.Hop
 		result.Status = scanreport.HopPartial
 	}
 	return result, nil
+}
+
+// enteredLineBlockers evaluates, for a hop that skips release lines, the
+// step of the hop that enters each skipped or target line with known
+// removals: from the hop's own start (or the whole line before) to the whole
+// entered line (or the hop's own end). Every upgrade over the hop takes such
+// a step, because Kubernetes upgrades one minor line at a time, so a
+// reviewed rule that covers the whole step (its range, or its removal
+// crossing) and blocks it blocks the hop; the finding names the step. It
+// only blocks: anything else such a step says is not used, since it decides
+// one step and not the hop, which keeps its own gaps. A hop that enters at
+// most one line has nothing to add: its own evaluation prepared the facts.
+func (r *kubernetesRun) enteredLineBlockers(hop upgradepath.Hop, ref scanreport.HopRef) (bool, error) {
+	fromLine, toLine, ok := hopLines(hop)
+	if !ok || previousLine(toLine) == fromLine || !lineattest.LineLess(fromLine, toLine) {
+		return false, nil
+	}
+	removalLines := map[string]bool{}
+	for _, removal := range cncfprepare.KubernetesRemovedVersions() {
+		removalLines[removal.Line] = true
+	}
+	blocked := false
+	for _, line := range enteredLines(fromLine+".0", toLine+".0") {
+		if !removalLines[line] {
+			continue
+		}
+		step := upgradepath.Hop{Index: hop.Index, From: upgradepath.Endpoint{Line: previousLine(line)}, To: upgradepath.Endpoint{Line: line}}
+		if step.From.Line == fromLine {
+			step.From = hop.From
+		}
+		if line == toLine {
+			step.To = hop.To
+		}
+		fromVersion, fromOK := step.From.EngineVersion()
+		toVersion, toOK := step.To.EngineVersion()
+		if !fromOK || !toOK {
+			continue
+		}
+		eval, err := r.evaluateTransition(fromVersion, toVersion)
+		if err != nil {
+			return false, err
+		}
+		if eval.refused {
+			continue
+		}
+		for _, rule := range r.rules {
+			claim, found := eval.claims[rule.Scope.ID]
+			if !found || claim.Status != "BLOCKED" {
+				continue
+			}
+			if rule.Scope.Component != r.component || !step.Overlaps(rule.Scope.Transition) {
+				// A decided claim matched the step's engine input, which lies
+				// inside the step.
+				return false, ErrIntegrity
+			}
+			viaCrossing := false
+			if !step.CoveredBy(rule.Scope.Transition) {
+				if !step.CrossingCovers(rule.Scope.Transition) {
+					continue
+				}
+				viaCrossing = true
+			}
+			if rule.Notice || rule.Basis == constraintengine.BasisLead || !r.policy.Admits(rule.Basis) {
+				continue
+			}
+			if finding := r.finding(rule, claim, eval, ref, viaCrossing); finding != nil {
+				finding.CrossedLine = &scanreport.CrossedLine{Line: line, From: step.From.String(), To: step.To.String()}
+				finding.Fix = crossedLineFix(finding.Fix, *finding.CrossedLine)
+			}
+			blocked = true
+		}
+	}
+	return blocked, nil
+}
+
+// crossedLineFix appends the step disclosure to a rule's fix.
+func crossedLineFix(fix string, step scanreport.CrossedLine) string {
+	disclosure := "decided on the step " + step.From + " -> " + step.To + ", which this upgrade takes to enter Kubernetes " + step.Line
+	if strings.HasSuffix(fix, ".") {
+		return fix + " " + strings.ToUpper(disclosure[:1]) + disclosure[1:] + "."
+	}
+	return fix + "; " + disclosure
 }
 
 // attestation checks the line review the hop needs: the hop must enter one
@@ -888,18 +1002,23 @@ func examinedByAHop(plan upgradepath.Plan, rule cncfcheck.ScanRule) bool {
 
 // finding records a BLOCKED claim: once per rule, at the first hop where it
 // blocks, with the later hops in AlsoAt.
-func (r *kubernetesRun) finding(rule cncfcheck.ScanRule, claim constraintengine.Claim, eval evaluation, ref scanreport.HopRef, viaCrossing bool) {
+func (r *kubernetesRun) finding(rule cncfcheck.ScanRule, claim constraintengine.Claim, eval evaluation, ref scanreport.HopRef, viaCrossing bool) *scanreport.Finding {
+	for _, fact := range claim.RequiredFacts {
+		for _, source := range eval.scan.Sources[fact.FactID] {
+			r.blocked[source] = true
+		}
+	}
 	if index, found := r.findings[rule.Scope.ID]; found {
 		finding := &r.report.Findings[index]
 		if finding.Hop != ref {
 			for _, also := range finding.AlsoAt {
 				if also == ref {
-					return
+					return nil
 				}
 			}
 			finding.AlsoAt = append(finding.AlsoAt, ref)
 		}
-		return
+		return nil
 	}
 	finding := scanreport.Finding{
 		RuleID: rule.Scope.ID, Component: kubernetesSlug, Hop: ref, Title: title(rule.Description), Fix: rule.NextAction, Match: "anchor",
@@ -925,6 +1044,7 @@ func (r *kubernetesRun) finding(rule cncfcheck.ScanRule, claim constraintengine.
 	}
 	r.findings[rule.Scope.ID] = len(r.report.Findings)
 	r.report.Findings = append(r.report.Findings, finding)
+	return &r.report.Findings[len(r.report.Findings)-1]
 }
 
 func (r *kubernetesRun) location(source intake.Source) scanreport.Location {

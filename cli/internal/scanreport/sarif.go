@@ -122,6 +122,8 @@ type sarifResultProps struct {
 	Match     string `json:"match"`
 	// Crossing is the disclosure of a crossing match, absent otherwise.
 	Crossing *constraintengine.CrossingMatch `json:"crossing,omitempty"`
+	// CrossedLine is the step a rule decided for a hop that skips lines.
+	CrossedLine *CrossedLine `json:"crossedLine,omitempty"`
 }
 
 type sarifLocation struct {
@@ -304,7 +306,7 @@ func sarifResults(report Report, index map[string]int) ([]sarifResult, int) {
 		base := sarifResult{
 			RuleID: f.RuleID, RuleIndex: index[f.RuleID], Level: sarifError,
 			Message:    sarifText{cut(fmt.Sprintf(labelResultMessage, f.Title, f.Fix), sarifMessageMax)},
-			Properties: sarifResultProps{Component: f.Component, Hop: hopLabel(f.Hop), Basis: f.Basis, Match: f.Match, Crossing: f.Crossing},
+			Properties: sarifResultProps{Component: f.Component, Hop: hopLabel(f.Hop), Basis: f.Basis, Match: f.Match, Crossing: f.Crossing, CrossedLine: f.CrossedLine},
 		}
 		if len(f.Locations) == 0 {
 			rows = append(rows, sarifRow{component: f.Component, hop: f.Hop.order(), document: -1, item: -1, result: base})

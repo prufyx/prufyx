@@ -40,8 +40,16 @@ func TestScanCommand(t *testing.T) {
 	if code != ExitBlocked || err != nil || report.Verdict != scanreport.VerdictBlocked || report.Provenance.NetworkUsed {
 		t.Fatalf("json: %d %v", code, err)
 	}
+	// An upgrade that skips release lines still blocks on the reviewed
+	// removal of a line it enters (it used to answer "NO BLOCKERS FOUND").
 	code, stdout, _ = runScan(t, append([]string{path, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4"}, declared...)...)
-	if code != ExitUnknown || !strings.HasPrefix(stdout, "NO BLOCKERS FOUND IN COVERED CHECKS") {
+	if code != ExitBlocked || !strings.HasPrefix(stdout, "BLOCKED: 1 problem must be fixed before this upgrade\n") || !strings.Contains(stdout, "Decided on the step 1.24.17 -> 1.25") {
+		t.Fatalf("skipped lines: %d\n%s", code, stdout)
+	}
+	// Removed at or before the current line: no rule decides it, and the
+	// answer names it instead of "no blockers".
+	code, stdout, _ = runScan(t, append([]string{path, "--from", "kubernetes=1.25.2", "--to", "kubernetes=1.30.4"}, declared...)...)
+	if code != ExitUnknown || !strings.HasPrefix(stdout, "UNKNOWN: manifests use API versions the target does not serve") || strings.Contains(stdout, "NO BLOCKERS FOUND") {
 		t.Fatalf("unknown: %d\n%s", code, stdout)
 	}
 	code, _, stderr = runScan(t, path, "--to", "kubernets=1.30.4")
@@ -76,18 +84,23 @@ func scanFormatsFixture(t *testing.T) (string, []string) {
 }
 
 // TestScanFormatsExitCodes: human, json, sarif and markdown exit the same
-// for a blocked scan (10) and a scan with unchecked areas (11); the passing
+// for a blocked scan (10), also over skipped lines, and a scan with
+// unchecked areas (11); the passing
 // case needs line reviews the embedded knowledge does not carry, so it is
 // covered at the scan level with test knowledge.
 func TestScanFormatsExitCodes(t *testing.T) {
 	t.Parallel()
 	path, declared := scanFormatsFixture(t)
 	for name, tc := range map[string]struct {
-		to   string
-		exit int
-	}{"blocked": {"kubernetes=1.25.3", ExitBlocked}, "unknown": {"kubernetes=1.30.4", ExitUnknown}} {
+		from, to string
+		exit     int
+	}{
+		"blocked":               {"kubernetes=1.24.17", "kubernetes=1.25.3", ExitBlocked},
+		"blocked skipped lines": {"kubernetes=1.24.17", "kubernetes=1.30.4", ExitBlocked},
+		"unknown":               {"kubernetes=1.25.2", "kubernetes=1.30.4", ExitUnknown},
+	} {
 		for _, format := range []string{"human", "json", "sarif", "markdown"} {
-			code, stdout, stderr := runScan(t, append([]string{path, "--from", "kubernetes=1.24.17", "--to", tc.to, "--format", format}, declared...)...)
+			code, stdout, stderr := runScan(t, append([]string{path, "--from", tc.from, "--to", tc.to, "--format", format}, declared...)...)
 			if code != tc.exit || stdout == "" || stderr != "" {
 				t.Errorf("%s/%s: exit %d, stdout %d bytes, stderr %q", name, format, code, len(stdout), stderr)
 			}

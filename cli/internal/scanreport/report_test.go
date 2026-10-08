@@ -177,6 +177,23 @@ func TestVerdict(t *testing.T) {
 	if report.Headline != "NO BLOCKERS FOUND IN COVERED CHECKS: 1 area was not checked" {
 		t.Fatal(report.Headline)
 	}
+	// A manifest the target does not serve never reads as "no blockers".
+	report.Gaps = []Gap{NewGap("kubernetes", nil, GapAPIVersionNotServed, 1, "1.30")}
+	Finalize(&report)
+	if report.Headline != "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (1 area was not checked)" {
+		t.Fatal(report.Headline)
+	}
+	report.Gaps = append(report.Gaps, NewGap("kubernetes", nil, GapAPIVersionNotServedCrossed, 1, "1.30"), Gap{})
+	Finalize(&report)
+	if report.Headline != "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (3 areas were not checked)" {
+		t.Fatal(report.Headline)
+	}
+	// A blocker still leads.
+	report.Findings = []Finding{{RuleID: "r", Component: "kubernetes", Hop: ref(1, "1.24.0", "1.25")}}
+	Finalize(&report)
+	if report.Verdict != VerdictBlocked || report.Headline != "BLOCKED: 1 problem must be fixed before this upgrade" {
+		t.Fatal(report.Headline)
+	}
 }
 
 // TestHumanLocations: at most five locations print per finding, then a

@@ -207,12 +207,25 @@ type Finding struct {
 	// Crossing discloses a crossing match: the reviewed anchor pair, the
 	// removal release the hop crosses and the exclusive bound the crossing is
 	// reviewed to. Present exactly when Match is "crossing".
-	Crossing   *constraintengine.CrossingMatch   `json:"crossing,omitempty"`
-	Locations  []Location                        `json:"locations"`
-	Basis      string                            `json:"basis"`
-	Extractor  string                            `json:"extractor,omitempty"`
-	Citations  []constraintengine.SourceEvidence `json:"citations"`
-	RuleDigest string                            `json:"ruleDigest"`
+	Crossing *constraintengine.CrossingMatch `json:"crossing,omitempty"`
+	// CrossedLine discloses a finding on a hop that skips release lines:
+	// the rule decided the step of the hop that enters that line, which
+	// every upgrade over the hop takes. Absent otherwise.
+	CrossedLine *CrossedLine                      `json:"crossedLine,omitempty"`
+	Locations   []Location                        `json:"locations"`
+	Basis       string                            `json:"basis"`
+	Extractor   string                            `json:"extractor,omitempty"`
+	Citations   []constraintengine.SourceEvidence `json:"citations"`
+	RuleDigest  string                            `json:"ruleDigest"`
+}
+
+// CrossedLine is the step a rule decided for a hop that skips release
+// lines: From -> To enters Line. From and To are an exact version of the
+// hop's ends or a whole release line in between.
+type CrossedLine struct {
+	Line string `json:"line"`
+	From string `json:"from"`
+	To   string `json:"to"`
 }
 
 // Location is one object that made a finding true. It never holds values.

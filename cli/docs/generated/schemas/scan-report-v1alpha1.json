@@ -460,6 +460,26 @@
         }
       }
     },
+    "crossedLine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "line",
+        "from",
+        "to"
+      ],
+      "properties": {
+        "line": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        }
+      }
+    },
     "citation": {
       "type": "object",
       "additionalProperties": false,
@@ -538,6 +558,9 @@
         },
         "crossing": {
           "$ref": "#/$defs/crossingMatch"
+        },
+        "crossedLine": {
+          "$ref": "#/$defs/crossedLine"
         },
         "locations": {
           "type": "array",

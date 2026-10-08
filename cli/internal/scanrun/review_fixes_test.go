@@ -65,11 +65,11 @@ func TestScanAPIVersionsAtTarget(t *testing.T) {
 		knowledge            knowledgeOptions
 		reason, detail       string
 	}{
-		{"CronJob removed before the current line", "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: a}\n", "1.25.3", full, "API_VERSION_NOT_SERVED", "no longer serves"},
-		{"CronJob, adjacent line, no policy, one review", "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: a}\n", "1.29.6", knowledgeOptions{lines: []string{"1.30"}}, "API_VERSION_NOT_SERVED", "no longer serves"},
-		{"Ingress networking v1beta1", "apiVersion: networking.k8s.io/v1beta1\nkind: Ingress\nmetadata: {name: a}\n", "1.24.17", full, "API_VERSION_NOT_SERVED", "no longer serves"},
-		{"PodSecurityPolicy", "apiVersion: policy/v1beta1\nkind: PodSecurityPolicy\nmetadata: {name: a}\n", "1.25.0", full, "API_VERSION_NOT_SERVED", "no longer serves"},
-		{"HPA v2beta2", "apiVersion: autoscaling/v2beta2\nkind: HorizontalPodAutoscaler\nmetadata: {name: a}\n", "1.26.0", full, "API_VERSION_NOT_SERVED", "no longer serves"},
+		{"CronJob removed before the current line", "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: a}\n", "1.25.3", full, "API_VERSION_NOT_SERVED", "does not serve (removed at or before that release)"},
+		{"CronJob, adjacent line, no policy, one review", "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: a}\n", "1.29.6", knowledgeOptions{lines: []string{"1.30"}}, "API_VERSION_NOT_SERVED", "does not serve (removed at or before that release)"},
+		{"Ingress networking v1beta1", "apiVersion: networking.k8s.io/v1beta1\nkind: Ingress\nmetadata: {name: a}\n", "1.24.17", full, "API_VERSION_NOT_SERVED", "does not serve (removed at or before that release)"},
+		{"PodSecurityPolicy", "apiVersion: policy/v1beta1\nkind: PodSecurityPolicy\nmetadata: {name: a}\n", "1.25.0", full, "API_VERSION_NOT_SERVED", "does not serve (removed at or before that release)"},
+		{"HPA v2beta2", "apiVersion: autoscaling/v2beta2\nkind: HorizontalPodAutoscaler\nmetadata: {name: a}\n", "1.26.0", full, "API_VERSION_NOT_SERVED", "does not serve (removed at or before that release)"},
 		{"Deployment extensions v1beta1", "apiVersion: extensions/v1beta1\nkind: Deployment\nmetadata: {name: a}\n", "1.24.17", full, "API_VERSION_NOT_REVIEWED", "does not list as served"},
 		{"DaemonSet apps v1beta2", "apiVersion: apps/v1beta2\nkind: DaemonSet\nmetadata: {name: a}\n", "1.24.17", full, "API_VERSION_NOT_REVIEWED", "does not list as served"},
 		{"no served list", "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\n", "1.24.17", knowledgeOptions{lines: allLines, policy: "current", noServedList: true}, "API_VERSION_NOT_REVIEWED", "no reviewed list"},
@@ -414,20 +414,27 @@ func TestScanWholeUpgradeNotice(t *testing.T) {
 }
 
 // TestScanDirectPolicyRemovedVersion: a direct hop across several lines
-// evaluates none of their removals, so an object removed on one of them is
-// still named as not served.
+// prepares none of their removals itself, so the step of the hop that enters
+// each line with removals is evaluated on its own: the reviewed rule of the
+// line the object was removed on blocks the hop, and names the step. (It used
+// to leave only an API_VERSION_NOT_SERVED gap, an UNKNOWN answer.)
 func TestScanDirectPolicyRemovedVersion(t *testing.T) {
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1beta1})
 	direct := newKnowledge(t, knowledgeOptions{lines: append([]string{"1.24"}, allLines...), policy: "direct"})
 	// Removed on a line inside the hop, and on the hop's own target line.
-	for _, from := range []string{"1.24.17", "1.23.17"} {
-		to := "1.30.4"
-		if from == "1.23.17" {
-			to = "1.25.3"
+	for _, tc := range []struct {
+		from, to string
+		step     scanreport.CrossedLine
+	}{
+		{"1.24.17", "1.30.4", scanreport.CrossedLine{Line: "1.25", From: "1.24.17", To: "1.25"}},
+		{"1.23.17", "1.25.3", scanreport.CrossedLine{Line: "1.25", From: "1.24", To: "1.25.3"}},
+	} {
+		result := mustScan(t, direct, args(paths, "--from", "kubernetes="+tc.from, "--to", "kubernetes="+tc.to)...)
+		if result.Exit != scanreport.ExitBlocked || len(result.Report.Findings) != 1 || result.Report.Findings[0].CrossedLine == nil || *result.Report.Findings[0].CrossedLine != tc.step {
+			t.Fatalf("%s: exit %d findings %+v gaps %+v", tc.from, result.Exit, result.Report.Findings, result.Report.Gaps)
 		}
-		result := mustScan(t, direct, args(paths, "--from", "kubernetes="+from, "--to", "kubernetes="+to)...)
-		if result.Exit == scanreport.ExitPass || !hasGap(result.Report, "API_VERSION_NOT_SERVED", "no longer serves") {
-			t.Fatalf("%s: exit %d gaps %+v", from, result.Exit, result.Report.Gaps)
+		if hasGap(result.Report, "API_VERSION_NOT_SERVED", "") {
+			t.Fatalf("%s: a decided object is also a gap: %+v", tc.from, result.Report.Gaps)
 		}
 	}
 }

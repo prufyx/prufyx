@@ -21,7 +21,7 @@
 | Area | What | Next step |
 | --- | --- | --- |
 | kubernetes | no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked | check them against the Kubernetes 1.25 API reference by hand, or request coverage |
-| kubernetes 1.24.17 -> 1.25.3 | kubernetes 1.25 has not been reviewed for removed APIs | check the kubernetes 1.25 release notes for removed APIs by hand, or request coverage |
+| kubernetes 1.24.17 -> 1.25.3 | no review confirms that the removed-API rules for kubernetes 1.25 name every API that line removes | check the kubernetes 1.25 release notes for other removed APIs by hand, or request a line review |
 
 ## PASSED (6)
 
