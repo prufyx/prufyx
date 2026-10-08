@@ -1,6 +1,6 @@
 # Extractor `k8s.served-api-removal`
 
-Version 1.2.0. Derives `forbid_predicate_value` rules for Kubernetes API
+Version 1.3.0. Derives `forbid_predicate_value` rules for Kubernetes API
 versions that a minor release stops serving. It is deterministic, reads only
 upstream source pinned by full commit SHA, parses Go with `go/parser` (nothing
 is compiled or executed), and involves no model. It also attests every line
@@ -116,6 +116,22 @@ note is dropped first when the kind list is long. A removal whose kind is not in
 the generic text: migrate to the newest version the target serves for all of
 the kinds, or remove the manifests when there is none. Adding a kind to the
 adapter table without a hint is caught by a test.
+
+**Citations (since 1.3.0).** Every table entry for a kind the guide covers
+carries a citation: the guide's URL, its revision
+(`kubernetes/website@9f1af2971c32124bff0a1f42255ba5a2f3c8a16f`, file
+`content/en/docs/reference/using-api/deprecation-guide.md`) and the first and
+last line of the passage that holds the removal statement, the target API and
+the note. A test checks each one against a pinned copy of that file
+(`testdata/deprecation-guide.md`, SHA-256 `96f34a49...4f61`): the lines exist,
+and contain the removed API version, the kind, the target API (and the
+alternative, for flow control `v1beta1` through a second citation) and the note
+keywords. The kinds removed after the guide's revision (`SelfSubjectReview`,
+`ValidatingAdmissionPolicy`, `ValidatingAdmissionPolicyBinding`, `IPAddress`,
+`ServiceCIDR`, `VolumeAttributesClass`) are not in the guide, so they carry no
+citation and keep the generic text of the stable version of the group; a test
+lists them and proves the guide does not mention them. The extractor reads no
+guide at run time; the citations are data for review.
 
 ## Line attestations
 

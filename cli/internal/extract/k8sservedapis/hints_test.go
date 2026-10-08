@@ -3,7 +3,9 @@
 package k8sservedapis
 
 import (
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -167,4 +169,104 @@ var noNoteRoom = map[string]bool{
 	factPrefix + "admissionwebhook_v1beta1_removed_gvk_present":    true,
 	factPrefix + "subjectaccessreview_v1beta1_removed_gvk_present": true,
 	factPrefix + "flowcontrol_v1beta2_removed_gvk_present":         true,
+}
+
+// uncitedHints are the kinds removed after the revision of the deprecation
+// guide (1.33, 1.34, 1.37). The guide does not mention them, so their entries
+// carry no citation; TestHintCitations proves the absence from the guide.
+var uncitedHints = map[string]bool{
+	"authentication.k8s.io/v1beta1/SelfSubjectReview":                       true,
+	"admissionregistration.k8s.io/v1beta1/ValidatingAdmissionPolicy":        true,
+	"admissionregistration.k8s.io/v1beta1/ValidatingAdmissionPolicyBinding": true,
+	"networking.k8s.io/v1beta1/IPAddress":                                   true,
+	"networking.k8s.io/v1beta1/ServiceCIDR":                                 true,
+	"storage.k8s.io/v1beta1/VolumeAttributesClass":                          true,
+}
+
+const (
+	pinnedGuide       = "testdata/deprecation-guide.md"
+	pinnedGuideSHA256 = "96f34a49cbdd7bd53008cc7b7cc8aff58c373ad323e64eef0155cbbc44494f61"
+)
+
+func citedLines(t *testing.T, c citation, lines []string, what string) string {
+	t.Helper()
+	if c.URL != guideURL || c.Revision != guideRevision {
+		t.Errorf("%s: url or revision is not the pinned guide", what)
+	}
+	if c.StartLine < 1 || c.EndLine < c.StartLine || c.EndLine > len(lines) {
+		t.Errorf("%s: lines %d-%d outside the guide (%d lines)", what, c.StartLine, c.EndLine, len(lines))
+		return ""
+	}
+	if c.EndLine-c.StartLine > 20 {
+		t.Errorf("%s: range %d-%d is too wide to be a citation", what, c.StartLine, c.EndLine)
+	}
+	text := strings.Join(lines[c.StartLine-1:c.EndLine], "\n")
+	if c.Keys != "" {
+		for _, k := range strings.Split(c.Keys, "|") {
+			if !strings.Contains(text, k) {
+				t.Errorf("%s: %q not in lines %d-%d", what, k, c.StartLine, c.EndLine)
+			}
+		}
+	}
+	return text
+}
+
+// TestHintCitations checks every citation mechanically against the pinned
+// copy of the upstream guide: the cited lines exist and hold the removed API
+// version in bold, the kind, the target API (and the alternative), and the
+// note keywords. Entries without a citation must be the six kinds the guide
+// does not mention.
+func TestHintCitations(t *testing.T) {
+	raw, err := os.ReadFile(pinnedGuide)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sum := fmt.Sprintf("%x", sha256.Sum256(raw)); sum != pinnedGuideSHA256 {
+		t.Fatalf("pinned guide sha256 %s, want %s", sum, pinnedGuideSHA256)
+	}
+	lines := strings.Split(string(raw), "\n")
+	for key, h := range hints {
+		i := strings.LastIndex(key, "/")
+		kind, gv := key[i+1:], key[:i]
+		if h.Cite == (citation{}) {
+			if !uncitedHints[key] {
+				t.Errorf("%s: no citation", key)
+			}
+			if regexp.MustCompile(`\b` + kind + `\b`).Match(raw) {
+				t.Errorf("%s: uncited kind occurs in the guide", key)
+			}
+			continue
+		}
+		if uncitedHints[key] {
+			t.Errorf("%s: listed as uncited but has a citation", key)
+		}
+		text := citedLines(t, h.Cite, lines, key)
+		if !strings.Contains(text, "**"+gv+"**") {
+			t.Errorf("%s: removed version **%s** not in lines %d-%d", key, gv, h.Cite.StartLine, h.Cite.EndLine)
+		}
+		if !strings.Contains(text, kind) {
+			t.Errorf("%s: kind not in lines %d-%d", key, h.Cite.StartLine, h.Cite.EndLine)
+		}
+		if h.Target != "" && !strings.Contains(text, "**"+h.Target+"**") {
+			t.Errorf("%s: target **%s** not in lines %d-%d", key, h.Target, h.Cite.StartLine, h.Cite.EndLine)
+		}
+		if h.Note != "" && h.Cite.Keys == "" {
+			t.Errorf("%s: note without keywords to check", key)
+		}
+		if (h.Target == "") != h.NoReplacement {
+			t.Errorf("%s: target and NoReplacement disagree", key)
+		}
+		if h.Alternative != "" {
+			c2 := h.Cite2
+			if c2 == (citation{}) {
+				c2 = h.Cite
+			}
+			t2 := citedLines(t, c2, lines, key+" (alternative)")
+			if !strings.Contains(t2, "**"+h.Alternative+"**") {
+				t.Errorf("%s: alternative **%s** not in lines %d-%d", key, h.Alternative, c2.StartLine, c2.EndLine)
+			}
+		} else if h.Cite2 != (citation{}) {
+			t.Errorf("%s: second citation without an alternative", key)
+		}
+	}
 }
