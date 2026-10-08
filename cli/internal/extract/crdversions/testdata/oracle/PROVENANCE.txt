@@ -1,18 +1,24 @@
-Release CustomResourceDefinition manifests of three upstream projects, at every
-final release tag of two consecutive release lines each, fetched from the upstream
-git repositories by commit (https://github.com/<owner>/<repo>/blob/<commit>/<path>).
-They are the oracle inputs of the crd.version-removal extractor for the removals
-measured upstream: Cilium 1.19 -> 1.20 (CiliumNodeConfig v2alpha1), Kyverno
+Release CustomResourceDefinition manifests of four upstream projects, fetched from
+the upstream git repositories by commit
+(https://github.com/<owner>/<repo>/blob/<commit>/<path>). Cilium, Kyverno and
+Longhorn are included at every final release tag of two consecutive release lines
+each; they are the oracle inputs of the crd.version-removal extractor for the
+removals measured upstream: Cilium 1.19 -> 1.20 (CiliumNodeConfig v2alpha1), Kyverno
 1.15 -> 1.16 (UpdateRequest v1beta1) and Longhorn 1.8 -> 1.9 (fifteen v1beta1
-versions).
+versions). Rook is included at the first release of two lines only (v1.17.0 and
+v1.18.0): its documented install applies deploy/examples/csi-operator.yaml next to
+the listed deploy/examples/crds.yaml, and that file's csi.ceph.io definitions stop
+serving v1alpha1 at v1.18.0, which the full-tree scan must find.
 
 Modifications: the body of every version's "schema:" key was replaced by a minimal
-object schema ("openAPIV3Schema: type: object"); in deploy/longhorn.yaml every
-document that is not a CustomResourceDefinition was removed. Every other line is
+object schema ("openAPIV3Schema: type: object"); in deploy/longhorn.yaml and Rook's
+deploy/examples/csi-operator.yaml every document that is not a
+CustomResourceDefinition was removed. Every other line is
 unchanged, so names, groups, kinds, version order and the served and storage flags
 are the upstream ones; line numbers and file digests differ from upstream. Only the
 paths the extractor lists are included (the rest of each repository tree is not), so
-the full-tree scan of the extractor sees no file outside them in these fixtures.
+the full-tree scan of the extractor sees no file outside them in these fixtures,
+except Rook's deploy/examples/csi-operator.yaml.
 
 The sha256 below is the digest of the unmodified upstream file.
 
@@ -501,3 +507,13 @@ v1.9.1 a9e986bfeb530496211fa557bccf4b58cb9bc0a5
   deploy/longhorn.yaml sha256:83bee814bcdb030cc1626c6559c001f053ab0075ff14e71d0231527c24346a75
 v1.9.2 c1342db002645db4a5ac94a1910c67d76b20d05b
   deploy/longhorn.yaml sha256:51279807090eba500a13eb0f2e0c64c5b5ae45f3248596669bcea62a05e10fca
+
+== github.com/rook/rook (Rook; deploy/examples/crds.yaml and deploy/examples/csi-operator.yaml)
+Licence: Apache-2.0, Copyright The Rook Authors; see LICENSES/Source-Rook-Apache-2.0.txt and THIRD-PARTY.md
+(Modified upstream test fixtures).
+v1.17.0 45977257a85740470f63aafb39947448d13de33e
+  deploy/examples/crds.yaml sha256:ad990541e45670a06c015adc20e7f7d1a9fc84c30c628ff4503c8d1d6dfcf4d2
+  deploy/examples/csi-operator.yaml sha256:8b80c67eb325dc5bdfbabdd665980c880c46e8c47a320a01a34585f27ea62597
+v1.18.0 b0cab8a8d17f8a52519cacb2b5c92f5dfaae6060
+  deploy/examples/crds.yaml sha256:c23a14629651846603af4ac55e319a8a0217a05faf9fd13d4586d914429001f5
+  deploy/examples/csi-operator.yaml sha256:27948915f84e25d3d466a088d13ee04041c81269e9704988f32a06de051b728e

@@ -436,19 +436,48 @@ type Removal struct {
 	ToPath        string `json:"toPath"`
 	// ToLine is the served: false line at the later anchor, 0 otherwise.
 	ToLine int `json:"toServedLine"`
+	// WasStorage: the version is the storage version of the CRD at some
+	// release read (see storageHistory). Objects stored in it must be
+	// migrated, and it must leave status.storedVersions, before an API
+	// server accepts a definition without it.
+	WasStorage bool `json:"wasStorage"`
 }
 
-// DefinitionRemoval is a CRD the earlier line defines and the later anchor
-// defines nowhere in the repository (the listed paths hold no definition and
-// the full-tree scan is clean). It is never a rule: applying the later
-// release's manifests does not delete a definition, so an upgraded cluster
-// keeps serving its versions; whether anything still reconciles them is
-// outside this extractor. A pair with one is not attestable.
+// DefinitionRemoval is a CRD that a release of the later line defines
+// nowhere in the repository (the listed paths hold no definition and the
+// full-tree scan rules out a definition elsewhere), while an earlier
+// release defines it: either the later anchor no longer defines a CRD of
+// the earlier line, or a later release of the later line no longer defines
+// a CRD of its anchor. It is never a rule: whether an upgraded cluster
+// keeps the old definition (kubectl apply, Helm crds/) or deletes it with
+// every object of it (Helm templates, GitOps pruning) depends on the
+// install method and is not established. A pair with one is not
+// attestable, and a removal at a later release keeps the pair's rules to
+// the anchor pair.
 type DefinitionRemoval struct {
-	CRD      string   `json:"crd"`
-	Members  []string `json:"members"`
+	CRD     string   `json:"crd"`
+	Members []string `json:"members"`
+	// FromTag and FromPath are the latest release before the removal that
+	// defines the CRD; AbsentAt the later-line releases that do not.
 	FromTag  string   `json:"fromTag"`
 	FromPath string   `json:"fromPath"`
+	AbsentAt []string `json:"absentAt"`
+}
+
+// StorageHistory is every storage version one CRD has at the releases read.
+type StorageHistory struct {
+	CRD      string   `json:"crd"`
+	Versions []string `json:"versions"`
+}
+
+// UnlistedRemoval is a version that a definition outside the listed paths
+// (a file of class extra, such as Rook's deploy/examples/csi-operator.yaml)
+// serves in the earlier line and that no file of the later line serves. It
+// is recorded, never a rule: the file is not a listed path.
+type UnlistedRemoval struct {
+	Member  string `json:"member"`
+	FromTag string `json:"fromTag"`
+	Path    string `json:"path"`
 }
 
 // StorageChange records a CRD whose storage version differs between the
@@ -468,9 +497,16 @@ type PairProof struct {
 	Lines          *LinesRecord    `json:"lines,omitempty"`
 	Removals       []Removal       `json:"removals"`
 	StorageChanges []StorageChange `json:"storageChanges"`
-	// DefinitionsRemoved are the CRDs the later anchor no longer defines.
+	// DefinitionsRemoved are the CRDs a release of the later line no
+	// longer defines.
 	DefinitionsRemoved []DefinitionRemoval `json:"definitionsRemoved"`
-	Completeness       *Completeness       `json:"completeness,omitempty"`
+	// StorageHistory is the storage versions of every CRD at the releases
+	// read.
+	StorageHistory []StorageHistory `json:"storageHistory"`
+	// UnlistedRemovals are versions served outside the listed paths in the
+	// earlier line and nowhere in the later line.
+	UnlistedRemovals []UnlistedRemoval `json:"unlistedRemovals"`
+	Completeness     *Completeness     `json:"completeness,omitempty"`
 }
 
 // LinesRecord is every release of both lines and whether the pair's rules
@@ -506,8 +542,24 @@ type LineTag struct {
 	ScanFindings []Finding `json:"scanFindings"`
 }
 
+// Hop shapes of a pair.
+const (
+	// HopPreviousMinor: consecutive minor lines of one major, M.(m-1) ->
+	// M.m, the only shape a line attestation covers.
+	HopPreviousMinor = "previous-minor"
+	// HopMajor: the last line of one major to the first of the next.
+	HopMajor = "major"
+	// HopSkippedMinor: minor numbers are skipped within one major.
+	HopSkippedMinor = "skipped-minor"
+)
+
 // Completeness is the account a line attestation of the later line would
-// rest on (it is recorded, not acted on, by this version).
+// rest on (it is recorded, not acted on, by this version). It covers the
+// repository's own files at every release of both lines, outside nothing:
+// definitions from other repositories (Helm chart dependencies, remote
+// kustomize resources), release assets and sources the scan does not read
+// (ScanRecord.NotRead) are not established, and a pair that has them is
+// not attestable when the scan sees them.
 type Completeness struct {
 	// Declared: every listed path was read completely at every release of
 	// both lines.
@@ -515,7 +567,10 @@ type Completeness struct {
 	// Scan: the full-tree scan is clean at every release of both lines.
 	Scan bool `json:"scan"`
 	// LineWide: every rule of the pair ranges over both whole lines.
-	LineWide   bool     `json:"lineWide"`
+	LineWide bool `json:"lineWide"`
+	// Hop is the shape of the pair: previous-minor, major or
+	// skipped-minor. Only previous-minor is attestable.
+	Hop        string   `json:"hop"`
 	Attestable bool     `json:"attestable"`
 	Reasons    []string `json:"reasons"`
 }
@@ -536,9 +591,10 @@ func (s *tagState) complete() bool { return s.err == nil && s.inv != nil && s.in
 func (s *tagState) scanClean() bool { return s.complete() && s.scan.Clean() }
 
 // gone reports that a CRD has no definition anywhere at this release: not
-// under the listed paths, and a clean scan of the rest of the tree.
+// under the listed paths, and a complete scan of the rest of the tree in
+// which every CRD-like file was read and none defines it.
 func (s *tagState) gone(name string) bool {
-	return s.scanClean() && s.byName[name] == nil
+	return s.complete() && s.byName[name] == nil && !s.scan.holds(name)
 }
 
 func (x *Extractor) readTag(ctx context.Context, r extract.PinnedReader, repo extract.RepoRef, tag extract.Tag, version string) (*tagState, error) {
@@ -575,7 +631,7 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 	if !x.Applies(pair.Repo) {
 		return extract.Extraction{}, fmt.Errorf("repository %s", pair.Repo.Key)
 	}
-	proof := PairProof{Target: x.target.Project, FactID: x.target.FactID(), Removals: []Removal{}, StorageChanges: []StorageChange{}, DefinitionsRemoved: []DefinitionRemoval{}}
+	proof := PairProof{Target: x.target.Project, FactID: x.target.FactID(), Removals: []Removal{}, StorageChanges: []StorageChange{}, DefinitionsRemoved: []DefinitionRemoval{}, StorageHistory: []StorageHistory{}, UnlistedRemovals: []UnlistedRemoval{}}
 	withhold := func(err error) (extract.Extraction, error) {
 		if p, ok := asProblem(err); ok {
 			return extract.Extraction{}, &extract.Withheld{Reason: p.msg, Proof: proof}
@@ -644,6 +700,8 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 		}
 	}
 	lines.NotLineWide = lineWideProblems(fromTags, toTags)
+	laterDefs, laterProblems := laterLineRemovals(toTags)
+	lines.NotLineWide = append(lines.NotLineWide, laterProblems...)
 	var removals []Removal
 	var defsRemoved []DefinitionRemoval
 	if len(lines.NotLineWide) == 0 {
@@ -658,8 +716,15 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 			return withhold(err)
 		}
 	}
+	all := append(append([]*tagState{}, fromTags...), toTags...)
+	history := storageHistory(all)
+	for i := range removals {
+		removals[i].WasStorage = slicesContains(history[removals[i].CRD], removals[i].Version)
+	}
+	proof.StorageHistory = storageRecords(history)
 	proof.Removals = append([]Removal{}, removals...)
-	proof.DefinitionsRemoved = append([]DefinitionRemoval{}, defsRemoved...)
+	proof.DefinitionsRemoved = append(append([]DefinitionRemoval{}, defsRemoved...), laterDefs...)
+	proof.UnlistedRemovals = unlistedRemovals(fromTags, toTags)
 	byCRD := map[string][]Removal{}
 	var names []string
 	for _, rm := range removals {
@@ -684,8 +749,142 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 	if err := uniqueIDs(out); err != nil {
 		return withhold(err)
 	}
-	proof.Completeness = completeness(fromTags, toTags, lines, proof.DefinitionsRemoved)
+	// A rule must not forbid a version that an unread or templated CRD
+	// source at the later anchor may still serve.
+	if u := ta.scan.unreadable(); len(out) > 0 && len(u) > 0 {
+		return withhold(problemf("at %s: %s is %s (%s): a version the rules forbid may still be served there", ta.tag.Name, u[0].Path, u[0].Class, u[0].Detail))
+	}
+	proof.Completeness = completeness(fromLine, toLine, fromTags, toTags, lines, proof.DefinitionsRemoved, proof.UnlistedRemovals)
 	return extract.Extraction{Candidates: out, Proof: proof}, nil
+}
+
+// hopShape names the shape of a pair of lines.
+func hopShape(from, to *releaseLine) string {
+	switch {
+	case from.Major == to.Major && from.Minor+1 == to.Minor:
+		return HopPreviousMinor
+	case from.Major != to.Major:
+		return HopMajor
+	}
+	return HopSkippedMinor
+}
+
+// laterLineRemovals finds the CRDs the later anchor defines that a later
+// release of its line does not: a definition gone there (clean scan) is
+// recorded as removed; either way the pair's rules do not hold for the
+// whole later line.
+func laterLineRemovals(to []*tagState) ([]DefinitionRemoval, []string) {
+	ta := to[0]
+	if !ta.complete() {
+		return nil, nil
+	}
+	var defs []DefinitionRemoval
+	var problems []string
+	for i := range ta.inv.CRDs {
+		c := &ta.inv.CRDs[i]
+		var absent []string
+		last := ta
+		for _, st := range to[1:] {
+			if !st.complete() {
+				continue
+			}
+			if st.byName[c.Name] != nil {
+				if len(absent) == 0 {
+					last = st
+				}
+				continue
+			}
+			if !st.gone(c.Name) {
+				problems = append(problems, fmt.Sprintf("%s: %s is not under the listed paths and the scan does not establish that it is gone", st.tag.Name, c.Name))
+				continue
+			}
+			absent = append(absent, st.tag.Name)
+		}
+		if len(absent) == 0 {
+			continue
+		}
+		problems = append(problems, fmt.Sprintf("%s: %s is no longer defined anywhere in the repository", strings.Join(absent, ", "), c.Name))
+		lc := last.byName[c.Name]
+		var members []string
+		for _, v := range lc.Versions {
+			if v.Served {
+				members = append(members, member(lc.Group, v.Name, lc.Kind))
+			}
+		}
+		sort.Strings(members)
+		defs = append(defs, DefinitionRemoval{CRD: c.Name, Members: members, FromTag: last.tag.Name, FromPath: lc.Path, AbsentAt: absent})
+	}
+	return defs, problems
+}
+
+// storageHistory maps each CRD to every storage version it has at the
+// releases read, sorted.
+func storageHistory(states []*tagState) map[string][]string {
+	out := map[string][]string{}
+	for _, st := range states {
+		if !st.complete() {
+			continue
+		}
+		for i := range st.inv.CRDs {
+			c := &st.inv.CRDs[i]
+			if !slicesContains(out[c.Name], c.StorageVersion) {
+				out[c.Name] = append(out[c.Name], c.StorageVersion)
+				sort.Strings(out[c.Name])
+			}
+		}
+	}
+	return out
+}
+
+func storageRecords(h map[string][]string) []StorageHistory {
+	out := []StorageHistory{}
+	for name, vs := range h {
+		out = append(out, StorageHistory{CRD: name, Versions: vs})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].CRD < out[j].CRD })
+	return out
+}
+
+// unlistedRemovals compares the definitions outside the listed paths that
+// the inventory does not hold (class extra, anywhere but a reviewed
+// exclusion): a version one of them serves in the earlier line that no
+// file of the later line serves.
+func unlistedRemovals(from, to []*tagState) []UnlistedRemoval {
+	later := map[string]bool{}
+	for _, st := range to {
+		if !st.complete() {
+			continue
+		}
+		for m := range st.served {
+			later[m] = true
+		}
+		for _, f := range st.scan.Findings {
+			for _, m := range f.Served {
+				later[m] = true
+			}
+		}
+	}
+	seen := map[string]bool{}
+	out := []UnlistedRemoval{}
+	for _, st := range from {
+		if !st.complete() {
+			continue
+		}
+		for _, f := range st.scan.Findings {
+			if f.Class != ClassExtra {
+				continue
+			}
+			for _, m := range f.Served {
+				if later[m] || seen[m] {
+					continue
+				}
+				seen[m] = true
+				out = append(out, UnlistedRemoval{Member: m, FromTag: st.tag.Name, Path: f.Path})
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Member < out[j].Member })
+	return out
 }
 
 func problemOf(st *tagState) string {
@@ -765,6 +964,16 @@ func lineWideProblems(from, to []*tagState) []string {
 		case len(st.scan.conflicts()) > 0:
 			c := st.scan.conflicts()[0]
 			out = append(out, fmt.Sprintf("%s: %s defines %s differently from the listed paths", st.tag.Name, c.Path, strings.Join(c.CRDs, ", ")))
+		}
+	}
+	// A later-line release with an unread or templated CRD source may
+	// serve a version the rules forbid.
+	for _, st := range to {
+		if !st.complete() {
+			continue
+		}
+		if u := st.scan.unreadable(); len(u) > 0 {
+			out = append(out, fmt.Sprintf("%s: %s is %s: a version the rules forbid may still be served there", st.tag.Name, u[0].Path, u[0].Class))
 		}
 	}
 	if err := sameIdentity(all); err != nil {
@@ -868,7 +1077,7 @@ func lineRemovals(from, to []*tagState) ([]Removal, []DefinitionRemoval, []strin
 		}
 		sort.Strings(removed)
 		if ta.byName[name] == nil {
-			defs = append(defs, definitionRemoval(name, removed, from))
+			defs = append(defs, definitionRemoval(name, removed, from, absentAt))
 			continue
 		}
 		for _, m := range removed {
@@ -884,8 +1093,11 @@ func lineRemovals(from, to []*tagState) ([]Removal, []DefinitionRemoval, []strin
 
 // definitionRemoval records a CRD the later anchor defines nowhere, citing
 // the latest earlier-line release that defines it.
-func definitionRemoval(name string, members []string, from []*tagState) DefinitionRemoval {
-	d := DefinitionRemoval{CRD: name, Members: members}
+func definitionRemoval(name string, members []string, from, absentAt []*tagState) DefinitionRemoval {
+	d := DefinitionRemoval{CRD: name, Members: members, AbsentAt: []string{}}
+	for _, st := range absentAt {
+		d.AbsentAt = append(d.AbsentAt, st.tag.Name)
+	}
 	for i := len(from) - 1; i >= 0; i-- {
 		if c := from[i].byName[name]; c != nil {
 			d.FromTag, d.FromPath = from[i].tag.Name, c.Path
@@ -965,7 +1177,7 @@ func anchorRemovals(fa, ta *tagState) ([]Removal, []DefinitionRemoval, error) {
 		}
 		sort.Strings(removed)
 		if t == nil {
-			defs = append(defs, definitionRemoval(f.Name, removed, []*tagState{fa}))
+			defs = append(defs, definitionRemoval(f.Name, removed, []*tagState{fa}, []*tagState{ta}))
 			continue
 		}
 		for _, m := range removed {
@@ -979,8 +1191,8 @@ func anchorRemovals(fa, ta *tagState) ([]Removal, []DefinitionRemoval, error) {
 	return out, defs, nil
 }
 
-func completeness(from, to []*tagState, lines *LinesRecord, defs []DefinitionRemoval) *Completeness {
-	c := &Completeness{Declared: true, Scan: true, LineWide: lines.LineWide, Reasons: []string{}}
+func completeness(fromLine, toLine *releaseLine, from, to []*tagState, lines *LinesRecord, defs []DefinitionRemoval, unlisted []UnlistedRemoval) *Completeness {
+	c := &Completeness{Declared: true, Scan: true, LineWide: lines.LineWide, Hop: hopShape(fromLine, toLine), Reasons: []string{}}
 	for _, st := range append(append([]*tagState{}, from...), to...) {
 		if !st.complete() {
 			c.Declared = false
@@ -993,9 +1205,16 @@ func completeness(from, to []*tagState, lines *LinesRecord, defs []DefinitionRem
 			var classes []string
 			seen := map[string]bool{}
 			for _, f := range st.scan.Findings {
-				if f.Class != ClassSchemaPatch && !seen[f.Class] {
-					seen[f.Class] = true
-					classes = append(classes, f.Class)
+				if !f.blocks() {
+					continue
+				}
+				k := f.Class
+				if f.Location != "" {
+					k += " (" + f.Location + ")"
+				}
+				if !seen[k] {
+					seen[k] = true
+					classes = append(classes, k)
 				}
 			}
 			if !st.scan.Complete {
@@ -1008,10 +1227,22 @@ func completeness(from, to []*tagState, lines *LinesRecord, defs []DefinitionRem
 	if !lines.LineWide {
 		c.Reasons = append(c.Reasons, "the rules hold for the anchor pair only")
 	}
-	for _, d := range defs {
-		c.Reasons = append(c.Reasons, fmt.Sprintf("the later line no longer defines %s: what an upgraded cluster keeps serving from the old definition is not established", d.CRD))
+	if c.Hop != HopPreviousMinor {
+		c.Reasons = append(c.Reasons, fmt.Sprintf("the pair is a %s hop: a line attestation covers only the previous minor line", c.Hop))
 	}
-	c.Attestable = c.Declared && c.Scan && c.LineWide && len(defs) == 0
+	for _, d := range defs {
+		where := "the later line"
+		if len(d.AbsentAt) > 0 {
+			where = strings.Join(d.AbsentAt, ", ")
+		}
+		c.Reasons = append(c.Reasons, fmt.Sprintf("%s no longer defines %s: whether an upgraded cluster keeps the old definition or deletes it with its objects depends on the install method and is not established", where, d.CRD))
+	}
+	for _, u := range unlisted {
+		c.Reasons = append(c.Reasons, fmt.Sprintf("%s is served outside the listed paths (%s at %s) and by no file of the later line", u.Member, u.Path, u.FromTag))
+	}
+	// An unlisted removal comes from an extra definition, which already
+	// keeps the scan from being clean.
+	c.Attestable = c.Declared && c.Scan && c.LineWide && c.Hop == HopPreviousMinor && len(defs) == 0
 	return c
 }
 
@@ -1082,6 +1313,28 @@ func replacement(t *CRD) string {
 		}
 	}
 	return best
+}
+
+// nextAction tells the user what to do before the upgrade. A removed version
+// that was ever a storage version may still hold stored objects and stay
+// listed in status.storedVersions, and an API server refuses a definition
+// that drops a stored version: the objects are migrated first.
+func nextAction(f *CRD, repl string, stored []string, to string) string {
+	if len(stored) == 0 {
+		if repl == "" {
+			return fmt.Sprintf("migrate %s objects before upgrading to %s", f.Kind, to)
+		}
+		return fmt.Sprintf("change apiVersion of %s to %s/%s before upgrading to %s", f.Kind, f.Group, repl, to)
+	}
+	vs := strings.Join(stored, ", ")
+	if repl == "" {
+		return fmt.Sprintf("migrate stored %s objects off %s and remove it from status.storedVersions before upgrading to %s", f.Kind, vs, to)
+	}
+	next := fmt.Sprintf("migrate stored %s objects to %s and remove %s from status.storedVersions, then change apiVersion to %s/%s before upgrading to %s", f.Kind, repl, vs, f.Group, repl, to)
+	if len(next) > maxNext {
+		next = fmt.Sprintf("migrate stored %s objects to %s and prune status.storedVersions, then change apiVersion to %s/%s before upgrading to %s", f.Kind, repl, f.Group, repl, to)
+	}
+	return next
 }
 
 // lineRange is the range of a line-wide rule. Consecutive minor lines of one
@@ -1168,10 +1421,16 @@ func (x *Extractor) candidate(pair extract.VersionPair, fromLine, toLine *releas
 		return extract.Candidate{}, problemf("rule id for %s would be %d bytes, over %d", f.Name, len(id), maxIDBytes)
 	}
 	repl := replacement(t)
-	next := fmt.Sprintf("migrate %s objects before upgrading to %s", f.Kind, pair.To)
+	var stored []string
+	for _, rm := range removed {
+		if rm.WasStorage {
+			stored = append(stored, rm.Version)
+		}
+	}
+	sort.Slice(stored, func(i, j int) bool { return higher(stored[j], stored[i]) })
+	next := nextAction(f, repl, stored, pair.To)
 	var pass []string
 	if repl != "" {
-		next = fmt.Sprintf("change apiVersion of %s to %s/%s before upgrading to %s", f.Kind, f.Group, repl, pair.To)
 		pass = []string{member(f.Group, repl, f.Kind)}
 	}
 	if len(next) > maxNext {

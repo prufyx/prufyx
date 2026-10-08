@@ -18,7 +18,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:89035bb6d85975cfed848a736d7f4698134c5106648895cb65df9ea235180534",
+            "codeDigest": "sha256:5b85938adfa1a0d24e848b77e0df613a14993c725de174310137872854cfb021",
             "id": "crd.version-removal.strimzi",
             "version": "2.0.0"
           },
@@ -45,7 +45,7 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkabridges-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of KafkaBridge to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored KafkaBridge objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
         "range": {
           "bounds": [
@@ -113,7 +113,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:89035bb6d85975cfed848a736d7f4698134c5106648895cb65df9ea235180534",
+            "codeDigest": "sha256:5b85938adfa1a0d24e848b77e0df613a14993c725de174310137872854cfb021",
             "id": "crd.version-removal.strimzi",
             "version": "2.0.0"
           },
@@ -140,7 +140,7 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkaconnectors-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of KafkaConnector to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored KafkaConnector objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
         "range": {
           "bounds": [
@@ -208,7 +208,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:89035bb6d85975cfed848a736d7f4698134c5106648895cb65df9ea235180534",
+            "codeDigest": "sha256:5b85938adfa1a0d24e848b77e0df613a14993c725de174310137872854cfb021",
             "id": "crd.version-removal.strimzi",
             "version": "2.0.0"
           },
@@ -235,7 +235,7 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkaconnects-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of KafkaConnect to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored KafkaConnect objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
         "range": {
           "bounds": [
@@ -303,7 +303,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:89035bb6d85975cfed848a736d7f4698134c5106648895cb65df9ea235180534",
+            "codeDigest": "sha256:5b85938adfa1a0d24e848b77e0df613a14993c725de174310137872854cfb021",
             "id": "crd.version-removal.strimzi",
             "version": "2.0.0"
           },
@@ -330,7 +330,7 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkamirrormaker2s-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of KafkaMirrorMaker2 to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored KafkaMirrorMaker2 objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
         "range": {
           "bounds": [
@@ -398,7 +398,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:89035bb6d85975cfed848a736d7f4698134c5106648895cb65df9ea235180534",
+            "codeDigest": "sha256:5b85938adfa1a0d24e848b77e0df613a14993c725de174310137872854cfb021",
             "id": "crd.version-removal.strimzi",
             "version": "2.0.0"
           },
@@ -425,7 +425,7 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkanodepools-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of KafkaNodePool to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored KafkaNodePool objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
         "range": {
           "bounds": [
@@ -493,7 +493,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:89035bb6d85975cfed848a736d7f4698134c5106648895cb65df9ea235180534",
+            "codeDigest": "sha256:5b85938adfa1a0d24e848b77e0df613a14993c725de174310137872854cfb021",
             "id": "crd.version-removal.strimzi",
             "version": "2.0.0"
           },
@@ -520,7 +520,7 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkarebalances-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of KafkaRebalance to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored KafkaRebalance objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
         "range": {
           "bounds": [
@@ -588,7 +588,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:89035bb6d85975cfed848a736d7f4698134c5106648895cb65df9ea235180534",
+            "codeDigest": "sha256:5b85938adfa1a0d24e848b77e0df613a14993c725de174310137872854cfb021",
             "id": "crd.version-removal.strimzi",
             "version": "2.0.0"
           },
@@ -615,7 +615,7 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkas-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of Kafka to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored Kafka objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
         "range": {
           "bounds": [
@@ -683,7 +683,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:89035bb6d85975cfed848a736d7f4698134c5106648895cb65df9ea235180534",
+            "codeDigest": "sha256:5b85938adfa1a0d24e848b77e0df613a14993c725de174310137872854cfb021",
             "id": "crd.version-removal.strimzi",
             "version": "2.0.0"
           },
@@ -710,7 +710,7 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkatopics-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of KafkaTopic to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored KafkaTopic objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
         "range": {
           "bounds": [
@@ -780,7 +780,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:89035bb6d85975cfed848a736d7f4698134c5106648895cb65df9ea235180534",
+            "codeDigest": "sha256:5b85938adfa1a0d24e848b77e0df613a14993c725de174310137872854cfb021",
             "id": "crd.version-removal.strimzi",
             "version": "2.0.0"
           },
@@ -807,7 +807,7 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkausers-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of KafkaUser to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored KafkaUser objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
         "range": {
           "bounds": [
@@ -877,7 +877,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:89035bb6d85975cfed848a736d7f4698134c5106648895cb65df9ea235180534",
+            "codeDigest": "sha256:5b85938adfa1a0d24e848b77e0df613a14993c725de174310137872854cfb021",
             "id": "crd.version-removal.strimzi",
             "version": "2.0.0"
           },
@@ -904,7 +904,7 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.strimzipodsets-core-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of StrimziPodSet to core.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored StrimziPodSet objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to core.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
         "range": {
           "bounds": [

@@ -1,0 +1,15 @@
+{
+  "removals": [],
+  "rules": [],
+  "storageChanges": [],
+  "pairs": [
+    {
+      "from": "1.17.0",
+      "to": "1.18.0",
+      "status": "derived",
+      "removals": 0,
+      "lineWide": true,
+      "attestable": false
+    }
+  ]
+}

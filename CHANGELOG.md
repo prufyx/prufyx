@@ -14,9 +14,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   holds for both whole lines gives a rule with a cited range over them,
   otherwise the rule holds for the pair of first releases only (as in 1.0.0).
   The whole repository tree is scanned at each release for definitions outside
-  the listed paths: a conflicting copy withholds the pair, and a definition
-  that left the listed paths with a clean scan is recorded as removed (never a
-  rule) instead of withholding the pair. The reviewed project table is now a
+  the listed paths, including test, example and vendored directories (a file
+  there blocks attestation; Rook installs from `deploy/examples`), Helm chart
+  dependencies and remote kustomize resources from other repositories,
+  template, jsonnet and cue sources and Go code that builds a definition; a
+  conflicting copy withholds the pair, an unread CRD source at a later-line
+  release withholds or narrows its rules, chart templates declared as copies
+  are checked, and a definition that left the listed paths (at the later
+  line's first release or a later one) is recorded as removed (never a rule)
+  instead of withholding the pair. The proof records the hop shape (only the
+  previous minor line is attestable), the storage-version history (a removed
+  former storage version gets a next action that migrates stored objects
+  first) and versions served outside the listed paths that the later line no
+  longer serves. The reviewed project table is now a
   data file covered by the code digest (the code digest of every extractor
   now also covers embedded JSON data files, so every extractor's digest
   changes), with nine more projects (cert-manager, Cilium, Crossplane, KEDA,

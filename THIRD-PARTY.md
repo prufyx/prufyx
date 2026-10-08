@@ -72,12 +72,13 @@ PingCAP document.
 ## Modified upstream test fixtures
 
 The `crd.version-removal` extractor's tests include modified copies of the
-Strimzi CustomResourceDefinition manifests at two release commits, and of the
+Strimzi CustomResourceDefinition manifests at two release commits, of the
 Cilium, Kyverno and Longhorn CustomResourceDefinition manifests at every final
-release of two consecutive release lines each. The body of every version's
-`schema:` key was replaced by a minimal object schema (and, in Longhorn's
-`deploy/longhorn.yaml`, every document that is not a CustomResourceDefinition was
-removed); every other line is unchanged, so names, groups, version order and the
+release of two consecutive release lines each, and of the Rook
+CustomResourceDefinition manifests at the first release of two lines. The body of
+every version's `schema:` key was replaced by a minimal object schema (and, in
+Longhorn's `deploy/longhorn.yaml` and Rook's `deploy/examples/csi-operator.yaml`,
+every document that is not a CustomResourceDefinition was removed); every other line is unchanged, so names, groups, version order and the
 `served` and `storage` flags are the upstream ones. The copies serve only as test
 input and do not establish runtime behavior. `PROVENANCE.txt` in each fixture
 directory lists every release tag, commit and file with the digest of the
@@ -89,6 +90,7 @@ unmodified upstream file.
 | Cilium CustomResourceDefinition manifests (`pkg/k8s/apis/cilium.io/client/crds/v2` and `v2alpha1`), Authors of Cilium; modified (schema bodies replaced) | [github.com/cilium/cilium](https://github.com/cilium/cilium) at the commits of `v1.19.0` to `v1.19.8` and `v1.20.0` to `v1.20.2` listed in `cli/internal/extract/crdversions/testdata/oracle/PROVENANCE.txt` | Apache-2.0; [license](LICENSES/Source-Cilium-Apache-2.0.txt) |
 | Kyverno CustomResourceDefinition manifests (`config/crds`), The Kyverno Authors; modified (schema bodies replaced) | [github.com/kyverno/kyverno](https://github.com/kyverno/kyverno) at the commits of `v1.15.0` to `v1.15.20` and `v1.16.0` to `v1.16.4` listed in `cli/internal/extract/crdversions/testdata/oracle/PROVENANCE.txt` | Apache-2.0; [license](LICENSES/Source-Kyverno-Apache-2.0.txt) |
 | Longhorn CustomResourceDefinition manifests (`deploy/longhorn.yaml`), The Longhorn Authors; modified (schema bodies replaced, other documents removed) | [github.com/longhorn/longhorn](https://github.com/longhorn/longhorn) at the commits of `v1.8.0` to `v1.8.2` and `v1.9.0` to `v1.9.2` listed in `cli/internal/extract/crdversions/testdata/oracle/PROVENANCE.txt` | Apache-2.0; [license](LICENSES/Source-Longhorn-Apache-2.0.txt) |
+| Rook CustomResourceDefinition manifests (`deploy/examples/crds.yaml` and `deploy/examples/csi-operator.yaml`), The Rook Authors; modified (schema bodies replaced, other documents removed) | [github.com/rook/rook](https://github.com/rook/rook) at the commits of `v1.17.0` (`45977257a85740470f63aafb39947448d13de33e`) and `v1.18.0` (`b0cab8a8d17f8a52519cacb2b5c92f5dfaae6060`) listed in `cli/internal/extract/crdversions/testdata/oracle/PROVENANCE.txt` | Apache-2.0; [license](LICENSES/Source-Rook-Apache-2.0.txt) |
 
 The `k8s.served-api-removal` and `k8s.feature-gate-removal` extractors' tests
 include trimmed copies of Kubernetes source files at synthetic fixture commit

@@ -237,7 +237,10 @@ func TestPatchReleases(t *testing.T) {
 }
 
 // The full-tree scan classifies every file outside the listed paths that
-// names the CustomResourceDefinition kind.
+// holds CustomResourceDefinition content, wherever it lies: a file under a
+// default-excluded directory blocks attestation (never silently skipped),
+// a reviewed exclusion is recorded without blocking, and a templated source
+// in the open tree withholds the pair's rules.
 func TestScanClasses(t *testing.T) {
 	alpha := crd("Alpha", "v1beta1", "v1")
 	alphaLater := crd("Alpha", "v1")
@@ -248,14 +251,28 @@ func TestScanClasses(t *testing.T) {
 		status     string
 		attestable bool
 		class      string
+		location   string
 		reason     string
 	}{
 		{name: "nothing else", status: extract.PairDerived, attestable: true},
-		{name: "default excluded directories", extra: map[string]string{"test/crd.yaml": crd("Beta", "v1"), "docs/examples/crd.yaml": crd("Gamma", "v1"), "vendor/x/crd.json": `{"kind": "CustomResourceDefinition"}`}, status: extract.PairDerived, attestable: true},
-		{name: "reviewed exclusion", extra: map[string]string{"charts/templates/crds.yaml": "{{- if .Values.crds }}\n" + crd("Beta", "v1")}, exclude: []Exclusion{{Path: "charts/templates/", Reason: "Helm templates of the same definitions"}}, status: extract.PairDerived, attestable: true},
+		{name: "default excluded directory", extra: map[string]string{"docs/examples/crd.yaml": crd("Gamma", "v1")}, status: extract.PairDerived, class: ClassExtra, location: "default: examples"},
+		{name: "default excluded test data", extra: map[string]string{"vendor/x/crd.json": `{"kind": "CustomResourceDefinition"}`}, status: extract.PairDerived, class: ClassUnread, location: "default: vendor"},
+		{name: "default excluded copy", extra: map[string]string{"test/crd.yaml": "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: x\n"}, status: extract.PairDerived, attestable: true},
+		{name: "reviewed exclusion", extra: map[string]string{"charts/templates/crds.yaml": "{{- if .Values.crds }}\n" + crd("Beta", "v1")}, exclude: []Exclusion{{Path: "charts/templates/", Reason: "Helm templates of the same definitions"}}, status: extract.PairDerived, attestable: true, class: ClassExcludedUnread, location: "charts/templates/", reason: "template syntax"},
 		{name: "extra definition", extra: map[string]string{"deploy/other.yaml": crd("Beta", "v1")}, status: extract.PairDerived, class: ClassExtra},
-		{name: "templated file", extra: map[string]string{"chart/crds.yaml": "{{- if .Values.crds }}\n" + crd("Beta", "v1")}, status: extract.PairDerived, class: ClassUnread},
+		{name: "templated file", extra: map[string]string{"chart/crds.yaml": "{{- if .Values.crds }}\n" + crd("Beta", "v1")}, status: extract.PairWithheld, reason: "chart/crds.yaml is unread"},
 		{name: "json mention", extra: map[string]string{"data/kinds.json": `{"items": [{"kind": "CustomResourceDefinition"}]}`}, status: extract.PairDerived, class: ClassReference},
+		{name: "word in a comment only", extra: map[string]string{"deploy/rbac.yaml": "# grants access to every CustomResourceDefinition\nkind: ClusterRole\napiVersion: rbac.authorization.k8s.io/v1\nmetadata:\n  name: x\n"}, status: extract.PairDerived, attestable: true},
+		{name: "flow mapping", extra: map[string]string{"deploy/flow.yaml": "{apiVersion: apiextensions.k8s.io/v1, kind: CustomResourceDefinition, metadata: {name: betas.synth.example.io}, spec: {group: synth.example.io, names: {kind: Beta, plural: betas}, scope: Namespaced, versions: [{name: v1, served: true, storage: true}]}}\n"}, status: extract.PairDerived, class: ClassExtra},
+		{name: "kind on the next line", extra: map[string]string{"deploy/next.yaml": strings.Replace(crd("Beta", "v1"), "kind: CustomResourceDefinition", "kind:\n  CustomResourceDefinition", 1)}, status: extract.PairDerived, class: ClassExtra},
+		{name: "embedded manifest", extra: map[string]string{"deploy/values.yaml": "manifests: |\n  apiVersion: apiextensions.k8s.io/v1\n  kind: CustomResourceDefinition\n"}, status: extract.PairDerived, class: ClassReference},
+		{name: "template source", extra: map[string]string{"deploy/crds.yaml.tmpl": crd("Beta", "v1")}, status: extract.PairWithheld, reason: "deploy/crds.yaml.tmpl is unsupported"},
+		{name: "jsonnet source", extra: map[string]string{"jsonnet/crds.libsonnet": "{ kind: 'CustomResourceDefinition' }\n"}, status: extract.PairWithheld, reason: "jsonnet/crds.libsonnet is unsupported"},
+		{name: "go construction", extra: map[string]string{"pkg/crds/build.go": "package crds\n\nvar x = &apiextv1.CustomResourceDefinition{\n\tObjectMeta: metav1.ObjectMeta{},\n}\n"}, status: extract.PairWithheld, reason: "pkg/crds/build.go is unsupported"},
+		{name: "go use only", extra: map[string]string{"pkg/crds/use.go": "package crds\n\nvar x apiextv1.CustomResourceDefinition\nvar y = apiextv1.CustomResourceDefinition{}\n"}, status: extract.PairDerived, attestable: true},
+		{name: "go outside a crd path", extra: map[string]string{"pkg/other/build.go": "package other\n\nvar x = &apiextv1.CustomResourceDefinition{\n\tObjectMeta: metav1.ObjectMeta{},\n}\n"}, status: extract.PairDerived, attestable: true},
+		{name: "go test file", extra: map[string]string{"pkg/crds/build_test.go": "package crds\n\nvar x = &apiextv1.CustomResourceDefinition{\n\tObjectMeta: metav1.ObjectMeta{},\n}\n"}, status: extract.PairDerived, attestable: true},
+		{name: "packaged chart", extra: map[string]string{"deploy/charts/charts/sub-1.0.0.tgz": "binary"}, status: extract.PairWithheld, reason: "sub-1.0.0.tgz is unsupported"},
 		{name: "schema-only kustomization", extra: map[string]string{
 			"deploy/kustomization.yaml": "resources:\n- crds/a.yaml\npatches:\n- path: patches/a.yaml\n  target:\n    kind: CustomResourceDefinition\n    name: alphas.synth.example.io\n",
 			"deploy/patches/a.yaml":     "- op: add\n  path: /spec/versions/0/schema/openAPIV3Schema/x-kubernetes-preserve-unknown-fields\n  value: true\n",
@@ -271,7 +288,13 @@ func TestScanClasses(t *testing.T) {
 			"deploy/kustomization.yaml": "patches:\n- path: patches/a.yaml\n  target:\n    kind: CustomResourceDefinition\nreplacements:\n- source:\n    kind: CustomResourceDefinition\n",
 			"deploy/patches/a.yaml":     "- op: add\n  path: /metadata/labels/x\n  value: y\n",
 		}, status: extract.PairDerived, class: ClassReference, reason: "outside patch targets"},
-		{name: "reviewed file pattern", extra: map[string]string{"data/kinds.json": `{"kind": "CustomResourceDefinition"}`}, exclude: []Exclusion{{Path: "data/*.json", Reason: "discovery data listing kinds only"}}, status: extract.PairDerived, attestable: true},
+		{name: "remote kustomize resource", extra: map[string]string{
+			"deploy/kustomization.yaml": "resources:\n- crds/a.yaml\n- github.com/other/project//config/crd?ref=v1.2.3\n",
+		}, status: extract.PairDerived, class: ClassExternal, reason: "github.com/other/project//config/crd?ref=v1.2.3"},
+		{name: "local kustomize resource", extra: map[string]string{
+			"deploy/kustomization.yaml": "resources:\n- crds/a.yaml\n- ../other\n",
+		}, status: extract.PairDerived, attestable: true},
+		{name: "reviewed file pattern", extra: map[string]string{"data/kinds.json": `{"kind": "CustomResourceDefinition"}`}, exclude: []Exclusion{{Path: "data/*.json", Reason: "discovery data listing kinds only"}}, status: extract.PairDerived, attestable: true, class: ClassExcludedUnread, location: "data/*.json"},
 		{name: "consistent copy", extra: map[string]string{"install.yaml": "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: x\n---\n"}, status: extract.PairDerived, attestable: true},
 	}
 	for _, tc := range cases {
@@ -281,35 +304,43 @@ func TestScanClasses(t *testing.T) {
 			for p, c := range tc.extra {
 				from[p], to[p] = c, c
 			}
-			if tc.name == "consistent copy" {
-				from["install.yaml"] += alpha
-				to["install.yaml"] += alphaLater
+			if tc.name == "consistent copy" || tc.name == "default excluded copy" {
+				for p := range tc.extra {
+					from[p] += "---\n" + alpha
+					to[p] += "---\n" + alphaLater
+				}
 			}
 			s := newSynth(release{"v1.0.0", from}, release{"v1.1.0", to})
 			out := runSynth(t, synthTarget(tc.exclude...), s)
 			p, proof := pairOf(t, out, "1.0.0", "1.1.0")
+			if p.Status == extract.PairWithheld && tc.status == extract.PairWithheld {
+				if !strings.Contains(p.Reason, tc.reason) {
+					t.Fatalf("withheld %q, want %q", p.Reason, tc.reason)
+				}
+				return
+			}
 			if p.Status != tc.status || proof.Completeness.Attestable != tc.attestable || len(p.Rules) != 1 {
-				t.Fatalf("pair %s %q rules %v completeness %+v", p.Status, p.Reason, p.Rules, proof.Completeness)
+				t.Fatalf("pair %s %q rules %v completeness %+v findings %+v", p.Status, p.Reason, p.Rules, proof.Completeness, proof.To.Scan.Findings)
 			}
 			findings := proof.To.Scan.Findings
 			if tc.class == "" {
 				for _, f := range findings {
-					if f.Class != ClassSchemaPatch {
+					if f.blocks() {
 						t.Fatalf("finding %+v", f)
 					}
 				}
-				if tc.name == "consistent copy" && !slices.Equal(proof.To.Scan.Copies, []string{"install.yaml"}) {
+				if (tc.name == "consistent copy" || tc.name == "default excluded copy") && len(proof.To.Scan.Copies) != 1 {
 					t.Fatalf("copies %v", proof.To.Scan.Copies)
-				}
-				if tc.name == "reviewed exclusion" && !slices.Equal(proof.To.Scan.Exclusions, []string{"charts/templates/"}) {
-					t.Fatalf("exclusions %v", proof.To.Scan.Exclusions)
 				}
 				return
 			}
-			if len(findings) != 1 || findings[0].Class != tc.class || !strings.Contains(findings[0].Detail, tc.reason) {
+			if len(findings) != 1 || findings[0].Class != tc.class || findings[0].Location != tc.location || !strings.Contains(findings[0].Detail, tc.reason) {
 				t.Fatalf("findings %+v", findings)
 			}
-			if proof.Completeness.Scan || !strings.Contains(strings.Join(proof.Completeness.Reasons, "\n"), "found "+tc.class) {
+			if tc.location != "" && !slices.Contains(proof.To.Scan.Exclusions, tc.location) {
+				t.Fatalf("exclusions %v", proof.To.Scan.Exclusions)
+			}
+			if findings[0].blocks() && (proof.Completeness.Scan || !strings.Contains(strings.Join(proof.Completeness.Reasons, "\n"), "found "+tc.class)) {
 				t.Fatalf("completeness %+v", proof.Completeness)
 			}
 		})
@@ -504,9 +535,10 @@ func TestCodeDigestCoversTargets(t *testing.T) {
 // Cilium 1.19 -> 1.20, Kyverno 1.15 -> 1.16 and Longhorn 1.8 -> 1.9, read
 // at every release of both lines (testdata/oracle, see PROVENANCE.txt).
 // Cilium 1.20.2 serves CiliumNodeConfig v2alpha1 again, so its rule holds
-// for the anchor pair only.
+// for the anchor pair only. Rook 1.17 -> 1.18 has no removal under its
+// listed path and is not attestable (deploy/examples/csi-operator.yaml).
 func TestUpstreamOracles(t *testing.T) {
-	for _, project := range []string{"cilium", "kyverno", "longhorn"} {
+	for _, project := range []string{"cilium", "kyverno", "longhorn", "rook"} {
 		t.Run(project, func(t *testing.T) {
 			out := mustRun(t, project, extract.FixtureReader{Root: "testdata/oracle"})
 			dir := t.TempDir()

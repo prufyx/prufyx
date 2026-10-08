@@ -50,10 +50,9 @@ type Target struct {
 	MinFrom [2]int
 	// Paths are the CRD manifest locations, read at every tag of a line.
 	Paths []PathSpec
-	// Exclude lists the parts of the repository the full-tree scan does
-	// not read, each with its reviewed reason. Default exclusions (test,
-	// example and vendored directories) apply to every target; a listed
-	// path is never excluded.
+	// Exclude lists the parts of the repository whose CRD-like files the
+	// full-tree scan records without letting them block attestation, each
+	// with its reviewed reason. A listed path is never excluded.
 	Exclude []Exclusion
 }
 
@@ -71,17 +70,28 @@ type PathSpec struct {
 	Guard     *regexp.Regexp
 }
 
-// Exclusion is a reviewed part of the repository the scan skips. Path is a
-// directory prefix (ending in "/"), an exact file path, or a path.Match
-// pattern over the whole path (a wildcard never crosses "/").
+// Exclusion is a reviewed part of the repository. Path is a directory
+// prefix (ending in "/"), an exact file path, or a path.Match pattern over
+// the whole path (a wildcard never crosses "/"). The scan still reads every
+// file under it and records each one that holds CRD-like content (path,
+// sha256, the definitions it holds), but such a file does not block
+// attestation. With Copies, the reviewer states that the files are
+// (possibly templated) copies of the listed definitions: the scan checks
+// that claim, and a file that defines a listed CRD with other versions or
+// served flags, defines one the inventory does not hold, or cannot be read
+// after its template directives are removed blocks attestation.
 type Exclusion struct {
 	Path   string
 	Reason string
+	Copies bool
 }
 
-// DefaultExcludedSegments are the directory names the scan never descends
-// into, in any target: tests, test data, examples and vendored code are
-// not what a project installs. A listed path inside one is still read.
+// DefaultExcludedSegments are the directory names whose content is not
+// what a project normally installs: tests, test data, examples and
+// vendored code. The scan reads them like the rest of the tree, but a file
+// there is never a conflicting copy that withholds a pair; any CRD-like
+// file there other than a consistent copy blocks attestation unless a
+// reviewed exclusion covers it. (Rook installs from deploy/examples.)
 var DefaultExcludedSegments = []string{"_testdata", "e2e", "example", "examples", "test", "testdata", "tests", "third_party", "vendor"}
 
 // Targets is the reviewed source table, ordered by project.
@@ -116,6 +126,7 @@ type pathJSON struct {
 type exclusionJSON struct {
 	Path   string `json:"path"`
 	Reason string `json:"reason"`
+	Copies bool   `json:"copies,omitempty"`
 }
 
 var (
@@ -238,7 +249,7 @@ func (tj targetJSON) target() (Target, error) {
 				return t, fmt.Errorf("exclusion %q covers the listed path %s", ej.Path, ps.Path)
 			}
 		}
-		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Reason: ej.Reason})
+		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Reason: ej.Reason, Copies: ej.Copies})
 	}
 	return t, nil
 }
@@ -303,37 +314,43 @@ func exclusionMatches(entry, p string) bool {
 	}
 }
 
-// excludedDir reports whether the scan skips a whole directory, and why:
-// a default segment or a reviewed directory prefix.
-func (t Target) excludedDir(dir string) (string, bool) {
-	for _, seg := range strings.Split(dir, "/") {
-		for _, d := range DefaultExcludedSegments {
-			if seg == d {
-				return "default: " + d, true
+// Where a scanned file lies.
+const (
+	// locTree: anywhere else in the repository.
+	locTree = iota
+	// locDefault: under a directory named by DefaultExcludedSegments.
+	locDefault
+	// locReviewed: under a reviewed exclusion of the target.
+	locReviewed
+)
+
+// place is the location of one scanned path: its kind, the default segment
+// ("default: <name>") or reviewed exclusion entry, and whether the entry
+// declares checked copies.
+type place struct {
+	kind   int
+	entry  string
+	copies bool
+}
+
+// placeOf locates a file path. A reviewed exclusion wins over a default
+// segment; a default segment matches a whole directory name.
+func (t Target) placeOf(p string) place {
+	for _, e := range t.Exclude {
+		if exclusionMatches(e.Path, p) {
+			return place{kind: locReviewed, entry: e.Path, copies: e.Copies}
+		}
+	}
+	if dir := path.Dir(p); dir != "." {
+		for _, seg := range strings.Split(dir, "/") {
+			for _, d := range DefaultExcludedSegments {
+				if seg == d {
+					return place{kind: locDefault, entry: "default: " + d}
+				}
 			}
 		}
 	}
-	for _, e := range t.Exclude {
-		if strings.HasSuffix(e.Path, "/") && strings.HasPrefix(dir+"/", e.Path) {
-			return e.Path, true
-		}
-	}
-	return "", false
-}
-
-// excludedFile reports the reviewed exclusion that covers a file, if any.
-func (t Target) excludedFile(p string) (string, bool) {
-	if dir := path.Dir(p); dir != "." {
-		if why, ok := t.excludedDir(dir); ok {
-			return why, true
-		}
-	}
-	for _, e := range t.Exclude {
-		if exclusionMatches(e.Path, p) {
-			return e.Path, true
-		}
-	}
-	return "", false
+	return place{kind: locTree}
 }
 
 // TargetFor returns the target of a project slug.

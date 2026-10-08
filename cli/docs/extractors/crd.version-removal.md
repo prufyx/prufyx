@@ -19,8 +19,10 @@ The reviewed source table is a data file compiled into the extractor,
 version, and rules derived by the previous version no longer re-derive. Each
 entry names a catalog project, its repository, the prefixes of its release
 tags, the first release line a pair may start from, the paths that hold its
-rendered CRD manifests, and the parts of the repository the full-tree scan
-(below) skips, each with the reason it was accepted.
+rendered CRD manifests, and the reviewed exclusions of the full-tree scan
+(below), each with the reason it was accepted and, for chart templates that are
+copies of the listed definitions, the flag `copies` that makes the scan check
+that claim.
 
 | Extractor id | Repository | Release tags | First pair from | CRD manifests |
 | --- | --- | --- | --- | --- |
@@ -77,24 +79,64 @@ Through the offline factory mirror (or a fixture tree), never the network.
   group, kind, plural and scope, and for every entry of `spec.versions` the
   name, `served` and `storage` flags and the lines of the entry and of its two
   flags.
-- **The whole repository tree (full-tree scan).** Every `*.yaml`, `*.yml` and
-  `*.json` file outside the listed paths is read and searched for the
-  `CustomResourceDefinition` kind, except in directories named `test`, `tests`,
+- **The whole repository tree (full-tree scan).** Every directory is listed
+  (none is skipped), and every file outside the listed paths of these kinds is
+  read: `*.yaml`, `*.yml`, `*.json` and files named `Kustomization`; template,
+  jsonnet and cue sources (`*.tmpl`, `*.tpl`, `*.gotmpl`, `*.jsonnet`,
+  `*.libsonnet`, `*.cue`, `*.j2`, `*.jinja`, `*.jinja2`); and Go sources whose
+  path contains `crd` (in any case), except `_test.go` files. A packaged Helm
+  chart (`*.tgz` in a directory named `charts`) is not read and is recorded as
+  unsupported. YAML and JSON files that contain the word
+  `CustomResourceDefinition` anywhere, Helm `Chart.yaml` files and
+  kustomizations are decoded in the strict subset; a definition is found
+  whatever its YAML form (block or flow style, the value of `kind` on the next
+  line). Each file is placed in one of three **locations**: the open tree; a
+  **default-excluded directory** (a path segment named `test`, `tests`,
   `testdata`, `_testdata`, `e2e`, `example`, `examples`, `vendor` or
-  `third_party` (a listed path inside one, such as Rook's
-  `deploy/examples/crds.yaml`, is still read) and in the reviewed exclusions
-  of the table. Each file that names the kind is classified:
+  `third_party`), whose content a project does not normally install; or a
+  **reviewed exclusion** of the table. Each file with CRD-like content, and each
+  file that names another repository's definitions, is classified:
 
-  | Class | Meaning | Effect |
-  | --- | --- | --- |
-  | `copy` | every definition in it is in the inventory with the same versions and `served` flags | none |
-  | `schema-patch` | a kustomization whose only mentions of the kind are patch targets, each patch a JSON 6902 list whose every operation path lies under `/spec/versions/N/schema/` or metadata labels and annotations | none |
-  | `conflict` | it defines a CRD of the inventory with other versions or `served` flags | the pair is withheld when the release is a pair's first release; otherwise the pair's rules hold for the anchor pair only |
-  | `extra` | it defines a CRD that is not in the inventory | the pair is not attestable |
-  | `reference` | it names the kind but defines none (and is not a schema-only kustomization) | the pair is not attestable |
-  | `unread` | templated, not strictly decodable, over the bounds, or a submodule | the pair is not attestable |
+  | Class | Meaning |
+  | --- | --- |
+  | `copy` | every definition in it is in the inventory with the same versions and `served` flags |
+  | `schema-patch` | a kustomization whose only mentions of the kind are patch targets, each patch a JSON 6902 list whose every operation path lies under `/spec/versions/N/schema/` or metadata labels and annotations |
+  | `conflict` | it defines a CRD of the inventory with other versions or `served` flags |
+  | `extra` | it defines a CRD that is not in the inventory |
+  | `reference` | it holds the kind as a value (a nested object, a field, a manifest embedded in a string) but defines none at the top level, and is not a schema-only kustomization; a file that only mentions the word in a comment or a description is not a finding |
+  | `unread` | it holds the word and is templated, not strictly decodable or over the bounds; or a submodule |
+  | `unsupported` | a template, jsonnet or cue source that holds the word, Go code that builds a definition as a composite literal (`CustomResourceDefinition{ObjectMeta: ...}`, or of its spec, names or versions), or a packaged Helm chart |
+  | `external` | a Helm `Chart.yaml` with a dependency whose `repository` is another repository (`https://`, `oci://`, an alias such as `@repo`; not a local `file://` path or none), or a kustomization with a remote resource, component or base (a URL, `github.com/...`, `git@...`, `?ref=`) |
+  | `excluded` | a file under a reviewed exclusion that does not declare copies, whose content is recorded (path, sha256, the definitions it holds) |
+  | `excluded-unread` | the same, when its content could not be read |
 
-  A file with the same git blob id as one already read is not read again.
+  The effect depends on the class and the location:
+
+  - `copy` and `schema-patch`: none, anywhere.
+  - `conflict` in the open tree: the pair is withheld when the release is a
+    pair's first release; otherwise the pair's rules hold for the anchor pair
+    only.
+  - `unread` or `unsupported` in the open tree, and `conflict`, `unread` or
+    `unsupported` among declared copies: at the later line's first release the
+    pair's rules are withheld (a version they forbid may still be served
+    there); at another release of the later line the rules hold for the anchor
+    pair only.
+  - every other class in the open tree or among declared copies, and every
+    class but `copy` and `schema-patch` under a default-excluded directory:
+    the pair is not attestable.
+  - `excluded` and `excluded-unread`: recorded; the pair stays attestable.
+  - A reviewed exclusion with `copies` (chart templates of the listed
+    definitions) is checked: each file's template directives are removed (a
+    line that holds only a directive is dropped, a key whose whole value is an
+    expression followed by more indented lines keeps those lines, any other
+    expression becomes a placeholder) and the result must define only listed
+    CRDs with the same versions and `served` flags. A file that serves other
+    versions is a `conflict`, one that defines another CRD is `extra`, and one
+    that cannot be read is `unread`.
+
+  A file with the same git blob id (and kind) as one already read is not read
+  again; what the scan concludes from the bytes never depends on the path they
+  were read at, so the result is the same at any read concurrency.
 
 ## What it claims
 
@@ -120,7 +162,14 @@ such versions the extractor emits one rule:
     `UPGRADE_FROM_SERIES` (twice) and `TARGET_SERIES` (twice);
 - next action: `change apiVersion of <Kind> to <group>/<version> before
   upgrading to <To>`, naming the highest version the later anchor serves, or
-  `migrate <Kind> objects before upgrading to <To>` when it serves none;
+  `migrate <Kind> objects before upgrading to <To>` when it serves none. When a
+  removed version was the CRD's storage version at any release read (see
+  `storageHistory`), objects may still be stored in it and it stays in the
+  CRD's `status.storedVersions`, and an API server refuses a definition that
+  drops a stored version; the next action then says so first: `migrate stored
+  <Kind> objects to <version> and remove <removed versions> from
+  status.storedVersions, then change apiVersion to <group>/<version> before
+  upgrading to <To>` (or the same without a replacement version);
 - sources (each with the whole-file sha256 of the bytes read):
   `crd-versions-<release>`, the lines of the removed version entries at the
   earlier anchor (or, for a version only a later earlier-line release served,
@@ -131,18 +180,24 @@ such versions the extractor emits one rule:
 
 A rule holds for **both whole lines** only when every release of both lines
 was read completely, no release holds a conflicting copy, every CRD keeps its
-group and kind, and no version that some earlier-line release serves is served
-by some later-line releases and not by others. Otherwise the pair's rules are
+group and kind, no version that some earlier-line release serves is served by
+some later-line releases and not by others, no release of the later line drops
+a definition its first release holds, and no release of the later line holds an
+unread or unsupported CRD source (or a declared copy serving other versions). Otherwise the pair's rules are
 derived from the two anchors only, carry no range, and match only the anchor
 transition. (Cilium 1.20.2 serves CiliumNodeConfig `v2alpha1` again after 1.20.0
 and 1.20.1 dropped it, so that rule holds for 1.19.0 -> 1.20.0 only.)
 
 A CRD that the earlier line defines and the later anchor defines nowhere — not
-under the listed paths, with a clean full-tree scan — is recorded under
-`definitionsRemoved` and is **not** a rule: applying the later release's
-manifests does not delete a definition, so an upgraded cluster keeps serving
-its versions. Without a clean scan the definition may have moved, and the pair
-is withheld.
+under the listed paths, and with a complete scan in which every CRD-like file
+was read and none defines it — is recorded under `definitionsRemoved` and is
+**not** a rule: whether the old definition is kept (`kubectl apply`, Helm
+`crds/`) or deleted with every object of it (Helm templates, Argo CD or Flux
+pruning) depends on the install method and is not established. Otherwise the
+definition may have moved, and the pair is withheld. A CRD that the later
+anchor defines and a later release of its line defines nowhere is recorded the
+same way (with the releases that lack it); the pair's rules then hold for the
+anchor pair only.
 
 Each rule's test vectors (blocked, pass-complete, unknown-incomplete) are
 evaluated through the engine before anything is written.
@@ -159,10 +214,13 @@ For every pair, `manifest.json` records under `pairs[].proof`:
   other documents), `crds` (each with `name`, `group`, `kind`, `plural`,
   `scope`, `path`, `document`, `startLine`, `versionsLine`, `storageVersion` and
   `versions`, each with `name`, `served`, `storage`, `startLine`, `endLine`,
-  `servedLine`, `storageLine`) and `scan` (`complete`, `problem`, `files` read,
-  `excludedFiles`, `skippedDirectories`, the `exclusions` that skipped
-  something, the `copies`, and every other finding with `path`, `sha256`,
-  `class`, `crds` and `detail`);
+  `servedLine`, `storageLine`) and `scan` (`complete`, `problem`, `files` read
+  and how many of them lie under a default-excluded directory
+  (`defaultFiles`) or a reviewed exclusion (`excludedFiles`), the default
+  segments and reviewed entries that hold a file (`exclusions`), the kinds of
+  files the scan does not read (`notRead`), the `copies`, and every other
+  finding with `path`, `sha256`, `class`, `location`, `crds`, the members its
+  definitions serve (`served`) and `detail`);
 - `lines`: for each of `from` and `to`, the `line` and each release (`tag`,
   `commit`, `complete`, `problem`, `crds`, the served members `added` and
   `dropped` relative to the line's first release, `scanClean` and
@@ -170,18 +228,32 @@ For every pair, `manifest.json` records under `pairs[].proof`:
   anchor pair only;
 - `removals`: each version no longer served (`crd`, `member`, `version`,
   `reason` `absent` or `unserved`, `fromTag`, `fromPath`, `fromStartLine`,
-  `fromEndLine`, `toPath`, `toServedLine`, 0 when absent);
+  `fromEndLine`, `toPath`, `toServedLine`, 0 when absent, and `wasStorage`);
 - `storageChanges`: each CRD whose storage version differs between the anchors
   (`crd`, `from`, `to`);
-- `definitionsRemoved`: each CRD the later anchor defines nowhere (`crd`, the
-  `members` the earlier line served, `fromTag`, `fromPath`);
+- `definitionsRemoved`: each CRD a release of the later line defines nowhere
+  (`crd`, the `members` served before, `fromTag` and `fromPath` of the latest
+  release before that defines it, and `absentAt`, the later-line releases
+  without it);
+- `storageHistory`: for each CRD, every storage version it has at the releases
+  read;
+- `unlistedRemovals`: each version that a definition outside the listed paths
+  (an `extra` file, such as Rook's `deploy/examples/csi-operator.yaml`) serves in
+  the earlier line and that no file of the later line serves (`member`,
+  `fromTag`, `path`); recorded, never a rule;
 - `completeness`: `declared` (every listed path read completely at every
   release of both lines), `scan` (the full-tree scan clean at every release),
-  `lineWide`, `attestable` (all three, and no removed definition) and the
-  `reasons` when not.
+  `lineWide`, `hop` (`previous-minor` for `M.(m-1) -> M.m`, `major` or
+  `skipped-minor`), `attestable` (declared, scan and line-wide, a
+  `previous-minor` hop, and no removed definition) and the `reasons` when not.
 
 `completeness.attestable` is the account a line attestation of the later line
-would rest on; this version records it and emits no attestation.
+would rest on; this version records it and emits no attestation. It means
+complete for the repository's own files at every release of both lines, as the
+scan reads them: CRDs that come from other repositories (Helm chart
+dependencies, remote kustomize resources) make the pair not attestable when the
+scan sees them, and CRDs from release assets, from sources the scan does not
+read (`notRead`) or installed by code at run time are not established.
 
 These field names are stable within major version 2.
 
@@ -197,11 +269,17 @@ These field names are stable within major version 2.
   when an anchor holds a conflicting copy, or when a definition disappears
   without a clean scan. The pair is then withheld: no rule, and the manifest
   says why.
-- Anything about storage versions (recorded only), stored objects, conversion
-  webhooks or storage migration, schema or field changes inside a version,
-  kustomize patches other than schema-only JSON 6902 patches, CRDs that are
-  only shipped templated (Helm charts) or only as release assets, or CRDs other
-  than those under the listed paths.
+- Anything about storage versions (recorded only, and named in the next
+  action), stored objects, conversion webhooks, schema or field changes inside
+  a version, kustomize patches other than schema-only JSON 6902 patches, CRDs
+  that are only shipped templated (Helm charts) or only as release assets, or
+  CRDs other than those under the listed paths.
+- Anything about the definitions of another repository: a Helm chart
+  dependency or remote kustomize resource is found, never read.
+- That a repository holds no other definition where the scan does not look:
+  files of other kinds, Go sources whose path does not contain `crd` (or that
+  build a definition in another way than a composite literal), symbolic links,
+  or CRDs that a program generates or installs at run time.
 - Anything about a removed definition (recorded only).
 - That an upgrade is safe: a PASS from these rules only says that a complete
   declared set of custom-resource versions holds none of the versions no

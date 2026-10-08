@@ -106,17 +106,23 @@ type FileRecord struct {
 // template syntax and any CRD that is not a complete
 // apiextensions.k8s.io/v1 definition is a problem.
 func parseFile(path string, data []byte) (FileRecord, []CRD, error) {
+	rec, crds, _, err := parseValues(path, data)
+	return rec, crds, err
+}
+
+// parseValues is parseFile that also returns the decoded documents.
+func parseValues(path string, data []byte) (FileRecord, []CRD, []any, error) {
 	sum := sha256.Sum256(data)
 	rec := FileRecord{Path: path, SHA256: "sha256:" + hex.EncodeToString(sum[:]), Size: len(data), Lines: extract.CountLines(data)}
 	if len(data) > MaxFileBytes {
-		return rec, nil, problemf("%s is %d bytes, over the %d-byte bound", path, len(data), MaxFileBytes)
+		return rec, nil, nil, problemf("%s is %d bytes, over the %d-byte bound", path, len(data), MaxFileBytes)
 	}
 	if bytes.Contains(data, []byte(templateMarker)) {
-		return rec, nil, problemf("%s contains template syntax (%q): it is not a rendered manifest", path, templateMarker)
+		return rec, nil, nil, problemf("%s contains template syntax (%q): it is not a rendered manifest", path, templateMarker)
 	}
 	nodes, values, err := decodeStrict(data)
 	if err != nil {
-		return rec, nil, problemf("%s is not decodable within the strict YAML subset (anchors, aliases, tags, duplicate keys and oversized documents are refused)", path)
+		return rec, nil, nil, problemf("%s is not decodable within the strict YAML subset (anchors, aliases, tags, duplicate keys and oversized documents are refused)", path)
 	}
 	rec.Documents = len(values)
 	lines := splitLines(data)
@@ -125,22 +131,22 @@ func parseFile(path string, data []byte) (FileRecord, []CRD, error) {
 		doc := i + 1
 		obj, ok := v.(map[string]any)
 		if !ok {
-			return rec, nil, problemf("%s document %d is not a mapping", path, doc)
+			return rec, nil, nil, problemf("%s document %d is not a mapping", path, doc)
 		}
 		apiVersion, _ := obj["apiVersion"].(string)
 		kind, _ := obj["kind"].(string)
 		if kind == "List" || strings.HasSuffix(kind, "List") {
-			return rec, nil, problemf("%s document %d is a %s: list items are not read", path, doc, kind)
+			return rec, nil, nil, problemf("%s document %d is a %s: list items are not read", path, doc, kind)
 		}
 		if kind != crdKind {
 			if strings.HasPrefix(apiVersion, crdAPIGroupPrefix) {
-				return rec, nil, problemf("%s document %d has apiVersion %s and kind %q", path, doc, apiVersion, kind)
+				return rec, nil, nil, problemf("%s document %d has apiVersion %s and kind %q", path, doc, apiVersion, kind)
 			}
 			rec.OtherDocuments++
 			continue
 		}
 		if apiVersion != crdAPIVersion {
-			return rec, nil, problemf("%s document %d is a CustomResourceDefinition of apiVersion %q; only %s is read", path, doc, apiVersion, crdAPIVersion)
+			return rec, nil, nil, problemf("%s document %d is a CustomResourceDefinition of apiVersion %q; only %s is read", path, doc, apiVersion, crdAPIVersion)
 		}
 		next := 0
 		if i+1 < len(nodes) {
@@ -148,12 +154,12 @@ func parseFile(path string, data []byte) (FileRecord, []CRD, error) {
 		}
 		crd, err := parseCRD(path, doc, obj, nodes[i], next, lines)
 		if err != nil {
-			return rec, nil, err
+			return rec, nil, nil, err
 		}
 		crds = append(crds, crd)
 	}
 	rec.CRDs = len(crds)
-	return rec, crds, nil
+	return rec, crds, values, nil
 }
 
 func splitLines(data []byte) []string {

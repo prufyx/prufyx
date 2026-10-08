@@ -28,7 +28,7 @@
         {"path": "deploy/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
       "exclude": [
-        {"path": "deploy/charts/cert-manager/templates/", "reason": "Helm chart templates; the chart's CRD templates are rendered from the same generated definitions as deploy/crds and are not read"},
+        {"path": "deploy/charts/cert-manager/templates/", "reason": "Helm chart templates; the chart's CRD templates are rendered from the same generated definitions as deploy/crds (checked as copies)", "copies": true},
         {"path": "make/", "reason": "build scripts and the Helm template header used to generate chart CRD templates; no installed definition"}
       ]
     },
@@ -120,8 +120,8 @@
         {"path": "config/crds", "directory": true, "recursive": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
       "exclude": [
-        {"path": "charts/crds/templates/", "reason": "Helm chart templates rendered from the same generated definitions as config/crds; not read"},
-        {"path": "charts/kyverno/charts/crds/templates/", "reason": "Helm chart templates rendered from the same generated definitions as config/crds; not read"},
+        {"path": "charts/crds/templates/", "reason": "Helm chart templates rendered from the same generated definitions as config/crds (checked as copies)", "copies": true},
+        {"path": "charts/kyverno/charts/crds/templates/", "reason": "Helm chart templates rendered from the same generated definitions as config/crds (checked as copies)", "copies": true},
         {"path": "cmd/cli/kubectl-kyverno/config/crds/", "reason": "schemas of the kyverno CLI test and values files (cli.kyverno.io); never installed into a cluster"},
         {"path": "cmd/cli/kubectl-kyverno/data/api-group-resources.json", "reason": "API discovery data embedded in the CLI; lists resource kinds and defines no CustomResourceDefinition"},
         {"path": "cmd/cli/kubectl-kyverno/data/crds/cli.kyverno.io_*", "reason": "copies of the CLI file schemas (cli.kyverno.io) embedded in the CLI; never installed into a cluster"},
@@ -140,7 +140,7 @@
         {"path": "deploy/longhorn.yaml"}
       ],
       "exclude": [
-        {"path": "chart/templates/", "reason": "Helm chart templates; the chart's CRD template is rendered from the same generated definitions as deploy/longhorn.yaml and is not read"}
+        {"path": "chart/templates/", "reason": "Helm chart templates; the chart's CRD template is rendered from the same generated definitions as deploy/longhorn.yaml (checked as copies)", "copies": true}
       ]
     },
     {
@@ -155,7 +155,7 @@
         {"path": "deploy/examples/crds.yaml"}
       ],
       "exclude": [
-        {"path": "deploy/charts/rook-ceph/templates/", "reason": "Helm chart templates rendered from the same generated definitions as deploy/examples/crds.yaml; not read"}
+        {"path": "deploy/charts/rook-ceph/templates/", "reason": "Helm chart templates rendered from the same generated definitions as deploy/examples/crds.yaml (checked as copies)", "copies": true}
       ]
     },
     {

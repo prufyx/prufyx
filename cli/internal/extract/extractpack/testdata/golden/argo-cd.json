@@ -18,7 +18,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:89035bb6d85975cfed848a736d7f4698134c5106648895cb65df9ea235180534",
+            "codeDigest": "sha256:5b85938adfa1a0d24e848b77e0df613a14993c725de174310137872854cfb021",
             "id": "crd.version-removal.argo-cd",
             "version": "2.0.0"
           },
@@ -113,7 +113,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:89035bb6d85975cfed848a736d7f4698134c5106648895cb65df9ea235180534",
+            "codeDigest": "sha256:5b85938adfa1a0d24e848b77e0df613a14993c725de174310137872854cfb021",
             "id": "crd.version-removal.argo-cd",
             "version": "2.0.0"
           },

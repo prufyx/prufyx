@@ -42,6 +42,7 @@
         "completeness": {
           "attestable": true,
           "declared": true,
+          "hop": "previous-minor",
           "lineWide": true,
           "reasons": [],
           "scan": true
@@ -230,11 +231,16 @@
           "scan": {
             "complete": true,
             "copies": [],
+            "defaultFiles": 0,
             "excludedFiles": 0,
             "exclusions": [],
             "files": 0,
             "findings": [],
-            "skippedDirectories": 0
+            "notRead": [
+              "files that are not YAML, JSON, template, jsonnet, cue or Go sources, or packaged Helm charts",
+              "Go sources whose path does not contain crd, Go test files (_test.go), and Go sources under a default-excluded directory or a reviewed exclusion",
+              "symbolic links"
+            ]
           },
           "tag": "v90.0.0"
         },
@@ -293,7 +299,8 @@
             "reason": "unserved",
             "toPath": "manifests/crds/gadget-crd.yaml",
             "toServedLine": 25,
-            "version": "v1beta1"
+            "version": "v1beta1",
+            "wasStorage": false
           },
           {
             "crd": "widgets.fixture.argoproj.io",
@@ -305,7 +312,8 @@
             "reason": "absent",
             "toPath": "manifests/crds/widget-crd.yaml",
             "toServedLine": 0,
-            "version": "v1alpha2"
+            "version": "v1alpha2",
+            "wasStorage": false
           }
         ],
         "storageChanges": [
@@ -313,6 +321,33 @@
             "crd": "gizmos.fixture.argoproj.io",
             "from": "v1beta1",
             "to": "v1"
+          }
+        ],
+        "storageHistory": [
+          {
+            "crd": "doohickeys.fixture.argoproj.io",
+            "versions": [
+              "v1"
+            ]
+          },
+          {
+            "crd": "gadgets.fixture.argoproj.io",
+            "versions": [
+              "v1"
+            ]
+          },
+          {
+            "crd": "gizmos.fixture.argoproj.io",
+            "versions": [
+              "v1",
+              "v1beta1"
+            ]
+          },
+          {
+            "crd": "widgets.fixture.argoproj.io",
+            "versions": [
+              "v1beta1"
+            ]
           }
         ],
         "target": "argo-cd",
@@ -489,14 +524,20 @@
           "scan": {
             "complete": true,
             "copies": [],
+            "defaultFiles": 0,
             "excludedFiles": 0,
             "exclusions": [],
             "files": 0,
             "findings": [],
-            "skippedDirectories": 0
+            "notRead": [
+              "files that are not YAML, JSON, template, jsonnet, cue or Go sources, or packaged Helm charts",
+              "Go sources whose path does not contain crd, Go test files (_test.go), and Go sources under a default-excluded directory or a reviewed exclusion",
+              "symbolic links"
+            ]
           },
           "tag": "v90.1.0"
-        }
+        },
+        "unlistedRemovals": []
       },
       "rules": [
         "argo-cd.crd-version-removal.gadgets-fixture-argoproj-io.90-0-0-to-90-1-0",
@@ -515,6 +556,7 @@
         "completeness": {
           "attestable": true,
           "declared": true,
+          "hop": "previous-minor",
           "lineWide": true,
           "reasons": [],
           "scan": true
@@ -694,11 +736,16 @@
           "scan": {
             "complete": true,
             "copies": [],
+            "defaultFiles": 0,
             "excludedFiles": 0,
             "exclusions": [],
             "files": 0,
             "findings": [],
-            "skippedDirectories": 0
+            "notRead": [
+              "files that are not YAML, JSON, template, jsonnet, cue or Go sources, or packaged Helm charts",
+              "Go sources whose path does not contain crd, Go test files (_test.go), and Go sources under a default-excluded directory or a reviewed exclusion",
+              "symbolic links"
+            ]
           },
           "tag": "v90.1.0"
         },
@@ -748,6 +795,32 @@
         },
         "removals": [],
         "storageChanges": [],
+        "storageHistory": [
+          {
+            "crd": "doohickeys.fixture.argoproj.io",
+            "versions": [
+              "v1"
+            ]
+          },
+          {
+            "crd": "gadgets.fixture.argoproj.io",
+            "versions": [
+              "v1"
+            ]
+          },
+          {
+            "crd": "gizmos.fixture.argoproj.io",
+            "versions": [
+              "v1"
+            ]
+          },
+          {
+            "crd": "widgets.fixture.argoproj.io",
+            "versions": [
+              "v1beta1"
+            ]
+          }
+        ],
         "target": "argo-cd",
         "to": {
           "commit": "0000000000000000000000000000000000902000",
@@ -922,14 +995,20 @@
           "scan": {
             "complete": true,
             "copies": [],
+            "defaultFiles": 0,
             "excludedFiles": 0,
             "exclusions": [],
             "files": 0,
             "findings": [],
-            "skippedDirectories": 0
+            "notRead": [
+              "files that are not YAML, JSON, template, jsonnet, cue or Go sources, or packaged Helm charts",
+              "Go sources whose path does not contain crd, Go test files (_test.go), and Go sources under a default-excluded directory or a reviewed exclusion",
+              "symbolic links"
+            ]
           },
           "tag": "v90.2.0"
-        }
+        },
+        "unlistedRemovals": []
       },
       "rules": [],
       "status": "derived",
