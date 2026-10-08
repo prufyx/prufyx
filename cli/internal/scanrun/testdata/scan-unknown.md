@@ -4,8 +4,8 @@
 
 | Area | What | Next step |
 | --- | --- | --- |
-| kubernetes 1.27 -> 1.28 | kubernetes 1.28 has not been reviewed for removed APIs | check the kubernetes 1.28 release notes for removed APIs by hand, or request coverage |
-| kubernetes 1.29 -> 1.30.4 | kubernetes 1.30 has not been reviewed for removed APIs | check the kubernetes 1.30 release notes for removed APIs by hand, or request coverage |
+| kubernetes 1.27 -> 1.28 | no review confirms that the removed-API rules for kubernetes 1.28 name every API that line removes | check the kubernetes 1.28 release notes for other removed APIs by hand, or request a line review |
+| kubernetes 1.29 -> 1.30.4 | no review confirms that the removed-API rules for kubernetes 1.30 name every API that line removes | check the kubernetes 1.30 release notes for other removed APIs by hand, or request a line review |
 
 Checked 6 hops, 2 documents, 1 component (1 covered). 11 checks passed (--show-passes).
 

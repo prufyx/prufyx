@@ -460,6 +460,40 @@
         }
       }
     },
+    "crossedLine": {
+      "type": "object",
+      "description": "The step of the hop that enters a release line, on which the finding's rule decided. When present, finding.match and the rule's range or crossing describe this step, not the hop the finding is attached to. A bare line in from or to (such as 1.25) is evaluated at M.m.0 in the engine input; inputDigest and engineContractDigest are over that input and the contract it was evaluated under.",
+      "additionalProperties": false,
+      "required": [
+        "line",
+        "from",
+        "to",
+        "inputDigest",
+        "engineContractDigest"
+      ],
+      "properties": {
+        "line": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$"
+        },
+        "from": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$"
+        },
+        "inputDigest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "engineContractDigest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
     "citation": {
       "type": "object",
       "additionalProperties": false,
@@ -538,6 +572,9 @@
         },
         "crossing": {
           "$ref": "#/$defs/crossingMatch"
+        },
+        "crossedLine": {
+          "$ref": "#/$defs/crossedLine"
         },
         "locations": {
           "type": "array",

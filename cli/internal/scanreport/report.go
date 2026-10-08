@@ -207,12 +207,33 @@ type Finding struct {
 	// Crossing discloses a crossing match: the reviewed anchor pair, the
 	// removal release the hop crosses and the exclusive bound the crossing is
 	// reviewed to. Present exactly when Match is "crossing".
-	Crossing   *constraintengine.CrossingMatch   `json:"crossing,omitempty"`
-	Locations  []Location                        `json:"locations"`
-	Basis      string                            `json:"basis"`
-	Extractor  string                            `json:"extractor,omitempty"`
-	Citations  []constraintengine.SourceEvidence `json:"citations"`
-	RuleDigest string                            `json:"ruleDigest"`
+	Crossing *constraintengine.CrossingMatch `json:"crossing,omitempty"`
+	// CrossedLine discloses a finding on a hop that skips release lines:
+	// the rule decided the step of the hop that enters that line, which
+	// every upgrade over the hop takes. Absent otherwise. When present,
+	// Match and the evidence (the rule's range, or its crossing) describe
+	// that step, not the hop the finding is attached to, and InputDigest /
+	// EngineContractDigest of the step are the ones in CrossedLine.
+	CrossedLine *CrossedLine                      `json:"crossedLine,omitempty"`
+	Locations   []Location                        `json:"locations"`
+	Basis       string                            `json:"basis"`
+	Extractor   string                            `json:"extractor,omitempty"`
+	Citations   []constraintengine.SourceEvidence `json:"citations"`
+	RuleDigest  string                            `json:"ruleDigest"`
+}
+
+// CrossedLine is the step a rule decided for a hop that skips release
+// lines: From -> To enters Line. From and To are an exact version of the
+// hop's ends or a whole release line in between. InputDigest is the digest
+// of the engine input evaluated for the step and EngineContractDigest the
+// digest of the engine contract it was evaluated under. A bare line in From
+// or To (such as "1.25") is evaluated at M.m.0 in the engine input.
+type CrossedLine struct {
+	Line                 string `json:"line"`
+	From                 string `json:"from"`
+	To                   string `json:"to"`
+	InputDigest          string `json:"inputDigest"`
+	EngineContractDigest string `json:"engineContractDigest"`
 }
 
 // Location is one object that made a finding true. It never holds values.

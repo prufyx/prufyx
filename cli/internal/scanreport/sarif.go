@@ -122,6 +122,8 @@ type sarifResultProps struct {
 	Match     string `json:"match"`
 	// Crossing is the disclosure of a crossing match, absent otherwise.
 	Crossing *constraintengine.CrossingMatch `json:"crossing,omitempty"`
+	// CrossedLine is the step a rule decided for a hop that skips lines.
+	CrossedLine *CrossedLine `json:"crossedLine,omitempty"`
 }
 
 type sarifLocation struct {
@@ -303,8 +305,8 @@ func sarifResults(report Report, index map[string]int) ([]sarifResult, int) {
 	for _, f := range report.Findings {
 		base := sarifResult{
 			RuleID: f.RuleID, RuleIndex: index[f.RuleID], Level: sarifError,
-			Message:    sarifText{cut(fmt.Sprintf(labelResultMessage, f.Title, f.Fix), sarifMessageMax)},
-			Properties: sarifResultProps{Component: f.Component, Hop: hopLabel(f.Hop), Basis: f.Basis, Match: f.Match, Crossing: f.Crossing},
+			Message:    sarifText{resultMessage(f)},
+			Properties: sarifResultProps{Component: f.Component, Hop: hopLabel(f.Hop), Basis: f.Basis, Match: f.Match, Crossing: f.Crossing, CrossedLine: f.CrossedLine},
 		}
 		if len(f.Locations) == 0 {
 			rows = append(rows, sarifRow{component: f.Component, hop: f.Hop.order(), document: -1, item: -1, result: base})
@@ -474,4 +476,26 @@ func cut(text string, n int) string {
 		end--
 	}
 	return text[:end]
+}
+
+// resultMessage is the SARIF message of a finding, bounded. The step
+// disclosure of a crossed-line finding ends the fix; when the message is too
+// long the head of the fix is cut and the disclosure kept.
+func resultMessage(f Finding) string {
+	text := fmt.Sprintf(labelResultMessage, f.Title, f.Fix)
+	if len(text) <= sarifMessageMax || f.CrossedLine == nil {
+		return cut(text, sarifMessageMax)
+	}
+	marker := "ecided on the step "
+	at := strings.LastIndex(f.Fix, marker)
+	if at < 1 {
+		return cut(text, sarifMessageMax)
+	}
+	tail := f.Fix[at-1:]
+	head := fmt.Sprintf(labelResultMessage, f.Title, "")
+	room := sarifMessageMax - len(tail) - len(head) - len("... ")
+	if room < 0 {
+		return cut(text, sarifMessageMax)
+	}
+	return cut(head+cut(f.Fix[:at-1], room)+"... "+tail, sarifMessageMax)
 }

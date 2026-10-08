@@ -1,16 +1,17 @@
-# NO BLOCKERS FOUND IN COVERED CHECKS: 7 areas were not checked
+# UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (7 other areas were not checked)
 
-## NOT CHECKED (7)
+## NOT CHECKED (8)
 
 | Area | What | Next step |
 | --- | --- | --- |
 | etcd | etcd is not evaluated by scan yet | run prufyx check cncf --project etcd, or verify its upgrade notes by hand |
 | kubernetes | 1 manifest(s) use API versions that the review of Kubernetes 1.30 does not list as served | check those API versions against the Kubernetes 1.30 API reference by hand |
+| kubernetes | 1 manifest(s) use API versions Kubernetes 1.30 does not serve, removed on a line this upgrade enters | no reviewed rule decided them; migrate them to a served API version before upgrading, and the gaps for the step that enters the line say why |
 | kubernetes | it is not declared that these manifests are applied to the target kubernetes API | if they are, add targetApplyRequired: true to prufyx.yaml or pass --target-api-apply-required |
 | kubernetes | the kubernetes distribution is not declared | for upstream builds, add distribution: official\_upstream to prufyx.yaml or pass --distribution official\_upstream |
 | kubernetes | the kubernetes manifests are not declared to be the complete set you apply | if they are, add resourceScopeComplete: true to prufyx.yaml or pass --resource-scope-complete |
 | kubernetes | 1 document(s) contain unrendered templates | render them (for example with helm template) and scan the output |
-| kubernetes 1.27 -> 1.28 | kubernetes 1.28 has not been reviewed for removed APIs | check the kubernetes 1.28 release notes for removed APIs by hand, or request coverage |
+| kubernetes 1.27 -> 1.28 | no review confirms that the removed-API rules for kubernetes 1.28 name every API that line removes | check the kubernetes 1.28 release notes for other removed APIs by hand, or request a line review |
 
 ## ONE-WAY CHANGES (1)
 
