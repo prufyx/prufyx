@@ -210,3 +210,29 @@ func TestWindowBracketsTheClock(t *testing.T) {
 		t.Fatalf("%s %s %v %v", reviewed, until, err1, err2)
 	}
 }
+
+// The age instants follow the earliest expiry only; a Kubernetes rule derived
+// late moves the shared clock, not the age window of the other rules.
+func TestAgeInstantsDoNotFollowTheKubernetesDerivation(t *testing.T) {
+	other := [3]string{"other.rule", "2026-09-08T12:07:56Z", "2026-12-07T12:07:56Z"}
+	early, err := ClocksOf(packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-11-12T08:45:25Z", "2027-01-27T08:45:25Z"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	late, err := ClocksOf(packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-12-10T08:45:25Z", "2027-03-03T08:45:25Z"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if early.Before != late.Before || early.Inside != late.Inside || early.After != late.After {
+		t.Fatalf("age instants moved: %+v vs %+v", early, late)
+	}
+	for name, got := range map[string]time.Time{"before": early.Before, "inside": early.Inside, "after": early.After} {
+		want := map[string]string{"before": "2026-11-06T00:00:00Z", "inside": "2026-11-20T00:00:00Z", "after": "2026-12-10T00:00:00Z"}[name]
+		if got.Format(time.RFC3339) != want {
+			t.Errorf("%s = %s, want %s", name, got.Format(time.RFC3339), want)
+		}
+	}
+	if early.Clock.Equal(late.Clock) || late.Clock.Format(time.RFC3339) != "2026-12-11T00:00:00Z" {
+		t.Fatalf("clocks %s %s", early.Clock, late.Clock)
+	}
+}

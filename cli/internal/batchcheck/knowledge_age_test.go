@@ -52,6 +52,13 @@ func TestReportKnowledgeAge(t *testing.T) {
 	}
 }
 
+// ageInside is the instant inside the age window of the embedded pack, derived
+// from the pack.
+func ageInside() time.Time {
+	_, inside, _ := supersedeids.AgeClocks()
+	return inside
+}
+
 // TestReportKnowledgeAgeEmbedded: only a CNCF item uses the embedded CNCF
 // knowledge; a batch of neutral community items does not.
 func TestReportKnowledgeAgeEmbedded(t *testing.T) {
@@ -59,7 +66,7 @@ func TestReportKnowledgeAgeEmbedded(t *testing.T) {
 	writeBatchFile(t, filepath.Join(root, "loki.json"), canonical("pkg:github/grafana/loki", "2.9.8", "3.0.0", []any{}, []any{boolFact("component.loki.compactor_legacy_shared_store_present", false)}))
 	plan := Plan{Schema: PlanSchema, Authority: PlanAuthority, Knowledge: KnowledgeSelection{Mode: "embedded_only"}, Items: []Item{{ID: "c", Kind: "community_project", Project: "loki", From: "2.9.8", To: "3.0.0", InputPath: "loki.json"}}}
 	planPath := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	report, _, err := Evaluate(planPath, root, supersedeids.Clock())
+	report, _, err := Evaluate(planPath, root, ageInside())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +87,7 @@ func TestReportKnowledgeAgeEmbeddedCNCFItem(t *testing.T) {
 	}))
 	plan := Plan{Schema: PlanSchema, Authority: PlanAuthority, Knowledge: KnowledgeSelection{Mode: "embedded_only"}, Items: []Item{{ID: "a", Kind: "cncf", Project: "kyverno", From: "1.12.5", To: "1.13.0", InputPath: "kyverno.json"}}}
 	planPath := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	report, _, err := Evaluate(planPath, root, supersedeids.Clock())
+	report, _, err := Evaluate(planPath, root, ageInside())
 	if err != nil {
 		t.Fatal(err)
 	}

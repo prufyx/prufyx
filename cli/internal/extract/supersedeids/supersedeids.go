@@ -160,12 +160,6 @@ func ID(reviewed string) string {
 // knowledge-age note appears, with room on both sides.
 const AgeWindowDays = 17
 
-var (
-	clockOnce sync.Once
-	clock     time.Time
-	clockErr  error
-)
-
 // Clock is the one instant the tests that need "now" for the shipped pack use.
 // It is derived from the pack, never written down, so a data-only change of
 // the pack (the supersede, a renewal) moves it by itself:
@@ -180,18 +174,44 @@ var (
 // Kubernetes rule: then no clock holds all of them current and the pack needs
 // its other rules renewed first.
 func Clock() time.Time {
+	loadClocks()
+	if clockErr != nil {
+		panic("supersedeids: " + clockErr.Error())
+	}
+	return clock
+}
+
+// AgeClocks returns the instants before, inside and after the age window of
+// the earliest expiry of the shipped pack: 31 days and 17 days before, and 3
+// days after, the day of the earliest validUntil of any active rule. They depend on the
+// other rules' leases only, not on when the Kubernetes rules were derived.
+func AgeClocks() (before, inside, after time.Time) {
+	loadClocks()
+	if clockErr != nil {
+		panic("supersedeids: " + clockErr.Error())
+	}
+	return ageBefore, ageInside, ageAfter
+}
+
+var (
+	clockOnce                      sync.Once
+	clock                          time.Time
+	ageBefore, ageInside, ageAfter time.Time
+	clockErr                       error
+)
+
+func loadClocks() {
 	clockOnce.Do(func() {
 		raw, err := shippedPack()
 		if err != nil {
 			clockErr = err
 			return
 		}
-		clock, clockErr = ClockOf(raw)
+		var c Clocks
+		if c, clockErr = ClocksOf(raw); clockErr == nil {
+			clock, ageBefore, ageInside, ageAfter = c.Clock, c.Before, c.Inside, c.After
+		}
 	})
-	if clockErr != nil {
-		panic("supersedeids: " + clockErr.Error())
-	}
-	return clock
 }
 
 // Window is the evidence window of a synthetic rule that is current at Clock:
@@ -206,17 +226,24 @@ func Window(before, after int) (reviewedAt, validUntil string) {
 // ClockString is Clock in RFC 3339 form, as the --now flags take it.
 func ClockString() string { return Clock().Format(time.RFC3339) }
 
-// AgeClocks returns the instants before, inside and after the age window of
-// the earliest expiry: Clock minus 14 days (outside the 30-day window), Clock,
-// and Clock plus 20 days (after the earliest expiry).
-func AgeClocks() (before, inside, after time.Time) {
-	inside = Clock()
-	return inside.AddDate(0, 0, -14), inside, inside.AddDate(0, 0, 20)
+// Clocks are the instants derived from a pack.
+type Clocks struct {
+	// Clock is the shared test clock (see Clock).
+	Clock time.Time
+	// Before, Inside and After are the age instants (see AgeClocks).
+	Before, Inside, After time.Time
 }
 
 // ClockOf derives the shared test clock from the bytes of a rule pack. See
 // Clock for the rule.
 func ClockOf(pack []byte) (time.Time, error) {
+	c, err := ClocksOf(pack)
+	return c.Clock, err
+}
+
+// ClocksOf derives the shared test clock and the age instants from the bytes
+// of a rule pack.
+func ClocksOf(pack []byte) (Clocks, error) {
 	var p struct {
 		Entries []struct {
 			Rule struct {
@@ -230,7 +257,7 @@ func ClockOf(pack []byte) (time.Time, error) {
 		} `json:"entries"`
 	}
 	if err := json.Unmarshal(pack, &p); err != nil {
-		return time.Time{}, err
+		return Clocks{}, err
 	}
 	var earliest, lastReviewed, kubernetesUntil time.Time
 	for _, entry := range p.Entries {
@@ -240,7 +267,7 @@ func ClockOf(pack []byte) (time.Time, error) {
 		}
 		until, err := time.Parse(time.RFC3339, ev.ValidUntil)
 		if err != nil {
-			return time.Time{}, fmt.Errorf("rule %s: validUntil: %v", entry.Rule.ID, err)
+			return Clocks{}, fmt.Errorf("rule %s: validUntil: %v", entry.Rule.ID, err)
 		}
 		if earliest.IsZero() || until.Before(earliest) {
 			earliest = until
@@ -250,7 +277,7 @@ func ClockOf(pack []byte) (time.Time, error) {
 		}
 		reviewed, err := time.Parse(time.RFC3339, ev.ReviewedAt)
 		if err != nil {
-			return time.Time{}, fmt.Errorf("rule %s: reviewedAt: %v", entry.Rule.ID, err)
+			return Clocks{}, fmt.Errorf("rule %s: reviewedAt: %v", entry.Rule.ID, err)
 		}
 		if reviewed.After(lastReviewed) {
 			lastReviewed = reviewed
@@ -260,18 +287,19 @@ func ClockOf(pack []byte) (time.Time, error) {
 		}
 	}
 	if earliest.IsZero() {
-		return time.Time{}, fmt.Errorf("the pack holds no active rule")
+		return Clocks{}, fmt.Errorf("the pack holds no active rule")
 	}
-	at := earliest.UTC().Truncate(24*time.Hour).AddDate(0, 0, -AgeWindowDays)
+	inside := earliest.UTC().Truncate(24*time.Hour).AddDate(0, 0, -AgeWindowDays)
+	c := Clocks{Clock: inside, Before: inside.AddDate(0, 0, -14), Inside: inside, After: inside.AddDate(0, 0, 20)}
 	if !lastReviewed.IsZero() {
-		if after := lastReviewed.UTC().Truncate(24*time.Hour).AddDate(0, 0, 1); at.Before(after) {
-			at = after
+		if after := lastReviewed.UTC().Truncate(24*time.Hour).AddDate(0, 0, 1); c.Clock.Before(after) {
+			c.Clock = after
 		}
-		if !at.Before(kubernetesUntil) {
-			return time.Time{}, fmt.Errorf("no clock holds every Kubernetes rule current: %s is not before the earliest Kubernetes expiry %s (renew the other rules first)", at.Format(time.RFC3339), kubernetesUntil.Format(time.RFC3339))
+		if !c.Clock.Before(kubernetesUntil) {
+			return Clocks{}, fmt.Errorf("no clock holds every Kubernetes rule current: %s is not before the earliest Kubernetes expiry %s (renew the other rules first)", c.Clock.Format(time.RFC3339), kubernetesUntil.Format(time.RFC3339))
 		}
 	}
-	return at, nil
+	return c, nil
 }
 
 func shippedPack() ([]byte, error) {

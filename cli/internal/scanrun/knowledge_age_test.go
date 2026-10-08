@@ -27,6 +27,12 @@ func scanAt(t *testing.T, knowledge Knowledge, now string, extra ...string) Resu
 // ageInstants are the shared clock and the instants 14 days before it and 20
 // days after it: before, inside and after the 30-day window of the earliest
 // expiry of the embedded pack (derived from the pack, see supersedeids.Clock).
+// insideNow is the instant inside the age window, as a --now value.
+func insideNow() string {
+	_, inside, _ := ageInstants()
+	return inside
+}
+
 func ageInstants() (before, inside, after string) {
 	b, i, a := supersedeids.AgeClocks()
 	return b.Format(time.RFC3339), i.Format(time.RFC3339), a.Format(time.RFC3339)
@@ -134,8 +140,8 @@ func LoadEmbeddedForTest(t *testing.T) Knowledge {
 func TestScanKnowledgeAgeRedact(t *testing.T) {
 	dir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1beta1})
 	inDir(t, dir, func() {
-		plain := scanAt(t, nil, supersedeids.ClockString())
-		redacted := scanAt(t, nil, supersedeids.ClockString(), "--redact")
+		plain := scanAt(t, nil, insideNow())
+		redacted := scanAt(t, nil, insideNow(), "--redact")
 		if plain.KnowledgeAge == "" || plain.KnowledgeAge != redacted.KnowledgeAge || redacted.Exit != plain.Exit {
 			t.Fatalf("%q vs %q", plain.KnowledgeAge, redacted.KnowledgeAge)
 		}
