@@ -94,7 +94,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   coverage totals as JSON and Markdown, from a pack and an offline lines
   snapshot; `coverage lines-from-tags` builds that snapshot from captured tag
   lists. Reporting only; no verdict changes. See `cli/docs/coverage-report.md`.
-
 - `prufyx-maintainer knowledge-publish release`: one offline, deterministic step
   that builds a signed knowledge-database release (TUF targets, snapshot and
   timestamp, package and release plan) from the reviewed embedded knowledge,
