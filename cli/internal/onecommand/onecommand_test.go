@@ -592,3 +592,76 @@ func TestRejectedScopeInputFailsLoudly(t *testing.T) {
 		})
 	}
 }
+
+// crossingKubernetesRoute is a synthetic kubernetes check anchored at
+// 1.24.0 -> 1.25.0 whose rule carries a removal crossing at C = 1.25.0
+// reviewed below 1.36.0, with or without the reviewed range.
+func crossingKubernetesRoute(withRange bool) checkroutemetadata.Check {
+	route := rangedKubernetesRoute()
+	if !withRange {
+		route.Range = nil
+	}
+	route.Crossing = &constraintengine.CrossingSpec{
+		Change:  constraintengine.CrossingChange{Version: "1.25.0", Basis: constraintengine.BasisRemovedInRelease, SourceID: "src"},
+		Horizon: constraintengine.CrossingHorizon{Lt: "1.36.0", Basis: constraintengine.BasisReviewedThroughMinorLine, SourceID: "src"},
+	}
+	return route
+}
+
+// TestClassifyKubernetesCrossingApplicability: a hop that crosses the
+// removal release C is never NOT_APPLICABLE. The reviewer's two probes (a
+// crossing-only rule observed at 1.24.17, and a crossing plus range rule
+// observed at 1.21.5, both with --to 1.30.2) used to be reported
+// NOT_APPLICABLE_VERSION_MISMATCH although the engine blocks the hop.
+func TestClassifyKubernetesCrossingApplicability(t *testing.T) {
+	cases := []struct {
+		name      string
+		withRange bool
+		observed  string
+		to        string
+		want      string
+		mode      string
+		needsTo   bool
+	}{
+		{"crossing only, probe: 1.24.17 to 1.30.2", false, "1.24.17", "1.30.2", ApplicableNeedsDeclaration, "crossing", false},
+		{"crossing and range, probe: 1.21.5 to 1.30.2", true, "1.21.5", "1.30.2", ApplicableNeedsDeclaration, "crossing", false},
+		{"crossing and range, 1.24.17 to 1.30.2", true, "1.24.17", "1.30.2", ApplicableNeedsDeclaration, "crossing", false},
+		{"crossing only, no target", false, "1.24.17", "", ApplicableNeedsDeclaration, "crossing", true},
+		{"crossing and range, far origin, no target", true, "1.21.5", "", ApplicableNeedsDeclaration, "crossing", true},
+		{"crossing only, target at C", false, "1.24.17", "1.25.0", ApplicableNeedsDeclaration, "crossing", false},
+		{"crossing only, target below C", false, "1.24.17", "1.24.99", NotApplicableVersionMismatch, "crossing", false},
+		{"crossing only, downgrade", false, "1.24.17", "1.23.0", NotApplicableVersionMismatch, "crossing", false},
+		{"crossing only, target at the cap", false, "1.24.17", "1.36.0", IndeterminateHopOutsideReviewedRange, "crossing", false},
+		{"crossing only, target beyond the cap", false, "1.24.17", "1.40.1", IndeterminateHopOutsideReviewedRange, "crossing", false},
+		{"crossing only, origin at C", false, "1.25.0", "1.30.2", NotApplicableVersionMismatch, "", false},
+		{"crossing only, origin above C", false, "1.28.1", "1.30.2", NotApplicableVersionMismatch, "", false},
+		{"crossing and range, in range and target range keeps range", true, "1.24.17", "1.25.9", ApplicableNeedsDeclaration, "range", false},
+	}
+	for _, tc := range cases {
+		route := crossingKubernetesRoute(tc.withRange)
+		got := classifyKubernetes(CheckAssessment{Project: route.Project, From: route.From, To: route.To}, route, kubernetesObservedBundle(tc.observed), false, tc.to)
+		if got.Applicability != tc.want {
+			t.Errorf("%s: applicability=%q, want %q (%s)", tc.name, got.Applicability, tc.want, got.Reason)
+		}
+		if tc.want != NotApplicableVersionMismatch && got.MatchMode != tc.mode {
+			t.Errorf("%s: matchMode=%q, want %q", tc.name, got.MatchMode, tc.mode)
+		}
+		hasTo := false
+		for _, d := range got.MissingDeclarations {
+			hasTo = hasTo || d.Flag == "--to"
+		}
+		if hasTo != tc.needsTo {
+			t.Errorf("%s: --to declaration present=%v, want %v", tc.name, hasTo, tc.needsTo)
+		}
+		if tc.want == ApplicableNeedsDeclaration && tc.mode == "crossing" && tc.to != "" && !strings.Contains(got.Reason, "never passes") {
+			t.Errorf("%s: reason lacks the block-only disclosure: %s", tc.name, got.Reason)
+		}
+	}
+	// Without a crossing the same observed version stays NOT_APPLICABLE: the
+	// crossing row is what changes the answer.
+	plain := crossingKubernetesRoute(false)
+	plain.Crossing = nil
+	if got := classifyKubernetes(CheckAssessment{}, plain, kubernetesObservedBundle("1.24.17"), false, "1.30.2"); got.Applicability != NotApplicableVersionMismatch {
+		t.Errorf("rule without crossing or range: %q", got.Applicability)
+	}
+}

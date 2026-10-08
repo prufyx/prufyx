@@ -75,11 +75,15 @@ type Check struct {
 	// than the anchor pair. Native descriptors stay exact-pair.
 	Range     *constraintengine.VersionRange `json:"range,omitempty"`
 	MatchMode string                         `json:"matchMode,omitempty"`
+	// Crossing is present only for a rule with a reviewed removal crossing;
+	// MatchMode is "crossing" when the query pair matched it. A crossing
+	// match can block but never passes.
+	Crossing *constraintengine.CrossingSpec `json:"crossing,omitempty"`
 }
 
 // Transition returns the check's reviewed subject for the shared matcher.
 func (c Check) Transition() constraintengine.RuleTransition {
-	return constraintengine.RuleTransition{Component: c.Component, From: c.From, To: c.To, Range: c.Range}
+	return constraintengine.RuleTransition{Component: c.Component, From: c.From, To: c.To, Range: c.Range, Crossing: c.Crossing}
 }
 
 type Result struct {
@@ -760,12 +764,8 @@ func Discover(selectedProject, selectedFrom, selectedTo string) (Result, error) 
 		if projectFilter(selectedProject, selectedFrom, selectedTo, project, subject) {
 			return
 		}
-		item := Check{Family: family, Project: project, Component: component, RuleID: ruleID, From: from, To: to, GenericDeclarationRoute: genericRoute(family, project, from, to), NativeDescriptor: Route{State: DescriptorNone}, Range: subject.Range}
-		if selectedFrom != "" && selectedTo != "" {
-			if mode := subject.Match(selectedFrom, selectedTo); mode == constraintengine.MatchRange || mode == constraintengine.MatchCrossing {
-				item.MatchMode = string(mode)
-			}
-		}
+		item := Check{Family: family, Project: project, Component: component, RuleID: ruleID, From: from, To: to, GenericDeclarationRoute: genericRoute(family, project, from, to), NativeDescriptor: Route{State: DescriptorNone}, Range: subject.Range, Crossing: subject.Crossing}
+		item.MatchMode = queryMatchMode(subject, selectedFrom, selectedTo)
 		if descriptor, found := descriptors[identityKey(family, project, component, ruleID, from, to)]; found {
 			item.NativeDescriptor = Route{State: DescriptorExact, Command: descriptor.command, Limit: descriptor.limit, NativePass: descriptor.nativePass}
 		}
@@ -857,6 +857,19 @@ func namedHints(project string) []NamedCheckHint {
 	default:
 		return []NamedCheckHint{}
 	}
+}
+
+// queryMatchMode names how a queried pair matched a subject when it is not the
+// anchor: "range" or "crossing". It is empty without a full pair and for an
+// anchor match.
+func queryMatchMode(subject constraintengine.RuleTransition, selectedFrom, selectedTo string) string {
+	if selectedFrom == "" || selectedTo == "" {
+		return ""
+	}
+	if mode := subject.Match(selectedFrom, selectedTo); mode == constraintengine.MatchRange || mode == constraintengine.MatchCrossing {
+		return string(mode)
+	}
+	return ""
 }
 
 // projectFilter reports whether an identity is excluded by the query. Version

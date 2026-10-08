@@ -487,15 +487,26 @@ func classifyOrigin(base CheckAssessment, route checkroutemetadata.Check, exact 
 		}
 		return out
 	}
-	if route.Range == nil || !route.Range.From.Contains(observed) {
+	inRange := route.Range != nil && route.Range.From.Contains(observed)
+	// A removal crossing matches any origin below its change version C, not
+	// only the reviewed origin range: the hop may skip many minor lines.
+	crossingOrigin := route.Crossing != nil && constraintengine.VersionLess(observed, route.Crossing.Change.Version)
+	if !inRange && !crossingOrigin {
 		base.Applicability = NotApplicableVersionMismatch
 		base.Reason = mismatch
 		return base
 	}
 	base.MatchMode = "range"
+	if !inRange {
+		base.MatchMode = "crossing"
+	}
 	if !targetOK || to == "" {
 		base.Applicability = ApplicableNeedsDeclaration
-		base.Reason = "The observed version " + observed + " is not the reviewed anchor origin " + route.From + " but lies inside this rule's reviewed origin range [" + route.Range.From.Gte + ", " + route.Range.From.Lt + "). Whether the upgrade crosses the rule's change version depends on the target, which is not declared"
+		if inRange {
+			base.Reason = "The observed version " + observed + " is not the reviewed anchor origin " + route.From + " but lies inside this rule's reviewed origin range [" + route.Range.From.Gte + ", " + route.Range.From.Lt + "). Whether the upgrade crosses the rule's change version depends on the target, which is not declared"
+		} else {
+			base.Reason = "The observed version " + observed + " is below this rule's removal release " + route.Crossing.Change.Version + ", so an upgrade to a target at or above it, and below " + route.Crossing.Cap() + ", is blocked when the removed API is in use. Whether the upgrade crosses it depends on the target, which is not declared"
+		}
 		if targetOK {
 			base.Reason += ": declare it with assess --to."
 		} else {
@@ -508,25 +519,48 @@ func classifyOrigin(base CheckAssessment, route checkroutemetadata.Check, exact 
 	}
 	if !constraintengine.SameVersion(to, to) {
 		base.Applicability = IndeterminateVersionUnparseable
-		base.Reason = "The declared target " + to + " is not a strict X.Y.Z release version, so it cannot be compared with this rule's reviewed range."
+		base.Reason = "The declared target " + to + " is not a strict X.Y.Z release version, so it cannot be compared with this rule's reviewed versions."
 		return base
 	}
-	boundaryKnown := constraintengine.SameVersion(route.Range.From.Lt, route.Range.To.Gte)
+	change, changeKnown := "", false
+	switch {
+	case route.Crossing != nil:
+		change, changeKnown = route.Crossing.Change.Version, true
+	case route.Range != nil && constraintengine.SameVersion(route.Range.From.Lt, route.Range.To.Gte):
+		change, changeKnown = route.Range.To.Gte, true
+	}
 	switch {
 	case !constraintengine.VersionLess(observed, to):
 		base.Applicability = NotApplicableVersionMismatch
 		base.Reason = "The declared target " + to + " is not above the observed version " + observed + ", so this is not an upgrade hop and cannot cross the rule's change version."
-	case boundaryKnown && constraintengine.VersionLess(to, route.Range.To.Gte):
+	case changeKnown && constraintengine.VersionLess(to, change):
 		base.Applicability = NotApplicableVersionMismatch
-		base.Reason = "The declared target " + to + " is below the rule's change version " + route.Range.To.Gte + ", so the hop does not cross it."
-	case route.Range.To.Contains(to):
+		base.Reason = "The declared target " + to + " is below the rule's change version " + change + ", so the hop does not cross it."
+	case inRange && route.Range.To.Contains(to):
+		base.MatchMode = "range"
 		base.Applicability = ApplicableNeedsDeclaration
 		base.Reason = "The observed version " + observed + " and declared target " + to + " are inside this rule's reviewed origin and target ranges. The command below shows the anchor pair " + route.From + " -> " + route.To + "; adapt --from/--to to your hop (" + observed + " -> " + to + ")."
 		base.MissingDeclarations = missingDeclarations(route.NativeDescriptor.Command)
 		base.Command = rangeCommand(base.Command, observed, to)
+	case route.Crossing != nil && constraintengine.VersionLess(to, route.Crossing.Cap()):
+		base.MatchMode = "crossing"
+		base.Applicability = ApplicableNeedsDeclaration
+		base.Reason = "Block-only on this hop: the hop " + observed + " -> " + to + " crosses this rule's removal release " + route.Crossing.Change.Version + " (reviewed below " + route.Crossing.Cap() + "), so it is blocked when the removed API is in use; a crossing can block but never passes. The command below shows the anchor pair " + route.From + " -> " + route.To + "; adapt --from/--to to your hop."
+		base.MissingDeclarations = missingDeclarations(route.NativeDescriptor.Command)
+		base.Command = rangeCommand(base.Command, observed, to)
 	default:
 		base.Applicability = IndeterminateHopOutsideReviewedRange
-		base.Reason = "The hop " + observed + " -> " + to + " is not covered by this rule's reviewed range (targets [" + route.Range.To.Gte + ", " + route.Range.To.Lt + ")); it may cross the rule's change version, so it is not reported as not applicable. Step through intermediate minor versions or request coverage."
+		covered := ""
+		if route.Range != nil {
+			covered = "targets [" + route.Range.To.Gte + ", " + route.Range.To.Lt + ")"
+		}
+		if route.Crossing != nil {
+			if covered != "" {
+				covered += " and "
+			}
+			covered += "crossing targets [" + route.Crossing.Change.Version + ", " + route.Crossing.Cap() + ")"
+		}
+		base.Reason = "The hop " + observed + " -> " + to + " is not covered by this rule's reviewed coverage (" + covered + "); it may cross the rule's change version, so it is not reported as not applicable. Step through intermediate minor versions or request coverage."
 	}
 	return base
 }

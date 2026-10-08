@@ -19,11 +19,13 @@ type RuleIdentity struct {
 	To        string `json:"to"`
 	// Range is present only for a rule with a reviewed version range.
 	Range *constraintengine.VersionRange `json:"range,omitempty"`
+	// Crossing is present only for a rule with a reviewed removal crossing.
+	Crossing *constraintengine.CrossingSpec `json:"crossing,omitempty"`
 }
 
 // Transition returns the identity's reviewed subject for the shared matcher.
 func (r RuleIdentity) Transition() constraintengine.RuleTransition {
-	return constraintengine.RuleTransition{Component: r.Component, From: r.From, To: r.To, Range: r.Range}
+	return constraintengine.RuleTransition{Component: r.Component, From: r.From, To: r.To, Range: r.Range, Crossing: r.Crossing}
 }
 
 // EmbeddedRuleIdentities returns every integrity-checked embedded rule in a
@@ -42,7 +44,7 @@ func EmbeddedRuleIdentities() ([]RuleIdentity, error) {
 		if err != nil || json.Unmarshal(entry.Rule, &shape) != nil || shape.ID == "" || subject.Component == "" || subject.From == "" || subject.To == "" {
 			return nil, ErrIntegrity
 		}
-		result = append(result, RuleIdentity{Project: entry.Project, Component: subject.Component, RuleID: shape.ID, From: subject.From, To: subject.To, Range: subject.Range})
+		result = append(result, RuleIdentity{Project: entry.Project, Component: subject.Component, RuleID: shape.ID, From: subject.From, To: subject.To, Range: subject.Range, Crossing: subject.Crossing})
 	}
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].Project != result[j].Project {
