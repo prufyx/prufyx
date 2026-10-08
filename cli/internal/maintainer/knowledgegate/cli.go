@@ -34,7 +34,7 @@ const usage = `usage:
                                   [--head-sha SHA] [--commits FILE] [--max-loosening N]
                                   [--trust-root-digest sha256:...] [--approval-keys-digest sha256:...]
                                   [--rerun-worklist FILE]
-                                  [--rederive-all] [--concurrency N] [--now RFC3339]
+                                  [--rederive-all [--shard all|i/n|day/n|least/n] [--shard-state FILE]] [--rest-budget N] [--cache-dir DIR] [--concurrency N] [--now RFC3339]
                                   [--max-withdraw-percent N] [--max-withdraw-project N]
                                   [--daily-loosening-count N] [--max-daily-loosening N] [--shadow]
                                   [--report FILE] [--summary FILE]
@@ -224,9 +224,16 @@ func cmdLimits(args []string, layout Layout, stdout io.Writer) (int, error) {
 	return exitFor(r), nil
 }
 
+// ExitCouldNotRun is the exit status of a run cut short by the GitHub
+// request budget; it is never 0.
+const ExitCouldNotRun = 3
+
 func exitFor(r *Report) int {
 	if r.Passed() {
 		return 0
+	}
+	if r.CouldNotRun != "" {
+		return ExitCouldNotRun
 	}
 	return 1
 }
@@ -237,6 +244,8 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	var max, concurrency int
 	var citeTimeout time.Duration
 	var all, shadow bool
+	var shardSpec, cacheDir, shardState string
+	var restBudget int64
 	var metricsFile, alarmsFile, alarmsMD string
 	var m monitorFlags
 	f := newFlags("gate verify", &t)
@@ -257,6 +266,10 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	f.StringVar(&digest, "trust-root-digest", "", "pinned digest of the reattestation trust root")
 	f.StringVar(&rerun, "rerun-worklist", "", "worklist from this job's own evidence repin run")
 	f.BoolVar(&all, "rederive-all", false, "re-derive every active mechanical rule and mechanical line attestation")
+	f.StringVar(&shardSpec, "shard", "", "with --rederive-all: re-derive only one deterministic slice of the extractors: all, i/n (0 <= i < n) or day/n (slice = UTC day number mod n)")
+	f.StringVar(&shardState, "shard-state", "", "with --shard: file that records the last attempt and last success of each shard (read before, rewritten after the run); needed for least/n and for the shard-stale alarm")
+	f.Int64Var(&restBudget, "rest-budget", 0, "cap on api.github.com requests for this run (0: GitHub's own limit only); when it runs out the gate reports \"could not run\" and fails")
+	f.StringVar(&cacheDir, "cache-dir", "", "directory that keeps verified git trees and small blobs between runs")
 	f.IntVar(&concurrency, "concurrency", 0, "concurrent upstream reads for re-derivation")
 	f.DurationVar(&citeTimeout, "citations-timeout", rulecheck.DefaultCitationTimeout, "overall deadline of the citation verification; a run that does not finish in time fails the citations check")
 	f.StringVar(&now, "now", "", "the gate's clock, RFC 3339 UTC (default: now)")
@@ -275,8 +288,42 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	if max < 1 || concurrency < 0 || concurrency > 64 || citeTimeout <= 0 {
 		return 2, errors.New("--max-loosening must be at least 1, --concurrency 0-64 and --citations-timeout positive")
 	}
+	if restBudget < 0 {
+		return 2, errors.New("--rest-budget must not be negative")
+	}
 	opts := Options{Layout: layout, Base: base, Head: head, Author: author, Sender: sender, Owner: owner, BotLogin: bot, HeadSHA: headSHA, MaxLoosening: max, TrustRootDigest: digest, ApprovalKeysDigest: keysDigest, RederiveAll: all, Concurrency: concurrency, Shadow: shadow}
 	m.apply(&opts)
+	if shardSpec != "" && !all {
+		return 2, errors.New("--shard needs --rederive-all")
+	}
+	clock := opts.Now
+	if clock.IsZero() {
+		clock = time.Now()
+	}
+	if now != "" {
+		if t, err := time.Parse(time.RFC3339, now); err == nil {
+			clock = t
+		}
+	}
+	if opts.Shard, err = ParseShard(shardSpec, clock); err != nil {
+		return 2, err
+	}
+	if shardState != "" && opts.Shard.All() {
+		return 2, errors.New("--shard-state needs a --shard other than all")
+	}
+	if opts.Shard.Least && shardState == "" {
+		return 2, errors.New("--shard least/n needs --shard-state")
+	}
+	if shardState != "" {
+		raw, err := readBoundedFile(shardState, 1<<20)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return 2, err
+		}
+		if opts.ShardState, err = ParseShardState(raw); err != nil {
+			return 2, err
+		}
+		opts.Shard = opts.Shard.Resolve(opts.ShardState)
+	}
 	if commits != "" {
 		raw, err := readBoundedFile(commits, maxCommitListBytes)
 		if err != nil {
@@ -294,6 +341,9 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	if opts.Source, opts.Citations, err = sourceFlag(source, citeTimeout, getenv); err != nil {
 		return 2, err
 	}
+	if gh, ok := opts.Source.(*GitHubSource); ok {
+		gh.MaxRESTRequests, gh.CacheDir = restBudget, cacheDir
+	}
 	if rerun != "" {
 		if opts.RerunWorklist, err = readBoundedFile(rerun, MaxFileBytes); err != nil {
 			return 2, err
@@ -305,6 +355,15 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	r, err := Verify(ctx, opts)
 	if err != nil {
 		return 2, err
+	}
+	if shardState != "" {
+		raw, err := opts.ShardState.Update(r, opts.Shard, clockOf(opts, clock)).Marshal()
+		if err != nil {
+			return 2, err
+		}
+		if err := os.WriteFile(shardState, append(raw, '\n'), 0o644); err != nil {
+			return 2, err
+		}
 	}
 	if metricsFile != "" {
 		raw, err := marshalFile(NewMetrics(r, time.Since(started)))
@@ -361,6 +420,14 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 		printChecks(stdout, r)
 	}
 	return exitFor(r), nil
+}
+
+// clockOf is the time a run is recorded at: the --now value when given.
+func clockOf(opts Options, fallback time.Time) time.Time {
+	if !opts.Now.IsZero() {
+		return opts.Now
+	}
+	return fallback
 }
 
 // readBoundedFile reads a file this job produced, up to limit bytes.
@@ -443,6 +510,16 @@ func writeSummary(w io.Writer, r *Report) {
 	fmt.Fprintf(w, "## Knowledge gate: %s\n\n", strings.ToUpper(r.Result))
 	if r.Mode == ModeShadow {
 		fmt.Fprint(w, "Shadow mode: this change is never eligible for automatic merging.\n\n")
+	}
+	if r.CouldNotRun != "" {
+		fmt.Fprintf(w, "**Could not run:** %s. This is not a pass.\n\n", mdEscape(r.CouldNotRun))
+	}
+	if r.Upstream != nil {
+		fmt.Fprintf(w, "GitHub REST requests: %d (%d commit, %d tree)", r.Upstream.RESTRequests, r.Upstream.CommitCalls, r.Upstream.TreeCalls)
+		if r.Shard != "" {
+			fmt.Fprintf(w, "; re-derivation shard %s", mdEscape(r.Shard))
+		}
+		fmt.Fprint(w, ".\n\n")
 	}
 	fmt.Fprintf(w, "%d tightening, %d loosening (cap %d); kill switch %s.\n\n", r.Totals.Tightening, r.Totals.Loosening, r.Limits.MaxLoosening, onOff(r.Paused))
 	if len(r.Changes) > 0 {
@@ -587,7 +664,12 @@ func sourceFlag(source string, citeTimeout time.Duration, getenv func(string) st
 		if token == "" {
 			token = getenv("GH_TOKEN")
 		}
-		return &GitHubSource{Token: token}, &rulecheck.CitationVerifier{Resolver: rulecheck.NewGitHubObjects(token), Fetcher: rulecheck.HTTPFetcher{}, Concurrency: 4, Timeout: citeTimeout}, nil
+		src := &GitHubSource{Token: token}
+		// The citation verifier's GitHub API calls use the same token, so
+		// they are counted against the same budget.
+		objects := rulecheck.NewGitHubObjects(token)
+		objects.Admit, objects.Observe = src.CitationAdmit, src.CitationObserve
+		return src, &rulecheck.CitationVerifier{Resolver: objects, Fetcher: rulecheck.HTTPFetcher{}, Concurrency: 4, Timeout: citeTimeout}, nil
 	case strings.HasPrefix(source, "fixture:") && len(source) > len("fixture:"):
 		return extract.FixtureReader{Root: strings.TrimPrefix(source, "fixture:")}, OfflineCitations{}, nil
 	}

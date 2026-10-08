@@ -81,6 +81,14 @@ type Options struct {
 	// RederiveAll re-derives every active mechanical rule of the head,
 	// changed or not (the scheduled run on the main branch).
 	RederiveAll bool
+	// Shard limits RederiveAll to the extractors of one shard (see Shard).
+	// A rule whose extractor cannot be identified is always included: it
+	// fails without any upstream request.
+	Shard Shard
+	// ShardState is what earlier runs recorded per shard (see ShardState);
+	// nil when the caller keeps no state. With it, a shard that has not
+	// passed within its schedule raises a shard-stale alarm.
+	ShardState ShardState
 	// MaxWithdrawPercent and MaxWithdrawProject are the withdrawal circuit
 	// breakers: a change that withdraws more than this percent of a pack's
 	// active rules, or more than this many rules of one project, fails. 0
@@ -172,6 +180,56 @@ type Report struct {
 	// active mechanical rule the change did not already re-derive (see
 	// rederiveAll).
 	rederivedUnchanged int
+	// Upstream reports what the run asked GitHub for; nil when the source
+	// does not count requests. Shard is the --rederive-all shard ("all"
+	// when not sharded).
+	Upstream *UpstreamReport `json:"upstream,omitempty"`
+	Shard    string          `json:"shard,omitempty"`
+	// CouldNotRun is set when the run was cut short because the GitHub
+	// request budget ran out. Such a run never passes.
+	CouldNotRun string `json:"couldNotRun,omitempty"`
+}
+
+// UpstreamReport is the GitHub request accounting of one run.
+type UpstreamReport struct {
+	RESTRequests       int64  `json:"restRequests"`
+	CommitCalls        int64  `json:"commitCalls"`
+	TreeCalls          int64  `json:"treeCalls"`
+	RawFetches         int64  `json:"rawFetches"`
+	CacheHits          int64  `json:"cacheHits"`
+	DiskTreeHits       int64  `json:"diskTreeHits"`
+	DiskBlobHits       int64  `json:"diskBlobHits"`
+	RateLimitRemaining int64  `json:"rateLimitRemaining"`
+	BudgetExhausted    bool   `json:"budgetExhausted"`
+	BudgetReason       string `json:"budgetReason,omitempty"`
+}
+
+// statsSource is implemented by a Source that counts its upstream requests.
+type statsSource interface{ Stats() GitHubStats }
+
+// budgetCheck records the request accounting and fails closed when the
+// budget ran out: whatever the individual rules say, a run that was starved
+// of upstream data proves nothing.
+func (r *Report) budgetCheck(opts Options) {
+	ss, ok := opts.Source.(statsSource)
+	if !ok {
+		return
+	}
+	st := ss.Stats()
+	r.Upstream = &UpstreamReport{
+		RESTRequests: st.APIRequests, CommitCalls: st.CommitCalls, TreeCalls: st.TreeCalls, RawFetches: st.RawFetches,
+		CacheHits: st.RawCacheHits, DiskTreeHits: st.DiskTreeHits, DiskBlobHits: st.DiskBlobHits,
+		RateLimitRemaining: st.RateLimitRemaining, BudgetExhausted: st.BudgetExhausted, BudgetReason: st.BudgetReason,
+	}
+	if st.BudgetExhausted {
+		r.CouldNotRun = "the GitHub REST budget ran out: " + st.BudgetReason
+		r.add("rest-budget", false, "could not run: %s (%d REST requests used); nothing here is a pass, rerun after the limit resets or with a smaller shard", st.BudgetReason, st.APIRequests)
+		// A starved run is not a verdict about the knowledge, so it must not
+		// only turn a job red: it raises an alarm, like the other breakers.
+		r.alarm(AlarmCouldNotRun, "the gate could not run: %s (%d REST requests used, shard %s); the rules of that run were not checked", st.BudgetReason, st.APIRequests, opts.Shard)
+		return
+	}
+	r.add("rest-budget", true, "%d REST requests (%d commit, %d tree), %d raw fetches", st.APIRequests, st.CommitCalls, st.TreeCalls, st.RawFetches)
 }
 
 // Passed reports whether every change was admitted and every check passed.
@@ -431,6 +489,10 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	r.baselineApprovalsUsed = r.baselinesCheck(opts, loadKeys, approvals)
 	r.recordCheck(cls, statements, opts)
 	r.citationCheck(ctx, cls, opts)
+	// After the citation check: its GitHub calls draw on the same budget, so
+	// a run starved during citations is reported as could not run too.
+	r.budgetCheck(opts)
+	r.shardStaleCheck(opts)
 	r.limitChecks(cls, opts)
 	r.finish(true)
 	r.autoMerge(opts)
@@ -494,11 +556,16 @@ func (r *Report) rederiveAll(ctx context.Context, cls *Classification, rederived
 		done[c.Pack+"\x00"+c.RuleID] = true
 	}
 	var all []*Change
+	skipped := 0
 	for _, spec := range opts.Layout.Packs {
 		h := cls.head[spec.Name]
 		for _, id := range h.Order {
 			e := h.Entries[id]
 			if e.effectiveBasis() != constraintengine.BasisMechanical || e.Evidence.State != "active" || done[spec.Name+"\x00"+id] {
+				continue
+			}
+			if x := e.Evidence.Extractor; x != nil && !opts.Shard.Has(x.ID) {
+				skipped++
 				continue
 			}
 			all = append(all, &Change{Pack: spec.Name, RuleID: id, head: e})
@@ -508,6 +575,10 @@ func (r *Report) rederiveAll(ctx context.Context, cls *Classification, rederived
 		for _, id := range h.RecordOrder {
 			rec := h.Records[id]
 			if !rec.mechanical() || rec.attestation == nil || done[spec.Name+"\x00"+id] {
+				continue
+			}
+			if x := rec.Extractor; x != nil && !opts.Shard.Has(x.ID) {
+				skipped++
 				continue
 			}
 			all = append(all, &Change{Pack: spec.Name, RuleID: id, Section: rec.Section, rhead: rec})
@@ -525,11 +596,16 @@ func (r *Report) rederiveAll(ctx context.Context, cls *Classification, rederived
 		}
 	}
 	r.rederivedUnchanged = len(all)
+	shardNote := ""
+	r.Shard = opts.Shard.String()
+	if !opts.Shard.All() {
+		shardNote = fmt.Sprintf(" in shard %s (%d rules of other shards left to their own runs)", opts.Shard, skipped)
+	}
 	records := ""
 	if attestations > 0 {
 		records = fmt.Sprintf(" (%d of them line attestations)", attestations)
 	}
-	r.add("rederive-all", len(failed) == 0, "%d mechanical rules re-derived, %d failed%s%s", len(all), len(failed), records, listDetail(failed))
+	r.add("rederive-all", len(failed) == 0, "%d mechanical rules re-derived, %d failed%s%s%s", len(all), len(failed), records, shardNote, listDetail(failed))
 }
 
 func listDetail(items []string) string {

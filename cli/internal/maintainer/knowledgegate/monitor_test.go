@@ -264,6 +264,7 @@ func metricsMust(t *testing.T, raw []byte) map[string]any {
 		"schema": "string", "mode": "string", "result": "string", "paused": "bool", "totals": "object", "classes": "object",
 		"projects": "object", "renewals": "number", "withdrawals": "number", "rederivations": "number", "rederivedUnchanged": "number",
 		"failures": "object", "limits": "object", "breakers": "array", "alarms": "number", "autoMergeEligible": "bool", "durationMs": "number",
+		"restRequests": "number", "couldNotRun": "bool",
 	}
 	kind := func(v any) string {
 		switch v.(type) {

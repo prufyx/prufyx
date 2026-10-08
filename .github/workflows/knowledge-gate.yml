@@ -24,6 +24,11 @@ on:
   schedule:
     - cron: "23 4 * * *"
   workflow_dispatch:
+    inputs:
+      shard:
+        description: "Re-derivation slice: day/7 (default), i/n, or all"
+        required: false
+        default: "day/7"
 
 permissions:
   contents: read
@@ -47,6 +52,11 @@ jobs:
       REATTEST_TRUST_ROOT_DIGEST: ${{ vars.REATTEST_TRUST_ROOT_DIGEST }}
       WEB_APPROVAL_KEYS_DIGEST: ${{ vars.WEB_APPROVAL_KEYS_DIGEST }}
       MAX_LOOSENING: ${{ vars.KNOWLEDGE_MAX_LOOSENING || '200' }}
+      # A scheduled run re-derives one slice of the extractors (the slice is
+      # the UTC day number mod 7), so every project is fully re-derived at
+      # least weekly within the hourly request limit of the workflow token.
+      SHARD: ${{ github.event.inputs.shard || 'day/7' }}
+      REST_BUDGET: ${{ vars.KNOWLEDGE_GATE_REST_BUDGET || '900' }}
       MAX_DAILY_LOOSENING: ${{ vars.KNOWLEDGE_MAX_DAILY_LOOSENING || '50' }}
       MAX_WITHDRAW_PERCENT: ${{ vars.KNOWLEDGE_MAX_WITHDRAW_PERCENT || '5' }}
       MAX_WITHDRAW_PROJECT: ${{ vars.KNOWLEDGE_MAX_WITHDRAW_PROJECT || '20' }}
@@ -209,7 +219,7 @@ jobs:
           set -euo pipefail
           args=(gate verify --base base --head head --source github
                 --bot-login "${BOT_LOGIN}" --max-loosening "${MAX_LOOSENING}"
-                --head-sha "${HEAD_SHA}"
+                --head-sha "${HEAD_SHA}" --rest-budget "${REST_BUDGET}"
                 --max-withdraw-percent "${MAX_WITHDRAW_PERCENT}" --max-withdraw-project "${MAX_WITHDRAW_PROJECT}"
                 --max-daily-loosening "${MAX_DAILY_LOOSENING}"
                 --report "${RUNNER_TEMP}/gate-report.json" --summary "${GITHUB_STEP_SUMMARY}"
@@ -240,7 +250,7 @@ jobs:
             args+=(--rerun-worklist "${RUNNER_TEMP}/rerun-worklist.json")
           fi
           if [ "${GITHUB_EVENT_NAME}" = "schedule" ] || [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
-            args+=(--rederive-all)
+            args+=(--rederive-all --shard "${SHARD}")
           fi
           status=0
           token="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"

@@ -194,6 +194,41 @@ the commit it points at). Every file is checked against the git blob id its
 commit records. It never reads the factory mirror. A `GITHUB_TOKEN` or
 `GH_TOKEN` in the environment is used for API requests (rate limit only).
 
+**Request budget.** A full re-derivation of the CRD wave costs about a thousand
+REST requests, as much as the workflow token's hourly limit. A pull request
+re-derives only the rules it changes. The scheduled run re-derives one shard a
+day (`--shard day/7`), so every project is fully re-derived at least weekly. Git
+trees are cached by id within a run (and between runs with `--cache-dir`);
+git objects never change, so a cache hit replaces a conditional request. Every
+run reports its REST requests (report `upstream`, metrics `restRequests`, the
+step summary). If the budget runs out (`--rest-budget`, or GitHub refuses or
+reports too few requests left) the run fails with a `rest-budget` check
+"could not run", `couldNotRun` set, and exit status 3: a starved run is never a
+pass, and nothing it did compute counts as one. It also raises a
+`could-not-run` alarm, so the alarm channel hears about it (a red cron run alone
+is easy to miss). The budget is one counter: the citation verifier's
+api.github.com calls (changed rules only) draw on it too, and `rest-budget` is
+evaluated after the citation check, so starvation during citations is
+`couldNotRun` as well. The raw file host is not counted. Calls made by other
+steps of the job (`evidence repin`, `gh api`) and by concurrent runs on the same
+token are not counted; the 25-request reserve is for them.
+
+**Weekly guarantee, and its limits.** "Every project is re-derived at least
+weekly" holds only if every scheduled run happens and finishes. GitHub can drop
+a scheduled run, and a manual dispatch cancels a running nightly one (they share
+a concurrency group), so a missed shard can wait 7 days or more for its next
+turn. A shard that cannot finish (its extractors need more than the budget)
+starves every time its day comes round. Two tools make this visible and
+recoverable: `--shard-state FILE` records, per shard, the last attempt, the last
+passing run and the last result (`prufyx.io/knowledge-gate-shards/v1`), and with
+it a shard attempted before but without a pass within its cycle plus a day
+raises a `shard-stale` alarm (a shard never recorded is unknown, not stale);
+`--shard least/n` re-derives the shard whose last pass is oldest (never passed
+counts as oldest), so a missed night is caught up. The workflow does not persist
+such a file yet (that needs a cache or the previous run's artifact, a decision
+for the owner), so today the nightly run uses `day/7` and neither feature acts;
+until then watch the `could-not-run` alarms.
+
 ## Pack checks
 
 Run on every pack of the head, whatever the change:
@@ -284,7 +319,7 @@ report.
 change with two kinds counts under each), `projects` (tightening and loosening
 changes per project; at most 500 projects, the rest under `(other)`), `renewals`,
 `withdrawals`, `rederivations` (changed rules admitted by re-derivation),
-`rederivedUnchanged` (rules and line attestations a `--rederive-all` run re-derived), `failures`
+`rederivedUnchanged` (rules and line attestations a `--rederive-all` run re-derived), `shard`, `restRequests` (api.github.com requests; -1 when not counted), `couldNotRun`, `failures`
 (failed changes, failed checks and their names), `limits`, `breakers` (every
 breaker with what it observed and whether it tripped), `alarms`,
 `autoMergeEligible` and `durationMs`. Keys are sorted at every depth and the
@@ -294,7 +329,8 @@ is at most 256 bytes.
 
 `--alarms FILE` writes `gate-alarms.json` (`prufyx.io/knowledge-gate-alarms/v1`):
 a list of `{kind, detail}` records, one per alarm. Kinds: `loosening-cap`,
-`daily-limit`, `withdrawal-breaker-pack`, `withdrawal-breaker-project`, `size`.
+`daily-limit`, `withdrawal-breaker-pack`, `withdrawal-breaker-project`, `size`,
+`could-not-run`, `shard-stale`.
 Details are made safe to print and cut to 256 bytes. `--alarms-markdown FILE`
 writes the same list as Markdown.
 
@@ -742,6 +778,10 @@ The whole gate.
 | `--trust-root-digest sha256:…` | pinned digest of the base's reattestation trust root; without it no statement is accepted |
 | `--rerun-worklist FILE` | worklist from this job's own `evidence repin` run; without it no statement is accepted |
 | `--rederive-all` | also re-derive every active mechanical rule and every mechanical line attestation, changed or not |
+| `--shard all\|i/n\|day/n\|least/n` | with `--rederive-all`: re-derive one deterministic slice of the extractors. An extractor belongs to the shard chosen by a hash of its id (stable when others are added); `day/n` uses the UTC day number mod n, so a daily run covers every extractor every n days. `least/n` picks the shard with the oldest last pass in `--shard-state`. The scheduled run uses `day/7` |
+| `--shard-state FILE` | with a `--shard`: file recording each shard's last attempt and last pass; read before the run, rewritten after it. Needed for `least/n`; enables the `shard-stale` alarm |
+| `--rest-budget N` | cap on api.github.com requests (0: only GitHub's own limit). The gate also keeps 25 of GitHub's reported remaining requests for the rest of the job and treats a rate-limit refusal as exhausted |
+| `--cache-dir DIR` | keep git trees and small blobs on disk between runs; an entry is used only if it hashes to its own object id, with the exact canonical mode and the type that mode implies (a tree entry cannot be reclassified); the cache is never written through a symlinked directory and never read through a symlink |
 | `--concurrency N` | concurrent upstream reads during re-derivation (0–64) |
 | `--citations-timeout D` | overall deadline of the citation verification (default 20m); a run that does not finish in time fails the `citations` check |
 | `--now RFC3339` | the gate's clock, UTC (default: now); for reproducing a past run |

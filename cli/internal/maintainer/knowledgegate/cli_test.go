@@ -102,6 +102,11 @@ func TestCLI(t *testing.T) {
 		{"verify", "--base", base.Root, "--head", head.Root, "--max-daily-loosening", "0"},
 		{"verify", "--base", base.Root, "--head", head.Root, "--daily-loosening-count", "-2"},
 		{"limits", "--base", base.Root, "--head", head.Root, "--max-withdraw-percent", "0"},
+		{"verify", "--base", base.Root, "--head", head.Root, "--shard", "1/3"},
+		{"verify", "--base", base.Root, "--head", head.Root, "--rederive-all", "--shard", "3/3"},
+		{"verify", "--base", base.Root, "--head", head.Root, "--rest-budget", "-1"},
+		{"verify", "--base", base.Root, "--head", head.Root, "--rederive-all", "--shard", "least/3"},
+		{"verify", "--base", base.Root, "--head", head.Root, "--rederive-all", "--shard-state", filepath.Join(dir, "state.json")},
 		{"daily-count", "--git-dir", dir},
 		{"daily-count", "--git-dir", dir, "--commits", filepath.Join(dir, "missing.json")},
 	} {
