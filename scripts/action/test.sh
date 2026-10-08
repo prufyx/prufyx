@@ -456,5 +456,40 @@ for um in 022 0002; do
   if [ -n "$rep" ] && [ "$(ls -ld "$(dirname "$rep")" | cut -c1-10)" = drwx------ ] && [ "$(ls -l "$rep" | cut -c1-10)" = -rw------- ] && [ "$(ls -ld "$root/w/temp/prufyx-action" | cut -c1-10)" = drwx------ ]; then ok "sec-e: report dir and file are private under umask $um"; else bad "sec-e: modes umask $um" "$(ls -ld "$(dirname "$rep")" "$rep" "$root/w/temp/prufyx-action" 2>&1)"; fi
 done
 
+# --- RELEASE-1: install.sh expects the layout release.yml produces ----------------
+# Static contract check between the two files (the workflow itself only runs on
+# a tag push). Fails closed: a missing file or an unreadable pattern is a FAIL.
+rel="$here/../../.github/workflows/release.yml"
+if [ -f "$rel" ]; then
+  # archive and directory name: prufyx_<tag>_<os>_<arch>
+  if grep -Fq 'prufyx_${VERSION}_${GOOS}_${GOARCH}' "$rel" && grep -Fq 'name="prufyx_${version}_${goos}_${goarch}"' "$here/install.sh"; then
+    ok "release contract: archive name prufyx_<tag>_<os>_<arch> in release.yml and install.sh"
+  else bad "release contract: archive name" "release.yml and install.sh disagree or pattern not found"; fi
+  # the binary sits at <name>/prufyx inside the archive, and tar packs <name> relative to dist
+  if grep -Fq -- '-o dist/prufyx_${VERSION}_${GOOS}_${GOARCH}/prufyx' "$rel" && grep -Fq 'member="$name/prufyx"' "$here/install.sh" \
+    && grep -E 'tar .*-C dist' "$rel" | grep -Fq '.tar.gz'; then
+    ok "release contract: binary at <name>/prufyx, archive built from dist"
+  else bad "release contract: binary path" "release.yml build output or tar command does not match install.sh"; fi
+  # checksum file name
+  if grep -Fq 'SHA256SUMS' "$rel" && grep -Fq '$repo_url/$version/SHA256SUMS' "$here/install.sh"; then
+    ok "release contract: SHA256SUMS published and fetched under that name"
+  else bad "release contract: SHA256SUMS" "name mismatch"; fi
+  # attestation: install.sh verifies against this repo and this workflow file
+  if [ -f "$rel" ] && grep -Fq 'attest_workflow="prufyx/prufyx/.github/workflows/release.yml"' "$here/install.sh" && grep -Fq 'actions/attest-build-provenance' "$rel"; then
+    ok "release contract: install.sh signer workflow is release.yml, which attests"
+  else bad "release contract: attestation" "signer workflow or attest step missing"; fi
+  # every platform install.sh can pick must be in the workflow matrix
+  miss=""
+  for os in linux darwin; do for arch in amd64 arm64; do
+    grep -Fq "goos: $os" "$rel" && grep -Fq "goarch: $arch" "$rel" || miss="$miss $os/$arch"
+  done; done
+  for want in 'goos=linux' 'goos=darwin' 'goarch=amd64' 'goarch=arm64'; do
+    grep -Fq "$want" "$here/install.sh" || miss="$miss install.sh:$want"
+  done
+  if [ -z "$miss" ]; then ok "release contract: install.sh platforms are all in the release matrix"; else bad "release contract: platforms" "missing:$miss"; fi
+else
+  bad "release contract" "release.yml not found at $rel"
+fi
+
 printf '\n%s checks, %s failed\n' "$n" "$fails"
 [ "$fails" -eq 0 ]
