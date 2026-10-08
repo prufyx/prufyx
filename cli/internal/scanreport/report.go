@@ -186,9 +186,14 @@ type Finding struct {
 	AlsoAt    []HopRef `json:"alsoAt,omitempty"`
 	Title     string   `json:"title"`
 	Fix       string   `json:"fix"`
-	// Match is how the rule matched: "anchor" (its reviewed pair) or
-	// "range" (inside its reviewed range).
-	Match      string                            `json:"match"`
+	// Match is how the rule matched: "anchor" (its reviewed pair), "range"
+	// (inside its reviewed range) or "crossing" (the hop crosses the rule's
+	// reviewed removal release; a crossing only blocks).
+	Match string `json:"match"`
+	// Crossing discloses a crossing match: the reviewed anchor pair, the
+	// removal release the hop crosses and the exclusive bound the crossing is
+	// reviewed to. Present exactly when Match is "crossing".
+	Crossing   *constraintengine.CrossingMatch   `json:"crossing,omitempty"`
 	Locations  []Location                        `json:"locations"`
 	Basis      string                            `json:"basis"`
 	Extractor  string                            `json:"extractor,omitempty"`

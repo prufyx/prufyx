@@ -226,9 +226,13 @@ type inputSide struct {
 }
 
 type inputComponent struct {
-	Component string      `json:"component"`
-	Version   string      `json:"version"`
-	Facts     []inputFact `json:"facts"`
+	Component string `json:"component"`
+	Version   string `json:"version"`
+	// Distribution is optional: the reviewed distribution whose normaliser
+	// produced Version (crossing.go). Absent means a plain upstream version,
+	// and an input without it marshals and digests exactly as before.
+	Distribution string      `json:"distribution,omitempty"`
+	Facts        []inputFact `json:"facts"`
 }
 
 type inputFact struct {
@@ -294,10 +298,18 @@ type rule struct {
 	// Severity is optional and only "unsupported" on a
 	// require_component_version rule (severity.go). When absent the rule
 	// marshals, digests and evaluates exactly as before the field existed.
-	Severity   string   `json:"severity,omitempty"`
-	Evidence   evidence `json:"evidence"`
-	ReasonCode string   `json:"reasonCode"`
-	NextAction string   `json:"nextAction"`
+	Severity string `json:"severity,omitempty"`
+	// Crossing is optional and only on a forbid operator (crossing.go). When
+	// absent the rule marshals, digests and evaluates exactly as before the
+	// field existed.
+	Crossing   *CrossingSpec `json:"crossing,omitempty"`
+	Evidence   evidence      `json:"evidence"`
+	ReasonCode string        `json:"reasonCode"`
+	NextAction string        `json:"nextAction"`
+
+	// reviewCrossings is set by ParseRuleSet when the document carries the
+	// crossing schema; it is never serialised (see RuleTransition).
+	reviewCrossings bool
 }
 
 type transition struct {
@@ -429,6 +441,7 @@ type RuleSet struct {
 	notice         bool
 	basis          bool
 	severity       bool
+	crossing       bool
 	seal           *ruleSetSeal
 }
 type ruleSetSeal struct{}
@@ -472,6 +485,10 @@ type Claim struct {
 	// only when the rule declares one, so every other claim serializes
 	// exactly as before the field existed.
 	Severity string `json:"severity,omitempty"`
+	// CrossingMatch discloses a removal-crossing match. It is present only
+	// on a claim whose subject matched by crossing, so every other claim
+	// serializes exactly as before the field existed.
+	CrossingMatch *CrossingMatch `json:"crossingMatch,omitempty"`
 }
 
 // SubjectMatch discloses a range match: the reviewed anchor pair and the
@@ -579,6 +596,9 @@ func EngineContractDigest() string { return engineContractDigest() }
 func EngineContractDigestRanged() string { return engineContractDigestRanged() }
 
 func (r RuleSet) engineDigest() string {
+	if r.crossing {
+		return engineContractDigestCrossing()
+	}
 	if r.severity {
 		return engineContractDigestSeverity()
 	}
@@ -632,6 +652,8 @@ func scopeDigestFor(engineDigest string) string {
 		return scopeContractDigestBasis()
 	case engineContractDigestSeverity():
 		return scopeContractDigestSeverity()
+	case engineContractDigestCrossing():
+		return scopeContractDigestCrossing()
 	}
 	return ""
 }

@@ -235,7 +235,7 @@ func ScopeContractDigestBasis() string { return scopeContractDigestBasis() }
 // current evidence and its fixed reason code.
 func validBasisClaims(report Report) bool {
 	// The severity contract admits every feature of the basis contract.
-	basisContract := report.EngineContractDigest == engineContractDigestBasis() || report.EngineContractDigest == engineContractDigestSeverity()
+	basisContract := report.EngineContractDigest == engineContractDigestBasis() || atLeastSeverityContract(report.EngineContractDigest)
 	for _, claim := range report.Claims {
 		consensus, lead := claim.EvidenceBasis == BasisConsensus, claim.EvidenceBasis == BasisLead
 		if (consensus || lead) && (!basisContract || claim.IsNotice()) {

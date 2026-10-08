@@ -120,6 +120,8 @@ type sarifResultProps struct {
 	Hop       string `json:"hop"`
 	Basis     string `json:"basis"`
 	Match     string `json:"match"`
+	// Crossing is the disclosure of a crossing match, absent otherwise.
+	Crossing *constraintengine.CrossingMatch `json:"crossing,omitempty"`
 }
 
 type sarifLocation struct {
@@ -302,7 +304,7 @@ func sarifResults(report Report, index map[string]int) ([]sarifResult, int) {
 		base := sarifResult{
 			RuleID: f.RuleID, RuleIndex: index[f.RuleID], Level: sarifError,
 			Message:    sarifText{cut(fmt.Sprintf(labelResultMessage, f.Title, f.Fix), sarifMessageMax)},
-			Properties: sarifResultProps{Component: f.Component, Hop: hopLabel(f.Hop), Basis: f.Basis, Match: f.Match},
+			Properties: sarifResultProps{Component: f.Component, Hop: hopLabel(f.Hop), Basis: f.Basis, Match: f.Match, Crossing: f.Crossing},
 		}
 		if len(f.Locations) == 0 {
 			rows = append(rows, sarifRow{component: f.Component, hop: f.Hop.order(), document: -1, item: -1, result: base})

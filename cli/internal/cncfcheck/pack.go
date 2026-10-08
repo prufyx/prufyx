@@ -300,6 +300,9 @@ const (
 	packSchemaDistributions = "prufyx.io/cncf-source-rule-pack/v1alpha9"
 	// packSchemaServedAPIs is the level of a pack holding served-API lists.
 	packSchemaServedAPIs = "prufyx.io/cncf-source-rule-pack/v1alpha10"
+	// packSchemaCrossing is the level of a pack holding a rule with a
+	// removal-crossing object.
+	packSchemaCrossing = "prufyx.io/cncf-source-rule-pack/v1alpha11"
 )
 
 // packFeature is one pack feature and the schema that introduced it.
@@ -325,6 +328,9 @@ var packFeatureLevels = []packFeature{
 	}},
 	{packSchemaDistributions, func(pack rulePack, _ []json.RawMessage) (bool, error) { return len(pack.Distributions) > 0, nil }},
 	{packSchemaServedAPIs, func(pack rulePack, _ []json.RawMessage) (bool, error) { return len(pack.ServedAPIs) > 0, nil }},
+	{packSchemaCrossing, func(_ rulePack, rules []json.RawMessage) (bool, error) {
+		return constraintengine.AnyCrossingRule(rules)
+	}},
 }
 
 // requiredPackSchema is the schema of the highest-level feature the pack

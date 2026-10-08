@@ -552,7 +552,7 @@ func TestFindingAttribution(t *testing.T) {
 	first, second := scanreport.HopRef{Index: 1, From: "1.24.0", To: "1.25"}, scanreport.HopRef{Index: 3, From: "1.26", To: "1.27"}
 	whole := scanreport.HopRef{From: "1.24.0", To: "1.30.0", WholeUpgrade: true}
 	for _, ref := range []scanreport.HopRef{first, second, second, whole} {
-		run.finding(rule, constraintengine.Claim{RuleID: "r"}, evaluation{}, ref)
+		run.finding(rule, constraintengine.Claim{RuleID: "r"}, evaluation{}, ref, false)
 	}
 	if len(report.Findings) != 1 || report.Findings[0].Hop != first || !reflect.DeepEqual(report.Findings[0].AlsoAt, []scanreport.HopRef{second, whole}) || report.Findings[0].Title != "Title" {
 		t.Fatalf("findings %+v", report.Findings)
@@ -661,7 +661,7 @@ func TestJudgeClaims(t *testing.T) {
 		report := &scanreport.Report{}
 		run := &kubernetesRun{report: report, findings: map[string]int{}, passes: map[string]bool{}}
 		claim := constraintengine.Claim{RuleID: "r", Status: tc.status, ReasonCode: tc.reason, EvidenceFreshness: tc.freshness}
-		judged := run.judge(rule, evaluation{claims: map[string]constraintengine.Claim{"r": claim}}, ref)
+		judged := run.judge(rule, evaluation{claims: map[string]constraintengine.Claim{"r": claim}}, ref, false)
 		gap := ""
 		if len(report.Gaps) == 1 {
 			gap = report.Gaps[0].Reason

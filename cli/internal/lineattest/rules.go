@@ -47,6 +47,7 @@ func ScopeOf(raw json.RawMessage) (RuleScope, error) {
 			To        string `json:"to"`
 		} `json:"subject"`
 		Range        *constraintengine.VersionRange `json:"range"`
+		Crossing     *constraintengine.CrossingSpec `json:"crossing"`
 		Condition    *conditionShape                `json:"condition"`
 		SetCondition *conditionShape                `json:"setCondition"`
 		AppliesWhen  []conditionShape               `json:"appliesWhen"`
@@ -65,7 +66,7 @@ func ScopeOf(raw json.RawMessage) (RuleScope, error) {
 		conditions = append(conditions, *shape.SetCondition)
 	}
 	scope := RuleScope{ID: shape.ID, Component: shape.Subject.Component,
-		Transition: constraintengine.RuleTransition{Component: shape.Subject.Component, From: shape.Subject.From, To: shape.Subject.To, Range: shape.Range}}
+		Transition: constraintengine.RuleTransition{Component: shape.Subject.Component, From: shape.Subject.From, To: shape.Subject.To, Range: shape.Range, Crossing: shape.Crossing}}
 	for _, id := range FamilyIDs() {
 		f := families[id]
 		if shape.Subject.Component != f.Component {

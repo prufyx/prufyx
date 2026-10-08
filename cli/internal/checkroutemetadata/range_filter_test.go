@@ -121,3 +121,48 @@ func TestDiscoverPatchPairOnRangedPack(t *testing.T) {
 		t.Fatalf("expected a pair with no published rule: %+v", none)
 	}
 }
+
+// TestCrossingIsCarriedThroughTheCatalogue: a crossing rule keeps its crossing
+// on the catalogue check and on the identity's subject, so route discovery
+// lists it for a multi-minor --from/--to pair and reports matchMode crossing.
+// Before the crossing was carried the subject lost it and the filter dropped
+// the rule.
+func TestCrossingIsCarriedThroughTheCatalogue(t *testing.T) {
+	spec := &constraintengine.CrossingSpec{
+		Change:  constraintengine.CrossingChange{Version: "1.25.0", Basis: constraintengine.BasisRemovedInRelease, SourceID: "src"},
+		Horizon: constraintengine.CrossingHorizon{Lt: "1.36.0", Basis: constraintengine.BasisReviewedThroughMinorLine, SourceID: "src"},
+	}
+	check := Check{Component: "pkg:github/kubernetes/kubernetes", From: "1.24.0", To: "1.25.0", Crossing: spec}
+	subject := check.Transition()
+	if subject.Crossing != spec {
+		t.Fatal("Check.Transition dropped the crossing")
+	}
+	identity := cncfcheck.RuleIdentity{Component: check.Component, From: check.From, To: check.To, Crossing: spec}
+	if identity.Transition().Crossing != spec {
+		t.Fatal("RuleIdentity.Transition dropped the crossing")
+	}
+	cases := []struct {
+		name, from, to, mode string
+		excluded             bool
+	}{
+		{"multi-minor pair across C", "1.21.0", "1.30.0", "crossing", false},
+		{"patch pair across C", "1.24.17", "1.25.3", "crossing", false},
+		{"pair below C", "1.21.0", "1.24.9", "", true},
+		{"pair at the cap", "1.21.0", "1.36.0", "", true},
+		{"pair past C", "1.26.0", "1.30.0", "", true},
+		{"anchor", "1.24.0", "1.25.0", "", false},
+	}
+	for _, tc := range cases {
+		if got := projectFilter("kubernetes", tc.from, tc.to, "kubernetes", subject); got != tc.excluded {
+			t.Errorf("%s: excluded=%v want %v", tc.name, got, tc.excluded)
+		}
+		if got := queryMatchMode(subject, tc.from, tc.to); got != tc.mode {
+			t.Errorf("%s: matchMode=%q want %q", tc.name, got, tc.mode)
+		}
+	}
+	// Without the crossing the same multi-minor pair is not listed.
+	plain := Check{Component: check.Component, From: check.From, To: check.To}.Transition()
+	if !projectFilter("kubernetes", "1.21.0", "1.30.0", "kubernetes", plain) {
+		t.Error("a rule without a crossing listed a multi-minor pair")
+	}
+}

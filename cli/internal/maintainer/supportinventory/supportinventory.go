@@ -580,6 +580,7 @@ var cncfPackLevels = []packLevel{
 	{"prufyx.io/cncf-source-rule-pack/v1alpha8", anyRule(constraintengine.AnySeverityRule)},
 	{"prufyx.io/cncf-source-rule-pack/v1alpha9", hasMember(distribution.PackMember)},
 	{"prufyx.io/cncf-source-rule-pack/v1alpha10", hasMember(servedapis.PackMember)},
+	{"prufyx.io/cncf-source-rule-pack/v1alpha11", anyRule(constraintengine.AnyCrossingRule)},
 }
 
 // communityPackLevels is the community-project pack loader's table.

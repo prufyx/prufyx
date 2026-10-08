@@ -294,6 +294,7 @@ func (r *customResourceRun) finding(rule cncfcheck.ScanRule, claim constrainteng
 	if claim.SubjectMatch != nil {
 		finding.Match = claim.SubjectMatch.Mode
 	}
+	markCrossing(&finding, rule, claim, false)
 	if claim.EvidenceExtractor != nil {
 		finding.Extractor = claim.EvidenceExtractor.ID + "@" + claim.EvidenceExtractor.Version
 	}

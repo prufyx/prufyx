@@ -32,6 +32,12 @@ func ruleApplicability(input inputDocument, scope map[string]struct{}, candidate
 		return applicabilityOutOfScope, ""
 	}
 	if _, reason := subjectAvailability(input, candidate.transition()); reason != "" {
+		// Only a reason that rests on declared evidence excludes a rule;
+		// a hop that crosses a cited removal the rule does not cover is
+		// undetermined.
+		if _, excluded := exclusionReasons[reason]; !excluded {
+			return ApplicabilityUndetermined, reason
+		}
 		return ApplicabilityNotApplicable, reason
 	}
 	for _, applicability := range candidate.AppliesWhen {
@@ -151,7 +157,7 @@ func deriveAssessment(scope *ScopeCompleteness, claims []Claim) (string, string,
 	rangeMatched := make(map[string]bool, len(claims))
 	for _, claim := range claims {
 		statuses[claim.RuleID] = claim.Status
-		rangeMatched[claim.RuleID] = claim.SubjectMatch != nil
+		rangeMatched[claim.RuleID] = claim.SubjectMatch != nil || claim.CrossingMatch != nil
 	}
 	required, verified := 0, 0
 	blockers := []validation.VerifiedBlocker{}
@@ -281,7 +287,7 @@ func validScopeBlock(scope *ScopeCompleteness, claims []Claim, engineDigest stri
 	if scope.NoticeRules != notices || scope.LeadRules != leads {
 		return false
 	}
-	severityScope := scope.ContractDigest == scopeContractDigestSeverity()
+	severityScope := scope.ContractDigest == scopeContractDigestSeverity() || scope.ContractDigest == scopeContractDigestCrossing()
 	basisScope := scope.ContractDigest == scopeContractDigestBasis() || severityScope
 	statuses, reasons := make(map[string]string, len(claims)), make(map[string]string, len(claims))
 	for _, claim := range claims {

@@ -545,6 +545,10 @@ func validPackSchema(pack packDocument) bool {
 	if severity, err := constraintengine.AnySeverityRule(rules); err != nil || severity {
 		return false
 	}
+	// Nor removal-crossing rules.
+	if crossing, err := constraintengine.AnyCrossingRule(rules); err != nil || crossing {
+		return false
+	}
 	ranged, err := constraintengine.AnyRanged(rules)
 	if err != nil {
 		return false

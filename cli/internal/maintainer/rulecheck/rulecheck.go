@@ -97,10 +97,16 @@ type ruleBody struct {
 	Intermediate string                         `json:"intermediate,omitempty"`
 	// Severity is optional ("unsupported" on a support-range rule); the
 	// engine decides whether it is valid.
-	Severity   string       `json:"severity,omitempty"`
-	Evidence   evidenceBody `json:"evidence"`
-	ReasonCode string       `json:"reasonCode"`
-	NextAction string       `json:"nextAction"`
+	Severity string `json:"severity,omitempty"`
+	// Crossing is optional, exactly as the engine's own rule schema has it:
+	// a removal at release C blocks every strict hop A < C <= B below a
+	// cited, finite horizon. The gate below checks the contribution
+	// requirements and restates the engine's structural guards with readable
+	// messages; the engine's ParseRuleSet remains the authority.
+	Crossing   *constraintengine.CrossingSpec `json:"crossing,omitempty"`
+	Evidence   evidenceBody                   `json:"evidence"`
+	ReasonCode string                         `json:"reasonCode"`
+	NextAction string                         `json:"nextAction"`
 }
 
 type transition struct {
@@ -383,6 +389,12 @@ func checkEntry(index int, entry Entry, opts Options) ([]Finding, string, bool) 
 	if body.Range != nil && !opts.AllowRange {
 		for _, problem := range communityRangeProblems(body) {
 			addRule(ruleID, "range", "rule.range is not accepted from a community contribution: %s", problem)
+		}
+	}
+
+	if body.Crossing != nil {
+		for _, problem := range crossingProblems(body) {
+			addRule(ruleID, "crossing", "rule.crossing is not acceptable: %s", problem)
 		}
 	}
 
@@ -868,6 +880,106 @@ func communityRangeProblems(body ruleBody) []string {
 		}
 		if !r.From.Contains(body.Subject.From) || !r.To.Contains(body.Subject.To) {
 			problems = append(problems, "the anchor subject.from/subject.to must lie inside the range")
+		}
+	}
+	return problems
+}
+
+// crossingProblems is the contribution-time gate for rule.crossing. A
+// crossing blocks every strict hop A < C <= B below a horizon, so it is only
+// as sound as its citations: it is accepted only on a forbid operator, only
+// as a removal (REMOVED_IN_RELEASE), and only with a finite horizon
+// (REVIEWED_THROUGH_MINOR_LINE) cited to one of the rule's own evidence
+// sources. It also states, with a readable message each, the structural
+// guards the engine's ParseRuleSet applies to the same rule (minor-line
+// starts, a horizon within the engine's limit, an anchor pair inside the
+// crossing region, a restoration above the change and the range, a range that
+// pins the same release): ParseRuleSet runs afterwards and stays the
+// authority, and the tests keep the two aligned case by case.
+func crossingProblems(body ruleBody) []string {
+	c := body.Crossing
+	var problems []string
+	if body.Operator != "forbid_predicate_value" && body.Operator != constraintengine.OperatorForbidSetMember {
+		problems = append(problems, fmt.Sprintf("crossing is only valid on forbid_predicate_value or forbid_set_member, got operator %q", body.Operator))
+	}
+	if body.Evidence.Basis == constraintengine.BasisConsensus || body.Evidence.Basis == constraintengine.BasisLead {
+		problems = append(problems, "crossing cannot sit on a consensus or lead rule")
+	}
+	sources := map[string]bool{}
+	for _, source := range body.Evidence.Sources {
+		sources[source.ID] = true
+	}
+	cited := func(name, id string) {
+		if id == "" || !sources[id] {
+			problems = append(problems, fmt.Sprintf("crossing %s.sourceId %q does not name one of the rule's evidence sources; an uncited %s is rejected", name, id, name))
+		}
+	}
+	// minorLine reports a version that is a finite minor-line start X.Y.0.
+	minorLine := func(name, v string) bool {
+		if v == "" || !constraintengine.SameVersion(v, v) {
+			problems = append(problems, fmt.Sprintf("crossing %s %q is missing or not a release version; an infinite or open-ended horizon is rejected", name, v))
+			return false
+		}
+		if !constraintengine.MinorLineStart(v) {
+			problems = append(problems, fmt.Sprintf("crossing %s %q must be a minor-line start X.Y.0", name, v))
+			return false
+		}
+		return true
+	}
+	if c.Change.Basis != constraintengine.BasisRemovedInRelease {
+		problems = append(problems, fmt.Sprintf("crossing.change.basis is %q, want %s", c.Change.Basis, constraintengine.BasisRemovedInRelease))
+	}
+	if c.Horizon.Basis != constraintengine.BasisReviewedThroughMinorLine {
+		problems = append(problems, fmt.Sprintf("crossing.horizon.basis is %q, want %s", c.Horizon.Basis, constraintengine.BasisReviewedThroughMinorLine))
+	}
+	changeOK := minorLine("change.version", c.Change.Version)
+	horizonOK := minorLine("horizon.lt", c.Horizon.Lt)
+	cited("change", c.Change.SourceID)
+	cited("horizon", c.Horizon.SourceID)
+	if changeOK && horizonOK {
+		switch {
+		case !constraintengine.VersionLess(c.Change.Version, c.Horizon.Lt):
+			problems = append(problems, "crossing.horizon.lt must be above crossing.change.version")
+		case !constraintengine.CrossingHorizonWithinLimit(c.Change.Version, c.Horizon.Lt):
+			problems = append(problems, fmt.Sprintf("crossing.horizon.lt must stay in the change version's major line and at most %d minor lines above it", constraintengine.CrossingMaxHorizonLines))
+		}
+	}
+	if c.Restored != nil {
+		if c.Restored.Basis != constraintengine.BasisRestoredInRelease {
+			problems = append(problems, fmt.Sprintf("crossing.restored.basis is %q, want %s", c.Restored.Basis, constraintengine.BasisRestoredInRelease))
+		}
+		restoredOK := minorLine("restored.version", c.Restored.Version)
+		cited("restored", c.Restored.SourceID)
+		if restoredOK && changeOK && !constraintengine.VersionLess(c.Change.Version, c.Restored.Version) {
+			problems = append(problems, "crossing.restored.version must be above crossing.change.version")
+		}
+		if restoredOK && body.Range != nil && constraintengine.VersionLess(c.Restored.Version, body.Range.To.Lt) {
+			problems = append(problems, "crossing.restored.version must not be below the end of the rule's range target side")
+		}
+		if restoredOK && horizonOK && constraintengine.VersionLess(c.Horizon.Lt, c.Restored.Version) {
+			problems = append(problems, "crossing.restored.version must not be above crossing.horizon.lt")
+		}
+	}
+	if body.Range != nil && changeOK && (!constraintengine.SameVersion(body.Range.From.Lt, c.Change.Version) || !constraintengine.SameVersion(body.Range.To.Gte, c.Change.Version)) {
+		problems = append(problems, "crossing.change.version must equal range.from.lt and range.to.gte")
+	}
+	if changeOK && horizonOK && constraintengine.VersionLess(c.Change.Version, c.Horizon.Lt) {
+		spec := constraintengine.CrossingSpec{Change: c.Change, Horizon: c.Horizon, Restored: c.Restored}
+		if !spec.Crosses(body.Subject.From, body.Subject.To) {
+			problems = append(problems, fmt.Sprintf("the anchor pair %s -> %s must cross crossing.change.version %s below the cap", body.Subject.From, body.Subject.To, c.Change.Version))
+		}
+	}
+	if c.Distributions != nil {
+		if len(c.Distributions) == 0 {
+			problems = append(problems, "crossing.distributions must be non-empty when present")
+		}
+		for i, name := range c.Distributions {
+			switch {
+			case !constraintengine.ReviewedDistribution(name):
+				problems = append(problems, fmt.Sprintf("crossing.distributions[%d] %q is not a reviewed distribution (%s)", i, name, strings.Join(constraintengine.ReviewedDistributions(), ", ")))
+			case i > 0 && c.Distributions[i-1] >= name:
+				problems = append(problems, "crossing.distributions must be strictly ascending without duplicates")
+			}
 		}
 	}
 	return problems

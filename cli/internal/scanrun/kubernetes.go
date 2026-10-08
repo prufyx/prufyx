@@ -124,7 +124,7 @@ func (r *kubernetesRun) evaluate(from, to string) error {
 		path.Hops = append(path.Hops, evaluated)
 	}
 	if len(plan.Hops) > 1 {
-		if err := r.wholeUpgrade(from, to); err != nil {
+		if err := r.wholeUpgrade(from, to, plan); err != nil {
 			return err
 		}
 	}
@@ -421,6 +421,12 @@ func (r *kubernetesRun) evaluateTransition(from, to string) (evaluation, error) 
 			return evaluation{}, ErrIntegrity
 		case rule.Severity != "" && (neutral || claim.Status == "BLOCKED"):
 			return evaluation{}, ErrIntegrity
+		case claim.CrossingMatch != nil && claim.Status == "BLOCKED" && r.declarations.distribution != "official_upstream":
+			// The engine input carries plain versions with no distribution,
+			// which a crossing reads as upstream. Only a declared upstream
+			// build makes that true; any other declaration prepares no fact
+			// a crossing could block on, so a crossing BLOCK here is a fault.
+			return evaluation{}, ErrIntegrity
 		}
 		claims[claim.RuleID] = claim
 	}
@@ -435,18 +441,19 @@ type judgement struct {
 	facts []string
 }
 
-// judge decides one rule that covers the transition from its claim. A rule
+// judge decides one rule that covers the transition from its claim, or whose
+// removal crossing does (viaCrossing, BLOCKED only). A rule
 // without a claim needs evidence the scan does not collect. Only PASS,
 // BLOCKED and an UNKNOWN that the engine reports for a rule that does not
 // apply are decided; every other result is a gap.
-func (r *kubernetesRun) judge(rule cncfcheck.ScanRule, eval evaluation, ref scanreport.HopRef) judgement {
+func (r *kubernetesRun) judge(rule cncfcheck.ScanRule, eval evaluation, ref scanreport.HopRef, viaCrossing bool) judgement {
 	claim, found := eval.claims[rule.Scope.ID]
 	if !found {
 		return judgement{reasons: []string{r.gap(&ref, scanreport.GapRuleNeedsOtherEvidence, rule.Scope.ID, kubernetesSlug)}}
 	}
 	switch claim.Status {
 	case "BLOCKED":
-		r.finding(rule, claim, eval, ref)
+		r.finding(rule, claim, eval, ref, viaCrossing)
 		return judgement{decided: true, blocked: true, facts: claimFacts(claim)}
 	case "PASS":
 		key := rule.Scope.ID + "\x00" + ref.From + "\x00" + ref.To + "\x00" + strconv.FormatBool(ref.WholeUpgrade)
@@ -617,12 +624,22 @@ func (r *kubernetesRun) hop(hop upgradepath.Hop, unplanned bool) (scanreport.Hop
 	decidedRules := map[string]bool{}
 	verdictFacts := map[string]bool{}
 	for _, rule := range applicable {
+		viaCrossing := false
 		if !hop.CoveredBy(rule.Scope.Transition) {
-			// The rule applies to some releases of the hop and not to
-			// others; whatever it said at the engine input is downgraded.
-			decidedAll = false
-			result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapIntermediateLine, rule.Scope.ID))
-			continue
+			// A removal crossing covers the whole hop even when no reviewed
+			// range does: its BLOCKED claim holds for every release the hop
+			// stands for (a crossing only blocks, never passes), so the
+			// blocker is kept. Anything else it said at the engine input is
+			// downgraded, as for any rule that covers only part of the hop.
+			claim, found := eval.claims[rule.Scope.ID]
+			if !found || claim.Status != "BLOCKED" || !hop.CrossingCovers(rule.Scope.Transition) {
+				// The rule applies to some releases of the hop and not to
+				// others; whatever it said at the engine input is downgraded.
+				decidedAll = false
+				result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapIntermediateLine, rule.Scope.ID))
+				continue
+			}
+			viaCrossing = true
 		}
 		if !r.policy.Admits(rule.Basis) {
 			// The trust policy left the rule out: it was not evaluated.
@@ -631,7 +648,7 @@ func (r *kubernetesRun) hop(hop upgradepath.Hop, unplanned bool) (scanreport.Hop
 			result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapRuleTrustPolicy, rule.Scope.ID, rule.Basis))
 			continue
 		}
-		judged := r.judge(rule, eval, ref)
+		judged := r.judge(rule, eval, ref, viaCrossing)
 		for _, fact := range judged.facts {
 			verdictFacts[fact] = true
 		}
@@ -790,7 +807,15 @@ func previousLine(line string) string {
 // wholeUpgrade evaluates the end-to-end transition for rules that span
 // several lines and so match no single hop. A rule that matches it is judged
 // like a rule of a hop; a blocker there is never lost.
-func (r *kubernetesRun) wholeUpgrade(from, to string) error {
+//
+// A rule that matches it only by removal crossing is not judged again when a
+// planned hop already examined its crossing (the hop overlapped the rule and
+// both ends are evaluable): the hop that enters the removal line is where the
+// removed-API facts are prepared, so the whole-upgrade input would only read
+// them as unavailable and add a gap the hop already decided or reported. A
+// crossing that no planned hop examines (for example under a major-line plan)
+// is judged here, and a BLOCKED claim is always judged.
+func (r *kubernetesRun) wholeUpgrade(from, to string, plan upgradepath.Plan) error {
 	eval, err := r.evaluateTransition(from, to)
 	if err != nil {
 		return err
@@ -807,7 +832,11 @@ func (r *kubernetesRun) wholeUpgrade(from, to string) error {
 		}
 	}
 	for _, rule := range r.rules {
-		if rule.Scope.Component != r.component || rule.Scope.Transition.Match(from, to) == constraintengine.MatchNone {
+		mode := rule.Scope.Transition.Match(from, to)
+		if rule.Scope.Component != r.component || mode == constraintengine.MatchNone {
+			continue
+		}
+		if mode == constraintengine.MatchCrossing && eval.claims[rule.Scope.ID].Status != "BLOCKED" && examinedByAHop(plan, rule) {
 			continue
 		}
 		if r.neutral(rule, eval, ref, true) {
@@ -818,14 +847,28 @@ func (r *kubernetesRun) wholeUpgrade(from, to string) error {
 			r.gap(&ref, scanreport.GapRuleTrustPolicy, rule.Scope.ID, rule.Basis)
 			continue
 		}
-		r.judge(rule, eval, ref)
+		r.judge(rule, eval, ref, false)
 	}
 	return nil
 }
 
+// examinedByAHop reports whether some planned hop with evaluable ends
+// overlaps the rule's subject, so the hop-level evaluation already examined
+// it.
+func examinedByAHop(plan upgradepath.Plan, rule cncfcheck.ScanRule) bool {
+	for _, hop := range plan.Hops {
+		_, fromOK := hop.From.EngineVersion()
+		_, toOK := hop.To.EngineVersion()
+		if fromOK && toOK && hop.Overlaps(rule.Scope.Transition) {
+			return true
+		}
+	}
+	return false
+}
+
 // finding records a BLOCKED claim: once per rule, at the first hop where it
 // blocks, with the later hops in AlsoAt.
-func (r *kubernetesRun) finding(rule cncfcheck.ScanRule, claim constraintengine.Claim, eval evaluation, ref scanreport.HopRef) {
+func (r *kubernetesRun) finding(rule cncfcheck.ScanRule, claim constraintengine.Claim, eval evaluation, ref scanreport.HopRef, viaCrossing bool) {
 	if index, found := r.findings[rule.Scope.ID]; found {
 		finding := &r.report.Findings[index]
 		if finding.Hop != ref {
@@ -846,6 +889,7 @@ func (r *kubernetesRun) finding(rule cncfcheck.ScanRule, claim constraintengine.
 	if claim.SubjectMatch != nil {
 		finding.Match = claim.SubjectMatch.Mode
 	}
+	markCrossing(&finding, rule, claim, viaCrossing)
 	if claim.EvidenceExtractor != nil {
 		finding.Extractor = claim.EvidenceExtractor.ID + "@" + claim.EvidenceExtractor.Version
 	}
@@ -997,4 +1041,19 @@ func (r *kubernetesRun) unsupported(rule cncfcheck.ScanRule, claim constrainteng
 	}
 	r.report.Unsupported = append(r.report.Unsupported, scanreport.Unsupported{RuleID: rule.Scope.ID, Component: kubernetesSlug, Hop: ref, Reason: claim.ReasonCode, Fix: rule.NextAction,
 		Basis: constraintengine.EffectiveBasis(claim.EvidenceBasis), Citations: append([]constraintengine.SourceEvidence{}, claim.Sources...)})
+}
+
+// markCrossing makes a finding a crossing finding when the claim matched by
+// removal crossing, or when only the crossing covers the whole hop
+// (viaCrossing): its match is "crossing", it carries the disclosure and the
+// next action names the crossing. Otherwise it leaves the finding alone.
+func markCrossing(finding *scanreport.Finding, rule cncfcheck.ScanRule, claim constraintengine.Claim, viaCrossing bool) {
+	switch {
+	case claim.CrossingMatch != nil:
+		match := *claim.CrossingMatch
+		finding.Match, finding.Crossing, finding.Fix = claim.CrossingMatch.Mode, &match, claim.NextAction
+	case viaCrossing:
+		finding.Match, finding.Crossing = "crossing", constraintengine.NewCrossingMatch(rule.Scope.Transition)
+		finding.Fix = constraintengine.CrossingNextAction(rule.NextAction, rule.Scope.Transition)
+	}
 }

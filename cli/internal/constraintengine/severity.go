@@ -168,7 +168,7 @@ func ScopeContractDigestSeverity() string { return scopeContractDigestSeverity()
 // and is never BLOCKED or NOTICE and never a consensus or lead claim; UNSUPPORTED comes only
 // from a severity claim with current evidence and a reason code of its own.
 func validSeverityClaims(report Report) bool {
-	severityContract := report.EngineContractDigest == engineContractDigestSeverity()
+	severityContract := atLeastSeverityContract(report.EngineContractDigest)
 	for _, claim := range report.Claims {
 		if claim.Severity != "" {
 			if !severityContract || claim.Severity != SeverityUnsupported || claim.Operator != "require_component_version" || claim.IsLead() || claim.EvidenceBasis == BasisConsensus || claim.Status == "BLOCKED" || claim.Status == StatusNotice || claim.MatchedMembers != nil {
