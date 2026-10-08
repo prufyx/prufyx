@@ -482,14 +482,14 @@ func Compute(in Input) (Report, error) {
 }
 
 // classify decides one pair, strongest status first: A, B, S, G.
-func classify(project, from, to string, rules []*ruleRec, atts []lineattest.LineAttestation, byID map[string]*ruleRec) Pair {
-	pair := Pair{From: from, To: to, Status: StatusG}
+func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineattest.LineAttestation, byID map[string]*ruleRec) Pair {
+	pair := Pair{From: fromLine, To: toLine, Status: StatusG}
 	if lineMapped(project) {
-		if fams := attestedFamilies(from, to, atts, byID); len(fams) > 0 {
+		if fams := attestedFamilies(fromLine, toLine, atts, byID); len(fams) > 0 {
 			pair.Status, pair.Families = StatusA, fams
 			return pair
 		}
-		if fams, ok := boundedFamilies(from, to, rules); ok {
+		if fams, ok := boundedFamilies(fromLine, toLine, rules); ok {
 			pair.Status, pair.Families = StatusB, fams
 			return pair
 		}
@@ -500,7 +500,7 @@ func classify(project, from, to string, rules []*ruleRec, atts []lineattest.Line
 		}
 		rf, ok1 := versionLine(project, r.tr.From)
 		rt, ok2 := versionLine(project, r.tr.To)
-		if ok1 && ok2 && rf == from && rt == to {
+		if ok1 && ok2 && rf == fromLine && rt == toLine {
 			pair.Status = StatusS
 			return pair
 		}
@@ -509,16 +509,16 @@ func classify(project, from, to string, rules []*ruleRec, atts []lineattest.Line
 }
 
 // attestedFamilies returns the families with a current attestation for the
-// target line whose hop is exactly from->to and whose listed rules are all
+// target line whose hop is exactly fromLine->toLine and whose listed rules are all
 // valid and line-wide for that line.
-func attestedFamilies(from, to string, atts []lineattest.LineAttestation, byID map[string]*ruleRec) []string {
-	previous, ok := previousLine(to)
-	if !ok || previous != from {
+func attestedFamilies(fromLine, toLine string, atts []lineattest.LineAttestation, byID map[string]*ruleRec) []string {
+	previous, ok := previousLine(toLine)
+	if !ok || previous != fromLine {
 		return nil
 	}
 	set := map[string]bool{}
 	for _, a := range atts {
-		if a.Line != to || a.Completeness != lineattest.Completeness {
+		if a.Line != toLine || a.Completeness != lineattest.Completeness {
 			continue
 		}
 		family, ok := lineattest.LookupFamily(a.FactFamily)
@@ -528,7 +528,7 @@ func attestedFamilies(from, to string, atts []lineattest.LineAttestation, byID m
 		wide := true
 		for _, id := range a.RuleIDs {
 			r := byID[id]
-			if r == nil || !r.valid || !family.CoversLine(r.tr, to) {
+			if r == nil || !r.valid || !family.CoversLine(r.tr, toLine) {
 				wide = false
 				break
 			}
@@ -545,22 +545,22 @@ func attestedFamilies(from, to string, atts []lineattest.LineAttestation, byID m
 // removal release lies inside the to line and its crossing region covers the
 // whole from line. The returned families name the rules' fact families, or
 // "other" for a rule outside every attestable family.
-func boundedFamilies(from, to string, rules []*ruleRec) ([]string, bool) {
-	toNext, ok := nextLineStart(to)
+func boundedFamilies(fromLine, toLine string, rules []*ruleRec) ([]string, bool) {
+	toNext, ok := nextLineStart(toLine)
 	if !ok {
 		return nil, false
 	}
-	toBound := constraintengine.VersionBound{Gte: to + ".0", Lt: toNext}
+	toBound := constraintengine.VersionBound{Gte: toLine + ".0", Lt: toNext}
 	set := map[string]bool{}
 	for _, r := range rules {
 		if !r.valid {
 			continue
 		}
 		hit := false
-		if r.tr.Range != nil && r.tr.Range.From.CoversLine(from) && r.tr.Range.To.CoversLine(to) {
+		if r.tr.Range != nil && r.tr.Range.From.CoversLine(fromLine) && r.tr.Range.To.CoversLine(toLine) {
 			hit = true
 		}
-		if cf, ct, ok := r.tr.CrossingBounds(); ok && cf.CoversLine(from) && toBound.Contains(ct.Gte) && constraintengine.VersionLess(ct.Gte, ct.Lt) {
+		if cf, ct, ok := r.tr.CrossingBounds(); ok && cf.CoversLine(fromLine) && toBound.Contains(ct.Gte) && constraintengine.VersionLess(ct.Gte, ct.Lt) {
 			hit = true
 		}
 		if !hit {
