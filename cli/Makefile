@@ -3,7 +3,7 @@ MAINTAINER ?= go run ./cmd/prufyx-maintainer
 RELEASE_POLICY := release/community-shipping-policy-v2.json
 STATICCHECK ?= staticcheck
 
-.PHONY: mutants toolchain-check staticcheck staticcheck-full dco-check release-gate-test release-manifest
+.PHONY: mutants toolchain-check staticcheck staticcheck-full dco-check release-gate-test release-manifest regenerate-pack-goldens
 
 toolchain-check:
 	@version="$$(GOTOOLCHAIN=local $(GO) env GOVERSION)"; test "$$version" = go1.26.8 || { echo "Go 1.26.8 is required; found $$version" >&2; exit 1; }
@@ -26,6 +26,11 @@ dco-check:
 
 release-gate-test:
 	$(GO) test ./internal/maintainer/...
+
+# Regenerate the test artefacts that follow the embedded CNCF rule pack, then run
+# the tests that read it (see the script's header).
+regenerate-pack-goldens:
+	./scripts/regenerate-pack-goldens.sh
 
 release-manifest:
 	@test -n "$(OUTPUT)" || { echo "OUTPUT=/absolute/path/SOURCE-MANIFEST.json is required" >&2; exit 2; }
