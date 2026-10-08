@@ -891,10 +891,19 @@ func convert(source observation.CurrentBundle, options Options) (CurrentBundle, 
 	}, nil
 }
 
+// ImageSourcesDigestAdapter is the adapter name under which a bundle records
+// the digest of the reviewed image registry that produced its image rows (the
+// schema is recorded beside it in the collection metadata and is part of the
+// digested bytes).
+const ImageSourcesDigestAdapter = "image-source-registry"
+
 func adapterBindings(source observation.CurrentBundle, observationAdapterVersion string) []AdapterBinding {
 	adapters := []AdapterBinding{{Name: "observation-to-current-bundle", Version: observationAdapterVersion}}
 	if source.CertManagerProjectionDigest != "" {
 		adapters = append(adapters, AdapterBinding{Name: "cert-manager-projection", Version: source.CertManagerProjectionDigest})
+	}
+	if source.ImageSourcesDigest != "" {
+		adapters = append(adapters, AdapterBinding{Name: ImageSourcesDigestAdapter, Version: source.ImageSourcesDigest})
 	}
 	return adapters
 }
@@ -1212,10 +1221,10 @@ func validateBundle(bundle CurrentBundle) error {
 	if bundle.Collector.Profile != "local-observation" || bundle.Collector.NetworkUsed || bundle.Collector.SubprocessUsed || bundle.Collector.ClusterUsed {
 		return fmt.Errorf("invalid collector assurance: %w", ErrInvalid)
 	}
-	if len(bundle.Adapters) < 1 || len(bundle.Adapters) > 2 {
+	if len(bundle.Adapters) < 1 || len(bundle.Adapters) > 3 {
 		return fmt.Errorf("invalid adapter bindings: %w", ErrInvalid)
 	}
-	certProjectionAdapterSeen := false
+	certProjectionAdapterSeen, imageSourcesAdapterSeen := false, false
 	observationAdapterVersion := ""
 	for _, adapter := range bundle.Adapters {
 		switch adapter.Name {
@@ -1229,6 +1238,11 @@ func validateBundle(bundle CurrentBundle) error {
 				return fmt.Errorf("invalid cert-manager projection adapter binding: %w", ErrInvalid)
 			}
 			certProjectionAdapterSeen = true
+		case ImageSourcesDigestAdapter:
+			if imageSourcesAdapterSeen || !digestRE.MatchString(adapter.Version) {
+				return fmt.Errorf("invalid image sources adapter binding: %w", ErrInvalid)
+			}
+			imageSourcesAdapterSeen = true
 		default:
 			return fmt.Errorf("invalid adapter binding: %w", ErrInvalid)
 		}

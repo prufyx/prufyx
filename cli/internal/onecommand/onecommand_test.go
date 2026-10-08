@@ -184,11 +184,12 @@ func TestRunClassifiesThreeWaySplit(t *testing.T) {
 		t.Fatalf("kubernetes 1.31.0 applicability=%q reason=%q", kube.Applicability, kube.Reason)
 	}
 
-	// A project the collector's adapter registry has no identity for at all
-	// (e.g. grafana) is always indeterminate, never a claimed absence.
+	// A project neither the collector's adapter registry nor the reviewed
+	// image registry identifies (e.g. loki) is always indeterminate, never a
+	// claimed absence.
 	for _, c := range ctxReport.Checks {
-		if c.Project == "grafana" && c.Applicability != IndeterminateNotObservable {
-			t.Fatalf("grafana %s applicability=%q, want INDETERMINATE_NOT_OBSERVABLE", c.RuleID, c.Applicability)
+		if c.Project == "loki" && c.Applicability != IndeterminateNotObservable {
+			t.Fatalf("loki %s applicability=%q, want INDETERMINATE_NOT_OBSERVABLE", c.RuleID, c.Applicability)
 		}
 	}
 

@@ -42,7 +42,7 @@ func TestProjectWorkloadV2AndPrivacy(t *testing.T) {
 		map[string]any{"image": "docker.io/prom/prometheus:v2.55.1", "args": []any{"--web.enable-admin-api", "--log.level=warn"}},
 		map[string]any{"image": "private.invalid/team/private:secret", "args": []any{"--private=secret"}},
 	}, nil)
-	result, err := projectWorkload(root, adapter, "v2")
+	result, err := projectWorkload(root, adapter, "v2", testNow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestProjectWorkloadV3SourceBoundPrometheus(t *testing.T) {
 		t.Fatal(err)
 	}
 	image := "prom/prometheus:v2.55.1@sha256:f4def6b3b61109a6eeea59945d578bb7e926c36cb0e036a23e3ceb8b6de024ad"
-	result, err := projectWorkload(workload("Deployment", []any{map[string]any{"image": image, "args": []any{"--enable-feature=agent"}}}, nil), adapter, "v3")
+	result, err := projectWorkload(workload("Deployment", []any{map[string]any{"image": image, "args": []any{"--enable-feature=agent"}}}, nil), adapter, "v3", testNow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +150,7 @@ func TestProjectWorkloadV3PrometheusArgumentBoundaries(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			result, err := projectWorkload(normalized, assets, "v3")
+			result, err := projectWorkload(normalized, assets, "v3", testNow)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -177,7 +177,7 @@ func TestProjectWorkloadV3RejectsAliasAndAmbiguousRole(t *testing.T) {
 		t.Fatal(err)
 	}
 	alias := "index.docker.io/prom/prometheus:v2.55.1@sha256:f4def6b3b61109a6eeea59945d578bb7e926c36cb0e036a23e3ceb8b6de024ad"
-	result, err := projectWorkload(workload("Deployment", []any{map[string]any{"image": alias, "args": []any{}}}, nil), adapter, "v3")
+	result, err := projectWorkload(workload("Deployment", []any{map[string]any{"image": alias, "args": []any{}}}, nil), adapter, "v3", testNow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +186,7 @@ func TestProjectWorkloadV3RejectsAliasAndAmbiguousRole(t *testing.T) {
 		t.Fatalf("alias gained authority: %#v", rows)
 	}
 	image := "prom/prometheus:v2.55.1@sha256:f4def6b3b61109a6eeea59945d578bb7e926c36cb0e036a23e3ceb8b6de024ad"
-	result, err = projectWorkload(workload("Deployment", []any{map[string]any{"image": image, "args": []any{}}, map[string]any{"image": image, "args": []any{}}}, nil), adapter, "v3")
+	result, err = projectWorkload(workload("Deployment", []any{map[string]any{"image": image, "args": []any{}}, map[string]any{"image": image, "args": []any{}}}, nil), adapter, "v3", testNow)
 	if err != nil {
 		t.Fatal(err)
 	}

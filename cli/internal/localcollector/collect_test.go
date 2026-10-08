@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/imageidentity"
 )
 
 type fakeRunner struct {
@@ -206,6 +208,9 @@ func TestCollectWithFakeKubectl(t *testing.T) {
 	}
 	if metadata["componentConfigurationFilterDigest"] != digest(componentFilterContract("v3")) || metadata["kubectlBoundedRunnerDigest"] != digest(boundedRunnerContract) {
 		t.Fatalf("behavior-contract digests not bound: %#v", metadata)
+	}
+	if metadata["imageSourcesDigest"] != imageidentity.Digest() || metadata["imageSourcesSchema"] != imageidentity.Schema || imageidentity.Digest() == "" {
+		t.Fatalf("image registry digest and schema not recorded: %#v", metadata)
 	}
 	var surface map[string]any
 	surfaceRaw, err := os.ReadFile(filepath.Join(dir, "000", "component-configuration-surface.json"))

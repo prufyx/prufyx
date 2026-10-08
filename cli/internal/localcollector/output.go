@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/imageidentity"
 )
 
 func isWorkload(name string) bool {
@@ -175,6 +177,7 @@ func observationMetadata(now time.Time, ctxHash, status string, omissionCount in
 			"pageProjectionDigest": digest([]byte(`{"kind":"prufyx.io/collector-behavior-contract","name":"crd-page-projector","version":"v2-go"}`)),
 			"finalMergeDigest":     digest([]byte(`{"kind":"prufyx.io/collector-behavior-contract","name":"crd-page-merge","version":"v2-go"}`)),
 		},
+		"imageSourcesDigest": imageidentity.Digest(), "imageSourcesSchema": imageidentity.Schema,
 		"omissionCount":      omissionCount,
 		"dataClassification": "confidential local inventory", "authority": "local unsigned API observation",
 		"evaluationEligible": false, "notACompatibilitySnapshot": true,

@@ -27,6 +27,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/checkroutemetadata"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
+	"github.com/prufyx/prufyx/cli/internal/imageidentity"
 	"github.com/prufyx/prufyx/cli/internal/localcollector"
 	"github.com/prufyx/prufyx/cli/internal/observation"
 	"github.com/prufyx/prufyx/cli/internal/projectcheck"
@@ -74,8 +75,10 @@ const scopeSuppliedNote = "This aggregate is the constraint engine's own recompu
 // 'pkg:oci/cilium/cilium' adapter identify the same upstream project", which
 // both already-reviewed sources independently assert.
 //
-// Every catalog project not listed here has no observation basis at all in
-// the current collector: its checks are always INDETERMINATE_NOT_OBSERVABLE.
+// The reviewed image registry (imageidentity) extends this map at run time
+// with the catalog projects whose images it identifies and whose records are
+// still valid (see observableComponent). Every catalog project in neither
+// source has no observation basis: its checks are INDETERMINATE_NOT_OBSERVABLE.
 var observableComponents = map[string]string{
 	"prometheus":     "pkg:oci/prometheus/prometheus",
 	"cilium":         "pkg:oci/cilium/cilium",
@@ -84,6 +87,19 @@ var observableComponents = map[string]string{
 }
 
 const kubernetesProject = "kubernetes"
+
+// observableComponent resolves a catalog project to the component id the
+// collector reports for it. The adapter map wins; the image registry adds
+// projects only while their record is active and unexpired at now, so a lapsed
+// record turns a project back into INDETERMINATE_NOT_OBSERVABLE instead of
+// letting a missing image read as an absent component.
+func observableComponent(project string, now time.Time) (string, bool) {
+	if id, ok := observableComponents[project]; ok {
+		return id, true
+	}
+	id, ok := imageidentity.ObservableComponents(now)[project]
+	return id, ok
+}
 
 // Options drives one collection-and-classification run. It intentionally
 // mirrors localcollector.Options for the collection half; nothing here
@@ -392,7 +408,7 @@ func assessOneContext(ctx context.Context, opts Options, contextName, outputRoot
 		Checks:           make([]CheckAssessment, 0, len(routes)),
 	}
 	for _, route := range routes {
-		checkAssessment := classify(route, bundle, partial, opts.To)
+		checkAssessment := classify(route, bundle, partial, opts.To, now)
 		assessment.Checks = append(assessment.Checks, checkAssessment)
 		tally(&assessment.Summary, checkAssessment.Applicability)
 	}
@@ -426,7 +442,24 @@ func tally(summary *ApplicabilitySummary, applicability string) {
 	}
 }
 
-func classify(route checkroutemetadata.Check, bundle currentbundle.CurrentBundle, contextPartial bool, to string) CheckAssessment {
+// bundleUsesThisImageRegistry reports whether the bundle records exactly the
+// embedded image registry's digest as its image-row source.
+func bundleUsesThisImageRegistry(bundle currentbundle.CurrentBundle) bool {
+	digest := imageidentity.Digest()
+	return digest != "" &&
+		hasAdapter(bundle.Adapters, currentbundle.ImageSourcesDigestAdapter, digest)
+}
+
+func hasAdapter(adapters []currentbundle.AdapterBinding, name, version string) bool {
+	for _, a := range adapters {
+		if a.Name == name && a.Version == version {
+			return true
+		}
+	}
+	return false
+}
+
+func classify(route checkroutemetadata.Check, bundle currentbundle.CurrentBundle, contextPartial bool, to string, now time.Time) CheckAssessment {
 	base := CheckAssessment{
 		Project:   route.Project,
 		Component: route.Component,
@@ -439,14 +472,30 @@ func classify(route checkroutemetadata.Check, bundle currentbundle.CurrentBundle
 	if route.Project == kubernetesProject {
 		return classifyKubernetes(base, route, bundle, contextPartial, to)
 	}
-	componentID, observable := observableComponents[route.Project]
+	componentID, observable := observableComponent(route.Project, now)
 	if !observable {
 		base.Applicability = IndeterminateNotObservable
-		base.Reason = "This check's target project is not one of the components the collector's reviewed adapter registry can identify from container images. Presence, absence, and version are all unknown from collected state; determine applicability manually with the expert-path command shown below."
+		base.Reason = "This check's target project is not one of the components the collector's reviewed adapter registry or reviewed image registry can identify from container images. Presence, absence, and version are all unknown from collected state; determine applicability manually with the expert-path command shown below."
+		return base
+	}
+	if _, adapter := observableComponents[route.Project]; !adapter && !bundleUsesThisImageRegistry(bundle) {
+		// A registry-only component is read from rows the bundle says were
+		// produced by a reviewed image table. If the bundle does not name this
+		// binary's table, its rows cannot be attributed to it.
+		base.Applicability = IndeterminateNotObservable
+		base.Reason = "The collected bundle does not record the reviewed image registry this tool carries (its digest is missing or differs), so its image-derived component rows cannot be attributed to a known registry. Recollect with this version, or determine applicability manually with the expert-path command shown below."
 		return base
 	}
 	component, found := findComponent(bundle, componentID)
 	if !found {
+		if _, adapter := observableComponents[route.Project]; !adapter {
+			// Registry-only component: the image registry sees only images,
+			// and a private mirror or rebuilt image is invisible to it, so a
+			// missing image never proves the component is absent.
+			base.Applicability = IndeterminateNotObservable
+			base.Reason = "No image of this component was recognised, but image identification cannot see mirrored or rebuilt images, so absence is not established. Determine applicability manually with the expert-path command shown below."
+			return base
+		}
 		if contextPartial {
 			base.Applicability = IndeterminatePartialCollection
 			base.Reason = "The component was not found, but this context's collection was partial (a declared API read failed or was rejected). Absence is not confirmed; rerun collection without omissions before concluding this check does not apply."
@@ -457,6 +506,11 @@ func classify(route checkroutemetadata.Check, bundle currentbundle.CurrentBundle
 		return base
 	}
 	base.ObservedVersion = component.Version.Value
+	if component.Version.State != "exact" {
+		base.Applicability = IndeterminateNotObservable
+		base.Reason = "The component was observed, but its version could not be established from its image (digest-only, an unrecognised tag, or conflicting versions). Its version is unknown, so this check's applicability is unknown; determine it manually with the expert-path command shown below."
+		return base
+	}
 	// assess --to names a Kubernetes target only; a component's target is its
 	// own declaration, so the component path never consumes it.
 	return classifyOrigin(base, route, component.Version.State == "exact", component.Version.Value, "", false, "The component is present but its observed version does not match this check's declared origin version.")

@@ -238,3 +238,29 @@ example `unsupported_not_found_api` ("API not served by this cluster
 (component likely not installed)"), `projection_filter_rejected` (allow-list
 rejection; please report), and RBAC-forbidden codes ("grant read access to ...").
 An unknown code gets a generic "please report" hint.
+
+## Image-based component detection and its limits
+
+For projects in the reviewed image registry (`cli/internal/imageidentity/data/image-sources.json`),
+`assess` reads presence and version from container images. The rules are
+fail-closed:
+
+- A version is taken only from a tag that follows the record's declared scheme
+  (strict X.Y.Z). Digest-only references, `latest`, pre-release and off-scheme
+  tags, and provider distribution builds give no version.
+- A component with any image that has no usable version, or whose digest-pinned
+  version differs from the other images' version, is unknown or in conflict as a
+  whole. It never takes an exact version from a sibling image.
+- A project that only the registry identifies is never reported absent: when no
+  image is recognised the check is INDETERMINATE_NOT_OBSERVABLE.
+- Records outside the catalog are not collected. The bundle records the digest
+  and schema of the registry; a bundle that does not carry this tool's digest is
+  not used for registry-identified projects.
+
+Known limitation: a version is exact only over the images the registry can see.
+The registry matches exact public repositories, so a private mirror or a
+rebuilt image of the same project is invisible. If such an image runs at another
+version (for example an older replica behind a mirror), the reported version is
+that of the public image alone. Treat an exact version from image detection as
+"the version of the visible images", and declare the version explicitly with the
+native check when mirrors are in use.
