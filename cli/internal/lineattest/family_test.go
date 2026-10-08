@@ -110,11 +110,13 @@ func TestCustomResourceAttestationValidation(t *testing.T) {
 			a.Releases.From[0].Version = "0.49.0"
 		},
 		"later release of another line": func(a *LineAttestation) { a.Releases.To[0].Version = "0.52.0" },
-		"not ascending":                 func(a *LineAttestation) { a.Releases.From[0], a.Releases.From[1] = a.Releases.From[1], a.Releases.From[0] },
-		"repeated release":              func(a *LineAttestation) { a.Releases.From[1] = a.Releases.From[0] },
-		"short commit":                  func(a *LineAttestation) { a.Releases.To[0].Commit = "abc" },
-		"upper-case commit":             func(a *LineAttestation) { a.Releases.To[0].Commit = strings.Repeat("AB", 20) },
-		"not a release version":         func(a *LineAttestation) { a.Releases.To[0].Version = "0.51.0-rc.1" },
+		"not ascending": func(a *LineAttestation) {
+			a.Releases.From[0], a.Releases.From[1] = a.Releases.From[1], a.Releases.From[0]
+		},
+		"repeated release":      func(a *LineAttestation) { a.Releases.From[1] = a.Releases.From[0] },
+		"short commit":          func(a *LineAttestation) { a.Releases.To[0].Commit = "abc" },
+		"upper-case commit":     func(a *LineAttestation) { a.Releases.To[0].Commit = strings.Repeat("AB", 20) },
+		"not a release version": func(a *LineAttestation) { a.Releases.To[0].Version = "0.51.0-rc.1" },
 		"line without a previous minor": func(a *LineAttestation) {
 			a.Line = "1.0"
 			a.Releases.To = []Release{{Version: "1.0.0", Commit: commit(3)}}
