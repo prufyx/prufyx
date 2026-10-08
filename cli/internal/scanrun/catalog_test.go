@@ -451,8 +451,14 @@ func TestScanSchemaRequiredFields(t *testing.T) {
 				t.Errorf("%s.%s: required %t, omitempty %t", name, field, required[field], strings.Contains(options, "omitempty"))
 			}
 		}
-		if len(node.Properties) != typ.NumField() {
-			t.Errorf("%s: schema has %d properties, type %d fields", name, len(node.Properties), typ.NumField())
+		serialized := 0
+		for index := 0; index < typ.NumField(); index++ {
+			if tag := typ.Field(index).Tag.Get("json"); tag != "-" {
+				serialized++
+			}
+		}
+		if len(node.Properties) != serialized {
+			t.Errorf("%s: schema has %d properties, type %d serialized fields", name, len(node.Properties), serialized)
 		}
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -56,7 +57,7 @@ func evaluateRuleVerdict(input inputDocument, rule rule, now time.Time) Claim {
 	}
 	if rule.Evidence.State == "withdrawn" {
 		claim.Status, claim.ReasonCode, claim.EvidenceFreshness = "UNKNOWN", "RULE_EVIDENCE_WITHDRAWN", "withdrawn"
-		claim.NextAction = "select later declared rule source references with active evidence"
+		claim.NextAction = withdrawnAction
 		return claim
 	}
 	reviewed, _ := parseUTC(rule.Evidence.ReviewedAt)
@@ -68,7 +69,7 @@ func evaluateRuleVerdict(input inputDocument, rule rule, now time.Time) Claim {
 	}
 	if !now.Before(validUntil) {
 		claim.Status, claim.ReasonCode, claim.EvidenceFreshness = "UNKNOWN", "RULE_EVIDENCE_STALE", "stale"
-		claim.NextAction = "select later declared rule source references with current evidence"
+		claim.NextAction = staleAction(rule.Evidence.ValidUntil)
 		return claim
 	}
 	claim.EvidenceFreshness = "current"
@@ -102,12 +103,12 @@ func evaluateMatchedRule(input inputDocument, rule rule, claim Claim) Claim {
 		fact, found := findFact(input, applicability.Side, applicability.Component, applicability.FactID)
 		if !found || fact.State != "declared" {
 			claim.Status, claim.ReasonCode = "UNKNOWN", "RULE_APPLICABILITY_FACT_UNAVAILABLE"
-			claim.NextAction = factAction(applicability)
+			claim.NextAction = factAction(rule.ID, applicability)
 			return claim
 		}
 		if !matchesCondition(fact, applicability) {
 			claim.Status, claim.ReasonCode = "UNKNOWN", "RULE_APPLICABILITY_NOT_MATCHED"
-			claim.NextAction = factAction(applicability)
+			claim.NextAction = notApplicableAction(applicability)
 			return claim
 		}
 	}
@@ -119,7 +120,7 @@ func evaluateMatchedRule(input inputDocument, rule rule, claim Claim) Claim {
 		fact, found := findFact(input, rule.Condition.Side, rule.Condition.Component, rule.Condition.FactID)
 		if !found || fact.State != "declared" {
 			claim.Status, claim.ReasonCode = "UNKNOWN", "RULE_FACT_UNAVAILABLE"
-			claim.NextAction = factAction(*rule.Condition)
+			claim.NextAction = factAction(rule.ID, *rule.Condition)
 			return claim
 		}
 		if matchesCondition(fact, *rule.Condition) {
@@ -196,11 +197,11 @@ func subjectAvailability(input inputDocument, subject RuleTransition) (MatchMode
 }
 
 func rangeSubjectAction(subject RuleTransition) string {
-	return boundedAction(fmt.Sprintf(rangeSubjectActionTemplate, subject.Component, subject.Range.From.Gte, subject.Range.From.Lt, subject.Range.To.Gte, subject.Range.To.Lt), "no rule for declared transition; retain actual versions and request reviewed coverage")
+	return boundedAction(fmt.Sprintf(rangeSubjectActionTemplate, subject.Component, subject.Range.From.Gte, subject.Range.From.Lt, subject.Range.To.Gte, subject.Range.To.Lt), "no rule for declared transition; retain actual versions and request reviewed coverage: "+RequestCoverageURL)
 }
 
 func subjectAction(subject transition) string {
-	return boundedAction(fmt.Sprintf("no rule for declared pair; reviewed scope %s %s -> %s; retain actual versions and request coverage", subject.Component, subject.From, subject.To), "no rule for declared transition; retain actual versions and request reviewed coverage")
+	return boundedAction(fmt.Sprintf("no rule for declared pair; reviewed scope %s %s -> %s; retain actual versions and request coverage: %s", subject.Component, subject.From, subject.To, RequestCoverageURL), "no rule for declared transition; retain actual versions and request reviewed coverage: "+RequestCoverageURL)
 }
 
 func discloseRangeMatch(claim *Claim, rule rule) {
@@ -212,12 +213,46 @@ func discloseRangeMatch(claim *Claim, rule rule) {
 	claim.NextAction = action
 }
 
-func factAction(condition factCondition) string {
-	return boundedAction(fmt.Sprintf("inspect local %s/%s and declare actual %s or mark missing", condition.Side, condition.Component, condition.FactID), "inspect local rule fact and declare its actual value or mark missing")
+// RequestCoverageURL is where a user asks for a rule that does not exist yet.
+const RequestCoverageURL = "https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml"
+
+// withdrawnAction is the next action of a rule whose evidence was withdrawn.
+const withdrawnAction = "this rule was withdrawn because its evidence could not be verified; use newer knowledge, or check this change by hand against its cited source"
+
+// staleAction is the next action of a rule whose review has expired. There is
+// no official knowledge feed yet, so it names what a user can do today.
+func staleAction(validUntil string) string {
+	date, _, _ := strings.Cut(validUntil, "T")
+	return boundedAction(fmt.Sprintf("the review of this rule expired on %s; use newer knowledge (a newer source build, or a signed package you trust), or check this change by hand against its cited source", date),
+		"the review of this rule expired; use newer knowledge, or check this change by hand against its cited source")
+}
+
+// factAction tells a user which fact the input lacks and where to declare it.
+// The text names no package URL and no engine internals.
+func factAction(ruleID string, condition factCondition) string {
+	if project, _, dotted := strings.Cut(ruleID, "."); dotted && project != "" {
+		return boundedAction(fmt.Sprintf("fact `%s` is missing from the input: declare it in the input file (inputs per rule: `prufyx catalog checks --project %s`) or pass the flag that declares it", condition.FactID, project),
+			"a fact this rule reads is missing from the input: declare it in the input file or pass the flag that declares it")
+	}
+	return boundedAction(fmt.Sprintf("fact `%s` is missing from the input: declare it in the input file or pass the flag that declares it", condition.FactID),
+		"a fact this rule reads is missing from the input: declare it in the input file or pass the flag that declares it")
+}
+
+// notApplicableAction explains a rule whose declared applicability fact does
+// not match: the rule is outside what the input declares, and nothing is
+// missing.
+func notApplicableAction(condition factCondition) string {
+	return boundedAction(fmt.Sprintf("this rule does not apply: the declared `%s` does not match its condition; no action is needed for this rule", condition.FactID),
+		"this rule does not apply: a declared fact does not match its condition; no action is needed for this rule")
 }
 
 func dependencyAction(dependency componentCheck) string {
-	return boundedAction(fmt.Sprintf("inspect local %s/%s and declare actual version or mark missing; reviewed requirement %s %s", dependency.Side, dependency.Component, dependency.Comparison, dependency.Version), "inspect local rule dependency and declare its actual version or mark missing")
+	name := dependency.Component
+	if index := strings.LastIndex(name, "/"); index >= 0 {
+		name = name[index+1:]
+	}
+	return boundedAction(fmt.Sprintf("the %s version is missing from the input: declare it in the input file; this rule requires %s %s", name, dependency.Comparison, dependency.Version),
+		"a component version this rule requires is missing from the input: declare it in the input file")
 }
 
 func boundedAction(action, fallback string) string {

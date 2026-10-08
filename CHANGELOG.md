@@ -293,6 +293,48 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   extractor uses any of it yet, so extractor output does not change, but the
   framework files changed, so the code digest of every extractor changes once
   more (same consequence as the entry above).
+- User-facing messages now say what is true. An undecided `scan` headline
+  starts with `UNKNOWN:` (it no longer opens with "NO BLOCKERS FOUND"), a
+  blocked one says how many areas were not checked, and the summary line reads
+  "Read N documents over N hops; X of Y components have rules (partially
+  evaluated)". The JSON summary gains `componentsWithRules`; `componentsCovered`
+  is kept for one release as its old name.
+- `scan --format sarif` reports every not-checked area as a `warning` result
+  (`prufyx/gap/<REASON>`), so code scanning no longer shows "no alerts" for an
+  undecided scan. The GitHub Action prints `UNKNOWN` for exit 11 and its
+  documentation no longer calls a green UNKNOWN a sensible default; use
+  `fail-on: unknown` to stop on it.
+- UNKNOWN next actions are plain words. The Kubernetes apply-set check names
+  the missing declaration and its flag (`--resource-scope-complete`,
+  `--target-api-apply-required`, `--distribution official_upstream`); other
+  routes say which fact is missing from the input and where to declare it; a
+  rule whose declared fact does not match says it does not apply.
+- The knowledge age note no longer recommends `prufyx db update`, which needs a
+  source and a trust root that no official feed provides yet. It names a newer
+  source build or a signed package imported with `prufyx db import`, and says
+  that expired rules answer UNKNOWN. Stale and withdrawn rules say the same.
+- A `check` that exits 0 prints one note on standard error that the whole
+  upgrade is still UNKNOWN and that CI should use `--strict-exit`. Exit codes
+  and standard output are unchanged. The documentation uses `--strict-exit` in
+  every CI example and describes exit 0 as "the checked rules passed".
+- `catalog cncf` and `catalog checks` count only active rules: a withdrawn rule
+  is listed apart (`0 active generic source rules (1 withdrawn)`, rule coverage
+  `WITHDRAWN_ONLY`), so the generic preview is 53 projects, not 54. An unknown
+  project is an error (exit 2) with the closest slugs; a catalogued project
+  without rules says so and links the request form.
+- `check cncf` on a generic route prints `scoped result:` like the native
+  route; a PASS shows its remediation as "if this changes:"; `1 rule PASS`
+  and `1 rule for another transition` use the singular; an unknown `--project`
+  names the slug and the closest ones; the multi-minor hint says each minor
+  step must be checked.
+- `prufyx version --format human`; `--help` lists `version`, the `scan` output
+  formats, the `assess` flags, the exit status of `scan`, `check cncf` and
+  `check project`, and splits the Harbor usage lines. The cert-manager human
+  report prints every cited source with its lines and digest.
+- Documentation: the draft release notes say they are a draft, the Windows
+  statement matches the build, the CHANGELOG no longer links release tags that
+  do not exist, the inventory refresh example uses the committed index digest,
+  and the quickstart counts the reviewed Kubernetes pairs correctly.
 
 - `k8s.served-api-removal` 1.3.0: every reviewed migration hint now cites the
   passage of the upstream deprecation guide (kubernetes/website at a pinned
@@ -942,7 +984,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Release source builds use an exact vendored module profile with module sums,
   a canonical whole-tree digest, binary-resource pins and byte-bound notices.
 
-## [0.1.0-alpha.4] - 2026-09-07
+## 0.1.0-alpha.4 - 2026-09-07 (not published as a release)
 
 ### Added
 
@@ -970,7 +1012,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Both checks keep whole-upgrade aggregate UNKNOWN. Runtime upgrade testing,
   independently downloaded knowledge and broader transition coverage are planned.
 
-## [0.1.0-alpha.3] - 2026-09-07
+## 0.1.0-alpha.3 - 2026-09-07 (not published as a release)
 
 ### Added
 
@@ -1003,6 +1045,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Release assets and artifact signatures are not claimed until the maintainer
   publishes them.
 
-[Unreleased]: https://github.com/prufyx/prufyx-cli/compare/v0.1.0-alpha.4...HEAD
-[0.1.0-alpha.4]: https://github.com/prufyx/prufyx-cli/releases/tag/v0.1.0-alpha.4
-[0.1.0-alpha.3]: https://github.com/prufyx/prufyx-cli/releases/tag/v0.1.0-alpha.3
+[Unreleased]: https://github.com/prufyx/prufyx/commits/main
+
+No release has been published yet. The two alpha version headings above name
+development milestones, not release tags.

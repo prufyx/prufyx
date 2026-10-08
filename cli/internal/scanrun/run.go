@@ -209,6 +209,9 @@ func Run(request Request, options Options) (Result, error) {
 	report.Summary.DocumentsRead = len(manifests.Documents)
 	readable := 0
 	for _, file := range workspace.Files {
+		if report.Anchor == "" && file.Policy != intake.ModeNotApplicable {
+			report.Anchor = file.Display
+		}
 		if file.Policy == intake.ModeReadableByOthers {
 			readable++
 		}

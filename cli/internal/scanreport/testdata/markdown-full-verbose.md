@@ -1,4 +1,4 @@
-# BLOCKED: 3 problems must be fixed before this upgrade
+# BLOCKED: 3 problems must be fixed; 3 areas were not checked
 
 > trust policy: evidence basis reviewed, mechanical only; 2 rule(s) that apply were left out, so the result cannot pass
 >
@@ -67,7 +67,7 @@
 | `kubernetes.notice-a` | <https://example.test/blob/0123456789abcdef0123456789abcdef01234567/doc.md> | 9-12 | `0123456789ab` |
 | `kubernetes.lead-a` | <https://example.test/blob/0123456789abcdef0123456789abcdef01234567/doc.md> | 1-4 | `0123456789ab` |
 
-Checked 2 hops, 9 documents, 1 component (1 covered). 1 check passed (--show-passes).
+Read 9 documents over 2 hops; 1 of 1 component has rules (partially evaluated). 1 check passed (--show-passes).
 
 Scope limits: node and kubelet version skew not evaluated.
 

@@ -360,3 +360,57 @@ func TestCatalogGenericCommandUsesCanonicalInputPair(t *testing.T) {
 		}
 	}
 }
+
+// A withdrawn rule is not coverage: the catalogue lists it apart, and
+// catalog checks says that it always answers UNKNOWN.
+func TestCatalogChecksWithdrawnRuleIsNotCoverage(t *testing.T) {
+	t.Parallel()
+	code, out, errout := runCommunity(t, "catalog", "checks", "--project", "cri-o")
+	if code != ExitOK || errout != "" {
+		t.Fatalf("code=%d stderr=%q", code, errout)
+	}
+	for _, want := range []string{"rule coverage: WITHDRAWN_ONLY", "was withdrawn", "always answers UNKNOWN", "cri-o.artifact-short-name-rejected.1-35"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "rule coverage: MATCHED") {
+		t.Errorf("a withdrawn-only project reads as matched:\n%s", out)
+	}
+	var result checkroutemetadata.Result
+	code, raw, _ := runCommunity(t, "catalog", "checks", "--project", "cri-o", "--format", "json")
+	if code != ExitOK || json.Unmarshal([]byte(raw), &result) != nil || result.RuleCoverageState != checkroutemetadata.RuleCoverageWithdrawnOnly || len(result.Checks) != 1 || !result.Checks[0].Withdrawn {
+		t.Fatalf("json code=%d result=%+v", code, result)
+	}
+	code, out, _ = runCommunity(t, "catalog", "cncf", "--project", "cri-o")
+	if code != ExitOK || !strings.Contains(out, "cri-o: CRI-O (graduated); 0 active generic source rules (1 withdrawn)") || !strings.Contains(out, "generic source-rule preview: 53 projects") {
+		t.Fatalf("catalog cncf code=%d:\n%s", code, out)
+	}
+	code, out, _ = runCommunity(t, "catalog", "cncf", "--project", "dragonfly")
+	if code != ExitOK || !strings.Contains(out, "dragonfly: Dragonfly (graduated); 2 active generic source rules\n") || strings.Contains(out, "withdrawn") {
+		t.Fatalf("dragonfly:\n%s", out)
+	}
+}
+
+// A mistyped slug is an error that names the slug, and a catalogued project
+// without rules says so with the request form; the enum header is verbose.
+func TestCatalogChecksUnknownAndCataloguedOnlyProjects(t *testing.T) {
+	t.Parallel()
+	code, out, errout := runCommunity(t, "catalog", "checks", "--project", "crossplanex")
+	if code != ExitUsage || out != "" || !strings.Contains(errout, `unknown project "crossplanex"`) || !strings.Contains(errout, "prufyx catalog cncf") || !strings.Contains(errout, "closest: crossplane") {
+		t.Fatalf("unknown slug code=%d stdout=%q stderr=%q", code, out, errout)
+	}
+	code, out, errout = runCommunity(t, "catalog", "checks", "--project", "aeraki-mesh")
+	if code != ExitOK || errout != "" || !strings.Contains(out, "aeraki-mesh is catalogued but has no rules yet; request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml") {
+		t.Fatalf("catalogued only code=%d stdout=%q stderr=%q", code, out, errout)
+	}
+	if strings.Contains(out, "EMBEDDED_COMPILED_BUNDLES_ONLY") || strings.Contains(out, "NOT_ENUMERATED") {
+		t.Fatalf("enum header without --verbose:\n%s", out)
+	}
+	if _, verbose, _ := runCommunity(t, "catalog", "checks", "--project", "aeraki-mesh", "--verbose"); !strings.Contains(verbose, "metadata source: EMBEDDED_COMPILED_BUNDLES_ONLY") {
+		t.Fatalf("--verbose lost the scope header:\n%s", verbose)
+	}
+	if code, _, errout := runCommunity(t, "catalog", "cncf", "--project", "crossplanex"); code != ExitUsage || !strings.Contains(errout, `unknown project "crossplanex"`) {
+		t.Fatalf("catalog cncf code=%d stderr=%q", code, errout)
+	}
+}

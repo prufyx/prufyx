@@ -79,7 +79,10 @@ inputs:
   fail-on:
     description: >-
       When the step fails: none, blocked (default), unknown, or blocked,unknown.
-      Invalid input and knowledge integrity failures always fail the step.
+      With the default, an UNKNOWN scan (exit 11, not every area checked)
+      leaves the step green with a warning; green is not a pass. Use unknown to
+      stop the job on it. Invalid input and knowledge integrity failures
+      always fail the step.
     required: false
     default: blocked
 

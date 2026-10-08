@@ -223,7 +223,9 @@ func TestRenderersKeepVerdict(t *testing.T) {
 }
 
 // TestNeutralItemsAreNeverErrors: a report with only gaps, notices, leads
-// and unsupported combinations has no result and no error level at all.
+// and unsupported combinations has no error level at all. Its only results
+// are the warnings for the gaps, so that code scanning does not show an
+// undecided scan as "no alerts".
 func TestNeutralItemsAreNeverErrors(t *testing.T) {
 	report := fullReport()
 	report.Findings, report.Passes = nil, nil
@@ -252,8 +254,8 @@ func TestNeutralItemsAreNeverErrors(t *testing.T) {
 		} `json:"runs"`
 	}
 	_ = json.Unmarshal(raw, &log)
-	if len(log.Runs[0].Results) != 0 {
-		t.Fatal("results without findings")
+	if len(log.Runs[0].Results) != len(report.Gaps) {
+		t.Fatalf("%d results for %d gaps", len(log.Runs[0].Results), len(report.Gaps))
 	}
 	want := map[string]string{kindGap: "warning", kindUnsupported: "warning", kindNotice: "note", kindLead: "note"}
 	seen := map[string]int{}
@@ -311,6 +313,11 @@ func TestSARIFCounts(t *testing.T) {
 		for _, u := range f.report.Unsupported {
 			ids[u.RuleID] = true
 		}
+		for _, g := range f.report.Gaps {
+			// One warning result per gap, under one rule per gap reason.
+			results++
+			ids[gapRuleID(g)] = true
+		}
 		notifications := len(f.report.Gaps) + len(f.report.Notices) + len(f.report.Leads) + len(f.report.Unsupported)
 		if len(run.Results) != results || len(run.Invocations[0].Notifications) != notifications || len(run.Tool.Driver.Rules) != len(ids) {
 			t.Errorf("%s: results %d/%d notifications %d/%d rules %d/%d", f.name, len(run.Results), results, len(run.Invocations[0].Notifications), notifications, len(run.Tool.Driver.Rules), len(ids))
@@ -358,6 +365,9 @@ func TestSARIFOrder(t *testing.T) {
 		"kubernetes.cronjob-removed deploy/app%200.yaml", "kubernetes.cronjob-removed deploy/app%201.yaml", "kubernetes.cronjob-removed deploy/app%202.yaml",
 		"kubernetes.cronjob-removed deploy/app%203.yaml", "kubernetes.cronjob-removed deploy/app%204.yaml", "kubernetes.cronjob-removed deploy/app%205.yaml",
 		"kubernetes.cronjob-removed deploy/app%206.yaml", "kubernetes.psp-removed psp.yaml", "kubernetes.whole w.yaml",
+		// The gaps follow the findings, in report order, at the fallback
+		// location (a report decoded from JSON has no input anchor).
+		"prufyx/gap/COMPONENT_NOT_COVERED prufyx.yaml", "prufyx/gap/DECLARATION_MISSING prufyx.yaml", "prufyx/gap/RULE_NOT_DECIDED prufyx.yaml",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("order:\n%s", strings.Join(got, "\n"))
@@ -464,7 +474,9 @@ func TestSARIFLimits(t *testing.T) {
 		t.Fatalf("results %d, message %d bytes", len(run.Results), len(run.Results[0].Message.Text))
 	}
 	last := run.Invocations[0].Notifications[len(run.Invocations[0].Notifications)-1]
-	if last.Descriptor.ID != truncatedID || !strings.Contains(last.Message.Text, "5 more") {
+	// Findings come first, so the gap warnings are what the limit drops: the 5
+	// findings over the limit and every gap are counted as "more".
+	if last.Descriptor.ID != truncatedID || !strings.Contains(last.Message.Text, strconv.Itoa(5+len(report.Gaps))+" more") {
 		t.Fatalf("no truncation notification: %+v", last)
 	}
 }
@@ -547,7 +559,7 @@ func TestRedactedRenderingsLeakNothing(t *testing.T) {
 	_ = json.Unmarshal(raw, &log)
 	for _, r := range log.Runs[0].Results {
 		for _, l := range r.Locations {
-			if !strings.HasPrefix(l.PhysicalLocation.ArtifactLocation.URI, "redacted/") {
+			if uri := l.PhysicalLocation.ArtifactLocation.URI; !strings.HasPrefix(uri, "redacted/") && uri != gapFallbackURI {
 				t.Errorf("uri %q is not a redacted name", l.PhysicalLocation.ArtifactLocation.URI)
 			}
 		}

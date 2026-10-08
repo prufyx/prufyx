@@ -8,16 +8,21 @@ GOTOOLCHAIN=local GOWORK=off GOFLAGS='-mod=vendor -buildvcs=false' GOPROXY=off G
 ../prufyx --help
 ```
 
-The Community entrypoint exposes focused cert-manager values and Prometheus mode
-checks, plus an unreleased [CNCF source-constraint preview](docs/CNCF-SOURCE-PREVIEW.md)
-over minimized operator declarations. Optional `prepare cncf` derives only its
+`prufyx scan` is the primary command: it reads rendered manifests and answers
+with one headline (see [scan.md](docs/scan.md)). The Community entrypoint also
+exposes focused cert-manager values and Prometheus mode checks, plus an
+unreleased [CNCF source-constraint preview](docs/CNCF-SOURCE-PREVIEW.md) over
+minimized operator declarations. Optional `prepare cncf` derives only its
 documented exact-pair facts from one private local JSON input. The
 [generated support inventory](docs/generated/community-support-inventory.md)
 is the complete current list of preparer-capable projects and their limits. It
 retains no raw workload data and performs no live observation or upgrade check.
+`prufyx assess` is the one command that reads a cluster: read-only, through
+kubectl, and only when you pass a kubeconfig and
+`--acknowledge-kubeconfig-exec-risk`.
 The exact external Go module closure is included under `vendor/` and
 bound by the Community v2 source policy, so builds do not fetch modules. It has
-no hosted account requirement or model invocation. See the [quickstart](../README.md),
+no hosted account requirement or model invocation. See the [quickstart](docs/quickstart.md),
 [command guide](docs/community-checks.md),
 [cert-manager knowledge database](docs/knowledge-database.md),
 [CNCF knowledge database](docs/cncf-knowledge-database.md),

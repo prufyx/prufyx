@@ -32,7 +32,7 @@ func TestScanCommand(t *testing.T) {
 	}
 	declared := []string{"--distribution", "official_upstream", "--resource-scope-complete", "--target-api-apply-required", "--now", "2026-11-20T00:00:00Z"}
 	code, stdout, stderr := runScan(t, append([]string{path, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3"}, declared...)...)
-	if code != ExitBlocked || !strings.HasPrefix(stdout, "BLOCKED: 1 problem must be fixed before this upgrade\n") || !strings.Contains(stdout, "CronJob default/nightly-report") || !quietOrAgeNote(stderr) {
+	if code != ExitBlocked || !strings.HasPrefix(stdout, "BLOCKED: 1 problem must be fixed; ") || !strings.Contains(strings.SplitN(stdout, "\n", 2)[0], " not checked") || !strings.Contains(stdout, "CronJob default/nightly-report") || !quietOrAgeNote(stderr) {
 		t.Fatalf("blocked: %d\n%s\n%s", code, stdout, stderr)
 	}
 	code, stdout, _ = runScan(t, append([]string{path, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--format", "json"}, declared...)...)

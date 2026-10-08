@@ -336,7 +336,7 @@ func (b ExternalBundle) evaluate(project, selectedRuleID string, inputRaw []byte
 		if selectedRuleID != "" {
 			report.NextAction = "the selected external revision has no exact rule for this native-input capability; retain UNKNOWN with no embedded fallback"
 		} else {
-			report.NextAction = "no rules are packaged for this project; retain UNKNOWN and request reviewed coverage"
+			report.NextAction = "no rules are packaged for this project; retain UNKNOWN and request reviewed coverage: " + constraintengine.RequestCoverageURL
 		}
 		if rules.excluded > 0 {
 			report.NextAction = trustPolicyNextAction

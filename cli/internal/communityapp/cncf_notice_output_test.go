@@ -45,7 +45,7 @@ func TestNoticeHumanOutput(t *testing.T) {
 	text := out.String()
 	want := "cannot be rolled back: notice-applies\nbefore you upgrade: " + noticeBeforeText + "\nevidence basis: reviewed by maintainer\n" +
 		"one-way notice not established: notice-stale (RULE_EVIDENCE_STALE)\nnext action: select later declared rule source references with current evidence\nevidence basis: reviewed by maintainer\n" +
-		"1 rules for other transitions not applicable to this pair\n1 rules PASS (not listed; use --show-passes)\n"
+		"1 rule for another transition not applicable to this pair\n1 rule PASS (not listed; use --show-passes)\n"
 	if text != want {
 		t.Fatalf("output:\n%s\nwant:\n%s", text, want)
 	}

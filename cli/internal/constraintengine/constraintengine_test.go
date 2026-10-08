@@ -339,7 +339,7 @@ func TestRequiredFactsIncludeApplicabilityGuards(t *testing.T) {
 		t.Fatal(err)
 	}
 	missingReport, err := Evaluate(missing, rules, testNow(t))
-	if err != nil || missingReport.Claims[0].Status != "UNKNOWN" || !strings.Contains(missingReport.Claims[0].NextAction, "component.example.guard_enabled") || !strings.Contains(missingReport.Claims[0].NextAction, "actual") {
+	if err != nil || missingReport.Claims[0].Status != "UNKNOWN" || !strings.Contains(missingReport.Claims[0].NextAction, "component.example.guard_enabled") || !strings.Contains(missingReport.Claims[0].NextAction, "missing from the input") {
 		t.Fatalf("missing guard report=%+v err=%v", missingReport, err)
 	}
 }
@@ -353,8 +353,11 @@ func TestNextActionsRequestTruthfulLocalInspection(t *testing.T) {
 		t.Fatal(err)
 	}
 	action := report.Claims[0].NextAction
-	if !strings.Contains(action, "inspect local") || !strings.Contains(action, "component.example.feature_enabled") || !strings.Contains(action, "actual") || !strings.Contains(action, "mark missing") || strings.Contains(action, "expected true") {
-		t.Fatalf("misleading fact action=%q", action)
+	if !strings.Contains(action, "`component.example.feature_enabled` is missing from the input") || !strings.Contains(action, "declare it in the input file") || strings.Contains(action, "inspect local") || strings.Contains(action, "pkg:") || strings.Contains(action, "mark missing") || strings.Contains(action, "expected true") {
+		t.Fatalf("fact action is jargon or misleading: %q", action)
+	}
+	if dotted := factAction("example.rule", factCondition{FactID: testFact}); !strings.Contains(dotted, "prufyx catalog checks --project example") {
+		t.Fatalf("fact action of a project rule does not point to the catalog: %q", dotted)
 	}
 	mismatched, err := Evaluate(testInput(t, registry, `{"id":"component.example.feature_enabled","state":"declared","boolValue":false}`, "2.1.0"), rules, testNow(t))
 	if err != nil {
@@ -365,7 +368,7 @@ func TestNextActionsRequestTruthfulLocalInspection(t *testing.T) {
 		t.Fatalf("misleading transition action=%q", action)
 	}
 	longComponent := "pkg:" + strings.Repeat("a", 255)
-	if len(subjectAction(transition{Component: longComponent, From: "1.0.0", To: "2.0.0"})) > maxStringBytes || len(factAction(factCondition{Side: "proposed", Component: longComponent, FactID: testFact})) > maxStringBytes || len(dependencyAction(componentCheck{Side: "proposed", Component: longComponent, Comparison: "gte", Version: "1.0.0"})) > maxStringBytes {
+	if len(subjectAction(transition{Component: longComponent, From: "1.0.0", To: "2.0.0"})) > maxStringBytes || len(factAction("example.rule", factCondition{Side: "proposed", Component: longComponent, FactID: testFact})) > maxStringBytes || len(dependencyAction(componentCheck{Side: "proposed", Component: longComponent, Comparison: "gte", Version: "1.0.0"})) > maxStringBytes {
 		t.Fatal("long rule identifiers exceeded public action bound")
 	}
 }

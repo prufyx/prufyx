@@ -1,4 +1,4 @@
-# BLOCKED: 1 problem must be fixed before this upgrade
+# BLOCKED: 1 problem must be fixed; 2 areas were not checked
 
 ## PROBLEMS TO FIX (1)
 
@@ -22,7 +22,7 @@
 | `kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0` | <https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md> | 87-93 | `9f1af2971c32` |
 | `kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0` | <https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md> | 189-193 | `9f1af2971c32` |
 
-Checked 6 hops, 2 documents, 1 component (1 covered).
+Read 2 documents over 6 hops; 1 of 1 component has rules (partially evaluated).
 
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
 

@@ -51,7 +51,7 @@ func TestUnsupportedHumanOutput(t *testing.T) {
 	}
 	want := "cert-manager.k8s-support.1-16: UNSUPPORTED (ADDON_KUBERNETES_SUPPORT_RANGE)\nnext action: upgrade cert-manager to a release line that supports the target Kubernetes minor\n" +
 		"evidence basis: reviewed by maintainer\n" +
-		"1 rules PASS (not listed; use --show-passes)\n"
+		"1 rule PASS (not listed; use --show-passes)\n"
 	if out.String() != want {
 		t.Fatalf("output:\n%s\nwant:\n%s", out.String(), want)
 	}

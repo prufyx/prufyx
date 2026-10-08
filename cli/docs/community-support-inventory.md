@@ -41,7 +41,7 @@ Git revision or clock.
 go run ./cli/cmd/prufyx-maintainer selected-source-import \
   --corpus-root <private-reviewed-corpus-root> \
   --collection-index <private-reviewed-collection-index.json> \
-  --expected-index-digest sha256:63a2c5a0c34dd03d6d0ad23796895afdb3c765e47f5027cf6b36a55f9ec2ba2d \
+  --expected-index-digest sha256:454288d0a5bcd89aee5d43864ee70c26d2ab6af8966cfe9763512cc97a2bb259 \
   --output cli/docs/data/selected-source-records-v1.json --check
 ```
 

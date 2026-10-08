@@ -41,7 +41,7 @@ func TestQuietHumanUnreviewedTransitionsPrintAtMostSevenLines(t *testing.T) {
 		if code != ExitUnknown || stderr != "" || len(lines) > 7 {
 			t.Fatalf("%v: code=%d lines=%d stderr=%q\n%s", pair, code, len(lines), stderr, human)
 		}
-		for _, want := range []string{"UNKNOWN: kubernetes " + pair[0] + " -> " + pair[1] + " is not a reviewed transition", "reviewed pairs:", "1.24.0 -> 1.25.0", "check each reviewed pair in turn", "scoped result: UNKNOWN\naggregate: UNKNOWN"} {
+		for _, want := range []string{"UNKNOWN: kubernetes " + pair[0] + " -> " + pair[1] + " is not a reviewed transition", "reviewed pairs:", "1.24.0 -> 1.25.0", "check each minor step; a step without a reviewed pair stays UNKNOWN", "scoped result: UNKNOWN\naggregate: UNKNOWN"} {
 			if !strings.Contains(human, want) {
 				t.Errorf("%v: missing %q in\n%s", pair, want, human)
 			}
@@ -177,7 +177,7 @@ func TestGenericPreviewQuietHumanOutput(t *testing.T) {
 	}
 	// A reviewed pair with a PASS claim: counted, listed on request, aggregate after the claims.
 	code, quiet := run(syntheticHelmInput, "--format", "human")
-	if code != ExitOK || strings.Contains(quiet, ": PASS (") || !strings.Contains(quiet, "1 rules PASS (not listed; use --show-passes)") || strings.Index(quiet, "aggregate: UNKNOWN") < strings.Index(quiet, "rules PASS") {
+	if code != ExitOK || strings.Contains(quiet, ": PASS (") || !strings.Contains(quiet, "1 rule PASS (not listed; use --show-passes)") || strings.Index(quiet, "aggregate: UNKNOWN") < strings.Index(quiet, "rules PASS") {
 		t.Fatalf("code=%d\n%s", code, quiet)
 	}
 	code, listed := run(syntheticHelmInput, "--format", "human", "--show-passes")
@@ -187,7 +187,7 @@ func TestGenericPreviewQuietHumanOutput(t *testing.T) {
 	// A pair outside every reviewed transition collapses to one line.
 	outside := strings.Replace(syntheticHelmInput, `"version":"4.0.0"`, `"version":"3.14.4"`, 1)
 	code, unreviewed := run(outside, "--format", "human")
-	if code != ExitUnknown || strings.Contains(unreviewed, "(RULE_TRANSITION_NOT_REVIEWED)") || !strings.Contains(unreviewed, "UNKNOWN: helm ") || !strings.Contains(unreviewed, "is not a reviewed transition") || !strings.Contains(unreviewed, "check each reviewed pair in turn") {
+	if code != ExitUnknown || strings.Contains(unreviewed, "(RULE_TRANSITION_NOT_REVIEWED)") || !strings.Contains(unreviewed, "UNKNOWN: helm ") || !strings.Contains(unreviewed, "is not a reviewed transition") || !strings.Contains(unreviewed, "check each minor step; a step without a reviewed pair stays UNKNOWN") {
 		t.Fatalf("code=%d\n%s", code, unreviewed)
 	}
 	// JSON carries the claims as before.

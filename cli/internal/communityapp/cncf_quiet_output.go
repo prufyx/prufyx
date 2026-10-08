@@ -101,8 +101,19 @@ func writeClaimHeadline(out io.Writer, claim constraintengine.Claim) (printed bo
 		}
 		return len(lines) > 0, nil
 	}
-	_, err = fmt.Fprintf(out, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction)
+	_, err = fmt.Fprintf(out, "%s: %s (%s)\n%s\n", claim.RuleID, claim.Status, claim.ReasonCode, claimActionLine(claim))
 	return err == nil, err
+}
+
+// claimActionLine is the line under a claim that says what to do. A claim
+// that passed has nothing to fix: its reviewed remediation is shown as what to
+// do if the condition it checked ever changes, so it never reads as a required
+// fix.
+func claimActionLine(claim constraintengine.Claim) string {
+	if claim.Status == "PASS" {
+		return "if this changes: " + claim.NextAction
+	}
+	return "next action: " + claim.NextAction
 }
 
 // verdictClaims counts the claims that are neither one-way notices nor
@@ -159,7 +170,7 @@ func writeUnreviewedTransition(out io.Writer, summary claimSummary, project, fro
 	if from != "" && to != "" {
 		subject = project + " " + from + " -> " + to
 	}
-	if _, err := fmt.Fprintf(out, "UNKNOWN: %s is not a reviewed transition; reviewed pairs: %s; for a multi-minor upgrade, check each reviewed pair in turn\n", subject, reviewedPairs(project)); err != nil {
+	if _, err := fmt.Fprintf(out, "UNKNOWN: %s is not a reviewed transition; reviewed pairs: %s; for a multi-minor upgrade, check each minor step; a step without a reviewed pair stays UNKNOWN\n", subject, reviewedPairs(project)); err != nil {
 		return err
 	}
 	return writeBoundaryNote(out, summary)
@@ -271,7 +282,11 @@ func compareVersions(a, b string) int {
 // writeCollapsedNotes prints the counts of claims that were not listed.
 func writeCollapsedNotes(out io.Writer, summary claimSummary) error {
 	if summary.unreviewed > 0 {
-		if _, err := fmt.Fprintf(out, "%d rules for other transitions not applicable to this pair\n", summary.unreviewed); err != nil {
+		other := "%d rules for other transitions not applicable to this pair\n"
+		if summary.unreviewed == 1 {
+			other = "%d rule for another transition not applicable to this pair\n"
+		}
+		if _, err := fmt.Fprintf(out, other, summary.unreviewed); err != nil {
 			return err
 		}
 	}
@@ -279,7 +294,11 @@ func writeCollapsedNotes(out io.Writer, summary claimSummary) error {
 		return err
 	}
 	if summary.passes > 0 {
-		if _, err := fmt.Fprintf(out, "%d rules PASS (not listed; use --show-passes)\n", summary.passes); err != nil {
+		passed := "%d rules PASS (not listed; use --show-passes)\n"
+		if summary.passes == 1 {
+			passed = "%d rule PASS (not listed; use --show-passes)\n"
+		}
+		if _, err := fmt.Fprintf(out, passed, summary.passes); err != nil {
 			return err
 		}
 	}
@@ -321,7 +340,7 @@ func canonicalTransition(input []byte) (from, to string, ok bool) {
 // notices, then the collapsed counts.
 func writeNativeClaims(out io.Writer, summary claimSummary, claims []constraintengine.Claim) error {
 	for _, claim := range summary.shown {
-		if _, err := fmt.Fprintf(out, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction); err != nil {
+		if _, err := fmt.Fprintf(out, "%s: %s (%s)\n%s\n", claim.RuleID, claim.Status, claim.ReasonCode, claimActionLine(claim)); err != nil {
 			return err
 		}
 		if _, err := fmt.Fprintln(out, claim.EvidenceBasisLine()); err != nil {

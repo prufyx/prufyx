@@ -174,7 +174,7 @@ func Markdown(report Report, options MarkdownOptions) []byte {
 	}
 
 	line("")
-	checked := fmt.Sprintf(labelChecked, count(report.Summary.Hops, labelHopOne, labelHops), count(report.Summary.DocumentsRead, labelDocumentOne, labelDocuments), count(report.Summary.ComponentsDetected, labelComponentOne, labelComponents), report.Summary.ComponentsCovered)
+	checked := checkedLine(report)
 	switch {
 	case report.Summary.Passes == 1:
 		checked += labelPassCountOne

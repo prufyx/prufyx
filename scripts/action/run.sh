@@ -197,9 +197,9 @@ case "$code" in
   0) echo "Prufyx: pass for the declared scope." ;;
   10) echo "Prufyx: BLOCKED."
       if [ "$fail_blocked" = 1 ]; then die "prufyx found problems that must be fixed (exit 10)"; fi ;;
-  11) echo "Prufyx: no blockers found in covered checks, some areas were not checked."
+  11) echo "Prufyx: UNKNOWN: no blocker in the checks that ran, but some areas were not checked."
       if [ "$fail_unknown" != 1 ]; then
-        printf '::warning title=Prufyx::%s\n' "Not every area was checked (exit 11). The report names what was not checked." >&2
+        printf '::warning title=Prufyx::%s\n' "UNKNOWN (exit 11): not every area was checked, so this is not a pass. The report names what was not checked. Set fail-on: unknown to stop the job on this." >&2
       fi
       if [ "$fail_unknown" = 1 ]; then die "prufyx could not decide everything (exit 11)"; fi ;;
   3) die "prufyx knowledge integrity failure (exit 3); nothing was checked" ;;

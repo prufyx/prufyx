@@ -149,7 +149,7 @@ func evaluateSetRule(input inputDocument, rule rule, claim Claim) Claim {
 	fact, found := findFact(input, condition.Side, condition.Component, condition.FactID)
 	if !found || fact.State != "declared" || fact.SetValue == nil {
 		claim.Status, claim.ReasonCode = "UNKNOWN", "RULE_FACT_UNAVAILABLE"
-		claim.NextAction = factAction(condition.fact())
+		claim.NextAction = factAction(rule.ID, condition.fact())
 		return claim
 	}
 	if hits := setMembersHit(fact.SetValue.Members, condition.Members); len(hits) > 0 {

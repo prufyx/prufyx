@@ -14,7 +14,7 @@ import (
 )
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
-	return communityapp.Run(ctx, args, stdout, stderr, buildidentity.Version)
+	return communityapp.RunCLI(ctx, args, stdout, stderr, buildidentity.Version)
 }
 
 func main() {

@@ -39,7 +39,7 @@ prufyx scan applyset.yaml --from kubernetes=1.24.17 --to kubernetes=1.25.3 \
 ```
 
 ```
-BLOCKED: 1 problem must be fixed before this upgrade
+BLOCKED: 1 problem must be fixed; 2 areas were not checked
 
 kubernetes 1.24.17 -> 1.25.3: 1 hop (no reviewed path policy)
   1.24.17 -> 1.25.3   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
@@ -47,10 +47,10 @@ kubernetes 1.24.17 -> 1.25.3: 1 hop (no reviewed path policy)
                       fix: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 
 NOT CHECKED (2)
-  kubernetes   no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the Kubernetes 1.25 API reference by hand, or request coverage
+  kubernetes   no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the Kubernetes 1.25 API reference by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml
   kubernetes 1.24.17 -> 1.25.3   no review confirms that the removed-API rules for kubernetes 1.25 name every API that line removes - check the kubernetes 1.25 release notes for other removed APIs by hand, or request a line review
 
-Checked 1 hop, 2 documents, 1 component (1 covered). 6 checks passed (--show-passes).
+Read 2 documents over 1 hop; 1 of 1 component has rules (partially evaluated). 6 checks passed (--show-passes).
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
 Evidence: every finding cites pinned upstream source (--verbose). No network used.
 evaluated at 2026-10-04T00:00:00Z; input sha256:706abd92d4968558d52e272d3f490af7280ce84a6011ae824a9fa9ae7b4c47f7; knowledge embedded cncf-2026-09-13.4 sha256:4d2718043fbc41bb0f99ce8a69ea9ef253c52249bb88254b969d1ebdab46e5c5
@@ -170,7 +170,7 @@ When the knowledge a scan used is close to the end of its review window,
 `scan` prints one line on standard error, after the report:
 
 ```text
-prufyx: note: 166 knowledge rules expire within 30 days, the earliest on 2026-12-07 (in 17 days); update with `prufyx db update` and use --knowledge-db
+prufyx: note: 166 knowledge rules expire within 30 days, the earliest on 2026-12-07 (in 17 days). No official update yet: build from newer source, or `prufyx db import` a signed package you trust (then use --knowledge-db) before they expire.
 ```
 
 The line appears when any active rule of the knowledge in use ends no later
@@ -178,12 +178,15 @@ than 30 days after the evaluation instant (exactly 30 days counts), and when a
 rule has already ended, in which case it says so:
 
 ```text
-prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (2 days ago); update with `prufyx db update` and use --knowledge-db
+prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (2 days ago). No official update yet: build from newer source, or `prufyx db import` a signed package you trust (then use --knowledge-db). Expired rules answer UNKNOWN.
 ```
 
 The knowledge in use is the knowledge built into the binary, or, with
-`--knowledge-db`, the targets opened from the database (the second form of the
-line leaves out `and use --knowledge-db`, which you already do). The count
+`--knowledge-db`, the targets opened from the database (with a database the
+advice leaves out `then use --knowledge-db`, which you already do). No
+official knowledge update is published yet, so the line names what works
+today: a newer source build, or a signed package you trust, imported with
+`prufyx db import`. A rule that has expired answers `UNKNOWN`. The count
 covers the active rules of that knowledge; withdrawn rules do not count. The
 evaluation instant is the one printed in the report, so the line is the same
 for the same `--now` and the same knowledge.
@@ -198,12 +201,13 @@ not want it. It is not printed when the scan stops with an error.
 
 See [exit-codes.md](exit-codes.md) for the one table covering `scan` and
 `check`. Exit `0` here means the declared scope is complete; `check` exit `0`
-means one scoped rule passed (use `check --strict-exit` to tell them apart).
+means the checked rules passed and the whole upgrade is still `UNKNOWN` (in CI
+use `check --strict-exit` to tell them apart).
 
 | Exit | Headline | Meaning |
 | --- | --- | --- |
-| `10` | `BLOCKED: N problems must be fixed before this upgrade` | At least one reviewed rule matched an object in your manifests. Gaps may remain; they are still listed. |
-| `11` | `NO BLOCKERS FOUND IN COVERED CHECKS: M areas were not checked` | Nothing blocked in what was checked, and `M` named gaps remain. |
+| `10` | `BLOCKED: N problems must be fixed before this upgrade`, or `BLOCKED: N problems must be fixed; M areas were not checked` when gaps remain | At least one reviewed rule matched an object in your manifests. Gaps may remain; they are still listed. |
+| `11` | `UNKNOWN: no blocker in the checks that ran; M areas were not checked (see NOT CHECKED)` | Nothing blocked in what was checked, and `M` named gaps remain. The answer is `UNKNOWN`, not a pass. |
 | `11` | `UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (M other areas were not checked)` | A manifest uses an API version the target line does not serve, and no reviewed rule decided it (gap `API_VERSION_NOT_SERVED`). It fails on the target whatever else was checked; never read this as "no blockers". |
 | `0` | `PASS FOR THE DECLARED SCOPE` | Every hop is covered and nothing is missing (see below). |
 | `2` | `prufyx: ...` on standard error | The command line or an input is not accepted. |
@@ -458,7 +462,9 @@ top-level pack member, which it never admits.
 `--format json` prints one object with schema `prufyx.io/scan-report/v1alpha1`,
 described by [`generated/schemas/scan-report-v1alpha1.json`](generated/schemas/scan-report-v1alpha1.json):
 `verdict` (`BLOCKED`, `UNKNOWN` or `SCOPE_COMPLETE_PASS`), `headline`,
-`summary`, `inventory`, `paths` (with every hop, its status, its engine input
+`summary` (`componentsWithRules` counts the components scan has rules for;
+`componentsCovered` is its old name, kept for one release; neither means the
+component was fully evaluated), `inventory`, `paths` (with every hop, its status, its engine input
 digest, the engine contract it was evaluated under and the line review it
 used, and, in a pass, the [served-API list](#served-api-lists) it relied on), `findings`, `gaps`, `passes`, `omitted`
 (every document or file that was not evaluated, with the reason), `notices`
@@ -511,6 +517,13 @@ What the log holds:
   written without its leading `/` or `..`. A stable `partialFingerprints`
   entry depends on the rule, the path and the position of the object in its
   file, not on the line.
+- One `results` entry per not-checked area, with `level: "warning"`, the
+  rule id `prufyx/gap/<REASON>` (for example `prufyx/gap/LINE_NOT_ATTESTED`),
+  the message `<what was not checked> - <what to do>`, and a location at the
+  first input file (line 1; `prufyx.yaml` when only standard input was read).
+  Code scanning does not show tool notifications, so without these results an
+  `UNKNOWN` scan would read as "no alerts". A warning is not a blocker and
+  never fails a check by itself; it is there so that "not decided" is visible.
 - One `toolExecutionNotifications` entry per not-checked area (`warning`), per
   combination outside a documented support range (`warning`), per one-way
   change (`note`) and per unverified lead (`note`). Only a finding is an
@@ -520,9 +533,11 @@ What the log holds:
   when it left rules out, and `networkUsed: false`. The invocation carries the
   exit code.
 
-Code scanning shows the results. The not-checked areas are in the uploaded
-file, not in the alerts list; use the Markdown or human output to read them in
-a job log. With `--redact`, every path becomes `redacted/<12 hex>` and every
+Code scanning shows the results: every blocker as an error and every
+not-checked area as a warning, so an undecided scan is never an empty alert
+list. Unsupported combinations, one-way changes and leads are in the uploaded
+file as notifications, not in the alerts list; use the Markdown or human
+output to read them in a job log. With `--redact`, every path becomes `redacted/<12 hex>` and every
 name and namespace a digest, so the alerts cannot be placed in the repository.
 
 ## Markdown

@@ -15,6 +15,11 @@ import (
 
 const genericIntegrityNextAction = "inspect store integrity; use a matching CLI capability, or provision a separate store with an independently verified bootstrap; preserve the old store"
 
+// noSelectionNextAction is the next action of a store that holds no
+// selection. No official package or trust root is published yet, so it says
+// who needs the step: only a user who maintains their own signed knowledge.
+const noSelectionNextAction = "import a signed package with an explicit bootstrap root; no official package or trust root is published yet, so this is only needed if you maintain your own signed knowledge"
+
 func OpenSelected(req SelectionRequest, admit AdmitFunc) (VerifiedRevision, error) {
 	return openRevision(req, certManagerProfile(), time.Time{}, SelectionCurrent, admit, nil)
 }
@@ -266,7 +271,7 @@ func inspectProfile(storeRoot string, profile profileSpec) (Status, error) {
 	now := time.Now().UTC()
 	if err := checkProfileMarker(store, profile, false); err != nil {
 		if profile.marked() && errors.Is(err, ErrNoSelection) {
-			return Status{APIVersion: "prufyx.io/knowledge-status/v1", State: "NO_SELECTION", Reason: "no operator trust root or knowledge revision is established", NextAction: "import a signed package with an explicit bootstrap root", CheckedAt: now.Format(time.RFC3339), TrustSource: "none", CurrentEligible: false, Freshness: "not_established", TrustFreshness: "not_established", SourceEvidenceFreshness: "not_established", NetworkChecked: false, CurrentNonRevocation: "not_checked_offline"}, nil
+			return Status{APIVersion: "prufyx.io/knowledge-status/v1", State: "NO_SELECTION", Reason: "no operator trust root or knowledge revision is established", NextAction: noSelectionNextAction, CheckedAt: now.Format(time.RFC3339), TrustSource: "none", CurrentEligible: false, Freshness: "not_established", TrustFreshness: "not_established", SourceEvidenceFreshness: "not_established", NetworkChecked: false, CurrentNonRevocation: "not_checked_offline"}, nil
 		}
 		return Status{}, err
 	}
@@ -284,7 +289,7 @@ func inspectProfile(storeRoot string, profile profileSpec) (Status, error) {
 			if checkErr != nil || !empty {
 				return Status{}, ErrIntegrity
 			}
-			return Status{APIVersion: "prufyx.io/knowledge-status/v1", State: "NO_SELECTION", Reason: "no operator trust root or knowledge revision is established", NextAction: "import a signed package with an explicit bootstrap root", CheckedAt: now.Format(time.RFC3339), TrustSource: "none", CurrentEligible: false, Freshness: "not_established", TrustFreshness: "not_established", SourceEvidenceFreshness: "not_established", NetworkChecked: false, CurrentNonRevocation: "not_checked_offline"}, nil
+			return Status{APIVersion: "prufyx.io/knowledge-status/v1", State: "NO_SELECTION", Reason: "no operator trust root or knowledge revision is established", NextAction: noSelectionNextAction, CheckedAt: now.Format(time.RFC3339), TrustSource: "none", CurrentEligible: false, Freshness: "not_established", TrustFreshness: "not_established", SourceEvidenceFreshness: "not_established", NetworkChecked: false, CurrentNonRevocation: "not_checked_offline"}, nil
 		}
 		return Status{}, err
 	}

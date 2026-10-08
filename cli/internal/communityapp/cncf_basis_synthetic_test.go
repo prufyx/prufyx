@@ -49,7 +49,7 @@ func TestSyntheticRequireBasisThroughTheCommandRoute(t *testing.T) {
 			[]string{"synthetic-d-lead", "result cannot pass"}},
 		{"reviewed only: mechanical rules left out, the check cannot pass", []cncfcheck.Entry{reviewed, mechanical, consensus, lead}, "reviewed", ExitUnknown,
 			[]string{`"trustPolicy":{"requiredBasis":["reviewed"],"excludedRules":2,"excludedLeadRules":1}`, `"status":"PASS"`},
-			[]string{"trust policy: evidence basis reviewed only; 2 rules left out, so the result cannot pass\n", "1 rules PASS (not listed; use --show-passes)\n"},
+			[]string{"trust policy: evidence basis reviewed only; 2 rules left out, so the result cannot pass\n", "1 rule PASS (not listed; use --show-passes)\n"},
 			[]string{"synthetic-b-mechanical", "synthetic-c-consensus", "model consensus"}},
 		{"lead listed: an unverified lead never blocks", []cncfcheck.Entry{reviewed, mechanical, lead}, "reviewed,mechanical,lead", ExitOK,
 			[]string{`"status":"NOTICE"`, `"reasonCode":"LEAD_NOT_VERIFIED"`},

@@ -23,6 +23,11 @@ import (
 // report's own strings. Findings are the only results, and the only items
 // with level "error"; gaps, notices, leads and unsupported combinations are
 // tool notifications, and none of them is ever an error.
+//
+// Gaps are also results, at level "warning": GitHub code scanning does not
+// show tool notifications, so an undecided scan with notifications only would
+// read as "no alerts". A gap result is never an error, so it does not fail a
+// code scanning check by itself, and it carries the notification's text.
 
 const (
 	sarifSchema     = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json"
@@ -41,6 +46,11 @@ const (
 	fingerprintKey = "prufyxResult/v1" // gitleaks:allow (a fingerprint name, not a secret)
 	// truncatedID is the descriptor of the notification for dropped results.
 	truncatedID = "RESULTS_TRUNCATED"
+	// gapRulePrefix starts the rule id of every gap result.
+	gapRulePrefix = "prufyx/gap/"
+	// gapFallbackURI locates a gap when the scan read no input file (standard
+	// input only): the file a scan is configured in.
+	gapFallbackURI = "prufyx.yaml"
 )
 
 // SARIF levels.
@@ -207,6 +217,7 @@ type sarifRunProps struct {
 func SARIF(report Report) ([]byte, error) {
 	rules, index := sarifRules(report)
 	results, dropped := sarifResults(report, index)
+	results, dropped = appendGapResults(report, index, results, dropped)
 	notifications := sarifNotifications(report, index)
 	if dropped > 0 {
 		notifications = append(notifications, sarifNotification{
@@ -273,6 +284,10 @@ func sarifRules(report Report) ([]sarifRule, map[string]int) {
 	for _, l := range report.Leads {
 		add(sarifRule{ID: l.RuleID, ShortDescription: sarifText{l.Text}, Help: sarifText{l.Text}, HelpURI: firstURL(l.Citations),
 			DefaultConfiguration: sarifConfig{sarifNote}, Properties: sarifRuleProps{Basis: "lead", Kind: kindLead}})
+	}
+	for _, g := range report.Gaps {
+		add(sarifRule{ID: gapRuleID(g), ShortDescription: sarifText{Text(labelSarifGapRule, g.Reason)}, Help: sarifText{Text(labelSarifGapHelp, g.Reason)},
+			DefaultConfiguration: sarifConfig{sarifWarning}, Properties: sarifRuleProps{Basis: "none", Kind: kindGap}})
 	}
 	ids := make([]string, 0, len(byID))
 	for id := range byID {
@@ -351,6 +366,45 @@ func sarifResults(report Report, index map[string]int) ([]sarifResult, int) {
 		results = append(results, row.result)
 	}
 	return results, dropped
+}
+
+func gapRuleID(g Gap) string { return gapRulePrefix + g.Reason }
+
+// appendGapResults adds one warning result per gap after the findings, in
+// report order (the report is already in its canonical order), so that an
+// undecided scan is never an empty result list. Each is located at the first
+// input file, or at prufyx.yaml when no file was read. The size limit keeps
+// the findings first; what it drops is counted with the dropped findings.
+func appendGapResults(report Report, index map[string]int, results []sarifResult, dropped int) ([]sarifResult, int) {
+	uri := sarifURI(report.Anchor)
+	if uri == "" {
+		uri = gapFallbackURI
+	}
+	for _, g := range report.Gaps {
+		if len(results) >= SARIFMaxResults {
+			dropped++
+			continue
+		}
+		hop := ""
+		if g.Hop != nil {
+			hop = hopLabel(*g.Hop)
+		}
+		id := gapRuleID(g)
+		results = append(results, sarifResult{
+			RuleID: id, RuleIndex: index[id], Level: sarifWarning,
+			Message: sarifText{cut(fmt.Sprintf(labelGapLine, g.Detail, g.Action), sarifMessageMax)},
+			Locations: []sarifLocation{{PhysicalLocation: sarifPhysical{
+				ArtifactLocation: sarifArtifact{URI: uri, URIBaseID: sarifSrcRoot}, Region: &sarifRegion{StartLine: 1}}}},
+			PartialFingerprints: map[string]string{fingerprintKey: gapFingerprint(id, g.Component, hop, g.Detail)},
+			Properties:          sarifResultProps{Component: g.Component, Hop: hop, Basis: "none", Match: "gap"},
+		})
+	}
+	return results, dropped
+}
+
+func gapFingerprint(ruleID, component, hop, detail string) string {
+	sum := sha256.Sum256([]byte(ruleID + "\x00" + component + "\x00" + hop + "\x00" + detail))
+	return hex.EncodeToString(sum[:])
 }
 
 func logicalOf(l Location) sarifLogical {

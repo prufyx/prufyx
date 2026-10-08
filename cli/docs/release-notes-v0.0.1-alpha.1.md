@@ -1,10 +1,16 @@
 # Prufyx Community v0.0.1-alpha.1
 
-This is the first alpha of Prufyx Community: a deterministic, offline
-Kubernetes/CNCF upgrade-safety checker. It evaluates an upgrade against
-human-reviewed, source-pinned rules and returns one of three verdicts —
-**PASS**, **BLOCKED**, or **UNKNOWN** — with a citation into the upstream
-source that backs each rule. It does not guess.
+> **Draft, not published.** No release has been published yet. This file is
+> the draft of the notes for a first release. Its version number is a
+> placeholder and is not aligned with the `CHANGELOG.md` milestones; align it
+> before publishing.
+
+This is the first alpha of Prufyx Community: a deterministic, offline checker
+of reviewed upgrade constraints for Kubernetes and CNCF projects. It evaluates
+an upgrade against human-reviewed, source-pinned rules and returns one of three
+verdicts — **PASS**, **BLOCKED**, or **UNKNOWN** — with a citation into the
+upstream source that backs each rule. It does not guess, and a result is never
+a whole-upgrade safety claim.
 
 This is an alpha: expect gaps, and read the limitations below before relying
 on a verdict.
@@ -27,8 +33,9 @@ on a verdict.
   kubeconfig-derived snapshot, or similar); Prufyx does not infer them.
 - Collector observation (`prufyx-collector`) covers only a few components
   today; most component facts still have to be declared by the operator.
-- There is no Windows build of `prufyx`: the `observation` package uses Unix
-  syscalls and does not build on Windows.
+- `prufyx-community` builds for Windows, but file and directory input to
+  `prufyx scan` is not supported there (use standard input), and the
+  collector observation package uses Unix syscalls.
 - The embedded rules start expiring on 2026-12-07. After a rule expires, its
   verdict turns UNKNOWN by design, until the rule is re-reviewed and
   republished. This is intentional: Prufyx never keeps citing a source it
@@ -41,8 +48,8 @@ on a verdict.
 
 ## Verifying a download
 
-Every archive is listed in `SHA256SUMS` and covered by a keyless build
-provenance attestation.
+Once a release is published, every archive will be listed in `SHA256SUMS` and
+covered by a keyless build provenance attestation. No archive exists yet.
 
 ```sh
 sha256sum -c SHA256SUMS

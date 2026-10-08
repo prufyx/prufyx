@@ -119,11 +119,14 @@ echo "exit code: $?"
 # exit code: 10
 ```
 
-That `10` is `ExitBlocked`. Wire it into CI as a hard gate: any nonzero exit
-from `prufyx check` (2 = usage error, 3 = integrity failure, 10 = BLOCKED, 11
-= UNKNOWN) means "do not proceed without a human decision," and `10`
-specifically means a reviewed, pinned source confirms the upgrade will break
-this resource.
+That `10` is `ExitBlocked`. In CI use `--strict-exit` on every `prufyx
+check`: then `14` means only the reviewed rules for this pair passed, and every
+other code (2 = usage error, 3 = integrity failure, 10 = BLOCKED, 11 = UNKNOWN)
+needs a human decision. Without the flag a scoped pass exits `0`, but the
+whole upgrade is still `UNKNOWN` (the `aggregate:` line says so, and the
+command repeats it on standard error), so a `0` is not "proceed". `10` means a
+reviewed, pinned source says the target release no longer serves this
+resource's API version. See [exit-codes.md](exit-codes.md).
 
 The `pinned source` line is not a description — it is a citation. Open that
 exact URL at that exact revision and you will find, at lines 87-93, the
@@ -158,8 +161,10 @@ Both flags are on the command deliberately — they are not boilerplate.
   really be sent," not "this JSON merely exists somewhere."
 
 Drop either flag and every removal in this pair reports `UNKNOWN` instead of
-`PASS`/`BLOCKED` — try it, the CLI will tell you why in the `next action`
-field.
+`PASS`/`BLOCKED` — try it: the `next action` field names the missing
+declaration and the flag that makes it, for example "the file is not declared
+to be the complete apply set; if it is, add --resource-scope-complete and run
+again". The reason code is `RULE_FACT_UNAVAILABLE`.
 
 ## 5a. The same check on YAML
 
@@ -248,7 +253,7 @@ line and exits `11`:
 kubernetes native input review
 raw input digests: sha256:74b724b3dbe66cdea762575500e4fce48a5469b669668a7108280e026456a355
 prepared input digest: sha256:0590394cb84c8f90bf0a765b6bd580a14bb2d2e203ce8645da7adf40a0cec443
-UNKNOWN: kubernetes 1.21.0 -> 1.25.0 is not a reviewed transition; reviewed pairs: 1.21.0 -> 1.22.0, 1.23.17 -> 1.24.0, 1.24.0 -> 1.25.0, 1.25.0 -> 1.26.0, 1.26.0 -> 1.27.0, 1.28.0 -> 1.29.0, 1.31.0 -> 1.32.0; for a multi-minor upgrade, check each reviewed pair in turn
+UNKNOWN: kubernetes 1.21.0 -> 1.25.0 is not a reviewed transition; reviewed pairs: 1.21.0 -> 1.22.0, 1.23.17 -> 1.24.0, 1.24.0 -> 1.25.0, 1.25.0 -> 1.26.0, 1.26.0 -> 1.27.0, 1.28.0 -> 1.29.0, 1.31.0 -> 1.32.0; for a multi-minor upgrade, check each minor step; a step without a reviewed pair stays UNKNOWN
 scoped result: UNKNOWN
 aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
 ```
@@ -324,7 +329,7 @@ cd /tmp/prufyx-quickstart
 Verified output:
 
 ```
-BLOCKED: 1 problem must be fixed before this upgrade
+BLOCKED: 1 problem must be fixed; 2 areas were not checked
 
 kubernetes 1.24.17 -> 1.25.3: 1 hop (no reviewed path policy)
   1.24.17 -> 1.25.3   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
@@ -332,10 +337,10 @@ kubernetes 1.24.17 -> 1.25.3: 1 hop (no reviewed path policy)
                       fix: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 
 NOT CHECKED (2)
-  kubernetes   no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the Kubernetes 1.25 API reference by hand, or request coverage
+  kubernetes   no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the Kubernetes 1.25 API reference by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml
   kubernetes 1.24.17 -> 1.25.3   no review confirms that the removed-API rules for kubernetes 1.25 name every API that line removes - check the kubernetes 1.25 release notes for other removed APIs by hand, or request a line review
 
-Checked 1 hop, 2 documents, 1 component (1 covered). 6 checks passed (--show-passes).
+Read 2 documents over 1 hop; 1 of 1 component has rules (partially evaluated). 6 checks passed (--show-passes).
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
 Evidence: every finding cites pinned upstream source (--verbose). No network used.
 evaluated at 2026-10-04T00:00:00Z; input sha256:cac5facf042643aa2ca473b53dbc8e3de6e3001562dc1a16c4a0d15115aa07b0; knowledge embedded cncf-2026-09-13.4 sha256:4d2718043fbc41bb0f99ce8a69ea9ef253c52249bb88254b969d1ebdab46e5c5
@@ -359,9 +364,9 @@ gaps, `--redact`, JSON output and `prufyx.yaml`.
   running a check.
 - The current build has **194 registered native check routes** across all
   projects (enforced by `internal/checkroutemetadata`, not a doc claim you
-  have to trust); Kubernetes alone reviews removed APIs across five separate
-  from/to pairs, plus a sixth pair (1.31.0 → 1.32.0) for flow-control API
-  removals specifically. This quickstart exercised two of the five.
+  have to trust); Kubernetes reviews removed APIs for six from/to pairs
+  (upgrades to 1.22, 1.25, 1.26, 1.27, 1.29 and 1.32) plus the 1.24 dockershim
+  removal. This quickstart exercised two of them.
 - A scoped `PASS`, `BLOCKED`, or `UNKNOWN` result is never a whole-upgrade
   safety claim. See the root [README](../README.md) and
   [`docs/product-contract.md`](product-contract.md) for what Prufyx does and

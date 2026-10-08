@@ -217,7 +217,13 @@ func (v *sarifValidator) result(where string, value any, ruleIDs []string) {
 		if int(index) >= len(ruleIDs) || ruleIDs[index] != r["ruleId"] {
 			v.fail("%s ruleIndex %d does not point at rule %v", where, index, r["ruleId"])
 		}
-		v.equal(where+".level", r["level"], "error")
+		// A gap result is a warning, never an error; every other result is
+		// a finding and is an error.
+		wantLevel := "error"
+		if id, _ := r["ruleId"].(string); strings.HasPrefix(id, gapRulePrefix) {
+			wantLevel = "warning"
+		}
+		v.equal(where+".level", r["level"], wantLevel)
 		v.message(where+".message", r["message"])
 		v.object(where+".properties", r["properties"], []string{"component", "hop", "basis", "match"}, nil, nil)
 		for i, location := range v.arrayOrNil(where+".locations", r["locations"]) {
@@ -299,6 +305,7 @@ func TestSARIFStructure(t *testing.T) {
 		"scheme uri":          func(l map[string]any) { artifact(l)["uri"] = "file:///x.yaml" },
 		"backslash uri":       func(l map[string]any) { artifact(l)["uri"] = "a\\b.yaml" },
 		"finding as warning":  func(l map[string]any) { first(l, "results")["level"] = "warning" },
+		"gap result as error": func(l map[string]any) { gapResult(l)["level"] = "error" },
 		"notification error":  func(l map[string]any) { notification(l)["level"] = "error" },
 		"missing message":     func(l map[string]any) { delete(first(l, "results"), "message") },
 		"rule repeated":       func(l map[string]any) { rules := rulesOf(l); rules[1] = rules[0] },
@@ -352,6 +359,14 @@ func physical(l map[string]any) map[string]any {
 func region(l map[string]any) map[string]any { return physical(l)["region"].(map[string]any) }
 func artifact(l map[string]any) map[string]any {
 	return physical(l)["artifactLocation"].(map[string]any)
+}
+func gapResult(l map[string]any) map[string]any {
+	for _, r := range runOf(l)["results"].([]any) {
+		if result := r.(map[string]any); strings.HasPrefix(result["ruleId"].(string), gapRulePrefix) {
+			return result
+		}
+	}
+	panic("no gap result")
 }
 func notification(l map[string]any) map[string]any {
 	for _, n := range runOf(l)["invocations"].([]any)[0].(map[string]any)["toolExecutionNotifications"].([]any) {
