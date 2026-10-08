@@ -340,6 +340,12 @@
         "attestation": {
           "$ref": "#/$defs/attestation"
         },
+        "families": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/familyResult"
+          }
+        },
         "reasons": {
           "type": "array",
           "items": {
@@ -372,6 +378,37 @@
           "type": "string"
         },
         "validUntil": {
+          "type": "string"
+        }
+      }
+    },
+    "familyResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family",
+        "line",
+        "status",
+        "basis",
+        "scope"
+      ],
+      "properties": {
+        "family": {
+          "type": "string"
+        },
+        "line": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "PASS",
+            "BLOCKED"
+          ]
+        },
+        "basis": {
+          "type": "string"
+        },
+        "scope": {
           "type": "string"
         }
       }

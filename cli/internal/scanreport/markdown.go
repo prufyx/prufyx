@@ -105,6 +105,20 @@ func Markdown(report Report, options MarkdownOptions) []byte {
 		}
 	}
 
+	var scoped []string
+	for _, path := range report.Paths {
+		scoped = append(scoped, familyLines(path)...)
+	}
+	if len(scoped) > 0 {
+		line("")
+		line("## "+labelMDScoped, len(scoped)/2)
+		line("")
+		for i := 0; i+1 < len(scoped); i += 2 {
+			line("- %s", mdText(strings.TrimSpace(scoped[i])))
+			line("  %s", mdText(strings.TrimSpace(scoped[i+1])))
+		}
+	}
+
 	if len(report.Gaps) > 0 {
 		line("")
 		line("## "+labelNotChecked, len(report.Gaps))
