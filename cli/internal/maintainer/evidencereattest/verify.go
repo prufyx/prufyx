@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"sort"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
@@ -177,7 +178,7 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 		return VerifyResult{}, err
 	}
 
-	if err := checkV11(statement, options.PackPath, options.WorklistRaw); err != nil {
+	if err := checkV11(statement, options.PackPath, options.WorklistRaw, priorByID); err != nil {
 		return VerifyResult{}, err
 	}
 	if err := checkOwnerBaselines(statement, options.BaselinesRaw, len(options.IndependentWorklistRaw) > 0); err != nil {
@@ -214,7 +215,7 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 		if err := checkSignerWorklistAgrees(statement, options.PackPath, options.WorklistRaw, options.IndependentWorklistRaw); err != nil {
 			return VerifyResult{}, err
 		}
-		if err := checkV11(statement, options.PackPath, options.IndependentWorklistRaw); err != nil {
+		if err := checkV11Independent(statement, options.PackPath, options.IndependentWorklistRaw); err != nil {
 			return VerifyResult{}, err
 		}
 	}
@@ -849,11 +850,13 @@ func refuseRehearsal(statement Statement) error {
 	return nil
 }
 
-// checkV11 re-derives the pending citations of this pack from the worklist
-// and requires the statement to record exactly them, to renew no rule that
-// cites one, and to list every such rule as not extended with the pending
-// repositories it cites.
-func checkV11(statement Statement, packPath string, worklistRaw []byte) error {
+// checkV11 re-derives the pending citations of this pack from the signing
+// worklist and requires the statement to record exactly them, to renew no
+// rule that cites one, and to list every such rule of the pack as not
+// extended with the pending repositories it cites. priorRules is the prior
+// pack's rules by ID: a pending rule of the pack that the statement neither
+// renews nor excludes is named in the refusal.
+func checkV11(statement Statement, packPath string, worklistRaw []byte, priorRules map[string]json.RawMessage) error {
 	var wl evidencerepin.Worklist
 	if err := json.Unmarshal(worklistRaw, &wl); err != nil {
 		return fmt.Errorf("%w: V11: worklist does not decode", ErrRejected)
@@ -875,18 +878,47 @@ func checkV11(statement Statement, packPath string, worklistRaw []byte) error {
 	for _, ne := range statement.NotExtended {
 		excluded[ne.RuleID] = ne
 	}
-	for rule, repos := range byRule {
+	ids := make([]string, 0, len(byRule))
+	for rule := range byRule {
+		ids = append(ids, rule)
+	}
+	sort.Strings(ids)
+	for _, rule := range ids {
+		repos := byRule[rule]
 		if renewed[rule] {
 			return fmt.Errorf("%w: V11: rule %s cites a pending citation and must not be renewed", ErrRejected, rule)
 		}
 		ne, ok := excluded[rule]
 		if !ok {
 			// A pending rule absent from the pack is not this
-			// statement's concern.
+			// statement's concern; one in the pack must be listed.
+			if _, inPack := priorRules[rule]; inPack {
+				return fmt.Errorf("%w: V11: rule %s cites a pending citation and is missing from the statement (neither renewed nor listed as not extended)", ErrRejected, rule)
+			}
 			continue
 		}
 		if !slices.Equal(ne.PendingRepositories, repos) {
 			return fmt.Errorf("%w: V11: rule %s does not name its pending repositories", ErrRejected, rule)
+		}
+	}
+	return nil
+}
+
+// checkV11Independent is V11 against the independent worklist. Pending is
+// volatile between two separately produced worklists (a rate limit, an
+// error, a repository that resolved in between), and a rule nobody renews
+// may carry any of it, so this does not require the statement's pending set
+// to equal the pack's. It requires only what carries integrity: no renewed
+// rule cites a citation that is pending in the independent worklist.
+func checkV11Independent(statement Statement, packPath string, worklistRaw []byte) error {
+	var wl evidencerepin.Worklist
+	if err := json.Unmarshal(worklistRaw, &wl); err != nil {
+		return fmt.Errorf("%w: V11: independent worklist does not decode", ErrRejected)
+	}
+	_, byRule := pendingFromWorklist(wl, packPath)
+	for _, ra := range statement.Rules {
+		if _, pending := byRule[ra.RuleID]; pending {
+			return fmt.Errorf("%w: V11: rule %s cites a citation that is pending in the independent worklist and must not be renewed", ErrRejected, ra.RuleID)
 		}
 	}
 	return nil

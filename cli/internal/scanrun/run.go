@@ -28,6 +28,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/knowledgepin"
 	"github.com/prufyx/prufyx/cli/internal/scanconfig"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
+	"github.com/prufyx/prufyx/cli/internal/validation"
 )
 
 // Options are the parts of a scan that do not come from the command line.
@@ -367,6 +368,9 @@ func inputError(err error, request Request) error {
 		message = scanreport.Text(scanreport.UsageInputLimit)
 	case errors.Is(err, intake.ErrDecode):
 		message = scanreport.Text(scanreport.UsageInputDecode)
+	case errors.Is(err, validation.ErrUnsupportedPlatform):
+		// A fixed message, shown even when paths are redacted.
+		message = scanreport.Text(scanreport.UsageInputWindows)
 	}
 	if !request.Redact {
 		message = scanreport.Text(scanreport.UsageInputDetail, message, err.Error())

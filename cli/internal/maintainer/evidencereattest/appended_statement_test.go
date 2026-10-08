@@ -166,6 +166,55 @@ func TestAutomatedPrepareExcludesEveryRuleReviewedAfterTheChainHead(t *testing.T
 	}
 }
 
+// 14-M1: a rule reviewed after the chain head that also cites a pending
+// source is excluded as REVIEWED_OUTSIDE_STATEMENT_CHAIN with its pending
+// repositories, so Prepare's own statement verifies (V11).
+func TestAutomatedPrepareNamesPendingRepositoriesOfARuleOutsideTheChain(t *testing.T) {
+	f := newRoleFixture(t)
+	t1 := baseNow
+	c1 := prepareAutomated(t, f.chainFixture, automatedPack(t, t1), t1, cycleSpecs(12, t1), "rev-2", nil)
+	f.appendAutomated("0001", c1.res.StatementCanonical)
+	t2 := t1.Add(automatedSpacing)
+	reviewedAt := t1.Add(24 * time.Hour)
+	prior := setRuleDates(t, c1.res.NextPack, "rule-03", rfc3339(reviewedAt), rfc3339(t2.Add(10*24*time.Hour)))
+	for _, pendingRules := range [][]string{{"rule-03"}, {"rule-03", "rule-05"}} {
+		wl, _ := buildWorklistAndPack(t, chainPackPath, t2, cycleSpecs(12, t2))
+		lineBaselined(&wl)
+		for i := range wl.Citations {
+			for _, id := range pendingRules {
+				if wl.Citations[i].RuleID == id {
+					wl.Citations[i].Class = evidencerepin.ClassPending
+				}
+			}
+		}
+		c2 := prepareAutomatedWith(t, f.chainFixture, prior, t2, marshalWorklist(t, wl), "rev-3", nil)
+		var entry *NotExtendedEntry
+		for i := range c2.res.Statement.NotExtended {
+			if c2.res.Statement.NotExtended[i].RuleID == "rule-03" {
+				entry = &c2.res.Statement.NotExtended[i]
+			}
+		}
+		if entry == nil || entry.WorstClass != reasonReviewedOutsideChain || len(entry.PendingRepositories) == 0 {
+			t.Fatalf("rule-03 must be excluded as %s with its pending repositories, got %+v", reasonReviewedOutsideChain, entry)
+		}
+		for _, ra := range c2.res.Statement.Rules {
+			if ra.RuleID == "rule-03" {
+				t.Fatal("rule-03 was renewed")
+			}
+		}
+		base := &Chain{Entries: f.chain().Entries[:1], TrustRoot: f.root, ExpectedTrustRootDigest: f.digest}
+		chain := f.chain()
+		envelope, err := f.signAs(RoleAutomation, f.automation, c2.res.StatementCanonical)
+		if err != nil {
+			t.Fatal(err)
+		}
+		chain.Entries = append(append([]ChainEntry(nil), chain.Entries...), ChainEntry{Name: "0002", Statement: c2.res.StatementCanonical, Envelope: envelope})
+		if err := verifyStrict(c2, base, chain); err != nil {
+			t.Fatalf("Prepare's own statement must verify (pending %v): %v", pendingRules, err)
+		}
+	}
+}
+
 // ---------------------------------------------------------------------
 // V9: an independently produced worklist must agree
 // ---------------------------------------------------------------------

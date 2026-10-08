@@ -441,6 +441,7 @@ const (
 	UsagePermissionsWrite    = "an input file is writable by other users; run chmod go-w on it"
 	UsageInputUnreadable     = "an input path cannot be read"
 	UsageInputLimit          = "the inputs exceed a size limit"
+	UsageInputWindows        = "file and directory input is not supported on Windows; pipe the manifest on standard input (use -)"
 	UsageInputDecode         = "an input file is not valid YAML or JSON within the supported subset"
 	UsageInputDetail         = "%s (%s)"
 	UsageConfigInputs        = "inputs in prufyx.yaml are relative to its directory and must stay inside it"

@@ -129,6 +129,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   ranges do not change; the guide's v1beta3 alternative for flow control v1beta1
   is cited as a second passage. See
   [the extractor](cli/docs/extractors/k8s.served-api-removal.md).
+- Post-merge review fixes for the renewal path. `evidence reattest prepare` (automated) now names the pending
+  repositories of a rule excluded as `REVIEWED_OUTSIDE_STATEMENT_CHAIN`, so its own statement verifies (V11).
+  `verify` against the independent worklist (V11) now checks only that no renewed rule cites a citation pending
+  there, instead of requiring the whole pack's pending set to match. A rule with a pending citation and a drifted
+  one is reported with the drift reason plus its pending repositories (it was `CITATION_PENDING`), and V11 names a
+  pending rule missing from the statement. Automated statements now list a mechanical rule dated after the chain
+  head as `MECHANICAL_RULE_EXCLUDED` (it was `REVIEWED_OUTSIDE_STATEMENT_CHAIN`); re-prepare any in-flight automated
+  statement, which otherwise fails V3.
+- `extract supersede` now uses the knowledge gate's pairing function (new `internal/supersedepred`): it refuses
+  (exit 3) a reviewed rule whose replacement has another predicate or project, a rule that is not `reviewed`, a run
+  rule that would replace several reviewed rules, and a replacement that is not new, active and mechanical.
+- Windows: `prufyx-community` refuses file input with "not supported on Windows" and the Unix-only tests of
+  `currentbundle` and `knowledgeauto` carry `!windows` build constraints, so `GOOS=windows go vet` passes.
 - `constraintengine.ConstraintKey` is now the one exported constraint-key function; `extract supersede` and the gate call it instead of keeping their own copies.
 - `k8s.served-api-removal` 1.2.0: the next action of each derived API-removal rule
   names the removed kinds and the exact version to migrate to (for example
