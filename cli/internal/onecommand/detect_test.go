@@ -42,9 +42,9 @@ func TestImageRegistryMakesProjectsObservableWithFailClosedVersions(t *testing.T
 		"goharbor/harbor-core@sha256:" + strings.Repeat("a", 64), // digest-only: no version
 		"mariadb:10.11.8",
 		"ghcr.io/mariadb-operator/mariadb-operator:26.3.0",
-		"docker.io/library/nats:2.10.0-alpine",                           // alpine scheme
-		"example-artifactregistry.gcr.io/gke-release/etcd:v3.5.17-gke.1", // distribution: ignored
-		"registry.example.com/mirror/projectcontour/contour:v1.19.0",     // mirror: unknown image
+		"docker.io/library/nats:2.10.0-alpine",                          // alpine scheme
+		"example-artifactregistry.gcr.io/gke-release/etcd:v9.9.9-gke.1", // distribution: ignored
+		"registry.example.com/mirror/projectcontour/contour:v1.19.0",    // mirror: unknown image
 	}}
 	var stdout, stderr bytes.Buffer
 	report, code := Run(context.Background(), baseTestOptions(t, runner), &stdout, &stderr)

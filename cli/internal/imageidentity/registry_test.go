@@ -250,7 +250,7 @@ func TestProviderDistributionBuildsAreNeverUpstreamVersions(t *testing.T) {
 		"example-artifactregistry.gcr.io/gke-release/etcd:v3.7.2-gke.1",
 		"gcr.io/gke-release/prometheus-to-sd:v0.11.12-gke.9",
 		"gke.gcr.io/cluster-proportional-autoscaler:v1.9.0-gke.1",
-		"europe-docker.pkg.dev/gke-release/gke-release/x:v1.2.3",
+		"example-docker.pkg.dev/gke-release/gke-release/x:v1.2.3",
 	} {
 		r := tab.Match(ref, testNow)
 		if r.Version != "" || r.Component != "" {
