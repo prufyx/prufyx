@@ -3,6 +3,8 @@
 package scanrun
 
 import (
+	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -144,6 +146,15 @@ func TestScanCustomResourceAttestedQuietLine(t *testing.T) {
 	if _, err := scanreport.DecodeJSON(raw); err != nil || !strings.Contains(string(raw), `"families":[{"family":"crd.custom_resource_versions","line":"0.51","status":"PASS","basis":"mechanical","scope":"`) {
 		t.Fatalf("json %v %s", err, raw)
 	}
+	// The report conforms to the published schema.
+	var value any
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	if err := decoder.Decode(&value); err != nil {
+		t.Fatal(err)
+	}
+	schema := readSchema(t)
+	conform(t, schema, schema, value, "attested quiet line")
 }
 
 // A removal stays BLOCKED, and the family result says so; with the
