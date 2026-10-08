@@ -212,7 +212,7 @@ func applyBasisSemantics(r rule, claim Claim) Claim {
 // hold a consensus or lead rule. It extends the notice contract with the
 // basis semantics and the NO_KNOWN_ISSUE status.
 func engineContractDigestBasis() string {
-	return digestBytes([]byte(EngineVersion + "\n" + InputSchema + "\n" + RulesSchemaBasis + "\n" + ReportSchema + "\n" + InputAuthority + "\n" + RulesAuthority + "\nappliesWhen\ncomparison:eq\ncomparison:gte\ncomparison:lte\ncomparison:lt\nforbid_predicate_value\nrequire_component_version\nrequire_intermediate_version\nforbid_target_version\n" + OperatorForbidSetMember + "\nfact:" + string(FactSet) + "\nclaim:matchedMembers\nreason:" + reasonSetFactIncomplete + "\n" + setMemberPolicy + "\n" + OperatorNoticeOneWay + "\nclaim:status:" + StatusNotice + "\nreason:" + ReasonOneWayTransition + "\n" + noticeNeutrality + "\nclaim:status:" + StatusNoKnownIssue + "\n" + basisSemantics + "\nsubject:exact\nsubject:range\nclaim:subjectMatch\n" + rangeWidthPolicy + "\n" + basisVocabulary()))
+	return digestBytes([]byte(EngineVersion + "\n" + InputSchema + "\n" + RulesSchemaBasis + "\n" + ReportSchema + "\n" + InputAuthority + "\n" + RulesAuthority + "\nappliesWhen\ncomparison:eq\ncomparison:gte\ncomparison:lte\ncomparison:lt\nforbid_predicate_value\nrequire_component_version\nrequire_intermediate_version\nforbid_target_version\n" + OperatorForbidSetMember + "\nfact:" + string(FactSet) + "\nclaim:matchedMembers\nreason:" + reasonSetFactIncomplete + "\n" + setMemberPolicy + "\n" + OperatorNoticeOneWay + "\nclaim:status:" + StatusNotice + "\nreason:" + ReasonOneWayTransition + "\n" + noticeNeutrality + "\nclaim:status:" + StatusNoKnownIssue + "\n" + basisSemantics + "\nsubject:exact\nsubject:range\nclaim:subjectMatch\n" + rangeWidthPolicy + "\n" + rangeBoundaryPolicy + "\n" + basisVocabulary()))
 }
 
 // EngineContractDigestBasis exposes the contract identity for rule documents
@@ -222,7 +222,7 @@ func EngineContractDigestBasis() string { return engineContractDigestBasis() }
 // scopeContractDigestBasis adds the consensus and lead rules to the notice
 // scope vocabulary. It is used only with the basis engine contract.
 func scopeContractDigestBasis() string {
-	return digestBytes([]byte(ScopeContractVersionBasis + "\n" + ScopeDeclaration + "\n" + CorpusAttestation + "\n" + AssessmentUnknown + "\n" + AssessmentBlocked + "\n" + AssessmentScopeCompletePass + "\n" + ApplicabilityApplicable + "\n" + ApplicabilityNotApplicable + "\n" + ApplicabilityUndetermined + "\n" + omissionWholeUpgradeScoped + "\n" + unresolvedTransitionNotAnchor + "\n" + noticeNeutrality + "\n" + basisSemantics + "\nnotEvaluated:" + ApplicabilityApplicable + ":" + ReasonConsensusNoKnownIssue + "\nunresolved:" + unresolvedConsensusOnlyScope))
+	return digestBytes([]byte(ScopeContractVersionBasis + "\n" + ScopeDeclaration + "\n" + CorpusAttestation + "\n" + AssessmentUnknown + "\n" + AssessmentBlocked + "\n" + AssessmentScopeCompletePass + "\n" + ApplicabilityApplicable + "\n" + ApplicabilityNotApplicable + "\n" + ApplicabilityUndetermined + "\n" + omissionWholeUpgradeScoped + "\n" + unresolvedTransitionNotAnchor + "\n" + rangeBoundaryPolicy + "\n" + noticeNeutrality + "\n" + basisSemantics + "\nnotEvaluated:" + ApplicabilityApplicable + ":" + ReasonConsensusNoKnownIssue + "\nunresolved:" + unresolvedConsensusOnlyScope))
 }
 
 // ScopeContractDigestBasis exposes the basis scope-completeness identity.

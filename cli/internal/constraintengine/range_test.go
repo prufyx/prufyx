@@ -162,7 +162,12 @@ func TestRangeClaimDisclosesAndDecides(t *testing.T) {
 		{"range pass", "1.24.17", "1.25.3", declaredFact(scopeFactA, false), "PASS", "FEATURE_REMOVED", true},
 		{"range fact missing", "1.24.17", "1.25.3", `{"id":"` + scopeFactA + `","state":"missing"}`, "UNKNOWN", "RULE_FACT_UNAVAILABLE", true},
 		{"anchor blocked", "1.24.0", "1.25.0", declaredFact(scopeFactA, true), "BLOCKED", "FEATURE_REMOVED", false},
-		{"outside", "1.24.17", "1.26.0", declaredFact(scopeFactA, true), "UNKNOWN", "RULE_TRANSITION_NOT_REVIEWED", false},
+		// The hop crosses the pinned release boundary 1.25.0 outside the
+		// range: not reviewed, never an exclusion.
+		{"outside, crosses the boundary", "1.24.17", "1.26.0", declaredFact(scopeFactA, true), "UNKNOWN", ReasonReleaseBoundaryNotReviewed, false},
+		{"outside, below the range", "1.22.0", "1.25.0", declaredFact(scopeFactA, true), "UNKNOWN", ReasonReleaseBoundaryNotReviewed, false},
+		{"outside, does not cross the boundary", "1.22.0", "1.24.5", declaredFact(scopeFactA, true), "UNKNOWN", "RULE_TRANSITION_NOT_REVIEWED", false},
+		{"downgrade across the boundary", "1.26.0", "1.24.17", declaredFact(scopeFactA, true), "UNKNOWN", "RULE_TRANSITION_NOT_REVIEWED", false},
 		{"crossing", "1.25.1", "1.25.4", declaredFact(scopeFactA, true), "UNKNOWN", "RULE_TRANSITION_NOT_REVIEWED", false},
 	}
 	for _, tc := range cases {
@@ -182,7 +187,7 @@ func TestRangeClaimDisclosesAndDecides(t *testing.T) {
 			if tc.disclosed && (claim.SubjectMatch.Mode != "range" || claim.SubjectMatch.AnchorFrom != "1.24.0" || claim.SubjectMatch.AnchorTo != "1.25.0" || !strings.Contains(claim.NextAction, "matched by reviewed range; anchor pair 1.24.0 -> 1.25.0")) {
 				t.Fatalf("disclosure=%+v action=%q", claim.SubjectMatch, claim.NextAction)
 			}
-			if tc.reason == "RULE_TRANSITION_NOT_REVIEWED" && !strings.Contains(claim.NextAction, "reviewed range") {
+			if (tc.reason == "RULE_TRANSITION_NOT_REVIEWED" || tc.reason == ReasonReleaseBoundaryNotReviewed) && !strings.Contains(claim.NextAction, "reviewed range") {
 				t.Fatalf("out-of-range action=%q", claim.NextAction)
 			}
 			if len(claim.NextAction) > maxStringBytes {
@@ -361,7 +366,8 @@ func TestRangeScopeCompletenessStaysAnchorOnly(t *testing.T) {
 		{"range pass stays unknown", "1.24.17", "1.25.3", false, AssessmentUnknown, unresolvedTransitionNotAnchor},
 		{"range blocker blocks", "1.24.17", "1.25.3", true, AssessmentBlocked, unresolvedTransitionNotAnchor},
 		{"anchor pass is scope complete", "1.24.0", "1.25.0", false, AssessmentScopeCompletePass, ""},
-		{"outside stays unknown", "1.24.17", "1.26.0", false, AssessmentUnknown, unresolvedNoApplicableRule},
+		{"outside, crossing the boundary, is undetermined", "1.24.17", "1.26.0", false, AssessmentUnknown, unresolvedApplicability},
+		{"outside, not crossing, stays excluded", "1.22.0", "1.24.5", false, AssessmentUnknown, unresolvedNoApplicableRule},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -434,22 +440,32 @@ func TestForgedRangeReportsAreRefused(t *testing.T) {
 }
 
 // TestRangeApplicabilityIgnoresTheClock: the matcher never reads time. A
-// stale range rule is UNDETERMINED in range and NOT_APPLICABLE outside it,
-// and applicability does not move as the clock sweeps across validUntil.
+// stale range rule is UNDETERMINED in range, UNDETERMINED outside it when the
+// hop crosses the pinned release boundary, and NOT_APPLICABLE outside it when
+// it does not, and applicability does not move as the clock sweeps across validUntil.
 func TestRangeApplicabilityIgnoresTheClock(t *testing.T) {
 	spec := defaultRangeSpec()
 	spec.validUntil = expiredUntil
 	rules := parseRanged(t, true, spec.ruleJSON())
 	inRange := rangeInput(t, "1.24.17", "1.25.3", declaredFact(scopeFactA, false), true)
 	outside := rangeInput(t, "1.24.17", "1.26.0", declaredFact(scopeFactA, false), true)
+	apart := rangeInput(t, "1.22.0", "1.24.5", declaredFact(scopeFactA, false), true)
 	for _, now := range []time.Time{time.Date(2026, 4, 30, 0, 0, 0, 0, time.UTC), time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC), testNow(t), time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)} {
 		outsideReport, err := Evaluate(outside, rules, now)
 		if err != nil {
 			t.Fatal(err)
 		}
 		skipped := outsideReport.ScopeCompleteness.Components[0].NotEvaluated
-		if len(skipped) != 1 || skipped[0].Applicability != ApplicabilityNotApplicable || skipped[0].ReasonCode != "RULE_TRANSITION_NOT_REVIEWED" {
+		if len(skipped) != 1 || skipped[0].Applicability != ApplicabilityUndetermined || skipped[0].ReasonCode != ReasonReleaseBoundaryNotReviewed {
 			t.Fatalf("outside at %s: %+v", now, skipped)
+		}
+		apartReport, err := Evaluate(apart, rules, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		skipped = apartReport.ScopeCompleteness.Components[0].NotEvaluated
+		if len(skipped) != 1 || skipped[0].Applicability != ApplicabilityNotApplicable || skipped[0].ReasonCode != "RULE_TRANSITION_NOT_REVIEWED" {
+			t.Fatalf("apart at %s: %+v", now, skipped)
 		}
 		inRangeReport, err := Evaluate(inRange, rules, now)
 		if err != nil {
@@ -470,7 +486,7 @@ func TestRangeApplicabilityIgnoresTheClock(t *testing.T) {
 	if report.Claims[0].ReasonCode != "RULE_EVIDENCE_STALE" || report.Assessment != AssessmentUnknown || report.ScopeCompleteness.Components[0].NotEvaluated[0].Applicability != ApplicabilityUndetermined {
 		t.Fatalf("stale in-range report=%+v", report)
 	}
-	report, err = Evaluate(outside, rules, testNow(t))
+	report, err = Evaluate(apart, rules, testNow(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -482,8 +498,9 @@ func TestRangeApplicabilityIgnoresTheClock(t *testing.T) {
 
 // TestWideningIsMonotone: for every transition, the widened rule yields the
 // identical claim wherever the anchor-only rule matched, newly matches only
-// transitions inside its range, and yields RULE_TRANSITION_NOT_REVIEWED for
-// everything else. It never turns a BLOCKED into a PASS.
+// transitions inside its range, and yields RULE_TRANSITION_NOT_REVIEWED (or
+// RULE_RELEASE_BOUNDARY_NOT_REVIEWED when the hop crosses the pinned release
+// boundary) for everything else. It never turns a BLOCKED into a PASS.
 func TestWideningIsMonotone(t *testing.T) {
 	exactSpec := defaultRangeSpec()
 	exactSpec.noRange = true
@@ -522,7 +539,14 @@ func TestWideningIsMonotone(t *testing.T) {
 						t.Fatalf("%s -> %s: in-range claim=%+v", from, to, w)
 					}
 				default:
-					if w.Status != "UNKNOWN" || w.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED" || w.SubjectMatch != nil {
+					// Outside the range: a strict upgrade across the pinned
+					// release boundary 1.25.0 is not reviewed; anything else
+					// is excluded.
+					want := "RULE_TRANSITION_NOT_REVIEWED"
+					if VersionLess(from, "1.25.0") && !VersionLess(to, "1.25.0") && VersionLess(from, to) {
+						want = ReasonReleaseBoundaryNotReviewed
+					}
+					if w.Status != "UNKNOWN" || w.ReasonCode != want || w.SubjectMatch != nil {
 						t.Fatalf("%s -> %s: out-of-range claim=%+v", from, to, w)
 					}
 				}

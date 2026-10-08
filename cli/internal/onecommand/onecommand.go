@@ -201,7 +201,9 @@ type CheckAssessment struct {
 	Reason              string        `json:"reason"`
 	ObservedVersion     string        `json:"observedVersion,omitempty"`
 	MissingDeclarations []Declaration `json:"missingDeclarations,omitempty"`
-	// MatchMode is "range" when the check applies through the rule's reviewed
+	// MatchMode is "boundary-unreviewed" when the observed origin is below the
+	// rule's reviewed range but a target at or above the range's release
+	// boundary would cross it unreviewed; "range" when the check applies through the rule's reviewed
 	// range rather than its anchor origin; omitted for anchor matches.
 	MatchMode string     `json:"matchMode,omitempty"`
 	Command   []string   `json:"command,omitempty"`
@@ -545,18 +547,30 @@ func classifyOrigin(base CheckAssessment, route checkroutemetadata.Check, exact 
 	// A removal crossing matches any origin below its change version C, not
 	// only the reviewed origin range: the hop may skip many minor lines.
 	crossingOrigin := route.Crossing != nil && constraintengine.VersionLess(observed, route.Crossing.Change.Version)
-	if !inRange && !crossingOrigin {
+	// A ranged rule whose range pins a release boundary C is about every hop
+	// that crosses C, not only the hops inside the range: an origin below the
+	// range may still be upgraded across C, and the engine reports such a
+	// hop as undetermined (RULE_RELEASE_BOUNDARY_NOT_REVIEWED), never as not
+	// applicable. Only a target below C (or not above the origin) is.
+	boundary, boundaryKnown := transition.ChangeVersion()
+	boundaryOrigin := !inRange && !crossingOrigin && route.Range != nil && boundaryKnown && constraintengine.VersionLess(observed, boundary)
+	if !inRange && !crossingOrigin && !boundaryOrigin {
 		base.Applicability = NotApplicableVersionMismatch
 		base.Reason = mismatch
 		return base
 	}
 	base.MatchMode = "range"
-	if !inRange {
+	switch {
+	case boundaryOrigin:
+		base.MatchMode = constraintengine.MatchModeBoundaryUnreviewed
+	case !inRange:
 		base.MatchMode = "crossing"
 	}
 	if !targetOK || to == "" {
 		base.Applicability = ApplicableNeedsDeclaration
-		if inRange {
+		if boundaryOrigin {
+			base.Reason = "The observed version " + observed + " is below this rule's reviewed origin range [" + route.Range.From.Gte + ", " + route.Range.From.Lt + "), but an upgrade to a target at or above its release boundary " + boundary + " crosses that boundary outside the reviewed range, so the check cannot be excluded. Whether the upgrade crosses it depends on the target, which is not declared"
+		} else if inRange {
 			base.Reason = "The observed version " + observed + " is not the reviewed anchor origin " + route.From + " but lies inside this rule's reviewed origin range [" + route.Range.From.Gte + ", " + route.Range.From.Lt + "). Whether the upgrade crosses the rule's change version depends on the target, which is not declared"
 		} else {
 			base.Reason = "The observed version " + observed + " is below this rule's removal release " + route.Crossing.Change.Version + ", so an upgrade to a target at or above it, and below " + route.Crossing.Cap() + ", is blocked when the removed API is in use. Whether the upgrade crosses it depends on the target, which is not declared"
@@ -615,6 +629,10 @@ func classifyOrigin(base CheckAssessment, route checkroutemetadata.Check, exact 
 			covered += "crossing targets [" + route.Crossing.Change.Version + ", " + route.Crossing.Cap() + ")"
 		}
 		base.Reason = "The hop " + observed + " -> " + to + " is not covered by this rule's reviewed coverage (" + covered + "); it may cross the rule's change version, so it is not reported as not applicable. Step through intermediate minor versions or request coverage."
+	}
+	if boundaryOrigin && base.Applicability == NotApplicableVersionMismatch {
+		// The hop does not cross the boundary, so the rule is not matched.
+		base.MatchMode = ""
 	}
 	return base
 }

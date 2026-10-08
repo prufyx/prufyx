@@ -203,7 +203,7 @@ func AnySetRule(rules []json.RawMessage) (bool, error) {
 // the set fact type, the matched-member claim disclosure and the set bounds.
 // Documents without the operator keep their existing contract and digest.
 func engineContractDigestSet() string {
-	return digestBytes([]byte(EngineVersion + "\n" + InputSchema + "\n" + RulesSchemaSet + "\n" + ReportSchema + "\n" + InputAuthority + "\n" + RulesAuthority + "\nappliesWhen\ncomparison:eq\ncomparison:gte\ncomparison:lte\ncomparison:lt\nforbid_predicate_value\nrequire_component_version\nrequire_intermediate_version\nforbid_target_version\n" + OperatorForbidSetMember + "\nfact:" + string(FactSet) + "\nclaim:matchedMembers\nreason:" + reasonSetFactIncomplete + "\n" + setMemberPolicy + "\nsubject:exact\nsubject:range\nclaim:subjectMatch\n" + rangeWidthPolicy + "\n" + basisVocabulary()))
+	return digestBytes([]byte(EngineVersion + "\n" + InputSchema + "\n" + RulesSchemaSet + "\n" + ReportSchema + "\n" + InputAuthority + "\n" + RulesAuthority + "\nappliesWhen\ncomparison:eq\ncomparison:gte\ncomparison:lte\ncomparison:lt\nforbid_predicate_value\nrequire_component_version\nrequire_intermediate_version\nforbid_target_version\n" + OperatorForbidSetMember + "\nfact:" + string(FactSet) + "\nclaim:matchedMembers\nreason:" + reasonSetFactIncomplete + "\n" + setMemberPolicy + "\nsubject:exact\nsubject:range\nclaim:subjectMatch\n" + rangeWidthPolicy + "\n" + rangeBoundaryPolicy + "\n" + basisVocabulary()))
 }
 
 // EngineContractDigestSet exposes the contract identity for rule documents

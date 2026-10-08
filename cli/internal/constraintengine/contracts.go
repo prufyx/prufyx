@@ -306,10 +306,6 @@ type rule struct {
 	Evidence   evidence      `json:"evidence"`
 	ReasonCode string        `json:"reasonCode"`
 	NextAction string        `json:"nextAction"`
-
-	// reviewCrossings is set by ParseRuleSet when the document carries the
-	// crossing schema; it is never serialised (see RuleTransition).
-	reviewCrossings bool
 }
 
 type transition struct {
@@ -583,7 +579,7 @@ func engineContractDigest() string {
 // replacement: a report over an exact-only document keeps the original digest
 // and replays byte-identically on this binary.
 func engineContractDigestRanged() string {
-	return digestBytes([]byte(EngineVersion + "\n" + InputSchema + "\n" + RulesSchemaRanged + "\n" + ReportSchema + "\n" + InputAuthority + "\n" + RulesAuthority + "\nappliesWhen\ncomparison:eq\ncomparison:gte\ncomparison:lte\ncomparison:lt\nforbid_predicate_value\nrequire_component_version\nrequire_intermediate_version\nforbid_target_version\nsubject:exact\nsubject:range\nclaim:subjectMatch\n" + rangeWidthPolicy + "\n" + basisVocabulary()))
+	return digestBytes([]byte(EngineVersion + "\n" + InputSchema + "\n" + RulesSchemaRanged + "\n" + ReportSchema + "\n" + InputAuthority + "\n" + RulesAuthority + "\nappliesWhen\ncomparison:eq\ncomparison:gte\ncomparison:lte\ncomparison:lt\nforbid_predicate_value\nrequire_component_version\nrequire_intermediate_version\nforbid_target_version\nsubject:exact\nsubject:range\nclaim:subjectMatch\n" + rangeWidthPolicy + "\n" + rangeBoundaryPolicy + "\n" + basisVocabulary()))
 }
 
 // EngineContractDigest exposes the immutable scalar contract identity without
@@ -630,7 +626,7 @@ func ScopeContractDigest() string { return scopeContractDigest() }
 // scopeContractDigestRanged adds the anchor-review condition to the v1
 // vocabulary. It is used only with the ranged engine contract.
 func scopeContractDigestRanged() string {
-	return digestBytes([]byte(ScopeContractVersionRanged + "\n" + ScopeDeclaration + "\n" + CorpusAttestation + "\n" + AssessmentUnknown + "\n" + AssessmentBlocked + "\n" + AssessmentScopeCompletePass + "\n" + ApplicabilityApplicable + "\n" + ApplicabilityNotApplicable + "\n" + ApplicabilityUndetermined + "\n" + omissionWholeUpgradeScoped + "\n" + unresolvedTransitionNotAnchor))
+	return digestBytes([]byte(ScopeContractVersionRanged + "\n" + ScopeDeclaration + "\n" + CorpusAttestation + "\n" + AssessmentUnknown + "\n" + AssessmentBlocked + "\n" + AssessmentScopeCompletePass + "\n" + ApplicabilityApplicable + "\n" + ApplicabilityNotApplicable + "\n" + ApplicabilityUndetermined + "\n" + omissionWholeUpgradeScoped + "\n" + unresolvedTransitionNotAnchor + "\n" + rangeBoundaryPolicy))
 }
 
 // ScopeContractDigestRanged exposes the ranged scope-completeness identity.

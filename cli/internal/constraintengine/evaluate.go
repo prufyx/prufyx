@@ -178,7 +178,10 @@ func subjectAvailability(input inputDocument, subject RuleTransition) (MatchMode
 		// than the reviewed range) is not reviewed, which is not the same
 		// as not applicable.
 		if subject.crossesUnreviewed(current.Version, proposed.Version) {
-			return MatchNone, ReasonCrossingNotReviewed
+			if subject.Crossing != nil {
+				return MatchNone, ReasonCrossingNotReviewed
+			}
+			return MatchNone, ReasonReleaseBoundaryNotReviewed
 		}
 		return MatchNone, "RULE_TRANSITION_NOT_REVIEWED"
 	}
@@ -300,7 +303,7 @@ func issueReport(report Report) Report {
 // independently re-derive that same assessment. No block, no verdict —
 // however many claims passed. See legalAssessment.
 func MarshalReport(report Report) ([]byte, error) {
-	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !validSetClaims(report) || !validNoticeClaims(report) || !validBasisClaims(report) || !validSeverityClaims(report) || !validCrossingClaims(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
+	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !validSetClaims(report) || !validNoticeClaims(report) || !validBasisClaims(report) || !validSeverityClaims(report) || !validCrossingClaims(report) || !validReleaseBoundaryClaims(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
 		return nil, ErrIntegrity
 	}
 	raw, err := json.Marshal(report)

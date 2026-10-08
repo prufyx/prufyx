@@ -149,6 +149,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   pack file and refuses a pack that differs from `--base-pack` or
   `--base-baselines`. The pack loader also refuses a served list that names a
   1.16 removal (`apps/v1beta1`, `apps/v1beta2`, `extensions/v1beta1`).
+- A ranged rule whose range pins a REMOVED_IN_RELEASE or CHANGED_IN_RELEASE
+  boundary is no longer excluded for a hop that crosses that boundary outside
+  the range. The engine reports it UNDETERMINED
+  (`RULE_RELEASE_BOUNDARY_NOT_REVIEWED`), so such a hop can no longer reach
+  SCOPE_COMPLETE_PASS; `assess` reports an origin below the range as
+  `APPLICABLE_NEEDS_DECLARATION` (no `--to`) or
+  `INDETERMINATE_HOP_OUTSIDE_REVIEWED_RANGE` (target at or above the boundary)
+  instead of not applicable; route discovery lists these rules with
+  `matchMode: boundary-unreviewed`. The ranged, set, notice, basis, severity and
+  crossing contract digests change; exact-only documents are unaffected.
 - `prufyx assess --format json`: the collector progress lines ("Context …", "Created local API observation directory …", "Verify context files with …") now go to stderr, so stdout carries only the JSON report and parses as JSON.
 - `extract` file writes are never made through a symlink and no longer depend on
   the umask. `extract run` builds the output in a staging directory beside `--out`

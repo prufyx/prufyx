@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	pinnedEngineContractDigestCrossing = "sha256:0cecf975081479d0cec2d5fb147eeb5c650c7682448dbf9d507eef301405687d"
-	pinnedScopeContractDigestCrossing  = "sha256:335c2eceb9cce054530f7436591d4f7173148827c173e9a1f1c65b30c5861012"
+	pinnedEngineContractDigestCrossing = "sha256:1add26d02bbb97eef3b4eabb78f8d944c33667c1ce9be92ee67bd416a7f42da7"
+	pinnedScopeContractDigestCrossing  = "sha256:2e55c52dd71335510c0db4eb924c0f426f8529013b54e4ea75156bd824f6b91c"
 )
 
 // xRule builds a synthetic crossing rule for tests only: a removal at
@@ -733,70 +733,5 @@ func TestCrossingUnreviewedIsUndeterminedInScope(t *testing.T) {
 		if skipped.RuleID == "crossing-rule" && (skipped.Applicability != ApplicabilityNotApplicable || skipped.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED") {
 			t.Errorf("a hop above C: crossing rule is %s/%s, want NOT_APPLICABLE/RULE_TRANSITION_NOT_REVIEWED", skipped.Applicability, skipped.ReasonCode)
 		}
-	}
-}
-
-// TestRangeReleaseBoundaryUnreviewedUnderCrossingContract: the same hole the
-// crossing had exists for a ranged rule whose range pins a release boundary
-// (REMOVED_IN_RELEASE / CHANGED_IN_RELEASE): a hop that crosses the boundary
-// but lies outside the range is excluded as NOT_APPLICABLE, so a wide anchor
-// rule can give SCOPE_COMPLETE_PASS next to a removal the engine knows the hop
-// crosses. Earlier contracts keep that behaviour (their digests and reports
-// are pinned); under the crossing contract the rule is undetermined.
-func TestRangeReleaseBoundaryUnreviewedUnderCrossingContract(t *testing.T) {
-	now := testNow(t)
-	ranged := defaultRangeSpec()
-	ranged.id, ranged.operator, ranged.fact = "range-removal", "forbid_target_version", ""
-	wide := scopeRule("anchor-wide", "require_component_version", scopeComponentA, "1.21.0", "1.30.0", "active", activeUntil, `,"dependency":{"side":"proposed","component":"`+scopeComponentA+`","comparison":"gte","version":"1.0.0"}`)
-	input := func() Input { return xInput(t, "1.21.0", "1.30.0", "", "", false) }
-
-	// Under the ranged schema (no crossing rule): unchanged exclusion.
-	old, err := ParseRuleSet(rangeDocument(RulesSchemaRanged, true, wide, ranged.ruleJSON()), scopeRegistry(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	report, err := Evaluate(input(), old, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if report.Assessment != AssessmentScopeCompletePass {
-		t.Fatalf("earlier contract changed behaviour: %s", report.Assessment)
-	}
-	for _, skipped := range report.ScopeCompleteness.Components[0].NotEvaluated {
-		if skipped.RuleID == "range-removal" && (skipped.Applicability != ApplicabilityNotApplicable || skipped.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED") {
-			t.Fatalf("earlier contract: %+v", skipped)
-		}
-	}
-
-	// Under the crossing schema (a crossing rule elsewhere in the document):
-	// the ranged rule is undetermined and the scope cannot pass.
-	other := newXRule()
-	other.id = "crossing-other"
-	other.from, other.to, other.change, other.horizon = "1.40.0", "1.41.0", "1.41.0", "1.45.0"
-	fresh, err := ParseRuleSet(xDocument(RulesSchemaCrossing, wide, other.json(), ranged.ruleJSON()), scopeRegistry(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	report, err = Evaluate(input(), fresh, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if report.Assessment == AssessmentScopeCompletePass {
-		t.Fatalf("range release-boundary rule excluded under the crossing contract")
-	}
-	var seen bool
-	for _, skipped := range report.ScopeCompleteness.Components[0].NotEvaluated {
-		if skipped.RuleID == "range-removal" {
-			seen = true
-			if skipped.Applicability != ApplicabilityUndetermined || skipped.ReasonCode != ReasonCrossingNotReviewed {
-				t.Errorf("range rule is %s/%s, want UNDETERMINED/%s", skipped.Applicability, skipped.ReasonCode, ReasonCrossingNotReviewed)
-			}
-		}
-	}
-	if !seen {
-		t.Fatalf("range rule not enumerated: %+v", report.ScopeCompleteness)
-	}
-	if _, err := MarshalReport(report); err != nil {
-		t.Fatalf("report refused: %v", err)
 	}
 }
