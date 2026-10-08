@@ -74,6 +74,7 @@
       ],
       "exclude": [
         {"path": "common/scripts/", "reason": "scripts and third-party manifests (MetalLB) used by the test infrastructure; no Istio definition"},
+        {"path": "pkg/config/schema/metadata.yaml", "reason": "code-generation metadata of the resource types Istio handles; lists the built-in CustomResourceDefinition kind and defines none"},
         {"path": "prow/", "reason": "continuous-integration configuration and third-party manifests (Calico) for test clusters; no Istio definition"},
         {"path": "samples/", "reason": "sample applications and third-party integrations (SPIRE); no Istio definition"}
       ]
@@ -116,10 +117,12 @@
         {"path": "config/crds", "directory": true, "recursive": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
       "exclude": [
+        {"path": "charts/crds/templates/", "reason": "Helm chart templates rendered from the same generated definitions as config/crds; not read"},
         {"path": "charts/kyverno/charts/crds/templates/", "reason": "Helm chart templates rendered from the same generated definitions as config/crds; not read"},
         {"path": "cmd/cli/kubectl-kyverno/config/crds/", "reason": "schemas of the kyverno CLI test and values files (cli.kyverno.io); never installed into a cluster"},
         {"path": "cmd/cli/kubectl-kyverno/data/api-group-resources.json", "reason": "API discovery data embedded in the CLI; lists resource kinds and defines no CustomResourceDefinition"},
-        {"path": "cmd/cli/kubectl-kyverno/data/crds/cli.kyverno.io_*", "reason": "copies of the CLI file schemas (cli.kyverno.io) embedded in the CLI; never installed into a cluster"}
+        {"path": "cmd/cli/kubectl-kyverno/data/crds/cli.kyverno.io_*", "reason": "copies of the CLI file schemas (cli.kyverno.io) embedded in the CLI; never installed into a cluster"},
+        {"path": "pkg/engine/resources/default-config.yaml", "reason": "the engine's default configuration; names the CustomResourceDefinition kind in a list of fields to ignore and defines none"}
       ]
     },
     {
