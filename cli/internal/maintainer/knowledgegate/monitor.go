@@ -22,6 +22,11 @@ const (
 	AlarmWithdrawPack = "withdrawal-breaker-pack"
 	AlarmWithdrawProj = "withdrawal-breaker-project"
 	AlarmSize         = "size"
+	// AlarmCouldNotRun: the run was starved of GitHub requests and proved
+	// nothing. AlarmShardStale: a re-derivation shard has had no passing run
+	// for longer than its schedule allows.
+	AlarmCouldNotRun = "could-not-run"
+	AlarmShardStale  = "shard-stale"
 )
 
 // Breaker kinds.

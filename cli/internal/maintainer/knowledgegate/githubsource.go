@@ -188,12 +188,18 @@ func (g *GitHubSource) exhaust(why string) error {
 }
 
 // admitAPI decides, before an api.github.com request is sent, whether the
-// budget still allows it.
+// budget still allows it, and counts the request when it does. The count is
+// taken first and rolled back on refusal, so concurrent callers cannot all
+// pass a check made before any of them has counted (no overshoot of the cap).
+// Citation verification calls it too (see CitationAdmit): one counter, one
+// budget.
 func (g *GitHubSource) admitAPI() error {
 	if g.exhausted.Load() {
 		return fmt.Errorf("%w: %s", ErrBudgetExhausted, g.budgetReason())
 	}
-	if g.MaxRESTRequests > 0 && g.nAPI.Load() >= g.MaxRESTRequests {
+	n := g.nAPI.Add(1)
+	if g.MaxRESTRequests > 0 && n > g.MaxRESTRequests {
+		g.nAPI.Add(-1)
 		return g.exhaust(fmt.Sprintf("the cap of %d REST requests for this run is used up", g.MaxRESTRequests))
 	}
 	reserve := g.RESTReserve
@@ -204,10 +210,19 @@ func (g *GitHubSource) admitAPI() error {
 		reserve = 0
 	}
 	if rem := g.remaining.Load() - 1; g.remaining.Load() > 0 && rem <= reserve {
+		g.nAPI.Add(-1)
 		return g.exhaust(fmt.Sprintf("GitHub reports %d requests left, %d are kept for the rest of the job", rem, reserve))
 	}
 	return nil
 }
+
+// CitationAdmit and CitationObserve are the hooks the citation verifier's
+// GitHub client calls, so its requests count against the same budget and
+// the same rate-limit reading as the gate source's.
+func (g *GitHubSource) CitationAdmit() error { return g.admitAPI() }
+
+// CitationObserve reads the rate limit headers of a citation API response.
+func (g *GitHubSource) CitationObserve(resp *http.Response) error { return g.noteRateLimit(resp) }
 
 // noteRateLimit reads GitHub's rate limit headers from an API response.
 func (g *GitHubSource) noteRateLimit(resp *http.Response) error {
@@ -312,7 +327,6 @@ func (g *GitHubSource) get(ctx context.Context, u string, api bool, limit int64)
 			if err := g.admitAPI(); err != nil {
 				return nil, 0, err
 			}
-			g.nAPI.Add(1)
 		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 		if err != nil {

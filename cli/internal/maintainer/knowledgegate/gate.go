@@ -85,6 +85,10 @@ type Options struct {
 	// A rule whose extractor cannot be identified is always included: it
 	// fails without any upstream request.
 	Shard Shard
+	// ShardState is what earlier runs recorded per shard (see ShardState);
+	// nil when the caller keeps no state. With it, a shard that has not
+	// passed within its schedule raises a shard-stale alarm.
+	ShardState ShardState
 	// MaxWithdrawPercent and MaxWithdrawProject are the withdrawal circuit
 	// breakers: a change that withdraws more than this percent of a pack's
 	// active rules, or more than this many rules of one project, fails. 0
@@ -220,6 +224,9 @@ func (r *Report) budgetCheck(opts Options) {
 	if st.BudgetExhausted {
 		r.CouldNotRun = "the GitHub REST budget ran out: " + st.BudgetReason
 		r.add("rest-budget", false, "could not run: %s (%d REST requests used); nothing here is a pass, rerun after the limit resets or with a smaller shard", st.BudgetReason, st.APIRequests)
+		// A starved run is not a verdict about the knowledge, so it must not
+		// only turn a job red: it raises an alarm, like the other breakers.
+		r.alarm(AlarmCouldNotRun, "the gate could not run: %s (%d REST requests used, shard %s); the rules of that run were not checked", st.BudgetReason, st.APIRequests, opts.Shard)
 		return
 	}
 	r.add("rest-budget", true, "%d REST requests (%d commit, %d tree), %d raw fetches", st.APIRequests, st.CommitCalls, st.TreeCalls, st.RawFetches)
@@ -475,7 +482,6 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	if opts.RederiveAll {
 		r.rederiveAll(ctx, cls, mechanical, opts)
 	}
-	r.budgetCheck(opts)
 	r.packChecks(cls, opts)
 	r.generatedChecks(opts)
 	r.trustCheck(opts)
@@ -483,6 +489,10 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	r.baselineApprovalsUsed = r.baselinesCheck(opts, loadKeys, approvals)
 	r.recordCheck(cls, statements, opts)
 	r.citationCheck(ctx, cls, opts)
+	// After the citation check: its GitHub calls draw on the same budget, so
+	// a run starved during citations is reported as could not run too.
+	r.budgetCheck(opts)
+	r.shardStaleCheck(opts)
 	r.limitChecks(cls, opts)
 	r.finish(true)
 	r.autoMerge(opts)

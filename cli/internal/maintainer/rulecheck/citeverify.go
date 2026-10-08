@@ -102,6 +102,13 @@ type GitHubObjects struct {
 	// Client is an optional base client; it is always wrapped by the
 	// hardened fetch client (timeout, same-host redirects, no proxy).
 	Client *http.Client
+	// Admit, when set, is called before every API request attempt; an error
+	// refuses the request and is returned at once, never retried. Observe,
+	// when set, sees every API response (headers only; the body is not
+	// consumed) and may refuse its use with an error. The gate uses them to
+	// count these requests against its GitHub request budget.
+	Admit   func() error
+	Observe func(*http.Response) error
 
 	// repos caches, per repository, the default branch and the tag commits
 	// (set by NewGitHubObjects); without it every reachability check looks
@@ -144,6 +151,10 @@ const maxAPIAttempts = 3
 // asking again returns the same oversized answer, so it is never retried.
 var errResponseTooLarge = errors.New("response exceeds the size limit")
 
+// errRefused marks a request the Admit or Observe hook refused; it is
+// terminal like errResponseTooLarge.
+var errRefused = errors.New("request refused by the caller's budget")
+
 func (g GitHubObjects) get(ctx context.Context, u string) ([]byte, int, error) {
 	return g.getLimited(ctx, u, maxAPIBytes)
 }
@@ -156,6 +167,9 @@ func (g GitHubObjects) getLimited(ctx context.Context, u string, limit int) ([]b
 	)
 	for attempt := 1; attempt <= maxAPIAttempts; attempt++ {
 		body, status, err = g.getOnce(ctx, u, limit)
+		if errors.Is(err, errRefused) {
+			break
+		}
 		transient := (err != nil && !errors.Is(err, errResponseTooLarge)) || status == http.StatusTooManyRequests || status >= 500
 		if !transient || attempt == maxAPIAttempts || ctx.Err() != nil {
 			break
@@ -174,6 +188,11 @@ func (g GitHubObjects) getOnce(ctx context.Context, u string, limit int) ([]byte
 	// environment, a bounded timeout, and redirects only within the
 	// original host and scheme, so the token never follows a redirect.
 	client := newFetchClient(g.Client)
+	if g.Admit != nil {
+		if err := g.Admit(); err != nil {
+			return nil, 0, fmt.Errorf("%w: %w", errRefused, err)
+		}
+	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, 0, err
@@ -188,6 +207,11 @@ func (g GitHubObjects) getOnce(ctx context.Context, u string, limit int) ([]byte
 		return nil, 0, err
 	}
 	defer response.Body.Close()
+	if g.Observe != nil {
+		if err := g.Observe(response); err != nil {
+			return nil, response.StatusCode, fmt.Errorf("%w: %w", errRefused, err)
+		}
+	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, int64(limit)+1))
 	if err != nil {
 		return nil, 0, err
