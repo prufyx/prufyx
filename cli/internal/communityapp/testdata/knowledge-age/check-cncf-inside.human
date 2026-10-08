@@ -8,7 +8,7 @@ next action: For the declared official upstream bare reports-controller surface,
 evidence basis: reviewed by maintainer
 aggregate: UNKNOWN
 input digest: sha256:83faf6e3d00c2dd09282fcfc94f23e956ebb1230f9ca0eb6226863165ef7ca55
-knowledge pack digest: sha256:78fd08313d2af6823f07b1793cbe44ccc4bee0c32e8a8a116d0d2c0c2951edc2
+knowledge pack digest: sha256:b8bca5facdc3081165459bc726fe269e1321abb4690dbe0be090bc313850d548
 next action: review each scoped claim; whole-upgrade behavior and runtime evidence remain unverified
 
 exit 10

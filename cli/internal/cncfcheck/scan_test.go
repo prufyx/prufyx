@@ -4,7 +4,6 @@ package cncfcheck
 
 import (
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -104,9 +103,8 @@ func TestScanKnowledgeMatchesPackageFunctions(t *testing.T) {
 		t.Fatal("snapshot evaluation under a trust policy differs from the checker")
 	}
 	for _, rule := range rules {
-		// The derived served-API rules are mechanical; the rest are reviewed.
-		if want := map[bool]string{true: "mechanical", false: "reviewed"}[strings.HasPrefix(rule.Scope.ID, "kubernetes.served-api-removal.")]; rule.Basis != want {
-			t.Fatalf("%s basis %q", rule.Scope.ID, rule.Basis)
+		if rule.Basis != "reviewed" {
+			t.Fatalf("basis %q", rule.Basis)
 		}
 	}
 	a, _ := MarshalReport(viaPackage)

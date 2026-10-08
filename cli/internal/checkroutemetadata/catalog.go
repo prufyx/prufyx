@@ -253,7 +253,7 @@ func exactPair(base []Argument, from, to string) []Argument {
 }
 
 func descriptorSet() []descriptor {
-	result := make([]descriptor, 0, 196)
+	result := make([]descriptor, 0, 194)
 	alertPairs := []struct{ from, id string }{
 		{"2.55.1", "prometheus.alertmanager-api-v1-removed.3-1"},
 		{"3.9.1", "prometheus.alertmanager-api-v1.target-config.3-9-1-to-3-14-0"},
@@ -588,8 +588,6 @@ func descriptorSet() []descriptor {
 	result = append(result, descriptor{family: FamilyCNCF, project: "kubernetes", component: "pkg:github/kubernetes/kubernetes", ruleID: "kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0", from: "1.24.0", to: "1.25.0", command: exactPair(extend(cncfBase("kubernetes"), file("--native-resource"), name("--distribution"), literal("--target-api-apply-required"), literal("--resource-scope-complete")), "1.24.0", "1.25.0"), limit: "One caller-selected complete rendered apply-set, bound to the official upstream distribution and target-apply intent only; general manifest schema, CRDs, persisted objects, runtime clients, and API server configuration are unassessed."})
 	result = append(result, descriptor{family: FamilyCNCF, project: "kubernetes", component: "pkg:github/kubernetes/kubernetes", ruleID: "kubernetes.psp-v1beta1-removed.1-24-0-to-1-25-0", from: "1.24.0", to: "1.25.0", command: exactPair(extend(cncfBase("kubernetes"), file("--native-resource"), name("--distribution"), literal("--target-api-apply-required"), literal("--resource-scope-complete")), "1.24.0", "1.25.0"), limit: "One caller-selected complete rendered apply-set, bound to the official upstream distribution and target-apply intent only; general manifest schema, CRDs, persisted objects, runtime clients, and API server configuration are unassessed."})
 	result = append(result, descriptor{family: FamilyCNCF, project: "kubernetes", component: "pkg:github/kubernetes/kubernetes", ruleID: "kubernetes.runtimeclass-v1beta1-removed.1-24-0-to-1-25-0", from: "1.24.0", to: "1.25.0", command: exactPair(extend(cncfBase("kubernetes"), file("--native-resource"), name("--distribution"), literal("--target-api-apply-required"), literal("--resource-scope-complete")), "1.24.0", "1.25.0"), limit: "One caller-selected complete rendered apply-set, bound to the official upstream distribution and target-apply intent only; general manifest schema, CRDs, persisted objects, runtime clients, and API server configuration are unassessed."})
-	result = append(result, descriptor{family: FamilyCNCF, project: "kubernetes", component: "pkg:github/kubernetes/kubernetes", ruleID: "kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-32-0-to-1-33-0", from: "1.32.0", to: "1.33.0", command: exactPair(extend(cncfBase("kubernetes"), file("--native-resource"), name("--distribution"), literal("--target-api-apply-required"), literal("--resource-scope-complete")), "1.32.0", "1.33.0"), limit: "One caller-selected complete rendered apply-set, bound to the official upstream distribution and target-apply intent only; general manifest schema, CRDs, persisted objects, runtime clients, and API server configuration are unassessed."})
-	result = append(result, descriptor{family: FamilyCNCF, project: "kubernetes", component: "pkg:github/kubernetes/kubernetes", ruleID: "kubernetes.served-api-removal.admissionregistration-k8s-io-v1beta1.1-33-0-to-1-34-0", from: "1.33.0", to: "1.34.0", command: exactPair(extend(cncfBase("kubernetes"), file("--native-resource"), name("--distribution"), literal("--target-api-apply-required"), literal("--resource-scope-complete")), "1.33.0", "1.34.0"), limit: "One caller-selected complete rendered apply-set, bound to the official upstream distribution and target-apply intent only; general manifest schema, CRDs, persisted objects, runtime clients, and API server configuration are unassessed."})
 	result = append(result, descriptor{family: FamilyCNCF, project: "cilium", component: "pkg:github/cilium/cilium", ruleID: "cilium.cluster-name-invalid.1-16-19-to-1-17-18", from: "1.16.19", to: "1.17.18", command: exactPair(extend(cncfBase("cilium"), file("--cilium-config-map"), name("--cilium-distribution"), literal("--cilium-config-complete"), literal("--cilium-config-precedence-resolved")), "1.16.19", "1.17.18"), limit: "One caller-selected complete, precedence-resolved official-upstream ConfigMap only; ClusterMesh, networking, name-collision, runtime, and whole-upgrade safety are unassessed."})
 
 	// Linkerd: PrepareLinkerd already has a working single-step native input
@@ -747,7 +745,7 @@ func Discover(selectedProject, selectedFrom, selectedTo string) (Result, error) 
 		knownProjects[item.Project] = true
 		known[identityKey(FamilyCommunity, item.Project, item.Component, item.RuleID, item.From, item.To)] = true
 	}
-	if len(descriptors) != 196 {
+	if len(descriptors) != 194 {
 		return Result{}, fmt.Errorf("%w: descriptor count=%d", ErrIntegrity, len(descriptors))
 	}
 	for key := range descriptors {

@@ -124,7 +124,7 @@
         "inputDigest": "sha256:b98fcd349edbc6da86b0c9d4b792af158ac5c7558db0015339077cc23daec186",
         "knowledgeOrigin": "embedded",
         "knowledgeRevision": "cncf-2026-09-13.4",
-        "knowledgeDigest": "sha256:78fd08313d2af6823f07b1793cbe44ccc4bee0c32e8a8a116d0d2c0c2951edc2",
+        "knowledgeDigest": "sha256:b8bca5facdc3081165459bc726fe269e1321abb4690dbe0be090bc313850d548",
         "engineContractDigest": "sha256:2cc7bb0052068bd2668d1c4419782bacd6fcbf34e73f9bf9cf08206cd1363fa6",
         "networkUsed": false,
         "omissions": [

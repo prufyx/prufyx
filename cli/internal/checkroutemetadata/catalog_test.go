@@ -37,7 +37,7 @@ func TestDiscoverCompleteEmbeddedIdentityCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Schema != Schema || len(result.Checks) != 231 {
+	if result.Schema != Schema || len(result.Checks) != 225 {
 		t.Fatalf("catalog schema/count = %q/%d", result.Schema, len(result.Checks))
 	}
 	if result.Scope.SourceEvidenceFreshness != "NOT_EVALUATED" {
@@ -52,7 +52,7 @@ func TestDiscoverCompleteEmbeddedIdentityCatalog(t *testing.T) {
 			t.Fatalf("community generic route exposed: %#v", item)
 		}
 	}
-	if bound != 196 {
+	if bound != 194 {
 		t.Fatalf("bound native routes = %d", bound)
 	}
 }

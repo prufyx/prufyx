@@ -12,8 +12,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 )
 
 // repoRoot is this source tree's repository root.
@@ -60,97 +58,9 @@ func copyKnowledge(t *testing.T) Tree {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if rel == cncfRulesPath {
-			// The mechanical served-API rules cannot be re-derived from the
-			// small upstream fixtures these tests use.
-			raw = withoutDerivedRules(t, raw)
-		}
 		writeFile(t, filepath.Join(root, filepath.FromSlash(rel)), raw)
 	}
-	tree := Tree{Root: root}
-	// The generated files follow the rebuilt pack.
-	layout := DefaultLayout()
-	for _, spec := range layout.Packs {
-		if spec.Name != evidencereattest.PackCNCF {
-			continue
-		}
-		attestation, err := spec.Attest(tree)
-		if err != nil {
-			t.Fatal(err)
-		}
-		writeFile(t, filepath.Join(root, filepath.FromSlash(spec.AttestationPath)), attestation)
-	}
-	for _, g := range layout.Generated {
-		jsonRaw, markdown, err := g.Generate(tree)
-		if err != nil {
-			t.Fatal(err)
-		}
-		writeFile(t, filepath.Join(root, filepath.FromSlash(g.JSONPath)), jsonRaw)
-		writeFile(t, filepath.Join(root, filepath.FromSlash(g.MarkdownPath)), []byte(markdown))
-	}
-	return tree
-}
-
-// withoutDerivedRules drops the mechanical Kubernetes served-API rules and
-// keeps the order of the top-level members.
-func withoutDerivedRules(t *testing.T, raw []byte) []byte {
-	t.Helper()
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
-		t.Fatal("pack is not an object")
-	}
-	var out bytes.Buffer
-	out.WriteString("{\n")
-	first := true
-	for dec.More() {
-		keyTok, err := dec.Token()
-		if err != nil {
-			t.Fatal(err)
-		}
-		var value json.RawMessage
-		if err := dec.Decode(&value); err != nil {
-			t.Fatal(err)
-		}
-		if keyTok.(string) == "entries" {
-			var entries []json.RawMessage
-			if err := json.Unmarshal(value, &entries); err != nil {
-				t.Fatal(err)
-			}
-			kept := entries[:0:0]
-			for _, e := range entries {
-				var v struct {
-					Rule struct {
-						ID       string `json:"id"`
-						Evidence struct {
-							Basis string `json:"basis"`
-						} `json:"evidence"`
-					} `json:"rule"`
-				}
-				if err := json.Unmarshal(e, &v); err != nil {
-					t.Fatal(err)
-				}
-				if v.Rule.Evidence.Basis == "mechanical" && strings.HasPrefix(v.Rule.ID, "kubernetes.served-api-removal.") {
-					continue
-				}
-				kept = append(kept, e)
-			}
-			if value, err = json.Marshal(kept); err != nil {
-				t.Fatal(err)
-			}
-		}
-		var indented bytes.Buffer
-		if err := json.Indent(&indented, value, "  ", "  "); err != nil {
-			t.Fatal(err)
-		}
-		if !first {
-			out.WriteString(",\n")
-		}
-		first = false
-		key, _ := json.Marshal(keyTok.(string))
-		out.WriteString("  " + string(key) + ": " + indented.String())
-	}
-	out.WriteString("\n}\n")
-	return out.Bytes()
+	return Tree{Root: root}
 }
 
 // trees returns a base and a head copy of the repository's knowledge.

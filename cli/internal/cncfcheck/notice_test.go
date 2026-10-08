@@ -80,7 +80,7 @@ func TestPackNoticeLevel(t *testing.T) {
 			notices = append(notices, claim)
 		}
 	}
-	if len(notices) != 1 || notices[0].Status != constraintengine.StatusNotice || len(report.Check.Claims) != 33 || report.Check.EngineContractDigest != constraintengine.EngineContractDigestNotice() || ClaimExit(report) != 11 {
+	if len(notices) != 1 || notices[0].Status != constraintengine.StatusNotice || len(report.Check.Claims) != 31 || report.Check.EngineContractDigest != constraintengine.EngineContractDigestNotice() || ClaimExit(report) != 11 {
 		t.Fatalf("claims=%+v exit=%d", report.Check.Claims, ClaimExit(report))
 	}
 	if _, err := MarshalReport(report); err != nil {
@@ -206,8 +206,8 @@ func TestNoticeNeverChangesRuleSelection(t *testing.T) {
 				t.Fatalf("family=%v: claim %+v", familySelector, claim)
 			}
 		}
-		if !familySelector && len(verdicts) != 32 {
-			t.Fatalf("generic selection holds %d verdict claims, want the 32 Kubernetes rules", len(verdicts))
+		if !familySelector && len(verdicts) != 30 {
+			t.Fatalf("generic selection holds %d verdict claims, want the 30 Kubernetes rules", len(verdicts))
 		}
 		if len(with.Check.Claims) == len(verdicts) || ClaimExit(with) != ClaimExit(without) {
 			t.Fatalf("family=%v: notices=%d exit %d vs %d", familySelector, len(with.Check.Claims)-len(verdicts), ClaimExit(with), ClaimExit(without))

@@ -639,7 +639,6 @@ func TestSupersedeCommand(t *testing.T) {
 		}
 	}
 	pack := filepath.Join(packDir, "rules.json")
-	dropPublishedDerivations(t, pack)
 	before := readFile(t, pack)
 
 	// A run no reviewed rule of the pack matches: refused, exit 3, nothing written, nothing on stdout.
@@ -695,43 +694,5 @@ func TestSupersedeCommand(t *testing.T) {
 	}
 	if !bytes.Equal(readFile(t, pack), after) {
 		t.Fatal("a rejected command changed the pack")
-	}
-}
-
-// dropPublishedDerivations removes the mechanical served-API rules the shipped
-// pack carries (the 1.33 and 1.34 removals), so that a run derived from the
-// small fixture can add its own rules of the same ids.
-func dropPublishedDerivations(t *testing.T, pack string) {
-	t.Helper()
-	var doc map[string]json.RawMessage
-	if err := json.Unmarshal(readFile(t, pack), &doc); err != nil {
-		t.Fatal(err)
-	}
-	var entries []json.RawMessage
-	if err := json.Unmarshal(doc["entries"], &entries); err != nil {
-		t.Fatal(err)
-	}
-	kept := entries[:0:0]
-	for _, e := range entries {
-		var v struct {
-			Rule struct {
-				ID       string `json:"id"`
-				Evidence struct {
-					Basis string `json:"basis"`
-				} `json:"evidence"`
-			} `json:"rule"`
-		}
-		if err := json.Unmarshal(e, &v); err != nil {
-			t.Fatal(err)
-		}
-		if v.Rule.Evidence.Basis == "mechanical" && strings.HasPrefix(v.Rule.ID, "kubernetes.served-api-removal.") {
-			continue
-		}
-		kept = append(kept, e)
-	}
-	doc["entries"], _ = json.Marshal(kept)
-	raw, _ := json.MarshalIndent(doc, "", "  ")
-	if err := os.WriteFile(pack, raw, 0o644); err != nil {
-		t.Fatal(err)
 	}
 }
