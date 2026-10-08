@@ -58,7 +58,7 @@ func (f baselineSignFixture) signArgs(withBase bool, keyArgs ...string) []string
 }
 
 func (f baselineSignFixture) verifyArgs(withBase bool) []string {
-	return append(append([]string{"verify", "--approval", f.out()}, f.subjectArgs(withBase)...), "--now", gateNow.Format(time.RFC3339))
+	return append(append([]string{"verify", "--approval", f.out(), "--base-root", f.base.Root}, f.subjectArgs(withBase)...), "--now", gateNow.Format(time.RFC3339))
 }
 
 func TestApprovalSignRepinBaselineRoundTripThroughGate(t *testing.T) {

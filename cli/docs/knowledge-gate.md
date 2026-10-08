@@ -628,6 +628,15 @@ prufyx-maintainer approval verify \
   --keys /path/to/base-keys.json --keys-digest sha256:…
 ```
 
+For a line attestation or a repin baseline, `approval verify` also needs
+`--base-root DIR`, the base checkout. It then applies the gate's checks of the
+base's approvals before it prints `approval OK`: an approval the base already
+holds, and an approval for the same record that the base superseded with a
+decision made at the same time or later, are refused. `--base-root` is refused
+for a rule approval. The baseline flags (`--repository`, `--base-baselines`,
+`--head-baselines`) belong to `--subject repinBaseline` and are refused for the
+other subjects.
+
 `--now RFC3339` (UTC, `Z`) checks at another time. `--help` on `approval` or
 any of its commands prints the usage and exits `0`. Exit codes for `approval`:
 `0` signed, or the approval is accepted; `1` (`verify` only) the approval is

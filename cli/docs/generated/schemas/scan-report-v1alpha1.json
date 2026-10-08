@@ -260,6 +260,37 @@
         },
         "gap": {
           "type": "string"
+        },
+        "servedList": {
+          "$ref": "#/$defs/servedList"
+        }
+      }
+    },
+    "servedList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "line",
+        "basis",
+        "freshness",
+        "digest"
+      ],
+      "properties": {
+        "line": {
+          "type": "string"
+        },
+        "basis": {
+          "type": "string"
+        },
+        "freshness": {
+          "type": "string"
+        },
+        "validUntil": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
         }
       }
     },

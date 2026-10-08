@@ -97,6 +97,17 @@ func levelDistributions() map[string]any {
 	}
 }
 
+// levelServedAPIs is a synthetic served-API list section (test data, not
+// knowledge).
+func levelServedAPIs() []any {
+	return []any{map[string]any{
+		"component": "pkg:github/kubernetes/kubernetes", "line": "1.30", "completeness": "COMPLETE_SERVED_API_LIST_FOR_LINE",
+		"apis": []any{"v1 ConfigMap"},
+		"evidence": map[string]any{"basis": "reviewed", "reviewedAt": "2026-09-20T00:00:00Z", "validUntil": "2026-12-19T00:00:00Z",
+			"sources": []any{levelSource("deprecation-guide", "website", "content/en/docs/reference/using-api/deprecation-guide.md", 1, 2)}},
+	}}
+}
+
 // generateWithPack runs Generate over the repository inputs with the CNCF
 // pack replaced by the embedded pack after edit.
 func generateWithPack(t *testing.T, edit func(pack map[string]any)) (map[string]any, error) {
@@ -205,6 +216,7 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 			addSetRule(p)
 			p["distributions"], p["lineAttestations"], p["pathPolicies"] = levelDistributions(), levelAttestations(), levelPolicies()
 		}, want: schemas[8], refusal: "does not list distribution records"},
+		{name: "served-API lists", edit: func(p map[string]any) { p["servedAPIs"] = levelServedAPIs() }, want: schemas[9], refusal: "does not list served-API lists"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, schema := range schemas {

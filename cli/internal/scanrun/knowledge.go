@@ -92,7 +92,9 @@ type ServedList struct {
 	Component string
 	Line      string
 	Basis     string
-	APIs      map[string]bool
+	// ValidUntil is the end of the list's validity window, when known.
+	ValidUntil string
+	APIs       map[string]bool
 }
 
 // ServedStatus is a served-list lookup. Only a found list whose freshness is
@@ -118,7 +120,7 @@ func (k Embedded) ServedAPIs(component, line string, now time.Time) ServedStatus
 	}
 	return ServedStatus{
 		Found:     true,
-		List:      ServedList{Component: status.Record.Component, Line: status.Record.Line, Basis: status.Record.Evidence.Basis, APIs: apis},
+		List:      ServedList{Component: status.Record.Component, Line: status.Record.Line, Basis: status.Record.Evidence.Basis, ValidUntil: status.Record.Evidence.ValidUntil, APIs: apis},
 		Freshness: status.Freshness,
 	}
 }

@@ -59,3 +59,37 @@ func TestServedAPIsSectionAdmission(t *testing.T) {
 		t.Fatal("malformed section admitted")
 	}
 }
+
+// TestServedAPIsRefusesRemovedAPIs: a served list for line L that names an
+// API the removal table marks as removed at a line <= L refuses the whole
+// pack; the same name on an earlier line than its removal is admitted.
+func TestServedAPIsRefusesRemovedAPIs(t *testing.T) {
+	list := func(line string, apis ...string) json.RawMessage {
+		quoted, _ := json.Marshal(apis)
+		return json.RawMessage(`[{"component":"pkg:github/kubernetes/kubernetes","line":"` + line + `","completeness":"COMPLETE_SERVED_API_LIST_FOR_LINE","apis":` + string(quoted) + `,"evidence":` + servedEvidence + `}]`)
+	}
+	refused := []struct {
+		name, line string
+		apis       []string
+	}{
+		{"reviewer case: 1.29 list with three removed APIs", "1.29", []string{"batch/v1beta1 CronJob", "extensions/v1beta1 Ingress", "flowcontrol.apiserver.k8s.io/v1beta2 FlowSchema"}},
+		{"removed on the list's own line", "1.29", []string{"flowcontrol.apiserver.k8s.io/v1beta2 FlowSchema", "v1 ConfigMap"}},
+		{"removed on an earlier line", "1.29", []string{"batch/v1beta1 CronJob", "v1 ConfigMap"}},
+		{"removed long before", "1.29", []string{"extensions/v1beta1 Ingress", "v1 ConfigMap"}},
+	}
+	for _, tc := range refused {
+		t.Run(tc.name, func(t *testing.T) {
+			restore, err := UseSyntheticRecords(nil, nil, SyntheticRecords{ServedAPIs: list(tc.line, tc.apis...)})
+			if err == nil {
+				restore()
+				t.Fatal("a served list naming a removed API was admitted")
+			}
+		})
+	}
+	// Removed on a later line than the list's: still served there.
+	restore, err := UseSyntheticRecords(nil, nil, SyntheticRecords{ServedAPIs: list("1.28", "flowcontrol.apiserver.k8s.io/v1beta2 FlowSchema", "v1 ConfigMap")})
+	if err != nil {
+		t.Fatalf("a list for the line before the removal: %v", err)
+	}
+	restore()
+}

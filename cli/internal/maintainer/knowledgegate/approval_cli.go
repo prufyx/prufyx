@@ -28,9 +28,11 @@ const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|public-key
               (--key FILE | --key-stdin) --output FILE
   verify      --approval FILE --pack cncf|community --rule ID --base-pack FILE --head-pack FILE
               --keys FILE --keys-digest sha256:... [--now RFC3339] [--subject rule]
-  verify      --subject lineAttestation --record ID (in place of --rule ID; the other options as above)
+  verify      --subject lineAttestation --record ID --base-root DIR (in place of --rule ID; the other
+              options as above; --base-root is the base checkout, whose approvals are checked for
+              single use and forward-only decisions)
   verify      --approval FILE --subject repinBaseline --repository OWNER/REPO --head-baselines FILE
-              [--base-baselines FILE] --keys FILE --keys-digest sha256:... [--now RFC3339]
+              [--base-baselines FILE] --base-root DIR --keys FILE --keys-digest sha256:... [--now RFC3339]
   public-key  (--key FILE | --key-stdin)
   keys-digest --keys FILE`
 
@@ -172,7 +174,7 @@ func (s *subjectFlags) loadBaseline() (ApprovalSubject, ApprovalKeys, error) {
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--repository, --head-baselines, --keys and --keys-digest are required"}
 	}
 	if s.pack != "" || s.rule != "" || s.record != "" || s.basePack != "" || s.headPack != "" {
-		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--pack, --rule, --base-pack and --head-pack belong to --subject rule"}
+		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--pack, --rule, --record, --base-pack and --head-pack belong to --subject rule or lineAttestation"}
 	}
 	keysRaw, err := readBoundedFile(s.keys, maxApprovalBytes*4)
 	if err != nil {
@@ -210,6 +212,8 @@ func (s *subjectFlags) load(layout Layout) (ApprovalSubject, ApprovalKeys, error
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--subject lineAttestation takes --record ID, not --rule"}
 	case s.subject != ApprovalSubjectRule && s.subject != ApprovalSubjectLineAttestation:
 		return ApprovalSubject{}, ApprovalKeys{}, fmt.Errorf("--subject %q is not supported (supported: rule, lineAttestation, repinBaseline)", s.subject)
+	case s.repository != "" || s.baseBaselines != "" || s.headBaselines != "":
+		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--repository, --base-baselines and --head-baselines belong to --subject repinBaseline"}
 	}
 	if s.pack == "" || (s.rule == "" && s.record == "") || s.basePack == "" || s.headPack == "" || s.keys == "" || s.keysDigest == "" {
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--pack, --rule (or --record), --base-pack, --head-pack, --keys and --keys-digest are required"}
@@ -358,10 +362,11 @@ func printApproval(w io.Writer, rec ApprovalRecord, key ApprovalKey) {
 
 func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.Writer) (int, error) {
 	var s subjectFlags
-	var approval, now string
+	var approval, now, baseRoot string
 	f := flag.NewFlagSet("approval verify", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	s.register(f)
+	f.StringVar(&baseRoot, "base-root", "", "lineAttestation, repinBaseline: the base checkout, whose approvals the gate checks for single use and forward-only decisions")
 	f.StringVar(&approval, "approval", "", "the approval file")
 	f.StringVar(&now, "now", "", "the clock, RFC 3339 UTC (default: now)")
 	if err := parseApprovalFlags(f, args); err != nil {
@@ -377,6 +382,13 @@ func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.
 			return 2, errors.New("--now must be RFC 3339 UTC")
 		}
 	}
+	checksBase := s.subject == ApprovalSubjectLineAttestation || s.subject == ApprovalSubjectRepinBaseline
+	switch {
+	case checksBase && baseRoot == "":
+		return 2, usageError{"--base-root is required: the gate refuses an approval the base already holds or has superseded, and verify must say so before it says OK"}
+	case !checksBase && baseRoot != "":
+		return 2, usageError{"--base-root belongs to --subject lineAttestation or repinBaseline"}
+	}
 	subject, keys, err := s.load(layout)
 	if err != nil {
 		return 2, err
@@ -388,6 +400,17 @@ func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.
 	if err := VerifyApprovalSubject(raw, keys, subject, at); err != nil {
 		fmt.Fprintf(stdout, "approval REFUSED: %s\n", logSafe(err.Error()))
 		return 1, nil
+	}
+	if checksBase {
+		used, err := (&baseApprovals{opts: Options{Base: Tree{Root: baseRoot}, Layout: layout}}).refuse(raw)
+		if err != nil {
+			fmt.Fprintf(stdout, "approval REFUSED: %s\n", logSafe(err.Error()))
+			return 1, nil
+		}
+		if used != "" {
+			fmt.Fprintf(stdout, "approval REFUSED: %s\n", logSafe(used))
+			return 1, nil
+		}
 	}
 	var accepted ApprovalEnvelope
 	if err := strictDecode([]byte(strings.TrimSuffix(string(raw), "\n")), &accepted); err != nil {

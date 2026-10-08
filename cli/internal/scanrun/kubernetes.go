@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -68,8 +69,8 @@ func (r *kubernetesRun) evaluate(from, to string) error {
 	path := scanreport.Path{Component: kubernetesSlug, From: from, To: to}
 	crossed := map[string]bool{}
 	defer func() {
+		path.ServedList = r.apiVersionGaps(to, crossed)
 		r.report.Paths = append(r.report.Paths, path)
-		r.apiVersionGaps(to, crossed)
 		if len(r.excluded)+len(r.excludedLeads) > 0 {
 			r.report.TrustPolicy = &scanreport.TrustPolicy{RequiredBasis: r.policy.Bases(), ExcludedRules: len(r.excluded), ExcludedLeadRules: len(r.excludedLeads)}
 		}
@@ -221,11 +222,12 @@ func crossedLines(plan upgradepath.Plan) map[string]bool {
 // apiVersionGaps checks every manifest against the target line: an object
 // at a version removed on a line at or below the target that no hop crosses
 // is not served, and an object of a Kubernetes API group must be at a
-// version the review of the target line lists as served.
-func (r *kubernetesRun) apiVersionGaps(to string, crossed map[string]bool) {
+// version the review of the target line lists as served. It returns the
+// served list the check relied on, nil when none was consulted.
+func (r *kubernetesRun) apiVersionGaps(to string, crossed map[string]bool) *scanreport.ServedList {
 	targetLine, ok := lineattest.LineOf(to)
 	if !ok {
-		return
+		return nil
 	}
 	removed := cncfprepare.KubernetesRemovedVersions()
 	status := r.knowledge.ServedAPIs(r.component, targetLine, r.now)
@@ -256,7 +258,7 @@ func (r *kubernetesRun) apiVersionGaps(to string, crossed map[string]bool) {
 		r.rootGap(scanreport.GapAPIVersionNotServed, notServed, targetLine)
 	}
 	if builtIn == 0 {
-		return
+		return nil
 	}
 	switch {
 	case !status.Found:
@@ -270,6 +272,24 @@ func (r *kubernetesRun) apiVersionGaps(to string, crossed map[string]bool) {
 	case notListed > 0:
 		r.rootGap(scanreport.GapAPIVersionNotListed, notListed, targetLine)
 	}
+	if !usable {
+		return nil
+	}
+	return &scanreport.ServedList{
+		Line: status.List.Line, Basis: constraintengine.EffectiveBasis(status.List.Basis), Freshness: status.Freshness,
+		ValidUntil: status.List.ValidUntil, Digest: servedListDigest(status.List.APIs),
+	}
+}
+
+// servedListDigest is "sha256:" over the list's sorted pairs, one per line.
+func servedListDigest(apis map[string]bool) string {
+	pairs := make([]string, 0, len(apis))
+	for pair := range apis {
+		pairs = append(pairs, pair)
+	}
+	sort.Strings(pairs)
+	sum := sha256.Sum256([]byte(strings.Join(pairs, "\n") + "\n"))
+	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
 func containsString(values []string, value string) bool {

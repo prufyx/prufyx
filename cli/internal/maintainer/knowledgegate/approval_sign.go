@@ -143,8 +143,10 @@ func RuleApprovalSubject(spec PackSpec, basePack, headPack []byte, ruleID string
 // ID, from the pack files of the base and the head, as the gate reads the
 // pack's records. It refuses a pack without records, a record the head does
 // not hold, two records with one ID, a path policy (the gate accepts no
-// approval for one), a record whose basis is not reviewed and a record the
-// change leaves as it is.
+// approval for one), a record whose basis is not reviewed, a record the
+// change leaves as it is, a record that is mechanical in the base and a
+// change the gate classifies as tightening (it needs no approval, and an
+// approval file for it would fail the gate's records check).
 func AttestationApprovalSubject(spec PackSpec, basePack, headPack []byte, recordID string) (ApprovalSubject, error) {
 	if !approvalTokenRE.MatchString(recordID) {
 		return ApprovalSubject{}, errors.New("the record ID is not a valid approval record ID")
@@ -173,6 +175,12 @@ func AttestationApprovalSubject(spec PackSpec, basePack, headPack []byte, record
 	if b := base.Records[recordID]; b != nil {
 		if bytes.Equal(b.Canonical, h.Canonical) {
 			return ApprovalSubject{}, fmt.Errorf("record %s is the same in the base and the proposed pack; there is nothing to approve", recordID)
+		}
+		if b.mechanical() {
+			return ApprovalSubject{}, fmt.Errorf("record %s is mechanical in the base; the gate admits no approval for a change of a mechanical record (it goes to re-derivation)", recordID)
+		}
+		if class, kinds, _ := classifyRecordEdit(b, h); class != ClassLoosening {
+			return ApprovalSubject{}, fmt.Errorf("the change to record %s is %s (%s), not loosening: it needs no approval, and the gate refuses an approval file for it", recordID, class, strings.Join(kinds, ", "))
 		}
 		s.Base = b.Canonical
 	}
