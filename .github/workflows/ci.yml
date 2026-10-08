@@ -62,9 +62,12 @@ jobs:
 
       - name: Test command routes against synthetic knowledge
         working-directory: cli
+        # Every package with a prufyx_synthetic_knowledge file is listed, and the
+        # run has no -run filter, so a tagged test is never skipped for its name
+        # (TestCISyntheticPackagesAreCovered fails when a package is missing).
         run: |
-          go vet -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/
-          go test -timeout 30m -tags prufyx_synthetic_knowledge -run Synthetic ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/
+          go vet -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/ ./internal/scanrun/ ./internal/maintainer/knowledgegate/
+          go test -timeout 60m -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/ ./internal/scanrun/ ./internal/maintainer/knowledgegate/
 
       - name: Validate community rule candidates
         working-directory: cli
