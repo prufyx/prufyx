@@ -487,6 +487,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	r.packChecks(cls, opts)
 	r.generatedChecks(opts)
 	r.trustCheck(opts)
+	r.recordsTrustCheck(cls, opts)
 	r.modeCheck(opts)
 	r.baselineApprovalsUsed = r.baselinesCheck(opts, loadKeys, approvals)
 	r.recordCheck(cls, statements, opts)
