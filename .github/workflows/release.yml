@@ -28,14 +28,15 @@ jobs:
     steps:
       # The tag must be one the binary's build identity accepts (the grammar
       # of internal/buildidentity) and that scripts/action/install.sh accepts
-      # (no build metadata: "+" in a release asset URL is fragile); anything
+      # (no build metadata: "+" in a release asset URL is fragile; a
+      # pre-release starts with a letter or digit, as in install.sh); anything
       # else stops before a build.
       - name: Check the tag
         env:
           VERSION: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          semver='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'
+          semver='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z][0-9A-Za-z-]*(\.[0-9A-Za-z-]+)*)?$'
           if ! [[ "${VERSION}" =~ ${semver} ]]; then
             echo "The tag is not a v-prefixed semantic version; nothing was built."
             exit 1
@@ -47,21 +48,36 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+      # The release notes must exist before anything is built or attested:
+      # a missing file found only in the last job would burn the tag.
+      - name: Check the release notes exist
+        run: |
+          set -euo pipefail
+          notes="cli/docs/release-notes-${GITHUB_REF_NAME}.md"
+          if [ ! -s "${notes}" ]; then
+            echo "Missing release notes ${notes}; nothing was built."
+            exit 1
+          fi
+
       # Defense in depth only: the tagged commit carries its own copy of this
       # workflow, so the real boundary is the tag ruleset on refs/tags/v*.
-      # This stops the owner tagging a commit that is not on main.
+      # This stops the owner tagging a commit that is not on main's own
+      # first-parent line (intermediate commits of a merged branch are
+      # ancestors of main but were never CI-green on their own).
       - name: Check the tagged commit is on main
         env:
           TAGGED_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if ! git merge-base --is-ancestor "${TAGGED_SHA}" refs/remotes/origin/main; then
-            echo "The tagged commit is not an ancestor of origin/main; nothing was built."
+          mainline="$(git rev-list --first-parent refs/remotes/origin/main)"
+          if ! grep -Fqx -- "${TAGGED_SHA}" <<<"${mainline}"; then
+            echo "The tagged commit is not on the first-parent line of origin/main; nothing was built."
             exit 1
           fi
 
       # The exact toolchain patch release, so the same tag can be rebuilt and
-      # compared; the attested identity embeds the Go version. No cache: a tag build can restore caches that other workflow runs on
+      # compared; the attested identity embeds the Go version.
+      # No cache: a tag build can restore caches that other workflow runs on
       # the default branch wrote, and a poisoned Go build cache entry would be
       # linked into a binary that is then attested as built from the tag.
       - name: Set up Go
@@ -137,7 +153,8 @@ jobs:
           # The identity grep above is only a real check while -ldflags are
           # not recorded in the build info (-trimpath); without that, the
           # flag text itself would satisfy the grep.
-          if go version -m "${bin}" | grep -q -- '-ldflags='; then
+          buildinfo="$(go version -m "${bin}")"
+          if grep -q -- '-ldflags=' <<<"${buildinfo}"; then
             echo "The built binary records its linker flags in the build info."
             exit 1
           fi

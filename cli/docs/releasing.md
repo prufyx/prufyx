@@ -11,18 +11,23 @@ A pre-release is a candidate build. It is not a signed compatibility statement
 ## Tag name
 
 Tags must match `v<major>.<minor>.<patch>[-<prerelease>]`, for example
-`v0.0.1-alpha.1`; build metadata (`+...`) is refused. The workflow triggers on any tag starting with `v`, and
-`scripts/action/install.sh` accepts only that shape. Do not reuse a tag that was
-ever pushed, even if its release was deleted: the tag, the attestation and the
-`SHA256SUMS` of a version must stay one-to-one.
+`v0.0.1-alpha.1`; build metadata (`+...`) is refused, and a pre-release part
+starts with a letter or digit. The workflow triggers on any tag starting with
+`v`, and `scripts/action/install.sh` accepts only that shape. Do not reuse a
+tag that was ever pushed, even if its release was deleted: the tag, the
+attestation and the `SHA256SUMS` of a version must stay one-to-one.
 
 ## Cutting a pre-release tag
 
 1. Decide the commit. It must be on `main`, merged through the normal pull
-   request flow, with CI green on that exact commit.
+   request flow, with CI green on that exact commit. The workflow refuses a
+   tagged commit that is not on the first-parent line of `origin/main`. This is
+   defense in depth only: the tagged commit carries its own copy of the
+   workflow, so the real boundary is a repository tag ruleset on `refs/tags/v*`
+   (only the owner may create such tags).
 2. Update the release notes file `cli/docs/release-notes-<tag>.md` in a normal
    pull request before tagging. The workflow uses this file as the draft
-   release text and fails if it is missing.
+   release text and fails before building anything if it is missing.
 3. Check the embedded rule expiry dates against the planned publication date.
    After a rule expires its verdict is `UNKNOWN` by design, so a release
    published shortly before an expiry date ships rules that are about to lapse.

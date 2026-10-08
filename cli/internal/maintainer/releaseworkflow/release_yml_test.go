@@ -152,8 +152,12 @@ func TestReleaseWorkflowRequiresTrimpathAndGuardsLdflags(t *testing.T) {
 	if builds != 2 {
 		t.Errorf("found %d go build lines, want 2", builds)
 	}
-	if !strings.Contains(build, `if go version -m "${bin}" | grep -q -- '-ldflags='`) {
+	if !strings.Contains(build, `buildinfo="$(go version -m "${bin}")"`) ||
+		!strings.Contains(build, `grep -q -- '-ldflags=' <<<"${buildinfo}"`) {
 		t.Error("Build binaries step lacks the build-info -ldflags guard")
+	}
+	if strings.Contains(build, `go version -m "${bin}" |`) {
+		t.Error("go version -m must not be piped: its failure would be ignored")
 	}
 }
 
@@ -176,8 +180,89 @@ func TestReleaseWorkflowDraftUsesNotesFileAndPrerelease(t *testing.T) {
 		t.Error("the draft-release checkout must set persist-credentials: false")
 	}
 	onMain := workflowStepNamed(t, wf, "build", "Check the tagged commit is on main").Run
-	if !strings.Contains(onMain, "git merge-base --is-ancestor") || !strings.Contains(onMain, "origin/main") {
-		t.Error("tagged-commit-on-main check is missing")
+	if !strings.Contains(onMain, "git rev-list --first-parent refs/remotes/origin/main") || !strings.Contains(onMain, "grep -Fqx") {
+		t.Error("tagged-commit-on-main check (first-parent line of origin/main) is missing")
+	}
+	if strings.Contains(onMain, "| grep") {
+		t.Error("the on-main check must not pipe into grep -q (pipefail/SIGPIPE)")
+	}
+
+	// The notes file is also checked in the build job, before any build.
+	build := wf.Jobs["build"]
+	notesAt, buildAt := -1, -1
+	for i, st := range build.Steps {
+		switch st.Name {
+		case "Check the release notes exist":
+			notesAt = i
+			if !strings.Contains(st.Run, "cli/docs/release-notes-${GITHUB_REF_NAME}.md") || !strings.Contains(st.Run, "exit 1") {
+				t.Error("build-job release notes check is incomplete")
+			}
+		case "Build binaries":
+			buildAt = i
+		}
+	}
+	if notesAt < 0 || buildAt < 0 || notesAt > buildAt {
+		t.Errorf("release notes check must run before the build (notes step %d, build step %d)", notesAt, buildAt)
+	}
+}
+
+// The draft release step is executed with a stub gh: argv is asserted for a
+// release and a pre-release tag, and a missing notes file must fail without
+// calling gh.
+func TestReleaseWorkflowDraftStepArguments(t *testing.T) {
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash unavailable")
+	}
+	run := workflowStepNamed(t, releaseWorkflow(t), "draft-release", "Create draft GitHub release").Run
+	exec1 := func(tag string, withNotes bool) (bool, string) {
+		dir := t.TempDir()
+		bin := filepath.Join(dir, "bin")
+		if err := os.MkdirAll(bin, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		argvFile := filepath.Join(dir, "argv")
+		stub := "#!/bin/sh\nfor a in \"$@\"; do printf '%s\\n' \"$a\"; done > " + argvFile + "\n"
+		if err := os.WriteFile(filepath.Join(bin, "gh"), []byte(stub), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(filepath.Join(dir, "cli", "docs"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(filepath.Join(dir, "dist"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "dist", "SHA256SUMS"), []byte("x\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if withNotes {
+			if err := os.WriteFile(filepath.Join(dir, "cli", "docs", "release-notes-"+tag+".md"), []byte("notes\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		cmd := exec.Command(bash, "-c", run)
+		cmd.Dir = dir
+		cmd.Env = []string{"GITHUB_REF_NAME=" + tag, "PATH=" + bin + ":" + os.Getenv("PATH")}
+		ok := cmd.Run() == nil
+		argv, _ := os.ReadFile(argvFile)
+		return ok, string(argv)
+	}
+
+	ok, argv := exec1("v1.2.3", true)
+	if !ok {
+		t.Fatal("release tag with notes: step failed")
+	}
+	if strings.Contains(argv, "--prerelease") || !strings.Contains(argv, "--draft\n") ||
+		!strings.Contains(argv, "--notes-file\ncli/docs/release-notes-v1.2.3.md\n") || !strings.HasPrefix(argv, "release\ncreate\nv1.2.3\n") {
+		t.Errorf("unexpected gh argv for a release: %q", argv)
+	}
+	ok, argv = exec1("v1.2.3-rc.1", true)
+	if !ok || !strings.Contains(argv, "--prerelease\n") {
+		t.Errorf("pre-release tag: ok=%v argv=%q, want --prerelease", ok, argv)
+	}
+	ok, argv = exec1("v1.2.3", false)
+	if ok || argv != "" {
+		t.Errorf("missing notes: ok=%v, gh argv=%q; want failure without calling gh", ok, argv)
 	}
 }
 
@@ -250,7 +335,7 @@ func TestReleaseWorkflowRefusesTagsTheIdentityRejects(t *testing.T) {
 	}
 	for _, tag := range []string{
 		"v1.2.3", "v0.0.1-alpha.1", "v1.2.3+build.7", "v10.20.30-rc.1+meta", "v1.2.3-rc.1+x",
-		"v1.2", "1.2.3", "v01.2.3", "v1.2.3-", "v1.2.3|release", "v1.2.3\nx", "v1.2.3 ", "v1.2.3-a..b", "vfoo", "v1.2.3$(id)",
+		"v1.2", "1.2.3", "v01.2.3", "v1.2.3-", "v1.2.3|release", "v1.2.3\nx", "v1.2.3 ", "v1.2.3-a..b", "v1.2.3--x", "v1.2.3--", "vfoo", "v1.2.3$(id)",
 	} {
 		cmd := exec.Command(bash, "-c", step.Run)
 		cmd.Env = []string{"VERSION=" + tag, "PATH=" + os.Getenv("PATH")}
@@ -259,6 +344,10 @@ func TestReleaseWorkflowRefusesTagsTheIdentityRejects(t *testing.T) {
 		accepted := cmd.Run() == nil
 		// install.sh refuses build metadata, so the workflow must too.
 		want := strings.HasPrefix(tag, "v") && buildidentity.ValidVersion(tag) && !strings.Contains(tag, "+")
+		// install.sh needs a letter or digit right after the first hyphen.
+		if i := strings.Index(tag, "-"); i >= 0 && (i+1 >= len(tag) || tag[i+1] == '-') {
+			want = false
+		}
 		if accepted != want {
 			t.Errorf("tag %q: workflow accepted=%v, identity accepts=%v (%s)", tag, accepted, want, strings.TrimSpace(out.String()))
 		}
