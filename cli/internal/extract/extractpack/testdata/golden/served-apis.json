@@ -24,7 +24,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:bb2d4499e57e9a559873207b170802b1a81abbd78e1cec3dae07eb8b46df7470",
+            "codeDigest": "sha256:6a07842451b387d9da5000e753980b67700f608d03a05edf96bbab0551f1e5af",
             "id": "k8s.served-api-removal",
             "version": "1.3.0"
           },
@@ -125,7 +125,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:bb2d4499e57e9a559873207b170802b1a81abbd78e1cec3dae07eb8b46df7470",
+            "codeDigest": "sha256:6a07842451b387d9da5000e753980b67700f608d03a05edf96bbab0551f1e5af",
             "id": "k8s.served-api-removal",
             "version": "1.3.0"
           },
@@ -226,7 +226,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:bb2d4499e57e9a559873207b170802b1a81abbd78e1cec3dae07eb8b46df7470",
+            "codeDigest": "sha256:6a07842451b387d9da5000e753980b67700f608d03a05edf96bbab0551f1e5af",
             "id": "k8s.served-api-removal",
             "version": "1.3.0"
           },
@@ -327,7 +327,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:bb2d4499e57e9a559873207b170802b1a81abbd78e1cec3dae07eb8b46df7470",
+            "codeDigest": "sha256:6a07842451b387d9da5000e753980b67700f608d03a05edf96bbab0551f1e5af",
             "id": "k8s.served-api-removal",
             "version": "1.3.0"
           },
@@ -428,7 +428,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:bb2d4499e57e9a559873207b170802b1a81abbd78e1cec3dae07eb8b46df7470",
+            "codeDigest": "sha256:6a07842451b387d9da5000e753980b67700f608d03a05edf96bbab0551f1e5af",
             "id": "k8s.served-api-removal",
             "version": "1.3.0"
           },
@@ -529,7 +529,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:bb2d4499e57e9a559873207b170802b1a81abbd78e1cec3dae07eb8b46df7470",
+            "codeDigest": "sha256:6a07842451b387d9da5000e753980b67700f608d03a05edf96bbab0551f1e5af",
             "id": "k8s.served-api-removal",
             "version": "1.3.0"
           },
@@ -615,7 +615,7 @@
         "basis": "mechanical",
         "derivedAt": "2026-10-04T00:00:00Z",
         "extractor": {
-          "codeDigest": "sha256:bb2d4499e57e9a559873207b170802b1a81abbd78e1cec3dae07eb8b46df7470",
+          "codeDigest": "sha256:6a07842451b387d9da5000e753980b67700f608d03a05edf96bbab0551f1e5af",
           "id": "k8s.served-api-removal",
           "version": "1.3.0"
         },
@@ -656,7 +656,7 @@
         "basis": "mechanical",
         "derivedAt": "2026-10-04T00:00:00Z",
         "extractor": {
-          "codeDigest": "sha256:bb2d4499e57e9a559873207b170802b1a81abbd78e1cec3dae07eb8b46df7470",
+          "codeDigest": "sha256:6a07842451b387d9da5000e753980b67700f608d03a05edf96bbab0551f1e5af",
           "id": "k8s.served-api-removal",
           "version": "1.3.0"
         },
@@ -692,7 +692,7 @@
         "basis": "mechanical",
         "derivedAt": "2026-10-04T00:00:00Z",
         "extractor": {
-          "codeDigest": "sha256:bb2d4499e57e9a559873207b170802b1a81abbd78e1cec3dae07eb8b46df7470",
+          "codeDigest": "sha256:6a07842451b387d9da5000e753980b67700f608d03a05edf96bbab0551f1e5af",
           "id": "k8s.served-api-removal",
           "version": "1.3.0"
         },
@@ -730,7 +730,7 @@
         "basis": "mechanical",
         "derivedAt": "2026-10-04T00:00:00Z",
         "extractor": {
-          "codeDigest": "sha256:bb2d4499e57e9a559873207b170802b1a81abbd78e1cec3dae07eb8b46df7470",
+          "codeDigest": "sha256:6a07842451b387d9da5000e753980b67700f608d03a05edf96bbab0551f1e5af",
           "id": "k8s.served-api-removal",
           "version": "1.3.0"
         },
