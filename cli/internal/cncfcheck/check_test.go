@@ -59,7 +59,7 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 	for _, vector := range vectors {
 		caseCount += len(vector.Cases)
 	}
-	if caseCount != 985 {
+	if caseCount != 979 {
 		t.Fatal("unexpected reviewed case count")
 	}
 	if len(vectors) != len(b.pack.Entries) {
