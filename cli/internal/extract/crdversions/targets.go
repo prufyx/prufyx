@@ -54,6 +54,12 @@ type Target struct {
 	// full-tree scan records without letting them block attestation, each
 	// with its reviewed reason. A listed path is never excluded.
 	Exclude []Exclusion
+	// Attest makes the extractor attest the target's lines for the
+	// custom-resource version family. Only a project of the reviewed
+	// custom-resource table (its set fact is registered) may attest; a
+	// test pins the two to each other, so registering a project is also
+	// a new version of this extractor.
+	Attest bool
 
 	// voided are the Exclude entries that do not hold at the release being
 	// scanned (see guard.go); set on a copy made for one scan.
@@ -127,6 +133,7 @@ type targetJSON struct {
 	FactProject string          `json:"factProject"`
 	TagPrefixes []string        `json:"tagPrefixes"`
 	MinFrom     string          `json:"minFrom"`
+	Attest      bool            `json:"attest"`
 	Paths       []pathJSON      `json:"paths"`
 	Exclude     []exclusionJSON `json:"exclude"`
 }
@@ -204,7 +211,7 @@ func LoadTargets(raw []byte) ([]Target, error) {
 }
 
 func (tj targetJSON) target() (Target, error) {
-	t := Target{Project: tj.Project, Name: tj.Name, Repo: tj.Repo, Component: tj.Component, FactProject: tj.FactProject, TagPrefixes: tj.TagPrefixes}
+	t := Target{Project: tj.Project, Name: tj.Name, Repo: tj.Repo, Component: tj.Component, FactProject: tj.FactProject, TagPrefixes: tj.TagPrefixes, Attest: tj.Attest}
 	switch {
 	case !projectRE.MatchString(t.Project) || len(t.ExtractorID()) > 128:
 		return t, fmt.Errorf("project slug")

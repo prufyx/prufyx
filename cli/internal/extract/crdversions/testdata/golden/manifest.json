@@ -24,9 +24,10 @@
   "extractor": {
     "codeDigest": "sha256:CODE",
     "id": "crd.version-removal.argo-cd",
-    "version": "2.0.0"
+    "version": "2.1.0"
   },
   "outputs": {
+    "attestations.json": "sha256:OUTPUT",
     "candidates.json": "sha256:OUTPUT",
     "reads/0000000000000000000000000000000000900000.tsv": "sha256:OUTPUT",
     "reads/0000000000000000000000000000000000901000.tsv": "sha256:OUTPUT",
@@ -35,6 +36,13 @@
   },
   "pairs": [
     {
+      "attestation": {
+        "families": [
+          "crd.custom_resource_versions"
+        ],
+        "line": "90.1",
+        "status": "attested"
+      },
       "from": "90.0.0",
       "fromCommit": "0000000000000000000000000000000000900000",
       "fromTag": "v90.0.0",
@@ -549,6 +557,13 @@
       "toTag": "v90.1.0"
     },
     {
+      "attestation": {
+        "families": [
+          "crd.custom_resource_versions"
+        ],
+        "line": "90.2",
+        "status": "attested"
+      },
       "from": "90.1.0",
       "fromCommit": "0000000000000000000000000000000000901000",
       "fromTag": "v90.1.0",
@@ -1020,6 +1035,7 @@
   "repo": "github.com/argoproj/argo-cd",
   "schema": "prufyx.io/extractor-run-manifest/v1",
   "totals": {
+    "attestations": 2,
     "commitsRead": 3,
     "derived": 2,
     "pairs": 2,

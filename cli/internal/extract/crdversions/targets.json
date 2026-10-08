@@ -9,6 +9,7 @@
       "factProject": "argo_cd",
       "tagPrefixes": ["v"],
       "minFrom": "3.0",
+      "attest": true,
       "paths": [
         {"path": "manifests/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
@@ -71,6 +72,7 @@
       "factProject": "istio",
       "tagPrefixes": [""],
       "minFrom": "1.26",
+      "attest": true,
       "paths": [
         {"path": "manifests/charts/base/files/crd-all.gen.yaml"}
       ],
@@ -170,6 +172,7 @@
       "factProject": "strimzi",
       "tagPrefixes": [""],
       "minFrom": "0.49",
+      "attest": true,
       "paths": [
         {"path": "install/access-operator", "directory": true, "optional": true, "match": "^[0-9A-Za-z]{3}-Crd-[A-Za-z0-9-]+\\.ya?ml$", "guard": "(?i)crd"},
         {"path": "install/cluster-operator", "directory": true, "match": "^[0-9A-Za-z]{3}-Crd-[A-Za-z0-9-]+\\.ya?ml$", "guard": "(?i)crd"}

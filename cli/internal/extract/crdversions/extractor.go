@@ -29,6 +29,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
 // Identity.
@@ -36,7 +37,7 @@ const (
 	// IDPrefix is followed by the project slug: one extractor id per
 	// project, since a run reads one repository.
 	IDPrefix = "crd.version-removal."
-	Version  = "2.0.0"
+	Version  = "2.1.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/crdversions"
 )
@@ -105,6 +106,18 @@ func (x *Extractor) SourceFiles() (string, fs.FS) { return SourceDir, source }
 
 // Applies implements extract.Extractor.
 func (x *Extractor) Applies(repo extract.RepoRef) bool { return repo.Key == x.target.Repo }
+
+// AttestedFamilies implements extract.LineAttester: the custom-resource
+// version family, for a target that attests.
+func (x *Extractor) AttestedFamilies() []string {
+	if !x.target.Attest {
+		return []string{}
+	}
+	return []string{lineattest.FamilyCustomResourceVersions}
+}
+
+// AttestedComponent implements extract.ComponentAttester.
+func (x *Extractor) AttestedComponent() string { return x.target.Component }
 
 // releaseLine is one major.minor line and its final release tags, lowest
 // patch first. The anchor is the first tag.
@@ -757,7 +770,73 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 		return withhold(problemf("at %s: %s is %s (%s): a version the rules forbid may still be served there", ta.tag.Name, u[0].Path, u[0].Class, u[0].Detail))
 	}
 	proof.Completeness = completeness(fromLine, toLine, fromTags, toTags, lines, proof.DefinitionsRemoved, proof.UnlistedRemovals)
-	return extract.Extraction{Candidates: out, Proof: proof}, nil
+	res := extract.Extraction{Candidates: out, Proof: proof}
+	att, why := x.attestation(pair, fromLine, toLine, fa, ta, out, proof.Completeness)
+	if att != nil {
+		res.Attestations = []extract.AttestationCandidate{*att}
+	} else {
+		res.NotAttested = why
+	}
+	return res, nil
+}
+
+// attestation states that the pair's rules are every rule of the
+// custom-resource version family for the later line, or says why it does
+// not. It attests only a pair whose derivation is complete enough
+// (completeness.attestable: every release of both lines read completely, a
+// clean scan of the whole tree at each, rules over both whole lines, no
+// definition removed), of the family's hop shape (the next minor line of
+// the same major), for a target that attests and a component the family
+// covers. The attestation names every release of both lines it read, so it
+// covers no release published later.
+func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *releaseLine, fa, ta *tagState, rules []extract.Candidate, c *Completeness) (*extract.AttestationCandidate, string) {
+	family, _ := lineattest.LookupFamily(lineattest.FamilyCustomResourceVersions)
+	switch {
+	case !x.target.Attest:
+		return nil, "the project's custom-resource version set is not registered, so its lines are not attested"
+	case !family.Admits(x.target.Component):
+		return nil, "the custom-resource version family does not cover " + x.target.Component
+	case !c.Attestable:
+		return nil, "the derivation does not establish the whole lines: " + strings.Join(c.Reasons, "; ")
+	case fromLine.Major != toLine.Major || fromLine.Minor+1 != toLine.Minor:
+		return nil, fmt.Sprintf("%s is not the minor line after %s in the same major; only such an upgrade is attested", toLine.key(), fromLine.key())
+	}
+	fromFile, toFile := firstCRDFile(fa), firstCRDFile(ta)
+	if fromFile == "" || toFile == "" {
+		return nil, "no CustomResourceDefinition manifest to cite at both first releases"
+	}
+	ids := make([]string, 0, len(rules))
+	for _, r := range rules {
+		ids = append(ids, r.Rule.ID)
+	}
+	sort.Strings(ids)
+	releases := func(l *releaseLine) []lineattest.Release {
+		out := make([]lineattest.Release, 0, len(l.Tags))
+		for i, t := range l.Tags {
+			out = append(out, lineattest.Release{Version: l.Versions[i], Commit: t.Commit})
+		}
+		return out
+	}
+	return &extract.AttestationCandidate{
+		Component: x.target.Component, Line: toLine.key(), FactFamily: lineattest.FamilyCustomResourceVersions, RuleIDs: ids,
+		Releases: &lineattest.Releases{From: releases(fromLine), To: releases(toLine)},
+		Sources: []extract.SourceRef{
+			{ID: "crds-" + slug(pair.From), Repo: pair.Repo, Commit: pair.FromCommit, Path: fromFile},
+			{ID: "crds-" + slug(pair.To), Repo: pair.Repo, Commit: pair.ToCommit, Path: toFile},
+		},
+	}, ""
+}
+
+// firstCRDFile is the first path, in path order, of a definition the
+// release's inventory holds.
+func firstCRDFile(st *tagState) string {
+	first := ""
+	for _, c := range st.inv.CRDs {
+		if first == "" || c.Path < first {
+			first = c.Path
+		}
+	}
+	return first
 }
 
 // hopShape names the shape of a pair of lines.
