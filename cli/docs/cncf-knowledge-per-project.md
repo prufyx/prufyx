@@ -165,7 +165,7 @@ The size check fails when any target reaches 80% of the 1 MiB per-target cap
 the 7 MiB member total of one package (5872026 bytes or more):
 
 ```sh
-go run ./cmd/prufyx-maintainer knowledge-targets check-size
+go run ./cmd/prufyx-maintainer knowledge-targets check-size --tree /absolute/checkout
 go run ./cmd/prufyx-maintainer knowledge-targets check-size --dir /absolute/new-dir
 ```
 

@@ -811,3 +811,34 @@ func TestMirrorFlagValidation(t *testing.T) {
 		t.Fatalf("a build without a mirror must reject --source mirror: %d", code)
 	}
 }
+
+// A run with files missing from the mirror exits 0 by default (the wants file
+// is the signal); --fail-on-missing makes it exit 3 after writing both files.
+func TestMirrorMissingBlobsExitCode(t *testing.T) {
+	w := newWorld(t)
+	w.mirror(nil)
+	rules := filepath.Join(t.TempDir(), "rules.json")
+	writeRules(t, rules, w.cites)
+	for _, tc := range []struct {
+		extra []string
+		want  int
+	}{{nil, 0}, {[]string{"--fail-on-missing"}, 3}} {
+		out := filepath.Join(t.TempDir(), "worklist.json")
+		wantsOut := filepath.Join(t.TempDir(), "wants.json")
+		args := append([]string{"repin", "--source", "mirror", "--mirror-state", w.state, "--rules", rules, "--output", out, "--wants-out", wantsOut}, tc.extra...)
+		var stdout, stderr strings.Builder
+		code := evidencerepin.RunWith(context.Background(), args, &stdout, &stderr, evidencerepin.Deps{Now: fixedNow, OpenMirror: factorymirror.OpenRepinSource})
+		if code != tc.want {
+			t.Fatalf("%v: exit %d, want %d: %s", tc.extra, code, tc.want, stderr.String())
+		}
+		for _, p := range []string{out, wantsOut} {
+			if _, err := os.Stat(p); err != nil {
+				t.Fatalf("%v: %v", tc.extra, err)
+			}
+		}
+		rawWants, _ := os.ReadFile(wantsOut)
+		if strings.TrimSpace(string(rawWants)) == "{\n  \"wants\": []\n}" {
+			t.Fatalf("missing files must produce a non-empty wants file")
+		}
+	}
+}

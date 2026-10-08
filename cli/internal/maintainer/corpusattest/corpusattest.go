@@ -231,7 +231,7 @@ func verifyPackBinding(packPath, expected string) error {
 		return fmt.Errorf("rule pack exceeds the reviewed bound")
 	}
 	if actual := sourcecorpus.SHA(raw); actual != expected {
-		return fmt.Errorf("rule pack digest does not match the embedded pack")
+		return fmt.Errorf("rule pack digest does not match the attested pack")
 	}
 	return nil
 }
@@ -253,6 +253,7 @@ func Run(args []string, stdout, stderr io.Writer, cliRoot string) int {
 	packName := flags.String("pack", PackCommunity, "rule pack to attest: community or cncf")
 	output := flags.String("output", "", "attestation asset path")
 	pack := flags.String("rules", "", "rule pack file the attestation is bound to")
+	treeDir := flags.String("tree", "", "checked-out source tree (its root or its cli/ directory) whose pack bytes the attestation is computed over and bound to; default is the pack embedded in this binary")
 	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 {
 		fmt.Fprintln(stderr, "corpus-attestation: command rejected")
 		return 2
@@ -262,14 +263,29 @@ func Run(args []string, stdout, stderr io.Writer, cliRoot string) int {
 		fmt.Fprintln(stderr, "corpus-attestation: command rejected")
 		return 2
 	}
+	// The binding is explicit: either the pack embedded in this binary
+	// (default) or the pack bytes of the named tree, never a mixture.
+	var document []byte
+	var err error
+	binding := "embedded"
+	if *treeDir != "" {
+		treeCLI, terr := ResolveTreeCLI(*treeDir)
+		if terr != nil {
+			fmt.Fprintln(stderr, "corpus-attestation: tree rejected")
+			return 2
+		}
+		cliRoot = treeCLI
+		binding = "tree:" + filepath.ToSlash(treeCLI)
+		document, err = DocumentFromFiles(*packName, ReadRegularFile(treeCLI))
+	} else {
+		document, err = DocumentFor(*packName)
+	}
 	if *output == "" {
 		*output = filepath.Join(cliRoot, selected.packageDir, selected.assetPath)
 	}
 	if *pack == "" {
 		*pack = filepath.Join(cliRoot, selected.rulesPath)
 	}
-
-	document, err := DocumentFor(*packName)
 	if err != nil {
 		fmt.Fprintln(stderr, "corpus-attestation: attestation rejected")
 		return 2
@@ -295,13 +311,47 @@ func Run(args []string, stdout, stderr io.Writer, cliRoot string) int {
 			fmt.Fprintln(stderr, "corpus-attestation: committed attestation is stale")
 			return 2
 		}
-		fmt.Fprintf(stdout, "corpus-attestation current: pack=%s revision=%s components=%d rules=%d digest=%s\n", *packName, attestation.Revision, attestation.Components, attestation.RuleCount, digest)
+		fmt.Fprintf(stdout, "corpus-attestation current: pack=%s revision=%s components=%d rules=%d digest=%s packDigest=%s binding=%s\n", *packName, attestation.Revision, attestation.Components, attestation.RuleCount, digest, attestation.PackDigest, binding)
 		return 0
 	}
 	if err := os.WriteFile(*output, document, 0o644); err != nil {
 		fmt.Fprintln(stderr, "corpus-attestation: cannot commit the attestation")
 		return 2
 	}
-	fmt.Fprintf(stdout, "corpus-attestation written: pack=%s revision=%s components=%d rules=%d digest=%s\n", *packName, attestation.Revision, attestation.Components, attestation.RuleCount, digest)
+	fmt.Fprintf(stdout, "corpus-attestation written: pack=%s revision=%s components=%d rules=%d digest=%s packDigest=%s binding=%s\n", *packName, attestation.Revision, attestation.Components, attestation.RuleCount, digest, attestation.PackDigest, binding)
 	return 0
+}
+
+// ResolveTreeCLI maps a --tree argument to the tree's cli/ directory. It
+// accepts the tree root (which holds cli/) or the cli/ directory itself and
+// rejects anything else, so a wrong path fails instead of silently falling
+// back to the embedded pack.
+func ResolveTreeCLI(dir string) (string, error) {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return "", err
+	}
+	for _, candidate := range []string{filepath.Join(abs, "cli"), abs} {
+		info, err := os.Stat(filepath.Join(candidate, "internal", "projectcheck", "data"))
+		if err == nil && info.IsDir() {
+			return candidate, nil
+		}
+	}
+	return "", fmt.Errorf("not a source tree")
+}
+
+// ReadRegularFile reads files under root, refusing links and anything that
+// is not a regular file, so a tree cannot lead the read elsewhere.
+func ReadRegularFile(root string) func(rel string) ([]byte, error) {
+	return func(rel string) ([]byte, error) {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		info, err := os.Lstat(path)
+		if err != nil {
+			return nil, err
+		}
+		if !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("%s is not a regular file", rel)
+		}
+		return os.ReadFile(path)
+	}
 }

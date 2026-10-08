@@ -162,3 +162,35 @@ func TestSingleTargetLayoutIsGated(t *testing.T) {
 		t.Fatalf("unbuildable: code=%d stderr=%s", code, stderr.String())
 	}
 }
+
+// check-size --tree reads the pack files of a checkout, prints which tree it
+// checked, and rejects what is not a tree; without --dir/--tree it says it
+// checked the embedded pack.
+func TestCheckSizeNamesWhatItChecked(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr strings.Builder
+	if code := Run([]string{"check-size", "--tree", root}, &stdout, &stderr); code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "checked: CNCF pack files of tree ") {
+		t.Fatalf("tree not named: %s", stdout.String())
+	}
+	stdout.Reset()
+	if code := Run([]string{"check-size"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("embedded exit %d: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "embedded in this binary") {
+		t.Fatalf("embedded default not named: %s", stdout.String())
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if code := Run([]string{"check-size", "--tree", t.TempDir()}, &stdout, &stderr); code != 2 {
+		t.Fatalf("a non-tree must be rejected, exit %d", code)
+	}
+	if code := Run([]string{"check-size", "--tree", root, "--dir", root}, &stdout, &stderr); code != 2 {
+		t.Fatalf("--tree with --dir must be rejected, exit %d", code)
+	}
+}

@@ -276,3 +276,124 @@ func TestDocumentFromTreeMatchesEmbedded(t *testing.T) {
 		t.Fatal("unknown pack accepted")
 	}
 }
+
+// treeCopy copies the pack inputs of this repository into a new tree root
+// (which holds cli/), the layout --tree accepts.
+func treeCopy(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	for _, rel := range []string{
+		"internal/cncfcheck/data/landscape-projects.json", "internal/cncfcheck/data/priority-portfolio.json", "internal/cncfcheck/data/rules.json", "internal/cncfcheck/data/corpus-attestation.json",
+		"internal/projectcheck/data/projects.json", "internal/projectcheck/data/rules.json", "internal/projectcheck/data/corpus-attestation.json",
+	} {
+		raw, err := os.ReadFile(filepath.Join(cliRoot(t), filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		dst := filepath.Join(root, "cli", filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(dst, raw, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return root
+}
+
+// A pack changed in a tree is attested from the tree's bytes: generate
+// --tree rewrites the tree's asset, check --tree then agrees, and the
+// binding names the tree and the pack digest. The embedded default still
+// rejects the changed pack.
+func TestGenerateFromTreeBindsToTheTreesPack(t *testing.T) {
+	for _, pack := range []string{PackCommunity, PackCNCF} {
+		tree := treeCopy(t)
+		rules := filepath.Join(tree, "cli", "internal", "projectcheck", "data", "rules.json")
+		if pack == PackCNCF {
+			rules = filepath.Join(tree, "cli", "internal", "cncfcheck", "data", "rules.json")
+		}
+		raw, err := os.ReadFile(rules)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var doc map[string]any
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			t.Fatal(err)
+		}
+		doc["revision"] = "tree-test-revision"
+		changed, _ := json.MarshalIndent(doc, "", "  ")
+		if err := os.WriteFile(rules, append(changed, '\n'), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		var stdout, stderr bytes.Buffer
+		if code := Run([]string{"check", "--pack", pack, "--tree", tree}, &stdout, &stderr, cliRoot(t)); code == 0 {
+			t.Fatalf("%s: check accepted a stale asset", pack)
+		}
+		stdout.Reset()
+		stderr.Reset()
+		if code := Run([]string{"generate", "--pack", pack, "--tree", tree}, &stdout, &stderr, cliRoot(t)); code != 0 {
+			t.Fatalf("%s: generate exit=%d stderr=%s", pack, code, stderr.String())
+		}
+		if !bytes.Contains(stdout.Bytes(), []byte("binding=tree:")) || !bytes.Contains(stdout.Bytes(), []byte("packDigest=sha256:")) {
+			t.Fatalf("%s: binding not explicit: %s", pack, stdout.String())
+		}
+		stdout.Reset()
+		if code := Run([]string{"check", "--pack", pack, "--tree", filepath.Join(tree, "cli")}, &stdout, &stderr, cliRoot(t)); code != 0 {
+			t.Fatalf("%s: check --tree exit=%d stderr=%s", pack, code, stderr.String())
+		}
+		// The tree's pack is what was attested, not the embedded one.
+		want, err := DocumentFromTree(pack, filepath.Join(tree, "cli"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		asset := filepath.Join(tree, "cli", "internal", "projectcheck", projectcheck.AttestationPath)
+		if pack == PackCNCF {
+			asset = filepath.Join(tree, "cli", "internal", "cncfcheck", cncfcheck.AttestationPath)
+		}
+		got, _ := os.ReadFile(asset)
+		embedded, _ := DocumentFor(pack)
+		if !bytes.Equal(got, want) || bytes.Equal(got, embedded) {
+			t.Fatalf("%s: asset is not bound to the tree's pack", pack)
+		}
+		// Default (embedded) binding is unchanged: the tree's changed pack
+		// does not satisfy it.
+		if code := Run([]string{"generate", "--pack", pack, "--output", filepath.Join(t.TempDir(), "o.json"), "--rules", rules}, &stdout, &stderr, cliRoot(t)); code == 0 {
+			t.Fatalf("%s: embedded binding accepted the changed pack", pack)
+		}
+	}
+}
+
+// --tree fails closed: not a tree, a mismatched --rules file, a symlinked
+// input, and a missing input are all rejected, and nothing is written.
+func TestGenerateFromTreeFailsClosed(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"generate", "--tree", t.TempDir()}, &stdout, &stderr, cliRoot(t)); code == 0 {
+		t.Fatal("an empty directory was accepted as a tree")
+	}
+	tree := treeCopy(t)
+	decoy := filepath.Join(t.TempDir(), "rules.json")
+	if err := os.WriteFile(decoy, []byte(`{"schema":"decoy"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(t.TempDir(), "out.json")
+	if code := Run([]string{"generate", "--tree", tree, "--rules", decoy, "--output", out}, &stdout, &stderr, cliRoot(t)); code == 0 {
+		t.Fatal("a rules file that is not the tree's pack was accepted")
+	}
+	if _, err := os.Stat(out); err == nil {
+		t.Fatal("an attestation was written despite the binding mismatch")
+	}
+	rules := filepath.Join(tree, "cli", "internal", "projectcheck", "data", "rules.json")
+	real := rules + ".real"
+	if err := os.Rename(rules, real); err != nil {
+		t.Fatal(err)
+	}
+	if code := Run([]string{"generate", "--tree", tree, "--output", out}, &stdout, &stderr, cliRoot(t)); code == 0 {
+		t.Fatal("a tree missing its pack was accepted")
+	}
+	if err := os.Symlink(real, rules); err != nil {
+		t.Skip("symlinks unavailable")
+	}
+	if code := Run([]string{"generate", "--tree", tree, "--output", out}, &stdout, &stderr, cliRoot(t)); code == 0 {
+		t.Fatal("a symlinked pack was accepted")
+	}
+}

@@ -873,3 +873,37 @@ uploaded `knowledge-gate-report` artifact carry the result. The workflow never
 merges. The factory must open its pull requests with its GitHub App token
 (pull requests opened with the workflow token start no workflows) and create
 its commits as the App, so they are authored, committed and signed by it.
+
+## Regenerating the attestation for a candidate tree
+
+`corpus-attestation generate` binds, by default, to the rule pack embedded in the
+binary that runs it, so after `extract apply` has changed a pack in a checkout it
+rejects that pack ("rule pack binding rejected"). To attest the checkout instead,
+name it:
+
+```sh
+prufyx-maintainer corpus-attestation generate --pack cncf --tree /path/to/checkout
+prufyx-maintainer corpus-attestation generate --pack community --tree /path/to/checkout
+prufyx-maintainer corpus-attestation check --pack cncf --tree /path/to/checkout
+```
+
+`--tree` takes the checkout root or its `cli/` directory. The attestation is
+computed from the tree's pack bytes with the same function the gate uses, so
+`gate verify` locally reaches the attestation verdict CI reaches. The binding is
+stated in the output (`packDigest=...` and `binding=tree:<cli dir>` or
+`binding=embedded`) and the pack file is re-read and re-hashed against the
+attestation before anything is written. Anything unexpected fails with exit 2 and
+writes nothing: a path that is not a source tree, a missing or oversized input, a
+symlinked or non-regular input, or a `--rules` file that is not the pack that was
+attested. The default without `--tree` is unchanged.
+
+`knowledge-targets check-size` likewise checks the pack embedded in the running
+binary unless told otherwise, and says so. Use `--tree CHECKOUT` to check the
+checkout's CNCF pack files (it prints the tree it checked); `--dir` checks a
+directory written by `build`.
+
+`evidence repin --source mirror` exits 0 even when files are missing from the
+mirror, because the worklist is complete in the sense that matters (missing files
+are `PENDING`, never "unchanged") and the wants file is the signal. Scripts that
+must stop on an incomplete run pass `--fail-on-missing`: the worklist and wants
+file are still written and the exit code is 3.

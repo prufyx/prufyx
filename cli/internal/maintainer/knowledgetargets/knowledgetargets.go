@@ -18,6 +18,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/corpusattest"
 )
 
 // ErrRejected is returned for invalid arguments or unusable inputs.
@@ -124,7 +125,11 @@ func Run(args []string, stdout, stderr io.Writer) int {
 
 const usage = `usage:
   prufyx-maintainer knowledge-targets build --revision N [--previous-index FILE] --output-dir DIR
-  prufyx-maintainer knowledge-targets check-size [--dir DIR]`
+  prufyx-maintainer knowledge-targets check-size [--dir DIR | --tree TREE]
+
+check-size without --dir or --tree checks the rule pack embedded in THIS binary,
+not a candidate checkout; pass --tree TREE to check the pack files of a
+checked-out tree (its root or its cli/ directory).`
 
 func runBuild(args []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("knowledge-targets build", flag.ContinueOnError)
@@ -166,12 +171,17 @@ func runCheckSize(args []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("knowledge-targets check-size", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	dir := flags.String("dir", "", "directory written by build; default builds from the embedded pack")
-	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
+	tree := flags.String("tree", "", "checked-out source tree (root or cli/ directory) whose CNCF pack files are checked instead of the embedded pack")
+	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || (*dir != "" && *tree != "") {
 		fmt.Fprintln(stderr, "knowledge-targets check-size: command rejected")
 		return 2
 	}
 	var targets []Target
+	if *tree != "" {
+		return checkTree(*tree, stdout, stderr)
+	}
 	if *dir != "" {
+		fmt.Fprintf(stdout, "checked: targets in directory %s\n", *dir)
 		found, err := targetsInDir(*dir)
 		if err != nil || len(found) == 0 {
 			fmt.Fprintln(stderr, "knowledge-targets check-size: no targets found")
@@ -179,6 +189,7 @@ func runCheckSize(args []string, stdout, stderr io.Writer) int {
 		}
 		targets = found
 	} else {
+		fmt.Fprintln(stdout, "checked: the rule pack embedded in this binary (not a checked-out tree; use --tree TREE to check a candidate checkout)")
 		index, projects, err := Build("1", nil)
 		if err != nil {
 			fmt.Fprintln(stderr, "knowledge-targets check-size: embedded pack cannot be split into targets")
@@ -205,6 +216,50 @@ func runCheckSize(args []string, stdout, stderr io.Writer) int {
 		return code
 	}
 	return report(targets, DefaultLimit(), stdout, stderr)
+}
+
+// checkTree checks the CNCF pack files of a checked-out tree against the same
+// per-target caps, admitting them with this binary's engine. It fails closed:
+// an unreadable, unadmitted or unsplittable pack is a rejection, not a pass.
+func checkTree(tree string, stdout, stderr io.Writer) int {
+	cli, err := corpusattest.ResolveTreeCLI(tree)
+	if err != nil {
+		fmt.Fprintln(stderr, "knowledge-targets check-size: tree rejected")
+		return 2
+	}
+	read := corpusattest.ReadRegularFile(cli)
+	var files [3][]byte
+	for i, rel := range []string{"internal/cncfcheck/data/landscape-projects.json", "internal/cncfcheck/data/priority-portfolio.json", "internal/cncfcheck/data/rules.json"} {
+		if files[i], err = read(rel); err != nil || len(files[i]) > corpusattest.MaxInputBytes {
+			fmt.Fprintln(stderr, "knowledge-targets check-size: tree pack files unreadable")
+			return 2
+		}
+	}
+	packReport, err := cncfcheck.CheckPackFiles(files[0], files[1], files[2])
+	if err != nil {
+		fmt.Fprintln(stderr, "knowledge-targets check-size: tree pack not admitted")
+		return 2
+	}
+	if packReport.SplitErr != nil {
+		fmt.Fprintln(stderr, "size alarm: the tree pack no longer splits into per-project targets")
+		return 1
+	}
+	fmt.Fprintf(stdout, "checked: CNCF pack files of tree %s\n", filepath.ToSlash(cli))
+	var targets []Target
+	for _, target := range packReport.ProjectTargets {
+		targets = append(targets, Target{Path: target.Path, Bytes: int64(len(target.Bytes))})
+	}
+	if len(targets) == 0 {
+		fmt.Fprintln(stderr, "knowledge-targets check-size: no targets found")
+		return 2
+	}
+	code := report(targets, DefaultLimit(), stdout, stderr)
+	if SingleTargetAlarmed(int64(packReport.TargetBytes), DefaultLimit()) {
+		fmt.Fprintf(stderr, "size alarm: single-target layout is %d bytes, at or above the per-target alarm (%d bytes)\n", packReport.TargetBytes, DefaultLimit().Alarm)
+		return 1
+	}
+	fmt.Fprintf(stdout, "single-target layout: %d bytes (%.1f%% of cap)\n", packReport.TargetBytes, percent(int64(packReport.TargetBytes), DefaultLimit().Cap))
+	return code
 }
 
 // report prints the largest targets and every alarm. The check fails when
