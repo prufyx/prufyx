@@ -5,7 +5,9 @@
 // as it was before the change. Tests of the supersede machinery need reviewed
 // rules to replace; once the shipped pack holds only mechanical rules this is
 // where they come from. Tests that merely name a rule of the pack use
-// supersedeids instead. No production code imports this package.
+// supersedeids instead. While the shipped pack holds the reviewed rules a test
+// checks that the 25 entries here are byte-equal to the shipped ones. No
+// production code imports this package.
 package supersedefixture
 
 import (
@@ -23,7 +25,10 @@ var reviewedEntries []byte
 // Reviewed returns pack as it was before the served-API supersede: its
 // mechanical served-API rules removed and the 25 reviewed Kubernetes rules
 // added back, rendered like the shipped pack. A pack that already holds the
-// reviewed rules is returned unchanged.
+// reviewed rules is returned unchanged. The 25 rules are appended after the
+// kept ones: in the pack as it was they sat at positions 94 to 119, so the
+// rebuilt pack is the same rules, not the same bytes, as the pack before the
+// supersede (the tests that use it do not depend on the position).
 func Reviewed(pack []byte) ([]byte, error) {
 	superseded, err := supersedeids.Generation(pack)
 	if err != nil {

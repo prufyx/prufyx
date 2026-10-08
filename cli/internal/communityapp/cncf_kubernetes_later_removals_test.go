@@ -105,7 +105,7 @@ func TestKubernetesLaterRemovalsThroughTheCommandRoute(t *testing.T) {
 			} {
 				t.Run(removal.fact+"/"+kind+"/"+tc.name, func(t *testing.T) {
 					path := writeCNCFFile(t, "applyset.json", []byte(`{"apiVersion":"v1","kind":"List","items":[`+strings.Join(tc.items, ",")+`]}`), 0o600)
-					args := []string{"check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", tc.from, "--to", tc.to, "--distribution", "official_upstream", "--target-api-apply-required", "--now", "2026-11-20T00:00:00Z", "--format", "json"}
+					args := []string{"check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", tc.from, "--to", tc.to, "--distribution", "official_upstream", "--target-api-apply-required", "--now", supersedeids.ClockString(), "--format", "json"}
 					if tc.complete {
 						args = append(args, "--resource-scope-complete")
 					}
@@ -160,13 +160,13 @@ func TestKubernetesLaterRemovalsThroughTheCommandRoute(t *testing.T) {
 	}
 	// A transition that crosses none of these lines is not decided by them.
 	path := writeCNCFFile(t, "applyset.json", []byte(`{"apiVersion":"v1","kind":"List","items":[`+laterObject("storage.k8s.io/v1beta1", "VolumeAttributesClass")+`]}`), 0o600)
-	code, stdout, _ := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", "1.37.0", "--to", "1.38.0", "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", "2026-11-20T00:00:00Z", "--format", "json")
+	code, stdout, _ := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", "1.37.0", "--to", "1.38.0", "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", supersedeids.ClockString(), "--format", "json")
 	if code != ExitUnknown || strings.Contains(stdout, `"BLOCKED"`) || strings.Contains(stdout, `"PASS"`) {
 		t.Fatalf("1.37 -> 1.38: code=%d %s", code, stdout)
 	}
 	// Human output names the blocking rule and the fix.
 	path = writeCNCFFile(t, "applyset.json", []byte(`{"apiVersion":"v1","kind":"List","items":[`+laterObject("networking.k8s.io/v1beta1", "ServiceCIDR")+`]}`), 0o600)
-	code, stdout, _ = runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", "1.36.0", "--to", "1.37.0", "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", "2026-11-20T00:00:00Z")
+	code, stdout, _ = runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", "1.36.0", "--to", "1.37.0", "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", supersedeids.ClockString())
 	if code != ExitBlocked || !strings.Contains(stdout, ids["component.kubernetes.ipaddress_servicecidr_v1beta1_removed_gvk_present"]) || !strings.Contains(stdout, "networking.k8s.io/v1") {
 		t.Fatalf("code=%d %q", code, stdout)
 	}

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
 
@@ -30,7 +31,7 @@ func TestScanCommand(t *testing.T) {
 	if err := os.WriteFile(path, []byte(scanCronJob), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	declared := []string{"--distribution", "official_upstream", "--resource-scope-complete", "--target-api-apply-required", "--now", "2026-11-20T00:00:00Z"}
+	declared := []string{"--distribution", "official_upstream", "--resource-scope-complete", "--target-api-apply-required", "--now", supersedeids.ClockString()}
 	code, stdout, stderr := runScan(t, append([]string{path, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3"}, declared...)...)
 	if code != ExitBlocked || !strings.HasPrefix(stdout, "BLOCKED: 1 problem must be fixed; ") || !strings.Contains(strings.SplitN(stdout, "\n", 2)[0], " not checked") || !strings.Contains(stdout, "CronJob default/nightly-report") || !quietOrAgeNote(stderr) {
 		t.Fatalf("blocked: %d\n%s\n%s", code, stdout, stderr)
@@ -80,7 +81,7 @@ func scanFormatsFixture(t *testing.T) (string, []string) {
 	if err := os.WriteFile(path, []byte(scanCronJob), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	return path, []string{"--distribution", "official_upstream", "--resource-scope-complete", "--target-api-apply-required", "--now", "2026-11-20T00:00:00Z"}
+	return path, []string{"--distribution", "official_upstream", "--resource-scope-complete", "--target-api-apply-required", "--now", supersedeids.ClockString()}
 }
 
 // TestScanFormatsExitCodes: human, json, sarif and markdown exit the same

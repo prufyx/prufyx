@@ -7,9 +7,9 @@ import (
 	"errors"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 const syntheticSupportReason = "ADDON_KUBERNETES_SUPPORT_RANGE"
@@ -48,7 +48,7 @@ func TestPackSeverityLevel(t *testing.T) {
 	}
 	// The generic selector picks the support-range rule as a verdict rule:
 	// the pair is reviewed, the claim is UNSUPPORTED and the check exits 11.
-	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+	now := supersedeids.Clock()
 	inputRaw := noticeInput()
 	input, err := constraintengine.ParseInput(inputRaw, b.registry)
 	if err != nil {
@@ -82,7 +82,7 @@ func TestClaimExitUnsupported(t *testing.T) {
 	unsupported := syntheticSupportRule("kubernetes.synthetic-c-unsupported", "1.37.0")
 	supported := syntheticSupportRule("kubernetes.synthetic-d-supported", "1.36.0")
 	notice := syntheticNoticeRule("kubernetes.synthetic-e-notice", reviewed, until)
-	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+	now := supersedeids.Clock()
 	inputRaw := noticeInput()
 	input, err := constraintengine.ParseInput(inputRaw, b.registry)
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 // Run with: go test -tags prufyx_synthetic_knowledge -run Synthetic ./internal/communityapp/
@@ -64,7 +65,7 @@ func TestSyntheticRequireBasisThroughTheCommandRoute(t *testing.T) {
 			}
 			defer restore()
 			path := writeCNCFFile(t, "input.json", input, 0o600)
-			args := []string{"check", "cncf", "--project", "kubernetes", "--input", path, "--now", "2026-11-20T00:00:00Z"}
+			args := []string{"check", "cncf", "--project", "kubernetes", "--input", path, "--now", supersedeids.ClockString()}
 			if tc.policy != "" {
 				args = append(args, "--require-basis", tc.policy)
 			}

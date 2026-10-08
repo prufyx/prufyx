@@ -11,6 +11,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 // Run with: go test -tags prufyx_synthetic_knowledge ./internal/communityapp/
@@ -50,7 +51,7 @@ func TestSyntheticNoticeThroughTheCommandRoute(t *testing.T) {
 			}
 			defer restore()
 			path := writeCNCFFile(t, "input.json", input, 0o600)
-			code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", "2026-11-20T00:00:00Z")
+			code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", supersedeids.ClockString())
 			if code != tc.exit || stderr != "" {
 				t.Fatalf("code=%d stderr=%s stdout=%s", code, stderr, stdout)
 			}
@@ -60,7 +61,7 @@ func TestSyntheticNoticeThroughTheCommandRoute(t *testing.T) {
 			if !strings.Contains(stdout, "cannot be rolled back: kubernetes.synthetic-one-way.1-35-0-to-1-36-0\nbefore you upgrade: "+noticeBeforeText+"\n") || strings.Contains(strings.ToLower(stdout), "safe") || strings.Contains(stdout, "NOTICE (") {
 				t.Fatalf("stdout:\n%s", stdout)
 			}
-			code, report, _ := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", "2026-11-20T00:00:00Z", "--format", "json")
+			code, report, _ := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", supersedeids.ClockString(), "--format", "json")
 			if code != tc.exit || strings.Count(report, `"ruleId":`) != tc.claims || !strings.Contains(report, `"status":"NOTICE"`) || !strings.Contains(report, `"engineContractDigest":"`+constraintengine.EngineContractDigestNotice()+`"`) {
 				t.Fatalf("code=%d report=%s", code, report)
 			}
@@ -82,7 +83,7 @@ func TestSyntheticNoticeOnlyProjectSaysNoRuleDecided(t *testing.T) {
 	defer restore()
 	input := []byte(`{"schema":"` + constraintengine.InputSchema + `","authority":"` + constraintengine.InputAuthority + `","current":{"components":[{"component":"` + component + `","version":"1.35.0","facts":[]}]},"proposed":{"components":[{"component":"` + component + `","version":"1.36.0","facts":[]}]}}`)
 	path := writeCNCFFile(t, "input.json", input, 0o600)
-	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "aeraki-mesh", "--input", path, "--now", "2026-11-20T00:00:00Z")
+	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "aeraki-mesh", "--input", path, "--now", supersedeids.ClockString())
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, noVerdictLine+"\n") || !strings.Contains(stdout, "cannot be rolled back: aeraki-mesh.synthetic-one-way") {
 		t.Fatalf("code=%d stderr=%s stdout:\n%s", code, stderr, stdout)
 	}

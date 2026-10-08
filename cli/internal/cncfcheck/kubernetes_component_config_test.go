@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 func TestCheckFactsEvaluatesOnlyTheNamedFactFamily(t *testing.T) {
@@ -17,7 +17,7 @@ func TestCheckFactsEvaluatesOnlyTheNamedFactFamily(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+	now := supersedeids.Clock()
 	family := cncfprepare.KubernetesRemovedAPIFacts("1.24.0", "1.25.0")
 	report, err := CheckFacts("kubernetes", family, prepared.CanonicalInputJSON, now)
 	if err != nil {

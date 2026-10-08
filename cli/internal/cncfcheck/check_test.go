@@ -53,17 +53,34 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The vector file holds the vectors of both generations of the Kubernetes
-	// API-removal rules; the pack's rules select theirs.
+	// API-removal rules (the 25 reviewed ones and the 29 mechanical ones, 220
+	// in all); the pack's rules select theirs. The pairing is ordered, as it
+	// always was: the i-th rule of the pack is checked by the i-th vector of
+	// the file that belongs to the pack, separately for the mechanical rules
+	// (which the file keeps together at its end) and for all other rules. A
+	// duplicate vector, a vector of no rule of the pack that is not one of the
+	// other generation's 25 or 29 ids, and a rule without a vector all fail.
+	all := reviewedVectors(t)
+	if len(all) != 220 {
+		t.Fatalf("the vector file holds %d vectors, want 220 (191 + the 29 mechanical)", len(all))
+	}
 	extra := 0
+	otherGeneration := map[string]bool{}
 	if supersedeids.Superseded() {
 		extra = 4
+		for _, id := range supersedeids.ReviewedIDs() {
+			otherGeneration[id] = true
+		}
+	} else {
+		for _, id := range supersedeids.ReplacementIDs() {
+			otherGeneration[id] = true
+		}
+		for _, id := range supersedeids.AddedIDs() {
+			otherGeneration[id] = true
+		}
 	}
-	byRule := map[string]reviewedVector{}
-	for _, vector := range reviewedVectors(t) {
-		byRule[vector.RuleID] = vector
-	}
-	var vectors []reviewedVector
-	caseCount := 0
+	var packIDs []string
+	inPack := map[string]bool{}
 	for i := range b.pack.Entries {
 		var rule struct {
 			ID string `json:"id"`
@@ -71,17 +88,58 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 		if err := json.Unmarshal(b.pack.Entries[i].Rule, &rule); err != nil {
 			t.Fatal(err)
 		}
-		vector, ok := byRule[rule.ID]
-		if !ok {
-			t.Fatalf("rule %s has no source-reviewed vectors", rule.ID)
-		}
-		delete(byRule, rule.ID)
-		vectors = append(vectors, vector)
-		caseCount += len(vector.Cases)
+		packIDs = append(packIDs, rule.ID)
+		inPack[rule.ID] = true
 	}
-	for id := range byRule {
-		if !strings.HasPrefix(id, "kubernetes.") || supersedeids.Superseded() == strings.HasPrefix(id, supersedeids.MechanicalPrefix) {
-			t.Fatalf("vectors of %s match no rule of the pack", id)
+	seen := map[string]bool{}
+	var vectors []reviewedVector
+	leftover := 0
+	for _, vector := range all {
+		if seen[vector.RuleID] {
+			t.Fatalf("two vectors for rule %s", vector.RuleID)
+		}
+		seen[vector.RuleID] = true
+		switch {
+		case inPack[vector.RuleID]:
+			vectors = append(vectors, vector)
+		case otherGeneration[vector.RuleID]:
+			leftover++
+		default:
+			t.Fatalf("vectors of %s match no rule of the pack and are not the other generation's", vector.RuleID)
+		}
+	}
+	if leftover != len(otherGeneration) {
+		t.Fatalf("%d vectors of the other generation, want %d", leftover, len(otherGeneration))
+	}
+	caseCount := 0
+	var servedIDs, restIDs []string
+	for _, id := range packIDs {
+		if strings.HasPrefix(id, supersedeids.MechanicalPrefix) {
+			servedIDs = append(servedIDs, id)
+		} else {
+			restIDs = append(restIDs, id)
+		}
+	}
+	var servedVectors, restVectors []reviewedVector
+	for _, vector := range vectors {
+		caseCount += len(vector.Cases)
+		if strings.HasPrefix(vector.RuleID, supersedeids.MechanicalPrefix) {
+			servedVectors = append(servedVectors, vector)
+		} else {
+			restVectors = append(restVectors, vector)
+		}
+	}
+	for _, pair := range []struct {
+		ids     []string
+		vectors []reviewedVector
+	}{{restIDs, restVectors}, {servedIDs, servedVectors}} {
+		if len(pair.ids) != len(pair.vectors) {
+			t.Fatalf("%d rules and %d vectors", len(pair.ids), len(pair.vectors))
+		}
+		for i, vector := range pair.vectors {
+			if vector.RuleID == "" || vector.RuleID != pair.ids[i] {
+				t.Fatalf("vector %d is for %s, the pack's rule is %s", i, vector.RuleID, pair.ids[i])
+			}
 		}
 	}
 	if len(b.pack.Entries) != 191+extra || len(vectors) != 191+extra {

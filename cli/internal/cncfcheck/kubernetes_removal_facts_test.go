@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
@@ -211,7 +210,7 @@ func TestKubernetesRemovalRuleAdmissionNeedsTheRegisteredFact(t *testing.T) {
 // UNKNOWN for an unreviewed version, an incomplete scope, or a transition
 // outside the rule's lines.
 func TestKubernetesRemovalFactsDecideTheirRules(t *testing.T) {
-	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+	now := supersedeids.Clock()
 	doc := func(api, kind string) string {
 		return `{"apiVersion":"` + api + `","kind":"` + kind + `","metadata":{"name":"x"}}`
 	}
@@ -249,7 +248,7 @@ func TestKubernetesRemovalFactsDecideTheirRules(t *testing.T) {
 					for _, claim := range report.Check.Claims {
 						if claim.RuleID == id {
 							found = append(found, claim)
-						} else if claim.Status == "BLOCKED" || claim.Status == "PASS" && !supersedeids.Superseded() {
+						} else if claim.Status == "BLOCKED" || (claim.Status == "PASS" && !supersedeids.Superseded()) {
 							// The mechanical rules pass beside this one on a shared hop.
 							t.Fatalf("another rule decided: %s %s", claim.RuleID, claim.Status)
 						}
@@ -271,7 +270,10 @@ func TestKubernetesRemovalFactsDecideTheirRules(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, claim := range report.Check.Claims {
-			if claim.RuleID == id && (claim.Status == "PASS" || claim.Status == "BLOCKED") {
+			// Before the supersede no claim at all is decided on the next line;
+			// the mechanical rules of other lines may pass beside this one, so
+			// there only this rule is held to it.
+			if (claim.RuleID == id || !supersedeids.Superseded()) && (claim.Status == "PASS" || claim.Status == "BLOCKED") {
 				t.Fatalf("%s: %s decided %s on the next line", f.fact, claim.RuleID, claim.Status)
 			}
 		}

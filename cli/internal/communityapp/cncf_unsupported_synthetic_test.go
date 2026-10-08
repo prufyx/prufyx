@@ -10,6 +10,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 // TestSyntheticUnsupportedThroughTheCommandRoute: the generic check route,
@@ -42,7 +43,7 @@ func TestSyntheticUnsupportedThroughTheCommandRoute(t *testing.T) {
 			}
 			defer restore()
 			path := writeCNCFFile(t, "input.json", input, 0o600)
-			code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", "2026-11-20T00:00:00Z")
+			code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", supersedeids.ClockString())
 			if code != tc.exit || stderr != "" {
 				t.Fatalf("code=%d stderr=%s stdout=%s", code, stderr, stdout)
 			}
@@ -52,7 +53,7 @@ func TestSyntheticUnsupportedThroughTheCommandRoute(t *testing.T) {
 			if tc.headline && !strings.Contains(stdout, "kubernetes.synthetic-support.1-35-0-to-1-36-0: UNSUPPORTED (ADDON_KUBERNETES_SUPPORT_RANGE)\nnext action: "+supportAction+"\n") {
 				t.Fatalf("claim line:\n%s", stdout)
 			}
-			code, report, _ := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", "2026-11-20T00:00:00Z", "--format", "json")
+			code, report, _ := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", supersedeids.ClockString(), "--format", "json")
 			if code != tc.exit || !strings.Contains(report, `"engineContractDigest":"`+constraintengine.EngineContractDigestSeverity()+`"`) || tc.headline != strings.Contains(report, `"status":"UNSUPPORTED"`) {
 				t.Fatalf("code=%d report=%s", code, report)
 			}

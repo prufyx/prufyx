@@ -36,10 +36,10 @@ var testdata = func() string {
 	return filepath.Join(dir, "testdata")
 }()
 
-const (
-	testNow       = "2026-11-20T00:00:00Z"
-	kubernetesKey = "pkg:github/kubernetes/kubernetes"
-)
+// testNow is the shared test clock, derived from the embedded pack.
+var testNow = supersedeids.ClockString()
+
+const kubernetesKey = "pkg:github/kubernetes/kubernetes"
 
 // kubernetesRuleBases returns the evidence basis of the shipped Kubernetes
 // API-removal rules ("reviewed" before the served-API supersede, "mechanical"

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 )
 
@@ -58,7 +59,7 @@ func TestReportKnowledgeAgeEmbedded(t *testing.T) {
 	writeBatchFile(t, filepath.Join(root, "loki.json"), canonical("pkg:github/grafana/loki", "2.9.8", "3.0.0", []any{}, []any{boolFact("component.loki.compactor_legacy_shared_store_present", false)}))
 	plan := Plan{Schema: PlanSchema, Authority: PlanAuthority, Knowledge: KnowledgeSelection{Mode: "embedded_only"}, Items: []Item{{ID: "c", Kind: "community_project", Project: "loki", From: "2.9.8", To: "3.0.0", InputPath: "loki.json"}}}
 	planPath := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	report, _, err := Evaluate(planPath, root, time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC))
+	report, _, err := Evaluate(planPath, root, supersedeids.Clock())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +80,7 @@ func TestReportKnowledgeAgeEmbeddedCNCFItem(t *testing.T) {
 	}))
 	plan := Plan{Schema: PlanSchema, Authority: PlanAuthority, Knowledge: KnowledgeSelection{Mode: "embedded_only"}, Items: []Item{{ID: "a", Kind: "cncf", Project: "kyverno", From: "1.12.5", To: "1.13.0", InputPath: "kyverno.json"}}}
 	planPath := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	report, _, err := Evaluate(planPath, root, time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC))
+	report, _, err := Evaluate(planPath, root, supersedeids.Clock())
 	if err != nil {
 		t.Fatal(err)
 	}

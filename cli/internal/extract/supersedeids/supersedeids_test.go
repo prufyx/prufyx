@@ -3,9 +3,15 @@
 package supersedeids
 
 import (
+	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
+	"time"
 )
 
 // The shipped pack is wholly one generation.
@@ -41,5 +47,146 @@ func TestGenerationRefusesMixedPacks(t *testing.T) {
 		if _, err := Generation([]byte(pack)); err == nil {
 			t.Errorf("accepted %s", pack)
 		}
+	}
+}
+
+// packOf renders a pack of rules {id, reviewedAt, validUntil}.
+func packOf(rules ...[3]string) []byte {
+	var entries []string
+	for _, r := range rules {
+		entries = append(entries, fmt.Sprintf(`{"rule":{"id":%q,"evidence":{"state":"active","reviewedAt":%q,"validUntil":%q}}}`, r[0], r[1], r[2]))
+	}
+	return []byte(`{"entries":[` + strings.Join(entries, ",") + `]}`)
+}
+
+// The shared clock is derived from the pack: 17 days before the day of the
+// earliest expiry, but after every Kubernetes review, and before every
+// Kubernetes expiry.
+func TestClockOf(t *testing.T) {
+	other := [3]string{"other.rule", "2026-09-08T12:07:56Z", "2026-12-07T12:07:56Z"}
+	cases := []struct {
+		name string
+		pack []byte
+		want string // "" for an error
+	}{
+		{"reviewed pack (today)", packOf(other, [3]string{"kubernetes.a", "2026-09-23T13:55:00Z", "2026-12-22T13:55:00Z"}), "2026-11-20T00:00:00Z"},
+		{"mechanical rules derived on 2026-11-12", packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-11-12T08:45:25Z", "2027-01-27T08:45:25Z"}), "2026-11-20T00:00:00Z"},
+		{"derived the day of the clock", packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-11-20T08:45:25Z", "2027-02-03T08:45:25Z"}), "2026-11-21T00:00:00Z"},
+		// Derived after the other rules expired: no instant holds both.
+		{"derived after the earliest expiry", packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-12-10T08:45:25Z", "2027-03-03T08:45:25Z"}), "2026-12-11T00:00:00Z"},
+		// The same day with every other rule renewed too: the clock follows.
+		{"everything renewed on 2026-12-10", packOf([3]string{"other.rule", "2026-12-10T00:00:00Z", "2027-03-10T00:00:00Z"}, [3]string{"kubernetes.served-api-removal.x", "2026-12-10T08:45:25Z", "2027-03-03T08:45:25Z"}), "2027-02-14T00:00:00Z"},
+		{"lease shorter than the clock", packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-11-19T00:00:00Z", "2026-11-19T12:00:00Z"}), ""},
+		{"no active rule", []byte(`{"entries":[]}`), ""},
+		{"bad date", packOf([3]string{"other.rule", "2026-09-08T12:07:56Z", "soon"}), ""},
+	}
+	for _, c := range cases {
+		got, err := ClockOf(c.pack)
+		if c.want == "" {
+			if err == nil {
+				t.Errorf("%s: accepted, clock %s", c.name, got)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%s: %v", c.name, err)
+			continue
+		}
+		want, _ := time.Parse(time.RFC3339, c.want)
+		if !got.Equal(want) {
+			t.Errorf("%s: clock %s, want %s", c.name, got.Format(time.RFC3339), c.want)
+		}
+	}
+}
+
+// The clock of the shipped pack, inside the age window of its earliest expiry
+// and after every Kubernetes review.
+func TestClockOfTheShippedPack(t *testing.T) {
+	before, inside, after := AgeClocks()
+	if !inside.Equal(Clock()) || ClockString() != inside.Format(time.RFC3339) || !before.Before(inside) || !inside.Before(after) {
+		t.Fatalf("%s %s %s", before, inside, after)
+	}
+	raw, err := shippedPack()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again, err := ClockOf(raw); err != nil || !again.Equal(Clock()) {
+		t.Fatalf("%v %v", again, err)
+	}
+}
+
+// goList runs `go list` in the module root and returns its output lines.
+func goList(t *testing.T, args ...string) []string {
+	t.Helper()
+	goTool := filepath.Join(runtime.GOROOT(), "bin", "go")
+	if _, err := os.Stat(goTool); err != nil {
+		var lookErr error
+		if goTool, lookErr = exec.LookPath("go"); lookErr != nil {
+			t.Skipf("no go tool to list packages: %v", lookErr)
+		}
+	}
+	cmd := exec.Command(goTool, append([]string{"list", "-buildvcs=false"}, args...)...)
+	cmd.Dir = filepath.Join("..", "..", "..")
+	cmd.Env = append(os.Environ(), "GOFLAGS=-mod=vendor")
+	out, err := cmd.Output()
+	if err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) {
+			t.Fatalf("go list %v: %v\n%s", args, err, exit.Stderr)
+		}
+		t.Fatal(err)
+	}
+	return strings.Fields(string(out))
+}
+
+const (
+	supersedeidsPath     = "github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
+	supersedefixturePath = "github.com/prufyx/prufyx/cli/internal/extract/supersedefixture"
+)
+
+func withTags(tags string, args ...string) []string {
+	if tags == "" {
+		return args
+	}
+	return append([]string{"-tags", tags}, args...)
+}
+
+// The two test-only packages must not reach a binary: supersedeids reads the
+// pack from the source tree through runtime.Caller and panics without it, and
+// supersedefixture rebuilds a pack that was never shipped. Neither is a
+// dependency of anything under cmd, with or without the synthetic-knowledge
+// build tag, and no package imports them outside its tests.
+func TestTestOnlyPackagesAreNotInAnyBinary(t *testing.T) {
+	for _, tags := range []string{"", "prufyx_synthetic_knowledge"} {
+		deps := goList(t, withTags(tags, "-deps", "./cmd/...")...)
+		if len(deps) < 50 {
+			t.Fatalf("tags %q: only %d dependencies listed, the guard is not looking at the binaries", tags, len(deps))
+		}
+		for _, dep := range deps {
+			if dep == supersedeidsPath || dep == supersedefixturePath {
+				t.Errorf("tags %q: %s is a dependency of a binary", tags, dep)
+			}
+		}
+		// Imports without _test files: a non-test importer anywhere, even of a
+		// package no binary links today, is the first step to a binary.
+		for _, importer := range goList(t, withTags(tags, "-f", `{{range .Imports}}{{if or (eq . "`+supersedeidsPath+`") (eq . "`+supersedefixturePath+`")}}{{$.ImportPath}} {{end}}{{end}}`, "./...")...) {
+			if importer != supersedefixturePath {
+				t.Errorf("tags %q: %s imports a test-only package outside its tests", tags, importer)
+			}
+		}
+	}
+}
+
+// The guard sees an import when there is one: the test packages of a package
+// that uses supersedeids list it among their dependencies.
+func TestTestOnlyPackageGuardSeesTestImports(t *testing.T) {
+	found := false
+	for _, dep := range goList(t, "-deps", "-test", "./internal/checkroutemetadata") {
+		if dep == supersedeidsPath {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("go list -deps -test does not show the supersedeids import of checkroutemetadata's tests")
 	}
 }

@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
@@ -59,7 +58,7 @@ func TestPackNoticeLevel(t *testing.T) {
 	}
 	// The project's whole rule set now evaluates under the notice contract,
 	// and the notice claim is NOTICE.
-	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+	now := supersedeids.Clock()
 	inputRaw := noticeInput()
 	input, err := constraintengine.ParseInput(inputRaw, b.registry)
 	if err != nil {
@@ -113,7 +112,7 @@ func TestClaimExitNotice(t *testing.T) {
 	notice := syntheticNoticeRule("kubernetes.synthetic-c-notice", reviewed, until)
 	staleNotice := syntheticNoticeRule("kubernetes.synthetic-d-notice-stale", "2026-06-01T00:00:00Z", "2026-08-30T00:00:00Z")
 	notApplicable := strings.Replace(syntheticNoticeRule("kubernetes.synthetic-e-notice-other", reviewed, until), `"to":"1.36.0"`, `"to":"1.37.0"`, 1)
-	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+	now := supersedeids.Clock()
 	inputRaw := noticeInput()
 	input, err := constraintengine.ParseInput(inputRaw, b.registry)
 	if err != nil {
@@ -182,7 +181,7 @@ func TestNoticeNeverChangesRuleSelection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+	now := supersedeids.Clock()
 	inputRaw := noticeInput()
 	evaluate := func(b bundle, familySelector bool) Report {
 		t.Helper()

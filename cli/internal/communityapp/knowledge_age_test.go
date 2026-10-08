@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 	"github.com/prufyx/prufyx/cli/internal/scanrun"
@@ -35,6 +36,13 @@ func embeddedEnd(t *testing.T) time.Time {
 }
 
 // embeddedNote is the note the embedded knowledge gives at now.
+// ageAfter is the instant after the earliest expiry of the embedded pack the
+// age tests use, derived from the pack.
+func ageAfter() string {
+	_, _, after := supersedeids.AgeClocks()
+	return after.Format(time.RFC3339)
+}
+
 func embeddedNote(t *testing.T, now string) string {
 	t.Helper()
 	at, err := time.Parse(time.RFC3339, now)
@@ -63,10 +71,10 @@ func TestKnowledgeAgeCheckCNCFEmbedded(t *testing.T) {
 		"2026-10-04T00:00:00Z",
 		end.Add(-knowledgeage.Window - time.Second).Format(time.RFC3339),
 		end.Add(-knowledgeage.Window).Format(time.RFC3339),
-		"2026-11-20T00:00:00Z",
+		supersedeids.ClockString(),
 		end.Add(-time.Second).Format(time.RFC3339),
 		end.Format(time.RFC3339),
-		"2026-12-10T00:00:00Z",
+		ageAfter(),
 	}
 	for _, now := range instants {
 		for _, format := range []string{"human", "json"} {
@@ -83,8 +91,8 @@ func TestKnowledgeAgeCheckCNCFEmbedded(t *testing.T) {
 		}
 	}
 	// The note is the same wording on every run.
-	_, _, first := runCNCFCLIRaw(t, "check", "cncf", "--project", "kyverno", "--input", input, "--now", "2026-11-20T00:00:00Z")
-	_, _, second := runCNCFCLIRaw(t, "check", "cncf", "--project", "kyverno", "--input", input, "--now", "2026-11-20T00:00:00Z")
+	_, _, first := runCNCFCLIRaw(t, "check", "cncf", "--project", "kyverno", "--input", input, "--now", supersedeids.ClockString())
+	_, _, second := runCNCFCLIRaw(t, "check", "cncf", "--project", "kyverno", "--input", input, "--now", supersedeids.ClockString())
 	if first != second || !ageNoteLine.MatchString(first) || strings.Count(first, "\n") != 1 || len(first) > 256 {
 		t.Fatalf("%q %q", first, second)
 	}
@@ -102,9 +110,9 @@ func TestKnowledgeAgeCheckCNCFNoNoteWithoutEvaluation(t *testing.T) {
 	cases := [][]string{
 		{"check", "cncf", "--project", "kyverno", "--input", input, "--now", "2026-11-20T00:00:00"},
 		{"check", "cncf", "--project", "kyverno", "--input", input},
-		{"check", "cncf", "--project", "no-such-project", "--input", input, "--now", "2026-11-20T00:00:00Z"},
+		{"check", "cncf", "--project", "no-such-project", "--input", input, "--now", supersedeids.ClockString()},
 		{"check", "cncf", "--help"},
-		{"check", "cncf", "--project", "kyverno", "--input", input, "--now", "2026-11-20T00:00:00Z", "--help"},
+		{"check", "cncf", "--project", "kyverno", "--input", input, "--now", supersedeids.ClockString(), "--help"},
 	}
 	for _, args := range cases {
 		_, _, stderr := runCNCFCLIRaw(t, args...)
@@ -153,7 +161,7 @@ func TestKnowledgeAgeCheckCNCFStore(t *testing.T) {
 func TestKnowledgeAgeScan(t *testing.T) {
 	t.Parallel()
 	path, base := scanFormatsFixture(t)
-	for _, clock := range []string{"2026-10-04T00:00:00Z", "2026-11-20T00:00:00Z", "2026-12-10T00:00:00Z"} {
+	for _, clock := range []string{"2026-10-04T00:00:00Z", supersedeids.ClockString(), ageAfter()} {
 		for _, redact := range []bool{false, true} {
 			for _, format := range scanreport.Formats() {
 				args := []string{path, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--distribution", "official_upstream", "--resource-scope-complete", "--target-api-apply-required", "--now", clock, "--format", format}
@@ -190,12 +198,12 @@ func TestKnowledgeAgeScan(t *testing.T) {
 func TestKnowledgeAgeScanNoNoteOnFailure(t *testing.T) {
 	t.Parallel()
 	path, _ := scanFormatsFixture(t)
-	code, _, stderr := runScan(t, path, "--to", "kubernets=1.25.3", "--now", "2026-11-20T00:00:00Z")
+	code, _, stderr := runScan(t, path, "--to", "kubernets=1.25.3", "--now", supersedeids.ClockString())
 	if code != ExitUsage || ageNoteLine.MatchString(stderr) {
 		t.Fatalf("%d %q", code, stderr)
 	}
 	var out bytes.Buffer
-	code = Run(context.Background(), []string{"scan", path, "--to", "kubernetes=1.25.3", "--now", "2026-11-20T00:00:00Z"}, failedBatchWriter{}, &out, "test")
+	code = Run(context.Background(), []string{"scan", path, "--to", "kubernetes=1.25.3", "--now", supersedeids.ClockString()}, failedBatchWriter{}, &out, "test")
 	if code != ExitIntegrity || ageNoteLine.MatchString(out.String()) {
 		t.Fatalf("%d %q", code, out.String())
 	}
@@ -206,7 +214,7 @@ func TestKnowledgeAgeScanNoNoteOnFailure(t *testing.T) {
 func TestKnowledgeAgeBatchEmbedded(t *testing.T) {
 	t.Parallel()
 	root, plan := writeEmbeddedCLIBatch(t)
-	for _, now := range []string{"2026-10-04T00:00:00Z", "2026-11-20T00:00:00Z", "2026-12-10T00:00:00Z"} {
+	for _, now := range []string{"2026-10-04T00:00:00Z", supersedeids.ClockString(), ageAfter()} {
 		for _, format := range []string{"human", "json"} {
 			var stdout, stderr bytes.Buffer
 			code := Run(context.Background(), []string{"check", "batch", "--plan", plan, "--root", root, "--now", now, "--format", format}, &stdout, &stderr, "test")
@@ -222,7 +230,7 @@ func TestKnowledgeAgeBatchEmbedded(t *testing.T) {
 		}
 	}
 	var stdout, stderr bytes.Buffer
-	if code := Run(context.Background(), []string{"check", "batch", "--plan", plan, "--root", root, "--now", "2026-11-20T00:00:00Z", "--format", "json"}, failedBatchWriter{}, &stderr, "test"); code != ExitIntegrity || ageNoteLine.MatchString(stderr.String()) {
+	if code := Run(context.Background(), []string{"check", "batch", "--plan", plan, "--root", root, "--now", supersedeids.ClockString(), "--format", "json"}, failedBatchWriter{}, &stderr, "test"); code != ExitIntegrity || ageNoteLine.MatchString(stderr.String()) {
 		t.Fatalf("write failure: %d %q", code, stderr.String())
 	}
 	_ = stdout

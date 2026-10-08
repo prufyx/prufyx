@@ -3,6 +3,7 @@
 package checkroutemetadata
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
@@ -170,5 +171,80 @@ func TestDescriptorValidationRejectsUnsafeTypedCommand(t *testing.T) {
 	}
 	if validDescriptor(item) {
 		t.Fatal("accepted unsafe boolean values")
+	}
+}
+
+// identitiesOf are cncf identities for the given descriptors.
+func identitiesOf(descriptors []descriptor) []cncfcheck.RuleIdentity {
+	var out []cncfcheck.RuleIdentity
+	for _, item := range descriptors {
+		out = append(out, cncfcheck.RuleIdentity{Project: item.project, Component: item.component, RuleID: item.ruleID, From: item.from, To: item.to})
+	}
+	return out
+}
+
+// withoutKubernetesAPIRemovals drops both generations from the embedded
+// identities.
+func withoutKubernetesAPIRemovals(t *testing.T, identities []cncfcheck.RuleIdentity) []cncfcheck.RuleIdentity {
+	t.Helper()
+	drop := map[string]bool{}
+	for _, item := range append(kubernetesReviewedDescriptors(), kubernetesMechanicalDescriptors()...) {
+		drop[item.ruleID] = true
+	}
+	var kept []cncfcheck.RuleIdentity
+	for _, item := range identities {
+		if !drop[item.RuleID] {
+			kept = append(kept, item)
+		}
+	}
+	return kept
+}
+
+// A pack that holds the rules of both generations is refused by the catalog
+// with ErrIntegrity, whichever way it is mixed; a pack of one generation, and
+// the embedded pack, are accepted.
+func TestDiscoverRefusesAMixOfBothGenerations(t *testing.T) {
+	cncf, err := cncfcheck.EmbeddedRuleIdentities()
+	if err != nil {
+		t.Fatal(err)
+	}
+	community, err := projectcheck.EmbeddedRuleIdentities()
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := withoutKubernetesAPIRemovals(t, cncf)
+	reviewed, mechanical := identitiesOf(kubernetesReviewedDescriptors()), identitiesOf(kubernetesMechanicalDescriptors())
+	pack := func(parts ...[]cncfcheck.RuleIdentity) []cncfcheck.RuleIdentity {
+		out := append([]cncfcheck.RuleIdentity(nil), base...)
+		for _, part := range parts {
+			out = append(out, part...)
+		}
+		return out
+	}
+	for name, identities := range map[string][]cncfcheck.RuleIdentity{
+		"all of both":                  pack(reviewed, mechanical),
+		"all reviewed, one mechanical": pack(reviewed, mechanical[:1]),
+		"all mechanical, one reviewed": pack(mechanical, reviewed[:1]),
+		"one of each":                  pack(reviewed[:1], mechanical[:1]),
+	} {
+		if _, err := discover(identities, community, "", "", ""); !errors.Is(err, ErrIntegrity) {
+			t.Errorf("%s: error %v, want ErrIntegrity", name, err)
+		}
+	}
+	for name, identities := range map[string][]cncfcheck.RuleIdentity{"reviewed": pack(reviewed), "mechanical": pack(mechanical)} {
+		result, err := discover(identities, community, "", "", "")
+		if err != nil {
+			t.Errorf("%s: %v", name, err)
+			continue
+		}
+		bound := 0
+		for _, item := range result.Checks {
+			if item.NativeDescriptor.State == DescriptorExact {
+				bound++
+			}
+		}
+		if want := 169 + len(identities) - len(base); bound != want {
+			t.Errorf("%s: bound %d, want %d", name, bound, want)
+		}
 	}
 }

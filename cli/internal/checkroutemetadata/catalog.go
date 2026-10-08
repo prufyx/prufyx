@@ -337,14 +337,30 @@ func kubernetesMechanicalDescriptors() []descriptor {
 // kubernetesDescriptorsFor returns the descriptors of whichever generation of
 // Kubernetes API-removal rules the embedded pack holds (its identities are
 // given), so that the catalog is exact before and after the pack is
-// superseded.
-func kubernetesDescriptorsFor(identities []cncfcheck.RuleIdentity) []descriptor {
+// superseded. A pack holding rules of both generations is refused: the
+// mechanical descriptors would be selected and the reviewed rules would sit in
+// the catalog without a native route.
+func kubernetesDescriptorsFor(identities []cncfcheck.RuleIdentity) ([]descriptor, error) {
+	reviewed := map[string]bool{}
+	for _, item := range kubernetesReviewedDescriptors() {
+		reviewed[item.ruleID] = true
+	}
+	mechanical, old := 0, 0
 	for _, item := range identities {
 		if strings.HasPrefix(item.RuleID, "kubernetes.served-api-removal.") {
-			return kubernetesMechanicalDescriptors()
+			mechanical++
+		}
+		if reviewed[item.RuleID] {
+			old++
 		}
 	}
-	return kubernetesReviewedDescriptors()
+	switch {
+	case mechanical > 0 && old > 0:
+		return nil, fmt.Errorf("%w: the pack holds %d mechanical and %d reviewed Kubernetes API-removal rules; it must hold one generation", ErrIntegrity, mechanical, old)
+	case mechanical > 0:
+		return kubernetesMechanicalDescriptors(), nil
+	}
+	return kubernetesReviewedDescriptors(), nil
 }
 
 // descriptorSet is the complete descriptor set for the embedded pack.
@@ -353,7 +369,11 @@ func descriptorSet() []descriptor {
 	if err != nil {
 		return descriptorsWith(nil)
 	}
-	return descriptorsWith(kubernetesDescriptorsFor(identities))
+	kubernetes, err := kubernetesDescriptorsFor(identities)
+	if err != nil {
+		return descriptorsWith(nil)
+	}
+	return descriptorsWith(kubernetes)
 }
 
 // descriptorsWith is the descriptor set of every project but Kubernetes plus
@@ -811,8 +831,16 @@ func Discover(selectedProject, selectedFrom, selectedTo string) (Result, error) 
 	if err != nil {
 		return Result{}, fmt.Errorf("load community identities: %w", err)
 	}
+	return discover(cncf, community, selectedProject, selectedFrom, selectedTo)
+}
+
+// discover is Discover over the given identities.
+func discover(cncf []cncfcheck.RuleIdentity, community []projectcheck.RuleIdentity, selectedProject, selectedFrom, selectedTo string) (Result, error) {
 	descriptors := map[string]descriptor{}
-	kubernetes := kubernetesDescriptorsFor(cncf)
+	kubernetes, err := kubernetesDescriptorsFor(cncf)
+	if err != nil {
+		return Result{}, err
+	}
 	for _, item := range descriptorsWith(kubernetes) {
 		key := identityKey(item.family, item.project, item.component, item.ruleID, item.from, item.to)
 		if _, found := descriptors[key]; found || !validDescriptor(item) {

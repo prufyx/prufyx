@@ -30,7 +30,7 @@ func kubernetesRuleExtra() int {
 }
 
 func kubernetesNativeArgs(path string) []string {
-	return []string{"check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", "1.31.0", "--to", "1.32.0", "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", "2026-11-20T00:00:00Z", "--format", "json"}
+	return []string{"check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", "1.31.0", "--to", "1.32.0", "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", supersedeids.ClockString(), "--format", "json"}
 }
 
 func TestKubernetesNativeFlowControlCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
@@ -128,7 +128,7 @@ func TestKubernetesPrepareFlowControlFeedsBatch(t *testing.T) {
 		t.Fatalf("prepare code=%d stdout=%q stderr=%q", code, canonical, stderr)
 	}
 	prepared := writeCNCFFile(t, "kubernetes-canonical.json", []byte(canonical), 0o600)
-	code, report, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", prepared, "--input-digest", cncfDigest([]byte(canonical)), "--now", "2026-11-20T00:00:00Z", "--format", "json")
+	code, report, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", prepared, "--input-digest", cncfDigest([]byte(canonical)), "--now", supersedeids.ClockString(), "--format", "json")
 	if code != ExitBlocked || stderr != "" || !strings.Contains(report, `"status":"BLOCKED"`) {
 		t.Fatalf("batch code=%d stdout=%q stderr=%q", code, report, stderr)
 	}
@@ -149,7 +149,7 @@ func TestKubernetesNativeItemsBesideARemovedVersion(t *testing.T) {
 		{"removed CronJob carrying items", "1.24.0", "1.25.0", "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: n}\nitems: []\n", ExitUnknown},
 	} {
 		path := writeCNCFFile(t, "applyset.yaml", []byte(tc.docs), 0o600)
-		code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", tc.from, "--to", tc.to, "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", "2026-11-20T00:00:00Z", "--format", "json")
+		code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", tc.from, "--to", tc.to, "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", supersedeids.ClockString(), "--format", "json")
 		if code != tc.want || stderr != "" || (tc.want == ExitBlocked) != strings.Contains(stdout, `"status":"BLOCKED"`) {
 			t.Fatalf("%s: code=%d stdout=%q stderr=%q", tc.name, code, stdout, stderr)
 		}

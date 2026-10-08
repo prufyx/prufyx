@@ -6,20 +6,25 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 var updateAgeGoldens = flag.Bool("update-age", false, "rewrite the knowledge age golden files")
 
 // ageClocks are evaluation instants before, inside and after the last
-// 30 days of the embedded knowledge's rules.
-var ageClocks = []struct{ name, now string }{
-	{"before", "2026-11-06T00:00:00Z"},
-	{"inside", "2026-11-20T00:00:00Z"},
-	{"after", "2026-12-10T00:00:00Z"},
-}
+// 30 days of the embedded knowledge's rules, derived from the pack.
+var ageClocks = func() []struct{ name, now string } {
+	before, inside, after := supersedeids.AgeClocks()
+	return []struct{ name, now string }{
+		{"before", before.Format(time.RFC3339)},
+		{"inside", inside.Format(time.RFC3339)},
+		{"after", after.Format(time.RFC3339)},
+	}
+}()
 
 func ageGolden(t *testing.T, name string, got []byte) {
 	t.Helper()
