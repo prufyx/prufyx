@@ -130,7 +130,7 @@ func TestSyntheticCustomResourceCheckWithDerivedStrimziRules(t *testing.T) {
 	args := customResourceArgs(path, "--custom-resources-complete")
 	args[len(args)-2] = "2026-10-05T00:00:00Z"
 	code, stdout, _ := runCNCFCLI(t, args...)
-	if code != ExitBlocked || !strings.Contains(stdout, "strimzi.crd-version-removal.kafkas-kafka-strimzi-io.0-51-0-to-1-0-0") || !strings.Contains(stdout, "change apiVersion of Kafka to kafka.strimzi.io/v1 before upgrading to 1.0.0") {
+	if code != ExitBlocked || !strings.Contains(stdout, "strimzi.crd-version-removal.kafkas-kafka-strimzi-io.0-51-0-to-1-0-0") || !strings.Contains(stdout, "migrate stored Kafka objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0") {
 		t.Fatalf("code=%d %q", code, stdout)
 	}
 }
