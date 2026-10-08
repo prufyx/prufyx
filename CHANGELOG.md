@@ -245,6 +245,23 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   coverage totals as JSON and Markdown, from a pack and an offline lines
   snapshot; `coverage lines-from-tags` builds that snapshot from captured tag
   lists. Reporting only; no verdict changes. See `cli/docs/coverage-report.md`.
+=======
+- Batch approvals for the knowledge gate: one owner signature
+  (`prufyx.io/knowledge-approval-batch/v1`, the web-approval key) admits up to
+  50 reviewed rules and line attestations of one change. The gate recomputes
+  everything the batch binds (every entry's base and candidate digest, both
+  pack files, its own classification of the change, the entries' cited sources,
+  the sample of entries the owner read in full and the review summary), verifies
+  the entries' citations upstream itself (offline mode is refused), runs the
+  extractor cross-check on line attestations, and refuses a batch that is
+  older than 72 hours, already in the base, behind a later decision, mixed with
+  any file outside the pack files and their generated outputs, or that lists a
+  tightening change as approved. `approval sign --batch` shows the summary and
+  signs only after the owner types the batch id; `approval verify --batch`
+  checks a batch offline. A batch is never eligible for automatic merging. See
+  [knowledge-gate.md](cli/docs/knowledge-gate.md#batch-approvals).
+
+>>>>>>> 8471e634 (Document batch approvals; CODEOWNERS for the batch directory; changelog)
 - `prufyx-maintainer knowledge-publish release`: one offline, deterministic step
   that builds a signed knowledge-database release (TUF targets, snapshot and
   timestamp, package and release plan) from the reviewed embedded knowledge,

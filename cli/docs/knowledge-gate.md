@@ -64,7 +64,7 @@ record sections have no classification rules.
 | Evidence basis | Admitted when |
 | --- | --- |
 | `mechanical` | the extractor named in `evidence.extractor`, as compiled into the gate, re-derives the rule from upstream bytes pinned by commit SHA and fetched by the gate itself, and the re-derived entry is byte-identical (canonical JSON) to the proposed one. The rule's own `derivedAt` and lease (`validUntil` − `derivedAt`) are reused, so a renewal is a re-derivation at a later time. `derivedAt` must lie between 24 hours before and 5 minutes after the gate's clock, so a rule cannot be derived ahead of time to become current later. The extractor id, version and code digest must equal the gate's. |
-| `reviewed` (or absent) | either the change appends one signed reattestation statement to the pack's statement chain and that statement passes every `evidence reattest verify` invariant, including the comparison with a worklist the gate's job produced with its own `evidence repin` run; or the change carries an owner approval for exactly that entry (see below) |
+| `reviewed` (or absent) | either the change appends one signed reattestation statement to the pack's statement chain and that statement passes every `evidence reattest verify` invariant, including the comparison with a worklist the gate's job produced with its own `evidence repin` run; or the change carries an owner approval for exactly that entry (see below); or the change carries a batch approval that lists it (see [Batch approvals](#batch-approvals)) |
 | `consensus` | never as loosening: the engine evaluates consensus as block-only, but this gate has no consensus verifier |
 | `empirical` | not admitted by this version: empirical evidence may pass, and the gate cannot yet check its reproduction |
 | `lead` | never: a lead is not published through this gate |
@@ -151,7 +151,7 @@ A loosening record change is admitted only with one of these proofs:
 | Record | Admitted when |
 | --- | --- |
 | reviewed line attestation or path policy, renewed | the change appends one signed statement to the pack's statement chain that verifies (as for rules, including the comparison with the gate's own worklist), the statement is an automated one (`signerRole` `automation`), it renews this record, and the record differs from the base only in a later `evidence.reviewedAt` and a later `evidence.validUntil`, set exactly to the statement's `attestedAt` and the `validUntil` the statement gives the record. The gate checks the dates itself; it does not infer them from the statement verifying. |
-| reviewed line attestation, added or changed otherwise | an owner approval for exactly that record (see [Owner approvals](#owner-approvals)), and the cross-check below |
+| reviewed line attestation, added or changed otherwise | an owner approval for exactly that record (see [Owner approvals](#owner-approvals)) or a batch approval that lists it (see [Batch approvals](#batch-approvals)), and the cross-check below |
 | reviewed path policy, changed otherwise | never |
 | mechanical line attestation | the extractor named in `evidence.extractor`, as compiled into the gate, derives exactly this attestation (canonical JSON) from upstream bytes pinned by commit SHA, with the record's own `derivedAt` and lease, under the same 24-hour derivation-time bound as a mechanical rule. A statement or an approval never admits one. |
 | mechanical path policy | never: no extractor derives path policies |
@@ -263,6 +263,7 @@ Run on every pack of the head, whatever the change:
 | `trust-material` | the change touches trust material (see below) and is not a person's change matching the pinned digest |
 | `records-trust` | the change changes a pack record (line attestation or path policy) and trust material together |
 | `knowledge-records` | an approval file, worklist or review record changed without the rule change or statement it belongs to (see below) |
+| `batch-approval` | (a change that adds a batch approval) the batch does not verify; see [Batch approvals](#batch-approvals) |
 | `limits` | the change holds more loosening changes than the cap (default 200) |
 | `kill-switch` | the file `factory/PAUSE` exists in the base or the head and the change holds any loosening change |
 
@@ -342,7 +343,8 @@ is at most 256 bytes.
 `--alarms FILE` writes `gate-alarms.json` (`prufyx.io/knowledge-gate-alarms/v1`):
 a list of `{kind, detail}` records, one per alarm. Kinds: `loosening-cap`,
 `daily-limit`, `withdrawal-breaker-pack`, `withdrawal-breaker-project`, `size`,
-`could-not-run`, `shard-stale`.
+`could-not-run`, `shard-stale`, `batch-approval` (every change that adds a batch
+approval, admitted or not).
 Details are made safe to print and cut to 256 bytes. `--alarms-markdown FILE`
 writes the same list as Markdown.
 
@@ -363,6 +365,7 @@ automatic merging, and for which head commit (`headSha` in the report, the
 job output `head-sha`). It is eligible only when:
 
 - every check passes and the change contains at least one knowledge change;
+- the change adds no batch approval (a batch is merged by the owner);
 - the pull request's author (`--author`) and the account whose action
   triggered the run (`--sender`) are the automation account (`--bot-login`);
 - every commit between the base and the head is authored and committed by the
@@ -451,6 +454,10 @@ Sign it with `prufyx-maintainer approval sign --subject repinBaseline`, see
 - `cli/knowledge/approvals/repin-baselines/<owner>--<repo>.json` may be added or
   changed only together with the baseline entry it admitted, and removed only
   when it can no longer verify.
+- `cli/knowledge/approvals/batches/<batch id>.json` may be added only as the
+  batch approval the same run admits. A batch file in the base is never
+  changed, and removed only after its `notAfter` (when it can no longer
+  verify), so the base keeps every batch that could be replayed.
 - Any other file under these directories fails the `knowledge-records` check.
 
 ## File layout
@@ -463,6 +470,7 @@ Sign it with `prufyx-maintainer approval sign --subject repinBaseline`, see
 | `cli/knowledge/reattestation/<pack>/review-records/<rule id>.json` | head | individual review records, when a human statement uses them |
 | `cli/knowledge/reattestation/trust-root.json` | base only | the reattestation trust root; its digest is passed separately (`--trust-root-digest`) |
 | `cli/knowledge/approvals/<pack>/<rule id>.json` | head | owner approvals (`<record id>.json` for a line attestation) |
+| `cli/knowledge/approvals/batches/<batch id>.json` | base and head | owner batch approvals (see [Batch approvals](#batch-approvals)) |
 | `cli/knowledge/trust/web-approval-keys.json` | base only | the pinned owner-approval keys; their digest is passed separately (`--approval-keys-digest`) |
 
 `<pack>` is `cncf` or `community`. A reattestation worklist names each pack by
@@ -704,6 +712,148 @@ any of its commands prints the usage and exits `0`. Exit codes for `approval`:
 `0` signed, or the approval is accepted; `1` (`verify` only) the approval is
 refused, with the reason; `2` rejected input or a refused signing. Nothing
 uses the network.
+
+## Batch approvals
+
+A batch approval admits up to 50 reviewed entries of one change (rules and
+line attestations) with one owner signature, in place of one approval file
+per entry. It is decided all or nothing: if any check below fails, no entry
+of the change is admitted by it. "Reviewed" then means: the owner signed the
+exact entry, here together with at most 49 others, after reading a sample of
+them in full; the automated checks are the same as for a per-entry approval.
+
+The file is `cli/knowledge/approvals/batches/<batch id>.json` (one directory
+for every pack; the pack approval directories may not hold a subdirectory):
+
+```json
+{
+  "schema": "prufyx.io/knowledge-approval-batch/v1",
+  "record": {
+    "batchId": "b-20261207-1",
+    "candidateId": "pr-123",
+    "changeSetDigest": "sha256:…",
+    "citationsDigest": "sha256:…",
+    "decidedAt": "2026-12-07T10:00:00Z",
+    "decision": "approve",
+    "entries": [
+      {"baseDigest": "sha256:…", "candidateDigest": "sha256:…", "id": "<rule id>", "pack": "cncf", "subject": "rule"},
+      {"baseDigest": "absent", "candidateDigest": "sha256:…", "id": "line-attestation.…", "pack": "cncf",
+       "scope": "pkg:github/kubernetes/kubernetes kubernetes.removed_served_gvk 1.33", "subject": "lineAttestation"}
+    ],
+    "identity": "owner-login",
+    "nonce": "<32 hex digits>",
+    "notAfter": "2026-12-10T10:00:00Z",
+    "packs": [{"base": "sha256:…", "head": "sha256:…", "pack": "cncf"}, {"base": "sha256:…", "head": "sha256:…", "pack": "community"}],
+    "sample": [3, 17, 41],
+    "summaryDigest": "sha256:…"
+  },
+  "keyId": "sha256:…",
+  "signature": "…"
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `batchId` | `b-YYYYMMDD-N`; the file is named after it |
+| `entries` | 1 to 50, sorted by pack, subject and id. The digests are those of a per-entry approval (canonical JSON of the entry or record; `absent` for a new one). |
+| `packs` | for every pack, `sha256:` and the hex sha256 of the pack file's bytes in the base and the head (`absent` for a missing file) |
+| `changeSetDigest` | the digest of the gate's own classification of the whole change (every changed rule and record with its class, kinds, basis and base and head digests, the changed statement chains, the kill switch) |
+| `citationsDigest` | the digest of the entries' `evidence.sources` |
+| `nonce` | 128 random bits the signing tool draws when it shows the batch; the sample depends on it, so whoever prepared the change cannot steer which entries are read |
+| `sample` | the entries the owner reads in full: a tenth of them, rounded up, at least 3 (all of a smaller batch), drawn from the SHA-256 of the batch's content and nonce |
+| `summaryDigest` | the sha256 of the review summary the signing tool showed |
+| `decidedAt`, `notAfter` | `notAfter` at most 72 hours after `decidedAt` |
+
+The signature is the standard base64 Ed25519 signature, with a pinned
+web-approval key, over the bytes `prufyx.io/knowledge-approval-batch/v1`, one
+NUL byte, then the record as compact JSON with its keys in the order shown.
+The prefix differs from a per-entry approval's, so neither signature verifies
+as the other.
+
+The gate admits the batch only when all of these hold:
+
+- the change adds exactly one batch file, it decodes strictly, it is signed
+  by a key pinned in the base (`--approval-keys-digest`) that has not
+  expired, the decision is `approve` by a pinned owner, `decidedAt` is not
+  in the future (five minutes allowed) and the gate's clock is before
+  `notAfter`;
+- the entries are exactly the change's reviewed loosening changes: every
+  added or changed reviewed rule and every added or changed reviewed line
+  attestation (not one that was mechanical in the base), with their digests.
+  An entry for a change that is tightening, mechanical or absent is refused
+  by name: a batch may not present a change that needs no approval as
+  approved;
+- the pack files, the classification, the cited sources, the sample and the
+  summary are the ones the batch binds: the gate computes each again from the
+  trees it checks (the summary is rendered by the gate's code), so the owner
+  must sign with the tool of the base branch;
+- the gate's citation verifier checks every entry's sources upstream with no
+  finding. Without `--source github` (no verifier, or the offline fixture
+  mode) no batch is admitted;
+- the change touches no file except the two pack files, their corpus
+  attestations, the generated support inventory and the batch file: no trust
+  material, registry, baseline, per-entry approval, statement chain, code or
+  documentation. It removes no rule, supersedes none, changes no path policy
+  and no top-level pack member, turns no mechanical line attestation into a
+  reviewed one and changes no statement chain;
+- it is used once and only forward: the base holds no batch with the same
+  batch id, signed record or signature (whatever the file name or encoding),
+  and for no entry does the base hold a per-entry approval or a batch entry
+  decided at the same time or later. This holds for rules as well as
+  records. A per-entry record approval decided at or before a base batch
+  entry for the same record is refused too.
+
+Each line attestation entry must also pass the extractor cross-check, as with
+a per-entry approval. Admitted entries have the proof `batch-approval`; every
+batch raises the alarm `batch-approval`, and a change with a batch is never
+eligible for automatic merging. Tightening changes and mechanical changes
+admitted by re-derivation may be part of the same change; they are listed in
+the summary and the classification digest, but never as entries.
+
+### Signing and checking a batch
+
+```sh
+git worktree add "$T/base" origin/main
+op read "op://…/web-approval-key" | prufyx-maintainer approval sign --batch \
+  --base "$T/base" --head . --batch-id b-20261207-1 --candidate-id pr-123 \
+  --keys "$T/base/cli/knowledge/trust/web-approval-keys.json" \
+  --keys-digest "$(gh variable get WEB_APPROVAL_KEYS_DIGEST)" \
+  --identity airstand --key-stdin --summary-out "$T/batch.md"
+```
+
+The command classifies the change with the gate's code and refuses one with
+no reviewed change, more than 50, or a change no batch may hold. It prints the
+review summary: every entry in a table, every other change of the change, and
+in full (base and proposed JSON) each sampled entry and each entry that
+reactivates a rule, changes its basis or changes its range. Characters outside
+printable ASCII are shown escaped. It then asks, on the terminal, for the
+batch id; anything else aborts and nothing is written. It signs, runs the
+gate's offline batch checks on the result and against the base's batches,
+and writes `cli/knowledge/approvals/batches/<batch id>.json` under `--head`
+(or `--output`, which must end in `batches/<batch id>.json`); an existing file
+is never replaced. `--valid-for` (default and maximum `72h`) shortens the
+validity.
+
+| Option | Meaning |
+| --- | --- |
+| `--base`, `--head` | the base checkout and the proposed checkout; each must hold the pack files |
+| `--batch-id` | `b-YYYYMMDD-N` |
+| `--candidate-id` | a reference for the change, such as its pull request |
+| `--keys`, `--keys-digest`, `--identity`, `--key`, `--key-stdin` | as for a per-entry approval |
+| `--summary-out FILE` | also write the summary to a new file |
+
+```sh
+prufyx-maintainer approval verify --batch cli/knowledge/approvals/batches/b-20261207-1.json \
+  --base "$T/base" --head . --keys "$T/base/cli/knowledge/trust/web-approval-keys.json" \
+  --keys-digest "$(gh variable get WEB_APPROVAL_KEYS_DIGEST)"
+```
+
+`verify --batch` runs every check that needs no network, including the
+changed-path rule (give a clean checkout or trees written by `gate export`)
+and the single-use checks against `--base`, and prints `batch OK` or
+`batch REFUSED` with the reason. It does not verify the citations upstream or
+run the extractor cross-check; the gate does both. Exit codes are those of
+`approval`.
 
 ## Commands
 

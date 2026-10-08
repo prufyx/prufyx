@@ -11,6 +11,10 @@
 # verifies).
 /cli/knowledge/repin-baselines.json @airstand
 
+# Owner batch approvals (the gate verifies each; a batch is never merged
+# automatically).
+/cli/knowledge/approvals/batches/ @airstand
+
 # The kill switch.
 /factory/PAUSE @airstand
 
