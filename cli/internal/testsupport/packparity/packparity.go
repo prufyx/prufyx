@@ -3,7 +3,10 @@
 // Package packparity holds the table both rule packs (the CNCF pack and the
 // community-project pack) are tested against: the same abstract rule sets
 // must give the same claim statuses and the same exit code under either
-// pack. It is imported only by tests; no command links it.
+// pack. It is imported only by tests; no command links it. It lives under
+// internal/testsupport because a table shared by two packages' tests cannot
+// sit in a _test.go file (Go does not export those); the guard test in this
+// package fails if any non-test file imports it.
 //
 // A case names the kinds of rule a check holds for one reviewed transition.
 // Each pack's test turns every kind into a concrete rule of its own and

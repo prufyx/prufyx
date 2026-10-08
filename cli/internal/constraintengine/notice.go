@@ -196,3 +196,8 @@ func prefixedLines(prefix, text string) []string {
 	}
 	return []string{strings.TrimSuffix(prefix, " "), text}
 }
+
+// NoticeScopeLine bounds what a printed one-way notice states. Every route
+// that prints a notice (CNCF and community packs, check batch) prints it once
+// after the notices that were established.
+const NoticeScopeLine = "scope: this notice covers only the reviewed transition named above and is not a verdict; the absence of a notice for another transition says nothing about whether it can be rolled back"

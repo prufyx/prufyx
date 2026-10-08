@@ -69,10 +69,16 @@ func summarizeClaims(claims []constraintengine.Claim, showPasses bool) claimSumm
 	return summary
 }
 
+// noticeScopeLine is the one scope line printed after established notices.
+const noticeScopeLine = constraintengine.NoticeScopeLine
+
 // writeNotices prints each one-way notice on its own lines, with its
-// reviewed "before you upgrade" text. A notice that does not apply prints
-// nothing: its absence is not a statement about rolling back.
-func writeNotices(out io.Writer, notices []constraintengine.Claim) error {
+// reviewed "before you upgrade" text and its evidence basis, then one scope
+// line after the notices that were established. A notice that does not apply
+// prints nothing: its absence is not a statement about rolling back.
+// withSources also prints each notice's pinned sources.
+func writeNotices(out io.Writer, notices []constraintengine.Claim, withSources bool) error {
+	established := false
 	for _, claim := range notices {
 		printed, err := writeClaimHeadline(out, claim)
 		if err != nil {
@@ -84,6 +90,20 @@ func writeNotices(out io.Writer, notices []constraintengine.Claim) error {
 		if _, err := fmt.Fprintln(out, claim.EvidenceBasisLine()); err != nil {
 			return err
 		}
+		if withSources {
+			for _, source := range claim.Sources {
+				if _, err := fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
+					return err
+				}
+			}
+		}
+		if claim.IsNotice() && claim.Status == constraintengine.StatusNotice {
+			established = true
+		}
+	}
+	if established {
+		_, err := fmt.Fprintln(out, noticeScopeLine)
+		return err
 	}
 	return nil
 }
@@ -351,7 +371,7 @@ func writeNativeClaims(out io.Writer, summary claimSummary, claims []constrainte
 			return err
 		}
 	}
-	if err := writeNotices(out, summary.notices); err != nil {
+	if err := writeNotices(out, summary.notices, false); err != nil {
 		return err
 	}
 	if err := writeNoVerdictLine(out, claims); err != nil {

@@ -116,37 +116,130 @@ func TestSupportInventory_CommunitySupportRangeAndNoticesAreCountedSeparately(t 
 	}
 }
 
-// TestSupportInventory_CommunityNoticeOnlyProjectIsNotExecutable: a project
-// whose only rules are notices is counted as a notice and is not listed as an
-// executable project, since a notice decides nothing.
-func TestSupportInventory_CommunityNoticeOnlyProjectIsNotExecutable(t *testing.T) {
-	_, notice := communityTestEntries()
-	document, _, err := generateCommunity(t, func(pack map[string]any) {
-		pack["schema"] = "prufyx.io/community-project-source-rule-pack/v1alpha3"
-		kept := []any{notice}
-		for _, entry := range pack["entries"].([]any) {
-			if entry.(map[string]any)["project"] != "grafana" {
-				kept = append(kept, entry)
-			}
+func communityProject(t *testing.T, document map[string]any, id string) map[string]any {
+	t.Helper()
+	for _, project := range document["projects"].([]any) {
+		if p := project.(map[string]any); p["projectID"] == id {
+			return p
 		}
-		pack["entries"] = kept
+	}
+	return nil
+}
+
+func capabilityKinds(project map[string]any) map[string][]string {
+	kinds := map[string][]string{}
+	for _, capability := range project["capabilities"].([]any) {
+		c := capability.(map[string]any)
+		command := []string{}
+		for _, part := range c["command"].([]any) {
+			command = append(command, part.(string))
+		}
+		kinds[c["kind"].(string)] = command
+	}
+	return kinds
+}
+
+// withoutGrafanaVerdictRules keeps every other project's entries and adds extra.
+func withoutGrafanaVerdictRules(pack map[string]any, extra ...any) {
+	kept := append([]any{}, extra...)
+	for _, entry := range pack["entries"].([]any) {
+		if entry.(map[string]any)["project"] != "grafana" {
+			kept = append(kept, entry)
+		}
+	}
+	pack["entries"] = kept
+}
+
+// TestSupportInventory_CommunityNoticeOnlyProjectIsListedNotExecutable: a
+// project whose only rules are notices is counted as a notice, listed under
+// its own state and capability kind, and not counted as executable.
+func TestSupportInventory_CommunityNoticeOnlyProjectIsListedNotExecutable(t *testing.T) {
+	baseline, _, err := generateCommunity(t, func(map[string]any) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, notice := communityTestEntries()
+	document, markdown, err := generateCommunity(t, func(pack map[string]any) {
+		pack["schema"] = "prufyx.io/community-project-source-rule-pack/v1alpha3"
+		withoutGrafanaVerdictRules(pack, notice)
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	counts := document["counts"].(map[string]any)
-	if counts["communityProjectNotices"] != float64(1) {
+	if counts["communityProjectNotices"] != float64(1) || counts["executableProjects"] != baseline["counts"].(map[string]any)["executableProjects"].(float64)-1 {
 		t.Fatalf("counts=%v", counts)
 	}
-	for _, project := range document["projects"].([]any) {
-		p := project.(map[string]any)
-		if p["projectID"] == "grafana" {
-			for _, capability := range p["capabilities"].([]any) {
-				if capability.(map[string]any)["kind"] == "embedded_community_project_source_rule" {
-					t.Fatalf("a notice-only project is listed as an executable community project: %v", p)
-				}
+	project := communityProject(t, document, "grafana")
+	if project == nil || project["supportState"] != "notice_only" {
+		t.Fatalf("a notice-only project is not listed as notice_only: %v", project)
+	}
+	if kinds := capabilityKinds(project); len(kinds) != 1 || kinds["embedded_community_project_one_way_notice"] == nil {
+		t.Fatalf("capabilities=%v", kinds)
+	}
+	if !strings.Contains(markdown, "Projects with rules that decide no transition on their own") || !strings.Contains(markdown, "grafana.synthetic-one-way") {
+		t.Fatalf("markdown does not list the notice-only project")
+	}
+}
+
+// TestSupportInventory_CommunitySupportRangeIsItsOwnCapability: a support
+// range is a capability of its own on the `check batch` route. It never makes
+// a project executable by itself and never changes the executable union.
+func TestSupportInventory_CommunitySupportRangeIsItsOwnCapability(t *testing.T) {
+	baseline, _, err := generateCommunity(t, func(map[string]any) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	union := baseline["counts"].(map[string]any)["executableProjects"].(float64)
+	support, notice := communityTestEntries()
+
+	// Next to verdict rules: the union is unchanged, the support range sits
+	// on `check batch`, and the verdict capability does not list it.
+	document, _, err := generateCommunity(t, func(pack map[string]any) {
+		pack["schema"] = "prufyx.io/community-project-source-rule-pack/v1alpha4"
+		pack["entries"] = append(pack["entries"].([]any), support, notice)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := document["counts"].(map[string]any)["executableProjects"]; got != union {
+		t.Fatalf("executable union changed: %v -> %v", union, got)
+	}
+	project := communityProject(t, document, "grafana")
+	kinds := capabilityKinds(project)
+	if project["supportState"] != "executable" || strings.Join(kinds["embedded_community_project_support_range"], " ") != "check batch" || strings.Join(kinds["embedded_community_project_source_rule"], " ") != "check project --project grafana" {
+		t.Fatalf("state=%v kinds=%v", project["supportState"], kinds)
+	}
+	for _, capability := range project["capabilities"].([]any) {
+		c := capability.(map[string]any)
+		for _, rule := range c["rules"].([]any) {
+			id := rule.(map[string]any)["ruleID"]
+			if id == "grafana.synthetic-support" && c["kind"] != "embedded_community_project_support_range" {
+				t.Fatalf("the support range is listed under %v", c["kind"])
 			}
 		}
+	}
+
+	// A project holding only a support range is not executable.
+	document, markdown, err := generateCommunity(t, func(pack map[string]any) {
+		pack["schema"] = "prufyx.io/community-project-source-rule-pack/v1alpha4"
+		withoutGrafanaVerdictRules(pack, support)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := document["counts"].(map[string]any)["executableProjects"]; got != union-1 {
+		t.Fatalf("a support-range-only project is counted as executable: %v (was %v)", got, union)
+	}
+	project = communityProject(t, document, "grafana")
+	if project == nil || project["supportState"] != "support_range_only" {
+		t.Fatalf("project=%v", project)
+	}
+	if kinds := capabilityKinds(project); len(kinds) != 1 || strings.Join(kinds["embedded_community_project_support_range"], " ") != "check batch" {
+		t.Fatalf("capabilities=%v", kinds)
+	}
+	if !strings.Contains(markdown, "support_range_only") || !strings.Contains(markdown, "prufyx check batch") {
+		t.Fatalf("markdown does not list the support-range-only project")
 	}
 }
 

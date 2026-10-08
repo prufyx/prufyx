@@ -88,7 +88,14 @@ type ItemResult struct {
 	Report          json.RawMessage `json:"report,omitempty"`
 	// age is set for an item evaluated against a selected store; not encoded.
 	age *knowledgeage.Source
+	// notes are the human-output lines an item's claims call for beyond its
+	// outcome: the support-range note and any one-way notices with their
+	// scope. They are not encoded; the sealed child report carries the claims.
+	notes []string
 }
+
+// Notes returns the extra human-output lines of an item (see ItemResult.notes).
+func (r ItemResult) Notes() []string { return append([]string(nil), r.notes...) }
 
 type Report struct {
 	Schema                      string       `json:"schema"`
@@ -395,7 +402,9 @@ func evaluateItem(item Item, raw []byte, now time.Time, selected knowledge.Verif
 		return result
 	}
 	result.Report = append(json.RawMessage(nil), sealed...)
-	return fromClaims(result, communityClaimViews(report.Check.Claims))
+	result = fromClaims(result, communityClaimViews(report.Check.Claims))
+	result.notes = claimNotes(report.Check.Claims)
+	return result
 }
 
 func evaluateExternalCNCF(result ItemResult, item Item, raw []byte, selected knowledge.VerifiedRevision) ItemResult {
@@ -422,7 +431,34 @@ func evaluateExternalCNCF(result ItemResult, item Item, raw []byte, selected kno
 	result.Report = append(json.RawMessage(nil), sealed...)
 	age := report.KnowledgeAge()
 	result.age = &age
-	return fromClaims(result, cncfClaimViews(report.Check.Check.Claims))
+	result = fromClaims(result, cncfClaimViews(report.Check.Check.Claims))
+	result.notes = claimNotes(report.Check.Check.Claims)
+	return result
+}
+
+// claimNotes are the human lines of an item's claims that its outcome line
+// does not carry: the note for combinations outside a documented support
+// range (not verified, not shown to be broken) and each applicable one-way
+// notice, followed by one scope line when a notice was established. A notice
+// that does not apply contributes nothing.
+func claimNotes(claims []constraintengine.Claim) []string {
+	var notes []string
+	if note, ok := constraintengine.UnsupportedNote(claims); ok {
+		notes = append(notes, note)
+	}
+	established := false
+	for _, claim := range claims {
+		if lines, notice := claim.NoticeLines(); notice && claim.IsNotice() {
+			notes = append(notes, lines...)
+			if len(lines) > 0 && claim.Status == constraintengine.StatusNotice {
+				established = true
+			}
+		}
+	}
+	if established {
+		notes = append(notes, constraintengine.NoticeScopeLine)
+	}
+	return notes
 }
 
 // communityClaimViews keeps the claims that decide an outcome, as the CNCF

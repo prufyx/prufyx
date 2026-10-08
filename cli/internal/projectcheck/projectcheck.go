@@ -76,6 +76,7 @@ type ruleBinding struct {
 	// the engine's ParseRuleSet remains the authority on their validity.
 	Severity   string `json:"severity"`
 	Dependency *struct {
+		Side      string `json:"side"`
 		Component string `json:"component"`
 	} `json:"dependency"`
 	Evidence struct {
@@ -104,23 +105,26 @@ type bundle struct {
 }
 
 type Report struct {
-	Schema                string                  `json:"schema"`
-	Project               string                  `json:"project"`
-	RequestedRuleID       string                  `json:"requestedRuleId,omitempty"`
-	SelectedRuleID        string                  `json:"selectedRuleId,omitempty"`
-	Assessment            string                  `json:"assessment"`
-	KnowledgeOrigin       string                  `json:"knowledgeOrigin"`
-	KnowledgeRevision     string                  `json:"knowledgeRevision"`
-	KnowledgePackDigest   string                  `json:"knowledgePackDigest"`
-	ProjectRegistryDigest string                  `json:"projectRegistryDigest"`
-	InputFileDigest       string                  `json:"inputFileDigest"`
-	SourceAuthority       string                  `json:"sourceAuthority"`
-	RuntimeReproduced     int                     `json:"runtimeReproduced"`
-	NetworkUsed           bool                    `json:"networkUsed"`
-	NextAction            string                  `json:"nextAction"`
-	Check                 constraintengine.Report `json:"check"`
-	seal                  *reportSeal
-	digest                string
+	Schema                string `json:"schema"`
+	Project               string `json:"project"`
+	RequestedRuleID       string `json:"requestedRuleId,omitempty"`
+	SelectedRuleID        string `json:"selectedRuleId,omitempty"`
+	Assessment            string `json:"assessment"`
+	KnowledgeOrigin       string `json:"knowledgeOrigin"`
+	KnowledgeRevision     string `json:"knowledgeRevision"`
+	KnowledgePackDigest   string `json:"knowledgePackDigest"`
+	ProjectRegistryDigest string `json:"projectRegistryDigest"`
+	InputFileDigest       string `json:"inputFileDigest"`
+	SourceAuthority       string `json:"sourceAuthority"`
+	RuntimeReproduced     int    `json:"runtimeReproduced"`
+	NetworkUsed           bool   `json:"networkUsed"`
+	NextAction            string `json:"nextAction"`
+	// NotEvaluated lists support-range rules a native route left out because
+	// it cannot declare their dependency. They are neither passed nor failed.
+	NotEvaluated []NotEvaluatedRule      `json:"notEvaluated,omitempty"`
+	Check        constraintengine.Report `json:"check"`
+	seal         *reportSeal
+	digest       string
 }
 
 // RuleIdentity is the stable public identity of one rule already admitted by
@@ -133,6 +137,9 @@ type RuleIdentity struct {
 	To        string `json:"to"`
 	// Range is present only for a rule with a reviewed version range.
 	Range *constraintengine.VersionRange `json:"range,omitempty"`
+	// Kind is present only for a rule that is not a plain verdict rule: a
+	// one-way notice or a support range (constraintengine.RuleKind*).
+	Kind string `json:"kind,omitempty"`
 }
 
 // Transition returns the identity's reviewed subject for the shared matcher.
@@ -154,7 +161,11 @@ func EmbeddedRuleIdentities() ([]RuleIdentity, error) {
 		if err != nil || json.Unmarshal(entry.Rule, &binding) != nil || binding.ID == "" || subject.Component == "" || subject.From == "" || subject.To == "" {
 			return nil, ErrIntegrity
 		}
-		result = append(result, RuleIdentity{Project: entry.Project, Component: subject.Component, RuleID: binding.ID, From: subject.From, To: subject.To, Range: subject.Range})
+		kind, err := constraintengine.RawRuleKind(entry.Rule)
+		if err != nil {
+			return nil, ErrIntegrity
+		}
+		result = append(result, RuleIdentity{Project: entry.Project, Component: subject.Component, RuleID: binding.ID, From: subject.From, To: subject.To, Range: subject.Range, Kind: kind})
 	}
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].Project != result[j].Project {
@@ -251,10 +262,19 @@ func loadRaw(registryRaw, packRaw []byte, factDefinitions []constraintengine.Fac
 		if json.Unmarshal(e.Rule, &binding) != nil || binding.ID == "" || binding.Subject.Component != id.Component || !admittedRuleShape(binding, required, len(e.RequiredFacts)) {
 			return bundle{}, ErrIntegrity
 		}
+		guards := map[string]struct{}{}
 		for _, guard := range binding.AppliesWhen {
 			if !requiredFact(required, guard) {
 				return bundle{}, ErrIntegrity
 			}
+			guards[guard.Side+"\x00"+guard.Component+"\x00"+guard.FactID] = struct{}{}
+		}
+		// A notice or a support range reads no fact but its appliesWhen
+		// guards, so its required facts are exactly those guards: an
+		// unreferenced required fact would ask the caller for evidence the
+		// rule never uses.
+		if binding.Operator != "forbid_predicate_value" && len(guards) != len(required) {
+			return bundle{}, ErrIntegrity
 		}
 		if _, duplicate := seenRuleIDs[binding.ID]; duplicate || i > 0 && (previousProject > e.Project || previousProject == e.Project && previousRuleID >= binding.ID) {
 			return bundle{}, ErrIntegrity
@@ -287,7 +307,10 @@ func loadRaw(registryRaw, packRaw []byte, factDefinitions []constraintengine.Fac
 //     of its own; it may declare facts only for its appliesWhen guards.
 //   - require_component_version carrying severity "unsupported": a
 //     support-range rule. It names a dependency component and no fact
-//     condition; it may declare facts only for its appliesWhen guards. A
+//     condition; it may declare facts only for its appliesWhen guards, and
+//     its dependency is another component than the project's own (a
+//     requirement on the project's own target version would be a blocking
+//     rule worded as a support range). A
 //     require_component_version rule without the severity is a blocking
 //     version rule, which this pack does not admit.
 //
@@ -300,7 +323,7 @@ func admittedRuleShape(binding ruleBinding, required map[string]struct{}, facts 
 	case constraintengine.OperatorNoticeOneWay:
 		return binding.Condition == nil && binding.Severity == "" && binding.Dependency == nil
 	case "require_component_version":
-		return binding.Condition == nil && binding.Severity == constraintengine.SeverityUnsupported && binding.Dependency != nil
+		return binding.Condition == nil && binding.Severity == constraintengine.SeverityUnsupported && binding.Dependency != nil && binding.Dependency.Component != binding.Subject.Component
 	}
 	return false
 }
@@ -324,12 +347,57 @@ func strict(raw []byte, out any) error {
 }
 
 func (b bundle) ruleSet(project, from, to string) (constraintengine.RuleSet, int, error) {
-	rules, count, _, err := b.ruleSetSelected(project, from, to, "")
+	rules, count, _, _, err := b.ruleSetSelected(project, from, to, "", nil)
 	return rules, count, err
 }
 
-func (b bundle) ruleSetSelected(project, from, to, requestedRuleID string) (constraintengine.RuleSet, int, string, error) {
+// NotEvaluatedRule names a support-range rule that a native route did not
+// evaluate because the route cannot declare the rule's dependency component.
+type NotEvaluatedRule struct {
+	RuleID     string `json:"ruleId"`
+	ReasonCode string `json:"reasonCode"`
+	NextAction string `json:"nextAction"`
+}
+
+// ReasonDependencyNotDeclarableOnRoute is the reason of a NotEvaluatedRule.
+const ReasonDependencyNotDeclarableOnRoute = "SUPPORT_RANGE_DEPENDENCY_NOT_DECLARABLE_ON_ROUTE"
+
+// notEvaluatedAction says exactly what the user can do: the native routes
+// declare only the project's own component, so there is no flag to add.
+const notEvaluatedAction = "not evaluated on this route; use `prufyx check batch` with the dependency declared, or check the cited source by hand"
+
+// declaredComponents lists "side\x00component" for every component a prepared
+// input declares.
+func declaredComponents(inputRaw []byte) map[string]bool {
+	type side struct {
+		Components []struct {
+			Component string `json:"component"`
+		} `json:"components"`
+	}
+	var document struct {
+		Current  side `json:"current"`
+		Proposed side `json:"proposed"`
+	}
+	declared := map[string]bool{}
+	if json.Unmarshal(inputRaw, &document) != nil {
+		return declared
+	}
+	for _, c := range document.Current.Components {
+		declared["current\x00"+c.Component] = true
+	}
+	for _, c := range document.Proposed.Components {
+		declared["proposed\x00"+c.Component] = true
+	}
+	return declared
+}
+
+// ruleSetSelected narrows the pack to one project and transition. With a
+// non-nil declared set (a native route), a support-range rule whose
+// dependency component is not declared is left out of the rule set and
+// returned as not evaluated instead of becoming an UNKNOWN nobody can fix.
+func (b bundle) ruleSetSelected(project, from, to, requestedRuleID string, declared map[string]bool) (constraintengine.RuleSet, int, string, []NotEvaluatedRule, error) {
 	rules := make([]json.RawMessage, 0, 2)
+	var skipped []NotEvaluatedRule
 	selectedRuleID := ""
 	for _, e := range b.pack.Entries {
 		if e.Project != project {
@@ -338,9 +406,13 @@ func (b bundle) ruleSetSelected(project, from, to, requestedRuleID string) (cons
 		var binding ruleBinding
 		subject, err := constraintengine.RuleTransitionOf(e.Rule)
 		if err != nil || json.Unmarshal(e.Rule, &binding) != nil {
-			return constraintengine.RuleSet{}, 0, "", ErrIntegrity
+			return constraintengine.RuleSet{}, 0, "", nil, ErrIntegrity
 		}
 		if (from == "" && to == "" || subject.Match(from, to) != constraintengine.MatchNone || subject.CrossesUnreviewed(from, to)) && (requestedRuleID == "" || binding.ID == requestedRuleID) {
+			if declared != nil && binding.Severity == constraintengine.SeverityUnsupported && binding.Dependency != nil && !declared[binding.Dependency.Side+"\x00"+binding.Dependency.Component] {
+				skipped = append(skipped, NotEvaluatedRule{RuleID: binding.ID, ReasonCode: ReasonDependencyNotDeclarableOnRoute, NextAction: notEvaluatedAction})
+				continue
+			}
 			rules = append(rules, e.Rule)
 			if requestedRuleID != "" {
 				selectedRuleID = binding.ID
@@ -356,15 +428,15 @@ func (b bundle) ruleSetSelected(project, from, to, requestedRuleID string) (cons
 	}{"", b.pack.Revision, b.pack.PolicyID, b.pack.PolicyDigest, rules}
 	schema, err := constraintengine.RulesSchemaFor(rules)
 	if err != nil {
-		return constraintengine.RuleSet{}, 0, "", ErrIntegrity
+		return constraintengine.RuleSet{}, 0, "", nil, ErrIntegrity
 	}
 	doc.Schema = schema
 	raw, err := json.Marshal(doc)
 	if err != nil {
-		return constraintengine.RuleSet{}, 0, "", ErrIntegrity
+		return constraintengine.RuleSet{}, 0, "", nil, ErrIntegrity
 	}
 	parsed, err := constraintengine.ParseRuleSet(raw, b.registry)
-	return parsed, len(rules), selectedRuleID, err
+	return parsed, len(rules), selectedRuleID, skipped, err
 }
 
 func Check(project string, inputRaw []byte, now time.Time) (Report, error) {
@@ -373,6 +445,19 @@ func Check(project string, inputRaw []byte, now time.Time) (Report, error) {
 		return Report{}, err
 	}
 	return checkWithBundle(b, project, inputRaw, now)
+}
+
+// CheckNative is Check for the native `check project` routes, which declare
+// only the project's own component: a support-range rule whose dependency the
+// input does not declare is not evaluated and is listed in the report's
+// NotEvaluated, instead of turning a pass into an UNKNOWN the user cannot
+// resolve with any flag of the route.
+func CheckNative(project string, inputRaw []byte, now time.Time) (Report, error) {
+	b, err := load()
+	if err != nil {
+		return Report{}, err
+	}
+	return checkWithBundleRoute(b, project, inputRaw, now, "", true)
 }
 
 // ValidateCanonicalInput verifies a prepared neutral community-project input
@@ -416,7 +501,7 @@ func CheckRule(project string, inputRaw []byte, now time.Time, requestedRuleID s
 	if !known {
 		return Report{}, ErrInvalid
 	}
-	return checkWithBundleRule(b, project, inputRaw, now, requestedRuleID)
+	return checkWithBundleRoute(b, project, inputRaw, now, requestedRuleID, true)
 }
 
 func checkWithBundle(b bundle, project string, inputRaw []byte, now time.Time) (Report, error) {
@@ -424,6 +509,10 @@ func checkWithBundle(b bundle, project string, inputRaw []byte, now time.Time) (
 }
 
 func checkWithBundleRule(b bundle, project string, inputRaw []byte, now time.Time, requestedRuleID string) (Report, error) {
+	return checkWithBundleRoute(b, project, inputRaw, now, requestedRuleID, false)
+}
+
+func checkWithBundleRoute(b bundle, project string, inputRaw []byte, now time.Time, requestedRuleID string, native bool) (Report, error) {
 	identity, ok := b.identities[project]
 	if !ok {
 		return Report{}, ErrInvalid
@@ -436,7 +525,11 @@ func checkWithBundleRule(b bundle, project string, inputRaw []byte, now time.Tim
 	if !ok {
 		return Report{}, ErrInvalid
 	}
-	rules, selected, selectedRuleID, err := b.ruleSetSelected(project, from, to, requestedRuleID)
+	var declared map[string]bool
+	if native {
+		declared = declaredComponents(inputRaw)
+	}
+	rules, selected, selectedRuleID, skipped, err := b.ruleSetSelected(project, from, to, requestedRuleID, declared)
 	if err != nil {
 		return Report{}, ErrIntegrity
 	}
@@ -445,10 +538,12 @@ func checkWithBundleRule(b bundle, project string, inputRaw []byte, now time.Tim
 		return Report{}, ErrInvalid
 	}
 	nextAction := "review each scoped claim; whole-upgrade behavior, runtime evidence, and external signed updates remain unavailable"
-	if selected == 0 {
+	if selected == 0 && len(skipped) > 0 {
+		nextAction = "the only reviewed rules for this transition are support ranges that need a dependency version this route cannot declare; " + notEvaluatedAction
+	} else if selected == 0 {
 		nextAction = "no reviewed rule matches this exact project transition; retain UNKNOWN or add independently reviewed embedded rule metadata"
 	}
-	report := Report{Schema: "prufyx.io/community-project-source-check/v1alpha1", Project: project, RequestedRuleID: requestedRuleID, SelectedRuleID: selectedRuleID, Assessment: "UNKNOWN", KnowledgeOrigin: "embedded_only", KnowledgeRevision: b.pack.Revision, KnowledgePackDigest: b.packDigest, ProjectRegistryDigest: b.registryDigest, InputFileDigest: digest(inputRaw), SourceAuthority: "PACKAGED_MAINTAINER_REVIEWED_EXTERNAL_PROJECT_RULES_NOT_RUNTIME_PROOF", NextAction: nextAction, Check: result}
+	report := Report{Schema: "prufyx.io/community-project-source-check/v1alpha1", Project: project, RequestedRuleID: requestedRuleID, SelectedRuleID: selectedRuleID, Assessment: "UNKNOWN", KnowledgeOrigin: "embedded_only", KnowledgeRevision: b.pack.Revision, KnowledgePackDigest: b.packDigest, ProjectRegistryDigest: b.registryDigest, InputFileDigest: digest(inputRaw), SourceAuthority: "PACKAGED_MAINTAINER_REVIEWED_EXTERNAL_PROJECT_RULES_NOT_RUNTIME_PROOF", NextAction: nextAction, NotEvaluated: skipped, Check: result}
 	report.seal = &reportSeal{}
 	raw, _ := json.Marshal(report)
 	report.digest = digest(raw)

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
-	"github.com/prufyx/prufyx/cli/internal/packparity"
+	"github.com/prufyx/prufyx/cli/internal/testsupport/packparity"
 )
 
 // TestPackParityTable runs the table both rule packs share: the same abstract
@@ -62,6 +62,12 @@ func TestPackParityTable(t *testing.T) {
 			verdicts, notices := packparity.Statuses(claims)
 			if got := ClaimExit(report); got != tc.Exit || fmt.Sprint(verdicts) != fmt.Sprint(tc.Verdicts) || notices != tc.Notices {
 				t.Fatalf("exit=%d verdicts=%v notices=%d, want exit=%d verdicts=%v notices=%d", got, verdicts, notices, tc.Exit, tc.Verdicts, tc.Notices)
+			}
+			if _, err := MarshalReport(report); err != nil {
+				t.Fatalf("report not publishable: %v", err)
+			}
+			if report.Assessment != "UNKNOWN" {
+				t.Fatalf("assessment=%s", report.Assessment)
 			}
 		})
 	}

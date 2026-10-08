@@ -85,10 +85,22 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   `PASS` and never `BLOCKED` and exits 11; notices are informational and left
   out of the exit code; `check project` prints a note for combinations outside
   a documented support range ("not verified, not shown to be broken"), prints
-  applicable notices with their scope, and never words anything as safe. In
-  `check batch`, a community item treats `UNSUPPORTED` as unknown and ignores
-  notices. The generated support inventory counts support-range rules and
-  notices separately from verdict rules. The shipped community pack holds
+  applicable notices with their scope, and never words anything as safe. The
+  native `check project` routes cannot declare a support range's dependency,
+  so they list such a rule as not evaluated on this route (use `check batch`
+  with the dependency declared, or check the cited source by hand) instead of
+  turning a scoped PASS into an unresolvable UNKNOWN. In `check batch`, a
+  community item treats `UNSUPPORTED` as unknown and ignores notices for its
+  outcome, and the human output prints an item's applicable notices (with one
+  scope line) and the support-range note, for both packs. The notice scope line
+  and the evidence basis line are the same in both packs. `catalog checks`
+  shows a rule's kind (one-way notice, support range). Admission is stricter: a
+  notice or support range lists only the facts its `appliesWhen` reads, and a
+  support range never depends on the project's own component. The generated
+  support inventory counts support-range rules and notices separately from
+  verdict rules, lists support ranges as their own `check batch` capability,
+  and lists a project holding only notices or support ranges under its own
+  state without counting it as executable. The shipped community pack holds
   neither kind yet.
 - Image-based component detection (DETECT-1, phase 1): a reviewed registry
   (`cli/internal/imageidentity/data/image-sources.json`) maps container image

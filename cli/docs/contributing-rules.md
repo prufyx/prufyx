@@ -231,8 +231,11 @@ accepted by any community pack schema.
   never `PASS`) and `UNKNOWN` when the dependency version is not declared. A
   `require_component_version` rule without `severity` is not accepted in this
   pack.
-- A notice carries no `condition`; any fact its `appliesWhen` reads is listed
-  in `requiredFacts`, which is otherwise empty.
+- A notice carries no `condition`; its `requiredFacts` list exactly the facts
+  its `appliesWhen` reads and nothing else (empty when it has no guard). The
+  same holds for a support-range rule, whose `dependency` must also name a
+  component other than the project's own: a requirement on the project's own
+  target version is a blocking rule and is not worded as a support range.
 - Exit codes follow the CNCF route: `UNSUPPORTED` is exit 11 (a blocker still
   exits 10), and notice claims are left out, so a report holding only notices
   exits 11. `check batch` treats community items the same way.
@@ -242,9 +245,14 @@ accepted by any community pack schema.
   text and a scope line, and never words anything as safe. The report's whole-
   upgrade assessment stays UNKNOWN.
 - A dependency version has to be declared by the caller. The native
-  `check project` routes declare only the project's own component, so there a
-  support-range rule answers UNKNOWN; it can answer `PASS` or `UNSUPPORTED`
-  from a canonical input that also declares the dependency (`check batch`). A
+  `check project` routes declare only the project's own component, so they do
+  not evaluate a support-range rule whose dependency the input does not
+  declare: the rule stays visible as "not evaluated on this route; use
+  `prufyx check batch` with the dependency declared, or check the cited source
+  by hand" (also in the JSON report as `notEvaluated`), and the scoped
+  verdicts decide the exit code as before (a scoped PASS stays exit 0). The
+  rule answers `PASS` or `UNSUPPORTED` from a canonical input that declares
+  the dependency (`check batch`). A
   scope assessment names only compiled project identities, so it cannot
   declare the dependency either and never reaches a completeness pass over
   such a rule.
@@ -253,8 +261,15 @@ accepted by any community pack schema.
   one is tightening, and a schema change is a pack-member change the gate does
   not admit by itself.
 - The generated support inventory counts support-range rules and notices on
-  their own lines, apart from the verdict-rule count; a project whose only
-  rules are notices is not listed as an executable project.
+  their own lines, apart from the verdict-rule count. A support range is a
+  capability of its own (`check batch`) and never makes a project executable;
+  a project whose only rules are notices and/or support ranges is listed under
+  its own state (`notice_only`, `support_range_only`) and is not counted in the
+  executable-project union. `catalog checks` shows such a rule's kind
+  (`one_way_notice`, `support_range`) for both packs, and `check batch` human
+  output prints an item's applicable notices with their scope and the
+  "outside its documented support range (not verified, not shown to be
+  broken)" note for both packs.
 
 ## Evidence basis
 

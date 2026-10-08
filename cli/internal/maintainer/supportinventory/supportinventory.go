@@ -892,6 +892,28 @@ type communityCounts struct {
 	verdict, supportRange, notices int
 }
 
+// nonExecutableCapabilityKinds are the capability kinds that decide no
+// transition through a native route on their own: a project holding only
+// these is listed but never counted as executable.
+var nonExecutableCapabilityKinds = map[string]bool{
+	"embedded_community_project_one_way_notice": true,
+	"embedded_community_project_support_range":  true,
+}
+
+// hasExecutableCapability reports whether a listed project has at least one
+// capability that can decide a transition.
+func hasExecutableCapability(project map[string]any) bool {
+	caps, _ := array(project["capabilities"])
+	for _, raw := range caps {
+		if capability, ok := object(raw); ok {
+			if kind, _ := stringValue(capability["kind"]); !nonExecutableCapabilityKinds[kind] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func communityProjects(rules, registry map[string]any) ([]map[string]any, communityCounts, error) {
 	if !packSchemaMatches(rules, communityPackSchema, communityPackLevels) || registry["schema"] != "prufyx.io/community-project-registry/v1alpha1" {
 		return nil, communityCounts{}, invalid("invalid community-project source schema")
@@ -924,6 +946,7 @@ func communityProjects(rules, registry map[string]any) ([]map[string]any, commun
 		return nil, communityCounts{}, invalid("missing community-project rules")
 	}
 	grouped := map[string][]any{}
+	supportRanges := map[string][]any{}
 	notices := map[string][]any{}
 	counts := communityCounts{}
 	seen := map[string]bool{}
@@ -996,23 +1019,39 @@ func communityProjects(rules, registry map[string]any) ([]map[string]any, commun
 			notices[project] = append(notices[project], item)
 		case "support_range":
 			item["ruleKind"] = kind
-			item["limit"] = "Scoped support-range requirement on one caller-declared dependency version from a documented support range: inside the range the scoped claim passes; outside it the claim is UNSUPPORTED (not verified, not shown to be broken), never BLOCKED. A missing dependency version stays UNKNOWN. It does not assert CNCF membership, whole-upgrade safety, or runtime behavior."
-			grouped[project] = append(grouped[project], item)
+			item["limit"] = "Scoped support-range requirement on one caller-declared dependency version from a documented support range: inside the range the scoped claim passes; outside it the claim is UNSUPPORTED (not verified, not shown to be broken), never BLOCKED. A missing dependency version stays UNKNOWN. It is decided only by `prufyx check batch` with a canonical input that declares the dependency; the native `check project` routes cannot declare it and list the rule as not evaluated. It does not assert CNCF membership, whole-upgrade safety, or runtime behavior."
+			supportRanges[project] = append(supportRanges[project], item)
 		default:
 			grouped[project] = append(grouped[project], item)
 		}
 	}
-	names := make([]string, 0, len(grouped))
-	for name := range grouped {
-		names = append(names, name)
-		grouped[name] = append(grouped[name], notices[name]...)
+	// A project is listed once, whatever kinds of rule it holds. Only verdict
+	// rules make it executable through `check project`; support ranges are a
+	// capability of their own (`check batch`) and notices decide nothing, so a
+	// project holding only those is listed with a non-executable state rather
+	// than counted as executable or dropped.
+	seenNames := map[string]bool{}
+	names := []string{}
+	for _, byKind := range []map[string][]any{grouped, supportRanges, notices} {
+		for name := range byKind {
+			if !seenNames[name] {
+				seenNames[name] = true
+				names = append(names, name)
+			}
+		}
 	}
 	sort.Strings(names)
+	byRuleID := func(items []any) {
+		sort.Slice(items, func(i, j int) bool {
+			return items[i].(map[string]any)["ruleID"].(string) < items[j].(map[string]any)["ruleID"].(string)
+		})
+	}
 	projects := make([]map[string]any, 0, len(names))
 	for _, project := range names {
-		sort.Slice(grouped[project], func(i, j int) bool {
-			return grouped[project][i].(map[string]any)["ruleID"].(string) < grouped[project][j].(map[string]any)["ruleID"].(string)
-		})
+		verdictRules := append(append([]any(nil), grouped[project]...), notices[project]...)
+		byRuleID(verdictRules)
+		byRuleID(supportRanges[project])
+		byRuleID(notices[project])
 		preparer := map[string]any{"command": []any{"prepare", "project", "--project", project}, "metadataState": "implemented_native_effective_config_minimizer", "limit": "Requires caller-declared complete configuration with environment and CLI precedence resolved; unsupported syntax remains UNKNOWN."}
 		if project == "argo-workflows" {
 			preparer = map[string]any{"command": []any{"prepare", "project", "--project", project}, "metadataState": "implemented_native_kubernetes_workload_minimizer", "limit": "Requires a caller-declared complete selected-container argv, exact reviewed image, and explicit command or the reviewed exact-image ENTRYPOINT default; unsupported context remains UNKNOWN."}
@@ -1029,11 +1068,36 @@ func communityProjects(rules, registry map[string]any) ([]map[string]any, commun
 			}
 			preparer = map[string]any{"command": route.Command, "metadataState": route.MetadataState, "limit": route.Limit}
 		}
-		capability := map[string]any{"kind": "embedded_community_project_source_rule", "command": []any{"check", "project", "--project", project}, "rules": grouped[project], "metadataState": "embedded_active_source_rule_pack_no_external_update", "localPreparer": preparer}
-		if project == "loki" {
+		kind, state := "embedded_community_project_source_rule", "executable"
+		capabilityRules := verdictRules
+		if len(grouped[project]) == 0 {
+			// Only notices and/or support ranges: nothing `check project`
+			// can decide.
+			kind, capabilityRules = "embedded_community_project_one_way_notice", notices[project]
+			switch {
+			case len(supportRanges[project]) > 0 && len(notices[project]) > 0:
+				state = "support_range_and_notice_only"
+			case len(supportRanges[project]) > 0:
+				state = "support_range_only"
+			default:
+				state = "notice_only"
+			}
+		}
+		var capabilities []any
+		if len(capabilityRules) > 0 {
+			capability := map[string]any{"kind": kind, "command": []any{"check", "project", "--project", project}, "rules": capabilityRules, "metadataState": "embedded_active_source_rule_pack_no_external_update", "localPreparer": preparer}
+			if kind != "embedded_community_project_source_rule" {
+				capability["limit"] = "Informational one-way notice only: `check project` prints it and still exits 11 because no verdict rule decides the transition. This project is not counted as executable."
+			}
+			capabilities = append(capabilities, capability)
+		}
+		if len(supportRanges[project]) > 0 {
+			capabilities = append(capabilities, map[string]any{"kind": "embedded_community_project_support_range", "command": []any{"check", "batch"}, "rules": supportRanges[project], "metadataState": "embedded_active_source_rule_pack_canonical_input_declaring_dependency", "limit": "Support-range rules are decided only by `prufyx check batch` with a canonical input that declares the dependency component; the native `check project` route cannot declare it and lists them as not evaluated. They are not counted as an executable `check project` capability."})
+		}
+		if project == "loki" && len(capabilities) > 0 && capabilities[0].(map[string]any)["localPreparer"] != nil {
 			// Keep the established generic compactor preparer for v1 readers while
 			// exposing both independently selected native Loki routes to v2 readers.
-			capability["localPreparers"] = []any{
+			capabilities[0].(map[string]any)["localPreparers"] = []any{
 				preparer,
 				map[string]any{
 					"command":       []any{"check", "project", "--project", "loki", "--loki-schema-config", "FILE", "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved"},
@@ -1043,7 +1107,7 @@ func communityProjects(rules, registry map[string]any) ([]map[string]any, commun
 			}
 		}
 		id := identities[project]
-		projects = append(projects, map[string]any{"projectID": project, "displayName": id.name, "repositoryURL": id.repository, "supportState": "executable", "capabilities": []any{capability}, "selectedSourceRecords": []any{}})
+		projects = append(projects, map[string]any{"projectID": project, "displayName": id.name, "repositoryURL": id.repository, "supportState": state, "capabilities": capabilities, "selectedSourceRecords": []any{}})
 	}
 	return projects, counts, nil
 }
@@ -1506,6 +1570,7 @@ func Generate(cfg Config) ([]byte, string, error) {
 				return nil, "", invalid("invalid named capability union")
 			}
 			existing["capabilities"] = append(existingCaps, namedCaps...)
+			existing["supportState"] = "executable"
 			continue
 		}
 		projects[id] = item
@@ -1522,7 +1587,9 @@ func Generate(cfg Config) ([]byte, string, error) {
 	for id, records := range selectedByProject {
 		if projects[id] != nil {
 			projects[id]["selectedSourceRecords"] = records
-			projects[id]["supportState"] = "executable_with_selected_source_records"
+			if hasExecutableCapability(projects[id]) {
+				projects[id]["supportState"] = "executable_with_selected_source_records"
+			}
 		} else {
 			display := id
 			if identities[id].name != "" {
@@ -1535,8 +1602,7 @@ func Generate(cfg Config) ([]byte, string, error) {
 	executable, sourceOnly := 0, 0
 	for id, item := range projects {
 		names = append(names, id)
-		caps, _ := array(item["capabilities"])
-		if len(caps) > 0 {
+		if hasExecutableCapability(item) {
 			executable++
 		}
 		if item["supportState"] == "selected_source_only" {
@@ -1599,7 +1665,7 @@ func renderMarkdown(inventory map[string]any) string {
 	projects := inventory["projects"].([]any)
 	for _, rawProject := range projects {
 		project := rawProject.(map[string]any)
-		if project["supportState"] == "selected_source_only" {
+		if project["supportState"] == "selected_source_only" || !hasExecutableCapability(project) {
 			continue
 		}
 		labels, transitions, preparers, limits, evidence := []string{}, []string{}, []string{}, []string{}, []string{}
@@ -1666,6 +1732,29 @@ func renderMarkdown(inventory map[string]any) string {
 			return strings.Join(items, "<br>")
 		}
 		lines = append(lines, fmt.Sprintf("| [%s](<%s>) | %s | %s | %s | %s | %s |", markdownCell(project["displayName"].(string)), project["repositoryURL"], escapeJoin(labels), escapeJoin(transitions), strings.Join(uniqueSorted(evidence), "<br>"), preparerText, escapeJoin(uniqueSorted(limits))))
+	}
+	headerWritten := false
+	for _, rawProject := range projects {
+		project := rawProject.(map[string]any)
+		if project["supportState"] == "selected_source_only" || hasExecutableCapability(project) {
+			continue
+		}
+		if !headerWritten {
+			headerWritten = true
+			lines = append(lines, "", "## Projects with rules that decide no transition on their own", "", "These projects hold only one-way notices (informational, never a verdict) and/or support-range rules (decided only by `prufyx check batch` with a canonical input that declares the dependency). They are listed here rather than dropped, and are **not** counted as executable.", "", "| Project | State | Rule kinds and routes | Rules |", "| --- | --- | --- | --- |")
+		}
+		kinds, rules := []string{}, []string{}
+		caps, _ := array(project["capabilities"])
+		for _, rawCap := range caps {
+			cap := rawCap.(map[string]any)
+			kinds = append(kinds, fmt.Sprintf("`%s` via `prufyx %s`", cap["kind"], strings.Join(stringSlice(cap["command"]), " ")))
+			ruleItems, _ := array(cap["rules"])
+			for _, rawRule := range ruleItems {
+				rule := rawRule.(map[string]any)
+				rules = append(rules, fmt.Sprintf("`%s` (%s)", rule["ruleID"], rule["ruleKind"]))
+			}
+		}
+		lines = append(lines, fmt.Sprintf("| [%s](<%s>) | %s | %s | %s |", markdownCell(project["displayName"].(string)), project["repositoryURL"], project["supportState"], strings.Join(kinds, "<br>"), strings.Join(uniqueSorted(rules), "<br>")))
 	}
 	lines = append(lines, "", "## Selected-source-only projects", "", "These projects have retained public-source records but no executable check in this binary. They are **reference-only** and **license-unreviewed**, not upgrade support.", "", "| Project | Retained immutable source reference(s) | Metadata state |", "| --- | --- | --- |")
 	found := false

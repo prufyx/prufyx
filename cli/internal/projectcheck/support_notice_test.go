@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
-	"github.com/prufyx/prufyx/cli/internal/packparity"
+	"github.com/prufyx/prufyx/cli/internal/testsupport/packparity"
 )
 
 // These tests use synthetic support-range and one-way notice rules on the
@@ -376,6 +376,115 @@ func TestScopeAssessmentNeverPassesOnSupportRangeOrNotice(t *testing.T) {
 			}
 			if _, err := MarshalScopeReport(report); err != nil {
 				t.Fatalf("scope report not publishable: %v", err)
+			}
+		})
+	}
+}
+
+// TestNativeRouteLeavesOutSupportRangeItCannotDeclare: the reviewer's repro.
+// A scoped PASS plus a support-range rule whose dependency the native input
+// does not declare stays exit 0; the rule is listed as not evaluated with the
+// route that can decide it, never as an UNKNOWN nobody can resolve. The
+// generic (batch) route still evaluates it and fails closed.
+func TestNativeRouteLeavesOutSupportRangeItCannotDeclare(t *testing.T) {
+	pass := syntheticEntry(0, packparity.Pass)
+	support := supportEntry("grafana.synthetic-support", "1.38.0")
+	b, err := syntheticBundle(t, packSchemaSeverity, pass, support)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	noDependency := []byte(strings.NewReplacer(`,{"component":"`+k8sComponent+`","version":"1.37.0","facts":[]}`, "").Replace(string(syntheticInput())))
+
+	native, err := checkWithBundleRoute(b, "grafana", noDependency, now, "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(native.Check.Claims) != 1 || native.Check.Claims[0].Status != "PASS" || ClaimExit(native) != 0 {
+		t.Fatalf("native claims=%+v exit=%d", native.Check.Claims, ClaimExit(native))
+	}
+	if len(native.NotEvaluated) != 1 || native.NotEvaluated[0].RuleID != "grafana.synthetic-support" || native.NotEvaluated[0].ReasonCode != ReasonDependencyNotDeclarableOnRoute {
+		t.Fatalf("notEvaluated=%+v", native.NotEvaluated)
+	}
+	action := native.NotEvaluated[0].NextAction
+	if !strings.Contains(action, "not evaluated on this route") || !strings.Contains(action, "prufyx check batch") || !strings.Contains(action, "by hand") || strings.Contains(action, "--") || strings.Contains(action, "inspect local") {
+		t.Fatalf("action=%q", action)
+	}
+	sealed, err := MarshalReport(native)
+	if err != nil || !strings.Contains(string(sealed), `"notEvaluated"`) {
+		t.Fatalf("sealed report lost the not-evaluated rule: %v", err)
+	}
+
+	generic, err := checkWithBundle(b, "grafana", noDependency, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ClaimExit(generic) != 11 || len(generic.NotEvaluated) != 0 {
+		t.Fatalf("generic exit=%d notEvaluated=%+v", ClaimExit(generic), generic.NotEvaluated)
+	}
+
+	// A native input that does declare the dependency evaluates the rule.
+	declared, err := checkWithBundleRoute(b, "grafana", syntheticInput(), now, "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(declared.NotEvaluated) != 0 || ClaimExit(declared) != 11 {
+		t.Fatalf("declared exit=%d notEvaluated=%+v", ClaimExit(declared), declared.NotEvaluated)
+	}
+
+	// A project whose only rule is the unreachable support range has no
+	// decided claim: exit 11, with the next action naming the batch route.
+	only, err := syntheticBundle(t, packSchemaSeverity, support)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := checkWithBundleRoute(only, "grafana", noDependency, now, "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Check.Claims) != 0 || ClaimExit(report) != 11 || !strings.Contains(report.NextAction, "prufyx check batch") {
+		t.Fatalf("only-support claims=%+v exit=%d next=%q", report.Check.Claims, ClaimExit(report), report.NextAction)
+	}
+}
+
+// TestCommunityNoticeAndSupportRangeAdmissionIsTight: a notice or a support
+// range lists only the facts its appliesWhen guards read, and a support
+// range's dependency is never the project's own component.
+func TestCommunityNoticeAndSupportRangeAdmissionIsTight(t *testing.T) {
+	guard := `,"appliesWhen":[{"side":"proposed","component":"` + grafanaComponent + `","factId":"` + syntheticFactID + `","boolValue":false}]`
+	factList := []fact{{Side: "proposed", ID: syntheticFactID, Component: grafanaComponent, Type: constraintengine.FactBool, Description: "Synthetic declared fact."}}
+	withFacts := func(e entry, facts []fact) entry { e.RequiredFacts = facts; return e }
+	withGuard := func(rule string) string { return strings.Replace(rule, `,"evidence"`, guard+`,"evidence"`, 1) }
+	notice := noticeEntry("grafana.synthetic-notice")
+	support := supportEntry("grafana.synthetic-support", "1.38.0")
+	guardedNotice := notice
+	guardedNotice.Rule = json.RawMessage(withGuard(string(notice.Rule)))
+	guardedSupport := support
+	guardedSupport.Rule = json.RawMessage(withGuard(string(support.Rule)))
+
+	for name, tc := range map[string]struct {
+		schema string
+		entry  entry
+		ok     bool
+	}{
+		"notice with an unreferenced required fact":        {packSchemaNotice, withFacts(notice, factList), false},
+		"support range with an unreferenced required fact": {packSchemaSeverity, withFacts(support, factList), false},
+		"guarded notice with exactly its guard fact":       {packSchemaNotice, withFacts(guardedNotice, factList), true},
+		"guarded support range with exactly its guard":     {packSchemaSeverity, withFacts(guardedSupport, factList), true},
+		"guarded notice without the guard fact listed":     {packSchemaNotice, guardedNotice, false},
+		"support range on the project's own component": {packSchemaSeverity, func() entry {
+			own := support
+			own.Rule = json.RawMessage(strings.Replace(string(support.Rule), `"dependency":{"side":"proposed","component":"`+k8sComponent+`"`, `"dependency":{"side":"proposed","component":"`+grafanaComponent+`"`, 1))
+			return own
+		}(), false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := syntheticBundle(t, tc.schema, tc.entry)
+			if tc.ok && err != nil {
+				t.Fatalf("refused: %v", err)
+			}
+			if !tc.ok && !errors.Is(err, ErrIntegrity) {
+				t.Fatalf("accepted: %v", err)
 			}
 		})
 	}

@@ -76,6 +76,9 @@ func (r runtime) batch(args []string) int {
 	}
 	for _, item := range report.Items {
 		fmt.Fprintf(&output, "%s: %s (%s; %s; knowledge %s)\n", item.ID, item.Outcome, item.Category, item.ReasonCode, item.KnowledgeOrigin)
+		for _, note := range item.Notes() {
+			fmt.Fprintf(&output, "  %s\n", note)
+		}
 	}
 	fmt.Fprintln(&output, "compatibility decision: UNKNOWN")
 	if n, writeErr := r.stdout.Write(output.Bytes()); writeErr != nil || n != output.Len() {

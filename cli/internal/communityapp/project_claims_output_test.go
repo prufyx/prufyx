@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/projectcheck"
 )
 
 // TestProjectClaimsOutputNeverOverclaims: the human lines of a
@@ -31,18 +32,23 @@ func TestProjectClaimsOutputNeverOverclaims(t *testing.T) {
 		},
 		"notice with a verdict": {
 			claims:  []constraintengine.Claim{pass, notice},
-			want:    []string{"cannot be rolled back: addon.one-way", "before you upgrade: take a backup", communityNoticeScopeLine},
+			want:    []string{"cannot be rolled back: addon.one-way", "before you upgrade: take a backup", "evidence basis: reviewed by maintainer", noticeScopeLine},
 			notWant: []string{"no reviewed rule decided", "addon.one-way: NOTICE"},
+		},
+		"stale notice prints no scope line": {
+			claims:  []constraintengine.Claim{pass, constraintengine.Claim{RuleID: "addon.stale", Operator: constraintengine.OperatorNoticeOneWay, Status: "UNKNOWN", ReasonCode: "RULE_EVIDENCE_STALE", NextAction: "select later sources", EvidenceFreshness: "current"}},
+			want:    []string{"one-way notice not established: addon.stale (RULE_EVIDENCE_STALE)", "evidence basis: reviewed by maintainer"},
+			notWant: []string{noticeScopeLine},
 		},
 		"notice only": {
 			claims:  []constraintengine.Claim{notice},
-			want:    []string{"cannot be rolled back: addon.one-way", communityNoticeScopeLine, noVerdictLine},
+			want:    []string{"cannot be rolled back: addon.one-way", noticeScopeLine, noVerdictLine},
 			notWant: []string{"PASS"},
 		},
 		"notice that does not apply prints nothing": {
 			claims:  []constraintengine.Claim{pass, unmatchedNotice},
 			want:    []string{"addon.pass: PASS"},
-			notWant: []string{"addon.other", communityNoticeScopeLine, "cannot be rolled back"},
+			notWant: []string{"addon.other", noticeScopeLine, "cannot be rolled back"},
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -65,5 +71,20 @@ func TestProjectClaimsOutputNeverOverclaims(t *testing.T) {
 				t.Fatalf("output words something as safe:\n%s", text)
 			}
 		})
+	}
+}
+
+// TestNotEvaluatedSupportRangeIsListedWithItsAction: a support-range rule the
+// native route left out stays visible and names the route that can decide it,
+// never a flag that does not exist.
+func TestNotEvaluatedSupportRangeIsListedWithItsAction(t *testing.T) {
+	var out bytes.Buffer
+	writeNotEvaluated(&out, []projectcheck.NotEvaluatedRule{{RuleID: "addon.support", ReasonCode: projectcheck.ReasonDependencyNotDeclarableOnRoute, NextAction: "not evaluated on this route; use `prufyx check batch` with the dependency declared, or check the cited source by hand"}})
+	want := "addon.support: not evaluated on this route; use `prufyx check batch` with the dependency declared, or check the cited source by hand\n"
+	if out.String() != want {
+		t.Fatalf("output %q want %q", out.String(), want)
+	}
+	if strings.Contains(out.String(), "--") {
+		t.Fatalf("names a flag: %q", out.String())
 	}
 }
