@@ -27,6 +27,8 @@ type recordSet struct {
 	servedWindow, policyWindow  [2]string
 	attestationRules            func([]string) []string
 	extraServed                 []string
+	// requireBasis is passed to scan as --require-basis when not empty.
+	requireBasis string
 	// refused: the loader must refuse the pack; installRecords returns nil.
 	refused bool
 }
@@ -120,6 +122,11 @@ func TestScanFirstPassFromPackRecords(t *testing.T) {
 	if len(result.Report.Passes) == 0 {
 		t.Fatal("a pass names the rules that decided the hop")
 	}
+	// The PASS names the served list it relied on.
+	served := result.Report.Paths[0].ServedList
+	if served == nil || served.Line != "1.29" || served.Basis != "mechanical" || served.Freshness != "current" || served.ValidUntil != currentRecordWindow[1] || !strings.HasPrefix(served.Digest, "sha256:") || len(served.Digest) != len("sha256:")+64 {
+		t.Fatalf("served list %+v", served)
+	}
 	// A current path policy beside them changes nothing.
 	if result := scanHop(t, installRecords(t, recordSet{attestation: true, served: true, policy: true}), cronjobV1); result.Exit != scanreport.ExitPass {
 		t.Fatalf("with a path policy: exit %d gaps %v", result.Exit, gapReasons(result.Report))
@@ -140,6 +147,7 @@ func TestScanFirstPassNeedsEveryRecord(t *testing.T) {
 		{"stale line attestation", recordSet{attestation: true, served: true, window: staleRecordWindow, servedWindow: currentRecordWindow}, "LINE_NOT_ATTESTED", ""},
 		{"stale served list", recordSet{attestation: true, served: true, servedWindow: staleRecordWindow}, "API_VERSION_NOT_REVIEWED", "is not current (stale)"},
 		{"served list lacks the kind", recordSet{attestation: true, served: true, extraServed: nil}, "API_VERSION_NOT_REVIEWED", "does not list as served"},
+		{"served list on a basis the trust policy leaves out", recordSet{attestation: true, served: true, requireBasis: "reviewed"}, "API_VERSION_NOT_REVIEWED", "rests on basis mechanical"},
 		{"stale path policy", recordSet{attestation: true, served: true, policy: true, policyWindow: staleRecordWindow}, "PATH_POLICY_NOT_CURRENT", ""},
 	}
 	for _, tc := range cases {
@@ -148,7 +156,14 @@ func TestScanFirstPassNeedsEveryRecord(t *testing.T) {
 			if tc.name == "served list lacks the kind" {
 				manifest += "---\napiVersion: v1\nkind: ComponentStatus\nmetadata: {name: a}\n"
 			}
-			result := scanHop(t, installRecords(t, tc.set), manifest)
+			knowledge := installRecords(t, tc.set)
+			var result Result
+			if tc.set.requireBasis != "" {
+				_, paths := files(t, map[string]string{"applyset.yaml": manifest})
+				result = mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.28.6", "--to", "kubernetes=1.29.2", "--require-basis", tc.set.requireBasis)...)
+			} else {
+				result = scanHop(t, knowledge, manifest)
+			}
 			if result.Exit != scanreport.ExitUnknown || result.Report.Verdict == scanreport.VerdictPass {
 				t.Fatalf("exit %d verdict %s", result.Exit, result.Report.Verdict)
 			}
@@ -193,5 +208,35 @@ func TestScanFirstPassStillBlocksRemovedAPI(t *testing.T) {
 	old := "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: a}\nspec: {schedule: \"0 2 * * *\"}\n"
 	if result := scanHop(t, knowledge, old); result.Exit == scanreport.ExitPass || !hasGap(result.Report, "API_VERSION_NOT_SERVED", "") {
 		t.Fatalf("exit %d gaps %v", result.Exit, gapReasons(result.Report))
+	}
+}
+
+// TestScanServedListNamingRemovedAPIIsRefused: a served list for line L that
+// names an API the removal table marks as removed on a line at or below L
+// refuses the whole pack, so the SCOPE_COMPLETE_PASS it would have enabled
+// is unreachable: the shipped knowledge answers as it did before, and an
+// object at the removed version is still BLOCKED or a named gap.
+func TestScanServedListNamingRemovedAPIIsRefused(t *testing.T) {
+	removed := []string{
+		"flowcontrol.apiserver.k8s.io/v1beta2 FlowSchema",
+		"batch/v1beta1 CronJob",
+		"extensions/v1beta1 Ingress",
+	}
+	for _, pair := range append([]string{strings.Join(removed, "\x00")}, removed...) {
+		extra := strings.Split(pair, "\x00")
+		if installRecords(t, recordSet{attestation: true, served: true, extraServed: extra, refused: true}) != nil {
+			t.Fatalf("a served list naming %v was admitted", extra)
+		}
+	}
+	// The same pack without the removed names is admitted and passes.
+	if result := scanHop(t, installRecords(t, recordSet{attestation: true, served: true}), cronjobV1); result.Exit != scanreport.ExitPass {
+		t.Fatalf("clean list: exit %d gaps %v", result.Exit, gapReasons(result.Report))
+	}
+	// With the refused pack, an object at the removed target-line version
+	// cannot reach a pass.
+	removedObject := "apiVersion: flowcontrol.apiserver.k8s.io/v1beta2\nkind: FlowSchema\nmetadata: {name: a}\nspec: {priorityLevelConfiguration: {name: x}}\n"
+	installRecords(t, recordSet{attestation: true, served: true, extraServed: removed, refused: true})
+	if result := scanHop(t, mustEmbedded(t), cronjobV1+"---\n"+removedObject); result.Exit == scanreport.ExitPass || result.Report.Verdict == scanreport.VerdictPass {
+		t.Fatalf("exit %d verdict %s", result.Exit, result.Report.Verdict)
 	}
 }

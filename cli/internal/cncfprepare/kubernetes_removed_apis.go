@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/prufyx/prufyx/cli/internal/intake"
+	"github.com/prufyx/prufyx/cli/internal/k8sremovals"
 )
 
 const (
@@ -19,78 +20,13 @@ const (
 	ReasonKubernetesGVKVersionUnreviewed Reason = "KUBERNETES_GVK_VERSION_UNREVIEWED"
 )
 
-// kubernetesRemoval is one reviewed API removal: the named kinds in Group stop
-// being served at Removed when a cluster moves into the target minor line.
-// Served lists the versions of the same group and kinds that the cited source
-// names as still served across the whole target minor line, not only at its
-// first patch: Kubernetes removes served API versions only at minor releases,
-// and a test checks every Served version against the removals this table
-// records. A document of one of these kinds in any other version cannot
-// establish the fact either way, so the fact stays unsupported.
-type kubernetesRemoval struct {
-	Fact    string
-	Group   string
-	Kinds   []string
-	Removed string
-	Served  []string
-}
+// kubernetesRemoval is one reviewed API removal; the table lives in k8sremovals
+// so the pack loader can read it too.
+type kubernetesRemoval = k8sremovals.Removal
 
-// kubernetesRemovalsByTargetMinor maps a target minor line to the reviewed
-// removals that take effect when a cluster crosses into it. The default path
-// (kubernetesRemovalsForCrossedMinorLine) selects a line by crossing exactly
-// one minor boundary from any patch of the previous line to any patch of the
-// target line; the published rules carry a range that constrains which of
-// those crossings actually decide. kubernetesRemovalsForAnchor, the older,
-// narrower selector, is kept for kubernetesRemovalsByTransition and the drift
-// tests that compare the table against the rule pack's own anchors. The 1.32
-// line is handled by PrepareKubernetesFlowControl and deliberately absent
-// here.
-var kubernetesRemovalsByTargetMinor = map[string][]kubernetesRemoval{
-	"1.22": {
-		{Fact: "component.kubernetes.admissionwebhook_v1beta1_removed_gvk_present", Group: "admissionregistration.k8s.io", Kinds: []string{"MutatingWebhookConfiguration", "ValidatingWebhookConfiguration"}, Removed: "v1beta1", Served: []string{"v1"}},
-		{Fact: "component.kubernetes.crd_v1beta1_removed_gvk_present", Group: "apiextensions.k8s.io", Kinds: []string{"CustomResourceDefinition"}, Removed: "v1beta1", Served: []string{"v1"}},
-		{Fact: "component.kubernetes.apiservice_v1beta1_removed_gvk_present", Group: "apiregistration.k8s.io", Kinds: []string{"APIService"}, Removed: "v1beta1", Served: []string{"v1"}},
-		{Fact: "component.kubernetes.tokenreview_v1beta1_removed_gvk_present", Group: "authentication.k8s.io", Kinds: []string{"TokenReview"}, Removed: "v1beta1", Served: []string{"v1"}},
-		{Fact: "component.kubernetes.subjectaccessreview_v1beta1_removed_gvk_present", Group: "authorization.k8s.io", Kinds: []string{"LocalSubjectAccessReview", "SelfSubjectAccessReview", "SubjectAccessReview", "SelfSubjectRulesReview"}, Removed: "v1beta1", Served: []string{"v1"}},
-		{Fact: "component.kubernetes.csr_v1beta1_removed_gvk_present", Group: "certificates.k8s.io", Kinds: []string{"CertificateSigningRequest"}, Removed: "v1beta1", Served: []string{"v1"}},
-		{Fact: "component.kubernetes.lease_v1beta1_removed_gvk_present", Group: "coordination.k8s.io", Kinds: []string{"Lease"}, Removed: "v1beta1", Served: []string{"v1"}},
-		{Fact: "component.kubernetes.ingress_extensions_v1beta1_removed_gvk_present", Group: "extensions", Kinds: []string{"Ingress"}, Removed: "v1beta1", Served: nil},
-		{Fact: "component.kubernetes.ingress_networking_v1beta1_removed_gvk_present", Group: "networking.k8s.io", Kinds: []string{"Ingress"}, Removed: "v1beta1", Served: []string{"v1"}},
-		{Fact: "component.kubernetes.ingressclass_v1beta1_removed_gvk_present", Group: "networking.k8s.io", Kinds: []string{"IngressClass"}, Removed: "v1beta1", Served: []string{"v1"}},
-		{Fact: "component.kubernetes.rbac_v1beta1_removed_gvk_present", Group: "rbac.authorization.k8s.io", Kinds: []string{"ClusterRole", "ClusterRoleBinding", "Role", "RoleBinding"}, Removed: "v1beta1", Served: []string{"v1"}},
-		{Fact: "component.kubernetes.priorityclass_v1beta1_removed_gvk_present", Group: "scheduling.k8s.io", Kinds: []string{"PriorityClass"}, Removed: "v1beta1", Served: []string{"v1"}},
-		{Fact: "component.kubernetes.storage_v1beta1_removed_gvk_present", Group: "storage.k8s.io", Kinds: []string{"CSIDriver", "CSINode", "StorageClass", "VolumeAttachment"}, Removed: "v1beta1", Served: []string{"v1"}},
-	},
-	"1.37": {
-		{Fact: "component.kubernetes.ipaddress_servicecidr_v1beta1_removed_gvk_present", Group: "networking.k8s.io", Kinds: []string{"IPAddress", "ServiceCIDR"}, Removed: "v1beta1", Served: []string{"v1"}},
-		{Fact: "component.kubernetes.volumeattributesclass_v1beta1_removed_gvk_present", Group: "storage.k8s.io", Kinds: []string{"VolumeAttributesClass"}, Removed: "v1beta1", Served: []string{"v1"}},
-	},
-	"1.34": {
-		{Fact: "component.kubernetes.validatingadmissionpolicy_v1beta1_removed_gvk_present", Group: "admissionregistration.k8s.io", Kinds: []string{"ValidatingAdmissionPolicy", "ValidatingAdmissionPolicyBinding"}, Removed: "v1beta1", Served: []string{"v1"}},
-	},
-	"1.33": {
-		{Fact: "component.kubernetes.selfsubjectreview_v1beta1_removed_gvk_present", Group: "authentication.k8s.io", Kinds: []string{"SelfSubjectReview"}, Removed: "v1beta1", Served: []string{"v1"}},
-	},
-	"1.29": {
-		{Fact: "component.kubernetes.flowcontrol_v1beta2_removed_gvk_present", Group: "flowcontrol.apiserver.k8s.io", Kinds: []string{"FlowSchema", "PriorityLevelConfiguration"}, Removed: "v1beta2", Served: []string{"v1", "v1beta3"}},
-	},
-	"1.27": {
-		{Fact: "component.kubernetes.csistoragecapacity_v1beta1_removed_gvk_present", Group: "storage.k8s.io", Kinds: []string{"CSIStorageCapacity"}, Removed: "v1beta1", Served: []string{"v1"}},
-	},
-	"1.26": {
-		{Fact: "component.kubernetes.flowcontrol_v1beta1_removed_gvk_present", Group: "flowcontrol.apiserver.k8s.io", Kinds: []string{"FlowSchema", "PriorityLevelConfiguration"}, Removed: "v1beta1", Served: []string{"v1beta2", "v1beta3"}},
-		{Fact: "component.kubernetes.hpa_v2beta2_removed_gvk_present", Group: "autoscaling", Kinds: []string{"HorizontalPodAutoscaler"}, Removed: "v2beta2", Served: []string{"v2"}},
-	},
-	"1.25": {
-		{Fact: "component.kubernetes.cronjob_v1beta1_removed_gvk_present", Group: "batch", Kinds: []string{"CronJob"}, Removed: "v1beta1", Served: []string{"v1"}},
-		{Fact: "component.kubernetes.endpointslice_v1beta1_removed_gvk_present", Group: "discovery.k8s.io", Kinds: []string{"EndpointSlice"}, Removed: "v1beta1", Served: []string{"v1"}},
-		{Fact: "component.kubernetes.event_v1beta1_removed_gvk_present", Group: "events.k8s.io", Kinds: []string{"Event"}, Removed: "v1beta1", Served: []string{"v1"}},
-		{Fact: "component.kubernetes.hpa_v2beta1_removed_gvk_present", Group: "autoscaling", Kinds: []string{"HorizontalPodAutoscaler"}, Removed: "v2beta1", Served: []string{"v2"}},
-		{Fact: "component.kubernetes.pdb_v1beta1_removed_gvk_present", Group: "policy", Kinds: []string{"PodDisruptionBudget"}, Removed: "v1beta1", Served: []string{"v1"}},
-		{Fact: "component.kubernetes.psp_v1beta1_removed_gvk_present", Group: "policy", Kinds: []string{"PodSecurityPolicy"}, Removed: "v1beta1", Served: nil},
-		{Fact: "component.kubernetes.runtimeclass_v1beta1_removed_gvk_present", Group: "node.k8s.io", Kinds: []string{"RuntimeClass"}, Removed: "v1beta1", Served: []string{"v1"}},
-	},
-}
+// kubernetesRemovalsByTargetMinor is the reviewed removal table, keyed by the
+// target minor line that takes each removal effect (see k8sremovals).
+var kubernetesRemovalsByTargetMinor = k8sremovals.ByTargetMinor()
 
 // kubernetesRemovalsByTransition is the anchor-pair view of the table: each
 // target line M.m keyed by its M.(m-1).0 -> M.m.0 pair, the pair the reviewed

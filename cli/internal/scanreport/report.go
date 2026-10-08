@@ -116,6 +116,20 @@ type Path struct {
 	Hops   []Hop  `json:"hops"`
 	// Gap names why no plan exists; Hops is then empty.
 	Gap string `json:"gap,omitempty"`
+	// ServedList is the served-API list of the target line that a
+	// SCOPE_COMPLETE_PASS relied on; it is present only in a PASS report.
+	ServedList *ServedList `json:"servedList,omitempty"`
+}
+
+// ServedList names the served-API list a scan relied on: its line, basis,
+// freshness and validity, and the digest of the exact set of pairs it held
+// ("sha256:" over the sorted pairs, one per line).
+type ServedList struct {
+	Line       string `json:"line"`
+	Basis      string `json:"basis"`
+	Freshness  string `json:"freshness"`
+	ValidUntil string `json:"validUntil,omitempty"`
+	Digest     string `json:"digest"`
 }
 
 // Endpoint is an exact version or a whole release line.
@@ -351,6 +365,12 @@ func Finalize(report *Report) {
 	report.Summary.Leads = len(report.Leads)
 	report.Summary.Unsupported = len(report.Unsupported)
 	report.Verdict = verdict(*report)
+	if report.Verdict != VerdictPass {
+		// The served list is named only where a PASS rests on it.
+		for p := range report.Paths {
+			report.Paths[p].ServedList = nil
+		}
+	}
 	report.Headline = headline(*report)
 }
 

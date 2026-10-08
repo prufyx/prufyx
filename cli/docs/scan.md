@@ -403,6 +403,40 @@ See [scan-config.md](scan-config.md). A `prufyx.yaml` found among the inputs
 (for example inside the scanned directory) is listed as omitted with reason
 `CONFIG_DOCUMENT` and never evaluated as a manifest.
 
+## Served-API lists
+
+A served-API list is a record in the rule pack's `servedAPIs` member. For one
+Kubernetes release line it names every `apiVersion kind` pair the line serves
+(`apps/v1 Deployment`, `v1 ConfigMap`), and carries the same evidence basis,
+`reviewedAt` and `validUntil` as a line attestation. Scan relies on it only when
+it is for the target line, current and admitted by `--require-basis`; an object
+of a Kubernetes API group that it does not name is `API_VERSION_NOT_REVIEWED`.
+A pack that holds the member uses the schema
+`prufyx.io/cncf-source-rule-pack/v1alpha10` (see
+[upgrade-paths.md](upgrade-paths.md#in-a-knowledge-pack)); a pack without it is
+byte-for-byte what it was before. The built-in knowledge carries no list yet.
+
+The loader refuses the whole pack when a list for line L names an API that the
+removal table marks as removed on a line at or below L. The table covers the
+removals from 1.22 on; the loader also checks a separate list of the 1.16
+removals (`apps/v1beta1`, `apps/v1beta2`, `extensions/v1beta1`), taken from the
+upstream deprecation guide. A removal that is in neither list is not caught by
+the loader and rests on the list's review until the GATE-SERVED cross-check
+exists. A list is checked only on the target line: on a multi-hop path an
+object must also be served on the lines in between, which holds because the
+served set of an API only shrinks; the scan itself reports a removal from 1.22
+on that no hop crosses as `API_VERSION_NOT_SERVED`.
+
+When a `SCOPE_COMPLETE_PASS` rests on a list, the report's `paths[].servedList`
+names it: `line`, `basis`, `freshness`, `validUntil` and `digest`
+(`sha256:` over the list's sorted pairs, one per line). The member is not
+present in a report with another verdict.
+
+The external knowledge target format, `knowledge-targets build`, `evidence
+repin`, `evidence reattest` and the support inventory refuse a pack with the
+member, and the knowledge gate treats any change to it as a change to a
+top-level pack member, which it never admits.
+
 ## JSON
 
 `--format json` prints one object with schema `prufyx.io/scan-report/v1alpha1`,
@@ -410,7 +444,7 @@ described by [`generated/schemas/scan-report-v1alpha1.json`](generated/schemas/s
 `verdict` (`BLOCKED`, `UNKNOWN` or `SCOPE_COMPLETE_PASS`), `headline`,
 `summary`, `inventory`, `paths` (with every hop, its status, its engine input
 digest, the engine contract it was evaluated under and the line review it
-used), `findings`, `gaps`, `passes`, `omitted`
+used, and, in a pass, the [served-API list](#served-api-lists) it relied on), `findings`, `gaps`, `passes`, `omitted`
 (every document or file that was not evaluated, with the reason), `notices`
 (one-way changes; never part of the verdict), `leads` (unverified leads;
 never part of the verdict), `trustPolicy` (only when the trust policy left out

@@ -74,6 +74,21 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   covers the adapter projects too). A version is exact only over the images the
   registry can see: mirrored or rebuilt images are invisible (see
   `cli/docs/one-command-flow.md`).
+- Served-API lists (internal; the shipped knowledge carries none yet): the rule
+  pack may hold a top-level `servedAPIs` member, one list per Kubernetes release
+  line of the `apiVersion kind` pairs the line serves, and a pack that holds it
+  uses the schema `prufyx.io/cncf-source-rule-pack/v1alpha10`. Scan reads it to
+  tell an object the target line still serves from one nobody reviewed
+  (`API_VERSION_NOT_REVIEWED`). The loader refuses the whole pack when a list
+  for line L names an API that the removal table marks as removed at a line at
+  or below L. A `SCOPE_COMPLETE_PASS` report names the list it relied on in
+  `paths[].servedList` (line, basis, freshness, `validUntil` and a digest of the
+  sorted pairs); the member is absent from every other report. The external
+  knowledge target format, `knowledge-targets build`, `evidence repin`,
+  `evidence reattest` and the support inventory refuse a pack with the member,
+  and the knowledge gate never admits a change to it. See
+  [scan.md](cli/docs/scan.md#served-api-lists) and
+  [upgrade-paths.md](cli/docs/upgrade-paths.md#in-a-knowledge-pack).
 - `prufyx-maintainer knowledge-publish release`: one offline, deterministic step
   that builds a signed knowledge-database release (TUF targets, snapshot and
   timestamp, package and release plan) from the reviewed embedded knowledge,
@@ -118,6 +133,17 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- `prufyx-maintainer approval sign --subject lineAttestation` refuses what the
+  gate refuses: a record that is mechanical in the base and a change that only
+  shortens `validUntil`. `approval verify` for a line attestation or a repin
+  baseline now needs `--base-root DIR` (the base checkout) and refuses an
+  approval the base already holds or has superseded, before it prints OK.
+  `approval` refuses the baseline flags (`--repository`, `--base-baselines`,
+  `--head-baselines`) for the `rule` and `lineAttestation` subjects.
+  `approval verify --base-root` must be a base checkout: it needs the layout's
+  pack file and refuses a pack that differs from `--base-pack` or
+  `--base-baselines`. The pack loader also refuses a served list that names a
+  1.16 removal (`apps/v1beta1`, `apps/v1beta2`, `extensions/v1beta1`).
 - `prufyx assess --format json`: the collector progress lines ("Context …", "Created local API observation directory …", "Verify context files with …") now go to stderr, so stdout carries only the JSON report and parses as JSON.
 - `extract` file writes are never made through a symlink and no longer depend on
   the umask. `extract run` builds the output in a staging directory beside `--out`

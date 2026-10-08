@@ -58,7 +58,7 @@ func (f baselineSignFixture) signArgs(withBase bool, keyArgs ...string) []string
 }
 
 func (f baselineSignFixture) verifyArgs(withBase bool) []string {
-	return append(append([]string{"verify", "--approval", f.out()}, f.subjectArgs(withBase)...), "--now", gateNow.Format(time.RFC3339))
+	return append(append([]string{"verify", "--approval", f.out(), "--base-root", f.base.Root}, f.subjectArgs(withBase)...), "--now", gateNow.Format(time.RFC3339))
 }
 
 func TestApprovalSignRepinBaselineRoundTripThroughGate(t *testing.T) {
@@ -201,4 +201,18 @@ func TestApprovalVerifyRepinBaselineRefusesOtherSubjects(t *testing.T) {
 	writeBaselines(t, f.head, f.entry)
 	r := runApproval(t, nil, gateNow.Add(15*24*time.Hour), append(f.verifyArgs(false)[:len(f.verifyArgs(false))-2], "--now", gateNow.Add(15*24*time.Hour).Format(time.RFC3339))...)
 	requireCode(t, r, 1, "older than 14 days")
+}
+
+// verify for a baseline approval needs a real base checkout in --base-root
+// (the pack-versus-base-pack mismatch is covered for line attestations).
+func TestApprovalVerifyBaselineRefusesNonCheckoutBaseRoot(t *testing.T) {
+	f := newBaselineSignFixture(t)
+	requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.signArgs(false, "--key-stdin")...), 0, "approval written")
+	empty := f.verifyArgs(false)
+	empty[4] = t.TempDir()
+	r := runApproval(t, nil, gateNow, empty...)
+	requireCode(t, r, 2, "not a base checkout")
+	if strings.Contains(r.stdout, "approval OK") {
+		t.Fatal("verify printed OK against an empty base root")
+	}
 }

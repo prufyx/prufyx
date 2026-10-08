@@ -39,7 +39,7 @@ func (f signFixture) recordSignArgs(keyArgs ...string) []string {
 }
 
 func (f signFixture) recordVerifyArgs() []string {
-	return append([]string{"verify", "--approval", f.out()}, f.recordSubjectArgs(f.id)...)
+	return append([]string{"verify", "--approval", f.out(), "--base-root", f.base.Root}, f.recordSubjectArgs(f.id)...)
 }
 
 // A line attestation approval written by "approval sign" is admitted by the
@@ -175,6 +175,49 @@ func TestApprovalSignRecordKinds(t *testing.T) {
 	if _, err := AttestationApprovalSubject(spec, base, head, reviewedPolicyID); err == nil || !strings.Contains(err.Error(), "is not a line attestation") {
 		t.Fatalf("path policy: %v", err)
 	}
+
+	edit := func(t *testing.T, raw []byte, change func(doc map[string]any)) []byte {
+		t.Helper()
+		var doc map[string]any
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			t.Fatal(err)
+		}
+		change(doc)
+		out, err := json.Marshal(doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	// A mechanical base record turned reviewed: the gate refuses it ("evidence
+	// basis ... is not admitted here"), so the signer refuses to sign it.
+	reviewedHead := edit(t, withMechanical, func(doc map[string]any) {
+		ev := sectionRecord(doc, "lineAttestations", 1)["evidence"].(map[string]any)
+		ev["basis"] = "reviewed"
+		delete(ev, "extractor")
+		delete(ev, "derivedAt")
+		ev["validUntil"] = shiftTime(t, ev["validUntil"], 24*time.Hour)
+	})
+	if _, err := AttestationApprovalSubject(spec, withMechanical, reviewedHead, mechanicalAttestationID); err == nil || !strings.Contains(err.Error(), "mechanical in the base") {
+		t.Fatalf("mechanical base: %v", err)
+	}
+	// A change that only shortens validUntil is tightening: it needs no
+	// approval, and an approval file for it fails the gate.
+	shortened := edit(t, base, func(doc map[string]any) {
+		ev := sectionRecord(doc, "lineAttestations", 0)["evidence"].(map[string]any)
+		ev["validUntil"] = shiftTime(t, ev["validUntil"], -24*time.Hour)
+	})
+	if _, err := AttestationApprovalSubject(spec, base, shortened, reviewedAttestationID); err == nil || !strings.Contains(err.Error(), "not loosening") {
+		t.Fatalf("tightening edit: %v", err)
+	}
+	// Control: the same record with a later validUntil is loosening and signs.
+	extended := edit(t, base, func(doc map[string]any) {
+		ev := sectionRecord(doc, "lineAttestations", 0)["evidence"].(map[string]any)
+		ev["validUntil"] = shiftTime(t, ev["validUntil"], 24*time.Hour)
+	})
+	if s, err := AttestationApprovalSubject(spec, base, extended, reviewedAttestationID); err != nil || s.Base == nil {
+		t.Fatalf("loosening edit: %+v %v", s, err)
+	}
 }
 
 // A signed record approval follows the gate's single-use and forward-only
@@ -213,6 +256,8 @@ func TestApprovalSignAttestationSingleUseAndForwardOnly(t *testing.T) {
 	}
 	writeFile(t, approvalPath(f.base, f.id), spent) // an earlier change used it
 	refused("already in the base")
+	// "approval verify" says the same before it says OK.
+	requireCode(t, runApproval(t, nil, gateNow, f.recordVerifyArgs()...), 1, "already in the base")
 
 	if err := os.Remove(f.out()); err != nil {
 		t.Fatal(err)
@@ -272,5 +317,59 @@ func TestApprovalSignSubjectFlagCombinations(t *testing.T) {
 		g := f
 		g.id = "bad id"
 		requireCode(t, runApproval(t, f.key.pemKey(t), signNow, g.recordSignArgs("--key-stdin")...), 2, "not a valid approval record ID")
+	})
+	// The baseline flags belong to --subject repinBaseline only.
+	for _, flag := range [][]string{
+		{"--repository", "owner/repo"},
+		{"--head-baselines", "head.json"},
+		{"--base-baselines", "base.json"},
+	} {
+		t.Run("record with baseline flag "+flag[0], func(t *testing.T) {
+			args := append(f.recordSignArgs("--key-stdin"), flag...)
+			requireCode(t, runApproval(t, f.key.pemKey(t), signNow, args...), 2, "belong to --subject repinBaseline")
+		})
+		t.Run("rule with baseline flag "+flag[0], func(t *testing.T) {
+			g := newRuleFixture(t)
+			args := append(g.signArgs("--key-stdin"), flag...)
+			requireCode(t, runApproval(t, g.key.pemKey(t), signNow, args...), 2, "belong to --subject repinBaseline")
+		})
+	}
+	t.Run("baseline with the record flag", func(t *testing.T) {
+		g := newBaselineSignFixture(t)
+		args := append(g.signArgs(false, "--key-stdin"), "--record", "x")
+		requireCode(t, runApproval(t, g.key.pemKey(t), signNow, args...), 2, "--record")
+	})
+	// verify checks the base's approvals, so it needs the base checkout for
+	// the subjects the gate checks them for, and refuses it for a rule.
+	t.Run("verify without the base checkout", func(t *testing.T) {
+		requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.recordSignArgs("--key-stdin")...), 0, "approval written")
+		args := f.recordVerifyArgs()
+		args = append(args[:3], args[5:]...) // drop --base-root DIR
+		requireCode(t, runApproval(t, nil, gateNow, args...), 2, "--base-root is required")
+	})
+	// --base-root must be a base checkout: an empty directory (or one whose
+	// pack differs from --base-pack) is an error, never "approval OK".
+	t.Run("verify with an empty base root", func(t *testing.T) {
+		g := attestationFixture(t)
+		requireCode(t, runApproval(t, g.key.pemKey(t), signNow, g.recordSignArgs("--key-stdin")...), 0, "approval written")
+		args := g.recordVerifyArgs()
+		args[4] = t.TempDir()
+		r := runApproval(t, nil, gateNow, args...)
+		requireCode(t, r, 2, "not a base checkout")
+		if strings.Contains(r.stdout, "approval OK") {
+			t.Fatal("verify printed OK against an empty base root")
+		}
+	})
+	t.Run("verify with a base root whose pack differs from --base-pack", func(t *testing.T) {
+		g := attestationFixture(t)
+		requireCode(t, runApproval(t, g.key.pemKey(t), signNow, g.recordSignArgs("--key-stdin")...), 0, "approval written")
+		args := g.recordVerifyArgs()
+		args[4] = g.head.Root // a checkout, but not the base the pack came from
+		requireCode(t, runApproval(t, nil, gateNow, args...), 2, "differs from")
+	})
+	t.Run("verify a rule with a base checkout", func(t *testing.T) {
+		g := newRuleFixture(t)
+		args := append(g.verifyArgs(""), "--base-root", g.base.Root)
+		requireCode(t, runApproval(t, nil, gateNow, args...), 2, "--base-root belongs to")
 	})
 }
