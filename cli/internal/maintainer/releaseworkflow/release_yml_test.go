@@ -3,8 +3,11 @@
 package releaseworkflow
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"crypto/sha256"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -236,11 +239,45 @@ func TestReleaseWorkflowArchivesAreReproducible(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			checkArchiveMembers(t, name, raw)
 			sum := sha256.Sum256(raw)
 			if previous, ok := digests[name]; ok && previous != sum {
 				t.Errorf("%s.tar.gz differs between two builds of the same tree", name)
 			}
 			digests[name] = sum
 		}
+	}
+}
+
+// checkArchiveMembers requires the layout install.sh expects (NAME/ and
+// NAME/<binary>) with normalized metadata on every member.
+func checkArchiveMembers(t *testing.T, name string, raw []byte) {
+	t.Helper()
+	zr, err := gzip.NewReader(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if zr.Name != "" || !zr.ModTime.IsZero() {
+		t.Errorf("%s: gzip header stores name %q or time %v", name, zr.Name, zr.ModTime)
+	}
+	tr := tar.NewReader(zr)
+	var members []string
+	for {
+		h, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		members = append(members, h.Name)
+		if h.Uid != 0 || h.Gid != 0 || h.Uname != "" || h.Gname != "" || h.ModTime.Unix() != 1700000000 || h.Mode&0o7777 != 0o755 {
+			t.Errorf("%s: member %s has uid %d gid %d uname %q gname %q mtime %v mode %o", name, h.Name, h.Uid, h.Gid, h.Uname, h.Gname, h.ModTime, h.Mode)
+		}
+	}
+	binary := strings.SplitN(name, "_", 2)[0]
+	want := []string{name + "/", name + "/a-extra", name + "/b-extra", name + "/" + binary}
+	if strings.Join(members, ",") != strings.Join(want, ",") {
+		t.Errorf("%s: members %v, want %v", name, members, want)
 	}
 }

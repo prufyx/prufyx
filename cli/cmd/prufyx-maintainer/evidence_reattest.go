@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
@@ -258,7 +259,7 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	flags.StringVar(&trustRootDigest, "trust-root-digest", "", "the trust root's digest as independently known to the caller, sha256:... (never derived from --trust-root itself)")
 	flags.StringVar(&nextRevision, "next-revision", "", "new pack revision string for rules.next.json")
 	flags.StringVar(&reviewRecordDir, "review-record-dir", "", "directory of <ruleId>.json individual review records, one per rule (absolute path; optional)")
-	flags.StringVar(&outputDir, "output-dir", "", "new directory to write statement.json, rules.next.json, and summary.txt into")
+	flags.StringVar(&outputDir, "output-dir", "", "new directory to write statement.json, rules.next.json, and summary.txt into (absolute path; must not exist)")
 	flags.StringVar(&baselinesPath, "baselines", "", "the owner baseline file (absolute path); a rule is renewed on an owner-chosen baseline only if this file holds that exact entry (human mode)")
 	flags.StringVar(&nowFlag, "now", "", "REHEARSAL ONLY: override the clock (exact UTC RFC3339). The statement is marked as a rehearsal and sign and verify refuse it")
 	flags.StringVar(&attestedAtFlag, "attested-at", "", "exact UTC RFC3339 attestation instant, not in the future (default: now)")
@@ -339,17 +340,13 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 		return &commandError{code: 2, message: "evidence reattest prepare: rejected", printed: true}
 	}
 
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		return evidenceReattestError()
-	}
-	if err := os.WriteFile(filepath.Join(outputDir, "statement.json"), append(append([]byte(nil), result.StatementCanonical...), '\n'), 0o644); err != nil {
-		return evidenceReattestError()
-	}
-	if err := os.WriteFile(filepath.Join(outputDir, "rules.next.json"), result.NextPack, 0o644); err != nil {
-		return evidenceReattestError()
-	}
-	if err := os.WriteFile(filepath.Join(outputDir, "summary.txt"), result.Summary, 0o644); err != nil {
-		return evidenceReattestError()
+	if err := writeNewOutputDir(outputDir, []outputFile{
+		{"statement.json", append(append([]byte(nil), result.StatementCanonical...), '\n')},
+		{"rules.next.json", result.NextPack},
+		{"summary.txt", result.Summary},
+	}); err != nil {
+		fmt.Fprintln(stderr, "evidence reattest prepare: --output-dir must name a new directory (not an existing path or symbolic link) in a writable directory")
+		return &commandError{code: 2, message: "evidence reattest prepare: rejected", printed: true}
 	}
 	fmt.Fprintf(stdout, "evidence reattest prepare: mode=%s signerRole=%s eligible=%d sampled=%d notExtended=%d\n",
 		*mode, result.Statement.SignerRole, result.EligibleRuleCount, result.SampledRuleCount, result.NotExtendedRuleCount)
@@ -376,7 +373,7 @@ func runEvidenceReattestSign(args []string, stdout, stderr io.Writer) error {
 	flags.StringVar(&keyEnv, "key-env", "", "automation role only: name of an environment variable holding the encrypted signing key PEM")
 	flags.StringVar(&passphrasePath, "passphrase-file", "", "automation role only: file holding the key's passphrase (absolute path, mode 0600, owned by the current user; one trailing newline is ignored)")
 	flags.StringVar(&passphraseEnv, "passphrase-env", "", "automation role only: name of an environment variable holding the key's passphrase")
-	flags.StringVar(&output, "output", "", "new statement.sig.json output path")
+	flags.StringVar(&output, "output", "", "new statement.sig.json output path (absolute path; must not exist)")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
 			_, e := fmt.Fprintln(stdout, evidenceReattestSignUsage)
@@ -450,8 +447,11 @@ func runEvidenceReattestSign(args []string, stdout, stderr io.Writer) error {
 		fmt.Fprintf(stderr, "evidence reattest sign: %v\n", err)
 		return &commandError{code: 2, message: "evidence reattest sign: rejected", printed: true}
 	}
-	if err := os.WriteFile(output, append(append([]byte(nil), envelope...), '\n'), 0o644); err != nil {
-		return evidenceReattestError()
+	// The signature is a new file: an existing file or symbolic link at
+	// --output is never replaced or written through.
+	if err := writeNewFile(output, append(append([]byte(nil), envelope...), '\n')); err != nil {
+		fmt.Fprintln(stderr, "evidence reattest sign: --output must name a new file (not an existing path or symbolic link) in a writable directory")
+		return &commandError{code: 2, message: "evidence reattest sign: rejected", printed: true}
 	}
 	fmt.Fprintf(stdout, "evidence reattest sign: signed (role %s)\n", role)
 	return nil
@@ -714,4 +714,96 @@ func rulesWorklistPathOrDefault(rulesWorklistPath, priorPackPath string) string 
 		return priorPackPath
 	}
 	return rulesWorklistPath
+}
+
+// outputFile is one file of a new output directory.
+type outputFile struct {
+	name string
+	data []byte
+}
+
+// reattestOutputFault is a test hook that fails the write of one output
+// file; it is nil in production.
+var reattestOutputFault func(name string) error
+
+// writeNewOutputDir creates dir, which must not exist, holding exactly
+// files, or leaves nothing. The files are written with explicit modes into
+// a private staging directory next to dir, synced, and the staging
+// directory is then renamed to dir with rename(2) itself: that never
+// follows a symbolic link at dir and fails on anything there except an
+// empty directory, so no existing output is replaced or written through.
+func writeNewOutputDir(dir string, files []outputFile) (err error) {
+	if !filepath.IsAbs(dir) || filepath.Clean(dir) != dir || filepath.Dir(dir) == dir {
+		return knowledgesign.ErrRejected
+	}
+	parent := filepath.Dir(dir)
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		return err
+	}
+	if _, err := os.Lstat(dir); !errors.Is(err, os.ErrNotExist) {
+		return os.ErrExist
+	}
+	stage, err := os.MkdirTemp(parent, ".prufyx-reattest-")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = os.RemoveAll(stage)
+		}
+	}()
+	for _, file := range files {
+		if reattestOutputFault != nil {
+			if err := reattestOutputFault(file.name); err != nil {
+				return err
+			}
+		}
+		if err := writeExclusive(filepath.Join(stage, file.name), file.data); err != nil {
+			return err
+		}
+	}
+	if err := os.Chmod(stage, 0o755); err != nil {
+		return err
+	}
+	if err := syncPath(stage); err != nil {
+		return err
+	}
+	// os.Rename refuses an existing directory itself; the system call is
+	// used so that the outcome is exactly rename(2)'s.
+	if err := syscall.Rename(stage, dir); err != nil {
+		return err
+	}
+	return syncPath(parent)
+}
+
+// writeExclusive creates path, which must not exist, with mode 0644 whatever
+// the umask, and syncs it. O_EXCL never follows a symbolic link.
+func writeExclusive(path string, data []byte) error {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	if err := file.Chmod(0o644); err != nil {
+		file.Close()
+		return err
+	}
+	if _, err := file.Write(data); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		file.Close()
+		return err
+	}
+	return file.Close()
+}
+
+func syncPath(path string) error {
+	dir, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	syncErr := dir.Sync()
+	closeErr := dir.Close()
+	return errors.Join(syncErr, closeErr)
 }
