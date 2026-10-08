@@ -8,14 +8,31 @@
           "name": "prufyx",
           "version": "development",
           "informationUri": "https://github.com/prufyx/prufyx",
-          "rules": []
+          "rules": [
+            {
+              "id": "prufyx/gap/LINE_NOT_ATTESTED",
+              "shortDescription": {
+                "text": "Area not checked: LINE_NOT_ATTESTED"
+              },
+              "help": {
+                "text": "Prufyx could not decide this area (LINE_NOT_ATTESTED), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "basis": "none",
+                "kind": "gap"
+              }
+            }
+          ]
         }
       },
       "invocations": [
         {
           "executionSuccessful": true,
           "exitCode": 11,
-          "exitCodeDescription": "NO BLOCKERS FOUND IN COVERED CHECKS: 2 areas were not checked",
+          "exitCodeDescription": "UNKNOWN: no blocker in the checks that ran; 2 areas were not checked (see NOT CHECKED)",
           "startTimeUtc": "2026-11-20T00:00:00Z",
           "toolExecutionNotifications": [
             {
@@ -49,16 +66,78 @@
           ]
         }
       ],
-      "results": [],
+      "results": [
+        {
+          "ruleId": "prufyx/gap/LINE_NOT_ATTESTED",
+          "ruleIndex": 0,
+          "level": "warning",
+          "message": {
+            "text": "no review confirms that the removed-API rules for kubernetes 1.28 name every API that line removes - check the kubernetes 1.28 release notes for other removed APIs by hand, or request a line review"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "applyset.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "b5a1e1c9640fe753d7a4b74a2882a9560f73c10dd65437524e47c667272df5cc"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "1.27 -> 1.28",
+            "basis": "none",
+            "match": "gap"
+          }
+        },
+        {
+          "ruleId": "prufyx/gap/LINE_NOT_ATTESTED",
+          "ruleIndex": 0,
+          "level": "warning",
+          "message": {
+            "text": "no review confirms that the removed-API rules for kubernetes 1.30 name every API that line removes - check the kubernetes 1.30 release notes for other removed APIs by hand, or request a line review"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "applyset.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "a0f2ce79425e4bf83a37be633aea44ff53afa2fc9f96826b563da9f4ca72389d"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "1.29 -> 1.30.4",
+            "basis": "none",
+            "match": "gap"
+          }
+        }
+      ],
       "properties": {
         "verdict": "UNKNOWN",
-        "headline": "NO BLOCKERS FOUND IN COVERED CHECKS: 2 areas were not checked",
+        "headline": "UNKNOWN: no blocker in the checks that ran; 2 areas were not checked (see NOT CHECKED)",
         "summary": {
           "blockers": 0,
           "gaps": 2,
           "passes": 11,
           "componentsDetected": 1,
           "componentsCovered": 1,
+          "componentsWithRules": 1,
           "hops": 6,
           "documentsRead": 2,
           "documentsOmitted": 0,
