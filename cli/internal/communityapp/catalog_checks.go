@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/checkroutemetadata"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
 var catalogProjectToken = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
@@ -61,16 +62,25 @@ func (r runtime) catalogChecks(args []string) int {
 	return ExitOK
 }
 
-// renderCatalogCheck prints one check's human-readable listing. A range
-// match (item.MatchMode == "range": the query pair fell inside the rule's
-// reviewed range rather than at its reviewed anchor) prints the match mode
-// and never the native route's exact-pair command, which is always pinned to
-// the anchor and would misdescribe the queried pair.
+// catalogMatchModes are the non-anchor match modes a listing can carry.
+var catalogMatchModes = map[string]string{
+	"range":    "query pair falls inside the reviewed range, not the reviewed anchor",
+	"crossing": "query pair crosses this rule's removal release within its reviewed horizon, not the reviewed anchor",
+	constraintengine.MatchModeBoundaryUnreviewed: "the queried pair crosses this rule's release boundary outside its reviewed range; no reviewed rule covers it",
+}
+
+// renderCatalogCheck prints one check's human-readable listing. A non-anchor
+// match prints its match mode and never the native route's exact-pair command,
+// which is always pinned to the anchor and would misdescribe the queried
+// pair: "range" (the pair falls inside the rule's reviewed range), "crossing"
+// (the pair crosses the rule's removal release within its reviewed horizon)
+// and "boundary-unreviewed" (the pair crosses the rule's release boundary
+// outside every reviewed region, so no reviewed rule covers it).
 func renderCatalogCheck(out io.Writer, item checkroutemetadata.Check) {
 	fmt.Fprintf(out, "%s %s %s -> %s\n", item.Project, item.RuleID, item.From, item.To)
-	if item.MatchMode == "range" {
-		fmt.Fprintf(out, "  match mode: range (query pair falls inside the reviewed range, not the reviewed anchor)\n")
-		fmt.Fprintf(out, "  native route: not shown for a range match; the native command is pinned to the reviewed anchor pair\n")
+	if description, ok := catalogMatchModes[item.MatchMode]; ok {
+		fmt.Fprintf(out, "  match mode: %s (%s)\n", item.MatchMode, description)
+		fmt.Fprintf(out, "  native route: not shown for a %s match; the native command is pinned to the reviewed anchor pair\n", item.MatchMode)
 	} else if item.NativeDescriptor.State == checkroutemetadata.DescriptorExact {
 		fmt.Fprintf(out, "  native route: %s\n", renderCatalogCommand(item.NativeDescriptor.Command))
 		if item.NativeDescriptor.NativePass != "" {

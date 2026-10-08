@@ -50,6 +50,36 @@ func TestRenderCatalogCheckRangeMatchShowsModeNotAnchorCommand(t *testing.T) {
 	}
 }
 
+// BOUNDARY-1 F2: a pair that crosses a rule's release boundary outside every
+// reviewed region is listed with its match mode and no native route: the
+// anchor-pinned command would let the operator read the anchor verdict as
+// covering the queried hop. The crossing mode is suppressed the same way.
+func TestRenderCatalogCheckNonAnchorModesNeverShowAnchorCommand(t *testing.T) {
+	for _, mode := range []string{"range", "crossing", "boundary-unreviewed"} {
+		item := checkroutemetadata.Check{
+			Project: "kubernetes", RuleID: "kubernetes.example", From: "1.24.0", To: "1.25.0",
+			MatchMode: mode,
+			NativeDescriptor: checkroutemetadata.Route{
+				State:   checkroutemetadata.DescriptorExact,
+				Command: []checkroutemetadata.Argument{{Kind: "literal", Literal: "check"}, {Kind: "literal", Literal: "cncf"}},
+			},
+			GenericDeclarationRoute: checkroutemetadata.Route{State: checkroutemetadata.RouteExposed},
+		}
+		var buf bytes.Buffer
+		renderCatalogCheck(&buf, item)
+		out := buf.String()
+		if !strings.Contains(out, "match mode: "+mode+" (") {
+			t.Errorf("%s: output missing the match mode: %q", mode, out)
+		}
+		if strings.Contains(out, "prufyx check cncf") {
+			t.Errorf("%s: output printed the anchor-pinned native command: %q", mode, out)
+		}
+		if mode == "boundary-unreviewed" && !strings.Contains(out, "no reviewed rule covers it") {
+			t.Errorf("%s: output does not say the pair is unreviewed: %q", mode, out)
+		}
+	}
+}
+
 func TestCatalogChecksPublicRouteReportsExactNativeBindings(t *testing.T) {
 	t.Parallel()
 	tests := []struct{ project, from, to, ruleID string }{
