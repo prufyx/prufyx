@@ -34,6 +34,14 @@ const (
 	// extraction contract for cross-target verification, not a signature.
 	IdentityMarkerPrefix = "PRUFYX_BUILD_IDENTITY_V1_BEGIN|"
 	IdentityMarkerSuffix = "|PRUFYX_BUILD_IDENTITY_V1_END"
+
+	// UnpinnedTrustRoot is the only trust root value a release identity may
+	// carry. A binary is built before any signed statement that could pin a
+	// root exists, and nothing in the binary verifies the field, so a digest
+	// here would be an unverifiable trust claim copied into `prufyx version`
+	// and every report. The knowledge trust root the binary actually
+	// enforces is internal/knowledgepin, not this field.
+	UnpinnedTrustRoot = "UNPINNED"
 )
 
 // These variables are the only linker inputs for release identity. Keep them
@@ -200,8 +208,13 @@ type linkerValues struct {
 	buildProfile, buildEpoch, trustRootDigest                  string
 }
 
+// isDevelopment requires every linker input, the embedded marker included,
+// to be at its development default: a release marker in an otherwise
+// development binary would be accepted by a verifier that extracts the
+// marker bytes while the binary itself reports a development build.
 func (v linkerValues) isDevelopment() bool {
-	return v.version == DevelopmentVersion &&
+	return EmbeddedIdentity == DevelopmentValue &&
+		v.version == DevelopmentVersion &&
 		v.sourceRevision == DevelopmentValue &&
 		v.sourceTreeDigest == DevelopmentValue &&
 		v.allowlistDigest == DevelopmentValue &&
@@ -229,11 +242,15 @@ func (v linkerValues) validate() error {
 	if _, err := epochInstant(v.buildEpoch); err != nil {
 		return err
 	}
-	if v.trustRootDigest != "UNPINNED" && v.trustRootDigest != "unpinned" && !digestRE.MatchString(v.trustRootDigest) {
-		return invalid("trustRootDigest", v.trustRootDigest, "sha256:<64 lowercase hex characters> or UNPINNED")
+	if v.trustRootDigest != UnpinnedTrustRoot {
+		return invalid("trustRootDigest", v.trustRootDigest, UnpinnedTrustRoot)
 	}
 	return nil
 }
+
+// ValidVersion reports whether value is a version a release identity
+// accepts: a semantic version, optionally with a leading "v".
+func ValidVersion(value string) bool { return semverRE.MatchString(value) }
 
 // IsReleaseProfile reports whether profile is one of the two Linux profiles
 // produced by the strict, signed-release pipeline

@@ -26,14 +26,32 @@ jobs:
           - goos: darwin
             goarch: arm64
     steps:
+      # The tag must be one the binary's build identity accepts (the grammar
+      # of internal/buildidentity); anything else stops before a build.
+      - name: Check the tag
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          semver='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'
+          if ! [[ "${VERSION}" =~ ${semver} ]]; then
+            echo "The tag is not a v-prefixed semantic version; nothing was built."
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
+      # No cache: a tag build can restore caches that other workflow runs on
+      # the default branch wrote, and a poisoned Go build cache entry would be
+      # linked into a binary that is then attested as built from the tag.
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: cli/go.mod
-          cache-dependency-path: cli/go.sum
+          cache: false
 
       - name: Build binaries
         working-directory: cli
@@ -91,8 +109,27 @@ jobs:
             -o dist/prufyx-collector_${VERSION}_${GOOS}_${GOARCH}/prufyx-collector \
             ./cmd/prufyx-collector
 
-          tar -C dist -czf "dist/prufyx_${VERSION}_${GOOS}_${GOARCH}.tar.gz" "prufyx_${VERSION}_${GOOS}_${GOARCH}"
-          tar -C dist -czf "dist/prufyx-collector_${VERSION}_${GOOS}_${GOARCH}.tar.gz" "prufyx-collector_${VERSION}_${GOOS}_${GOARCH}"
+          # The binary must carry exactly the identity computed above. The
+          # native target also runs its own identity check (exit 0 only when
+          # every field and the embedded marker validate).
+          bin="dist/prufyx_${VERSION}_${GOOS}_${GOARCH}/prufyx"
+          if ! LC_ALL=C grep -q -a -F -- "${EMBEDDED_IDENTITY}" "${bin}"; then
+            echo "The built binary does not carry the computed build identity."
+            exit 1
+          fi
+          if [ "${GOOS}/${GOARCH}" = "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
+            "${bin}" version > /dev/null
+          fi
+
+          # BEGIN deterministic archives: the same tag gives the same bytes
+          # (member order, mtimes from the tagged commit, numeric root owner,
+          # normalized modes, no gzip name or time).
+          for name in "prufyx_${VERSION}_${GOOS}_${GOARCH}" "prufyx-collector_${VERSION}_${GOOS}_${GOARCH}"; do
+            tar --sort=name --format=gnu --mtime="@${BUILD_EPOCH}" \
+              --owner=0 --group=0 --numeric-owner --mode='u+rwX,go+rX,go-w' \
+              -C dist -cf - "${name}" | gzip -n > "dist/${name}.tar.gz"
+          done
+          # END deterministic archives
 
       - name: Upload archives
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
