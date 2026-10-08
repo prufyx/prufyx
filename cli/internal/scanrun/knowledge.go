@@ -110,7 +110,13 @@ type ServedStatus struct {
 // line. A pack without one yields no list, so every Kubernetes API group
 // document is a named gap.
 func (k Embedded) ServedAPIs(component, line string, now time.Time) ServedStatus {
-	status, found := k.ScanKnowledge.ServedAPIsFor(component, line, now)
+	return servedStatus(k.ScanKnowledge, component, line, now)
+}
+
+// servedStatus reads a served-API list from a knowledge snapshot (the
+// embedded pack, or the targets opened from a knowledge database).
+func servedStatus(snapshot *cncfcheck.ScanKnowledge, component, line string, now time.Time) ServedStatus {
+	status, found := snapshot.ServedAPIsFor(component, line, now)
 	if !found {
 		return ServedStatus{}
 	}

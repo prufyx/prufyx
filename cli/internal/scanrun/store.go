@@ -203,11 +203,12 @@ func (k *Store) PathPolicyFor(component string, now time.Time) upgradepath.Statu
 	return k.snapshot.PathPolicyFor(component, now)
 }
 
-// ServedAPIs: the knowledge database format carries no served lists yet,
-// so every Kubernetes API group document is a named gap, as with the
-// embedded knowledge.
+// ServedAPIs returns the database's served-API list for the component and
+// line: only the opened target of the component's project may hold one. A
+// database without one yields no list, so every Kubernetes API group
+// document is a named gap, as with the embedded knowledge.
 func (k *Store) ServedAPIs(component, line string, now time.Time) ServedStatus {
-	return ServedStatus{}
+	return servedStatus(k.snapshot, component, line, now)
 }
 
 // KnowledgeAge is the end dates of the active rules of the opened targets.
