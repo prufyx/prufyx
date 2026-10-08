@@ -280,18 +280,14 @@ func (b *baseApprovals) refuseBatch(head BatchEnvelope) (string, error) {
 	for _, e := range head.Record.Entries {
 		for _, base := range batches {
 			for _, be := range base.env.Record.Entries {
-				if be.key() == e.key() && later(base.env.Record.DecidedAt) {
+				if sameDecisionOf(be.Subject, be.Pack, be.ID, e.Subject, e.Pack, e.ID) && later(base.env.Record.DecidedAt) {
 					return fmt.Sprintf("the base holds a decision about %s %s/%s made at the same time or later (%s): an earlier or concurrent decision cannot replace it", e.Subject, e.Pack, logSafe(e.ID), logSafe(base.path)), nil
 				}
 			}
 		}
-		subject := ""
-		if e.Subject == BatchSubjectLineAttestation {
-			subject = ApprovalSubjectLineAttestation
-		}
 		for _, base := range list {
 			r := base.env.Record
-			if r.Subject == subject && r.Pack == e.Pack && r.RuleID == e.ID && later(r.DecidedAt) {
+			if sameDecisionOf(approvalBatchSubject(r.Subject), r.Pack, r.RuleID, e.Subject, e.Pack, e.ID) && later(r.DecidedAt) {
 				return fmt.Sprintf("the base holds an approval for %s %s/%s decided at the same time or later (%s): an earlier or concurrent decision cannot replace it", e.Subject, e.Pack, logSafe(e.ID), logSafe(base.path)), nil
 			}
 		}
@@ -299,10 +295,32 @@ func (b *baseApprovals) refuseBatch(head BatchEnvelope) (string, error) {
 	return "", nil
 }
 
-// batchRecordDecision is the base batch entry deciding record id at the
-// same time as or after at, for a per-entry record approval's forward-only
-// check.
-func (b *baseApprovals) batchRecordDecision(subject, id string, at time.Time, atErr error) (string, error) {
+// approvalBatchSubject maps the subject of a per-entry approval ("" for a
+// rule) to the subject of a batch entry.
+func approvalBatchSubject(subject string) string {
+	if subject == "" {
+		return BatchSubjectRule
+	}
+	return subject
+}
+
+// sameDecisionOf reports whether two decisions are about the same thing. A
+// rule id belongs to its pack, so rules compare by pack and id. A record id
+// is a hash of the record's component, family and line only (it does not
+// name a pack), so records compare by id alone, whichever pack a decision
+// sits in: forward-only is then the same in every direction between
+// per-entry approvals and batches.
+func sameDecisionOf(aSubject, aPack, aID, bSubject, bPack, bID string) bool {
+	if aSubject != bSubject || aID != bID {
+		return false
+	}
+	return aSubject != BatchSubjectRule || aPack == bPack
+}
+
+// batchRecordDecision is the base batch entry deciding the same rule (in
+// pack) or record (in any pack) as at the same time or after at, for a
+// per-entry approval's forward-only check.
+func (b *baseApprovals) batchRecordDecision(subject, pack, id string, at time.Time, atErr error) (string, error) {
 	batches, err := b.loadBatches()
 	if err != nil {
 		return "", err
@@ -310,19 +328,30 @@ func (b *baseApprovals) batchRecordDecision(subject, id string, at time.Time, at
 	for _, base := range batches {
 		bt, err := time.Parse(time.RFC3339, base.env.Record.DecidedAt)
 		for _, e := range base.env.Record.Entries {
-			if e.Subject == subject && e.ID == id && (atErr != nil || err != nil || !at.After(bt)) {
-				return "the base holds a batch decision about this record made at the same time or later (" + logSafe(base.path) + "): an earlier or concurrent decision cannot replace it", nil
+			if sameDecisionOf(e.Subject, e.Pack, e.ID, subject, pack, id) && (atErr != nil || err != nil || !at.After(bt)) {
+				return "the base holds a batch decision about this " + subject + " made at the same time or later (" + logSafe(base.path) + "): an earlier or concurrent decision cannot replace it", nil
 			}
 		}
 	}
 	return "", nil
 }
 
+// BatchRetention is how long a batch file stays in the tree after its
+// notAfter: a batch is also the "decided at the same time or later" evidence
+// that refuses an older per-entry approval (rules and records) and an older
+// batch, and such an approval stays usable for MaxApprovalAge from its own
+// decidedAt, which is never later than the batch's. Deleting the file any
+// earlier would let an owner-signed approval the batch superseded verify
+// again. The clock skew is the gate's tolerance for a signer clock ahead.
+const BatchRetention = MaxApprovalAge + approvalClockSkew
+
 // batchPathReason is the knowledge-records rule for a file in the batch
 // directory: it may be added only as the batch this run admitted; a base
-// batch file is never changed, and removed only once it can no longer
-// verify (its notAfter has passed), so the base keeps every batch that
-// could still be replayed.
+// batch file is never changed, and removed only once nothing it could refuse
+// can verify any more: BatchRetention after its notAfter. The directory is
+// read with a bound of maxBatchFiles, so the signer refuses to add a batch
+// to a directory close to it (see batchDirRoom); pruning is then possible
+// well before every read fails closed.
 func batchPathReason(opts Options, p string, batch *batchResult) string {
 	inBase, inHead := opts.Base.Exists(p), opts.Head.Exists(p)
 	switch {
@@ -338,8 +367,8 @@ func batchPathReason(opts Options, p string, batch *batchResult) string {
 			return ""
 		}
 		until, err := time.Parse(time.RFC3339, env.Record.NotAfter)
-		if err != nil || opts.Now.Before(until) {
-			return "a batch approval may not be removed while it could still verify"
+		if err != nil || opts.Now.Before(until.Add(BatchRetention)) {
+			return "a batch approval may not be removed until 14 days after it expired: until then it still refuses older approvals of its entries"
 		}
 		return ""
 	case batch == nil || !batch.ok || batch.path != p:

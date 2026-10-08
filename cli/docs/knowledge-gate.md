@@ -456,8 +456,13 @@ Sign it with `prufyx-maintainer approval sign --subject repinBaseline`, see
   when it can no longer verify.
 - `cli/knowledge/approvals/batches/<batch id>.json` may be added only as the
   batch approval the same run admits. A batch file in the base is never
-  changed, and removed only after its `notAfter` (when it can no longer
-  verify), so the base keeps every batch that could be replayed.
+  changed, and removed only 14 days and five minutes after its `notAfter`: a
+  batch is also the evidence that refuses an older per-entry approval (which
+  stays usable for 14 days from its own `decidedAt`, never later than the
+  batch's) and an older batch, so it is kept until no such approval can verify.
+  The directory is read with a bound of 4096 files; the signer refuses to add
+  a batch to one with fewer than 256 files of room left, and the owner prunes
+  expired batches (after that retention) before it fills.
 - Any other file under these directories fails the `knowledge-records` check.
 
 ## File layout
@@ -803,9 +808,12 @@ The gate admits the batch only when all of these hold:
 - it is used once and only forward: the base holds no batch with the same
   batch id, signed record or signature (whatever the file name or encoding),
   and for no entry does the base hold a per-entry approval or a batch entry
-  decided at the same time or later. This holds for rules as well as
-  records. A per-entry record approval decided at or before a base batch
-  entry for the same record is refused too.
+  decided at the same time or later. The same holds the other way: a
+  per-entry approval, of a rule or of a record, decided at or before a base
+  batch entry for it is refused. A rule is the rule of its pack; a record id
+  names no pack, so records compare across all packs, in both directions. A
+  per-entry rule approval is otherwise not single use: it is bounded by its
+  base digest and its 14 days.
 
 Each line attestation entry must also pass the extractor cross-check, as with
 a per-entry approval. Admitted entries have the proof `batch-approval`; every
@@ -827,11 +835,19 @@ op read "op://…/web-approval-key" | prufyx-maintainer approval sign --batch \
 
 The command classifies the change with the gate's code and refuses one with
 no reviewed change, more than 50, or a change no batch may hold. It prints the
-review summary: every entry in a table, every other change of the change, and
-in full (base and proposed JSON) each sampled entry and each entry that
-reactivates a rule, changes its basis or changes its range. Characters outside
-printable ASCII are shown escaped. It then asks, on the terminal, for the
-batch id; anything else aborts and nothing is written. It signs, runs the
+review summary, counts first: every entry in a table, the other changes of the
+change (counts by class, then at most 100 rows; the change-set digest binds
+all of them), and in full (base and proposed JSON) each sampled entry and each
+entry that reactivates a rule, changes its basis, its range or anything else
+of an existing entry (`modify`). Characters outside printable ASCII are shown
+escaped. It refuses before anything else a change that touches a path a batch
+may not touch (the check the gate makes). Before it asks anything it settles
+the signer, and it then asks, on the terminal, for the batch id; the prompt
+itself states the identity, the key id, the validity window, the number of
+entries, the numbers of the entries to read in full and the number of other
+changes, so none of it can be scrolled away or redirected. Anything but the
+batch id aborts and nothing is written. The displayed summary is the signed
+summary only if the signing binary is honest: build it from the base branch. It signs, runs the
 gate's offline batch checks on the result and against the base's batches,
 and writes `cli/knowledge/approvals/batches/<batch id>.json` under `--head`
 (or `--output`, which must end in `batches/<batch id>.json`); an existing file
@@ -844,7 +860,7 @@ validity.
 | `--batch-id` | `b-YYYYMMDD-N` |
 | `--candidate-id` | a reference for the change, such as its pull request |
 | `--keys`, `--keys-digest`, `--identity`, `--key`, `--key-stdin` | as for a per-entry approval |
-| `--summary-out FILE` | also write the summary to a new file |
+| `--summary-out FILE` | also write the summary to a new file (created exclusively, never through a symbolic link) |
 
 ```sh
 prufyx-maintainer approval verify --batch cli/knowledge/approvals/batches/b-20261207-1.json \

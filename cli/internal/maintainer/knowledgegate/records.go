@@ -533,7 +533,7 @@ func (b *baseApprovals) refuse(raw []byte) (string, error) {
 	// A batch decision about the record counts too: an approval older
 	// than a merged batch entry for the record cannot replace it.
 	if head.Record.Subject != "" {
-		return b.batchRecordDecision(head.Record.Subject, head.Record.RuleID, headAt, headErr)
+		return b.batchRecordDecision(head.Record.Subject, head.Record.Pack, head.Record.RuleID, headAt, headErr)
 	}
 	return "", nil
 }

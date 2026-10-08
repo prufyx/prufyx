@@ -51,25 +51,9 @@ func SignBatch(o SignBatchOptions) ([]byte, BatchRecord, error) {
 		return nil, BatchRecord{}, errors.New("a batch is valid for one minute to 72 hours")
 	}
 	now := o.Now.UTC().Truncate(time.Second)
-	keyID := ApprovalKeyID(o.Key.Public().(ed25519.PublicKey))
-	var pinned *ApprovalKey
-	for i := range o.Keys.Keys {
-		if o.Keys.Keys[i].KeyID == keyID {
-			pinned = &o.Keys.Keys[i]
-		}
-	}
-	if pinned == nil {
-		return nil, BatchRecord{}, fmt.Errorf("the signing key %s is not pinned in the approval key file", keyID)
-	}
-	if notAfter, err := time.Parse(time.RFC3339, pinned.NotAfter); err != nil || !now.Before(notAfter) {
-		return nil, BatchRecord{}, fmt.Errorf("the signing key %s expired at %s", keyID, pinned.NotAfter)
-	}
-	owner := false
-	for _, login := range o.Keys.Owners {
-		owner = owner || login == o.Identity
-	}
-	if !owner {
-		return nil, BatchRecord{}, fmt.Errorf("%s is not an owner in the approval key file", logSafe(o.Identity))
+	keyID, err := checkBatchSigner(o.Keys, o.Key, o.Identity, now)
+	if err != nil {
+		return nil, BatchRecord{}, err
 	}
 	rec := o.Draft
 	rec.Identity, rec.Decision = o.Identity, ApprovalDecisionApprove
@@ -85,6 +69,72 @@ func SignBatch(o SignBatchOptions) ([]byte, BatchRecord, error) {
 		return nil, BatchRecord{}, err
 	}
 	return append(raw, '\n'), rec, nil
+}
+
+// checkBatchSigner refuses a key that is not pinned or has expired at now and
+// an identity that is not a pinned owner, and returns the key id. The signing
+// command runs it before it asks for the confirmation, so the owner is never
+// asked about a batch that cannot be signed.
+func checkBatchSigner(keys ApprovalKeys, key ed25519.PrivateKey, identity string, now time.Time) (string, error) {
+	keyID := ApprovalKeyID(key.Public().(ed25519.PublicKey))
+	var pinned *ApprovalKey
+	for i := range keys.Keys {
+		if keys.Keys[i].KeyID == keyID {
+			pinned = &keys.Keys[i]
+		}
+	}
+	if pinned == nil {
+		return "", fmt.Errorf("the signing key %s is not pinned in the approval key file", keyID)
+	}
+	if notAfter, err := time.Parse(time.RFC3339, pinned.NotAfter); err != nil || !now.Before(notAfter) {
+		return "", fmt.Errorf("the signing key %s expired at %s", keyID, pinned.NotAfter)
+	}
+	owner := false
+	for _, login := range keys.Owners {
+		owner = owner || login == identity
+	}
+	if !owner {
+		return "", fmt.Errorf("%s is not an owner in the approval key file", logSafe(identity))
+	}
+	return keyID, nil
+}
+
+// outsideBatchPaths lists the paths the change touches that a change
+// carrying a batch may not: everything but the pack files, their corpus
+// attestations, the generated support inventory and the batch file.
+func outsideBatchPaths(layout Layout, base, head Tree, batchPath string) ([]string, error) {
+	paths, err := ChangedPaths(base, head)
+	if err != nil {
+		return nil, err
+	}
+	allowed := batchAllowedPaths(layout, batchPath)
+	var outside []string
+	for _, p := range paths {
+		if !allowed[p] {
+			outside = append(outside, p)
+		}
+	}
+	return outside, nil
+}
+
+// batchDirHeadroom is how many batch files below maxBatchFiles the signer
+// still signs one more. Past it, every read of the directory would soon fail
+// closed, so the owner prunes first (a batch file may be removed 14 days
+// after it expired, see BatchRetention).
+const batchDirHeadroom = 256
+
+// batchDirRoom refuses to add a batch to a directory that is nearly full.
+func batchDirRoom(layout Layout, trees ...Tree) error {
+	for _, tr := range trees {
+		entries, err := os.ReadDir(filepath.Join(tr.Root, filepath.FromSlash(layout.BatchDir)))
+		if err != nil {
+			continue // no directory yet
+		}
+		if len(entries) >= maxBatchFiles-batchDirHeadroom {
+			return fmt.Errorf("%s holds %d batch files, close to the limit of %d the gate reads; remove the batches that expired more than 14 days ago first", logSafe(tr.Root), len(entries), maxBatchFiles)
+		}
+	}
+	return nil
 }
 
 // confirmOnTTY asks on the controlling terminal (standard input carries the
@@ -198,6 +248,19 @@ func cmdBatchSign(args []string, env approvalEnv, layout Layout, stdout io.Write
 	if err != nil {
 		return 2, err
 	}
+	// The gate refuses a batch change that touches anything but the packs,
+	// their corpus attestations, the generated inventory and the batch file:
+	// say so before a key use, a nonce and a confirmation are spent on it.
+	outside, err := outsideBatchPaths(layout, base, head, layout.BatchDir+"/"+batchID+".json")
+	if err != nil {
+		return 2, err
+	}
+	if len(outside) > 0 {
+		return 2, fmt.Errorf("the change also touches %d files a batch change may not touch%s", len(outside), listDetail(outside))
+	}
+	if err := batchDirRoom(layout, base, head); err != nil {
+		return 2, err
+	}
 	keys, err := loadKeysFile(keysPath, keysDigest)
 	if err != nil {
 		return 2, err
@@ -221,6 +284,13 @@ func cmdBatchSign(args []string, env approvalEnv, layout Layout, stdout io.Write
 	if env.random == nil || env.confirm == nil {
 		return 2, errors.New("no source of randomness or terminal to confirm on")
 	}
+	// The signer, the key and the validity window are settled and shown
+	// before the owner is asked for anything: they are signed too.
+	now := env.now().UTC().Truncate(time.Second)
+	keyID, err := checkBatchSigner(keys, key, identity, now)
+	if err != nil {
+		return 2, err
+	}
 	nonceBytes := make([]byte, batchNonceHexBytes)
 	if _, err := io.ReadFull(env.random, nonceBytes); err != nil {
 		return 2, errors.New("the review nonce cannot be drawn")
@@ -235,18 +305,26 @@ func cmdBatchSign(args []string, env approvalEnv, layout Layout, stdout io.Write
 	}
 	fmt.Fprintln(stdout, summary)
 	if summaryOut != "" {
-		if err := os.WriteFile(summaryOut, []byte(summary), 0o644); err != nil {
+		// Created exclusively, never through a symbolic link, like the
+		// batch file.
+		if err := writeApprovalFile(summaryOut, []byte(summary)); err != nil {
 			return 2, err
 		}
+		fmt.Fprintf(stdout, "review summary written: %s\n", logSafe(summaryOut))
 	}
-	answer, err := env.confirm(fmt.Sprintf("Sign batch %s: %d entries become reviewed knowledge. Type the batch id to sign, anything else aborts: ", batchID, len(draft.Entries)))
+	notAfter := now.Add(validFor)
+	// The prompt goes to the terminal, so it stays in front of the owner
+	// whatever happens to standard output.
+	prompt := fmt.Sprintf("Signer %s, key %s. Valid %s to %s (%s). %d entries become reviewed knowledge; read in full: sample %s, flagged %s; %d other changes are not approved.\nType the batch id %s to sign, anything else aborts: ",
+		logSafe(identity), keyID, now.Format("2006-01-02T15:04:05Z"), notAfter.Format("2006-01-02T15:04:05Z"), validFor, len(draft.Entries),
+		indexList(draft.Sample), indexList(st.flaggedIndexes(draft)), othersCount(st, draft), batchID)
+	answer, err := env.confirm(prompt)
 	if err != nil {
 		return 2, err
 	}
 	if answer != batchID {
 		return 2, errors.New("not confirmed; nothing was signed or written")
 	}
-	now := env.now()
 	raw, rec, err := SignBatch(SignBatchOptions{Draft: draft, Identity: identity, Keys: keys, Key: key, Now: now, ValidFor: validFor})
 	if err != nil {
 		return 2, err
@@ -267,6 +345,18 @@ func cmdBatchSign(args []string, env approvalEnv, layout Layout, stdout io.Write
 	fmt.Fprintf(stdout, "batch approval written: %s\n", logSafe(output))
 	printBatch(stdout, rec, keys, keyIDOf(raw))
 	return 0, nil
+}
+
+// indexList formats entry numbers for the prompt.
+func indexList(idx []int) string {
+	if len(idx) == 0 {
+		return "none"
+	}
+	parts := make([]string, len(idx))
+	for i, n := range idx {
+		parts[i] = fmt.Sprintf("#%d", n)
+	}
+	return strings.Join(parts, " ")
 }
 
 func mustDecodeBatch(raw []byte) BatchEnvelope {
@@ -345,16 +435,9 @@ func cmdBatchVerify(args []string, env approvalEnv, layout Layout, stdout io.Wri
 	if err != nil {
 		return refused(err.Error())
 	}
-	paths, err := ChangedPaths(base, head)
+	outside, err := outsideBatchPaths(layout, base, head, layout.BatchDir+"/"+name)
 	if err != nil {
 		return 2, err
-	}
-	allowed := batchAllowedPaths(layout, layout.BatchDir+"/"+name)
-	var outside []string
-	for _, p := range paths {
-		if !allowed[p] {
-			outside = append(outside, p)
-		}
 	}
 	if len(outside) > 0 {
 		return refused(fmt.Sprintf("the change also touches %d files a batch change may not touch%s", len(outside), listDetail(outside)))

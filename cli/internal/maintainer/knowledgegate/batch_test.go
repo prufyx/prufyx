@@ -513,12 +513,29 @@ func TestBatchFilesAreKept(t *testing.T) {
 		if err := os.Remove(batchFilePath(head, testBatchID+".json")); err != nil {
 			t.Fatal(err)
 		}
-		if c := recordsCheck(t, Options{}); c.OK || !strings.Contains(c.Detail, "could still verify") {
+		if c := recordsCheck(t, Options{}); c.OK || !strings.Contains(c.Detail, "14 days after it expired") {
 			t.Fatalf("%+v", c)
 		}
 	})
-	t.Run("removed once expired", func(t *testing.T) {
-		if c := recordsCheck(t, Options{Now: signNow.Add(MaxBatchValidity)}); !c.OK {
+	// A batch is also the evidence that refuses an older per-entry
+	// approval, which stays usable for MaxApprovalAge: the file is kept for
+	// that long after its notAfter (plus the gate's clock skew).
+	notAfter := signNow.Add(MaxBatchValidity)
+	t.Run("removed right after expiry", func(t *testing.T) {
+		if c := recordsCheck(t, Options{Now: notAfter}); c.OK || !strings.Contains(c.Detail, "14 days after it expired") {
+			t.Fatalf("%+v", c)
+		}
+		if c := recordsCheck(t, Options{Now: notAfter.Add(MaxApprovalAge)}); c.OK {
+			t.Fatalf("removable at notAfter + 14 days without the skew: %+v", c)
+		}
+	})
+	t.Run("removed one second before the retention ends", func(t *testing.T) {
+		if c := recordsCheck(t, Options{Now: notAfter.Add(BatchRetention - time.Second)}); c.OK {
+			t.Fatalf("%+v", c)
+		}
+	})
+	t.Run("removed once the retention is over", func(t *testing.T) {
+		if c := recordsCheck(t, Options{Now: notAfter.Add(BatchRetention)}); !c.OK {
 			t.Fatalf("%+v", c)
 		}
 	})

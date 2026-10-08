@@ -340,11 +340,11 @@ func TestAdmitReviewedNeedsRenewedRule(t *testing.T) {
 	base, head := trees(t)
 	c := &Change{Pack: "cncf", RuleID: "some.rule", head: &entry{RuleID: "some.rule"}}
 	opts := Options{Layout: DefaultLayout(), Base: base, Head: head, Now: gateNow}
-	admitReviewed(c, statementResult{OK: true, Renewed: map[string]bool{"other.rule": true}}, func() (*ApprovalKeys, error) { return nil, nil }, nil, opts)
+	admitReviewed(c, statementResult{OK: true, Renewed: map[string]bool{"other.rule": true}}, func() (*ApprovalKeys, error) { return nil, nil }, nil, nil, opts)
 	if c.OK || !strings.Contains(c.Detail, "does not renew this rule") {
 		t.Fatalf("%+v", c)
 	}
-	admitReviewed(c, statementResult{OK: true, Renewed: map[string]bool{"some.rule": true}}, nil, nil, opts)
+	admitReviewed(c, statementResult{OK: true, Renewed: map[string]bool{"some.rule": true}}, nil, nil, nil, opts)
 	if !c.OK || c.Proof != ProofReattestation {
 		t.Fatalf("%+v", c)
 	}

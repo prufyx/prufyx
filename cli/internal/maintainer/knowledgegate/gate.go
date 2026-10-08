@@ -479,7 +479,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 			}
 			mechanical = append(mechanical, c)
 		case constraintengine.BasisReviewed:
-			admitReviewed(c, statements[c.Pack], loadKeys, batch, opts)
+			admitReviewed(c, statements[c.Pack], loadKeys, batch, approvals, opts)
 		case constraintengine.BasisConsensus:
 			c.fail("consensus evidence has no verifier in this gate; not admitted")
 			consensusChecks.report(ctx, c, opts)
@@ -532,7 +532,7 @@ func baseCanonical(c *Change) []byte {
 	return c.base.Canonical
 }
 
-func admitReviewed(c *Change, stmt statementResult, loadKeys func() (*ApprovalKeys, error), batch *batchResult, opts Options) {
+func admitReviewed(c *Change, stmt statementResult, loadKeys func() (*ApprovalKeys, error), batch *batchResult, approvals *baseApprovals, opts Options) {
 	if batch != nil {
 		if batch.admits(c) {
 			c.OK, c.Proof = true, ProofBatchApproval
@@ -568,12 +568,32 @@ func admitReviewed(c *Change, stmt statementResult, loadKeys func() (*ApprovalKe
 			reasons = append(reasons, err.Error())
 		} else if err := VerifyApproval(raw, *keys, c.Pack, c.RuleID, baseCanonical(c), c.head.Canonical, opts.Now); err != nil {
 			reasons = append(reasons, err.Error())
+		} else if why, err := ruleApprovalBehindBatch(raw, c, approvals); err != nil {
+			reasons = append(reasons, err.Error())
+		} else if why != "" {
+			reasons = append(reasons, why)
 		} else {
 			c.OK, c.Proof = true, ProofApproval
 			return
 		}
 	}
 	c.fail("a reviewed rule may loosen only with a verified reattestation statement or owner approval: " + strings.Join(reasons, "; "))
+}
+
+// ruleApprovalBehindBatch says why a verified per-entry approval of a rule
+// may not be used: the base holds a batch entry for the same rule decided at
+// the same time or later. Decisions only move forward for rules as for
+// records, in both directions between the two mechanisms.
+func ruleApprovalBehindBatch(raw []byte, c *Change, approvals *baseApprovals) (string, error) {
+	if approvals == nil {
+		return "", nil
+	}
+	env, err := decodeApproval(raw)
+	if err != nil {
+		return "", err
+	}
+	at, atErr := time.Parse(time.RFC3339, env.Record.DecidedAt)
+	return approvals.batchRecordDecision(BatchSubjectRule, c.Pack, c.RuleID, at, atErr)
 }
 
 // rederiveAll re-derives every active mechanical head rule the change did

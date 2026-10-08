@@ -345,6 +345,32 @@ type changeSetItem struct {
 	Head    string   `json:"head"`
 }
 
+// changeSetDigestOf is the digest the change-set field of a batch holds.
+// The signer and the gate compute it with this function; the golden vector
+// test pins its format.
+func changeSetDigestOf(changes []changeSetItem, chainsChanged []string, paused bool) (string, error) {
+	set := struct {
+		Changes       []changeSetItem `json:"changes"`
+		ChainsChanged []string        `json:"chainsChanged"`
+		Paused        bool            `json:"paused"`
+	}{Changes: append([]changeSetItem{}, changes...), ChainsChanged: append([]string{}, chainsChanged...), Paused: paused}
+	return domainDigest(batchChangeDomain, set)
+}
+
+// batchCitation is one entry's cited sources as the citations digest binds
+// them.
+type batchCitation struct {
+	Pack    string          `json:"pack"`
+	Subject string          `json:"subject"`
+	ID      string          `json:"id"`
+	Sources json.RawMessage `json:"sources"`
+}
+
+// citationsDigestOf is the digest the citations field of a batch holds.
+func citationsDigestOf(list []batchCitation) (string, error) {
+	return domainDigest(batchCitesDomain, append([]batchCitation{}, list...))
+}
+
 func (c *Change) canonicalSides() (base, head []byte) {
 	if c.Section != "" {
 		if c.rbase != nil {
@@ -372,17 +398,13 @@ func newBatchState(layout Layout, cls *Classification) (*batchState, error) {
 		st.packs = append(st.packs, BatchPack{Pack: spec.Name, Base: fileDigest(cls.base[spec.Name]), Head: fileDigest(cls.head[spec.Name])})
 	}
 	sort.Slice(st.packs, func(i, j int) bool { return st.packs[i].Pack < st.packs[j].Pack })
-	set := struct {
-		Changes       []changeSetItem `json:"changes"`
-		ChainsChanged []string        `json:"chainsChanged"`
-		Paused        bool            `json:"paused"`
-	}{Changes: []changeSetItem{}, ChainsChanged: append([]string{}, cls.ChainsChanged...), Paused: cls.Paused}
+	var changes []changeSetItem
 	for _, name := range cls.ChainsChanged {
 		st.problems = append(st.problems, "the reattestation statement chain of "+name+" changed")
 	}
 	for _, c := range cls.Changes {
 		b, h := c.canonicalSides()
-		set.Changes = append(set.Changes, changeSetItem{Pack: c.Pack, Section: c.Section, Member: c.Member, ID: c.RuleID, Class: c.Class, Kinds: c.Kinds, Basis: c.Basis, Project: c.Project, Base: canonicalDigest(b), Head: canonicalDigest(h)})
+		changes = append(changes, changeSetItem{Pack: c.Pack, Section: c.Section, Member: c.Member, ID: c.RuleID, Class: c.Class, Kinds: c.Kinds, Basis: c.Basis, Project: c.Project, Base: canonicalDigest(b), Head: canonicalDigest(h)})
 		if c.Member != "" {
 			st.problems = append(st.problems, "the pack member "+logSafe(c.Member)+" of "+c.Pack+" changed")
 			continue
@@ -409,20 +431,14 @@ func newBatchState(layout Layout, cls *Classification) (*batchState, error) {
 	}
 	sort.Slice(st.items, func(i, j int) bool { return st.items[i].entry.key() < st.items[j].entry.key() })
 	var err error
-	if st.changeSetDigest, err = domainDigest(batchChangeDomain, set); err != nil {
+	if st.changeSetDigest, err = changeSetDigestOf(changes, cls.ChainsChanged, cls.Paused); err != nil {
 		return nil, err
 	}
-	type cites struct {
-		Pack    string          `json:"pack"`
-		Subject string          `json:"subject"`
-		ID      string          `json:"id"`
-		Sources json.RawMessage `json:"sources"`
-	}
-	list := []cites{}
+	var list []batchCitation
 	for _, it := range st.items {
-		list = append(list, cites{Pack: it.entry.Pack, Subject: it.entry.Subject, ID: it.entry.ID, Sources: itemSources(it.change)})
+		list = append(list, batchCitation{Pack: it.entry.Pack, Subject: it.entry.Subject, ID: it.entry.ID, Sources: itemSources(it.change)})
 	}
-	if st.citationsDigest, err = domainDigest(batchCitesDomain, list); err != nil {
+	if st.citationsDigest, err = citationsDigestOf(list); err != nil {
 		return nil, err
 	}
 	return st, nil
