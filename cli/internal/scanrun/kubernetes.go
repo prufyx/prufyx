@@ -807,7 +807,7 @@ func (r *kubernetesRun) enteredLineBlockers(hop upgradepath.Hop, ref scanreport.
 				continue
 			}
 			if finding := r.finding(rule, claim, eval, ref, viaCrossing); finding != nil {
-				finding.CrossedLine = &scanreport.CrossedLine{Line: line, From: step.From.String(), To: step.To.String()}
+				finding.CrossedLine = &scanreport.CrossedLine{Line: line, From: step.From.String(), To: step.To.String(), InputDigest: eval.scan.Prepared.InputDigest}
 				finding.Fix = crossedLineFix(finding.Fix, *finding.CrossedLine)
 			}
 			blocked = true

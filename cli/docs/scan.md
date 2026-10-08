@@ -263,7 +263,8 @@ stands for every release of it). Every upgrade over the hop takes such a step,
 because Kubernetes upgrades one minor line at a time. A rule whose reviewed
 range (or removal crossing) covers the whole step and blocks it blocks the hop;
 the finding names the step in its fix and in JSON and SARIF as `crossedLine`
-(`line`, `from`, `to`). Such a step only ever adds blockers: the hop is never
+(`line`, `from`, `to`, and the `inputDigest` of the engine input evaluated for
+the step). Such a step only ever adds blockers: the hop is never
 passed this way, and its gaps stay.
 
 Each hop is evaluated with the same engine input that

@@ -221,11 +221,13 @@ type Finding struct {
 
 // CrossedLine is the step a rule decided for a hop that skips release
 // lines: From -> To enters Line. From and To are an exact version of the
-// hop's ends or a whole release line in between.
+// hop's ends or a whole release line in between. InputDigest is the digest
+// of the engine input evaluated for the step.
 type CrossedLine struct {
-	Line string `json:"line"`
-	From string `json:"from"`
-	To   string `json:"to"`
+	Line        string `json:"line"`
+	From        string `json:"from"`
+	To          string `json:"to"`
+	InputDigest string `json:"inputDigest"`
 }
 
 // Location is one object that made a finding true. It never holds values.

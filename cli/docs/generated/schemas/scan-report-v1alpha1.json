@@ -466,7 +466,8 @@
       "required": [
         "line",
         "from",
-        "to"
+        "to",
+        "inputDigest"
       ],
       "properties": {
         "line": {
@@ -476,6 +477,9 @@
           "type": "string"
         },
         "to": {
+          "type": "string"
+        },
+        "inputDigest": {
           "type": "string"
         }
       }

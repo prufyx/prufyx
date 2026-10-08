@@ -430,7 +430,7 @@ func TestScanDirectPolicyRemovedVersion(t *testing.T) {
 		{"1.23.17", "1.25.3", scanreport.CrossedLine{Line: "1.25", From: "1.24", To: "1.25.3"}},
 	} {
 		result := mustScan(t, direct, args(paths, "--from", "kubernetes="+tc.from, "--to", "kubernetes="+tc.to)...)
-		if result.Exit != scanreport.ExitBlocked || len(result.Report.Findings) != 1 || result.Report.Findings[0].CrossedLine == nil || *result.Report.Findings[0].CrossedLine != tc.step {
+		if result.Exit != scanreport.ExitBlocked || len(result.Report.Findings) != 1 || !sameStep(result.Report.Findings[0].CrossedLine, tc.step) {
 			t.Fatalf("%s: exit %d findings %+v gaps %+v", tc.from, result.Exit, result.Report.Findings, result.Report.Gaps)
 		}
 		if hasGap(result.Report, "API_VERSION_NOT_SERVED", "") {

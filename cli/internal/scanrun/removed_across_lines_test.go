@@ -45,6 +45,12 @@ func notPassLike(t *testing.T, report scanreport.Report) {
 	}
 }
 
+// sameStep compares the step a finding names, and checks that the step's
+// engine input digest is recorded.
+func sameStep(got *scanreport.CrossedLine, want scanreport.CrossedLine) bool {
+	return got != nil && got.Line == want.Line && got.From == want.From && got.To == want.To && strings.HasPrefix(got.InputDigest, "sha256:") && len(got.InputDigest) == len("sha256:")+64
+}
+
 func findingFor(t *testing.T, report scanreport.Report, ruleID string) scanreport.Finding {
 	t.Helper()
 	for _, finding := range report.Findings {
@@ -73,7 +79,7 @@ func TestScanC1RemovedAPIAcrossSkippedLines(t *testing.T) {
 	}
 	finding := findingFor(t, report, cronjobRuleID)
 	want := scanreport.CrossedLine{Line: "1.25", From: "1.24.17", To: "1.25"}
-	if finding.CrossedLine == nil || *finding.CrossedLine != want || finding.Hop.From != "1.24.17" || finding.Hop.To != "1.30.4" || finding.Match != "range" {
+	if !sameStep(finding.CrossedLine, want) || finding.Hop.From != "1.24.17" || finding.Hop.To != "1.30.4" || finding.Match != "range" {
 		t.Fatalf("finding %+v crossed line %+v", finding, finding.CrossedLine)
 	}
 	if !strings.HasSuffix(finding.Fix, "Decided on the step 1.24.17 -> 1.25, which this upgrade takes to enter Kubernetes 1.25.") {
@@ -138,7 +144,7 @@ func TestScanRemovedAPIAcrossSkippedLinesVariants(t *testing.T) {
 			}
 			for id, step := range tc.steps {
 				finding := findingFor(t, result.Report, id)
-				if finding.CrossedLine == nil || *finding.CrossedLine != step {
+				if !sameStep(finding.CrossedLine, step) {
 					t.Fatalf("%s decided on %+v, want %+v", id, finding.CrossedLine, step)
 				}
 			}
@@ -245,7 +251,7 @@ func TestScanRemovedAPIAcrossSkippedLinesFormats(t *testing.T) {
 					if run.exit == scanreport.ExitBlocked && !strings.Contains(text, strings.ReplaceAll(step, ">", `\u003e`)) {
 						t.Fatalf("JSON lacks the step:\n%s", text)
 					}
-					if run.exit == scanreport.ExitBlocked && !strings.Contains(text, `"crossedLine":{"line":"1.25","from":"1.24.17","to":"1.25"}`) {
+					if run.exit == scanreport.ExitBlocked && !strings.Contains(text, `"crossedLine":{"line":"1.25","from":"1.24.17","to":"1.25","inputDigest":"sha256:`) {
 						t.Fatalf("JSON lacks the step:\n%s", text)
 					}
 				case "sarif":
