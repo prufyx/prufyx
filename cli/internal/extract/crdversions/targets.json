@@ -76,6 +76,7 @@
       "exclude": [
         {"path": "common/scripts/", "reason": "scripts and third-party manifests (MetalLB) used by the test infrastructure; no Istio definition"},
         {"path": "pkg/config/schema/metadata.yaml", "reason": "code-generation metadata of the resource types Istio handles; lists the built-in CustomResourceDefinition kind and defines none"},
+        {"path": "pkg/kube/kclient/clienttest/", "reason": "Go test helpers (they take a test.Failer) that build fake CustomResourceDefinitions for unit tests; not part of an install"},
         {"path": "prow/", "reason": "continuous-integration configuration and third-party manifests (Calico) for test clusters; no Istio definition"},
         {"path": "samples/", "reason": "sample applications and third-party integrations (SPIRE); no Istio definition"}
       ]
