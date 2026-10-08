@@ -463,7 +463,7 @@
         {
           "repo": "ghcr.io/mariadb-operator/mariadb-operator",
           "role": "operator",
-          "sourceId": "chart-values"
+          "sourceId": "chart-appversion"
         }
       ],
       "evidence": {

@@ -51,6 +51,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   --image-sources <file>` re-verifies every citation of the registry (commit,
   whole-file digest and line span), and a CI workflow runs it on changes and
   weekly.
+  A digest-pinned image (`name:vX.Y.Z@sha256:...`) at a version different from
+  the other images of a component also makes that component a conflict (this
+  covers the adapter projects too). A version is exact only over the images the
+  registry can see: mirrored or rebuilt images are invisible (see
+  `cli/docs/one-command-flow.md`).
 - `prufyx-maintainer knowledge-publish release`: one offline, deterministic step
   that builds a signed knowledge-database release (TUF targets, snapshot and
   timestamp, package and release plan) from the reviewed embedded knowledge,

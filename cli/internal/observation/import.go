@@ -327,6 +327,10 @@ type componentState struct {
 	// usable version (digest-only, latest, off-scheme, pre-release). A component
 	// with such a row never takes an exact version from a sibling row.
 	unresolved bool
+	// pinned holds the versions of digest-pinned rows (tag@digest). They add
+	// no counted version, but one that differs from the counted versions makes
+	// the component a conflict instead of letting a sibling decide.
+	pinned map[string]struct{}
 }
 
 type byteCache struct {
@@ -486,7 +490,7 @@ func projectContext(cache *byteCache, ctx string, entries []manifestEntry, index
 	states := map[string]*componentState{}
 	getState := func(id string) *componentState {
 		if states[id] == nil {
-			states[id] = &componentState{id: id, versions: map[string]struct{}{}, roles: map[string]struct{}{}, predicates: map[string]json.RawMessage{}, predicateSources: map[string]map[string]struct{}{}, predicateStates: map[string]string{}, predicateRoles: map[string]string{}, predicateClasses: map[string]string{}, digests: map[string]struct{}{rootDigest: {}}}
+			states[id] = &componentState{id: id, versions: map[string]struct{}{}, pinned: map[string]struct{}{}, roles: map[string]struct{}{}, predicates: map[string]json.RawMessage{}, predicateSources: map[string]map[string]struct{}{}, predicateStates: map[string]string{}, predicateRoles: map[string]string{}, predicateClasses: map[string]string{}, digests: map[string]struct{}{rootDigest: {}}}
 		}
 		return states[id]
 	}
@@ -797,6 +801,8 @@ func projectContext(cache *byteCache, ctx string, entries []manifestEntry, index
 						// version leaves the whole component unresolved.
 						if row.ObservedVersion == nil || row.VersionScheme == "unknown" || row.ObservationState != "active" {
 							st.unresolved = true
+						} else if row.VersionScheme == "digest" {
+							st.pinned[version] = struct{}{}
 						}
 						if err := addOmission("COMPONENT_CONFIGURATION_VERSION_UNRESOLVED"); err != nil {
 							return CurrentBundle{}, err
@@ -896,6 +902,13 @@ func projectContext(cache *byteCache, ctx string, entries []manifestEntry, index
 	for _, id := range ids {
 		st := states[id]
 		versions := sortedKeys(st.versions)
+		if len(versions) >= 1 {
+			for pinned := range st.pinned {
+				if _, counted := st.versions[pinned]; !counted {
+					st.conflict = true
+				}
+			}
+		}
 		status := "observed"
 		version := ""
 		if len(versions) == 1 && !st.conflict && !st.unresolved {

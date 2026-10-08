@@ -770,3 +770,60 @@ func errString(err error) string {
 	}
 	return err.Error()
 }
+
+func importWithExtraPrometheusRows(t *testing.T, rows ...map[string]any) ComponentOrNil {
+	t.Helper()
+	root := syntheticRoot(t)
+	path := filepath.Join(root, "demo", "statefulset-images.json")
+	all := []map[string]any{
+		{"componentId": "pkg:oci/prometheus/prometheus", "observedVersion": "3.13.1", "versionScheme": "tag", "observationState": "active", "observationCount": 1, "versionConflict": false},
+		{"componentId": "pkg:oci/argoproj/argo-cd", "observedVersion": "3.4.6", "versionScheme": "tag", "observationState": "active", "observationCount": 1, "versionConflict": false},
+	}
+	writeJSON(t, path, append(all, rows...))
+	regenerateManifests(t, root)
+	bundle, err := importTestPath(t, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range bundle.Components {
+		if c.ComponentID == "pkg:oci/prometheus/prometheus" {
+			return ComponentOrNil{Component: c, Found: true}
+		}
+	}
+	return ComponentOrNil{}
+}
+
+type ComponentOrNil struct {
+	Component Component
+	Found     bool
+}
+
+func prometheusRow(version any, scheme string) map[string]any {
+	return map[string]any{"componentId": "pkg:oci/prometheus/prometheus", "observedVersion": version, "versionScheme": scheme, "observationState": "active", "observationCount": 1, "versionConflict": false}
+}
+
+// A component with a row that has no usable version, or a digest-pinned
+// version that differs from the counted ones, never reads as exact.
+func TestImportUnversionedOrPinnedSiblingNeverReadsExact(t *testing.T) {
+	for name, tc := range map[string]struct {
+		rows      []map[string]any
+		wantExact bool
+	}{
+		"control: no extra row":              {nil, true},
+		"pinned equal to counted version":    {[]map[string]any{prometheusRow("3.13.1", "digest")}, true},
+		"digest-only sibling (no version)":   {[]map[string]any{prometheusRow(nil, "digest")}, false},
+		"latest sibling (unknown scheme)":    {[]map[string]any{prometheusRow(nil, "unknown")}, false},
+		"pinned at a different version (N1)": {[]map[string]any{prometheusRow("2.40.0", "digest")}, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := importWithExtraPrometheusRows(t, tc.rows...)
+			if !got.Found {
+				t.Fatal("prometheus missing")
+			}
+			exact := got.Component.Status == "observed" && got.Component.Version == "3.13.1"
+			if exact != tc.wantExact {
+				t.Fatalf("exact=%v want %v: %+v", exact, tc.wantExact, got.Component)
+			}
+		})
+	}
+}
