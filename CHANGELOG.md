@@ -164,7 +164,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   unsupported in 0.13.2) and `cloudnativepg.cluster-reference-immutable.1-29-to-1-30`
   (also backported, shipping from 1.29.2, which two added sources cite) now
   state only what the cited sources show; two Rook `nextAction` typos
-  (`1.15x`, `1.16x`) are fixed. The corpus attestation digests follow.
+  (`1.15x`, `1.16x`) are fixed; `kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0`
+  cites the kubernetes/website commit f424d45 (in the main history, identical
+  file bytes and digest) instead of an unreachable commit. The corpus attestation digests follow.
   `prufyx-maintainer rule verify-citations` reports no findings over both packs.
 - `prufyx assess --format json`: the collector progress lines ("Context …", "Created local API observation directory …", "Verify context files with …") now go to stderr, so stdout carries only the JSON report and parses as JSON.
 - `extract` file writes are never made through a symlink and no longer depend on

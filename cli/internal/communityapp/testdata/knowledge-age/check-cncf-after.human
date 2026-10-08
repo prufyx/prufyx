@@ -8,7 +8,7 @@ next action: select later declared rule source references with current evidence
 evidence basis: reviewed by maintainer
 aggregate: UNKNOWN
 input digest: sha256:83faf6e3d00c2dd09282fcfc94f23e956ebb1230f9ca0eb6226863165ef7ca55
-knowledge pack digest: sha256:7a1bf01a0a683c6c189f425da431fddd372beebc9f56c1f37d7181b96acb0468
+knowledge pack digest: sha256:49d715bf400ab7030216bae7973abc63a44b6c5f0eaf0a1fb1a7ed54695d080d
 next action: review each scoped claim; whole-upgrade behavior and runtime evidence remain unverified
 
 exit 11

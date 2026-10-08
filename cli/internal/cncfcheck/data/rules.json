@@ -8807,8 +8807,8 @@
           "sources": [
             {
               "id": "kubernetes-website-v132-flowcontrol-removal",
-              "url": "https://github.com/kubernetes/website/blob/4e63ceb05c36a5db816c3244856a2996ddc23793/content/en/docs/reference/using-api/deprecation-guide.md",
-              "revision": "4e63ceb05c36a5db816c3244856a2996ddc23793",
+              "url": "https://github.com/kubernetes/website/blob/f424d451424f01737b7d2bc22666ef184e117565/content/en/docs/reference/using-api/deprecation-guide.md",
+              "revision": "f424d451424f01737b7d2bc22666ef184e117565",
               "contentDigest": "sha256:e8713b66cc6e8778589ad721d4aa36e390d1095ad2ad9e86db2d6e0e42bbec4b",
               "startLine": 23,
               "endLine": 34
