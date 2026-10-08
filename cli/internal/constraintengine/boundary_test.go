@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package constraintengine
 
 import (
@@ -14,9 +16,17 @@ import (
 
 // boundaryRangeRule is a release-boundary ranged rule: anchor 1.24.0 -> 1.25.0,
 // range [1.24,1.25) -> [1.25,1.26), C = 1.25.0, with the fact blocking.
-func boundaryRangeRule() string {
+func boundaryRangeRule() string { return boundaryRangeRuleBasis(BasisRemovedInRelease) }
+
+// boundaryBases are the two release bases a range may pin its boundary with.
+var boundaryBases = []string{BasisRemovedInRelease, BasisChangedInRelease}
+
+// boundaryRangeRuleBasis is boundaryRangeRule with the release basis of the
+// from.lt and to.gte bounds set to basis.
+func boundaryRangeRuleBasis(basis string) string {
 	spec := defaultRangeSpec()
 	spec.id, spec.operator, spec.fact = "range-removal", "forbid_target_version", ""
+	spec.bases = [4]string{BasisPreviousMinorLine, basis, basis, BasisReviewedThroughMinorLine}
 	return spec.ruleJSON()
 }
 
@@ -55,62 +65,71 @@ func TestRangeReleaseBoundaryNeverExcludesACrossingHop(t *testing.T) {
 		name, from, to string
 		blocked        bool
 		undetermined   bool // the ranged rule is UNDETERMINED / RULE_RELEASE_BOUNDARY_NOT_REVIEWED
+		// downgradeChanged marks a downgrade across C: UNDETERMINED for a
+		// CHANGED_IN_RELEASE range (reverting a change is not proven harmless),
+		// still excluded for REMOVED_IN_RELEASE (the removed API exists again).
+		downgradeChanged bool
 	}{
 		// The opus probe: 1.21.0 -> 1.30.0 crosses C = 1.25.0 outside the range.
-		{"wide hop across C", "1.21.0", "1.30.0", true, true},
-		{"origin one line below the range", "1.23.5", "1.25.3", true, true},
-		{"target one line above the range", "1.24.5", "1.26.0", true, true},
-		{"fact false does not make it applicable", "1.21.0", "1.30.0", false, true},
+		{"wide hop across C", "1.21.0", "1.30.0", true, true, false},
+		{"origin one line below the range", "1.23.5", "1.25.3", true, true, false},
+		{"target one line above the range", "1.24.5", "1.26.0", true, true, false},
+		{"fact false does not make it applicable", "1.21.0", "1.30.0", false, true, false},
 		// Hops that provably do not cross C stay excluded.
-		{"target below C", "1.21.0", "1.24.9", true, false},
-		{"origin at C", "1.25.0", "1.30.0", true, false},
-		{"origin above C", "1.26.0", "1.30.0", true, false},
-		{"downgrade across C", "1.30.0", "1.21.0", true, false},
+		{"target below C", "1.21.0", "1.24.9", true, false, false},
+		{"origin at C", "1.25.0", "1.30.0", true, false, false},
+		{"origin above C", "1.26.0", "1.30.0", true, false, false},
+		{"downgrade across C", "1.30.0", "1.21.0", true, false, true},
+		{"downgrade just across C", "1.25.0", "1.24.9", true, false, true},
+		{"downgrade not reaching C", "1.30.0", "1.25.0", true, false, false},
 	}
-	for _, tc := range cases {
-		for schema, rules := range boundaryDocuments(t, tc.from, tc.to, boundaryRangeRule()) {
-			t.Run(tc.name+"/"+schema, func(t *testing.T) {
-				report, err := Evaluate(xInput(t, tc.from, tc.to, "", "", tc.blocked), rules, now)
-				if err != nil {
-					t.Fatal(err)
-				}
-				var entry *NotEvaluatedRule
-				for i, skipped := range report.ScopeCompleteness.Components[0].NotEvaluated {
-					if skipped.RuleID == "range-removal" {
-						entry = &report.ScopeCompleteness.Components[0].NotEvaluated[i]
+	for _, basis := range boundaryBases {
+		for _, tc := range cases {
+			tc.undetermined = tc.undetermined || tc.downgradeChanged && basis == BasisChangedInRelease
+			for schema, rules := range boundaryDocuments(t, tc.from, tc.to, boundaryRangeRuleBasis(basis)) {
+				t.Run(basis+"/"+tc.name+"/"+schema, func(t *testing.T) {
+					report, err := Evaluate(xInput(t, tc.from, tc.to, "", "", tc.blocked), rules, now)
+					if err != nil {
+						t.Fatal(err)
 					}
-				}
-				if entry == nil {
-					t.Fatalf("ranged rule not enumerated: %+v", report.ScopeCompleteness)
-				}
-				if tc.undetermined {
-					if report.Assessment == AssessmentScopeCompletePass {
-						t.Fatalf("a hop that crosses the pinned boundary reached SCOPE_COMPLETE_PASS")
-					}
-					if entry.Applicability != ApplicabilityUndetermined || entry.ReasonCode != ReasonReleaseBoundaryNotReviewed {
-						t.Fatalf("ranged rule is %s/%s, want UNDETERMINED/%s", entry.Applicability, entry.ReasonCode, ReasonReleaseBoundaryNotReviewed)
-					}
-					for _, claim := range report.Claims {
-						if claim.RuleID == "range-removal" && (claim.Status != "UNKNOWN" || claim.ReasonCode != ReasonReleaseBoundaryNotReviewed) {
-							t.Fatalf("claim %+v", claim)
+					var entry *NotEvaluatedRule
+					for i, skipped := range report.ScopeCompleteness.Components[0].NotEvaluated {
+						if skipped.RuleID == "range-removal" {
+							entry = &report.ScopeCompleteness.Components[0].NotEvaluated[i]
 						}
 					}
-				} else {
-					if entry.Applicability != ApplicabilityNotApplicable || entry.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED" {
-						t.Fatalf("ranged rule is %s/%s, want NOT_APPLICABLE/RULE_TRANSITION_NOT_REVIEWED", entry.Applicability, entry.ReasonCode)
+					if entry == nil {
+						t.Fatalf("ranged rule not enumerated: %+v", report.ScopeCompleteness)
 					}
-					if report.Assessment != AssessmentScopeCompletePass && !tc.blocked {
-						t.Fatalf("a hop that does not cross C lost its scope pass: %s", report.Assessment)
+					if tc.undetermined {
+						if report.Assessment == AssessmentScopeCompletePass {
+							t.Fatalf("a hop that crosses the pinned boundary reached SCOPE_COMPLETE_PASS")
+						}
+						if entry.Applicability != ApplicabilityUndetermined || entry.ReasonCode != ReasonReleaseBoundaryNotReviewed {
+							t.Fatalf("ranged rule is %s/%s, want UNDETERMINED/%s", entry.Applicability, entry.ReasonCode, ReasonReleaseBoundaryNotReviewed)
+						}
+						for _, claim := range report.Claims {
+							if claim.RuleID == "range-removal" && (claim.Status != "UNKNOWN" || claim.ReasonCode != ReasonReleaseBoundaryNotReviewed) {
+								t.Fatalf("claim %+v", claim)
+							}
+						}
+					} else {
+						if entry.Applicability != ApplicabilityNotApplicable || entry.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED" {
+							t.Fatalf("ranged rule is %s/%s, want NOT_APPLICABLE/RULE_TRANSITION_NOT_REVIEWED", entry.Applicability, entry.ReasonCode)
+						}
+						if report.Assessment != AssessmentScopeCompletePass && !tc.blocked {
+							t.Fatalf("a hop that does not cross C lost its scope pass: %s", report.Assessment)
+						}
 					}
-				}
-				raw, err := MarshalReport(report)
-				if err != nil {
-					t.Fatalf("report refused: %v", err)
-				}
-				if _, err := Replay(xInput(t, tc.from, tc.to, "", "", tc.blocked), rules, now, raw); err != nil {
-					t.Fatalf("report does not replay: %v", err)
-				}
-			})
+					raw, err := MarshalReport(report)
+					if err != nil {
+						t.Fatalf("report refused: %v", err)
+					}
+					if _, err := Replay(xInput(t, tc.from, tc.to, "", "", tc.blocked), rules, now, raw); err != nil {
+						t.Fatalf("report does not replay: %v", err)
+					}
+				})
+			}
 		}
 	}
 }
@@ -222,6 +241,11 @@ func TestReleaseBoundaryReasonIsReservedAndBoundToItsContracts(t *testing.T) {
 			r.ScopeCompleteness.ContractDigest = ScopeContractDigest()
 		},
 		"with a range disclosure": func(r *Report) { r.Claims[index].SubjectMatch = &SubjectMatch{Mode: subjectMatchModeRange} },
+		// Well-formed: valid anchors inside valid bounds, so only the
+		// release-boundary clause of the seal gate can refuse it.
+		"with a well-formed range disclosure": func(r *Report) {
+			r.Claims[index].SubjectMatch = &SubjectMatch{Mode: subjectMatchModeRange, AnchorFrom: "1.24.0", AnchorTo: "1.25.0", From: VersionBound{Gte: "1.24.0", Lt: "1.25.0"}, To: VersionBound{Gte: "1.25.0", Lt: "1.26.0"}}
+		},
 	}
 	for name, mutate := range forgeries {
 		if err := forge(mutate); !errors.Is(err, ErrIntegrity) {
@@ -242,3 +266,62 @@ func TestReleaseBoundaryContractIdentity(t *testing.T) {
 }
 
 const pinnedOldRangedDigest = "sha256:2cc7bb0052068bd2668d1c4419782bacd6fcbf34e73f9bf9cf08206cd1363fa6"
+
+// The set schema is range-capable too: a ranged forbid_set_member rule gets the
+// same boundary treatment as the other contracts, under both release bases.
+func TestSetSchemaRangeReleaseBoundary(t *testing.T) {
+	registry, err := NewRegistry([]FactDefinition{{ID: "component.alpha.feature_gates_set", Component: scopeComponentA, Type: FactSet}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := testNow(t)
+	for _, basis := range boundaryBases {
+		spec := defaultRangeSpec()
+		spec.id, spec.operator = "range-set", OperatorForbidSetMember
+		spec.bases = [4]string{BasisPreviousMinorLine, basis, basis, BasisReviewedThroughMinorLine}
+		spec.extra = `,"setCondition":{"side":"proposed","component":"` + scopeComponentA + `","factId":"component.alpha.feature_gates_set","members":["GateA"]}`
+		for _, tc := range []struct {
+			name, from, to string
+			undetermined   bool
+		}{
+			{"wide hop across C", "1.21.0", "1.30.0", true},
+			{"target one line above the range", "1.24.5", "1.26.0", true},
+			{"target below C", "1.21.0", "1.24.9", false},
+			{"origin above C", "1.26.0", "1.30.0", false},
+		} {
+			t.Run(basis+"/"+tc.name, func(t *testing.T) {
+				wide := scopeRule("anchor-wide", "require_component_version", scopeComponentA, tc.from, tc.to, "active", activeUntil, dependencyOn(scopeComponentA, "gte", "1.0.0"))
+				all := []string{wide, spec.ruleJSON()}
+				sort.Slice(all, func(i, j int) bool { return ruleIDOf(all[i]) < ruleIDOf(all[j]) })
+				rules, err := ParseRuleSet(rangeDocument(RulesSchemaSet, true, all...), registry)
+				if err != nil {
+					t.Fatal(err)
+				}
+				fact := `{"id":"component.alpha.feature_gates_set","state":"declared","setValue":{"members":["GateB"],"complete":true}}`
+				report, err := Evaluate(scopeInput(t, registry, true, componentInput{Component: scopeComponentA, From: tc.from, To: tc.to, Fact: fact}), rules, now)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err := MarshalReport(report); err != nil {
+					t.Fatalf("report refused: %v", err)
+				}
+				var entry *NotEvaluatedRule
+				for i, skipped := range report.ScopeCompleteness.Components[0].NotEvaluated {
+					if skipped.RuleID == "range-set" {
+						entry = &report.ScopeCompleteness.Components[0].NotEvaluated[i]
+					}
+				}
+				if entry == nil {
+					t.Fatalf("set rule not enumerated: %+v", report.ScopeCompleteness)
+				}
+				if tc.undetermined {
+					if report.Assessment == AssessmentScopeCompletePass || entry.Applicability != ApplicabilityUndetermined || entry.ReasonCode != ReasonReleaseBoundaryNotReviewed {
+						t.Fatalf("%s: %s/%s", report.Assessment, entry.Applicability, entry.ReasonCode)
+					}
+				} else if entry.Applicability != ApplicabilityNotApplicable || entry.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED" {
+					t.Fatalf("%s/%s", entry.Applicability, entry.ReasonCode)
+				}
+			})
+		}
+	}
+}

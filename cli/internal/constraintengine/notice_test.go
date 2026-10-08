@@ -14,10 +14,10 @@ import (
 
 const (
 	noticeBefore                  = "take an etcd snapshot and verify that it restores before upgrading"
-	pinnedEngineContractDigestSet = "sha256:840755ab0ffc786b2fee4dbefd03082fc264ea403897bb09681b89abd3640515"
+	pinnedEngineContractDigestSet = "sha256:ff8472a14ef861d07b79bbff535ec9eb9423e62826be58e3acf8c064534acf8f"
 
-	pinnedEngineContractDigestNotice = "sha256:b31ab746767d85cd9b3a7b5ac107311ae49dee1b6bd6fd865988500cfa55dc11"
-	pinnedScopeContractDigestNotice  = "sha256:e9939505d8c09cedb80f38b6339780a0854e46828c16dc2162297f4ea54a061b"
+	pinnedEngineContractDigestNotice = "sha256:376c8977b42192f616effd64e65dbf7765edcb970718b57e37039c989419816b"
+	pinnedScopeContractDigestNotice  = "sha256:99317e879def46b18b704e375054576bec283e7ae3c8da5d73516a36c1f0f1a0"
 )
 
 // noticeRule renders a notice_one_way rule over component.

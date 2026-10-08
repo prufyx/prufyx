@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	pinnedEngineContractDigestCrossing = "sha256:1add26d02bbb97eef3b4eabb78f8d944c33667c1ce9be92ee67bd416a7f42da7"
-	pinnedScopeContractDigestCrossing  = "sha256:2e55c52dd71335510c0db4eb924c0f426f8529013b54e4ea75156bd824f6b91c"
+	pinnedEngineContractDigestCrossing = "sha256:9629863ca0256abda8adc55dd0c1eaa12869bbb005bc4f3ac60f544f85c6c1ad"
+	pinnedScopeContractDigestCrossing  = "sha256:e7ee1746464157fea50b85cd6c53f7c56b948755752f7d973ebae937adc0eb4d"
 )
 
 // xRule builds a synthetic crossing rule for tests only: a removal at

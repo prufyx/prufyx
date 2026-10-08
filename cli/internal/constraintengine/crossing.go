@@ -84,7 +84,7 @@ const (
 	crossingNextActionShort    = "; matched by removal crossing %s"
 	crossingPassAction         = "no reviewed rule covers this whole hop; a removal crossing never passes; retain actual versions and request reviewed coverage"
 
-	crossingSemantics = "crossing:forbid-operators-only;basis:" + BasisRemovedInRelease + ";horizon:" + BasisReviewedThroughMinorLine + ":finite-cited;restored:" + BasisRestoredInRelease + ":caps-horizon;match:A<C<=B<min(horizon,restored);order:anchor,range,crossing;distributions:upstream,gke;never-pass;pass-becomes:" + ReasonCrossingPassNotReviewed + ";beyond-horizon:unknown;downgrade:unknown;unparseable:unknown;restored:minor-line-start-above-change-and-range;horizon:same-major-at-most-12-minor-lines-above-change;unreviewed-crossing:" + ReasonCrossingNotReviewed + ":undetermined-in-scope;range-release-boundary-unreviewed:" + ReasonReleaseBoundaryNotReviewed + ":undetermined-in-scope"
+	crossingSemantics = "crossing:forbid-operators-only;basis:" + BasisRemovedInRelease + ";horizon:" + BasisReviewedThroughMinorLine + ":finite-cited;restored:" + BasisRestoredInRelease + ":caps-horizon;match:A<C<=B<min(horizon,restored);order:anchor,range,crossing;distributions:upstream,gke;never-pass;pass-becomes:" + ReasonCrossingPassNotReviewed + ";beyond-horizon:unknown;downgrade:unknown;unparseable:unknown;restored:minor-line-start-above-change-and-range;horizon:same-major-at-most-12-minor-lines-above-change;unreviewed-crossing:" + ReasonCrossingNotReviewed + ":undetermined-in-scope;" + rangeBoundaryPolicy
 )
 
 // reviewedDistributions is the closed list of distributions whose versions

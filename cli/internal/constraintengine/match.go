@@ -114,10 +114,16 @@ func (t RuleTransition) ChangeVersion() (string, bool) { return t.changeVersion(
 func (t RuleTransition) CrossesUnreviewed(from, to string) bool { return t.crossesUnreviewed(from, to) }
 
 // crossesUnreviewed reports that a pair which did not match this subject
-// still crosses its release boundary: a strict upgrade from < C <= to. It
-// applies to every document that admits ranges, so a ranged rule whose range
-// pins a release boundary never excludes a hop that crosses that boundary
-// outside the range. An exact-only rule has no boundary the engine knows.
+// still crosses its release boundary C. An upgrade from < C <= to applies to
+// every document that admits ranges, so a ranged rule whose range pins a
+// release boundary never excludes a hop that crosses that boundary outside the
+// range. A downgrade to < C <= from is also unreviewed when the range's basis
+// is CHANGED_IN_RELEASE: reverting a change is not proven harmless. A
+// downgrade across a REMOVED_IN_RELEASE boundary keeps the exclusion, because
+// the removed API exists again on the lower line. A crossing subject is
+// upgrade-only (its downgrades are unknown by the crossing contract itself).
+// An exact-only rule, or a range without release-basis bounds, has no
+// boundary the engine knows.
 func (t RuleTransition) crossesUnreviewed(from, to string) bool {
 	change, ok := t.changeVersion()
 	if !ok {
@@ -125,8 +131,15 @@ func (t RuleTransition) crossesUnreviewed(from, to string) bool {
 	}
 	below, ok1 := compareVersions(from, change)
 	reached, ok2 := compareVersions(to, change)
+	if !ok1 || !ok2 {
+		return false
+	}
 	// from < C <= to already makes the hop a strict upgrade.
-	return ok1 && ok2 && below < 0 && reached >= 0
+	if below < 0 && reached >= 0 {
+		return true
+	}
+	// to < C <= from: a downgrade across C.
+	return reached < 0 && below >= 0 && t.Crossing == nil && t.Range != nil && t.Range.Bounds[1].Basis == BasisChangedInRelease
 }
 
 // CrossingBounds returns the from and to intervals a crossing subject matches:
@@ -321,9 +334,17 @@ const (
 	BasisAnchorOnly               = "ANCHOR_ONLY"
 	rangeWidthPolicy              = "range-width:one-minor-line-per-side"
 	// rangeBoundaryPolicy is part of every range-capable contract: a ranged
-	// rule whose range pins a release boundary C never excludes a hop that
-	// crosses C outside its range. Such a hop is undetermined, not applicable.
-	rangeBoundaryPolicy           = "range-release-boundary-unreviewed:" + ReasonReleaseBoundaryNotReviewed + ":undetermined-in-scope:never-exclusion"
+	// rule whose range pins a release boundary C (from.lt = to.gte, both on a
+	// REMOVED_IN_RELEASE or CHANGED_IN_RELEASE basis) never excludes a hop
+	// that crosses C outside its range. Such a hop is undetermined, not
+	// applicable. Crossing condition: from < C <= to; for CHANGED_IN_RELEASE
+	// also the downgrade to < C <= from. Remaining exclusions (unchanged
+	// NOT_APPLICABLE): a REMOVED_IN_RELEASE downgrade across C (the removed
+	// API exists again on the lower line) and a range without release-basis
+	// bounds (the engine knows no boundary there).
+	rangeBoundaryPolicy = "range-release-boundary-unreviewed:" + ReasonReleaseBoundaryNotReviewed + ":undetermined-in-scope:never-exclusion" +
+		":crosses:from<C<=to:and:CHANGED_IN_RELEASE-downgrade:to<C<=from" +
+		":excluded:REMOVED_IN_RELEASE-downgrade:range-without-release-basis-bounds"
 	unresolvedTransitionNotAnchor = "TRANSITION_NOT_ANCHOR_REVIEWED"
 	subjectMatchModeRange         = "range"
 	rangeNextActionSuffixTemplate = "; matched by reviewed range; anchor pair %s -> %s"
