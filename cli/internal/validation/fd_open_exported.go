@@ -33,3 +33,26 @@ func OpenEntryDirectory(dir *os.File, name string) (*os.File, error) {
 func OpenEntryFile(dir *os.File, name string) (*os.File, error) {
 	return openRelativeFile(dir, name, 0, 0)
 }
+
+// CreateEntryFile creates a new file called name inside dir, exclusively and
+// without following a symlink: an existing entry of any kind, a symlink
+// included, makes it fail. The descriptor is opened for reading and writing.
+func CreateEntryFile(dir *os.File, name string, mode uint32) (*os.File, error) {
+	return openRelativeExclusive(dir, name, mode)
+}
+
+// ReplaceEntry renames oldName to newName inside dir with renameat. A symlink
+// at newName is replaced, never followed.
+func ReplaceEntry(dir *os.File, oldName, newName string) error {
+	return renameRelative(dir, oldName, newName)
+}
+
+// RemoveEntry unlinks the entry called name inside dir (never a directory).
+func RemoveEntry(dir *os.File, name string) error {
+	return removeRelative(dir, name)
+}
+
+// SyncDirectory flushes dir to stable storage.
+func SyncDirectory(dir *os.File) error {
+	return syncDirectory(dir)
+}

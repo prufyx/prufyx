@@ -1720,6 +1720,7 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps 
 	source := flags.String("source", SourceHTTP, "where tags, releases and file bytes come from: \"http\" (GitHub, the default) or \"mirror\" (a local factory mirror, strictly offline; needs --mirror-state)")
 	mirrorState := flags.String("mirror-state", "", "factory mirror state directory (with --source mirror)")
 	wantsOut := flags.String("wants-out", "", "with --source mirror: write the pinned files the mirror is missing as a wants file for \"factory mirror --wants\"")
+	failOnMissing := flags.Bool("fail-on-missing", false, "with --source mirror: exit 3 (after writing the worklist and wants) when files are missing from the mirror, so a script can tell an incomplete run from a complete one; default exit 0 keeps the wants file as the signal")
 	baselinesPath := flags.String("baselines", "", "owner baseline file (cli/knowledge/repin-baselines.json): a repository whose latest release is ambiguous uses the tag the owner chose, only while that tag resolves to the recorded commit")
 	flags.Var(&rulePacks, "rules", "rule pack path (repeatable; default: the shipped CNCF and community packs)")
 	flags.Var(&projects, "project", "restrict to this project slug (repeatable; default: all)")
@@ -1731,7 +1732,7 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps 
 		fmt.Fprintln(stderr, "evidence repin: --baseline must be release-line or latest")
 		return 2
 	}
-	if msg := checkSourceFlags(*source, *mirrorState, *statePath, *wantsOut, deps.OpenMirror != nil); msg != "" {
+	if msg := checkSourceFlags(*source, *mirrorState, *statePath, *wantsOut, *failOnMissing, deps.OpenMirror != nil); msg != "" {
 		fmt.Fprintln(stderr, "evidence repin: "+msg)
 		return 2
 	}
@@ -1836,6 +1837,9 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps 
 	}
 	if *source == SourceMirror && missing > 0 {
 		fmt.Fprintf(stdout, "evidence repin: %d file(s) are not in the mirror; add them with \"factory mirror --wants\" (see --wants-out) and run again\n", missing)
+		if *failOnMissing {
+			return 3
+		}
 	}
 	return 0
 }

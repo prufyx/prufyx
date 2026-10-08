@@ -49,6 +49,17 @@ returns. In release-line mode such a repository's citations are compared on a
 tag line (see "Repositories without GitHub Releases" below), derived from the
 mirror's recorded tags exactly as over HTTP from the live ref listing.
 
+### `--fail-on-missing`
+
+A mirror run exits 0 when files are missing from the mirror: the worklist is
+complete in the sense that matters (missing files are `PENDING`, never
+"unchanged") and the wants file is the signal. A script that must stop on an
+incomplete run passes `--fail-on-missing`; the run then exits 3 after writing the
+worklist and the wants file. The flag changes only the exit code (0 stays 0 when
+nothing is missing, and exit 2 stays a rejection). It belongs to `--source
+mirror` and is refused with `--source http`, as `--mirror-state` and `--wants-out`
+are.
+
 ### Getting the files into the mirror: a two-step flow
 
 Which commit a citation is compared with (the newest release, or the newest on

@@ -786,6 +786,7 @@ func TestMirrorFlagValidation(t *testing.T) {
 		"state with mirror":        {"--source", "mirror", "--mirror-state", w.state, "--state", filepath.Join(t.TempDir(), "s.json")},
 		"mirror-state with http":   {"--mirror-state", w.state},
 		"wants-out with http":      {"--wants-out", filepath.Join(t.TempDir(), "w.json")},
+		"fail-on-missing w/ http":  {"--fail-on-missing"},
 		"unknown source":           {"--source", "ftp"},
 		"unmirrored state is read": {"--source", "mirror", "--mirror-state", filepath.Join(t.TempDir(), "absent-index-is-empty")},
 	}
@@ -809,5 +810,36 @@ func TestMirrorFlagValidation(t *testing.T) {
 	code := evidencerepin.Run(context.Background(), []string{"repin", "--rules", rules, "--output", filepath.Join(t.TempDir(), "o.json"), "--source", "mirror", "--mirror-state", w.state}, &stdout, &stderr, &failingAPI{}, failingBlobs{&failingAPI{}}, fixedNow, nil)
 	if code != 2 {
 		t.Fatalf("a build without a mirror must reject --source mirror: %d", code)
+	}
+}
+
+// A run with files missing from the mirror exits 0 by default (the wants file
+// is the signal); --fail-on-missing makes it exit 3 after writing both files.
+func TestMirrorMissingBlobsExitCode(t *testing.T) {
+	w := newWorld(t)
+	w.mirror(nil)
+	rules := filepath.Join(t.TempDir(), "rules.json")
+	writeRules(t, rules, w.cites)
+	for _, tc := range []struct {
+		extra []string
+		want  int
+	}{{nil, 0}, {[]string{"--fail-on-missing"}, 3}} {
+		out := filepath.Join(t.TempDir(), "worklist.json")
+		wantsOut := filepath.Join(t.TempDir(), "wants.json")
+		args := append([]string{"repin", "--source", "mirror", "--mirror-state", w.state, "--rules", rules, "--output", out, "--wants-out", wantsOut}, tc.extra...)
+		var stdout, stderr strings.Builder
+		code := evidencerepin.RunWith(context.Background(), args, &stdout, &stderr, evidencerepin.Deps{Now: fixedNow, OpenMirror: factorymirror.OpenRepinSource})
+		if code != tc.want {
+			t.Fatalf("%v: exit %d, want %d: %s", tc.extra, code, tc.want, stderr.String())
+		}
+		for _, p := range []string{out, wantsOut} {
+			if _, err := os.Stat(p); err != nil {
+				t.Fatalf("%v: %v", tc.extra, err)
+			}
+		}
+		rawWants, _ := os.ReadFile(wantsOut)
+		if strings.TrimSpace(string(rawWants)) == "{\n  \"wants\": []\n}" {
+			t.Fatalf("missing files must produce a non-empty wants file")
+		}
 	}
 }

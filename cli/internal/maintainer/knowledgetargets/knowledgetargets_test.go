@@ -162,3 +162,86 @@ func TestSingleTargetLayoutIsGated(t *testing.T) {
 		t.Fatalf("unbuildable: code=%d stderr=%s", code, stderr.String())
 	}
 }
+
+// check-size --tree reads the pack files of a checkout, prints which tree it
+// checked, and rejects what is not a tree; without --dir/--tree it says it
+// checked the embedded pack.
+func TestCheckSizeNamesWhatItChecked(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr strings.Builder
+	if code := Run([]string{"check-size", "--tree", root}, &stdout, &stderr); code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "checked: CNCF pack files of tree ") {
+		t.Fatalf("tree not named: %s", stdout.String())
+	}
+	stdout.Reset()
+	if code := Run([]string{"check-size"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("embedded exit %d: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "embedded in this binary") {
+		t.Fatalf("embedded default not named: %s", stdout.String())
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if code := Run([]string{"check-size", "--tree", t.TempDir()}, &stdout, &stderr); code != 2 {
+		t.Fatalf("a non-tree must be rejected, exit %d", code)
+	}
+	if code := Run([]string{"check-size", "--tree", root, "--dir", root}, &stdout, &stderr); code != 2 {
+		t.Fatalf("--tree with --dir must be rejected, exit %d", code)
+	}
+}
+
+// check-size --tree reads the pack with the gate's reader semantics: a link
+// below the tree, a FIFO or an oversized pack input is refused (exit 2),
+// never followed or waited on. The single-target line names its target.
+func TestCheckSizeTreeRefusesLinksAndNamesTheSingleTarget(t *testing.T) {
+	cli, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree := t.TempDir()
+	data := filepath.Join(tree, "cli", "internal", "cncfcheck", "data")
+	if err := os.MkdirAll(data, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{
+		"internal/projectcheck/data/projects.json", "internal/projectcheck/data/rules.json",
+		"internal/cncfcheck/data/landscape-projects.json", "internal/cncfcheck/data/priority-portfolio.json", "internal/cncfcheck/data/rules.json",
+	} {
+		raw, err := os.ReadFile(filepath.Join(cli, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		dst := filepath.Join(tree, "cli", filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(dst, raw, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var stdout, stderr strings.Builder
+	if code := Run([]string{"check-size", "--tree", tree}, &stdout, &stderr); code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "single-target layout: knowledge/constraints.v1.json ") {
+		t.Fatalf("the single target is not named: %s", stdout.String())
+	}
+	// Move the data directory outside and link to it.
+	outside := filepath.Join(t.TempDir(), "data")
+	if err := os.Rename(data, outside); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, data); err != nil {
+		t.Skip("symlinks unavailable")
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if code := Run([]string{"check-size", "--tree", tree}, &stdout, &stderr); code != 2 {
+		t.Fatalf("a symlinked data directory was accepted: exit %d", code)
+	}
+}

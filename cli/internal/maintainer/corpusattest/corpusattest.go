@@ -22,11 +22,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/treefs"
 	"github.com/prufyx/prufyx/cli/internal/projectcheck"
+	"github.com/prufyx/prufyx/cli/internal/validation"
 )
 
 const maxPackBytes = 4 << 20
@@ -134,9 +138,7 @@ func DocumentFor(pack string) ([]byte, error) {
 // a checker built from one revision regenerate the attestation of another
 // revision's pack, with this revision's admission rules.
 func DocumentFromTree(pack, cliRoot string) ([]byte, error) {
-	return DocumentFromFiles(pack, func(rel string) ([]byte, error) {
-		return os.ReadFile(filepath.Join(cliRoot, filepath.FromSlash(rel)))
-	})
+	return DocumentFromFiles(pack, ReadRegularFile(cliRoot))
 }
 
 // MaxInputBytes bounds every input file DocumentFromFiles reads.
@@ -218,22 +220,42 @@ func Digest(document []byte) (string, error) {
 	return sourcecorpus.SHA(canonical), nil
 }
 
-// verifyPackBinding re-reads the pack file in the working tree and confirms it
-// hashes to the packDigest the embedded pack produced. It is an independent
-// cross-check: the digest inside the attestation is computed from the compiled
-// asset, and this confirms the reviewer is looking at the same bytes.
-func verifyPackBinding(packPath, expected string) error {
-	raw, err := os.ReadFile(packPath)
+// verifyPackBinding re-reads the pack file (rel below dir, read without
+// following links) and confirms it hashes to the packDigest the attestation
+// carries. With the embedded binding it is an independent cross-check that
+// the reviewer is looking at the compiled bytes. With a tree binding it
+// re-reads the file the attestation was computed from unless --rules names
+// another file, so there it is a consistency check, not an independent one.
+func verifyPackBinding(dir, rel, expected string) error {
+	raw, err := treefs.Read(dir, rel, maxPackBytes)
 	if err != nil {
 		return err
 	}
-	if len(raw) > maxPackBytes {
-		return fmt.Errorf("rule pack exceeds the reviewed bound")
-	}
 	if actual := sourcecorpus.SHA(raw); actual != expected {
-		return fmt.Errorf("rule pack digest does not match the embedded pack")
+		return fmt.Errorf("rule pack digest does not match the attested pack")
 	}
 	return nil
+}
+
+// location is a file as a directory (followed as given) and a path below it
+// (never followed); every read and write of this command goes through it.
+type location struct{ dir, rel string }
+
+// resolveLocation is the flag value when given (its directory is the
+// caller's own choice, its last element is not followed) and otherwise the
+// default path below root.
+func resolveLocation(flagValue, root, defaultRel string) (location, error) {
+	if flagValue != "" {
+		if strings.HasSuffix(flagValue, "/") || strings.HasSuffix(flagValue, string(filepath.Separator)) {
+			return location{}, fmt.Errorf("%s is a directory", flagValue)
+		}
+		clean := filepath.Clean(flagValue)
+		if info, err := os.Stat(clean); err == nil && info.IsDir() {
+			return location{}, fmt.Errorf("%s is a directory", flagValue)
+		}
+		return location{dir: filepath.Dir(clean), rel: filepath.Base(clean)}, nil
+	}
+	return location{dir: root, rel: defaultRel}, nil
 }
 
 // Run is the maintainer subcommand adapter. It follows the same
@@ -253,6 +275,7 @@ func Run(args []string, stdout, stderr io.Writer, cliRoot string) int {
 	packName := flags.String("pack", PackCommunity, "rule pack to attest: community or cncf")
 	output := flags.String("output", "", "attestation asset path")
 	pack := flags.String("rules", "", "rule pack file the attestation is bound to")
+	treeDir := flags.String("tree", "", "checked-out source tree (its root or its cli/ directory) whose pack bytes the attestation is computed over and bound to; default is the pack embedded in this binary")
 	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 {
 		fmt.Fprintln(stderr, "corpus-attestation: command rejected")
 		return 2
@@ -262,14 +285,37 @@ func Run(args []string, stdout, stderr io.Writer, cliRoot string) int {
 		fmt.Fprintln(stderr, "corpus-attestation: command rejected")
 		return 2
 	}
-	if *output == "" {
-		*output = filepath.Join(cliRoot, selected.packageDir, selected.assetPath)
+	// The binding is explicit: either the pack embedded in this binary
+	// (default) or the pack bytes of the named tree, never a mixture.
+	var document []byte
+	var err error
+	binding := "embedded"
+	if *treeDir != "" {
+		treeCLI, terr := ResolveTreeCLI(*treeDir)
+		if terr != nil {
+			fmt.Fprintln(stderr, "corpus-attestation: tree rejected")
+			return 2
+		}
+		cliRoot = treeCLI
+		binding = "tree:" + filepath.ToSlash(treeCLI)
+		document, err = DocumentFromFiles(*packName, ReadRegularFile(treeCLI))
+	} else {
+		document, err = DocumentFor(*packName)
 	}
-	if *pack == "" {
-		*pack = filepath.Join(cliRoot, selected.rulesPath)
+	if (*output == "" || *pack == "") && cliRoot == "" {
+		fmt.Fprintln(stderr, "corpus-attestation: CLI root is unavailable")
+		return 2
 	}
-
-	document, err := DocumentFor(*packName)
+	outLoc, outErr := resolveLocation(*output, cliRoot, path.Join(selected.packageDir, selected.assetPath))
+	if outErr != nil {
+		fmt.Fprintf(stderr, "corpus-attestation: --output: %v\n", outErr)
+		return 2
+	}
+	packLoc, packErr := resolveLocation(*pack, cliRoot, selected.rulesPath)
+	if packErr != nil {
+		fmt.Fprintf(stderr, "corpus-attestation: --rules: %v\n", packErr)
+		return 2
+	}
 	if err != nil {
 		fmt.Fprintln(stderr, "corpus-attestation: attestation rejected")
 		return 2
@@ -279,7 +325,7 @@ func Run(args []string, stdout, stderr io.Writer, cliRoot string) int {
 		fmt.Fprintln(stderr, "corpus-attestation: attestation rejected")
 		return 2
 	}
-	if err := verifyPackBinding(*pack, attestation.PackDigest); err != nil {
+	if err := verifyPackBinding(packLoc.dir, packLoc.rel, attestation.PackDigest); err != nil {
 		fmt.Fprintln(stderr, "corpus-attestation: rule pack binding rejected")
 		return 2
 	}
@@ -290,18 +336,93 @@ func Run(args []string, stdout, stderr io.Writer, cliRoot string) int {
 	}
 
 	if mode == "check" {
-		current, readErr := os.ReadFile(*output)
+		current, readErr := treefs.Read(outLoc.dir, outLoc.rel, maxPackBytes)
 		if readErr != nil || string(current) != string(document) {
 			fmt.Fprintln(stderr, "corpus-attestation: committed attestation is stale")
 			return 2
 		}
-		fmt.Fprintf(stdout, "corpus-attestation current: pack=%s revision=%s components=%d rules=%d digest=%s\n", *packName, attestation.Revision, attestation.Components, attestation.RuleCount, digest)
+		fmt.Fprintf(stdout, "corpus-attestation current: pack=%s revision=%s components=%d rules=%d digest=%s packDigest=%s binding=%s\n", *packName, attestation.Revision, attestation.Components, attestation.RuleCount, digest, attestation.PackDigest, binding)
 		return 0
 	}
-	if err := os.WriteFile(*output, document, 0o644); err != nil {
+	if err := treefs.Write(outLoc.dir, outLoc.rel, document, 0o644); err != nil {
 		fmt.Fprintln(stderr, "corpus-attestation: cannot commit the attestation")
 		return 2
 	}
-	fmt.Fprintf(stdout, "corpus-attestation written: pack=%s revision=%s components=%d rules=%d digest=%s\n", *packName, attestation.Revision, attestation.Components, attestation.RuleCount, digest)
+	fmt.Fprintf(stdout, "corpus-attestation written: pack=%s revision=%s components=%d rules=%d digest=%s packDigest=%s binding=%s\n", *packName, attestation.Revision, attestation.Components, attestation.RuleCount, digest, attestation.PackDigest, binding)
 	return 0
+}
+
+// treeLayout lists what a source tree's cli/ directory must hold for this
+// command: both packs' data directories and every input file either pack is
+// attested from. The committed attestation assets are not required (generate
+// creates them).
+var treeLayout = struct{ dirs, files []string }{
+	dirs: []string{"internal/projectcheck/data", "internal/cncfcheck/data"},
+	files: []string{
+		"internal/projectcheck/data/projects.json", "internal/projectcheck/data/rules.json",
+		"internal/cncfcheck/data/landscape-projects.json", "internal/cncfcheck/data/priority-portfolio.json", "internal/cncfcheck/data/rules.json",
+	},
+}
+
+// hasTreeLayout reports whether dir holds the whole expected layout, every
+// component a plain directory or regular file (nothing followed).
+func hasTreeLayout(dir string) bool {
+	for _, rel := range treeLayout.dirs {
+		d, err := treefs.OpenDir(dir, rel)
+		if err != nil {
+			return false
+		}
+		d.Close()
+	}
+	for _, rel := range treeLayout.files {
+		if kind, err := treefs.Kind(dir, rel); err != nil || kind != validation.EntryRegular {
+			return false
+		}
+	}
+	return true
+}
+
+// ResolveTreeCLI maps a --tree argument to the tree's cli/ directory. It
+// accepts the tree root (which holds cli/) or the cli/ directory itself and
+// rejects anything else, so a wrong path fails instead of silently falling
+// back to the embedded pack. The result is deterministic: a candidate is
+// accepted only when the whole expected layout is present as plain
+// directories and regular files; a cli entry that is a symbolic link or not
+// a directory is refused; and when both the argument and its cli/ child
+// hold the layout the argument is ambiguous and is refused rather than
+// guessed.
+func ResolveTreeCLI(dir string) (string, error) {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return "", err
+	}
+	child := filepath.Join(abs, "cli")
+	childOK := false
+	switch kind, err := treefs.Kind(abs, "cli"); {
+	case err == nil && kind == validation.EntryDirectory:
+		childOK = hasTreeLayout(child)
+	case err == nil:
+		return "", fmt.Errorf("%s is not a plain directory", child)
+	}
+	selfOK := hasTreeLayout(abs)
+	switch {
+	case childOK && selfOK:
+		return "", fmt.Errorf("ambiguous tree: both %s and its cli/ directory hold the source layout", abs)
+	case childOK:
+		return child, nil
+	case selfOK:
+		return abs, nil
+	}
+	return "", fmt.Errorf("not a source tree")
+}
+
+// ReadRegularFile reads files below root (paths relative to it, forward
+// slashes) with the knowledge gate's reader semantics: no symbolic link on
+// any component below root, a file opened without blocking so a FIFO or
+// device is refused, type and size checked on the open descriptor, and the
+// size bound applied before the content is read.
+func ReadRegularFile(root string) func(rel string) ([]byte, error) {
+	return func(rel string) ([]byte, error) {
+		return treefs.Read(root, rel, MaxInputBytes)
+	}
 }

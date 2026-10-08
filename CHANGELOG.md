@@ -64,6 +64,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- `prufyx-maintainer corpus-attestation generate|check --tree DIR` attests the
+  pack files of a checked-out tree (its root or its `cli/` directory) instead of
+  the pack embedded in the binary, so a mechanical candidate can be re-attested
+  locally. The output names its binding (`binding=tree:...` or `binding=embedded`).
+  The command no longer needs a CLI root from the working directory when `--tree`
+  is given. See `docs/knowledge-gate.md`.
+- `prufyx-maintainer knowledge-targets check-size --tree DIR` checks the CNCF
+  pack files of a checkout with the knowledge gate's measurement.
+- `prufyx-maintainer evidence repin --fail-on-missing` (with `--source mirror`)
+  exits 3, after writing the worklist and wants file, when files are missing from
+  the mirror. The default exit code stays 0. With `--source http` the flag is
+  refused.
 - Image-based component detection (DETECT-1, phase 1): a reviewed registry
   (`cli/internal/imageidentity/data/image-sources.json`) maps container image
   repositories to projects and reads a version only from a tag that follows the
@@ -254,6 +266,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- `knowledge-targets check-size` prints first what it checked (the embedded pack,
+  a `--dir` directory or a `--tree` checkout) and the single-target line names its
+  target.
+- `corpus-attestation` reads and writes the attestation asset and the rule pack
+  without following a symbolic link below the directory it works in: it writes a
+  temporary file, flushes it and renames it into place, and refuses a symbolic
+  link, FIFO or other non-regular file at the asset or any link among its parent
+  directories (previously a link was followed and its target overwritten).
 - `k8s.served-api-removal` 1.3.0: every reviewed migration hint now cites the
   passage of the upstream deprecation guide (kubernetes/website at a pinned
   revision, with start and end line) that supports it, and a test checks each

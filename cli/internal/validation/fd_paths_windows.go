@@ -33,3 +33,5 @@ func renameNoReplaceRelative(*os.File, string, string) error { return ErrUnsuppo
 func removeRelative(*os.File, string) error { return ErrUnsupportedPlatform }
 
 func removeDirectoryRelative(*os.File, string) error { return ErrUnsupportedPlatform }
+
+func renameRelative(*os.File, string, string) error { return ErrUnsupportedPlatform }
