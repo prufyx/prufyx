@@ -554,6 +554,16 @@ func classifyOrigin(base CheckAssessment, route checkroutemetadata.Check, exact 
 	// applicable. Only a target below C (or not above the origin) is.
 	boundary, boundaryKnown := transition.ChangeVersion()
 	boundaryOrigin := !inRange && !crossingOrigin && route.Range != nil && boundaryKnown && constraintengine.VersionLess(observed, boundary)
+	// A downgrade across a CHANGED_IN_RELEASE boundary (to < C <= observed) is
+	// unreviewed too: reverting a change is not proven harmless. The engine
+	// reports it as undetermined, so the assessment must not exclude it.
+	// route.Range != nil keeps crossing rules out (upgrade-only).
+	if !inRange && !crossingOrigin && route.Range != nil && targetOK && to != "" && constraintengine.SameVersion(to, to) && transition.CrossesUnreviewed(observed, to) && constraintengine.VersionLess(to, observed) {
+		base.MatchMode = constraintengine.MatchModeBoundaryUnreviewed
+		base.Applicability = IndeterminateHopOutsideReviewedRange
+		base.Reason = "The hop " + observed + " -> " + to + " is a downgrade across this rule's release boundary " + boundary + " with a CHANGED_IN_RELEASE basis, outside its reviewed range. Reverting a change is not reviewed, so the check cannot be excluded. Request coverage or review the downgrade manually."
+		return base
+	}
 	if !inRange && !crossingOrigin && !boundaryOrigin {
 		base.Applicability = NotApplicableVersionMismatch
 		base.Reason = mismatch

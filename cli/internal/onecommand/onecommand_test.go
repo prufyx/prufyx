@@ -722,6 +722,37 @@ func TestClassifyBoundaryOriginMatchMode(t *testing.T) {
 	}
 }
 
+// BOUNDARY-1 F7: a downgrade across C = 1.25.0 is unreviewed for a
+// CHANGED_IN_RELEASE range (reverting a change is not proven harmless) and
+// stays not applicable for REMOVED_IN_RELEASE (the removed API exists again on
+// the lower line).
+func TestClassifyDowngradeAcrossBoundary(t *testing.T) {
+	changed := rangedKubernetesRoute()
+	v := *changed.Range
+	v.Bounds = append([]constraintengine.RangeBound(nil), v.Bounds...)
+	v.Bounds[1].Basis, v.Bounds[2].Basis = constraintengine.BasisChangedInRelease, constraintengine.BasisChangedInRelease
+	changed.Range = &v
+	for _, tc := range []struct {
+		name, observed, to string
+		changedWant        string
+		removedWant        string
+		mode               string
+	}{
+		{"downgrade far across C", "1.30.0", "1.21.0", IndeterminateHopOutsideReviewedRange, NotApplicableVersionMismatch, "boundary-unreviewed"},
+		{"downgrade just across C", "1.25.0", "1.24.9", IndeterminateHopOutsideReviewedRange, NotApplicableVersionMismatch, "boundary-unreviewed"},
+		{"downgrade not reaching C", "1.30.0", "1.25.0", NotApplicableVersionMismatch, NotApplicableVersionMismatch, ""},
+	} {
+		got := classifyKubernetes(CheckAssessment{}, changed, kubernetesObservedBundle(tc.observed), false, tc.to)
+		if got.Applicability != tc.changedWant || got.MatchMode != map[bool]string{true: tc.mode, false: ""}[tc.changedWant == IndeterminateHopOutsideReviewedRange] {
+			t.Errorf("CHANGED %s: %q/%q, want %q", tc.name, got.Applicability, got.MatchMode, tc.changedWant)
+		}
+		removed := classifyKubernetes(CheckAssessment{}, rangedKubernetesRoute(), kubernetesObservedBundle(tc.observed), false, tc.to)
+		if removed.Applicability != tc.removedWant || removed.MatchMode != "" {
+			t.Errorf("REMOVED %s: %q/%q, want %q", tc.name, removed.Applicability, removed.MatchMode, tc.removedWant)
+		}
+	}
+}
+
 // BOUNDARY-1 on the shipped pack: a cluster at 1.20.x assessed with --to
 // 1.22.x must not report the 13 removals of 1.22 as not applicable.
 func TestShippedPackBoundaryOriginIsNotHidden(t *testing.T) {
