@@ -72,7 +72,8 @@ type Check struct {
 	NativeDescriptor        Route  `json:"nativeDescriptor"`
 	// Range and MatchMode are present only for a rule with a reviewed range.
 	// MatchMode is "range" only when the query pair matched the range rather
-	// than the anchor pair. Native descriptors stay exact-pair.
+	// than the anchor pair, and "boundary-unreviewed" when the pair crosses
+	// the rule's release boundary outside the range. Native descriptors stay exact-pair.
 	Range     *constraintengine.VersionRange `json:"range,omitempty"`
 	MatchMode string                         `json:"matchMode,omitempty"`
 	// Crossing is present only for a rule with a reviewed removal crossing;
@@ -716,7 +717,9 @@ func genericRoute(family, project, from, to string) Route {
 // Discover returns all compiled source-rule identities, optionally narrowed by
 // project and a queried from/to pair. A queried pair narrows to identities the
 // range matcher accepts, whether that is the reviewed anchor or, for a rule
-// with a reviewed range, a transition inside it. It neither reads inputs nor
+// with a reviewed range, a transition inside it, plus the identities whose
+// release boundary the pair crosses outside the reviewed range
+// (matchMode boundary-unreviewed). It neither reads inputs nor
 // evaluates rules.
 func Discover(selectedProject, selectedFrom, selectedTo string) (Result, error) {
 	cncf, err := cncfcheck.EmbeddedRuleIdentities()
@@ -860,14 +863,17 @@ func namedHints(project string) []NamedCheckHint {
 }
 
 // queryMatchMode names how a queried pair matched a subject when it is not the
-// anchor: "range" or "crossing". It is empty without a full pair and for an
-// anchor match.
+// anchor: "range", "crossing" or "boundary-unreviewed" (the pair matches no
+// reviewed subject but crosses the release boundary it is about). It is empty
+// without a full pair and for an anchor match.
 func queryMatchMode(subject constraintengine.RuleTransition, selectedFrom, selectedTo string) string {
 	if selectedFrom == "" || selectedTo == "" {
 		return ""
 	}
 	if mode := subject.Match(selectedFrom, selectedTo); mode == constraintengine.MatchRange || mode == constraintengine.MatchCrossing {
 		return string(mode)
+	} else if mode == constraintengine.MatchNone && subject.CrossesUnreviewed(selectedFrom, selectedTo) {
+		return constraintengine.MatchModeBoundaryUnreviewed
 	}
 	return ""
 }
@@ -880,7 +886,9 @@ func projectFilter(selectedProject, selectedFrom, selectedTo, project string, su
 		return true
 	}
 	if selectedFrom != "" && selectedTo != "" {
-		return subject.Match(selectedFrom, selectedTo) == constraintengine.MatchNone
+		// A pair that crosses the rule's release boundary outside its
+		// reviewed range is listed (boundary-unreviewed), never hidden.
+		return subject.Match(selectedFrom, selectedTo) == constraintengine.MatchNone && !subject.CrossesUnreviewed(selectedFrom, selectedTo)
 	}
 	return selectedFrom != "" && !subject.MatchesFrom(selectedFrom) || selectedTo != "" && !subject.MatchesTo(selectedTo)
 }

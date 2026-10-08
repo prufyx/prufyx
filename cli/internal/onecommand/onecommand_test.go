@@ -288,6 +288,14 @@ func rangedKubernetesRoute() checkroutemetadata.Check {
 		Range: &constraintengine.VersionRange{
 			From: constraintengine.VersionBound{Gte: "1.24.0", Lt: "1.25.0"},
 			To:   constraintengine.VersionBound{Gte: "1.25.0", Lt: "1.26.0"},
+			// A release-boundary range: C = 1.25.0 is REMOVED_IN_RELEASE on
+			// both boundary bounds, the shape of the shipped removals.
+			Bounds: []constraintengine.RangeBound{
+				{Bound: "from.gte", Basis: constraintengine.BasisPreviousMinorLine, SourceID: "s"},
+				{Bound: "from.lt", Basis: constraintengine.BasisRemovedInRelease, SourceID: "s"},
+				{Bound: "to.gte", Basis: constraintengine.BasisRemovedInRelease, SourceID: "s"},
+				{Bound: "to.lt", Basis: constraintengine.BasisReviewedThroughMinorLine, SourceID: "s"},
+			},
 		},
 		NativeDescriptor: checkroutemetadata.Route{State: checkroutemetadata.DescriptorNone},
 	}
@@ -319,7 +327,15 @@ func TestClassifyKubernetesRangeApplicability(t *testing.T) {
 		{"crosses C, past reviewed range", "1.24.17", "1.26.0", IndeterminateHopOutsideReviewedRange, false},
 		{"crosses C, multi-minor target", "1.24.17", "1.35.6", IndeterminateHopOutsideReviewedRange, false},
 		{"origin at C (already past)", "1.25.0", "1.25.4", NotApplicableVersionMismatch, false},
-		{"origin below range", "1.23.9", "1.25.1", NotApplicableVersionMismatch, false},
+		// BOUNDARY-1: an origin below the range may still be upgraded across
+		// C = 1.25.0, so it is never excluded when the target reaches C.
+		{"origin below range, target above C", "1.23.9", "1.25.1", IndeterminateHopOutsideReviewedRange, false},
+		{"origin below range, target at C", "1.23.9", "1.25.0", IndeterminateHopOutsideReviewedRange, false},
+		{"origin far below range, wide target", "1.20.15", "1.30.2", IndeterminateHopOutsideReviewedRange, false},
+		{"origin below range, no target", "1.23.9", "", ApplicableNeedsDeclaration, true},
+		{"origin below range, target below C", "1.23.9", "1.24.5", NotApplicableVersionMismatch, false},
+		{"origin below range, target equals origin", "1.23.9", "1.23.9", NotApplicableVersionMismatch, false},
+		{"origin below range, downgrade", "1.23.9", "1.22.0", NotApplicableVersionMismatch, false},
 		{"origin far above", "1.35.6", "1.36.0", NotApplicableVersionMismatch, false},
 		{"unparseable origin v-prefix", "v1.24.17", "1.25.1", IndeterminateVersionUnparseable, false},
 		{"unparseable origin eks suffix", "1.24.17-eks-abc", "1.25.1", IndeterminateVersionUnparseable, false},
@@ -426,7 +442,12 @@ func TestClassifyRangeMutationCheck(t *testing.T) {
 		"to.lt narrowed":         mutate(func(v *constraintengine.VersionRange) { v.To.Lt = "1.25.5" }),
 		"from.gte lowered":       mutate(func(v *constraintengine.VersionRange) { v.From.Gte = "1.22.0" }),
 		"from.gte raised":        mutate(func(v *constraintengine.VersionRange) { v.From.Gte = "1.24.20" }),
-		"range dropped":          func() checkroutemetadata.Check { m := route; m.Range = nil; return m }(),
+		"release bounds dropped": mutate(func(v *constraintengine.VersionRange) { v.Bounds = nil }),
+		"boundary basis not a release": mutate(func(v *constraintengine.VersionRange) {
+			v.Bounds = append([]constraintengine.RangeBound(nil), v.Bounds...)
+			v.Bounds[2].Basis = constraintengine.BasisTargetSeries
+		}),
+		"range dropped": func() checkroutemetadata.Check { m := route; m.Range = nil; return m }(),
 	}
 	for name, m := range mutants {
 		if render(m) == baseline {
@@ -664,5 +685,101 @@ func TestClassifyKubernetesCrossingApplicability(t *testing.T) {
 	plain.Crossing = nil
 	if got := classifyKubernetes(CheckAssessment{}, plain, kubernetesObservedBundle("1.24.17"), false, "1.30.2"); got.Applicability != NotApplicableVersionMismatch {
 		t.Errorf("rule without crossing or range: %q", got.Applicability)
+	}
+}
+
+// BOUNDARY-1: the match mode of an origin below the range is
+// boundary-unreviewed while the hop is open or crosses C, and empty when the
+// hop provably does not cross C.
+func TestClassifyBoundaryOriginMatchMode(t *testing.T) {
+	route := rangedKubernetesRoute()
+	for _, tc := range []struct{ to, applicability, mode string }{
+		{"", ApplicableNeedsDeclaration, "boundary-unreviewed"},
+		{"1.25.1", IndeterminateHopOutsideReviewedRange, "boundary-unreviewed"},
+		{"1.24.5", NotApplicableVersionMismatch, ""},
+	} {
+		got := classifyKubernetes(CheckAssessment{}, route, kubernetesObservedBundle("1.23.9"), false, tc.to)
+		if got.Applicability != tc.applicability || got.MatchMode != tc.mode {
+			t.Errorf("to=%q: %q/%q, want %q/%q", tc.to, got.Applicability, got.MatchMode, tc.applicability, tc.mode)
+		}
+	}
+	// A range that does not pin a release boundary keeps the old exclusion.
+	series := rangedKubernetesRoute()
+	v := *series.Range
+	v.Bounds = append([]constraintengine.RangeBound(nil), v.Bounds...)
+	v.Bounds[1].Basis, v.Bounds[2].Basis = constraintengine.BasisUpgradeFromSeries, constraintengine.BasisTargetSeries
+	series.Range = &v
+	if got := classifyKubernetes(CheckAssessment{}, series, kubernetesObservedBundle("1.23.9"), false, "1.25.1"); got.Applicability != NotApplicableVersionMismatch {
+		t.Errorf("range without a release boundary: %q", got.Applicability)
+	}
+	// The component path takes no --to, so an origin below the range needs
+	// the native check's own target.
+	component := rangedKubernetesRoute()
+	component.Project = "cilium"
+	got := classifyOrigin(CheckAssessment{}, component, true, "1.23.9", "", false, "mismatch")
+	if got.Applicability != ApplicableNeedsDeclaration || !strings.Contains(got.Reason, "native check") {
+		t.Errorf("component origin below range: %q %s", got.Applicability, got.Reason)
+	}
+}
+
+// BOUNDARY-1 F7: a downgrade across C = 1.25.0 is unreviewed for a
+// CHANGED_IN_RELEASE range (reverting a change is not proven harmless) and
+// stays not applicable for REMOVED_IN_RELEASE (the removed API exists again on
+// the lower line).
+func TestClassifyDowngradeAcrossBoundary(t *testing.T) {
+	changed := rangedKubernetesRoute()
+	v := *changed.Range
+	v.Bounds = append([]constraintengine.RangeBound(nil), v.Bounds...)
+	v.Bounds[1].Basis, v.Bounds[2].Basis = constraintengine.BasisChangedInRelease, constraintengine.BasisChangedInRelease
+	changed.Range = &v
+	for _, tc := range []struct {
+		name, observed, to string
+		changedWant        string
+		removedWant        string
+		mode               string
+	}{
+		{"downgrade far across C", "1.30.0", "1.21.0", IndeterminateHopOutsideReviewedRange, NotApplicableVersionMismatch, "boundary-unreviewed"},
+		{"downgrade just across C", "1.25.0", "1.24.9", IndeterminateHopOutsideReviewedRange, NotApplicableVersionMismatch, "boundary-unreviewed"},
+		{"downgrade not reaching C", "1.30.0", "1.25.0", NotApplicableVersionMismatch, NotApplicableVersionMismatch, ""},
+	} {
+		got := classifyKubernetes(CheckAssessment{}, changed, kubernetesObservedBundle(tc.observed), false, tc.to)
+		if got.Applicability != tc.changedWant || got.MatchMode != map[bool]string{true: tc.mode, false: ""}[tc.changedWant == IndeterminateHopOutsideReviewedRange] {
+			t.Errorf("CHANGED %s: %q/%q, want %q", tc.name, got.Applicability, got.MatchMode, tc.changedWant)
+		}
+		removed := classifyKubernetes(CheckAssessment{}, rangedKubernetesRoute(), kubernetesObservedBundle(tc.observed), false, tc.to)
+		if removed.Applicability != tc.removedWant || removed.MatchMode != "" {
+			t.Errorf("REMOVED %s: %q/%q, want %q", tc.name, removed.Applicability, removed.MatchMode, tc.removedWant)
+		}
+	}
+}
+
+// BOUNDARY-1 on the shipped pack: a cluster at 1.20.x assessed with --to
+// 1.22.x must not report the 13 removals of 1.22 as not applicable.
+func TestShippedPackBoundaryOriginIsNotHidden(t *testing.T) {
+	now := time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC)
+	discovered, err := checkroutemetadata.Discover("kubernetes", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	removals := 0
+	for _, route := range discovered.Checks {
+		if route.Project != kubernetesProject || route.Range == nil || route.Range.To.Gte != "1.22.0" {
+			continue
+		}
+		removals++
+		bundle := kubernetesObservedBundle("1.20.15")
+		hop := classify(route, bundle, false, "1.22.3", now)
+		if hop.Applicability != IndeterminateHopOutsideReviewedRange || hop.MatchMode != "boundary-unreviewed" {
+			t.Errorf("%s 1.20.15 -> 1.22.3: %q/%q", route.RuleID, hop.Applicability, hop.MatchMode)
+		}
+		if open := classify(route, bundle, false, "", now); open.Applicability != ApplicableNeedsDeclaration {
+			t.Errorf("%s 1.20.15, no --to: %q", route.RuleID, open.Applicability)
+		}
+		if short := classify(route, bundle, false, "1.21.9", now); short.Applicability != NotApplicableVersionMismatch {
+			t.Errorf("%s 1.20.15 -> 1.21.9: %q", route.RuleID, short.Applicability)
+		}
+	}
+	if removals < 13 {
+		t.Fatalf("the shipped pack holds %d removals pinned at 1.22.0, want at least 13", removals)
 	}
 }

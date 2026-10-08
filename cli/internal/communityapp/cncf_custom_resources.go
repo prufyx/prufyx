@@ -85,7 +85,7 @@ func (r runtime) cncfCustomResourceCheck(req customResourceRequest) int {
 	}
 	summary := summarizeClaims(report.Check.Claims, flagProvided(req.args, "show-passes"))
 	if summary.allUnreviewed {
-		if err := writeUnreviewedTransition(r.stdout, req.project, req.from, req.to); err != nil {
+		if err := writeUnreviewedTransition(r.stdout, summary, req.project, req.from, req.to); err != nil {
 			return ExitIntegrity
 		}
 	}

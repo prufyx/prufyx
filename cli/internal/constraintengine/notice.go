@@ -107,7 +107,7 @@ func AnyNoticeRule(rules []json.RawMessage) (bool, error) {
 // use notice_one_way. It extends the set contract with the operator, the
 // NOTICE status, its reason code and the neutrality rule.
 func engineContractDigestNotice() string {
-	return digestBytes([]byte(EngineVersion + "\n" + InputSchema + "\n" + RulesSchemaNotice + "\n" + ReportSchema + "\n" + InputAuthority + "\n" + RulesAuthority + "\nappliesWhen\ncomparison:eq\ncomparison:gte\ncomparison:lte\ncomparison:lt\nforbid_predicate_value\nrequire_component_version\nrequire_intermediate_version\nforbid_target_version\n" + OperatorForbidSetMember + "\nfact:" + string(FactSet) + "\nclaim:matchedMembers\nreason:" + reasonSetFactIncomplete + "\n" + setMemberPolicy + "\n" + OperatorNoticeOneWay + "\nclaim:status:" + StatusNotice + "\nreason:" + ReasonOneWayTransition + "\n" + noticeNeutrality + "\nsubject:exact\nsubject:range\nclaim:subjectMatch\n" + rangeWidthPolicy + "\n" + basisVocabulary()))
+	return digestBytes([]byte(EngineVersion + "\n" + InputSchema + "\n" + RulesSchemaNotice + "\n" + ReportSchema + "\n" + InputAuthority + "\n" + RulesAuthority + "\nappliesWhen\ncomparison:eq\ncomparison:gte\ncomparison:lte\ncomparison:lt\nforbid_predicate_value\nrequire_component_version\nrequire_intermediate_version\nforbid_target_version\n" + OperatorForbidSetMember + "\nfact:" + string(FactSet) + "\nclaim:matchedMembers\nreason:" + reasonSetFactIncomplete + "\n" + setMemberPolicy + "\n" + OperatorNoticeOneWay + "\nclaim:status:" + StatusNotice + "\nreason:" + ReasonOneWayTransition + "\n" + noticeNeutrality + "\nsubject:exact\nsubject:range\nclaim:subjectMatch\n" + rangeWidthPolicy + "\n" + rangeBoundaryPolicy + "\n" + basisVocabulary()))
 }
 
 // EngineContractDigestNotice exposes the contract identity for rule
@@ -117,7 +117,7 @@ func EngineContractDigestNotice() string { return engineContractDigestNotice() }
 // scopeContractDigestNotice adds the notice exclusion to the ranged scope
 // vocabulary. It is used only with the notice engine contract.
 func scopeContractDigestNotice() string {
-	return digestBytes([]byte(ScopeContractVersionNotice + "\n" + ScopeDeclaration + "\n" + CorpusAttestation + "\n" + AssessmentUnknown + "\n" + AssessmentBlocked + "\n" + AssessmentScopeCompletePass + "\n" + ApplicabilityApplicable + "\n" + ApplicabilityNotApplicable + "\n" + ApplicabilityUndetermined + "\n" + omissionWholeUpgradeScoped + "\n" + unresolvedTransitionNotAnchor + "\n" + noticeNeutrality))
+	return digestBytes([]byte(ScopeContractVersionNotice + "\n" + ScopeDeclaration + "\n" + CorpusAttestation + "\n" + AssessmentUnknown + "\n" + AssessmentBlocked + "\n" + AssessmentScopeCompletePass + "\n" + ApplicabilityApplicable + "\n" + ApplicabilityNotApplicable + "\n" + ApplicabilityUndetermined + "\n" + omissionWholeUpgradeScoped + "\n" + unresolvedTransitionNotAnchor + "\n" + rangeBoundaryPolicy + "\n" + noticeNeutrality))
 }
 
 // ScopeContractDigestNotice exposes the notice scope-completeness identity.

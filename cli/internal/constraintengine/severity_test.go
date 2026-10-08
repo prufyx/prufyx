@@ -17,10 +17,10 @@ const (
 	supportRangeReason = "ADDON_KUBERNETES_SUPPORT_RANGE"
 	supportRangeAction = "upgrade the add-on to a release line whose documented support range includes the target"
 
-	pinnedEngineContractDigestBasis    = "sha256:446ca648caf8997ffd08c56dbf61802d34ea4604fceaf56d8d33c6e54e00bd49"
-	pinnedScopeContractDigestBasis     = "sha256:582aa96905519b22e50fd88b936570f5451cec883a9248243946fc0f7d2bc486"
-	pinnedEngineContractDigestSeverity = "sha256:833d9066b705faa8b4b04ef751a1d21c8ac493be4a899205b423095b2321acae"
-	pinnedScopeContractDigestSeverity  = "sha256:5023fc85690dced31e2944b465c914bf7c766c71e463939f28cbb829df8ec0fd"
+	pinnedEngineContractDigestBasis    = "sha256:b2bc43865925103acf09920828dd893f8ba95c3cfd3044dbb77a80152c1b31b2"
+	pinnedScopeContractDigestBasis     = "sha256:e4550f0c5c1ad51a1fca120d7a36b0d0f9c0a3994412597a1b0d7d92c06b2115"
+	pinnedEngineContractDigestSeverity = "sha256:3b8146f6998a99e4e7deef93d892b489d1b1b9f3df8de6b37895e77c5379e6be"
+	pinnedScopeContractDigestSeverity  = "sha256:c21d15e38ae7cb7e07faa85f132d1baa5e3d073aa33d01b4e382112a75c75503"
 )
 
 // dependencyOn renders a require_component_version dependency.

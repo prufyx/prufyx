@@ -57,6 +57,14 @@ const (
 	// exclusion: absence of a match is not evidence that the hop is safe.
 	ReasonCrossingNotReviewed = "RULE_CROSSING_NOT_REVIEWED"
 
+	// ReasonReleaseBoundaryNotReviewed is the reason of a ranged rule whose
+	// range pins a REMOVED_IN_RELEASE or CHANGED_IN_RELEASE boundary C when the
+	// declared hop crosses C (from < C <= to) outside the reviewed range. It is
+	// not an exclusion: the rule is UNDETERMINED in scope, so the engine never
+	// reports a complete pass over a hop that crosses a cited boundary. It is
+	// legal under every range-capable contract.
+	ReasonReleaseBoundaryNotReviewed = "RULE_RELEASE_BOUNDARY_NOT_REVIEWED"
+
 	// CrossingMaxHorizonLines bounds how far above the change version a
 	// horizon may reach, in minor lines of the same major line. A horizon
 	// asserts a review of every line below it, so it may not outrun the
@@ -76,7 +84,7 @@ const (
 	crossingNextActionShort    = "; matched by removal crossing %s"
 	crossingPassAction         = "no reviewed rule covers this whole hop; a removal crossing never passes; retain actual versions and request reviewed coverage"
 
-	crossingSemantics = "crossing:forbid-operators-only;basis:" + BasisRemovedInRelease + ";horizon:" + BasisReviewedThroughMinorLine + ":finite-cited;restored:" + BasisRestoredInRelease + ":caps-horizon;match:A<C<=B<min(horizon,restored);order:anchor,range,crossing;distributions:upstream,gke;never-pass;pass-becomes:" + ReasonCrossingPassNotReviewed + ";beyond-horizon:unknown;downgrade:unknown;unparseable:unknown;restored:minor-line-start-above-change-and-range;horizon:same-major-at-most-12-minor-lines-above-change;unreviewed-crossing:" + ReasonCrossingNotReviewed + ":undetermined-in-scope;range-release-boundary-unreviewed:" + ReasonCrossingNotReviewed + ":undetermined-in-scope"
+	crossingSemantics = "crossing:forbid-operators-only;basis:" + BasisRemovedInRelease + ";horizon:" + BasisReviewedThroughMinorLine + ":finite-cited;restored:" + BasisRestoredInRelease + ":caps-horizon;match:A<C<=B<min(horizon,restored);order:anchor,range,crossing;distributions:upstream,gke;never-pass;pass-becomes:" + ReasonCrossingPassNotReviewed + ";beyond-horizon:unknown;downgrade:unknown;unparseable:unknown;restored:minor-line-start-above-change-and-range;horizon:same-major-at-most-12-minor-lines-above-change;unreviewed-crossing:" + ReasonCrossingNotReviewed + ":undetermined-in-scope;" + rangeBoundaryPolicy
 )
 
 // reviewedDistributions is the closed list of distributions whose versions
@@ -185,7 +193,7 @@ func (r rule) usesCrossing() bool { return r.Crossing != nil }
 // validateCrossingRule checks the crossing object of one rule. Every failure
 // is ErrInvalid: a crossing the engine cannot fully check is never admitted.
 func validateCrossingRule(r rule) error {
-	if r.ReasonCode == ReasonCrossingPassNotReviewed || r.ReasonCode == ReasonCrossingNotReviewed {
+	if r.ReasonCode == ReasonCrossingPassNotReviewed || r.ReasonCode == ReasonCrossingNotReviewed || r.ReasonCode == ReasonReleaseBoundaryNotReviewed {
 		return fmt.Errorf("reason code %s belongs to the engine: %w", r.ReasonCode, ErrInvalid)
 	}
 	c := r.Crossing
@@ -421,7 +429,7 @@ func validCrossingClaims(report Report) bool {
 		if !crossingContract || match.Mode != crossingModeName || claim.Status == "PASS" || claim.SubjectMatch != nil || claim.Operator != "forbid_predicate_value" && claim.Operator != OperatorForbidSetMember || claim.IsLead() || claim.EvidenceBasis == BasisConsensus {
 			return false
 		}
-		if claim.ReasonCode == ReasonCrossingPassNotReviewed && claim.Status != "UNKNOWN" || claim.Status == "UNKNOWN" && (claim.ReasonCode == "RULE_TRANSITION_NOT_REVIEWED" || claim.ReasonCode == ReasonCrossingNotReviewed) {
+		if claim.ReasonCode == ReasonCrossingPassNotReviewed && claim.Status != "UNKNOWN" || claim.Status == "UNKNOWN" && (claim.ReasonCode == "RULE_TRANSITION_NOT_REVIEWED" || claim.ReasonCode == ReasonCrossingNotReviewed || claim.ReasonCode == ReasonReleaseBoundaryNotReviewed) {
 			return false
 		}
 		change, changeOK := parseVersion(match.Change)
@@ -433,6 +441,22 @@ func validCrossingClaims(report Report) bool {
 		below, ok1 := compareVersions(match.AnchorFrom, match.Change)
 		reached, ok2 := compareVersions(match.AnchorTo, match.Change)
 		if !ok1 || !ok2 || below >= 0 || reached < 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// validReleaseBoundaryClaims binds ReasonReleaseBoundaryNotReviewed to the
+// range-capable contracts: it is an UNKNOWN reason that never appears under
+// the exact-only contract, never on a PASS or BLOCKED claim, and never on a
+// claim that carries a match disclosure (the claim did not match).
+func validReleaseBoundaryClaims(report Report) bool {
+	for _, claim := range report.Claims {
+		if claim.ReasonCode != ReasonReleaseBoundaryNotReviewed {
+			continue
+		}
+		if report.EngineContractDigest == engineContractDigest() || claim.Status != "UNKNOWN" || claim.SubjectMatch != nil || claim.CrossingMatch != nil {
 			return false
 		}
 	}

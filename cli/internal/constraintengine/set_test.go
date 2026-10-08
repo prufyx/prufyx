@@ -12,8 +12,8 @@ import (
 // The ranged contract identities as issued before set facts existed. Ranged
 // documents must keep them so their reports keep replaying.
 const (
-	pinnedEngineContractDigestRanged = "sha256:2cc7bb0052068bd2668d1c4419782bacd6fcbf34e73f9bf9cf08206cd1363fa6"
-	pinnedScopeContractDigestRanged  = "sha256:81f20531f3a5e4403922d79b8c1762bd2e2da2ad7b67dc7c68fa037ca990bf04"
+	pinnedEngineContractDigestRanged = "sha256:0d46478e7a818c192fa57367bf17bf5a066ec7e414d0b745e0f900fd319fd463"
+	pinnedScopeContractDigestRanged  = "sha256:79ee563e45d2012fd77287b535f701d9c133523d522b1870c8169019c25b47d2"
 )
 
 const setTestFact = "component.example.feature_gates_set"

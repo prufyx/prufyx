@@ -19,6 +19,9 @@ import (
 // who wants the answer first: the claims that decide something, then one
 // aggregate, then the sources once. JSON output is never produced here.
 
+// An unreviewed transition is one the rules do not cover: either a pair
+// outside every reviewed subject, or a hop that crosses a ranged rule's
+// release boundary outside its range. Quiet output collapses both.
 const reasonTransitionNotReviewed = "RULE_TRANSITION_NOT_REVIEWED"
 
 // maxReviewedPairsShown bounds the reviewed-pairs list in one line.
@@ -33,6 +36,12 @@ type claimSummary struct {
 	passes        int
 	unreviewed    int
 	allUnreviewed bool
+	// boundary counts the claims of rules whose release boundary the hop
+	// crosses outside their reviewed range. They are unreviewed for this hop
+	// but are not "other transitions": they are never counted with
+	// unreviewed and never described as not applicable.
+	boundary      int
+	boundaryRules []string
 }
 
 func summarizeClaims(claims []constraintengine.Claim, showPasses bool) claimSummary {
@@ -47,13 +56,16 @@ func summarizeClaims(claims []constraintengine.Claim, showPasses bool) claimSumm
 		switch {
 		case claim.Status == "UNKNOWN" && claim.ReasonCode == reasonTransitionNotReviewed:
 			summary.unreviewed++
+		case claim.Status == "UNKNOWN" && claim.ReasonCode == constraintengine.ReasonReleaseBoundaryNotReviewed:
+			summary.boundary++
+			summary.boundaryRules = append(summary.boundaryRules, claim.RuleID)
 		case claim.Status == "PASS" && !showPasses:
 			summary.passes++
 		default:
 			summary.shown = append(summary.shown, claim)
 		}
 	}
-	summary.allUnreviewed = verdicts > 0 && summary.unreviewed == verdicts
+	summary.allUnreviewed = verdicts > 0 && summary.unreviewed+summary.boundary == verdicts
 	return summary
 }
 
@@ -142,13 +154,59 @@ const (
 
 // writeUnreviewedTransition is the whole answer when no claim could be decided
 // because the pair is not one a reviewed rule covers.
-func writeUnreviewedTransition(out io.Writer, project, from, to string) error {
+func writeUnreviewedTransition(out io.Writer, summary claimSummary, project, from, to string) error {
 	subject := project
 	if from != "" && to != "" {
 		subject = project + " " + from + " -> " + to
 	}
-	_, err := fmt.Fprintf(out, "UNKNOWN: %s is not a reviewed transition; reviewed pairs: %s; for a multi-minor upgrade, check each reviewed pair in turn\n", subject, reviewedPairs(project))
+	if _, err := fmt.Fprintf(out, "UNKNOWN: %s is not a reviewed transition; reviewed pairs: %s; for a multi-minor upgrade, check each reviewed pair in turn\n", subject, reviewedPairs(project)); err != nil {
+		return err
+	}
+	return writeBoundaryNote(out, summary)
+}
+
+// writeBoundaryNote states that the hop crosses release boundaries that rules
+// cite and that no reviewed rule covers the hop. It names the boundaries so
+// the operator learns the hop skips cited removals; it never calls them not
+// applicable.
+func writeBoundaryNote(out io.Writer, summary claimSummary) error {
+	if summary.boundary == 0 {
+		return nil
+	}
+	boundaries := releaseBoundaries(summary.boundaryRules)
+	named := ""
+	if len(boundaries) > 0 {
+		named = " (" + strings.Join(boundaries, ", ") + ")"
+	}
+	_, err := fmt.Fprintf(out, "%d rules about release boundaries%s this hop crosses are not reviewed for this hop\n", summary.boundary, named)
 	return err
+}
+
+// releaseBoundaries lists, in version order, the distinct release boundaries
+// of the embedded rules with the given ids. A rule the embedded catalogue does
+// not know (an external bundle) contributes none.
+func releaseBoundaries(ruleIDs []string) []string {
+	result, err := checkroutemetadata.Discover("", "", "")
+	if err != nil {
+		return nil
+	}
+	wanted := map[string]bool{}
+	for _, id := range ruleIDs {
+		wanted[id] = true
+	}
+	seen := map[string]bool{}
+	var boundaries []string
+	for _, check := range result.Checks {
+		if !wanted[check.RuleID] {
+			continue
+		}
+		if change, ok := check.Transition().ChangeVersion(); ok && !seen[change] {
+			seen[change] = true
+			boundaries = append(boundaries, change)
+		}
+	}
+	sort.Slice(boundaries, func(i, j int) bool { return compareVersions(boundaries[i], boundaries[j]) < 0 })
+	return boundaries
 }
 
 // reviewedPairs lists the distinct from -> to pairs that embedded rules of the
@@ -216,6 +274,9 @@ func writeCollapsedNotes(out io.Writer, summary claimSummary) error {
 		if _, err := fmt.Fprintf(out, "%d rules for other transitions not applicable to this pair\n", summary.unreviewed); err != nil {
 			return err
 		}
+	}
+	if err := writeBoundaryNote(out, summary); err != nil {
+		return err
 	}
 	if summary.passes > 0 {
 		if _, err := fmt.Fprintf(out, "%d rules PASS (not listed; use --show-passes)\n", summary.passes); err != nil {
