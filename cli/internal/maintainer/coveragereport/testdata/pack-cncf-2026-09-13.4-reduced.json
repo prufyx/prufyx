@@ -1,0 +1,6203 @@
+{
+ "entries": [
+  {
+   "project": "argo-cd",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/argoproj/argo-cd",
+      "enumValue": "official_upstream",
+      "factId": "component.argo_cd.latest_distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/argoproj/argo-cd",
+      "enumValue": "repository_secret",
+      "factId": "component.argo_cd.latest_execution_surface",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/argoproj/argo-cd",
+      "factId": "component.argo_cd.repository_settings_complete_and_precedence_resolved",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/argoproj/argo-cd",
+      "factId": "component.argo_cd.selected_repository_uses_plain_http",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/argoproj/argo-cd",
+     "factId": "component.argo_cd.plain_http_oci_repository_unusable",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T10:42:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T10:42:00Z"
+    },
+    "id": "argo-cd.plain-http-oci-repository-helm4.3-0-23-to-3-5-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/argoproj/argo-cd",
+     "from": "3.0.23",
+     "to": "3.5.2"
+    }
+   }
+  },
+  {
+   "project": "argo-cd",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/argoproj/argo-cd",
+      "enumValue": "official_upstream",
+      "factId": "component.argo_cd.latest_distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/argoproj/argo-cd",
+      "enumValue": "repository_secret",
+      "factId": "component.argo_cd.latest_execution_surface",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/argoproj/argo-cd",
+      "factId": "component.argo_cd.repository_settings_complete_and_precedence_resolved",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/argoproj/argo-cd",
+      "factId": "component.argo_cd.selected_repository_uses_plain_http",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/argoproj/argo-cd",
+     "factId": "component.argo_cd.plain_http_oci_repository_unusable",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T10:42:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T10:42:00Z"
+    },
+    "id": "argo-cd.plain-http-oci-repository-helm4.3-1-16-to-3-5-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/argoproj/argo-cd",
+     "from": "3.1.16",
+     "to": "3.5.2"
+    }
+   }
+  },
+  {
+   "project": "argo-cd",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/argoproj/argo-cd",
+      "enumValue": "official_upstream",
+      "factId": "component.argo_cd.latest_distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/argoproj/argo-cd",
+      "enumValue": "repository_secret",
+      "factId": "component.argo_cd.latest_execution_surface",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/argoproj/argo-cd",
+      "factId": "component.argo_cd.repository_settings_complete_and_precedence_resolved",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/argoproj/argo-cd",
+      "factId": "component.argo_cd.selected_repository_uses_plain_http",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/argoproj/argo-cd",
+     "factId": "component.argo_cd.plain_http_oci_repository_unusable",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T10:42:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T10:42:00Z"
+    },
+    "id": "argo-cd.plain-http-oci-repository-helm4.3-2-12-to-3-5-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/argoproj/argo-cd",
+     "from": "3.2.12",
+     "to": "3.5.2"
+    }
+   }
+  },
+  {
+   "project": "argo-cd",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/argoproj/argo-cd",
+      "enumValue": "official_upstream",
+      "factId": "component.argo_cd.latest_distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/argoproj/argo-cd",
+      "enumValue": "repository_secret",
+      "factId": "component.argo_cd.latest_execution_surface",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/argoproj/argo-cd",
+      "factId": "component.argo_cd.repository_settings_complete_and_precedence_resolved",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/argoproj/argo-cd",
+      "factId": "component.argo_cd.selected_repository_uses_plain_http",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/argoproj/argo-cd",
+     "factId": "component.argo_cd.plain_http_oci_repository_unusable",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T10:42:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T10:42:00Z"
+    },
+    "id": "argo-cd.plain-http-oci-repository-helm4.3-3-14-to-3-5-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/argoproj/argo-cd",
+     "from": "3.3.14",
+     "to": "3.5.2"
+    }
+   }
+  },
+  {
+   "project": "argo-cd",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/argoproj/argo-cd",
+      "enumValue": "official_upstream",
+      "factId": "component.argo_cd.latest_distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/argoproj/argo-cd",
+      "enumValue": "repository_secret",
+      "factId": "component.argo_cd.latest_execution_surface",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/argoproj/argo-cd",
+      "factId": "component.argo_cd.repository_settings_complete_and_precedence_resolved",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/argoproj/argo-cd",
+      "factId": "component.argo_cd.selected_repository_uses_plain_http",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/argoproj/argo-cd",
+     "factId": "component.argo_cd.plain_http_oci_repository_unusable",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T10:42:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T10:42:00Z"
+    },
+    "id": "argo-cd.plain-http-oci-repository-helm4.3-4-8-to-3-5-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/argoproj/argo-cd",
+     "from": "3.4.8",
+     "to": "3.5.2"
+    }
+   }
+  },
+  {
+   "project": "argo-cd",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/argoproj/argo-cd",
+      "factId": "component.argo_cd.requires_inherited_application_permissions",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/argoproj/argo-cd",
+     "factId": "component.argo_cd.disable_fine_grained_inheritance",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T12:07:56Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "argo-cd.required-rbac-inheritance.3-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/argoproj/argo-cd",
+     "from": "2.14.0",
+     "to": "3.0.0"
+    }
+   }
+  },
+  {
+   "project": "argo-cd",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/argoproj/argo-cd",
+      "factId": "component.argo_cd.requires_v2_visibility_of_v3_default_excluded_resources",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/argoproj/argo-cd",
+     "factId": "component.argo_cd.resource_exclusions_source_default_selected",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T01:23:59Z",
+     "state": "active",
+     "validUntil": "2026-12-11T01:23:59Z"
+    },
+    "id": "argo-cd.resource-exclusions-v2-visibility-preservation.3-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/argoproj/argo-cd",
+     "from": "2.14.0",
+     "to": "3.0.0"
+    }
+   }
+  },
+  {
+   "project": "buildpacks",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:oci/buildpacksio/lifecycle",
+      "enumValue": "0.11",
+      "factId": "component.buildpacks.selected_platform_api",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:oci/buildpacksio/lifecycle",
+      "factId": "component.buildpacks.lifecycle_supports_selected_platform_api",
+      "side": "current"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:oci/buildpacksio/lifecycle",
+     "factId": "component.buildpacks.lifecycle_supports_selected_platform_api",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-10T16:59:15Z",
+     "state": "active",
+     "validUntil": "2026-12-09T16:59:15Z"
+    },
+    "id": "buildpacks.lifecycle-platform-api-support.0-16-5-to-0-17-7",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:oci/buildpacksio/lifecycle",
+     "from": "0.16.5",
+     "to": "0.17.7"
+    }
+   }
+  },
+  {
+   "project": "cilium",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/cilium/cilium",
+     "factId": "component.cilium.invalid_effective_cluster_name",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T10:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T10:00:00Z"
+    },
+    "id": "cilium.cluster-name-invalid.1-16-19-to-1-17-18",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/cilium/cilium",
+     "from": "1.16.19",
+     "to": "1.17.18"
+    }
+   }
+  },
+  {
+   "project": "cilium",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/cilium/cilium",
+     "factId": "component.cilium.nonempty_requires_fields",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-09T03:30:00Z",
+     "state": "active",
+     "validUntil": "2026-12-08T03:30:00Z"
+    },
+    "id": "cilium.nonempty-requires-crd-maxitems.1-18-13-to-1-19-7",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/cilium/cilium",
+     "from": "1.18.13",
+     "to": "1.19.7"
+    }
+   }
+  },
+  {
+   "project": "cilium",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/cilium/cilium",
+     "factId": "component.cilium.nonempty_requires_fields",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T12:07:56Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "cilium.nonempty-requires-rejected.1-19",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/cilium/cilium",
+     "from": "1.18.6",
+     "to": "1.19.0"
+    }
+   }
+  },
+  {
+   "project": "cloud-custodian",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/cloud-custodian/cloud-custodian",
+     "factId": "component.cloud_custodian.iam_access_key_json_diff_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:42:47Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:42:47Z"
+    },
+    "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-47-to-0-9-52",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/cloud-custodian/cloud-custodian",
+     "from": "0.9.47",
+     "to": "0.9.52"
+    }
+   }
+  },
+  {
+   "project": "cloud-custodian",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/cloud-custodian/cloud-custodian",
+     "factId": "component.cloud_custodian.iam_access_key_json_diff_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:42:47Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:42:47Z"
+    },
+    "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-48-to-0-9-52",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/cloud-custodian/cloud-custodian",
+     "from": "0.9.48",
+     "to": "0.9.52"
+    }
+   }
+  },
+  {
+   "project": "cloud-custodian",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/cloud-custodian/cloud-custodian",
+     "factId": "component.cloud_custodian.iam_access_key_json_diff_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:42:47Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:42:47Z"
+    },
+    "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-49-to-0-9-52",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/cloud-custodian/cloud-custodian",
+     "from": "0.9.49",
+     "to": "0.9.52"
+    }
+   }
+  },
+  {
+   "project": "cloud-custodian",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/cloud-custodian/cloud-custodian",
+     "factId": "component.cloud_custodian.iam_access_key_json_diff_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:42:47Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:42:47Z"
+    },
+    "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-50-to-0-9-52",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/cloud-custodian/cloud-custodian",
+     "from": "0.9.50",
+     "to": "0.9.52"
+    }
+   }
+  },
+  {
+   "project": "cloud-custodian",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/cloud-custodian/cloud-custodian",
+     "factId": "component.cloud_custodian.iam_access_key_json_diff_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:42:47Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:42:47Z"
+    },
+    "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-51-to-0-9-52",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/cloud-custodian/cloud-custodian",
+     "from": "0.9.51",
+     "to": "0.9.52"
+    }
+   }
+  },
+  {
+   "project": "cloud-custodian",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/cloud-custodian/cloud-custodian",
+     "factId": "component.cloud_custodian.iam_access_key_json_diff_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-11T22:38:05Z",
+     "state": "active",
+     "validUntil": "2026-12-10T22:38:05Z"
+    },
+    "id": "cloud-custodian.iam-access-key-json-diff-removed.0-9-50-to-0-9-51",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/cloud-custodian/cloud-custodian",
+     "from": "0.9.50",
+     "to": "0.9.51"
+    }
+   }
+  },
+  {
+   "project": "cloudnativepg",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/cloudnative-pg/cloudnative-pg",
+     "factId": "component.cloudnativepg.cluster_reference_changed",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-11T00:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-10T00:00:00Z"
+    },
+    "id": "cloudnativepg.cluster-reference-immutable.1-29-to-1-30",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/cloudnative-pg/cloudnative-pg",
+     "from": "1.29.0",
+     "to": "1.30.0"
+    }
+   }
+  },
+  {
+   "project": "container-network-interface-cni",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:generic/cni-configuration-spec",
+      "factId": "component.cni_spec.configuration_spec_migration_planned",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:generic/cni-configuration-spec",
+      "enumValue": "1.0.0",
+      "factId": "component.cni_spec.inspected_spec_version",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "component": "pkg:generic/cni-configuration-spec",
+     "enumValue": "single_plugin",
+     "factId": "component.cni_spec.configuration_shape",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-11T15:18:55Z",
+     "state": "active",
+     "validUntil": "2026-12-10T15:18:55Z"
+    },
+    "id": "cni-spec.non-list-configuration-removed.0-4-0-to-1-0-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:generic/cni-configuration-spec",
+     "from": "0.4.0",
+     "to": "1.0.0"
+    }
+   }
+  },
+  {
+   "project": "containerd",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/containerd/containerd",
+     "enumValue": "v1alpha2",
+     "factId": "component.containerd.cri_api",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-09T01:45:37Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "containerd.cri-v1alpha2-removed.2-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/containerd/containerd",
+     "from": "1.7.28",
+     "to": "2.0.0"
+    }
+   }
+  },
+  {
+   "project": "containerd",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/containerd/containerd",
+      "factId": "component.containerd.official_bundled_runtimes_only",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/containerd/containerd",
+      "factId": "component.containerd.official_upstream_distribution",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/containerd/containerd",
+     "factId": "component.containerd.selected_runtime_uses_removed_official_shim",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T12:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T12:00:00Z"
+    },
+    "id": "containerd.selected-official-runtime-shim-removed.1-7-28-to-2-0-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/containerd/containerd",
+     "from": "1.7.28",
+     "to": "2.0.0"
+    }
+   }
+  },
+  {
+   "project": "contour",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/projectcontour/contour",
+     "factId": "component.contour.gateway_v1alpha1_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-11T00:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-10T00:00:00Z"
+    },
+    "id": "contour.gateway-v1alpha1-removed.1-19-0-to-1-20-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/projectcontour/contour",
+     "from": "1.19.0",
+     "to": "1.20.0"
+    }
+   }
+  },
+  {
+   "project": "coredns",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/coredns/coredns",
+      "enumValue": "official",
+      "factId": "component.coredns.distribution",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/coredns/coredns",
+     "factId": "component.coredns.federation_directive_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T12:07:56Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "coredns.federation-removed.1-7",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/coredns/coredns",
+     "from": "1.6.9",
+     "to": "1.7.0"
+    }
+   }
+  },
+  {
+   "project": "coredns",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/coredns/coredns",
+      "enumValue": "official",
+      "factId": "component.coredns.distribution",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/coredns/coredns",
+     "factId": "component.coredns.federation_directive_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:00:00Z"
+    },
+    "id": "coredns.official-federation-absent-at-1-14-7-from-1-10-1",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/coredns/coredns",
+     "from": "1.10.1",
+     "to": "1.14.7"
+    }
+   }
+  },
+  {
+   "project": "coredns",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/coredns/coredns",
+      "enumValue": "official",
+      "factId": "component.coredns.distribution",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/coredns/coredns",
+     "factId": "component.coredns.federation_directive_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:00:00Z"
+    },
+    "id": "coredns.official-federation-absent-at-1-14-7-from-1-11-4",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/coredns/coredns",
+     "from": "1.11.4",
+     "to": "1.14.7"
+    }
+   }
+  },
+  {
+   "project": "coredns",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/coredns/coredns",
+      "enumValue": "official",
+      "factId": "component.coredns.distribution",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/coredns/coredns",
+     "factId": "component.coredns.federation_directive_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:00:00Z"
+    },
+    "id": "coredns.official-federation-absent-at-1-14-7-from-1-12-4",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/coredns/coredns",
+     "from": "1.12.4",
+     "to": "1.14.7"
+    }
+   }
+  },
+  {
+   "project": "coredns",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/coredns/coredns",
+      "enumValue": "official",
+      "factId": "component.coredns.distribution",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/coredns/coredns",
+     "factId": "component.coredns.federation_directive_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:00:00Z"
+    },
+    "id": "coredns.official-federation-absent-at-1-14-7-from-1-13-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/coredns/coredns",
+     "from": "1.13.2",
+     "to": "1.14.7"
+    }
+   }
+  },
+  {
+   "project": "coredns",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/coredns/coredns",
+      "enumValue": "official",
+      "factId": "component.coredns.distribution",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/coredns/coredns",
+     "factId": "component.coredns.federation_directive_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:00:00Z"
+    },
+    "id": "coredns.official-federation-absent-at-1-14-7-from-1-9-4",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/coredns/coredns",
+     "from": "1.9.4",
+     "to": "1.14.7"
+    }
+   }
+  },
+  {
+   "project": "cortex",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/cortexproject/cortex",
+      "enumValue": "official_upstream",
+      "factId": "component.cortex.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/cortexproject/cortex",
+      "enumValue": "cortex",
+      "factId": "component.cortex.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/cortexproject/cortex",
+     "factId": "component.cortex.removed_at_modifier_flag_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-11T22:20:07Z",
+     "state": "active",
+     "validUntil": "2026-12-10T22:20:07Z"
+    },
+    "id": "cortex.querier-at-modifier-flag-removed.1-21",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/cortexproject/cortex",
+     "from": "1.17.2",
+     "to": "1.21.1"
+    }
+   }
+  },
+  {
+   "project": "cortex",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/cortexproject/cortex",
+      "enumValue": "official_upstream",
+      "factId": "component.cortex.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/cortexproject/cortex",
+      "enumValue": "cortex",
+      "factId": "component.cortex.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/cortexproject/cortex",
+     "factId": "component.cortex.removed_at_modifier_flag_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "cortex.querier-at-modifier-flag-target-argv.1-16-1-to-1-21-1",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/cortexproject/cortex",
+     "from": "1.16.1",
+     "to": "1.21.1"
+    }
+   }
+  },
+  {
+   "project": "cortex",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/cortexproject/cortex",
+      "enumValue": "official_upstream",
+      "factId": "component.cortex.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/cortexproject/cortex",
+      "enumValue": "cortex",
+      "factId": "component.cortex.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/cortexproject/cortex",
+     "factId": "component.cortex.removed_at_modifier_flag_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "cortex.querier-at-modifier-flag-target-argv.1-18-1-to-1-21-1",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/cortexproject/cortex",
+     "from": "1.18.1",
+     "to": "1.21.1"
+    }
+   }
+  },
+  {
+   "project": "cortex",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/cortexproject/cortex",
+      "enumValue": "official_upstream",
+      "factId": "component.cortex.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/cortexproject/cortex",
+      "enumValue": "cortex",
+      "factId": "component.cortex.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/cortexproject/cortex",
+     "factId": "component.cortex.removed_at_modifier_flag_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "cortex.querier-at-modifier-flag-target-argv.1-19-1-to-1-21-1",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/cortexproject/cortex",
+     "from": "1.19.1",
+     "to": "1.21.1"
+    }
+   }
+  },
+  {
+   "project": "cortex",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/cortexproject/cortex",
+      "enumValue": "official_upstream",
+      "factId": "component.cortex.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/cortexproject/cortex",
+      "enumValue": "cortex",
+      "factId": "component.cortex.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/cortexproject/cortex",
+     "factId": "component.cortex.removed_at_modifier_flag_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "cortex.querier-at-modifier-flag-target-argv.1-20-1-to-1-21-1",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/cortexproject/cortex",
+     "from": "1.20.1",
+     "to": "1.21.1"
+    }
+   }
+  },
+  {
+   "project": "cri-o",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/cri-o/cri-o",
+      "factId": "component.crio.artifact_named_reference_resolution_planned",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/cri-o/cri-o",
+     "factId": "component.crio.artifact_named_reference_is_short",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-11T00:25:14Z",
+     "state": "withdrawn",
+     "validUntil": "2026-12-10T00:25:14Z"
+    },
+    "id": "cri-o.artifact-short-name-rejected.1-35",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/cri-o/cri-o",
+     "from": "1.34.0",
+     "to": "1.35.0"
+    }
+   }
+  },
+  {
+   "project": "crossplane",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/crossplane/crossplane",
+      "enumValue": "official_upstream",
+      "factId": "component.crossplane.distribution",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/crossplane/crossplane",
+      "factId": "component.crossplane.schema_validation_required",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "component": "pkg:github/crossplane/crossplane",
+     "enumValue": "resources",
+     "factId": "component.crossplane.composition_mode",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T19:38:03Z",
+     "state": "active",
+     "validUntil": "2026-12-07T19:38:03Z"
+    },
+    "id": "crossplane.composition-resources-mode-removed.1-20-2-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/crossplane/crossplane",
+     "from": "1.20.0",
+     "to": "2.0.0"
+    }
+   }
+  },
+  {
+   "project": "cubefs",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/cubefs/cubefs",
+      "factId": "component.cubefs.metanode_upgrade_phase",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/cubefs/cubefs",
+     "factId": "component.cubefs.raft_sync_snapshot_format_zero",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-10T20:25:55Z",
+     "state": "active",
+     "validUntil": "2026-12-09T20:25:55Z"
+    },
+    "id": "cubefs.metanode-raft-snapshot-format.3-2-1-to-3-3-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/cubefs/cubefs",
+     "from": "3.2.1",
+     "to": "3.3.2"
+    }
+   }
+  },
+  {
+   "project": "dapr",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/dapr/dapr",
+      "factId": "component.dapr.scheduler_embedded_etcd_inventory_complete",
+      "side": "current"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/dapr/dapr",
+     "factId": "component.dapr.scheduler_persisted_data_present",
+     "side": "current"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-10T13:34:13Z",
+     "state": "active",
+     "validUntil": "2026-12-09T13:34:13Z"
+    },
+    "id": "dapr.scheduler-persisted-data-loss.1-14-to-1-15",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/dapr/dapr",
+     "from": "1.14.0",
+     "to": "1.15.0"
+    }
+   }
+  },
+  {
+   "project": "distribution",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "component": "pkg:github/distribution/distribution",
+     "enumValue": "docker_schema1",
+     "factId": "component.distribution.image_manifest_format",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-11T15:18:55Z",
+     "state": "active",
+     "validUntil": "2026-12-10T15:18:55Z"
+    },
+    "id": "distribution.schema1-manifest-removed.2-8-3-to-3-0-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/distribution/distribution",
+     "from": "2.8.3",
+     "to": "3.0.0"
+    }
+   }
+  },
+  {
+   "project": "dragonfly",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/dragonflyoss/dragonfly",
+      "factId": "component.dragonfly.legacy_verbose_debug_intent",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/dragonflyoss/dragonfly",
+      "factId": "component.dragonfly.retain_debug_logging_required",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/dragonflyoss/dragonfly",
+      "enumValue": "official_upstream",
+      "factId": "component.dragonfly.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/dragonflyoss/dragonfly",
+      "enumValue": "manager_config",
+      "factId": "component.dragonfly.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/dragonflyoss/dragonfly",
+     "factId": "component.dragonfly.debug_logging_enabled",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T22:06:45Z",
+     "state": "active",
+     "validUntil": "2026-12-07T22:06:45Z"
+    },
+    "id": "dragonfly.manager-retained-debug.2-2-3-2-2-4",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/dragonflyoss/dragonfly",
+     "from": "2.2.3",
+     "to": "2.2.4"
+    }
+   }
+  },
+  {
+   "project": "dragonfly",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/dragonflyoss/dragonfly",
+      "factId": "component.dragonfly.legacy_verbose_debug_intent",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/dragonflyoss/dragonfly",
+      "factId": "component.dragonfly.retain_debug_logging_required",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/dragonflyoss/dragonfly",
+      "enumValue": "official_upstream",
+      "factId": "component.dragonfly.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/dragonflyoss/dragonfly",
+      "enumValue": "scheduler_config",
+      "factId": "component.dragonfly.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/dragonflyoss/dragonfly",
+     "factId": "component.dragonfly.debug_logging_enabled",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T22:06:45Z",
+     "state": "active",
+     "validUntil": "2026-12-07T22:06:45Z"
+    },
+    "id": "dragonfly.scheduler-retained-debug.2-2-3-2-2-4",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/dragonflyoss/dragonfly",
+     "from": "2.2.3",
+     "to": "2.2.4"
+    }
+   }
+  },
+  {
+   "project": "emissary-ingress",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/emissary-ingress/emissary",
+     "factId": "component.emissary.removed_metrics_endpoint_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-11T00:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-10T00:00:00Z"
+    },
+    "id": "emissary-ingress.metrics-endpoint-removed.3-10-to-4-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/emissary-ingress/emissary",
+     "from": "3.10.0",
+     "to": "4.0.1"
+    }
+   }
+  },
+  {
+   "project": "envoy",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/envoyproxy/envoy",
+     "enumValue": "v2",
+     "factId": "component.envoy.xds_api_major",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T12:07:56Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "envoy.xds-v2-removed.1-18",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/envoyproxy/envoy",
+     "from": "1.17.2",
+     "to": "1.18.0"
+    }
+   }
+  },
+  {
+   "project": "envoy",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/envoyproxy/envoy",
+     "enumValue": "v2",
+     "factId": "component.envoy.xds_api_major",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:00:00Z"
+    },
+    "id": "envoy.xds-v2-unsupported-at-1-39-1-from-1-34-14",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/envoyproxy/envoy",
+     "from": "1.34.14",
+     "to": "1.39.1"
+    }
+   }
+  },
+  {
+   "project": "envoy",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/envoyproxy/envoy",
+     "enumValue": "v2",
+     "factId": "component.envoy.xds_api_major",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:00:00Z"
+    },
+    "id": "envoy.xds-v2-unsupported-at-1-39-1-from-1-35-13",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/envoyproxy/envoy",
+     "from": "1.35.13",
+     "to": "1.39.1"
+    }
+   }
+  },
+  {
+   "project": "envoy",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/envoyproxy/envoy",
+     "enumValue": "v2",
+     "factId": "component.envoy.xds_api_major",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:00:00Z"
+    },
+    "id": "envoy.xds-v2-unsupported-at-1-39-1-from-1-36-10",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/envoyproxy/envoy",
+     "from": "1.36.10",
+     "to": "1.39.1"
+    }
+   }
+  },
+  {
+   "project": "envoy",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/envoyproxy/envoy",
+     "enumValue": "v2",
+     "factId": "component.envoy.xds_api_major",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:00:00Z"
+    },
+    "id": "envoy.xds-v2-unsupported-at-1-39-1-from-1-37-6",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/envoyproxy/envoy",
+     "from": "1.37.6",
+     "to": "1.39.1"
+    }
+   }
+  },
+  {
+   "project": "envoy",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/envoyproxy/envoy",
+     "enumValue": "v2",
+     "factId": "component.envoy.xds_api_major",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:00:00Z"
+    },
+    "id": "envoy.xds-v2-unsupported-at-1-39-1-from-1-38-4",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/envoyproxy/envoy",
+     "from": "1.38.4",
+     "to": "1.39.1"
+    }
+   }
+  },
+  {
+   "project": "etcd",
+   "rule": {
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "etcd.direct-minor-skip.3-2-32-to-3-7-1",
+    "operator": "forbid_target_version",
+    "subject": {
+     "component": "pkg:github/etcd-io/etcd",
+     "from": "3.2.32",
+     "to": "3.7.1"
+    }
+   }
+  },
+  {
+   "project": "etcd",
+   "rule": {
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "etcd.direct-minor-skip.3-3-27-to-3-7-1",
+    "operator": "forbid_target_version",
+    "subject": {
+     "component": "pkg:github/etcd-io/etcd",
+     "from": "3.3.27",
+     "to": "3.7.1"
+    }
+   }
+  },
+  {
+   "project": "etcd",
+   "rule": {
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "etcd.direct-minor-skip.3-4-45-to-3-7-1",
+    "operator": "forbid_target_version",
+    "subject": {
+     "component": "pkg:github/etcd-io/etcd",
+     "from": "3.4.45",
+     "to": "3.7.1"
+    }
+   }
+  },
+  {
+   "project": "etcd",
+   "rule": {
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "etcd.direct-minor-skip.3-5-33-to-3-7-1",
+    "operator": "forbid_target_version",
+    "subject": {
+     "component": "pkg:github/etcd-io/etcd",
+     "from": "3.5.33",
+     "to": "3.7.1"
+    }
+   }
+  },
+  {
+   "project": "etcd",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/etcd-io/etcd",
+     "factId": "component.etcd.experimental_flags_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "etcd.experimental-flags-unsupported.3-2-32-to-3-7-1",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/etcd-io/etcd",
+     "from": "3.2.32",
+     "to": "3.7.1"
+    }
+   }
+  },
+  {
+   "project": "etcd",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/etcd-io/etcd",
+     "factId": "component.etcd.experimental_flags_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "etcd.experimental-flags-unsupported.3-3-27-to-3-7-1",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/etcd-io/etcd",
+     "from": "3.3.27",
+     "to": "3.7.1"
+    }
+   }
+  },
+  {
+   "project": "etcd",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/etcd-io/etcd",
+     "factId": "component.etcd.experimental_flags_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "etcd.experimental-flags-unsupported.3-4-45-to-3-7-1",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/etcd-io/etcd",
+     "from": "3.4.45",
+     "to": "3.7.1"
+    }
+   }
+  },
+  {
+   "project": "etcd",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/etcd-io/etcd",
+     "factId": "component.etcd.experimental_flags_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "etcd.experimental-flags-unsupported.3-5-33-to-3-7-1",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/etcd-io/etcd",
+     "from": "3.5.33",
+     "to": "3.7.1"
+    }
+   }
+  },
+  {
+   "project": "etcd",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/etcd-io/etcd",
+     "factId": "component.etcd.experimental_flags_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "etcd.experimental-flags-unsupported.3-6-14-to-3-7-1",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/etcd-io/etcd",
+     "from": "3.6.14",
+     "to": "3.7.1"
+    }
+   }
+  },
+  {
+   "project": "etcd",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/etcd-io/etcd",
+     "factId": "component.etcd.removed_v2_proxy_flags_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-09T01:45:37Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "etcd.v2-proxy-flags-removed.3-6",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/etcd-io/etcd",
+     "from": "3.5.17",
+     "to": "3.6.0"
+    }
+   }
+  },
+  {
+   "project": "falco",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/falcosecurity/falco",
+      "enumValue": "official_upstream",
+      "factId": "component.falco.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/falcosecurity/falco",
+      "enumValue": "falco",
+      "factId": "component.falco.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/falcosecurity/falco",
+     "factId": "component.falco.removed_040_cli_flags_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T20:58:21Z",
+     "state": "active",
+     "validUntil": "2026-12-07T20:58:21Z"
+    },
+    "id": "falco.deprecated-cli-flags-removed.0-40-to-0-41",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/falcosecurity/falco",
+     "from": "0.40.0",
+     "to": "0.41.0"
+    }
+   }
+  },
+  {
+   "project": "falco",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/falcosecurity/falco",
+      "enumValue": "official_upstream",
+      "factId": "component.falco.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/falcosecurity/falco",
+      "enumValue": "falco",
+      "factId": "component.falco.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/falcosecurity/falco",
+     "factId": "component.falco.removed_040_cli_flags_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-09T00:46:26Z",
+     "state": "active",
+     "validUntil": "2026-12-08T00:46:26Z"
+    },
+    "id": "falco.deprecated-cli-flags-removed.0-40-to-0-42",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/falcosecurity/falco",
+     "from": "0.40.0",
+     "to": "0.42.0"
+    }
+   }
+  },
+  {
+   "project": "fluentd",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/fluent/fluentd",
+      "enumValue": "official_upstream",
+      "factId": "component.fluentd.distribution",
+      "side": "proposed"
+     }
+    ],
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:05:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:05:00Z"
+    },
+    "id": "fluentd.ruby-minimum-target.1-14-6-to-1-19-3",
+    "operator": "require_component_version",
+    "subject": {
+     "component": "pkg:github/fluent/fluentd",
+     "from": "1.14.6",
+     "to": "1.19.3"
+    }
+   }
+  },
+  {
+   "project": "fluentd",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/fluent/fluentd",
+      "enumValue": "official_upstream",
+      "factId": "component.fluentd.distribution",
+      "side": "proposed"
+     }
+    ],
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:05:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:05:00Z"
+    },
+    "id": "fluentd.ruby-minimum-target.1-15-3-to-1-19-3",
+    "operator": "require_component_version",
+    "subject": {
+     "component": "pkg:github/fluent/fluentd",
+     "from": "1.15.3",
+     "to": "1.19.3"
+    }
+   }
+  },
+  {
+   "project": "fluentd",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/fluent/fluentd",
+      "enumValue": "official_upstream",
+      "factId": "component.fluentd.distribution",
+      "side": "proposed"
+     }
+    ],
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:05:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:05:00Z"
+    },
+    "id": "fluentd.ruby-minimum-target.1-16-11-to-1-19-3",
+    "operator": "require_component_version",
+    "subject": {
+     "component": "pkg:github/fluent/fluentd",
+     "from": "1.16.11",
+     "to": "1.19.3"
+    }
+   }
+  },
+  {
+   "project": "fluentd",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/fluent/fluentd",
+      "enumValue": "official_upstream",
+      "factId": "component.fluentd.distribution",
+      "side": "proposed"
+     }
+    ],
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:05:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:05:00Z"
+    },
+    "id": "fluentd.ruby-minimum-target.1-17-1-to-1-19-3",
+    "operator": "require_component_version",
+    "subject": {
+     "component": "pkg:github/fluent/fluentd",
+     "from": "1.17.1",
+     "to": "1.19.3"
+    }
+   }
+  },
+  {
+   "project": "fluentd",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/fluent/fluentd",
+      "enumValue": "official_upstream",
+      "factId": "component.fluentd.distribution",
+      "side": "proposed"
+     }
+    ],
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:05:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:05:00Z"
+    },
+    "id": "fluentd.ruby-minimum-target.1-18-0-to-1-19-3",
+    "operator": "require_component_version",
+    "subject": {
+     "component": "pkg:github/fluent/fluentd",
+     "from": "1.18.0",
+     "to": "1.19.3"
+    }
+   }
+  },
+  {
+   "project": "fluentd",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/fluent/fluentd",
+      "enumValue": "official_upstream",
+      "factId": "component.fluentd.distribution",
+      "side": "proposed"
+     }
+    ],
+    "evidence": {
+     "reviewedAt": "2026-09-08T19:38:03Z",
+     "state": "active",
+     "validUntil": "2026-12-07T19:38:03Z"
+    },
+    "id": "fluentd.ruby-minimum.1-16-to-1-17",
+    "operator": "require_component_version",
+    "subject": {
+     "component": "pkg:github/fluent/fluentd",
+     "from": "1.16.0",
+     "to": "1.17.0"
+    }
+   }
+  },
+  {
+   "project": "fluentd",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/fluent/fluentd",
+      "factId": "component.fluentd.selected_value_complete",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/fluent/fluentd",
+      "factId": "component.fluentd.current_default_used",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/fluent/fluentd",
+      "factId": "component.fluentd.preserve_literal_treatment",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/fluent/fluentd",
+     "factId": "component.fluentd.literal_treatment_change_risk",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T00:03:11Z",
+     "state": "active",
+     "validUntil": "2026-12-10T00:03:11Z"
+    },
+    "id": "fluentd.z-literal-treatment.1-17-1-to-1-18-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/fluent/fluentd",
+     "from": "1.17.1",
+     "to": "1.18.0"
+    }
+   }
+  },
+  {
+   "project": "flux",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/fluxcd/flux2",
+     "factId": "component.flux.removed_beta_api_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T12:07:56Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "flux.beta-api-removal.2-7",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/fluxcd/flux2",
+     "from": "2.6.4",
+     "to": "2.7.0"
+    }
+   }
+  },
+  {
+   "project": "flux",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/fluxcd/flux2",
+     "factId": "component.flux.latest_removed_beta_api_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:26:49Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:26:49Z"
+    },
+    "id": "flux.latest-beta-api-removal.2.4.0-to-2-9",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/fluxcd/flux2",
+     "from": "2.4.0",
+     "to": "2.9.5"
+    }
+   }
+  },
+  {
+   "project": "flux",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/fluxcd/flux2",
+     "factId": "component.flux.latest_removed_beta_api_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:26:49Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:26:49Z"
+    },
+    "id": "flux.latest-beta-api-removal.2.5.1-to-2-9",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/fluxcd/flux2",
+     "from": "2.5.1",
+     "to": "2.9.5"
+    }
+   }
+  },
+  {
+   "project": "flux",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/fluxcd/flux2",
+     "factId": "component.flux.latest_removed_beta_api_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:26:49Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:26:49Z"
+    },
+    "id": "flux.latest-beta-api-removal.2.6.4-to-2-9",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/fluxcd/flux2",
+     "from": "2.6.4",
+     "to": "2.9.5"
+    }
+   }
+  },
+  {
+   "project": "flux",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/fluxcd/flux2",
+     "factId": "component.flux.latest_removed_beta_api_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:26:49Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:26:49Z"
+    },
+    "id": "flux.latest-beta-api-removal.2.7.5-to-2-9",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/fluxcd/flux2",
+     "from": "2.7.5",
+     "to": "2.9.5"
+    }
+   }
+  },
+  {
+   "project": "flux",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/fluxcd/flux2",
+     "factId": "component.flux.latest_removed_beta_api_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:26:49Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:26:49Z"
+    },
+    "id": "flux.latest-beta-api-removal.2.8.8-to-2-9",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/fluxcd/flux2",
+     "from": "2.8.8",
+     "to": "2.9.5"
+    }
+   }
+  },
+  {
+   "project": "harbor",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/goharbor/harbor",
+      "enumValue": "docker-compose",
+      "factId": "component.harbor.deployment_mode",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "component": "pkg:github/goharbor/harbor",
+     "enumValue": "cfg",
+     "factId": "component.harbor.installer_config_format",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T12:07:56Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "harbor.installer-config-format.1-8",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/goharbor/harbor",
+     "from": "1.7.5",
+     "to": "1.8.0"
+    }
+   }
+  },
+  {
+   "project": "harbor",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/goharbor/harbor",
+     "factId": "component.harbor.installer_with_chartmuseum_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T10:01:45Z",
+     "state": "active",
+     "validUntil": "2026-12-11T10:01:45Z"
+    },
+    "id": "harbor.installer-with-chartmuseum-flag-removed.2-10-to-2-15",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/goharbor/harbor",
+     "from": "2.10.3",
+     "to": "2.15.2"
+    }
+   }
+  },
+  {
+   "project": "harbor",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/goharbor/harbor",
+     "factId": "component.harbor.installer_with_chartmuseum_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T10:01:45Z",
+     "state": "active",
+     "validUntil": "2026-12-11T10:01:45Z"
+    },
+    "id": "harbor.installer-with-chartmuseum-flag-removed.2-11-to-2-15",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/goharbor/harbor",
+     "from": "2.11.2",
+     "to": "2.15.2"
+    }
+   }
+  },
+  {
+   "project": "harbor",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/goharbor/harbor",
+     "factId": "component.harbor.installer_with_chartmuseum_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T10:01:45Z",
+     "state": "active",
+     "validUntil": "2026-12-11T10:01:45Z"
+    },
+    "id": "harbor.installer-with-chartmuseum-flag-removed.2-12-to-2-15",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/goharbor/harbor",
+     "from": "2.12.4",
+     "to": "2.15.2"
+    }
+   }
+  },
+  {
+   "project": "harbor",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/goharbor/harbor",
+     "factId": "component.harbor.installer_with_chartmuseum_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T10:01:45Z",
+     "state": "active",
+     "validUntil": "2026-12-11T10:01:45Z"
+    },
+    "id": "harbor.installer-with-chartmuseum-flag-removed.2-13-to-2-15",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/goharbor/harbor",
+     "from": "2.13.5",
+     "to": "2.15.2"
+    }
+   }
+  },
+  {
+   "project": "harbor",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/goharbor/harbor",
+     "factId": "component.harbor.installer_with_chartmuseum_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T10:01:45Z",
+     "state": "active",
+     "validUntil": "2026-12-11T10:01:45Z"
+    },
+    "id": "harbor.installer-with-chartmuseum-flag-removed.2-14-to-2-15",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/goharbor/harbor",
+     "from": "2.14.4",
+     "to": "2.15.2"
+    }
+   }
+  },
+  {
+   "project": "harbor",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/goharbor/harbor",
+     "factId": "component.harbor.installer_with_chartmuseum_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-11T22:50:15Z",
+     "state": "active",
+     "validUntil": "2026-12-10T22:50:15Z"
+    },
+    "id": "harbor.installer-with-chartmuseum-flag-removed.2-8",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/goharbor/harbor",
+     "from": "2.7.0",
+     "to": "2.8.0"
+    }
+   }
+  },
+  {
+   "project": "helm",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/helm/helm",
+     "enumValue": "executable_path",
+     "factId": "component.helm.post_renderer_mode",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T12:07:56Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "helm.post-renderer-argument-form.4-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/helm/helm",
+     "from": "3.14.4",
+     "to": "4.0.0"
+    }
+   }
+  },
+  {
+   "project": "in-toto",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/in-toto/in-toto",
+     "enumValue": "legacy_key",
+     "factId": "component.in_toto.in_toto_run_key_argument",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-10T20:17:00Z",
+     "state": "active",
+     "validUntil": "2026-12-09T20:17:00Z"
+    },
+    "id": "in-toto.run-legacy-key-argument-removed.2-2-to-3-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/in-toto/in-toto",
+     "from": "2.2.0",
+     "to": "3.0.0"
+    }
+   }
+  },
+  {
+   "project": "istio",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/istio/istio",
+     "enumValue": "1.20",
+     "factId": "component.istio.compatibility_profile",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T12:07:56Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "istio.compatibility-profile-1-20-removed.1-24",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/istio/istio",
+     "from": "1.23.6",
+     "to": "1.24.0"
+    }
+   }
+  },
+  {
+   "project": "jaeger",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/jaegertracing/jaeger",
+      "factId": "component.jaeger.non_memory_storage_required",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/jaegertracing/jaeger",
+      "factId": "component.jaeger.official_jaeger_distribution",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/jaegertracing/jaeger",
+     "factId": "component.jaeger.explicit_config_provided",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T14:07:57Z",
+     "state": "active",
+     "validUntil": "2026-12-07T14:07:57Z"
+    },
+    "id": "jaeger.explicit-config-required-for-non-memory.1-76-2-20",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/jaegertracing/jaeger",
+     "from": "1.76.0",
+     "to": "2.20.0"
+    }
+   }
+  },
+  {
+   "project": "jaeger",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/jaegertracing/jaeger",
+      "factId": "component.jaeger.non_memory_storage_required",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/jaegertracing/jaeger",
+      "factId": "component.jaeger.official_jaeger_distribution",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/jaegertracing/jaeger",
+     "factId": "component.jaeger.explicit_config_provided",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:38:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:38:00Z"
+    },
+    "id": "jaeger.explicit-config-required-for-non-memory.target.2-15-to-2-20",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/jaegertracing/jaeger",
+     "from": "2.15.1",
+     "to": "2.20.0"
+    }
+   }
+  },
+  {
+   "project": "jaeger",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/jaegertracing/jaeger",
+      "factId": "component.jaeger.non_memory_storage_required",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/jaegertracing/jaeger",
+      "factId": "component.jaeger.official_jaeger_distribution",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/jaegertracing/jaeger",
+     "factId": "component.jaeger.explicit_config_provided",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:38:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:38:00Z"
+    },
+    "id": "jaeger.explicit-config-required-for-non-memory.target.2-16-to-2-20",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/jaegertracing/jaeger",
+     "from": "2.16.0",
+     "to": "2.20.0"
+    }
+   }
+  },
+  {
+   "project": "jaeger",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/jaegertracing/jaeger",
+      "factId": "component.jaeger.non_memory_storage_required",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/jaegertracing/jaeger",
+      "factId": "component.jaeger.official_jaeger_distribution",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/jaegertracing/jaeger",
+     "factId": "component.jaeger.explicit_config_provided",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:38:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:38:00Z"
+    },
+    "id": "jaeger.explicit-config-required-for-non-memory.target.2-17-to-2-20",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/jaegertracing/jaeger",
+     "from": "2.17.0",
+     "to": "2.20.0"
+    }
+   }
+  },
+  {
+   "project": "jaeger",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/jaegertracing/jaeger",
+      "factId": "component.jaeger.non_memory_storage_required",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/jaegertracing/jaeger",
+      "factId": "component.jaeger.official_jaeger_distribution",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/jaegertracing/jaeger",
+     "factId": "component.jaeger.explicit_config_provided",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:38:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:38:00Z"
+    },
+    "id": "jaeger.explicit-config-required-for-non-memory.target.2-18-to-2-20",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/jaegertracing/jaeger",
+     "from": "2.18.0",
+     "to": "2.20.0"
+    }
+   }
+  },
+  {
+   "project": "jaeger",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/jaegertracing/jaeger",
+      "factId": "component.jaeger.non_memory_storage_required",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/jaegertracing/jaeger",
+      "factId": "component.jaeger.official_jaeger_distribution",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/jaegertracing/jaeger",
+     "factId": "component.jaeger.explicit_config_provided",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:38:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:38:00Z"
+    },
+    "id": "jaeger.explicit-config-required-for-non-memory.target.2-19-to-2-20",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/jaegertracing/jaeger",
+     "from": "2.19.0",
+     "to": "2.20.0"
+    }
+   }
+  },
+  {
+   "project": "karmada",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/karmada-io/karmada",
+      "enumValue": "official_upstream",
+      "factId": "component.karmada.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/karmada-io/karmada",
+      "enumValue": "karmada_policy_application_failover",
+      "factId": "component.karmada.execution_surface",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/karmada-io/karmada",
+      "factId": "component.karmada.target_policy_crd_admission_required",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/karmada-io/karmada",
+     "factId": "component.karmada.removed_application_purge_mode_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-09T03:24:02Z",
+     "state": "active",
+     "validUntil": "2026-12-08T03:24:02Z"
+    },
+    "id": "karmada.application-purge-mode-legacy-values-removed.1-19",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/karmada-io/karmada",
+     "from": "1.18.3",
+     "to": "1.19.0"
+    }
+   }
+  },
+  {
+   "project": "keda",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/kedacore/keda",
+      "factId": "component.keda.external_scaler_present",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kedacore/keda",
+     "factId": "component.keda.legacy_tls_cert_file_required_for_transport",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T13:58:04Z",
+     "state": "active",
+     "validUntil": "2026-12-07T13:58:04Z"
+    },
+    "id": "keda.external-scaler-legacy-tls-transport.2-17",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/kedacore/keda",
+     "from": "2.16.0",
+     "to": "2.17.0"
+    }
+   }
+  },
+  {
+   "project": "keycloak",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": false,
+      "component": "pkg:github/keycloak/keycloak",
+      "factId": "component.keycloak.server_allow_oidc_params_in_redirect_uris",
+      "side": "proposed"
+     },
+     {
+      "boolValue": false,
+      "component": "pkg:github/keycloak/keycloak",
+      "factId": "component.keycloak.client_allow_oidc_params_in_redirect_uris",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/keycloak/keycloak",
+     "factId": "component.keycloak.oidc_response_parameter_in_redirect_fragment",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-09T20:59:01Z",
+     "state": "active",
+     "validUntil": "2026-12-08T20:59:01Z"
+    },
+    "id": "keycloak.oidc-fragment-response-parameter-rejected.26-7-2-to-26-7-3",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/keycloak/keycloak",
+     "from": "26.7.2",
+     "to": "26.7.3"
+    }
+   }
+  },
+  {
+   "project": "knative",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/knative/serving",
+     "factId": "component.knative.serving_startup_http_named_port_mismatch",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-10T16:29:25Z",
+     "state": "active",
+     "validUntil": "2026-12-09T16:29:25Z"
+    },
+    "id": "knative.serving-startup-http-named-port.1-22-to-1-23",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/knative/serving",
+     "from": "1.22.0",
+     "to": "1.23.0"
+    }
+   }
+  },
+  {
+   "project": "kubeedge",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/kubeedge/kubeedge",
+      "enumValue": "official_upstream",
+      "factId": "component.kubeedge.distribution",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/kubeedge/kubeedge",
+      "factId": "component.kubeedge.effective_argv_complete",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/kubeedge/kubeedge",
+      "enumValue": "keadm_init",
+      "factId": "component.kubeedge.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "component": "pkg:github/kubeedge/kubeedge",
+     "enumValue": "legacy_profile_version",
+     "factId": "component.kubeedge.init_version_selection_form",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-10T14:15:00Z",
+     "state": "active",
+     "validUntil": "2026-12-09T14:15:00Z"
+    },
+    "id": "kubeedge.keadm-init-profile-version-selector.1-18-to-1-19",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/kubeedge/kubeedge",
+     "from": "1.18.0",
+     "to": "1.19.0"
+    }
+   }
+  },
+  {
+   "project": "kubeflow",
+   "rule": {
+    "condition": {
+     "component": "pkg:pypi/kfp",
+     "enumValue": "legacy_create_component_from_func",
+     "factId": "component.kubeflow.kfp_component_authoring_api",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-10T20:30:00Z",
+     "state": "active",
+     "validUntil": "2026-12-09T20:30:00Z"
+    },
+    "id": "kubeflow.kfp-create-component-from-func-removed.1-8-22-to-2-0-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:pypi/kfp",
+     "from": "1.8.22",
+     "to": "2.0.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.admissionwebhook_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T13:55:00Z",
+     "state": "active",
+     "validUntil": "2026-12-22T13:55:00Z"
+    },
+    "id": "kubernetes.admissionwebhook-v1beta1-removed.1-21-0-to-1-22-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v122-admissionwebhook-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v122-admissionwebhook-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v122-admissionwebhook-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.21.0",
+      "lt": "1.22.0"
+     },
+     "to": {
+      "gte": "1.22.0",
+      "lt": "1.23.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.21.0",
+     "to": "1.22.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.apiservice_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T13:55:00Z",
+     "state": "active",
+     "validUntil": "2026-12-22T13:55:00Z"
+    },
+    "id": "kubernetes.apiservice-v1beta1-removed.1-21-0-to-1-22-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v122-apiservice-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v122-apiservice-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v122-apiservice-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.21.0",
+      "lt": "1.22.0"
+     },
+     "to": {
+      "gte": "1.22.0",
+      "lt": "1.23.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.21.0",
+     "to": "1.22.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.crd_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T13:55:00Z",
+     "state": "active",
+     "validUntil": "2026-12-22T13:55:00Z"
+    },
+    "id": "kubernetes.crd-v1beta1-removed.1-21-0-to-1-22-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v122-crd-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v122-crd-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v122-crd-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.21.0",
+      "lt": "1.22.0"
+     },
+     "to": {
+      "gte": "1.22.0",
+      "lt": "1.23.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.21.0",
+     "to": "1.22.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.cronjob_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T12:35:56Z",
+     "state": "active",
+     "validUntil": "2026-12-22T12:35:56Z"
+    },
+    "id": "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v125-cronjob-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v125-cronjob-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v125-cronjob-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.24.0",
+      "lt": "1.25.0"
+     },
+     "to": {
+      "gte": "1.25.0",
+      "lt": "1.26.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.24.0",
+     "to": "1.25.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.csistoragecapacity_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T12:35:56Z",
+     "state": "active",
+     "validUntil": "2026-12-22T12:35:56Z"
+    },
+    "id": "kubernetes.csistoragecapacity-v1beta1-removed.1-26-0-to-1-27-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v127-csistoragecapacity-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v127-csistoragecapacity-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v127-csistoragecapacity-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.26.0",
+      "lt": "1.27.0"
+     },
+     "to": {
+      "gte": "1.27.0",
+      "lt": "1.28.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.26.0",
+     "to": "1.27.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.csr_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T13:55:00Z",
+     "state": "active",
+     "validUntil": "2026-12-22T13:55:00Z"
+    },
+    "id": "kubernetes.csr-v1beta1-removed.1-21-0-to-1-22-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v122-csr-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v122-csr-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v122-csr-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.21.0",
+      "lt": "1.22.0"
+     },
+     "to": {
+      "gte": "1.22.0",
+      "lt": "1.23.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.21.0",
+     "to": "1.22.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.endpointslice_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T12:35:56Z",
+     "state": "active",
+     "validUntil": "2026-12-22T12:35:56Z"
+    },
+    "id": "kubernetes.endpointslice-v1beta1-removed.1-24-0-to-1-25-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v125-endpointslice-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v125-endpointslice-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v125-endpointslice-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.24.0",
+      "lt": "1.25.0"
+     },
+     "to": {
+      "gte": "1.25.0",
+      "lt": "1.26.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.24.0",
+     "to": "1.25.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.event_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T12:35:56Z",
+     "state": "active",
+     "validUntil": "2026-12-22T12:35:56Z"
+    },
+    "id": "kubernetes.event-v1beta1-removed.1-24-0-to-1-25-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v125-event-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v125-event-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v125-event-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.24.0",
+      "lt": "1.25.0"
+     },
+     "to": {
+      "gte": "1.25.0",
+      "lt": "1.26.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.24.0",
+     "to": "1.25.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.flowcontrol_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T12:35:56Z",
+     "state": "active",
+     "validUntil": "2026-12-22T12:35:56Z"
+    },
+    "id": "kubernetes.flowcontrol-v1beta1-removed.1-25-0-to-1-26-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v126-flowcontrol-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v126-flowcontrol-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v126-flowcontrol-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.25.0",
+      "lt": "1.26.0"
+     },
+     "to": {
+      "gte": "1.26.0",
+      "lt": "1.27.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.25.0",
+     "to": "1.26.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.flowcontrol_v1beta2_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T12:35:56Z",
+     "state": "active",
+     "validUntil": "2026-12-22T12:35:56Z"
+    },
+    "id": "kubernetes.flowcontrol-v1beta2-removed.1-28-0-to-1-29-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v129-flowcontrol-v1beta2"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v129-flowcontrol-v1beta2"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v129-flowcontrol-v1beta2"
+      }
+     ],
+     "from": {
+      "gte": "1.28.0",
+      "lt": "1.29.0"
+     },
+     "to": {
+      "gte": "1.29.0",
+      "lt": "1.30.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.28.0",
+     "to": "1.29.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.flowcontrol_v1beta3_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T10:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T10:00:00Z"
+    },
+    "id": "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.31.0",
+     "to": "1.32.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.hpa_v2beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T12:35:56Z",
+     "state": "active",
+     "validUntil": "2026-12-22T12:35:56Z"
+    },
+    "id": "kubernetes.hpa-v2beta1-removed.1-24-0-to-1-25-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v125-hpa-v2beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v125-hpa-v2beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v125-hpa-v2beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.24.0",
+      "lt": "1.25.0"
+     },
+     "to": {
+      "gte": "1.25.0",
+      "lt": "1.26.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.24.0",
+     "to": "1.25.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.hpa_v2beta2_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T12:35:56Z",
+     "state": "active",
+     "validUntil": "2026-12-22T12:35:56Z"
+    },
+    "id": "kubernetes.hpa-v2beta2-removed.1-25-0-to-1-26-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v126-hpa-v2beta2"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v126-hpa-v2beta2"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v126-hpa-v2beta2"
+      }
+     ],
+     "from": {
+      "gte": "1.25.0",
+      "lt": "1.26.0"
+     },
+     "to": {
+      "gte": "1.26.0",
+      "lt": "1.27.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.25.0",
+     "to": "1.26.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.in_tree_dockershim_required",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T12:07:56Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "kubernetes.in-tree-dockershim-removed.1-24",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.23.17",
+     "to": "1.24.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.ingress_extensions_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T13:55:00Z",
+     "state": "active",
+     "validUntil": "2026-12-22T13:55:00Z"
+    },
+    "id": "kubernetes.ingress-extensions-v1beta1-removed.1-21-0-to-1-22-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v122-ingress-extensions-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v122-ingress-extensions-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v122-ingress-extensions-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.21.0",
+      "lt": "1.22.0"
+     },
+     "to": {
+      "gte": "1.22.0",
+      "lt": "1.23.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.21.0",
+     "to": "1.22.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.ingress_networking_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T13:55:00Z",
+     "state": "active",
+     "validUntil": "2026-12-22T13:55:00Z"
+    },
+    "id": "kubernetes.ingress-networking-v1beta1-removed.1-21-0-to-1-22-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v122-ingress-networking-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v122-ingress-networking-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v122-ingress-networking-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.21.0",
+      "lt": "1.22.0"
+     },
+     "to": {
+      "gte": "1.22.0",
+      "lt": "1.23.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.21.0",
+     "to": "1.22.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.ingressclass_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T13:55:00Z",
+     "state": "active",
+     "validUntil": "2026-12-22T13:55:00Z"
+    },
+    "id": "kubernetes.ingressclass-v1beta1-removed.1-21-0-to-1-22-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v122-ingressclass-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v122-ingressclass-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v122-ingressclass-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.21.0",
+      "lt": "1.22.0"
+     },
+     "to": {
+      "gte": "1.22.0",
+      "lt": "1.23.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.21.0",
+     "to": "1.22.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.lease_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T13:55:00Z",
+     "state": "active",
+     "validUntil": "2026-12-22T13:55:00Z"
+    },
+    "id": "kubernetes.lease-v1beta1-removed.1-21-0-to-1-22-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v122-lease-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v122-lease-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v122-lease-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.21.0",
+      "lt": "1.22.0"
+     },
+     "to": {
+      "gte": "1.22.0",
+      "lt": "1.23.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.21.0",
+     "to": "1.22.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.pdb_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T12:35:56Z",
+     "state": "active",
+     "validUntil": "2026-12-22T12:35:56Z"
+    },
+    "id": "kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v125-pdb-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v125-pdb-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v125-pdb-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.24.0",
+      "lt": "1.25.0"
+     },
+     "to": {
+      "gte": "1.25.0",
+      "lt": "1.26.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.24.0",
+     "to": "1.25.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.priorityclass_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T13:55:00Z",
+     "state": "active",
+     "validUntil": "2026-12-22T13:55:00Z"
+    },
+    "id": "kubernetes.priorityclass-v1beta1-removed.1-21-0-to-1-22-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v122-priorityclass-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v122-priorityclass-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v122-priorityclass-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.21.0",
+      "lt": "1.22.0"
+     },
+     "to": {
+      "gte": "1.22.0",
+      "lt": "1.23.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.21.0",
+     "to": "1.22.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.psp_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T12:35:56Z",
+     "state": "active",
+     "validUntil": "2026-12-22T12:35:56Z"
+    },
+    "id": "kubernetes.psp-v1beta1-removed.1-24-0-to-1-25-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v125-psp-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v125-psp-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v125-psp-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.24.0",
+      "lt": "1.25.0"
+     },
+     "to": {
+      "gte": "1.25.0",
+      "lt": "1.26.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.24.0",
+     "to": "1.25.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.rbac_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T13:55:00Z",
+     "state": "active",
+     "validUntil": "2026-12-22T13:55:00Z"
+    },
+    "id": "kubernetes.rbac-v1beta1-removed.1-21-0-to-1-22-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v122-rbac-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v122-rbac-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v122-rbac-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.21.0",
+      "lt": "1.22.0"
+     },
+     "to": {
+      "gte": "1.22.0",
+      "lt": "1.23.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.21.0",
+     "to": "1.22.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.runtimeclass_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T12:35:56Z",
+     "state": "active",
+     "validUntil": "2026-12-22T12:35:56Z"
+    },
+    "id": "kubernetes.runtimeclass-v1beta1-removed.1-24-0-to-1-25-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v125-runtimeclass-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v125-runtimeclass-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v125-runtimeclass-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.24.0",
+      "lt": "1.25.0"
+     },
+     "to": {
+      "gte": "1.25.0",
+      "lt": "1.26.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.24.0",
+     "to": "1.25.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.storage_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T13:55:00Z",
+     "state": "active",
+     "validUntil": "2026-12-22T13:55:00Z"
+    },
+    "id": "kubernetes.storage-v1beta1-removed.1-21-0-to-1-22-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v122-storage-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v122-storage-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v122-storage-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.21.0",
+      "lt": "1.22.0"
+     },
+     "to": {
+      "gte": "1.22.0",
+      "lt": "1.23.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.21.0",
+     "to": "1.22.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.subjectaccessreview_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T13:55:00Z",
+     "state": "active",
+     "validUntil": "2026-12-22T13:55:00Z"
+    },
+    "id": "kubernetes.subjectaccessreview-v1beta1-removed.1-21-0-to-1-22-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v122-subjectaccessreview-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v122-subjectaccessreview-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v122-subjectaccessreview-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.21.0",
+      "lt": "1.22.0"
+     },
+     "to": {
+      "gte": "1.22.0",
+      "lt": "1.23.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.21.0",
+     "to": "1.22.0"
+    }
+   }
+  },
+  {
+   "project": "kubernetes",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubernetes/kubernetes",
+     "factId": "component.kubernetes.tokenreview_v1beta1_removed_gvk_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-23T13:55:00Z",
+     "state": "active",
+     "validUntil": "2026-12-22T13:55:00Z"
+    },
+    "id": "kubernetes.tokenreview-v1beta1-removed.1-21-0-to-1-22-0",
+    "operator": "forbid_predicate_value",
+    "range": {
+     "bounds": [
+      {
+       "basis": "PREVIOUS_MINOR_LINE",
+       "bound": "from.gte",
+       "sourceId": "kubernetes-website-version-skew-upgrade-order"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "from.lt",
+       "sourceId": "kubernetes-website-v122-tokenreview-v1beta1"
+      },
+      {
+       "basis": "REMOVED_IN_RELEASE",
+       "bound": "to.gte",
+       "sourceId": "kubernetes-website-v122-tokenreview-v1beta1"
+      },
+      {
+       "basis": "TARGET_SERIES",
+       "bound": "to.lt",
+       "sourceId": "kubernetes-website-v122-tokenreview-v1beta1"
+      }
+     ],
+     "from": {
+      "gte": "1.21.0",
+      "lt": "1.22.0"
+     },
+     "to": {
+      "gte": "1.22.0",
+      "lt": "1.23.0"
+     }
+    },
+    "subject": {
+     "component": "pkg:github/kubernetes/kubernetes",
+     "from": "1.21.0",
+     "to": "1.22.0"
+    }
+   }
+  },
+  {
+   "project": "kubevirt",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kubevirt/kubevirt",
+     "factId": "component.kubevirt.interface_binding_cardinality_invalid",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-11T00:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-10T00:00:00Z"
+    },
+    "id": "kubevirt.interface-binding-cardinality.1-8-4-to-1-9-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/kubevirt/kubevirt",
+     "from": "1.8.4",
+     "to": "1.9.0"
+    }
+   }
+  },
+  {
+   "project": "kuma",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/kumahq/kuma",
+      "enumValue": "official_upstream",
+      "factId": "component.kuma.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/kumahq/kuma",
+      "enumValue": "kumactl_install_transparent_proxy",
+      "factId": "component.kuma.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kumahq/kuma",
+     "factId": "component.kuma.removed_exclude_uid_flags_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T21:06:35Z",
+     "state": "active",
+     "validUntil": "2026-12-07T21:06:35Z"
+    },
+    "id": "kuma.deprecated-exclude-uid-flags-removed.2-8-to-2-9",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/kumahq/kuma",
+     "from": "2.8.0",
+     "to": "2.9.0"
+    }
+   }
+  },
+  {
+   "project": "kyverno",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/kyverno/kyverno",
+      "enumValue": "official_upstream",
+      "factId": "component.kyverno.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/kyverno/kyverno",
+      "enumValue": "reports_controller",
+      "factId": "component.kyverno.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kyverno/kyverno",
+     "factId": "component.kyverno.reports_chunk_size_flag_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-09T00:53:06Z",
+     "state": "active",
+     "validUntil": "2026-12-08T00:53:06Z"
+    },
+    "id": "kyverno.reports-chunk-size-removed.1-13",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/kyverno/kyverno",
+     "from": "1.12.5",
+     "to": "1.13.0"
+    }
+   }
+  },
+  {
+   "project": "kyverno",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/kyverno/kyverno",
+      "enumValue": "official_upstream",
+      "factId": "component.kyverno.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/kyverno/kyverno",
+      "enumValue": "reports_controller",
+      "factId": "component.kyverno.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kyverno/kyverno",
+     "factId": "component.kyverno.reports_chunk_size_flag_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:33:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:33:00Z"
+    },
+    "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-14-5",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/kyverno/kyverno",
+     "from": "1.14.5",
+     "to": "1.19.1"
+    }
+   }
+  },
+  {
+   "project": "kyverno",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/kyverno/kyverno",
+      "enumValue": "official_upstream",
+      "factId": "component.kyverno.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/kyverno/kyverno",
+      "enumValue": "reports_controller",
+      "factId": "component.kyverno.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kyverno/kyverno",
+     "factId": "component.kyverno.reports_chunk_size_flag_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:33:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:33:00Z"
+    },
+    "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-15-3",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/kyverno/kyverno",
+     "from": "1.15.3",
+     "to": "1.19.1"
+    }
+   }
+  },
+  {
+   "project": "kyverno",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/kyverno/kyverno",
+      "enumValue": "official_upstream",
+      "factId": "component.kyverno.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/kyverno/kyverno",
+      "enumValue": "reports_controller",
+      "factId": "component.kyverno.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kyverno/kyverno",
+     "factId": "component.kyverno.reports_chunk_size_flag_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:33:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:33:00Z"
+    },
+    "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-16-4",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/kyverno/kyverno",
+     "from": "1.16.4",
+     "to": "1.19.1"
+    }
+   }
+  },
+  {
+   "project": "kyverno",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/kyverno/kyverno",
+      "enumValue": "official_upstream",
+      "factId": "component.kyverno.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/kyverno/kyverno",
+      "enumValue": "reports_controller",
+      "factId": "component.kyverno.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kyverno/kyverno",
+     "factId": "component.kyverno.reports_chunk_size_flag_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:33:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:33:00Z"
+    },
+    "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-17-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/kyverno/kyverno",
+     "from": "1.17.2",
+     "to": "1.19.1"
+    }
+   }
+  },
+  {
+   "project": "kyverno",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/kyverno/kyverno",
+      "enumValue": "official_upstream",
+      "factId": "component.kyverno.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/kyverno/kyverno",
+      "enumValue": "reports_controller",
+      "factId": "component.kyverno.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/kyverno/kyverno",
+     "factId": "component.kyverno.reports_chunk_size_flag_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:33:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:33:00Z"
+    },
+    "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-18-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/kyverno/kyverno",
+     "from": "1.18.2",
+     "to": "1.19.1"
+    }
+   }
+  },
+  {
+   "project": "linkerd",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/linkerd/linkerd2",
+      "enumValue": "official_upstream",
+      "factId": "component.linkerd.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/linkerd/linkerd2",
+      "enumValue": "meshtls_authentication_crd",
+      "factId": "component.linkerd.execution_surface",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/linkerd/linkerd2",
+      "factId": "component.linkerd.schema_validation_required",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/linkerd/linkerd2",
+     "factId": "component.linkerd.mtls_identity_selector_empty",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T22:06:25Z",
+     "state": "active",
+     "validUntil": "2026-12-07T22:06:25Z"
+    },
+    "id": "linkerd.mtls-identity-selector-minitems.2-13-2-14",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/linkerd/linkerd2",
+     "from": "2.13.7",
+     "to": "2.14.0"
+    }
+   }
+  },
+  {
+   "project": "longhorn",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/longhorn/longhorn",
+      "factId": "component.longhorn.upgrade_path_check_enabled",
+      "side": "proposed"
+     }
+    ],
+    "evidence": {
+     "reviewedAt": "2026-09-08T12:07:56Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "longhorn.intermediate-1-8.1-9",
+    "operator": "require_intermediate_version",
+    "subject": {
+     "component": "pkg:github/longhorn/longhorn",
+     "from": "1.7.3",
+     "to": "1.9.0"
+    }
+   }
+  },
+  {
+   "project": "metallb",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/metallb/metallb",
+     "factId": "component.metallb.legacy_configmap_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-11T00:00:00Z",
+     "state": "active",
+     "validUntil": "2026-12-10T00:00:00Z"
+    },
+    "id": "metallb.legacy-configmap-removed.0-12-1-to-0-13-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/metallb/metallb",
+     "from": "0.12.1",
+     "to": "0.13.2"
+    }
+   }
+  },
+  {
+   "project": "nats",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/nats-io/nats-server",
+     "factId": "component.nats.selected_name_has_ascii_space",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-11T20:22:53Z",
+     "state": "active",
+     "validUntil": "2026-12-10T20:22:53Z"
+    },
+    "id": "nats.names-with-ascii-spaces-rejected.2-10-0-to-2-11-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/nats-io/nats-server",
+     "from": "2.10.0",
+     "to": "2.11.0"
+    }
+   }
+  },
+  {
+   "project": "nats",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/nats-io/nats-server",
+     "factId": "component.nats.selected_name_has_ascii_space",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:46:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:46:00Z"
+    },
+    "id": "nats.names-with-ascii-spaces-rejected.2-10-29-to-2-14-6",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/nats-io/nats-server",
+     "from": "2.10.29",
+     "to": "2.14.6"
+    }
+   }
+  },
+  {
+   "project": "nats",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/nats-io/nats-server",
+     "factId": "component.nats.selected_name_has_ascii_space",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:46:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:46:00Z"
+    },
+    "id": "nats.names-with-ascii-spaces-rejected.2-11-17-to-2-14-6",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/nats-io/nats-server",
+     "from": "2.11.17",
+     "to": "2.14.6"
+    }
+   }
+  },
+  {
+   "project": "nats",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/nats-io/nats-server",
+     "factId": "component.nats.selected_name_has_ascii_space",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:46:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:46:00Z"
+    },
+    "id": "nats.names-with-ascii-spaces-rejected.2-12-15-to-2-14-6",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/nats-io/nats-server",
+     "from": "2.12.15",
+     "to": "2.14.6"
+    }
+   }
+  },
+  {
+   "project": "nats",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/nats-io/nats-server",
+     "factId": "component.nats.selected_name_has_ascii_space",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:46:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:46:00Z"
+    },
+    "id": "nats.names-with-ascii-spaces-rejected.2-8-4-to-2-14-6",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/nats-io/nats-server",
+     "from": "2.8.4",
+     "to": "2.14.6"
+    }
+   }
+  },
+  {
+   "project": "nats",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/nats-io/nats-server",
+     "factId": "component.nats.selected_name_has_ascii_space",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:46:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:46:00Z"
+    },
+    "id": "nats.names-with-ascii-spaces-rejected.2-9-25-to-2-14-6",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/nats-io/nats-server",
+     "from": "2.9.25",
+     "to": "2.14.6"
+    }
+   }
+  },
+  {
+   "project": "opa",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/open-policy-agent/opa",
+      "factId": "component.opa.v0_consumers_remain",
+      "side": "proposed"
+     },
+     {
+      "boolValue": false,
+      "component": "pkg:github/open-policy-agent/opa",
+      "factId": "component.opa.modules_use_rego_v1_import",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/open-policy-agent/opa",
+     "factId": "component.opa.producer_v0_compatible",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:33:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:33:00Z"
+    },
+    "id": "opa.v0-consumer-producer-option-at-1-20-2-from-1-15-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/open-policy-agent/opa",
+     "from": "1.15.2",
+     "to": "1.20.2"
+    }
+   }
+  },
+  {
+   "project": "opa",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/open-policy-agent/opa",
+      "factId": "component.opa.v0_consumers_remain",
+      "side": "proposed"
+     },
+     {
+      "boolValue": false,
+      "component": "pkg:github/open-policy-agent/opa",
+      "factId": "component.opa.modules_use_rego_v1_import",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/open-policy-agent/opa",
+     "factId": "component.opa.producer_v0_compatible",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:33:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:33:00Z"
+    },
+    "id": "opa.v0-consumer-producer-option-at-1-20-2-from-1-16-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/open-policy-agent/opa",
+     "from": "1.16.2",
+     "to": "1.20.2"
+    }
+   }
+  },
+  {
+   "project": "opa",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/open-policy-agent/opa",
+      "factId": "component.opa.v0_consumers_remain",
+      "side": "proposed"
+     },
+     {
+      "boolValue": false,
+      "component": "pkg:github/open-policy-agent/opa",
+      "factId": "component.opa.modules_use_rego_v1_import",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/open-policy-agent/opa",
+     "factId": "component.opa.producer_v0_compatible",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:33:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:33:00Z"
+    },
+    "id": "opa.v0-consumer-producer-option-at-1-20-2-from-1-17-1",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/open-policy-agent/opa",
+     "from": "1.17.1",
+     "to": "1.20.2"
+    }
+   }
+  },
+  {
+   "project": "opa",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/open-policy-agent/opa",
+      "factId": "component.opa.v0_consumers_remain",
+      "side": "proposed"
+     },
+     {
+      "boolValue": false,
+      "component": "pkg:github/open-policy-agent/opa",
+      "factId": "component.opa.modules_use_rego_v1_import",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/open-policy-agent/opa",
+     "factId": "component.opa.producer_v0_compatible",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:33:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:33:00Z"
+    },
+    "id": "opa.v0-consumer-producer-option-at-1-20-2-from-1-18-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/open-policy-agent/opa",
+     "from": "1.18.2",
+     "to": "1.20.2"
+    }
+   }
+  },
+  {
+   "project": "opa",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/open-policy-agent/opa",
+      "factId": "component.opa.v0_consumers_remain",
+      "side": "proposed"
+     },
+     {
+      "boolValue": false,
+      "component": "pkg:github/open-policy-agent/opa",
+      "factId": "component.opa.modules_use_rego_v1_import",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/open-policy-agent/opa",
+     "factId": "component.opa.producer_v0_compatible",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:33:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:33:00Z"
+    },
+    "id": "opa.v0-consumer-producer-option-at-1-20-2-from-1-19-1",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/open-policy-agent/opa",
+     "from": "1.19.1",
+     "to": "1.20.2"
+    }
+   }
+  },
+  {
+   "project": "opa",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/open-policy-agent/opa",
+      "factId": "component.opa.v0_consumers_remain",
+      "side": "proposed"
+     },
+     {
+      "boolValue": false,
+      "component": "pkg:github/open-policy-agent/opa",
+      "factId": "component.opa.modules_use_rego_v1_import",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/open-policy-agent/opa",
+     "factId": "component.opa.producer_v0_compatible",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T12:07:56Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "opa.v0-consumer-producer-option.1-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/open-policy-agent/opa",
+     "from": "0.70.0",
+     "to": "1.0.0"
+    }
+   }
+  },
+  {
+   "project": "opencost",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_cloud_cost_enabled",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_source_selection_complete",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_provider_derived_source_selected",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.proposed_cloud_cost_enabled",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.proposed_source_selection_complete",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/opencost/opencost",
+     "factId": "component.opencost.target_cloud_integration_source_selected_and_declared_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:15:52Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:15:52Z"
+    },
+    "id": "opencost.cloud-cost-source-migration.1-116-0-to-1-121-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/opencost/opencost",
+     "from": "1.116.0",
+     "to": "1.121.2"
+    }
+   }
+  },
+  {
+   "project": "opencost",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_cloud_cost_enabled",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_source_selection_complete",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_provider_derived_source_selected",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.proposed_cloud_cost_enabled",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.proposed_source_selection_complete",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/opencost/opencost",
+     "factId": "component.opencost.target_cloud_integration_source_selected_and_declared_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:15:52Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:15:52Z"
+    },
+    "id": "opencost.cloud-cost-source-migration.1-117-6-to-1-121-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/opencost/opencost",
+     "from": "1.117.6",
+     "to": "1.121.2"
+    }
+   }
+  },
+  {
+   "project": "opencost",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_cloud_cost_enabled",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_source_selection_complete",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_provider_derived_source_selected",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.proposed_cloud_cost_enabled",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.proposed_source_selection_complete",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/opencost/opencost",
+     "factId": "component.opencost.target_cloud_integration_source_selected_and_declared_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:15:52Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:15:52Z"
+    },
+    "id": "opencost.cloud-cost-source-migration.1-118-0-to-1-121-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/opencost/opencost",
+     "from": "1.118.0",
+     "to": "1.121.2"
+    }
+   }
+  },
+  {
+   "project": "opencost",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_cloud_cost_enabled",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_source_selection_complete",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_provider_derived_source_selected",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.proposed_cloud_cost_enabled",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.proposed_source_selection_complete",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/opencost/opencost",
+     "factId": "component.opencost.target_cloud_integration_source_selected_and_declared_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:15:52Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:15:52Z"
+    },
+    "id": "opencost.cloud-cost-source-migration.1-119-2-to-1-121-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/opencost/opencost",
+     "from": "1.119.2",
+     "to": "1.121.2"
+    }
+   }
+  },
+  {
+   "project": "opencost",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_cloud_cost_enabled",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_source_selection_complete",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_provider_derived_source_selected",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.proposed_cloud_cost_enabled",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.proposed_source_selection_complete",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/opencost/opencost",
+     "factId": "component.opencost.target_cloud_integration_source_selected_and_declared_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-11T21:22:55Z",
+     "state": "active",
+     "validUntil": "2026-12-10T21:22:55Z"
+    },
+    "id": "opencost.cloud-cost-source-migration.1-119-to-1-120",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/opencost/opencost",
+     "from": "1.119.0",
+     "to": "1.120.0"
+    }
+   }
+  },
+  {
+   "project": "opencost",
+   "rule": {
+    "appliesWhen": [
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_cloud_cost_enabled",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_source_selection_complete",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.current_provider_derived_source_selected",
+      "side": "current"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.proposed_cloud_cost_enabled",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/opencost/opencost",
+      "factId": "component.opencost.proposed_source_selection_complete",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/opencost/opencost",
+     "factId": "component.opencost.target_cloud_integration_source_selected_and_declared_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:42:47Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:42:47Z"
+    },
+    "id": "opencost.cloud-cost-source-migration.1-120-4-to-1-121-2",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/opencost/opencost",
+     "from": "1.120.4",
+     "to": "1.121.2"
+    }
+   }
+  },
+  {
+   "project": "openfga",
+   "rule": {
+    "appliesWhen": [],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/openfga/openfga",
+     "factId": "component.openfga.oidc_required_fields_missing",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-11T15:47:46Z",
+     "state": "active",
+     "validUntil": "2026-12-10T00:00:00Z"
+    },
+    "id": "openfga.oidc-required-fields.1-17-1-to-1-18-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/openfga/openfga",
+     "from": "1.17.1",
+     "to": "1.18.0"
+    }
+   }
+  },
+  {
+   "project": "opentelemetry",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/open-telemetry/opentelemetry-collector",
+      "enumValue": "official",
+      "factId": "component.opentelemetry.distribution",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/open-telemetry/opentelemetry-collector",
+      "factId": "component.opentelemetry.internal_metrics_override_absent",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/open-telemetry/opentelemetry-collector",
+      "factId": "component.opentelemetry.config_complete",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/open-telemetry/opentelemetry-collector",
+      "factId": "component.opentelemetry.config_precedence_resolved",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/open-telemetry/opentelemetry-collector",
+     "factId": "component.opentelemetry.internal_metrics_localhost_remote_conflict",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-13T09:29:22Z",
+     "state": "active",
+     "validUntil": "2026-12-12T09:29:22Z"
+    },
+    "id": "opentelemetry.internal-telemetry-default-bind.0-110-to-0-111",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/open-telemetry/opentelemetry-collector",
+     "from": "0.110.0",
+     "to": "0.111.0"
+    }
+   }
+  },
+  {
+   "project": "opentelemetry",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/open-telemetry/opentelemetry-collector",
+      "enumValue": "official",
+      "factId": "component.opentelemetry.distribution",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/open-telemetry/opentelemetry-collector",
+     "factId": "component.opentelemetry.logging_exporter_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T02:34:43Z",
+     "state": "active",
+     "validUntil": "2026-12-11T02:34:43Z"
+    },
+    "id": "opentelemetry.logging-exporter-removed.0-111",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/open-telemetry/opentelemetry-collector",
+     "from": "0.110.0",
+     "to": "0.111.0"
+    }
+   }
+  },
+  {
+   "project": "prometheus",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/prometheus/prometheus",
+     "enumValue": "v1",
+     "factId": "component.prometheus.alertmanager_api_version_selection",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T17:28:04Z",
+     "state": "active",
+     "validUntil": "2026-12-11T17:28:04Z"
+    },
+    "id": "prometheus.alertmanager-api-v1-removed.2-55-1-to-3-14-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/prometheus/prometheus",
+     "from": "2.55.1",
+     "to": "3.14.0"
+    }
+   }
+  },
+  {
+   "project": "prometheus",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/prometheus/prometheus",
+     "enumValue": "v1",
+     "factId": "component.prometheus.alertmanager_api_version_selection",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T00:26:18Z",
+     "state": "active",
+     "validUntil": "2026-12-11T00:26:18Z"
+    },
+    "id": "prometheus.alertmanager-api-v1-removed.3-1",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/prometheus/prometheus",
+     "from": "2.55.1",
+     "to": "3.1.0"
+    }
+   }
+  },
+  {
+   "project": "prometheus",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/prometheus/prometheus",
+     "enumValue": "v1",
+     "factId": "component.prometheus.alertmanager_api_version_selection",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:02:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:02:00Z"
+    },
+    "id": "prometheus.alertmanager-api-v1.target-config.3-10-0-to-3-14-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/prometheus/prometheus",
+     "from": "3.10.0",
+     "to": "3.14.0"
+    }
+   }
+  },
+  {
+   "project": "prometheus",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/prometheus/prometheus",
+     "enumValue": "v1",
+     "factId": "component.prometheus.alertmanager_api_version_selection",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:02:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:02:00Z"
+    },
+    "id": "prometheus.alertmanager-api-v1.target-config.3-11-3-to-3-14-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/prometheus/prometheus",
+     "from": "3.11.3",
+     "to": "3.14.0"
+    }
+   }
+  },
+  {
+   "project": "prometheus",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/prometheus/prometheus",
+     "enumValue": "v1",
+     "factId": "component.prometheus.alertmanager_api_version_selection",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:02:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:02:00Z"
+    },
+    "id": "prometheus.alertmanager-api-v1.target-config.3-12-0-to-3-14-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/prometheus/prometheus",
+     "from": "3.12.0",
+     "to": "3.14.0"
+    }
+   }
+  },
+  {
+   "project": "prometheus",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/prometheus/prometheus",
+     "enumValue": "v1",
+     "factId": "component.prometheus.alertmanager_api_version_selection",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:02:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:02:00Z"
+    },
+    "id": "prometheus.alertmanager-api-v1.target-config.3-13-3-to-3-14-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/prometheus/prometheus",
+     "from": "3.13.3",
+     "to": "3.14.0"
+    }
+   }
+  },
+  {
+   "project": "prometheus",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/prometheus/prometheus",
+     "enumValue": "v1",
+     "factId": "component.prometheus.alertmanager_api_version_selection",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T09:02:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T09:02:00Z"
+    },
+    "id": "prometheus.alertmanager-api-v1.target-config.3-9-1-to-3-14-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/prometheus/prometheus",
+     "from": "3.9.1",
+     "to": "3.14.0"
+    }
+   }
+  },
+  {
+   "project": "prometheus",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/prometheus/prometheus",
+     "factId": "component.prometheus.remote_write_http2_requirement_unsatisfied",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-13T08:57:28Z",
+     "state": "active",
+     "validUntil": "2026-12-12T08:57:28Z"
+    },
+    "id": "prometheus.remote-write-http2-default.2-55-1-to-3-14-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/prometheus/prometheus",
+     "from": "2.55.1",
+     "to": "3.14.0"
+    }
+   }
+  },
+  {
+   "project": "prometheus",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/prometheus/prometheus",
+     "enumValue": "scrape_classic_histograms",
+     "factId": "component.prometheus.scrape_classic_histograms_key",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T17:28:04Z",
+     "state": "active",
+     "validUntil": "2026-12-11T17:28:04Z"
+    },
+    "id": "prometheus.scrape-classic-histograms-key-renamed.2-55-1-to-3-14-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/prometheus/prometheus",
+     "from": "2.55.1",
+     "to": "3.14.0"
+    }
+   }
+  },
+  {
+   "project": "prometheus",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/prometheus/prometheus",
+     "enumValue": "scrape_classic_histograms",
+     "factId": "component.prometheus.scrape_classic_histograms_key",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-11T22:49:25Z",
+     "state": "active",
+     "validUntil": "2026-12-10T22:49:25Z"
+    },
+    "id": "prometheus.scrape-classic-histograms-key-renamed.3-1",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/prometheus/prometheus",
+     "from": "2.55.1",
+     "to": "3.1.0"
+    }
+   }
+  },
+  {
+   "project": "prometheus",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/prometheus/prometheus",
+     "enumValue": "scrape_classic_histograms",
+     "factId": "component.prometheus.scrape_classic_histograms_key",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:05:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:05:00Z"
+    },
+    "id": "prometheus.scrape-classic-histograms.target-config.3-10-0-to-3-14-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/prometheus/prometheus",
+     "from": "3.10.0",
+     "to": "3.14.0"
+    }
+   }
+  },
+  {
+   "project": "prometheus",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/prometheus/prometheus",
+     "enumValue": "scrape_classic_histograms",
+     "factId": "component.prometheus.scrape_classic_histograms_key",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:05:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:05:00Z"
+    },
+    "id": "prometheus.scrape-classic-histograms.target-config.3-11-3-to-3-14-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/prometheus/prometheus",
+     "from": "3.11.3",
+     "to": "3.14.0"
+    }
+   }
+  },
+  {
+   "project": "prometheus",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/prometheus/prometheus",
+     "enumValue": "scrape_classic_histograms",
+     "factId": "component.prometheus.scrape_classic_histograms_key",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:05:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:05:00Z"
+    },
+    "id": "prometheus.scrape-classic-histograms.target-config.3-12-0-to-3-14-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/prometheus/prometheus",
+     "from": "3.12.0",
+     "to": "3.14.0"
+    }
+   }
+  },
+  {
+   "project": "prometheus",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/prometheus/prometheus",
+     "enumValue": "scrape_classic_histograms",
+     "factId": "component.prometheus.scrape_classic_histograms_key",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:05:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:05:00Z"
+    },
+    "id": "prometheus.scrape-classic-histograms.target-config.3-13-3-to-3-14-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/prometheus/prometheus",
+     "from": "3.13.3",
+     "to": "3.14.0"
+    }
+   }
+  },
+  {
+   "project": "prometheus",
+   "rule": {
+    "condition": {
+     "component": "pkg:github/prometheus/prometheus",
+     "enumValue": "scrape_classic_histograms",
+     "factId": "component.prometheus.scrape_classic_histograms_key",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:05:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:05:00Z"
+    },
+    "id": "prometheus.scrape-classic-histograms.target-config.3-9-1-to-3-14-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/prometheus/prometheus",
+     "from": "3.9.1",
+     "to": "3.14.0"
+    }
+   }
+  },
+  {
+   "project": "rook",
+   "rule": {
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "rook.direct-minor-skip.1-15-9-to-1-20-7",
+    "operator": "forbid_target_version",
+    "subject": {
+     "component": "pkg:github/rook/rook",
+     "from": "1.15.9",
+     "to": "1.20.7"
+    }
+   }
+  },
+  {
+   "project": "rook",
+   "rule": {
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "rook.direct-minor-skip.1-16-9-to-1-20-7",
+    "operator": "forbid_target_version",
+    "subject": {
+     "component": "pkg:github/rook/rook",
+     "from": "1.16.9",
+     "to": "1.20.7"
+    }
+   }
+  },
+  {
+   "project": "rook",
+   "rule": {
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "rook.direct-minor-skip.1-17-9-to-1-20-7",
+    "operator": "forbid_target_version",
+    "subject": {
+     "component": "pkg:github/rook/rook",
+     "from": "1.17.9",
+     "to": "1.20.7"
+    }
+   }
+  },
+  {
+   "project": "rook",
+   "rule": {
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "rook.direct-minor-skip.1-18-11-to-1-20-7",
+    "operator": "forbid_target_version",
+    "subject": {
+     "component": "pkg:github/rook/rook",
+     "from": "1.18.11",
+     "to": "1.20.7"
+    }
+   }
+  },
+  {
+   "project": "rook",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/rook/rook",
+      "enumValue": "helm",
+      "factId": "component.rook.deployment_mode",
+      "side": "proposed"
+     }
+    ],
+    "evidence": {
+     "reviewedAt": "2026-09-08T12:07:56Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "rook.helm-intermediate-1-19-5.1-20",
+    "operator": "require_intermediate_version",
+    "subject": {
+     "component": "pkg:github/rook/rook",
+     "from": "1.19.4",
+     "to": "1.20.0"
+    }
+   }
+  },
+  {
+   "project": "rook",
+   "rule": {
+    "evidence": {
+     "reviewedAt": "2026-09-08T12:07:56Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "rook.minimum-kubernetes.1-20",
+    "operator": "require_component_version",
+    "subject": {
+     "component": "pkg:github/rook/rook",
+     "from": "1.19.5",
+     "to": "1.20.0"
+    }
+   }
+  },
+  {
+   "project": "rook",
+   "rule": {
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "rook.minimum-kubernetes.1-20-7",
+    "operator": "require_component_version",
+    "subject": {
+     "component": "pkg:github/rook/rook",
+     "from": "1.19.11",
+     "to": "1.20.7"
+    }
+   }
+  },
+  {
+   "project": "rook",
+   "rule": {
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:31:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:31:00Z"
+    },
+    "id": "rook.minimum-kubernetes.1-20-7-from-1-15-9",
+    "operator": "require_component_version",
+    "subject": {
+     "component": "pkg:github/rook/rook",
+     "from": "1.15.9",
+     "to": "1.20.7"
+    }
+   }
+  },
+  {
+   "project": "rook",
+   "rule": {
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:31:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:31:00Z"
+    },
+    "id": "rook.minimum-kubernetes.1-20-7-from-1-16-9",
+    "operator": "require_component_version",
+    "subject": {
+     "component": "pkg:github/rook/rook",
+     "from": "1.16.9",
+     "to": "1.20.7"
+    }
+   }
+  },
+  {
+   "project": "rook",
+   "rule": {
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:31:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:31:00Z"
+    },
+    "id": "rook.minimum-kubernetes.1-20-7-from-1-17-9",
+    "operator": "require_component_version",
+    "subject": {
+     "component": "pkg:github/rook/rook",
+     "from": "1.17.9",
+     "to": "1.20.7"
+    }
+   }
+  },
+  {
+   "project": "rook",
+   "rule": {
+    "evidence": {
+     "reviewedAt": "2026-09-12T08:31:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T08:31:00Z"
+    },
+    "id": "rook.minimum-kubernetes.1-20-7-from-1-18-11",
+    "operator": "require_component_version",
+    "subject": {
+     "component": "pkg:github/rook/rook",
+     "from": "1.18.11",
+     "to": "1.20.7"
+    }
+   }
+  },
+  {
+   "project": "spire",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/spiffe/spire",
+      "enumValue": "official_upstream",
+      "factId": "component.spire.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/spiffe/spire",
+      "enumValue": "spire_server_entry_create",
+      "factId": "component.spire.execution_surface",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/spiffe/spire",
+     "factId": "component.spire.removed_entry_ttl_flag_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T23:37:17Z",
+     "state": "active",
+     "validUntil": "2026-12-07T23:37:17Z"
+    },
+    "id": "spire.removed-entry-ttl.1-11",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/spiffe/spire",
+     "from": "1.10.4",
+     "to": "1.11.0"
+    }
+   }
+  },
+  {
+   "project": "strimzi",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/strimzi/strimzi-kafka-operator",
+      "enumValue": "official_upstream",
+      "factId": "component.strimzi.distribution",
+      "side": "proposed"
+     },
+     {
+      "component": "pkg:github/strimzi/strimzi-kafka-operator",
+      "enumValue": "kafka_custom_resource",
+      "factId": "component.strimzi.execution_surface",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/strimzi/strimzi-kafka-operator",
+      "factId": "component.strimzi.target_kafka_crd_admission_required",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/strimzi/strimzi-kafka-operator",
+     "factId": "component.strimzi.kafka_v1beta2_api_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-09T01:59:12Z",
+     "state": "active",
+     "validUntil": "2026-12-08T01:36:41Z"
+    },
+    "id": "strimzi.kafka-v1beta2-api-removed.1-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/strimzi/strimzi-kafka-operator",
+     "from": "0.51.0",
+     "to": "1.0.0"
+    }
+   }
+  },
+  {
+   "project": "tekton",
+   "rule": {
+    "appliesWhen": [
+     {
+      "component": "pkg:github/tektoncd/pipeline",
+      "enumValue": "official_upstream",
+      "factId": "component.tekton.distribution",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/tektoncd/pipeline",
+      "factId": "component.tekton.config_observability_identity_bound",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/tektoncd/pipeline",
+      "factId": "component.tekton.proposed_config_observability_complete_effective",
+      "side": "proposed"
+     },
+     {
+      "boolValue": true,
+      "component": "pkg:github/tektoncd/pipeline",
+      "factId": "component.tekton.retain_prometheus_metrics_required",
+      "side": "proposed"
+     }
+    ],
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/tektoncd/pipeline",
+     "factId": "component.tekton.proposed_metrics_protocol_prometheus",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-09T03:59:00Z",
+     "state": "active",
+     "validUntil": "2026-12-08T03:59:00Z"
+    },
+    "id": "tekton.metrics-protocol-prometheus.1-10",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/tektoncd/pipeline",
+     "from": "1.9.0",
+     "to": "1.10.0"
+    }
+   }
+  },
+  {
+   "project": "thanos",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/thanos-io/thanos",
+     "factId": "component.thanos.removed_subcommand_flags_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T12:07:56Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "thanos.receive-store-flags-removed.0-42",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/thanos-io/thanos",
+     "from": "0.41.0",
+     "to": "0.42.0"
+    }
+   }
+  },
+  {
+   "project": "thanos",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/thanos-io/thanos",
+     "factId": "component.thanos.removed_subcommand_flags_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "thanos.receive-store-flags-target-argv.0-37-2-to-0-42-4",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/thanos-io/thanos",
+     "from": "0.37.2",
+     "to": "0.42.4"
+    }
+   }
+  },
+  {
+   "project": "thanos",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/thanos-io/thanos",
+     "factId": "component.thanos.removed_subcommand_flags_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "thanos.receive-store-flags-target-argv.0-38-0-to-0-42-4",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/thanos-io/thanos",
+     "from": "0.38.0",
+     "to": "0.42.4"
+    }
+   }
+  },
+  {
+   "project": "thanos",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/thanos-io/thanos",
+     "factId": "component.thanos.removed_subcommand_flags_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "thanos.receive-store-flags-target-argv.0-39-2-to-0-42-4",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/thanos-io/thanos",
+     "from": "0.39.2",
+     "to": "0.42.4"
+    }
+   }
+  },
+  {
+   "project": "thanos",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/thanos-io/thanos",
+     "factId": "component.thanos.removed_subcommand_flags_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "thanos.receive-store-flags-target-argv.0-40-1-to-0-42-4",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/thanos-io/thanos",
+     "from": "0.40.1",
+     "to": "0.42.4"
+    }
+   }
+  },
+  {
+   "project": "thanos",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/thanos-io/thanos",
+     "factId": "component.thanos.removed_subcommand_flags_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-12T07:37:00Z",
+     "state": "active",
+     "validUntil": "2026-12-11T07:37:00Z"
+    },
+    "id": "thanos.receive-store-flags-target-argv.0-41-0-to-0-42-4",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/thanos-io/thanos",
+     "from": "0.41.0",
+     "to": "0.42.4"
+    }
+   }
+  },
+  {
+   "project": "the-update-framework-tuf",
+   "rule": {
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/theupdateframework/python-tuf",
+     "factId": "component.tuf.updater_bootstrap_keyword_present",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-10T21:54:36Z",
+     "state": "active",
+     "validUntil": "2026-12-09T21:54:36Z"
+    },
+    "id": "tuf.updater-bootstrap-keyword.6-to-7",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/theupdateframework/python-tuf",
+     "from": "6.0.0",
+     "to": "7.0.0"
+    }
+   }
+  },
+  {
+   "project": "velero",
+   "rule": {
+    "condition": {
+     "boolValue": false,
+     "component": "pkg:github/velero-io/velero",
+     "factId": "component.velero.crd_update_before_server",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T12:07:56Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "velero.crd-update-order.1-18",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/velero-io/velero",
+     "from": "1.17.0",
+     "to": "1.18.0"
+    }
+   }
+  },
+  {
+   "project": "velero",
+   "rule": {
+    "evidence": {
+     "reviewedAt": "2026-09-08T12:07:56Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "velero.intermediate-1-17.1-18",
+    "operator": "require_intermediate_version",
+    "subject": {
+     "component": "pkg:github/velero-io/velero",
+     "from": "1.16.2",
+     "to": "1.18.0"
+    }
+   }
+  },
+  {
+   "project": "vitess",
+   "rule": {
+    "condition": {
+     "boolValue": true,
+     "component": "pkg:github/vitessio/vitess",
+     "factId": "component.vitess.multi_statement_execute_fetch_as_dba",
+     "side": "proposed"
+    },
+    "evidence": {
+     "reviewedAt": "2026-09-08T12:07:56Z",
+     "state": "active",
+     "validUntil": "2026-12-07T12:07:56Z"
+    },
+    "id": "vitess.multi-statement-dba-rpc-rejected.23-0",
+    "operator": "forbid_predicate_value",
+    "subject": {
+     "component": "pkg:github/vitessio/vitess",
+     "from": "22.0.0",
+     "to": "23.0.0"
+    }
+   }
+  }
+ ],
+ "revision": "cncf-2026-09-13.4",
+ "schema": "prufyx.io/cncf-source-rule-pack/v1alpha2"
+}
