@@ -588,6 +588,8 @@ const communityPackSchema = "prufyx.io/community-project-source-rule-pack/v1alph
 
 var communityPackLevels = []packLevel{
 	{"prufyx.io/community-project-source-rule-pack/v1alpha2", anyRule(constraintengine.AnyRanged)},
+	{"prufyx.io/community-project-source-rule-pack/v1alpha3", anyRule(constraintengine.AnyNoticeRule)},
+	{"prufyx.io/community-project-source-rule-pack/v1alpha4", anyRule(constraintengine.AnySeverityRule)},
 }
 
 // anyRule applies one of the engine's own feature tests to the pack's rules.
@@ -883,76 +885,96 @@ var nativeCNCFInputMetadata = map[string][]nativeCNCFInputRoute{
 	},
 }
 
-func communityProjects(rules, registry map[string]any) ([]map[string]any, int, error) {
+// communityCounts separates what the community pack holds by what it can do:
+// verdict rules decide PASS, BLOCKED or UNKNOWN; support-range rules decide
+// PASS or UNSUPPORTED and never BLOCKED; one-way notices decide nothing.
+type communityCounts struct {
+	verdict, supportRange, notices int
+}
+
+func communityProjects(rules, registry map[string]any) ([]map[string]any, communityCounts, error) {
 	if !packSchemaMatches(rules, communityPackSchema, communityPackLevels) || registry["schema"] != "prufyx.io/community-project-registry/v1alpha1" {
-		return nil, 0, invalid("invalid community-project source schema")
+		return nil, communityCounts{}, invalid("invalid community-project source schema")
 	}
 	rawIdentities, ok := array(registry["projects"])
 	if !ok || len(rawIdentities) == 0 {
-		return nil, 0, invalid("missing community-project registry")
+		return nil, communityCounts{}, invalid("missing community-project registry")
 	}
 	identities := map[string]identity{}
 	components := map[string]string{}
 	for _, raw := range rawIdentities {
 		item, ok := object(raw)
 		if !ok || item["identityAuthority"] != "MAINTAINER_REVIEWED_EXTERNAL_REPOSITORY" || item["cncfMembership"] != "NOT_ASSERTED" {
-			return nil, 0, invalid("invalid community-project identity authority")
+			return nil, communityCounts{}, invalid("invalid community-project identity authority")
 		}
 		slug, _ := stringValue(item["slug"])
 		name, err := validText(item["name"], 240)
 		repository, _ := stringValue(item["repositoryURL"])
 		component, componentErr := validText(item["component"], 240)
 		if err != nil || componentErr != nil || !projectRE.MatchString(slug) || identities[slug].name != "" || repository == "" {
-			return nil, 0, invalid("invalid community-project identity")
+			return nil, communityCounts{}, invalid("invalid community-project identity")
 		}
 		if _, err := httpsURL(repository, true); err != nil {
-			return nil, 0, err
+			return nil, communityCounts{}, err
 		}
 		identities[slug], components[slug] = identity{name, repository}, component
 	}
 	entries, ok := array(rules["entries"])
 	if !ok || len(entries) == 0 {
-		return nil, 0, invalid("missing community-project rules")
+		return nil, communityCounts{}, invalid("missing community-project rules")
 	}
 	grouped := map[string][]any{}
+	notices := map[string][]any{}
+	counts := communityCounts{}
 	seen := map[string]bool{}
 	for _, raw := range entries {
 		entry, ok := object(raw)
 		if !ok {
-			return nil, 0, invalid("invalid community-project rule entry")
+			return nil, communityCounts{}, invalid("invalid community-project rule entry")
 		}
 		project, _ := stringValue(entry["project"])
 		if identities[project].name == "" {
-			return nil, 0, invalid("community-project rule identity missing")
+			return nil, communityCounts{}, invalid("community-project rule identity missing")
 		}
 		rule, ok := object(entry["rule"])
 		if !ok {
-			return nil, 0, invalid("invalid community-project rule")
+			return nil, communityCounts{}, invalid("invalid community-project rule")
 		}
 		id, _ := stringValue(rule["id"])
 		if !idRE.MatchString(id) || seen[id] {
-			return nil, 0, invalid("duplicate community-project rule")
+			return nil, communityCounts{}, invalid("duplicate community-project rule")
 		}
 		seen[id] = true
 		tr, err := transition(rule)
 		if err != nil || tr["component"] != components[project] {
-			return nil, 0, invalid("community-project transition identity mismatch")
+			return nil, communityCounts{}, invalid("community-project transition identity mismatch")
 		}
 		evidence, ok := object(rule["evidence"])
 		if !ok || evidence["state"] != "active" {
-			return nil, 0, invalid("inactive community-project evidence")
+			return nil, communityCounts{}, invalid("inactive community-project evidence")
 		}
 		sources, ok := array(evidence["sources"])
 		if !ok || len(sources) == 0 {
-			return nil, 0, invalid("missing community-project evidence")
+			return nil, communityCounts{}, invalid("missing community-project evidence")
 		}
 		normalized := make([]any, 0, len(sources))
 		for _, source := range sources {
 			v, err := sourceRecord(source, project)
 			if err != nil {
-				return nil, 0, err
+				return nil, communityCounts{}, err
 			}
 			normalized = append(normalized, v)
+		}
+		kind := ""
+		switch {
+		case rule["operator"] == constraintengine.OperatorNoticeOneWay:
+			kind = "one_way_notice"
+			counts.notices++
+		case rule["severity"] == constraintengine.SeverityUnsupported:
+			kind = "support_range"
+			counts.supportRange++
+		default:
+			counts.verdict++
 		}
 		limit := "Scoped native effective-configuration constraint; it does not assert CNCF membership, whole-upgrade safety, or runtime behavior."
 		if project == "argo-workflows" {
@@ -964,11 +986,26 @@ func communityProjects(rules, registry map[string]any) ([]map[string]any, int, e
 		} else if project == "mariadb-operator" {
 			limit = "Scoped Galera-only prerequisite for one complete caller-selected MariaDB resource before the 26.3.0 to 26.6.0 operator update; it does not inspect admission, cluster state, runtime behavior, controller progress, data-plane completion, or whole-upgrade safety."
 		}
-		grouped[project] = append(grouped[project], map[string]any{"ruleID": id, "transition": tr, "evidence": normalized, "evidenceState": "active", "limit": limit})
+		item := map[string]any{"ruleID": id, "transition": tr, "evidence": normalized, "evidenceState": "active", "limit": limit}
+		switch kind {
+		case "one_way_notice":
+			// A notice decides nothing: it is listed for what it says, and a
+			// project holding only notices has no executable capability.
+			item["ruleKind"] = kind
+			item["limit"] = "Informational one-way notice for one reviewed transition; it is not a verdict, never passes or blocks, and its absence says nothing about rolling back. It does not assert CNCF membership, whole-upgrade safety, or runtime behavior."
+			notices[project] = append(notices[project], item)
+		case "support_range":
+			item["ruleKind"] = kind
+			item["limit"] = "Scoped support-range requirement on one caller-declared dependency version from a documented support range: inside the range the scoped claim passes; outside it the claim is UNSUPPORTED (not verified, not shown to be broken), never BLOCKED. A missing dependency version stays UNKNOWN. It does not assert CNCF membership, whole-upgrade safety, or runtime behavior."
+			grouped[project] = append(grouped[project], item)
+		default:
+			grouped[project] = append(grouped[project], item)
+		}
 	}
 	names := make([]string, 0, len(grouped))
 	for name := range grouped {
 		names = append(names, name)
+		grouped[name] = append(grouped[name], notices[name]...)
 	}
 	sort.Strings(names)
 	projects := make([]map[string]any, 0, len(names))
@@ -988,7 +1025,7 @@ func communityProjects(rules, registry map[string]any) ([]map[string]any, int, e
 		} else if project == "mariadb-operator" {
 			route, ok := checkroutemetadata.LegacyCommunityInventoryRoute(project)
 			if !ok {
-				return nil, 0, invalid("missing MariaDB Operator legacy route")
+				return nil, communityCounts{}, invalid("missing MariaDB Operator legacy route")
 			}
 			preparer = map[string]any{"command": route.Command, "metadataState": route.MetadataState, "limit": route.Limit}
 		}
@@ -1008,7 +1045,7 @@ func communityProjects(rules, registry map[string]any) ([]map[string]any, int, e
 		id := identities[project]
 		projects = append(projects, map[string]any{"projectID": project, "displayName": id.name, "repositoryURL": id.repository, "supportState": "executable", "capabilities": []any{capability}, "selectedSourceRecords": []any{}})
 	}
-	return projects, len(entries), nil
+	return projects, counts, nil
 }
 
 func namedProject(contract map[string]any, digest string, identities map[string]identity, check string) (map[string]any, error) {
@@ -1404,7 +1441,7 @@ func Generate(cfg Config) ([]byte, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	community, communityRuleCount, err := communityProjects(inputs[8].value, inputs[9].value)
+	community, communityCount, err := communityProjects(inputs[8].value, inputs[9].value)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1519,7 +1556,7 @@ func Generate(cfg Config) ([]byte, string, error) {
 	for _, item := range genericWithdrawn {
 		withdrawnRules = append(withdrawnRules, item)
 	}
-	inventory := map[string]any{"schema": Schema, "inputDigests": inputDigests, "selectedSourceProvenance": provenance, "counts": map[string]any{"cncfSourceRules": ruleCount, "cncfSourceRulesWithdrawn": len(genericWithdrawn), "cncfRuleProjects": len(generic), "communityProjectSourceRules": communityRuleCount, "communityProjectRuleProjects": len(community), "namedChecks": 2, "namedCheckProjects": 2, "conformanceProfiles": 2, "conformanceProjects": 2, "targetPreflightProfiles": 1, "targetPreflightProjects": 1, "executableProjects": executable, "selectedSourceRecords": len(selected), "selectedSourceProjects": len(selectedByProject), "selectedSourceOnlyProjects": sourceOnly}, "scope": map[string]any{"cncfRules": "embedded active CNCF source-rule pack; exact declared endpoints only", "communityProjectRules": "separate embedded maintainer-reviewed external-project registry; CNCF membership is not asserted and external updates are unavailable", "namedChecks": "embedded local source contracts; exact reviewed transitions only", "conformanceProfiles": "named standards subsets without invented from/to transitions", "targetPreflightProfiles": "named target-only planned-operation setting checks without invented from/to transitions", "selectedSourceRecords": "retained public-source records; source selection alone does not create executable upgrade support", "withdrawnRules": "rule evidence found unverifiable after publication; withdrawn from executable coverage, listed here rather than silently dropped", "wholeUpgrade": "UNKNOWN"}, "withdrawnRules": withdrawnRules, "projects": projectList}
+	inventory := map[string]any{"schema": Schema, "inputDigests": inputDigests, "selectedSourceProvenance": provenance, "counts": map[string]any{"cncfSourceRules": ruleCount, "cncfSourceRulesWithdrawn": len(genericWithdrawn), "cncfRuleProjects": len(generic), "communityProjectSourceRules": communityCount.verdict, "communityProjectSupportRangeRules": communityCount.supportRange, "communityProjectNotices": communityCount.notices, "communityProjectRuleProjects": len(community), "namedChecks": 2, "namedCheckProjects": 2, "conformanceProfiles": 2, "conformanceProjects": 2, "targetPreflightProfiles": 1, "targetPreflightProjects": 1, "executableProjects": executable, "selectedSourceRecords": len(selected), "selectedSourceProjects": len(selectedByProject), "selectedSourceOnlyProjects": sourceOnly}, "scope": map[string]any{"cncfRules": "embedded active CNCF source-rule pack; exact declared endpoints only", "communityProjectRules": "separate embedded maintainer-reviewed external-project registry; CNCF membership is not asserted and external updates are unavailable", "namedChecks": "embedded local source contracts; exact reviewed transitions only", "conformanceProfiles": "named standards subsets without invented from/to transitions", "targetPreflightProfiles": "named target-only planned-operation setting checks without invented from/to transitions", "selectedSourceRecords": "retained public-source records; source selection alone does not create executable upgrade support", "withdrawnRules": "rule evidence found unverifiable after publication; withdrawn from executable coverage, listed here rather than silently dropped", "wholeUpgrade": "UNKNOWN"}, "withdrawnRules": withdrawnRules, "projects": projectList}
 	raw, err := canonical(inventory)
 	if err != nil {
 		return nil, "", err
@@ -1558,7 +1595,7 @@ func uniqueSorted(items []string) []string {
 func renderMarkdown(inventory map[string]any) string {
 	counts := inventory["counts"].(map[string]any)
 	n := func(k string) int { return counts[k].(int) }
-	lines := []string{"# Community support inventory", "", "Generated by `cmd/prufyx-maintainer`; do not edit by hand.", "", "This inventory separates executable scoped checks from selected public-source records. Catalogue discovery identities are not support entries. A scoped result never proves a whole upgrade safe or runtime behavior.", "", fmt.Sprintf("- CNCF embedded source rules: **%d** across **%d** projects; **%d** withdrawn (unverifiable evidence) and excluded from executable coverage.", n("cncfSourceRules"), n("cncfRuleProjects"), n("cncfSourceRulesWithdrawn")), fmt.Sprintf("- Community-project embedded source rules: **%d** across **%d** projects; CNCF membership is not asserted.", n("communityProjectSourceRules"), n("communityProjectRuleProjects")), fmt.Sprintf("- Named local checks: **%d** across **%d** projects.", n("namedChecks"), n("namedCheckProjects")), fmt.Sprintf("- Standards-conformance profiles: **%d** across **%d** projects; these are not version-transition checks.", n("conformanceProfiles"), n("conformanceProjects")), fmt.Sprintf("- Target-preflight profiles: **%d** across **%d** projects; these are not version-transition checks.", n("targetPreflightProfiles"), n("targetPreflightProjects")), fmt.Sprintf("- Executable-project union: **%d** projects.", n("executableProjects")), fmt.Sprintf("- Selected retained public-source records: **%d** across **%d** projects; **%d** are source-only and have no executable-support capability.", n("selectedSourceRecords"), n("selectedSourceProjects"), n("selectedSourceOnlyProjects")), "", "## Executable projects", "", "| Project | Executable capability | Exact reviewed transition(s) | Pinned evidence | Local preparer | Limits |", "| --- | --- | --- | --- | --- |"}
+	lines := []string{"# Community support inventory", "", "Generated by `cmd/prufyx-maintainer`; do not edit by hand.", "", "This inventory separates executable scoped checks from selected public-source records. Catalogue discovery identities are not support entries. A scoped result never proves a whole upgrade safe or runtime behavior.", "", fmt.Sprintf("- CNCF embedded source rules: **%d** across **%d** projects; **%d** withdrawn (unverifiable evidence) and excluded from executable coverage.", n("cncfSourceRules"), n("cncfRuleProjects"), n("cncfSourceRulesWithdrawn")), fmt.Sprintf("- Community-project embedded source rules: **%d** across **%d** projects; CNCF membership is not asserted.", n("communityProjectSourceRules"), n("communityProjectRuleProjects")), fmt.Sprintf("- Community-project support-range rules (counted separately; outside the documented range the claim is UNSUPPORTED, never BLOCKED): **%d**.", n("communityProjectSupportRangeRules")), fmt.Sprintf("- Community-project one-way notices (counted separately; informational, not verdicts, not executable checks): **%d**.", n("communityProjectNotices")), fmt.Sprintf("- Named local checks: **%d** across **%d** projects.", n("namedChecks"), n("namedCheckProjects")), fmt.Sprintf("- Standards-conformance profiles: **%d** across **%d** projects; these are not version-transition checks.", n("conformanceProfiles"), n("conformanceProjects")), fmt.Sprintf("- Target-preflight profiles: **%d** across **%d** projects; these are not version-transition checks.", n("targetPreflightProfiles"), n("targetPreflightProjects")), fmt.Sprintf("- Executable-project union: **%d** projects.", n("executableProjects")), fmt.Sprintf("- Selected retained public-source records: **%d** across **%d** projects; **%d** are source-only and have no executable-support capability.", n("selectedSourceRecords"), n("selectedSourceProjects"), n("selectedSourceOnlyProjects")), "", "## Executable projects", "", "| Project | Executable capability | Exact reviewed transition(s) | Pinned evidence | Local preparer | Limits |", "| --- | --- | --- | --- | --- |"}
 	projects := inventory["projects"].([]any)
 	for _, rawProject := range projects {
 		project := rawProject.(map[string]any)

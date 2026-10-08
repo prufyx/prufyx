@@ -158,8 +158,9 @@ schema — rules `prufyx.io/deterministic-constraint-rules/v1alpha4`, CNCF pack
 engine contract digest. The schema may also hold reviewed ranges and
 `forbid_set_member` rules. Binaries that predate notices reject such a
 document outright, and every document without the operator keeps its previous
-schema, digests and report bytes. Community project packs and external
-knowledge targets do not accept notices yet.
+schema, digests and report bytes. External knowledge targets do not accept
+notices yet; the community-project pack does (see
+[Community-project packs](#community-project-packs-support-ranges-and-notices)).
 
 ## Support ranges (`severity: "unsupported"`)
 
@@ -199,9 +200,61 @@ schema — rules `prufyx.io/deterministic-constraint-rules/v1alpha6`, CNCF pack
 `prufyx.io/cncf-source-rule-pack/v1alpha8` — and its reports carry a separate
 engine contract digest. The schema also admits every feature of the lower
 ones. Binaries that predate the field reject such a document, and every
-document without it keeps its schema, digests and report bytes. Community
-project packs and external knowledge targets do not accept support-range rules
-yet.
+document without it keeps its schema, digests and report bytes. External
+knowledge targets do not accept support-range rules yet; the community-project
+pack does (see
+[Community-project packs](#community-project-packs-support-ranges-and-notices)).
+
+## Community-project packs: support ranges and notices
+
+The community-project pack (`internal/projectcheck/data/rules.json`, for
+reviewed projects that are not in the CNCF pack) accepts the same two kinds of
+rule as the CNCF pack, with the same meaning, so a documented requirement such
+as a minimum Kubernetes version, or a one-way transition, can be recorded
+honestly without a cited refusal. Use an ordinary blocking rule only when the
+cited source says the old setting is refused; otherwise use these.
+
+| Pack schema | Holds |
+| --- | --- |
+| `prufyx.io/community-project-source-rule-pack/v1alpha1` | exact reviewed pairs only (a pack with none of the features below keeps this schema, its digest and its report bytes) |
+| `.../v1alpha2` | reviewed version ranges |
+| `.../v1alpha3` | `notice_one_way` rules (and ranges) |
+| `.../v1alpha4` | `require_component_version` rules with `severity: "unsupported"` (and notices and ranges) |
+
+The pack schema must state the highest level in use, and only that one;
+binaries that predate a level reject a pack carrying it, and older packs load
+as before. Consensus and lead rules and removal crossings are still not
+accepted by any community pack schema.
+
+- A support-range rule names the component it constrains in `dependency`. Its
+  claim is `PASS` inside the range, `UNSUPPORTED` outside it (never `BLOCKED`,
+  never `PASS`) and `UNKNOWN` when the dependency version is not declared. A
+  `require_component_version` rule without `severity` is not accepted in this
+  pack.
+- A notice carries no `condition`; any fact its `appliesWhen` reads is listed
+  in `requiredFacts`, which is otherwise empty.
+- Exit codes follow the CNCF route: `UNSUPPORTED` is exit 11 (a blocker still
+  exits 10), and notice claims are left out, so a report holding only notices
+  exits 11. `check batch` treats community items the same way.
+- Human output prints a note when a combination is outside its documented
+  support range (not verified, not shown to be broken), prints a matching
+  notice as `cannot be rolled back: <rule id>` with its `before you upgrade:`
+  text and a scope line, and never words anything as safe. The report's whole-
+  upgrade assessment stays UNKNOWN.
+- A dependency version has to be declared by the caller. The native
+  `check project` routes declare only the project's own component, so there a
+  support-range rule answers UNKNOWN; it can answer `PASS` or `UNSUPPORTED`
+  from a canonical input that also declares the dependency (`check batch`). A
+  scope assessment names only compiled project identities, so it cannot
+  declare the dependency either and never reaches a completeness pass over
+  such a rule.
+- The knowledge gate classifies these rules like any other: a new rule or a
+  changed reason code is a loosening change that needs a proof, withdrawing
+  one is tightening, and a schema change is a pack-member change the gate does
+  not admit by itself.
+- The generated support inventory counts support-range rules and notices on
+  their own lines, apart from the verdict-rule count; a project whose only
+  rules are notices is not listed as an executable project.
 
 ## Evidence basis
 
@@ -459,6 +512,13 @@ folds an accepted candidate into the published `rules.json` and re-runs the
 maintainer corpus-attestation tooling; this validator never does either.
 
 ## Version ranges in contributed rules
+
+Current policy: the public `rule validate` accepts a `range` from a
+contributor only in the release-boundary shape below. The maintainer paths (the
+knowledge gate, the derivation tooling and the pack merge) validate a published
+or derived range with the engine's own checks instead (`AllowRange`). The
+limit is deliberate: an open-ended or uncited range would let a contribution
+speak for versions it never cited, so it is not widened here.
 
 A contributed rule may carry a reviewed `range` so it applies to any hop that
 crosses the change release C, not only to the exact anchor pair. `rule validate`

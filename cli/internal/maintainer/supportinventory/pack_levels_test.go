@@ -284,11 +284,13 @@ func TestSupportInventory_RefusesNoticeRules(t *testing.T) {
 	}
 }
 
-// The community-project table stops at the ranged level: a community pack
-// with a set rule is refused under the CNCF set level's number (v1alpha3)
-// and above. (Its v1alpha1/v1alpha2 acceptance mirrors the community pack
-// loader's schema check; the engine refuses set rules there.)
-func TestSupportInventory_CommunityPackStopsAtRanged(t *testing.T) {
+// The community-project table has no set level: a community pack with a set
+// rule is refused under the CNCF set level's number (v1alpha3, which the
+// community pack uses for notices) and above, because the pack holds no
+// notice or support-range rule that would justify the schema. (Its
+// v1alpha1-v1alpha4 acceptance mirrors the community pack loader's schema
+// check; the engine refuses set rules there.)
+func TestSupportInventory_CommunityPackRefusesSetRules(t *testing.T) {
 	cfg, root := repositoryConfig(t)
 	raw, err := os.ReadFile(filepath.Join(root, "internal/projectcheck/data/rules.json"))
 	if err != nil {

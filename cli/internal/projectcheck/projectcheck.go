@@ -72,7 +72,13 @@ type ruleBinding struct {
 	} `json:"subject"`
 	Condition   *factBinding  `json:"condition"`
 	AppliesWhen []factBinding `json:"appliesWhen"`
-	Evidence    struct {
+	// Severity and Dependency are read only to classify a support-range rule;
+	// the engine's ParseRuleSet remains the authority on their validity.
+	Severity   string `json:"severity"`
+	Dependency *struct {
+		Component string `json:"component"`
+	} `json:"dependency"`
+	Evidence struct {
 		ReviewedAt string `json:"reviewedAt"`
 		ValidUntil string `json:"validUntil"`
 	} `json:"evidence"`
@@ -226,7 +232,7 @@ func loadRaw(registryRaw, packRaw []byte, factDefinitions []constraintengine.Fac
 	previousProject, previousRuleID := "", ""
 	for i, e := range b.pack.Entries {
 		id, ok := b.identities[e.Project]
-		if !ok || e.Description == "" || len(e.RequiredFacts) == 0 || len(e.RequiredFacts) > 8 {
+		if !ok || e.Description == "" || len(e.RequiredFacts) > 8 {
 			return bundle{}, ErrIntegrity
 		}
 		required := map[string]struct{}{}
@@ -242,7 +248,7 @@ func loadRaw(registryRaw, packRaw []byte, factDefinitions []constraintengine.Fac
 			required[key] = struct{}{}
 		}
 		var binding ruleBinding
-		if json.Unmarshal(e.Rule, &binding) != nil || binding.ID == "" || binding.Operator != "forbid_predicate_value" || binding.Condition == nil || binding.Subject.Component != id.Component || !requiredFact(required, *binding.Condition) {
+		if json.Unmarshal(e.Rule, &binding) != nil || binding.ID == "" || binding.Subject.Component != id.Component || !admittedRuleShape(binding, required, len(e.RequiredFacts)) {
 			return bundle{}, ErrIntegrity
 		}
 		for _, guard := range binding.AppliesWhen {
@@ -271,6 +277,32 @@ func loadRaw(registryRaw, packRaw []byte, factDefinitions []constraintengine.Fac
 		}
 	}
 	return b, nil
+}
+
+// admittedRuleShape is the community pack's closed set of rule shapes:
+//
+//   - forbid_predicate_value: a verdict rule over a declared fact; it needs
+//     its condition fact and at least one required fact.
+//   - notice_one_way: a verdict-neutral one-way notice. It has no condition
+//     of its own; it may declare facts only for its appliesWhen guards.
+//   - require_component_version carrying severity "unsupported": a
+//     support-range rule. It names a dependency component and no fact
+//     condition; it may declare facts only for its appliesWhen guards. A
+//     require_component_version rule without the severity is a blocking
+//     version rule, which this pack does not admit.
+//
+// Anything else is refused, and the engine's ParseRuleSet (run for every
+// project at load) decides the rest, such as the severity's own reason code.
+func admittedRuleShape(binding ruleBinding, required map[string]struct{}, facts int) bool {
+	switch binding.Operator {
+	case "forbid_predicate_value":
+		return facts > 0 && binding.Condition != nil && binding.Severity == "" && binding.Dependency == nil && requiredFact(required, *binding.Condition)
+	case constraintengine.OperatorNoticeOneWay:
+		return binding.Condition == nil && binding.Severity == "" && binding.Dependency == nil
+	case "require_component_version":
+		return binding.Condition == nil && binding.Severity == constraintengine.SeverityUnsupported && binding.Dependency != nil
+	}
+	return false
 }
 
 func requiredFact(required map[string]struct{}, binding factBinding) bool {
@@ -468,20 +500,31 @@ func MarshalReport(report Report) ([]byte, error) {
 	return raw, nil
 }
 
+// ClaimExit concerns only the verdict claims. Claims of one-way notice rules
+// are informational and never take part: a report holding nothing else exits
+// as one without claims (11). An UNSUPPORTED claim (a combination outside a
+// documented support range) is neither a pass nor a blocker: it exits as
+// unknown (11), and a blocker still exits 10. This is the same rule as the
+// CNCF route's ClaimExit.
 func ClaimExit(report Report) int {
 	if _, err := MarshalReport(report); err != nil {
 		return 3
 	}
-	unknown := false
+	decided, unknown := 0, false
 	for _, c := range report.Check.Claims {
-		if c.Status == "BLOCKED" {
-			return 10
+		if c.IsVerdictNeutral() {
+			continue
 		}
-		if c.Status != "PASS" {
+		decided++
+		switch c.Status {
+		case "BLOCKED":
+			return 10
+		case "PASS":
+		default:
 			unknown = true
 		}
 	}
-	if len(report.Check.Claims) == 0 || unknown {
+	if decided == 0 || unknown {
 		return 11
 	}
 	return 0
@@ -521,40 +564,52 @@ func digest(raw []byte) string {
 const (
 	packSchema       = "prufyx.io/community-project-source-rule-pack/v1alpha1"
 	packSchemaRanged = "prufyx.io/community-project-source-rule-pack/v1alpha2"
+	// packSchemaNotice is the level of a pack holding a one-way notice rule.
+	packSchemaNotice = "prufyx.io/community-project-source-rule-pack/v1alpha3"
+	// packSchemaSeverity is the level of a pack holding a support-range rule
+	// (a rule with a severity). It also admits notices and reviewed ranges.
+	packSchemaSeverity = "prufyx.io/community-project-source-rule-pack/v1alpha4"
 )
 
-// validPackSchema requires the pack schema to state whether the pack holds a
-// reviewed version range. A pack with no range keeps the original schema and
-// digest; a pack with one carries the new schema, which binaries that predate
-// ranges reject.
+// validPackSchema requires the pack schema to state the highest feature the
+// pack holds, exactly as the CNCF pack does: the original schema when it
+// holds none (its digest and bytes are unchanged), the ranged schema for a
+// reviewed version range, the notice schema for a one-way notice, and the
+// severity schema for a support-range rule. A level admits every feature of
+// the lower ones, and binaries that predate a level reject a pack carrying
+// it. Consensus and lead rules and removal crossings are not admitted by any
+// community pack schema.
 func validPackSchema(pack packDocument) bool {
 	rules := make([]json.RawMessage, 0, len(pack.Entries))
 	for _, e := range pack.Entries {
 		rules = append(rules, e.Rule)
 	}
-	// No community project pack schema admits one-way notices, or consensus
-	// or lead rules.
-	notice, err := constraintengine.AnyNoticeRule(rules)
-	if err != nil || notice {
-		return false
-	}
 	if basis, err := constraintengine.AnyBasisRule(rules); err != nil || basis {
 		return false
 	}
-	// Nor support-range rules (severity).
-	if severity, err := constraintengine.AnySeverityRule(rules); err != nil || severity {
+	if crossing, err := constraintengine.AnyCrossingRule(rules); err != nil || crossing {
 		return false
 	}
-	// Nor removal-crossing rules.
-	if crossing, err := constraintengine.AnyCrossingRule(rules); err != nil || crossing {
+	notice, err := constraintengine.AnyNoticeRule(rules)
+	if err != nil {
+		return false
+	}
+	severity, err := constraintengine.AnySeverityRule(rules)
+	if err != nil {
 		return false
 	}
 	ranged, err := constraintengine.AnyRanged(rules)
 	if err != nil {
 		return false
 	}
-	if ranged {
-		return pack.Schema == packSchemaRanged
+	want := packSchema
+	switch {
+	case severity:
+		want = packSchemaSeverity
+	case notice:
+		want = packSchemaNotice
+	case ranged:
+		want = packSchemaRanged
 	}
-	return pack.Schema == packSchema
+	return pack.Schema == want
 }

@@ -6,6 +6,8 @@ This inventory separates executable scoped checks from selected public-source re
 
 - CNCF embedded source rules: **190** across **53** projects; **1** withdrawn (unverifiable evidence) and excluded from executable coverage.
 - Community-project embedded source rules: **34** across **8** projects; CNCF membership is not asserted.
+- Community-project support-range rules (counted separately; outside the documented range the claim is UNSUPPORTED, never BLOCKED): **0**.
+- Community-project one-way notices (counted separately; informational, not verdicts, not executable checks): **0**.
 - Named local checks: **2** across **2** projects.
 - Standards-conformance profiles: **2** across **2** projects; these are not version-transition checks.
 - Target-preflight profiles: **1** across **1** projects; these are not version-transition checks.

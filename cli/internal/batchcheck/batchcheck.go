@@ -395,11 +395,7 @@ func evaluateItem(item Item, raw []byte, now time.Time, selected knowledge.Verif
 		return result
 	}
 	result.Report = append(json.RawMessage(nil), sealed...)
-	claims := make([]claimView, 0, len(report.Check.Claims))
-	for _, claim := range report.Check.Claims {
-		claims = append(claims, claimView{Status: claim.Status, ReasonCode: claim.ReasonCode, EvidenceFreshness: claim.EvidenceFreshness})
-	}
-	return fromClaims(result, claims)
+	return fromClaims(result, communityClaimViews(report.Check.Claims))
 }
 
 func evaluateExternalCNCF(result ItemResult, item Item, raw []byte, selected knowledge.VerifiedRevision) ItemResult {
@@ -427,6 +423,22 @@ func evaluateExternalCNCF(result ItemResult, item Item, raw []byte, selected kno
 	age := report.KnowledgeAge()
 	result.age = &age
 	return fromClaims(result, cncfClaimViews(report.Check.Check.Claims))
+}
+
+// communityClaimViews keeps the claims that decide an outcome, as the CNCF
+// route does: a one-way notice is informational and never does, so an item
+// whose only claims are notices keeps the UNKNOWN outcome of an item without
+// claims, and a notice never turns a pass into an unknown. An UNSUPPORTED
+// claim is kept as it is: it is neither a pass nor a blocker.
+func communityClaimViews(claims []constraintengine.Claim) []claimView {
+	views := make([]claimView, 0, len(claims))
+	for _, claim := range claims {
+		if claim.IsVerdictNeutral() {
+			continue
+		}
+		views = append(views, claimView{Status: claim.Status, ReasonCode: claim.ReasonCode, EvidenceFreshness: claim.EvidenceFreshness})
+	}
+	return views
 }
 
 type claimView struct{ Status, ReasonCode, EvidenceFreshness string }

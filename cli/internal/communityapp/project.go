@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"slices"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/projectcheck"
 	"github.com/prufyx/prufyx/cli/internal/projectprepare"
 )
@@ -255,12 +256,8 @@ func (r runtime) project(args []string) int {
 				fmt.Fprintln(r.stdout, "input qualification: omitted allow_structured_metadata used the reviewed target default under an explicit opt-in; this is source-derived, not observed")
 			}
 		}
-		for _, claim := range report.Check.Claims {
-			fmt.Fprintf(r.stdout, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction)
-			fmt.Fprintln(r.stdout, claim.EvidenceBasisLine())
-			for _, source := range claim.Sources {
-				fmt.Fprintf(r.stdout, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest)
-			}
+		if err := writeProjectClaims(r.stdout, report.Check.Claims); err != nil {
+			return ExitIntegrity
 		}
 		if len(report.Check.Claims) == 0 {
 			fmt.Fprintf(r.stdout, "next action: %s\n", report.NextAction)
@@ -322,4 +319,62 @@ func (r runtime) prepareProjectInput(request projectArguments) (projectprepare.P
 		return prepared, ExitUnknown
 	}
 	return prepared, ExitOK
+}
+
+// communityNoticeScopeLine bounds what a printed one-way notice states.
+const communityNoticeScopeLine = "scope: a one-way notice covers only the reviewed transition named above and is not a verdict; no notice for another transition says nothing about rolling back"
+
+// writeCommunityNotices prints each applicable one-way notice with its
+// reviewed text and its scope line. A notice that does not apply prints
+// nothing, and the scope line is printed once, only after a notice.
+func writeCommunityNotices(out io.Writer, notices []constraintengine.Claim) error {
+	printedAny := false
+	for _, claim := range notices {
+		printed, err := writeClaimHeadline(out, claim)
+		if err != nil {
+			return err
+		}
+		if !printed {
+			continue
+		}
+		printedAny = true
+		for _, source := range claim.Sources {
+			if _, err := fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
+				return err
+			}
+		}
+	}
+	if printedAny {
+		_, err := fmt.Fprintln(out, communityNoticeScopeLine)
+		return err
+	}
+	return nil
+}
+
+// writeProjectClaims prints the claims of a community-project report: the
+// headline note for combinations outside a documented support range, each
+// verdict claim with its sources, then the one-way notices (informational,
+// with their scope), then the no-verdict line when nothing else was decided.
+// No line words the upgrade as safe, an UNSUPPORTED claim as broken, or a
+// notice as a verdict.
+func writeProjectClaims(out io.Writer, claims []constraintengine.Claim) error {
+	if err := writeBasisHeadline(out, claims, nil); err != nil {
+		return err
+	}
+	var notices []constraintengine.Claim
+	for _, claim := range claims {
+		if claim.IsVerdictNeutral() {
+			notices = append(notices, claim)
+			continue
+		}
+		fmt.Fprintf(out, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction)
+		fmt.Fprintln(out, claim.EvidenceBasisLine())
+		for _, source := range claim.Sources {
+			fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest)
+		}
+	}
+	if err := writeCommunityNotices(out, notices); err != nil {
+		return err
+	}
+	return writeNoVerdictLine(out, claims)
 }

@@ -76,6 +76,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   exits 3, after writing the worklist and wants file, when files are missing from
   the mirror. The default exit code stays 0. With `--source http` the flag is
   refused.
+- Community-project pack: support-range rules (`require_component_version`
+  with `severity: "unsupported"`) and one-way notices (`notice_one_way`) are
+  now accepted, with the same meaning as in the CNCF pack. New pack schema
+  levels `prufyx.io/community-project-source-rule-pack/v1alpha3` (notices) and
+  `v1alpha4` (support ranges, which admit notices); a pack with neither keeps
+  `v1alpha1`/`v1alpha2` and loads as before. An `UNSUPPORTED` claim is never
+  `PASS` and never `BLOCKED` and exits 11; notices are informational and left
+  out of the exit code; `check project` prints a note for combinations outside
+  a documented support range ("not verified, not shown to be broken"), prints
+  applicable notices with their scope, and never words anything as safe. In
+  `check batch`, a community item treats `UNSUPPORTED` as unknown and ignores
+  notices. The generated support inventory counts support-range rules and
+  notices separately from verdict rules. The shipped community pack holds
+  neither kind yet.
 - Image-based component detection (DETECT-1, phase 1): a reviewed registry
   (`cli/internal/imageidentity/data/image-sources.json`) maps container image
   repositories to projects and reads a version only from a tag that follows the
