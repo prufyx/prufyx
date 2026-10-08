@@ -171,8 +171,35 @@ type Hop struct {
 	// hops and between knowledge revisions without any change of verdict.
 	EngineContractDigest string       `json:"engineContractDigest,omitempty"`
 	Attestation          *Attestation `json:"attestation,omitempty"`
+	// Families are the fact families decided on this hop by a line review
+	// of the target line, for a component that is otherwise not
+	// evaluated. A family result never makes the hop COVERED.
+	Families []FamilyResult `json:"families,omitempty"`
 	// Reasons are the gap reasons that keep the hop from COVERED.
 	Reasons []string `json:"reasons,omitempty"`
+}
+
+// Family result statuses.
+const (
+	FamilyPass    = "PASS"
+	FamilyBlocked = "BLOCKED"
+)
+
+// FamilyResult is the decided result of one fact family on one hop: the
+// current line review of the target line lists every rule the knowledge
+// holds for the family on that line, the review read both exact releases
+// of the hop, the manifests' set for the family is complete, and every
+// listed rule decided the hop. PASS means no listed rule blocks; it holds
+// within Scope only, never for the component or the upgrade.
+type FamilyResult struct {
+	Family string `json:"family"`
+	Line   string `json:"line"`
+	Status string `json:"status"`
+	// Basis is the evidence basis of the line review.
+	Basis string `json:"basis"`
+	// Scope is the family's compiled statement of what it covers and
+	// what it does not.
+	Scope string `json:"scope"`
 }
 
 // Attestation is the line review a hop relied on, or found not current.
