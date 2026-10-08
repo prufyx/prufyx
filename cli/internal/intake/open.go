@@ -174,7 +174,7 @@ func (o *opener) openPath(path string) error {
 	case info.IsDir():
 		dir, err := validation.OpenInputDirectory(path)
 		if err != nil {
-			return fmt.Errorf("%w: %s", ErrInput, path)
+			return openFailure(path, err)
 		}
 		defer dir.Close()
 		return o.walk(dir, filepath.Clean(path))
@@ -184,7 +184,7 @@ func (o *opener) openPath(path string) error {
 	default:
 		file, err := validation.OpenInputRegularFile(path)
 		if err != nil {
-			return fmt.Errorf("%w: %s", ErrInput, path)
+			return openFailure(path, err)
 		}
 		defer file.Close()
 		display := filepath.Clean(path)
@@ -193,6 +193,16 @@ func (o *opener) openPath(path string) error {
 		}
 		return o.readFile(file, display)
 	}
+}
+
+// openFailure is the refusal for a path that could not be opened. Where file
+// and directory input is not supported at all (Windows), it keeps the cause (which
+// says so and what to do instead); every other failure keeps the plain message.
+func openFailure(path string, err error) error {
+	if errors.Is(err, validation.ErrUnsupportedPlatform) {
+		return fmt.Errorf("%w: %s: %w", ErrInput, path, err)
+	}
+	return fmt.Errorf("%w: %s", ErrInput, path)
 }
 
 func (o *opener) walk(dir *os.File, display string) error {

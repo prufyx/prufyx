@@ -3,13 +3,12 @@
 package knowledgegate
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/supersedepred"
 )
 
 // The supersede class. Removing a reviewed rule R is refused (it can turn a
@@ -43,158 +42,19 @@ type Supersede struct {
 	Detail string `json:"detail,omitempty"`
 }
 
-// ruleFacts is what the supersede pairing reads of an entry.
-type ruleFacts struct {
-	project   string
-	key       string
-	component string
-	from, to  string
-	rng       *constraintengine.VersionRange
-	isSet     bool
-	members   []string
-	// rest is the canonical form of every other part of the rule that
-	// can decide a verdict: the rule without its id, evidence, reason,
-	// next action, operator, range, subject (its component is compared
-	// on its own, its versions as the region), and the key and members of
-	// its fact. Two rules are the same constraint when the
-	// key, and this, are equal.
-	rest []byte
-}
+// ruleFacts is what the supersede pairing reads of an entry; the predicate
+// itself lives in supersedepred, shared with `extract supersede`.
+type ruleFacts = supersedepred.Facts
 
-func factsOf(e *entry) (ruleFacts, error) {
-	var obj struct {
-		Project string          `json:"project"`
-		Rule    json.RawMessage `json:"rule"`
-	}
-	if err := json.Unmarshal(e.Raw, &obj); err != nil || len(obj.Rule) == 0 {
-		return ruleFacts{}, fmt.Errorf("rule %s: no rule object", e.RuleID)
-	}
-	key, err := constraintengine.ConstraintKey(obj.Rule)
-	if err != nil {
-		return ruleFacts{}, err
-	}
-	var typed struct {
-		Subject struct {
-			Component string `json:"component"`
-			From      string `json:"from"`
-			To        string `json:"to"`
-		} `json:"subject"`
-		Range        *constraintengine.VersionRange `json:"range"`
-		SetCondition *struct {
-			Members []string `json:"members"`
-		} `json:"setCondition"`
-	}
-	if err := json.Unmarshal(obj.Rule, &typed); err != nil {
-		return ruleFacts{}, err
-	}
-	generic, err := decodeAny(obj.Rule)
-	if err != nil {
-		return ruleFacts{}, err
-	}
-	m, ok := generic.(map[string]any)
-	if !ok {
-		return ruleFacts{}, fmt.Errorf("rule %s: not an object", e.RuleID)
-	}
-	for _, k := range []string{"id", "evidence", "reasonCode", "nextAction", "operator", "range", "subject"} {
-		delete(m, k)
-	}
-	for _, k := range []string{"condition", "setCondition", "dependency"} {
-		if f, ok := m[k].(map[string]any); ok {
-			for _, field := range []string{"side", "component", "factId", "members"} {
-				delete(f, field)
-			}
-		}
-	}
-	f0rest := canonicalRule(m)
-	if len(f0rest) == 0 {
-		return ruleFacts{}, fmt.Errorf("rule %s: no canonical form", e.RuleID)
-	}
-	f := ruleFacts{
-		project: obj.Project, key: key, component: typed.Subject.Component, from: typed.Subject.From, to: typed.Subject.To,
-		rng: typed.Range, rest: f0rest,
-	}
-	if typed.SetCondition != nil {
-		f.isSet, f.members = true, typed.SetCondition.Members
-	}
-	return f, nil
-}
+func factsOf(e *entry) (ruleFacts, error) { return supersedepred.FactsOf(e.Raw, e.RuleID) }
 
-// canonicalRule is the canonical form of the predicate; a variable only so a
-// test can make it fail.
-var canonicalRule = func(v any) []byte { return canonicalOf(v) }
-
-// span is one side of a rule's match region: [lo, hi) for a range, or the
-// single version lo for an exact anchor.
-type span struct {
-	lo, hi string
-	point  bool
-}
-
-func (f ruleFacts) region() (span, span) {
-	if f.rng != nil {
-		return span{lo: f.rng.From.Gte, hi: f.rng.From.Lt}, span{lo: f.rng.To.Gte, hi: f.rng.To.Lt}
-	}
-	return span{lo: f.from, hi: f.from, point: true}, span{lo: f.to, hi: f.to, point: true}
-}
-
-func versionLE(a, b string) bool {
-	return constraintengine.SameVersion(a, b) || constraintengine.VersionLess(a, b)
-}
-
-// covers reports a ⊇ b. A version that is not a release version covers
-// nothing and is covered by nothing.
-func (a span) covers(b span) bool {
-	if a.point {
-		return b.point && constraintengine.SameVersion(a.lo, b.lo)
-	}
-	if !versionLE(a.lo, b.lo) {
-		return false
-	}
-	if b.point {
-		return constraintengine.VersionLess(b.lo, a.hi)
-	}
-	return versionLE(b.hi, a.hi)
-}
-
-func subsetOf(inner, outer []string) bool {
-	have := map[string]bool{}
-	for _, m := range outer {
-		have[m] = true
-	}
-	for _, m := range inner {
-		if !have[m] {
-			return false
-		}
-	}
-	return true
-}
-
-// supersedes reports that m replaces r: the same project, component and
-// constraint key, an otherwise identical predicate, a region and (for a set
-// rule) a member set that include r's.
-func supersedes(m, r ruleFacts) bool {
-	if m.project != r.project || m.component != r.component {
-		return false
-	}
-	if m.key != r.key {
-		return false
-	}
-	if !bytes.Equal(m.rest, r.rest) {
-		return false
-	}
-	if r.isSet && !subsetOf(r.members, m.members) {
-		return false
-	}
-	mf, mt := m.region()
-	rf, rt := r.region()
-	return mf.covers(rf) && mt.covers(rt)
-}
+// supersedes reports that m replaces r (see supersedepred.Facts.Supersedes).
+func supersedes(m, r ruleFacts) bool { return m.Supersedes(r) }
 
 // pairSupersedes links, within one pack's changes, each removal of a
-// reviewed rule to the added active mechanical rule that supersedes it. A
-// pair is one-to-one: a removal that several additions could replace, or an
-// addition that could replace several removals, is left unpaired and so
-// refused. Nothing here admits anything.
+// reviewed rule to the added active mechanical rule that supersedes it
+// (supersedepred.Pair: one-to-one, a removal or addition that is ambiguous
+// is left unpaired and so refused). Nothing here admits anything.
 func pairSupersedes(changes []*Change) {
 	var removals, additions []*Change
 	for _, c := range changes {
@@ -208,40 +68,27 @@ func pairSupersedes(changes []*Change) {
 			additions = append(additions, c)
 		}
 	}
-	facts := map[*Change]ruleFacts{}
-	for _, c := range append(append([]*Change{}, removals...), additions...) {
+	candidate := func(c *Change) supersedepred.Candidate {
 		e := c.base
 		if e == nil {
 			e = c.head
 		}
-		f, err := factsOf(e)
-		if err != nil {
-			continue
+		cand := supersedepred.Candidate{Basis: c.Basis, State: e.Evidence.State}
+		if f, err := factsOf(e); err == nil {
+			cand.Facts = &f
 		}
-		facts[c] = f
+		return cand
 	}
-	forR := map[*Change][]*Change{}
-	forM := map[*Change][]*Change{}
-	for _, r := range removals {
-		rf, ok := facts[r]
-		if !ok {
-			continue
-		}
-		for _, m := range additions {
-			if mf, ok := facts[m]; ok && supersedes(mf, rf) {
-				forR[r] = append(forR[r], m)
-				forM[m] = append(forM[m], r)
-			}
-		}
+	rc := make([]supersedepred.Candidate, len(removals))
+	for i, c := range removals {
+		rc[i] = candidate(c)
 	}
-	for _, r := range removals {
-		if len(forR[r]) != 1 {
-			continue
-		}
-		m := forR[r][0]
-		if len(forM[m]) != 1 {
-			continue
-		}
+	ac := make([]supersedepred.Candidate, len(additions))
+	for i, c := range additions {
+		ac[i] = candidate(c)
+	}
+	for i, j := range supersedepred.Pair(rc, ac) {
+		r, m := removals[i], additions[j]
 		r.supersededBy, m.supersedes = m, r
 		r.SupersededBy, m.Supersedes = m.RuleID, r.RuleID
 		r.Kinds = append(r.Kinds, KindSupersede)

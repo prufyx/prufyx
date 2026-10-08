@@ -102,14 +102,20 @@ Replaces reviewed rules by the rules of a run that cover them. It is not part
 of the automated flow: a reviewed rule is superseded only by a change the
 owner makes and the knowledge gate admits as a supersede.
 
-A reviewed rule is any rule whose evidence basis is not `mechanical`, in any
-state. A rule of the run replaces a reviewed rule when both are for the same
-component and have the same constraint key (the operator and the constrained
-fact: side, component and fact id) and their match regions overlap. The run's
-rule must then cover the reviewed rule completely: its from and to regions
-contain the reviewed rule's (a range contains an anchor pair inside it; an
-anchor-only rule covers only the same anchor pair), and for set rules its
-members include all of the reviewed rule's. The command then removes exactly
+A reviewed rule is a rule whose evidence basis is `reviewed` (or absent), in
+any state; a consensus, empirical, lead or mechanical rule is never replaced.
+The tool uses the knowledge gate's own pairing function
+(`internal/supersedepred`), so it never prints a map the gate would refuse. A
+rule of the run replaces a reviewed rule when it is new, active and
+mechanical, and both are for the same project and component and have the same
+constraint key (the operator and the constrained fact: side, component and
+fact id), and the rest of the predicate is identical (the condition's values,
+`appliesWhen`, the dependency's comparison and bounds, `intermediate` and
+`severity`), and the run's rule covers the reviewed rule completely: its from
+and to regions contain the reviewed rule's (a range contains an anchor pair
+inside it; an anchor-only rule covers only the same anchor pair), and for set
+rules its members include all of the reviewed rule's. The pairing is one to
+one. The command then removes exactly
 those reviewed rules, adds the run's rules, and prints the old to new map as
 canonical JSON on stdout:
 
@@ -123,11 +129,15 @@ second supersede of the same run changes nothing and prints an empty map.
 Refused with exit 3, a message on stderr, nothing on stdout and the pack file
 untouched:
 
-- a reviewed rule that a run rule overlaps with the same key but covers only
-  in part (a wider region, or set members the run's rule lacks);
+- a reviewed rule that a run rule overlaps with the same key but does not
+  replace: a different predicate (for example the opposite `boolValue`), a
+  different project, or a region or set members the run's rule does not
+  cover;
+- a run rule that would replace more than one reviewed rule;
+- a reviewed-rule overlap whose run rule is not new, active and mechanical;
 - a reviewed rule that overlaps more than one run rule;
-- a mechanical rule of the pack that a run rule overlaps (only reviewed rules
-  can be superseded);
+- a mechanical, consensus, empirical or lead rule of the pack that a run rule
+  overlaps (only reviewed rules can be superseded);
 - a run that adds rules but matches no reviewed rule (use `extract apply`);
 - a run rule whose id is in the pack with different content;
 - a result that differs from the base in anything but the removed reviewed

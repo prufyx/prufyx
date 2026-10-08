@@ -13,6 +13,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/supersedepred"
 )
 
 const ownerLogin = DefaultOwnerLogin
@@ -383,14 +384,44 @@ func (c *Change) with(e *entry) *Change {
 	return c
 }
 
-func TestPairSupersedes(t *testing.T) {
+type pairCase struct {
+	name string
+	rs   []*Change
+	ms   []*Change
+	want [][2]string // pairs, by id
+}
+
+// withProject moves a synthetic change to another project.
+func withProject(t *testing.T, c *Change, project string) *Change {
+	t.Helper()
+	e := c.base
+	if e == nil {
+		e = c.head
+	}
+	var obj map[string]any
+	if err := json.Unmarshal(e.Raw, &obj); err != nil {
+		t.Fatal(err)
+	}
+	obj["project"] = project
+	en, err := newEntry(mustJSON(t, obj))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.base != nil {
+		c.base = en
+	} else {
+		c.head = en
+	}
+	c.Project = project
+	return c
+}
+
+// pairCases is the table of supersede pairings. The gate's TestPairSupersedes
+// and the tool-versus-gate cross-check both run it, so the tool and the gate
+// are held to the same cases.
+func pairCases(t *testing.T) []pairCase {
 	wide := withRange("1.24.0", "1.25.0", "1.25.0", "1.26.0")
-	cases := []struct {
-		name string
-		rs   []*Change
-		ms   []*Change
-		want [][2]string // pairs, by id
-	}{
+	return []pairCase{
 		{"covering mechanical addition", []*Change{synth(t, "R1", "", "active", nil)}, []*Change{synth(t, "M1", "mechanical", "active", wide)}, [][2]string{{"R1", "M1"}}},
 		{"explicit reviewed basis", []*Change{synth(t, "R1", "reviewed", "active", nil)}, []*Change{synth(t, "M1", "mechanical", "active", wide)}, [][2]string{{"R1", "M1"}}},
 		{"already withdrawn R", []*Change{synth(t, "R1", "", "withdrawn", nil)}, []*Change{synth(t, "M1", "mechanical", "active", wide)}, [][2]string{{"R1", "M1"}}},
@@ -417,7 +448,15 @@ func TestPairSupersedes(t *testing.T) {
 		{"one addition covers two removals", []*Change{synth(t, "R1", "", "active", nil), synth(t, "R2", "", "active", nil)}, []*Change{synth(t, "M1", "mechanical", "active", wide)}, nil},
 		{"set superset", []*Change{synth(t, "R1", "", "active", setRule("a"))}, []*Change{synth(t, "M1", "mechanical", "active", setRule("a", "b"))}, [][2]string{{"R1", "M1"}}},
 		{"set not a superset", []*Change{synth(t, "R1", "", "active", setRule("a", "c"))}, []*Change{synth(t, "M1", "mechanical", "active", setRule("a", "b"))}, nil},
+		{"different project", []*Change{withProject(t, synth(t, "R1", "", "active", nil), "q")}, []*Change{synth(t, "M1", "mechanical", "active", wide)}, nil},
+		{"opposite boolValue (cronjob rule flipped)", []*Change{synth(t, "R1", "", "active", func(r map[string]any) { r["condition"].(map[string]any)["boolValue"] = false })}, []*Change{synth(t, "M1", "mechanical", "active", wide)}, nil},
+		{"R empirical", []*Change{synth(t, "R1", "empirical", "active", nil)}, []*Change{synth(t, "M1", "mechanical", "active", wide)}, nil},
+		{"R lead", []*Change{synth(t, "R1", "lead", "active", nil)}, []*Change{synth(t, "M1", "mechanical", "active", wide)}, nil},
 	}
+}
+
+func TestPairSupersedes(t *testing.T) {
+	cases := pairCases(t)
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			all := append(append([]*Change{}, tc.rs...), tc.ms...)
@@ -707,7 +746,7 @@ func TestSupersedesPredicate(t *testing.T) {
 	}
 	t.Run("other project", func(t *testing.T) {
 		m, r := facts(t, nil), facts(t, nil)
-		m.project = "q"
+		m.Project = "q"
 		if supersedes(m, r) {
 			t.Fatal("a rule of another project supersedes")
 		}
@@ -717,8 +756,8 @@ func TestSupersedesPredicate(t *testing.T) {
 // The pairing uses the engine's one constraint key.
 func TestSupersedeUsesEngineKey(t *testing.T) {
 	a, b := facts(t, nil), facts(t, func(r map[string]any) { r["condition"].(map[string]any)["factId"] = "g" })
-	if a.key == b.key || a.key == "" {
-		t.Fatalf("keys %q %q", a.key, b.key)
+	if a.Key == b.Key || a.Key == "" {
+		t.Fatalf("keys %q %q", a.Key, b.Key)
 	}
 	if _, err := factsOf(&entry{RuleID: "x", Raw: []byte(`{"rule":"no"}`)}); err == nil {
 		t.Fatal("a rule that is not an object was read")
@@ -768,9 +807,9 @@ func TestSupersedeOwnerCommits(t *testing.T) {
 
 // A rule whose canonical form cannot be computed is never paired.
 func TestSupersedeFailsClosedOnCanonicalForm(t *testing.T) {
-	old := canonicalRule
-	defer func() { canonicalRule = old }()
-	canonicalRule = func(any) []byte { return nil }
+	old := supersedepred.CanonicalRule
+	defer func() { supersedepred.CanonicalRule = old }()
+	supersedepred.CanonicalRule = func(any) []byte { return nil }
 	if _, err := factsOf(&entry{RuleID: "x", Raw: mustJSON(t, map[string]any{"project": "p", "rule": map[string]any{"id": "x", "operator": "forbid_fact"}})}); err == nil {
 		t.Fatal("a rule without a canonical form has facts")
 	}
@@ -779,7 +818,7 @@ func TestSupersedeFailsClosedOnCanonicalForm(t *testing.T) {
 	if r.supersededBy != nil {
 		t.Fatal("paired although no canonical form exists")
 	}
-	canonicalRule = old
+	supersedepred.CanonicalRule = old
 	pairSupersedes([]*Change{r, m})
 	if r.supersededBy == nil {
 		t.Fatal("control: not paired with a canonical form")

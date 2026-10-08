@@ -489,3 +489,57 @@ func TestSupersedeRuleChecks(t *testing.T) {
 	}
 	assertUnchanged(t, pack, pre)
 }
+
+// 12-M1: the tool is exactly as strict as the knowledge gate, so none of
+// these reaches a map or exit 0.
+func TestSupersedeRefusesWhatTheGateWouldNotPair(t *testing.T) {
+	c := cases[1] // served APIs: boolean condition, ranged rules
+	run := runDir(t, c, derivedAt)
+
+	t.Run("opposite predicate", func(t *testing.T) {
+		pack := reviewedBase(t, c, run, func(i int, r map[string]any) {
+			if i == 0 {
+				cond := r["condition"].(map[string]any)
+				cond["boolValue"] = !cond["boolValue"].(bool)
+			}
+		})
+		refused(t, pack, run, extractpack.ErrSupersede)
+	})
+	t.Run("another project", func(t *testing.T) {
+		pack := prunedPack(t, "cncf", run)
+		es := runEntries(t, run)
+		mustModifyPack(t, pack, func(base []map[string]any) []map[string]any {
+			for i, e := range es {
+				tw := reviewedTwin(t, e, nil)
+				if i == 0 {
+					tw["project"] = "some-other-project"
+				}
+				base = append(base, tw)
+			}
+			return base
+		})
+		refused(t, pack, run, extractpack.ErrSupersede)
+	})
+	for _, basis := range []string{"consensus", "empirical", "lead"} {
+		t.Run("a "+basis+" rule is not replaced", func(t *testing.T) {
+			pack := reviewedBase(t, c, run, func(i int, r map[string]any) {
+				if i == 0 {
+					r["evidence"].(map[string]any)["basis"] = basis
+				}
+			})
+			refused(t, pack, run, extractpack.ErrSupersede)
+		})
+	}
+	t.Run("one rule of the run replacing two reviewed rules", func(t *testing.T) {
+		pack := reviewedBase(t, c, run, nil)
+		es := runEntries(t, run)
+		mustModifyPack(t, pack, func(base []map[string]any) []map[string]any {
+			tw := reviewedTwin(t, es[0], func(r map[string]any) { r["id"] = r["id"].(string) + "-second" })
+			return append(base, tw)
+		})
+		refused(t, pack, run, extractpack.ErrSupersede)
+		if _, err := supersede(t, pack, run); err == nil || !strings.Contains(err.Error(), "one to one") {
+			t.Fatalf("got %v", err)
+		}
+	})
+}

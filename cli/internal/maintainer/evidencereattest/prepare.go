@@ -347,8 +347,11 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	ruleAttestations := map[string]RuleAttestation{}
 
 	for _, candidate := range candidates {
+		// Every exclusion of a rule that cites a pending citation names
+		// its pending repositories (V11), whatever its reason is.
+		pendingRepos := pendingReposByRule[candidate.RuleID]
 		if outsideChain[candidate.RuleID] {
-			notExtended = append(notExtended, NotExtendedEntry{RuleID: candidate.RuleID, WorstClass: reasonReviewedOutsideChain})
+			notExtended = append(notExtended, NotExtendedEntry{RuleID: candidate.RuleID, WorstClass: reasonReviewedOutsideChain, PendingRepositories: pendingRepos})
 			continue
 		}
 		_, reviewedNow := fresh[candidate.RuleID]
@@ -357,8 +360,10 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		if ok && candidate.Fields.record && citesAny(candidate, mismatchRepos) {
 			reason, ok = reasonCorpusMismatchRepository, false
 		}
-		pendingRepos := pendingReposByRule[candidate.RuleID]
-		if len(pendingRepos) > 0 && (ok || reason == evidencerepin.ClassPending) {
+		// E1 skips a pending citation, so a drifted or otherwise failing
+		// citation of the same rule is reported as itself; the rule is
+		// CITATION_PENDING only when everything else passes.
+		if len(pendingRepos) > 0 && ok {
 			reason, ok = reasonCitationPending, false
 		}
 		if !ok {
@@ -750,6 +755,9 @@ func evaluateEligibility(
 			return reasonDuplicateCitation, false
 		}
 		citation := matches[0]
+		if citation.Class == evidencerepin.ClassPending {
+			continue
+		}
 		if citation.Class != evidencerepin.ClassNoNewRelease && citation.Class != evidencerepin.ClassFileIdentical && citation.Class != evidencerepin.ClassSpanIdentical {
 			return citation.Class, false
 		}
@@ -809,6 +817,11 @@ func evaluateEligibility(
 		return reasonStaleBaseline, false
 	}
 	for _, citation := range candidate.Citations {
+		if citation.Class == evidencerepin.ClassPending {
+			// Pending means the repository is not resolved; the rule is
+			// reported as CITATION_PENDING by the caller if all else passes.
+			continue
+		}
 		repo, known := repoByKey[citation.Owner+"/"+citation.Repo]
 		if !known {
 			return reasonStaleBaseline, false

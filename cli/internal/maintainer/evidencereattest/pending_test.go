@@ -159,7 +159,7 @@ func TestVerifyRejectsRenewalOfARuleCitingAPendingCitation(t *testing.T) {
 	result, opts := pendingSetup(t)
 	statement := result.Statement
 	statement.Rules = append(append([]RuleAttestation(nil), statement.Rules...), RuleAttestation{RuleID: "rule-b"})
-	err := checkV11(statement, opts.PackPath, opts.WorklistRaw)
+	err := checkV11(statement, opts.PackPath, opts.WorklistRaw, packRulesOf(t, opts.PriorPackRaw))
 	if err == nil || !strings.Contains(err.Error(), "must not be renewed") {
 		t.Fatalf("want a refusal to renew rule-b, got %v", err)
 	}
@@ -174,7 +174,7 @@ func TestVerifyRejectsExclusionWithoutPendingRepositories(t *testing.T) {
 			statement.NotExtended[i].PendingRepositories = nil
 		}
 	}
-	err := checkV11(statement, opts.PackPath, opts.WorklistRaw)
+	err := checkV11(statement, opts.PackPath, opts.WorklistRaw, packRulesOf(t, opts.PriorPackRaw))
 	if err == nil || !strings.Contains(err.Error(), "does not name its pending repositories") {
 		t.Fatalf("want a refusal, got %v", err)
 	}
@@ -182,16 +182,16 @@ func TestVerifyRejectsExclusionWithoutPendingRepositories(t *testing.T) {
 
 func TestVerifyRederivesPendingFromTheIndependentWorklist(t *testing.T) {
 	result, opts := pendingSetup(t)
-	// An independent worklist that has one more pending citation than the
-	// statement records is refused, even though the signing job's own
-	// worklist agrees with the statement.
+	// An independent worklist in which a renewed rule has a pending
+	// citation is refused, even though the signing job's own worklist
+	// agrees with the statement.
 	var wl evidencerepin.Worklist
 	if err := json.Unmarshal(opts.WorklistRaw, &wl); err != nil {
 		t.Fatal(err)
 	}
 	wl.Citations = append(wl.Citations, evidencerepin.ClassResult{RulePack: pendingPackPath, RuleID: "rule-a", SourceID: "rule-a-src2", Owner: "owner", Repo: "other", Class: evidencerepin.ClassPending})
-	if err := checkV11(result.Statement, pendingPackPath, marshalWorklist(t, wl)); err == nil {
-		t.Fatal("a pending citation missing from the statement must be refused")
+	if err := checkV11Independent(result.Statement, pendingPackPath, marshalWorklist(t, wl)); err == nil {
+		t.Fatal("a renewed rule citing a pending citation of the independent worklist must be refused")
 	}
 }
 
@@ -235,4 +235,131 @@ func TestRehearsalStatementIsMarkedAndNeverSignedOrVerified(t *testing.T) {
 	opts.WorklistRaw, opts.PackName, opts.PackPath = marshalWorklist(t, wl), PackCNCF, pendingPackPath
 	opts.EngineCapabilityDigest = testEngineCapabilityDigest
 	assertVerifyRejects(t, opts, "rehearsal")
+}
+
+func packRulesOf(t *testing.T, packRaw []byte) map[string]json.RawMessage {
+	t.Helper()
+	doc, err := loadPack(packRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rules, err := rulesByID(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return rules
+}
+
+// A pending citation of the independent worklist on a rule nobody renews
+// does not make a correct statement unverifiable (14-M2): pending is
+// volatile between two worklists, and only renewed rules carry integrity.
+func TestVerifyAcceptsExtraPendingOnAnUnrenewedRuleInTheIndependentWorklist(t *testing.T) {
+	result, opts := pendingSetup(t)
+	var wl evidencerepin.Worklist
+	if err := json.Unmarshal(opts.WorklistRaw, &wl); err != nil {
+		t.Fatal(err)
+	}
+	wl.Citations = append(wl.Citations, evidencerepin.ClassResult{RulePack: pendingPackPath, RuleID: "rule-b", SourceID: "rule-b-src2", Owner: "owner", Repo: "other", Class: evidencerepin.ClassPending})
+	independent := marshalWorklist(t, wl)
+	if err := checkV11Independent(result.Statement, pendingPackPath, independent); err != nil {
+		t.Fatalf("an extra pending citation of an unrenewed rule must be accepted: %v", err)
+	}
+	// The same worklist is refused when it is the signing worklist: its
+	// pending set is the statement's to record exactly.
+	if err := checkV11(result.Statement, pendingPackPath, independent, packRulesOf(t, opts.PriorPackRaw)); err == nil {
+		t.Fatal("the signing worklist must still match the statement's pending set exactly")
+	}
+	opts.IndependentWorklistRaw = independent
+	if _, err := Verify(opts); err != nil {
+		t.Fatalf("Verify with such an independent worklist: %v", err)
+	}
+}
+
+// Both directions at once: dropping a pending citation from the independent
+// worklist is also fine for an unrenewed rule, but a renewed rule that is
+// pending there is refused.
+func TestVerifyIndependentPendingFailsClosedOnlyForRenewedRules(t *testing.T) {
+	result, opts := pendingSetup(t)
+	var wl evidencerepin.Worklist
+	if err := json.Unmarshal(opts.WorklistRaw, &wl); err != nil {
+		t.Fatal(err)
+	}
+	kept := wl.Citations[:0:0]
+	for _, c := range wl.Citations {
+		if c.RuleID != "rule-c" {
+			kept = append(kept, c)
+		}
+	}
+	wl.Citations = kept
+	if err := checkV11Independent(result.Statement, pendingPackPath, marshalWorklist(t, wl)); err != nil {
+		t.Fatalf("fewer pending citations for an unrenewed rule must be accepted: %v", err)
+	}
+	for i := range wl.Citations {
+		if wl.Citations[i].RuleID == "rule-d" {
+			wl.Citations[i].Class = evidencerepin.ClassPending
+		}
+	}
+	err := checkV11Independent(result.Statement, pendingPackPath, marshalWorklist(t, wl))
+	if err == nil || !strings.Contains(err.Error(), "rule-d") || !strings.Contains(err.Error(), "V11") {
+		t.Fatalf("a renewed rule pending in the independent worklist must be refused naming it, got %v", err)
+	}
+}
+
+// 14-m3: a pending rule of the pack that the statement neither renews nor
+// lists is named in the V11 refusal.
+func TestVerifyNamesAPendingRuleMissingFromTheStatement(t *testing.T) {
+	result, opts := pendingSetup(t)
+	statement := result.Statement
+	statement.NotExtended = nil
+	for _, ne := range result.Statement.NotExtended {
+		if ne.RuleID != "rule-b" {
+			statement.NotExtended = append(statement.NotExtended, ne)
+		}
+	}
+	err := checkV11(statement, opts.PackPath, opts.WorklistRaw, packRulesOf(t, opts.PriorPackRaw))
+	if err == nil || !strings.Contains(err.Error(), "rule-b") || !strings.Contains(err.Error(), "missing from the statement") {
+		t.Fatalf("want a refusal naming rule-b as missing, got %v", err)
+	}
+}
+
+// 14-m1: a pending citation does not mask a drifted citation of the same
+// rule. The drift reason is reported, with the pending repositories.
+func TestPendingCitationDoesNotMaskADriftedCitationOfTheSameRule(t *testing.T) {
+	for _, driftFirst := range []bool{false, true} {
+		commit := strings.Repeat("a", 40)
+		digest := "sha256:" + strings.Repeat("cd", 32)
+		src1 := testSource("s1", "owner", "shared", commit, "VERSION", digest, 1, 1)
+		src2 := testSource("s2", "owner", "repo-a", commit, "VERSION", digest, 1, 1)
+		rule := testRule("rule-a", "active", rfc3339(baseNow.Add(-30*24*time.Hour)), rfc3339(baseNow.Add(7*24*time.Hour)), false, src1, src2)
+		pack := padPackWithSpreadRules(t, testPack(t, testEntry("proj-a", rule)), 12)
+		pending := evidencerepin.ClassResult{
+			RulePack: pendingPackPath, RuleID: "rule-a", Project: "proj-a", SourceID: "s1", Owner: "owner", Repo: "shared",
+			Path: "VERSION", OldCommit: commit, NewCommit: commit, Class: evidencerepin.ClassPending,
+		}
+		changed := pending
+		changed.SourceID, changed.Repo, changed.Class = "s2", "repo-a", evidencerepin.ClassContentChanged
+		citations := []evidencerepin.ClassResult{pending, changed}
+		if driftFirst {
+			citations = []evidencerepin.ClassResult{changed, pending}
+		}
+		wl := evidencerepin.Worklist{
+			Schema: evidencerepin.Schema, Authority: evidencerepin.Authority, GeneratedAt: rfc3339(baseNow),
+			Scope: evidencerepin.WorklistScope{RulePacks: []string{pendingPackPath}},
+			Repos: []evidencerepin.RepoResolution{
+				{Owner: "owner", Repo: "repo-a", Status: "RESOLVED", CurrentTag: "v1.2.3", CurrentCommit: commit, ResolvedAt: rfc3339(baseNow.Add(-time.Hour))},
+			},
+			Citations: citations,
+			Summary:   evidencerepin.Summary{TotalCitations: 2, Classified: 2, Pending: 1},
+		}
+		result := prepareSingle(t, wl, pack, pendingPackPath)
+		var got *NotExtendedEntry
+		for i := range result.Statement.NotExtended {
+			if result.Statement.NotExtended[i].RuleID == "rule-a" {
+				got = &result.Statement.NotExtended[i]
+			}
+		}
+		if got == nil || got.WorstClass != evidencerepin.ClassContentChanged || len(got.PendingRepositories) != 1 || got.PendingRepositories[0] != "owner/shared" {
+			t.Fatalf("driftFirst=%v: want CONTENT_CHANGED naming owner/shared, got %+v", driftFirst, got)
+		}
+	}
 }

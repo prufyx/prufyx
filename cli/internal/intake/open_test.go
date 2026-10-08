@@ -284,3 +284,14 @@ func FuzzOpenRandomTrees(f *testing.F) {
 		}
 	})
 }
+
+// A refusal from a platform without secure file input keeps its cause (18-m2).
+func TestOpenFailureKeepsTheUnsupportedPlatformCause(t *testing.T) {
+	err := openFailure("m.yaml", validation.ErrUnsupportedPlatform)
+	if !errors.Is(err, ErrInput) || !errors.Is(err, validation.ErrUnsupportedPlatform) || !strings.Contains(err.Error(), "pipe the manifest on standard input") {
+		t.Fatalf("got %v", err)
+	}
+	if err := openFailure("m.yaml", os.ErrNotExist); !errors.Is(err, ErrInput) || errors.Is(err, validation.ErrUnsupportedPlatform) || strings.Contains(err.Error(), "Windows") {
+		t.Fatalf("got %v", err)
+	}
+}

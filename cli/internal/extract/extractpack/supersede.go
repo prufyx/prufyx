@@ -13,6 +13,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/supersedepred"
 )
 
 // ErrSupersede means the run does not replace the reviewed rules it touches
@@ -82,6 +83,7 @@ type shape struct {
 	Dependency   *fact `json:"dependency"`
 	Evidence     struct {
 		Basis string `json:"basis"`
+		State string `json:"state"`
 	} `json:"evidence"`
 
 	// constraint is the engine's constraint key (constraintengine.ConstraintKey).
@@ -175,19 +177,6 @@ func intersects(a, b []string) bool {
 	return false
 }
 
-func subset(a, b []string) bool {
-	set := map[string]bool{}
-	for _, x := range b {
-		set[x] = true
-	}
-	for _, x := range a {
-		if !set[x] {
-			return false
-		}
-	}
-	return true
-}
-
 // relevant reports whether m and r constrain the same thing over a common
 // region: same component, equal constraint key, a common set member, and
 // overlapping match regions.
@@ -203,21 +192,12 @@ func relevant(m, r shape) bool {
 	return mf.overlaps(rf) && mt.overlaps(rt)
 }
 
-// covers reports that m replaces r: the same constraint over a region and
-// a member set that include r's.
-func covers(m, r shape) bool {
-	if m.SetCondition != nil && !subset(r.members(), m.members()) {
-		return false
-	}
-	mf, mt := m.region()
-	rf, rt := r.region()
-	return mf.covers(rf) && mt.covers(rt)
-}
-
 // planSupersede decides what the run replaces and builds the result pack.
 // Every refusal is an error; nothing is written here.
 func planSupersede(base *Pack, run *Run, rep *SupersedeReport) (head *Pack, removed, added map[string]bool, err error) {
 	baseCanon := map[string][]byte{}
+	baseRaw := map[string]json.RawMessage{}
+	runRaw := map[string]json.RawMessage{}
 	var baseShapes []shape
 	for _, e := range base.Entries {
 		s, err := shapeOf(e)
@@ -232,6 +212,7 @@ func planSupersede(base *Pack, run *Run, rep *SupersedeReport) (head *Pack, remo
 			return nil, nil, nil, fmt.Errorf("%w: rule id %s appears twice", ErrPack, s.ID)
 		}
 		baseCanon[s.ID] = c
+		baseRaw[s.ID] = e
 		baseShapes = append(baseShapes, s)
 	}
 	var mine []shape
@@ -246,6 +227,7 @@ func planSupersede(base *Pack, run *Run, rep *SupersedeReport) (head *Pack, remo
 			return nil, nil, nil, err
 		}
 		mine = append(mine, s)
+		runRaw[s.ID] = e
 		if old, ok := baseCanon[s.ID]; ok {
 			if !bytes.Equal(old, c) {
 				return nil, nil, nil, fmt.Errorf("%w: rule %s is in the pack with different content", ErrCollision, s.ID)
@@ -257,6 +239,13 @@ func planSupersede(base *Pack, run *Run, rep *SupersedeReport) (head *Pack, remo
 		rep.Added = append(rep.Added, s.ID)
 	}
 	removed = map[string]bool{}
+	// The replacement rule is the gate's (supersedepred): the same project,
+	// component, constraint key and predicate, a covering region, a
+	// reviewed rule replaced by an active mechanical one, one to one. This
+	// loop only finds what a run rule overlaps, so that an overlap the
+	// gate would not pair is a refusal here and never a map.
+	var removals []supersedepred.Candidate
+	var removalIDs []string
 	for _, r := range baseShapes {
 		var hit []shape
 		for _, m := range mine {
@@ -270,14 +259,65 @@ func planSupersede(base *Pack, run *Run, rep *SupersedeReport) (head *Pack, remo
 		if r.Evidence.Basis == "mechanical" {
 			return nil, nil, nil, fmt.Errorf("%w: rule %s is a mechanical rule the run overlaps; only a reviewed rule can be superseded", ErrSupersede, r.ID)
 		}
+		if constraintengine.EffectiveBasis(r.Evidence.Basis) != constraintengine.BasisReviewed {
+			return nil, nil, nil, fmt.Errorf("%w: rule %s has basis %q and the run overlaps it; only a reviewed rule can be superseded", ErrSupersede, r.ID, r.Evidence.Basis)
+		}
 		if len(hit) > 1 {
 			return nil, nil, nil, fmt.Errorf("%w: reviewed rule %s overlaps %d rules of the run (%s, %s, ...)", ErrSupersede, r.ID, len(hit), hit[0].ID, hit[1].ID)
 		}
-		if !covers(hit[0], r) {
-			return nil, nil, nil, fmt.Errorf("%w: rule %s covers reviewed rule %s only in part", ErrSupersede, hit[0].ID, r.ID)
+		m := hit[0]
+		rf, err := supersedepred.FactsOf(baseRaw[r.ID], r.ID)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("%w: reviewed rule %s cannot be read: %v", ErrSupersede, r.ID, err)
+		}
+		mf, err := supersedepred.FactsOf(runRaw[m.ID], m.ID)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("%w: rule %s cannot be read: %v", ErrSupersede, m.ID, err)
+		}
+		if !mf.Supersedes(rf) {
+			return nil, nil, nil, fmt.Errorf("%w: rule %s overlaps reviewed rule %s but does not replace it: the project, component, constraint key or predicate differs, or it covers the reviewed rule only in part (the knowledge gate would refuse the removal)", ErrSupersede, m.ID, r.ID)
 		}
 		removed[r.ID] = true
-		rep.Pairs = append(rep.Pairs, Pair{Old: r.ID, New: hit[0].ID})
+		rep.Pairs = append(rep.Pairs, Pair{Old: r.ID, New: m.ID})
+		removals = append(removals, supersedepred.Candidate{Facts: &rf, Basis: r.Evidence.Basis, State: r.Evidence.State})
+		removalIDs = append(removalIDs, r.ID)
+	}
+	// One to one, and only against what the run adds: the gate pairs a
+	// removal with an added, active, mechanical rule.
+	replaces := map[string][]string{}
+	for _, p := range rep.Pairs {
+		replaces[p.New] = append(replaces[p.New], p.Old)
+	}
+	for _, m := range mine {
+		if olds := replaces[m.ID]; len(olds) > 1 {
+			sort.Strings(olds)
+			return nil, nil, nil, fmt.Errorf("%w: rule %s would replace %d reviewed rules (%s, %s, ...); a replacement is one to one", ErrSupersede, m.ID, len(olds), olds[0], olds[1])
+		}
+	}
+	var additions []supersedepred.Candidate
+	var additionIDs []string
+	for _, m := range mine {
+		if !added[m.ID] {
+			continue
+		}
+		mf, err := supersedepred.FactsOf(runRaw[m.ID], m.ID)
+		if err != nil {
+			continue
+		}
+		additions = append(additions, supersedepred.Candidate{Facts: &mf, Basis: m.Evidence.Basis, State: m.Evidence.State})
+		additionIDs = append(additionIDs, m.ID)
+	}
+	paired := supersedepred.Pair(removals, additions)
+	for i, id := range removalIDs {
+		j, ok := paired[i]
+		if !ok {
+			return nil, nil, nil, fmt.Errorf("%w: the knowledge gate would not pair reviewed rule %s with a rule of the run (a new, active, mechanical rule that replaces it alone is required)", ErrSupersede, id)
+		}
+		for _, p := range rep.Pairs {
+			if p.Old == id && p.New != additionIDs[j] {
+				return nil, nil, nil, fmt.Errorf("%w: reviewed rule %s pairs with %s, not %s", ErrSupersede, id, additionIDs[j], p.New)
+			}
+		}
 	}
 	if len(removed) == 0 && len(added) > 0 {
 		return nil, nil, nil, fmt.Errorf("%w: no reviewed rule matches a rule of the run (that is an apply, not a supersede)", ErrSupersede)
@@ -297,6 +337,22 @@ func planSupersede(base *Pack, run *Run, rep *SupersedeReport) (head *Pack, remo
 		}
 	}
 	return head, removed, added, nil
+}
+
+// PlanSupersede is the planning half of Supersede: the old to new pairs the
+// run would make against the pack, or the refusal. It reads and writes
+// nothing else; the knowledge gate's pairing is held against it in a test.
+func PlanSupersede(packRaw []byte, entries []json.RawMessage) ([]Pair, error) {
+	base, err := ParsePack(packRaw)
+	if err != nil {
+		return nil, err
+	}
+	rep := &SupersedeReport{}
+	if _, _, _, err := planSupersede(base, &Run{Entries: entries}, rep); err != nil {
+		return nil, err
+	}
+	sort.Slice(rep.Pairs, func(i, j int) bool { return rep.Pairs[i].Old < rep.Pairs[j].Old })
+	return rep.Pairs, nil
 }
 
 // Supersede removes the reviewed rules the run's rules replace, adds the
@@ -395,7 +451,7 @@ func auditSupersede(base, final *Pack, removed, added map[string]bool) error {
 			return err
 		}
 		if removed[s.ID] {
-			if s.Evidence.Basis == "mechanical" {
+			if constraintengine.EffectiveBasis(s.Evidence.Basis) != constraintengine.BasisReviewed {
 				return fmt.Errorf("%w: rule %s is not a reviewed rule", ErrForeignChange, s.ID)
 			}
 			seen[s.ID] = true
