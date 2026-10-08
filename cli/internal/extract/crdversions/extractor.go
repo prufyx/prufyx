@@ -858,9 +858,9 @@ func lineRemovals(from, to []*tagState) ([]Removal, []DefinitionRemoval, []strin
 				absentAt = append(absentAt, st)
 			}
 		}
-		if ta.byName[name] == nil && !ta.gone(name) {
-			return nil, nil, nil, problemf("CustomResourceDefinition %s is not under the listed paths at %s and the rest of the repository is not established (scan not clean): a removed definition cannot be told from a moved one", name, ta.tag.Name)
-		}
+		// A definition missing at the later anchor without a clean scan
+		// there is not line-wide (the anchor is in absentAt); the anchor
+		// comparison then withholds the pair.
 		for _, st := range absentAt {
 			if !st.gone(name) {
 				notLineWide = append(notLineWide, fmt.Sprintf("%s: %s is not under the listed paths and the scan is not clean", st.tag.Name, name))

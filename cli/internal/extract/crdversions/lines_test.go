@@ -267,6 +267,11 @@ func TestScanClasses(t *testing.T) {
 		{name: "kustomization with a strategic merge patch", extra: map[string]string{
 			"deploy/kustomization.yaml": "patchesStrategicMerge:\n- p.yaml\npatches:\n- path: p.yaml\n  target:\n    kind: CustomResourceDefinition\n",
 		}, status: extract.PairDerived, class: ClassReference, reason: "strategic merge"},
+		{name: "kustomization naming the kind elsewhere", extra: map[string]string{
+			"deploy/kustomization.yaml": "patches:\n- path: patches/a.yaml\n  target:\n    kind: CustomResourceDefinition\nreplacements:\n- source:\n    kind: CustomResourceDefinition\n",
+			"deploy/patches/a.yaml":     "- op: add\n  path: /metadata/labels/x\n  value: y\n",
+		}, status: extract.PairDerived, class: ClassReference, reason: "outside patch targets"},
+		{name: "reviewed file pattern", extra: map[string]string{"data/kinds.json": `{"kind": "CustomResourceDefinition"}`}, exclude: []Exclusion{{Path: "data/*.json", Reason: "discovery data listing kinds only"}}, status: extract.PairDerived, attestable: true},
 		{name: "consistent copy", extra: map[string]string{"install.yaml": "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: x\n---\n"}, status: extract.PairDerived, attestable: true},
 	}
 	for _, tc := range cases {
