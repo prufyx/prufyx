@@ -498,18 +498,59 @@ accepts it only in this shape:
 - `change` is `{version, basis, sourceId}` with basis `REMOVED_IN_RELEASE`;
   the version is a minor-line start `X.Y.0`, and the anchor pair crosses it;
 - `horizon` is `{lt, basis, sourceId}` with basis `REVIEWED_THROUGH_MINOR_LINE`
-  and a finite minor-line start above C. An empty, wildcard or uncited horizon
-  is rejected. Beyond the horizon the result is UNKNOWN, never BLOCKED;
+  and a finite minor-line start above C, in C's major line and at most 12
+  minor lines above it. An empty, wildcard, uncited or implausibly distant
+  horizon (`999.0.0`) is rejected. Beyond the horizon the result is never
+  BLOCKED;
 - `restored`, optional, is `{version, basis, sourceId}` with basis
-  `RESTORED_IN_RELEASE`; from that release on the result is UNKNOWN;
+  `RESTORED_IN_RELEASE`; the version is a minor-line start `X.Y.0` above C
+  (and, with a range, at or above the end of its target side) and not above
+  the horizon. From that release on the result is never BLOCKED;
+- with a `range`, C equals `range.from.lt` and `range.to.gte`;
 - every `sourceId` names one of the rule's own `evidence.sources`;
 - `distributions`, optional, is a non-empty, strictly ascending list drawn from
   the reviewed normalisers (`gke`, `upstream`); the default is `upstream`
-  only. A version from any other distribution, a downgrade or an unparseable
-  version never matches.
+  only. A crossing match needs both sides in that list. The engine input
+  carries plain X.Y.Z versions, and a version with no declared distribution is
+  read as upstream, so a caller that forwards a normalised GKE version must
+  declare `gke` itself. `distributions` limits only the crossing part of a
+  rule: an anchor or range match does not look at the distribution.
+
+A hop that crosses C but that the rule does not cover (the target is at or
+beyond the horizon or the restoration, or a distribution is outside the list)
+is not an exclusion: the rule is UNDETERMINED in the scope enumeration with
+reason `RULE_CROSSING_NOT_REVIEWED`, so it can never sit next to a
+SCOPE_COMPLETE_PASS. A hop that does not cross C (a downgrade, or both ends on
+one side of C) keeps `RULE_TRANSITION_NOT_REVIEWED` and the exclusion. In a
+document that holds a crossing rule, the same applies to a ranged rule whose
+range pins a release boundary (`REMOVED_IN_RELEASE` or `CHANGED_IN_RELEASE`):
+a hop that crosses its boundary but lies outside the range is undetermined,
+not excluded. Earlier rule schemas keep their behaviour and their digests, so
+a document without a crossing rule still excludes such a hop.
 
 A document holding a crossing rule carries rules schema `v1alpha7` and its own
 engine and scope contract digests; a pack holding one is pack level
 `v1alpha11`. External and project packs do not accept crossing rules. A
 crossing rule cannot be folded into the published pack without the
 maintainer's review and the owner's signature.
+
+The tools that read rules know the crossing:
+
+- `prufyx catalog checks --from A --to B` lists a crossing rule for any
+  strict hop with A < C <= B < cap and reports `matchMode: crossing`;
+- `prufyx assess` never reports NOT_APPLICABLE for a hop that crosses C. With
+  an observed version below C it asks for the target (or, without
+  `--to`, reports APPLICABLE_NEEDS_DECLARATION); a target in [C, cap) is
+  APPLICABLE_NEEDS_DECLARATION with match mode `crossing` and the note that a
+  crossing can block but never passes; a target at or beyond the cap is
+  INDETERMINATE_HOP_OUTSIDE_REVIEWED_RANGE; only a target at or below the
+  observed version, or below C, is NOT_APPLICABLE;
+- `prufyx scan` reports a crossing BLOCK as a finding with `match: crossing`,
+  the disclosure (`crossing`: anchor pair, removal release, cap) and the
+  next action naming the crossing. A crossing never produces a pass. A
+  crossing-only rule leaves a stepped hop undecided when its fact does not
+  block, so a rule meant to keep a stepped plan passable should also carry the
+  reviewed range of the lines it steps through. The seal gate
+  (`MarshalReport`) does not detect a stripped crossing disclosure on its own;
+  `Replay`, which recomputes the report from the input and the rules, is the
+  authority on the match mode.

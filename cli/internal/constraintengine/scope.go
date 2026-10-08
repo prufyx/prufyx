@@ -32,6 +32,12 @@ func ruleApplicability(input inputDocument, scope map[string]struct{}, candidate
 		return applicabilityOutOfScope, ""
 	}
 	if _, reason := subjectAvailability(input, candidate.transition()); reason != "" {
+		// Only a reason that rests on declared evidence excludes a rule;
+		// a hop that crosses a cited removal the rule does not cover is
+		// undetermined.
+		if _, excluded := exclusionReasons[reason]; !excluded {
+			return ApplicabilityUndetermined, reason
+		}
 		return ApplicabilityNotApplicable, reason
 	}
 	for _, applicability := range candidate.AppliesWhen {

@@ -177,6 +177,9 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 			return RuleSet{}, err
 		}
 	}
+	for i := range document.Rules {
+		document.Rules[i].reviewCrossings = document.Schema == RulesSchemaCrossing
+	}
 	if err := validateCorpus(document); err != nil {
 		return RuleSet{}, err
 	}

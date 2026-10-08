@@ -159,8 +159,9 @@ func (h Hop) CoveredBy(t constraintengine.RuleTransition) bool {
 
 // Overlaps reports whether the rule subject matches at least one concrete
 // transition the hop stands for: its anchor pair lies in the hop (the anchor
-// equals an exact end, or lies in a line end), or its range intersects the
-// hop on both sides. Every rule that overlaps a hop applies to some operator
+// equals an exact end, or lies in a line end), its range intersects the hop
+// on both sides, or its removal crossing does (some release of the from end
+// below the removal release, some release of the to end in [C, cap)). Every rule that overlaps a hop applies to some operator
 // taking that hop, so it must be found when the hop is decided, even when it
 // does not match at M.m.0. An endpoint that is neither an exact version nor a
 // line overlaps nothing.
@@ -168,7 +169,24 @@ func (h Hop) Overlaps(t constraintengine.RuleTransition) bool {
 	if h.From.holds(t.From) && h.To.holds(t.To) {
 		return true
 	}
-	return t.Range != nil && h.From.intersects(t.Range.From) && h.To.intersects(t.Range.To)
+	if t.Range != nil && h.From.intersects(t.Range.From) && h.To.intersects(t.Range.To) {
+		return true
+	}
+	if from, to, ok := t.CrossingBounds(); ok {
+		return h.From.intersects(from) && h.To.intersects(to)
+	}
+	return false
+}
+
+// CrossingCovers reports whether the rule's removal crossing matches every
+// concrete transition the hop stands for: every release of the from end lies
+// below the removal release C and every release of the to end in [C, cap). A
+// crossing only blocks, so this licenses reporting a BLOCKED claim for the
+// whole hop; it never licenses a pass (CoveredBy stays the only test for
+// that). An end that is a major line is never covered.
+func (h Hop) CrossingCovers(t constraintengine.RuleTransition) bool {
+	from, to, ok := t.CrossingBounds()
+	return ok && h.From.CoveredBy(from) && h.To.CoveredBy(to)
 }
 
 // span is the half-open release interval a line end stands for:

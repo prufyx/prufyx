@@ -61,6 +61,12 @@ type RuleTransition struct {
 	To        string
 	Range     *VersionRange
 	Crossing  *CrossingSpec
+
+	// reviewCrossings is set only by the engine, for the rules of a document
+	// under the crossing contract. It makes a hop that crosses the rule's
+	// release boundary without matching it a crossing nobody reviewed
+	// (ReasonCrossingNotReviewed), not an exclusion.
+	reviewCrossings bool
 }
 
 // Match reports how the declared transition matches this subject. A version
@@ -76,6 +82,52 @@ func (t RuleTransition) Match(from, to string) MatchMode {
 		return MatchCrossing
 	}
 	return MatchNone
+}
+
+// changeVersion is the release boundary C a rule's reviewed subject is about:
+// the crossing's removal release, or the single release boundary a range pins
+// with a REMOVED_IN_RELEASE or CHANGED_IN_RELEASE basis. A rule with neither
+// has no boundary the engine knows.
+func (t RuleTransition) changeVersion() (string, bool) {
+	if t.Crossing != nil {
+		return t.Crossing.Change.Version, true
+	}
+	if t.Range != nil && len(t.Range.Bounds) == len(boundOrder) {
+		fromLt, toGte := t.Range.Bounds[1], t.Range.Bounds[2]
+		release := func(b RangeBound) bool {
+			return b.Basis == BasisRemovedInRelease || b.Basis == BasisChangedInRelease
+		}
+		if fromLt.Bound == boundFromLt && toGte.Bound == boundToGte && release(fromLt) && release(toGte) && SameVersion(t.Range.From.Lt, t.Range.To.Gte) {
+			return t.Range.From.Lt, true
+		}
+	}
+	return "", false
+}
+
+// crossesUnreviewed reports that a pair which did not match this subject
+// still crosses its release boundary: a strict upgrade from < C <= to. Only
+// under the crossing contract; every other contract keeps its behaviour.
+func (t RuleTransition) crossesUnreviewed(from, to string) bool {
+	if !t.reviewCrossings {
+		return false
+	}
+	change, ok := t.changeVersion()
+	if !ok {
+		return false
+	}
+	below, ok1 := compareVersions(from, change)
+	reached, ok2 := compareVersions(to, change)
+	strict, ok3 := compareVersions(from, to)
+	return ok1 && ok2 && ok3 && below < 0 && reached >= 0 && strict < 0
+}
+
+// CrossingBounds returns the from and to intervals a crossing subject matches:
+// [0.0.0, C) and [C, cap). It reports false for a subject without a crossing.
+func (t RuleTransition) CrossingBounds() (from, to VersionBound, ok bool) {
+	if t.Crossing == nil {
+		return VersionBound{}, VersionBound{}, false
+	}
+	return VersionBound{Gte: "0.0.0", Lt: t.Crossing.Change.Version}, VersionBound{Gte: t.Crossing.Change.Version, Lt: t.Crossing.Cap()}, true
 }
 
 // CrossingAdmits reports whether the observed distributions of the two sides
@@ -237,7 +289,7 @@ func requiredRulesSchema(ranged, setOperator, notice, basis, severity, crossing 
 }
 
 func (r rule) transition() RuleTransition {
-	return RuleTransition{Component: r.Subject.Component, From: r.Subject.From, To: r.Subject.To, Range: r.Range, Crossing: r.Crossing}
+	return RuleTransition{Component: r.Subject.Component, From: r.Subject.From, To: r.Subject.To, Range: r.Range, Crossing: r.Crossing, reviewCrossings: r.reviewCrossings}
 }
 
 // sameVersion is the one exact version equality used by structural guards.

@@ -487,3 +487,62 @@ func TestHopOverlapsProperty(t *testing.T) {
 		t.Fatalf("degenerate sample: %d overlaps", overlaps)
 	}
 }
+
+// A removal crossing overlaps a hop when some concrete transition of the hop
+// matches it, and covers the hop (for a BLOCKED claim only) when every one
+// does. The oracle enumerates each end's lowest and highest release, which
+// bound every release the end stands for.
+func TestHopCrossingOverlapAndCover(t *testing.T) {
+	rule := constraintengine.RuleTransition{Component: k8s, From: "1.24.0", To: "1.25.0", Crossing: &constraintengine.CrossingSpec{
+		Change:  constraintengine.CrossingChange{Version: "1.25.0", Basis: constraintengine.BasisRemovedInRelease, SourceID: "s"},
+		Horizon: constraintengine.CrossingHorizon{Lt: "1.30.0", Basis: constraintengine.BasisReviewedThroughMinorLine, SourceID: "s"},
+	}}
+	extremes := func(e Endpoint) []string {
+		switch {
+		case e.Exact():
+			return []string{e.Version}
+		case e.MinorLine():
+			return []string{e.Line + ".0", e.Line + ".4294967295"}
+		}
+		return []string{e.Line + ".0.0", e.Line + ".4294967295.4294967295"}
+	}
+	ends := []Endpoint{exact("1.21.0"), exact("1.24.17"), exact("1.25.0"), exact("1.29.9"), exact("1.30.0"), exact("2.0.0"), line("1.23"), line("1.24"), line("1.25"), line("1.26"), line("1.29"), line("1.30"), line("2")}
+	crossings, covered := 0, 0
+	for _, f := range ends {
+		for _, to := range ends {
+			hop := Hop{Index: 1, From: f, To: to}
+			some, all := false, true
+			for _, a := range extremes(f) {
+				for _, b := range extremes(to) {
+					matched := rule.Match(a, b) == constraintengine.MatchCrossing || rule.IsAnchor(a, b)
+					some, all = some || matched, all && matched
+				}
+			}
+			// Interior releases of a line that the extremes do not reach are
+			// not needed: the matcher's region is a product of half-open
+			// intervals, so a witness exists iff an extreme is one.
+			if hop.Overlaps(rule) != some {
+				t.Errorf("%v -> %v: Overlaps=%v, oracle %v", f, to, hop.Overlaps(rule), some)
+			}
+			wantCover := all && !hop.From.MajorLine() && !hop.To.MajorLine()
+			if got := hop.CrossingCovers(rule); got != wantCover {
+				t.Errorf("%v -> %v: CrossingCovers=%v, oracle %v", f, to, got, wantCover)
+			}
+			if some {
+				crossings++
+			}
+			if hop.CrossingCovers(rule) {
+				covered++
+			}
+		}
+	}
+	if crossings == 0 || covered == 0 {
+		t.Fatalf("oracle never produced a crossing hop (%d) or a covered one (%d)", crossings, covered)
+	}
+	if (Hop{1, exact("1.24.17"), line("1.25")}).CrossingCovers(constraintengine.RuleTransition{Component: k8s, From: "1.24.0", To: "1.25.0"}) {
+		t.Fatal("a subject without a crossing covers a hop")
+	}
+	if !(Hop{1, exact("1.24.17"), line("1.25")}).CrossingCovers(rule) || !(Hop{1, line("1.24"), line("1.26")}).CrossingCovers(rule) || (Hop{1, line("1.25"), line("1.26")}).CrossingCovers(rule) || (Hop{1, line("1.24"), line("1.30")}).CrossingCovers(rule) {
+		t.Fatal("CrossingCovers does not follow the region [0,C) x [C,cap)")
+	}
+}

@@ -72,6 +72,10 @@ var reasonOutcomes = map[string]outcome{
 	// the hop undecided.
 	constraintengine.ReasonCrossingPassNotReviewed: gapOutcome(scanreport.GapRuleNotDecided),
 
+	// A hop that crosses a cited removal the rule does not cover (beyond the
+	// horizon, or a distribution it does not list) is not reviewed.
+	constraintengine.ReasonCrossingNotReviewed: gapOutcome(scanreport.GapRuleNotDecided),
+
 	// A consensus rule that finds nothing never passes.
 	constraintengine.ReasonConsensusNoKnownIssue: gapOutcome(scanreport.GapRuleNoKnownIssue),
 }

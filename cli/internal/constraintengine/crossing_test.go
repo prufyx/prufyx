@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	pinnedEngineContractDigestCrossing = "sha256:0bf57e93f66e2ad7aaf75101d13071bd1f430975ae3f598122eea88601c5dcd4"
-	pinnedScopeContractDigestCrossing  = "sha256:68cb5cc2a0c5741216665048ba838ac4cb9a9abfef92178569feb9dbaea99570"
+	pinnedEngineContractDigestCrossing = "sha256:0cecf975081479d0cec2d5fb147eeb5c650c7682448dbf9d507eef301405687d"
+	pinnedScopeContractDigestCrossing  = "sha256:335c2eceb9cce054530f7436591d4f7173148827c173e9a1f1c65b30c5861012"
 )
 
 // xRule builds a synthetic crossing rule for tests only: a removal at
@@ -156,8 +156,10 @@ func TestCrossingMatcherTable(t *testing.T) {
 	}
 }
 
-// TestCrossingMutationCheck mutates the crossing spec and the comparison
-// operators and requires the probe table to notice each mutant.
+// TestCrossingMutationCheck mutates the crossing spec (its change version,
+// horizon, restoration and presence) and requires the probe table to notice
+// each mutant. The comparison operators of the matcher are covered by the
+// probe table itself (TestCrossingMatcherTable), not mutated here.
 func TestCrossingMutationCheck(t *testing.T) {
 	baseline := xRender(xProbes, func(r string) RuleTransition { return xTransition(xSpec(r)) })
 	mutants := map[string]func(restored string) RuleTransition{
@@ -227,8 +229,16 @@ func TestCrossingNeverProducesPass(t *testing.T) {
 						t.Errorf("%s: anchor must keep PASS and carry no crossing disclosure: %+v", p.name, claim)
 					}
 				default:
-					if claim.Status != "UNKNOWN" || claim.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED" || claim.CrossingMatch != nil {
-						t.Errorf("%s blocked=%v: outside region = %s/%s", p.name, blocked, claim.Status, claim.ReasonCode)
+					// A pair outside the region keeps UNKNOWN. When it still
+					// crosses C (beyond the horizon, at or above a restoration)
+					// the reason is the crossing contract's undetermined one,
+					// otherwise it stays the exclusion reason.
+					wantReason := "RULE_TRANSITION_NOT_REVIEWED"
+					if VersionLess(p.from, "1.25.0") && !VersionLess(p.to, "1.25.0") && VersionLess(p.from, p.to) {
+						wantReason = ReasonCrossingNotReviewed
+					}
+					if claim.Status != "UNKNOWN" || claim.ReasonCode != wantReason || claim.CrossingMatch != nil {
+						t.Errorf("%s blocked=%v: outside region = %s/%s, want UNKNOWN/%s", p.name, blocked, claim.Status, claim.ReasonCode, wantReason)
 					}
 				}
 				if p.want != MatchAnchor && claim.Status == "PASS" {
@@ -271,6 +281,7 @@ func TestCrossingDistributionScope(t *testing.T) {
 		{"gke listed, upstream observed", `["gke","upstream"]`, "", "", true},
 		{"gke only refuses upstream", `["gke"]`, "upstream", "upstream", false},
 		{"one side outside scope", `["upstream"]`, "upstream", "gke", false},
+		{"from side outside scope", `["upstream"]`, "gke", "upstream", false},
 		{"mixed distributions both listed", `["gke","upstream"]`, "gke", "upstream", true},
 	}
 	for _, tc := range cases {
@@ -315,6 +326,12 @@ func TestCrossingParserRejections(t *testing.T) {
 		"anchor beyond horizon":    mutate(func(x *xRule) { x.horizon = "1.26.0"; x.from = "1.24.0"; x.to = "1.26.0" }),
 		"restored at change":       mutate(func(x *xRule) { x.restored = "1.25.0" }),
 		"restored above horizon":   mutate(func(x *xRule) { x.restored = "1.40.0" }),
+		"restored is a patch":      mutate(func(x *xRule) { x.restored = "1.27.4" }),
+		"restored inside change":   mutate(func(x *xRule) { x.restored = "1.25.3" }),
+		"restored below change":    mutate(func(x *xRule) { x.restored = "1.20.0" }),
+		"horizon 999.0.0":          mutate(func(x *xRule) { x.horizon = "999.0.0" }),
+		"horizon next major":       mutate(func(x *xRule) { x.horizon = "2.0.0" }),
+		"horizon past the limit":   mutate(func(x *xRule) { x.horizon = "1.38.0" }),
 		"distributions empty":      mutate(func(x *xRule) { x.distributions = "[]" }),
 		"distributions unknown":    mutate(func(x *xRule) { x.distributions = `["eks"]` }),
 		"distributions unsorted":   mutate(func(x *xRule) { x.distributions = `["upstream","gke"]` }),
@@ -340,7 +357,9 @@ func TestCrossingParserRejections(t *testing.T) {
 	}
 	good := map[string]string{
 		"plain":            newXRule().json(),
-		"restored":         mutate(func(x *xRule) { x.restored = "1.40.0"; x.horizon = "1.40.0" }),
+		"restored":         mutate(func(x *xRule) { x.restored = "1.30.0" }),
+		"restored at cap":  mutate(func(x *xRule) { x.restored = "1.36.0" }),
+		"horizon at limit": mutate(func(x *xRule) { x.horizon = "1.37.0" }),
 		"gke distribution": mutate(func(x *xRule) { x.distributions = `["gke","upstream"]` }),
 	}
 	for name, rule := range good {
@@ -365,6 +384,46 @@ func TestCrossingParserRejections(t *testing.T) {
 		if _, err := ParseRuleSet(xDocument(RulesSchemaCrossing, raw), scopeRegistry(t)); !errors.Is(err, ErrInvalid) {
 			t.Errorf("%s accepted", bad)
 		}
+	}
+}
+
+// TestCrossingRestoredAndRangeGuards pins the guards the full parser also
+// covers elsewhere, by calling the rule check directly: a restoration must be
+// a minor-line start above the change version and at or above the end of the
+// rule's range target side, and a range must pin the crossing's own release.
+func TestCrossingRestoredAndRangeGuards(t *testing.T) {
+	build := func(restored string, rng *VersionRange) rule {
+		spec := newXRule()
+		spec.restored = restored
+		var r rule
+		if err := json.Unmarshal([]byte(spec.json()), &r); err != nil {
+			t.Fatal(err)
+		}
+		r.Range = rng
+		return r
+	}
+	coherent := &VersionRange{From: VersionBound{Gte: "1.24.0", Lt: "1.25.0"}, To: VersionBound{Gte: "1.25.0", Lt: "1.26.0"}}
+	if err := validateCrossingRule(build("1.26.0", coherent)); err != nil {
+		t.Fatalf("baseline restored at the end of the range: %v", err)
+	}
+	// The width cap keeps a restoration that is a minor-line start above C at
+	// or above the end of the range, so the range floor is only reachable
+	// with a range the width guard would refuse; the check is made on its own.
+	wide := &VersionRange{From: VersionBound{Gte: "1.24.0", Lt: "1.25.0"}, To: VersionBound{Gte: "1.25.0", Lt: "1.28.0"}}
+	reject := map[string]rule{
+		"restored inside the range target": build("1.26.0", wide),
+		"restored is a patch":              build("1.27.4", nil),
+		"restored equals change":           build("1.25.0", nil),
+		"range boundary is not C":          build("", &VersionRange{From: VersionBound{Gte: "1.24.0", Lt: "1.24.5"}, To: VersionBound{Gte: "1.25.0", Lt: "1.26.0"}}),
+		"range target is not C":            build("", &VersionRange{From: VersionBound{Gte: "1.24.0", Lt: "1.25.0"}, To: VersionBound{Gte: "1.25.1", Lt: "1.26.0"}}),
+	}
+	for name, r := range reject {
+		if err := validateCrossingRule(r); !errors.Is(err, ErrInvalid) {
+			t.Errorf("%s: accepted (err=%v)", name, err)
+		}
+	}
+	if CrossingHorizonWithinLimit("1.25.0", "999.0.0") || CrossingHorizonWithinLimit("1.25.0", "2.0.0") || CrossingHorizonWithinLimit("1.25.0", "1.38.0") || CrossingHorizonWithinLimit("1.25.0", "1.24.0") || !CrossingHorizonWithinLimit("1.25.0", "1.37.0") || !CrossingHorizonWithinLimit("1.25.0", "1.26.0") {
+		t.Fatal("horizon limit does not hold")
 	}
 }
 
@@ -451,7 +510,19 @@ func TestCrossingForgedReportsAreRefused(t *testing.T) {
 			r.EngineContractDigest = EngineContractDigest()
 			r.ScopeCompleteness.ContractDigest = ScopeContractDigest()
 		},
-		"engine reason on a plain claim": func(r *Report) { r.Claims[0].CrossingMatch = nil },
+		"not-reviewed reason on a plain claim under another contract": func(r *Report) {
+			r.Claims[0].CrossingMatch = nil
+			r.Claims[0].ReasonCode = ReasonCrossingNotReviewed
+			r.EngineContractDigest = EngineContractDigestSeverity()
+			r.ScopeCompleteness.ContractDigest = ScopeContractDigestSeverity()
+		},
+		"not-reviewed reason on a blocked plain claim": func(r *Report) {
+			r.Claims[0].CrossingMatch = nil
+			r.Claims[0].Status, r.Claims[0].ReasonCode = "BLOCKED", ReasonCrossingNotReviewed
+		},
+		"not-reviewed reason with a crossing disclosure": func(r *Report) {
+			r.Claims[0].Status, r.Claims[0].ReasonCode = "UNKNOWN", ReasonCrossingNotReviewed
+		},
 		"change above the anchor target": func(r *Report) { r.Claims[0].CrossingMatch.Change = "1.26.0" },
 		"cap below change":               func(r *Report) { r.Claims[0].CrossingMatch.CappedAt = "1.24.0" },
 		"wrong mode":                     func(r *Report) { r.Claims[0].CrossingMatch.Mode = "range" },
@@ -533,5 +604,199 @@ func TestCrossingRefusesConsensusAndLeadBasis(t *testing.T) {
 	r.Operator = "require_component_version"
 	if err := validateCrossingRule(r); !errors.Is(err, ErrInvalid) {
 		t.Errorf("wrong operator accepted: %v", err)
+	}
+}
+
+// TestCrossingDefencesInIsolation: each defence against a crossing PASS is
+// exercised on its own, so removing one of them is noticed even though the
+// forged-report table is refused by other checks.
+func TestCrossingDefencesInIsolation(t *testing.T) {
+	crossing := &CrossingMatch{Mode: crossingModeName, AnchorFrom: "1.24.0", AnchorTo: "1.25.0", Change: "1.25.0", CappedAt: "1.36.0"}
+	base := Report{EngineContractDigest: EngineContractDigestCrossing(), Claims: []Claim{{RuleID: "r", Operator: "forbid_predicate_value", Status: "UNKNOWN", ReasonCode: ReasonCrossingPassNotReviewed, CrossingMatch: crossing}}}
+	if !validCrossingClaims(base) {
+		t.Fatal("baseline crossing claim refused")
+	}
+	// A crossing claim with PASS status is refused by validCrossingClaims
+	// alone: no scope block is involved.
+	passing := base
+	passing.Claims = []Claim{base.Claims[0]}
+	passing.Claims[0].Status, passing.Claims[0].ReasonCode = "PASS", "FEATURE_REMOVED"
+	if validCrossingClaims(passing) {
+		t.Error("a PASS crossing claim passed validCrossingClaims")
+	}
+	// deriveAssessment never counts a crossing claim as an anchor review:
+	// even a crossing PASS placed in a component's evaluated list cannot
+	// reach SCOPE_COMPLETE_PASS. The control without the disclosure does.
+	scope := &ScopeCompleteness{Components: []ComponentScope{{Component: scopeComponentA, From: "1.24.0", To: "1.25.0", CorpusAttested: true, EvaluatedRuleIDs: []string{"r"}, NotEvaluated: []NotEvaluatedRule{}}}}
+	control := []Claim{{RuleID: "r", Status: "PASS"}}
+	if got, _, err := deriveAssessment(scope, control); err != nil || got != AssessmentScopeCompletePass {
+		t.Fatalf("control (anchor PASS) = %q, %v", got, err)
+	}
+	forged := []Claim{{RuleID: "r", Status: "PASS", CrossingMatch: crossing}}
+	if got, _, err := deriveAssessment(scope, forged); err != nil || got == AssessmentScopeCompletePass {
+		t.Fatalf("crossing PASS reached %q (%v)", got, err)
+	}
+}
+
+// TestCrossingStrippedDisclosureLimit documents what the seal gate cannot do:
+// MarshalReport accepts a BLOCKED claim whose crossing disclosure was
+// stripped, because nothing in the report says the claim matched by crossing
+// once the disclosure is gone. Replay, which recomputes the report from the
+// input and the rules, is the authority on the match mode and refuses it. The
+// same holds for a range disclosure.
+func TestCrossingStrippedDisclosureLimit(t *testing.T) {
+	rules := parseCrossing(t, newXRule().json())
+	now := testNow(t)
+	input := xInput(t, "1.21.0", "1.35.0", "", "", false)
+	report, err := Evaluate(input, rules, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Claims[0].Status != "UNKNOWN" || report.Claims[0].CrossingMatch == nil {
+		t.Fatalf("fixture is not a crossing hop: %+v", report.Claims[0])
+	}
+	// The forgery: the claim is relabelled PASS with its disclosure removed,
+	// and the scope block and aggregate are rewritten to agree.
+	forged := report
+	forged.Claims = append([]Claim(nil), report.Claims...)
+	forged.Claims[0].Status, forged.Claims[0].ReasonCode, forged.Claims[0].CrossingMatch = "PASS", "FEATURE_REMOVED", nil
+	scope := *report.ScopeCompleteness
+	scope.Components = append([]ComponentScope(nil), scope.Components...)
+	scope.Components[0].EvaluatedRuleIDs = []string{forged.Claims[0].RuleID}
+	scope.Components[0].NotEvaluated = []NotEvaluatedRule{}
+	scope.Resolved, scope.UnresolvedReason = true, ""
+	forged.ScopeCompleteness = &scope
+	forged.Assessment = AssessmentScopeCompletePass
+	forged.Omissions = requiredOmissions(AssessmentScopeCompletePass)
+	raw, err := MarshalReport(issueReport(forged))
+	if err != nil {
+		t.Skipf("the seal gate now refuses a stripped disclosure; update this test and the documentation: %v", err)
+	}
+	if _, err := Replay(input, rules, now, raw); !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("Replay accepted a stripped crossing disclosure: %v", err)
+	}
+}
+
+// TestCrossingUnreviewedIsUndeterminedInScope: a hop that crosses a cited
+// removal the rule does not cover (beyond the horizon, or a distribution the
+// rule does not list) is undetermined in scope, never an exclusion, so a
+// wide anchor rule that passes next to it can never give SCOPE_COMPLETE_PASS
+// while the removal fact is true. This is the reviewer's M3 probe.
+func TestCrossingUnreviewedIsUndeterminedInScope(t *testing.T) {
+	now := testNow(t)
+	wide := func(to string) string {
+		return scopeRule("anchor-wide", "require_component_version", scopeComponentA, "1.21.0", to, "active", activeUntil, `,"dependency":{"side":"proposed","component":"`+scopeComponentA+`","comparison":"gte","version":"1.0.0"}`)
+	}
+	cases := []struct {
+		name, to, fromDist, toDist string
+	}{
+		{"distribution out of scope", "1.30.0", "gke", "gke"},
+		{"beyond the horizon", "1.36.0", "", ""},
+		{"far beyond the horizon", "1.40.2", "", ""},
+	}
+	for _, tc := range cases {
+		rules := parseCrossing(t, wide(tc.to), newXRule().json())
+		report, err := Evaluate(xInput(t, "1.21.0", tc.to, tc.fromDist, tc.toDist, true), rules, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if report.Assessment == AssessmentScopeCompletePass || report.Assessment == AssessmentBlocked {
+			t.Errorf("%s: assessment %s with a true removal fact", tc.name, report.Assessment)
+		}
+		var found bool
+		for _, skipped := range report.ScopeCompleteness.Components[0].NotEvaluated {
+			if skipped.RuleID == "crossing-rule" {
+				found = true
+				if skipped.Applicability != ApplicabilityUndetermined || skipped.ReasonCode != ReasonCrossingNotReviewed {
+					t.Errorf("%s: crossing rule is %s/%s, want UNDETERMINED/%s", tc.name, skipped.Applicability, skipped.ReasonCode, ReasonCrossingNotReviewed)
+				}
+			}
+		}
+		if !found || report.ScopeCompleteness.Resolved {
+			t.Errorf("%s: crossing rule not enumerated or scope resolved: %+v", tc.name, report.ScopeCompleteness)
+		}
+		if _, err := MarshalReport(report); err != nil {
+			t.Errorf("%s: report refused: %v", tc.name, err)
+		}
+	}
+	// A hop that does not cross C stays an exclusion and the wide anchor can
+	// still pass: the new reason applies only to a hop that crosses.
+	rules := parseCrossing(t, scopeRule("anchor-low", "require_component_version", scopeComponentA, "1.26.0", "1.30.0", "active", activeUntil, `,"dependency":{"side":"proposed","component":"`+scopeComponentA+`","comparison":"gte","version":"1.0.0"}`), newXRule().json())
+	report, err := Evaluate(xInput(t, "1.26.0", "1.30.0", "", "", true), rules, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Assessment != AssessmentScopeCompletePass {
+		t.Errorf("a hop above C with a passing anchor rule: assessment %s, want %s", report.Assessment, AssessmentScopeCompletePass)
+	}
+	for _, skipped := range report.ScopeCompleteness.Components[0].NotEvaluated {
+		if skipped.RuleID == "crossing-rule" && (skipped.Applicability != ApplicabilityNotApplicable || skipped.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED") {
+			t.Errorf("a hop above C: crossing rule is %s/%s, want NOT_APPLICABLE/RULE_TRANSITION_NOT_REVIEWED", skipped.Applicability, skipped.ReasonCode)
+		}
+	}
+}
+
+// TestRangeReleaseBoundaryUnreviewedUnderCrossingContract: the same hole the
+// crossing had exists for a ranged rule whose range pins a release boundary
+// (REMOVED_IN_RELEASE / CHANGED_IN_RELEASE): a hop that crosses the boundary
+// but lies outside the range is excluded as NOT_APPLICABLE, so a wide anchor
+// rule can give SCOPE_COMPLETE_PASS next to a removal the engine knows the hop
+// crosses. Earlier contracts keep that behaviour (their digests and reports
+// are pinned); under the crossing contract the rule is undetermined.
+func TestRangeReleaseBoundaryUnreviewedUnderCrossingContract(t *testing.T) {
+	now := testNow(t)
+	ranged := defaultRangeSpec()
+	ranged.id, ranged.operator, ranged.fact = "range-removal", "forbid_target_version", ""
+	wide := scopeRule("anchor-wide", "require_component_version", scopeComponentA, "1.21.0", "1.30.0", "active", activeUntil, `,"dependency":{"side":"proposed","component":"`+scopeComponentA+`","comparison":"gte","version":"1.0.0"}`)
+	input := func() Input { return xInput(t, "1.21.0", "1.30.0", "", "", false) }
+
+	// Under the ranged schema (no crossing rule): unchanged exclusion.
+	old, err := ParseRuleSet(rangeDocument(RulesSchemaRanged, true, wide, ranged.ruleJSON()), scopeRegistry(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := Evaluate(input(), old, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Assessment != AssessmentScopeCompletePass {
+		t.Fatalf("earlier contract changed behaviour: %s", report.Assessment)
+	}
+	for _, skipped := range report.ScopeCompleteness.Components[0].NotEvaluated {
+		if skipped.RuleID == "range-removal" && (skipped.Applicability != ApplicabilityNotApplicable || skipped.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED") {
+			t.Fatalf("earlier contract: %+v", skipped)
+		}
+	}
+
+	// Under the crossing schema (a crossing rule elsewhere in the document):
+	// the ranged rule is undetermined and the scope cannot pass.
+	other := newXRule()
+	other.id = "crossing-other"
+	other.from, other.to, other.change, other.horizon = "1.40.0", "1.41.0", "1.41.0", "1.45.0"
+	fresh, err := ParseRuleSet(xDocument(RulesSchemaCrossing, wide, other.json(), ranged.ruleJSON()), scopeRegistry(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err = Evaluate(input(), fresh, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Assessment == AssessmentScopeCompletePass {
+		t.Fatalf("range release-boundary rule excluded under the crossing contract")
+	}
+	var seen bool
+	for _, skipped := range report.ScopeCompleteness.Components[0].NotEvaluated {
+		if skipped.RuleID == "range-removal" {
+			seen = true
+			if skipped.Applicability != ApplicabilityUndetermined || skipped.ReasonCode != ReasonCrossingNotReviewed {
+				t.Errorf("range rule is %s/%s, want UNDETERMINED/%s", skipped.Applicability, skipped.ReasonCode, ReasonCrossingNotReviewed)
+			}
+		}
+	}
+	if !seen {
+		t.Fatalf("range rule not enumerated: %+v", report.ScopeCompleteness)
+	}
+	if _, err := MarshalReport(report); err != nil {
+		t.Fatalf("report refused: %v", err)
 	}
 }

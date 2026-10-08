@@ -48,6 +48,21 @@ const (
 	// whose fact did not block: nothing reviewed covers the whole hop.
 	ReasonCrossingPassNotReviewed = "RULE_CROSSING_PASS_NOT_REVIEWED"
 
+	// ReasonCrossingNotReviewed is the reason of a rule whose reviewed
+	// removal (or release boundary) the declared hop crosses (from < C <= to)
+	// but that the rule does not cover: the target is beyond the cited
+	// horizon or at or above the restoration, or the observed distribution
+	// is outside the rule's reviewed list. The engine knows the hop crosses
+	// a cited removal, so the rule is UNDETERMINED in scope, never an
+	// exclusion: absence of a match is not evidence that the hop is safe.
+	ReasonCrossingNotReviewed = "RULE_CROSSING_NOT_REVIEWED"
+
+	// CrossingMaxHorizonLines bounds how far above the change version a
+	// horizon may reach, in minor lines of the same major line. A horizon
+	// asserts a review of every line below it, so it may not outrun the
+	// lines a reviewer can plausibly have read.
+	CrossingMaxHorizonLines = 12
+
 	crossingModeName = "crossing"
 
 	// DistributionUpstream is the distribution of a version declared as a
@@ -61,7 +76,7 @@ const (
 	crossingNextActionShort    = "; matched by removal crossing %s"
 	crossingPassAction         = "no reviewed rule covers this whole hop; a removal crossing never passes; retain actual versions and request reviewed coverage"
 
-	crossingSemantics = "crossing:forbid-operators-only;basis:" + BasisRemovedInRelease + ";horizon:" + BasisReviewedThroughMinorLine + ":finite-cited;restored:" + BasisRestoredInRelease + ":caps-horizon;match:A<C<=B<min(horizon,restored);order:anchor,range,crossing;distributions:upstream,gke;never-pass;pass-becomes:" + ReasonCrossingPassNotReviewed + ";beyond-horizon:unknown;downgrade:unknown;unparseable:unknown"
+	crossingSemantics = "crossing:forbid-operators-only;basis:" + BasisRemovedInRelease + ";horizon:" + BasisReviewedThroughMinorLine + ":finite-cited;restored:" + BasisRestoredInRelease + ":caps-horizon;match:A<C<=B<min(horizon,restored);order:anchor,range,crossing;distributions:upstream,gke;never-pass;pass-becomes:" + ReasonCrossingPassNotReviewed + ";beyond-horizon:unknown;downgrade:unknown;unparseable:unknown;restored:minor-line-start-above-change-and-range;horizon:same-major-at-most-12-minor-lines-above-change;unreviewed-crossing:" + ReasonCrossingNotReviewed + ":undetermined-in-scope;range-release-boundary-unreviewed:" + ReasonCrossingNotReviewed + ":undetermined-in-scope"
 )
 
 // reviewedDistributions is the closed list of distributions whose versions
@@ -128,6 +143,25 @@ func (c CrossingSpec) contains(from, to string) bool {
 	return ok1 && ok2 && ok3 && ok4 && below < 0 && reached >= 0 && capped < 0 && strict < 0
 }
 
+// Crosses reports whether the pair is a crossing hop of this spec: a strict
+// upgrade with from < C <= to < Cap, both versions valid.
+func (c CrossingSpec) Crosses(from, to string) bool { return c.contains(from, to) }
+
+// MinorLineStart reports whether the version is a valid X.Y.0.
+func MinorLineStart(version string) bool {
+	parsed, ok := parseVersion(version)
+	return ok && minorStart(parsed)
+}
+
+// CrossingHorizonWithinLimit reports whether the horizon is a valid minor-line
+// start of the change version's major line, at most CrossingMaxHorizonLines
+// minor lines above the change version. Both versions must be valid.
+func CrossingHorizonWithinLimit(change, horizon string) bool {
+	c, ok1 := parseVersion(change)
+	h, ok2 := parseVersion(horizon)
+	return ok1 && ok2 && c[0] == h[0] && h[1] >= c[1] && uint64(h[1])-uint64(c[1]) <= CrossingMaxHorizonLines
+}
+
 // admits reports whether both observed distributions are in the rule's
 // scope. An undeclared distribution is upstream; an absent list means
 // upstream only.
@@ -151,8 +185,8 @@ func (r rule) usesCrossing() bool { return r.Crossing != nil }
 // validateCrossingRule checks the crossing object of one rule. Every failure
 // is ErrInvalid: a crossing the engine cannot fully check is never admitted.
 func validateCrossingRule(r rule) error {
-	if r.ReasonCode == ReasonCrossingPassNotReviewed {
-		return fmt.Errorf("reason code %s belongs to the engine: %w", ReasonCrossingPassNotReviewed, ErrInvalid)
+	if r.ReasonCode == ReasonCrossingPassNotReviewed || r.ReasonCode == ReasonCrossingNotReviewed {
+		return fmt.Errorf("reason code %s belongs to the engine: %w", r.ReasonCode, ErrInvalid)
 	}
 	c := r.Crossing
 	if c == nil {
@@ -184,6 +218,9 @@ func validateCrossingRule(r rule) error {
 	if cmp, _ := compareVersions(c.Change.Version, c.Horizon.Lt); cmp >= 0 {
 		return fail("horizon must be above the change version")
 	}
+	if !CrossingHorizonWithinLimit(c.Change.Version, c.Horizon.Lt) {
+		return fail(fmt.Sprintf("horizon must stay in the change version's major line and at most %d minor lines above it", CrossingMaxHorizonLines))
+	}
 	sources := make(map[string]bool, len(r.Evidence.Sources))
 	for _, source := range r.Evidence.Sources {
 		sources[source.ID] = true
@@ -196,13 +233,23 @@ func validateCrossingRule(r rule) error {
 		if c.Restored.Basis != BasisRestoredInRelease || !cited(c.Restored.SourceID) {
 			return fail("restored must carry basis " + BasisRestoredInRelease + " and a cited source")
 		}
-		if _, ok := parseVersion(c.Restored.Version); !ok {
-			return fail("restored version")
+		restored, ok := parseVersion(c.Restored.Version)
+		if !ok || !minorStart(restored) {
+			return fail("restored version must be a minor-line start X.Y.0")
+		}
+		// A restoration lies above everything the rule's own subject
+		// matches: above the change version and, with a range, at or above
+		// the end of its target side. Otherwise a hop past the restoration
+		// would still range-match and be BLOCKED for a served API.
+		floor := c.Change.Version
+		if r.Range != nil {
+			floor = r.Range.To.Lt
 		}
 		above, _ := compareVersions(c.Restored.Version, c.Change.Version)
+		aboveRange, aboveRangeOK := compareVersions(c.Restored.Version, floor)
 		within, _ := compareVersions(c.Restored.Version, c.Horizon.Lt)
-		if above <= 0 || within > 0 {
-			return fail("restored must lie above the change version and not above the horizon")
+		if above <= 0 || !aboveRangeOK || aboveRange < 0 || within > 0 {
+			return fail("restored must lie above the change version and the range, and not above the horizon")
 		}
 	}
 	if c.Distributions != nil {
@@ -289,26 +336,44 @@ type CrossingMatch struct {
 // discloses the match, keeps BLOCKED, and turns a would-be PASS into UNKNOWN.
 // Every other UNKNOWN passes through unchanged.
 func applyCrossing(claim Claim, r rule) Claim {
-	c := r.Crossing
-	claim.CrossingMatch = &CrossingMatch{Mode: crossingModeName, AnchorFrom: r.Subject.From, AnchorTo: r.Subject.To, Change: c.Change.Version, CappedAt: c.Cap()}
+	claim.CrossingMatch = NewCrossingMatch(r.transition())
 	if claim.Status == "PASS" {
 		claim.Status, claim.ReasonCode = "UNKNOWN", ReasonCrossingPassNotReviewed
 		claim.NextAction = boundedAction(crossingPassAction, "no reviewed rule covers this whole hop")
 		return claim
 	}
-	action := boundedAction(claim.NextAction+fmt.Sprintf(crossingNextActionTemplate, c.Change.Version, r.Subject.From, r.Subject.To), "")
-	if action == "" {
-		action = boundedAction(claim.NextAction+fmt.Sprintf(crossingNextActionShort, c.Change.Version), claim.NextAction)
-	}
-	claim.NextAction = action
+	claim.NextAction = CrossingNextAction(claim.NextAction, r.transition())
 	return claim
+}
+
+// NewCrossingMatch is the disclosure of a crossing subject: its reviewed
+// anchor pair, the removal release and the exclusive upper bound. It is nil
+// for a subject without a crossing.
+func NewCrossingMatch(t RuleTransition) *CrossingMatch {
+	if t.Crossing == nil {
+		return nil
+	}
+	return &CrossingMatch{Mode: crossingModeName, AnchorFrom: t.From, AnchorTo: t.To, Change: t.Crossing.Change.Version, CappedAt: t.Crossing.Cap()}
+}
+
+// CrossingNextAction appends the crossing disclosure to a rule's next
+// action, within the bound every next action keeps.
+func CrossingNextAction(action string, t RuleTransition) string {
+	if t.Crossing == nil {
+		return action
+	}
+	full := boundedAction(action+fmt.Sprintf(crossingNextActionTemplate, t.Crossing.Change.Version, t.From, t.To), "")
+	if full == "" {
+		full = boundedAction(action+fmt.Sprintf(crossingNextActionShort, t.Crossing.Change.Version), action)
+	}
+	return full
 }
 
 // engineContractDigestCrossing identifies the contract for rule documents
 // that hold a crossing rule. It extends the severity contract with the
 // crossing object, the crossing disclosure and its semantics.
 func engineContractDigestCrossing() string {
-	return digestBytes([]byte(engineContractDigestSeverity() + "\n" + RulesSchemaCrossing + "\nrule:crossing\nclaim:crossingMatch\nsubject:" + crossingModeName + "\nreason:" + ReasonCrossingPassNotReviewed + "\n" + crossingSemantics))
+	return digestBytes([]byte(engineContractDigestSeverity() + "\n" + RulesSchemaCrossing + "\nrule:crossing\nclaim:crossingMatch\nsubject:" + crossingModeName + "\nreason:" + ReasonCrossingPassNotReviewed + "\nreason:" + ReasonCrossingNotReviewed + "\n" + crossingSemantics))
 }
 
 // EngineContractDigestCrossing exposes the contract identity for rule
@@ -318,7 +383,7 @@ func EngineContractDigestCrossing() string { return engineContractDigestCrossing
 // scopeContractDigestCrossing adds crossing rules to the severity scope
 // vocabulary. It is used only with the crossing engine contract.
 func scopeContractDigestCrossing() string {
-	return digestBytes([]byte(scopeContractDigestSeverity() + "\n" + ScopeContractVersionCrossing + "\n" + crossingSemantics + "\nnotEvaluated:" + ApplicabilityUndetermined + ":" + ReasonCrossingPassNotReviewed))
+	return digestBytes([]byte(scopeContractDigestSeverity() + "\n" + ScopeContractVersionCrossing + "\n" + crossingSemantics + "\nnotEvaluated:" + ApplicabilityUndetermined + ":" + ReasonCrossingPassNotReviewed + "\nnotEvaluated:" + ApplicabilityUndetermined + ":" + ReasonCrossingNotReviewed))
 }
 
 // ScopeContractDigestCrossing exposes the crossing scope-completeness
@@ -335,12 +400,20 @@ func atLeastSeverityContract(digest string) bool {
 // a claim that discloses a crossing match is legal only under it, comes from a
 // forbid operator, is never a PASS, and holds a well-formed disclosure; the
 // crossing reason code appears only on such a claim.
+//
+// It cannot tell that a disclosure was stripped from a claim that is
+// otherwise well formed: once the disclosure is gone nothing in the report
+// says the claim matched by crossing (the same holds for a range disclosure).
+// Replay, which recomputes the whole report from the input and the rules, is
+// the authority on the match mode; the seal gate is not.
 func validCrossingClaims(report Report) bool {
 	crossingContract := report.EngineContractDigest == engineContractDigestCrossing()
 	for _, claim := range report.Claims {
 		match := claim.CrossingMatch
 		if match == nil {
-			if claim.ReasonCode == ReasonCrossingPassNotReviewed {
+			// The pass reason is the disclosure of a crossing match; the
+			// not-reviewed reason is the crossing contract's own UNKNOWN.
+			if claim.ReasonCode == ReasonCrossingPassNotReviewed || claim.ReasonCode == ReasonCrossingNotReviewed && (!crossingContract || claim.Status != "UNKNOWN") {
 				return false
 			}
 			continue
@@ -348,7 +421,7 @@ func validCrossingClaims(report Report) bool {
 		if !crossingContract || match.Mode != crossingModeName || claim.Status == "PASS" || claim.SubjectMatch != nil || claim.Operator != "forbid_predicate_value" && claim.Operator != OperatorForbidSetMember || claim.IsLead() || claim.EvidenceBasis == BasisConsensus {
 			return false
 		}
-		if claim.ReasonCode == ReasonCrossingPassNotReviewed && claim.Status != "UNKNOWN" || claim.Status == "UNKNOWN" && claim.ReasonCode == "RULE_TRANSITION_NOT_REVIEWED" {
+		if claim.ReasonCode == ReasonCrossingPassNotReviewed && claim.Status != "UNKNOWN" || claim.Status == "UNKNOWN" && (claim.ReasonCode == "RULE_TRANSITION_NOT_REVIEWED" || claim.ReasonCode == ReasonCrossingNotReviewed) {
 			return false
 		}
 		change, changeOK := parseVersion(match.Change)

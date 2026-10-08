@@ -172,12 +172,22 @@ func subjectAvailability(input inputDocument, subject RuleTransition) (MatchMode
 	}
 	mode := subject.Match(current.Version, proposed.Version)
 	if mode == MatchNone {
+		// A pair outside the subject is an exclusion only when it does not
+		// cross the release boundary the subject is about. A hop that does
+		// cross it (beyond the horizon, at or above a restoration, wider
+		// than the reviewed range) is not reviewed, which is not the same
+		// as not applicable.
+		if subject.crossesUnreviewed(current.Version, proposed.Version) {
+			return MatchNone, ReasonCrossingNotReviewed
+		}
 		return MatchNone, "RULE_TRANSITION_NOT_REVIEWED"
 	}
 	// A crossing match compares versions across distributions only when both
-	// sides come through a reviewed normaliser the rule lists.
+	// sides come through a reviewed normaliser the rule lists. The hop
+	// crosses the cited removal, so a distribution the rule does not list is
+	// not reviewed rather than excluded.
 	if mode == MatchCrossing && !subject.CrossingAdmits(current.Distribution, proposed.Distribution) {
-		return MatchNone, "RULE_TRANSITION_NOT_REVIEWED"
+		return MatchNone, ReasonCrossingNotReviewed
 	}
 	return mode, ""
 }

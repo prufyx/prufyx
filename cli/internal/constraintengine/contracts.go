@@ -306,6 +306,10 @@ type rule struct {
 	Evidence   evidence      `json:"evidence"`
 	ReasonCode string        `json:"reasonCode"`
 	NextAction string        `json:"nextAction"`
+
+	// reviewCrossings is set by ParseRuleSet when the document carries the
+	// crossing schema; it is never serialised (see RuleTransition).
+	reviewCrossings bool
 }
 
 type transition struct {
