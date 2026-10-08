@@ -34,7 +34,7 @@
           "executionSuccessful": true,
           "exitCode": 11,
           "exitCodeDescription": "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (7 other areas were not checked)",
-          "startTimeUtc": "2026-10-04T00:00:00Z",
+          "startTimeUtc": "2026-11-20T00:00:00Z",
           "toolExecutionNotifications": [
             {
               "level": "warning",
@@ -179,7 +179,7 @@
           "leads": 0,
           "unsupported": 0
         },
-        "evaluatedAt": "2026-10-04T00:00:00Z",
+        "evaluatedAt": "2026-11-20T00:00:00Z",
         "inputDigest": "sha256:e82ec12fddc5793f21b09d3c46f07b142b8bd96ab4ea1c1e338133948dd8a07d",
         "knowledgeOrigin": "embedded",
         "knowledgeRevision": "cncf-2026-09-13.4",
