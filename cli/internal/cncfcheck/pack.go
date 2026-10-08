@@ -583,8 +583,15 @@ func (b bundle) selectForInput(project string, raw []byte) (selection, error) {
 		if err != nil {
 			return selection{}, ErrIntegrity
 		}
-		if subject.Match(current[subject.Component], proposed[subject.Component]) != constraintengine.MatchNone {
+		from, to := current[subject.Component], proposed[subject.Component]
+		matches := subject.Match(from, to) != constraintengine.MatchNone
+		// A rule whose release boundary the pair crosses outside its reviewed
+		// range is kept so the engine reports it as unreviewed; it is not a
+		// matching verdict rule, so it never decides the fallback.
+		if matches || subject.CrossesUnreviewed(from, to) {
 			matched = append(matched, entry.Rule)
+		}
+		if matches {
 			notice, err := isVerdictNeutralRule(entry.Rule)
 			if err != nil {
 				return selection{}, ErrIntegrity
@@ -695,8 +702,15 @@ func (b bundle) selectFamily(project string, facts []string, raw []byte) (select
 		if err != nil {
 			return selection{}, ErrIntegrity
 		}
-		if subject.Match(current[subject.Component], proposed[subject.Component]) != constraintengine.MatchNone {
+		from, to := current[subject.Component], proposed[subject.Component]
+		matches := subject.Match(from, to) != constraintengine.MatchNone
+		// A rule whose release boundary the pair crosses outside its reviewed
+		// range is kept so the engine reports it as unreviewed; it is not a
+		// matching verdict rule, so it never decides the fallback.
+		if matches || subject.CrossesUnreviewed(from, to) {
 			matched = append(matched, entry.Rule)
+		}
+		if matches {
 			notice, err := isVerdictNeutralRule(entry.Rule)
 			if err != nil {
 				return selection{}, ErrIntegrity

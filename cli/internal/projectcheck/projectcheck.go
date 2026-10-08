@@ -308,7 +308,7 @@ func (b bundle) ruleSetSelected(project, from, to, requestedRuleID string) (cons
 		if err != nil || json.Unmarshal(e.Rule, &binding) != nil {
 			return constraintengine.RuleSet{}, 0, "", ErrIntegrity
 		}
-		if (from == "" && to == "" || subject.Match(from, to) != constraintengine.MatchNone) && (requestedRuleID == "" || binding.ID == requestedRuleID) {
+		if (from == "" && to == "" || subject.Match(from, to) != constraintengine.MatchNone || subject.CrossesUnreviewed(from, to)) && (requestedRuleID == "" || binding.ID == requestedRuleID) {
 			rules = append(rules, e.Rule)
 			if requestedRuleID != "" {
 				selectedRuleID = binding.ID
