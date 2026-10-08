@@ -68,8 +68,8 @@ jobs:
         # run has no -run filter, so a tagged test is never skipped for its name
         # (TestCISyntheticPackagesAreCovered fails when a package is missing).
         run: |
-          go vet -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/ ./internal/onecommand/ ./internal/scanrun/ ./internal/maintainer/knowledgegate/
-          go test -timeout 60m -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/ ./internal/onecommand/ ./internal/scanrun/ ./internal/maintainer/knowledgegate/
+          go vet -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/ ./internal/onecommand/ ./internal/scanrun/ ./internal/maintainer/knowledgegate/ ./internal/maintainer/knowledgetargets/ ./internal/maintainer/knowledgerelease/
+          go test -timeout 60m -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/ ./internal/onecommand/ ./internal/scanrun/ ./internal/maintainer/knowledgegate/ ./internal/maintainer/knowledgetargets/ ./internal/maintainer/knowledgerelease/
 
       - name: Validate community rule candidates
         working-directory: cli
