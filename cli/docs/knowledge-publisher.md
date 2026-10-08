@@ -270,3 +270,27 @@ path instead.
 This command creates no release plan, feed, trust bootstrap, or custody proof.
 It preserves a complete valid empty replacement target for an intentional
 withdrawal; malformed or incomplete target metadata is rejected.
+
+## Hosted knowledge release workflow
+
+`.github/workflows/knowledge-release.yml` can build one signed knowledge
+release from CI. It is disabled until the repository variable
+`KNOWLEDGE_RELEASE_ENABLED` is exactly `true`. Its job runs in the protected
+GitHub environment `knowledge-release`, and the three TUF role keys and their
+passphrase are the only secrets it reads. Before setting the variable, the
+repository owner must:
+
+1. Create the environment `knowledge-release` (Settings, Environments) with
+   the owner as required reviewer, so every run waits for an explicit approval.
+2. Limit the environment's deployment branches to `main`, so a run started
+   from another branch (a branch copy of the workflow) cannot use the secrets.
+3. Store the signing secrets as secrets of that environment, not as
+   repository secrets, and make sure no repository-level secret with the same
+   names exists, so no other job can read them.
+
+Create the environment before the first run: GitHub creates a referenced
+environment that does not exist automatically, with no protection rules.
+
+The job does not restore a Go build cache and does not keep the job token in
+the checkout, so nothing another workflow run wrote can reach the signing step.
+The root signing key is never used by CI and stays offline.
