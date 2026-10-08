@@ -338,7 +338,7 @@ func renewedValidUntil(stmt evidencereattest.Statement, id string) (string, bool
 
 // admitRecord decides a loosening change of a reviewed record. Mechanical
 // record changes go to re-derivation instead (see Verify).
-func admitRecord(c *Change, stmt statementResult, loadKeys func() (*ApprovalKeys, error), crossCheck func(pack string, r *record) error, base *baseApprovals, opts Options) {
+func admitRecord(c *Change, stmt statementResult, loadKeys func() (*ApprovalKeys, error), crossCheck func(pack string, r *record) error, base *baseApprovals, batch *batchResult, opts Options) {
 	h := c.rhead
 	if h == nil {
 		c.fail("a path policy may not be removed (without it a path is planned as one direct hop); withdraw it instead")
@@ -346,6 +346,21 @@ func admitRecord(c *Change, stmt statementResult, loadKeys func() (*ApprovalKeys
 	}
 	if h.Basis != constraintengine.BasisReviewed || (c.rbase != nil && c.rbase.mechanical()) {
 		c.fail(fmt.Sprintf("evidence basis %q of this record is not admitted here", logSafe(h.Basis)))
+		return
+	}
+	if batch != nil && c.Section == sectionAttestations {
+		// A batch alone decides the change's reviewed attestations; the
+		// extractor cross-check still applies to each.
+		switch {
+		case !batch.admits(c):
+			c.fail("a reviewed line attestation may change only with an owner approval and the extractor cross-check: " + batch.refusal(c))
+		default:
+			if err := crossCheck(c.Pack, h); err != nil {
+				c.fail("a reviewed line attestation may change only with an owner approval and the extractor cross-check: cross-check with the extractor: " + err.Error())
+				return
+			}
+			c.OK, c.Proof = true, ProofBatchApproval
+		}
 		return
 	}
 	var reasons []string
@@ -442,6 +457,11 @@ type baseApprovals struct {
 	loaded bool
 	list   []baseApproval
 	err    error
+
+	// The base's batch approvals (loadBatches).
+	batchesLoaded bool
+	batches       []baseBatch
+	batchesErr    error
 }
 
 func (b *baseApprovals) load() ([]baseApproval, error) {
@@ -481,9 +501,10 @@ func (b *baseApprovals) load() ([]baseApproval, error) {
 //     encoded and wherever it sits: an approval admits the change it arrives
 //     with, never a later one (a record can be removed, tightening, and
 //     added again, so the base state alone does not stop a replay);
-//   - a base record approval for the same record ID (any pack, any path) was
-//     decided at the same time or later: decisions about one record only
-//     move forward, so an approval the owner superseded cannot be put back.
+//   - a base record approval for the same record ID (any pack, any path), or
+//     an entry of a base batch approval for it, was decided at the same time
+//     or later: decisions about one record only move forward, so an approval
+//     the owner superseded cannot be put back.
 //
 // An approval that does not decode is left to verification, which refuses
 // it.
@@ -508,6 +529,11 @@ func (b *baseApprovals) refuse(raw []byte) (string, error) {
 		if headErr != nil || err != nil || !headAt.After(baseAt) {
 			return "the base holds an approval for this record decided at the same time or later (" + logSafe(base.path) + "): an earlier or concurrent decision cannot replace it", nil
 		}
+	}
+	// A batch decision about the record counts too: an approval older
+	// than a merged batch entry for the record cannot replace it.
+	if head.Record.Subject != "" {
+		return b.batchRecordDecision(head.Record.Subject, head.Record.RuleID, headAt, headErr)
 	}
 	return "", nil
 }

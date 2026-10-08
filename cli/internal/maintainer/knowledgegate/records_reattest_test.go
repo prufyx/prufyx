@@ -388,7 +388,7 @@ func TestAdmitRecordChecksTheStatement(t *testing.T) {
 			edit(&c)
 		}
 		c.OK, c.Proof, c.Detail = false, "", ""
-		admitRecord(&c, stmt, noKeys, noCheck, &baseApprovals{opts: o}, o)
+		admitRecord(&c, stmt, noKeys, noCheck, &baseApprovals{opts: o}, nil, o)
 		return &c
 	}
 	if c := run(good, nil); !c.OK || c.Proof != ProofReattestation {
