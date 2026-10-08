@@ -787,8 +787,12 @@ The gate admits the batch only when all of these hold:
   summary are the ones the batch binds: the gate computes each again from the
   trees it checks (the summary is rendered by the gate's code), so the owner
   must sign with the tool of the base branch;
-- the gate's citation verifier checks every entry's sources upstream with no
-  finding. Without `--source github` (no verifier, or the offline fixture
+- the gate's citation verifier (the same one as the `citations` check) checks
+  every entry's sources upstream with no finding: each revision is a commit
+  object that is a tag commit of, or in the default branch history of, the
+  cited repository (a commit served only through a fork, or one whose
+  reachability cannot be established, is refused), each whole-file digest and
+  line span matches, and a pass that checked no source is refused. Without `--source github` (no verifier, or the offline fixture
   mode) no batch is admitted;
 - the change touches no file except the two pack files, their corpus
   attestations, the generated support inventory and the batch file: no trust

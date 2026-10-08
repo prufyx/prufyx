@@ -621,3 +621,84 @@ func TestTermSafe(t *testing.T) {
 		t.Fatalf("%q", got)
 	}
 }
+
+// forkCitingFixture makes every renewed rule cite the fake upstream (the
+// first one at the given revision) and drafts the batch for that change.
+func forkCitingFixture(t *testing.T, revision string) batchFixture {
+	t.Helper()
+	f := newBatchFixture(t, 3)
+	editPack(t, f.head, cncfRulesPath, func(p *packDoc) {
+		for i, id := range f.ids {
+			rev := citeCommit
+			if i == 0 {
+				rev = revision
+			}
+			evidenceOf(p.find(t, id))["sources"] = []any{citeSource(rev, goodDigest, 1, 2)}
+		}
+	})
+	f.signAndWrite(t, f.record(t))
+	return f
+}
+
+// TestBatchRefusesForkOnlyCommit uses the real citation verifier: a commit
+// GitHub serves through the fork network but that is not a tag commit or in
+// the default branch history of the cited repository is refused, and so is a
+// commit whose reachability cannot be established. The same batch with a
+// reachable commit is admitted, so the refusal is not an artifact of the
+// fixture.
+func TestBatchRefusesForkOnlyCommit(t *testing.T) {
+	const fork = "6666666666666666666666666666666666666666"
+	const flaky = "7777777777777777777777777777777777777777"
+	raw := func(rev string) string {
+		return "https://raw.githubusercontent.com/acme/widget/" + rev + "/" + citeBlob
+	}
+	upstream := func() *fakeUpstream {
+		u := healthyUpstream()
+		for _, rev := range []string{fork, flaky} {
+			u.kinds["acme/widget@"+rev] = rulecheck.ObjectKind{Commit: true}
+			u.files[raw(rev)] = citeBytes
+		}
+		u.unreachable = map[string]bool{fork: true}
+		u.reachErr = map[string]error{flaky: errors.New("compare: HTTP 502")}
+		return u
+	}
+	cases := map[string]struct {
+		revision string
+		want     string
+	}{
+		"fork-only commit":       {fork, rulecheck.CheckRevisionUnreachable},
+		"reachability unknown":   {flaky, rulecheck.CheckRevisionUnreachable},
+		"reachable upstream tip": {citeCommit, ""},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := forkCitingFixture(t, tc.revision)
+			r := runGate(t, Options{Base: f.base, Head: f.head, Citations: upstream().verifier()})
+			if tc.want == "" {
+				requirePass(t, r)
+				requireBatchProof(t, r, f.ids)
+				return
+			}
+			requireFail(t, r, "do not verify upstream")
+			requireFail(t, r, tc.want)
+			for _, id := range f.ids {
+				if c := change(t, r, id); c.OK {
+					t.Fatalf("change %s admitted on an unreachable citation", id)
+				}
+			}
+		})
+	}
+}
+
+type emptyPassCitations struct{}
+
+func (emptyPassCitations) VerifyItems(context.Context, []rulecheck.CitationItem) (rulecheck.CitationReport, error) {
+	return rulecheck.CitationReport{Pass: true}, nil
+}
+
+// A verifier that passes without checking any source proves nothing.
+func TestBatchRefusesPassWithoutSources(t *testing.T) {
+	f := newBatchFixture(t, 3)
+	f.signAndWrite(t, f.record(t))
+	requireFail(t, runGate(t, Options{Base: f.base, Head: f.head, Citations: emptyPassCitations{}}), "without checking a source")
+}

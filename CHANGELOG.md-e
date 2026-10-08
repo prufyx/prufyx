@@ -7,90 +7,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
-### Added
-
-- Knowledge gate: the first attested update of a pack that holds an older schema
-  is admissible. A change of the pack's top-level `schema` member is admitted
-  only when it raises the schema to exactly the lowest level the pack's content
-  requires, with nothing else changing at the top level, every rule and record
-  change admitted by its own rules, and no trust material or registry change
-  in the same pull request; every other pack-member change is still refused.
-  Such a change is never eligible for automatic merging (the owner merges the
-  first attested update of a pack). To retract a wrong attestation, withdraw it
-  rather than deleting it; deleting the last record needs the owner path.
-
-- Knowledge targets carry records: per-project CNCF targets (and the single
-  target) now carry line attestations, upgrade-path policies and served-API
-  lists, each record in the target of the project whose component it names.
-  A target with records uses the envelope
-  `prufyx.io/operator-cncf-knowledge/v1alpha2` and its index
-  `prufyx.io/cncf-knowledge-index/v2` (entries flag `records: true`); a pack
-  without records produces the same v1 bytes as before. Clients admit each
-  record with the checks of the embedded pack and refuse a record in another
-  project's target; binaries without this support refuse such a database
-  rather than read it without its records. `scan --knowledge-db` reads
-  served-API lists from the database. The knowledge gate's `targets/cncf`
-  check now passes for a pack with records, and a new `records-trust` check
-  refuses a change that changes records and trust material together.
-  Distribution records still have no target and are refused.
-- Line attestations per component: the fact family
-  `crd.custom_resource_versions` covers, for each project of the
-  custom-resource table, the rules over its own custom-resource version set.
-  Its attestations carry a new `releases` member naming every release of both
-  lines the derivation read, and cover a hop only between two of them. The
-  maintainer extractor `crd.version-removal` 2.1.0 attests every line it
-  derives completely (all releases, clean full-tree scan, line-wide rules, no
-  removed definition) for the next minor line of the same major; the
-  knowledge gate admits such an attestation only by re-deriving it, and
-  cross-checks a reviewed one against the extractor of its own component.
-  `scan` then reports, per hop, a family result (`PASS` or `BLOCKED` within
-  `crd.custom_resource_versions` only, with the family's scope); the project
-  is still never covered and the answer never `PASS` because of it. `check`
-  routes keep the exit cap and now say they read no line review. The coverage
-  report counts these attestations as A for the family. No attestation is
-  shipped. Compatibility: once a pack carries such an attestation, every
-  earlier build, including v0.0.1-alpha.1, refuses the whole pack (unknown
-  family), fail-closed; upgrade the CLI first. A patch upgrade within a
-  reviewed line has its own gap. See `cli/docs/line-attestations.md` and
-  `cli/docs/custom-resources.md`.
-
-### Changed
-
-- Maintainer extractor `crd.version-removal` 2.0.0: pairs are consecutive
-  release lines and every final release of both lines is read; a removal that
-  holds for both whole lines gives a rule with a cited range over them,
-  otherwise the rule holds for the pair of first releases only (as in 1.0.0).
-  The whole repository tree is scanned at each release for definitions outside
-  the listed paths, including test, example and vendored directories (a file
-  there blocks attestation; Rook installs from `deploy/examples`), Helm chart
-  dependencies and remote kustomize resources from other repositories,
-  template, jsonnet and cue sources and Go code that builds a definition; a
-  conflicting copy withholds the pair, an unread CRD source at a later-line
-  release withholds or narrows its rules, chart templates declared as copies
-  are checked, and a definition that left the listed paths (at the later
-  line's first release or a later one) is recorded as removed (never a rule)
-  instead of withholding the pair. The proof records the hop shape (only the
-  previous minor line is attestable), the storage-version history (a removed
-  former storage version gets a next action that migrates stored objects
-  first) and versions served outside the listed paths that the later line no
-  longer serves. The reviewed project table is now a
-  data file covered by the code digest (the code digest of every extractor
-  now also covers embedded JSON data files, so every extractor's digest
-  changes), with nine more projects (cert-manager, Cilium, Crossplane, KEDA,
-  Kuma, Kyverno, Longhorn, Rook, Velero) whose custom-resource sets are not
-  registered yet, so the knowledge gate refuses their rules. CRD manifests are
-  read with bounds sized for generated schemas (Argo CD's pairs are no longer
-  withheld). Reviewed exclusions of the scan now carry evidence, may not lie
-  under install locations (a wildcard only in the last path element), and are
-  void at a release where a kustomization, Helm chart, Makefile install
-  target, document or shell-script install command, container build (Dockerfile,
-  Containerfile, Earthfile), nix file, ko `kodata` directory or embedding Go
-  package (in a directory above or inside the excluded path) refers to a path
-  under it.
-  Gzip-compressed definitions in Go sources (Velero's install CRDs) are read
-  and compared like YAML files. No rule is shipped. See
-  `cli/docs/extractors/crd.version-removal.md`.
-
 ### Security
 
 - Build identity: a release identity now accepts only `trustRootDigest:
@@ -148,59 +64,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
-- `prufyx scan --format csv`: a header row, a summary row (the verdict and the headline), then one row per blocking finding location (verdict, rule id, project, file, line, kind, namespace, name, title, fix), then one row per gap and, with passes shown, one per pass. Cells use the same escaping as the other formats and cells that could start a spreadsheet formula get a leading quote.
-- Optional colour in help output only (bold headings, highlighted command
-  names), on only when stdout is a terminal. `NO_COLOR`, `PRUFYX_COLOR=never`
-  and `TERM=dumb` turn it off; `PRUFYX_COLOR=always` forces it on. Report
-  output is never coloured.
-- `prufyx scan --fail-on blocked|unknown|none` (default `unknown`, exit codes
-  unchanged): `blocked` exits 0 for an undecided scan but still 10 for BLOCKED,
-  `none` exits 0 for both. A suppressed exit 0 is not a PASS: `scan` prints a
-  note on standard error whenever the flag changes a non-zero code. Usage (2)
-  and integrity (3) errors are never suppressed, and neither is a scan whose
-  manifests use an API version the target does not serve; the report is
-  unchanged.
-- `prufyx scan --only-blocked`: human and Markdown output list only BLOCKED
-  findings and print one line counting the hidden items, but keep the gap for API
-  versions the target does not serve; JSON and SARIF stay complete.
-- `prufyx-maintainer corpus-attestation generate|check --tree DIR` attests the
-  pack files of a checked-out tree (its root or its `cli/` directory) instead of
-  the pack embedded in the binary, so a mechanical candidate can be re-attested
-  locally. The output names its binding (`binding=tree:...` or `binding=embedded`).
-  The command no longer needs a CLI root from the working directory when `--tree`
-  is given. See `docs/knowledge-gate.md`.
-- `prufyx-maintainer knowledge-targets check-size --tree DIR` checks the CNCF
-  pack files of a checkout with the knowledge gate's measurement.
-- `prufyx-maintainer evidence repin --fail-on-missing` (with `--source mirror`)
-  exits 3, after writing the worklist and wants file, when files are missing from
-  the mirror. The default exit code stays 0. With `--source http` the flag is
-  refused.
-- Community-project pack: support-range rules (`require_component_version`
-  with `severity: "unsupported"`) and one-way notices (`notice_one_way`) are
-  now accepted, with the same meaning as in the CNCF pack. New pack schema
-  levels `prufyx.io/community-project-source-rule-pack/v1alpha3` (notices) and
-  `v1alpha4` (support ranges, which admit notices); a pack with neither keeps
-  `v1alpha1`/`v1alpha2` and loads as before. An `UNSUPPORTED` claim is never
-  `PASS` and never `BLOCKED` and exits 11; notices are informational and left
-  out of the exit code; `check project` prints a note for combinations outside
-  a documented support range ("not verified, not shown to be broken"), prints
-  applicable notices with their scope, and never words anything as safe. The
-  native `check project` routes cannot declare a support range's dependency,
-  so they list such a rule as not evaluated on this route (use `check batch`
-  with the dependency declared, or check the cited source by hand) instead of
-  turning a scoped PASS into an unresolvable UNKNOWN. In `check batch`, a
-  community item treats `UNSUPPORTED` as unknown and ignores notices for its
-  outcome, and the human output prints an item's applicable notices (with one
-  scope line) and the support-range note, for both packs. The notice scope line
-  and the evidence basis line are the same in both packs. `catalog checks`
-  shows a rule's kind (one-way notice, support range). Admission is stricter: a
-  notice or support range lists only the facts its `appliesWhen` reads, and a
-  support range never depends on the project's own component. The generated
-  support inventory counts support-range rules and notices separately from
-  verdict rules, lists support ranges as their own `check batch` capability,
-  and lists a project holding only notices or support ranges under its own
-  state without counting it as executable. The shipped community pack holds
-  neither kind yet.
+<<<<<<< HEAD
 - Image-based component detection (DETECT-1, phase 1): a reviewed registry
   (`cli/internal/imageidentity/data/image-sources.json`) maps container image
   repositories to projects and reads a version only from a tag that follows the
@@ -245,6 +109,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   coverage totals as JSON and Markdown, from a pack and an offline lines
   snapshot; `coverage lines-from-tags` builds that snapshot from captured tag
   lists. Reporting only; no verdict changes. See `cli/docs/coverage-report.md`.
+=======
 - Batch approvals for the knowledge gate: one owner signature
   (`prufyx.io/knowledge-approval-batch/v1`, the web-approval key) admits up to
   50 reviewed rules and line attestations of one change. The gate recomputes
@@ -260,6 +125,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   checks a batch offline. A batch is never eligible for automatic merging. See
   [knowledge-gate.md](cli/docs/knowledge-gate.md#batch-approvals).
 
+>>>>>>> 8471e634 (Document batch approvals; CODEOWNERS for the batch directory; changelog)
 - `prufyx-maintainer knowledge-publish release`: one offline, deterministic step
   that builds a signed knowledge-database release (TUF targets, snapshot and
   timestamp, package and release plan) from the reviewed embedded knowledge,
@@ -332,35 +198,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   a rule before evaluation (a wide anchor rule could otherwise exit 0),
   `catalog checks` prints the `boundary-unreviewed` and `crossing` match modes
   and no anchor route for them, and quiet output names the crossed boundaries.
-- `prufyx scan`: an upgrade that skips release lines (for example
-  `1.24.17 -> 1.30.4` without a reviewed path policy) no longer answers
-  `NO BLOCKERS FOUND IN COVERED CHECKS` (exit 11) for a manifest at an API
-  version a line it enters removed. For each line with known removals, the step
-  of the hop that enters it is evaluated; a reviewed rule that covers the whole
-  step and blocks it makes the answer `BLOCKED` (exit 10), and the finding names
-  the step (`crossedLine` in JSON and SARIF). The gap text "removed before the
-  evaluated hops" was false and is gone.
-- `prufyx scan`: a manifest at an API version the target does not serve that no
-  reviewed rule decided is always named (gap `API_VERSION_NOT_SERVED`), also on
-  a line a hop enters when the rule could not decide, and the headline then
-  reads `UNKNOWN: manifests use API versions the target does not serve; migrate
-  them before upgrading (...)` instead of "no blockers". This covers every
-  removal Prufyx has reviewed, also those before 1.22 (for example an
-  `extensions/v1beta1` Deployment, removed in 1.16), not only the scan rule
-  table. When the step that enters a line decided nothing, `RULE_NOT_DECIDED`
-  gaps say why (no rule, a rule left out by `--require-basis`, a rule that
-  covers only part of the step).
-- The `scan-report-v1alpha1` JSON schema gained the optional member
-  `finding.crossedLine` (with `line`, `from`, `to`, `inputDigest`,
-  `engineContractDigest`); integrators who vendor the schema must refresh it,
-  because a validator pinned to the previous schema rejects reports that carry
-  it. On such a finding `match` describes the step, not the hop.
-- `prufyx scan`: the `LINE_NOT_ATTESTED` gap no longer says a line "has not been
-  reviewed for removed APIs" next to a blocker from a reviewed rule of that line;
-  it says no review confirms the line's rules name every API it removes. The
-  `DOWNGRADE_NOT_REVIEWED` gap names a next action instead of "none", and no
-  longer points at nonexistent rollback notes: it says to check the component's
-  documentation on downgrades (the Kubernetes control plane has none).
 - `prufyx assess --format json`: the collector progress lines ("Context …", "Created local API observation directory …", "Verify context files with …") now go to stderr, so stdout carries only the JSON report and parses as JSON.
 - `extract` file writes are never made through a symlink and no longer depend on
   the umask. `extract run` builds the output in a staging directory beside `--out`
@@ -405,105 +242,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   Reviewed rules still need chain coverage.
 
 ### Changed
-
-- `prufyx` and `prufyx help` now print a short overview (about 20 lines) with
-  the commands grouped by purpose, instead of every usage line. Exit status
-  is unchanged (0). The full usage moved to per-command help:
-  `prufyx <command> help`, `--help`, `-h` and `prufyx help <command>`.
-- Help text no longer uses MariaDB or MariaDB Operator in examples; the
-  MariaDB rules and knowledge are unchanged.
-- `knowledge-targets check-size` prints first what it checked (the embedded pack,
-  a `--dir` directory or a `--tree` checkout) and the single-target line names its
-  target.
-- `corpus-attestation` reads and writes the attestation asset and the rule pack
-  without following a symbolic link below the directory it works in: it writes a
-  temporary file, flushes it and renames it into place, and refuses a symbolic
-  link, FIFO or other non-regular file at the asset or any link among its parent
-  directories (previously a link was followed and its target overwritten).
-- `scan` treats the reason code `KUBERNETES_SERVED_API_REMOVED` (carried by the mechanical
-  Kubernetes API-removal rules) as a decided claim, like `REVIEWED_SOURCE_CONSTRAINT`, and the
-  check-route catalog describes the native routes of both generations of the Kubernetes
-  API-removal rules (the reviewed ones now shipped and the mechanical ones that will replace
-  them), so the catalog stays exact on either side of that replacement. No shipped rule
-  changes.
-- Extractor code digest: the digest now also covers the reviewed `*.json` data
-  files a source set embeds next to its Go code (a table an extractor reads is
-  part of its code). The framework file changed, so the code digest of every
-  extractor changes once (`k8s.feature-gate-removal`, `k8s.served-api-removal`,
-  `crd.version-removal.*`, the chart-versions derivation). No published rule
-  carries a code digest yet, so nothing shipped needs re-deriving; rules
-  derived with an earlier binary no longer re-derive and must be derived again.
-- Extractor framework: a line attestation candidate may carry the releases of
-  both lines its derivation read, an extractor may name the one component it
-  attests, and the line attestation type has an optional `releases` member. No
-  extractor uses any of it yet, so extractor output does not change, but the
-  framework files changed, so the code digest of every extractor changes once
-  more (same consequence as the entry above).
-- User-facing messages now say what is true. An undecided `scan` headline
-  starts with `UNKNOWN:` (it no longer opens with "NO BLOCKERS FOUND"), a
-  blocked one says how many areas were not checked, and the summary line reads
-  "Read N documents over N hops; X of Y components have rules (partially
-  evaluated)". The JSON summary gains `componentsWithRules`; `componentsCovered`
-  is kept for one release as its old name.
-- `scan --format sarif` reports every not-checked area as a `warning` result
-  (`prufyx/gap/<REASON>`), so code scanning no longer shows "no alerts" for an
-  undecided scan. The GitHub Action prints `UNKNOWN` for exit 11 and its
-  documentation no longer calls a green UNKNOWN a sensible default; use
-  `fail-on: unknown` to stop on it. A scan with the gap `API_VERSION_NOT_SERVED`
-  (a manifest on an API version the target does not serve) fails the Action
-  step under every `fail-on` except `none`.
-- UNKNOWN next actions are plain words. The Kubernetes apply-set check names
-  the missing declaration and its flag (`--resource-scope-complete`,
-  `--target-api-apply-required`, `--distribution official_upstream`); other
-  routes say which fact is missing from the input and exactly where to declare
-  it (the `facts` list of the `current` or `proposed` component, with
-  `"state": "declared"` and a `boolValue`, `enumValue` or `setValue`); a rule
-  whose declared fact does not match says it does not apply. The Kubernetes
-  route names every missing declaration in one line.
-- Replay: the wording of the next actions in a `check` report changed, and
-  replay compares exact bytes. A report saved by an earlier build that holds an
-  UNKNOWN claim no longer replays; `--replay-report` now says "the report is
-  from an older engine contract" and exits 2 (it used to exit 3 with a generic
-  failure), because only the wording differs and no decision does. Generate a
-  new report with this build. A report whose decisions differ is still an
-  integrity failure (exit 3).
-- The GitHub Action fails closed when it cannot confirm the gaps: with
-  `format: json` it reads the report it already has; with another format the
-  confirming JSON scan must exit 11 with output, else the step fails. The
-  gap is read with `jq` (or a whitespace tolerant check where `jq` is absent).
-  SARIF gap results keep their identity when only the counts in the message
-  change, sit at the `--config` file when only standard input was read, and
-  the help of `prufyx/gap/API_VERSION_NOT_SERVED` says to migrate. An
-  unknown component name only gets "closest" suggestions that are near it. A
-  scan that evaluated nothing says "UNKNOWN: nothing could be evaluated".
-  `--strict-exit` followed by `--strict-exit=false` prints the exit 0 note, as
-  the last form decides.
-- The knowledge age note no longer recommends `prufyx db update`, which needs a
-  source and a trust root that no official feed provides yet. It names a newer
-  source build or a signed package imported with `prufyx db import`, and says
-  that expired rules answer UNKNOWN. Stale and withdrawn rules say the same.
-- A `check` that exits 0 prints one note on standard error that the whole
-  upgrade is still UNKNOWN and that CI should use `--strict-exit`. Exit codes
-  and standard output are unchanged. The documentation uses `--strict-exit` in
-  every CI example and describes exit 0 as "the checked rules passed".
-- `catalog cncf` and `catalog checks` count only active rules: a withdrawn rule
-  is listed apart (`0 active generic source rules (1 withdrawn)`, rule coverage
-  `WITHDRAWN_ONLY`), so the generic preview is 53 projects, not 54. An unknown
-  project is an error (exit 2) with the closest slugs; a catalogued project
-  without rules says so and links the request form.
-- `check cncf` on a generic route prints `scoped result:` like the native
-  route; a PASS shows its remediation as "if this changes:"; `1 rule PASS`
-  and `1 rule for another transition` use the singular; an unknown `--project`
-  names the slug and the closest ones; the multi-minor hint says each minor
-  step must be checked.
-- `prufyx version --format human`; `--help` lists `version`, the `scan` output
-  formats, the `assess` flags, the exit status of `scan`, `check cncf` and
-  `check project`, and splits the Harbor usage lines. The cert-manager human
-  report prints every cited source with its lines and digest.
-- Documentation: the draft release notes say they are a draft, the Windows
-  statement matches the build, the CHANGELOG no longer links release tags that
-  do not exist, the inventory refresh example uses the committed index digest,
-  and the quickstart counts the reviewed Kubernetes pairs correctly.
 
 - `k8s.served-api-removal` 1.3.0: every reviewed migration hint now cites the
   passage of the upstream deprecation guide (kubernetes/website at a pinned
@@ -570,7 +308,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Documentation
 
-- README: a Coverage section whose numbers are generated by `scripts/readme-coverage.sh` (from `coverage report` and the support inventory; `--check` detects a stale block), the Kubernetes and CNCF rule scope stated precisely with implemented, internal and planned work separated, the `assess` cluster read disclosed, and CI advised to use `check --strict-exit`.
 - README and the `scan` and quickstart guides now state how rules are
   established, which input permissions `check` and `scan` accept, what `scan`
   covers today and why it cannot yet answer PASS, and the date the rule counts
@@ -1153,7 +890,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Release source builds use an exact vendored module profile with module sums,
   a canonical whole-tree digest, binary-resource pins and byte-bound notices.
 
-## 0.1.0-alpha.4 - 2026-09-07 (not published as a release)
+## [0.1.0-alpha.4] - 2026-09-07
 
 ### Added
 
@@ -1181,7 +918,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Both checks keep whole-upgrade aggregate UNKNOWN. Runtime upgrade testing,
   independently downloaded knowledge and broader transition coverage are planned.
 
-## 0.1.0-alpha.3 - 2026-09-07 (not published as a release)
+## [0.1.0-alpha.3] - 2026-09-07
 
 ### Added
 
@@ -1214,7 +951,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Release assets and artifact signatures are not claimed until the maintainer
   publishes them.
 
-[Unreleased]: https://github.com/prufyx/prufyx/commits/main
-
-No release has been published yet. The two alpha version headings above name
-development milestones, not release tags.
+[Unreleased]: https://github.com/prufyx/prufyx-cli/compare/v0.1.0-alpha.4...HEAD
+[0.1.0-alpha.4]: https://github.com/prufyx/prufyx-cli/releases/tag/v0.1.0-alpha.4
+[0.1.0-alpha.3]: https://github.com/prufyx/prufyx-cli/releases/tag/v0.1.0-alpha.3

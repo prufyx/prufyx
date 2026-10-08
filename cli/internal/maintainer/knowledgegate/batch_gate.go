@@ -192,6 +192,10 @@ func verifyBatchCitations(ctx context.Context, checker CitationChecker, st *batc
 	if err != nil {
 		return fmt.Errorf("the batch's citations could not be verified: %v", err)
 	}
+	if report.Pass && len(report.Findings) == 0 && report.SourcesChecked == 0 {
+		// A pass that checked no source proves nothing (fail closed).
+		return errors.New("the batch's citations were not verified: the verifier reported a pass without checking a source")
+	}
 	if !report.Pass || len(report.Findings) > 0 {
 		var lines []string
 		for _, f := range report.Findings {
