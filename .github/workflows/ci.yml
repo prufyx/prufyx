@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
@@ -66,8 +68,8 @@ jobs:
         # run has no -run filter, so a tagged test is never skipped for its name
         # (TestCISyntheticPackagesAreCovered fails when a package is missing).
         run: |
-          go vet -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/ ./internal/scanrun/ ./internal/maintainer/knowledgegate/
-          go test -timeout 60m -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/ ./internal/scanrun/ ./internal/maintainer/knowledgegate/
+          go vet -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/ ./internal/onecommand/ ./internal/scanrun/ ./internal/maintainer/knowledgegate/
+          go test -timeout 60m -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/ ./internal/onecommand/ ./internal/scanrun/ ./internal/maintainer/knowledgegate/
 
       - name: Validate community rule candidates
         working-directory: cli
@@ -91,10 +93,12 @@ jobs:
   race:
     name: Race detector (verdict packages)
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
@@ -107,25 +111,26 @@ jobs:
         env:
           CGO_ENABLED: "1"
         # Published binaries stay CGO_ENABLED=0; only this job needs cgo for -race.
+        # knowledgegate is not in the race list: under -race it ran past 60 minutes
+        # (it already runs in the build-test job, which also runs it with the tag).
         run: |
-          go test -race -timeout 60m \
+          go test -race -timeout 25m \
             ./internal/scanreport/ ./internal/scanrun/ ./internal/cncfcheck/ \
             ./internal/constraintengine/ ./internal/knowledge/ \
-            ./internal/maintainer/rulecheck/ ./internal/maintainer/knowledgegate/
+            ./internal/maintainer/rulecheck/
 
   staticcheck:
     name: Staticcheck
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    # Advisory until the four existing findings are fixed (separate package);
-    # then drop this line so the job gates merges.
-    continue-on-error: true
     env:
       STATICCHECK_VERSION: 2026.2.1
       STATICCHECK_SHA256: 91186205a78db3f2d40efb3c102749aef66f85c2204793de7488d163b655aa7c
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
@@ -168,6 +173,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Install gitleaks
         run: |

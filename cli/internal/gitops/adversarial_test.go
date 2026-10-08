@@ -34,6 +34,12 @@ func measure(t *testing.T, f func() Repo) (Repo, time.Duration, uint64) {
 func checkCost(t *testing.T, name string, elapsed time.Duration, alloc uint64) {
 	t.Helper()
 	t.Logf("%s: %v, %d MiB allocated", name, elapsed, alloc>>20)
+	if testing.CoverMode() != "" {
+		// Coverage instrumentation slows the walk several-fold, so the wall-clock
+		// and allocation budgets only describe an uninstrumented run. The
+		// functional assertions of every caller still run.
+		return
+	}
 	if elapsed > adversarialTime || alloc > adversarialAlloc {
 		t.Fatalf("%s took %v and allocated %d MiB", name, elapsed, alloc>>20)
 	}
