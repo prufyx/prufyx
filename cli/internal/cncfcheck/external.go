@@ -25,16 +25,16 @@ const (
 	// refuses such a target (unknown schema and unknown pack members), so
 	// a record is never read as absent by a client that cannot check it.
 	externalBundleSchemaRecords = "prufyx.io/operator-cncf-knowledge/v1alpha2"
-	externalSourceAuthority  = "DECLARED_RULE_SOURCE_REFERENCES"
-	externalProfileName      = "cncf"
-	externalTargetPath       = "knowledge/constraints.v1.json"
-	maxExternalBundleBytes   = 1 << 20
-	maxExternalEntries       = 512
-	maxExternalFacts         = 64
-	maxExternalJSONDepth     = 32
-	maxExternalObjectMembers = 4096
-	maxExternalArrayItems    = 4096
-	maxExternalStringBytes   = 4096
+	externalSourceAuthority     = "DECLARED_RULE_SOURCE_REFERENCES"
+	externalProfileName         = "cncf"
+	externalTargetPath          = "knowledge/constraints.v1.json"
+	maxExternalBundleBytes      = 1 << 20
+	maxExternalEntries          = 512
+	maxExternalFacts            = 64
+	maxExternalJSONDepth        = 32
+	maxExternalObjectMembers    = 4096
+	maxExternalArrayItems       = 4096
+	maxExternalStringBytes      = 4096
 )
 
 var externalRevisionPattern = regexp.MustCompile(`^[1-9][0-9]*$`)
