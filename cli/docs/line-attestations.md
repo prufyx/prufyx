@@ -11,8 +11,11 @@ Without it, Prufyx cannot tell "nothing in scope was removed in 1.28" from
 quiet, can be told apart from a line that is simply missing.
 
 Attestations never take part in a rule's verdict. The engine sees the same
-rule document with or without them, and no command in this release reads
-them to change an answer. The published knowledge pack carries none.
+rule document with or without them. `scan` reads them to decide whether a
+Kubernetes hop is covered for removed APIs, and whether a project's
+custom-resource versions are decided on a hop (see
+[custom-resources.md](custom-resources.md#line-reviews-of-custom-resource-versions));
+no `check` route reads them. The published knowledge pack carries none.
 
 ## The record
 
@@ -45,6 +48,7 @@ them to change an answer. The published knowledge pack carries none.
 | `factFamily` | One of the families listed below. Any other value is rejected. |
 | `completeness` | Always `COMPLETE_REVIEWED_RULES_FOR_LINE`. |
 | `ruleIds` | Rule ids in strictly ascending order, no repeats, at most 256. Required, and `[]` for a quiet line (never `null`). |
+| `releases` | Required for a release-scoped family (`crd.custom_resource_versions`), forbidden for any other. `from` and `to` each name 1 to 64 final releases, `{"version": "X.Y.Z", "commit": "<40 hex>"}`, of the previous minor line and of the line, in strictly ascending version order: every release the derivation read. |
 | `evidence.basis` | Required: `reviewed` (a maintainer read the sources) or `mechanical` (a versioned extractor derived it from pinned source). |
 | `evidence.extractor`, `evidence.derivedAt` | Required for `mechanical`, forbidden for `reviewed`. A mechanical attestation's `reviewedAt` equals its `derivedAt`. |
 | `evidence.reviewedAt`, `evidence.validUntil` | UTC, `YYYY-MM-DDTHH:MM:SSZ`. `validUntil` is after `reviewedAt` and at most 90 days later, the same window as a rule. |
@@ -60,19 +64,32 @@ most one attestation per component, line and family.
 
 ## Fact families
 
-The list is compiled into Prufyx. Adding a family is a code change.
+The list is compiled into Prufyx. Adding a family is a code change. A family
+has one or more components, and for each component the facts whose rules it
+covers.
 
-| Family | Component | Covers rules that read a fact matching |
-| --- | --- | --- |
-| `kubernetes.removed_served_gvk` | `pkg:github/kubernetes/kubernetes` | `component.kubernetes.*_removed_gvk_present` |
+| Family | Components | Covers rules that read a fact matching | Releases |
+| --- | --- | --- | --- |
+| `kubernetes.removed_served_gvk` | `pkg:github/kubernetes/kubernetes` | `component.kubernetes.*_removed_gvk_present` | no |
+| `crd.custom_resource_versions` | each project of the custom-resource table ([custom-resources.md](custom-resources.md#projects)) | exactly that project's `component.<project>.custom_resource_versions_set` | required |
 
 `kubernetes.removed_served_gvk` covers beta and stable API versions that a
 Kubernetes minor release stops serving. It says nothing about alpha
 versions, aggregated or custom API servers, or CRDs.
 
-A rule **belongs** to a family when its subject is the family's component
-and it reads at least one of the family's facts, as its condition, set
-condition or an applicability condition. A rule that reads one family fact
+`crd.custom_resource_versions` covers, per project, the custom-resource
+versions (`group/version/Kind`) its own CustomResourceDefinitions serve. It
+says nothing about schemas, conversion, stored versions, other projects'
+CustomResourceDefinitions, or anything else about the project. A project
+joins the family only through the reviewed custom-resource table (the same
+change that registers its set fact). Its attestations are release-scoped:
+they name the releases the derivation read, and cover a hop only between two
+of them, so a release published later is a gap until the attestation is
+renewed.
+
+A rule **belongs** to a family when its subject is one of the family's
+components and it reads at least one of that component's facts in the
+family, as its condition, set condition or an applicability condition. A rule that reads one family fact
 and another unrelated fact still belongs, so it must be listed.
 
 A rule **belongs** to a line through the minor line of its `subject.to`.
@@ -204,6 +221,18 @@ Placed in a pack that also holds other rules for the same line and family
 (for example, reviewed rules for the same removals), it fails the exact-set
 check until the two are reconciled: either the attestation lists every rule,
 or the duplicates are removed.
+
+## Mechanical attestations from `crd.version-removal`
+
+The [`crd.version-removal`](extractors/crd.version-removal.md) extractor
+(version 2.1.0 and later) attests, for `crd.custom_resource_versions`, the
+later line of every pair it derives completely (every release of both lines,
+a clean scan of the whole repository at each, rules over both whole lines, no
+removed definition), when the later line is the next minor line of the same
+major and the project is in the custom-resource table. The attestation lists
+the pair's rules and names every release read. As for Kubernetes, the
+manifest records the attestation status of every pair, `attestations.json`
+holds the attestations, and `extract verify` covers them.
 
 ## Renewal
 
