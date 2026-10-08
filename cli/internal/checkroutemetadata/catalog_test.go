@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/projectcheck"
 )
 
@@ -32,12 +33,55 @@ func TestDescriptorSetBindsCompiledIdentity(t *testing.T) {
 	}
 }
 
+// kubernetesExtra is how many more checks (and native routes) the embedded
+// pack has once the mechanical Kubernetes rules replace the reviewed ones.
+func kubernetesExtra() int {
+	if supersedeids.Superseded() {
+		return 4
+	}
+	return 0
+}
+
+// Both generations of Kubernetes descriptors name exactly the rules of their
+// generation, so that whichever the pack holds is complete and exact.
+func TestKubernetesDescriptorGenerations(t *testing.T) {
+	reviewed := map[string]bool{}
+	for _, id := range supersedeids.ReviewedIDs() {
+		reviewed[id] = true
+	}
+	for _, item := range kubernetesReviewedDescriptors() {
+		if !reviewed[item.ruleID] {
+			t.Errorf("reviewed descriptor for %s", item.ruleID)
+		}
+		delete(reviewed, item.ruleID)
+	}
+	if len(reviewed) != 0 {
+		t.Errorf("reviewed rules without a descriptor: %v", reviewed)
+	}
+	mechanical := map[string]bool{}
+	for _, id := range supersedeids.ReplacementIDs() {
+		mechanical[id] = true
+	}
+	for _, id := range supersedeids.AddedIDs() {
+		mechanical[id] = true
+	}
+	for _, item := range kubernetesMechanicalDescriptors() {
+		if !mechanical[item.ruleID] {
+			t.Errorf("mechanical descriptor for %s", item.ruleID)
+		}
+		delete(mechanical, item.ruleID)
+	}
+	if len(mechanical) != 0 {
+		t.Errorf("mechanical rules without a descriptor: %v", mechanical)
+	}
+}
+
 func TestDiscoverCompleteEmbeddedIdentityCatalog(t *testing.T) {
 	result, err := Discover("", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Schema != Schema || len(result.Checks) != 225 {
+	if result.Schema != Schema || len(result.Checks) != 225+kubernetesExtra() {
 		t.Fatalf("catalog schema/count = %q/%d", result.Schema, len(result.Checks))
 	}
 	if result.Scope.SourceEvidenceFreshness != "NOT_EVALUATED" {
@@ -52,7 +96,7 @@ func TestDiscoverCompleteEmbeddedIdentityCatalog(t *testing.T) {
 			t.Fatalf("community generic route exposed: %#v", item)
 		}
 	}
-	if bound != 194 {
+	if bound != 194+kubernetesExtra() {
 		t.Fatalf("bound native routes = %d", bound)
 	}
 }
