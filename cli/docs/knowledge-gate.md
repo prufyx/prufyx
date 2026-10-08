@@ -887,23 +887,64 @@ prufyx-maintainer corpus-attestation generate --pack community --tree /path/to/c
 prufyx-maintainer corpus-attestation check --pack cncf --tree /path/to/checkout
 ```
 
-`--tree` takes the checkout root or its `cli/` directory. The attestation is
-computed from the tree's pack bytes with the same function the gate uses, so
-`gate verify` locally reaches the attestation verdict CI reaches. The binding is
-stated in the output (`packDigest=...` and `binding=tree:<cli dir>` or
-`binding=embedded`) and the pack file is re-read and re-hashed against the
-attestation before anything is written. Anything unexpected fails with exit 2 and
-writes nothing: a path that is not a source tree, a missing or oversized input, a
-symlinked or non-regular input, or a `--rules` file that is not the pack that was
-attested. The default without `--tree` is unchanged.
+`--tree` takes the checkout root or its `cli/` directory. What it guarantees,
+and what it does not:
+
+- The attestation document is computed from the tree's files by the same function
+  the gate uses (admission rules included), then written to the tree's committed
+  asset path (`internal/<pack>/data/corpus-attestation.json`). The admission rules
+  are those of the binary that runs the command. The verdict therefore agrees
+  with CI's only when that binary is built from the same revision as the gate
+  that CI runs (the base revision); otherwise the two can differ. CI regenerates
+  the attestation independently with its own binary and reader, and CI is
+  authoritative: a locally written attestation is never trusted by it.
+- The reader is not the gate's reader, but it has the same semantics: no symbolic
+  link on any path component below the tree, a FIFO or device is refused without
+  being opened for reading, type and size are checked on the open descriptor, and
+  an input over 4 MiB is refused before it is read. The same holds for the
+  asset that `check` reads. The output is written to a temporary file in the
+  asset's directory, flushed and renamed into place; a symbolic link or other
+  non-regular file at the asset path, or a symbolic link as any of its parent
+  directories, is refused and nothing outside the tree is touched. The tree's
+  root (and, with `--output` or `--rules`, the directory you name) is opened as
+  given; only the components below it are not followed.
+- The tree must hold the whole layout (both packs' `data/` directories with the
+  community `projects.json` and `rules.json` and the CNCF `landscape-projects.json`,
+  `priority-portfolio.json` and `rules.json`). A root and a `cli/` child that
+  both hold it are ambiguous and refused, as is a `cli` that is a symbolic link.
+- The binding is stated in the output (`packDigest=...` and `binding=tree:<cli
+  dir>` or `binding=embedded`). Before anything is written the pack's `rules.json`
+  is re-read and re-hashed against the attestation's `packDigest`. That digest
+  covers only `rules.json`, not `landscape-projects.json` and
+  `priority-portfolio.json` (CNCF) or `projects.json` (community); those are
+  bound by the attestation's content, not by the digest. In tree mode, with the
+  default `--rules`, the re-read is of the same file the attestation was computed
+  from, so it is a consistency check and not an independent one; it is
+  independent only when `--rules` names another file, or in the default embedded
+  mode where the attestation comes from the compiled pack.
+- Anything unexpected fails with exit 2 and writes nothing: a path that is not a
+  source tree, a missing, oversized, symlinked or non-regular input or asset, or a
+  `--rules` file that is not the pack that was attested. `--tree` does not run the
+  admission of a whole change (that is `gate verify`), and it needs no
+  working-directory CLI root. The default without `--tree` is unchanged apart from
+  the hardened asset write and read.
 
 `knowledge-targets check-size` likewise checks the pack embedded in the running
 binary unless told otherwise, and says so. Use `--tree CHECKOUT` to check the
 checkout's CNCF pack files (it prints the tree it checked); `--dir` checks a
-directory written by `build`.
+directory written by `build`. The tree files are read with the same hardened
+reader as above. `--tree` measures what the gate measures (the pack files
+serialized as an external bundle, as in the gate's `targets/cncf` step), while the
+embedded default and the publisher size the targets `knowledge-targets build`
+emits; for one pack the two differ by a few hundred bytes (per-project targets
+by about 18 bytes each, the single target by tens of bytes). A tree within that
+margin of an alarm is decided by the gate in CI. The single-target line names its
+target (`knowledge/constraints.v1.json`).
 
 `evidence repin --source mirror` exits 0 even when files are missing from the
 mirror, because the worklist is complete in the sense that matters (missing files
 are `PENDING`, never "unchanged") and the wants file is the signal. Scripts that
 must stop on an incomplete run pass `--fail-on-missing`: the worklist and wants
-file are still written and the exit code is 3.
+file are still written and the exit code is 3. The flag is refused with
+`--source http`, like `--wants-out` and `--mirror-state`
+([evidence-repin.md](evidence-repin.md#--fail-on-missing)).

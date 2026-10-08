@@ -129,7 +129,11 @@ const usage = `usage:
 
 check-size without --dir or --tree checks the rule pack embedded in THIS binary,
 not a candidate checkout; pass --tree TREE to check the pack files of a
-checked-out tree (its root or its cli/ directory).`
+checked-out tree (its root or its cli/ directory). --tree measures what the
+knowledge gate measures (the pack files serialized as an external bundle, the
+same check as the gate's targets/cncf step), which differs by a few hundred
+bytes from the publisher's own targets that the embedded check sizes; a verdict
+within that margin of an alarm is decided by the gate in CI.`
 
 func runBuild(args []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("knowledge-targets build", flag.ContinueOnError)
@@ -255,10 +259,10 @@ func checkTree(tree string, stdout, stderr io.Writer) int {
 	}
 	code := report(targets, DefaultLimit(), stdout, stderr)
 	if SingleTargetAlarmed(int64(packReport.TargetBytes), DefaultLimit()) {
-		fmt.Fprintf(stderr, "size alarm: single-target layout is %d bytes, at or above the per-target alarm (%d bytes)\n", packReport.TargetBytes, DefaultLimit().Alarm)
+		fmt.Fprintf(stderr, "size alarm: single-target layout knowledge/constraints.v1.json is %d bytes, at or above the per-target alarm (%d bytes)\n", packReport.TargetBytes, DefaultLimit().Alarm)
 		return 1
 	}
-	fmt.Fprintf(stdout, "single-target layout: %d bytes (%.1f%% of cap)\n", packReport.TargetBytes, percent(int64(packReport.TargetBytes), DefaultLimit().Cap))
+	fmt.Fprintf(stdout, "single-target layout: knowledge/constraints.v1.json %d bytes (%.1f%% of cap)\n", packReport.TargetBytes, percent(int64(packReport.TargetBytes), DefaultLimit().Cap))
 	return code
 }
 

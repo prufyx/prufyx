@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
@@ -395,5 +396,137 @@ func TestGenerateFromTreeFailsClosed(t *testing.T) {
 	}
 	if code := Run([]string{"generate", "--tree", tree, "--output", out}, &stdout, &stderr, cliRoot(t)); code == 0 {
 		t.Fatal("a symlinked pack was accepted")
+	}
+}
+
+// --tree names the tree it works on: neither generate nor check needs a CLI
+// root from the working directory, and a missing root is refused only when a
+// default path would need it.
+func TestTreeModeNeedsNoCLIRoot(t *testing.T) {
+	tree := treeCopy(t)
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"generate", "--pack", PackCNCF, "--tree", tree}, &stdout, &stderr, ""); code != 0 {
+		t.Fatalf("generate exit=%d stderr=%s", code, stderr.String())
+	}
+	if code := Run([]string{"check", "--pack", PackCNCF, "--tree", tree}, &stdout, &stderr, ""); code != 0 {
+		t.Fatalf("check exit=%d stderr=%s", code, stderr.String())
+	}
+	stderr.Reset()
+	if code := Run([]string{"check"}, &stdout, &stderr, ""); code != 2 || !strings.Contains(stderr.String(), "CLI root is unavailable") {
+		t.Fatalf("embedded mode without a root: exit=%d stderr=%s", code, stderr.String())
+	}
+}
+
+// ReadRegularFile applies the gate reader's semantics: a link on any
+// component, a directory, a missing file and an oversized file are refused.
+func TestReadRegularFileRefusesLinksAndOversizeInputs(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "f.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "real"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "real", "ok.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	big := make([]byte, MaxInputBytes+1)
+	if err := os.WriteFile(filepath.Join(root, "real", "big.json"), big, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	read := ReadRegularFile(root)
+	if raw, err := read("real/ok.json"); err != nil || string(raw) != "{}" {
+		t.Fatalf("regular file: %q %v", raw, err)
+	}
+	if _, err := read("real/big.json"); err == nil {
+		t.Fatal("an oversized file was read")
+	}
+	if _, err := read("real"); err == nil {
+		t.Fatal("a directory was read")
+	}
+	if _, err := read("real/absent.json"); err == nil {
+		t.Fatal("a missing file was read")
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "linkdir")); err != nil {
+		t.Skip("symlinks unavailable")
+	}
+	if _, err := read("linkdir/f.json"); err == nil {
+		t.Fatal("a file below a symlinked directory was read")
+	}
+	if err := os.Symlink(filepath.Join(outside, "f.json"), filepath.Join(root, "real", "link.json")); err != nil {
+		t.Skip("symlinks unavailable")
+	}
+	if _, err := read("real/link.json"); err == nil {
+		t.Fatal("a symlinked file was read")
+	}
+}
+
+// ResolveTreeCLI is deterministic and checks the whole layout: the root and
+// the cli/ directory both resolve, an ambiguous or partial tree and a
+// symlinked cli/ do not.
+func TestResolveTreeCLI(t *testing.T) {
+	tree := treeCopy(t)
+	want := filepath.Join(tree, "cli")
+	for _, arg := range []string{tree, want} {
+		got, err := ResolveTreeCLI(arg)
+		if err != nil || got != want {
+			t.Fatalf("%s: %q %v", arg, got, err)
+		}
+	}
+	if _, err := ResolveTreeCLI(filepath.Join(tree, "absent")); err == nil {
+		t.Fatal("a missing directory resolved")
+	}
+
+	// Ambiguous: cli/ holds the layout and also a nested cli/ with the layout.
+	nested := treeCopy(t)
+	inner := filepath.Join(nested, "cli", "cli")
+	if err := filepath.Walk(filepath.Join(nested, "cli", "internal"), func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(filepath.Join(nested, "cli"), p)
+		dst := filepath.Join(inner, rel)
+		if info.IsDir() {
+			return os.MkdirAll(dst, 0o755)
+		}
+		raw, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(dst, raw, 0o644)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := ResolveTreeCLI(filepath.Join(nested, "cli")); err == nil {
+		t.Fatalf("a cli/ holding the layout and a nested cli/ resolved to %s", got)
+	}
+	if got, err := ResolveTreeCLI(nested); err != nil || got != filepath.Join(nested, "cli") {
+		t.Fatalf("the root of an ambiguous tree: %q %v", got, err)
+	}
+	if got, err := ResolveTreeCLI(inner); err != nil || got != inner {
+		t.Fatalf("the inner directory: %q %v", got, err)
+	}
+
+	// Partial layout: a tree without one pack file is not a tree.
+	partial := treeCopy(t)
+	if err := os.Remove(filepath.Join(partial, "cli", "internal", "cncfcheck", "data", "priority-portfolio.json")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ResolveTreeCLI(partial); err == nil {
+		t.Fatal("a tree without a pack input resolved")
+	}
+
+	// A symlinked cli/ is refused, even when its target holds the layout.
+	linked := treeCopy(t)
+	real := filepath.Join(t.TempDir(), "real-cli")
+	if err := os.Rename(filepath.Join(linked, "cli"), real); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(real, filepath.Join(linked, "cli")); err != nil {
+		t.Skip("symlinks unavailable")
+	}
+	if got, err := ResolveTreeCLI(linked); err == nil {
+		t.Fatalf("a symlinked cli/ resolved to %s", got)
 	}
 }

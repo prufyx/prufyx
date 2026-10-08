@@ -485,10 +485,12 @@ func runEvidenceRepin(args []string, stdout, stderr io.Writer) int {
 // computes over the whole embedded rule pack, never a filtered view, and
 // writes or verifies the attestation asset the runtime scope path consumes.
 func runCorpusAttestation(args []string, stdout, stderr io.Writer) int {
+	// --tree names the tree it works on, so no CLI root is needed from the
+	// working directory: an unavailable root is left empty and Run refuses
+	// only when a default path would need it.
 	root, err := cliRoot()
 	if err != nil {
-		fmt.Fprintln(stderr, "corpus-attestation: CLI root is unavailable")
-		return 2
+		root = ""
 	}
 	return corpusattest.Run(args, stdout, stderr, root)
 }

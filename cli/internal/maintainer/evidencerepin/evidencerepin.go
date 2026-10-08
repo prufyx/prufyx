@@ -1732,7 +1732,7 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps 
 		fmt.Fprintln(stderr, "evidence repin: --baseline must be release-line or latest")
 		return 2
 	}
-	if msg := checkSourceFlags(*source, *mirrorState, *statePath, *wantsOut, deps.OpenMirror != nil); msg != "" {
+	if msg := checkSourceFlags(*source, *mirrorState, *statePath, *wantsOut, *failOnMissing, deps.OpenMirror != nil); msg != "" {
 		fmt.Fprintln(stderr, "evidence repin: "+msg)
 		return 2
 	}

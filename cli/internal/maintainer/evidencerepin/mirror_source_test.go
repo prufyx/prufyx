@@ -786,6 +786,7 @@ func TestMirrorFlagValidation(t *testing.T) {
 		"state with mirror":        {"--source", "mirror", "--mirror-state", w.state, "--state", filepath.Join(t.TempDir(), "s.json")},
 		"mirror-state with http":   {"--mirror-state", w.state},
 		"wants-out with http":      {"--wants-out", filepath.Join(t.TempDir(), "w.json")},
+		"fail-on-missing w/ http":  {"--fail-on-missing"},
 		"unknown source":           {"--source", "ftp"},
 		"unmirrored state is read": {"--source", "mirror", "--mirror-state", filepath.Join(t.TempDir(), "absent-index-is-empty")},
 	}

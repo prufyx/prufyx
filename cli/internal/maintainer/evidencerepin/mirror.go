@@ -186,11 +186,11 @@ func evidenceAt(source, resolvedAt, checkedAt, releasesAt string) (time.Time, bo
 	}
 }
 
-func checkSourceFlags(source, mirrorState, statePath, wantsOut string, haveMirror bool) string {
+func checkSourceFlags(source, mirrorState, statePath, wantsOut string, failOnMissing, haveMirror bool) string {
 	switch source {
 	case SourceHTTP:
-		if mirrorState != "" || wantsOut != "" {
-			return "--mirror-state and --wants-out need --source mirror"
+		if mirrorState != "" || wantsOut != "" || failOnMissing {
+			return "--mirror-state, --wants-out and --fail-on-missing need --source mirror"
 		}
 	case SourceMirror:
 		switch {
