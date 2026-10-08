@@ -15,7 +15,7 @@ import (
 // single-target store; the project's own target, or an empty envelope for a
 // project the index does not list, in a per-project store).
 //
-// Rules, line reviews and upgrade-path policies come only from those
+// Rules, line reviews, upgrade-path policies and served-API lists come only from those
 // envelopes, admitted by the same checks as the embedded pack. The embedded
 // pack contributes nothing but the compiled catalog and fact registry that
 // every external envelope is admitted against: a project or component that
@@ -39,6 +39,9 @@ func NewStoreScanKnowledge(bundles map[string]ExternalBundle) (*ScanKnowledge, e
 			return nil, ErrIntegrity
 		}
 		if selected.pathPolicies, err = admitPathPolicies(external.pack.PathPolicies, len(external.pack.PathPolicies) > 0, base.landscape.Projects); err != nil {
+			return nil, ErrIntegrity
+		}
+		if selected.servedAPIs, err = admitServedAPIs(external.document.Pack, external.pack.ServedAPIs, base.landscape.Projects); err != nil {
 			return nil, ErrIntegrity
 		}
 		var rules []ScanRule

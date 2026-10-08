@@ -284,7 +284,7 @@ func TestExternalPackRefusesNotices(t *testing.T) {
 	if _, err := ParseExternalBundle(raw); err == nil {
 		t.Fatal("external pack with a notice accepted")
 	}
-	if err := validateExternalPack(base, pack, "1"); !errors.Is(err, ErrIntegrity) {
+	if err := validateExternalPack(base, pack, "1", false); !errors.Is(err, ErrIntegrity) {
 		t.Fatalf("validateExternalPack: %v", err)
 	}
 }
