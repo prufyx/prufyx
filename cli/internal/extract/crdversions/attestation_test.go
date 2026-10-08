@@ -231,8 +231,8 @@ func TestFrameworkChecksAttestedComponentAndReleases(t *testing.T) {
 			c.Releases.To = append(c.Releases.To, lineattest.Release{Version: "1.1.2", Commit: commitOf("v1.1.2")})
 		}, "not a recorded release tag the extractor read"},
 		"release at another commit": {func(c *extract.AttestationCandidate) { c.Releases.To[1].Commit = commitOf("v1.1.0") }, "not a recorded release tag"},
-		"version of another tag": {func(c *extract.AttestationCandidate) { c.Releases.To[0].Version = "1.1.5" }, "not a recorded release tag"},
-		"no releases":            {func(c *extract.AttestationCandidate) { c.Releases = nil }, "releases is required"},
+		"version of another tag":    {func(c *extract.AttestationCandidate) { c.Releases.To[0].Version = "1.1.5" }, "not a recorded release tag"},
+		"no releases":               {func(c *extract.AttestationCandidate) { c.Releases = nil }, "releases is required"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			x := tampering{New(attestingTarget()), tc.change}
