@@ -8,6 +8,8 @@ import (
 	"os"
 	"syscall"
 	"unsafe"
+
+	"github.com/prufyx/prufyx/cli/internal/noreplace"
 )
 
 func atomicBatchPublicationSupported() bool { return true }
@@ -16,11 +18,10 @@ func atomicBatchPublicationSupported() bool { return true }
 // macOS has supported both libc calls since 10.10. Keep the syscall numbers
 // local and isolated so CGO=0 builds remain possible on macOS and Linux.
 const (
-	darwinSYSOpenat    = 463
-	darwinSYSMkdirat   = 475
-	darwinSYSRenameat  = 465
-	darwinSYSRenameatx = 488 // SYS_renameatx_np (macOS 10.12+)
-	darwinSYSUnlinkat  = 472
+	darwinSYSOpenat   = 463
+	darwinSYSMkdirat  = 475
+	darwinSYSRenameat = 465
+	darwinSYSUnlinkat = 472
 )
 
 func darwinPathCall(number uintptr, directory *os.File, name string, flags, mode uintptr) (int, error) {
@@ -113,20 +114,7 @@ func renameRelativeBetween(oldDirectory *os.File, oldName string, newDirectory *
 // directory in one namespace operation.  The syscall is used directly so
 // CGO_ENABLED=0 builds retain the descriptor-relative guarantee.
 func renameNoReplaceRelative(directory *os.File, oldName, newName string) error {
-	oldPath, err := syscall.BytePtrFromString(oldName)
-	if err != nil {
-		return err
-	}
-	newPath, err := syscall.BytePtrFromString(newName)
-	if err != nil {
-		return err
-	}
-	const renameExcl = 0x00000004 // RENAME_EXCL from sys/stdio.h
-	_, _, errno := syscall.Syscall6(darwinSYSRenameatx, directory.Fd(), uintptr(unsafe.Pointer(oldPath)), directory.Fd(), uintptr(unsafe.Pointer(newPath)), renameExcl, 0)
-	if errno != 0 {
-		return errno
-	}
-	return nil
+	return noreplace.Rename(directory, oldName, newName)
 }
 
 func removeRelative(directory *os.File, name string) error {

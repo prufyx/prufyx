@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
+	"github.com/prufyx/prufyx/cli/internal/extract/safefs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -431,29 +431,13 @@ func setSchema(p *Pack, schema string) *Pack {
 }
 
 func writeAtomic(path string, data []byte) error {
-	info, err := os.Stat(path)
 	mode := os.FileMode(0o644)
-	if err == nil {
+	if info, err := os.Lstat(path); err == nil {
+		// safefs refuses a symlink or other non-regular entry; the mode
+		// of an existing regular pack is kept.
 		mode = info.Mode().Perm()
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".extract-apply-*")
-	if err != nil {
-		return err
-	}
-	name := tmp.Name()
-	defer os.Remove(name)
-	if _, err := io.Copy(tmp, bytes.NewReader(data)); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Chmod(mode); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(name, path)
+	return safefs.WriteFile(path, data, mode)
 }
 
 // joinArray joins raw values into a JSON array without re-encoding them (a
