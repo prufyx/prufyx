@@ -103,7 +103,10 @@
       "paths": [
         {"path": "deployments/charts/kuma/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
-      "exclude": []
+      "exclude": [
+        {"path": "pkg/core/resources/apis/donothingresource/", "reason": "the scaffolding example resource kept in the source tree; its definition is not in the release chart"},
+        {"path": "pkg/plugins/policies/donothingpolicy/", "reason": "the scaffolding example policy kept in the source tree; its definition is not in the release chart"}
+      ]
     },
     {
       "project": "kyverno",
