@@ -198,6 +198,16 @@ case "$code" in
   10) echo "Prufyx: BLOCKED."
       if [ "$fail_blocked" = 1 ]; then die "prufyx found problems that must be fixed (exit 10)"; fi ;;
   11) echo "Prufyx: UNKNOWN: no blocker in the checks that ran, but some areas were not checked."
+      # A manifest that uses an API version the target does not serve is a
+      # fact from the reviewed removal table, not a missing review: it fails
+      # the step under every fail-on except none.
+      if [ "$in_failon" != none ] && [ "$fail_unknown" != 1 ]; then
+        # The scan exits 11 here; only the report text is wanted.
+        jsonreport="$("$bin" scan "${args[@]}" --format json 2>/dev/null || true)"
+        if printf '%s' "$jsonreport" | grep -q '"reason":"API_VERSION_NOT_SERVED"'; then
+          die "manifests use API versions the target does not serve (API_VERSION_NOT_SERVED, exit 11); migrate them to a served API version"
+        fi
+      fi
       if [ "$fail_unknown" != 1 ]; then
         printf '::warning title=Prufyx::%s\n' "UNKNOWN (exit 11): not every area was checked, so this is not a pass. The report names what was not checked. Set fail-on: unknown to stop the job on this." >&2
       fi

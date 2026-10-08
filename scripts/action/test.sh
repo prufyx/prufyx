@@ -187,6 +187,15 @@ new_env; run_scan FAKE_EXIT=11
 grep -q '^::warning title=Prufyx::' "$root/w/log" && ok "exit 11 under default adds a warning annotation" || bad "exit 11 warning" "$(cat "$root/w/log")"
 new_env; run_scan FAKE_EXIT=11 PRUFYX_IN_FAIL_ON=unknown
 grep -q '^::warning' "$root/w/log" && bad "no warning when failing" "warned" || ok "no warning when exit 11 fails the step"
+# A manifest on an API version the target does not serve fails the step by
+# default; any other UNKNOWN does not; fail-on none still lets it pass.
+NOTSERVED='{"gaps":[{"reason":"API_VERSION_NOT_SERVED"}]}'
+new_env; run_scan FAKE_EXIT=11 FAKE_STDOUT="$NOTSERVED"
+[ "$RC" -ne 0 ] && ok "not-served gap fails under the default fail-on" || bad "not-served default" "rc=$RC"
+new_env; run_scan FAKE_EXIT=11 FAKE_STDOUT="$NOTSERVED" PRUFYX_IN_FAIL_ON=none
+[ "$RC" -eq 0 ] && ok "not-served gap passes under fail-on none" || bad "not-served none" "rc=$RC"
+new_env; run_scan FAKE_EXIT=11 FAKE_STDOUT='{"gaps":[{"reason":"LINE_NOT_ATTESTED"}]}'
+[ "$RC" -eq 0 ] && ok "other UNKNOWN gaps keep the default" || bad "other unknown default" "rc=$RC"
 
 # --- two uses in one job keep both reports -------------------------------------
 new_env

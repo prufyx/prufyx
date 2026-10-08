@@ -94,7 +94,10 @@ not documented for `pull_request_target`.
 `UNKNOWN`: no blocker in the checks that ran, but not every area was checked.
 Under the default, an `UNKNOWN` scan (exit `11`) passes the step and adds a
 warning annotation that not every area was checked: a green step is not a
-pass. Use `fail-on: unknown` if the job must stop until a person has reviewed
+pass. The one exception is the gap `API_VERSION_NOT_SERVED`: a manifest uses an API
+version the target Kubernetes release does not serve, which the reviewed removal
+table establishes. That fails the step under `blocked` (the default), `unknown`
+and `blocked,unknown`; only `none` lets it pass. Use `fail-on: unknown` if the job must stop until a person has reviewed
 the gaps (see [answers and exit codes](scan.md#answers-and-exit-codes)).
 Invalid input (exit `2`) and a knowledge integrity failure (exit `3`) always
 fail the step, whatever `fail-on` says. Because `scan` rarely answers PASS

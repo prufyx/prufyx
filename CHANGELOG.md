@@ -303,7 +303,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   (`prufyx/gap/<REASON>`), so code scanning no longer shows "no alerts" for an
   undecided scan. The GitHub Action prints `UNKNOWN` for exit 11 and its
   documentation no longer calls a green UNKNOWN a sensible default; use
-  `fail-on: unknown` to stop on it.
+  `fail-on: unknown` to stop on it. A scan with the gap `API_VERSION_NOT_SERVED`
+  (a manifest on an API version the target does not serve) fails the Action
+  step under every `fail-on` except `none`.
 - UNKNOWN next actions are plain words. The Kubernetes apply-set check names
   the missing declaration and its flag (`--resource-scope-complete`,
   `--target-api-apply-required`, `--distribution official_upstream`); other
