@@ -399,6 +399,36 @@
         }
       }
     },
+    "crossingMatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "anchorFrom",
+        "anchorTo",
+        "change",
+        "cappedAt"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "crossing"
+          ]
+        },
+        "anchorFrom": {
+          "type": "string"
+        },
+        "anchorTo": {
+          "type": "string"
+        },
+        "change": {
+          "type": "string"
+        },
+        "cappedAt": {
+          "type": "string"
+        }
+      }
+    },
     "citation": {
       "type": "object",
       "additionalProperties": false,
@@ -471,8 +501,12 @@
         "match": {
           "enum": [
             "anchor",
-            "range"
+            "range",
+            "crossing"
           ]
+        },
+        "crossing": {
+          "$ref": "#/$defs/crossingMatch"
         },
         "locations": {
           "type": "array",
