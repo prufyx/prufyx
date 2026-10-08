@@ -1097,6 +1097,14 @@
               "endLine": 91
             },
             {
+              "id": "source-cilium-1-17-18-cluster-name-max-length",
+              "url": "https://github.com/cilium/cilium/blob/e5796ad1eb6003acf44d8f6a7dc726699a37c1c0/pkg/clustermesh/types/types.go",
+              "revision": "e5796ad1eb6003acf44d8f6a7dc726699a37c1c0",
+              "contentDigest": "sha256:ce889418c28eece42a0ef7409faec4dc0644540cb8419e0930794462b0ed3189",
+              "startLine": 30,
+              "endLine": 31
+            },
+            {
               "id": "source-cilium-1-17-18-cluster-name-target-boundary",
               "url": "https://github.com/cilium/cilium/blob/e5796ad1eb6003acf44d8f6a7dc726699a37c1c0/pkg/clustermesh/types/types.go",
               "revision": "e5796ad1eb6003acf44d8f6a7dc726699a37c1c0",
@@ -1782,7 +1790,7 @@
     },
     {
       "project": "cloudnativepg",
-      "description": "CloudNativePG 1.30 makes the cluster reference immutable on Database, Pooler, Publication, Subscription, and ScheduledBackup resources; this compares one caller-supplied current/proposed pair with matching identity.",
+      "description": "CloudNativePG 1.30.0 makes the cluster reference immutable on Database, Pooler, Publication, Subscription, and ScheduledBackup resources; the validation was also backported and ships from 1.29.2, so only the exact 1.29.0 to 1.30.0 transition crosses it. This compares one caller-supplied current/proposed pair with matching identity.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -1813,6 +1821,22 @@
           "reviewedAt": "2026-09-11T00:00:00Z",
           "validUntil": "2026-12-10T00:00:00Z",
           "sources": [
+            {
+              "id": "cnpg-v1-29-0-scheduledbackup-cluster-field",
+              "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/23eae00cd7aad82978397798dd27b600eb25ae3d/api/v1/scheduledbackup_types.go",
+              "revision": "23eae00cd7aad82978397798dd27b600eb25ae3d",
+              "contentDigest": "sha256:807d2ddf279be5267b343f6f9b02db8edd90e42d5913b61bd1980f72baf8aaa3",
+              "startLine": 41,
+              "endLine": 42
+            },
+            {
+              "id": "cnpg-v1-29-2-release-note",
+              "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/94ee3117858765c77d0dbfde381a037944a48a64/docs/src/release_notes/v1.29.md",
+              "revision": "94ee3117858765c77d0dbfde381a037944a48a64",
+              "contentDigest": "sha256:0b04c3fc20c26848e91a84f4877d2868e498b78242a052ef5cd6519a11c0c223",
+              "startLine": 25,
+              "endLine": 30
+            },
             {
               "id": "cnpg-v1-30-database-cel",
               "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/4b5e244a7d031f67e025c83c1555e7726ecbbfa1/api/v1/database_types.go",
@@ -3277,7 +3301,7 @@
               "id": "crio-v135-normalization-prefix",
               "url": "https://github.com/cri-o/cri-o/blob/92c18a2e2673764cd10f89b1a5061e2b26f44209/vendor/github.com/distribution/reference/normalize.go",
               "revision": "92c18a2e2673764cd10f89b1a5061e2b26f44209",
-              "contentDigest": "sha256:76ba6f446732a836657b36ca19a2f940497da0ded41dff566f545a30626c46c5",
+              "contentDigest": "sha256:7bad23a44f1bca325c5de6185092b9992c55b7db211fa4f5444b2d80853e7599",
               "startLine": 10,
               "endLine": 15
             },
@@ -3285,7 +3309,7 @@
               "id": "crio-v135-reference-name-limit",
               "url": "https://github.com/cri-o/cri-o/blob/92c18a2e2673764cd10f89b1a5061e2b26f44209/vendor/github.com/distribution/reference/reference.go",
               "revision": "92c18a2e2673764cd10f89b1a5061e2b26f44209",
-              "contentDigest": "sha256:09eee8efc0533bd052af03373ae65fcdb052d1828ccbca7a4af02684a94e660c",
+              "contentDigest": "sha256:39d358c9e2539646ea612a6c9eda1d671b3cd71287873a3cc5fd0ffb2be6c6f3",
               "startLine": 32,
               "endLine": 38
             },
@@ -3293,7 +3317,7 @@
               "id": "crio-v135-reference-parse",
               "url": "https://github.com/cri-o/cri-o/blob/92c18a2e2673764cd10f89b1a5061e2b26f44209/vendor/github.com/distribution/reference/reference.go",
               "revision": "92c18a2e2673764cd10f89b1a5061e2b26f44209",
-              "contentDigest": "sha256:09eee8efc0533bd052af03373ae65fcdb052d1828ccbca7a4af02684a94e660c",
+              "contentDigest": "sha256:39d358c9e2539646ea612a6c9eda1d671b3cd71287873a3cc5fd0ffb2be6c6f3",
               "startLine": 189,
               "endLine": 218
             },
@@ -3301,7 +3325,7 @@
               "id": "crio-v135-reference-regex",
               "url": "https://github.com/cri-o/cri-o/blob/92c18a2e2673764cd10f89b1a5061e2b26f44209/vendor/github.com/distribution/reference/regexp.go",
               "revision": "92c18a2e2673764cd10f89b1a5061e2b26f44209",
-              "contentDigest": "sha256:2b28300779c30ddd8dd4c8ee3b5f1544f746e4f3c4ceefd3f90266186ee3cf4d",
+              "contentDigest": "sha256:cfbf9c4415228fca53e6fb873a8d926154c27ba7d35556c10487bdc936d5d9aa",
               "startLine": 16,
               "endLine": 105
             },
@@ -4007,8 +4031,8 @@
             },
             {
               "id": "emissary-v3-10-0-diagd-options",
-              "url": "https://github.com/emissary-ingress/emissary/blob/7a501744c9922bbe22aa0c05ea2829afea638ebb/python/ambassador_diag/diagd.py",
-              "revision": "7a501744c9922bbe22aa0c05ea2829afea638ebb",
+              "url": "https://github.com/emissary-ingress/emissary/blob/d25610acbea3cd0e57f924f9f6bd9df99a7e33a3/python/ambassador_diag/diagd.py",
+              "revision": "d25610acbea3cd0e57f924f9f6bd9df99a7e33a3",
               "contentDigest": "sha256:bf5208f0fa67e4623073e4413b1e98b8b5ef12918628072525b4a7ea62abbe77",
               "startLine": 2309,
               "endLine": 2314
@@ -5045,7 +5069,7 @@
     },
     {
       "project": "falco",
-      "description": "Falco 0.42.0 retains the documented removal of five deprecated 0.40 CLI spellings for the official Falco executable; this exact transition covers only an operator-declared proposed argv presence predicate.",
+      "description": "At the Falco 0.42.0 tag commit the five CLI spellings deprecated in 0.40 are absent from options.cpp define(), and their removal landed in 0.41.0, for the official Falco executable; this exact transition covers only an operator-declared proposed argv presence predicate.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -8783,8 +8807,8 @@
           "sources": [
             {
               "id": "kubernetes-website-v132-flowcontrol-removal",
-              "url": "https://github.com/kubernetes/website/blob/4e63ceb05c36a5db816c3244856a2996ddc23793/content/en/docs/reference/using-api/deprecation-guide.md",
-              "revision": "4e63ceb05c36a5db816c3244856a2996ddc23793",
+              "url": "https://github.com/kubernetes/website/blob/f424d451424f01737b7d2bc22666ef184e117565/content/en/docs/reference/using-api/deprecation-guide.md",
+              "revision": "f424d451424f01737b7d2bc22666ef184e117565",
               "contentDigest": "sha256:e8713b66cc6e8778589ad721d4aa36e390d1095ad2ad9e86db2d6e0e42bbec4b",
               "startLine": 23,
               "endLine": 34
@@ -11197,7 +11221,7 @@
     },
     {
       "project": "metallb",
-      "description": "MetalLB 0.13.2 removed support for the legacy ConfigMap configuration used through 0.12; this checks only a caller-selected submitted ConfigMap and does not claim that other cluster configuration has migrated.",
+      "description": "MetalLB 0.13.0 removed support for the legacy ConfigMap configuration (still unsupported in 0.13.2); this checks only a caller-selected submitted ConfigMap and does not claim that other cluster configuration has migrated.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -14442,10 +14466,10 @@
             },
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
-              "endLine": 217,
+              "endLine": 233,
               "id": "prometheus-v3-14-remote-write-default",
               "revision": "d7598b7141418fa35be2b5ec5d0fefb634199610",
-              "startLine": 206,
+              "startLine": 221,
               "url": "https://github.com/prometheus/prometheus/blob/d7598b7141418fa35be2b5ec5d0fefb634199610/config/config.go"
             },
             {
@@ -14955,7 +14979,7 @@
           "validUntil": "2026-12-11T07:37:00Z"
         },
         "id": "rook.direct-minor-skip.1-15-9-to-1-20-7",
-        "nextAction": "Plan a separate supported Rook 1.15x to 1.16.x transition first; the cited latest patch is an evidence endpoint, not a mandatory exact intermediate.",
+        "nextAction": "Plan a separate supported Rook 1.15.x to 1.16.x transition first; the cited latest patch is an evidence endpoint, not a mandatory exact intermediate.",
         "operator": "forbid_target_version",
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "subject": {
@@ -14994,7 +15018,7 @@
           "validUntil": "2026-12-11T07:37:00Z"
         },
         "id": "rook.direct-minor-skip.1-16-9-to-1-20-7",
-        "nextAction": "Plan a separate supported Rook 1.16x to 1.17.x transition first; the cited latest patch is an evidence endpoint, not a mandatory exact intermediate.",
+        "nextAction": "Plan a separate supported Rook 1.16.x to 1.17.x transition first; the cited latest patch is an evidence endpoint, not a mandatory exact intermediate.",
         "operator": "forbid_target_version",
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "subject": {

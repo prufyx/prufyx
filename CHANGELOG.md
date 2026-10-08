@@ -149,6 +149,25 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   pack file and refuses a pack that differs from `--base-pack` or
   `--base-baselines`. The pack loader also refuses a served list that names a
   1.16 removal (`apps/v1beta1`, `apps/v1beta2`, `extensions/v1beta1`).
+- Knowledge: evidence corrections from the model-assisted review of the
+  embedded CNCF pack (pack revision unchanged; the rules keep their ids,
+  ranges and verdict logic). Three vendored-file `contentDigest` values of
+  `cri-o.artifact-short-name-rejected.1-35` (still withdrawn) now equal the
+  whole-file sha256 at the cited commit; `emissary-ingress.metrics-endpoint-removed.3-10-to-4-0`
+  cites the v3.10.0 commit instead of the annotated tag object;
+  `cilium.cluster-name-invalid.1-16-19-to-1-17-18` also cites the 32-byte limit
+  (`types.go` lines 30-31); `prometheus.remote-write-http2-default.2-55-1-to-3-14-0`
+  cites the remote-write defaults (lines 221-233) instead of the scrape
+  defaults; the descriptions of `falco.deprecated-cli-flags-removed.0-40-to-0-42`
+  (the 0.42.0 tag commit has no 0.42 changelog section; removal landed in 0.41.0),
+  `metallb.legacy-configmap-removed.0-12-1-to-0-13-2` (removed in 0.13.0, still
+  unsupported in 0.13.2) and `cloudnativepg.cluster-reference-immutable.1-29-to-1-30`
+  (also backported, shipping from 1.29.2, which two added sources cite) now
+  state only what the cited sources show; two Rook `nextAction` typos
+  (`1.15x`, `1.16x`) are fixed; `kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0`
+  cites the kubernetes/website commit f424d45 (in the main history, identical
+  file bytes and digest) instead of an unreachable commit. The corpus attestation digests follow.
+  `prufyx-maintainer rule verify-citations` reports no findings over both packs.
 - `prufyx assess --format json`: the collector progress lines ("Context …", "Created local API observation directory …", "Verify context files with …") now go to stderr, so stdout carries only the JSON report and parses as JSON.
 - `extract` file writes are never made through a symlink and no longer depend on
   the umask. `extract run` builds the output in a staging directory beside `--out`
