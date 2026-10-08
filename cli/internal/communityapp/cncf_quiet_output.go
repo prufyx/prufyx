@@ -189,6 +189,10 @@ func writeBoundaryNote(out io.Writer, summary claimSummary) error {
 	if len(boundaries) > 0 {
 		named = " (" + strings.Join(boundaries, ", ") + ")"
 	}
+	if summary.boundary == 1 {
+		_, err := fmt.Fprintf(out, "1 rule about a release boundary%s this hop crosses is not reviewed for this hop\n", named)
+		return err
+	}
 	_, err := fmt.Fprintf(out, "%d rules about release boundaries%s this hop crosses are not reviewed for this hop\n", summary.boundary, named)
 	return err
 }

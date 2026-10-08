@@ -137,7 +137,7 @@ func TestCollapsedNotesCountBoundaryClaimsApart(t *testing.T) {
 	if err := writeCollapsedNotes(&out, summary); err != nil {
 		t.Fatal(err)
 	}
-	want := "1 rules for other transitions not applicable to this pair\n1 rules about release boundaries (1.25.0) this hop crosses are not reviewed for this hop\n1 rules PASS (not listed; use --show-passes)\n"
+	want := "1 rule for another transition not applicable to this pair\n1 rule about a release boundary (1.25.0) this hop crosses is not reviewed for this hop\n1 rule PASS (not listed; use --show-passes)\n"
 	if out.String() != want {
 		t.Fatalf("output:\n%s\nwant:\n%s", out.String(), want)
 	}
