@@ -25,6 +25,21 @@
 /cli/internal/maintainer/evidencereattest/ @airstand
 /cli/internal/extract/ @airstand
 
+# The reviewed image-to-project registry and the code that interprets it. A
+# wrong entry misidentifies a component, and loosening the matcher or the
+# validator (tag schemes, distribution builds, roles that yield a version) is
+# as dangerous as a wrong entry. The classification that turns a missing
+# component into "absent" or "unknown", the detection paths that feed it and
+# the collector's image projection are covered too. (The code owner is also
+# the usual author, so until an independent reviewer exists the canonical-bytes
+# test and the registry digest recorded in every bundle are the real controls.)
+/cli/internal/imageidentity/ @airstand
+/cli/internal/onecommand/ @airstand
+/cli/internal/localcollector/component.go @airstand
+/cli/internal/localcollector/component_aggregate.go @airstand
+/cli/internal/observation/import.go @airstand
+/cli/internal/maintainer/rulecheck/citeverify*.go @airstand
+
 # Dependencies.
 /cli/go.mod @airstand
 /cli/go.sum @airstand

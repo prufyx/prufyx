@@ -7,7 +7,10 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 	"unicode/utf8"
+
+	"github.com/prufyx/prufyx/cli/internal/imageidentity"
 )
 
 var strictVersionRE = regexp.MustCompile(`^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-(0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$`)
@@ -21,7 +24,7 @@ type containerRecord struct {
 	init          []any
 }
 
-func projectWorkload(root any, adapter adapterAssets, profile string) (map[string]any, error) {
+func projectWorkload(root any, adapter adapterAssets, profile string, now time.Time) (map[string]any, error) {
 	items, err := listRoot(root, 50000)
 	if err != nil {
 		return nil, err
@@ -79,6 +82,9 @@ func projectWorkload(root any, adapter adapterAssets, profile string) (map[strin
 				"observationState": "active", "observationCount": 1, "versionConflict": false,
 			})
 		}
+		if observed := registryImage(record, matched, now); observed != nil {
+			publicImages = append(publicImages, observed)
+		}
 		row, omission := configureContainer(record, containers, matched, profile, version, scheme)
 		if row != nil {
 			configuration = append(configuration, row)
@@ -89,6 +95,39 @@ func projectWorkload(root any, adapter adapterAssets, profile string) (map[strin
 	}
 	sortAny(publicImages)
 	return map[string]any{"images": []any{}, "publicImages": publicImages, "configuration": configuration, "omissions": omissions, "version": "v1"}, nil
+}
+
+// registryWorkloadKinds are the kinds whose regular containers the reviewed
+// image registry may identify, the same long-running kinds the adapter
+// registry reads.
+var registryWorkloadKinds = []string{"Deployment", "StatefulSet", "DaemonSet"}
+
+// registryImage projects one container image that only the reviewed image
+// registry (not the adapter registry) identifies. It returns nil unless the
+// image matches a registry record, so no other image, tag or field is ever
+// recorded; a matched image yields exactly the public-image row shape the
+// collector already writes, carrying the project's component and the version
+// the registry derived (or none). Digest-only, unknown-tag, distribution and
+// unlisted images produce no version, and unlisted or distribution images no
+// row at all.
+func registryImage(record containerRecord, adapterMatch *componentAdapter, now time.Time) map[string]any {
+	if adapterMatch != nil || !contains(registryWorkloadKinds, record.workloadKind) {
+		return nil
+	}
+	res := imageidentity.Match(record.image, now)
+	// A record outside the catalog has no compatibility rule that consumes its
+	// rows, so it is never collected.
+	if res.Kind != imageidentity.KindMatched || res.Catalog != imageidentity.CatalogMember {
+		return nil
+	}
+	var version any
+	if res.Version != "" {
+		version = res.Version
+	}
+	return map[string]any{
+		"componentId": res.Component, "observedVersion": version, "versionScheme": res.Scheme,
+		"observationState": "active", "observationCount": 1, "versionConflict": false,
+	}
 }
 
 func workloadPodSpec(item any, kind string) map[string]any {

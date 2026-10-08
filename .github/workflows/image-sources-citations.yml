@@ -1,0 +1,42 @@
+name: Image-source citations
+
+# Re-verifies every citation of the reviewed image registry: each cited
+# revision is a commit, each whole-file sha256 equals contentDigest, and each
+# cited line span lies inside the file. Runs when the table changes and weekly,
+# so an upstream force-push or a vanished file is noticed. Read-only against
+# GitHub.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - cli/internal/imageidentity/data/**
+      - cli/internal/maintainer/rulecheck/**
+      - .github/workflows/image-sources-citations.yml
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify image-source citations
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Verify citations
+        working-directory: cli
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: go run -buildvcs=false ./cmd/prufyx-maintainer rule verify-citations --image-sources internal/imageidentity/data/image-sources.json

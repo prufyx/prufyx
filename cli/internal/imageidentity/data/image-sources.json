@@ -1,0 +1,729 @@
+{
+  "schema": "prufyx.io/image-sources/v1alpha1",
+  "records": [
+    {
+      "project": "alertmanager",
+      "component": "pkg:oci/prometheus/alertmanager",
+      "catalog": "none",
+      "tagScheme": "v{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "docker.io/prom/alertmanager",
+          "role": "version-source",
+          "sourceId": "readme-hub"
+        },
+        {
+          "repo": "quay.io/prometheus/alertmanager",
+          "role": "version-source",
+          "sourceId": "manifest"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "manifest",
+            "url": "https://github.com/prometheus-operator/kube-prometheus/blob/799f3d73b5adf5758c3119c9201d9f417accb6d0/manifests/alertmanager-alertmanager.yaml",
+            "revision": "799f3d73b5adf5758c3119c9201d9f417accb6d0",
+            "contentDigest": "sha256:e69ff8f8a3fd848877dcb191f8e246b5b83c0f1147f566b3bea31f9ac2351cf5",
+            "startLine": 14,
+            "endLine": 14
+          },
+          {
+            "id": "readme-hub",
+            "url": "https://github.com/prometheus/alertmanager/blob/5c0fd7e3171f9f444e74fe80882b8a14e33b7a78/README.md",
+            "revision": "5c0fd7e3171f9f444e74fe80882b8a14e33b7a78",
+            "contentDigest": "sha256:ee3f8a3cfd3e5ac4ee8daa8b4d3fcc64ff5eb6fec9d0498ac4d4b073772a28c3",
+            "startLine": 23,
+            "endLine": 23
+          }
+        ]
+      }
+    },
+    {
+      "project": "cloudnativepg",
+      "component": "pkg:oci/cloudnative-pg/cloudnative-pg",
+      "catalog": "member",
+      "tagScheme": "{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "ghcr.io/cloudnative-pg/cloudnative-pg",
+          "role": "operator",
+          "sourceId": "manifest"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "manifest",
+            "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/2a35abb4628f209d149825ef3c38011e0701ff2f/releases/cnpg-1.30.1.yaml",
+            "revision": "2a35abb4628f209d149825ef3c38011e0701ff2f",
+            "contentDigest": "sha256:37237f145d8138256ea25ae830f87759255665ff08f8d552fdd8224a5ec032fb",
+            "startLine": 21023,
+            "endLine": 21023
+          }
+        ]
+      }
+    },
+    {
+      "project": "cluster-api",
+      "component": "pkg:oci/kubernetes-sigs/cluster-api",
+      "catalog": "none",
+      "tagScheme": "v{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "registry.k8s.io/cluster-api/cluster-api-controller",
+          "role": "version-source",
+          "sourceId": "doc-images"
+        },
+        {
+          "repo": "registry.k8s.io/cluster-api/kubeadm-bootstrap-controller",
+          "role": "version-source",
+          "sourceId": "doc-images"
+        },
+        {
+          "repo": "registry.k8s.io/cluster-api/kubeadm-control-plane-controller",
+          "role": "version-source",
+          "sourceId": "doc-images"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "doc-images",
+            "url": "https://github.com/kubernetes-sigs/cluster-api/blob/5f7d58c9ad647f31bd342bf8de33092c27f7fc38/docs/book/src/tasks/verify-container-images.md",
+            "revision": "5f7d58c9ad647f31bd342bf8de33092c27f7fc38",
+            "contentDigest": "sha256:02dfc6bf60ebbb2e2e0786b0c8b28b3e29ebd7652df31313b66843358d3f400e",
+            "startLine": 9,
+            "endLine": 19
+          },
+          {
+            "id": "makefile-registry",
+            "url": "https://github.com/kubernetes-sigs/cluster-api/blob/5f7d58c9ad647f31bd342bf8de33092c27f7fc38/Makefile",
+            "revision": "5f7d58c9ad647f31bd342bf8de33092c27f7fc38",
+            "contentDigest": "sha256:22d1a9c1cfb06651a3cc05de5725ebfe8304b3a55ce7a8a945b0045efc2da299",
+            "startLine": 230,
+            "endLine": 245
+          }
+        ]
+      }
+    },
+    {
+      "project": "contour",
+      "component": "pkg:oci/projectcontour/contour",
+      "catalog": "member",
+      "tagScheme": "v{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "ghcr.io/projectcontour/contour",
+          "role": "version-source",
+          "sourceId": "manifest"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "manifest",
+            "url": "https://github.com/projectcontour/contour/blob/81c4e28c38177ed1f3a3265389a86f8926c332cb/examples/render/contour.yaml",
+            "revision": "81c4e28c38177ed1f3a3265389a86f8926c332cb",
+            "contentDigest": "sha256:96caefecf8272bde6467528514a3ead14bf165176ad6711bc11ab141c1ae62c8",
+            "startLine": 9152,
+            "endLine": 9152
+          }
+        ]
+      }
+    },
+    {
+      "project": "dragonfly",
+      "component": "pkg:oci/dragonflyoss/dragonfly",
+      "catalog": "member",
+      "tagScheme": "v{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "docker.io/dragonflyoss/manager",
+          "role": "version-source",
+          "sourceId": "values-manager"
+        },
+        {
+          "repo": "docker.io/dragonflyoss/scheduler",
+          "role": "version-source",
+          "sourceId": "values-scheduler"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "values-manager",
+            "url": "https://github.com/dragonflyoss/helm-charts/blob/87b23d318db8464d5386a5a16b9c959590c3e0d6/charts/dragonfly/values.yaml",
+            "revision": "87b23d318db8464d5386a5a16b9c959590c3e0d6",
+            "contentDigest": "sha256:a7635a8ba2231b069dbec192cc5527a5a8344933c167c3906ea71ef952674e7c",
+            "startLine": 80,
+            "endLine": 84
+          },
+          {
+            "id": "values-scheduler",
+            "url": "https://github.com/dragonflyoss/helm-charts/blob/87b23d318db8464d5386a5a16b9c959590c3e0d6/charts/dragonfly/values.yaml",
+            "revision": "87b23d318db8464d5386a5a16b9c959590c3e0d6",
+            "contentDigest": "sha256:a7635a8ba2231b069dbec192cc5527a5a8344933c167c3906ea71ef952674e7c",
+            "startLine": 376,
+            "endLine": 380
+          }
+        ]
+      }
+    },
+    {
+      "project": "etcd",
+      "component": "pkg:oci/etcd-io/etcd",
+      "catalog": "member",
+      "tagScheme": "v{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "quay.io/coreos/etcd",
+          "role": "version-source",
+          "sourceId": "release-image"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "release-image",
+            "url": "https://github.com/etcd-io/etcd/blob/68c065e562994b89e333e77b039ad066f933c586/scripts/release.sh",
+            "revision": "68c065e562994b89e333e77b039ad066f933c586",
+            "contentDigest": "sha256:252984124cb1bc5fe315c0402df293d543ca3308006853832e413d03a75fab35",
+            "startLine": 302,
+            "endLine": 302
+          },
+          {
+            "id": "release-version",
+            "url": "https://github.com/etcd-io/etcd/blob/68c065e562994b89e333e77b039ad066f933c586/scripts/release.sh",
+            "revision": "68c065e562994b89e333e77b039ad066f933c586",
+            "contentDigest": "sha256:252984124cb1bc5fe315c0402df293d543ca3308006853832e413d03a75fab35",
+            "startLine": 70,
+            "endLine": 70
+          }
+        ]
+      }
+    },
+    {
+      "project": "grafana",
+      "component": "pkg:oci/grafana/grafana",
+      "catalog": "member",
+      "tagScheme": "{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "docker.io/grafana/grafana",
+          "role": "version-source",
+          "sourceId": "manifest"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "manifest",
+            "url": "https://github.com/prometheus-operator/kube-prometheus/blob/799f3d73b5adf5758c3119c9201d9f417accb6d0/manifests/grafana-deployment.yaml",
+            "revision": "799f3d73b5adf5758c3119c9201d9f417accb6d0",
+            "contentDigest": "sha256:e54cc9d2b3c9359dfff3f032164ab03eb7fb1c89ca6760d0f5b01a59f374de1a",
+            "startLine": 33,
+            "endLine": 33
+          }
+        ]
+      }
+    },
+    {
+      "project": "harbor",
+      "component": "pkg:oci/goharbor/harbor",
+      "catalog": "member",
+      "tagScheme": "v{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "docker.io/goharbor/harbor-core",
+          "role": "version-source",
+          "sourceId": "values-core"
+        },
+        {
+          "repo": "docker.io/goharbor/harbor-portal",
+          "role": "version-source",
+          "sourceId": "values-portal"
+        },
+        {
+          "repo": "docker.io/goharbor/nginx-photon",
+          "role": "version-source",
+          "sourceId": "values-nginx"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "values-core",
+            "url": "https://github.com/goharbor/harbor-helm/blob/1b95eb091f73a692634797b3ea15766a6d454d57/values.yaml",
+            "revision": "1b95eb091f73a692634797b3ea15766a6d454d57",
+            "contentDigest": "sha256:7c90bba6db110a663be1b9a9109407af335f185da4b241a02c6b6140fc23ee6e",
+            "startLine": 610,
+            "endLine": 611
+          },
+          {
+            "id": "values-nginx",
+            "url": "https://github.com/goharbor/harbor-helm/blob/1b95eb091f73a692634797b3ea15766a6d454d57/values.yaml",
+            "revision": "1b95eb091f73a692634797b3ea15766a6d454d57",
+            "contentDigest": "sha256:7c90bba6db110a663be1b9a9109407af335f185da4b241a02c6b6140fc23ee6e",
+            "startLine": 503,
+            "endLine": 504
+          },
+          {
+            "id": "values-portal",
+            "url": "https://github.com/goharbor/harbor-helm/blob/1b95eb091f73a692634797b3ea15766a6d454d57/values.yaml",
+            "revision": "1b95eb091f73a692634797b3ea15766a6d454d57",
+            "contentDigest": "sha256:7c90bba6db110a663be1b9a9109407af335f185da4b241a02c6b6140fc23ee6e",
+            "startLine": 552,
+            "endLine": 553
+          }
+        ]
+      }
+    },
+    {
+      "project": "kube-state-metrics",
+      "component": "pkg:oci/kubernetes/kube-state-metrics",
+      "catalog": "none",
+      "tagScheme": "v{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "registry.k8s.io/kube-state-metrics/kube-state-metrics",
+          "role": "version-source",
+          "sourceId": "manifest"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "manifest",
+            "url": "https://github.com/kubernetes/kube-state-metrics/blob/4ffeda2ef866b0fef372849825a803296483b336/examples/standard/deployment.yaml",
+            "revision": "4ffeda2ef866b0fef372849825a803296483b336",
+            "contentDigest": "sha256:08d57682c0117bda50b8e894be1669001e49ce0ff3e60c11fccc6f56dfbc9f2e",
+            "startLine": 24,
+            "endLine": 24
+          }
+        ]
+      }
+    },
+    {
+      "project": "kubeedge",
+      "component": "pkg:oci/kubeedge/kubeedge",
+      "catalog": "member",
+      "tagScheme": "v{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "docker.io/kubeedge/cloudcore",
+          "role": "version-source",
+          "sourceId": "values"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "values",
+            "url": "https://github.com/kubeedge/kubeedge/blob/1a7ee88d3c61dc781cc9c9053066ab3d38519dd5/manifests/charts/cloudcore/values.yaml",
+            "revision": "1a7ee88d3c61dc781cc9c9053066ab3d38519dd5",
+            "contentDigest": "sha256:f1051574dcce531eb78813755c49b106629597b0a211e6da54c2341a4d73d45b",
+            "startLine": 10,
+            "endLine": 11
+          }
+        ]
+      }
+    },
+    {
+      "project": "longhorn",
+      "component": "pkg:oci/longhornio/longhorn",
+      "catalog": "member",
+      "tagScheme": "v{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "docker.io/longhornio/longhorn-engine",
+          "role": "version-source",
+          "sourceId": "values-engine"
+        },
+        {
+          "repo": "docker.io/longhornio/longhorn-manager",
+          "role": "version-source",
+          "sourceId": "values-manager"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "values-engine",
+            "url": "https://github.com/longhorn/longhorn/blob/c3d88832bd8cec4f38dec65e79436984871dc313/chart/values.yaml",
+            "revision": "c3d88832bd8cec4f38dec65e79436984871dc313",
+            "contentDigest": "sha256:eb9074e0f722ce3216d2fdc331996c56b36358307c79667897003d2442a25bbb",
+            "startLine": 56,
+            "endLine": 58
+          },
+          {
+            "id": "values-manager",
+            "url": "https://github.com/longhorn/longhorn/blob/c3d88832bd8cec4f38dec65e79436984871dc313/chart/values.yaml",
+            "revision": "c3d88832bd8cec4f38dec65e79436984871dc313",
+            "contentDigest": "sha256:eb9074e0f722ce3216d2fdc331996c56b36358307c79667897003d2442a25bbb",
+            "startLine": 63,
+            "endLine": 65
+          }
+        ]
+      }
+    },
+    {
+      "project": "mariadb",
+      "component": "pkg:oci/mariadb/server",
+      "catalog": "member",
+      "tagScheme": "{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "docker.io/library/mariadb",
+          "role": "version-source",
+          "sourceId": "official-images"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "official-images",
+            "url": "https://github.com/docker-library/official-images/blob/6b287dc80f463f088b8d6432ceeb633ec0c0b8a4/library/mariadb",
+            "revision": "6b287dc80f463f088b8d6432ceeb633ec0c0b8a4",
+            "contentDigest": "sha256:4030549d255a90573c858548b93e8307b274d24586f0d7886b5f5d21e2e4770b",
+            "startLine": 34,
+            "endLine": 34
+          }
+        ]
+      }
+    },
+    {
+      "project": "mariadb-operator",
+      "component": "pkg:oci/mariadb-operator/mariadb-operator",
+      "catalog": "member",
+      "tagScheme": "{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "ghcr.io/mariadb-operator/mariadb-operator",
+          "role": "operator",
+          "sourceId": "chart-values"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "chart-appversion",
+            "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8f43f4304a2d2fc9e442104079b48ad07b13fa50/deploy/charts/mariadb-operator/Chart.yaml",
+            "revision": "8f43f4304a2d2fc9e442104079b48ad07b13fa50",
+            "contentDigest": "sha256:261970741f207cf3513fa9c3bc541c4e7c8b56c330137576949f60c30906a659",
+            "startLine": 8,
+            "endLine": 8
+          },
+          {
+            "id": "chart-deployment",
+            "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8f43f4304a2d2fc9e442104079b48ad07b13fa50/deploy/charts/mariadb-operator/templates/operator/deployment.yaml",
+            "revision": "8f43f4304a2d2fc9e442104079b48ad07b13fa50",
+            "contentDigest": "sha256:cfdcdd6ce765cb9ed64599e5fcc019b1c677ea24f3d3eb906371ad8c67ab3c41",
+            "startLine": 60,
+            "endLine": 60
+          },
+          {
+            "id": "chart-helper",
+            "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8f43f4304a2d2fc9e442104079b48ad07b13fa50/deploy/charts/mariadb-operator/templates/_helpers.tpl",
+            "revision": "8f43f4304a2d2fc9e442104079b48ad07b13fa50",
+            "contentDigest": "sha256:0c372653768d78a94bb10613dfb1c587a6206a2407a89a84657a17971d0d245b",
+            "startLine": 157,
+            "endLine": 169
+          },
+          {
+            "id": "chart-values",
+            "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8f43f4304a2d2fc9e442104079b48ad07b13fa50/deploy/charts/mariadb-operator/values.yaml",
+            "revision": "8f43f4304a2d2fc9e442104079b48ad07b13fa50",
+            "contentDigest": "sha256:21ed711b5b54a4eb194d9325e83b24edd723a9fb0e179e97de2ada31476d0413",
+            "startLine": 10,
+            "endLine": 14
+          }
+        ]
+      }
+    },
+    {
+      "project": "nats",
+      "component": "pkg:oci/nats-io/nats-server",
+      "catalog": "member",
+      "tagScheme": "{version}-alpine",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "docker.io/library/nats",
+          "role": "version-source",
+          "sourceId": "values"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "values",
+            "url": "https://github.com/nats-io/k8s/blob/c14e0cfd0065f1a1649e959492bb5d451eacf8a2/helm/charts/nats/values.yaml",
+            "revision": "c14e0cfd0065f1a1649e959492bb5d451eacf8a2",
+            "contentDigest": "sha256:14e69bfe13a37860fb68caee2ca0435830fad90334c47f0418f9781f71febd71",
+            "startLine": 329,
+            "endLine": 330
+          }
+        ]
+      }
+    },
+    {
+      "project": "node-exporter",
+      "component": "pkg:oci/prometheus/node-exporter",
+      "catalog": "none",
+      "tagScheme": "v{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "docker.io/prom/node-exporter",
+          "role": "version-source",
+          "sourceId": "readme-hub"
+        },
+        {
+          "repo": "quay.io/prometheus/node-exporter",
+          "role": "version-source",
+          "sourceId": "manifest"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "manifest",
+            "url": "https://github.com/prometheus-operator/kube-prometheus/blob/799f3d73b5adf5758c3119c9201d9f417accb6d0/manifests/nodeExporter-daemonset.yaml",
+            "revision": "799f3d73b5adf5758c3119c9201d9f417accb6d0",
+            "contentDigest": "sha256:9fe21172061ce35973da6d4a73b0d5fe31b90cdc59a7a57eb87d6c1ebafe0614",
+            "startLine": 41,
+            "endLine": 41
+          },
+          {
+            "id": "readme-hub",
+            "url": "https://github.com/prometheus/node_exporter/blob/36c267f5afcd92485f1b892d417b4533c8e89389/README.md",
+            "revision": "36c267f5afcd92485f1b892d417b4533c8e89389",
+            "contentDigest": "sha256:596da9c08a087d2d0aa67a85e01d120ca7d0bee6bf291aea9d7fe373d9fa389a",
+            "startLine": 407,
+            "endLine": 407
+          }
+        ]
+      }
+    },
+    {
+      "project": "opencost",
+      "component": "pkg:oci/opencost/opencost",
+      "catalog": "member",
+      "tagScheme": "{version}",
+      "tagWithDigest": true,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "ghcr.io/opencost/opencost",
+          "role": "version-source",
+          "sourceId": "values-exporter"
+        },
+        {
+          "repo": "ghcr.io/opencost/opencost-ui",
+          "role": "version-source",
+          "sourceId": "values-ui"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "values-exporter",
+            "url": "https://github.com/opencost/opencost-helm-chart/blob/b015eaaf94a7b4c837812d3441ef059c4d8b80a8/charts/opencost/values.yaml",
+            "revision": "b015eaaf94a7b4c837812d3441ef059c4d8b80a8",
+            "contentDigest": "sha256:2fd2e56edc452f3047624059beb600c7a619680effdeadfaf6786c56a6d1ac77",
+            "startLine": 307,
+            "endLine": 311
+          },
+          {
+            "id": "values-ui",
+            "url": "https://github.com/opencost/opencost-helm-chart/blob/b015eaaf94a7b4c837812d3441ef059c4d8b80a8/charts/opencost/values.yaml",
+            "revision": "b015eaaf94a7b4c837812d3441ef059c4d8b80a8",
+            "contentDigest": "sha256:2fd2e56edc452f3047624059beb600c7a619680effdeadfaf6786c56a6d1ac77",
+            "startLine": 684,
+            "endLine": 689
+          }
+        ]
+      }
+    },
+    {
+      "project": "rook",
+      "component": "pkg:oci/rook/rook",
+      "catalog": "member",
+      "tagScheme": "v{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "docker.io/rook/ceph",
+          "role": "operator",
+          "sourceId": "values"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "values",
+            "url": "https://github.com/rook/rook/blob/70452ac10b697160e9f946eb9782990691927e9d/deploy/charts/rook-ceph/values.yaml",
+            "revision": "70452ac10b697160e9f946eb9782990691927e9d",
+            "contentDigest": "sha256:be89e0093390167c377248a4e1802bddce29f2c5c8ad7d57e44325faa57bb6f4",
+            "startLine": 7,
+            "endLine": 10
+          }
+        ]
+      }
+    },
+    {
+      "project": "thanos",
+      "component": "pkg:oci/thanos-io/thanos",
+      "catalog": "member",
+      "tagScheme": "v{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "docker.io/thanosio/thanos",
+          "role": "version-source",
+          "sourceId": "readme-mirror"
+        },
+        {
+          "repo": "quay.io/thanos/thanos",
+          "role": "version-source",
+          "sourceId": "kube-thanos-manifest"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "kube-thanos-manifest",
+            "url": "https://github.com/thanos-io/kube-thanos/blob/a9a40253ea65587355a72dbdec574639bf4998be/examples/all/manifests/thanos-query-deployment.yaml",
+            "revision": "a9a40253ea65587355a72dbdec574639bf4998be",
+            "contentDigest": "sha256:0e56b666685706ea88930f70ceb1f0d0793ca28d68f295bbef5aee79946f32e1",
+            "startLine": 70,
+            "endLine": 70
+          },
+          {
+            "id": "readme-mirror",
+            "url": "https://github.com/thanos-io/thanos/blob/45c4f39487e1653e606307d3952a6259fb96acae/README.md",
+            "revision": "45c4f39487e1653e606307d3952a6259fb96acae",
+            "contentDigest": "sha256:0328ceb55274899b98a5f960fb783e02efedf0c4f7bef1e5a41579c8da10a56c",
+            "startLine": 75,
+            "endLine": 75
+          }
+        ]
+      }
+    },
+    {
+      "project": "velero",
+      "component": "pkg:oci/velero/velero",
+      "catalog": "member",
+      "tagScheme": "v{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "docker.io/velero/velero",
+          "role": "version-source",
+          "sourceId": "values"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "values",
+            "url": "https://github.com/vmware-tanzu/helm-charts/blob/6b2197350079e4d0076ac0cc923ab147b904cdf5/charts/velero/values.yaml",
+            "revision": "6b2197350079e4d0076ac0cc923ab147b904cdf5",
+            "contentDigest": "sha256:3364919b9c239c78e316b021c181c3820c42116dcbce7ae8f708433c50a20d4b",
+            "startLine": 29,
+            "endLine": 30
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -118,3 +118,8 @@ func immutableGitURL(value, revision string) bool {
 	}
 	return true
 }
+
+// ValidateSources applies the same citation rules chart records use to a
+// list of cited spans: sorted unique ids, a 40-hex commit, a content digest,
+// a sane line span and an immutable GitHub URL pinned to that commit.
+func ValidateSources(sources []Source) error { return validateSources(sources) }

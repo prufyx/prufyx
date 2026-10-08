@@ -80,6 +80,12 @@ type CurrentBundle struct {
 	// CertManagerProjectionDigest binds the optional persisted helper version
 	// into the next-stage currentbundle adapter and is not public JSON.
 	CertManagerProjectionDigest string `json:"-"`
+	// ImageSourcesDigest and ImageSourcesSchema record which reviewed image
+	// registry produced the image rows. Empty for bundles collected before the
+	// registry existed. They are not public JSON; the bridge binds them as
+	// adapters.
+	ImageSourcesDigest string `json:"-"`
+	ImageSourcesSchema string `json:"-"`
 	// ConfigurationAdapterVersion transports only the producer-v3 admission
 	// identity to the next-stage currentbundle adapter. Older producers retain
 	// their exact historical output path and leave this field empty.
@@ -169,6 +175,8 @@ type metadataFile struct {
 	KubectlStderrClassifierTaxonomyVersion string          `json:"kubectlStderrClassifierTaxonomyVersion"`
 	KubectlStderrClassifierAuthority       string          `json:"kubectlStderrClassifierAuthority"`
 	KubectlBoundedRunnerDigest             string          `json:"kubectlBoundedRunnerDigest"`
+	ImageSourcesDigest                     *string         `json:"imageSourcesDigest"`
+	ImageSourcesSchema                     *string         `json:"imageSourcesSchema"`
 	CRDPaginationPolicy                    json.RawMessage `json:"crdPaginationPolicy"`
 	OmissionCount                          int             `json:"omissionCount"`
 	DataClassification                     string          `json:"dataClassification"`
@@ -315,6 +323,10 @@ type componentState struct {
 	predicateClasses map[string]string
 	digests          map[string]struct{}
 	conflict         bool
+	// unresolved is set when a workload image row of this component carries no
+	// usable version (digest-only, latest, off-scheme, pre-release). A component
+	// with such a row never takes an exact version from a sibling row.
+	unresolved bool
 }
 
 type byteCache struct {
@@ -551,6 +563,12 @@ func projectContext(cache *byteCache, ctx string, entries []manifestEntry, index
 			if metadata.KubectlBoundedRunnerDigest != "" && !digestRE.MatchString(metadata.KubectlBoundedRunnerDigest) {
 				return CurrentBundle{}, fmt.Errorf("invalid bounded runner digest: %w", ErrInvalid)
 			}
+			if (metadata.ImageSourcesDigest == nil) != (metadata.ImageSourcesSchema == nil) {
+				return CurrentBundle{}, fmt.Errorf("image sources digest and schema must be recorded together: %w", ErrInvalid)
+			}
+			if metadata.ImageSourcesDigest != nil && (!digestRE.MatchString(*metadata.ImageSourcesDigest) || len(*metadata.ImageSourcesSchema) == 0 || len(*metadata.ImageSourcesSchema) > 128 || strings.ContainsAny(*metadata.ImageSourcesSchema, "\x00\r\n")) {
+				return CurrentBundle{}, fmt.Errorf("invalid image sources digest or schema: %w", ErrInvalid)
+			}
 			if metadata.IncludeComponentConfiguration {
 				if metadata.ComponentConfigurationAdapterVersion == nil || metadata.ComponentConfigurationRegistryVersion == nil || metadata.ComponentConfigurationRegistryDigest == nil || metadata.ComponentConfigurationFilterDigest == nil || metadata.ComponentConfigurationAggregateDigest == nil || metadata.ComponentConfigurationStrictJSONDigest == nil {
 					return CurrentBundle{}, fmt.Errorf("component configuration metadata is incomplete: %w", ErrInvalid)
@@ -773,6 +791,13 @@ func projectContext(cache *byteCache, ctx string, entries []manifestEntry, index
 						*row.ObservedVersion = version
 					}
 					if row.ObservedVersion == nil || row.VersionScheme == "digest" || row.VersionScheme == "unknown" || row.ObservationState != "active" {
+						// A tag pinned by digest (version present, scheme digest) is
+						// the adapter path's own pinned form: it adds no version but
+						// does not contradict one. Every other row without a usable
+						// version leaves the whole component unresolved.
+						if row.ObservedVersion == nil || row.VersionScheme == "unknown" || row.ObservationState != "active" {
+							st.unresolved = true
+						}
 						if err := addOmission("COMPONENT_CONFIGURATION_VERSION_UNRESOLVED"); err != nil {
 							return CurrentBundle{}, err
 						}
@@ -847,6 +872,9 @@ func projectContext(cache *byteCache, ctx string, entries []manifestEntry, index
 	}
 	bundle.CertManagerProjectionDigest = certManagerProjectionDigest
 	bundle.ConfigurationAdapterVersion = configurationAdapterVersion
+	if observationMetadata != nil && observationMetadata.ImageSourcesDigest != nil {
+		bundle.ImageSourcesDigest, bundle.ImageSourcesSchema = *observationMetadata.ImageSourcesDigest, *observationMetadata.ImageSourcesSchema
+	}
 	if observationMetadata != nil && observationMetadata.SyntheticClassification != "" {
 		bundle.Synthetic = &SyntheticProvenance{Classification: observationMetadata.SyntheticClassification, Authority: observationMetadata.SyntheticAuthority, Canary: observationMetadata.SyntheticCanary, NonAuthoritative: observationMetadata.SyntheticNonAuthoritative}
 	}
@@ -870,9 +898,9 @@ func projectContext(cache *byteCache, ctx string, entries []manifestEntry, index
 		versions := sortedKeys(st.versions)
 		status := "observed"
 		version := ""
-		if len(versions) == 1 && !st.conflict {
+		if len(versions) == 1 && !st.conflict && !st.unresolved {
 			version = versions[0]
-		} else if len(versions) > 1 || st.conflict {
+		} else if len(versions) > 1 || st.conflict || (st.unresolved && len(versions) >= 1) {
 			status = "conflict"
 			bundle.Conflicts = append(bundle.Conflicts, Conflict{ComponentID: id, Kind: "version_or_predicate", Values: versions})
 		} else {

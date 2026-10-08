@@ -36,6 +36,7 @@ const (
 	CheckCitationURL        = "citation-url"
 	CheckCitationDigest     = "content-digest-mismatch"
 	CheckCitationFetch      = "fetch-failed"
+	CheckCitationSpan       = "line-span-out-of-range"
 )
 
 // ObjectKind is what a source revision resolves to on the remote.
@@ -191,6 +192,9 @@ type CitationVerifier struct {
 	Fetcher  Fetcher
 	// Concurrency bounds parallel sources; values below 1 mean 4.
 	Concurrency int
+	// CheckSpans also requires every source's endLine to lie inside the file
+	// at the cited commit.
+	CheckSpans bool
 
 	mu      sync.Mutex
 	kinds   map[string]*kindFlight
@@ -206,6 +210,7 @@ type kindFlight struct {
 type contentFlight struct {
 	once   sync.Once
 	digest string
+	lines  int
 	err    error
 }
 
@@ -226,6 +231,12 @@ func (v *CitationVerifier) kind(ctx context.Context, owner, repo, sha string) (O
 }
 
 func (v *CitationVerifier) digestAt(ctx context.Context, rawURL string) (string, error) {
+	digest, _, err := v.contentAt(ctx, rawURL)
+	return digest, err
+}
+
+// contentAt returns the whole-file digest and the line count of a raw blob.
+func (v *CitationVerifier) contentAt(ctx context.Context, rawURL string) (string, int, error) {
 	v.mu.Lock()
 	if v.content == nil {
 		v.content = map[string]*contentFlight{}
@@ -243,8 +254,12 @@ func (v *CitationVerifier) digestAt(ctx context.Context, rawURL string) (string,
 			return
 		}
 		f.digest = digestOf(body)
+		f.lines = strings.Count(string(body), "\n")
+		if len(body) > 0 && body[len(body)-1] != '\n' {
+			f.lines++
+		}
 	})
-	return f.digest, f.err
+	return f.digest, f.lines, f.err
 }
 
 type citationTask struct {
@@ -365,9 +380,12 @@ func (v *CitationVerifier) verifySource(ctx context.Context, task citationTask) 
 	if !ok {
 		return append(findings, fail(CheckCitationURL, "source url %q could not be converted to a raw.githubusercontent.com URL", source.URL))
 	}
-	digest, err := v.digestAt(ctx, rawURL)
+	digest, lines, err := v.contentAt(ctx, rawURL)
 	if err != nil {
 		return append(findings, fail(CheckCitationFetch, "could not fetch %s: %v", rawURL, err))
+	}
+	if v.CheckSpans && (source.StartLine < 1 || source.EndLine < source.StartLine || source.EndLine > lines) {
+		findings = append(findings, fail(CheckCitationSpan, "cited lines %d-%d are outside the %d-line file %s", source.StartLine, source.EndLine, lines, rawURL))
 	}
 	if digest != source.ContentDigest {
 		finding := fail(CheckCitationDigest, "contentDigest is %s but the whole-file sha256 of %s at commit %s is %s", source.ContentDigest, rawURL, revision, digest)

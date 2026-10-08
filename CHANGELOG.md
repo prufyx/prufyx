@@ -32,6 +32,25 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Image-based component detection (DETECT-1, phase 1): a reviewed registry
+  (`cli/internal/imageidentity/data/image-sources.json`) maps container image
+  repositories to projects and reads a version only from a tag that follows the
+  entry's declared scheme. `assess` now classifies the projects it covers
+  instead of reporting them as not observable. Unlisted, digest-only,
+  operator-implied, distribution-built and mis-tagged images yield no version,
+  and a component seen with an unknown version is indeterminate rather than a
+  version mismatch. A component with any unversioned image (digest-only,
+  `latest`, a pre-release or off-scheme tag) is unknown as a whole and never
+  takes an exact version from a sibling image. A project that only the image
+  registry identifies is never reported ABSENT, because a mirrored or rebuilt
+  image is invisible to it; it is indeterminate when no image is seen. The
+  collection metadata records the digest and schema of the image registry
+  (`imageSourcesDigest`, `imageSourcesSchema`) and a bundle without this
+  binary's digest is not used for registry-identified projects. Records outside
+  the catalog produce no rows. `prufyx-maintainer rule verify-citations
+  --image-sources <file>` re-verifies every citation of the registry (commit,
+  whole-file digest and line span), and a CI workflow runs it on changes and
+  weekly.
 - `prufyx-maintainer knowledge-publish release`: one offline, deterministic step
   that builds a signed knowledge-database release (TUF targets, snapshot and
   timestamp, package and release plan) from the reviewed embedded knowledge,
