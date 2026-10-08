@@ -21,6 +21,10 @@ const (
 	noticeRuleID    = "kubernetes.synthetic-one-way.1-35-0-to-1-36-0"
 )
 
+// windowReviewed and windowUntil are the evidence window of the synthetic
+// rules: current at the shared test clock, which follows the embedded pack.
+var windowReviewed, windowUntil = supersedeids.Window(61, 29)
+
 func syntheticKubernetesRule(id, operator, reason, nextAction, extra, reviewedAt, validUntil string) string {
 	return `{"id":"` + id + `","operator":"` + operator + `","subject":{"component":"` + noticeComponent + `","from":"1.35.0","to":"1.36.0"}` + extra + `,` +
 		`"evidence":{"state":"active","reviewedAt":"` + reviewedAt + `","validUntil":"` + validUntil + `","sources":[{"id":"synthetic-source","url":"https://github.com/kubernetes/kubernetes/blob/` + syntheticRevision + `/CHANGELOG.md","revision":"` + syntheticRevision + `","contentDigest":"sha256:` + strings.Repeat("0", 64) + `","startLine":1,"endLine":2}]},` +
@@ -32,7 +36,7 @@ func syntheticNoticeRule(id, reviewedAt, validUntil string) string {
 }
 
 func syntheticNoticeEntry() Entry {
-	return Entry{Project: "kubernetes", Description: "Synthetic test-only one-way transition.", RequiredFacts: []Fact{}, Rule: json.RawMessage(syntheticNoticeRule(noticeRuleID, "2026-09-20T00:00:00Z", "2026-12-19T00:00:00Z"))}
+	return Entry{Project: "kubernetes", Description: "Synthetic test-only one-way transition.", RequiredFacts: []Fact{}, Rule: json.RawMessage(syntheticNoticeRule(noticeRuleID, windowReviewed, windowUntil))}
 }
 
 func TestPackNoticeLevel(t *testing.T) {
@@ -106,7 +110,7 @@ func TestClaimExitNotice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const reviewed, until = "2026-09-20T00:00:00Z", "2026-12-19T00:00:00Z"
+	reviewed, until := windowReviewed, windowUntil
 	pass := syntheticKubernetesRule("kubernetes.synthetic-a-pass", "require_component_version", "REVIEWED_SOURCE_CONSTRAINT", "keep the reviewed version", `,"dependency":{"side":"proposed","component":"`+noticeComponent+`","comparison":"gte","version":"1.36.0"}`, reviewed, until)
 	blocked := syntheticKubernetesRule("kubernetes.synthetic-b-blocked", "forbid_target_version", "REVIEWED_SOURCE_CONSTRAINT", "plan a reviewed route", "", reviewed, until)
 	notice := syntheticNoticeRule("kubernetes.synthetic-c-notice", reviewed, until)
@@ -175,7 +179,7 @@ func TestNoticeNeverChangesRuleSelection(t *testing.T) {
 	const pspFact = "component.kubernetes.psp_v1beta1_removed_gvk_present"
 	family := []string{pspFact, "component.kubernetes.cronjob_v1beta1_removed_gvk_present"}
 	guarded := syntheticNoticeEntry()
-	guarded.Rule = json.RawMessage(strings.Replace(syntheticNoticeRule("kubernetes.synthetic-one-way-guarded.1-35-0-to-1-36-0", "2026-09-20T00:00:00Z", "2026-12-19T00:00:00Z"), `,"evidence":`, `,"appliesWhen":[{"side":"proposed","component":"`+noticeComponent+`","factId":"`+pspFact+`","boolValue":true}],"evidence":`, 1))
+	guarded.Rule = json.RawMessage(strings.Replace(syntheticNoticeRule("kubernetes.synthetic-one-way-guarded.1-35-0-to-1-36-0", windowReviewed, windowUntil), `,"evidence":`, `,"appliesWhen":[{"side":"proposed","component":"`+noticeComponent+`","factId":"`+pspFact+`","boolValue":true}],"evidence":`, 1))
 	guarded.RequiredFacts = []Fact{{Side: "proposed", ID: pspFact, Component: noticeComponent, Type: constraintengine.FactBool, Description: "A removed PodSecurityPolicy v1beta1 object is present."}}
 	withNotice, err := assembleSynthetic(syntheticPack(t, packSchemaNotice, nil, syntheticNoticeEntry(), guarded), nil)
 	if err != nil {
@@ -229,7 +233,7 @@ func TestNoticeNeverChangesRuleSelection(t *testing.T) {
 // generated attestation still binds.
 func TestCorpusInventorySkipsNoticeOnlyComponents(t *testing.T) {
 	const aeraki = "pkg:github/aeraki-mesh/aeraki"
-	notice := Entry{Project: "aeraki-mesh", Description: "Synthetic test-only one-way transition.", RequiredFacts: []Fact{}, Rule: json.RawMessage(strings.Replace(syntheticNoticeRule("aeraki-mesh.synthetic-one-way.1-35-0-to-1-36-0", "2026-09-20T00:00:00Z", "2026-12-19T00:00:00Z"), noticeComponent, aeraki, 1))}
+	notice := Entry{Project: "aeraki-mesh", Description: "Synthetic test-only one-way transition.", RequiredFacts: []Fact{}, Rule: json.RawMessage(strings.Replace(syntheticNoticeRule("aeraki-mesh.synthetic-one-way.1-35-0-to-1-36-0", windowReviewed, windowUntil), noticeComponent, aeraki, 1))}
 	b, err := assembleSynthetic(syntheticPack(t, packSchemaNotice, nil, notice), nil)
 	if err != nil {
 		t.Fatal(err)

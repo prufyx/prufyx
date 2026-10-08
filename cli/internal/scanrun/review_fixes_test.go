@@ -17,10 +17,16 @@ import (
 )
 
 const (
-	skewSource    = `{"id":"kubernetes-website-version-skew-upgrade-order","url":"https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md","revision":"9f1af2971c32124bff0a1f42255ba5a2f3c8a16f","contentDigest":"sha256:7d33809eeb313cbd589018a8dde893974065c50f5ee8cde27d99e879d0dde81f","startLine":189,"endLine":193}`
-	currentWindow = `"reviewedAt":"2026-09-23T00:00:00Z","validUntil":"2026-12-20T00:00:00Z"`
-	staleWindow   = `"reviewedAt":"2026-06-01T00:00:00Z","validUntil":"2026-08-01T00:00:00Z"`
+	skewSource  = `{"id":"kubernetes-website-version-skew-upgrade-order","url":"https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md","revision":"9f1af2971c32124bff0a1f42255ba5a2f3c8a16f","contentDigest":"sha256:7d33809eeb313cbd589018a8dde893974065c50f5ee8cde27d99e879d0dde81f","startLine":189,"endLine":193}`
+	staleWindow = `"reviewedAt":"2026-06-01T00:00:00Z","validUntil":"2026-08-01T00:00:00Z"`
 )
+
+// currentReviewed and currentUntil are the evidence window of the synthetic
+// rules and records: current at the shared test clock, which follows the
+// embedded pack.
+var currentReviewed, currentUntil = supersedeids.Window(58, 30)
+
+var currentWindow = `"reviewedAt":"` + currentReviewed + `","validUntil":"` + currentUntil + `"`
 
 // lineRange is a reviewed range covering the whole lines from-line and
 // to-line, licensed by the version-skew source.

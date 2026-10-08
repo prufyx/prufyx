@@ -35,7 +35,7 @@ type recordSet struct {
 }
 
 var (
-	currentRecordWindow = [2]string{"2026-09-23T00:00:00Z", "2026-12-20T00:00:00Z"}
+	currentRecordWindow = [2]string{currentReviewed, currentUntil}
 	staleRecordWindow   = [2]string{"2026-06-01T00:00:00Z", "2026-08-01T00:00:00Z"}
 )
 

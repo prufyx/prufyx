@@ -20,9 +20,9 @@ import (
 
 func syntheticBasisEntry(id, operator, basis, extra string) cncfcheck.Entry {
 	entry := syntheticKubernetesEntry(id, operator, "REVIEWED_SOURCE_CONSTRAINT", "plan the reviewed route", extra)
-	provenance := `"basis":"` + basis + `","derivedAt":"2026-09-20T00:00:00Z",`
+	provenance := `"basis":"` + basis + `","derivedAt":"` + syntheticReviewed + `",`
 	if basis == constraintengine.BasisMechanical {
-		provenance = `"basis":"mechanical","extractor":{"id":"synthetic-extractor","version":"1.0.0","codeDigest":"sha256:` + strings.Repeat("1", 64) + `"},"derivedAt":"2026-09-20T00:00:00Z",`
+		provenance = `"basis":"mechanical","extractor":{"id":"synthetic-extractor","version":"1.0.0","codeDigest":"sha256:` + strings.Repeat("1", 64) + `"},"derivedAt":"` + syntheticReviewed + `",`
 	}
 	entry.Rule = []byte(strings.Replace(string(entry.Rule), `"evidence":{`, `"evidence":{`+provenance, 1))
 	return entry

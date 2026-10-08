@@ -199,3 +199,14 @@ func TestTestOnlyPackageGuardSeesTestImports(t *testing.T) {
 		t.Fatal("go list -deps -test does not show the supersedeids import of checkroutemetadata's tests")
 	}
 }
+
+// Window brackets the clock, and on today's pack is the window the fixtures
+// always used.
+func TestWindowBracketsTheClock(t *testing.T) {
+	reviewed, until := Window(58, 30)
+	r, err1 := time.Parse(time.RFC3339, reviewed)
+	u, err2 := time.Parse(time.RFC3339, until)
+	if err1 != nil || err2 != nil || !r.Before(Clock()) || !u.After(Clock()) || u.Sub(r) != 88*24*time.Hour {
+		t.Fatalf("%s %s %v %v", reviewed, until, err1, err2)
+	}
+}

@@ -194,6 +194,15 @@ func Clock() time.Time {
 	return clock
 }
 
+// Window is the evidence window of a synthetic rule that is current at Clock:
+// reviewed the given number of days before it and valid until the given number
+// of days after it (RFC 3339, midnight UTC). The shipped lease is at most 90
+// days, so before+after must not exceed that.
+func Window(before, after int) (reviewedAt, validUntil string) {
+	at := Clock()
+	return at.AddDate(0, 0, -before).Format(time.RFC3339), at.AddDate(0, 0, after).Format(time.RFC3339)
+}
+
 // ClockString is Clock in RFC 3339 form, as the --now flags take it.
 func ClockString() string { return Clock().Format(time.RFC3339) }
 

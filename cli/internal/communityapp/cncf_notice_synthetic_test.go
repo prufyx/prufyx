@@ -20,10 +20,15 @@ import (
 // knowledge: a one-way notice and, optionally, a passing rule for the same
 // Kubernetes transition.
 
+// syntheticReviewed and syntheticUntil are the evidence window of the
+// synthetic rules: current at the shared test clock, which follows the
+// embedded pack.
+var syntheticReviewed, syntheticUntil = supersedeids.Window(61, 29)
+
 func syntheticKubernetesEntry(id, operator, reason, nextAction, extra string) cncfcheck.Entry {
 	revision := "0000000000000000000000000000000000000001"
 	rule := `{"id":"` + id + `","operator":"` + operator + `","subject":{"component":"pkg:github/kubernetes/kubernetes","from":"1.35.0","to":"1.36.0"}` + extra + `,` +
-		`"evidence":{"state":"active","reviewedAt":"2026-09-20T00:00:00Z","validUntil":"2026-12-19T00:00:00Z","sources":[{"id":"synthetic-source","url":"https://github.com/kubernetes/kubernetes/blob/` + revision + `/CHANGELOG.md","revision":"` + revision + `","contentDigest":"sha256:` + strings.Repeat("0", 64) + `","startLine":1,"endLine":2}]},` +
+		`"evidence":{"state":"active","reviewedAt":"` + syntheticReviewed + `","validUntil":"` + syntheticUntil + `","sources":[{"id":"synthetic-source","url":"https://github.com/kubernetes/kubernetes/blob/` + revision + `/CHANGELOG.md","revision":"` + revision + `","contentDigest":"sha256:` + strings.Repeat("0", 64) + `","startLine":1,"endLine":2}]},` +
 		`"reasonCode":"` + reason + `","nextAction":"` + nextAction + `"}`
 	return cncfcheck.Entry{Project: "kubernetes", Description: "Synthetic test-only rule.", RequiredFacts: []cncfcheck.Fact{}, Rule: json.RawMessage(rule)}
 }

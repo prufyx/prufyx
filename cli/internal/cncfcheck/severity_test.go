@@ -76,7 +76,7 @@ func TestClaimExitUnsupported(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const reviewed, until = "2026-09-20T00:00:00Z", "2026-12-19T00:00:00Z"
+	reviewed, until := windowReviewed, windowUntil
 	pass := syntheticKubernetesRule("kubernetes.synthetic-a-pass", "require_component_version", "REVIEWED_SOURCE_CONSTRAINT", "keep the reviewed version", `,"dependency":{"side":"proposed","component":"`+noticeComponent+`","comparison":"gte","version":"1.36.0"}`, reviewed, until)
 	blocked := syntheticKubernetesRule("kubernetes.synthetic-b-blocked", "forbid_target_version", "REVIEWED_SOURCE_CONSTRAINT", "plan a reviewed route", "", reviewed, until)
 	unsupported := syntheticSupportRule("kubernetes.synthetic-c-unsupported", "1.37.0")

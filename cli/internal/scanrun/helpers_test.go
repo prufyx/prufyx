@@ -292,7 +292,7 @@ func newKnowledge(t testing.TB, options knowledgeOptions) Knowledge {
 	}
 	var entries []entry
 	for _, line := range options.lines {
-		entries = append(entries, entry{line, [2]string{"2026-09-23T00:00:00Z", "2026-12-20T00:00:00Z"}})
+		entries = append(entries, entry{line, [2]string{currentReviewed, currentUntil}})
 	}
 	for _, line := range options.stale {
 		entries = append(entries, entry{line, [2]string{"2026-06-01T00:00:00Z", "2026-08-01T00:00:00Z"}})
@@ -334,7 +334,7 @@ func newKnowledge(t testing.TB, options knowledgeOptions) Knowledge {
 	}
 	policies := upgradepath.NewIndex(nil)
 	if options.policy != "" {
-		window := [2]string{"2026-09-23T00:00:00Z", "2026-12-20T00:00:00Z"}
+		window := [2]string{currentReviewed, currentUntil}
 		if options.policy == "stale" {
 			window = [2]string{"2026-06-01T00:00:00Z", "2026-08-01T00:00:00Z"}
 		}
