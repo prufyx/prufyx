@@ -310,7 +310,7 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 			}
 		}
 		if summary.allUnreviewed {
-			if err := writeUnreviewedTransition(r.stdout, project, from, to); err != nil {
+			if err := writeUnreviewedTransition(r.stdout, summary, project, from, to); err != nil {
 				return ExitIntegrity
 			}
 		}

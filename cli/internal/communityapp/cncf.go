@@ -921,7 +921,7 @@ Add --show-passes with --format human on the Kubernetes native-resource route an
 		summary := summarizeClaims(report.Check.Claims, *showPasses)
 		if summary.allUnreviewed {
 			from, to, _ := canonicalTransition(raw)
-			if err := writeUnreviewedTransition(r.stdout, report.Project, from, to); err != nil {
+			if err := writeUnreviewedTransition(r.stdout, summary, report.Project, from, to); err != nil {
 				return ExitIntegrity
 			}
 		}

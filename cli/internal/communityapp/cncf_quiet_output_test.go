@@ -30,19 +30,28 @@ func nonEmptyLines(text string) []string {
 	return strings.Split(strings.TrimRight(text, "\n"), "\n")
 }
 
-func TestQuietHumanUnreviewedTransitionsPrintAtMostSixLines(t *testing.T) {
+func TestQuietHumanUnreviewedTransitionsPrintAtMostSevenLines(t *testing.T) {
 	t.Parallel()
 	path := writeCNCFFile(t, "kubernetes.json", []byte(quietCronJobJSON), 0o600)
 	for _, pair := range [][2]string{{"1.21.0", "1.25.0"}, {"1.28.0", "1.30.0"}, {"1.25.0", "1.24.0"}} {
 		code, human, stderr := runCNCFCLI(t, quietArgs(path, pair[0], pair[1], "--format", "human")...)
 		lines := nonEmptyLines(human)
-		if code != ExitUnknown || stderr != "" || len(lines) > 6 {
+		if code != ExitUnknown || stderr != "" || len(lines) > 7 {
 			t.Fatalf("%v: code=%d lines=%d stderr=%q\n%s", pair, code, len(lines), stderr, human)
 		}
 		for _, want := range []string{"UNKNOWN: kubernetes " + pair[0] + " -> " + pair[1] + " is not a reviewed transition", "reviewed pairs:", "1.24.0 -> 1.25.0", "check each reviewed pair in turn", "scoped result: UNKNOWN\naggregate: UNKNOWN"} {
 			if !strings.Contains(human, want) {
 				t.Errorf("%v: missing %q in\n%s", pair, want, human)
 			}
+		}
+		// F3: a hop that crosses release boundaries names them and never calls
+		// the claims not applicable; a hop that crosses none says nothing.
+		boundaryLine := "20 rules about release boundaries (1.22.0, 1.25.0) this hop crosses are not reviewed for this hop"
+		if has := strings.Contains(human, boundaryLine); has != (pair[0] == "1.21.0") {
+			t.Errorf("%v: boundary line present=%v\n%s", pair, has, human)
+		}
+		if strings.Contains(human, "not applicable") {
+			t.Errorf("%v: unreviewed claims described as not applicable\n%s", pair, human)
 		}
 		if strings.Contains(human, RuleTransitionNotReviewedText) || strings.Contains(human, "(RULE_RELEASE_BOUNDARY_NOT_REVIEWED)") {
 			t.Errorf("per-rule lines were not collapsed:\n%s", human)

@@ -159,6 +159,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   instead of not applicable; route discovery lists these rules with
   `matchMode: boundary-unreviewed`. The ranged, set, notice, basis, severity and
   crossing contract digests change; exact-only documents are unaffected.
+  A downgrade across the boundary of a CHANGED_IN_RELEASE range is unreviewed
+  too (reverting a change is not proven harmless); a downgrade across a
+  REMOVED_IN_RELEASE boundary keeps its exclusion, because the removed API
+  exists again on the lower line. The CNCF rule selection no longer drops such
+  a rule before evaluation (a wide anchor rule could otherwise exit 0),
+  `catalog checks` prints the `boundary-unreviewed` and `crossing` match modes
+  and no anchor route for them, and quiet output names the crossed boundaries.
 - `prufyx assess --format json`: the collector progress lines ("Context …", "Created local API observation directory …", "Verify context files with …") now go to stderr, so stdout carries only the JSON report and parses as JSON.
 - `extract` file writes are never made through a symlink and no longer depend on
   the umask. `extract run` builds the output in a staging directory beside `--out`

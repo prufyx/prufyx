@@ -120,3 +120,28 @@ func TestNoticeWritersOnEveryRoute(t *testing.T) {
 		t.Fatalf("printed=%v err=%v out=%q", printed, err, out.String())
 	}
 }
+
+// BOUNDARY-1 F3: in a mixed output, claims of rules whose release boundary the
+// hop crosses are counted apart from "other transitions" and never described
+// as not applicable.
+func TestCollapsedNotesCountBoundaryClaimsApart(t *testing.T) {
+	boundary := constraintengine.Claim{RuleID: "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0", Operator: "forbid_predicate_value", Status: "UNKNOWN", ReasonCode: constraintengine.ReasonReleaseBoundaryNotReviewed}
+	other := constraintengine.Claim{RuleID: "rule-other", Operator: "forbid_target_version", Status: "UNKNOWN", ReasonCode: reasonTransitionNotReviewed}
+	pass := constraintengine.Claim{RuleID: "rule-pass", Operator: "forbid_predicate_value", Status: "PASS", ReasonCode: "FEATURE_REMOVED"}
+	summary := summarizeClaims([]constraintengine.Claim{boundary, other, pass}, false)
+	if summary.boundary != 1 || summary.unreviewed != 1 || summary.passes != 1 || summary.allUnreviewed {
+		t.Fatalf("summary=%+v", summary)
+	}
+	var out bytes.Buffer
+	if err := writeCollapsedNotes(&out, summary); err != nil {
+		t.Fatal(err)
+	}
+	want := "1 rules for other transitions not applicable to this pair\n1 rules about release boundaries (1.25.0) this hop crosses are not reviewed for this hop\n1 rules PASS (not listed; use --show-passes)\n"
+	if out.String() != want {
+		t.Fatalf("output:\n%s\nwant:\n%s", out.String(), want)
+	}
+	onlyBoundary := summarizeClaims([]constraintengine.Claim{boundary}, false)
+	if !onlyBoundary.allUnreviewed || onlyBoundary.unreviewed != 0 {
+		t.Fatalf("summary=%+v", onlyBoundary)
+	}
+}

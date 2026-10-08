@@ -529,6 +529,11 @@ a hop that crosses its boundary but lies outside the range is undetermined
 origin below such a range as needing a declaration (no `--to`) or as
 `INDETERMINATE_HOP_OUTSIDE_REVIEWED_RANGE` (target at or above the boundary),
 and route discovery lists the rule with `matchMode: boundary-unreviewed`.
+A downgrade across the boundary of a `CHANGED_IN_RELEASE` range is
+undetermined too (reverting a change is not proven harmless); a downgrade across
+a `REMOVED_IN_RELEASE` boundary stays excluded, because the removed API exists
+again on the lower line. A range without release-basis bounds has no boundary
+the engine knows and keeps the exclusion.
 Exact-only documents have no boundary and keep their digest.
 
 A document holding a crossing rule carries rules schema `v1alpha7` and its own
