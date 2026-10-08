@@ -104,7 +104,7 @@ Through the offline factory mirror (or a fixture tree), never the network.
   | `conflict` | it defines a CRD of the inventory with other versions or `served` flags |
   | `extra` | it defines a CRD that is not in the inventory |
   | `reference` | it holds the kind as a value (a nested object, a field, a manifest embedded in a string) but defines none at the top level, and is not a schema-only kustomization; a file that only mentions the word in a comment or a description is not a finding |
-  | `unread` | it holds the word and is templated, not strictly decodable or over the bounds; or a submodule |
+  | `unread` | it is templated, not strictly decodable or over the bounds and holds the kind as the value of a `kind` key (on the same line or the next); or a submodule |
   | `unsupported` | a template, jsonnet or cue source that holds the word, Go code that builds a definition as a composite literal (`CustomResourceDefinition{ObjectMeta: ...}`, or of its spec, names or versions), or a packaged Helm chart |
   | `external` | a Helm `Chart.yaml` with a dependency whose `repository` is another repository (`https://`, `oci://`, an alias such as `@repo`; not a local `file://` path or none), or a kustomization with a remote resource, component or base (a URL, `github.com/...`, `git@...`, `?ref=`) |
   | `excluded` | a file under a reviewed exclusion that does not declare copies, whose content is recorded (path, sha256, the definitions it holds) |
@@ -129,7 +129,8 @@ Through the offline factory mirror (or a fixture tree), never the network.
     definitions) is checked: each file's template directives are removed (a
     line that holds only a directive is dropped, a key whose whole value is an
     expression followed by more indented lines keeps those lines, any other
-    expression becomes a placeholder) and the result must define only listed
+    expression becomes a placeholder, and an expression left open across lines
+    makes the file unread) and the result must define only listed
     CRDs with the same versions and `served` flags. A file that serves other
     versions is a `conflict`, one that defines another CRD is `extra`, and one
     that cannot be read is `unread`.
@@ -189,8 +190,8 @@ transition. (Cilium 1.20.2 serves CiliumNodeConfig `v2alpha1` again after 1.20.0
 and 1.20.1 dropped it, so that rule holds for 1.19.0 -> 1.20.0 only.)
 
 A CRD that the earlier line defines and the later anchor defines nowhere — not
-under the listed paths, and with a complete scan in which every CRD-like file
-was read and none defines it — is recorded under `definitionsRemoved` and is
+under the listed paths, and with a complete scan in which no file defines it
+and every CRD-like file outside the default-excluded directories was read — is recorded under `definitionsRemoved` and is
 **not** a rule: whether the old definition is kept (`kubectl apply`, Helm
 `crds/`) or deleted with every object of it (Helm templates, Argo CD or Flux
 pruning) depends on the install method and is not established. Otherwise the

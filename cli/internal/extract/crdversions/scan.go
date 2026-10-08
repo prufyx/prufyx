@@ -105,6 +105,10 @@ var (
 	crdPathRE    = regexp.MustCompile(`(?i)crd`)
 	// wordRE is the bare kind name, anywhere.
 	wordRE = regexp.MustCompile(`CustomResourceDefinition`)
+	// kindValueRE is the kind as the value of a kind key, on the same line
+	// or the next one: what makes undecodable bytes CRD-like (a mention in
+	// a comment or a description is not).
+	kindValueRE = regexp.MustCompile(`["']?\bkind["']?[ \t]*:[ \t]*(\r?\n[ \t-]*)?["']?CustomResourceDefinition\b`)
 	// embeddedKindRE is a manifest line naming the kind, inside a string.
 	embeddedKindRE = regexp.MustCompile(`(?m)^[ \t-]*["']?kind["']?[ \t]*:[ \t]*["']?CustomResourceDefinition\b`)
 	// goConstructRE is Go code that builds a definition, its spec or a
@@ -243,14 +247,17 @@ func (s *ScanRecord) unreadable() []Finding {
 }
 
 // holds reports whether the scan cannot exclude a definition of name: an
-// incomplete scan, a file whose content is not known, or a file that
-// defines it.
+// incomplete scan, a file that defines it, or a file outside the
+// default-excluded directories whose content is not known. An unreadable
+// test or example file there only blocks attestation: a definition the
+// project installs does not move into one in a form the scan cannot read,
+// and a removed definition is never a rule.
 func (s *ScanRecord) holds(name string) bool {
 	if s == nil || !s.Complete {
 		return true
 	}
 	for _, f := range s.Findings {
-		if f.opaque() || slicesContains(f.CRDs, name) {
+		if slicesContains(f.CRDs, name) || (f.opaque() && !strings.HasPrefix(f.Location, "default: ")) {
 			return true
 		}
 	}
@@ -269,6 +276,8 @@ type blobInfo struct {
 	unread string
 	// decoded is set when the bytes were decoded.
 	decoded bool
+	// kindLike: the bytes hold the kind as the value of a kind key.
+	kindLike bool
 	crds    []CRD
 	// kinds counts the mappings whose kind is CustomResourceDefinition,
 	// at any depth; embedded is set when a string value holds a manifest
@@ -535,6 +544,7 @@ func summarize(kind int, data []byte) *blobInfo {
 		return info
 	}
 	info.decoded = true
+	info.kindLike = kindValueRE.Match(data)
 	_, crds, values, err := parseValues(fileWord, data)
 	if err != nil {
 		if pr, ok := asProblem(err); ok {
@@ -607,7 +617,9 @@ func readTemplate(data []byte) *templateRead {
 			line = m[1]
 		}
 		line = templateRE.ReplaceAllString(line, placeholder)
-		if strings.Contains(line, "{{") || strings.Contains(line, "}}") {
+		// A closing "}}" alone is text (a brace in a description); an
+		// opening "{{" left over starts an expression that spans lines.
+		if strings.Contains(line, "{{") {
 			return &templateRead{unread: "a template expression spans lines"}
 		}
 		b.WriteString(line)
@@ -709,7 +721,7 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 	switch {
 	case info.unread != "" && f.at.copies && info.template != nil:
 		// A checked copy that is templated: read without its directives.
-	case info.unread != "" && (info.words > 0 || isChart || isKust):
+	case info.unread != "" && (info.kindLike || isChart || isKust):
 		fd.Class, fd.Detail = ClassUnread, info.unread
 		return placed(fd, f.at), true, nil
 	case info.unread != "":

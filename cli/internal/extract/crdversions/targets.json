@@ -58,7 +58,8 @@
         {"path": "cluster/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
       "exclude": [
-        {"path": "cluster/meta/", "reason": "schemas of package metadata (meta.pkg.crossplane.io) read from package files by the package manager; never installed as CustomResourceDefinitions"}
+        {"path": "cluster/meta/", "reason": "schemas of package metadata (meta.pkg.crossplane.io) read from package files by the package manager; never installed as CustomResourceDefinitions"},
+        {"path": "internal/xcrd/", "reason": "Go code that builds the CustomResourceDefinitions of user-defined composite resources (XRDs) at run time; their groups are the user's, never Crossplane's own"}
       ]
     },
     {

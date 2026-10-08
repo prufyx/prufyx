@@ -128,7 +128,11 @@ func TestCheckedTemplateCopies(t *testing.T) {
 		)
 		return pairOf(t, runSynth(t, synthTarget(copies), s), "1.0.0", "1.1.0")
 	}
-	p, proof := run(template(crd("Alpha", "v1beta1", "v1")), template(crd("Alpha", "v1beta1:off", "v1")))
+	// A closing brace pair in a description is text.
+	braces := func(body string) string {
+		return strings.Replace(body, "        type: object\n", "        type: object\n        description: 'selector{matchLabels: {\"a\": \"b\"}}'\n", 1)
+	}
+	p, proof := run(template(braces(crd("Alpha", "v1beta1", "v1"))), template(crd("Alpha", "v1beta1:off", "v1")))
 	if p.Status != extract.PairDerived || len(p.Rules) != 1 || !proof.Completeness.Attestable || !slices.Equal(proof.To.Scan.Copies, []string{"charts/crds/templates/a.yaml"}) {
 		t.Fatalf("matching copies: %+v %+v %+v", p, proof.Completeness, proof.To.Scan)
 	}
@@ -235,14 +239,32 @@ func TestDefinitionRemovedAtLaterPatch(t *testing.T) {
 	}
 	// A definition that is gone from the later anchor is recorded with
 	// the releases that lack it, even when an unrelated extra definition
-	// lies in an examples directory.
-	s = newSynth(
-		release{"v1.0.0", map[string]string{"deploy/crds/a.yaml": crd("Alpha", "v1"), "deploy/crds/b.yaml": crd("Beta", "v1")}},
-		release{"v1.1.0", map[string]string{"deploy/crds/a.yaml": crd("Alpha", "v1"), "examples/c.yaml": crd("Gamma", "v1")}},
-	)
-	_, proof = pairOf(t, runSynth(t, synthTarget(), s), "1.0.0", "1.1.0")
-	if len(proof.DefinitionsRemoved) != 1 || !slices.Equal(proof.DefinitionsRemoved[0].AbsentAt, []string{"v1.1.0"}) || proof.Completeness.Attestable {
-		t.Fatalf("anchor removal %+v", proof.DefinitionsRemoved)
+	// or an unreadable test file lies in a default-excluded directory;
+	// one that an examples file defines is not gone, and the pair is
+	// withheld.
+	for _, tc := range []struct {
+		file, content string
+		gone          bool
+	}{
+		{"examples/c.yaml", crd("Gamma", "v1"), true},
+		{"test/c.yaml", "apiVersion: apiextensions.k8s.io/v1beta1\nkind: CustomResourceDefinition\n", true},
+		{"examples/b.yaml", crd("Beta", "v1"), false},
+		{"other/c.yaml", "apiVersion: apiextensions.k8s.io/v1beta1\nkind: CustomResourceDefinition\n", false},
+	} {
+		s = newSynth(
+			release{"v1.0.0", map[string]string{"deploy/crds/a.yaml": crd("Alpha", "v1"), "deploy/crds/b.yaml": crd("Beta", "v1")}},
+			release{"v1.1.0", map[string]string{"deploy/crds/a.yaml": crd("Alpha", "v1"), tc.file: tc.content}},
+		)
+		p, proof = pairOf(t, runSynth(t, synthTarget(), s), "1.0.0", "1.1.0")
+		if !tc.gone {
+			if p.Status != extract.PairWithheld {
+				t.Fatalf("%s: %+v", tc.file, p)
+			}
+			continue
+		}
+		if len(proof.DefinitionsRemoved) != 1 || !slices.Equal(proof.DefinitionsRemoved[0].AbsentAt, []string{"v1.1.0"}) || proof.Completeness.Attestable {
+			t.Fatalf("%s: anchor removal %+v", tc.file, proof.DefinitionsRemoved)
+		}
 	}
 }
 
