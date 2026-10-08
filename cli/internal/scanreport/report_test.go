@@ -180,12 +180,12 @@ func TestVerdict(t *testing.T) {
 	// A manifest the target does not serve never reads as "no blockers".
 	report.Gaps = []Gap{NewGap("kubernetes", nil, GapAPIVersionNotServed, 1, "1.30")}
 	Finalize(&report)
-	if report.Headline != "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (1 area was not checked)" {
+	if report.Headline != "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading" {
 		t.Fatal(report.Headline)
 	}
 	report.Gaps = append(report.Gaps, NewGap("kubernetes", nil, GapAPIVersionNotServedCrossed, 1, "1.30"), Gap{})
 	Finalize(&report)
-	if report.Headline != "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (3 areas were not checked)" {
+	if report.Headline != "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (1 other area was not checked)" {
 		t.Fatal(report.Headline)
 	}
 	// A blocker still leads.

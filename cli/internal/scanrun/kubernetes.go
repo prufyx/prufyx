@@ -16,6 +16,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/intake"
+	"github.com/prufyx/prufyx/cli/internal/k8sremovals"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
@@ -50,6 +51,8 @@ type kubernetesRun struct {
 	// blocked are the objects a BLOCKED finding names: a reviewed rule
 	// decided them.
 	blocked map[intake.Source]bool
+	// stepReasons are, per entered line, why its step did not decide an object.
+	stepReasons map[string][]stepReason
 }
 
 func (r *kubernetesRun) evaluate(from, to string) error {
@@ -64,6 +67,7 @@ func (r *kubernetesRun) evaluate(from, to string) error {
 	r.findings, r.passes = map[string]int{}, map[string]bool{}
 	r.excluded, r.excludedLeads = map[string]bool{}, map[string]bool{}
 	r.blocked = map[intake.Source]bool{}
+	r.stepReasons = map[string][]stepReason{}
 	r.rootGaps = r.componentGaps()
 	for _, gap := range r.rootGaps {
 		r.report.Gaps = append(r.report.Gaps, gap)
@@ -235,11 +239,19 @@ func (r *kubernetesRun) apiVersionGaps(to string, entered map[string]bool) *scan
 	if !ok {
 		return nil
 	}
-	removed := cncfprepare.KubernetesRemovedVersions()
+	// The backstop uses every reviewed removal, also the ones before 1.22
+	// that scan has no rule for: any object at an API version the target
+	// does not serve is a gap, whether or not a rule could decide it.
+	removed := k8sremovals.AdmissionRemovedVersions()
 	status := r.knowledge.ServedAPIs(r.component, targetLine, r.now)
 	usable := status.Found && status.Freshness == lineattest.FreshnessCurrent && status.List.Line == targetLine &&
 		status.List.Component == r.component && r.policy.Admits(status.List.Basis)
 	notServed, notServedEntered, notListed, builtIn := 0, 0, 0, 0
+	undecidedLines := map[string]bool{}
+	scanRuleLines := map[string]bool{}
+	for _, removal := range cncfprepare.KubernetesRemovedVersions() {
+		scanRuleLines[removal.Line] = true
+	}
 	for _, document := range r.workspace.Documents {
 		group, version, found := strings.Cut(document.APIVersion, "/")
 		if !found {
@@ -254,6 +266,7 @@ func (r *kubernetesRun) apiVersionGaps(to string, entered map[string]bool) *scan
 			case r.blocked[document.Source]:
 			case entered[removal.Line]:
 				notServedEntered++
+				undecidedLines[removal.Line] = true
 			default:
 				notServed++
 			}
@@ -272,6 +285,36 @@ func (r *kubernetesRun) apiVersionGaps(to string, entered map[string]bool) *scan
 	}
 	if notServedEntered > 0 {
 		r.rootGap(scanreport.GapAPIVersionNotServedCrossed, notServedEntered, targetLine)
+		// Why the step that enters each of those lines decided nothing.
+		lines := make([]string, 0, len(undecidedLines))
+		for line := range undecidedLines {
+			lines = append(lines, line)
+		}
+		sort.Slice(lines, func(i, j int) bool { return lineattest.LineLess(lines[i], lines[j]) })
+		for _, line := range lines {
+			reasons, stepped := r.stepReasons[line]
+			if !stepped {
+				// The hop that enters the line reports its own gaps, unless
+				// scan has no removal rule for the line at all.
+				if !scanRuleLines[line] {
+					r.gap(nil, scanreport.GapLineNoScanRules, line)
+				}
+				continue
+			}
+			specific := false
+			for _, reason := range reasons {
+				specific = specific || !reason.fallback
+			}
+			for _, reason := range reasons {
+				if reason.fallback && specific {
+					continue
+				}
+				if reason.excludedRule != "" {
+					r.excluded[reason.excludedRule] = true
+				}
+				r.gap(nil, reason.key, reason.args...)
+			}
+		}
 	}
 	if builtIn == 0 {
 		return nil
@@ -783,31 +826,50 @@ func (r *kubernetesRun) enteredLineBlockers(hop upgradepath.Hop, ref scanreport.
 		if err != nil {
 			return false, err
 		}
+		stepFrom, stepTo := step.From.String(), step.To.String()
+		r.stepReasons[line] = nil
+		undecided := func(why string) {
+			r.stepReasons[line] = append(r.stepReasons[line], stepReason{key: scanreport.GapStepNotDecided, args: []any{line, stepFrom, stepTo, why}})
+		}
 		if eval.refused {
+			undecided("the knowledge has no rule that reads the removal facts of this line")
 			continue
 		}
+		r.stepReasons[line] = append(r.stepReasons[line], stepReason{fallback: true, key: scanreport.GapStepNotDecided,
+			args: []any{line, stepFrom, stepTo, "no reviewed rule decided the removed API versions in the manifests"}})
 		for _, rule := range r.rules {
-			claim, found := eval.claims[rule.Scope.ID]
-			if !found || claim.Status != "BLOCKED" {
+			if rule.Scope.Component != r.component || !step.Overlaps(rule.Scope.Transition) {
 				continue
 			}
-			if rule.Scope.Component != r.component || !step.Overlaps(rule.Scope.Transition) {
-				// A decided claim matched the step's engine input, which lies
-				// inside the step.
-				return false, ErrIntegrity
+			if rule.Notice || rule.Basis == constraintengine.BasisLead {
+				continue
+			}
+			if !r.policy.Admits(rule.Basis) {
+				// The engine omits the claims of a rule the trust policy
+				// left out, so the exclusion is read from the policy.
+				r.stepReasons[line] = append(r.stepReasons[line], stepReason{key: scanreport.GapRuleTrustPolicy, args: []any{rule.Scope.ID, constraintengine.EffectiveBasis(rule.Basis)}, excludedRule: rule.Scope.ID})
+				continue
+			}
+			claim, found := eval.claims[rule.Scope.ID]
+			if !found {
+				continue
+			}
+			if claim.Status != "BLOCKED" {
+				if claim.Status != "PASS" && claim.Status != constraintengine.StatusNotice {
+					undecided("rule " + rule.Scope.ID + " could not be decided")
+				}
+				continue
 			}
 			viaCrossing := false
 			if !step.CoveredBy(rule.Scope.Transition) {
 				if !step.CrossingCovers(rule.Scope.Transition) {
+					undecided("rule " + rule.Scope.ID + " covers only part of the step")
 					continue
 				}
 				viaCrossing = true
 			}
-			if rule.Notice || rule.Basis == constraintengine.BasisLead || !r.policy.Admits(rule.Basis) {
-				continue
-			}
 			if finding := r.finding(rule, claim, eval, ref, viaCrossing); finding != nil {
-				finding.CrossedLine = &scanreport.CrossedLine{Line: line, From: step.From.String(), To: step.To.String(), InputDigest: eval.scan.Prepared.InputDigest}
+				finding.CrossedLine = &scanreport.CrossedLine{Line: line, From: stepFrom, To: stepTo, InputDigest: eval.scan.Prepared.InputDigest, EngineContractDigest: eval.contract}
 				finding.Fix = crossedLineFix(finding.Fix, *finding.CrossedLine)
 			}
 			blocked = true
@@ -816,9 +878,19 @@ func (r *kubernetesRun) enteredLineBlockers(hop upgradepath.Hop, ref scanreport.
 	return blocked, nil
 }
 
+// stepReason is why the step that enters a line did not decide an object: a
+// gap, emitted only when an object of that line stays undecided.
+type stepReason struct {
+	key          scanreport.GapKey
+	args         []any
+	excludedRule string
+	// fallback is said only when no other reason is.
+	fallback bool
+}
+
 // crossedLineFix appends the step disclosure to a rule's fix.
 func crossedLineFix(fix string, step scanreport.CrossedLine) string {
-	disclosure := "decided on the step " + step.From + " -> " + step.To + ", which this upgrade takes to enter Kubernetes " + step.Line
+	disclosure := "decided on the step " + step.From + " -> " + step.To + ", which an in-place upgrade takes to enter Kubernetes " + step.Line
 	if strings.HasSuffix(fix, ".") {
 		return fix + " " + strings.ToUpper(disclosure[:1]) + disclosure[1:] + "."
 	}

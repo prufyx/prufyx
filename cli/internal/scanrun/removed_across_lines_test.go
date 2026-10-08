@@ -48,7 +48,7 @@ func notPassLike(t *testing.T, report scanreport.Report) {
 // sameStep compares the step a finding names, and checks that the step's
 // engine input digest is recorded.
 func sameStep(got *scanreport.CrossedLine, want scanreport.CrossedLine) bool {
-	return got != nil && got.Line == want.Line && got.From == want.From && got.To == want.To && strings.HasPrefix(got.InputDigest, "sha256:") && len(got.InputDigest) == len("sha256:")+64
+	return got != nil && got.Line == want.Line && got.From == want.From && got.To == want.To && len(got.InputDigest) == len("sha256:")+64 && strings.HasPrefix(got.InputDigest, "sha256:") && len(got.EngineContractDigest) == len("sha256:")+64
 }
 
 func findingFor(t *testing.T, report scanreport.Report, ruleID string) scanreport.Finding {
@@ -82,7 +82,7 @@ func TestScanC1RemovedAPIAcrossSkippedLines(t *testing.T) {
 	if !sameStep(finding.CrossedLine, want) || finding.Hop.From != "1.24.17" || finding.Hop.To != "1.30.4" || finding.Match != "range" {
 		t.Fatalf("finding %+v crossed line %+v", finding, finding.CrossedLine)
 	}
-	if !strings.HasSuffix(finding.Fix, "Decided on the step 1.24.17 -> 1.25, which this upgrade takes to enter Kubernetes 1.25.") {
+	if !strings.HasSuffix(finding.Fix, "Decided on the step 1.24.17 -> 1.25, which an in-place upgrade takes to enter Kubernetes 1.25.") {
 		t.Fatalf("fix does not name the step: %q", finding.Fix)
 	}
 	if len(finding.Locations) != 1 || finding.Locations[0].Kind != "CronJob" || finding.Locations[0].Name != "nightly" {
@@ -220,7 +220,7 @@ func TestScanRemovedAPIAcrossSkippedLinesFormats(t *testing.T) {
 	}{
 		{"blocked", embeddedOnly(t), scanreport.ExitBlocked, "BLOCKED: 1 problem must be fixed before this upgrade"},
 		{"unknown", hiddenRules{Knowledge: embeddedOnly(t), hidden: map[string]bool{cronjobRuleID: true}}, scanreport.ExitUnknown,
-			"UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (3 areas were not checked)"},
+			"UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (3 other areas were not checked)"},
 	}
 	for _, run := range runs {
 		dir, _ := files(t, map[string]string{"applyset.yaml": cronjobOnlyV1beta1})
@@ -241,7 +241,7 @@ func TestScanRemovedAPIAcrossSkippedLinesFormats(t *testing.T) {
 				if strings.Contains(text, "NO BLOCKERS FOUND") || strings.Contains(text, "removed before the evaluated hops") || !strings.Contains(text, run.headline) {
 					t.Fatalf("%s output:\n%s", format, text)
 				}
-				step := "Decided on the step 1.24.17 -> 1.25, which this upgrade takes to enter Kubernetes 1.25."
+				step := "Decided on the step 1.24.17 -> 1.25, which an in-place upgrade takes to enter Kubernetes 1.25."
 				if run.exit == scanreport.ExitBlocked && format != "json" && !strings.Contains(text, step) {
 					t.Fatalf("%s output lacks the step:\n%s", format, text)
 				}
@@ -304,11 +304,65 @@ func TestScanDowngradeGapHasNextAction(t *testing.T) {
 	result := mustScan(t, embeddedOnly(t), args(paths, "--from", "kubernetes=1.25.2", "--to", "kubernetes=1.24.1")...)
 	for _, gap := range result.Report.Gaps {
 		if gap.Reason == scanreport.ReasonDowngradeNotReviewed {
-			if gap.Action == "none" || !strings.Contains(gap.Action, "swap --from and --to") || !strings.Contains(gap.Action, "kubernetes rollback notes") {
+			if gap.Action == "none" || !strings.Contains(gap.Action, "swap --from and --to") || !strings.Contains(gap.Action, "docs on downgrades") {
 				t.Fatalf("downgrade action %q", gap.Action)
 			}
 			return
 		}
 	}
 	t.Fatalf("no downgrade gap: %+v", result.Report.Gaps)
+}
+
+// TestScanPreV122RemovedAPIIsNeverNoBlockers: a workload at an API version
+// removed before 1.22 (no scan rule exists for it) is an unserved manifest on
+// every upgrade past 1.16, on a skipping hop and on an adjacent one, and the
+// headline never reads "no blockers".
+func TestScanPreV122RemovedAPIIsNeverNoBlockers(t *testing.T) {
+	for _, apiVersion := range []string{"extensions/v1beta1", "apps/v1beta2", "apps/v1beta1"} {
+		manifest := "apiVersion: " + apiVersion + "\nkind: Deployment\nmetadata:\n  name: web\n  namespace: demo\n"
+		for _, hop := range [][2]string{{"1.24.17", "1.25.4"}, {"1.29.1", "1.30.4"}} {
+			t.Run(apiVersion+" "+hop[0]+" to "+hop[1], func(t *testing.T) {
+				_, paths := files(t, map[string]string{"applyset.yaml": manifest})
+				result := mustScan(t, embeddedOnly(t), args(paths, "--from", "kubernetes="+hop[0], "--to", "kubernetes="+hop[1])...)
+				notPassLike(t, result.Report)
+				if result.Exit != scanreport.ExitUnknown || !strings.HasPrefix(result.Report.Headline, "UNKNOWN: manifests use API versions the target does not serve") ||
+					!hasGap(result.Report, scanreport.ReasonAPIVersionNotServed, "does not serve") {
+					t.Fatalf("exit %d headline %q gaps %v", result.Exit, result.Report.Headline, gapReasons(result.Report))
+				}
+			})
+		}
+	}
+}
+
+// TestScanServedVersionsAcrossSkippedLinesAreClean: objects at versions every
+// line serves are neither blocked nor named as unserved on a skipping hop.
+func TestScanServedVersionsAcrossSkippedLinesAreClean(t *testing.T) {
+	manifest := "apiVersion: batch/v1\nkind: CronJob\nmetadata:\n  name: nightly\n  namespace: demo\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\n  namespace: demo\n"
+	_, paths := files(t, map[string]string{"applyset.yaml": manifest})
+	result := mustScan(t, embeddedOnly(t), args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...)
+	if len(result.Report.Findings) != 0 || hasGap(result.Report, scanreport.ReasonAPIVersionNotServed, "") || strings.HasPrefix(result.Report.Headline, "UNKNOWN") {
+		t.Fatalf("headline %q findings %+v gaps %v", result.Report.Headline, result.Report.Findings, gapReasons(result.Report))
+	}
+}
+
+// TestScanUndecidedStepSaysWhy: when the step that enters a line decides
+// nothing, gaps carry the reason, including the rules the trust policy left
+// out (counted in the trust policy block).
+func TestScanUndecidedStepSaysWhy(t *testing.T) {
+	_, paths := files(t, map[string]string{"applyset.yaml": cronjobOnlyV1beta1})
+	result := mustScan(t, embeddedOnly(t), args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", "mechanical")...)
+	report := result.Report
+	notPassLike(t, report)
+	if !hasGap(report, scanreport.ReasonRuleNotDecided, "left out by --require-basis") || report.TrustPolicy == nil || report.TrustPolicy.ExcludedRules == 0 {
+		t.Fatalf("trust policy %+v gaps %+v", report.TrustPolicy, report.Gaps)
+	}
+	if !hasGap(report, scanreport.ReasonAPIVersionNotServed, "removed on a line this upgrade enters") {
+		t.Fatalf("gaps %+v", report.Gaps)
+	}
+	// A line with no rule in the knowledge.
+	without := hiddenRules{Knowledge: embeddedOnly(t), hidden: map[string]bool{cronjobRuleID: true}}
+	result = mustScan(t, without, args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...)
+	if !hasGap(result.Report, scanreport.ReasonRuleNotDecided, "(enters 1.25) decided nothing") {
+		t.Fatalf("gaps %+v", result.Report.Gaps)
+	}
 }

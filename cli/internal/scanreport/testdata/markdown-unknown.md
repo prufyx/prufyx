@@ -1,4 +1,4 @@
-# UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (8 areas were not checked)
+# UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (7 other areas were not checked)
 
 ## NOT CHECKED (8)
 
@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | etcd | etcd is not evaluated by scan yet | run prufyx check cncf --project etcd, or verify its upgrade notes by hand |
 | kubernetes | 1 manifest(s) use API versions that the review of Kubernetes 1.30 does not list as served | check those API versions against the Kubernetes 1.30 API reference by hand |
-| kubernetes | 1 manifest(s) use API versions Kubernetes 1.30 does not serve, removed on a line this upgrade enters | no reviewed rule decided them; migrate them to a served API version before upgrading, and see the other gaps for why |
+| kubernetes | 1 manifest(s) use API versions Kubernetes 1.30 does not serve, removed on a line this upgrade enters | no reviewed rule decided them; migrate them to a served API version before upgrading, and the gaps for the step that enters the line say why |
 | kubernetes | it is not declared that these manifests are applied to the target kubernetes API | if they are, add targetApplyRequired: true to prufyx.yaml or pass --target-api-apply-required |
 | kubernetes | the kubernetes distribution is not declared | for upstream builds, add distribution: official\_upstream to prufyx.yaml or pass --distribution official\_upstream |
 | kubernetes | the kubernetes manifests are not declared to be the complete set you apply | if they are, add resourceScopeComplete: true to prufyx.yaml or pass --resource-scope-complete |

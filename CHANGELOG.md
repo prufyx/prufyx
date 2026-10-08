@@ -163,7 +163,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   pack file and refuses a pack that differs from `--base-pack` or
   `--base-baselines`. The pack loader also refuses a served list that names a
   1.16 removal (`apps/v1beta1`, `apps/v1beta2`, `extensions/v1beta1`).
-<<<<<<< HEAD
 - A ranged rule whose range pins a REMOVED_IN_RELEASE or CHANGED_IN_RELEASE
   boundary is no longer excluded for a hop that crosses that boundary outside
   the range. The engine reports it UNDETERMINED
@@ -181,7 +180,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   a rule before evaluation (a wide anchor rule could otherwise exit 0),
   `catalog checks` prints the `boundary-unreviewed` and `crossing` match modes
   and no anchor route for them, and quiet output names the crossed boundaries.
-=======
 - `prufyx scan`: an upgrade that skips release lines (for example
   `1.24.17 -> 1.30.4` without a reviewed path policy) no longer answers
   `NO BLOCKERS FOUND IN COVERED CHECKS` (exit 11) for a manifest at an API
@@ -194,12 +192,23 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   reviewed rule decided is always named (gap `API_VERSION_NOT_SERVED`), also on
   a line a hop enters when the rule could not decide, and the headline then
   reads `UNKNOWN: manifests use API versions the target does not serve; migrate
-  them before upgrading (...)` instead of "no blockers".
+  them before upgrading (...)` instead of "no blockers". This covers every
+  removal Prufyx has reviewed, also those before 1.22 (for example an
+  `extensions/v1beta1` Deployment, removed in 1.16), not only the scan rule
+  table. When the step that enters a line decided nothing, `RULE_NOT_DECIDED`
+  gaps say why (no rule, a rule left out by `--require-basis`, a rule that
+  covers only part of the step).
+- The `scan-report-v1alpha1` JSON schema gained the optional member
+  `finding.crossedLine` (with `line`, `from`, `to`, `inputDigest`,
+  `engineContractDigest`); integrators who vendor the schema must refresh it,
+  because a validator pinned to the previous schema rejects reports that carry
+  it. On such a finding `match` describes the step, not the hop.
 - `prufyx scan`: the `LINE_NOT_ATTESTED` gap no longer says a line "has not been
   reviewed for removed APIs" next to a blocker from a reviewed rule of that line;
   it says no review confirms the line's rules name every API it removes. The
-  `DOWNGRADE_NOT_REVIEWED` gap names a next action instead of "none".
->>>>>>> 22cb8da4 (scan: block removed APIs on lines a skipping hop enters; never 'no blockers' for an unserved manifest)
+  `DOWNGRADE_NOT_REVIEWED` gap names a next action instead of "none", and no
+  longer points at nonexistent rollback notes: it says to check the component's
+  documentation on downgrades (the Kubernetes control plane has none).
 - `prufyx assess --format json`: the collector progress lines ("Context …", "Created local API observation directory …", "Verify context files with …") now go to stderr, so stdout carries only the JSON report and parses as JSON.
 - `extract` file writes are never made through a symlink and no longer depend on
   the umask. `extract run` builds the output in a staging directory beside `--out`

@@ -33,7 +33,7 @@
         {
           "executionSuccessful": true,
           "exitCode": 11,
-          "exitCodeDescription": "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (8 areas were not checked)",
+          "exitCodeDescription": "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (7 other areas were not checked)",
           "startTimeUtc": "2026-10-04T00:00:00Z",
           "toolExecutionNotifications": [
             {
@@ -65,7 +65,7 @@
             {
               "level": "warning",
               "message": {
-                "text": "1 manifest(s) use API versions Kubernetes 1.30 does not serve, removed on a line this upgrade enters - no reviewed rule decided them; migrate them to a served API version before upgrading, and see the other gaps for why"
+                "text": "1 manifest(s) use API versions Kubernetes 1.30 does not serve, removed on a line this upgrade enters - no reviewed rule decided them; migrate them to a served API version before upgrading, and the gaps for the step that enters the line say why"
               },
               "descriptor": {
                 "id": "API_VERSION_NOT_SERVED"
@@ -165,7 +165,7 @@
       "results": [],
       "properties": {
         "verdict": "UNKNOWN",
-        "headline": "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (8 areas were not checked)",
+        "headline": "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (7 other areas were not checked)",
         "summary": {
           "blockers": 0,
           "gaps": 8,
