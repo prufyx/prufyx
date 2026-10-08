@@ -96,6 +96,17 @@ type Options struct {
 	// MaxDailyLoosening caps DailyLoosening plus this change; 0 means
 	// DefaultMaxDailyLoosening.
 	MaxDailyLoosening int
+	// Citations verifies the sources of every added or changed rule, path
+	// policy and line attestation against upstream (see citationCheck).
+	// Nil means no upstream is available: a change that cites sources then
+	// fails the citations check, it is never skipped.
+	Citations CitationChecker
+}
+
+// CitationChecker verifies citation items against upstream; the production
+// implementation is *rulecheck.CitationVerifier.
+type CitationChecker interface {
+	VerifyItems(ctx context.Context, items []rulecheck.CitationItem) (rulecheck.CitationReport, error)
 }
 
 // Check is one named pass/fail check.
@@ -419,6 +430,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	r.modeCheck(opts)
 	r.baselineApprovalsUsed = r.baselinesCheck(opts, loadKeys, approvals)
 	r.recordCheck(cls, statements, opts)
+	r.citationCheck(ctx, cls, opts)
 	r.limitChecks(cls, opts)
 	r.finish(true)
 	r.autoMerge(opts)

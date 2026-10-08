@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/maintainer/rulecheck"
 )
 
 // repoRoot is this source tree's repository root.
@@ -181,7 +183,26 @@ func shiftTime(t *testing.T, v any, d time.Duration) string {
 
 var gateNow = time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC)
 
+// passingCitations stands in for the upstream citation check in tests that
+// are about something else; the citation tests use the real verifier with
+// fixtures (citations_test.go).
+type passingCitations struct{}
+
+func (passingCitations) VerifyItems(_ context.Context, items []rulecheck.CitationItem) (rulecheck.CitationReport, error) {
+	return rulecheck.CitationReport{Pass: true, SourcesChecked: len(items)}, nil
+}
+
 func runGate(t *testing.T, opts Options) *Report {
+	t.Helper()
+	if opts.Citations == nil {
+		opts.Citations = passingCitations{}
+	}
+	return runGateExact(t, opts)
+}
+
+// runGateExact runs the gate with exactly the options given: no verifier is
+// injected when opts.Citations is nil, so a test sees the unconfigured gate.
+func runGateExact(t *testing.T, opts Options) *Report {
 	t.Helper()
 	if opts.Layout.Packs == nil {
 		opts.Layout = DefaultLayout()

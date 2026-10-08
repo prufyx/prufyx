@@ -219,6 +219,12 @@ Run on every pack of the head, whatever the change:
 | `limits` | the change holds more loosening changes than the cap (default 200) |
 | `kill-switch` | the file `factory/PAUSE` exists in the base or the head and the change holds any loosening change |
 
+Run on the changed items only:
+
+| Check | Fails when |
+| --- | --- |
+| `citations` | an added or changed rule, path policy or line attestation (a new item, a renewal, a reactivation or a re-pin) cites a source whose revision is not a commit object (an annotated tag object is refused, with the peeled commit named); whose commit is neither the commit of a tag of the cited repository nor in the history of its default branch (GitHub also serves commits that exist only in a fork through the upstream URL, so a commit object that resolves is not proof of upstream provenance; the check lists the repository's tags, up to 1000, and asks the compare API, once per commit); whose whole-file sha256 at that commit differs from `contentDigest`; whose lines are not inside the file (`startLine` must be a real line, `endLine` may be the empty position after the final newline); or that has no source at all; or any of this cannot be established (no `--source`, a network or rate-limit failure, a run past `--citations-timeout`). `--source fixture:DIR` is the explicit offline mode: it verifies nothing, so when the change cites a source the check fails with "not verified (offline fixture)" and the change is not eligible for automatic merge (a change that cites nothing has nothing to verify); the workflows use `--source github`. A change that touches no rule or record, a withdrawal and an earlier validUntil are not checked. The same checks run over the whole pack nightly (`rule verify-citations`, workflow `citations-nightly`) |
+
 The kill switch blocks every loosening change and lets tightening through. A
 change that adds `factory/PAUSE` pauses itself; a change that deletes it is
 still paused, because the base has it.
@@ -737,12 +743,25 @@ The whole gate.
 | `--rerun-worklist FILE` | worklist from this job's own `evidence repin` run; without it no statement is accepted |
 | `--rederive-all` | also re-derive every active mechanical rule and every mechanical line attestation, changed or not |
 | `--concurrency N` | concurrent upstream reads during re-derivation (0–64) |
+| `--citations-timeout D` | overall deadline of the citation verification (default 20m); a run that does not finish in time fails the `citations` check |
 | `--now RFC3339` | the gate's clock, UTC (default: now); for reproducing a past run |
 | `--report FILE` | write the JSON report |
 | `--summary FILE` | append a Markdown summary (the workflow passes `$GITHUB_STEP_SUMMARY`) |
 | `--json` | print the report as JSON |
 
-Without `--source`, every mechanical loosening change fails.
+Without `--source`, every mechanical loosening change fails, and so does every
+change that adds or changes a rule or record with cited sources (the
+`citations` check): a citation that cannot be checked is not a pass. With
+`--source fixture:DIR` (offline, for tests and local runs) citations are not
+verified, so a change that cites sources fails the `citations` check and is
+never eligible for automatic merge.
+
+The citation check makes a bounded number of GitHub REST calls (one commit
+lookup and at most one compare per distinct commit, a tag listing (one request
+per 100 tags, up to 10) and one repository lookup per repository, plus raw file
+reads). A very large renewal change can exhaust the
+API rate limit of the workflow token (about 1000 requests per hour per
+repository); the check then fails closed, and the run is repeated later.
 
 The report (`prufyx.io/knowledge-gate-report/v1`) lists `result` (`pass` or
 `fail`), `changes` (each with `class`, `kinds`, `basis`, `proof`, `ok` and

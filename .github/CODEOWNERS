@@ -23,6 +23,12 @@
 /cli/internal/lineattest/pack.go @airstand
 /cli/internal/validation/ @airstand
 /cli/internal/maintainer/evidencereattest/ @airstand
+/cli/internal/maintainer/rulecheck/ @airstand
+/cli/internal/maintainer/evidencerepin/ @airstand
+/cli/internal/maintainer/repinbaselines/ @airstand
+/cli/internal/constraintengine/ @airstand
+/cli/internal/upgradepath/ @airstand
+/cli/internal/distribution/ @airstand
 /cli/internal/extract/ @airstand
 
 # The reviewed image-to-project registry and the code that interprets it. A

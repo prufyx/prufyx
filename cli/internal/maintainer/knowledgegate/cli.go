@@ -19,6 +19,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/rulecheck"
 )
 
 const usage = `usage:
@@ -234,6 +235,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	var t treeFlags
 	var source, author, sender, owner, bot, headSHA, commits, digest, keysDigest, rerun, now, report, summary string
 	var max, concurrency int
+	var citeTimeout time.Duration
 	var all, shadow bool
 	var metricsFile, alarmsFile, alarmsMD string
 	var m monitorFlags
@@ -256,6 +258,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	f.StringVar(&rerun, "rerun-worklist", "", "worklist from this job's own evidence repin run")
 	f.BoolVar(&all, "rederive-all", false, "re-derive every active mechanical rule and mechanical line attestation")
 	f.IntVar(&concurrency, "concurrency", 0, "concurrent upstream reads for re-derivation")
+	f.DurationVar(&citeTimeout, "citations-timeout", rulecheck.DefaultCitationTimeout, "overall deadline of the citation verification; a run that does not finish in time fails the citations check")
 	f.StringVar(&now, "now", "", "the gate's clock, RFC 3339 UTC (default: now)")
 	f.StringVar(&report, "report", "", "write the JSON report to this file")
 	f.StringVar(&summary, "summary", "", "append a Markdown summary to this file")
@@ -269,8 +272,8 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	if err != nil {
 		return 2, err
 	}
-	if max < 1 || concurrency < 0 || concurrency > 64 {
-		return 2, errors.New("--max-loosening must be at least 1 and --concurrency 0-64")
+	if max < 1 || concurrency < 0 || concurrency > 64 || citeTimeout <= 0 {
+		return 2, errors.New("--max-loosening must be at least 1, --concurrency 0-64 and --citations-timeout positive")
 	}
 	opts := Options{Layout: layout, Base: base, Head: head, Author: author, Sender: sender, Owner: owner, BotLogin: bot, HeadSHA: headSHA, MaxLoosening: max, TrustRootDigest: digest, ApprovalKeysDigest: keysDigest, RederiveAll: all, Concurrency: concurrency, Shadow: shadow}
 	m.apply(&opts)
@@ -288,18 +291,8 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 			return 2, errors.New("--now must be RFC 3339 UTC")
 		}
 	}
-	switch {
-	case source == "":
-	case source == "github":
-		token := getenv("GITHUB_TOKEN")
-		if token == "" {
-			token = getenv("GH_TOKEN")
-		}
-		opts.Source = &GitHubSource{Token: token}
-	case strings.HasPrefix(source, "fixture:") && len(source) > len("fixture:"):
-		opts.Source = extract.FixtureReader{Root: strings.TrimPrefix(source, "fixture:")}
-	default:
-		return 2, errors.New("--source must be github or fixture:DIR")
+	if opts.Source, opts.Citations, err = sourceFlag(source, citeTimeout, getenv); err != nil {
+		return 2, err
 	}
 	if rerun != "" {
 		if opts.RerunWorklist, err = readBoundedFile(rerun, MaxFileBytes); err != nil {
@@ -579,4 +572,24 @@ func cmdDailyCount(args []string, layout Layout, stdout io.Writer) (int, error) 
 	}
 	fmt.Fprintln(stdout, n)
 	return 0, nil
+}
+
+// sourceFlag turns --source into the gate's upstream reader and citation
+// checker: github installs the real ones (the same token for both), fixture
+// the offline pair (whose citation mode never passes), and no source leaves
+// both nil, which fails closed.
+func sourceFlag(source string, citeTimeout time.Duration, getenv func(string) string) (Source, CitationChecker, error) {
+	switch {
+	case source == "":
+		return nil, nil, nil
+	case source == "github":
+		token := getenv("GITHUB_TOKEN")
+		if token == "" {
+			token = getenv("GH_TOKEN")
+		}
+		return &GitHubSource{Token: token}, &rulecheck.CitationVerifier{Resolver: rulecheck.NewGitHubObjects(token), Fetcher: rulecheck.HTTPFetcher{}, Concurrency: 4, Timeout: citeTimeout}, nil
+	case strings.HasPrefix(source, "fixture:") && len(source) > len("fixture:"):
+		return extract.FixtureReader{Root: strings.TrimPrefix(source, "fixture:")}, OfflineCitations{}, nil
+	}
+	return nil, nil, errors.New("--source must be github or fixture:DIR")
 }
