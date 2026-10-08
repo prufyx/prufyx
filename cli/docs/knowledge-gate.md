@@ -160,15 +160,20 @@ A loosening record change is admitted only with one of these proofs:
 the rules it lists are all the pack's rules for one line and fact family. The
 pack checks prove the list matches the pack; they cannot prove that upstream
 removed nothing else on that line. So the gate also runs the extractor that
-attests the attestation's fact family over pinned upstream bytes, at its own
-clock, and requires:
+attests the attestation's fact family for its component (one extractor per
+project for `crd.custom_resource_versions`) over pinned upstream bytes, at its
+own clock, and requires:
 
 - for a line before the first line the extractor is built to derive (1.20 for
-  `k8s.served-api-removal`): nothing more (the approval alone decides);
+  `k8s.served-api-removal`; `crd.version-removal` declares none, so every
+  line is cross-checked): nothing more (the approval alone decides);
 - for any other line: the extractor derives and attests that line in this run,
   and for every rule it derives for the line the attestation lists a rule with
   the same operator and the identical condition (side, component, fact and
-  value) that is neither a one-way notice nor a lead.
+  value; for a set rule, the identical set condition) that is neither a
+  one-way notice nor a lead;
+- for a release-scoped family, every release the attestation names (version
+  and commit) is one the extractor read for that line.
 
 An attestation of a line the extractor does not derive (for example a line
 that has no release yet, or whose release could not be resolved), one that

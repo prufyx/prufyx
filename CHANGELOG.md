@@ -7,6 +7,26 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Line attestations per component: the fact family
+  `crd.custom_resource_versions` covers, for each project of the
+  custom-resource table, the rules over its own custom-resource version set.
+  Its attestations carry a new `releases` member naming every release of both
+  lines the derivation read, and cover a hop only between two of them. The
+  maintainer extractor `crd.version-removal` 2.1.0 attests every line it
+  derives completely (all releases, clean full-tree scan, line-wide rules, no
+  removed definition) for the next minor line of the same major; the
+  knowledge gate admits such an attestation only by re-deriving it, and
+  cross-checks a reviewed one against the extractor of its own component.
+  `scan` then reports, per hop, a family result (`PASS` or `BLOCKED` within
+  `crd.custom_resource_versions` only, with the family's scope); the project
+  is still never covered and the answer never `PASS` because of it. `check`
+  routes keep the exit cap and now say they read no line review. The coverage
+  report counts these attestations as A for the family. No attestation is
+  shipped. See `cli/docs/line-attestations.md` and
+  `cli/docs/custom-resources.md`.
+
 ### Changed
 
 - Maintainer extractor `crd.version-removal` 2.0.0: pairs are consecutive
