@@ -36,6 +36,7 @@ type Options struct {
 	Now                           func() time.Time
 	Random                        io.Reader
 	kubeconfigSnapshot            []byte
+	outputRootIdentity            os.FileInfo
 }
 
 type Collector struct{ Runner Runner }
@@ -99,10 +100,19 @@ func (c Collector) Collect(ctx context.Context, opts Options, stdout, stderr io.
 		fmt.Fprintln(stderr, "Cannot create private observation directory.")
 		return "", 2
 	}
-	if err := os.Chmod(runDir, 0o700); err != nil {
+	if _, err := makeDirPrivate(runDir); err != nil {
 		_ = os.RemoveAll(runDir)
 		fmt.Fprintln(stderr, "Cannot make the observation directory private.")
 		return "", 2
+	}
+	// MkdirTemp resolved OutputRoot by path again: it must still be the
+	// directory that was made private, or the run directory landed elsewhere.
+	if opts.outputRootIdentity != nil {
+		if now, err := os.Lstat(opts.OutputRoot); err != nil || !os.SameFile(now, opts.outputRootIdentity) {
+			_ = os.Remove(runDir)
+			fmt.Fprintln(stderr, "The output directory changed during the run.")
+			return "", 2
+		}
 	}
 	complete := false
 	defer func() {
