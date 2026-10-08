@@ -5,6 +5,8 @@ package communityapp
 import (
 	"strings"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 const quietCronJobJSON = `{"apiVersion":"v1","kind":"List","items":[{"apiVersion":"batch/v1beta1","kind":"CronJob","metadata":{"name":"nightly-report","namespace":"default"}}]}`
@@ -22,7 +24,7 @@ metadata:
 `
 
 func quietArgs(path, from, to string, extra ...string) []string {
-	args := []string{"check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", from, "--to", to, "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", "2026-09-24T00:00:00Z"}
+	args := []string{"check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", from, "--to", to, "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", "2026-11-20T00:00:00Z"}
 	return append(args, extra...)
 }
 
@@ -77,13 +79,18 @@ func TestQuietHumanReviewedPairCollapsesPassesAndSharesSources(t *testing.T) {
 	path := writeCNCFFile(t, "kubernetes.json", []byte(quietCronJobJSON), 0o600)
 	code, human, stderr := runCNCFCLI(t, quietArgs(path, "1.24.0", "1.25.0", "--format", "human")...)
 	lines := nonEmptyLines(human)
-	if code != ExitBlocked || stderr != "" || len(lines) > 11 {
+	// The mechanical rules cite one more pinned source than the reviewed ones.
+	maxLines, sources := 11, 2
+	if supersedeids.Superseded() {
+		maxLines, sources = 12, 3
+	}
+	if code != ExitBlocked || stderr != "" || len(lines) > maxLines {
 		t.Fatalf("code=%d lines=%d\n%s", code, len(lines), human)
 	}
-	if strings.Count(human, "pinned source:") != 2 || strings.Contains(human, ": PASS (") || !strings.Contains(human, "6 rules PASS (not listed; use --show-passes)") {
+	if strings.Count(human, "pinned source:") != sources || strings.Contains(human, ": PASS (") || !strings.Contains(human, "6 rules PASS (not listed; use --show-passes)") {
 		t.Fatalf("unexpected quiet output:\n%s", human)
 	}
-	if !strings.Contains(human, "BLOCKED (REVIEWED_SOURCE_CONSTRAINT)") || !strings.Contains(human, "scoped result: BLOCKED\naggregate: UNKNOWN") {
+	if !strings.Contains(human, "BLOCKED ("+servedReason()+")") || !strings.Contains(human, "scoped result: BLOCKED\naggregate: UNKNOWN") {
 		t.Fatalf("decisive claim missing:\n%s", human)
 	}
 	aggregate, claim := strings.Index(human, "aggregate: UNKNOWN"), strings.Index(human, "BLOCKED (")

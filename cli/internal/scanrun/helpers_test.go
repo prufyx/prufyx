@@ -18,6 +18,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
@@ -36,9 +37,19 @@ var testdata = func() string {
 }()
 
 const (
-	testNow       = "2026-10-04T00:00:00Z"
+	testNow       = "2026-11-20T00:00:00Z"
 	kubernetesKey = "pkg:github/kubernetes/kubernetes"
 )
+
+// kubernetesRuleBases returns the evidence basis of the shipped Kubernetes
+// API-removal rules ("reviewed" before the served-API supersede, "mechanical"
+// after it) and the other one.
+func kubernetesRuleBases() (rule, other string) {
+	if supersedeids.Superseded() {
+		return "mechanical", "reviewed"
+	}
+	return "reviewed", "mechanical"
+}
 
 // testBuild is a fixed build identity so goldens do not depend on the
 // toolchain that runs the tests.
