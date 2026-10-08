@@ -4,6 +4,7 @@ package rulecheck
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -47,6 +48,9 @@ func TestVerifyCitationsImageSources(t *testing.T) {
 		if err := json.Unmarshal(stdout.Bytes(), &report); err != nil || report.Pass || len(report.FailedRules) != 1 || report.FailedRules[0] != "image-source:widget" {
 			t.Fatalf("%s report: %v %+v", name, err, report)
 		}
+		if name == "span.json" && (len(report.Findings) != 1 || report.Findings[0].Check != CheckCitationSpan) {
+			t.Fatalf("span.json findings: %+v", report.Findings)
+		}
 	}
 	// Both inputs at once, or a table that is not one, is a usage error.
 	for _, args := range [][]string{
@@ -74,5 +78,48 @@ func TestImageSourceRulesCoverTheEmbeddedTable(t *testing.T) {
 	}
 	if err := json.Unmarshal(raw, &table); err != nil || len(rules) != len(table.Records) || len(rules) < 10 {
 		t.Fatalf("rules=%d records=%d err=%v", len(rules), len(table.Records), err)
+	}
+}
+
+// The strict span rule (CheckSpans, image sources) and the tolerant one of
+// rule packs are two different findings: a span ending on the empty position
+// after the final newline passes the tolerant rule only, and a start past
+// the last line fails both.
+func TestSpanRulesStrictAndTolerantAreDistinct(t *testing.T) {
+	good := digestOf(citeFileBytes) // two lines plus the final newline
+	if CheckCitationSpan == CheckCitationLineRange {
+		t.Fatal("the strict and the tolerant span finding must be distinct")
+	}
+	cases := []struct {
+		start, end         int
+		strictOK, tolerant bool
+	}{
+		{1, 2, true, true},
+		{1, 3, false, true}, // newline count + 1: tolerated for packs only
+		{1, 4, false, false},
+		{3, 3, false, false}, // starts after the last real line: never
+	}
+	for _, tc := range cases {
+		for _, strict := range []bool{true, false} {
+			v := &CitationVerifier{
+				Resolver:   citeResolver{"acme/widget@" + citeCommit: {Commit: true}},
+				Fetcher:    citeFetcher{citeRaw(citeCommit): citeFileBytes},
+				CheckSpans: strict,
+			}
+			report, err := v.Verify(context.Background(), []json.RawMessage{citeRuleSpan("r.span", citeCommit, good, tc.start, tc.end)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			want, check := tc.tolerant, CheckCitationLineRange
+			if strict {
+				want, check = tc.strictOK, CheckCitationSpan
+			}
+			if report.Pass != want {
+				t.Fatalf("%d..%d strict=%v pass=%v want %v: %+v", tc.start, tc.end, strict, report.Pass, want, report.Findings)
+			}
+			if !want && (len(report.Findings) != 1 || report.Findings[0].Check != check) {
+				t.Fatalf("%d..%d strict=%v findings %+v, want %s", tc.start, tc.end, strict, report.Findings, check)
+			}
+		}
 	}
 }

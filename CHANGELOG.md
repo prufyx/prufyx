@@ -27,6 +27,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   and a failed write leaves no directory. `evidence reattest sign` creates
   `--output` as a new file and never replaces or writes through an existing
   file or symbolic link.
+- The knowledge gate now checks the cited sources of every added or changed
+  rule, path policy and line attestation against upstream: the revision must be
+  a commit object (not an annotated tag object) that is the commit of a tag of
+  the cited repository or in its default branch history (a commit that exists
+  only in a fork is refused), the whole-file sha256 at it must equal `contentDigest`, and the
+  cited lines must be inside the file. A citation that cannot be checked fails
+  the gate, within an overall deadline (`--citations-timeout`). In the offline
+  `--source fixture:` mode a change that cites a source fails this check (it
+  is never verified, so it is never eligible for automatic merge); a change
+  that cites nothing has nothing to verify. `rule verify-citations` covers path policies, line
+  attestations and distribution records too, and a new nightly workflow runs
+  it over every pack. The code the gate's checks rest on (`rulecheck`,
+  `constraintengine`, `upgradepath`, `distribution`, `evidencerepin`,
+  `repinbaselines`) is now CODEOWNED.
 - Offline-boundary probes now write each strace capture into a fresh private
   directory and read only regular files from it, so stale, planted or
   prefix-colliding files in the work directory can no longer be mistaken for

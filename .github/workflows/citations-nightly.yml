@@ -1,0 +1,66 @@
+name: Citations nightly
+
+# Verifies every cited source of the published knowledge packs against
+# upstream, read-only: each revision is a commit object (not a tag object)
+# that is a tag commit or in the default branch history of its repository (not
+# a fork-only commit), the whole-file sha256 at it equals contentDigest, and the cited lines are
+# inside the file. Covers rules, path policies, line attestations and
+# distribution records. The knowledge gate runs the same checks on the rules
+# and records a change touches; this catches upstream drift and anything that
+# merged before the check existed. It fails the run on any finding and
+# changes nothing.
+
+on:
+  schedule:
+    - cron: "47 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: citations-nightly
+  cancel-in-progress: false
+
+jobs:
+  citations:
+    name: Verify citations
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+
+      - name: Build the maintainer tool
+        working-directory: cli
+        run: go build -buildvcs=false -trimpath -o "${RUNNER_TEMP}/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      - name: Verify every pack
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          status=0
+          for pack in cncfcheck projectcheck; do
+            "${RUNNER_TEMP}/prufyx-maintainer" rule verify-citations \
+              --rules "cli/internal/${pack}/data/rules.json" \
+              --out "${RUNNER_TEMP}/citations-${pack}.json" || status=1
+          done
+          exit "${status}"
+
+      - name: Keep the reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: citation-reports
+          path: ${{ runner.temp }}/citations-*.json
+          if-no-files-found: ignore
+          retention-days: 14

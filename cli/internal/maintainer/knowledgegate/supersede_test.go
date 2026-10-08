@@ -626,21 +626,47 @@ func TestSupersedeOwnerFlag(t *testing.T) {
 	commits := filepath.Join(t.TempDir(), "commits.json")
 	writeFile(t, commits, mustJSON(t, map[string]any{"status": "ahead", "ahead_by": 1, "behind_by": 0, "total_commits": 1, "commits": []any{
 		map[string]any{"sha": testHeadSHA, "author": map[string]any{"login": "maintainer"}, "committer": map[string]any{"login": "maintainer"}}}}))
-	run := func(owner string) int {
-		args := []string{"verify", "--base", base.Root, "--head", head.Root, "--source", "fixture:" + servedFixture, "--author", "maintainer", "--sender", "maintainer", "--head-sha", testHeadSHA, "--commits", commits, "--now", gateNow.Format("2006-01-02T15:04:05Z")}
+	// Offline fixture mode never passes the citations check (the pair adds
+	// a rule that cites sources), so the run is judged by its report: with
+	// the right owner every change is admitted and only citations fails.
+	run := func(owner string) (changesOK bool, failed []string) {
+		reportPath := filepath.Join(t.TempDir(), "report.json")
+		args := []string{"verify", "--base", base.Root, "--head", head.Root, "--source", "fixture:" + servedFixture, "--author", "maintainer", "--sender", "maintainer", "--head-sha", testHeadSHA, "--commits", commits, "--now", gateNow.Format("2006-01-02T15:04:05Z"), "--report", reportPath}
 		if owner != "" {
 			args = append(args, "--owner-login", owner)
 		}
 		var out, errb bytes.Buffer
-		code := Main(args, os.Getenv, &out, &errb)
-		t.Log(errb.String())
-		return code
+		Main(args, os.Getenv, &out, &errb)
+		raw, err := os.ReadFile(reportPath)
+		if err != nil {
+			t.Fatalf("no report: %v %s", err, errb.String())
+		}
+		var rep struct {
+			Changes []struct{ OK bool }
+			Checks  []struct {
+				Name string
+				OK   bool
+			}
+		}
+		if err := json.Unmarshal(raw, &rep); err != nil {
+			t.Fatal(err)
+		}
+		changesOK = true
+		for _, c := range rep.Changes {
+			changesOK = changesOK && c.OK
+		}
+		for _, c := range rep.Checks {
+			if !c.OK {
+				failed = append(failed, c.Name)
+			}
+		}
+		return changesOK, failed
 	}
-	if run("") == 0 {
+	if ok, _ := run(""); ok {
 		t.Fatal("the default owner admitted another login")
 	}
-	if code := run("maintainer"); code != 0 {
-		t.Fatalf("exit %d", code)
+	if ok, failed := run("maintainer"); !ok || len(failed) != 1 || failed[0] != CheckCitations {
+		t.Fatalf("changes ok %v, failed checks %v", ok, failed)
 	}
 }
 

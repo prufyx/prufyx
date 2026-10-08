@@ -18,11 +18,25 @@
 /cli/internal/maintainer/knowledgegate/ @airstand
 /cli/cmd/prufyx-maintainer/gate.go @airstand
 /cli/internal/strictjson/ @airstand
-/cli/internal/cncfcheck/packfiles.go @airstand
-/cli/internal/projectcheck/packfiles.go @airstand
-/cli/internal/lineattest/pack.go @airstand
 /cli/internal/validation/ @airstand
 /cli/internal/maintainer/evidencereattest/ @airstand
+/cli/internal/maintainer/rulecheck/ @airstand
+/cli/internal/maintainer/evidencerepin/ @airstand
+/cli/internal/maintainer/repinbaselines/ @airstand
+/cli/internal/constraintengine/ @airstand
+/cli/internal/upgradepath/ @airstand
+/cli/internal/distribution/ @airstand
+/cli/internal/maintainer/knowledgesign/ @airstand
+/cli/internal/supersedepred/ @airstand
+/cli/internal/consensus/ @airstand
+/cli/internal/currentbundle/ @airstand
+/cli/internal/maintainer/corpusattest/ @airstand
+/cli/internal/maintainer/knowledgetargets/ @airstand
+/cli/internal/maintainer/sourcecorpus/ @airstand
+/cli/internal/maintainer/supportinventory/ @airstand
+/cli/internal/lineattest/ @airstand
+/cli/internal/cncfcheck/ @airstand
+/cli/internal/projectcheck/ @airstand
 /cli/internal/extract/ @airstand
 
 # The reviewed image-to-project registry and the code that interprets it. A

@@ -14,12 +14,19 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
 const (
 	citeCommit = "d25610acbea3cd0e57f924f9f6bd9df99a7e33a3"
 	citeTag    = "7a501744aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	citeOther  = "1111111111111111111111111111111111111111"
+	// citeFork is served as a commit but is not in the repository's history.
+	citeFork = "6666666666666666666666666666666666666666"
+	// citeReachErr is a commit whose reachability cannot be established.
+	citeReachErr = "7777777777777777777777777777777777777777"
 )
 
 var citeFileBytes = []byte("line one\nline two\n")
@@ -33,6 +40,16 @@ func (f citeResolver) ResolveRevision(_ context.Context, owner, repo, sha string
 	return ObjectKind{}, errors.New("not found")
 }
 
+func (f citeResolver) RevisionReachable(_ context.Context, owner, repo, sha string) (bool, error) {
+	switch sha {
+	case citeFork:
+		return false, nil
+	case citeReachErr:
+		return false, errors.New("compare: HTTP 502")
+	}
+	return true, nil
+}
+
 type citeFetcher map[string][]byte // raw URL -> bytes; absent -> error
 
 func (f citeFetcher) FetchRawBlob(_ context.Context, rawURL string) ([]byte, error) {
@@ -44,6 +61,10 @@ func (f citeFetcher) FetchRawBlob(_ context.Context, rawURL string) ([]byte, err
 
 func citeRule(id, revision, digest string) json.RawMessage {
 	return json.RawMessage(fmt.Sprintf(`{"id":%q,"evidence":{"state":"active","sources":[{"id":"s1","url":"https://github.com/acme/widget/blob/%s/a/b.go","revision":%q,"contentDigest":%q,"startLine":1,"endLine":2}]}}`, id, revision, revision, digest))
+}
+
+func citeRuleSpan(id, revision, digest string, start, end int) json.RawMessage {
+	return json.RawMessage(fmt.Sprintf(`{"id":%q,"evidence":{"state":"active","sources":[{"id":"s1","url":"https://github.com/acme/widget/blob/%s/a/b.go","revision":%q,"contentDigest":%q,"startLine":%d,"endLine":%d}]}}`, id, revision, revision, digest, start, end))
 }
 
 func citeRaw(revision string) string {
@@ -70,6 +91,14 @@ func TestCitationVerifierTable(t *testing.T) {
 			citeResolver{"acme/widget@" + citeTag: {PeeledCommit: citeCommit}}, citeFetcher{citeRaw(citeCommit): citeFileBytes}, false, []string{CheckRevisionNotCommit}, "use the peeled commit " + citeCommit},
 		{"tag object whose peeled digest differs", citeRule("r.tag2", citeTag, bad),
 			citeResolver{"acme/widget@" + citeTag: {PeeledCommit: citeCommit}}, citeFetcher{citeRaw(citeCommit): citeFileBytes}, false, []string{CheckRevisionNotCommit}, "does NOT match"},
+		{"span past the end of the file", citeRuleSpan("r.span", citeCommit, good, 1, 4),
+			citeResolver{"acme/widget@" + citeCommit: {Commit: true}}, citeFetcher{citeRaw(citeCommit): citeFileBytes}, false, []string{CheckCitationLineRange}, "3 line positions"},
+		{"span ending on the empty position after the final newline", citeRuleSpan("r.span3", citeCommit, good, 1, 3),
+			citeResolver{"acme/widget@" + citeCommit: {Commit: true}}, citeFetcher{citeRaw(citeCommit): citeFileBytes}, true, nil, ""},
+		{"span starting at zero", citeRuleSpan("r.span0", citeCommit, good, 0, 2),
+			citeResolver{"acme/widget@" + citeCommit: {Commit: true}}, citeFetcher{citeRaw(citeCommit): citeFileBytes}, false, []string{CheckCitationLineRange}, ""},
+		{"reversed span", citeRuleSpan("r.span21", citeCommit, good, 2, 1),
+			citeResolver{"acme/widget@" + citeCommit: {Commit: true}}, citeFetcher{citeRaw(citeCommit): citeFileBytes}, false, []string{CheckCitationLineRange}, ""},
 		{"unresolvable revision fails closed", citeRule("r.gone", citeOther, good),
 			citeResolver{}, citeFetcher{citeRaw(citeOther): citeFileBytes}, false, []string{CheckRevisionUnresolved}, ""},
 		{"neither commit nor tag fails closed", citeRule("r.zero", citeOther, good),
@@ -80,8 +109,16 @@ func TestCitationVerifierTable(t *testing.T) {
 			citeResolver{}, citeFetcher{}, false, []string{CheckCitationURL}, ""},
 		{"revision differing from url fails closed", json.RawMessage(`{"id":"r.rev","evidence":{"sources":[{"id":"s1","url":"https://github.com/acme/widget/blob/` + citeCommit + `/a/b.go","revision":"` + citeOther + `","contentDigest":"x"}]}}`),
 			citeResolver{}, citeFetcher{}, false, []string{CheckCitationURL}, ""},
+		{"span made only of the position after the final newline", citeRuleSpan("r.span33", citeCommit, good, 3, 3),
+			citeResolver{"acme/widget@" + citeCommit: {Commit: true}}, citeFetcher{citeRaw(citeCommit): citeFileBytes}, false, []string{CheckCitationLineRange}, "2 lines"},
+		{"1..1 on an empty file", citeRuleSpan("r.empty11", citeCommit, digestOf(nil), 1, 1),
+			citeResolver{"acme/widget@" + citeCommit: {Commit: true}}, citeFetcher{citeRaw(citeCommit): nil}, false, []string{CheckCitationLineRange}, "0 lines"},
+		{"fork-only commit is not upstream", citeRule("r.fork", citeFork, good),
+			citeResolver{"acme/widget@" + citeFork: {Commit: true}}, citeFetcher{citeRaw(citeFork): citeFileBytes}, false, []string{CheckRevisionUnreachable}, "only in a fork"},
+		{"reachability error fails closed", citeRule("r.reach", citeReachErr, good),
+			citeResolver{"acme/widget@" + citeReachErr: {Commit: true}}, citeFetcher{citeRaw(citeReachErr): citeFileBytes}, false, []string{CheckRevisionUnreachable}, "could not establish"},
 		{"rule without sources is not a pass", json.RawMessage(`{"id":"r.empty","evidence":{"sources":[]}}`),
-			citeResolver{}, citeFetcher{}, false, nil, ""},
+			citeResolver{}, citeFetcher{}, false, []string{CheckCitationNoSources}, ""},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -108,6 +145,48 @@ func TestCitationVerifierTable(t *testing.T) {
 			}
 		})
 	}
+}
+
+// An item without a source is a finding of its own, even when another item
+// in the list has sources.
+func TestCitationVerifierItemWithoutSourcesIsAFinding(t *testing.T) {
+	good := digestOf(citeFileBytes)
+	var withSources CitationItem
+	items, err := RuleCitationItems([]json.RawMessage{citeRule("r.ok", citeCommit, good)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	withSources = items[0]
+	verifier := &CitationVerifier{Resolver: citeResolver{"acme/widget@" + citeCommit: {Commit: true}}, Fetcher: citeFetcher{citeRaw(citeCommit): citeFileBytes}}
+	report, err := verifier.VerifyItems(context.Background(), []CitationItem{withSources, {ID: "r.empty"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Pass || len(report.Findings) != 1 || report.Findings[0].Check != CheckCitationNoSources || report.Findings[0].RuleID != "r.empty" {
+		t.Fatalf("report %+v", report)
+	}
+}
+
+// The run has an overall deadline; hitting it is an error, not a pass.
+func TestCitationVerifierDeadlineFailsClosed(t *testing.T) {
+	good := digestOf(citeFileBytes)
+	items, err := RuleCitationItems([]json.RawMessage{citeRule("r.ok", citeCommit, good)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hang := slowFetcher{}
+	verifier := &CitationVerifier{Resolver: citeResolver{"acme/widget@" + citeCommit: {Commit: true}}, Fetcher: hang, Timeout: 50 * time.Millisecond}
+	report, err := verifier.VerifyItems(context.Background(), items)
+	if err == nil || report.Pass {
+		t.Fatalf("report %+v err %v", report, err)
+	}
+}
+
+type slowFetcher struct{}
+
+func (slowFetcher) FetchRawBlob(ctx context.Context, _ string) ([]byte, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
 }
 
 func TestCitationVerifierRequiresDependencies(t *testing.T) {
@@ -179,7 +258,108 @@ func TestGitHubObjectsAgainstHTTPTest(t *testing.T) {
 	}
 }
 
+// Reachability against a fake GitHub: a tag commit, identical and ahead (the branch is ahead of the commit) are upstream;
+// ahead, diverged and 404 are not; API errors and odd bodies are errors.
+// The default branch is looked up once per repository with the cache, and a
+// commit is compared once per verifier run however many sources cite it.
+func TestGitHubObjectsRevisionReachable(t *testing.T) {
+	apiRetryDelay = 0
+	t.Cleanup(func() { apiRetryDelay = 2 * time.Second })
+	statusOf := map[string]string{
+		"1000000000000000000000000000000000000001": "identical",
+		"1000000000000000000000000000000000000002": "ahead",
+		"1000000000000000000000000000000000000003": "behind",
+		"1000000000000000000000000000000000000004": "diverged",
+		"1000000000000000000000000000000000000005": "weird",
+	}
+	var repoCalls, compareCalls, tagCalls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/acme/widget/tags":
+			tagCalls++
+			fmt.Fprint(w, `[{"name":"v1","commit":{"sha":"1000000000000000000000000000000000000009"}}]`)
+		case r.URL.Path == "/repos/acme/widget":
+			repoCalls++
+			fmt.Fprint(w, `{"default_branch":"main"}`)
+		case strings.HasPrefix(r.URL.Path, "/repos/acme/widget/compare/"):
+			compareCalls++
+			rest := strings.TrimPrefix(r.URL.Path, "/repos/acme/widget/compare/")
+			sha, head, _ := strings.Cut(rest, "...")
+			if head != "main" || r.URL.Query().Get("per_page") != "1" {
+				http.Error(w, "bad request", http.StatusBadRequest)
+				return
+			}
+			switch {
+			case sha == "1000000000000000000000000000000000000006":
+				http.Error(w, `{"message":"Not Found"}`, http.StatusNotFound)
+			case sha == "1000000000000000000000000000000000000007":
+				http.Error(w, "boom", http.StatusForbidden)
+			case sha == "1000000000000000000000000000000000000008":
+				fmt.Fprint(w, `not json`)
+			default:
+				fmt.Fprintf(w, `{"status":%q}`, statusOf[sha])
+			}
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	objects := NewGitHubObjects("t")
+	objects.APIBase, objects.Client = server.URL, server.Client()
+	tests := []struct {
+		sha     string
+		want    bool
+		wantErr bool
+	}{
+		{"1000000000000000000000000000000000000009", true, false}, // a tag commit, not on the default branch
+		{"1000000000000000000000000000000000000001", true, false},
+		{"1000000000000000000000000000000000000002", true, false},
+		{"1000000000000000000000000000000000000003", false, false},
+		{"1000000000000000000000000000000000000004", false, false},
+		{"1000000000000000000000000000000000000005", false, true},
+		{"1000000000000000000000000000000000000006", false, false},
+		{"1000000000000000000000000000000000000007", false, true},
+		{"1000000000000000000000000000000000000008", false, true},
+		{"short", false, true},
+	}
+	for _, tc := range tests {
+		got, err := objects.RevisionReachable(context.Background(), "acme", "widget", tc.sha)
+		if got != tc.want || (err != nil) != tc.wantErr {
+			t.Fatalf("%s: got %v err %v, want %v err %v", tc.sha, got, err, tc.want, tc.wantErr)
+		}
+	}
+	if repoCalls != 1 || tagCalls != 1 {
+		t.Fatalf("default branch looked up %d times and tags %d times, want once each", repoCalls, tagCalls)
+	}
+	// A failing tag listing fails closed, even for a commit that a compare
+	// would have accepted.
+	// An unknown repository fails closed.
+	if ok, err := objects.RevisionReachable(context.Background(), "acme", "gone", "1000000000000000000000000000000000000001"); ok || err == nil {
+		t.Fatalf("unknown repo: %v %v", ok, err)
+	}
+	// Per-commit cache in the verifier: three sources, one compare call.
+	compareCalls = 0
+	sha := "1000000000000000000000000000000000000001"
+	src := func(id string) constraintengine.SourceEvidence {
+		return constraintengine.SourceEvidence{ID: id, URL: "https://github.com/acme/widget/blob/" + sha + "/a/b.go", Revision: sha, ContentDigest: digestOf(citeFileBytes), StartLine: 1, EndLine: 2}
+	}
+	verifier := &CitationVerifier{Resolver: commitOnly{objects}, Fetcher: citeFetcher{"https://raw.githubusercontent.com/acme/widget/" + sha + "/a/b.go": citeFileBytes}}
+	report, err := verifier.VerifyItems(context.Background(), []CitationItem{{ID: "r.a", Sources: []constraintengine.SourceEvidence{src("s1"), src("s2")}}, {ID: "r.b", Sources: []constraintengine.SourceEvidence{src("s3")}}})
+	if err != nil || !report.Pass || compareCalls != 1 {
+		t.Fatalf("report %+v err %v compare calls %d", report, err, compareCalls)
+	}
+}
+
+// commitOnly answers ResolveRevision locally and delegates reachability.
+type commitOnly struct{ GitHubObjects }
+
+func (commitOnly) ResolveRevision(context.Context, string, string, string) (ObjectKind, error) {
+	return ObjectKind{Commit: true}, nil
+}
+
 func TestGitHubObjectsServerErrorFailsClosed(t *testing.T) {
+	apiRetryDelay = 0
+	t.Cleanup(func() { apiRetryDelay = 2 * time.Second })
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "boom", http.StatusInternalServerError)
 	}))
@@ -231,5 +411,223 @@ func TestVerifyCitationsCLI(t *testing.T) {
 		if code := runVerifyCitations(args, &stdout, &stderr, CLIOptions{}, deps); code != 2 {
 			t.Fatalf("args %v exit = %d, want 2", args, code)
 		}
+	}
+}
+
+// PackCitationItems lists the rules and every source-bearing record, and
+// refuses what is not a pack.
+func TestPackCitationItems(t *testing.T) {
+	src := `{"id":"s1","url":"https://github.com/acme/widget/blob/` + citeCommit + `/a/b.go","revision":"` + citeCommit + `","contentDigest":"sha256:` + strings.Repeat("ab", 32) + `","startLine":1,"endLine":2}`
+	pack := `{"entries":[{"rule":{"id":"r.one","evidence":{"sources":[` + src + `]}}}],"pathPolicies":[{"component":"pkg:github/acme/widget","policy":"sequential_minor","evidence":{"state":"active","reviewedAt":"2026-10-01T00:00:00Z","validUntil":"2026-10-20T00:00:00Z","sources":[` + src + `]}}]}`
+	items, err := PackCitationItems([]byte(pack))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 || items[0].ID != "r.one" || items[0].Record || items[1].ID != "pathPolicy pkg:github/acme/widget" || !items[1].Record || len(items[1].Sources) != 1 {
+		t.Fatalf("items %+v", items)
+	}
+	for name, bad := range map[string]string{
+		"not json":        `nope`,
+		"no entries":      `{"entries":[]}`,
+		"bad policy":      `{"entries":[{"rule":{"id":"r.one"}}],"pathPolicies":[{"component":"x"}]}`,
+		"case variant":    `{"entries":[{"rule":{"id":"r.one"}}],"PathPolicies":[]}`,
+		"rule without id": `{"entries":[{"rule":{}}]}`,
+	} {
+		if _, err := PackCitationItems([]byte(bad)); err == nil {
+			t.Errorf("%s: want an error", name)
+		}
+	}
+}
+
+// The verifier covers records too, and counts them apart from rules.
+func TestCitationVerifierItemsCountRecords(t *testing.T) {
+	good := digestOf(citeFileBytes)
+	source := constraintengineSource(citeCommit, good)
+	v := &CitationVerifier{
+		Resolver: citeResolver{"acme/widget@" + citeCommit: {Commit: true}},
+		Fetcher:  citeFetcher{citeRaw(citeCommit): citeFileBytes},
+	}
+	report, err := v.VerifyItems(context.Background(), []CitationItem{
+		{ID: "r.one", Sources: []constraintengine.SourceEvidence{source}},
+		{Record: true, ID: "pathPolicy x", Sources: []constraintengine.SourceEvidence{source}},
+	})
+	if err != nil || !report.Pass || report.RulesChecked != 1 || report.RecordsChecked != 1 || report.SourcesChecked != 2 {
+		t.Fatalf("report %+v err %v", report, err)
+	}
+}
+
+func constraintengineSource(revision, digest string) constraintengine.SourceEvidence {
+	return constraintengine.SourceEvidence{ID: "s1", URL: "https://github.com/acme/widget/blob/" + revision + "/a/b.go", Revision: revision, ContentDigest: digest, StartLine: 1, EndLine: 2}
+}
+
+// A transient API failure is retried; a persistent one still fails closed
+// after the bounded number of attempts, and a redirect to another host is
+// refused.
+func TestGitHubObjectsRetriesTransientFailures(t *testing.T) {
+	apiRetryDelay = 0
+	t.Cleanup(func() { apiRetryDelay = 2 * time.Second })
+	calls := 0
+	flaky := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		if calls < 3 {
+			http.Error(w, "boom", http.StatusBadGateway)
+			return
+		}
+		fmt.Fprintf(w, `{"sha":%q}`, citeCommit)
+	}))
+	defer flaky.Close()
+	got, err := (GitHubObjects{APIBase: flaky.URL, Client: flaky.Client()}).ResolveRevision(context.Background(), "acme", "widget", citeCommit)
+	if err != nil || !got.Commit || calls != 3 {
+		t.Fatalf("got %+v err %v after %d calls", got, err, calls)
+	}
+
+	calls = 0
+	down := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		http.Error(w, "boom", http.StatusServiceUnavailable)
+	}))
+	defer down.Close()
+	if _, err := (GitHubObjects{APIBase: down.URL, Client: down.Client()}).ResolveRevision(context.Background(), "acme", "widget", citeCommit); err == nil || calls != maxAPIAttempts {
+		t.Fatalf("err %v after %d calls", err, calls)
+	}
+
+	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprintf(w, `{"sha":%q}`, citeCommit)
+	}))
+	defer other.Close()
+	redirecting := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, other.URL+r.URL.Path, http.StatusFound)
+	}))
+	defer redirecting.Close()
+	if _, err := (GitHubObjects{APIBase: redirecting.URL, Token: "t0ken"}).ResolveRevision(context.Background(), "acme", "widget", citeCommit); err == nil {
+		t.Fatal("a redirect to another host must be refused")
+	}
+}
+
+func tagPage(page int, withSHA string, full bool) string {
+	n := 100
+	if !full {
+		n = 3
+	}
+	var entries []string
+	for i := 0; i < n; i++ {
+		sha := fmt.Sprintf("%040x", page*1000+i+1)
+		if i == 0 && withSHA != "" {
+			sha = withSHA
+		}
+		entries = append(entries, fmt.Sprintf(`{"name":"v%d.%d","commit":{"sha":%q}}`, page, i, sha))
+	}
+	return "[" + strings.Join(entries, ",") + "]"
+}
+
+// The tag listing is paged, stops on a short page, and is capped: a listing
+// that ends on a full last page is truncated, which turns "not in the default
+// branch history" into "could not be established".
+func TestGitHubObjectsTagListingPaginationAndCap(t *testing.T) {
+	apiRetryDelay = 0
+	t.Cleanup(func() { apiRetryDelay = 2 * time.Second })
+	const (
+		onPage2  = "2000000000000000000000000000000000000001"
+		onPage10 = "2000000000000000000000000000000000000002"
+		absent   = "2000000000000000000000000000000000000003"
+		inBranch = "2000000000000000000000000000000000000004"
+	)
+	run := func(t *testing.T, pages int, lastFull bool, sha, compareStatus string) (bool, error, int) {
+		t.Helper()
+		var tagCalls int
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case r.URL.Path == "/repos/acme/widget/tags":
+				tagCalls++
+				page := 1
+				fmt.Sscan(r.URL.Query().Get("page"), &page)
+				switch {
+				case page > pages:
+					fmt.Fprint(w, "[]")
+				case page == 2 && pages < 10:
+					fmt.Fprint(w, tagPage(page, onPage2, lastFull || page < pages))
+				case page == 10:
+					fmt.Fprint(w, tagPage(page, onPage10, true))
+				default:
+					fmt.Fprint(w, tagPage(page, "", lastFull || page < pages))
+				}
+			case r.URL.Path == "/repos/acme/widget":
+				fmt.Fprint(w, `{"default_branch":"main"}`)
+			case strings.HasPrefix(r.URL.Path, "/repos/acme/widget/compare/"):
+				if strings.Contains(r.URL.Path, inBranch) {
+					fmt.Fprint(w, `{"status":"ahead"}`)
+					return
+				}
+				fmt.Fprintf(w, `{"status":%q}`, compareStatus)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		defer server.Close()
+		objects := NewGitHubObjects("t")
+		objects.APIBase, objects.Client = server.URL, server.Client()
+		ok, err := objects.RevisionReachable(context.Background(), "acme", "widget", sha)
+		return ok, err, tagCalls
+	}
+	t.Run("a commit on the second page is found, the listing stops on the short page", func(t *testing.T) {
+		ok, err, calls := run(t, 2, false, onPage2, "diverged")
+		if err != nil || !ok || calls != 2 {
+			t.Fatalf("ok=%v err=%v tag calls=%d, want true, nil, 2", ok, err, calls)
+		}
+	})
+	t.Run("a short listing is complete: absent and diverged is a plain no", func(t *testing.T) {
+		ok, err, calls := run(t, 2, false, absent, "diverged")
+		if err != nil || ok || calls != 2 {
+			t.Fatalf("ok=%v err=%v tag calls=%d, want false, nil, 2", ok, err, calls)
+		}
+	})
+	t.Run("the cap is 10 pages and the last page is searched", func(t *testing.T) {
+		ok, err, calls := run(t, 12, true, onPage10, "diverged")
+		if err != nil || !ok || calls != 10 {
+			t.Fatalf("ok=%v err=%v tag calls=%d, want true, nil, 10", ok, err, calls)
+		}
+	})
+	t.Run("truncated listing and not in the branch is an error, not a no", func(t *testing.T) {
+		ok, err, calls := run(t, 12, true, absent, "diverged")
+		if ok || err == nil || !strings.Contains(err.Error(), "truncated") || calls != 10 {
+			t.Fatalf("ok=%v err=%v tag calls=%d, want false, truncated error, 10", ok, err, calls)
+		}
+		ok, err, _ = run(t, 12, true, absent, "behind")
+		if ok || err == nil || !strings.Contains(err.Error(), "truncated") {
+			t.Fatalf("behind: ok=%v err=%v", ok, err)
+		}
+	})
+	t.Run("truncated listing but in the branch history is reachable", func(t *testing.T) {
+		ok, err, _ := run(t, 12, true, inBranch, "diverged")
+		if err != nil || !ok {
+			t.Fatalf("ok=%v err=%v", ok, err)
+		}
+	})
+}
+
+// An answer over the size bound is terminal: it is not downloaded again.
+func TestGitHubObjectsOversizeAnswerIsNotRetried(t *testing.T) {
+	apiRetryDelay = 0
+	oldMax := maxCompareBytes
+	maxCompareBytes = 64
+	t.Cleanup(func() { apiRetryDelay = 2 * time.Second; maxCompareBytes = oldMax })
+	var compareCalls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/acme/widget/tags":
+			fmt.Fprint(w, "[]")
+		case r.URL.Path == "/repos/acme/widget":
+			fmt.Fprint(w, `{"default_branch":"main"}`)
+		default:
+			compareCalls++
+			fmt.Fprintf(w, `{"status":"ahead","files":[%s]}`, strings.Repeat(`"x",`, 100)+`"x"`)
+		}
+	}))
+	defer server.Close()
+	objects := NewGitHubObjects("t")
+	objects.APIBase, objects.Client = server.URL, server.Client()
+	ok, err := objects.RevisionReachable(context.Background(), "acme", "widget", "3000000000000000000000000000000000000001")
+	if ok || err == nil || !errors.Is(err, errResponseTooLarge) || compareCalls != 1 {
+		t.Fatalf("ok=%v err=%v compare calls=%d, want false, too-large error, 1", ok, err, compareCalls)
 	}
 }
