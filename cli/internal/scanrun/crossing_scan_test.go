@@ -151,16 +151,31 @@ func TestScanCrossingOnlyForDeclaredUpstream(t *testing.T) {
 	if plain.Exit == scanreport.ExitPass || len(plain.Report.Findings) != 0 {
 		t.Fatalf("custom build: exit %d findings %d", plain.Exit, len(plain.Report.Findings))
 	}
-	// A forged crossing BLOCK under that declaration is refused.
-	forged := claimEditor{Knowledge: base, edit: func(claims []constraintengine.Claim) {
-		for i := range claims {
-			if claims[i].RuleID == crossingRuleID {
-				claims[i].Status, claims[i].ReasonCode = "BLOCKED", "REVIEWED_SOURCE_CONSTRAINT"
-				claims[i].CrossingMatch = &constraintengine.CrossingMatch{Mode: "crossing", AnchorFrom: "1.24.0", AnchorTo: "1.25.0", Change: "1.25.0", CappedAt: "1.36.0"}
+	// A forged crossing BLOCK on the first hop (the one the rule overlaps, so
+	// no other check refuses it) is an integrity failure under that
+	// declaration, and ordinary under the declared upstream build: the
+	// distribution guard is the only difference.
+	forge := func() Knowledge {
+		calls := 0
+		return claimEditor{Knowledge: base, edit: func(claims []constraintengine.Claim) {
+			calls++
+			if calls != 1 {
+				return
 			}
-		}
-	}}
-	if _, err := scan(t, forged, command...); !errors.Is(err, ErrIntegrity) {
-		t.Fatalf("crossing match under a custom build: %v", err)
+			for i := range claims {
+				if claims[i].RuleID == crossingRuleID {
+					claims[i].Status, claims[i].ReasonCode = "BLOCKED", "REVIEWED_SOURCE_CONSTRAINT"
+					claims[i].CrossingMatch = &constraintengine.CrossingMatch{Mode: "crossing", AnchorFrom: "1.24.0", AnchorTo: "1.25.0", Change: "1.25.0", CappedAt: "1.36.0"}
+				}
+			}
+		}}
+	}
+	if _, err := scan(t, forge(), command...); !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("crossing BLOCK under a custom build: %v", err)
+	}
+	upstream := append(append([]string{}, paths...), declared...)
+	upstream = append(upstream, "--now", testNow, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.27.2")
+	if _, err := scan(t, forge(), upstream...); err != nil {
+		t.Fatalf("the same crossing BLOCK under the declared upstream build: %v", err)
 	}
 }
