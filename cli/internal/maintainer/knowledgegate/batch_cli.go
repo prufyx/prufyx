@@ -23,7 +23,6 @@ import (
 // confirm on the terminal, signs, and runs the gate's offline batch checks
 // on the result before it writes anything.
 
-
 // SignBatchOptions is one batch to sign.
 type SignBatchOptions struct {
 	Draft    BatchRecord
