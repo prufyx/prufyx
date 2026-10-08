@@ -2,6 +2,6 @@
 
 //go:build linux && arm64
 
-package validation
+package noreplace
 
-const linuxSYSRenameat2 = 276
+const sysRenameat2 = 276

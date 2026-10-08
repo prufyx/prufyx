@@ -70,12 +70,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ### Fixed
 
 - `prufyx assess --format json`: the collector progress lines ("Context …", "Created local API observation directory …", "Verify context files with …") now go to stderr, so stdout carries only the JSON report and parses as JSON.
-- `extract` file writes no longer follow or replace symlinks and no longer depend on
+- `extract` file writes are never made through a symlink and no longer depend on
   the umask. `extract run` builds the output in a staging directory beside `--out`
-  and renames it into place after an fsync (no partial output on failure; a symlink
-  or non-empty `--out` is refused; directories 0755, files 0644). `--wants` files and
-  pack writes (`extract apply`, supersede) refuse a symlink or non-regular target and
-  fsync before the rename. Extractor outputs and code digests are unchanged.
+  and renames it into place after an fsync, without replacing anything that
+  appears at `--out` meanwhile (no partial output on failure; a symlink or
+  non-empty `--out` present at the check is refused; directories 0755, files
+  0644). An existing empty `--out` is replaced by the staged directory, which
+  keeps its permission bits (never looser than 0755) but not its owner, ACLs or
+  xattrs; `--out .` fills the current directory in place. `--wants` files and
+  pack writes (`extract apply`, supersede) refuse a symlink or non-regular target
+  present at the check, never write through one that appears later, and fsync
+  before the rename. Directory fsync errors other than EINVAL/ENOTSUP are now
+  reported. Extractor outputs and code digests are unchanged.
 - `scan` human and Markdown output, and its usage and input error messages, no
   longer print text taken from the scanned input or from knowledge as itself when
   it holds terminal escape sequences, carriage returns, line breaks, other control

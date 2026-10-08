@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Package safefs holds the file writes of the extract subsystem: no symlink
-// is followed or replaced, files are staged beside their target and renamed
-// into place after an fsync, and modes are explicit, never derived from the
-// umask. It is deliberately outside the extract framework package, whose
+// Package safefs holds the file writes of the extract subsystem: a symlink is
+// never written through (one present when the target is checked is refused;
+// one that appears later is replaced or fails the rename, never followed),
+// files are staged beside their target and renamed into place after an fsync,
+// and modes are explicit, never derived from the umask. It is deliberately outside the extract framework package, whose
 // source is part of every extractor's code digest.
 package safefs
 
@@ -14,8 +15,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"syscall"
+
+	"github.com/prufyx/prufyx/cli/internal/noreplace"
 )
 
 // DirMode and FileMode are the modes of created output directories and files.
@@ -26,7 +31,8 @@ const (
 
 // WriteFile atomically writes data to path with mode perm. The path may
 // exist only as a regular file (it is replaced, never written through); a
-// symlink or any other kind of entry is refused. The data is staged in a
+// symlink or any other kind of entry present at the check is refused, and a
+// symlink that appears afterwards is replaced by the rename, never followed. The data is staged in a
 // fresh exclusively created file in the same directory, chmodded, fsynced
 // and renamed; on failure the staging file is removed.
 func WriteFile(p string, data []byte, perm fs.FileMode) error {
@@ -73,20 +79,26 @@ func WriteFile(p string, data []byte, perm fs.FileMode) error {
 		return err
 	}
 	ok = true
-	syncDir(dir)
-	return nil
+	return syncDir(dir)
 }
 
 // WriteTree writes files (slash-separated relative names) into dir, which
-// must not exist or be an empty real directory (a symlink is refused). The
-// tree is built in a staging directory beside dir and renamed into place, so
-// a failure leaves neither a partial output nor staging leftovers; a dir that
-// became non-empty meanwhile makes the final rmdir fail.
+// must not exist or be an empty real directory (a symlink is refused when it
+// is present at the check). The tree is built in a staging directory beside
+// dir and renamed into place without replacing anything that appeared at dir
+// meanwhile, so a failure leaves neither a partial output nor staging
+// leftovers. An existing empty dir is replaced by the staged one, which takes
+// over its permission bits (never loosened past DirMode); its owner, ACLs and
+// xattrs are not preserved. When dir is the current directory it cannot be
+// replaced, so the staged entries are moved into it and removed again on
+// failure.
 func WriteTree(dir string, files map[string][]byte) error {
 	dir = filepath.Clean(dir)
+	mode := DirMode
+	existing := false
 	if fi, err := os.Lstat(dir); err == nil {
 		if !fi.IsDir() {
-			return fmt.Errorf("output path %s exists and is not a directory (symlinks are refused)", dir)
+			return fmt.Errorf("output path %s exists and is not a directory (a symlink is refused)", dir)
 		}
 		items, err := os.ReadDir(dir)
 		if err != nil {
@@ -95,9 +107,12 @@ func WriteTree(dir string, files map[string][]byte) error {
 		if len(items) > 0 {
 			return fmt.Errorf("output directory %s is not empty", dir)
 		}
+		existing = true
+		mode = fi.Mode().Perm() & DirMode
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
+	inPlace := existing && isCwd(dir)
 	names := make([]string, 0, len(files))
 	for name := range files {
 		if err := checkName(name); err != nil {
@@ -107,6 +122,9 @@ func WriteTree(dir string, files map[string][]byte) error {
 	}
 	sort.Strings(names)
 	parent := filepath.Dir(dir)
+	if inPlace {
+		parent = "."
+	}
 	if err := os.MkdirAll(parent, DirMode); err != nil {
 		return err
 	}
@@ -120,7 +138,7 @@ func WriteTree(dir string, files map[string][]byte) error {
 			os.RemoveAll(stage)
 		}
 	}()
-	if err := os.Chmod(stage, DirMode); err != nil {
+	if err := os.Chmod(stage, mode); err != nil {
 		return err
 	}
 	for _, name := range names {
@@ -133,18 +151,79 @@ func WriteTree(dir string, files map[string][]byte) error {
 		}
 	}
 	for _, d := range stagedDirs(stage, names) {
-		syncDir(d)
+		if err := syncDir(d); err != nil {
+			return err
+		}
 	}
-	// Go refuses to rename onto an existing directory; rmdir removes only an
-	// empty one, so a dir that filled up meanwhile still fails closed.
-	if err := os.Remove(dir); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return err
+	if inPlace {
+		if err := moveInto(stage, ".", names); err != nil {
+			return err
+		}
+		ok = true
+		os.RemoveAll(stage)
+		return syncDir(".")
 	}
-	if err := os.Rename(stage, dir); err != nil {
+	// rmdir removes only an empty directory, so one that filled up meanwhile
+	// still fails closed; the no-replace rename then fails if anything at all
+	// was created at dir in between.
+	if existing {
+		if err := os.Remove(dir); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+	}
+	if err := renameNoReplace(parent, filepath.Base(stage), filepath.Base(dir)); err != nil {
 		return err
 	}
 	ok = true
-	syncDir(parent)
+	return syncDir(parent)
+}
+
+// renameNoReplace renames from to to inside parent without replacing an
+// existing destination. Where the platform or filesystem has no such rename
+// it falls back to os.Rename, which still refuses a non-empty directory.
+func renameNoReplace(parent, from, to string) error {
+	d, err := os.Open(parent)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	err = noreplace.Rename(d, from, to)
+	if errors.Is(err, noreplace.ErrUnsupported) || errors.Is(err, syscall.EINVAL) || errors.Is(err, syscall.ENOSYS) || errors.Is(err, syscall.ENOTSUP) {
+		return os.Rename(filepath.Join(parent, from), filepath.Join(parent, to))
+	}
+	return err
+}
+
+// isCwd reports whether p is the process's current directory.
+func isCwd(p string) bool {
+	a, err := os.Stat(p)
+	if err != nil {
+		return false
+	}
+	b, err := os.Stat(".")
+	return err == nil && os.SameFile(a, b)
+}
+
+// moveInto moves the top-level entries of the staged names from stage into
+// the existing empty directory dst. If one move fails, the entries already
+// moved are removed again so that dst is empty as before.
+func moveInto(stage, dst string, names []string) error {
+	var moved []string
+	seen := map[string]bool{}
+	for _, n := range names {
+		top := strings.SplitN(n, "/", 2)[0]
+		if seen[top] {
+			continue
+		}
+		seen[top] = true
+		if err := os.Rename(filepath.Join(stage, top), filepath.Join(dst, top)); err != nil {
+			for _, m := range moved {
+				os.RemoveAll(filepath.Join(dst, m))
+			}
+			return err
+		}
+		moved = append(moved, top)
+	}
 	return nil
 }
 
@@ -220,11 +299,23 @@ func stagedDirs(stage string, names []string) []string {
 	return out
 }
 
-// syncDir makes a rename or create durable; directories that cannot be
-// synced (some filesystems) are not an error.
-func syncDir(d string) {
-	if f, err := os.Open(d); err == nil {
-		f.Sync()
-		f.Close()
+// syncDir makes a rename or create durable. A filesystem that cannot sync a
+// directory (EINVAL, ENOTSUP), and Windows, which has no directory fsync, are
+// not an error; any other failure (such as EIO) is returned.
+func syncDir(d string) error {
+	if runtime.GOOS == "windows" {
+		return nil
 	}
+	f, err := os.Open(d)
+	if err != nil {
+		return err
+	}
+	err = f.Sync()
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if errors.Is(err, syscall.EINVAL) || errors.Is(err, syscall.ENOTSUP) {
+		return nil
+	}
+	return err
 }

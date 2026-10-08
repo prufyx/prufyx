@@ -2,9 +2,9 @@
 
 //go:build linux && amd64
 
-package validation
+package noreplace
 
 // Linux syscall numbers are architecture-specific; keep the no-replace
 // primitive explicit so CGO-free cross builds do not depend on syscall's
 // deprecated constant set.
-const linuxSYSRenameat2 = 316
+const sysRenameat2 = 316

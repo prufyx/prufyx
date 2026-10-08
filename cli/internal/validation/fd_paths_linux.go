@@ -8,6 +8,8 @@ import (
 	"os"
 	"syscall"
 	"unsafe"
+
+	"github.com/prufyx/prufyx/cli/internal/noreplace"
 )
 
 func atomicBatchPublicationSupported() bool { return true }
@@ -60,20 +62,7 @@ func renameRelative(directory *os.File, oldName, newName string) error {
 // renameat2 with RENAME_NOREPLACE never replaces a concurrently-created
 // destination. Linux filesystems that do not implement the flag fail closed.
 func renameNoReplaceRelative(directory *os.File, oldName, newName string) error {
-	const renameNoReplace = 1
-	oldPath, err := syscall.BytePtrFromString(oldName)
-	if err != nil {
-		return err
-	}
-	newPath, err := syscall.BytePtrFromString(newName)
-	if err != nil {
-		return err
-	}
-	_, _, errno := syscall.Syscall6(linuxSYSRenameat2, directory.Fd(), uintptr(unsafe.Pointer(oldPath)), directory.Fd(), uintptr(unsafe.Pointer(newPath)), renameNoReplace, 0)
-	if errno != 0 {
-		return errno
-	}
-	return nil
+	return noreplace.Rename(directory, oldName, newName)
 }
 
 func removeRelative(directory *os.File, name string) error {

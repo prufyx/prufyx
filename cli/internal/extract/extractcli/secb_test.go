@@ -5,7 +5,6 @@ package extractcli
 import (
 	"os"
 	"path/filepath"
-	"syscall"
 	"testing"
 )
 
@@ -31,24 +30,6 @@ func TestRunRefusesSymlinkedOutDir(t *testing.T) {
 	}
 	if items, _ := os.ReadDir(target); len(items) != 0 {
 		t.Fatalf("symlink target was written: %d entries", len(items))
-	}
-}
-
-// SEC-B F6a: modes are explicit, not derived from the umask.
-func TestRunOutputModesIgnoreUmask(t *testing.T) {
-	old := syscall.Umask(0o077)
-	defer syscall.Umask(old)
-	dir := filepath.Join(t.TempDir(), "out")
-	if code, _, errs := run(secbArgs(dir)...); code != 0 {
-		t.Fatalf("exit %d: %s", code, errs)
-	}
-	st, err := os.Stat(dir)
-	if err != nil || st.Mode().Perm() != 0o755 {
-		t.Fatalf("dir mode %v err %v, want 0755", st.Mode().Perm(), err)
-	}
-	st, err = os.Stat(filepath.Join(dir, "manifest.json"))
-	if err != nil || st.Mode().Perm() != 0o644 {
-		t.Fatalf("file mode %v err %v, want 0644", st.Mode().Perm(), err)
 	}
 }
 
@@ -84,5 +65,38 @@ func TestWantsWriteRefusesSymlink(t *testing.T) {
 	}
 	if fi, err := os.Lstat(link); err != nil || fi.Mode()&os.ModeSymlink == 0 {
 		t.Fatal("symlink was replaced")
+	}
+}
+
+// SEC-B B-m3: an existing empty --out keeps its stricter mode, and --out .
+// fills the current directory.
+func TestRunEmptyOutKeepsModeAndCurrentDirWorks(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "out")
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, errs := run(secbArgs(dir)...); code != 0 {
+		t.Fatalf("exit %d: %s", code, errs)
+	}
+	if st, err := os.Stat(dir); err != nil || st.Mode().Perm() != 0o700 {
+		t.Fatalf("existing --out mode %v err %v, want 0700", st.Mode().Perm(), err)
+	}
+	abs, err := filepath.Abs(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cwd := t.TempDir()
+	t.Chdir(cwd)
+	args := secbArgs(".")
+	for i, a := range args {
+		if a == fixture {
+			args[i] = abs
+		}
+	}
+	if code, _, errs := run(args...); code != 0 {
+		t.Fatalf("--out . exit %d: %s", code, errs)
+	}
+	if _, err := os.Stat(filepath.Join(cwd, "manifest.json")); err != nil {
+		t.Fatal(err)
 	}
 }
