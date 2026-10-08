@@ -2,6 +2,8 @@
 
 package cncfcheck
 
+import "errors"
+
 // ExportExternalBundleFromPack and BuildExternalTargetsFromPack are not a
 // publication path. They admit a rule pack only by the checks the embedded
 // pack passes (catalog, policy, fact registry, review windows); they do not
@@ -24,7 +26,10 @@ func ExportExternalBundleFromPack(packRaw []byte, revision string) ([]byte, erro
 	if err != nil {
 		return nil, err
 	}
-	raw, err := encodeExternalEnvelope(base, revision, "operator_provided", base.pack.Entries)
+	if len(base.pack.Distributions) > 0 {
+		return nil, errors.Join(ErrIntegrity, ErrDistributionsNotPublishable)
+	}
+	raw, err := encodeExternalEnvelopeWithRecords(base, revision, "operator_provided", base.pack.Entries, sectionsOf(base.pack))
 	if err != nil {
 		return nil, err
 	}

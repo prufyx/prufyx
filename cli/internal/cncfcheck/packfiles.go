@@ -58,7 +58,7 @@ func CheckPackFiles(landscapeRaw, priorityRaw, packRaw []byte) (PackFileReport, 
 		Purpose                string   `json:"purpose"`
 		EngineCapabilityDigest string   `json:"engineCapabilityDigest"`
 		Pack                   rulePack `json:"pack"`
-	}{externalBundleSchema, externalSizeRevision, "operator_provided", capability, pack})
+	}{envelopeSchemaFor(pack), externalSizeRevision, "operator_provided", capability, pack})
 	if err != nil {
 		return PackFileReport{}, ErrIntegrity
 	}

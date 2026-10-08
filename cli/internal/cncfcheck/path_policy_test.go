@@ -335,13 +335,13 @@ func TestExternalRefusesPathPolicies(t *testing.T) {
 	if err := json.Unmarshal(envelope["pack"], &value); err != nil {
 		t.Fatal(err)
 	}
-	if err := validateExternalPack(base, value, "7"); !errors.Is(err, ErrIntegrity) {
+	if err := validateExternalPack(base, value, "7", false); !errors.Is(err, ErrIntegrity) {
 		t.Fatalf("validateExternalPack admitted path policies: %v", err)
 	}
 	// The same pack value without the section passes the external check, so
 	// the refusal above is the section's.
 	value.PathPolicies, value.Schema = nil, packSchemaRanged
-	if err := validateExternalPack(base, value, "7"); err != nil {
+	if err := validateExternalPack(base, value, "7", false); err != nil {
 		t.Fatalf("validateExternalPack refused the pack without path policies: %v", err)
 	}
 }
@@ -356,10 +356,11 @@ func TestPathPolicyPackMember(t *testing.T) {
 	}
 }
 
-// Project targets carry rule entries only. A source pack with a section they
-// cannot carry is refused, never split without it; a pack without one splits
-// with each target's schema chosen by the same level table as the loader's.
-func TestSplitTargetsRefuseSectionsTheyCannotCarry(t *testing.T) {
+// Project targets carry the records of their project (EXTPACK): a source
+// pack with attestations, path policies or both splits, every target in the
+// envelope its content needs; a pack without records splits with each
+// target's schema chosen by the same level table as the loader's.
+func TestSplitTargetsCarrySections(t *testing.T) {
 	same := func(string, func(string) ([]byte, error)) (string, error) { return "7", nil }
 	for name, raw := range map[string][]byte{
 		"path policies": featurePack(t, packSchemaPathPolicies, nil, validPolicies(t)),
@@ -370,8 +371,22 @@ func TestSplitTargetsRefuseSectionsTheyCannotCarry(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: synthetic pack refused: %v", name, err)
 		}
-		if _, targets, err := buildExternalTargets(base, "7", "operator_provided", same); !errors.Is(err, ErrIntegrity) || targets != nil {
-			t.Fatalf("%s: split without the section: %v", name, err)
+		index, targets, err := buildExternalTargets(base, "7", "operator_provided", same)
+		if err != nil || len(targets) == 0 || !bytes.Contains(index.Bytes, []byte(ExternalIndexSchemaRecords)) {
+			t.Fatalf("%s: split: %v", name, err)
+		}
+		for _, target := range targets {
+			var envelope struct {
+				Schema string   `json:"schema"`
+				Pack   rulePack `json:"pack"`
+			}
+			if err := json.Unmarshal(target.Bytes, &envelope); err != nil {
+				t.Fatal(err)
+			}
+			want, err := requiredPackSchema(envelope.Pack)
+			if err != nil || envelope.Pack.Schema != want || envelope.Schema != envelopeSchemaFor(envelope.Pack) {
+				t.Fatalf("%s %s: schema %s/%s, want %s (%v)", name, target.Path, envelope.Schema, envelope.Pack.Schema, want, err)
+			}
 		}
 	}
 	base, err := assembleSynthetic(featurePack(t, packSchemaRanged, nil, nil), nil)
