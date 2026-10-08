@@ -3,7 +3,11 @@
 // Package lineattest defines the line attestation: a statement that, for one
 // component, one minor release line and one fact family, the rules it lists
 // are every rule the knowledge pack holds; an empty list means there are
-// none. It tells "nothing in scope changes on this line" apart from "nobody
+// none. A fact family is a closed, compiled vocabulary entry: its
+// components (one for Kubernetes; every project of the reviewed
+// custom-resource table for custom-resource versions), the facts of each, its
+// hop shape and, for a release-scoped family, the releases an attestation
+// must name. It tells "nothing in scope changes on this line" apart from "nobody
 // looked at this line".
 //
 // An attestation is a statement about the knowledge corpus, never a
@@ -26,6 +30,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 )
 
 // Completeness is the only completeness statement an attestation makes.
@@ -36,6 +41,15 @@ const Completeness = "COMPLETE_REVIEWED_RULES_FOR_LINE"
 // of a kind (beta and stable versions served by default).
 const FamilyKubernetesRemovedServedGVK = "kubernetes.removed_served_gvk"
 
+// FamilyCustomResourceVersions covers, for one catalog project of the
+// reviewed custom-resource table, the rules that block an upgrade because
+// the target release line no longer serves a group/version/Kind its own
+// CustomResourceDefinitions served on the line before. It is parameterised
+// by component: every project of the table is one member, and a rule of
+// that project belongs to it when it reads exactly the project's
+// custom-resource version set fact.
+const FamilyCustomResourceVersions = "crd.custom_resource_versions"
+
 // Limits.
 const (
 	// MaxWindow is the longest validity window an attestation may carry,
@@ -45,28 +59,64 @@ const (
 	MaxRuleIDs = 256
 	// MaxAttestations bounds one attestation document.
 	MaxAttestations = 1024
+	// MaxReleases bounds the releases one side of an attestation names.
+	MaxReleases = 64
 )
 
 // ErrInvalid marks a malformed attestation document.
 var ErrInvalid = errors.New("invalid line attestation")
 
-// Family is one fact family: the component it belongs to and the facts whose
-// rules it covers.
+// Family is one fact family: the components it covers, the facts of each
+// whose rules it covers, its hop shape, whether its attestations are scoped
+// to the releases the derivation read, and the scope it states to a user.
 type Family struct {
-	ID        string
-	Component string
-	facts     *regexp.Regexp
+	ID string
+	// members maps every component of the family to the pattern of its
+	// facts. A component that is not a key is not in the family.
+	members map[string]*regexp.Regexp
 	// fromPreviousLine states the family's hop shape: every transition into
 	// line M.m starts on line M.(m-1). It is the only hop shape defined; a
 	// family without it has no line-wide rules and cannot be attested.
 	fromPreviousLine bool
+	// releaseScoped means an attestation of the family must name, in
+	// Releases, every release of both lines its derivation read, and covers
+	// a hop only between two of those releases: a release published after
+	// the derivation is not covered until the attestation is renewed.
+	releaseScoped bool
+	// scope is the compiled statement of what the family covers and what it
+	// does not, shown wherever a result relies on an attestation.
+	scope string
+}
+
+// Admits reports whether component is a member of the family.
+func (f Family) Admits(component string) bool {
+	_, ok := f.members[component]
+	return ok
+}
+
+// Components lists the family's components in order.
+func (f Family) Components() []string {
+	out := make([]string, 0, len(f.members))
+	for c := range f.members {
+		out = append(out, c)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // Covers reports whether a rule condition on (component, factID) belongs to
-// the family.
+// the family: the component is a member and the fact is one of its facts.
 func (f Family) Covers(component, factID string) bool {
-	return component == f.Component && f.facts.MatchString(factID)
+	facts, ok := f.members[component]
+	return ok && facts.MatchString(factID)
 }
+
+// ReleaseScoped reports whether the family's attestations carry the
+// releases their derivation read and cover only hops between them.
+func (f Family) ReleaseScoped() bool { return f.releaseScoped }
+
+// Scope is the family's compiled scope statement.
+func (f Family) Scope() string { return f.scope }
 
 // LineTransitions returns the transitions into line that the family's hops
 // take, as the engine's half-open version bounds: from any release of the
@@ -118,15 +168,47 @@ func contains(outer, inner constraintengine.VersionBound) bool {
 
 // families is the closed, compiled family vocabulary. Adding a family is a
 // code change, reviewed once; an attestation naming any other family is
-// rejected.
+// rejected. The members of the custom-resource family are the projects of
+// the reviewed custom-resource table, whose set facts the fact registry
+// registers: adding a project there is the reviewed change that admits it.
 var families = map[string]Family{
 	FamilyKubernetesRemovedServedGVK: {
-		ID:        FamilyKubernetesRemovedServedGVK,
-		Component: "pkg:github/kubernetes/kubernetes",
-		facts:     regexp.MustCompile(`^component\.kubernetes\.[a-z0-9_]+_removed_gvk_present$`),
+		ID: FamilyKubernetesRemovedServedGVK,
+		members: map[string]*regexp.Regexp{
+			"pkg:github/kubernetes/kubernetes": regexp.MustCompile(`^component\.kubernetes\.[a-z0-9_]+_removed_gvk_present$`),
+		},
 		// Kubernetes upgrades a control plane one minor line at a time.
 		fromPreviousLine: true,
+		scope:            "beta and stable API versions that kube-apiserver serves by default; not alpha versions, aggregated or custom API servers, or CustomResourceDefinitions",
 	},
+	FamilyCustomResourceVersions: {
+		ID:      FamilyCustomResourceVersions,
+		members: customResourceMembers(customresources.Projects()),
+		// Only an upgrade from the previous minor line of the same major
+		// is attested: a skipped minor line or a new major has no line
+		// boundary a range can be reviewed against.
+		fromPreviousLine: true,
+		releaseScoped:    true,
+		scope:            "the custom-resource versions (group/version/Kind) that the project's own CustomResourceDefinitions serve; not schemas, conversion, stored versions, other projects' CustomResourceDefinitions or anything else about the project",
+	},
+}
+
+// customResourceMembers maps each project's component to exactly its set
+// fact. A component the table lists twice maps to no fact, so a table that
+// does not name one fact per component admits nothing for it.
+func customResourceMembers(projects []customresources.Project) map[string]*regexp.Regexp {
+	out := map[string]*regexp.Regexp{}
+	seen := map[string]int{}
+	for _, p := range projects {
+		seen[p.Component]++
+	}
+	for _, p := range projects {
+		if seen[p.Component] != 1 || !constraintengine.ValidComponent(p.Component) {
+			continue
+		}
+		out[p.Component] = regexp.MustCompile(`^` + regexp.QuoteMeta(p.FactID()) + `$`)
+	}
+	return out
 }
 
 // LookupFamily returns a family by id.
@@ -171,6 +253,34 @@ type Releases struct {
 type Release struct {
 	Version string `json:"version"`
 	Commit  string `json:"commit"`
+}
+
+// CoversReleases reports whether the attestation covers a hop from one
+// exact release to another. An attestation of a family that is not
+// release-scoped covers any release of its lines; a release-scoped one
+// covers only a hop between two releases its derivation read, so a release
+// published after the derivation is never covered by it.
+func (a LineAttestation) CoversReleases(from, to string) bool {
+	family, ok := families[a.FactFamily]
+	if !ok {
+		return false
+	}
+	if !family.releaseScoped {
+		return true
+	}
+	if a.Releases == nil {
+		return false
+	}
+	return hasRelease(a.Releases.From, from) && hasRelease(a.Releases.To, to)
+}
+
+func hasRelease(list []Release, version string) bool {
+	for _, r := range list {
+		if r.Version == version {
+			return true
+		}
+	}
+	return false
 }
 
 // Evidence is an attestation's provenance and validity window. Basis is
@@ -306,7 +416,7 @@ func (a LineAttestation) Validate() error {
 	if !ok {
 		return fmt.Errorf("%w: unknown factFamily %q", ErrInvalid, a.FactFamily)
 	}
-	if !constraintengine.ValidComponent(a.Component) || a.Component != family.Component {
+	if !constraintengine.ValidComponent(a.Component) || !family.Admits(a.Component) {
 		return fmt.Errorf("%w: component %q is not the component of family %s", ErrInvalid, a.Component, family.ID)
 	}
 	if !ValidLine(a.Line) {
@@ -326,7 +436,50 @@ func (a LineAttestation) Validate() error {
 			return fmt.Errorf("%w: ruleIds must be strictly ascending; %q follows %q", ErrInvalid, id, a.RuleIDs[i-1])
 		}
 	}
+	switch {
+	case family.releaseScoped && a.Releases == nil:
+		return fmt.Errorf("%w: releases is required for family %s", ErrInvalid, family.ID)
+	case !family.releaseScoped && a.Releases != nil:
+		return fmt.Errorf("%w: releases is not allowed for family %s", ErrInvalid, family.ID)
+	case family.releaseScoped:
+		if err := a.Releases.validate(a.Line); err != nil {
+			return err
+		}
+	}
 	return a.Evidence.Validate()
+}
+
+var commitRE = regexp.MustCompile(`^[0-9a-f]{40}$`)
+
+// validate checks the releases of an attestation of line M.m: 1 to
+// MaxReleases releases of line M.(m-1) and of line M.m, each a release
+// version with a pinned commit, in strictly ascending version order.
+func (r *Releases) validate(line string) error {
+	major, minor := lineNumbers(line)
+	if minor == 0 {
+		return fmt.Errorf("%w: line %s has no previous minor line to name releases of", ErrInvalid, line)
+	}
+	previous := fmt.Sprintf("%d.%d", major, minor-1)
+	for _, side := range []struct {
+		name, line string
+		list       []Release
+	}{{"releases.from", previous, r.From}, {"releases.to", line, r.To}} {
+		if len(side.list) == 0 || len(side.list) > MaxReleases {
+			return fmt.Errorf("%w: %s must name 1-%d releases", ErrInvalid, side.name, MaxReleases)
+		}
+		for i, rel := range side.list {
+			if l, ok := LineOf(rel.Version); !ok || l != side.line {
+				return fmt.Errorf("%w: %s: %q is not a release of line %s", ErrInvalid, side.name, rel.Version, side.line)
+			}
+			if !commitRE.MatchString(rel.Commit) {
+				return fmt.Errorf("%w: %s: release %s has no pinned commit", ErrInvalid, side.name, rel.Version)
+			}
+			if i > 0 && !constraintengine.VersionLess(side.list[i-1].Version, rel.Version) {
+				return fmt.Errorf("%w: %s must be in strictly ascending version order; %s follows %s", ErrInvalid, side.name, rel.Version, side.list[i-1].Version)
+			}
+		}
+	}
+	return nil
 }
 
 // Validate checks the evidence on its own: basis, extractor and derivation,
@@ -358,7 +511,9 @@ func (e Evidence) Validate() error {
 
 // Field sets of each object level, for the exact shape check.
 var (
-	recordFields    = fields("component", "line", "factFamily", "completeness", "ruleIds", "evidence")
+	recordFields    = fields("component", "line", "factFamily", "completeness", "ruleIds", "releases?", "evidence")
+	releasesFields  = fields("from", "to")
+	releaseFields   = fields("version", "commit")
 	evidenceFields  = fields("basis", "extractor?", "derivedAt?", "reviewedAt", "validUntil", "sources")
 	extractorFields = fields("id", "version", "codeDigest")
 	sourceFields    = fields("id", "url", "revision", "contentDigest", "startLine", "endLine")
@@ -405,6 +560,24 @@ func checkShape(raw []byte) error {
 						return fmt.Errorf("ruleIds must hold strings")
 					}
 				}
+			case "releases":
+				return object(v, releasesFields, func(_ string, v any) error {
+					list, ok := v.([]any)
+					if !ok {
+						return fmt.Errorf("releases must hold arrays")
+					}
+					for _, item := range list {
+						if err := object(item, releaseFields, func(_ string, v any) error {
+							if _, ok := v.(string); !ok {
+								return fmt.Errorf("a release holds strings")
+							}
+							return nil
+						}); err != nil {
+							return err
+						}
+					}
+					return nil
+				})
 			case "evidence":
 				return object(v, evidenceFields, func(name string, v any) error {
 					switch name {

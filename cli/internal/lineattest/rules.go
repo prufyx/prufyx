@@ -69,7 +69,7 @@ func ScopeOf(raw json.RawMessage) (RuleScope, error) {
 		Transition: constraintengine.RuleTransition{Component: shape.Subject.Component, From: shape.Subject.From, To: shape.Subject.To, Range: shape.Range, Crossing: shape.Crossing}}
 	for _, id := range FamilyIDs() {
 		f := families[id]
-		if shape.Subject.Component != f.Component {
+		if !f.Admits(shape.Subject.Component) {
 			continue
 		}
 		for _, c := range conditions {
