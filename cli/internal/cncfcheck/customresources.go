@@ -26,9 +26,11 @@ func customResourceVersionDefinitions() []constraintengine.FactDefinition {
 
 // ReadsCustomResourceVersions reports whether a claim's rule reads a
 // custom-resource version set. Passing such a rule only says that no version
-// the published rules name is used. No record yet shows, per release pair,
-// that the published rules name every version the target release stops
-// serving, so no route may turn such a pass into exit 0. Any fact named
+// the published rules name is used. Only a line review of the target line
+// (lineattest.FamilyCustomResourceVersions) shows that the published rules
+// name every version the target release stops serving, and only scan reads
+// one, for that family alone; so no check route may turn such a pass into
+// exit 0. Any fact named
 // component.<project>.custom_resource_versions_set counts, registered or not.
 func ReadsCustomResourceVersions(claim constraintengine.Claim) bool {
 	for _, fact := range claim.RequiredFacts {

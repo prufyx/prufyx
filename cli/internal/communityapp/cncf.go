@@ -243,9 +243,10 @@ rules about custom-resource versions the target release no longer serves. A
 listed version blocks (exit 10). A rule passes only with
 --custom-resources-complete and when every object of a non-Kubernetes API
 group in the file belongs to a group the table assigns to exactly one
-project, but the mode never exits 0: nothing yet shows that the published
-rules name every version a release stops serving, so the best answer is
-UNKNOWN (exit 11). Embedded knowledge only. See docs/custom-resources.md.
+project, but the mode never exits 0: check reads no line review, so
+nothing shows that the published rules name every version a release stops
+serving, and the best answer is UNKNOWN (exit 11); prufyx scan reads line
+reviews of custom-resource versions. Embedded knowledge only. See docs/custom-resources.md.
 The same cap holds for the generic --input route (embedded or --knowledge-db,
 and replay): when any evaluated rule reads a custom-resource version set, the
 check never exits 0.

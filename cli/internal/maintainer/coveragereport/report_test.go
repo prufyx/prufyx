@@ -420,3 +420,61 @@ func TestLinesFromTags(t *testing.T) {
 		t.Fatal("encoding is not stable")
 	}
 }
+
+const strimzi = "pkg:github/strimzi/strimzi-kafka-operator"
+
+func crdAttJSON(line, from, to string, ids ...string) string {
+	quoted := make([]string, len(ids))
+	for i, id := range ids {
+		quoted[i] = fmt.Sprintf("%q", id)
+	}
+	src := fmt.Sprintf(`{"id":"crds","url":"https://github.com/strimzi/strimzi-kafka-operator/blob/%s/install/cluster-operator/040-Crd-kafka.yaml","revision":%q,"contentDigest":"sha256:%s","startLine":1,"endLine":10}`, rev, rev, strings.Repeat("a", 64))
+	return fmt.Sprintf(`{"component":%q,"line":%q,"factFamily":"crd.custom_resource_versions","completeness":"COMPLETE_REVIEWED_RULES_FOR_LINE","ruleIds":[%s],`+
+		`"releases":{"from":[{"version":%q,"commit":%q}],"to":[{"version":%q,"commit":%q}]},`+
+		`"evidence":{"basis":"reviewed","reviewedAt":"2026-09-01T00:00:00Z","validUntil":%q,"sources":[%s]}}`,
+		strimzi, line, strings.Join(quoted, ","), from, rev, to, rev, valid, src)
+}
+
+// A line attestation of the custom-resource version family counts as A for
+// that family, exactly like the Kubernetes family: the previous minor line,
+// every listed rule valid and line-wide. A new major has no previous minor
+// line, so its pair stays without an attestation.
+func TestCustomResourceFamilyCountsA(t *testing.T) {
+	rule := fmt.Sprintf(`{"project":"strimzi","rule":{"id":"strimzi.kafka.0-50-0-to-0-51-0","operator":"forbid_set_member","subject":{"component":%q,"from":"0.50.0","to":"0.51.0"},%s,`+
+		`"setCondition":{"side":"proposed","component":%q,"factId":"component.strimzi.custom_resource_versions_set","members":["kafka.strimzi.io/v1beta2/Kafka"]},"evidence":{"state":"active","reviewedAt":"2026-09-01T00:00:00Z","validUntil":%q}}}`,
+		strimzi, rangeJSON("0.50.0", "0.51.0", "0.51.0", "0.52.0"), strimzi, valid)
+	atts := []string{
+		crdAttJSON("0.50", "0.49.0", "0.50.0"),
+		crdAttJSON("0.51", "0.50.0", "0.51.0", "strimzi.kafka.0-50-0-to-0-51-0"),
+		crdAttJSON("1.1", "1.0.0", "1.1.0"),
+	}
+	snapshot := []byte(fmt.Sprintf(`{"schema":%q,"projects":{"strimzi":{"component":%q,"lines":["0.49","0.50","0.51","1.0","1.1"]}}}`, LinesSchema, strimzi))
+	report, err := Compute(Input{Pack: pack([]string{rule}, atts), Lines: snapshot, Now: baselineNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := report.Projects[0]
+	if got, want := statuses(p), "AAGA"; got != want {
+		t.Fatalf("statuses = %s, want %s", got, want)
+	}
+	if p.A != 3 || p.VCA != 0.75 || p.Pairs[1].Families[0] != "crd.custom_resource_versions" {
+		t.Fatalf("row %+v", p)
+	}
+	if len(report.Families) != 1 || report.Families[0].Family != "crd.custom_resource_versions" || report.Families[0].A != 3 {
+		t.Fatalf("families %+v", report.Families)
+	}
+	// A listed rule that holds for its anchor pair only keeps the pair from A.
+	anchorOnly := strings.Replace(rule, ","+rangeJSON("0.50.0", "0.51.0", "0.51.0", "0.52.0"), "", 1)
+	report, err = Compute(Input{Pack: pack([]string{anchorOnly}, atts), Lines: snapshot, Now: baselineNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := statuses(report.Projects[0]); got != "ASGA" {
+		t.Fatalf("anchor-only listed rule: %s", got)
+	}
+	// An attestation of a component outside the family is refused.
+	keda := strings.Replace(crdAttJSON("0.51", "0.50.0", "0.51.0"), strimzi, "pkg:github/kedacore/keda", 1)
+	if _, err := Compute(Input{Pack: pack([]string{rule}, []string{keda}), Lines: snapshot, Now: baselineNow}); err == nil {
+		t.Fatal("an attestation outside the family was counted")
+	}
+}

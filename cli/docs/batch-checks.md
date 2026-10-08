@@ -71,8 +71,9 @@ or `PASS`, is the result of the checked rules and always matches the exit code
 
 A CNCF item whose rules include one over a custom-resource version set
 (`component.<project>.custom_resource_versions_set`) is never `PASS`: a pass
-of such a rule counts as unknown, because no record yet shows that the
-published rules name every custom-resource version a release stops serving.
+of such a rule counts as unknown, because batch reads no line review that
+would show that the published rules name every custom-resource version a
+release stops serving.
 A blocker over the set still blocks. See
 [custom-resources.md](custom-resources.md).
 
