@@ -120,7 +120,7 @@ raw input digest: sha256:0d08002f5c498c9ce126e92389518917be4ff0df0130ad7ade4ac62
 prepared input digest: sha256:90de632e6208586b85dfa4e1e72b80c05d7f885abad0c33910ec32981930e02a
 custom-resource set: complete
 no published rule reads the strimzi custom-resource version set for 0.51.0 -> 1.0.0; the result stays UNKNOWN
-scope: only custom-resource versions named by published rules; no record yet shows those rules name every version the target release stops serving, so this mode never passes (exit 11 at best)
+scope: only custom-resource versions named by published rules for this exact pair; check does not read line reviews, so this mode never passes (exit 11 at best); prufyx scan reports what a line review decides
 not checked: other custom-resource versions, other changes, stored objects and conversion
 scoped result: UNKNOWN
 aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
@@ -149,16 +149,17 @@ The mode reads embedded knowledge only: `--knowledge-db` and
 of the versions those rules name is used. It does not show that the published
 rules name every version the target release stops serving: a rule may be
 withheld or not yet published, and a version that neither release serves, or a
-kind that no CRD defines, is named by no rule at all. Until a reviewed
-per-release-pair record shows that the published rules are complete for the
-pair, the best answer is `UNKNOWN`. Exit codes: 10 a rule blocked, 11
+kind that no CRD defines, is named by no rule at all. The record that shows
+the published rules are complete for a release line is a line review (a line
+attestation of the family `crd.custom_resource_versions`, see
+[line-attestations.md](line-attestations.md)); `check` routes do not read
+line reviews, so the best answer here is `UNKNOWN`. Exit codes: 10 a rule blocked, 11
 otherwise (including when every rule passed), 2 usage, 3 integrity. With
 `--format json` the claims (including `PASS` claims) are printed unchanged;
 only the exit code is capped.
 
 The same cap holds on every other route that can evaluate a rule over a
-custom-resource version set (`component.<project>.custom_resource_versions_set`),
-until that per-release-pair record exists:
+custom-resource version set (`component.<project>.custom_resource_versions_set`):
 
 - `check cncf --project P --input FILE`, where you write the set by hand,
   with embedded knowledge or with `--knowledge-db`, and its `--replay-report`
@@ -168,7 +169,9 @@ until that per-release-pair record exists:
   check pass (exit 11 at best): ...`;
 - `check batch`: a CNCF item with such a rule is `UNKNOWN`, never `PASS`, so
   the batch never exits 0 because of it;
-- `scan` never reports these projects as covered (see below).
+- `scan` never reports these projects as covered; it reads line reviews and
+  then decides the custom-resource version family on a hop, and nothing else
+  (see below).
 
 `assess --scope-input` evaluates only the attested community-project corpus,
 which has no custom-resource version facts and cannot load a rule over a set,
@@ -187,16 +190,55 @@ manifests and with the same scope declaration as Kubernetes:
   finding (`BLOCKED`, exit 10) located at the file, document and object;
 - a rule that passes is listed as a passed check, never as coverage;
 - the project is never reported as covered, so the answer is never `PASS`
-  while it is targeted: no review yet states that the published rules are
-  every custom-resource version the target release stops serving. The gap
-  `COMPONENT_NOT_COVERED` says that only custom-resource versions were
-  checked;
+  while it is targeted, with or without a line review: scan checks nothing
+  else about the project. The gap `COMPONENT_NOT_COVERED` says that only
+  custom-resource versions were checked;
 - a missing scope declaration (`DECLARATION_MISSING`), unrendered or unread
   documents, and objects of custom-resource groups no project of the table
   owns (`DOCUMENTS_NOT_EVALUATED`) are named gaps of the project.
 
-A rule covers its exact release pair only: a direct upgrade that skips a
-release is a different transition, which no rule decides.
+A rule covers its exact release pair, or the whole lines its range names; a
+direct upgrade outside them is a different transition, which no rule decides.
+
+### Line reviews of custom-resource versions
+
+A line review states that the rules it lists are every rule of the family
+`crd.custom_resource_versions` for one project and release line, and names
+every release of that line and of the line before it that its derivation
+read. The `crd.version-removal` extractor (2.1.0 and later) derives one for a
+line when it read every release of both lines completely, scanned the whole
+repository at each, found its rules hold for both whole lines, and found no
+definition removed; only projects of the table above are reviewed.
+
+With a current review of the target line, scan decides the family on the hop
+when all of these hold:
+
+- the hop goes from a release of the previous minor line of the same major
+  to a release of the reviewed line, and the review read both exact releases
+  (a release published after the review is not covered: the gap
+  `LINE_NOT_ATTESTED` names it);
+- the review's evidence basis is one `--require-basis` admits;
+- the manifests' set for the project is complete (`--resource-scope-complete`,
+  every object of a custom-resource group attributed);
+- every listed rule decided the hop, and every rule of the family on that
+  line that overlaps the hop is listed.
+
+The hop then carries a family result, `PASS` or `BLOCKED`, in JSON
+(`hops[].families[]`, with the family, the line, the basis and the family's
+scope) and in the human and Markdown output:
+
+```
+  strimzi 0.50.1 -> 0.51.0: PASS within crd.custom_resource_versions only (line 0.51 attested complete, mechanical evidence): no manifest uses a version that strimzi 0.51.0 stops serving
+    scope: the custom-resource versions (group/version/Kind) that the project's own CustomResourceDefinitions serve; not schemas, conversion, stored versions, other projects' CustomResourceDefinitions or anything else about the project; nothing else about strimzi is checked
+```
+
+A family result never makes the hop `COVERED`, the project covered, or the
+scan pass: the answer stays `UNKNOWN` (exit 11), or `BLOCKED` (exit 10) when a
+listed rule blocks. A review that exists but does not apply (not current,
+basis left out, a hop that skips or stays within a line, a release the review
+did not read, a listed rule that does not decide the hop, an unlisted rule)
+is a named `LINE_NOT_ATTESTED` gap of the hop. Without a review of the target
+line, the hop is evaluated as before.
 
 ## What is not checked
 
