@@ -43,18 +43,15 @@ func validateLocalPathsAndTools(o *Options) error {
 		o.kubeconfigSnapshot = nil
 		return errors.New("Cannot create output directory.")
 	}
-	// Re-check after creation: chmod follows symlinks, so never chmod a path
-	// that is not (any longer) a real directory.
-	if info, err := os.Lstat(o.OutputRoot); err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+	// Open the root without following a symlink and check, chmod and record
+	// it through that one descriptor (chmod by path follows symlinks).
+	identity, err := makeDirPrivate(o.OutputRoot)
+	if err != nil {
 		wipeKubeconfigBytes(o.kubeconfigSnapshot)
 		o.kubeconfigSnapshot = nil
-		return errors.New("The output directory must be a real directory.")
+		return errors.New("The output directory must be a real directory owned by you; it was not made private.")
 	}
-	if err := os.Chmod(o.OutputRoot, 0o700); err != nil {
-		wipeKubeconfigBytes(o.kubeconfigSnapshot)
-		o.kubeconfigSnapshot = nil
-		return errors.New("Cannot make output directory private.")
-	}
+	o.outputRootIdentity = identity
 	return nil
 }
 

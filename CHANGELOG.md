@@ -13,7 +13,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   directory and read only regular files from it, so stale, planted or
   prefix-colliding files in the work directory can no longer be mistaken for
   trace evidence; a symlinked work directory is rejected. The local collector
-  re-verifies its output root is a real directory before changing its mode.
+  opens its output root without following a symlink and changes its mode through
+  that descriptor, and the collector output root and the offline-boundary work
+  directory must be owned by the current user (checked on Unix).
 - GitHub Action: `verify-attestation: false` is now accepted only together with
   `archive-sha256` (a release's own checksum does not show who built the
   archive); without the pin the install stops before any download. Existing

@@ -102,7 +102,7 @@ func validate(config Config) error {
 	}
 
 	info, err = os.Lstat(config.WorkDir)
-	if err != nil || !info.IsDir() || info.Mode().Perm()&0o077 != 0 {
+	if err != nil || !info.IsDir() || info.Mode().Perm()&0o077 != 0 || !ownedByCurrentUser(info) {
 		return ErrInvalidConfig
 	}
 	for _, scenario := range config.Scenarios {

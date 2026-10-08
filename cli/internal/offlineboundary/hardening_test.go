@@ -67,3 +67,29 @@ func TestTraceFilesRejectsSymlinkEntries(t *testing.T) {
 		t.Fatal("symlink trace entry accepted")
 	}
 }
+
+// A WorkDir owned by another user is not private even at mode 0700. Chown
+// needs privilege, so this runs only where the tests run as root.
+func TestValidateRejectsWorkDirOwnedByAnotherUser(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("needs root to hand a directory to another user")
+	}
+	work := t.TempDir()
+	if err := os.Chmod(work, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	binary := filepath.Join(work, "prufyx")
+	if err := os.WriteFile(binary, []byte("x"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	cfg := Config{Binary: binary, WorkDir: work, PositiveControl: []string{"/bin/true"}, Scenarios: []Scenario{{Name: "help", Argv: []string{"--help"}}}, UID: 1000, GID: 1000}
+	if err := validate(cfg); err != nil {
+		t.Fatalf("own work directory rejected: %v", err)
+	}
+	if err := os.Chown(work, 4242, 4242); err != nil {
+		t.Skip(err)
+	}
+	if err := validate(cfg); err == nil {
+		t.Fatal("work directory owned by another user accepted")
+	}
+}
