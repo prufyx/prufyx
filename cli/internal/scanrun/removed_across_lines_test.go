@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
 
@@ -16,6 +17,16 @@ import (
 // lines; otherwise it is UNKNOWN with a named gap and a next action.
 
 const cronjobOnlyV1beta1 = "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata:\n  name: nightly\n  namespace: demo\nspec:\n  schedule: \"0 1 * * *\"\n"
+
+// basisBelowPack is a --require-basis value that leaves out the Kubernetes
+// removal rules of whichever generation the shipped pack holds: the mechanical
+// rules once they replace the reviewed ones, the reviewed ones before.
+func basisBelowPack() string {
+	if supersedeids.Superseded() {
+		return "reviewed"
+	}
+	return "mechanical"
+}
 
 // embeddedOnly is the knowledge the shipped binary uses, with nothing added
 // (no line review, no path policy, no served list).
@@ -120,18 +131,18 @@ func TestScanRemovedAPIAcrossSkippedLinesVariants(t *testing.T) {
 			map[string]scanreport.CrossedLine{cronjobRuleID: {Line: "1.25", From: "1.24", To: "1.25"}}},
 		{"1.21 -> 1.26 across 1.22 and onto 1.26", "1.21.0", "1.26.0", embeddedOnly(t), []string{ingressExtensions, hpaV2beta2},
 			map[string]scanreport.CrossedLine{
-				"kubernetes.ingress-extensions-v1beta1-removed.1-21-0-to-1-22-0": {Line: "1.22", From: "1.21.0", To: "1.22"},
-				"kubernetes.hpa-v2beta2-removed.1-25-0-to-1-26-0":                {Line: "1.26", From: "1.25", To: "1.26.0"},
+				supersedeids.ID("kubernetes.ingress-extensions-v1beta1-removed.1-21-0-to-1-22-0"): {Line: "1.22", From: "1.21.0", To: "1.22"},
+				supersedeids.ID("kubernetes.hpa-v2beta2-removed.1-25-0-to-1-26-0"):                {Line: "1.26", From: "1.25", To: "1.26.0"},
 			}},
 		{"1.24 -> 1.30 across 1.25 and 1.29", "1.24.17", "1.30.4", embeddedOnly(t), []string{cronjobOnlyV1beta1, flowSchemaV1beta2},
 			map[string]scanreport.CrossedLine{
 				cronjobRuleID: {Line: "1.25", From: "1.24.17", To: "1.25"},
-				"kubernetes.flowcontrol-v1beta2-removed.1-28-0-to-1-29-0": {Line: "1.29", From: "1.28", To: "1.29"},
+				supersedeids.ID("kubernetes.flowcontrol-v1beta2-removed.1-28-0-to-1-29-0"): {Line: "1.29", From: "1.28", To: "1.29"},
 			}},
 		{"direct policy 1.24 -> 1.30 across 1.25 and 1.29", "1.24.17", "1.30.4", direct, []string{cronjobOnlyV1beta1, flowSchemaV1beta2},
 			map[string]scanreport.CrossedLine{
 				cronjobRuleID: {Line: "1.25", From: "1.24.17", To: "1.25"},
-				"kubernetes.flowcontrol-v1beta2-removed.1-28-0-to-1-29-0": {Line: "1.29", From: "1.28", To: "1.29"},
+				supersedeids.ID("kubernetes.flowcontrol-v1beta2-removed.1-28-0-to-1-29-0"): {Line: "1.29", From: "1.28", To: "1.29"},
 			}},
 	}
 	for _, tc := range cases {
@@ -170,7 +181,7 @@ func TestScanRemovedAPIUndecidedIsExplicitUnknown(t *testing.T) {
 		detail    string
 	}{
 		{"pack lacks the rule", without, "1.24.17", nil, "removed on a line this upgrade enters"},
-		{"trust policy leaves the rule out", embeddedOnly(t), "1.24.17", []string{"--require-basis", "mechanical"}, "removed on a line this upgrade enters"},
+		{"trust policy leaves the rule out", embeddedOnly(t), "1.24.17", []string{"--require-basis", basisBelowPack()}, "removed on a line this upgrade enters"},
 		{"removed at or before the current line", embeddedOnly(t), "1.25.2", nil, "removed at or before that release"},
 	}
 	for _, tc := range cases {
@@ -350,7 +361,7 @@ func TestScanServedVersionsAcrossSkippedLinesAreClean(t *testing.T) {
 // out (counted in the trust policy block).
 func TestScanUndecidedStepSaysWhy(t *testing.T) {
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobOnlyV1beta1})
-	result := mustScan(t, embeddedOnly(t), args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", "mechanical")...)
+	result := mustScan(t, embeddedOnly(t), args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", basisBelowPack())...)
 	report := result.Report
 	notPassLike(t, report)
 	if !hasGap(report, scanreport.ReasonRuleNotDecided, "left out by --require-basis") || report.TrustPolicy == nil || report.TrustPolicy.ExcludedRules == 0 {
