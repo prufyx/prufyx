@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 const noticeBeforeText = "take an etcd snapshot and verify that it restores before upgrading"
@@ -125,7 +126,7 @@ func TestNoticeWritersOnEveryRoute(t *testing.T) {
 // hop crosses are counted apart from "other transitions" and never described
 // as not applicable.
 func TestCollapsedNotesCountBoundaryClaimsApart(t *testing.T) {
-	boundary := constraintengine.Claim{RuleID: "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0", Operator: "forbid_predicate_value", Status: "UNKNOWN", ReasonCode: constraintengine.ReasonReleaseBoundaryNotReviewed}
+	boundary := constraintengine.Claim{RuleID: supersedeids.ID("kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0"), Operator: "forbid_predicate_value", Status: "UNKNOWN", ReasonCode: constraintengine.ReasonReleaseBoundaryNotReviewed}
 	other := constraintengine.Claim{RuleID: "rule-other", Operator: "forbid_target_version", Status: "UNKNOWN", ReasonCode: reasonTransitionNotReviewed}
 	pass := constraintengine.Claim{RuleID: "rule-pass", Operator: "forbid_predicate_value", Status: "PASS", ReasonCode: "FEATURE_REMOVED"}
 	summary := summarizeClaims([]constraintengine.Claim{boundary, other, pass}, false)

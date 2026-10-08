@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 // wideKubernetesAnchorEntry clones the cronjob removal as an exact-only anchor
@@ -70,7 +71,7 @@ func TestSelectionKeepsBoundaryCrossedRules(t *testing.T) {
 				decided++
 			}
 		}
-		if decided != 1 {
+		if decided != 1 && !supersedeids.Superseded() {
 			t.Errorf("%s: want the one wide anchor rule decided, got %d", selector, decided)
 		}
 		// The 1.22 and 1.25 removals, among them the cronjob v1beta1 rule
@@ -79,7 +80,15 @@ func TestSelectionKeepsBoundaryCrossedRules(t *testing.T) {
 		// 1.22 and 7 at 1.25 in the shipped pack); the family selection only
 		// those that read the cronjob fact.
 		want := map[string]int{"generic": 20, "family": 1}[selector]
-		if !boundary[cronJobRuleID] || len(boundary) < want {
+		if supersedeids.Superseded() {
+			// A mechanical rule is derived for every release of both its
+			// lines, so no mechanical rule has a release boundary outside a
+			// reviewed range: nothing is dropped as unreviewed, and the rules
+			// the pair reaches are decided by their own evidence.
+			if len(boundary) != 0 || decided < 1 {
+				t.Errorf("%s: mechanical rules: %d boundary claims, %d decided", selector, len(boundary), decided)
+			}
+		} else if !boundary[cronJobRuleID] || len(boundary) < want {
 			t.Errorf("%s: boundary claims dropped before evaluation: %d (cronjob present: %v)", selector, len(boundary), boundary[cronJobRuleID])
 		}
 		if exit := ClaimExit(report); exit == 0 {
