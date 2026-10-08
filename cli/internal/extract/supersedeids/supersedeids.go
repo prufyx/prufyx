@@ -167,12 +167,12 @@ const AgeWindowDays = 17
 //   - it is AgeWindowDays before the day of the earliest validUntil of any
 //     active rule (inside the age window of the earliest expiry), and
 //   - never earlier than the day after the latest reviewedAt of a Kubernetes
-//     rule of either generation (a mechanical rule is reviewed when it is
-//     derived, and its evidence clock must not be before that).
+//     API-removal rule of either generation (a mechanical rule is reviewed
+//     when it is derived, and its evidence clock must not be before that).
 //
 // It panics when that instant is not before the earliest validUntil of every
-// Kubernetes rule: then no clock holds all of them current and the pack needs
-// its other rules renewed first.
+// Kubernetes API-removal rule: then no clock holds all of them current and the
+// pack needs its other rules renewed first.
 func Clock() time.Time {
 	loadClocks()
 	if clockErr != nil {
@@ -272,7 +272,7 @@ func ClocksOf(pack []byte) (Clocks, error) {
 		if earliest.IsZero() || until.Before(earliest) {
 			earliest = until
 		}
-		if !strings.HasPrefix(entry.Rule.ID, "kubernetes.") {
+		if !isAPIRemoval(entry.Rule.ID) {
 			continue
 		}
 		reviewed, err := time.Parse(time.RFC3339, ev.ReviewedAt)
@@ -300,6 +300,13 @@ func ClocksOf(pack []byte) (Clocks, error) {
 		}
 	}
 	return c, nil
+}
+
+// isAPIRemoval reports whether id is a Kubernetes API-removal rule of either
+// generation.
+func isAPIRemoval(id string) bool {
+	_, reviewed := replacements[id]
+	return reviewed || strings.HasPrefix(id, MechanicalPrefix)
 }
 
 func shippedPack() ([]byte, error) {

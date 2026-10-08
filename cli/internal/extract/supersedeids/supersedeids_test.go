@@ -69,7 +69,7 @@ func TestClockOf(t *testing.T) {
 		pack []byte
 		want string // "" for an error
 	}{
-		{"reviewed pack (today)", packOf(other, [3]string{"kubernetes.a", "2026-09-23T13:55:00Z", "2026-12-22T13:55:00Z"}), "2026-11-20T00:00:00Z"},
+		{"reviewed pack (today)", packOf(other, [3]string{"kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0", "2026-09-23T13:55:00Z", "2026-12-22T13:55:00Z"}), "2026-11-20T00:00:00Z"},
 		{"mechanical rules derived on 2026-11-12", packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-11-12T08:45:25Z", "2027-01-27T08:45:25Z"}), "2026-11-20T00:00:00Z"},
 		{"derived the day of the clock", packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-11-20T08:45:25Z", "2027-02-03T08:45:25Z"}), "2026-11-21T00:00:00Z"},
 		// Derived after the other rules expired: no instant holds both.
@@ -77,6 +77,8 @@ func TestClockOf(t *testing.T) {
 		// The same day with every other rule renewed too: the clock follows.
 		{"everything renewed on 2026-12-10", packOf([3]string{"other.rule", "2026-12-10T00:00:00Z", "2027-03-10T00:00:00Z"}, [3]string{"kubernetes.served-api-removal.x", "2026-12-10T08:45:25Z", "2027-03-03T08:45:25Z"}), "2027-02-14T00:00:00Z"},
 		{"lease shorter than the clock", packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-11-19T00:00:00Z", "2026-11-19T12:00:00Z"}), ""},
+		// A Kubernetes rule that is not an API removal does not bound the clock.
+		{"other Kubernetes rule", packOf(other, [3]string{"kubernetes.other", "2026-12-20T00:00:00Z", "2026-12-21T00:00:00Z"}), "2026-11-20T00:00:00Z"},
 		{"no active rule", []byte(`{"entries":[]}`), ""},
 		{"bad date", packOf([3]string{"other.rule", "2026-09-08T12:07:56Z", "soon"}), ""},
 	}
