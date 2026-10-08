@@ -1,0 +1,10 @@
+{
+  "removals": [
+    {"from": "1.19.0", "to": "1.20.0", "member": "cilium.io/v2alpha1/CiliumNodeConfig", "reason": "absent"}
+  ],
+  "rules": [],
+  "storageChanges": [],
+  "pairs": [
+    {"from": "1.19.0", "to": "1.20.0", "status": "derived", "removals": 1, "lineWide": false, "attestable": false}
+  ]
+}

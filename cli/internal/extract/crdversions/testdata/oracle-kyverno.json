@@ -1,0 +1,10 @@
+{
+  "removals": [
+    {"from": "1.15.0", "to": "1.16.0", "member": "kyverno.io/v1beta1/UpdateRequest", "reason": "unserved"}
+  ],
+  "rules": [],
+  "storageChanges": [],
+  "pairs": [
+    {"from": "1.15.0", "to": "1.16.0", "status": "derived", "removals": 1, "lineWide": true, "attestable": true}
+  ]
+}

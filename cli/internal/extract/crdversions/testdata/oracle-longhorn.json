@@ -1,0 +1,106 @@
+{
+  "removals": [
+    {
+      "from": "1.8.0",
+      "to": "1.9.0",
+      "member": "longhorn.io/v1beta1/BackingImageDataSource",
+      "reason": "unserved"
+    },
+    {
+      "from": "1.8.0",
+      "to": "1.9.0",
+      "member": "longhorn.io/v1beta1/BackingImageManager",
+      "reason": "unserved"
+    },
+    {
+      "from": "1.8.0",
+      "to": "1.9.0",
+      "member": "longhorn.io/v1beta1/BackingImage",
+      "reason": "unserved"
+    },
+    {
+      "from": "1.8.0",
+      "to": "1.9.0",
+      "member": "longhorn.io/v1beta1/Backup",
+      "reason": "unserved"
+    },
+    {
+      "from": "1.8.0",
+      "to": "1.9.0",
+      "member": "longhorn.io/v1beta1/BackupTarget",
+      "reason": "unserved"
+    },
+    {
+      "from": "1.8.0",
+      "to": "1.9.0",
+      "member": "longhorn.io/v1beta1/BackupVolume",
+      "reason": "unserved"
+    },
+    {
+      "from": "1.8.0",
+      "to": "1.9.0",
+      "member": "longhorn.io/v1beta1/EngineImage",
+      "reason": "unserved"
+    },
+    {
+      "from": "1.8.0",
+      "to": "1.9.0",
+      "member": "longhorn.io/v1beta1/Engine",
+      "reason": "unserved"
+    },
+    {
+      "from": "1.8.0",
+      "to": "1.9.0",
+      "member": "longhorn.io/v1beta1/InstanceManager",
+      "reason": "unserved"
+    },
+    {
+      "from": "1.8.0",
+      "to": "1.9.0",
+      "member": "longhorn.io/v1beta1/Node",
+      "reason": "unserved"
+    },
+    {
+      "from": "1.8.0",
+      "to": "1.9.0",
+      "member": "longhorn.io/v1beta1/RecurringJob",
+      "reason": "unserved"
+    },
+    {
+      "from": "1.8.0",
+      "to": "1.9.0",
+      "member": "longhorn.io/v1beta1/Replica",
+      "reason": "unserved"
+    },
+    {
+      "from": "1.8.0",
+      "to": "1.9.0",
+      "member": "longhorn.io/v1beta1/Setting",
+      "reason": "unserved"
+    },
+    {
+      "from": "1.8.0",
+      "to": "1.9.0",
+      "member": "longhorn.io/v1beta1/ShareManager",
+      "reason": "unserved"
+    },
+    {
+      "from": "1.8.0",
+      "to": "1.9.0",
+      "member": "longhorn.io/v1beta1/Volume",
+      "reason": "unserved"
+    }
+  ],
+  "rules": [],
+  "storageChanges": [],
+  "pairs": [
+    {
+      "from": "1.8.0",
+      "to": "1.9.0",
+      "status": "derived",
+      "removals": 15,
+      "lineWide": true,
+      "attestable": true
+    }
+  ]
+}

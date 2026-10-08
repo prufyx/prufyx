@@ -4,6 +4,8 @@ package crdversions
 
 import (
 	"context"
+	"crypto/sha1" //nolint:gosec // synthetic object ids only
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -48,11 +50,13 @@ func (m memReader) List(_ extract.RepoRef, commit, dir string) ([]extract.TreeEn
 			continue
 		}
 		seen[full] = true
-		typ := "blob"
+		// Object ids: a blob's names its bytes (so the scan reuses it);
+		// a tree's names the commit and directory (never shared).
+		typ, id := "blob", sha1.Sum(m[k])
 		if isDir {
-			typ = "tree"
+			typ, id = "tree", sha1.Sum([]byte("tree "+commit+" "+full))
 		}
-		out = append(out, extract.TreeEntry{Mode: "100644", Type: typ, Path: full})
+		out = append(out, extract.TreeEntry{Mode: "100644", Type: typ, SHA: hex.EncodeToString(id[:]), Path: full})
 	}
 	if len(out) == 0 && dir != "" {
 		return nil, fmt.Errorf("%w: %s", extract.ErrNotFound, dir)

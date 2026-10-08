@@ -12,6 +12,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 	"github.com/prufyx/prufyx/cli/internal/extract/extractcli"
@@ -169,16 +170,16 @@ func crdHead(t *testing.T, entries []map[string]any, registryDigest string) (Tre
 	return base, head
 }
 
-// The custom-resource version set of every CRD target is registered, so
-// the CRD-derived rules the gate re-derives are admitted by the CNCF
-// admission check. The head pack also raises the pack schema to the
+// The custom-resource version set of every project of the reviewed table
+// (Strimzi among them) is registered, so the CRD-derived rules the gate
+// re-derives are admitted by the CNCF admission check. The head pack also raises the pack schema to the
 // set-rule level, a top-level pack member change that this gate never
 // admits on its own: it is the only failure, and it is reviewed with the
 // first published set rule.
 func TestGateAdmitsCRDRules(t *testing.T) {
-	for _, tg := range crdversions.Targets {
-		if !cncfcheck.RegisteredFact(tg.FactID()) {
-			t.Fatalf("%s is not registered", tg.FactID())
+	for _, p := range customresources.Projects() {
+		if !cncfcheck.RegisteredFact(p.FactID()) {
+			t.Fatalf("%s is not registered", p.FactID())
 		}
 	}
 	entries := crdEntries(t, gateNow.Add(-time.Hour))
@@ -206,5 +207,44 @@ func TestGateAdmitsCRDRules(t *testing.T) {
 	}
 	if r.Passed() || members != 1 || len(failed) != 1 || !strings.HasPrefix(failed[0], ": ") {
 		t.Fatalf("passed=%v, failures:\n%s", r.Passed(), strings.Join(failed, "\n"))
+	}
+}
+
+// A target whose custom-resource version set is not registered yet
+// (Longhorn, until its fact and API groups join the reviewed table) derives
+// rules that re-derive byte for byte, and the CNCF admission check still
+// refuses them: the engine does not know the fact.
+func TestGateRefusesCRDRulesOfUnregisteredProject(t *testing.T) {
+	tg, ok := crdversions.TargetFor("longhorn")
+	if !ok || cncfcheck.RegisteredFact(tg.FactID()) {
+		t.Fatalf("longhorn target %v, registered %v", ok, cncfcheck.RegisteredFact(tg.FactID()))
+	}
+	root := filepath.Join("..", "..", "extract", "crdversions", "testdata", "oracle")
+	repo, err := extract.ParseRepo(tg.Repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := extract.FixtureReader{Root: root}
+	out, err := extract.Run(context.Background(), crdversions.New(tg), src, src, extract.Options{Repo: repo, DerivedAt: gateNow.Add(-time.Hour)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := extract.Canonical(out.Entries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var entries []map[string]any
+	if err := json.Unmarshal(raw, &entries); err != nil || len(entries) != 15 {
+		t.Fatalf("%d entries: %v", len(entries), err)
+	}
+	// The files derived from the pack cannot even be regenerated (the
+	// pack does not load); the gate refuses the pack as it stands.
+	base, head := crdHead(t, entries, "")
+	r := runGate(t, Options{Base: base, Head: head, Source: src})
+	if c, ok := check(r, "admit/cncf"); !ok || c.OK {
+		t.Fatalf("admit/cncf: %+v", c)
+	}
+	if r.Passed() {
+		t.Fatal("the gate passed rules over an unregistered fact")
 	}
 }

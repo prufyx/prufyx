@@ -49,6 +49,8 @@ const (
 const (
 	// MaxScanFilesPerTag bounds the candidate files read at one tag.
 	MaxScanFilesPerTag = 50000
+	// MaxScanDirsPerTag bounds the directories listed at one tag.
+	MaxScanDirsPerTag = 50000
 	// maxKustomizePatches bounds the patch files one kustomization names.
 	maxKustomizePatches = 64
 )
@@ -158,9 +160,14 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 	hits := map[string]bool{}
 	var files []scanFile
 	dirs := []string{""}
+	listed := 0
 	for len(dirs) > 0 {
 		if err := ctx.Err(); err != nil {
 			return nil, err
+		}
+		if listed++; listed > MaxScanDirsPerTag {
+			rec.Complete, rec.Problem = false, fmt.Sprintf("more than %d directories", MaxScanDirsPerTag)
+			return x.storeScan(commit, rec), nil
 		}
 		dir := dirs[0]
 		dirs = dirs[1:]

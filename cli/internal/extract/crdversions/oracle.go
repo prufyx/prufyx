@@ -17,12 +17,25 @@ import (
 
 // Expected is an independent account of CRD version removals to compare a
 // run with: removals found another way (a hand check of the manifests at
-// both tags), reviewed rules whose versions the run must forbid, and the
-// storage-version changes the proof must record.
+// both tags), reviewed rules whose versions the run must forbid, the
+// storage-version changes the proof must record, and pair outcomes (for a
+// quiet pair: derived with no removal).
 type Expected struct {
 	Removals       []ExpectedRemoval `json:"removals"`
 	Rules          []ExpectedRule    `json:"rules"`
 	StorageChanges []ExpectedStorage `json:"storageChanges"`
+	Pairs          []ExpectedPair    `json:"pairs"`
+}
+
+// ExpectedPair is the outcome of one pair. Status is "derived" or
+// "withheld"; Removals, LineWide and Attestable are checked when given.
+type ExpectedPair struct {
+	From       string `json:"from"`
+	To         string `json:"to"`
+	Status     string `json:"status"`
+	Removals   *int   `json:"removals,omitempty"`
+	LineWide   *bool  `json:"lineWide,omitempty"`
+	Attestable *bool  `json:"attestable,omitempty"`
 }
 
 // ExpectedRemoval is one group/version/Kind the release To no longer
@@ -187,6 +200,27 @@ func Oracle(outDir string, expectedRaw []byte) ([]string, error) {
 					diffs = append(diffs, fmt.Sprintf("EXTRA storage change of %s in %s: %s -> %s", sc.CRD, info.rec.To, sc.Earlier, sc.Later))
 				}
 			}
+		}
+	}
+	for _, e := range exp.Pairs {
+		what := fmt.Sprintf("pair %s -> %s", e.From, e.To)
+		info := pairs[key(e.From, e.To)]
+		if info == nil {
+			diffs = append(diffs, fmt.Sprintf("MISSING %s: the run has no such pair", what))
+			continue
+		}
+		if info.rec.Status != e.Status {
+			diffs = append(diffs, fmt.Sprintf("STATUS %s: expected %s, extractor %s (%s)", what, e.Status, info.rec.Status, info.rec.Reason))
+			continue
+		}
+		if e.Removals != nil && len(info.proof.Removals) != *e.Removals {
+			diffs = append(diffs, fmt.Sprintf("REMOVALS %s: expected %d, extractor %d", what, *e.Removals, len(info.proof.Removals)))
+		}
+		if e.LineWide != nil && (info.proof.Lines == nil || info.proof.Lines.LineWide != *e.LineWide) {
+			diffs = append(diffs, fmt.Sprintf("LINE-WIDE %s: expected %v", what, *e.LineWide))
+		}
+		if e.Attestable != nil && (info.proof.Completeness == nil || info.proof.Completeness.Attestable != *e.Attestable) {
+			diffs = append(diffs, fmt.Sprintf("ATTESTABLE %s: expected %v", what, *e.Attestable))
 		}
 	}
 	sort.Strings(diffs)
