@@ -543,7 +543,7 @@ func readRuleShape(rule json.RawMessage) (ruleShape, error) {
 	var shape struct {
 		Operator     string          `json:"operator"`
 		Condition    json.RawMessage `json:"condition"`
-		SetCondition *cond           `json:"setCondition"`
+		SetCondition json.RawMessage `json:"setCondition"`
 		AppliesWhen  []cond          `json:"appliesWhen"`
 		Evidence     struct {
 			Basis string `json:"basis"`
@@ -566,8 +566,22 @@ func readRuleShape(rule json.RawMessage) (ruleShape, error) {
 		}
 		out.condition = canonical
 	}
-	if shape.SetCondition != nil {
-		conds = append(conds, *shape.SetCondition)
+	if len(shape.SetCondition) > 0 && string(shape.SetCondition) != "null" {
+		var c cond
+		if err := json.Unmarshal(shape.SetCondition, &c); err != nil {
+			return ruleShape{}, err
+		}
+		conds = append(conds, c)
+		if out.condition == nil {
+			// A set rule decides through its set condition (side,
+			// component, fact and members); the prefix keeps it from ever
+			// equalling a predicate condition.
+			canonical, err := extract.Canonical(shape.SetCondition)
+			if err != nil {
+				return ruleShape{}, err
+			}
+			out.condition = append([]byte("set:"), canonical...)
+		}
 	}
 	for _, c := range conds {
 		out.facts = append(out.facts, factRef{c.Component, c.FactID})
@@ -577,7 +591,8 @@ func readRuleShape(rule json.RawMessage) (ruleShape, error) {
 
 // decides reports whether a listed rule decides what a derived rule
 // decides: the same operator and the identical condition (side, component,
-// fact and value), and a rule that takes part in verdicts (not a notice,
+// fact and value; for a set rule, its set condition with the same members
+// in the same order), and a rule that takes part in verdicts (not a notice,
 // not a lead).
 func (listed ruleShape) decides(derived ruleShape) bool {
 	return listed.operator != constraintengine.OperatorNoticeOneWay && listed.basis != constraintengine.BasisLead &&
@@ -643,6 +658,30 @@ func crossCheckAttestation(out *extract.Output, floor string, a lineattest.LineA
 			reason = pair.Attestation.Reason
 		}
 		return fmt.Errorf("the extractor does not attest line %s (%s)", a.Line, logSafe(reason))
+	}
+	var own *lineattest.LineAttestation
+	for i := range out.Attestations {
+		if k := out.Attestations[i].Key(); k == a.Key() {
+			own = &out.Attestations[i]
+		}
+	}
+	if own == nil {
+		return fmt.Errorf("the extractor does not attest line %s of %s", a.Line, logSafe(a.Component))
+	}
+	if a.Releases != nil {
+		// A reviewed attestation covers only releases the extractor read
+		// upstream, each at the commit its tag points at.
+		read := map[lineattest.Release]bool{}
+		if own.Releases != nil {
+			for _, r := range append(append([]lineattest.Release{}, own.Releases.From...), own.Releases.To...) {
+				read[r] = true
+			}
+		}
+		for _, r := range append(append([]lineattest.Release{}, a.Releases.From...), a.Releases.To...) {
+			if !read[r] {
+				return fmt.Errorf("the attestation names release %s at %s, which the extractor does not read upstream for line %s", logSafe(r.Version), logSafe(r.Commit), a.Line)
+			}
+		}
 	}
 	derived := map[string]extract.Entry{}
 	for _, e := range out.Entries {
