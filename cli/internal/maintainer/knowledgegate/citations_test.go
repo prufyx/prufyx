@@ -7,10 +7,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -416,6 +420,32 @@ func TestSourceFlagWiresCitationVerifier(t *testing.T) {
 	}
 	if _, ok := v.Fetcher.(rulecheck.HTTPFetcher); !ok || v.Timeout != 7*time.Minute {
 		t.Fatalf("fetcher %#v timeout %v", v.Fetcher, v.Timeout)
+	}
+	// The resolver carries the per-repository cache (NewGitHubObjects): two
+	// commits of one repository cost one repository lookup and one tag
+	// listing, not one each.
+	var repoCalls, tagCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/acme/widget":
+			repoCalls.Add(1)
+			fmt.Fprint(w, `{"default_branch":"main"}`)
+		case r.URL.Path == "/repos/acme/widget/tags":
+			tagCalls.Add(1)
+			fmt.Fprint(w, "[]")
+		default:
+			fmt.Fprint(w, `{"status":"ahead"}`)
+		}
+	}))
+	defer server.Close()
+	objects.APIBase, objects.Client = server.URL, server.Client()
+	for _, sha := range []string{strings.Repeat("a", 40), strings.Repeat("b", 40)} {
+		if reachable, err := objects.RevisionReachable(context.Background(), "acme", "widget", sha); err != nil || !reachable {
+			t.Fatalf("reachable %v %v", reachable, err)
+		}
+	}
+	if repoCalls.Load() != 1 || tagCalls.Load() != 1 {
+		t.Fatalf("repository lookups %d, tag listings %d: the resolver is not the cached NewGitHubObjects", repoCalls.Load(), tagCalls.Load())
 	}
 	if _, checker, err = sourceFlag("fixture:/x", time.Minute, env); err != nil || !isOffline(checker) {
 		t.Fatalf("fixture: %T %v", checker, err)

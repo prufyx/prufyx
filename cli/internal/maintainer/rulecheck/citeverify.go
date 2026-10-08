@@ -27,11 +27,14 @@ const maxAPIBytes = 1 << 20
 
 // maxCompareBytes bounds a compare response. The endpoint lists changed
 // files whatever per_page says, so for a commit far behind the default
-// branch the body is large; only its status is used.
-const maxCompareBytes = 32 << 20
+// branch the body is large; only its status is used. A variable so a test
+// can exercise the bound; an answer over it is a terminal error.
+var maxCompareBytes = 32 << 20
 
 // maxTagPages bounds the tag listing used for reachability: 10 requests of
-// 100 tags per repository, then the commit is not found.
+// 100 tags per repository. A listing that ends on a full page is reported as
+// truncated, and a commit that is then neither found nor in the default
+// branch history cannot be established (an error, not a "no").
 const maxTagPages = 10
 
 // maxTagPeelDepth bounds how many nested tag objects are followed to reach a
@@ -118,6 +121,9 @@ type repoFacts struct {
 	tagsOnce   sync.Once
 	tags       map[string]bool
 	tagsErr    error
+	// tagsTruncated: the listing stopped at maxTagPages full pages, so tags
+	// may exist that are not in tags.
+	tagsTruncated bool
 }
 
 // NewGitHubObjects returns a GitHubObjects that looks up each repository's
@@ -134,6 +140,10 @@ var apiRetryDelay = 2 * time.Second
 // turned into a result.
 const maxAPIAttempts = 3
 
+// errResponseTooLarge marks an answer over the size bound. It is terminal:
+// asking again returns the same oversized answer, so it is never retried.
+var errResponseTooLarge = errors.New("response exceeds the size limit")
+
 func (g GitHubObjects) get(ctx context.Context, u string) ([]byte, int, error) {
 	return g.getLimited(ctx, u, maxAPIBytes)
 }
@@ -146,7 +156,7 @@ func (g GitHubObjects) getLimited(ctx context.Context, u string, limit int) ([]b
 	)
 	for attempt := 1; attempt <= maxAPIAttempts; attempt++ {
 		body, status, err = g.getOnce(ctx, u, limit)
-		transient := err != nil || status == http.StatusTooManyRequests || status >= 500
+		transient := (err != nil && !errors.Is(err, errResponseTooLarge)) || status == http.StatusTooManyRequests || status >= 500
 		if !transient || attempt == maxAPIAttempts || ctx.Err() != nil {
 			break
 		}
@@ -183,7 +193,7 @@ func (g GitHubObjects) getOnce(ctx context.Context, u string, limit int) ([]byte
 		return nil, 0, err
 	}
 	if len(body) > limit {
-		return nil, response.StatusCode, fmt.Errorf("%s: response exceeds %d bytes", u, limit)
+		return nil, response.StatusCode, fmt.Errorf("%s: %w (%d bytes)", u, errResponseTooLarge, limit)
 	}
 	return body, response.StatusCode, nil
 }
@@ -207,7 +217,7 @@ func (g GitHubObjects) RevisionReachable(ctx context.Context, owner, repo, sha s
 	if !revisionPattern.MatchString(sha) {
 		return false, fmt.Errorf("revision %q is not a full 40-character lowercase SHA", sha)
 	}
-	tags, err := g.tagCommits(ctx, owner, repo)
+	tags, truncated, err := g.tagCommits(ctx, owner, repo)
 	if err != nil {
 		return false, err
 	}
@@ -226,7 +236,7 @@ func (g GitHubObjects) RevisionReachable(ctx context.Context, owner, repo, sha s
 	switch status {
 	case http.StatusOK:
 	case http.StatusNotFound, http.StatusUnprocessableEntity:
-		return false, nil
+		return notReachable(truncated, owner, repo, sha)
 	default:
 		return false, fmt.Errorf("compare %s...%s: HTTP %d", sha, branch, status)
 	}
@@ -240,9 +250,20 @@ func (g GitHubObjects) RevisionReachable(ctx context.Context, owner, repo, sha s
 	case "identical", "ahead":
 		return true, nil
 	case "behind", "diverged":
-		return false, nil
+		return notReachable(truncated, owner, repo, sha)
 	}
 	return false, fmt.Errorf("compare %s...%s returned status %q", sha, branch, doc.Status)
+}
+
+// notReachable is the answer when the compare did not place the commit in
+// the default branch history. If the tag listing was cut short the commit
+// may still be the commit of a tag that was not listed, so this cannot be
+// established: an error (a finding that says why), not a "no".
+func notReachable(truncated bool, owner, repo, sha string) (bool, error) {
+	if truncated {
+		return false, fmt.Errorf("the tag listing of %s/%s is truncated at %d tags, so it could not be established whether %s is the commit of a tag; the default branch history does not contain it", owner, repo, maxTagPages*100, sha)
+	}
+	return false, nil
 }
 
 func (g GitHubObjects) facts(owner, repo string) *repoFacts {
@@ -261,8 +282,9 @@ func (g GitHubObjects) facts(owner, repo string) *repoFacts {
 }
 
 // tagCommits lists the (peeled) commits of the repository's tags, at most
-// maxTagPages pages of 100.
-func (g GitHubObjects) tagCommits(ctx context.Context, owner, repo string) (map[string]bool, error) {
+// maxTagPages pages of 100. truncated is true when the last page was still
+// full, i.e. more tags may exist.
+func (g GitHubObjects) tagCommits(ctx context.Context, owner, repo string) (tags map[string]bool, truncated bool, err error) {
 	f := g.facts(owner, repo)
 	f.tagsOnce.Do(func() {
 		f.tags = map[string]bool{}
@@ -292,8 +314,9 @@ func (g GitHubObjects) tagCommits(ctx context.Context, owner, repo string) (map[
 				return
 			}
 		}
+		f.tagsTruncated = true
 	})
-	return f.tags, f.tagsErr
+	return f.tags, f.tagsTruncated, f.tagsErr
 }
 
 func (g GitHubObjects) repoURL(owner, repo string) string {

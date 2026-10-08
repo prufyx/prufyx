@@ -503,3 +503,131 @@ func TestGitHubObjectsRetriesTransientFailures(t *testing.T) {
 		t.Fatal("a redirect to another host must be refused")
 	}
 }
+
+func tagPage(page int, withSHA string, full bool) string {
+	n := 100
+	if !full {
+		n = 3
+	}
+	var entries []string
+	for i := 0; i < n; i++ {
+		sha := fmt.Sprintf("%040x", page*1000+i+1)
+		if i == 0 && withSHA != "" {
+			sha = withSHA
+		}
+		entries = append(entries, fmt.Sprintf(`{"name":"v%d.%d","commit":{"sha":%q}}`, page, i, sha))
+	}
+	return "[" + strings.Join(entries, ",") + "]"
+}
+
+// The tag listing is paged, stops on a short page, and is capped: a listing
+// that ends on a full last page is truncated, which turns "not in the default
+// branch history" into "could not be established".
+func TestGitHubObjectsTagListingPaginationAndCap(t *testing.T) {
+	apiRetryDelay = 0
+	t.Cleanup(func() { apiRetryDelay = 2 * time.Second })
+	const (
+		onPage2  = "2000000000000000000000000000000000000001"
+		onPage10 = "2000000000000000000000000000000000000002"
+		absent   = "2000000000000000000000000000000000000003"
+		inBranch = "2000000000000000000000000000000000000004"
+	)
+	run := func(t *testing.T, pages int, lastFull bool, sha, compareStatus string) (bool, error, int) {
+		t.Helper()
+		var tagCalls int
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case r.URL.Path == "/repos/acme/widget/tags":
+				tagCalls++
+				page := 1
+				fmt.Sscan(r.URL.Query().Get("page"), &page)
+				switch {
+				case page > pages:
+					fmt.Fprint(w, "[]")
+				case page == 2 && pages < 10:
+					fmt.Fprint(w, tagPage(page, onPage2, lastFull || page < pages))
+				case page == 10:
+					fmt.Fprint(w, tagPage(page, onPage10, true))
+				default:
+					fmt.Fprint(w, tagPage(page, "", lastFull || page < pages))
+				}
+			case r.URL.Path == "/repos/acme/widget":
+				fmt.Fprint(w, `{"default_branch":"main"}`)
+			case strings.HasPrefix(r.URL.Path, "/repos/acme/widget/compare/"):
+				if strings.Contains(r.URL.Path, inBranch) {
+					fmt.Fprint(w, `{"status":"ahead"}`)
+					return
+				}
+				fmt.Fprintf(w, `{"status":%q}`, compareStatus)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		defer server.Close()
+		objects := NewGitHubObjects("t")
+		objects.APIBase, objects.Client = server.URL, server.Client()
+		ok, err := objects.RevisionReachable(context.Background(), "acme", "widget", sha)
+		return ok, err, tagCalls
+	}
+	t.Run("a commit on the second page is found, the listing stops on the short page", func(t *testing.T) {
+		ok, err, calls := run(t, 2, false, onPage2, "diverged")
+		if err != nil || !ok || calls != 2 {
+			t.Fatalf("ok=%v err=%v tag calls=%d, want true, nil, 2", ok, err, calls)
+		}
+	})
+	t.Run("a short listing is complete: absent and diverged is a plain no", func(t *testing.T) {
+		ok, err, calls := run(t, 2, false, absent, "diverged")
+		if err != nil || ok || calls != 2 {
+			t.Fatalf("ok=%v err=%v tag calls=%d, want false, nil, 2", ok, err, calls)
+		}
+	})
+	t.Run("the cap is 10 pages and the last page is searched", func(t *testing.T) {
+		ok, err, calls := run(t, 12, true, onPage10, "diverged")
+		if err != nil || !ok || calls != 10 {
+			t.Fatalf("ok=%v err=%v tag calls=%d, want true, nil, 10", ok, err, calls)
+		}
+	})
+	t.Run("truncated listing and not in the branch is an error, not a no", func(t *testing.T) {
+		ok, err, calls := run(t, 12, true, absent, "diverged")
+		if ok || err == nil || !strings.Contains(err.Error(), "truncated") || calls != 10 {
+			t.Fatalf("ok=%v err=%v tag calls=%d, want false, truncated error, 10", ok, err, calls)
+		}
+		ok, err, _ = run(t, 12, true, absent, "behind")
+		if ok || err == nil || !strings.Contains(err.Error(), "truncated") {
+			t.Fatalf("behind: ok=%v err=%v", ok, err)
+		}
+	})
+	t.Run("truncated listing but in the branch history is reachable", func(t *testing.T) {
+		ok, err, _ := run(t, 12, true, inBranch, "diverged")
+		if err != nil || !ok {
+			t.Fatalf("ok=%v err=%v", ok, err)
+		}
+	})
+}
+
+// An answer over the size bound is terminal: it is not downloaded again.
+func TestGitHubObjectsOversizeAnswerIsNotRetried(t *testing.T) {
+	apiRetryDelay = 0
+	oldMax := maxCompareBytes
+	maxCompareBytes = 64
+	t.Cleanup(func() { apiRetryDelay = 2 * time.Second; maxCompareBytes = oldMax })
+	var compareCalls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/acme/widget/tags":
+			fmt.Fprint(w, "[]")
+		case r.URL.Path == "/repos/acme/widget":
+			fmt.Fprint(w, `{"default_branch":"main"}`)
+		default:
+			compareCalls++
+			fmt.Fprintf(w, `{"status":"ahead","files":[%s]}`, strings.Repeat(`"x",`, 100)+`"x"`)
+		}
+	}))
+	defer server.Close()
+	objects := NewGitHubObjects("t")
+	objects.APIBase, objects.Client = server.URL, server.Client()
+	ok, err := objects.RevisionReachable(context.Background(), "acme", "widget", "3000000000000000000000000000000000000001")
+	if ok || err == nil || !errors.Is(err, errResponseTooLarge) || compareCalls != 1 {
+		t.Fatalf("ok=%v err=%v compare calls=%d, want false, too-large error, 1", ok, err, compareCalls)
+	}
+}
