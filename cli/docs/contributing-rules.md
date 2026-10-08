@@ -521,12 +521,15 @@ beyond the horizon or the restoration, or a distribution is outside the list)
 is not an exclusion: the rule is UNDETERMINED in the scope enumeration with
 reason `RULE_CROSSING_NOT_REVIEWED`, so it can never sit next to a
 SCOPE_COMPLETE_PASS. A hop that does not cross C (a downgrade, or both ends on
-one side of C) keeps `RULE_TRANSITION_NOT_REVIEWED` and the exclusion. In a
-document that holds a crossing rule, the same applies to a ranged rule whose
+one side of C) keeps `RULE_TRANSITION_NOT_REVIEWED` and the exclusion. The
+same applies, in every document that admits ranges, to a ranged rule whose
 range pins a release boundary (`REMOVED_IN_RELEASE` or `CHANGED_IN_RELEASE`):
-a hop that crosses its boundary but lies outside the range is undetermined,
-not excluded. Earlier rule schemas keep their behaviour and their digests, so
-a document without a crossing rule still excludes such a hop.
+a hop that crosses its boundary but lies outside the range is undetermined
+(`RULE_RELEASE_BOUNDARY_NOT_REVIEWED`), not excluded. `assess` reports an
+origin below such a range as needing a declaration (no `--to`) or as
+`INDETERMINATE_HOP_OUTSIDE_REVIEWED_RANGE` (target at or above the boundary),
+and route discovery lists the rule with `matchMode: boundary-unreviewed`.
+Exact-only documents have no boundary and keep their digest.
 
 A document holding a crossing rule carries rules schema `v1alpha7` and its own
 engine and scope contract digests; a pack holding one is pack level

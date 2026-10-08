@@ -76,6 +76,10 @@ var reasonOutcomes = map[string]outcome{
 	// horizon, or a distribution it does not list) is not reviewed.
 	constraintengine.ReasonCrossingNotReviewed: gapOutcome(scanreport.GapRuleNotDecided),
 
+	// A ranged rule whose range pins a release boundary the hop crosses
+	// outside the range is likewise not reviewed, never excluded.
+	constraintengine.ReasonReleaseBoundaryNotReviewed: gapOutcome(scanreport.GapRuleNotDecided),
+
 	// A consensus rule that finds nothing never passes.
 	constraintengine.ReasonConsensusNoKnownIssue: gapOutcome(scanreport.GapRuleNoKnownIssue),
 }
