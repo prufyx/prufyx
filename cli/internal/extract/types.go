@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
 // RepoRef names an upstream repository as host/owner/name, for example
@@ -124,6 +125,15 @@ type LineAttester interface {
 	AttestedFamilies() []string
 }
 
+// ComponentAttester is implemented by a LineAttester of a family that has
+// several components (one extractor per component): it names the one
+// component whose lines it attests. The framework refuses an attestation
+// of any other component, and the knowledge gate cross-checks a reviewed
+// attestation only against the extractor of its own component.
+type ComponentAttester interface {
+	AttestedComponent() string
+}
+
 // AttestationCandidate is one line attestation an extractor proposes. The
 // framework adds the basis, extractor identity, times and source digests.
 type AttestationCandidate struct {
@@ -131,7 +141,10 @@ type AttestationCandidate struct {
 	Line       string
 	FactFamily string
 	RuleIDs    []string
-	Sources    []SourceRef
+	// Releases are the releases of both lines the derivation read, for a
+	// release-scoped family; nil for any other.
+	Releases *lineattest.Releases
+	Sources  []SourceRef
 }
 
 // Withheld means the pair could not be established completely, so no rule

@@ -178,6 +178,10 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 	passByRule := map[string][]string{}
 	attester, attests := ex.(LineAttester)
 	families := map[string]bool{}
+	component := ""
+	if ca, ok := ex.(ComponentAttester); ok && attests {
+		component = ca.AttestedComponent()
+	}
 	if attests {
 		out.attests = true
 		for _, f := range attester.AttestedFamilies() {
@@ -228,7 +232,10 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 				if !families[c.FactFamily] || !lineOK || c.Line != line {
 					return nil, fmt.Errorf("pair %s: attestation for line %q family %q is outside the pair's target line %s or the extractor's families", pair.Key(), c.Line, c.FactFamily, line)
 				}
-				a, err := stampAttestation(c, rec, identity, derivedAt, validUntil)
+				if component != "" && c.Component != component {
+					return nil, fmt.Errorf("pair %s: attestation for component %q, the extractor attests %q", pair.Key(), c.Component, component)
+				}
+				a, err := stampAttestation(c, rec, opts.Repo, tagList, identity, derivedAt, validUntil)
 				if err != nil {
 					return nil, fmt.Errorf("pair %s: %w", pair.Key(), err)
 				}
@@ -339,12 +346,30 @@ func stampSources(what string, refs []SourceRef, rec *Recorder) ([]constrainteng
 // stampAttestation turns an attestation candidate into a line attestation
 // with mechanical provenance: reviewedAt is derivedAt, the lease is the
 // rules' lease.
-func stampAttestation(c AttestationCandidate, rec *Recorder, id constraintengine.Extractor, derivedAt, validUntil string) (lineattest.LineAttestation, error) {
+func stampAttestation(c AttestationCandidate, rec *Recorder, repo RepoRef, tags []Tag, id constraintengine.Extractor, derivedAt, validUntil string) (lineattest.LineAttestation, error) {
 	extractor := id
 	ids := append([]string{}, c.RuleIDs...)
 	sort.Strings(ids)
 	a := lineattest.LineAttestation{Component: c.Component, Line: c.Line, FactFamily: c.FactFamily, Completeness: lineattest.Completeness, RuleIDs: ids,
 		Evidence: lineattest.Evidence{Basis: constraintengine.BasisMechanical, Extractor: &extractor, DerivedAt: derivedAt, ReviewedAt: derivedAt, ValidUntil: validUntil}}
+	if c.Releases != nil {
+		r := lineattest.Releases{From: append([]lineattest.Release{}, c.Releases.From...), To: append([]lineattest.Release{}, c.Releases.To...)}
+		read := map[string]bool{}
+		for _, commit := range rec.Commits(repo) {
+			read[commit] = true
+		}
+		for _, side := range [][]lineattest.Release{r.From, r.To} {
+			for _, rel := range side {
+				// A release the attestation names must be a recorded
+				// release tag at that commit, and a commit the extractor
+				// read.
+				if !read[rel.Commit] || !releaseTagged(tags, rel) {
+					return lineattest.LineAttestation{}, fmt.Errorf("attestation %s names release %s at %s, which is not a recorded release tag the extractor read", a.Key(), rel.Version, rel.Commit)
+				}
+			}
+		}
+		a.Releases = &r
+	}
 	sources, err := stampSources("attestation "+a.Key().String(), c.Sources, rec)
 	if err != nil {
 		return lineattest.LineAttestation{}, err
@@ -354,6 +379,22 @@ func stampAttestation(c AttestationCandidate, rec *Recorder, id constraintengine
 		return lineattest.LineAttestation{}, fmt.Errorf("attestation %s: %w", a.Key(), err)
 	}
 	return a, nil
+}
+
+// releaseTagged reports whether some recorded tag names the release's
+// version, with at most a non-numeric prefix ("v1.2.3", "1.2.3"), at the
+// release's commit.
+func releaseTagged(tags []Tag, rel lineattest.Release) bool {
+	for _, t := range tags {
+		prefix, ok := strings.CutSuffix(t.Name, rel.Version)
+		if !ok || t.Commit != rel.Commit {
+			continue
+		}
+		if prefix == "" || !strings.ContainsAny(prefix[len(prefix)-1:], "0123456789.") {
+			return true
+		}
+	}
+	return false
 }
 
 // checkAttestations puts the attestations in canonical order and requires

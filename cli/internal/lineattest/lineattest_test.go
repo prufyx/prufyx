@@ -315,3 +315,15 @@ func TestLineOf(t *testing.T) {
 		}
 	}
 }
+
+// An attestation without releases encodes without a releases member, so the
+// document shape of every family that is not release-scoped is unchanged.
+func TestAttestationWithoutReleasesEncodesWithoutThem(t *testing.T) {
+	data, err := json.Marshal(LineAttestation{Component: "c", Line: "1.30", FactFamily: "f", Completeness: Completeness})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "releases") {
+		t.Fatalf("encoded %s", data)
+	}
+}

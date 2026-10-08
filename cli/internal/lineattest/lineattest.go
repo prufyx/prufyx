@@ -152,7 +152,25 @@ type LineAttestation struct {
 	FactFamily   string   `json:"factFamily"`
 	Completeness string   `json:"completeness"`
 	RuleIDs      []string `json:"ruleIds"`
-	Evidence     Evidence `json:"evidence"`
+	// Releases names every release of the previous line and of the line
+	// that the derivation read. It is required for a release-scoped family
+	// and forbidden for any other.
+	Releases *Releases `json:"releases,omitempty"`
+	Evidence Evidence  `json:"evidence"`
+}
+
+// Releases are the final releases of both lines an attestation's
+// derivation read, each pinned to the commit its tag pointed at, in
+// ascending version order.
+type Releases struct {
+	From []Release `json:"from"`
+	To   []Release `json:"to"`
+}
+
+// Release is one final release and its commit.
+type Release struct {
+	Version string `json:"version"`
+	Commit  string `json:"commit"`
 }
 
 // Evidence is an attestation's provenance and validity window. Basis is
