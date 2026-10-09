@@ -478,3 +478,80 @@ func TestCustomResourceFamilyCountsA(t *testing.T) {
 		t.Fatal("an attestation outside the family was counted")
 	}
 }
+
+// A community-catalog project (outside the embedded CNCF landscape catalog)
+// is listed and counted apart: the fleet, the priority totals, the families
+// and the pack-project count stay the CNCF catalog's, whatever the community
+// project's rules and lines are. Without one the report keeps its bytes.
+func TestCommunityCatalogIsCountedApart(t *testing.T) {
+	packRaw, linesRaw := read(t, "testdata/pack-cncf-2026-09-13.4-reduced.json"), read(t, "testdata/lines-2026-10-08.json")
+	base, err := Compute(Input{Pack: packRaw, Lines: linesRaw, Now: baselineNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if base.CommunityCatalog != nil {
+		t.Fatal("a community total without a community project")
+	}
+	baseJSON, _ := base.JSON()
+	if bytes.Contains(baseJSON, []byte("communityCatalog")) || bytes.Contains(baseJSON, []byte(`"catalog"`)) {
+		t.Fatal("the report names the community catalog without a community project")
+	}
+	var pack map[string]any
+	var lines map[string]any
+	if err := json.Unmarshal(packRaw, &pack); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(linesRaw, &lines); err != nil {
+		t.Fatal(err)
+	}
+	// A line-wide rule of gateway-api over lines 1.1 to 1.2, as the CRD
+	// extractor derives it (a range over both whole lines): status B.
+	rule := map[string]any{
+		"id": "gateway-api.crd-version-removal.synthetic.1-1-0-to-1-2-0", "operator": "forbid_set_member",
+		"subject": map[string]any{"component": "pkg:github/kubernetes-sigs/gateway-api", "from": "1.1.0", "to": "1.2.0"},
+		"range": map[string]any{
+			"from": map[string]any{"gte": "1.1.0", "lt": "1.2.0"}, "to": map[string]any{"gte": "1.2.0", "lt": "1.3.0"},
+			"bounds": []any{
+				map[string]any{"bound": "from.gte", "basis": "PREVIOUS_MINOR_LINE", "sourceId": "s"}, map[string]any{"bound": "from.lt", "basis": "REMOVED_IN_RELEASE", "sourceId": "s"},
+				map[string]any{"bound": "to.gte", "basis": "REMOVED_IN_RELEASE", "sourceId": "s"}, map[string]any{"bound": "to.lt", "basis": "TARGET_SERIES", "sourceId": "s"},
+			},
+		},
+		"setCondition": map[string]any{"side": "proposed", "component": "pkg:github/kubernetes-sigs/gateway-api", "factId": "component.gateway_api.custom_resource_versions_set", "members": []any{"gateway.networking.k8s.io/v1beta1/Gateway"}},
+		"evidence":     map[string]any{"state": "active", "reviewedAt": "2026-10-01T00:00:00Z", "validUntil": "2026-12-01T00:00:00Z"},
+	}
+	pack["entries"] = append(pack["entries"].([]any), map[string]any{"project": "gateway-api", "rule": rule})
+	lines["projects"].(map[string]any)["gateway-api"] = map[string]any{"lines": []any{"1.1", "1.2", "1.3"}, "priority": true}
+	packEdited, _ := json.Marshal(pack)
+	linesEdited, _ := json.Marshal(lines)
+	got, err := Compute(Input{Pack: packEdited, Lines: linesEdited, Now: baselineNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Fleet != base.Fleet || got.Priority != base.Priority || got.PackProjects != base.PackProjects || len(got.Families) != len(base.Families) || len(got.WithoutLines) != len(base.WithoutLines) {
+		t.Fatalf("the CNCF figures moved:\nfleet %+v -> %+v\npriority %+v -> %+v\npack projects %d -> %d", base.Fleet, got.Fleet, base.Priority, got.Priority, base.PackProjects, got.PackProjects)
+	}
+	for i := range base.Families {
+		if got.Families[i] != base.Families[i] {
+			t.Fatalf("family %+v -> %+v", base.Families[i], got.Families[i])
+		}
+	}
+	c := got.CommunityCatalog
+	if c == nil || c.Projects != 1 || c.Pairs != 2 || c.B != 1 || c.G != 1 || c.C1 != 1 || c.VCMean != 0.5 {
+		t.Fatalf("community totals %+v", c)
+	}
+	var row Project
+	for _, p := range got.Projects {
+		if p.Project == "gateway-api" {
+			row = p
+		} else if p.Catalog != "" {
+			t.Fatalf("%s is labelled %q", p.Project, p.Catalog)
+		}
+	}
+	if row.Catalog != CatalogCommunity || statuses(row) != "BG" {
+		t.Fatalf("row %+v (%s)", row, statuses(row))
+	}
+	md := string(got.Markdown())
+	if !strings.Contains(md, "community catalog (not in the fleet; no CNCF status asserted)") || !strings.Contains(md, "gateway-api (community catalog)") {
+		t.Fatalf("markdown:\n%s", md)
+	}
+}

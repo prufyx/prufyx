@@ -12,8 +12,15 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
+
+// CatalogCommunity marks the row of a project of the community catalog: a
+// project outside the embedded CNCF landscape catalog (no CNCF status is
+// asserted). Its pairs are counted apart: the fleet and priority totals, the
+// families and the pack-project count are the CNCF catalog's.
+const CatalogCommunity = "community"
 
 // Schema identifies the report document.
 const Schema = "prufyx.io/coverage-report/v1"
@@ -53,7 +60,10 @@ type Pair struct {
 
 // Project is one project's row.
 type Project struct {
-	Project  string   `json:"project"`
+	Project string `json:"project"`
+	// Catalog is "community" for a community-catalog project and absent for
+	// a CNCF one.
+	Catalog  string   `json:"catalog,omitempty"`
 	Priority bool     `json:"priority"`
 	Window   []string `json:"window"`
 	Pairs    []Pair   `json:"pairs"`
@@ -123,11 +133,14 @@ type Report struct {
 	} `json:"lines"`
 	// PackProjects is the number of projects with a valid rule or
 	// attestation in the pack, whether or not lines are known for them.
-	PackProjects int       `json:"packProjectsCovered"`
-	Fleet        Totals    `json:"fleet"`
-	Priority     Totals    `json:"priorityProjects"`
-	Families     []Family  `json:"families"`
-	Projects     []Project `json:"projects"`
+	PackProjects int    `json:"packProjectsCovered"`
+	Fleet        Totals `json:"fleet"`
+	Priority     Totals `json:"priorityProjects"`
+	// CommunityCatalog totals the community-catalog projects apart from
+	// the fleet; it is absent when the lines snapshot lists none.
+	CommunityCatalog *Totals   `json:"communityCatalog,omitempty"`
+	Families         []Family  `json:"families"`
+	Projects         []Project `json:"projects"`
 	// WithoutLines lists projects with a valid rule or attestation but no
 	// lines in the snapshot. Their pairs are unknown, never counted as
 	// covered.
@@ -347,7 +360,12 @@ func Compute(in Input) (Report, error) {
 			covered[project] = true
 		}
 	}
-	report.PackProjects = len(covered)
+	for project := range covered {
+		if customresources.IsCommunity(project) {
+			continue
+		}
+		report.PackProjects++
+	}
 
 	slugs := make([]string, 0, len(linesFile.Projects))
 	for slug := range linesFile.Projects {
@@ -364,6 +382,10 @@ func Compute(in Input) (Report, error) {
 			lines = lines[len(lines)-window:]
 		}
 		row := Project{Project: slug, Priority: pl.Priority, Window: append([]string{}, lines...), Pairs: []Pair{}, Covered: covered[slug]}
+		community := customresources.IsCommunity(slug)
+		if community {
+			row.Catalog = CatalogCommunity
+		}
 		inWindow := map[string]bool{}
 		for _, l := range lines {
 			inWindow[l] = true
@@ -390,12 +412,16 @@ func Compute(in Input) (Report, error) {
 			case StatusA:
 				row.A++
 				for _, f := range pair.Families {
-					familyA[f]++
+					if !community {
+						familyA[f]++
+					}
 				}
 			case StatusB:
 				row.B++
 				for _, f := range pair.Families {
-					familyB[f]++
+					if !community {
+						familyB[f]++
+					}
 				}
 			case StatusS:
 				row.S++
@@ -429,15 +455,35 @@ func Compute(in Input) (Report, error) {
 				}
 			}
 		}
+		if p.Catalog == CatalogCommunity {
+			if report.CommunityCatalog == nil {
+				report.CommunityCatalog = &Totals{}
+			}
+			add(report.CommunityCatalog)
+			continue
+		}
 		add(&report.Fleet)
 		if p.Priority {
 			add(&report.Priority)
 		}
 	}
-	for _, t := range []*Totals{&report.Fleet, &report.Priority} {
+	totals := []*Totals{&report.Fleet, &report.Priority}
+	if report.CommunityCatalog != nil {
+		totals = append(totals, report.CommunityCatalog)
+	}
+	for _, t := range totals {
 		withPairs := 0
 		for _, p := range report.Projects {
-			if len(p.Pairs) > 0 && (t == &report.Fleet || p.Priority) {
+			if len(p.Pairs) == 0 {
+				continue
+			}
+			switch {
+			case t == report.CommunityCatalog:
+				if p.Catalog == CatalogCommunity {
+					withPairs++
+				}
+			case p.Catalog == CatalogCommunity:
+			case t == &report.Fleet || p.Priority:
 				withPairs++
 			}
 		}
@@ -467,7 +513,7 @@ func Compute(in Input) (Report, error) {
 	}
 	report.WithoutLines = []string{}
 	for project := range covered {
-		if !withLines[project] {
+		if !withLines[project] && !customresources.IsCommunity(project) {
 			report.WithoutLines = append(report.WithoutLines, project)
 		}
 	}

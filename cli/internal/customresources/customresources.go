@@ -43,10 +43,12 @@ const (
 	CatalogCNCF Catalog = "cncf"
 	// CatalogCommunity: a project outside the CNCF landscape catalog. Its
 	// identity is the reviewed Upstream record of this table, and nothing
-	// about it asserts CNCF status. Its version set fact is registered,
-	// but no rule, line review or check route reads it until the
-	// community knowledge step (rules of community projects in the pack,
-	// community targets in the knowledge store) lands.
+	// about it asserts CNCF status. Its version set fact is registered.
+	// The pack can carry rules for it (its own pack schema level) and the
+	// knowledge store a per-project target for it; a route reads it only
+	// once the knowledge holds data for it, and every output labels it with
+	// CommunityLabel. It carries no line review: the line-review family
+	// admits no community component.
 	CatalogCommunity Catalog = "community"
 )
 
