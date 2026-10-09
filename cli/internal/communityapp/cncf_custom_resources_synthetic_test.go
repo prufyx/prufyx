@@ -65,7 +65,7 @@ func TestSyntheticCustomResourceCheckWithDerivedStrimziRules(t *testing.T) {
 	useStrimziCRDKnowledge(t)
 	kafkaRemoved, kafkaServed := strimziObject("kafka.strimzi.io/v1beta2", "Kafka"), strimziObject("kafka.strimzi.io/v1", "Kafka")
 	topicServed, topicRemoved := strimziObject("kafka.strimzi.io/v1", "KafkaTopic"), strimziObject("kafka.strimzi.io/v1beta2", "KafkaTopic")
-	deployment, certificate := strimziObject("apps/v1", "Deployment"), strimziObject("monitoring.coreos.com/v1", "ServiceMonitor")
+	deployment, certificate := strimziObject("apps/v1", "Deployment"), strimziObject("postgres-operator.crunchydata.com/v1beta1", "PostgresCluster")
 	for _, tc := range []struct {
 		name     string
 		docs     []string
@@ -112,7 +112,7 @@ func TestSyntheticCustomResourceCheckWithDerivedStrimziRules(t *testing.T) {
 					blocked = append(blocked, claim.MatchedMembers...)
 				case "PASS":
 					passed++
-					if partial := !tc.complete || strings.Contains(strings.Join(tc.docs, ""), "monitoring.coreos.com") || strings.Contains(strings.Join(tc.docs, ""), "{{"); partial {
+					if partial := !tc.complete || strings.Contains(strings.Join(tc.docs, ""), "postgres-operator.crunchydata.com") || strings.Contains(strings.Join(tc.docs, ""), "{{"); partial {
 						t.Fatalf("PASS from a partial set: %s", claim.RuleID)
 					}
 				}
