@@ -38,13 +38,21 @@ func Render(report Report, format string, options RenderOptions) ([]byte, error)
 }
 
 // renderOnlyBlocked renders a copy of the report without the items that are
-// not BLOCKED findings (gaps, notices, unsupported combinations, leads and
+// not BLOCKED findings (gaps other than API_VERSION_NOT_SERVED, notices, unsupported combinations, leads and
 // passes) and ends with one line counting what was left out. The report, the
 // headline, the verdict and the summary are unchanged.
 func renderOnlyBlocked(report Report, format string, options RenderOptions) ([]byte, error) {
-	gaps := len(report.Gaps)
+	// A gap for an API version the target does not serve stays: it is the
+	// removed-API case, and hiding it would make a failing scan look empty.
+	var kept []Gap
+	for _, gap := range report.Gaps {
+		if gap.Reason == ReasonAPIVersionNotServed {
+			kept = append(kept, gap)
+		}
+	}
+	gaps := len(report.Gaps) - len(kept)
 	other := len(report.Notices) + len(report.Unsupported) + len(report.Leads)
-	report.Gaps, report.Notices, report.Unsupported, report.Leads, report.Passes = nil, nil, nil, nil, nil
+	report.Gaps, report.Notices, report.Unsupported, report.Leads, report.Passes = kept, nil, nil, nil, nil
 	var body []byte
 	if format == "markdown" {
 		body = Markdown(report, MarkdownOptions{Verbose: options.Verbose})

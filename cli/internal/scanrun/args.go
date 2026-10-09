@@ -4,6 +4,7 @@ package scanrun
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -57,8 +58,14 @@ const (
 
 // ExitCode maps the scan's verdict exit code to the process exit code under
 // --fail-on. Only the verdict codes (blocked, unknown) are ever changed;
-// usage and integrity errors never reach this and are never suppressed.
-func (r Request) ExitCode(verdict int) int {
+// usage and integrity errors never reach this and are never suppressed. A
+// report that carries an API_VERSION_NOT_SERVED gap (manifests use an API
+// version the target no longer serves) always keeps its verdict code: that
+// is the one gap the GitHub Action also fails on, whatever fail-on says.
+func (r Request) ExitCode(report scanreport.Report, verdict int) int {
+	if verdict == scanreport.ExitPass || ReportHasNotServedGap(report) {
+		return verdict
+	}
 	switch {
 	case r.FailOn == FailOnNone:
 		return scanreport.ExitPass
@@ -66,6 +73,28 @@ func (r Request) ExitCode(verdict int) int {
 		return scanreport.ExitPass
 	}
 	return verdict
+}
+
+// ExitNote returns the one-line standard error note to print when --fail-on
+// changed a non-zero verdict exit code, or "" when the exit code is the
+// verdict's own.
+func (r Request) ExitNote(report scanreport.Report, verdict int) string {
+	code := r.ExitCode(report, verdict)
+	if code == verdict {
+		return ""
+	}
+	return fmt.Sprintf("prufyx: note: verdict %s (exit %d) reported as exit %d by --fail-on %s; this is not a PASS", report.Verdict, verdict, code, r.FailOn)
+}
+
+// ReportHasNotServedGap reports whether the report has an
+// API_VERSION_NOT_SERVED gap.
+func ReportHasNotServedGap(report scanreport.Report) bool {
+	for _, gap := range report.Gaps {
+		if gap.Reason == scanreport.ReasonAPIVersionNotServed {
+			return true
+		}
+	}
+	return false
 }
 
 // UsageError is a command line or input the scan does not accept. Its text
