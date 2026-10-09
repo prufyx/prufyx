@@ -97,18 +97,22 @@ func TestStampAttestationReleaseBranch(t *testing.T) {
 	if _, err := rec.Read(repo, testCommit, "decl.go"); err != nil {
 		t.Fatal(err)
 	}
-	tags := []Tag{{Name: "v1.0.0", Commit: testCommit}, {Name: "v2.0.0", Commit: testNext}}
+	tags := []Tag{{Name: "v1.0.0", Commit: testCommit}, {Name: "v1.1.0", Commit: testNext}}
 	id := constraintengine.Extractor{ID: "toy.removal", Version: "1.0.0", CodeDigest: "sha256:" + strings.Repeat("a", 64)}
 	stamp := func(r *lineattest.Releases) (lineattest.LineAttestation, error) {
-		c := attestCandidate(attestComponent)
+		// Only a release-scoped family carries releases: the custom-resource
+		// versions family, for one of its member components.
+		c := attestCandidate("pkg:github/argoproj/argo-cd")
+		c.FactFamily = lineattest.FamilyCustomResourceVersions
+		c.Line = "1.1"
 		c.Releases = r
 		return stampAttestation(c, rec, repo, tags, id, "2026-10-02T00:00:00Z", "2026-12-31T00:00:00Z")
 	}
 	cases := map[string]*lineattest.Releases{
-		"release at a commit never read": {From: []lineattest.Release{relOf("1.0.0", testCommit)}, To: []lineattest.Release{relOf("2.0.0", testNext)}},
+		"release at a commit never read": {From: []lineattest.Release{relOf("1.0.0", testCommit)}, To: []lineattest.Release{relOf("1.1.0", testNext)}},
 		"read commit, untagged version":  {From: []lineattest.Release{relOf("1.0.1", testCommit)}},
-		"tagged version, other commit":   {To: []lineattest.Release{relOf("2.0.0", testCommit)}},
-		"unrecorded commit":              {To: []lineattest.Release{relOf("2.0.0", "3333333333333333333333333333333333333333")}},
+		"tagged version, other commit":   {To: []lineattest.Release{relOf("1.1.0", testCommit)}},
+		"unrecorded commit":              {To: []lineattest.Release{relOf("1.1.0", "3333333333333333333333333333333333333333")}},
 	}
 	for name, r := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -117,19 +121,28 @@ func TestStampAttestationReleaseBranch(t *testing.T) {
 			}
 		})
 	}
-	// The release branch is taken only when releases are proposed.
-	plain, err := stamp(nil)
+	// The release branch is taken only when releases are proposed (a family
+	// that is not release-scoped proposes none).
+	plain, err := stampAttestation(attestCandidate(attestComponent), rec, repo, tags, id, "2026-10-02T00:00:00Z", "2026-12-31T00:00:00Z")
 	if err != nil || plain.Releases != nil {
 		t.Fatalf("no releases: %+v, %v", plain.Releases, err)
 	}
 	// A recorded release on a read commit is stamped, as a copy of the
-	// candidate's, with an empty (not nil) side that was not proposed.
-	in := &lineattest.Releases{From: []lineattest.Release{relOf("1.0.0", testCommit)}}
-	a, err := stamp(in)
+	// candidate's (the family requires both sides to name releases).
+	in := &lineattest.Releases{From: []lineattest.Release{relOf("1.0.0", testCommit)}, To: []lineattest.Release{relOf("1.1.0", testNext)}}
+	both := NewRecorder(fr)
+	for _, c := range []string{testCommit, testNext} {
+		if _, err := both.Read(repo, c, "decl.go"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cand := attestCandidate("pkg:github/argoproj/argo-cd")
+	cand.FactFamily, cand.Line, cand.Releases = lineattest.FamilyCustomResourceVersions, "1.1", in
+	a, err := stampAttestation(cand, both, repo, tags, id, "2026-10-02T00:00:00Z", "2026-12-31T00:00:00Z")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a.Releases == nil || len(a.Releases.From) != 1 || a.Releases.To == nil || len(a.Releases.To) != 0 {
+	if a.Releases == nil || len(a.Releases.From) != 1 || len(a.Releases.To) != 1 {
 		t.Fatalf("stamped releases %+v", a.Releases)
 	}
 	in.From[0].Version = "changed"

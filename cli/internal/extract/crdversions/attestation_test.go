@@ -129,10 +129,10 @@ func TestNotAttested(t *testing.T) {
 		}, "1.0.0", "1.1.0", "no longer defines betas"},
 		"new major": {attestingTarget(), []release{
 			{"v1.9.0", map[string]string{"deploy/crds/a.yaml": alpha}}, {"v2.0.0", map[string]string{"deploy/crds/a.yaml": alpha}},
-		}, "1.9.0", "2.0.0", "not the minor line after 1.9"},
+		}, "1.9.0", "2.0.0", "major hop"},
 		"skipped minor": {attestingTarget(), []release{
 			{"v1.1.0", map[string]string{"deploy/crds/a.yaml": alpha}}, {"v1.3.0", map[string]string{"deploy/crds/a.yaml": alpha}},
-		}, "1.1.0", "1.3.0", "not the minor line after 1.1"},
+		}, "1.1.0", "1.3.0", "skipped-minor hop"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
