@@ -385,7 +385,7 @@ func TestScanNeverPassesWithAGap(t *testing.T) {
 
 	// A project checked for custom-resource versions.
 	crd := newCRDKnowledge(t)
-	crPool := []string{kafkaV1Doc, kafkaV1beta2Doc, certificateDoc, settingsDoc}
+	crPool := []string{kafkaV1Doc, kafkaV1beta2Doc, serviceMonitorDoc, settingsDoc}
 	for _, scope := range [][]string{{"--resource-scope-complete"}, nil} {
 		for mask := 1; mask < 1<<len(crPool); mask++ {
 			contents := map[string]string{}

@@ -473,8 +473,8 @@ func TestCustomResourceFamilyCountsA(t *testing.T) {
 		t.Fatalf("anchor-only listed rule: %s", got)
 	}
 	// An attestation of a component outside the family is refused.
-	keda := strings.Replace(crdAttJSON("0.51", "0.50.0", "0.51.0"), strimzi, "pkg:github/kedacore/keda", 1)
-	if _, err := Compute(Input{Pack: pack([]string{rule}, []string{keda}), Lines: snapshot, Now: baselineNow}); err == nil {
+	outside := strings.Replace(crdAttJSON("0.51", "0.50.0", "0.51.0"), strimzi, "pkg:github/prometheus/prometheus", 1)
+	if _, err := Compute(Input{Pack: pack([]string{rule}, []string{outside}), Lines: snapshot, Now: baselineNow}); err == nil {
 		t.Fatal("an attestation outside the family was counted")
 	}
 }

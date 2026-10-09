@@ -153,7 +153,7 @@ func TestCustomResourceRuleOverPreparedInput(t *testing.T) {
 	kafka := func(version string) string {
 		return "apiVersion: kafka.strimzi.io/" + version + "\nkind: Kafka\nmetadata:\n  name: main\n  namespace: kafka\n"
 	}
-	other := "apiVersion: cert-manager.io/v1\nkind: Certificate\nmetadata:\n  name: tls\n"
+	other := "apiVersion: monitoring.coreos.com/v1\nkind: ServiceMonitor\nmetadata:\n  name: tls\n"
 	for name, tc := range map[string]struct {
 		docs     []string
 		complete bool

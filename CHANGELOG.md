@@ -50,6 +50,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- Knowledge compatibility: the fact registry gains the custom-resource
+  version set (`component.<project>.custom_resource_versions_set`) of nine more
+  projects, and the reviewed custom-resource table lists their API groups:
+  cert-manager, Cilium, Crossplane, KEDA, Kuma, Kyverno, Longhorn, Rook and
+  Velero join Argo CD, Istio and Strimzi (the 12 targets of the
+  `crd.version-removal` extractor). The knowledge gate now admits rules
+  re-derived for these projects; objects of the new groups are attributed to
+  their project in `check cncf --custom-resources` and `scan`, and a group of
+  a project that is not in the table is still never attributed. The embedded
+  CNCF pack moves to revision `cncf-2026-09-13.5` (same rules; only the
+  registry digest and the revision differ). External CNCF packs and knowledge
+  databases built against the previous registry, including revision
+  `cncf-2026-09-13.4`, are refused by this release until they are rebuilt. No
+  rule over the new sets ships yet.
 - Maintainer extractor `crd.version-removal` 2.0.0: pairs are consecutive
   release lines and every final release of both lines is read; a removal that
   holds for both whole lines gives a rule with a cited range over them,

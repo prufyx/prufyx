@@ -71,7 +71,7 @@ func TestCustomResourceFamilyMembersAreTheReviewedTable(t *testing.T) {
 	if !slices.Equal(f.Components(), want) || len(want) == 0 {
 		t.Fatalf("components %v, want %v", f.Components(), want)
 	}
-	for _, c := range []string{k8s, "pkg:github/kedacore/keda", ""} {
+	for _, c := range []string{k8s, "pkg:github/prometheus/prometheus", ""} {
 		if f.Admits(c) {
 			t.Fatalf("%q admitted", c)
 		}
@@ -102,7 +102,7 @@ func TestCustomResourceAttestationValidation(t *testing.T) {
 	}
 	for name, mutate := range map[string]func(a *LineAttestation){
 		"no releases":            func(a *LineAttestation) { a.Releases = nil },
-		"component not in table": func(a *LineAttestation) { a.Component = "pkg:github/kedacore/keda" },
+		"component not in table": func(a *LineAttestation) { a.Component = "pkg:github/prometheus/prometheus" },
 		"kubernetes component":   func(a *LineAttestation) { a.Component = k8s },
 		"no earlier release":     func(a *LineAttestation) { a.Releases.From = nil },
 		"no later release":       func(a *LineAttestation) { a.Releases.To = []Release{} },

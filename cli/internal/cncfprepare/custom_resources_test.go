@@ -62,7 +62,7 @@ var (
 	configMap    = crObject("v1", "ConfigMap", "settings")
 	route        = crObject("gateway.networking.k8s.io/v1", "HTTPRoute", "web")
 	virtualSvc   = crObject("networking.istio.io/v1", "VirtualService", "web")
-	certificate  = crObject("cert-manager.io/v1", "Certificate", "tls")
+	certificate  = crObject("monitoring.coreos.com/v1", "ServiceMonitor", "tls")
 )
 
 func TestCustomResourceVersionsComplete(t *testing.T) {
@@ -282,13 +282,13 @@ func TestCustomResourceVersionsBounds(t *testing.T) {
 func TestCustomResourceVersionsArguments(t *testing.T) {
 	ws := crWorkspace(t, crDocs(kafkaV1))
 	for _, tc := range []struct{ project, from, to string }{
-		{"kubernetes", "1.30.0", "1.31.0"}, {"cert-manager", "1.0.0", "1.1.0"}, {"strimzi", "1.0.0", "1.0.0"}, {"strimzi", "x", "1.0.0"},
+		{"kubernetes", "1.30.0", "1.31.0"}, {"flux", "1.0.0", "1.1.0"}, {"strimzi", "1.0.0", "1.0.0"}, {"strimzi", "x", "1.0.0"},
 	} {
 		if _, err := PrepareCustomResourceVersions(ws, tc.project, tc.from, tc.to, true); !errors.Is(err, ErrInvalid) {
 			t.Fatalf("%+v accepted", tc)
 		}
 	}
-	if got := CustomResourceProjects(); !reflect.DeepEqual(got, []string{"argo-cd", "istio", "strimzi"}) {
+	if got := CustomResourceProjects(); !reflect.DeepEqual(got, []string{"argo-cd", "cert-manager", "cilium", "crossplane", "istio", "keda", "kuma", "kyverno", "longhorn", "rook", "strimzi", "velero"}) {
 		t.Fatalf("projects %v", got)
 	}
 	if fact, ok := CustomResourceVersionsFact("strimzi"); !ok || fact != strimziFact {
@@ -339,7 +339,7 @@ func TestCustomResourceVersionsUnresolvedSetEdges(t *testing.T) {
 	if fact := crFact(t, witness.Prepared); fact.State != "unsupported" || len(witness.Members) != 0 || witness.Prepared.Reason != ReasonCustomResourcesUnresolved {
 		t.Fatalf("items object as witness: fact %+v reason %s", fact, witness.Prepared.Reason)
 	}
-	unattributed := prepareCR(t, crDocs("apiVersion: cert-manager.io/v1\nkind: Certificate\nmetadata:\n  name: tls\n", templated), "strimzi", true)
+	unattributed := prepareCR(t, crDocs("apiVersion: monitoring.coreos.com/v1\nkind: ServiceMonitor\nmetadata:\n  name: tls\n", templated), "strimzi", true)
 	if fact := crFact(t, unattributed.Prepared); fact.State != "unsupported" || len(unattributed.Unattributed) != 0 || unattributed.Prepared.Reason != ReasonCustomResourcesRendering {
 		t.Fatalf("unattributed: fact %+v unattributed %+v", fact, unattributed.Unattributed)
 	}
