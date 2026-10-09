@@ -135,7 +135,7 @@ func (k crdKnowledge) Evaluate(policy cncfcheck.TrustPolicy, project string, fac
 const (
 	kafkaV1beta2Doc   = "apiVersion: kafka.strimzi.io/v1beta2\nkind: Kafka\nmetadata:\n  name: events\n  namespace: kafka\n"
 	kafkaV1Doc        = "apiVersion: kafka.strimzi.io/v1\nkind: Kafka\nmetadata:\n  name: events\n  namespace: kafka\n"
-	serviceMonitorDoc = "apiVersion: monitoring.coreos.com/v1\nkind: ServiceMonitor\nmetadata:\n  name: metrics\n  namespace: kafka\n"
+	unownedGroupDoc = "apiVersion: postgres-operator.crunchydata.com/v1beta1\nkind: PostgresCluster\nmetadata:\n  name: metrics\n  namespace: kafka\n"
 	settingsDoc       = "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: settings\n  namespace: kafka\n"
 )
 
@@ -231,7 +231,7 @@ func TestScanCustomResourcePartialSets(t *testing.T) {
 		detail string
 	}{
 		"scope not declared":  {[]string{kafkaV1Doc}, nil, scanreport.ReasonDeclarationMissing, "complete set"},
-		"unattributed group":  {[]string{kafkaV1Doc, serviceMonitorDoc}, []string{"--resource-scope-complete"}, scanreport.ReasonDocumentsNotEvaluated, "custom-resource groups that no reviewed project owns"},
+		"unattributed group":  {[]string{kafkaV1Doc, unownedGroupDoc}, []string{"--resource-scope-complete"}, scanreport.ReasonDocumentsNotEvaluated, "custom-resource groups that no reviewed project owns"},
 		"templated documents": {[]string{kafkaV1Doc, "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ .Values.name }}\n"}, []string{"--resource-scope-complete"}, scanreport.ReasonDocumentsTemplated, "unrendered templates"},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -275,7 +275,7 @@ func TestScanCustomResourcePath(t *testing.T) {
 	}
 	// Without the rule (embedded knowledge) the hop has no data, and objects
 	// of groups no reviewed project owns are still named.
-	result = crdScan(t, newKnowledge(t, knowledgeOptions{}), []string{kafkaV1beta2Doc, serviceMonitorDoc}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete")
+	result = crdScan(t, newKnowledge(t, knowledgeOptions{}), []string{kafkaV1beta2Doc, unownedGroupDoc}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete")
 	if hop := strimziHop(t, result.Report); result.Exit != 11 || hop.Status != scanreport.HopNoData || !hasComponentGap(result.Report, "strimzi", scanreport.ReasonDocumentsNotEvaluated, "1 manifest(s) use custom-resource groups") {
 		t.Fatalf("no rules: exit %d hop %+v gaps %v", result.Exit, hop, gapReasons(result.Report))
 	}
