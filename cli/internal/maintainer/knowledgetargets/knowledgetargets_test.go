@@ -245,3 +245,42 @@ func TestCheckSizeTreeRefusesLinksAndNamesTheSingleTarget(t *testing.T) {
 		t.Fatalf("a symlinked data directory was accepted: exit %d", code)
 	}
 }
+
+// The targets of the community catalog are written under their own prefix,
+// measured with the others, and nothing else is written outside the two
+// prefixes.
+func TestCommunityTargetsAreWrittenAndMeasured(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "out")
+	targets := []cncfcheck.ExternalTarget{
+		{Path: "knowledge/cncf/index.v1.json", Bytes: []byte("{}")},
+		{Path: "knowledge/cncf/projects/kubernetes.v1.json", Bytes: []byte("{}")},
+		{Path: cncfcheck.ProjectTargetPath("gateway-api"), Bytes: []byte("{ }")},
+	}
+	if err := writeTargets(dir, targets); err != nil {
+		t.Fatal(err)
+	}
+	measured, err := targetsInDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths := map[string]int64{}
+	for _, target := range measured {
+		paths[target.Path] = target.Bytes
+	}
+	if len(paths) != 3 || paths["knowledge/community/projects/gateway-api.v1.json"] != 3 || paths["knowledge/cncf/projects/kubernetes.v1.json"] != 2 {
+		t.Fatalf("measured %v", paths)
+	}
+	// A package without a community directory is measured as before.
+	plain := filepath.Join(t.TempDir(), "plain")
+	if err := writeTargets(plain, targets[:2]); err != nil {
+		t.Fatal(err)
+	}
+	if measured, err := targetsInDir(plain); err != nil || len(measured) != 2 {
+		t.Fatalf("plain: %v %v", measured, err)
+	}
+	for _, bad := range []string{"knowledge/other/projects/x.v1.json", "knowledge/community/../x.v1.json", "knowledge/communities/projects/x.v1.json"} {
+		if err := writeTargets(filepath.Join(t.TempDir(), "bad"), []cncfcheck.ExternalTarget{{Path: bad, Bytes: []byte("{}")}}); err == nil {
+			t.Fatalf("%s written", bad)
+		}
+	}
+}
