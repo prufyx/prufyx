@@ -739,6 +739,21 @@ Change kinds: `withdraw`, `expire`, `add-withdrawn` (tightening); `new`,
 `basis-change`, `modify`, `pack-member` (loosening). A removal that is half of a supersede pair also has the kind `supersede`. A `pack-member` change
 names the member (`member`) instead of a rule id.
 
+A `pack-member` change is never admitted, with one exception: the pack's top-level
+`schema` member. The first attested update of a pack that holds an older schema
+must move the pack to the schema its new content requires (line attestations need
+`v1alpha4`), so the gate admits a `schema` change (proof `schema-level`) only when
+all of these hold, and refuses it otherwise: the head's schema is exactly the lowest
+schema the head's content requires, computed by the function the pack parser and
+validator use; the base's schema is a known, lower schema (never a downgrade, never
+a higher level than needed); no other top-level member changes; every rule and record
+change of the pack is itself admitted by its own rules (re-derivation, reattestation
+statement or approval); and the change touches neither trust material nor a registry
+file. Only the CNCF pack has schema levels; every other pack refuses the change as
+before. The gate that decides is the one built from the base branch (see below), so
+this admission takes effect only for changes proposed after the code that holds it is
+in `main`: a pull request opened earlier is still judged by the old gate.
+
 ### `gate limits`
 
 Only the loosening cap, the withdrawal breakers, the daily limit and the kill

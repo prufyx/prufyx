@@ -9,6 +9,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Knowledge gate: the first attested update of a pack that holds an older schema
+  is admissible. A change of the pack's top-level `schema` member is admitted
+  only when it raises the schema to exactly the lowest level the pack's content
+  requires, with nothing else changing at the top level, every rule and record
+  change admitted by its own rules, and no trust material or registry change
+  in the same pull request; every other pack-member change is still refused.
+
 - Knowledge targets carry records: per-project CNCF targets (and the single
   target) now carry line attestations, upgrade-path policies and served-API
   lists, each record in the target of the project whose component it names.

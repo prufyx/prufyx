@@ -58,6 +58,13 @@ type PackSpec struct {
 	// For any other pack a change to those members is a pack-member
 	// change.
 	Records bool
+	// RequiredSchema returns the lowest schema the pack file's content
+	// requires and SchemaLevel the ascending level of a schema (false for
+	// an unknown one). Both set admit the first change of the pack's
+	// schema to the level its content needs (schema.go); a pack without
+	// them never admits a schema change.
+	RequiredSchema func(raw []byte) (string, error)
+	SchemaLevel    func(schema string) (int, bool)
 }
 
 // GeneratedPair is a generated JSON and Markdown output pair.
@@ -101,6 +108,11 @@ type Layout struct {
 	// TrustPaths lists trust material (same form as AutoMergePaths). Any
 	// file named trust-root* or *approval-keys* is trust material too.
 	TrustPaths []string
+	// RegistryPaths lists the registry files the packs' targets are
+	// checked against (the landscape, the portfolio, the community project
+	// registry). A change of a pack's schema level is never admitted in a
+	// change that also touches one of them.
+	RegistryPaths []string
 }
 
 // Repository paths of the default layout.
@@ -160,6 +172,8 @@ func DefaultLayout() Layout {
 				},
 				CapabilityDigest: cncfcheck.ExternalCapabilityDigest,
 				Records:          true,
+				RequiredSchema:   cncfcheck.RequiredPackSchema,
+				SchemaLevel:      cncfcheck.PackSchemaLevel,
 			},
 			{
 				Name: evidencereattest.PackCommunity, Path: commRulesPath,
@@ -206,6 +220,11 @@ func DefaultLayout() Layout {
 			reattestDir + "/" + evidencereattest.PackCommunity + "/review-records/",
 		},
 		TrustPaths: []string{trustDir, trustRootPath, approvalKeys},
+		RegistryPaths: []string{
+			"cli/internal/cncfcheck/data/landscape-projects.json",
+			"cli/internal/cncfcheck/data/priority-portfolio.json",
+			"cli/internal/projectcheck/data/projects.json",
+		},
 	}
 }
 
