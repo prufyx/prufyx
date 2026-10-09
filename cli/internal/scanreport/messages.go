@@ -517,6 +517,11 @@ const (
 	labelMDMore                = "... and %d more"
 )
 
+// NoteCommunityCatalog is the note a report carries for each component of
+// the community catalog (a project outside the embedded CNCF landscape
+// catalog) it checks: the catalog is stated in every output format.
+const NoteCommunityCatalog = "note: %s is in the community catalog (not in the embedded CNCF landscape catalog; no CNCF status asserted)"
+
 // UsageCommunityComponent refuses a project of the community catalog
 // (outside the embedded CNCF landscape catalog): its custom-resource version
 // set is registered, but scan reads no knowledge about it yet.

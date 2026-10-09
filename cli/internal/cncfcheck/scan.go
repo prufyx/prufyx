@@ -80,6 +80,10 @@ func LoadScanKnowledge() (*ScanKnowledge, error) {
 	if err != nil {
 		return nil, err
 	}
+	return newScanKnowledge(b)
+}
+
+func newScanKnowledge(b bundle) (*ScanKnowledge, error) {
 	k := &ScanKnowledge{b: b, rules: map[string][]ScanRule{}}
 	for _, entry := range b.pack.Entries {
 		rule, err := NewScanRule(entry.Project, entry.Description, entry.Rule)
@@ -113,8 +117,38 @@ func (k *ScanKnowledge) PackDigest() string { return k.b.packDigest }
 // Projects lists every catalog project slug in order.
 func (k *ScanKnowledge) Projects() []string { return catalogProjects(k.b) }
 
-// Component returns the subject component of a catalog project.
-func (k *ScanKnowledge) Component(slug string) (string, bool) { return catalogComponent(k.b, slug) }
+// Component returns the subject component of a catalog project, or of a
+// community project the knowledge holds data for (a rule or a record).
+// A community project without data is not known: every route answers for it
+// as it did before the community knowledge step.
+func (k *ScanKnowledge) Component(slug string) (string, bool) {
+	if k.b.isCommunity(slug) {
+		if !k.communityHasData(slug) {
+			return "", false
+		}
+		return k.b.communityComponent(slug)
+	}
+	return catalogComponent(k.b, slug)
+}
+
+// communityHasData reports whether this snapshot holds knowledge for a
+// community project: for the embedded knowledge, a rule or a record in the
+// pack; for knowledge selected from a store, a project target that holds
+// one.
+func (k *ScanKnowledge) communityHasData(slug string) bool {
+	b, ok := k.bundleFor(slug)
+	return ok && b.communityHasData(slug)
+}
+
+// Catalog is the catalog of a project the snapshot knows: CatalogCommunity
+// for a community project with data, "" for a CNCF landscape project and for
+// any slug that is not known.
+func (k *ScanKnowledge) Catalog(slug string) string {
+	if k.b.isCommunity(slug) && k.communityHasData(slug) {
+		return CatalogCommunity
+	}
+	return ""
+}
 
 func catalogProjects(b bundle) []string {
 	out := make([]string, 0, len(b.landscape.Projects))

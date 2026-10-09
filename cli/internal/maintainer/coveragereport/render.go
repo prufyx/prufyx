@@ -43,6 +43,9 @@ func (r Report) Markdown() []byte {
 	b.WriteString("|---|---|---|---|---|---|---|---|---|---|---|---|\n")
 	b.WriteString(totalsRow("all", r.Fleet))
 	b.WriteString(totalsRow("priority", r.Priority))
+	if r.CommunityCatalog != nil {
+		b.WriteString(totalsRow("community catalog (not in the fleet; no CNCF status asserted)", *r.CommunityCatalog))
+	}
 	b.WriteString("\nA: attested. B: bounded. S: exact-pair rule only (shown, not counted in VC). G: nothing. VC is (A+B)/pairs.\n\n")
 
 	b.WriteString("## By family\n\n")
@@ -67,7 +70,11 @@ func (r Report) Markdown() []byte {
 		if p.Covered {
 			covered = "yes"
 		}
-		fmt.Fprintf(&b, "| %s | %s | %d | %d | %d | %d | %.2f | %s | %d |\n", p.Project, window, p.A, p.B, p.S, p.G, p.VC, covered, p.Expiring)
+		name := p.Project
+		if p.Catalog == CatalogCommunity {
+			name += " (community catalog)"
+		}
+		fmt.Fprintf(&b, "| %s | %s | %d | %d | %d | %d | %.2f | %s | %d |\n", name, window, p.A, p.B, p.S, p.G, p.VC, covered, p.Expiring)
 	}
 	if len(r.WithoutLines) > 0 {
 		b.WriteString("\n## Projects without lines\n\nThese projects have a valid rule or attestation but no lines in the snapshot; their pairs are unknown and are not counted.\n\n")

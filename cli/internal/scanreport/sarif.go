@@ -208,6 +208,22 @@ type sarifRunProps struct {
 	TrustPolicy          *TrustPolicy `json:"trustPolicy,omitempty"`
 	// KnowledgeStore names the knowledge database of a --knowledge-db scan.
 	KnowledgeStore *KnowledgeStore `json:"knowledgeStore,omitempty"`
+	// CommunityCatalog names the components of the report that are projects
+	// of the community catalog (outside the embedded CNCF landscape
+	// catalog; no CNCF status asserted). It is absent when there are none.
+	CommunityCatalog []string `json:"communityCatalog,omitempty"`
+}
+
+// communityCatalogComponents lists, in inventory order, the components of
+// the report that belong to the community catalog.
+func communityCatalogComponents(report Report) []string {
+	var out []string
+	for _, component := range report.Inventory {
+		if component.Catalog == "community" {
+			out = append(out, component.Name)
+		}
+	}
+	return out
 }
 
 // SARIF renders the report as a SARIF 2.1.0 log: one result per finding
@@ -245,6 +261,7 @@ func SARIF(report Report) ([]byte, error) {
 			KnowledgeRevision: p.KnowledgeRevision, KnowledgeDigest: p.KnowledgeDigest,
 			EngineContractDigest: p.EngineContractDigest, NetworkUsed: p.NetworkUsed,
 			Omissions: omissions, TrustPolicy: report.TrustPolicy, KnowledgeStore: p.KnowledgeStore,
+			CommunityCatalog: communityCatalogComponents(report),
 		},
 	}}}
 	var out bytes.Buffer

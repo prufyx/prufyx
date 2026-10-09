@@ -140,6 +140,12 @@ func (b bundle) corpusComponents() ([]string, error) {
 		if json.Unmarshal(entry.Rule, &shape) != nil || shape.Subject.Component == "" {
 			return nil, ErrIntegrity
 		}
+		// The corpus attestation is a statement about the CNCF corpus: a
+		// community project's rules are in the pack but never listed, so
+		// a scope naming a community component is never called complete.
+		if b.isCommunity(entry.Project) {
+			continue
+		}
 		notice, err := isVerdictNeutralRule(entry.Rule)
 		if err != nil {
 			return nil, ErrIntegrity

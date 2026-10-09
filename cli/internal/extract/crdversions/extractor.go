@@ -37,7 +37,7 @@ const (
 	// IDPrefix is followed by the project slug: one extractor id per
 	// project, since a run reads one repository.
 	IDPrefix = "crd.version-removal."
-	Version  = "2.1.0"
+	Version  = "2.2.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/crdversions"
 )
@@ -277,9 +277,23 @@ type Inventory struct {
 	Paths    []PathRecord `json:"paths"`
 	Files    []FileRecord `json:"files"`
 	CRDs     []CRD        `json:"crds"`
+	// Remote records where the definitions were read when the release
+	// installs from another repository; absent otherwise.
+	Remote *RemoteRecord `json:"remote,omitempty"`
+	// Channels are the other install channels of the project read at the
+	// release (Target.Channels); absent for a project with one install.
+	Channels []ChannelInventory `json:"channels,omitempty"`
 	// Scan is the full-tree scan at the commit; absent when the inventory
 	// is not complete.
 	Scan *ScanRecord `json:"scan,omitempty"`
+}
+
+// ChannelInventory is every CRD of one other install channel at a release.
+type ChannelInventory struct {
+	Name  string       `json:"name"`
+	Paths []PathRecord `json:"paths"`
+	Files []FileRecord `json:"files"`
+	CRDs  []CRD        `json:"crds"`
 }
 
 // PathRecord is one listed path and what was found there.
@@ -292,7 +306,7 @@ type PathRecord struct {
 	Ignored int `json:"ignored"`
 }
 
-func (x *Extractor) inventory(r extract.PinnedReader, repo extract.RepoRef, tag, commit string) (*Inventory, error) {
+func (x *Extractor) inventory(r extract.PinnedReader, repo extract.RepoRef, tag, commit, version string) (*Inventory, error) {
 	x.mu.Lock()
 	res, ok := x.cache[commit]
 	x.mu.Unlock()
@@ -304,7 +318,13 @@ func (x *Extractor) inventory(r extract.PinnedReader, repo extract.RepoRef, tag,
 		}
 		return nil, res.err
 	}
-	inv, err := readInventory(r, repo, x.target, commit)
+	var inv *Inventory
+	var err error
+	if line := x.lineFor(tag, commit, version); x.target.Remote.appliesTo(line.Major, line.Minor) {
+		inv, err = readRemoteInventory(r, repo, x.target, commit)
+	} else {
+		inv, err = readInventory(r, repo, x.target, commit)
+	}
 	if inv != nil {
 		inv.Tag = tag
 		inv.Complete = err == nil
@@ -360,15 +380,45 @@ func listFiles(r extract.PinnedReader, repo extract.RepoRef, commit string, p Pa
 // the partial inventory with the problem.
 func readInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, commit string) (*Inventory, error) {
 	inv := &Inventory{Commit: commit, Paths: []PathRecord{}, Files: []FileRecord{}, CRDs: []CRD{}}
+	files, err := listPaths(r, repo, commit, t.Paths, inv)
+	if err != nil {
+		return inv, err
+	}
+	if _, err := readDefinitions(r, repo, commit, files, inv, nil); err != nil {
+		return inv, err
+	}
+	// The other install channels, each read in full: a definition is
+	// unique within its channel, and the channels are free to define the
+	// same custom resources differently.
+	for _, ch := range t.Channels {
+		ci := &Inventory{Paths: []PathRecord{}, Files: []FileRecord{}, CRDs: []CRD{}}
+		cfiles, err := listPaths(r, repo, commit, ch.Paths, ci)
+		if err == nil {
+			_, err = readDefinitions(r, repo, commit, cfiles, ci, nil)
+		}
+		if err != nil {
+			if p, ok := asProblem(err); ok {
+				return inv, problemf("channel %s: %s", ch.Name, p.msg)
+			}
+			return inv, err
+		}
+		inv.Channels = append(inv.Channels, ChannelInventory{Name: ch.Name, Paths: ci.Paths, Files: ci.Files, CRDs: ci.CRDs})
+	}
+	return inv, nil
+}
+
+// listPaths lists the files of the listed paths at commit, recording each
+// path in inv.
+func listPaths(r extract.PinnedReader, repo extract.RepoRef, commit string, paths []PathSpec, inv *Inventory) ([]string, error) {
 	var files []string
-	for _, p := range t.Paths {
+	for _, p := range paths {
 		if !p.Dir {
 			if p.Optional {
 				if _, err := r.Read(repo, commit, p.Path); isNotFound(err) {
 					inv.Paths = append(inv.Paths, PathRecord{Path: p.Path, Kind: "missing"})
 					continue
 				} else if err != nil {
-					return inv, err
+					return nil, err
 				}
 			}
 			inv.Paths = append(inv.Paths, PathRecord{Path: p.Path, Kind: "file", Files: 1})
@@ -382,17 +432,31 @@ func readInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, commi
 				inv.Paths = append(inv.Paths, PathRecord{Path: p.Path, Kind: "missing"})
 				continue
 			}
-			return inv, problemf("listed directory %s does not exist", p.Path)
+			return nil, problemf("listed directory %s does not exist", p.Path)
 		}
 		if err != nil {
-			return inv, err
+			return nil, err
 		}
 		inv.Paths = append(inv.Paths, pr)
 		if pr.Files == 0 {
-			return inv, problemf("listed directory %s holds no CRD manifest file", p.Path)
+			return nil, problemf("listed directory %s holds no CRD manifest file", p.Path)
 		}
 		files = append(files, found...)
 	}
+	return files, nil
+}
+
+// origin names another repository and commit a set of definitions is read
+// from (a Remote source).
+type origin struct {
+	repo   extract.RepoRef
+	commit string
+}
+
+// readDefinitions reads the listed files of repo at commit into inv, in path
+// order, and checks that no definition is repeated. other is nil for the
+// release's own repository.
+func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string, files []string, inv *Inventory, other *origin) (*Inventory, error) {
 	sort.Strings(files)
 	byName := map[string]string{}
 	byKind := map[string]string{}
@@ -408,11 +472,17 @@ func readInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, commi
 			return inv, err
 		}
 		rec, crds, err := parseFile(f, data)
+		if other != nil {
+			rec.Repo, rec.Commit = other.repo.Key, other.commit
+		}
 		inv.Files = append(inv.Files, rec)
 		if err != nil {
 			return inv, err
 		}
 		for _, c := range crds {
+			if other != nil {
+				c.Repo, c.Commit = other.repo.Key, other.commit
+			}
 			if prev, dup := byName[c.Name]; dup {
 				return inv, problemf("CustomResourceDefinition %s is defined in both %s and %s", c.Name, prev, c.Path)
 			}
@@ -521,7 +591,22 @@ type PairProof struct {
 	// UnlistedRemovals are versions served outside the listed paths in the
 	// earlier line and nowhere in the later line.
 	UnlistedRemovals []UnlistedRemoval `json:"unlistedRemovals"`
-	Completeness     *Completeness     `json:"completeness,omitempty"`
+	// ChannelRetained are versions the declared channel stops serving that
+	// another install channel of the project still serves at a release of
+	// the later line (Target.Channels): no rule is derived for them. It is
+	// absent for a project with one install.
+	ChannelRetained []ChannelRetained `json:"channelRetained,omitempty"`
+	Completeness    *Completeness     `json:"completeness,omitempty"`
+}
+
+// ChannelRetained is a member removed from the declared channel and still
+// served by another channel, with the first release of the later line that
+// serves it there.
+type ChannelRetained struct {
+	CRD     string `json:"crd"`
+	Member  string `json:"member"`
+	Channel string `json:"channel"`
+	ToTag   string `json:"toTag"`
 }
 
 // LinesRecord is every release of both lines and whether the pair's rules
@@ -599,6 +684,12 @@ type tagState struct {
 	scan    *ScanRecord
 	served  map[string]bool
 	byName  map[string]*CRD
+	// channelServed maps each member served by another install channel to
+	// the first such channel (Target.Channels).
+	channelServed map[string]string
+	// channelDefines holds the names of the CRDs another install channel
+	// defines at the release.
+	channelDefines map[string]bool
 }
 
 func (s *tagState) complete() bool { return s.err == nil && s.inv != nil && s.inv.Complete }
@@ -609,12 +700,12 @@ func (s *tagState) scanClean() bool { return s.complete() && s.scan.Clean() }
 // under the listed paths, and a complete scan of the rest of the tree in
 // which every CRD-like file was read and none defines it.
 func (s *tagState) gone(name string) bool {
-	return s.complete() && s.byName[name] == nil && !s.scan.holds(name)
+	return s.complete() && s.byName[name] == nil && !s.scan.holds(name) && !s.channelDefines[name]
 }
 
 func (x *Extractor) readTag(ctx context.Context, r extract.PinnedReader, repo extract.RepoRef, tag extract.Tag, version string) (*tagState, error) {
-	st := &tagState{tag: tag, version: version, served: map[string]bool{}, byName: map[string]*CRD{}}
-	st.inv, st.err = x.inventory(r, repo, tag.Name, tag.Commit)
+	st := &tagState{tag: tag, version: version, served: map[string]bool{}, byName: map[string]*CRD{}, channelServed: map[string]string{}, channelDefines: map[string]bool{}}
+	st.inv, st.err = x.inventory(r, repo, tag.Name, tag.Commit, version)
 	if st.err != nil {
 		if _, ok := asProblem(st.err); !ok {
 			return nil, st.err
@@ -635,6 +726,16 @@ func (x *Extractor) readTag(ctx context.Context, r extract.PinnedReader, repo ex
 		for _, v := range c.Versions {
 			if v.Served {
 				st.served[member(c.Group, v.Name, c.Kind)] = true
+			}
+		}
+	}
+	for _, ch := range st.inv.Channels {
+		for _, c := range ch.CRDs {
+			st.channelDefines[c.Name] = true
+			for _, v := range c.Versions {
+				if m := member(c.Group, v.Name, c.Kind); v.Served && st.channelServed[m] == "" {
+					st.channelServed[m] = ch.Name
+				}
 			}
 		}
 	}
@@ -731,6 +832,11 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 			return withhold(err)
 		}
 	}
+	scope := toTags
+	if !lines.LineWide {
+		scope = []*tagState{ta}
+	}
+	removals, proof.ChannelRetained = dropChannelRetained(removals, scope)
 	all := append(append([]*tagState{}, fromTags...), toTags...)
 	history := storageHistory(all)
 	for i := range removals {
@@ -780,6 +886,31 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 	return res, nil
 }
 
+// dropChannelRetained removes from removals every member that another
+// install channel still serves at one of the later-line releases in scope:
+// the rule would forbid a version that a user of that channel can still
+// use. The dropped members are returned for the proof, one per member, in
+// the order of removals, with the first release that serves them.
+func dropChannelRetained(removals []Removal, scope []*tagState) ([]Removal, []ChannelRetained) {
+	var kept []Removal
+	var retained []ChannelRetained
+	for _, rm := range removals {
+		var channel, tag string
+		for _, st := range scope {
+			if c := st.channelServed[rm.Member]; c != "" {
+				channel, tag = c, st.tag.Name
+				break
+			}
+		}
+		if channel == "" {
+			kept = append(kept, rm)
+			continue
+		}
+		retained = append(retained, ChannelRetained{CRD: rm.CRD, Member: rm.Member, Channel: channel, ToTag: tag})
+	}
+	return kept, retained
+}
+
 // attestation states that the pair's rules are every rule of the
 // custom-resource version family for the later line, or says why it does
 // not. It attests only a pair whose derivation is complete enough
@@ -793,7 +924,11 @@ func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *rele
 	family, _ := lineattest.LookupFamily(lineattest.FamilyCustomResourceVersions)
 	switch {
 	case x.target.Catalog == CatalogCommunity:
-		return nil, "the project is in the community catalog, whose line reviews have no knowledge target yet, so its lines are not attested"
+		return nil, "the project is in the community catalog, whose line reviews are not admitted until the reviewed path for them exists, so its lines are not attested"
+	case x.target.Remote != nil:
+		return nil, "the target installs from another repository from some line on: its lines are not attested"
+	case len(x.target.Channels) > 0:
+		return nil, "the project ships more than one install channel: its lines are not attested"
 	case !x.target.Attest:
 		return nil, "the target does not attest its lines (attest is off for it in targets.json)"
 	case !family.Admits(x.target.Component):
@@ -827,6 +962,20 @@ func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *rele
 			{ID: "crds-" + slug(pair.To), Repo: pair.Repo, Commit: pair.ToCommit, Path: toFile},
 		},
 	}, ""
+}
+
+// sourceOf is the repository and commit a definition is cited at: the
+// release's own, or, for a definition read from another repository (Remote),
+// that repository and the full commit it was read at.
+func sourceOf(repo extract.RepoRef, commit string, c *CRD) (extract.RepoRef, string) {
+	if c == nil || c.Repo == "" {
+		return repo, commit
+	}
+	other, err := extract.ParseRepo(c.Repo)
+	if err != nil {
+		return repo, commit
+	}
+	return other, c.Commit
 }
 
 // firstCRDFile is the first path, in path order, of a definition the
@@ -1336,6 +1485,14 @@ func nameSlug(s string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(s), "-", "--"), ".", "-")
 }
 
+func channelNames(t Target) string {
+	names := make([]string, 0, len(t.Channels))
+	for _, c := range t.Channels {
+		names = append(names, c.Name)
+	}
+	return strings.Join(names, ", ")
+}
+
 func slug(s string) string {
 	return strings.NewReplacer(".", "-", "_", "-").Replace(strings.ToLower(s))
 }
@@ -1476,13 +1633,15 @@ func (x *Extractor) candidate(pair extract.VersionPair, fromLine, toLine *releas
 		case ReasonAbsent:
 			absent = true
 		default:
-			toSources = append(toSources, extract.SourceRef{ID: "served-false-" + rm.Version + "-" + slug(pair.To), Repo: pair.Repo, Commit: pair.ToCommit, Path: t.Path, StartLine: rm.ToLine, EndLine: rm.ToLine})
+			repo, commit := sourceOf(pair.Repo, pair.ToCommit, t)
+			toSources = append(toSources, extract.SourceRef{ID: "served-false-" + rm.Version + "-" + slug(pair.To), Repo: repo, Commit: commit, Path: t.Path, StartLine: rm.ToLine, EndLine: rm.ToLine})
 		}
 	}
 	sort.Strings(members)
 	sort.Slice(versions, func(i, j int) bool { return higher(versions[j], versions[i]) })
 	if absent || len(toSources) > 7 {
-		toSources = []extract.SourceRef{{ID: "crd-" + slug(pair.To), Repo: pair.Repo, Commit: pair.ToCommit, Path: t.Path}}
+		repo, commit := sourceOf(pair.Repo, pair.ToCommit, t)
+		toSources = []extract.SourceRef{{ID: "crd-" + slug(pair.To), Repo: repo, Commit: commit, Path: t.Path}}
 	}
 	// The anchor first, then any later earlier-line release, by tag.
 	sort.SliceStable(fromOrder, func(i, j int) bool {
@@ -1495,7 +1654,8 @@ func (x *Extractor) candidate(pair extract.VersionPair, fromLine, toLine *releas
 	for _, tagName := range fromOrder {
 		st := states[tagName]
 		sp := fromSpans[tagName]
-		sources = append(sources, extract.SourceRef{ID: "crd-versions-" + slug(st.version), Repo: pair.Repo, Commit: st.tag.Commit, Path: st.byName[f.Name].Path, StartLine: sp.start, EndLine: sp.end})
+		repo, commit := sourceOf(pair.Repo, st.tag.Commit, st.byName[f.Name])
+		sources = append(sources, extract.SourceRef{ID: "crd-versions-" + slug(st.version), Repo: repo, Commit: commit, Path: st.byName[f.Name].Path, StartLine: sp.start, EndLine: sp.end})
 	}
 	fromSource, toSource := sources[0].ID, toSources[0].ID
 	sources = append(sources, toSources...)
@@ -1525,9 +1685,17 @@ func (x *Extractor) candidate(pair extract.VersionPair, fromLine, toLine *releas
 	}
 	what := fmt.Sprintf("%s %s no longer serves %s of %s (CustomResourceDefinition %s), which %s served.", tg.Name, pair.To, vs, f.Kind, f.Name, pair.From)
 	basis := "Derived from the complete CustomResourceDefinition manifests at both release tags."
+	if tg.DeclaredChannel != "" {
+		// The rule is about the declared channel, and no member another
+		// channel still serves is forbidden.
+		basis = fmt.Sprintf("Derived from the complete CustomResourceDefinition manifests of the %s install channel at both release tags; a version that another install channel (%s) still serves is not forbidden.", tg.DeclaredChannel, channelNames(tg))
+	}
 	var rng *constraintengine.VersionRange
 	if lineWide {
 		basis = fmt.Sprintf("Derived from the complete CustomResourceDefinition manifests at every release of %s and %s, with a scan of the whole repository at each; it holds for upgrades from any %s release to any %s release.", fromLine.key(), toLine.key(), fromLine.key(), toLine.key())
+		if tg.DeclaredChannel != "" {
+			basis = fmt.Sprintf("Derived from the complete CustomResourceDefinition manifests of the %s install channel at every release of %s and %s, with a scan of the whole repository at each; it holds for upgrades from any %s release to any %s release. A version that another install channel (%s) still serves at a release of %s is not forbidden.", tg.DeclaredChannel, fromLine.key(), toLine.key(), fromLine.key(), toLine.key(), channelNames(tg), toLine.key())
+		}
 		rng = lineRange(fromLine, toLine, fromSource, toSource)
 	}
 	return extract.Candidate{

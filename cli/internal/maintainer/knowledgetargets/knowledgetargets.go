@@ -308,7 +308,7 @@ func writeTargets(dir string, targets []cncfcheck.ExternalTarget) error {
 		return fmt.Errorf("output directory must not exist: %w", ErrRejected)
 	}
 	for _, target := range targets {
-		if !strings.HasPrefix(target.Path, "knowledge/cncf/") || strings.Contains(target.Path, "..") {
+		if !(strings.HasPrefix(target.Path, "knowledge/cncf/") || strings.HasPrefix(target.Path, cncfcheck.ExternalCommunityTargetPrefix)) || strings.Contains(target.Path, "..") {
 			return ErrRejected
 		}
 		name := filepath.Join(dir, filepath.FromSlash(target.Path))
@@ -330,10 +330,27 @@ func writeTargets(dir string, targets []cncfcheck.ExternalTarget) error {
 	return nil
 }
 
-// targetsInDir measures every .json file under DIR/knowledge/cncf. Sizes are
-// measured without parsing, so an oversize target is still reported.
+// targetsInDir measures every .json file under DIR/knowledge/cncf and, when
+// the directory exists, under DIR/knowledge/community (the targets of the
+// community catalog). Sizes are measured without parsing, so an oversize
+// target is still reported.
 func targetsInDir(dir string) ([]Target, error) {
-	base := filepath.Join(dir, "knowledge", "cncf")
+	targets, err := targetsUnder(dir, filepath.Join(dir, "knowledge", "cncf"))
+	if err != nil {
+		return targets, err
+	}
+	community := filepath.Join(dir, "knowledge", "community")
+	if _, statErr := os.Lstat(community); statErr != nil {
+		if errors.Is(statErr, fs.ErrNotExist) {
+			return targets, nil
+		}
+		return nil, statErr
+	}
+	more, err := targetsUnder(dir, community)
+	return append(targets, more...), err
+}
+
+func targetsUnder(dir, base string) ([]Target, error) {
 	var targets []Target
 	err := filepath.WalkDir(base, func(name string, entry fs.DirEntry, err error) error {
 		if err != nil {

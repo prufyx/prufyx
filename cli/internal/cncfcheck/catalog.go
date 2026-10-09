@@ -27,6 +27,9 @@ type RuleIdentity struct {
 	// Kind is present only for a rule that is not a plain verdict rule: a
 	// one-way notice or a support range (constraintengine.RuleKind*).
 	Kind string `json:"kind,omitempty"`
+	// Catalog is "community" for a rule of a community project (outside the
+	// embedded CNCF landscape catalog); it is absent for a CNCF project's.
+	Catalog string `json:"catalog,omitempty"`
 }
 
 // Transition returns the identity's reviewed subject for the shared matcher.
@@ -41,6 +44,10 @@ func EmbeddedRuleIdentities() ([]RuleIdentity, error) {
 	if err != nil {
 		return nil, err
 	}
+	return ruleIdentities(b)
+}
+
+func ruleIdentities(b bundle) ([]RuleIdentity, error) {
 	result := make([]RuleIdentity, 0, len(b.pack.Entries))
 	for _, entry := range b.pack.Entries {
 		var shape struct {
@@ -57,7 +64,7 @@ func EmbeddedRuleIdentities() ([]RuleIdentity, error) {
 		if err != nil {
 			return nil, ErrIntegrity
 		}
-		result = append(result, RuleIdentity{Project: entry.Project, Component: subject.Component, RuleID: shape.ID, From: subject.From, To: subject.To, Range: subject.Range, Crossing: subject.Crossing, Withdrawn: shape.Evidence.State == ruleStateWithdrawn, Kind: kind})
+		result = append(result, RuleIdentity{Project: entry.Project, Component: subject.Component, RuleID: shape.ID, From: subject.From, To: subject.To, Range: subject.Range, Crossing: subject.Crossing, Withdrawn: shape.Evidence.State == ruleStateWithdrawn, Kind: kind, Catalog: b.catalogOf(entry.Project)})
 	}
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].Project != result[j].Project {
@@ -137,6 +144,10 @@ func Catalog(priorityOnly bool, selectedProject string) (Catalogue, error) {
 	if err != nil {
 		return Catalogue{}, err
 	}
+	return catalogue(b, priorityOnly, selectedProject)
+}
+
+func catalogue(b bundle, priorityOnly bool, selectedProject string) (Catalogue, error) {
 	if selectedProject != "" && !b.hasProject(selectedProject) {
 		return Catalogue{}, ErrInvalid
 	}
@@ -151,7 +162,9 @@ func Catalog(priorityOnly bool, selectedProject string) (Catalogue, error) {
 	}
 	covered := map[string]bool{}
 	for _, entry := range b.pack.Entries {
-		if !EntryWithdrawn(entry) {
+		// The counts are the CNCF catalogue's: a community project's rules
+		// are never counted as CNCF coverage.
+		if !EntryWithdrawn(entry) && !b.isCommunity(entry.Project) {
 			covered[entry.Project] = true
 		}
 	}

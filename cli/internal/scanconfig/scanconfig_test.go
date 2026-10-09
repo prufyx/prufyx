@@ -456,3 +456,21 @@ func FuzzParse(f *testing.F) {
 		}
 	})
 }
+
+// A configuration file may name a community project of the reviewed table
+// (outside the embedded CNCF landscape catalog): whether the knowledge holds
+// data for it is the scan's decision. A name in no catalog is still unknown.
+func TestParseNamesCommunityProjects(t *testing.T) {
+	config, err := Parse([]byte(head + "current: {gateway-api: 1.1.0}\ntarget: {gateway-api: 1.2.0}\n"))
+	if err != nil {
+		t.Fatalf("community project rejected: %v", err)
+	}
+	if config.Current["gateway-api"] != "1.1.0" || config.Target["gateway-api"] != "1.2.0" {
+		t.Fatalf("config %+v", config)
+	}
+	for _, text := range []string{"target: {gateway-apis: 1.2.0}\n", "target: {Gateway-API: 1.2.0}\n"} {
+		if _, err := Parse([]byte(head + text)); !errors.Is(err, ErrConfig) {
+			t.Errorf("%q accepted: %v", text, err)
+		}
+	}
+}

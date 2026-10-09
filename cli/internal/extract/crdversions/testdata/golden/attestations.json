@@ -8,7 +8,7 @@
       "extractor": {
         "codeDigest": "sha256:CODE",
         "id": "crd.version-removal.argo-cd",
-        "version": "2.1.0"
+        "version": "2.2.0"
       },
       "reviewedAt": "2026-10-04T00:00:00Z",
       "sources": [
@@ -65,7 +65,7 @@
       "extractor": {
         "codeDigest": "sha256:CODE",
         "id": "crd.version-removal.argo-cd",
-        "version": "2.1.0"
+        "version": "2.2.0"
       },
       "reviewedAt": "2026-10-04T00:00:00Z",
       "sources": [

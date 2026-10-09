@@ -248,3 +248,52 @@ func TestDiscoverRefusesAMixOfBothGenerations(t *testing.T) {
 		}
 	}
 }
+
+// A rule of the community catalog (a project outside the embedded CNCF
+// landscape catalog) is listed under its own family, labelled, with no native
+// route and no generic canonical-input command; the family is named in the
+// listing's scope only when such a rule exists, so a listing without one
+// keeps its bytes.
+func TestDiscoverLabelsCommunityCatalogRules(t *testing.T) {
+	cncf, err := cncfcheck.EmbeddedRuleIdentities()
+	if err != nil {
+		t.Fatal(err)
+	}
+	community, err := projectcheck.EmbeddedRuleIdentities()
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain, err := discover(cncf, community, "", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := plain.Scope.IncludedFamilies; len(got) != 2 || got[0] != FamilyCNCF || got[1] != FamilyCommunity {
+		t.Fatalf("families %v", got)
+	}
+	for _, check := range plain.Checks {
+		if check.Catalog != "" || check.Family == FamilyCommunityCatalog {
+			t.Fatalf("%+v is labelled", check)
+		}
+	}
+	withCatalog := append(append([]cncfcheck.RuleIdentity(nil), cncf...), cncfcheck.RuleIdentity{
+		Project: "gateway-api", Component: "pkg:github/kubernetes-sigs/gateway-api", RuleID: "gateway-api.crd-version-removal.synthetic.1-1-0-to-1-2-0",
+		From: "1.1.0", To: "1.2.0", Catalog: cncfcheck.CatalogCommunity,
+	})
+	result, err := discover(withCatalog, community, "gateway-api", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Checks) != 1 {
+		t.Fatalf("%d checks", len(result.Checks))
+	}
+	item := result.Checks[0]
+	if item.Family != FamilyCommunityCatalog || item.Catalog != cncfcheck.CatalogCommunity || item.GenericDeclarationRoute.State != RouteNotExposed || item.NativeDescriptor.State != DescriptorNone {
+		t.Fatalf("check %+v", item)
+	}
+	if got := result.Scope.IncludedFamilies; len(got) != 3 || got[2] != FamilyCommunityCatalog {
+		t.Fatalf("families %v", got)
+	}
+	if result.RuleCoverageState != "MATCHED" {
+		t.Fatalf("coverage %s", result.RuleCoverageState)
+	}
+}

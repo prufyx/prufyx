@@ -82,12 +82,22 @@ repository's licence, cited from the licence file at a full commit:
 
 For a community project the custom-resource version set is registered and
 its API groups are attributed to it (so its objects no longer keep other
-projects' sets incomplete), but nothing about it is checked yet: no rule or
-line review of a community project can be published until community
-projects have their own knowledge targets, `check cncf` and `scan` refuse
-it with a message that names it as a community catalog project, and the
-extractor never attests its lines. The extractor derives its rules for the
-maintainers, under the same rules as for CNCF projects (full commit
+projects' sets incomplete). The knowledge can carry rules for it, apart from
+the CNCF projects': the rule pack has a pack schema level for the entries of a
+community project, the knowledge database has a per-project target for it
+(`knowledge/community/projects/<project>.v1.json`, listed in the same index,
+which then has schema `v3`), and `check cncf --custom-resources` and `scan`
+accept it, labelled everywhere as the community catalog (a note in every scan
+output format, `catalog` in the JSON report and the inventory, a `catalog`
+line in the `check cncf` output). The embedded knowledge holds no rule of a
+community project yet; while it holds none, every route refuses the project
+with the message below, and nothing else changes. A community rule may be
+only a `forbid_set_member` rule over the project's own set fact; a community
+project is never in the CNCF catalogue, its counts or the corpus
+attestation, and it cannot carry a line review: the family of line reviews
+admits no community component, so the extractor never attests its lines
+until the reviewed path that does exists. The extractor derives its rules for
+the maintainers, under the same rules as for CNCF projects (full commit
 citations, whole-tree scan, withheld pairs).
 
 The extractor reads the CRDs of every project of the table. The knowledge gate
@@ -233,7 +243,7 @@ Flags:
 
 | Flag | Meaning |
 | --- | --- |
-| `--project PROJECT` | A CNCF catalog project of the table. Any other project, including a community catalog project of the table, is a usage error. |
+| `--project PROJECT` | A project of the table: a CNCF catalog project, or a community catalog project for which the embedded knowledge holds a rule (the output then names the community catalog). A community project without one, and any other project, is a usage error. |
 | `--custom-resources FILE` | One private file (mode 0600 or stricter, no symlink, at most 1 MiB) of rendered manifests. |
 | `--custom-resources-digest SHA256` | Optional `sha256:` digest the file must have; a mismatch exits 3. |
 | `--custom-resources-complete` | Declares that the file is the complete set of manifests you apply. Without it nothing passes. |

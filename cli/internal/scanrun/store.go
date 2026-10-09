@@ -181,6 +181,10 @@ func (k *Store) Projects() []string { return k.snapshot.Projects() }
 // Component returns the subject component of a catalog project.
 func (k *Store) Component(slug string) (string, bool) { return k.snapshot.Component(slug) }
 
+// Catalog is the catalog of a project the database holds: "community" for a
+// community project with data, "" for any other.
+func (k *Store) Catalog(slug string) string { return k.snapshot.Catalog(slug) }
+
 // Rules lists the project's rules from the database in rule-id order.
 func (k *Store) Rules(project string) []cncfcheck.ScanRule { return k.snapshot.Rules(project) }
 

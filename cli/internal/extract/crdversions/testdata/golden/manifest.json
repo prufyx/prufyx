@@ -24,7 +24,7 @@
   "extractor": {
     "codeDigest": "sha256:CODE",
     "id": "crd.version-removal.argo-cd",
-    "version": "2.1.0"
+    "version": "2.2.0"
   },
   "outputs": {
     "attestations.json": "sha256:OUTPUT",

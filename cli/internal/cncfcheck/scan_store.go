@@ -28,13 +28,13 @@ func NewStoreScanKnowledge(bundles map[string]ExternalBundle) (*ScanKnowledge, e
 	if err != nil {
 		return nil, err
 	}
-	catalog := bundle{landscape: base.landscape, priority: base.priority, registry: base.registry, catalogueDigest: base.catalogueDigest, attestations: lineattest.NewIndex(nil), pathPolicies: upgradepath.NewIndex(nil)}
+	catalog := bundle{landscape: base.landscape, community: base.community, priority: base.priority, registry: base.registry, catalogueDigest: base.catalogueDigest, attestations: lineattest.NewIndex(nil), pathPolicies: upgradepath.NewIndex(nil)}
 	k := &ScanKnowledge{b: catalog, rules: map[string][]ScanRule{}, selected: map[string]bundle{}}
 	for project, external := range bundles {
-		if !external.valid() || !base.hasProject(project) || external.registry.Digest() != base.registry.Digest() {
+		if !external.valid() || !base.hasKnowledgeProject(project) || external.registry.Digest() != base.registry.Digest() {
 			return nil, ErrIntegrity
 		}
-		selected := bundle{landscape: base.landscape, priority: base.priority, pack: external.pack, registry: external.registry, packDigest: external.bundleDigest, catalogueDigest: base.catalogueDigest, external: true}
+		selected := bundle{landscape: base.landscape, community: base.community, priority: base.priority, pack: external.pack, registry: external.registry, packDigest: external.bundleDigest, catalogueDigest: base.catalogueDigest, external: true}
 		if selected.attestations, err = admitAttestations(external.pack.LineAttestations, len(external.pack.LineAttestations) > 0, external.pack.Entries); err != nil {
 			return nil, ErrIntegrity
 		}
@@ -79,7 +79,7 @@ func (k *ScanKnowledge) bundleForComponent(component string) (bundle, bool) {
 	if k.selected == nil {
 		return k.b, true
 	}
-	for _, project := range k.b.landscape.Projects {
+	for _, project := range k.b.knowledgeProjects() {
 		if subjectComponent(project.Slug, project.RepositoryURL) != component {
 			continue
 		}
@@ -101,11 +101,18 @@ func LoadScanCatalog() (*ScanCatalog, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ScanCatalog{b: bundle{landscape: base.landscape}}, nil
+	return &ScanCatalog{b: bundle{landscape: base.landscape, community: base.community}}, nil
 }
 
 // Projects lists every catalog project slug in order.
 func (c *ScanCatalog) Projects() []string { return catalogProjects(c.b) }
 
-// Component returns the subject component of a catalog project.
-func (c *ScanCatalog) Component(slug string) (string, bool) { return catalogComponent(c.b, slug) }
+// Component returns the subject component of a catalog project. A community
+// project is named too: whether the knowledge holds data for it is known
+// only once the database is opened (ScanKnowledge.Component).
+func (c *ScanCatalog) Component(slug string) (string, bool) {
+	if c.b.isCommunity(slug) {
+		return c.b.communityComponent(slug)
+	}
+	return catalogComponent(c.b, slug)
+}

@@ -78,6 +78,11 @@ type CRD struct {
 	VersionsLine   int          `json:"versionsLine"`
 	StorageVersion string       `json:"storageVersion"`
 	Versions       []CRDVersion `json:"versions"`
+	// Repo and Commit name where the file was read when it is not the
+	// release's own repository and commit (a Remote source); they are
+	// absent for a definition of the release's own repository.
+	Repo   string `json:"repo,omitempty"`
+	Commit string `json:"commit,omitempty"`
 }
 
 // version returns the named version entry.
@@ -99,6 +104,10 @@ type FileRecord struct {
 	Documents      int    `json:"documents"`
 	CRDs           int    `json:"crds"`
 	OtherDocuments int    `json:"otherDocuments"`
+	// Repo and Commit are set for a file read from another repository (a
+	// Remote source) and absent for a file of the release's own.
+	Repo   string `json:"repo,omitempty"`
+	Commit string `json:"commit,omitempty"`
 }
 
 // parseFile parses every document of one file. CRD documents are returned;
@@ -117,10 +126,19 @@ func parseValues(path string, data []byte) (FileRecord, []CRD, []any, error) {
 	if len(data) > MaxFileBytes {
 		return rec, nil, nil, problemf("%s is %d bytes, over the %d-byte bound", path, len(data), MaxFileBytes)
 	}
-	if bytes.Contains(data, []byte(templateMarker)) {
-		return rec, nil, nil, problemf("%s contains template syntax (%q): it is not a rendered manifest", path, templateMarker)
-	}
 	nodes, values, err := decodeStrict(data)
+	if bytes.Contains(data, []byte(templateMarker)) {
+		// A file that does not decode is read as a template, as before.
+		// One that does is a template unless every "{{" lies in a
+		// description string of a CRD schema (template.go).
+		why := "template syntax"
+		if err == nil {
+			why = templateOutsideDescriptions(data, values)
+		}
+		if err != nil || why != "" {
+			return rec, nil, nil, problemf("%s contains template syntax (%q): it is not a rendered manifest", path, templateMarker)
+		}
+	}
 	if err != nil {
 		return rec, nil, nil, problemf("%s is not decodable within the strict YAML subset (anchors, aliases, tags, duplicate keys and oversized documents are refused)", path)
 	}

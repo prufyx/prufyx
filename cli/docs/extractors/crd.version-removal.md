@@ -1,6 +1,6 @@
 # Extractor `crd.version-removal`
 
-Version 2.1.0. Derives `forbid_set_member` rules for custom-resource
+Version 2.2.0. Derives `forbid_set_member` rules for custom-resource
 versions that a project's release line no longer serves, from the
 CustomResourceDefinition manifests the project ships in its repository. It is
 deterministic, reads only upstream source pinned by full commit SHA, and
@@ -30,8 +30,10 @@ project; `"cncf"` is not spelled out). Such a project must be a community
 project of the reviewed custom-resource table, with the same repository and
 name, and neither its slug nor its component may be a CNCF catalog one (see
 [../custom-resources.md](../custom-resources.md)). A community target never
-attests: the loader refuses `"attest": true` for it, because its line reviews
-have no knowledge target yet. Its runs follow every other rule of this
+attests: the loader refuses `"attest": true` for it, until the reviewed path
+that admits a community project's line reviews exists (the pack and the
+knowledge store can carry its rules, but the line-review families admit no
+community component). Its runs follow every other rule of this
 extractor (full-commit citations, full-tree scan, withheld pairs). The
 community targets:
 
@@ -39,8 +41,8 @@ community targets:
 | --- | --- | --- | --- | --- |
 | `crd.version-removal.cluster-api` | `github.com/kubernetes-sigs/cluster-api` | `vX.Y.Z` | 1.9 | YAML files directly in `bootstrap/kubeadm/config/crd/bases`, `cmd/clusterctl/config/crd/bases`, `controlplane/kubeadm/config/crd/bases`, and `config/crd/bases` (to 1.13) or `core/config/crd/bases` (from 1.14) |
 | `crd.version-removal.eck-operator` | `github.com/elastic/cloud-on-k8s` | `vX.Y.Z` | 3.0 | `config/crds/v1/all-crds.yaml` |
-| `crd.version-removal.gateway-api` | `github.com/kubernetes-sigs/gateway-api` | `vX.Y.Z` | 1.1 | YAML files directly in `config/crd/standard` (the standard channel) |
-| `crd.version-removal.kong-ingress-controller` | `github.com/kong/kubernetes-ingress-controller` | `vX.Y.Z` | 3.0 | YAML files directly in `config/crd/bases` |
+| `crd.version-removal.gateway-api` | `github.com/kubernetes-sigs/gateway-api` | `vX.Y.Z` | 1.1 | YAML files directly in `config/crd/standard` (the declared, standard channel); `config/crd/experimental` is read as the experimental channel (see Install channels) |
+| `crd.version-removal.kong-ingress-controller` | `github.com/kong/kubernetes-ingress-controller` | `vX.Y.Z` | 3.0 | YAML files directly in `config/crd/bases` up to 3.3; from 3.4 the directory `config/crd/ingress-controller` of `github.com/kong/kubernetes-configuration` at the tag the release's `config/crd/kustomization.yaml` names (see Another repository from some line on) |
 | `crd.version-removal.kueue` | `github.com/kubernetes-sigs/kueue` | `vX.Y.Z` | 0.15 | YAML files directly in `config/components/crd/bases`, and in `config/components/crd/alpha/bases` when it exists |
 | `crd.version-removal.mongodb-kubernetes` | `github.com/mongodb/mongodb-kubernetes` | `X.Y.Z` | 1.8 | YAML files directly in `config/crd/bases` |
 | `crd.version-removal.node-feature-discovery` | `github.com/kubernetes-sigs/node-feature-discovery` | `vX.Y.Z` | 0.14 | `deployment/base/nfd-crds/nfd-api-crds.yaml` |
@@ -77,6 +79,47 @@ rules derived for the other projects are correct candidates, but the knowledge
 gate refuses them until their set and API groups are added to the reviewed
 custom-resource table in a change of their own.
 
+## Another repository from some line on
+
+A target may carry a `remote` member (Kong Ingress Controller from 3.4: its
+CRDs moved to `Kong/kubernetes-configuration`). From the line `fromLine` on, a
+release does not read the target's `paths`. It reads the release's own
+`kustomization` file (`config/crd/kustomization.yaml`), which must hold, in
+the strict subset and with no other key than `apiVersion`, `kind` and
+`resources`, exactly one resource, `https://github.com/<repo>/<directory>?ref=<tag>`
+of the declared repository and directory with exactly one `ref` that is a
+release or pre-release tag. The tag is resolved to a commit through the
+`pins` of the target (a reviewed list of tag and full commit, in ascending
+order): a tag that is not pinned withholds the release, so a tag upstream moves
+later cannot change what is read. At the pinned commit the extractor reads the
+directory's own `kustomization.yaml` (again exactly `apiVersion`, `kind` and a
+list of plain file names of the directory) and the files it lists, which are
+parsed as any CRD manifest; a file of the directory that the kustomization does
+not list is not installed and is only counted. Every citation of such a
+definition names the other repository and its full commit; the proof records
+the kustomization, the tag, the commit and the files. The release's own
+repository is still scanned in full. A target with a `remote` never attests
+its lines.
+
+## Install channels
+
+A project that ships more than one install (Gateway API's standard and
+experimental channels) declares `declaredChannel` (the install `paths`
+describe) and `channels` (the others, each with its own paths, at most four).
+The rules are about the declared channel. Every channel is read in full and
+strictly at every release (a definition is unique within its channel, and
+channels may define the same custom resource differently; a missing,
+unreadable or templated channel withholds the pairs that read the release),
+and a channel's files are not scan findings. A version that the declared
+channel stops serving but another channel still serves at a release of the
+later line is recorded as `channelRetained` in the proof and is not
+forbidden: no rule is derived for it, so a user of the other channel is never
+blocked on a version their install still serves. A definition that only
+another channel still holds is not told from a removed one, and the pair is
+withheld as for a moved file. A rule of such a target says in its description
+which channel it is about. A target with channels never attests its lines,
+and cannot have a `remote`.
+
 ## Release lines and pairs
 
 A **line** is one `major.minor` of a project with at least one final release
@@ -100,8 +143,29 @@ Through the offline factory mirror (or a fixture tree), never the network.
   aliases, merge keys, custom tags, non-string, empty or duplicate keys are
   refused, as are documents nested deeper than 128 levels, over 4 000 000
   nodes, over 1 024 documents, or files over 8 MiB. Template syntax (`{{`)
-  makes the file unreadable. Documents of other kinds are counted and
-  otherwise ignored.
+  makes the file unreadable, except where it is documentation (below).
+  Documents of other kinds are counted and otherwise ignored.
+- **Template syntax, precisely.** A file is a rendered manifest, not a
+  template, so `{{` makes it unreadable, with one exception that is decided by
+  the file's structure and not by a search for the characters: a CRD's OpenAPI
+  schema documents its fields in `description` strings, and a description may
+  quote template syntax (Cluster API's ClusterClass documents its patch
+  templates that way). Nothing the extractor reads depends on description
+  text. A file with `{{` is read as a rendered manifest only when all of these
+  hold; otherwise it is template syntax and the pair is withheld as before:
+  the file decodes in the strict subset; the file with every `{{` replaced by
+  `{T` decodes to a tree of the same shape; the two trees differ only in
+  strings, and each string that differs is the value of a `description` key of
+  the schema of a CRD document (`spec.versions[i].schema.openAPIV3Schema`
+  reached only through schema keywords: `properties` and `patternProperties`
+  with a field name, `items`, `additionalProperties`, `not`, and `allOf`,
+  `anyOf` and `oneOf` with an index) and is exactly the other tree's string
+  with its `{{` replaced; no key and no other string holds `{{`; and the `{{`
+  of those strings are all the `{{` of the file's bytes (one in a comment, a
+  directive line, a name, a flag, an annotation, a default, an enumeration, a
+  validation rule, a flow collection or another kind of document is one
+  more). Text that only decodes to `{{` (an escape, a line continuation) holds
+  none in its bytes and is not template syntax.
 - **Each `apiextensions.k8s.io/v1` CustomResourceDefinition**: its name,
   group, kind, plural and scope, and for every entry of `spec.versions` the
   name, `served` and `storage` flags and the lines of the entry and of its two
@@ -421,6 +485,16 @@ storage change must be recorded; every listed pair must have the given status
 and, when given, number of removals, `lineWide` and `attestable`. When removals
 (or storage changes) are listed, any other one the run derives is reported as
 `EXTRA`. The exit code is 1 when there is any disagreement.
+
+## Changes from version 2.1.0
+
+Version 2.2.0 reads a `{{` in a CRD schema description as documentation
+(above), adds the `remote` member (a per-line source switch to another
+repository) and the `declaredChannel` and `channels` members (install
+channels) of `targets.json`, and starts Kong Ingress Controller's
+`config/crd/ingress-controller` source at 3.4 and Gateway API's experimental
+channel. Output is unchanged for every target without those members and every
+file without `{{`, except the extractor version and the code digest.
 
 ## Changes from version 2.0.0
 

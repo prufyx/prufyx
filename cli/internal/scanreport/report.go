@@ -113,6 +113,10 @@ type Component struct {
 	CurrentSource string `json:"currentSource,omitempty"`
 	Target        string `json:"target,omitempty"`
 	TargetSource  string `json:"targetSource,omitempty"`
+	// Catalog is "community" for a project of the community catalog (a
+	// project outside the embedded CNCF landscape catalog) and absent for a
+	// CNCF project.
+	Catalog string `json:"catalog,omitempty"`
 	// Covered is true when scan evaluates this component.
 	Covered bool `json:"covered"`
 }

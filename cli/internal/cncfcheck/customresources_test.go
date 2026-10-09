@@ -121,10 +121,10 @@ func TestCustomResourceFactsRegisteredForExtractorTargets(t *testing.T) {
 	}
 }
 
-// The registered fact of a community project admits no rule into the CNCF
-// pack yet: a pack entry for a community project is refused, because the
-// project is not in the CNCF catalog. Rules of community projects need the
-// community knowledge step (its own reviewed change, code before data).
+// A pack entry for a community project is admitted only at the community
+// pack schema (community_test.go): under any other schema the pack is
+// refused, because the project is not in the CNCF catalog and the lower
+// schemas know no community entry.
 func TestCommunityCustomResourceRuleRefused(t *testing.T) {
 	var p customresources.Project
 	for _, q := range customresources.Projects() {
