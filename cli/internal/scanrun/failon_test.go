@@ -85,7 +85,7 @@ func TestOnlyBlocked(t *testing.T) {
 			}
 			plainOut, onlyOut := render(plain, false), render(only, true)
 			switch format {
-			case "json", "sarif":
+			case "json", "sarif", "csv":
 				if !bytes.Equal(plainOut, onlyOut) {
 					t.Errorf("%s/%s: output changed by --only-blocked", run.name, format)
 				}
