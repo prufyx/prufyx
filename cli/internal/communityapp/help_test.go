@@ -26,7 +26,7 @@ func TestRootHelpIsShortAndGrouped(t *testing.T) {
 		if n := strings.Count(out, "\n"); n > 30 {
 			t.Fatalf("%v: %d lines", args, n)
 		}
-		for _, want := range []string{"Check an upgrade:", "Prepare inputs:", "Knowledge:", "Other:", "Run 'prufyx <command> help' for details", "https://"} {
+		for _, want := range []string{"Check an upgrade:", "Prepare inputs:", "Knowledge:", "Other:", "Run 'prufyx <command> help' for details", "https://", "--strict-exit"} {
 			if !strings.Contains(out, want) {
 				t.Fatalf("%v: missing %q in %s", args, want, out)
 			}

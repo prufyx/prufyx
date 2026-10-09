@@ -13,6 +13,10 @@ import (
 
 const docsURL = "https://github.com/prufyx/prufyx/tree/main/cli/docs"
 
+// scopedPassHelpLine is the overview's one line on exit codes: a check that
+// exits 0 passed only the rules it checked (see cli/docs/exit-codes.md).
+const scopedPassHelpLine = "Exit 0 from check is a scoped PASS, not a whole-upgrade PASS: add --strict-exit in CI (cli/docs/exit-codes.md)."
+
 type helpEntry struct {
 	name, summary string
 }
@@ -96,6 +100,8 @@ func (r runtime) rootHelp() int {
 		}
 	}
 	fmt.Fprintf(w, "\nRun 'prufyx <command> help' for details.\nDocs: %s\n", docsURL)
+	// Kept from the former full usage: a check that exits 0 is a scoped PASS only.
+	fmt.Fprintln(w, scopedPassHelpLine)
 	return ExitOK
 }
 
