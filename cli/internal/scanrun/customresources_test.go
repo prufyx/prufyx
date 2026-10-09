@@ -133,10 +133,10 @@ func (k crdKnowledge) Evaluate(policy cncfcheck.TrustPolicy, project string, fac
 }
 
 const (
-	kafkaV1beta2Doc   = "apiVersion: kafka.strimzi.io/v1beta2\nkind: Kafka\nmetadata:\n  name: events\n  namespace: kafka\n"
-	kafkaV1Doc        = "apiVersion: kafka.strimzi.io/v1\nkind: Kafka\nmetadata:\n  name: events\n  namespace: kafka\n"
+	kafkaV1beta2Doc = "apiVersion: kafka.strimzi.io/v1beta2\nkind: Kafka\nmetadata:\n  name: events\n  namespace: kafka\n"
+	kafkaV1Doc      = "apiVersion: kafka.strimzi.io/v1\nkind: Kafka\nmetadata:\n  name: events\n  namespace: kafka\n"
 	unownedGroupDoc = "apiVersion: postgres-operator.crunchydata.com/v1beta1\nkind: PostgresCluster\nmetadata:\n  name: metrics\n  namespace: kafka\n"
-	settingsDoc       = "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: settings\n  namespace: kafka\n"
+	settingsDoc     = "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: settings\n  namespace: kafka\n"
 )
 
 func crdScan(t *testing.T, knowledge Knowledge, docs []string, extra ...string) Result {
