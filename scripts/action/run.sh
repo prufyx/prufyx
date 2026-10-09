@@ -25,7 +25,7 @@ outdir="$(mktemp -d "$temp/prufyx-action/out.XXXXXX")"
 chmod 700 "$outdir"
 
 one_line() { # one_line NAME VALUE: no newline or control characters
-  if has_control "$2" || [ "$(printf '%s' "$2" | wc -l)" -gt 0 ]; then
+  if has_control "$2" || [[ "$2" == *$'\n'* ]]; then
     die "input '$1' must be a single line without control characters"
   fi
 }
@@ -66,11 +66,11 @@ split_lines tos "$in_to"
 split_lines froms "$in_from"
 [ "${#tos[@]}" -gt 0 ] || [ -n "$in_config" ] || die "input 'to' is empty; pass COMPONENT=VERSION such as kubernetes=1.25.3, or a 'config' file that sets the targets"
 for v in ${tos[@]+"${tos[@]}"}; do
-  printf '%s' "$v" | grep -Eqx "$comp_re" || die "input 'to' entries must look like COMPONENT=VERSION (for example kubernetes=1.25.3)"
+  grep -Eqx "$comp_re" <<<"$v" || die "input 'to' entries must look like COMPONENT=VERSION (for example kubernetes=1.25.3)"
   args+=(--to "$v")
 done
 for v in ${froms[@]+"${froms[@]}"}; do
-  printf '%s' "$v" | grep -Eqx "$comp_re" || die "input 'from' entries must look like COMPONENT=VERSION (for example kubernetes=1.24.17)"
+  grep -Eqx "$comp_re" <<<"$v" || die "input 'from' entries must look like COMPONENT=VERSION (for example kubernetes=1.24.17)"
   args+=(--from "$v")
 done
 
@@ -109,7 +109,7 @@ esac
 # require-basis: comma separated words from the documented set.
 if [ -n "$in_basis" ]; then
   one_line require-basis "$in_basis"
-  printf '%s' "$in_basis" | grep -Eqx '(reviewed|mechanical|empirical|consensus|lead)(,(reviewed|mechanical|empirical|consensus|lead))*' \
+  grep -Eqx '(reviewed|mechanical|empirical|consensus|lead)(,(reviewed|mechanical|empirical|consensus|lead))*' <<<"$in_basis" \
     || die "input 'require-basis' must be a comma separated list of reviewed, mechanical, empirical, consensus, lead"
   args+=(--require-basis "$in_basis")
 fi
@@ -216,22 +216,36 @@ case "$code" in
           [ "$jcode" = 11 ] || die "could not confirm the gaps: the confirming scan exited $jcode, not 11; failing closed"
           [ -n "$jsonreport" ] || die "could not confirm the gaps: the confirming scan printed nothing; failing closed"
         fi
+        # The answer is read from what the tool prints, never from "exit
+        # status 1 means no". Status 1 is also what a tool that was killed,
+        # could not start or hit a broken pipe can report, so it cannot tell
+        # "checked, no such gap" from "could not check". Anything but the one
+        # expected word fails closed.
         if command -v jq >/dev/null 2>&1; then
           set +e
-          printf '%s' "$jsonreport" | jq -e '[.. | objects | select(.reason? == "API_VERSION_NOT_SERVED")] | length > 0' >/dev/null 2>&1
+          answer="$(printf '%s' "$jsonreport" | jq -r 'if ([.. | objects | select(.reason? == "API_VERSION_NOT_SERVED")] | length) > 0 then "gap-found" else "gap-absent" end' 2>/dev/null)"
           jqcode=$?
           set -e
-          case "$jqcode" in
-            0) notserved=1 ;;
-            1) ;;
-            *) die "could not parse the JSON report to confirm the gaps; failing closed" ;;
-          esac
+          [ "$jqcode" = 0 ] || die "could not parse the JSON report to confirm the gaps; failing closed"
         else
           # Without jq: the report must look like one JSON object, and the
           # reason is matched with optional whitespace around the colon.
-          printf '%s' "$jsonreport" | grep -Eq '^[[:space:]]*\{' || die "the confirming report is not a JSON object; failing closed"
-          if printf '%s' "$jsonreport" | grep -Eq '"reason"[[:space:]]*:[[:space:]]*"API_VERSION_NOT_SERVED"'; then notserved=1; fi
+          grep -Eq '^[[:space:]]*\{' <<<"$jsonreport" || die "the confirming report is not a JSON object; failing closed"
+          set +e
+          hits="$(grep -Ec '"reason"[[:space:]]*:[[:space:]]*"API_VERSION_NOT_SERVED"' <<<"$jsonreport" 2>/dev/null)"
+          grepcode=$?
+          set -e
+          case "$grepcode:$hits" in
+            0:[1-9]*) answer=gap-found ;;
+            1:0) answer=gap-absent ;;
+            *) die "could not search the JSON report to confirm the gaps; failing closed" ;;
+          esac
         fi
+        case "$answer" in
+          gap-found) notserved=1 ;;
+          gap-absent) ;;
+          *) die "could not confirm the gaps from the JSON report; failing closed" ;;
+        esac
       fi
       if [ "$notserved" = 1 ]; then
         echo "Prufyx: UNKNOWN: manifests use API versions the target does not serve (API_VERSION_NOT_SERVED); migrate them before upgrading."

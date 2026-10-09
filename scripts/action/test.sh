@@ -217,6 +217,12 @@ nojq_run() { # nojq_run VAR=VALUE ...
   for t in bash grep cat tr wc mktemp mkdir dirname rm cut head tail printf sed awk date chmod ln mv cp env sort uniq tee; do
     p="$(command -v "$t" 2>/dev/null || true)"; [ -n "$p" ] && [ -x "$p" ] && ln -sf "$p" "$root/w/nojq/$t"
   done
+  if [ -n "${NOJQ_GREP_FAKE:-}" ]; then # a grep whose search for the gap fails with status 1 and no output
+    realgrep="$(command -v grep)"
+    rm -f "$root/w/nojq/grep"
+    printf '#!%s\ncase " $* " in *API_VERSION_NOT_SERVED*) exit 1 ;; esac\nexec %s "$@"\n' "$(command -v bash)" "$realgrep" >"$root/w/nojq/grep"
+    chmod +x "$root/w/nojq/grep"
+  fi
   RC=0
   env -i PATH="$root/w/nojq" HOME="$root/w" RUNNER_TEMP="$root/w/temp" \
     GITHUB_OUTPUT="$root/w/out" GITHUB_STEP_SUMMARY="$root/w/summary" FAKE_ARGV="$root/w/argv" \
@@ -247,6 +253,52 @@ new_env; run_scan FAKE_EXIT=11 PRUFYX_IN_FORMAT=sarif FAKE_CONFIRM_SET=1 FAKE_CO
 [ "$RC" -eq 0 ] && ok "confirming scan without not-served stays green" || bad "confirm nogaps" "rc=$RC"
 new_env; run_scan FAKE_EXIT=11 PRUFYX_IN_FORMAT=sarif PRUFYX_IN_FAIL_ON=none FAKE_CONFIRM_SET=1 FAKE_CONFIRM_EXIT=3 FAKE_CONFIRM_STDOUT=""
 [ "$RC" -eq 0 ] && ok "fail-on none never runs the confirming scan" || bad "none confirm" "rc=$RC"
+# Fail closed when the checking tool itself misbehaves. Status 1 from jq or
+# grep is also what a killed process, a failed start or a broken pipe can
+# report, so it must never be read as "checked, no such gap": a report that
+# does contain the gap has to still fail the step.
+mk_fake_tool() { # mk_fake_tool NAME SCRIPT-BODY: a tool placed first on PATH
+  mkdir -p "$root/w/fakejq"
+  printf '#!%s\n%s\n' "$(command -v bash)" "$2" >"$root/w/fakejq/$1"
+  chmod +x "$root/w/fakejq/$1"
+}
+new_env; mk_fake_tool jq 'cat >/dev/null; exit 1'
+run_scan PATH="$root/w/fakejq:$PATH" FAKE_EXIT=11 FAKE_STDOUT="$SPACED"
+[ "$RC" -ne 0 ] && ok "jq exiting 1 without an answer fails closed" || bad "jq exit 1" "rc=$RC"
+new_env; mk_fake_tool jq 'cat >/dev/null; exit 0'
+run_scan PATH="$root/w/fakejq:$PATH" FAKE_EXIT=11 FAKE_STDOUT="$SPACED"
+[ "$RC" -ne 0 ] && ok "jq exiting 0 with no output fails closed" || bad "jq silent" "rc=$RC"
+new_env; mk_fake_tool jq 'cat >/dev/null; echo maybe'
+run_scan PATH="$root/w/fakejq:$PATH" FAKE_EXIT=11 FAKE_STDOUT="$SPACED"
+[ "$RC" -ne 0 ] && ok "jq printing an unexpected word fails closed" || bad "jq garbage" "rc=$RC"
+new_env; mk_fake_tool jq 'cat >/dev/null; exit 5'
+run_scan PATH="$root/w/fakejq:$PATH" FAKE_EXIT=11 FAKE_STDOUT="$NOGAPS"
+[ "$RC" -ne 0 ] && ok "jq error on a report without the gap fails closed" || bad "jq error" "rc=$RC"
+new_env; NOJQ_GREP_FAKE=1 nojq_run FAKE_EXIT=11 FAKE_STDOUT="$SPACED"
+[ "$RC" -ne 0 ] && ok "no jq: grep exiting 1 without a count fails closed" || bad "grep exit 1" "rc=$RC $(cat "$root/w/log")"
+# A report bigger than a pipe buffer: an early-exit reader (grep -q) at the end of
+# a pipe makes the writer die of SIGPIPE, which under pipefail turned a found
+# gap into "no gap" (a flaky pass) and a good report into a failure. The
+# answer must not depend on how much is written or how fast it is read.
+PAD="$(head -c 100000 /dev/zero | tr '\0' x)"
+BIGGAP='{
+  "pad": "'"$PAD"'",
+  "gaps": [ { "reason": "API_VERSION_NOT_SERVED" } ]
+}'
+BIGNOGAP='{
+  "pad": "'"$PAD"'",
+  "gaps": [ { "reason": "LINE_NOT_ATTESTED" } ]
+}'
+for rep in 1 2 3; do
+  new_env; nojq_run FAKE_EXIT=11 FAKE_STDOUT="$BIGGAP"
+  [ "$RC" -ne 0 ] && grep -q 'manifests use API versions' "$root/w/log" && ok "no jq: large report with the gap fails ($rep)" || bad "big gap no jq" "rc=$RC $(cut -c1-200 "$root/w/log")"
+  new_env; nojq_run FAKE_EXIT=11 FAKE_STDOUT="$BIGNOGAP"
+  [ "$RC" -eq 0 ] && ok "no jq: large report without the gap stays green ($rep)" || bad "big nogap no jq" "rc=$RC $(cut -c1-200 "$root/w/log")"
+  new_env; run_scan FAKE_EXIT=11 FAKE_STDOUT="$BIGGAP"
+  [ "$RC" -ne 0 ] && grep -q 'manifests use API versions' "$root/w/log" && ok "large report with the gap fails ($rep)" || bad "big gap" "rc=$RC $(cut -c1-200 "$root/w/log")"
+  new_env; run_scan FAKE_EXIT=11 FAKE_STDOUT="$BIGNOGAP"
+  [ "$RC" -eq 0 ] && ok "large report without the gap stays green ($rep)" || bad "big nogap" "rc=$RC $(cut -c1-200 "$root/w/log")"
+done
 
 # --- two uses in one job keep both reports -------------------------------------
 new_env
