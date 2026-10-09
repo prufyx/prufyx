@@ -288,7 +288,7 @@ func TestCustomResourceVersionsArguments(t *testing.T) {
 			t.Fatalf("%+v accepted", tc)
 		}
 	}
-	if got := CustomResourceProjects(); !reflect.DeepEqual(got, []string{"argo-cd", "cert-manager", "cilium", "crossplane", "istio", "keda", "kuma", "kyverno", "longhorn", "rook", "strimzi", "velero"}) {
+	if got := CustomResourceProjects(); !reflect.DeepEqual(got, []string{"antrea", "argo-cd", "cert-manager", "cilium", "cloudnativepg", "contour", "crossplane", "dapr", "external-secrets", "istio", "karmada", "keda", "koordinator", "kuma", "kyverno", "longhorn", "metallb", "openkruise", "rook", "strimzi", "tekton", "velero", "volcano"}) {
 		t.Fatalf("projects %v", got)
 	}
 	if fact, ok := CustomResourceVersionsFact("strimzi"); !ok || fact != strimziFact {
