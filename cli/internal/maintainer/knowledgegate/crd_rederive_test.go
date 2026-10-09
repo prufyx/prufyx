@@ -172,10 +172,10 @@ func crdHead(t *testing.T, entries []map[string]any, registryDigest string) (Tre
 
 // The custom-resource version set of every project of the reviewed table
 // (Strimzi among them) is registered, so the CRD-derived rules the gate
-// re-derives are admitted by the CNCF admission check. The head pack also raises the pack schema to the
-// set-rule level, a top-level pack member change that this gate never
-// admits on its own: it is the only failure, and it is reviewed with the
-// first published set rule.
+// re-derives are admitted by the CNCF admission check. The head pack also
+// raises the pack schema to the set-rule level, which is the lowest level its
+// content requires: the gate admits that schema change (schema.go) and the
+// whole change passes.
 func TestGateAdmitsCRDRules(t *testing.T) {
 	for _, p := range customresources.Projects() {
 		if !cncfcheck.RegisteredFact(p.FactID()) {
@@ -195,18 +195,17 @@ func TestGateAdmitsCRDRules(t *testing.T) {
 			t.Fatalf("%s: re-derivation %+v", c.RuleID, c)
 		}
 	}
-	failed := failedChecks(r)
 	members := 0
 	for _, c := range r.Changes {
 		if c.Member != "" {
 			members++
-			if c.Member != "schema" || c.OK {
+			if c.Member != "schema" || !c.OK || c.Proof != ProofSchemaLevel {
 				t.Fatalf("pack-member change %+v", c)
 			}
 		}
 	}
-	if r.Passed() || members != 1 || len(failed) != 1 || !strings.HasPrefix(failed[0], ": ") {
-		t.Fatalf("passed=%v, failures:\n%s", r.Passed(), strings.Join(failed, "\n"))
+	if !r.Passed() || members != 1 {
+		t.Fatalf("passed=%v, failures:\n%s", r.Passed(), strings.Join(failedChecks(r), "\n"))
 	}
 }
 

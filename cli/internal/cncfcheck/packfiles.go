@@ -131,6 +131,42 @@ func AdmittedPackView(packRaw []byte) (map[string]json.RawMessage, []json.RawMes
 	return members, entries, nil
 }
 
+// RequiredPackSchema is the lowest pack schema the content of the pack file
+// requires: the schema of the highest-level feature it uses, computed by the
+// function the parser and validator use to pick the schema a pack must carry
+// (requiredPackSchema). A pack that does not decode strictly has none.
+func RequiredPackSchema(packRaw []byte) (string, error) {
+	if strictjson.Check(packRaw) != nil {
+		return "", ErrIntegrity
+	}
+	var pack rulePack
+	if strictJSON(packRaw, &pack) != nil {
+		return "", ErrIntegrity
+	}
+	return requiredPackSchema(pack)
+}
+
+// PackSchemaLevel is the level of a pack schema: the schemas ascend with the
+// features that introduced them (packFeatureLevels). ok is false for a
+// schema this binary does not know.
+func PackSchemaLevel(schema string) (int, bool) {
+	if schema == packSchema {
+		return 0, true
+	}
+	level := 0
+	last := ""
+	for _, feature := range packFeatureLevels {
+		if feature.schema != last {
+			level++
+			last = feature.schema
+		}
+		if feature.schema == schema {
+			return level, true
+		}
+	}
+	return 0, false
+}
+
 // AdmittedEntry re-encodes one pack entry as admission decodes it.
 func AdmittedEntry(raw []byte) (json.RawMessage, error) {
 	if strictjson.Check(raw) != nil {
