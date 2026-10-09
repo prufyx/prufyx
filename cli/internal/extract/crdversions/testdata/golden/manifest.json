@@ -3,19 +3,19 @@
   "commits": [
     {
       "commit": "0000000000000000000000000000000000900000",
-      "listings": 1,
+      "listings": 4,
       "reads": 4,
       "readsDigest": "sha256:fcc0da2f6b4d12852501729566f71c02bf72dc16aa2f4f5ce35ac24413788b1e"
     },
     {
       "commit": "0000000000000000000000000000000000901000",
-      "listings": 1,
+      "listings": 4,
       "reads": 4,
       "readsDigest": "sha256:01fe83006560b3d1185373e839d7c5590dfa62bbca497e2cf89a013be2762313"
     },
     {
       "commit": "0000000000000000000000000000000000902000",
-      "listings": 1,
+      "listings": 4,
       "reads": 4,
       "readsDigest": "sha256:01fe83006560b3d1185373e839d7c5590dfa62bbca497e2cf89a013be2762313"
     }
@@ -24,7 +24,7 @@
   "extractor": {
     "codeDigest": "sha256:CODE",
     "id": "crd.version-removal.argo-cd",
-    "version": "1.0.0"
+    "version": "2.0.0"
   },
   "outputs": {
     "candidates.json": "sha256:OUTPUT",
@@ -39,6 +39,15 @@
       "fromCommit": "0000000000000000000000000000000000900000",
       "fromTag": "v90.0.0",
       "proof": {
+        "completeness": {
+          "attestable": true,
+          "declared": true,
+          "hop": "previous-minor",
+          "lineWide": true,
+          "reasons": [],
+          "scan": true
+        },
+        "definitionsRemoved": [],
         "factId": "component.argo_cd.custom_resource_versions_set",
         "from": {
           "commit": "0000000000000000000000000000000000900000",
@@ -219,7 +228,66 @@
               "path": "manifests/crds"
             }
           ],
+          "scan": {
+            "complete": true,
+            "copies": [],
+            "defaultFiles": 0,
+            "excludedFiles": 0,
+            "exclusions": [],
+            "files": 0,
+            "findings": [],
+            "notRead": [
+              "files that are not YAML, JSON, template, jsonnet, cue or Go sources, or packaged Helm charts",
+              "Go sources whose path does not contain crd, Go test files (_test.go), and Go sources under a default-excluded directory or a reviewed exclusion (of those the install-surface guard reads only the //go:embed directives)",
+              "definitions held in Go sources as encoded bytes other than gzip-compressed string literals (base64, byte-slice literals, other compressions)",
+              "symbolic links (the install-surface guard does not follow them either), CI configuration, shell scripts other than .sh and .bash files, build files other than Dockerfiles, Containerfiles, Earthfiles and nix files (Bazel, Tilt, ko configuration), a container build or nix file that copies its whole context or a source directory above an excluded path and selects files while it runs, and Go code that opens a path at run time"
+            ]
+          },
           "tag": "v90.0.0"
+        },
+        "lines": {
+          "from": {
+            "line": "90.0",
+            "tags": [
+              {
+                "added": [],
+                "commit": "0000000000000000000000000000000000900000",
+                "complete": true,
+                "crds": 4,
+                "dropped": [],
+                "scanClean": true,
+                "scanFindings": [],
+                "tag": "v90.0.0"
+              }
+            ]
+          },
+          "lineWide": true,
+          "notLineWide": null,
+          "to": {
+            "line": "90.1",
+            "tags": [
+              {
+                "added": [],
+                "commit": "0000000000000000000000000000000000901000",
+                "complete": true,
+                "crds": 4,
+                "dropped": [],
+                "scanClean": true,
+                "scanFindings": [],
+                "tag": "v90.1.0"
+              },
+              {
+                "added": [],
+                "commit": "0000000000000000000000000000000000901000",
+                "complete": true,
+                "crds": 4,
+                "dropped": [],
+                "scanClean": true,
+                "scanFindings": [],
+                "tag": "v90.1.1"
+              }
+            ]
+          }
         },
         "removals": [
           {
@@ -227,22 +295,26 @@
             "fromEndLine": 30,
             "fromPath": "manifests/crds/gadget-crd.yaml",
             "fromStartLine": 24,
+            "fromTag": "v90.0.0",
             "member": "fixture.argoproj.io/v1beta1/Gadget",
             "reason": "unserved",
             "toPath": "manifests/crds/gadget-crd.yaml",
             "toServedLine": 25,
-            "version": "v1beta1"
+            "version": "v1beta1",
+            "wasStorage": false
           },
           {
             "crd": "widgets.fixture.argoproj.io",
             "fromEndLine": 22,
             "fromPath": "manifests/crds/widget-crd.yaml",
             "fromStartLine": 16,
+            "fromTag": "v90.0.0",
             "member": "fixture.argoproj.io/v1alpha2/Widget",
             "reason": "absent",
             "toPath": "manifests/crds/widget-crd.yaml",
             "toServedLine": 0,
-            "version": "v1alpha2"
+            "version": "v1alpha2",
+            "wasStorage": false
           }
         ],
         "storageChanges": [
@@ -250,6 +322,33 @@
             "crd": "gizmos.fixture.argoproj.io",
             "from": "v1beta1",
             "to": "v1"
+          }
+        ],
+        "storageHistory": [
+          {
+            "crd": "doohickeys.fixture.argoproj.io",
+            "versions": [
+              "v1"
+            ]
+          },
+          {
+            "crd": "gadgets.fixture.argoproj.io",
+            "versions": [
+              "v1"
+            ]
+          },
+          {
+            "crd": "gizmos.fixture.argoproj.io",
+            "versions": [
+              "v1",
+              "v1beta1"
+            ]
+          },
+          {
+            "crd": "widgets.fixture.argoproj.io",
+            "versions": [
+              "v1beta1"
+            ]
           }
         ],
         "target": "argo-cd",
@@ -423,8 +522,24 @@
               "path": "manifests/crds"
             }
           ],
+          "scan": {
+            "complete": true,
+            "copies": [],
+            "defaultFiles": 0,
+            "excludedFiles": 0,
+            "exclusions": [],
+            "files": 0,
+            "findings": [],
+            "notRead": [
+              "files that are not YAML, JSON, template, jsonnet, cue or Go sources, or packaged Helm charts",
+              "Go sources whose path does not contain crd, Go test files (_test.go), and Go sources under a default-excluded directory or a reviewed exclusion (of those the install-surface guard reads only the //go:embed directives)",
+              "definitions held in Go sources as encoded bytes other than gzip-compressed string literals (base64, byte-slice literals, other compressions)",
+              "symbolic links (the install-surface guard does not follow them either), CI configuration, shell scripts other than .sh and .bash files, build files other than Dockerfiles, Containerfiles, Earthfiles and nix files (Bazel, Tilt, ko configuration), a container build or nix file that copies its whole context or a source directory above an excluded path and selects files while it runs, and Go code that opens a path at run time"
+            ]
+          },
           "tag": "v90.1.0"
-        }
+        },
+        "unlistedRemovals": []
       },
       "rules": [
         "argo-cd.crd-version-removal.gadgets-fixture-argoproj-io.90-0-0-to-90-1-0",
@@ -440,6 +555,15 @@
       "fromCommit": "0000000000000000000000000000000000901000",
       "fromTag": "v90.1.0",
       "proof": {
+        "completeness": {
+          "attestable": true,
+          "declared": true,
+          "hop": "previous-minor",
+          "lineWide": true,
+          "reasons": [],
+          "scan": true
+        },
+        "definitionsRemoved": [],
         "factId": "component.argo_cd.custom_resource_versions_set",
         "from": {
           "commit": "0000000000000000000000000000000000901000",
@@ -611,10 +735,95 @@
               "path": "manifests/crds"
             }
           ],
+          "scan": {
+            "complete": true,
+            "copies": [],
+            "defaultFiles": 0,
+            "excludedFiles": 0,
+            "exclusions": [],
+            "files": 0,
+            "findings": [],
+            "notRead": [
+              "files that are not YAML, JSON, template, jsonnet, cue or Go sources, or packaged Helm charts",
+              "Go sources whose path does not contain crd, Go test files (_test.go), and Go sources under a default-excluded directory or a reviewed exclusion (of those the install-surface guard reads only the //go:embed directives)",
+              "definitions held in Go sources as encoded bytes other than gzip-compressed string literals (base64, byte-slice literals, other compressions)",
+              "symbolic links (the install-surface guard does not follow them either), CI configuration, shell scripts other than .sh and .bash files, build files other than Dockerfiles, Containerfiles, Earthfiles and nix files (Bazel, Tilt, ko configuration), a container build or nix file that copies its whole context or a source directory above an excluded path and selects files while it runs, and Go code that opens a path at run time"
+            ]
+          },
           "tag": "v90.1.0"
+        },
+        "lines": {
+          "from": {
+            "line": "90.1",
+            "tags": [
+              {
+                "added": [],
+                "commit": "0000000000000000000000000000000000901000",
+                "complete": true,
+                "crds": 4,
+                "dropped": [],
+                "scanClean": true,
+                "scanFindings": [],
+                "tag": "v90.1.0"
+              },
+              {
+                "added": [],
+                "commit": "0000000000000000000000000000000000901000",
+                "complete": true,
+                "crds": 4,
+                "dropped": [],
+                "scanClean": true,
+                "scanFindings": [],
+                "tag": "v90.1.1"
+              }
+            ]
+          },
+          "lineWide": true,
+          "notLineWide": null,
+          "to": {
+            "line": "90.2",
+            "tags": [
+              {
+                "added": [],
+                "commit": "0000000000000000000000000000000000902000",
+                "complete": true,
+                "crds": 4,
+                "dropped": [],
+                "scanClean": true,
+                "scanFindings": [],
+                "tag": "v90.2.0"
+              }
+            ]
+          }
         },
         "removals": [],
         "storageChanges": [],
+        "storageHistory": [
+          {
+            "crd": "doohickeys.fixture.argoproj.io",
+            "versions": [
+              "v1"
+            ]
+          },
+          {
+            "crd": "gadgets.fixture.argoproj.io",
+            "versions": [
+              "v1"
+            ]
+          },
+          {
+            "crd": "gizmos.fixture.argoproj.io",
+            "versions": [
+              "v1"
+            ]
+          },
+          {
+            "crd": "widgets.fixture.argoproj.io",
+            "versions": [
+              "v1beta1"
+            ]
+          }
+        ],
         "target": "argo-cd",
         "to": {
           "commit": "0000000000000000000000000000000000902000",
@@ -786,8 +995,24 @@
               "path": "manifests/crds"
             }
           ],
+          "scan": {
+            "complete": true,
+            "copies": [],
+            "defaultFiles": 0,
+            "excludedFiles": 0,
+            "exclusions": [],
+            "files": 0,
+            "findings": [],
+            "notRead": [
+              "files that are not YAML, JSON, template, jsonnet, cue or Go sources, or packaged Helm charts",
+              "Go sources whose path does not contain crd, Go test files (_test.go), and Go sources under a default-excluded directory or a reviewed exclusion (of those the install-surface guard reads only the //go:embed directives)",
+              "definitions held in Go sources as encoded bytes other than gzip-compressed string literals (base64, byte-slice literals, other compressions)",
+              "symbolic links (the install-surface guard does not follow them either), CI configuration, shell scripts other than .sh and .bash files, build files other than Dockerfiles, Containerfiles, Earthfiles and nix files (Bazel, Tilt, ko configuration), a container build or nix file that copies its whole context or a source directory above an excluded path and selects files while it runs, and Go code that opens a path at run time"
+            ]
+          },
           "tag": "v90.2.0"
-        }
+        },
+        "unlistedRemovals": []
       },
       "rules": [],
       "status": "derived",

@@ -4,16 +4,19 @@ package crdversions
 
 import (
 	"context"
+	"crypto/sha1" //nolint:gosec // synthetic object ids only
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
-// memReader serves one file per commit.
+// memReader serves files keyed "<commit>:<path>".
 type memReader map[string][]byte
 
 func (m memReader) Read(_ extract.RepoRef, commit, path string) ([]byte, error) {
@@ -24,8 +27,42 @@ func (m memReader) Read(_ extract.RepoRef, commit, path string) ([]byte, error) 
 	return data, nil
 }
 
-func (m memReader) List(extract.RepoRef, string, string) ([]extract.TreeEntry, error) {
-	return nil, fmt.Errorf("no listings")
+// List derives the directory entries of one commit from the file keys
+// (no object ids: nothing is reused).
+func (m memReader) List(_ extract.RepoRef, commit, dir string) ([]extract.TreeEntry, error) {
+	seen := map[string]bool{}
+	var out []extract.TreeEntry
+	prefix := commit + ":"
+	if dir != "" {
+		prefix += dir + "/"
+	}
+	for k := range m {
+		rest, ok := strings.CutPrefix(k, prefix)
+		if !ok {
+			continue
+		}
+		name, _, isDir := strings.Cut(rest, "/")
+		full := name
+		if dir != "" {
+			full = dir + "/" + name
+		}
+		if seen[full] {
+			continue
+		}
+		seen[full] = true
+		// Object ids: a blob's names its bytes (so the scan reuses it);
+		// a tree's names the commit and directory (never shared).
+		typ, id := "blob", sha1.Sum(m[k])
+		if isDir {
+			typ, id = "tree", sha1.Sum([]byte("tree "+commit+" "+full))
+		}
+		out = append(out, extract.TreeEntry{Mode: "100644", Type: typ, SHA: hex.EncodeToString(id[:]), Path: full})
+	}
+	if len(out) == 0 && dir != "" {
+		return nil, fmt.Errorf("%w: %s", extract.ErrNotFound, dir)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	return out, nil
 }
 
 // FuzzCRDParse mutates CRD YAML. Parsing never panics; a file that does not

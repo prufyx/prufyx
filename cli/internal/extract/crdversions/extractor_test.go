@@ -327,7 +327,26 @@ func TestCRDWithhold(t *testing.T) {
 			must(t, err)
 			must(t, os.WriteFile(filepath.Join(dir, "widget-copy.yaml"), raw, 0o644))
 		}, "is defined in both"},
-		{"CRD moved out of the listed paths", func(t *testing.T, dir string) { must(t, os.Remove(filepath.Join(dir, "gadget-crd.yaml"))) }, "a removed definition cannot be told from a moved one"},
+		{"CRD moved out of the listed paths", func(t *testing.T, dir string) {
+			root := filepath.Dir(filepath.Dir(dir))
+			must(t, os.MkdirAll(filepath.Join(root, "deploy"), 0o755))
+			must(t, os.Rename(filepath.Join(dir, "gadget-crd.yaml"), filepath.Join(root, "deploy", "gadget-crd.yaml")))
+		}, "a removed definition cannot be told from a moved one"},
+		{"CRD moved into a templated file", func(t *testing.T, dir string) {
+			root := filepath.Dir(filepath.Dir(dir))
+			raw, err := os.ReadFile(filepath.Join(dir, "gadget-crd.yaml"))
+			must(t, err)
+			must(t, os.Remove(filepath.Join(dir, "gadget-crd.yaml")))
+			must(t, os.MkdirAll(filepath.Join(root, "chart/templates"), 0o755))
+			must(t, os.WriteFile(filepath.Join(root, "chart/templates/crds.yaml"), append([]byte("{{- if .Values.crds }}\n"), raw...), 0o644))
+		}, "a removed definition cannot be told from a moved one"},
+		{"conflicting copy outside the listed paths", func(t *testing.T, dir string) {
+			root := filepath.Dir(filepath.Dir(dir))
+			raw, err := os.ReadFile(filepath.Join(dir, "gadget-crd.yaml"))
+			must(t, err)
+			must(t, os.MkdirAll(filepath.Join(root, "deploy"), 0o755))
+			must(t, os.WriteFile(filepath.Join(root, "deploy/gadget-copy.yaml"), []byte(strings.Replace(string(raw), "    served: false\n", "    served: true\n", 1)), 0o644))
+		}, "deploy/gadget-copy.yaml defines gadgets.fixture.argoproj.io differently from the listed paths"},
 		{"anchor", func(t *testing.T, dir string) {
 			edit(t, filepath.Join(dir, "gadget-crd.yaml"), func(s string) string {
 				return strings.Replace(s, "  scope: Namespaced", "  scope: &s Namespaced", 1)
@@ -340,7 +359,7 @@ func TestCRDWithhold(t *testing.T) {
 		}, "not decodable within the strict YAML subset"},
 		{"oversized file", func(t *testing.T, dir string) {
 			edit(t, filepath.Join(dir, "gadget-crd.yaml"), func(s string) string { return s + "#" + strings.Repeat("x", MaxFileBytes) + "\n" })
-		}, "over the 4194304-byte bound"},
+		}, "over the 8388608-byte bound"},
 		{"two storage versions", func(t *testing.T, dir string) {
 			edit(t, filepath.Join(dir, "gadget-crd.yaml"), func(s string) string {
 				return strings.Replace(s, "    served: false\n    storage: false", "    served: false\n    storage: true", 1)
@@ -366,7 +385,7 @@ func TestCRDWithhold(t *testing.T) {
 			tc.mutate(t, dir)
 			out := mustRun(t, "argo-cd", extract.FixtureReader{Root: root})
 			for _, p := range out.Manifest.Pairs {
-				if p.ToTag == "v90.2.0" && tc.name != "CRD moved out of the listed paths" && tc.name != "group changes" {
+				if p.ToTag == "v90.2.0" && !strings.HasPrefix(tc.name, "CRD moved") && tc.name != "group changes" {
 					// The second pair reads the same (broken) tag first.
 					if p.Status != extract.PairWithheld {
 						t.Fatalf("second pair %+v", p)
@@ -613,13 +632,15 @@ func TestCRDOracle(t *testing.T) {
 	}
 }
 
-// Every target's custom-resource version set is registered, and every
-// derived rule is UNKNOWN for an input without the fact; only a complete
-// declared set can pass.
+// The custom-resource version set of every target that is not pending
+// registration is registered, and no pending target's is; every derived
+// rule is UNKNOWN for an input without the fact; only a complete declared
+// set can pass.
 func TestCandidatesAreUnknownWithoutTheFact(t *testing.T) {
 	for _, tg := range Targets {
-		if !cncfcheck.RegisteredFact(tg.FactID()) {
-			t.Fatalf("%s is not registered", tg.FactID())
+		pending := slices.Contains(pendingRegistration, tg.Project)
+		if cncfcheck.RegisteredFact(tg.FactID()) == pending {
+			t.Fatalf("%s: registered %v, pending registration %v", tg.FactID(), !pending, pending)
 		}
 	}
 	out := fixtureOutput(t)
@@ -657,11 +678,42 @@ func TestPairsUseConsecutiveFinalReleases(t *testing.T) {
 		}
 		return out
 	}
-	if g := got("strimzi", tags("0.50.0", "0.51.0", "0.51.1", "1.0.0-rc1", "1.0.0", "1.1.0", "v1.2.0")); !slices.Equal(g, []string{"0.51.0>1.0.0", "1.0.0>1.1.0"}) {
+	if g := got("strimzi", tags("0.48.0", "0.49.0", "0.50.0", "0.51.0", "0.51.1", "1.0.0-rc1", "1.0.0", "1.1.0", "v1.2.0")); !slices.Equal(g, []string{"0.49.0>0.50.0", "0.50.0>0.51.0", "0.51.0>1.0.0", "1.0.0>1.1.0"}) {
 		t.Fatalf("strimzi pairs %v", g)
 	}
-	if g := got("argo-cd", tags("v2.13.0", "v2.14.0", "v2.14.1", "v3.0.0", "v3.1.0-rc1", "3.1.0", "v3.1.0")); !slices.Equal(g, []string{"v2.14.0>v3.0.0", "v3.0.0>v3.1.0"}) {
+	if g := got("argo-cd", tags("v2.14.0", "v2.14.1", "v3.0.0", "v3.1.0-rc1", "3.1.0", "v3.1.0", "v3.1.1")); !slices.Equal(g, []string{"v3.0.0>v3.1.0"}) {
 		t.Fatalf("argo-cd pairs %v", g)
+	}
+	// A line is named by its first final release: a line without a .0 tag
+	// still forms pairs, and a skipped minor number is skipped.
+	if g := got("argo-cd", tags("v3.0.0", "v3.2.1", "v3.2.2", "v3.5.0")); !slices.Equal(g, []string{"v3.0.0>v3.2.1", "v3.2.1>v3.5.0"}) {
+		t.Fatalf("argo-cd pairs with gaps %v", g)
+	}
+	// Two prefixes: the first listed one names a release tagged under both.
+	if g := got("kuma", tags("2.9.0", "2.9.1", "v2.9.1", "2.10.0", "v2.11.0")); !slices.Equal(g, []string{"2.9.0>2.10.0", "2.10.0>v2.11.0"}) {
+		t.Fatalf("kuma pairs %v", g)
+	}
+}
+
+// Every final release of a line is part of it; a release tagged under two
+// prefixes at different commits makes its line unusable.
+func TestReleaseLines(t *testing.T) {
+	x := New(target(t, "kuma"))
+	idx := extract.ReleaseIndex{Tags: []extract.Tag{
+		{Name: "2.9.0", Commit: strings.Repeat("a", 40)},
+		{Name: "2.9.1", Commit: strings.Repeat("b", 40)},
+		{Name: "v2.9.1", Commit: strings.Repeat("b", 40)},
+		{Name: "2.9.2-rc1", Commit: strings.Repeat("c", 40)},
+		{Name: "2.10.0", Commit: strings.Repeat("d", 40)},
+		{Name: "v2.10.1", Commit: strings.Repeat("e", 40)},
+		{Name: "2.10.1", Commit: strings.Repeat("f", 40)},
+	}}
+	lines := x.releaseLines(idx)
+	if len(lines) != 2 || !slices.Equal(lines[0].Versions, []string{"2.9.0", "2.9.1"}) || lines[0].Problem != "" || lines[0].Tags[1].Name != "v2.9.1" {
+		t.Fatalf("2.9: %+v", lines[0])
+	}
+	if !slices.Equal(lines[1].Versions, []string{"2.10.0", "2.10.1"}) || !strings.Contains(lines[1].Problem, "tagged twice") {
+		t.Fatalf("2.10: %+v", lines[1])
 	}
 }
 

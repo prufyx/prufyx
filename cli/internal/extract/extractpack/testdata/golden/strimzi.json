@@ -1,7 +1,7 @@
 {
   "entries": [
     {
-      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaBridge (CustomResourceDefinition kafkabridges.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaBridge (CustomResourceDefinition kafkabridges.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 0.51 and 1.0, with a scan of the whole repository at each; it holds for upgrades from any 0.51 release to any 1.0 release. Storage versions, stored objects, conversion and schema changes are not checked.",
       "project": "strimzi",
       "requiredFacts": [
         {
@@ -18,9 +18,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:687b6dd7cbeb6cc5bb48f10a58f531d5c2106f96b27c06b03cb121db6a59567c",
+            "codeDigest": "sha256:b881de6ef65bb7efa4d9bc54f91b2a0003a017166ac03dfd581fb8e7d5afe03f",
             "id": "crd.version-removal.strimzi",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -45,8 +45,40 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkabridges-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of KafkaBridge to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored KafkaBridge objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "crd-1-0-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-0-0"
+            }
+          ],
+          "from": {
+            "gte": "0.51.0",
+            "lt": "0.52.0"
+          },
+          "to": {
+            "gte": "1.0.0",
+            "lt": "1.1.0"
+          }
+        },
         "reasonCode": "CRD_VERSION_NOT_SERVED",
         "setCondition": {
           "component": "pkg:github/strimzi/strimzi-kafka-operator",
@@ -64,7 +96,7 @@
       }
     },
     {
-      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaConnector (CustomResourceDefinition kafkaconnectors.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaConnector (CustomResourceDefinition kafkaconnectors.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 0.51 and 1.0, with a scan of the whole repository at each; it holds for upgrades from any 0.51 release to any 1.0 release. Storage versions, stored objects, conversion and schema changes are not checked.",
       "project": "strimzi",
       "requiredFacts": [
         {
@@ -81,9 +113,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:687b6dd7cbeb6cc5bb48f10a58f531d5c2106f96b27c06b03cb121db6a59567c",
+            "codeDigest": "sha256:b881de6ef65bb7efa4d9bc54f91b2a0003a017166ac03dfd581fb8e7d5afe03f",
             "id": "crd.version-removal.strimzi",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -108,8 +140,40 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkaconnectors-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of KafkaConnector to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored KafkaConnector objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "crd-1-0-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-0-0"
+            }
+          ],
+          "from": {
+            "gte": "0.51.0",
+            "lt": "0.52.0"
+          },
+          "to": {
+            "gte": "1.0.0",
+            "lt": "1.1.0"
+          }
+        },
         "reasonCode": "CRD_VERSION_NOT_SERVED",
         "setCondition": {
           "component": "pkg:github/strimzi/strimzi-kafka-operator",
@@ -127,7 +191,7 @@
       }
     },
     {
-      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaConnect (CustomResourceDefinition kafkaconnects.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaConnect (CustomResourceDefinition kafkaconnects.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 0.51 and 1.0, with a scan of the whole repository at each; it holds for upgrades from any 0.51 release to any 1.0 release. Storage versions, stored objects, conversion and schema changes are not checked.",
       "project": "strimzi",
       "requiredFacts": [
         {
@@ -144,9 +208,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:687b6dd7cbeb6cc5bb48f10a58f531d5c2106f96b27c06b03cb121db6a59567c",
+            "codeDigest": "sha256:b881de6ef65bb7efa4d9bc54f91b2a0003a017166ac03dfd581fb8e7d5afe03f",
             "id": "crd.version-removal.strimzi",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -171,8 +235,40 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkaconnects-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of KafkaConnect to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored KafkaConnect objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "crd-1-0-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-0-0"
+            }
+          ],
+          "from": {
+            "gte": "0.51.0",
+            "lt": "0.52.0"
+          },
+          "to": {
+            "gte": "1.0.0",
+            "lt": "1.1.0"
+          }
+        },
         "reasonCode": "CRD_VERSION_NOT_SERVED",
         "setCondition": {
           "component": "pkg:github/strimzi/strimzi-kafka-operator",
@@ -190,7 +286,7 @@
       }
     },
     {
-      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaMirrorMaker2 (CustomResourceDefinition kafkamirrormaker2s.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaMirrorMaker2 (CustomResourceDefinition kafkamirrormaker2s.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 0.51 and 1.0, with a scan of the whole repository at each; it holds for upgrades from any 0.51 release to any 1.0 release. Storage versions, stored objects, conversion and schema changes are not checked.",
       "project": "strimzi",
       "requiredFacts": [
         {
@@ -207,9 +303,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:687b6dd7cbeb6cc5bb48f10a58f531d5c2106f96b27c06b03cb121db6a59567c",
+            "codeDigest": "sha256:b881de6ef65bb7efa4d9bc54f91b2a0003a017166ac03dfd581fb8e7d5afe03f",
             "id": "crd.version-removal.strimzi",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -234,8 +330,40 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkamirrormaker2s-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of KafkaMirrorMaker2 to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored KafkaMirrorMaker2 objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "crd-1-0-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-0-0"
+            }
+          ],
+          "from": {
+            "gte": "0.51.0",
+            "lt": "0.52.0"
+          },
+          "to": {
+            "gte": "1.0.0",
+            "lt": "1.1.0"
+          }
+        },
         "reasonCode": "CRD_VERSION_NOT_SERVED",
         "setCondition": {
           "component": "pkg:github/strimzi/strimzi-kafka-operator",
@@ -253,7 +381,7 @@
       }
     },
     {
-      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaNodePool (CustomResourceDefinition kafkanodepools.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaNodePool (CustomResourceDefinition kafkanodepools.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 0.51 and 1.0, with a scan of the whole repository at each; it holds for upgrades from any 0.51 release to any 1.0 release. Storage versions, stored objects, conversion and schema changes are not checked.",
       "project": "strimzi",
       "requiredFacts": [
         {
@@ -270,9 +398,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:687b6dd7cbeb6cc5bb48f10a58f531d5c2106f96b27c06b03cb121db6a59567c",
+            "codeDigest": "sha256:b881de6ef65bb7efa4d9bc54f91b2a0003a017166ac03dfd581fb8e7d5afe03f",
             "id": "crd.version-removal.strimzi",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -297,8 +425,40 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkanodepools-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of KafkaNodePool to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored KafkaNodePool objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "crd-1-0-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-0-0"
+            }
+          ],
+          "from": {
+            "gte": "0.51.0",
+            "lt": "0.52.0"
+          },
+          "to": {
+            "gte": "1.0.0",
+            "lt": "1.1.0"
+          }
+        },
         "reasonCode": "CRD_VERSION_NOT_SERVED",
         "setCondition": {
           "component": "pkg:github/strimzi/strimzi-kafka-operator",
@@ -316,7 +476,7 @@
       }
     },
     {
-      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaRebalance (CustomResourceDefinition kafkarebalances.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of KafkaRebalance (CustomResourceDefinition kafkarebalances.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 0.51 and 1.0, with a scan of the whole repository at each; it holds for upgrades from any 0.51 release to any 1.0 release. Storage versions, stored objects, conversion and schema changes are not checked.",
       "project": "strimzi",
       "requiredFacts": [
         {
@@ -333,9 +493,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:687b6dd7cbeb6cc5bb48f10a58f531d5c2106f96b27c06b03cb121db6a59567c",
+            "codeDigest": "sha256:b881de6ef65bb7efa4d9bc54f91b2a0003a017166ac03dfd581fb8e7d5afe03f",
             "id": "crd.version-removal.strimzi",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -360,8 +520,40 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkarebalances-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of KafkaRebalance to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored KafkaRebalance objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "crd-1-0-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-0-0"
+            }
+          ],
+          "from": {
+            "gte": "0.51.0",
+            "lt": "0.52.0"
+          },
+          "to": {
+            "gte": "1.0.0",
+            "lt": "1.1.0"
+          }
+        },
         "reasonCode": "CRD_VERSION_NOT_SERVED",
         "setCondition": {
           "component": "pkg:github/strimzi/strimzi-kafka-operator",
@@ -379,7 +571,7 @@
       }
     },
     {
-      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of Kafka (CustomResourceDefinition kafkas.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of Kafka (CustomResourceDefinition kafkas.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 0.51 and 1.0, with a scan of the whole repository at each; it holds for upgrades from any 0.51 release to any 1.0 release. Storage versions, stored objects, conversion and schema changes are not checked.",
       "project": "strimzi",
       "requiredFacts": [
         {
@@ -396,9 +588,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:687b6dd7cbeb6cc5bb48f10a58f531d5c2106f96b27c06b03cb121db6a59567c",
+            "codeDigest": "sha256:b881de6ef65bb7efa4d9bc54f91b2a0003a017166ac03dfd581fb8e7d5afe03f",
             "id": "crd.version-removal.strimzi",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -423,8 +615,40 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkas-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of Kafka to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored Kafka objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "crd-1-0-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-0-0"
+            }
+          ],
+          "from": {
+            "gte": "0.51.0",
+            "lt": "0.52.0"
+          },
+          "to": {
+            "gte": "1.0.0",
+            "lt": "1.1.0"
+          }
+        },
         "reasonCode": "CRD_VERSION_NOT_SERVED",
         "setCondition": {
           "component": "pkg:github/strimzi/strimzi-kafka-operator",
@@ -442,7 +666,7 @@
       }
     },
     {
-      "description": "Strimzi 1.0.0 no longer serves versions v1alpha1, v1beta1, v1beta2 of KafkaTopic (CustomResourceDefinition kafkatopics.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "description": "Strimzi 1.0.0 no longer serves versions v1alpha1, v1beta1, v1beta2 of KafkaTopic (CustomResourceDefinition kafkatopics.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 0.51 and 1.0, with a scan of the whole repository at each; it holds for upgrades from any 0.51 release to any 1.0 release. Storage versions, stored objects, conversion and schema changes are not checked.",
       "project": "strimzi",
       "requiredFacts": [
         {
@@ -459,9 +683,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:687b6dd7cbeb6cc5bb48f10a58f531d5c2106f96b27c06b03cb121db6a59567c",
+            "codeDigest": "sha256:b881de6ef65bb7efa4d9bc54f91b2a0003a017166ac03dfd581fb8e7d5afe03f",
             "id": "crd.version-removal.strimzi",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -486,8 +710,40 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkatopics-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of KafkaTopic to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored KafkaTopic objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "crd-1-0-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-0-0"
+            }
+          ],
+          "from": {
+            "gte": "0.51.0",
+            "lt": "0.52.0"
+          },
+          "to": {
+            "gte": "1.0.0",
+            "lt": "1.1.0"
+          }
+        },
         "reasonCode": "CRD_VERSION_NOT_SERVED",
         "setCondition": {
           "component": "pkg:github/strimzi/strimzi-kafka-operator",
@@ -507,7 +763,7 @@
       }
     },
     {
-      "description": "Strimzi 1.0.0 no longer serves versions v1alpha1, v1beta1, v1beta2 of KafkaUser (CustomResourceDefinition kafkausers.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "description": "Strimzi 1.0.0 no longer serves versions v1alpha1, v1beta1, v1beta2 of KafkaUser (CustomResourceDefinition kafkausers.kafka.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 0.51 and 1.0, with a scan of the whole repository at each; it holds for upgrades from any 0.51 release to any 1.0 release. Storage versions, stored objects, conversion and schema changes are not checked.",
       "project": "strimzi",
       "requiredFacts": [
         {
@@ -524,9 +780,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:687b6dd7cbeb6cc5bb48f10a58f531d5c2106f96b27c06b03cb121db6a59567c",
+            "codeDigest": "sha256:b881de6ef65bb7efa4d9bc54f91b2a0003a017166ac03dfd581fb8e7d5afe03f",
             "id": "crd.version-removal.strimzi",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -551,8 +807,40 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.kafkausers-kafka-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of KafkaUser to kafka.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored KafkaUser objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "crd-1-0-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-0-0"
+            }
+          ],
+          "from": {
+            "gte": "0.51.0",
+            "lt": "0.52.0"
+          },
+          "to": {
+            "gte": "1.0.0",
+            "lt": "1.1.0"
+          }
+        },
         "reasonCode": "CRD_VERSION_NOT_SERVED",
         "setCondition": {
           "component": "pkg:github/strimzi/strimzi-kafka-operator",
@@ -572,7 +860,7 @@
       }
     },
     {
-      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of StrimziPodSet (CustomResourceDefinition strimzipodsets.core.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "description": "Strimzi 1.0.0 no longer serves version v1beta2 of StrimziPodSet (CustomResourceDefinition strimzipodsets.core.strimzi.io), which 0.51.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 0.51 and 1.0, with a scan of the whole repository at each; it holds for upgrades from any 0.51 release to any 1.0 release. Storage versions, stored objects, conversion and schema changes are not checked.",
       "project": "strimzi",
       "requiredFacts": [
         {
@@ -589,9 +877,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:687b6dd7cbeb6cc5bb48f10a58f531d5c2106f96b27c06b03cb121db6a59567c",
+            "codeDigest": "sha256:b881de6ef65bb7efa4d9bc54f91b2a0003a017166ac03dfd581fb8e7d5afe03f",
             "id": "crd.version-removal.strimzi",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -616,8 +904,40 @@
           "validUntil": "2027-01-02T00:00:00Z"
         },
         "id": "strimzi.crd-version-removal.strimzipodsets-core-strimzi-io.0-51-0-to-1-0-0",
-        "nextAction": "change apiVersion of StrimziPodSet to core.strimzi.io/v1 before upgrading to 1.0.0",
+        "nextAction": "migrate stored StrimziPodSet objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to core.strimzi.io/v1 before upgrading to 1.0.0",
         "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-0-51-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "crd-1-0-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-0-0"
+            }
+          ],
+          "from": {
+            "gte": "0.51.0",
+            "lt": "0.52.0"
+          },
+          "to": {
+            "gte": "1.0.0",
+            "lt": "1.1.0"
+          }
+        },
         "reasonCode": "CRD_VERSION_NOT_SERVED",
         "setCondition": {
           "component": "pkg:github/strimzi/strimzi-kafka-operator",

@@ -69,7 +69,7 @@ func Catalog() map[string]Spec {
 		out[t.ExtractorID()] = Spec{
 			ID:     t.ExtractorID(),
 			Repo:   t.Repo,
-			New:    func(int) extract.Extractor { return crdversions.New(t) },
+			New:    func(c int) extract.Extractor { return crdversions.NewConcurrent(t, c) },
 			Oracle: crdversions.Oracle,
 		}
 	}

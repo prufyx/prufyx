@@ -1,0 +1,519 @@
+Release CustomResourceDefinition manifests of four upstream projects, fetched from
+the upstream git repositories by commit
+(https://github.com/<owner>/<repo>/blob/<commit>/<path>). Cilium, Kyverno and
+Longhorn are included at every final release tag of two consecutive release lines
+each; they are the oracle inputs of the crd.version-removal extractor for the
+removals measured upstream: Cilium 1.19 -> 1.20 (CiliumNodeConfig v2alpha1), Kyverno
+1.15 -> 1.16 (UpdateRequest v1beta1) and Longhorn 1.8 -> 1.9 (fifteen v1beta1
+versions). Rook is included at the first release of two lines only (v1.17.0 and
+v1.18.0): its documented install applies deploy/examples/csi-operator.yaml next to
+the listed deploy/examples/crds.yaml, and that file's csi.ceph.io definitions stop
+serving v1alpha1 at v1.18.0, which the full-tree scan must find.
+
+Modifications: the body of every version's "schema:" key was replaced by a minimal
+object schema ("openAPIV3Schema: type: object"); in deploy/longhorn.yaml and Rook's
+deploy/examples/csi-operator.yaml every document that is not a
+CustomResourceDefinition was removed. Every other line is
+unchanged, so names, groups, kinds, version order and the served and storage flags
+are the upstream ones; line numbers and file digests differ from upstream. Only the
+paths the extractor lists are included (the rest of each repository tree is not), so
+the full-tree scan of the extractor sees no file outside them in these fixtures,
+except Rook's deploy/examples/csi-operator.yaml.
+
+The sha256 below is the digest of the unmodified upstream file.
+
+== github.com/cilium/cilium (Cilium; pkg/k8s/apis/cilium.io/client/crds/v2/*.yaml and pkg/k8s/apis/cilium.io/client/crds/v2alpha1/*.yaml)
+Licence: Apache-2.0, Copyright Authors of Cilium; see LICENSES/Source-Cilium-Apache-2.0.txt and THIRD-PARTY.md
+(Modified upstream test fixtures).
+v1.19.0 7c6667e1e707d7f39a4af3409c2a9ebea2917d32
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpadvertisements.yaml sha256:7db305307814d057ebb06bb60a18d1907cdfc1a0cfa64037eb8b2c393a87aa0b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpclusterconfigs.yaml sha256:ada6f0d16bfed6b570c97528694702797712e9769450b9c4a3224697dde7536e
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigoverrides.yaml sha256:3ad9f6c87e395d0afc55e0de293e88e8ec12f498b7fed34045f4b03c35009fb7
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigs.yaml sha256:c6e40beef8fa66e0df5a233827b1151248dbff1006e288153166966e7dbc2919
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgppeerconfigs.yaml sha256:698f7babf54a9c9933f877463d2784d3940508a9fd9a0c064a5cc4469eca8ad6
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumcidrgroups.yaml sha256:64c3e515decd0a1a91745e0544e9601dbddd1b5d46914834a8fd175f51499ee9
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml sha256:9d5d17d02c2fce55be09e8c74533022a041ab63a05d79e63af1523e37bc4bdd4
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwidenetworkpolicies.yaml sha256:ae742b7ad66ddb4af752b6ae9787f2d3bc4597e3f29df80417967767f9bf2a79
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumegressgatewaypolicies.yaml sha256:f16658599934be27523d02b90e2a2d2fb0dc5cff7c1c2fceafb5f6c812838540
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumendpoints.yaml sha256:7f34d1d7b7d9c7b05a8ce6d92720ad358145047667fc5cdc14dcfa19dc7b9519
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumenvoyconfigs.yaml sha256:9641a7b9034508798ac8ecf58cf29fd2ae21e320df7ad59c8596bf7f414c420b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumidentities.yaml sha256:904c3426ece91ad5e0a0f033d4eb643d50f135ad7f9b65665bb8bb7668a1235a
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumloadbalancerippools.yaml sha256:04a1e2415f62364c409913f85d2ed597ba41e4f8c31fd242fd79149348853142
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumlocalredirectpolicies.yaml sha256:2c893201a7d2319ff02044d03db613125c5decb1f60e6ce106750d5be623f3e2
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnetworkpolicies.yaml sha256:1b1738a904de1152c43078e6a873440aea100f30f10ce5ed4e8622524c13fa43
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml sha256:92a77d6f101e251708501a2b1322dfb1a4cd45f9a78f8bf733baa7dc91963263
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodes.yaml sha256:b41b943438307e702e825ee1e7538d989dccd5456bf2efc5d9993594b0dd2c6d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumendpointslices.yaml sha256:48b5f0982d331e70b310362b213da2a83f3def8de56807d7c1d1969e2996b39d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumgatewayclassconfigs.yaml sha256:f2333704769a50987fad089ea749715863fa86b428adbb1ed41e69f924083d38
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliuml2announcementpolicies.yaml sha256:c9a67b0d8a3a5ea43d80c3ac1a0e05f5d0c7ba19ed70cbe8ccd4e04ad5077e1b
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumpodippools.yaml sha256:1cc929e1ca7142a46314813ac9dc5ec3efa22d00a7825f52112214549cf5f48b
+v1.19.1 d0d0c8792c3420b3a6739fa21e3a182827a0bbc6
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpadvertisements.yaml sha256:7db305307814d057ebb06bb60a18d1907cdfc1a0cfa64037eb8b2c393a87aa0b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpclusterconfigs.yaml sha256:ada6f0d16bfed6b570c97528694702797712e9769450b9c4a3224697dde7536e
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigoverrides.yaml sha256:3ad9f6c87e395d0afc55e0de293e88e8ec12f498b7fed34045f4b03c35009fb7
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigs.yaml sha256:c6e40beef8fa66e0df5a233827b1151248dbff1006e288153166966e7dbc2919
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgppeerconfigs.yaml sha256:698f7babf54a9c9933f877463d2784d3940508a9fd9a0c064a5cc4469eca8ad6
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumcidrgroups.yaml sha256:64c3e515decd0a1a91745e0544e9601dbddd1b5d46914834a8fd175f51499ee9
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml sha256:9d5d17d02c2fce55be09e8c74533022a041ab63a05d79e63af1523e37bc4bdd4
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwidenetworkpolicies.yaml sha256:ae742b7ad66ddb4af752b6ae9787f2d3bc4597e3f29df80417967767f9bf2a79
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumegressgatewaypolicies.yaml sha256:f16658599934be27523d02b90e2a2d2fb0dc5cff7c1c2fceafb5f6c812838540
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumendpoints.yaml sha256:7f34d1d7b7d9c7b05a8ce6d92720ad358145047667fc5cdc14dcfa19dc7b9519
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumenvoyconfigs.yaml sha256:9641a7b9034508798ac8ecf58cf29fd2ae21e320df7ad59c8596bf7f414c420b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumidentities.yaml sha256:904c3426ece91ad5e0a0f033d4eb643d50f135ad7f9b65665bb8bb7668a1235a
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumloadbalancerippools.yaml sha256:04a1e2415f62364c409913f85d2ed597ba41e4f8c31fd242fd79149348853142
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumlocalredirectpolicies.yaml sha256:2c893201a7d2319ff02044d03db613125c5decb1f60e6ce106750d5be623f3e2
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnetworkpolicies.yaml sha256:1b1738a904de1152c43078e6a873440aea100f30f10ce5ed4e8622524c13fa43
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml sha256:92a77d6f101e251708501a2b1322dfb1a4cd45f9a78f8bf733baa7dc91963263
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodes.yaml sha256:b41b943438307e702e825ee1e7538d989dccd5456bf2efc5d9993594b0dd2c6d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumendpointslices.yaml sha256:48b5f0982d331e70b310362b213da2a83f3def8de56807d7c1d1969e2996b39d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumgatewayclassconfigs.yaml sha256:f2333704769a50987fad089ea749715863fa86b428adbb1ed41e69f924083d38
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliuml2announcementpolicies.yaml sha256:c9a67b0d8a3a5ea43d80c3ac1a0e05f5d0c7ba19ed70cbe8ccd4e04ad5077e1b
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumpodippools.yaml sha256:1cc929e1ca7142a46314813ac9dc5ec3efa22d00a7825f52112214549cf5f48b
+v1.19.2 3977f6a1120bf5ec0206c1b3c484ba094da82c7d
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpadvertisements.yaml sha256:7db305307814d057ebb06bb60a18d1907cdfc1a0cfa64037eb8b2c393a87aa0b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpclusterconfigs.yaml sha256:ada6f0d16bfed6b570c97528694702797712e9769450b9c4a3224697dde7536e
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigoverrides.yaml sha256:3ad9f6c87e395d0afc55e0de293e88e8ec12f498b7fed34045f4b03c35009fb7
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigs.yaml sha256:c6e40beef8fa66e0df5a233827b1151248dbff1006e288153166966e7dbc2919
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgppeerconfigs.yaml sha256:698f7babf54a9c9933f877463d2784d3940508a9fd9a0c064a5cc4469eca8ad6
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumcidrgroups.yaml sha256:64c3e515decd0a1a91745e0544e9601dbddd1b5d46914834a8fd175f51499ee9
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml sha256:9d5d17d02c2fce55be09e8c74533022a041ab63a05d79e63af1523e37bc4bdd4
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwidenetworkpolicies.yaml sha256:ae742b7ad66ddb4af752b6ae9787f2d3bc4597e3f29df80417967767f9bf2a79
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumegressgatewaypolicies.yaml sha256:f16658599934be27523d02b90e2a2d2fb0dc5cff7c1c2fceafb5f6c812838540
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumendpoints.yaml sha256:7f34d1d7b7d9c7b05a8ce6d92720ad358145047667fc5cdc14dcfa19dc7b9519
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumenvoyconfigs.yaml sha256:9641a7b9034508798ac8ecf58cf29fd2ae21e320df7ad59c8596bf7f414c420b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumidentities.yaml sha256:904c3426ece91ad5e0a0f033d4eb643d50f135ad7f9b65665bb8bb7668a1235a
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumloadbalancerippools.yaml sha256:04a1e2415f62364c409913f85d2ed597ba41e4f8c31fd242fd79149348853142
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumlocalredirectpolicies.yaml sha256:2c893201a7d2319ff02044d03db613125c5decb1f60e6ce106750d5be623f3e2
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnetworkpolicies.yaml sha256:1b1738a904de1152c43078e6a873440aea100f30f10ce5ed4e8622524c13fa43
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml sha256:92a77d6f101e251708501a2b1322dfb1a4cd45f9a78f8bf733baa7dc91963263
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodes.yaml sha256:b41b943438307e702e825ee1e7538d989dccd5456bf2efc5d9993594b0dd2c6d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumendpointslices.yaml sha256:48b5f0982d331e70b310362b213da2a83f3def8de56807d7c1d1969e2996b39d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumgatewayclassconfigs.yaml sha256:f2333704769a50987fad089ea749715863fa86b428adbb1ed41e69f924083d38
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliuml2announcementpolicies.yaml sha256:c9a67b0d8a3a5ea43d80c3ac1a0e05f5d0c7ba19ed70cbe8ccd4e04ad5077e1b
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumpodippools.yaml sha256:1cc929e1ca7142a46314813ac9dc5ec3efa22d00a7825f52112214549cf5f48b
+v1.19.3 f5eb641b18502ebeca412b40c1bec7ff3d8bf9eb
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpadvertisements.yaml sha256:7db305307814d057ebb06bb60a18d1907cdfc1a0cfa64037eb8b2c393a87aa0b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpclusterconfigs.yaml sha256:ada6f0d16bfed6b570c97528694702797712e9769450b9c4a3224697dde7536e
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigoverrides.yaml sha256:3ad9f6c87e395d0afc55e0de293e88e8ec12f498b7fed34045f4b03c35009fb7
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigs.yaml sha256:c6e40beef8fa66e0df5a233827b1151248dbff1006e288153166966e7dbc2919
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgppeerconfigs.yaml sha256:698f7babf54a9c9933f877463d2784d3940508a9fd9a0c064a5cc4469eca8ad6
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumcidrgroups.yaml sha256:64c3e515decd0a1a91745e0544e9601dbddd1b5d46914834a8fd175f51499ee9
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml sha256:9d5d17d02c2fce55be09e8c74533022a041ab63a05d79e63af1523e37bc4bdd4
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwidenetworkpolicies.yaml sha256:ae742b7ad66ddb4af752b6ae9787f2d3bc4597e3f29df80417967767f9bf2a79
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumegressgatewaypolicies.yaml sha256:f16658599934be27523d02b90e2a2d2fb0dc5cff7c1c2fceafb5f6c812838540
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumendpoints.yaml sha256:7f34d1d7b7d9c7b05a8ce6d92720ad358145047667fc5cdc14dcfa19dc7b9519
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumenvoyconfigs.yaml sha256:9641a7b9034508798ac8ecf58cf29fd2ae21e320df7ad59c8596bf7f414c420b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumidentities.yaml sha256:904c3426ece91ad5e0a0f033d4eb643d50f135ad7f9b65665bb8bb7668a1235a
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumloadbalancerippools.yaml sha256:04a1e2415f62364c409913f85d2ed597ba41e4f8c31fd242fd79149348853142
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumlocalredirectpolicies.yaml sha256:2c893201a7d2319ff02044d03db613125c5decb1f60e6ce106750d5be623f3e2
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnetworkpolicies.yaml sha256:1b1738a904de1152c43078e6a873440aea100f30f10ce5ed4e8622524c13fa43
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml sha256:92a77d6f101e251708501a2b1322dfb1a4cd45f9a78f8bf733baa7dc91963263
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodes.yaml sha256:b41b943438307e702e825ee1e7538d989dccd5456bf2efc5d9993594b0dd2c6d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumendpointslices.yaml sha256:48b5f0982d331e70b310362b213da2a83f3def8de56807d7c1d1969e2996b39d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumgatewayclassconfigs.yaml sha256:f2333704769a50987fad089ea749715863fa86b428adbb1ed41e69f924083d38
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliuml2announcementpolicies.yaml sha256:c9a67b0d8a3a5ea43d80c3ac1a0e05f5d0c7ba19ed70cbe8ccd4e04ad5077e1b
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumpodippools.yaml sha256:1cc929e1ca7142a46314813ac9dc5ec3efa22d00a7825f52112214549cf5f48b
+v1.19.4 95e477fdcfd35d438b135f4d981ee20ce3016ac3
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpadvertisements.yaml sha256:7db305307814d057ebb06bb60a18d1907cdfc1a0cfa64037eb8b2c393a87aa0b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpclusterconfigs.yaml sha256:ada6f0d16bfed6b570c97528694702797712e9769450b9c4a3224697dde7536e
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigoverrides.yaml sha256:3ad9f6c87e395d0afc55e0de293e88e8ec12f498b7fed34045f4b03c35009fb7
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigs.yaml sha256:c6e40beef8fa66e0df5a233827b1151248dbff1006e288153166966e7dbc2919
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgppeerconfigs.yaml sha256:698f7babf54a9c9933f877463d2784d3940508a9fd9a0c064a5cc4469eca8ad6
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumcidrgroups.yaml sha256:64c3e515decd0a1a91745e0544e9601dbddd1b5d46914834a8fd175f51499ee9
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml sha256:9d5d17d02c2fce55be09e8c74533022a041ab63a05d79e63af1523e37bc4bdd4
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwidenetworkpolicies.yaml sha256:ae742b7ad66ddb4af752b6ae9787f2d3bc4597e3f29df80417967767f9bf2a79
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumegressgatewaypolicies.yaml sha256:f16658599934be27523d02b90e2a2d2fb0dc5cff7c1c2fceafb5f6c812838540
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumendpoints.yaml sha256:7f34d1d7b7d9c7b05a8ce6d92720ad358145047667fc5cdc14dcfa19dc7b9519
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumenvoyconfigs.yaml sha256:9641a7b9034508798ac8ecf58cf29fd2ae21e320df7ad59c8596bf7f414c420b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumidentities.yaml sha256:904c3426ece91ad5e0a0f033d4eb643d50f135ad7f9b65665bb8bb7668a1235a
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumloadbalancerippools.yaml sha256:04a1e2415f62364c409913f85d2ed597ba41e4f8c31fd242fd79149348853142
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumlocalredirectpolicies.yaml sha256:2c893201a7d2319ff02044d03db613125c5decb1f60e6ce106750d5be623f3e2
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnetworkpolicies.yaml sha256:1b1738a904de1152c43078e6a873440aea100f30f10ce5ed4e8622524c13fa43
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml sha256:92a77d6f101e251708501a2b1322dfb1a4cd45f9a78f8bf733baa7dc91963263
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodes.yaml sha256:b41b943438307e702e825ee1e7538d989dccd5456bf2efc5d9993594b0dd2c6d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumendpointslices.yaml sha256:48b5f0982d331e70b310362b213da2a83f3def8de56807d7c1d1969e2996b39d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumgatewayclassconfigs.yaml sha256:f2333704769a50987fad089ea749715863fa86b428adbb1ed41e69f924083d38
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliuml2announcementpolicies.yaml sha256:c9a67b0d8a3a5ea43d80c3ac1a0e05f5d0c7ba19ed70cbe8ccd4e04ad5077e1b
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumpodippools.yaml sha256:1cc929e1ca7142a46314813ac9dc5ec3efa22d00a7825f52112214549cf5f48b
+v1.19.5 20eaccfef029cb046d70219717fb6dbbdf27a59f
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpadvertisements.yaml sha256:7db305307814d057ebb06bb60a18d1907cdfc1a0cfa64037eb8b2c393a87aa0b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpclusterconfigs.yaml sha256:ada6f0d16bfed6b570c97528694702797712e9769450b9c4a3224697dde7536e
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigoverrides.yaml sha256:3ad9f6c87e395d0afc55e0de293e88e8ec12f498b7fed34045f4b03c35009fb7
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigs.yaml sha256:c6e40beef8fa66e0df5a233827b1151248dbff1006e288153166966e7dbc2919
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgppeerconfigs.yaml sha256:698f7babf54a9c9933f877463d2784d3940508a9fd9a0c064a5cc4469eca8ad6
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumcidrgroups.yaml sha256:64c3e515decd0a1a91745e0544e9601dbddd1b5d46914834a8fd175f51499ee9
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml sha256:9d5d17d02c2fce55be09e8c74533022a041ab63a05d79e63af1523e37bc4bdd4
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwidenetworkpolicies.yaml sha256:ae742b7ad66ddb4af752b6ae9787f2d3bc4597e3f29df80417967767f9bf2a79
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumegressgatewaypolicies.yaml sha256:f16658599934be27523d02b90e2a2d2fb0dc5cff7c1c2fceafb5f6c812838540
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumendpoints.yaml sha256:7f34d1d7b7d9c7b05a8ce6d92720ad358145047667fc5cdc14dcfa19dc7b9519
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumenvoyconfigs.yaml sha256:9641a7b9034508798ac8ecf58cf29fd2ae21e320df7ad59c8596bf7f414c420b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumidentities.yaml sha256:904c3426ece91ad5e0a0f033d4eb643d50f135ad7f9b65665bb8bb7668a1235a
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumloadbalancerippools.yaml sha256:04a1e2415f62364c409913f85d2ed597ba41e4f8c31fd242fd79149348853142
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumlocalredirectpolicies.yaml sha256:2c893201a7d2319ff02044d03db613125c5decb1f60e6ce106750d5be623f3e2
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnetworkpolicies.yaml sha256:1b1738a904de1152c43078e6a873440aea100f30f10ce5ed4e8622524c13fa43
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml sha256:92a77d6f101e251708501a2b1322dfb1a4cd45f9a78f8bf733baa7dc91963263
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodes.yaml sha256:b41b943438307e702e825ee1e7538d989dccd5456bf2efc5d9993594b0dd2c6d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumendpointslices.yaml sha256:48b5f0982d331e70b310362b213da2a83f3def8de56807d7c1d1969e2996b39d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumgatewayclassconfigs.yaml sha256:f2333704769a50987fad089ea749715863fa86b428adbb1ed41e69f924083d38
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliuml2announcementpolicies.yaml sha256:c9a67b0d8a3a5ea43d80c3ac1a0e05f5d0c7ba19ed70cbe8ccd4e04ad5077e1b
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumpodippools.yaml sha256:1cc929e1ca7142a46314813ac9dc5ec3efa22d00a7825f52112214549cf5f48b
+v1.19.6 9a8982433e18019e290b8199c0c4ad24f66befe8
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpadvertisements.yaml sha256:7db305307814d057ebb06bb60a18d1907cdfc1a0cfa64037eb8b2c393a87aa0b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpclusterconfigs.yaml sha256:ada6f0d16bfed6b570c97528694702797712e9769450b9c4a3224697dde7536e
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigoverrides.yaml sha256:3ad9f6c87e395d0afc55e0de293e88e8ec12f498b7fed34045f4b03c35009fb7
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigs.yaml sha256:c6e40beef8fa66e0df5a233827b1151248dbff1006e288153166966e7dbc2919
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgppeerconfigs.yaml sha256:698f7babf54a9c9933f877463d2784d3940508a9fd9a0c064a5cc4469eca8ad6
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumcidrgroups.yaml sha256:64c3e515decd0a1a91745e0544e9601dbddd1b5d46914834a8fd175f51499ee9
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml sha256:9d5d17d02c2fce55be09e8c74533022a041ab63a05d79e63af1523e37bc4bdd4
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwidenetworkpolicies.yaml sha256:ae742b7ad66ddb4af752b6ae9787f2d3bc4597e3f29df80417967767f9bf2a79
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumegressgatewaypolicies.yaml sha256:f16658599934be27523d02b90e2a2d2fb0dc5cff7c1c2fceafb5f6c812838540
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumendpoints.yaml sha256:7f34d1d7b7d9c7b05a8ce6d92720ad358145047667fc5cdc14dcfa19dc7b9519
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumenvoyconfigs.yaml sha256:9641a7b9034508798ac8ecf58cf29fd2ae21e320df7ad59c8596bf7f414c420b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumidentities.yaml sha256:904c3426ece91ad5e0a0f033d4eb643d50f135ad7f9b65665bb8bb7668a1235a
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumloadbalancerippools.yaml sha256:04a1e2415f62364c409913f85d2ed597ba41e4f8c31fd242fd79149348853142
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumlocalredirectpolicies.yaml sha256:2c893201a7d2319ff02044d03db613125c5decb1f60e6ce106750d5be623f3e2
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnetworkpolicies.yaml sha256:1b1738a904de1152c43078e6a873440aea100f30f10ce5ed4e8622524c13fa43
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml sha256:92a77d6f101e251708501a2b1322dfb1a4cd45f9a78f8bf733baa7dc91963263
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodes.yaml sha256:b41b943438307e702e825ee1e7538d989dccd5456bf2efc5d9993594b0dd2c6d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumendpointslices.yaml sha256:48b5f0982d331e70b310362b213da2a83f3def8de56807d7c1d1969e2996b39d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumgatewayclassconfigs.yaml sha256:892bb8499ece3e4d91628dd325d9ca046e96db195ca389a1818d82c1efdebd5b
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliuml2announcementpolicies.yaml sha256:c9a67b0d8a3a5ea43d80c3ac1a0e05f5d0c7ba19ed70cbe8ccd4e04ad5077e1b
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumpodippools.yaml sha256:1cc929e1ca7142a46314813ac9dc5ec3efa22d00a7825f52112214549cf5f48b
+v1.19.7 704b537b83f456fc199f48c2f1781beb0d679c87
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpadvertisements.yaml sha256:7db305307814d057ebb06bb60a18d1907cdfc1a0cfa64037eb8b2c393a87aa0b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpclusterconfigs.yaml sha256:ada6f0d16bfed6b570c97528694702797712e9769450b9c4a3224697dde7536e
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigoverrides.yaml sha256:3ad9f6c87e395d0afc55e0de293e88e8ec12f498b7fed34045f4b03c35009fb7
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigs.yaml sha256:c6e40beef8fa66e0df5a233827b1151248dbff1006e288153166966e7dbc2919
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgppeerconfigs.yaml sha256:698f7babf54a9c9933f877463d2784d3940508a9fd9a0c064a5cc4469eca8ad6
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumcidrgroups.yaml sha256:64c3e515decd0a1a91745e0544e9601dbddd1b5d46914834a8fd175f51499ee9
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml sha256:9d5d17d02c2fce55be09e8c74533022a041ab63a05d79e63af1523e37bc4bdd4
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwidenetworkpolicies.yaml sha256:ae742b7ad66ddb4af752b6ae9787f2d3bc4597e3f29df80417967767f9bf2a79
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumegressgatewaypolicies.yaml sha256:f16658599934be27523d02b90e2a2d2fb0dc5cff7c1c2fceafb5f6c812838540
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumendpoints.yaml sha256:7f34d1d7b7d9c7b05a8ce6d92720ad358145047667fc5cdc14dcfa19dc7b9519
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumenvoyconfigs.yaml sha256:9641a7b9034508798ac8ecf58cf29fd2ae21e320df7ad59c8596bf7f414c420b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumidentities.yaml sha256:904c3426ece91ad5e0a0f033d4eb643d50f135ad7f9b65665bb8bb7668a1235a
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumloadbalancerippools.yaml sha256:04a1e2415f62364c409913f85d2ed597ba41e4f8c31fd242fd79149348853142
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumlocalredirectpolicies.yaml sha256:2c893201a7d2319ff02044d03db613125c5decb1f60e6ce106750d5be623f3e2
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnetworkpolicies.yaml sha256:1b1738a904de1152c43078e6a873440aea100f30f10ce5ed4e8622524c13fa43
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml sha256:92a77d6f101e251708501a2b1322dfb1a4cd45f9a78f8bf733baa7dc91963263
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodes.yaml sha256:b41b943438307e702e825ee1e7538d989dccd5456bf2efc5d9993594b0dd2c6d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumendpointslices.yaml sha256:48b5f0982d331e70b310362b213da2a83f3def8de56807d7c1d1969e2996b39d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumgatewayclassconfigs.yaml sha256:892bb8499ece3e4d91628dd325d9ca046e96db195ca389a1818d82c1efdebd5b
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliuml2announcementpolicies.yaml sha256:c9a67b0d8a3a5ea43d80c3ac1a0e05f5d0c7ba19ed70cbe8ccd4e04ad5077e1b
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumpodippools.yaml sha256:1cc929e1ca7142a46314813ac9dc5ec3efa22d00a7825f52112214549cf5f48b
+v1.19.8 5791d208dda456da8d08e9389c3d22514dc2db77
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpadvertisements.yaml sha256:7db305307814d057ebb06bb60a18d1907cdfc1a0cfa64037eb8b2c393a87aa0b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpclusterconfigs.yaml sha256:ada6f0d16bfed6b570c97528694702797712e9769450b9c4a3224697dde7536e
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigoverrides.yaml sha256:3ad9f6c87e395d0afc55e0de293e88e8ec12f498b7fed34045f4b03c35009fb7
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigs.yaml sha256:c6e40beef8fa66e0df5a233827b1151248dbff1006e288153166966e7dbc2919
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgppeerconfigs.yaml sha256:698f7babf54a9c9933f877463d2784d3940508a9fd9a0c064a5cc4469eca8ad6
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumcidrgroups.yaml sha256:64c3e515decd0a1a91745e0544e9601dbddd1b5d46914834a8fd175f51499ee9
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml sha256:9d5d17d02c2fce55be09e8c74533022a041ab63a05d79e63af1523e37bc4bdd4
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwidenetworkpolicies.yaml sha256:ae742b7ad66ddb4af752b6ae9787f2d3bc4597e3f29df80417967767f9bf2a79
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumegressgatewaypolicies.yaml sha256:f16658599934be27523d02b90e2a2d2fb0dc5cff7c1c2fceafb5f6c812838540
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumendpoints.yaml sha256:7f34d1d7b7d9c7b05a8ce6d92720ad358145047667fc5cdc14dcfa19dc7b9519
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumenvoyconfigs.yaml sha256:9641a7b9034508798ac8ecf58cf29fd2ae21e320df7ad59c8596bf7f414c420b
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumidentities.yaml sha256:904c3426ece91ad5e0a0f033d4eb643d50f135ad7f9b65665bb8bb7668a1235a
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumloadbalancerippools.yaml sha256:04a1e2415f62364c409913f85d2ed597ba41e4f8c31fd242fd79149348853142
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumlocalredirectpolicies.yaml sha256:2c893201a7d2319ff02044d03db613125c5decb1f60e6ce106750d5be623f3e2
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnetworkpolicies.yaml sha256:1b1738a904de1152c43078e6a873440aea100f30f10ce5ed4e8622524c13fa43
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml sha256:92a77d6f101e251708501a2b1322dfb1a4cd45f9a78f8bf733baa7dc91963263
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodes.yaml sha256:b41b943438307e702e825ee1e7538d989dccd5456bf2efc5d9993594b0dd2c6d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumendpointslices.yaml sha256:48b5f0982d331e70b310362b213da2a83f3def8de56807d7c1d1969e2996b39d
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumgatewayclassconfigs.yaml sha256:892bb8499ece3e4d91628dd325d9ca046e96db195ca389a1818d82c1efdebd5b
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliuml2announcementpolicies.yaml sha256:c9a67b0d8a3a5ea43d80c3ac1a0e05f5d0c7ba19ed70cbe8ccd4e04ad5077e1b
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumpodippools.yaml sha256:1cc929e1ca7142a46314813ac9dc5ec3efa22d00a7825f52112214549cf5f48b
+v1.20.0 450c53145dc0a872ae20dfb05598c94ef55a71e2
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpadvertisements.yaml sha256:44f04798cdfcfece42128630836086ee8c160ece8a4801dcb02eb03b1eadc5f7
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpclusterconfigs.yaml sha256:51206558786549a8962fa7c6e178583409a655a480f9fc5e5c277fb48969908c
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigoverrides.yaml sha256:8032d71df06d36600de9e6d7c6808e719537118feb5ffa528d692adbb4552238
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigs.yaml sha256:fcc8689b3e2985935e4badf23b545e5c4343e878e78c567fde28b035c56272b8
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgppeerconfigs.yaml sha256:91ab4563c9b4a6fd4314e9fe0b128fcd77f15b50f3a5be6a32a7703dede70f60
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumcidrgroups.yaml sha256:8060269a3ef63271578a090bbe5be135d0dad2932f7ccc7204b37820c990e535
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml sha256:99fb35a331563f37031b9f8aabc42aee2e371eb28f98fa1b25af810417eff614
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwidenetworkpolicies.yaml sha256:ae65e44fdee9da399cb7257a8464f197bea5270fdc213f6343700309c39abad6
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumegressgatewaypolicies.yaml sha256:c92dc81014168aff5d8d2f730c28c992f97ee85e5483f473555f1e5bc4a90298
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumendpoints.yaml sha256:fecfbb3886d3683e93b6adce98553db7c6f52cbc4442de253db488df0ad44a7e
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumenvoyconfigs.yaml sha256:7fc86c57011374cc3447839eea290c6c4bbb5f1c9d613c4be76893f9cb51e484
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumidentities.yaml sha256:6584bb0e5bd3cb41d6f1e1ff80b866407d21a44cba00d35b1c39abab0a2d0d57
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumloadbalancerippools.yaml sha256:31dd3d26d987e46bc04d66ec2f9bdcf2aa2b13b7b368e515ca324961b55d65b1
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumlocalredirectpolicies.yaml sha256:e4673421422e46bb43e16d4e214c57fef6f07a3f95b0aaca92a4044a7e59ae91
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnetworkpolicies.yaml sha256:62c6de8f358da125b94468d39187edb1cea157d79503fdc50ccec8a6aaa79a76
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml sha256:c7e3558ed06e8d87ce75a007bd3b0f0fb2c28080a6c52ee9184f6d3b887f1aff
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodes.yaml sha256:cc3e57ace385353b237b04f466fb99fd9c75c96682044063daae3e0150d2247f
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumdatapathplugins.yaml sha256:c235378e12ae3e8108dac90188068de92e8e4ff54df3720cc4d394ec7a1973ed
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumendpointslices.yaml sha256:bb6626fd03bc2d70ef39ae182420da42fecbc41cbca40c484082a7ce6a7fb705
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumgatewayclassconfigs.yaml sha256:8e06be025a6bd04dab073ba4396e382278ff19059c7d1183aaa11fed4f530946
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliuml2announcementpolicies.yaml sha256:5a5ada1455e5169d1f95d4814302677ebff4bf477b5298483e9b827a70feee7a
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumpodippools.yaml sha256:34dd4b4a6a6f588b1936e1b01acb72fb9cb2c9cf7c3fefead7b5b253a356a9e8
+v1.20.1 7d68cfb394f2960e10aa72e76d0d51e66c1b2ebc
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpadvertisements.yaml sha256:44f04798cdfcfece42128630836086ee8c160ece8a4801dcb02eb03b1eadc5f7
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpclusterconfigs.yaml sha256:51206558786549a8962fa7c6e178583409a655a480f9fc5e5c277fb48969908c
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigoverrides.yaml sha256:8032d71df06d36600de9e6d7c6808e719537118feb5ffa528d692adbb4552238
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigs.yaml sha256:fcc8689b3e2985935e4badf23b545e5c4343e878e78c567fde28b035c56272b8
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgppeerconfigs.yaml sha256:91ab4563c9b4a6fd4314e9fe0b128fcd77f15b50f3a5be6a32a7703dede70f60
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumcidrgroups.yaml sha256:8060269a3ef63271578a090bbe5be135d0dad2932f7ccc7204b37820c990e535
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml sha256:99fb35a331563f37031b9f8aabc42aee2e371eb28f98fa1b25af810417eff614
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwidenetworkpolicies.yaml sha256:ae65e44fdee9da399cb7257a8464f197bea5270fdc213f6343700309c39abad6
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumegressgatewaypolicies.yaml sha256:c92dc81014168aff5d8d2f730c28c992f97ee85e5483f473555f1e5bc4a90298
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumendpoints.yaml sha256:fecfbb3886d3683e93b6adce98553db7c6f52cbc4442de253db488df0ad44a7e
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumenvoyconfigs.yaml sha256:7fc86c57011374cc3447839eea290c6c4bbb5f1c9d613c4be76893f9cb51e484
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumidentities.yaml sha256:6584bb0e5bd3cb41d6f1e1ff80b866407d21a44cba00d35b1c39abab0a2d0d57
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumloadbalancerippools.yaml sha256:31dd3d26d987e46bc04d66ec2f9bdcf2aa2b13b7b368e515ca324961b55d65b1
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumlocalredirectpolicies.yaml sha256:e4673421422e46bb43e16d4e214c57fef6f07a3f95b0aaca92a4044a7e59ae91
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnetworkpolicies.yaml sha256:62c6de8f358da125b94468d39187edb1cea157d79503fdc50ccec8a6aaa79a76
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml sha256:c7e3558ed06e8d87ce75a007bd3b0f0fb2c28080a6c52ee9184f6d3b887f1aff
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodes.yaml sha256:cc3e57ace385353b237b04f466fb99fd9c75c96682044063daae3e0150d2247f
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumdatapathplugins.yaml sha256:c235378e12ae3e8108dac90188068de92e8e4ff54df3720cc4d394ec7a1973ed
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumendpointslices.yaml sha256:bb6626fd03bc2d70ef39ae182420da42fecbc41cbca40c484082a7ce6a7fb705
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumgatewayclassconfigs.yaml sha256:8e06be025a6bd04dab073ba4396e382278ff19059c7d1183aaa11fed4f530946
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliuml2announcementpolicies.yaml sha256:5a5ada1455e5169d1f95d4814302677ebff4bf477b5298483e9b827a70feee7a
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumpodippools.yaml sha256:34dd4b4a6a6f588b1936e1b01acb72fb9cb2c9cf7c3fefead7b5b253a356a9e8
+v1.20.2 e0dc92bd6dac33d7ba3b5eace82a0448bbb13aac
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpadvertisements.yaml sha256:44f04798cdfcfece42128630836086ee8c160ece8a4801dcb02eb03b1eadc5f7
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpclusterconfigs.yaml sha256:51206558786549a8962fa7c6e178583409a655a480f9fc5e5c277fb48969908c
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigoverrides.yaml sha256:8032d71df06d36600de9e6d7c6808e719537118feb5ffa528d692adbb4552238
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgpnodeconfigs.yaml sha256:fcc8689b3e2985935e4badf23b545e5c4343e878e78c567fde28b035c56272b8
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumbgppeerconfigs.yaml sha256:91ab4563c9b4a6fd4314e9fe0b128fcd77f15b50f3a5be6a32a7703dede70f60
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumcidrgroups.yaml sha256:8060269a3ef63271578a090bbe5be135d0dad2932f7ccc7204b37820c990e535
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml sha256:99fb35a331563f37031b9f8aabc42aee2e371eb28f98fa1b25af810417eff614
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwidenetworkpolicies.yaml sha256:ae65e44fdee9da399cb7257a8464f197bea5270fdc213f6343700309c39abad6
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumegressgatewaypolicies.yaml sha256:c92dc81014168aff5d8d2f730c28c992f97ee85e5483f473555f1e5bc4a90298
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumendpoints.yaml sha256:fecfbb3886d3683e93b6adce98553db7c6f52cbc4442de253db488df0ad44a7e
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumenvoyconfigs.yaml sha256:7fc86c57011374cc3447839eea290c6c4bbb5f1c9d613c4be76893f9cb51e484
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumidentities.yaml sha256:6584bb0e5bd3cb41d6f1e1ff80b866407d21a44cba00d35b1c39abab0a2d0d57
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumloadbalancerippools.yaml sha256:31dd3d26d987e46bc04d66ec2f9bdcf2aa2b13b7b368e515ca324961b55d65b1
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumlocalredirectpolicies.yaml sha256:e4673421422e46bb43e16d4e214c57fef6f07a3f95b0aaca92a4044a7e59ae91
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnetworkpolicies.yaml sha256:62c6de8f358da125b94468d39187edb1cea157d79503fdc50ccec8a6aaa79a76
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml sha256:89aae253c84e12785034a4a06ead94c8a61ee0954e6d60816e79fcd584aa6d59
+  pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodes.yaml sha256:cc3e57ace385353b237b04f466fb99fd9c75c96682044063daae3e0150d2247f
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumdatapathplugins.yaml sha256:c235378e12ae3e8108dac90188068de92e8e4ff54df3720cc4d394ec7a1973ed
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumendpointslices.yaml sha256:bb6626fd03bc2d70ef39ae182420da42fecbc41cbca40c484082a7ce6a7fb705
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumgatewayclassconfigs.yaml sha256:8e06be025a6bd04dab073ba4396e382278ff19059c7d1183aaa11fed4f530946
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliuml2announcementpolicies.yaml sha256:5a5ada1455e5169d1f95d4814302677ebff4bf477b5298483e9b827a70feee7a
+  pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumpodippools.yaml sha256:34dd4b4a6a6f588b1936e1b01acb72fb9cb2c9cf7c3fefead7b5b253a356a9e8
+
+== github.com/kyverno/kyverno (Kyverno; every *.yaml file under config/crds (recursively))
+Licence: Apache-2.0, Copyright The Kyverno Authors; see LICENSES/Source-Kyverno-Apache-2.0.txt and THIRD-PARTY.md
+(Modified upstream test fixtures).
+v1.15.0 be04f6e69bf608dc3a9bc16f1443cb869628bcd2
+  config/crds/kyverno/kyverno.io_cleanuppolicies.yaml sha256:d0e70eb0630f1cd2791bb852c83b9ab79058dd19191bcc1c05587997f2bbfecb
+  config/crds/kyverno/kyverno.io_clustercleanuppolicies.yaml sha256:56dff87975ee5a5779577345897c81362060ab4274be0274a0585bc4f24ec618
+  config/crds/kyverno/kyverno.io_clusterpolicies.yaml sha256:376cf482c6aa04b2c652b32756a0244f71627450f6f6e3ddbae1da74f6eb293e
+  config/crds/kyverno/kyverno.io_globalcontextentries.yaml sha256:6688b596f24118cc53cd9b11a39716fd82d919c2833470c8aa95952fdead6de9
+  config/crds/kyverno/kyverno.io_policies.yaml sha256:e9837b3f1795358cd3851f2f1a88befc8f663ef4ad6cfddd8a751a93cea90a5a
+  config/crds/kyverno/kyverno.io_policyexceptions.yaml sha256:83d0478d61e88890c0dbf1e8360f5e5b7bb7d5708d0cc2d52c7dab8cfc833dbc
+  config/crds/kyverno/kyverno.io_updaterequests.yaml sha256:4da606b34b772d8d846bdec3927c35e712571299f2e50f7996ca095e25447e87
+  config/crds/policies.kyverno.io/policies.kyverno.io_deletingpolicies.yaml sha256:be05ad4282db3d4377b2aa8a6dd4bc7a6aaa617e183be948a961db311f2bd79c
+  config/crds/policies.kyverno.io/policies.kyverno.io_generatingpolicies.yaml sha256:2a6685bb4ea20160e06bc7b11cb037a60c6cfdb08667ebdd810f69247eca27b1
+  config/crds/policies.kyverno.io/policies.kyverno.io_imagevalidatingpolicies.yaml sha256:52dd5ccd14716b53a4fbe24a9fd42acdf23ea5fe0ca7eed8e235ae738e1631be
+  config/crds/policies.kyverno.io/policies.kyverno.io_mutatingpolicies.yaml sha256:eeea5b85e1f6cd185734c9ed256e813ded32dfcc7083d1b9b504c9ecb82d6f0a
+  config/crds/policies.kyverno.io/policies.kyverno.io_policyexceptions.yaml sha256:5db2705757662420995e80985c32cd884e1ef98d5f72774aa08c665b82713eb8
+  config/crds/policies.kyverno.io/policies.kyverno.io_validatingpolicies.yaml sha256:d98c797b7f3e13acf104779353de71f80816f5ea6e6d89a4ed97cc02d1e22cde
+  config/crds/policyreport/wgpolicyk8s.io_clusterpolicyreports.yaml sha256:ee99a9dd0a1fc96de02f37962b26c2dfa052477c40fa3a60cb2690d30ce2a82d
+  config/crds/policyreport/wgpolicyk8s.io_policyreports.yaml sha256:595ab5728178e3ebe8a9ed9210a32484eb7a0e2dc061b276a3afca703b8ba7c4
+  config/crds/reports/reports.kyverno.io_clusterephemeralreports.yaml sha256:325109100103822e5071dd46f508626632f1b75cbd5d4c23a03bb60ef5bb1050
+  config/crds/reports/reports.kyverno.io_ephemeralreports.yaml sha256:98d7c36568bf9aaa8da1c531fb56bf49b072b2782f74ee95d483717b6c7f852a
+v1.15.1 a51f714e483b980852b64565b85d68749c5ef86b
+  config/crds/kyverno/kyverno.io_cleanuppolicies.yaml sha256:d0e70eb0630f1cd2791bb852c83b9ab79058dd19191bcc1c05587997f2bbfecb
+  config/crds/kyverno/kyverno.io_clustercleanuppolicies.yaml sha256:56dff87975ee5a5779577345897c81362060ab4274be0274a0585bc4f24ec618
+  config/crds/kyverno/kyverno.io_clusterpolicies.yaml sha256:376cf482c6aa04b2c652b32756a0244f71627450f6f6e3ddbae1da74f6eb293e
+  config/crds/kyverno/kyverno.io_globalcontextentries.yaml sha256:6688b596f24118cc53cd9b11a39716fd82d919c2833470c8aa95952fdead6de9
+  config/crds/kyverno/kyverno.io_policies.yaml sha256:e9837b3f1795358cd3851f2f1a88befc8f663ef4ad6cfddd8a751a93cea90a5a
+  config/crds/kyverno/kyverno.io_policyexceptions.yaml sha256:83d0478d61e88890c0dbf1e8360f5e5b7bb7d5708d0cc2d52c7dab8cfc833dbc
+  config/crds/kyverno/kyverno.io_updaterequests.yaml sha256:4da606b34b772d8d846bdec3927c35e712571299f2e50f7996ca095e25447e87
+  config/crds/policies.kyverno.io/policies.kyverno.io_deletingpolicies.yaml sha256:be05ad4282db3d4377b2aa8a6dd4bc7a6aaa617e183be948a961db311f2bd79c
+  config/crds/policies.kyverno.io/policies.kyverno.io_generatingpolicies.yaml sha256:2a6685bb4ea20160e06bc7b11cb037a60c6cfdb08667ebdd810f69247eca27b1
+  config/crds/policies.kyverno.io/policies.kyverno.io_imagevalidatingpolicies.yaml sha256:52dd5ccd14716b53a4fbe24a9fd42acdf23ea5fe0ca7eed8e235ae738e1631be
+  config/crds/policies.kyverno.io/policies.kyverno.io_mutatingpolicies.yaml sha256:eeea5b85e1f6cd185734c9ed256e813ded32dfcc7083d1b9b504c9ecb82d6f0a
+  config/crds/policies.kyverno.io/policies.kyverno.io_policyexceptions.yaml sha256:5db2705757662420995e80985c32cd884e1ef98d5f72774aa08c665b82713eb8
+  config/crds/policies.kyverno.io/policies.kyverno.io_validatingpolicies.yaml sha256:d98c797b7f3e13acf104779353de71f80816f5ea6e6d89a4ed97cc02d1e22cde
+  config/crds/policyreport/wgpolicyk8s.io_clusterpolicyreports.yaml sha256:ee99a9dd0a1fc96de02f37962b26c2dfa052477c40fa3a60cb2690d30ce2a82d
+  config/crds/policyreport/wgpolicyk8s.io_policyreports.yaml sha256:595ab5728178e3ebe8a9ed9210a32484eb7a0e2dc061b276a3afca703b8ba7c4
+  config/crds/reports/reports.kyverno.io_clusterephemeralreports.yaml sha256:325109100103822e5071dd46f508626632f1b75cbd5d4c23a03bb60ef5bb1050
+  config/crds/reports/reports.kyverno.io_ephemeralreports.yaml sha256:98d7c36568bf9aaa8da1c531fb56bf49b072b2782f74ee95d483717b6c7f852a
+v1.15.2 f4ffc2d43d2d93b3daf3e5a9cb8a5d42738aba4b
+  config/crds/kyverno/kyverno.io_cleanuppolicies.yaml sha256:d0e70eb0630f1cd2791bb852c83b9ab79058dd19191bcc1c05587997f2bbfecb
+  config/crds/kyverno/kyverno.io_clustercleanuppolicies.yaml sha256:56dff87975ee5a5779577345897c81362060ab4274be0274a0585bc4f24ec618
+  config/crds/kyverno/kyverno.io_clusterpolicies.yaml sha256:376cf482c6aa04b2c652b32756a0244f71627450f6f6e3ddbae1da74f6eb293e
+  config/crds/kyverno/kyverno.io_globalcontextentries.yaml sha256:6688b596f24118cc53cd9b11a39716fd82d919c2833470c8aa95952fdead6de9
+  config/crds/kyverno/kyverno.io_policies.yaml sha256:e9837b3f1795358cd3851f2f1a88befc8f663ef4ad6cfddd8a751a93cea90a5a
+  config/crds/kyverno/kyverno.io_policyexceptions.yaml sha256:83d0478d61e88890c0dbf1e8360f5e5b7bb7d5708d0cc2d52c7dab8cfc833dbc
+  config/crds/kyverno/kyverno.io_updaterequests.yaml sha256:4da606b34b772d8d846bdec3927c35e712571299f2e50f7996ca095e25447e87
+  config/crds/policies.kyverno.io/policies.kyverno.io_deletingpolicies.yaml sha256:be05ad4282db3d4377b2aa8a6dd4bc7a6aaa617e183be948a961db311f2bd79c
+  config/crds/policies.kyverno.io/policies.kyverno.io_generatingpolicies.yaml sha256:2a6685bb4ea20160e06bc7b11cb037a60c6cfdb08667ebdd810f69247eca27b1
+  config/crds/policies.kyverno.io/policies.kyverno.io_imagevalidatingpolicies.yaml sha256:52dd5ccd14716b53a4fbe24a9fd42acdf23ea5fe0ca7eed8e235ae738e1631be
+  config/crds/policies.kyverno.io/policies.kyverno.io_mutatingpolicies.yaml sha256:eeea5b85e1f6cd185734c9ed256e813ded32dfcc7083d1b9b504c9ecb82d6f0a
+  config/crds/policies.kyverno.io/policies.kyverno.io_policyexceptions.yaml sha256:5db2705757662420995e80985c32cd884e1ef98d5f72774aa08c665b82713eb8
+  config/crds/policies.kyverno.io/policies.kyverno.io_validatingpolicies.yaml sha256:d98c797b7f3e13acf104779353de71f80816f5ea6e6d89a4ed97cc02d1e22cde
+  config/crds/policyreport/wgpolicyk8s.io_clusterpolicyreports.yaml sha256:ee99a9dd0a1fc96de02f37962b26c2dfa052477c40fa3a60cb2690d30ce2a82d
+  config/crds/policyreport/wgpolicyk8s.io_policyreports.yaml sha256:595ab5728178e3ebe8a9ed9210a32484eb7a0e2dc061b276a3afca703b8ba7c4
+  config/crds/reports/reports.kyverno.io_clusterephemeralreports.yaml sha256:325109100103822e5071dd46f508626632f1b75cbd5d4c23a03bb60ef5bb1050
+  config/crds/reports/reports.kyverno.io_ephemeralreports.yaml sha256:98d7c36568bf9aaa8da1c531fb56bf49b072b2782f74ee95d483717b6c7f852a
+v1.15.3 13ba08e97c90c058184db9204754b900aeaf084e
+  config/crds/kyverno/kyverno.io_cleanuppolicies.yaml sha256:d0e70eb0630f1cd2791bb852c83b9ab79058dd19191bcc1c05587997f2bbfecb
+  config/crds/kyverno/kyverno.io_clustercleanuppolicies.yaml sha256:56dff87975ee5a5779577345897c81362060ab4274be0274a0585bc4f24ec618
+  config/crds/kyverno/kyverno.io_clusterpolicies.yaml sha256:376cf482c6aa04b2c652b32756a0244f71627450f6f6e3ddbae1da74f6eb293e
+  config/crds/kyverno/kyverno.io_globalcontextentries.yaml sha256:6688b596f24118cc53cd9b11a39716fd82d919c2833470c8aa95952fdead6de9
+  config/crds/kyverno/kyverno.io_policies.yaml sha256:e9837b3f1795358cd3851f2f1a88befc8f663ef4ad6cfddd8a751a93cea90a5a
+  config/crds/kyverno/kyverno.io_policyexceptions.yaml sha256:83d0478d61e88890c0dbf1e8360f5e5b7bb7d5708d0cc2d52c7dab8cfc833dbc
+  config/crds/kyverno/kyverno.io_updaterequests.yaml sha256:4da606b34b772d8d846bdec3927c35e712571299f2e50f7996ca095e25447e87
+  config/crds/policies.kyverno.io/policies.kyverno.io_deletingpolicies.yaml sha256:be05ad4282db3d4377b2aa8a6dd4bc7a6aaa617e183be948a961db311f2bd79c
+  config/crds/policies.kyverno.io/policies.kyverno.io_generatingpolicies.yaml sha256:2a6685bb4ea20160e06bc7b11cb037a60c6cfdb08667ebdd810f69247eca27b1
+  config/crds/policies.kyverno.io/policies.kyverno.io_imagevalidatingpolicies.yaml sha256:52dd5ccd14716b53a4fbe24a9fd42acdf23ea5fe0ca7eed8e235ae738e1631be
+  config/crds/policies.kyverno.io/policies.kyverno.io_mutatingpolicies.yaml sha256:eeea5b85e1f6cd185734c9ed256e813ded32dfcc7083d1b9b504c9ecb82d6f0a
+  config/crds/policies.kyverno.io/policies.kyverno.io_policyexceptions.yaml sha256:5db2705757662420995e80985c32cd884e1ef98d5f72774aa08c665b82713eb8
+  config/crds/policies.kyverno.io/policies.kyverno.io_validatingpolicies.yaml sha256:d98c797b7f3e13acf104779353de71f80816f5ea6e6d89a4ed97cc02d1e22cde
+  config/crds/policyreport/wgpolicyk8s.io_clusterpolicyreports.yaml sha256:ee99a9dd0a1fc96de02f37962b26c2dfa052477c40fa3a60cb2690d30ce2a82d
+  config/crds/policyreport/wgpolicyk8s.io_policyreports.yaml sha256:595ab5728178e3ebe8a9ed9210a32484eb7a0e2dc061b276a3afca703b8ba7c4
+  config/crds/reports/reports.kyverno.io_clusterephemeralreports.yaml sha256:325109100103822e5071dd46f508626632f1b75cbd5d4c23a03bb60ef5bb1050
+  config/crds/reports/reports.kyverno.io_ephemeralreports.yaml sha256:98d7c36568bf9aaa8da1c531fb56bf49b072b2782f74ee95d483717b6c7f852a
+v1.15.20 aa50f6d87970724997df8b6aa8a20efbf30f5835
+  config/crds/kyverno/kyverno.io_cleanuppolicies.yaml sha256:d0e70eb0630f1cd2791bb852c83b9ab79058dd19191bcc1c05587997f2bbfecb
+  config/crds/kyverno/kyverno.io_clustercleanuppolicies.yaml sha256:56dff87975ee5a5779577345897c81362060ab4274be0274a0585bc4f24ec618
+  config/crds/kyverno/kyverno.io_clusterpolicies.yaml sha256:376cf482c6aa04b2c652b32756a0244f71627450f6f6e3ddbae1da74f6eb293e
+  config/crds/kyverno/kyverno.io_globalcontextentries.yaml sha256:6688b596f24118cc53cd9b11a39716fd82d919c2833470c8aa95952fdead6de9
+  config/crds/kyverno/kyverno.io_policies.yaml sha256:e9837b3f1795358cd3851f2f1a88befc8f663ef4ad6cfddd8a751a93cea90a5a
+  config/crds/kyverno/kyverno.io_policyexceptions.yaml sha256:83d0478d61e88890c0dbf1e8360f5e5b7bb7d5708d0cc2d52c7dab8cfc833dbc
+  config/crds/kyverno/kyverno.io_updaterequests.yaml sha256:4da606b34b772d8d846bdec3927c35e712571299f2e50f7996ca095e25447e87
+  config/crds/policies.kyverno.io/policies.kyverno.io_deletingpolicies.yaml sha256:be05ad4282db3d4377b2aa8a6dd4bc7a6aaa617e183be948a961db311f2bd79c
+  config/crds/policies.kyverno.io/policies.kyverno.io_generatingpolicies.yaml sha256:2a6685bb4ea20160e06bc7b11cb037a60c6cfdb08667ebdd810f69247eca27b1
+  config/crds/policies.kyverno.io/policies.kyverno.io_imagevalidatingpolicies.yaml sha256:52dd5ccd14716b53a4fbe24a9fd42acdf23ea5fe0ca7eed8e235ae738e1631be
+  config/crds/policies.kyverno.io/policies.kyverno.io_mutatingpolicies.yaml sha256:eeea5b85e1f6cd185734c9ed256e813ded32dfcc7083d1b9b504c9ecb82d6f0a
+  config/crds/policies.kyverno.io/policies.kyverno.io_policyexceptions.yaml sha256:5db2705757662420995e80985c32cd884e1ef98d5f72774aa08c665b82713eb8
+  config/crds/policies.kyverno.io/policies.kyverno.io_validatingpolicies.yaml sha256:d98c797b7f3e13acf104779353de71f80816f5ea6e6d89a4ed97cc02d1e22cde
+  config/crds/policyreport/wgpolicyk8s.io_clusterpolicyreports.yaml sha256:ee99a9dd0a1fc96de02f37962b26c2dfa052477c40fa3a60cb2690d30ce2a82d
+  config/crds/policyreport/wgpolicyk8s.io_policyreports.yaml sha256:595ab5728178e3ebe8a9ed9210a32484eb7a0e2dc061b276a3afca703b8ba7c4
+  config/crds/reports/reports.kyverno.io_clusterephemeralreports.yaml sha256:325109100103822e5071dd46f508626632f1b75cbd5d4c23a03bb60ef5bb1050
+  config/crds/reports/reports.kyverno.io_ephemeralreports.yaml sha256:98d7c36568bf9aaa8da1c531fb56bf49b072b2782f74ee95d483717b6c7f852a
+v1.16.0 18f9549cb2af30ec0537cd97f3200228d9f42d4b
+  config/crds/kyverno/kyverno.io_cleanuppolicies.yaml sha256:d0e70eb0630f1cd2791bb852c83b9ab79058dd19191bcc1c05587997f2bbfecb
+  config/crds/kyverno/kyverno.io_clustercleanuppolicies.yaml sha256:56dff87975ee5a5779577345897c81362060ab4274be0274a0585bc4f24ec618
+  config/crds/kyverno/kyverno.io_clusterpolicies.yaml sha256:cf264f2ef83245010e9692e16e4fe5f4d2300eadc78eee17ef5f9c59fe80e102
+  config/crds/kyverno/kyverno.io_globalcontextentries.yaml sha256:f1dd97b3f2caa1ddba7eaa8baba5d0f9b32592577c88df17db0089753f1746d8
+  config/crds/kyverno/kyverno.io_policies.yaml sha256:fec6c9792f27998878a044c3587451bb4946466ad43b1e700d8af18edc18bba0
+  config/crds/kyverno/kyverno.io_policyexceptions.yaml sha256:83d0478d61e88890c0dbf1e8360f5e5b7bb7d5708d0cc2d52c7dab8cfc833dbc
+  config/crds/kyverno/kyverno.io_updaterequests.yaml sha256:046e076cb1f32ecc0413cee3dc5c0913ba5509fd8edc1565fe064895d41fb6fb
+  config/crds/policies.kyverno.io/policies.kyverno.io_deletingpolicies.yaml sha256:efadc23a54cbcf58b272cb8702bfa5d632bece651c2efaa257b9a3f5e1e9b9d9
+  config/crds/policies.kyverno.io/policies.kyverno.io_generatingpolicies.yaml sha256:4aaa70629258b78bfb54d1523ebbc2b4339b9ca2fd1f6e9fa33aa7bfaf42a7ea
+  config/crds/policies.kyverno.io/policies.kyverno.io_imagevalidatingpolicies.yaml sha256:2a09f420a814b10e7c5e5fa1902e30db7e0b9cf4d1ffd274a9f364458f9b6a00
+  config/crds/policies.kyverno.io/policies.kyverno.io_mutatingpolicies.yaml sha256:087c4ebe8c04056da1b16f982b4b429ae4bfcfd73ece8fa92b1f6e11d1728988
+  config/crds/policies.kyverno.io/policies.kyverno.io_namespaceddeletingpolicies.yaml sha256:284c7ff3fd1ced0dd5df7044172ba0b438ba206cba494f0b07bb3f7d285cee76
+  config/crds/policies.kyverno.io/policies.kyverno.io_namespacedimagevalidatingpolicies.yaml sha256:1cd48a4c280283d454ab722456a476989f8b78edc351f4c707379cf392d59267
+  config/crds/policies.kyverno.io/policies.kyverno.io_namespacedvalidatingpolicies.yaml sha256:5c45a3eecac2afcf2f0719f109b2f0cfbe96978c5d71a85ce00ca1c737856715
+  config/crds/policies.kyverno.io/policies.kyverno.io_policyexceptions.yaml sha256:497d9f839577bf0066a52de65803f2a3a4abcbbda70a7d6177433fd19bd24962
+  config/crds/policies.kyverno.io/policies.kyverno.io_validatingpolicies.yaml sha256:680b54387211b24e55b14c0828951966c259fef2849df3e66ca0ff18808453d5
+  config/crds/policyreport/wgpolicyk8s.io_clusterpolicyreports.yaml sha256:ee99a9dd0a1fc96de02f37962b26c2dfa052477c40fa3a60cb2690d30ce2a82d
+  config/crds/policyreport/wgpolicyk8s.io_policyreports.yaml sha256:595ab5728178e3ebe8a9ed9210a32484eb7a0e2dc061b276a3afca703b8ba7c4
+  config/crds/reports/reports.kyverno.io_clusterephemeralreports.yaml sha256:325109100103822e5071dd46f508626632f1b75cbd5d4c23a03bb60ef5bb1050
+  config/crds/reports/reports.kyverno.io_ephemeralreports.yaml sha256:98d7c36568bf9aaa8da1c531fb56bf49b072b2782f74ee95d483717b6c7f852a
+v1.16.1 67f7f8c3f58d64e3c7b103de5f11ffe268250c55
+  config/crds/kyverno/kyverno.io_cleanuppolicies.yaml sha256:d0e70eb0630f1cd2791bb852c83b9ab79058dd19191bcc1c05587997f2bbfecb
+  config/crds/kyverno/kyverno.io_clustercleanuppolicies.yaml sha256:56dff87975ee5a5779577345897c81362060ab4274be0274a0585bc4f24ec618
+  config/crds/kyverno/kyverno.io_clusterpolicies.yaml sha256:cf264f2ef83245010e9692e16e4fe5f4d2300eadc78eee17ef5f9c59fe80e102
+  config/crds/kyverno/kyverno.io_globalcontextentries.yaml sha256:f1dd97b3f2caa1ddba7eaa8baba5d0f9b32592577c88df17db0089753f1746d8
+  config/crds/kyverno/kyverno.io_policies.yaml sha256:fec6c9792f27998878a044c3587451bb4946466ad43b1e700d8af18edc18bba0
+  config/crds/kyverno/kyverno.io_policyexceptions.yaml sha256:83d0478d61e88890c0dbf1e8360f5e5b7bb7d5708d0cc2d52c7dab8cfc833dbc
+  config/crds/kyverno/kyverno.io_updaterequests.yaml sha256:046e076cb1f32ecc0413cee3dc5c0913ba5509fd8edc1565fe064895d41fb6fb
+  config/crds/policies.kyverno.io/policies.kyverno.io_deletingpolicies.yaml sha256:efadc23a54cbcf58b272cb8702bfa5d632bece651c2efaa257b9a3f5e1e9b9d9
+  config/crds/policies.kyverno.io/policies.kyverno.io_generatingpolicies.yaml sha256:4aaa70629258b78bfb54d1523ebbc2b4339b9ca2fd1f6e9fa33aa7bfaf42a7ea
+  config/crds/policies.kyverno.io/policies.kyverno.io_imagevalidatingpolicies.yaml sha256:2a09f420a814b10e7c5e5fa1902e30db7e0b9cf4d1ffd274a9f364458f9b6a00
+  config/crds/policies.kyverno.io/policies.kyverno.io_mutatingpolicies.yaml sha256:087c4ebe8c04056da1b16f982b4b429ae4bfcfd73ece8fa92b1f6e11d1728988
+  config/crds/policies.kyverno.io/policies.kyverno.io_namespaceddeletingpolicies.yaml sha256:284c7ff3fd1ced0dd5df7044172ba0b438ba206cba494f0b07bb3f7d285cee76
+  config/crds/policies.kyverno.io/policies.kyverno.io_namespacedimagevalidatingpolicies.yaml sha256:1cd48a4c280283d454ab722456a476989f8b78edc351f4c707379cf392d59267
+  config/crds/policies.kyverno.io/policies.kyverno.io_namespacedvalidatingpolicies.yaml sha256:5c45a3eecac2afcf2f0719f109b2f0cfbe96978c5d71a85ce00ca1c737856715
+  config/crds/policies.kyverno.io/policies.kyverno.io_policyexceptions.yaml sha256:497d9f839577bf0066a52de65803f2a3a4abcbbda70a7d6177433fd19bd24962
+  config/crds/policies.kyverno.io/policies.kyverno.io_validatingpolicies.yaml sha256:680b54387211b24e55b14c0828951966c259fef2849df3e66ca0ff18808453d5
+  config/crds/policyreport/wgpolicyk8s.io_clusterpolicyreports.yaml sha256:ee99a9dd0a1fc96de02f37962b26c2dfa052477c40fa3a60cb2690d30ce2a82d
+  config/crds/policyreport/wgpolicyk8s.io_policyreports.yaml sha256:595ab5728178e3ebe8a9ed9210a32484eb7a0e2dc061b276a3afca703b8ba7c4
+  config/crds/reports/reports.kyverno.io_clusterephemeralreports.yaml sha256:325109100103822e5071dd46f508626632f1b75cbd5d4c23a03bb60ef5bb1050
+  config/crds/reports/reports.kyverno.io_ephemeralreports.yaml sha256:98d7c36568bf9aaa8da1c531fb56bf49b072b2782f74ee95d483717b6c7f852a
+v1.16.2 2377cc562e43489b5e0927a492f96d26ed9c51d8
+  config/crds/kyverno/kyverno.io_cleanuppolicies.yaml sha256:d0e70eb0630f1cd2791bb852c83b9ab79058dd19191bcc1c05587997f2bbfecb
+  config/crds/kyverno/kyverno.io_clustercleanuppolicies.yaml sha256:56dff87975ee5a5779577345897c81362060ab4274be0274a0585bc4f24ec618
+  config/crds/kyverno/kyverno.io_clusterpolicies.yaml sha256:cf264f2ef83245010e9692e16e4fe5f4d2300eadc78eee17ef5f9c59fe80e102
+  config/crds/kyverno/kyverno.io_globalcontextentries.yaml sha256:f1dd97b3f2caa1ddba7eaa8baba5d0f9b32592577c88df17db0089753f1746d8
+  config/crds/kyverno/kyverno.io_policies.yaml sha256:fec6c9792f27998878a044c3587451bb4946466ad43b1e700d8af18edc18bba0
+  config/crds/kyverno/kyverno.io_policyexceptions.yaml sha256:83d0478d61e88890c0dbf1e8360f5e5b7bb7d5708d0cc2d52c7dab8cfc833dbc
+  config/crds/kyverno/kyverno.io_updaterequests.yaml sha256:046e076cb1f32ecc0413cee3dc5c0913ba5509fd8edc1565fe064895d41fb6fb
+  config/crds/policies.kyverno.io/policies.kyverno.io_deletingpolicies.yaml sha256:efadc23a54cbcf58b272cb8702bfa5d632bece651c2efaa257b9a3f5e1e9b9d9
+  config/crds/policies.kyverno.io/policies.kyverno.io_generatingpolicies.yaml sha256:4aaa70629258b78bfb54d1523ebbc2b4339b9ca2fd1f6e9fa33aa7bfaf42a7ea
+  config/crds/policies.kyverno.io/policies.kyverno.io_imagevalidatingpolicies.yaml sha256:2a09f420a814b10e7c5e5fa1902e30db7e0b9cf4d1ffd274a9f364458f9b6a00
+  config/crds/policies.kyverno.io/policies.kyverno.io_mutatingpolicies.yaml sha256:087c4ebe8c04056da1b16f982b4b429ae4bfcfd73ece8fa92b1f6e11d1728988
+  config/crds/policies.kyverno.io/policies.kyverno.io_namespaceddeletingpolicies.yaml sha256:284c7ff3fd1ced0dd5df7044172ba0b438ba206cba494f0b07bb3f7d285cee76
+  config/crds/policies.kyverno.io/policies.kyverno.io_namespacedimagevalidatingpolicies.yaml sha256:1cd48a4c280283d454ab722456a476989f8b78edc351f4c707379cf392d59267
+  config/crds/policies.kyverno.io/policies.kyverno.io_namespacedvalidatingpolicies.yaml sha256:5c45a3eecac2afcf2f0719f109b2f0cfbe96978c5d71a85ce00ca1c737856715
+  config/crds/policies.kyverno.io/policies.kyverno.io_policyexceptions.yaml sha256:497d9f839577bf0066a52de65803f2a3a4abcbbda70a7d6177433fd19bd24962
+  config/crds/policies.kyverno.io/policies.kyverno.io_validatingpolicies.yaml sha256:680b54387211b24e55b14c0828951966c259fef2849df3e66ca0ff18808453d5
+  config/crds/policyreport/wgpolicyk8s.io_clusterpolicyreports.yaml sha256:ee99a9dd0a1fc96de02f37962b26c2dfa052477c40fa3a60cb2690d30ce2a82d
+  config/crds/policyreport/wgpolicyk8s.io_policyreports.yaml sha256:595ab5728178e3ebe8a9ed9210a32484eb7a0e2dc061b276a3afca703b8ba7c4
+  config/crds/reports/reports.kyverno.io_clusterephemeralreports.yaml sha256:325109100103822e5071dd46f508626632f1b75cbd5d4c23a03bb60ef5bb1050
+  config/crds/reports/reports.kyverno.io_ephemeralreports.yaml sha256:98d7c36568bf9aaa8da1c531fb56bf49b072b2782f74ee95d483717b6c7f852a
+v1.16.3 188151e6b60b192aabcbc24943c3159e5cfab5da
+  config/crds/kyverno/kyverno.io_cleanuppolicies.yaml sha256:d0e70eb0630f1cd2791bb852c83b9ab79058dd19191bcc1c05587997f2bbfecb
+  config/crds/kyverno/kyverno.io_clustercleanuppolicies.yaml sha256:56dff87975ee5a5779577345897c81362060ab4274be0274a0585bc4f24ec618
+  config/crds/kyverno/kyverno.io_clusterpolicies.yaml sha256:cf264f2ef83245010e9692e16e4fe5f4d2300eadc78eee17ef5f9c59fe80e102
+  config/crds/kyverno/kyverno.io_globalcontextentries.yaml sha256:f1dd97b3f2caa1ddba7eaa8baba5d0f9b32592577c88df17db0089753f1746d8
+  config/crds/kyverno/kyverno.io_policies.yaml sha256:fec6c9792f27998878a044c3587451bb4946466ad43b1e700d8af18edc18bba0
+  config/crds/kyverno/kyverno.io_policyexceptions.yaml sha256:83d0478d61e88890c0dbf1e8360f5e5b7bb7d5708d0cc2d52c7dab8cfc833dbc
+  config/crds/kyverno/kyverno.io_updaterequests.yaml sha256:046e076cb1f32ecc0413cee3dc5c0913ba5509fd8edc1565fe064895d41fb6fb
+  config/crds/policies.kyverno.io/policies.kyverno.io_deletingpolicies.yaml sha256:efadc23a54cbcf58b272cb8702bfa5d632bece651c2efaa257b9a3f5e1e9b9d9
+  config/crds/policies.kyverno.io/policies.kyverno.io_generatingpolicies.yaml sha256:4aaa70629258b78bfb54d1523ebbc2b4339b9ca2fd1f6e9fa33aa7bfaf42a7ea
+  config/crds/policies.kyverno.io/policies.kyverno.io_imagevalidatingpolicies.yaml sha256:2a09f420a814b10e7c5e5fa1902e30db7e0b9cf4d1ffd274a9f364458f9b6a00
+  config/crds/policies.kyverno.io/policies.kyverno.io_mutatingpolicies.yaml sha256:087c4ebe8c04056da1b16f982b4b429ae4bfcfd73ece8fa92b1f6e11d1728988
+  config/crds/policies.kyverno.io/policies.kyverno.io_namespaceddeletingpolicies.yaml sha256:284c7ff3fd1ced0dd5df7044172ba0b438ba206cba494f0b07bb3f7d285cee76
+  config/crds/policies.kyverno.io/policies.kyverno.io_namespacedimagevalidatingpolicies.yaml sha256:1cd48a4c280283d454ab722456a476989f8b78edc351f4c707379cf392d59267
+  config/crds/policies.kyverno.io/policies.kyverno.io_namespacedvalidatingpolicies.yaml sha256:5c45a3eecac2afcf2f0719f109b2f0cfbe96978c5d71a85ce00ca1c737856715
+  config/crds/policies.kyverno.io/policies.kyverno.io_policyexceptions.yaml sha256:497d9f839577bf0066a52de65803f2a3a4abcbbda70a7d6177433fd19bd24962
+  config/crds/policies.kyverno.io/policies.kyverno.io_validatingpolicies.yaml sha256:680b54387211b24e55b14c0828951966c259fef2849df3e66ca0ff18808453d5
+  config/crds/policyreport/wgpolicyk8s.io_clusterpolicyreports.yaml sha256:ee99a9dd0a1fc96de02f37962b26c2dfa052477c40fa3a60cb2690d30ce2a82d
+  config/crds/policyreport/wgpolicyk8s.io_policyreports.yaml sha256:595ab5728178e3ebe8a9ed9210a32484eb7a0e2dc061b276a3afca703b8ba7c4
+  config/crds/reports/reports.kyverno.io_clusterephemeralreports.yaml sha256:325109100103822e5071dd46f508626632f1b75cbd5d4c23a03bb60ef5bb1050
+  config/crds/reports/reports.kyverno.io_ephemeralreports.yaml sha256:98d7c36568bf9aaa8da1c531fb56bf49b072b2782f74ee95d483717b6c7f852a
+v1.16.4 ead0a548e9b0e8746c6175abb53f8edff0aa5f1e
+  config/crds/kyverno/kyverno.io_cleanuppolicies.yaml sha256:d0e70eb0630f1cd2791bb852c83b9ab79058dd19191bcc1c05587997f2bbfecb
+  config/crds/kyverno/kyverno.io_clustercleanuppolicies.yaml sha256:56dff87975ee5a5779577345897c81362060ab4274be0274a0585bc4f24ec618
+  config/crds/kyverno/kyverno.io_clusterpolicies.yaml sha256:cf264f2ef83245010e9692e16e4fe5f4d2300eadc78eee17ef5f9c59fe80e102
+  config/crds/kyverno/kyverno.io_globalcontextentries.yaml sha256:f1dd97b3f2caa1ddba7eaa8baba5d0f9b32592577c88df17db0089753f1746d8
+  config/crds/kyverno/kyverno.io_policies.yaml sha256:fec6c9792f27998878a044c3587451bb4946466ad43b1e700d8af18edc18bba0
+  config/crds/kyverno/kyverno.io_policyexceptions.yaml sha256:83d0478d61e88890c0dbf1e8360f5e5b7bb7d5708d0cc2d52c7dab8cfc833dbc
+  config/crds/kyverno/kyverno.io_updaterequests.yaml sha256:046e076cb1f32ecc0413cee3dc5c0913ba5509fd8edc1565fe064895d41fb6fb
+  config/crds/policies.kyverno.io/policies.kyverno.io_deletingpolicies.yaml sha256:efadc23a54cbcf58b272cb8702bfa5d632bece651c2efaa257b9a3f5e1e9b9d9
+  config/crds/policies.kyverno.io/policies.kyverno.io_generatingpolicies.yaml sha256:4aaa70629258b78bfb54d1523ebbc2b4339b9ca2fd1f6e9fa33aa7bfaf42a7ea
+  config/crds/policies.kyverno.io/policies.kyverno.io_imagevalidatingpolicies.yaml sha256:2a09f420a814b10e7c5e5fa1902e30db7e0b9cf4d1ffd274a9f364458f9b6a00
+  config/crds/policies.kyverno.io/policies.kyverno.io_mutatingpolicies.yaml sha256:087c4ebe8c04056da1b16f982b4b429ae4bfcfd73ece8fa92b1f6e11d1728988
+  config/crds/policies.kyverno.io/policies.kyverno.io_namespaceddeletingpolicies.yaml sha256:284c7ff3fd1ced0dd5df7044172ba0b438ba206cba494f0b07bb3f7d285cee76
+  config/crds/policies.kyverno.io/policies.kyverno.io_namespacedimagevalidatingpolicies.yaml sha256:1cd48a4c280283d454ab722456a476989f8b78edc351f4c707379cf392d59267
+  config/crds/policies.kyverno.io/policies.kyverno.io_namespacedvalidatingpolicies.yaml sha256:5c45a3eecac2afcf2f0719f109b2f0cfbe96978c5d71a85ce00ca1c737856715
+  config/crds/policies.kyverno.io/policies.kyverno.io_policyexceptions.yaml sha256:497d9f839577bf0066a52de65803f2a3a4abcbbda70a7d6177433fd19bd24962
+  config/crds/policies.kyverno.io/policies.kyverno.io_validatingpolicies.yaml sha256:680b54387211b24e55b14c0828951966c259fef2849df3e66ca0ff18808453d5
+  config/crds/policyreport/wgpolicyk8s.io_clusterpolicyreports.yaml sha256:ee99a9dd0a1fc96de02f37962b26c2dfa052477c40fa3a60cb2690d30ce2a82d
+  config/crds/policyreport/wgpolicyk8s.io_policyreports.yaml sha256:595ab5728178e3ebe8a9ed9210a32484eb7a0e2dc061b276a3afca703b8ba7c4
+  config/crds/reports/reports.kyverno.io_clusterephemeralreports.yaml sha256:325109100103822e5071dd46f508626632f1b75cbd5d4c23a03bb60ef5bb1050
+  config/crds/reports/reports.kyverno.io_ephemeralreports.yaml sha256:98d7c36568bf9aaa8da1c531fb56bf49b072b2782f74ee95d483717b6c7f852a
+
+== github.com/longhorn/longhorn (Longhorn; deploy/longhorn.yaml)
+Licence: Apache-2.0, Copyright The Longhorn Authors; see LICENSES/Source-Longhorn-Apache-2.0.txt and THIRD-PARTY.md
+(Modified upstream test fixtures).
+v1.8.0 7c7c7797a4957ec4507ac5f57f190dbf0d9a1b9d
+  deploy/longhorn.yaml sha256:42892552f4b8fe3b9c3206a9d28e38c2929895931e8f73dfacaa964284f5af84
+v1.8.1 30f817bba6038165dd213e79f3bb89e28aa89d54
+  deploy/longhorn.yaml sha256:798a24677009d710cc8d2e05b03bbb57c46d5c0fc1ccdbb3ba2554a943bb8dcd
+v1.8.2 93fe3711988040c2c2d1c0f19409d4a74c3a60e6
+  deploy/longhorn.yaml sha256:e302545c8be950c1a3d2b1198ae58bba1316a6745693b1ef90831602625ad2a4
+v1.9.0 d0ab7f93e3a76bc1f23a6cb12f66c44e831c8762
+  deploy/longhorn.yaml sha256:37885725f8a4949f7387f0f31b1b82168ae895237e1d0f51f6f1cba8ec000d41
+v1.9.1 a9e986bfeb530496211fa557bccf4b58cb9bc0a5
+  deploy/longhorn.yaml sha256:83bee814bcdb030cc1626c6559c001f053ab0075ff14e71d0231527c24346a75
+v1.9.2 c1342db002645db4a5ac94a1910c67d76b20d05b
+  deploy/longhorn.yaml sha256:51279807090eba500a13eb0f2e0c64c5b5ae45f3248596669bcea62a05e10fca
+
+== github.com/rook/rook (Rook; deploy/examples/crds.yaml and deploy/examples/csi-operator.yaml)
+Licence: Apache-2.0, Copyright The Rook Authors; see LICENSES/Source-Rook-Apache-2.0.txt and THIRD-PARTY.md
+(Modified upstream test fixtures).
+v1.17.0 45977257a85740470f63aafb39947448d13de33e
+  deploy/examples/crds.yaml sha256:ad990541e45670a06c015adc20e7f7d1a9fc84c30c628ff4503c8d1d6dfcf4d2
+  deploy/examples/csi-operator.yaml sha256:8b80c67eb325dc5bdfbabdd665980c880c46e8c47a320a01a34585f27ea62597
+v1.18.0 b0cab8a8d17f8a52519cacb2b5c92f5dfaae6060
+  deploy/examples/crds.yaml sha256:c23a14629651846603af4ac55e319a8a0217a05faf9fd13d4586d914429001f5
+  deploy/examples/csi-operator.yaml sha256:27948915f84e25d3d466a088d13ee04041c81269e9704988f32a06de051b728e

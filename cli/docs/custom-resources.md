@@ -25,8 +25,11 @@ pinned commit:
 | `istio` | `component.istio.custom_resource_versions_set` | `extensions.istio.io`, `networking.istio.io`, `security.istio.io`, `telemetry.istio.io` |
 | `strimzi` | `component.strimzi.custom_resource_versions_set` | `core.strimzi.io`, `kafka.strimzi.io` |
 
-These are exactly the projects the extractor reads CRDs for. Adding a project
-is a code change to both.
+The extractor reads CRDs for these projects and for others whose sets are not
+registered yet (cert-manager, Cilium, Crossplane, KEDA, Kuma, Kyverno,
+Longhorn, Rook, Velero): their rules are refused by the knowledge gate until
+the project and its API groups join this table. Adding a project to the table
+is a reviewed code change.
 
 `argoproj.io` is shared upstream: Argo CD, Argo Workflows, Argo Rollouts and
 Argo Events all define CRDs in it. The catalog project `argo-cd` stands for the

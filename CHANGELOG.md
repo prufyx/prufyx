@@ -7,6 +7,43 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- Maintainer extractor `crd.version-removal` 2.0.0: pairs are consecutive
+  release lines and every final release of both lines is read; a removal that
+  holds for both whole lines gives a rule with a cited range over them,
+  otherwise the rule holds for the pair of first releases only (as in 1.0.0).
+  The whole repository tree is scanned at each release for definitions outside
+  the listed paths, including test, example and vendored directories (a file
+  there blocks attestation; Rook installs from `deploy/examples`), Helm chart
+  dependencies and remote kustomize resources from other repositories,
+  template, jsonnet and cue sources and Go code that builds a definition; a
+  conflicting copy withholds the pair, an unread CRD source at a later-line
+  release withholds or narrows its rules, chart templates declared as copies
+  are checked, and a definition that left the listed paths (at the later
+  line's first release or a later one) is recorded as removed (never a rule)
+  instead of withholding the pair. The proof records the hop shape (only the
+  previous minor line is attestable), the storage-version history (a removed
+  former storage version gets a next action that migrates stored objects
+  first) and versions served outside the listed paths that the later line no
+  longer serves. The reviewed project table is now a
+  data file covered by the code digest (the code digest of every extractor
+  now also covers embedded JSON data files, so every extractor's digest
+  changes), with nine more projects (cert-manager, Cilium, Crossplane, KEDA,
+  Kuma, Kyverno, Longhorn, Rook, Velero) whose custom-resource sets are not
+  registered yet, so the knowledge gate refuses their rules. CRD manifests are
+  read with bounds sized for generated schemas (Argo CD's pairs are no longer
+  withheld). Reviewed exclusions of the scan now carry evidence, may not lie
+  under install locations (a wildcard only in the last path element), and are
+  void at a release where a kustomization, Helm chart, Makefile install
+  target, document or shell-script install command, container build (Dockerfile,
+  Containerfile, Earthfile), nix file, ko `kodata` directory or embedding Go
+  package (in a directory above or inside the excluded path) refers to a path
+  under it.
+  Gzip-compressed definitions in Go sources (Velero's install CRDs) are read
+  and compared like YAML files. No rule is shipped. See
+  `cli/docs/extractors/crd.version-removal.md`.
+
 ### Security
 
 - Build identity: a release identity now accepts only `trustRootDigest:
