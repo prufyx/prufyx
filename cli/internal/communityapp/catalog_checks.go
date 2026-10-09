@@ -88,6 +88,13 @@ var catalogMatchModes = map[string]string{
 	constraintengine.MatchModeBoundaryUnreviewed: "the queried pair crosses this rule's release boundary outside its reviewed range; no reviewed rule covers it",
 }
 
+// catalogRuleKinds words the rule kinds that are not plain verdict rules, so a
+// listed identity is not read as an ordinary check that can pass or block.
+var catalogRuleKinds = map[string]string{
+	constraintengine.RuleKindOneWayNotice: "informational one-way notice; never a verdict, never passes or blocks",
+	constraintengine.RuleKindSupportRange: "support range; PASS inside the documented range, UNSUPPORTED outside it, never BLOCKED; decided only by check batch with the dependency declared",
+}
+
 // renderCatalogCheck prints one check's human-readable listing. A non-anchor
 // match prints its match mode and never the native route's exact-pair command,
 // which is always pinned to the anchor and would misdescribe the queried
@@ -99,6 +106,9 @@ func renderCatalogCheck(out io.Writer, item checkroutemetadata.Check) {
 	fmt.Fprintf(out, "%s %s %s -> %s\n", item.Project, item.RuleID, item.From, item.To)
 	if item.Withdrawn {
 		fmt.Fprintf(out, "  withdrawn: %s was withdrawn (evidence could not be verified) and always answers UNKNOWN\n", item.RuleID)
+	}
+	if line, ok := catalogRuleKinds[item.RuleKind]; ok {
+		fmt.Fprintf(out, "  rule kind: %s (%s)\n", item.RuleKind, line)
 	}
 	if description, ok := catalogMatchModes[item.MatchMode]; ok {
 		fmt.Fprintf(out, "  match mode: %s (%s)\n", item.MatchMode, description)

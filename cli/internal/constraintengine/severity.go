@@ -206,3 +206,31 @@ func UnsupportedNote(claims []Claim) (note string, ok bool) {
 	}
 	return fmt.Sprintf("%d component combinations are outside their documented support range (not verified, not shown to be broken)", count), true
 }
+
+// Rule kinds a catalog can show next to an identity. A plain verdict rule has
+// no kind: it is the default and is listed as before.
+const (
+	RuleKindSupportRange = "support_range"
+	RuleKindOneWayNotice = "one_way_notice"
+)
+
+// RawRuleKind classifies one raw rule for display: RuleKindOneWayNotice for a
+// notice, RuleKindSupportRange for a rule with the unsupported severity, and
+// "" for every other rule. It reads two keys only; ParseRuleSet remains the
+// authority on validity.
+func RawRuleKind(raw json.RawMessage) (string, error) {
+	var shape struct {
+		Operator string `json:"operator"`
+		Severity string `json:"severity"`
+	}
+	if err := json.Unmarshal(raw, &shape); err != nil {
+		return "", fmt.Errorf("rule shape: %w", ErrInvalid)
+	}
+	switch {
+	case shape.Operator == OperatorNoticeOneWay:
+		return RuleKindOneWayNotice, nil
+	case shape.Severity == SeverityUnsupported:
+		return RuleKindSupportRange, nil
+	}
+	return "", nil
+}

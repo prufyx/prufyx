@@ -955,7 +955,7 @@ Add --show-passes with --format human on the Kubernetes native-resource route an
 			fmt.Fprintln(r.stdout, claim.EvidenceBasisLine())
 			writeCitedSources(r.stdout, claim)
 		}
-		if err := writeNotices(r.stdout, summary.notices); err != nil {
+		if err := writeNotices(r.stdout, summary.notices, false); err != nil {
 			return ExitIntegrity
 		}
 		if err := writeNoVerdictLine(r.stdout, report.Check.Claims); err != nil {

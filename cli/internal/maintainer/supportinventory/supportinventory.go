@@ -588,6 +588,8 @@ const communityPackSchema = "prufyx.io/community-project-source-rule-pack/v1alph
 
 var communityPackLevels = []packLevel{
 	{"prufyx.io/community-project-source-rule-pack/v1alpha2", anyRule(constraintengine.AnyRanged)},
+	{"prufyx.io/community-project-source-rule-pack/v1alpha3", anyRule(constraintengine.AnyNoticeRule)},
+	{"prufyx.io/community-project-source-rule-pack/v1alpha4", anyRule(constraintengine.AnySeverityRule)},
 }
 
 // anyRule applies one of the engine's own feature tests to the pack's rules.
@@ -883,76 +885,119 @@ var nativeCNCFInputMetadata = map[string][]nativeCNCFInputRoute{
 	},
 }
 
-func communityProjects(rules, registry map[string]any) ([]map[string]any, int, error) {
+// communityCounts separates what the community pack holds by what it can do:
+// verdict rules decide PASS, BLOCKED or UNKNOWN; support-range rules decide
+// PASS or UNSUPPORTED and never BLOCKED; one-way notices decide nothing.
+type communityCounts struct {
+	verdict, supportRange, notices int
+}
+
+// nonExecutableCapabilityKinds are the capability kinds that decide no
+// transition through a native route on their own: a project holding only
+// these is listed but never counted as executable.
+var nonExecutableCapabilityKinds = map[string]bool{
+	"embedded_community_project_one_way_notice": true,
+	"embedded_community_project_support_range":  true,
+}
+
+// hasExecutableCapability reports whether a listed project has at least one
+// capability that can decide a transition.
+func hasExecutableCapability(project map[string]any) bool {
+	caps, _ := array(project["capabilities"])
+	for _, raw := range caps {
+		if capability, ok := object(raw); ok {
+			if kind, _ := stringValue(capability["kind"]); !nonExecutableCapabilityKinds[kind] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func communityProjects(rules, registry map[string]any) ([]map[string]any, communityCounts, error) {
 	if !packSchemaMatches(rules, communityPackSchema, communityPackLevels) || registry["schema"] != "prufyx.io/community-project-registry/v1alpha1" {
-		return nil, 0, invalid("invalid community-project source schema")
+		return nil, communityCounts{}, invalid("invalid community-project source schema")
 	}
 	rawIdentities, ok := array(registry["projects"])
 	if !ok || len(rawIdentities) == 0 {
-		return nil, 0, invalid("missing community-project registry")
+		return nil, communityCounts{}, invalid("missing community-project registry")
 	}
 	identities := map[string]identity{}
 	components := map[string]string{}
 	for _, raw := range rawIdentities {
 		item, ok := object(raw)
 		if !ok || item["identityAuthority"] != "MAINTAINER_REVIEWED_EXTERNAL_REPOSITORY" || item["cncfMembership"] != "NOT_ASSERTED" {
-			return nil, 0, invalid("invalid community-project identity authority")
+			return nil, communityCounts{}, invalid("invalid community-project identity authority")
 		}
 		slug, _ := stringValue(item["slug"])
 		name, err := validText(item["name"], 240)
 		repository, _ := stringValue(item["repositoryURL"])
 		component, componentErr := validText(item["component"], 240)
 		if err != nil || componentErr != nil || !projectRE.MatchString(slug) || identities[slug].name != "" || repository == "" {
-			return nil, 0, invalid("invalid community-project identity")
+			return nil, communityCounts{}, invalid("invalid community-project identity")
 		}
 		if _, err := httpsURL(repository, true); err != nil {
-			return nil, 0, err
+			return nil, communityCounts{}, err
 		}
 		identities[slug], components[slug] = identity{name, repository}, component
 	}
 	entries, ok := array(rules["entries"])
 	if !ok || len(entries) == 0 {
-		return nil, 0, invalid("missing community-project rules")
+		return nil, communityCounts{}, invalid("missing community-project rules")
 	}
 	grouped := map[string][]any{}
+	supportRanges := map[string][]any{}
+	notices := map[string][]any{}
+	counts := communityCounts{}
 	seen := map[string]bool{}
 	for _, raw := range entries {
 		entry, ok := object(raw)
 		if !ok {
-			return nil, 0, invalid("invalid community-project rule entry")
+			return nil, communityCounts{}, invalid("invalid community-project rule entry")
 		}
 		project, _ := stringValue(entry["project"])
 		if identities[project].name == "" {
-			return nil, 0, invalid("community-project rule identity missing")
+			return nil, communityCounts{}, invalid("community-project rule identity missing")
 		}
 		rule, ok := object(entry["rule"])
 		if !ok {
-			return nil, 0, invalid("invalid community-project rule")
+			return nil, communityCounts{}, invalid("invalid community-project rule")
 		}
 		id, _ := stringValue(rule["id"])
 		if !idRE.MatchString(id) || seen[id] {
-			return nil, 0, invalid("duplicate community-project rule")
+			return nil, communityCounts{}, invalid("duplicate community-project rule")
 		}
 		seen[id] = true
 		tr, err := transition(rule)
 		if err != nil || tr["component"] != components[project] {
-			return nil, 0, invalid("community-project transition identity mismatch")
+			return nil, communityCounts{}, invalid("community-project transition identity mismatch")
 		}
 		evidence, ok := object(rule["evidence"])
 		if !ok || evidence["state"] != "active" {
-			return nil, 0, invalid("inactive community-project evidence")
+			return nil, communityCounts{}, invalid("inactive community-project evidence")
 		}
 		sources, ok := array(evidence["sources"])
 		if !ok || len(sources) == 0 {
-			return nil, 0, invalid("missing community-project evidence")
+			return nil, communityCounts{}, invalid("missing community-project evidence")
 		}
 		normalized := make([]any, 0, len(sources))
 		for _, source := range sources {
 			v, err := sourceRecord(source, project)
 			if err != nil {
-				return nil, 0, err
+				return nil, communityCounts{}, err
 			}
 			normalized = append(normalized, v)
+		}
+		kind := ""
+		switch {
+		case rule["operator"] == constraintengine.OperatorNoticeOneWay:
+			kind = "one_way_notice"
+			counts.notices++
+		case rule["severity"] == constraintengine.SeverityUnsupported:
+			kind = "support_range"
+			counts.supportRange++
+		default:
+			counts.verdict++
 		}
 		limit := "Scoped native effective-configuration constraint; it does not assert CNCF membership, whole-upgrade safety, or runtime behavior."
 		if project == "argo-workflows" {
@@ -964,18 +1009,49 @@ func communityProjects(rules, registry map[string]any) ([]map[string]any, int, e
 		} else if project == "mariadb-operator" {
 			limit = "Scoped Galera-only prerequisite for one complete caller-selected MariaDB resource before the 26.3.0 to 26.6.0 operator update; it does not inspect admission, cluster state, runtime behavior, controller progress, data-plane completion, or whole-upgrade safety."
 		}
-		grouped[project] = append(grouped[project], map[string]any{"ruleID": id, "transition": tr, "evidence": normalized, "evidenceState": "active", "limit": limit})
+		item := map[string]any{"ruleID": id, "transition": tr, "evidence": normalized, "evidenceState": "active", "limit": limit}
+		switch kind {
+		case "one_way_notice":
+			// A notice decides nothing: it is listed for what it says, and a
+			// project holding only notices has no executable capability.
+			item["ruleKind"] = kind
+			item["limit"] = "Informational one-way notice for one reviewed transition; it is not a verdict, never passes or blocks, and its absence says nothing about rolling back. It does not assert CNCF membership, whole-upgrade safety, or runtime behavior."
+			notices[project] = append(notices[project], item)
+		case "support_range":
+			item["ruleKind"] = kind
+			item["limit"] = "Scoped support-range requirement on one caller-declared dependency version from a documented support range: inside the range the scoped claim passes; outside it the claim is UNSUPPORTED (not verified, not shown to be broken), never BLOCKED. A missing dependency version stays UNKNOWN. It is decided only by `prufyx check batch` with a canonical input that declares the dependency; the native `check project` routes cannot declare it and list the rule as not evaluated. It does not assert CNCF membership, whole-upgrade safety, or runtime behavior."
+			supportRanges[project] = append(supportRanges[project], item)
+		default:
+			grouped[project] = append(grouped[project], item)
+		}
 	}
-	names := make([]string, 0, len(grouped))
-	for name := range grouped {
-		names = append(names, name)
+	// A project is listed once, whatever kinds of rule it holds. Only verdict
+	// rules make it executable through `check project`; support ranges are a
+	// capability of their own (`check batch`) and notices decide nothing, so a
+	// project holding only those is listed with a non-executable state rather
+	// than counted as executable or dropped.
+	seenNames := map[string]bool{}
+	names := []string{}
+	for _, byKind := range []map[string][]any{grouped, supportRanges, notices} {
+		for name := range byKind {
+			if !seenNames[name] {
+				seenNames[name] = true
+				names = append(names, name)
+			}
+		}
 	}
 	sort.Strings(names)
+	byRuleID := func(items []any) {
+		sort.Slice(items, func(i, j int) bool {
+			return items[i].(map[string]any)["ruleID"].(string) < items[j].(map[string]any)["ruleID"].(string)
+		})
+	}
 	projects := make([]map[string]any, 0, len(names))
 	for _, project := range names {
-		sort.Slice(grouped[project], func(i, j int) bool {
-			return grouped[project][i].(map[string]any)["ruleID"].(string) < grouped[project][j].(map[string]any)["ruleID"].(string)
-		})
+		verdictRules := append(append([]any(nil), grouped[project]...), notices[project]...)
+		byRuleID(verdictRules)
+		byRuleID(supportRanges[project])
+		byRuleID(notices[project])
 		preparer := map[string]any{"command": []any{"prepare", "project", "--project", project}, "metadataState": "implemented_native_effective_config_minimizer", "limit": "Requires caller-declared complete configuration with environment and CLI precedence resolved; unsupported syntax remains UNKNOWN."}
 		if project == "argo-workflows" {
 			preparer = map[string]any{"command": []any{"prepare", "project", "--project", project}, "metadataState": "implemented_native_kubernetes_workload_minimizer", "limit": "Requires a caller-declared complete selected-container argv, exact reviewed image, and explicit command or the reviewed exact-image ENTRYPOINT default; unsupported context remains UNKNOWN."}
@@ -988,15 +1064,40 @@ func communityProjects(rules, registry map[string]any) ([]map[string]any, int, e
 		} else if project == "mariadb-operator" {
 			route, ok := checkroutemetadata.LegacyCommunityInventoryRoute(project)
 			if !ok {
-				return nil, 0, invalid("missing MariaDB Operator legacy route")
+				return nil, communityCounts{}, invalid("missing MariaDB Operator legacy route")
 			}
 			preparer = map[string]any{"command": route.Command, "metadataState": route.MetadataState, "limit": route.Limit}
 		}
-		capability := map[string]any{"kind": "embedded_community_project_source_rule", "command": []any{"check", "project", "--project", project}, "rules": grouped[project], "metadataState": "embedded_active_source_rule_pack_no_external_update", "localPreparer": preparer}
-		if project == "loki" {
+		kind, state := "embedded_community_project_source_rule", "executable"
+		capabilityRules := verdictRules
+		if len(grouped[project]) == 0 {
+			// Only notices and/or support ranges: nothing `check project`
+			// can decide.
+			kind, capabilityRules = "embedded_community_project_one_way_notice", notices[project]
+			switch {
+			case len(supportRanges[project]) > 0 && len(notices[project]) > 0:
+				state = "support_range_and_notice_only"
+			case len(supportRanges[project]) > 0:
+				state = "support_range_only"
+			default:
+				state = "notice_only"
+			}
+		}
+		var capabilities []any
+		if len(capabilityRules) > 0 {
+			capability := map[string]any{"kind": kind, "command": []any{"check", "project", "--project", project}, "rules": capabilityRules, "metadataState": "embedded_active_source_rule_pack_no_external_update", "localPreparer": preparer}
+			if kind != "embedded_community_project_source_rule" {
+				capability["limit"] = "Informational one-way notice only: `check project` prints it and still exits 11 because no verdict rule decides the transition. This project is not counted as executable."
+			}
+			capabilities = append(capabilities, capability)
+		}
+		if len(supportRanges[project]) > 0 {
+			capabilities = append(capabilities, map[string]any{"kind": "embedded_community_project_support_range", "command": []any{"check", "batch"}, "rules": supportRanges[project], "metadataState": "embedded_active_source_rule_pack_canonical_input_declaring_dependency", "limit": "Support-range rules are decided only by `prufyx check batch` with a canonical input that declares the dependency component; the native `check project` route cannot declare it and lists them as not evaluated. They are not counted as an executable `check project` capability."})
+		}
+		if project == "loki" && len(capabilities) > 0 && capabilities[0].(map[string]any)["localPreparer"] != nil {
 			// Keep the established generic compactor preparer for v1 readers while
 			// exposing both independently selected native Loki routes to v2 readers.
-			capability["localPreparers"] = []any{
+			capabilities[0].(map[string]any)["localPreparers"] = []any{
 				preparer,
 				map[string]any{
 					"command":       []any{"check", "project", "--project", "loki", "--loki-schema-config", "FILE", "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved"},
@@ -1006,9 +1107,9 @@ func communityProjects(rules, registry map[string]any) ([]map[string]any, int, e
 			}
 		}
 		id := identities[project]
-		projects = append(projects, map[string]any{"projectID": project, "displayName": id.name, "repositoryURL": id.repository, "supportState": "executable", "capabilities": []any{capability}, "selectedSourceRecords": []any{}})
+		projects = append(projects, map[string]any{"projectID": project, "displayName": id.name, "repositoryURL": id.repository, "supportState": state, "capabilities": capabilities, "selectedSourceRecords": []any{}})
 	}
-	return projects, len(entries), nil
+	return projects, counts, nil
 }
 
 func namedProject(contract map[string]any, digest string, identities map[string]identity, check string) (map[string]any, error) {
@@ -1404,7 +1505,7 @@ func Generate(cfg Config) ([]byte, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	community, communityRuleCount, err := communityProjects(inputs[8].value, inputs[9].value)
+	community, communityCount, err := communityProjects(inputs[8].value, inputs[9].value)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1469,6 +1570,7 @@ func Generate(cfg Config) ([]byte, string, error) {
 				return nil, "", invalid("invalid named capability union")
 			}
 			existing["capabilities"] = append(existingCaps, namedCaps...)
+			existing["supportState"] = "executable"
 			continue
 		}
 		projects[id] = item
@@ -1485,7 +1587,9 @@ func Generate(cfg Config) ([]byte, string, error) {
 	for id, records := range selectedByProject {
 		if projects[id] != nil {
 			projects[id]["selectedSourceRecords"] = records
-			projects[id]["supportState"] = "executable_with_selected_source_records"
+			if hasExecutableCapability(projects[id]) {
+				projects[id]["supportState"] = "executable_with_selected_source_records"
+			}
 		} else {
 			display := id
 			if identities[id].name != "" {
@@ -1498,8 +1602,7 @@ func Generate(cfg Config) ([]byte, string, error) {
 	executable, sourceOnly := 0, 0
 	for id, item := range projects {
 		names = append(names, id)
-		caps, _ := array(item["capabilities"])
-		if len(caps) > 0 {
+		if hasExecutableCapability(item) {
 			executable++
 		}
 		if item["supportState"] == "selected_source_only" {
@@ -1519,7 +1622,17 @@ func Generate(cfg Config) ([]byte, string, error) {
 	for _, item := range genericWithdrawn {
 		withdrawnRules = append(withdrawnRules, item)
 	}
-	inventory := map[string]any{"schema": Schema, "inputDigests": inputDigests, "selectedSourceProvenance": provenance, "counts": map[string]any{"cncfSourceRules": ruleCount, "cncfSourceRulesWithdrawn": len(genericWithdrawn), "cncfRuleProjects": len(generic), "communityProjectSourceRules": communityRuleCount, "communityProjectRuleProjects": len(community), "namedChecks": 2, "namedCheckProjects": 2, "conformanceProfiles": 2, "conformanceProjects": 2, "targetPreflightProfiles": 1, "targetPreflightProjects": 1, "executableProjects": executable, "selectedSourceRecords": len(selected), "selectedSourceProjects": len(selectedByProject), "selectedSourceOnlyProjects": sourceOnly}, "scope": map[string]any{"cncfRules": "embedded active CNCF source-rule pack; exact declared endpoints only", "communityProjectRules": "separate embedded maintainer-reviewed external-project registry; CNCF membership is not asserted and external updates are unavailable", "namedChecks": "embedded local source contracts; exact reviewed transitions only", "conformanceProfiles": "named standards subsets without invented from/to transitions", "targetPreflightProfiles": "named target-only planned-operation setting checks without invented from/to transitions", "selectedSourceRecords": "retained public-source records; source selection alone does not create executable upgrade support", "withdrawnRules": "rule evidence found unverifiable after publication; withdrawn from executable coverage, listed here rather than silently dropped", "wholeUpgrade": "UNKNOWN"}, "withdrawnRules": withdrawnRules, "projects": projectList}
+	inventory := map[string]any{"schema": Schema, "inputDigests": inputDigests, "selectedSourceProvenance": provenance, "counts": map[string]any{"cncfSourceRules": ruleCount, "cncfSourceRulesWithdrawn": len(genericWithdrawn), "cncfRuleProjects": len(generic), "communityProjectSourceRules": communityCount.verdict, "communityProjectRuleProjects": len(community), "namedChecks": 2, "namedCheckProjects": 2, "conformanceProfiles": 2, "conformanceProjects": 2, "targetPreflightProfiles": 1, "targetPreflightProjects": 1, "executableProjects": executable, "selectedSourceRecords": len(selected), "selectedSourceProjects": len(selectedByProject), "selectedSourceOnlyProjects": sourceOnly}, "scope": map[string]any{"cncfRules": "embedded active CNCF source-rule pack; exact declared endpoints only", "communityProjectRules": "separate embedded maintainer-reviewed external-project registry; CNCF membership is not asserted and external updates are unavailable", "namedChecks": "embedded local source contracts; exact reviewed transitions only", "conformanceProfiles": "named standards subsets without invented from/to transitions", "targetPreflightProfiles": "named target-only planned-operation setting checks without invented from/to transitions", "selectedSourceRecords": "retained public-source records; source selection alone does not create executable upgrade support", "withdrawnRules": "rule evidence found unverifiable after publication; withdrawn from executable coverage, listed here rather than silently dropped", "wholeUpgrade": "UNKNOWN"}, "withdrawnRules": withdrawnRules, "projects": projectList}
+	// Counts for rule kinds the pack does not hold are left out while zero,
+	// so a pack without those rules produces byte-identical output to the
+	// generator that predates them: the knowledge gate regenerates with the
+	// base branch's code.
+	if communityCount.supportRange > 0 {
+		inventory["counts"].(map[string]any)["communityProjectSupportRangeRules"] = communityCount.supportRange
+	}
+	if communityCount.notices > 0 {
+		inventory["counts"].(map[string]any)["communityProjectNotices"] = communityCount.notices
+	}
 	raw, err := canonical(inventory)
 	if err != nil {
 		return nil, "", err
@@ -1559,10 +1672,23 @@ func renderMarkdown(inventory map[string]any) string {
 	counts := inventory["counts"].(map[string]any)
 	n := func(k string) int { return counts[k].(int) }
 	lines := []string{"# Community support inventory", "", "Generated by `cmd/prufyx-maintainer`; do not edit by hand.", "", "This inventory separates executable scoped checks from selected public-source records. Catalogue discovery identities are not support entries. A scoped result never proves a whole upgrade safe or runtime behavior.", "", fmt.Sprintf("- CNCF embedded source rules: **%d** across **%d** projects; **%d** withdrawn (unverifiable evidence) and excluded from executable coverage.", n("cncfSourceRules"), n("cncfRuleProjects"), n("cncfSourceRulesWithdrawn")), fmt.Sprintf("- Community-project embedded source rules: **%d** across **%d** projects; CNCF membership is not asserted.", n("communityProjectSourceRules"), n("communityProjectRuleProjects")), fmt.Sprintf("- Named local checks: **%d** across **%d** projects.", n("namedChecks"), n("namedCheckProjects")), fmt.Sprintf("- Standards-conformance profiles: **%d** across **%d** projects; these are not version-transition checks.", n("conformanceProfiles"), n("conformanceProjects")), fmt.Sprintf("- Target-preflight profiles: **%d** across **%d** projects; these are not version-transition checks.", n("targetPreflightProfiles"), n("targetPreflightProjects")), fmt.Sprintf("- Executable-project union: **%d** projects.", n("executableProjects")), fmt.Sprintf("- Selected retained public-source records: **%d** across **%d** projects; **%d** are source-only and have no executable-support capability.", n("selectedSourceRecords"), n("selectedSourceProjects"), n("selectedSourceOnlyProjects")), "", "## Executable projects", "", "| Project | Executable capability | Exact reviewed transition(s) | Pinned evidence | Local preparer | Limits |", "| --- | --- | --- | --- | --- |"}
+	// The lines for the separately counted rule kinds appear only when the
+	// pack holds such rules (Generate leaves the counts out at zero).
+	extra := []string{}
+	if v, ok := counts["communityProjectSupportRangeRules"].(int); ok {
+		extra = append(extra, fmt.Sprintf("- Community-project support-range rules (counted separately; outside the documented range the claim is UNSUPPORTED, never BLOCKED): **%d**.", v))
+	}
+	if v, ok := counts["communityProjectNotices"].(int); ok {
+		extra = append(extra, fmt.Sprintf("- Community-project one-way notices (counted separately; informational, not verdicts, not executable checks): **%d**.", v))
+	}
+	if len(extra) > 0 {
+		at := slices.Index(lines, fmt.Sprintf("- Community-project embedded source rules: **%d** across **%d** projects; CNCF membership is not asserted.", n("communityProjectSourceRules"), n("communityProjectRuleProjects")))
+		lines = slices.Insert(lines, at+1, extra...)
+	}
 	projects := inventory["projects"].([]any)
 	for _, rawProject := range projects {
 		project := rawProject.(map[string]any)
-		if project["supportState"] == "selected_source_only" {
+		if project["supportState"] == "selected_source_only" || !hasExecutableCapability(project) {
 			continue
 		}
 		labels, transitions, preparers, limits, evidence := []string{}, []string{}, []string{}, []string{}, []string{}
@@ -1629,6 +1755,29 @@ func renderMarkdown(inventory map[string]any) string {
 			return strings.Join(items, "<br>")
 		}
 		lines = append(lines, fmt.Sprintf("| [%s](<%s>) | %s | %s | %s | %s | %s |", markdownCell(project["displayName"].(string)), project["repositoryURL"], escapeJoin(labels), escapeJoin(transitions), strings.Join(uniqueSorted(evidence), "<br>"), preparerText, escapeJoin(uniqueSorted(limits))))
+	}
+	headerWritten := false
+	for _, rawProject := range projects {
+		project := rawProject.(map[string]any)
+		if project["supportState"] == "selected_source_only" || hasExecutableCapability(project) {
+			continue
+		}
+		if !headerWritten {
+			headerWritten = true
+			lines = append(lines, "", "## Projects with rules that decide no transition on their own", "", "These projects hold only one-way notices (informational, never a verdict) and/or support-range rules (decided only by `prufyx check batch` with a canonical input that declares the dependency). They are listed here rather than dropped, and are **not** counted as executable.", "", "| Project | State | Rule kinds and routes | Rules |", "| --- | --- | --- | --- |")
+		}
+		kinds, rules := []string{}, []string{}
+		caps, _ := array(project["capabilities"])
+		for _, rawCap := range caps {
+			cap := rawCap.(map[string]any)
+			kinds = append(kinds, fmt.Sprintf("`%s` via `prufyx %s`", cap["kind"], strings.Join(stringSlice(cap["command"]), " ")))
+			ruleItems, _ := array(cap["rules"])
+			for _, rawRule := range ruleItems {
+				rule := rawRule.(map[string]any)
+				rules = append(rules, fmt.Sprintf("`%s` (%s)", rule["ruleID"], rule["ruleKind"]))
+			}
+		}
+		lines = append(lines, fmt.Sprintf("| [%s](<%s>) | %s | %s | %s |", markdownCell(project["displayName"].(string)), project["repositoryURL"], project["supportState"], strings.Join(kinds, "<br>"), strings.Join(uniqueSorted(rules), "<br>")))
 	}
 	lines = append(lines, "", "## Selected-source-only projects", "", "These projects have retained public-source records but no executable check in this binary. They are **reference-only** and **license-unreviewed**, not upgrade support.", "", "| Project | Retained immutable source reference(s) | Metadata state |", "| --- | --- | --- |")
 	found := false

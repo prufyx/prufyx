@@ -83,6 +83,10 @@ type Check struct {
 	// Withdrawn is true for a rule whose evidence was withdrawn: it can only
 	// answer UNKNOWN, so it is not coverage.
 	Withdrawn bool `json:"withdrawn,omitempty"`
+	// RuleKind is present only for a rule that is not a plain verdict rule:
+	// "one_way_notice" (informational, never a verdict) or "support_range"
+	// (PASS or UNSUPPORTED, decided only with a declared dependency).
+	RuleKind string `json:"ruleKind,omitempty"`
 }
 
 // RuleCoverageWithdrawnOnly is the rule coverage state of a query whose every
@@ -841,11 +845,11 @@ func Discover(selectedProject, selectedFrom, selectedTo string) (Result, error) 
 		coverage = "NO_MATCHING_EMBEDDED_RULE"
 	}
 	result := Result{Schema: Schema, MetadataSource: "EMBEDDED_COMPILED_BUNDLES_ONLY", SourceOnlyState: "NOT_ENUMERATED", RuleCoverageState: coverage, Scope: Scope{IncludedFamilies: []string{FamilyCNCF, FamilyCommunity}, ExcludedFamilies: []string{"named_check", "standards_conformance", "target_preflight"}, CoverageMeaning: "exact embedded source-rule identity discovery only", SourceEvidenceFreshness: "NOT_EVALUATED"}, Query: Query{Project: selectedProject, From: selectedFrom, To: selectedTo}, NamedCheckHints: namedHints(selectedProject), Checks: make([]Check, 0, len(cncf)+len(community))}
-	appendIdentity := func(family, project, component, ruleID, from, to string, subject constraintengine.RuleTransition, withdrawn bool) {
+	appendIdentity := func(family, project, component, ruleID, from, to, kind string, subject constraintengine.RuleTransition, withdrawn bool) {
 		if projectFilter(selectedProject, selectedFrom, selectedTo, project, subject) {
 			return
 		}
-		item := Check{Family: family, Project: project, Component: component, RuleID: ruleID, From: from, To: to, GenericDeclarationRoute: genericRoute(family, project, from, to), NativeDescriptor: Route{State: DescriptorNone}, Range: subject.Range, Crossing: subject.Crossing, Withdrawn: withdrawn}
+		item := Check{Family: family, Project: project, Component: component, RuleID: ruleID, From: from, To: to, GenericDeclarationRoute: genericRoute(family, project, from, to), NativeDescriptor: Route{State: DescriptorNone}, Range: subject.Range, Crossing: subject.Crossing, Withdrawn: withdrawn, RuleKind: kind}
 		item.MatchMode = queryMatchMode(subject, selectedFrom, selectedTo)
 		if descriptor, found := descriptors[identityKey(family, project, component, ruleID, from, to)]; found {
 			item.NativeDescriptor = Route{State: DescriptorExact, Command: descriptor.command, Limit: descriptor.limit, NativePass: descriptor.nativePass}
@@ -853,10 +857,10 @@ func Discover(selectedProject, selectedFrom, selectedTo string) (Result, error) 
 		result.Checks = append(result.Checks, item)
 	}
 	for _, item := range cncf {
-		appendIdentity(FamilyCNCF, item.Project, item.Component, item.RuleID, item.From, item.To, item.Transition(), item.Withdrawn)
+		appendIdentity(FamilyCNCF, item.Project, item.Component, item.RuleID, item.From, item.To, item.Kind, item.Transition(), item.Withdrawn)
 	}
 	for _, item := range community {
-		appendIdentity(FamilyCommunity, item.Project, item.Component, item.RuleID, item.From, item.To, item.Transition(), false)
+		appendIdentity(FamilyCommunity, item.Project, item.Component, item.RuleID, item.From, item.To, item.Kind, item.Transition(), false)
 	}
 	sort.Slice(result.Checks, func(i, j int) bool {
 		if result.Checks[i].Project != result.Checks[j].Project {

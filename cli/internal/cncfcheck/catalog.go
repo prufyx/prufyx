@@ -24,6 +24,9 @@ type RuleIdentity struct {
 	// Withdrawn is true for a rule whose evidence was withdrawn: it stays in
 	// the pack so that it answers UNKNOWN, and it decides nothing.
 	Withdrawn bool `json:"withdrawn,omitempty"`
+	// Kind is present only for a rule that is not a plain verdict rule: a
+	// one-way notice or a support range (constraintengine.RuleKind*).
+	Kind string `json:"kind,omitempty"`
 }
 
 // Transition returns the identity's reviewed subject for the shared matcher.
@@ -50,7 +53,11 @@ func EmbeddedRuleIdentities() ([]RuleIdentity, error) {
 		if err != nil || json.Unmarshal(entry.Rule, &shape) != nil || shape.ID == "" || subject.Component == "" || subject.From == "" || subject.To == "" {
 			return nil, ErrIntegrity
 		}
-		result = append(result, RuleIdentity{Project: entry.Project, Component: subject.Component, RuleID: shape.ID, From: subject.From, To: subject.To, Range: subject.Range, Crossing: subject.Crossing, Withdrawn: shape.Evidence.State == ruleStateWithdrawn})
+		kind, err := constraintengine.RawRuleKind(entry.Rule)
+		if err != nil {
+			return nil, ErrIntegrity
+		}
+		result = append(result, RuleIdentity{Project: entry.Project, Component: subject.Component, RuleID: shape.ID, From: subject.From, To: subject.To, Range: subject.Range, Crossing: subject.Crossing, Withdrawn: shape.Evidence.State == ruleStateWithdrawn, Kind: kind})
 	}
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].Project != result[j].Project {

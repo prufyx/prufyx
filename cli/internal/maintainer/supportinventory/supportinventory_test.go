@@ -4,7 +4,9 @@ package supportinventory
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -729,3 +731,61 @@ func TestSupportInventory_ConformanceProfile_RejectsMalformedRuleWithoutPanic(t 
 		t.Fatal("expected malformed rule rejection")
 	}
 }
+
+// Output of the generator on main (commit d0a368be) for the shipped inputs it
+// was generated from. The knowledge gate regenerates the committed inventory
+// with the BASE branch's code, so a generator change must keep the output for
+// a pack without support-range or notice rules byte-identical to what the
+// previous generator wrote.
+const (
+	mainInputDigestsSHA256      = "0a72befb9216f4aeea39a0b8c6ae11572311a3e023be870d717a8b94225d105a"
+	mainInventoryJSONSHA256     = "42bb838ef43359bd08780f793e64da35cf12fe86fb09d99fdd2626a2b29f61a7"
+	mainInventoryMarkdownSHA256 = "a721980207cd5a5440382e181e48e7562381c55637173c736d800fc38b4ee40e"
+)
+
+// TestSupportInventory_ShippedPackOutputIsByteIdenticalToMainGenerator: the
+// new rule kinds add nothing to the output while the pack holds none of them
+// (no new count keys, no new lines, no new sections).
+func TestSupportInventory_ShippedPackOutputIsByteIdenticalToMainGenerator(t *testing.T) {
+	cfg, _ := repositoryConfig(t)
+	raw, markdown, err := Generate(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document struct {
+		InputDigests map[string]string `json:"inputDigests"`
+		Counts       map[string]any    `json:"counts"`
+	}
+	if err := json.Unmarshal(raw, &document); err != nil {
+		t.Fatal(err)
+	}
+	// Structural guarantee, independent of the pinned digests.
+	for _, key := range []string{"communityProjectSupportRangeRules", "communityProjectNotices"} {
+		if _, present := document.Counts[key]; present {
+			t.Errorf("count %q is emitted for a pack that holds no such rules", key)
+		}
+	}
+	for _, text := range []string{"support-range rules", "one-way notices", "decide no transition on their own"} {
+		if strings.Contains(markdown, text) {
+			t.Errorf("the Markdown mentions %q for a pack that holds no such rules", text)
+		}
+	}
+	// Byte-level guarantee, while the inputs are the ones main's output was
+	// pinned for. When an input changes legitimately the pins no longer apply
+	// and the structural checks above and the committed-file comparison remain.
+	inputs, err := json.Marshal(document.InputDigests)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hex(sha256.Sum256(inputs)) != mainInputDigestsSHA256 {
+		t.Skip("the shipped inputs changed since main d0a368be; byte-level pin does not apply")
+	}
+	if got := hex(sha256.Sum256(raw)); got != mainInventoryJSONSHA256 {
+		t.Errorf("JSON differs from the main generator's output: %s", got)
+	}
+	if got := hex(sha256.Sum256([]byte(markdown))); got != mainInventoryMarkdownSHA256 {
+		t.Errorf("Markdown differs from the main generator's output: %s", got)
+	}
+}
+
+func hex(sum [32]byte) string { return fmt.Sprintf("%x", sum[:]) }
