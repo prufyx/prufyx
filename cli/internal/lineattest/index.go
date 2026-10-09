@@ -95,6 +95,10 @@ func (ix Index) Len() int { return len(ix.byKey) }
 func copyOf(a LineAttestation) LineAttestation {
 	a.RuleIDs = append([]string{}, a.RuleIDs...)
 	a.Evidence.Sources = append([]constraintengine.SourceEvidence(nil), a.Evidence.Sources...)
+	if a.Releases != nil {
+		r := Releases{From: append([]Release{}, a.Releases.From...), To: append([]Release{}, a.Releases.To...)}
+		a.Releases = &r
+	}
 	if a.Evidence.Extractor != nil {
 		x := *a.Evidence.Extractor
 		a.Evidence.Extractor = &x

@@ -287,6 +287,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   `crd.version-removal.*`, the chart-versions derivation). No published rule
   carries a code digest yet, so nothing shipped needs re-deriving; rules
   derived with an earlier binary no longer re-derive and must be derived again.
+- Extractor framework: a line attestation candidate may carry the releases of
+  both lines its derivation read, an extractor may name the one component it
+  attests, and the line attestation type has an optional `releases` member. No
+  extractor uses any of it yet, so extractor output does not change, but the
+  framework files changed, so the code digest of every extractor changes once
+  more (same consequence as the entry above).
 
 - `k8s.served-api-removal` 1.3.0: every reviewed migration hint now cites the
   passage of the upstream deprecation guide (kubernetes/website at a pinned

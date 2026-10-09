@@ -83,7 +83,11 @@ func TestParseIsStrict(t *testing.T) {
 	derivedMismatch.Evidence.DerivedAt = "2026-09-30T00:00:00Z"
 	reviewedWithExtractor := mechanical("1.28")
 	reviewedWithExtractor.Evidence.Basis = "reviewed"
+	releasesRel := `{"version":"1.28.1","commit":"1111111111111111111111111111111111111111"}`
 	cases := map[string]string{
+		"releases member, empty":    replace(`"line":`, `"releases":{"from":[],"to":[]},"line":`),
+		"releases member, filled":   replace(`"line":`, `"releases":{"from":[`+releasesRel+`],"to":[`+releasesRel+`]},"line":`),
+		"releases member, null":     replace(`"line":`, `"releases":null,"line":`),
 		"not an array":              `{}`,
 		"empty array":               `[]`,
 		"null document":             `null`,
@@ -313,5 +317,17 @@ func TestLineOf(t *testing.T) {
 		if _, ok := LineOf(v); ok {
 			t.Fatalf("%s accepted", v)
 		}
+	}
+}
+
+// An attestation without releases encodes without a releases member, so the
+// document shape of every family that is not release-scoped is unchanged.
+func TestAttestationWithoutReleasesEncodesWithoutThem(t *testing.T) {
+	data, err := json.Marshal(LineAttestation{Component: "c", Line: "1.30", FactFamily: "f", Completeness: Completeness})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "releases") {
+		t.Fatalf("encoded %s", data)
 	}
 }
