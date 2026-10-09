@@ -113,7 +113,7 @@ func TestPrometheusRemoteWriteHTTP2PublicVerdicts(t *testing.T) {
 
 func TestPrometheusRemoteWriteHTTP2HelpAndSafeFailures(t *testing.T) {
 	t.Parallel()
-	code, stdout, stderr := runCNCFCLI(t, "--help")
+	code, stdout, stderr := runCNCFCLI(t, "check", "--help") // intentionally changed: root help is now an overview; full usage is per-command
 	if code != ExitOK || stderr != "" || !strings.Contains(stdout, "--prometheus-config") || !strings.Contains(stdout, "remote-write-http2-default") {
 		t.Fatalf("root help code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}

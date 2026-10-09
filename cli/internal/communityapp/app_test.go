@@ -196,7 +196,9 @@ func TestHelpNamesPublicBinary(t *testing.T) {
 	if code := Run(context.Background(), []string{"--help"}, &stdout, &stderr, "test"); code != ExitOK {
 		t.Fatal(code)
 	}
-	if strings.Contains(stdout.String(), "prufyx-community") || !strings.Contains(stdout.String(), "prufyx check") {
+	// Intentionally changed: the root help is now a short grouped overview
+	// (see help_test.go); the full "prufyx check ..." usage lives in check help.
+	if strings.Contains(stdout.String(), "prufyx-community") || !strings.Contains(stdout.String(), "Check an upgrade:") {
 		t.Fatalf("help=%q", stdout.String())
 	}
 }

@@ -70,7 +70,8 @@ func TestScanCommand(t *testing.T) {
 	}
 	var help bytes.Buffer
 	Run(context.Background(), nil, &help, &bytes.Buffer{}, "test")
-	if !strings.Contains(help.String(), "prufyx scan [PATH ...]") {
+	// intentionally changed: the root overview lists scan; its usage is in scan help
+	if !strings.Contains(help.String(), "  scan  ") {
 		t.Fatal("root help does not list scan")
 	}
 }

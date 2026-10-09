@@ -35,6 +35,11 @@ a real `BLOCKED` verdict on a Kubernetes API removal, with its upstream source
 citation, in under five minutes. It also shows how to wire the exit code into
 CI (use `check --strict-exit` there).
 
+Run `prufyx` for a short command overview and `prufyx <command> help` for one
+command's details. Help text is coloured only on a terminal; `NO_COLOR` or
+`PRUFYX_COLOR=never` turns it off and `PRUFYX_COLOR=always` forces it on (see
+the quickstart guide). Reports are never coloured.
+
 ## What the verdicts mean
 
 The table is for `check`, where `PASS` is scoped to the rules that were
