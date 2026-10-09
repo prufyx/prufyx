@@ -38,8 +38,11 @@ type SourceSet struct {
 // FrameworkSource returns the framework's own source set.
 func FrameworkSource() SourceSet { return SourceSet{Dir: FrameworkDir, Files: frameworkSource} }
 
-// CodeFiles lists the non-test Go files of the given source sets with their
-// digests, sorted by path.
+// CodeFiles lists the non-test Go files of the given source sets, and the
+// reviewed data files (*.json) a set embeds next to its code, with their
+// digests, sorted by path. A data file an extractor reads (such as a
+// reviewed target table) is part of its code: changing it changes the code
+// digest.
 func CodeFiles(sets ...SourceSet) ([]CodeFile, error) {
 	var out []CodeFile
 	seen := map[string]bool{}
@@ -48,6 +51,11 @@ func CodeFiles(sets ...SourceSet) ([]CodeFile, error) {
 		if err != nil {
 			return nil, err
 		}
+		data, err := fs.Glob(set.Files, "*.json")
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, data...)
 		for _, name := range names {
 			if strings.HasSuffix(name, "_test.go") {
 				continue

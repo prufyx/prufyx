@@ -163,7 +163,8 @@ prufyx-maintainer extract oracle --extractor crd.version-removal.strimzi --out O
 with the recorded `derivedAt` and fails unless every output file is
 byte-identical. The code digest is sha256 over the sorted lines
 `<dir>/<file> NUL <sha256> LF` of the non-test Go files of `internal/extract`
-and `internal/extract/crdversions`; the manifest lists them.
+and `internal/extract/crdversions`, plus any reviewed `*.json` data file a source
+set embeds next to its code; the manifest lists them.
 
 `oracle` compares a run with an expected-results file:
 

@@ -280,6 +280,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   API-removal rules (the reviewed ones now shipped and the mechanical ones that will replace
   them), so the catalog stays exact on either side of that replacement. No shipped rule
   changes.
+- Extractor code digest: the digest now also covers the reviewed `*.json` data
+  files a source set embeds next to its Go code (a table an extractor reads is
+  part of its code). The framework file changed, so the code digest of every
+  extractor changes once (`k8s.feature-gate-removal`, `k8s.served-api-removal`,
+  `crd.version-removal.*`, the chart-versions derivation). No published rule
+  carries a code digest yet, so nothing shipped needs re-deriving; rules
+  derived with an earlier binary no longer re-derive and must be derived again.
+
 - `k8s.served-api-removal` 1.3.0: every reviewed migration hint now cites the
   passage of the upstream deprecation guide (kubernetes/website at a pinned
   revision, with start and end line) that supports it, and a test checks each

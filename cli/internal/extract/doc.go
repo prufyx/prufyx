@@ -32,8 +32,10 @@
 //
 // A mechanical rule records extractor.codeDigest, the sha256 of the code that
 // produced it. CodeDigest computes it over the Go source files (excluding
-// _test.go files) of this package and of the extractor's own package, both
-// embedded into the binary at build time. Each file contributes the line
+// _test.go files) of this package and of the extractor's own package, and
+// over the reviewed top-level *.json data files the package embeds next to its
+// code, all embedded into the binary at build time (testdata is not part of
+// it). Each file contributes the line
 //
 //	<package dir>/<file name> NUL <hex sha256 of the file> LF
 //

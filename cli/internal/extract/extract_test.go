@@ -319,6 +319,39 @@ func TestCodeDigestCoversEveryNonTestSourceFile(t *testing.T) {
 	var _ fs.FS = a
 }
 
+func TestCodeFilesListsEmbeddedDataJSON(t *testing.T) {
+	m := fstest.MapFS{
+		"t.go":            {Data: []byte("package p\n")},
+		"t.json":          {Data: []byte(`{"a":1}`)},
+		"testdata/x.json": {Data: []byte(`{"x":1}`)},
+		"testdata/y.go":   {Data: []byte("package y\n")},
+		"z_test.go":       {Data: []byte("package p\n")},
+	}
+	files, err := CodeFiles(SourceSet{Dir: "p", Files: m})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, f := range files {
+		got = append(got, f.Path)
+	}
+	if !slices.Equal(got, []string{"p/t.go", "p/t.json"}) {
+		t.Fatalf("listed %v, want the Go file and the top-level json only, sorted by path", got)
+	}
+	before := CodeDigest(files)
+	m["t.json"] = &fstest.MapFile{Data: []byte(`{"a":2}`)}
+	changed, _ := CodeFiles(SourceSet{Dir: "p", Files: m})
+	if CodeDigest(changed) == before {
+		t.Fatal("changing a data file must change the digest")
+	}
+	m["t.json"] = &fstest.MapFile{Data: []byte(`{"a":1}`)}
+	m["testdata/x.json"] = &fstest.MapFile{Data: []byte(`{"x":2}`)}
+	same, _ := CodeFiles(SourceSet{Dir: "p", Files: m})
+	if CodeDigest(same) != before {
+		t.Fatal("testdata must not be part of the digest")
+	}
+}
+
 func TestCanonicalSortsKeysAndIsStable(t *testing.T) {
 	type s struct {
 		Z string            `json:"z"`
