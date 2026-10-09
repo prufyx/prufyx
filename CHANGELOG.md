@@ -15,6 +15,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   requires, with nothing else changing at the top level, every rule and record
   change admitted by its own rules, and no trust material or registry change
   in the same pull request; every other pack-member change is still refused.
+  Such a change is never eligible for automatic merging (the owner merges the
+  first attested update of a pack). To retract a wrong attestation, withdraw it
+  rather than deleting it; deleting the last record needs the owner path.
 
 - Knowledge targets carry records: per-project CNCF targets (and the single
   target) now carry line attestations, upgrade-path policies and served-API

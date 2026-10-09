@@ -125,6 +125,23 @@ func TestSchemaBumpAdmittedWithFirstAttestedUpdate(t *testing.T) {
 	}
 }
 
+// The first attested update (the schema level moves) is owner-merged: even
+// when the gate passes and the automation account authored it, it is not
+// eligible for automatic merging, and the reason names the schema level.
+func TestSchemaBumpIsNeverAutoMerged(t *testing.T) {
+	base, head := schemaTrees(t, attestedPackSchema, nil)
+	r := runGate(t, Options{Base: base, Head: head, Source: argoFixture, Author: DefaultBotLogin})
+	if !r.Passed() {
+		t.Fatalf("failed:\n%s", strings.Join(failedChecks(r), "\n"))
+	}
+	if c := schemaChange(t, r); !c.OK || c.Proof != ProofSchemaLevel {
+		t.Fatalf("schema change %+v", c)
+	}
+	if r.AutoMerge.Eligible || !strings.Contains(strings.Join(r.AutoMerge.Reasons, " "), "schema level of a pack") {
+		t.Fatalf("eligible=%v reasons=%v", r.AutoMerge.Eligible, r.AutoMerge.Reasons)
+	}
+}
+
 // The schema change is decided last: the gate built from the base decides, so
 // a base without this admission refuses it exactly as before (the layout
 // without the schema functions).

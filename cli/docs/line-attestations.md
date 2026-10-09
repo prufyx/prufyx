@@ -238,6 +238,16 @@ the pair's rules and names every release read. As for Kubernetes, the
 manifest records the attestation status of every pair, `attestations.json`
 holds the attestations, and `extract verify` covers them.
 
+## Retracting an attestation
+
+Retract a wrong attestation by withdrawing it (`evidence.state` `active` to
+`withdrawn`): that is a tightening change the knowledge gate admits without a
+proof, and the record stays in the pack. Do not delete it. Deleting a line
+attestation is also a tightening, but when it is the last record that needs the
+pack's current schema level, the pack's required schema level drops, and the gate
+refuses a schema downgrade. Deleting the last record needs the owner path (an
+owner-authored change, merged by the owner).
+
 ## Renewal
 
 Attestations expire like rules, and must be renewed the same way.

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 )
 
 // The first attested update of a pack that holds an older schema must move
@@ -87,14 +88,18 @@ func checkSchemaChange(cls *Classification, c *Change, changedPaths []string, op
 		return errors.New("the schema is not raised (a downgrade or an unchanged level)")
 	}
 	// Nothing else at the top level changes.
-	names := map[string]bool{}
-	for m := range base.Members {
-		names[m] = true
+	seen := map[string]bool{}
+	var names []string
+	for _, ms := range []map[string]json.RawMessage{base.Members, head.Members} {
+		for m := range ms {
+			if !seen[m] {
+				seen[m] = true
+				names = append(names, m)
+			}
+		}
 	}
-	for m := range head.Members {
-		names[m] = true
-	}
-	for m := range names {
+	sort.Strings(names)
+	for _, m := range names {
 		if m == "schema" || recordSection(head.Spec, m) {
 			continue
 		}

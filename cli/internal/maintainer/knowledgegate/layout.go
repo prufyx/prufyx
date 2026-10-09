@@ -108,9 +108,11 @@ type Layout struct {
 	// TrustPaths lists trust material (same form as AutoMergePaths). Any
 	// file named trust-root* or *approval-keys* is trust material too.
 	TrustPaths []string
-	// RegistryPaths lists the registry files the packs' targets are
-	// checked against (the landscape, the portfolio, the community project
-	// registry). A change of a pack's schema level is never admitted in a
+	// RegistryPaths lists the registry JSON files named here (the
+	// landscape, the portfolio, the community project registry). The
+	// Go-coded fact registry is not a file in this list; a change of it moves
+	// the pack's registryDigest member, which is a top-level member change
+	// and refuses the schema change on its own. A change of a pack's schema level is never admitted in a
 	// change that also touches one of them.
 	RegistryPaths []string
 }

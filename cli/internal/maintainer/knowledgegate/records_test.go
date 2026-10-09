@@ -148,6 +148,13 @@ func requireAdmittedButUnsplit(t *testing.T, r *Report) {
 	if c, ok := check(r, "targets/cncf"); !ok || !c.OK {
 		t.Fatalf("targets/cncf: %+v", c)
 	}
+	// A change that moves the schema level of a pack is never merged
+	// automatically, whoever authored it.
+	for _, c := range r.Changes {
+		if c.Proof == ProofSchemaLevel && r.AutoMerge.Eligible {
+			t.Fatalf("a schema-level change is eligible for automatic merging: %+v", c)
+		}
+	}
 }
 
 // The base attests line 1.22; the shipped pack's 1.22 rules are line-wide,

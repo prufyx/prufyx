@@ -377,6 +377,8 @@ job output `head-sha`). It is eligible only when:
   - `cli/docs/generated/community-support-inventory.json`, `cli/docs/generated/community-support-inventory.md`
   - anything under `cli/knowledge/approvals/`
   - anything under `cli/knowledge/reattestation/<pack>/chain/`, `…/worklists/` and `…/review-records/`
+- it holds no change of a pack's schema level (proof `schema-level`, below): the
+  first attested update of a pack is merged by the owner, never automatically.
 
 Trust material is never on that list. A consumer that merges automatically
 must merge exactly the commit in `head-sha` (for example with the expected
@@ -753,6 +755,12 @@ file. Only the CNCF pack has schema levels; every other pack refuses the change 
 before. The gate that decides is the one built from the base branch (see below), so
 this admission takes effect only for changes proposed after the code that holds it is
 in `main`: a pull request opened earlier is still judged by the old gate.
+
+A `schema-level` change is never eligible for automatic merging. A downgrade is
+never admitted, so removing the last record that needs a schema level (which
+would lower the required schema) is refused. Retract a wrong record by
+withdrawing it (a state change: the record stays in the pack and the schema does
+not move). Deleting the last record needs the owner path.
 
 ### `gate limits`
 

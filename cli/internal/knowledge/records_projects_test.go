@@ -182,7 +182,7 @@ func TestConstraintsProjectsRefuseForeignRecordTarget(t *testing.T) {
 	// index: same signature checks pass, admission must not.
 	etcd := cncfcheck.ProjectTargetPath("etcd")
 	if _, ok := targets[etcd]; !ok {
-		t.Skip("no etcd target in the pack")
+		t.Fatal("no etcd target in the pack: the foreign-record check needs a second project target")
 	}
 	moved := map[string][]byte{}
 	for name, raw := range targets {

@@ -817,6 +817,12 @@ func (r *Report) autoMerge(opts Options) {
 			break
 		}
 	}
+	for _, c := range r.Changes {
+		if c.Proof == ProofSchemaLevel {
+			reasons = append(reasons, "the change moves the schema level of a pack; that is merged by the owner, never automatically")
+			break
+		}
+	}
 	if len(r.Changes) == 0 && len(r.ChainsChanged) == 0 {
 		reasons = append(reasons, "the change holds no knowledge change")
 	}

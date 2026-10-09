@@ -69,6 +69,12 @@ Records follow the same per-project rollback floor as rules: a later index
 that serves a project's target without its records under the same project
 revision is refused.
 
+To retract a wrong attestation, withdraw it (a state change: the record stays
+in the pack with its state set to withdrawn) rather than deleting it. Deleting a
+record is a different change: the last record of a level also lowers the pack's
+schema level, and the knowledge gate never admits a schema downgrade, so deleting
+the last record needs the owner path.
+
 ## What is verified
 
 On `db verify`, `db import` and `db update` with `--profile cncf-projects`,
