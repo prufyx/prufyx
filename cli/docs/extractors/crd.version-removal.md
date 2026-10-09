@@ -84,7 +84,14 @@ Through the offline factory mirror (or a fixture tree), never the network.
   read: `*.yaml`, `*.yml`, `*.json` and files named `Kustomization`; template,
   jsonnet and cue sources (`*.tmpl`, `*.tpl`, `*.gotmpl`, `*.jsonnet`,
   `*.libsonnet`, `*.cue`, `*.j2`, `*.jinja`, `*.jinja2`); and Go sources whose
-  path contains `crd` (in any case), except `_test.go` files. A packaged Helm
+  path contains `crd` (in any case), except `_test.go` files. In a Go source,
+  the gzip-compressed string literals (`[]byte("\x1f\x8b...")`, as generated
+  sources such as Velero's `config/crd/v1/crds/crds.go` hold the definitions
+  `velero install` applies) are decompressed, with bounds, and read like YAML
+  files: the file is a `copy`, `extra` or `conflict` like any other, and a
+  literal that cannot be read is `unread`. Definitions held as other encoded
+  bytes (base64, byte-slice literals, other compressions) are not read
+  (`notRead`). A packaged Helm
   chart (`*.tgz` in a directory named `charts`) is not read and is recorded as
   unsupported. YAML and JSON files that contain the word
   `CustomResourceDefinition` anywhere, Helm `Chart.yaml` files and
@@ -141,8 +148,9 @@ Through the offline factory mirror (or a fixture tree), never the network.
 
   **Reviewed exclusions carry evidence and are guarded.** Every entry of the
   table names its repository, the path (a directory prefix ending in `/`, one
-  file or a pattern), the reason the files are not installed and the evidence a
-  reviewer read, and the claim must hold at every release of the window. An
+  file or a pattern whose wildcards are in the last path element only), the
+  reason the files are not installed and the evidence a reviewer read, and the
+  claim must hold at every release of the window. An
   entry that is not a declared copy may not lie under a chart, deploy,
   deployment, install or installation directory, below a `config/crd` or
   `config/crds` directory, or below a top-level `manifests` directory (the
@@ -157,21 +165,36 @@ Through the offline factory mirror (or a fixture tree), never the network.
     it;
   - a Makefile command line of a target that is not a test target
     (`test`, `e2e`, `lint`, `check`, `verify`, `conformance`, `integration`,
-    `bench`, `smoke`, `fuzz`, `coverage`, `unit`) runs `kubectl`, `kustomize`,
-    `helm` or a similar tool on a path under it, directly or through a
-    variable;
-  - a document (`*.md`, `*.mdx`, `*.rst`, `*.adoc`, `*.txt`, outside `vendor`,
-    `third_party` and `node_modules`) has a command line that runs such a tool
-    on a path under it;
-  - a Go package in a directory above it embeds a file under it (`//go:embed`).
+    `bench`, `smoke`, `fuzz`, `coverage`, `unit`, unless the name also says
+    `install`, `deploy`, `setup`, `apply`, `bootstrap`, `provision`, `release`
+    or `up`: `verify-install` installs) runs `kubectl`, `kustomize`, `helm` or
+    a similar tool on a path under it, directly or through a variable;
+  - a document (`*.md`, `*.mdx`, `*.rst`, `*.adoc`, `*.txt`) or a shell script
+    (`*.sh`, `*.bash`), outside `vendor`, `third_party` and `node_modules`, has
+    a command line that runs such a tool on a path under it;
+  - a container build (`Dockerfile*`, `Containerfile*`, `*.dockerfile`,
+    `Earthfile`) copies a path under it or a directory above it (`COPY` and
+    `ADD` sources, Earthfile `SAVE ARTIFACT` sources), read from the
+    repository root and from the build file's directory; a copy of the whole
+    context (`COPY . ...`) is not followed;
+  - a nix file names a path under it or a directory above it;
+  - it lies under a ko `kodata` directory (packed into the image), or a
+    symbolic link lies inside a `kodata` directory;
+  - a Go package in a directory above it, or inside it, embeds a file under
+    it (`//go:embed`).
 
   A void entry is treated like a default-excluded directory at that release,
   with the location `void: <entry>`: its files are classified (Go sources
   under it are read too), block attestation and never withhold a pair or
   narrow its rules, but an opaque file there still keeps a definition from
   being established as gone. A finding of class `exclusion-void` names the
-  referrer, so the release, and every pair that reads it, is not attestable. Not followed: symbolic links, shell scripts, CI configuration and
-  Go code that opens a path at run time. Declared copies are not guarded: they
+  referrer, so the release, and every pair that reads it, is not attestable.
+  Not followed, and listed in every scan's `notRead`: symbolic links, CI
+  configuration, other scripts and build systems (Bazel, Tilt, ko
+  configuration), a container build that copies its whole context and selects
+  files while it runs, and Go code that opens a path at run time. Go sources
+  under a reviewed exclusion are not read for definitions, only for
+  `//go:embed` directives. Declared copies are not guarded: they
   are install surfaces by nature and are checked file by file instead.
 
   A file with the same git blob id (and kind) as one already read is not read
@@ -318,8 +341,9 @@ These field names are stable within major version 2.
   dependency or remote kustomize resource is found, never read.
 - That a repository holds no other definition where the scan does not look:
   files of other kinds, Go sources whose path does not contain `crd` (or that
-  build a definition in another way than a composite literal), symbolic links,
-  or CRDs that a program generates or installs at run time.
+  build a definition in another way than a composite literal, or hold it as
+  encoded bytes other than gzip string literals), symbolic links, or CRDs that
+  a program generates or installs at run time.
 - Anything about a removed definition (recorded only).
 - That an upgrade is safe: a PASS from these rules only says that a complete
   declared set of custom-resource versions holds none of the versions no

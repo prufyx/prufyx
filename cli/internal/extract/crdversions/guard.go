@@ -33,8 +33,16 @@ import (
 //   - documents (README, docs, quickstarts: .md .mdx .rst .adoc .txt): a
 //     command line that runs an install tool on a path under the excluded
 //     path;
-//   - Go packages in a directory above the excluded path: a //go:embed
-//     pattern that matches a file under it.
+//   - shell scripts (.sh, .bash): a command line that runs an install tool
+//     on a path under the excluded path;
+//   - container builds (Dockerfile, Containerfile, *.dockerfile, Earthfile):
+//     a COPY or ADD source (Earthfile also SAVE ARTIFACT) under the excluded
+//     path, read from the repository root and from the file's directory;
+//   - nix files: a path word under the excluded path;
+//   - ko: an excluded path under a kodata directory (ko packs it into the
+//     image);
+//   - Go packages in a directory above the excluded path or inside it: a
+//     //go:embed pattern that matches a file under it.
 //
 // A reference voids the exclusion for that tag: the files under it are
 // classified like the files of a default-excluded directory (location
@@ -42,8 +50,11 @@ import (
 // exclusion-void names the referrer, so the tag (and every pair that
 // contains it) is not attestable. The pair is not withheld because of them:
 // a rule stays derived. Not followed, and recorded as such in
-// every scan: symbolic links, shell scripts, CI configuration and Go code
-// that opens a path at run time.
+// every scan (NotRead): symbolic links (a link inside a chart, kustomization
+// or kodata directory voids every entry), CI configuration, other scripts
+// and build systems, a container build that copies its whole context
+// ("COPY . ...") and selects files while it runs, and Go code that opens a
+// path at run time.
 
 // ClassVoided: a reviewed exclusion that does not hold at this tag.
 const ClassVoided = "exclusion-void"
@@ -64,6 +75,12 @@ const (
 	surfMake
 	surfDoc
 	surfGo
+	// surfShell: a shell script.
+	surfShell
+	// surfBuild: a Dockerfile, Containerfile or Earthfile.
+	surfBuild
+	// surfNix: a nix file.
+	surfNix
 )
 
 var (
@@ -82,6 +99,16 @@ var (
 	// testTargetRE marks a Makefile target that runs tests: what it
 	// applies is test infrastructure, not an install.
 	testTargetRE = regexp.MustCompile(`(?i)(?:^|[-_./])(?:test|tests|e2e|lint|check|verify|conformance|integration|bench|benchmark|smoke|fuzz|coverage|unit)(?:$|[-_./])`)
+	// installTargetRE marks a target that installs whatever else its name
+	// says (verify-install, e2e-deploy): never a test target.
+	installTargetRE = regexp.MustCompile(`(?i)(?:^|[-_./])(?:install|deploy|setup|apply|bootstrap|provision|release|up)(?:$|[-_./])`)
+	shellNameRE     = regexp.MustCompile(`(?i)\.(sh|bash)$`)
+	buildNameRE     = regexp.MustCompile(`(?i)^(?:dockerfile|containerfile)(?:[._-].*)?$|\.(?:dockerfile|containerfile)$|^earthfile$`)
+	// buildCopyRE is a container build instruction that takes files from
+	// the build context.
+	buildCopyRE = regexp.MustCompile(`(?i)^(?:copy|add|save[ \t]+artifact)(?:$|[ \t])`)
+	// buildFlagRE is an option of a COPY or ADD instruction.
+	buildFlagRE  = regexp.MustCompile(`^--[a-z-]+(?:=\S*)?$`)
 	makeRuleRE   = regexp.MustCompile(`^([^\s:=#][^:=#]*?)\s*::?(?:[^=]|$)`)
 	makeAssignRE = regexp.MustCompile(`^\s*(?:export\s+|override\s+)?([A-Za-z_][A-Za-z0-9_.-]*)\s*(?:[:?+!]|::)?=\s*(.*)$`)
 	embedRE      = regexp.MustCompile(`(?m)^[ \t]*//go:embed[ \t]+(.+?)[ \t]*$`)
@@ -104,6 +131,12 @@ func surfaceKindOf(p string) int {
 		return surfMake
 	case docNameRE.MatchString(base):
 		return surfDoc
+	case shellNameRE.MatchString(base):
+		return surfShell
+	case buildNameRE.MatchString(base):
+		return surfBuild
+	case strings.HasSuffix(base, ".nix"):
+		return surfNix
 	}
 	return surfNone
 }
@@ -284,6 +317,70 @@ func docLines(data []byte) ([]surfaceLine, string) {
 	return out, ""
 }
 
+// buildLines reads a container build file: the COPY and ADD (and
+// Earthfile SAVE ARTIFACT) instructions, options and the destination
+// removed. A source of "." (the whole context) is left out: what the build
+// then selects is not followed (NotRead).
+func buildLines(data []byte) ([]surfaceLine, string) {
+	var out []surfaceLine
+	for _, line := range logicalLines(data) {
+		t := strings.TrimSpace(line)
+		if !buildCopyRE.MatchString(t) {
+			continue
+		}
+		words := strings.Fields(t)[1:]
+		if strings.EqualFold(words[0], "artifact") {
+			words = words[1:]
+		}
+		var srcs []string
+		for _, w := range words {
+			if buildFlagRE.MatchString(w) {
+				continue
+			}
+			if strings.EqualFold(w, "AS") {
+				break
+			}
+			srcs = append(srcs, w)
+		}
+		// COPY and ADD name a destination last; SAVE ARTIFACT names one
+		// optionally, so every word is kept.
+		if !strings.HasPrefix(strings.ToLower(t), "save") && len(srcs) > 1 {
+			srcs = srcs[:len(srcs)-1]
+		}
+		var kept []string
+		for _, w := range srcs {
+			if c := strings.Trim(w, "\"[],"); c != "." && c != "./" && c != "" {
+				kept = append(kept, c)
+			}
+		}
+		if len(kept) == 0 {
+			continue
+		}
+		if out = append(out, surfaceLine{Text: clip(strings.Join(kept, " "))}); len(out) > maxSurfaceLines {
+			return nil, fmt.Sprintf("more than %d copy instructions", maxSurfaceLines)
+		}
+	}
+	return out, ""
+}
+
+// nixLines reads a nix file: every line, comments removed, that holds a
+// path word (a word with a slash).
+func nixLines(data []byte) ([]surfaceLine, string) {
+	var out []surfaceLine
+	for _, line := range strings.Split(string(data), "\n") {
+		if i := commentStart(line); i >= 0 {
+			line = line[:i]
+		}
+		if !strings.Contains(line, "/") {
+			continue
+		}
+		if out = append(out, surfaceLine{Text: clip(strings.TrimSpace(line))}); len(out) > maxSurfaceLines {
+			return nil, fmt.Sprintf("more than %d lines with a path", maxSurfaceLines)
+		}
+	}
+	return out, ""
+}
+
 // goEmbeds are the patterns of the //go:embed directives of a Go file.
 func goEmbeds(data []byte) ([]string, string) {
 	var out []string
@@ -334,8 +431,12 @@ func summarizeSurface(kind int, data []byte) *surfaceInfo {
 		info.tokens, info.unread = refTokens(data)
 	case surfMake:
 		info.lines, info.unread = makeLines(data)
-	case surfDoc:
+	case surfDoc, surfShell:
 		info.lines, info.unread = docLines(data)
+	case surfBuild:
+		info.lines, info.unread = buildLines(data)
+	case surfNix:
+		info.lines, info.unread = nixLines(data)
 	case surfGo:
 		info.embeds, info.unread = goEmbeds(data)
 	}
@@ -422,13 +523,61 @@ func mention(e Exclusion, text string) (string, bool) {
 	return "", false
 }
 
-// testOnlyTargets reports a recipe whose every target is a test target.
+// copyMention finds the first word of a container build or nix line that
+// names a path under the exclusion, or a directory above it (copying a
+// directory copies what lies under it; the repository root is left out, see
+// buildLines). A word is read from the repository root (and from after each
+// slash, as mention does: conservative, a URL or a path relative to another
+// directory may name it too) and joined to dir, the directory of the file;
+// bare words (without a slash) are joined to dir only when bare is set.
+func copyMention(e Exclusion, dir string, bare bool, text string) (string, bool) {
+	if tok, ok := mention(e, text); ok {
+		return tok, true
+	}
+	above := func(cand string) bool {
+		return strings.HasSuffix(e.Path, "/") && cand != "" && cand != "." && strings.HasPrefix(e.Path, cand+"/")
+	}
+	for _, tok := range tokenize(text) {
+		word := tok
+		if i := strings.IndexAny(word, "?#"); i >= 0 {
+			word = word[:i]
+		}
+		word = strings.TrimRight(word, ",")
+		if strings.Contains(word, "://") {
+			continue
+		}
+		var cands []string
+		if strings.Contains(word, "/") {
+			for i := 0; i < len(word); i++ {
+				if i == 0 || word[i-1] == '/' {
+					if c := path.Clean(word[i:]); !strings.HasPrefix(c, "/") && !strings.HasPrefix(c, "../") {
+						cands = append(cands, c)
+					}
+				}
+			}
+		}
+		if !strings.HasPrefix(word, "/") && (bare || strings.Contains(word, "/")) {
+			if c := path.Join(dir, word); !strings.HasPrefix(c, "../") {
+				cands = append(cands, c)
+			}
+		}
+		for _, c := range cands {
+			if c != "." && (hitsPath(e, c) || above(c)) {
+				return tok, true
+			}
+		}
+	}
+	return "", false
+}
+
+// testOnlyTargets reports a recipe whose every target is a test target: a
+// test word in its name and no install word (verify-install installs).
 func testOnlyTargets(targets []string) bool {
 	if len(targets) == 0 {
 		return false
 	}
 	for _, t := range targets {
-		if !testTargetRE.MatchString(t) {
+		if !testTargetRE.MatchString(t) || installTargetRE.MatchString(t) {
 			return false
 		}
 	}
@@ -473,6 +622,29 @@ func docHit(e Exclusion, lines []surfaceLine) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// linesHit finds the first line of a container build or nix file that
+// names a path under the exclusion or a directory above it.
+func linesHit(e Exclusion, dir string, bare bool, lines []surfaceLine) (string, bool) {
+	for _, l := range lines {
+		if tok, ok := copyMention(e, dir, bare, l.Text); ok {
+			return tok, true
+		}
+	}
+	return "", false
+}
+
+// kodataDir returns the kodata directory a path lies in or is ("" when
+// none).
+func kodataDir(p string) string {
+	segs := strings.Split(p, "/")
+	for i, seg := range segs {
+		if seg == "kodata" {
+			return strings.Join(segs[:i+1], "/")
+		}
+	}
+	return ""
 }
 
 // embedMatches reports whether a //go:embed pattern, resolved to the
@@ -601,6 +773,10 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 				break
 			}
 		}
+		// ko packs every file under a kodata directory into the image.
+		if d := kodataDir(base); d != "" {
+			record(e, hit{kind: "the excluded path lies under a ko kodata directory", by: d})
+		}
 	}
 
 	// What to read.
@@ -616,13 +792,13 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 		switch k := surfaceKindOf(b.Path); k {
 		case surfRefs:
 			jobs = append(jobs, job{b, k})
-		case surfMake, surfDoc:
+		case surfMake, surfDoc, surfShell, surfBuild, surfNix:
 			if !inExcluded(b.Path) && !inVendored(b.Path) {
 				jobs = append(jobs, job{b, k})
 			}
 		}
 	}
-	// Go packages above an excluded path.
+	// Go packages above an excluded path, and inside it.
 	goDirs := map[string]bool{}
 	for _, e := range live {
 		d := path.Dir(strings.TrimSuffix(e.Path, "/"))
@@ -645,7 +821,11 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 		if d == "." {
 			d = ""
 		}
-		if goDirs[d] {
+		inside := false
+		for _, e := range live {
+			inside = inside || exclusionMatches(e.Path, b.Path)
+		}
+		if goDirs[d] || inside {
 			jobs = append(jobs, job{b, surfGo})
 		}
 	}
@@ -694,6 +874,10 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 				}
 				if refDirs[d] {
 					unverified = &hit{kind: "a symbolic link inside a chart or kustomization directory is not followed", by: b.Path}
+					break links
+				}
+				if path.Base(d) == "kodata" {
+					unverified = &hit{kind: "a symbolic link inside a ko kodata directory is not followed", by: b.Path}
 					break links
 				}
 				if d == "" {
@@ -763,10 +947,16 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 		}
 	}
 
-	// Makefiles and documents.
+	// Makefiles, documents, shell scripts, container builds and nix files.
 	for i, j := range jobs {
-		if j.kind != surfMake && j.kind != surfDoc {
+		switch j.kind {
+		case surfMake, surfDoc, surfShell, surfBuild, surfNix:
+		default:
 			continue
+		}
+		dir := path.Dir(j.e.Path)
+		if dir == "." {
+			dir = ""
 		}
 		for _, e := range live {
 			if _, done := found[e.Path]; done {
@@ -775,11 +965,21 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 			var tok string
 			var ok bool
 			kind := "document"
-			if j.kind == surfMake {
+			switch j.kind {
+			case surfMake:
 				kind = "Makefile"
 				tok, ok = makeHit(e, infos[i].lines)
-			} else {
+			case surfDoc:
 				tok, ok = docHit(e, infos[i].lines)
+			case surfShell:
+				kind = "shell script"
+				tok, ok = docHit(e, infos[i].lines)
+			case surfBuild:
+				kind = "container build"
+				tok, ok = linesHit(e, dir, true, infos[i].lines)
+			case surfNix:
+				kind = "nix file"
+				tok, ok = linesHit(e, dir, false, infos[i].lines)
 			}
 			if ok {
 				record(e, hit{kind: kind, by: j.e.Path, ref: tok})

@@ -4,13 +4,16 @@ package crdversions
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"path"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -84,6 +87,11 @@ const (
 	// fileWord stands for the file in a reason recorded for its bytes:
 	// a reason never names a path, because the same bytes may lie at many.
 	fileWord = "the file"
+	// maxGzipLiterals bounds the gzip-compressed string literals read in
+	// one Go source; maxGzipBytes bounds the bytes one of them, and all of
+	// them together, decompress to.
+	maxGzipLiterals = 1000
+	maxGzipBytes    = 16 << 20
 )
 
 // What a candidate file is, by its name.
@@ -114,6 +122,10 @@ var (
 	// goConstructRE is Go code that builds a definition, its spec or a
 	// version as a composite literal with fields.
 	goConstructRE = regexp.MustCompile(`CustomResourceDefinition(Spec|Version|Names)?\{\s*[A-Z][A-Za-z0-9]*\s*:`)
+	// gzipLiteralRE is an interpreted Go string literal that starts with
+	// the gzip magic bytes, as go generate writes compressed manifests
+	// ([]byte("\x1f\x8b...")).
+	gzipLiteralRE = regexp.MustCompile(`"\\x1f\\x8b(?:[^"\\\n]|\\.)*"`)
 	// sourceKeysRE marks a file that may name another repository: a Helm
 	// chart's dependencies or a kustomization's resources.
 	sourceKeysRE = regexp.MustCompile(`(?m)^(dependencies|resources|components|bases)[ \t]*:`)
@@ -127,8 +139,9 @@ func indentOf(line string) int { return len(line) - len(strings.TrimLeft(line, "
 // NotRead are the files the scan does not read, recorded in every scan.
 var NotRead = []string{
 	"files that are not YAML, JSON, template, jsonnet, cue or Go sources, or packaged Helm charts",
-	"Go sources whose path does not contain crd, Go test files (_test.go), and Go sources under a default-excluded directory or a reviewed exclusion",
-	"symbolic links (the install-surface guard does not follow them either), shell scripts, CI configuration and Go code that opens a path at run time",
+	"Go sources whose path does not contain crd, Go test files (_test.go), and Go sources under a default-excluded directory or a reviewed exclusion (of those the install-surface guard reads only the //go:embed directives)",
+	"definitions held in Go sources as encoded bytes other than gzip-compressed string literals (base64, byte-slice literals, other compressions)",
+	"symbolic links (the install-surface guard does not follow them either), CI configuration, shell scripts other than .sh and .bash files, build files other than Dockerfiles, Containerfiles, Earthfiles and nix files (Bazel, Tilt, ko configuration), a container build that copies its whole context and selects files while it runs, and Go code that opens a path at run time",
 }
 
 // ScanRecord is what the full-tree scan found at one commit.
@@ -308,6 +321,69 @@ type blobInfo struct {
 	template *templateRead
 	// goConstruct: Go code that builds a definition.
 	goConstruct bool
+	// gzip is what the gzip-compressed string literals of a Go source hold
+	// (nil when it has none).
+	gzip *gzipRead
+}
+
+// gzipRead is what the gzip-compressed string literals of one Go source
+// hold, decompressed and read like YAML files.
+type gzipRead struct {
+	// unread is why a literal could not be read ("" when every one was).
+	unread string
+	crds   []CRD
+	// kinds counts the mappings of kind CustomResourceDefinition.
+	kinds int
+}
+
+// readGzipLiterals decompresses the gzip string literals of a Go source
+// and reads each as a YAML or JSON file. It is a function of the bytes.
+func readGzipLiterals(data []byte) *gzipRead {
+	lits := gzipLiteralRE.FindAll(data, -1)
+	if len(lits) == 0 {
+		return nil
+	}
+	g := &gzipRead{}
+	if len(lits) > maxGzipLiterals {
+		g.unread = fmt.Sprintf("more than %d gzip-compressed string literals", maxGzipLiterals)
+		return g
+	}
+	total := 0
+	for i, lit := range lits {
+		raw, err := strconv.Unquote(string(lit))
+		if err != nil {
+			g.unread = fmt.Sprintf("gzip-compressed string literal %d is not a Go string", i+1)
+			return g
+		}
+		zr, err := gzip.NewReader(strings.NewReader(raw))
+		if err != nil {
+			g.unread = fmt.Sprintf("gzip-compressed string literal %d: %v", i+1, err)
+			return g
+		}
+		out, err := io.ReadAll(io.LimitReader(zr, maxGzipBytes+1))
+		if err != nil {
+			g.unread = fmt.Sprintf("gzip-compressed string literal %d: %v", i+1, err)
+			return g
+		}
+		if total += len(out); len(out) > maxGzipBytes || total > maxGzipBytes {
+			g.unread = fmt.Sprintf("gzip-compressed string literals decompress to more than %d bytes", maxGzipBytes)
+			return g
+		}
+		sub := summarize(kindData, out)
+		if sub.unread != "" {
+			if sub.words > 0 {
+				g.unread = fmt.Sprintf("gzip-compressed string literal %d: %s", i+1, sub.unread)
+				return g
+			}
+			continue
+		}
+		g.crds = append(g.crds, sub.crds...)
+		g.kinds += sub.kinds
+		if sub.embedded {
+			g.kinds++
+		}
+	}
+	return g
 }
 
 // templateRead is a templated file read as a copy.
@@ -566,6 +642,9 @@ func summarize(kind int, data []byte) *blobInfo {
 		return info
 	case kindGo:
 		info.goConstruct = info.words > 0 && goConstructRE.Match(data)
+		if !info.goConstruct {
+			info.gzip = readGzipLiterals(data)
+		}
 		return info
 	}
 	if info.words == 0 && !sourceKeysRE.Match(data) {
@@ -730,10 +809,22 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 		fd.Class, fd.Detail = ClassUnsupported, "a template, jsonnet or cue source that names the CustomResourceDefinition kind: it is not read"
 		return placed(fd, f.at), true, nil
 	case kindGo:
-		if !info.goConstruct {
+		switch g := info.gzip; {
+		case info.goConstruct:
+			fd.Class, fd.Detail = ClassUnsupported, "Go code that constructs a CustomResourceDefinition: definitions built in code are not read"
+		case g == nil:
+			return fd, false, nil
+		case g.unread != "":
+			fd.Class, fd.Detail = ClassUnread, g.unread
+		case len(g.crds) > 0:
+			// Definitions compressed into the source (velero install):
+			// compared definition by definition like a YAML file.
+			fd = compareDefinitions(fd, g.crds, inv)
+		case g.kinds > 0:
+			fd.Class, fd.Detail = ClassReference, "gzip-compressed string literals hold the CustomResourceDefinition kind but define none at the top level"
+		default:
 			return fd, false, nil
 		}
-		fd.Class, fd.Detail = ClassUnsupported, "Go code that constructs a CustomResourceDefinition: definitions built in code are not read"
 		return placed(fd, f.at), true, nil
 	}
 	if !info.decoded {

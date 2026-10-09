@@ -313,6 +313,12 @@ func validExclusion(ej exclusionJSON) error {
 		if strings.HasSuffix(ej.Path, "/") {
 			return fmt.Errorf("a pattern names files, not a directory")
 		}
+		// The install-location check reads the directory part literally:
+		// a pattern there could match a directory it refuses
+		// (de*/examples/x.yaml matches deploy/examples/x.yaml).
+		if strings.ContainsAny(path.Dir(ej.Path), globMeta) {
+			return fmt.Errorf("a pattern may only be in the last path element")
+		}
 		if _, err := path.Match(ej.Path, ""); err != nil {
 			return fmt.Errorf("pattern: %w", err)
 		}
@@ -344,7 +350,9 @@ var installSegments = []string{"chart", "charts", "deploy", "deployment", "deplo
 
 // installSegment returns the install location an exclusion path lies under
 // ("" when it lies under none). For a directory prefix every segment is a
-// directory; for a file or pattern the directory part is. Case-insensitive.
+// directory; for a file or pattern the directory part is. Case-insensitive,
+// while defaultSegment is case-sensitive: both err on the strict side (a
+// Deploy/ entry is refused, a Test/ directory is not default-excluded).
 func installSegment(entry string) string {
 	dir := strings.TrimSuffix(entry, "/")
 	if !strings.HasSuffix(entry, "/") {

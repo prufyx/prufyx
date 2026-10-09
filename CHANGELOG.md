@@ -34,9 +34,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   registered yet, so the knowledge gate refuses their rules. CRD manifests are
   read with bounds sized for generated schemas (Argo CD's pairs are no longer
   withheld). Reviewed exclusions of the scan now carry evidence, may not lie
-  under install locations, and are void at a release where a kustomization,
-  Helm chart, Makefile install target, document install command or embedding
-  Go package refers to the excluded path. No rule is shipped. See
+  under install locations (a wildcard only in the last path element), and are
+  void at a release where a kustomization, Helm chart, Makefile install
+  target, document or shell-script install command, container build (Dockerfile,
+  Containerfile, Earthfile), nix file, ko `kodata` directory or embedding Go
+  package (above or inside the excluded path) refers to the excluded path.
+  Gzip-compressed definitions in Go sources (Velero's install CRDs) are read
+  and compared like YAML files. No rule is shipped. See
   `cli/docs/extractors/crd.version-removal.md`.
 
 ### Security

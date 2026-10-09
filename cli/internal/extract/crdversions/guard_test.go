@@ -124,6 +124,29 @@ func TestGuardInstallSurfaces(t *testing.T) {
 		{name: "a Go test file that embeds", extra: map[string]string{"test/embed_test.go": "package test\n\n//go:embed fixtures\nvar fs embed.FS\n"}},
 		{name: "a Go package that embeds another directory", extra: map[string]string{"test/embed.go": "package test\n\n//go:embed templates fixtures-old\nvar fs embed.FS\n"}},
 		{name: "a Go package elsewhere", extra: map[string]string{"pkg/embed.go": "package pkg\n\n//go:embed fixtures\nvar fs embed.FS\n"}},
+		// Review of 2026-10-09 (MED-1): Go packages inside the excluded
+		// path, container builds, nix, shell scripts, install-like targets.
+		{name: "a Go package inside the excluded path", extra: map[string]string{fixtureDir + "install.go": "package fixtures\n\n//go:embed crd.yaml\nvar crd []byte\n"}, by: fixtureDir + "install.go", detail: "//go:embed crd.yaml"},
+		{name: "a Go package below the excluded path", extra: map[string]string{fixtureDir + "pkg/install.go": "package pkg\n\n//go:embed *.yaml\nvar more embed.FS\n", fixtureDir + "pkg/x.yaml": "a: 1\n"}, by: fixtureDir + "pkg/install.go"},
+		{name: "a Go test file inside the excluded path", extra: map[string]string{fixtureDir + "install_test.go": "package fixtures\n\n//go:embed crd.yaml\nvar crd []byte\n"}},
+		{name: "a Dockerfile COPY", extra: map[string]string{"Dockerfile": "FROM scratch\nCOPY test/fixtures/ /crds\n"}, by: "Dockerfile", detail: "container build refers to test/fixtures/"},
+		{name: "a Dockerfile ADD with options", extra: map[string]string{"build/Dockerfile.operator": "FROM scratch\nADD --chown=1000:1000 \\\n  ./test/fixtures/crd.yaml /crds/\n"}, by: "build/Dockerfile.operator"},
+		{name: "a Dockerfile COPY in JSON form", extra: map[string]string{"x.dockerfile": "COPY [\"test/fixtures\", \"/crds\"]\n"}, by: "x.dockerfile"},
+		{name: "a Containerfile COPY relative to its directory", extra: map[string]string{"test/Containerfile": "FROM scratch\nCOPY fixtures /crds\n"}, by: "test/Containerfile"},
+		{name: "a Dockerfile COPY of a directory above", extra: map[string]string{"Dockerfile": "FROM scratch\nCOPY test /src/test\n"}, by: "Dockerfile"},
+		{name: "a Dockerfile COPY of the whole context", extra: map[string]string{"Dockerfile": "FROM golang AS build\nCOPY . /src\nRUN make\nFROM scratch\nCOPY --from=build /src/bin/manager /manager\n"}},
+		{name: "a Dockerfile that only writes to the path", extra: map[string]string{"Dockerfile": "FROM scratch\nCOPY bin/manager /test/fixtures/\n"}},
+		{name: "a Dockerfile naming the path outside COPY", extra: map[string]string{"Dockerfile": "FROM scratch\nRUN echo test/fixtures\nLABEL x=test/fixtures\n"}},
+		{name: "an Earthfile COPY", extra: map[string]string{"Earthfile": "image:\n    FROM scratch\n    COPY --dir test/fixtures/ /crds\n"}, by: "Earthfile"},
+		{name: "an Earthfile SAVE ARTIFACT", extra: map[string]string{"Earthfile": "gen:\n    SAVE ARTIFACT test/fixtures AS LOCAL out/fixtures\n"}, by: "Earthfile"},
+		{name: "an Earthfile SAVE ARTIFACT to the path", extra: map[string]string{"Earthfile": "gen:\n    SAVE ARTIFACT out AS LOCAL test/fixtures\n"}},
+		{name: "a nix copy", extra: map[string]string{"nix/build.nix": "{ self, ... }:\n{\n  installPhase = ''\n    cp -r ${self}/test/fixtures/* $out/crds\n  '';\n}\n"}, by: "nix/build.nix"},
+		{name: "a nix relative path", extra: map[string]string{"nix/build.nix": "{\n  crds = ../test/fixtures;\n}\n"}, by: "nix/build.nix"},
+		{name: "a nix file without the path", extra: map[string]string{"nix/build.nix": "{ self, ... }:\n{\n  src = ./.;\n  meta = { description = \"test fixtures\"; };\n  # cp test/fixtures/crd.yaml $out\n  installPhase = \"cp -r ${self}/cluster/crds $out\";\n}\n"}},
+		{name: "a shell script with an install command", extra: map[string]string{"hack/install.sh": "#!/bin/sh\nset -e\nkubectl apply -f \"${ROOT}/test/fixtures/crd.yaml\"\n"}, by: "hack/install.sh", detail: "shell script refers to"},
+		{name: "a shell script without an install tool", extra: map[string]string{"hack/gen.bash": "#!/bin/bash\ncp test/fixtures/crd.yaml /tmp\n"}},
+		{name: "a Makefile install target named like a test", extra: map[string]string{"Makefile": "verify-install:\n\tkubectl apply -f test/fixtures/crd.yaml\n"}, by: "Makefile"},
+		{name: "a Makefile e2e deploy target", extra: map[string]string{"Makefile": "e2e-deploy:\n\tkubectl apply -f test/fixtures/crd.yaml\n"}, by: "Makefile"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -508,9 +531,21 @@ func TestExclusionsRefuseInstallLocations(t *testing.T) {
 			t.Errorf("%s: %q, want %q", entry, got, want)
 		}
 	}
-	mutate := func(ej string) []byte {
-		return []byte(fmt.Sprintf(`{"schema":%q,"targets":[{"project":"p","name":"P","repo":"github.com/o/p","component":"pkg:github/o/p","factProject":"p","tagPrefixes":["v"],"minFrom":"1.0","paths":[{"path":"crds/a.yaml"}],"exclude":[%s]}]}`, TargetsSchema, ej))
+	// Review of 2026-10-09 (MED-3): a pattern in the directory part
+	// would match install locations the literal check does not see.
+	for _, entry := range []string{"de*/examples/csi-operator.yaml", "*/examples/csi-operator.yaml", "deplo?/examples/x.yaml", "[d]eploy/x.yaml", "a/*/b/c.yaml"} {
+		ej := fmt.Sprintf(`{"path":%q,"repo":"github.com/o/p","reason":"examples of the project","evidence":"read only by the go test files of test/e2e; nothing installs from it"}`, entry)
+		if _, err := LoadTargets(testTargetsJSON(ej)); err == nil || !strings.Contains(err.Error(), "last path element") {
+			t.Errorf("%s: %v", entry, err)
+		}
 	}
+	for _, entry := range []string{"x/helm/*.yaml", "cmd/cli/data/crds/cli.kyverno.io_*", "test/fixture?.yaml"} {
+		ej := fmt.Sprintf(`{"path":%q,"repo":"github.com/o/p","reason":"examples of the project","evidence":"read only by the go test files of test/e2e; nothing installs from it"}`, entry)
+		if _, err := LoadTargets(testTargetsJSON(ej)); err != nil {
+			t.Errorf("%s: %v", entry, err)
+		}
+	}
+	mutate := testTargetsJSON
 	good := `{"path":"test/e2e/","repo":"github.com/o/p","reason":"end to end test fixtures","evidence":"read only by the go test files of test/e2e; nothing installs from it"}`
 	if _, err := LoadTargets(mutate(good)); err != nil {
 		t.Fatal(err)
@@ -531,6 +566,76 @@ func TestExclusionsRefuseInstallLocations(t *testing.T) {
 	copies := `{"path":"charts/x/templates/","repo":"github.com/o/p","reason":"templates of the same definitions","evidence":"checked as copies of the listed definitions at every tag","copies":true}`
 	if _, err := LoadTargets(mutate(copies)); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// testTargetsJSON is a targets file of one target with one exclusion.
+func testTargetsJSON(ej string) []byte {
+	return []byte(fmt.Sprintf(`{"schema":%q,"targets":[{"project":"p","name":"P","repo":"github.com/o/p","component":"pkg:github/o/p","factProject":"p","tagPrefixes":["v"],"minFrom":"1.0","paths":[{"path":"crds/a.yaml"}],"exclude":[%s]}]}`, TargetsSchema, ej))
+}
+
+// An excluded path under a ko kodata directory is packed into the image:
+// void. A symbolic link inside a kodata directory voids every entry.
+func TestGuardKodata(t *testing.T) {
+	entry := Exclusion{Path: "cmd/app/kodata/fixtures/", Repo: "github.com/argoproj/argo-cd", Reason: "fixtures of the unit tests of the app", Evidence: "only read by the Go tests of the package through os.ReadFile; no install path names them"}
+	alpha, later := crd("Alpha", "v1beta1", "v1"), crd("Alpha", "v1")
+	from := map[string]string{"deploy/crds/a.yaml": alpha, entry.Path + "crd.yaml": crd("Gamma", "v1")}
+	to := map[string]string{"deploy/crds/a.yaml": later, entry.Path + "crd.yaml": crd("Gamma", "v1")}
+	_, proof := pairOf(t, runSynth(t, synthTarget(entry), newSynth(release{"v1.0.0", from}, release{"v1.1.0", to})), "1.0.0", "1.1.0")
+	if v := voidFindings(proof); len(v) != 1 || v[0].Path != "cmd/app/kodata" || !strings.Contains(v[0].Detail, "kodata") || proof.Completeness.Attestable {
+		t.Fatalf("voids %+v completeness %+v", v, proof.Completeness)
+	}
+	from = map[string]string{"deploy/crds/a.yaml": alpha, fixtureDir + "crd.yaml": crd("Gamma", "v1"), "cmd/app/kodata/crds": "x"}
+	to = map[string]string{"deploy/crds/a.yaml": later, fixtureDir + "crd.yaml": crd("Gamma", "v1"), "cmd/app/kodata/crds": "x"}
+	s := newSynth(release{"v1.0.0", from}, release{"v1.1.0", to})
+	ls := linkRepo{synthRepo: s, links: map[string]bool{"cmd/app/kodata/crds": true}}
+	repo, err := extract.ParseRepo("github.com/argoproj/argo-cd")
+	must(t, err)
+	out, err := extract.Run(context.Background(), New(synthTarget(fixtureExclusion())), ls, ls, extract.Options{Repo: repo, DerivedAt: derivedAt})
+	must(t, err)
+	_, proof = pairOf(t, out, "1.0.0", "1.1.0")
+	if v := voidFindings(proof); len(v) != 1 || v[0].Path != "cmd/app/kodata/crds" || !strings.Contains(v[0].Detail, "kodata") {
+		t.Fatalf("voids %+v", v)
+	}
+}
+
+func TestCopyMention(t *testing.T) {
+	dir := Exclusion{Path: "cluster/meta/"}
+	for _, tc := range []struct {
+		at, text string
+		bare     bool
+		want     bool
+	}{
+		{"", "cluster/meta /crds", true, true},
+		{"", "cluster /src", true, true},
+		{"", "cluster/crds", true, false},
+		{"", "clusters/meta", true, false},
+		{"cluster", "meta", true, true},
+		{"cluster", "meta", false, false},
+		{"nix", "../cluster/meta", false, true},
+		{"nix", "./cluster/meta", false, true},
+		{"nix", "${self}/cluster", false, true},
+		{"nix", "https://example.org/cluster/meta", false, true},
+		{"nix", "https://example.org/cluster", false, true},
+		{"nix", "https://example.org/clusters", false, false},
+		{"", "/", true, false},
+		{"", "./", true, false},
+		{"build", "..", true, false},
+	} {
+		if _, got := copyMention(dir, tc.at, tc.bare, tc.text); got != tc.want {
+			t.Errorf("%q in %q (bare %v): %v", tc.text, tc.at, tc.bare, got)
+		}
+	}
+	lines, why := buildLines([]byte("FROM x\ncopy --from=build --chown=1:1 a b /dst/\nADD [\"c\", \"/d\"]\nCOPY . /src\nCOPY ./ /src\nSAVE ARTIFACT e AS LOCAL f\nSAVE ARTIFACT g\nCOPY /only\nRUN cp h i\n"))
+	var got []string
+	for _, l := range lines {
+		got = append(got, l.Text)
+	}
+	if why != "" || !slices.Equal(got, []string{"a b", "c", "e", "g", "/only"}) {
+		t.Fatalf("build lines %q %q", got, why)
+	}
+	if testOnlyTargets([]string{"verify-install"}) || testOnlyTargets([]string{"e2e-setup"}) || !testOnlyTargets([]string{"verify"}) || !testOnlyTargets([]string{"test-upgrade"}) {
+		t.Fatal("install-like targets")
 	}
 }
 
