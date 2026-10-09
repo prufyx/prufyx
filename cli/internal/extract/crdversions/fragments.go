@@ -304,51 +304,47 @@ var transformerConfigKeys = map[string]bool{"nameReference": true, "namespace": 
 
 // transformerConfig reports why a decoded single document is not a
 // transformer configuration whose field specs of the kind only reach
-// conversion settings or metadata ("" when it is one). specs counts the
-// field specs of the kind; every mention of the kind must be one of them.
-func transformerConfig(v any) (specs int, why string) {
+// conversion settings or metadata ("" when it is one). Every key, entry and
+// value is checked, so every mapping of the kind in an accepted
+// configuration is one of its field specs.
+func transformerConfig(v any) string {
 	obj, ok := v.(map[string]any)
 	if !ok {
-		return 0, "not a mapping"
+		return "not a mapping"
 	}
 	for _, k := range sortedKeys(obj) {
 		if !transformerConfigKeys[k] {
-			return 0, fmt.Sprintf("key %q", k)
+			return fmt.Sprintf("key %q", k)
 		}
 		list, ok := obj[k].([]any)
 		if !ok {
-			return 0, fmt.Sprintf("%s is not a list", k)
+			return fmt.Sprintf("%s is not a list", k)
 		}
 		for _, it := range list {
-			n, why := configEntry(it)
-			if why != "" {
-				return 0, k + ": " + why
+			if why := configEntry(it); why != "" {
+				return k + ": " + why
 			}
-			specs += n
 		}
 	}
-	return specs, ""
+	return ""
 }
 
 // configEntry checks one entry of a transformer configuration list: a field
 // spec, or (nameReference) a referenced kind with its field specs.
-func configEntry(v any) (int, string) {
+func configEntry(v any) string {
 	m, ok := v.(map[string]any)
 	if !ok {
-		return 0, "an entry is not a mapping"
+		return "an entry is not a mapping"
 	}
-	n := 0
 	if raw, present := m["fieldSpecs"]; present {
 		list, ok := raw.([]any)
 		if !ok {
-			return 0, "fieldSpecs is not a list"
+			return "fieldSpecs is not a list"
 		}
 		for _, it := range list {
-			c, why := fieldSpec(it)
-			if why != "" {
-				return 0, why
+			if why := fieldSpec(it); why != "" {
+				return why
 			}
-			n += c
 		}
 		// The referenced kind (a Service) is named beside its field
 		// specs; it must not be the definition kind itself.
@@ -357,52 +353,58 @@ func configEntry(v any) (int, string) {
 			case "fieldSpecs":
 			case "kind", "group", "version":
 				if s, ok := m[k].(string); !ok || s == crdKind {
-					return 0, fmt.Sprintf("a referenced %s that is not a plain value", k)
+					return fmt.Sprintf("a referenced %s that is not a plain value", k)
 				}
 			default:
-				return 0, fmt.Sprintf("key %q", k)
+				return fmt.Sprintf("key %q", k)
 			}
 		}
-		return n, ""
+		return ""
 	}
 	return fieldSpec(m)
 }
 
 // fieldSpec checks one field spec. A spec of the CustomResourceDefinition
-// kind must name the apiextensions.k8s.io group and a path under
-// spec/conversion or metadata labels and annotations.
-func fieldSpec(v any) (int, string) {
+// kind must name the apiextensions.k8s.io group, and it and a spec without a
+// kind (which applies to every kind) a path under spec/conversion or
+// metadata labels and annotations.
+func fieldSpec(v any) string {
 	m, ok := v.(map[string]any)
 	if !ok {
-		return 0, "a field spec is not a mapping"
+		return "a field spec is not a mapping"
 	}
 	for _, k := range sortedKeys(m) {
 		switch k {
 		case "kind", "group", "version", "path":
 			if _, ok := m[k].(string); !ok {
-				return 0, fmt.Sprintf("field spec %s is not a string", k)
+				return fmt.Sprintf("field spec %s is not a string", k)
 			}
 		case "create":
 			if _, ok := m[k].(bool); !ok {
-				return 0, "field spec create is not a boolean"
+				return "field spec create is not a boolean"
 			}
 		default:
-			return 0, fmt.Sprintf("field spec key %q", k)
+			return fmt.Sprintf("field spec key %q", k)
 		}
 	}
-	if k, _ := m["kind"].(string); k != crdKind {
-		return 0, ""
+	kind, hasKind := m["kind"].(string)
+	switch {
+	case hasKind && kind != crdKind:
+		// Another kind: the transformer never touches a definition.
+		return ""
+	case hasKind:
+		if g, _ := m["group"].(string); g != crdGroup {
+			return fmt.Sprintf("a field spec of the kind without the %s group", crdGroup)
+		}
+		if ver, present := m["version"]; present && ver != "v1" && ver != "v1beta1" {
+			return fmt.Sprintf("a field spec of the kind with version %q", ver)
+		}
 	}
-	if g, _ := m["group"].(string); g != crdGroup {
-		return 0, fmt.Sprintf("a field spec of the kind without the %s group", crdGroup)
-	}
-	if ver, present := m["version"]; present && ver != "v1" && ver != "v1beta1" {
-		return 0, fmt.Sprintf("a field spec of the kind with version %q", ver)
-	}
+	// A field spec of the kind, or of every kind (no kind given).
 	if p, _ := m["path"].(string); !configPathRE.MatchString(p) || strings.Contains(p, "..") {
-		return 0, fmt.Sprintf("a field spec of the kind with path %q, outside conversion settings and metadata labels and annotations", m["path"])
+		return fmt.Sprintf("a field spec that reaches definitions with path %q, outside conversion settings and metadata labels and annotations", m["path"])
 	}
-	return 1, ""
+	return ""
 }
 
 // parseLegacy reads the bytes as manifests that may hold
@@ -571,10 +573,9 @@ func definitionDirs(files []scanFile, infos []*blobInfo, inv *Inventory) map[str
 		if k == nil || !isKustomizationName(path.Base(f.path)) {
 			continue
 		}
+		// A kustomization at the repository root is never a declared
+		// directory: underDefinitionDir stops below the root.
 		dir := path.Dir(f.path)
-		if dir == "." {
-			continue
-		}
 		for _, rel := range k.local {
 			full := path.Join(dir, rel)
 			if strings.HasPrefix(rel, "/") || !cleanRepoPath(full) {
