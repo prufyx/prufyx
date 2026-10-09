@@ -740,7 +740,7 @@ func TestSupportInventory_ConformanceProfile_RejectsMalformedRuleWithoutPanic(t 
 const (
 	mainInputDigestsSHA256      = "0a72befb9216f4aeea39a0b8c6ae11572311a3e023be870d717a8b94225d105a"
 	mainInventoryJSONSHA256     = "42bb838ef43359bd08780f793e64da35cf12fe86fb09d99fdd2626a2b29f61a7"
-	mainInventoryMarkdownSHA256 = "0000000000000000000000000000000000000000000000000000000000000000"
+	mainInventoryMarkdownSHA256 = "a721980207cd5a5440382e181e48e7562381c55637173c736d800fc38b4ee40e"
 )
 
 // TestSupportInventory_ShippedPackOutputIsByteIdenticalToMainGenerator: the
