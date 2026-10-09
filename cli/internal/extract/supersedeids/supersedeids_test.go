@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -72,8 +71,11 @@ func TestClockOf(t *testing.T) {
 		{"reviewed pack (today)", packOf(other, [3]string{"kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0", "2026-09-23T13:55:00Z", "2026-12-22T13:55:00Z"}), "2026-11-20T00:00:00Z"},
 		{"mechanical rules derived on 2026-11-12", packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-11-12T08:45:25Z", "2027-01-27T08:45:25Z"}), "2026-11-20T00:00:00Z"},
 		{"derived the day of the clock", packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-11-20T08:45:25Z", "2027-02-03T08:45:25Z"}), "2026-11-21T00:00:00Z"},
-		// Derived after the other rules expired: no instant holds both.
-		{"derived after the earliest expiry", packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-12-10T08:45:25Z", "2027-03-03T08:45:25Z"}), "2026-12-11T00:00:00Z"},
+		// Derived after the other rules expired: no instant holds both (the error
+		// says to renew the other rules first, checked below).
+		{"derived after the earliest expiry", packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-12-10T08:45:25Z", "2027-03-03T08:45:25Z"}), ""},
+		{"derived the day before the earliest expiry", packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-12-05T08:45:25Z", "2027-03-03T08:45:25Z"}), "2026-12-06T00:00:00Z"},
+		{"derived on the day of the earliest expiry", packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-12-07T08:45:25Z", "2027-03-03T08:45:25Z"}), ""},
 		// The same day with every other rule renewed too: the clock follows.
 		{"everything renewed on 2026-12-10", packOf([3]string{"other.rule", "2026-12-10T00:00:00Z", "2027-03-10T00:00:00Z"}, [3]string{"kubernetes.served-api-removal.x", "2026-12-10T08:45:25Z", "2027-03-03T08:45:25Z"}), "2027-02-14T00:00:00Z"},
 		{"lease shorter than the clock", packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-11-19T00:00:00Z", "2026-11-19T12:00:00Z"}), ""},
@@ -87,6 +89,8 @@ func TestClockOf(t *testing.T) {
 		if c.want == "" {
 			if err == nil {
 				t.Errorf("%s: accepted, clock %s", c.name, got)
+			} else if strings.HasPrefix(c.name, "derived ") && strings.Contains(c.name, "earliest expiry") && !strings.Contains(err.Error(), "renew the other rules first") {
+				t.Errorf("%s: error %q does not say to renew the other rules first", c.name, err)
 			}
 			continue
 		}
@@ -117,24 +121,23 @@ func TestClockOfTheShippedPack(t *testing.T) {
 	}
 }
 
-// goList runs `go list` in the module root and returns its output lines.
-func goList(t *testing.T, args ...string) []string {
+// goList runs `go list` in the module root and returns its output lines. env
+// adds environment entries such as GOOS=darwin. The go tool is the one on the
+// PATH: `go test` puts $GOROOT/bin first there.
+func goList(t *testing.T, env []string, args ...string) []string {
 	t.Helper()
-	goTool := filepath.Join(runtime.GOROOT(), "bin", "go")
-	if _, err := os.Stat(goTool); err != nil {
-		var lookErr error
-		if goTool, lookErr = exec.LookPath("go"); lookErr != nil {
-			t.Skipf("no go tool to list packages: %v", lookErr)
-		}
+	goTool, err := exec.LookPath("go")
+	if err != nil {
+		t.Skipf("no go tool to list packages: %v", err)
 	}
 	cmd := exec.Command(goTool, append([]string{"list", "-buildvcs=false"}, args...)...)
 	cmd.Dir = filepath.Join("..", "..", "..")
-	cmd.Env = append(os.Environ(), "GOFLAGS=-mod=vendor")
+	cmd.Env = append(append(os.Environ(), "GOFLAGS=-mod=vendor"), env...)
 	out, err := cmd.Output()
 	if err != nil {
 		var exit *exec.ExitError
 		if errors.As(err, &exit) {
-			t.Fatalf("go list %v: %v\n%s", args, err, exit.Stderr)
+			t.Fatalf("go list %v %v: %v\n%s", env, args, err, exit.Stderr)
 		}
 		t.Fatal(err)
 	}
@@ -150,6 +153,12 @@ const (
 // testOnly are the packages that exist for tests only.
 var testOnly = []string{supersedeidsPath, supersedefixturePath, goldenfilePath}
 
+// targets are the platforms the release builds, as GOOS/GOARCH.
+var targets = []string{"linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64"}
+
+// tagSets are the build-tag sets the binaries and the CI jobs use.
+var tagSets = []string{"", "prufyx_synthetic_knowledge", "parityreview"}
+
 func withTags(tags string, args ...string) []string {
 	if tags == "" {
 		return args
@@ -157,31 +166,38 @@ func withTags(tags string, args ...string) []string {
 	return append([]string{"-tags", tags}, args...)
 }
 
-// The test-only packages (supersedeids, supersedefixture, goldenfile) must not reach a binary: supersedeids reads the
-// pack from the source tree through runtime.Caller and panics without it, and
-// supersedefixture rebuilds a pack that was never shipped. Neither is a
-// dependency of anything under cmd, with or without the synthetic-knowledge
-// build tag, and no package imports them outside its tests.
+// The test-only packages (supersedeids, supersedefixture, goldenfile) must not
+// reach a binary: supersedeids reads the pack from the source tree through
+// runtime.Caller and panics without it, and supersedefixture rebuilds a pack
+// that was never shipped. Neither is a dependency of anything under cmd, for
+// any release platform (linux and darwin, both architectures) and with or
+// without the synthetic-knowledge and parityreview build tags, and no package
+// imports them outside its tests.
 func TestTestOnlyPackagesAreNotInAnyBinary(t *testing.T) {
-	for _, tags := range []string{"", "prufyx_synthetic_knowledge"} {
-		deps := goList(t, withTags(tags, "-deps", "./cmd/...")...)
-		if len(deps) < 50 {
-			t.Fatalf("tags %q: only %d dependencies listed, the guard is not looking at the binaries", tags, len(deps))
-		}
-		for _, dep := range deps {
-			for _, forbidden := range testOnly {
-				if dep == forbidden {
-					t.Errorf("tags %q: %s is a dependency of a binary", tags, dep)
+	for _, target := range targets {
+		goos, goarch, _ := strings.Cut(target, "/")
+		env := []string{"GOOS=" + goos, "GOARCH=" + goarch, "CGO_ENABLED=0"}
+		for _, tags := range tagSets {
+			label := fmt.Sprintf("%s tags %q", target, tags)
+			deps := goList(t, env, withTags(tags, "-deps", "./cmd/...")...)
+			if len(deps) < 50 {
+				t.Fatalf("%s: only %d dependencies listed, the guard is not looking at the binaries", label, len(deps))
+			}
+			for _, dep := range deps {
+				for _, forbidden := range testOnly {
+					if dep == forbidden {
+						t.Errorf("%s: %s is a dependency of a binary", label, dep)
+					}
 				}
 			}
-		}
-		// Imports without _test files: a non-test importer anywhere, even of a
-		// package no binary links today, is the first step to a binary.
-		for _, forbidden := range testOnly {
-			for _, importer := range goList(t, withTags(tags, "-f", `{{range .Imports}}{{if eq . "`+forbidden+`"}}{{$.ImportPath}} {{end}}{{end}}`, "./...")...) {
-				// The fixture package builds on the id package.
-				if importer != supersedefixturePath || forbidden != supersedeidsPath {
-					t.Errorf("tags %q: %s imports %s outside its tests", tags, importer, forbidden)
+			// Imports without _test files: a non-test importer anywhere, even of
+			// a package no binary links today, is the first step to a binary.
+			for _, forbidden := range testOnly {
+				for _, importer := range goList(t, env, withTags(tags, "-f", `{{range .Imports}}{{if eq . "`+forbidden+`"}}{{$.ImportPath}} {{end}}{{end}}`, "./...")...) {
+					// The fixture package builds on the id package.
+					if importer != supersedefixturePath || forbidden != supersedeidsPath {
+						t.Errorf("%s: %s imports %s outside its tests", label, importer, forbidden)
+					}
 				}
 			}
 		}
@@ -192,7 +208,7 @@ func TestTestOnlyPackagesAreNotInAnyBinary(t *testing.T) {
 // that uses supersedeids list it among their dependencies.
 func TestTestOnlyPackageGuardSeesTestImports(t *testing.T) {
 	found := false
-	for _, dep := range goList(t, "-deps", "-test", "./internal/checkroutemetadata") {
+	for _, dep := range goList(t, nil, "-deps", "-test", "./internal/checkroutemetadata") {
 		if dep == supersedeidsPath {
 			found = true
 		}
@@ -221,7 +237,7 @@ func TestAgeInstantsDoNotFollowTheKubernetesDerivation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	late, err := ClocksOf(packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-12-10T08:45:25Z", "2027-03-03T08:45:25Z"}))
+	late, err := ClocksOf(packOf(other, [3]string{"kubernetes.served-api-removal.x", "2026-12-05T08:45:25Z", "2027-03-03T08:45:25Z"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,7 +250,7 @@ func TestAgeInstantsDoNotFollowTheKubernetesDerivation(t *testing.T) {
 			t.Errorf("%s = %s, want %s", name, got.Format(time.RFC3339), want)
 		}
 	}
-	if early.Clock.Equal(late.Clock) || late.Clock.Format(time.RFC3339) != "2026-12-11T00:00:00Z" {
+	if early.Clock.Equal(late.Clock) || late.Clock.Format(time.RFC3339) != "2026-12-06T00:00:00Z" {
 		t.Fatalf("clocks %s %s", early.Clock, late.Clock)
 	}
 }

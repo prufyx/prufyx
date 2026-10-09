@@ -171,8 +171,8 @@ const AgeWindowDays = 17
 //     when it is derived, and its evidence clock must not be before that).
 //
 // It panics when that instant is not before the earliest validUntil of every
-// Kubernetes API-removal rule: then no clock holds all of them current and the
-// pack needs its other rules renewed first.
+// active rule (Kubernetes API-removal or not): then no clock holds all of them
+// current and the pack needs its other rules renewed first.
 func Clock() time.Time {
 	loadClocks()
 	if clockErr != nil {
@@ -296,7 +296,10 @@ func ClocksOf(pack []byte) (Clocks, error) {
 			c.Clock = after
 		}
 		if !c.Clock.Before(kubernetesUntil) {
-			return Clocks{}, fmt.Errorf("no clock holds every Kubernetes rule current: %s is not before the earliest Kubernetes expiry %s (renew the other rules first)", c.Clock.Format(time.RFC3339), kubernetesUntil.Format(time.RFC3339))
+			return Clocks{}, fmt.Errorf("no clock holds every Kubernetes rule current: %s is not before the earliest Kubernetes expiry %s", c.Clock.Format(time.RFC3339), kubernetesUntil.Format(time.RFC3339))
+		}
+		if !c.Clock.Before(earliest) {
+			return Clocks{}, fmt.Errorf("no clock holds every rule current: %s (after the last Kubernetes review) is not before the earliest expiry of all rules %s (renew the other rules first)", c.Clock.Format(time.RFC3339), earliest.Format(time.RFC3339))
 		}
 	}
 	return c, nil
