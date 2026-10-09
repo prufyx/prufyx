@@ -411,6 +411,28 @@ func ProjectFor(slug string) (Project, bool) {
 	return Project{}, false
 }
 
+// CommunityProjects returns copies of the community projects of the table
+// (outside the CNCF landscape catalog), ordered by slug.
+func CommunityProjects() []Project {
+	var out []Project
+	for _, p := range table {
+		if p.Community() {
+			out = append(out, p)
+		}
+	}
+	return copyProjects(out)
+}
+
+// IsCommunity reports whether a slug is a community project of the table.
+func IsCommunity(slug string) bool {
+	for _, p := range table {
+		if p.Slug == slug {
+			return p.Community()
+		}
+	}
+	return false
+}
+
 func copyProjects(in []Project) []Project {
 	out := make([]Project, len(in))
 	for i, p := range in {

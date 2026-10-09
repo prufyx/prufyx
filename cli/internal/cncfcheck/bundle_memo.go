@@ -56,6 +56,12 @@ func (b bundle) clone() bundle {
 	if b.landscape.Projects != nil {
 		out.landscape.Projects = append([]projectIdentity{}, b.landscape.Projects...)
 	}
+	if b.community != nil {
+		out.community = make(map[string]projectIdentity, len(b.community))
+		for slug, identity := range b.community {
+			out.community[slug] = identity
+		}
+	}
 	out.priority.Priority = cloneStrings(b.priority.Priority)
 	out.pack.LineAttestations = cloneBytes(b.pack.LineAttestations)
 	out.pack.PathPolicies = cloneBytes(b.pack.PathPolicies)

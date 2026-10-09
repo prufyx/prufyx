@@ -21,6 +21,11 @@ const Schema = "prufyx.io/check-route-catalog/v1alpha1"
 const (
 	FamilyCNCF      = "cncf_embedded_source_rule"
 	FamilyCommunity = "community_project_embedded_source_rule"
+	// FamilyCommunityCatalog is the family of a rule of the community
+	// catalog held in the CNCF rule pack: a project outside the embedded
+	// CNCF landscape catalog (cncfcheck community.go). It is neither the
+	// CNCF family nor the community-project pack's.
+	FamilyCommunityCatalog = "community_catalog_embedded_source_rule"
 	RouteExposed    = "EXPOSED_CANONICAL_INPUT"
 	RouteNotExposed = "NOT_EXPOSED_BY_PUBLIC_CLI"
 	DescriptorExact = "EXACT_PAIR_NATIVE_ROUTE"
@@ -87,6 +92,9 @@ type Check struct {
 	// "one_way_notice" (informational, never a verdict) or "support_range"
 	// (PASS or UNSUPPORTED, decided only with a declared dependency).
 	RuleKind string `json:"ruleKind,omitempty"`
+	// Catalog is "community" for a rule of a project of the community
+	// catalog (outside the embedded CNCF landscape catalog).
+	Catalog string `json:"catalog,omitempty"`
 }
 
 // RuleCoverageWithdrawnOnly is the rule coverage state of a query whose every
@@ -812,6 +820,9 @@ func genericRoute(family, project, from, to string) Route {
 	if family == FamilyCommunity {
 		return Route{State: RouteNotExposed, Limit: "Community embedded rules have no generic public canonical-input command."}
 	}
+	if family == FamilyCommunityCatalog {
+		return Route{State: RouteNotExposed, Limit: "Community catalog rules read the project's custom-resource version set: use prufyx check cncf --project " + project + " --custom-resources, or prufyx scan; there is no generic canonical-input command."}
+	}
 	return Route{State: RouteExposed, Command: []Argument{literal("check"), literal("cncf"), literal("--project"), literal(project), file("--input"), timestamp("--now")}, Limit: "The canonical minimized declaration itself binds this identity's own from/to pair; generic CLI --from/--to flags are not admitted."}
 }
 
@@ -850,9 +861,17 @@ func discover(cncf []cncfcheck.RuleIdentity, community []projectcheck.RuleIdenti
 	}
 	knownProjects := map[string]bool{}
 	known := map[string]bool{}
+	catalogFamily := func(item cncfcheck.RuleIdentity) string {
+		if item.Catalog == cncfcheck.CatalogCommunity {
+			return FamilyCommunityCatalog
+		}
+		return FamilyCNCF
+	}
+	communityCatalog := false
 	for _, item := range cncf {
 		knownProjects[item.Project] = true
-		known[identityKey(FamilyCNCF, item.Project, item.Component, item.RuleID, item.From, item.To)] = true
+		known[identityKey(catalogFamily(item), item.Project, item.Component, item.RuleID, item.From, item.To)] = true
+		communityCatalog = communityCatalog || item.Catalog == cncfcheck.CatalogCommunity
 	}
 	for _, item := range community {
 		knownProjects[item.Project] = true
@@ -872,12 +891,16 @@ func discover(cncf []cncfcheck.RuleIdentity, community []projectcheck.RuleIdenti
 	} else if selectedFrom != "" && selectedTo != "" {
 		coverage = "NO_MATCHING_EMBEDDED_RULE"
 	}
-	result := Result{Schema: Schema, MetadataSource: "EMBEDDED_COMPILED_BUNDLES_ONLY", SourceOnlyState: "NOT_ENUMERATED", RuleCoverageState: coverage, Scope: Scope{IncludedFamilies: []string{FamilyCNCF, FamilyCommunity}, ExcludedFamilies: []string{"named_check", "standards_conformance", "target_preflight"}, CoverageMeaning: "exact embedded source-rule identity discovery only", SourceEvidenceFreshness: "NOT_EVALUATED"}, Query: Query{Project: selectedProject, From: selectedFrom, To: selectedTo}, NamedCheckHints: namedHints(selectedProject), Checks: make([]Check, 0, len(cncf)+len(community))}
+	result := Result{Schema: Schema, MetadataSource: "EMBEDDED_COMPILED_BUNDLES_ONLY", SourceOnlyState: "NOT_ENUMERATED", RuleCoverageState: coverage, Scope: Scope{IncludedFamilies: includedFamilies(communityCatalog), ExcludedFamilies: []string{"named_check", "standards_conformance", "target_preflight"}, CoverageMeaning: "exact embedded source-rule identity discovery only", SourceEvidenceFreshness: "NOT_EVALUATED"}, Query: Query{Project: selectedProject, From: selectedFrom, To: selectedTo}, NamedCheckHints: namedHints(selectedProject), Checks: make([]Check, 0, len(cncf)+len(community))}
 	appendIdentity := func(family, project, component, ruleID, from, to, kind string, subject constraintengine.RuleTransition, withdrawn bool) {
 		if projectFilter(selectedProject, selectedFrom, selectedTo, project, subject) {
 			return
 		}
-		item := Check{Family: family, Project: project, Component: component, RuleID: ruleID, From: from, To: to, GenericDeclarationRoute: genericRoute(family, project, from, to), NativeDescriptor: Route{State: DescriptorNone}, Range: subject.Range, Crossing: subject.Crossing, Withdrawn: withdrawn, RuleKind: kind}
+		catalog := ""
+		if family == FamilyCommunityCatalog {
+			catalog = cncfcheck.CatalogCommunity
+		}
+		item := Check{Catalog: catalog, Family: family, Project: project, Component: component, RuleID: ruleID, From: from, To: to, GenericDeclarationRoute: genericRoute(family, project, from, to), NativeDescriptor: Route{State: DescriptorNone}, Range: subject.Range, Crossing: subject.Crossing, Withdrawn: withdrawn, RuleKind: kind}
 		item.MatchMode = queryMatchMode(subject, selectedFrom, selectedTo)
 		if descriptor, found := descriptors[identityKey(family, project, component, ruleID, from, to)]; found {
 			item.NativeDescriptor = Route{State: DescriptorExact, Command: descriptor.command, Limit: descriptor.limit, NativePass: descriptor.nativePass}
@@ -885,7 +908,7 @@ func discover(cncf []cncfcheck.RuleIdentity, community []projectcheck.RuleIdenti
 		result.Checks = append(result.Checks, item)
 	}
 	for _, item := range cncf {
-		appendIdentity(FamilyCNCF, item.Project, item.Component, item.RuleID, item.From, item.To, item.Kind, item.Transition(), item.Withdrawn)
+		appendIdentity(catalogFamily(item), item.Project, item.Component, item.RuleID, item.From, item.To, item.Kind, item.Transition(), item.Withdrawn)
 	}
 	for _, item := range community {
 		appendIdentity(FamilyCommunity, item.Project, item.Component, item.RuleID, item.From, item.To, item.Kind, item.Transition(), false)
@@ -909,6 +932,16 @@ func discover(cncf []cncfcheck.RuleIdentity, community []projectcheck.RuleIdenti
 		}
 	}
 	return result, nil
+}
+
+// includedFamilies are the families a listing covers: the community catalog
+// is named only when the pack holds a rule of it, so the listing of a pack
+// without one keeps its bytes.
+func includedFamilies(communityCatalog bool) []string {
+	if communityCatalog {
+		return []string{FamilyCNCF, FamilyCommunity, FamilyCommunityCatalog}
+	}
+	return []string{FamilyCNCF, FamilyCommunity}
 }
 
 func allWithdrawn(checks []Check) bool {
