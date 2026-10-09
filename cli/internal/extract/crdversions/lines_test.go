@@ -513,6 +513,11 @@ func TestLoadTargets(t *testing.T) {
 		}), "covers the listed path"},
 		{"every path optional", mutate(func(tg, _ map[string]any) { tg["paths"].([]any)[0].(map[string]any)["optional"] = true }), "every path is optional"},
 		{"tag prefix", mutate(func(tg, _ map[string]any) { tg["tagPrefixes"] = []any{"release-"} }), "tagPrefixes"},
+		{"catalog spelled cncf", mutate(func(tg, _ map[string]any) { tg["catalog"] = "cncf" }), "omit it for a CNCF catalog project"},
+		{"unknown catalog", mutate(func(tg, _ map[string]any) { tg["catalog"] = "landscape" }), "catalog"},
+		{"community target attests", mutate(func(tg, _ map[string]any) {
+			tg["catalog"], tg["attest"] = "community", true
+		}), "a community catalog target does not attest"},
 		{"duplicate fact project", mutate(func(tg, d map[string]any) {
 			tg["factProject"] = d["targets"].([]any)[1].(map[string]any)["factProject"]
 		}), "fact " + Targets[1].FactProject + " is used by"},

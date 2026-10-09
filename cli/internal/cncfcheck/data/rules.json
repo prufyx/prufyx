@@ -1,10 +1,10 @@
 {
   "schema": "prufyx.io/cncf-source-rule-pack/v1alpha2",
-  "revision": "cncf-2026-09-13.6",
+  "revision": "cncf-2026-09-13.7",
   "policyId": "cncf-source-preview-v1",
   "policyDigest": "sha256:59fb35dd1cf0241cb704b10de6d8040cd584da29fb17443a353bab4542aeb83d",
   "landscapeFileDigest": "sha256:8ee4c10af7d58ddda752ff91c20bf6a5f328bfa5aa288f93801d0ca9d2b0c0ef",
-  "registryDigest": "sha256:1bb6d1e5b91423265412270c9d096cf3766d258158e2e902e04fa43bee8a01a2",
+  "registryDigest": "sha256:db0a40924257a3f1f642f7b9df1aa26af65151b0a152abfae14250a3d3d47f06",
   "entries": [
     {
       "description": "Argo CD v3.5.2 uses Helm 4; this checks one effective official Helm repository with OCI enabled and caller-declared plain-HTTP transport for the documented force-HTTP flag requirement and direct-repository conflicting TLS flags.",

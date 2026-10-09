@@ -22,6 +22,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
+	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 	"github.com/prufyx/prufyx/cli/internal/intake"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeauto"
@@ -399,6 +400,9 @@ func checkComponents(knowledge componentCatalog, effective scanconfig.Effective)
 	sort.Strings(names)
 	for _, slug := range names {
 		if _, ok := knowledge.Component(slug); !ok {
+			if _, community := cncfprepare.CommunityCustomResourceProject(slug); community {
+				return usage(scanreport.UsageCommunityComponent, quote(slug))
+			}
 			if near := closest(slug, knowledge.Projects(), 3); len(near) > 0 {
 				return usage(scanreport.UsageUnknownComponent, quote(slug), strings.Join(near, ", "))
 			}

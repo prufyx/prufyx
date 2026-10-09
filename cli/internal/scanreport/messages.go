@@ -517,6 +517,11 @@ const (
 	labelMDMore                = "... and %d more"
 )
 
+// UsageCommunityComponent refuses a project of the community catalog
+// (outside the embedded CNCF landscape catalog): its custom-resource version
+// set is registered, but scan reads no knowledge about it yet.
+const UsageCommunityComponent = "%s is in the community catalog (not in the embedded CNCF landscape catalog; no CNCF status asserted): scan does not check community projects yet; see docs/custom-resources.md"
+
 // Usage and input errors. The command prints them after "prufyx: ".
 const (
 	UsageInputNotAccepted = "INPUT NOT ACCEPTED: %s"

@@ -53,7 +53,16 @@ func TestCustomResourceFamilyMembersAreTheReviewedTable(t *testing.T) {
 		t.Fatalf("family %+v", f)
 	}
 	var want []string
+	community := 0
 	for _, p := range customresources.Projects() {
+		if p.Community() {
+			// A community project is registered but never attested.
+			community++
+			if f.Admits(p.Component) || f.Covers(p.Component, p.FactID()) {
+				t.Fatalf("community project %s is a family member", p.Slug)
+			}
+			continue
+		}
 		want = append(want, p.Component)
 		if !f.Covers(p.Component, p.FactID()) {
 			t.Fatalf("%s does not cover its own fact", p.Slug)
@@ -80,6 +89,9 @@ func TestCustomResourceFamilyMembersAreTheReviewedTable(t *testing.T) {
 	k, _ := LookupFamily(FamilyKubernetesRemovedServedGVK)
 	if !slices.Equal(k.Components(), []string{k8s}) || k.ReleaseScoped() || k.Covers(strimzi, strimziFact) {
 		t.Fatalf("kubernetes family %+v", k)
+	}
+	if community == 0 {
+		t.Fatal("the table has no community project")
 	}
 	// A table that names a component twice admits nothing for it.
 	dup := customResourceMembers([]customresources.Project{{Slug: "a", FactProject: "a", Component: strimzi}, {Slug: "b", FactProject: "b", Component: strimzi}})
