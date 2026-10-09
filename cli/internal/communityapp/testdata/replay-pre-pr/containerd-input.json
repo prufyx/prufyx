@@ -1,0 +1,28 @@
+{
+  "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+  "authority": "OPERATOR_DECLARED_MINIMIZED",
+  "current": {
+    "components": [
+      {
+        "component": "pkg:github/containerd/containerd",
+        "version": "1.7.28",
+        "facts": []
+      }
+    ]
+  },
+  "proposed": {
+    "components": [
+      {
+        "component": "pkg:github/containerd/containerd",
+        "version": "2.0.0",
+        "facts": [
+          {
+            "id": "component.containerd.cri_api",
+            "state": "declared",
+            "enumValue": "v1alpha2"
+          }
+        ]
+      }
+    ]
+  }
+}

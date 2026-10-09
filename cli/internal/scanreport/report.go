@@ -77,6 +77,11 @@ type Report struct {
 	// Notes are informational lines about the input (permission notice).
 	Notes      []string   `json:"notes"`
 	Provenance Provenance `json:"provenance"`
+	// Anchor is the display path of the first input file. It is not part of
+	// the JSON report: SARIF uses it as the location of results that belong
+	// to the whole scan (gaps), because code scanning shows only results that
+	// have a location. Redact replaces it with its digest.
+	Anchor string `json:"-"`
 }
 
 // Summary counts the report's content.
@@ -85,13 +90,19 @@ type Summary struct {
 	Gaps               int `json:"gaps"`
 	Passes             int `json:"passes"`
 	ComponentsDetected int `json:"componentsDetected"`
-	ComponentsCovered  int `json:"componentsCovered"`
-	Hops               int `json:"hops"`
-	DocumentsRead      int `json:"documentsRead"`
-	DocumentsOmitted   int `json:"documentsOmitted"`
-	Notices            int `json:"notices"`
-	Leads              int `json:"leads"`
-	Unsupported        int `json:"unsupported"`
+	// ComponentsCovered is the old name of ComponentsWithRules, kept for one
+	// release so that readers of the JSON report keep working. "Covered" only
+	// ever meant "has rules", never "fully evaluated".
+	ComponentsCovered int `json:"componentsCovered"`
+	// ComponentsWithRules counts the detected components that scan has rules
+	// for. A component with rules can still have undecided hops.
+	ComponentsWithRules int `json:"componentsWithRules"`
+	Hops                int `json:"hops"`
+	DocumentsRead       int `json:"documentsRead"`
+	DocumentsOmitted    int `json:"documentsOmitted"`
+	Notices             int `json:"notices"`
+	Leads               int `json:"leads"`
+	Unsupported         int `json:"unsupported"`
 }
 
 // Component is one component named by a version declaration.
@@ -371,10 +382,11 @@ func Finalize(report *Report) {
 	report.Summary.Gaps = len(report.Gaps)
 	report.Summary.Passes = len(report.Passes)
 	report.Summary.ComponentsDetected = len(report.Inventory)
-	report.Summary.ComponentsCovered = 0
+	report.Summary.ComponentsCovered, report.Summary.ComponentsWithRules = 0, 0
 	for _, component := range report.Inventory {
 		if component.Covered {
 			report.Summary.ComponentsCovered++
+			report.Summary.ComponentsWithRules++
 		}
 	}
 	report.Summary.Hops = 0

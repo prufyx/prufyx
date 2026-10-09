@@ -252,7 +252,7 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 		return r.fail("NATIVE_CNCF_RESOURCE_INPUT_INVALID", ExitUsage)
 	}
 	if _, err := cncfcheck.Catalog(false, project); err != nil {
-		return r.cncfError("CNCF project selection failed", err)
+		return r.cncfProjectError(project, err)
 	}
 	if storeRoot != "" {
 		if nowText != "" || (replayPath != "" && (revision == "" || bundle == "" || receipt == "" || (project != "cloudnativepg" && nativePin == "") || (project == "cloudnativepg" && (currentPin == "" || proposedPin == "")))) {
@@ -295,7 +295,11 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 		if err := writeBasisHeadline(r.stdout, report.Check.Claims, report.TrustPolicy); err != nil {
 			return ExitIntegrity
 		}
-		summary := summarizeClaims(report.Check.Claims, flagProvided(args, "show-passes"))
+		claims := report.Check.Claims
+		if project == "kubernetes" {
+			claims = withKubernetesDeclarationActions(claims, kubernetesDeclarationAction(prepared.Reason, resourceScopeComplete, targetAPIApplyRequired, kubernetesDistribution))
+		}
+		summary := summarizeClaims(claims, flagProvided(args, "show-passes"))
 		if prometheusRemoteWriteMode {
 			if _, err := fmt.Fprintln(r.stdout, "selected input: one literal-name remote_write entry from the caller-supplied full configuration\nscope: direct enable_http2 and declared endpoint requirement only; negotiation, delivery, runtime flags, includes, and whole-config validity remain unverified"); err != nil {
 				return ExitIntegrity
@@ -314,7 +318,7 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 				return ExitIntegrity
 			}
 		}
-		if err := writeNativeClaims(r.stdout, summary, report.Check.Claims); err != nil {
+		if err := writeNativeClaims(r.stdout, summary, claims); err != nil {
 			return ExitIntegrity
 		}
 		if _, err := fmt.Fprintf(r.stdout, "%s\naggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)\n", scopedResultLine(cncfcheck.ClaimExit(report))); err != nil {

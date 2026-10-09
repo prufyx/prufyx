@@ -1,6 +1,6 @@
 # PASS FOR THE DECLARED SCOPE
 
-Checked 6 hops, 2 documents, 1 component (1 covered). 11 checks passed (--show-passes).
+Read 2 documents over 6 hops; 1 of 1 component has rules. 11 checks passed (--show-passes).
 
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
 

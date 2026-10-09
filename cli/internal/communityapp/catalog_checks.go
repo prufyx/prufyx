@@ -11,15 +11,20 @@ import (
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/checkroutemetadata"
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
+
+// projectNotInRulePack is the rule coverage state of a project that no
+// embedded rule belongs to.
+const projectNotInRulePack = "PROJECT_NOT_IN_EMBEDDED_RULE_PACK"
 
 var catalogProjectToken = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 var catalogVersionToken = regexp.MustCompile(`^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$`)
 
 func (r runtime) catalogChecks(args []string) int {
 	if hasHelp(args) {
-		fmt.Fprintln(r.stdout, "Usage: prufyx catalog checks --project SLUG [--from VERSION --to VERSION] [--format human|json]\nThe exact pair flags are all-or-nothing. Lists embedded source-rule identities and mechanically bound native input routes. It does not read configuration, evaluate a check, verify source freshness, or assess an upgrade.")
+		fmt.Fprintln(r.stdout, "Usage: prufyx catalog checks --project SLUG [--from VERSION --to VERSION] [--format human|json] [--verbose]\nThe exact pair flags are all-or-nothing. Lists embedded source-rule identities and mechanically bound native input routes. It does not read configuration, evaluate a check, verify source freshness, or assess an upgrade.")
 		return ExitOK
 	}
 	fs := flag.NewFlagSet("catalog checks", flag.ContinueOnError)
@@ -28,6 +33,7 @@ func (r runtime) catalogChecks(args []string) int {
 	from := fs.String("from", "", "queried current version; requires --to")
 	to := fs.String("to", "", "queried target version; requires --from")
 	format := fs.String("format", "human", "human or json")
+	verbose := fs.Bool("verbose", false, "also print the metadata source and scope lines")
 	fromProvided := flagProvided(args, "from")
 	toProvided := flagProvided(args, "to")
 	if duplicateFlags(args) || fs.Parse(args) != nil || fs.NArg() != 0 || !catalogProjectToken.MatchString(*project) || (*from != "" && !catalogVersionToken.MatchString(*from)) || (*to != "" && !catalogVersionToken.MatchString(*to)) || (*format != "human" && *format != "json") || fromProvided != toProvided || (fromProvided && (*from == "" || *to == "")) {
@@ -37,22 +43,35 @@ func (r runtime) catalogChecks(args []string) int {
 	if err != nil {
 		return r.fail("embedded check-route catalog integrity failure", ExitIntegrity)
 	}
+	if result.RuleCoverageState == projectNotInRulePack {
+		if _, err := cncfcheck.Catalog(false, *project); err != nil {
+			// Neither a project with rules nor a catalogued one: a typo
+			// must not look like a project that simply has no rules.
+			return r.cncfProjectError(*project, err)
+		}
+	}
+
 	if *format == "json" {
 		if err := json.NewEncoder(r.stdout).Encode(result); err != nil {
 			return ExitIntegrity
 		}
 		return ExitOK
 	}
-	renderCatalogScope(r.stdout, result)
+	if *verbose {
+		renderCatalogScope(r.stdout, result)
+	}
 	if len(result.Checks) == 0 {
 		if result.RuleCoverageState == "NO_MATCHING_EMBEDDED_RULE" {
 			fmt.Fprintln(r.stdout, "known embedded project, but no matching source-rule transition (neither the reviewed anchor pair nor, where a rule carries one, its reviewed range)")
+			fmt.Fprintln(r.stdout, "inspect supported command families with: prufyx check --help")
 		} else {
-			fmt.Fprintln(r.stdout, "no matching rule in this embedded source-rule catalog")
+			fmt.Fprintf(r.stdout, "%s is catalogued but has no rules yet; request coverage: %s\n", *project, constraintengine.RequestCoverageURL)
 		}
-		fmt.Fprintln(r.stdout, "inspect supported command families with: prufyx check --help")
 		renderCatalogHints(r.stdout, result)
 		return ExitOK
+	}
+	if result.RuleCoverageState == checkroutemetadata.RuleCoverageWithdrawnOnly {
+		fmt.Fprintf(r.stdout, "rule coverage: %s; every matching rule was withdrawn (its evidence could not be verified) and always answers UNKNOWN\n", result.RuleCoverageState)
 	}
 	fmt.Fprintf(r.stdout, "embedded source-rule identities: %d\n", len(result.Checks))
 	for _, item := range result.Checks {
@@ -78,6 +97,9 @@ var catalogMatchModes = map[string]string{
 // outside every reviewed region, so no reviewed rule covers it).
 func renderCatalogCheck(out io.Writer, item checkroutemetadata.Check) {
 	fmt.Fprintf(out, "%s %s %s -> %s\n", item.Project, item.RuleID, item.From, item.To)
+	if item.Withdrawn {
+		fmt.Fprintf(out, "  withdrawn: %s was withdrawn (evidence could not be verified) and always answers UNKNOWN\n", item.RuleID)
+	}
 	if description, ok := catalogMatchModes[item.MatchMode]; ok {
 		fmt.Fprintf(out, "  match mode: %s (%s)\n", item.MatchMode, description)
 		fmt.Fprintf(out, "  native route: not shown for a %s match; the native command is pinned to the reviewed anchor pair\n", item.MatchMode)

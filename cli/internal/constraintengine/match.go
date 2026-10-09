@@ -349,7 +349,7 @@ const (
 	subjectMatchModeRange         = "range"
 	rangeNextActionSuffixTemplate = "; matched by reviewed range; anchor pair %s -> %s"
 	rangeNextActionSuffixShort    = "; matched by reviewed range"
-	rangeSubjectActionTemplate    = "no rule for declared pair; reviewed range %s from [%s,%s) to [%s,%s); retain actual versions and request coverage"
+	rangeSubjectActionTemplate    = "no rule for declared pair; reviewed range %s from [%s,%s) to [%s,%s); retain actual versions and request coverage: " + RequestCoverageURL
 )
 
 var boundOrder = []string{boundFromGte, boundFromLt, boundToGte, boundToLt}

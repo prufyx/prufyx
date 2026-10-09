@@ -80,7 +80,14 @@ type Check struct {
 	// MatchMode is "crossing" when the query pair matched it. A crossing
 	// match can block but never passes.
 	Crossing *constraintengine.CrossingSpec `json:"crossing,omitempty"`
+	// Withdrawn is true for a rule whose evidence was withdrawn: it can only
+	// answer UNKNOWN, so it is not coverage.
+	Withdrawn bool `json:"withdrawn,omitempty"`
 }
+
+// RuleCoverageWithdrawnOnly is the rule coverage state of a query whose every
+// matching rule is withdrawn.
+const RuleCoverageWithdrawnOnly = "WITHDRAWN_ONLY"
 
 // Transition returns the check's reviewed subject for the shared matcher.
 func (c Check) Transition() constraintengine.RuleTransition {
@@ -834,11 +841,11 @@ func Discover(selectedProject, selectedFrom, selectedTo string) (Result, error) 
 		coverage = "NO_MATCHING_EMBEDDED_RULE"
 	}
 	result := Result{Schema: Schema, MetadataSource: "EMBEDDED_COMPILED_BUNDLES_ONLY", SourceOnlyState: "NOT_ENUMERATED", RuleCoverageState: coverage, Scope: Scope{IncludedFamilies: []string{FamilyCNCF, FamilyCommunity}, ExcludedFamilies: []string{"named_check", "standards_conformance", "target_preflight"}, CoverageMeaning: "exact embedded source-rule identity discovery only", SourceEvidenceFreshness: "NOT_EVALUATED"}, Query: Query{Project: selectedProject, From: selectedFrom, To: selectedTo}, NamedCheckHints: namedHints(selectedProject), Checks: make([]Check, 0, len(cncf)+len(community))}
-	appendIdentity := func(family, project, component, ruleID, from, to string, subject constraintengine.RuleTransition) {
+	appendIdentity := func(family, project, component, ruleID, from, to string, subject constraintengine.RuleTransition, withdrawn bool) {
 		if projectFilter(selectedProject, selectedFrom, selectedTo, project, subject) {
 			return
 		}
-		item := Check{Family: family, Project: project, Component: component, RuleID: ruleID, From: from, To: to, GenericDeclarationRoute: genericRoute(family, project, from, to), NativeDescriptor: Route{State: DescriptorNone}, Range: subject.Range, Crossing: subject.Crossing}
+		item := Check{Family: family, Project: project, Component: component, RuleID: ruleID, From: from, To: to, GenericDeclarationRoute: genericRoute(family, project, from, to), NativeDescriptor: Route{State: DescriptorNone}, Range: subject.Range, Crossing: subject.Crossing, Withdrawn: withdrawn}
 		item.MatchMode = queryMatchMode(subject, selectedFrom, selectedTo)
 		if descriptor, found := descriptors[identityKey(family, project, component, ruleID, from, to)]; found {
 			item.NativeDescriptor = Route{State: DescriptorExact, Command: descriptor.command, Limit: descriptor.limit, NativePass: descriptor.nativePass}
@@ -846,10 +853,10 @@ func Discover(selectedProject, selectedFrom, selectedTo string) (Result, error) 
 		result.Checks = append(result.Checks, item)
 	}
 	for _, item := range cncf {
-		appendIdentity(FamilyCNCF, item.Project, item.Component, item.RuleID, item.From, item.To, item.Transition())
+		appendIdentity(FamilyCNCF, item.Project, item.Component, item.RuleID, item.From, item.To, item.Transition(), item.Withdrawn)
 	}
 	for _, item := range community {
-		appendIdentity(FamilyCommunity, item.Project, item.Component, item.RuleID, item.From, item.To, item.Transition())
+		appendIdentity(FamilyCommunity, item.Project, item.Component, item.RuleID, item.From, item.To, item.Transition(), false)
 	}
 	sort.Slice(result.Checks, func(i, j int) bool {
 		if result.Checks[i].Project != result.Checks[j].Project {
@@ -865,8 +872,20 @@ func Discover(selectedProject, selectedFrom, selectedTo string) (Result, error) 
 	})
 	if len(result.Checks) != 0 {
 		result.RuleCoverageState = "MATCHED"
+		if allWithdrawn(result.Checks) {
+			result.RuleCoverageState = RuleCoverageWithdrawnOnly
+		}
 	}
 	return result, nil
+}
+
+func allWithdrawn(checks []Check) bool {
+	for _, check := range checks {
+		if !check.Withdrawn {
+			return false
+		}
+	}
+	return true
 }
 
 func validDescriptor(item descriptor) bool {

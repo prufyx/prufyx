@@ -522,12 +522,48 @@ func TestFluentdInvalidRubyVersionIsInvalidInput(t *testing.T) {
 	t.Fatal("Fluentd satisfied fixture missing")
 }
 
+// A withdrawn rule decides nothing: it is not a rule and not coverage. The
+// only withdrawn rule of the pack (CRI-O) must be counted apart, so that the
+// catalogue says 53 projects with rules, not 54.
+func TestCatalogueCountsActiveRulesOnly(t *testing.T) {
+	crio, err := Catalog(false, "cri-o")
+	if err != nil || len(crio.Projects) != 1 {
+		t.Fatal(err)
+	}
+	project := crio.Projects[0]
+	if project.SourceRuleCount != 0 || project.WithdrawnRuleCount != 1 || project.GenericCoverage != "withdrawn_only" || len(project.Checks) != 1 || !EntryWithdrawn(project.Checks[0]) {
+		t.Fatalf("cri-o: %+v", project)
+	}
+	if crio.SourceRuleCovered != 53 {
+		t.Fatalf("projects with active rules = %d, want 53", crio.SourceRuleCovered)
+	}
+	ids, err := EmbeddedRuleIdentities()
+	if err != nil {
+		t.Fatal(err)
+	}
+	withdrawn := 0
+	for _, id := range ids {
+		if id.Withdrawn {
+			withdrawn++
+			if id.Project != "cri-o" {
+				t.Errorf("unexpected withdrawn rule %s", id.RuleID)
+			}
+		}
+	}
+	if withdrawn != 1 {
+		t.Fatalf("%d withdrawn identities, want 1", withdrawn)
+	}
+	if got := ClosestProjects("crossplanex", 1); len(got) != 1 || got[0] != "crossplane" {
+		t.Fatalf("closest = %v", got)
+	}
+}
+
 func TestCatalogueDoesNotInventCoverage(t *testing.T) {
 	all, err := Catalog(false, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if all.Catalogued != 255 || all.PriorityProjects != 30 || len(all.Projects) != 255 || all.SourceRuleCovered != 54 || all.RuntimeReproduced != 0 {
+	if all.Catalogued != 255 || all.PriorityProjects != 30 || len(all.Projects) != 255 || all.SourceRuleCovered != 53 || all.RuntimeReproduced != 0 {
 		t.Fatalf("unexpected inventory: %+v", all)
 	}
 	priority, err := Catalog(true, "")

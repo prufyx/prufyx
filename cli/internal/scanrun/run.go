@@ -209,9 +209,17 @@ func Run(request Request, options Options) (Result, error) {
 	report.Summary.DocumentsRead = len(manifests.Documents)
 	readable := 0
 	for _, file := range workspace.Files {
+		if report.Anchor == "" && file.Policy != intake.ModeNotApplicable {
+			report.Anchor = file.Display
+		}
 		if file.Policy == intake.ModeReadableByOthers {
 			readable++
 		}
+	}
+	// Without an input file (standard input only), results that belong to the
+	// whole scan sit at the configuration file the user named, if any.
+	if report.Anchor == "" && request.Config != "" {
+		report.Anchor = request.Config
 	}
 	if readable > 0 {
 		report.Notes = append(report.Notes, scanreport.PermissionNote(readable))
@@ -391,7 +399,10 @@ func checkComponents(knowledge componentCatalog, effective scanconfig.Effective)
 	sort.Strings(names)
 	for _, slug := range names {
 		if _, ok := knowledge.Component(slug); !ok {
-			return usage(scanreport.UsageUnknownComponent, quote(slug), strings.Join(closest(slug, knowledge.Projects(), 3), ", "))
+			if near := closest(slug, knowledge.Projects(), 3); len(near) > 0 {
+				return usage(scanreport.UsageUnknownComponent, quote(slug), strings.Join(near, ", "))
+			}
+			return usage(scanreport.UsageUnknownComponentNoMatch, quote(slug))
 		}
 	}
 	return nil

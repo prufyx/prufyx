@@ -4,8 +4,13 @@ package scanrun
 
 import "sort"
 
-// closest returns up to limit candidates nearest to name by edit distance,
-// ties broken lexically. The order is deterministic.
+// closeEnough is the largest edit distance at which a candidate is offered as
+// a suggestion: a guess that shares almost nothing with the name is noise.
+func closeEnough(name string) int { return max(2, (len(name)+1)/3) }
+
+// closest returns up to limit candidates nearest to name by edit distance
+// (at most closeEnough), ties broken lexically. The order is deterministic.
+// It returns nothing when no candidate is near.
 func closest(name string, candidates []string, limit int) []string {
 	type scored struct {
 		value    string
@@ -23,6 +28,9 @@ func closest(name string, candidates []string, limit int) []string {
 	})
 	out := make([]string, 0, limit)
 	for index := 0; index < len(scoredList) && index < limit; index++ {
+		if scoredList[index].distance > closeEnough(name) {
+			break
+		}
 		out = append(out, scoredList[index].value)
 	}
 	return out

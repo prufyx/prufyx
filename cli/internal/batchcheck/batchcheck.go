@@ -264,7 +264,7 @@ func validPlan(plan Plan) bool {
 			}
 			if embedded {
 				catalogue, err := cncfcheck.Catalog(false, item.Project)
-				if err != nil || len(catalogue.Projects) != 1 || catalogue.Projects[0].SourceRuleCount == 0 {
+				if err != nil || len(catalogue.Projects) != 1 || catalogue.Projects[0].SourceRuleCount+catalogue.Projects[0].WithdrawnRuleCount == 0 {
 					return false
 				}
 			}

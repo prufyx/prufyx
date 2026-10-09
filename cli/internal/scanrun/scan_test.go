@@ -74,7 +74,7 @@ func TestScanQuickstartMigrated(t *testing.T) {
 	if unknown.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(unknown.Report), []string{"LINE_NOT_ATTESTED 1.27->1.28", "LINE_NOT_ATTESTED 1.29->1.30.4"}) {
 		t.Fatalf("unreviewed lines: exit %d gaps %v", unknown.Exit, gapReasons(unknown.Report))
 	}
-	if !strings.HasPrefix(unknown.Report.Headline, "NO BLOCKERS FOUND IN COVERED CHECKS: 2 areas") {
+	if !strings.HasPrefix(unknown.Report.Headline, "UNKNOWN: no blocker in the checks that ran; 2 areas") {
 		t.Fatal(unknown.Report.Headline)
 	}
 	golden(t, "quickstart-migrated-unknown.txt", scanreport.Human(unknown.Report, scanreport.HumanOptions{}))

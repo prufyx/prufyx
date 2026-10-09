@@ -128,7 +128,7 @@ func TestKnowledgeAgeCheckCNCFStore(t *testing.T) {
 	input := writeCNCFFile(t, "active-input.json", []byte(kyvernoInputTrue), 0o600)
 	args := externalCLIArgs(fixture, input, "2", fixture.manifest.Revisions[1].BundleDigest, fixture.receipt2.TrustReceiptDigest)
 	code, stdout, stderr := runCNCFCLIRaw(t, append(args, "--format", "json")...)
-	pattern := regexp.MustCompile(`^prufyx: note: 1 knowledge rule expires within 30 days, the earliest on \d{4}-\d\d-\d\d \(in (less than a day|1 day)\); update with ` + "`prufyx db update`" + `\n$`)
+	pattern := regexp.MustCompile(`^prufyx: note: 1 knowledge rule expires within 30 days, the earliest on \d{4}-\d\d-\d\d \(in (less than a day|1 day)\)\. No official update yet: ` + "`prufyx db import`" + ` a newer signed package you trust, or build from newer source before they expire\.\n$`)
 	if code != ExitBlocked || !pattern.MatchString(stderr) {
 		t.Fatalf("code=%d stderr=%q", code, stderr)
 	}
@@ -246,7 +246,7 @@ func TestKnowledgeAgeBatchStore(t *testing.T) {
 	for _, format := range []string{"human", "json"} {
 		var stdout, stderr bytes.Buffer
 		code := Run(context.Background(), []string{"check", "batch", "--plan", planPath, "--root", root, "--knowledge-db", fixture.store, "--format", format}, &stdout, &stderr, "test")
-		pattern := regexp.MustCompile(`^prufyx: note: 1 knowledge rule expires within 30 days, the earliest on \d{4}-\d\d-\d\d \(in (less than a day|1 day)\); update with ` + "`prufyx db update`" + `\n$`)
+		pattern := regexp.MustCompile(`^prufyx: note: 1 knowledge rule expires within 30 days, the earliest on \d{4}-\d\d-\d\d \(in (less than a day|1 day)\)\. No official update yet: ` + "`prufyx db import`" + ` a newer signed package you trust, or build from newer source before they expire\.\n$`)
 		if code != ExitBlocked || !pattern.MatchString(stderr.String()) || strings.Contains(stdout.String(), "knowledge rule expires") || strings.Contains(stderr.String(), fixture.store) {
 			t.Fatalf("%s: code=%d stderr=%q stdout=%s", format, code, stderr.String(), stdout.String())
 		}

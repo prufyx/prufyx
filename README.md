@@ -33,16 +33,15 @@ go build -buildvcs=false -o "$HOME/.local/bin/prufyx" ./cmd/prufyx-community
 The [quickstart guide](cli/docs/quickstart.md) takes you from a clean clone to
 a real `BLOCKED` verdict on a Kubernetes API removal, with its upstream source
 citation, in under five minutes. It also shows how to wire the exit code into
-CI.
+CI (use `check --strict-exit` there).
 
 ## What the verdicts mean
 
-The table is for `check`, where `PASS` is scoped to one rule. `scan` exit `0`
-means a complete scope. See [exit codes](cli/docs/exit-codes.md) for the single
-table of both. In CI use `check --strict-exit`: a scoped `PASS` then exits
-`14`, so a pipeline cannot read one passed rule as a complete pass (without the
-flag a scoped `PASS` exits `0` while the whole-upgrade aggregate is still
-`UNKNOWN`).
+The table is for `check`, where `PASS` is scoped to the rules that were
+checked. `scan` exit `0` means a complete scope. See [exit codes](cli/docs/exit-codes.md)
+for the single table of both, and for `check --strict-exit`, which CI should
+always use: a scoped `PASS` then exits `14`, so it cannot be read as a
+complete pass.
 
 | Verdict | Meaning | Exit code |
 | --- | --- | --- |

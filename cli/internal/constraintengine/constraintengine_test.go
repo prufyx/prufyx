@@ -39,7 +39,7 @@ func TestForbidPredicateTriStateAndAlwaysUnknownAggregate(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if strings.Contains(string(raw), "boolValue") || strings.Contains(string(raw), "operator-declared-private") {
+			if strings.Contains(string(raw), `"boolValue":`) || strings.Contains(string(raw), "operator-declared-private") {
 				t.Fatalf("report leaked minimized input: %s", raw)
 			}
 			if _, err := Replay(input, rules, now, raw); err != nil {
@@ -339,7 +339,7 @@ func TestRequiredFactsIncludeApplicabilityGuards(t *testing.T) {
 		t.Fatal(err)
 	}
 	missingReport, err := Evaluate(missing, rules, testNow(t))
-	if err != nil || missingReport.Claims[0].Status != "UNKNOWN" || !strings.Contains(missingReport.Claims[0].NextAction, "component.example.guard_enabled") || !strings.Contains(missingReport.Claims[0].NextAction, "actual") {
+	if err != nil || missingReport.Claims[0].Status != "UNKNOWN" || !strings.Contains(missingReport.Claims[0].NextAction, "component.example.guard_enabled") || !strings.Contains(missingReport.Claims[0].NextAction, "missing from the input") {
 		t.Fatalf("missing guard report=%+v err=%v", missingReport, err)
 	}
 }
@@ -353,8 +353,19 @@ func TestNextActionsRequestTruthfulLocalInspection(t *testing.T) {
 		t.Fatal(err)
 	}
 	action := report.Claims[0].NextAction
-	if !strings.Contains(action, "inspect local") || !strings.Contains(action, "component.example.feature_enabled") || !strings.Contains(action, "actual") || !strings.Contains(action, "mark missing") || strings.Contains(action, "expected true") {
-		t.Fatalf("misleading fact action=%q", action)
+	if !strings.Contains(action, "`component.example.feature_enabled` is missing from the input") || !strings.Contains(action, `"facts" of the proposed component`) || !strings.Contains(action, `"boolValue"`) || strings.Contains(action, "inspect local") || strings.Contains(action, "pkg:") || strings.Contains(action, "mark missing") || strings.Contains(action, "expected true") {
+		t.Fatalf("fact action is jargon or misleading: %q", action)
+	}
+	// The text never points at a catalogue command: it names the input key,
+	// so it cannot send a user to a slug that does not exist.
+	for _, text := range []string{
+		factAction(factCondition{Side: "current", Component: "pkg:x", FactID: testFact, BoolValue: new(bool)}, false),
+		factAction(factCondition{Side: "proposed", Component: "pkg:x", FactID: testFact, EnumValue: "v1"}, false),
+		factAction(factCondition{Side: "proposed", Component: "pkg:x", FactID: testFact}, true),
+	} {
+		if strings.Contains(text, "catalog") || strings.Contains(text, "--") || strings.Contains(text, "flag") || !strings.Contains(text, `"state": "declared"`) || !strings.Contains(text, `"facts" of the`) {
+			t.Fatalf("fact action does not name the declaration exactly: %q", text)
+		}
 	}
 	mismatched, err := Evaluate(testInput(t, registry, `{"id":"component.example.feature_enabled","state":"declared","boolValue":false}`, "2.1.0"), rules, testNow(t))
 	if err != nil {
@@ -365,7 +376,7 @@ func TestNextActionsRequestTruthfulLocalInspection(t *testing.T) {
 		t.Fatalf("misleading transition action=%q", action)
 	}
 	longComponent := "pkg:" + strings.Repeat("a", 255)
-	if len(subjectAction(transition{Component: longComponent, From: "1.0.0", To: "2.0.0"})) > maxStringBytes || len(factAction(factCondition{Side: "proposed", Component: longComponent, FactID: testFact})) > maxStringBytes || len(dependencyAction(componentCheck{Side: "proposed", Component: longComponent, Comparison: "gte", Version: "1.0.0"})) > maxStringBytes {
+	if len(subjectAction(transition{Component: longComponent, From: "1.0.0", To: "2.0.0"})) > maxStringBytes || len(factAction(factCondition{Side: "proposed", Component: longComponent, FactID: testFact}, false)) > maxStringBytes || len(dependencyAction(componentCheck{Side: "proposed", Component: longComponent, Comparison: "gte", Version: "1.0.0"})) > maxStringBytes {
 		t.Fatal("long rule identifiers exceeded public action bound")
 	}
 }

@@ -13,11 +13,13 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 )
@@ -37,6 +39,9 @@ func (r runtime) cncfCatalog(args []string) int {
 	}
 	catalogue, err := cncfcheck.Catalog(*priority, *project)
 	if err != nil {
+		if *project != "" {
+			return r.cncfProjectError(*project, err)
+		}
 		return r.cncfError("CNCF catalogue could not be loaded", err)
 	}
 	if *format == "json" {
@@ -47,13 +52,17 @@ func (r runtime) cncfCatalog(args []string) int {
 	}
 	fmt.Fprintf(r.stdout, "CNCF catalogue: %d projects; initial priority: %d\ngeneric source-rule preview: %d projects; runtime transitions reproduced: %d\nlandscape revision: %s\npriority is maintainer selection, not an adoption ranking\n", catalogue.Catalogued, catalogue.PriorityProjects, catalogue.SourceRuleCovered, catalogue.RuntimeReproduced, catalogue.LandscapeRevision)
 	for _, item := range catalogue.Projects {
-		fmt.Fprintf(r.stdout, "%s: %s (%s); %d generic source rules\n", item.Slug, item.Name, item.CNCFStage, item.SourceRuleCount)
+		fmt.Fprintf(r.stdout, "%s: %s (%s); %s\n", item.Slug, item.Name, item.CNCFStage, ruleCountText(item.SourceRuleCount, item.WithdrawnRuleCount))
 		for _, route := range item.ExistingChecks {
 			fmt.Fprintf(r.stdout, "  existing named check: %s\n", route)
 		}
 		if *project != "" {
 			for _, entry := range item.Checks {
-				fmt.Fprintf(r.stdout, "  %s\n", entry.Description)
+				withdrawn := ""
+				if cncfcheck.EntryWithdrawn(entry) {
+					withdrawn = " (withdrawn: always answers UNKNOWN)"
+				}
+				fmt.Fprintf(r.stdout, "  %s%s\n", entry.Description, withdrawn)
 				for _, fact := range entry.RequiredFacts {
 					fmt.Fprintf(r.stdout, "    %s: %s\n", fact.ID, fact.Description)
 				}
@@ -61,6 +70,19 @@ func (r runtime) cncfCatalog(args []string) int {
 		}
 	}
 	return ExitOK
+}
+
+// ruleCountText words the rule count of a catalogue line. Withdrawn rules are
+// named apart: they decide nothing, so they are not part of the active count.
+func ruleCountText(active, withdrawn int) string {
+	text := fmt.Sprintf("%d active generic source rules", active)
+	if active == 1 {
+		text = "1 active generic source rule"
+	}
+	if withdrawn > 0 {
+		text += fmt.Sprintf(" (%d withdrawn)", withdrawn)
+	}
+	return text
 }
 
 func (r runtime) cncf(args []string) int {
@@ -766,7 +788,7 @@ Add --show-passes with --format human on the Kubernetes native-resource route an
 		return r.usage("external CNCF checks use verifier time; historical replay requires complete input and knowledge pins")
 	}
 	if _, err := cncfcheck.Catalog(false, *project); err != nil {
-		return r.cncfError("CNCF project selection failed", err)
+		return r.cncfProjectError(*project, err)
 	}
 	if resourceExclusionsArgoRequested {
 		return r.cncfArgoCDResourceExclusions(*resourceExclusionsConfigMap, *resourceExclusionsConfigMapPin, *from, *to, *resourceExclusionsComplete, *resourceExclusionsPrecedence, *requiresV2Visibility, now, *format)
@@ -926,11 +948,12 @@ Add --show-passes with --format human on the Kubernetes native-resource route an
 			}
 		}
 		for _, claim := range summary.shown {
-			fmt.Fprintf(r.stdout, "%s: %s (%s)\nnext action: %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction)
+			fmt.Fprintf(r.stdout, "%s: %s (%s)\n%s\n", claim.RuleID, claim.Status, claim.ReasonCode, claimActionLine(claim))
 			if line, ok := claim.MatchedMembersLine(); ok {
 				fmt.Fprintln(r.stdout, line)
 			}
 			fmt.Fprintln(r.stdout, claim.EvidenceBasisLine())
+			writeCitedSources(r.stdout, claim)
 		}
 		if err := writeNotices(r.stdout, summary.notices); err != nil {
 			return ExitIntegrity
@@ -946,6 +969,7 @@ Add --show-passes with --format human on the Kubernetes native-resource route an
 				return ExitIntegrity
 			}
 		}
+		fmt.Fprintln(r.stdout, scopedResultLine(cncfcheck.ClaimExit(report)))
 		fmt.Fprintln(r.stdout, "aggregate: UNKNOWN")
 		fmt.Fprintf(r.stdout, "input digest: %s\nknowledge pack digest: %s\nnext action: %s\n", report.InputFileDigest, report.KnowledgePackDigest, report.NextAction)
 		if *replay != "" {
@@ -1138,7 +1162,42 @@ func readCNCFPrivate(path string, limit int) ([]byte, error) {
 	return raw, nil
 }
 
+// cncfProjectError reports a project selection that failed. A slug the
+// catalogue does not know is named with the slugs nearest to it, and the
+// command that lists every project; any other failure keeps the general
+// message.
+func (r runtime) cncfProjectError(project string, err error) int {
+	if !errors.Is(err, cncfcheck.ErrInvalid) {
+		return r.cncfError("CNCF project selection failed", err)
+	}
+	message := fmt.Sprintf("unknown project %q; list projects with `prufyx catalog cncf`", project)
+	if closest := cncfcheck.ClosestProjects(project, 3); len(closest) > 0 {
+		message += " (closest: " + strings.Join(closest, ", ") + ")"
+	}
+	return r.fail(message, ExitUsage)
+}
+
+// writeCitedSources prints the pinned sources of a claim whose next action
+// sends the user to "its cited source": a stale or withdrawn rule. The native
+// routes print them for every claim; the generic route prints only these, so
+// the action refers to something the person can see.
+func writeCitedSources(out io.Writer, claim constraintengine.Claim) {
+	if claim.ReasonCode != "RULE_EVIDENCE_STALE" && claim.ReasonCode != "RULE_EVIDENCE_WITHDRAWN" {
+		return
+	}
+	for _, source := range claim.Sources {
+		fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest)
+	}
+}
+
+// olderContractMessage is the replay refusal for a report saved by a build
+// whose guidance text differs; the decisions are unchanged.
+const olderContractMessage = "replay refused: the report is from an older engine contract (the wording of its next actions has changed; its decisions are not in question). Generate a new report with this build; replay needs the exact bytes"
+
 func (r runtime) cncfError(message string, err error) int {
+	if errors.Is(err, constraintengine.ErrReplayOlderContract) {
+		return r.fail(olderContractMessage, ExitUsage)
+	}
 	if errors.Is(err, cncfcheck.ErrIntegrity) || errors.Is(err, currentbundle.ErrIntegrity) {
 		return r.fail(message, ExitIntegrity)
 	}

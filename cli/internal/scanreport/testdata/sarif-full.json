@@ -126,6 +126,54 @@
                 "basis": "reviewed",
                 "kind": "blocker"
               }
+            },
+            {
+              "id": "prufyx/gap/COMPONENT_NOT_COVERED",
+              "shortDescription": {
+                "text": "Area not checked: COMPONENT_NOT_COVERED"
+              },
+              "help": {
+                "text": "Prufyx could not decide this area (COMPONENT_NOT_COVERED), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "basis": "none",
+                "kind": "gap"
+              }
+            },
+            {
+              "id": "prufyx/gap/DECLARATION_MISSING",
+              "shortDescription": {
+                "text": "Area not checked: DECLARATION_MISSING"
+              },
+              "help": {
+                "text": "Prufyx could not decide this area (DECLARATION_MISSING), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "basis": "none",
+                "kind": "gap"
+              }
+            },
+            {
+              "id": "prufyx/gap/RULE_NOT_DECIDED",
+              "shortDescription": {
+                "text": "Area not checked: RULE_NOT_DECIDED"
+              },
+              "help": {
+                "text": "Prufyx could not decide this area (RULE_NOT_DECIDED), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "basis": "none",
+                "kind": "gap"
+              }
             }
           ]
         }
@@ -134,7 +182,7 @@
         {
           "executionSuccessful": true,
           "exitCode": 10,
-          "exitCodeDescription": "BLOCKED: 3 problems must be fixed before this upgrade",
+          "exitCodeDescription": "BLOCKED: 3 problems must be fixed; 3 areas were not checked",
           "startTimeUtc": "2026-10-04T00:00:00Z",
           "toolExecutionNotifications": [
             {
@@ -582,17 +630,108 @@
             "basis": "reviewed",
             "match": "anchor"
           }
+        },
+        {
+          "ruleId": "prufyx/gap/COMPONENT_NOT_COVERED",
+          "ruleIndex": 7,
+          "level": "warning",
+          "message": {
+            "text": "etcd is not evaluated by scan yet - run prufyx check cncf --project etcd, or verify its upgrade notes by hand"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "prufyx.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "68ad9bf088eb1f3ef411997befa11558d8c36127171aaf72d3fe1cdcd4c44092"
+          },
+          "properties": {
+            "component": "etcd",
+            "hop": "",
+            "basis": "none",
+            "match": "gap"
+          }
+        },
+        {
+          "ruleId": "prufyx/gap/DECLARATION_MISSING",
+          "ruleIndex": 8,
+          "level": "warning",
+          "message": {
+            "text": "the kubernetes manifests are not declared to be the complete set you apply - if they are, add resourceScopeComplete: true to prufyx.yaml or pass --resource-scope-complete"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "prufyx.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "14d0cb0d39fa1795dcacb3eb3ee694030e373625bcef1d6c01f7732ad6381332"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "",
+            "basis": "none",
+            "match": "gap"
+          }
+        },
+        {
+          "ruleId": "prufyx/gap/RULE_NOT_DECIDED",
+          "ruleIndex": 9,
+          "level": "warning",
+          "message": {
+            "text": "rule kubernetes.x could not be decided (STALE) - run the hop with prufyx check cncf to see the rule's next action, or check by hand"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "prufyx.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "48651d2c0e4c51655b1014422086257e81017f261a7436bd5329a6ad05bf2ad8"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "1.25 -> 1.26",
+            "basis": "none",
+            "match": "gap"
+          }
         }
       ],
       "properties": {
         "verdict": "BLOCKED",
-        "headline": "BLOCKED: 3 problems must be fixed before this upgrade",
+        "headline": "BLOCKED: 3 problems must be fixed; 3 areas were not checked",
         "summary": {
           "blockers": 3,
           "gaps": 3,
           "passes": 1,
           "componentsDetected": 1,
           "componentsCovered": 1,
+          "componentsWithRules": 1,
           "hops": 2,
           "documentsRead": 9,
           "documentsOmitted": 1,

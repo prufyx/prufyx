@@ -45,16 +45,16 @@ func TestWindowBoundaries(t *testing.T) {
 func TestLineWording(t *testing.T) {
 	soon := base.Add(17*24*time.Hour + 3*time.Hour)
 	summary := Summarize(one(soon, soon.Add(24*time.Hour), base.Add(90*24*time.Hour)), base)
-	want := "note: 2 knowledge rules expire within 30 days, the earliest on 2026-12-07 (in 17 days); update with `prufyx db update` and use --knowledge-db"
+	want := "note: 2 knowledge rules expire within 30 days, the earliest on 2026-12-07 (in 17 days). No official update yet: build from newer source, or `prufyx db import` a signed package you trust (then use --knowledge-db) before they expire."
 	if got := Line(summary, base, true); got != want {
 		t.Errorf("embedded:\n%s\n%s", got, want)
 	}
-	want = "note: 2 knowledge rules expire within 30 days, the earliest on 2026-12-07 (in 17 days); update with `prufyx db update`"
+	want = "note: 2 knowledge rules expire within 30 days, the earliest on 2026-12-07 (in 17 days). No official update yet: `prufyx db import` a newer signed package you trust, or build from newer source before they expire."
 	if got := Line(summary, base, false); got != want {
 		t.Errorf("store:\n%s\n%s", got, want)
 	}
 	ended := base.Add(-2*24*time.Hour - time.Hour)
-	want = "note: 1 knowledge rule has expired, the earliest on 2026-11-18 (2 days ago); update with `prufyx db update` and use --knowledge-db"
+	want = "note: 1 knowledge rule has expired, the earliest on 2026-11-18 (2 days ago). No official update yet: build from newer source, or `prufyx db import` a signed package you trust (then use --knowledge-db). Expired rules answer UNKNOWN."
 	if got := Line(Summarize(one(ended, soon), base), base, true); got != want {
 		t.Errorf("expired:\n%s\n%s", got, want)
 	}
@@ -109,5 +109,28 @@ func TestDeterministic(t *testing.T) {
 	b := Line(Summarize(one(base.Add(5*24*time.Hour)), base), base, true)
 	if a != b || a == "" {
 		t.Fatal(a, b)
+	}
+}
+
+// TestLineAdviceWorksToday: no official knowledge feed exists, so the note
+// must not send the user to a command that cannot succeed for them
+// (`prufyx db update` needs a source and a trust root they do not have). It
+// names what works today: newer source, or a signed package they trust.
+func TestLineAdviceWorksToday(t *testing.T) {
+	ended := base.Add(-2 * 24 * time.Hour)
+	soon := base.Add(5 * 24 * time.Hour)
+	for _, embedded := range []bool{true, false} {
+		for _, end := range []time.Time{ended, soon} {
+			line := Line(Summarize(one(end), base), base, embedded)
+			if strings.Contains(line, "db update") || !strings.Contains(line, "`prufyx db import`") || !strings.Contains(line, "newer source") || !strings.Contains(line, "No official update yet") {
+				t.Errorf("embedded=%v: %q", embedded, line)
+			}
+			if embedded != strings.Contains(line, "--knowledge-db") {
+				t.Errorf("embedded=%v: --knowledge-db advice is wrong: %q", embedded, line)
+			}
+		}
+	}
+	if line := Line(Summarize(one(ended), base), base, true); !strings.Contains(line, "answer UNKNOWN") {
+		t.Errorf("an expired line must say what the expired rules answer: %q", line)
 	}
 }

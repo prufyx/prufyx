@@ -15,9 +15,9 @@ run `chmod 600 values.json` before the check.
 
 ## Exit codes
 
-A `check` exit `0` means one scoped rule passed, not that the upgrade is safe.
-Add `--strict-exit` to any `check` route to exit `14` instead of `0` on a scoped
-PASS. The single table of exit codes for `check` and `scan` is in
+A `check` exit `0` means the reviewed rules it evaluated passed, not that the
+upgrade is safe. In CI add `--strict-exit` to every `check` route to exit `14`
+instead of `0` on a scoped PASS. The single table of exit codes for `check` and `scan` is in
 [exit-codes.md](exit-codes.md).
 
 ## Choosing which evidence to trust
@@ -50,13 +50,16 @@ active rule that ends within 30 days of the evaluation instant or has already
 ended:
 
 ```text
-prufyx: note: 166 knowledge rules expire within 30 days, the earliest on 2026-12-07 (in 17 days); update with `prufyx db update` and use --knowledge-db
-prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (2 days ago); update with `prufyx db update` and use --knowledge-db
+prufyx: note: 166 knowledge rules expire within 30 days, the earliest on 2026-12-07 (in 17 days). No official update yet: build from newer source, or `prufyx db import` a signed package you trust (then use --knowledge-db) before they expire.
+prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (2 days ago). No official update yet: build from newer source, or `prufyx db import` a signed package you trust (then use --knowledge-db). Expired rules answer UNKNOWN.
 ```
 
 With the embedded knowledge the instant is `--now`; with `--knowledge-db` it is
 the verifier's clock and the line describes the database's selected target
-(and leaves out `and use --knowledge-db`). A batch describes the embedded
+(and leaves out `then use --knowledge-db`). No official knowledge update is
+published yet: the line names a newer source build or a signed package you
+trust (`prufyx db import`), not `prufyx db update`, which needs a source and a
+trust root you supply. A batch describes the embedded
 CNCF knowledge only when an item used it. Standard output, JSON, the exit
 status and a replay report (`--replay-report`) are unchanged; a command that
 stops with an error, or prints help, prints no note. The same note is printed

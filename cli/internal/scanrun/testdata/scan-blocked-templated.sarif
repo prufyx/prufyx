@@ -25,6 +25,38 @@
                 "basis": "reviewed",
                 "kind": "blocker"
               }
+            },
+            {
+              "id": "prufyx/gap/API_VERSION_NOT_REVIEWED",
+              "shortDescription": {
+                "text": "Area not checked: API_VERSION_NOT_REVIEWED"
+              },
+              "help": {
+                "text": "Prufyx could not decide this area (API_VERSION_NOT_REVIEWED), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "basis": "none",
+                "kind": "gap"
+              }
+            },
+            {
+              "id": "prufyx/gap/DOCUMENTS_TEMPLATED",
+              "shortDescription": {
+                "text": "Area not checked: DOCUMENTS_TEMPLATED"
+              },
+              "help": {
+                "text": "Prufyx could not decide this area (DOCUMENTS_TEMPLATED), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "basis": "none",
+                "kind": "gap"
+              }
             }
           ]
         }
@@ -33,7 +65,7 @@
         {
           "executionSuccessful": true,
           "exitCode": 10,
-          "exitCodeDescription": "BLOCKED: 1 problem must be fixed before this upgrade",
+          "exitCodeDescription": "BLOCKED: 1 problem must be fixed; 2 areas were not checked",
           "startTimeUtc": "2026-11-20T00:00:00Z",
           "toolExecutionNotifications": [
             {
@@ -102,17 +134,78 @@
             "basis": "reviewed",
             "match": "range"
           }
+        },
+        {
+          "ruleId": "prufyx/gap/API_VERSION_NOT_REVIEWED",
+          "ruleIndex": 1,
+          "level": "warning",
+          "message": {
+            "text": "1 manifest(s) use API versions that the review of Kubernetes 1.30 does not list as served - check those API versions against the Kubernetes 1.30 API reference by hand"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "applyset.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "623778102cecbb5d6cb3c27b50c8bcbc7454c58133d8ff780858bd3b6f164599"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "",
+            "basis": "none",
+            "match": "gap"
+          }
+        },
+        {
+          "ruleId": "prufyx/gap/DOCUMENTS_TEMPLATED",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "2 document(s) contain unrendered templates - render them (for example with helm template) and scan the output"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "applyset.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "92768a8d9e5c180ce95029e02024682bb4757c47c83f3096203920bdc43dbe58"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "",
+            "basis": "none",
+            "match": "gap"
+          }
         }
       ],
       "properties": {
         "verdict": "BLOCKED",
-        "headline": "BLOCKED: 1 problem must be fixed before this upgrade",
+        "headline": "BLOCKED: 1 problem must be fixed; 2 areas were not checked",
         "summary": {
           "blockers": 1,
           "gaps": 2,
           "passes": 0,
           "componentsDetected": 1,
           "componentsCovered": 1,
+          "componentsWithRules": 1,
           "hops": 6,
           "documentsRead": 2,
           "documentsOmitted": 2,

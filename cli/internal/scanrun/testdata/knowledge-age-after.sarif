@@ -25,6 +25,38 @@
                 "basis": "reviewed",
                 "kind": "blocker"
               }
+            },
+            {
+              "id": "prufyx/gap/API_VERSION_NOT_REVIEWED",
+              "shortDescription": {
+                "text": "Area not checked: API_VERSION_NOT_REVIEWED"
+              },
+              "help": {
+                "text": "Prufyx could not decide this area (API_VERSION_NOT_REVIEWED), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "basis": "none",
+                "kind": "gap"
+              }
+            },
+            {
+              "id": "prufyx/gap/LINE_NOT_ATTESTED",
+              "shortDescription": {
+                "text": "Area not checked: LINE_NOT_ATTESTED"
+              },
+              "help": {
+                "text": "Prufyx could not decide this area (LINE_NOT_ATTESTED), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "basis": "none",
+                "kind": "gap"
+              }
             }
           ]
         }
@@ -33,13 +65,13 @@
         {
           "executionSuccessful": true,
           "exitCode": 10,
-          "exitCodeDescription": "BLOCKED: 1 problem must be fixed before this upgrade",
+          "exitCodeDescription": "BLOCKED: 1 problem must be fixed; 2 areas were not checked",
           "startTimeUtc": "2026-12-10T00:00:00Z",
           "toolExecutionNotifications": [
             {
               "level": "warning",
               "message": {
-                "text": "no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the Kubernetes 1.25 API reference by hand, or request coverage"
+                "text": "no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the API reference of that Kubernetes release by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml"
               },
               "descriptor": {
                 "id": "API_VERSION_NOT_REVIEWED"
@@ -103,17 +135,78 @@
             "basis": "reviewed",
             "match": "range"
           }
+        },
+        {
+          "ruleId": "prufyx/gap/API_VERSION_NOT_REVIEWED",
+          "ruleIndex": 1,
+          "level": "warning",
+          "message": {
+            "text": "no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the API reference of that Kubernetes release by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "applyset.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "623778102cecbb5d6cb3c27b50c8bcbc7454c58133d8ff780858bd3b6f164599"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "",
+            "basis": "none",
+            "match": "gap"
+          }
+        },
+        {
+          "ruleId": "prufyx/gap/LINE_NOT_ATTESTED",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "no review confirms that the removed-API rules for kubernetes 1.25 name every API that line removes - check the kubernetes 1.25 release notes for other removed APIs by hand, or request a line review"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "applyset.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "51a4bae6b6b4ece5a8cddff1308ae9a02f6aa404917eaf969611790cc20bca8b"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "1.24.17 -> 1.25.3",
+            "basis": "none",
+            "match": "gap"
+          }
         }
       ],
       "properties": {
         "verdict": "BLOCKED",
-        "headline": "BLOCKED: 1 problem must be fixed before this upgrade",
+        "headline": "BLOCKED: 1 problem must be fixed; 2 areas were not checked",
         "summary": {
           "blockers": 1,
           "gaps": 2,
           "passes": 6,
           "componentsDetected": 1,
           "componentsCovered": 1,
+          "componentsWithRules": 1,
           "hops": 1,
           "documentsRead": 2,
           "documentsOmitted": 0,

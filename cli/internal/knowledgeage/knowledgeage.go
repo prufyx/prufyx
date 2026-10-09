@@ -78,6 +78,12 @@ func Merge(lists ...[]Source) []Source {
 // line end, or "" when no rule is expired or about to be. embedded says the
 // knowledge was the one built into the binary, which can also be replaced by
 // a knowledge database. The line names no path and no input.
+//
+// There is no official knowledge feed or trust root yet, so the line names
+// the two ways to get newer knowledge today: a newer source build, or a
+// signed package the user trusts, imported with `prufyx db import`. It does
+// not recommend `prufyx db update`, which needs a source and a trust root the
+// user would have to supply.
 func Line(summary Summary, now time.Time, embedded bool) string {
 	if summary.Expired == 0 && summary.Expiring == 0 {
 		return ""
@@ -89,11 +95,16 @@ func Line(summary Summary, now time.Time, embedded bool) string {
 	} else {
 		text = fmt.Sprintf("note: %d knowledge %s within 30 days, the earliest on %s (%s)", summary.Expiring, rules(summary.Expiring, "rule expires", "rules expire"), date, in(summary.First.Sub(now)))
 	}
-	text += "; update with `prufyx db update`"
+	text += ". No official update yet: "
 	if embedded {
-		text += " and use --knowledge-db"
+		text += "build from newer source, or `prufyx db import` a signed package you trust (then use --knowledge-db)"
+	} else {
+		text += "`prufyx db import` a newer signed package you trust, or build from newer source"
 	}
-	return text
+	if summary.Expired > 0 {
+		return text + ". Expired rules answer UNKNOWN."
+	}
+	return text + " before they expire."
 }
 
 func rules(count int, one, many string) string {

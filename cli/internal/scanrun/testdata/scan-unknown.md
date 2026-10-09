@@ -1,4 +1,4 @@
-# NO BLOCKERS FOUND IN COVERED CHECKS: 2 areas were not checked
+# UNKNOWN: no blocker in the checks that ran; 2 areas were not checked (see NOT CHECKED)
 
 ## NOT CHECKED (2)
 
@@ -7,7 +7,7 @@
 | kubernetes 1.27 -> 1.28 | no review confirms that the removed-API rules for kubernetes 1.28 name every API that line removes | check the kubernetes 1.28 release notes for other removed APIs by hand, or request a line review |
 | kubernetes 1.29 -> 1.30.4 | no review confirms that the removed-API rules for kubernetes 1.30 name every API that line removes | check the kubernetes 1.30 release notes for other removed APIs by hand, or request a line review |
 
-Checked 6 hops, 2 documents, 1 component (1 covered). 11 checks passed (--show-passes).
+Read 2 documents over 6 hops; 1 of 1 component has rules (partially evaluated). 11 checks passed (--show-passes).
 
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
 

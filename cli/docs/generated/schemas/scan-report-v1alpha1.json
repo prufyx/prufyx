@@ -126,6 +126,7 @@
         "passes",
         "componentsDetected",
         "componentsCovered",
+        "componentsWithRules",
         "hops",
         "documentsRead",
         "documentsOmitted",
@@ -152,7 +153,13 @@
         },
         "componentsCovered": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "description": "Deprecated name of componentsWithRules, kept for one release."
+        },
+        "componentsWithRules": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Detected components that scan has rules for. A component with rules can still have undecided hops."
         },
         "hops": {
           "type": "integer",

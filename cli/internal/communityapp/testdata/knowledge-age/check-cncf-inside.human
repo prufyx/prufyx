@@ -6,6 +6,7 @@ network used: false
 kyverno.reports-chunk-size-removed.1-13: BLOCKED (REVIEWED_SOURCE_CONSTRAINT)
 next action: For the declared official upstream bare reports-controller surface, remove reportsChunkSize from literal proposed arguments. Otherwise supply an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.
 evidence basis: reviewed by maintainer
+scoped result: BLOCKED
 aggregate: UNKNOWN
 input digest: sha256:83faf6e3d00c2dd09282fcfc94f23e956ebb1230f9ca0eb6226863165ef7ca55
 knowledge pack digest: sha256:4d2718043fbc41bb0f99ce8a69ea9ef253c52249bb88254b969d1ebdab46e5c5

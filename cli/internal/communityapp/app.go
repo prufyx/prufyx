@@ -77,6 +77,33 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, version s
 	return run(ctx, args, stdout, stderr, version)
 }
 
+// ScopedPassExitNote is what RunCLI prints on standard error when a check
+// exits 0 without --strict-exit.
+const ScopedPassExitNote = "prufyx: note: scoped PASS (exit 0): whole-upgrade compatibility is UNKNOWN; use --strict-exit in CI"
+
+// RunCLI is Run as the command line runs it. It adds one standard-error line
+// when a check exits 0 without --strict-exit: that exit status is a scoped
+// PASS of the checked rules, and the whole upgrade stays UNKNOWN, which a
+// pipeline that reads only the exit status would not otherwise be told. The
+// exit status, standard output and replay reports are exactly Run's.
+func RunCLI(ctx context.Context, args []string, stdout, stderr io.Writer, version string) int {
+	code := Run(ctx, args, stdout, stderr, version)
+	if code != ExitOK || len(args) == 0 || args[0] != "check" {
+		return code
+	}
+	// The last --strict-exit form decides, as in Run.
+	if _, strict := stripStrictExit(args); strict {
+		return code
+	}
+	for _, a := range args[1:] {
+		if help(a) {
+			return code
+		}
+	}
+	fmt.Fprintln(stderr, ScopedPassExitNote)
+	return code
+}
+
 // stripStrictExit removes --strict-exit, --strict-exit=true and
 // --strict-exit=false from a check command line; the last one given decides.
 func stripStrictExit(args []string) ([]string, bool) {
@@ -135,11 +162,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, version s
 		}
 		return r.usage("Usage: prufyx catalog <cncf|checks> [flags]")
 	case "version":
-		identity, err := buildidentity.Report()
-		if err != nil {
-			return r.fail("build identity integrity failure", ExitIntegrity)
-		}
-		return r.writeEnvelope(envelope{SchemaVersion: legacyEnvelopeAPIVersion, Command: "version", Result: envelopeResult{Status: "OK", Scope: "local build identity", Reason: "build_identity_reported"}, Data: identity}, ExitOK)
+		return r.versionCommand(args[1:])
 	case "check":
 		if len(args) == 2 && help(args[1]) {
 			fmt.Fprintln(stdout, "Usage: prufyx check <batch|cert-manager-values|prometheus-mode|cncf|project|spiffe-x509-svid|cloudevents-structured-json|tikv-gcp-v2-wif-backup> [flags]")
@@ -192,19 +215,58 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, version s
 // tested on hosts where observation is supported.
 var openObservationRoot = observation.OpenPath
 
+// versionCommand prints the build identity: JSON by default, one line of words with
+// --format human.
+func (r runtime) versionCommand(args []string) int {
+	fs := flag.NewFlagSet("version", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	format := fs.String("format", "json", "json or human")
+	if len(args) == 1 && help(args[0]) {
+		fmt.Fprintln(r.stdout, "Usage: prufyx version [--format human|json]")
+		return ExitOK
+	}
+	if duplicateFlags(args) || fs.Parse(args) != nil || fs.NArg() != 0 || (*format != "json" && *format != "human") {
+		return r.usage("Usage: prufyx version [--format human|json]")
+	}
+	identity, err := buildidentity.Report()
+	if err != nil {
+		return r.fail("build identity integrity failure", ExitIntegrity)
+	}
+	if *format == "human" {
+		fmt.Fprintln(r.stdout, versionLine(identity))
+		return ExitOK
+	}
+	return r.writeEnvelope(envelope{SchemaVersion: legacyEnvelopeAPIVersion, Command: "version", Result: envelopeResult{Status: "OK", Scope: "local build identity", Reason: "build_identity_reported"}, Data: identity}, ExitOK)
+}
+
+// versionLine words a build identity for a person. A development build says
+// that it is a source build and not a release, and that its identity is not
+// bound to a source revision.
+func versionLine(identity buildidentity.Identity) string {
+	revision := "unbound"
+	if identity.SourceRevision != "" && identity.SourceRevision != "unbound" {
+		revision = "source revision " + identity.SourceRevision
+	}
+	if identity.ReleaseState == "development" || identity.CandidateOnly {
+		return fmt.Sprintf("prufyx %s (source build, not a release; build identity %s)", identity.Version, revision)
+	}
+	return fmt.Sprintf("prufyx %s (%s; build identity %s; profile %s)", identity.Version, identity.ReleaseState, revision, identity.BuildProfile)
+}
+
 func (r runtime) rootHelp() int {
 	fmt.Fprintln(r.stdout, `prufyx Community
 
 Usage:
-  prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...] [--config FILE] [--format human|json] [--redact] [--now RFC3339]
-  prufyx assess --kubeconfig FILE --acknowledge-kubeconfig-exec-risk [--allow-partial] [--component-configuration-profile v2|v3] [--output DIR] [--format human|json] CONTEXT...
+  prufyx version [--format human|json]
+  prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...] [--config FILE] [--format human|json|sarif|markdown] [--redact] [--now RFC3339]
+  prufyx assess --kubeconfig FILE --acknowledge-kubeconfig-exec-risk [--allow-partial] [--component-configuration-profile v2|v3] [--scope-input FILE] [--to X.Y.Z] [--kubectl PATH] [--exec-env NAME ...] [--output DIR] [--format human|json] CONTEXT...
   prufyx prepare project --project grafana|kibana|loki --effective-config FILE --from VERSION --to VERSION --effective-config-complete --precedence-resolved [--effective-config-digest SHA256] [--format human|json|input]
   prufyx prepare project --project mariadb --effective-config FILE --from 10.11.8 --to 11.4.2 --effective-config-complete --precedence-resolved --upstream-distribution --require-innodb-defragmentation true|false [--effective-config-digest SHA256] [--format human|json|input]
   prufyx prepare project --project mariadb-operator --mariadb-resource FILE --from 26.3.0 --to 26.6.0 --resource-complete --pre-operator-update [--mariadb-resource-digest SHA256] [--format human|json|input]
   prufyx prepare project --project loki --loki-schema-config FILE --from 2.9.8 --to 3.0.0 --effective-config-complete --precedence-resolved [--use-reviewed-target-default] [--loki-schema-config-digest SHA256] [--format human|json|input]
   prufyx prepare project --project fluent-bit --effective-config FILE --from 3.2.0 --to 4.0.0 --effective-config-complete --current-default-was-used --preserve-http2-enabled [--effective-config-digest SHA256] [--format human|json|input]
   prufyx prepare project --project ceph --selected-osd-metadata FILE --selected-osd-id ID --from VERSION --to VERSION --selected-osd-metadata-complete [--selected-osd-metadata-digest SHA256] [--format human|json|input]
-  Kibana 9.0.8|9.1.10|9.2.8|9.3.8|9.4.6 -> 9.5.3 additionally requires --full-status-without-monitor-required for the status-page scope.
+    note: Kibana 9.0.8|9.1.10|9.2.8|9.3.8|9.4.6 -> 9.5.3 additionally requires --full-status-without-monitor-required for the status-page scope.
   prufyx prepare project --project fluent-bit --effective-config FILE --from 3.2.10|4.0.14|4.1.2|4.2.8|5.0.10 --to 5.1.2 --effective-config-complete --require-http2 [--effective-config-digest SHA256] [--format human|json|input]
   prufyx prepare cncf --project kyverno --input FILE --container NAME --from VERSION --to VERSION [--distribution official_upstream|custom_build] [--format human|json|input]
   prufyx prepare cncf --project linkerd --input FILE --from 2.13.7 --to 2.14.0 [--distribution official_upstream|custom_build] [--schema-validation required|disabled] [--format human|json|input]
@@ -212,7 +274,8 @@ Usage:
   prufyx prepare cncf --project argo-cd --input FILE --from 2.14.0 --to 3.0.0 [--requires-inherited-application-permissions true|false] [--input-digest SHA256] [--format human|json|input]
   prufyx prepare cncf --project jaeger --input FILE --from 1.76.0 --to 2.20.0 [--non-memory-storage-required true|false] [--official-jaeger-distribution true|false] [--input-digest SHA256] [--format human|json|input]
   prufyx prepare cncf --project opencost --input FILE --from 1.119.0 --to 1.120.0 [--input-digest SHA256] [--format human|json|input]
-  prufyx prepare cncf --project harbor --input FILE --from 2.7.0 --to 2.8.0 or 2.10.3|2.11.2|2.12.4|2.13.5|2.14.4 --to 2.15.2 [--input-digest SHA256] [--format human|json|input]
+  prufyx prepare cncf --project harbor --input FILE --from 2.7.0 --to 2.8.0 [--input-digest SHA256] [--format human|json|input]
+  prufyx prepare cncf --project harbor --input FILE --from 2.10.3|2.11.2|2.12.4|2.13.5|2.14.4 --to 2.15.2 [--input-digest SHA256] [--format human|json|input]
   prufyx prepare cncf --project containerd --input FILE --runtime-handler NAME --from 1.7.28 --to 2.0.0 --containerd-config-complete --containerd-config-precedence-resolved --containerd-official-upstream --containerd-official-bundled-runtimes-only [--input-digest SHA256] [--format human|json|input]
   prufyx catalog cncf [--priority] [--project SLUG] [--format human|json]
   prufyx catalog checks --project SLUG [--from VERSION --to VERSION] [--format human|json]
@@ -233,7 +296,7 @@ Usage:
   prufyx check project --project loki --loki-schema-config FILE --from 2.9.8 --to 3.0.0 --effective-config-complete --precedence-resolved --now RFC3339 [--use-reviewed-target-default] [--loki-schema-config-digest SHA256] [--format human|json]
   prufyx check project --project fluent-bit --effective-config FILE --from 3.2.0 --to 4.0.0 --effective-config-complete --current-default-was-used --preserve-http2-enabled --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
   prufyx check project --project ceph --selected-osd-metadata FILE --selected-osd-id ID --from VERSION --to VERSION --selected-osd-metadata-complete --now RFC3339 [--selected-osd-metadata-digest SHA256] [--format human|json]
-  Kibana 9.0.8|9.1.10|9.2.8|9.3.8|9.4.6 -> 9.5.3 additionally requires --full-status-without-monitor-required for the status-page scope.
+    note: Kibana 9.0.8|9.1.10|9.2.8|9.3.8|9.4.6 -> 9.5.3 additionally requires --full-status-without-monitor-required for the status-page scope.
   prufyx check project --project fluent-bit --effective-config FILE --from 3.2.10|4.0.14|4.1.2|4.2.8|5.0.10 --to 5.1.2 --effective-config-complete --require-http2 --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
   prufyx db verify FILE --profile cert-manager|cncf|cncf-projects|spiffe-x509-svid|cloudevents-structured-json|tikv-gcp-v2-wif-backup --bootstrap-root FILE --bootstrap-root-digest SHA256 [--expected-package-digest SHA256]
   prufyx db import FILE --db-root DIR [--profile cert-manager|cncf|cncf-projects|spiffe-x509-svid|cloudevents-structured-json|tikv-gcp-v2-wif-backup] [--bootstrap-root FILE --bootstrap-root-digest SHA256]
@@ -253,6 +316,8 @@ Usage:
   prufyx community-preview example <cncf-coredns-latest|cncf-envoy-latest|cncf-etcd|cncf-nats-latest|cncf-opentelemetry|cncf-rook-latest|knowledge-cert-manager|knowledge-cncf|project-ceph-latest>
   prufyx community-preview validate-prometheus-mode ...
 
+Exit status for scan: 0 PASS FOR THE DECLARED SCOPE, 10 BLOCKED, 11 not every area checked, 2 input not accepted, 3 knowledge integrity failure.
+Exit status for check cncf and check project: 0 scoped PASS, 10 scoped BLOCKED, 11 UNKNOWN, 2 invalid input, 3 integrity failure. Exit 0 is not a whole-upgrade PASS: add --strict-exit to any check to exit 14 instead of 0 on a scoped PASS (see cli/docs/exit-codes.md).
 Exit status for check cert-manager-values: 0 scoped PASS, 10 scoped BLOCKED, 11 UNKNOWN, 2 invalid input, 3 integrity failure.
 Exit status for check prometheus-mode: 0 scoped PASS, 11 ATTENTION or UNKNOWN. The legacy alias always exits 11 because its aggregate remains UNKNOWN.
 Exit status for check spiffe-x509-svid: 0 scoped PASS, 10 scoped FAIL, 11 UNKNOWN, 2 invalid input, 3 integrity failure.
@@ -345,11 +410,15 @@ func writeCertHuman(w io.Writer, report certmanagervalues.Report) {
 	if len(report.MatchedPaths) > 0 {
 		fmt.Fprintf(w, "matched curated paths: %s\n", strings.Join(report.MatchedPaths, ", "))
 	}
-	fmt.Fprintf(w, "values digest: %s\nknowledge revision: %s\n", report.Inputs.ValuesDigest, report.Inputs.KnowledgeRevisionDigest)
+	fmt.Fprintf(w, "values digest: %s\nknowledge contract digest: %s\n", report.Inputs.ValuesDigest, report.Inputs.KnowledgeRevisionDigest)
 	fmt.Fprintf(w, "reviewed charts: %s (%s) -> %s (%s)\n", report.Transition.ReviewedFrom, report.Transition.CurrentChartManifestDigest, report.Transition.ReviewedTo, report.Transition.TargetChartManifestDigest)
 	fmt.Fprintf(w, "schema validation: %s\nassumption: %s\n", report.Policy.SchemaValidation, report.Transition.IdentityAssumption)
-	if len(report.Sources) > 2 {
-		fmt.Fprintf(w, "source: %s\n", report.Sources[2].URL)
+	for _, source := range report.Sources {
+		lines := ""
+		if len(source.Spans) > 0 {
+			lines = " lines " + strings.Join(source.Spans, ", ")
+		}
+		fmt.Fprintf(w, "source: %s%s; digest %s\n", source.URL, lines, source.ContentDigest)
 	}
 	fmt.Fprintf(w, "scope: %s\nremediation: %s\naggregate: UNKNOWN; full target Helm schema validation remains outstanding\n", report.Scope, report.Claim.Remediation)
 }

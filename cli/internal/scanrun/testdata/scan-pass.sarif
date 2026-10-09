@@ -30,6 +30,7 @@
           "passes": 11,
           "componentsDetected": 1,
           "componentsCovered": 1,
+          "componentsWithRules": 1,
           "hops": 6,
           "documentsRead": 2,
           "documentsOmitted": 0,

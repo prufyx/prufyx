@@ -32,7 +32,7 @@ func TestScanCommand(t *testing.T) {
 	}
 	declared := []string{"--distribution", "official_upstream", "--resource-scope-complete", "--target-api-apply-required", "--now", "2026-11-20T00:00:00Z"}
 	code, stdout, stderr := runScan(t, append([]string{path, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3"}, declared...)...)
-	if code != ExitBlocked || !strings.HasPrefix(stdout, "BLOCKED: 1 problem must be fixed before this upgrade\n") || !strings.Contains(stdout, "CronJob default/nightly-report") || !quietOrAgeNote(stderr) {
+	if code != ExitBlocked || !strings.HasPrefix(stdout, "BLOCKED: 1 problem must be fixed; ") || !strings.Contains(strings.SplitN(stdout, "\n", 2)[0], " not checked") || !strings.Contains(stdout, "CronJob default/nightly-report") || !quietOrAgeNote(stderr) {
 		t.Fatalf("blocked: %d\n%s\n%s", code, stdout, stderr)
 	}
 	code, stdout, _ = runScan(t, append([]string{path, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--format", "json"}, declared...)...)
@@ -43,7 +43,7 @@ func TestScanCommand(t *testing.T) {
 	// An upgrade that skips release lines still blocks on the reviewed
 	// removal of a line it enters (it used to answer "NO BLOCKERS FOUND").
 	code, stdout, _ = runScan(t, append([]string{path, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4"}, declared...)...)
-	if code != ExitBlocked || !strings.HasPrefix(stdout, "BLOCKED: 1 problem must be fixed before this upgrade\n") || !strings.Contains(stdout, "Decided on the step 1.24.17 -> 1.25") {
+	if code != ExitBlocked || !strings.HasPrefix(stdout, "BLOCKED: 1 problem must be fixed; 2 areas were not checked\n") || !strings.Contains(stdout, "Decided on the step 1.24.17 -> 1.25") {
 		t.Fatalf("skipped lines: %d\n%s", code, stdout)
 	}
 	// Removed at or before the current line: no rule decides it, and the

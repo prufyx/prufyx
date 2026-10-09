@@ -1,4 +1,4 @@
-# BLOCKED: 1 problem must be fixed before this upgrade
+# BLOCKED: 1 problem must be fixed; 2 areas were not checked
 
 ## PROBLEMS TO FIX (1)
 
@@ -20,7 +20,7 @@
 
 | Area | What | Next step |
 | --- | --- | --- |
-| kubernetes | no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked | check them against the Kubernetes 1.25 API reference by hand, or request coverage |
+| kubernetes | no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked | check them against the API reference of that Kubernetes release by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml |
 | kubernetes 1.24.17 -> 1.25.3 | no review confirms that the removed-API rules for kubernetes 1.25 name every API that line removes | check the kubernetes 1.25 release notes for other removed APIs by hand, or request a line review |
 
 ## PASSED (6)
@@ -39,7 +39,7 @@
 | `kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0` | <https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md> | 87-93 | `9f1af2971c32` |
 | `kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0` | <https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md> | 189-193 | `9f1af2971c32` |
 
-Checked 1 hop, 2 documents, 1 component (1 covered). 6 checks passed (--show-passes).
+Read 2 documents over 1 hop; 1 of 1 component has rules (partially evaluated). 6 checks passed (--show-passes).
 
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
 

@@ -128,7 +128,7 @@ func TestFinalizeOrder(t *testing.T) {
 	if !reflect.DeepEqual(gaps, want) {
 		t.Fatalf("gaps %v", gaps)
 	}
-	if report.Verdict != VerdictBlocked || report.Headline != "BLOCKED: 4 problems must be fixed before this upgrade" || report.Summary.Blockers != 4 || report.Summary.Gaps != 5 {
+	if report.Verdict != VerdictBlocked || report.Headline != "BLOCKED: 4 problems must be fixed; 5 areas were not checked" || report.Summary.Blockers != 4 || report.Summary.Gaps != 5 {
 		t.Fatalf("verdict %s headline %q summary %+v", report.Verdict, report.Headline, report.Summary)
 	}
 }
@@ -174,7 +174,7 @@ func TestVerdict(t *testing.T) {
 	report.Gaps = []Gap{{}}
 	report.Paths[0].Hops[0].Status = HopPartial
 	Finalize(&report)
-	if report.Headline != "NO BLOCKERS FOUND IN COVERED CHECKS: 1 area was not checked" {
+	if report.Headline != "UNKNOWN: no blocker in the checks that ran; 1 area was not checked (see NOT CHECKED)" {
 		t.Fatal(report.Headline)
 	}
 	// A manifest the target does not serve never reads as "no blockers".
@@ -191,7 +191,7 @@ func TestVerdict(t *testing.T) {
 	// A blocker still leads.
 	report.Findings = []Finding{{RuleID: "r", Component: "kubernetes", Hop: ref(1, "1.24.0", "1.25")}}
 	Finalize(&report)
-	if report.Verdict != VerdictBlocked || report.Headline != "BLOCKED: 1 problem must be fixed before this upgrade" {
+	if report.Verdict != VerdictBlocked || report.Headline != "BLOCKED: 1 problem must be fixed; 3 areas were not checked" {
 		t.Fatal(report.Headline)
 	}
 }
@@ -216,5 +216,90 @@ func TestHumanLocations(t *testing.T) {
 	}
 	if RedactValue("") != "" || RedactValue("a") == RedactValue("b") {
 		t.Fatal("redaction")
+	}
+}
+
+// TestHeadlines: an undecided answer always opens with its verdict word, and a
+// blocked answer says that areas were not checked when they were not.
+func TestHeadlines(t *testing.T) {
+	// Distinct gaps: Finalize drops a gap that repeats another.
+	gap := func(i int) Gap { return NewGap("kubernetes"+strconv.Itoa(i), nil, GapDeclarationScope, "kubernetes") }
+	finding := func(i int) Finding { return Finding{RuleID: "x" + strconv.Itoa(i)} }
+	cases := []struct {
+		name            string
+		findings, gaps  int
+		ran             bool
+		want            string
+		mustNotContains []string
+	}{
+		{"unknown no gap", 0, 0, true, "UNKNOWN: no blocker in the checks that ran; some areas were not checked", []string{"NO BLOCKERS"}},
+		{"unknown one gap", 0, 1, true, "UNKNOWN: no blocker in the checks that ran; 1 area was not checked (see NOT CHECKED)", []string{"NO BLOCKERS"}},
+		{"unknown many gaps", 0, 3, true, "UNKNOWN: no blocker in the checks that ran; 3 areas were not checked (see NOT CHECKED)", []string{"NO BLOCKERS"}},
+		{"nothing ran, no gap", 0, 0, false, "UNKNOWN: nothing could be evaluated; some areas were not checked", []string{"no blocker in the checks"}},
+		{"nothing ran, one gap", 0, 1, false, "UNKNOWN: nothing could be evaluated; 1 area was not checked (see NOT CHECKED)", []string{"no blocker in the checks"}},
+		{"nothing ran, many gaps", 0, 3, false, "UNKNOWN: nothing could be evaluated; 3 areas were not checked (see NOT CHECKED)", []string{"no blocker in the checks"}},
+		{"blocked alone", 1, 0, true, "BLOCKED: 1 problem must be fixed before this upgrade", nil},
+		{"blocked many alone", 2, 0, true, "BLOCKED: 2 problems must be fixed before this upgrade", nil},
+		{"blocked with a gap", 1, 1, true, "BLOCKED: 1 problem must be fixed; 1 area was not checked", []string{"before this upgrade"}},
+		{"blocked with gaps", 1, 2, true, "BLOCKED: 1 problem must be fixed; 2 areas were not checked", []string{"before this upgrade"}},
+		{"blocked many with a gap", 3, 1, true, "BLOCKED: 3 problems must be fixed; 1 area was not checked", []string{"before this upgrade"}},
+		{"blocked many with gaps", 3, 2, true, "BLOCKED: 3 problems must be fixed; 2 areas were not checked", []string{"before this upgrade"}},
+	}
+	for _, tc := range cases {
+		report := Report{}
+		for i := 0; i < tc.findings; i++ {
+			report.Findings = append(report.Findings, finding(i))
+		}
+		for i := 0; i < tc.gaps; i++ {
+			report.Gaps = append(report.Gaps, gap(i))
+		}
+		if tc.ran {
+			report.Inventory = []Component{{Covered: true}}
+			report.Paths = []Path{{Hops: []Hop{{}}}}
+		}
+		Finalize(&report)
+		if report.Headline != tc.want {
+			t.Errorf("%s: headline %q, want %q", tc.name, report.Headline, tc.want)
+		}
+		for _, banned := range tc.mustNotContains {
+			if strings.Contains(report.Headline, banned) {
+				t.Errorf("%s: headline %q contains %q", tc.name, report.Headline, banned)
+			}
+		}
+		if tc.findings == 0 && !strings.HasPrefix(report.Headline, "UNKNOWN: ") {
+			t.Errorf("%s: an undecided headline must start with UNKNOWN: %q", tc.name, report.Headline)
+		}
+	}
+}
+
+// TestCheckedLine: "has rules" is not "fully evaluated", and the line says
+// what was read, not what was "checked".
+func TestCheckedLine(t *testing.T) {
+	report := Report{
+		Inventory: []Component{{Name: "kubernetes", Target: "1.30.4", Covered: true}},
+		Paths:     []Path{{Component: "kubernetes", Hops: []Hop{{Index: 1, Status: HopPartial}}}},
+		Summary:   Summary{DocumentsRead: 2},
+		Gaps:      []Gap{NewGap("kubernetes", nil, GapDeclarationScope, "kubernetes")},
+	}
+	Finalize(&report)
+	if got := checkedLine(report); got != "Read 2 documents over 1 hop; 1 of 1 component has rules (partially evaluated)." {
+		t.Fatalf("partial: %q", got)
+	}
+	if report.Summary.ComponentsWithRules != 1 || report.Summary.ComponentsCovered != 1 {
+		t.Fatalf("summary %+v", report.Summary)
+	}
+	report.Inventory = append(report.Inventory, Component{Name: "etcd", Target: "3.6.0"})
+	Finalize(&report)
+	if got := checkedLine(report); got != "Read 2 documents over 1 hop; 1 of 2 components have rules (partially evaluated)." {
+		t.Fatalf("two components: %q", got)
+	}
+	pass := Report{
+		Inventory: []Component{{Name: "kubernetes", Target: "1.30.4", Covered: true}},
+		Paths:     []Path{{Component: "kubernetes", Hops: []Hop{{Index: 1, Status: HopCovered}}}},
+		Summary:   Summary{DocumentsRead: 1},
+	}
+	Finalize(&pass)
+	if got := checkedLine(pass); got != "Read 1 document over 1 hop; 1 of 1 component has rules." {
+		t.Fatalf("pass: %q", got)
 	}
 }

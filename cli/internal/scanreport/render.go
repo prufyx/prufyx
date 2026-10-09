@@ -149,7 +149,7 @@ func Human(report Report, options HumanOptions) []byte {
 	}
 
 	line("")
-	checked := fmt.Sprintf(labelChecked, count(report.Summary.Hops, labelHopOne, labelHops), count(report.Summary.DocumentsRead, labelDocumentOne, labelDocuments), count(report.Summary.ComponentsDetected, labelComponentOne, labelComponents), report.Summary.ComponentsCovered)
+	checked := checkedLine(report)
 	switch {
 	case report.Summary.Passes == 1:
 		checked += labelPassCountOne
@@ -188,6 +188,25 @@ func knowledgeStoreLines(store *KnowledgeStore) []string {
 		lines = append(lines, fmt.Sprintf(labelKnowledgeProject, project.Project, project.TargetPath, project.Revision, project.Digest))
 	}
 	return lines
+}
+
+// checkedLine says what the scan read and how far it got. "With rules" is
+// not "fully evaluated": a hop can still be PARTIAL, so a report that is not
+// a complete pass says so.
+func checkedLine(report Report) string {
+	summary := report.Summary
+	components := fmt.Sprintf(labelComponentsRulesMany, summary.ComponentsWithRules, summary.ComponentsDetected)
+	if summary.ComponentsDetected == 1 {
+		components = fmt.Sprintf(labelComponentsRulesOne, summary.ComponentsWithRules)
+	}
+	switch {
+	case report.Verdict == VerdictPass:
+	case somethingRan(report):
+		components += labelPartiallyEvaluated
+	default:
+		components += labelNothingEvaluated
+	}
+	return fmt.Sprintf(labelChecked, count(summary.DocumentsRead, labelDocumentOne, labelDocuments), count(summary.Hops, labelHopOne, labelHops), components)
 }
 
 func count(n int, one, many string) string {
@@ -355,6 +374,7 @@ func Redact(report *Report) {
 		}
 		sortLocations(report.Findings[f].Locations)
 	}
+	report.Anchor = RedactValue(report.Anchor)
 	for o := range report.Omitted {
 		report.Omitted[o].File = RedactValue(report.Omitted[o].File)
 	}

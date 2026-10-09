@@ -25,6 +25,102 @@
                 "basis": "reviewed",
                 "kind": "notice"
               }
+            },
+            {
+              "id": "prufyx/gap/API_VERSION_NOT_REVIEWED",
+              "shortDescription": {
+                "text": "Area not checked: API_VERSION_NOT_REVIEWED"
+              },
+              "help": {
+                "text": "Prufyx could not decide this area (API_VERSION_NOT_REVIEWED), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "basis": "none",
+                "kind": "gap"
+              }
+            },
+            {
+              "id": "prufyx/gap/API_VERSION_NOT_SERVED",
+              "shortDescription": {
+                "text": "Area not checked: API_VERSION_NOT_SERVED"
+              },
+              "help": {
+                "text": "A manifest uses an API version the target does not serve (API_VERSION_NOT_SERVED). Migrate it to a served API version before you upgrade. The Prufyx GitHub Action fails the step on this."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "basis": "none",
+                "kind": "gap"
+              }
+            },
+            {
+              "id": "prufyx/gap/COMPONENT_NOT_COVERED",
+              "shortDescription": {
+                "text": "Area not checked: COMPONENT_NOT_COVERED"
+              },
+              "help": {
+                "text": "Prufyx could not decide this area (COMPONENT_NOT_COVERED), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "basis": "none",
+                "kind": "gap"
+              }
+            },
+            {
+              "id": "prufyx/gap/DECLARATION_MISSING",
+              "shortDescription": {
+                "text": "Area not checked: DECLARATION_MISSING"
+              },
+              "help": {
+                "text": "Prufyx could not decide this area (DECLARATION_MISSING), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "basis": "none",
+                "kind": "gap"
+              }
+            },
+            {
+              "id": "prufyx/gap/DOCUMENTS_TEMPLATED",
+              "shortDescription": {
+                "text": "Area not checked: DOCUMENTS_TEMPLATED"
+              },
+              "help": {
+                "text": "Prufyx could not decide this area (DOCUMENTS_TEMPLATED), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "basis": "none",
+                "kind": "gap"
+              }
+            },
+            {
+              "id": "prufyx/gap/LINE_NOT_ATTESTED",
+              "shortDescription": {
+                "text": "Area not checked: LINE_NOT_ATTESTED"
+              },
+              "help": {
+                "text": "Prufyx could not decide this area (LINE_NOT_ATTESTED), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "basis": "none",
+                "kind": "gap"
+              }
             }
           ]
         }
@@ -162,7 +258,248 @@
           ]
         }
       ],
-      "results": [],
+      "results": [
+        {
+          "ruleId": "prufyx/gap/COMPONENT_NOT_COVERED",
+          "ruleIndex": 3,
+          "level": "warning",
+          "message": {
+            "text": "etcd is not evaluated by scan yet - run prufyx check cncf --project etcd, or verify its upgrade notes by hand"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "prufyx.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "68ad9bf088eb1f3ef411997befa11558d8c36127171aaf72d3fe1cdcd4c44092"
+          },
+          "properties": {
+            "component": "etcd",
+            "hop": "",
+            "basis": "none",
+            "match": "gap"
+          }
+        },
+        {
+          "ruleId": "prufyx/gap/API_VERSION_NOT_REVIEWED",
+          "ruleIndex": 1,
+          "level": "warning",
+          "message": {
+            "text": "1 manifest(s) use API versions that the review of Kubernetes 1.30 does not list as served - check those API versions against the Kubernetes 1.30 API reference by hand"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "prufyx.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "623778102cecbb5d6cb3c27b50c8bcbc7454c58133d8ff780858bd3b6f164599"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "",
+            "basis": "none",
+            "match": "gap"
+          }
+        },
+        {
+          "ruleId": "prufyx/gap/API_VERSION_NOT_SERVED",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "1 manifest(s) use API versions Kubernetes 1.30 does not serve, removed on a line this upgrade enters - no reviewed rule decided them; migrate them to a served API version before upgrading, and the gaps for the step that enters the line say why"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "prufyx.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "b978182d30ced317aa399133e2bfb37a70c49b58632008064bb193e41cab9d17"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "",
+            "basis": "none",
+            "match": "gap"
+          }
+        },
+        {
+          "ruleId": "prufyx/gap/DECLARATION_MISSING",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "it is not declared that these manifests are applied to the target kubernetes API - if they are, add targetApplyRequired: true to prufyx.yaml or pass --target-api-apply-required"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "prufyx.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "14d0cb0d39fa1795dcacb3eb3ee694030e373625bcef1d6c01f7732ad6381332"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "",
+            "basis": "none",
+            "match": "gap"
+          }
+        },
+        {
+          "ruleId": "prufyx/gap/DECLARATION_MISSING",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "the kubernetes distribution is not declared - for upstream builds, add distribution: official_upstream to prufyx.yaml or pass --distribution official_upstream"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "prufyx.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "6edb0bcb8b7a574e2ba30cac53ee20686d72d3167e74f98b5f2de16c26a80cd7"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "",
+            "basis": "none",
+            "match": "gap"
+          }
+        },
+        {
+          "ruleId": "prufyx/gap/DECLARATION_MISSING",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "the kubernetes manifests are not declared to be the complete set you apply - if they are, add resourceScopeComplete: true to prufyx.yaml or pass --resource-scope-complete"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "prufyx.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "ec39427c6528e1e141bde98098f34f4380f1e03208f224b78ff21d6aab4ac44a"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "",
+            "basis": "none",
+            "match": "gap"
+          }
+        },
+        {
+          "ruleId": "prufyx/gap/DOCUMENTS_TEMPLATED",
+          "ruleIndex": 5,
+          "level": "warning",
+          "message": {
+            "text": "1 document(s) contain unrendered templates - render them (for example with helm template) and scan the output"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "prufyx.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "92768a8d9e5c180ce95029e02024682bb4757c47c83f3096203920bdc43dbe58"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "",
+            "basis": "none",
+            "match": "gap"
+          }
+        },
+        {
+          "ruleId": "prufyx/gap/LINE_NOT_ATTESTED",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "no review confirms that the removed-API rules for kubernetes 1.28 name every API that line removes - check the kubernetes 1.28 release notes for other removed APIs by hand, or request a line review"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "prufyx.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "263e87590dba546065ec12d66bc0bece6eebce3824d9dff70b1d5a38eaf6c0bf"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "1.27 -> 1.28",
+            "basis": "none",
+            "match": "gap"
+          }
+        }
+      ],
       "properties": {
         "verdict": "UNKNOWN",
         "headline": "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (7 other areas were not checked)",
@@ -172,6 +509,7 @@
           "passes": 0,
           "componentsDetected": 2,
           "componentsCovered": 1,
+          "componentsWithRules": 1,
           "hops": 6,
           "documentsRead": 2,
           "documentsOmitted": 1,
