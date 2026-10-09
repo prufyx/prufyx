@@ -353,13 +353,13 @@ func TestExternalRefusesDistributions(t *testing.T) {
 	if len(value.Distributions) == 0 {
 		t.Fatal("the section did not decode")
 	}
-	if err := validateExternalPack(base, value, "7"); !errors.Is(err, ErrIntegrity) {
+	if err := validateExternalPack(base, value, "7", false); !errors.Is(err, ErrIntegrity) {
 		t.Fatalf("validateExternalPack admitted distributions: %v", err)
 	}
 	// The same pack value without the section passes, so the refusal above
 	// is the section's.
 	value.Distributions, value.Schema = nil, packSchemaRanged
-	if err := validateExternalPack(base, value, "7"); err != nil {
+	if err := validateExternalPack(base, value, "7", false); err != nil {
 		t.Fatalf("validateExternalPack refused the pack without distributions: %v", err)
 	}
 	// Project targets cannot carry the section either: the split refuses.

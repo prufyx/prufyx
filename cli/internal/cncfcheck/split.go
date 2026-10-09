@@ -5,6 +5,7 @@ package cncfcheck
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"regexp"
 	"sort"
 	"time"
@@ -15,7 +16,12 @@ import (
 // complete operator-cncf-knowledge envelope holding only that project's
 // entries, so the 1 MiB external bundle cap applies to each target separately.
 const (
-	ExternalIndexSchema         = "prufyx.io/cncf-knowledge-index/v1"
+	ExternalIndexSchema = "prufyx.io/cncf-knowledge-index/v1"
+	// ExternalIndexSchemaRecords is the index of a layout in which at least
+	// one project target is a records envelope. Its entries say which
+	// (records: true). A binary that predates it refuses the index, and
+	// with it the whole package.
+	ExternalIndexSchemaRecords  = "prufyx.io/cncf-knowledge-index/v2"
 	ExternalIndexTargetPath     = "knowledge/cncf/index.v1.json"
 	ExternalProjectTargetPrefix = "knowledge/cncf/projects/"
 	ExternalProjectTargetSuffix = ".v1.json"
@@ -42,6 +48,9 @@ type ExternalIndexEntry struct {
 	Digest            string `json:"digest"`
 	RuleDigest        string `json:"ruleDigest"`
 	EvidenceExpiresAt string `json:"evidenceExpiresAt"`
+	// Records is true when the project target is a records envelope. It is
+	// absent from every entry of a v1 index.
+	Records bool `json:"records,omitempty"`
 }
 
 type externalIndexDocument struct {
@@ -100,7 +109,7 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 	if err != nil || !bytes.Equal(canonical, raw) {
 		return ExternalIndex{}, ErrInvalid
 	}
-	if document.Schema != ExternalIndexSchema || !validExternalRevision(document.Revision) || (document.Purpose != "operator_provided" && document.Purpose != "synthetic_test_only") || len(document.Projects) == 0 || len(document.Projects) > MaxExternalIndexProjects {
+	if (document.Schema != ExternalIndexSchema && document.Schema != ExternalIndexSchemaRecords) || !validExternalRevision(document.Revision) || (document.Purpose != "operator_provided" && document.Purpose != "synthetic_test_only") || len(document.Projects) == 0 || len(document.Projects) > MaxExternalIndexProjects {
 		return ExternalIndex{}, ErrInvalid
 	}
 	if base == nil {
@@ -115,7 +124,11 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 		return ExternalIndex{}, ErrIntegrity
 	}
 	var earliest time.Time
+	withRecords := 0
 	for i, entry := range document.Projects {
+		if entry.Records {
+			withRecords++
+		}
 		if i > 0 && document.Projects[i-1].Project >= entry.Project {
 			return ExternalIndex{}, ErrInvalid
 		}
@@ -133,14 +146,20 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 			earliest = expires
 		}
 	}
+	// The schema is exactly the level the entries need: a v1 index lists
+	// no records target, a v2 index at least one.
+	if (document.Schema == ExternalIndexSchemaRecords) != (withRecords > 0) {
+		return ExternalIndex{}, ErrInvalid
+	}
 	type ruleBinding struct {
 		Project    string `json:"project"`
 		Revision   string `json:"revision"`
 		RuleDigest string `json:"ruleDigest"`
+		Records    bool   `json:"records,omitempty"`
 	}
 	bindings := make([]ruleBinding, 0, len(document.Projects))
 	for _, entry := range document.Projects {
-		bindings = append(bindings, ruleBinding{Project: entry.Project, Revision: entry.Revision, RuleDigest: entry.RuleDigest})
+		bindings = append(bindings, ruleBinding{Project: entry.Project, Revision: entry.Revision, RuleDigest: entry.RuleDigest, Records: entry.Records})
 	}
 	admission := ExternalAdmission{Revision: document.Revision, Purpose: document.Purpose, EngineCapabilityDigest: document.EngineCapabilityDigest, HasRule: true, RuleDigest: externalDigestJSON(bindings), EvidenceExpiresAt: earliest.Format(time.RFC3339)}
 	return ExternalIndex{raw: append([]byte(nil), raw...), document: document, admission: admission, base: base, seal: &externalBundleSeal{}}, nil
@@ -178,8 +197,9 @@ func (x ExternalIndex) Entry(project string) (ExternalIndexEntry, bool) {
 }
 
 // AdmitExternalProjectTarget admits one project target against its index
-// entry: exact length and digest, envelope revision and purpose, every entry
-// owned by the project, and the semantic rule digest and expiry. Any mismatch
+// entry: exact length and digest, envelope revision and purpose, every rule
+// entry and every record owned by the project, whether the target is a
+// records envelope, and the semantic content digest and expiry. Any mismatch
 // is an integrity failure.
 func AdmitExternalProjectTarget(index ExternalIndex, project string, raw []byte) (ExternalBundle, error) {
 	entry, ok := index.Entry(project)
@@ -191,13 +211,18 @@ func AdmitExternalProjectTarget(index ExternalIndex, project string, raw []byte)
 		return ExternalBundle{}, ErrIntegrity
 	}
 	admission, err := bundle.Admission()
-	if err != nil || admission.Revision != entry.Revision || admission.Purpose != index.document.Purpose || admission.EngineCapabilityDigest != index.document.EngineCapabilityDigest || !admission.HasRule || admission.RuleDigest != entry.RuleDigest || admission.EvidenceExpiresAt != entry.EvidenceExpiresAt {
+	if err != nil || admission.Revision != entry.Revision || admission.Purpose != index.document.Purpose || admission.EngineCapabilityDigest != index.document.EngineCapabilityDigest || !(admission.HasRule || admission.HasRecords) || admission.HasRecords != entry.Records || admission.RuleDigest != entry.RuleDigest || admission.EvidenceExpiresAt != entry.EvidenceExpiresAt {
 		return ExternalBundle{}, ErrIntegrity
 	}
 	for _, item := range bundle.pack.Entries {
 		if item.Project != project {
 			return ExternalBundle{}, ErrIntegrity
 		}
+	}
+	// A record of another project's scope never rides in this target: the
+	// scan would read it as this project's knowledge.
+	if !recordsOwnedBy(bundle.pack, project, index.base.landscape.Projects) {
+		return ExternalBundle{}, ErrIntegrity
 	}
 	return bundle, nil
 }
@@ -275,14 +300,26 @@ func buildEmbeddedExternalTargets(revision, purpose string, revisionFor func(str
 	return buildExternalTargets(base, revision, purpose, revisionFor)
 }
 
-// buildExternalTargets splits base's pack into project targets. A project
-// target carries rule entries only, so a source pack holding a section the
-// targets cannot carry (line attestations, upgrade-path policies,
-// distribution records, served-API lists) is refused
-// rather than published without it.
+// ErrDistributionsNotPublishable is joined with ErrIntegrity when a source
+// pack holds distribution records: they are not scoped to one project, no
+// target carries them yet, and the pack is refused rather than published
+// without them.
+var ErrDistributionsNotPublishable = errors.New("distribution records have no knowledge target yet")
+
+// ErrRecordWithoutOwner is joined with ErrIntegrity when a record names a
+// component that is not the subject of exactly one catalog project.
+var ErrRecordWithoutOwner = errors.New("a record names no single catalog project")
+
+// buildExternalTargets splits base's pack into project targets. Every rule
+// entry goes to its project's target, every record (line attestation,
+// upgrade-path policy, served-API list) to the target of the project whose
+// subject component it names; a project with records and no rules still
+// gets a target. A target with records is a records envelope and the index
+// is then a v2 index. A source pack holding distribution records is refused
+// rather than published without them.
 func buildExternalTargets(base bundle, revision, purpose string, revisionFor func(string, func(string) ([]byte, error)) (string, error)) (ExternalTarget, []ExternalTarget, error) {
-	if len(base.pack.LineAttestations) > 0 || len(base.pack.PathPolicies) > 0 || len(base.pack.Distributions) > 0 || len(base.pack.ServedAPIs) > 0 {
-		return ExternalTarget{}, nil, ErrIntegrity
+	if len(base.pack.Distributions) > 0 {
+		return ExternalTarget{}, nil, errors.Join(ErrIntegrity, ErrDistributionsNotPublishable)
 	}
 	capability, err := externalCapabilityDigest(base)
 	if err != nil {
@@ -291,6 +328,15 @@ func buildExternalTargets(base bundle, revision, purpose string, revisionFor fun
 	byProject := map[string][]Entry{}
 	for _, entry := range base.pack.Entries {
 		byProject[entry.Project] = append(byProject[entry.Project], entry)
+	}
+	records, err := splitRecords(base.pack, base.landscape.Projects)
+	if err != nil {
+		return ExternalTarget{}, nil, errors.Join(ErrIntegrity, ErrRecordWithoutOwner)
+	}
+	for project := range records {
+		if _, ok := byProject[project]; !ok {
+			byProject[project] = nil
+		}
 	}
 	projects := make([]string, 0, len(byProject))
 	for project := range byProject {
@@ -301,11 +347,15 @@ func buildExternalTargets(base bundle, revision, purpose string, revisionFor fun
 		return ExternalTarget{}, nil, ErrIntegrity
 	}
 	index := externalIndexDocument{Schema: ExternalIndexSchema, Revision: revision, Purpose: purpose, EngineCapabilityDigest: capability}
+	if len(records) > 0 {
+		index.Schema = ExternalIndexSchemaRecords
+	}
 	targets := make([]ExternalTarget, 0, len(projects))
 	for _, project := range projects {
 		entries := byProject[project]
+		sections := records[project]
 		encode := func(projectRevision string) ([]byte, error) {
-			return encodeExternalEnvelope(base, projectRevision, purpose, entries)
+			return encodeExternalEnvelopeWithRecords(base, projectRevision, purpose, entries, sections)
 		}
 		projectRevision, err := revisionFor(project, encode)
 		if err != nil {
@@ -326,7 +376,7 @@ func buildExternalTargets(base bundle, revision, purpose string, revisionFor fun
 		if err != nil {
 			return ExternalTarget{}, nil, ErrIntegrity
 		}
-		index.Projects = append(index.Projects, ExternalIndexEntry{Project: project, TargetPath: ProjectTargetPath(project), Revision: projectRevision, Length: int64(len(raw)), Digest: digest(raw), RuleDigest: admission.RuleDigest, EvidenceExpiresAt: admission.EvidenceExpiresAt})
+		index.Projects = append(index.Projects, ExternalIndexEntry{Project: project, TargetPath: ProjectTargetPath(project), Revision: projectRevision, Length: int64(len(raw)), Digest: digest(raw), RuleDigest: admission.RuleDigest, EvidenceExpiresAt: admission.EvidenceExpiresAt, Records: admission.HasRecords})
 		targets = append(targets, ExternalTarget{Path: ProjectTargetPath(project), Bytes: raw})
 	}
 	indexRaw, err := json.Marshal(index)
@@ -349,6 +399,12 @@ func buildExternalTargets(base bundle, revision, purpose string, revisionFor fun
 // encodeExternalEnvelope writes one compact envelope over entries. The pack
 // schema follows the entries exactly as validPackSchema requires.
 func encodeExternalEnvelope(base bundle, revision, purpose string, entries []Entry) ([]byte, error) {
+	return encodeExternalEnvelopeWithRecords(base, revision, purpose, entries, recordSections{})
+}
+
+// encodeExternalEnvelopeWithRecords is encodeExternalEnvelope with record
+// sections: the envelope is a records envelope exactly when it carries one.
+func encodeExternalEnvelopeWithRecords(base bundle, revision, purpose string, entries []Entry, records recordSections) ([]byte, error) {
 	capability, err := externalCapabilityDigest(base)
 	if err != nil {
 		return nil, ErrIntegrity
@@ -356,7 +412,8 @@ func encodeExternalEnvelope(base bundle, revision, purpose string, entries []Ent
 	if entries == nil {
 		entries = []Entry{}
 	}
-	pack := rulePack{Revision: revision, PolicyID: base.pack.PolicyID, PolicyDigest: base.pack.PolicyDigest, LandscapeFileDigest: base.pack.LandscapeFileDigest, RegistryDigest: base.pack.RegistryDigest, Entries: entries}
+	pack := rulePack{Revision: revision, PolicyID: base.pack.PolicyID, PolicyDigest: base.pack.PolicyDigest, LandscapeFileDigest: base.pack.LandscapeFileDigest, RegistryDigest: base.pack.RegistryDigest, Entries: entries,
+		LineAttestations: records.LineAttestations, PathPolicies: records.PathPolicies, ServedAPIs: records.ServedAPIs}
 	pack.Schema, err = requiredPackSchema(pack)
 	if err != nil {
 		return nil, ErrIntegrity
@@ -367,7 +424,7 @@ func encodeExternalEnvelope(base bundle, revision, purpose string, entries []Ent
 		Purpose                string   `json:"purpose"`
 		EngineCapabilityDigest string   `json:"engineCapabilityDigest"`
 		Pack                   rulePack `json:"pack"`
-	}{externalBundleSchema, revision, purpose, capability, pack})
+	}{envelopeSchemaFor(pack), revision, purpose, capability, pack})
 	if err != nil {
 		return nil, ErrIntegrity
 	}

@@ -532,7 +532,7 @@ func TestExternalPackRefusesBasis(t *testing.T) {
 		pack := base.pack
 		pack.Entries = []Entry{containerdBasisEntry("containerd.synthetic-basis", basis, "")}
 		pack.Schema = packSchemaBasis
-		if err := validateExternalPack(base, pack, pack.Revision); !errors.Is(err, ErrIntegrity) {
+		if err := validateExternalPack(base, pack, pack.Revision, false); !errors.Is(err, ErrIntegrity) {
 			t.Fatalf("%s: external pack accepted: %v", basis, err)
 		}
 	}
@@ -540,7 +540,7 @@ func TestExternalPackRefusesBasis(t *testing.T) {
 	pack := base.pack
 	pack.Entries = []Entry{containerdBasisEntry("containerd.synthetic-empirical", constraintengine.BasisEmpirical, "")}
 	pack.Schema = packSchema
-	if err := validateExternalPack(base, pack, pack.Revision); err != nil {
+	if err := validateExternalPack(base, pack, pack.Revision, false); err != nil {
 		t.Fatalf("empirical external pack refused: %v", err)
 	}
 }

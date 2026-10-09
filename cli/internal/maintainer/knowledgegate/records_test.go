@@ -137,14 +137,23 @@ func recordApproval(id, line, base, digest string) ApprovalRecord {
 var fixtureSource = extract.FixtureReader{Root: servedFixture}
 
 // requireAdmittedButUnsplit requires every change admitted and every check
-// green except one: a CNCF pack with records cannot be split into the
-// per-project targets it is published as yet (cncfcheck refuses), so the
-// gate still fails such a pack on targets/cncf, and nothing is eligible.
+// green. Before EXTPACK a CNCF pack with records could not be split into the
+// per-project targets it is published as, so targets/cncf failed; it now
+// splits, and targets/cncf must pass with the records in their targets.
 func requireAdmittedButUnsplit(t *testing.T, r *Report) {
 	t.Helper()
-	failed := failedChecks(r)
-	if len(failed) != 1 || !strings.HasPrefix(failed[0], "targets/cncf: the pack cannot be split") || r.AutoMerge.Eligible {
-		t.Fatalf("want only the split refusal, got:\n%s", strings.Join(failed, "\n"))
+	if failed := failedChecks(r); len(failed) != 0 {
+		t.Fatalf("want every check green, got:\n%s", strings.Join(failed, "\n"))
+	}
+	if c, ok := check(r, "targets/cncf"); !ok || !c.OK {
+		t.Fatalf("targets/cncf: %+v", c)
+	}
+	// A change that moves the schema level of a pack is never merged
+	// automatically, whoever authored it.
+	for _, c := range r.Changes {
+		if c.Proof == ProofSchemaLevel && r.AutoMerge.Eligible {
+			t.Fatalf("a schema-level change is eligible for automatic merging: %+v", c)
+		}
 	}
 }
 

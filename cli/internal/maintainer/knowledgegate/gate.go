@@ -39,6 +39,9 @@ const (
 	ProofRederived     = "rederived"
 	ProofReattestation = "reattestation"
 	ProofApproval      = "approval"
+	// ProofSchemaLevel is the proof of a pack schema change to the lowest
+	// level the head's content requires (schema.go).
+	ProofSchemaLevel = "schema-level"
 )
 
 // Options configures a gate run.
@@ -411,7 +414,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	// The base's approvals, decoded once for every record change.
 	approvals := &baseApprovals{opts: opts}
 
-	var mechanical, removals []*Change
+	var mechanical, removals, schemaChanges []*Change
 	consensusChecks := &consensusRun{}
 	defer consensusChecks.close()
 	for _, c := range cls.Changes {
@@ -421,6 +424,11 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		}
 		if cls.Paused {
 			c.fail("the kill switch is set: no loosening change is admitted")
+			continue
+		}
+		if c.Member == "schema" {
+			// Decided once every other change of the pack has been.
+			schemaChanges = append(schemaChanges, c)
 			continue
 		}
 		if c.Member != "" {
@@ -480,6 +488,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		admitSupersede(c, opts)
 	}
 	r.Supersedes = supersedeReport(cls)
+	admitSchemaChanges(cls, schemaChanges, r.ChangedPaths, opts)
 
 	if opts.RederiveAll {
 		r.rederiveAll(ctx, cls, mechanical, opts)
@@ -487,6 +496,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	r.packChecks(cls, opts)
 	r.generatedChecks(opts)
 	r.trustCheck(opts)
+	r.recordsTrustCheck(cls, opts)
 	r.modeCheck(opts)
 	r.baselineApprovalsUsed = r.baselinesCheck(opts, loadKeys, approvals)
 	r.recordCheck(cls, statements, opts)
@@ -804,6 +814,12 @@ func (r *Report) autoMerge(opts Options) {
 	for _, c := range r.Changes {
 		if c.isSupersede() {
 			reasons = append(reasons, "the change supersedes a reviewed rule; that is made and merged by the owner, never automatically")
+			break
+		}
+	}
+	for _, c := range r.Changes {
+		if c.Proof == ProofSchemaLevel {
+			reasons = append(reasons, "the change moves the schema level of a pack; that is merged by the owner, never automatically")
 			break
 		}
 	}

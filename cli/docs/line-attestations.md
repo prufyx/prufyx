@@ -178,9 +178,13 @@ folding), and any name that repeats, rejects the pack. So every reader sees
 the same attestation section, or none.
 
 The pack digest covers the attestations, as it covers every other byte of
-the pack. The external knowledge target format does not carry attestations
-yet: an external pack with `lineAttestations` is refused, and so is a pack
-with attestations given to `knowledge-targets build`.
+the pack. The external knowledge target format carries attestations in a
+records envelope (`prufyx.io/operator-cncf-knowledge/v1alpha2`):
+`knowledge-targets build` puts each attestation in the target of the
+project whose component it names, and a client admits it with the same
+exact-rule-set check (see
+[Records in project targets](cncf-knowledge-per-project.md#records-in-project-targets)).
+A `v1alpha1` envelope with `lineAttestations` is refused.
 
 Library callers look attestations up with
 `cncfcheck.AttestationsFor(component, line, family, now)`, which returns the
@@ -233,6 +237,16 @@ major and the project is in the custom-resource table. The attestation lists
 the pair's rules and names every release read. As for Kubernetes, the
 manifest records the attestation status of every pair, `attestations.json`
 holds the attestations, and `extract verify` covers them.
+
+## Retracting an attestation
+
+Retract a wrong attestation by withdrawing it (`evidence.state` `active` to
+`withdrawn`): that is a tightening change the knowledge gate admits without a
+proof, and the record stays in the pack. Do not delete it. Deleting a line
+attestation is also a tightening, but when it is the last record that needs the
+pack's current schema level, the pack's required schema level drops, and the gate
+refuses a schema downgrade. Deleting the last record needs the owner path (an
+owner-authored change, merged by the owner).
 
 ## Renewal
 

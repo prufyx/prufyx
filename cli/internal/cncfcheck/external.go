@@ -16,17 +16,25 @@ import (
 )
 
 const (
-	externalBundleSchema     = "prufyx.io/operator-cncf-knowledge/v1alpha1"
-	externalSourceAuthority  = "DECLARED_RULE_SOURCE_REFERENCES"
-	externalProfileName      = "cncf"
-	externalTargetPath       = "knowledge/constraints.v1.json"
-	maxExternalBundleBytes   = 1 << 20
-	maxExternalEntries       = 512
-	maxExternalFacts         = 64
-	maxExternalJSONDepth     = 32
-	maxExternalObjectMembers = 4096
-	maxExternalArrayItems    = 4096
-	maxExternalStringBytes   = 4096
+	// externalBundleSchema is the envelope of a target that carries rules
+	// only. A target without records keeps exactly this schema and its bytes.
+	externalBundleSchema = "prufyx.io/operator-cncf-knowledge/v1alpha1"
+	// externalBundleSchemaRecords is the envelope of a target whose pack
+	// carries per-scope records besides its rules: line attestations,
+	// upgrade-path policies and served-API lists. A binary that predates it
+	// refuses such a target (unknown schema and unknown pack members), so
+	// a record is never read as absent by a client that cannot check it.
+	externalBundleSchemaRecords = "prufyx.io/operator-cncf-knowledge/v1alpha2"
+	externalSourceAuthority     = "DECLARED_RULE_SOURCE_REFERENCES"
+	externalProfileName         = "cncf"
+	externalTargetPath          = "knowledge/constraints.v1.json"
+	maxExternalBundleBytes      = 1 << 20
+	maxExternalEntries          = 512
+	maxExternalFacts            = 64
+	maxExternalJSONDepth        = 32
+	maxExternalObjectMembers    = 4096
+	maxExternalArrayItems       = 4096
+	maxExternalStringBytes      = 4096
 )
 
 var externalRevisionPattern = regexp.MustCompile(`^[1-9][0-9]*$`)
@@ -68,8 +76,17 @@ type ExternalAdmission struct {
 	Purpose                string
 	EngineCapabilityDigest string
 	HasRule                bool
-	RuleDigest             string
-	EvidenceExpiresAt      string
+	// HasRecords is true for a records envelope (externalBundleSchemaRecords):
+	// its pack carries at least one record section.
+	HasRecords bool
+	// RuleDigest is the semantic digest of the target's rules. For a target
+	// with records it binds the rules and the records together
+	// (knowledgeContentDigest), so every receipt or index entry that records
+	// it commits to both.
+	RuleDigest string
+	// EvidenceExpiresAt is the earliest validUntil over the target's rules
+	// and records.
+	EvidenceExpiresAt string
 }
 
 // ProfileRequirements contains copied scalar identities for constructing an
@@ -114,9 +131,10 @@ func parseExternalBundle(raw []byte, base *bundle) (ExternalBundle, error) {
 		return ExternalBundle{}, ErrInvalid
 	}
 	var document externalBundleDocument
-	if err := json.Unmarshal(raw, &document); err != nil || document.Schema != externalBundleSchema || !validExternalRevision(document.Revision) || (document.Purpose != "operator_provided" && document.Purpose != "synthetic_test_only") {
+	if err := json.Unmarshal(raw, &document); err != nil || (document.Schema != externalBundleSchema && document.Schema != externalBundleSchemaRecords) || !validExternalRevision(document.Revision) || (document.Purpose != "operator_provided" && document.Purpose != "synthetic_test_only") {
 		return ExternalBundle{}, ErrInvalid
 	}
+	records := document.Schema == externalBundleSchemaRecords
 	if base == nil {
 		loaded, err := load()
 		if err != nil {
@@ -132,21 +150,32 @@ func parseExternalBundle(raw []byte, base *bundle) (ExternalBundle, error) {
 	if err := json.Unmarshal(document.Pack, &packValue); err != nil {
 		return ExternalBundle{}, ErrInvalid
 	}
-	if err := validateExternalPack(*base, packValue, document.Revision); err != nil {
+	if err := validateExternalPack(*base, packValue, document.Revision, records); err != nil {
 		return ExternalBundle{}, err
+	}
+	if records {
+		if err := admitExternalRecords(*base, document.Pack, packValue); err != nil {
+			return ExternalBundle{}, err
+		}
 	}
 	candidate := bundle{landscape: base.landscape, priority: base.priority, pack: packValue, registry: base.registry, packDigest: digest(raw), catalogueDigest: base.catalogueDigest}
 	rules, err := candidate.parseRulesCorpus(candidate.packRules(), nil)
 	if err != nil {
 		return ExternalBundle{}, ErrIntegrity
 	}
-	admission := ExternalAdmission{Revision: document.Revision, Purpose: document.Purpose, EngineCapabilityDigest: document.EngineCapabilityDigest, HasRule: len(packValue.Entries) > 0}
-	if admission.HasRule {
+	admission := ExternalAdmission{Revision: document.Revision, Purpose: document.Purpose, EngineCapabilityDigest: document.EngineCapabilityDigest, HasRule: len(packValue.Entries) > 0, HasRecords: records}
+	if admission.HasRule || admission.HasRecords {
 		admission.RuleDigest, err = rules.Digest()
 		if err != nil {
 			return ExternalBundle{}, ErrIntegrity
 		}
-		admission.EvidenceExpiresAt, err = earliestExternalExpiry(packValue.Entries)
+		admission.EvidenceExpiresAt, err = earliestExternalExpiry(packValue)
+		if err != nil {
+			return ExternalBundle{}, ErrIntegrity
+		}
+	}
+	if admission.HasRecords {
+		admission.RuleDigest, err = knowledgeContentDigest(admission.RuleDigest, packValue)
 		if err != nil {
 			return ExternalBundle{}, ErrIntegrity
 		}
@@ -226,7 +255,7 @@ func ExportEmbeddedExternalBundle(revision string) ([]byte, error) {
 		Purpose                string   `json:"purpose"`
 		EngineCapabilityDigest string   `json:"engineCapabilityDigest"`
 		Pack                   rulePack `json:"pack"`
-	}{externalBundleSchema, revision, "operator_provided", capability, pack})
+	}{envelopeSchemaFor(pack), revision, "operator_provided", capability, pack})
 	if err != nil {
 		return nil, ErrIntegrity
 	}
@@ -368,22 +397,19 @@ func validExternalRevision(value string) bool {
 	return err == nil && parsed > 0
 }
 
-func validateExternalPack(base bundle, packValue rulePack, revision string) error {
-	// The external target profile does not carry line attestations yet; a
-	// pack holding them is refused rather than admitted without its checks.
-	if len(packValue.LineAttestations) > 0 {
-		return ErrIntegrity
-	}
-	// Nor upgrade-path policies.
-	if len(packValue.PathPolicies) > 0 {
-		return ErrIntegrity
-	}
-	// Nor distribution records.
+// validateExternalPack checks an envelope's pack against the compiled
+// knowledge. records says whether the envelope is a records envelope: only
+// such an envelope may carry line attestations, upgrade-path policies and
+// served-API lists, and it must carry at least one of them, so the envelope
+// schema is exactly the level its content needs. No envelope carries
+// distribution records: they are not scoped to one project and have no
+// target yet, so a pack holding them is refused rather than admitted
+// without them.
+func validateExternalPack(base bundle, packValue rulePack, revision string, records bool) error {
 	if len(packValue.Distributions) > 0 {
 		return ErrIntegrity
 	}
-	// Nor served-API lists.
-	if len(packValue.ServedAPIs) > 0 {
+	if hasRecordSections(packValue) != records {
 		return ErrIntegrity
 	}
 	// Nor one-way notices: an external pack holding one is refused.
@@ -456,15 +482,32 @@ func (b bundle) identities() map[string]projectIdentity {
 	return identities
 }
 
-func earliestExternalExpiry(entries []Entry) (string, error) {
+// earliestExternalExpiry is the earliest evidence validUntil over the pack's
+// rules and records.
+func earliestExternalExpiry(pack rulePack) (string, error) {
 	var earliest time.Time
-	for _, entry := range entries {
-		var shape struct {
-			Evidence struct {
-				ValidUntil string `json:"validUntil"`
-			} `json:"evidence"`
+	type evidenceShape struct {
+		Evidence struct {
+			ValidUntil string `json:"validUntil"`
+		} `json:"evidence"`
+	}
+	documents := make([]json.RawMessage, 0, len(pack.Entries))
+	for _, entry := range pack.Entries {
+		documents = append(documents, entry.Rule)
+	}
+	for _, section := range []json.RawMessage{pack.LineAttestations, pack.PathPolicies, pack.ServedAPIs} {
+		if len(section) == 0 {
+			continue
 		}
-		if err := json.Unmarshal(entry.Rule, &shape); err != nil {
+		var items []json.RawMessage
+		if err := json.Unmarshal(section, &items); err != nil {
+			return "", ErrIntegrity
+		}
+		documents = append(documents, items...)
+	}
+	for _, document := range documents {
+		var shape evidenceShape
+		if err := json.Unmarshal(document, &shape); err != nil {
 			return "", ErrIntegrity
 		}
 		value, err := time.Parse(time.RFC3339, shape.Evidence.ValidUntil)
@@ -592,9 +635,26 @@ func validateExternalEnvelopeShape(raw []byte) error {
 	if err != nil {
 		return err
 	}
-	pack, err := externalObject(root["pack"], []string{"schema", "revision", "policyId", "policyDigest", "landscapeFileDigest", "registryDigest", "entries"})
+	// Only a records envelope may hold the record sections, each optional;
+	// their content is checked by the strict section parsers.
+	var schema string
+	if json.Unmarshal(root["schema"], &schema) != nil {
+		return ErrInvalid
+	}
+	var optional []string
+	if schema == externalBundleSchemaRecords {
+		optional = externalRecordMembers
+	}
+	pack, err := externalObjectWith(root["pack"], []string{"schema", "revision", "policyId", "policyDigest", "landscapeFileDigest", "registryDigest", "entries"}, optional)
 	if err != nil {
 		return err
+	}
+	for _, member := range optional {
+		if value, ok := pack[member]; ok {
+			if items, err := externalArray(value); err != nil || len(items) == 0 {
+				return ErrInvalid
+			}
+		}
 	}
 	entries, err := externalArray(pack["entries"])
 	if err != nil || len(entries) > maxExternalEntries {
@@ -622,11 +682,20 @@ func validateExternalEnvelopeShape(raw []byte) error {
 }
 
 func externalObject(raw json.RawMessage, required []string) (map[string]json.RawMessage, error) {
+	return externalObjectWith(raw, required, nil)
+}
+
+// externalObjectWith is externalObject that also allows the optional
+// members, each at most once and never null.
+func externalObjectWith(raw json.RawMessage, required, optional []string) (map[string]json.RawMessage, error) {
 	var object map[string]json.RawMessage
 	if len(raw) == 0 || json.Unmarshal(raw, &object) != nil || object == nil {
 		return nil, ErrInvalid
 	}
-	allowed := make(map[string]bool, len(required))
+	allowed := make(map[string]bool, len(required)+len(optional))
+	for _, key := range optional {
+		allowed[key] = true
+	}
 	for _, key := range required {
 		allowed[key] = true
 		value, exists := object[key]
@@ -635,7 +704,7 @@ func externalObject(raw json.RawMessage, required []string) (map[string]json.Raw
 		}
 	}
 	for key, value := range object {
-		if !allowed[key] && !(len(required) == 0) || string(value) == "null" && key != "enumTokens" {
+		if !allowed[key] && !(len(required) == 0 && len(optional) == 0) || string(value) == "null" && key != "enumTokens" {
 			return nil, ErrInvalid
 		}
 	}

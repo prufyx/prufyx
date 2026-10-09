@@ -9,6 +9,30 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Knowledge gate: the first attested update of a pack that holds an older schema
+  is admissible. A change of the pack's top-level `schema` member is admitted
+  only when it raises the schema to exactly the lowest level the pack's content
+  requires, with nothing else changing at the top level, every rule and record
+  change admitted by its own rules, and no trust material or registry change
+  in the same pull request; every other pack-member change is still refused.
+  Such a change is never eligible for automatic merging (the owner merges the
+  first attested update of a pack). To retract a wrong attestation, withdraw it
+  rather than deleting it; deleting the last record needs the owner path.
+
+- Knowledge targets carry records: per-project CNCF targets (and the single
+  target) now carry line attestations, upgrade-path policies and served-API
+  lists, each record in the target of the project whose component it names.
+  A target with records uses the envelope
+  `prufyx.io/operator-cncf-knowledge/v1alpha2` and its index
+  `prufyx.io/cncf-knowledge-index/v2` (entries flag `records: true`); a pack
+  without records produces the same v1 bytes as before. Clients admit each
+  record with the checks of the embedded pack and refuse a record in another
+  project's target; binaries without this support refuse such a database
+  rather than read it without its records. `scan --knowledge-db` reads
+  served-API lists from the database. The knowledge gate's `targets/cncf`
+  check now passes for a pack with records, and a new `records-trust` check
+  refuses a change that changes records and trust material together.
+  Distribution records still have no target and are refused.
 - Line attestations per component: the fact family
   `crd.custom_resource_versions` covers, for each project of the
   custom-resource table, the rules over its own custom-resource version set.

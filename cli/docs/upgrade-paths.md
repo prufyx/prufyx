@@ -171,9 +171,11 @@ The pack's top-level member names are matched exactly before decoding (see
 is not a catalog subject component, rejects the whole pack. The pack digest
 covers the section.
 
-The external knowledge target format does not carry path policies yet: an
-external pack with `pathPolicies` is refused, and so is a pack with path
-policies given to `knowledge-targets build`. A reviewed record is renewed by
+The external knowledge target format carries path policies in a records
+envelope: `knowledge-targets build` puts each policy in the target of the
+project whose component it names (see
+[Records in project targets](cncf-knowledge-per-project.md#records-in-project-targets)).
+A `v1alpha1` envelope with `pathPolicies` is refused. A reviewed record is renewed by
 an automated `evidence reattest` statement, at most twice in a row, when its
 citations are unchanged on their release lines (see
 [evidence-reattestation.md](evidence-reattestation.md#line-attestations-and-path-policies));

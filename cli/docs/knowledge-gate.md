@@ -186,10 +186,16 @@ limit and the kill switch, and switching records off counts toward the record
 breaker (see below). A record change appears in the report with `section`
 (`lineAttestations` or `pathPolicies`) and the record ID as `ruleId`.
 
-The CNCF knowledge is published as one target per project, and that split
-does not carry records yet: a CNCF pack holding any record still fails the
-`targets/cncf` check, so no such change can merge through the gate until the
-split supports them.
+The CNCF knowledge is published as one target per project, and each record
+rides in the target of the project whose component it names (see
+[Records in project targets](cncf-knowledge-per-project.md#records-in-project-targets)).
+`targets/cncf` sizes those targets with their records. A pack holding
+distribution records still cannot be split and fails `targets/cncf`.
+
+A change that changes a record and trust material together fails the
+`records-trust` check, whoever makes it: a record would otherwise be admitted
+under trust material (for example an approval key) that no earlier gate run
+accepted. Change the trust material in its own change first.
 
 With `--source github` the gate reads upstream repositories directly from
 GitHub: directory listings from the git trees API (walking tree objects from
@@ -255,6 +261,7 @@ Run on every pack of the head, whatever the change:
 | `tree` | the head holds a symbolic link or a special file under `cli/` |
 | `file-modes` | a knowledge file the automation may change has, or changes, an executable bit |
 | `trust-material` | the change touches trust material (see below) and is not a person's change matching the pinned digest |
+| `records-trust` | the change changes a pack record (line attestation or path policy) and trust material together |
 | `knowledge-records` | an approval file, worklist or review record changed without the rule change or statement it belongs to (see below) |
 | `limits` | the change holds more loosening changes than the cap (default 200) |
 | `kill-switch` | the file `factory/PAUSE` exists in the base or the head and the change holds any loosening change |
@@ -370,6 +377,8 @@ job output `head-sha`). It is eligible only when:
   - `cli/docs/generated/community-support-inventory.json`, `cli/docs/generated/community-support-inventory.md`
   - anything under `cli/knowledge/approvals/`
   - anything under `cli/knowledge/reattestation/<pack>/chain/`, `…/worklists/` and `…/review-records/`
+- it holds no change of a pack's schema level (proof `schema-level`, below): the
+  first attested update of a pack is merged by the owner, never automatically.
 
 Trust material is never on that list. A consumer that merges automatically
 must merge exactly the commit in `head-sha` (for example with the expected
@@ -732,6 +741,27 @@ Change kinds: `withdraw`, `expire`, `add-withdrawn` (tightening); `new`,
 `basis-change`, `modify`, `pack-member` (loosening). A removal that is half of a supersede pair also has the kind `supersede`. A `pack-member` change
 names the member (`member`) instead of a rule id.
 
+A `pack-member` change is never admitted, with one exception: the pack's top-level
+`schema` member. The first attested update of a pack that holds an older schema
+must move the pack to the schema its new content requires (line attestations need
+`v1alpha4`), so the gate admits a `schema` change (proof `schema-level`) only when
+all of these hold, and refuses it otherwise: the head's schema is exactly the lowest
+schema the head's content requires, computed by the function the pack parser and
+validator use; the base's schema is a known, lower schema (never a downgrade, never
+a higher level than needed); no other top-level member changes; every rule and record
+change of the pack is itself admitted by its own rules (re-derivation, reattestation
+statement or approval); and the change touches neither trust material nor a registry
+file. Only the CNCF pack has schema levels; every other pack refuses the change as
+before. The gate that decides is the one built from the base branch (see below), so
+this admission takes effect only for changes proposed after the code that holds it is
+in `main`: a pull request opened earlier is still judged by the old gate.
+
+A `schema-level` change is never eligible for automatic merging. A downgrade is
+never admitted, so removing the last record that needs a schema level (which
+would lower the required schema) is refused. Retract a wrong record by
+withdrawing it (a state change: the record stays in the pack and the schema does
+not move). Deleting the last record needs the owner path.
+
 ### `gate limits`
 
 Only the loosening cap, the withdrawal breakers, the daily limit and the kill
@@ -830,6 +860,7 @@ ok   check admit/cncf: 191 entries admitted
 ok   check registry/cncf: 160 of 256 facts
 …
 ok   check trust-material: 0 trust files changed
+ok   check records-trust: 0 record changes, 0 trust files changed
 ok   check knowledge-records: 0 record files changed
 ok   check limits: 0 loosening changes, cap 200
 ok   check limits/daily: the number of loosening changes merged in the last day was not supplied; the change is not eligible for automatic merging

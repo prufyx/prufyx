@@ -181,6 +181,34 @@ func (r *Report) trustCheck(opts Options) {
 	r.add("trust-material", len(bad) == 0, "%d trust files changed%s", changed, listDetail(bad))
 }
 
+// recordsTrustCheck refuses a change that changes a pack record (a line
+// attestation or path policy) together with trust material. A record rides
+// into the published per-project targets; trust material decides what the
+// gate and the clients accept. Changing both at once would let a record be
+// admitted under trust material that no earlier gate run accepted (for
+// example an approval key added in the same change), so the owner splits
+// them into two changes. The check always runs and says what it saw.
+func (r *Report) recordsTrustCheck(cls *Classification, opts Options) {
+	records := 0
+	for _, c := range cls.Changes {
+		if c.Section != "" {
+			records++
+		}
+	}
+	trust := 0
+	for _, p := range r.ChangedPaths {
+		if opts.Layout.trustPath(p) {
+			trust++
+		}
+	}
+	ok := records == 0 || trust == 0
+	detail := fmt.Sprintf("%d record changes, %d trust files changed", records, trust)
+	if !ok {
+		detail += "; records and trust material may not change in one change: split it"
+	}
+	r.add("records-trust", ok, "%s", detail)
+}
+
 // recordCheck allows changes to the reattestation worklists and review
 // records, and to owner approvals, only together with what they belong
 // to: a worklist with the statement appended for it, a review record of a

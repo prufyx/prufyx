@@ -16,8 +16,8 @@ layout; see [Optional signed CNCF knowledge](cncf-knowledge-database.md) and
 
 | TUF target path | Content |
 | --- | --- |
-| `knowledge/cncf/index.v1.json` | The index: schema `prufyx.io/cncf-knowledge-index/v1`, its own revision, purpose, the compiled engine capability digest, and one entry per project. |
-| `knowledge/cncf/projects/<project>.v1.json` | One complete `prufyx.io/operator-cncf-knowledge/v1alpha1` envelope that holds only that project's rules. |
+| `knowledge/cncf/index.v1.json` | The index: schema `prufyx.io/cncf-knowledge-index/v1`, or `prufyx.io/cncf-knowledge-index/v2` when at least one project target carries records (see [Records in project targets](#records-in-project-targets)), its own revision, purpose, the compiled engine capability digest, and one entry per project. |
+| `knowledge/cncf/projects/<project>.v1.json` | One complete envelope that holds only that project's rules and records: `prufyx.io/operator-cncf-knowledge/v1alpha1` for rules only, `prufyx.io/operator-cncf-knowledge/v1alpha2` when it also carries records. |
 
 Each index entry names the project, its target path, its own revision, the
 exact target length and SHA-256 digest, the rule digest and the earliest
@@ -31,6 +31,49 @@ profile: `targets/knowledge/cncf/<sha256>.index.v1.json` and
 `targets/knowledge/cncf/projects/<sha256>.<project>.v1.json`, next to the
 `metadata/` files. A complete package is at most 8 MiB, and its targets
 together at most 7 MiB.
+
+## Records in project targets
+
+A rule pack can carry records besides its rules: line attestations
+([line-attestations.md](line-attestations.md)), upgrade-path policies
+([upgrade-paths.md](upgrade-paths.md)) and served-API lists
+([scan.md](scan.md)). Every record names exactly one component, so it belongs
+to exactly one catalog project: the project whose subject component it names.
+`knowledge-targets build` puts each record in that project's target, never in
+another; a project with records and no rules still gets a target. A record
+whose component is not the subject of exactly one catalog project refuses the
+build.
+
+| Target content | Envelope schema | Index entry |
+| --- | --- | --- |
+| rules only | `prufyx.io/operator-cncf-knowledge/v1alpha1` (unchanged bytes) | no `records` member |
+| rules and records, or records only | `prufyx.io/operator-cncf-knowledge/v1alpha2` | `"records": true` |
+
+An index lists at least one records target exactly when it is a
+`prufyx.io/cncf-knowledge-index/v2` index; a pack without records produces
+the same v1 index and targets as before. In a records target the entry's
+rule digest binds the rules and the records together, and the evidence
+expiry is the earliest `validUntil` over both.
+
+A client admits each record section with the checks the embedded pack's
+section passes: the section is found by its exact member name and parsed
+strictly; every line attestation lists exactly the target's rules for its
+scope; every component is a catalog subject; a served list naming an API
+removed at or below its line is refused. Any failure refuses the whole
+package. A binary that predates records refuses a v2 index and a v1alpha2
+envelope (unknown schema and unknown members), so it never reads a database
+with records as one without them; it keeps its last good selection until
+that expires, and `--knowledge=embedded` remains available.
+
+Records follow the same per-project rollback floor as rules: a later index
+that serves a project's target without its records under the same project
+revision is refused.
+
+To retract a wrong attestation, withdraw it (a state change: the record stays
+in the pack with its state set to withdrawn) rather than deleting it. Deleting a
+record is a different change: the last record of a level also lowers the pack's
+schema level, and the knowledge gate never admits a schema downgrade, so deleting
+the last record needs the owner path.
 
 ## What is verified
 
@@ -47,7 +90,8 @@ of the following before anything is selected:
   and hash, and the downloaded bytes match both;
 - each project target is a valid envelope whose revision, rule digest and
   evidence expiry equal its index entry and whose rules all belong to that
-  project;
+  project; a target with records must be flagged `records: true` in its
+  entry, and every record must name that project's subject component;
 - the package contains no unused member.
 
 Rollback protection applies to the index and to every project separately. The
@@ -156,9 +200,11 @@ changed projects and the index move to the new revision, which must be
 greater than the previous index revision. Building does not sign anything.
 The [publisher workflow](knowledge-publisher.md) and `package-knowledge`
 still prepare only the single-target layout; signing per-project targets is
-not part of this source preview yet. A pack that carries line attestations
-or upgrade-path policies cannot be split into per-project targets yet:
-`knowledge-targets build` refuses it rather than dropping those sections.
+not part of this source preview yet. A pack that carries line attestations,
+upgrade-path policies or served-API lists splits with each record in its
+project's target (see below). A pack that carries distribution records cannot
+be split yet: they are not scoped to one project, no target carries them, and
+`knowledge-targets build` refuses the pack rather than dropping them.
 
 The size check fails when any target reaches 80% of the 1 MiB per-target cap
 (838861 bytes or more), or when the summed size of all targets reaches 80% of
