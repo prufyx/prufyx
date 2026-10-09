@@ -33,7 +33,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   Kuma, Kyverno, Longhorn, Rook, Velero) whose custom-resource sets are not
   registered yet, so the knowledge gate refuses their rules. CRD manifests are
   read with bounds sized for generated schemas (Argo CD's pairs are no longer
-  withheld). No rule is shipped. See
+  withheld). Reviewed exclusions of the scan now carry evidence, may not lie
+  under install locations, and are void at a release where a kustomization,
+  Helm chart, Makefile install target, document install command or embedding
+  Go package refers to the excluded path. No rule is shipped. See
   `cli/docs/extractors/crd.version-removal.md`.
 
 ### Security

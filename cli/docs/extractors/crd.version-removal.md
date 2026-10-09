@@ -109,6 +109,7 @@ Through the offline factory mirror (or a fixture tree), never the network.
   | `external` | a Helm `Chart.yaml` with a dependency whose `repository` is another repository (`https://`, `oci://`, an alias such as `@repo`; not a local `file://` path or none), or a kustomization with a remote resource, component or base (a URL, `github.com/...`, `git@...`, `?ref=`) |
   | `excluded` | a file under a reviewed exclusion that does not declare copies, whose content is recorded (path, sha256, the definitions it holds) |
   | `excluded-unread` | the same, when its content could not be read |
+  | `exclusion-void` | a reviewed exclusion that an install surface refers to at this release (see below); it blocks attestation |
 
   The effect depends on the class and the location:
 
@@ -124,7 +125,10 @@ Through the offline factory mirror (or a fixture tree), never the network.
   - every other class in the open tree or among declared copies, and every
     class but `copy` and `schema-patch` under a default-excluded directory:
     the pair is not attestable.
-  - `excluded` and `excluded-unread`: recorded; the pair stays attestable.
+  - `excluded` and `excluded-unread`: recorded; the pair stays attestable. An
+    `excluded-unread` file keeps a definition from being established as gone,
+    unless it also lies in a default-excluded directory (a test-fixture entry
+    such as `test/e2e/manifests/`).
   - A reviewed exclusion with `copies` (chart templates of the listed
     definitions) is checked: each file's template directives are removed (a
     line that holds only a directive is dropped, a key whose whole value is an
@@ -134,6 +138,41 @@ Through the offline factory mirror (or a fixture tree), never the network.
     CRDs with the same versions and `served` flags. A file that serves other
     versions is a `conflict`, one that defines another CRD is `extra`, and one
     that cannot be read is `unread`.
+
+  **Reviewed exclusions carry evidence and are guarded.** Every entry of the
+  table names its repository, the path (a directory prefix ending in `/`, one
+  file or a pattern), the reason the files are not installed and the evidence a
+  reviewer read, and the claim must hold at every release of the window. An
+  entry that is not a declared copy may not lie under a chart, deploy,
+  deployment, install or installation directory, below a `config/crd` or
+  `config/crds` directory, or below a top-level `manifests` directory (the
+  loader refuses it), and never covers a listed path. At each release the
+  **install-surface guard** checks the part of the claim a program can: an
+  entry with files at the release is void for that release when
+  - the entry lies under a Helm chart (a directory with a `Chart.yaml`);
+  - a kustomization (resources, bases, components, patches, generators, any
+    path-like word, followed from every kustomization outside the excluded
+    paths through the kustomizations they name) or a Helm `Chart.yaml` or
+    `requirements.yaml` (local `file://` dependencies) refers to a path under
+    it;
+  - a Makefile command line of a target that is not a test target
+    (`test`, `e2e`, `lint`, `check`, `verify`, `conformance`, `integration`,
+    `bench`, `smoke`, `fuzz`, `coverage`, `unit`) runs `kubectl`, `kustomize`,
+    `helm` or a similar tool on a path under it, directly or through a
+    variable;
+  - a document (`*.md`, `*.mdx`, `*.rst`, `*.adoc`, `*.txt`, outside `vendor`,
+    `third_party` and `node_modules`) has a command line that runs such a tool
+    on a path under it;
+  - a Go package in a directory above it embeds a file under it (`//go:embed`).
+
+  A void entry is treated like a default-excluded directory at that release,
+  with the location `void: <entry>`: its files are classified (Go sources
+  under it are read too), block attestation and never withhold a pair or
+  narrow its rules, but an opaque file there still keeps a definition from
+  being established as gone. A finding of class `exclusion-void` names the
+  referrer, so the release, and every pair that reads it, is not attestable. Not followed: symbolic links, shell scripts, CI configuration and
+  Go code that opens a path at run time. Declared copies are not guarded: they
+  are install surfaces by nature and are checked file by file instead.
 
   A file with the same git blob id (and kind) as one already read is not read
   again; what the scan concludes from the bytes never depends on the path they
@@ -191,7 +230,7 @@ and 1.20.1 dropped it, so that rule holds for 1.19.0 -> 1.20.0 only.)
 
 A CRD that the earlier line defines and the later anchor defines nowhere — not
 under the listed paths, and with a complete scan in which no file defines it
-and every CRD-like file outside the default-excluded directories was read — is recorded under `definitionsRemoved` and is
+and every CRD-like file outside the default-excluded directories (and outside the reviewed exclusions that do not lie in one) was read — is recorded under `definitionsRemoved` and is
 **not** a rule: whether the old definition is kept (`kubectl apply`, Helm
 `crds/`) or deleted with every object of it (Helm templates, Argo CD or Flux
 pruning) depends on the install method and is not established. Otherwise the
