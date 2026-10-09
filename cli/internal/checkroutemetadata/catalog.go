@@ -26,10 +26,10 @@ const (
 	// CNCF landscape catalog (cncfcheck community.go). It is neither the
 	// CNCF family nor the community-project pack's.
 	FamilyCommunityCatalog = "community_catalog_embedded_source_rule"
-	RouteExposed    = "EXPOSED_CANONICAL_INPUT"
-	RouteNotExposed = "NOT_EXPOSED_BY_PUBLIC_CLI"
-	DescriptorExact = "EXACT_PAIR_NATIVE_ROUTE"
-	DescriptorNone  = "NO_NATIVE_DESCRIPTOR"
+	RouteExposed           = "EXPOSED_CANONICAL_INPUT"
+	RouteNotExposed        = "NOT_EXPOSED_BY_PUBLIC_CLI"
+	DescriptorExact        = "EXACT_PAIR_NATIVE_ROUTE"
+	DescriptorNone         = "NO_NATIVE_DESCRIPTOR"
 )
 
 var ErrIntegrity = errors.New("check-route metadata integrity failure")
