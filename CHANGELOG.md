@@ -149,7 +149,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ### Added
 
 - `prufyx scan --format csv`: a header row, a summary row (the verdict and the headline), then one row per blocking finding location (verdict, rule id, project, file, line, kind, namespace, name, title, fix), then one row per gap and, with passes shown, one per pass. Cells use the same escaping as the other formats and cells that could start a spreadsheet formula get a leading quote.
-
 - Optional colour in help output only (bold headings, highlighted command
   names), on only when stdout is a terminal. `NO_COLOR`, `PRUFYX_COLOR=never`
   and `TERM=dumb` turn it off; `PRUFYX_COLOR=always` forces it on. Report
