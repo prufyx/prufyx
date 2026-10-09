@@ -196,10 +196,12 @@ var families = map[string]Family{
 // customResourceMembers maps each CNCF catalog project's component to
 // exactly its set fact. A component the table lists twice maps to no fact,
 // so a table that does not name one fact per component admits nothing for
-// it. A community project is never a member: its line reviews have no
-// knowledge target to live in (per-project targets are split by CNCF
-// catalog project), so an attestation for it is refused until the
-// community knowledge step lands.
+// it. A community project is never a member: the knowledge can carry its
+// rules and a per-project target for it, but a line review of a community
+// project is refused (here, in the pack's admission, and in the gate) until
+// the reviewed path that admits it exists: a change of this function, of the
+// extractor's refusal to attest a community target, and of the gate's
+// attestation proof, reviewed together.
 func customResourceMembers(projects []customresources.Project) map[string]*regexp.Regexp {
 	out := map[string]*regexp.Regexp{}
 	seen := map[string]int{}

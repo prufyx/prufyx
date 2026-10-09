@@ -9,6 +9,32 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Knowledge paths for community-catalog projects (inert until a rule of one is
+  published): the rule pack has its own schema level for entries of a
+  community project (only `forbid_set_member` rules over the project's own
+  custom-resource version set), the knowledge database carries a per-project
+  target for it under `knowledge/community/projects/` (the shared index is
+  then `v3`), and `check cncf --custom-resources`, `scan`, `catalog checks`,
+  the support inventory and the scan report accept it, labelled as the
+  community catalog in every output (a note in each scan format, `catalog` in
+  the JSON report, the inventory and the rule listing). A community project is
+  never in the CNCF catalogue, its counts or the corpus attestation, and it
+  cannot carry a line review yet. Without a community rule in the knowledge
+  nothing changes, except that a scan configuration file may now name a
+  community project (the scan then refuses it, as `--to` does, instead of
+  calling it unknown). The `scan-report-v1alpha1` JSON schema gained the
+  optional member `inventory[].catalog` (`"community"`); integrators who vendor
+  the schema should refresh it.
+- Maintainer extractor `crd.version-removal` 2.2.0: a `{{` inside a CRD schema
+  `description` is read as documentation (Cluster API's ClusterClass) while any
+  other `{{` still makes the file a template; a target can switch to another
+  repository from one release line on (Kong Ingress Controller reads
+  `Kong/kubernetes-configuration` from 3.4, citations at full commits of that
+  repository); a project with several install channels declares the one the
+  rules are about and reads the others (Gateway API's standard and
+  experimental channels), and a version another channel still serves is never
+  forbidden.
+
 - Community catalog for custom-resource versions: the reviewed
   custom-resource table now also lists projects outside the embedded CNCF
   landscape catalog, each labelled `community` (no CNCF status is asserted)

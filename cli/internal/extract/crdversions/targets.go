@@ -342,9 +342,9 @@ func (tj targetJSON) target() (Target, error) {
 		return t, fmt.Errorf("catalog %q: omit it for a CNCF catalog project or name %q", tj.Catalog, CatalogCommunity)
 	}
 	if t.Catalog == CatalogCommunity && t.Attest {
-		// A community project's line reviews have no knowledge target to
-		// live in yet (per-project targets are split by CNCF catalog
-		// project), so it never attests.
+		// A community project's line reviews are refused by the line-review
+		// family until the reviewed path that admits them exists (the
+		// family lists no community component), so it never attests.
 		return t, fmt.Errorf("a community catalog target does not attest")
 	}
 	switch {
