@@ -62,7 +62,7 @@ var (
 	configMap    = crObject("v1", "ConfigMap", "settings")
 	route        = crObject("gateway.networking.k8s.io/v1", "HTTPRoute", "web")
 	virtualSvc   = crObject("networking.istio.io/v1", "VirtualService", "web")
-	certificate  = crObject("monitoring.coreos.com/v1", "ServiceMonitor", "tls")
+	certificate  = crObject("postgres-operator.crunchydata.com/v1beta1", "PostgresCluster", "db")
 )
 
 func TestCustomResourceVersionsComplete(t *testing.T) {
@@ -118,7 +118,7 @@ func TestCustomResourceVersionsUnattributedGroups(t *testing.T) {
 	for name, doc := range map[string]string{
 		"unknown group":  certificate,
 		"strimzi suffix": crObject("access.strimzi.io/v1alpha1", "KafkaAccess", "a"),
-		"x-k8s.io":       crObject("cluster.x-k8s.io/v1beta1", "Cluster", "c"),
+		"x-k8s.io":       crObject("infrastructure.cluster.x-k8s.io/v1beta1", "DockerCluster", "c"),
 		"k8s.io alone":   crObject("k8s.io/v1", "Thing", "t"),
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -288,7 +288,7 @@ func TestCustomResourceVersionsArguments(t *testing.T) {
 			t.Fatalf("%+v accepted", tc)
 		}
 	}
-	if got := CustomResourceProjects(); !reflect.DeepEqual(got, []string{"antrea", "argo-cd", "cert-manager", "cilium", "cloudnativepg", "contour", "crossplane", "dapr", "external-secrets", "istio", "karmada", "keda", "koordinator", "kuma", "kyverno", "longhorn", "metallb", "openkruise", "rook", "strimzi", "tekton", "velero", "volcano"}) {
+	if got := CustomResourceProjects(); !reflect.DeepEqual(got, []string{"antrea", "argo-cd", "cert-manager", "cilium", "cloudnativepg", "cluster-api", "contour", "crossplane", "dapr", "eck-operator", "external-secrets", "gateway-api", "istio", "karmada", "keda", "kong-ingress-controller", "koordinator", "kueue", "kuma", "kyverno", "longhorn", "metallb", "mongodb-kubernetes", "node-feature-discovery", "openkruise", "percona-postgresql-operator", "prometheus-operator", "rancher", "rook", "strimzi", "tekton", "velero", "volcano"}) {
 		t.Fatalf("projects %v", got)
 	}
 	if fact, ok := CustomResourceVersionsFact("strimzi"); !ok || fact != strimziFact {
@@ -342,5 +342,31 @@ func TestCustomResourceVersionsUnresolvedSetEdges(t *testing.T) {
 	unattributed := prepareCR(t, crDocs("apiVersion: monitoring.coreos.com/v1\nkind: ServiceMonitor\nmetadata:\n  name: tls\n", templated), "strimzi", true)
 	if fact := crFact(t, unattributed.Prepared); fact.State != "unsupported" || len(unattributed.Unattributed) != 0 || unattributed.Prepared.Reason != ReasonCustomResourcesRendering {
 		t.Fatalf("unattributed: fact %+v unattributed %+v", fact, unattributed.Unattributed)
+	}
+}
+
+// A reserved group with a reviewed ownership record (Gateway API) joins its
+// owner's set and no other; a *.k8s.io group without one stays a Kubernetes
+// group and joins no set without keeping any set incomplete. A community
+// project's set is prepared like any other, but no CNCF route reads it.
+func TestCustomResourceVersionsReservedGroups(t *testing.T) {
+	snapshot := crObject("snapshot.storage.k8s.io/v1", "VolumeSnapshot", "s")
+	raw := crDocs(route, snapshot, kafkaV1)
+	gw := prepareCR(t, raw, "gateway-api", true)
+	if f := crFact(t, gw.Prepared); !f.SetValue.Complete || !reflect.DeepEqual(f.SetValue.Members, []string{"gateway.networking.k8s.io/v1/HTTPRoute"}) {
+		t.Fatalf("gateway-api fact %+v", f)
+	}
+	strimzi := prepareCR(t, raw, "strimzi", true)
+	if f := crFact(t, strimzi.Prepared); !f.SetValue.Complete || !reflect.DeepEqual(f.SetValue.Members, []string{"kafka.strimzi.io/v1/Kafka"}) {
+		t.Fatalf("strimzi fact %+v", f)
+	}
+	if _, ok := CustomResourceVersionsFact("gateway-api"); ok {
+		t.Fatal("a community project's fact is offered to CNCF routes")
+	}
+	if p, ok := CommunityCustomResourceProject("gateway-api"); !ok || p.Upstream.Name != "Gateway API" {
+		t.Fatalf("gateway-api community entry %+v", p)
+	}
+	if _, ok := CommunityCustomResourceProject("strimzi"); ok {
+		t.Fatal("strimzi reported as a community project")
 	}
 }

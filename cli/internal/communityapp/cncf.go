@@ -237,8 +237,9 @@ identity separate. It requires caller-declared configuration-spec-migration
 intent for a scoped result; missing or unsupported intent stays UNKNOWN.
 The custom-resource mode reads one private file of rendered manifests and
 records the group/version/Kind of every object in the API groups that the
-project's own CustomResourceDefinitions define (a reviewed, compiled table);
-objects of other projects' groups are ignored. It evaluates only published
+project's own CustomResourceDefinitions define (a reviewed, compiled table;
+PROJECT is a CNCF catalog project of it, and a community catalog project of
+it is refused); objects of other projects' groups are ignored. It evaluates only published
 rules about custom-resource versions the target release no longer serves. A
 listed version blocks (exit 10). A rule passes only with
 --custom-resources-complete and when every object of a non-Kubernetes API

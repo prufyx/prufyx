@@ -73,6 +73,24 @@
       "exclude": []
     },
     {
+      "project": "cluster-api",
+      "catalog": "community",
+      "name": "Cluster API",
+      "repo": "github.com/kubernetes-sigs/cluster-api",
+      "component": "pkg:github/kubernetes-sigs/cluster-api",
+      "factProject": "cluster_api",
+      "tagPrefixes": ["v"],
+      "minFrom": "1.9",
+      "paths": [
+        {"path": "bootstrap/kubeadm/config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+        {"path": "cmd/clusterctl/config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+        {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true},
+        {"path": "controlplane/kubeadm/config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+        {"path": "core/config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true}
+      ],
+      "exclude": []
+    },
+    {
       "project": "contour",
       "name": "Contour",
       "repo": "github.com/projectcontour/contour",
@@ -118,6 +136,20 @@
       "exclude": []
     },
     {
+      "project": "eck-operator",
+      "catalog": "community",
+      "name": "Elastic Cloud on Kubernetes",
+      "repo": "github.com/elastic/cloud-on-k8s",
+      "component": "pkg:github/elastic/cloud-on-k8s",
+      "factProject": "eck_operator",
+      "tagPrefixes": ["v"],
+      "minFrom": "3.0",
+      "paths": [
+        {"path": "config/crds/v1/all-crds.yaml"}
+      ],
+      "exclude": []
+    },
+    {
       "project": "external-secrets",
       "name": "External Secrets Operator",
       "repo": "github.com/external-secrets/external-secrets",
@@ -127,6 +159,20 @@
       "minFrom": "2.7",
       "paths": [
         {"path": "config/crds/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "gateway-api",
+      "catalog": "community",
+      "name": "Gateway API",
+      "repo": "github.com/kubernetes-sigs/gateway-api",
+      "component": "pkg:github/kubernetes-sigs/gateway-api",
+      "factProject": "gateway_api",
+      "tagPrefixes": ["v"],
+      "minFrom": "1.1",
+      "paths": [
+        {"path": "config/crd/standard", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
       "exclude": []
     },
@@ -180,6 +226,20 @@
       "exclude": []
     },
     {
+      "project": "kong-ingress-controller",
+      "catalog": "community",
+      "name": "Kong Ingress Controller",
+      "repo": "github.com/kong/kubernetes-ingress-controller",
+      "component": "pkg:github/kong/kubernetes-ingress-controller",
+      "factProject": "kong_ingress_controller",
+      "tagPrefixes": ["v"],
+      "minFrom": "3.0",
+      "paths": [
+        {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
       "project": "koordinator",
       "name": "Koordinator",
       "repo": "github.com/koordinator-sh/koordinator",
@@ -189,6 +249,21 @@
       "minFrom": "1.3",
       "paths": [
         {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "kueue",
+      "catalog": "community",
+      "name": "Kueue",
+      "repo": "github.com/kubernetes-sigs/kueue",
+      "component": "pkg:github/kubernetes-sigs/kueue",
+      "factProject": "kueue",
+      "tagPrefixes": ["v"],
+      "minFrom": "0.15",
+      "paths": [
+        {"path": "config/components/crd/alpha/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true},
+        {"path": "config/components/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
       "exclude": []
     },
@@ -256,6 +331,34 @@
       "exclude": []
     },
     {
+      "project": "mongodb-kubernetes",
+      "catalog": "community",
+      "name": "MongoDB Controllers for Kubernetes",
+      "repo": "github.com/mongodb/mongodb-kubernetes",
+      "component": "pkg:github/mongodb/mongodb-kubernetes",
+      "factProject": "mongodb_kubernetes",
+      "tagPrefixes": [""],
+      "minFrom": "1.8",
+      "paths": [
+        {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "node-feature-discovery",
+      "catalog": "community",
+      "name": "Node Feature Discovery",
+      "repo": "github.com/kubernetes-sigs/node-feature-discovery",
+      "component": "pkg:github/kubernetes-sigs/node-feature-discovery",
+      "factProject": "node_feature_discovery",
+      "tagPrefixes": ["v"],
+      "minFrom": "0.14",
+      "paths": [
+        {"path": "deployment/base/nfd-crds/nfd-api-crds.yaml"}
+      ],
+      "exclude": []
+    },
+    {
       "project": "openkruise",
       "name": "OpenKruise",
       "repo": "github.com/openkruise/kruise",
@@ -265,6 +368,48 @@
       "minFrom": "1.4",
       "paths": [
         {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "percona-postgresql-operator",
+      "catalog": "community",
+      "name": "Percona Operator for PostgreSQL",
+      "repo": "github.com/percona/percona-postgresql-operator",
+      "component": "pkg:github/percona/percona-postgresql-operator",
+      "factProject": "percona_postgresql_operator",
+      "tagPrefixes": ["v"],
+      "minFrom": "2.6",
+      "paths": [
+        {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "prometheus-operator",
+      "catalog": "community",
+      "name": "Prometheus Operator",
+      "repo": "github.com/prometheus-operator/prometheus-operator",
+      "component": "pkg:github/prometheus-operator/prometheus-operator",
+      "factProject": "prometheus_operator",
+      "tagPrefixes": ["v"],
+      "minFrom": "0.89",
+      "paths": [
+        {"path": "example/prometheus-operator-crd", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "rancher",
+      "catalog": "community",
+      "name": "Rancher",
+      "repo": "github.com/rancher/rancher",
+      "component": "pkg:github/rancher/rancher",
+      "factProject": "rancher",
+      "tagPrefixes": ["v"],
+      "minFrom": "2.10",
+      "paths": [
+        {"path": "pkg/crds/yaml/generated", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
       "exclude": []
     },

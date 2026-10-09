@@ -15,6 +15,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/intake"
 	"github.com/prufyx/prufyx/cli/internal/k8sremovals"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
@@ -247,6 +248,16 @@ func (r *kubernetesRun) apiVersionGaps(to string, entered map[string]bool) *scan
 	usable := status.Found && status.Freshness == lineattest.FreshnessCurrent && status.List.Line == targetLine &&
 		status.List.Component == r.component && r.policy.Admits(status.List.Basis)
 	notServed, notServedEntered, notListed, builtIn := 0, 0, 0, 0
+	// The groups the target's served list names, if one was found: a
+	// reviewed reserved group (customresources.ReservedGroups) that a
+	// served list names is checked against it after all.
+	servedGroups := map[string]bool{}
+	if status.Found {
+		for api := range status.List.APIs {
+			apiVersion, _, _ := strings.Cut(api, " ")
+			servedGroups[customresources.GroupOf(apiVersion)] = true
+		}
+	}
 	undecidedLines := map[string]bool{}
 	scanRuleLines := map[string]bool{}
 	for _, removal := range cncfprepare.KubernetesRemovedVersions() {
@@ -272,7 +283,7 @@ func (r *kubernetesRun) apiVersionGaps(to string, entered map[string]bool) *scan
 			}
 			break
 		}
-		if !kubernetesGroupRE.MatchString(group) || alphaVersionRE.MatchString(version) {
+		if !builtInGroup(group, servedGroups) || alphaVersionRE.MatchString(version) {
 			continue
 		}
 		builtIn++
@@ -366,6 +377,20 @@ func containsString(values []string, value string) bool {
 // the target, and their alpha versions are outside every removed-API review.
 var kubernetesGroupRE = regexp.MustCompile(`^([a-z0-9-]*|[a-z0-9.-]+\.k8s\.io)$`)
 
+// builtInGroup reports whether scan's served-API check covers objects of a
+// group: a Kubernetes group, except a group of the reviewed reserved-group
+// ownership list (customresources.ReservedGroups), which one project's
+// CustomResourceDefinitions define and kube-apiserver does not serve. Its
+// objects are custom resources of that project. If the target's served
+// list names such a group all the same, the overlap is not resolved either
+// way: its objects are checked against the served list too (fail closed).
+func builtInGroup(group string, servedGroups map[string]bool) bool {
+	if !kubernetesGroupRE.MatchString(group) {
+		return false
+	}
+	return customresources.KubernetesGroup(group) || servedGroups[group]
+}
+
 var alphaVersionRE = regexp.MustCompile(`^v[0-9]+alpha[0-9]*$`)
 
 func alphaKubernetesAPI(apiVersion string) bool {
@@ -373,7 +398,7 @@ func alphaKubernetesAPI(apiVersion string) bool {
 	if !found {
 		group, version = "", apiVersion
 	}
-	return alphaVersionRE.MatchString(version) && kubernetesGroupRE.MatchString(group)
+	return alphaVersionRE.MatchString(version) && builtInGroup(group, nil)
 }
 
 // skipsLines reports whether a direct upgrade from one version to the other

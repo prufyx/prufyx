@@ -105,14 +105,46 @@ func TestCustomResourceFactsRegisteredForExtractorTargets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, component := range got {
+	// A CNCF table project is a catalog subject component; a community
+	// project is not one, so nothing about it can claim CNCF status.
+	for _, p := range customresources.Projects() {
 		found := false
 		for _, c := range components {
-			found = found || c == component
+			found = found || c == p.Component
 		}
-		if !found {
-			t.Fatalf("%s is not a catalog subject component", component)
+		if found == p.Community() {
+			t.Fatalf("%s (%s): catalog subject component %v", p.Slug, p.Catalog, found)
 		}
+		if _, err := Component(p.Slug); p.Community() && err == nil {
+			t.Fatalf("community project %s has a CNCF catalog slug", p.Slug)
+		}
+	}
+}
+
+// The registered fact of a community project admits no rule into the CNCF
+// pack yet: a pack entry for a community project is refused, because the
+// project is not in the CNCF catalog. Rules of community projects need the
+// community knowledge step (its own reviewed change, code before data).
+func TestCommunityCustomResourceRuleRefused(t *testing.T) {
+	var p customresources.Project
+	for _, q := range customresources.Projects() {
+		if q.Community() {
+			p = q
+			break
+		}
+	}
+	if p.Slug == "" {
+		t.Fatal("no community project in the table")
+	}
+	if !RegisteredFact(p.FactID()) {
+		t.Fatalf("%s: fact not registered", p.FactID())
+	}
+	entry := crdKafkaEntry()
+	raw := strings.NewReplacer(crdStrimziComponent, p.Component, crdStrimziFact, p.FactID(), crdKafkaRuleID, p.Slug+".crd-version-removal.synthetic.0-51-0-to-1-0-0").Replace(string(entry.Rule))
+	entry.Project, entry.Rule = p.Slug, json.RawMessage(raw)
+	entry.RequiredFacts[0].ID, entry.RequiredFacts[0].Component = p.FactID(), p.Component
+	if _, err := assembleWith(crdPack(t, compiledDefinitions(), entry), compiledDefinitions()); !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("rule of community project %s admitted into the CNCF pack: %v", p.Slug, err)
 	}
 }
 
