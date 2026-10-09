@@ -32,7 +32,10 @@ die() {
 # has_control returns 0 when the value holds a control character other than
 # a newline (carriage return, tab and NUL-adjacent bytes are refused).
 has_control() {
-  [ -n "$(printf '%s' "$1" | LC_ALL=C tr -d '\n' | LC_ALL=C tr -cd '\000-\037\177')" ]
+  # Pure bash: no forked tool whose failure could read as "no control character".
+  local LC_ALL=C v="${1//$'\n'/}"
+  case "$v" in *[[:cntrl:]]*) return 0 ;; esac
+  return 1
 }
 
 # split_lines reads a newline separated input into the named array, dropping
@@ -68,7 +71,7 @@ sha256_of() {
 prepare_workdir() {
   umask 077
   local temp="${RUNNER_TEMP:?RUNNER_TEMP is not set}" base
-  if has_control "$temp" || [ "$(printf '%s' "$temp" | wc -l)" -gt 0 ]; then
+  if has_control "$temp" || [[ "$temp" == *$'\n'* ]]; then
     die "RUNNER_TEMP has a control character or a newline"
   fi
   case "$temp" in /*) ;; *) die "RUNNER_TEMP must be an absolute path" ;; esac

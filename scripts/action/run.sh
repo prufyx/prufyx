@@ -25,7 +25,7 @@ outdir="$(mktemp -d "$temp/prufyx-action/out.XXXXXX")"
 chmod 700 "$outdir"
 
 one_line() { # one_line NAME VALUE: no newline or control characters
-  if has_control "$2" || [ "$(printf '%s' "$2" | wc -l)" -gt 0 ]; then
+  if has_control "$2" || [[ "$2" == *$'\n'* ]]; then
     die "input '$1' must be a single line without control characters"
   fi
 }
@@ -232,7 +232,7 @@ case "$code" in
           # reason is matched with optional whitespace around the colon.
           grep -Eq '^[[:space:]]*\{' <<<"$jsonreport" || die "the confirming report is not a JSON object; failing closed"
           set +e
-          hits="$(printf '%s' "$jsonreport" | grep -Ec '"reason"[[:space:]]*:[[:space:]]*"API_VERSION_NOT_SERVED"' 2>/dev/null)"
+          hits="$(grep -Ec '"reason"[[:space:]]*:[[:space:]]*"API_VERSION_NOT_SERVED"' <<<"$jsonreport" 2>/dev/null)"
           grepcode=$?
           set -e
           case "$grepcode:$hits" in

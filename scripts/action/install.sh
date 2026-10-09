@@ -34,7 +34,7 @@ attest_repo="prufyx/prufyx"
 attest_workflow="prufyx/prufyx/.github/workflows/release.yml"
 
 [ -n "$version" ] || die "input 'version' is empty; pass a release tag such as v0.1.0, or 'source'"
-if has_control "$version" || [ "$(printf '%s' "$version" | wc -l)" -gt 0 ]; then
+if has_control "$version" || [[ "$version" == *$'\n'* ]]; then
   die "input 'version' has a control character or a newline"
 fi
 if [ -n "$pin" ] && ! grep -Eqx '[0-9a-f]{64}' <<<"$pin"; then
@@ -130,7 +130,8 @@ listing="$dl/listing.txt"
 tar -tzf "$dl/$archive" >"$listing" 2>/dev/null || die "$archive is not a readable archive; refusing to install"
 # No name may appear twice, every entry must be the package directory or one
 # plain name inside it (compared as text, not as a pattern).
-[ -z "$(sort "$listing" | uniq -d)" ] || die "$archive lists a name more than once; refusing to install"
+dups="$(sort "$listing" | uniq -d)"
+[ -z "$dups" ] || die "$archive lists a name more than once; refusing to install"
 bad="$(awk -v n="$name" 'BEGIN{p=n "/"}
   $0==n || $0==p {next}
   substr($0,1,length(p))==p { r=substr($0,length(p)+1); if (r!="" && r!=".." && index(r,"/")==0) next }
