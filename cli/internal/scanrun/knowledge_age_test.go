@@ -24,15 +24,18 @@ func scanAt(t *testing.T, knowledge Knowledge, now string, extra ...string) Resu
 	return mustScan(t, knowledge, append(argv, extra...)...)
 }
 
-// ageInstants are the shared clock and the instants 14 days before it and 20
-// days after it: before, inside and after the 30-day window of the earliest
-// expiry of the embedded pack (derived from the pack, see supersedeids.Clock).
 // insideNow is the instant inside the age window, as a --now value.
 func insideNow() string {
 	_, inside, _ := ageInstants()
 	return inside
 }
 
+// ageInstants are the instants 14 days before, 17 days before and 20 days
+// after the day of the earliest expiry of the embedded pack's active rules:
+// before, inside and after the 30-day window of that expiry (see
+// supersedeids.AgeClocks). They follow the earliest expiry only, so once the
+// Kubernetes rules are derived late they differ from the shared clock
+// (supersedeids.Clock).
 func ageInstants() (before, inside, after string) {
 	b, i, a := supersedeids.AgeClocks()
 	return b.Format(time.RFC3339), i.Format(time.RFC3339), a.Format(time.RFC3339)

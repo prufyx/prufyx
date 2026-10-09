@@ -5,11 +5,12 @@ package communityapp
 import (
 	"flag"
 	"fmt"
-	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
-	"github.com/prufyx/prufyx/cli/internal/goldenfile"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
+	"github.com/prufyx/prufyx/cli/internal/goldenfile"
 )
 
 var updateAgeGoldens = flag.Bool("update-age", false, "rewrite the knowledge age golden files")

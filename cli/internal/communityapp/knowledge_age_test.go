@@ -35,7 +35,6 @@ func embeddedEnd(t *testing.T) time.Time {
 	return first
 }
 
-// embeddedNote is the note the embedded knowledge gives at now.
 // ageInside is the instant inside the 30-day window of the earliest expiry of
 // the embedded pack the age tests use, derived from the pack.
 func ageInside() string {
@@ -50,6 +49,7 @@ func ageAfter() string {
 	return after.Format(time.RFC3339)
 }
 
+// embeddedNote is the note the embedded knowledge gives at now.
 func embeddedNote(t *testing.T, now string) string {
 	t.Helper()
 	at, err := time.Parse(time.RFC3339, now)
