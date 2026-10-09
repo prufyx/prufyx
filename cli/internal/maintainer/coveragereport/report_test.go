@@ -100,10 +100,10 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 	now, want := baselineNow, fleetFigures{Projects: 55, Pairs: 275, A: 0, B: 0, S: 44, G: 231, C1: 53, C3: 0}
 	if supersedeids.Superseded() {
 		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 0, B: 3, S: 44, G: 228, C1: 53, C3: 1}
-	} else if head.Revision != "cncf-2026-09-13.4" {
+	} else if head.Revision != "cncf-2026-09-13.5" {
 		// Only the reviewed generation is tied to the baseline revision: a
 		// bumped revision means a new baseline, which this file records.
-		t.Skipf("embedded pack is %s; the baseline pack is cncf-2026-09-13.4", head.Revision)
+		t.Skipf("embedded pack is %s; the baseline pack is cncf-2026-09-13.5", head.Revision)
 	}
 	report, err := Compute(Input{Pack: pack, Lines: read(t, "testdata/lines-2026-10-08.json"), Now: now})
 	if err != nil {

@@ -63,6 +63,15 @@ func FactID(factProject string) string {
 // a second project would make it ambiguous: every argoproj.io object would
 // then join no set and keep every set incomplete, so a removed Argo CD
 // version would no longer block (a missed blocker, never a false pass).
+//
+// wgpolicyk8s.io (Kyverno) and objectbucket.io (Rook) are also installed by
+// other software: the Kubernetes Policy WG report group by Trivy operator and
+// similar tools, objectbucket.io by lib-bucket-provisioner and NooBaa. They are
+// unique within this table, so the objects join the owning project's set; a
+// foreign object can only add a member (a PASS may turn into BLOCKED, never the
+// reverse). When a rule over these groups is derived, its review must consider
+// the other installers.
+//
 // Before a second project shares a group, attribution must move to
 // (group, kind), with kinds taken from the extractor inventory.
 var table = []Project{

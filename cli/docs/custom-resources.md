@@ -22,14 +22,25 @@ pinned commit:
 | Project | Fact | API groups |
 | --- | --- | --- |
 | `argo-cd` | `component.argo_cd.custom_resource_versions_set` | `argoproj.io` |
+| `cert-manager` | `component.cert_manager.custom_resource_versions_set` | `acme.cert-manager.io`, `cert-manager.io` |
+| `cilium` | `component.cilium.custom_resource_versions_set` | `cilium.io` |
+| `crossplane` | `component.crossplane.custom_resource_versions_set` | `apiextensions.crossplane.io`, `ops.crossplane.io`, `pkg.crossplane.io`, `protection.crossplane.io`, `secrets.crossplane.io` |
 | `istio` | `component.istio.custom_resource_versions_set` | `extensions.istio.io`, `networking.istio.io`, `security.istio.io`, `telemetry.istio.io` |
+| `keda` | `component.keda.custom_resource_versions_set` | `eventing.keda.sh`, `keda.sh` |
+| `kuma` | `component.kuma.custom_resource_versions_set` | `kuma.io` |
+| `kyverno` | `component.kyverno.custom_resource_versions_set` | `kyverno.io`, `policies.kyverno.io`, `reports.kyverno.io`, `wgpolicyk8s.io` |
+| `longhorn` | `component.longhorn.custom_resource_versions_set` | `longhorn.io` |
+| `rook` | `component.rook.custom_resource_versions_set` | `ceph.rook.io`, `objectbucket.io` |
 | `strimzi` | `component.strimzi.custom_resource_versions_set` | `core.strimzi.io`, `kafka.strimzi.io` |
+| `velero` | `component.velero.custom_resource_versions_set` | `velero.io` |
 
-The extractor reads CRDs for these projects and for others whose sets are not
-registered yet (cert-manager, Cilium, Crossplane, KEDA, Kuma, Kyverno,
-Longhorn, Rook, Velero): their rules are refused by the knowledge gate until
-the project and its API groups join this table. Adding a project to the table
-is a reviewed code change.
+Twelve projects are registered. Rules that attest a version removal exist for
+three of them (Argo CD, Istio, Strimzi); for the other nine no rule over the set
+ships yet, so a check of those projects stays UNKNOWN. The extractor's rules
+for a registered project are admitted by the knowledge gate only when the
+project and its API groups are in this table; `access.strimzi.io` and the
+`*.k8s.io` groups are not listed yet. Adding a project to the table is a
+reviewed code change.
 
 `argoproj.io` is shared upstream: Argo CD, Argo Workflows, Argo Rollouts and
 Argo Events all define CRDs in it. The catalog project `argo-cd` stands for the
@@ -56,7 +67,7 @@ upgrade.
 - Every other group is a **custom-resource group**. An object of such a group
   joins a project's set only when the table lists its group for that project
   and for no other project. A group the table does not list (your own CRDs,
-  `cert-manager.io`, `access.strimzi.io`, ...) or lists for two projects is
+  `monitoring.coreos.com`, `access.strimzi.io`, ...) or lists for two projects is
   never assigned to a project, by name, by suffix or otherwise.
 
 ## When the set is complete
