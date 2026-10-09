@@ -37,7 +37,7 @@ attest_workflow="prufyx/prufyx/.github/workflows/release.yml"
 if has_control "$version" || [ "$(printf '%s' "$version" | wc -l)" -gt 0 ]; then
   die "input 'version' has a control character or a newline"
 fi
-if [ -n "$pin" ] && ! printf '%s' "$pin" | grep -Eqx '[0-9a-f]{64}'; then
+if [ -n "$pin" ] && ! grep -Eqx '[0-9a-f]{64}' <<<"$pin"; then
   die "input 'archive-sha256' must be 64 lowercase hexadecimal characters"
 fi
 
@@ -74,7 +74,7 @@ fi
 if [ "$version" = "latest" ]; then
   die "version 'latest' is not accepted: pin a release tag so the binary and its checksum are reproducible"
 fi
-if ! printf '%s' "$version" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?'; then
+if ! grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?' <<<"$version"; then
   die "input 'version' must be a release tag like v0.1.0, or 'source'"
 fi
 
@@ -109,7 +109,7 @@ fetch "$repo_url/$version/$archive" "$dl/$archive" 2>/dev/null || no_release "$a
 count="$(awk -v f="$archive" '$2==f || $2=="*" f {n++} END{print n+0}' "$dl/SHA256SUMS")"
 [ "$count" = "1" ] || die "SHA256SUMS for $version does not list $archive exactly once; refusing to install"
 want="$(awk -v f="$archive" '$2==f || $2=="*" f {print $1}' "$dl/SHA256SUMS")"
-printf '%s' "$want" | grep -Eqx '[0-9a-f]{64}' || die "SHA256SUMS holds a malformed digest for $archive; refusing to install"
+grep -Eqx '[0-9a-f]{64}' <<<"$want" || die "SHA256SUMS holds a malformed digest for $archive; refusing to install"
 got="$(sha256_of "$dl/$archive")"
 [ "$got" = "$want" ] || die "checksum mismatch for $archive; refusing to install"
 if [ -n "$pin" ] && [ "$got" != "$pin" ]; then
@@ -138,9 +138,11 @@ bad="$(awk -v n="$name" 'BEGIN{p=n "/"}
 [ -z "$bad" ] || die "$archive contains unexpected paths; refusing to install"
 [ "$(grep -Fxc -- "$member" "$listing")" = 1 ] || die "$archive does not hold $member exactly once; refusing to install"
 # Entry types: only plain files and directories (no links, devices, fifos).
-if tar -tvzf "$dl/$archive" | cut -c1 | grep -qv '[-d]'; then
-  die "$archive holds a link or special file; refusing to install"
-fi
+# Read without an early-exit reader (grep -q) in a pipe: under pipefail a
+# writer that gets SIGPIPE would turn a found link into "no link found".
+tar -tvzf "$dl/$archive" >"$dl/listing-types.txt" 2>/dev/null || die "$archive is not a readable archive; refusing to install"
+types="$(cut -c1 <"$dl/listing-types.txt" | tr -d 'd-')"
+[ -z "$types" ] || die "$archive holds a link or special file; refusing to install"
 tar -xzf "$dl/$archive" -C "$dl" "$member"
 { [ -f "$dl/$member" ] && [ ! -L "$dl/$member" ]; } || die "$member is not a regular file; refusing to install"
 cp -P "$dl/$member" "$bindir/prufyx"
