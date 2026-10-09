@@ -50,6 +50,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- Maintainer extractor `crd.version-removal`, CRD-GEN wave 2: eleven more
+  projects are read (Antrea, CloudNativePG, Contour, Dapr, External Secrets
+  Operator, Karmada, Koordinator, MetalLB, OpenKruise, Tekton Pipelines and
+  Volcano; 23 in total), each over its latest six release lines (four for MetalLB, whose window starts
+  at 0.13). Their custom-resource version sets are registered in the fact registry and their
+  API groups listed in the reviewed table, like the twelve of the first wave.
+  The line attestation (`attest`) stays off for all eleven. API groups that
+  end in `.k8s.io` or that several projects ship (`multicluster.x-k8s.io`)
+  are not listed for any project. The embedded CNCF pack moves to revision
+  `cncf-2026-09-13.6` (same rules; only the registry digest and the revision
+  differ); external CNCF packs and knowledge databases built against the
+  previous registry are refused by this release until they are rebuilt. No
+  rule over the new sets ships yet.
 - Knowledge compatibility: the fact registry gains the custom-resource
   version set (`component.<project>.custom_resource_versions_set`) of nine more
   projects, and the reviewed custom-resource table lists their API groups:

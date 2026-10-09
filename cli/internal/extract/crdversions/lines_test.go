@@ -515,7 +515,7 @@ func TestLoadTargets(t *testing.T) {
 		{"tag prefix", mutate(func(tg, _ map[string]any) { tg["tagPrefixes"] = []any{"release-"} }), "tagPrefixes"},
 		{"duplicate fact project", mutate(func(tg, d map[string]any) {
 			tg["factProject"] = d["targets"].([]any)[1].(map[string]any)["factProject"]
-		}), "fact cert_manager is used by"},
+		}), "fact " + Targets[1].FactProject + " is used by"},
 	} {
 		if _, err := LoadTargets(tc.raw); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Fatalf("%s: %v, want %q", tc.name, err, tc.want)

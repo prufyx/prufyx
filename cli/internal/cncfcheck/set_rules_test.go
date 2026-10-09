@@ -28,7 +28,7 @@ const (
 	syntheticGate      = "SyntheticRemovedGate"
 	syntheticRevision  = "0000000000000000000000000000000000000001"
 	syntheticRuleID    = "kubernetes.synthetic-removed-gate.1-36-0-to-1-37-0"
-	embeddedPackSHA256 = "8c4d7dadfe538923310663c8c261bdf70ba5568956e6c2f096eeaaca9c13173e"
+	embeddedPackSHA256 = "959eded71b067c84fd49db7e8c738d1adc95e4f1b968be1819ccc5951979e934"
 )
 
 func syntheticSetDefinition() constraintengine.FactDefinition {

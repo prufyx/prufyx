@@ -1,6 +1,6 @@
 kyverno source-constraint preview
 input authority: OPERATOR_DECLARED_MINIMIZED
-knowledge: embedded revision cncf-2026-09-13.5
+knowledge: embedded revision cncf-2026-09-13.6
 runtime transitions reproduced: 0
 network used: false
 kyverno.reports-chunk-size-removed.1-13: UNKNOWN (RULE_EVIDENCE_STALE)
@@ -16,7 +16,7 @@ pinned source: https://github.com/kyverno/kyverno/blob/978c2f3b56df37a8bea4ee649
 scoped result: UNKNOWN
 aggregate: UNKNOWN
 input digest: sha256:83faf6e3d00c2dd09282fcfc94f23e956ebb1230f9ca0eb6226863165ef7ca55
-knowledge pack digest: sha256:8c4d7dadfe538923310663c8c261bdf70ba5568956e6c2f096eeaaca9c13173e
+knowledge pack digest: sha256:959eded71b067c84fd49db7e8c738d1adc95e4f1b968be1819ccc5951979e934
 next action: review each scoped claim; whole-upgrade behavior and runtime evidence remain unverified
 
 exit 11

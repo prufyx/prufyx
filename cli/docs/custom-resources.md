@@ -21,15 +21,42 @@ pinned commit:
 
 | Project | Fact | API groups |
 | --- | --- | --- |
+| `antrea` | `component.antrea.custom_resource_versions_set` | `crd.antrea.io`, `multicluster.crd.antrea.io` |
 | `argo-cd` | `component.argo_cd.custom_resource_versions_set` | `argoproj.io` |
+| `cert-manager` | `component.cert_manager.custom_resource_versions_set` | `acme.cert-manager.io`, `cert-manager.io` |
+| `cilium` | `component.cilium.custom_resource_versions_set` | `cilium.io` |
+| `cloudnativepg` | `component.cloudnativepg.custom_resource_versions_set` | `postgresql.cnpg.io` |
+| `contour` | `component.contour.custom_resource_versions_set` | `projectcontour.io` |
+| `crossplane` | `component.crossplane.custom_resource_versions_set` | `apiextensions.crossplane.io`, `ops.crossplane.io`, `pkg.crossplane.io`, `protection.crossplane.io`, `secrets.crossplane.io` |
+| `dapr` | `component.dapr.custom_resource_versions_set` | `dapr.io` |
+| `external-secrets` | `component.external_secrets.custom_resource_versions_set` | `external-secrets.io`, `generators.external-secrets.io` |
 | `istio` | `component.istio.custom_resource_versions_set` | `extensions.istio.io`, `networking.istio.io`, `security.istio.io`, `telemetry.istio.io` |
+| `karmada` | `component.karmada.custom_resource_versions_set` | `apps.karmada.io`, `autoscaling.karmada.io`, `config.karmada.io`, `networking.karmada.io`, `operator.karmada.io`, `policy.karmada.io`, `remedy.karmada.io`, `work.karmada.io` |
+| `keda` | `component.keda.custom_resource_versions_set` | `eventing.keda.sh`, `keda.sh` |
+| `koordinator` | `component.koordinator.custom_resource_versions_set` | `analysis.koordinator.sh`, `config.koordinator.sh`, `quota.koordinator.sh`, `scheduling.koordinator.sh`, `slo.koordinator.sh` |
+| `kuma` | `component.kuma.custom_resource_versions_set` | `kuma.io` |
+| `kyverno` | `component.kyverno.custom_resource_versions_set` | `kyverno.io`, `policies.kyverno.io`, `reports.kyverno.io`, `wgpolicyk8s.io` |
+| `longhorn` | `component.longhorn.custom_resource_versions_set` | `longhorn.io` |
+| `metallb` | `component.metallb.custom_resource_versions_set` | `metallb.io` |
+| `openkruise` | `component.openkruise.custom_resource_versions_set` | `apps.kruise.io`, `policy.kruise.io` |
+| `rook` | `component.rook.custom_resource_versions_set` | `ceph.rook.io`, `objectbucket.io` |
 | `strimzi` | `component.strimzi.custom_resource_versions_set` | `core.strimzi.io`, `kafka.strimzi.io` |
+| `tekton` | `component.tekton.custom_resource_versions_set` | `resolution.tekton.dev`, `tekton.dev` |
+| `velero` | `component.velero.custom_resource_versions_set` | `velero.io` |
+| `volcano` | `component.volcano.custom_resource_versions_set` | `batch.volcano.sh`, `bus.volcano.sh`, `config.volcano.sh`, `flow.volcano.sh`, `nodeinfo.volcano.sh`, `scheduling.volcano.sh`, `shard.volcano.sh`, `topology.volcano.sh` |
 
-The extractor reads CRDs for these projects and for others whose sets are not
-registered yet (cert-manager, Cilium, Crossplane, KEDA, Kuma, Kyverno,
-Longhorn, Rook, Velero): their rules are refused by the knowledge gate until
-the project and its API groups join this table. Adding a project to the table
-is a reviewed code change.
+The extractor reads the CRDs of every project of the table. The knowledge gate
+refuses rules over the version set of a project that is not listed here, until
+the project and its API groups join this table; adding a project to the table
+is a reviewed code change. So far the extractor attests
+release lines (the line reviews that `scan` reports) only for `argo-cd`,
+`istio` and `strimzi`; for the other projects of the table the fact is
+registered and rules over it are admitted, but no release line is attested yet.
+An API group that a project shares with others, or that is a Kubernetes group
+(it ends in `.k8s.io`), is not listed: for example the multicluster API group
+`multicluster.x-k8s.io` that Karmada and Antrea both ship, and the
+`scheduling.sigs.k8s.io` and `topology.node.k8s.io` groups that Koordinator
+ships.
 
 `argoproj.io` is shared upstream: Argo CD, Argo Workflows, Argo Rollouts and
 Argo Events all define CRDs in it. The catalog project `argo-cd` stands for the
@@ -56,7 +83,7 @@ upgrade.
 - Every other group is a **custom-resource group**. An object of such a group
   joins a project's set only when the table lists its group for that project
   and for no other project. A group the table does not list (your own CRDs,
-  `cert-manager.io`, `access.strimzi.io`, ...) or lists for two projects is
+  `monitoring.coreos.com`, `access.strimzi.io`, ...) or lists for two projects is
   never assigned to a project, by name, by suffix or otherwise.
 
 ## When the set is complete

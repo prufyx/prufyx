@@ -15,8 +15,8 @@ import (
 // is not registered yet: their candidates are derived, and the knowledge
 // gate refuses them (the fact is unknown to the engine) until the fact and
 // the project's API groups are added to the reviewed custom-resource table
-// in their own reviewed change. Empty since REGISTRY-WAVE-1: all 12 targets
-// are registered.
+// in their own reviewed change. Empty since REGISTRY-WAVE-1 and CRD-GEN wave 2:
+// all 23 targets are registered.
 var pendingRegistration = []string{}
 
 // The reviewed custom-resource table (which the fact registry and the
