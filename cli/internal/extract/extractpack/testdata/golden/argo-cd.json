@@ -18,9 +18,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:b881de6ef65bb7efa4d9bc54f91b2a0003a017166ac03dfd581fb8e7d5afe03f",
+            "codeDigest": "sha256:72a70941105628d39d015d3ce01ee42dd34fb2bcadcb8452f823cdc3149ced92",
             "id": "crd.version-removal.argo-cd",
-            "version": "2.0.0"
+            "version": "2.1.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -113,9 +113,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:b881de6ef65bb7efa4d9bc54f91b2a0003a017166ac03dfd581fb8e7d5afe03f",
+            "codeDigest": "sha256:72a70941105628d39d015d3ce01ee42dd34fb2bcadcb8452f823cdc3149ced92",
             "id": "crd.version-removal.argo-cd",
-            "version": "2.0.0"
+            "version": "2.1.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -189,6 +189,119 @@
           "to": "90.1.0"
         }
       }
+    }
+  ],
+  "lineAttestations": [
+    {
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "component": "pkg:github/argoproj/argo-cd",
+      "evidence": {
+        "basis": "mechanical",
+        "derivedAt": "2026-10-04T00:00:00Z",
+        "extractor": {
+          "codeDigest": "sha256:72a70941105628d39d015d3ce01ee42dd34fb2bcadcb8452f823cdc3149ced92",
+          "id": "crd.version-removal.argo-cd",
+          "version": "2.1.0"
+        },
+        "reviewedAt": "2026-10-04T00:00:00Z",
+        "sources": [
+          {
+            "contentDigest": "sha256:38332f7e59687e98e2223a17cd7d7f480c88e292cd043ec6c5d0fdf112f22f17",
+            "endLine": 30,
+            "id": "crds-90-0-0",
+            "revision": "0000000000000000000000000000000000900000",
+            "startLine": 1,
+            "url": "https://github.com/argoproj/argo-cd/blob/0000000000000000000000000000000000900000/manifests/crds/gadget-crd.yaml"
+          },
+          {
+            "contentDigest": "sha256:1a738b9feb2eea98d667157a01a30f6ce76e1bb22db0a7cf4e5878d9464f9060",
+            "endLine": 30,
+            "id": "crds-90-1-0",
+            "revision": "0000000000000000000000000000000000901000",
+            "startLine": 1,
+            "url": "https://github.com/argoproj/argo-cd/blob/0000000000000000000000000000000000901000/manifests/crds/gadget-crd.yaml"
+          }
+        ],
+        "validUntil": "2027-01-02T00:00:00Z"
+      },
+      "factFamily": "crd.custom_resource_versions",
+      "line": "90.1",
+      "releases": {
+        "from": [
+          {
+            "commit": "0000000000000000000000000000000000900000",
+            "version": "90.0.0"
+          }
+        ],
+        "to": [
+          {
+            "commit": "0000000000000000000000000000000000901000",
+            "version": "90.1.0"
+          },
+          {
+            "commit": "0000000000000000000000000000000000901000",
+            "version": "90.1.1"
+          }
+        ]
+      },
+      "ruleIds": [
+        "argo-cd.crd-version-removal.gadgets-fixture-argoproj-io.90-0-0-to-90-1-0",
+        "argo-cd.crd-version-removal.widgets-fixture-argoproj-io.90-0-0-to-90-1-0"
+      ]
+    },
+    {
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "component": "pkg:github/argoproj/argo-cd",
+      "evidence": {
+        "basis": "mechanical",
+        "derivedAt": "2026-10-04T00:00:00Z",
+        "extractor": {
+          "codeDigest": "sha256:72a70941105628d39d015d3ce01ee42dd34fb2bcadcb8452f823cdc3149ced92",
+          "id": "crd.version-removal.argo-cd",
+          "version": "2.1.0"
+        },
+        "reviewedAt": "2026-10-04T00:00:00Z",
+        "sources": [
+          {
+            "contentDigest": "sha256:1a738b9feb2eea98d667157a01a30f6ce76e1bb22db0a7cf4e5878d9464f9060",
+            "endLine": 30,
+            "id": "crds-90-1-0",
+            "revision": "0000000000000000000000000000000000901000",
+            "startLine": 1,
+            "url": "https://github.com/argoproj/argo-cd/blob/0000000000000000000000000000000000901000/manifests/crds/gadget-crd.yaml"
+          },
+          {
+            "contentDigest": "sha256:1a738b9feb2eea98d667157a01a30f6ce76e1bb22db0a7cf4e5878d9464f9060",
+            "endLine": 30,
+            "id": "crds-90-2-0",
+            "revision": "0000000000000000000000000000000000902000",
+            "startLine": 1,
+            "url": "https://github.com/argoproj/argo-cd/blob/0000000000000000000000000000000000902000/manifests/crds/gadget-crd.yaml"
+          }
+        ],
+        "validUntil": "2027-01-02T00:00:00Z"
+      },
+      "factFamily": "crd.custom_resource_versions",
+      "line": "90.2",
+      "releases": {
+        "from": [
+          {
+            "commit": "0000000000000000000000000000000000901000",
+            "version": "90.1.0"
+          },
+          {
+            "commit": "0000000000000000000000000000000000901000",
+            "version": "90.1.1"
+          }
+        ],
+        "to": [
+          {
+            "commit": "0000000000000000000000000000000000902000",
+            "version": "90.2.0"
+          }
+        ]
+      },
+      "ruleIds": []
     }
   ]
 }
