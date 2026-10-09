@@ -57,7 +57,8 @@ func csvOrderReport() Report {
 }
 
 // TestCSVHeaderOnly: a report with no findings, gaps or passes renders as
-// the header row alone.
+// the header row and the summary row, which carries its verdict (UNKNOWN for
+// an empty report) and headline.
 func TestCSVHeaderOnly(t *testing.T) {
 	report := Report{}
 	Finalize(&report)
@@ -65,7 +66,7 @@ func TestCSVHeaderOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := strings.Join(csvColumns, ",") + "\n"; string(raw) != want {
+	if want := strings.Join(csvColumns, ",") + "\n" + "UNKNOWN,,,,,,,," + csvQuoted(report.Headline) + ",\n"; string(raw) != want {
 		t.Fatalf("CSV of an empty report = %q, want %q", raw, want)
 	}
 }
@@ -111,19 +112,22 @@ func TestCSVRows(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			records := csvOf(t, tc.report, tc.options)
-			wantTotal := 1 + len(tc.wantFindings) + tc.wantGaps + tc.wantPasses
+			wantTotal := 2 + len(tc.wantFindings) + tc.wantGaps + tc.wantPasses
 			if len(records) != wantTotal {
 				t.Fatalf("%d records, want %d:\n%v", len(records), wantTotal, records)
 			}
 			if !reflect.DeepEqual(records[0], csvColumns) {
 				t.Fatalf("header %q, want %q", records[0], csvColumns)
 			}
+			if summary := records[1]; summary[0] != tc.report.Verdict || summary[1] != "" || summary[8] != csvCell(tc.report.Headline) {
+				t.Fatalf("summary row %q, want verdict %q and headline %q", summary, tc.report.Verdict, tc.report.Headline)
+			}
 			for i, want := range tc.wantFindings {
-				if !reflect.DeepEqual(records[1+i], want) {
-					t.Errorf("finding row %d = %q, want %q", i, records[1+i], want)
+				if !reflect.DeepEqual(records[2+i], want) {
+					t.Errorf("finding row %d = %q, want %q", i, records[2+i], want)
 				}
 			}
-			index := 1 + len(tc.wantFindings)
+			index := 2 + len(tc.wantFindings)
 			for i, gap := range tc.report.Gaps {
 				row := records[index+i]
 				if row[0] != "GAP" || row[1] != "" || row[2] != gap.Component || row[8] != csvCell(csvGapTitle(gap)) {
@@ -198,8 +202,8 @@ func TestCSVHostileCells(t *testing.T) {
 	Finalize(&report)
 	records := csvOf(t, report, RenderOptions{})
 	want := []string{"BLOCKED", "'=cmd", "'@project", "'-report.xlsx", "4", "K\\x00ind", "'@ns", "\\u202ename", "'=SUM(A1:A2)", "'+delete everything"}
-	if !reflect.DeepEqual(records[1], want) {
-		t.Fatalf("finding row = %q, want %q", records[1], want)
+	if !reflect.DeepEqual(records[2], want) {
+		t.Fatalf("finding row = %q, want %q", records[2], want)
 	}
 }
 
@@ -212,4 +216,13 @@ func TestCSVRenderFormat(t *testing.T) {
 	if !bytes.HasPrefix(raw, []byte("verdict,rule_id,")) || len(raw) == 0 || raw[len(raw)-1] != '\n' {
 		t.Fatalf("csv format does not render CSV:\n%s", raw)
 	}
+}
+
+// csvQuoted is text as encoding/csv writes one cell: quoted when it holds a
+// comma, a quote or a line break.
+func csvQuoted(text string) string {
+	if strings.ContainsAny(text, ",\"\r\n") || (text != "" && text[0] == ' ') {
+		return `"` + strings.ReplaceAll(text, `"`, `""`) + `"`
+	}
+	return text
 }

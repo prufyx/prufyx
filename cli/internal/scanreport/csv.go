@@ -11,7 +11,10 @@ import (
 // csvColumns are the columns of the CSV rendering, in order.
 var csvColumns = []string{"verdict", "rule_id", "project", "file", "line", "kind", "namespace", "name", "title", "fix"}
 
-// renderCSV renders the report as CSV: one header row, then one row per
+// renderCSV renders the report as CSV: one header row, one summary row (the
+// report's verdict in the verdict column and its headline in the title
+// column, so the answer is in the file and an undecided report never reads
+// like an empty pass), then one row per
 // finding location (findings are blocking) in the order the Markdown
 // renderer lists findings, one row per
 // gap with the message the Markdown renderer shows, and, when the options
@@ -22,6 +25,12 @@ func renderCSV(report Report, options RenderOptions) ([]byte, error) {
 	var out bytes.Buffer
 	writer := csv.NewWriter(&out)
 	if err := writer.Write(csvColumns); err != nil {
+		return nil, err
+	}
+	summary := make([]string, len(csvColumns))
+	summary[0] = csvCell(report.Verdict)
+	summary[8] = csvCell(report.Headline)
+	if err := writer.Write(summary); err != nil {
 		return nil, err
 	}
 	for _, finding := range csvFindings(report) {

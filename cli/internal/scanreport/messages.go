@@ -585,8 +585,9 @@ with where it is and how to fix it, and every area that was not checked.
   --distribution D          official_upstream or custom_build (Kubernetes)
   --resource-scope-complete[=true|false]   the inputs are every manifest you apply
   --target-api-apply-required[=true|false] the inputs are applied to the target API
-  --format human|json|sarif|markdown   output format (default human); sarif is SARIF 2.1.0 for
-                            code scanning, markdown is for pull request comments and tickets
+  --format human|json|sarif|markdown|csv   output format (default human); sarif is SARIF 2.1.0 for
+                            code scanning, markdown is for pull request comments and tickets,
+                            csv is one row per finding location and gap for spreadsheets
   --show-passes             list passed checks (human, markdown)
   --verbose                 show hop status and cited sources (human, markdown)
   --redact                  print digests instead of file paths, names and namespaces
