@@ -5,6 +5,8 @@ package cncfcheck
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,22 +23,30 @@ func TestPackParityTable(t *testing.T) {
 		t.Fatal(err)
 	}
 	const reviewed, until = "2026-09-20T00:00:00Z", "2026-12-19T00:00:00Z"
+	// The rules are written against the shared synthetic pair (noticeInput,
+	// syntheticKubernetesRule): PASS and the supported combination require the
+	// proposed version itself, UNSUPPORTED the next minor line, so the table
+	// follows the fixture when the pair moves.
+	inputRaw := noticeInput()
+	proposed := proposedVersion(t, inputRaw)
+	next := nextMinor(t, proposed)
 	concrete := func(index int, kind packparity.Kind) string {
 		id := fmt.Sprintf("kubernetes.synthetic-%02d-%s", index, kind)
 		switch kind {
 		case packparity.Pass:
-			return syntheticKubernetesRule(id, "require_component_version", "REVIEWED_SOURCE_CONSTRAINT", "keep the reviewed version", `,"dependency":{"side":"proposed","component":"`+noticeComponent+`","comparison":"gte","version":"1.37.0"}`, reviewed, until)
+			return syntheticKubernetesRule(id, "require_component_version", "REVIEWED_SOURCE_CONSTRAINT", "keep the reviewed version", `,"dependency":{"side":"proposed","component":"`+noticeComponent+`","comparison":"gte","version":"`+proposed+`"}`, reviewed, until)
 		case packparity.Blocked:
 			return syntheticKubernetesRule(id, "forbid_target_version", "REVIEWED_SOURCE_CONSTRAINT", "plan a reviewed route", "", reviewed, until)
 		case packparity.Unsupported:
-			return syntheticSupportRule(id, "1.38.0")
+			return syntheticSupportRule(id, next)
 		case packparity.Supported:
-			return syntheticSupportRule(id, "1.37.0")
+			return syntheticSupportRule(id, proposed)
 		}
 		return syntheticNoticeRule(id, reviewed, until)
 	}
-	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
-	inputRaw := noticeInput()
+	// The clock the sibling claim-exit tests use: one at which both
+	// generations of the embedded Kubernetes rules are current.
+	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
 	input, err := constraintengine.ParseInput(inputRaw, b.registry)
 	if err != nil {
 		t.Fatal(err)
@@ -71,4 +81,41 @@ func TestPackParityTable(t *testing.T) {
 			}
 		})
 	}
+}
+
+// proposedVersion is the proposed Kubernetes version of the synthetic input.
+func proposedVersion(t *testing.T, inputRaw []byte) string {
+	t.Helper()
+	var input struct {
+		Proposed struct {
+			Components []struct {
+				Component string `json:"component"`
+				Version   string `json:"version"`
+			} `json:"components"`
+		} `json:"proposed"`
+	}
+	if err := json.Unmarshal(inputRaw, &input); err != nil {
+		t.Fatal(err)
+	}
+	for _, component := range input.Proposed.Components {
+		if component.Component == noticeComponent {
+			return component.Version
+		}
+	}
+	t.Fatalf("synthetic input has no proposed %s", noticeComponent)
+	return ""
+}
+
+// nextMinor is the first version of the minor line after version.
+func nextMinor(t *testing.T, version string) string {
+	t.Helper()
+	parts := strings.Split(version, ".")
+	if len(parts) != 3 {
+		t.Fatalf("version %q is not major.minor.patch", version)
+	}
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil {
+		t.Fatalf("version %q: %v", version, err)
+	}
+	return parts[0] + "." + strconv.Itoa(minor+1) + ".0"
 }
