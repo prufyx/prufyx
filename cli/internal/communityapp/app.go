@@ -258,7 +258,7 @@ func (r runtime) rootHelp() int {
 
 Usage:
   prufyx version [--format human|json]
-  prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...] [--config FILE] [--format human|json|sarif|markdown] [--redact] [--now RFC3339]
+  prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...] [--config FILE] [--format human|json|sarif|markdown|csv] [--redact] [--now RFC3339]
   prufyx assess --kubeconfig FILE --acknowledge-kubeconfig-exec-risk [--allow-partial] [--component-configuration-profile v2|v3] [--scope-input FILE] [--to X.Y.Z] [--kubectl PATH] [--exec-env NAME ...] [--output DIR] [--format human|json] CONTEXT...
   prufyx prepare project --project grafana|kibana|loki --effective-config FILE --from VERSION --to VERSION --effective-config-complete --precedence-resolved [--effective-config-digest SHA256] [--format human|json|input]
   prufyx prepare project --project mariadb --effective-config FILE --from 10.11.8 --to 11.4.2 --effective-config-complete --precedence-resolved --upstream-distribution --require-innodb-defragmentation true|false [--effective-config-digest SHA256] [--format human|json|input]
