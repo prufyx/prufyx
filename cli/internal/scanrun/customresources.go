@@ -54,7 +54,16 @@ type customResourceRun struct {
 func newCustomResourceRun(knowledge Knowledge, now time.Time, report *scanreport.Report, workspace intake.Workspace, slug, component string, declared declarations, policy cncfcheck.TrustPolicy) (*customResourceRun, bool) {
 	fact, ok := cncfprepare.CustomResourceVersionsFact(slug)
 	if !ok {
-		return nil, false
+		// A community project the knowledge holds data for is checked the
+		// same way; run.go admits no other community project here.
+		p, community := cncfprepare.CommunityCustomResourceProject(slug)
+		if !community {
+			return nil, false
+		}
+		if _, known := knowledge.Component(slug); !known {
+			return nil, false
+		}
+		fact = p.FactID()
 	}
 	return &customResourceRun{knowledge: knowledge, now: now, report: report, workspace: workspace, slug: slug, component: component, fact: fact, declarations: declared, policy: policy}, true
 }

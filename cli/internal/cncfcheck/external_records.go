@@ -91,9 +91,11 @@ func admitExternalRecords(base bundle, packRaw json.RawMessage, pack rulePack) e
 		if _, err := admitAttestations(section, true, pack.Entries); err != nil {
 			return ErrIntegrity
 		}
-		// Every attestation names a catalog subject component; the family
-		// check in lineattest already limits which components it may name.
-		subjects := subjectComponents(base.landscape.Projects)
+		// Every attestation names a catalog subject component (a landscape
+		// project's, or a community project's); the family check in
+		// lineattest already limits which components it may name, and
+		// names no community project yet.
+		subjects := subjectComponents(base.knowledgeProjects())
 		components, err := sectionComponents(section)
 		if err != nil {
 			return ErrIntegrity

@@ -29,13 +29,18 @@ type customResourceRequest struct {
 	args                      []string
 }
 
-// cncfCustomResourceProjects lists the CNCF catalog projects the custom-resource
-// flags accept: the projects of the reviewed table that check cncf reads,
-// without the community projects it refuses.
+// cncfCustomResourceProjects lists the projects the custom-resource flags
+// accept: the CNCF catalog projects of the reviewed table, and the community
+// projects the embedded knowledge holds data for. A community project
+// without data is refused by the same command, so it is not listed.
 func cncfCustomResourceProjects() []string {
 	var out []string
 	for _, slug := range cncfprepare.CustomResourceProjects() {
 		if _, ok := cncfprepare.CustomResourceVersionsFact(slug); ok {
+			out = append(out, slug)
+			continue
+		}
+		if known, err := cncfcheck.CommunityProjectHasData(slug); err == nil && known {
 			out = append(out, slug)
 		}
 	}
@@ -50,11 +55,23 @@ var customResourceDigestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 // neither run nor reported. Only embedded knowledge is read.
 func (r runtime) cncfCustomResourceCheck(req customResourceRequest) int {
 	fact, ok := cncfprepare.CustomResourceVersionsFact(req.project)
+	catalogLine := ""
 	if !ok {
-		if p, community := cncfprepare.CommunityCustomResourceProject(req.project); community {
+		p, community := cncfprepare.CommunityCustomResourceProject(req.project)
+		if !community {
+			return r.usage("custom-resource flags require a project with a custom-resource version set (" + strings.Join(cncfCustomResourceProjects(), ", ") + "); use --help")
+		}
+		// A community project is checked only when the embedded knowledge
+		// holds data for it; without data the answer is the one given
+		// before the community knowledge step.
+		known, err := cncfcheck.CommunityProjectHasData(p.Slug)
+		if err != nil {
+			return r.cncfError("CNCF source-constraint check failed", err)
+		}
+		if !known {
 			return r.usage(fmt.Sprintf("%s (%s) is in the %s: check cncf does not check its custom-resource versions yet; see docs/custom-resources.md", p.Slug, p.Upstream.Name, customresources.CommunityLabel))
 		}
-		return r.usage("custom-resource flags require a project with a custom-resource version set (" + strings.Join(cncfCustomResourceProjects(), ", ") + "); use --help")
+		fact, catalogLine = p.FactID(), "catalog: "+customresources.CommunityLabel+"\n"
 	}
 	if req.path == "" || req.from == "" || req.to == "" || cncfUnexpectedModeFlag(req.args, cncfCustomResourceFlags...) || (flagProvided(req.args, "custom-resources-digest") && !customResourceDigestRE.MatchString(req.pin)) {
 		return r.usage("invalid custom-resource check arguments; use --help")
@@ -95,7 +112,7 @@ func (r runtime) cncfCustomResourceCheck(req customResourceRequest) int {
 		}
 		return customResourceExit(report)
 	}
-	if _, err := fmt.Fprintf(r.stdout, "%s custom-resource version review\nraw input digest: %s\nprepared input digest: %s\ncustom-resource set: %s\n", req.project, digest, prepared.InputDigest, customResourceSetLine(prepared.Reason, customResourceSetRecorded(prepared.CanonicalInputJSON))); err != nil {
+	if _, err := fmt.Fprintf(r.stdout, "%s custom-resource version review\n%sraw input digest: %s\nprepared input digest: %s\ncustom-resource set: %s\n", req.project, catalogLine, digest, prepared.InputDigest, customResourceSetLine(prepared.Reason, customResourceSetRecorded(prepared.CanonicalInputJSON))); err != nil {
 		return ExitIntegrity
 	}
 	if err := writeBasisHeadline(r.stdout, report.Check.Claims, report.TrustPolicy); err != nil {

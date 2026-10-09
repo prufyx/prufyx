@@ -21,10 +21,16 @@ const (
 	// one project target is a records envelope. Its entries say which
 	// (records: true). A binary that predates it refuses the index, and
 	// with it the whole package.
-	ExternalIndexSchemaRecords  = "prufyx.io/cncf-knowledge-index/v2"
-	ExternalIndexTargetPath     = "knowledge/cncf/index.v1.json"
-	ExternalProjectTargetPrefix = "knowledge/cncf/projects/"
-	ExternalProjectTargetSuffix = ".v1.json"
+	ExternalIndexSchemaRecords = "prufyx.io/cncf-knowledge-index/v2"
+	// ExternalIndexSchemaCommunity is the index of a layout in which at
+	// least one project target belongs to a community project (its entry
+	// says catalog: "community"). A binary that predates it refuses the
+	// index, and with it the whole package. A v1 or v2 index lists no
+	// community project, so a store without community data is unchanged.
+	ExternalIndexSchemaCommunity = "prufyx.io/cncf-knowledge-index/v3"
+	ExternalIndexTargetPath      = "knowledge/cncf/index.v1.json"
+	ExternalProjectTargetPrefix  = "knowledge/cncf/projects/"
+	ExternalProjectTargetSuffix  = ".v1.json"
 	// MaxExternalTargetBytes is the per-target cap for the index and for
 	// every project target. It equals the single-envelope parser cap.
 	MaxExternalTargetBytes = maxExternalBundleBytes
@@ -35,7 +41,10 @@ const (
 	TargetSizeAlarmPercent = 80
 )
 
-var externalProjectTargetRE = regexp.MustCompile(`^knowledge/cncf/projects/([a-z0-9]+(?:-[a-z0-9]+)*)\.v1\.json$`)
+var (
+	externalProjectTargetRE   = regexp.MustCompile(`^knowledge/cncf/projects/([a-z0-9]+(?:-[a-z0-9]+)*)\.v1\.json$`)
+	externalCommunityTargetRE = regexp.MustCompile(`^knowledge/community/projects/([a-z0-9]+(?:-[a-z0-9]+)*)\.v1\.json$`)
+)
 
 // ExternalIndexEntry binds one project target. Length and Digest must equal
 // the TUF target identity; the remaining fields must equal the semantic
@@ -51,6 +60,9 @@ type ExternalIndexEntry struct {
 	// Records is true when the project target is a records envelope. It is
 	// absent from every entry of a v1 index.
 	Records bool `json:"records,omitempty"`
+	// Catalog is "community" for the target of a community project and
+	// absent for a project of the CNCF landscape.
+	Catalog string `json:"catalog,omitempty"`
 }
 
 type externalIndexDocument struct {
@@ -76,15 +88,28 @@ type ExternalTarget struct {
 	Bytes []byte
 }
 
-// ProjectTargetPath returns the TUF target path of one project target.
+// ProjectTargetPath returns the TUF target path of one project target: under
+// ExternalCommunityTargetPrefix for a community project, under
+// ExternalProjectTargetPrefix for any other slug.
 func ProjectTargetPath(project string) string {
+	if isCommunitySlug(project) {
+		return ExternalCommunityTargetPrefix + project + ExternalProjectTargetSuffix
+	}
 	return ExternalProjectTargetPrefix + project + ExternalProjectTargetSuffix
 }
 
 // ProjectFromTargetPath returns the project slug of a project target path.
+// A path under the community prefix names a community project only, and a
+// path under the CNCF prefix never names one.
 func ProjectFromTargetPath(targetPath string) (string, bool) {
+	if match := externalCommunityTargetRE.FindStringSubmatch(targetPath); match != nil {
+		if len(match[1]) > 64 || !isCommunitySlug(match[1]) {
+			return "", false
+		}
+		return match[1], true
+	}
 	match := externalProjectTargetRE.FindStringSubmatch(targetPath)
-	if match == nil || len(match[1]) > 64 {
+	if match == nil || len(match[1]) > 64 || isCommunitySlug(match[1]) {
 		return "", false
 	}
 	return match[1], true
@@ -109,7 +134,7 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 	if err != nil || !bytes.Equal(canonical, raw) {
 		return ExternalIndex{}, ErrInvalid
 	}
-	if (document.Schema != ExternalIndexSchema && document.Schema != ExternalIndexSchemaRecords) || !validExternalRevision(document.Revision) || (document.Purpose != "operator_provided" && document.Purpose != "synthetic_test_only") || len(document.Projects) == 0 || len(document.Projects) > MaxExternalIndexProjects {
+	if (document.Schema != ExternalIndexSchema && document.Schema != ExternalIndexSchemaRecords && document.Schema != ExternalIndexSchemaCommunity) || !validExternalRevision(document.Revision) || (document.Purpose != "operator_provided" && document.Purpose != "synthetic_test_only") || len(document.Projects) == 0 || len(document.Projects) > MaxExternalIndexProjects {
 		return ExternalIndex{}, ErrInvalid
 	}
 	if base == nil {
@@ -124,15 +149,18 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 		return ExternalIndex{}, ErrIntegrity
 	}
 	var earliest time.Time
-	withRecords := 0
+	withRecords, withCommunity := 0, 0
 	for i, entry := range document.Projects {
 		if entry.Records {
 			withRecords++
 		}
+		if entry.Catalog != "" {
+			withCommunity++
+		}
 		if i > 0 && document.Projects[i-1].Project >= entry.Project {
 			return ExternalIndex{}, ErrInvalid
 		}
-		if !base.hasProject(entry.Project) || entry.TargetPath != ProjectTargetPath(entry.Project) || !validExternalRevision(entry.Revision) || entry.Length < 1 || entry.Length > MaxExternalTargetBytes || !digestPattern.MatchString(entry.Digest) || !digestPattern.MatchString(entry.RuleDigest) {
+		if !base.hasKnowledgeProject(entry.Project) || entry.Catalog != base.catalogOf(entry.Project) || entry.TargetPath != ProjectTargetPath(entry.Project) || !validExternalRevision(entry.Revision) || entry.Length < 1 || entry.Length > MaxExternalTargetBytes || !digestPattern.MatchString(entry.Digest) || !digestPattern.MatchString(entry.RuleDigest) {
 			return ExternalIndex{}, ErrInvalid
 		}
 		if _, ok := ProjectFromTargetPath(entry.TargetPath); !ok {
@@ -147,8 +175,16 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 		}
 	}
 	// The schema is exactly the level the entries need: a v1 index lists
-	// no records target, a v2 index at least one.
-	if (document.Schema == ExternalIndexSchemaRecords) != (withRecords > 0) {
+	// no records target and no community project, a v2 index at least one
+	// records target, a v3 index at least one community project.
+	wantSchema := ExternalIndexSchema
+	if withRecords > 0 {
+		wantSchema = ExternalIndexSchemaRecords
+	}
+	if withCommunity > 0 {
+		wantSchema = ExternalIndexSchemaCommunity
+	}
+	if document.Schema != wantSchema {
 		return ExternalIndex{}, ErrInvalid
 	}
 	type ruleBinding struct {
@@ -156,10 +192,11 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 		Revision   string `json:"revision"`
 		RuleDigest string `json:"ruleDigest"`
 		Records    bool   `json:"records,omitempty"`
+		Catalog    string `json:"catalog,omitempty"`
 	}
 	bindings := make([]ruleBinding, 0, len(document.Projects))
 	for _, entry := range document.Projects {
-		bindings = append(bindings, ruleBinding{Project: entry.Project, Revision: entry.Revision, RuleDigest: entry.RuleDigest, Records: entry.Records})
+		bindings = append(bindings, ruleBinding{Project: entry.Project, Revision: entry.Revision, RuleDigest: entry.RuleDigest, Records: entry.Records, Catalog: entry.Catalog})
 	}
 	admission := ExternalAdmission{Revision: document.Revision, Purpose: document.Purpose, EngineCapabilityDigest: document.EngineCapabilityDigest, HasRule: true, RuleDigest: externalDigestJSON(bindings), EvidenceExpiresAt: earliest.Format(time.RFC3339)}
 	return ExternalIndex{raw: append([]byte(nil), raw...), document: document, admission: admission, base: base, seal: &externalBundleSeal{}}, nil
@@ -221,7 +258,7 @@ func AdmitExternalProjectTarget(index ExternalIndex, project string, raw []byte)
 	}
 	// A record of another project's scope never rides in this target: the
 	// scan would read it as this project's knowledge.
-	if !recordsOwnedBy(bundle.pack, project, index.base.landscape.Projects) {
+	if !recordsOwnedBy(bundle.pack, project, index.base.knowledgeProjects()) {
 		return ExternalBundle{}, ErrIntegrity
 	}
 	return bundle, nil
@@ -329,7 +366,7 @@ func buildExternalTargets(base bundle, revision, purpose string, revisionFor fun
 	for _, entry := range base.pack.Entries {
 		byProject[entry.Project] = append(byProject[entry.Project], entry)
 	}
-	records, err := splitRecords(base.pack, base.landscape.Projects)
+	records, err := splitRecords(base.pack, base.knowledgeProjects())
 	if err != nil {
 		return ExternalTarget{}, nil, errors.Join(ErrIntegrity, ErrRecordWithoutOwner)
 	}
@@ -349,6 +386,11 @@ func buildExternalTargets(base bundle, revision, purpose string, revisionFor fun
 	index := externalIndexDocument{Schema: ExternalIndexSchema, Revision: revision, Purpose: purpose, EngineCapabilityDigest: capability}
 	if len(records) > 0 {
 		index.Schema = ExternalIndexSchemaRecords
+	}
+	for _, project := range projects {
+		if base.isCommunity(project) {
+			index.Schema = ExternalIndexSchemaCommunity
+		}
 	}
 	targets := make([]ExternalTarget, 0, len(projects))
 	for _, project := range projects {
@@ -376,7 +418,7 @@ func buildExternalTargets(base bundle, revision, purpose string, revisionFor fun
 		if err != nil {
 			return ExternalTarget{}, nil, ErrIntegrity
 		}
-		index.Projects = append(index.Projects, ExternalIndexEntry{Project: project, TargetPath: ProjectTargetPath(project), Revision: projectRevision, Length: int64(len(raw)), Digest: digest(raw), RuleDigest: admission.RuleDigest, EvidenceExpiresAt: admission.EvidenceExpiresAt, Records: admission.HasRecords})
+		index.Projects = append(index.Projects, ExternalIndexEntry{Project: project, TargetPath: ProjectTargetPath(project), Revision: projectRevision, Length: int64(len(raw)), Digest: digest(raw), RuleDigest: admission.RuleDigest, EvidenceExpiresAt: admission.EvidenceExpiresAt, Records: admission.HasRecords, Catalog: base.catalogOf(project)})
 		targets = append(targets, ExternalTarget{Path: ProjectTargetPath(project), Bytes: raw})
 	}
 	indexRaw, err := json.Marshal(index)

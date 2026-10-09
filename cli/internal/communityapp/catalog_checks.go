@@ -104,6 +104,9 @@ var catalogRuleKinds = map[string]string{
 // outside every reviewed region, so no reviewed rule covers it).
 func renderCatalogCheck(out io.Writer, item checkroutemetadata.Check) {
 	fmt.Fprintf(out, "%s %s %s -> %s\n", item.Project, item.RuleID, item.From, item.To)
+	if item.Catalog == cncfcheck.CatalogCommunity {
+		fmt.Fprintf(out, "  catalog: %s\n", cncfcheck.CommunityLabel)
+	}
 	if item.Withdrawn {
 		fmt.Fprintf(out, "  withdrawn: %s was withdrawn (evidence could not be verified) and always answers UNKNOWN\n", item.RuleID)
 	}

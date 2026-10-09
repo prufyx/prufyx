@@ -24,6 +24,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/checkroutemetadata"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/distribution"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/servedapis"
@@ -581,7 +582,40 @@ var cncfPackLevels = []packLevel{
 	{"prufyx.io/cncf-source-rule-pack/v1alpha9", hasMember(distribution.PackMember)},
 	{"prufyx.io/cncf-source-rule-pack/v1alpha10", hasMember(servedapis.PackMember)},
 	{"prufyx.io/cncf-source-rule-pack/v1alpha11", anyRule(constraintengine.AnyCrossingRule)},
+	{"prufyx.io/cncf-source-rule-pack/v1alpha12", anyCommunityCatalogEntry},
 }
+
+// anyCommunityCatalogEntry is the loader's test for a pack holding an entry
+// of a community-catalog project (a project of the reviewed custom-resource
+// table outside the CNCF landscape catalog).
+func anyCommunityCatalogEntry(pack map[string]any) (bool, error) {
+	entries, _ := array(pack["entries"])
+	for _, item := range entries {
+		entry, _ := object(item)
+		if project, _ := stringValue(entry["project"]); customresources.IsCommunity(project) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// communityCatalogLabel is how the inventory names the catalog of such a
+// project.
+const communityCatalogLabel = customresources.CommunityLabel
+
+// communityCatalogIdentities are the identities of the community-catalog
+// projects of the reviewed table.
+func communityCatalogIdentities() map[string]identity {
+	out := map[string]identity{}
+	for _, p := range customresources.CommunityProjects() {
+		out[p.Slug] = identity{p.Upstream.Name, p.Upstream.Repository}
+	}
+	return out
+}
+
+// communityCatalogCounts counts the rules of community-catalog projects the
+// CNCF pack holds. They are counted apart from the CNCF rules.
+type communityCatalogCounts struct{ rules, projects int }
 
 // communityPackLevels is the community-project pack loader's table.
 const communityPackSchema = "prufyx.io/community-project-source-rule-pack/v1alpha1"
@@ -651,23 +685,29 @@ func cncfPackMembersExact(pack map[string]any) bool {
 // returned projects and from ruleCount, but is still reported by the
 // withdrawn return value so the generated inventory can say explicitly why
 // coverage shrank, rather than silently dropping it.
-func genericProjects(rules map[string]any, identities map[string]identity, preparers map[string]bool) ([]map[string]any, int, []map[string]any, error) {
+func genericProjects(rules map[string]any, identities map[string]identity, preparers map[string]bool) ([]map[string]any, int, []map[string]any, communityCatalogCounts, error) {
+	projects, ruleCount, withdrawn, catalogCounts, err := genericProjectsWith(rules, identities, communityCatalogIdentities(), preparers)
+	return projects, ruleCount, withdrawn, catalogCounts, err
+}
+
+func genericProjectsWith(rules map[string]any, identities map[string]identity, community map[string]identity, preparers map[string]bool) ([]map[string]any, int, []map[string]any, communityCatalogCounts, error) {
+	var none, catalogCounts communityCatalogCounts
 	if !cncfPackMembersExact(rules) || !packSchemaMatches(rules, cncfPackSchema, cncfPackLevels) {
-		return nil, 0, nil, invalid("invalid rule-pack schema")
+		return nil, 0, nil, none, invalid("invalid rule-pack schema")
 	}
 	// Distribution records say which rule families apply to which
 	// Kubernetes distribution. The inventory has no wording for that yet,
 	// and listing the pack's rules without it would let a reader take them
 	// as checked for every distribution, so it refuses such a pack.
 	if _, ok := rules[distribution.PackMember]; ok {
-		return nil, 0, nil, invalid("the inventory does not list distribution records yet")
+		return nil, 0, nil, none, invalid("the inventory does not list distribution records yet")
 	}
 	if _, ok := rules[servedapis.PackMember]; ok {
-		return nil, 0, nil, invalid("the inventory does not list served-API lists yet")
+		return nil, 0, nil, none, invalid("the inventory does not list served-API lists yet")
 	}
 	entries, ok := array(rules["entries"])
 	if !ok || len(entries) == 0 {
-		return nil, 0, nil, invalid("missing rule entries")
+		return nil, 0, nil, none, invalid("missing rule entries")
 	}
 	grouped := map[string][]any{}
 	seen := map[string]bool{}
@@ -676,26 +716,28 @@ func genericProjects(rules map[string]any, identities map[string]identity, prepa
 	for _, item := range entries {
 		entry, ok := object(item)
 		if !ok {
-			return nil, 0, nil, invalid("invalid rule entry")
+			return nil, 0, nil, none, invalid("invalid rule entry")
 		}
 		project, _ := stringValue(entry["project"])
 		if _, ok := identities[project]; !ok {
-			return nil, 0, nil, invalid("rule project absent from landscape")
+			if _, isCommunity := community[project]; !isCommunity {
+				return nil, 0, nil, none, invalid("rule project absent from landscape")
+			}
 		}
 		rule, ok := object(entry["rule"])
 		if !ok {
-			return nil, 0, nil, invalid("invalid rule")
+			return nil, 0, nil, none, invalid("invalid rule")
 		}
 		id, _ := stringValue(rule["id"])
 		if !idRE.MatchString(id) || seen[id] {
-			return nil, 0, nil, invalid("duplicate rule")
+			return nil, 0, nil, none, invalid("duplicate rule")
 		}
 		seen[id] = true
 		// A one-way notice is verdict-neutral: it is not an executable rule
 		// and must not be counted or listed as one. Until the inventory has a
 		// section of its own for notices it refuses them rather than overclaim.
 		if rule["operator"] == constraintengine.OperatorNoticeOneWay {
-			return nil, 0, nil, invalid("the inventory does not list notices yet")
+			return nil, 0, nil, none, invalid("the inventory does not list notices yet")
 		}
 		// A support-range rule (severity "unsupported") never blocks: its
 		// failing outcome is UNSUPPORTED, so listing it under the rule limit
@@ -704,14 +746,14 @@ func genericProjects(rules map[string]any, identities map[string]identity, prepa
 		// rule only ever blocks. Each needs its own wording before the
 		// inventory lists it; until then the inventory refuses them.
 		if _, ok := rule["severity"]; ok {
-			return nil, 0, nil, invalid("the inventory does not list support-range rules yet")
+			return nil, 0, nil, none, invalid("the inventory does not list support-range rules yet")
 		}
 		if ruleEvidence, ok := object(rule["evidence"]); ok && (ruleEvidence["basis"] == constraintengine.BasisConsensus || ruleEvidence["basis"] == constraintengine.BasisLead) {
-			return nil, 0, nil, invalid("the inventory does not list consensus or lead rules yet")
+			return nil, 0, nil, none, invalid("the inventory does not list consensus or lead rules yet")
 		}
 		evidence, ok := object(rule["evidence"])
 		if !ok || (evidence["state"] != "active" && evidence["state"] != "withdrawn") {
-			return nil, 0, nil, invalid("inactive evidence")
+			return nil, 0, nil, none, invalid("inactive evidence")
 		}
 		if evidence["state"] == "withdrawn" {
 			withdrawn = append(withdrawn, map[string]any{"ruleID": id, "project": project, "family": "cncf_embedded_source_rule", "reasonCode": "RULE_EVIDENCE_WITHDRAWN"})
@@ -719,22 +761,26 @@ func genericProjects(rules map[string]any, identities map[string]identity, prepa
 		}
 		sources, ok := array(evidence["sources"])
 		if !ok || len(sources) == 0 {
-			return nil, 0, nil, invalid("missing evidence")
+			return nil, 0, nil, none, invalid("missing evidence")
 		}
 		normalized := make([]any, 0, len(sources))
 		for _, source := range sources {
 			v, err := sourceRecord(source, project)
 			if err != nil {
-				return nil, 0, nil, err
+				return nil, 0, nil, none, err
 			}
 			normalized = append(normalized, v)
 		}
 		tr, err := transition(rule)
 		if err != nil {
-			return nil, 0, nil, err
+			return nil, 0, nil, none, err
 		}
 		grouped[project] = append(grouped[project], map[string]any{"ruleID": id, "transition": tr, "evidence": normalized, "evidenceState": "active", "limit": "Scoped operator-declared constraint; a PASS, BLOCKED, or UNKNOWN claim never proves whole-upgrade safety or runtime behavior."})
-		ruleCount++
+		if _, isCommunity := community[project]; isCommunity {
+			catalogCounts.rules++
+		} else {
+			ruleCount++
+		}
 	}
 	names := make([]string, 0, len(grouped))
 	for name := range grouped {
@@ -743,18 +789,30 @@ func genericProjects(rules map[string]any, identities map[string]identity, prepa
 	sort.Strings(names)
 	projects := make([]map[string]any, 0, len(names))
 	for _, project := range names {
-		id := identities[project]
+		id, isCatalogCommunity := identities[project], false
+		if c, ok := community[project]; ok {
+			id, isCatalogCommunity = c, true
+			catalogCounts.projects++
+		}
 		if id.repository == "" {
-			return nil, 0, nil, invalid("executable project lacks repository")
+			return nil, 0, nil, none, invalid("executable project lacks repository")
 		}
 		if _, err := httpsURL(id.repository, true); err != nil {
-			return nil, 0, nil, err
+			return nil, 0, nil, none, err
 		}
 		sort.Slice(grouped[project], func(i, j int) bool {
 			return grouped[project][i].(map[string]any)["ruleID"].(string) < grouped[project][j].(map[string]any)["ruleID"].(string)
 		})
 		capability := map[string]any{"kind": "embedded_cncf_source_rule", "command": []any{"check", "cncf", "--project", project}, "rules": grouped[project], "metadataState": "embedded_active_source_rule_pack"}
-		if project == "argo-cd" {
+		if isCatalogCommunity {
+			// A community-catalog project is checked through its
+			// custom-resource version set only; it has no generic or
+			// native-input route, and says so in its listing.
+			capability = map[string]any{"kind": "embedded_community_catalog_source_rule", "command": []any{"check", "cncf", "--project", project, "--custom-resources", "FILE", "--from", "VERSION", "--to", "VERSION", "--now", "RFC3339"}, "rules": grouped[project], "metadataState": "embedded_active_source_rule_pack", "limit": "Community catalog (not in the embedded CNCF landscape catalog; no CNCF status asserted). Checks the project's custom-resource versions only (also read by prufyx scan); other changes remain unassessed."}
+		}
+		if isCatalogCommunity {
+			// no preparer, no native route
+		} else if project == "argo-cd" {
 			// Preserve the published generic preparer for v1 readers. The plural
 			// routes distinguish its selected RBAC ConfigMap check from the
 			// separately scoped resource-exclusions check.
@@ -796,10 +854,15 @@ func genericProjects(rules map[string]any, identities map[string]identity, prepa
 		} else if preparers[project] {
 			capability["localPreparer"] = map[string]any{"command": []any{"prepare", "cncf", "--project", project}, "metadataState": "implemented_local_minimizing_adapter", "limit": "The adapter prepares only a bounded operator declaration from one local private input; it does not inspect a cluster, run an upgrade, or establish runtime behavior."}
 		}
-		projects = append(projects, map[string]any{"projectID": project, "displayName": id.name, "repositoryURL": id.repository, "supportState": "executable", "capabilities": []any{capability}, "selectedSourceRecords": []any{}})
+		item := map[string]any{"projectID": project, "displayName": id.name, "repositoryURL": id.repository, "supportState": "executable", "capabilities": []any{capability}, "selectedSourceRecords": []any{}}
+		if isCatalogCommunity {
+			item["catalog"] = "community"
+			item["catalogLabel"] = communityCatalogLabel
+		}
+		projects = append(projects, item)
 	}
 	sort.Slice(withdrawn, func(i, j int) bool { return withdrawn[i]["ruleID"].(string) < withdrawn[j]["ruleID"].(string) })
-	return projects, ruleCount, withdrawn, nil
+	return projects, ruleCount, withdrawn, catalogCounts, nil
 }
 
 func nativeCNCFRoutes(project string) ([]nativeCNCFInputRoute, bool) {
@@ -1501,7 +1564,7 @@ func Generate(cfg Config) ([]byte, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	generic, ruleCount, genericWithdrawn, err := genericProjects(inputs[0].value, identities, preparers)
+	generic, ruleCount, genericWithdrawn, catalogCounts, err := genericProjects(inputs[0].value, identities, preparers)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1622,11 +1685,16 @@ func Generate(cfg Config) ([]byte, string, error) {
 	for _, item := range genericWithdrawn {
 		withdrawnRules = append(withdrawnRules, item)
 	}
-	inventory := map[string]any{"schema": Schema, "inputDigests": inputDigests, "selectedSourceProvenance": provenance, "counts": map[string]any{"cncfSourceRules": ruleCount, "cncfSourceRulesWithdrawn": len(genericWithdrawn), "cncfRuleProjects": len(generic), "communityProjectSourceRules": communityCount.verdict, "communityProjectRuleProjects": len(community), "namedChecks": 2, "namedCheckProjects": 2, "conformanceProfiles": 2, "conformanceProjects": 2, "targetPreflightProfiles": 1, "targetPreflightProjects": 1, "executableProjects": executable, "selectedSourceRecords": len(selected), "selectedSourceProjects": len(selectedByProject), "selectedSourceOnlyProjects": sourceOnly}, "scope": map[string]any{"cncfRules": "embedded active CNCF source-rule pack; exact declared endpoints only", "communityProjectRules": "separate embedded maintainer-reviewed external-project registry; CNCF membership is not asserted and external updates are unavailable", "namedChecks": "embedded local source contracts; exact reviewed transitions only", "conformanceProfiles": "named standards subsets without invented from/to transitions", "targetPreflightProfiles": "named target-only planned-operation setting checks without invented from/to transitions", "selectedSourceRecords": "retained public-source records; source selection alone does not create executable upgrade support", "withdrawnRules": "rule evidence found unverifiable after publication; withdrawn from executable coverage, listed here rather than silently dropped", "wholeUpgrade": "UNKNOWN"}, "withdrawnRules": withdrawnRules, "projects": projectList}
+	inventory := map[string]any{"schema": Schema, "inputDigests": inputDigests, "selectedSourceProvenance": provenance, "counts": map[string]any{"cncfSourceRules": ruleCount, "cncfSourceRulesWithdrawn": len(genericWithdrawn), "cncfRuleProjects": len(generic) - catalogCounts.projects, "communityProjectSourceRules": communityCount.verdict, "communityProjectRuleProjects": len(community), "namedChecks": 2, "namedCheckProjects": 2, "conformanceProfiles": 2, "conformanceProjects": 2, "targetPreflightProfiles": 1, "targetPreflightProjects": 1, "executableProjects": executable, "selectedSourceRecords": len(selected), "selectedSourceProjects": len(selectedByProject), "selectedSourceOnlyProjects": sourceOnly}, "scope": map[string]any{"cncfRules": "embedded active CNCF source-rule pack; exact declared endpoints only", "communityProjectRules": "separate embedded maintainer-reviewed external-project registry; CNCF membership is not asserted and external updates are unavailable", "namedChecks": "embedded local source contracts; exact reviewed transitions only", "conformanceProfiles": "named standards subsets without invented from/to transitions", "targetPreflightProfiles": "named target-only planned-operation setting checks without invented from/to transitions", "selectedSourceRecords": "retained public-source records; source selection alone does not create executable upgrade support", "withdrawnRules": "rule evidence found unverifiable after publication; withdrawn from executable coverage, listed here rather than silently dropped", "wholeUpgrade": "UNKNOWN"}, "withdrawnRules": withdrawnRules, "projects": projectList}
 	// Counts for rule kinds the pack does not hold are left out while zero,
 	// so a pack without those rules produces byte-identical output to the
 	// generator that predates them: the knowledge gate regenerates with the
 	// base branch's code.
+	if catalogCounts.projects > 0 {
+		inventory["counts"].(map[string]any)["communityCatalogSourceRules"] = catalogCounts.rules
+		inventory["counts"].(map[string]any)["communityCatalogRuleProjects"] = catalogCounts.projects
+		inventory["scope"].(map[string]any)["communityCatalogRules"] = "community-catalog projects (outside the embedded CNCF landscape catalog; no CNCF status asserted) in the same rule pack; custom-resource versions only"
+	}
 	if communityCount.supportRange > 0 {
 		inventory["counts"].(map[string]any)["communityProjectSupportRangeRules"] = communityCount.supportRange
 	}
@@ -1674,6 +1742,10 @@ func renderMarkdown(inventory map[string]any) string {
 	lines := []string{"# Community support inventory", "", "Generated by `cmd/prufyx-maintainer`; do not edit by hand.", "", "This inventory separates executable scoped checks from selected public-source records. Catalogue discovery identities are not support entries. A scoped result never proves a whole upgrade safe or runtime behavior.", "", fmt.Sprintf("- CNCF embedded source rules: **%d** across **%d** projects; **%d** withdrawn (unverifiable evidence) and excluded from executable coverage.", n("cncfSourceRules"), n("cncfRuleProjects"), n("cncfSourceRulesWithdrawn")), fmt.Sprintf("- Community-project embedded source rules: **%d** across **%d** projects; CNCF membership is not asserted.", n("communityProjectSourceRules"), n("communityProjectRuleProjects")), fmt.Sprintf("- Named local checks: **%d** across **%d** projects.", n("namedChecks"), n("namedCheckProjects")), fmt.Sprintf("- Standards-conformance profiles: **%d** across **%d** projects; these are not version-transition checks.", n("conformanceProfiles"), n("conformanceProjects")), fmt.Sprintf("- Target-preflight profiles: **%d** across **%d** projects; these are not version-transition checks.", n("targetPreflightProfiles"), n("targetPreflightProjects")), fmt.Sprintf("- Executable-project union: **%d** projects.", n("executableProjects")), fmt.Sprintf("- Selected retained public-source records: **%d** across **%d** projects; **%d** are source-only and have no executable-support capability.", n("selectedSourceRecords"), n("selectedSourceProjects"), n("selectedSourceOnlyProjects")), "", "## Executable projects", "", "| Project | Executable capability | Exact reviewed transition(s) | Pinned evidence | Local preparer | Limits |", "| --- | --- | --- | --- | --- |"}
 	// The lines for the separately counted rule kinds appear only when the
 	// pack holds such rules (Generate leaves the counts out at zero).
+	if v, ok := counts["communityCatalogSourceRules"].(int); ok {
+		at := slices.Index(lines, fmt.Sprintf("- CNCF embedded source rules: **%d** across **%d** projects; **%d** withdrawn (unverifiable evidence) and excluded from executable coverage.", n("cncfSourceRules"), n("cncfRuleProjects"), n("cncfSourceRulesWithdrawn")))
+		lines = slices.Insert(lines, at+1, fmt.Sprintf("- Community-catalog embedded source rules (projects outside the embedded CNCF landscape catalog; no CNCF status asserted; custom-resource versions only): **%d** across **%d** projects.", v, n("communityCatalogRuleProjects")))
+	}
 	extra := []string{}
 	if v, ok := counts["communityProjectSupportRangeRules"].(int); ok {
 		extra = append(extra, fmt.Sprintf("- Community-project support-range rules (counted separately; outside the documented range the claim is UNSUPPORTED, never BLOCKED): **%d**.", v))
@@ -1754,7 +1826,11 @@ func renderMarkdown(inventory map[string]any) string {
 			}
 			return strings.Join(items, "<br>")
 		}
-		lines = append(lines, fmt.Sprintf("| [%s](<%s>) | %s | %s | %s | %s | %s |", markdownCell(project["displayName"].(string)), project["repositoryURL"], escapeJoin(labels), escapeJoin(transitions), strings.Join(uniqueSorted(evidence), "<br>"), preparerText, escapeJoin(uniqueSorted(limits))))
+		displayName := markdownCell(project["displayName"].(string))
+		if project["catalog"] == "community" {
+			displayName += " (" + markdownCell(communityCatalogLabel) + ")"
+		}
+		lines = append(lines, fmt.Sprintf("| [%s](<%s>) | %s | %s | %s | %s | %s |", displayName, project["repositoryURL"], escapeJoin(labels), escapeJoin(transitions), strings.Join(uniqueSorted(evidence), "<br>"), preparerText, escapeJoin(uniqueSorted(limits))))
 	}
 	headerWritten := false
 	for _, rawProject := range projects {
