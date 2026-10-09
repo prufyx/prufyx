@@ -471,6 +471,12 @@ func TestDecoderBounds(t *testing.T) {
 
 // The reviewed target table: every entry valid, sorted and unique; each
 // refusal of the loader.
+// exclusionOf is a valid exclusion entry of a target but for the given path
+// and reason.
+func exclusionOf(tg map[string]any, p, reason string) map[string]any {
+	return map[string]any{"path": p, "repo": tg["repo"], "reason": reason, "evidence": "read only by the tests of the project; nothing installs from it"}
+}
+
 func TestLoadTargets(t *testing.T) {
 	if len(Targets) < 12 || !sort.SliceIsSorted(Targets, func(i, j int) bool { return Targets[i].Project < Targets[j].Project }) {
 		t.Fatalf("targets %d", len(Targets))
@@ -500,9 +506,10 @@ func TestLoadTargets(t *testing.T) {
 		{"min from", mutate(func(tg, _ map[string]any) { tg["minFrom"] = "3" }), "minFrom"},
 		{"bad regex", mutate(func(tg, _ map[string]any) { tg["paths"].([]any)[0].(map[string]any)["match"] = "(" }), "match"},
 		{"unclean path", mutate(func(tg, _ map[string]any) { tg["paths"].([]any)[0].(map[string]any)["path"] = "a/../b" }), "clean repository path"},
-		{"exclusion without reason", mutate(func(tg, _ map[string]any) { tg["exclude"] = []any{map[string]any{"path": "x/", "reason": ""}} }), "reason"},
+		{"exclusion without reason", mutate(func(tg, _ map[string]any) { tg["exclude"] = []any{exclusionOf(tg, "x/", "")} }), "reason"},
 		{"exclusion over a listed path", mutate(func(tg, _ map[string]any) {
-			tg["exclude"] = []any{map[string]any{"path": "manifests/", "reason": "a reason that is long enough"}}
+			tg["paths"].([]any)[0].(map[string]any)["path"] = "data/crds"
+			tg["exclude"] = []any{exclusionOf(tg, "data/", "a reason that is long enough")}
 		}), "covers the listed path"},
 		{"every path optional", mutate(func(tg, _ map[string]any) { tg["paths"].([]any)[0].(map[string]any)["optional"] = true }), "every path is optional"},
 		{"tag prefix", mutate(func(tg, _ map[string]any) { tg["tagPrefixes"] = []any{"release-"} }), "tagPrefixes"},

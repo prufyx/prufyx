@@ -54,6 +54,10 @@ type Target struct {
 	// full-tree scan records without letting them block attestation, each
 	// with its reviewed reason. A listed path is never excluded.
 	Exclude []Exclusion
+
+	// voided are the Exclude entries that do not hold at the release being
+	// scanned (see guard.go); set on a copy made for one scan.
+	voided map[string]bool
 }
 
 // PathSpec is a file, or a directory whose files with names matching Match
@@ -80,10 +84,23 @@ type PathSpec struct {
 // that claim, and a file that defines a listed CRD with other versions or
 // served flags, defines one the inventory does not hold, or cannot be read
 // after its template directives are removed blocks attestation.
+//
+// Every entry names its repository, the reason the files are not installed
+// and the evidence a reviewer read (what uses the files and how). The reason
+// and the evidence must hold at every tag of the window; the install-surface
+// guard (guard.go) checks the part of that claim a program can: at a tag
+// where a Helm chart, a kustomization, a Makefile, a document with an
+// install command or an embedding Go package refers to the excluded path,
+// or the path lies under a chart, the entry is void for that tag and the
+// files under it block attestation like any others. An entry that is not a
+// declared copy may not lie under a chart, an install, deploy, manifests or
+// CRD directory (see installSegments).
 type Exclusion struct {
-	Path   string
-	Reason string
-	Copies bool
+	Path     string
+	Repo     string
+	Reason   string
+	Evidence string
+	Copies   bool
 }
 
 // DefaultExcludedSegments are the directory names whose content is not
@@ -124,9 +141,11 @@ type pathJSON struct {
 }
 
 type exclusionJSON struct {
-	Path   string `json:"path"`
-	Reason string `json:"reason"`
-	Copies bool   `json:"copies,omitempty"`
+	Path     string `json:"path"`
+	Repo     string `json:"repo"`
+	Reason   string `json:"reason"`
+	Evidence string `json:"evidence"`
+	Copies   bool   `json:"copies,omitempty"`
 }
 
 var (
@@ -249,7 +268,10 @@ func (tj targetJSON) target() (Target, error) {
 				return t, fmt.Errorf("exclusion %q covers the listed path %s", ej.Path, ps.Path)
 			}
 		}
-		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Reason: ej.Reason, Copies: ej.Copies})
+		if ej.Repo != t.Repo {
+			return t, fmt.Errorf("exclusion %q names repository %q, not %s", ej.Path, ej.Repo, t.Repo)
+		}
+		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Repo: ej.Repo, Reason: ej.Reason, Evidence: ej.Evidence, Copies: ej.Copies})
 	}
 	return t, nil
 }
@@ -298,7 +320,54 @@ func validExclusion(ej exclusionJSON) error {
 	if r := strings.TrimSpace(ej.Reason); r != ej.Reason || len(r) < 12 || len(r) > 300 {
 		return fmt.Errorf("a reason of 12 to 300 characters is required")
 	}
+	if e := strings.TrimSpace(ej.Evidence); e != ej.Evidence || len(e) < 40 || len(e) > 800 {
+		return fmt.Errorf("evidence of 40 to 800 characters is required")
+	}
+	if !ej.Copies {
+		if seg := installSegment(ej.Path); seg != "" {
+			return fmt.Errorf("%q lies under a %q directory: definitions there are installed or generated for install and are never excluded", ej.Path, seg)
+		}
+	}
 	return nil
+}
+
+// installSegments are the directory names of the places a project installs
+// from; an entry that is not a declared, checked copy may not lie under one.
+// "chart", "charts", "deploy", "deployment", "deployments", "install" and
+// "installation" count at any depth. "manifests" counts only as the first
+// directory of the repository (the install directory of the projects that
+// have one; test/e2e/manifests holds the manifests of end-to-end tests), and
+// "crd" or "crds" only directly below a "config" directory (the kubebuilder
+// layout). The install-surface guard decides the rest per tag, and refuses
+// every path that lies under a Helm chart.
+var installSegments = []string{"chart", "charts", "deploy", "deployment", "deployments", "install", "installation"}
+
+// installSegment returns the install location an exclusion path lies under
+// ("" when it lies under none). For a directory prefix every segment is a
+// directory; for a file or pattern the directory part is. Case-insensitive.
+func installSegment(entry string) string {
+	dir := strings.TrimSuffix(entry, "/")
+	if !strings.HasSuffix(entry, "/") {
+		dir = path.Dir(entry)
+	}
+	if dir == "." {
+		return ""
+	}
+	segs := strings.Split(strings.ToLower(dir), "/")
+	if segs[0] == "manifests" {
+		return "manifests"
+	}
+	for i, seg := range segs {
+		for _, s := range installSegments {
+			if seg == s {
+				return s
+			}
+		}
+		if seg == "config" && i+1 < len(segs) && (segs[i+1] == "crd" || segs[i+1] == "crds") {
+			return "config/" + segs[i+1]
+		}
+	}
+	return ""
 }
 
 // exclusionMatches reports whether one exclusion entry covers a file path.
@@ -331,6 +400,12 @@ type place struct {
 	kind   int
 	entry  string
 	copies bool
+	// void: a reviewed exclusion that an install surface refers to at this
+	// release. The place is a default-like one ("void: <entry>"): the files
+	// are classified, block attestation and never withhold a pair, but a
+	// definition may not be taken to be gone while one of them is opaque,
+	// and Go sources there are read.
+	void bool
 }
 
 // placeOf locates a file path. A reviewed exclusion wins over a default
@@ -338,19 +413,31 @@ type place struct {
 func (t Target) placeOf(p string) place {
 	for _, e := range t.Exclude {
 		if exclusionMatches(e.Path, p) {
+			if t.voided[e.Path] {
+				return place{kind: locDefault, entry: voidPrefix + e.Path, void: true}
+			}
 			return place{kind: locReviewed, entry: e.Path, copies: e.Copies}
 		}
 	}
+	if d := defaultSegment(p); d != "" {
+		return place{kind: locDefault, entry: "default: " + d}
+	}
+	return place{kind: locTree}
+}
+
+// defaultSegment returns the first directory segment of a file path that
+// names a default-excluded directory ("" when none does).
+func defaultSegment(p string) string {
 	if dir := path.Dir(p); dir != "." {
 		for _, seg := range strings.Split(dir, "/") {
 			for _, d := range DefaultExcludedSegments {
 				if seg == d {
-					return place{kind: locDefault, entry: "default: " + d}
+					return d
 				}
 			}
 		}
 	}
-	return place{kind: locTree}
+	return ""
 }
 
 // TargetFor returns the target of a project slug.

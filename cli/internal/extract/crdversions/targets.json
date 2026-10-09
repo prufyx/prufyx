@@ -12,9 +12,7 @@
       "paths": [
         {"path": "manifests/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
-      "exclude": [
-        {"path": "resource_customizations/", "reason": "health-check Lua scripts and their sample objects for third-party kinds; no definition Argo CD installs"}
-      ]
+      "exclude": []
     },
     {
       "project": "cert-manager",
@@ -28,8 +26,8 @@
         {"path": "deploy/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
       "exclude": [
-        {"path": "deploy/charts/cert-manager/templates/", "reason": "Helm chart templates; the chart's CRD templates are rendered from the same generated definitions as deploy/crds (checked as copies)", "copies": true},
-        {"path": "make/", "reason": "build scripts and the Helm template header used to generate chart CRD templates; no installed definition"}
+        {"path": "deploy/charts/cert-manager/templates/", "repo": "github.com/cert-manager/cert-manager", "reason": "Helm chart templates; the chart's CRD templates are rendered from the same generated definitions as deploy/crds (checked as copies)", "evidence": "Not trusted, checked: at every tag each file is read with its template directives removed and its definitions are compared with the listed paths (versions, served flags); a mismatch, another definition or an unreadable file blocks attestation.", "copies": true},
+        {"path": "make/", "repo": "github.com/cert-manager/cert-manager", "reason": "build scripts and the Helm template header used to generate chart CRD templates; no installed definition", "evidence": "Read at v1.16.0 and v1.21.2: make/ holds the Makefile fragments included by the root Makefile, kind and e2e scripts, and make/config/* (kind, kyverno, bind, ...) which only the e2e-setup targets apply to a test cluster; make/_shared*/helm/crd.template.header.yaml is the header the CRD generator prepends to the chart templates."}
       ]
     },
     {
@@ -58,8 +56,11 @@
         {"path": "cluster/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
       "exclude": [
-        {"path": "cluster/meta/", "reason": "schemas of package metadata (meta.pkg.crossplane.io) read from package files by the package manager; never installed as CustomResourceDefinitions"},
-        {"path": "internal/xcrd/", "reason": "Go code that builds the CustomResourceDefinitions of user-defined composite resources (XRDs) at run time; their groups are the user's, never Crossplane's own"}
+        {"path": "cluster/meta/", "repo": "github.com/crossplane/crossplane", "reason": "schemas of package metadata (meta.pkg.crossplane.io) read from package files by the package manager; never installed as CustomResourceDefinitions", "evidence": "Read at v1.20.0 and v2.4.2: generate.go says the meta.pkg.crossplane.io CRDs generated into cluster/meta \"are never installed, only used for API documentation\"; cluster/crds (the listed path) does not contain them and the Earthfile only saves the generated directory back to the tree."},
+        {"path": "cmd/crank/beta/validate/testdata/", "repo": "github.com/crossplane/crossplane", "reason": "fixtures of the crank validate unit tests: cached provider packages and CRDs of dummy providers", "evidence": "Read at v1.20.0: the Go tests of cmd/crank/beta/validate (cache_test.go and others) open testdata/cache and testdata/crds by relative path; no other file of the tree names the directory."},
+        {"path": "internal/xcrd/", "repo": "github.com/crossplane/crossplane", "reason": "Go code that builds the CustomResourceDefinitions of user-defined composite resources (XRDs) at run time; their groups are the user's, never Crossplane's own", "evidence": "Read at v1.20.0 and v1.20.5 (the directory is gone from v2.4.2): crd.go ForCompositeResource and ForCompositeResourceClaim build a CustomResourceDefinition from a CompositeResourceDefinition object at run time; the group, kind and versions come from the user object, nothing is fixed in the source."},
+        {"path": "internal/xpkg/testdata/", "repo": "github.com/crossplane/crossplane", "reason": "fixtures of the xpkg builder unit tests", "evidence": "Read at v1.20.0: internal/xpkg/build_test.go reads testdata/providerconfigs.helm.crossplane.io.yaml with afero; no other file names the directory."},
+        {"path": "test/e2e/manifests/", "repo": "github.com/crossplane/crossplane", "reason": "manifests applied by the end-to-end tests to a kind cluster that the tests create", "evidence": "Read at v1.20.0 and v2.4.2: the Go tests in test/e2e pass test/e2e/manifests/... to the e2e framework (manifests := \"test/e2e/manifests/...\"); the only other mentions are the kind config in the same directory and a reviewer-bot rule (.coderabbit.yaml)."}
       ]
     },
     {
@@ -74,11 +75,13 @@
         {"path": "manifests/charts/base/files/crd-all.gen.yaml"}
       ],
       "exclude": [
-        {"path": "common/scripts/", "reason": "scripts and third-party manifests (MetalLB) used by the test infrastructure; no Istio definition"},
-        {"path": "pkg/config/schema/metadata.yaml", "reason": "code-generation metadata of the resource types Istio handles; lists the built-in CustomResourceDefinition kind and defines none"},
-        {"path": "pkg/kube/kclient/clienttest/", "reason": "Go test helpers (they take a test.Failer) that build fake CustomResourceDefinitions for unit tests; not part of an install"},
-        {"path": "prow/", "reason": "continuous-integration configuration and third-party manifests (Calico) for test clusters; no Istio definition"},
-        {"path": "samples/", "reason": "sample applications and third-party integrations (SPIRE); no Istio definition"}
+        {"path": "common/scripts/", "repo": "github.com/istio/istio", "reason": "scripts and third-party manifests (MetalLB) used by the test infrastructure; no Istio definition", "evidence": "Read at 1.26.0 and 1.31.1: shell scripts (run.sh, gobuild.sh, setup_env.sh, kind_provisioner.sh, lint and format helpers) called from the Makefiles, and metallb-native.yaml, which kind_provisioner.sh installs into the test clusters it creates."},
+        {"path": "operator/cmd/mesh/testdata/", "repo": "github.com/istio/istio", "reason": "golden outputs and inputs of the operator manifest-generate tests", "evidence": "Read at 1.26.0 and 1.31.1: operator/scripts/run_update_golden_snapshots.sh regenerates operator/cmd/mesh/testdata/manifest-generate from the charts; the Go tests of operator/cmd/mesh compare against it."},
+        {"path": "pkg/config/analysis/analyzers/testdata/", "repo": "github.com/istio/istio", "reason": "input files of the analyzer unit tests", "evidence": "Read at 1.26.0 and 1.31.1: pkg/config/analysis/analyzers/analyzers_test.go lists the files by relative path (inputFiles: testdata/gateway-api-crd-version-old.yaml, ...); no other file names the directory."},
+        {"path": "pkg/config/schema/metadata.yaml", "repo": "github.com/istio/istio", "reason": "code-generation metadata of the resource types Istio handles; lists the built-in CustomResourceDefinition kind and defines none", "evidence": "Read at 1.26.0 and 1.31.1: only pkg/config/schema/codegen/collections.go reads it (os.ReadFile under the source tree) to generate Go collections; the file lists resource types and defines no CustomResourceDefinition."},
+        {"path": "pkg/kube/kclient/clienttest/", "repo": "github.com/istio/istio", "reason": "Go test helpers (they take a test.Failer) that build fake CustomResourceDefinitions for unit tests; not part of an install", "evidence": "Read at 1.26.0 and 1.31.1: the package is imported only by _test.go files (operator/cmd/mesh/manifest-generate_test.go, pilot/pkg/config/kube/crdclient/client_test.go, ...); its helpers take a test.Failer and create fake definitions for unit tests."},
+        {"path": "prow/", "repo": "github.com/istio/istio", "reason": "continuous-integration configuration and third-party manifests (Calico) for test clusters; no Istio definition", "evidence": "Read at 1.26.0 and 1.31.1: shell scripts (benchtest.sh, integ-suite-kind.sh, release-test.sh, ...), kind cluster configs (prow/config/*.yaml, calico.yaml) and topology JSON, run by the continuous-integration jobs and by Makefile.core.mk benchmark and buildx targets."},
+        {"path": "tests/integration/pilot/testdata/", "repo": "github.com/istio/istio", "reason": "copies of third-party CRDs (Gateway API, inference extension, MCS API) and upgrade fixtures for the integration tests", "evidence": "Read at 1.26.0 and 1.31.1: pkg/test/framework/components/crd/gateway.go and pkg/config/crd/validator.go open them under env.IstioSrc (the source tree), bin/update_crds.sh refreshes them, and the integration tests read testdata/upgrade; the definitions are not Istio's own."}
       ]
     },
     {
@@ -106,8 +109,8 @@
         {"path": "deployments/charts/kuma/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
       "exclude": [
-        {"path": "pkg/core/resources/apis/donothingresource/", "reason": "the scaffolding example resource kept in the source tree; its definition is not in the release chart"},
-        {"path": "pkg/plugins/policies/donothingpolicy/", "reason": "the scaffolding example policy kept in the source tree; its definition is not in the release chart"}
+        {"path": "pkg/core/resources/apis/donothingresource/", "repo": "github.com/kumahq/kuma", "reason": "the scaffolding example resource kept in the source tree; its definition is not in the release chart", "evidence": "Read at 2.9.0 and v2.14.5: the generated CRD lies in k8s/crd below the scaffolding example; no Makefile, mk file, Helm chart or kustomization names the directory, and the chart CRDs (the listed path) do not contain it at any tag read."},
+        {"path": "pkg/plugins/policies/donothingpolicy/", "repo": "github.com/kumahq/kuma", "reason": "the scaffolding example policy kept in the source tree; its definition is not in the release chart", "evidence": "Read at 2.9.0 and v2.14.5: the generated CRD lies in k8s/crd below the scaffolding example; no Makefile, mk file, Helm chart or kustomization names the directory, and the chart CRDs (the listed path) do not contain it at any tag read."}
       ]
     },
     {
@@ -122,12 +125,11 @@
         {"path": "config/crds", "directory": true, "recursive": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
       "exclude": [
-        {"path": "charts/crds/templates/", "reason": "Helm chart templates rendered from the same generated definitions as config/crds (checked as copies)", "copies": true},
-        {"path": "charts/kyverno/charts/crds/templates/", "reason": "Helm chart templates rendered from the same generated definitions as config/crds (checked as copies)", "copies": true},
-        {"path": "cmd/cli/kubectl-kyverno/config/crds/", "reason": "schemas of the kyverno CLI test and values files (cli.kyverno.io); never installed into a cluster"},
-        {"path": "cmd/cli/kubectl-kyverno/data/api-group-resources.json", "reason": "API discovery data embedded in the CLI; lists resource kinds and defines no CustomResourceDefinition"},
-        {"path": "cmd/cli/kubectl-kyverno/data/crds/cli.kyverno.io_*", "reason": "copies of the CLI file schemas (cli.kyverno.io) embedded in the CLI; never installed into a cluster"},
-        {"path": "pkg/engine/resources/default-config.yaml", "reason": "the engine's default configuration; names the CustomResourceDefinition kind in a list of fields to ignore and defines none"}
+        {"path": "charts/crds/templates/", "repo": "github.com/kyverno/kyverno", "reason": "Helm chart templates rendered from the same generated definitions as config/crds (checked as copies)", "evidence": "Not trusted, checked: at every tag each file is read with its template directives removed and its definitions are compared with the listed paths (versions, served flags); a mismatch, another definition or an unreadable file blocks attestation.", "copies": true},
+        {"path": "charts/kyverno/charts/crds/templates/", "repo": "github.com/kyverno/kyverno", "reason": "Helm chart templates rendered from the same generated definitions as config/crds (checked as copies)", "evidence": "Not trusted, checked: at every tag each file is read with its template directives removed and its definitions are compared with the listed paths (versions, served flags); a mismatch, another definition or an unreadable file blocks attestation.", "copies": true},
+        {"path": "cmd/cli/kubectl-kyverno/data/api-group-resources.json", "repo": "github.com/kyverno/kyverno", "reason": "API discovery data embedded in the CLI; lists resource kinds and defines no CustomResourceDefinition", "evidence": "Read at v1.14.0 and v1.19.1: the Makefile writes it with the API_GROUP_RESOURCES generator and cmd/cli/kubectl-kyverno/data/data.go embeds it (//go:embed api-group-resources.json) for offline API discovery of the CLI; it lists API groups and resources and defines no CustomResourceDefinition. The guard voids the entry at every tag because of that embed."},
+        {"path": "cmd/cli/kubectl-kyverno/data/crds/cli.kyverno.io_*", "repo": "github.com/kyverno/kyverno", "reason": "copies of the CLI file schemas (cli.kyverno.io) embedded in the CLI; never installed into a cluster", "evidence": "Read at v1.14.0 and v1.19.1: the Makefile target codegen-cli-crds copies generated definitions \"to embed in the CLI\" into cmd/cli/kubectl-kyverno/data/crds and data.go embeds the directory (//go:embed crds); the cli.kyverno.io kinds are the CLI test and values files. The guard voids the entry at every tag because of that embed."},
+        {"path": "pkg/engine/resources/default-config.yaml", "repo": "github.com/kyverno/kyverno", "reason": "the engine's default configuration; names the CustomResourceDefinition kind in a list of fields to ignore and defines none", "evidence": "Read at v1.14.0 and v1.19.1: pkg/engine/resources/resources.go embeds it (//go:embed default-config.yaml) and pkg/engine/handlers/validation/validate_manifest.go reads the default ignoreFields from it; it names the CustomResourceDefinition kind in that list and defines none. The guard voids the entry at every tag because of that embed."}
       ]
     },
     {
@@ -142,7 +144,7 @@
         {"path": "deploy/longhorn.yaml"}
       ],
       "exclude": [
-        {"path": "chart/templates/", "reason": "Helm chart templates; the chart's CRD template is rendered from the same generated definitions as deploy/longhorn.yaml (checked as copies)", "copies": true}
+        {"path": "chart/templates/", "repo": "github.com/longhorn/longhorn", "reason": "Helm chart templates; the chart's CRD template is rendered from the same generated definitions as deploy/longhorn.yaml (checked as copies)", "evidence": "Not trusted, checked: at every tag each file is read with its template directives removed and its definitions are compared with the listed paths (versions, served flags); a mismatch, another definition or an unreadable file blocks attestation.", "copies": true}
       ]
     },
     {
@@ -157,7 +159,7 @@
         {"path": "deploy/examples/crds.yaml"}
       ],
       "exclude": [
-        {"path": "deploy/charts/rook-ceph/templates/", "reason": "Helm chart templates rendered from the same generated definitions as deploy/examples/crds.yaml (checked as copies)", "copies": true}
+        {"path": "deploy/charts/rook-ceph/templates/", "repo": "github.com/rook/rook", "reason": "Helm chart templates rendered from the same generated definitions as deploy/examples/crds.yaml (checked as copies)", "evidence": "Not trusted, checked: at every tag each file is read with its template directives removed and its definitions are compared with the listed paths (versions, served flags); a mismatch, another definition or an unreadable file blocks attestation.", "copies": true}
       ]
     },
     {
@@ -172,7 +174,11 @@
         {"path": "install/access-operator", "directory": true, "optional": true, "match": "^[0-9A-Za-z]{3}-Crd-[A-Za-z0-9-]+\\.ya?ml$", "guard": "(?i)crd"},
         {"path": "install/cluster-operator", "directory": true, "match": "^[0-9A-Za-z]{3}-Crd-[A-Za-z0-9-]+\\.ya?ml$", "guard": "(?i)crd"}
       ],
-      "exclude": []
+      "exclude": [
+        {"path": "api/src/test/resources/crds/", "repo": "github.com/strimzi/strimzi-kafka-operator", "reason": "CRDs the Maven build of the api module generates into its test resources for the tests (v1 and v1beta2 variants)", "evidence": "Read at 0.49.0: api/pom.xml runs the CRD generator (exec-maven-plugin, test resources as output) into api/src/test/resources/crds/{v1,v1beta2}; AGENTS.md lists the directory apart from packaging/install; the release CRDs are packaging/install/cluster-operator (the listed path). The directory is gone from 1.1.0."},
+        {"path": "crd-generator/src/test/resources/", "repo": "github.com/strimzi/strimzi-kafka-operator", "reason": "golden outputs of the CRD generator unit tests", "evidence": "Read at 1.2.0: crd-generator/src/test/java/.../CrdGeneratorTest.java compares the generated YAML with simpleTest.yaml, simpleTestWithoutDescriptions.yaml, simpleTestWithSubresources.yaml and simpleTestHelmMetadata.yaml through CrdTestUtils.readResource."},
+        {"path": "systemtest/src/test/resources/", "repo": "github.com/strimzi/strimzi-kafka-operator", "reason": "resources of the system tests (third-party operators installed into the test cluster, upgrade bundles)", "evidence": "Read at 0.49.0 and 1.2.0: systemtest/src/test/resources holds the cert-manager and OpenTelemetry operator manifests and the upgrade bundles that the system tests apply to a test cluster; the only references are the system-test CI scripts (.azure, .github/workflows/run-system-tests.yml)."}
+      ]
     },
     {
       "project": "velero",
@@ -187,7 +193,10 @@
         {"path": "config/crd/v2alpha1/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
       "exclude": [
-        {"path": "design/", "reason": "design proposals and proof-of-concept manifests; not shipped by a release"}
+        {"path": "design/", "repo": "github.com/velero-io/velero", "reason": "design proposals and proof-of-concept manifests; not shipped by a release", "evidence": "Read at v1.13.0 and v1.18.4: design/ holds Markdown proposals and design/CLI/PoC/base/*.yaml (apiextensions v1beta1 definitions of a CLI proof of concept); the only references are CI path filters and labeler globs in .github and the proposal template; the release CRDs are config/crd/v1/bases and v2alpha1/bases (the listed paths)."},
+        {"path": "pkg/backup/actions/testdata/", "repo": "github.com/velero-io/velero", "reason": "JSON fixtures of the remap-crd-version action unit tests (v1 and v1beta1 CRDs of third-party kinds)", "evidence": "Read at v1.13.0 and v1.18.4: remap_crd_version_action_test.go opens testdata/v1/%s.json and testdata/v1beta1/%s.json; the directory was pkg/backup/testdata before the action moved to pkg/backup/actions."},
+        {"path": "pkg/backup/testdata/", "repo": "github.com/velero-io/velero", "reason": "JSON fixtures of the remap-crd-version action unit tests before the action moved to pkg/backup/actions", "evidence": "Read at v1.13.0: pkg/backup/remap_crd_version_action_test.go opens testdata/v1/%s.json and testdata/v1beta1/%s.json; no other file names the directory."},
+        {"path": "test/testdata/enable_api_group_versions/", "repo": "github.com/velero-io/velero", "reason": "fixtures of the end-to-end test that enables API group versions", "evidence": "Read at v1.13.0 and v1.18.4: test/e2e/basic/api-group/enable_api_group_versions.go and enable_api_group_extentions.go open the files by relative path (../testdata/enable_api_group_versions/...); no other file names the directory."}
       ]
     }
   ]

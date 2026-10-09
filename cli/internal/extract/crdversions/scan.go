@@ -128,7 +128,7 @@ func indentOf(line string) int { return len(line) - len(strings.TrimLeft(line, "
 var NotRead = []string{
 	"files that are not YAML, JSON, template, jsonnet, cue or Go sources, or packaged Helm charts",
 	"Go sources whose path does not contain crd, Go test files (_test.go), and Go sources under a default-excluded directory or a reviewed exclusion",
-	"symbolic links",
+	"symbolic links (the install-surface guard does not follow them either), shell scripts, CI configuration and Go code that opens a path at run time",
 }
 
 // ScanRecord is what the full-tree scan found at one commit.
@@ -160,7 +160,9 @@ type Finding struct {
 	SHA256 string `json:"sha256,omitempty"`
 	Class  string `json:"class"`
 	// Location is "" in the open tree, "default: <name>" under a
-	// default-excluded directory, or the reviewed exclusion entry.
+	// default-excluded directory, "void: <entry>" under a reviewed
+	// exclusion that does not hold at the release, or the reviewed
+	// exclusion entry.
 	Location string   `json:"location,omitempty"`
 	CRDs     []string `json:"crds,omitempty"`
 	// Served are the members the file's definitions serve.
@@ -187,13 +189,23 @@ func (f Finding) opaque() bool {
 	return false
 }
 
+// defaultLike reports a finding in a place the project does not normally
+// install from by its name: a default-excluded directory, or an unread file
+// under a reviewed exclusion that also lies in one (a test-fixture entry
+// such as test/e2e/manifests/; the reviewer's evidence only adds to what
+// the directory name says). A void entry is not default-like: the files may
+// be installed.
+func (f Finding) defaultLike() bool {
+	return strings.HasPrefix(f.Location, "default: ") || (f.Class == ClassExcludedUnread && defaultSegment(f.Path) != "")
+}
+
 // unreadable reports a finding that may serve, to the users of a release,
 // a version the inventory does not show: a templated, unreadable or
 // unsupported CRD source in the open tree or among declared copies, or a
 // declared copy (a chart template) that serves other versions. A file
 // under a default-excluded directory only blocks attestation.
 func (f Finding) unreadable() bool {
-	if strings.HasPrefix(f.Location, "default: ") {
+	if strings.HasPrefix(f.Location, "default: ") || strings.HasPrefix(f.Location, voidPrefix) {
 		return false
 	}
 	switch f.Class {
@@ -257,7 +269,7 @@ func (s *ScanRecord) holds(name string) bool {
 		return true
 	}
 	for _, f := range s.Findings {
-		if slicesContains(f.CRDs, name) || (f.opaque() && !strings.HasPrefix(f.Location, "default: ")) {
+		if slicesContains(f.CRDs, name) || (f.opaque() && !f.defaultLike()) {
 			return true
 		}
 	}
@@ -335,7 +347,7 @@ func fileKind(p string, at place) int {
 	case sourceNameRE.MatchString(name):
 		return kindSource
 	case strings.HasSuffix(name, ".go"):
-		if at.kind != locTree || strings.HasSuffix(name, "_test.go") || !crdPathRE.MatchString(p) {
+		if (at.kind != locTree && !at.void) || strings.HasSuffix(name, "_test.go") || !crdPathRE.MatchString(p) {
 			return kindNone
 		}
 		return kindGo
@@ -357,7 +369,8 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 	rec := &ScanRecord{Complete: true, Exclusions: []string{}, NotRead: append([]string{}, NotRead...), Copies: []string{}, Findings: []Finding{}}
 	declared := x.declaredFiles(inv)
 	hits := map[string]bool{}
-	var files []scanFile
+	var blobs []extract.TreeEntry
+	var commits []string
 	dirs := []string{""}
 	listed := 0
 	for len(dirs) > 0 {
@@ -379,30 +392,45 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 			case "tree":
 				dirs = append(dirs, e.Path)
 			case "commit":
-				at := x.target.placeOf(e.Path)
-				if at.kind != locTree {
-					hits[at.entry] = true
-				}
-				rec.Findings = append(rec.Findings, placed(Finding{Path: e.Path, Class: ClassUnread, Detail: "a submodule: its files are not in this repository"}, at))
+				commits = append(commits, e.Path)
 			case "blob":
-				if e.Mode == "120000" || declared[e.Path] {
-					continue
-				}
-				at := x.target.placeOf(e.Path)
-				kind := fileKind(e.Path, at)
-				if kind == kindNone {
-					continue
-				}
-				if at.kind != locTree {
-					hits[at.entry] = true
-				}
-				if kind == kindPackagedChart {
-					rec.Findings = append(rec.Findings, placed(Finding{Path: e.Path, Class: ClassUnsupported, Detail: "a packaged Helm chart: its files are not read"}, at))
-					continue
-				}
-				files = append(files, scanFile{path: e.Path, oid: e.SHA, kind: kind, at: at})
+				blobs = append(blobs, e)
 			}
 		}
+	}
+	// The install-surface guard: a reviewed exclusion that something
+	// installing refers to does not hold at this tag.
+	voids, voided, err := x.guard(ctx, r, repo, commit, blobs, commits)
+	if err != nil {
+		return nil, err
+	}
+	tg := x.target.withVoided(voided)
+	rec.Findings = append(rec.Findings, voids...)
+	var files []scanFile
+	for _, p := range commits {
+		at := tg.placeOf(p)
+		if at.kind != locTree {
+			hits[at.entry] = true
+		}
+		rec.Findings = append(rec.Findings, placed(Finding{Path: p, Class: ClassUnread, Detail: "a submodule: its files are not in this repository"}, at))
+	}
+	for _, e := range blobs {
+		if e.Mode == "120000" || declared[e.Path] {
+			continue
+		}
+		at := tg.placeOf(e.Path)
+		kind := fileKind(e.Path, at)
+		if kind == kindNone {
+			continue
+		}
+		if at.kind != locTree {
+			hits[at.entry] = true
+		}
+		if kind == kindPackagedChart {
+			rec.Findings = append(rec.Findings, placed(Finding{Path: e.Path, Class: ClassUnsupported, Detail: "a packaged Helm chart: its files are not read"}, at))
+			continue
+		}
+		files = append(files, scanFile{path: e.Path, oid: e.SHA, kind: kind, at: at})
 	}
 	if len(files) > MaxScanFilesPerTag {
 		rec.Complete, rec.Problem = false, fmt.Sprintf("%d candidate files, over the bound of %d", len(files), MaxScanFilesPerTag)

@@ -72,6 +72,8 @@ type Extractor struct {
 	cache map[string]inventoryResult
 	scans map[string]*ScanRecord
 	blobs map[string]*blobInfo
+	// surfaces holds each install-surface file's summary (see guard.go).
+	surfaces map[string]*surfaceInfo
 	// lines is the release lines of the last Pairs call, by line key.
 	lines map[string]*releaseLine
 	// lineOf maps a tag name to its line key.
@@ -89,7 +91,7 @@ func New(t Target) *Extractor { return NewConcurrent(t, 1) }
 // NewConcurrent returns the extractor of a target that reads up to
 // concurrency files at a time during the scan. Output never depends on it.
 func NewConcurrent(t Target, concurrency int) *Extractor {
-	return &Extractor{target: t, concurrency: max(concurrency, 1), cache: map[string]inventoryResult{}, scans: map[string]*ScanRecord{}, blobs: map[string]*blobInfo{}, lines: map[string]*releaseLine{}, lineOf: map[string]string{}}
+	return &Extractor{target: t, concurrency: max(concurrency, 1), cache: map[string]inventoryResult{}, scans: map[string]*ScanRecord{}, blobs: map[string]*blobInfo{}, surfaces: map[string]*surfaceInfo{}, lines: map[string]*releaseLine{}, lineOf: map[string]string{}}
 }
 
 // ID implements extract.Extractor.

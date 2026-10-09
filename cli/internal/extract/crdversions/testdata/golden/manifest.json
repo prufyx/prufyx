@@ -239,7 +239,7 @@
             "notRead": [
               "files that are not YAML, JSON, template, jsonnet, cue or Go sources, or packaged Helm charts",
               "Go sources whose path does not contain crd, Go test files (_test.go), and Go sources under a default-excluded directory or a reviewed exclusion",
-              "symbolic links"
+              "symbolic links (the install-surface guard does not follow them either), shell scripts, CI configuration and Go code that opens a path at run time"
             ]
           },
           "tag": "v90.0.0"
@@ -532,7 +532,7 @@
             "notRead": [
               "files that are not YAML, JSON, template, jsonnet, cue or Go sources, or packaged Helm charts",
               "Go sources whose path does not contain crd, Go test files (_test.go), and Go sources under a default-excluded directory or a reviewed exclusion",
-              "symbolic links"
+              "symbolic links (the install-surface guard does not follow them either), shell scripts, CI configuration and Go code that opens a path at run time"
             ]
           },
           "tag": "v90.1.0"
@@ -744,7 +744,7 @@
             "notRead": [
               "files that are not YAML, JSON, template, jsonnet, cue or Go sources, or packaged Helm charts",
               "Go sources whose path does not contain crd, Go test files (_test.go), and Go sources under a default-excluded directory or a reviewed exclusion",
-              "symbolic links"
+              "symbolic links (the install-surface guard does not follow them either), shell scripts, CI configuration and Go code that opens a path at run time"
             ]
           },
           "tag": "v90.1.0"
@@ -1003,7 +1003,7 @@
             "notRead": [
               "files that are not YAML, JSON, template, jsonnet, cue or Go sources, or packaged Helm charts",
               "Go sources whose path does not contain crd, Go test files (_test.go), and Go sources under a default-excluded directory or a reviewed exclusion",
-              "symbolic links"
+              "symbolic links (the install-surface guard does not follow them either), shell scripts, CI configuration and Go code that opens a path at run time"
             ]
           },
           "tag": "v90.2.0"
