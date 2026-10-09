@@ -183,15 +183,23 @@ func TestRealTargetsAttestOnlyWhatTheyMay(t *testing.T) {
 	}
 }
 
-// A target attests exactly when its project is in the reviewed
-// custom-resource table (its set fact is registered), and the family covers
-// exactly those components.
+// attestPending lists the registered targets that do not attest yet: their
+// set fact and groups are in the reviewed table (REGISTRY-WAVE-1) and the
+// family admits their component, but the extractor attests their lines only
+// after their own review of what a complete line means for the project
+// (the attest flag of targets.json, a separate reviewed change).
+var attestPending = []string{"cert-manager", "cilium", "crossplane", "keda", "kuma", "kyverno", "longhorn", "rook", "velero"}
+
+// A target attests only when its project is in the reviewed custom-resource
+// table (its set fact is registered), and never while it is listed as
+// pending; the family covers exactly the registered components.
 func TestAttestingTargetsAreTheRegisteredProjects(t *testing.T) {
 	family, _ := lineattest.LookupFamily(lineattest.FamilyCustomResourceVersions)
 	for _, tg := range Targets {
 		_, registered := customresources.ProjectFor(tg.Project)
-		if tg.Attest != registered || family.Admits(tg.Component) != registered {
-			t.Fatalf("%s: attest %v, registered %v, family admits %v", tg.Project, tg.Attest, registered, family.Admits(tg.Component))
+		pending := slices.Contains(attestPending, tg.Project)
+		if tg.Attest != (registered && !pending) || family.Admits(tg.Component) != registered {
+			t.Fatalf("%s: attest %v, registered %v, pending %v, family admits %v", tg.Project, tg.Attest, registered, pending, family.Admits(tg.Component))
 		}
 		x := New(tg)
 		if x.AttestedComponent() != tg.Component {

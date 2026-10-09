@@ -216,7 +216,7 @@ func TestScanCustomResourceAttestationNotApplied(t *testing.T) {
 			scanreport.ReasonLineNotAttested, "lists rule strimzi.not-a-rule"},
 		"scope not declared": {newAttestedCRD(t, &listed, crdLineRule), []string{kafkaV1Doc}, []string{"--from", "strimzi=0.50.1", "--to", "strimzi=0.51.0"},
 			scanreport.ReasonDeclarationMissing, "complete set"},
-		"objects of an unowned group": {newAttestedCRD(t, &listed, crdLineRule), []string{kafkaV1Doc, certificateDoc}, []string{"--from", "strimzi=0.50.1", "--to", "strimzi=0.51.0", "--resource-scope-complete"},
+		"objects of an unowned group": {newAttestedCRD(t, &listed, crdLineRule), []string{kafkaV1Doc, serviceMonitorDoc}, []string{"--from", "strimzi=0.50.1", "--to", "strimzi=0.51.0", "--resource-scope-complete"},
 			scanreport.ReasonDocumentsNotEvaluated, "no reviewed project owns"},
 	}
 	for name, tc := range cases {

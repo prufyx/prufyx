@@ -73,6 +73,29 @@ var table = []Project{
 		},
 	},
 	{
+		Slug: "cert-manager", FactProject: "cert_manager", Component: "pkg:github/cert-manager/cert-manager",
+		Groups: []Group{
+			{Name: "acme.cert-manager.io", Source: "https://github.com/cert-manager/cert-manager/blob/b8f325e36f49626ba72d7efbe138c01a5e661d96/deploy/crds/acme.cert-manager.io_orders.yaml"},
+			{Name: "cert-manager.io", Source: "https://github.com/cert-manager/cert-manager/blob/b8f325e36f49626ba72d7efbe138c01a5e661d96/deploy/crds/cert-manager.io_issuers.yaml"},
+		},
+	},
+	{
+		Slug: "cilium", FactProject: "cilium", Component: "pkg:github/cilium/cilium",
+		Groups: []Group{
+			{Name: "cilium.io", Source: "https://github.com/cilium/cilium/blob/450c53145dc0a872ae20dfb05598c94ef55a71e2/pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumpodippools.yaml"},
+		},
+	},
+	{
+		Slug: "crossplane", FactProject: "crossplane", Component: "pkg:github/crossplane/crossplane",
+		Groups: []Group{
+			{Name: "apiextensions.crossplane.io", Source: "https://github.com/crossplane/crossplane/blob/61fa450c0c14a75bf5632872bd4a5b6945ec5a26/cluster/crds/apiextensions.crossplane.io_usages.yaml"},
+			{Name: "ops.crossplane.io", Source: "https://github.com/crossplane/crossplane/blob/61fa450c0c14a75bf5632872bd4a5b6945ec5a26/cluster/crds/ops.crossplane.io_watchoperations.yaml"},
+			{Name: "pkg.crossplane.io", Source: "https://github.com/crossplane/crossplane/blob/61fa450c0c14a75bf5632872bd4a5b6945ec5a26/cluster/crds/pkg.crossplane.io_providers.yaml"},
+			{Name: "protection.crossplane.io", Source: "https://github.com/crossplane/crossplane/blob/61fa450c0c14a75bf5632872bd4a5b6945ec5a26/cluster/crds/protection.crossplane.io_usages.yaml"},
+			{Name: "secrets.crossplane.io", Source: "https://github.com/crossplane/crossplane/blob/2efdb03ae80fc27f4b6b9b0cebc96a462233cf17/cluster/crds/secrets.crossplane.io_storeconfigs.yaml"},
+		},
+	},
+	{
 		Slug: "istio", FactProject: "istio", Component: "pkg:github/istio/istio",
 		Groups: []Group{
 			{Name: "extensions.istio.io", Source: "https://github.com/istio/istio/blob/8825a6b7f8c9a2d66005a5f8b64e98aaee0dda99/manifests/charts/base/files/crd-all.gen.yaml"},
@@ -82,10 +105,51 @@ var table = []Project{
 		},
 	},
 	{
+		Slug: "keda", FactProject: "keda", Component: "pkg:github/kedacore/keda",
+		Groups: []Group{
+			{Name: "eventing.keda.sh", Source: "https://github.com/kedacore/keda/blob/626ded5d783108bedf647e20bbc83f8e458e02e4/config/crd/bases/eventing.keda.sh_clustercloudeventsources.yaml"},
+			{Name: "keda.sh", Source: "https://github.com/kedacore/keda/blob/626ded5d783108bedf647e20bbc83f8e458e02e4/config/crd/bases/keda.sh_triggerauthentications.yaml"},
+		},
+	},
+	{
+		Slug: "kuma", FactProject: "kuma", Component: "pkg:github/kumahq/kuma",
+		Groups: []Group{
+			{Name: "kuma.io", Source: "https://github.com/kumahq/kuma/blob/51c6d3819be75d9587942242cdec709bc9934321/deployments/charts/kuma/crds/kuma.io_zones.yaml"},
+		},
+	},
+	{
+		Slug: "kyverno", FactProject: "kyverno", Component: "pkg:github/kyverno/kyverno",
+		Groups: []Group{
+			{Name: "kyverno.io", Source: "https://github.com/kyverno/kyverno/blob/ee97ce09538b09b6f1b03853cc41a62654d6a58f/config/crds/kyverno/kyverno.io_updaterequests.yaml"},
+			{Name: "policies.kyverno.io", Source: "https://github.com/kyverno/kyverno/blob/ee97ce09538b09b6f1b03853cc41a62654d6a58f/config/crds/policies.kyverno.io/policies.kyverno.io_validatingpolicies.yaml"},
+			{Name: "reports.kyverno.io", Source: "https://github.com/kyverno/kyverno/blob/ee97ce09538b09b6f1b03853cc41a62654d6a58f/config/crds/reports/reports.kyverno.io_ephemeralreports.yaml"},
+			{Name: "wgpolicyk8s.io", Source: "https://github.com/kyverno/kyverno/blob/ee97ce09538b09b6f1b03853cc41a62654d6a58f/config/crds/policyreport/wgpolicyk8s.io_policyreports.yaml"},
+		},
+	},
+	{
+		Slug: "longhorn", FactProject: "longhorn", Component: "pkg:github/longhorn/longhorn",
+		Groups: []Group{
+			{Name: "longhorn.io", Source: "https://github.com/longhorn/longhorn/blob/c3d88832bd8cec4f38dec65e79436984871dc313/deploy/longhorn.yaml"},
+		},
+	},
+	{
+		Slug: "rook", FactProject: "rook", Component: "pkg:github/rook/rook",
+		Groups: []Group{
+			{Name: "ceph.rook.io", Source: "https://github.com/rook/rook/blob/f190ca3b45f131da03641741e9e03b2584cd7d5e/deploy/examples/crds.yaml"},
+			{Name: "objectbucket.io", Source: "https://github.com/rook/rook/blob/f190ca3b45f131da03641741e9e03b2584cd7d5e/deploy/examples/crds.yaml"},
+		},
+	},
+	{
 		Slug: "strimzi", FactProject: "strimzi", Component: "pkg:github/strimzi/strimzi-kafka-operator",
 		Groups: []Group{
 			{Name: "core.strimzi.io", Source: "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/042-Crd-strimzipodset.yaml"},
 			{Name: "kafka.strimzi.io", Source: "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/040-Crd-kafka.yaml"},
+		},
+	},
+	{
+		Slug: "velero", FactProject: "velero", Component: "pkg:github/velero-io/velero",
+		Groups: []Group{
+			{Name: "velero.io", Source: "https://github.com/velero-io/velero/blob/6adcf06b5b0e6fb93998d3e101e2cbdc134fa3c3/config/crd/v1/bases/velero.io_volumesnapshotlocations.yaml"},
 		},
 	},
 }
