@@ -924,7 +924,7 @@ func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *rele
 	family, _ := lineattest.LookupFamily(lineattest.FamilyCustomResourceVersions)
 	switch {
 	case x.target.Catalog == CatalogCommunity:
-		return nil, "the project is in the community catalog, whose line reviews have no knowledge target yet, so its lines are not attested"
+		return nil, "the project is in the community catalog, whose line reviews are not admitted until the reviewed path for them exists, so its lines are not attested"
 	case x.target.Remote != nil:
 		return nil, "the target installs from another repository from some line on: its lines are not attested"
 	case len(x.target.Channels) > 0:
