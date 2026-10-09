@@ -53,8 +53,9 @@ type CustomResourceScan struct {
 	Unattributed []intake.Source
 }
 
-// CustomResourceProjects lists the catalog projects that have a
-// custom-resource version set, in table order.
+// CustomResourceProjects lists the projects of the reviewed table (CNCF
+// catalog and community projects) that have a custom-resource version set,
+// in table order.
 func CustomResourceProjects() []string {
 	var out []string
 	for _, p := range customresources.Projects() {
@@ -64,13 +65,27 @@ func CustomResourceProjects() []string {
 }
 
 // CustomResourceVersionsFact returns the custom-resource version set fact
-// of a catalog project, if it has one.
+// of a CNCF catalog project, if it has one. A community project of the
+// table has a registered fact too, but no CNCF check route (check cncf,
+// scan) reads it: it is not a CNCF catalog project, and no rule or line
+// review of it can be published yet.
 func CustomResourceVersionsFact(project string) (string, bool) {
 	p, ok := customresources.ProjectFor(project)
-	if !ok {
+	if !ok || p.Community() {
 		return "", false
 	}
 	return p.FactID(), true
+}
+
+// CommunityCustomResourceProject returns the table entry of a community
+// project (outside the CNCF landscape catalog), so that a route can name it
+// accurately when it refuses it.
+func CommunityCustomResourceProject(project string) (customresources.Project, bool) {
+	p, ok := customresources.ProjectFor(project)
+	if !ok || !p.Community() {
+		return customresources.Project{}, false
+	}
+	return p, true
 }
 
 // PrepareCustomResourceVersions declares, for one project and transition,

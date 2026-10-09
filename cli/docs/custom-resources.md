@@ -17,33 +17,78 @@ release holds no such rule yet, so today every check below answers `UNKNOWN`
 
 The projects, and the API groups their CRDs define, are a reviewed table
 compiled into Prufyx. Each group is cited from the project's CRD manifest at a
-pinned commit:
+pinned commit. A project is either a project of the CNCF landscape catalog
+that Prufyx embeds (`CNCF`) or a project of the **community catalog**
+(`community`), see below:
 
-| Project | Fact | API groups |
-| --- | --- | --- |
-| `antrea` | `component.antrea.custom_resource_versions_set` | `crd.antrea.io`, `multicluster.crd.antrea.io` |
-| `argo-cd` | `component.argo_cd.custom_resource_versions_set` | `argoproj.io` |
-| `cert-manager` | `component.cert_manager.custom_resource_versions_set` | `acme.cert-manager.io`, `cert-manager.io` |
-| `cilium` | `component.cilium.custom_resource_versions_set` | `cilium.io` |
-| `cloudnativepg` | `component.cloudnativepg.custom_resource_versions_set` | `postgresql.cnpg.io` |
-| `contour` | `component.contour.custom_resource_versions_set` | `projectcontour.io` |
-| `crossplane` | `component.crossplane.custom_resource_versions_set` | `apiextensions.crossplane.io`, `ops.crossplane.io`, `pkg.crossplane.io`, `protection.crossplane.io`, `secrets.crossplane.io` |
-| `dapr` | `component.dapr.custom_resource_versions_set` | `dapr.io` |
-| `external-secrets` | `component.external_secrets.custom_resource_versions_set` | `external-secrets.io`, `generators.external-secrets.io` |
-| `istio` | `component.istio.custom_resource_versions_set` | `extensions.istio.io`, `networking.istio.io`, `security.istio.io`, `telemetry.istio.io` |
-| `karmada` | `component.karmada.custom_resource_versions_set` | `apps.karmada.io`, `autoscaling.karmada.io`, `config.karmada.io`, `networking.karmada.io`, `operator.karmada.io`, `policy.karmada.io`, `remedy.karmada.io`, `work.karmada.io` |
-| `keda` | `component.keda.custom_resource_versions_set` | `eventing.keda.sh`, `keda.sh` |
-| `koordinator` | `component.koordinator.custom_resource_versions_set` | `analysis.koordinator.sh`, `config.koordinator.sh`, `quota.koordinator.sh`, `scheduling.koordinator.sh`, `slo.koordinator.sh` |
-| `kuma` | `component.kuma.custom_resource_versions_set` | `kuma.io` |
-| `kyverno` | `component.kyverno.custom_resource_versions_set` | `kyverno.io`, `policies.kyverno.io`, `reports.kyverno.io`, `wgpolicyk8s.io` |
-| `longhorn` | `component.longhorn.custom_resource_versions_set` | `longhorn.io` |
-| `metallb` | `component.metallb.custom_resource_versions_set` | `metallb.io` |
-| `openkruise` | `component.openkruise.custom_resource_versions_set` | `apps.kruise.io`, `policy.kruise.io` |
-| `rook` | `component.rook.custom_resource_versions_set` | `ceph.rook.io`, `objectbucket.io` |
-| `strimzi` | `component.strimzi.custom_resource_versions_set` | `core.strimzi.io`, `kafka.strimzi.io` |
-| `tekton` | `component.tekton.custom_resource_versions_set` | `resolution.tekton.dev`, `tekton.dev` |
-| `velero` | `component.velero.custom_resource_versions_set` | `velero.io` |
-| `volcano` | `component.volcano.custom_resource_versions_set` | `batch.volcano.sh`, `bus.volcano.sh`, `config.volcano.sh`, `flow.volcano.sh`, `nodeinfo.volcano.sh`, `scheduling.volcano.sh`, `shard.volcano.sh`, `topology.volcano.sh` |
+| Project | Catalog | Fact | API groups |
+| --- | --- | --- | --- |
+| `antrea` | CNCF | `component.antrea.custom_resource_versions_set` | `crd.antrea.io`, `multicluster.crd.antrea.io` |
+| `argo-cd` | CNCF | `component.argo_cd.custom_resource_versions_set` | `argoproj.io` |
+| `cert-manager` | CNCF | `component.cert_manager.custom_resource_versions_set` | `acme.cert-manager.io`, `cert-manager.io` |
+| `cilium` | CNCF | `component.cilium.custom_resource_versions_set` | `cilium.io` |
+| `cloudnativepg` | CNCF | `component.cloudnativepg.custom_resource_versions_set` | `postgresql.cnpg.io` |
+| `cluster-api` | community | `component.cluster_api.custom_resource_versions_set` | `cluster.x-k8s.io`, `clusterctl.cluster.x-k8s.io`, `runtime.cluster.x-k8s.io` |
+| `contour` | CNCF | `component.contour.custom_resource_versions_set` | `projectcontour.io` |
+| `crossplane` | CNCF | `component.crossplane.custom_resource_versions_set` | `apiextensions.crossplane.io`, `ops.crossplane.io`, `pkg.crossplane.io`, `protection.crossplane.io`, `secrets.crossplane.io` |
+| `dapr` | CNCF | `component.dapr.custom_resource_versions_set` | `dapr.io` |
+| `eck-operator` | community | `component.eck_operator.custom_resource_versions_set` | `agent.k8s.elastic.co`, `apm.k8s.elastic.co`, `autoops.k8s.elastic.co`, `autoscaling.k8s.elastic.co`, `beat.k8s.elastic.co`, `elasticsearch.k8s.elastic.co`, `enterprisesearch.k8s.elastic.co`, `kibana.k8s.elastic.co`, `logstash.k8s.elastic.co`, `maps.k8s.elastic.co`, `packageregistry.k8s.elastic.co`, `stackconfigpolicy.k8s.elastic.co` |
+| `external-secrets` | CNCF | `component.external_secrets.custom_resource_versions_set` | `external-secrets.io`, `generators.external-secrets.io` |
+| `gateway-api` | community | `component.gateway_api.custom_resource_versions_set` | `gateway.networking.k8s.io` |
+| `istio` | CNCF | `component.istio.custom_resource_versions_set` | `extensions.istio.io`, `networking.istio.io`, `security.istio.io`, `telemetry.istio.io` |
+| `karmada` | CNCF | `component.karmada.custom_resource_versions_set` | `apps.karmada.io`, `autoscaling.karmada.io`, `config.karmada.io`, `networking.karmada.io`, `operator.karmada.io`, `policy.karmada.io`, `remedy.karmada.io`, `work.karmada.io` |
+| `keda` | CNCF | `component.keda.custom_resource_versions_set` | `eventing.keda.sh`, `keda.sh` |
+| `kong-ingress-controller` | community | `component.kong_ingress_controller.custom_resource_versions_set` | `configuration.konghq.com` |
+| `koordinator` | CNCF | `component.koordinator.custom_resource_versions_set` | `analysis.koordinator.sh`, `config.koordinator.sh`, `quota.koordinator.sh`, `scheduling.koordinator.sh`, `slo.koordinator.sh` |
+| `kueue` | community | `component.kueue.custom_resource_versions_set` | `kueue.x-k8s.io` |
+| `kuma` | CNCF | `component.kuma.custom_resource_versions_set` | `kuma.io` |
+| `kyverno` | CNCF | `component.kyverno.custom_resource_versions_set` | `kyverno.io`, `policies.kyverno.io`, `reports.kyverno.io`, `wgpolicyk8s.io` |
+| `longhorn` | CNCF | `component.longhorn.custom_resource_versions_set` | `longhorn.io` |
+| `metallb` | CNCF | `component.metallb.custom_resource_versions_set` | `metallb.io` |
+| `mongodb-kubernetes` | community | `component.mongodb_kubernetes.custom_resource_versions_set` | `ai.mongodb.com`, `mongodb.com`, `mongodbcommunity.mongodb.com` |
+| `node-feature-discovery` | community | `component.node_feature_discovery.custom_resource_versions_set` | `nfd.k8s-sigs.io` |
+| `openkruise` | CNCF | `component.openkruise.custom_resource_versions_set` | `apps.kruise.io`, `policy.kruise.io` |
+| `percona-postgresql-operator` | community | `component.percona_postgresql_operator.custom_resource_versions_set` | `pgv2.percona.com`, `upstream.pgv2.percona.com` |
+| `prometheus-operator` | community | `component.prometheus_operator.custom_resource_versions_set` | `monitoring.coreos.com` |
+| `rancher` | community | `component.rancher.custom_resource_versions_set` | `auditlog.cattle.io`, `catalog.cattle.io`, `management.cattle.io`, `operation.cattle.io`, `plan.cattle.io`, `provisioning.cattle.io`, `rke.cattle.io`, `scc.cattle.io`, `telemetry.cattle.io` |
+| `rook` | CNCF | `component.rook.custom_resource_versions_set` | `ceph.rook.io`, `objectbucket.io` |
+| `strimzi` | CNCF | `component.strimzi.custom_resource_versions_set` | `core.strimzi.io`, `kafka.strimzi.io` |
+| `tekton` | CNCF | `component.tekton.custom_resource_versions_set` | `resolution.tekton.dev`, `tekton.dev` |
+| `velero` | CNCF | `component.velero.custom_resource_versions_set` | `velero.io` |
+| `volcano` | CNCF | `component.volcano.custom_resource_versions_set` | `batch.volcano.sh`, `bus.volcano.sh`, `config.volcano.sh`, `flow.volcano.sh`, `nodeinfo.volcano.sh`, `scheduling.volcano.sh`, `shard.volcano.sh`, `topology.volcano.sh` |
+
+### Community catalog
+
+A community project is a project outside the CNCF landscape catalog that
+Prufyx embeds, listed here because it publishes versioned CRD manifests.
+Prufyx asserts nothing about its CNCF status: some community projects are
+subprojects of Kubernetes SIGs (Gateway API, Cluster API, Kueue, Node Feature
+Discovery), others are vendor projects. Each community project carries its own
+reviewed provenance: the upstream repository its component names and that
+repository's licence, cited from the licence file at a full commit:
+
+| Project | Name | Upstream repository | Licence |
+| --- | --- | --- | --- |
+| `cluster-api` | Cluster API | https://github.com/kubernetes-sigs/cluster-api | [`Apache-2.0`](https://github.com/kubernetes-sigs/cluster-api/blob/560d4acf507bc7cac34b2da449fa5cd53eaeb149/LICENSE) |
+| `eck-operator` | Elastic Cloud on Kubernetes | https://github.com/elastic/cloud-on-k8s | [`Elastic-2.0`](https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/LICENSE.txt) |
+| `gateway-api` | Gateway API | https://github.com/kubernetes-sigs/gateway-api | [`Apache-2.0`](https://github.com/kubernetes-sigs/gateway-api/blob/89b3b0c3fa63f9342f43ba0fb2cf93d6aab53af7/LICENSE) |
+| `kong-ingress-controller` | Kong Ingress Controller | https://github.com/kong/kubernetes-ingress-controller | [`Apache-2.0`](https://github.com/kong/kubernetes-ingress-controller/blob/17f5dafd2a447a7e5ff7be84006a83787ac2882c/LICENSE) |
+| `kueue` | Kueue | https://github.com/kubernetes-sigs/kueue | [`Apache-2.0`](https://github.com/kubernetes-sigs/kueue/blob/f850823bead72095aaba55025a7efadfdfe3782a/LICENSE) |
+| `mongodb-kubernetes` | MongoDB Controllers for Kubernetes | https://github.com/mongodb/mongodb-kubernetes | [`Apache-2.0 OR LicenseRef-MongoDB-Customer-Agreement`](https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/LICENSE-MCK) |
+| `node-feature-discovery` | Node Feature Discovery | https://github.com/kubernetes-sigs/node-feature-discovery | [`Apache-2.0`](https://github.com/kubernetes-sigs/node-feature-discovery/blob/45d276ed9d3f0f67fb642aa78969721df3034451/LICENSE) |
+| `percona-postgresql-operator` | Percona Operator for PostgreSQL | https://github.com/percona/percona-postgresql-operator | [`Apache-2.0`](https://github.com/percona/percona-postgresql-operator/blob/a6cb60bf372f0eec5c9680437c300e2c07362d70/LICENSE.md) |
+| `prometheus-operator` | Prometheus Operator | https://github.com/prometheus-operator/prometheus-operator | [`Apache-2.0`](https://github.com/prometheus-operator/prometheus-operator/blob/2e4af1d7d8f0ae634fcf0ac967a76fb381a65542/LICENSE) |
+| `rancher` | Rancher | https://github.com/rancher/rancher | [`Apache-2.0`](https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/LICENSE) |
+
+For a community project the custom-resource version set is registered and
+its API groups are attributed to it (so its objects no longer keep other
+projects' sets incomplete), but nothing about it is checked yet: no rule or
+line review of a community project can be published until community
+projects have their own knowledge targets, `check cncf` and `scan` refuse
+it with a message that names it as a community catalog project, and the
+extractor never attests its lines. The extractor derives its rules for the
+maintainers, under the same rules as for CNCF projects (full commit
+citations, whole-tree scan, withheld pairs).
 
 The extractor reads the CRDs of every project of the table. The knowledge gate
 refuses rules over the version set of a project that is not listed here, until
@@ -52,11 +97,37 @@ is a reviewed code change. So far the extractor attests
 release lines (the line reviews that `scan` reports) only for `argo-cd`,
 `istio` and `strimzi`; for the other projects of the table the fact is
 registered and rules over it are admitted, but no release line is attested yet.
-An API group that a project shares with others, or that is a Kubernetes group
-(it ends in `.k8s.io`), is not listed: for example the multicluster API group
-`multicluster.x-k8s.io` that Karmada and Antrea both ship, and the
-`scheduling.sigs.k8s.io` and `topology.node.k8s.io` groups that Koordinator
-ships.
+An API group that a project shares with others is not listed: for example
+the multicluster API group `multicluster.x-k8s.io` that Karmada and Antrea
+both ship, the Cluster API provider groups (`bootstrap`, `controlplane`,
+`addons`, `ipam` and `infrastructure.cluster.x-k8s.io`, which other providers
+define CRDs in too), and `postgres-operator.crunchydata.com`, which the Percona
+Operator for PostgreSQL ships as a fork of Crunchy Data's operator.
+
+### Groups in Kubernetes namespaces
+
+The Kubernetes project reserves `k8s.io`, `x-k8s.io` and `kubernetes.io` and
+their subdomains for its own APIs and those of its SIG subprojects. A group in
+these namespaces may be served by kube-apiserver, defined by one SIG
+subproject's CRDs, or implemented by several projects, so the table lists such
+a group only through a reviewed ownership record: the group, the one upstream
+repository whose CRDs define it, the project of the table that is that
+repository, and the reason. The table refuses a reserved group without a
+record, a record for another project or repository, a group that two projects
+list, and a record that no project lists. The reviewed records:
+
+| Group | Project | Defining repository |
+| --- | --- | --- |
+| `cluster.x-k8s.io` | `cluster-api` | https://github.com/kubernetes-sigs/cluster-api |
+| `clusterctl.cluster.x-k8s.io` | `cluster-api` | https://github.com/kubernetes-sigs/cluster-api |
+| `gateway.networking.k8s.io` | `gateway-api` | https://github.com/kubernetes-sigs/gateway-api |
+| `kueue.x-k8s.io` | `kueue` | https://github.com/kubernetes-sigs/kueue |
+| `runtime.cluster.x-k8s.io` | `cluster-api` | https://github.com/kubernetes-sigs/cluster-api |
+
+Every other `*.k8s.io` group stays a Kubernetes group (for example
+`snapshot.storage.k8s.io` and `topology.node.k8s.io`, which several projects
+ship, and `scheduling.sigs.k8s.io`), and every other reserved group belongs to
+no project.
 
 `argoproj.io` is shared upstream: Argo CD, Argo Workflows, Argo Rollouts and
 Argo Events all define CRDs in it. The catalog project `argo-cd` stands for the
@@ -78,8 +149,13 @@ object whose API group the table lists for that project, for example
 upgrade.
 
 - An API group is a **Kubernetes group** when it is the core group, has no dot
-  (`apps`, `batch`) or ends in `.k8s.io`. Those objects are never part of a
-  custom-resource set (scan checks them against Kubernetes knowledge).
+  (`apps`, `batch`) or ends in `.k8s.io` and has no reviewed ownership record
+  (above). Those objects are never part of a custom-resource set (scan checks
+  them against Kubernetes knowledge). A `*.k8s.io` group with a record, such
+  as `gateway.networking.k8s.io`, is a custom-resource group of its owner:
+  scan does not check its objects against the list of APIs Kubernetes serves,
+  unless that list names the group, in which case they are checked against it
+  too.
 - Every other group is a **custom-resource group**. An object of such a group
   joins a project's set only when the table lists its group for that project
   and for no other project. A group the table does not list (your own CRDs,
@@ -157,7 +233,7 @@ Flags:
 
 | Flag | Meaning |
 | --- | --- |
-| `--project argo-cd\|istio\|strimzi` | A project of the table. Any other project is a usage error. |
+| `--project PROJECT` | A CNCF catalog project of the table. Any other project, including a community catalog project of the table, is a usage error. |
 | `--custom-resources FILE` | One private file (mode 0600 or stricter, no symlink, at most 1 MiB) of rendered manifests. |
 | `--custom-resources-digest SHA256` | Optional `sha256:` digest the file must have; a mismatch exits 3. |
 | `--custom-resources-complete` | Declares that the file is the complete set of manifests you apply. Without it nothing passes. |

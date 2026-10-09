@@ -10,6 +10,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 )
 
 // cncfCustomResourceFlags are the flags of the custom-resource version mode.
@@ -36,7 +37,10 @@ var customResourceDigestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 func (r runtime) cncfCustomResourceCheck(req customResourceRequest) int {
 	fact, ok := cncfprepare.CustomResourceVersionsFact(req.project)
 	if !ok {
-		return r.usage("custom-resource flags require a project with a custom-resource version set (argo-cd, istio or strimzi); use --help")
+		if p, community := cncfprepare.CommunityCustomResourceProject(req.project); community {
+			return r.usage(fmt.Sprintf("%s (%s) is in the %s: check cncf does not check its custom-resource versions yet; see docs/custom-resources.md", p.Slug, p.Upstream.Name, customresources.CommunityLabel))
+		}
+		return r.usage("custom-resource flags require a CNCF catalog project with a custom-resource version set (docs/custom-resources.md lists them); use --help")
 	}
 	if req.path == "" || req.from == "" || req.to == "" || cncfUnexpectedModeFlag(req.args, cncfCustomResourceFlags...) || (flagProvided(req.args, "custom-resources-digest") && !customResourceDigestRE.MatchString(req.pin)) {
 		return r.usage("invalid custom-resource check arguments; use --help")

@@ -122,7 +122,7 @@ func (r runtime) cncf(args []string) int {
    or: prufyx check cncf --project prometheus --alertmanager-config FILE --from 2.55.1 --to 3.1.0 --alertmanager-config-complete --alertmanager-config-precedence-resolved (--now RFC3339 | --knowledge-db DIR) [--alertmanager-config-digest SHA256] [--replay-report FILE] [--format human|json]
    or: prufyx check cncf --project prometheus --prometheus-config FILE --prometheus-config-complete --prometheus-config-precedence-resolved --prometheus-rule remote-write-http2-default --prometheus-remote-write-name NAME --prometheus-remote-write-http2-required=true|false --from 2.55.1 --to 3.14.0 (--now RFC3339 | --knowledge-db DIR) [--prometheus-config-digest SHA256] [--replay-report FILE] [--format human|json]
    or: prufyx check cncf --project strimzi --kafka-resource FILE --strimzi-distribution official_upstream|custom_build --target-kafka-crd-admission-required --from 0.51.0 --to 1.0.0 (--now RFC3339 | --knowledge-db DIR) [--kafka-resource-digest SHA256] [--replay-report FILE] [--format human|json]
-   or: prufyx check cncf --project argo-cd|istio|strimzi --custom-resources FILE --from VERSION --to VERSION --now RFC3339 [--custom-resources-complete] [--custom-resources-digest SHA256] [--format human|json]
+   or: prufyx check cncf --project PROJECT --custom-resources FILE --from VERSION --to VERSION --now RFC3339 [--custom-resources-complete] [--custom-resources-digest SHA256] [--format human|json]
    or: prufyx check cncf --project tekton --tekton-config-observability FILE --tekton-distribution official_upstream|custom_build --tekton-system-namespace NAME --tekton-config-observability-complete true|false --retain-prometheus-metrics-required true|false --from 1.9.0 --to 1.10.0 --now RFC3339 [--tekton-config-observability-digest SHA256] [--format human|json]
    or: prufyx check cncf --project kubeedge --keadm-init-argv FILE --kubeedge-distribution official_upstream|custom_build --keadm-argv-complete true|false --from 1.18.0 --to 1.19.0 --now RFC3339 [--keadm-init-argv-digest SHA256] [--format human|json]
    or: prufyx check cncf --project cloudnativepg --current-resource FILE --resource FILE --from 1.29.0 --to 1.30.0 (--now RFC3339 | --knowledge-db DIR) [--current-resource-digest SHA256] [--resource-digest SHA256] [--replay-report FILE] [--format human|json]
@@ -237,8 +237,9 @@ identity separate. It requires caller-declared configuration-spec-migration
 intent for a scoped result; missing or unsupported intent stays UNKNOWN.
 The custom-resource mode reads one private file of rendered manifests and
 records the group/version/Kind of every object in the API groups that the
-project's own CustomResourceDefinitions define (a reviewed, compiled table);
-objects of other projects' groups are ignored. It evaluates only published
+project's own CustomResourceDefinitions define (a reviewed, compiled table;
+PROJECT is a CNCF catalog project of it, and a community catalog project of
+it is refused); objects of other projects' groups are ignored. It evaluates only published
 rules about custom-resource versions the target release no longer serves. A
 listed version blocks (exit 10). A rule passes only with
 --custom-resources-complete and when every object of a non-Kubernetes API

@@ -24,6 +24,33 @@ rendered CRD manifests, and the reviewed exclusions of the full-tree scan
 copies of the listed definitions, the flag `copies` that makes the scan check
 that claim.
 
+An entry of a project outside the CNCF landscape catalog carries
+`"catalog": "community"` (an entry without the field is a CNCF catalog
+project; `"cncf"` is not spelled out). Such a project must be a community
+project of the reviewed custom-resource table, with the same repository and
+name, and neither its slug nor its component may be a CNCF catalog one (see
+[../custom-resources.md](../custom-resources.md)). A community target never
+attests: the loader refuses `"attest": true` for it, because its line reviews
+have no knowledge target yet. Its runs follow every other rule of this
+extractor (full-commit citations, full-tree scan, withheld pairs). The
+community targets:
+
+| Extractor id | Repository | Release tags | First pair from | CRD manifests |
+| --- | --- | --- | --- | --- |
+| `crd.version-removal.cluster-api` | `github.com/kubernetes-sigs/cluster-api` | `vX.Y.Z` | 1.9 | YAML files directly in `bootstrap/kubeadm/config/crd/bases`, `cmd/clusterctl/config/crd/bases`, `controlplane/kubeadm/config/crd/bases`, and `config/crd/bases` (to 1.13) or `core/config/crd/bases` (from 1.14) |
+| `crd.version-removal.eck-operator` | `github.com/elastic/cloud-on-k8s` | `vX.Y.Z` | 3.0 | `config/crds/v1/all-crds.yaml` |
+| `crd.version-removal.gateway-api` | `github.com/kubernetes-sigs/gateway-api` | `vX.Y.Z` | 1.1 | YAML files directly in `config/crd/standard` (the standard channel) |
+| `crd.version-removal.kong-ingress-controller` | `github.com/kong/kubernetes-ingress-controller` | `vX.Y.Z` | 3.0 | YAML files directly in `config/crd/bases` |
+| `crd.version-removal.kueue` | `github.com/kubernetes-sigs/kueue` | `vX.Y.Z` | 0.15 | YAML files directly in `config/components/crd/bases`, and in `config/components/crd/alpha/bases` when it exists |
+| `crd.version-removal.mongodb-kubernetes` | `github.com/mongodb/mongodb-kubernetes` | `X.Y.Z` | 1.8 | YAML files directly in `config/crd/bases` |
+| `crd.version-removal.node-feature-discovery` | `github.com/kubernetes-sigs/node-feature-discovery` | `vX.Y.Z` | 0.14 | `deployment/base/nfd-crds/nfd-api-crds.yaml` |
+| `crd.version-removal.percona-postgresql-operator` | `github.com/percona/percona-postgresql-operator` | `vX.Y.Z` | 2.6 | YAML files directly in `config/crd/bases` |
+| `crd.version-removal.prometheus-operator` | `github.com/prometheus-operator/prometheus-operator` | `vX.Y.Z` | 0.89 | YAML files directly in `example/prometheus-operator-crd` |
+| `crd.version-removal.rancher` | `github.com/rancher/rancher` | `vX.Y.Z` | 2.10 | YAML files directly in `pkg/crds/yaml/generated` |
+
+The CNCF catalog targets (the table lists the first ones; `prufyx-maintainer
+extract list` lists all):
+
 | Extractor id | Repository | Release tags | First pair from | CRD manifests |
 | --- | --- | --- | --- | --- |
 | `crd.version-removal.argo-cd` | `github.com/argoproj/argo-cd` | `vX.Y.Z` | 3.0 | YAML files directly in `manifests/crds` |
@@ -308,8 +335,9 @@ For a derived pair it writes one attestation of the later line exactly when:
   skipped minor number is not attested: the family's hop shape is one minor
   line);
 - the target has `"attest": true` in `targets.json`, which a test pins to the
-  projects of the custom-resource table (the projects whose set fact is
-  registered): today Argo CD, Istio and Strimzi.
+  CNCF catalog projects of the custom-resource table (the projects whose set
+  fact is registered and whose line reviews the family admits): today Argo
+  CD, Istio and Strimzi. A community target never attests.
 
 The attestation lists exactly the pair's rules (empty for a quiet line),
 names in `releases` every final release of both lines with the commit its tag

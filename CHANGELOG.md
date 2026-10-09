@@ -9,6 +9,30 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Community catalog for custom-resource versions: the reviewed
+  custom-resource table now also lists projects outside the embedded CNCF
+  landscape catalog, each labelled `community` (no CNCF status is asserted)
+  and carrying its upstream repository and licence, cited from the licence
+  file at a full commit. Ten community projects join it: Cluster API,
+  Elastic Cloud on Kubernetes, Gateway API, Kong Ingress Controller, Kueue,
+  MongoDB Controllers for Kubernetes, Node Feature Discovery, the Percona
+  Operator for PostgreSQL, the Prometheus Operator and Rancher. Their
+  custom-resource version sets are registered and their API groups are
+  attributed to them, so their objects no longer keep other projects' sets
+  incomplete; nothing about them is checked yet (`check cncf` and `scan`
+  refuse a community project with a message saying so, and no rule or line
+  review of one can be published). The maintainer extractor
+  `crd.version-removal` gains the ten targets (`"catalog": "community"` in
+  its target table; a community target never attests).
+- API groups in the namespaces Kubernetes reserves (`*.k8s.io`, `*.x-k8s.io`,
+  `*.kubernetes.io`) are listed in the custom-resource table only through a
+  reviewed ownership record (group, defining repository, owning project),
+  never by suffix; overlaps are refused. `gateway.networking.k8s.io`
+  (Gateway API) is such a group: it is now a custom-resource group of Gateway
+  API, and `scan` no longer checks Gateway API objects against the list of
+  APIs Kubernetes serves (nor counts them as alpha Kubernetes APIs), unless
+  that list names the group.
+
 - Knowledge gate: the first attested update of a pack that holds an older schema
   is admissible. A change of the pack's top-level `schema` member is admitted
   only when it raises the schema to exactly the lowest level the pack's content

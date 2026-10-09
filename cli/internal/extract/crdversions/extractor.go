@@ -792,8 +792,10 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *releaseLine, fa, ta *tagState, rules []extract.Candidate, c *Completeness) (*extract.AttestationCandidate, string) {
 	family, _ := lineattest.LookupFamily(lineattest.FamilyCustomResourceVersions)
 	switch {
+	case x.target.Catalog == CatalogCommunity:
+		return nil, "the project is in the community catalog, whose line reviews have no knowledge target yet, so its lines are not attested"
 	case !x.target.Attest:
-		return nil, "the project's custom-resource version set is not registered, so its lines are not attested"
+		return nil, "the target does not attest its lines (attest is off for it in targets.json)"
 	case !family.Admits(x.target.Component):
 		return nil, "the custom-resource version family does not cover " + x.target.Component
 	case !c.Attestable:

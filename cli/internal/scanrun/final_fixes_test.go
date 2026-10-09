@@ -104,6 +104,45 @@ func TestScanServedLists(t *testing.T) {
 	}
 }
 
+// TestScanReservedCustomResourceGroups: a *.k8s.io group of the reviewed
+// reserved-group ownership list (Gateway API) is a custom resource group: its
+// objects are neither checked against the Kubernetes served list nor
+// counted as alpha Kubernetes APIs. A *.k8s.io group without a record
+// stays a Kubernetes group. If a served list names a reviewed group all the
+// same, the overlap fails closed: the group's objects are checked against
+// the list again.
+func TestScanReservedCustomResourceGroups(t *testing.T) {
+	full := knowledgeOptions{lines: allLines, policy: "current"}
+	route := "apiVersion: gateway.networking.k8s.io/v1\nkind: HTTPRoute\nmetadata: {name: a}\n"
+	alphaRoute := "apiVersion: gateway.networking.k8s.io/v1alpha2\nkind: TCPRoute\nmetadata: {name: a}\n"
+	snapshot := "apiVersion: snapshot.storage.k8s.io/v1\nkind: VolumeSnapshot\nmetadata: {name: a}\n"
+	command := func(paths []string) []string {
+		return args(paths, "--from", "kubernetes=1.29.6", "--to", "kubernetes=1.30.4")
+	}
+	for name, manifest := range map[string]string{"route": route, "alpha route": alphaRoute} {
+		_, paths := files(t, map[string]string{"applyset.yaml": manifest})
+		if result := mustScan(t, newKnowledge(t, full), command(paths)...); result.Exit != scanreport.ExitPass {
+			t.Fatalf("%s: exit %d gaps %v", name, result.Exit, gapReasons(result.Report))
+		}
+	}
+	_, paths := files(t, map[string]string{"applyset.yaml": snapshot})
+	if result := mustScan(t, newKnowledge(t, full), command(paths)...); result.Exit == scanreport.ExitPass || !hasGap(result.Report, "API_VERSION_NOT_REVIEWED", "does not list as served") {
+		t.Fatalf("unreviewed k8s.io group: exit %d gaps %v", result.Exit, gapReasons(result.Report))
+	}
+	// A served list that names the Gateway API group: an HTTPRoute it does
+	// not list is a gap again, one it lists is not.
+	overlap := full
+	overlap.servedExtra = []string{"gateway.networking.k8s.io/v1 Gateway"}
+	_, paths = files(t, map[string]string{"applyset.yaml": route})
+	if result := mustScan(t, newKnowledge(t, overlap), command(paths)...); result.Exit == scanreport.ExitPass || !hasGap(result.Report, "API_VERSION_NOT_REVIEWED", "does not list as served") {
+		t.Fatalf("overlap: exit %d gaps %v", result.Exit, gapReasons(result.Report))
+	}
+	overlap.servedExtra = []string{"gateway.networking.k8s.io/v1 HTTPRoute"}
+	if result := mustScan(t, newKnowledge(t, overlap), command(paths)...); result.Exit != scanreport.ExitPass {
+		t.Fatalf("overlap, listed: exit %d gaps %v", result.Exit, gapReasons(result.Report))
+	}
+}
+
 // TestScanPolicyExcludedClaimIntegrity: a claim from a rule the trust policy
 // leaves out is an integrity failure.
 func TestScanPolicyExcludedClaimIntegrity(t *testing.T) {
