@@ -278,14 +278,24 @@ func PrepareKubernetesComponentConfig(selection KubernetesComponentSelection, co
 			facts = append(facts, inputFact{ID: set.Fact, State: "unsupported"})
 		}
 	default:
+		// The preparation state and reason describe the facts the
+		// published predicate rules of the line read. The sets only decide
+		// them on a transition without predicates: there the sets are the
+		// only facts that could be read, and an incomplete set must not
+		// make a transition that has resolved predicates read as UNKNOWN.
+		setsDecide := len(predicates) == 0
 		for _, set := range sets {
 			members, complete, ok := model.members(set)
 			switch {
 			case !ok:
-				state, reason = StateUnknown, ReasonKubernetesComponentEvidenceIncomplete
+				if setsDecide {
+					state, reason = StateUnknown, ReasonKubernetesComponentEvidenceIncomplete
+				}
 				facts = append(facts, inputFact{ID: set.Fact, State: "unsupported"})
 			case !complete:
-				state, reason = StateUnknown, ReasonKubernetesComponentEvidenceIncomplete
+				if setsDecide {
+					state, reason = StateUnknown, ReasonKubernetesComponentEvidenceIncomplete
+				}
 				facts = append(facts, setFact(set.Fact, members, false))
 			default:
 				facts = append(facts, setFact(set.Fact, members, true))

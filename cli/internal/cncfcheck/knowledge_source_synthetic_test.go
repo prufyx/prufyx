@@ -5,11 +5,8 @@
 package cncfcheck
 
 import (
-	"errors"
 	"strings"
 	"testing"
-
-	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
 // TestSyntheticKnowledgeCarriesSetRuleThroughExternalBundles: with the
@@ -17,7 +14,7 @@ import (
 // bundle that the external parser admits under the set pack schema, and the
 // seam restores the packaged knowledge afterwards.
 func TestSyntheticKnowledgeCarriesSetRuleThroughExternalBundles(t *testing.T) {
-	restore, err := UseSyntheticKnowledge([]constraintengine.FactDefinition{syntheticSetDefinition()}, []Entry{syntheticSetEntry(t)})
+	restore, err := UseSyntheticKnowledge(nil, []Entry{syntheticSetEntry(t)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,18 +29,20 @@ func TestSyntheticKnowledgeCarriesSetRuleThroughExternalBundles(t *testing.T) {
 		t.Fatalf("external bundle with a set rule refused: %v", err)
 	}
 	if !RegisteredFact(syntheticSetFact) {
-		t.Fatal("synthetic set fact not registered")
+		t.Fatal("the feature-gate set fact is not registered")
 	}
 	restore()
-	if RegisteredFact(syntheticSetFact) {
-		t.Fatal("restore left the synthetic fact registered")
+	// The registry declares the feature-gate set facts, so the exported
+	// bundle still parses; the restored packaged knowledge must not carry
+	// the synthetic rule.
+	embedded, err := ExportEmbeddedExternalBundle("7")
+	if err != nil {
+		t.Fatal(err)
 	}
-	// Under the packaged knowledge the same bundle no longer matches the
-	// compiled registry and capability.
-	if _, err := ParseExternalBundle(raw); !errors.Is(err, ErrIntegrity) && !errors.Is(err, ErrInvalid) {
-		t.Fatalf("bundle admitted after restore: %v", err)
+	if strings.Contains(string(embedded), syntheticRuleID) || strings.Contains(string(embedded), `"schema":"`+packSchemaSet+`"`) {
+		t.Fatal("restore left the synthetic set rule in the packaged knowledge")
 	}
-	if _, err := UseSyntheticKnowledge(nil, []Entry{syntheticSetEntry(t)}); err == nil {
+	if _, err := UseSyntheticKnowledge(nil, []Entry{unregisteredSetEntry(t)}); err == nil {
 		t.Fatal("set rule over an unregistered fact installed")
 	}
 }

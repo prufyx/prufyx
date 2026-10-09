@@ -34,10 +34,13 @@ func TestRenderReproducesShippedPacks(t *testing.T) {
 
 // Without the real fact registry knowing a run's facts, the engine loader
 // refuses the merged pack: the apply fails, names the facts, and the pack
-// file is untouched.
+// file is untouched. The feature-gate run is rewritten (digests following)
+// over the kubelet flag-set fact, which no published rule consumes and the
+// registry therefore does not declare.
 func TestApplyRefusedByTheEngineLoader(t *testing.T) {
 	for _, c := range []kase{cases[0]} {
 		run := runDir(t, c, derivedAt)
+		renameRunFacts(t, run, "_feature_gates_set", "_flags_set")
 		pack := prunedPack(t, "cncf", run)
 		pre, _ := os.ReadFile(pack)
 		_, err := extractpack.Apply(extractpack.Options{PackPath: pack, RunDir: run})
@@ -45,6 +48,26 @@ func TestApplyRefusedByTheEngineLoader(t *testing.T) {
 			t.Fatalf("%s: %v", c.name, err)
 		}
 		assertUnchanged(t, pack, pre)
+	}
+}
+
+// The feature-gate run is admitted by the real engine loader now that the
+// registry declares the five feature-gate set facts it constrains.
+func TestApplyOfTheFeatureGateRunAdmittedByTheEngineLoader(t *testing.T) {
+	c := cases[0]
+	run := runDir(t, c, derivedAt)
+	ids := ruleIDs(t, run)
+	pack := prunedPack(t, "cncf", run)
+	rep, err := extractpack.Apply(extractpack.Options{PackPath: pack, RunDir: run})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Added) != len(ids) || !rep.Changed {
+		t.Fatalf("%+v", rep)
+	}
+	raw, _ := os.ReadFile(pack)
+	if err := extractpack.AdmitFiles(pack, raw); err != nil {
+		t.Fatalf("the engine loader refuses the result: %v", err)
 	}
 }
 

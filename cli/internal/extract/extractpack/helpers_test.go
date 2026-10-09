@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -236,3 +237,29 @@ func prunedPack(t *testing.T, family, run string) string {
 }
 
 func asString(v any) string { s, _ := v.(string); return s }
+
+// renameRunFacts rewrites a fact-id suffix in a run's candidates and keeps the
+// manifest digest of candidates.json (and the dropped attestations) consistent.
+func renameRunFacts(t *testing.T, dir, from, to string) {
+	t.Helper()
+	path := filepath.Join(dir, "candidates.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), from) {
+		t.Fatalf("no %s in the run", from)
+	}
+	var back any
+	if err := json.Unmarshal([]byte(strings.ReplaceAll(string(raw), from, to)), &back); err != nil {
+		t.Fatal(err)
+	}
+	cand := writeCanon(t, path, back)
+	var m map[string]any
+	readJSON(t, filepath.Join(dir, "manifest.json"), &m)
+	outs := m["outputs"].(map[string]any)
+	outs["candidates.json"] = digestOf(cand)
+	delete(outs, "attestations.json")
+	_ = os.Remove(filepath.Join(dir, "attestations.json"))
+	writeCanon(t, filepath.Join(dir, "manifest.json"), m)
+}

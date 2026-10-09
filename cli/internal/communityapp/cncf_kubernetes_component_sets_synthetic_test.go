@@ -34,7 +34,7 @@ func useSyntheticGateKnowledge(t *testing.T) {
 		`"evidence":{"state":"active","reviewedAt":"2026-09-20T00:00:00Z","validUntil":"2026-12-19T00:00:00Z","sources":[{"id":"synthetic-gate-declaration","url":"https://github.com/kubernetes/kubernetes/blob/` + revision + `/pkg/features/kube_features.go","revision":"` + revision + `","contentDigest":"sha256:` + strings.Repeat("0", 64) + `","startLine":1,"endLine":2}]},` +
 		`"reasonCode":"KUBERNETES_FEATURE_GATE_REMOVED","nextAction":"remove ` + syntheticGate + ` from every kubelet feature-gate setting before upgrading"}`
 	entry := cncfcheck.Entry{Project: "kubernetes", Description: "Synthetic test-only removed kubelet feature gate.", RequiredFacts: []cncfcheck.Fact{{Side: "proposed", ID: syntheticGateFact, Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactSet, Description: "Feature gates the kubelet sets."}}, Rule: json.RawMessage(rule)}
-	restore, err := cncfcheck.UseSyntheticKnowledge([]constraintengine.FactDefinition{{ID: syntheticGateFact, Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactSet}}, []cncfcheck.Entry{entry})
+	restore, err := cncfcheck.UseSyntheticKnowledge(nil, []cncfcheck.Entry{entry})
 	if err != nil {
 		t.Fatal(err)
 	}

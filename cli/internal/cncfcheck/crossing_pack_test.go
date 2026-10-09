@@ -23,7 +23,7 @@ func syntheticCrossingEntry(t *testing.T) Entry {
 
 func TestPackCrossingLevel(t *testing.T) {
 	entry := syntheticCrossingEntry(t)
-	extra := []constraintengine.FactDefinition{syntheticSetDefinition()}
+	var extra []constraintengine.FactDefinition
 	if _, err := assembleSynthetic(syntheticPack(t, packSchemaCrossing, extra, entry), extra); err != nil {
 		t.Fatalf("crossing pack under the crossing level refused: %v", err)
 	}

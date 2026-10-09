@@ -51,7 +51,10 @@ func assertComponentOutputRedacted(t *testing.T, fixture componentFixture, outpu
 func TestKubernetesComponentConfigCheckWithoutReviewedRuleStaysUnknown(t *testing.T) {
 	t.Parallel()
 	fixture := writeComponentFixture(t, 0o600, "")
-	// No predicate covers the 1.38 line, so no rule can be selected.
+	// No predicate covers the 1.38 line and no published rule reads the
+	// feature-gate set facts, so no rule can be selected. The registered set
+	// facts are still prepared (incomplete here: the fixture declares no
+	// complete scope), which only changes the preparation reason.
 	args := componentConfigArgs(fixture.selection)
 	for index, value := range args {
 		switch value {
@@ -62,7 +65,7 @@ func TestKubernetesComponentConfigCheckWithoutReviewedRuleStaysUnknown(t *testin
 		}
 	}
 	code, stdout, stderr := runCNCFCLI(t, args...)
-	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "Kubernetes component configuration review") || !strings.Contains(stdout, "aggregate: UNKNOWN") || !strings.Contains(stdout, "KUBERNETES_COMPONENT_NO_REVIEWED_PREDICATE_FOR_TRANSITION") || strings.Contains(stdout, ": PASS") || strings.Contains(stdout, ": BLOCKED") {
+	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "Kubernetes component configuration review") || !strings.Contains(stdout, "aggregate: UNKNOWN") || !strings.Contains(stdout, "scoped result: UNKNOWN (no reviewed rule for this input and transition)") || strings.Contains(stdout, ": PASS") || strings.Contains(stdout, ": BLOCKED") {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 	assertComponentOutputRedacted(t, fixture, stdout)

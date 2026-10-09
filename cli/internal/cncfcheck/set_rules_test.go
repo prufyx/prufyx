@@ -28,11 +28,21 @@ const (
 	syntheticGate      = "SyntheticRemovedGate"
 	syntheticRevision  = "0000000000000000000000000000000000000001"
 	syntheticRuleID    = "kubernetes.synthetic-removed-gate.1-36-0-to-1-37-0"
-	embeddedPackSHA256 = "8c4d7dadfe538923310663c8c261bdf70ba5568956e6c2f096eeaaca9c13173e"
+	embeddedPackSHA256 = "193d917d080c83d91e587959479eac38f082046426d5c2c2dcd564a22eee92a8"
 )
 
-func syntheticSetDefinition() constraintengine.FactDefinition {
-	return constraintengine.FactDefinition{ID: syntheticSetFact, Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactSet}
+// unregisteredSetFact is a set fact of the component-configuration adapter
+// that the compiled registry does not declare (no published rule consumes it).
+const unregisteredSetFact = "component.kubernetes.kubelet_flags_set"
+
+// unregisteredSetEntry is syntheticSetEntry over unregisteredSetFact.
+func unregisteredSetEntry(t *testing.T) Entry {
+	t.Helper()
+	entry := syntheticSetEntry(t)
+	entry.Rule = json.RawMessage(strings.ReplaceAll(string(entry.Rule), syntheticSetFact, unregisteredSetFact))
+	entry.RequiredFacts = []Fact{entry.RequiredFacts[0]}
+	entry.RequiredFacts[0].ID = unregisteredSetFact
+	return entry
 }
 
 func syntheticSetEntry(t *testing.T) Entry {
@@ -87,7 +97,7 @@ func assembleSynthetic(packRaw []byte, extra []constraintengine.FactDefinition) 
 	return assemble(landscape, priority, packRaw, append(compiledDefinitions(), extra...))
 }
 
-func TestEmbeddedKnowledgeCarriesNoSetFact(t *testing.T) {
+func TestEmbeddedKnowledgeCarriesNoSetRule(t *testing.T) {
 	raw, err := packagedFiles.ReadFile("data/rules.json")
 	if err != nil {
 		t.Fatal(err)
@@ -96,28 +106,53 @@ func TestEmbeddedKnowledgeCarriesNoSetFact(t *testing.T) {
 	if hex.EncodeToString(sum[:]) != embeddedPackSHA256 {
 		t.Fatalf("embedded pack changed: %x", sum)
 	}
-	// The only set facts of the compiled registry are the custom-resource
-	// version sets, one per project of the reviewed custom-resource table.
+	// The set facts of the compiled registry are the custom-resource version
+	// sets (one per project of the reviewed custom-resource table) and the
+	// five Kubernetes component feature-gate sets. No published rule reads
+	// the latter yet; the pack digest pin above proves the pack is unchanged.
 	crd := map[string]bool{}
 	for _, p := range customresources.Projects() {
 		crd[p.FactID()] = true
 	}
+	gates := map[string]bool{}
+	for _, slug := range []string{"kube_apiserver", "kube_controller_manager", "kube_scheduler", "kubelet", "kube_proxy"} {
+		gates["component.kubernetes."+slug+"_feature_gates_set"] = true
+	}
 	sets := 0
 	for _, definition := range compiledDefinitions() {
-		if definition.Type == constraintengine.FactSet {
-			if !crd[definition.ID] {
-				t.Fatalf("compiled registry registers set fact %s", definition.ID)
+		if definition.Type != constraintengine.FactSet {
+			continue
+		}
+		if gates[definition.ID] {
+			if definition.Component != "pkg:github/kubernetes/kubernetes" {
+				t.Fatalf("%s is declared for %s", definition.ID, definition.Component)
 			}
-			sets++
+		} else if !crd[definition.ID] {
+			t.Fatalf("compiled registry registers set fact %s", definition.ID)
+		}
+		sets++
+	}
+	if sets != len(crd)+len(gates) {
+		t.Fatalf("%d set facts registered, %d custom-resource projects and %d feature-gate facts", sets, len(crd), len(gates))
+	}
+	// Every registered feature-gate fact is one the adapter can supply; the
+	// flag sets stay unregistered until a published rule consumes them.
+	adapter := map[string]bool{}
+	for _, fact := range cncfprepare.KubernetesComponentConfigSetFacts() {
+		adapter[fact] = true
+	}
+	for fact := range gates {
+		if !adapter[fact] || !RegisteredFact(fact) {
+			t.Fatalf("%s is not both an adapter fact and registered", fact)
 		}
 	}
-	if sets != len(crd) {
-		t.Fatalf("%d set facts registered, %d custom-resource projects", sets, len(crd))
-	}
-	for _, fact := range cncfprepare.KubernetesComponentConfigSetFacts() {
-		if RegisteredFact(fact) {
+	for fact := range adapter {
+		if !gates[fact] && RegisteredFact(fact) {
 			t.Fatalf("%s is registered without a published rule", fact)
 		}
+	}
+	if !adapter[unregisteredSetFact] {
+		t.Fatalf("%s is not an adapter set fact", unregisteredSetFact)
 	}
 	if len(additionalDefinitions()) != 0 {
 		t.Fatal("a default build adds fact definitions")
@@ -125,7 +160,7 @@ func TestEmbeddedKnowledgeCarriesNoSetFact(t *testing.T) {
 }
 
 func TestSetRulePackSchemaGating(t *testing.T) {
-	extra := []constraintengine.FactDefinition{syntheticSetDefinition()}
+	var extra []constraintengine.FactDefinition
 	entry := syntheticSetEntry(t)
 	if _, err := assembleSynthetic(syntheticPack(t, packSchemaSet, extra, entry), extra); err != nil {
 		t.Fatalf("set pack under the set schema refused: %v", err)
@@ -140,7 +175,7 @@ func TestSetRulePackSchemaGating(t *testing.T) {
 		t.Fatal("set schema without a set rule accepted")
 	}
 	// The set fact must be registered and declared with its type.
-	if _, err := assembleSynthetic(syntheticPack(t, packSchemaSet, nil, entry), nil); !errors.Is(err, ErrIntegrity) {
+	if _, err := assembleSynthetic(syntheticPack(t, packSchemaSet, nil, unregisteredSetEntry(t)), nil); !errors.Is(err, ErrIntegrity) {
 		t.Fatal("set rule over an unregistered fact accepted")
 	}
 	undeclared := entry
@@ -160,7 +195,7 @@ func TestSetRulePackSchemaGating(t *testing.T) {
 // configuration adapter and the fact-family selection the command route
 // uses, against knowledge holding one synthetic set rule.
 func TestSyntheticRemovedGateThroughAdapterAndKnowledge(t *testing.T) {
-	extra := []constraintengine.FactDefinition{syntheticSetDefinition()}
+	var extra []constraintengine.FactDefinition
 	b, err := assembleSynthetic(syntheticPack(t, packSchemaSet, extra, syntheticSetEntry(t)), extra)
 	if err != nil {
 		t.Fatal(err)
