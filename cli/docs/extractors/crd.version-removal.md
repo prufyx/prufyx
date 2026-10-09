@@ -173,11 +173,12 @@ Through the offline factory mirror (or a fixture tree), never the network.
     (`*.sh`, `*.bash`), outside `vendor`, `third_party` and `node_modules`, has
     a command line that runs such a tool on a path under it;
   - a container build (`Dockerfile*`, `Containerfile*`, `*.dockerfile`,
-    `Earthfile`) copies a path under it or a directory above it (`COPY` and
-    `ADD` sources, Earthfile `SAVE ARTIFACT` sources), read from the
-    repository root and from the build file's directory; a copy of the whole
-    context (`COPY . ...`) is not followed;
-  - a nix file names a path under it or a directory above it;
+    `Earthfile`) copies a path under it (`COPY` and `ADD` sources, Earthfile
+    `SAVE ARTIFACT` sources), read from the repository root and from the
+    build file's directory; a copy of the whole context (`COPY . ...`) or of
+    a source directory above it (build stages copy `cmd/`, `internal/` to
+    compile) is not followed;
+  - a nix file names a path under it;
   - it lies under a ko `kodata` directory (packed into the image), or a
     symbolic link lies inside a `kodata` directory;
   - a Go package in a directory above it, or inside it, embeds a file under

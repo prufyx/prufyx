@@ -37,7 +37,8 @@ import (
 //     on a path under the excluded path;
 //   - container builds (Dockerfile, Containerfile, *.dockerfile, Earthfile):
 //     a COPY or ADD source (Earthfile also SAVE ARTIFACT) under the excluded
-//     path, read from the repository root and from the file's directory;
+//     path, read from the repository root and from the file's directory (a
+//     source directory above it is not followed);
 //   - nix files: a path word under the excluded path;
 //   - ko: an excluded path under a kodata directory (ko packs it into the
 //     image);
@@ -524,18 +525,16 @@ func mention(e Exclusion, text string) (string, bool) {
 }
 
 // copyMention finds the first word of a container build or nix line that
-// names a path under the exclusion, or a directory above it (copying a
-// directory copies what lies under it; the repository root is left out, see
-// buildLines). A word is read from the repository root (and from after each
+// names a path under the exclusion. A directory above it does not count:
+// build stages copy whole source directories (cmd/, internal/) to compile
+// them, and which files a later stage keeps is not followed (NotRead), as
+// for a copy of the whole context. A word is read from the repository root (and from after each
 // slash, as mention does: conservative, a URL or a path relative to another
 // directory may name it too) and joined to dir, the directory of the file;
 // bare words (without a slash) are joined to dir only when bare is set.
 func copyMention(e Exclusion, dir string, bare bool, text string) (string, bool) {
 	if tok, ok := mention(e, text); ok {
 		return tok, true
-	}
-	above := func(cand string) bool {
-		return strings.HasSuffix(e.Path, "/") && cand != "" && cand != "." && strings.HasPrefix(e.Path, cand+"/")
 	}
 	for _, tok := range tokenize(text) {
 		word := tok
@@ -562,7 +561,7 @@ func copyMention(e Exclusion, dir string, bare bool, text string) (string, bool)
 			}
 		}
 		for _, c := range cands {
-			if c != "." && (hitsPath(e, c) || above(c)) {
+			if c != "." && hitsPath(e, c) {
 				return tok, true
 			}
 		}

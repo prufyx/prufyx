@@ -141,7 +141,7 @@ var NotRead = []string{
 	"files that are not YAML, JSON, template, jsonnet, cue or Go sources, or packaged Helm charts",
 	"Go sources whose path does not contain crd, Go test files (_test.go), and Go sources under a default-excluded directory or a reviewed exclusion (of those the install-surface guard reads only the //go:embed directives)",
 	"definitions held in Go sources as encoded bytes other than gzip-compressed string literals (base64, byte-slice literals, other compressions)",
-	"symbolic links (the install-surface guard does not follow them either), CI configuration, shell scripts other than .sh and .bash files, build files other than Dockerfiles, Containerfiles, Earthfiles and nix files (Bazel, Tilt, ko configuration), a container build that copies its whole context and selects files while it runs, and Go code that opens a path at run time",
+	"symbolic links (the install-surface guard does not follow them either), CI configuration, shell scripts other than .sh and .bash files, build files other than Dockerfiles, Containerfiles, Earthfiles and nix files (Bazel, Tilt, ko configuration), a container build or nix file that copies its whole context or a source directory above an excluded path and selects files while it runs, and Go code that opens a path at run time",
 }
 
 // ScanRecord is what the full-tree scan found at one commit.

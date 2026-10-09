@@ -38,7 +38,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   void at a release where a kustomization, Helm chart, Makefile install
   target, document or shell-script install command, container build (Dockerfile,
   Containerfile, Earthfile), nix file, ko `kodata` directory or embedding Go
-  package (above or inside the excluded path) refers to the excluded path.
+  package (in a directory above or inside the excluded path) refers to a path
+  under it.
   Gzip-compressed definitions in Go sources (Velero's install CRDs) are read
   and compared like YAML files. No rule is shipped. See
   `cli/docs/extractors/crd.version-removal.md`.
