@@ -289,7 +289,7 @@ func TestScanClasses(t *testing.T) {
 		{name: "kustomization naming the kind elsewhere", extra: map[string]string{
 			"deploy/kustomization.yaml": "patches:\n- path: patches/a.yaml\n  target:\n    kind: CustomResourceDefinition\nreplacements:\n- source:\n    kind: CustomResourceDefinition\n",
 			"deploy/patches/a.yaml":     "- op: add\n  path: /metadata/labels/x\n  value: y\n",
-		}, status: extract.PairDerived, class: ClassReference, reason: "outside patch targets"},
+		}, status: extract.PairDerived, class: ClassReference, reason: "replacements entry"},
 		{name: "remote kustomize resource", extra: map[string]string{
 			"deploy/kustomization.yaml": "resources:\n- crds/a.yaml\n- github.com/other/project//config/crd?ref=v1.2.3\n",
 		}, status: extract.PairDerived, class: ClassExternal, reason: "github.com/other/project//config/crd?ref=v1.2.3"},

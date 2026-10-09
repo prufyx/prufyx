@@ -387,6 +387,12 @@ func fieldSpec(v any) string {
 			return fmt.Sprintf("field spec key %q", k)
 		}
 	}
+	for _, k := range []string{"kind", "group", "version"} {
+		if v, present := m[k]; present && v == "" {
+			// kustomize reads an empty field as a wildcard.
+			return fmt.Sprintf("a field spec with an empty %s", k)
+		}
+	}
 	kind, hasKind := m["kind"].(string)
 	switch {
 	case hasKind && kind != crdKind:

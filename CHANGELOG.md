@@ -62,6 +62,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   configuration whose field specs reach other paths, a v1beta1 copy that serves
   other versions, or any file that does not match exactly still blocks
   attestation (or withholds the pair). Rules and vectors are unchanged.
+  A kustomize field spec with an empty `kind`, `group` or `version` (a wildcard
+  in kustomize) and a `patches`, `patchesJson6902` or `replacements` entry
+  whose target does not literally name a kind other than
+  `CustomResourceDefinition` (selected by name, group, a kind pattern, a label
+  selector, or no kind) now block attestation, as such an entry could change a
+  definition without naming the kind.
 - Maintainer extractor `crd.version-removal`, CRD-GEN wave 2: eleven more
   projects are read (Antrea, CloudNativePG, Contour, Dapr, External Secrets
   Operator, Karmada, Koordinator, MetalLB, OpenKruise, Tekton Pipelines and

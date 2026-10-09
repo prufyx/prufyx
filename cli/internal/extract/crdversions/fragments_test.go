@@ -120,6 +120,47 @@ func TestKubebuilderScaffolding(t *testing.T) {
 			"deploy/patches/conversion.yaml": "- op: add\n  path: /spec/preserveUnknownFields/x\n  value: false\n",
 		}), status: extract.PairDerived, class: ClassReference, path: "deploy/kustomization.yaml", reason: "outside version schemas"},
 
+		// Kustomization entries that select without a literal kind, and empty field spec values.
+		{name: "kustomization patch selecting by name", extra: same(map[string]string{
+			"deploy/kustomization.yaml": "resources:\n- crds/a.yaml\npatches:\n- path: patches/p.yaml\n  target:\n    name: alphas.synth.example.io\n",
+			"deploy/patches/p.yaml":     "- op: replace\n  path: /spec/versions/0/served\n  value: false\n",
+		}), status: extract.PairDerived, class: ClassReference, path: "deploy/kustomization.yaml", reason: "without naming a kind other than"},
+		{name: "kustomization patch selecting by group", extra: same(map[string]string{
+			"deploy/kustomization.yaml": "resources:\n- crds/a.yaml\npatches:\n- path: patches/p.yaml\n  target:\n    group: apiextensions.k8s.io\n",
+			"deploy/patches/p.yaml":     "- op: replace\n  path: /spec/versions/0/served\n  value: false\n",
+		}), status: extract.PairDerived, class: ClassReference, path: "deploy/kustomization.yaml", reason: "without naming a kind other than"},
+		{name: "kustomization patch selecting by kind regex", extra: same(map[string]string{
+			"deploy/kustomization.yaml": "resources:\n- crds/a.yaml\npatches:\n- path: patches/p.yaml\n  target:\n    kind: CustomResourceDefinitio.\n",
+			"deploy/patches/p.yaml":     "- op: replace\n  path: /spec/versions/0/served\n  value: false\n",
+		}), status: extract.PairDerived, class: ClassReference, path: "deploy/kustomization.yaml", reason: "without naming a kind other than"},
+		{name: "kustomization patch selecting by label selector", extra: same(map[string]string{
+			"deploy/kustomization.yaml": "resources:\n- crds/a.yaml\npatches:\n- path: patches/p.yaml\n  target:\n    labelSelector: app=x\n",
+			"deploy/patches/p.yaml":     "- op: replace\n  path: /spec/versions/0/served\n  value: false\n",
+		}), status: extract.PairDerived, class: ClassReference, path: "deploy/kustomization.yaml", reason: "without naming a kind other than"},
+		{name: "kustomization patch selecting with an empty target", extra: same(map[string]string{
+			"deploy/kustomization.yaml": "resources:\n- crds/a.yaml\npatches:\n- path: patches/p.yaml\n  target:\n    {}\n",
+			"deploy/patches/p.yaml":     "- op: replace\n  path: /spec/versions/0/served\n  value: false\n",
+		}), status: extract.PairDerived, class: ClassReference, path: "deploy/kustomization.yaml", reason: "without naming a kind other than"},
+		{name: "kustomization patch with an alternation kind", extra: same(map[string]string{
+			"deploy/kustomization.yaml": "resources:\n- crds/a.yaml\npatches:\n- path: patches/p.yaml\n  target:\n    kind: Deployment|CustomResourceDefinition\n",
+			"deploy/patches/p.yaml":     "- op: replace\n  path: /spec/versions/0/served\n  value: false\n",
+		}), status: extract.PairDerived, class: ClassReference, path: "deploy/kustomization.yaml", reason: "without naming a kind other than"},
+		{name: "kustomization replacement selecting by name", extra: same(map[string]string{
+			"deploy/kustomization.yaml": "resources:\n- crds/a.yaml\nreplacements:\n- source:\n    kind: ConfigMap\n    name: c\n  targets:\n  - select:\n      name: alphas.synth.example.io\n    fieldPaths:\n    - spec.group\n",
+			"deploy/patches/p.yaml":     "- op: replace\n  path: /spec/versions/0/served\n  value: false\n",
+		}), status: extract.PairDerived, class: ClassReference, path: "deploy/kustomization.yaml", reason: "replacements target"},
+		{name: "kustomization replacements file", extra: same(map[string]string{
+			"deploy/kustomization.yaml": "resources:\n- crds/a.yaml\nreplacements:\n- path: r.yaml\n",
+			"deploy/patches/p.yaml":     "- op: replace\n  path: /spec/versions/0/served\n  value: false\n",
+		}), status: extract.PairDerived, class: ClassReference, path: "deploy/kustomization.yaml", reason: "replacements entry"},
+		{name: "kustomization patch and replacement of a literal other kind", extra: same(map[string]string{
+			"deploy/kustomization.yaml": "resources:\n- crds/a.yaml\npatches:\n- path: patches/p.yaml\n  target:\n    kind: Deployment\n    name: x\nreplacements:\n- source:\n    kind: ConfigMap\n  targets:\n  - select:\n      kind: Deployment\n    fieldPaths:\n    - spec.replicas\n",
+		}), status: extract.PairDerived, attestable: true},
+		{name: "transformer configuration with an empty kind", extra: same(map[string]string{
+			"deploy/kustomization.yaml":   "resources:\n- crds/a.yaml\nnamespace: other.example.io\nconfigurations:\n- kustomizeconfig.yaml\n",
+			"deploy/kustomizeconfig.yaml": strings.Replace(kustomizeConfig, "  create: false\n", "  create: false\n- kind: \"\"\n  path: spec/group\n", 1),
+		}), status: extract.PairDerived, class: ClassReference, path: "deploy/kustomizeconfig.yaml", reason: "an empty kind"},
+
 		// v1beta1 copies.
 		{name: "v1beta1 copy", extra: func(v ...string) map[string]string {
 			return map[string]string{"deploy/v1beta1/a.yaml": legacyCRD("Alpha", v...)}

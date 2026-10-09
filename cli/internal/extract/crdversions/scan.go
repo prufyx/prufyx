@@ -340,6 +340,10 @@ type kustomization struct {
 	// problem is why a CRD patch entry cannot be checked ("" when every
 	// one names a local file).
 	problem string
+	// open is why some patch or replacement could select a definition
+	// without naming the kind literally ("" when none can): such an entry
+	// is never read, so it blocks.
+	open string
 	// remote are the resources, components and bases from another
 	// repository; local are the other resources and bases.
 	remote []string
@@ -838,6 +842,10 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 		}
 		crds = info.template.crds
 	}
+	if isKust && info.kust != nil && info.kust.open != "" && !info.embedded && underDefinitionDir(f.path, dirs) {
+		fd.Class, fd.Detail = ClassReference, info.kust.open
+		return placed(fd, f.at), true, nil
+	}
 	if info.words == 0 {
 		return fd, false, nil
 	}
@@ -984,8 +992,15 @@ func readKustomization(obj map[string]any) *kustomization {
 				k.problem = field + " entry is not a mapping"
 				return k
 			}
+			if _, present := entry["target"]; !present {
+				// A strategic merge fragment: checked through its file.
+				continue
+			}
 			target, _ := entry["target"].(map[string]any)
 			if kind, _ := target["kind"].(string); kind != crdKind {
+				if !literalOtherKind(kind) && k.open == "" {
+					k.open = fmt.Sprintf("a %s entry selects without naming a kind other than %s", field, crdKind)
+				}
 				continue
 			}
 			k.crdTargets++
@@ -997,6 +1012,18 @@ func readKustomization(obj map[string]any) *kustomization {
 			k.patchPaths = append(k.patchPaths, pp)
 		}
 	}
+	if raw, present := obj["replacements"]; present && k.open == "" {
+		items, ok := raw.([]any)
+		if !ok {
+			k.open = "replacements is not a list"
+		}
+		for _, it := range items {
+			if why := replacementOpen(it); why != "" {
+				k.open = why
+				break
+			}
+		}
+	}
 	if _, smp := obj["patchesStrategicMerge"]; smp {
 		k.problem = "strategic merge patches are not checked"
 	}
@@ -1004,6 +1031,34 @@ func readKustomization(obj map[string]any) *kustomization {
 		k.problem = "too many patch files"
 	}
 	return k
+}
+
+// literalOtherKind reports a selector kind that, as an anchored regular
+// expression, matches only one kind and not the definition kind.
+func literalOtherKind(kind string) bool {
+	return kind != "" && kind != crdKind && regexp.QuoteMeta(kind) == kind
+}
+
+// replacementOpen returns why a replacements entry (inline, or a file
+// that is not read) could change a definition ("" when every target
+// selects a literal kind other than the definition kind).
+func replacementOpen(v any) string {
+	e, ok := v.(map[string]any)
+	if !ok {
+		return "a replacements entry is not a mapping"
+	}
+	targets, ok := e["targets"].([]any)
+	if !ok || len(targets) == 0 {
+		return "a replacements entry without inline targets is not checked"
+	}
+	for _, t := range targets {
+		tm, _ := t.(map[string]any)
+		sel, _ := tm["select"].(map[string]any)
+		if kind, _ := sel["kind"].(string); !literalOtherKind(kind) {
+			return "a replacements target selects without naming a kind other than " + crdKind
+		}
+	}
+	return ""
 }
 
 // checkKustomization returns "" when every CustomResourceDefinition
@@ -1014,6 +1069,8 @@ func readKustomization(obj map[string]any) *kustomization {
 func (x *Extractor) checkKustomization(r extract.PinnedReader, repo extract.RepoRef, commit, p string, info *blobInfo, inv *Inventory) (string, error) {
 	k := info.kust
 	switch {
+	case k.open != "":
+		return k.open, nil
 	case k.problem != "":
 		return k.problem, nil
 	case k.crdTargets == 0 || k.crdTargets != info.kinds:
