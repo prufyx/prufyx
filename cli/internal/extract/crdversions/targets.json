@@ -174,7 +174,13 @@
       "paths": [
         {"path": "config/crd/standard", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
-      "exclude": []
+      "exclude": [],
+      "declaredChannel": "standard",
+      "channels": [
+        {"name": "experimental", "paths": [
+          {"path": "config/crd/experimental", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+        ]}
+      ]
     },
     {
       "project": "istio",
