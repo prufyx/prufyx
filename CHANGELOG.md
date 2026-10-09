@@ -257,12 +257,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   any file outside the pack files and their generated outputs, or that lists a
   tightening change as approved. `approval sign --batch` shows the summary and
   signs only after the owner types the batch id; `approval verify --batch`
-  checks a batch offline. A batch is never eligible for automatic merging. See
+  checks a batch offline. A batch is never eligible for automatic merging.
   A spent batch file stays in the tree until 14 days after it expired, because
   it still refuses older per-entry approvals; forward-only holds for rules and
   records in both directions, across packs for records. The signer shows the
   signer, key id and validity before it asks for the batch id, and applies the
-  gate's changed-path rule.
+  gate's changed-path rule. See
   [knowledge-gate.md](cli/docs/knowledge-gate.md#batch-approvals).
 
 - `prufyx-maintainer knowledge-publish release`: one offline, deterministic step
