@@ -27,7 +27,7 @@ func (r runtime) scan(args []string, stdin io.Reader) int {
 	if err != nil {
 		return r.scanError(err)
 	}
-	output, err := scanreport.Render(result.Report, request.Format, scanreport.RenderOptions{ShowPasses: request.ShowPasses, Verbose: request.Verbose})
+	output, err := scanreport.Render(result.Report, request.Format, scanreport.RenderOptions{ShowPasses: request.ShowPasses, Verbose: request.Verbose, OnlyBlocked: request.OnlyBlocked})
 	if err != nil {
 		return r.fail(scanreport.UsageIntegrity, ExitIntegrity)
 	}
@@ -41,7 +41,10 @@ func (r runtime) scan(args []string, stdin io.Reader) int {
 		fmt.Fprintln(r.stderr, "prufyx: note: "+result.KnowledgeNote)
 	}
 	r.knowledgeAgeNote(result.KnowledgeAge)
-	return result.Exit
+	if note := request.ExitNote(result.Report, result.Exit); note != "" {
+		fmt.Fprintln(r.stderr, note)
+	}
+	return request.ExitCode(result.Report, result.Exit)
 }
 
 func (r runtime) scanError(err error) int {

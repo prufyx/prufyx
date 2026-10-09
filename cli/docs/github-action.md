@@ -112,6 +112,15 @@ today, `fail-on: unknown` fails most scans; that is the honest reading of an
 undecided upgrade, and the default `blocked` trades it for a green job that
 you must not read as a pass.
 
+The action applies `fail-on` itself, after `prufyx scan` returns, so it can
+keep reporting the real `exit-code` and `verdict` outputs. It does not pass the
+setting to the CLI. Outside the action, `prufyx scan --fail-on blocked|unknown|none`
+gives a comparable control in any CI system, and like the action it keeps a
+failing exit code when manifests use an API version the target does not serve
+(`API_VERSION_NOT_SERVED`); see [scan.md](scan.md#answers-and-exit-codes).
+Note that the CLI default is `unknown` (fail on 10 and 11), while the action
+default is `blocked`.
+
 An input that is not valid is refused before `prufyx` runs, with a message that
 names the input and not its value.
 

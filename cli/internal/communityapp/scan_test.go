@@ -166,3 +166,32 @@ func TestScanFormatRejected(t *testing.T) {
 func quietOrAgeNote(stderr string) bool {
 	return stderr == "" || (strings.HasPrefix(stderr, "prufyx: note: ") && strings.Count(strings.TrimRight(stderr, "\n"), "\n") == 0)
 }
+
+// TestScanFailOnNoteAndNotServed: --fail-on none reports a blocked scan as
+// exit 0 and says on standard error that this is not a pass; the not-served
+// gap (CronJob batch/v1beta1 past its removal, 1.25 to 1.26) keeps exit 11
+// under every --fail-on value and prints no note; the flag never changes the
+// report.
+func TestScanFailOnNoteAndNotServed(t *testing.T) {
+	t.Parallel()
+	path, declared := scanFormatsFixture(t)
+	run := func(from, to, failOn string) (int, string, string) {
+		return runScan(t, append([]string{path, "--from", from, "--to", to, "--fail-on", failOn}, declared...)...)
+	}
+	code, out, stderr := run("kubernetes=1.24.17", "kubernetes=1.25.3", "none")
+	if code != 0 || !strings.Contains(stderr, "prufyx: note: verdict BLOCKED (exit 10) reported as exit 0 by --fail-on none; this is not a PASS") {
+		t.Errorf("none/blocked: exit %d stderr %q", code, stderr)
+	}
+	if plain, plainOut, _ := runScan(t, append([]string{path, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3"}, declared...)...); plain != ExitBlocked || plainOut != out {
+		t.Errorf("--fail-on changed the report or default exit %d", plain)
+	}
+	for _, failOn := range []string{"unknown", "blocked", "none"} {
+		code, out, stderr := run("kubernetes=1.25.3", "kubernetes=1.26.15", failOn)
+		if code == 0 || strings.Contains(stderr, "this is not a PASS") {
+			t.Errorf("--fail-on %s not-served: exit %d stderr %q", failOn, code, stderr)
+		}
+		if !strings.Contains(out, "does not serve") {
+			t.Errorf("--fail-on %s: report lacks the not-served text: %s", failOn, out)
+		}
+	}
+}

@@ -4,6 +4,7 @@ package scanrun
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -25,10 +26,14 @@ type Request struct {
 	ResourceScopeComplete *bool
 	TargetApplyRequired   *bool
 	Format                string
-	ShowPasses, Verbose   bool
-	Redact                bool
-	Permissions           intake.PermissionPolicy
-	PermissionsName       string
+	// FailOn is the --fail-on policy: unknown (default), blocked or none.
+	FailOn string
+	// OnlyBlocked is --only-blocked: human and markdown list only BLOCKED findings.
+	OnlyBlocked         bool
+	ShowPasses, Verbose bool
+	Redact              bool
+	Permissions         intake.PermissionPolicy
+	PermissionsName     string
 	// TrustPolicy is the --require-basis policy; the zero value is the
 	// default policy.
 	TrustPolicy cncfcheck.TrustPolicy
@@ -42,6 +47,54 @@ type Request struct {
 	// knowledge).
 	KnowledgeMode string
 	Help          bool
+}
+
+// The --fail-on policies.
+const (
+	FailOnUnknown = "unknown"
+	FailOnBlocked = "blocked"
+	FailOnNone    = "none"
+)
+
+// ExitCode maps the scan's verdict exit code to the process exit code under
+// --fail-on. Only the verdict codes (blocked, unknown) are ever changed;
+// usage and integrity errors never reach this and are never suppressed. A
+// report that carries an API_VERSION_NOT_SERVED gap (manifests use an API
+// version the target no longer serves) always keeps its verdict code: that
+// is the one gap the GitHub Action also fails on, whatever fail-on says.
+func (r Request) ExitCode(report scanreport.Report, verdict int) int {
+	if verdict == scanreport.ExitPass || ReportHasNotServedGap(report) {
+		return verdict
+	}
+	switch {
+	case r.FailOn == FailOnNone:
+		return scanreport.ExitPass
+	case r.FailOn == FailOnBlocked && verdict == scanreport.ExitUnknown:
+		return scanreport.ExitPass
+	}
+	return verdict
+}
+
+// ExitNote returns the one-line standard error note to print when --fail-on
+// changed a non-zero verdict exit code, or "" when the exit code is the
+// verdict's own.
+func (r Request) ExitNote(report scanreport.Report, verdict int) string {
+	code := r.ExitCode(report, verdict)
+	if code == verdict {
+		return ""
+	}
+	return fmt.Sprintf("prufyx: note: verdict %s (exit %d) reported as exit %d by --fail-on %s; this is not a PASS", report.Verdict, verdict, code, r.FailOn)
+}
+
+// ReportHasNotServedGap reports whether the report has an
+// API_VERSION_NOT_SERVED gap.
+func ReportHasNotServedGap(report scanreport.Report) bool {
+	for _, gap := range report.Gaps {
+		if gap.Reason == scanreport.ReasonAPIVersionNotServed {
+			return true
+		}
+	}
+	return false
 }
 
 // UsageError is a command line or input the scan does not accept. Its text
@@ -64,7 +117,7 @@ const maxArgs = 4096
 // "--" ends the flags and "-" is standard input. A flag takes its value as
 // the next argument or after "=". Boolean flags accept "=true" and "=false".
 func ParseArgs(args []string) (Request, error) {
-	request := Request{Format: "human", Permissions: intake.RefuseWritable, PermissionsName: "refuse-writable"}
+	request := Request{Format: "human", FailOn: FailOnUnknown, Permissions: intake.RefuseWritable, PermissionsName: "refuse-writable"}
 	if len(args) > maxArgs {
 		return Request{}, usage(scanreport.UsageBadValue, "arguments")
 	}
@@ -181,7 +234,19 @@ func ParseArgs(args []string) (Request, error) {
 				return Request{}, usage(scanreport.UsageBadValue, display)
 			}
 			request.Format = v
-		case "show-passes", "verbose", "redact":
+		case "fail-on":
+			if err := once(display); err != nil {
+				return Request{}, err
+			}
+			v, err := next()
+			if err != nil {
+				return Request{}, err
+			}
+			if v != FailOnUnknown && v != FailOnBlocked && v != FailOnNone {
+				return Request{}, usage(scanreport.UsageBadValue, display)
+			}
+			request.FailOn = v
+		case "show-passes", "verbose", "redact", "only-blocked":
 			if err := once(display); err != nil {
 				return Request{}, err
 			}
@@ -194,6 +259,8 @@ func ParseArgs(args []string) (Request, error) {
 				request.ShowPasses = v
 			case "verbose":
 				request.Verbose = v
+			case "only-blocked":
+				request.OnlyBlocked = v
 			default:
 				request.Redact = v
 			}

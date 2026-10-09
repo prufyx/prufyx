@@ -2,6 +2,8 @@
 
 package scanreport
 
+import "fmt"
+
 // Formats lists the output formats of the scan command.
 func Formats() []string { return []string{"human", "json", "sarif", "markdown", "csv"} }
 
@@ -10,20 +12,53 @@ func Formats() []string { return []string{"human", "json", "sarif", "markdown", 
 type RenderOptions struct {
 	ShowPasses bool
 	Verbose    bool
+	// OnlyBlocked lists only BLOCKED findings in the human and Markdown
+	// formats and says how many other items are hidden. JSON and SARIF are
+	// always complete.
+	OnlyBlocked bool
 }
 
 // Render renders the report in one of Formats. The format changes only the
 // bytes: the report, its verdict and the exit code are the same for all.
 func Render(report Report, format string, options RenderOptions) ([]byte, error) {
+	if options.OnlyBlocked && (format == "human" || format == "markdown") {
+		return renderOnlyBlocked(report, format, options)
+	}
 	switch format {
 	case "json":
 		return MarshalJSON(report)
 	case "sarif":
 		return SARIF(report)
 	case "markdown":
-		return Markdown(report, MarkdownOptions(options)), nil
+		return Markdown(report, MarkdownOptions{ShowPasses: options.ShowPasses, Verbose: options.Verbose}), nil
 	case "csv":
 		return renderCSV(report, options)
 	}
-	return Human(report, HumanOptions(options)), nil
+	return Human(report, HumanOptions{ShowPasses: options.ShowPasses, Verbose: options.Verbose}), nil
+}
+
+// renderOnlyBlocked renders a copy of the report without the items that are
+// not BLOCKED findings (gaps other than API_VERSION_NOT_SERVED, notices, unsupported combinations, leads and
+// passes) and ends with one line counting what was left out. The report, the
+// headline, the verdict and the summary are unchanged.
+func renderOnlyBlocked(report Report, format string, options RenderOptions) ([]byte, error) {
+	// A gap for an API version the target does not serve stays: it is the
+	// removed-API case, and hiding it would make a failing scan look empty.
+	var kept []Gap
+	for _, gap := range report.Gaps {
+		if gap.Reason == ReasonAPIVersionNotServed {
+			kept = append(kept, gap)
+		}
+	}
+	gaps := len(report.Gaps) - len(kept)
+	other := len(report.Notices) + len(report.Unsupported) + len(report.Leads)
+	report.Gaps, report.Notices, report.Unsupported, report.Leads, report.Passes = kept, nil, nil, nil, nil
+	var body []byte
+	if format == "markdown" {
+		body = Markdown(report, MarkdownOptions{Verbose: options.Verbose})
+		body = append(body, '\n')
+	} else {
+		body = Human(report, HumanOptions{Verbose: options.Verbose})
+	}
+	return append(body, fmt.Sprintf(labelOnlyBlocked+"\n", gaps, other)...), nil
 }

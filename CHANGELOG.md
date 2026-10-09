@@ -149,11 +149,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ### Added
 
 - `prufyx scan --format csv`: a header row, a summary row (the verdict and the headline), then one row per blocking finding location (verdict, rule id, project, file, line, kind, namespace, name, title, fix), then one row per gap and, with passes shown, one per pass. Cells use the same escaping as the other formats and cells that could start a spreadsheet formula get a leading quote.
-
 - Optional colour in help output only (bold headings, highlighted command
   names), on only when stdout is a terminal. `NO_COLOR`, `PRUFYX_COLOR=never`
   and `TERM=dumb` turn it off; `PRUFYX_COLOR=always` forces it on. Report
   output is never coloured.
+- `prufyx scan --fail-on blocked|unknown|none` (default `unknown`, exit codes
+  unchanged): `blocked` exits 0 for an undecided scan but still 10 for BLOCKED,
+  `none` exits 0 for both. A suppressed exit 0 is not a PASS: `scan` prints a
+  note on standard error whenever the flag changes a non-zero code. Usage (2)
+  and integrity (3) errors are never suppressed, and neither is a scan whose
+  manifests use an API version the target does not serve; the report is
+  unchanged.
+- `prufyx scan --only-blocked`: human and Markdown output list only BLOCKED
+  findings and print one line counting the hidden items, but keep the gap for API
+  versions the target does not serve; JSON and SARIF stay complete.
 - `prufyx-maintainer corpus-attestation generate|check --tree DIR` attests the
   pack files of a checked-out tree (its root or its `cli/` directory) instead of
   the pack embedded in the binary, so a mechanical candidate can be re-attested
