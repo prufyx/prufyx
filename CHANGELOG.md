@@ -50,6 +50,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- Maintainer extractor `crd.version-removal` 2.2.0 reads the kubebuilder
+  scaffolding beside a project's generated definitions and its legacy copies,
+  which kept every pair of such a project from being attestable: strategic
+  merge patch fragments (conversion webhook, CA injection) and kustomize
+  transformer configurations below a directory whose kustomization lists the
+  definitions (classes `crd-patch`, `kustomize-config`), and
+  `apiextensions.k8s.io/v1beta1` copies that agree with the listed definitions
+  (`legacy-copy`). Each shape is checked strictly: a fragment that touches
+  versions, the group or anything but conversion settings and metadata, a
+  configuration whose field specs reach other paths, a v1beta1 copy that serves
+  other versions, or any file that does not match exactly still blocks
+  attestation (or withholds the pair). Rules and vectors are unchanged.
 - Maintainer extractor `crd.version-removal`, CRD-GEN wave 2: eleven more
   projects are read (Antrea, CloudNativePG, Contour, Dapr, External Secrets
   Operator, Karmada, Koordinator, MetalLB, OpenKruise, Tekton Pipelines and
