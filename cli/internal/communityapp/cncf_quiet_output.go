@@ -176,7 +176,7 @@ func writeCustomResourceScope(out io.Writer, claims []constraintengine.Claim) er
 	return nil
 }
 
-const customResourceScopeLine = "scope: a rule over a custom-resource version set never makes this check pass (exit 11 at best): no record yet shows that the published rules name every version the target release stops serving"
+const customResourceScopeLine = "scope: a rule over a custom-resource version set never makes this check pass (exit 11 at best): check does not read line reviews of custom-resource versions; prufyx scan does, for that family only"
 
 const (
 	noVerdictLine     = "UNKNOWN: no reviewed rule decided this transition; a one-way notice is not a verdict"

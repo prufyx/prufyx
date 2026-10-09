@@ -418,7 +418,7 @@ func TestScanSchemaRequiredFields(t *testing.T) {
 	schema := readSchema(t)
 	types := map[string]reflect.Type{
 		"": reflect.TypeOf(scanreport.Report{}), "summary": reflect.TypeOf(scanreport.Summary{}), "component": reflect.TypeOf(scanreport.Component{}),
-		"path": reflect.TypeOf(scanreport.Path{}), "hop": reflect.TypeOf(scanreport.Hop{}), "attestation": reflect.TypeOf(scanreport.Attestation{}),
+		"path": reflect.TypeOf(scanreport.Path{}), "hop": reflect.TypeOf(scanreport.Hop{}), "attestation": reflect.TypeOf(scanreport.Attestation{}), "familyResult": reflect.TypeOf(scanreport.FamilyResult{}),
 		"hopRef": reflect.TypeOf(scanreport.HopRef{}), "location": reflect.TypeOf(scanreport.Location{}), "finding": reflect.TypeOf(scanreport.Finding{}),
 		"gap": reflect.TypeOf(scanreport.Gap{}), "pass": reflect.TypeOf(scanreport.Pass{}), "notice": reflect.TypeOf(scanreport.Notice{}),
 		"lead": reflect.TypeOf(scanreport.Lead{}), "trustPolicy": reflect.TypeOf(scanreport.TrustPolicy{}), "unsupported": reflect.TypeOf(scanreport.Unsupported{}),

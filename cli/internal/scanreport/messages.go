@@ -107,6 +107,13 @@ const (
 	// GapDocumentsCustomGroup: objects of custom-resource groups no
 	// reviewed project owns.
 	GapDocumentsCustomGroup GapKey = ReasonDocumentsNotEvaluated + "/custom-resource-group"
+	// Line reviews of custom-resource versions that exist for the target
+	// line but cannot decide the hop.
+	GapCustomResourceLineNotCurrent GapKey = ReasonLineNotAttested + "/custom-resources-not-current"
+	GapCustomResourceLineHopShape   GapKey = ReasonLineNotAttested + "/custom-resources-hop-shape"
+	GapCustomResourceLineSameLine   GapKey = ReasonLineNotAttested + "/custom-resources-same-line"
+	GapCustomResourceLineRelease    GapKey = ReasonLineNotAttested + "/custom-resources-release"
+	GapCustomResourceLineTrust      GapKey = ReasonLineNotAttested + "/custom-resources-trust-policy"
 )
 
 // Reason is the gap reason of the key.
@@ -230,6 +237,16 @@ var gapMessages = map[GapKey]gapMessage{
 		"verify the rest of the %[1]s upgrade notes by hand", 1},
 	GapDocumentsCustomGroup: {"%[1]d manifest(s) use custom-resource groups that no reviewed project owns, so no custom-resource set is complete",
 		"check those custom resources by hand; they are never assigned to a project by guess", 1},
+	GapCustomResourceLineNotCurrent: {"the custom-resource review of %[1]s %[2]s is not current (%[3]s)",
+		"use current knowledge, or check the %[1]s %[2]s CRDs by hand", 3},
+	GapCustomResourceLineHopShape: {"%[1]s %[2]s -> %[3]s is not a next-minor upgrade; CRD line reviews do not apply",
+		"scan each minor upgrade of %[1]s separately", 3},
+	GapCustomResourceLineSameLine: {"%[1]s %[2]s -> %[3]s stays within one minor line; CRD line reviews do not apply",
+		"diff the CRDs of %[1]s %[2]s and %[3]s by hand", 3},
+	GapCustomResourceLineRelease: {"the custom-resource review of %[1]s %[2]s did not read release %[3]s",
+		"use knowledge reviewed after %[1]s %[3]s, or check its CRDs by hand", 3},
+	GapCustomResourceLineTrust: {"the custom-resource review of %[1]s %[2]s rests on basis %[3]s (see --require-basis)",
+		"add %[3]s to --require-basis, or check the %[1]s %[2]s CRDs by hand", 3},
 }
 
 // GapReasons lists the closed vocabulary in order.
@@ -457,6 +474,9 @@ const (
 	labelTrustLeads             = "trust policy: %d unverified lead(s) not shown; add lead to --require-basis to list them"
 	labelConsensus              = "%d finding(s) rely on model consensus"
 	labelGapLine                = "%s - %s"
+	labelFamilyPass             = "  %s %s -> %s: PASS within %s only (line %s attested complete, %s evidence): no manifest uses a version that %s %s stops serving"
+	labelFamilyBlocked          = "  %s %s -> %s: BLOCKED within %s (line %s attested complete, %s evidence): see the problems above"
+	labelFamilyScope            = "    scope: %s; nothing else about %s is checked"
 )
 
 // SARIF and Markdown labels.
@@ -471,6 +491,7 @@ const (
 	labelSarifGapHelpNotServed = "A manifest uses an API version the target does not serve (%s). Migrate it to a served API version before you upgrade. The Prufyx GitHub Action fails the step on this."
 	labelSarifTruncated        = "SARIF output is limited to %d results; %d more are in the JSON report"
 	labelMDProblems            = "PROBLEMS TO FIX (%d)"
+	labelMDScoped              = "SCOPED RESULTS (%d)"
 	labelMDPath                = "%s %s -> %s"
 	labelMDHopHeader           = "Hop"
 	labelMDProblemHeader       = "Problem"

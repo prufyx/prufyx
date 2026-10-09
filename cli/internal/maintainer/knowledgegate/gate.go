@@ -387,18 +387,20 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	}
 
 	// The extractor run a reviewed line attestation is cross-checked
-	// against, made once per fact family at the gate's clock.
-	attesterRuns := map[string]*attesterRun{}
+	// against, made once per fact family and component at the gate's
+	// clock.
+	attesterRuns := map[[2]string]*attesterRun{}
 	crossCheck := func(pack string, rec *record) error {
 		a := rec.attestation
 		if a == nil {
 			return errors.New("not a line attestation")
 		}
-		run := attesterRuns[a.FactFamily]
+		key := [2]string{a.FactFamily, a.Component}
+		run := attesterRuns[key]
 		if run == nil {
 			run = &attesterRun{}
-			run.out, run.floor, run.err = runAttester(ctx, opts.Source, opts.Catalog, opts.Concurrency, a.FactFamily, opts.Now)
-			attesterRuns[a.FactFamily] = run
+			run.out, run.floor, run.err = runAttester(ctx, opts.Source, opts.Catalog, opts.Concurrency, a.FactFamily, a.Component, opts.Now)
+			attesterRuns[key] = run
 		}
 		if run.err != nil {
 			return run.err

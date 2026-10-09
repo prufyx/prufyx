@@ -35,7 +35,12 @@ Derived numbers:
   family appear as `other`).
 
 A status "A" means the pack decides the pair within the attested family's scope.
-It is not a statement that an upgrade is safe.
+It is not a statement that an upgrade is safe. The families are those of
+[line-attestations.md](line-attestations.md): `kubernetes.removed_served_gvk`
+for Kubernetes and `crd.custom_resource_versions` for each project of the
+custom-resource table. An attestation of the custom-resource family also names
+the releases it read; the report counts the pair, while `scan` decides only a
+hop between two of those releases.
 
 Projects whose release lines are not the `major.minor` of the engine version
 (today `cloud-custodian`, whose releases `0.9.N` form line `9.N`) are measured

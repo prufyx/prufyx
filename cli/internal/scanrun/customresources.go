@@ -6,20 +6,28 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"slices"
+	"sort"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/intake"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
 // customResourceRun evaluates the upgrade of a project that has a
 // custom-resource version set: the rules over that set alone, on one direct
-// hop. No line review covers these rules yet, so the component is never
-// covered: a removed version is a finding, and everything else is a gap.
+// hop. The component is never covered: scan checks nothing else about it.
+// A removed version is a finding. A current line review of the target line
+// for the custom-resource version family (lineattest
+// FamilyCustomResourceVersions) that read both releases of the hop, a
+// complete set and every listed rule decided make the family decided on the
+// hop (a family result, PASS or BLOCKED within the family's scope); it
+// never makes the hop or the component covered.
 type customResourceRun struct {
 	knowledge    Knowledge
 	now          time.Time
@@ -178,6 +186,10 @@ func (r *customResourceRun) hop(hop upgradepath.Hop) (scanreport.Hop, error) {
 
 	blocked, applicable := false, 0
 	overlapping := map[string]bool{}
+	// applicableIDs are the verdict rules that overlap the hop; decided
+	// those that the hop's claim decided (PASS or BLOCKED) while covering
+	// the whole hop under the trust policy; blocks those that blocked.
+	applicableIDs, decided, blocks := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, rule := range r.rules {
 		if rule.Scope.Component != r.component || !hop.Overlaps(rule.Scope.Transition) {
 			continue
@@ -188,6 +200,7 @@ func (r *customResourceRun) hop(hop upgradepath.Hop) (scanreport.Hop, error) {
 			continue
 		}
 		applicable++
+		applicableIDs[rule.Scope.ID] = true
 		switch {
 		case !hop.CoveredBy(rule.Scope.Transition):
 			result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapIntermediateLine, rule.Scope.ID))
@@ -201,6 +214,10 @@ func (r *customResourceRun) hop(hop upgradepath.Hop) (scanreport.Hop, error) {
 		if !found {
 			result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapRuleNeedsOtherEvidence, rule.Scope.ID, r.slug))
 			continue
+		}
+		if claim.Status == "BLOCKED" || claim.Status == "PASS" {
+			decided[rule.Scope.ID] = true
+			blocks[rule.Scope.ID] = claim.Status == "BLOCKED"
 		}
 		switch claim.Status {
 		case "BLOCKED":
@@ -225,18 +242,161 @@ func (r *customResourceRun) hop(hop upgradepath.Hop) (scanreport.Hop, error) {
 			return scanreport.Hop{}, ErrIntegrity
 		}
 	}
+	if family := r.lineReview(hop, ref, fromVersion, toVersion, prepared, applicableIDs, decided, blocks, &result); family != nil {
+		if blocked {
+			// Every rule here reads only the set: a hop that blocks is
+			// never a pass of the family.
+			family.Status = scanreport.FamilyBlocked
+		}
+		result.Families = []scanreport.FamilyResult{*family}
+	}
 	// Nothing covers this hop: the component is only partly evaluated.
 	result.Reasons = append(result.Reasons, r.rootGaps[scanreport.GapCustomResourcesOnly].Reason)
 	switch {
 	case blocked:
 		result.Status = scanreport.HopBlocked
-	case applicable == 0:
+	case applicable == 0 && len(result.Families) == 0:
 		result.Status = scanreport.HopNoData
 	default:
 		result.Status = scanreport.HopPartial
 	}
 	result.Reasons = uniqueStrings(result.Reasons)
 	return result, nil
+}
+
+// lineReview decides the custom-resource version family on the hop from
+// the line review of its target line, or returns nil. Without a review of
+// the target line it says nothing: the component's gap already states that
+// scan checks custom-resource versions only. A review that exists but
+// cannot decide the hop is a named gap. The family is decided only when
+// all of these hold:
+//
+//   - the hop enters its target line from the previous minor line of the
+//     same major (the family's hop shape);
+//   - the review is current and its basis is one the trust policy admits;
+//   - the review read both exact releases of the hop (a release published
+//     after the review is never covered by it);
+//   - the manifests' custom-resource set of the project is complete;
+//   - every rule the review lists overlaps the hop, covers it and decided
+//     it (PASS or BLOCKED), and every rule of the family on the target
+//     line that overlaps the hop is listed;
+//   - every verdict rule that overlaps the hop decided it, listed or not, on
+//     any line (as the Kubernetes path's decidedAll). The engine keeps every
+//     rule's range within one minor line around its anchor, so today such a
+//     rule lies on the target line and the checks above already see it; this
+//     one keeps a family PASS from ever standing next to an undecided rule.
+//
+// The result is BLOCKED when a listed rule blocked, PASS otherwise.
+func (r *customResourceRun) lineReview(hop upgradepath.Hop, ref scanreport.HopRef, fromVersion, toVersion string, prepared cncfprepare.CustomResourceScan, applicable, decided, blocks map[string]bool, result *scanreport.Hop) *scanreport.FamilyResult {
+	fromLine, okFrom := lineattest.LineOf(fromVersion)
+	toLine, okTo := lineattest.LineOf(toVersion)
+	if !okFrom || !okTo {
+		return nil
+	}
+	family, ok := lineattest.LookupFamily(lineattest.FamilyCustomResourceVersions)
+	if !ok || !family.Admits(r.component) {
+		return nil
+	}
+	statuses := r.knowledge.AttestationsFor(r.component, toLine, family.ID, r.now)
+	if len(statuses) != 1 {
+		return nil
+	}
+	status := statuses[0]
+	a := status.Attestation
+	result.Attestation = &scanreport.Attestation{Line: a.Line, Family: a.FactFamily, Basis: constraintengine.EffectiveBasis(a.Evidence.Basis), Freshness: status.Freshness, ValidUntil: a.Evidence.ValidUntil}
+	switch {
+	case a.Line != toLine || a.FactFamily != family.ID || a.Component != r.component:
+		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapCustomResourceLineNotCurrent, r.slug, toLine, "another scope"))
+		return nil
+	case fromLine == toLine:
+		// A patch upgrade within the reviewed line: there is no minor
+		// upgrade to scan separately.
+		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapCustomResourceLineSameLine, r.slug, fromVersion, toVersion))
+		return nil
+	case previousLine(toLine) != fromLine:
+		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapCustomResourceLineHopShape, r.slug, fromVersion, toVersion))
+		return nil
+	case !status.Current():
+		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapCustomResourceLineNotCurrent, r.slug, toLine, status.Freshness))
+		return nil
+	case !r.policy.Admits(a.Evidence.Basis):
+		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapCustomResourceLineTrust, r.slug, toLine, constraintengine.EffectiveBasis(a.Evidence.Basis)))
+		return nil
+	case !a.CoversReleases(fromVersion, toVersion):
+		missing := toVersion
+		if a.Releases != nil && !releaseNamed(a.Releases.From, fromVersion) {
+			missing = fromVersion
+		}
+		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapCustomResourceLineRelease, r.slug, toLine, missing))
+		return nil
+	case prepared.Prepared.Reason != cncfprepare.ReasonCustomResourcesComplete:
+		// The set is not complete: its own gaps name why.
+		return nil
+	}
+	reviewed := true
+	listed := map[string]bool{}
+	anyBlocked := false
+	for _, id := range a.RuleIDs {
+		listed[id] = true
+		if rule, known := r.byID[id]; known && (rule.Notice || rule.Basis == constraintengine.BasisLead) {
+			continue
+		}
+		switch {
+		case !applicable[id]:
+			reviewed = false
+			result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapLineListedRule, r.slug, toLine, id))
+		case !decided[id]:
+			// Its own gap says why.
+			reviewed = false
+		case blocks[id]:
+			anyBlocked = true
+		}
+	}
+	ids := make([]string, 0, len(r.byID))
+	for id := range r.byID {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		rule := r.byID[id]
+		if listed[id] || rule.Notice || rule.Basis == constraintengine.BasisLead || rule.Scope.Component != r.component || rule.Scope.Line != toLine ||
+			!slices.Contains(rule.Scope.Families, family.ID) || !hop.Overlaps(rule.Scope.Transition) {
+			continue
+		}
+		reviewed = false
+		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapLineUnlistedRule, r.slug, toLine, id))
+	}
+	if !allDecided(applicable, decided) {
+		// Each undecided rule's own gap says why.
+		reviewed = false
+	}
+	if !reviewed {
+		return nil
+	}
+	out := &scanreport.FamilyResult{Family: family.ID, Line: toLine, Status: scanreport.FamilyPass, Basis: constraintengine.EffectiveBasis(a.Evidence.Basis), Scope: family.Scope()}
+	if anyBlocked {
+		out.Status = scanreport.FamilyBlocked
+	}
+	return out
+}
+
+// allDecided reports whether every applicable verdict rule decided the hop.
+func allDecided(applicable, decided map[string]bool) bool {
+	for id, ok := range applicable {
+		if ok && !decided[id] {
+			return false
+		}
+	}
+	return true
+}
+
+func releaseNamed(list []lineattest.Release, version string) bool {
+	for _, r := range list {
+		if r.Version == version {
+			return true
+		}
+	}
+	return false
 }
 
 // unknown explains an UNKNOWN claim: by the preparation's reason when the

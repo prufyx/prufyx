@@ -165,21 +165,28 @@ func rederiveGroup(ctx context.Context, src Source, catalog map[string]extractcl
 	return entries, attestations, nil
 }
 
-// attesterRun is one run of the extractor that attests a fact family,
-// with the first line the extractor declares it derives ("" when it
-// declares none).
+// attesterRun is one run of the extractor that attests a fact family for
+// one component, with the first line the extractor declares it derives
+// ("" when it declares none).
 type attesterRun struct {
 	out   *extract.Output
 	floor string
 	err   error
 }
 
-// runAttester runs the extractor of the catalog that attests family over
-// the pinned upstream bytes, derived at now, and returns its output and its
-// declared first line.
-func runAttester(ctx context.Context, src Source, catalog map[string]extractcli.Spec, concurrency int, family string, now time.Time) (*extract.Output, string, error) {
+// runAttester runs the extractor of the catalog that attests family for
+// component over the pinned upstream bytes, derived at now, and returns
+// its output and its declared first line. An extractor that names the
+// component it attests (extract.ComponentAttester) is chosen only for that
+// component; one that does not is chosen only for a family with exactly
+// that one component.
+func runAttester(ctx context.Context, src Source, catalog map[string]extractcli.Spec, concurrency int, family, component string, now time.Time) (*extract.Output, string, error) {
 	if src == nil {
 		return nil, "", fmt.Errorf("no upstream source is configured")
+	}
+	f, ok := lineattest.LookupFamily(family)
+	if !ok || !f.Admits(component) {
+		return nil, "", fmt.Errorf("fact family %s does not cover %s", logSafe(family), logSafe(component))
 	}
 	ids := make([]string, 0, len(catalog))
 	for id := range catalog {
@@ -193,6 +200,11 @@ func runAttester(ctx context.Context, src Source, catalog map[string]extractcli.
 		if !ok || !slices.Contains(attester.AttestedFamilies(), family) {
 			continue
 		}
+		if ca, named := ex.(extract.ComponentAttester); named && ca.AttestedComponent() != component {
+			continue
+		} else if !named && !slices.Equal(f.Components(), []string{component}) {
+			continue
+		}
 		repo, err := extract.ParseRepo(spec.Repo)
 		if err != nil {
 			return nil, "", err
@@ -204,7 +216,7 @@ func runAttester(ctx context.Context, src Source, catalog map[string]extractcli.
 		out, err := extract.Run(ctx, ex, src, src, extract.Options{Repo: repo, DerivedAt: now.UTC().Truncate(time.Second)})
 		return out, floor, err
 	}
-	return nil, "", fmt.Errorf("no extractor of this gate attests fact family %s", logSafe(family))
+	return nil, "", fmt.Errorf("no extractor of this gate attests fact family %s for %s", logSafe(family), logSafe(component))
 }
 
 // admittedCanonical is the canonical JSON of an entry as admission reads it.

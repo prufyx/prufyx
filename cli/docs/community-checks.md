@@ -390,7 +390,9 @@ the rules name every version the release stops serving, so the best answer is
 `UNKNOWN` (exit 11). The same holds for the generic `--input FILE` route (and
 its replay, with embedded or `--knowledge-db` knowledge) and for `check batch`
 items: whenever an evaluated rule reads a custom-resource version set, the
-result never exits 0. No such rule is shipped yet. See
+result never exits 0. Check routes read no line review; `prufyx scan` reports
+the custom-resource version family a line review decides (never the whole
+upgrade). No such rule is shipped yet. See
 [custom-resources.md](custom-resources.md).
 
 ```sh

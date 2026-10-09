@@ -154,6 +154,10 @@ You can also build from source; see the [README](https://github.com/prufyx/prufy
   is not supported on Windows.
 - Planned, not in place: an official signed knowledge feed with a pinned trust
   root, and maintainer-signed releases.
+- A knowledge pack that carries line attestations of custom-resource versions
+  (the `crd.custom_resource_versions` family of a later build) is refused
+  whole by this build, fail-closed: install a later build before using such a
+  pack.
 
 ## Reporting issues
 

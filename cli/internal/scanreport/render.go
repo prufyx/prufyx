@@ -88,6 +88,9 @@ func Human(report Report, options HumanOptions) []byte {
 				writeFinding(&out, finding, options, sharedCitations(report.Findings))
 			}
 		}
+		for _, text := range familyLines(path) {
+			line("%s", text)
+		}
 	}
 	for _, finding := range report.Findings {
 		if !hasPath(report.Paths, finding.Component) {
@@ -214,6 +217,27 @@ func count(n int, one, many string) string {
 		return one
 	}
 	return fmt.Sprintf(many, n)
+}
+
+// familyLines state every family result of a path's hops, with the
+// family's scope: what was decided and what was not checked.
+func familyLines(path Path) []string {
+	var out []string
+	for _, hop := range path.Hops {
+		for _, f := range hop.Families {
+			from, to := hop.From.String(), hop.To.String()
+			switch f.Status {
+			case FamilyPass:
+				out = append(out, Sanitize(fmt.Sprintf(labelFamilyPass, path.Component, from, to, f.Family, f.Line, f.Basis, path.Component, to)))
+			case FamilyBlocked:
+				out = append(out, Sanitize(fmt.Sprintf(labelFamilyBlocked, path.Component, from, to, f.Family, f.Line, f.Basis)))
+			default:
+				continue
+			}
+			out = append(out, Sanitize(fmt.Sprintf(labelFamilyScope, f.Scope, path.Component)))
+		}
+	}
+	return out
 }
 
 func pathSummary(path Path) string {

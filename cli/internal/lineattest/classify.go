@@ -56,8 +56,8 @@ type Change struct {
 //   - added: loosening;
 //   - modified: tightening only when nothing changed but the validity window
 //     shrinking (reviewedAt/derivedAt later, validUntil earlier or equal);
-//     every other modification, including a renewal, a changed rule list, a
-//     changed source, basis or extractor, is loosening.
+//     every other modification, including a renewal, a changed rule list,
+//     changed releases, a changed source, basis or extractor, is loosening.
 //
 // A loosening change to a mechanical attestation is admissible without a
 // person only with a reproducible derivation behind it; a loosening change
@@ -119,6 +119,10 @@ func classifyModified(a, b LineAttestation) (Change, bool) {
 	}
 	if !reflect.DeepEqual(normIDs(a.RuleIDs), normIDs(b.RuleIDs)) {
 		c.Fields, other = append(c.Fields, "ruleIds"), true
+	}
+	if !reflect.DeepEqual(a.Releases, b.Releases) {
+		// Naming other releases changes which hops the attestation covers.
+		c.Fields, other = append(c.Fields, "releases"), true
 	}
 	if a.Evidence.Basis != b.Evidence.Basis {
 		c.Fields, other = append(c.Fields, "evidence.basis"), true

@@ -406,7 +406,7 @@ func TestGateReviewedAttestationApproval(t *testing.T) {
 // crossCheckAttestation on its own: the extractor's run over the fixture
 // derives lines 1.25, 1.31, 1.32 and 1.33; its declared first line is 1.20.
 func TestCrossCheckAttestation(t *testing.T) {
-	out, floor, err := runAttester(context.Background(), fixtureSource, extractcli.Catalog(), 0, lineattest.FamilyKubernetesRemovedServedGVK, gateNow)
+	out, floor, err := runAttester(context.Background(), fixtureSource, extractcli.Catalog(), 0, lineattest.FamilyKubernetesRemovedServedGVK, recordComponent, gateNow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -523,7 +523,7 @@ func TestCrossCheckAttestation(t *testing.T) {
 	if err := crossCheckAttestation(otherFamily, floor, att("1.31"), pack); err == nil || !strings.Contains(err.Error(), "does not attest line 1.31") {
 		t.Fatalf("pair of another family: %v", err)
 	}
-	if _, _, err := runAttester(context.Background(), fixtureSource, extractcli.Catalog(), 0, "no.family", gateNow); err == nil {
+	if _, _, err := runAttester(context.Background(), fixtureSource, extractcli.Catalog(), 0, "no.family", recordComponent, gateNow); err == nil {
 		t.Fatal("an unknown family found an extractor")
 	}
 }

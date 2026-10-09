@@ -1,6 +1,6 @@
 # Extractor `crd.version-removal`
 
-Version 2.0.0. Derives `forbid_set_member` rules for custom-resource
+Version 2.1.0. Derives `forbid_set_member` rules for custom-resource
 versions that a project's release line no longer serves, from the
 CustomResourceDefinition manifests the project ships in its repository. It is
 deterministic, reads only upstream source pinned by full commit SHA, and
@@ -312,12 +312,36 @@ For every pair, `manifest.json` records under `pairs[].proof`:
   `previous-minor` hop, and no removed definition) and the `reasons` when not.
 
 `completeness.attestable` is the account a line attestation of the later line
-would rest on; this version records it and emits no attestation. It means
+rests on (see below). It means
 complete for the repository's own files at every release of both lines, as the
 scan reads them: CRDs that come from other repositories (Helm chart
 dependencies, remote kustomize resources) make the pair not attestable when the
 scan sees them, and CRDs from release assets, from sources the scan does not
 read (`notRead`) or installed by code at run time are not established.
+
+## Line attestations
+
+From version 2.1.0 the extractor attests lines for the fact family
+`crd.custom_resource_versions` (see [../line-attestations.md](../line-attestations.md)).
+For a derived pair it writes one attestation of the later line exactly when:
+
+- `completeness.attestable` holds (every release of both lines read
+  completely, a clean full-tree scan at each, rules over both whole lines, no
+  removed definition);
+- the later line is the next minor line of the same major (a new major or a
+  skipped minor number is not attested: the family's hop shape is one minor
+  line);
+- the target has `"attest": true` in `targets.json`, which a test pins to the
+  projects of the custom-resource table (the projects whose set fact is
+  registered): today Argo CD, Istio and Strimzi.
+
+The attestation lists exactly the pair's rules (empty for a quiet line),
+names in `releases` every final release of both lines with the commit its tag
+pointed at, and cites one CustomResourceDefinition manifest at each first
+release. It has the rules' provenance and lease. Otherwise the manifest records
+`"attestation": {"status": "not-attested", "reason": ...}` for the pair.
+`run` writes the attestations to `attestations.json`, which `verify` covers;
+the knowledge gate admits one only by re-deriving it byte for byte.
 
 These field names are stable within major version 2.
 
@@ -394,6 +418,12 @@ storage change must be recorded; every listed pair must have the given status
 and, when given, number of removals, `lineWide` and `attestable`. When removals
 (or storage changes) are listed, any other one the run derives is reported as
 `EXTRA`. The exit code is 1 when there is any disagreement.
+
+## Changes from version 2.0.0
+
+Version 2.1.0 adds the line attestations above and the `attest` member of
+`targets.json`. Rules, vectors and candidates are unchanged except for the
+extractor version and code digest.
 
 ## Changes from version 1
 
