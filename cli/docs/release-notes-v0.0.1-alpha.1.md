@@ -68,7 +68,8 @@ Merged and usable from this build:
   reports API versions that a release on the way to the target stops serving.
   Human, Markdown, JSON and SARIF output. It covers Kubernetes only. With the
   knowledge shipped today it cannot answer a complete `PASS`; expect `BLOCKED`
-  or `UNKNOWN`. See the [scan guide](https://github.com/prufyx/prufyx/blob/main/cli/docs/scan.md).
+  or `UNKNOWN`. An upgrade that skips release lines reports every blocker a
+  reviewed rule establishes on a line it enters. See the [scan guide](https://github.com/prufyx/prufyx/blob/main/cli/docs/scan.md).
 - `prufyx check cncf`, `check project`, `check batch` and the named checks
   (cert-manager values, Prometheus, and others listed in the
   [support inventory](https://github.com/prufyx/prufyx/blob/main/cli/docs/community-support-inventory.md)), including
@@ -133,9 +134,14 @@ You can also build from source; see the [README](https://github.com/prufyx/prufy
 
 - Most checks need operator-declared inputs (an effective config, a
   kubeconfig-derived snapshot, or similar); Prufyx does not infer them.
-- A multi-minor jump (for example `1.24 -> 1.27`) or a patch-only upgrade (for
-  example `1.25.1 -> 1.25.4`) returns `UNKNOWN` for the API-removal checks;
-  only a crossing of exactly one reviewed minor line is evaluated.
+- A multi-minor jump (for example `1.24.17 -> 1.30.4`) is evaluated line by
+  line: `scan` checks the step that enters each release line with known API
+  removals, and a reviewed rule that blocks a step makes the answer `BLOCKED`,
+  naming the crossed line. Where no reviewed rule decides a crossed line the
+  answer is `UNKNOWN`, and without a reviewed path policy the skipped lines
+  stay listed as not checked. A patch-only upgrade within one line (for
+  example `1.30.4 -> 1.30.5`) is not evaluated for removals; check the patch
+  release notes by hand.
 - `scan` does not look at a live cluster, custom resources, stored versions,
   admission or component configuration, or node version skew.
 - Kubernetes has no rule for upgrades after 1.32 yet, and most projects have
