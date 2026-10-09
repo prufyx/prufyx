@@ -514,7 +514,11 @@ func (x *Extractor) declaredFiles(inv *Inventory) map[string]bool {
 	out := map[string]bool{}
 	if inv != nil {
 		for _, f := range inv.Files {
-			out[f.Path] = true
+			// A file read from another repository is not a path of this
+			// repository's tree.
+			if f.Repo == "" {
+				out[f.Path] = true
+			}
 		}
 	}
 	for _, p := range x.target.Paths {
