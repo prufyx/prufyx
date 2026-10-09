@@ -10,6 +10,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
@@ -21,6 +22,23 @@ func scanAt(t *testing.T, knowledge Knowledge, now string, extra ...string) Resu
 		argv = append(argv, "--now", now)
 	}
 	return mustScan(t, knowledge, append(argv, extra...)...)
+}
+
+// insideNow is the instant inside the age window, as a --now value.
+func insideNow() string {
+	_, inside, _ := ageInstants()
+	return inside
+}
+
+// ageInstants are the instants 14 days before, 17 days before and 20 days
+// after the day of the earliest expiry of the embedded pack's active rules:
+// before, inside and after the 30-day window of that expiry (see
+// supersedeids.AgeClocks). They follow the earliest expiry only, so once the
+// Kubernetes rules are derived late they differ from the shared clock
+// (supersedeids.Clock).
+func ageInstants() (before, inside, after string) {
+	b, i, a := supersedeids.AgeClocks()
+	return b.Format(time.RFC3339), i.Format(time.RFC3339), a.Format(time.RFC3339)
 }
 
 func embeddedEarliest(t *testing.T) time.Time {
@@ -45,6 +63,7 @@ func embeddedEarliest(t *testing.T) time.Time {
 func TestScanKnowledgeAgeEmbedded(t *testing.T) {
 	dir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1beta1})
 	first := embeddedEarliest(t)
+	_, inside, after := ageInstants()
 	at := func(d time.Duration) string { return first.Add(d).Format(time.RFC3339) }
 	cases := []struct {
 		name, now string
@@ -53,10 +72,10 @@ func TestScanKnowledgeAgeEmbedded(t *testing.T) {
 		{"31 days before", at(-31 * 24 * time.Hour), ""},
 		{"edge: one second outside", at(-knowledgeage.Window - time.Second), ""},
 		{"edge: exactly 30 days", at(-knowledgeage.Window), "expire within 30 days"},
-		{"inside", "2026-11-20T00:00:00Z", "expire within 30 days, the earliest on " + first.Format("2006-01-02") + " (in 17 days)"},
+		{"inside", inside, "expire within 30 days, the earliest on " + first.Format("2006-01-02") + " (in 17 days)"},
 		{"one second before the end", at(-time.Second), "expire within 30 days"},
 		{"the end date", at(0), "have expired, the earliest on " + first.Format("2006-01-02")},
-		{"after", "2026-12-10T00:00:00Z", "have expired, the earliest on " + first.Format("2006-01-02") + " (2 days ago)"},
+		{"after", after, "have expired, the earliest on " + first.Format("2006-01-02") + " (2 days ago)"},
 	}
 	inDir(t, dir, func() {
 		for _, c := range cases {
@@ -124,8 +143,8 @@ func LoadEmbeddedForTest(t *testing.T) Knowledge {
 func TestScanKnowledgeAgeRedact(t *testing.T) {
 	dir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1beta1})
 	inDir(t, dir, func() {
-		plain := scanAt(t, nil, "2026-11-20T00:00:00Z")
-		redacted := scanAt(t, nil, "2026-11-20T00:00:00Z", "--redact")
+		plain := scanAt(t, nil, insideNow())
+		redacted := scanAt(t, nil, insideNow(), "--redact")
 		if plain.KnowledgeAge == "" || plain.KnowledgeAge != redacted.KnowledgeAge || redacted.Exit != plain.Exit {
 			t.Fatalf("%q vs %q", plain.KnowledgeAge, redacted.KnowledgeAge)
 		}
@@ -137,12 +156,21 @@ func TestScanKnowledgeAgeRedact(t *testing.T) {
 	})
 }
 
-// renewedAll is the embedded pack with every rule reviewed on 2026-12-01
-// and valid until 2027-02-28.
+// renewedWindow is the lease of renewedAll: reviewed 9 days before the "after"
+// instant (so before it, after the pack's own clock) and valid for 89 days.
+func renewedWindow() (reviewed, until time.Time) {
+	_, _, after := supersedeids.AgeClocks()
+	reviewed = after.AddDate(0, 0, -9)
+	return reviewed, reviewed.AddDate(0, 0, 89)
+}
+
+// renewedAll is the embedded pack with every rule reviewed and valid for
+// renewedWindow.
 func renewedAll(t *testing.T) []byte {
+	reviewed, until := renewedWindow()
 	return editPack(t, embeddedPack(t), func(project string, rule map[string]any) bool {
 		evidence := rule["evidence"].(map[string]any)
-		evidence["reviewedAt"], evidence["validUntil"] = "2026-12-01T00:00:00Z", "2027-02-28T00:00:00Z"
+		evidence["reviewedAt"], evidence["validUntil"] = reviewed.Format(time.RFC3339), until.Format(time.RFC3339)
 		return true
 	})
 }
@@ -152,7 +180,10 @@ func renewedAll(t *testing.T) []byte {
 // every project's rules, a per-project one the opened project's), and its
 // hint does not tell the operator to use a database they already use.
 func TestScanKnowledgeAgeStore(t *testing.T) {
-	end := time.Date(2027, 2, 28, 0, 0, 0, 0, time.UTC)
+	reviewed, end := renewedWindow()
+	endDay := end.Format("2006-01-02")
+	before, _, after := ageInstants()
+	first := embeddedEarliest(t)
 	for _, layout := range storeLayouts {
 		renewed := newStoreFixture(t, layout)
 		renewed.importPack(renewedAll(t), "6")
@@ -166,12 +197,12 @@ func TestScanKnowledgeAgeStore(t *testing.T) {
 			}
 			note := func(store *Store) string { return scanAt(t, store, "").KnowledgeAge }
 			cases := []struct{ at, want string }{
-				{"2026-12-15T00:00:00Z", ""},
+				{reviewed.AddDate(0, 0, 14).Format(time.RFC3339), ""},
 				{end.Add(-knowledgeage.Window - time.Second).Format(time.RFC3339), ""},
-				{end.Add(-knowledgeage.Window).Format(time.RFC3339), "note: " + itoa(active) + " knowledge rules expire within 30 days, the earliest on 2027-02-28 (in 30 days). No official update yet: `prufyx db import` a newer signed package you trust, or build from newer source before they expire."},
-				{"2027-02-10T00:00:00Z", "note: " + itoa(active) + " knowledge rules expire within 30 days, the earliest on 2027-02-28 (in 18 days). No official update yet: `prufyx db import` a newer signed package you trust, or build from newer source before they expire."},
-				{end.Format(time.RFC3339), "note: " + itoa(active) + " knowledge rules have expired, the earliest on 2027-02-28 (less than a day ago). No official update yet: `prufyx db import` a newer signed package you trust, or build from newer source. Expired rules answer UNKNOWN."},
-				{"2027-03-02T00:00:00Z", "note: " + itoa(active) + " knowledge rules have expired, the earliest on 2027-02-28 (2 days ago). No official update yet: `prufyx db import` a newer signed package you trust, or build from newer source. Expired rules answer UNKNOWN."},
+				{end.Add(-knowledgeage.Window).Format(time.RFC3339), "note: " + itoa(active) + " knowledge rules expire within 30 days, the earliest on " + endDay + " (in 30 days). No official update yet: `prufyx db import` a newer signed package you trust, or build from newer source before they expire."},
+				{end.AddDate(0, 0, -18).Format(time.RFC3339), "note: " + itoa(active) + " knowledge rules expire within 30 days, the earliest on " + endDay + " (in 18 days). No official update yet: `prufyx db import` a newer signed package you trust, or build from newer source before they expire."},
+				{end.Format(time.RFC3339), "note: " + itoa(active) + " knowledge rules have expired, the earliest on " + endDay + " (less than a day ago). No official update yet: `prufyx db import` a newer signed package you trust, or build from newer source. Expired rules answer UNKNOWN."},
+				{end.AddDate(0, 0, 2).Format(time.RFC3339), "note: " + itoa(active) + " knowledge rules have expired, the earliest on " + endDay + " (2 days ago). No official update yet: `prufyx db import` a newer signed package you trust, or build from newer source. Expired rules answer UNKNOWN."},
 			}
 			for _, c := range cases {
 				if got := note(openAt(t, renewed.store, c.at)); got != c.want {
@@ -180,15 +211,15 @@ func TestScanKnowledgeAgeStore(t *testing.T) {
 			}
 			// The embedded-pack database is described by its own dates: the
 			// embedded end dates are in December, the renewed ones are not.
-			expired := countRules(t, layout, "2026-12-10T00:00:00Z")
-			want := "note: " + itoa(expired) + " knowledge " + plural(expired, "rule has", "rules have") + " expired, the earliest on 2026-12-07 (2 days ago). No official update yet: `prufyx db import` a newer signed package you trust, or build from newer source. Expired rules answer UNKNOWN."
-			if got := note(openAt(t, stale.store, "2026-12-10T00:00:00Z")); got != want || expired == 0 {
+			expired := countRules(t, layout, after)
+			want := "note: " + itoa(expired) + " knowledge " + plural(expired, "rule has", "rules have") + " expired, the earliest on " + first.Format("2006-01-02") + " (2 days ago). No official update yet: `prufyx db import` a newer signed package you trust, or build from newer source. Expired rules answer UNKNOWN."
+			if got := note(openAt(t, stale.store, after)); got != want || expired == 0 {
 				t.Errorf("%s stale database: %q, want %q", layout, got, want)
 			}
-			if got := note(openAt(t, stale.store, "2026-11-06T00:00:00Z")); got != "" {
+			if got := note(openAt(t, stale.store, before)); got != "" {
 				t.Errorf("%s stale database before the window: %q", layout, got)
 			}
-			if got := note(openAt(t, renewed.store, "2026-12-10T00:00:00Z")); got != "" {
+			if got := note(openAt(t, renewed.store, after)); got != "" {
 				t.Errorf("%s renewed database at a date the embedded pack would warn at: %q", layout, got)
 			}
 		})

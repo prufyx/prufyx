@@ -25,7 +25,7 @@ func TestScanPackNoticeAndLeadAreNeutral(t *testing.T) {
 		`"evidence":{"state":"active",` + currentWindow + `,"sources":[` + skewSource + `]},"reasonCode":"ONE_WAY_TRANSITION","nextAction":"Back up etcd before you start."}`
 	lead := `{"id":"kubernetes.synthetic-pack-lead.1-24-0-to-1-25-0","operator":"forbid_predicate_value","subject":{"component":"pkg:github/kubernetes/kubernetes","from":"1.24.0","to":"1.25.0"},` + lineRange("1.24", "1.25", "1.26") +
 		`"condition":{"side":"proposed","component":"pkg:github/kubernetes/kubernetes","factId":"component.kubernetes.flowcontrol_v1beta3_removed_gvk_present","boolValue":true},` +
-		`"evidence":{"state":"active","basis":"lead","derivedAt":"2026-09-23T00:00:00Z",` + currentWindow + `,"sources":[` + skewSource + `]},"reasonCode":"REVIEWED_SOURCE_CONSTRAINT","nextAction":"Check the FlowSchema objects."}`
+		`"evidence":{"state":"active","basis":"lead","derivedAt":"` + currentReviewed + `",` + currentWindow + `,"sources":[` + skewSource + `]},"reasonCode":"REVIEWED_SOURCE_CONSTRAINT","nextAction":"Check the FlowSchema objects."}`
 	fact := func(id string) cncfcheck.Fact {
 		return cncfcheck.Fact{Side: "proposed", ID: id, Component: kubernetesKey, Type: constraintengine.FactBool, Description: "Synthetic."}
 	}

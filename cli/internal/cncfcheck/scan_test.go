@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
@@ -19,7 +18,7 @@ func TestScanKnowledgeMatchesPackageFunctions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+	now := supersedeids.Clock()
 	catalogue, err := Catalog(false, "")
 	if err != nil {
 		t.Fatal(err)

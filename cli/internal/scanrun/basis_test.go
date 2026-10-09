@@ -19,7 +19,7 @@ import (
 func basisRule(id, basis string, value bool) string {
 	return `{"id":"` + id + `","operator":"forbid_predicate_value","subject":{"component":"pkg:github/kubernetes/kubernetes","from":"1.25.0","to":"1.26.0"},` + lineRange("1.25", "1.26", "1.27") +
 		`"condition":{"side":"proposed","component":"pkg:github/kubernetes/kubernetes","factId":"component.kubernetes.flowcontrol_v1beta1_removed_gvk_present","boolValue":` + map[bool]string{true: "true", false: "false"}[value] + `},` +
-		`"evidence":{"state":"active","basis":"` + basis + `","derivedAt":"2026-09-23T00:00:00Z",` + currentWindow + `,"sources":[` + skewSource + `]},` +
+		`"evidence":{"state":"active","basis":"` + basis + `","derivedAt":"` + currentReviewed + `",` + currentWindow + `,"sources":[` + skewSource + `]},` +
 		`"reasonCode":"REVIEWED_SOURCE_CONSTRAINT","nextAction":"Check the FlowSchema objects of this cluster before the upgrade."}`
 }
 

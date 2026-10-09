@@ -69,7 +69,23 @@ func TestBaselineReproduced(t *testing.T) {
 	}
 }
 
-// With the shipped pack the same numbers hold while it is the baseline pack.
+// The fleet figures of the shipped pack, by the generation of its Kubernetes
+// API-removal rules. The reviewed generation is the baseline pack itself
+// (revision cncf-2026-09-13.4, clock 2026-10-08): no bounded pair, 44 spots.
+// The mechanical generation (K8R-7) covers three more pairs with a bounded
+// removal range and has one spot fewer per reviewed rule it does not repeat;
+// its figures are those of the same lines snapshot at the shared test clock
+// (supersedeids.Clock, after the rules' derivation and before their expiry),
+// measured on the dry K8R-6 pack. When the real K8R-7 data changes them, this
+// table changes with it in that PR: an expectation, not a skip.
+type fleetFigures struct {
+	Projects, Pairs, A, B, S, G, C1, C3 int
+}
+
+func fleetOf(f Totals) fleetFigures {
+	return fleetFigures{f.Projects, f.Pairs, f.A, f.B, f.S, f.G, f.C1, f.C3}
+}
+
 func TestEmbeddedPackBaseline(t *testing.T) {
 	pack, err := cncfcheck.EmbeddedRulePack()
 	if err != nil {
@@ -81,21 +97,20 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 	if err := json.Unmarshal(pack, &head); err != nil {
 		t.Fatal(err)
 	}
-	if head.Revision != "cncf-2026-09-13.4" {
+	now, want := baselineNow, fleetFigures{Projects: 55, Pairs: 275, A: 0, B: 0, S: 44, G: 231, C1: 53, C3: 0}
+	if supersedeids.Superseded() {
+		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 0, B: 3, S: 44, G: 228, C1: 53, C3: 1}
+	} else if head.Revision != "cncf-2026-09-13.4" {
+		// Only the reviewed generation is tied to the baseline revision: a
+		// bumped revision means a new baseline, which this file records.
 		t.Skipf("embedded pack is %s; the baseline pack is cncf-2026-09-13.4", head.Revision)
 	}
-	if supersedeids.Superseded() {
-		// The baseline numbers are those of the reviewed Kubernetes rules; the
-		// mechanical rules that replace them change the fleet figures. The
-		// replacement either bumps the revision or updates these numbers.
-		t.Skip("the embedded pack holds the mechanical Kubernetes rules, not the baseline's reviewed ones")
-	}
-	report, err := Compute(Input{Pack: pack, Lines: read(t, "testdata/lines-2026-10-08.json"), Now: baselineNow})
+	report, err := Compute(Input{Pack: pack, Lines: read(t, "testdata/lines-2026-10-08.json"), Now: now})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f := report.Fleet; f.A != 0 || f.B != 0 || f.S != 44 || f.Pairs != 275 || f.C1 != 53 {
-		t.Fatalf("fleet = %+v", f)
+	if got := fleetOf(report.Fleet); got != want {
+		t.Fatalf("fleet at %s = %+v, want %+v", now.Format(time.RFC3339), got, want)
 	}
 }
 

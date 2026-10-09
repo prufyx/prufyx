@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/goldenfile"
 )
 
 var update = flag.Bool("update", false, "rewrite the golden files")
@@ -113,22 +114,7 @@ func fixtures(t testing.TB) []fixture {
 
 func golden(t *testing.T, name string, got []byte) {
 	t.Helper()
-	path := filepath.Join("testdata", name)
-	if *update {
-		if err := os.MkdirAll("testdata", 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, got, 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	want, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(got, want) {
-		t.Fatalf("%s differs from the golden file (run with -update to rewrite it):\n%s", name, got)
-	}
+	goldenfile.Check(t, filepath.Join("testdata", name), got, *update, " (run with -update to rewrite it)")
 }
 
 func must(t testing.TB, raw []byte, err error) []byte {

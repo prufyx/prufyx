@@ -9,12 +9,11 @@ import (
 )
 
 // ageClocks are evaluation instants before, inside and after the last
-// 30 days of the embedded knowledge's rules.
-var ageClocks = []struct{ name, now string }{
-	{"before", "2026-11-06T00:00:00Z"},
-	{"inside", "2026-11-20T00:00:00Z"},
-	{"after", "2026-12-10T00:00:00Z"},
-}
+// 30 days of the embedded knowledge's rules, derived from the pack.
+var ageClocks = func() []struct{ name, now string } {
+	before, inside, after := ageInstants()
+	return []struct{ name, now string }{{"before", before}, {"inside", inside}, {"after", after}}
+}()
 
 // TestScanOutputUnchangedNearExpiry: stdout in every format and the exit
 // code of a scan do not depend on how close the knowledge is to its end: the

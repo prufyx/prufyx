@@ -3,7 +3,6 @@
 package scanrun
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -19,6 +18,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
+	"github.com/prufyx/prufyx/cli/internal/goldenfile"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
@@ -36,10 +36,10 @@ var testdata = func() string {
 	return filepath.Join(dir, "testdata")
 }()
 
-const (
-	testNow       = "2026-11-20T00:00:00Z"
-	kubernetesKey = "pkg:github/kubernetes/kubernetes"
-)
+// testNow is the shared test clock, derived from the embedded pack.
+var testNow = supersedeids.ClockString()
+
+const kubernetesKey = "pkg:github/kubernetes/kubernetes"
 
 // kubernetesRuleBases returns the evidence basis of the shipped Kubernetes
 // API-removal rules ("reviewed" before the served-API supersede, "mechanical"
@@ -292,7 +292,7 @@ func newKnowledge(t testing.TB, options knowledgeOptions) Knowledge {
 	}
 	var entries []entry
 	for _, line := range options.lines {
-		entries = append(entries, entry{line, [2]string{"2026-09-23T00:00:00Z", "2026-12-20T00:00:00Z"}})
+		entries = append(entries, entry{line, [2]string{currentReviewed, currentUntil}})
 	}
 	for _, line := range options.stale {
 		entries = append(entries, entry{line, [2]string{"2026-06-01T00:00:00Z", "2026-08-01T00:00:00Z"}})
@@ -334,7 +334,7 @@ func newKnowledge(t testing.TB, options knowledgeOptions) Knowledge {
 	}
 	policies := upgradepath.NewIndex(nil)
 	if options.policy != "" {
-		window := [2]string{"2026-09-23T00:00:00Z", "2026-12-20T00:00:00Z"}
+		window := [2]string{currentReviewed, currentUntil}
 		if options.policy == "stale" {
 			window = [2]string{"2026-06-01T00:00:00Z", "2026-08-01T00:00:00Z"}
 		}
@@ -494,25 +494,11 @@ func inDir(t testing.TB, dir string, f func()) {
 	f()
 }
 
-// golden compares output with testdata/name, rewriting it with -update.
+// golden compares output with testdata/name; with -update it rewrites the
+// file and logs what changed, and does not compare it with itself.
 func golden(t testing.TB, name string, got []byte) {
 	t.Helper()
-	path := filepath.Join(testdata, name)
-	if *update {
-		if err := os.MkdirAll(testdata, 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, got, 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	want, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(got, want) {
-		t.Fatalf("%s differs from the golden file:\n%s", name, got)
-	}
+	goldenfile.Check(t, filepath.Join(testdata, name), got, *update, "")
 }
 
 func jsonOf(t testing.TB, report scanreport.Report) []byte {

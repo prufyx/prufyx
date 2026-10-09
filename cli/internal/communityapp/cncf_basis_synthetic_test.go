@@ -10,6 +10,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 // Run with: go test -tags prufyx_synthetic_knowledge -run Synthetic ./internal/communityapp/
@@ -19,9 +20,9 @@ import (
 
 func syntheticBasisEntry(id, operator, basis, extra string) cncfcheck.Entry {
 	entry := syntheticKubernetesEntry(id, operator, "REVIEWED_SOURCE_CONSTRAINT", "plan the reviewed route", extra)
-	provenance := `"basis":"` + basis + `","derivedAt":"2026-09-20T00:00:00Z",`
+	provenance := `"basis":"` + basis + `","derivedAt":"` + syntheticReviewed + `",`
 	if basis == constraintengine.BasisMechanical {
-		provenance = `"basis":"mechanical","extractor":{"id":"synthetic-extractor","version":"1.0.0","codeDigest":"sha256:` + strings.Repeat("1", 64) + `"},"derivedAt":"2026-09-20T00:00:00Z",`
+		provenance = `"basis":"mechanical","extractor":{"id":"synthetic-extractor","version":"1.0.0","codeDigest":"sha256:` + strings.Repeat("1", 64) + `"},"derivedAt":"` + syntheticReviewed + `",`
 	}
 	entry.Rule = []byte(strings.Replace(string(entry.Rule), `"evidence":{`, `"evidence":{`+provenance, 1))
 	return entry
@@ -64,7 +65,7 @@ func TestSyntheticRequireBasisThroughTheCommandRoute(t *testing.T) {
 			}
 			defer restore()
 			path := writeCNCFFile(t, "input.json", input, 0o600)
-			args := []string{"check", "cncf", "--project", "kubernetes", "--input", path, "--now", "2026-11-20T00:00:00Z"}
+			args := []string{"check", "cncf", "--project", "kubernetes", "--input", path, "--now", supersedeids.ClockString()}
 			if tc.policy != "" {
 				args = append(args, "--require-basis", tc.policy)
 			}

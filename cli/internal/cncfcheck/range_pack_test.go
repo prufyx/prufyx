@@ -79,7 +79,7 @@ func kubernetesInput(t *testing.T, from, to string, cronJobPresent bool) []byte 
 	return []byte(`{"schema":"` + constraintengine.InputSchema + `","authority":"` + constraintengine.InputAuthority + `","current":{"components":[{"component":"pkg:github/kubernetes/kubernetes","version":"` + from + `","facts":[]}]},"proposed":{"components":[{"component":"pkg:github/kubernetes/kubernetes","version":"` + to + `","facts":[{"id":"component.kubernetes.cronjob_v1beta1_removed_gvk_present","state":"declared","boolValue":` + value + `}]}]}}`)
 }
 
-var rangeReviewClock = time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+var rangeReviewClock = supersedeids.Clock()
 
 // withoutRanges strips the range field from every entry's rule, so tests can
 // exercise the exact-only schema gate against a pack derived from the real

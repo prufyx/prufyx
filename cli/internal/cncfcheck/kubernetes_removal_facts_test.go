@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
@@ -46,11 +45,14 @@ func removalEntry(fact string, line int) Entry {
 	bound := func(name, basis string) string {
 		return `{"bound":"` + name + `","basis":"` + basis + `","sourceId":"lifecycle"}`
 	}
+	// Derived 48 days before the clock, with the lease the other synthetic
+	// rules have.
+	derived, _ := supersedeids.Window(48, 29)
 	rule := `{"id":"` + id + `","operator":"forbid_predicate_value","subject":{"component":"` + kubernetesComponent + `","from":"` + from + `","to":"` + to + `"},` +
 		`"range":{"from":{"gte":"` + from + `","lt":"` + to + `"},"to":{"gte":"` + to + `","lt":"` + next + `"},"bounds":[` +
 		bound("from.gte", "PREVIOUS_MINOR_LINE") + `,` + bound("from.lt", "REMOVED_IN_RELEASE") + `,` + bound("to.gte", "REMOVED_IN_RELEASE") + `,` + bound("to.lt", "TARGET_SERIES") + `]},` +
 		`"condition":{"side":"proposed","component":"` + kubernetesComponent + `","factId":"` + fact + `","boolValue":true},` +
-		`"evidence":{"state":"active","basis":"mechanical","derivedAt":"2026-10-03T00:00:00Z","reviewedAt":"2026-10-03T00:00:00Z","validUntil":"2026-12-19T00:00:00Z",` +
+		`"evidence":{"state":"active","basis":"mechanical","derivedAt":"` + derived + `","reviewedAt":"` + derived + `","validUntil":"` + windowUntil + `",` +
 		`"extractor":{"id":"k8s.served-api-removal","version":"1.1.0","codeDigest":"sha256:` + strings.Repeat("1", 64) + `"},"sources":[` + source("lifecycle") + `]},` +
 		`"reasonCode":"KUBERNETES_SERVED_API_REMOVED","nextAction":"synthetic test-only action"}`
 	return Entry{Project: "kubernetes", Description: "Synthetic test-only served API removal.", RequiredFacts: []Fact{{Side: "proposed", ID: fact, Component: kubernetesComponent, Type: constraintengine.FactBool, Description: "Whether the apply set contains the removed version."}}, Rule: json.RawMessage(rule)}
@@ -211,7 +213,7 @@ func TestKubernetesRemovalRuleAdmissionNeedsTheRegisteredFact(t *testing.T) {
 // UNKNOWN for an unreviewed version, an incomplete scope, or a transition
 // outside the rule's lines.
 func TestKubernetesRemovalFactsDecideTheirRules(t *testing.T) {
-	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+	now := supersedeids.Clock()
 	doc := func(api, kind string) string {
 		return `{"apiVersion":"` + api + `","kind":"` + kind + `","metadata":{"name":"x"}}`
 	}
@@ -249,7 +251,7 @@ func TestKubernetesRemovalFactsDecideTheirRules(t *testing.T) {
 					for _, claim := range report.Check.Claims {
 						if claim.RuleID == id {
 							found = append(found, claim)
-						} else if claim.Status == "BLOCKED" || claim.Status == "PASS" && !supersedeids.Superseded() {
+						} else if claim.Status == "BLOCKED" || (claim.Status == "PASS" && !supersedeids.Superseded()) {
 							// The mechanical rules pass beside this one on a shared hop.
 							t.Fatalf("another rule decided: %s %s", claim.RuleID, claim.Status)
 						}
@@ -271,7 +273,10 @@ func TestKubernetesRemovalFactsDecideTheirRules(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, claim := range report.Check.Claims {
-			if claim.RuleID == id && (claim.Status == "PASS" || claim.Status == "BLOCKED") {
+			// Before the supersede no claim at all is decided on the next line;
+			// the mechanical rules of other lines may pass beside this one, so
+			// there only this rule is held to it.
+			if (claim.RuleID == id || !supersedeids.Superseded()) && (claim.Status == "PASS" || claim.Status == "BLOCKED") {
 				t.Fatalf("%s: %s decided %s on the next line", f.fact, claim.RuleID, claim.Status)
 			}
 		}

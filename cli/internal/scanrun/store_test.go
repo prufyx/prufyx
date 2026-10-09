@@ -207,12 +207,22 @@ func TestScanStoreMatchesEmbedded(t *testing.T) {
 		extra    []string
 		exit     int
 	}
+	// The pack's own single basis: the Kubernetes removal rules are reviewed
+	// today and mechanical once the served-API supersede is on main. The line
+	// attestations stay reviewed, so a mechanical-only path cannot be decided
+	// (UNKNOWN) while a reviewed-only one is (BLOCKED).
+	ownBasis, _ := kubernetesRuleBases()
+	ownBasisExit := scanreport.ExitBlocked
+	if supersedeids.Superseded() {
+		ownBasisExit = scanreport.ExitUnknown
+	}
 	scenarios := []scenario{
 		{"one line, no reviews", knowledgeOptions{}, cronjobV1beta1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3"}, scanreport.ExitBlocked},
 		{"reviewed path, blocked", knowledgeOptions{lines: allLines, policy: "current"}, cronjobV1beta1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4"}, scanreport.ExitBlocked},
 		{"reviewed path, pass", knowledgeOptions{lines: allLines, policy: "current"}, cronjobV1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4"}, scanreport.ExitPass},
 		{"one line unreviewed", knowledgeOptions{lines: without(allLines, "1.28"), policy: "current"}, cronjobV1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4"}, scanreport.ExitUnknown},
 		{"require mechanical", knowledgeOptions{lines: allLines, policy: "current"}, cronjobV1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", "mechanical"}, scanreport.ExitUnknown},
+		{"require the pack's own basis only", knowledgeOptions{lines: allLines, policy: "current"}, cronjobV1beta1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", ownBasis}, ownBasisExit},
 		{"require reviewed and mechanical", knowledgeOptions{lines: allLines, policy: "current"}, cronjobV1beta1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", "reviewed,mechanical"}, scanreport.ExitBlocked},
 		{"other component", knowledgeOptions{}, cronjobV1beta1, []string{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--to", "etcd=3.5.0"}, scanreport.ExitBlocked},
 	}
@@ -278,21 +288,9 @@ func reflectEqualInfo(a, b *scanreport.KnowledgeStore) bool {
 	return bytes.Equal(x, y)
 }
 
-// renewedPack renews every Kubernetes rule: a later review and a later
-// validUntil, as a renewal published after the embedded leases ran out.
-func renewedPack(t *testing.T) []byte {
-	return editPack(t, embeddedPack(t), func(project string, rule map[string]any) bool {
-		if project == kubernetesSlug {
-			evidence := rule["evidence"].(map[string]any)
-			evidence["reviewedAt"], evidence["validUntil"] = "2026-12-01T00:00:00Z", "2027-02-28T00:00:00Z"
-		}
-		return true
-	})
-}
-
-// afterExpiry is an instant after every embedded Kubernetes rule expired (the
-// day after the latest validUntil) and inside the renewed leases.
-func afterExpiry(t *testing.T) string {
+// latestKubernetesExpiry is the latest validUntil of the embedded Kubernetes
+// rules.
+func latestKubernetesExpiry(t *testing.T) time.Time {
 	t.Helper()
 	var latest time.Time
 	editPack(t, embeddedPack(t), func(project string, rule map[string]any) bool {
@@ -307,11 +305,33 @@ func afterExpiry(t *testing.T) string {
 		}
 		return true
 	})
-	at := latest.Truncate(24*time.Hour).AddDate(0, 0, 1)
-	if renewed := time.Date(2027, 2, 28, 0, 0, 0, 0, time.UTC); !at.Before(renewed) {
-		t.Fatalf("embedded Kubernetes leases end %s, not before the renewed leases (%s)", latest, renewed)
+	if latest.IsZero() {
+		t.Fatal("the embedded pack holds no Kubernetes rule")
 	}
-	return at.Format(time.RFC3339)
+	return latest
+}
+
+// renewedPack renews every Kubernetes rule: a review on the day the latest
+// embedded lease ends (later than every embedded review) and a lease of 60
+// days from the next day, as a renewal published after the embedded leases ran
+// out. The dates follow the embedded pack.
+func renewedPack(t *testing.T) []byte {
+	latest := latestKubernetesExpiry(t).Truncate(24 * time.Hour)
+	reviewed, until := latest.Format(time.RFC3339), latest.AddDate(0, 0, 61).Format(time.RFC3339)
+	return editPack(t, embeddedPack(t), func(project string, rule map[string]any) bool {
+		if project == kubernetesSlug {
+			evidence := rule["evidence"].(map[string]any)
+			evidence["reviewedAt"], evidence["validUntil"] = reviewed, until
+		}
+		return true
+	})
+}
+
+// afterExpiry is an instant after every embedded Kubernetes rule expired (the
+// day after the latest validUntil) and inside the renewed leases.
+func afterExpiry(t *testing.T) string {
+	t.Helper()
+	return latestKubernetesExpiry(t).Truncate(24*time.Hour).AddDate(0, 0, 1).Format(time.RFC3339)
 }
 
 // TestScanStoreRenewedRule: after the embedded rules expired, a database

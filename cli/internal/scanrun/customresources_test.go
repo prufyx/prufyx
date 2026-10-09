@@ -24,15 +24,15 @@ const (
 
 // crdRule is a test-only rule of the shape the CRD extractor derives. It is
 // never published.
-const crdRule = `{"id":"` + crdRuleID + `","operator":"forbid_set_member","subject":{"component":"` + crdComponent + `","from":"0.51.0","to":"1.0.0"},` +
+var crdRule = `{"id":"` + crdRuleID + `","operator":"forbid_set_member","subject":{"component":"` + crdComponent + `","from":"0.51.0","to":"1.0.0"},` +
 	`"setCondition":{"side":"proposed","component":"` + crdComponent + `","factId":"` + crdSetFact + `","members":["kafka.strimzi.io/v1beta2/Kafka"]},` +
-	`"evidence":{"state":"active","reviewedAt":"2026-09-23T00:00:00Z","validUntil":"2026-12-20T00:00:00Z","sources":[{"id":"crd-1-0-0","url":"https://github.com/strimzi/strimzi-kafka-operator/blob/` + crdRevision + `/install/cluster-operator/040-Crd-kafka.yaml","revision":"` + crdRevision + `","contentDigest":"sha256:` + "0000000000000000000000000000000000000000000000000000000000000000" + `","startLine":1,"endLine":2}]},` +
+	`"evidence":{"state":"active","reviewedAt":"` + currentReviewed + `","validUntil":"` + currentUntil + `","sources":[{"id":"crd-1-0-0","url":"https://github.com/strimzi/strimzi-kafka-operator/blob/` + crdRevision + `/install/cluster-operator/040-Crd-kafka.yaml","revision":"` + crdRevision + `","contentDigest":"sha256:` + "0000000000000000000000000000000000000000000000000000000000000000" + `","startLine":1,"endLine":2}]},` +
 	`"reasonCode":"CRD_VERSION_NOT_SERVED","nextAction":"change apiVersion of Kafka to kafka.strimzi.io/v1 before upgrading to 1.0.0"}`
 
 // crdLeadRule is a test-only lead over the same set: it never decides.
-const crdLeadRule = `{"id":"strimzi.synthetic-lead.kafkatopics.0-51-0-to-1-0-0","operator":"forbid_set_member","subject":{"component":"` + crdComponent + `","from":"0.51.0","to":"1.0.0"},` +
+var crdLeadRule = `{"id":"strimzi.synthetic-lead.kafkatopics.0-51-0-to-1-0-0","operator":"forbid_set_member","subject":{"component":"` + crdComponent + `","from":"0.51.0","to":"1.0.0"},` +
 	`"setCondition":{"side":"proposed","component":"` + crdComponent + `","factId":"` + crdSetFact + `","members":["kafka.strimzi.io/v1beta2/KafkaTopic"]},` +
-	`"evidence":{"state":"active","basis":"lead","derivedAt":"2026-09-23T00:00:00Z","reviewedAt":"2026-09-23T00:00:00Z","validUntil":"2026-12-20T00:00:00Z","sources":[{"id":"crd-1-0-0","url":"https://github.com/strimzi/strimzi-kafka-operator/blob/` + crdRevision + `/install/cluster-operator/043-Crd-kafkatopic.yaml","revision":"` + crdRevision + `","contentDigest":"sha256:` + "0000000000000000000000000000000000000000000000000000000000000000" + `","startLine":1,"endLine":2}]},` +
+	`"evidence":{"state":"active","basis":"lead","derivedAt":"` + currentReviewed + `","reviewedAt":"` + currentReviewed + `","validUntil":"` + currentUntil + `","sources":[{"id":"crd-1-0-0","url":"https://github.com/strimzi/strimzi-kafka-operator/blob/` + crdRevision + `/install/cluster-operator/043-Crd-kafkatopic.yaml","revision":"` + crdRevision + `","contentDigest":"sha256:` + "0000000000000000000000000000000000000000000000000000000000000000" + `","startLine":1,"endLine":2}]},` +
 	`"reasonCode":"CRD_VERSION_NOT_SERVED","nextAction":"check KafkaTopic objects"}`
 
 // crdOtherPairID is a rule of another release pair (1.0.0 -> 1.1.0).

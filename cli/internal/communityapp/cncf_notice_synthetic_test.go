@@ -11,6 +11,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 // Run with: go test -tags prufyx_synthetic_knowledge ./internal/communityapp/
@@ -19,10 +20,15 @@ import (
 // knowledge: a one-way notice and, optionally, a passing rule for the same
 // Kubernetes transition.
 
+// syntheticReviewed and syntheticUntil are the evidence window of the
+// synthetic rules: current at the shared test clock, which follows the
+// embedded pack.
+var syntheticReviewed, syntheticUntil = supersedeids.Window(61, 29)
+
 func syntheticKubernetesEntry(id, operator, reason, nextAction, extra string) cncfcheck.Entry {
 	revision := "0000000000000000000000000000000000000001"
 	rule := `{"id":"` + id + `","operator":"` + operator + `","subject":{"component":"pkg:github/kubernetes/kubernetes","from":"1.35.0","to":"1.36.0"}` + extra + `,` +
-		`"evidence":{"state":"active","reviewedAt":"2026-09-20T00:00:00Z","validUntil":"2026-12-19T00:00:00Z","sources":[{"id":"synthetic-source","url":"https://github.com/kubernetes/kubernetes/blob/` + revision + `/CHANGELOG.md","revision":"` + revision + `","contentDigest":"sha256:` + strings.Repeat("0", 64) + `","startLine":1,"endLine":2}]},` +
+		`"evidence":{"state":"active","reviewedAt":"` + syntheticReviewed + `","validUntil":"` + syntheticUntil + `","sources":[{"id":"synthetic-source","url":"https://github.com/kubernetes/kubernetes/blob/` + revision + `/CHANGELOG.md","revision":"` + revision + `","contentDigest":"sha256:` + strings.Repeat("0", 64) + `","startLine":1,"endLine":2}]},` +
 		`"reasonCode":"` + reason + `","nextAction":"` + nextAction + `"}`
 	return cncfcheck.Entry{Project: "kubernetes", Description: "Synthetic test-only rule.", RequiredFacts: []cncfcheck.Fact{}, Rule: json.RawMessage(rule)}
 }
@@ -50,7 +56,7 @@ func TestSyntheticNoticeThroughTheCommandRoute(t *testing.T) {
 			}
 			defer restore()
 			path := writeCNCFFile(t, "input.json", input, 0o600)
-			code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", "2026-11-20T00:00:00Z")
+			code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", supersedeids.ClockString())
 			if code != tc.exit || stderr != "" {
 				t.Fatalf("code=%d stderr=%s stdout=%s", code, stderr, stdout)
 			}
@@ -60,7 +66,7 @@ func TestSyntheticNoticeThroughTheCommandRoute(t *testing.T) {
 			if !strings.Contains(stdout, "cannot be rolled back: kubernetes.synthetic-one-way.1-35-0-to-1-36-0\nbefore you upgrade: "+noticeBeforeText+"\n") || strings.Contains(strings.ToLower(stdout), "safe") || strings.Contains(stdout, "NOTICE (") {
 				t.Fatalf("stdout:\n%s", stdout)
 			}
-			code, report, _ := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", "2026-11-20T00:00:00Z", "--format", "json")
+			code, report, _ := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", supersedeids.ClockString(), "--format", "json")
 			if code != tc.exit || strings.Count(report, `"ruleId":`) != tc.claims || !strings.Contains(report, `"status":"NOTICE"`) || !strings.Contains(report, `"engineContractDigest":"`+constraintengine.EngineContractDigestNotice()+`"`) {
 				t.Fatalf("code=%d report=%s", code, report)
 			}
@@ -82,7 +88,7 @@ func TestSyntheticNoticeOnlyProjectSaysNoRuleDecided(t *testing.T) {
 	defer restore()
 	input := []byte(`{"schema":"` + constraintengine.InputSchema + `","authority":"` + constraintengine.InputAuthority + `","current":{"components":[{"component":"` + component + `","version":"1.35.0","facts":[]}]},"proposed":{"components":[{"component":"` + component + `","version":"1.36.0","facts":[]}]}}`)
 	path := writeCNCFFile(t, "input.json", input, 0o600)
-	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "aeraki-mesh", "--input", path, "--now", "2026-11-20T00:00:00Z")
+	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "aeraki-mesh", "--input", path, "--now", supersedeids.ClockString())
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, noVerdictLine+"\n") || !strings.Contains(stdout, "cannot be rolled back: aeraki-mesh.synthetic-one-way") {
 		t.Fatalf("code=%d stderr=%s stdout:\n%s", code, stderr, stdout)
 	}

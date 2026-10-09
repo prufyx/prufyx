@@ -24,7 +24,7 @@ metadata:
 `
 
 func quietArgs(path, from, to string, extra ...string) []string {
-	args := []string{"check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", from, "--to", to, "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", "2026-11-20T00:00:00Z"}
+	args := []string{"check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", from, "--to", to, "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", supersedeids.ClockString()}
 	return append(args, extra...)
 }
 
