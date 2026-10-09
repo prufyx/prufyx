@@ -77,10 +77,70 @@ type Target struct {
 	// test pins the two to each other, so registering a project is also
 	// a new version of this extractor.
 	Attest bool
+	// Remote, when set, moves the source of the target's definitions to
+	// another repository from one release line on (see Remote).
+	Remote *Remote
 
 	// voided are the Exclude entries that do not hold at the release being
 	// scanned (see guard.go); set on a copy made for one scan.
 	voided map[string]bool
+}
+
+// Remote is a per-line source switch: from release line FromLine on, the
+// definitions a release installs are not in its own repository but in the
+// kustomize directory its Kustomization file names as a remote resource
+//
+//	https://github.com/<owner>/<name>/<Directory>?ref=<tag>
+//
+// of another repository (Repo). Kong Ingress Controller does this from 3.4:
+// its CRDs moved to Kong/kubernetes-configuration, and every release pins
+// the tag of that repository it installs. The extractor reads the release's
+// Kustomization (it must hold exactly that one resource and nothing else),
+// takes the tag from it, resolves the tag to the commit this table pins for
+// it, and reads that directory's own kustomization.yaml and the CRD files it
+// lists, at the pinned commit. A tag the table does not pin withholds the
+// release (and so the pairs that read its line): the table is the reviewed
+// record of which commit a tag names, checked by a reviewer against the
+// repository, and a tag that upstream moves later cannot change what is
+// read. Every citation of such a definition names the other repository and
+// its full commit. A line before FromLine reads the target's own Paths, as
+// any other target.
+type Remote struct {
+	// FromLine is the first release line (major, minor) that installs from
+	// Repo.
+	FromLine [2]int
+	// Kustomization is the file, in the target's own repository, that
+	// names the remote resource.
+	Kustomization string
+	// Repo is the other repository, github.com/<owner>/<name>.
+	Repo string
+	// Directory is the directory of Repo the resource names; its own
+	// kustomization.yaml lists the files that define the CRDs.
+	Directory string
+	// Pins maps each tag the Kustomization may name to the full commit it
+	// points at, in ascending tag order.
+	Pins []Pin
+}
+
+// Pin is one reviewed tag of a Remote and the commit it names.
+type Pin struct {
+	Tag    string
+	Commit string
+}
+
+// pinFor returns the commit pinned for a tag.
+func (r *Remote) pinFor(tag string) (string, bool) {
+	for _, p := range r.Pins {
+		if p.Tag == tag {
+			return p.Commit, true
+		}
+	}
+	return "", false
+}
+
+// appliesTo reports whether a release line installs from the remote.
+func (r *Remote) appliesTo(major, minor int) bool {
+	return r != nil && (major > r.FromLine[0] || (major == r.FromLine[0] && minor >= r.FromLine[1]))
 }
 
 // PathSpec is a file, or a directory whose files with names matching Match
@@ -154,6 +214,20 @@ type targetJSON struct {
 	Attest      bool            `json:"attest"`
 	Paths       []pathJSON      `json:"paths"`
 	Exclude     []exclusionJSON `json:"exclude"`
+	Remote      *remoteJSON     `json:"remote,omitempty"`
+}
+
+type remoteJSON struct {
+	FromLine      string    `json:"fromLine"`
+	Kustomization string    `json:"kustomization"`
+	Repo          string    `json:"repo"`
+	Directory     string    `json:"directory"`
+	Pins          []pinJSON `json:"pins"`
+}
+
+type pinJSON struct {
+	Tag    string `json:"tag"`
+	Commit string `json:"commit"`
 }
 
 type pathJSON struct {
@@ -313,7 +387,74 @@ func (tj targetJSON) target() (Target, error) {
 		}
 		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Repo: ej.Repo, Reason: ej.Reason, Evidence: ej.Evidence, Copies: ej.Copies})
 	}
+	if tj.Remote != nil {
+		remote, err := tj.Remote.remote(t)
+		if err != nil {
+			return t, fmt.Errorf("remote: %w", err)
+		}
+		t.Remote = remote
+	}
 	return t, nil
+}
+
+var (
+	pinTagRE    = regexp.MustCompile(`^v(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})(-[0-9A-Za-z][0-9A-Za-z.-]{0,30})?$`)
+	pinCommitRE = regexp.MustCompile(`^[0-9a-f]{40}$`)
+)
+
+func (rj remoteJSON) remote(t Target) (*Remote, error) {
+	r := &Remote{Kustomization: rj.Kustomization, Repo: rj.Repo, Directory: rj.Directory}
+	m := lineRE.FindStringSubmatch(rj.FromLine)
+	if m == nil {
+		return nil, fmt.Errorf("fromLine %q is not major.minor", rj.FromLine)
+	}
+	r.FromLine[0], _ = strconv.Atoi(m[1])
+	r.FromLine[1], _ = strconv.Atoi(m[2])
+	repo, err := extract.ParseRepo(rj.Repo)
+	if err != nil || repo.Key != rj.Repo || rj.Repo == t.Repo {
+		return nil, fmt.Errorf("repo %q is not another canonical repository", rj.Repo)
+	}
+	if !cleanRepoPath(rj.Kustomization) || !cleanRepoPath(rj.Directory) {
+		return nil, fmt.Errorf("kustomization and directory must be clean repository paths")
+	}
+	if t.Attest {
+		return nil, fmt.Errorf("a target that installs from another repository does not attest")
+	}
+	if len(rj.Pins) == 0 || len(rj.Pins) > 64 {
+		return nil, fmt.Errorf("one to 64 pins are required")
+	}
+	for i, p := range rj.Pins {
+		if !pinTagRE.MatchString(p.Tag) || !pinCommitRE.MatchString(p.Commit) {
+			return nil, fmt.Errorf("pin %q is not a tag with a full lower-case commit", p.Tag)
+		}
+		if i > 0 && !pinTagLess(rj.Pins[i-1].Tag, p.Tag) {
+			return nil, fmt.Errorf("pins are not in ascending tag order at %q", p.Tag)
+		}
+		r.Pins = append(r.Pins, Pin{Tag: p.Tag, Commit: p.Commit})
+	}
+	return r, nil
+}
+
+// pinTagLess orders tags by version number, then by the text of the
+// pre-release, a release after its pre-releases.
+func pinTagLess(a, b string) bool {
+	ma, mb := pinTagRE.FindStringSubmatch(a), pinTagRE.FindStringSubmatch(b)
+	for i := 1; i <= 3; i++ {
+		x, _ := strconv.Atoi(ma[i])
+		y, _ := strconv.Atoi(mb[i])
+		if x != y {
+			return x < y
+		}
+	}
+	switch {
+	case ma[4] == mb[4]:
+		return false
+	case ma[4] == "":
+		return false
+	case mb[4] == "":
+		return true
+	}
+	return ma[4] < mb[4]
 }
 
 func cleanRepoPath(p string) bool {

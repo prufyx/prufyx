@@ -237,7 +237,21 @@
       "paths": [
         {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
-      "exclude": []
+      "exclude": [],
+      "remote": {
+        "fromLine": "3.4",
+        "kustomization": "config/crd/kustomization.yaml",
+        "repo": "github.com/kong/kubernetes-configuration",
+        "directory": "config/crd/ingress-controller",
+        "pins": [
+          {"tag": "v1.0.0", "commit": "797f429f1817fe012833a99aef38eb3d3b0d7d19"},
+          {"tag": "v1.2.0-rc.1", "commit": "e2bef58ed4b251c4eb58bade26a794e72203970c"},
+          {"tag": "v1.3.0", "commit": "19f7eb0792d5dc0a9e1fb7288b01b48a05de0d8d"},
+          {"tag": "v1.3.1", "commit": "68327eadc8d2d88c9924831f4902144a05234a7d"},
+          {"tag": "v1.3.3", "commit": "1257429f65df4fdc7b2ff9615216d89fedd7a9c3"},
+          {"tag": "v1.5.2", "commit": "307a3fd46ee97d1a11803604aef831944d1a3d8f"}
+        ]
+      }
     },
     {
       "project": "koordinator",

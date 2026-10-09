@@ -277,6 +277,9 @@ type Inventory struct {
 	Paths    []PathRecord `json:"paths"`
 	Files    []FileRecord `json:"files"`
 	CRDs     []CRD        `json:"crds"`
+	// Remote records where the definitions were read when the release
+	// installs from another repository; absent otherwise.
+	Remote *RemoteRecord `json:"remote,omitempty"`
 	// Scan is the full-tree scan at the commit; absent when the inventory
 	// is not complete.
 	Scan *ScanRecord `json:"scan,omitempty"`
@@ -292,7 +295,7 @@ type PathRecord struct {
 	Ignored int `json:"ignored"`
 }
 
-func (x *Extractor) inventory(r extract.PinnedReader, repo extract.RepoRef, tag, commit string) (*Inventory, error) {
+func (x *Extractor) inventory(r extract.PinnedReader, repo extract.RepoRef, tag, commit, version string) (*Inventory, error) {
 	x.mu.Lock()
 	res, ok := x.cache[commit]
 	x.mu.Unlock()
@@ -304,7 +307,13 @@ func (x *Extractor) inventory(r extract.PinnedReader, repo extract.RepoRef, tag,
 		}
 		return nil, res.err
 	}
-	inv, err := readInventory(r, repo, x.target, commit)
+	var inv *Inventory
+	var err error
+	if line := x.lineFor(tag, commit, version); x.target.Remote.appliesTo(line.Major, line.Minor) {
+		inv, err = readRemoteInventory(r, repo, x.target, commit)
+	} else {
+		inv, err = readInventory(r, repo, x.target, commit)
+	}
 	if inv != nil {
 		inv.Tag = tag
 		inv.Complete = err == nil
@@ -393,6 +402,20 @@ func readInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, commi
 		}
 		files = append(files, found...)
 	}
+	return readDefinitions(r, repo, commit, files, inv, nil)
+}
+
+// origin names another repository and commit a set of definitions is read
+// from (a Remote source).
+type origin struct {
+	repo   extract.RepoRef
+	commit string
+}
+
+// readDefinitions reads the listed files of repo at commit into inv, in path
+// order, and checks that no definition is repeated. from is nil for the
+// release's own repository.
+func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string, files []string, inv *Inventory, from *origin) (*Inventory, error) {
 	sort.Strings(files)
 	byName := map[string]string{}
 	byKind := map[string]string{}
@@ -408,11 +431,17 @@ func readInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, commi
 			return inv, err
 		}
 		rec, crds, err := parseFile(f, data)
+		if from != nil {
+			rec.Repo, rec.Commit = from.repo.Key, from.commit
+		}
 		inv.Files = append(inv.Files, rec)
 		if err != nil {
 			return inv, err
 		}
 		for _, c := range crds {
+			if from != nil {
+				c.Repo, c.Commit = from.repo.Key, from.commit
+			}
 			if prev, dup := byName[c.Name]; dup {
 				return inv, problemf("CustomResourceDefinition %s is defined in both %s and %s", c.Name, prev, c.Path)
 			}
@@ -614,7 +643,7 @@ func (s *tagState) gone(name string) bool {
 
 func (x *Extractor) readTag(ctx context.Context, r extract.PinnedReader, repo extract.RepoRef, tag extract.Tag, version string) (*tagState, error) {
 	st := &tagState{tag: tag, version: version, served: map[string]bool{}, byName: map[string]*CRD{}}
-	st.inv, st.err = x.inventory(r, repo, tag.Name, tag.Commit)
+	st.inv, st.err = x.inventory(r, repo, tag.Name, tag.Commit, version)
 	if st.err != nil {
 		if _, ok := asProblem(st.err); !ok {
 			return nil, st.err
@@ -794,6 +823,8 @@ func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *rele
 	switch {
 	case x.target.Catalog == CatalogCommunity:
 		return nil, "the project is in the community catalog, whose line reviews have no knowledge target yet, so its lines are not attested"
+	case x.target.Remote != nil:
+		return nil, "the target installs from another repository from some line on: its lines are not attested"
 	case !x.target.Attest:
 		return nil, "the target does not attest its lines (attest is off for it in targets.json)"
 	case !family.Admits(x.target.Component):
@@ -827,6 +858,20 @@ func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *rele
 			{ID: "crds-" + slug(pair.To), Repo: pair.Repo, Commit: pair.ToCommit, Path: toFile},
 		},
 	}, ""
+}
+
+// sourceOf is the repository and commit a definition is cited at: the
+// release's own, or, for a definition read from another repository (Remote),
+// that repository and the full commit it was read at.
+func sourceOf(repo extract.RepoRef, commit string, c *CRD) (extract.RepoRef, string) {
+	if c == nil || c.Repo == "" {
+		return repo, commit
+	}
+	other, err := extract.ParseRepo(c.Repo)
+	if err != nil {
+		return repo, commit
+	}
+	return other, c.Commit
 }
 
 // firstCRDFile is the first path, in path order, of a definition the
@@ -1476,13 +1521,15 @@ func (x *Extractor) candidate(pair extract.VersionPair, fromLine, toLine *releas
 		case ReasonAbsent:
 			absent = true
 		default:
-			toSources = append(toSources, extract.SourceRef{ID: "served-false-" + rm.Version + "-" + slug(pair.To), Repo: pair.Repo, Commit: pair.ToCommit, Path: t.Path, StartLine: rm.ToLine, EndLine: rm.ToLine})
+			repo, commit := sourceOf(pair.Repo, pair.ToCommit, t)
+			toSources = append(toSources, extract.SourceRef{ID: "served-false-" + rm.Version + "-" + slug(pair.To), Repo: repo, Commit: commit, Path: t.Path, StartLine: rm.ToLine, EndLine: rm.ToLine})
 		}
 	}
 	sort.Strings(members)
 	sort.Slice(versions, func(i, j int) bool { return higher(versions[j], versions[i]) })
 	if absent || len(toSources) > 7 {
-		toSources = []extract.SourceRef{{ID: "crd-" + slug(pair.To), Repo: pair.Repo, Commit: pair.ToCommit, Path: t.Path}}
+		repo, commit := sourceOf(pair.Repo, pair.ToCommit, t)
+		toSources = []extract.SourceRef{{ID: "crd-" + slug(pair.To), Repo: repo, Commit: commit, Path: t.Path}}
 	}
 	// The anchor first, then any later earlier-line release, by tag.
 	sort.SliceStable(fromOrder, func(i, j int) bool {
@@ -1495,7 +1542,8 @@ func (x *Extractor) candidate(pair extract.VersionPair, fromLine, toLine *releas
 	for _, tagName := range fromOrder {
 		st := states[tagName]
 		sp := fromSpans[tagName]
-		sources = append(sources, extract.SourceRef{ID: "crd-versions-" + slug(st.version), Repo: pair.Repo, Commit: st.tag.Commit, Path: st.byName[f.Name].Path, StartLine: sp.start, EndLine: sp.end})
+		repo, commit := sourceOf(pair.Repo, st.tag.Commit, st.byName[f.Name])
+		sources = append(sources, extract.SourceRef{ID: "crd-versions-" + slug(st.version), Repo: repo, Commit: commit, Path: st.byName[f.Name].Path, StartLine: sp.start, EndLine: sp.end})
 	}
 	fromSource, toSource := sources[0].ID, toSources[0].ID
 	sources = append(sources, toSources...)
