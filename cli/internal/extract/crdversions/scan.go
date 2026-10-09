@@ -521,9 +521,17 @@ func (x *Extractor) declaredFiles(inv *Inventory) map[string]bool {
 			}
 		}
 	}
-	for _, p := range x.target.Paths {
+	for _, p := range x.target.allListedPaths() {
 		if !p.Dir {
 			out[p.Path] = true
+		}
+	}
+	// The files of the other install channels are read by the inventory.
+	if inv != nil {
+		for _, ch := range inv.Channels {
+			for _, f := range ch.Files {
+				out[f.Path] = true
+			}
 		}
 	}
 	return out

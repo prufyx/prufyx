@@ -80,6 +80,12 @@ type Target struct {
 	// Remote, when set, moves the source of the target's definitions to
 	// another repository from one release line on (see Remote).
 	Remote *Remote
+	// DeclaredChannel names the install channel Paths describe, for a
+	// project that ships more than one (Gateway API's standard channel);
+	// Channels are the other channels it ships. Both are empty for a
+	// project with one install.
+	DeclaredChannel string
+	Channels        []Channel
 
 	// voided are the Exclude entries that do not hold at the release being
 	// scanned (see guard.go); set on a copy made for one scan.
@@ -141,6 +147,20 @@ func (r *Remote) pinFor(tag string) (string, bool) {
 // appliesTo reports whether a release line installs from the remote.
 func (r *Remote) appliesTo(major, minor int) bool {
 	return r != nil && (major > r.FromLine[0] || (major == r.FromLine[0] && minor >= r.FromLine[1]))
+}
+
+// Channel is another install channel of the project: a directory of
+// CustomResourceDefinitions that defines the same custom resources as the
+// target's declared Paths with other served versions (Gateway API's
+// experimental channel beside its standard one). The rules a target derives
+// are about the declared channel. A channel is read at every release, in
+// full and strictly, to keep a rule from forbidding a version that the
+// channel still serves: such a version is recorded as retained by the
+// channel and no rule is derived for it. A channel's files are declared
+// files, so the scan does not take them for conflicting copies.
+type Channel struct {
+	Name  string
+	Paths []PathSpec
 }
 
 // PathSpec is a file, or a directory whose files with names matching Match
@@ -215,6 +235,14 @@ type targetJSON struct {
 	Paths       []pathJSON      `json:"paths"`
 	Exclude     []exclusionJSON `json:"exclude"`
 	Remote      *remoteJSON     `json:"remote,omitempty"`
+	// DeclaredChannel and Channels: see Target.
+	DeclaredChannel string        `json:"declaredChannel,omitempty"`
+	Channels        []channelJSON `json:"channels,omitempty"`
+}
+
+type channelJSON struct {
+	Name  string     `json:"name"`
+	Paths []pathJSON `json:"paths"`
 }
 
 type remoteJSON struct {
@@ -370,6 +398,9 @@ func (tj targetJSON) target() (Target, error) {
 	if !required {
 		return t, fmt.Errorf("every path is optional")
 	}
+	if err := tj.channels(&t); err != nil {
+		return t, fmt.Errorf("channels: %w", err)
+	}
 	for i, ej := range tj.Exclude {
 		if err := validExclusion(ej); err != nil {
 			return t, fmt.Errorf("exclusion %q: %w", ej.Path, err)
@@ -377,7 +408,7 @@ func (tj targetJSON) target() (Target, error) {
 		if i > 0 && tj.Exclude[i-1].Path >= ej.Path {
 			return t, fmt.Errorf("exclusions are not sorted at %q", ej.Path)
 		}
-		for _, ps := range t.Paths {
+		for _, ps := range t.allListedPaths() {
 			if exclusionMatches(ej.Path, ps.Path) || (strings.HasSuffix(ej.Path, "/") && strings.HasPrefix(ej.Path, ps.Path+"/")) {
 				return t, fmt.Errorf("exclusion %q covers the listed path %s", ej.Path, ps.Path)
 			}
@@ -395,6 +426,65 @@ func (tj targetJSON) target() (Target, error) {
 		t.Remote = remote
 	}
 	return t, nil
+}
+
+var channelNameRE = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
+
+// channels validates a target's install channels: a declared channel name
+// when there are others, distinct names, clean non-overlapping paths (each
+// channel with a path that is required), and not together with a Remote.
+func (tj targetJSON) channels(t *Target) error {
+	if len(tj.Channels) == 0 {
+		if tj.DeclaredChannel != "" {
+			return fmt.Errorf("declaredChannel %q without channels", tj.DeclaredChannel)
+		}
+		return nil
+	}
+	if !channelNameRE.MatchString(tj.DeclaredChannel) || len(tj.Channels) > 4 {
+		return fmt.Errorf("declaredChannel is required with channels (at most four)")
+	}
+	if tj.Remote != nil {
+		return fmt.Errorf("a target with channels does not install from another repository")
+	}
+	if t.Attest {
+		return fmt.Errorf("a target with channels does not attest")
+	}
+	t.DeclaredChannel = tj.DeclaredChannel
+	taken := map[string]bool{tj.DeclaredChannel: true}
+	owner := map[string]string{}
+	for _, p := range t.Paths {
+		owner[p.Path] = tj.DeclaredChannel
+	}
+	for _, cj := range tj.Channels {
+		if !channelNameRE.MatchString(cj.Name) || taken[cj.Name] {
+			return fmt.Errorf("channel name %q is not a distinct lower-case name", cj.Name)
+		}
+		taken[cj.Name] = true
+		if len(cj.Paths) == 0 {
+			return fmt.Errorf("channel %s has no paths", cj.Name)
+		}
+		ch := Channel{Name: cj.Name}
+		required := false
+		for _, pj := range cj.Paths {
+			ps, err := pj.spec()
+			if err != nil {
+				return fmt.Errorf("channel %s path %q: %w", cj.Name, pj.Path, err)
+			}
+			for other, by := range owner {
+				if other == ps.Path || strings.HasPrefix(ps.Path, other+"/") || strings.HasPrefix(other, ps.Path+"/") {
+					return fmt.Errorf("channel %s path %q overlaps %q of %s", cj.Name, ps.Path, other, by)
+				}
+			}
+			owner[ps.Path] = cj.Name
+			required = required || !ps.Optional
+			ch.Paths = append(ch.Paths, ps)
+		}
+		if !required {
+			return fmt.Errorf("every path of channel %s is optional", cj.Name)
+		}
+		t.Channels = append(t.Channels, ch)
+	}
+	return nil
 }
 
 var (
@@ -619,6 +709,15 @@ func defaultSegment(p string) string {
 		}
 	}
 	return ""
+}
+
+// allListedPaths are the declared paths and the paths of every channel.
+func (t Target) allListedPaths() []PathSpec {
+	out := append([]PathSpec(nil), t.Paths...)
+	for _, c := range t.Channels {
+		out = append(out, c.Paths...)
+	}
+	return out
 }
 
 // TargetFor returns the target of a project slug.
