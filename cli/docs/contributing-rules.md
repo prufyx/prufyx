@@ -270,6 +270,14 @@ accepted by any community pack schema.
   output prints an item's applicable notices with their scope and the
   "outside its documented support range (not verified, not shown to be
   broken)" note for both packs.
+  The two count lines (and the counts behind them) appear only while the pack
+  holds such rules, so a pack without them produces the same inventory as
+  before.
+- Landing the first support-range or notice rule takes two steps. The
+  knowledge gate regenerates the committed inventory with the generator of the
+  base branch, so a change to generator code must leave the output for
+  unchanged inputs byte-identical. Merge the code first; then regenerate the
+  inventory with the new base and send the pack data in a second change.
 
 ## Evidence basis
 

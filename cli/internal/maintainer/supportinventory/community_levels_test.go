@@ -87,7 +87,10 @@ func TestSupportInventory_CommunitySupportRangeAndNoticesAreCountedSeparately(t 
 	if got["communityProjectSourceRules"] != base["communityProjectSourceRules"] || got["communityProjectSupportRangeRules"] != float64(1) || got["communityProjectNotices"] != float64(1) || got["communityProjectRuleProjects"] != base["communityProjectRuleProjects"] {
 		t.Fatalf("counts=%v baseline=%v", got, base)
 	}
-	if base["communityProjectSupportRangeRules"] != float64(0) || base["communityProjectNotices"] != float64(0) {
+	if _, ok := base["communityProjectSupportRangeRules"]; ok {
+		t.Fatalf("baseline counts=%v", base)
+	}
+	if _, ok := base["communityProjectNotices"]; ok {
 		t.Fatalf("baseline counts=%v", base)
 	}
 	kinds := map[string]string{}
