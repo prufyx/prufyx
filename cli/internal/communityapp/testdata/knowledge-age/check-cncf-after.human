@@ -6,6 +6,13 @@ network used: false
 kyverno.reports-chunk-size-removed.1-13: UNKNOWN (RULE_EVIDENCE_STALE)
 next action: the review of this rule expired on 2026-12-08; use newer knowledge (a newer source build, or a signed package you trust), or check this change by hand against its cited source
 evidence basis: reviewed by maintainer
+pinned source: https://github.com/golang/go/blob/ed817f1c4055a559a94afffecbb91c78e4f39942/src/flag/flag.go lines 1074-1146; revision ed817f1c4055a559a94afffecbb91c78e4f39942; digest sha256:d803a25f5bba6ce835aab9ed55a93aa785d2cf02d0e4dd84c726c334944c9919
+pinned source: https://github.com/kyverno/kyverno/blob/b7fb616a6db3081a7c6d1d72d375819e777064ee/cmd/internal/flag.go lines 222-235; revision b7fb616a6db3081a7c6d1d72d375819e777064ee; digest sha256:56822cc05203fcfb28ba3ff2a2fe062e9e1acd3ced5d34f9bf279df2b3978c67
+pinned source: https://github.com/kyverno/kyverno/blob/b7fb616a6db3081a7c6d1d72d375819e777064ee/Makefile lines 253-255; revision b7fb616a6db3081a7c6d1d72d375819e777064ee; digest sha256:cc3acfeb2ed65109561d841d358db608bc7e23e87f29021b972f115106d928ff
+pinned source: https://github.com/kyverno/kyverno/blob/b7fb616a6db3081a7c6d1d72d375819e777064ee/cmd/reports-controller/main.go lines 202-208; revision b7fb616a6db3081a7c6d1d72d375819e777064ee; digest sha256:4c0273a0e1fc1fd18523d40cd341a7db1a4e14a8f93af47c287f143b6acfcf9b
+pinned source: https://github.com/kyverno/kyverno/blob/978c2f3b56df37a8bea4ee649369efaea53a684b/CHANGELOG.md lines 1-6; revision 978c2f3b56df37a8bea4ee649369efaea53a684b; digest sha256:ab2660c7d3fc27644bc568db9ea2cb1612d9ee87253d7b060cee6e351819e637
+pinned source: https://github.com/kyverno/kyverno/blob/978c2f3b56df37a8bea4ee649369efaea53a684b/Makefile lines 253-255; revision 978c2f3b56df37a8bea4ee649369efaea53a684b; digest sha256:ce7305b3997657915e54ef5436c2665c6b573b793325d33f799e69e8d4a10616
+pinned source: https://github.com/kyverno/kyverno/blob/978c2f3b56df37a8bea4ee649369efaea53a684b/cmd/reports-controller/main.go lines 192-208; revision 978c2f3b56df37a8bea4ee649369efaea53a684b; digest sha256:a76c60f1403d76b15654a5185cf05978214f180901817d9437572ecf57cff391
 scoped result: UNKNOWN
 aggregate: UNKNOWN
 input digest: sha256:83faf6e3d00c2dd09282fcfc94f23e956ebb1230f9ca0eb6226863165ef7ca55
