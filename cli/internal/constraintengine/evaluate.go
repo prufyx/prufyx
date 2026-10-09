@@ -5,7 +5,9 @@ package constraintengine
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -103,7 +105,7 @@ func evaluateMatchedRule(input inputDocument, rule rule, claim Claim) Claim {
 		fact, found := findFact(input, applicability.Side, applicability.Component, applicability.FactID)
 		if !found || fact.State != "declared" {
 			claim.Status, claim.ReasonCode = "UNKNOWN", "RULE_APPLICABILITY_FACT_UNAVAILABLE"
-			claim.NextAction = factAction(rule.ID, applicability)
+			claim.NextAction = factAction(applicability, false)
 			return claim
 		}
 		if !matchesCondition(fact, applicability) {
@@ -120,7 +122,7 @@ func evaluateMatchedRule(input inputDocument, rule rule, claim Claim) Claim {
 		fact, found := findFact(input, rule.Condition.Side, rule.Condition.Component, rule.Condition.FactID)
 		if !found || fact.State != "declared" {
 			claim.Status, claim.ReasonCode = "UNKNOWN", "RULE_FACT_UNAVAILABLE"
-			claim.NextAction = factAction(rule.ID, *rule.Condition)
+			claim.NextAction = factAction(*rule.Condition, false)
 			return claim
 		}
 		if matchesCondition(fact, *rule.Condition) {
@@ -227,15 +229,24 @@ func staleAction(validUntil string) string {
 		"the review of this rule expired; use newer knowledge, or check this change by hand against its cited source")
 }
 
-// factAction tells a user which fact the input lacks and where to declare it.
-// The text names no package URL and no engine internals.
-func factAction(ruleID string, condition factCondition) string {
-	if project, _, dotted := strings.Cut(ruleID, "."); dotted && project != "" {
-		return boundedAction(fmt.Sprintf("fact `%s` is missing from the input: declare it in the input file (inputs per rule: `prufyx catalog checks --project %s`) or pass the flag that declares it", condition.FactID, project),
-			"a fact this rule reads is missing from the input: declare it in the input file or pass the flag that declares it")
+// factAction tells a user which fact the input lacks and exactly where and
+// how to declare it. The input file is the only route every generic check
+// reads, so the text names its keys: the fact goes in the "facts" list of the
+// component on the named side, under "current" or "proposed". It names no
+// package URL and no engine internals. A catalogue command cannot show the
+// fact: the catalogue lists rules, not the facts they read.
+func factAction(condition factCondition, set bool) string {
+	value := `a "boolValue" or "enumValue"`
+	switch {
+	case set:
+		value = `a "setValue"`
+	case condition.BoolValue != nil:
+		value = `a "boolValue"`
+	case condition.EnumValue != "":
+		value = `an "enumValue"`
 	}
-	return boundedAction(fmt.Sprintf("fact `%s` is missing from the input: declare it in the input file or pass the flag that declares it", condition.FactID),
-		"a fact this rule reads is missing from the input: declare it in the input file or pass the flag that declares it")
+	return boundedAction(fmt.Sprintf("fact `%s` is missing from the input: declare it in the input file, in \"facts\" of the %s component, with \"state\": \"declared\" and %s", condition.FactID, condition.Side, value),
+		"a fact this rule reads is missing from the input: declare it in the input file, in \"facts\" of the component, with \"state\": \"declared\" and its value")
 }
 
 // notApplicableAction explains a rule whose declared applicability fact does
@@ -408,8 +419,40 @@ func Replay(input Input, rules RuleSet, now time.Time, expected []byte) (Report,
 		return Report{}, err
 	}
 	raw, err := MarshalReport(report)
-	if err != nil || !bytes.Equal(raw, expected) {
+	if err != nil {
 		return Report{}, ErrIntegrity
+	}
+	if err := ReplayMismatch(raw, expected); err != nil {
+		return Report{}, err
 	}
 	return report, nil
 }
+
+// ErrReplayOlderContract is returned when a stored report differs from its
+// recomputation only in guidance text (nextAction): it was saved by a build
+// whose next-action wording differs from this one. Every decision in it still
+// matches, but replay requires the exact bytes, so it is refused and must be
+// regenerated. It is not an integrity failure.
+var ErrReplayOlderContract = errors.New("report from an older engine contract")
+
+// ReplayMismatch compares a recomputed report with a stored one. It returns
+// nil on byte equality,
+// ErrReplayOlderContract when the two are equal once every nextAction string
+// is removed, and ErrIntegrity otherwise.
+func ReplayMismatch(recomputed, stored []byte) error {
+	a, b := recomputed, stored
+	if bytes.Equal(a, b) {
+		return nil
+	}
+	if bytes.Equal(nextActionString.ReplaceAll(a, nextActionBlank), nextActionString.ReplaceAll(b, nextActionBlank)) {
+		return ErrReplayOlderContract
+	}
+	return ErrIntegrity
+}
+
+// nextActionString matches one canonical `"nextAction":"..."` member. The
+// report is canonical compact JSON, so every other byte must still match.
+var (
+	nextActionString = regexp.MustCompile(`"nextAction":"(?:[^"\\]|\\.)*"`)
+	nextActionBlank  = []byte(`"nextAction":""`)
+)

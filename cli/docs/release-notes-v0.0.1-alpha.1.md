@@ -48,8 +48,10 @@ on a verdict.
 
 ## Verifying a download
 
-Once a release is published, every archive will be listed in `SHA256SUMS` and
-covered by a keyless build provenance attestation. No archive exists yet.
+Planned, not yet in place: once a release is published, every archive will be
+listed in `SHA256SUMS` and covered by a keyless build provenance attestation.
+No archive exists yet, so there is nothing to verify today. The commands below
+are what verification will look like.
 
 ```sh
 sha256sum -c SHA256SUMS

@@ -14,22 +14,25 @@ func TestKubernetesDeclarationActionNamesTheFlag(t *testing.T) {
 	cases := []struct {
 		name         string
 		reason       cncfprepare.Reason
+		scope        bool
 		apply        bool
 		distribution string
 		want         []string
 		absent       []string
 	}{
-		{"scope", cncfprepare.ReasonKubernetesScopeIncomplete, true, "official_upstream", []string{"--resource-scope-complete", "complete apply set"}, nil},
-		{"apply and distribution", cncfprepare.ReasonKubernetesTargetGuard, false, "", []string{"--target-api-apply-required", "--distribution official_upstream", "then run again"}, nil},
-		{"apply only", cncfprepare.ReasonKubernetesTargetGuard, false, "official_upstream", []string{"--target-api-apply-required"}, []string{"--distribution"}},
-		{"distribution only", cncfprepare.ReasonKubernetesTargetGuard, true, "", []string{"--distribution official_upstream"}, []string{"--target-api-apply-required"}},
-		{"custom build", cncfprepare.ReasonKubernetesTargetGuard, true, "custom_build", []string{"only the official_upstream distribution is evaluated"}, []string{"run again"}},
-		{"pagination", cncfprepare.ReasonKubernetesPagination, true, "official_upstream", []string{"paginated", "every page"}, nil},
-		{"templated", cncfprepare.ReasonKubernetesTemplated, true, "official_upstream", []string{"helm template"}, nil},
+		{"scope", cncfprepare.ReasonKubernetesScopeIncomplete, false, true, "official_upstream", []string{"--resource-scope-complete", "complete apply set"}, []string{"--distribution", "--target-api-apply-required"}},
+		{"nothing declared names every declaration", cncfprepare.ReasonKubernetesScopeIncomplete, false, false, "", []string{"--resource-scope-complete", "--target-api-apply-required", "--distribution official_upstream", "then run again"}, nil},
+		{"target guard with nothing declared names scope too", cncfprepare.ReasonKubernetesTargetGuard, false, false, "", []string{"--resource-scope-complete", "--target-api-apply-required", "--distribution official_upstream"}, nil},
+		{"apply and distribution", cncfprepare.ReasonKubernetesTargetGuard, true, false, "", []string{"--target-api-apply-required", "--distribution official_upstream", "then run again"}, nil},
+		{"apply only", cncfprepare.ReasonKubernetesTargetGuard, true, false, "official_upstream", []string{"--target-api-apply-required"}, []string{"--distribution"}},
+		{"distribution only", cncfprepare.ReasonKubernetesTargetGuard, true, true, "", []string{"--distribution official_upstream"}, []string{"--target-api-apply-required"}},
+		{"custom build", cncfprepare.ReasonKubernetesTargetGuard, true, true, "custom_build", []string{"only the official_upstream distribution is evaluated"}, []string{"run again"}},
+		{"pagination", cncfprepare.ReasonKubernetesPagination, true, true, "official_upstream", []string{"paginated", "every page"}, nil},
+		{"templated", cncfprepare.ReasonKubernetesTemplated, true, true, "official_upstream", []string{"helm template"}, nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := kubernetesDeclarationAction(tc.reason, tc.apply, tc.distribution)
+			got := kubernetesDeclarationAction(tc.reason, tc.scope, tc.apply, tc.distribution)
 			for _, want := range tc.want {
 				if !strings.Contains(got, want) {
 					t.Errorf("action %q lacks %q", got, want)
@@ -42,7 +45,7 @@ func TestKubernetesDeclarationActionNamesTheFlag(t *testing.T) {
 			}
 		})
 	}
-	if got := kubernetesDeclarationAction(cncfprepare.ReasonKubernetesRemovedGVKAbsent, true, "official_upstream"); got != "" {
+	if got := kubernetesDeclarationAction(cncfprepare.ReasonKubernetesRemovedGVKAbsent, true, true, "official_upstream"); got != "" {
 		t.Fatalf("an unrelated reason gets an action: %q", got)
 	}
 }
@@ -96,5 +99,20 @@ func TestKubernetesNativeUnknownNamesTheMissingFlag(t *testing.T) {
 	complete := append(append([]string(nil), base...), "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete")
 	if code, stdout, _ := runCNCFCLI(t, complete...); code != ExitBlocked || strings.Contains(stdout, "add --") {
 		t.Fatalf("declared run code=%d stdout=%q", code, stdout)
+	}
+}
+
+func TestWriteCitedSourcesOnlyForStaleOrWithdrawn(t *testing.T) {
+	claim := constraintengine.Claim{ReasonCode: "RULE_EVIDENCE_STALE", Sources: []constraintengine.SourceEvidence{{URL: "https://example.test/doc", StartLine: 3, EndLine: 5, Revision: "r1", ContentDigest: "sha256:x"}}}
+	var out strings.Builder
+	writeCitedSources(&out, claim)
+	if !strings.Contains(out.String(), "pinned source: https://example.test/doc lines 3-5") {
+		t.Fatalf("stale claim prints no source: %q", out.String())
+	}
+	out.Reset()
+	claim.ReasonCode = "RULE_FACT_UNAVAILABLE"
+	writeCitedSources(&out, claim)
+	if out.Len() != 0 {
+		t.Fatalf("other reason prints a source: %q", out.String())
 	}
 }

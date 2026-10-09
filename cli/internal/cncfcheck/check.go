@@ -3,8 +3,8 @@
 package cncfcheck
 
 import (
-	"bytes"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
@@ -354,7 +354,13 @@ func (c Checker) Replay(project string, inputRaw []byte, now time.Time, expected
 		return Report{}, err
 	}
 	raw, err := MarshalReport(report)
-	if err != nil || !bytes.Equal(append(raw, '\n'), expected) {
+	if err != nil {
+		return Report{}, ErrIntegrity
+	}
+	if err := constraintengine.ReplayMismatch(append(raw, '\n'), expected); err != nil {
+		if errors.Is(err, constraintengine.ErrReplayOlderContract) {
+			return Report{}, err
+		}
 		return Report{}, ErrIntegrity
 	}
 	return report, nil

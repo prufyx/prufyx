@@ -48,7 +48,7 @@
                 "text": "Area not checked: API_VERSION_NOT_SERVED"
               },
               "help": {
-                "text": "Prufyx could not decide this area (API_VERSION_NOT_SERVED), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
+                "text": "A manifest uses an API version the target does not serve (API_VERSION_NOT_SERVED). Migrate it to a served API version before you upgrade. The Prufyx GitHub Action fails the step on this."
               },
               "defaultConfiguration": {
                 "level": "warning"
@@ -280,7 +280,7 @@
             }
           ],
           "partialFingerprints": {
-            "prufyxResult/v1": "3076f0b63e90a41ba8076a545ed3974534ab02d285985d2545fd15f7d1b03f0c"
+            "prufyxResult/v1": "68ad9bf088eb1f3ef411997befa11558d8c36127171aaf72d3fe1cdcd4c44092"
           },
           "properties": {
             "component": "etcd",
@@ -310,7 +310,7 @@
             }
           ],
           "partialFingerprints": {
-            "prufyxResult/v1": "c3028c36ba64888162fa9307194ebee41a9ffd4c794a312baa2fc91d2c6c953e"
+            "prufyxResult/v1": "623778102cecbb5d6cb3c27b50c8bcbc7454c58133d8ff780858bd3b6f164599"
           },
           "properties": {
             "component": "kubernetes",
@@ -340,7 +340,7 @@
             }
           ],
           "partialFingerprints": {
-            "prufyxResult/v1": "4ada79c3bb51d44a0aefaada360282b39af74d3c41a490e7b7e8e6cb8854a860"
+            "prufyxResult/v1": "b978182d30ced317aa399133e2bfb37a70c49b58632008064bb193e41cab9d17"
           },
           "properties": {
             "component": "kubernetes",
@@ -370,7 +370,7 @@
             }
           ],
           "partialFingerprints": {
-            "prufyxResult/v1": "d40fb446ce9d87df94a585a121dcac774480b4b1d8b02604038eadec628af7c2"
+            "prufyxResult/v1": "14d0cb0d39fa1795dcacb3eb3ee694030e373625bcef1d6c01f7732ad6381332"
           },
           "properties": {
             "component": "kubernetes",
@@ -400,7 +400,7 @@
             }
           ],
           "partialFingerprints": {
-            "prufyxResult/v1": "a4da64df5447f23d15d28b3b3f183fa60a3f678b8690d37dc6a27110d0e96308"
+            "prufyxResult/v1": "6edb0bcb8b7a574e2ba30cac53ee20686d72d3167e74f98b5f2de16c26a80cd7"
           },
           "properties": {
             "component": "kubernetes",
@@ -430,7 +430,7 @@
             }
           ],
           "partialFingerprints": {
-            "prufyxResult/v1": "b8057f1ade8c5210941f83d1137de83019433a668dcc7f1416eafc979416e2e8"
+            "prufyxResult/v1": "ec39427c6528e1e141bde98098f34f4380f1e03208f224b78ff21d6aab4ac44a"
           },
           "properties": {
             "component": "kubernetes",
@@ -460,7 +460,7 @@
             }
           ],
           "partialFingerprints": {
-            "prufyxResult/v1": "3fbc9b59050539426a5d8ce9638a841c8e6ccca2d2bf7801beadb36a7eade2b3"
+            "prufyxResult/v1": "92768a8d9e5c180ce95029e02024682bb4757c47c83f3096203920bdc43dbe58"
           },
           "properties": {
             "component": "kubernetes",
@@ -490,7 +490,7 @@
             }
           ],
           "partialFingerprints": {
-            "prufyxResult/v1": "b5a1e1c9640fe753d7a4b74a2882a9560f73c10dd65437524e47c667272df5cc"
+            "prufyxResult/v1": "263e87590dba546065ec12d66bc0bece6eebce3824d9dff70b1d5a38eaf6c0bf"
           },
           "properties": {
             "component": "kubernetes",

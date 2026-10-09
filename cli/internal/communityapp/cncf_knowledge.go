@@ -69,6 +69,9 @@ func (r runtime) externalCNCF(req cncfknowledge.Request, replayPath, format stri
 }
 
 func (r runtime) cncfKnowledgeError(message string, err error) int {
+	if errors.Is(err, constraintengine.ErrReplayOlderContract) {
+		return r.fail(olderContractMessage, ExitUsage)
+	}
 	if errors.Is(err, knowledge.ErrNoSelection) {
 		return r.fail(message+"; no verified CNCF revision selected", ExitUnknown)
 	}

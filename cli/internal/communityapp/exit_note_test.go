@@ -42,6 +42,14 @@ func TestRunCLINotesAScopedPassExit(t *testing.T) {
 	if strictCode != ExitScopedPass || strictOut != plainOut || strings.Contains(strictErr, ScopedPassExitNote) {
 		t.Fatalf("strict code=%d stderr=%q", strictCode, strictErr)
 	}
+	// The last --strict-exit form decides, for the note as for the exit status.
+	lastFalse := append(append([]string(nil), base...), "--strict-exit", "--strict-exit=false")
+	if code, _, errout := runCLIForTest(t, lastFalse...); code != ExitOK || !strings.Contains(errout, ScopedPassExitNote) {
+		t.Fatalf("--strict-exit then =false: code=%d stderr=%q", code, errout)
+	}
+	if code, _, errout := runCLIForTest(t, append(append([]string(nil), base...), "--strict-exit=false", "--strict-exit")...); code != ExitScopedPass || strings.Contains(errout, ScopedPassExitNote) {
+		t.Fatalf("=false then --strict-exit: code=%d stderr=%q", code, errout)
+	}
 	if code, _, errout := runCLIForTest(t, "check", "--help"); code != ExitOK || strings.Contains(errout, ScopedPassExitNote) {
 		t.Fatalf("help code=%d stderr=%q", code, errout)
 	}

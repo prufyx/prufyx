@@ -197,17 +197,47 @@ case "$code" in
   0) echo "Prufyx: pass for the declared scope." ;;
   10) echo "Prufyx: BLOCKED."
       if [ "$fail_blocked" = 1 ]; then die "prufyx found problems that must be fixed (exit 10)"; fi ;;
-  11) echo "Prufyx: UNKNOWN: no blocker in the checks that ran, but some areas were not checked."
-      # A manifest that uses an API version the target does not serve is a
+  11) # A manifest that uses an API version the target does not serve is a
       # fact from the reviewed removal table, not a missing review: it fails
-      # the step under every fail-on except none.
+      # the step under every fail-on except none. When fail-on is not none the
+      # answer must be confirmed from a JSON report; any deviation (the second
+      # scan not exiting 11, empty or unparsable output) fails closed.
+      notserved=0
       if [ "$in_failon" != none ] && [ "$fail_unknown" != 1 ]; then
-        # The scan exits 11 here; only the report text is wanted.
-        jsonreport="$("$bin" scan "${args[@]}" --format json 2>/dev/null || true)"
-        if printf '%s' "$jsonreport" | grep -q '"reason":"API_VERSION_NOT_SERVED"'; then
-          die "manifests use API versions the target does not serve (API_VERSION_NOT_SERVED, exit 11); migrate them to a served API version"
+        if [ "$in_format" = json ]; then
+          # The first report is already JSON; no second scan.
+          [ -s "$report" ] || die "the JSON report is empty, so the gaps could not be confirmed; failing closed (exit 11)"
+          jsonreport="$(cat "$report")"
+        else
+          set +e
+          jsonreport="$("$bin" scan "${args[@]}" --format json 2>/dev/null)"
+          jcode=$?
+          set -e
+          [ "$jcode" = 11 ] || die "could not confirm the gaps: the confirming scan exited $jcode, not 11; failing closed"
+          [ -n "$jsonreport" ] || die "could not confirm the gaps: the confirming scan printed nothing; failing closed"
+        fi
+        if command -v jq >/dev/null 2>&1; then
+          set +e
+          printf '%s' "$jsonreport" | jq -e '[.. | objects | select(.reason? == "API_VERSION_NOT_SERVED")] | length > 0' >/dev/null 2>&1
+          jqcode=$?
+          set -e
+          case "$jqcode" in
+            0) notserved=1 ;;
+            1) ;;
+            *) die "could not parse the JSON report to confirm the gaps; failing closed" ;;
+          esac
+        else
+          # Without jq: the report must look like one JSON object, and the
+          # reason is matched with optional whitespace around the colon.
+          printf '%s' "$jsonreport" | grep -Eq '^[[:space:]]*\{' || die "the confirming report is not a JSON object; failing closed"
+          if printf '%s' "$jsonreport" | grep -Eq '"reason"[[:space:]]*:[[:space:]]*"API_VERSION_NOT_SERVED"'; then notserved=1; fi
         fi
       fi
+      if [ "$notserved" = 1 ]; then
+        echo "Prufyx: UNKNOWN: manifests use API versions the target does not serve (API_VERSION_NOT_SERVED); migrate them before upgrading."
+        die "manifests use API versions the target does not serve (API_VERSION_NOT_SERVED, exit 11); migrate them to a served API version. The step outputs stay verdict=unknown and exit-code=11."
+      fi
+      echo "Prufyx: UNKNOWN: no blocker in the checks that ran, but some areas were not checked."
       if [ "$fail_unknown" != 1 ]; then
         printf '::warning title=Prufyx::%s\n' "UNKNOWN (exit 11): not every area was checked, so this is not a pass. The report names what was not checked. Set fail-on: unknown to stop the job on this." >&2
       fi

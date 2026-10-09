@@ -520,10 +520,13 @@ What the log holds:
 - One `results` entry per not-checked area, with `level: "warning"`, the
   rule id `prufyx/gap/<REASON>` (for example `prufyx/gap/LINE_NOT_ATTESTED`),
   the message `<what was not checked> - <what to do>`, and a location at the
-  first input file (line 1; `prufyx.yaml` when only standard input was read).
+  first input file (line 1; the `--config` file, or `prufyx.yaml`, when only
+  standard input was read).
   Code scanning does not show tool notifications, so without these results an
-  `UNKNOWN` scan would read as "no alerts". A warning is not a blocker and
-  never fails a check by itself; it is there so that "not decided" is visible.
+  `UNKNOWN` scan would read as "no alerts". A warning is not a blocker. With
+  GitHub's default check-failure setting (errors only) it does not fail a
+  check; a repository that is set to fail on warnings will. It is there so
+  that "not decided" is visible.
 - One `toolExecutionNotifications` entry per not-checked area (`warning`), per
   combination outside a documented support range (`warning`), per one-way
   change (`note`) and per unverified lead (`note`). Only a finding is an
@@ -534,8 +537,9 @@ What the log holds:
   exit code.
 
 Code scanning shows the results: every blocker as an error and every
-not-checked area as a warning, so an undecided scan is never an empty alert
-list. Unsupported combinations, one-way changes and leads are in the uploaded
+not-checked area as a warning. Whether a warning on line 1 of a file the
+pull request did not change shows on the pull request, or only in the
+Security tab, is a GitHub behaviour this repository has not verified. Unsupported combinations, one-way changes and leads are in the uploaded
 file as notifications, not in the alerts list; use the Markdown or human
 output to read them in a job log. With `--redact`, every path becomes `redacted/<12 hex>` and every
 name and namespace a digest, so the alerts cannot be placed in the repository.

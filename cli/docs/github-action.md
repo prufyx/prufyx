@@ -60,8 +60,10 @@ jobs:
 ```
 
 With `format: sarif`, a blocker is an error alert and each area that was not
-checked is a warning alert (`prufyx/gap/<REASON>`), so an undecided scan does
-not read as "no alerts" in the Security tab.
+checked is a warning alert (`prufyx/gap/<REASON>`). A not-checked area is
+therefore a result in the Security tab, not only a notification. Where GitHub
+shows a warning on line 1 of a file a pull request did not change is a GitHub
+behaviour this project has not verified.
 
 The upload step is not part of the action, so you choose whether to use it. It
 needs `security-events: write`. A pull request from a fork gets a read-only
@@ -97,7 +99,12 @@ warning annotation that not every area was checked: a green step is not a
 pass. The one exception is the gap `API_VERSION_NOT_SERVED`: a manifest uses an API
 version the target Kubernetes release does not serve, which the reviewed removal
 table establishes. That fails the step under `blocked` (the default), `unknown`
-and `blocked,unknown`; only `none` lets it pass. Use `fail-on: unknown` if the job must stop until a person has reviewed
+and `blocked,unknown`; only `none` lets it pass. The step outputs stay `verdict=unknown` and
+`exit-code=11` when the step fails for this reason, so an `if:` that tests
+`verdict == 'blocked'` does not catch it; test the step outcome instead. To
+confirm the gap the action reads a JSON report (the report itself when
+`format: json`, else one more scan); if that report cannot be read, or the
+confirming scan does not exit `11`, the step fails rather than passing. Use `fail-on: unknown` if the job must stop until a person has reviewed
 the gaps (see [answers and exit codes](scan.md#answers-and-exit-codes)).
 Invalid input (exit `2`) and a knowledge integrity failure (exit `3`) always
 fail the step, whatever `fail-on` says. Because `scan` rarely answers PASS

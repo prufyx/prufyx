@@ -212,7 +212,12 @@ func ClosestProjects(name string, limit int) []string {
 		return list[i].slug < list[j].slug
 	})
 	out := make([]string, 0, limit)
+	// A slug that shares almost nothing with the name is noise, not a guess.
+	closeEnough := max(2, (len(name)+1)/3)
 	for index := 0; index < len(list) && index < limit; index++ {
+		if list[index].distance > closeEnough {
+			break
+		}
 		out = append(out, list[index].slug)
 	}
 	return out

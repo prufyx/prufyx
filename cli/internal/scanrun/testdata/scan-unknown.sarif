@@ -88,7 +88,7 @@
             }
           ],
           "partialFingerprints": {
-            "prufyxResult/v1": "b5a1e1c9640fe753d7a4b74a2882a9560f73c10dd65437524e47c667272df5cc"
+            "prufyxResult/v1": "263e87590dba546065ec12d66bc0bece6eebce3824d9dff70b1d5a38eaf6c0bf"
           },
           "properties": {
             "component": "kubernetes",
@@ -118,7 +118,7 @@
             }
           ],
           "partialFingerprints": {
-            "prufyxResult/v1": "a0f2ce79425e4bf83a37be633aea44ff53afa2fc9f96826b563da9f4ca72389d"
+            "prufyxResult/v1": "df47d11f0d9c6be22f9573237348575799aa58ca24269bb34a6773cfe2cfa83b"
           },
           "properties": {
             "component": "kubernetes",

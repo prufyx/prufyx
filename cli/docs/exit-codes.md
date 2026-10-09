@@ -57,7 +57,7 @@ echo $?   # 14 when the checked rules passed, 10 when one blocked, 11 when unkno
   output, JSON and replay reports are byte-identical to the run without the
   flag, so a report produced with it replays without it.
 - On exit `14` it prints one line to standard error:
-  `prufyx: note: scoped PASS: exit 14 (--strict-exit); this is not a complete PASS`.
+  `prufyx: note: scoped PASS: exit 14 (--strict-exit); this is not a complete PASS, see cli/docs/exit-codes.md`.
 - With the flag, `check` never exits `0` for a result. Help output
   (`prufyx check --help`) still exits `0`.
 - `scan` does not take the flag: its `0` already means a complete scope, and

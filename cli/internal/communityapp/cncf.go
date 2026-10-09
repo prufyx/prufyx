@@ -19,6 +19,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 )
@@ -952,6 +953,7 @@ Add --show-passes with --format human on the Kubernetes native-resource route an
 				fmt.Fprintln(r.stdout, line)
 			}
 			fmt.Fprintln(r.stdout, claim.EvidenceBasisLine())
+			writeCitedSources(r.stdout, claim)
 		}
 		if err := writeNotices(r.stdout, summary.notices); err != nil {
 			return ExitIntegrity
@@ -1175,7 +1177,27 @@ func (r runtime) cncfProjectError(project string, err error) int {
 	return r.fail(message, ExitUsage)
 }
 
+// writeCitedSources prints the pinned sources of a claim whose next action
+// sends the user to "its cited source": a stale or withdrawn rule. The native
+// routes print them for every claim; the generic route prints only these, so
+// the action refers to something the person can see.
+func writeCitedSources(out io.Writer, claim constraintengine.Claim) {
+	if claim.ReasonCode != "RULE_EVIDENCE_STALE" && claim.ReasonCode != "RULE_EVIDENCE_WITHDRAWN" {
+		return
+	}
+	for _, source := range claim.Sources {
+		fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest)
+	}
+}
+
+// olderContractMessage is the replay refusal for a report saved by a build
+// whose guidance text differs; the decisions are unchanged.
+const olderContractMessage = "replay refused: the report is from an older engine contract (the wording of its next actions has changed; its decisions are not in question). Generate a new report with this build; replay needs the exact bytes"
+
 func (r runtime) cncfError(message string, err error) int {
+	if errors.Is(err, constraintengine.ErrReplayOlderContract) {
+		return r.fail(olderContractMessage, ExitUsage)
+	}
 	if errors.Is(err, cncfcheck.ErrIntegrity) || errors.Is(err, currentbundle.ErrIntegrity) {
 		return r.fail(message, ExitIntegrity)
 	}

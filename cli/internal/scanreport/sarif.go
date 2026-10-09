@@ -286,7 +286,11 @@ func sarifRules(report Report) ([]sarifRule, map[string]int) {
 			DefaultConfiguration: sarifConfig{sarifNote}, Properties: sarifRuleProps{Basis: "lead", Kind: kindLead}})
 	}
 	for _, g := range report.Gaps {
-		add(sarifRule{ID: gapRuleID(g), ShortDescription: sarifText{Text(labelSarifGapRule, g.Reason)}, Help: sarifText{Text(labelSarifGapHelp, g.Reason)},
+		help := Text(labelSarifGapHelp, g.Reason)
+		if g.Reason == ReasonAPIVersionNotServed {
+			help = Text(labelSarifGapHelpNotServed, g.Reason)
+		}
+		add(sarifRule{ID: gapRuleID(g), ShortDescription: sarifText{Text(labelSarifGapRule, g.Reason)}, Help: sarifText{help},
 			DefaultConfiguration: sarifConfig{sarifWarning}, Properties: sarifRuleProps{Basis: "none", Kind: kindGap}})
 	}
 	ids := make([]string, 0, len(byID))
@@ -371,15 +375,16 @@ func sarifResults(report Report, index map[string]int) ([]sarifResult, int) {
 func gapRuleID(g Gap) string { return gapRulePrefix + g.Reason }
 
 // appendGapResults adds one warning result per gap after the findings, in
-// report order (the report is already in its canonical order), so that an
-// undecided scan is never an empty result list. Each is located at the first
-// input file, or at prufyx.yaml when no file was read. The size limit keeps
+// report order (the report is already in its canonical order), so that every
+// not-checked area is a result, not only a notification. Each is located at the first
+// input file, else at the file named by --config, else at prufyx.yaml. The size limit keeps
 // the findings first; what it drops is counted with the dropped findings.
 func appendGapResults(report Report, index map[string]int, results []sarifResult, dropped int) ([]sarifResult, int) {
 	uri := sarifURI(report.Anchor)
 	if uri == "" {
 		uri = gapFallbackURI
 	}
+	seen := map[string]int{}
 	for _, g := range report.Gaps {
 		if len(results) >= SARIFMaxResults {
 			dropped++
@@ -395,15 +400,21 @@ func appendGapResults(report Report, index map[string]int, results []sarifResult
 			Message: sarifText{cut(fmt.Sprintf(labelGapLine, g.Detail, g.Action), sarifMessageMax)},
 			Locations: []sarifLocation{{PhysicalLocation: sarifPhysical{
 				ArtifactLocation: sarifArtifact{URI: uri, URIBaseID: sarifSrcRoot}, Region: &sarifRegion{StartLine: 1}}}},
-			PartialFingerprints: map[string]string{fingerprintKey: gapFingerprint(id, g.Component, hop, g.Detail)},
+			PartialFingerprints: map[string]string{fingerprintKey: gapFingerprint(id, g.Component, hop, seen)},
 			Properties:          sarifResultProps{Component: g.Component, Hop: hop, Basis: "none", Match: "gap"},
 		})
 	}
 	return results, dropped
 }
 
-func gapFingerprint(ruleID, component, hop, detail string) string {
-	sum := sha256.Sum256([]byte(ruleID + "\x00" + component + "\x00" + hop + "\x00" + detail))
+// gapFingerprint identifies a gap across runs. It hashes the rule, the
+// component and the hop, and the position among gaps with the same three:
+// not the detail, which carries counts that change without the gap changing.
+func gapFingerprint(ruleID, component, hop string, seen map[string]int) string {
+	key := ruleID + "\x00" + component + "\x00" + hop
+	n := seen[key]
+	seen[key] = n + 1
+	sum := sha256.Sum256([]byte(key + "\x00" + strconv.Itoa(n)))
 	return hex.EncodeToString(sum[:])
 }
 

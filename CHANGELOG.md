@@ -309,8 +309,29 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - UNKNOWN next actions are plain words. The Kubernetes apply-set check names
   the missing declaration and its flag (`--resource-scope-complete`,
   `--target-api-apply-required`, `--distribution official_upstream`); other
-  routes say which fact is missing from the input and where to declare it; a
-  rule whose declared fact does not match says it does not apply.
+  routes say which fact is missing from the input and exactly where to declare
+  it (the `facts` list of the `current` or `proposed` component, with
+  `"state": "declared"` and a `boolValue`, `enumValue` or `setValue`); a rule
+  whose declared fact does not match says it does not apply. The Kubernetes
+  route names every missing declaration in one line.
+- Replay: the wording of the next actions in a `check` report changed, and
+  replay compares exact bytes. A report saved by an earlier build that holds an
+  UNKNOWN claim no longer replays; `--replay-report` now says "the report is
+  from an older engine contract" and exits 2 (it used to exit 3 with a generic
+  failure), because only the wording differs and no decision does. Generate a
+  new report with this build. A report whose decisions differ is still an
+  integrity failure (exit 3).
+- The GitHub Action fails closed when it cannot confirm the gaps: with
+  `format: json` it reads the report it already has; with another format the
+  confirming JSON scan must exit 11 with output, else the step fails. The
+  gap is read with `jq` (or a whitespace tolerant check where `jq` is absent).
+  SARIF gap results keep their identity when only the counts in the message
+  change, sit at the `--config` file when only standard input was read, and
+  the help of `prufyx/gap/API_VERSION_NOT_SERVED` says to migrate. An
+  unknown component name only gets "closest" suggestions that are near it. A
+  scan that evaluated nothing says "UNKNOWN: nothing could be evaluated".
+  `--strict-exit` followed by `--strict-exit=false` prints the exit 0 note, as
+  the last form decides.
 - The knowledge age note no longer recommends `prufyx db update`, which needs a
   source and a trust root that no official feed provides yet. It names a newer
   source build or a signed package imported with `prufyx db import`, and says

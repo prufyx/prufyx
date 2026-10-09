@@ -91,8 +91,12 @@ func RunCLI(ctx context.Context, args []string, stdout, stderr io.Writer, versio
 	if code != ExitOK || len(args) == 0 || args[0] != "check" {
 		return code
 	}
+	// The last --strict-exit form decides, as in Run.
+	if _, strict := stripStrictExit(args); strict {
+		return code
+	}
 	for _, a := range args[1:] {
-		if help(a) || a == "--strict-exit" || a == "--strict-exit=true" {
+		if help(a) {
 			return code
 		}
 	}

@@ -318,6 +318,11 @@ const (
 	headlineUnknownOne         = "UNKNOWN: no blocker in the checks that ran; 1 area was not checked (see NOT CHECKED)"
 	headlineUnknownMany        = "UNKNOWN: no blocker in the checks that ran; %d areas were not checked (see NOT CHECKED)"
 	headlineUnknownNone        = "UNKNOWN: no blocker in the checks that ran; some areas were not checked"
+	// When no hop was checked, or no component has rules, nothing ran: the
+	// headline does not claim a blocker-free "checks that ran".
+	headlineNothingRanOne  = "UNKNOWN: nothing could be evaluated; 1 area was not checked (see NOT CHECKED)"
+	headlineNothingRanMany = "UNKNOWN: nothing could be evaluated; %d areas were not checked (see NOT CHECKED)"
+	headlineNothingRanNone = "UNKNOWN: nothing could be evaluated; some areas were not checked"
 	// An undecided report that names a manifest the target does not serve
 	// never leads with "no blockers": the object fails on the target
 	// whatever else was checked.
@@ -327,6 +332,12 @@ const (
 	headlineNotServedMany = "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (%d other areas were not checked)"
 	headlinePass          = "PASS FOR THE DECLARED SCOPE"
 )
+
+// somethingRan is true when at least one hop was checked against a component
+// that has rules. Without that, "the checks that ran" would be empty.
+func somethingRan(report Report) bool {
+	return report.Summary.Hops > 0 && report.Summary.ComponentsWithRules > 0
+}
 
 func headline(report Report) string {
 	switch report.Verdict {
@@ -363,6 +374,15 @@ func headline(report Report) string {
 		default:
 			return fmt.Sprintf(headlineNotServedMany, others)
 		}
+	}
+	if !somethingRan(report) {
+		switch len(report.Gaps) {
+		case 0:
+			return headlineNothingRanNone
+		case 1:
+			return headlineNothingRanOne
+		}
+		return fmt.Sprintf(headlineNothingRanMany, len(report.Gaps))
 	}
 	switch len(report.Gaps) {
 	case 0:
@@ -410,6 +430,7 @@ const (
 	labelComponentsRulesOne     = "%d of 1 component has rules"
 	labelComponentsRulesMany    = "%d of %d components have rules"
 	labelPartiallyEvaluated     = " (partially evaluated)"
+	labelNothingEvaluated       = " (nothing evaluated)"
 	labelPassCount              = " %d checks passed (--show-passes)."
 	labelPassCountOne           = " 1 check passed (--show-passes)."
 	labelNotEvaluated           = "Scope limits: %s."
@@ -440,73 +461,77 @@ const (
 
 // SARIF and Markdown labels.
 const (
-	labelResultMessage    = "%s \u2014 fix: %s"
-	labelNoticeMessage    = "This is a one-way change that cannot be rolled back. Before you upgrade: %s"
-	labelNoticeNotEstab   = "A one-way change was not established (%s). Next action: %s"
-	labelLeadMessage      = "Unverified lead; it does not block. Worth checking: %s"
-	labelUnsupportedMsg   = "Outside a documented support range: %s. Fix: %s"
-	labelSarifGapRule     = "Area not checked: %s"
-	labelSarifGapHelp     = "Prufyx could not decide this area (%s), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
-	labelSarifTruncated   = "SARIF output is limited to %d results; %d more are in the JSON report"
-	labelMDProblems       = "PROBLEMS TO FIX (%d)"
-	labelMDPath           = "%s %s -> %s"
-	labelMDHopHeader      = "Hop"
-	labelMDProblemHeader  = "Problem"
-	labelMDWhereHeader    = "Where"
-	labelMDFixHeader      = "Fix"
-	labelMDAreaHeader     = "Area"
-	labelMDDetailHeader   = "What"
-	labelMDActionHeader   = "Next step"
-	labelMDRuleHeader     = "Rule"
-	labelMDRulesHeader    = "Rules"
-	labelMDSourceHeader   = "Source"
-	labelMDLinesHeader    = "Lines"
-	labelMDRevisionHeader = "Revision"
-	labelMDStatusHeader   = "Status"
-	labelMDSources        = "SOURCES"
-	labelMDHops           = "HOPS"
-	labelMDDetails        = "Evidence and provenance"
-	labelMDEvaluatedAt    = "evaluated at: %s"
-	labelMDInput          = "input: %s"
-	labelMDConfig         = "config: %s"
-	labelMDKnowledge      = "knowledge: %s %s %s"
-	labelMDEngine         = "engine contract: %s"
-	labelMDBuild          = "build: %s"
-	labelMDNoNetwork      = "network used: no"
-	labelMDNetwork        = "network used: yes"
-	labelMDMore           = "... and %d more"
+	labelResultMessage         = "%s \u2014 fix: %s"
+	labelNoticeMessage         = "This is a one-way change that cannot be rolled back. Before you upgrade: %s"
+	labelNoticeNotEstab        = "A one-way change was not established (%s). Next action: %s"
+	labelLeadMessage           = "Unverified lead; it does not block. Worth checking: %s"
+	labelUnsupportedMsg        = "Outside a documented support range: %s. Fix: %s"
+	labelSarifGapRule          = "Area not checked: %s"
+	labelSarifGapHelp          = "Prufyx could not decide this area (%s), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
+	labelSarifGapHelpNotServed = "A manifest uses an API version the target does not serve (%s). Migrate it to a served API version before you upgrade. The Prufyx GitHub Action fails the step on this."
+	labelSarifTruncated        = "SARIF output is limited to %d results; %d more are in the JSON report"
+	labelMDProblems            = "PROBLEMS TO FIX (%d)"
+	labelMDPath                = "%s %s -> %s"
+	labelMDHopHeader           = "Hop"
+	labelMDProblemHeader       = "Problem"
+	labelMDWhereHeader         = "Where"
+	labelMDFixHeader           = "Fix"
+	labelMDAreaHeader          = "Area"
+	labelMDDetailHeader        = "What"
+	labelMDActionHeader        = "Next step"
+	labelMDRuleHeader          = "Rule"
+	labelMDRulesHeader         = "Rules"
+	labelMDSourceHeader        = "Source"
+	labelMDLinesHeader         = "Lines"
+	labelMDRevisionHeader      = "Revision"
+	labelMDStatusHeader        = "Status"
+	labelMDSources             = "SOURCES"
+	labelMDHops                = "HOPS"
+	labelMDDetails             = "Evidence and provenance"
+	labelMDEvaluatedAt         = "evaluated at: %s"
+	labelMDInput               = "input: %s"
+	labelMDConfig              = "config: %s"
+	labelMDKnowledge           = "knowledge: %s %s %s"
+	labelMDEngine              = "engine contract: %s"
+	labelMDBuild               = "build: %s"
+	labelMDNoNetwork           = "network used: no"
+	labelMDNetwork             = "network used: yes"
+	labelMDMore                = "... and %d more"
 )
 
 // Usage and input errors. The command prints them after "prufyx: ".
 const (
-	UsageInputNotAccepted    = "INPUT NOT ACCEPTED: %s"
-	UsageIntegrity           = "KNOWLEDGE INTEGRITY FAILURE"
-	UsageUnknownFlag         = "unknown flag %s; use prufyx scan --help"
-	UsageFlagValue           = "flag %s needs a value; use prufyx scan --help"
-	UsageBadValue            = "invalid value for %s; use prufyx scan --help"
-	UsageRepeated            = "%s given more than once"
-	UsageComponentVersion    = "%s takes COMPONENT=VERSION, for example kubernetes=1.30.4"
-	UsageVersion             = "version %s of %s is not X.Y.Z"
-	UsageUnknownComponent    = "unknown component %s; closest: %s"
-	UsageConflict            = "%s is given two different versions for %s"
-	UsageNoTarget            = "at least one target is required: --to COMPONENT=VERSION or target: in prufyx.yaml"
-	UsageKnowledgeDBNow      = "--now cannot be used with --knowledge-db: a knowledge database is verified and evaluated at the current time"
-	UsageKnowledgeEmbeddedDB = "--knowledge=embedded cannot be used with --knowledge-db"
-	UsageKnowledgeDBFailed   = "KNOWLEDGE INTEGRITY FAILURE: the knowledge database could not be verified (%s); nothing was evaluated and the embedded knowledge was not used"
-	UsageNow                 = "--now must be canonical UTC with whole seconds, for example 2026-10-04T00:00:00Z"
-	UsageStdinTwice          = "standard input (-) can be read only once"
-	UsageConfig              = "configuration file: %s"
-	UsageConfigNotAccepted   = "configuration file is not accepted"
-	UsagePermissions         = "an input file's permissions are refused by --input-permissions %s; run chmod go-rwx on it, or use --input-permissions refuse-writable"
-	UsagePermissionsWrite    = "an input file is writable by other users; run chmod go-w on it"
-	UsageInputUnreadable     = "an input path cannot be read"
-	UsageInputLimit          = "the inputs exceed a size limit"
-	UsageInputWindows        = "file and directory input is not supported on Windows; pipe the manifest on standard input (use -)"
-	UsageInputDecode         = "an input file is not valid YAML or JSON within the supported subset"
-	UsageInputDetail         = "%s (%s)"
-	UsageConfigInputs        = "inputs in prufyx.yaml are relative to its directory and must stay inside it"
-	UsageUnsupportedVersion  = "%s %s is not a version scan can plan"
-	UsageRequireBasis        = "--require-basis takes a comma-separated list of reviewed, mechanical, empirical, consensus, lead"
+	UsageInputNotAccepted = "INPUT NOT ACCEPTED: %s"
+	UsageIntegrity        = "KNOWLEDGE INTEGRITY FAILURE"
+	UsageUnknownFlag      = "unknown flag %s; use prufyx scan --help"
+	UsageFlagValue        = "flag %s needs a value; use prufyx scan --help"
+	UsageBadValue         = "invalid value for %s; use prufyx scan --help"
+	UsageRepeated         = "%s given more than once"
+	UsageComponentVersion = "%s takes COMPONENT=VERSION, for example kubernetes=1.30.4"
+	UsageVersion          = "version %s of %s is not X.Y.Z"
+	UsageUnknownComponent = "unknown component %s; closest: %s"
+	// UsageUnknownComponentNoMatch is the same refusal when no known
+	// component is near the name.
+	UsageUnknownComponentNoMatch = "unknown component %s; list the known projects with `prufyx catalog cncf`"
+	UsageConflict                = "%s is given two different versions for %s"
+	UsageNoTarget                = "at least one target is required: --to COMPONENT=VERSION or target: in prufyx.yaml"
+	UsageKnowledgeDBNow          = "--now cannot be used with --knowledge-db: a knowledge database is verified and evaluated at the current time"
+	UsageKnowledgeEmbeddedDB     = "--knowledge=embedded cannot be used with --knowledge-db"
+	UsageKnowledgeDBFailed       = "KNOWLEDGE INTEGRITY FAILURE: the knowledge database could not be verified (%s); nothing was evaluated and the embedded knowledge was not used"
+	UsageNow                     = "--now must be canonical UTC with whole seconds, for example 2026-10-04T00:00:00Z"
+	UsageStdinTwice              = "standard input (-) can be read only once"
+	UsageConfig                  = "configuration file: %s"
+	UsageConfigNotAccepted       = "configuration file is not accepted"
+	UsagePermissions             = "an input file's permissions are refused by --input-permissions %s; run chmod go-rwx on it, or use --input-permissions refuse-writable"
+	UsagePermissionsWrite        = "an input file is writable by other users; run chmod go-w on it"
+	UsageInputUnreadable         = "an input path cannot be read"
+	UsageInputLimit              = "the inputs exceed a size limit"
+	UsageInputWindows            = "file and directory input is not supported on Windows; pipe the manifest on standard input (use -)"
+	UsageInputDecode             = "an input file is not valid YAML or JSON within the supported subset"
+	UsageInputDetail             = "%s (%s)"
+	UsageConfigInputs            = "inputs in prufyx.yaml are relative to its directory and must stay inside it"
+	UsageUnsupportedVersion      = "%s %s is not a version scan can plan"
+	UsageRequireBasis            = "--require-basis takes a comma-separated list of reviewed, mechanical, empirical, consensus, lead"
 )
 
 // Knowledge database failure reasons, shown in UsageKnowledgeDBFailed.

@@ -199,8 +199,12 @@ func checkedLine(report Report) string {
 	if summary.ComponentsDetected == 1 {
 		components = fmt.Sprintf(labelComponentsRulesOne, summary.ComponentsWithRules)
 	}
-	if report.Verdict != VerdictPass {
+	switch {
+	case report.Verdict == VerdictPass:
+	case somethingRan(report):
 		components += labelPartiallyEvaluated
+	default:
+		components += labelNothingEvaluated
 	}
 	return fmt.Sprintf(labelChecked, count(summary.DocumentsRead, labelDocumentOne, labelDocuments), count(summary.Hops, labelHopOne, labelHops), components)
 }

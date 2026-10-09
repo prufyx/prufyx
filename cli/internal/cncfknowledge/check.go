@@ -16,6 +16,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 )
@@ -344,7 +345,13 @@ func ReplayHistorical(req Request, expected []byte) (HistoricalReplay, error) {
 		return HistoricalReplay{}, err
 	}
 	raw, err := MarshalReport(reproduced)
-	if err != nil || !bytes.Equal(raw, canonical) {
+	if err != nil {
+		return HistoricalReplay{}, ErrIntegrity
+	}
+	if err := constraintengine.ReplayMismatch(raw, canonical); err != nil {
+		if errors.Is(err, constraintengine.ErrReplayOlderContract) {
+			return HistoricalReplay{}, err
+		}
 		return HistoricalReplay{}, ErrIntegrity
 	}
 	replay := HistoricalReplay{

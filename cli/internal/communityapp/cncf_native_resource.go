@@ -297,7 +297,7 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 		}
 		claims := report.Check.Claims
 		if project == "kubernetes" {
-			claims = withKubernetesDeclarationActions(claims, kubernetesDeclarationAction(prepared.Reason, targetAPIApplyRequired, kubernetesDistribution))
+			claims = withKubernetesDeclarationActions(claims, kubernetesDeclarationAction(prepared.Reason, resourceScopeComplete, targetAPIApplyRequired, kubernetesDistribution))
 		}
 		summary := summarizeClaims(claims, flagProvided(args, "show-passes"))
 		if prometheusRemoteWriteMode {

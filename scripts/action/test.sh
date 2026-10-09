@@ -25,10 +25,16 @@ new_env() {
 # fake prufyx: record argv, one per line, per call
 for a in "$@"; do printf '%s\n' "$a"; done >>"$FAKE_ARGV"
 printf -- '--call--\n' >>"$FAKE_ARGV"
-printf '%s' "${FAKE_STDOUT:-fake-report}"
+out="${FAKE_STDOUT:-fake-report}"; code="${FAKE_EXIT:-0}"
+# A confirming scan (--format json) can be scripted apart from the first one.
+case " $* " in
+  *" --format json "*)
+    if [ -n "${FAKE_CONFIRM_SET:-}" ]; then out="${FAKE_CONFIRM_STDOUT:-}"; code="${FAKE_CONFIRM_EXIT:-11}"; fi ;;
+esac
+printf '%s' "$out"
 [ -z "${FAKE_STDERR:-}" ] || printf '%s\n' "$FAKE_STDERR" >&2
 [ -z "${FAKE_STDERR_RAW:-}" ] || printf '%s' "$FAKE_STDERR_RAW" >&2
-exit "${FAKE_EXIT:-0}"
+exit "$code"
 FAKE
   chmod +x "$root/w/temp/prufyx-action/bin/prufyx"
   : >"$root/w/argv"
@@ -110,11 +116,12 @@ new_env; run_scan PRUFYX_IN_TO='' PRUFYX_IN_CONFIG=prufyx.yaml
 expect_ok "config without to"
 
 # --- exit code handling ------------------------------------------------------
+NOGAPS='{"gaps":[]}'
 new_env; run_scan FAKE_EXIT=10
 [ "$RC" -ne 0 ] && grep -q '^verdict=blocked$' "$root/w/out" && ok "blocked fails by default" || bad "blocked default" "rc=$RC"
 new_env; run_scan FAKE_EXIT=10 PRUFYX_IN_FAIL_ON=none
 [ "$RC" -eq 0 ] && ok "fail-on none passes blocked" || bad "fail-on none" "rc=$RC"
-new_env; run_scan FAKE_EXIT=11
+new_env; run_scan FAKE_EXIT=11 FAKE_STDOUT="$NOGAPS"
 [ "$RC" -eq 0 ] && grep -q '^verdict=unknown$' "$root/w/out" && ok "unknown passes by default" || bad "unknown default" "rc=$RC"
 new_env; run_scan FAKE_EXIT=11 PRUFYX_IN_FAIL_ON=blocked,unknown
 [ "$RC" -ne 0 ] && ok "fail-on unknown fails" || bad "fail-on unknown" "rc=$RC"
@@ -172,7 +179,7 @@ check_failon() { # check_failon VALUE f0 f10 f11 f2 f3
   local codes=(0 10 11 2 3) i=0 c want
   for c in "${codes[@]}"; do
     want="$1"; shift
-    new_env; run_scan FAKE_EXIT="$c" PRUFYX_IN_FAIL_ON="$v"
+    new_env; run_scan FAKE_EXIT="$c" FAKE_STDOUT="$NOGAPS" PRUFYX_IN_FAIL_ON="$v"
     if { [ "$want" = 1 ] && [ "$RC" -ne 0 ]; } || { [ "$want" = 0 ] && [ "$RC" -eq 0 ]; }; then ok "fail-on=$v exit $c fails=$want"; else bad "fail-on=$v exit $c" "wanted fail=$want, rc=$RC"; fi
   done
 }
@@ -183,7 +190,7 @@ check_failon blocked,unknown 0 1 1 1 1
 check_failon unknown,blocked 0 1 1 1 1
 new_env; run_scan FAKE_EXIT=7 PRUFYX_IN_FAIL_ON=none
 [ "$RC" -ne 0 ] && ok "unexpected exit code fails" || bad "exit 7" "passed"
-new_env; run_scan FAKE_EXIT=11
+new_env; run_scan FAKE_EXIT=11 FAKE_STDOUT="$NOGAPS"
 grep -q '^::warning title=Prufyx::' "$root/w/log" && ok "exit 11 under default adds a warning annotation" || bad "exit 11 warning" "$(cat "$root/w/log")"
 new_env; run_scan FAKE_EXIT=11 PRUFYX_IN_FAIL_ON=unknown
 grep -q '^::warning' "$root/w/log" && bad "no warning when failing" "warned" || ok "no warning when exit 11 fails the step"
@@ -196,6 +203,50 @@ new_env; run_scan FAKE_EXIT=11 FAKE_STDOUT="$NOTSERVED" PRUFYX_IN_FAIL_ON=none
 [ "$RC" -eq 0 ] && ok "not-served gap passes under fail-on none" || bad "not-served none" "rc=$RC"
 new_env; run_scan FAKE_EXIT=11 FAKE_STDOUT='{"gaps":[{"reason":"LINE_NOT_ATTESTED"}]}'
 [ "$RC" -eq 0 ] && ok "other UNKNOWN gaps keep the default" || bad "other unknown default" "rc=$RC"
+new_env; run_scan FAKE_EXIT=11 FAKE_STDOUT="$NOTSERVED"
+grep -q 'API_VERSION_NOT_SERVED' "$root/w/log" && ! grep -q 'no blocker in the checks that ran' "$root/w/log" && ok "not-served log line does not say no blocker" || bad "not-served log" "$(cat "$root/w/log")"
+# JSON with whitespace after the colon (pretty printed) is still recognised.
+SPACED='{
+  "gaps": [ { "reason": "API_VERSION_NOT_SERVED" } ]
+}'
+new_env; run_scan FAKE_EXIT=11 FAKE_STDOUT="$SPACED"
+[ "$RC" -ne 0 ] && ok "spaced JSON (jq path) still fails on not-served" || bad "spaced json" "rc=$RC"
+# The same without jq on the path.
+nojq_run() { # nojq_run VAR=VALUE ...
+  mkdir -p "$root/w/nojq"
+  for t in bash grep cat tr wc mktemp mkdir dirname rm cut head tail printf sed awk date chmod ln mv cp env sort uniq tee; do
+    p="$(command -v "$t" 2>/dev/null || true)"; [ -n "$p" ] && [ -x "$p" ] && ln -sf "$p" "$root/w/nojq/$t"
+  done
+  RC=0
+  env -i PATH="$root/w/nojq" HOME="$root/w" RUNNER_TEMP="$root/w/temp" \
+    GITHUB_OUTPUT="$root/w/out" GITHUB_STEP_SUMMARY="$root/w/summary" FAKE_ARGV="$root/w/argv" \
+    PRUFYX_IN_PATHS=manifests PRUFYX_IN_TO=kubernetes=1.25.3 "$@" "$(command -v bash)" "$here/run.sh" >"$root/w/log" 2>&1 || RC=$?
+}
+new_env; nojq_run FAKE_EXIT=11 FAKE_STDOUT="$SPACED"
+[ "$RC" -ne 0 ] && ok "spaced JSON (no jq) still fails on not-served" || bad "spaced json no jq" "rc=$RC $(cat "$root/w/log")"
+new_env; nojq_run FAKE_EXIT=11 FAKE_STDOUT="$NOGAPS"
+[ "$RC" -eq 0 ] && ok "no jq: plain UNKNOWN stays green" || bad "no jq plain unknown" "rc=$RC $(cat "$root/w/log")"
+new_env; nojq_run FAKE_EXIT=11 FAKE_STDOUT="garbage"
+[ "$RC" -ne 0 ] && ok "no jq: non-JSON report fails closed" || bad "no jq garbage" "rc=$RC"
+# Not-served: format json confirms from the first report, no second scan.
+new_env; run_scan FAKE_EXIT=11 FAKE_STDOUT="$NOTSERVED" PRUFYX_IN_FORMAT=json
+calls="$(grep -c '^--call--$' "$root/w/argv")"
+[ "$RC" -ne 0 ] && [ "$calls" -eq 2 ] && ok "format json confirms from the first report" || bad "format json" "rc=$RC calls=$calls"
+new_env; run_scan FAKE_EXIT=11 FAKE_STDOUT="" PRUFYX_IN_FORMAT=json
+[ "$RC" -ne 0 ] && ok "format json: empty first report fails closed" || bad "json empty" "rc=$RC"
+new_env; run_scan FAKE_EXIT=11 FAKE_STDOUT="not json" PRUFYX_IN_FORMAT=json
+[ "$RC" -ne 0 ] && ok "format json: unparsable first report fails closed" || bad "json garbage" "rc=$RC"
+# The confirming scan (format sarif) must exit 11 with output; any deviation fails closed.
+new_env; run_scan FAKE_EXIT=11 PRUFYX_IN_FORMAT=sarif FAKE_CONFIRM_SET=1 FAKE_CONFIRM_EXIT=3 FAKE_CONFIRM_STDOUT=""
+[ "$RC" -ne 0 ] && ok "confirming scan exit 3 fails closed" || bad "confirm exit 3" "rc=$RC"
+new_env; run_scan FAKE_EXIT=11 PRUFYX_IN_FORMAT=sarif FAKE_CONFIRM_SET=1 FAKE_CONFIRM_EXIT=11 FAKE_CONFIRM_STDOUT=""
+[ "$RC" -ne 0 ] && ok "confirming scan with empty output fails closed" || bad "confirm empty" "rc=$RC"
+new_env; run_scan FAKE_EXIT=11 PRUFYX_IN_FORMAT=sarif FAKE_CONFIRM_SET=1 FAKE_CONFIRM_EXIT=11 FAKE_CONFIRM_STDOUT="$SPACED"
+[ "$RC" -ne 0 ] && ok "confirming scan with spaced JSON fails on not-served" || bad "confirm spaced" "rc=$RC"
+new_env; run_scan FAKE_EXIT=11 PRUFYX_IN_FORMAT=sarif FAKE_CONFIRM_SET=1 FAKE_CONFIRM_EXIT=11 FAKE_CONFIRM_STDOUT="$NOGAPS"
+[ "$RC" -eq 0 ] && ok "confirming scan without not-served stays green" || bad "confirm nogaps" "rc=$RC"
+new_env; run_scan FAKE_EXIT=11 PRUFYX_IN_FORMAT=sarif PRUFYX_IN_FAIL_ON=none FAKE_CONFIRM_SET=1 FAKE_CONFIRM_EXIT=3 FAKE_CONFIRM_STDOUT=""
+[ "$RC" -eq 0 ] && ok "fail-on none never runs the confirming scan" || bad "none confirm" "rc=$RC"
 
 # --- two uses in one job keep both reports -------------------------------------
 new_env

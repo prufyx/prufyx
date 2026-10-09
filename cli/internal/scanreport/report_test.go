@@ -228,18 +228,22 @@ func TestHeadlines(t *testing.T) {
 	cases := []struct {
 		name            string
 		findings, gaps  int
+		ran             bool
 		want            string
 		mustNotContains []string
 	}{
-		{"unknown no gap", 0, 0, "UNKNOWN: no blocker in the checks that ran; some areas were not checked", []string{"NO BLOCKERS"}},
-		{"unknown one gap", 0, 1, "UNKNOWN: no blocker in the checks that ran; 1 area was not checked (see NOT CHECKED)", []string{"NO BLOCKERS"}},
-		{"unknown many gaps", 0, 3, "UNKNOWN: no blocker in the checks that ran; 3 areas were not checked (see NOT CHECKED)", []string{"NO BLOCKERS"}},
-		{"blocked alone", 1, 0, "BLOCKED: 1 problem must be fixed before this upgrade", nil},
-		{"blocked many alone", 2, 0, "BLOCKED: 2 problems must be fixed before this upgrade", nil},
-		{"blocked with a gap", 1, 1, "BLOCKED: 1 problem must be fixed; 1 area was not checked", []string{"before this upgrade"}},
-		{"blocked with gaps", 1, 2, "BLOCKED: 1 problem must be fixed; 2 areas were not checked", []string{"before this upgrade"}},
-		{"blocked many with a gap", 3, 1, "BLOCKED: 3 problems must be fixed; 1 area was not checked", []string{"before this upgrade"}},
-		{"blocked many with gaps", 3, 2, "BLOCKED: 3 problems must be fixed; 2 areas were not checked", []string{"before this upgrade"}},
+		{"unknown no gap", 0, 0, true, "UNKNOWN: no blocker in the checks that ran; some areas were not checked", []string{"NO BLOCKERS"}},
+		{"unknown one gap", 0, 1, true, "UNKNOWN: no blocker in the checks that ran; 1 area was not checked (see NOT CHECKED)", []string{"NO BLOCKERS"}},
+		{"unknown many gaps", 0, 3, true, "UNKNOWN: no blocker in the checks that ran; 3 areas were not checked (see NOT CHECKED)", []string{"NO BLOCKERS"}},
+		{"nothing ran, no gap", 0, 0, false, "UNKNOWN: nothing could be evaluated; some areas were not checked", []string{"no blocker in the checks"}},
+		{"nothing ran, one gap", 0, 1, false, "UNKNOWN: nothing could be evaluated; 1 area was not checked (see NOT CHECKED)", []string{"no blocker in the checks"}},
+		{"nothing ran, many gaps", 0, 3, false, "UNKNOWN: nothing could be evaluated; 3 areas were not checked (see NOT CHECKED)", []string{"no blocker in the checks"}},
+		{"blocked alone", 1, 0, true, "BLOCKED: 1 problem must be fixed before this upgrade", nil},
+		{"blocked many alone", 2, 0, true, "BLOCKED: 2 problems must be fixed before this upgrade", nil},
+		{"blocked with a gap", 1, 1, true, "BLOCKED: 1 problem must be fixed; 1 area was not checked", []string{"before this upgrade"}},
+		{"blocked with gaps", 1, 2, true, "BLOCKED: 1 problem must be fixed; 2 areas were not checked", []string{"before this upgrade"}},
+		{"blocked many with a gap", 3, 1, true, "BLOCKED: 3 problems must be fixed; 1 area was not checked", []string{"before this upgrade"}},
+		{"blocked many with gaps", 3, 2, true, "BLOCKED: 3 problems must be fixed; 2 areas were not checked", []string{"before this upgrade"}},
 	}
 	for _, tc := range cases {
 		report := Report{}
@@ -248,6 +252,10 @@ func TestHeadlines(t *testing.T) {
 		}
 		for i := 0; i < tc.gaps; i++ {
 			report.Gaps = append(report.Gaps, gap(i))
+		}
+		if tc.ran {
+			report.Inventory = []Component{{Covered: true}}
+			report.Paths = []Path{{Hops: []Hop{{}}}}
 		}
 		Finalize(&report)
 		if report.Headline != tc.want {
