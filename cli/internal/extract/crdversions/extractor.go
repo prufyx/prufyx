@@ -454,9 +454,9 @@ type origin struct {
 }
 
 // readDefinitions reads the listed files of repo at commit into inv, in path
-// order, and checks that no definition is repeated. from is nil for the
+// order, and checks that no definition is repeated. other is nil for the
 // release's own repository.
-func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string, files []string, inv *Inventory, from *origin) (*Inventory, error) {
+func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string, files []string, inv *Inventory, other *origin) (*Inventory, error) {
 	sort.Strings(files)
 	byName := map[string]string{}
 	byKind := map[string]string{}
@@ -472,16 +472,16 @@ func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string
 			return inv, err
 		}
 		rec, crds, err := parseFile(f, data)
-		if from != nil {
-			rec.Repo, rec.Commit = from.repo.Key, from.commit
+		if other != nil {
+			rec.Repo, rec.Commit = other.repo.Key, other.commit
 		}
 		inv.Files = append(inv.Files, rec)
 		if err != nil {
 			return inv, err
 		}
 		for _, c := range crds {
-			if from != nil {
-				c.Repo, c.Commit = from.repo.Key, from.commit
+			if other != nil {
+				c.Repo, c.Commit = other.repo.Key, other.commit
 			}
 			if prev, dup := byName[c.Name]; dup {
 				return inv, problemf("CustomResourceDefinition %s is defined in both %s and %s", c.Name, prev, c.Path)
