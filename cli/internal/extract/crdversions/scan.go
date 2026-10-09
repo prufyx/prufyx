@@ -315,10 +315,9 @@ type blobInfo struct {
 	// fragment is the bytes read as kubebuilder patch fragments (nil when
 	// they are not strictly decodable or were decoded as definitions).
 	fragment *fragmentRead
-	// configSpecs counts the field specs of the kind of the bytes read as a
-	// kustomize transformer configuration; configProblem is why they are
-	// not one ("" when they are).
-	configSpecs   int
+	// configProblem is why the bytes are not a kustomize transformer
+	// configuration whose field specs of the kind only reach conversion
+	// settings or metadata ("" when they are one).
 	configProblem string
 	// goConstruct: Go code that builds a definition.
 	goConstruct bool
@@ -619,7 +618,7 @@ func summarize(kind int, data []byte) *blobInfo {
 			info.chartDeps = externalChartDeps(obj)
 		}
 		if len(crds) == 0 && info.kinds > 0 {
-			info.configSpecs, info.configProblem = transformerConfig(values[0])
+			info.configProblem = transformerConfig(values[0])
 		}
 	} else {
 		info.configProblem = "not a single document"
@@ -862,10 +861,10 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 		}
 		fd.Class, fd.Detail = ClassReference, "holds the CustomResourceDefinition kind but defines none at the top level"
 		if !isKust && !info.embedded && underDefinitionDir(f.path, dirs) {
+			// Every mapping of the kind in an accepted configuration is
+			// one of its checked field specs: the reader refuses any other
+			// key, entry or value.
 			why := info.configProblem
-			if why == "" && info.configSpecs != info.kinds {
-				why = "names the kind outside field specs"
-			}
 			if why == "" {
 				fd.Class, fd.Detail = ClassKustomizeConfig, "a kustomize transformer configuration whose field specs of the kind only reach conversion settings and metadata labels and annotations"
 				return placed(fd, f.at), true, nil
