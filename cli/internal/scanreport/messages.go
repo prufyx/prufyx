@@ -111,6 +111,7 @@ const (
 	// line but cannot decide the hop.
 	GapCustomResourceLineNotCurrent GapKey = ReasonLineNotAttested + "/custom-resources-not-current"
 	GapCustomResourceLineHopShape   GapKey = ReasonLineNotAttested + "/custom-resources-hop-shape"
+	GapCustomResourceLineSameLine   GapKey = ReasonLineNotAttested + "/custom-resources-same-line"
 	GapCustomResourceLineRelease    GapKey = ReasonLineNotAttested + "/custom-resources-release"
 	GapCustomResourceLineTrust      GapKey = ReasonLineNotAttested + "/custom-resources-trust-policy"
 )
@@ -240,6 +241,8 @@ var gapMessages = map[GapKey]gapMessage{
 		"use current knowledge, or check the %[1]s %[2]s CRDs by hand", 3},
 	GapCustomResourceLineHopShape: {"%[1]s %[2]s -> %[3]s is not a next-minor upgrade; CRD line reviews do not apply",
 		"scan each minor upgrade of %[1]s separately", 3},
+	GapCustomResourceLineSameLine: {"%[1]s %[2]s -> %[3]s stays within one minor line; CRD line reviews do not apply",
+		"diff the CRDs of %[1]s %[2]s and %[3]s by hand", 3},
 	GapCustomResourceLineRelease: {"the custom-resource review of %[1]s %[2]s did not read release %[3]s",
 		"use knowledge reviewed after %[1]s %[3]s, or check its CRDs by hand", 3},
 	GapCustomResourceLineTrust: {"the custom-resource review of %[1]s %[2]s rests on basis %[3]s (see --require-basis)",

@@ -9,9 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
+	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
 // Line reviews of Strimzi's custom-resource versions (test only, never
@@ -202,7 +205,7 @@ func TestScanCustomResourceAttestationNotApplied(t *testing.T) {
 		"hop across two lines": {newAttestedCRD(t, &mech), []string{kafkaV1Doc}, []string{"--from", "strimzi=0.49.0", "--to", "strimzi=0.51.0", "--resource-scope-complete"},
 			scanreport.ReasonLineNotAttested, "is not a next-minor upgrade"},
 		"upgrade within the line": {newAttestedCRD(t, &mech), []string{kafkaV1Doc}, []string{"--from", "strimzi=0.51.0", "--to", "strimzi=0.51.1", "--resource-scope-complete"},
-			scanreport.ReasonLineNotAttested, "is not a next-minor upgrade"},
+			scanreport.ReasonLineNotAttested, "0.51.0 -> 0.51.1 stays within one minor line"},
 		"expired review": {newAttestedCRD(t, &expired), []string{kafkaV1Doc}, []string{"--from", "strimzi=0.50.1", "--to", "strimzi=0.51.0", "--resource-scope-complete"},
 			scanreport.ReasonLineNotAttested, "is not current (stale)"},
 		"basis left out": {newAttestedCRD(t, &mech), []string{kafkaV1Doc}, []string{"--from", "strimzi=0.50.1", "--to", "strimzi=0.51.0", "--resource-scope-complete", "--require-basis", "reviewed"},
@@ -246,5 +249,35 @@ func TestScanCustomResourceWithoutAttestationUnchanged(t *testing.T) {
 	hop := strimziHop(t, result.Report)
 	if result.Exit != 11 || len(hop.Families) != 0 || hop.Attestation != nil || hop.Status != scanreport.HopNoData || len(result.Report.Gaps) != 1 {
 		t.Fatalf("exit %d hop %+v gaps %v", result.Exit, hop, gapReasons(result.Report))
+	}
+}
+
+// Review of 2026-10-09 (LOW-A): an applicable verdict rule that did not
+// decide the hop keeps the family undecided even when the review neither
+// lists it nor could (a rule of another line). The engine refuses such a
+// rule today, so the line review is called directly.
+func TestLineReviewNeedsEveryApplicableRuleDecided(t *testing.T) {
+	att := crdLineAttestation(constraintengine.BasisMechanical)
+	k := newAttestedCRD(t, &att)
+	run := func(applicable, decided map[string]bool) (*scanreport.FamilyResult, []scanreport.Gap) {
+		report := &scanreport.Report{}
+		r := &customResourceRun{knowledge: k, now: time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC), report: report, slug: "strimzi", component: crdComponent,
+			policy: cncfcheck.DefaultTrustPolicy(), byID: map[string]cncfcheck.ScanRule{}}
+		prepared := cncfprepare.CustomResourceScan{Prepared: cncfprepare.Prepared{Reason: cncfprepare.ReasonCustomResourcesComplete}}
+		var hop scanreport.Hop
+		ref := scanreport.HopRef{From: "0.50.1", To: "0.51.0"}
+		return r.lineReview(upgradepath.Hop{}, ref, "0.50.1", "0.51.0", prepared, applicable, decided, map[string]bool{}, &hop), report.Gaps
+	}
+	if f, _ := run(map[string]bool{}, map[string]bool{}); f == nil || f.Status != scanreport.FamilyPass {
+		t.Fatalf("quiet line: %+v", f)
+	}
+	if f, _ := run(map[string]bool{"strimzi.other-line": true}, map[string]bool{"strimzi.other-line": true}); f == nil || f.Status != scanreport.FamilyPass {
+		t.Fatalf("decided rule of another line: %+v", f)
+	}
+	if f, _ := run(map[string]bool{"strimzi.other-line": true}, map[string]bool{}); f != nil {
+		t.Fatalf("an undecided applicable rule left the family decided: %+v", f)
+	}
+	if allDecided(map[string]bool{"a": true, "b": false}, map[string]bool{"a": true}) != true || allDecided(map[string]bool{"a": true}, nil) {
+		t.Fatal("allDecided")
 	}
 }

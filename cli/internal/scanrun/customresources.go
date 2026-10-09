@@ -279,7 +279,12 @@ func (r *customResourceRun) hop(hop upgradepath.Hop) (scanreport.Hop, error) {
 //   - the manifests' custom-resource set of the project is complete;
 //   - every rule the review lists overlaps the hop, covers it and decided
 //     it (PASS or BLOCKED), and every rule of the family on the target
-//     line that overlaps the hop is listed.
+//     line that overlaps the hop is listed;
+//   - every verdict rule that overlaps the hop decided it, listed or not, on
+//     any line (as the Kubernetes path's decidedAll). The engine keeps every
+//     rule's range within one minor line around its anchor, so today such a
+//     rule lies on the target line and the checks above already see it; this
+//     one keeps a family PASS from ever standing next to an undecided rule.
 //
 // The result is BLOCKED when a listed rule blocked, PASS otherwise.
 func (r *customResourceRun) lineReview(hop upgradepath.Hop, ref scanreport.HopRef, fromVersion, toVersion string, prepared cncfprepare.CustomResourceScan, applicable, decided, blocks map[string]bool, result *scanreport.Hop) *scanreport.FamilyResult {
@@ -302,6 +307,11 @@ func (r *customResourceRun) lineReview(hop upgradepath.Hop, ref scanreport.HopRe
 	switch {
 	case a.Line != toLine || a.FactFamily != family.ID || a.Component != r.component:
 		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapCustomResourceLineNotCurrent, r.slug, toLine, "another scope"))
+		return nil
+	case fromLine == toLine:
+		// A patch upgrade within the reviewed line: there is no minor
+		// upgrade to scan separately.
+		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapCustomResourceLineSameLine, r.slug, fromVersion, toVersion))
 		return nil
 	case previousLine(toLine) != fromLine:
 		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapCustomResourceLineHopShape, r.slug, fromVersion, toVersion))
@@ -356,6 +366,10 @@ func (r *customResourceRun) lineReview(hop upgradepath.Hop, ref scanreport.HopRe
 		reviewed = false
 		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapLineUnlistedRule, r.slug, toLine, id))
 	}
+	if !allDecided(applicable, decided) {
+		// Each undecided rule's own gap says why.
+		reviewed = false
+	}
 	if !reviewed {
 		return nil
 	}
@@ -364,6 +378,16 @@ func (r *customResourceRun) lineReview(hop upgradepath.Hop, ref scanreport.HopRe
 		out.Status = scanreport.FamilyBlocked
 	}
 	return out
+}
+
+// allDecided reports whether every applicable verdict rule decided the hop.
+func allDecided(applicable, decided map[string]bool) bool {
+	for id, ok := range applicable {
+		if ok && !decided[id] {
+			return false
+		}
+	}
+	return true
 }
 
 func releaseNamed(list []lineattest.Release, version string) bool {

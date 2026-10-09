@@ -221,11 +221,15 @@ when all of these hold:
 - the manifests' set for the project is complete (`--resource-scope-complete`,
   every object of a custom-resource group attributed);
 - every listed rule decided the hop, and every rule of the family on that
-  line that overlaps the hop is listed.
+  line that overlaps the hop is listed;
+- every rule that applies to the hop decided it, listed or not.
 
 The hop then carries a family result, `PASS` or `BLOCKED`, in JSON
 (`hops[].families[]`, with the family, the line, the basis and the family's
-scope) and in the human and Markdown output:
+scope) and in the human and Markdown output. The family result is the
+decision: `hops[].attestation` names the review the scan found for the target
+line even when it did not apply, so a JSON consumer reads `families[]`, not the
+presence of `attestation`.
 
 ```
   strimzi 0.50.1 -> 0.51.0: PASS within crd.custom_resource_versions only (line 0.51 attested complete, mechanical evidence): no manifest uses a version that strimzi 0.51.0 stops serving

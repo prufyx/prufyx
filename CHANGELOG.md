@@ -24,7 +24,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   is still never covered and the answer never `PASS` because of it. `check`
   routes keep the exit cap and now say they read no line review. The coverage
   report counts these attestations as A for the family. No attestation is
-  shipped. See `cli/docs/line-attestations.md` and
+  shipped. Compatibility: once a pack carries such an attestation, every
+  earlier build, including v0.0.1-alpha.1, refuses the whole pack (unknown
+  family), fail-closed; upgrade the CLI first. A patch upgrade within a
+  reviewed line has its own gap. See `cli/docs/line-attestations.md` and
   `cli/docs/custom-resources.md`.
 
 ### Changed
