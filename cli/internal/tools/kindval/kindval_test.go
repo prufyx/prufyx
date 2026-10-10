@@ -601,6 +601,9 @@ spec:
 	if got["removal"].Outcome != OutcomeConfirmed || !strings.Contains(got["removal"].Detail, "refused") {
 		t.Fatalf("removal %+v", got["removal"])
 	}
+	if len(result.InPlace.Leftover) != 0 {
+		t.Fatalf("leftover %v", result.InPlace.Leftover)
+	}
 	// The From storage flags differ from the fixture claims (v1beta1 is
 	// stored here): those two version claims are refuted, the To one that
 	// expects an unserved v1beta1 declaration is refuted (absent).
@@ -688,5 +691,31 @@ func TestCommandsRoundTrip(t *testing.T) {
 	}
 	if code := run([]string{"bogus"}, &out, &out); code != 1 {
 		t.Fatalf("bogus exit %d", code)
+	}
+}
+
+func TestRunPairRecordsDroppedDefinitions(t *testing.T) {
+	claims := gadgetClaims(true)
+	fetch := func(ctx context.Context, repo, commit, path string) ([]byte, error) {
+		if commit == gadgetFrom.Commit {
+			return gadget(true, false), nil
+		}
+		return []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: nothing-here\n"), nil
+	}
+	cluster := &fakeCluster{crds: map[string]CRDDef{}}
+	result := runPair(context.Background(), kube{run: cluster.runner, kubeconfig: "kc"}, fetch, claims.Pairs()[0])
+	if result.Error != "" || !result.InPlace.Succeeded || strings.Join(result.InPlace.Leftover, ",") != "gadgets.fixture.example" {
+		t.Fatalf("result %+v", result)
+	}
+	// After the fresh install of To nothing is served: the removal is
+	// confirmed (and the dropped definition noted), the To version claims
+	// are refuted because To declares nothing.
+	res := Evaluate(claims, crdRuns(result), Provenance{}, time.Unix(0, 0))
+	got := outcomes(res)
+	if got["removal"].Outcome != OutcomeConfirmed || !strings.Contains(got["removal"].Detail, "no longer defines gadgets.fixture.example") {
+		t.Fatalf("removal %+v", got["removal"])
+	}
+	if got["to.v1"].Outcome != OutcomeRefuted || severities(res)["removal.leftover"] != SeverityInfo {
+		t.Fatalf("claims %+v findings %+v", res.Claims, res.Findings)
 	}
 }
