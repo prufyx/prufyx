@@ -275,16 +275,18 @@ func (e *evaluator) pairFor(project, fromTag, toTag string, cr *ClaimResult) (CR
 }
 
 // releaseStateFor finds the installed state of one release of a project in
-// any pair run (as From or To).
+// any pair run (as From or To): the first pair, in id order, whose install
+// of the release completed; else the error of a pair that tried it.
 func (e *evaluator) releaseStateFor(project, tag string, cr *ClaimResult) (CRDReleaseState, bool) {
 	ids := make([]string, 0, len(e.pairs))
 	for id := range e.pairs {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
+	var failed string
 	for _, id := range ids {
 		pr := e.pairs[id]
-		if pr.Project != project || pr.Error != "" {
+		if pr.Project != project {
 			continue
 		}
 		var state CRDReleaseState
@@ -297,12 +299,23 @@ func (e *evaluator) releaseStateFor(project, tag string, cr *ClaimResult) (CRDRe
 			continue
 		}
 		cr.NodeImageDigest = imageDigest(e.pairImage[id])
-		if state.Error != "" {
-			cr.Outcome = OutcomeError
-			cr.Detail = state.Error
-			return state, false
+		switch {
+		case state.Error != "":
+			failed = state.Error
+		case len(state.Files) == 0:
+			// The pair stopped before this release was installed.
+			failed = strings.TrimSpace(pr.Error + " " + pr.From.Error)
+			if failed == "" {
+				failed = "the pair " + id + " did not install " + tag
+			}
+		default:
+			return state, true
 		}
-		return state, true
+	}
+	if failed != "" {
+		cr.Outcome = OutcomeError
+		cr.Detail = failed
+		return CRDReleaseState{}, false
 	}
 	cr.Detail = fmt.Sprintf("release %s %s was not installed by any pair", project, tag)
 	return CRDReleaseState{}, false

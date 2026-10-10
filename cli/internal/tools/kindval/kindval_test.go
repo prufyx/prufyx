@@ -719,3 +719,44 @@ func TestRunPairRecordsDroppedDefinitions(t *testing.T) {
 		t.Fatalf("claims %+v findings %+v", res.Claims, res.Findings)
 	}
 }
+
+func TestWaitEstablishedRetriesTheAccessorError(t *testing.T) {
+	calls := 0
+	run := func(ctx context.Context, name string, args []string, stdin []byte) ([]byte, []byte, int) {
+		calls++
+		if calls < 3 {
+			return nil, []byte(".status.conditions accessor error: <nil> is of the type <nil>, expected []interface{}"), 1
+		}
+		return nil, nil, 0
+	}
+	if err := (kube{run: run, kubeconfig: "kc"}).waitEstablished(context.Background(), []string{"a.example"}); err != nil || calls != 3 {
+		t.Fatalf("err %v calls %d", err, calls)
+	}
+	run = func(ctx context.Context, name string, args []string, stdin []byte) ([]byte, []byte, int) {
+		return nil, []byte("timed out waiting for the condition"), 1
+	}
+	if err := (kube{run: run, kubeconfig: "kc"}).waitEstablished(context.Background(), []string{"a.example"}); err == nil {
+		t.Fatal("a timeout is not retried")
+	}
+}
+
+// A release whose pair stopped before installing it (the earlier release
+// failed) is an error, not a refuted claim; another pair that installed the
+// same release decides it.
+func TestReleaseStateComesFromACompletedPair(t *testing.T) {
+	claims := gadgetClaims(true)
+	failed := CRDPairResult{ID: "fixture.v9.0.0-to-v9.1.0", Project: "fixture", FromTag: "v9.0.0", ToTag: "v9.1.0", From: CRDReleaseState{Files: []FetchedFile{{Path: "x"}}, Error: "kubectl wait: exit 1: timed out"}}
+	res := Evaluate(claims, crdRuns(failed), Provenance{}, time.Unix(0, 0))
+	got := outcomes(res)
+	if got["from.v1"].Outcome != OutcomeError || got["to.v1"].Outcome != OutcomeError || !strings.Contains(got["to.v1"].Detail, "timed out") || got["removal"].Outcome != OutcomeError {
+		t.Fatalf("claims %+v", res.Claims)
+	}
+	// A second pair (v9.1.0 -> v9.2.0) installed v9.1.0 as its From.
+	ok := CRDPairResult{ID: "fixture.v9.1.0-to-v9.2.0", Project: "fixture", FromTag: "v9.1.0", ToTag: "v9.2.0", From: CRDReleaseState{Files: []FetchedFile{{Path: "x"}}, CRDs: []CRDDef{{Name: "gadgets.fixture.example", Group: "fixture.example", Kind: "Gadget", Versions: []CRDVersion{{Name: "v1beta1"}, {Name: "v1", Served: true, Storage: true}}}}}, To: CRDReleaseState{Files: []FetchedFile{{Path: "x"}}}}
+	runs := crdRuns(failed)
+	runs.CRD[0].Pairs = append(runs.CRD[0].Pairs, ok)
+	got = outcomes(Evaluate(claims, runs, Provenance{}, time.Unix(0, 0)))
+	if got["to.v1"].Outcome != OutcomeConfirmed || got["to.v1beta1"].Outcome != OutcomeConfirmed || got["from.v1"].Outcome != OutcomeError {
+		t.Fatalf("claims %+v", got)
+	}
+}

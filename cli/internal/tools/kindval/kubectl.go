@@ -197,17 +197,31 @@ func (k kube) apply(ctx context.Context, manifest []byte) error {
 	return nil
 }
 
-// waitEstablished waits for the named CRDs to be established.
+// waitEstablished waits for the named CRDs to be established. A definition
+// applied a moment ago may have no status.conditions yet, which kubectl
+// wait reports as an accessor error instead of waiting; that is retried.
 func (k kube) waitEstablished(ctx context.Context, names []string) error {
 	if len(names) == 0 {
 		return nil
 	}
 	args := append([]string{"wait", "--for=condition=Established", "--timeout=120s", "crd"}, names...)
-	_, errb, exit := k.run(ctx, "kubectl", k.args(args...), nil)
-	if exit != 0 {
-		return fmt.Errorf("kubectl wait: exit %d: %s", exit, strings.TrimSpace(string(errb)))
+	var errb []byte
+	var exit int
+	for attempt := 0; attempt < 30; attempt++ {
+		_, errb, exit = k.run(ctx, "kubectl", k.args(args...), nil)
+		if exit == 0 {
+			return nil
+		}
+		if !strings.Contains(string(errb), "accessor error") {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Second):
+		}
 	}
-	return nil
+	return fmt.Errorf("kubectl wait: exit %d: %s", exit, strings.TrimSpace(string(errb)))
 }
 
 // deleteCRDs removes the named CRDs and waits for them to go.
