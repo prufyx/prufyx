@@ -44,6 +44,27 @@ type evaluator struct {
 	// pair results by pair id, and the crd run line and image of each
 	pairs     map[string]CRDPairResult
 	pairImage map[string]string
+	// claimed is, by pair id, every member a crd-removal claim names.
+	claimed map[string]map[string]bool
+}
+
+// claimedRemovals indexes the members the crd-removal claims name, by
+// pair id.
+func claimedRemovals(claims Claims) map[string]map[string]bool {
+	out := map[string]map[string]bool{}
+	for _, c := range claims.Claims {
+		if c.Kind != KindCRDRemoval {
+			continue
+		}
+		from, _ := releaseSubject(c.Subject.From)
+		to, _ := releaseSubject(c.Subject.To)
+		id := pairID(c.Subject.Project, from.Tag, to.Tag)
+		if out[id] == nil {
+			out[id] = map[string]bool{}
+		}
+		out[id][member(c.Subject.Group, c.Subject.Version, c.Subject.Kind)] = true
+	}
+	return out
 }
 
 // Evaluate compares the claims with the runs.
@@ -76,6 +97,7 @@ func Evaluate(claims Claims, runs Runs, prov Provenance, now time.Time) Results 
 			ev.pairImage[p.ID] = run.Image
 		}
 	}
+	ev.claimed = claimedRemovals(claims)
 	for _, c := range claims.Claims {
 		res.Claims = append(res.Claims, ev.claim(c))
 	}
@@ -437,22 +459,32 @@ func (e *evaluator) crdPair(c Claim, cr *ClaimResult) {
 	if !ok {
 		return
 	}
-	var kept, missed []string
+	var kept, missed, claimed []string
 	for _, o := range pr.From.Objects {
 		if o.Outcome == ServerNotServed {
 			continue
 		}
-		if objectOutcome(pr.To, o.Member) == ServerNotServed {
-			missed = append(missed, o.Member)
-		} else {
+		switch {
+		case objectOutcome(pr.To, o.Member) != ServerNotServed:
 			kept = append(kept, o.Member)
+		case e.claimed[pr.ID][o.Member]:
+			claimed = append(claimed, o.Member)
+		default:
+			missed = append(missed, o.Member)
 		}
 	}
 	cr.Detail = fmt.Sprintf("%d version(s) served at %s still served at %s", len(kept), from.Tag, to.Tag)
-	if len(missed) > 0 {
+	if len(missed)+len(claimed) > 0 {
+		// The pair is not quiet. Versions a crd-removal claim of the pair
+		// names are that claim's business; the others are unexplained.
 		cr.Outcome = OutcomeRefuted
-		cr.Detail += "; no longer served: " + strings.Join(missed, ", ")
-		e.missedFinding(c.ID, pr, missed)
+		if len(claimed) > 0 {
+			cr.Detail += "; no longer served, named by removal claims: " + strings.Join(claimed, ", ")
+		}
+		if len(missed) > 0 {
+			cr.Detail += "; no longer served, named by no claim: " + strings.Join(missed, ", ")
+			e.missedFinding(c.ID, pr, missed)
+		}
 		return
 	}
 	cr.Outcome = OutcomeConfirmed
@@ -467,23 +499,13 @@ func (e *evaluator) crdPair(c Claim, cr *ClaimResult) {
 // pair names (a pair with a crd-pair claim is already checked by it). A
 // definition the later release no longer defines is the usual cause.
 func (e *evaluator) missedRemovals(claims Claims) {
-	claimed := map[string]map[string]bool{}
 	quiet := map[string]bool{}
 	for _, c := range claims.Claims {
-		if c.Kind != KindCRDRemoval && c.Kind != KindCRDPair {
-			continue
-		}
-		from, _ := releaseSubject(c.Subject.From)
-		to, _ := releaseSubject(c.Subject.To)
-		id := pairID(c.Subject.Project, from.Tag, to.Tag)
 		if c.Kind == KindCRDPair {
-			quiet[id] = true
-			continue
+			from, _ := releaseSubject(c.Subject.From)
+			to, _ := releaseSubject(c.Subject.To)
+			quiet[pairID(c.Subject.Project, from.Tag, to.Tag)] = true
 		}
-		if claimed[id] == nil {
-			claimed[id] = map[string]bool{}
-		}
-		claimed[id][member(c.Subject.Group, c.Subject.Version, c.Subject.Kind)] = true
 	}
 	ids := make([]string, 0, len(e.pairs))
 	for id := range e.pairs {
@@ -492,12 +514,12 @@ func (e *evaluator) missedRemovals(claims Claims) {
 	sort.Strings(ids)
 	for _, id := range ids {
 		pr := e.pairs[id]
-		if quiet[id] || claimed[id] == nil || pairFailed(pr) {
+		if quiet[id] || e.claimed[id] == nil || pairFailed(pr) {
 			continue
 		}
 		var missed []string
 		for _, o := range pr.From.Objects {
-			if o.Outcome != ServerNotServed && objectOutcome(pr.To, o.Member) == ServerNotServed && !claimed[id][o.Member] {
+			if o.Outcome != ServerNotServed && objectOutcome(pr.To, o.Member) == ServerNotServed && !e.claimed[id][o.Member] {
 				missed = append(missed, o.Member)
 			}
 		}

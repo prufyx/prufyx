@@ -404,6 +404,8 @@ func TestCRDDocumentsKeepOnlyDefinitions(t *testing.T) {
 // served versions.
 type fakeCluster struct {
 	crds map[string]CRDDef
+	// slowDeletes is how many delete calls time out before one succeeds.
+	slowDeletes int
 }
 
 func (f *fakeCluster) runner(ctx context.Context, name string, args []string, stdin []byte) ([]byte, []byte, int) {
@@ -428,6 +430,10 @@ func (f *fakeCluster) runner(ctx context.Context, name string, args []string, st
 	case "wait":
 		return nil, nil, 0
 	case "delete":
+		if f.slowDeletes > 0 {
+			f.slowDeletes--
+			return nil, []byte("error: timed out waiting for the condition on customresourcedefinitions/x"), 1
+		}
 		for _, name := range rest[5:] {
 			delete(f.crds, name)
 		}
@@ -816,5 +822,34 @@ spec:
 	}
 	if outcomes(res)["removal"].Outcome != OutcomeConfirmed {
 		t.Fatalf("claims %+v", res.Claims)
+	}
+}
+
+func TestDeleteCRDsRetriesATimeout(t *testing.T) {
+	cluster := &fakeCluster{crds: map[string]CRDDef{"a.example": {Name: "a.example"}}, slowDeletes: 1}
+	if err := (kube{run: cluster.runner, kubeconfig: "kc"}).deleteCRDs(context.Background(), []string{"a.example"}); err != nil || len(cluster.crds) != 0 {
+		t.Fatalf("err %v crds %v", err, cluster.crds)
+	}
+	cluster = &fakeCluster{crds: map[string]CRDDef{"a.example": {Name: "a.example"}}, slowDeletes: 2}
+	if err := (kube{run: cluster.runner, kubeconfig: "kc"}).deleteCRDs(context.Background(), []string{"a.example"}); err == nil {
+		t.Fatal("two timeouts are an error")
+	}
+}
+
+// A crd-pair claim beside crd-removal claims of the same pair is refuted
+// (the pair is not quiet), but the versions those claims name are not
+// reported as missed.
+func TestQuietPairBesideRemovalClaims(t *testing.T) {
+	claims := gadgetClaims(true)
+	claims.Claims = append(claims.Claims, Claim{ID: "quiet-too", Kind: KindCRDPair, Subject: Subject{Project: "fixture", Repo: "github.com/fixture/fixture", From: rawObject(gadgetFrom), To: rawObject(gadgetTo)}})
+	cluster := &fakeCluster{crds: map[string]CRDDef{}}
+	result := runPair(context.Background(), kube{run: cluster.runner, kubeconfig: "kc"}, fixtureFetcher(false), claims.Pairs()[0])
+	res := Evaluate(claims, crdRuns(result), Provenance{}, time.Unix(0, 0))
+	got := outcomes(res)
+	if got["quiet-too"].Outcome != OutcomeRefuted || !strings.Contains(got["quiet-too"].Detail, "named by removal claims: fixture.example/v1beta1/Gadget") || got["removal"].Outcome != OutcomeConfirmed {
+		t.Fatalf("claims %+v", res.Claims)
+	}
+	if len(res.Findings) != 0 {
+		t.Fatalf("findings %+v", res.Findings)
 	}
 }

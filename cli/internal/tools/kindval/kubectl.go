@@ -229,12 +229,21 @@ func (k kube) deleteCRDs(ctx context.Context, names []string) error {
 	if len(names) == 0 {
 		return nil
 	}
-	args := append([]string{"delete", "--ignore-not-found", "--wait=true", "--timeout=120s", "crd"}, names...)
-	_, errb, exit := k.run(ctx, "kubectl", k.args(args...), nil)
-	if exit != 0 {
-		return fmt.Errorf("kubectl delete crd: exit %d: %s", exit, strings.TrimSpace(string(errb)))
+	args := append([]string{"delete", "--ignore-not-found", "--wait=true", "--timeout=180s", "crd"}, names...)
+	var errb []byte
+	var exit int
+	// Deleting many definitions at once can outlast the wait on a busy API
+	// server; the second attempt only waits for what is still there.
+	for attempt := 0; attempt < 2; attempt++ {
+		_, errb, exit = k.run(ctx, "kubectl", k.args(args...), nil)
+		if exit == 0 {
+			return nil
+		}
+		if !strings.Contains(string(errb), "timed out") {
+			break
+		}
 	}
-	return nil
+	return fmt.Errorf("kubectl delete crd: exit %d: %s", exit, strings.TrimSpace(string(errb)))
 }
 
 // getCRDs reads the named CRDs back from the cluster.
