@@ -115,7 +115,9 @@ passes a removed API, a release still serves a version a claim removes, a
 release dropped a version the claims keep). `MEDIUM`: a block or removal
 claim the server contradicts, a scan that stays `UNKNOWN` on a removed API,
 a removed beta or stable API no claim names, a definition whose versions or
-flags differ from the claim. `INFO`: an alpha API that disappeared, a scan
+flags differ from the claim, a custom resource whose whole definition the
+later release no longer ships with no claim about it (a plain apply keeps
+the old definition, so its objects stay accepted until it is deleted). `INFO`: an alpha API that disappeared, a scan
 that gave no report, a refused in-place CRD update, a definition a release
 no longer defines.
 

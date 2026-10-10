@@ -810,7 +810,8 @@ spec:
 		t.Fatalf("leftover %v", result.InPlace.Leftover)
 	}
 	res := Evaluate(claims, crdRuns(result), Provenance{}, time.Unix(0, 0))
-	if sev := severities(res)["crd.fixture.v9.0.0-to-v9.1.0.missed"]; sev != SeverityHigh {
+	// The Widget definition itself is gone: MEDIUM, not HIGH.
+	if sev := severities(res); sev["crd.fixture.v9.0.0-to-v9.1.0.missed.undefined"] != SeverityMedium || sev["crd.fixture.v9.0.0-to-v9.1.0.missed"] != "" {
 		t.Fatalf("findings %+v", res.Findings)
 	}
 	if outcomes(res)["removal"].Outcome != OutcomeConfirmed {

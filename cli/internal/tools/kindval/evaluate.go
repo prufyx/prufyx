@@ -452,7 +452,7 @@ func (e *evaluator) crdPair(c Claim, cr *ClaimResult) {
 	if len(missed) > 0 {
 		cr.Outcome = OutcomeRefuted
 		cr.Detail += "; no longer served: " + strings.Join(missed, ", ")
-		e.finding(SeverityHigh, c.ID, "%s %s no longer serves %s, which no claim records as removed", s.Project, to.Tag, strings.Join(missed, ", "))
+		e.missedFinding(c.ID, pr, missed)
 		return
 	}
 	cr.Outcome = OutcomeConfirmed
@@ -502,9 +502,53 @@ func (e *evaluator) missedRemovals(claims Claims) {
 			}
 		}
 		if len(missed) > 0 {
-			e.finding(SeverityHigh, "crd."+id+".missed", "%s %s no longer serves %s, which no claim records as removed", pr.Project, pr.ToTag, strings.Join(missed, ", "))
+			e.missedFinding("crd."+id+".missed", pr, missed)
 		}
 	}
+}
+
+// missedFinding reports versions the later release no longer serves that
+// no claim names. A version of a definition the release still defines is
+// HIGH: objects of it are refused after the upgrade. A version of a
+// definition the release no longer defines is MEDIUM: a plain apply keeps
+// the old definition, so its objects stay accepted until it is deleted.
+func (e *evaluator) missedFinding(id string, pr CRDPairResult, missed []string) {
+	leftover := map[string]bool{}
+	for _, name := range pr.InPlace.Leftover {
+		leftover[name] = true
+	}
+	var dropped, undefined []string
+	for _, m := range missed {
+		parts := strings.Split(m, "/")
+		name := strings.ToLower(parts[2]) + "s." + parts[0]
+		if leftover[name] || leftoverFor(pr, parts[0], parts[2]) {
+			undefined = append(undefined, m)
+		} else {
+			dropped = append(dropped, m)
+		}
+	}
+	if len(dropped) > 0 {
+		e.finding(SeverityHigh, id, "%s %s no longer serves %s, which no claim records as removed", pr.Project, pr.ToTag, strings.Join(dropped, ", "))
+	}
+	if len(undefined) > 0 {
+		e.finding(SeverityMedium, id+".undefined", "%s %s no longer defines the custom resource of %s, which no claim records; a plain apply keeps the old definition and its objects stay accepted until it is deleted", pr.Project, pr.ToTag, strings.Join(undefined, ", "))
+	}
+}
+
+// leftoverFor reports whether a definition From had for the group and kind
+// is among the definitions To no longer defines.
+func leftoverFor(pr CRDPairResult, group, kind string) bool {
+	for _, d := range pr.From.CRDs {
+		if d.Group != group || d.Kind != kind {
+			continue
+		}
+		for _, name := range pr.InPlace.Leftover {
+			if name == d.Name {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // diffs compares consecutive lines and reports every removed API that
