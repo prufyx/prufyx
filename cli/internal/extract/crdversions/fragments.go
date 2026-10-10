@@ -3,6 +3,8 @@
 package crdversions
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -13,6 +15,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
 // Kubebuilder scaffolding and legacy definitions. A kubebuilder project
@@ -637,4 +640,79 @@ func fragmentClass(p string, fr *fragmentRead, inv *Inventory, dirs map[string]b
 		return ClassUnread, unread + "; a patch fragment: " + why
 	}
 	return ClassCRDPatch, "a patch fragment that only sets conversion, preserveUnknownFields or metadata labels and annotations of " + strings.Join(fr.names, ", ")
+}
+
+// scanConfigs reads the transformer configurations a kustomization below a
+// declared definition directory names (configurations), and the files named
+// kustomizeconfig there, whether or not they contain the kind name: a
+// field spec without a kind applies to every kind. A configuration whose
+// specs are not all checked, or that cannot be read, is a reference, which
+// blocks attestation. A named file that does not exist transforms nothing.
+// Paths that already have a finding are left to it.
+func (x *Extractor) scanConfigs(r extract.PinnedReader, repo extract.RepoRef, commit string, files []scanFile, infos []*blobInfo, dirs map[string]bool, tg Target, have []Finding) ([]Finding, error) {
+	seen := map[string]bool{}
+	for _, f := range have {
+		seen[f.Path] = true
+	}
+	var out []Finding
+	paths := map[string]bool{}
+	for i, f := range files {
+		if !underDefinitionDir(f.path, dirs) {
+			continue
+		}
+		base := path.Base(f.path)
+		if base == "kustomizeconfig.yaml" || base == "kustomizeconfig.yml" {
+			paths[f.path] = true
+		}
+		k := infos[i].kust
+		if k == nil || !isKustomizationName(base) {
+			continue
+		}
+		if k.configBad != "" {
+			out = append(out, placed(Finding{Path: f.path, SHA256: infos[i].sha256, Class: ClassReference, Detail: k.configBad}, tg.placeOf(f.path)))
+		}
+		for _, rel := range k.configs {
+			full := path.Join(path.Dir(f.path), rel)
+			if strings.HasPrefix(rel, "/") || !cleanRepoPath(full) {
+				out = append(out, placed(Finding{Path: f.path, SHA256: infos[i].sha256, Class: ClassReference, Detail: fmt.Sprintf("transformer configuration %s is outside the repository", rel)}, tg.placeOf(f.path)))
+				continue
+			}
+			paths[full] = true
+		}
+	}
+	names := make([]string, 0, len(paths))
+	for p := range paths {
+		if !seen[p] {
+			names = append(names, p)
+		}
+	}
+	sort.Strings(names)
+	for _, p := range names {
+		data, err := r.Read(repo, commit, p)
+		if err != nil {
+			if isNotFound(err) {
+				continue
+			}
+			return nil, err
+		}
+		sum := sha256.Sum256(data)
+		fd := Finding{Path: p, SHA256: "sha256:" + hex.EncodeToString(sum[:])}
+		why := ""
+		if len(data) > MaxFileBytes {
+			why = "too large"
+		} else if _, values, err := decodeStrict(data); err != nil {
+			why = "not strictly decodable"
+		} else if len(values) != 1 {
+			why = "not a single document"
+		} else {
+			why = transformerConfig(values[0])
+		}
+		if why == "" {
+			fd.Class, fd.Detail = ClassKustomizeConfig, "a kustomize transformer configuration whose field specs only reach conversion settings and metadata labels and annotations"
+		} else {
+			fd.Class, fd.Detail = ClassReference, "a transformer configuration of a declared definition directory that the scan does not accept: "+why
+		}
+		out = append(out, placed(fd, tg.placeOf(p)))
+	}
+	return out, nil
 }

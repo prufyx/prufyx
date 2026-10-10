@@ -161,6 +161,19 @@ func TestKubebuilderScaffolding(t *testing.T) {
 			"deploy/kustomizeconfig.yaml": strings.Replace(kustomizeConfig, "  create: false\n", "  create: false\n- kind: \"\"\n  path: spec/group\n", 1),
 		}), status: extract.PairDerived, class: ClassReference, path: "deploy/kustomizeconfig.yaml", reason: "an empty kind"},
 
+		// Transformer configurations that never contain the kind name.
+		{name: "kind-less configuration reaching the versions", extra: withKust(map[string]string{"deploy/kustomizeconfig.yaml": "namespace:\n- path: spec/versions\n  create: false\n"}), status: extract.PairDerived, class: ClassReference, path: "deploy/kustomizeconfig.yaml", reason: `path "spec/versions"`},
+		{name: "kind-less configuration reaching the group", extra: withKust(map[string]string{"deploy/kustomizeconfig.yaml": "namespace:\n- path: spec/group\n"}), status: extract.PairDerived, class: ClassReference, path: "deploy/kustomizeconfig.yaml", reason: `path "spec/group"`},
+		{name: "kind-less configuration under another file name", extra: same(map[string]string{
+			"deploy/kustomization.yaml": "resources:\n- crds/a.yaml\nconfigurations:\n- cfg/names.yaml\n",
+			"deploy/cfg/names.yaml":     "commonLabels:\n- path: spec/versions/0/name\n",
+		}), status: extract.PairDerived, class: ClassReference, path: "deploy/cfg/names.yaml", reason: "spec/versions/0/name"},
+		{name: "unparseable configuration", extra: withKust(map[string]string{"deploy/kustomizeconfig.yaml": "namespace: [\n"}), status: extract.PairDerived, class: ClassReference, path: "deploy/kustomizeconfig.yaml", reason: "not strictly decodable"},
+		{name: "configurations entry that is remote", extra: same(map[string]string{
+			"deploy/kustomization.yaml": "resources:\n- crds/a.yaml\nconfigurations:\n- https://example.invalid/c.yaml\n",
+		}), status: extract.PairDerived, class: ClassReference, path: "deploy/kustomization.yaml", reason: "not a local file"},
+		{name: "kind-less metadata-only configuration", extra: withKust(map[string]string{"deploy/kustomizeconfig.yaml": "commonLabels:\n- path: metadata/labels\n  create: true\nvarReference:\n- path: metadata/annotations\n"}), status: extract.PairDerived, attestable: true, class: ClassKustomizeConfig, path: "deploy/kustomizeconfig.yaml"},
+
 		// v1beta1 copies.
 		{name: "v1beta1 copy", extra: func(v ...string) map[string]string {
 			return map[string]string{"deploy/v1beta1/a.yaml": legacyCRD("Alpha", v...)}
