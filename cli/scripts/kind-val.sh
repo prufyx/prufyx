@@ -40,8 +40,14 @@ for tool in kind kubectl docker; do
   command -v "$tool" >/dev/null 2>&1 || { echo "$tool is required on PATH" >&2; exit 2; }
 done
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+# The tool: --kindval, else a kindval executable next to this script (a host
+# without Go), else `go run` from the cli directory.
 if [ -z "$kindval" ]; then
-  kindval="go run -C $script_dir/.. ./internal/tools/kindval"
+  if [ -x "$script_dir/kindval" ] && [ ! -L "$script_dir/kindval" ]; then
+    kindval="$script_dir/kindval"
+  else
+    kindval="go run -C $script_dir/.. ./internal/tools/kindval"
+  fi
 fi
 # The default cluster configuration serves every beta API (api/beta=true):
 # beta APIs introduced since Kubernetes 1.24 are off by default, and a claim

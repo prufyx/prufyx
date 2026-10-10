@@ -143,8 +143,8 @@ default, and a claim about a version a line serves is only checkable on a
 server that serves it. The script writes `claims.json`, `runs/` (one
 snapshot and verdicts file per line, one crd file for the chosen line),
 `corpus/` (the manifests scanned), `results.json` and `summary.md`. Without
-`--kindval` it runs the tool with `go run` from the `cli` directory; pass a
-built binary to run elsewhere. `--post-check` runs a command after each
+`--kindval` it runs a `kindval` executable placed next to the script, else
+the tool with `go run` from the `cli` directory. `--post-check` runs a command after each
 cluster is deleted and stops the run when it fails.
 
 The subcommands can be run one by one against any kubeconfig:
