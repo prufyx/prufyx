@@ -16,7 +16,7 @@ pinned source: https://github.com/kyverno/kyverno/blob/978c2f3b56df37a8bea4ee649
 scoped result: UNKNOWN
 aggregate: UNKNOWN
 input digest: sha256:83faf6e3d00c2dd09282fcfc94f23e956ebb1230f9ca0eb6226863165ef7ca55
-knowledge pack digest: sha256:0a54852c0153fccbcfe688f8004bdd65cec243df0e6d43d21522642e79674b8f
+knowledge pack digest: sha256:a47b12bfd041bfa8324ce83b7846358f7815122bd66142495d76a114f852399e
 next action: review each scoped claim; whole-upgrade behavior and runtime evidence remain unverified
 
 exit 11

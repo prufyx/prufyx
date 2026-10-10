@@ -12,4 +12,4 @@ NOT CHECKED (2)
 Read 2 documents over 6 hops; 1 of 1 component has rules (partially evaluated).
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
 Evidence: every finding cites pinned upstream source (--verbose). No network used.
-evaluated at 2026-11-20T00:00:00Z; input sha256:b98fcd349edbc6da86b0c9d4b792af158ac5c7558db0015339077cc23daec186; knowledge embedded cncf-2026-09-13.7 sha256:0a54852c0153fccbcfe688f8004bdd65cec243df0e6d43d21522642e79674b8f
+evaluated at 2026-11-20T00:00:00Z; input sha256:b98fcd349edbc6da86b0c9d4b792af158ac5c7558db0015339077cc23daec186; knowledge embedded cncf-2026-09-13.7 sha256:a47b12bfd041bfa8324ce83b7846358f7815122bd66142495d76a114f852399e
