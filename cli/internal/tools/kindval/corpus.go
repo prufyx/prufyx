@@ -151,23 +151,33 @@ var controls = []struct{ group, version, kind string }{
 	{"admissionregistration.k8s.io", "v1", "ValidatingAdmissionPolicy"},
 }
 
-// corpus is every removal the table knows with a line at or above minLine
-// (so the previous line is in the matrix too), the removals below it as
-// "removed before the matrix" probes, and the controls.
-func corpus(minLine string) []corpusCase {
+// corpus is every removal the table knows, every API a k8s-removal claim
+// names, and the controls. A removal far below the matrix is still probed:
+// no line of the matrix may serve it, and the scan must not pass it.
+func corpus(claims []Claim) []corpusCase {
+	seen := map[string]bool{}
 	var out []corpusCase
+	add := func(group, version, kind, removal string) {
+		api := apiPair(group, version, kind)
+		if seen[api] {
+			return
+		}
+		seen[api] = true
+		out = append(out, corpusCase{ID: caseID(api), API: api, Removal: removal, Manifest: manifestFor(group, version, kind)})
+	}
 	for _, rv := range k8sremovals.RemovedVersions() {
 		for _, kind := range rv.Kinds {
-			if _, known := specs[kind]; !known && lineLess(rv.Line, minLine) {
-				continue // removed long before the matrix and no body: not informative
-			}
-			api := apiPair(rv.Group, rv.Version, kind)
-			out = append(out, corpusCase{ID: caseID(api), API: api, Removal: rv.Line, Manifest: manifestFor(rv.Group, rv.Version, kind)})
+			add(rv.Group, rv.Version, kind, rv.Line)
+		}
+	}
+	for _, c := range claims {
+		if c.Kind == KindK8sRemoval {
+			to, _ := lineSubject(c.Subject.To)
+			add(c.Subject.Group, c.Subject.Version, c.Subject.Kind, to)
 		}
 	}
 	for _, c := range controls {
-		api := apiPair(c.group, c.version, c.kind)
-		out = append(out, corpusCase{ID: caseID(api), API: api, Manifest: manifestFor(c.group, c.version, c.kind)})
+		add(c.group, c.version, c.kind, "")
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out

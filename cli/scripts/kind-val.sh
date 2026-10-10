@@ -7,9 +7,9 @@
 # runs the custom-resource pairs on the line chosen for them, deletes the
 # cluster, and finally evaluates every claim. See docs/kind-val.md.
 #
-# usage: kind-val.sh --images FILE --out DIR --prufyx BIN [--kindval BIN]
-#                    [--crd-claims FILE] [--crd-line LINE] [--min-free-mb N]
-#                    [--post-check CMD] [--keep]
+# usage: kind-val.sh --images FILE --out DIR --prufyx BIN [--prufyx-commit SHA]
+#                    [--kindval BIN] [--crd-claims FILE] [--crd-line LINE]
+#                    [--kind-config FILE] [--min-free-mb N] [--post-check CMD] [--keep]
 #
 # The image list has one line per release line: "<line> <image@sha256:...>".
 # Needs kind, kubectl and docker on PATH. KINDVAL defaults to
@@ -17,13 +17,15 @@
 # named prufyx-kind-<line> and always deleted (also on error), unless --keep.
 set -euo pipefail
 
-images=""; out=""; prufyx=""; kindval=""; crd_claims=""; crd_line=""
+images=""; out=""; prufyx=""; prufyx_commit=""; kindval=""; crd_claims=""; crd_line=""; kind_config=""
 min_free_mb=2000; post_check=""; keep=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --images) images="$2"; shift 2 ;;
     --out) out="$2"; shift 2 ;;
     --prufyx) prufyx="$2"; shift 2 ;;
+    --prufyx-commit) prufyx_commit="$2"; shift 2 ;;
+    --kind-config) kind_config="$2"; shift 2 ;;
     --kindval) kindval="$2"; shift 2 ;;
     --crd-claims) crd_claims="$2"; shift 2 ;;
     --crd-line) crd_line="$2"; shift 2 ;;
@@ -37,12 +39,18 @@ done
 for tool in kind kubectl docker; do
   command -v "$tool" >/dev/null 2>&1 || { echo "$tool is required on PATH" >&2; exit 2; }
 done
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 if [ -z "$kindval" ]; then
-  script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
   kindval="go run -C $script_dir/.. ./internal/tools/kindval"
 fi
+# The default cluster configuration serves every beta API (api/beta=true):
+# beta APIs introduced since Kubernetes 1.24 are off by default, and a claim
+# about a version a line serves is only checkable when the line serves it.
+[ -n "$kind_config" ] || kind_config="$script_dir/kind-val-cluster.yaml"
 
 mkdir -p "$out/runs" "$out/corpus"
+# prufyx never follows symbolic links in input paths: use the physical path.
+out=$(CDPATH= cd -- "$out" && pwd -P)
 log="$out/run.log"
 say() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" | tee -a "$log" >&2; }
 
@@ -90,7 +98,7 @@ while read -r line image; do
   wait_for_memory
   say "creating $name from $image"
   current="$name"
-  kind create cluster --name "$name" --image "$image" --kubeconfig "$kubeconfig" --wait 180s >>"$log" 2>&1
+  kind create cluster --name "$name" --image "$image" --config "$kind_config" --kubeconfig "$kubeconfig" --wait 180s >>"$log" 2>&1
   say "snapshot $line"
   # shellcheck disable=SC2086
   $kindval snapshot --kubeconfig "$kubeconfig" --line "$line" --image "$image" --out "$out/runs/snapshot-$line.json"
@@ -98,15 +106,15 @@ while read -r line image; do
   if [ -n "$prev_line" ]; then
     # shellcheck disable=SC2086
     $kindval verdicts --kubeconfig "$kubeconfig" --line "$line" --dir "$out/corpus" --out "$out/runs/verdicts-$line.json" \
-      --prufyx "$prufyx" --from-version "$prev_version" --to-version "$version"
+      --claims "$claims" --prufyx "$prufyx" --from-version "$prev_version" --to-version "$version"
   else
     # shellcheck disable=SC2086
-    $kindval verdicts --kubeconfig "$kubeconfig" --line "$line" --dir "$out/corpus" --out "$out/runs/verdicts-$line.json"
+    $kindval verdicts --kubeconfig "$kubeconfig" --line "$line" --dir "$out/corpus" --out "$out/runs/verdicts-$line.json" --claims "$claims"
   fi
   if [ -n "$crd_claims" ] && [ "$line" = "$crd_line" ]; then
     say "custom resources on $line"
     # shellcheck disable=SC2086
-    $kindval crd --kubeconfig "$kubeconfig" --line "$line" --claims "$claims" --out "$out/runs/crd-$line.json" 2>>"$log"
+    $kindval crd --kubeconfig "$kubeconfig" --line "$line" --image "$image" --claims "$claims" --out "$out/runs/crd-$line.json" 2>>"$log"
   fi
   cleanup
   rm -f "$kubeconfig"
@@ -119,5 +127,6 @@ done <"$images"
 
 say "evaluating"
 # shellcheck disable=SC2086
-$kindval evaluate --claims "$claims" --runs "$out/runs" --out "$out/results.json" --summary "$out/summary.md"
+$kindval evaluate --claims "$claims" --runs "$out/runs" --out "$out/results.json" --summary "$out/summary.md" \
+  --prufyx "$prufyx" ${prufyx_commit:+--prufyx-commit "$prufyx_commit"} --log "$log"
 say "results: $out/results.json"

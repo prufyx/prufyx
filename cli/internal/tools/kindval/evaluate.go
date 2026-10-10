@@ -16,6 +16,12 @@ type Runs struct {
 	CRD       []CRDRun
 }
 
+// Provenance is what every claim result carries about the run.
+type Provenance struct {
+	Prufyx    Binary
+	LogDigest string
+}
+
 // gapNotServed is the scan gap that names a manifest API the target does
 // not serve (scanreport.ReasonAPIVersionNotServed).
 const gapNotServed = "API_VERSION_NOT_SERVED"
@@ -27,22 +33,49 @@ const (
 	exitUnknown = 11
 )
 
+// evaluator carries the runs and the results being built.
+type evaluator struct {
+	runs Runs
+	prov Provenance
+	res  *Results
+	sets map[string]map[string]bool
+	// cases by line then case id
+	cases map[string]map[string]VerdictCase
+	// pair results by pair id, and the crd run line and image of each
+	pairs     map[string]CRDPairResult
+	pairImage map[string]string
+}
+
 // Evaluate compares the claims with the runs.
-func Evaluate(claims Claims, runs Runs, now time.Time) Results {
-	res := Results{Schema: ResultsSchema, GeneratedAt: now.UTC().Format(time.RFC3339)}
+func Evaluate(claims Claims, runs Runs, prov Provenance, now time.Time) Results {
+	res := &Results{Schema: ResultsSchema, GeneratedAt: now.UTC().Format(time.RFC3339), Prufyx: prov.Prufyx, LogDigest: prov.LogDigest, Lines: []LineSummary{}, Claims: []ClaimResult{}, Diffs: []LineDiff{}, Findings: []Finding{}}
+	ev := evaluator{runs: runs, prov: prov, res: res, sets: map[string]map[string]bool{}, cases: map[string]map[string]VerdictCase{}, pairs: map[string]CRDPairResult{}, pairImage: map[string]string{}}
 	lines := make([]string, 0, len(runs.Snapshots))
-	for line := range runs.Snapshots {
+	for line, s := range runs.Snapshots {
 		lines = append(lines, line)
+		ev.sets[line] = servedSet(s)
 	}
 	sortLines(lines)
 	for _, line := range lines {
 		s := runs.Snapshots[line]
 		res.Lines = append(res.Lines, LineSummary{Line: line, ServerVersion: s.ServerVersion, Image: s.Image, Served: len(s.Served)})
 	}
-	evaluateAPIClaims(&res, claims.Kubernetes, runs.Snapshots)
-	evaluateDiffs(&res, lines, runs.Snapshots)
-	evaluateVerdicts(&res, runs.Verdicts)
-	evaluateCRDs(&res, claims.CustomResources, runs.CRD)
+	for line, run := range runs.Verdicts {
+		ev.cases[line] = map[string]VerdictCase{}
+		for _, c := range run.Cases {
+			ev.cases[line][c.ID] = c
+		}
+	}
+	for _, run := range runs.CRD {
+		for _, p := range run.Pairs {
+			ev.pairs[p.ID] = p
+			ev.pairImage[p.ID] = run.Image
+		}
+	}
+	for _, c := range claims.Claims {
+		res.Claims = append(res.Claims, ev.claim(c))
+	}
+	ev.diffs(lines, claims)
 	sort.SliceStable(res.Findings, func(i, j int) bool {
 		if rank(res.Findings[i].Severity) != rank(res.Findings[j].Severity) {
 			return rank(res.Findings[i].Severity) < rank(res.Findings[j].Severity)
@@ -51,21 +84,15 @@ func Evaluate(claims Claims, runs Runs, now time.Time) Results {
 	})
 	for _, c := range res.Claims {
 		res.Totals.Claims++
-		switch c.Status {
-		case StatusConfirmed:
+		switch c.Outcome {
+		case OutcomeConfirmed:
 			res.Totals.Confirmed++
-		case StatusRefuted:
+		case OutcomeRefuted:
 			res.Totals.Refuted++
+		case OutcomeError:
+			res.Totals.Error++
 		default:
-			res.Totals.Unevaluated++
-		}
-	}
-	for _, v := range res.Verdicts {
-		res.Totals.Verdicts++
-		if v.Status == StatusConfirmed {
-			res.Totals.VerdictsOK++
-		} else if v.Status == StatusRefuted {
-			res.Totals.VerdictsBad++
+			res.Totals.Undetermined++
 		}
 	}
 	for _, f := range res.Findings {
@@ -78,19 +105,7 @@ func Evaluate(claims Claims, runs Runs, now time.Time) Results {
 			res.Totals.Info++
 		}
 	}
-	if res.Claims == nil {
-		res.Claims = []ClaimResult{}
-	}
-	if res.Verdicts == nil {
-		res.Verdicts = []VerdictResult{}
-	}
-	if res.Diffs == nil {
-		res.Diffs = []LineDiff{}
-	}
-	if res.Findings == nil {
-		res.Findings = []Finding{}
-	}
-	return res
+	return *res
 }
 
 func rank(severity string) int {
@@ -103,8 +118,8 @@ func rank(severity string) int {
 	return 2
 }
 
-func (r *Results) finding(severity, id, format string, args ...any) {
-	r.Findings = append(r.Findings, Finding{Severity: severity, ID: id, Message: fmt.Sprintf(format, args...)})
+func (e *evaluator) finding(severity, id, format string, args ...any) {
+	e.res.Findings = append(e.res.Findings, Finding{Severity: severity, ID: id, Message: fmt.Sprintf(format, args...)})
 }
 
 func servedSet(s Snapshot) map[string]bool {
@@ -115,44 +130,334 @@ func servedSet(s Snapshot) map[string]bool {
 	return out
 }
 
-func evaluateAPIClaims(res *Results, claims []APIClaim, snapshots map[string]Snapshot) {
-	sets := map[string]map[string]bool{}
-	for _, c := range claims {
-		cr := ClaimResult{ID: c.ID, Kind: "kubernetes-api", Line: c.Line, Subject: c.API, Expect: c.Expect, Status: StatusUnevaluated, Detail: c.Source}
-		s, ok := snapshots[c.Line]
-		if !ok {
-			cr.Detail = "no snapshot of line " + c.Line
-			res.Claims = append(res.Claims, cr)
-			continue
-		}
-		if sets[c.Line] == nil {
-			sets[c.Line] = servedSet(s)
-		}
-		cr.Observed = ExpectNotServed
-		if sets[c.Line][c.API] {
-			cr.Observed = ExpectServed
-		}
-		if cr.Observed == c.Expect {
-			cr.Status = StatusConfirmed
-		} else {
-			// Either way the table is wrong about this line: it would block
-			// a manifest the server accepts, or it names a previous line that
-			// never served the version (or a kept version the line dropped).
-			cr.Status = StatusRefuted
-			res.finding(SeverityMedium, c.ID, "line %s (%s): knowledge says %s is %s, the API server says %s (%s)", c.Line, s.ServerVersion, c.API, c.Expect, cr.Observed, c.Source)
-		}
-		res.Claims = append(res.Claims, cr)
+func imageDigest(image string) string {
+	if i := strings.Index(image, "@"); i >= 0 {
+		return image[i+1:]
+	}
+	return image
+}
+
+// claim evaluates one claim.
+func (e *evaluator) claim(c Claim) ClaimResult {
+	cr := ClaimResult{ID: c.ID, Kind: c.Kind, Outcome: OutcomeUndetermined, PrufyxCommit: e.prov.Prufyx.Commit, LogDigest: e.prov.LogDigest, Evidence: c.Evidence}
+	switch c.Kind {
+	case KindServedAPI:
+		e.servedAPI(c, &cr)
+	case KindK8sRemoval:
+		e.k8sRemoval(c, &cr)
+	case KindCRDVersion:
+		e.crdVersion(c, &cr)
+	case KindCRDRemoval:
+		e.crdRemoval(c, &cr)
+	case KindCRDPair:
+		e.crdPair(c, &cr)
+	default:
+		cr.Detail = "not evaluated by kind-val"
+	}
+	return cr
+}
+
+func (e *evaluator) servedAPI(c Claim, cr *ClaimResult) {
+	s, ok := e.runs.Snapshots[c.Subject.Line]
+	if !ok {
+		cr.Detail = "no snapshot of line " + c.Subject.Line
+		return
+	}
+	cr.NodeImageDigest = imageDigest(s.Image)
+	api := apiPair(c.Subject.Group, c.Subject.Version, c.Subject.Kind)
+	observed := ExpectNotServed
+	if e.sets[c.Subject.Line][api] {
+		observed = ExpectServed
+	}
+	cr.Detail = fmt.Sprintf("%s by %s", strings.ReplaceAll(observed, "_", " "), s.ServerVersion)
+	if observed == c.Expect {
+		cr.Outcome = OutcomeConfirmed
+		return
+	}
+	// Either way the knowledge is wrong about this line: it would block a
+	// manifest the server accepts, or it names a line that does not serve
+	// a version it says is served.
+	cr.Outcome = OutcomeRefuted
+	e.finding(SeverityMedium, c.ID, "line %s (%s): the claim says %s is %s, the API server says %s", c.Subject.Line, s.ServerVersion, api, c.Expect, observed)
+}
+
+// k8sRemoval checks a hop: the from line serves the API, the to line does
+// not (discovery and dry run), and the scan blocks the manifest.
+func (e *evaluator) k8sRemoval(c Claim, cr *ClaimResult) {
+	from, _ := lineSubject(c.Subject.From)
+	to, _ := lineSubject(c.Subject.To)
+	api := apiPair(c.Subject.Group, c.Subject.Version, c.Subject.Kind)
+	toSnap, okTo := e.runs.Snapshots[to]
+	_, okFrom := e.runs.Snapshots[from]
+	if !okFrom || !okTo {
+		cr.Detail = fmt.Sprintf("no snapshot of line %s or %s", from, to)
+		return
+	}
+	cr.NodeImageDigest = imageDigest(toSnap.Image)
+	id := caseID(api)
+	fromCase, okFromCase := e.cases[from][id]
+	toCase, okToCase := e.cases[to][id]
+	if !okFromCase || !okToCase || toCase.Scan == nil {
+		cr.Detail = "the corpus has no dry run of the API on both lines, or no scan for the hop"
+		return
+	}
+	servedFrom, servedTo := e.sets[from][api], e.sets[to][api]
+	var problems []string
+	if !servedFrom || fromCase.Server.Outcome == ServerNotServed {
+		problems = append(problems, fmt.Sprintf("%s does not serve %s", from, api))
+	}
+	if servedTo || toCase.Server.Outcome != ServerNotServed {
+		problems = append(problems, fmt.Sprintf("%s still serves %s", to, api))
+	}
+	if len(problems) > 0 {
+		cr.Outcome = OutcomeRefuted
+		cr.Detail = strings.Join(problems, "; ")
+		e.finding(SeverityMedium, c.ID, "%s -> %s: %s", from, to, cr.Detail)
+		return
+	}
+	sc := toCase.Scan
+	if sc.Error != "" {
+		cr.Outcome = OutcomeError
+		cr.Detail = "the scan gave no report: " + sc.Error
+		e.finding(SeverityInfo, c.ID, "%s -> %s, %s: %s", sc.From, sc.To, api, cr.Detail)
+		return
+	}
+	hasGap := false
+	for _, g := range sc.Gaps {
+		hasGap = hasGap || g == gapNotServed
+	}
+	hasRule := c.Subject.RuleID == ""
+	for _, r := range sc.Rules {
+		hasRule = hasRule || r == c.Subject.RuleID
+	}
+	cr.Detail = fmt.Sprintf("both servers agree; scan %s -> %s: %s (exit %d)", sc.From, sc.To, sc.Verdict, sc.Exit)
+	switch {
+	case sc.Exit == exitBlocked && hasGap && hasRule:
+		cr.Outcome = OutcomeConfirmed
+	case sc.Exit == exitBlocked && hasGap:
+		cr.Outcome = OutcomeRefuted
+		cr.Detail += "; rule " + c.Subject.RuleID + " did not match"
+		e.finding(SeverityMedium, c.ID, "%s -> %s: the scan blocks %s but not through rule %s (matched: %s)", sc.From, sc.To, api, c.Subject.RuleID, strings.Join(sc.Rules, ", "))
+	case sc.Exit == exitBlocked:
+		cr.Outcome = OutcomeConfirmed
+		cr.Detail += "; blocked without the " + gapNotServed + " gap"
+	case sc.Exit == exitPass:
+		cr.Outcome = OutcomeRefuted
+		e.finding(SeverityHigh, c.ID, "%s -> %s: the scan PASSES %s, which %s serves and %s rejects", sc.From, sc.To, api, from, to)
+	case sc.Exit == exitUnknown && hasGap:
+		// The report names the API as not served by the target (the gap
+		// the GitHub Action fails on), but no published rule decides the
+		// hop, so the verdict stays UNKNOWN.
+		cr.Outcome = OutcomeRefuted
+		cr.Detail += "; UNKNOWN with the " + gapNotServed + " gap: no published rule decides the hop"
+		e.finding(SeverityMedium, c.ID, "%s -> %s: the scan names %s as not served by %s but answers UNKNOWN (exit 11), not BLOCKED: no published removal rule for the %s line", sc.From, sc.To, api, to, to)
+	default:
+		cr.Outcome = OutcomeRefuted
+		e.finding(SeverityMedium, c.ID, "%s -> %s: the scan answers %s (exit %d) for %s, which %s serves and %s rejects; the removal is not known", sc.From, sc.To, sc.Verdict, sc.Exit, api, from, to)
 	}
 }
 
-func evaluateDiffs(res *Results, lines []string, snapshots map[string]Snapshot) {
+// pairFor finds the run of the pair a claim's project and releases name.
+func (e *evaluator) pairFor(project, fromTag, toTag string, cr *ClaimResult) (CRDPairResult, bool) {
+	id := pairID(project, fromTag, toTag)
+	pr, ok := e.pairs[id]
+	if !ok {
+		cr.Detail = "no run of " + id
+		return pr, false
+	}
+	cr.NodeImageDigest = imageDigest(e.pairImage[id])
+	if pr.Error != "" || pr.From.Error != "" || pr.To.Error != "" {
+		cr.Outcome = OutcomeError
+		cr.Detail = strings.TrimSpace(pr.Error + " " + pr.From.Error + " " + pr.To.Error)
+		return pr, false
+	}
+	return pr, true
+}
+
+// releaseStateFor finds the installed state of one release of a project in
+// any pair run (as From or To).
+func (e *evaluator) releaseStateFor(project, tag string, cr *ClaimResult) (CRDReleaseState, bool) {
+	ids := make([]string, 0, len(e.pairs))
+	for id := range e.pairs {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		pr := e.pairs[id]
+		if pr.Project != project || pr.Error != "" {
+			continue
+		}
+		var state CRDReleaseState
+		switch tag {
+		case pr.FromTag:
+			state = pr.From
+		case pr.ToTag:
+			state = pr.To
+		default:
+			continue
+		}
+		cr.NodeImageDigest = imageDigest(e.pairImage[id])
+		if state.Error != "" {
+			cr.Outcome = OutcomeError
+			cr.Detail = state.Error
+			return state, false
+		}
+		return state, true
+	}
+	cr.Detail = fmt.Sprintf("release %s %s was not installed by any pair", project, tag)
+	return CRDReleaseState{}, false
+}
+
+func objectOutcome(state CRDReleaseState, m string) string {
+	for _, o := range state.Objects {
+		if o.Member == m {
+			return o.Outcome
+		}
+	}
+	return ""
+}
+
+func (e *evaluator) crdVersion(c Claim, cr *ClaimResult) {
+	s := c.Subject
+	state, ok := e.releaseStateFor(s.Project, s.Release.Tag, cr)
+	if !ok {
+		return
+	}
+	var def *CRDDef
+	for i := range state.CRDs {
+		if state.CRDs[i].Name == s.CRD {
+			def = &state.CRDs[i]
+		}
+	}
+	if def == nil {
+		cr.Outcome = OutcomeRefuted
+		cr.Detail = "the cluster holds no " + s.CRD + " after installing " + s.Release.Tag
+		e.finding(SeverityMedium, c.ID, "%s %s: %s", s.Project, s.Release.Tag, cr.Detail)
+		return
+	}
+	var got *CRDVersion
+	for i := range def.Versions {
+		if def.Versions[i].Name == s.Version {
+			got = &def.Versions[i]
+		}
+	}
+	m := member(s.Group, s.Version, s.Kind)
+	probe := objectOutcome(state, m)
+	if got == nil {
+		cr.Outcome = OutcomeRefuted
+		cr.Detail = fmt.Sprintf("%s does not declare %s at %s", s.CRD, s.Version, s.Release.Tag)
+		e.finding(SeverityMedium, c.ID, "%s %s: %s", s.Project, s.Release.Tag, cr.Detail)
+		return
+	}
+	cr.Detail = fmt.Sprintf("%s at %s declares %s served=%t storage=%t; dry-run object %s", s.CRD, s.Release.Tag, s.Version, got.Served, got.Storage, orUnprobed(probe))
+	flagsOK := got.Served == *s.Served && got.Storage == *s.Storage
+	probeOK := probe == "" || (probe == ServerNotServed) == !*s.Served
+	if flagsOK && probeOK {
+		cr.Outcome = OutcomeConfirmed
+		return
+	}
+	cr.Outcome = OutcomeRefuted
+	severity := SeverityMedium
+	if *s.Served && (!got.Served || probe == ServerNotServed) {
+		severity = SeverityHigh // the knowledge keeps a version the release dropped
+	}
+	e.finding(severity, c.ID, "%s %s: the claim says %s served=%t storage=%t; %s", s.Project, s.Release.Tag, m, *s.Served, *s.Storage, cr.Detail)
+}
+
+func (e *evaluator) crdRemoval(c Claim, cr *ClaimResult) {
+	s := c.Subject
+	from, _ := releaseSubject(s.From)
+	to, _ := releaseSubject(s.To)
+	pr, ok := e.pairFor(s.Project, from.Tag, to.Tag, cr)
+	if !ok {
+		return
+	}
+	m := member(s.Group, s.Version, s.Kind)
+	before, after := objectOutcome(pr.From, m), objectOutcome(pr.To, m)
+	cr.Detail = fmt.Sprintf("%s: %s at %s, %s at %s", m, orUnprobed(before), from.Tag, orUnprobed(after), to.Tag)
+	switch {
+	case before == "" || after == "":
+		cr.Detail = "the member was not probed on both releases"
+	case before == ServerNotServed:
+		cr.Outcome = OutcomeRefuted
+		e.finding(SeverityMedium, c.ID, "%s %s does not serve %s, which the claim says it served", s.Project, from.Tag, m)
+	case after != ServerNotServed:
+		cr.Outcome = OutcomeRefuted
+		e.finding(SeverityHigh, c.ID, "%s %s still serves %s, which the claim says it removed", s.Project, to.Tag, m)
+	default:
+		cr.Outcome = OutcomeConfirmed
+	}
+	if pr.InPlace.Attempted && !pr.InPlace.Succeeded {
+		cr.Detail += "; in-place update of the definitions refused: " + pr.InPlace.Message
+	}
+	for _, name := range pr.InPlace.Leftover {
+		if strings.HasSuffix(name, "."+s.Group) && strings.HasPrefix(name, strings.ToLower(s.Kind)) {
+			cr.Detail += "; " + to.Tag + " no longer defines " + name + ": a plain apply leaves the definition in place and its objects stay accepted"
+			e.finding(SeverityInfo, c.ID+".leftover", "%s %s no longer defines %s; applying its manifests over %s leaves the definition (and %s) accepted until it is deleted", s.Project, to.Tag, name, from.Tag, m)
+		}
+	}
+}
+
+func orUnprobed(outcome string) string {
+	if outcome == "" {
+		return "unprobed"
+	}
+	return outcome
+}
+
+// crdPair checks that every version served after From is still served
+// after To.
+func (e *evaluator) crdPair(c Claim, cr *ClaimResult) {
+	s := c.Subject
+	from, _ := releaseSubject(s.From)
+	to, _ := releaseSubject(s.To)
+	pr, ok := e.pairFor(s.Project, from.Tag, to.Tag, cr)
+	if !ok {
+		return
+	}
+	var kept, missed []string
+	for _, o := range pr.From.Objects {
+		if o.Outcome == ServerNotServed {
+			continue
+		}
+		if objectOutcome(pr.To, o.Member) == ServerNotServed {
+			missed = append(missed, o.Member)
+		} else {
+			kept = append(kept, o.Member)
+		}
+	}
+	cr.Detail = fmt.Sprintf("%d version(s) served at %s still served at %s", len(kept), from.Tag, to.Tag)
+	if len(missed) > 0 {
+		cr.Outcome = OutcomeRefuted
+		cr.Detail += "; no longer served: " + strings.Join(missed, ", ")
+		e.finding(SeverityHigh, c.ID, "%s %s no longer serves %s, which no claim records as removed", s.Project, to.Tag, strings.Join(missed, ", "))
+		return
+	}
+	cr.Outcome = OutcomeConfirmed
+	if pr.InPlace.Attempted && !pr.InPlace.Succeeded {
+		cr.Detail += "; in-place update of the definitions refused: " + pr.InPlace.Message
+		e.finding(SeverityInfo, "crd."+pr.ID+".in-place", "%s: applying the %s definitions over %s was refused by the API server: %s", s.Project, to.Tag, from.Tag, pr.InPlace.Message)
+	}
+}
+
+// diffs compares consecutive lines and reports every removed API that
+// neither the removal table nor a claim names.
+func (e *evaluator) diffs(lines []string, claims Claims) {
 	known := knownRemovals()
+	for _, c := range claims.Claims {
+		if c.Kind == KindServedAPI && c.Expect == ExpectNotServed {
+			if known[c.Subject.Line] == nil {
+				known[c.Subject.Line] = map[string]bool{}
+			}
+			known[c.Subject.Line][apiPair(c.Subject.Group, c.Subject.Version, c.Subject.Kind)] = true
+		}
+	}
 	for i := 1; i < len(lines); i++ {
 		prev, next := lines[i-1], lines[i]
 		if previousLine(next) != prev {
 			continue
 		}
-		before, after := servedSet(snapshots[prev]), servedSet(snapshots[next])
+		before, after := e.sets[prev], e.sets[next]
 		d := LineDiff{From: prev, To: next, Removed: []string{}, Added: []string{}, UnknownRemovals: []string{}}
 		for api := range before {
 			if !after[api] {
@@ -175,280 +480,51 @@ func evaluateDiffs(res *Results, lines []string, snapshots map[string]Snapshot) 
 			if strings.Contains(strings.Fields(api)[0], "alpha") {
 				severity = SeverityInfo
 			}
-			res.finding(severity, "diff."+next+"."+caseID(api), "line %s no longer serves %s (served by %s); the removal table has no entry for it", next, api, prev)
+			e.finding(severity, "diff."+next+"."+caseID(api), "line %s no longer serves %s (served by %s); no claim names it", next, api, prev)
 		}
-		res.Diffs = append(res.Diffs, d)
+		e.res.Diffs = append(e.res.Diffs, d)
 	}
-}
-
-func evaluateVerdicts(res *Results, verdicts map[string]VerdictRun) {
-	lines := make([]string, 0, len(verdicts))
-	for line := range verdicts {
-		lines = append(lines, line)
-	}
-	sortLines(lines)
-	for _, line := range lines {
-		run, ok := verdicts[line]
-		if !ok {
-			continue
-		}
-		prevRun, ok := verdicts[previousLine(line)]
-		if !ok {
-			continue
-		}
-		prevCases := map[string]VerdictCase{}
-		for _, c := range prevRun.Cases {
-			prevCases[c.ID] = c
-		}
-		for _, c := range run.Cases {
-			if c.Scan == nil {
-				continue
-			}
-			pc, ok := prevCases[c.ID]
-			if !ok {
-				continue
-			}
-			vr := VerdictResult{ID: c.ID + "." + run.Line, API: c.API, From: c.Scan.From, To: c.Scan.To, ServerFrom: pc.Server.Outcome, ServerTo: c.Server.Outcome, ScanExit: c.Scan.Exit, ScanGaps: c.Scan.Gaps}
-			if vr.ScanGaps == nil {
-				vr.ScanGaps = []string{}
-			}
-			if c.Scan.Error != "" {
-				vr.Status = StatusUnevaluated
-				vr.Detail = c.Scan.Error
-				res.finding(SeverityInfo, "verdict."+vr.ID, "%s -> %s, %s: the scan gave no report: %s", vr.From, vr.To, c.API, c.Scan.Error)
-				res.Verdicts = append(res.Verdicts, vr)
-				continue
-			}
-			hasGap := false
-			for _, g := range c.Scan.Gaps {
-				hasGap = hasGap || g == gapNotServed
-			}
-			switch {
-			case vr.ServerTo == OutcomeNotServed && vr.ServerFrom != OutcomeNotServed:
-				vr.Expected = "BLOCKED (exit 10) with " + gapNotServed
-				switch {
-				case c.Scan.Exit == exitBlocked && hasGap:
-					vr.Status = StatusConfirmed
-				case c.Scan.Exit == exitPass:
-					vr.Status = StatusRefuted
-					res.finding(SeverityHigh, "verdict."+vr.ID, "%s -> %s: the scan PASSES %s, which %s serves and %s rejects", vr.From, vr.To, c.API, vr.From, vr.To)
-				case c.Scan.Exit == exitBlocked:
-					vr.Status = StatusConfirmed
-					vr.Detail = "blocked without the " + gapNotServed + " gap"
-				case c.Scan.Exit == exitUnknown && hasGap:
-					// The report names the API as not served by the target (the
-					// gap the GitHub Action fails on), but no published rule
-					// decides the hop, so the verdict stays UNKNOWN.
-					vr.Status = StatusConfirmed
-					vr.Detail = "UNKNOWN with the " + gapNotServed + " gap: no published rule decides the hop"
-					res.finding(SeverityInfo, "verdict."+vr.ID, "%s -> %s: the scan names %s as not served by %s but answers UNKNOWN (exit 11), not BLOCKED: no published removal rule for the %s line", vr.From, vr.To, c.API, vr.To, lineOf(vr.To))
-				default:
-					vr.Status = StatusRefuted
-					res.finding(SeverityMedium, "verdict."+vr.ID, "%s -> %s: the scan answers %s (exit %d) for %s, which %s serves and %s rejects; a removal rule is missing", vr.From, vr.To, c.Scan.Verdict, c.Scan.Exit, c.API, vr.From, vr.To)
-				}
-			case vr.ServerTo == OutcomeNotServed:
-				vr.Expected = "not PASS (removed before " + vr.From + ")"
-				if c.Scan.Exit == exitPass {
-					vr.Status = StatusRefuted
-					res.finding(SeverityHigh, "verdict."+vr.ID, "%s -> %s: the scan PASSES %s, which neither line serves", vr.From, vr.To, c.API)
-				} else {
-					vr.Status = StatusConfirmed
-				}
-			default:
-				vr.Expected = "not BLOCKED"
-				if c.Scan.Exit == exitBlocked {
-					vr.Status = StatusRefuted
-					res.finding(SeverityMedium, "verdict."+vr.ID, "%s -> %s: the scan BLOCKS %s, which %s still serves (%s)", vr.From, vr.To, c.API, vr.To, c.Server.Outcome)
-				} else {
-					vr.Status = StatusConfirmed
-				}
-			}
-			res.Verdicts = append(res.Verdicts, vr)
-		}
-	}
-}
-
-func evaluateCRDs(res *Results, pairs []CRDPair, runs []CRDRun) {
-	results := map[string]CRDPairResult{}
-	lineOfPair := map[string]string{}
-	for _, run := range runs {
-		for _, p := range run.Pairs {
-			results[p.ID] = p
-			lineOfPair[p.ID] = run.Line
-		}
-	}
-	for _, pair := range pairs {
-		removed := removedMembers(pair)
-		pr, ok := results[pair.ID]
-		if !ok || pr.Error != "" {
-			detail := "no run of the pair"
-			if ok {
-				detail = pr.Error
-			}
-			for _, m := range removed {
-				res.Claims = append(res.Claims, ClaimResult{ID: pair.ID + "." + m, Kind: "custom-resource", Subject: m, Expect: "removed", Status: StatusUnevaluated, Detail: detail})
-			}
-			if len(removed) == 0 {
-				res.Claims = append(res.Claims, ClaimResult{ID: pair.ID + ".quiet", Kind: "custom-resource", Subject: pair.Project + " " + pair.From.Tag + " -> " + pair.To.Tag, Expect: "no removal", Status: StatusUnevaluated, Detail: detail})
-			}
-			res.finding(SeverityInfo, "crd."+pair.ID, "pair %s was not evaluated: %s", pair.ID, detail)
-			continue
-		}
-		line := lineOfPair[pair.ID]
-		evaluateRelease(res, pair, "from", pair.From, pr.From, line)
-		evaluateRelease(res, pair, "to", pair.To, pr.To, line)
-		toProbe := map[string]string{}
-		for _, o := range pr.To.Objects {
-			toProbe[o.Member] = o.Outcome
-		}
-		fromProbe := map[string]string{}
-		for _, o := range pr.From.Objects {
-			fromProbe[o.Member] = o.Outcome
-		}
-		for _, m := range removed {
-			cr := ClaimResult{ID: pair.ID + "." + m, Kind: "custom-resource", Line: line, Subject: m, Expect: "removed", Detail: pair.From.Tag + " -> " + pair.To.Tag}
-			before, after := fromProbe[m], toProbe[m]
-			switch {
-			case before == "" || after == "":
-				cr.Status = StatusUnevaluated
-				cr.Detail = "the member was not probed on both releases"
-			case before == OutcomeNotServed:
-				cr.Status, cr.Observed = StatusRefuted, "not served at "+pair.From.Tag
-				res.finding(SeverityMedium, cr.ID, "%s %s does not serve %s, which the knowledge says it served", pair.Project, pair.From.Tag, m)
-			case after != OutcomeNotServed:
-				cr.Status, cr.Observed = StatusRefuted, "served at "+pair.To.Tag+" ("+after+")"
-				res.finding(SeverityHigh, cr.ID, "%s %s still serves %s, which the knowledge says it removed", pair.Project, pair.To.Tag, m)
-			default:
-				cr.Status, cr.Observed = StatusConfirmed, "served at "+pair.From.Tag+" ("+before+"), not served at "+pair.To.Tag
-			}
-			res.Claims = append(res.Claims, cr)
-		}
-		// Every version served at From that the knowledge keeps at To must
-		// still be served there: a missed removal otherwise.
-		kept := 0
-		removedSet := map[string]bool{}
-		for _, m := range removed {
-			removedSet[m] = true
-		}
-		var missed []string
-		for _, crd := range pair.From.CRDs {
-			for _, v := range crd.Versions {
-				m := crd.Group + "/" + v.Name + "/" + crd.Kind
-				if !v.Served || removedSet[m] {
-					continue
-				}
-				kept++
-				if toProbe[m] == OutcomeNotServed {
-					missed = append(missed, m)
-				}
-			}
-		}
-		if len(removed) == 0 || kept > 0 {
-			cr := ClaimResult{ID: pair.ID + ".kept", Kind: "custom-resource", Line: line, Subject: pair.Project + " " + pair.From.Tag + " -> " + pair.To.Tag, Expect: fmt.Sprintf("%d version(s) still served", kept), Status: StatusConfirmed}
-			if len(missed) > 0 {
-				cr.Status = StatusRefuted
-				cr.Observed = "not served at " + pair.To.Tag + ": " + strings.Join(missed, ", ")
-				res.finding(SeverityHigh, cr.ID, "%s %s no longer serves %s, which the knowledge does not record as removed", pair.Project, pair.To.Tag, strings.Join(missed, ", "))
-			}
-			res.Claims = append(res.Claims, cr)
-		}
-		if pr.InPlace.Attempted && !pr.InPlace.Succeeded {
-			res.finding(SeverityInfo, "crd."+pair.ID+".in-place", "%s: applying the %s definitions over %s was refused by the API server: %s", pair.Project, pair.To.Tag, pair.From.Tag, pr.InPlace.Message)
-		}
-	}
-}
-
-// evaluateRelease compares the definitions the knowledge expects of one
-// release with what the cluster holds after installing it.
-func evaluateRelease(res *Results, pair CRDPair, side string, expected CRDRelease, got CRDReleaseState, line string) {
-	have := map[string]CRDDef{}
-	for _, d := range got.CRDs {
-		have[d.Name] = d
-	}
-	for _, exp := range expected.CRDs {
-		id := pair.ID + "." + side + "." + exp.Name
-		cr := ClaimResult{ID: id, Kind: "custom-resource-definition", Line: line, Subject: exp.Name + "@" + expected.Tag, Expect: describeVersions(exp.Versions), Status: StatusUnevaluated}
-		if got.Error != "" {
-			cr.Detail = got.Error
-			res.Claims = append(res.Claims, cr)
-			continue
-		}
-		actual, ok := have[exp.Name]
-		if !ok {
-			cr.Status, cr.Observed = StatusRefuted, "absent"
-			res.finding(SeverityMedium, id, "%s %s: the cluster holds no %s after installing the manifests", pair.Project, expected.Tag, exp.Name)
-			res.Claims = append(res.Claims, cr)
-			continue
-		}
-		cr.Observed = describeVersions(actual.Versions)
-		if cr.Observed == cr.Expect {
-			cr.Status = StatusConfirmed
-		} else {
-			cr.Status = StatusRefuted
-			res.finding(SeverityMedium, id, "%s %s: %s declares %s in the knowledge, the cluster holds %s", pair.Project, expected.Tag, exp.Name, cr.Expect, cr.Observed)
-		}
-		res.Claims = append(res.Claims, cr)
-	}
-	for name := range have {
-		known := false
-		for _, exp := range expected.CRDs {
-			known = known || exp.Name == name
-		}
-		if !known {
-			res.finding(SeverityInfo, pair.ID+"."+side+"."+name, "%s %s: the manifests define %s, which the knowledge does not list", pair.Project, expected.Tag, name)
-		}
-	}
-}
-
-// describeVersions renders versions as "v1beta1(served,storage) v1(served)".
-func describeVersions(versions []CRDVersion) string {
-	sorted := append([]CRDVersion(nil), versions...)
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Name < sorted[j].Name })
-	parts := make([]string, 0, len(sorted))
-	for _, v := range sorted {
-		flags := []string{}
-		if v.Served {
-			flags = append(flags, "served")
-		}
-		if v.Storage {
-			flags = append(flags, "storage")
-		}
-		parts = append(parts, v.Name+"("+strings.Join(flags, ",")+")")
-	}
-	return strings.Join(parts, " ")
 }
 
 // Summary renders the human summary of the results.
 func Summary(res Results) string {
 	var b strings.Builder
 	b.WriteString("# KIND-VAL results\n\n")
-	fmt.Fprintf(&b, "Generated %s.\n\n", res.GeneratedAt)
-	b.WriteString("| Line | Server | Served APIs | API claims | Verdict checks | CRD claims |\n|---|---|---|---|---|---|\n")
+	fmt.Fprintf(&b, "Generated %s; prufyx %s.\n\n", res.GeneratedAt, orUnknown(res.Prufyx.Commit))
+	b.WriteString("| Line | Server | Served APIs | Served-API claims | Removal (verdict) claims | CRD claims |\n|---|---|---|---|---|---|\n")
+	byDigest := map[string]*[6]int{}
+	for i := range res.Lines {
+		byDigest[imageDigest(res.Lines[i].Image)] = &[6]int{}
+	}
+	for _, c := range res.Claims {
+		counts, ok := byDigest[c.NodeImageDigest]
+		if !ok {
+			continue
+		}
+		col := 4
+		switch c.Kind {
+		case KindServedAPI:
+			col = 0
+		case KindK8sRemoval:
+			col = 2
+		}
+		switch c.Outcome {
+		case OutcomeConfirmed:
+			counts[col]++
+		case OutcomeRefuted:
+			counts[col+1]++
+		}
+	}
 	for _, l := range res.Lines {
-		var ok, bad, vok, vbad, cok, cbad int
-		for _, c := range res.Claims {
-			if c.Line != l.Line {
-				continue
-			}
-			if c.Kind == "kubernetes-api" {
-				count(&ok, &bad, c.Status)
-			} else {
-				count(&cok, &cbad, c.Status)
-			}
-		}
-		for _, v := range res.Verdicts {
-			if lineOf(v.To) == l.Line {
-				count(&vok, &vbad, v.Status)
-			}
-		}
-		fmt.Fprintf(&b, "| %s | %s | %d | %s | %s | %s |\n", l.Line, l.ServerVersion, l.Served, cell(ok, bad), cell(vok, vbad), cell(cok, cbad))
+		counts := byDigest[imageDigest(l.Image)]
+		fmt.Fprintf(&b, "| %s | %s | %d | %s | %s | %s |\n", l.Line, l.ServerVersion, l.Served, cell(counts[0], counts[1]), cell(counts[2], counts[3]), cell(counts[4], counts[5]))
 	}
 	t := res.Totals
-	fmt.Fprintf(&b, "\nClaims: %d confirmed, %d refuted, %d unevaluated. Verdict checks: %d agree, %d disagree. Findings: %d HIGH, %d MEDIUM, %d INFO.\n", t.Confirmed, t.Refuted, t.Unevaluated, t.VerdictsOK, t.VerdictsBad, t.High, t.Medium, t.Info)
+	fmt.Fprintf(&b, "\nClaims: %d confirmed, %d refuted, %d undetermined, %d error. Findings: %d HIGH, %d MEDIUM, %d INFO.\n", t.Confirmed, t.Refuted, t.Undetermined, t.Error, t.High, t.Medium, t.Info)
 	if len(res.Diffs) > 0 {
 		b.WriteString("\n## Served-API changes between consecutive lines\n\n")
 		for _, d := range res.Diffs {
-			fmt.Fprintf(&b, "- %s -> %s: %d removed, %d added, %d removed without a table entry\n", d.From, d.To, len(d.Removed), len(d.Added), len(d.UnknownRemovals))
+			fmt.Fprintf(&b, "- %s -> %s: %d removed, %d added, %d removed without a claim\n", d.From, d.To, len(d.Removed), len(d.Added), len(d.UnknownRemovals))
 			for _, api := range d.Removed {
 				fmt.Fprintf(&b, "  - removed: %s\n", api)
 			}
@@ -463,13 +539,11 @@ func Summary(res Results) string {
 	return b.String()
 }
 
-func count(ok, bad *int, status string) {
-	switch status {
-	case StatusConfirmed:
-		*ok++
-	case StatusRefuted:
-		*bad++
+func orUnknown(s string) string {
+	if s == "" {
+		return "(commit not given)"
 	}
+	return s
 }
 
 func cell(ok, bad int) string {

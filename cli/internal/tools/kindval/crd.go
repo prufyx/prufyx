@@ -236,11 +236,13 @@ func installRelease(ctx context.Context, k kube, manifest []byte, defs []CRDDef,
 }
 
 // runPair installs the From release's CRDs, probes them, tries the To
-// release in place (as an upgrade would), and, when the server refuses the
-// in-place change, reinstalls To from scratch so its own state is still
-// observed. The pair's CRDs are removed afterwards.
+// release in place (as an upgrade would) and records the answer, then
+// installs To from scratch and probes it: what a release's manifests serve
+// is a statement about the manifests alone, and a plain apply neither
+// removes a definition To dropped nor succeeds when a stored version goes.
+// The pair's CRDs are removed afterwards.
 func runPair(ctx context.Context, k kube, fetch fetcher, pair CRDPair) CRDPairResult {
-	res := CRDPairResult{ID: pair.ID, Project: pair.Project}
+	res := CRDPairResult{ID: pair.ID, Project: pair.Project, FromTag: pair.From.Tag, ToTag: pair.To.Tag}
 	fromManifest, fromDefs, fromFiles, err := releaseManifest(ctx, fetch, pair.Repo, pair.From)
 	if err != nil {
 		res.Error = "from: " + err.Error()
@@ -264,12 +266,22 @@ func runPair(ctx context.Context, k kube, fetch fetcher, pair CRDPair) CRDPairRe
 	res.InPlace.Attempted = true
 	if err := k.apply(ctx, toManifest); err != nil {
 		res.InPlace.Message = firstLine(err.Error())
-		if err := k.deleteCRDs(ctx, all); err != nil {
-			res.Error = "reinstall: " + err.Error()
-			return res
-		}
 	} else {
 		res.InPlace.Succeeded = true
+	}
+	toNames := map[string]bool{}
+	for _, d := range toDefs {
+		toNames[d.Name] = true
+	}
+	for _, d := range fromDefs {
+		if !toNames[d.Name] {
+			res.InPlace.Leftover = append(res.InPlace.Leftover, d.Name)
+		}
+	}
+	sort.Strings(res.InPlace.Leftover)
+	if err := k.deleteCRDs(ctx, all); err != nil {
+		res.Error = "reinstall: " + err.Error()
+		return res
 	}
 	res.To = installRelease(ctx, k, toManifest, toDefs, toFiles, fromDefs)
 	return res

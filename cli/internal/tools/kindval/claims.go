@@ -3,6 +3,8 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -18,6 +20,9 @@ func apiPair(group, version, kind string) string {
 	}
 	return group + "/" + version + " " + kind
 }
+
+// member renders "group/version/Kind", the custom-resource set member form.
+func member(group, version, kind string) string { return group + "/" + version + "/" + kind }
 
 // minorOf parses "major.minor" (a patch suffix is ignored); ok is false for
 // anything else.
@@ -64,6 +69,23 @@ func sortLines(lines []string) {
 	sort.SliceStable(lines, func(i, j int) bool { return lineLess(lines[i], lines[j]) })
 }
 
+func rawString(s string) json.RawMessage {
+	b, _ := json.Marshal(s)
+	return b
+}
+
+func rawObject(v any) json.RawMessage {
+	b, _ := json.Marshal(v)
+	return b
+}
+
+// servedAPIClaim builds a k8s-served-api claim.
+func servedAPIClaim(line, group, version, kind, expect, source string) Claim {
+	api := apiPair(group, version, kind)
+	id := fmt.Sprintf("k8s.%s.%s.%s", line, strings.ReplaceAll(strings.ReplaceAll(api, "/", "_"), " ", "_"), expect)
+	return Claim{ID: id, Kind: KindServedAPI, Subject: Subject{Line: line, Group: group, Version: version, Kind: kind}, Expect: expect, Evidence: rawObject(map[string]string{"source": source})}
+}
+
 // KubernetesClaims derives the checkable claims of the removal table for
 // the given cluster lines. For a removal that takes effect at line L
 // (kinds K of group G stop being served at version V):
@@ -71,38 +93,32 @@ func sortLines(lines []string) {
 //   - every line >= L does not serve G/V K (Kubernetes never serves a
 //     removed version again);
 //   - line L-1 serves G/V K (the rule's own from range: what L-1 served);
-//   - line L serves every version the table names as still served there.
+//   - line L serves every version the table names as still served there;
+//   - when both L-1 and L are in the matrix, a k8s-removal claim for the
+//     hop L-1 -> L: both servers agree and the scan blocks.
 //
 // Nothing is claimed about a removed version on lines below L-1: the table
 // does not record when a version was introduced.
-func KubernetesClaims(lines []string) []APIClaim {
+func KubernetesClaims(lines []string) []Claim {
 	have := make(map[string]bool, len(lines))
 	for _, line := range lines {
 		have[line] = true
 	}
-	var out []APIClaim
-	add := func(line, api, expect, source string) {
-		if !have[line] {
-			return
+	var out []Claim
+	add := func(c Claim) {
+		if have[c.Subject.Line] {
+			out = append(out, c)
 		}
-		id := fmt.Sprintf("k8s.%s.%s.%s", line, strings.ReplaceAll(strings.ReplaceAll(api, "/", "_"), " ", "_"), expect)
-		out = append(out, APIClaim{ID: id, Line: line, API: api, Expect: expect, Source: source})
 	}
+	type removal struct {
+		line, group, version, source string
+		kinds, served                []string
+	}
+	var removals []removal
 	table := k8sremovals.ByTargetMinor()
-	for removalLine, removals := range table {
-		for _, removal := range removals {
-			for _, kind := range removal.Kinds {
-				api := apiPair(removal.Group, removal.Removed, kind)
-				for _, line := range lines {
-					if !lineLess(line, removalLine) {
-						add(line, api, ExpectNotServed, "k8sremovals:"+removal.Fact)
-					}
-				}
-				add(previousLine(removalLine), api, ExpectServed, "k8sremovals:"+removal.Fact+":from")
-				for _, served := range removal.Served {
-					add(removalLine, apiPair(removal.Group, served, kind), ExpectServed, "k8sremovals:"+removal.Fact+":served")
-				}
-			}
+	for line, list := range table {
+		for _, r := range list {
+			removals = append(removals, removal{line: line, group: r.Group, version: r.Removed, source: "k8sremovals:" + r.Fact, kinds: r.Kinds, served: r.Served})
 		}
 	}
 	// The 1.32 flow-control removal is handled outside the table.
@@ -110,26 +126,28 @@ func KubernetesClaims(lines []string) []APIClaim {
 		if _, inTable := table[rv.Line]; inTable {
 			continue
 		}
-		for _, kind := range rv.Kinds {
-			api := apiPair(rv.Group, rv.Version, kind)
+		removals = append(removals, removal{line: rv.Line, group: rv.Group, version: rv.Version, source: "k8sremovals:RemovedVersions:" + rv.Line, kinds: rv.Kinds})
+	}
+	for _, r := range removals {
+		prev := previousLine(r.line)
+		for _, kind := range r.kinds {
 			for _, line := range lines {
-				if !lineLess(line, rv.Line) {
-					add(line, api, ExpectNotServed, "k8sremovals:RemovedVersions:"+rv.Line)
+				if !lineLess(line, r.line) {
+					add(servedAPIClaim(line, r.group, r.version, kind, ExpectNotServed, r.source))
 				}
 			}
-			add(previousLine(rv.Line), api, ExpectServed, "k8sremovals:RemovedVersions:"+rv.Line+":from")
+			add(servedAPIClaim(prev, r.group, r.version, kind, ExpectServed, r.source+":from"))
+			for _, served := range r.served {
+				add(servedAPIClaim(r.line, r.group, served, kind, ExpectServed, r.source+":served"))
+			}
+			if have[prev] && have[r.line] {
+				api := apiPair(r.group, r.version, kind)
+				id := fmt.Sprintf("k8s.%s-to-%s.%s.removal", prev, r.line, strings.ReplaceAll(strings.ReplaceAll(api, "/", "_"), " ", "_"))
+				out = append(out, Claim{ID: id, Kind: KindK8sRemoval, Subject: Subject{From: rawString(prev), To: rawString(r.line), Group: r.group, Version: r.version, Kind: kind}, Evidence: rawObject(map[string]string{"source": r.source})})
+			}
 		}
 	}
-	sort.SliceStable(out, func(i, j int) bool {
-		if out[i].Line != out[j].Line {
-			return lineLess(out[i].Line, out[j].Line)
-		}
-		if out[i].API != out[j].API {
-			return out[i].API < out[j].API
-		}
-		return out[i].Expect < out[j].Expect
-	})
-	// Drop exact duplicates (two removals can name the same kind).
+	sort.SliceStable(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	dedup := out[:0]
 	for i, c := range out {
 		if i > 0 && out[i-1].ID == c.ID {
@@ -155,27 +173,130 @@ func knownRemovals() map[string]map[string]bool {
 	return out
 }
 
-// removedMembers lists the "group/version/Kind" members a pair removes:
-// served at From and not served (or absent) at To.
-func removedMembers(pair CRDPair) []string {
-	served := func(rel CRDRelease) map[string]bool {
-		out := map[string]bool{}
-		for _, crd := range rel.CRDs {
-			for _, v := range crd.Versions {
-				if v.Served {
-					out[crd.Group+"/"+v.Name+"/"+crd.Kind] = true
+// lineSubject reads a k8s-removal from/to member: a "major.minor" string.
+func lineSubject(raw json.RawMessage) (string, error) {
+	var s string
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return "", fmt.Errorf("not a release line: %s", string(raw))
+	}
+	if _, _, ok := minorOf(s); !ok || strings.Count(s, ".") != 1 {
+		return "", fmt.Errorf("%q is not major.minor", s)
+	}
+	return s, nil
+}
+
+// releaseSubject reads a crd-removal or crd-pair from/to member.
+func releaseSubject(raw json.RawMessage) (CRDRelease, error) {
+	var r CRDRelease
+	dec := json.NewDecoder(strings.NewReader(string(raw)))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&r); err != nil {
+		return r, fmt.Errorf("not a release: %v", err)
+	}
+	return r, r.validate()
+}
+
+func (r CRDRelease) validate() error {
+	if r.Tag == "" || len(r.Commit) != 40 || strings.Trim(r.Commit, "0123456789abcdef") != "" || len(r.Files) == 0 {
+		return fmt.Errorf("release %q needs a tag, a full lowercase hex commit and files", r.Tag)
+	}
+	return nil
+}
+
+// CRDPair is a pair of consecutive releases of one project to install in
+// turn: the grouping of every crd-removal and crd-pair claim with the same
+// project and releases. crd-version claims attach to a release of a pair.
+type CRDPair struct {
+	ID      string
+	Project string
+	Repo    string
+	From    CRDRelease
+	To      CRDRelease
+}
+
+func pairID(project, fromTag, toTag string) string { return project + "." + fromTag + "-to-" + toTag }
+
+// Validate checks the claims document: known kinds, unique ids, complete
+// subjects, and one commit and file list per project release.
+func (c Claims) Validate() error {
+	if c.Schema != ClaimsSchema {
+		return fmt.Errorf("schema %q is not %s", c.Schema, ClaimsSchema)
+	}
+	ids := map[string]bool{}
+	releases := map[string]CRDRelease{}
+	release := func(project string, r CRDRelease) error {
+		key := project + "@" + r.Tag
+		if prev, ok := releases[key]; ok && (prev.Commit != r.Commit || strings.Join(prev.Files, "\n") != strings.Join(r.Files, "\n")) {
+			return fmt.Errorf("release %s %s has two different commits or file lists", project, r.Tag)
+		}
+		releases[key] = r
+		return nil
+	}
+	for i, cl := range c.Claims {
+		if cl.ID == "" || ids[cl.ID] {
+			return fmt.Errorf("claim %d: id %q is empty or repeated", i, cl.ID)
+		}
+		ids[cl.ID] = true
+		s := cl.Subject
+		var err error
+		switch cl.Kind {
+		case KindServedAPI:
+			if _, _, ok := minorOf(s.Line); !ok || s.Version == "" || s.Kind == "" || (cl.Expect != ExpectServed && cl.Expect != ExpectNotServed) {
+				err = errors.New("needs line, version, kind and expect served|not_served")
+			}
+		case KindK8sRemoval:
+			if s.Version == "" || s.Kind == "" {
+				err = errors.New("needs version and kind")
+			} else if _, err = lineSubject(s.From); err == nil {
+				_, err = lineSubject(s.To)
+			}
+		case KindCRDVersion:
+			if s.Project == "" || s.Repo == "" || s.Release == nil || s.CRD == "" || s.Group == "" || s.Version == "" || s.Kind == "" || s.Served == nil || s.Storage == nil {
+				err = errors.New("needs project, repo, release, crd, group, version, kind, served and storage")
+			} else if err = s.Release.validate(); err == nil {
+				err = release(s.Project, *s.Release)
+			}
+		case KindCRDRemoval, KindCRDPair:
+			if s.Project == "" || s.Repo == "" || (cl.Kind == KindCRDRemoval && (s.Group == "" || s.Version == "" || s.Kind == "")) {
+				err = errors.New("needs project, repo, from and to (and group, version, kind for a removal)")
+			} else {
+				var from, to CRDRelease
+				if from, err = releaseSubject(s.From); err == nil {
+					if to, err = releaseSubject(s.To); err == nil {
+						if err = release(s.Project, from); err == nil {
+							err = release(s.Project, to)
+						}
+					}
 				}
 			}
+		case KindAddonRule:
+		default:
+			err = fmt.Errorf("unknown kind %q", cl.Kind)
 		}
-		return out
-	}
-	from, to := served(pair.From), served(pair.To)
-	var out []string
-	for m := range from {
-		if !to[m] {
-			out = append(out, m)
+		if err != nil {
+			return fmt.Errorf("claim %s (%s): %v", cl.ID, cl.Kind, err)
 		}
 	}
-	sort.Strings(out)
+	return nil
+}
+
+// Pairs lists the release pairs the claims need installed, by project and
+// tags, in id order.
+func (c Claims) Pairs() []CRDPair {
+	byID := map[string]CRDPair{}
+	for _, cl := range c.Claims {
+		if cl.Kind != KindCRDRemoval && cl.Kind != KindCRDPair {
+			continue
+		}
+		from, _ := releaseSubject(cl.Subject.From)
+		to, _ := releaseSubject(cl.Subject.To)
+		id := pairID(cl.Subject.Project, from.Tag, to.Tag)
+		byID[id] = CRDPair{ID: id, Project: cl.Subject.Project, Repo: cl.Subject.Repo, From: from, To: to}
+	}
+	out := make([]CRDPair, 0, len(byID))
+	for _, p := range byID {
+		out = append(out, p)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
 }

@@ -1,0 +1,8 @@
+# kind cluster configuration for KIND-VAL (scripts/kind-val.sh): one node,
+# every beta API served. Beta APIs introduced since Kubernetes 1.24 are off
+# by default; the removal table's claims about them are checkable only on a
+# server that serves them.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+runtimeConfig:
+  "api/beta": "true"

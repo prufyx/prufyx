@@ -170,12 +170,12 @@ func (k kube) dryRunCreate(ctx context.Context, manifest []byte) ServerTry {
 func classify(exit int, stderr string) ServerTry {
 	msg := strings.TrimSpace(stderr)
 	if exit == 0 {
-		return ServerTry{Outcome: OutcomeAccepted}
+		return ServerTry{Outcome: ServerAccepted}
 	}
 	if strings.Contains(msg, "no matches for kind") || strings.Contains(msg, "the server doesn't have a resource type") || strings.Contains(msg, "could not find the requested resource") {
-		return ServerTry{Outcome: OutcomeNotServed, Message: firstLine(msg)}
+		return ServerTry{Outcome: ServerNotServed, Message: firstLine(msg)}
 	}
-	return ServerTry{Outcome: OutcomeRejected, Message: firstLine(msg)}
+	return ServerTry{Outcome: ServerRejected, Message: firstLine(msg)}
 }
 
 func firstLine(s string) string {
