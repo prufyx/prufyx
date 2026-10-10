@@ -179,6 +179,10 @@ type Report struct {
 
 	// alarmKinds runs parallel to Alarms.
 	alarmKinds []string
+	// batch is the decision on the batch approval the change adds (nil:
+	// none).
+	batch *batchResult
+
 	// rederivedUnchanged counts rules re-derived by --rederive-all: every
 	// active mechanical rule the change did not already re-derive (see
 	// rederiveAll).
@@ -414,6 +418,12 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	// The base's approvals, decoded once for every record change.
 	approvals := &baseApprovals{opts: opts}
 
+	// A batch approval the change adds is decided once, all or nothing,
+	// before any change: with one present, it alone decides the change's
+	// reviewed entries.
+	batch := runBatch(ctx, opts, cls, r.ChangedPaths, loadKeys, approvals)
+	r.batch = batch
+
 	var mechanical, removals, schemaChanges []*Change
 	consensusChecks := &consensusRun{}
 	defer consensusChecks.close()
@@ -448,7 +458,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 				}
 				mechanical = append(mechanical, c)
 			default:
-				admitRecord(c, statements[c.Pack], loadKeys, crossCheck, approvals, opts)
+				admitRecord(c, statements[c.Pack], loadKeys, crossCheck, approvals, batch, opts)
 			}
 			continue
 		}
@@ -469,7 +479,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 			}
 			mechanical = append(mechanical, c)
 		case constraintengine.BasisReviewed:
-			admitReviewed(c, statements[c.Pack], loadKeys, opts)
+			admitReviewed(c, statements[c.Pack], loadKeys, batch, approvals, opts)
 		case constraintengine.BasisConsensus:
 			c.fail("consensus evidence has no verifier in this gate; not admitted")
 			consensusChecks.report(ctx, c, opts)
@@ -482,6 +492,10 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		default:
 			c.fail(fmt.Sprintf("evidence basis %q is not admitted", c.Basis))
 		}
+	}
+	if batch != nil {
+		r.add(CheckBatch, batch.ok, "%s", batch.detail)
+		r.alarm(AlarmBatch, "the change carries a batch approval (%s): %s", map[bool]string{true: "admitted", false: "refused"}[batch.ok], batch.detail)
 	}
 	rederive(ctx, opts.Source, opts.Catalog, opts.Concurrency, opts.Layout, mechanical)
 	for _, c := range removals {
@@ -518,7 +532,15 @@ func baseCanonical(c *Change) []byte {
 	return c.base.Canonical
 }
 
-func admitReviewed(c *Change, stmt statementResult, loadKeys func() (*ApprovalKeys, error), opts Options) {
+func admitReviewed(c *Change, stmt statementResult, loadKeys func() (*ApprovalKeys, error), batch *batchResult, approvals *baseApprovals, opts Options) {
+	if batch != nil {
+		if batch.admits(c) {
+			c.OK, c.Proof = true, ProofBatchApproval
+			return
+		}
+		c.fail("a reviewed rule may loosen only with a verified reattestation statement or owner approval: " + batch.refusal(c))
+		return
+	}
 	var reasons []string
 	if stmt.OK {
 		// The statement verified against exactly this base and head pack
@@ -546,12 +568,32 @@ func admitReviewed(c *Change, stmt statementResult, loadKeys func() (*ApprovalKe
 			reasons = append(reasons, err.Error())
 		} else if err := VerifyApproval(raw, *keys, c.Pack, c.RuleID, baseCanonical(c), c.head.Canonical, opts.Now); err != nil {
 			reasons = append(reasons, err.Error())
+		} else if why, err := ruleApprovalBehindBatch(raw, c, approvals); err != nil {
+			reasons = append(reasons, err.Error())
+		} else if why != "" {
+			reasons = append(reasons, why)
 		} else {
 			c.OK, c.Proof = true, ProofApproval
 			return
 		}
 	}
 	c.fail("a reviewed rule may loosen only with a verified reattestation statement or owner approval: " + strings.Join(reasons, "; "))
+}
+
+// ruleApprovalBehindBatch says why a verified per-entry approval of a rule
+// may not be used: the base holds a batch entry for the same rule decided at
+// the same time or later. Decisions only move forward for rules as for
+// records, in both directions between the two mechanisms.
+func ruleApprovalBehindBatch(raw []byte, c *Change, approvals *baseApprovals) (string, error) {
+	if approvals == nil {
+		return "", nil
+	}
+	env, err := decodeApproval(raw)
+	if err != nil {
+		return "", err
+	}
+	at, atErr := time.Parse(time.RFC3339, env.Record.DecidedAt)
+	return approvals.batchRecordDecision(BatchSubjectRule, c.Pack, c.RuleID, at, atErr)
 }
 
 // rederiveAll re-derives every active mechanical head rule the change did
@@ -811,6 +853,9 @@ func (r *Report) autoMerge(opts Options) {
 		reasons = append(reasons, fmt.Sprintf("the run was triggered by %q, not the automation account", logSafe(opts.Sender)))
 	}
 	reasons = append(reasons, commitReasons(opts)...)
+	if r.batch != nil {
+		reasons = append(reasons, "the change carries a batch approval; batch approvals are merged by the owner, never automatically")
+	}
 	for _, c := range r.Changes {
 		if c.isSupersede() {
 			reasons = append(reasons, "the change supersedes a reviewed rule; that is made and merged by the owner, never automatically")

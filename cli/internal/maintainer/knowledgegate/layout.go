@@ -88,6 +88,10 @@ type Layout struct {
 	TrustRootPath string
 	// ApprovalDir holds owner approvals as <pack>/<rule id>.json.
 	ApprovalDir string
+	// BatchDir holds owner batch approvals as <batch id>.json (see
+	// batch.go). It is not under a pack's approval directory, whose
+	// readers refuse a subdirectory. Empty disables batch approvals.
+	BatchDir string
 	// ApprovalKeysPath pins the owner-approval keys. It is read from the
 	// base tree only.
 	ApprovalKeysPath string
@@ -202,6 +206,7 @@ func DefaultLayout() Layout {
 		ReattestDir:        reattestDir,
 		TrustRootPath:      trustRootPath,
 		ApprovalDir:        approvalDir,
+		BatchDir:           approvalDir + "/batches",
 		ApprovalKeysPath:   approvalKeys,
 		BaselinesPath:      repinbaselines.DefaultPath,
 		ConsensusClaimsDir: consensusDir,

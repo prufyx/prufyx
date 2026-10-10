@@ -232,6 +232,9 @@ func (r *Report) recordCheck(cls *Classification, statements map[string]statemen
 		switch {
 		case opts.Layout.trustPath(p):
 			continue // trustCheck
+		case opts.Layout.BatchDir != "" && strings.HasPrefix(p, opts.Layout.BatchDir+"/"):
+			n++
+			why = batchPathReason(opts, p, r.batch)
 		case strings.HasPrefix(p, opts.Layout.ApprovalDir+"/"+repinbaselines.ApprovalPack+"/"):
 			n++
 			inHead := opts.Head.Exists(p)

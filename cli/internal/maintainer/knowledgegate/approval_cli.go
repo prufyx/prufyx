@@ -5,6 +5,7 @@ package knowledgegate
 import (
 	"bytes"
 	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -34,6 +35,10 @@ const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|public-key
               single use and forward-only decisions)
   verify      --approval FILE --subject repinBaseline --repository OWNER/REPO --head-baselines FILE
               [--base-baselines FILE] --base-root DIR --keys FILE --keys-digest sha256:... [--now RFC3339]
+  sign        --batch --base DIR --head DIR --batch-id b-YYYYMMDD-N --candidate-id ID
+              --keys FILE --keys-digest sha256:... --identity LOGIN (--key FILE | --key-stdin)
+              [--output FILE] [--summary-out FILE] [--valid-for DURATION (at most 72h)]
+  verify      --batch FILE --base DIR --head DIR --keys FILE --keys-digest sha256:... [--now RFC3339]
   public-key  (--key FILE | --key-stdin)
   keys-digest --keys FILE`
 
@@ -44,6 +49,10 @@ type approvalEnv struct {
 	now   func() time.Time
 	// checkStdin accepts standard input as a key source or says why not.
 	checkStdin func(io.Reader) error
+	// confirm asks the owner on the terminal and returns the line typed
+	// (batch signing); random is the source of the batch review nonce.
+	confirm func(prompt string) (string, error)
+	random  io.Reader
 }
 
 // checkKeyStdin accepts only a pipe. A terminal would echo a typed or
@@ -80,7 +89,7 @@ func (e usageError) Error() string { return e.msg }
 // verify: the approval is accepted), 1 verify refused the approval, 2
 // rejected input or a refused signing.
 func ApprovalMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	return approvalMain(args, approvalEnv{stdin: stdin, now: time.Now, checkStdin: checkKeyStdin}, DefaultLayout(), stdout, stderr)
+	return approvalMain(args, approvalEnv{stdin: stdin, now: time.Now, checkStdin: checkKeyStdin, confirm: confirmOnTTY, random: rand.Reader}, DefaultLayout(), stdout, stderr)
 }
 
 func approvalMain(args []string, env approvalEnv, layout Layout, stdout, stderr io.Writer) int {
@@ -92,9 +101,17 @@ func approvalMain(args []string, env approvalEnv, layout Layout, stdout, stderr 
 	var err error
 	switch args[0] {
 	case "sign":
-		code, err = cmdApprovalSign(args[1:], env, layout, stdout)
+		if hasBatchFlag(args[1:]) {
+			code, err = cmdBatchSign(args[1:], env, layout, stdout)
+		} else {
+			code, err = cmdApprovalSign(args[1:], env, layout, stdout)
+		}
 	case "verify":
-		code, err = cmdApprovalVerify(args[1:], env, layout, stdout)
+		if hasBatchFlag(args[1:]) {
+			code, err = cmdBatchVerify(args[1:], env, layout, stdout)
+		} else {
+			code, err = cmdApprovalVerify(args[1:], env, layout, stdout)
+		}
 	case "public-key":
 		code, err = cmdApprovalPublicKey(args[1:], env, stdout)
 	case "keys-digest":
