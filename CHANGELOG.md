@@ -78,7 +78,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   The line attestation (`attest`) stays off for all eleven. API groups that
   end in `.k8s.io` or that several projects ship (`multicluster.x-k8s.io`)
   are not listed for any project. The embedded CNCF pack moves to revision
-  `cncf-2026-09-13.6` (same rules; only the registry digest and the revision
+  `cncf-2026-09-13.7` (same rules; only the registry digest and the revision
   differ); external CNCF packs and knowledge databases built against the
   previous registry are refused by this release until they are rebuilt. No
   rule over the new sets ships yet.
