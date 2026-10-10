@@ -8788,17 +8788,17 @@
             {
               "bound": "from.lt",
               "basis": "REMOVED_IN_RELEASE",
-              "sourceId": "kubernetes-website-v132-flowcontrol-removal"
+              "sourceId": "kubernetes-132-lifecycle-flowcontrol-v1beta3"
             },
             {
               "bound": "to.gte",
               "basis": "REMOVED_IN_RELEASE",
-              "sourceId": "kubernetes-website-v132-flowcontrol-removal"
+              "sourceId": "kubernetes-132-lifecycle-flowcontrol-v1beta3"
             },
             {
               "bound": "to.lt",
               "basis": "TARGET_SERIES",
-              "sourceId": "kubernetes-website-v132-flowcontrol-removal"
+              "sourceId": "kubernetes-132-lifecycle-flowcontrol-v1beta3"
             }
           ]
         },
@@ -8814,12 +8814,12 @@
           "validUntil": "2027-01-08T12:00:00Z",
           "sources": [
             {
-              "id": "kubernetes-website-v132-flowcontrol-removal",
-              "url": "https://github.com/kubernetes/website/blob/4e63ceb05c36a5db816c3244856a2996ddc23793/content/en/docs/reference/using-api/deprecation-guide.md",
-              "revision": "4e63ceb05c36a5db816c3244856a2996ddc23793",
-              "contentDigest": "sha256:e8713b66cc6e8778589ad721d4aa36e390d1095ad2ad9e86db2d6e0e42bbec4b",
-              "startLine": 23,
-              "endLine": 34
+              "id": "kubernetes-132-lifecycle-flowcontrol-v1beta3",
+              "url": "https://github.com/kubernetes/kubernetes/blob/70d3cc986aa8221cd1dfb1121852688902d3bf53/staging/src/k8s.io/api/flowcontrol/v1beta3/zz_generated.prerelease-lifecycle.go",
+              "revision": "70d3cc986aa8221cd1dfb1121852688902d3bf53",
+              "contentDigest": "sha256:5a59d09b0e80140c833c5a739cdfaa62073c63e520c96fe275e9934ef23faff6",
+              "startLine": 46,
+              "endLine": 122
             },
             {
               "id": "kubernetes-website-version-skew-upgrade-order",
