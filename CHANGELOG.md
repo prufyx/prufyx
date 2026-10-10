@@ -431,6 +431,29 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   `prufyx <command> help`, `--help`, `-h` and `prufyx help <command>`.
 - Help text no longer uses MariaDB or MariaDB Operator in examples; the
   MariaDB rules and knowledge are unchanged.
+- Knowledge compatibility: the fact registry gains the five Kubernetes
+  component feature-gate set facts
+  `component.kubernetes.<component>_feature_gates_set` (`kube_apiserver`,
+  `kube_controller_manager`, `kube_scheduler`, `kubelet`, `kube_proxy`), the
+  facts the `k8s.feature-gate-removal` extractor derives `forbid_set_member`
+  rules over. The embedded CNCF pack moves to revision `cncf-2026-09-13.6`
+  (same rules; only the registry digest and the revision differ). External
+  CNCF packs and knowledge databases built against the previous registry,
+  including revisions `cncf-2026-09-13.4` and `cncf-2026-09-13.5`, are
+  refused by this release until they are rebuilt. No published rule reads the facts yet, and only
+  `check cncf --kubernetes-component-config` supplies them, from the
+  configuration the caller selects and the scopes the caller declares
+  complete. `scan` and `check cncf --native-resource` do not supply them, so
+  a feature-gate rule is never evaluated there and can never produce a PASS.
+  A `--kubernetes-component-config` check on a one-minor-line transition now
+  prepares the five sets (incomplete unless the scope is declared complete).
+  On a transition without a published predicate (lines before 1.23 and after
+  1.30) the sets decide the preparation reason, which can read
+  `KUBERNETES_COMPONENT_EVIDENCE_INCOMPLETE` instead of
+  `KUBERNETES_COMPONENT_NO_REVIEWED_PREDICATE_FOR_TRANSITION` (the check still
+  reports UNKNOWN, no reviewed rule). On lines 1.23 to 1.30 the preparation
+  state and reason come from the predicate facts only, as before; an
+  incomplete set does not change them.
 - `knowledge-targets check-size` prints first what it checked (the embedded pack,
   a `--dir` directory or a `--tree` checkout) and the single-target line names its
   target.

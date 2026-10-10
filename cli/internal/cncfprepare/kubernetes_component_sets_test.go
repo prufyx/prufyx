@@ -184,3 +184,35 @@ func TestKubernetesComponentSetFactTable(t *testing.T) {
 		}
 	}
 }
+
+// A transition whose line has published predicate rules keeps the predicate
+// preparation reason when the gate sets are registered (as production
+// registers them) and one set is incomplete: no rule of the line reads it.
+func TestSetsDoNotDecideThePreparationOfALineWithPredicates(t *testing.T) {
+	all := func(string) bool { return true }
+	selection, contents := k8sSelection(t, k8sAllScopes, nil, k8sKubeletEnv("--container-runtime-endpoint=unix:///run/containerd/containerd.sock"))
+	for _, pair := range [][2]string{{"1.23.17", "1.24.0"}, {"1.29.0", "1.30.0"}} {
+		prepared, err := PrepareKubernetesComponentConfig(selection, contents, pair[0], pair[1], "official_upstream", all)
+		if err != nil {
+			t.Fatal(err)
+		}
+		view := k8sProposedFacts(t, prepared)
+		incomplete := false
+		for id, f := range view {
+			if strings.HasSuffix(id, "_feature_gates_set") && (f.State != "declared" || f.SetValue == nil || !f.SetValue.Complete) {
+				incomplete = true
+			}
+		}
+		if pair[0] == "1.23.17" {
+			if !incomplete || prepared.State != StatePrepared || prepared.Reason != ReasonKubernetesComponentSettingAbsent {
+				t.Errorf("%v: state %s reason %s, sets incomplete %v; want PREPARED/%s with an incomplete set", pair, prepared.State, prepared.Reason, incomplete, ReasonKubernetesComponentSettingAbsent)
+			}
+			continue
+		}
+		// No predicate on the line: the sets are the only facts, so their
+		// completeness decides.
+		if prepared.State == StatePrepared && incomplete {
+			t.Errorf("%v: prepared with an incomplete set", pair)
+		}
+	}
+}

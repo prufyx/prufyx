@@ -190,8 +190,11 @@ counts, even one another option might consume as its value. A name outside the
 set member character set is left out and marks the set incomplete; a set of
 more than 256 names is declared unsupported. A forbid_set_member rule over one
 of these facts decides by its own reviewed transition, and like every fact here
-a set is emitted only when a published rule consumes it and only for a
-transition across one minor line.
+a set is emitted only when the fact registry declares it and only for a
+transition across one minor line. The registry declares the five
+`feature_gates_set` facts; the `flags_set` facts are not declared yet.
+`scan` and `check cncf --native-resource` do not supply these facts, so a
+rule over them is decided only by this route.
 
 Managed control planes usually hide API server, controller manager and
 scheduler arguments. Leave those scopes out of `complete`; their rules then
