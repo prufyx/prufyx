@@ -655,7 +655,7 @@ func TestSupersedeCommand(t *testing.T) {
 		t.Fatal("a refused supersede changed the pack")
 	}
 
-	// The run covers five shipped reviewed rules: replaced, the map printed, the engine loader admits the result.
+	// The run covers six shipped reviewed rules: replaced, the map printed, the engine loader admits the result.
 	code, out, errs = run("supersede", "--out", dir, "--pack", pack)
 	if code != 0 || errs != "" {
 		t.Fatalf("supersede: %d %s", code, errs)
@@ -668,7 +668,7 @@ func TestSupersedeCommand(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &doc); err != nil {
 		t.Fatal(err)
 	}
-	if len(doc.Added) != 6 || len(doc.Map) != 5 || len(doc.Unchanged) != 0 ||
+	if len(doc.Added) != 6 || len(doc.Map) != 6 || len(doc.Unchanged) != 0 ||
 		doc.Map["kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0"] != "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0" {
 		t.Fatalf("map %s", out)
 	}

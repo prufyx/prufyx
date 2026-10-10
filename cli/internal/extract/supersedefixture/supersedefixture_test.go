@@ -21,14 +21,14 @@ func shipped(t *testing.T) []byte {
 	return raw
 }
 
-// The fixture's 25 entries are the reviewed rules, one for each reviewed id.
+// The fixture's 29 entries are the reviewed rules, one for each reviewed id.
 func TestFixtureHoldsTheReviewedRules(t *testing.T) {
 	want := map[string]bool{}
 	for _, id := range supersedeids.ReviewedIDs() {
 		want[id] = true
 	}
 	entries := ReviewedEntries()
-	if len(entries) != 25 {
+	if len(entries) != 29 {
 		t.Fatalf("%d entries", len(entries))
 	}
 	for _, raw := range entries {
@@ -59,10 +59,10 @@ func TestReviewedRestoresTheReviewedGeneration(t *testing.T) {
 	}
 }
 
-// While the shipped pack holds the reviewed rules, each of the 25 fixture
+// While the shipped pack holds the reviewed rules, each of the 29 fixture
 // entries is byte-for-byte the entry of the shipped pack (compared compact,
 // key order included), so that a reattestation or any other edit of one of
-// the 25 rules before the supersede cannot leave a stale fixture behind. After
+// the 29 rules before the supersede cannot leave a stale fixture behind. After
 // the supersede the shipped pack no longer holds them and the fixture is the
 // only copy.
 func TestFixtureEntriesAreTheShippedReviewedEntries(t *testing.T) {
@@ -107,7 +107,7 @@ func TestFixtureEntriesAreTheShippedReviewedEntries(t *testing.T) {
 		}
 		matched++
 	}
-	if matched != 25 {
-		t.Fatalf("%d of 25 fixture entries equal the shipped ones", matched)
+	if matched != 29 {
+		t.Fatalf("%d of 29 fixture entries equal the shipped ones", matched)
 	}
 }

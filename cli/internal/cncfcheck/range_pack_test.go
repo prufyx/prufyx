@@ -207,15 +207,10 @@ func TestRangeAwarePrefilterSelectsThroughTheMatcher(t *testing.T) {
 	if _, err := MarshalReport(report); err != nil {
 		t.Fatal(err)
 	}
-	// The 1.32 flow-control rule is exact-only while it is a reviewed rule
-	// (see EXCLUDED in the ranges tooling) and a ranged mechanical rule like
-	// the rest once the mechanical rules ship: rules selected for a pair with
-	// no ranged rule render under the exact contract, the others under the
-	// ranged one.
-	wantDigest := constraintengine.EngineContractDigest()
-	if supersedeids.Superseded() {
-		wantDigest = constraintengine.EngineContractDigestRanged()
-	}
+	// The 1.32 flow-control rule is ranged in both generations of the pack,
+	// so the rules selected for its anchor pair render under the ranged
+	// contract, like those of every other reviewed Kubernetes removal.
+	wantDigest := constraintengine.EngineContractDigestRanged()
 	exactOnly, err := ranged.rulesForAdmittedInput("kubernetes", kubernetesInput(t, "1.31.0", "1.32.0", true))
 	if err != nil {
 		t.Fatal(err)

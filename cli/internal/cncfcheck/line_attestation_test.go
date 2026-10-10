@@ -242,14 +242,11 @@ func TestExternalBundleRefusesAttestations(t *testing.T) {
 	}
 }
 
-// The published flowcontrol v1beta3 rule is a mechanical range rule: it
-// matches every hop into 1.32, so a 1.32 attestation lists it and an
-// attestation leaving it out is a missing rule.
+// The published flowcontrol v1beta3 rule is a range rule in both
+// generations of the pack: it matches every hop into 1.32, so a 1.32
+// attestation lists it and an attestation leaving it out is a missing rule.
 func TestPackAttestationOfTheLineWideFlowControlRule(t *testing.T) {
-	if !supersedeids.Superseded() {
-		t.Skip("the shipped pack still holds the anchor-only reviewed 1.32 rule")
-	}
-	const id = "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0"
+	id := supersedeids.ID("kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0")
 	b, err := load()
 	if err != nil {
 		t.Fatal(err)
@@ -279,37 +276,85 @@ func TestPackAttestationOfTheLineWideFlowControlRule(t *testing.T) {
 	}
 }
 
-// The published flowcontrol v1beta3 rule matches its anchor pair only, so a
-// 1.32 attestation listing it would present a hop such as 1.31.4 -> 1.32.1 as
-// covered while no rule matches it. The loader refuses it, and an attestation
-// leaving it out is a missing rule: 1.32 cannot be attested over this pack.
+// A rule that matches its anchor pair only cannot be listed by a line
+// attestation: a 1.32 attestation listing it would present a hop such as
+// 1.31.4 -> 1.32.1 as covered while no rule matches it. The loader refuses
+// it, and an attestation leaving it out is a missing rule: 1.32 cannot be
+// attested over such a pack. The pack here is the embedded one with the
+// reviewed range taken off the 1.32 flow-control rule.
 func TestPackRejectsAttestationListingARuleThatIsNotLineWide(t *testing.T) {
-	if supersedeids.Superseded() {
-		t.Skip("the published 1.32 rule is a range rule: see TestPackAttestationOfTheLineWideFlowControlRule")
+	id := supersedeids.ID("kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0")
+	pack := anchorOnlyPack(t, id)
+	if _, err := assembleSynthetic(withAttestations(t, pack, pack.Schema, nil), nil); err != nil {
+		t.Fatalf("the anchor-only pack without attestations is refused: %v", err)
 	}
-	id := "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0"
-	for _, entry := range func() []Entry {
-		b, err := load()
-		if err != nil {
-			t.Fatal(err)
-		}
-		return b.pack.Entries
-	}() {
-		tr, err := constraintengine.RuleTransitionOf(entry.Rule)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if strings.Contains(string(entry.Rule), `"id":"`+id+`"`) && tr.Match("1.31.4", "1.32.1") != constraintengine.MatchNone {
-			t.Fatal("fixture assumption broken: the 1.32 rule now matches every hop into 1.32")
-		}
+	if _, err := assembleSynthetic(withAttestations(t, pack, packSchemaAttested, section(t, testAttestation("1.29", []string{supersedeids.ID("kubernetes.flowcontrol-v1beta2-removed.1-28-0-to-1-29-0")}))), nil); err != nil {
+		t.Fatalf("an attestation of another line is refused over the anchor-only pack: %v", err)
 	}
 	for name, ids := range map[string][]string{"listed": {id}, "left out": nil} {
 		t.Run(name, func(t *testing.T) {
-			if _, err := assembleSynthetic(attestedPack(t, packSchemaAttested, section(t, testAttestation("1.32", ids))), nil); !errors.Is(err, ErrIntegrity) {
+			if _, err := assembleSynthetic(withAttestations(t, pack, packSchemaAttested, section(t, testAttestation("1.32", ids))), nil); !errors.Is(err, ErrIntegrity) {
 				t.Fatalf("accepted: %v", err)
 			}
 		})
 	}
+}
+
+// anchorOnlyPack is the embedded pack with the range of rule id removed. It
+// fails the test unless that rule ranged over 1.31.4 -> 1.32.1 before and
+// matches it no longer.
+func anchorOnlyPack(t *testing.T, id string) rulePack {
+	t.Helper()
+	raw, err := packagedFiles.ReadFile("data/rules.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pack rulePack
+	if err := strictJSON(raw, &pack); err != nil {
+		t.Fatal(err)
+	}
+	stripped := false
+	for i, entry := range pack.Entries {
+		if ruleID(t, entry) != id {
+			continue
+		}
+		var rule map[string]json.RawMessage
+		if err := json.Unmarshal(entry.Rule, &rule); err != nil {
+			t.Fatal(err)
+		}
+		if _, ranged := rule["range"]; !ranged {
+			t.Fatalf("%s has no range", id)
+		}
+		delete(rule, "range")
+		encoded, err := json.Marshal(rule)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tr, err := constraintengine.RuleTransitionOf(encoded)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tr.Match("1.31.4", "1.32.1") != constraintengine.MatchNone {
+			t.Fatal("the anchor-only rule still matches every hop into 1.32")
+		}
+		pack.Entries[i].Rule = encoded
+		stripped = true
+	}
+	if !stripped {
+		t.Fatalf("%s is not in the embedded pack", id)
+	}
+	return pack
+}
+
+// withAttestations is pack with schema and a raw attestation section.
+func withAttestations(t *testing.T, pack rulePack, schema string, section []byte) []byte {
+	t.Helper()
+	pack.Schema, pack.LineAttestations = schema, section
+	encoded, err := json.Marshal(pack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return encoded
 }
 
 // The pack's member names are matched exactly before decoding: encoding/json

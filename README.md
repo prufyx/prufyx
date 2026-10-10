@@ -69,11 +69,11 @@ upgrade surface they decide.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-10-08 by `scripts/readme-coverage.sh` (do not edit this block by hand).
+Generated on 2026-10-10 by `scripts/readme-coverage.sh` (do not edit this block by hand).
 
 | Executable rules | Count |
 | --- | --- |
-| CNCF source rules, active | 190 across 53 projects (1 withdrawn, not used) |
+| CNCF source rules, active | 194 across 53 projects (1 withdrawn, not used) |
 | Rules for further, non-CNCF projects | 34 across 8 projects |
 | Projects with at least one executable check | 65 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
@@ -82,11 +82,11 @@ Version-coverage depth, measured over the last five minor upgrades of each of th
 
 | Status | Upgrades | Share |
 | --- | --- | --- |
-| Decided for the whole release-line pair (A attested, B bounded) | 0 | 0% |
+| Decided for the whole release-line pair (A attested, B bounded) | 3 | 1% |
 | Rule for one exact version pair only (S) | 44 | 16% |
-| Gap, no valid rule (G) | 231 | 84% |
+| Gap, no valid rule (G) | 228 | 82.9% |
 
-Kubernetes: 26 valid rules, but 0 fall in its window 1.32 to 1.37; 5 of 5 upgrades in that window are gaps.
+Kubernetes: 30 valid rules, but 4 fall in its window 1.32 to 1.37; 2 of 5 upgrades in that window are gaps.
 
 Decided means a valid rule or attestation covers every version of both release lines, so the answer is BLOCKED or UNKNOWN, never a whole-upgrade PASS. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
 <!-- coverage:end -->
@@ -95,10 +95,14 @@ Update the block with `scripts/readme-coverage.sh` (`--check` fails when it is
 stale). The method and the full per-project table are in the
 [coverage report guide](cli/docs/coverage-report.md).
 
-In plain terms: the rules are exact, reviewed transitions, mostly for older
-releases. No upgrade between two release lines is decided as a whole yet, and
-Kubernetes has no rule for upgrades after 1.32. Reviewed Kubernetes API
-removals exist for upgrades to 1.22, 1.24-1.27, 1.29 and 1.32.
+In plain terms: most rules are exact, reviewed transitions, mostly for older
+releases. Reviewed Kubernetes served-API removal rules exist for upgrades to
+1.22, 1.25, 1.26, 1.27, 1.29, 1.32, 1.33, 1.34 and 1.37 (1.35 and 1.36 remove
+no served API version), plus the 1.24 dockershim removal. Each served-API
+removal rule covers every patch release of the previous line going to every
+patch release of the line that stops serving the API, so a manifest at the
+removed version answers `BLOCKED` for any such pair (for example 1.31.14 to
+1.32.11), not only at the `.0` releases.
 
 Further projects with executable checks: Argo Workflows, Ceph, Fluent Bit,
 Grafana, Grafana Loki, Kibana, MariaDB and MariaDB Operator (community

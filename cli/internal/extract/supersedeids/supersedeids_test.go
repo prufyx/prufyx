@@ -26,7 +26,7 @@ func TestShippedPackIsOneGeneration(t *testing.T) {
 	if superseded != Superseded() {
 		t.Fatalf("Superseded() = %v, Generation = %v", Superseded(), superseded)
 	}
-	if len(ReviewedIDs()) != 25 || len(AddedIDs()) != 4 || len(ReplacementIDs()) != 25 {
+	if len(ReviewedIDs()) != 29 || len(AddedIDs()) != 0 || len(ReplacementIDs()) != 29 {
 		t.Fatalf("id sets %d/%d/%d", len(ReviewedIDs()), len(AddedIDs()), len(ReplacementIDs()))
 	}
 	for _, id := range ReviewedIDs() {

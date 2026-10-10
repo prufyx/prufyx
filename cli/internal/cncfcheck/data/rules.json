@@ -1,6 +1,6 @@
 {
   "schema": "prufyx.io/cncf-source-rule-pack/v1alpha2",
-  "revision": "cncf-2026-09-13.6",
+  "revision": "cncf-2026-09-13.7",
   "policyId": "cncf-source-preview-v1",
   "policyDigest": "sha256:59fb35dd1cf0241cb704b10de6d8040cd584da29fb17443a353bab4542aeb83d",
   "landscapeFileDigest": "sha256:8ee4c10af7d58ddda752ff91c20bf6a5f328bfa5aa288f93801d0ca9d2b0c0ef",
@@ -8770,6 +8770,38 @@
           "from": "1.31.0",
           "to": "1.32.0"
         },
+        "range": {
+          "from": {
+            "gte": "1.31.0",
+            "lt": "1.32.0"
+          },
+          "to": {
+            "gte": "1.32.0",
+            "lt": "1.33.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "PREVIOUS_MINOR_LINE",
+              "sourceId": "kubernetes-website-version-skew-upgrade-order"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "REMOVED_IN_RELEASE",
+              "sourceId": "kubernetes-132-lifecycle-flowcontrol-v1beta3"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "REMOVED_IN_RELEASE",
+              "sourceId": "kubernetes-132-lifecycle-flowcontrol-v1beta3"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-132-lifecycle-flowcontrol-v1beta3"
+            }
+          ]
+        },
         "condition": {
           "side": "proposed",
           "component": "pkg:github/kubernetes/kubernetes",
@@ -8778,16 +8810,24 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T10:00:00Z",
-          "validUntil": "2026-12-11T10:00:00Z",
+          "reviewedAt": "2026-10-10T12:00:00Z",
+          "validUntil": "2027-01-08T12:00:00Z",
           "sources": [
             {
-              "id": "kubernetes-website-v132-flowcontrol-removal",
-              "url": "https://github.com/kubernetes/website/blob/4e63ceb05c36a5db816c3244856a2996ddc23793/content/en/docs/reference/using-api/deprecation-guide.md",
-              "revision": "4e63ceb05c36a5db816c3244856a2996ddc23793",
-              "contentDigest": "sha256:e8713b66cc6e8778589ad721d4aa36e390d1095ad2ad9e86db2d6e0e42bbec4b",
-              "startLine": 23,
-              "endLine": 34
+              "id": "kubernetes-132-lifecycle-flowcontrol-v1beta3",
+              "url": "https://github.com/kubernetes/kubernetes/blob/70d3cc986aa8221cd1dfb1121852688902d3bf53/staging/src/k8s.io/api/flowcontrol/v1beta3/zz_generated.prerelease-lifecycle.go",
+              "revision": "70d3cc986aa8221cd1dfb1121852688902d3bf53",
+              "contentDigest": "sha256:5a59d09b0e80140c833c5a739cdfaa62073c63e520c96fe275e9934ef23faff6",
+              "startLine": 46,
+              "endLine": 122
+            },
+            {
+              "id": "kubernetes-website-version-skew-upgrade-order",
+              "url": "https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md",
+              "revision": "9f1af2971c32124bff0a1f42255ba5a2f3c8a16f",
+              "contentDigest": "sha256:7d33809eeb313cbd589018a8dde893974065c50f5ee8cde27d99e879d0dde81f",
+              "startLine": 189,
+              "endLine": 193
             }
           ]
         },
@@ -9269,6 +9309,108 @@
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "nextAction": "Migrate the named IngressClass manifest to networking.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.37 stops serving IPAddress or ServiceCIDR through networking.k8s.io/v1beta1. This exact rendered apply-set check does not validate general manifest schema, CRDs, persisted objects, runtime clients, or API server configuration.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.kubernetes.ipaddress_servicecidr_v1beta1_removed_gvk_present",
+          "component": "pkg:github/kubernetes/kubernetes",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the complete non-paginated caller-selected official-upstream target apply set contains IPAddress or ServiceCIDR at networking.k8s.io/v1beta1."
+        }
+      ],
+      "rule": {
+        "id": "kubernetes.ipaddress-servicecidr-v1beta1-removed.1-36-0-to-1-37-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.36.0",
+          "to": "1.37.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.36.0",
+            "lt": "1.37.0"
+          },
+          "to": {
+            "gte": "1.37.0",
+            "lt": "1.38.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "PREVIOUS_MINOR_LINE",
+              "sourceId": "kubernetes-website-version-skew-upgrade-order"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "REMOVED_IN_RELEASE",
+              "sourceId": "kubernetes-136-lifecycle-ipaddress-servicecidr-v1beta1"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "REMOVED_IN_RELEASE",
+              "sourceId": "kubernetes-136-lifecycle-ipaddress-servicecidr-v1beta1"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-136-lifecycle-ipaddress-servicecidr-v1beta1"
+            }
+          ]
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/kubernetes/kubernetes",
+          "factId": "component.kubernetes.ipaddress_servicecidr_v1beta1_removed_gvk_present",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-10T12:00:00Z",
+          "validUntil": "2027-01-08T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-136-lifecycle-ipaddress-servicecidr-v1beta1",
+              "url": "https://github.com/kubernetes/kubernetes/blob/ecf6decece6a6de25a57aad9ba90b6ce580f6f78/staging/src/k8s.io/api/networking/v1beta1/zz_generated.prerelease-lifecycle.go",
+              "revision": "ecf6decece6a6de25a57aad9ba90b6ce580f6f78",
+              "contentDigest": "sha256:f22d0fb0d76000167072255bbb59015251cc853bd33d23b9f37fc90236afb600",
+              "startLine": 42,
+              "endLine": 194
+            },
+            {
+              "id": "kubernetes-openapi-v136-0",
+              "url": "https://github.com/kubernetes/kubernetes/blob/ecf6decece6a6de25a57aad9ba90b6ce580f6f78/api/openapi-spec/swagger.json",
+              "revision": "ecf6decece6a6de25a57aad9ba90b6ce580f6f78",
+              "contentDigest": "sha256:dcede2063da1d7ad62ecb5af8adb6d7fabd0b52385a7fa0048afb491dac90450",
+              "startLine": 1,
+              "endLine": 102285
+            },
+            {
+              "id": "kubernetes-openapi-v137-0",
+              "url": "https://github.com/kubernetes/kubernetes/blob/f54c212e3a2f75d674b717a9b29052b20b60aefc/api/openapi-spec/swagger.json",
+              "revision": "f54c212e3a2f75d674b717a9b29052b20b60aefc",
+              "contentDigest": "sha256:465276aedf437726de5a6ed23a41b86d78bb0d347edf251a755ae26a93cdd8a6",
+              "startLine": 1,
+              "endLine": 110423
+            },
+            {
+              "id": "kubernetes-website-version-skew-upgrade-order",
+              "url": "https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md",
+              "revision": "9f1af2971c32124bff0a1f42255ba5a2f3c8a16f",
+              "contentDigest": "sha256:7d33809eeb313cbd589018a8dde893974065c50f5ee8cde27d99e879d0dde81f",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Migrate the named IPAddress or ServiceCIDR manifest to networking.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
       }
     },
     {
@@ -9789,6 +9931,108 @@
     },
     {
       "project": "kubernetes",
+      "description": "Kubernetes 1.33 stops serving SelfSubjectReview through authentication.k8s.io/v1beta1. This exact rendered apply-set check does not validate general manifest schema, CRDs, persisted objects, runtime clients, or API server configuration.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.kubernetes.selfsubjectreview_v1beta1_removed_gvk_present",
+          "component": "pkg:github/kubernetes/kubernetes",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the complete non-paginated caller-selected official-upstream target apply set contains SelfSubjectReview at authentication.k8s.io/v1beta1."
+        }
+      ],
+      "rule": {
+        "id": "kubernetes.selfsubjectreview-v1beta1-removed.1-32-0-to-1-33-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.32.0",
+          "to": "1.33.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.32.0",
+            "lt": "1.33.0"
+          },
+          "to": {
+            "gte": "1.33.0",
+            "lt": "1.34.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "PREVIOUS_MINOR_LINE",
+              "sourceId": "kubernetes-website-version-skew-upgrade-order"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "REMOVED_IN_RELEASE",
+              "sourceId": "kubernetes-132-lifecycle-selfsubjectreview-v1beta1"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "REMOVED_IN_RELEASE",
+              "sourceId": "kubernetes-132-lifecycle-selfsubjectreview-v1beta1"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-132-lifecycle-selfsubjectreview-v1beta1"
+            }
+          ]
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/kubernetes/kubernetes",
+          "factId": "component.kubernetes.selfsubjectreview_v1beta1_removed_gvk_present",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-10T12:00:00Z",
+          "validUntil": "2027-01-08T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-132-lifecycle-selfsubjectreview-v1beta1",
+              "url": "https://github.com/kubernetes/kubernetes/blob/70d3cc986aa8221cd1dfb1121852688902d3bf53/staging/src/k8s.io/api/authentication/v1beta1/zz_generated.prerelease-lifecycle.go",
+              "revision": "70d3cc986aa8221cd1dfb1121852688902d3bf53",
+              "contentDigest": "sha256:5630f7bf99b3b5a07ad1f8261a02f7ed66cd899051b4755d04132a4049f9199e",
+              "startLine": 42,
+              "endLine": 44
+            },
+            {
+              "id": "kubernetes-openapi-v132-0",
+              "url": "https://github.com/kubernetes/kubernetes/blob/70d3cc986aa8221cd1dfb1121852688902d3bf53/api/openapi-spec/swagger.json",
+              "revision": "70d3cc986aa8221cd1dfb1121852688902d3bf53",
+              "contentDigest": "sha256:0ba99bb42a1cf0bd35959fe82965f4eec50d404221ca299e9ef79b900e15dc00",
+              "startLine": 1,
+              "endLine": 84324
+            },
+            {
+              "id": "kubernetes-openapi-v133-0",
+              "url": "https://github.com/kubernetes/kubernetes/blob/60a317eadfcb839692a68eab88b2096f4d708f4f/api/openapi-spec/swagger.json",
+              "revision": "60a317eadfcb839692a68eab88b2096f4d708f4f",
+              "contentDigest": "sha256:2af5abf98554af1599e516f31f7f1698085e6faa12b816401f569c097b9f7ef6",
+              "startLine": 1,
+              "endLine": 93120
+            },
+            {
+              "id": "kubernetes-website-version-skew-upgrade-order",
+              "url": "https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md",
+              "revision": "9f1af2971c32124bff0a1f42255ba5a2f3c8a16f",
+              "contentDigest": "sha256:7d33809eeb313cbd589018a8dde893974065c50f5ee8cde27d99e879d0dde81f",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Migrate the named SelfSubjectReview manifest to authentication.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+      }
+    },
+    {
+      "project": "kubernetes",
       "description": "Kubernetes 1.22 stops serving CSIDriver, CSINode, StorageClass or VolumeAttachment through storage.k8s.io/v1beta1. This exact rendered apply-set check does not validate general manifest schema, CRDs, persisted objects, runtime clients, or API server configuration.",
       "requiredFacts": [
         {
@@ -10043,6 +10287,210 @@
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "nextAction": "Migrate the named TokenReview manifest to authentication.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.34 stops serving ValidatingAdmissionPolicy or ValidatingAdmissionPolicyBinding through admissionregistration.k8s.io/v1beta1. This exact rendered apply-set check does not validate general manifest schema, CRDs, persisted objects, runtime clients, or API server configuration.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.kubernetes.validatingadmissionpolicy_v1beta1_removed_gvk_present",
+          "component": "pkg:github/kubernetes/kubernetes",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the complete non-paginated caller-selected official-upstream target apply set contains ValidatingAdmissionPolicy or ValidatingAdmissionPolicyBinding at admissionregistration.k8s.io/v1beta1."
+        }
+      ],
+      "rule": {
+        "id": "kubernetes.validatingadmissionpolicy-v1beta1-removed.1-33-0-to-1-34-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.33.0",
+          "to": "1.34.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.33.0",
+            "lt": "1.34.0"
+          },
+          "to": {
+            "gte": "1.34.0",
+            "lt": "1.35.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "PREVIOUS_MINOR_LINE",
+              "sourceId": "kubernetes-website-version-skew-upgrade-order"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "REMOVED_IN_RELEASE",
+              "sourceId": "kubernetes-133-lifecycle-validatingadmissionpolicy-v1beta1"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "REMOVED_IN_RELEASE",
+              "sourceId": "kubernetes-133-lifecycle-validatingadmissionpolicy-v1beta1"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-133-lifecycle-validatingadmissionpolicy-v1beta1"
+            }
+          ]
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/kubernetes/kubernetes",
+          "factId": "component.kubernetes.validatingadmissionpolicy_v1beta1_removed_gvk_present",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-10T12:00:00Z",
+          "validUntil": "2027-01-08T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-133-lifecycle-validatingadmissionpolicy-v1beta1",
+              "url": "https://github.com/kubernetes/kubernetes/blob/60a317eadfcb839692a68eab88b2096f4d708f4f/staging/src/k8s.io/api/admissionregistration/v1beta1/zz_generated.prerelease-lifecycle.go",
+              "revision": "60a317eadfcb839692a68eab88b2096f4d708f4f",
+              "contentDigest": "sha256:297848fafef8f125e20bc47ec841f1cc5698fe286e95ce3c579267d837d6f8da",
+              "startLine": 90,
+              "endLine": 146
+            },
+            {
+              "id": "kubernetes-openapi-v133-0",
+              "url": "https://github.com/kubernetes/kubernetes/blob/60a317eadfcb839692a68eab88b2096f4d708f4f/api/openapi-spec/swagger.json",
+              "revision": "60a317eadfcb839692a68eab88b2096f4d708f4f",
+              "contentDigest": "sha256:2af5abf98554af1599e516f31f7f1698085e6faa12b816401f569c097b9f7ef6",
+              "startLine": 1,
+              "endLine": 93120
+            },
+            {
+              "id": "kubernetes-openapi-v134-0",
+              "url": "https://github.com/kubernetes/kubernetes/blob/f28b4c9efbca5c5c0af716d9f2d5702667ee8a45/api/openapi-spec/swagger.json",
+              "revision": "f28b4c9efbca5c5c0af716d9f2d5702667ee8a45",
+              "contentDigest": "sha256:d3b0cdc2fda15c753206d25ab459dc7c12df64e2fd652b6809687471ea751c37",
+              "startLine": 1,
+              "endLine": 95438
+            },
+            {
+              "id": "kubernetes-website-version-skew-upgrade-order",
+              "url": "https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md",
+              "revision": "9f1af2971c32124bff0a1f42255ba5a2f3c8a16f",
+              "contentDigest": "sha256:7d33809eeb313cbd589018a8dde893974065c50f5ee8cde27d99e879d0dde81f",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Migrate the named ValidatingAdmissionPolicy or ValidatingAdmissionPolicyBinding manifest to admissionregistration.k8s.io/v1 and reassess the complete target apply set; validate CRDs, stored objects, clients and API-server configuration separately."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.37 stops serving VolumeAttributesClass through storage.k8s.io/v1beta1. This exact rendered apply-set check does not validate general manifest schema, CRDs, persisted objects, runtime clients, or API server configuration.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.kubernetes.volumeattributesclass_v1beta1_removed_gvk_present",
+          "component": "pkg:github/kubernetes/kubernetes",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the complete non-paginated caller-selected official-upstream target apply set contains VolumeAttributesClass at storage.k8s.io/v1beta1."
+        }
+      ],
+      "rule": {
+        "id": "kubernetes.volumeattributesclass-v1beta1-removed.1-36-0-to-1-37-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.36.0",
+          "to": "1.37.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.36.0",
+            "lt": "1.37.0"
+          },
+          "to": {
+            "gte": "1.37.0",
+            "lt": "1.38.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "PREVIOUS_MINOR_LINE",
+              "sourceId": "kubernetes-website-version-skew-upgrade-order"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "REMOVED_IN_RELEASE",
+              "sourceId": "kubernetes-136-lifecycle-volumeattributesclass-v1beta1"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "REMOVED_IN_RELEASE",
+              "sourceId": "kubernetes-136-lifecycle-volumeattributesclass-v1beta1"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-136-lifecycle-volumeattributesclass-v1beta1"
+            }
+          ]
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/kubernetes/kubernetes",
+          "factId": "component.kubernetes.volumeattributesclass_v1beta1_removed_gvk_present",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-10T12:00:00Z",
+          "validUntil": "2027-01-08T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-136-lifecycle-volumeattributesclass-v1beta1",
+              "url": "https://github.com/kubernetes/kubernetes/blob/ecf6decece6a6de25a57aad9ba90b6ce580f6f78/staging/src/k8s.io/api/storage/v1beta1/zz_generated.prerelease-lifecycle.go",
+              "revision": "ecf6decece6a6de25a57aad9ba90b6ce580f6f78",
+              "contentDigest": "sha256:fe274f0c6e1c6f75d8bbd33a8e023322edeec2f570f92c1c5005d2abcbd9d01d",
+              "startLine": 288,
+              "endLine": 314
+            },
+            {
+              "id": "kubernetes-openapi-v136-0",
+              "url": "https://github.com/kubernetes/kubernetes/blob/ecf6decece6a6de25a57aad9ba90b6ce580f6f78/api/openapi-spec/swagger.json",
+              "revision": "ecf6decece6a6de25a57aad9ba90b6ce580f6f78",
+              "contentDigest": "sha256:dcede2063da1d7ad62ecb5af8adb6d7fabd0b52385a7fa0048afb491dac90450",
+              "startLine": 1,
+              "endLine": 102285
+            },
+            {
+              "id": "kubernetes-openapi-v137-0",
+              "url": "https://github.com/kubernetes/kubernetes/blob/f54c212e3a2f75d674b717a9b29052b20b60aefc/api/openapi-spec/swagger.json",
+              "revision": "f54c212e3a2f75d674b717a9b29052b20b60aefc",
+              "contentDigest": "sha256:465276aedf437726de5a6ed23a41b86d78bb0d347edf251a755ae26a93cdd8a6",
+              "startLine": 1,
+              "endLine": 110423
+            },
+            {
+              "id": "kubernetes-website-version-skew-upgrade-order",
+              "url": "https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md",
+              "revision": "9f1af2971c32124bff0a1f42255ba5a2f3c8a16f",
+              "contentDigest": "sha256:7d33809eeb313cbd589018a8dde893974065c50f5ee8cde27d99e879d0dde81f",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Migrate the named VolumeAttributesClass manifest to storage.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
       }
     },
     {

@@ -56,6 +56,25 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- Kubernetes API removals of 1.32 to 1.37 are decided at every patch release.
+  `scan` and `check cncf --native-resource` answered `UNKNOWN`
+  (`API_VERSION_NOT_SERVED`) instead of `BLOCKED` for a manifest at an API
+  version removed on a line between 1.32 and 1.37: for 1.32 on every pair but
+  exactly `1.31.0 -> 1.32.0`, for 1.33, 1.34 and 1.37 always, because no
+  rule read those removals. The reviewed 1.32 flow-control rule
+  (`flowcontrol.apiserver.k8s.io/v1beta3`) now carries a reviewed range over
+  every patch of 1.31 going to every patch of 1.32, and four new ranged
+  reviewed rules cover the later removals: `authentication.k8s.io/v1beta1`
+  SelfSubjectReview (1.33), `admissionregistration.k8s.io/v1beta1`
+  ValidatingAdmissionPolicy and ValidatingAdmissionPolicyBinding (1.34),
+  `networking.k8s.io/v1beta1` IPAddress and ServiceCIDR (1.37) and
+  `storage.k8s.io/v1beta1` VolumeAttributesClass (1.37). Each cites the API
+  lifecycle declaration in `kubernetes/kubernetes` at the tag of the previous
+  line and the OpenAPI specification at both tags (full commit SHAs), with
+  the version-skew policy for the previous-line bound. 1.35 and 1.36 remove
+  no served API version. The embedded CNCF pack moves to revision
+  `cncf-2026-09-13.7` (195 rules); the registry is unchanged. The mechanical
+  served-API rules now replace 29 reviewed rules one for one.
 - Knowledge compatibility: the fact registry gains the custom-resource
   version set (`component.<project>.custom_resource_versions_set`) of nine more
   projects, and the reviewed custom-resource table lists their API groups:

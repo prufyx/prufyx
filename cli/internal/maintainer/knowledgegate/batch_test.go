@@ -570,7 +570,14 @@ func TestRecordApprovalBehindBatch(t *testing.T) {
 func TestBatchLineAttestation(t *testing.T) {
 	for line, want := range map[string]string{"1.25": "", "1.33": "cross-check with the extractor"} {
 		t.Run(line, func(t *testing.T) {
-			base, head := attestedTrees(t, []string{"1.22"}, []string{"1.22", line}, nil)
+			var base, head Tree
+			if want == "" {
+				base, head = attestedTrees(t, []string{"1.22"}, []string{"1.22", line}, nil)
+			} else {
+				// A pack without the 1.33 rule: the attestation cannot list
+				// the removal the extractor derives.
+				base, head = attestedTreesWithoutLineRules(t, line, []string{"1.22"}, []string{"1.22", line})
+			}
 			key := newApprovalKey(t)
 			key.pinBoth(t, base, head, "airstand")
 			f := batchFixture{base: base, head: head, key: key}

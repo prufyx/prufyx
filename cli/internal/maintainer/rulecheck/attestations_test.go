@@ -96,8 +96,8 @@ func TestAttestationMustListExactlyThePackRules(t *testing.T) {
 }
 
 // A rule that matches its anchor pair only cannot be listed in a line review.
-// The reviewed 1.32 rule is anchor-only; the mechanical one is a range rule,
-// so the case strips its range.
+// The published 1.32 rule is a range rule in both generations, so the case
+// strips its range.
 func TestAttestationRuleNotLineWide(t *testing.T) {
 	id := supersedeids.ID("kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0")
 	var rules []json.RawMessage
@@ -124,9 +124,8 @@ func TestAttestationRuleNotLineWide(t *testing.T) {
 	if r.Valid || len(r.Findings) != 1 || r.Findings[0].Check != CheckAttestationRuleNotLineWide || r.Findings[0].RuleID != id {
 		t.Fatalf("%+v", r.Findings)
 	}
-	// The mechanical rule is a range rule and so line-wide; the reviewed one
-	// is anchor-only and refused.
-	if r := ValidateLineAttestations(doc(t, attestation("1.32", id)), publishedRules(t), AttestationOptions{}); r.Valid == !supersedeids.Superseded() {
+	// The published rule is a range rule and so line-wide.
+	if r := ValidateLineAttestations(doc(t, attestation("1.32", id)), publishedRules(t), AttestationOptions{}); !r.Valid {
 		t.Fatalf("the published rule over the unstripped pack: valid=%v %+v", r.Valid, r.Findings)
 	}
 }

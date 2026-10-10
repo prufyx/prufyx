@@ -51,8 +51,7 @@ func derivedEntries(t *testing.T) []map[string]any {
 // the extractor derives (with tamper applied to the entries first). The
 // engine refuses two rules constraining the same fact, so both trees first
 // drop the reviewed rules for the derived facts. Every derived rule is kept:
-// the registry declares every fact the extractor's table names, including
-// the 1.33 removal no published rule reads yet.
+// the registry declares every fact the extractor's table names.
 func mechanicalTrees(t *testing.T, tamper func(entries []map[string]any)) (Tree, Tree, []map[string]any) {
 	t.Helper()
 	base, head := trees(t)
