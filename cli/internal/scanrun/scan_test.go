@@ -87,7 +87,7 @@ func TestScanQuickstartMigrated(t *testing.T) {
 
 // TestScanIntermediateLineCoverage: a rule for 1.32 is reviewed for the
 // exact pair 1.31.0 -> 1.32.0 only (a synthetic anchor-only rule stands in for
-// the published one, which is a range rule once mechanical). On a hop whose ends are whole lines it
+// the published one, which is a range rule). On a hop whose ends are whole lines it
 // cannot decide, whatever it says at 1.31.0 -> 1.32.0: its claim is
 // downgraded, never a blocker and never a pass, even when a (malformed) line
 // review lists it.
@@ -97,8 +97,8 @@ func TestScanIntermediateLineCoverage(t *testing.T) {
 	lines := []string{"1.31", "1.32", "1.33"}
 	// The review of 1.32 lists the anchor-only rule; the pack admission
 	// would refuse it (the rule is not line-wide), so it is built unchecked.
-	// The shipped rule for the line may be a range rule (the mechanical one
-	// is), so a synthetic anchor-only rule stands in for it in either case.
+	// The shipped rule for the line is a range rule in either generation, so
+	// a synthetic anchor-only rule stands in for it.
 	published := supersedeids.ID("kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0")
 	anchorOnly := verdictRule("kubernetes.synthetic-flowcontrol-v1beta3-removed.1-31-0-to-1-32-0", "1.31.0", "1.32.0", "", "component.kubernetes.flowcontrol_v1beta3_removed_gvk_present")
 	base := newKnowledge(t, knowledgeOptions{lines: lines, policy: "current", unchecked: true, synthetic: []string{anchorOnly}, dropRuleIDs: map[string][]string{"1.32": {published}}})

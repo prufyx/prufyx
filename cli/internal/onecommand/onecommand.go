@@ -239,7 +239,7 @@ const (
 )
 
 // Run collects a current bundle from each declared kubeconfig context and
-// classifies every one of the 194 native check routes against it. It never
+// classifies every one of the 198 native check routes against it. It never
 // mutates cluster state and never opens any network path beyond the
 // Kubernetes API the collector already uses.
 //

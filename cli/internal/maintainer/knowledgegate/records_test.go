@@ -92,6 +92,40 @@ func setAttestations(t *testing.T, p *packDoc, atts []map[string]any) {
 func attestedTrees(t *testing.T, baseLines, headLines []string, edit func(p *packDoc, atts []map[string]any) []map[string]any) (Tree, Tree) {
 	t.Helper()
 	base, head := trees(t)
+	return attestTrees(t, base, head, baseLines, headLines, edit)
+}
+
+// attestedTreesWithoutLineRules is attestedTrees over a base and a head
+// whose CNCF packs both lack the Kubernetes API-removal rules of line: a
+// pack that has no rule for a removal the extractor derives on that line.
+func attestedTreesWithoutLineRules(t *testing.T, line string, baseLines, headLines []string) (Tree, Tree) {
+	t.Helper()
+	base, head := trees(t)
+	for _, tr := range []Tree{base, head} {
+		editPack(t, tr, cncfRulesPath, func(p *packDoc) {
+			drop := map[string]bool{}
+			for _, id := range packLineRules(t, p)[line] {
+				drop[id] = true
+			}
+			if len(drop) == 0 {
+				t.Fatalf("the pack has no rule for line %s", line)
+			}
+			var kept []map[string]any
+			for _, e := range p.entries {
+				if id, _ := ruleOf(e)["id"].(string); !drop[id] {
+					kept = append(kept, e)
+				}
+			}
+			p.entries = kept
+		})
+	}
+	return attestTrees(t, base, head, baseLines, headLines, nil)
+}
+
+// attestTrees adds the reviewed attestations of attestedTrees to base and
+// head.
+func attestTrees(t *testing.T, base, head Tree, baseLines, headLines []string, edit func(p *packDoc, atts []map[string]any) []map[string]any) (Tree, Tree) {
+	t.Helper()
 	editPack(t, base, cncfRulesPath, func(p *packDoc) {
 		var atts []map[string]any
 		for _, l := range baseLines {
@@ -230,13 +264,35 @@ func TestGateRecordBreaker(t *testing.T) {
 func TestGateReviewedAttestationApproval(t *testing.T) {
 	key := newApprovalKey(t)
 	setup := func(t *testing.T, line string) (Tree, Tree, string) {
-		base, head := attestedTrees(t, []string{"1.22"}, []string{"1.22", line}, nil)
+		var base, head Tree
+		if line == "1.33" {
+			// The shipped pack reads the 1.33 removal; the case needs a
+			// pack without that rule.
+			base, head = attestedTreesWithoutLineRules(t, line, []string{"1.22"}, []string{"1.22", line})
+		} else {
+			base, head = attestedTrees(t, []string{"1.22"}, []string{"1.22", line}, nil)
+		}
 		key.pinBoth(t, base, head, "airstand")
 		return base, head, attestationID(line)
 	}
 	sign := func(t *testing.T, head Tree, id string, r ApprovalRecord) {
 		writeFile(t, approvalPath(head, id), key.sign(t, r))
 	}
+
+	// 1.33: the extractor derives the SelfSubjectReview removal, and the
+	// shipped ranged rule of the line decides it the same way, so an
+	// attestation listing it passes the cross-check.
+	t.Run("valid 1.33 with the shipped rule", func(t *testing.T) {
+		base, head := attestedTrees(t, []string{"1.22"}, []string{"1.22", "1.33"}, nil)
+		key.pinBoth(t, base, head, "airstand")
+		id := attestationID("1.33")
+		sign(t, head, id, recordApproval(id, "1.33", ApprovalBaseAbsent, recordDigest(t, head, id)))
+		r := runGate(t, Options{Base: base, Head: head, Source: fixtureSource, Author: DefaultBotLogin})
+		requireAdmittedButUnsplit(t, r)
+		if c := change(t, r, id); c.Proof != ProofApproval || c.Class != ClassLoosening || c.Kinds[0] != KindNew {
+			t.Fatalf("change %+v", c)
+		}
+	})
 
 	// 1.25: the extractor derives four removals; the listed shipped rules
 	// read every one of them.
@@ -258,8 +314,9 @@ func TestGateReviewedAttestationApproval(t *testing.T) {
 		edit func(t *testing.T, base, head Tree, id string, rec *ApprovalRecord) Options
 		want string
 	}{
-		// No 1.33 rule in the pack, but upstream 1.33 removes the
-		// SelfSubjectReview beta: an empty attestation is refused.
+		// No 1.33 rule in the pack (setup drops it), but upstream 1.33
+		// removes the SelfSubjectReview beta: an empty attestation is
+		// refused.
 		"upstream removal not listed":        {"1.33", nil, "no rule the attestation lists decides it the same way"},
 		"line the extractor does not derive": {"1.28", nil, "derives no pair into line 1.28"},
 		"no upstream source": {"1.25", func(t *testing.T, base, head Tree, id string, rec *ApprovalRecord) Options {

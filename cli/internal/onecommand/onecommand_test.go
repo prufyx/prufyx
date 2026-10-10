@@ -15,7 +15,6 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/checkroutemetadata"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
-	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/localcollector"
 )
 
@@ -255,21 +254,19 @@ func TestRunPartialCollectionDowngradesAbsenceButNotPositiveEvidence(t *testing.
 	}
 }
 
-// kubernetesExtra is how many more native routes the catalog has once the
-// mechanical Kubernetes API-removal rules replace the reviewed ones.
+// kubernetesExtra is how many more native routes the catalog has than
+// before the 1.33, 1.34 and 1.37 removals had rules: the same in both
+// generations of the Kubernetes API-removal rules.
 func kubernetesExtra() int {
-	if supersedeids.Superseded() {
-		return 4
-	}
-	return 0
+	return 4
 }
 
 // TestNoNativeRouteIsFullySatisfiedByVersionAlone documents and enforces a
-// core finding of the design: every one of the 194 native check routes (198 once the mechanical Kubernetes rules ship)
+// core finding of the design: every one of the 198 native check routes
 // requires at least one caller declaration (a file, a name, or a boolean
 // intent flag) beyond the --from/--to version pair. If this ever stops being
 // true, ApplicableFullySatisfied stops being a dead bucket and the design
-// note's "0 of 194" claim needs updating alongside this test.
+// note's "0 of 198" claim needs updating alongside this test.
 func TestNoNativeRouteIsFullySatisfiedByVersionAlone(t *testing.T) {
 	result, err := checkroutemetadata.Discover("", "", "")
 	if err != nil {

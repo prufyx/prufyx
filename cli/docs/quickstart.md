@@ -264,14 +264,14 @@ line and exits `11`:
 /tmp/prufyx check cncf --project kubernetes --native-resource applyset.json \
   --from 1.21.0 --to 1.25.0 \
   --distribution official_upstream --target-api-apply-required --resource-scope-complete \
-  --now 2026-09-24T00:00:00Z --format human
+  --now 2026-10-12T00:00:00Z --format human
 ```
 
 ```
 kubernetes native input review
 raw input digests: sha256:74b724b3dbe66cdea762575500e4fce48a5469b669668a7108280e026456a355
 prepared input digest: sha256:0590394cb84c8f90bf0a765b6bd580a14bb2d2e203ce8645da7adf40a0cec443
-UNKNOWN: kubernetes 1.21.0 -> 1.25.0 is not a reviewed transition; reviewed pairs: 1.21.0 -> 1.22.0, 1.23.17 -> 1.24.0, 1.24.0 -> 1.25.0, 1.25.0 -> 1.26.0, 1.26.0 -> 1.27.0, 1.28.0 -> 1.29.0, 1.31.0 -> 1.32.0; for a multi-minor upgrade, check each minor step; a step without a reviewed pair stays UNKNOWN
+UNKNOWN: kubernetes 1.21.0 -> 1.25.0 is not a reviewed transition; reviewed pairs: 1.21.0 -> 1.22.0, 1.23.17 -> 1.24.0, 1.24.0 -> 1.25.0, 1.25.0 -> 1.26.0, 1.26.0 -> 1.27.0, 1.28.0 -> 1.29.0, 1.31.0 -> 1.32.0, 1.32.0 -> 1.33.0, and 2 more (prufyx catalog checks --project kubernetes); for a multi-minor upgrade, check each minor step; a step without a reviewed pair stays UNKNOWN
 20 rules about release boundaries (1.22.0, 1.25.0) this hop crosses are not reviewed for this hop
 scoped result: UNKNOWN
 aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
@@ -362,7 +362,7 @@ NOT CHECKED (2)
 Read 2 documents over 1 hop; 1 of 1 component has rules (partially evaluated). 6 checks passed (--show-passes).
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
 Evidence: every finding cites pinned upstream source (--verbose). No network used.
-evaluated at 2026-10-04T00:00:00Z; input sha256:cac5facf042643aa2ca473b53dbc8e3de6e3001562dc1a16c4a0d15115aa07b0; knowledge embedded cncf-2026-09-13.6 sha256:193d917d080c83d91e587959479eac38f082046426d5c2c2dcd564a22eee92a8
+evaluated at 2026-10-04T00:00:00Z; input sha256:cac5facf042643aa2ca473b53dbc8e3de6e3001562dc1a16c4a0d15115aa07b0; knowledge embedded cncf-2026-09-13.7 sha256:0a54852c0153fccbcfe688f8004bdd65cec243df0e6d43d21522642e79674b8f
 ```
 
 The exit code is `10`, and the finding names the file, the line of the
@@ -381,11 +381,11 @@ gaps, `--redact`, JSON output and `prufyx.yaml`.
 - [`catalog checks`](community-checks.md#discovering-embedded-source-rule-routes)
   lists the exact rule identities and input shape for one project without
   running a check.
-- The current build has **194 registered native check routes** across all
+- The current build has **198 registered native check routes** across all
   projects (enforced by `internal/checkroutemetadata`, not a doc claim you
-  have to trust); Kubernetes reviews removed APIs for six from/to pairs
-  (upgrades to 1.22, 1.25, 1.26, 1.27, 1.29 and 1.32) plus the 1.24 dockershim
-  removal. This quickstart exercised two of them.
+  have to trust); Kubernetes reviews removed APIs for nine from/to pairs
+  (upgrades to 1.22, 1.25, 1.26, 1.27, 1.29, 1.32, 1.33, 1.34 and 1.37) plus
+  the 1.24 dockershim removal. This quickstart exercised two of them.
 - A scoped `PASS`, `BLOCKED`, or `UNKNOWN` result is never a whole-upgrade
   safety claim. See the root [README](../README.md) and
   [`docs/product-contract.md`](product-contract.md) for what Prufyx does and

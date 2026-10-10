@@ -35,12 +35,10 @@ func TestDescriptorSetBindsCompiledIdentity(t *testing.T) {
 }
 
 // kubernetesExtra is how many more checks (and native routes) the embedded
-// pack has once the mechanical Kubernetes rules replace the reviewed ones.
+// pack has than before the 1.33, 1.34 and 1.37 removals had rules: the same
+// in both generations of the Kubernetes rules.
 func kubernetesExtra() int {
-	if supersedeids.Superseded() {
-		return 4
-	}
-	return 0
+	return 4
 }
 
 // Both generations of Kubernetes descriptors name exactly the rules of their

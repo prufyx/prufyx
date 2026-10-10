@@ -53,21 +53,24 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The vector file holds the vectors of both generations of the Kubernetes
-	// API-removal rules (the 25 reviewed ones and the 29 mechanical ones, 220
+	// API-removal rules (the 29 reviewed ones and the 29 mechanical ones, 224
 	// in all); the pack's rules select theirs. The pairing is ordered, as it
 	// always was: the i-th rule of the pack is checked by the i-th vector of
 	// the file that belongs to the pack, separately for the mechanical rules
 	// (which the file keeps together at its end) and for all other rules. A
 	// duplicate vector, a vector of no rule of the pack that is not one of the
-	// other generation's 25 or 29 ids, and a rule without a vector all fail.
+	// other generation's 29 ids, and a rule without a vector all fail.
 	all := reviewedVectors(t)
-	if len(all) != 220 {
-		t.Fatalf("the vector file holds %d vectors, want 220 (191 + the 29 mechanical)", len(all))
+	if len(all) != 224 {
+		t.Fatalf("the vector file holds %d vectors, want 224 (195 + the 29 mechanical)", len(all))
 	}
-	extra := 0
+	// The five reviewed rules with a patch-range case (the 1.32 flow-control
+	// rule and the 1.33, 1.34 and 1.37 rules) carry five cases, every
+	// mechanical rule four.
+	wantCases := 984
 	otherGeneration := map[string]bool{}
 	if supersedeids.Superseded() {
-		extra = 4
+		wantCases = 979
 		for _, id := range supersedeids.ReviewedIDs() {
 			otherGeneration[id] = true
 		}
@@ -142,11 +145,11 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 			}
 		}
 	}
-	if len(b.pack.Entries) != 191+extra || len(vectors) != 191+extra {
+	if len(b.pack.Entries) != 195 || len(vectors) != 195 {
 		t.Fatal("unexpected reviewed rule or vector count")
 	}
-	if caseCount != 963+4*extra {
-		t.Fatal("unexpected reviewed case count")
+	if caseCount != wantCases {
+		t.Fatalf("%d reviewed cases, want %d", caseCount, wantCases)
 	}
 	for _, vector := range vectors {
 		for _, scenario := range vector.Cases {
@@ -211,7 +214,7 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 				if strings.HasPrefix(vector.RuleID, "flux.latest-beta-api-removal.") {
 					clock = time.Date(2026, 9, 12, 10, 0, 0, 0, time.UTC)
 				}
-				if vector.RuleID == "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0" || vector.RuleID == "cilium.cluster-name-invalid.1-16-19-to-1-17-18" {
+				if vector.RuleID == "cilium.cluster-name-invalid.1-16-19-to-1-17-18" {
 					clock = time.Date(2026, 9, 12, 10, 0, 0, 0, time.UTC)
 				}
 				if strings.HasPrefix(vector.RuleID, "jaeger.explicit-config-required-for-non-memory.target.") {
@@ -226,9 +229,10 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 				if vector.RuleID == "prometheus.remote-write-http2-default.2-55-1-to-3-14-0" {
 					clock = time.Date(2026, 9, 13, 9, 0, 0, 0, time.UTC)
 				}
-				// A mechanical rule is reviewed at its derivation time: the
+				// A mechanical rule is reviewed at its derivation time, and the
+				// ranged reviews of the 1.32 to 1.37 removals at theirs: the
 				// vectors run one hour after it, inside the lease.
-				if strings.HasPrefix(vector.RuleID, supersedeids.MechanicalPrefix) {
+				if strings.HasPrefix(vector.RuleID, supersedeids.MechanicalPrefix) || rangedKubernetesReview[vector.RuleID] {
 					clock = mechanicalReviewClock(t, vector.RuleID)
 				}
 				report, err := Check(vector.Project, scenario.Input, clock)
@@ -863,6 +867,16 @@ func TestKarmadaClosedInputFailures(t *testing.T) {
 			}
 		})
 	}
+}
+
+// rangedKubernetesReview are the reviewed Kubernetes API-removal rules whose
+// range was reviewed after the historical corpus clock.
+var rangedKubernetesReview = map[string]bool{
+	"kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0":               true,
+	"kubernetes.selfsubjectreview-v1beta1-removed.1-32-0-to-1-33-0":         true,
+	"kubernetes.validatingadmissionpolicy-v1beta1-removed.1-33-0-to-1-34-0": true,
+	"kubernetes.ipaddress-servicecidr-v1beta1-removed.1-36-0-to-1-37-0":     true,
+	"kubernetes.volumeattributesclass-v1beta1-removed.1-36-0-to-1-37-0":     true,
 }
 
 // mechanicalReviewClock is one hour after the reviewedAt of the pack's rule.

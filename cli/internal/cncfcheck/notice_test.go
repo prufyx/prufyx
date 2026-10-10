@@ -92,13 +92,11 @@ func TestPackNoticeLevel(t *testing.T) {
 	}
 }
 
-// kubernetesRuleExtra is how many more Kubernetes verdict rules the embedded
-// pack holds once the mechanical rules replace the reviewed ones.
+// kubernetesRuleExtra is how many Kubernetes verdict rules the embedded pack
+// holds beyond the 26 it held before the 1.33, 1.34 and 1.37 removals had
+// rules: the same in both generations.
 func kubernetesRuleExtra() int {
-	if supersedeids.Superseded() {
-		return 4
-	}
-	return 0
+	return 4
 }
 
 func noticeInput() []byte {

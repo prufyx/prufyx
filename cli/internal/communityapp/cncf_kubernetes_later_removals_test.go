@@ -15,8 +15,9 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
-// The embedded pack carries one mechanical rule over each removal of the
-// 1.33, 1.34 and 1.37 lines (derived by the served-API extractor). The
+// The embedded pack carries one ranged rule over each removal of the 1.33,
+// 1.34 and 1.37 lines: a reviewed rule, or the mechanical rule the
+// served-API extractor derives once those replace the reviewed ones. The
 // Kubernetes rendered apply-set route of check cncf is run end to end
 // against them.
 
@@ -79,9 +80,6 @@ func laterObject(api, kind string) string {
 }
 
 func TestKubernetesLaterRemovalsThroughTheCommandRoute(t *testing.T) {
-	if !supersedeids.Superseded() {
-		t.Skip("the shipped pack still holds no rule over these removals: see TestSyntheticServedAPIRemovalCheckWithDerivedRules")
-	}
 	ids := useLaterRemovalKnowledge(t)
 	configMap := laterObject("v1", "ConfigMap")
 	for _, removal := range laterRemovals {

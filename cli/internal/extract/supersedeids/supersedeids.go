@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // Package supersedeids names, for tests only, the rules the served-API
-// supersede changes in the shipped rule pack: the 25 reviewed Kubernetes
+// supersede changes in the shipped rule pack: the 29 reviewed Kubernetes
 // API-removal rules and the 29 mechanical rules that replace them. The shipped
 // pack holds one generation or the other. Tests that name a rule of the pack
 // use ID so that they pass before and after the data change. The package is a
@@ -26,43 +26,43 @@ const MechanicalPrefix = "kubernetes.served-api-removal."
 // replacements maps the id of each reviewed rule to the id of the mechanical
 // rule that replaces it.
 var replacements = map[string]string{
-	"kubernetes.admissionwebhook-v1beta1-removed.1-21-0-to-1-22-0":    "kubernetes.served-api-removal.admissionregistration-k8s-io-v1beta1.1-21-0-to-1-22-0",
-	"kubernetes.apiservice-v1beta1-removed.1-21-0-to-1-22-0":          "kubernetes.served-api-removal.apiregistration-k8s-io-v1beta1.1-21-0-to-1-22-0",
-	"kubernetes.crd-v1beta1-removed.1-21-0-to-1-22-0":                 "kubernetes.served-api-removal.apiextensions-k8s-io-v1beta1.1-21-0-to-1-22-0",
-	"kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0":             "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0",
-	"kubernetes.csistoragecapacity-v1beta1-removed.1-26-0-to-1-27-0":  "kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-26-0-to-1-27-0",
-	"kubernetes.csr-v1beta1-removed.1-21-0-to-1-22-0":                 "kubernetes.served-api-removal.certificates-k8s-io-v1beta1.1-21-0-to-1-22-0",
-	"kubernetes.endpointslice-v1beta1-removed.1-24-0-to-1-25-0":       "kubernetes.served-api-removal.discovery-k8s-io-v1beta1.1-24-0-to-1-25-0",
-	"kubernetes.event-v1beta1-removed.1-24-0-to-1-25-0":               "kubernetes.served-api-removal.events-k8s-io-v1beta1.1-24-0-to-1-25-0",
-	"kubernetes.flowcontrol-v1beta1-removed.1-25-0-to-1-26-0":         "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta1.1-25-0-to-1-26-0",
-	"kubernetes.flowcontrol-v1beta2-removed.1-28-0-to-1-29-0":         "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta2.1-28-0-to-1-29-0",
-	"kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0":         "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0",
-	"kubernetes.hpa-v2beta1-removed.1-24-0-to-1-25-0":                 "kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0",
-	"kubernetes.hpa-v2beta2-removed.1-25-0-to-1-26-0":                 "kubernetes.served-api-removal.autoscaling-v2beta2.1-25-0-to-1-26-0",
-	"kubernetes.ingress-extensions-v1beta1-removed.1-21-0-to-1-22-0":  "kubernetes.served-api-removal.extensions-v1beta1.1-21-0-to-1-22-0",
-	"kubernetes.ingress-networking-v1beta1-removed.1-21-0-to-1-22-0":  "kubernetes.served-api-removal.networking-k8s-io-v1beta1-ingress.1-21-0-to-1-22-0",
-	"kubernetes.ingressclass-v1beta1-removed.1-21-0-to-1-22-0":        "kubernetes.served-api-removal.networking-k8s-io-v1beta1-ingressclass.1-21-0-to-1-22-0",
-	"kubernetes.lease-v1beta1-removed.1-21-0-to-1-22-0":               "kubernetes.served-api-removal.coordination-k8s-io-v1beta1.1-21-0-to-1-22-0",
-	"kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0":                 "kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0",
-	"kubernetes.priorityclass-v1beta1-removed.1-21-0-to-1-22-0":       "kubernetes.served-api-removal.scheduling-k8s-io-v1beta1.1-21-0-to-1-22-0",
-	"kubernetes.psp-v1beta1-removed.1-24-0-to-1-25-0":                 "kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0",
-	"kubernetes.rbac-v1beta1-removed.1-21-0-to-1-22-0":                "kubernetes.served-api-removal.rbac-authorization-k8s-io-v1beta1.1-21-0-to-1-22-0",
-	"kubernetes.runtimeclass-v1beta1-removed.1-24-0-to-1-25-0":        "kubernetes.served-api-removal.node-k8s-io-v1beta1.1-24-0-to-1-25-0",
-	"kubernetes.storage-v1beta1-removed.1-21-0-to-1-22-0":             "kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-21-0-to-1-22-0",
-	"kubernetes.subjectaccessreview-v1beta1-removed.1-21-0-to-1-22-0": "kubernetes.served-api-removal.authorization-k8s-io-v1beta1.1-21-0-to-1-22-0",
-	"kubernetes.tokenreview-v1beta1-removed.1-21-0-to-1-22-0":         "kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-21-0-to-1-22-0",
+	"kubernetes.admissionwebhook-v1beta1-removed.1-21-0-to-1-22-0":          "kubernetes.served-api-removal.admissionregistration-k8s-io-v1beta1.1-21-0-to-1-22-0",
+	"kubernetes.apiservice-v1beta1-removed.1-21-0-to-1-22-0":                "kubernetes.served-api-removal.apiregistration-k8s-io-v1beta1.1-21-0-to-1-22-0",
+	"kubernetes.crd-v1beta1-removed.1-21-0-to-1-22-0":                       "kubernetes.served-api-removal.apiextensions-k8s-io-v1beta1.1-21-0-to-1-22-0",
+	"kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0":                   "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0",
+	"kubernetes.csistoragecapacity-v1beta1-removed.1-26-0-to-1-27-0":        "kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-26-0-to-1-27-0",
+	"kubernetes.csr-v1beta1-removed.1-21-0-to-1-22-0":                       "kubernetes.served-api-removal.certificates-k8s-io-v1beta1.1-21-0-to-1-22-0",
+	"kubernetes.endpointslice-v1beta1-removed.1-24-0-to-1-25-0":             "kubernetes.served-api-removal.discovery-k8s-io-v1beta1.1-24-0-to-1-25-0",
+	"kubernetes.event-v1beta1-removed.1-24-0-to-1-25-0":                     "kubernetes.served-api-removal.events-k8s-io-v1beta1.1-24-0-to-1-25-0",
+	"kubernetes.flowcontrol-v1beta1-removed.1-25-0-to-1-26-0":               "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta1.1-25-0-to-1-26-0",
+	"kubernetes.flowcontrol-v1beta2-removed.1-28-0-to-1-29-0":               "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta2.1-28-0-to-1-29-0",
+	"kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0":               "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0",
+	"kubernetes.hpa-v2beta1-removed.1-24-0-to-1-25-0":                       "kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0",
+	"kubernetes.hpa-v2beta2-removed.1-25-0-to-1-26-0":                       "kubernetes.served-api-removal.autoscaling-v2beta2.1-25-0-to-1-26-0",
+	"kubernetes.ingress-extensions-v1beta1-removed.1-21-0-to-1-22-0":        "kubernetes.served-api-removal.extensions-v1beta1.1-21-0-to-1-22-0",
+	"kubernetes.ingress-networking-v1beta1-removed.1-21-0-to-1-22-0":        "kubernetes.served-api-removal.networking-k8s-io-v1beta1-ingress.1-21-0-to-1-22-0",
+	"kubernetes.ingressclass-v1beta1-removed.1-21-0-to-1-22-0":              "kubernetes.served-api-removal.networking-k8s-io-v1beta1-ingressclass.1-21-0-to-1-22-0",
+	"kubernetes.lease-v1beta1-removed.1-21-0-to-1-22-0":                     "kubernetes.served-api-removal.coordination-k8s-io-v1beta1.1-21-0-to-1-22-0",
+	"kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0":                       "kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0",
+	"kubernetes.priorityclass-v1beta1-removed.1-21-0-to-1-22-0":             "kubernetes.served-api-removal.scheduling-k8s-io-v1beta1.1-21-0-to-1-22-0",
+	"kubernetes.psp-v1beta1-removed.1-24-0-to-1-25-0":                       "kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0",
+	"kubernetes.rbac-v1beta1-removed.1-21-0-to-1-22-0":                      "kubernetes.served-api-removal.rbac-authorization-k8s-io-v1beta1.1-21-0-to-1-22-0",
+	"kubernetes.runtimeclass-v1beta1-removed.1-24-0-to-1-25-0":              "kubernetes.served-api-removal.node-k8s-io-v1beta1.1-24-0-to-1-25-0",
+	"kubernetes.storage-v1beta1-removed.1-21-0-to-1-22-0":                   "kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-21-0-to-1-22-0",
+	"kubernetes.subjectaccessreview-v1beta1-removed.1-21-0-to-1-22-0":       "kubernetes.served-api-removal.authorization-k8s-io-v1beta1.1-21-0-to-1-22-0",
+	"kubernetes.tokenreview-v1beta1-removed.1-21-0-to-1-22-0":               "kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-21-0-to-1-22-0",
+	"kubernetes.selfsubjectreview-v1beta1-removed.1-32-0-to-1-33-0":         "kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-32-0-to-1-33-0",
+	"kubernetes.validatingadmissionpolicy-v1beta1-removed.1-33-0-to-1-34-0": "kubernetes.served-api-removal.admissionregistration-k8s-io-v1beta1.1-33-0-to-1-34-0",
+	"kubernetes.ipaddress-servicecidr-v1beta1-removed.1-36-0-to-1-37-0":     "kubernetes.served-api-removal.networking-k8s-io-v1beta1.1-36-0-to-1-37-0",
+	"kubernetes.volumeattributesclass-v1beta1-removed.1-36-0-to-1-37-0":     "kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-36-0-to-1-37-0",
 }
 
-// addedIDs are the mechanical rules with no reviewed predecessor: the
-// removals of 1.33, 1.34 and 1.37 that the reviewed pack never covered.
-var addedIDs = []string{
-	"kubernetes.served-api-removal.admissionregistration-k8s-io-v1beta1.1-33-0-to-1-34-0",
-	"kubernetes.served-api-removal.authentication-k8s-io-v1beta1.1-32-0-to-1-33-0",
-	"kubernetes.served-api-removal.networking-k8s-io-v1beta1.1-36-0-to-1-37-0",
-	"kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-36-0-to-1-37-0",
-}
+// addedIDs are the mechanical rules with no reviewed predecessor. The
+// removals of 1.33, 1.34 and 1.37 now have reviewed rules (see replacements),
+// so there are none.
+var addedIDs []string
 
-// ReviewedIDs returns the ids of the 25 reviewed rules.
+// ReviewedIDs returns the ids of the 29 reviewed rules.
 func ReviewedIDs() []string {
 	out := make([]string, 0, len(replacements))
 	for id := range replacements {
@@ -139,7 +139,7 @@ func Generation(pack []byte) (bool, error) {
 	case reviewed == 0 && mechanical == len(replacements)+len(addedIDs):
 		return true, nil
 	}
-	return false, fmt.Errorf("the pack holds %d reviewed and %d mechanical Kubernetes API-removal rules, want 25/0 or 0/29", reviewed, mechanical)
+	return false, fmt.Errorf("the pack holds %d reviewed and %d mechanical Kubernetes API-removal rules, want 29/0 or 0/29", reviewed, mechanical)
 }
 
 // ID returns the id a test must use for the rule the reviewed id names: the
