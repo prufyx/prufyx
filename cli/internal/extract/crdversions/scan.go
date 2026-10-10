@@ -332,6 +332,10 @@ type templateRead struct {
 // kustomization is a decoded kustomization file's patch references and
 // remote sources.
 type kustomization struct {
+	// configs are the transformer configuration files it names
+	// (configurations); configBad is why the list cannot be followed.
+	configs   []string
+	configBad string
 	// crdTargets counts the patch entries whose target kind is
 	// CustomResourceDefinition; patchPaths are their files (relative to
 	// the kustomization's directory).
@@ -489,6 +493,11 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 		}
 		rec.Findings = append(rec.Findings, fd)
 	}
+	cfg, err := x.scanConfigs(r, repo, commit, files, infos, defDirs, tg, rec.Findings)
+	if err != nil {
+		return nil, err
+	}
+	rec.Findings = append(rec.Findings, cfg...)
 	for h := range hits {
 		rec.Exclusions = append(rec.Exclusions, h)
 	}
@@ -976,6 +985,20 @@ func readKustomization(obj map[string]any) *kustomization {
 	}
 	sort.Strings(k.remote)
 	sort.Strings(k.local)
+	if raw, present := obj["configurations"]; present {
+		items, ok := raw.([]any)
+		if !ok {
+			k.configBad = "configurations is not a list"
+		}
+		for _, it := range items {
+			if s, ok := it.(string); ok && s != "" && !remoteSource(s) {
+				k.configs = append(k.configs, s)
+			} else {
+				k.configBad = "a configurations entry is not a local file"
+			}
+		}
+		sort.Strings(k.configs)
+	}
 	for _, field := range []string{"patches", "patchesJson6902"} {
 		raw, present := obj[field]
 		if !present {
