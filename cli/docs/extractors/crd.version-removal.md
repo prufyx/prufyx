@@ -1,6 +1,6 @@
 # Extractor `crd.version-removal`
 
-Version 2.1.0. Derives `forbid_set_member` rules for custom-resource
+Version 2.2.0. Derives `forbid_set_member` rules for custom-resource
 versions that a project's release line no longer serves, from the
 CustomResourceDefinition manifests the project ships in its repository. It is
 deterministic, reads only upstream source pinned by full commit SHA, and
@@ -100,7 +100,10 @@ Through the offline factory mirror (or a fixture tree), never the network.
   | Class | Meaning |
   | --- | --- |
   | `copy` | every definition in it is in the inventory with the same versions and `served` flags |
-  | `schema-patch` | a kustomization whose only mentions of the kind are patch targets, each patch a JSON 6902 list whose every operation path lies under `/spec/versions/N/schema/` or metadata labels and annotations |
+  | `schema-patch` | a kustomization whose only mentions of the kind are patch targets, each patch a JSON 6902 list whose every operation path lies under `/spec/versions/N/schema/`, `/spec/conversion`, at `/spec/preserveUnknownFields` or under metadata labels and annotations, or a `crd-patch` fragment (below) of listed definitions |
+  | `crd-patch` | a kubebuilder strategic merge patch fragment (`webhook_in_*.yaml`, `cainjection_in_*.yaml`) below a declared definition kustomization directory: every document is an `apiextensions.k8s.io/v1` or `v1beta1` `CustomResourceDefinition` of a listed definition with nothing but `metadata.name`, metadata labels and annotations, `spec.conversion` (strategy, webhook client configuration, review versions) and `spec.preserveUnknownFields`, each of its known shape; a template, any other key (`spec.versions`, `spec.version`, `spec.group`, a `$patch` or `$retainKeys` directive, ...) or a definition the listed paths do not hold leaves the file `unread` |
+  | `kustomize-config` | a kustomize transformer configuration (`kustomizeconfig.yaml`) below a declared definition kustomization directory that holds only `nameReference`, `namespace`, `varReference`, `commonLabels` and `commonAnnotations`, in which every field spec of the kind names the `apiextensions.k8s.io` group, and it and every field spec without a kind a path under `spec/conversion` or metadata labels and annotations; otherwise the file stays a `reference`. Every configuration a kustomization below such a directory names (`configurations`), and every `kustomizeconfig.yaml` there, is read even when it never contains the kind name (a field spec without a kind applies to every kind); one that cannot be read or has an unchecked field spec is a `reference` |
+  | `legacy-copy` | every definition in it is strictly read, at least one is an `apiextensions.k8s.io/v1beta1` definition (versions from `spec.versions` with `served` and `storage`, the first equal to `spec.version` when both are given, or from `spec.version` alone, served and stored; exactly one storage version), and every one is in the inventory with the same group, kind, versions and `served` flags; a v1beta1 definition with other versions or flags is a `conflict`, one not in the inventory `extra`, an incomplete one `unread` |
   | `conflict` | it defines a CRD of the inventory with other versions or `served` flags |
   | `extra` | it defines a CRD that is not in the inventory |
   | `reference` | it holds the kind as a value (a nested object, a field, a manifest embedded in a string) but defines none at the top level, and is not a schema-only kustomization; a file that only mentions the word in a comment or a description is not a finding |
@@ -113,7 +116,8 @@ Through the offline factory mirror (or a fixture tree), never the network.
 
   The effect depends on the class and the location:
 
-  - `copy` and `schema-patch`: none, anywhere.
+  - `copy`, `schema-patch`, `crd-patch`, `kustomize-config` and `legacy-copy`:
+    none, anywhere.
   - `conflict` in the open tree: the pair is withheld when the release is a
     pair's first release; otherwise the pair's rules hold for the anchor pair
     only.
@@ -123,7 +127,7 @@ Through the offline factory mirror (or a fixture tree), never the network.
     there); at another release of the later line the rules hold for the anchor
     pair only.
   - every other class in the open tree or among declared copies, and every
-    class but `copy` and `schema-patch` under a default-excluded directory:
+    class but those five under a default-excluded directory:
     the pair is not attestable.
   - `excluded` and `excluded-unread`: recorded; the pair stays attestable. An
     `excluded-unread` file keeps a definition from being established as gone,
@@ -393,6 +397,22 @@ storage change must be recorded; every listed pair must have the given status
 and, when given, number of removals, `lineWide` and `attestable`. When removals
 (or storage changes) are listed, any other one the run derives is reported as
 `EXTRA`. The exit code is 1 when there is any disagreement.
+
+## Changes from version 2.1.0
+
+Version 2.2.0 reads the kubebuilder scaffolding next to a project's generated
+definitions and its legacy copies: the classes `crd-patch`,
+`kustomize-config` and `legacy-copy` above, and kustomization patches that are
+`crd-patch` fragments or JSON 6902 operations on the conversion settings. A
+**declared definition kustomization directory** is a directory other than the
+repository root holding a kustomization whose local `resources` or `bases`
+name a file of the listed paths at that release, or a directory that holds
+one (`config/crd` for `config/crd/bases/...`); fragments and transformer
+configurations anywhere else stay `unread` or `reference`. Before 2.2.0 these
+files were `unread` (fragments, v1beta1 copies) or `reference`
+(configurations) and kept every pair of the project from being attestable.
+Rules and vectors are unchanged; the scan records of the inventory and the
+completeness of a pair change where such files exist.
 
 ## Changes from version 2.0.0
 

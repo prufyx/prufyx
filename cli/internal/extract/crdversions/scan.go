@@ -36,7 +36,7 @@ const (
 	ClassCopy = "copy"
 	// ClassSchemaPatch: a kustomization whose only CustomResourceDefinition
 	// references are patch targets, and whose patches only touch version
-	// schemas or metadata labels and annotations.
+	// schemas, conversion settings or metadata labels and annotations.
 	ClassSchemaPatch = "schema-patch"
 	// ClassConflict: a definition of an inventory CRD with other versions
 	// or served flags. In the open tree the pair is withheld (at an
@@ -117,7 +117,7 @@ var (
 	// sourceKeysRE marks a file that may name another repository: a Helm
 	// chart's dependencies or a kustomization's resources.
 	sourceKeysRE = regexp.MustCompile(`(?m)^(dependencies|resources|components|bases)[ \t]*:`)
-	patchPathRE  = regexp.MustCompile(`^/(spec/versions/(0|[1-9][0-9]{0,2})/schema|metadata/(annotations|labels))(/[^\x00-\x1f]*)?$`)
+	patchPathRE  = regexp.MustCompile(`^/(spec/versions/(0|[1-9][0-9]{0,2})/schema|spec/conversion|metadata/(annotations|labels))(/[^\x00-\x1f]*)?$|^/spec/preserveUnknownFields$`)
 	templateRE   = regexp.MustCompile(`\{\{.*?\}\}`)
 	valueExprRE  = regexp.MustCompile(`^(\s*[^\s#{][^:{]*:)\s*\{\{[^{}]*\}\}\s*$`)
 )
@@ -173,7 +173,7 @@ type Finding struct {
 // blocks reports whether a finding keeps the scan from being clean.
 func (f Finding) blocks() bool {
 	switch f.Class {
-	case ClassSchemaPatch, ClassExcluded, ClassExcludedUnread:
+	case ClassSchemaPatch, ClassCRDPatch, ClassKustomizeConfig, ClassLegacyCopy, ClassExcluded, ClassExcludedUnread:
 		return false
 	}
 	return true
@@ -215,8 +215,9 @@ func (f Finding) unreadable() bool {
 	return false
 }
 
-// Clean reports a complete scan with nothing but copies, schema-only
-// kustomizations and reviewed exclusions.
+// Clean reports a complete scan with nothing but copies (v1 or v1beta1),
+// schema-only kustomizations, kubebuilder patch fragments and transformer
+// configurations, and reviewed exclusions.
 func (s *ScanRecord) Clean() bool {
 	if s == nil || !s.Complete {
 		return false
@@ -306,6 +307,18 @@ type blobInfo struct {
 	// template directives removed (nil when the bytes hold no template
 	// syntax or no kind name).
 	template *templateRead
+	// legacy are the definitions of bytes that hold
+	// apiextensions.k8s.io/v1beta1 definitions, all strictly read (nil
+	// otherwise); legacyProblem is why such bytes could not be read.
+	legacy        []CRD
+	legacyProblem string
+	// fragment is the bytes read as kubebuilder patch fragments (nil when
+	// they are not strictly decodable or were decoded as definitions).
+	fragment *fragmentRead
+	// configProblem is why the bytes are not a kustomize transformer
+	// configuration whose field specs of the kind only reach conversion
+	// settings or metadata ("" when they are one).
+	configProblem string
 	// goConstruct: Go code that builds a definition.
 	goConstruct bool
 }
@@ -319,6 +332,10 @@ type templateRead struct {
 // kustomization is a decoded kustomization file's patch references and
 // remote sources.
 type kustomization struct {
+	// configs are the transformer configuration files it names
+	// (configurations); configBad is why the list cannot be followed.
+	configs   []string
+	configBad string
 	// crdTargets counts the patch entries whose target kind is
 	// CustomResourceDefinition; patchPaths are their files (relative to
 	// the kustomization's directory).
@@ -327,9 +344,14 @@ type kustomization struct {
 	// problem is why a CRD patch entry cannot be checked ("" when every
 	// one names a local file).
 	problem string
+	// open is why some patch or replacement could select a definition
+	// without naming the kind literally ("" when none can): such an entry
+	// is never read, so it blocks.
+	open string
 	// remote are the resources, components and bases from another
-	// repository.
+	// repository; local are the other resources and bases.
 	remote []string
+	local  []string
 }
 
 type scanFile struct {
@@ -451,11 +473,14 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 	x.parallel(len(files), func(i int) {
 		infos[i], errs[i] = x.blob(r, repo, commit, files[i])
 	})
-	for i, f := range files {
+	for i := range files {
 		if errs[i] != nil {
 			return nil, errs[i]
 		}
-		fd, found, err := x.classify(r, repo, commit, f, infos[i], inv)
+	}
+	defDirs := definitionDirs(files, infos, inv)
+	for i, f := range files {
+		fd, found, err := x.classify(r, repo, commit, f, infos[i], inv, defDirs)
 		if err != nil {
 			return nil, err
 		}
@@ -468,6 +493,11 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 		}
 		rec.Findings = append(rec.Findings, fd)
 	}
+	cfg, err := x.scanConfigs(r, repo, commit, files, infos, defDirs, tg, rec.Findings)
+	if err != nil {
+		return nil, err
+	}
+	rec.Findings = append(rec.Findings, cfg...)
 	for h := range hits {
 		rec.Exclusions = append(rec.Exclusions, h)
 	}
@@ -489,7 +519,7 @@ func placed(f Finding, at place) Finding {
 		return f
 	}
 	switch f.Class {
-	case ClassCopy, ClassSchemaPatch:
+	case ClassCopy, ClassSchemaPatch, ClassCRDPatch, ClassKustomizeConfig, ClassLegacyCopy:
 	case ClassUnread, ClassUnsupported:
 		f.Class = ClassExcludedUnread
 	default:
@@ -583,6 +613,9 @@ func summarize(kind int, data []byte) *blobInfo {
 		if info.words > 0 && bytes.Contains(data, []byte(templateMarker)) {
 			info.template = readTemplate(data)
 		}
+		if info.words > 0 && info.template == nil {
+			summarizeUnread(data, info)
+		}
 		return info
 	}
 	for i := range crds {
@@ -597,8 +630,35 @@ func summarize(kind int, data []byte) *blobInfo {
 			info.kust = readKustomization(obj)
 			info.chartDeps = externalChartDeps(obj)
 		}
+		if len(crds) == 0 && info.kinds > 0 {
+			info.configProblem = transformerConfig(values[0])
+		}
+	} else {
+		info.configProblem = "not a single document"
 	}
 	return info
+}
+
+// summarizeUnread reads bytes the v1 reader refused, without template
+// syntax, as v1beta1 definitions or as kubebuilder patch fragments.
+func summarizeUnread(data []byte, info *blobInfo) {
+	crds, err := parseLegacy(data)
+	switch {
+	case err != nil:
+		info.legacyProblem = err.Error()
+		if pr, ok := asProblem(err); ok {
+			info.legacyProblem = pr.msg
+		}
+	case crds != nil:
+		info.legacy = crds
+		return
+	}
+	if len(data) > MaxFileBytes || bytes.Contains(data, []byte(templateMarker)) {
+		return
+	}
+	if _, values, err := decodeStrict(data); err == nil {
+		info.fragment = readFragments(values)
+	}
 }
 
 // countKinds counts kind: CustomResourceDefinition at any depth and notes
@@ -716,8 +776,9 @@ func isKustomizationName(base string) bool {
 
 // classify places a candidate file against the inventory of its tag and
 // its location. found is false when the file holds nothing CRD-like and
-// names no other repository.
-func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commit string, f scanFile, info *blobInfo, inv *Inventory) (Finding, bool, error) {
+// names no other repository. dirs are the declared definition kustomization
+// directories of the tag.
+func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commit string, f scanFile, info *blobInfo, inv *Inventory, dirs map[string]bool) (Finding, bool, error) {
 	fd := Finding{Path: f.path, SHA256: info.sha256}
 	base := path.Base(f.path)
 	isKust := isKustomizationName(base)
@@ -749,8 +810,20 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 	switch {
 	case info.unread != "" && f.at.copies && info.template != nil:
 		// A checked copy that is templated: read without its directives.
+	case info.unread != "" && info.legacy != nil:
+		// apiextensions.k8s.io/v1beta1 definitions, strictly read: they
+		// are compared with the inventory below.
+	case info.unread != "" && info.fragment != nil && info.fragment.problem == "":
+		fd.Class, fd.Detail = fragmentClass(f.path, info.fragment, inv, dirs, info.unread)
+		return placed(fd, f.at), true, nil
 	case info.unread != "" && (info.kindLike || isChart || isKust):
 		fd.Class, fd.Detail = ClassUnread, info.unread
+		switch {
+		case info.legacyProblem != "":
+			fd.Detail = info.legacyProblem
+		case info.fragment != nil && underDefinitionDir(f.path, dirs):
+			fd.Detail += "; not a patch fragment the scan accepts: " + info.fragment.problem
+		}
 		return placed(fd, f.at), true, nil
 	case info.unread != "":
 		return fd, false, nil
@@ -766,7 +839,10 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 		return placed(fd, f.at), true, nil
 	}
 	crds := info.crds
-	if info.unread != "" {
+	switch {
+	case info.legacy != nil:
+		crds = info.legacy
+	case info.unread != "":
 		// Only a templated checked copy reaches here.
 		if info.template.unread != "" {
 			// A checked copy that cannot be read is never accepted.
@@ -774,6 +850,10 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 			return placed(fd, f.at), true, nil
 		}
 		crds = info.template.crds
+	}
+	if isKust && info.kust != nil && info.kust.open != "" && !info.embedded && underDefinitionDir(f.path, dirs) {
+		fd.Class, fd.Detail = ClassReference, info.kust.open
+		return placed(fd, f.at), true, nil
 	}
 	if info.words == 0 {
 		return fd, false, nil
@@ -785,7 +865,7 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 			return fd, false, nil
 		}
 		if isKust && info.kust != nil && !info.embedded {
-			why, err := x.checkKustomization(r, repo, commit, f.path, info)
+			why, err := x.checkKustomization(r, repo, commit, f.path, info, inv)
 			if err != nil {
 				return fd, false, err
 			}
@@ -797,9 +877,28 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 			return placed(fd, f.at), true, nil
 		}
 		fd.Class, fd.Detail = ClassReference, "holds the CustomResourceDefinition kind but defines none at the top level"
+		if !isKust && !info.embedded && underDefinitionDir(f.path, dirs) {
+			// Every mapping of the kind in an accepted configuration is
+			// one of its checked field specs: the reader refuses any other
+			// key, entry or value.
+			why := info.configProblem
+			if why == "" {
+				fd.Class, fd.Detail = ClassKustomizeConfig, "a kustomize transformer configuration whose field specs of the kind only reach conversion settings and metadata labels and annotations"
+				return placed(fd, f.at), true, nil
+			}
+			fd.Detail += "; not a transformer configuration the scan accepts: " + why
+		}
 		return placed(fd, f.at), true, nil
 	}
 	fd = compareDefinitions(fd, crds, inv)
+	if info.legacy != nil {
+		switch fd.Class {
+		case ClassCopy:
+			fd.Class, fd.Detail = ClassLegacyCopy, "apiextensions.k8s.io/v1beta1 definitions with the versions and served flags of the listed paths"
+		case ClassConflict:
+			fd.Detail = "apiextensions.k8s.io/v1beta1 copy: " + fd.Detail
+		}
+	}
 	if f.at.copies && fd.Class == ClassExtra {
 		// The reviewer states these are copies: the claim is checked.
 		fd.Detail = "a declared copy that defines a CustomResourceDefinition the listed paths do not hold"
@@ -874,12 +973,32 @@ func readKustomization(obj map[string]any) *kustomization {
 	for _, field := range []string{"resources", "components", "bases"} {
 		items, _ := obj[field].([]any)
 		for _, it := range items {
-			if s, ok := it.(string); ok && remoteSource(s) {
+			s, ok := it.(string)
+			switch {
+			case !ok:
+			case remoteSource(s):
 				k.remote = append(k.remote, s)
+			case field != "components":
+				k.local = append(k.local, s)
 			}
 		}
 	}
 	sort.Strings(k.remote)
+	sort.Strings(k.local)
+	if raw, present := obj["configurations"]; present {
+		items, ok := raw.([]any)
+		if !ok {
+			k.configBad = "configurations is not a list"
+		}
+		for _, it := range items {
+			if s, ok := it.(string); ok && s != "" && !remoteSource(s) {
+				k.configs = append(k.configs, s)
+			} else {
+				k.configBad = "a configurations entry is not a local file"
+			}
+		}
+		sort.Strings(k.configs)
+	}
 	for _, field := range []string{"patches", "patchesJson6902"} {
 		raw, present := obj[field]
 		if !present {
@@ -896,8 +1015,15 @@ func readKustomization(obj map[string]any) *kustomization {
 				k.problem = field + " entry is not a mapping"
 				return k
 			}
+			if _, present := entry["target"]; !present {
+				// A strategic merge fragment: checked through its file.
+				continue
+			}
 			target, _ := entry["target"].(map[string]any)
 			if kind, _ := target["kind"].(string); kind != crdKind {
+				if !literalOtherKind(kind) && k.open == "" {
+					k.open = fmt.Sprintf("a %s entry selects without naming a kind other than %s", field, crdKind)
+				}
 				continue
 			}
 			k.crdTargets++
@@ -909,6 +1035,18 @@ func readKustomization(obj map[string]any) *kustomization {
 			k.patchPaths = append(k.patchPaths, pp)
 		}
 	}
+	if raw, present := obj["replacements"]; present && k.open == "" {
+		items, ok := raw.([]any)
+		if !ok {
+			k.open = "replacements is not a list"
+		}
+		for _, it := range items {
+			if why := replacementOpen(it); why != "" {
+				k.open = why
+				break
+			}
+		}
+	}
 	if _, smp := obj["patchesStrategicMerge"]; smp {
 		k.problem = "strategic merge patches are not checked"
 	}
@@ -918,12 +1056,44 @@ func readKustomization(obj map[string]any) *kustomization {
 	return k
 }
 
+// literalOtherKind reports a selector kind that, as an anchored regular
+// expression, matches only one kind and not the definition kind.
+func literalOtherKind(kind string) bool {
+	return kind != "" && kind != crdKind && regexp.QuoteMeta(kind) == kind
+}
+
+// replacementOpen returns why a replacements entry (inline, or a file
+// that is not read) could change a definition ("" when every target
+// selects a literal kind other than the definition kind).
+func replacementOpen(v any) string {
+	e, ok := v.(map[string]any)
+	if !ok {
+		return "a replacements entry is not a mapping"
+	}
+	targets, ok := e["targets"].([]any)
+	if !ok || len(targets) == 0 {
+		return "a replacements entry without inline targets is not checked"
+	}
+	for _, t := range targets {
+		tm, _ := t.(map[string]any)
+		sel, _ := tm["select"].(map[string]any)
+		if kind, _ := sel["kind"].(string); !literalOtherKind(kind) {
+			return "a replacements target selects without naming a kind other than " + crdKind
+		}
+	}
+	return ""
+}
+
 // checkKustomization returns "" when every CustomResourceDefinition
 // reference of the file is a checked patch target and every patch only
-// changes version schemas or metadata labels and annotations.
-func (x *Extractor) checkKustomization(r extract.PinnedReader, repo extract.RepoRef, commit, p string, info *blobInfo) (string, error) {
+// changes version schemas, conversion settings or metadata labels and
+// annotations: a JSON 6902 list, or a strategic merge patch fragment of
+// definitions the inventory holds.
+func (x *Extractor) checkKustomization(r extract.PinnedReader, repo extract.RepoRef, commit, p string, info *blobInfo, inv *Inventory) (string, error) {
 	k := info.kust
 	switch {
+	case k.open != "":
+		return k.open, nil
 	case k.problem != "":
 		return k.problem, nil
 	case k.crdTargets == 0 || k.crdTargets != info.kinds:
@@ -943,14 +1113,33 @@ func (x *Extractor) checkKustomization(r extract.PinnedReader, repo extract.Repo
 			return "", err
 		}
 		if why := schemaOnlyPatch(data); why != "" {
+			if fragmentPatch(data, inv) {
+				continue
+			}
 			return fmt.Sprintf("patch %s: %s", full, why), nil
 		}
 	}
 	return "", nil
 }
 
+// fragmentPatch reports a strategic merge patch fragment (no template
+// syntax, strictly decoded) of definitions the inventory holds.
+func fragmentPatch(data []byte, inv *Inventory) bool {
+	if len(data) > MaxFileBytes || strings.Contains(string(data), templateMarker) {
+		return false
+	}
+	_, values, err := decodeStrict(data)
+	if err != nil {
+		return false
+	}
+	fr := readFragments(values)
+	return fr.problem == "" && knownNames(fr.names, inv) == ""
+}
+
 // schemaOnlyPatch accepts a JSON 6902 patch whose every operation path
-// (and from) lies under a version's schema or metadata labels/annotations.
+// (and from) lies under a version's schema, the conversion settings
+// (spec/conversion, spec/preserveUnknownFields) or metadata
+// labels/annotations.
 func schemaOnlyPatch(data []byte) string {
 	if strings.Contains(string(data), templateMarker) {
 		return "templated"
@@ -991,7 +1180,7 @@ func schemaOnlyPatch(data []byte) string {
 			}
 			s, _ := v.(string)
 			if !patchPathRE.MatchString(s) {
-				return fmt.Sprintf("operation %d %s %q is outside version schemas and metadata labels and annotations", i, key, s)
+				return fmt.Sprintf("operation %d %s %q is outside version schemas, conversion settings and metadata labels and annotations", i, key, s)
 			}
 		}
 	}
