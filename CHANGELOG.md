@@ -68,6 +68,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   `CustomResourceDefinition` (selected by name, group, a kind pattern, a label
   selector, or no kind) now block attestation, as such an entry could change a
   definition without naming the kind.
+  Every transformer configuration that a kustomization below a declared
+  definition directory names (`configurations`) is read even when it never
+  contains the kind name, as a field spec without a kind applies to every
+  kind; one that is unparseable or reaches other paths than conversion settings
+  and metadata blocks attestation.
 - Maintainer extractor `crd.version-removal`, CRD-GEN wave 2: eleven more
   projects are read (Antrea, CloudNativePG, Contour, Dapr, External Secrets
   Operator, Karmada, Koordinator, MetalLB, OpenKruise, Tekton Pipelines and
