@@ -79,6 +79,7 @@ func Evaluate(claims Claims, runs Runs, prov Provenance, now time.Time) Results 
 	for _, c := range claims.Claims {
 		res.Claims = append(res.Claims, ev.claim(c))
 	}
+	ev.missedRemovals(claims)
 	ev.diffs(lines, claims)
 	sort.SliceStable(res.Findings, func(i, j int) bool {
 		if rank(res.Findings[i].Severity) != rank(res.Findings[j].Severity) {
@@ -458,6 +459,51 @@ func (e *evaluator) crdPair(c Claim, cr *ClaimResult) {
 	if pr.InPlace.Attempted && !pr.InPlace.Succeeded {
 		cr.Detail += "; in-place update of the definitions refused: " + pr.InPlace.Message
 		e.finding(SeverityInfo, "crd."+pr.ID+".in-place", "%s: applying the %s definitions over %s was refused by the API server: %s", s.Project, to.Tag, from.Tag, pr.InPlace.Message)
+	}
+}
+
+// missedRemovals reports, for every pair run that has removal claims, a
+// version served after From and not after To that no removal claim of the
+// pair names (a pair with a crd-pair claim is already checked by it). A
+// definition the later release no longer defines is the usual cause.
+func (e *evaluator) missedRemovals(claims Claims) {
+	claimed := map[string]map[string]bool{}
+	quiet := map[string]bool{}
+	for _, c := range claims.Claims {
+		if c.Kind != KindCRDRemoval && c.Kind != KindCRDPair {
+			continue
+		}
+		from, _ := releaseSubject(c.Subject.From)
+		to, _ := releaseSubject(c.Subject.To)
+		id := pairID(c.Subject.Project, from.Tag, to.Tag)
+		if c.Kind == KindCRDPair {
+			quiet[id] = true
+			continue
+		}
+		if claimed[id] == nil {
+			claimed[id] = map[string]bool{}
+		}
+		claimed[id][member(c.Subject.Group, c.Subject.Version, c.Subject.Kind)] = true
+	}
+	ids := make([]string, 0, len(e.pairs))
+	for id := range e.pairs {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		pr := e.pairs[id]
+		if quiet[id] || claimed[id] == nil || pairFailed(pr) {
+			continue
+		}
+		var missed []string
+		for _, o := range pr.From.Objects {
+			if o.Outcome != ServerNotServed && objectOutcome(pr.To, o.Member) == ServerNotServed && !claimed[id][o.Member] {
+				missed = append(missed, o.Member)
+			}
+		}
+		if len(missed) > 0 {
+			e.finding(SeverityHigh, "crd."+id+".missed", "%s %s no longer serves %s, which no claim records as removed", pr.Project, pr.ToTag, strings.Join(missed, ", "))
+		}
 	}
 }
 

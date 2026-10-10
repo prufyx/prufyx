@@ -776,3 +776,44 @@ func TestACompletePairRunReplacesAFailedOne(t *testing.T) {
 		}
 	}
 }
+
+// A pair with removal claims whose later release also drops a version no
+// claim names is a HIGH finding (the quiet-pair check does not run there).
+func TestMissedRemovalBesideClaimedOnes(t *testing.T) {
+	claims := gadgetClaims(true)
+	claims.Claims = append(claims.Claims, Claim{ID: "widget.v9.0.0.widgets", Kind: KindCRDVersion, Subject: Subject{Project: "fixture", Repo: "github.com/fixture/fixture", Release: &gadgetFrom, CRD: "widgets.fixture.example", Group: "fixture.example", Version: "v1", Kind: "Widget", Served: boolPtr(true), Storage: boolPtr(true)}})
+	const widget = `apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: widgets.fixture.example
+spec:
+  group: fixture.example
+  scope: Cluster
+  names:
+    kind: Widget
+    plural: widgets
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema: {openAPIV3Schema: {type: object}}
+`
+	fetch := func(ctx context.Context, repo, commit, path string) ([]byte, error) {
+		if commit == gadgetFrom.Commit {
+			return append(gadget(true, false), []byte("---\n"+widget)...), nil
+		}
+		return gadget(false, false), nil // To drops the Widget definition
+	}
+	cluster := &fakeCluster{crds: map[string]CRDDef{}}
+	result := runPair(context.Background(), kube{run: cluster.runner, kubeconfig: "kc"}, fetch, claims.Pairs()[0])
+	if strings.Join(result.InPlace.Leftover, ",") != "widgets.fixture.example" {
+		t.Fatalf("leftover %v", result.InPlace.Leftover)
+	}
+	res := Evaluate(claims, crdRuns(result), Provenance{}, time.Unix(0, 0))
+	if sev := severities(res)["crd.fixture.v9.0.0-to-v9.1.0.missed"]; sev != SeverityHigh {
+		t.Fatalf("findings %+v", res.Findings)
+	}
+	if outcomes(res)["removal"].Outcome != OutcomeConfirmed {
+		t.Fatalf("claims %+v", res.Claims)
+	}
+}
