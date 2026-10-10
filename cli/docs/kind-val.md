@@ -172,6 +172,18 @@ them (recording a refusal or the definitions it no longer defines), then
 installs the later release from scratch and probes it, and deletes the
 pair's definitions.
 
+A `crd-version` claim whose release no pair of the claims covers (a batch
+may hold the version claims of a release without its pair claim) is not
+left undetermined: after the pairs, `kindval crd` installs that release on
+its own, from the repository, commit and files the claim cites, probes it,
+and deletes its definitions before the next release (one cluster, one
+release at a time). The result is recorded in the optional `releases` member
+of the crd run; the run schema is unchanged. The claim is then decided as it
+is for a pair's release. It stays `undetermined`, with the reason in
+`detail`, only when the cited files cannot be fetched or hold no
+definitions; a failed install or cleanup is `error`, never confirmed. With
+`--pair ID` only that pair is run.
+
 ## Limits
 
 - A dry-run create probes whether the API exists; a `rejected` outcome

@@ -17,6 +17,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   supplied custom-resource claims. Writes machine-readable results (every
   claim confirmed, refuted or unevaluated) and a summary. Not part of the
   test suite. See [kind-val.md](cli/docs/kind-val.md).
+  `kindval crd` also installs, on its own, a release that `crd-version`
+  claims name and no pair covers, so those claims are decided instead of
+  `undetermined`; a release that cannot be installed from the claim's
+  evidence stays `undetermined` with the reason, a failed install is `error`.
 
 - Knowledge gate: the first attested update of a pack that holds an older schema
   is admissible. A change of the pack's top-level `schema` member is admitted

@@ -286,3 +286,28 @@ func runPair(ctx context.Context, k kube, fetch fetcher, pair CRDPair) CRDPairRe
 	res.To = installRelease(ctx, k, toManifest, toDefs, toFiles, fromDefs)
 	return res
 }
+
+// runSingle installs one release's CRDs on its own, probes them and removes
+// them again, so the next release starts from a fresh state. A release whose
+// files cannot be fetched or hold no definitions is Unavailable (nothing was
+// installed); a failed install or cleanup is an Error.
+func runSingle(ctx context.Context, k kube, fetch fetcher, single CRDSingle) CRDReleaseResult {
+	res := CRDReleaseResult{ID: single.ID, Project: single.Project, Tag: single.Release.Tag}
+	manifest, defs, files, err := releaseManifest(ctx, fetch, single.Repo, single.Release)
+	if err != nil {
+		res.Unavailable = err.Error()
+		return res
+	}
+	if len(defs) == 0 {
+		res.Unavailable = "the files cited for the release hold no CustomResourceDefinition"
+		return res
+	}
+	names := crdNames(defs)
+	defer func() {
+		if err := k.deleteCRDs(ctx, names); err != nil && res.Error == "" {
+			res.Error = "cleanup: " + err.Error()
+		}
+	}()
+	res.State = installRelease(ctx, k, manifest, defs, files, nil)
+	return res
+}

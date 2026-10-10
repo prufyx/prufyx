@@ -4,7 +4,8 @@
 # For every release line of an image list, creates one kind cluster (one at a
 # time), records the APIs it serves, applies the behavioural corpus with a
 # server dry run and scans it with prufyx for the hop from the previous line,
-# runs the custom-resource pairs on the line chosen for them, deletes the
+# runs the custom-resource pairs (and the releases only version claims name)
+# on the line chosen for them, deletes the
 # cluster, and finally evaluates every claim. See docs/kind-val.md.
 #
 # usage: kind-val.sh --images FILE --out DIR --prufyx BIN [--prufyx-commit SHA]

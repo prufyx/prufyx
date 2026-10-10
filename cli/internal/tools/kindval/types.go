@@ -182,6 +182,23 @@ type CRDRun struct {
 	// ObservedImageDigests: see Snapshot.
 	ObservedImageDigests []string        `json:"observedImageDigests,omitempty"`
 	Pairs                []CRDPairResult `json:"pairs"`
+	// Releases: releases named by crd-version claims that no pair covers,
+	// each installed on its own.
+	Releases []CRDReleaseResult `json:"releases,omitempty"`
+}
+
+// CRDReleaseResult is what the cluster said about one release installed on
+// its own. Unavailable says why the release could not be installed from the
+// claims' own evidence (its files cannot be fetched or hold no definitions):
+// the claims about it stay undetermined. Error is a failed install or
+// cleanup on the cluster: the claims are errors, never confirmed.
+type CRDReleaseResult struct {
+	ID          string          `json:"id"`
+	Project     string          `json:"project"`
+	Tag         string          `json:"tag"`
+	State       CRDReleaseState `json:"state"`
+	Unavailable string          `json:"unavailable,omitempty"`
+	Error       string          `json:"error,omitempty"`
 }
 
 // CRDPairResult is what the cluster said about one pair of releases.
