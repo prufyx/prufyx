@@ -379,7 +379,7 @@ behavior. Pinned source evidence for the existing rule is the Strimzi
 `con-api-conversion-v1.adoc` upgrade module. Whole-upgrade safety remains
 `UNKNOWN`.
 
-## Custom-resource versions (Argo CD, Istio, Strimzi)
+## Custom-resource versions (12 projects of the reviewed table)
 
 `--custom-resources FILE` reads one private file of rendered manifests and
 records which `group/version/Kind` of the project's own custom-resource groups

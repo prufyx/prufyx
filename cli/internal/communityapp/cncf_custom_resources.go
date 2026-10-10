@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
@@ -36,7 +37,7 @@ var customResourceDigestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 func (r runtime) cncfCustomResourceCheck(req customResourceRequest) int {
 	fact, ok := cncfprepare.CustomResourceVersionsFact(req.project)
 	if !ok {
-		return r.usage("custom-resource flags require a project with a custom-resource version set (argo-cd, istio or strimzi); use --help")
+		return r.usage("custom-resource flags require a project with a custom-resource version set (" + strings.Join(cncfprepare.CustomResourceProjects(), ", ") + "); use --help")
 	}
 	if req.path == "" || req.from == "" || req.to == "" || cncfUnexpectedModeFlag(req.args, cncfCustomResourceFlags...) || (flagProvided(req.args, "custom-resources-digest") && !customResourceDigestRE.MatchString(req.pin)) {
 		return r.usage("invalid custom-resource check arguments; use --help")

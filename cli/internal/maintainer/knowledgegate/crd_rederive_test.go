@@ -209,14 +209,19 @@ func TestGateAdmitsCRDRules(t *testing.T) {
 	}
 }
 
-// A target whose custom-resource version set is not registered yet
-// (Longhorn, until its fact and API groups join the reviewed table) derives
-// rules that re-derive byte for byte, and the CNCF admission check still
-// refuses them: the engine does not know the fact.
+// A target whose custom-resource version set is not registered (Longhorn
+// with a fact project that is not in the reviewed table: every wave-1 target
+// is registered since REGISTRY-WAVE-1) derives rules that re-derive byte for
+// byte, and the CNCF admission check still refuses them: the engine does not
+// know the fact.
 func TestGateRefusesCRDRulesOfUnregisteredProject(t *testing.T) {
 	tg, ok := crdversions.TargetFor("longhorn")
-	if !ok || cncfcheck.RegisteredFact(tg.FactID()) {
+	if !ok || !cncfcheck.RegisteredFact(tg.FactID()) {
 		t.Fatalf("longhorn target %v, registered %v", ok, cncfcheck.RegisteredFact(tg.FactID()))
+	}
+	tg.FactProject = "longhorn_unregistered"
+	if cncfcheck.RegisteredFact(tg.FactID()) {
+		t.Fatalf("%s is registered", tg.FactID())
 	}
 	root := filepath.Join("..", "..", "extract", "crdversions", "testdata", "oracle")
 	repo, err := extract.ParseRepo(tg.Repo)
