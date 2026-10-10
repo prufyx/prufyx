@@ -9,6 +9,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- KIND-VAL (maintainer tool, `cli/internal/tools/kindval` and
+  `cli/scripts/kind-val.sh`): checks the Kubernetes knowledge against real
+  API servers in kind clusters, one per release line: the served APIs
+  against the removal table, scan verdicts for a corpus of removed-API
+  manifests against server dry runs, and upstream CRD release pairs against
+  supplied custom-resource claims. Writes machine-readable results (every
+  claim confirmed, refuted or unevaluated) and a summary. Not part of the
+  test suite. See [kind-val.md](cli/docs/kind-val.md).
+
 - Knowledge gate: the first attested update of a pack that holds an older schema
   is admissible. A change of the pack's top-level `schema` member is admitted
   only when it raises the schema to exactly the lowest level the pack's content
