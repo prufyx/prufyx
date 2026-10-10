@@ -25,7 +25,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   calling it unknown). The `scan-report-v1alpha1` JSON schema gained the
   optional member `inventory[].catalog` (`"community"`); integrators who vendor
   the schema should refresh it.
-- Maintainer extractor `crd.version-removal` 2.2.0: a `{{` inside a CRD schema
+- Maintainer extractor `crd.version-removal` 2.3.0: a `{{` inside a CRD schema
   `description` is read as documentation (Cluster API's ClusterClass) while any
   other `{{` still makes the file a template; a target can switch to another
   repository from one release line on (Kong Ingress Controller reads
