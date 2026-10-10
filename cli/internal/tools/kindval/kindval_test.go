@@ -760,3 +760,19 @@ func TestReleaseStateComesFromACompletedPair(t *testing.T) {
 		t.Fatalf("claims %+v", got)
 	}
 }
+
+// A pair recorded twice (a failed run, then a complete one) is decided by
+// the complete run, whatever the order of the files.
+func TestACompletePairRunReplacesAFailedOne(t *testing.T) {
+	claims := gadgetClaims(true)
+	cluster := &fakeCluster{crds: map[string]CRDDef{}}
+	good := runPair(context.Background(), kube{run: cluster.runner, kubeconfig: "kc"}, fixtureFetcher(false), claims.Pairs()[0])
+	failed := CRDPairResult{ID: good.ID, Project: "fixture", FromTag: "v9.0.0", ToTag: "v9.1.0", From: CRDReleaseState{Files: []FetchedFile{{Path: "x"}}, Error: "kubectl wait: exit 1: timed out"}}
+	for _, order := range [][]CRDPairResult{{good, failed}, {failed, good}} {
+		runs := Runs{Snapshots: map[string]Snapshot{}, CRD: []CRDRun{{Line: "1.37", Image: "img@sha256:crd", Pairs: order[:1]}, {Line: "1.37", Image: "img@sha256:crd", Pairs: order[1:]}}}
+		res := Evaluate(claims, runs, Provenance{}, time.Unix(0, 0))
+		if res.Totals.Confirmed != 5 || res.Totals.Error != 0 {
+			t.Fatalf("order %v: totals %+v", order[0].From.Error == "", res.Totals)
+		}
+	}
+}

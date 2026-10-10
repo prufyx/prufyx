@@ -68,6 +68,10 @@ func Evaluate(claims Claims, runs Runs, prov Provenance, now time.Time) Results 
 	}
 	for _, run := range runs.CRD {
 		for _, p := range run.Pairs {
+			// A pair run again after a failure: the complete run decides.
+			if prev, ok := ev.pairs[p.ID]; ok && pairFailed(p) && !pairFailed(prev) {
+				continue
+			}
 			ev.pairs[p.ID] = p
 			ev.pairImage[p.ID] = run.Image
 		}
@@ -106,6 +110,10 @@ func Evaluate(claims Claims, runs Runs, prov Provenance, now time.Time) Results 
 		}
 	}
 	return *res
+}
+
+func pairFailed(p CRDPairResult) bool {
+	return p.Error != "" || p.From.Error != "" || p.To.Error != "" || len(p.To.Files) == 0
 }
 
 func rank(severity string) int {
