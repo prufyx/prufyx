@@ -51,7 +51,7 @@ is refused, so the shape only changes with the schema name.
      "subject": {"project": "example", "repo": "github.com/example/example",
                  "from": {"tag": "v2.0.0", "commit": "<40 hex>", "files": ["config/crd/gadgets.yaml"]},
                  "to":   {"tag": "v2.1.0", "commit": "<40 hex>", "files": ["config/crd/gadgets.yaml"]}}},
-    {"id": "some-rule", "kind": "glm-addon-rule", "subject": {"project": "example", "ruleId": "example.rule"}}
+    {"id": "some-rule", "kind": "addon-rule", "subject": {"project": "example", "ruleId": "example.rule"}}
   ]
 }
 ```
@@ -63,7 +63,7 @@ is refused, so the shape only changes with the schema name.
 | `crd-version` | `project`, `repo`, `release` (`tag`, `commit`, `files`), `crd`, `group`, `version`, `kind`, `served`, `storage` | After the release's files are installed, the cluster's definition declares the version with these flags, and a dry-run object of the version is accepted or rejected for another reason (served) or answered "no matches" (not served). |
 | `crd-removal` | `project`, `repo`, `from`, `to` (releases), `group`, `version`, `kind`, optional `ruleId` | The version is served after installing `from` and not served after installing `to`. The result also records whether applying `to` over `from` in place was refused (`status.storedVersions`) and whether `to` no longer defines the CRD at all (a plain apply leaves it in the cluster). |
 | `crd-pair` | `project`, `repo`, `from`, `to` (releases) | Every version served after `from` is still served after `to`; the versions that disappeared are named otherwise. |
-| `glm-addon-rule` | free (`project`, `ruleId`, `from`, `to`, ...) | Not evaluated here: outcome `undetermined`. Reserved so a ledger can carry every claim through one file. |
+| `addon-rule` | free (`project`, `ruleId`, `from`, `to`, ...) | Not evaluated here: outcome `undetermined`. Reserved so a ledger can carry every claim through one file. |
 
 `evidence` is free-form JSON, passed through to the output. Releases of one
 project with the same `tag` must have the same `commit` and `files` across
@@ -101,7 +101,7 @@ claims written from the `crd.version-removal` extractor's proof.
 Outcomes: `confirmed` (the API server agrees), `refuted` (it disagrees),
 `undetermined` (no cluster or run covers the claim, or the kind is not
 evaluated), `error` (the run for the claim failed: a fetch, an apply, or a
-scan that gave no report). Only `confirmed` counts as agreement.
+scan that gave no report, or a kubectl call that did not reach the API server: missing binary, connection refused, timeout, TLS or kubeconfig failure, which is never read as "served"). Only `confirmed` counts as agreement.
 `nodeImageDigest` is the digest of the node image of the cluster the claim
 was decided on (the `to` line of a removal, the CRD line for CRD claims);
 `prufyxCommit` comes from `evaluate --prufyx-commit` (a development build
@@ -138,7 +138,7 @@ cli/scripts/kind-val.sh --images images.txt --out /tmp/kind-val --prufyx "$HOME/
   [--kind-config FILE] [--post-check 'some health command']
 ```
 
-Pin node images by digest from the kind release notes. The clusters are
+Pin node images by digest from the kind release notes: the script and `kindval snapshot`/`crd` refuse an image without `@sha256:<64 hex>`. The script also records the repository digests of the image the node container really runs (`docker inspect`) as `observedImageDigests`; a claim decided on a node whose observed digests do not include the configured one is an `error`. The clusters are
 created from `cli/scripts/kind-val-cluster.yaml`, which serves every beta
 API (`api/beta=true`): beta APIs introduced since Kubernetes 1.24 are off by
 default, and a claim about a version a line serves is only checkable on a

@@ -31,6 +31,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -149,7 +150,8 @@ func cmdSnapshot(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("snapshot", flag.ContinueOnError)
 	kubeconfig := fs.String("kubeconfig", "", "kubeconfig of the cluster")
 	line := fs.String("line", "", "release line of the cluster (1.32)")
-	image := fs.String("image", "", "node image reference, recorded as is")
+	image := fs.String("image", "", "node image reference, pinned by @sha256: digest")
+	observed := fs.String("observed-digests", "", "repository digests of the image the node container runs (docker inspect), comma or space separated")
 	out := fs.String("out", "", "output file")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -157,8 +159,11 @@ func cmdSnapshot(ctx context.Context, args []string) error {
 	if *kubeconfig == "" || *line == "" || *out == "" {
 		return errors.New("--kubeconfig, --line and --out are required")
 	}
+	if err := requireDigest(*image); err != nil {
+		return err
+	}
 	k := kube{run: execRunner, kubeconfig: *kubeconfig}
-	s, err := k.snapshot(ctx, *line, *image, time.Now())
+	s, err := k.snapshot(ctx, *line, *image, splitDigests(*observed), time.Now())
 	if err != nil {
 		return err
 	}
@@ -203,7 +208,8 @@ func cmdCRD(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("crd", flag.ContinueOnError)
 	kubeconfig := fs.String("kubeconfig", "", "kubeconfig of the cluster")
 	line := fs.String("line", "", "release line of the cluster (1.37)")
-	image := fs.String("image", "", "node image reference, recorded as is")
+	image := fs.String("image", "", "node image reference, pinned by @sha256: digest")
+	observed := fs.String("observed-digests", "", "repository digests of the image the node container runs (docker inspect), comma or space separated")
 	claimsPath := fs.String("claims", "", "claims file with the custom-resource claims")
 	out := fs.String("out", "", "output file")
 	only := fs.String("pair", "", "run only the pair with this id (<project>.<fromTag>-to-<toTag>)")
@@ -213,12 +219,15 @@ func cmdCRD(ctx context.Context, args []string) error {
 	if *kubeconfig == "" || *line == "" || *claimsPath == "" || *out == "" {
 		return errors.New("--kubeconfig, --line, --claims and --out are required")
 	}
+	if err := requireDigest(*image); err != nil {
+		return err
+	}
 	claims, err := loadClaims(*claimsPath)
 	if err != nil {
 		return err
 	}
 	k := kube{run: execRunner, kubeconfig: *kubeconfig}
-	cr := CRDRun{Schema: CRDRunSchema, Line: *line, Image: *image, Pairs: []CRDPairResult{}}
+	cr := CRDRun{Schema: CRDRunSchema, Line: *line, Image: *image, ObservedImageDigests: splitDigests(*observed), Pairs: []CRDPairResult{}}
 	for _, pair := range claims.Pairs() {
 		if *only != "" && pair.ID != *only {
 			continue
@@ -322,4 +331,24 @@ func cmdEvaluate(args []string, stdout io.Writer) error {
 	}
 	_, err = io.WriteString(stdout, text)
 	return err
+}
+
+var imageDigestRef = regexp.MustCompile(`@sha256:[0-9a-f]{64}$`)
+
+// requireDigest refuses a node image reference that is not pinned by a
+// sha256 digest: a tag names whatever the registry serves today.
+func requireDigest(image string) error {
+	if !imageDigestRef.MatchString(image) {
+		return fmt.Errorf("--image %q must be pinned by an @sha256:<64 hex> digest", image)
+	}
+	return nil
+}
+
+// splitDigests reads a comma or space separated list of digest references.
+func splitDigests(s string) []string {
+	var out []string
+	for _, f := range strings.FieldsFunc(s, func(r rune) bool { return r == ',' || r == ' ' || r == '\n' || r == '\t' }) {
+		out = append(out, f)
+	}
+	return out
 }

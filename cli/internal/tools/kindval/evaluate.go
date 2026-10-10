@@ -44,6 +44,9 @@ type evaluator struct {
 	// pair results by pair id, and the crd run line and image of each
 	pairs     map[string]CRDPairResult
 	pairImage map[string]string
+	// imageProblem maps a configured node image digest to why the nodes
+	// that ran it are not proven to run it.
+	imageProblem map[string]string
 	// claimed is, by pair id, every member a crd-removal claim names.
 	claimed map[string]map[string]bool
 }
@@ -70,7 +73,7 @@ func claimedRemovals(claims Claims) map[string]map[string]bool {
 // Evaluate compares the claims with the runs.
 func Evaluate(claims Claims, runs Runs, prov Provenance, now time.Time) Results {
 	res := &Results{Schema: ResultsSchema, GeneratedAt: now.UTC().Format(time.RFC3339), Prufyx: prov.Prufyx, LogDigest: prov.LogDigest, Lines: []LineSummary{}, Claims: []ClaimResult{}, Diffs: []LineDiff{}, Findings: []Finding{}}
-	ev := evaluator{runs: runs, prov: prov, res: res, sets: map[string]map[string]bool{}, cases: map[string]map[string]VerdictCase{}, pairs: map[string]CRDPairResult{}, pairImage: map[string]string{}}
+	ev := evaluator{runs: runs, prov: prov, res: res, sets: map[string]map[string]bool{}, cases: map[string]map[string]VerdictCase{}, pairs: map[string]CRDPairResult{}, pairImage: map[string]string{}, imageProblem: map[string]string{}}
 	lines := make([]string, 0, len(runs.Snapshots))
 	for line, s := range runs.Snapshots {
 		lines = append(lines, line)
@@ -80,6 +83,12 @@ func Evaluate(claims Claims, runs Runs, prov Provenance, now time.Time) Results 
 	for _, line := range lines {
 		s := runs.Snapshots[line]
 		res.Lines = append(res.Lines, LineSummary{Line: line, ServerVersion: s.ServerVersion, Image: s.Image, Served: len(s.Served)})
+	}
+	for _, line := range lines {
+		ev.checkImage(runs.Snapshots[line].Image, runs.Snapshots[line].ObservedImageDigests)
+	}
+	for _, run := range runs.CRD {
+		ev.checkImage(run.Image, run.ObservedImageDigests)
 	}
 	for line, run := range runs.Verdicts {
 		ev.cases[line] = map[string]VerdictCase{}
@@ -99,7 +108,14 @@ func Evaluate(claims Claims, runs Runs, prov Provenance, now time.Time) Results 
 	}
 	ev.claimed = claimedRemovals(claims)
 	for _, c := range claims.Claims {
-		res.Claims = append(res.Claims, ev.claim(c))
+		cr := ev.claim(c)
+		// A verdict from a node whose image is not proven to be the
+		// configured digest is no verdict.
+		if problem := ev.imageProblem[cr.NodeImageDigest]; problem != "" && (cr.Outcome == OutcomeConfirmed || cr.Outcome == OutcomeRefuted) {
+			cr.Outcome = OutcomeError
+			cr.Detail += "; " + problem
+		}
+		res.Claims = append(res.Claims, cr)
 	}
 	ev.missedRemovals(claims)
 	ev.diffs(lines, claims)
@@ -159,6 +175,27 @@ func servedSet(s Snapshot) map[string]bool {
 		out[api] = true
 	}
 	return out
+}
+
+// checkImage records why the configured digest of a node image is not
+// proven: it is not a digest at all, or the observed digests of the node
+// container are missing or do not include it.
+func (e *evaluator) checkImage(image string, observed []string) {
+	configured := imageDigest(image)
+	if !strings.Contains(image, "@sha256:") {
+		e.imageProblem[configured] = "node image " + image + " is not pinned by @sha256: digest"
+		return
+	}
+	for _, o := range observed {
+		if imageDigest(o) == configured {
+			return
+		}
+	}
+	if len(observed) == 0 {
+		e.imageProblem[configured] = "no observed digest of the node image " + configured
+		return
+	}
+	e.imageProblem[configured] = "observed node image digest " + strings.Join(observed, ",") + " differs from the configured " + configured
 }
 
 func imageDigest(image string) string {
@@ -230,6 +267,11 @@ func (e *evaluator) k8sRemoval(c Claim, cr *ClaimResult) {
 	toCase, okToCase := e.cases[to][id]
 	if !okFromCase || !okToCase || toCase.Scan == nil {
 		cr.Detail = "the corpus has no dry run of the API on both lines, or no scan for the hop"
+		return
+	}
+	if fromCase.Server.Outcome == ServerError || toCase.Server.Outcome == ServerError {
+		cr.Outcome = OutcomeError
+		cr.Detail = "the API server gave no answer to a dry run: " + strings.TrimSpace(fromCase.Server.Message+" "+toCase.Server.Message)
 		return
 	}
 	servedFrom, servedTo := e.sets[from][api], e.sets[to][api]
@@ -393,6 +435,11 @@ func (e *evaluator) crdVersion(c Claim, cr *ClaimResult) {
 		e.finding(SeverityMedium, c.ID, "%s %s: %s", s.Project, s.Release.Tag, cr.Detail)
 		return
 	}
+	if probe == ServerError {
+		cr.Outcome = OutcomeError
+		cr.Detail = fmt.Sprintf("%s: the API server gave no answer to the dry-run object", m)
+		return
+	}
 	cr.Detail = fmt.Sprintf("%s at %s declares %s served=%t storage=%t; dry-run object %s", s.CRD, s.Release.Tag, s.Version, got.Served, got.Storage, orUnprobed(probe))
 	flagsOK := got.Served == *s.Served && got.Storage == *s.Storage
 	probeOK := probe == "" || (probe == ServerNotServed) == !*s.Served
@@ -420,6 +467,9 @@ func (e *evaluator) crdRemoval(c Claim, cr *ClaimResult) {
 	before, after := objectOutcome(pr.From, m), objectOutcome(pr.To, m)
 	cr.Detail = fmt.Sprintf("%s: %s at %s, %s at %s", m, orUnprobed(before), from.Tag, orUnprobed(after), to.Tag)
 	switch {
+	case before == ServerError || after == ServerError:
+		cr.Outcome = OutcomeError
+		cr.Detail = m + ": the API server gave no answer to a dry-run object"
 	case before == "" || after == "":
 		cr.Detail = "the member was not probed on both releases"
 	case before == ServerNotServed:
@@ -458,6 +508,13 @@ func (e *evaluator) crdPair(c Claim, cr *ClaimResult) {
 	pr, ok := e.pairFor(s.Project, from.Tag, to.Tag, cr)
 	if !ok {
 		return
+	}
+	for _, o := range append(append([]ObjectTry{}, pr.From.Objects...), pr.To.Objects...) {
+		if o.Outcome == ServerError {
+			cr.Outcome = OutcomeError
+			cr.Detail = o.Member + ": the API server gave no answer to a dry-run object"
+			return
+		}
 	}
 	var kept, missed, claimed []string
 	for _, o := range pr.From.Objects {
@@ -519,7 +576,7 @@ func (e *evaluator) missedRemovals(claims Claims) {
 		}
 		var missed []string
 		for _, o := range pr.From.Objects {
-			if o.Outcome != ServerNotServed && objectOutcome(pr.To, o.Member) == ServerNotServed && !e.claimed[id][o.Member] {
+			if o.Outcome != ServerNotServed && o.Outcome != ServerError && objectOutcome(pr.To, o.Member) == ServerNotServed && !e.claimed[id][o.Member] {
 				missed = append(missed, o.Member)
 			}
 		}

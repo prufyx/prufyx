@@ -107,7 +107,10 @@ func TestClassify(t *testing.T) {
 		{1, `error: resource mapping not found for name: "x" namespace: "" from "STDIN": no matches for kind "FlowSchema" in version "flowcontrol.apiserver.k8s.io/v1beta3"`, ServerNotServed},
 		{1, "error: the server doesn't have a resource type \"cronjobs\"", ServerNotServed},
 		{1, `The FlowSchema "x" is invalid: spec.rules: Required value`, ServerRejected},
-		{-1, "exec: kubectl: not found", ServerRejected},
+		{-1, "exec: kubectl: not found", ServerError},
+		{1, "Unable to connect to the server: dial tcp 127.0.0.1:6443: connect: connection refused", ServerError},
+		{1, "error: kubeconfig: stat missing: no such file", ServerError},
+		{1, "Unable to connect to the server: net/http: TLS handshake timeout", ServerError},
 	}
 	for _, c := range cases {
 		if got := classify(c.exit, c.stderr); got.Outcome != c.outcome {
@@ -183,7 +186,7 @@ func manifestIdentity(manifest []byte) (apiVersion, kind string) {
 func TestSnapshotReadsDiscovery(t *testing.T) {
 	served := map[string][]string{"v1": {"ConfigMap"}, "apps/v1": {"Deployment"}, "flowcontrol.apiserver.k8s.io/v1": {"FlowSchema"}}
 	k := kube{run: fakeKube(served, "v1.33.12"), kubeconfig: "kc"}
-	s, err := k.snapshot(context.Background(), "1.33", "img", time.Unix(0, 0))
+	s, err := k.snapshot(context.Background(), "1.33", "img", nil, time.Unix(0, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +231,7 @@ func TestEvaluateServedAPIClaimsAndDiffs(t *testing.T) {
 		"1.32": {Line: "1.32", ServerVersion: "v1.32.11", Image: image, Served: []string{"apps/v1 Deployment", "flowcontrol.apiserver.k8s.io/v1 FlowSchema", "new.example.io/v1 Thing"}},
 	}}
 	prov := Provenance{Prufyx: Binary{Commit: "abc"}, LogDigest: "sha256:log"}
-	res := Evaluate(claims, runs, prov, time.Unix(0, 0))
+	res := evalObserved(claims, runs, prov, time.Unix(0, 0))
 	got := outcomes(res)
 	want := map[string]string{
 		"k8s.1.32.flowcontrol.apiserver.k8s.io_v1beta3_FlowSchema.not_served": OutcomeConfirmed,
@@ -336,7 +339,7 @@ func TestEvaluateRemovalClaims(t *testing.T) {
 		caseFor("neverthere", ServerNotServed, scanTry(exitUnknown, "UNKNOWN", nil)),
 		caseFor("broken", ServerNotServed, &ScanTry{Exit: 2, Error: "no JSON report"}),
 	}}
-	res := Evaluate(Claims{Schema: ClaimsSchema, Claims: claims}, Runs{Snapshots: snapshots, Verdicts: map[string]VerdictRun{"1.31": prev, "1.32": next}}, Provenance{}, time.Unix(0, 0))
+	res := evalObserved(Claims{Schema: ClaimsSchema, Claims: claims}, Runs{Snapshots: snapshots, Verdicts: map[string]VerdictRun{"1.31": prev, "1.32": next}}, Provenance{}, time.Unix(0, 0))
 	got := outcomes(res)
 	want := map[string]string{
 		"blocked": OutcomeConfirmed, "withrule": OutcomeConfirmed, "wrongrule": OutcomeRefuted, "passed": OutcomeRefuted,
@@ -534,7 +537,7 @@ func TestRunPairAndEvaluateCRDClaims(t *testing.T) {
 	if len(cluster.crds) != 0 {
 		t.Fatalf("the pair's CRDs were not removed: %v", cluster.crds)
 	}
-	res := Evaluate(claims, crdRuns(result), Provenance{}, time.Unix(0, 0))
+	res := evalObserved(claims, crdRuns(result), Provenance{}, time.Unix(0, 0))
 	if res.Totals.Confirmed != 5 || res.Totals.Refuted != 0 || res.Totals.Undetermined != 0 || len(res.Findings) != 0 {
 		t.Fatalf("totals %+v claims %+v findings %+v", res.Totals, res.Claims, res.Findings)
 	}
@@ -546,7 +549,7 @@ func TestRunPairAndEvaluateCRDClaims(t *testing.T) {
 	// version claim are refuted, HIGH.
 	cluster = &fakeCluster{crds: map[string]CRDDef{}}
 	result = runPair(context.Background(), kube{run: cluster.runner, kubeconfig: "kc"}, fixtureFetcher(true), pairs[0])
-	res = Evaluate(claims, crdRuns(result), Provenance{}, time.Unix(0, 0))
+	res = evalObserved(claims, crdRuns(result), Provenance{}, time.Unix(0, 0))
 	got := outcomes(res)
 	if got["removal"].Outcome != OutcomeRefuted || got["to.v1beta1"].Outcome != OutcomeRefuted || res.Totals.High != 1 || res.Totals.Medium != 1 {
 		t.Fatalf("still served: %+v findings %+v", res.Totals, res.Findings)
@@ -557,14 +560,14 @@ func TestRunPairAndEvaluateCRDClaims(t *testing.T) {
 	quiet := gadgetClaims(false)
 	cluster = &fakeCluster{crds: map[string]CRDDef{}}
 	result = runPair(context.Background(), kube{run: cluster.runner, kubeconfig: "kc"}, fixtureFetcher(false), quiet.Pairs()[0])
-	res = Evaluate(quiet, crdRuns(result), Provenance{}, time.Unix(0, 0))
+	res = evalObserved(quiet, crdRuns(result), Provenance{}, time.Unix(0, 0))
 	got = outcomes(res)
 	if got["quiet"].Outcome != OutcomeRefuted || got["to.v1beta1"].Outcome != OutcomeRefuted || res.Totals.High != 2 {
 		t.Fatalf("quiet: %+v findings %+v", res.Totals, res.Findings)
 	}
 
 	// Without a run of the pair every claim is undetermined.
-	res = Evaluate(claims, Runs{Snapshots: map[string]Snapshot{}}, Provenance{}, time.Unix(0, 0))
+	res = evalObserved(claims, Runs{Snapshots: map[string]Snapshot{}}, Provenance{}, time.Unix(0, 0))
 	if res.Totals.Undetermined != 5 {
 		t.Fatalf("no run: %+v", res.Totals)
 	}
@@ -602,7 +605,7 @@ spec:
 	if !result.InPlace.Attempted || result.InPlace.Succeeded || !strings.Contains(result.InPlace.Message, "storedVersions") {
 		t.Fatalf("in place %+v", result.InPlace)
 	}
-	res := Evaluate(claims, crdRuns(result), Provenance{}, time.Unix(0, 0))
+	res := evalObserved(claims, crdRuns(result), Provenance{}, time.Unix(0, 0))
 	got := outcomes(res)
 	if got["removal"].Outcome != OutcomeConfirmed || !strings.Contains(got["removal"].Detail, "refused") {
 		t.Fatalf("removal %+v", got["removal"])
@@ -716,7 +719,7 @@ func TestRunPairRecordsDroppedDefinitions(t *testing.T) {
 	// After the fresh install of To nothing is served: the removal is
 	// confirmed (and the dropped definition noted), the To version claims
 	// are refuted because To declares nothing.
-	res := Evaluate(claims, crdRuns(result), Provenance{}, time.Unix(0, 0))
+	res := evalObserved(claims, crdRuns(result), Provenance{}, time.Unix(0, 0))
 	got := outcomes(res)
 	if got["removal"].Outcome != OutcomeConfirmed || !strings.Contains(got["removal"].Detail, "no longer defines gadgets.fixture.example") {
 		t.Fatalf("removal %+v", got["removal"])
@@ -752,7 +755,7 @@ func TestWaitEstablishedRetriesTheAccessorError(t *testing.T) {
 func TestReleaseStateComesFromACompletedPair(t *testing.T) {
 	claims := gadgetClaims(true)
 	failed := CRDPairResult{ID: "fixture.v9.0.0-to-v9.1.0", Project: "fixture", FromTag: "v9.0.0", ToTag: "v9.1.0", From: CRDReleaseState{Files: []FetchedFile{{Path: "x"}}, Error: "kubectl wait: exit 1: timed out"}}
-	res := Evaluate(claims, crdRuns(failed), Provenance{}, time.Unix(0, 0))
+	res := evalObserved(claims, crdRuns(failed), Provenance{}, time.Unix(0, 0))
 	got := outcomes(res)
 	if got["from.v1"].Outcome != OutcomeError || got["to.v1"].Outcome != OutcomeError || !strings.Contains(got["to.v1"].Detail, "timed out") || got["removal"].Outcome != OutcomeError {
 		t.Fatalf("claims %+v", res.Claims)
@@ -761,7 +764,7 @@ func TestReleaseStateComesFromACompletedPair(t *testing.T) {
 	ok := CRDPairResult{ID: "fixture.v9.1.0-to-v9.2.0", Project: "fixture", FromTag: "v9.1.0", ToTag: "v9.2.0", From: CRDReleaseState{Files: []FetchedFile{{Path: "x"}}, CRDs: []CRDDef{{Name: "gadgets.fixture.example", Group: "fixture.example", Kind: "Gadget", Versions: []CRDVersion{{Name: "v1beta1"}, {Name: "v1", Served: true, Storage: true}}}}}, To: CRDReleaseState{Files: []FetchedFile{{Path: "x"}}}}
 	runs := crdRuns(failed)
 	runs.CRD[0].Pairs = append(runs.CRD[0].Pairs, ok)
-	got = outcomes(Evaluate(claims, runs, Provenance{}, time.Unix(0, 0)))
+	got = outcomes(evalObserved(claims, runs, Provenance{}, time.Unix(0, 0)))
 	if got["to.v1"].Outcome != OutcomeConfirmed || got["to.v1beta1"].Outcome != OutcomeConfirmed || got["from.v1"].Outcome != OutcomeError {
 		t.Fatalf("claims %+v", got)
 	}
@@ -776,7 +779,7 @@ func TestACompletePairRunReplacesAFailedOne(t *testing.T) {
 	failed := CRDPairResult{ID: good.ID, Project: "fixture", FromTag: "v9.0.0", ToTag: "v9.1.0", From: CRDReleaseState{Files: []FetchedFile{{Path: "x"}}, Error: "kubectl wait: exit 1: timed out"}}
 	for _, order := range [][]CRDPairResult{{good, failed}, {failed, good}} {
 		runs := Runs{Snapshots: map[string]Snapshot{}, CRD: []CRDRun{{Line: "1.37", Image: "img@sha256:crd", Pairs: order[:1]}, {Line: "1.37", Image: "img@sha256:crd", Pairs: order[1:]}}}
-		res := Evaluate(claims, runs, Provenance{}, time.Unix(0, 0))
+		res := evalObserved(claims, runs, Provenance{}, time.Unix(0, 0))
 		if res.Totals.Confirmed != 5 || res.Totals.Error != 0 {
 			t.Fatalf("order %v: totals %+v", order[0].From.Error == "", res.Totals)
 		}
@@ -815,7 +818,7 @@ spec:
 	if strings.Join(result.InPlace.Leftover, ",") != "widgets.fixture.example" {
 		t.Fatalf("leftover %v", result.InPlace.Leftover)
 	}
-	res := Evaluate(claims, crdRuns(result), Provenance{}, time.Unix(0, 0))
+	res := evalObserved(claims, crdRuns(result), Provenance{}, time.Unix(0, 0))
 	// The Widget definition itself is gone: MEDIUM, not HIGH.
 	if sev := severities(res); sev["crd.fixture.v9.0.0-to-v9.1.0.missed.undefined"] != SeverityMedium || sev["crd.fixture.v9.0.0-to-v9.1.0.missed"] != "" {
 		t.Fatalf("findings %+v", res.Findings)
@@ -844,12 +847,106 @@ func TestQuietPairBesideRemovalClaims(t *testing.T) {
 	claims.Claims = append(claims.Claims, Claim{ID: "quiet-too", Kind: KindCRDPair, Subject: Subject{Project: "fixture", Repo: "github.com/fixture/fixture", From: rawObject(gadgetFrom), To: rawObject(gadgetTo)}})
 	cluster := &fakeCluster{crds: map[string]CRDDef{}}
 	result := runPair(context.Background(), kube{run: cluster.runner, kubeconfig: "kc"}, fixtureFetcher(false), claims.Pairs()[0])
-	res := Evaluate(claims, crdRuns(result), Provenance{}, time.Unix(0, 0))
+	res := evalObserved(claims, crdRuns(result), Provenance{}, time.Unix(0, 0))
 	got := outcomes(res)
 	if got["quiet-too"].Outcome != OutcomeRefuted || !strings.Contains(got["quiet-too"].Detail, "named by removal claims: fixture.example/v1beta1/Gadget") || got["removal"].Outcome != OutcomeConfirmed {
 		t.Fatalf("claims %+v", res.Claims)
 	}
 	if len(res.Findings) != 0 {
 		t.Fatalf("findings %+v", res.Findings)
+	}
+}
+
+// evalObserved evaluates runs whose nodes are taken to run the configured
+// image: it fills in the observed digests the fixtures do not carry.
+func evalObserved(claims Claims, runs Runs, prov Provenance, now time.Time) Results {
+	snaps := map[string]Snapshot{}
+	for line, s := range runs.Snapshots {
+		if s.ObservedImageDigests == nil {
+			s.ObservedImageDigests = []string{"registry.example/node@" + imageDigest(s.Image)}
+		}
+		snaps[line] = s
+	}
+	runs.Snapshots = snaps
+	crd := append([]CRDRun(nil), runs.CRD...)
+	for i := range crd {
+		if crd[i].ObservedImageDigests == nil {
+			crd[i].ObservedImageDigests = []string{"registry.example/node@" + imageDigest(crd[i].Image)}
+		}
+	}
+	runs.CRD = crd
+	return Evaluate(claims, runs, prov, now)
+}
+
+func TestEvaluateRefusesVerdictsOfAnUnprovenNodeImage(t *testing.T) {
+	good := "kindest/node:v1.32.0@sha256:" + strings.Repeat("a", 64)
+	other := "kindest/node@sha256:" + strings.Repeat("b", 64)
+	claims := Claims{Schema: ClaimsSchema, Claims: []Claim{{ID: "served", Kind: KindServedAPI, Subject: Subject{Line: "1.32", Group: "apps", Version: "v1", Kind: "Deployment"}, Expect: ExpectServed}}}
+	for name, tc := range map[string]struct {
+		image    string
+		observed []string
+		want     string
+	}{
+		"match":      {good, []string{"kindest/node@sha256:" + strings.Repeat("a", 64)}, OutcomeConfirmed},
+		"mismatch":   {good, []string{other}, OutcomeError},
+		"missing":    {good, nil, OutcomeError},
+		"unpinned":   {"kindest/node:v1.32.0", []string{"kindest/node:v1.32.0"}, OutcomeError},
+		"one of two": {good, []string{other, "kindest/node@sha256:" + strings.Repeat("a", 64)}, OutcomeConfirmed},
+	} {
+		runs := Runs{Snapshots: map[string]Snapshot{"1.32": {Line: "1.32", ServerVersion: "v1.32.0", Image: tc.image, ObservedImageDigests: tc.observed, Served: []string{"apps/v1 Deployment"}}}, Verdicts: map[string]VerdictRun{}}
+		res := Evaluate(claims, runs, Provenance{}, time.Unix(0, 0))
+		if got := res.Claims[0].Outcome; got != tc.want {
+			t.Errorf("%s: outcome %s, want %s (%s)", name, got, tc.want, res.Claims[0].Detail)
+		}
+	}
+}
+
+func TestRequireDigest(t *testing.T) {
+	if err := requireDigest("kindest/node:v1.32.0@sha256:" + strings.Repeat("a", 64)); err != nil {
+		t.Fatal(err)
+	}
+	for _, bad := range []string{"", "kindest/node:v1.32.0", "kindest/node@sha256:abc", "kindest/node@sha256:" + strings.Repeat("A", 64)} {
+		if requireDigest(bad) == nil {
+			t.Errorf("%q accepted", bad)
+		}
+	}
+}
+
+func TestServerErrorNeverConfirmsOrRefutes(t *testing.T) {
+	// A failing kubectl call can neither confirm a served:true probe nor a
+	// from-side precondition, nor refute: the claim is an error.
+	cluster := &fakeCluster{crds: map[string]CRDDef{}}
+	claims := gadgetClaims(true)
+	pairs := claims.Pairs()
+	result := runPair(context.Background(), kube{run: cluster.runner, kubeconfig: "kc"}, fixtureFetcher(false), pairs[0])
+	for _, side := range []string{"from", "to"} {
+		broken := result
+		if side == "from" {
+			broken.From.Objects = append([]ObjectTry(nil), result.From.Objects...)
+			for i := range broken.From.Objects {
+				broken.From.Objects[i].Outcome = ServerError
+			}
+		} else {
+			broken.To.Objects = append([]ObjectTry(nil), result.To.Objects...)
+			for i := range broken.To.Objects {
+				broken.To.Objects[i].Outcome = ServerError
+			}
+		}
+		res := evalObserved(claims, crdRuns(broken), Provenance{}, time.Unix(0, 0))
+		// The removal claim and the claims about the broken release are
+		// errors; the claims about the other release are unaffected.
+		if got := outcomes(res)["removal"].Outcome; got != OutcomeError || res.Totals.Refuted != 0 || res.Totals.Error != 3 {
+			t.Errorf("%s side: totals %+v claims %+v", side, res.Totals, res.Claims)
+		}
+	}
+	quiet := gadgetClaims(false)
+	broken := result
+	broken.From.Objects = append([]ObjectTry(nil), result.From.Objects...)
+	for i := range broken.From.Objects {
+		broken.From.Objects[i].Outcome = ServerError
+	}
+	res := evalObserved(quiet, crdRuns(broken), Provenance{}, time.Unix(0, 0))
+	if got := outcomes(res)["quiet"]; got.Outcome != OutcomeError {
+		t.Errorf("crd-pair with a failing dry run: %+v", got)
 	}
 }

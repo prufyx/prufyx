@@ -143,7 +143,7 @@ func (k kube) discover(ctx context.Context) ([]string, error) {
 }
 
 // snapshot takes the served-API snapshot of the cluster.
-func (k kube) snapshot(ctx context.Context, line, image string, now time.Time) (Snapshot, error) {
+func (k kube) snapshot(ctx context.Context, line, image string, observed []string, now time.Time) (Snapshot, error) {
 	version, err := k.serverVersion(ctx)
 	if err != nil {
 		return Snapshot{}, err
@@ -152,7 +152,7 @@ func (k kube) snapshot(ctx context.Context, line, image string, now time.Time) (
 	if err != nil {
 		return Snapshot{}, err
 	}
-	return Snapshot{Schema: SnapshotSchema, Line: line, ServerVersion: version, Image: image, TakenAt: now.UTC().Format(time.RFC3339), Served: served}, nil
+	return Snapshot{Schema: SnapshotSchema, Line: line, ServerVersion: version, Image: image, ObservedImageDigests: observed, TakenAt: now.UTC().Format(time.RFC3339), Served: served}, nil
 }
 
 // dryRunCreate submits a manifest with `kubectl create --dry-run=server`
@@ -175,7 +175,27 @@ func classify(exit int, stderr string) ServerTry {
 	if strings.Contains(msg, "no matches for kind") || strings.Contains(msg, "the server doesn't have a resource type") || strings.Contains(msg, "could not find the requested resource") {
 		return ServerTry{Outcome: ServerNotServed, Message: firstLine(msg)}
 	}
+	if exit < 0 || transportFailure(msg) {
+		return ServerTry{Outcome: ServerError, Message: firstLine(msg)}
+	}
 	return ServerTry{Outcome: ServerRejected, Message: firstLine(msg)}
+}
+
+// transportFailure reports kubectl messages that say the API server was not
+// reached or not trusted, not that it answered with a refusal.
+func transportFailure(msg string) bool {
+	for _, needle := range []string{
+		"connection refused", "Unable to connect to the server", "i/o timeout", "TLS handshake",
+		"context deadline exceeded", "context canceled", "no such host", "connection reset",
+		"EOF", "x509:", "kubeconfig", "no configuration has been provided", "executable file not found",
+		"Client.Timeout", "the server is currently unable to handle the request",
+		"ServiceUnavailable", "Service Unavailable", "etcdserver:",
+	} {
+		if strings.Contains(msg, needle) {
+			return true
+		}
+	}
+	return false
 }
 
 func firstLine(s string) string {

@@ -11,7 +11,9 @@
 #                    [--kindval BIN] [--crd-claims FILE] [--crd-line LINE]
 #                    [--kind-config FILE] [--min-free-mb N] [--post-check CMD] [--keep]
 #
-# The image list has one line per release line: "<line> <image@sha256:...>".
+# The image list has one line per release line: "<line> <image@sha256:...>";
+# an image without a digest is refused, and the digest the node container
+# actually runs is recorded next to it.
 # Needs kind, kubectl and docker on PATH. KINDVAL defaults to
 # `go run ./internal/tools/kindval` from the cli directory. Clusters are
 # named prufyx-kind-<line> and always deleted (also on error), unless --keep.
@@ -83,6 +85,10 @@ wait_for_memory() {
 lines=""
 while read -r line image; do
   [ -n "$line" ] && [ "${line#\#}" = "$line" ] || continue
+  case "$image" in
+    *@sha256:????????????????????????????????????????????????????????????????) ;;
+    *) echo "image of line $line must be pinned by @sha256:<64 hex>: $image" >&2; exit 2 ;;
+  esac
   lines="${lines:+$lines,}$line"
 done <"$images"
 [ -n "$lines" ] || { echo "no lines in $images" >&2; exit 2; }
@@ -105,9 +111,15 @@ while read -r line image; do
   say "creating $name from $image"
   current="$name"
   kind create cluster --name "$name" --image "$image" --config "$kind_config" --kubeconfig "$kubeconfig" --wait 180s >>"$log" 2>&1
+  # The digests of the image the node container really runs, next to the
+  # configured one: kindval refuses a verdict when they differ.
+  node_image_id=$(docker inspect --format '{{.Image}}' "$name-control-plane")
+  observed=$(docker image inspect --format '{{range .RepoDigests}}{{.}} {{end}}' "$node_image_id")
+  [ -n "$observed" ] || { echo "cannot observe the digest of the node image of $name" >&2; exit 1; }
+  say "observed node image $observed"
   say "snapshot $line"
   # shellcheck disable=SC2086
-  $kindval snapshot --kubeconfig "$kubeconfig" --line "$line" --image "$image" --out "$out/runs/snapshot-$line.json"
+  $kindval snapshot --kubeconfig "$kubeconfig" --line "$line" --image "$image" --observed-digests "$observed" --out "$out/runs/snapshot-$line.json"
   say "verdicts $line"
   if [ -n "$prev_line" ]; then
     # shellcheck disable=SC2086
@@ -120,7 +132,7 @@ while read -r line image; do
   if [ -n "$crd_claims" ] && [ "$line" = "$crd_line" ]; then
     say "custom resources on $line"
     # shellcheck disable=SC2086
-    $kindval crd --kubeconfig "$kubeconfig" --line "$line" --image "$image" --claims "$claims" --out "$out/runs/crd-$line.json" 2>>"$log"
+    $kindval crd --kubeconfig "$kubeconfig" --line "$line" --image "$image" --observed-digests "$observed" --claims "$claims" --out "$out/runs/crd-$line.json" 2>>"$log"
   fi
   cleanup
   rm -f "$kubeconfig"

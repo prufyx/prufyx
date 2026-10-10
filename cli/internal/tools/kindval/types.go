@@ -20,7 +20,7 @@ const (
 	KindCRDVersion = "crd-version"
 	KindCRDRemoval = "crd-removal"
 	KindCRDPair    = "crd-pair"
-	KindAddonRule  = "glm-addon-rule"
+	KindAddonRule  = "addon-rule"
 )
 
 // Expectations and observations of a served API.
@@ -110,12 +110,16 @@ type CRDVersion struct {
 
 // Snapshot is the served-API set of one cluster, read from discovery.
 type Snapshot struct {
-	Schema        string   `json:"schema"`
-	Line          string   `json:"line"`
-	ServerVersion string   `json:"serverVersion"`
-	Image         string   `json:"image"`
-	TakenAt       string   `json:"takenAt"`
-	Served        []string `json:"served"`
+	Schema        string `json:"schema"`
+	Line          string `json:"line"`
+	ServerVersion string `json:"serverVersion"`
+	Image         string `json:"image"`
+	// ObservedImageDigests are the repository digests of the image the node
+	// container actually runs (docker inspect), recorded next to the
+	// configured Image; the evaluation requires the configured digest among them.
+	ObservedImageDigests []string `json:"observedImageDigests,omitempty"`
+	TakenAt              string   `json:"takenAt"`
+	Served               []string `json:"served"`
 }
 
 // VerdictRun is the behavioural check on one cluster: every corpus case
@@ -163,14 +167,21 @@ const (
 	ServerAccepted  = "accepted"
 	ServerNotServed = "not_served"
 	ServerRejected  = "rejected"
+	// ServerError: the call did not reach an answer from the API server
+	// (kubectl missing, connection refused, timeout, TLS or kubeconfig
+	// failure). It is evidence of nothing: a claim that depends on it is
+	// an error, never confirmed and never refuted.
+	ServerError = "error"
 )
 
 // CRDRun is the custom-resource check of the pairs run on one cluster.
 type CRDRun struct {
-	Schema string          `json:"schema"`
-	Line   string          `json:"line"`
-	Image  string          `json:"image"`
-	Pairs  []CRDPairResult `json:"pairs"`
+	Schema string `json:"schema"`
+	Line   string `json:"line"`
+	Image  string `json:"image"`
+	// ObservedImageDigests: see Snapshot.
+	ObservedImageDigests []string        `json:"observedImageDigests,omitempty"`
+	Pairs                []CRDPairResult `json:"pairs"`
 }
 
 // CRDPairResult is what the cluster said about one pair of releases.
