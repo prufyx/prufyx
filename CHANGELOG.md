@@ -24,6 +24,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   review of one can be published). The maintainer extractor
   `crd.version-removal` gains the ten targets (`"catalog": "community"` in
   its target table; a community target never attests).
+  The fact registry changes with the ten sets, so the embedded CNCF pack moves
+  to revision `cncf-2026-09-13.8` (same rules; only the registry digest and the
+  revision differ); external CNCF packs and knowledge databases built against
+  the previous registry, including revision `cncf-2026-09-13.7`, are refused by
+  this release until they are rebuilt.
 - API groups in the namespaces Kubernetes reserves (`*.k8s.io`, `*.x-k8s.io`,
   `*.kubernetes.io`) are listed in the custom-resource table only through a
   reviewed ownership record (group, defining repository, owning project),
