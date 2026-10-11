@@ -108,9 +108,10 @@ func FactID(factProject string) string {
 	return "component." + factProject + ".custom_resource_versions_set"
 }
 
-// table is the reviewed table, ordered by slug. Every source is the
-// manifest whose spec.group line names the group, at the commit the
-// extractor's paths were checked at.
+// table is the reviewed table, ordered by slug, and reserved the reviewed
+// ownership list, ordered by group name; both are read from table.json.
+// Every source of the table is the manifest whose spec.group line names the
+// group, at the commit the extractor's paths were checked at.
 //
 // Shared groups: argoproj.io is defined upstream by Argo CD and by Argo
 // Workflows, Rollouts and Events. The catalog project argo-cd is the whole
@@ -137,277 +138,20 @@ func FactID(factProject string) string {
 // CRDs (it is a fork, up to its 2.x lines): that group belongs to Crunchy
 // Data's operator, so it is not listed for Percona, and its objects keep
 // every set incomplete. Groups in the namespaces Kubernetes reserves are
-// listed only with a reviewed ownership record (reserved, below).
-var table = []Project{
-	{
-		Slug: "antrea", Catalog: CatalogCNCF, FactProject: "antrea", Component: "pkg:github/antrea-io/antrea",
-		Groups: []Group{
-			{Name: "crd.antrea.io", Source: "https://github.com/antrea-io/antrea/blob/e59003c2c1b13a961ff58a6d7b8f1133049d0bf0/build/charts/antrea/crds/trafficcontrol.yaml"},
-			{Name: "multicluster.crd.antrea.io", Source: "https://github.com/antrea-io/antrea/blob/e59003c2c1b13a961ff58a6d7b8f1133049d0bf0/multicluster/config/crd/bases/multicluster.crd.antrea.io_resourceimports.yaml"},
-		},
-	},
-	{
-		Slug: "argo-cd", Catalog: CatalogCNCF, FactProject: "argo_cd", Component: "pkg:github/argoproj/argo-cd",
-		Groups: []Group{
-			{Name: "argoproj.io", Source: "https://github.com/argoproj/argo-cd/blob/e98f483bfd5781df2592fef1aeed1148f150d9c9/manifests/crds/application-crd.yaml"},
-		},
-	},
-	{
-		Slug: "cert-manager", Catalog: CatalogCNCF, FactProject: "cert_manager", Component: "pkg:github/cert-manager/cert-manager",
-		Groups: []Group{
-			{Name: "acme.cert-manager.io", Source: "https://github.com/cert-manager/cert-manager/blob/b8f325e36f49626ba72d7efbe138c01a5e661d96/deploy/crds/acme.cert-manager.io_orders.yaml"},
-			{Name: "cert-manager.io", Source: "https://github.com/cert-manager/cert-manager/blob/b8f325e36f49626ba72d7efbe138c01a5e661d96/deploy/crds/cert-manager.io_issuers.yaml"},
-		},
-	},
-	{
-		Slug: "cilium", Catalog: CatalogCNCF, FactProject: "cilium", Component: "pkg:github/cilium/cilium",
-		Groups: []Group{
-			{Name: "cilium.io", Source: "https://github.com/cilium/cilium/blob/450c53145dc0a872ae20dfb05598c94ef55a71e2/pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumpodippools.yaml"},
-		},
-	},
-	{
-		Slug: "cloudnativepg", Catalog: CatalogCNCF, FactProject: "cloudnativepg", Component: "pkg:github/cloudnative-pg/cloudnative-pg",
-		Groups: []Group{
-			{Name: "postgresql.cnpg.io", Source: "https://github.com/cloudnative-pg/cloudnative-pg/blob/4b5e244a7d031f67e025c83c1555e7726ecbbfa1/config/crd/bases/postgresql.cnpg.io_subscriptions.yaml"},
-		},
-	},
-	{
-		Slug: "cluster-api", Catalog: CatalogCommunity, FactProject: "cluster_api", Component: "pkg:github/kubernetes-sigs/cluster-api",
-		Upstream: Upstream{Name: "Cluster API", Repository: "https://github.com/kubernetes-sigs/cluster-api", License: "Apache-2.0", LicenseSource: "https://github.com/kubernetes-sigs/cluster-api/blob/560d4acf507bc7cac34b2da449fa5cd53eaeb149/LICENSE"},
-		Groups: []Group{
-			{Name: "cluster.x-k8s.io", Source: "https://github.com/kubernetes-sigs/cluster-api/blob/560d4acf507bc7cac34b2da449fa5cd53eaeb149/core/config/crd/bases/cluster.x-k8s.io_machinesets.yaml"},
-			{Name: "clusterctl.cluster.x-k8s.io", Source: "https://github.com/kubernetes-sigs/cluster-api/blob/560d4acf507bc7cac34b2da449fa5cd53eaeb149/cmd/clusterctl/config/crd/bases/clusterctl.cluster.x-k8s.io_providers.yaml"},
-			{Name: "runtime.cluster.x-k8s.io", Source: "https://github.com/kubernetes-sigs/cluster-api/blob/560d4acf507bc7cac34b2da449fa5cd53eaeb149/core/config/crd/bases/runtime.cluster.x-k8s.io_extensionconfigs.yaml"},
-		},
-	},
-	{
-		Slug: "contour", Catalog: CatalogCNCF, FactProject: "contour", Component: "pkg:github/projectcontour/contour",
-		Groups: []Group{
-			{Name: "projectcontour.io", Source: "https://github.com/projectcontour/contour/blob/3635b068e25d74b7089c272eefd6ccb6a08f2861/examples/contour/01-crds.yaml"},
-		},
-	},
-	{
-		Slug: "crossplane", Catalog: CatalogCNCF, FactProject: "crossplane", Component: "pkg:github/crossplane/crossplane",
-		Groups: []Group{
-			{Name: "apiextensions.crossplane.io", Source: "https://github.com/crossplane/crossplane/blob/61fa450c0c14a75bf5632872bd4a5b6945ec5a26/cluster/crds/apiextensions.crossplane.io_usages.yaml"},
-			{Name: "ops.crossplane.io", Source: "https://github.com/crossplane/crossplane/blob/61fa450c0c14a75bf5632872bd4a5b6945ec5a26/cluster/crds/ops.crossplane.io_watchoperations.yaml"},
-			{Name: "pkg.crossplane.io", Source: "https://github.com/crossplane/crossplane/blob/61fa450c0c14a75bf5632872bd4a5b6945ec5a26/cluster/crds/pkg.crossplane.io_providers.yaml"},
-			{Name: "protection.crossplane.io", Source: "https://github.com/crossplane/crossplane/blob/61fa450c0c14a75bf5632872bd4a5b6945ec5a26/cluster/crds/protection.crossplane.io_usages.yaml"},
-			{Name: "secrets.crossplane.io", Source: "https://github.com/crossplane/crossplane/blob/2efdb03ae80fc27f4b6b9b0cebc96a462233cf17/cluster/crds/secrets.crossplane.io_storeconfigs.yaml"},
-		},
-	},
-	{
-		Slug: "dapr", Catalog: CatalogCNCF, FactProject: "dapr", Component: "pkg:github/dapr/dapr",
-		Groups: []Group{
-			{Name: "dapr.io", Source: "https://github.com/dapr/dapr/blob/7c4f540efa3e6f768a45010f2fc0d4b4c287cac3/charts/dapr/crds/workflowaccesspolicy.yaml"},
-		},
-	},
-	{
-		Slug: "eck-operator", Catalog: CatalogCommunity, FactProject: "eck_operator", Component: "pkg:github/elastic/cloud-on-k8s",
-		Upstream: Upstream{Name: "Elastic Cloud on Kubernetes", Repository: "https://github.com/elastic/cloud-on-k8s", License: "Elastic-2.0", LicenseSource: "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/LICENSE.txt"},
-		Groups: []Group{
-			{Name: "agent.k8s.elastic.co", Source: "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"},
-			{Name: "apm.k8s.elastic.co", Source: "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"},
-			{Name: "autoops.k8s.elastic.co", Source: "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"},
-			{Name: "autoscaling.k8s.elastic.co", Source: "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"},
-			{Name: "beat.k8s.elastic.co", Source: "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"},
-			{Name: "elasticsearch.k8s.elastic.co", Source: "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"},
-			{Name: "enterprisesearch.k8s.elastic.co", Source: "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"},
-			{Name: "kibana.k8s.elastic.co", Source: "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"},
-			{Name: "logstash.k8s.elastic.co", Source: "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"},
-			{Name: "maps.k8s.elastic.co", Source: "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"},
-			{Name: "packageregistry.k8s.elastic.co", Source: "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"},
-			{Name: "stackconfigpolicy.k8s.elastic.co", Source: "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"},
-		},
-	},
-	{
-		Slug: "external-secrets", Catalog: CatalogCNCF, FactProject: "external_secrets", Component: "pkg:github/external-secrets/external-secrets",
-		Groups: []Group{
-			{Name: "external-secrets.io", Source: "https://github.com/external-secrets/external-secrets/blob/9d17906e8e4c5532ffe513f72273df03b7b07bc6/config/crds/bases/external-secrets.io_secretstores.yaml"},
-			{Name: "generators.external-secrets.io", Source: "https://github.com/external-secrets/external-secrets/blob/9d17906e8e4c5532ffe513f72273df03b7b07bc6/config/crds/bases/generators.external-secrets.io_webhooks.yaml"},
-		},
-	},
-	{
-		Slug: "gateway-api", Catalog: CatalogCommunity, FactProject: "gateway_api", Component: "pkg:github/kubernetes-sigs/gateway-api",
-		Upstream: Upstream{Name: "Gateway API", Repository: "https://github.com/kubernetes-sigs/gateway-api", License: "Apache-2.0", LicenseSource: "https://github.com/kubernetes-sigs/gateway-api/blob/89b3b0c3fa63f9342f43ba0fb2cf93d6aab53af7/LICENSE"},
-		Groups: []Group{
-			{Name: "gateway.networking.k8s.io", Source: "https://github.com/kubernetes-sigs/gateway-api/blob/89b3b0c3fa63f9342f43ba0fb2cf93d6aab53af7/config/crd/standard/gateway.networking.k8s.io_udproutes.yaml"},
-		},
-	},
-	{
-		Slug: "istio", Catalog: CatalogCNCF, FactProject: "istio", Component: "pkg:github/istio/istio",
-		Groups: []Group{
-			{Name: "extensions.istio.io", Source: "https://github.com/istio/istio/blob/8825a6b7f8c9a2d66005a5f8b64e98aaee0dda99/manifests/charts/base/files/crd-all.gen.yaml"},
-			{Name: "networking.istio.io", Source: "https://github.com/istio/istio/blob/8825a6b7f8c9a2d66005a5f8b64e98aaee0dda99/manifests/charts/base/files/crd-all.gen.yaml"},
-			{Name: "security.istio.io", Source: "https://github.com/istio/istio/blob/8825a6b7f8c9a2d66005a5f8b64e98aaee0dda99/manifests/charts/base/files/crd-all.gen.yaml"},
-			{Name: "telemetry.istio.io", Source: "https://github.com/istio/istio/blob/8825a6b7f8c9a2d66005a5f8b64e98aaee0dda99/manifests/charts/base/files/crd-all.gen.yaml"},
-		},
-	},
-	{
-		Slug: "karmada", Catalog: CatalogCNCF, FactProject: "karmada", Component: "pkg:github/karmada-io/karmada",
-		Groups: []Group{
-			{Name: "apps.karmada.io", Source: "https://github.com/karmada-io/karmada/blob/6d7b233a54d59c8473803901768153f6e4353d02/charts/karmada/_crds/bases/apps/apps.karmada.io_workloadrebalancers.yaml"},
-			{Name: "autoscaling.karmada.io", Source: "https://github.com/karmada-io/karmada/blob/6d7b233a54d59c8473803901768153f6e4353d02/charts/karmada/_crds/bases/autoscaling/autoscaling.karmada.io_federatedhpas.yaml"},
-			{Name: "config.karmada.io", Source: "https://github.com/karmada-io/karmada/blob/6d7b233a54d59c8473803901768153f6e4353d02/charts/karmada/_crds/bases/config/config.karmada.io_resourceinterpreterwebhookconfigurations.yaml"},
-			{Name: "networking.karmada.io", Source: "https://github.com/karmada-io/karmada/blob/6d7b233a54d59c8473803901768153f6e4353d02/charts/karmada/_crds/bases/networking/networking.karmada.io_multiclusterservices.yaml"},
-			{Name: "operator.karmada.io", Source: "https://github.com/karmada-io/karmada/blob/6d7b233a54d59c8473803901768153f6e4353d02/operator/config/crds/operator.karmada.io_karmadas.yaml"},
-			{Name: "policy.karmada.io", Source: "https://github.com/karmada-io/karmada/blob/6d7b233a54d59c8473803901768153f6e4353d02/charts/karmada/_crds/bases/policy/policy.karmada.io_propagationpolicies.yaml"},
-			{Name: "remedy.karmada.io", Source: "https://github.com/karmada-io/karmada/blob/6d7b233a54d59c8473803901768153f6e4353d02/charts/karmada/_crds/bases/remedy/remedy.karmada.io_remedies.yaml"},
-			{Name: "work.karmada.io", Source: "https://github.com/karmada-io/karmada/blob/6d7b233a54d59c8473803901768153f6e4353d02/charts/karmada/_crds/bases/work/work.karmada.io_works.yaml"},
-		},
-	},
-	{
-		Slug: "keda", Catalog: CatalogCNCF, FactProject: "keda", Component: "pkg:github/kedacore/keda",
-		Groups: []Group{
-			{Name: "eventing.keda.sh", Source: "https://github.com/kedacore/keda/blob/626ded5d783108bedf647e20bbc83f8e458e02e4/config/crd/bases/eventing.keda.sh_clustercloudeventsources.yaml"},
-			{Name: "keda.sh", Source: "https://github.com/kedacore/keda/blob/626ded5d783108bedf647e20bbc83f8e458e02e4/config/crd/bases/keda.sh_triggerauthentications.yaml"},
-		},
-	},
-	{
-		Slug: "kong-ingress-controller", Catalog: CatalogCommunity, FactProject: "kong_ingress_controller", Component: "pkg:github/kong/kubernetes-ingress-controller",
-		Upstream: Upstream{Name: "Kong Ingress Controller", Repository: "https://github.com/kong/kubernetes-ingress-controller", License: "Apache-2.0", LicenseSource: "https://github.com/kong/kubernetes-ingress-controller/blob/17f5dafd2a447a7e5ff7be84006a83787ac2882c/LICENSE"},
-		Groups: []Group{
-			{Name: "configuration.konghq.com", Source: "https://github.com/kong/kubernetes-ingress-controller/blob/17f5dafd2a447a7e5ff7be84006a83787ac2882c/config/crd/bases/configuration.konghq.com_udpingresses.yaml"},
-		},
-	},
-	{
-		Slug: "koordinator", Catalog: CatalogCNCF, FactProject: "koordinator", Component: "pkg:github/koordinator-sh/koordinator",
-		Groups: []Group{
-			{Name: "analysis.koordinator.sh", Source: "https://github.com/koordinator-sh/koordinator/blob/989ca85c62abcca92b303aa12fd2ccff2ed30fed/config/crd/bases/analysis.koordinator.sh_recommendations.yaml"},
-			{Name: "config.koordinator.sh", Source: "https://github.com/koordinator-sh/koordinator/blob/989ca85c62abcca92b303aa12fd2ccff2ed30fed/config/crd/bases/config.koordinator.sh_clustercolocationprofiles.yaml"},
-			{Name: "quota.koordinator.sh", Source: "https://github.com/koordinator-sh/koordinator/blob/989ca85c62abcca92b303aa12fd2ccff2ed30fed/config/crd/bases/quota.koordinator.sh_elasticquotaprofiles.yaml"},
-			{Name: "scheduling.koordinator.sh", Source: "https://github.com/koordinator-sh/koordinator/blob/989ca85c62abcca92b303aa12fd2ccff2ed30fed/config/crd/bases/scheduling.koordinator.sh_scheduleexplanations.yaml"},
-			{Name: "slo.koordinator.sh", Source: "https://github.com/koordinator-sh/koordinator/blob/989ca85c62abcca92b303aa12fd2ccff2ed30fed/config/crd/bases/slo.koordinator.sh_nodeslos.yaml"},
-		},
-	},
-	{
-		Slug: "kueue", Catalog: CatalogCommunity, FactProject: "kueue", Component: "pkg:github/kubernetes-sigs/kueue",
-		Upstream: Upstream{Name: "Kueue", Repository: "https://github.com/kubernetes-sigs/kueue", License: "Apache-2.0", LicenseSource: "https://github.com/kubernetes-sigs/kueue/blob/f850823bead72095aaba55025a7efadfdfe3782a/LICENSE"},
-		Groups: []Group{
-			{Name: "kueue.x-k8s.io", Source: "https://github.com/kubernetes-sigs/kueue/blob/f850823bead72095aaba55025a7efadfdfe3782a/config/components/crd/bases/kueue.x-k8s.io_workloads.yaml"},
-		},
-	},
-	{
-		Slug: "kuma", Catalog: CatalogCNCF, FactProject: "kuma", Component: "pkg:github/kumahq/kuma",
-		Groups: []Group{
-			{Name: "kuma.io", Source: "https://github.com/kumahq/kuma/blob/51c6d3819be75d9587942242cdec709bc9934321/deployments/charts/kuma/crds/kuma.io_zones.yaml"},
-		},
-	},
-	{
-		Slug: "kyverno", Catalog: CatalogCNCF, FactProject: "kyverno", Component: "pkg:github/kyverno/kyverno",
-		Groups: []Group{
-			{Name: "kyverno.io", Source: "https://github.com/kyverno/kyverno/blob/ee97ce09538b09b6f1b03853cc41a62654d6a58f/config/crds/kyverno/kyverno.io_updaterequests.yaml"},
-			{Name: "policies.kyverno.io", Source: "https://github.com/kyverno/kyverno/blob/ee97ce09538b09b6f1b03853cc41a62654d6a58f/config/crds/policies.kyverno.io/policies.kyverno.io_validatingpolicies.yaml"},
-			{Name: "reports.kyverno.io", Source: "https://github.com/kyverno/kyverno/blob/ee97ce09538b09b6f1b03853cc41a62654d6a58f/config/crds/reports/reports.kyverno.io_ephemeralreports.yaml"},
-			{Name: "wgpolicyk8s.io", Source: "https://github.com/kyverno/kyverno/blob/ee97ce09538b09b6f1b03853cc41a62654d6a58f/config/crds/policyreport/wgpolicyk8s.io_policyreports.yaml"},
-		},
-	},
-	{
-		Slug: "longhorn", Catalog: CatalogCNCF, FactProject: "longhorn", Component: "pkg:github/longhorn/longhorn",
-		Groups: []Group{
-			{Name: "longhorn.io", Source: "https://github.com/longhorn/longhorn/blob/c3d88832bd8cec4f38dec65e79436984871dc313/deploy/longhorn.yaml"},
-		},
-	},
-	{
-		Slug: "metallb", Catalog: CatalogCNCF, FactProject: "metallb", Component: "pkg:github/metallb/metallb",
-		Groups: []Group{
-			{Name: "metallb.io", Source: "https://github.com/metallb/metallb/blob/4c613e152c3434f71137b5f2a2ce15ee93681606/config/crd/bases/metallb.io_servicel2statuses.yaml"},
-		},
-	},
-	{
-		Slug: "mongodb-kubernetes", Catalog: CatalogCommunity, FactProject: "mongodb_kubernetes", Component: "pkg:github/mongodb/mongodb-kubernetes",
-		Upstream: Upstream{Name: "MongoDB Controllers for Kubernetes", Repository: "https://github.com/mongodb/mongodb-kubernetes", License: "Apache-2.0 OR LicenseRef-MongoDB-Customer-Agreement", LicenseSource: "https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/LICENSE-MCK"},
-		Groups: []Group{
-			{Name: "ai.mongodb.com", Source: "https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/config/crd/bases/ai.mongodb.com_voyageais.yaml"},
-			{Name: "mongodb.com", Source: "https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/config/crd/bases/mongodb.com_opsmanagers.yaml"},
-			{Name: "mongodbcommunity.mongodb.com", Source: "https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/config/crd/bases/mongodbcommunity.mongodb.com_mongodbcommunity.yaml"},
-		},
-	},
-	{
-		Slug: "node-feature-discovery", Catalog: CatalogCommunity, FactProject: "node_feature_discovery", Component: "pkg:github/kubernetes-sigs/node-feature-discovery",
-		Upstream: Upstream{Name: "Node Feature Discovery", Repository: "https://github.com/kubernetes-sigs/node-feature-discovery", License: "Apache-2.0", LicenseSource: "https://github.com/kubernetes-sigs/node-feature-discovery/blob/45d276ed9d3f0f67fb642aa78969721df3034451/LICENSE"},
-		Groups: []Group{
-			{Name: "nfd.k8s-sigs.io", Source: "https://github.com/kubernetes-sigs/node-feature-discovery/blob/45d276ed9d3f0f67fb642aa78969721df3034451/deployment/base/nfd-crds/nfd-api-crds.yaml"},
-		},
-	},
-	{
-		Slug: "openkruise", Catalog: CatalogCNCF, FactProject: "openkruise", Component: "pkg:github/openkruise/kruise",
-		Groups: []Group{
-			{Name: "apps.kruise.io", Source: "https://github.com/openkruise/kruise/blob/b1e001a957ce62bf87894d0212f5e704a8e9c2b4/config/crd/bases/apps.kruise.io_workloadspreads.yaml"},
-			{Name: "policy.kruise.io", Source: "https://github.com/openkruise/kruise/blob/b1e001a957ce62bf87894d0212f5e704a8e9c2b4/config/crd/bases/policy.kruise.io_podunavailablebudgets.yaml"},
-		},
-	},
-	{
-		Slug: "percona-postgresql-operator", Catalog: CatalogCommunity, FactProject: "percona_postgresql_operator", Component: "pkg:github/percona/percona-postgresql-operator",
-		Upstream: Upstream{Name: "Percona Operator for PostgreSQL", Repository: "https://github.com/percona/percona-postgresql-operator", License: "Apache-2.0", LicenseSource: "https://github.com/percona/percona-postgresql-operator/blob/a6cb60bf372f0eec5c9680437c300e2c07362d70/LICENSE.md"},
-		Groups: []Group{
-			{Name: "pgv2.percona.com", Source: "https://github.com/percona/percona-postgresql-operator/blob/a6cb60bf372f0eec5c9680437c300e2c07362d70/config/crd/bases/pgv2.percona.com_perconapgclusters.yaml"},
-			{Name: "upstream.pgv2.percona.com", Source: "https://github.com/percona/percona-postgresql-operator/blob/a6cb60bf372f0eec5c9680437c300e2c07362d70/config/crd/bases/upstream.pgv2.percona.com_postgresclusters.yaml"},
-		},
-	},
-	{
-		Slug: "prometheus-operator", Catalog: CatalogCommunity, FactProject: "prometheus_operator", Component: "pkg:github/prometheus-operator/prometheus-operator",
-		Upstream: Upstream{Name: "Prometheus Operator", Repository: "https://github.com/prometheus-operator/prometheus-operator", License: "Apache-2.0", LicenseSource: "https://github.com/prometheus-operator/prometheus-operator/blob/2e4af1d7d8f0ae634fcf0ac967a76fb381a65542/LICENSE"},
-		Groups: []Group{
-			{Name: "monitoring.coreos.com", Source: "https://github.com/prometheus-operator/prometheus-operator/blob/2e4af1d7d8f0ae634fcf0ac967a76fb381a65542/example/prometheus-operator-crd/monitoring.coreos.com_thanosrulers.yaml"},
-		},
-	},
-	{
-		Slug: "rancher", Catalog: CatalogCommunity, FactProject: "rancher", Component: "pkg:github/rancher/rancher",
-		Upstream: Upstream{Name: "Rancher", Repository: "https://github.com/rancher/rancher", License: "Apache-2.0", LicenseSource: "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/LICENSE"},
-		Groups: []Group{
-			{Name: "auditlog.cattle.io", Source: "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/auditlog.cattle.io_auditpolicies.yaml"},
-			{Name: "catalog.cattle.io", Source: "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/catalog.cattle.io_uiplugins.yaml"},
-			{Name: "management.cattle.io", Source: "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/management.cattle.io_users.yaml"},
-			{Name: "operation.cattle.io", Source: "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/operation.cattle.io_etcdsnapshotsaves.yaml"},
-			{Name: "plan.cattle.io", Source: "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/plan.cattle.io_beacons.yaml"},
-			{Name: "provisioning.cattle.io", Source: "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/provisioning.cattle.io_clusters.yaml"},
-			{Name: "rke.cattle.io", Source: "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/rke.cattle.io_rkecontrolplanes.yaml"},
-			{Name: "scc.cattle.io", Source: "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/scc.cattle.io_registrations.yaml"},
-			{Name: "telemetry.cattle.io", Source: "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/telemetry.cattle.io_secretrequests.yaml"},
-		},
-	},
-	{
-		Slug: "rook", Catalog: CatalogCNCF, FactProject: "rook", Component: "pkg:github/rook/rook",
-		Groups: []Group{
-			{Name: "ceph.rook.io", Source: "https://github.com/rook/rook/blob/f190ca3b45f131da03641741e9e03b2584cd7d5e/deploy/examples/crds.yaml"},
-			{Name: "objectbucket.io", Source: "https://github.com/rook/rook/blob/f190ca3b45f131da03641741e9e03b2584cd7d5e/deploy/examples/crds.yaml"},
-		},
-	},
-	{
-		Slug: "strimzi", Catalog: CatalogCNCF, FactProject: "strimzi", Component: "pkg:github/strimzi/strimzi-kafka-operator",
-		Groups: []Group{
-			{Name: "core.strimzi.io", Source: "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/042-Crd-strimzipodset.yaml"},
-			{Name: "kafka.strimzi.io", Source: "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/040-Crd-kafka.yaml"},
-		},
-	},
-	{
-		Slug: "tekton", Catalog: CatalogCNCF, FactProject: "tekton", Component: "pkg:github/tektoncd/pipeline",
-		Groups: []Group{
-			{Name: "resolution.tekton.dev", Source: "https://github.com/tektoncd/pipeline/blob/61e02215132ce7bef054ff7e1fb074f217716c1a/config/300-crds/300-resolutionrequest.yaml"},
-			{Name: "tekton.dev", Source: "https://github.com/tektoncd/pipeline/blob/61e02215132ce7bef054ff7e1fb074f217716c1a/config/300-crds/300-verificationpolicy.yaml"},
-		},
-	},
-	{
-		Slug: "velero", Catalog: CatalogCNCF, FactProject: "velero", Component: "pkg:github/velero-io/velero",
-		Groups: []Group{
-			{Name: "velero.io", Source: "https://github.com/velero-io/velero/blob/6adcf06b5b0e6fb93998d3e101e2cbdc134fa3c3/config/crd/v1/bases/velero.io_volumesnapshotlocations.yaml"},
-		},
-	},
-	{
-		Slug: "volcano", Catalog: CatalogCNCF, FactProject: "volcano", Component: "pkg:github/volcano-sh/volcano",
-		Groups: []Group{
-			{Name: "batch.volcano.sh", Source: "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/volcano/bases/batch.volcano.sh_jobs.yaml"},
-			{Name: "bus.volcano.sh", Source: "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/volcano/bases/bus.volcano.sh_commands.yaml"},
-			{Name: "config.volcano.sh", Source: "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/volcano/bases/config.volcano.sh_colocationconfigurations.yaml"},
-			{Name: "flow.volcano.sh", Source: "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/jobflow/bases/flow.volcano.sh_jobtemplates.yaml"},
-			{Name: "nodeinfo.volcano.sh", Source: "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/volcano/bases/nodeinfo.volcano.sh_numatopologies.yaml"},
-			{Name: "scheduling.volcano.sh", Source: "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/volcano/bases/scheduling.volcano.sh_queues.yaml"},
-			{Name: "shard.volcano.sh", Source: "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/volcano/bases/shard.volcano.sh_nodeshards.yaml"},
-			{Name: "topology.volcano.sh", Source: "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/volcano/bases/topology.volcano.sh_hypernodes.yaml"},
-		},
-	},
-}
+// listed only with a reviewed ownership record (reserved).
+//
+// Reserved groups not listed, so attributed to no project: the provider
+// namespaces of Cluster API (addons, bootstrap, controlplane, infrastructure
+// and ipam .cluster.x-k8s.io), whose CRDs other providers define too (the Helm
+// add-on provider, the RKE2 and Talos bootstrap and control-plane
+// providers, cloud providers, IPAM providers); the experimental Gateway API
+// group gateway.networking.x-k8s.io (its CRDs lie outside the standard
+// channel the extractor reads); the multicluster services API
+// multicluster.x-k8s.io (Karmada and Antrea both ship it);
+// snapshot.storage.k8s.io and topology.node.k8s.io (shipped by several
+// projects, none of which is in the table as its definer). An object of
+// such a group keeps every set incomplete, which never passes.
+var table, reserved = mustLoadTable(tableJSON)
 
 // Projects returns a copy of the reviewed table, ordered by slug.
 func Projects() []Project { return copyProjects(table) }
@@ -503,27 +247,6 @@ type ReservedGroup struct {
 	Repository string
 	// Reason says why the group belongs to that repository alone.
 	Reason string
-}
-
-// reserved is the reviewed ownership list, ordered by group name.
-//
-// Not listed, so attributed to no project: the provider namespaces of
-// Cluster API (addons, bootstrap, controlplane, infrastructure and ipam
-// .cluster.x-k8s.io), whose CRDs other providers define too (the Helm
-// add-on provider, the RKE2 and Talos bootstrap and control-plane
-// providers, cloud providers, IPAM providers); the experimental Gateway API
-// group gateway.networking.x-k8s.io (its CRDs lie outside the standard
-// channel the extractor reads); the multicluster services API
-// multicluster.x-k8s.io (Karmada and Antrea both ship it);
-// snapshot.storage.k8s.io and topology.node.k8s.io (shipped by several
-// projects, none of which is in the table as its definer). An object of
-// such a group keeps every set incomplete, which never passes.
-var reserved = []ReservedGroup{
-	{Name: "cluster.x-k8s.io", Owner: "cluster-api", Repository: "https://github.com/kubernetes-sigs/cluster-api", Reason: "the core Cluster API types (Cluster, Machine, MachineSet, ...) are CRDs of kubernetes-sigs/cluster-api; providers define theirs in their own *.cluster.x-k8s.io groups"},
-	{Name: "clusterctl.cluster.x-k8s.io", Owner: "cluster-api", Repository: "https://github.com/kubernetes-sigs/cluster-api", Reason: "the clusterctl Provider and Metadata types are CRDs of kubernetes-sigs/cluster-api (cmd/clusterctl) only"},
-	{Name: "gateway.networking.k8s.io", Owner: "gateway-api", Repository: "https://github.com/kubernetes-sigs/gateway-api", Reason: "Gateway API is defined by the CRDs of kubernetes-sigs/gateway-api and is not served by kube-apiserver; implementations ship copies of those CRDs"},
-	{Name: "kueue.x-k8s.io", Owner: "kueue", Repository: "https://github.com/kubernetes-sigs/kueue", Reason: "the Kueue types (ClusterQueue, LocalQueue, Workload, ...) are CRDs of kubernetes-sigs/kueue only"},
-	{Name: "runtime.cluster.x-k8s.io", Owner: "cluster-api", Repository: "https://github.com/kubernetes-sigs/cluster-api", Reason: "the runtime extension type ExtensionConfig is a CRD of kubernetes-sigs/cluster-api only"},
 }
 
 // ReservedGroups returns a copy of the reviewed ownership list.

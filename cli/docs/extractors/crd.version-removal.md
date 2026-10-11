@@ -34,39 +34,13 @@ attests: the loader refuses `"attest": true` for it, until the reviewed path
 that admits a community project's line reviews exists (the pack and the
 knowledge store can carry its rules, but the line-review families admit no
 community component). Its runs follow every other rule of this
-extractor (full-commit citations, full-tree scan, withheld pairs). The
-community targets:
+extractor (full-commit citations, full-tree scan, withheld pairs).
 
-| Extractor id | Repository | Release tags | First pair from | CRD manifests |
-| --- | --- | --- | --- | --- |
-| `crd.version-removal.cluster-api` | `github.com/kubernetes-sigs/cluster-api` | `vX.Y.Z` | 1.9 | YAML files directly in `bootstrap/kubeadm/config/crd/bases`, `cmd/clusterctl/config/crd/bases`, `controlplane/kubeadm/config/crd/bases`, and `config/crd/bases` (to 1.13) or `core/config/crd/bases` (from 1.14) |
-| `crd.version-removal.eck-operator` | `github.com/elastic/cloud-on-k8s` | `vX.Y.Z` | 3.0 | `config/crds/v1/all-crds.yaml` |
-| `crd.version-removal.gateway-api` | `github.com/kubernetes-sigs/gateway-api` | `vX.Y.Z` | 1.1 | YAML files directly in `config/crd/standard` (the declared, standard channel); `config/crd/experimental` is read as the experimental channel (see Install channels) |
-| `crd.version-removal.kong-ingress-controller` | `github.com/kong/kubernetes-ingress-controller` | `vX.Y.Z` | 3.0 | YAML files directly in `config/crd/bases` up to 3.3; from 3.4 the directory `config/crd/ingress-controller` of `github.com/kong/kubernetes-configuration` at the tag the release's `config/crd/kustomization.yaml` names (see Another repository from some line on) |
-| `crd.version-removal.kueue` | `github.com/kubernetes-sigs/kueue` | `vX.Y.Z` | 0.15 | YAML files directly in `config/components/crd/bases`, and in `config/components/crd/alpha/bases` when it exists |
-| `crd.version-removal.mongodb-kubernetes` | `github.com/mongodb/mongodb-kubernetes` | `X.Y.Z` | 1.8 | YAML files directly in `config/crd/bases` |
-| `crd.version-removal.node-feature-discovery` | `github.com/kubernetes-sigs/node-feature-discovery` | `vX.Y.Z` | 0.14 | `deployment/base/nfd-crds/nfd-api-crds.yaml` |
-| `crd.version-removal.percona-postgresql-operator` | `github.com/percona/percona-postgresql-operator` | `vX.Y.Z` | 2.6 | YAML files directly in `config/crd/bases` |
-| `crd.version-removal.prometheus-operator` | `github.com/prometheus-operator/prometheus-operator` | `vX.Y.Z` | 0.89 | YAML files directly in `example/prometheus-operator-crd` |
-| `crd.version-removal.rancher` | `github.com/rancher/rancher` | `vX.Y.Z` | 2.10 | YAML files directly in `pkg/crds/yaml/generated` |
-
-The CNCF catalog targets (the table lists the first ones; `prufyx-maintainer
-extract list` lists all):
-
-| Extractor id | Repository | Release tags | First pair from | CRD manifests |
-| --- | --- | --- | --- | --- |
-| `crd.version-removal.argo-cd` | `github.com/argoproj/argo-cd` | `vX.Y.Z` | 3.0 | YAML files directly in `manifests/crds` |
-| `crd.version-removal.cert-manager` | `github.com/cert-manager/cert-manager` | `vX.Y.Z` | 1.16 | YAML files directly in `deploy/crds` |
-| `crd.version-removal.cilium` | `github.com/cilium/cilium` | `vX.Y.Z` | 1.15 | YAML files directly in `pkg/k8s/apis/cilium.io/client/crds/v2` and `.../v2alpha1` |
-| `crd.version-removal.crossplane` | `github.com/crossplane/crossplane` | `vX.Y.Z` | 1.20 | YAML files directly in `cluster/crds` |
-| `crd.version-removal.istio` | `github.com/istio/istio` | `X.Y.Z` | 1.26 | `manifests/charts/base/files/crd-all.gen.yaml` |
-| `crd.version-removal.keda` | `github.com/kedacore/keda` | `vX.Y.Z` | 2.16 | YAML files directly in `config/crd/bases` |
-| `crd.version-removal.kuma` | `github.com/kumahq/kuma` | `vX.Y.Z`, then `X.Y.Z` | 2.9 | YAML files directly in `deployments/charts/kuma/crds` |
-| `crd.version-removal.kyverno` | `github.com/kyverno/kyverno` | `vX.Y.Z` | 1.14 | YAML files anywhere under `config/crds` |
-| `crd.version-removal.longhorn` | `github.com/longhorn/longhorn` | `vX.Y.Z` | 1.8 | `deploy/longhorn.yaml` |
-| `crd.version-removal.rook` | `github.com/rook/rook` | `vX.Y.Z` | 1.16 | `deploy/examples/crds.yaml` |
-| `crd.version-removal.strimzi` | `github.com/strimzi/strimzi-kafka-operator` | `X.Y.Z` | 0.49 | files named `XXX-Crd-*.yaml` in `install/cluster-operator`, and in `install/access-operator` when it exists |
-| `crd.version-removal.velero` | `github.com/velero-io/velero` | `vX.Y.Z` | 1.13 | YAML files directly in `config/crd/v1/bases` and `config/crd/v2alpha1/bases` |
+Every target, with its catalog, repository, release tags, first line, the
+paths it reads and the number of reviewed exclusions, is listed in
+[../generated/crd-version-targets.md](../generated/crd-version-targets.md),
+generated from `targets.json` by `prufyx-maintainer docs-tables`
+(`prufyx-maintainer extract list` lists the registered ids).
 
 In a listed directory, a file whose name contains `crd` (in any case) but
 does not match the pattern makes the inventory incomplete: it may hold a

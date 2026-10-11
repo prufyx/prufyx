@@ -18,6 +18,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/chartversions"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/contribution"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/corpusattest"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/docstables"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/factorymirror"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgeexport"
@@ -99,6 +100,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runKnowledgeSign(args[1:], stdout, stderr)
 	case "support-inventory":
 		return runSupportInventory(args[1:], stderr)
+	case "docs-tables":
+		return runDocsTables(args[1:])
 	case "release-gate":
 		return runReleaseGate(args[1:])
 	case "staging-receipt":
@@ -189,7 +192,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	case "help", "-h", "--help":
-		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|consensus|chart-versions|gate|approval|rule|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-sign|support-inventory|release-gate|staging-receipt|release|local-kind|release-*> [options]")
+		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|consensus|chart-versions|gate|approval|rule|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-sign|support-inventory|docs-tables|release-gate|staging-receipt|release|local-kind|release-*> [options]")
 		return nil
 	default:
 		return usageError()
@@ -537,6 +540,43 @@ func runSupportInventory(args []string, stderr io.Writer) error {
 	}
 	if err := writeOutputPair(*jsonOutput, jsonRaw, *markdownOutput, []byte(markdown)); err != nil {
 		return &commandError{code: 2, message: "support inventory: cannot commit generated outputs", err: err}
+	}
+	return nil
+}
+
+// runDocsTables writes, or with --check verifies, the documentation tables
+// generated from the reviewed data compiled into Prufyx (the custom-resource
+// table and the crd.version-removal targets), under docs/generated of the CLI
+// root.
+func runDocsTables(args []string) error {
+	flags := flag.NewFlagSet("docs-tables", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	rootFlag := flags.String("root", "", "CLI root (default: the module directory above the working directory)")
+	check := flags.Bool("check", false, "verify the generated tables are current")
+	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
+		return &commandError{code: 2, message: "docs tables: usage: prufyx-maintainer docs-tables [--root DIR] [--check]", err: err}
+	}
+	root := *rootFlag
+	if root == "" {
+		var err error
+		if root, err = cliRoot(); err != nil {
+			return &commandError{code: 2, message: "docs tables: CLI root is unavailable", err: err}
+		}
+	}
+	files := docstables.Generate()
+	if len(files) != 2 {
+		return &commandError{code: 2, message: "docs tables: expected two generated files"}
+	}
+	first, second := filepath.Join(root, files[0].Path), filepath.Join(root, files[1].Path)
+	if *check {
+		a, b, err := readOutputPair(first, second)
+		if err != nil || string(a) != files[0].Content || string(b) != files[1].Content {
+			return &commandError{code: 2, message: "docs tables: generated output is stale (run prufyx-maintainer docs-tables)", err: err}
+		}
+		return nil
+	}
+	if err := writeOutputPair(first, []byte(files[0].Content), second, []byte(files[1].Content)); err != nil {
+		return &commandError{code: 2, message: "docs tables: cannot write generated outputs", err: err}
 	}
 	return nil
 }
