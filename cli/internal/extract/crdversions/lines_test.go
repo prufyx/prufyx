@@ -522,6 +522,13 @@ func TestLoadTargets(t *testing.T) {
 	if ts, err := LoadTargets(mutate(func(_, _ map[string]any, _ fstest.MapFS) {})); err != nil || len(ts) != len(Targets) {
 		t.Fatalf("round trip: %d targets, %v", len(ts), err)
 	}
+	// A JSON file that is not named target-*.json (a leftover targets.json)
+	// is not a target and is not read.
+	if ts, err := LoadTargets(mutate(func(_, _ map[string]any, files fstest.MapFS) {
+		files["targets.json"] = &fstest.MapFile{Data: []byte("not json")}
+	})); err != nil || len(ts) != len(Targets) {
+		t.Fatalf("with a leftover targets.json: %d targets, %v", len(ts), err)
+	}
 	for _, tc := range []struct {
 		name  string
 		files fstest.MapFS

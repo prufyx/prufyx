@@ -32,6 +32,8 @@ func TestEveryExtractorDigestCoversItsPackageOnDisk(t *testing.T) {
 		t.Fatal("empty catalog")
 	}
 	coveredBy := map[string]map[string]bool{} // package dir -> covered base names
+	jsonIDs := map[string]map[string]int{}    // package dir -> data file -> ids covering it
+	ids := map[string]int{}                   // package dir -> registered ids
 	for id, spec := range cat {
 		ex := spec.New(1)
 		src, ok := ex.(extract.CodeSource)
@@ -49,7 +51,9 @@ func TestEveryExtractorDigestCoversItsPackageOnDisk(t *testing.T) {
 		}
 		if coveredBy[disk] == nil {
 			coveredBy[disk] = map[string]bool{}
+			jsonIDs[disk] = map[string]int{}
 		}
+		ids[disk]++
 		goFiles, err := filepath.Glob(filepath.Join(disk, "*.go"))
 		if err != nil {
 			t.Fatal(err)
@@ -65,6 +69,9 @@ func TestEveryExtractorDigestCoversItsPackageOnDisk(t *testing.T) {
 			}
 			covered[base] = true
 			coveredBy[disk][base] = true
+			if strings.HasSuffix(base, ".json") {
+				jsonIDs[disk][base]++
+			}
 			data, err := os.ReadFile(filepath.Join(disk, base))
 			if err != nil {
 				t.Fatalf("%s: %v", id, err)
@@ -77,6 +84,15 @@ func TestEveryExtractorDigestCoversItsPackageOnDisk(t *testing.T) {
 		for _, f := range goFiles {
 			if !strings.HasSuffix(f, "_test.go") && !covered[filepath.Base(f)] {
 				t.Errorf("%s: the digest does not cover %s", id, f)
+			}
+		}
+	}
+	// A data file is either shared by every id of its package or belongs to
+	// exactly one of them: one id's digest never covers another id's data.
+	for disk, files := range jsonIDs {
+		for f, n := range files {
+			if n != 1 && n != ids[disk] {
+				t.Errorf("%s: %s is covered by %d of the package's %d ids", disk, f, n, ids[disk])
 			}
 		}
 	}

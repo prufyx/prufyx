@@ -504,6 +504,16 @@ extractor and its version (2.3.0) are unchanged, as are rules, vectors,
 candidates and attestations, except that every id's code digest differs once
 from the digest it carried before.
 
+Records already published keep the digest they were derived with and are not
+touched by this change. The knowledge gate re-derives a mechanical rule or a
+line attestation that a change adds or modifies, and refuses it unless it
+names the extractor id, version and code digest of the build that runs the
+gate. So the first rule or attestation of a project changed after this
+version must come from a full run of that project's id with this build (which
+then carries the id's own digest), not from an edit of a record that carries
+the old shared digest. From then on, a change to one target only requires
+re-deriving the records of that target's id.
+
 ## Changes from version 2.2.0
 
 Version 2.3.0 reads a `{{` in a CRD schema description as documentation

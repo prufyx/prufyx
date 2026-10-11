@@ -17,9 +17,11 @@ import (
 // the program but never change what an extractor derives. So the digest of
 // an id moves with the code and with its own target, and with nothing else.
 //
-// The view is an fs.ReadDirFS whose root lists only those files; every other
-// name does not exist in it. Digest lines name the files by their paths in
-// the package, with their bytes.
+// The view is an fs.ReadDirFS whose root lists only those files (test files
+// included; extract.CodeFiles skips them); every other name does not exist in
+// it, and the root itself cannot be opened, so fs.Stat, fs.WalkDir and fs.Sub
+// do not work on it: list it with fs.ReadDir or fs.Glob. Digest lines name the
+// files by their paths in the package, with their bytes.
 func CodeView(fsys fs.FS, project string) fs.FS {
 	return codeView{fsys: fsys, own: TargetFileName(project)}
 }
