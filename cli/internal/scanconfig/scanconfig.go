@@ -280,7 +280,10 @@ func parseVersions(value any, path string) (map[string]string, error) {
 	}
 	out := make(map[string]string, len(m))
 	for _, slug := range sortedKeys(m) {
-		if _, err := cncfcheck.Component(slug); err != nil {
+		// A community project of the reviewed table is named too: whether the
+		// knowledge holds data for it is decided by the scan, which refuses
+		// one without data with the community catalog message.
+		if _, err := cncfcheck.Component(slug); err != nil && !cncfcheck.IsCommunityProject(slug) {
 			return nil, fail("unknown project %s under %s", echo(slug), path)
 		}
 		version, ok := m[slug].(string)

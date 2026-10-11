@@ -158,6 +158,8 @@ pack carries exactly the schema of the newest feature it uses:
 | a support-range rule (`severity`) | `prufyx.io/cncf-source-rule-pack/v1alpha8` |
 | distribution records ([kubernetes-distribution-versions.md](kubernetes-distribution-versions.md#distribution-records-and-applicability)) | `prufyx.io/cncf-source-rule-pack/v1alpha9` |
 | served-API lists ([scan.md](scan.md#served-api-lists)) | `prufyx.io/cncf-source-rule-pack/v1alpha10` |
+| a removal-crossing rule | `prufyx.io/cncf-source-rule-pack/v1alpha11` |
+| an entry of a community-catalog project ([custom-resources.md](custom-resources.md#community-catalog)) | `prufyx.io/cncf-source-rule-pack/v1alpha12` |
 
 So a pack with path policies and no notice rule, with or without line
 attestations, uses `v1alpha5`, and `v1alpha5` without path policies is refused. Binaries built

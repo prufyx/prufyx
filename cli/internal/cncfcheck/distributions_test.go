@@ -298,10 +298,10 @@ func TestPackSchemaLevelDistributions(t *testing.T) {
 			}
 		}
 	}
-	// The distributions row is followed only by the served-list row and the
-	// crossing row.
-	if rows := packFeatureLevels; rows[len(rows)-3].schema != packSchemaDistributions || rows[len(rows)-2].schema != packSchemaServedAPIs || rows[len(rows)-1].schema != packSchemaCrossing {
-		t.Fatalf("last levels %s %s %s", rows[len(rows)-3].schema, rows[len(rows)-2].schema, rows[len(rows)-1].schema)
+	// The distributions row is followed only by the served-list row, the
+	// crossing row and the community-catalog row.
+	if rows := packFeatureLevels; rows[len(rows)-4].schema != packSchemaDistributions || rows[len(rows)-3].schema != packSchemaServedAPIs || rows[len(rows)-2].schema != packSchemaCrossing || rows[len(rows)-1].schema != packSchemaCommunity {
+		t.Fatalf("last levels %s %s %s %s", rows[len(rows)-4].schema, rows[len(rows)-3].schema, rows[len(rows)-2].schema, rows[len(rows)-1].schema)
 	}
 	// A binary that predates distributions rejects such a pack twice: the
 	// member is unknown to its pack type, and so is the schema.

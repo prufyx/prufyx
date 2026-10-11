@@ -12,8 +12,12 @@ import (
 )
 
 type Report struct {
-	Schema              string                  `json:"schema"`
-	Project             string                  `json:"project"`
+	Schema  string `json:"schema"`
+	Project string `json:"project"`
+	// Catalog is "community" for a project of the community catalog (outside
+	// the embedded CNCF landscape catalog) and absent for a CNCF project, so
+	// every report of a CNCF project keeps its bytes.
+	Catalog             string                  `json:"catalog,omitempty"`
 	Assessment          string                  `json:"assessment"`
 	KnowledgeOrigin     string                  `json:"knowledgeOrigin"`
 	KnowledgeRevision   string                  `json:"knowledgeRevision"`
@@ -202,7 +206,7 @@ func (c Checker) CheckRule(project, ruleID string, inputRaw []byte, now time.Tim
 }
 
 func (b bundle) check(project, selectedRuleID string, inputRaw []byte, now time.Time) (Report, error) {
-	if !b.hasProject(project) {
+	if !b.hasCheckableProject(project) {
 		return Report{}, ErrInvalid
 	}
 	input, err := constraintengine.ParseInput(inputRaw, b.registry)
@@ -259,7 +263,7 @@ func (c Checker) CheckFacts(project string, facts []string, inputRaw []byte, now
 }
 
 func (b bundle) checkFacts(project string, facts []string, inputRaw []byte, now time.Time) (Report, error) {
-	if !b.hasProject(project) || len(facts) == 0 {
+	if !b.hasCheckableProject(project) || len(facts) == 0 {
 		return Report{}, ErrInvalid
 	}
 	input, err := constraintengine.ParseInput(inputRaw, b.registry)
@@ -286,7 +290,7 @@ func (b bundle) reportSelection(project, selectedRuleID string, family bool, inp
 		return Report{}, ErrIntegrity
 	}
 	report := Report{
-		Schema: "prufyx.io/cncf-source-check/v1alpha1", Project: project, Assessment: "UNKNOWN",
+		Schema: "prufyx.io/cncf-source-check/v1alpha1", Project: project, Catalog: b.catalogOf(project), Assessment: "UNKNOWN",
 		KnowledgeOrigin: "embedded", KnowledgeRevision: b.pack.Revision, KnowledgePackDigest: b.packDigest,
 		CatalogueDigest: b.catalogueDigest, InputFileDigest: digest(inputRaw),
 		RequestedRuleID: selectedRuleID,

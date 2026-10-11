@@ -3,28 +3,35 @@
 package communityapp
 
 import (
-	"strings"
 	"testing"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 )
 
 // The usage text of the custom-resource flags names only projects the
-// command reads: a community project is refused by the same command.
-func TestCNCFCustomResourceProjectsExcludeCommunity(t *testing.T) {
-	got := cncfCustomResourceProjects()
-	if len(got) == 0 {
-		t.Fatal("no CNCF custom-resource project listed")
+// command accepts: a CNCF project, or a community project the embedded
+// knowledge holds data for. A community project without data is refused by
+// the same command and is not listed.
+func TestCNCFCustomResourceProjectsListWhatTheCommandAccepts(t *testing.T) {
+	listed := map[string]bool{}
+	for _, slug := range cncfCustomResourceProjects() {
+		listed[slug] = true
 	}
-	for _, slug := range got {
-		if _, ok := cncfprepare.CustomResourceVersionsFact(slug); !ok {
-			t.Errorf("%s is listed but has no CNCF custom-resource fact", slug)
-		}
-		if _, community := cncfprepare.CommunityCustomResourceProject(slug); community {
-			t.Errorf("%s is a community project and must not be listed", slug)
-		}
+	if len(listed) == 0 {
+		t.Fatal("no custom-resource project listed")
 	}
-	if strings.Contains(strings.Join(got, ","), "gateway-api") {
-		t.Error("gateway-api (community) must not be listed")
+	for _, slug := range cncfprepare.CustomResourceProjects() {
+		_, cncf := cncfprepare.CustomResourceVersionsFact(slug)
+		known := false
+		if !cncf {
+			var err error
+			if known, err = cncfcheck.CommunityProjectHasData(slug); err != nil {
+				t.Fatalf("%s: %v", slug, err)
+			}
+		}
+		if want := cncf || known; listed[slug] != want {
+			t.Errorf("%s: listed=%v, accepted by the command=%v", slug, listed[slug], want)
+		}
 	}
 }

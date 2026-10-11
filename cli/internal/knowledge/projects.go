@@ -21,7 +21,9 @@ import (
 
 // ConstraintsProjectsIndexTargetPath is the index target of the per-project
 // CNCF layout. Every project has its own target under
-// knowledge/cncf/projects/<project>.v1.json.
+// knowledge/cncf/projects/<project>.v1.json, and every community project (a
+// project outside the CNCF landscape catalog) under
+// knowledge/community/projects/<project>.v1.json; the one index lists both.
 const ConstraintsProjectsIndexTargetPath = cncfcheck.ExternalIndexTargetPath
 
 // ErrLayout marks a package or store that uses the other CNCF target layout.
@@ -45,7 +47,7 @@ const (
 
 var (
 	splitIndexMemberRE   = regexp.MustCompile(`^targets/knowledge/cncf/[0-9a-f]{64}\.index\.v1\.json$`)
-	splitProjectMemberRE = regexp.MustCompile(`^targets/knowledge/cncf/projects/[0-9a-f]{64}\.([a-z0-9]+(?:-[a-z0-9]+)*)\.v1\.json$`)
+	splitProjectMemberRE = regexp.MustCompile(`^targets/knowledge/(?:cncf|community)/projects/[0-9a-f]{64}\.([a-z0-9]+(?:-[a-z0-9]+)*)\.v1\.json$`)
 	singleCNCFMemberRE   = regexp.MustCompile(`^targets/knowledge/[0-9a-f]{64}\.constraints\.v1\.json$`)
 )
 

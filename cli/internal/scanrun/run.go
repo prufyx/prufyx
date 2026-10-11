@@ -134,21 +134,23 @@ func Run(request Request, options Options) (Result, error) {
 	if err := checkComponents(catalog, effective); err != nil {
 		return Result{}, err
 	}
-	if len(effective.Target) == 0 {
-		return Result{}, usage(scanreport.UsageNoTarget)
-	}
-	paths, err := inputPaths(effective, configDir)
-	if err != nil {
-		return Result{}, err
-	}
-	workspace, err := intake.Open(paths, intake.Options{Permissions: request.Permissions, Stdin: options.Stdin})
-	if err != nil {
-		return Result{}, inputError(err, request)
-	}
-	if knowledge == nil {
+	// openKnowledge opens the knowledge database a scan reads (never called
+	// when knowledge was supplied). A community project named in the scan is
+	// looked up right after the component names are checked, as that check
+	// always answered for it before; every other scan opens the database
+	// after its input, as before.
+	openKnowledge := func() error {
 		targets := make([]string, 0, len(effective.Target))
 		for slug := range effective.Target {
 			targets = append(targets, slug)
+		}
+		// A community project named only as the current version is asked
+		// of the database too: whether it holds data for it decides if the
+		// project is known.
+		for slug := range effective.Current {
+			if _, named := effective.Target[slug]; !named && isCommunity(slug) {
+				targets = append(targets, slug)
+			}
 		}
 		sort.Strings(targets)
 		opened, err := OpenStore(request.KnowledgeDB, targets)
@@ -170,7 +172,7 @@ func Run(request Request, options Options) (Result, error) {
 			if autoStore && errors.As(err, &storeErr) {
 				storeErr.Auto = true
 			}
-			return Result{}, err
+			return err
 		}
 		if autoStore {
 			knowledgeNote = knowledgeauto.StalenessNote(opened.info.Provenance.ImportedVerifiedAt, "")
@@ -179,6 +181,31 @@ func Run(request Request, options Options) (Result, error) {
 			knowledgeSource = "knowledge source: local-db, revision " + opened.Revision() + ", bundle digest " + opened.PackDigest()
 		}
 		knowledge = opened
+		return nil
+	}
+	if knowledge == nil && namesCommunity(effective) {
+		if err := openKnowledge(); err != nil {
+			return Result{}, err
+		}
+	}
+	if err := checkCommunityKnown(knowledge, effective); err != nil {
+		return Result{}, err
+	}
+	if len(effective.Target) == 0 {
+		return Result{}, usage(scanreport.UsageNoTarget)
+	}
+	paths, err := inputPaths(effective, configDir)
+	if err != nil {
+		return Result{}, err
+	}
+	workspace, err := intake.Open(paths, intake.Options{Permissions: request.Permissions, Stdin: options.Stdin})
+	if err != nil {
+		return Result{}, inputError(err, request)
+	}
+	if knowledge == nil {
+		if err := openKnowledge(); err != nil {
+			return Result{}, err
+		}
 	}
 	store := knowledge.Store()
 	now := request.Now
@@ -237,6 +264,16 @@ func Run(request Request, options Options) (Result, error) {
 		component.Target, component.TargetSource = value.Value, string(value.Source)
 	}
 	sort.Strings(slugs)
+	// A project of the community catalog is labelled wherever it appears: in
+	// the inventory and in a note every output format carries.
+	if labeller, ok := knowledge.(interface{ Catalog(slug string) string }); ok {
+		for _, slug := range slugs {
+			if labeller.Catalog(slug) == cncfcheck.CatalogCommunity {
+				inventory[slug].Catalog = cncfcheck.CatalogCommunity
+				report.Notes = append(report.Notes, scanreport.Text(scanreport.NoteCommunityCatalog, slug))
+			}
+		}
+	}
 	for _, slug := range slugs {
 		component := inventory[slug]
 		if component.Target == "" {
@@ -474,4 +511,54 @@ func declarationsOf(effective scanconfig.Effective) declarations {
 		scopeComplete: effective.ResourceScopeComplete.Set && effective.ResourceScopeComplete.Value,
 		applyRequired: effective.TargetApplyRequired.Set && effective.TargetApplyRequired.Value,
 	}
+}
+
+// isCommunity reports whether slug is a community project of the reviewed
+// custom-resource table (outside the embedded CNCF landscape catalog).
+func isCommunity(slug string) bool {
+	_, community := cncfprepare.CommunityCustomResourceProject(slug)
+	return community
+}
+
+// namesCommunity reports whether the scan names a community project.
+func namesCommunity(effective scanconfig.Effective) bool {
+	for slug := range effective.Current {
+		if isCommunity(slug) {
+			return true
+		}
+	}
+	for slug := range effective.Target {
+		if isCommunity(slug) {
+			return true
+		}
+	}
+	return false
+}
+
+// checkCommunityKnown refuses a community project the knowledge holds no
+// data for, with the answer given for every community project before the
+// community knowledge step. The component catalog names community projects
+// when it is the compiled catalog alone (a scan with --knowledge-db); the
+// knowledge they are looked up in is known only once it is open.
+func checkCommunityKnown(knowledge Knowledge, effective scanconfig.Effective) error {
+	if knowledge == nil {
+		return nil
+	}
+	names := make([]string, 0, len(effective.Current)+len(effective.Target))
+	for slug := range effective.Current {
+		names = append(names, slug)
+	}
+	for slug := range effective.Target {
+		names = append(names, slug)
+	}
+	sort.Strings(names)
+	for _, slug := range names {
+		if !isCommunity(slug) {
+			continue
+		}
+		if _, ok := knowledge.Component(slug); !ok {
+			return usage(scanreport.UsageCommunityComponent, quote(slug))
+		}
+	}
+	return nil
 }

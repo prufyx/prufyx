@@ -158,7 +158,7 @@ func parseExternalBundle(raw []byte, base *bundle) (ExternalBundle, error) {
 			return ExternalBundle{}, err
 		}
 	}
-	candidate := bundle{landscape: base.landscape, priority: base.priority, pack: packValue, registry: base.registry, packDigest: digest(raw), catalogueDigest: base.catalogueDigest}
+	candidate := bundle{landscape: base.landscape, community: base.community, priority: base.priority, pack: packValue, registry: base.registry, packDigest: digest(raw), catalogueDigest: base.catalogueDigest}
 	rules, err := candidate.parseRulesCorpus(candidate.packRules(), nil)
 	if err != nil {
 		return ExternalBundle{}, ErrIntegrity
@@ -314,7 +314,10 @@ func (b ExternalBundle) evaluate(project, selectedRuleID string, inputRaw []byte
 	if err != nil {
 		return Report{}, err
 	}
-	if !base.hasProject(project) {
+	selected := bundle{landscape: base.landscape, community: base.community, priority: base.priority, pack: b.pack, registry: b.registry, packDigest: b.bundleDigest, catalogueDigest: base.catalogueDigest, policy: b.policy}
+	// A community project is named only when this envelope holds data for
+	// it; without data it is refused as an unknown project is.
+	if !base.hasProject(project) && !(base.isCommunity(project) && selected.communityHasData(project)) {
 		return Report{}, ErrInvalid
 	}
 	if selectedRuleID != "" {
@@ -326,7 +329,6 @@ func (b ExternalBundle) evaluate(project, selectedRuleID string, inputRaw []byte
 			return Report{}, ErrInvalid
 		}
 	}
-	selected := bundle{landscape: base.landscape, priority: base.priority, pack: b.pack, registry: b.registry, packDigest: b.bundleDigest, catalogueDigest: base.catalogueDigest, policy: b.policy}
 	input, err := constraintengine.ParseInput(inputRaw, selected.registry)
 	if err != nil {
 		return Report{}, ErrInvalid
@@ -348,7 +350,7 @@ func (b ExternalBundle) evaluate(project, selectedRuleID string, inputRaw []byte
 		return Report{}, ErrIntegrity
 	}
 	report := Report{
-		Schema: "prufyx.io/cncf-source-check/v1alpha1", Project: project, Assessment: "UNKNOWN",
+		Schema: "prufyx.io/cncf-source-check/v1alpha1", Project: project, Catalog: base.catalogOf(project), Assessment: "UNKNOWN",
 		KnowledgeOrigin: "external_declared", KnowledgeRevision: b.document.Revision, KnowledgePackDigest: b.bundleDigest,
 		CatalogueDigest: base.catalogueDigest, InputFileDigest: digest(inputRaw), SourceAuthority: externalSourceAuthority,
 		RequestedRuleID:   selectedRuleID,
@@ -457,6 +459,9 @@ func validateExternalPack(base bundle, packValue rulePack, revision string, reco
 		if json.Unmarshal(entry.Rule, &shape) != nil || shape.Subject.Component != subjectComponent(entry.Project, base.identities()[entry.Project].RepositoryURL) {
 			return ErrIntegrity
 		}
+		if base.isCommunity(entry.Project) && !communityRuleAdmitted(entry, shape) {
+			return ErrIntegrity
+		}
 		conditions := shape.conditions()
 		required := map[string]bool{}
 		for _, condition := range conditions {
@@ -474,10 +479,15 @@ func validateExternalPack(base bundle, packValue rulePack, revision string, reco
 	return nil
 }
 
+// identities are the projects that can own an entry: the landscape and the
+// community catalog.
 func (b bundle) identities() map[string]projectIdentity {
-	identities := make(map[string]projectIdentity, len(b.landscape.Projects))
+	identities := make(map[string]projectIdentity, len(b.landscape.Projects)+len(b.community))
 	for _, project := range b.landscape.Projects {
 		identities[project.Slug] = project
+	}
+	for slug, project := range b.community {
+		identities[slug] = project
 	}
 	return identities
 }

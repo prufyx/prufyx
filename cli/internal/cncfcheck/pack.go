@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/distribution"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/servedapis"
@@ -100,8 +101,12 @@ type rulePack struct {
 }
 
 type bundle struct {
-	landscape       landscapeDocument
-	priority        priorityDocument
+	landscape landscapeDocument
+	priority  priorityDocument
+	// community holds the identities of the community projects of the
+	// reviewed custom-resource table (community.go). They are never
+	// landscape projects.
+	community       map[string]projectIdentity
 	pack            rulePack
 	registry        constraintengine.Registry
 	packDigest      string
@@ -141,6 +146,12 @@ func loadUncached() (bundle, error) {
 // registry built from definitions. Every check of the packaged knowledge is
 // here, so tests can hold synthetic knowledge to exactly the same rules.
 func assemble(landscapeRaw, priorityRaw, packRaw []byte, factDefinitions []constraintengine.FactDefinition) (bundle, error) {
+	return assembleWithCommunity(landscapeRaw, priorityRaw, packRaw, factDefinitions, customresources.Projects())
+}
+
+// assembleWithCommunity is assemble over an explicit reviewed table, so
+// tests can hold a table with an overlap to the same refusal.
+func assembleWithCommunity(landscapeRaw, priorityRaw, packRaw []byte, factDefinitions []constraintengine.FactDefinition, table []customresources.Project) (bundle, error) {
 	var result bundle
 	// Pack member names are checked exactly before decoding, and the
 	// attestation section is taken from the same function every other
@@ -183,6 +194,14 @@ func assemble(landscapeRaw, priorityRaw, packRaw []byte, factDefinitions []const
 			return bundle{}, ErrIntegrity
 		}
 	}
+	// The community catalog: identities of the reviewed table, disjoint
+	// from the landscape by slug and by subject component.
+	if result.community, err = communityIdentities(table, result.landscape.Projects); err != nil {
+		return bundle{}, ErrIntegrity
+	}
+	for slug, community := range result.community {
+		identities[slug] = community
+	}
 	definitions := map[string]constraintengine.FactDefinition{}
 	for _, definition := range factDefinitions {
 		definitions[definition.ID] = definition
@@ -205,6 +224,9 @@ func assemble(landscapeRaw, priorityRaw, packRaw []byte, factDefinitions []const
 		}
 		var shape ruleShape
 		if json.Unmarshal(entry.Rule, &shape) != nil || shape.Subject.Component != subjectComponent(entry.Project, identities[entry.Project].RepositoryURL) {
+			return bundle{}, ErrIntegrity
+		}
+		if result.isCommunity(entry.Project) && !communityRuleAdmitted(entry, shape) {
 			return bundle{}, ErrIntegrity
 		}
 		conditions := shape.conditions()
@@ -303,6 +325,9 @@ const (
 	// packSchemaCrossing is the level of a pack holding a rule with a
 	// removal-crossing object.
 	packSchemaCrossing = "prufyx.io/cncf-source-rule-pack/v1alpha11"
+	// packSchemaCommunity is the level of a pack holding an entry of a
+	// community project (community.go).
+	packSchemaCommunity = "prufyx.io/cncf-source-rule-pack/v1alpha12"
 )
 
 // packFeature is one pack feature and the schema that introduced it.
@@ -331,6 +356,7 @@ var packFeatureLevels = []packFeature{
 	{packSchemaCrossing, func(_ rulePack, rules []json.RawMessage) (bool, error) {
 		return constraintengine.AnyCrossingRule(rules)
 	}},
+	{packSchemaCommunity, func(pack rulePack, _ []json.RawMessage) (bool, error) { return anyCommunityEntry(pack), nil }},
 }
 
 // requiredPackSchema is the schema of the highest-level feature the pack
@@ -527,7 +553,8 @@ type conditionShape struct {
 	FactID    string `json:"factId"`
 }
 type ruleShape struct {
-	Subject struct {
+	Operator string `json:"operator"`
+	Subject  struct {
 		Component string `json:"component"`
 		From      string `json:"from"`
 		To        string `json:"to"`

@@ -219,6 +219,11 @@
             "flag"
           ]
         },
+        "catalog": {
+          "enum": [
+            "community"
+          ]
+        },
         "covered": {
           "type": "boolean"
         }
