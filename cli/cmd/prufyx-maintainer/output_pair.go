@@ -82,7 +82,7 @@ func openOutputParent(firstPath, secondPath string) (dirFD int, firstBase, secon
 	}
 	parent := filepath.Dir(firstAbs)
 	if filepath.Dir(secondAbs) != parent || filepath.Base(firstAbs) == filepath.Base(secondAbs) {
-		return -1, "", "", fmt.Errorf("inventory outputs must be distinct files in one directory")
+		return -1, "", "", fmt.Errorf("the two output files must be distinct files in one directory")
 	}
 	if err := rejectSymlinkComponents(parent); err != nil {
 		return -1, "", "", err

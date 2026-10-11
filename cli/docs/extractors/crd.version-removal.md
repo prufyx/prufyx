@@ -39,7 +39,7 @@ extractor (full-commit citations, full-tree scan, withheld pairs).
 Every target, with its catalog, repository, release tags, first line, the
 paths it reads and the number of reviewed exclusions, is listed in
 [../generated/crd-version-targets.md](../generated/crd-version-targets.md),
-generated from `targets.json` by `prufyx-maintainer docs-tables`
+generated from the target data by `prufyx-maintainer docs-tables`
 (`prufyx-maintainer extract list` lists the registered ids).
 
 In a listed directory, a file whose name contains `crd` (in any case) but

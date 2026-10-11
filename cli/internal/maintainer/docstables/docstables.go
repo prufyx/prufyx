@@ -3,7 +3,7 @@
 // Package docstables renders the documentation tables that are generated
 // from reviewed data compiled into Prufyx: the custom-resource table
 // (internal/customresources/table.json) and the crd.version-removal targets
-// (internal/extract/crdversions/targets.json). The tables say only what the
+// (the target data of internal/extract/crdversions). The tables say only what the
 // data says; prose about them stays in the hand-written documents that link
 // to them.
 package docstables
@@ -80,7 +80,7 @@ func CustomResources(projects []customresources.Project, reserved []customresour
 // lines, the paths it reads and the number of reviewed exclusions.
 func CRDTargets(targets []crdversions.Target) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, header, "internal/extract/crdversions/targets.json")
+	fmt.Fprintf(&b, header, "the target data of internal/extract/crdversions")
 	b.WriteString("# crd.version-removal targets\n\n")
 	b.WriteString("The reviewed targets of the `crd.version-removal` extractor\n(see [../extractors/crd.version-removal.md](../extractors/crd.version-removal.md)).\n\n")
 	b.WriteString("| Extractor id | Catalog | Repository | Release tags | First pair from | Attests lines | CRD manifests | Reviewed exclusions |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n")
@@ -101,11 +101,11 @@ func CRDTargets(targets []crdversions.Target) string {
 		if t.DeclaredChannel != "" {
 			manifests = "channel " + code(t.DeclaredChannel) + " (declared): " + manifests
 			for _, c := range t.Channels {
-				manifests += "; channel " + code(c.Name) + ": " + paths(c.Paths)
+				manifests += "; channel " + code(c.Name) + ", read only to keep the versions it still serves out of rules: " + paths(c.Paths)
 			}
 		}
 		if r := t.Remote; r != nil {
-			manifests += fmt.Sprintf("; from %d.%d: the files listed by %s of %s, at the tag %s names (%d pinned tags)", r.FromLine[0], r.FromLine[1], code(r.Directory+"/kustomization.yaml"), code(r.Repo), code(r.Kustomization), len(r.Pins))
+			manifests = fmt.Sprintf("before %d.%d: %s; from %d.%d: the files listed by %s of %s, at the tag %s names (pinned tags: %d)", r.FromLine[0], r.FromLine[1], manifests, r.FromLine[0], r.FromLine[1], code(r.Directory+"/kustomization.yaml"), code(r.Repo), code(r.Kustomization), len(r.Pins))
 		}
 		fmt.Fprintf(&b, "| %s | %s | %s | %s | %d.%d | %s | %s | %d |\n", code(t.ExtractorID()), catalog, code(t.Repo), strings.Join(tags, ", then "), t.MinFrom[0], t.MinFrom[1], attests, manifests, len(t.Exclude))
 	}

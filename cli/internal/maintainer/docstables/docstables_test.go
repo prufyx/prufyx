@@ -68,8 +68,8 @@ func TestCRDTargetsRendersRemoteChannelsAndEscapes(t *testing.T) {
 	}
 	got := CRDTargets(targets)
 	for _, want := range []string{
-		"| `crd.version-removal.a` | CNCF | `github.com/x/a` | `vX.Y.Z`, then `X.Y.Z` | 1.2 | no | files matching `^(a\\|b)\\.yaml$` anywhere under `crds`, `extra.yaml` (when present); from 1.4: the files listed by `crd/kustomization.yaml` of `github.com/x/b`, at the tag `config/kustomization.yaml` names (1 pinned tags) | 0 |",
-		"| `crd.version-removal.c` | CNCF | `github.com/x/c` | `X.Y.Z` | 0.1 | no | channel `standard` (declared): `std/crd.yaml`; channel `experimental`: `exp/crd.yaml` | 0 |",
+		"| `crd.version-removal.a` | CNCF | `github.com/x/a` | `vX.Y.Z`, then `X.Y.Z` | 1.2 | no | before 1.4: files matching `^(a\\|b)\\.yaml$` anywhere under `crds`, `extra.yaml` (when present); from 1.4: the files listed by `crd/kustomization.yaml` of `github.com/x/b`, at the tag `config/kustomization.yaml` names (pinned tags: 1) | 0 |",
+		"| `crd.version-removal.c` | CNCF | `github.com/x/c` | `X.Y.Z` | 0.1 | no | channel `standard` (declared): `std/crd.yaml`; channel `experimental`, read only to keep the versions it still serves out of rules: `exp/crd.yaml` | 0 |",
 	} {
 		if !strings.Contains(got, want+"\n") {
 			t.Errorf("missing row %s in\n%s", want, got)

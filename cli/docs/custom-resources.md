@@ -16,8 +16,7 @@ release holds no such rule yet, so today every check below answers `UNKNOWN`
 ## Projects
 
 The projects, and the API groups their CRDs define, are a reviewed table
-compiled into Prufyx (`internal/customresources/table.json`, checked when the
-program starts). Each group is cited from the project's CRD manifest at a
+compiled into Prufyx (`internal/customresources/table.json`). Each group is cited from the project's CRD manifest at a
 pinned commit. A project is either a project of the CNCF landscape catalog
 that Prufyx embeds (`CNCF`) or a project of the **community catalog**
 (`community`), see below. The list of projects, with the fact and the API

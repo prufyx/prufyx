@@ -570,8 +570,13 @@ func runDocsTables(args []string) error {
 	first, second := filepath.Join(root, files[0].Path), filepath.Join(root, files[1].Path)
 	if *check {
 		a, b, err := readOutputPair(first, second)
-		if err != nil || string(a) != files[0].Content || string(b) != files[1].Content {
-			return &commandError{code: 2, message: "docs tables: generated output is stale (run prufyx-maintainer docs-tables)", err: err}
+		if err != nil {
+			return &commandError{code: 2, message: "docs tables: cannot read the generated outputs: " + err.Error(), err: err}
+		}
+		for i, current := range [][]byte{a, b} {
+			if string(current) != files[i].Content {
+				return &commandError{code: 2, message: "docs tables: " + files[i].Path + " is stale (run prufyx-maintainer docs-tables)"}
+			}
 		}
 		return nil
 	}
