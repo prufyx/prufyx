@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
@@ -723,9 +724,30 @@ func TestTargetsAreCatalogProjects(t *testing.T) {
 	components, err := cncfcheck.CatalogSubjectComponents()
 	must(t, err)
 	seen := map[string]bool{}
+	community := 0
 	for _, tg := range Targets {
-		if !slices.Contains(components, tg.Component) {
-			t.Fatalf("%s: %s is not a catalog subject component", tg.Project, tg.Component)
+		switch tg.Catalog {
+		case CatalogCNCF:
+			if !slices.Contains(components, tg.Component) {
+				t.Fatalf("%s: %s is not a catalog subject component", tg.Project, tg.Component)
+			}
+		case CatalogCommunity:
+			// A community target is a community project of the reviewed
+			// table, with the same repository, and neither its component
+			// nor its slug is a CNCF catalog one.
+			community++
+			p, ok := customresources.ProjectFor(tg.Project)
+			if !ok || !p.Community() || p.Upstream.Repository != "https://"+tg.Repo || p.Upstream.Name != tg.Name || tg.Attest {
+				t.Fatalf("%s: community target without its community table entry (%+v)", tg.Project, p)
+			}
+			if slices.Contains(components, tg.Component) {
+				t.Fatalf("%s: %s is a CNCF catalog component", tg.Project, tg.Component)
+			}
+			if _, err := cncfcheck.Component(tg.Project); err == nil {
+				t.Fatalf("%s is a CNCF catalog slug", tg.Project)
+			}
+		default:
+			t.Fatalf("%s: catalog %q", tg.Project, tg.Catalog)
 		}
 		if _, err := extract.ParseRepo(tg.Repo); err != nil || "pkg:"+strings.Replace(strings.TrimPrefix(tg.Repo, "github.com/"), "", "", 1) != strings.Replace(tg.Component, "pkg:github/", "pkg:", 1) {
 			t.Fatalf("%s: repository %s does not match component %s", tg.Project, tg.Repo, tg.Component)
@@ -734,5 +756,8 @@ func TestTargetsAreCatalogProjects(t *testing.T) {
 			t.Fatalf("%s: duplicate or invalid", tg.Project)
 		}
 		seen[tg.Project] = true
+	}
+	if community == 0 {
+		t.Fatal("no community target")
 	}
 }

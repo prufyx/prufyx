@@ -18,6 +18,15 @@ import (
 // TargetsSchema identifies targets.json.
 const TargetsSchema = "prufyx.io/crd-version-targets/v1"
 
+// The catalogs a target's project may belong to.
+const (
+	// CatalogCNCF: a project of the embedded CNCF landscape catalog.
+	CatalogCNCF = "cncf"
+	// CatalogCommunity: a project outside the CNCF catalog, listed in the
+	// reviewed custom-resource table with its upstream provenance.
+	CatalogCommunity = "community"
+)
+
 // targetsJSON is the reviewed source table. It is data, not code, but it is
 // embedded next to the code and covered by the extractor's code digest, so
 // any change to it is a new extractor version and is reviewed as one.
@@ -32,6 +41,14 @@ var targetsJSON []byte
 type Target struct {
 	// Project is the catalog project slug, also the rule id prefix.
 	Project string
+	// Catalog is the catalog the project belongs to: CatalogCNCF (the
+	// embedded CNCF landscape catalog) or CatalogCommunity (a project
+	// outside the CNCF catalog whose identity, upstream repository and
+	// licence the reviewed custom-resource table records; nothing about
+	// it says it is a CNCF project). targets.json names only the
+	// community catalog ("catalog": "community"); an entry without the
+	// field is a CNCF catalog project.
+	Catalog string
 	// Name is the public project name used in descriptions.
 	Name string
 	// Repo is the repository key, github.com/<owner>/<name>.
@@ -127,6 +144,7 @@ type targetsFile struct {
 
 type targetJSON struct {
 	Project     string          `json:"project"`
+	Catalog     string          `json:"catalog,omitempty"`
 	Name        string          `json:"name"`
 	Repo        string          `json:"repo"`
 	Component   string          `json:"component"`
@@ -211,7 +229,22 @@ func LoadTargets(raw []byte) ([]Target, error) {
 }
 
 func (tj targetJSON) target() (Target, error) {
-	t := Target{Project: tj.Project, Name: tj.Name, Repo: tj.Repo, Component: tj.Component, FactProject: tj.FactProject, TagPrefixes: tj.TagPrefixes, Attest: tj.Attest}
+	t := Target{Project: tj.Project, Catalog: CatalogCNCF, Name: tj.Name, Repo: tj.Repo, Component: tj.Component, FactProject: tj.FactProject, TagPrefixes: tj.TagPrefixes, Attest: tj.Attest}
+	switch tj.Catalog {
+	case "":
+	case CatalogCommunity:
+		t.Catalog = CatalogCommunity
+	default:
+		// "cncf" is not spelled out: an entry without the field is a CNCF
+		// catalog project, so one target has exactly one spelling.
+		return t, fmt.Errorf("catalog %q: omit it for a CNCF catalog project or name %q", tj.Catalog, CatalogCommunity)
+	}
+	if t.Catalog == CatalogCommunity && t.Attest {
+		// A community project's line reviews have no knowledge target to
+		// live in yet (per-project targets are split by CNCF catalog
+		// project), so it never attests.
+		return t, fmt.Errorf("a community catalog target does not attest")
+	}
 	switch {
 	case !projectRE.MatchString(t.Project) || len(t.ExtractorID()) > 128:
 		return t, fmt.Errorf("project slug")

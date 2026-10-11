@@ -21,6 +21,14 @@ func attestingTarget(exclude ...Exclusion) Target {
 	return tg
 }
 
+// communityTarget is a synthetic community catalog target. Even with the
+// attest flag forced on (the loader refuses it), it never attests.
+func communityTarget() Target {
+	tg := synthTarget()
+	tg.Catalog, tg.Attest = CatalogCommunity, true
+	return tg
+}
+
 func attestationFor(t *testing.T, out *extract.Output, line string) *lineattest.LineAttestation {
 	t.Helper()
 	for i := range out.Attestations {
@@ -108,7 +116,10 @@ func TestNotAttested(t *testing.T) {
 	}{
 		"target does not attest": {synthTarget(), []release{
 			{"v1.0.0", map[string]string{"deploy/crds/a.yaml": alpha}}, {"v1.1.0", map[string]string{"deploy/crds/a.yaml": alpha}},
-		}, "1.0.0", "1.1.0", "not registered"},
+		}, "1.0.0", "1.1.0", "attest is off"},
+		"community target": {communityTarget(), []release{
+			{"v1.0.0", map[string]string{"deploy/crds/a.yaml": alpha}}, {"v1.1.0", map[string]string{"deploy/crds/a.yaml": alpha}},
+		}, "1.0.0", "1.1.0", "community catalog"},
 		"flapping version": {attestingTarget(), []release{
 			{"v1.0.0", map[string]string{"deploy/crds/a.yaml": crd("Alpha", "v1alpha1", "v1")}},
 			{"v1.1.0", map[string]string{"deploy/crds/a.yaml": crd("Alpha", "v1")}},
@@ -192,11 +203,20 @@ var attestPending = []string{"antrea", "cert-manager", "cilium", "cloudnativepg"
 
 // A target attests only when its project is in the reviewed custom-resource
 // table (its set fact is registered), and never while it is listed as
-// pending; the family covers exactly the registered components.
+// pending; the family covers exactly the registered CNCF catalog
+// components. A community target never attests (the loader refuses it) and
+// the family never admits its component: its line reviews have no
+// knowledge target yet.
 func TestAttestingTargetsAreTheRegisteredProjects(t *testing.T) {
 	family, _ := lineattest.LookupFamily(lineattest.FamilyCustomResourceVersions)
 	for _, tg := range Targets {
-		_, registered := customresources.ProjectFor(tg.Project)
+		p, registered := customresources.ProjectFor(tg.Project)
+		if tg.Catalog == CatalogCommunity {
+			if !registered || !p.Community() || tg.Attest || family.Admits(tg.Component) || slices.Contains(attestPending, tg.Project) {
+				t.Fatalf("%s: community target: registered %v, attest %v, family admits %v", tg.Project, registered, tg.Attest, family.Admits(tg.Component))
+			}
+			continue
+		}
 		pending := slices.Contains(attestPending, tg.Project)
 		if tg.Attest != (registered && !pending) || family.Admits(tg.Component) != registered {
 			t.Fatalf("%s: attest %v, registered %v, pending %v, family admits %v", tg.Project, tg.Attest, registered, pending, family.Admits(tg.Component))

@@ -74,7 +74,7 @@ func TestCustomResourceCheckArguments(t *testing.T) {
 // The human set line names why a set is not complete.
 func TestCustomResourceSetLine(t *testing.T) {
 	t.Parallel()
-	path := writeCNCFFile(t, "manifests.yaml", []byte(customResourceManifests+"---\napiVersion: monitoring.coreos.com/v1\nkind: ServiceMonitor\nmetadata:\n  name: private-tls\n"), 0o600)
+	path := writeCNCFFile(t, "manifests.yaml", []byte(customResourceManifests+"---\napiVersion: postgres-operator.crunchydata.com/v1beta1\nkind: PostgresCluster\nmetadata:\n  name: private-tls\n"), 0o600)
 	code, stdout, _ := runCNCFCLI(t, customResourceArgs(path, "--custom-resources-complete")...)
 	if code != ExitUnknown || !strings.Contains(stdout, "custom-resource set: not complete (objects of a custom-resource group that no reviewed project owns are present)\n") {
 		t.Fatalf("code=%d %q", code, stdout)
