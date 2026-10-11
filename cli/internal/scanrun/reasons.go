@@ -81,6 +81,12 @@ var reasonOutcomes = map[string]outcome{
 	// outside the range is likewise not reviewed, never excluded.
 	constraintengine.ReasonReleaseBoundaryNotReviewed: gapOutcome(scanreport.GapRuleNotDecided),
 
+	// A chart rule excluded from an input that does not declare its chart is
+	// not applicable; an application rule (or a dependency) on a component
+	// declared as a chart is not decided.
+	constraintengine.ReasonSubjectChartNotDeclared: decided,
+	constraintengine.ReasonAppVersionNotDeclared:   gapOutcome(scanreport.GapRuleNotDecided),
+
 	// A consensus rule that finds nothing never passes.
 	constraintengine.ReasonConsensusNoKnownIssue: gapOutcome(scanreport.GapRuleNoKnownIssue),
 }

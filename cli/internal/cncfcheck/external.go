@@ -435,6 +435,10 @@ func validateExternalPack(base bundle, packValue rulePack, revision string, reco
 	if crossing, err := constraintengine.AnyCrossingRule(rules); err != nil || crossing {
 		return ErrIntegrity
 	}
+	// Nor chart or require_set_member rules.
+	if chart, err := constraintengine.AnyChartRule(rules); err != nil || chart {
+		return ErrIntegrity
+	}
 	if !validPackSchema(packValue) || packValue.Revision != revision || packValue.PolicyID != base.pack.PolicyID || packValue.PolicyDigest != base.pack.PolicyDigest || packValue.LandscapeFileDigest != base.landscape.LandscapeFileDigest || packValue.RegistryDigest != base.registry.Digest() || len(packValue.Entries) > maxExternalEntries {
 		return ErrIntegrity
 	}

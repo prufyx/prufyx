@@ -200,7 +200,7 @@ func applyBasisSemantics(r rule, claim Claim) Claim {
 		case "BLOCKED":
 			claim.Status, claim.ReasonCode = StatusNotice, ReasonLeadNotVerified
 			// Matched members disclose a BLOCKED set claim only.
-			claim.MatchedMembers = nil
+			claim.MatchedMembers, claim.MissingMembers = nil, nil
 		case "PASS":
 			claim.Status, claim.ReasonCode = StatusNoKnownIssue, ReasonLeadNoKnownIssue
 		}
@@ -252,7 +252,7 @@ func validBasisClaims(report Report) bool {
 		if claim.Status != StatusNoKnownIssue {
 			continue
 		}
-		if !basisContract || claim.EvidenceFreshness != "current" || claim.MatchedMembers != nil {
+		if !basisContract || claim.EvidenceFreshness != "current" || claim.MatchedMembers != nil || claim.MissingMembers != nil {
 			return false
 		}
 		if !(consensus && claim.ReasonCode == ReasonConsensusNoKnownIssue) && !(lead && claim.ReasonCode == ReasonLeadNoKnownIssue) {

@@ -399,9 +399,10 @@ func scopeContractDigestCrossing() string {
 func ScopeContractDigestCrossing() string { return scopeContractDigestCrossing() }
 
 // atLeastSeverityContract reports a digest that admits every feature of the
-// severity contract: the severity contract itself or the crossing one.
+// severity contract: the severity contract itself, the crossing one or the
+// chart one.
 func atLeastSeverityContract(digest string) bool {
-	return digest == engineContractDigestSeverity() || digest == engineContractDigestCrossing()
+	return digest == engineContractDigestSeverity() || atLeastCrossingContract(digest)
 }
 
 // validCrossingClaims binds the crossing semantics to the crossing contract:
@@ -415,7 +416,7 @@ func atLeastSeverityContract(digest string) bool {
 // Replay, which recomputes the whole report from the input and the rules, is
 // the authority on the match mode; the seal gate is not.
 func validCrossingClaims(report Report) bool {
-	crossingContract := report.EngineContractDigest == engineContractDigestCrossing()
+	crossingContract := atLeastCrossingContract(report.EngineContractDigest)
 	for _, claim := range report.Claims {
 		match := claim.CrossingMatch
 		if match == nil {

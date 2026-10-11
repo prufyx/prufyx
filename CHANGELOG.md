@@ -67,6 +67,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   API, and `scan` no longer checks Gateway API objects against the list of
   APIs Kubernetes serves (nor counts them as alpha Kubernetes APIs), unless
   that list names the group.
+- Chart rules (not used by any shipped rule yet): a rule subject may name a
+  Helm chart (`subject.chart`, a normalised repository URL and a chart name),
+  and the new `require_set_member` operator passes only when a complete
+  declared set holds every listed member, blocks when a complete set lacks one
+  (the claim lists `missingMembers`), and is UNKNOWN otherwise. A chart rule
+  applies only to a component declared through that same chart; an
+  application rule never applies to a chart hop, which is UNDETERMINED
+  (`RULE_APP_VERSION_NOT_DECLARED`). Documents with such a rule use rules
+  schema `prufyx.io/deterministic-constraint-rules/v1alpha8` and pack schema
+  `prufyx.io/cncf-source-rule-pack/v1alpha13`; documents without one are
+  byte-identical and evaluate exactly as before. `rulecheck` admits a chart
+  rule only from a mechanical extractor and only for a chart listed in the
+  reviewed chart-source table. See `cli/docs/contributing-rules.md`.
+
 - KIND-VAL (maintainer tool, `cli/internal/tools/kindval` and
   `cli/scripts/kind-val.sh`): checks the Kubernetes knowledge against real
   API servers in kind clusters, one per release line: the served APIs

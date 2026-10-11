@@ -21,6 +21,9 @@ type RuleIdentity struct {
 	Range *constraintengine.VersionRange `json:"range,omitempty"`
 	// Crossing is present only for a rule with a reviewed removal crossing.
 	Crossing *constraintengine.CrossingSpec `json:"crossing,omitempty"`
+	// Chart is present only for a chart rule: From and To are then chart
+	// versions of that chart, never application versions.
+	Chart *constraintengine.ChartRef `json:"chart,omitempty"`
 	// Withdrawn is true for a rule whose evidence was withdrawn: it stays in
 	// the pack so that it answers UNKNOWN, and it decides nothing.
 	Withdrawn bool `json:"withdrawn,omitempty"`
@@ -34,7 +37,7 @@ type RuleIdentity struct {
 
 // Transition returns the identity's reviewed subject for the shared matcher.
 func (r RuleIdentity) Transition() constraintengine.RuleTransition {
-	return constraintengine.RuleTransition{Component: r.Component, From: r.From, To: r.To, Range: r.Range, Crossing: r.Crossing}
+	return constraintengine.RuleTransition{Component: r.Component, From: r.From, To: r.To, Range: r.Range, Crossing: r.Crossing, Chart: r.Chart}
 }
 
 // EmbeddedRuleIdentities returns every integrity-checked embedded rule in a
@@ -64,7 +67,7 @@ func ruleIdentities(b bundle) ([]RuleIdentity, error) {
 		if err != nil {
 			return nil, ErrIntegrity
 		}
-		result = append(result, RuleIdentity{Project: entry.Project, Component: subject.Component, RuleID: shape.ID, From: subject.From, To: subject.To, Range: subject.Range, Crossing: subject.Crossing, Withdrawn: shape.Evidence.State == ruleStateWithdrawn, Kind: kind, Catalog: b.catalogOf(entry.Project)})
+		result = append(result, RuleIdentity{Project: entry.Project, Component: subject.Component, RuleID: shape.ID, From: subject.From, To: subject.To, Range: subject.Range, Crossing: subject.Crossing, Chart: subject.Chart, Withdrawn: shape.Evidence.State == ruleStateWithdrawn, Kind: kind, Catalog: b.catalogOf(entry.Project)})
 	}
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].Project != result[j].Project {

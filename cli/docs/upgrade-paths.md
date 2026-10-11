@@ -160,6 +160,7 @@ pack carries exactly the schema of the newest feature it uses:
 | served-API lists ([scan.md](scan.md#served-api-lists)) | `prufyx.io/cncf-source-rule-pack/v1alpha10` |
 | a removal-crossing rule | `prufyx.io/cncf-source-rule-pack/v1alpha11` |
 | an entry of a community-catalog project ([custom-resources.md](custom-resources.md#community-catalog)) | `prufyx.io/cncf-source-rule-pack/v1alpha12` |
+| a chart rule or a `require_set_member` rule ([contributing-rules.md](contributing-rules.md)) | `prufyx.io/cncf-source-rule-pack/v1alpha13` |
 
 So a pack with path policies and no notice rule, with or without line
 attestations, uses `v1alpha5`, and `v1alpha5` without path policies is refused. Binaries built
