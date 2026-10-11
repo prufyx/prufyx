@@ -5,7 +5,7 @@ answer: can this upgrade go ahead, what must be fixed first (with the file and
 object), and what was not checked. It never contacts a cluster or the network.
 
 Today `scan` evaluates **Kubernetes**: API versions in your manifests that a
-Kubernetes release on the way to the target stops serving. For the 12 projects of the
+Kubernetes release on the way to the target stops serving. For the 23 CNCF projects of the
 custom-resource table it checks the custom-resource versions in your manifests against
 published rules about versions the target release no longer serves (see
 [custom-resources.md](custom-resources.md)); those projects are never reported
@@ -53,7 +53,7 @@ NOT CHECKED (2)
 Read 2 documents over 1 hop; 1 of 1 component has rules (partially evaluated). 6 checks passed (--show-passes).
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
 Evidence: every finding cites pinned upstream source (--verbose). No network used.
-evaluated at 2026-10-04T00:00:00Z; input sha256:706abd92d4968558d52e272d3f490af7280ce84a6011ae824a9fa9ae7b4c47f7; knowledge embedded cncf-2026-09-13.6 sha256:193d917d080c83d91e587959479eac38f082046426d5c2c2dcd564a22eee92a8
+evaluated at 2026-10-04T00:00:00Z; input sha256:706abd92d4968558d52e272d3f490af7280ce84a6011ae824a9fa9ae7b4c47f7; knowledge embedded cncf-2026-09-13.7 sha256:4765d5bb09f66cfb21c7bb3ba60e5335156a69bd16ac040234ec044e14659e55
 ```
 
 The exit code is `10`. The built-in knowledge does not yet carry reviews of
@@ -309,7 +309,7 @@ Every gap has a reason, a detail and an action.
 | `PATH_POLICY_NOT_CURRENT` | A path policy exists but its review is expired or withdrawn. | Use knowledge with a current policy; until then scan one line at a time. |
 | `PATH_NOT_PLANNABLE` | The versions cannot be planned (equal versions, too many hops, a major change). | Check the versions, or scan each step. |
 | `DOWNGRADE_NOT_REVIEWED` | The target is older than the current version. | Prufyx checks upgrades only: see the project's docs on downgrades (the Kubernetes control plane has none), or swap `--from` and `--to`. |
-| `COMPONENT_NOT_COVERED` | A targeted project is not evaluated by `scan` yet, or (the 12 projects of the custom-resource table) only its custom-resource versions are. | Run `prufyx check cncf --project NAME`, or verify the rest of its upgrade notes by hand. |
+| `COMPONENT_NOT_COVERED` | A targeted project is not evaluated by `scan` yet, or (the 23 CNCF projects of the custom-resource table) only its custom-resource versions are. | Run `prufyx check cncf --project NAME`, or verify the rest of its upgrade notes by hand. |
 | `PROJECT_NOT_IN_KNOWLEDGE` | With `--knowledge-db`, the selected per-project index has no target for a targeted project, so nothing about it was checked. | Update the knowledge database to a revision that covers it, or check by hand. |
 | `VERSION_NOT_DETECTED` | No current version was declared. | Pass `--from kubernetes=VERSION` or set `current:` in `prufyx.yaml`. |
 | `VERSION_CONFLICT` | Two different versions were declared for one project. | Declare one. |
@@ -403,7 +403,7 @@ it stands.
 - Anything other than API versions in the supplied manifests: live cluster
   objects, CRDs, stored versions, admission, and component configuration.
 - Projects other than Kubernetes (reported as `COMPONENT_NOT_COVERED`); for
-  the 12 projects of the custom-resource table only custom-resource versions are
+  the 23 CNCF projects of the custom-resource table only custom-resource versions are
   checked.
 
 ## Locations and `--redact`
