@@ -29,6 +29,19 @@ type customResourceRequest struct {
 	args                      []string
 }
 
+// cncfCustomResourceProjects lists the CNCF catalog projects the custom-resource
+// flags accept: the projects of the reviewed table that check cncf reads,
+// without the community projects it refuses.
+func cncfCustomResourceProjects() []string {
+	var out []string
+	for _, slug := range cncfprepare.CustomResourceProjects() {
+		if _, ok := cncfprepare.CustomResourceVersionsFact(slug); ok {
+			out = append(out, slug)
+		}
+	}
+	return out
+}
+
 var customResourceDigestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 // cncfCustomResourceCheck reads one file of rendered manifests, declares
@@ -41,7 +54,7 @@ func (r runtime) cncfCustomResourceCheck(req customResourceRequest) int {
 		if p, community := cncfprepare.CommunityCustomResourceProject(req.project); community {
 			return r.usage(fmt.Sprintf("%s (%s) is in the %s: check cncf does not check its custom-resource versions yet; see docs/custom-resources.md", p.Slug, p.Upstream.Name, customresources.CommunityLabel))
 		}
-		return r.usage("custom-resource flags require a project with a custom-resource version set (" + strings.Join(cncfprepare.CustomResourceProjects(), ", ") + "); use --help")
+		return r.usage("custom-resource flags require a project with a custom-resource version set (" + strings.Join(cncfCustomResourceProjects(), ", ") + "); use --help")
 	}
 	if req.path == "" || req.from == "" || req.to == "" || cncfUnexpectedModeFlag(req.args, cncfCustomResourceFlags...) || (flagProvided(req.args, "custom-resources-digest") && !customResourceDigestRE.MatchString(req.pin)) {
 		return r.usage("invalid custom-resource check arguments; use --help")
