@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "percona-postgresql-operator",
+    "catalog": "community",
+    "name": "Percona Operator for PostgreSQL",
+    "repo": "github.com/percona/percona-postgresql-operator",
+    "component": "pkg:github/percona/percona-postgresql-operator",
+    "factProject": "percona_postgresql_operator",
+    "tagPrefixes": ["v"],
+    "minFrom": "2.6",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

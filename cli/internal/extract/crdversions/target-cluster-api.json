@@ -1,0 +1,21 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "cluster-api",
+    "catalog": "community",
+    "name": "Cluster API",
+    "repo": "github.com/kubernetes-sigs/cluster-api",
+    "component": "pkg:github/kubernetes-sigs/cluster-api",
+    "factProject": "cluster_api",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.9",
+    "paths": [
+      {"path": "bootstrap/kubeadm/config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "cmd/clusterctl/config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true},
+      {"path": "controlplane/kubeadm/config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "core/config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true}
+    ],
+    "exclude": []
+  }
+}

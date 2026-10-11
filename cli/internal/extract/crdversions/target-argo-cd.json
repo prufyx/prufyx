@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "argo-cd",
+    "name": "Argo CD",
+    "repo": "github.com/argoproj/argo-cd",
+    "component": "pkg:github/argoproj/argo-cd",
+    "factProject": "argo_cd",
+    "tagPrefixes": ["v"],
+    "minFrom": "3.0",
+    "attest": true,
+    "paths": [
+      {"path": "manifests/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

@@ -8,12 +8,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"regexp"
 	"slices"
 	"sort"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
@@ -477,71 +479,89 @@ func exclusionOf(tg map[string]any, p, reason string) map[string]any {
 	return map[string]any{"path": p, "repo": tg["repo"], "reason": reason, "evidence": "read only by the tests of the project; nothing installs from it"}
 }
 
+// loadOne loads one target as its own target file.
+func loadOne(tg map[string]any) (Target, error) {
+	raw, err := json.Marshal(map[string]any{"schema": TargetSchema, "target": tg})
+	if err != nil {
+		return Target{}, err
+	}
+	project, _ := tg["project"].(string)
+	return LoadTarget(TargetFileName(project), raw)
+}
+
+// targetFS is the package's target files as an fstest.MapFS.
+func targetFS(t *testing.T) fstest.MapFS {
+	names, err := fs.Glob(source, targetFilePattern)
+	must(t, err)
+	out := fstest.MapFS{}
+	for _, name := range names {
+		raw, err := fs.ReadFile(source, name)
+		must(t, err)
+		out[name] = &fstest.MapFile{Data: raw}
+	}
+	return out
+}
+
 func TestLoadTargets(t *testing.T) {
 	if len(Targets) < 12 || !sort.SliceIsSorted(Targets, func(i, j int) bool { return Targets[i].Project < Targets[j].Project }) {
 		t.Fatalf("targets %d", len(Targets))
 	}
-	var doc map[string]any
-	must(t, json.Unmarshal(targetsJSON, &doc))
-	mutate := func(f func(target map[string]any, doc map[string]any)) []byte {
+	first, second := Targets[0].Project, Targets[1].Project
+	// mutate rewrites the target file of the first target; d is its
+	// document, files all the target files.
+	mutate := func(f func(target map[string]any, d map[string]any, files fstest.MapFS)) fstest.MapFS {
+		files := targetFS(t)
 		var d map[string]any
-		must(t, json.Unmarshal(targetsJSON, &d))
-		f(d["targets"].([]any)[0].(map[string]any), d)
+		must(t, json.Unmarshal(files[TargetFileName(first)].Data, &d))
+		f(d["target"].(map[string]any), d, files)
 		raw, err := json.Marshal(d)
 		must(t, err)
-		return raw
+		files[TargetFileName(first)] = &fstest.MapFile{Data: raw}
+		return files
+	}
+	if ts, err := LoadTargets(mutate(func(_, _ map[string]any, _ fstest.MapFS) {})); err != nil || len(ts) != len(Targets) {
+		t.Fatalf("round trip: %d targets, %v", len(ts), err)
 	}
 	for _, tc := range []struct {
-		name string
-		raw  []byte
-		want string
+		name  string
+		files fstest.MapFS
+		want  string
 	}{
-		{"unknown field", mutate(func(tg, _ map[string]any) { tg["extra"] = true }), "unknown field"},
-		{"schema", mutate(func(_, d map[string]any) { d["schema"] = "x" }), "schema"},
-		{"unsorted", mutate(func(_, d map[string]any) {
-			ts := d["targets"].([]any)
-			ts[0], ts[1] = ts[1], ts[0]
-		}), "not sorted"},
-		{"component", mutate(func(tg, _ map[string]any) { tg["component"] = "pkg:github/x/y" }), "does not name repository"},
-		{"min from", mutate(func(tg, _ map[string]any) { tg["minFrom"] = "3" }), "minFrom"},
-		{"bad regex", mutate(func(tg, _ map[string]any) { tg["paths"].([]any)[0].(map[string]any)["match"] = "(" }), "match"},
-		{"unclean path", mutate(func(tg, _ map[string]any) { tg["paths"].([]any)[0].(map[string]any)["path"] = "a/../b" }), "clean repository path"},
-		{"exclusion without reason", mutate(func(tg, _ map[string]any) { tg["exclude"] = []any{exclusionOf(tg, "x/", "")} }), "reason"},
-		{"exclusion over a listed path", mutate(func(tg, _ map[string]any) {
+		{"unknown field", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["extra"] = true }), "unknown field"},
+		{"unknown document field", mutate(func(_, d map[string]any, _ fstest.MapFS) { d["targets"] = []any{} }), "unknown field"},
+		{"schema", mutate(func(_, d map[string]any, _ fstest.MapFS) { d["schema"] = "prufyx.io/crd-version-targets/v1" }), "schema"},
+		{"file name", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["project"] = "other-project" }), "want the file name target-other-project.json"},
+		{"two files of one project", mutate(func(_, _ map[string]any, files fstest.MapFS) {
+			files["target-zzz.json"] = files[TargetFileName(second)]
+		}), "want the file name"},
+		{"no targets", fstest.MapFS{"targets.json": &fstest.MapFile{Data: []byte("{}")}}, "no targets"},
+		{"trailing data", mutate(func(_, _ map[string]any, files fstest.MapFS) {
+			f := files[TargetFileName(second)]
+			files[TargetFileName(second)] = &fstest.MapFile{Data: append(append([]byte(nil), f.Data...), "{}"...)}
+		}), "trailing data"},
+		{"component", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["component"] = "pkg:github/x/y" }), "does not name repository"},
+		{"min from", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["minFrom"] = "3" }), "minFrom"},
+		{"bad regex", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["paths"].([]any)[0].(map[string]any)["match"] = "(" }), "match"},
+		{"unclean path", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["paths"].([]any)[0].(map[string]any)["path"] = "a/../b" }), "clean repository path"},
+		{"exclusion without reason", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["exclude"] = []any{exclusionOf(tg, "x/", "")} }), "reason"},
+		{"exclusion over a listed path", mutate(func(tg, _ map[string]any, _ fstest.MapFS) {
 			tg["paths"].([]any)[0].(map[string]any)["path"] = "data/crds"
 			tg["exclude"] = []any{exclusionOf(tg, "data/", "a reason that is long enough")}
 		}), "covers the listed path"},
-		{"every path optional", mutate(func(tg, _ map[string]any) { tg["paths"].([]any)[0].(map[string]any)["optional"] = true }), "every path is optional"},
-		{"tag prefix", mutate(func(tg, _ map[string]any) { tg["tagPrefixes"] = []any{"release-"} }), "tagPrefixes"},
-		{"catalog spelled cncf", mutate(func(tg, _ map[string]any) { tg["catalog"] = "cncf" }), "omit it for a CNCF catalog project"},
-		{"unknown catalog", mutate(func(tg, _ map[string]any) { tg["catalog"] = "landscape" }), "catalog"},
-		{"community target attests", mutate(func(tg, _ map[string]any) {
+		{"every path optional", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["paths"].([]any)[0].(map[string]any)["optional"] = true }), "every path is optional"},
+		{"tag prefix", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["tagPrefixes"] = []any{"release-"} }), "tagPrefixes"},
+		{"catalog spelled cncf", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["catalog"] = "cncf" }), "omit it for a CNCF catalog project"},
+		{"unknown catalog", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["catalog"] = "landscape" }), "catalog"},
+		{"community target attests", mutate(func(tg, _ map[string]any, _ fstest.MapFS) {
 			tg["catalog"], tg["attest"] = "community", true
 		}), "a community catalog target does not attest"},
-		{"duplicate fact project", mutate(func(tg, d map[string]any) {
-			tg["factProject"] = d["targets"].([]any)[1].(map[string]any)["factProject"]
+		{"duplicate fact project", mutate(func(tg, _ map[string]any, _ fstest.MapFS) {
+			tg["factProject"] = Targets[1].FactProject
 		}), "fact " + Targets[1].FactProject + " is used by"},
 	} {
-		if _, err := LoadTargets(tc.raw); err == nil || !strings.Contains(err.Error(), tc.want) {
+		if _, err := LoadTargets(tc.files); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Fatalf("%s: %v, want %q", tc.name, err, tc.want)
 		}
-	}
-}
-
-// The reviewed target table is part of the code digest.
-func TestCodeDigestCoversTargets(t *testing.T) {
-	dir, files := New(Targets[0]).SourceFiles()
-	cf, err := extract.CodeFiles(extract.FrameworkSource(), extract.SourceSet{Dir: dir, Files: files})
-	must(t, err)
-	found := false
-	for _, f := range cf {
-		found = found || f.Path == "extract/crdversions/targets.json"
-		if strings.HasSuffix(f.Path, "_test.go") {
-			t.Fatalf("test file %s in the digest", f.Path)
-		}
-	}
-	if !found {
-		t.Fatalf("targets.json is not in the code files %+v", cf)
 	}
 }
 

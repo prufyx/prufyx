@@ -1,0 +1,22 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kyverno",
+    "name": "Kyverno",
+    "repo": "github.com/kyverno/kyverno",
+    "component": "pkg:github/kyverno/kyverno",
+    "factProject": "kyverno",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.14",
+    "paths": [
+      {"path": "config/crds", "directory": true, "recursive": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": [
+      {"path": "charts/crds/templates/", "repo": "github.com/kyverno/kyverno", "reason": "Helm chart templates rendered from the same generated definitions as config/crds (checked as copies)", "evidence": "Not trusted, checked: at every tag each file is read with its template directives removed and its definitions are compared with the listed paths (versions, served flags); a mismatch, another definition or an unreadable file blocks attestation.", "copies": true},
+      {"path": "charts/kyverno/charts/crds/templates/", "repo": "github.com/kyverno/kyverno", "reason": "Helm chart templates rendered from the same generated definitions as config/crds (checked as copies)", "evidence": "Not trusted, checked: at every tag each file is read with its template directives removed and its definitions are compared with the listed paths (versions, served flags); a mismatch, another definition or an unreadable file blocks attestation.", "copies": true},
+      {"path": "cmd/cli/kubectl-kyverno/data/api-group-resources.json", "repo": "github.com/kyverno/kyverno", "reason": "API discovery data embedded in the CLI; lists resource kinds and defines no CustomResourceDefinition", "evidence": "Read at v1.14.0 and v1.19.1: the Makefile writes it with the API_GROUP_RESOURCES generator and cmd/cli/kubectl-kyverno/data/data.go embeds it (//go:embed api-group-resources.json) for offline API discovery of the CLI; it lists API groups and resources and defines no CustomResourceDefinition. The guard voids the entry at every tag because of that embed."},
+      {"path": "cmd/cli/kubectl-kyverno/data/crds/cli.kyverno.io_*", "repo": "github.com/kyverno/kyverno", "reason": "copies of the CLI file schemas (cli.kyverno.io) embedded in the CLI; never installed into a cluster", "evidence": "Read at v1.14.0 and v1.19.1: the Makefile target codegen-cli-crds copies generated definitions \"to embed in the CLI\" into cmd/cli/kubectl-kyverno/data/crds and data.go embeds the directory (//go:embed crds); the cli.kyverno.io kinds are the CLI test and values files. The guard voids the entry at every tag because of that embed."},
+      {"path": "pkg/engine/resources/default-config.yaml", "repo": "github.com/kyverno/kyverno", "reason": "the engine's default configuration; names the CustomResourceDefinition kind in a list of fields to ignore and defines none", "evidence": "Read at v1.14.0 and v1.19.1: pkg/engine/resources/resources.go embeds it (//go:embed default-config.yaml) and pkg/engine/handlers/validation/validate_manifest.go reads the default ignoreFields from it; it names the CustomResourceDefinition kind in that list and defines none. The guard voids the entry at every tag because of that embed."}
+    ]
+  }
+}

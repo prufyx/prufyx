@@ -9,6 +9,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Maintainer extractor `crd.version-removal`: each
+  `crd.version-removal.<project>` id has its own code digest. The target table
+  is one file per target (`target-<project>.json`, schema
+  `prufyx.io/crd-version-target/v1`), and an id's digest covers the
+  extractor's code and its own target file only, so adding or changing one
+  target no longer moves the digest of every other id. The version stays 2.3.0
+  and outputs are unchanged apart from the code digest, which differs once for
+  every id; the Kubernetes extractors' digests do not move.
 - Maintainer command `prufyx-maintainer docs-tables` (with `--check`): writes
   the tables of the reviewed custom-resource projects and of the
   `crd.version-removal` targets to `cli/docs/generated/` from the data compiled

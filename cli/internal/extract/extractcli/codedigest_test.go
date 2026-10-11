@@ -17,16 +17,21 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
-// Every registered extractor's code digest must cover exactly the non-test Go
-// files and the top-level reviewed *.json data files of its package, with the
-// bytes on disk, and every file any non-test //go:embed directive in the
-// package reads must be among them. A data file read through a separate embed
-// that the digest's source set omits would otherwise be silently unattested.
+// Every registered extractor's code digest must cover the non-test Go files
+// of its package and only reviewed *.json data files at the package's top
+// level, with the bytes on disk. Every such data file, and every file any
+// non-test //go:embed directive in the package reads, must be covered by the
+// digest of at least one id registered from that package: a data file read
+// through an embed that no digest covers would otherwise be silently
+// unattested. A package may give each id only the data file of its own
+// (crd.version-removal: target-<project>.json; its own tests pin that each
+// target file is covered by exactly its id).
 func TestEveryExtractorDigestCoversItsPackageOnDisk(t *testing.T) {
 	cat := Catalog()
 	if len(cat) == 0 {
 		t.Fatal("empty catalog")
 	}
+	coveredBy := map[string]map[string]bool{} // package dir -> covered base names
 	for id, spec := range cat {
 		ex := spec.New(1)
 		src, ok := ex.(extract.CodeSource)
@@ -42,25 +47,25 @@ func TestEveryExtractorDigestCoversItsPackageOnDisk(t *testing.T) {
 		if strings.TrimPrefix(dir, "extract/") == dir {
 			t.Fatalf("%s: source dir %q is not under extract/", id, dir)
 		}
-		var want []string
-		for _, pat := range []string{"*.go", "*.json"} {
-			m, err := filepath.Glob(filepath.Join(disk, pat))
-			if err != nil {
-				t.Fatal(err)
-			}
-			for _, f := range m {
-				if !strings.HasSuffix(f, "_test.go") {
-					want = append(want, path.Join(dir, filepath.Base(f)))
-				}
-			}
+		if coveredBy[disk] == nil {
+			coveredBy[disk] = map[string]bool{}
 		}
-		sort.Strings(want)
-		var got []string
+		goFiles, err := filepath.Glob(filepath.Join(disk, "*.go"))
+		if err != nil {
+			t.Fatal(err)
+		}
 		covered := map[string]bool{}
 		for _, f := range files {
-			got = append(got, f.Path)
-			covered[filepath.Base(f.Path)] = true
-			data, err := os.ReadFile(filepath.Join(disk, filepath.Base(f.Path)))
+			if path.Dir(f.Path) != dir {
+				t.Errorf("%s: %s is not at the top level of %s", id, f.Path, dir)
+			}
+			base := path.Base(f.Path)
+			if !strings.HasSuffix(base, ".go") && !strings.HasSuffix(base, ".json") || strings.HasSuffix(base, "_test.go") {
+				t.Errorf("%s: %s is neither code nor a data file", id, f.Path)
+			}
+			covered[base] = true
+			coveredBy[disk][base] = true
+			data, err := os.ReadFile(filepath.Join(disk, base))
 			if err != nil {
 				t.Fatalf("%s: %v", id, err)
 			}
@@ -69,15 +74,40 @@ func TestEveryExtractorDigestCoversItsPackageOnDisk(t *testing.T) {
 				t.Errorf("%s: %s: embedded bytes differ from the file on disk", id, f.Path)
 			}
 		}
+		for _, f := range goFiles {
+			if !strings.HasSuffix(f, "_test.go") && !covered[filepath.Base(f)] {
+				t.Errorf("%s: the digest does not cover %s", id, f)
+			}
+		}
+	}
+	for disk, covered := range coveredBy {
+		var want []string
+		for _, pat := range []string{"*.go", "*.json"} {
+			m, err := filepath.Glob(filepath.Join(disk, pat))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, f := range m {
+				if !strings.HasSuffix(f, "_test.go") {
+					want = append(want, filepath.Base(f))
+				}
+			}
+		}
+		sort.Strings(want)
+		var got []string
+		for f := range covered {
+			got = append(got, f)
+		}
+		sort.Strings(got)
 		if !slices.Equal(got, want) {
-			t.Errorf("%s: digest covers %v, package files are %v", id, got, want)
+			t.Errorf("%s: the digests cover %v, package files are %v", disk, got, want)
 		}
 		// Every file a non-test //go:embed in the package reads is covered.
 		for _, f := range want {
 			if !strings.HasSuffix(f, ".go") {
 				continue
 			}
-			fh, err := os.Open(filepath.Join(disk, filepath.Base(f)))
+			fh, err := os.Open(filepath.Join(disk, f))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -90,18 +120,18 @@ func TestEveryExtractorDigestCoversItsPackageOnDisk(t *testing.T) {
 				for _, pat := range strings.Fields(strings.TrimPrefix(line, "//go:embed ")) {
 					m, err := filepath.Glob(filepath.Join(disk, pat))
 					if err != nil || len(m) == 0 {
-						t.Errorf("%s: %s: embed pattern %q matches nothing (%v)", id, f, pat, err)
+						t.Errorf("%s: %s: embed pattern %q matches nothing (%v)", disk, f, pat, err)
 					}
 					for _, e := range m {
 						if st, err := os.Stat(e); err == nil && st.IsDir() {
-							t.Errorf("%s: %s: embed pattern %q reads a directory, outside the digest", id, f, pat)
+							t.Errorf("%s: %s: embed pattern %q reads a directory, outside the digest", disk, f, pat)
 							continue
 						}
 						if strings.HasSuffix(e, "_test.go") {
 							continue
 						}
 						if !covered[filepath.Base(e)] || filepath.Dir(e) != disk {
-							t.Errorf("%s: %s embeds %s, which the code digest does not cover", id, f, e)
+							t.Errorf("%s: %s embeds %s, which no code digest covers", disk, f, e)
 						}
 					}
 				}

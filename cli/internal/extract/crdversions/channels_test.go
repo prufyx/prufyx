@@ -3,7 +3,6 @@
 package crdversions
 
 import (
-	"encoding/json"
 	"regexp"
 	"strings"
 	"testing"
@@ -214,12 +213,7 @@ func TestLoadTargetsChannels(t *testing.T) {
 		if mutate != nil {
 			mutate(tg)
 		}
-		doc, _ := json.Marshal(map[string]any{"schema": TargetsSchema, "targets": []any{tg}})
-		ts, err := LoadTargets(doc)
-		if err != nil {
-			return Target{}, err
-		}
-		return ts[0], nil
+		return loadOne(tg)
 	}
 	tg, err := load(nil)
 	if err != nil || tg.DeclaredChannel != "standard" || len(tg.Channels) != 1 || tg.Channels[0].Name != "experimental" {

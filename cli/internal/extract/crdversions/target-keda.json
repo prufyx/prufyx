@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "keda",
+    "name": "KEDA",
+    "repo": "github.com/kedacore/keda",
+    "component": "pkg:github/kedacore/keda",
+    "factProject": "keda",
+    "tagPrefixes": ["v"],
+    "minFrom": "2.16",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

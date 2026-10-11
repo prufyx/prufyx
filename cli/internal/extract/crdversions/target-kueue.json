@@ -1,0 +1,18 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kueue",
+    "catalog": "community",
+    "name": "Kueue",
+    "repo": "github.com/kubernetes-sigs/kueue",
+    "component": "pkg:github/kubernetes-sigs/kueue",
+    "factProject": "kueue",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.15",
+    "paths": [
+      {"path": "config/components/crd/alpha/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true},
+      {"path": "config/components/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

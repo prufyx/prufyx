@@ -130,7 +130,7 @@ func readRemoteInventory(r extract.PinnedReader, repo extract.RepoRef, t Target,
 	}
 	pinned, ok := rm.pinFor(ref)
 	if !ok {
-		return inv, problemf("%s names the tag %s of %s, which targets.json does not pin to a commit", rm.Kustomization, ref, rm.Repo)
+		return inv, problemf("%s names the tag %s of %s, which its target file does not pin to a commit", rm.Kustomization, ref, rm.Repo)
 	}
 	remote, err := extract.ParseRepo(rm.Repo)
 	if err != nil {

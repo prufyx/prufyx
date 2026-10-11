@@ -1,0 +1,19 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "cert-manager",
+    "name": "cert-manager",
+    "repo": "github.com/cert-manager/cert-manager",
+    "component": "pkg:github/cert-manager/cert-manager",
+    "factProject": "cert_manager",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.16",
+    "paths": [
+      {"path": "deploy/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": [
+      {"path": "deploy/charts/cert-manager/templates/", "repo": "github.com/cert-manager/cert-manager", "reason": "Helm chart templates; the chart's CRD templates are rendered from the same generated definitions as deploy/crds (checked as copies)", "evidence": "Not trusted, checked: at every tag each file is read with its template directives removed and its definitions are compared with the listed paths (versions, served flags); a mismatch, another definition or an unreadable file blocks attestation.", "copies": true},
+      {"path": "make/", "repo": "github.com/cert-manager/cert-manager", "reason": "build scripts and the Helm template header used to generate chart CRD templates; no installed definition", "evidence": "Read at v1.16.0 and v1.21.2: make/ holds the Makefile fragments included by the root Makefile, kind and e2e scripts, and make/config/* (kind, kyverno, bind, ...) which only the e2e-setup targets apply to a test cluster; make/_shared*/helm/crd.template.header.yaml is the header the CRD generator prepends to the chart templates."}
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "rancher",
+    "catalog": "community",
+    "name": "Rancher",
+    "repo": "github.com/rancher/rancher",
+    "component": "pkg:github/rancher/rancher",
+    "factProject": "rancher",
+    "tagPrefixes": ["v"],
+    "minFrom": "2.10",
+    "paths": [
+      {"path": "pkg/crds/yaml/generated", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

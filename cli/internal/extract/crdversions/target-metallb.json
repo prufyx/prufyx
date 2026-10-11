@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "metallb",
+    "name": "MetalLB",
+    "repo": "github.com/metallb/metallb",
+    "component": "pkg:github/metallb/metallb",
+    "factProject": "metallb",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.13",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

@@ -4,19 +4,20 @@ package crdversions
 
 import (
 	"bytes"
-	_ "embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"path"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
-// TargetsSchema identifies targets.json.
-const TargetsSchema = "prufyx.io/crd-version-targets/v1"
+// TargetSchema identifies a target file, target-<project>.json.
+const TargetSchema = "prufyx.io/crd-version-target/v1"
 
 // The catalogs a target's project may belong to.
 const (
@@ -27,13 +28,11 @@ const (
 	CatalogCommunity = "community"
 )
 
-// targetsJSON is the reviewed source table. It is data, not code, but it is
-// embedded next to the code and covered by the extractor's code digest, so
-// any change to it is a new extractor version and is reviewed as one.
-//
-//go:embed targets.json
-var targetsJSON []byte
-
+// The reviewed source table is one file per target, target-<project>.json,
+// next to the code (see source in extractor.go). The files are data, not
+// code, but each is covered by the code digest of its own extractor id, so
+// any change to a target is a new code digest of that id and is reviewed as
+// one.
 // Target is one reviewed source entry: where a catalog project keeps the
 // rendered CustomResourceDefinition manifests it ships, which release tags
 // form its lines, and which parts of its repository the full-tree scan
@@ -45,7 +44,7 @@ type Target struct {
 	// embedded CNCF landscape catalog) or CatalogCommunity (a project
 	// outside the CNCF catalog whose identity, upstream repository and
 	// licence the reviewed custom-resource table records; nothing about
-	// it says it is a CNCF project). targets.json names only the
+	// it says it is a CNCF project). A target file names only the
 	// community catalog ("catalog": "community"); an entry without the
 	// field is a CNCF catalog project.
 	Catalog string
@@ -215,12 +214,19 @@ type Exclusion struct {
 var DefaultExcludedSegments = []string{"_testdata", "e2e", "example", "examples", "test", "testdata", "tests", "third_party", "vendor"}
 
 // Targets is the reviewed source table, ordered by project.
-var Targets = mustLoadTargets(targetsJSON)
+var Targets = mustLoadTargets(source)
 
-type targetsFile struct {
-	Schema  string       `json:"schema"`
-	Targets []targetJSON `json:"targets"`
+// targetFile is the document of one target file.
+type targetFile struct {
+	Schema string     `json:"schema"`
+	Target targetJSON `json:"target"`
 }
+
+// targetFilePattern matches the target files at the root of the package.
+const targetFilePattern = "target-*.json"
+
+// TargetFileName is the name of a project's target file.
+func TargetFileName(project string) string { return "target-" + project + ".json" }
 
 type targetJSON struct {
 	Project     string          `json:"project"`
@@ -282,42 +288,38 @@ var (
 	globMeta      = "*?["
 )
 
-func mustLoadTargets(raw []byte) []Target {
-	ts, err := LoadTargets(raw)
+func mustLoadTargets(fsys fs.FS) []Target {
+	ts, err := LoadTargets(fsys)
 	if err != nil {
-		panic("crdversions: targets.json: " + err.Error())
+		panic("crdversions: target files: " + err.Error())
 	}
 	return ts
 }
 
-// LoadTargets decodes and validates a targets document. Unknown fields,
-// unsorted or duplicate projects, invalid patterns, paths that are not
-// clean repository paths and exclusions without a reason are refused.
-func LoadTargets(raw []byte) ([]Target, error) {
-	var doc targetsFile
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&doc); err != nil {
+// LoadTargets reads and validates every target file (target-*.json) at the
+// root of fsys and returns the targets ordered by project. Each file is
+// decoded strictly (LoadTarget); across files no project, fact project,
+// repository or component may be used twice. A file is part of the code
+// digest of its own extractor id only; this check reads the others, but it
+// can only refuse to start, never change what an extractor derives.
+func LoadTargets(fsys fs.FS) ([]Target, error) {
+	names, err := fs.Glob(fsys, targetFilePattern)
+	if err != nil {
 		return nil, err
 	}
-	if dec.More() {
-		return nil, fmt.Errorf("trailing data")
-	}
-	if doc.Schema != TargetsSchema {
-		return nil, fmt.Errorf("schema %q, want %q", doc.Schema, TargetsSchema)
-	}
-	if len(doc.Targets) == 0 {
+	if len(names) == 0 {
 		return nil, fmt.Errorf("no targets")
 	}
 	var out []Target
 	seen := map[string]string{}
-	for i, tj := range doc.Targets {
-		t, err := tj.target()
+	for _, name := range names {
+		raw, err := fs.ReadFile(fsys, name)
 		if err != nil {
-			return nil, fmt.Errorf("target %d (%s): %w", i, tj.Project, err)
+			return nil, err
 		}
-		if i > 0 && doc.Targets[i-1].Project >= t.Project {
-			return nil, fmt.Errorf("targets are not sorted by project at %s", t.Project)
+		t, err := LoadTarget(name, raw)
+		if err != nil {
+			return nil, err
 		}
 		for _, k := range []string{"project " + t.Project, "fact " + t.FactProject, "repo " + t.Repo, "component " + t.Component} {
 			if prev, dup := seen[k]; dup {
@@ -327,7 +329,35 @@ func LoadTargets(raw []byte) ([]Target, error) {
 		}
 		out = append(out, t)
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Project < out[j].Project })
 	return out, nil
+}
+
+// LoadTarget decodes and validates one target file. Its name must be
+// TargetFileName of the project it holds. Unknown fields, trailing data,
+// invalid patterns, paths that are not clean repository paths and
+// exclusions without a reason are refused.
+func LoadTarget(name string, raw []byte) (Target, error) {
+	var doc targetFile
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&doc); err != nil {
+		return Target{}, fmt.Errorf("%s: %w", name, err)
+	}
+	if dec.More() {
+		return Target{}, fmt.Errorf("%s: trailing data", name)
+	}
+	if doc.Schema != TargetSchema {
+		return Target{}, fmt.Errorf("%s: schema %q, want %q", name, doc.Schema, TargetSchema)
+	}
+	t, err := doc.Target.target()
+	if err != nil {
+		return Target{}, fmt.Errorf("%s (%s): %w", name, doc.Target.Project, err)
+	}
+	if name != TargetFileName(t.Project) {
+		return Target{}, fmt.Errorf("%s holds the target %s, want the file name %s", name, t.Project, TargetFileName(t.Project))
+	}
+	return t, nil
 }
 
 func (tj targetJSON) target() (Target, error) {

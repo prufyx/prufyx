@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "openkruise",
+    "name": "OpenKruise",
+    "repo": "github.com/openkruise/kruise",
+    "component": "pkg:github/openkruise/kruise",
+    "factProject": "openkruise",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.4",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

@@ -3,7 +3,6 @@
 package crdversions
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -286,7 +285,7 @@ func TestRemoteAppliesToLines(t *testing.T) {
 	}
 }
 
-// targets.json: the loader holds a Remote to its rules.
+// A target file: the loader holds a Remote to its rules.
 func TestLoadTargetsRemote(t *testing.T) {
 	base := func() map[string]any {
 		return map[string]any{
@@ -305,8 +304,7 @@ func TestLoadTargetsRemote(t *testing.T) {
 		if mutate != nil {
 			mutate(tg)
 		}
-		doc, _ := json.Marshal(map[string]any{"schema": TargetsSchema, "targets": []any{tg}})
-		_, err := LoadTargets(doc)
+		_, err := loadOne(tg)
 		return err
 	}
 	if err := load(nil); err != nil {

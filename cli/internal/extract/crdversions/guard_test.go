@@ -535,19 +535,19 @@ func TestExclusionsRefuseInstallLocations(t *testing.T) {
 	// would match install locations the literal check does not see.
 	for _, entry := range []string{"de*/examples/csi-operator.yaml", "*/examples/csi-operator.yaml", "deplo?/examples/x.yaml", "[d]eploy/x.yaml", "a/*/b/c.yaml"} {
 		ej := fmt.Sprintf(`{"path":%q,"repo":"github.com/o/p","reason":"examples of the project","evidence":"read only by the go test files of test/e2e; nothing installs from it"}`, entry)
-		if _, err := LoadTargets(testTargetsJSON(ej)); err == nil || !strings.Contains(err.Error(), "last path element") {
+		if _, err := LoadTarget("target-p.json", testTargetsJSON(ej)); err == nil || !strings.Contains(err.Error(), "last path element") {
 			t.Errorf("%s: %v", entry, err)
 		}
 	}
 	for _, entry := range []string{"x/helm/*.yaml", "cmd/cli/data/crds/cli.kyverno.io_*", "test/fixture?.yaml"} {
 		ej := fmt.Sprintf(`{"path":%q,"repo":"github.com/o/p","reason":"examples of the project","evidence":"read only by the go test files of test/e2e; nothing installs from it"}`, entry)
-		if _, err := LoadTargets(testTargetsJSON(ej)); err != nil {
+		if _, err := LoadTarget("target-p.json", testTargetsJSON(ej)); err != nil {
 			t.Errorf("%s: %v", entry, err)
 		}
 	}
 	mutate := testTargetsJSON
 	good := `{"path":"test/e2e/","repo":"github.com/o/p","reason":"end to end test fixtures","evidence":"read only by the go test files of test/e2e; nothing installs from it"}`
-	if _, err := LoadTargets(mutate(good)); err != nil {
+	if _, err := LoadTarget("target-p.json", mutate(good)); err != nil {
 		t.Fatal(err)
 	}
 	for name, tc := range map[string]struct{ ej, want string }{
@@ -558,20 +558,20 @@ func TestExclusionsRefuseInstallLocations(t *testing.T) {
 		"no repo":          {`{"path":"test/e2e/","reason":"end to end test fixtures","evidence":"read only by the go test files of test/e2e; nothing installs from it"}`, "names repository"},
 		"other repo":       {`{"path":"test/e2e/","repo":"github.com/o/q","reason":"end to end test fixtures","evidence":"read only by the go test files of test/e2e; nothing installs from it"}`, "names repository"},
 	} {
-		if _, err := LoadTargets(mutate(tc.ej)); err == nil || !strings.Contains(err.Error(), tc.want) {
+		if _, err := LoadTarget("target-p.json", mutate(tc.ej)); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s: %v, want %q", name, err, tc.want)
 		}
 	}
 	// A declared copy may lie under a chart: it is checked, not trusted.
 	copies := `{"path":"charts/x/templates/","repo":"github.com/o/p","reason":"templates of the same definitions","evidence":"checked as copies of the listed definitions at every tag","copies":true}`
-	if _, err := LoadTargets(mutate(copies)); err != nil {
+	if _, err := LoadTarget("target-p.json", mutate(copies)); err != nil {
 		t.Fatal(err)
 	}
 }
 
-// testTargetsJSON is a targets file of one target with one exclusion.
+// testTargetsJSON is the target file of one target with one exclusion.
 func testTargetsJSON(ej string) []byte {
-	return []byte(fmt.Sprintf(`{"schema":%q,"targets":[{"project":"p","name":"P","repo":"github.com/o/p","component":"pkg:github/o/p","factProject":"p","tagPrefixes":["v"],"minFrom":"1.0","paths":[{"path":"crds/a.yaml"}],"exclude":[%s]}]}`, TargetsSchema, ej))
+	return []byte(fmt.Sprintf(`{"schema":%q,"target":{"project":"p","name":"P","repo":"github.com/o/p","component":"pkg:github/o/p","factProject":"p","tagPrefixes":["v"],"minFrom":"1.0","paths":[{"path":"crds/a.yaml"}],"exclude":[%s]}}`, TargetSchema, ej))
 }
 
 // An excluded path under a ko kodata directory is packed into the image:

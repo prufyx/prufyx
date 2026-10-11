@@ -1,0 +1,18 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "longhorn",
+    "name": "Longhorn",
+    "repo": "github.com/longhorn/longhorn",
+    "component": "pkg:github/longhorn/longhorn",
+    "factProject": "longhorn",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.8",
+    "paths": [
+      {"path": "deploy/longhorn.yaml"}
+    ],
+    "exclude": [
+      {"path": "chart/templates/", "repo": "github.com/longhorn/longhorn", "reason": "Helm chart templates; the chart's CRD template is rendered from the same generated definitions as deploy/longhorn.yaml (checked as copies)", "evidence": "Not trusted, checked: at every tag each file is read with its template directives removed and its definitions are compared with the listed paths (versions, served flags); a mismatch, another definition or an unreadable file blocks attestation.", "copies": true}
+    ]
+  }
+}

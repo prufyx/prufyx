@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "koordinator",
+    "name": "Koordinator",
+    "repo": "github.com/koordinator-sh/koordinator",
+    "component": "pkg:github/koordinator-sh/koordinator",
+    "factProject": "koordinator",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.3",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
