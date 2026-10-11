@@ -1011,21 +1011,62 @@ const valuesPathsSetSuffix = "_values_paths_set"
 // version of: the chart's own kubeVersion bound.
 const chartDependencyComponent = "pkg:github/kubernetes/kubernetes"
 
-// chartProblems checks a chart rule and a require_set_member rule: the chart
-// identity is in normal form; a chart rule is anchor-only, carries no
-// severity and never requires its own component's version; require_set_member reads only a values-path set fact;
-// and the chart has an active reviewed chart-source row whose component is
-// the rule's. A community contribution may not carry either. The engine's
-// ParseRuleSet runs afterwards and stays the authority on structure.
+// SetNoticeReasons is the closed vocabulary of set notice reason codes and
+// the one operator each belongs to. A set notice's reason code is its own
+// (the engine does not fix it), so this list is where it is policed.
+var SetNoticeReasons = map[string]string{
+	"HELM_VALUES_KEY_NOT_REFERENCED": constraintengine.OperatorNoticeSetMemberPresent,
+	"HELM_VALUES_DEFAULT_CHANGED":    constraintengine.OperatorNoticeSetMemberAbsent,
+}
+
+// setNoticeProblems checks a set notice: a chart subject, a set condition
+// on a values-path set fact, nothing else that constrains, a reason code
+// from SetNoticeReasons paired with its operator, and the notice text rule.
+func setNoticeProblems(body ruleBody) []string {
+	var problems []string
+	if body.Subject.Chart == nil {
+		problems = append(problems, fmt.Sprintf("%s needs rule.subject.chart", body.Operator))
+	}
+	if body.SetCondition == nil {
+		problems = append(problems, fmt.Sprintf("%s needs rule.setCondition", body.Operator))
+	} else if !strings.HasSuffix(body.SetCondition.FactID, valuesPathsSetSuffix) {
+		problems = append(problems, fmt.Sprintf("%s may only read a values-path set fact (id ending %q), got %q", body.Operator, valuesPathsSetSuffix, body.SetCondition.FactID))
+	}
+	if body.Condition != nil || body.Dependency != nil || body.Intermediate != "" || body.Severity != "" || body.Range != nil || body.Crossing != nil || len(body.AppliesWhen) != 0 {
+		problems = append(problems, "a set notice carries only a set condition (no condition, appliesWhen, dependency, intermediate, severity, range or crossing): it is verdict-neutral and anchor-only")
+	}
+	if operator, known := SetNoticeReasons[body.ReasonCode]; !known {
+		problems = append(problems, fmt.Sprintf("set notice reason code %q is not one of the reviewed set notice reasons (HELM_VALUES_KEY_NOT_REFERENCED, HELM_VALUES_DEFAULT_CHANGED)", body.ReasonCode))
+	} else if operator != body.Operator {
+		problems = append(problems, fmt.Sprintf("set notice reason code %s belongs to %s, not %s", body.ReasonCode, operator, body.Operator))
+	}
+	if !constraintengine.ValidNoticeText(body.ID, body.NextAction) {
+		problems = append(problems, "a set notice's id and nextAction must be printable ASCII and must not contain \"safe\", \"block\", \"refuse\" or \"must\" in any case: a notice is never worded as a verdict")
+	}
+	return problems
+}
+
+// chartProblems checks a chart rule, a require_set_member rule and a set
+// notice: the chart identity is in normal form; a chart rule is anchor-only,
+// carries no severity and never requires its own component's version;
+// require_set_member reads only a values-path set fact; a set notice passes
+// setNoticeProblems; and the chart has an active reviewed chart-source row
+// whose component is the rule's. A community contribution may not carry any
+// of them. The engine's ParseRuleSet runs afterwards and stays the authority
+// on structure.
 func chartProblems(body ruleBody, opts Options) []string {
 	chart := body.Subject.Chart
 	require := body.Operator == constraintengine.OperatorRequireSetMember
-	if chart == nil && !require {
+	notice := constraintengine.IsSetNoticeOperator(body.Operator)
+	if chart == nil && !require && !notice {
 		return nil
 	}
 	var problems []string
 	if !opts.AllowRange {
-		problems = append(problems, "a chart rule or require_set_member rule is not accepted from a community contribution; only the maintainers' derivation tooling produces them")
+		problems = append(problems, "a chart rule, require_set_member rule or set notice is not accepted from a community contribution; only the maintainers' derivation tooling produces them")
+	}
+	if notice {
+		problems = append(problems, setNoticeProblems(body)...)
 	}
 	if require {
 		if body.SetCondition == nil {

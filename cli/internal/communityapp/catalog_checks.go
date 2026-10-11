@@ -93,6 +93,7 @@ var catalogMatchModes = map[string]string{
 var catalogRuleKinds = map[string]string{
 	constraintengine.RuleKindOneWayNotice: "informational one-way notice; never a verdict, never passes or blocks",
 	constraintengine.RuleKindSupportRange: "support range; PASS inside the documented range, UNSUPPORTED outside it, never BLOCKED; decided only by check batch with the dependency declared",
+	constraintengine.RuleKindSetNotice:    "informational notice over a declared set; never a verdict, never passes or blocks",
 }
 
 // renderCatalogCheck prints one check's human-readable listing. A non-anchor

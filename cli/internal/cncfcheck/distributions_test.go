@@ -277,7 +277,7 @@ func TestPackSchemaLevelDistributions(t *testing.T) {
 	}
 	// With the section, exactly the distributions level is admitted, alone
 	// or with every lower section.
-	all := []string{packSchema, packSchemaRanged, packSchemaSet, packSchemaAttested, packSchemaPathPolicies, packSchemaNotice, packSchemaBasis, packSchemaSeverity, packSchemaDistributions, "prufyx.io/cncf-source-rule-pack/v1alpha10", packSchemaCrossing, packSchemaChart}
+	all := []string{packSchema, packSchemaRanged, packSchemaSet, packSchemaAttested, packSchemaPathPolicies, packSchemaNotice, packSchemaBasis, packSchemaSeverity, packSchemaDistributions, "prufyx.io/cncf-source-rule-pack/v1alpha10", packSchemaCrossing, packSchemaChart, packSchemaChartNotice}
 	for _, c := range []struct {
 		name                                  string
 		attestations, policies, distributions []byte
@@ -299,8 +299,9 @@ func TestPackSchemaLevelDistributions(t *testing.T) {
 		}
 	}
 	// The distributions row is followed only by the served-list row, the
-	// crossing row, the community-catalog row and the chart row.
-	if rows := packFeatureLevels; rows[len(rows)-5].schema != packSchemaDistributions || rows[len(rows)-4].schema != packSchemaServedAPIs || rows[len(rows)-3].schema != packSchemaCrossing || rows[len(rows)-2].schema != packSchemaCommunity || rows[len(rows)-1].schema != packSchemaChart {
+	// crossing row, the community-catalog row, the chart row and the set
+	// notice row.
+	if rows := packFeatureLevels; rows[len(rows)-6].schema != packSchemaDistributions || rows[len(rows)-5].schema != packSchemaServedAPIs || rows[len(rows)-4].schema != packSchemaCrossing || rows[len(rows)-3].schema != packSchemaCommunity || rows[len(rows)-2].schema != packSchemaChart || rows[len(rows)-1].schema != packSchemaChartNotice {
 		t.Fatalf("last levels %s %s %s %s", rows[len(rows)-4].schema, rows[len(rows)-3].schema, rows[len(rows)-2].schema, rows[len(rows)-1].schema)
 	}
 	// A binary that predates distributions rejects such a pack twice: the

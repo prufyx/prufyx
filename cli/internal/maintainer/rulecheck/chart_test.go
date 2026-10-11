@@ -139,3 +139,76 @@ func TestRulecheckValuesPathMembers(t *testing.T) {
 		}
 	}
 }
+
+// setNoticeCandidate is a synthetic set notice chart rule.
+func setNoticeCandidate(operator, reason string) map[string]any {
+	entry := chartCandidate()
+	r := rule(entry)
+	r["id"], r["operator"], r["reasonCode"] = "helm-values.cert-manager.synthetic-notice", operator, reason
+	r["nextAction"] = "review the listed keys in the values supplied for the chart before upgrading"
+	return entry
+}
+
+func TestRulecheckSetNoticeGate(t *testing.T) {
+	maintainer := Options{AllowRange: true, ChartSources: chartTable(chartidentity.StateActive, chartTestComponent)}
+	for _, good := range []map[string]any{
+		setNoticeCandidate("notice_set_member_present", "HELM_VALUES_KEY_NOT_REFERENCED"),
+		setNoticeCandidate("notice_set_member_absent", "HELM_VALUES_DEFAULT_CHANGED"),
+	} {
+		if findings := chartFindings(t, good, maintainer); len(findings) != 0 {
+			t.Fatalf("valid notice candidate rejected: %v", findings)
+		}
+	}
+	present := func() map[string]any {
+		return setNoticeCandidate("notice_set_member_present", "HELM_VALUES_KEY_NOT_REFERENCED")
+	}
+	cases := map[string]struct {
+		entry map[string]any
+		opts  Options
+		want  string
+	}{
+		"community contribution":       {present(), Options{ChartSources: maintainer.ChartSources}, "not accepted from a community contribution"},
+		"reason outside the list":      {setNoticeCandidate("notice_set_member_present", "HELM_VALUES_SOMETHING_ELSE"), maintainer, "not one of the reviewed set notice reasons"},
+		"reason of the other operator": {setNoticeCandidate("notice_set_member_absent", "HELM_VALUES_KEY_NOT_REFERENCED"), maintainer, "belongs to notice_set_member_present"},
+		"engine reason":                {setNoticeCandidate("notice_set_member_absent", "RULE_NOTICE_NOT_APPLICABLE"), maintainer, "not one of the reviewed set notice reasons"},
+		"no chart subject": {func() map[string]any {
+			e := present()
+			delete(rule(e)["subject"].(map[string]any), "chart")
+			return e
+		}(), maintainer, "needs rule.subject.chart"},
+		"another set fact": {func() map[string]any {
+			e := present()
+			e["requiredFacts"].([]any)[0].(map[string]any)["id"] = "component.cert_manager.feature_gates_set"
+			rule(e)["setCondition"].(map[string]any)["factId"] = "component.cert_manager.feature_gates_set"
+			return e
+		}(), maintainer, "values-path set fact"},
+		"verdict wording": {func() map[string]any {
+			e := present()
+			rule(e)["nextAction"] = "you must remove the listed keys"
+			return e
+		}(), maintainer, "never worded as a verdict"},
+		"a range": {func() map[string]any {
+			e := present()
+			rule(e)["range"] = map[string]any{"from": map[string]any{"gte": "1.16.0", "lt": "1.17.0"}, "to": map[string]any{"gte": "1.17.0", "lt": "1.18.0"}, "bounds": []any{}}
+			return e
+		}(), maintainer, "anchor-only"},
+		"an applicability condition": {func() map[string]any {
+			e := present()
+			rule(e)["appliesWhen"] = []any{map[string]any{"side": "proposed", "component": chartTestComponent, "factId": "component.example.enabled", "boolValue": true}}
+			return e
+		}(), maintainer, "no condition, appliesWhen"},
+		"a non-canonical member": {func() map[string]any {
+			e := present()
+			rule(e)["setCondition"].(map[string]any)["members"] = []any{"k..a"}
+			return e
+		}(), maintainer, "not a canonical values-path member"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			findings := chartFindings(t, tc.entry, tc.opts)
+			if !strings.Contains(strings.Join(findings, "\n"), tc.want) {
+				t.Fatalf("want %q in %v", tc.want, findings)
+			}
+		})
+	}
+}

@@ -710,3 +710,58 @@ schema `v1alpha8` and its own engine and scope contract digests; a pack holding
 one is pack level `v1alpha13`. External and project packs do not accept them,
 and the application-hop rule selection never selects a chart rule. Every other
 document, input and report keeps its bytes and digests.
+
+## Set notices
+
+Some changes between two chart versions do not make Helm refuse the upgrade
+but still change what it does: a values key the later chart's templates no
+longer read, or a default that changed. Two operators state such a change as
+a notice over a declared set fact. A notice is never a verdict: it never
+passes, blocks or makes a scope incomplete.
+
+- `notice_set_member_present` is NOTICE when at least one listed member is in
+  the declared set, whether or not the set is declared complete; the claim
+  lists the present members in `matchedMembers`. With no listed member present
+  it is UNKNOWN: `RULE_SET_FACT_INCOMPLETE` over an incomplete set,
+  `RULE_NOTICE_NOT_APPLICABLE` over a complete one.
+- `notice_set_member_absent` is NOTICE only when the set is declared complete
+  and at least one listed member is absent; the claim lists the absent members
+  in `missingMembers`. A complete set holding every listed member is UNKNOWN
+  with `RULE_NOTICE_NOT_APPLICABLE`, and an incomplete set is always UNKNOWN
+  with `RULE_SET_FACT_INCOMPLETE`: absence is never read from a partial set.
+- A missing or undeclared fact is UNKNOWN with `RULE_FACT_UNAVAILABLE` for
+  both.
+
+Like a one-way notice, a set notice is counted in the scope block's
+`noticeRules` and never enters the applicable set, so the aggregate is
+exactly what it would be without it, and it cannot support a corpus
+attestation. Human output prints an established notice as `notice: <rule>`,
+its `before you upgrade:` text and the members it found
+(`listed members present:` or `listed members not present:`); a notice with
+`RULE_NOTICE_NOT_APPLICABLE` prints nothing, because the absence of a notice
+says nothing. The members of a notice are never printed as forbidden or
+required members.
+
+A set notice has a chart subject and a `setCondition`, and nothing else that
+constrains: no `condition`, `appliesWhen`, `dependency`, `intermediate`,
+`severity`, `range` or `crossing`, and no consensus or lead basis. Its reason code is its own (a
+`RULE_` code or any other code the engine issues is refused), and its
+`nextAction` and `id` are printable ASCII without the words "safe", "block",
+"refuse" or "must" in any case. A notice and a `forbid_set_member` or
+`require_set_member` rule on the same member never contradict each other.
+
+`rule validate` accepts a set notice only on the maintainer path, on a
+values-path set fact, for a chart with an active reviewed chart-source row,
+and only with one of these reason codes:
+
+| reason code | operator |
+| --- | --- |
+| `HELM_VALUES_KEY_NOT_REFERENCED` | `notice_set_member_present` |
+| `HELM_VALUES_DEFAULT_CHANGED` | `notice_set_member_absent` |
+
+A document holding a set notice carries rules schema `v1alpha9` and its own
+engine and scope contract digests (scope contract
+`scope-completeness-contract-v8`); a pack holding one is pack level
+`v1alpha14`. External and project packs do not accept set notices, and the
+support inventory refuses them as it refuses one-way notices. Every document
+without a set notice keeps its schema, digests and replay bytes.

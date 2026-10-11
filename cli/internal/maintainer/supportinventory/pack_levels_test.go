@@ -60,6 +60,18 @@ func levelNoticeRule() map[string]any {
 	return rule
 }
 
+// levelSetNoticeRule is a synthetic set notice on a chart subject: the
+// level reader must see it as the set-notice level.
+func levelSetNoticeRule() map[string]any {
+	rule := levelSetRule()
+	rule["id"] = "kubernetes.synthetic-set-notice.1-36-0-to-1-37-0"
+	rule["operator"] = "notice_set_member_present"
+	rule["subject"].(map[string]any)["chart"] = map[string]any{"source": "https://charts.example.io", "name": "kubernetes"}
+	rule["reasonCode"] = "HELM_VALUES_KEY_NOT_REFERENCED"
+	rule["nextAction"] = "review the listed keys before upgrading"
+	return rule
+}
+
 func levelSource(id, repo, path string, start, end int) map[string]any {
 	return map[string]any{
 		"id": id, "url": "https://github.com/kubernetes/" + repo + "/blob/" + levelTestRevision + "/" + path,
@@ -175,7 +187,7 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 		"prufyx.io/cncf-source-rule-pack/v1alpha4", "prufyx.io/cncf-source-rule-pack/v1alpha5", "prufyx.io/cncf-source-rule-pack/v1alpha6",
 		"prufyx.io/cncf-source-rule-pack/v1alpha7", "prufyx.io/cncf-source-rule-pack/v1alpha8", "prufyx.io/cncf-source-rule-pack/v1alpha9",
 		"prufyx.io/cncf-source-rule-pack/v1alpha10", "prufyx.io/cncf-source-rule-pack/v1alpha11", "prufyx.io/cncf-source-rule-pack/v1alpha12",
-		"prufyx.io/cncf-source-rule-pack/v1alpha13",
+		"prufyx.io/cncf-source-rule-pack/v1alpha13", "prufyx.io/cncf-source-rule-pack/v1alpha14",
 	}
 	for _, tc := range []struct {
 		name      string
@@ -218,6 +230,7 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 			p["distributions"], p["lineAttestations"], p["pathPolicies"] = levelDistributions(), levelAttestations(), levelPolicies()
 		}, want: schemas[8], refusal: "does not list distribution records"},
 		{name: "served-API lists", edit: func(p map[string]any) { p["servedAPIs"] = levelServedAPIs() }, want: schemas[9], refusal: "does not list served-API lists"},
+		{name: "set notice", edit: func(p map[string]any) { addRule(p, levelSetNoticeRule()) }, want: schemas[13], refusal: "does not list notices"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, schema := range schemas {

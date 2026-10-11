@@ -212,10 +212,13 @@ func UnsupportedNote(claims []Claim) (note string, ok bool) {
 const (
 	RuleKindSupportRange = "support_range"
 	RuleKindOneWayNotice = "one_way_notice"
+	// RuleKindSetNotice is a notice over a declared set (notice_set.go).
+	RuleKindSetNotice = "set_notice"
 )
 
 // RawRuleKind classifies one raw rule for display: RuleKindOneWayNotice for a
-// notice, RuleKindSupportRange for a rule with the unsupported severity, and
+// one-way notice, RuleKindSetNotice for a set notice, RuleKindSupportRange
+// for a rule with the unsupported severity, and
 // "" for every other rule. It reads two keys only; ParseRuleSet remains the
 // authority on validity.
 func RawRuleKind(raw json.RawMessage) (string, error) {
@@ -229,6 +232,8 @@ func RawRuleKind(raw json.RawMessage) (string, error) {
 	switch {
 	case shape.Operator == OperatorNoticeOneWay:
 		return RuleKindOneWayNotice, nil
+	case IsSetNoticeOperator(shape.Operator):
+		return RuleKindSetNotice, nil
 	case shape.Severity == SeverityUnsupported:
 		return RuleKindSupportRange, nil
 	}

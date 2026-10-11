@@ -226,7 +226,8 @@ func RuleTransitionOf(raw []byte) (RuleTransition, error) {
 }
 
 // RulesSchemaFor returns the rules schema a document holding exactly these
-// rules must carry: the chart schema when at least one rule has a chart
+// rules must carry: the chart notice schema when at least one rule uses a
+// set notice operator, else the chart schema when at least one rule has a chart
 // subject or uses require_set_member, else the crossing schema when at least one rule declares a
 // crossing, else the severity schema when at least one rule declares a
 // severity, else the basis schema when at least one rule has a consensus
@@ -235,6 +236,13 @@ func RuleTransitionOf(raw []byte) (RuleTransition, error) {
 // forbid_set_member, else the ranged schema when at least one rule has a
 // range, the original exact-only schema otherwise.
 func RulesSchemaFor(rules []json.RawMessage) (string, error) {
+	chartNotice, err := AnyChartNoticeRule(rules)
+	if err != nil {
+		return "", err
+	}
+	if chartNotice {
+		return RulesSchemaChartNotice, nil
+	}
 	chart, err := AnyChartRule(rules)
 	if err != nil {
 		return "", err
@@ -303,8 +311,10 @@ func AnyRanged(rules []json.RawMessage) (bool, error) {
 
 // requiredRulesSchema is the schema of the highest-level feature a parsed
 // document uses; RulesSchemaFor is its raw-rule counterpart.
-func requiredRulesSchema(ranged, setOperator, notice, basis, severity, crossing, chart bool) string {
+func requiredRulesSchema(ranged, setOperator, notice, basis, severity, crossing, chart, chartNotice bool) string {
 	switch {
+	case chartNotice:
+		return RulesSchemaChartNotice
 	case chart:
 		return RulesSchemaChart
 	case crossing:
