@@ -56,17 +56,18 @@ var reasonOutcomes = map[string]outcome{
 	string(upgradepath.GapPathNotPlannable):     gapOutcome(scanreport.GapPathNotPlannable),
 
 	// Engine reasons of an UNKNOWN claim.
-	"RULE_EVIDENCE_WITHDRAWN":             gapOutcome(scanreport.GapEvidenceExpired),
-	"RULE_EVIDENCE_CLOCK_BEFORE_REVIEW":   gapOutcome(scanreport.GapEvidenceExpired),
-	"RULE_EVIDENCE_STALE":                 gapOutcome(scanreport.GapEvidenceExpired),
-	"RULE_SUBJECT_COMPONENT_MISSING":      gapOutcome(scanreport.GapRuleNotDecided),
-	"RULE_TRANSITION_NOT_REVIEWED":        gapOutcome(scanreport.GapRuleNotDecided),
-	"RULE_APPLICABILITY_FACT_UNAVAILABLE": {}, // the preparation reason explains it
-	"RULE_APPLICABILITY_NOT_MATCHED":      decided,
-	"RULE_FACT_UNAVAILABLE":               {}, // the preparation reason explains it
-	"RULE_SET_FACT_INCOMPLETE":            {}, // the preparation reason explains it
-	"RULE_DEPENDENCY_COMPONENT_MISSING":   gapOutcome(scanreport.GapRuleNotDecided),
-	"RULE_OPERATOR_UNSUPPORTED":           gapOutcome(scanreport.GapRuleNotDecided),
+	"RULE_EVIDENCE_WITHDRAWN":                             gapOutcome(scanreport.GapEvidenceExpired),
+	"RULE_EVIDENCE_CLOCK_BEFORE_REVIEW":                   gapOutcome(scanreport.GapEvidenceExpired),
+	"RULE_EVIDENCE_STALE":                                 gapOutcome(scanreport.GapEvidenceExpired),
+	"RULE_SUBJECT_COMPONENT_MISSING":                      gapOutcome(scanreport.GapRuleNotDecided),
+	"RULE_TRANSITION_NOT_REVIEWED":                        gapOutcome(scanreport.GapRuleNotDecided),
+	"RULE_APPLICABILITY_FACT_UNAVAILABLE":                 {}, // the preparation reason explains it
+	"RULE_APPLICABILITY_NOT_MATCHED":                      decided,
+	"RULE_FACT_UNAVAILABLE":                               {}, // the preparation reason explains it
+	"RULE_SET_FACT_INCOMPLETE":                            {}, // the preparation reason explains it
+	"RULE_DEPENDENCY_COMPONENT_MISSING":                   gapOutcome(scanreport.GapRuleNotDecided),
+	constraintengine.ReasonDependencyVersionNotComparable: gapOutcome(scanreport.GapRuleNotDecided),
+	"RULE_OPERATOR_UNSUPPORTED":                           gapOutcome(scanreport.GapRuleNotDecided),
 
 	// A removal crossing never passes: a fact that does not block leaves
 	// the hop undecided.
