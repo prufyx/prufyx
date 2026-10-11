@@ -300,3 +300,41 @@ func (c Claims) Pairs() []CRDPair {
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
 }
+
+// CRDSingle is a release that crd-version claims name and no pair covers:
+// it is installed on its own, from the commit and files the claims cite.
+type CRDSingle struct {
+	ID      string
+	Project string
+	Repo    string
+	Release CRDRelease
+}
+
+func singleID(project, tag string) string { return project + "." + tag }
+
+// Singles lists the releases named by crd-version claims that are neither
+// the from nor the to release of any pair the claims need, by id order.
+func (c Claims) Singles() []CRDSingle {
+	covered := map[string]bool{}
+	for _, p := range c.Pairs() {
+		covered[singleID(p.Project, p.From.Tag)] = true
+		covered[singleID(p.Project, p.To.Tag)] = true
+	}
+	byID := map[string]CRDSingle{}
+	for _, cl := range c.Claims {
+		s := cl.Subject
+		if cl.Kind != KindCRDVersion || s.Release == nil {
+			continue
+		}
+		id := singleID(s.Project, s.Release.Tag)
+		if !covered[id] {
+			byID[id] = CRDSingle{ID: id, Project: s.Project, Repo: s.Repo, Release: *s.Release}
+		}
+	}
+	out := make([]CRDSingle, 0, len(byID))
+	for _, r := range byID {
+		out = append(out, r)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}

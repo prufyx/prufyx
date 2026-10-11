@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -948,5 +949,115 @@ func TestServerErrorNeverConfirmsOrRefutes(t *testing.T) {
 	res := evalObserved(quiet, crdRuns(broken), Provenance{}, time.Unix(0, 0))
 	if got := outcomes(res)["quiet"]; got.Outcome != OutcomeError {
 		t.Errorf("crd-pair with a failing dry run: %+v", got)
+	}
+}
+
+func singleVersionClaims() Claims {
+	rel := gadgetTo
+	return Claims{Schema: ClaimsSchema, Claims: []Claim{
+		{ID: "v1", Kind: KindCRDVersion, Subject: Subject{Project: "fixture", Repo: "github.com/fixture/fixture", Release: &rel, CRD: "gadgets.fixture.example", Group: "fixture.example", Version: "v1", Kind: "Gadget", Served: boolPtr(true), Storage: boolPtr(true)}},
+		{ID: "v1beta1", Kind: KindCRDVersion, Subject: Subject{Project: "fixture", Repo: "github.com/fixture/fixture", Release: &rel, CRD: "gadgets.fixture.example", Group: "fixture.example", Version: "v1beta1", Kind: "Gadget", Served: boolPtr(true), Storage: boolPtr(false)}},
+	}}
+}
+
+func singleRuns(results ...CRDReleaseResult) Runs {
+	return Runs{Snapshots: map[string]Snapshot{}, Verdicts: map[string]VerdictRun{}, CRD: []CRDRun{{Schema: CRDRunSchema, Line: "1.37", Image: "img@sha256:crd", Releases: results}}}
+}
+
+func TestVersionClaimsWithoutPairAreDecided(t *testing.T) {
+	claims := singleVersionClaims()
+	if err := claims.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if len(claims.Pairs()) != 0 {
+		t.Fatalf("pairs %+v", claims.Pairs())
+	}
+	singles := claims.Singles()
+	if len(singles) != 1 || singles[0].ID != "fixture."+gadgetTo.Tag {
+		t.Fatalf("singles %+v", singles)
+	}
+	// A release a pair covers is not installed on its own.
+	if got := gadgetClaims(true).Singles(); len(got) != 0 {
+		t.Fatalf("covered release listed: %+v", got)
+	}
+	cluster := &fakeCluster{crds: map[string]CRDDef{}}
+	res := runSingle(context.Background(), kube{run: cluster.runner, kubeconfig: "kc"}, fixtureFetcher(true), singles[0])
+	if res.Error != "" || res.Unavailable != "" || res.State.Error != "" || len(res.State.CRDs) != 1 {
+		t.Fatalf("result %+v", res)
+	}
+	if len(cluster.crds) != 0 {
+		t.Fatalf("cluster not cleaned: %v", cluster.crds)
+	}
+	got := outcomes(evalObserved(claims, singleRuns(res), Provenance{}, time.Unix(0, 0)))
+	if got["v1"].Outcome != OutcomeConfirmed || got["v1beta1"].Outcome != OutcomeConfirmed {
+		t.Fatalf("outcomes %+v", got)
+	}
+	// The same release served differently is refuted, not confirmed.
+	res = runSingle(context.Background(), kube{run: cluster.runner, kubeconfig: "kc"}, fixtureFetcher(false), singles[0])
+	got = outcomes(evalObserved(claims, singleRuns(res), Provenance{}, time.Unix(0, 0)))
+	if got["v1beta1"].Outcome != OutcomeRefuted || got["v1"].Outcome != OutcomeConfirmed {
+		t.Fatalf("outcomes %+v", got)
+	}
+}
+
+func TestVersionClaimOfAnUninstallableReleaseStaysUndetermined(t *testing.T) {
+	claims := singleVersionClaims()
+	cluster := &fakeCluster{crds: map[string]CRDDef{}}
+	fetch := func(ctx context.Context, repo, commit, path string) ([]byte, error) {
+		return []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: x\n"), nil
+	}
+	res := runSingle(context.Background(), kube{run: cluster.runner, kubeconfig: "kc"}, fetch, claims.Singles()[0])
+	if res.Unavailable == "" || res.Error != "" {
+		t.Fatalf("result %+v", res)
+	}
+	got := outcomes(evalObserved(claims, singleRuns(res), Provenance{}, time.Unix(0, 0)))
+	for id, r := range got {
+		if r.Outcome != OutcomeUndetermined || !strings.Contains(r.Detail, "no CustomResourceDefinition") {
+			t.Fatalf("%s: %+v", id, r)
+		}
+	}
+	// No run at all stays undetermined as well.
+	got = outcomes(evalObserved(claims, crdRuns(CRDPairResult{ID: "x"}), Provenance{}, time.Unix(0, 0)))
+	if got["v1"].Outcome != OutcomeUndetermined {
+		t.Fatalf("outcomes %+v", got)
+	}
+}
+
+func TestFailingSingleInstallIsAnError(t *testing.T) {
+	claims := singleVersionClaims()
+	cluster := &fakeCluster{crds: map[string]CRDDef{}}
+	run := func(ctx context.Context, name string, args []string, stdin []byte) ([]byte, []byte, int) {
+		if len(args) > 2 && args[2] == "apply" {
+			return nil, []byte("error: the server rejected the definition"), 1
+		}
+		return cluster.runner(ctx, name, args, stdin)
+	}
+	res := runSingle(context.Background(), kube{run: run, kubeconfig: "kc"}, fixtureFetcher(true), claims.Singles()[0])
+	if res.State.Error == "" {
+		t.Fatalf("result %+v", res)
+	}
+	got := outcomes(evalObserved(claims, singleRuns(res), Provenance{}, time.Unix(0, 0)))
+	for id, r := range got {
+		if r.Outcome != OutcomeError {
+			t.Fatalf("%s: %+v", id, r)
+		}
+	}
+}
+
+func TestSingleFetchFailureIsAnError(t *testing.T) {
+	claims := singleVersionClaims()
+	cluster := &fakeCluster{crds: map[string]CRDDef{}}
+	fetch := func(ctx context.Context, repo, commit, path string) ([]byte, error) {
+		return nil, errors.New("HTTP 503")
+	}
+	res := runSingle(context.Background(), kube{run: cluster.runner, kubeconfig: "kc"}, fetch, claims.Singles()[0])
+	if res.Error == "" || res.Unavailable != "" {
+		t.Fatalf("result %+v", res)
+	}
+	got := outcomes(evalObserved(claims, singleRuns(res), Provenance{}, time.Unix(0, 0)))
+	for id, r := range got {
+		if r.Outcome != OutcomeError || !strings.Contains(r.Detail, "HTTP 503") {
+			t.Fatalf("%s: %+v", id, r)
+		}
 	}
 }

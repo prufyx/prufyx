@@ -44,6 +44,8 @@ type evaluator struct {
 	// pair results by pair id, and the crd run line and image of each
 	pairs     map[string]CRDPairResult
 	pairImage map[string]string
+	singles   map[string]CRDReleaseResult
+	singleImg map[string]string
 	// imageProblem maps a configured node image digest to why the nodes
 	// that ran it are not proven to run it.
 	imageProblem map[string]string
@@ -73,7 +75,7 @@ func claimedRemovals(claims Claims) map[string]map[string]bool {
 // Evaluate compares the claims with the runs.
 func Evaluate(claims Claims, runs Runs, prov Provenance, now time.Time) Results {
 	res := &Results{Schema: ResultsSchema, GeneratedAt: now.UTC().Format(time.RFC3339), Prufyx: prov.Prufyx, LogDigest: prov.LogDigest, Lines: []LineSummary{}, Claims: []ClaimResult{}, Diffs: []LineDiff{}, Findings: []Finding{}}
-	ev := evaluator{runs: runs, prov: prov, res: res, sets: map[string]map[string]bool{}, cases: map[string]map[string]VerdictCase{}, pairs: map[string]CRDPairResult{}, pairImage: map[string]string{}, imageProblem: map[string]string{}}
+	ev := evaluator{runs: runs, prov: prov, res: res, sets: map[string]map[string]bool{}, cases: map[string]map[string]VerdictCase{}, pairs: map[string]CRDPairResult{}, pairImage: map[string]string{}, singles: map[string]CRDReleaseResult{}, singleImg: map[string]string{}, imageProblem: map[string]string{}}
 	lines := make([]string, 0, len(runs.Snapshots))
 	for line, s := range runs.Snapshots {
 		lines = append(lines, line)
@@ -104,6 +106,16 @@ func Evaluate(claims Claims, runs Runs, prov Provenance, now time.Time) Results 
 			}
 			ev.pairs[p.ID] = p
 			ev.pairImage[p.ID] = run.Image
+		}
+	}
+	for _, run := range runs.CRD {
+		for _, r := range run.Releases {
+			// Run again after a failure: the complete run decides.
+			if prev, ok := ev.singles[r.ID]; ok && singleFailed(r) && !singleFailed(prev) {
+				continue
+			}
+			ev.singles[r.ID] = r
+			ev.singleImg[r.ID] = run.Image
 		}
 	}
 	ev.claimed = claimedRemovals(claims)
@@ -390,8 +402,27 @@ func (e *evaluator) releaseStateFor(project, tag string, cr *ClaimResult) (CRDRe
 		cr.Detail = failed
 		return CRDReleaseState{}, false
 	}
-	cr.Detail = fmt.Sprintf("release %s %s was not installed by any pair", project, tag)
+	if r, ok := e.singles[singleID(project, tag)]; ok {
+		cr.NodeImageDigest = imageDigest(e.singleImg[r.ID])
+		switch {
+		case r.Unavailable != "":
+			cr.Detail = fmt.Sprintf("release %s %s cannot be installed from the claim's evidence: %s", project, tag, r.Unavailable)
+		case r.Error != "" || r.State.Error != "":
+			cr.Outcome = OutcomeError
+			cr.Detail = strings.TrimSpace(r.Error + " " + r.State.Error)
+		case len(r.State.Files) == 0:
+			cr.Detail = fmt.Sprintf("release %s %s was not installed", project, tag)
+		default:
+			return r.State, true
+		}
+		return CRDReleaseState{}, false
+	}
+	cr.Detail = fmt.Sprintf("release %s %s was not installed by any pair or on its own", project, tag)
 	return CRDReleaseState{}, false
+}
+
+func singleFailed(r CRDReleaseResult) bool {
+	return r.Unavailable != "" || r.Error != "" || r.State.Error != ""
 }
 
 func objectOutcome(state CRDReleaseState, m string) string {

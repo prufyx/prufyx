@@ -235,6 +235,12 @@ func cmdCRD(ctx context.Context, args []string) error {
 		fmt.Fprintf(os.Stderr, "kindval crd: %s %s -> %s\n", pair.Project, pair.From.Tag, pair.To.Tag)
 		cr.Pairs = append(cr.Pairs, runPair(ctx, k, httpFetcher, pair))
 	}
+	if *only == "" {
+		for _, single := range claims.Singles() {
+			fmt.Fprintf(os.Stderr, "kindval crd: %s %s on its own\n", single.Project, single.Release.Tag)
+			cr.Releases = append(cr.Releases, runSingle(ctx, k, httpFetcher, single))
+		}
+	}
 	return writeJSON(*out, cr)
 }
 

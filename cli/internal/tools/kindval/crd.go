@@ -121,6 +121,13 @@ func crdDocuments(data []byte) ([][]byte, []CRDDef, error) {
 	return docs, defs, nil
 }
 
+// fetchError marks a failure to read a cited file (network, HTTP status): the
+// evidence was not reached, which is no statement about the release.
+type fetchError struct{ err error }
+
+func (e *fetchError) Error() string { return e.err.Error() }
+func (e *fetchError) Unwrap() error { return e.err }
+
 // releaseManifest fetches a release's files and returns the combined CRD
 // manifest, the definitions and the per-file record.
 func releaseManifest(ctx context.Context, fetch fetcher, repo string, rel CRDRelease) ([]byte, []CRDDef, []FetchedFile, error) {
@@ -130,7 +137,7 @@ func releaseManifest(ctx context.Context, fetch fetcher, repo string, rel CRDRel
 	for _, path := range rel.Files {
 		data, err := fetch(ctx, repo, rel.Commit, path)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("%s@%s: %w", path, rel.Commit, err)
+			return nil, nil, nil, &fetchError{fmt.Errorf("%s@%s: %w", path, rel.Commit, err)}
 		}
 		sum := sha256.Sum256(data)
 		docs, fileDefs, err := crdDocuments(data)
@@ -284,5 +291,35 @@ func runPair(ctx context.Context, k kube, fetch fetcher, pair CRDPair) CRDPairRe
 		return res
 	}
 	res.To = installRelease(ctx, k, toManifest, toDefs, toFiles, fromDefs)
+	return res
+}
+
+// runSingle installs one release's CRDs on its own, probes them and removes
+// them again, so the next release starts from a fresh state. A release whose
+// files were fetched but cannot be read or hold no definitions is Unavailable
+// (nothing was installed); a failed fetch, install or cleanup is an Error.
+func runSingle(ctx context.Context, k kube, fetch fetcher, single CRDSingle) CRDReleaseResult {
+	res := CRDReleaseResult{ID: single.ID, Project: single.Project, Tag: single.Release.Tag}
+	manifest, defs, files, err := releaseManifest(ctx, fetch, single.Repo, single.Release)
+	if err != nil {
+		var fe *fetchError
+		if errors.As(err, &fe) {
+			res.Error = "fetch: " + err.Error()
+		} else {
+			res.Unavailable = err.Error()
+		}
+		return res
+	}
+	if len(defs) == 0 {
+		res.Unavailable = "the files cited for the release hold no CustomResourceDefinition"
+		return res
+	}
+	names := crdNames(defs)
+	defer func() {
+		if err := k.deleteCRDs(ctx, names); err != nil && res.Error == "" {
+			res.Error = "cleanup: " + err.Error()
+		}
+	}()
+	res.State = installRelease(ctx, k, manifest, defs, files, nil)
 	return res
 }
