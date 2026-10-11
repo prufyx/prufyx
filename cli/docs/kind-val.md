@@ -180,8 +180,9 @@ and deletes its definitions before the next release (one cluster, one
 release at a time). The result is recorded in the optional `releases` member
 of the crd run; the run schema is unchanged. The claim is then decided as it
 is for a pair's release. It stays `undetermined`, with the reason in
-`detail`, only when the cited files cannot be fetched or hold no
-definitions; a failed install or cleanup is `error`, never confirmed. With
+`detail`, only when the cited files were fetched but hold no definitions or
+cannot be read; a failed fetch (network, HTTP status), install or cleanup is
+`error`, never confirmed. With
 `--pair ID` only that pair is run.
 
 ## Limits

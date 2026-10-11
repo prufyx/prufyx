@@ -1004,7 +1004,7 @@ func TestVersionClaimOfAnUninstallableReleaseStaysUndetermined(t *testing.T) {
 	claims := singleVersionClaims()
 	cluster := &fakeCluster{crds: map[string]CRDDef{}}
 	fetch := func(ctx context.Context, repo, commit, path string) ([]byte, error) {
-		return nil, errors.New("HTTP 404")
+		return []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: x\n"), nil
 	}
 	res := runSingle(context.Background(), kube{run: cluster.runner, kubeconfig: "kc"}, fetch, claims.Singles()[0])
 	if res.Unavailable == "" || res.Error != "" {
@@ -1012,7 +1012,7 @@ func TestVersionClaimOfAnUninstallableReleaseStaysUndetermined(t *testing.T) {
 	}
 	got := outcomes(evalObserved(claims, singleRuns(res), Provenance{}, time.Unix(0, 0)))
 	for id, r := range got {
-		if r.Outcome != OutcomeUndetermined || !strings.Contains(r.Detail, "HTTP 404") {
+		if r.Outcome != OutcomeUndetermined || !strings.Contains(r.Detail, "no CustomResourceDefinition") {
 			t.Fatalf("%s: %+v", id, r)
 		}
 	}
@@ -1039,6 +1039,24 @@ func TestFailingSingleInstallIsAnError(t *testing.T) {
 	got := outcomes(evalObserved(claims, singleRuns(res), Provenance{}, time.Unix(0, 0)))
 	for id, r := range got {
 		if r.Outcome != OutcomeError {
+			t.Fatalf("%s: %+v", id, r)
+		}
+	}
+}
+
+func TestSingleFetchFailureIsAnError(t *testing.T) {
+	claims := singleVersionClaims()
+	cluster := &fakeCluster{crds: map[string]CRDDef{}}
+	fetch := func(ctx context.Context, repo, commit, path string) ([]byte, error) {
+		return nil, errors.New("HTTP 503")
+	}
+	res := runSingle(context.Background(), kube{run: cluster.runner, kubeconfig: "kc"}, fetch, claims.Singles()[0])
+	if res.Error == "" || res.Unavailable != "" {
+		t.Fatalf("result %+v", res)
+	}
+	got := outcomes(evalObserved(claims, singleRuns(res), Provenance{}, time.Unix(0, 0)))
+	for id, r := range got {
+		if r.Outcome != OutcomeError || !strings.Contains(r.Detail, "HTTP 503") {
 			t.Fatalf("%s: %+v", id, r)
 		}
 	}
