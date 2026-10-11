@@ -73,7 +73,7 @@ func Human(report Report, options HumanOptions) []byte {
 
 	for _, path := range report.Paths {
 		line("")
-		line(labelPath, path.Component, path.From, path.To, pathSummary(path))
+		line("%s", pathLabel(path))
 		if options.Verbose {
 			for _, hop := range path.Hops {
 				status := hop.Status
@@ -172,7 +172,20 @@ func Human(report Report, options HumanOptions) []byte {
 	for _, text := range knowledgeStoreLines(p.KnowledgeStore) {
 		line("%s", text)
 	}
+	for _, text := range helmValuesLines(p.HelmValues) {
+		line("%s", text)
+	}
 	return out.Bytes()
+}
+
+// helmValuesLines are the provenance lines of the values supplied for
+// declared charts; empty when no chart was declared.
+func helmValuesLines(values []HelmValues) []string {
+	var lines []string
+	for _, v := range values {
+		lines = append(lines, fmt.Sprintf(labelHelmValues, v.Component, v.Chart, len(v.Files), v.Sets, v.Digest))
+	}
+	return lines
 }
 
 // knowledgeStoreLines are the provenance lines that name a knowledge
@@ -240,11 +253,23 @@ func familyLines(path Path) []string {
 	return out
 }
 
+// pathLabel is the heading of a path: a chart path names the chart, so its
+// versions never read as application versions.
+func pathLabel(path Path) string {
+	if path.Chart != nil {
+		return fmt.Sprintf(labelChartPath, path.Component, path.Chart.Name, path.From, path.To, pathSummary(path))
+	}
+	return fmt.Sprintf(labelPath, path.Component, path.From, path.To, pathSummary(path))
+}
+
 func pathSummary(path Path) string {
 	if path.Gap != "" {
 		return fmt.Sprintf(labelNoPath, path.Gap)
 	}
 	hops := count(len(path.Hops), labelHopOne, labelHops)
+	if path.Chart != nil {
+		return hops
+	}
 	if path.Policy == "" {
 		return fmt.Sprintf(labelNoPolicy, hops)
 	}
@@ -261,6 +286,9 @@ func hasPath(paths []Path, component string) bool {
 }
 
 func hopLabel(hop HopRef) string {
+	if hop.Chart != "" {
+		return fmt.Sprintf(labelChartHop, hop.Chart, hop.From, hop.To)
+	}
 	if hop.WholeUpgrade {
 		return labelWholeUpgrade + " " + hop.From + " -> " + hop.To
 	}
@@ -284,6 +312,9 @@ func writeFinding(out *bytes.Buffer, finding Finding, options HumanOptions, shar
 			break
 		}
 		fmt.Fprintf(out, "%s%s\n", sanitizeArgs([]any{indent, locationText(location)})...)
+	}
+	if len(finding.Keys) > 0 {
+		fmt.Fprintf(out, "%s"+labelKeys+"\n", sanitizeArgs([]any{indent, strings.Join(finding.Keys, ", ")})...)
 	}
 	fmt.Fprintf(out, "%s"+labelFix+"\n", sanitizeArgs([]any{indent, finding.Fix})...)
 	if !options.Verbose {
@@ -407,5 +438,12 @@ func Redact(report *Report) {
 		redacted := *store
 		redacted.Path = RedactValue(store.Path)
 		report.Provenance.KnowledgeStore = &redacted
+	}
+	for v := range report.Provenance.HelmValues {
+		files := make([]HelmValuesFile, len(report.Provenance.HelmValues[v].Files))
+		for f, file := range report.Provenance.HelmValues[v].Files {
+			files[f] = HelmValuesFile{File: RedactValue(file.File), Digest: file.Digest}
+		}
+		report.Provenance.HelmValues[v].Files = files
 	}
 }

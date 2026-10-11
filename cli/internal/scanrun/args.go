@@ -13,6 +13,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/intake"
+	"github.com/prufyx/prufyx/cli/internal/scanconfig"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
 
@@ -25,7 +26,16 @@ type Request struct {
 	Distribution          *string
 	ResourceScopeComplete *bool
 	TargetApplyRequired   *bool
-	Format                string
+	// Charts are the --chart PROJECT=NAME[@SOURCE] declarations; nil when
+	// none was given.
+	Charts map[string]string
+	// HelmValues and HelmSet are the --helm-values files and --helm-set
+	// assignments in the order given; HelmValuesComplete is
+	// --helm-values-complete. They belong to the one declared chart.
+	HelmValues         []string
+	HelmSet            []string
+	HelmValuesComplete *bool
+	Format             string
 	// FailOn is the --fail-on policy: unknown (default), blocked or none.
 	FailOn string
 	// OnlyBlocked is --only-blocked: human and markdown list only BLOCKED findings.
@@ -197,6 +207,46 @@ func ParseArgs(args []string) (Request, error) {
 			if err := addVersion(target, display, v); err != nil {
 				return Request{}, err
 			}
+		case "chart":
+			v, err := next()
+			if err != nil {
+				return Request{}, err
+			}
+			if err := addChart(&request.Charts, v); err != nil {
+				return Request{}, err
+			}
+		case "helm-values", "helm-set":
+			v, err := next()
+			if err != nil {
+				return Request{}, err
+			}
+			if v == "" || strings.IndexByte(v, 0) >= 0 || len(v) > 4096 {
+				return Request{}, usage(scanreport.UsageBadValue, display)
+			}
+			if name == "helm-values" {
+				if v == "-" {
+					return Request{}, usage(scanreport.UsageBadValue, display)
+				}
+				request.HelmValues = append(request.HelmValues, v)
+			} else {
+				request.HelmSet = append(request.HelmSet, v)
+			}
+			if len(request.HelmValues) > scanconfig.MaxHelmValues || len(request.HelmSet) > scanconfig.MaxHelmValues {
+				return Request{}, usage(scanreport.UsageBadValue, display)
+			}
+		case "helm-values-complete":
+			if err := once(display); err != nil {
+				return Request{}, err
+			}
+			v, err := boolean()
+			if err != nil {
+				return Request{}, err
+			}
+			request.HelmValuesComplete = &v
+		case "set-string", "set-file", "set-json", "set-literal", "values", "f", "set":
+			// Helm's own spellings are refused by name: scan reads only the
+			// subset it can read exactly, through its own flags.
+			return Request{}, usage(scanreport.UsageUnknownFlag, display)
 		case "distribution":
 			if err := once(display); err != nil {
 				return Request{}, err
@@ -387,6 +437,28 @@ func addVersion(target *map[string]string, flagName, value string) error {
 		return usage(scanreport.UsageConflict, flagName, quote(component))
 	}
 	(*target)[component] = version
+	return nil
+}
+
+// addChart records PROJECT=NAME[@SOURCE]. The project is checked against
+// the catalog and the chart against the reviewed chart-source table later.
+// The same project twice is accepted only with the same chart.
+func addChart(target *map[string]string, value string) error {
+	project, chart, ok := strings.Cut(value, "=")
+	name, _, _ := strings.Cut(chart, "@")
+	if !ok || project == "" || name == "" || len(project) > 128 || len(chart) > 512 || !printable(chart) || strings.ContainsAny(chart, " \t") {
+		return usage(scanreport.UsageChartFlag)
+	}
+	if project == kubernetesSlug {
+		return usage(scanreport.UsageChartKubernetes)
+	}
+	if *target == nil {
+		*target = map[string]string{}
+	}
+	if existing, found := (*target)[project]; found && existing != chart {
+		return usage(scanreport.UsageConflict, "--chart", quote(project))
+	}
+	(*target)[project] = chart
 	return nil
 }
 

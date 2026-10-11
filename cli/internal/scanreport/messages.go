@@ -114,6 +114,24 @@ const (
 	GapCustomResourceLineSameLine   GapKey = ReasonLineNotAttested + "/custom-resources-same-line"
 	GapCustomResourceLineRelease    GapKey = ReasonLineNotAttested + "/custom-resources-release"
 	GapCustomResourceLineTrust      GapKey = ReasonLineNotAttested + "/custom-resources-trust-policy"
+	// GapChartValuesOnly: a declared chart hop, checked only against the
+	// rules about the chart's values and Kubernetes version.
+	GapChartValuesOnly GapKey = ReasonComponentNotCovered + "/chart-values-only"
+	// GapHelmValuesNotComplete: the supplied values are not declared to be
+	// every values source of the release.
+	GapHelmValuesNotComplete GapKey = ReasonDeclarationMissing + "/helm-values-complete"
+	// GapHelmValuesNull: the merged values hold a null, which removes a
+	// chart default.
+	GapHelmValuesNull GapKey = ReasonDocumentsNotEvaluated + "/helm-values-null"
+	// GapHelmValuesUniverse: the rules name more values keys than a set
+	// may hold.
+	GapHelmValuesUniverse GapKey = ReasonRuleNotDecided + "/helm-values-universe"
+	// GapHelmValuesUniverseUnresolved: a rule reads the values-path set
+	// other than as a set of keys.
+	GapHelmValuesUniverseUnresolved GapKey = ReasonRuleNotDecided + "/helm-values-universe-unresolved"
+	// GapChartKubernetesVersion: a chart rule needs the Kubernetes version,
+	// which was not declared.
+	GapChartKubernetesVersion GapKey = ReasonRuleNotDecided + "/chart-kubernetes-version"
 )
 
 // Reason is the gap reason of the key.
@@ -247,6 +265,18 @@ var gapMessages = map[GapKey]gapMessage{
 		"use knowledge reviewed after %[1]s %[3]s, or check its CRDs by hand", 3},
 	GapCustomResourceLineTrust: {"the custom-resource review of %[1]s %[2]s rests on basis %[3]s (see --require-basis)",
 		"add %[3]s to --require-basis, or check the %[1]s %[2]s CRDs by hand", 3},
+	GapChartValuesOnly: {"%[1]s chart %[2]s: only its values and Kubernetes-version rules are checked, not the rest of the upgrade",
+		"verify the rest of the chart's upgrade notes and the %[1]s release notes by hand", 2},
+	GapHelmValuesNotComplete: {"%[1]s chart %[2]s: the supplied values are not declared complete, so no required key is confirmed",
+		"pass --helm-values-complete when the listed files and --helm-set assignments are all the release reads", 2},
+	GapHelmValuesNull: {"%[1]s chart %[2]s: values set %[3]s to null; the keys set are not known completely",
+		"remove the null from the supplied values, or check the chart's required values by hand", 3},
+	GapHelmValuesUniverse: {"%[1]s chart %[2]s: its rules name %[3]d values keys, more than a set holds",
+		"check the chart's values rules by hand", 3},
+	GapHelmValuesUniverseUnresolved: {"%[1]s chart %[2]s: a rule reads the values-path set other than as a set of keys",
+		"check the chart's values rules by hand, and report the rule", 2},
+	GapChartKubernetesVersion: {"rule %[1]s needs the Kubernetes version the chart is installed on",
+		"give the cluster's target version with --to kubernetes=X.Y.Z and scan again", 1},
 }
 
 // GapReasons lists the closed vocabulary in order.
@@ -429,6 +459,10 @@ func PermissionNote(files int) string {
 // Human labels.
 const (
 	labelPath                   = "%s %s -> %s: %s"
+	labelChartPath              = "%s chart %s %s -> %s: %s"
+	labelChartHop               = "chart %s %s -> %s"
+	labelKeys                   = "keys: %s"
+	labelHelmValues             = "helm values for %s chart %s: %d file(s), %d assignment(s), digest %s"
 	labelHops                   = "%d hops"
 	labelHopOne                 = "1 hop"
 	labelPolicy                 = "%s (path policy %s)"
@@ -564,6 +598,20 @@ const (
 	UsageConfigInputs            = "inputs in prufyx.yaml are relative to its directory and must stay inside it"
 	UsageUnsupportedVersion      = "%s %s is not a version scan can plan"
 	UsageRequireBasis            = "--require-basis takes a comma-separated list of reviewed, mechanical, empirical, consensus, lead"
+	UsageChartFlag               = "--chart takes PROJECT=NAME or PROJECT=NAME@SOURCE, for example keda=keda"
+	UsageChartKubernetes         = "kubernetes cannot be declared as a chart hop"
+	UsageChartNoTarget           = "%s is declared as a chart hop but has no target chart version; give --to %s=X.Y.Z"
+	UsageChartUnknown            = "no current reviewed chart source ties %s to chart %s; charts with one: %s"
+	UsageChartUnknownNone        = "no current reviewed chart source ties %s to chart %s, and %s has none (see docs/chart-identity.md)"
+	UsageChartUnusable           = "the reviewed chart source of %s chart %s is withdrawn or expired; scan cannot declare that chart"
+	UsageChartAmbiguous          = "%s chart %s has several reviewed chart sources; name one as %s=%s@SOURCE"
+	UsageChartSource             = "%s is not a reviewed source of %s chart %s"
+	UsageHelmNoChart             = "--helm-values, --helm-set and --helm-values-complete need exactly one chart declaration (--chart or declarations.helm)"
+	UsageHelmSet                 = "--helm-set assignment %d is not accepted: KEY=VALUE with a dotted KEY (escapes \\. \\= \\, \\\\), no list syntax, and a VALUE without an unescaped comma or a leading {"
+	UsageHelmValuesFile          = "Helm values file %s: %s"
+	UsageHelmValuesPaths         = "helm values in prufyx.yaml are relative to its directory and must stay inside it"
+	UsageHelmValuesNotMapping    = "outside the strict YAML subset (one document, text keys, no anchors, aliases, merge keys, custom tags, duplicate keys or keys such as on: that YAML 1.1 reads as a boolean or null), or its top level is not a mapping"
+	UsageHelmSetPath             = "--helm-set assignment %d: its key passes through a value that is not a mapping, which Helm refuses"
 )
 
 // Knowledge database failure reasons, shown in UsageKnowledgeDBFailed.
@@ -596,6 +644,14 @@ with where it is and how to fix it, and every area that was not checked.
   --distribution D          official_upstream or custom_build (Kubernetes)
   --resource-scope-complete[=true|false]   the inputs are every manifest you apply
   --target-api-apply-required[=true|false] the inputs are applied to the target API
+  --chart P=NAME[@SOURCE]   P's --from/--to versions are versions of Helm chart NAME, resolved
+                            through the reviewed chart-source table; checks only the chart's
+                            values and Kubernetes-version rules (Kubernetes needs --to kubernetes=)
+  --helm-values FILE        a values file supplied for the chart (repeatable; later files win)
+  --helm-set KEY=VALUE      a --set assignment applied after the files (repeatable; dotted KEY,
+                            no lists or commas; VALUE null removes the key)
+  --helm-values-complete[=true|false]   the files and assignments are every values source of
+                            the release; without it no required key is confirmed
   --format human|json|sarif|markdown|csv   output format (default human); sarif is SARIF 2.1.0 for
                             code scanning, markdown is for pull request comments and tickets,
                             csv is one row per finding location and gap for spreadsheets

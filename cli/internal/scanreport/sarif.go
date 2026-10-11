@@ -134,6 +134,8 @@ type sarifResultProps struct {
 	Crossing *constraintengine.CrossingMatch `json:"crossing,omitempty"`
 	// CrossedLine is the step a rule decided for a hop that skips lines.
 	CrossedLine *CrossedLine `json:"crossedLine,omitempty"`
+	// Keys are the Helm values keys of a chart values finding.
+	Keys []string `json:"keys,omitempty"`
 }
 
 type sarifLocation struct {
@@ -212,6 +214,9 @@ type sarifRunProps struct {
 	// of the community catalog (outside the embedded CNCF landscape
 	// catalog; no CNCF status asserted). It is absent when there are none.
 	CommunityCatalog []string `json:"communityCatalog,omitempty"`
+	// HelmValues identifies the values supplied for declared charts; absent
+	// when none was declared.
+	HelmValues []HelmValues `json:"helmValues,omitempty"`
 }
 
 // communityCatalogComponents lists, in inventory order, the components of
@@ -261,7 +266,7 @@ func SARIF(report Report) ([]byte, error) {
 			KnowledgeRevision: p.KnowledgeRevision, KnowledgeDigest: p.KnowledgeDigest,
 			EngineContractDigest: p.EngineContractDigest, NetworkUsed: p.NetworkUsed,
 			Omissions: omissions, TrustPolicy: report.TrustPolicy, KnowledgeStore: p.KnowledgeStore,
-			CommunityCatalog: communityCatalogComponents(report),
+			CommunityCatalog: communityCatalogComponents(report), HelmValues: p.HelmValues,
 		},
 	}}}
 	var out bytes.Buffer
@@ -342,7 +347,7 @@ func sarifResults(report Report, index map[string]int) ([]sarifResult, int) {
 		base := sarifResult{
 			RuleID: f.RuleID, RuleIndex: index[f.RuleID], Level: sarifError,
 			Message:    sarifText{resultMessage(f)},
-			Properties: sarifResultProps{Component: f.Component, Hop: hopLabel(f.Hop), Basis: f.Basis, Match: f.Match, Crossing: f.Crossing, CrossedLine: f.CrossedLine},
+			Properties: sarifResultProps{Component: f.Component, Hop: hopLabel(f.Hop), Basis: f.Basis, Match: f.Match, Crossing: f.Crossing, CrossedLine: f.CrossedLine, Keys: f.Keys},
 		}
 		if len(f.Locations) == 0 {
 			rows = append(rows, sarifRow{component: f.Component, hop: f.Hop.order(), document: -1, item: -1, result: base})

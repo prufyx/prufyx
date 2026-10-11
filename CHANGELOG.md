@@ -13,6 +13,29 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   the tables of the reviewed custom-resource projects and of the
   `crd.version-removal` targets to `cli/docs/generated/` from the data compiled
   into Prufyx; the hand-written pages link to them. No check output changes.
+- `prufyx scan` can check a Helm chart upgrade: `--chart PROJECT=NAME[@SOURCE]`
+  (or `declarations.helm` in `prufyx.yaml`) declares that the project's
+  `--from`/`--to` versions are chart versions, resolved through exactly one
+  current row of the reviewed chart-source table, and `--helm-values FILE`,
+  `--helm-set KEY=VALUE` and `--helm-values-complete` supply the values the
+  release uses. Such a hop is checked only against the chart's rules about
+  required and no longer accepted values keys and the Kubernetes version the
+  chart needs (`--to kubernetes=` is then needed); application rules are
+  never applied to it, application hops are unchanged, and the rest of the
+  chart and application upgrade is always reported as not checked. Values
+  files must be strict YAML; a key left `null` after the merge or values not
+  declared complete keep required keys undecided. Values are never printed;
+  the report identifies them by digest. The built-in knowledge carries no
+  chart rule yet, so a chart hop is reported as not evaluated. The
+  `scan-report-v1alpha1` JSON schema gained the optional members
+  `inventory[].chart`, `paths[].chart`, `chart` in hop references,
+  `findings[].keys` and `provenance.helmValues`; integrators who vendor the
+  schema should refresh it.
+- `prufyx check cncf` fact-family checks of an input that declares a
+  component's `chart` are now served by that chart's rules only: a chart rule
+  about another chart is never selected, and an application rule over the same
+  facts is reported undetermined (`RULE_APP_VERSION_NOT_DECLARED`). Inputs
+  without a declared chart are selected exactly as before.
 - Knowledge paths for community-catalog projects (inert until a rule of one is
   published): the rule pack has its own schema level for entries of a
   community project (only `forbid_set_member` rules over the project's own

@@ -27,6 +27,27 @@ type FlagDeclarations struct {
 	Distribution          *string
 	ResourceScopeComplete *bool
 	TargetApplyRequired   *bool
+	// Helm holds, by project, the chart declarations given on the command
+	// line; nil when none was given.
+	Helm map[string]HelmFlags
+}
+
+// HelmFlags is one project's chart declaration on the command line. An
+// empty Chart, a nil slice or a nil pointer means that flag was not given.
+type HelmFlags struct {
+	Chart    string
+	Values   []string
+	Set      []string
+	Complete *bool
+}
+
+// HelmEffective is one project's chart declaration after flags have
+// overridden the file, key by key.
+type HelmEffective struct {
+	Chart    Value[string]
+	Values   Value[[]string]
+	Set      Value[[]string]
+	Complete Value[bool]
 }
 
 // Effective is the configuration after flags have overridden the file, key by
@@ -38,6 +59,9 @@ type Effective struct {
 	Distribution          Value[string]
 	ResourceScopeComplete Value[bool]
 	TargetApplyRequired   Value[bool]
+	// Helm holds the chart declarations by project; nil when neither the
+	// file nor a flag declares one.
+	Helm map[string]HelmEffective
 }
 
 // Merge applies flags over cfg. A flag always wins over the file for the same
@@ -54,6 +78,32 @@ func Merge(cfg Config, flags FlagDeclarations) Effective {
 	out.Distribution = pickPtr(file.Distribution, flags.Distribution)
 	out.ResourceScopeComplete = pickPtr(file.ResourceScopeComplete, flags.ResourceScopeComplete)
 	out.TargetApplyRequired = pickPtr(file.TargetApplyRequired, flags.TargetApplyRequired)
+	out.Helm = mergeHelm(cfg.Declarations.Helm, flags.Helm)
+	return out
+}
+
+func mergeHelm(file map[string]HelmDeclaration, flags map[string]HelmFlags) map[string]HelmEffective {
+	if len(file) == 0 && len(flags) == 0 {
+		return nil
+	}
+	out := map[string]HelmEffective{}
+	slugs := map[string]bool{}
+	for slug := range file {
+		slugs[slug] = true
+	}
+	for slug := range flags {
+		slugs[slug] = true
+	}
+	for slug := range slugs {
+		f, inFile := file[slug]
+		g := flags[slug]
+		out[slug] = HelmEffective{
+			Chart:    pick(f.Chart, inFile && f.Chart != "", g.Chart, g.Chart != ""),
+			Values:   pick(f.Values, f.Values != nil, g.Values, g.Values != nil),
+			Set:      pick(f.Set, f.Set != nil, g.Set, g.Set != nil),
+			Complete: pickPtr(f.Complete, g.Complete),
+		}
+	}
 	return out
 }
 

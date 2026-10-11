@@ -70,6 +70,8 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
     [--config FILE]
     [--distribution official_upstream|custom_build]
     [--resource-scope-complete[=true|false]] [--target-api-apply-required[=true|false]]
+    [--chart PROJECT=NAME[@SOURCE]] [--helm-values FILE ...] [--helm-set KEY=VALUE ...]
+    [--helm-values-complete[=true|false]]
     [--format human|json|sarif|markdown|csv] [--show-passes] [--verbose] [--redact]
     [--only-blocked] [--fail-on blocked|unknown|none]
     [--input-permissions strict|refuse-writable] [--require-basis LIST]
@@ -85,6 +87,10 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
 | `--distribution` | `official_upstream` or `custom_build`. Only `official_upstream` is evaluated. |
 | `--resource-scope-complete` | Declares that the inputs are every manifest you apply. |
 | `--target-api-apply-required` | Declares that the inputs are applied to the target Kubernetes API. |
+| `--chart P=NAME[@SOURCE]` | Declares that the `--from`/`--to` versions of project `P` are versions of the Helm chart `NAME`, not of the application. The chart is resolved through the reviewed [chart-source table](chart-identity.md): exactly one current row must tie `P` to `NAME` (name the repository as `@SOURCE` when there are several). See "Helm chart values". |
+| `--helm-values FILE` | A values file supplied for the declared chart. Repeatable, in Helm's order: a later file wins. Needs exactly one chart declaration. |
+| `--helm-set KEY=VALUE` | A `--set` assignment applied after the files. Repeatable. `KEY` is a dotted path (`\.`, `\=`, `\,` and `\\` escape); list indexes, several assignments in one flag, a `VALUE` with an unescaped comma or a leading `{` are refused. `VALUE` `null` removes the key. |
+| `--helm-values-complete` | Declares that the files and assignments are every values source of the release. Without it, no required values key is confirmed. |
 | `--format` | `human` (default), `json`, `sarif`, `markdown` or `csv` (a header row, a summary row with the verdict and the headline, then one row per blocking finding location, then one row per gap and, with passes shown, per pass; cells are escaped and guarded against spreadsheet formulas). The format changes only what is printed: the verdict and the exit code are the same. |
 | `--show-passes` | Lists every passed check (human and Markdown output). |
 | `--only-blocked` | Human and Markdown output list only BLOCKED findings and end with one line counting the hidden not-checked gaps and other items (notices, unsupported combinations, leads); the headline, verdict and exit code are unchanged. Gaps for API versions the target does not serve (the removed-API case) stay visible. Comparable to Pluto's `--only-show-removed`. Not applied to `csv`, `json` and `sarif`, which always stay complete. |
@@ -309,20 +315,20 @@ Every gap has a reason, a detail and an action.
 | `PATH_POLICY_NOT_CURRENT` | A path policy exists but its review is expired or withdrawn. | Use knowledge with a current policy; until then scan one line at a time. |
 | `PATH_NOT_PLANNABLE` | The versions cannot be planned (equal versions, too many hops, a major change). | Check the versions, or scan each step. |
 | `DOWNGRADE_NOT_REVIEWED` | The target is older than the current version. | Prufyx checks upgrades only: see the project's docs on downgrades (the Kubernetes control plane has none), or swap `--from` and `--to`. |
-| `COMPONENT_NOT_COVERED` | A targeted project is not evaluated by `scan` yet, or (the 23 CNCF projects of the custom-resource table) only its custom-resource versions are. | Run `prufyx check cncf --project NAME`, or verify the rest of its upgrade notes by hand. |
+| `COMPONENT_NOT_COVERED` | A targeted project is not evaluated by `scan` yet, or (the 23 CNCF projects of the custom-resource table) only its custom-resource versions are, or it is a declared chart hop, where only the chart's values rules are. | Run `prufyx check cncf --project NAME`, or verify the rest of its upgrade notes by hand. |
 | `PROJECT_NOT_IN_KNOWLEDGE` | With `--knowledge-db`, the selected per-project index has no target for a targeted project, so nothing about it was checked. | Update the knowledge database to a revision that covers it, or check by hand. |
 | `VERSION_NOT_DETECTED` | No current version was declared. | Pass `--from kubernetes=VERSION` or set `current:` in `prufyx.yaml`. |
 | `VERSION_CONFLICT` | Two different versions were declared for one project. | Declare one. |
-| `DECLARATION_MISSING` | Scope completeness, target apply or the distribution is not declared. | Declare it with the flag or in `prufyx.yaml`, if it is true. |
+| `DECLARATION_MISSING` | Scope completeness, target apply or the distribution is not declared, or the Helm values of a chart hop are not declared complete. | Declare it with the flag or in `prufyx.yaml`, if it is true. |
 | `DISTRIBUTION_NOT_COVERED` | The distribution is `custom_build`. | Check your distribution's release notes by hand. |
 | `DOCUMENTS_TEMPLATED` | Documents with `{{ ... }}` or `${...}`. | Render them (`helm template`, `kustomize build`) and scan the output. |
-| `DOCUMENTS_NOT_EVALUATED` | Nested or unresolved lists, paginated lists, objects of a kind other than `List` that hold a top-level `items` array, documents that are not Kubernetes objects, skipped symlinks or special files, or no manifests at all; for a project with custom-resource versions, also objects of custom-resource groups that no reviewed project owns. | Pass only rendered Kubernetes objects; check unowned custom resources by hand. |
+| `DOCUMENTS_NOT_EVALUATED` | Nested or unresolved lists, paginated lists, objects of a kind other than `List` that hold a top-level `items` array, documents that are not Kubernetes objects, skipped symlinks or special files, or no manifests at all, or Helm values that set a key to `null`; for a project with custom-resource versions, also objects of custom-resource groups that no reviewed project owns. | Pass only rendered Kubernetes objects; check unowned custom resources by hand. |
 | `UNSUPPORTED_COMBINATION` | A support-range rule finds the planned combination outside its documented support range (see "Unsupported combinations"). | Follow the rule's next action, or accept the risk knowingly; the answer cannot pass. |
 | `API_VERSION_NOT_SERVED` | A manifest uses an API version that was removed on a release line at or below the target (every removal Prufyx has reviewed, including those before 1.22 such as `extensions/v1beta1` workloads), and no reviewed rule decided it: it was removed at or before your current line, or on a line the upgrade enters where the rule is missing, left out by `--require-basis`, or could not decide (for example a missing declaration). The headline then says so instead of "no blockers". | Migrate it to a served version before upgrading and scan again; the `RULE_NOT_DECIDED` gaps for the step that enters the line say why no rule decided it (no rule for the line, a rule left out by `--require-basis`, a rule that covers only part of the step, or a rule that could not decide). |
 | `API_VERSION_NOT_REVIEWED` | A manifest uses a version of a reviewed kind that the reviewed removals do not name, or a version and kind of a Kubernetes API group that the reviewed list of the target line does not name as served; or that list is missing, not current, for another line or component, or rests on a basis `--require-basis` leaves out. The built-in knowledge does not carry such lists yet, so today every scan with Kubernetes manifests names this gap. | Check those versions against the target's API reference by hand, or request coverage. |
 | `ALPHA_API_NOT_COVERED` | A manifest uses an alpha version of a Kubernetes API group (core, `apps`, `batch`, `autoscaling`, `policy`, `extensions` or `*.k8s.io`); removed-API reviews cover beta and stable versions only. | Check alpha APIs by hand for every line. |
 | `EVIDENCE_EXPIRED` | The review of a rule is stale, withdrawn or not yet valid at `--now`. | Use a release with current knowledge, or check by hand. |
-| `RULE_NOT_DECIDED` | A rule that applies could not reach a verdict, needs evidence `scan` does not collect, rests on consensus evidence that found nothing, or was left out by `--require-basis`. | Run the matching `prufyx check cncf` route, or check by hand. |
+| `RULE_NOT_DECIDED` | A rule that applies could not reach a verdict, needs evidence `scan` does not collect, rests on consensus evidence that found nothing, or was left out by `--require-basis`; for a chart hop, also a Kubernetes version that was not declared, or values rules that name more keys than a set can hold. | Run the matching `prufyx check cncf` route, or check by hand. |
 
 When an input document cannot be read as part of the apply set (for example a
 templated document next to rendered ones), a removed API version used by a
@@ -405,6 +411,8 @@ it stands.
 - Projects other than Kubernetes (reported as `COMPONENT_NOT_COVERED`); for
   the 23 CNCF projects of the custom-resource table only custom-resource versions are
   checked.
+- For a declared chart hop, anything but the chart's values rules and the
+  Kubernetes version it needs.
 
 ## Locations and `--redact`
 
@@ -427,6 +435,72 @@ and a file that other users can read is accepted with one note:
 owned by another user and a file with several hard links. Standard input has no
 mode, so the policy does not apply to it. `prufyx.yaml` is read under the same
 policy.
+
+## Helm chart values
+
+A project installed with a Helm chart can be scanned as a chart upgrade:
+`--chart keda=keda --from keda=2.15.0 --to keda=2.16.0` reads the two
+versions as versions of the chart `keda`, and the hop is shown as
+`chart keda 2.15.0 -> 2.16.0`. Nothing is inferred from manifests,
+`Chart.yaml` files or GitOps objects: without `--chart` (or
+`declarations.helm` in [`prufyx.yaml`](scan-config.md)) the same versions are
+application versions, evaluated exactly as before.
+
+The chart must be tied to the project by one current row of the reviewed
+[chart-source table](chart-identity.md). A chart with no row, a withdrawn or
+expired row, several rows without `@SOURCE`, a source that is not reviewed,
+or a chart declared for a project without a target version is refused with
+exit `2`.
+
+A declared chart hop is checked only against rules about the chart: rules
+about which values keys the chart requires or no longer accepts, and the
+Kubernetes version the chart needs. Application rules are never selected for
+a chart hop, and chart rules are never selected for an application hop. The
+hop is always one direct step between the two chart versions, even across
+several release lines or a major version change; a chart rule for a
+transition inside a longer step is reported as not decided
+(`INTERMEDIATE_LINE_NOT_COVERED_BY_RANGE`), never as a pass. The rest of the
+chart upgrade and the application upgrade are named as a
+`COMPONENT_NOT_COVERED` gap, so the answer for that project is never a pass
+on its own. A rule about the Kubernetes version needs `--to kubernetes=X.Y.Z`
+(and `--from kubernetes=` for the current side); without it the rule is
+undecided (`RULE_NOT_DECIDED`) and the gap says which flag to add.
+
+The values are merged as Helm merges user values: the files in order, then
+the `--helm-set` assignments. Each file must be one strict YAML document
+whose top level is a mapping, with text keys, no anchors, aliases, merge keys
+or custom tags, no duplicate keys and no keys that YAML 1.1 reads as a
+boolean or null (`on`, `yes`, `null`, ...); anything else is refused with
+exit `2`. Values files are read under the input permission policy, never
+from standard input and never through a symbolic link.
+
+From the merged values `scan` builds the set of values keys that are set:
+every key with a value other than `null`, through mappings (a key holding a
+mapping counts, and so do the keys inside it; a list is one value). Only
+the keys some rule of the project names are kept, so the evaluation input
+does not depend on unrelated values. A required key is confirmed only when:
+
+- `--helm-values-complete` is given (otherwise `DECLARATION_MISSING`), and
+- no key is left set to `null` after the merge: a null removes the chart's
+  default at that key, so the set is not known completely
+  (`DOCUMENTS_NOT_EVALUATED`).
+
+A forbidden key that is present blocks whether or not the set is complete. If
+the rules name more keys than one set can hold (256), or a rule reads the set
+other than as a set of keys, the chart's values rules are undecided
+(`RULE_NOT_DECIDED`). A finding of a chart rule lists the values keys it is
+about under `keys:` and has no manifest location.
+
+Values are never printed, not even in an error: a refused `--helm-set` is
+named by its position. Key names are printed: a chart finding lists the
+values keys it is about, and the null gap names the key set to `null`.
+`--redact` does not hide key names; it replaces the values file names as it
+does for manifest paths. The report names each values file with its digest,
+the number of assignments, whether the values were declared complete, and one
+digest over all of them (`provenance.helmValues` in JSON); assignments are
+identified by digest only. A `--helm-set` whose key passes through a value
+that is not a mapping (`a: 1` with `--helm-set a.b=2`) is refused, as Helm
+refuses it.
 
 ## `prufyx.yaml`
 
@@ -490,7 +564,11 @@ a rule that applies), `unsupported` (combinations outside a documented support
 range), `omissions`, `notes` and `provenance` (evaluation instant, input digest, configuration
 digest, knowledge origin, revision and digest, the engine contract digest of
 the first evaluated transition, build identity, `networkUsed: false`, and
-`knowledgeStore` when `--knowledge-db` was used). The engine contract
+`knowledgeStore` when `--knowledge-db` was used, and `helmValues` for
+declared Helm values). A declared chart hop adds `chart` to its inventory
+entry, its path (chart name, source and counts of the values keys read) and
+its hop references, and a chart finding lists its values `keys`; these fields
+are absent otherwise. The engine contract
 depends on the features of the rules a transition selects: when a one-way
 notice, a lead or a support-range rule is selected, it differs from a hop
 without one, with no change to the answer.

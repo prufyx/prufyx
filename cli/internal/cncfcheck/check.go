@@ -263,14 +263,30 @@ func (c Checker) CheckFacts(project string, facts []string, inputRaw []byte, now
 }
 
 func (b bundle) checkFacts(project string, facts []string, inputRaw []byte, now time.Time) (Report, error) {
-	if !b.hasCheckableProject(project) || len(facts) == 0 {
+	if !b.hasCheckableProject(project) {
 		return Report{}, ErrInvalid
 	}
 	input, err := constraintengine.ParseInput(inputRaw, b.registry)
 	if err != nil {
 		return Report{}, ErrInvalid
 	}
-	selected, err := b.selectFamily(project, facts, inputRaw)
+	// An input that declares a chart hop is served by the chart selector;
+	// every other input is selected exactly as before chart hops existed.
+	charts, err := declaredCharts(inputRaw)
+	if err != nil {
+		return Report{}, ErrIntegrity
+	}
+	// Only a chart hop may name no fact: its chart rules that read no fact
+	// (a Kubernetes minimum) are then the whole family.
+	if len(facts) == 0 && len(charts) == 0 {
+		return Report{}, ErrInvalid
+	}
+	var selected selection
+	if len(charts) > 0 {
+		selected, err = b.selectChartFamily(project, facts, inputRaw, charts)
+	} else {
+		selected, err = b.selectFamily(project, facts, inputRaw)
+	}
 	if err != nil {
 		return Report{}, ErrIntegrity
 	}

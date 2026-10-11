@@ -34,20 +34,29 @@ is never ignored. The file holds exactly one YAML document.
 | `declarations.kubernetes.distribution` | no | `official_upstream` or `custom_build`. Same as `--distribution`. |
 | `declarations.kubernetes.resourceScopeComplete` | no | `true` or `false`: the supplied resources are the complete set. Same as `--resource-scope-complete`. |
 | `declarations.kubernetes.targetApplyRequired` | no | `true` or `false`: the resources are required for applying to the target API. Same as `--target-api-apply-required`. |
+| `declarations.helm.<project>.chart` | yes, for a `helm` entry | The Helm chart the project's `current` and `target` versions are versions of, as `NAME` or `NAME@SOURCE`. Same as `--chart <project>=...`. |
+| `declarations.helm.<project>.values` | no | 1 to 64 values files, in Helm's order (a later file wins). Each is relative to the directory of the file, in the same clean form as `inputs`, and names a file, not a directory. Same as `--helm-values`. |
+| `declarations.helm.<project>.set` | no | 1 to 64 `KEY=VALUE` assignments applied after the files. Same as `--helm-set`. |
+| `declarations.helm.<project>.complete` | no | `true` or `false`: the values files and assignments are every values source of the release. Same as `--helm-values-complete`. |
 
 Versions are plain `X.Y.Z` numbers written as text, with no leading zeros, no
 `v` prefix and no suffix. `1.27`, `v1.27.16`, `01.2.3` and `1.29.3-eks-adc7111`
 are all rejected. Project names are the names shown by
 `prufyx catalog cncf`; an unknown name is an error that names the key.
-Declarations exist for `kubernetes` only; another project under `declarations`
-is an error.
+`declarations` holds `kubernetes` and `helm` only; another key under
+`declarations` is an error. A project under `declarations.helm` must be a
+catalog project other than `kubernetes`, and needs a `target` version. See
+"Helm chart values" in [scan.md](scan.md) for what a chart declaration
+changes.
 
 A declaration you leave out stays unset. Prufyx never fills in `true` for a
 missing declaration, so the check it controls cannot pass on a guess.
 
 ## Precedence
 
-A command-line flag overrides the same key in the file, key by key. A key that
+A command-line flag overrides the same key in the file, key by key. For a
+chart declaration, `--helm-values` replaces the whole `values` list and
+`--helm-set` the whole `set` list; they are never appended. A key that
 neither supplies is unset. The result records, for every value, whether it came
 from the file or from a flag.
 

@@ -279,28 +279,9 @@ func (o *opener) readFile(file *os.File, display string) error {
 	}
 	perm := info.Mode().Perm()
 	identity, haveIdentity := validation.IdentityOf(info)
-	result := ModePrivate
-	switch o.opts.Permissions {
-	case RefuseWritable:
-		if perm&0o022 != 0 {
-			return fmt.Errorf("%w: %s is writable by group or other (mode %04o)", ErrPermissions, display, perm)
-		}
-	default:
-		if perm&0o077 != 0 {
-			return fmt.Errorf("%w: %s is accessible by group or other (mode %04o)", ErrPermissions, display, perm)
-		}
-		if !haveIdentity {
-			return fmt.Errorf("%w: %s: owner and link count cannot be checked", ErrPermissions, display)
-		}
-		if identity.Uid != effectiveUID() {
-			return fmt.Errorf("%w: %s is owned by another user", ErrPermissions, display)
-		}
-		if identity.Nlink != 1 {
-			return fmt.Errorf("%w: %s has more than one hard link", ErrPermissions, display)
-		}
-	}
-	if perm&0o044 != 0 {
-		result = ModeReadableByOthers
+	result, err := permit(o.opts.Permissions, info, display)
+	if err != nil {
+		return err
 	}
 	key := display
 	if haveIdentity {
@@ -316,6 +297,36 @@ func (o *opener) readFile(file *os.File, display string) error {
 		return nil
 	}
 	return o.consume(key, display, file, info.Size(), perm, result)
+}
+
+// permit applies the permission policy to one opened regular file and says
+// how it treated the file's mode.
+func permit(policy PermissionPolicy, info os.FileInfo, display string) (ModeResult, error) {
+	perm := info.Mode().Perm()
+	identity, haveIdentity := validation.IdentityOf(info)
+	switch policy {
+	case RefuseWritable:
+		if perm&0o022 != 0 {
+			return "", fmt.Errorf("%w: %s is writable by group or other (mode %04o)", ErrPermissions, display, perm)
+		}
+	default:
+		if perm&0o077 != 0 {
+			return "", fmt.Errorf("%w: %s is accessible by group or other (mode %04o)", ErrPermissions, display, perm)
+		}
+		if !haveIdentity {
+			return "", fmt.Errorf("%w: %s: owner and link count cannot be checked", ErrPermissions, display)
+		}
+		if identity.Uid != effectiveUID() {
+			return "", fmt.Errorf("%w: %s is owned by another user", ErrPermissions, display)
+		}
+		if identity.Nlink != 1 {
+			return "", fmt.Errorf("%w: %s has more than one hard link", ErrPermissions, display)
+		}
+	}
+	if perm&0o044 != 0 {
+		return ModeReadableByOthers, nil
+	}
+	return ModePrivate, nil
 }
 
 func (o *opener) rename(oldDisplay, newDisplay string) {

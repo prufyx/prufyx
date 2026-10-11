@@ -127,11 +127,19 @@ func Run(request Request, options Options) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+	charts, err := helmFlags(request, config)
+	if err != nil {
+		return Result{}, err
+	}
 	effective := scanconfig.Merge(config, scanconfig.FlagDeclarations{
 		Inputs: request.Paths, Current: request.From, Target: request.To,
 		Distribution: request.Distribution, ResourceScopeComplete: request.ResourceScopeComplete, TargetApplyRequired: request.TargetApplyRequired,
+		Helm: charts,
 	})
 	if err := checkComponents(catalog, effective); err != nil {
+		return Result{}, err
+	}
+	if err := checkCharts(effective); err != nil {
 		return Result{}, err
 	}
 	// openKnowledge opens the knowledge database a scan reads (never called
@@ -223,6 +231,14 @@ func Run(request Request, options Options) (Result, error) {
 		now = clock().UTC().Truncate(time.Second)
 	}
 
+	// Declared charts are resolved through the reviewed chart-source table
+	// at the evaluation instant, and their values read, before anything is
+	// evaluated.
+	declaredCharts, err := resolveCharts(effective, configDir, request, now)
+	if err != nil {
+		return Result{}, err
+	}
+
 	report := scanreport.Report{Provenance: scanreport.Provenance{
 		EvaluatedAt: now.Format(time.RFC3339), InputDigest: workspace.Digest, ConfigDigest: config.Digest,
 		KnowledgeOrigin: knowledge.Origin(), KnowledgeRevision: knowledge.Revision(), KnowledgeDigest: knowledge.PackDigest(),
@@ -264,6 +280,12 @@ func Run(request Request, options Options) (Result, error) {
 		component.Target, component.TargetSource = value.Value, string(value.Source)
 	}
 	sort.Strings(slugs)
+	for _, slug := range slugs {
+		if decl, ok := declaredCharts[slug]; ok {
+			inventory[slug].Chart = decl.chart.Name
+			report.Provenance.HelmValues = append(report.Provenance.HelmValues, decl.provenance)
+		}
+	}
 	// A project of the community catalog is labelled wherever it appears: in
 	// the inventory and in a note every output format carries.
 	if labeller, ok := knowledge.(interface{ Catalog(slug string) string }); ok {
@@ -278,6 +300,33 @@ func Run(request Request, options Options) (Result, error) {
 		component := inventory[slug]
 		if component.Target == "" {
 			report.Inventory = append(report.Inventory, *component)
+			continue
+		}
+		if decl, ok := declaredCharts[slug]; ok {
+			// A declared chart hop: its versions are chart versions, so no
+			// application rule (custom-resource, Kubernetes) is run on them.
+			report.Inventory = append(report.Inventory, *component)
+			if store != nil && store.Absent[slug] {
+				report.Gaps = append(report.Gaps, scanreport.NewGap(slug, nil, scanreport.GapProjectNotInKnowledge, slug))
+				continue
+			}
+			run := &helmChartRun{knowledge: knowledge, now: now, report: &report, slug: slug, component: component.Component, decl: decl, policy: request.TrustPolicy}
+			if value, ok := effective.Current[kubernetesSlug]; ok {
+				run.kubernetesFrom = value.Value
+			}
+			if value, ok := effective.Target[kubernetesSlug]; ok {
+				run.kubernetesTo = value.Value
+			}
+			if run.kubernetesFrom != "" || run.kubernetesTo != "" {
+				purl, known := knowledge.Component(kubernetesSlug)
+				if !known {
+					return Result{}, ErrIntegrity
+				}
+				run.kubernetes = purl
+			}
+			if err := run.evaluate(component.Current, component.Target); err != nil {
+				return Result{}, err
+			}
 			continue
 		}
 		if run, ok := newCustomResourceRun(knowledge, now, &report, manifests, slug, component.Component, declarationsOf(effective), request.TrustPolicy); ok {
@@ -427,11 +476,14 @@ func inputError(err error, request Request) error {
 // checkComponents refuses a component name that is not in the catalog,
 // naming the closest ones.
 func checkComponents(knowledge componentCatalog, effective scanconfig.Effective) error {
-	names := make([]string, 0, len(effective.Current)+len(effective.Target))
+	names := make([]string, 0, len(effective.Current)+len(effective.Target)+len(effective.Helm))
 	for slug := range effective.Current {
 		names = append(names, slug)
 	}
 	for slug := range effective.Target {
+		names = append(names, slug)
+	}
+	for slug := range effective.Helm {
 		names = append(names, slug)
 	}
 	sort.Strings(names)
