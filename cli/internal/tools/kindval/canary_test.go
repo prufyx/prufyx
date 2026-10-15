@@ -234,10 +234,17 @@ func TestV2FailedControlVoidsItsGroup(t *testing.T) {
 			t.Errorf("%s: %+v", id, c)
 		}
 	}
-	if got["k8s.1.31.flowcontrol.apiserver.k8s.io_v1beta3_FlowSchema.served"].Outcome != OutcomeConfirmed || got["removal.blocked"].Outcome != OutcomeConfirmed {
+	if got["k8s.1.31.flowcontrol.apiserver.k8s.io_v1beta3_FlowSchema.served"].Outcome != OutcomeConfirmed {
 		t.Fatalf("other groups: %+v", got)
 	}
-	if res.Totals.Refuted != 0 || res.Totals.Error != 2 || res.Totals.Verdicts.Error != 2 {
+	// The removal 1.31 -> 1.32 reads the served APIs of 1.32: void too.
+	if c := got["removal.blocked"]; c.Reason != ReasonCanaryFailed || !strings.HasPrefix(c.Detail, "canary failed: control.served.apps_v1_Deployment.not_served.1.32 ") {
+		t.Fatalf("removal %+v", c)
+	}
+	if s, _ := summaryOf(res, KindK8sRemoval, "1.32"); s.State != ControlStateOK {
+		t.Fatalf("removal summary %+v", s)
+	}
+	if res.Totals.Refuted != 0 || res.Totals.Error != 3 || res.Totals.Verdicts.Error != 3 {
 		t.Fatalf("totals %+v", res.Totals)
 	}
 	s, _ := summaryOf(res, KindServedAPI, "1.32")
@@ -532,5 +539,121 @@ func TestV2VoidDropsAllFindingsOfTheClaim(t *testing.T) {
 	}
 	if f, ok := hasFinding(res, "canary-failed/"+KindCRDPair); !ok || !strings.Contains(f.Message, "dropped: MEDIUM quiet.undefined") {
 		t.Fatalf("canary finding %+v", f)
+	}
+}
+
+// A removal reads the snapshots and dry runs of both its lines: a failed
+// served-API control on the from line voids it, while the removal controls
+// of the to line pass. Its findings are listed in the canary finding.
+func TestV2RemovalVoidedByServedAPIOfFrom(t *testing.T) {
+	plain := append(k8sPlainClaims(), removalClaim("removal.ds", "apps", "v1", "DaemonSet", ""))
+	claims := v2Claims(t, lines3132, plain...)
+	runs := k8sRuns()
+	if _, ok := hasFinding(Evaluate(claims, runs, Provenance{}, time.Unix(0, 0)), "removal.ds"); !ok {
+		t.Fatal("the refuted removal raises no finding")
+	}
+	runs.Snapshots["1.31"] = lineSnapshot("1.31", apiDS, apiFS, apiPLC)
+	res := Evaluate(claims, runs, Provenance{}, time.Unix(0, 0))
+	checkReasons(t, "removal from", res)
+	if s, _ := summaryOf(res, KindK8sRemoval, "1.32"); s.State != ControlStateOK {
+		t.Fatalf("removal summary %+v", res.Totals.Controls)
+	}
+	if s, _ := summaryOf(res, KindServedAPI, "1.31"); s.State != ControlStateFailed {
+		t.Fatalf("1.31 summary %+v", res.Totals.Controls)
+	}
+	got := outcomes(res)
+	want := "canary failed: control.served.apps_v1_Deployment.not_served.1.31 (expected refuted, got confirmed), control.served.apps_v1_Deployment.served.1.31 (expected confirmed, got refuted); was: "
+	for _, id := range []string{"removal.blocked", "removal.ds"} {
+		if c := got[id]; c.Outcome != OutcomeError || c.Verdict != VerdictError || c.Reason != ReasonCanaryFailed || !strings.HasPrefix(c.Detail, want) {
+			t.Errorf("%s: %+v", id, c)
+		}
+	}
+	if c := got["k8s.1.32.flowcontrol.apiserver.k8s.io_v1beta3_FlowSchema.not_served"]; c.Outcome != OutcomeConfirmed {
+		t.Fatalf("1.32 served-API claim %+v", c)
+	}
+	if _, ok := hasFinding(res, "removal.ds"); ok {
+		t.Fatal("finding of a voided removal kept")
+	}
+	if _, ok := hasFinding(res, "canary-failed/"+KindK8sRemoval+"/1.32"); ok {
+		t.Fatal("canary finding for the passing removal group")
+	}
+	f, ok := hasFinding(res, "canary-failed/"+KindServedAPI+"/1.31")
+	if !ok || !strings.Contains(f.Message, "findings of the voided claims dropped: MEDIUM removal.ds") || !strings.Contains(f.Message, "diff 1.31 -> 1.32") {
+		t.Fatalf("canary finding %+v in %+v", f, res.Findings)
+	}
+	// The refuted 1.32 served-API claim keeps its finding.
+	if _, ok := hasFinding(res, "k8s.1.32.apps_v1_DaemonSet.not_served"); !ok || len(res.Diffs) != 0 || res.Totals.High != 1 || res.Totals.Medium != 1 {
+		t.Fatalf("diffs %+v, totals %+v", res.Diffs, res.Totals)
+	}
+}
+
+// A served-API difference reads the snapshots of both its lines: a failed
+// served-API group drops it and its findings, listed in the canary finding
+// and not counted.
+func TestV2FailedServedAPIDropsDiff(t *testing.T) {
+	plain := k8sPlainClaims()
+	runs := k8sRuns()
+	runs.Snapshots["1.32"] = lineSnapshot("1.32", apiDS)
+	const diffID = "diff.1.32.apps_v1_Deployment"
+	v1 := Evaluate(Claims{Schema: ClaimsSchema, Claims: plain}, runs, Provenance{}, time.Unix(0, 0))
+	if f, ok := hasFinding(v1, diffID); !ok || f.Severity != SeverityMedium || len(v1.Diffs) != 1 {
+		t.Fatalf("the fixture raises no diff finding: %+v", v1.Findings)
+	}
+	res := Evaluate(v2Claims(t, lines3132, plain...), runs, Provenance{}, time.Unix(0, 0))
+	checkReasons(t, "diff", res)
+	if len(res.Diffs) != 0 || res.Diffs == nil {
+		t.Fatalf("diffs %+v", res.Diffs)
+	}
+	if _, ok := hasFinding(res, diffID); ok {
+		t.Fatal("diff finding of a void line kept")
+	}
+	f, ok := hasFinding(res, "canary-failed/"+KindServedAPI+"/1.32")
+	if !ok || !strings.Contains(f.Message, "MEDIUM "+diffID) || !strings.HasSuffix(f.Message, ", diff 1.31 -> 1.32") {
+		t.Fatalf("canary finding %+v", f)
+	}
+	if res.Totals.Medium != 0 || res.Totals.High != 1 || res.Totals.Info != 0 {
+		t.Fatalf("totals %+v in %+v", res.Totals, res.Findings)
+	}
+	if strings.Contains(Summary(res), "Served-API changes") {
+		t.Fatalf("summary:\n%s", Summary(res))
+	}
+}
+
+// The removal controls are decided on the API servers only: a scan that
+// passes a removed API refutes the plain claim, not the controls.
+func TestV2RemovalControlsIgnoreScan(t *testing.T) {
+	claims := v2Claims(t, lines3132, k8sPlainClaims()...)
+	runs := k8sRuns()
+	cases := runs.Verdicts["1.32"].Cases
+	for i := range cases {
+		if cases[i].ID == caseID(apiFS) {
+			cases[i].Scan = scanTry(exitPass, "PASS", nil)
+		}
+	}
+	res := Evaluate(claims, runs, Provenance{}, time.Unix(0, 0))
+	checkReasons(t, "scan", res)
+	c := outcomes(res)["removal.blocked"]
+	if c.Outcome != OutcomeRefuted || c.Verdict != VerdictRefuted || c.Reason != ReasonDisagreement {
+		t.Fatalf("removal %+v", c)
+	}
+	if f, ok := hasFinding(res, "removal.blocked"); !ok || f.Severity != SeverityHigh {
+		t.Fatalf("findings %+v", res.Findings)
+	}
+	ctl := controlsByID(res)["control.removal.flowcontrol.apiserver.k8s.io_v1beta3_FlowSchema.1.31-to-1.32"]
+	if !ctl.OK || ctl.Outcome != OutcomeConfirmed || ctl.Detail != "both servers agree (controls are decided on the API servers only)" {
+		t.Fatalf("control %+v", ctl)
+	}
+	for _, ctl := range res.Controls {
+		if !ctl.OK {
+			t.Errorf("control %s: %s (%s)", ctl.ID, ctl.Outcome, ctl.Detail)
+		}
+	}
+	if s, _ := summaryOf(res, KindK8sRemoval, "1.32"); s.State != ControlStateOK {
+		t.Fatalf("summary %+v", res.Totals.Controls)
+	}
+	for _, f := range res.Findings {
+		if strings.HasPrefix(f.ID, "canary-failed") {
+			t.Fatalf("finding %+v", f)
+		}
 	}
 }

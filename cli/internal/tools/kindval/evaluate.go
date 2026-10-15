@@ -51,6 +51,9 @@ type evaluator struct {
 	imageProblem map[string]string
 	// claimed is, by pair id, every member a crd-removal claim names.
 	claimed map[string]map[string]bool
+	// serversOnly decides k8s-removal claims on the API servers without the
+	// scan (the controls: they check the clusters, not the scanner).
+	serversOnly bool
 }
 
 // claimedRemovals indexes the members the crd-removal claims name, by
@@ -256,6 +259,7 @@ type controlGroup struct {
 // some is undetermined. It then sets the verdicts and the control totals.
 func applyControls(res *Results, plain, controls []Claim, runs Runs, prov Provenance, owner []int) {
 	cev := newEvaluator(runs, prov, &Results{}, controls)
+	cev.serversOnly = true
 	groups := map[[2]string]*controlGroup{}
 	res.Controls = []ControlResult{}
 	for _, c := range controls {
@@ -293,10 +297,24 @@ func applyControls(res *Results, plain, controls []Claim, runs Runs, prov Proven
 			g.summary.State = ControlStateIncomplete
 		}
 	}
+	// A claim is decided by its own group and, for a k8s-removal claim, by
+	// the served-API groups of both its lines too: it reads their snapshots
+	// and dry runs.
+	deps := func(c Claim) [][2]string {
+		kind, line := groupKey(c)
+		out := [][2]string{{kind, line}}
+		if c.Kind == KindK8sRemoval {
+			from, _ := lineSubject(c.Subject.From)
+			out = append(out, [2]string{KindServedAPI, from}, [2]string{KindServedAPI, line})
+		}
+		return out
+	}
 	withEntries := controlKindsWithEntries()
 	absent := map[[2]string]bool{}
 	voided := map[int]bool{}
 	voidedGroup := map[[2]string]bool{}
+	// failedBy is, for a canary-failed claim, the failed groups it depends on.
+	failedBy := map[int][][2]string{}
 	for i := range res.Claims {
 		cr := &res.Claims[i]
 		kind, line := groupKey(plain[i])
@@ -304,39 +322,72 @@ func applyControls(res *Results, plain, controls []Claim, runs Runs, prov Proven
 			absent[[2]string{kind, ""}] = true
 			continue
 		}
-		g := groups[[2]string{kind, line}]
+		var failed, missing []string
+		for _, k := range deps(plain[i]) {
+			g := groups[k]
+			where := "on line " + k[1]
+			if k[1] == "" {
+				where = "in this run"
+			}
+			switch {
+			case g == nil:
+				absent[k] = true
+				missing = append(missing, "no control of kind "+k[0]+" ran "+where)
+			case g.summary.State == ControlStateIncomplete:
+				missing = append(missing, "the controls of kind "+k[0]+" "+where+" all have one expectation")
+			case len(g.failed) > 0:
+				failedBy[i] = append(failedBy[i], k)
+				for _, f := range g.failed {
+					failed = append(failed, fmt.Sprintf("%s (expected %s, got %s)", f.ID, expectedOutcome(f.Expected), f.Outcome))
+				}
+			}
+		}
 		switch {
-		case g == nil || g.summary.State == ControlStateIncomplete:
-			if g == nil {
-				absent[[2]string{kind, line}] = true
-			}
-			if cr.Outcome == OutcomeConfirmed || cr.Outcome == OutcomeRefuted {
-				where := "on line " + line
-				if line == "" {
-					where = "in this run"
-				}
-				what := "no control of kind " + kind + " ran " + where
-				if g != nil {
-					what = "the controls of kind " + kind + " " + where + " all have one expectation"
-				}
-				voided[i], voidedGroup[[2]string{kind, line}] = true, true
-				cr.Outcome, cr.Reason = OutcomeUndetermined, ReasonControlsAbsent
-				cr.Detail += "; " + what
-			}
-		case len(g.failed) > 0:
-			var failed []string
-			for _, f := range g.failed {
-				failed = append(failed, fmt.Sprintf("%s (expected %s, got %s)", f.ID, expectedOutcome(f.Expected), f.Outcome))
-			}
+		case len(failed) > 0:
 			voided[i], voidedGroup[[2]string{kind, line}] = true, true
 			cr.Outcome, cr.Reason = OutcomeError, ReasonCanaryFailed
 			cr.Detail = "canary failed: " + strings.Join(failed, ", ") + "; was: " + cr.Detail
+		case len(missing) > 0 && (cr.Outcome == OutcomeConfirmed || cr.Outcome == OutcomeRefuted):
+			voided[i], voidedGroup[[2]string{kind, line}] = true, true
+			cr.Outcome, cr.Reason = OutcomeUndetermined, ReasonControlsAbsent
+			cr.Detail += "; " + strings.Join(missing, "; ")
 		}
 	}
 
-	// A voided claim is no evidence: the findings it raised go with it, and
-	// the missed-removal findings go with a voided crd-removal group. The
-	// canary finding of the group lists what was dropped.
+	// A served-API difference reads the snapshots of both its lines: it is
+	// kept only when the served-API groups of both are ok. voidDiff maps the
+	// later line of a dropped difference to its earlier line.
+	voidDiff := map[string]string{}
+	keptDiffs := res.Diffs[:0]
+	for _, d := range res.Diffs {
+		ok := true
+		for _, l := range []string{d.From, d.To} {
+			g := groups[[2]string{KindServedAPI, l}]
+			ok = ok && g != nil && g.summary.State == ControlStateOK
+		}
+		if ok {
+			keptDiffs = append(keptDiffs, d)
+		} else {
+			voidDiff[d.To] = d.From
+		}
+	}
+	res.Diffs = keptDiffs
+	// failedServed is the failed served-API groups of the lines of a diff.
+	failedServed := func(lines ...string) [][2]string {
+		var out [][2]string
+		for _, l := range lines {
+			k := [2]string{KindServedAPI, l}
+			if g := groups[k]; g != nil && len(g.failed) > 0 {
+				out = append(out, k)
+			}
+		}
+		return out
+	}
+
+	// A voided claim is no evidence: the findings it raised go with it, the
+	// missed-removal findings go with a voided crd-removal group, and the
+	// findings of a dropped difference go with it. The canary finding of
+	// every failed group they depend on lists what was dropped.
 	dropped := map[[2]string][]string{}
 	kept := res.Findings[:0]
 	for i, f := range res.Findings {
@@ -344,19 +395,35 @@ func applyControls(res *Results, plain, controls []Claim, runs Runs, prov Proven
 		if i < len(owner) {
 			who = owner[i]
 		}
-		var key [2]string
+		var keys [][2]string
 		switch {
 		case who >= 0 && voided[who]:
-			key[0], key[1] = groupKey(plain[who])
+			keys = failedBy[who]
 		case who == ownerMissed && voidedGroup[[2]string{KindCRDRemoval, ""}]:
-			key = [2]string{KindCRDRemoval, ""}
+			keys = [][2]string{{KindCRDRemoval, ""}}
+		case who == ownerNone && diffOf(f.ID, voidDiff) != "":
+			next := diffOf(f.ID, voidDiff)
+			keys = failedServed(voidDiff[next], next)
 		default:
 			kept = append(kept, f)
 			continue
 		}
-		dropped[key] = append(dropped[key], f.Severity+" "+f.ID)
+		for _, k := range keys {
+			dropped[k] = append(dropped[k], f.Severity+" "+f.ID)
+		}
 	}
 	res.Findings = kept
+	nexts := make([]string, 0, len(voidDiff))
+	for next := range voidDiff {
+		nexts = append(nexts, next)
+	}
+	sortLines(nexts)
+	for _, next := range nexts {
+		prev := voidDiff[next]
+		for _, k := range failedServed(prev, next) {
+			dropped[k] = append(dropped[k], "diff "+prev+" -> "+next)
+		}
+	}
 
 	// Every group with controls is summarised, with or without claims.
 	keys := make([][2]string, 0, len(groups)+len(absent))
@@ -417,6 +484,17 @@ func applyControls(res *Results, plain, controls []Claim, runs Runs, prov Proven
 			res.Totals.Verdicts.Undetermined++
 		}
 	}
+}
+
+// diffOf is the later line of the dropped difference a finding id belongs
+// to ("diff.<next>.<case>"), or "".
+func diffOf(id string, voidDiff map[string]string) string {
+	for next := range voidDiff {
+		if strings.HasPrefix(id, "diff."+next+".") {
+			return next
+		}
+	}
+	return ""
 }
 
 func orNone(s string) string {
@@ -539,7 +617,7 @@ func (e *evaluator) k8sRemoval(c Claim, cr *ClaimResult) {
 	id := caseID(api)
 	fromCase, okFromCase := e.cases[from][id]
 	toCase, okToCase := e.cases[to][id]
-	if !okFromCase || !okToCase || toCase.Scan == nil {
+	if !okFromCase || !okToCase || (toCase.Scan == nil && !e.serversOnly) {
 		cr.Detail, cr.Reason = "the corpus has no dry run of the API on both lines, or no scan for the hop", ReasonNoCorpusCase
 		return
 	}
@@ -560,6 +638,10 @@ func (e *evaluator) k8sRemoval(c Claim, cr *ClaimResult) {
 		cr.Outcome, cr.Reason = OutcomeRefuted, ReasonDisagreement
 		cr.Detail = strings.Join(problems, "; ")
 		e.finding(SeverityMedium, c.ID, "%s -> %s: %s", from, to, cr.Detail)
+		return
+	}
+	if e.serversOnly {
+		cr.Outcome, cr.Detail = OutcomeConfirmed, "both servers agree (controls are decided on the API servers only)"
 		return
 	}
 	sc := toCase.Scan

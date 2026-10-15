@@ -178,7 +178,7 @@ entry.
 | `disagreement` | refuted | The API server (or the scan) contradicts the claim. |
 | `image-digest-mismatch` | error | The node is not proven to run the configured image digest. |
 | `canary-failed` | error | A control of the kind on this line did not come out as expected. |
-| `controls-absent` | undetermined | The controls file has controls for the kind, but none ran for this claim's line, or all that ran have the same expectation. |
+| `controls-absent` | undetermined | The controls file has controls for the kind, but none ran for a group the claim depends on (for a removal, also the served-API group of either line), or all that ran have the same expectation. |
 
 ### The void rule
 
@@ -224,7 +224,8 @@ kinds are unaffected. Controls add no other finding and take no part in the
 missed-removal check. The served-API difference between two lines is kept
 only when the served-API groups of both lines are `ok`: otherwise its
 `diffs` entry and its `diff.<line>.*` findings are dropped (and listed in the
-`canary-failed` finding when a group failed).
+`canary-failed` finding when a group failed). A v2 run without served-API or
+removal claims has no served-API controls and so reports no differences.
 
 `k8s-removal` controls are decided on the API servers only: the `from` line
 serves the API (discovery and dry run) and the `to` line does not. The scan
