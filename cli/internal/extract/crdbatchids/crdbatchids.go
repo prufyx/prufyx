@@ -222,9 +222,15 @@ func Holds(pack []byte) (bool, error) {
 		}
 	}
 	attested := 0
+	seen := map[Line]bool{}
 	for _, a := range p.LineAttestations {
 		if a.FactFamily != FactFamily {
 			continue
+		}
+		if l := (Line{a.Component, a.Line}); seen[l] {
+			return false, fmt.Errorf("the pack's %s line attestation %s %s is repeated", FactFamily, a.Component, a.Line)
+		} else {
+			seen[l] = true
 		}
 		known := false
 		for _, l := range lines {
