@@ -138,7 +138,11 @@ func levelServedAPIs() []any {
 }
 
 // generateWithPack runs Generate over the repository inputs with the CNCF
-// pack replaced by the embedded pack after edit.
+// pack replaced by the level base after edit. The level base is the
+// embedded pack reduced to the ranged level: its rules without the set
+// rules, without its line attestation section, under the ranged schema, so
+// that the level each case asserts is the level of the feature it adds. A
+// shipped section the reduction does not know fails the test.
 func generateWithPack(t *testing.T, edit func(pack map[string]any)) (map[string]any, error) {
 	t.Helper()
 	cfg, root := repositoryConfig(t)
@@ -150,6 +154,21 @@ func generateWithPack(t *testing.T, edit func(pack map[string]any)) (map[string]
 	if err := json.Unmarshal(raw, &pack); err != nil {
 		t.Fatal(err)
 	}
+	for member := range pack {
+		switch member {
+		case "schema", "revision", "policyId", "policyDigest", "landscapeFileDigest", "registryDigest", "entries", "lineAttestations":
+		default:
+			t.Fatalf("the shipped pack carries member %s, which the level base does not reduce", member)
+		}
+	}
+	var entries []any
+	for _, entry := range pack["entries"].([]any) {
+		if entry.(map[string]any)["rule"].(map[string]any)["operator"] != "forbid_set_member" {
+			entries = append(entries, entry)
+		}
+	}
+	delete(pack, "lineAttestations")
+	pack["entries"], pack["schema"] = entries, "prufyx.io/cncf-source-rule-pack/v1alpha2"
 	edit(pack)
 	edited, err := json.Marshal(pack)
 	if err != nil {
@@ -215,7 +234,7 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 		// inventory does not list notices yet).
 		refusal string
 	}{
-		{name: "ranged (published)", edit: func(map[string]any) {}, want: schemas[1], unchanged: true},
+		{name: "ranged (level base)", edit: func(map[string]any) {}, want: schemas[1], unchanged: true},
 		{name: "set rule", edit: addSetRule, want: schemas[2]},
 		{name: "line attestations", edit: func(p map[string]any) { p["lineAttestations"] = levelAttestations() }, want: schemas[3], unchanged: true},
 		{name: "path policies", edit: func(p map[string]any) { p["pathPolicies"] = levelPolicies() }, want: schemas[4], unchanged: true},
