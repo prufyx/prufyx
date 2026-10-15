@@ -4,6 +4,7 @@ package knowledgegate
 
 import (
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"strings"
 
@@ -65,6 +66,17 @@ type PackSpec struct {
 	// them never admits a schema change.
 	RequiredSchema func(raw []byte) (string, error)
 	SchemaLevel    func(schema string) (int, bool)
+	// FactDefinitions returns the fact registry compiled into the gate (the
+	// base's), RegistrySourcePath is the Go file whose packagedDefinitions
+	// literal the gate reads in the base and the head, and AdmitWith and
+	// AttestWith are Admit and Attest under a given definition list. All
+	// set admit an additive change of the pack's registryDigest member with
+	// an owner approval (registry_member.go); a pack without them never
+	// admits one.
+	FactDefinitions    func() []constraintengine.FactDefinition
+	RegistrySourcePath string
+	AdmitWith          func(t Tree, definitions []constraintengine.FactDefinition) (PackStats, error)
+	AttestWith         func(t Tree, definitions []constraintengine.FactDefinition) ([]byte, error)
 }
 
 // GeneratedPair is a generated JSON and Markdown output pair.
@@ -138,6 +150,9 @@ const (
 	consensusDir   = "cli/knowledge/consensus-claims"
 )
 
+// cncfRegistrySource holds the CNCF pack's packagedDefinitions literal.
+const cncfRegistrySource = "cli/internal/cncfcheck/registry.go"
+
 func readAll(t Tree, rels ...string) ([][]byte, error) {
 	out := make([][]byte, len(rels))
 	for i, rel := range rels {
@@ -150,6 +165,29 @@ func readAll(t Tree, rels ...string) ([][]byte, error) {
 	return out, nil
 }
 
+// admitCNCF admits the CNCF pack of a tree under the given fact definitions,
+// or under this build's compiled registry when definitions is nil.
+func admitCNCF(t Tree, definitions []constraintengine.FactDefinition) (PackStats, error) {
+	files, err := readAll(t, "cli/internal/cncfcheck/data/landscape-projects.json", "cli/internal/cncfcheck/data/priority-portfolio.json", cncfRulesPath)
+	if err != nil {
+		return PackStats{}, err
+	}
+	var r cncfcheck.PackFileReport
+	if definitions == nil {
+		r, err = cncfcheck.CheckPackFiles(files[0], files[1], files[2])
+	} else {
+		r, err = cncfcheck.CheckPackFilesWith(files[0], files[1], files[2], definitions)
+	}
+	if err != nil {
+		return PackStats{}, err
+	}
+	stats := PackStats{Entries: r.Entries, TargetBytes: r.TargetBytes, MaxTargetBytes: r.MaxTargetBytes, RegistryFacts: r.RegistryFacts, MaxRegistryFacts: r.MaxRegistryFacts, Split: true, SplitErr: r.SplitErr}
+	for _, target := range r.ProjectTargets {
+		stats.Targets = append(stats.Targets, knowledgetargets.Target{Path: target.Path, Bytes: int64(len(target.Bytes))})
+	}
+	return stats, nil
+}
+
 // DefaultLayout is the layout of this repository.
 func DefaultLayout() Layout {
 	return Layout{
@@ -157,19 +195,21 @@ func DefaultLayout() Layout {
 			{
 				Name: evidencereattest.PackCNCF, Path: cncfRulesPath,
 				Admit: func(t Tree) (PackStats, error) {
-					files, err := readAll(t, "cli/internal/cncfcheck/data/landscape-projects.json", "cli/internal/cncfcheck/data/priority-portfolio.json", cncfRulesPath)
-					if err != nil {
-						return PackStats{}, err
+					return admitCNCF(t, nil)
+				},
+				AdmitWith: func(t Tree, definitions []constraintengine.FactDefinition) (PackStats, error) {
+					if definitions == nil {
+						return PackStats{}, errors.New("no fact definitions")
 					}
-					r, err := cncfcheck.CheckPackFiles(files[0], files[1], files[2])
-					if err != nil {
-						return PackStats{}, err
+					return admitCNCF(t, definitions)
+				},
+				FactDefinitions:    cncfcheck.CompiledFactDefinitions,
+				RegistrySourcePath: cncfRegistrySource,
+				AttestWith: func(t Tree, definitions []constraintengine.FactDefinition) ([]byte, error) {
+					if definitions == nil {
+						return nil, errors.New("no fact definitions")
 					}
-					stats := PackStats{Entries: r.Entries, TargetBytes: r.TargetBytes, MaxTargetBytes: r.MaxTargetBytes, RegistryFacts: r.RegistryFacts, MaxRegistryFacts: r.MaxRegistryFacts, Split: true, SplitErr: r.SplitErr}
-					for _, target := range r.ProjectTargets {
-						stats.Targets = append(stats.Targets, knowledgetargets.Target{Path: target.Path, Bytes: int64(len(target.Bytes))})
-					}
-					return stats, nil
+					return corpusattest.DocumentFromFilesWith(corpusattest.PackCNCF, t.readUnder(cliDir), definitions)
 				},
 				View: cncfcheck.AdmittedPackView, Entry: cncfcheck.AdmittedEntry,
 				AttestationPath: cncfAttestPath,

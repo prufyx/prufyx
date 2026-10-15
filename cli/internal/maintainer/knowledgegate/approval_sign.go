@@ -218,7 +218,7 @@ type SignApprovalOptions struct {
 // a pinned owner, and any record the gate's verifier would refuse at Now.
 func SignApproval(o SignApprovalOptions) ([]byte, ApprovalRecord, error) {
 	switch o.Subject.Kind {
-	case ApprovalSubjectRule, ApprovalSubjectRepinBaseline, ApprovalSubjectLineAttestation:
+	case ApprovalSubjectRule, ApprovalSubjectRepinBaseline, ApprovalSubjectLineAttestation, ApprovalSubjectRegistry:
 	default:
 		return nil, ApprovalRecord{}, fmt.Errorf("approval subject kind %q is not supported", logSafe(o.Subject.Kind))
 	}
@@ -289,6 +289,8 @@ func VerifyApprovalSubject(raw []byte, keys ApprovalKeys, s ApprovalSubject, now
 		return verifyBaselineSubject(raw, keys, s, now)
 	case ApprovalSubjectLineAttestation:
 		return VerifyRecordApproval(raw, keys, s.Pack, ApprovalSubjectLineAttestation, s.RuleID, s.Scope, s.Base, s.Candidate, now)
+	case ApprovalSubjectRegistry:
+		return VerifyRecordApproval(raw, keys, s.Pack, ApprovalSubjectRegistry, s.RuleID, s.Scope, s.Base, s.Candidate, now)
 	}
 	return fmt.Errorf("approval subject kind %q is not supported", logSafe(s.Kind))
 }
