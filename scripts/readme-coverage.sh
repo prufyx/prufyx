@@ -11,7 +11,7 @@
 # Requires go (vendored build, offline) and jq.
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
-lines="$root/cli/internal/maintainer/coveragereport/testdata/lines-2026-10-08.json"
+lines="$root/cli/internal/maintainer/coveragereport/testdata/lines-2026-10-15.json"
 now=""
 check=0
 while [ $# -gt 0 ]; do

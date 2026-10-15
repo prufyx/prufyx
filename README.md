@@ -69,7 +69,7 @@ upgrade surface they decide.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-10-08 by `scripts/readme-coverage.sh` (do not edit this block by hand).
+Generated on 2026-10-15 by `scripts/readme-coverage.sh` (do not edit this block by hand).
 
 | Executable rules | Count |
 | --- | --- |

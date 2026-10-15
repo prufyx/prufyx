@@ -185,9 +185,9 @@ prufyx catalog cncf --project helm --format json
 
 The generic check accepts one local JSON file containing minimized, operator-declared current and proposed component identities and facts. The file must be a regular private file with an owner-only mode (`0600` or stricter, for example `0400`); symlinks, permissive files, oversized files, malformed JSON, and untyped values are rejected. The CLI reads bytes locally and does not collect a cluster, inspect live state, invoke a model, download a database, or upload data.
 
-The current embedded preview has 158 exact rules across 54 rule projects, 123
-registered boolean or finite-enum facts, and 842 rule-scoped cases. The
-separate SPIFFE X.509-SVID and CloudEvents structured JSON
+The current embedded preview has 190 active exact rules across 53 rule projects
+(one further rule is withdrawn and not used; `prufyx catalog cncf --format json`
+reports `sourceRuleCovered`). The separate SPIFFE X.509-SVID and CloudEvents structured JSON
 standards-conformance profiles have no from/to pairs and do not alter these
 transition-rule totals. SPIFFE does not duplicate the SPIRE project's
 versioned CLI rule. See the [SPIFFE](spiffe-x509-svid.md) and
@@ -672,11 +672,11 @@ Examples are in
 [`examples/cncf/fluentd-literal-treatment`](../examples/cncf/fluentd-literal-treatment/README.md).
 
 The earlier Fluentd Ruby-minimum facts are entered locally; the literal route
-has the documented preparation adapter. The current rules use 123 registered
-facts, so this binary requires its own compatible CNCF database store. Preserve
-older stores and binaries for older reports. The embedded CNCF rule pack has 158
-constraints across 54 rule projects and 842 rule-scoped cases; the separate
-community-project pack has 32 constraints across 6 projects. Runtime
+has the documented preparation adapter. The current rules use the fact registry
+of this binary, so it requires its own compatible CNCF database store. Preserve
+older stores and binaries for older reports. The embedded CNCF rule pack has 190
+active rules across 53 rule projects (one withdrawn rule is not used); the
+separate community-project pack has 34 rules across 8 projects. Runtime
 reproduction remains zero.
 
 The fact registry and operators are compiled into this binary. Rules are embedded by default; `db import --profile cncf` can select a complete signed local rule revision for `check cncf --knowledge-db DIR`. External selection never blends with embedded rules. `catalog cncf` describes the embedded coverage only. Explicit [`db update`](knowledge-updates.md) can download a complete package before local import. There is no public Prufyx root, feed or automatic startup refresh. A new rule over existing canonical facts can be imported without a binary release. For a newly reviewed exact pair, the current binary can evaluate it when those facts are declared manually; new facts or operators require an engine update. Optional `prepare cncf` adapters support only their documented pairs, so extending raw-input preparation for a new pair can require a CLI update even when the facts and operators are unchanged. Both embedded and external CNCF rules must limit `reviewedAt` to `validUntil` to at most 90 days. That bound does not authenticate the declared review or establish an upstream support lifetime.
