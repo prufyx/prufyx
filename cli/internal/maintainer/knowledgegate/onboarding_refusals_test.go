@@ -247,7 +247,7 @@ func TestOnboardingRefusals(t *testing.T) {
 
 		// O5: the registry.
 		{"O5 facts of another shape", resigned(func(rec *OnboardingRecord) {
-			rec.Projects[0].Facts = []string{"component."+obFact+"_other.custom_resource_versions_set"}
+			rec.Projects[0].Facts = []string{"component." + obFact + "_other.custom_resource_versions_set"}
 		}), nil, "O5: the facts must be exactly"},
 		{"O5 a row for a project the batch does not list", blind(func(t *testing.T, f *onboardingFixture) {
 			f.editTable(t, func(ps []customresources.Project) []customresources.Project {
@@ -287,7 +287,7 @@ func TestOnboardingRefusals(t *testing.T) {
 				}
 				return ps
 			})
-		}), nil, "not a file of "+obRepo},
+		}), nil, "not a file of " + obRepo},
 		{"O6 a group cited outside a listed path", blind(func(t *testing.T, f *onboardingFixture) {
 			writeUpstream(t, f.upstream, obTo, "docs/widgets.yaml", obCRDDoc(obGroup, "v1"))
 			f.editTable(t, func(ps []customresources.Project) []customresources.Project {
