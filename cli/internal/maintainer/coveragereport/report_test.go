@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchids"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
@@ -98,12 +99,20 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 		t.Fatal(err)
 	}
 	now, want := baselineNow, fleetFigures{Projects: 55, Pairs: 275, A: 0, B: 0, S: 44, G: 231, C1: 53, C3: 0}
+	// The baseline revision: cncf-2026-09-13.8, and cncf-2026-09-13.9 once
+	// the pack holds the custom-resource batch (crdbatchids). The batch's
+	// rules are reviewed after baselineNow, so the figures at baselineNow
+	// are the same for both.
+	baseline := "cncf-2026-09-13.8"
+	if crdbatchids.Shipped() {
+		baseline = "cncf-2026-09-13.9"
+	}
 	if supersedeids.Superseded() {
 		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 0, B: 3, S: 44, G: 228, C1: 53, C3: 1}
-	} else if head.Revision != "cncf-2026-09-13.8" {
+	} else if head.Revision != baseline {
 		// Only the reviewed generation is tied to the baseline revision: a
 		// bumped revision means a new baseline, which this file records.
-		t.Skipf("embedded pack is %s; the baseline pack is cncf-2026-09-13.8", head.Revision)
+		t.Skipf("embedded pack is %s; the baseline pack is %s", head.Revision, baseline)
 	}
 	report, err := Compute(Input{Pack: pack, Lines: read(t, "testdata/lines-2026-10-08.json"), Now: now})
 	if err != nil {
