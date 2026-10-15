@@ -151,9 +151,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   kagent, kcp, Kgateway, Kube-OVN, KubeArmor, Kuberhealthy, KubeVela, Litmus,
   Logging Operator (Kube Logging), OpenChoreo, OpenYurt, Radius and
   Submariner; 42 CNCF projects in total), each over its latest six release
-  lines or from the first line that ships the listed CRD manifests. Their
-  custom-resource version sets are registered in the fact registry and their
-  API groups listed in the reviewed table. The line attestation (`attest`)
+  lines, or from the first line that ships the listed CRD manifests as
+  `apiextensions.k8s.io/v1` (Fluid, Kgateway, Kube-OVN, Kuberhealthy, OpenYurt,
+  Submariner). Their custom-resource version sets are registered in the fact
+  registry and their API groups listed in the reviewed table. The line attestation (`attest`)
   stays off for all nineteen. Not listed for any of them: `argoproj.io`, which
   Litmus ships as a copy of Argo Workflows' CRDs (it stays Argo CD's group),
   and the Kubernetes groups `admissionregistration.k8s.io` and
