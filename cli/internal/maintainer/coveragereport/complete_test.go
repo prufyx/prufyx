@@ -46,6 +46,9 @@ type scenario struct {
 	lines      []string
 	releases   map[string][]string
 	capturedOn string
+	// attestAnyway writes an attestation for every line, also one whose
+	// previous line is not the line before it in the snapshot.
+	attestAnyway bool
 	// skip lists attested lines that get no attestation.
 	skip map[string]bool
 	// mutate changes an attestation before it is written.
@@ -100,7 +103,7 @@ func (s scenario) report(t *testing.T) Report {
 	var atts []lineattest.LineAttestation
 	for i := 1; i < len(s.lines); i++ {
 		prev, ok := previousLine(s.lines[i])
-		if !ok || prev != s.lines[i-1] || s.skip[s.lines[i]] {
+		if !ok || (prev != s.lines[i-1] && !s.attestAnyway) || s.skip[s.lines[i]] {
 			continue
 		}
 		atts = append(atts, s.attestation(t, s.lines[i], prev))
@@ -310,6 +313,17 @@ func mechanicalRule(t *testing.T, id string, evidence string) string {
 		id, k8s, rangeJSON("1.19.0", "1.20.0", "1.20.0", "1.21.0"), k8s, evidence)
 }
 
+// An attestation of line L decides only the hop from the line before L: a
+// snapshot that skips a line gets no credit for it.
+func TestAttestationOfAnotherHopDecidesNothing(t *testing.T) {
+	s := k8sScenario("1.19", "1.21")
+	s.attestAnyway = true
+	p := s.project(t)
+	if p.Decided != 0 || p.Undeclared != 1 || p.Complete {
+		t.Fatalf("counts = %+v complete %v", p.Counts, p.Complete)
+	}
+}
+
 // Clause (c): every cited source pins a 40-hex commit and a path.
 func TestCompleteClauseC(t *testing.T) {
 	reg := shippedID(t, "kubernetes", lineattest.FamilyKubernetesRemovedServedGVK)
@@ -333,6 +347,7 @@ func TestCompleteClauseC(t *testing.T) {
 		{"rule without sources", evidence("", allUntil, goodExtractor), false},
 		{"rule with another extractor digest", evidence(goodSource, allUntil, fmt.Sprintf(`{"id":%q,"version":%q,"codeDigest":"sha256:%s"}`, reg.extractorID, reg.version, strings.Repeat("b", 64))), false},
 		{"rule expiring within 14 days", evidence(goodSource, "2026-10-22T12:00:00Z", goodExtractor), false},
+		{"reviewed rule that names the extractor", strings.Replace(evidence(goodSource, allUntil, goodExtractor), `"basis":"mechanical"`, `"basis":"reviewed"`, 1), false},
 		{"reviewed rule", `{"state":"active","reviewedAt":"2026-10-01T00:00:00Z","validUntil":"2026-12-15T00:00:00Z"}`, false},
 	}
 	for _, c := range cases {
