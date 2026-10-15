@@ -138,7 +138,14 @@ func evaluateMatchedRule(input inputDocument, rule rule, claim Claim) Claim {
 			return claim
 		}
 		comparison, comparable := compareVersions(component.Version, rule.Dependency.Version)
-		matches := comparable && (rule.Dependency.Comparison == "eq" && comparison == 0 || rule.Dependency.Comparison == "gte" && comparison >= 0 || rule.Dependency.Comparison == "lte" && comparison <= 0 || rule.Dependency.Comparison == "lt" && comparison < 0)
+		if !comparable {
+			// A version the engine cannot compare proves neither side of
+			// the bound: never BLOCKED (nor UNSUPPORTED), never PASS.
+			claim.Status, claim.ReasonCode = "UNKNOWN", ReasonDependencyVersionNotComparable
+			claim.NextAction = dependencyVersionAction(*rule.Dependency)
+			return claim
+		}
+		matches := rule.Dependency.Comparison == "eq" && comparison == 0 || rule.Dependency.Comparison == "gte" && comparison >= 0 || rule.Dependency.Comparison == "lte" && comparison <= 0 || rule.Dependency.Comparison == "lt" && comparison < 0
 		if !matches {
 			// BLOCKED, or UNSUPPORTED for a support-range rule
 			// (severity.go).
@@ -264,6 +271,20 @@ func dependencyAction(dependency componentCheck) string {
 	}
 	return boundedAction(fmt.Sprintf("the %s version is missing from the input: declare it in the input file; this rule requires %s %s", name, dependency.Comparison, dependency.Version),
 		"a component version this rule requires is missing from the input: declare it in the input file")
+}
+
+// ReasonDependencyVersionNotComparable is the UNKNOWN reason of a
+// require_component_version rule whose declared dependency version cannot be
+// compared with the rule's bound.
+const ReasonDependencyVersionNotComparable = "RULE_DEPENDENCY_VERSION_NOT_COMPARABLE"
+
+func dependencyVersionAction(dependency componentCheck) string {
+	name := dependency.Component
+	if index := strings.LastIndex(name, "/"); index >= 0 {
+		name = name[index+1:]
+	}
+	return boundedAction(fmt.Sprintf("the declared %s version cannot be compared: declare it as X.Y.Z in the input file; this rule requires %s %s", name, dependency.Comparison, dependency.Version),
+		"a component version this rule requires cannot be compared: declare it as X.Y.Z in the input file")
 }
 
 func boundedAction(action, fallback string) string {

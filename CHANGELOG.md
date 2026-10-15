@@ -208,6 +208,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   and compared like YAML files. No rule is shipped. See
   `cli/docs/extractors/crd.version-removal.md`.
 
+### Fixed
+
+- A `require_component_version` rule whose declared dependency version the
+  engine cannot compare now gives UNKNOWN
+  (`RULE_DEPENDENCY_VERSION_NOT_COMPARABLE`) instead of BLOCKED, or
+  UNSUPPORTED for a support-range rule: such a version proves neither side of
+  the bound. The input parser already refuses these versions, so no current
+  report changes; the evaluator no longer relies on it.
+
 ### Security
 
 - Build identity: a release identity now accepts only `trustRootDigest:
