@@ -110,3 +110,35 @@ func TestEveryExtractorDigestCoversItsPackageOnDisk(t *testing.T) {
 		}
 	}
 }
+
+// digestOf is the code digest a run of the registered extractor records
+// (extract.Run): the framework's source set and the extractor's own.
+func digestOf(t *testing.T, id string) string {
+	t.Helper()
+	spec, ok := Catalog()[id]
+	if !ok {
+		t.Fatalf("%s is not registered", id)
+	}
+	dir, own := spec.New(1).(extract.CodeSource).SourceFiles()
+	files, err := extract.CodeFiles(extract.FrameworkSource(), extract.SourceSet{Dir: dir, Files: own})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return extract.CodeDigest(files)
+}
+
+// The Kubernetes extractors' code digests are pinned: published rules and
+// line attestations carry them, and a change elsewhere (a data file of
+// another extractor, a new target) must not move them. A deliberate change
+// to the framework or to one of these packages updates the pin, and every
+// record that carries the old digest is re-derived.
+func TestKubernetesCodeDigestsArePinned(t *testing.T) {
+	for id, want := range map[string]string{
+		"k8s.served-api-removal":   "sha256:7b94e1ed652afa63355671bd20e6f131da603822aa53cf8f45cf2790a00955e6",
+		"k8s.feature-gate-removal": "sha256:42790ac0fe961d135e3843ef4096b795ca79ac931d009c65e54cfdbd417472eb",
+	} {
+		if got := digestOf(t, id); got != want {
+			t.Errorf("%s: code digest %s, pinned %s", id, got, want)
+		}
+	}
+}

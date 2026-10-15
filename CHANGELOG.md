@@ -9,6 +9,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Maintainer command `prufyx-maintainer docs-tables` (with `--check`): writes
+  the tables of the reviewed custom-resource projects and of the
+  `crd.version-removal` targets to `cli/docs/generated/` from the data compiled
+  into Prufyx; the hand-written pages link to them. No check output changes.
 - Knowledge paths for community-catalog projects (inert until a rule of one is
   published): the rule pack has its own schema level for entries of a
   community project (only `forbid_set_member` rules over the project's own

@@ -1,0 +1,733 @@
+{
+  "schema": "prufyx.io/custom-resource-table/v1",
+  "projects": [
+    {
+      "slug": "antrea",
+      "catalog": "cncf",
+      "factProject": "antrea",
+      "component": "pkg:github/antrea-io/antrea",
+      "groups": [
+        {
+          "name": "crd.antrea.io",
+          "source": "https://github.com/antrea-io/antrea/blob/e59003c2c1b13a961ff58a6d7b8f1133049d0bf0/build/charts/antrea/crds/trafficcontrol.yaml"
+        },
+        {
+          "name": "multicluster.crd.antrea.io",
+          "source": "https://github.com/antrea-io/antrea/blob/e59003c2c1b13a961ff58a6d7b8f1133049d0bf0/multicluster/config/crd/bases/multicluster.crd.antrea.io_resourceimports.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "argo-cd",
+      "catalog": "cncf",
+      "factProject": "argo_cd",
+      "component": "pkg:github/argoproj/argo-cd",
+      "groups": [
+        {
+          "name": "argoproj.io",
+          "source": "https://github.com/argoproj/argo-cd/blob/e98f483bfd5781df2592fef1aeed1148f150d9c9/manifests/crds/application-crd.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "cert-manager",
+      "catalog": "cncf",
+      "factProject": "cert_manager",
+      "component": "pkg:github/cert-manager/cert-manager",
+      "groups": [
+        {
+          "name": "acme.cert-manager.io",
+          "source": "https://github.com/cert-manager/cert-manager/blob/b8f325e36f49626ba72d7efbe138c01a5e661d96/deploy/crds/acme.cert-manager.io_orders.yaml"
+        },
+        {
+          "name": "cert-manager.io",
+          "source": "https://github.com/cert-manager/cert-manager/blob/b8f325e36f49626ba72d7efbe138c01a5e661d96/deploy/crds/cert-manager.io_issuers.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "cilium",
+      "catalog": "cncf",
+      "factProject": "cilium",
+      "component": "pkg:github/cilium/cilium",
+      "groups": [
+        {
+          "name": "cilium.io",
+          "source": "https://github.com/cilium/cilium/blob/450c53145dc0a872ae20dfb05598c94ef55a71e2/pkg/k8s/apis/cilium.io/client/crds/v2alpha1/ciliumpodippools.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "cloudnativepg",
+      "catalog": "cncf",
+      "factProject": "cloudnativepg",
+      "component": "pkg:github/cloudnative-pg/cloudnative-pg",
+      "groups": [
+        {
+          "name": "postgresql.cnpg.io",
+          "source": "https://github.com/cloudnative-pg/cloudnative-pg/blob/4b5e244a7d031f67e025c83c1555e7726ecbbfa1/config/crd/bases/postgresql.cnpg.io_subscriptions.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "cluster-api",
+      "catalog": "community",
+      "upstream": {
+        "name": "Cluster API",
+        "repository": "https://github.com/kubernetes-sigs/cluster-api",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/kubernetes-sigs/cluster-api/blob/560d4acf507bc7cac34b2da449fa5cd53eaeb149/LICENSE"
+      },
+      "factProject": "cluster_api",
+      "component": "pkg:github/kubernetes-sigs/cluster-api",
+      "groups": [
+        {
+          "name": "cluster.x-k8s.io",
+          "source": "https://github.com/kubernetes-sigs/cluster-api/blob/560d4acf507bc7cac34b2da449fa5cd53eaeb149/core/config/crd/bases/cluster.x-k8s.io_machinesets.yaml"
+        },
+        {
+          "name": "clusterctl.cluster.x-k8s.io",
+          "source": "https://github.com/kubernetes-sigs/cluster-api/blob/560d4acf507bc7cac34b2da449fa5cd53eaeb149/cmd/clusterctl/config/crd/bases/clusterctl.cluster.x-k8s.io_providers.yaml"
+        },
+        {
+          "name": "runtime.cluster.x-k8s.io",
+          "source": "https://github.com/kubernetes-sigs/cluster-api/blob/560d4acf507bc7cac34b2da449fa5cd53eaeb149/core/config/crd/bases/runtime.cluster.x-k8s.io_extensionconfigs.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "contour",
+      "catalog": "cncf",
+      "factProject": "contour",
+      "component": "pkg:github/projectcontour/contour",
+      "groups": [
+        {
+          "name": "projectcontour.io",
+          "source": "https://github.com/projectcontour/contour/blob/3635b068e25d74b7089c272eefd6ccb6a08f2861/examples/contour/01-crds.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "crossplane",
+      "catalog": "cncf",
+      "factProject": "crossplane",
+      "component": "pkg:github/crossplane/crossplane",
+      "groups": [
+        {
+          "name": "apiextensions.crossplane.io",
+          "source": "https://github.com/crossplane/crossplane/blob/61fa450c0c14a75bf5632872bd4a5b6945ec5a26/cluster/crds/apiextensions.crossplane.io_usages.yaml"
+        },
+        {
+          "name": "ops.crossplane.io",
+          "source": "https://github.com/crossplane/crossplane/blob/61fa450c0c14a75bf5632872bd4a5b6945ec5a26/cluster/crds/ops.crossplane.io_watchoperations.yaml"
+        },
+        {
+          "name": "pkg.crossplane.io",
+          "source": "https://github.com/crossplane/crossplane/blob/61fa450c0c14a75bf5632872bd4a5b6945ec5a26/cluster/crds/pkg.crossplane.io_providers.yaml"
+        },
+        {
+          "name": "protection.crossplane.io",
+          "source": "https://github.com/crossplane/crossplane/blob/61fa450c0c14a75bf5632872bd4a5b6945ec5a26/cluster/crds/protection.crossplane.io_usages.yaml"
+        },
+        {
+          "name": "secrets.crossplane.io",
+          "source": "https://github.com/crossplane/crossplane/blob/2efdb03ae80fc27f4b6b9b0cebc96a462233cf17/cluster/crds/secrets.crossplane.io_storeconfigs.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "dapr",
+      "catalog": "cncf",
+      "factProject": "dapr",
+      "component": "pkg:github/dapr/dapr",
+      "groups": [
+        {
+          "name": "dapr.io",
+          "source": "https://github.com/dapr/dapr/blob/7c4f540efa3e6f768a45010f2fc0d4b4c287cac3/charts/dapr/crds/workflowaccesspolicy.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "eck-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "Elastic Cloud on Kubernetes",
+        "repository": "https://github.com/elastic/cloud-on-k8s",
+        "license": "Elastic-2.0",
+        "licenseSource": "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/LICENSE.txt"
+      },
+      "factProject": "eck_operator",
+      "component": "pkg:github/elastic/cloud-on-k8s",
+      "groups": [
+        {
+          "name": "agent.k8s.elastic.co",
+          "source": "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"
+        },
+        {
+          "name": "apm.k8s.elastic.co",
+          "source": "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"
+        },
+        {
+          "name": "autoops.k8s.elastic.co",
+          "source": "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"
+        },
+        {
+          "name": "autoscaling.k8s.elastic.co",
+          "source": "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"
+        },
+        {
+          "name": "beat.k8s.elastic.co",
+          "source": "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"
+        },
+        {
+          "name": "elasticsearch.k8s.elastic.co",
+          "source": "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"
+        },
+        {
+          "name": "enterprisesearch.k8s.elastic.co",
+          "source": "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"
+        },
+        {
+          "name": "kibana.k8s.elastic.co",
+          "source": "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"
+        },
+        {
+          "name": "logstash.k8s.elastic.co",
+          "source": "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"
+        },
+        {
+          "name": "maps.k8s.elastic.co",
+          "source": "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"
+        },
+        {
+          "name": "packageregistry.k8s.elastic.co",
+          "source": "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"
+        },
+        {
+          "name": "stackconfigpolicy.k8s.elastic.co",
+          "source": "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/config/crds/v1/all-crds.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "external-secrets",
+      "catalog": "cncf",
+      "factProject": "external_secrets",
+      "component": "pkg:github/external-secrets/external-secrets",
+      "groups": [
+        {
+          "name": "external-secrets.io",
+          "source": "https://github.com/external-secrets/external-secrets/blob/9d17906e8e4c5532ffe513f72273df03b7b07bc6/config/crds/bases/external-secrets.io_secretstores.yaml"
+        },
+        {
+          "name": "generators.external-secrets.io",
+          "source": "https://github.com/external-secrets/external-secrets/blob/9d17906e8e4c5532ffe513f72273df03b7b07bc6/config/crds/bases/generators.external-secrets.io_webhooks.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "gateway-api",
+      "catalog": "community",
+      "upstream": {
+        "name": "Gateway API",
+        "repository": "https://github.com/kubernetes-sigs/gateway-api",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/kubernetes-sigs/gateway-api/blob/89b3b0c3fa63f9342f43ba0fb2cf93d6aab53af7/LICENSE"
+      },
+      "factProject": "gateway_api",
+      "component": "pkg:github/kubernetes-sigs/gateway-api",
+      "groups": [
+        {
+          "name": "gateway.networking.k8s.io",
+          "source": "https://github.com/kubernetes-sigs/gateway-api/blob/89b3b0c3fa63f9342f43ba0fb2cf93d6aab53af7/config/crd/standard/gateway.networking.k8s.io_udproutes.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "istio",
+      "catalog": "cncf",
+      "factProject": "istio",
+      "component": "pkg:github/istio/istio",
+      "groups": [
+        {
+          "name": "extensions.istio.io",
+          "source": "https://github.com/istio/istio/blob/8825a6b7f8c9a2d66005a5f8b64e98aaee0dda99/manifests/charts/base/files/crd-all.gen.yaml"
+        },
+        {
+          "name": "networking.istio.io",
+          "source": "https://github.com/istio/istio/blob/8825a6b7f8c9a2d66005a5f8b64e98aaee0dda99/manifests/charts/base/files/crd-all.gen.yaml"
+        },
+        {
+          "name": "security.istio.io",
+          "source": "https://github.com/istio/istio/blob/8825a6b7f8c9a2d66005a5f8b64e98aaee0dda99/manifests/charts/base/files/crd-all.gen.yaml"
+        },
+        {
+          "name": "telemetry.istio.io",
+          "source": "https://github.com/istio/istio/blob/8825a6b7f8c9a2d66005a5f8b64e98aaee0dda99/manifests/charts/base/files/crd-all.gen.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "karmada",
+      "catalog": "cncf",
+      "factProject": "karmada",
+      "component": "pkg:github/karmada-io/karmada",
+      "groups": [
+        {
+          "name": "apps.karmada.io",
+          "source": "https://github.com/karmada-io/karmada/blob/6d7b233a54d59c8473803901768153f6e4353d02/charts/karmada/_crds/bases/apps/apps.karmada.io_workloadrebalancers.yaml"
+        },
+        {
+          "name": "autoscaling.karmada.io",
+          "source": "https://github.com/karmada-io/karmada/blob/6d7b233a54d59c8473803901768153f6e4353d02/charts/karmada/_crds/bases/autoscaling/autoscaling.karmada.io_federatedhpas.yaml"
+        },
+        {
+          "name": "config.karmada.io",
+          "source": "https://github.com/karmada-io/karmada/blob/6d7b233a54d59c8473803901768153f6e4353d02/charts/karmada/_crds/bases/config/config.karmada.io_resourceinterpreterwebhookconfigurations.yaml"
+        },
+        {
+          "name": "networking.karmada.io",
+          "source": "https://github.com/karmada-io/karmada/blob/6d7b233a54d59c8473803901768153f6e4353d02/charts/karmada/_crds/bases/networking/networking.karmada.io_multiclusterservices.yaml"
+        },
+        {
+          "name": "operator.karmada.io",
+          "source": "https://github.com/karmada-io/karmada/blob/6d7b233a54d59c8473803901768153f6e4353d02/operator/config/crds/operator.karmada.io_karmadas.yaml"
+        },
+        {
+          "name": "policy.karmada.io",
+          "source": "https://github.com/karmada-io/karmada/blob/6d7b233a54d59c8473803901768153f6e4353d02/charts/karmada/_crds/bases/policy/policy.karmada.io_propagationpolicies.yaml"
+        },
+        {
+          "name": "remedy.karmada.io",
+          "source": "https://github.com/karmada-io/karmada/blob/6d7b233a54d59c8473803901768153f6e4353d02/charts/karmada/_crds/bases/remedy/remedy.karmada.io_remedies.yaml"
+        },
+        {
+          "name": "work.karmada.io",
+          "source": "https://github.com/karmada-io/karmada/blob/6d7b233a54d59c8473803901768153f6e4353d02/charts/karmada/_crds/bases/work/work.karmada.io_works.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "keda",
+      "catalog": "cncf",
+      "factProject": "keda",
+      "component": "pkg:github/kedacore/keda",
+      "groups": [
+        {
+          "name": "eventing.keda.sh",
+          "source": "https://github.com/kedacore/keda/blob/626ded5d783108bedf647e20bbc83f8e458e02e4/config/crd/bases/eventing.keda.sh_clustercloudeventsources.yaml"
+        },
+        {
+          "name": "keda.sh",
+          "source": "https://github.com/kedacore/keda/blob/626ded5d783108bedf647e20bbc83f8e458e02e4/config/crd/bases/keda.sh_triggerauthentications.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kong-ingress-controller",
+      "catalog": "community",
+      "upstream": {
+        "name": "Kong Ingress Controller",
+        "repository": "https://github.com/kong/kubernetes-ingress-controller",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/kong/kubernetes-ingress-controller/blob/17f5dafd2a447a7e5ff7be84006a83787ac2882c/LICENSE"
+      },
+      "factProject": "kong_ingress_controller",
+      "component": "pkg:github/kong/kubernetes-ingress-controller",
+      "groups": [
+        {
+          "name": "configuration.konghq.com",
+          "source": "https://github.com/kong/kubernetes-ingress-controller/blob/17f5dafd2a447a7e5ff7be84006a83787ac2882c/config/crd/bases/configuration.konghq.com_udpingresses.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "koordinator",
+      "catalog": "cncf",
+      "factProject": "koordinator",
+      "component": "pkg:github/koordinator-sh/koordinator",
+      "groups": [
+        {
+          "name": "analysis.koordinator.sh",
+          "source": "https://github.com/koordinator-sh/koordinator/blob/989ca85c62abcca92b303aa12fd2ccff2ed30fed/config/crd/bases/analysis.koordinator.sh_recommendations.yaml"
+        },
+        {
+          "name": "config.koordinator.sh",
+          "source": "https://github.com/koordinator-sh/koordinator/blob/989ca85c62abcca92b303aa12fd2ccff2ed30fed/config/crd/bases/config.koordinator.sh_clustercolocationprofiles.yaml"
+        },
+        {
+          "name": "quota.koordinator.sh",
+          "source": "https://github.com/koordinator-sh/koordinator/blob/989ca85c62abcca92b303aa12fd2ccff2ed30fed/config/crd/bases/quota.koordinator.sh_elasticquotaprofiles.yaml"
+        },
+        {
+          "name": "scheduling.koordinator.sh",
+          "source": "https://github.com/koordinator-sh/koordinator/blob/989ca85c62abcca92b303aa12fd2ccff2ed30fed/config/crd/bases/scheduling.koordinator.sh_scheduleexplanations.yaml"
+        },
+        {
+          "name": "slo.koordinator.sh",
+          "source": "https://github.com/koordinator-sh/koordinator/blob/989ca85c62abcca92b303aa12fd2ccff2ed30fed/config/crd/bases/slo.koordinator.sh_nodeslos.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kueue",
+      "catalog": "community",
+      "upstream": {
+        "name": "Kueue",
+        "repository": "https://github.com/kubernetes-sigs/kueue",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/kubernetes-sigs/kueue/blob/f850823bead72095aaba55025a7efadfdfe3782a/LICENSE"
+      },
+      "factProject": "kueue",
+      "component": "pkg:github/kubernetes-sigs/kueue",
+      "groups": [
+        {
+          "name": "kueue.x-k8s.io",
+          "source": "https://github.com/kubernetes-sigs/kueue/blob/f850823bead72095aaba55025a7efadfdfe3782a/config/components/crd/bases/kueue.x-k8s.io_workloads.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kuma",
+      "catalog": "cncf",
+      "factProject": "kuma",
+      "component": "pkg:github/kumahq/kuma",
+      "groups": [
+        {
+          "name": "kuma.io",
+          "source": "https://github.com/kumahq/kuma/blob/51c6d3819be75d9587942242cdec709bc9934321/deployments/charts/kuma/crds/kuma.io_zones.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kyverno",
+      "catalog": "cncf",
+      "factProject": "kyverno",
+      "component": "pkg:github/kyverno/kyverno",
+      "groups": [
+        {
+          "name": "kyverno.io",
+          "source": "https://github.com/kyverno/kyverno/blob/ee97ce09538b09b6f1b03853cc41a62654d6a58f/config/crds/kyverno/kyverno.io_updaterequests.yaml"
+        },
+        {
+          "name": "policies.kyverno.io",
+          "source": "https://github.com/kyverno/kyverno/blob/ee97ce09538b09b6f1b03853cc41a62654d6a58f/config/crds/policies.kyverno.io/policies.kyverno.io_validatingpolicies.yaml"
+        },
+        {
+          "name": "reports.kyverno.io",
+          "source": "https://github.com/kyverno/kyverno/blob/ee97ce09538b09b6f1b03853cc41a62654d6a58f/config/crds/reports/reports.kyverno.io_ephemeralreports.yaml"
+        },
+        {
+          "name": "wgpolicyk8s.io",
+          "source": "https://github.com/kyverno/kyverno/blob/ee97ce09538b09b6f1b03853cc41a62654d6a58f/config/crds/policyreport/wgpolicyk8s.io_policyreports.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "longhorn",
+      "catalog": "cncf",
+      "factProject": "longhorn",
+      "component": "pkg:github/longhorn/longhorn",
+      "groups": [
+        {
+          "name": "longhorn.io",
+          "source": "https://github.com/longhorn/longhorn/blob/c3d88832bd8cec4f38dec65e79436984871dc313/deploy/longhorn.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "metallb",
+      "catalog": "cncf",
+      "factProject": "metallb",
+      "component": "pkg:github/metallb/metallb",
+      "groups": [
+        {
+          "name": "metallb.io",
+          "source": "https://github.com/metallb/metallb/blob/4c613e152c3434f71137b5f2a2ce15ee93681606/config/crd/bases/metallb.io_servicel2statuses.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "mongodb-kubernetes",
+      "catalog": "community",
+      "upstream": {
+        "name": "MongoDB Controllers for Kubernetes",
+        "repository": "https://github.com/mongodb/mongodb-kubernetes",
+        "license": "Apache-2.0 OR LicenseRef-MongoDB-Customer-Agreement",
+        "licenseSource": "https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/LICENSE-MCK"
+      },
+      "factProject": "mongodb_kubernetes",
+      "component": "pkg:github/mongodb/mongodb-kubernetes",
+      "groups": [
+        {
+          "name": "ai.mongodb.com",
+          "source": "https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/config/crd/bases/ai.mongodb.com_voyageais.yaml"
+        },
+        {
+          "name": "mongodb.com",
+          "source": "https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/config/crd/bases/mongodb.com_opsmanagers.yaml"
+        },
+        {
+          "name": "mongodbcommunity.mongodb.com",
+          "source": "https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/config/crd/bases/mongodbcommunity.mongodb.com_mongodbcommunity.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "node-feature-discovery",
+      "catalog": "community",
+      "upstream": {
+        "name": "Node Feature Discovery",
+        "repository": "https://github.com/kubernetes-sigs/node-feature-discovery",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/kubernetes-sigs/node-feature-discovery/blob/45d276ed9d3f0f67fb642aa78969721df3034451/LICENSE"
+      },
+      "factProject": "node_feature_discovery",
+      "component": "pkg:github/kubernetes-sigs/node-feature-discovery",
+      "groups": [
+        {
+          "name": "nfd.k8s-sigs.io",
+          "source": "https://github.com/kubernetes-sigs/node-feature-discovery/blob/45d276ed9d3f0f67fb642aa78969721df3034451/deployment/base/nfd-crds/nfd-api-crds.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "openkruise",
+      "catalog": "cncf",
+      "factProject": "openkruise",
+      "component": "pkg:github/openkruise/kruise",
+      "groups": [
+        {
+          "name": "apps.kruise.io",
+          "source": "https://github.com/openkruise/kruise/blob/b1e001a957ce62bf87894d0212f5e704a8e9c2b4/config/crd/bases/apps.kruise.io_workloadspreads.yaml"
+        },
+        {
+          "name": "policy.kruise.io",
+          "source": "https://github.com/openkruise/kruise/blob/b1e001a957ce62bf87894d0212f5e704a8e9c2b4/config/crd/bases/policy.kruise.io_podunavailablebudgets.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "percona-postgresql-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "Percona Operator for PostgreSQL",
+        "repository": "https://github.com/percona/percona-postgresql-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/percona/percona-postgresql-operator/blob/a6cb60bf372f0eec5c9680437c300e2c07362d70/LICENSE.md"
+      },
+      "factProject": "percona_postgresql_operator",
+      "component": "pkg:github/percona/percona-postgresql-operator",
+      "groups": [
+        {
+          "name": "pgv2.percona.com",
+          "source": "https://github.com/percona/percona-postgresql-operator/blob/a6cb60bf372f0eec5c9680437c300e2c07362d70/config/crd/bases/pgv2.percona.com_perconapgclusters.yaml"
+        },
+        {
+          "name": "upstream.pgv2.percona.com",
+          "source": "https://github.com/percona/percona-postgresql-operator/blob/a6cb60bf372f0eec5c9680437c300e2c07362d70/config/crd/bases/upstream.pgv2.percona.com_postgresclusters.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "prometheus-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "Prometheus Operator",
+        "repository": "https://github.com/prometheus-operator/prometheus-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/prometheus-operator/prometheus-operator/blob/2e4af1d7d8f0ae634fcf0ac967a76fb381a65542/LICENSE"
+      },
+      "factProject": "prometheus_operator",
+      "component": "pkg:github/prometheus-operator/prometheus-operator",
+      "groups": [
+        {
+          "name": "monitoring.coreos.com",
+          "source": "https://github.com/prometheus-operator/prometheus-operator/blob/2e4af1d7d8f0ae634fcf0ac967a76fb381a65542/example/prometheus-operator-crd/monitoring.coreos.com_thanosrulers.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "rancher",
+      "catalog": "community",
+      "upstream": {
+        "name": "Rancher",
+        "repository": "https://github.com/rancher/rancher",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/LICENSE"
+      },
+      "factProject": "rancher",
+      "component": "pkg:github/rancher/rancher",
+      "groups": [
+        {
+          "name": "auditlog.cattle.io",
+          "source": "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/auditlog.cattle.io_auditpolicies.yaml"
+        },
+        {
+          "name": "catalog.cattle.io",
+          "source": "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/catalog.cattle.io_uiplugins.yaml"
+        },
+        {
+          "name": "management.cattle.io",
+          "source": "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/management.cattle.io_users.yaml"
+        },
+        {
+          "name": "operation.cattle.io",
+          "source": "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/operation.cattle.io_etcdsnapshotsaves.yaml"
+        },
+        {
+          "name": "plan.cattle.io",
+          "source": "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/plan.cattle.io_beacons.yaml"
+        },
+        {
+          "name": "provisioning.cattle.io",
+          "source": "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/provisioning.cattle.io_clusters.yaml"
+        },
+        {
+          "name": "rke.cattle.io",
+          "source": "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/rke.cattle.io_rkecontrolplanes.yaml"
+        },
+        {
+          "name": "scc.cattle.io",
+          "source": "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/scc.cattle.io_registrations.yaml"
+        },
+        {
+          "name": "telemetry.cattle.io",
+          "source": "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/telemetry.cattle.io_secretrequests.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "rook",
+      "catalog": "cncf",
+      "factProject": "rook",
+      "component": "pkg:github/rook/rook",
+      "groups": [
+        {
+          "name": "ceph.rook.io",
+          "source": "https://github.com/rook/rook/blob/f190ca3b45f131da03641741e9e03b2584cd7d5e/deploy/examples/crds.yaml"
+        },
+        {
+          "name": "objectbucket.io",
+          "source": "https://github.com/rook/rook/blob/f190ca3b45f131da03641741e9e03b2584cd7d5e/deploy/examples/crds.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "strimzi",
+      "catalog": "cncf",
+      "factProject": "strimzi",
+      "component": "pkg:github/strimzi/strimzi-kafka-operator",
+      "groups": [
+        {
+          "name": "core.strimzi.io",
+          "source": "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/042-Crd-strimzipodset.yaml"
+        },
+        {
+          "name": "kafka.strimzi.io",
+          "source": "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/040-Crd-kafka.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "tekton",
+      "catalog": "cncf",
+      "factProject": "tekton",
+      "component": "pkg:github/tektoncd/pipeline",
+      "groups": [
+        {
+          "name": "resolution.tekton.dev",
+          "source": "https://github.com/tektoncd/pipeline/blob/61e02215132ce7bef054ff7e1fb074f217716c1a/config/300-crds/300-resolutionrequest.yaml"
+        },
+        {
+          "name": "tekton.dev",
+          "source": "https://github.com/tektoncd/pipeline/blob/61e02215132ce7bef054ff7e1fb074f217716c1a/config/300-crds/300-verificationpolicy.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "velero",
+      "catalog": "cncf",
+      "factProject": "velero",
+      "component": "pkg:github/velero-io/velero",
+      "groups": [
+        {
+          "name": "velero.io",
+          "source": "https://github.com/velero-io/velero/blob/6adcf06b5b0e6fb93998d3e101e2cbdc134fa3c3/config/crd/v1/bases/velero.io_volumesnapshotlocations.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "volcano",
+      "catalog": "cncf",
+      "factProject": "volcano",
+      "component": "pkg:github/volcano-sh/volcano",
+      "groups": [
+        {
+          "name": "batch.volcano.sh",
+          "source": "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/volcano/bases/batch.volcano.sh_jobs.yaml"
+        },
+        {
+          "name": "bus.volcano.sh",
+          "source": "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/volcano/bases/bus.volcano.sh_commands.yaml"
+        },
+        {
+          "name": "config.volcano.sh",
+          "source": "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/volcano/bases/config.volcano.sh_colocationconfigurations.yaml"
+        },
+        {
+          "name": "flow.volcano.sh",
+          "source": "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/jobflow/bases/flow.volcano.sh_jobtemplates.yaml"
+        },
+        {
+          "name": "nodeinfo.volcano.sh",
+          "source": "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/volcano/bases/nodeinfo.volcano.sh_numatopologies.yaml"
+        },
+        {
+          "name": "scheduling.volcano.sh",
+          "source": "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/volcano/bases/scheduling.volcano.sh_queues.yaml"
+        },
+        {
+          "name": "shard.volcano.sh",
+          "source": "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/volcano/bases/shard.volcano.sh_nodeshards.yaml"
+        },
+        {
+          "name": "topology.volcano.sh",
+          "source": "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/volcano/bases/topology.volcano.sh_hypernodes.yaml"
+        }
+      ]
+    }
+  ],
+  "reserved": [
+    {
+      "name": "cluster.x-k8s.io",
+      "owner": "cluster-api",
+      "repository": "https://github.com/kubernetes-sigs/cluster-api",
+      "reason": "the core Cluster API types (Cluster, Machine, MachineSet, ...) are CRDs of kubernetes-sigs/cluster-api; providers define theirs in their own *.cluster.x-k8s.io groups"
+    },
+    {
+      "name": "clusterctl.cluster.x-k8s.io",
+      "owner": "cluster-api",
+      "repository": "https://github.com/kubernetes-sigs/cluster-api",
+      "reason": "the clusterctl Provider and Metadata types are CRDs of kubernetes-sigs/cluster-api (cmd/clusterctl) only"
+    },
+    {
+      "name": "gateway.networking.k8s.io",
+      "owner": "gateway-api",
+      "repository": "https://github.com/kubernetes-sigs/gateway-api",
+      "reason": "Gateway API is defined by the CRDs of kubernetes-sigs/gateway-api and is not served by kube-apiserver; implementations ship copies of those CRDs"
+    },
+    {
+      "name": "kueue.x-k8s.io",
+      "owner": "kueue",
+      "repository": "https://github.com/kubernetes-sigs/kueue",
+      "reason": "the Kueue types (ClusterQueue, LocalQueue, Workload, ...) are CRDs of kubernetes-sigs/kueue only"
+    },
+    {
+      "name": "runtime.cluster.x-k8s.io",
+      "owner": "cluster-api",
+      "repository": "https://github.com/kubernetes-sigs/cluster-api",
+      "reason": "the runtime extension type ExtensionConfig is a CRD of kubernetes-sigs/cluster-api only"
+    }
+  ]
+}

@@ -776,3 +776,42 @@ func TestMaintainerCLIKnowledgeReleaseRejectsIncompleteArguments(t *testing.T) {
 		t.Fatal("unknown flag accepted")
 	}
 }
+
+func TestMaintainerCLI_DocsTables_CheckAcceptedFiles(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"docs-tables", "--root", root, "--check"}, &out, &errOut); err != nil {
+		t.Fatalf("the generated docs tables are stale (run prufyx-maintainer docs-tables): %v", err)
+	}
+}
+
+func TestMaintainerCLI_DocsTables_WritesAndDetectsStale(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "docs", "generated"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"docs-tables", "--root", root, "--check"}, &out, &errOut); err == nil {
+		t.Fatal("check passed without generated files")
+	}
+	if err := run([]string{"docs-tables", "--root", root}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	if err := run([]string{"docs-tables", "--root", root, "--check"}, &out, &errOut); err != nil {
+		t.Fatalf("check after write: %v", err)
+	}
+	stale := filepath.Join(root, "docs", "generated", "crd-version-targets.md")
+	raw, err := os.ReadFile(stale)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(stale, append(raw, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := run([]string{"docs-tables", "--root", root, "--check"}, &out, &errOut); err == nil {
+		t.Fatal("check passed on a stale file")
+	}
+}
