@@ -85,8 +85,16 @@ func TestParseExternalIndexRejectsMalformedIndexes(t *testing.T) {
 		"engine": reencodeIndex(t, index.Bytes, func(d *externalIndexDocument) {
 			d.EngineCapabilityDigest = "sha256:" + string(bytes.Repeat([]byte("0"), 64))
 		}),
-		"bad revision":  reencodeIndex(t, index.Bytes, func(d *externalIndexDocument) { d.Projects[0].Revision = "0" }),
-		"wrong schema":  reencodeIndex(t, index.Bytes, func(d *externalIndexDocument) { d.Schema = "prufyx.io/cncf-knowledge-index/v2" }),
+		"bad revision": reencodeIndex(t, index.Bytes, func(d *externalIndexDocument) { d.Projects[0].Revision = "0" }),
+		// The schema of the other layout: v2 for a pack without records,
+		// v1 for one with them.
+		"wrong schema": reencodeIndex(t, index.Bytes, func(d *externalIndexDocument) {
+			if d.Schema == ExternalIndexSchema {
+				d.Schema = ExternalIndexSchemaRecords
+			} else {
+				d.Schema = ExternalIndexSchema
+			}
+		}),
 		"unknown field": bytes.Replace(index.Bytes, []byte(`"projects":`), []byte(`"extra":1,"projects":`), 1),
 	}
 	for name, raw := range cases {

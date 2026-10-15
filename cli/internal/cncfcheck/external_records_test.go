@@ -170,9 +170,16 @@ func TestSplitTargetsCarryRecords(t *testing.T) {
 // TestSplitWithoutRecordsIsUnchanged: a pack without records splits exactly
 // as before: a v1 index without a records member and v1alpha1 envelopes.
 func TestSplitWithoutRecordsIsUnchanged(t *testing.T) {
-	index, projects, err := BuildEmbeddedExternalTargets("7", nil)
+	same := func(string, func(string) ([]byte, error)) (string, error) { return "7", nil }
+	index, projects, err := buildExternalTargets(syntheticBaseBundle(t), "7", "operator_provided", same)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if shipped := shippedPack(t); len(shipped.LineAttestations) == 0 && len(shipped.Entries) == len(syntheticBase(t).Entries) {
+		embeddedIndex, embedded, err := BuildEmbeddedExternalTargets("7", nil)
+		if err != nil || !bytes.Equal(embeddedIndex.Bytes, index.Bytes) || len(embedded) != len(projects) {
+			t.Fatalf("the split of a record-free shipped pack differs from the split of syntheticBase: %v", err)
+		}
 	}
 	if bytes.Contains(index.Bytes, []byte(`"records"`)) || !bytes.Contains(index.Bytes, []byte(`"schema":"`+ExternalIndexSchema+`"`)) {
 		t.Fatal("a pack without records produced a records index")
@@ -182,9 +189,9 @@ func TestSplitWithoutRecordsIsUnchanged(t *testing.T) {
 			t.Fatalf("%s schema %s", target.Path, schema)
 		}
 	}
-	single, err := ExportEmbeddedExternalBundle("7")
-	if err != nil || !bytes.HasPrefix(single, []byte(`{"schema":"`+externalBundleSchema+`"`)) {
-		t.Fatalf("single target %v", err)
+	single := syntheticBaseExternalBundle(t, "7")
+	if !bytes.HasPrefix(single, []byte(`{"schema":"`+externalBundleSchema+`"`)) {
+		t.Fatal("single target")
 	}
 }
 

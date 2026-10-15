@@ -14,12 +14,16 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/customresources"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchids"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
-// These tests attach synthetic line attestations to the embedded pack's own
-// rules. The embedded pack carries none and stays byte-identical.
+// These tests attach synthetic line attestations to the rules of
+// syntheticBase (the shipped rules without the set rules and without the
+// shipped line attestations). The embedded pack stays byte-identical; its
+// own line attestations are held by TestEmbeddedPackLineAttestations.
 
 const k8sComponent = "pkg:github/kubernetes/kubernetes"
 
@@ -49,18 +53,10 @@ func testAttestation(line string, ids []string) lineattest.LineAttestation {
 	}
 }
 
-// attestedPack is the embedded pack with schema and a raw attestation
-// section.
+// attestedPack is syntheticBase with schema and a raw attestation section.
 func attestedPack(t *testing.T, schema string, section []byte) []byte {
 	t.Helper()
-	raw, err := packagedFiles.ReadFile("data/rules.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var pack rulePack
-	if err := strictJSON(raw, &pack); err != nil {
-		t.Fatal(err)
-	}
+	pack := syntheticBase(t)
 	pack.Schema, pack.LineAttestations = schema, section
 	encoded, err := json.Marshal(pack)
 	if err != nil {
@@ -82,18 +78,79 @@ func validAttestations(t *testing.T) []byte {
 	return section(t, testAttestation("1.25", line125Rules), testAttestation("1.30", nil))
 }
 
-func TestEmbeddedPackCarriesNoLineAttestations(t *testing.T) {
+// TestEmbeddedPackLineAttestations: the line attestations the embedded pack
+// publishes are exactly the quiet custom-resource lines of the batch
+// crdbatchids states (none before the batch ships). The section is located
+// by its exact member name and parses strictly; every attestation validates,
+// lists exactly the pack's rules of its scope (none), each of them line-wide
+// (lineattest.CheckRuleSets finds no problem), is mechanical with the
+// custom-resource extractor of its project, cites at least one source, is
+// current at the review instant, and is what AttestationsFor returns for its
+// scope. No Kubernetes line is attested.
+func TestEmbeddedPackLineAttestations(t *testing.T) {
 	raw, err := packagedFiles.ReadFile("data/rules.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Contains(raw, []byte("lineAttestations")) {
-		t.Fatal("the published pack carries line attestations")
+	now := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	section, present, err := lineattest.PackSection(raw)
+	if err != nil {
+		t.Fatal(err)
 	}
-	got, err := AttestationsFor(k8sComponent, "1.25", lineattest.FamilyKubernetesRemovedServedGVK, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC))
+	var want []crdbatchids.Line
+	if crdbatchids.Shipped() {
+		want = crdbatchids.Lines()
+	}
+	if present != (len(want) > 0) || bytes.Contains(raw, []byte("lineAttestations")) != present {
+		t.Fatalf("the published pack carries a line attestation section: %v, the batch states %d lines", present, len(want))
+	}
+	if present {
+		atts, err := lineattest.Parse(section)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := lineattest.Validate(atts); err != nil {
+			t.Fatal(err)
+		}
+		if len(atts) != len(want) {
+			t.Fatalf("%d published line attestations, the batch states %d", len(atts), len(want))
+		}
+		var rules []json.RawMessage
+		for _, entry := range shippedPack(t).Entries {
+			rules = append(rules, entry.Rule)
+		}
+		if problems, err := lineattest.CheckRuleSets(atts, rules); err != nil || len(problems) != 0 {
+			t.Fatalf("published line attestations do not list the pack's rules: %v %v", problems, err)
+		}
+		for i, a := range atts {
+			if a.Component != want[i].Component || a.Line != want[i].Line || a.FactFamily != crdbatchids.FactFamily || a.Completeness != lineattest.Completeness || a.RuleIDs == nil || len(a.RuleIDs) != 0 {
+				t.Fatalf("published attestation %d %+v, the batch states %+v", i, a.Key(), want[i])
+			}
+			project, ok := customResourceProjectOf(a.Component)
+			if a.Evidence.Basis != constraintengine.BasisMechanical || a.Evidence.Extractor == nil || !ok || a.Evidence.Extractor.ID != "crd.version-removal."+project || len(a.Evidence.Sources) == 0 {
+				t.Fatalf("published attestation %s is not a mechanical custom-resource attestation: %+v", a.Key(), a.Evidence)
+			}
+			got, err := AttestationsFor(a.Component, a.Line, a.FactFamily, now)
+			if err != nil || len(got) != 1 || !got[0].Current() || !reflect.DeepEqual(got[0].Attestation, a) {
+				t.Fatalf("lookup of %s: %+v %v", a.Key(), got, err)
+			}
+		}
+	}
+	got, err := AttestationsFor(k8sComponent, "1.25", lineattest.FamilyKubernetesRemovedServedGVK, now)
 	if err != nil || len(got) != 0 {
 		t.Fatalf("embedded attestations: %v %v", got, err)
 	}
+}
+
+// customResourceProjectOf is the slug of the custom-resource project whose
+// component is component.
+func customResourceProjectOf(component string) (string, bool) {
+	for _, p := range customresources.Projects() {
+		if p.Component == component {
+			return p.Slug, true
+		}
+	}
+	return "", false
 }
 
 func TestAttestedPackIsAdmittedAndLookedUp(t *testing.T) {
@@ -210,10 +267,7 @@ func TestPackDigestCoversAttestations(t *testing.T) {
 }
 
 func TestExternalBundleRefusesAttestations(t *testing.T) {
-	raw, err := ExportEmbeddedExternalBundle("7")
-	if err != nil {
-		t.Fatal(err)
-	}
+	raw := syntheticBaseExternalBundle(t, "7")
 	var envelope map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &envelope); err != nil {
 		t.Fatal(err)
