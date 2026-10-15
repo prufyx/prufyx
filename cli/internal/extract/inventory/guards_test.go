@@ -9,6 +9,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
+	"github.com/prufyx/prufyx/cli/internal/extract/helmvalues"
 	"github.com/prufyx/prufyx/cli/internal/extract/inventory"
 	"github.com/prufyx/prufyx/cli/internal/extract/k8sfeaturegates"
 )
@@ -65,6 +66,10 @@ func TestInventoryRefusesEmptyOrUnreadableProofs(t *testing.T) {
 		{"crds: none", crdversions.IDPrefix + "strimzi", "github.com/strimzi/strimzi-kafka-operator", crd(true, nil), false},
 		{"crds: incomplete", crdversions.IDPrefix + "strimzi", "github.com/strimzi/strimzi-kafka-operator", crd(false, one), false},
 		{"crds: no from side", crdversions.IDPrefix + "strimzi", "github.com/strimzi/strimzi-kafka-operator", map[string]any{"target": "x"}, false},
+		{"chart: read", helmvalues.IDPrefix + "keda.keda", "github.com/kedacore/charts", map[string]any{"target": "keda", "from": map[string]any{"version": "1.0.0"}}, true},
+		{"chart: problem", helmvalues.IDPrefix + "keda.keda", "github.com/kedacore/charts", map[string]any{"target": "keda", "from": map[string]any{"version": "1.0.0", "problem": "x"}}, false},
+		{"chart: packaged subchart", helmvalues.IDPrefix + "keda.keda", "github.com/kedacore/charts", map[string]any{"target": "keda", "from": map[string]any{"version": "1.0.0", "packagedSubchart": true}}, false},
+		{"chart: no from side", helmvalues.IDPrefix + "keda.keda", "github.com/kedacore/charts", map[string]any{"target": "keda"}, false},
 	} {
 		doc, err := buildFake(t, tc.id, tc.repo, tc.proof)
 		if tc.wantOK {

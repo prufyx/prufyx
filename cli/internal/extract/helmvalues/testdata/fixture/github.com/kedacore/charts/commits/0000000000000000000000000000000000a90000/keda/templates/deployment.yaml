@@ -1,0 +1,10 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "keda.name" . }}
+spec:
+  replicas: {{ .Values.operator.replicas }}
+  {{- if .Values.operator.legacyFlag }}
+  legacy: {{ $.Values.auth.enabled | quote }}
+  {{- end }}
+  extra: {{ index .Values "metrics" "port" }}

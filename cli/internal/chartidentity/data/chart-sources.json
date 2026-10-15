@@ -1,4 +1,131 @@
 {
   "schema": "prufyx.io/chart-sources/v1alpha1",
-  "records": []
+  "records": [
+    {
+      "repoURL": "https://charts.external-secrets.io",
+      "chart": "external-secrets",
+      "component": "pkg:github/external-secrets/external-secrets",
+      "project": "external-secrets",
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-11T00:00:00Z",
+        "validUntil": "2027-01-09T00:00:00Z",
+        "sources": [
+          {
+            "id": "external-secrets-chart-readme",
+            "url": "https://github.com/external-secrets/external-secrets/blob/b426d3970e01ddda11b7e9ff242fe48b1e57d764/deploy/charts/external-secrets/README.md",
+            "revision": "b426d3970e01ddda11b7e9ff242fe48b1e57d764",
+            "contentDigest": "sha256:2593b6163f1fc1e6fbfd024b3ea9c61c2972b96e2fb771001e69f921bb0b7fda",
+            "startLine": 13,
+            "endLine": 13
+          }
+        ]
+      }
+    },
+    {
+      "repoURL": "https://istio-release.storage.googleapis.com/charts",
+      "chart": "gateway",
+      "component": "pkg:github/istio/istio",
+      "project": "istio",
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-11T00:00:00Z",
+        "validUntil": "2027-01-09T00:00:00Z",
+        "sources": [
+          {
+            "id": "istio-gateway-chart-readme",
+            "url": "https://github.com/istio/istio/blob/190ae921b848ec010b8be4457533837ed8fce258/manifests/charts/gateway/README.md",
+            "revision": "190ae921b848ec010b8be4457533837ed8fce258",
+            "contentDigest": "sha256:d28756828494691bf8e796001b774c08a205f42d5f9e47f81d6e7ad404b94aea",
+            "startLine": 8,
+            "endLine": 8
+          }
+        ]
+      }
+    },
+    {
+      "repoURL": "https://kedacore.github.io/charts",
+      "chart": "keda",
+      "component": "pkg:github/kedacore/keda",
+      "project": "keda",
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-11T00:00:00Z",
+        "validUntil": "2027-01-09T00:00:00Z",
+        "sources": [
+          {
+            "id": "keda-chart-readme",
+            "url": "https://github.com/kedacore/charts/blob/8b3a8837a62fa9e726f01b95990de3ec9a19a8f2/keda/README.md",
+            "revision": "8b3a8837a62fa9e726f01b95990de3ec9a19a8f2",
+            "contentDigest": "sha256:7c5ab67d68b54f6b4cdfdd877dff57f6e5caac7c362dfe41d28531568f03ab9a",
+            "startLine": 20,
+            "endLine": 20
+          }
+        ]
+      }
+    },
+    {
+      "repoURL": "https://metallb.github.io/metallb",
+      "chart": "metallb",
+      "component": "pkg:github/metallb/metallb",
+      "project": "metallb",
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-11T00:00:00Z",
+        "validUntil": "2027-01-09T00:00:00Z",
+        "sources": [
+          {
+            "id": "metallb-installation",
+            "url": "https://github.com/metallb/metallb/blob/791dfcc63ced7a6b3e869131eae75e645150fff0/website/content/installation/_index.md",
+            "revision": "791dfcc63ced7a6b3e869131eae75e645150fff0",
+            "contentDigest": "sha256:4e50f39d055cfa057e3deceee001a7b04c5414920ede891fd7f50ed5d929fa1d",
+            "startLine": 154,
+            "endLine": 158
+          }
+        ]
+      }
+    },
+    {
+      "repoURL": "https://open-telemetry.github.io/opentelemetry-helm-charts",
+      "chart": "opentelemetry-collector",
+      "component": "pkg:github/open-telemetry/opentelemetry-collector",
+      "project": "opentelemetry",
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-11T00:00:00Z",
+        "validUntil": "2027-01-09T00:00:00Z",
+        "sources": [
+          {
+            "id": "opentelemetry-collector-chart-readme",
+            "url": "https://github.com/open-telemetry/opentelemetry-helm-charts/blob/50a037d3be20ccdd781355dd4a7096a6976a2153/charts/opentelemetry-collector/README.md",
+            "revision": "50a037d3be20ccdd781355dd4a7096a6976a2153",
+            "contentDigest": "sha256:ccd924dfa23f7a6945dfded678554ebaf53dcd81baec725e3a21e4a772dd5d3e",
+            "startLine": 16,
+            "endLine": 16
+          }
+        ]
+      }
+    },
+    {
+      "repoURL": "oci://quay.io/jetstack/charts",
+      "chart": "cert-manager",
+      "component": "pkg:github/cert-manager/cert-manager",
+      "project": "cert-manager",
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-11T00:00:00Z",
+        "validUntil": "2027-01-09T00:00:00Z",
+        "sources": [
+          {
+            "id": "cert-manager-chart-readme",
+            "url": "https://github.com/cert-manager/cert-manager/blob/922a06aa49ee4bb802db268ef72a174af70edd32/deploy/charts/cert-manager/README.template.md",
+            "revision": "922a06aa49ee4bb802db268ef72a174af70edd32",
+            "contentDigest": "sha256:5eafead472eea5d5275e2e62d983ee8c45301ffe1847f098a478b7eb827d616d",
+            "startLine": 23,
+            "endLine": 24
+          }
+        ]
+      }
+    }
+  ]
 }

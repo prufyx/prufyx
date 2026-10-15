@@ -165,6 +165,7 @@ extractor parses at one commit:
 | `k8s.feature-gate-removal` | `feature-gates` | `declared`: the gates declared in the registries; `names`: every gate name the walk of the tree finds |
 | `k8s.served-api-removal` | `served-apis` | `gvks`: every group/version/kind the OpenAPI specification declares |
 | `crd.version-removal.<project>` | `crd-versions` | `crds`: every CustomResourceDefinition with its group, kind, scope, path, storage version and each version's `served` and `storage` flags |
+| `helm.values.<project>.<chart>` | `helm-values` | `helmChart`: the chart's version, `kubeVersion`, subchart keys, every values key path with a non-null default (`valuesPaths`) and every key its values schema requires (`requiredKeys`) |
 
 The inventory is complete or it is not printed. If the extractor cannot
 establish the commit completely (a file is not in the mirror, a listed path is

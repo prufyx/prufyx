@@ -1,0 +1,434 @@
+[
+  {
+    "expect": {
+      "reasonCode": "HELM_CHART_KUBE_VERSION_UNMET",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [],
+            "version": "90.0.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [],
+            "version": "90.1.0"
+          },
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.22.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "keda.helm-values.keda.90-0-0-to-90-1-0.kube-version/blocked",
+    "ruleId": "keda.helm-values.keda.90-0-0-to-90-1-0.kube-version"
+  },
+  {
+    "expect": {
+      "reasonCode": "HELM_CHART_KUBE_VERSION_UNMET",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [],
+            "version": "90.0.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [],
+            "version": "90.1.0"
+          },
+          {
+            "component": "pkg:github/kubernetes/kubernetes",
+            "facts": [],
+            "version": "1.23.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "keda.helm-values.keda.90-0-0-to-90-1-0.kube-version/pass-complete",
+    "ruleId": "keda.helm-values.keda.90-0-0-to-90-1-0.kube-version"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_DEPENDENCY_COMPONENT_MISSING",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [],
+            "version": "90.0.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [],
+            "version": "90.1.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "keda.helm-values.keda.90-0-0-to-90-1-0.kube-version/unknown-incomplete",
+    "ruleId": "keda.helm-values.keda.90-0-0-to-90-1-0.kube-version"
+  },
+  {
+    "expect": {
+      "matchedMembers": [
+        "operator.legacyFlag",
+        "operator.legacyMap"
+      ],
+      "reasonCode": "HELM_VALUES_KEY_NOT_ALLOWED",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [],
+            "version": "90.0.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [
+              {
+                "id": "component.keda.chart_keda_values_paths_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "operator.legacyFlag",
+                    "operator.legacyMap"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "90.1.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "keda.helm-values.keda.90-0-0-to-90-1-0.removed-values/blocked",
+    "ruleId": "keda.helm-values.keda.90-0-0-to-90-1-0.removed-values"
+  },
+  {
+    "expect": {
+      "reasonCode": "HELM_VALUES_KEY_NOT_ALLOWED",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [],
+            "version": "90.0.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [
+              {
+                "id": "component.keda.chart_keda_values_paths_set",
+                "setValue": {
+                  "complete": true,
+                  "members": []
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "90.1.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "keda.helm-values.keda.90-0-0-to-90-1-0.removed-values/pass-complete",
+    "ruleId": "keda.helm-values.keda.90-0-0-to-90-1-0.removed-values"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_SET_FACT_INCOMPLETE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [],
+            "version": "90.0.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [
+              {
+                "id": "component.keda.chart_keda_values_paths_set",
+                "setValue": {
+                  "complete": false,
+                  "members": []
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "90.1.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "keda.helm-values.keda.90-0-0-to-90-1-0.removed-values/unknown-incomplete",
+    "ruleId": "keda.helm-values.keda.90-0-0-to-90-1-0.removed-values"
+  },
+  {
+    "expect": {
+      "missingMembers": [
+        "auth.token",
+        "rootKey"
+      ],
+      "reasonCode": "HELM_VALUES_REQUIRED_KEY_UNSET",
+      "status": "BLOCKED"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [],
+            "version": "90.0.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [
+              {
+                "id": "component.keda.chart_keda_values_paths_set",
+                "setValue": {
+                  "complete": true,
+                  "members": []
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "90.1.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "blocked",
+    "name": "keda.helm-values.keda.90-0-0-to-90-1-0.required-values/blocked",
+    "ruleId": "keda.helm-values.keda.90-0-0-to-90-1-0.required-values"
+  },
+  {
+    "expect": {
+      "reasonCode": "HELM_VALUES_REQUIRED_KEY_UNSET",
+      "status": "PASS"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [],
+            "version": "90.0.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [
+              {
+                "id": "component.keda.chart_keda_values_paths_set",
+                "setValue": {
+                  "complete": true,
+                  "members": [
+                    "auth.token",
+                    "rootKey"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "90.1.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "pass-complete",
+    "name": "keda.helm-values.keda.90-0-0-to-90-1-0.required-values/pass-complete",
+    "ruleId": "keda.helm-values.keda.90-0-0-to-90-1-0.required-values"
+  },
+  {
+    "expect": {
+      "reasonCode": "RULE_SET_FACT_INCOMPLETE",
+      "status": "UNKNOWN"
+    },
+    "input": {
+      "authority": "OPERATOR_DECLARED_MINIMIZED",
+      "current": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [],
+            "version": "90.0.0"
+          }
+        ]
+      },
+      "proposed": {
+        "components": [
+          {
+            "chart": {
+              "name": "keda",
+              "source": "https://kedacore.github.io/charts"
+            },
+            "component": "pkg:github/kedacore/keda",
+            "facts": [
+              {
+                "id": "component.keda.chart_keda_values_paths_set",
+                "setValue": {
+                  "complete": false,
+                  "members": [
+                    "auth.token",
+                    "rootKey"
+                  ]
+                },
+                "state": "declared"
+              }
+            ],
+            "version": "90.1.0"
+          }
+        ]
+      },
+      "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+    },
+    "kind": "unknown-incomplete",
+    "name": "keda.helm-values.keda.90-0-0-to-90-1-0.required-values/unknown-incomplete",
+    "ruleId": "keda.helm-values.keda.90-0-0-to-90-1-0.required-values"
+  }
+]

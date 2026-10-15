@@ -275,13 +275,21 @@ func TestLookupFreshness(t *testing.T) {
 	}
 }
 
-func TestEmbeddedTablesEmpty(t *testing.T) {
+// The app-version table ships empty. The chart-source table holds only the
+// reviewed rows of the charts the helm.values extractor reads (its own test
+// pins the two to each other); a chart outside it is not found.
+func TestEmbeddedTables(t *testing.T) {
 	s, a, err := LoadEmbedded()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(s.Records) != 0 || len(a.Records) != 0 {
-		t.Fatalf("embedded tables must ship empty: %d, %d", len(s.Records), len(a.Records))
+	if len(a.Records) != 0 {
+		t.Fatalf("the embedded app-version table must ship empty: %d", len(a.Records))
+	}
+	for _, r := range s.Records {
+		if r.Evidence.State != StateActive {
+			t.Fatalf("embedded chart-source row %s %s is not active", r.RepoURL, r.Chart)
+		}
 	}
 	if _, ok, err := ComponentFor("https://charts.example.com", "x", time.Now()); ok || err != nil {
 		t.Fatalf("empty table lookup: %v %v", ok, err)

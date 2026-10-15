@@ -1,0 +1,170 @@
+# Extractor `helm.values`
+
+Version 1.0.0. Compares a Helm chart's source at the first release of two
+consecutive release lines and derives rules only for the upgrades Helm itself
+refuses. It is deterministic, reads only upstream source pinned by full commit
+SHA, and involves no model.
+
+A run reads one repository, so the extractor is registered once per chart, as
+`helm.values.<project>.<chart>`; every registration runs the same code and
+carries the same version and code digest.
+
+## Charts
+
+The reviewed chart table is a data file compiled into the extractor,
+`cli/internal/extract/helmvalues/targets.json` (schema
+`prufyx.io/helm-values-targets/v1`), covered by the code digest: any change to
+it is a new extractor version. Each entry names a catalog project and its
+component, the repository and directory that hold the chart's source, the
+chart's published identity (normalised chart repository URL and chart name),
+the prefix of its release tags and the first release line a pair may start
+from.
+
+| Extractor id | Repository | Chart directory | Chart | Release tags | First pair from |
+| --- | --- | --- | --- | --- | --- |
+| `helm.values.cert-manager.cert-manager` | `github.com/cert-manager/cert-manager` | `deploy/charts/cert-manager` | `oci://quay.io/jetstack/charts` `cert-manager` | `vX.Y.Z` | 1.15 |
+| `helm.values.external-secrets.external-secrets` | `github.com/external-secrets/external-secrets` | `deploy/charts/external-secrets` | `https://charts.external-secrets.io` `external-secrets` | `helm-chart-X.Y.Z` | 2.6 |
+| `helm.values.istio.gateway` | `github.com/istio/istio` | `manifests/charts/gateway` | `https://istio-release.storage.googleapis.com/charts` `gateway` | `X.Y.Z` | 1.26 |
+| `helm.values.keda.keda` | `github.com/kedacore/charts` | `keda` | `https://kedacore.github.io/charts` `keda` | `vX.Y.Z` | 2.15 |
+| `helm.values.metallb.metallb` | `github.com/metallb/metallb` | `charts/metallb` | `https://metallb.github.io/metallb` `metallb` | `vX.Y.Z` | 0.11 |
+| `helm.values.opentelemetry.opentelemetry-collector` | `github.com/open-telemetry/opentelemetry-helm-charts` | `charts/opentelemetry-collector` | `https://open-telemetry.github.io/opentelemetry-helm-charts` `opentelemetry-collector` | `opentelemetry-collector-X.Y.Z` | 0.169 |
+
+Every chart in the table also has a reviewed row in the chart-source table
+(`cli/internal/chartidentity/data/chart-sources.json`, see
+[../chart-identity.md](../chart-identity.md)); `rulecheck` refuses a chart
+rule without one, and a test keeps the two tables in step.
+
+cert-manager and Istio keep a placeholder version in the chart's `Chart.yaml`
+at their release tags and set the real one when they publish the chart, so
+every pair of theirs is withheld today (see below).
+
+## Release lines and pairs
+
+A **line** is one `major.minor` with at least one final release tag
+(`<prefix>X.Y.Z`; pre-releases never count). A **pair** is two consecutive
+lines in version order, starting from the line in the table, named by the
+first final release of each line (its **anchor**). Rules are anchor-only chart
+rules: the subject is the chart (`subject.chart`), from the earlier anchor's
+chart version to the later one's, and nothing else matches them.
+
+At each anchor the extractor reads the chart directory: `Chart.yaml`,
+`values.yaml`, `values.schema.json` when present, `requirements.yaml` when
+present, the `Chart.yaml` of each vendored subchart under `charts/`, and every
+file under `templates/`. The other final releases of both lines are read too
+(without templates) and recorded in the proof; a release there that does not
+read is recorded and never withholds the pair.
+
+The pair is **withheld** (no rule; the manifest says why) when, at either
+anchor, the chart directory or `Chart.yaml` or `values.yaml` is missing;
+`Chart.yaml` names another chart or declares a chart version other than the
+tag's (after removing one leading `v`; only `X.Y.Z`); a YAML file is outside
+the strict subset (anchors, aliases, merge keys, custom tags, duplicate or
+non-string keys, more than one document, or a key YAML 1.1 reads as a boolean
+or null such as `on:`); or `values.schema.json` is not one plain JSON object
+(duplicate or case-folded member names are refused).
+
+## What it derives
+
+All three rules are about the later chart, compared with the earlier one.
+
+**Kubernetes minimum** (`require_component_version`, reason
+`HELM_CHART_KUBE_VERSION_UNMET`). When the later `kubeVersion` is a single
+lower bound `>= X[.Y[.Z]]-0` (missing parts are 0) above the earlier one's,
+the rule requires `pkg:github/kubernetes/kubernetes` at `X.Y.Z` or later on
+the proposed side. The bound is checked against the proposed Kubernetes
+version, so the rule assumes the cluster upgrade lands before the chart
+upgrade. An earlier constraint of any other shape counts as no bound. No rule
+is derived when the later constraint has an upper bound, `||`,
+`~`, `^`, a wildcard, a range or an exact match (Helm also refuses versions
+such a constraint excludes), or lacks the `-0` suffix (Helm then also refuses
+cluster versions with a vendor suffix such as `1.30.2-gke.1`, which a declared
+`X.Y.Z` cannot show).
+
+**Newly required values** (`require_set_member`, reason
+`HELM_VALUES_REQUIRED_KEY_UNSET`). The schema is walked from its root through
+`properties` only. A key is listed when an object on the walk requires it, every
+key above it has a non-empty mapping as its default, it has no default of its
+own (a `null` default counts as one: Helm keeps it through the merge), and the earlier chart's defaults satisfied it (it was not
+required, or had a default). Helm validates the merged values against the
+schema, so an upgrade whose supplied values do not set every listed key is
+refused.
+
+**Keys the schema no longer admits** (`forbid_set_member`, reason
+`HELM_VALUES_KEY_NOT_ALLOWED`). Every key path the earlier chart used (a
+non-null default in its values, or a key its schema declares) is walked
+through the later schema; when a closed object (`additionalProperties: false`
+and no `patternProperties`) does not declare a key on the path, the shortest
+such prefix is listed, unless the later defaults still hold it (even as
+`null`) or the earlier schema already refused it.
+
+Both set rules read `component.<project>.chart_<chart>_values_paths_set`: the
+key paths (keys joined by `.`, through mappings only) of the values supplied
+for the chart whose value is not null, before the chart's defaults are merged.
+A declared set that is not complete never passes. A key holding a `.` or a
+character outside the set-member grammar cannot be named, so it is recorded
+and never listed; neither is a rule with more than 64 members.
+
+## What it never claims
+
+- Anything under a key Helm fills from a subchart (a dependency name or alias,
+  or the name of a vendored subchart) or under `global`. When `charts/` holds
+  a packaged subchart whose file name is not `<dependency>-<version>.tgz`, no
+  key of the chart is derived.
+- Anything under a schema object that holds a keyword the walk does not read
+  (`$ref`, `allOf`, `anyOf`, `oneOf`, `not`, `if`/`then`/`else`,
+  `dependencies`, `unevaluatedProperties`, `propertyNames`, `enum`, `const`,
+  a type other than `object`, and the like). Such objects are listed in the
+  proof as opaque.
+- That a supplied `null` for a mapping the chart defaults keeps the keys below
+  it: Helm drops it, and a key the rule lists may then not be required. The
+  rule assumes the chart's default mappings are kept.
+- Anything when Helm runs with `--skip-schema-validation`, which bypasses
+  both set rules (not the Kubernetes minimum).
+- A required key whose default is `null` while its schema allows only another
+  type. Helm refuses such an upgrade unless the key is set, but the key counts
+  as defaulted (class `null-default`).
+- A required key under a mapping that defaults to `{}`. Helm refuses such an
+  upgrade too, but no rule is derived for it (class `empty-ancestor`).
+- Anything about patch releases or other transitions than the anchor pair.
+- That an upgrade is safe: a PASS from these rules only says that the
+  supplied values meet these particular checks.
+
+## Soft facts
+
+The proof also records what changed that Helm does not refuse: default keys
+the later chart removed, scalar defaults it changed, and `.Values` paths the
+earlier templates referenced and the later ones do not (a syntactic scan: a
+value read through `with`, `range`, `index`, `include`, `tpl` or a variable is
+not resolved, and template files the parser refuses are listed). None of them
+is a rule.
+
+## Proof and completeness
+
+For each derived pair the proof lists both anchors (version, `kubeVersion`,
+subchart keys, every values key path, every required key, the template
+references), the releases of both lines, the `kubeVersion` outcome, every
+required key of the later schema with its class (`rule`, `default`,
+`null-default`, `already-required`, `inactive-ancestor`, `empty-ancestor`, `subchart`,
+`packaged-subchart`, `unexpressible`, `over-bound`), the opaque schema
+objects, and every earlier key path with its class for the closed-object
+check (declared and open keys are counted, the rest listed). `completeness`
+states the counts, and every earlier key path has exactly one class.
+
+## Running and verifying
+
+```
+prufyx-maintainer extract run    --extractor helm.values.keda.keda --mirror-state DIR --out OUT [--derived-at 2026-10-11T00:00:00Z]
+prufyx-maintainer extract verify --extractor helm.values.keda.keda --mirror-state DIR --out OUT
+prufyx-maintainer extract oracle --extractor helm.values.keda.keda --out OUT --expected FILE
+prufyx-maintainer extract inventory --extractor helm.values.keda.keda --mirror-state DIR --repo kedacore/charts --commit SHA
+```
+
+Outputs, vectors, validity and the code digest work as for the other
+extractors (see [tooling.md](tooling.md)). It is a chart extractor: it runs
+through `internal/extract/chartrun`, which stamps, checks and writes a run
+exactly as the framework does and generates the vectors of chart rules, and
+its code digest covers the non-test Go files of `internal/extract`,
+`internal/extract/chartrun` and `internal/extract/helmvalues`, and
+`targets.json`. No other extractor depends on `chartrun`, so their code
+digests do not cover it and do not move with it. The `oracle` file lists the expected outcome of each pair and
+the rules the run must hold (`testdata/oracle-fixture.json` is the fixture's).

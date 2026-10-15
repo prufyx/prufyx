@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "rootKey"
+  ],
+  "properties": {
+    "rootKey": {
+      "type": "string"
+    },
+    "auth": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "token",
+        "mode"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "token": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string"
+        }
+      }
+    },
+    "operator": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "replicas": {
+          "type": "integer"
+        },
+        "keep": {
+          "type": "integer"
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": [
+            "integer",
+            "string"
+          ]
+        }
+      }
+    },
+    "missing": {
+      "type": "object",
+      "required": [
+        "deep"
+      ]
+    },
+    "emptyObj": {
+      "type": "object",
+      "required": [
+        "k"
+      ]
+    },
+    "sub": {
+      "type": "object",
+      "required": [
+        "y"
+      ]
+    },
+    "weird": {
+      "type": "object",
+      "required": [
+        "bad key"
+      ],
+      "properties": {
+        "bad key": {
+          "type": "string"
+        }
+      }
+    },
+    "hidden": {
+      "type": "object",
+      "allOf": [
+        {
+          "required": [
+            "secret"
+          ]
+        }
+      ]
+    }
+  }
+}

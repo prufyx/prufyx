@@ -2,7 +2,8 @@
 
 // Package inventory prints the complete mechanical inventory an extractor
 // parsed at one upstream commit: every feature gate, every served
-// group/version/kind or every custom resource version, as canonical JSON.
+// group/version/kind, every custom resource version or a Helm chart's values
+// keys, as canonical JSON.
 //
 // An inventory is either complete or not printed: whenever the extractor
 // cannot establish the commit completely (a file is not local, a listed
@@ -13,7 +14,7 @@
 //
 // The package reads through the extractors' exported entry points only, so
 // it does not change any extractor's source and therefore not its code
-// digest: feature gates and CRD versions come from the extractor's own
+// digest: feature gates, CRD versions and chart values come from the extractor's own
 // proof of a pair whose two sides are the same commit; served kinds are the
 // group/version/kinds the commit's OpenAPI specification declares, parsed
 // by the same rule the extractor applies (a test holds the two equal on
@@ -29,7 +30,9 @@ import (
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/extract/chartrun"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
+	"github.com/prufyx/prufyx/cli/internal/extract/helmvalues"
 	"github.com/prufyx/prufyx/cli/internal/extract/k8sfeaturegates"
 	"github.com/prufyx/prufyx/cli/internal/extract/k8sservedapis"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/factorymirror"
@@ -66,6 +69,7 @@ const (
 	KindFeatureGates = "feature-gates"
 	KindServedAPIs   = "served-apis"
 	KindCRDVersions  = "crd-versions"
+	KindHelmValues   = "helm-values"
 )
 
 // noEvidence reports a reader error that means "no evidence": the caller
@@ -89,7 +93,11 @@ func Build(ctx context.Context, ex extract.Extractor, r extract.PinnedReader, re
 	if !extract.IsCommitSHA(commit) {
 		return nil, errors.New("the commit must be a full lowercase 40-character SHA")
 	}
-	if !ex.Applies(repo) {
+	applies := ex.Applies
+	if cx, ok := chartrun.Unwrap(ex); ok {
+		applies = cx.Applies
+	}
+	if !applies(repo) {
 		return nil, fmt.Errorf("extractor %s does not read repository %q", ex.ID(), repo.Key)
 	}
 	head := Document{Schema: Schema, Extractor: ex.ID(), Repo: repo.Key, Commit: commit}
@@ -103,6 +111,9 @@ func Build(ctx context.Context, ex extract.Extractor, r extract.PinnedReader, re
 	case strings.HasPrefix(ex.ID(), crdversions.IDPrefix):
 		head.Kind = KindCRDVersions
 		return crdVersions(ctx, ex, r, repo, head)
+	case strings.HasPrefix(ex.ID(), helmvalues.IDPrefix):
+		head.Kind = KindHelmValues
+		return helmValues(ctx, ex, r, repo, head)
 	}
 	return nil, fmt.Errorf("extractor %s has no inventory", ex.ID())
 }
@@ -111,7 +122,17 @@ func Build(ctx context.Context, ex extract.Extractor, r extract.PinnedReader, re
 // returns its proof as JSON. A withheld pair is incomplete.
 func proofOf(ctx context.Context, ex extract.Extractor, r extract.PinnedReader, repo extract.RepoRef, commit string) ([]byte, error) {
 	pair := extract.VersionPair{Repo: repo, From: "inventory", FromTag: "inventory", FromCommit: commit, To: "inventory", ToTag: "inventory", ToCommit: commit}
-	res, err := ex.Extract(ctx, r, pair)
+	var proof any
+	var err error
+	if cx, ok := chartrun.Unwrap(ex); ok {
+		var res chartrun.Extraction
+		res, err = cx.Extract(ctx, r, pair)
+		proof = res.Proof
+	} else {
+		var res extract.Extraction
+		res, err = ex.Extract(ctx, r, pair)
+		proof = res.Proof
+	}
 	if w, ok := extract.IsWithheld(err); ok {
 		return nil, &Incomplete{Reason: w.Reason}
 	}
@@ -121,7 +142,7 @@ func proofOf(ctx context.Context, ex extract.Extractor, r extract.PinnedReader, 
 		}
 		return nil, err
 	}
-	return json.Marshal(res.Proof)
+	return json.Marshal(proof)
 }
 
 func featureGates(ctx context.Context, ex extract.Extractor, r extract.PinnedReader, repo extract.RepoRef, head Document) ([]byte, error) {
@@ -278,4 +299,63 @@ func crdVersions(ctx context.Context, ex extract.Extractor, r extract.PinnedRead
 		Project string `json:"project"`
 		CRDs    []CRD  `json:"crds"`
 	}{head, proof.Target, crds})
+}
+
+// HelmChart is a chart's source at the commit: its version, Kubernetes
+// constraint, subchart keys, every values key path with a non-null default
+// and every key its values schema requires.
+type HelmChart struct {
+	Chart        string   `json:"chart"`
+	Source       string   `json:"source"`
+	Version      string   `json:"version"`
+	KubeVersion  string   `json:"kubeVersion"`
+	Subcharts    []string `json:"subcharts"`
+	Schema       bool     `json:"schema"`
+	ValuesPaths  []string `json:"valuesPaths"`
+	RequiredKeys []string `json:"requiredKeys"`
+}
+
+func helmValues(ctx context.Context, ex extract.Extractor, r extract.PinnedReader, repo extract.RepoRef, head Document) ([]byte, error) {
+	raw, err := proofOf(ctx, ex, r, repo, head.Commit)
+	if err != nil {
+		return nil, err
+	}
+	var proof struct {
+		Target string `json:"target"`
+		Chart  struct {
+			Source string `json:"source"`
+			Name   string `json:"name"`
+		} `json:"chart"`
+		From *struct {
+			Problem          string   `json:"problem"`
+			Version          string   `json:"version"`
+			KubeVersion      string   `json:"kubeVersion"`
+			Subcharts        []string `json:"subcharts"`
+			PackagedSubchart bool     `json:"packagedSubchart"`
+			Schema           bool     `json:"schema"`
+			ValuesPaths      []string `json:"valuesPaths"`
+			RequiredKeys     []string `json:"requiredKeys"`
+		} `json:"from"`
+	}
+	if err := json.Unmarshal(raw, &proof); err != nil {
+		return nil, err
+	}
+	f := proof.From
+	if f == nil || f.Problem != "" || f.Version == "" || f.PackagedSubchart {
+		return nil, &Incomplete{Reason: "the chart cannot be read completely"}
+	}
+	c := HelmChart{Chart: proof.Chart.Name, Source: proof.Chart.Source, Version: f.Version, KubeVersion: f.KubeVersion, Schema: f.Schema,
+		Subcharts: nonNil(f.Subcharts), ValuesPaths: nonNil(f.ValuesPaths), RequiredKeys: nonNil(f.RequiredKeys)}
+	return extract.Canonical(struct {
+		Document
+		Project string    `json:"project"`
+		Chart   HelmChart `json:"helmChart"`
+	}{head, proof.Target, c})
+}
+
+func nonNil(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
 }
