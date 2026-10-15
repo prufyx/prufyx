@@ -61,6 +61,9 @@ type RuleTransition struct {
 	To        string
 	Range     *VersionRange
 	Crossing  *CrossingSpec
+	// Chart is the subject's chart identity, nil for an application rule.
+	// Match compares versions only; callers check AdmitsChart first.
+	Chart *ChartRef
 }
 
 // Match reports how the declared transition matches this subject. A version
@@ -208,9 +211,10 @@ func inBound(version string, bound VersionBound) bool {
 func RuleTransitionOf(raw []byte) (RuleTransition, error) {
 	var shape struct {
 		Subject struct {
-			Component string `json:"component"`
-			From      string `json:"from"`
-			To        string `json:"to"`
+			Component string    `json:"component"`
+			Chart     *ChartRef `json:"chart"`
+			From      string    `json:"from"`
+			To        string    `json:"to"`
 		} `json:"subject"`
 		Range    *VersionRange `json:"range"`
 		Crossing *CrossingSpec `json:"crossing"`
@@ -218,11 +222,12 @@ func RuleTransitionOf(raw []byte) (RuleTransition, error) {
 	if err := json.Unmarshal(raw, &shape); err != nil {
 		return RuleTransition{}, fmt.Errorf("rule subject: %w", ErrInvalid)
 	}
-	return RuleTransition{Component: shape.Subject.Component, From: shape.Subject.From, To: shape.Subject.To, Range: shape.Range, Crossing: shape.Crossing}, nil
+	return RuleTransition{Component: shape.Subject.Component, From: shape.Subject.From, To: shape.Subject.To, Range: shape.Range, Crossing: shape.Crossing, Chart: shape.Subject.Chart}, nil
 }
 
 // RulesSchemaFor returns the rules schema a document holding exactly these
-// rules must carry: the crossing schema when at least one rule declares a
+// rules must carry: the chart schema when at least one rule has a chart
+// subject or uses require_set_member, else the crossing schema when at least one rule declares a
 // crossing, else the severity schema when at least one rule declares a
 // severity, else the basis schema when at least one rule has a consensus
 // or lead basis, else the notice schema when at least one rule uses
@@ -230,6 +235,13 @@ func RuleTransitionOf(raw []byte) (RuleTransition, error) {
 // forbid_set_member, else the ranged schema when at least one rule has a
 // range, the original exact-only schema otherwise.
 func RulesSchemaFor(rules []json.RawMessage) (string, error) {
+	chart, err := AnyChartRule(rules)
+	if err != nil {
+		return "", err
+	}
+	if chart {
+		return RulesSchemaChart, nil
+	}
 	crossing, err := AnyCrossingRule(rules)
 	if err != nil {
 		return "", err
@@ -291,8 +303,10 @@ func AnyRanged(rules []json.RawMessage) (bool, error) {
 
 // requiredRulesSchema is the schema of the highest-level feature a parsed
 // document uses; RulesSchemaFor is its raw-rule counterpart.
-func requiredRulesSchema(ranged, setOperator, notice, basis, severity, crossing bool) string {
+func requiredRulesSchema(ranged, setOperator, notice, basis, severity, crossing, chart bool) string {
 	switch {
+	case chart:
+		return RulesSchemaChart
 	case crossing:
 		return RulesSchemaCrossing
 	case severity:
@@ -310,7 +324,7 @@ func requiredRulesSchema(ranged, setOperator, notice, basis, severity, crossing 
 }
 
 func (r rule) transition() RuleTransition {
-	return RuleTransition{Component: r.Subject.Component, From: r.Subject.From, To: r.Subject.To, Range: r.Range, Crossing: r.Crossing}
+	return RuleTransition{Component: r.Subject.Component, From: r.Subject.From, To: r.Subject.To, Range: r.Range, Crossing: r.Crossing, Chart: r.Subject.Chart}
 }
 
 // sameVersion is the one exact version equality used by structural guards.
@@ -511,7 +525,7 @@ func validateRangeOverlaps(rules []rule) error {
 	for i := range rules {
 		for j := i + 1; j < len(rules); j++ {
 			a, b := rules[i], rules[j]
-			if a.Range == nil && b.Range == nil && a.Crossing == nil && b.Crossing == nil || a.Subject.Component != b.Subject.Component {
+			if a.Range == nil && b.Range == nil && a.Crossing == nil && b.Crossing == nil || a.Subject.Component != b.Subject.Component || !sameChart(a.Subject.Chart, b.Subject.Chart) {
 				continue
 			}
 			if constraintKey(a) != constraintKey(b) {
@@ -546,6 +560,15 @@ func ConstraintKey(ruleJSON []byte) (string, error) {
 }
 
 func constraintKey(r rule) string {
+	// A chart rule constrains the chart, never the application: its key
+	// carries the chart identity. Every other key is unchanged.
+	if chart := r.Subject.Chart; chart != nil {
+		return constraintKeyOf(r) + "\x00chart\x00" + chart.Source + "\x00" + chart.Name
+	}
+	return constraintKeyOf(r)
+}
+
+func constraintKeyOf(r rule) string {
 	switch {
 	case r.SetCondition != nil:
 		return r.Operator + "\x00" + r.SetCondition.Side + "\x00" + r.SetCondition.Component + "\x00" + r.SetCondition.FactID

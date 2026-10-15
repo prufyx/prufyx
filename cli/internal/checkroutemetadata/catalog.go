@@ -85,6 +85,10 @@ type Check struct {
 	// MatchMode is "crossing" when the query pair matched it. A crossing
 	// match can block but never passes.
 	Crossing *constraintengine.CrossingSpec `json:"crossing,omitempty"`
+	// Chart is present only for a chart rule: From and To are then chart
+	// versions, and a version query (which names application versions)
+	// never lists it.
+	Chart *constraintengine.ChartRef `json:"chart,omitempty"`
 	// Withdrawn is true for a rule whose evidence was withdrawn: it can only
 	// answer UNKNOWN, so it is not coverage.
 	Withdrawn bool `json:"withdrawn,omitempty"`
@@ -103,7 +107,7 @@ const RuleCoverageWithdrawnOnly = "WITHDRAWN_ONLY"
 
 // Transition returns the check's reviewed subject for the shared matcher.
 func (c Check) Transition() constraintengine.RuleTransition {
-	return constraintengine.RuleTransition{Component: c.Component, From: c.From, To: c.To, Range: c.Range, Crossing: c.Crossing}
+	return constraintengine.RuleTransition{Component: c.Component, From: c.From, To: c.To, Range: c.Range, Crossing: c.Crossing, Chart: c.Chart}
 }
 
 type Result struct {
@@ -900,7 +904,7 @@ func discover(cncf []cncfcheck.RuleIdentity, community []projectcheck.RuleIdenti
 		if family == FamilyCommunityCatalog {
 			catalog = cncfcheck.CatalogCommunity
 		}
-		item := Check{Catalog: catalog, Family: family, Project: project, Component: component, RuleID: ruleID, From: from, To: to, GenericDeclarationRoute: genericRoute(family, project, from, to), NativeDescriptor: Route{State: DescriptorNone}, Range: subject.Range, Crossing: subject.Crossing, Withdrawn: withdrawn, RuleKind: kind}
+		item := Check{Catalog: catalog, Family: family, Project: project, Component: component, RuleID: ruleID, From: from, To: to, GenericDeclarationRoute: genericRoute(family, project, from, to), NativeDescriptor: Route{State: DescriptorNone}, Range: subject.Range, Crossing: subject.Crossing, Chart: subject.Chart, Withdrawn: withdrawn, RuleKind: kind}
 		item.MatchMode = queryMatchMode(subject, selectedFrom, selectedTo)
 		if descriptor, found := descriptors[identityKey(family, project, component, ruleID, from, to)]; found {
 			item.NativeDescriptor = Route{State: DescriptorExact, Command: descriptor.command, Limit: descriptor.limit, NativePass: descriptor.nativePass}
@@ -1022,7 +1026,7 @@ func namedHints(project string) []NamedCheckHint {
 // reviewed subject but crosses the release boundary it is about). It is empty
 // without a full pair and for an anchor match.
 func queryMatchMode(subject constraintengine.RuleTransition, selectedFrom, selectedTo string) string {
-	if selectedFrom == "" || selectedTo == "" {
+	if selectedFrom == "" || selectedTo == "" || !subject.AdmitsChart(nil) {
 		return ""
 	}
 	if mode := subject.Match(selectedFrom, selectedTo); mode == constraintengine.MatchRange || mode == constraintengine.MatchCrossing {
@@ -1038,6 +1042,11 @@ func queryMatchMode(subject constraintengine.RuleTransition, selectedFrom, selec
 // match the anchor or the reviewed range; with one, that side alone must.
 func projectFilter(selectedProject, selectedFrom, selectedTo, project string, subject constraintengine.RuleTransition) bool {
 	if selectedProject != "" && selectedProject != project {
+		return true
+	}
+	// Queried versions are application versions: a chart rule's versions
+	// are chart versions and never match them.
+	if (selectedFrom != "" || selectedTo != "") && !subject.AdmitsChart(nil) {
 		return true
 	}
 	if selectedFrom != "" && selectedTo != "" {

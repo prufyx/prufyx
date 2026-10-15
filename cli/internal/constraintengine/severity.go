@@ -171,7 +171,7 @@ func validSeverityClaims(report Report) bool {
 	severityContract := atLeastSeverityContract(report.EngineContractDigest)
 	for _, claim := range report.Claims {
 		if claim.Severity != "" {
-			if !severityContract || claim.Severity != SeverityUnsupported || claim.Operator != "require_component_version" || claim.IsLead() || claim.EvidenceBasis == BasisConsensus || claim.Status == "BLOCKED" || claim.Status == StatusNotice || claim.MatchedMembers != nil {
+			if !severityContract || claim.Severity != SeverityUnsupported || claim.Operator != "require_component_version" || claim.IsLead() || claim.EvidenceBasis == BasisConsensus || claim.Status == "BLOCKED" || claim.Status == StatusNotice || claim.MatchedMembers != nil || claim.MissingMembers != nil {
 				return false
 			}
 		}

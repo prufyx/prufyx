@@ -39,6 +39,9 @@ func ParseInput(raw []byte, registry Registry) (Input, error) {
 	if err := validateScope(document); err != nil {
 		return Input{}, err
 	}
+	if err := validateInputCharts(document); err != nil {
+		return Input{}, err
+	}
 	return Input{document: document, digest: digestJSON(document), registryDigest: registry.Digest(), seal: &inputSeal{}}, nil
 }
 
@@ -140,10 +143,10 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	if err := decodeStrict(raw, &document); err != nil {
 		return RuleSet{}, err
 	}
-	if (document.Schema != RulesSchema && document.Schema != RulesSchemaRanged && document.Schema != RulesSchemaSet && document.Schema != RulesSchemaNotice && document.Schema != RulesSchemaBasis && document.Schema != RulesSchemaSeverity && document.Schema != RulesSchemaCrossing) || !idRE.MatchString(document.Revision) || !idRE.MatchString(document.PolicyID) || !digestRE.MatchString(document.PolicyDigest) || len(document.Rules) > maxRules {
+	if (document.Schema != RulesSchema && document.Schema != RulesSchemaRanged && document.Schema != RulesSchemaSet && document.Schema != RulesSchemaNotice && document.Schema != RulesSchemaBasis && document.Schema != RulesSchemaSeverity && document.Schema != RulesSchemaCrossing && document.Schema != RulesSchemaChart) || !idRE.MatchString(document.Revision) || !idRE.MatchString(document.PolicyID) || !digestRE.MatchString(document.PolicyDigest) || len(document.Rules) > maxRules {
 		return RuleSet{}, fmt.Errorf("ruleset identity: %w", ErrInvalid)
 	}
-	ranged, setOperator, notice, basis, severity, crossing := false, false, false, false, false, false
+	ranged, setOperator, notice, basis, severity, crossing, chart := false, false, false, false, false, false, false
 	for i, rule := range document.Rules {
 		if i > 0 && document.Rules[i-1].ID >= rule.ID {
 			return RuleSet{}, fmt.Errorf("rule order: %w", ErrInvalid)
@@ -157,6 +160,7 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 		basis = basis || rule.usesBasisSemantics()
 		severity = severity || rule.usesSeverity()
 		crossing = crossing || rule.usesCrossing()
+		chart = chart || rule.usesChart()
 	}
 	// The schema string states which contract the document needs, and it
 	// must be right in every direction: a document carries exactly the
@@ -169,18 +173,23 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	// schema (which also admits ranges); otherwise an exact-only schema never
 	// admits a range, and the ranged schema is never used without one. Every
 	// document has exactly one schema and one engine contract.
-	if document.Schema != requiredRulesSchema(ranged, setOperator, notice, basis, severity, crossing) {
-		return RuleSet{}, fmt.Errorf("ruleset schema does not match range, set, notice operator, basis, severity or crossing use: %w", ErrInvalid)
+	if document.Schema != requiredRulesSchema(ranged, setOperator, notice, basis, severity, crossing, chart) {
+		return RuleSet{}, fmt.Errorf("ruleset schema does not match range, set, notice operator, basis, severity, crossing or chart use: %w", ErrInvalid)
 	}
 	if ranged || crossing {
 		if err := validateRangeOverlaps(document.Rules); err != nil {
 			return RuleSet{}, err
 		}
 	}
+	if chart {
+		if err := validateSetContradictions(document.Rules); err != nil {
+			return RuleSet{}, err
+		}
+	}
 	if err := validateCorpus(document); err != nil {
 		return RuleSet{}, err
 	}
-	return RuleSet{document: document, digest: digestJSON(document), registryDigest: registry.Digest(), ranged: ranged, setOperator: setOperator, notice: notice, basis: basis, severity: severity, crossing: crossing, seal: &ruleSetSeal{}}, nil
+	return RuleSet{document: document, digest: digestJSON(document), registryDigest: registry.Digest(), ranged: ranged, setOperator: setOperator, notice: notice, basis: basis, severity: severity, crossing: crossing, chart: chart, seal: &ruleSetSeal{}}, nil
 }
 
 // validateCorpus admits a completeness attestation only when the document can
@@ -231,6 +240,9 @@ func validateRule(rule rule, registry Registry) error {
 	if err := validateCrossingRule(rule); err != nil {
 		return err
 	}
+	if err := validateChartRule(rule, registry); err != nil {
+		return err
+	}
 	if err := validateRange(rule); err != nil {
 		return err
 	}
@@ -248,10 +260,13 @@ func validateRule(rule rule, registry Registry) error {
 		}
 		seenConditions[key] = struct{}{}
 	}
-	if rule.SetCondition != nil && rule.Operator != OperatorForbidSetMember {
-		return fmt.Errorf("set condition is only valid for %s: %w", OperatorForbidSetMember, ErrInvalid)
+	if rule.SetCondition != nil && rule.Operator != OperatorForbidSetMember && rule.Operator != OperatorRequireSetMember {
+		return fmt.Errorf("set condition is only valid for %s and %s: %w", OperatorForbidSetMember, OperatorRequireSetMember, ErrInvalid)
 	}
 	switch rule.Operator {
+	case OperatorRequireSetMember:
+		// Structure and set condition checked by validateChartRule.
+		return nil
 	case OperatorForbidSetMember:
 		if rule.SetCondition == nil || rule.Condition != nil || rule.Dependency != nil || rule.Intermediate != "" {
 			return fmt.Errorf("forbid set member structure: %w", ErrInvalid)
@@ -484,9 +499,14 @@ func validateInputShape(raw []byte) error {
 			return ErrInvalid
 		}
 		for _, componentRaw := range components {
-			component, err := exactObject(componentRaw, []string{"component", "version", "facts"}, []string{"distribution"})
+			component, err := exactObject(componentRaw, []string{"component", "version", "facts"}, []string{"distribution", "chart"})
 			if err != nil {
 				return err
+			}
+			if raw, ok := component["chart"]; ok {
+				if err := validateChartShape(raw); err != nil {
+					return err
+				}
 			}
 			if raw, ok := component["distribution"]; ok {
 				var name string
@@ -549,8 +569,14 @@ func validateRuleShape(raw []byte) error {
 				return err
 			}
 		}
-		if _, err := exactObject(rule["subject"], []string{"component", "from", "to"}, nil); err != nil {
+		subject, err := exactObject(rule["subject"], []string{"component", "from", "to"}, []string{"chart"})
+		if err != nil {
 			return err
+		}
+		if raw, ok := subject["chart"]; ok {
+			if err := validateChartShape(raw); err != nil {
+				return err
+			}
 		}
 		if rangeRaw, ok := rule["range"]; ok {
 			if err := validateRangeShape(rangeRaw); err != nil {

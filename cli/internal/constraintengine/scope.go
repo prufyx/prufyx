@@ -13,6 +13,9 @@ var exclusionReasons = map[string]struct{}{
 	"RULE_TRANSITION_NOT_REVIEWED":   {},
 	"RULE_SUBJECT_COMPONENT_MISSING": {},
 	"RULE_APPLICABILITY_NOT_MATCHED": {},
+	// Only under the chart contract (validScopeCharts): the input declares
+	// no chart, or another chart, for the rule's component.
+	ReasonSubjectChartNotDeclared: {},
 }
 
 // ruleApplicability decides, structurally, whether a reviewed rule belongs to
@@ -85,7 +88,7 @@ func buildScopeCompleteness(input inputDocument, rules ruleDocument, claims []Cl
 		_, corpusAttested := attested[component]
 		index[component] = len(components)
 		components = append(components, ComponentScope{
-			Component: component, From: current.Version, To: proposed.Version,
+			Component: component, Chart: current.Chart, From: current.Version, To: proposed.Version,
 			CorpusAttested: corpusAttested, EvaluatedRuleIDs: []string{}, NotEvaluated: []NotEvaluatedRule{},
 		})
 	}
@@ -287,7 +290,10 @@ func validScopeBlock(scope *ScopeCompleteness, claims []Claim, engineDigest stri
 	if scope.NoticeRules != notices || scope.LeadRules != leads {
 		return false
 	}
-	severityScope := scope.ContractDigest == scopeContractDigestSeverity() || scope.ContractDigest == scopeContractDigestCrossing()
+	if !validScopeCharts(scope) {
+		return false
+	}
+	severityScope := scope.ContractDigest == scopeContractDigestSeverity() || scope.ContractDigest == scopeContractDigestCrossing() || scope.ContractDigest == scopeContractDigestChart()
 	basisScope := scope.ContractDigest == scopeContractDigestBasis() || severityScope
 	statuses, reasons := make(map[string]string, len(claims)), make(map[string]string, len(claims))
 	for _, claim := range claims {

@@ -25,6 +25,11 @@ func Evaluate(input Input, rules RuleSet, now time.Time) (Report, error) {
 	if !input.Valid() || !rules.Valid() || input.registryDigest == "" || input.registryDigest != rules.registryDigest || now.IsZero() || now.Location() != time.UTC || now.Nanosecond() != 0 {
 		return Report{}, fmt.Errorf("evaluation capability or clock: %w", ErrIntegrity)
 	}
+	// A chart hop is evaluated only under the chart contract, which knows
+	// that its versions are chart versions (chart.go).
+	if input.document.declaresChart() && !rules.chart {
+		return Report{}, fmt.Errorf("an input declaring a chart needs a rule document under the chart contract: %w", ErrInvalid)
+	}
 	claims := make([]Claim, len(rules.document.Rules))
 	for index, rule := range rules.document.Rules {
 		claims[index] = evaluateRule(input.document, rule, now)
@@ -82,6 +87,9 @@ func evaluateRuleVerdict(input inputDocument, rule rule, now time.Time) Claim {
 		if rule.Range != nil {
 			claim.NextAction = rangeSubjectAction(rule.transition())
 		}
+		if reason == ReasonSubjectChartNotDeclared || reason == ReasonAppVersionNotDeclared {
+			claim.NextAction = chartSubjectAction(rule.Subject)
+		}
 		return claim
 	}
 	if mode == MatchCrossing {
@@ -118,6 +126,8 @@ func evaluateMatchedRule(input inputDocument, rule rule, claim Claim) Claim {
 	switch rule.Operator {
 	case OperatorForbidSetMember:
 		return evaluateSetRule(input, rule, claim)
+	case OperatorRequireSetMember:
+		return evaluateRequireSetRule(input, rule, claim)
 	case "forbid_predicate_value":
 		fact, found := findFact(input, rule.Condition.Side, rule.Condition.Component, rule.Condition.FactID)
 		if !found || fact.State != "declared" {
@@ -135,6 +145,13 @@ func evaluateMatchedRule(input inputDocument, rule rule, claim Claim) Claim {
 		if !found {
 			claim.Status, claim.ReasonCode = "UNKNOWN", "RULE_DEPENDENCY_COMPONENT_MISSING"
 			claim.NextAction = dependencyAction(*rule.Dependency)
+			return claim
+		}
+		// A chart hop declares a chart version, never the application
+		// version a dependency bound is about (chart.go).
+		if component.Chart != nil {
+			claim.Status, claim.ReasonCode = "UNKNOWN", ReasonAppVersionNotDeclared
+			claim.NextAction = chartSubjectAction(transition{})
 			return claim
 		}
 		comparison, comparable := compareVersions(component.Version, rule.Dependency.Version)
@@ -179,6 +196,11 @@ func subjectAvailability(input inputDocument, subject RuleTransition) (MatchMode
 	proposed, proposedFound := findComponent(input, "proposed", subject.Component)
 	if !currentFound || !proposedFound {
 		return MatchNone, "RULE_SUBJECT_COMPONENT_MISSING"
+	}
+	// Chart identity first: a chart version is never compared against an
+	// application rule's versions or boundaries, nor the reverse.
+	if reason := chartAvailability(subject, current, proposed); reason != "" {
+		return MatchNone, reason
 	}
 	mode := subject.Match(current.Version, proposed.Version)
 	if mode == MatchNone {
@@ -370,7 +392,7 @@ func issueReport(report Report) Report {
 // independently re-derive that same assessment. No block, no verdict —
 // however many claims passed. See legalAssessment.
 func MarshalReport(report Report) ([]byte, error) {
-	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !validSetClaims(report) || !validNoticeClaims(report) || !validBasisClaims(report) || !validSeverityClaims(report) || !validCrossingClaims(report) || !validReleaseBoundaryClaims(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
+	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !validSetClaims(report) || !validNoticeClaims(report) || !validBasisClaims(report) || !validSeverityClaims(report) || !validCrossingClaims(report) || !validReleaseBoundaryClaims(report) || !validChartClaims(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
 		return nil, ErrIntegrity
 	}
 	raw, err := json.Marshal(report)

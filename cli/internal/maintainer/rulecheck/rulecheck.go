@@ -32,6 +32,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/prufyx/prufyx/cli/internal/chartidentity"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
@@ -111,8 +112,11 @@ type ruleBody struct {
 
 type transition struct {
 	Component string `json:"component"`
-	From      string `json:"from"`
-	To        string `json:"to"`
+	// Chart is optional, exactly as the engine's own rule schema has it: a
+	// chart rule's from and to are chart versions of this chart.
+	Chart *constraintengine.ChartRef `json:"chart,omitempty"`
+	From  string                     `json:"from"`
+	To    string                     `json:"to"`
 }
 
 type factCondition struct {
@@ -123,8 +127,8 @@ type factCondition struct {
 	EnumValue string `json:"enumValue,omitempty"`
 }
 
-// setCondition mirrors the engine's forbid_set_member condition: the set fact
-// read and the members the rule forbids.
+// setCondition mirrors the engine's forbid_set_member and require_set_member
+// condition: the set fact read and the members the rule forbids or requires.
 type setCondition struct {
 	Side      string   `json:"side"`
 	Component string   `json:"component"`
@@ -218,6 +222,10 @@ type Options struct {
 	// When true, a candidate's range is not re-validated by hand here; it is checked exactly as the compiled engine checks a published
 	// rule, via constraintengine.ParseRuleSet in runEngineParse below.
 	AllowRange bool
+	// ChartSources is the reviewed chart-source table a chart rule's
+	// (source, name) must have an active row in. Nil means the embedded
+	// table (chartidentity.LoadEmbedded).
+	ChartSources *chartidentity.SourceTable
 }
 
 // Validate parses and checks every entry in a candidate file. It returns a
@@ -398,6 +406,10 @@ func checkEntry(index int, entry Entry, opts Options) ([]Finding, string, bool) 
 		}
 	}
 
+	for _, problem := range chartProblems(body, opts) {
+		addRule(ruleID, "chart", "%s", problem)
+	}
+
 	if !ruleIDPattern.MatchString(body.ID) {
 		addRule(ruleID, "rule-id", "rule.id %q does not match the engine's id pattern ^[a-z0-9][a-z0-9._-]{0,127}$", body.ID)
 	}
@@ -440,7 +452,7 @@ func checkEntry(index int, entry Entry, opts Options) ([]Finding, string, bool) 
 			}
 		}
 		if len(body.SetCondition.Members) == 0 || len(body.SetCondition.Members) > constraintengine.MaxForbiddenMembers {
-			addRule(ruleID, "set-member", "rule.setCondition.members must name 1-%d forbidden members, got %d", constraintengine.MaxForbiddenMembers, len(body.SetCondition.Members))
+			addRule(ruleID, "set-member", "rule.setCondition.members must name 1-%d members, got %d", constraintengine.MaxForbiddenMembers, len(body.SetCondition.Members))
 		}
 	}
 	for i := range body.AppliesWhen {
@@ -983,4 +995,76 @@ func crossingProblems(body ruleBody) []string {
 		}
 	}
 	return problems
+}
+
+// valuesPathsSetSuffix is the fact id suffix of a chart's values-path set
+// fact, the only set fact require_set_member may read.
+const valuesPathsSetSuffix = "_values_paths_set"
+
+// chartDependencyComponent is the only component a chart rule may require a
+// version of: the chart's own kubeVersion bound.
+const chartDependencyComponent = "pkg:github/kubernetes/kubernetes"
+
+// chartProblems checks a chart rule and a require_set_member rule: the chart
+// identity is in normal form; a chart rule is anchor-only, carries no
+// severity and never requires its own component's version; require_set_member reads only a values-path set fact;
+// and the chart has an active reviewed chart-source row whose component is
+// the rule's. A community contribution may not carry either. The engine's
+// ParseRuleSet runs afterwards and stays the authority on structure.
+func chartProblems(body ruleBody, opts Options) []string {
+	chart := body.Subject.Chart
+	require := body.Operator == constraintengine.OperatorRequireSetMember
+	if chart == nil && !require {
+		return nil
+	}
+	var problems []string
+	if !opts.AllowRange {
+		problems = append(problems, "a chart rule or require_set_member rule is not accepted from a community contribution; only the maintainers' derivation tooling produces them")
+	}
+	if require {
+		if body.SetCondition == nil {
+			problems = append(problems, "require_set_member needs rule.setCondition")
+		} else if !strings.HasSuffix(body.SetCondition.FactID, valuesPathsSetSuffix) {
+			problems = append(problems, fmt.Sprintf("require_set_member may only read a values-path set fact (id ending %q), got %q", valuesPathsSetSuffix, body.SetCondition.FactID))
+		}
+		if body.Range != nil || body.Crossing != nil {
+			problems = append(problems, "require_set_member cannot carry a range or a crossing")
+		}
+	}
+	if chart == nil {
+		return problems
+	}
+	if !constraintengine.ValidChartRef(*chart) {
+		problems = append(problems, fmt.Sprintf("rule.subject.chart {source %q, name %q} must be a normalised https or oci repository URL (chartidentity.NormalizeRepoURL) and a chart name matching ^[a-z0-9][a-z0-9._-]{0,127}$", chart.Source, chart.Name))
+	}
+	if body.Range != nil || body.Crossing != nil {
+		problems = append(problems, "a chart rule is anchor-only: rule.range and rule.crossing are not accepted")
+	}
+	if body.Severity != "" || body.Dependency != nil && body.Dependency.Component == body.Subject.Component {
+		problems = append(problems, "a chart rule cannot carry a severity or require its own component's version: its versions are chart versions")
+	}
+	if body.Dependency != nil && (body.Dependency.Component != chartDependencyComponent || body.Dependency.Side != "proposed") {
+		problems = append(problems, fmt.Sprintf("a chart rule may only require the proposed Kubernetes version (%s), got %s %q", chartDependencyComponent, body.Dependency.Side, body.Dependency.Component))
+	}
+	table := opts.ChartSources
+	if table == nil {
+		embedded, _, err := chartidentity.LoadEmbedded()
+		if err != nil {
+			return append(problems, fmt.Sprintf("the embedded chart-source table does not load: %v", err))
+		}
+		table = embedded
+	}
+	for _, record := range table.Records {
+		if record.RepoURL != chart.Source || record.Chart != chart.Name {
+			continue
+		}
+		if record.Evidence.State != chartidentity.StateActive {
+			return append(problems, fmt.Sprintf("the chart-source row for %s %s is withdrawn", chart.Source, chart.Name))
+		}
+		if record.Component != body.Subject.Component {
+			return append(problems, fmt.Sprintf("the chart-source row for %s %s maps to component %s, not the rule's %s", chart.Source, chart.Name, record.Component, body.Subject.Component))
+		}
+		return problems
+	}
+	return append(problems, fmt.Sprintf("no reviewed chart-source row for %s %s: a chart rule needs one (cli/internal/chartidentity/data/chart-sources.json)", chart.Source, chart.Name))
 }

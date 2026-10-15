@@ -328,6 +328,9 @@ const (
 	// packSchemaCommunity is the level of a pack holding an entry of a
 	// community project (community.go).
 	packSchemaCommunity = "prufyx.io/cncf-source-rule-pack/v1alpha12"
+	// packSchemaChart is the level of a pack holding a chart rule or a
+	// require_set_member rule.
+	packSchemaChart = "prufyx.io/cncf-source-rule-pack/v1alpha13"
 )
 
 // packFeature is one pack feature and the schema that introduced it.
@@ -357,6 +360,9 @@ var packFeatureLevels = []packFeature{
 		return constraintengine.AnyCrossingRule(rules)
 	}},
 	{packSchemaCommunity, func(pack rulePack, _ []json.RawMessage) (bool, error) { return anyCommunityEntry(pack), nil }},
+	{packSchemaChart, func(_ rulePack, rules []json.RawMessage) (bool, error) {
+		return constraintengine.AnyChartRule(rules)
+	}},
 }
 
 // requiredPackSchema is the schema of the highest-level feature the pack
@@ -611,11 +617,14 @@ func (b bundle) selectForInput(project string, raw []byte) (selection, error) {
 			return selection{}, ErrIntegrity
 		}
 		from, to := current[subject.Component], proposed[subject.Component]
-		matches := subject.Match(from, to) != constraintengine.MatchNone
+		// This selector serves application hops: a chart rule is never
+		// selected for one, whatever its numbers (constraintengine chart.go).
+		appHop := subject.AdmitsChart(nil)
+		matches := appHop && subject.Match(from, to) != constraintengine.MatchNone
 		// A rule whose release boundary the pair crosses outside its reviewed
 		// range is kept so the engine reports it as unreviewed; it is not a
 		// matching verdict rule, so it never decides the fallback.
-		if matches || subject.CrossesUnreviewed(from, to) {
+		if matches || appHop && subject.CrossesUnreviewed(from, to) {
 			matched = append(matched, entry.Rule)
 		}
 		if matches {
@@ -638,8 +647,8 @@ func (b bundle) selectForInput(project string, raw []byte) (selection, error) {
 	return b.admit(matched, nil)
 }
 
-// fallbackRules is a fallback selection: every candidate except a lead for
-// another transition that the trust policy leaves out anyway. Such a lead
+// fallbackRules is a fallback selection: every candidate except a chart rule
+// and a lead for another transition that the trust policy leaves out anyway. Such a lead
 // could never have said anything about this transition, so it is neither
 // evaluated nor counted as left out.
 func (b bundle) fallbackRules(candidates, matched []json.RawMessage) []json.RawMessage {
@@ -649,6 +658,11 @@ func (b bundle) fallbackRules(candidates, matched []json.RawMessage) []json.RawM
 	}
 	kept := make([]json.RawMessage, 0, len(candidates))
 	for _, rule := range candidates {
+		// The fallback serves an application hop too: a chart rule is about
+		// chart versions and never joins it.
+		if subject, err := constraintengine.RuleTransitionOf(rule); err == nil && !subject.AdmitsChart(nil) {
+			continue
+		}
 		if !matching[string(rule)] && !b.policy.Admits(constraintengine.BasisLead) {
 			if basis, err := constraintengine.RawRuleBasis(rule); err == nil && basis == constraintengine.BasisLead {
 				continue
@@ -730,11 +744,14 @@ func (b bundle) selectFamily(project string, facts []string, raw []byte) (select
 			return selection{}, ErrIntegrity
 		}
 		from, to := current[subject.Component], proposed[subject.Component]
-		matches := subject.Match(from, to) != constraintengine.MatchNone
+		// This selector serves application hops: a chart rule is never
+		// selected for one, whatever its numbers (constraintengine chart.go).
+		appHop := subject.AdmitsChart(nil)
+		matches := appHop && subject.Match(from, to) != constraintengine.MatchNone
 		// A rule whose release boundary the pair crosses outside its reviewed
 		// range is kept so the engine reports it as unreviewed; it is not a
 		// matching verdict rule, so it never decides the fallback.
-		if matches || subject.CrossesUnreviewed(from, to) {
+		if matches || appHop && subject.CrossesUnreviewed(from, to) {
 			matched = append(matched, entry.Rule)
 		}
 		if matches {

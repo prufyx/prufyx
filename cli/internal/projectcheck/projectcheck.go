@@ -685,6 +685,10 @@ func validPackSchema(pack packDocument) bool {
 	if crossing, err := constraintengine.AnyCrossingRule(rules); err != nil || crossing {
 		return false
 	}
+	// Nor chart or require_set_member rules.
+	if chart, err := constraintengine.AnyChartRule(rules); err != nil || chart {
+		return false
+	}
 	notice, err := constraintengine.AnyNoticeRule(rules)
 	if err != nil {
 		return false

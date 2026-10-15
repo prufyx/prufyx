@@ -231,8 +231,13 @@ type inputComponent struct {
 	// Distribution is optional: the reviewed distribution whose normaliser
 	// produced Version (crossing.go). Absent means a plain upstream version,
 	// and an input without it marshals and digests exactly as before.
-	Distribution string      `json:"distribution,omitempty"`
-	Facts        []inputFact `json:"facts"`
+	Distribution string `json:"distribution,omitempty"`
+	// Chart is optional: the chart this component is declared through, in
+	// which case Version is the chart version (chart.go). Absent means an
+	// application version, and an input without it marshals and digests
+	// exactly as before.
+	Chart *ChartRef   `json:"chart,omitempty"`
+	Facts []inputFact `json:"facts"`
 }
 
 type inputFact struct {
@@ -310,8 +315,11 @@ type rule struct {
 
 type transition struct {
 	Component string `json:"component"`
-	From      string `json:"from"`
-	To        string `json:"to"`
+	// Chart is optional (chart.go). When absent the rule marshals, digests
+	// and matches exactly as before the field existed.
+	Chart *ChartRef `json:"chart,omitempty"`
+	From  string    `json:"from"`
+	To    string    `json:"to"`
 }
 
 type factCondition struct {
@@ -438,6 +446,7 @@ type RuleSet struct {
 	basis          bool
 	severity       bool
 	crossing       bool
+	chart          bool
 	seal           *ruleSetSeal
 }
 type ruleSetSeal struct{}
@@ -485,6 +494,11 @@ type Claim struct {
 	// on a claim whose subject matched by crossing, so every other claim
 	// serializes exactly as before the field existed.
 	CrossingMatch *CrossingMatch `json:"crossingMatch,omitempty"`
+	// MissingMembers is present only on a BLOCKED require_set_member claim:
+	// the required members absent from the complete declared set. Every
+	// other claim omits it and serializes exactly as before the operator
+	// existed.
+	MissingMembers []string `json:"missingMembers,omitempty"`
 }
 
 // SubjectMatch discloses a range match: the reviewed anchor pair and the
@@ -551,7 +565,11 @@ type ScopeCompleteness struct {
 }
 
 type ComponentScope struct {
-	Component        string             `json:"component"`
+	Component string `json:"component"`
+	// Chart is present only when the component is declared as a chart hop
+	// (chart.go), so From and To are chart versions and never read as
+	// application versions; absent otherwise.
+	Chart            *ChartRef          `json:"chart,omitempty"`
 	From             string             `json:"from"`
 	To               string             `json:"to"`
 	CorpusAttested   bool               `json:"corpusAttested"`
@@ -592,6 +610,9 @@ func EngineContractDigest() string { return engineContractDigest() }
 func EngineContractDigestRanged() string { return engineContractDigestRanged() }
 
 func (r RuleSet) engineDigest() string {
+	if r.chart {
+		return engineContractDigestChart()
+	}
 	if r.crossing {
 		return engineContractDigestCrossing()
 	}
@@ -650,6 +671,8 @@ func scopeDigestFor(engineDigest string) string {
 		return scopeContractDigestSeverity()
 	case engineContractDigestCrossing():
 		return scopeContractDigestCrossing()
+	case engineContractDigestChart():
+		return scopeContractDigestChart()
 	}
 	return ""
 }

@@ -645,3 +645,65 @@ The tools that read rules know the crossing:
   (`MarshalReport`) does not detect a stripped crossing disclosure on its own;
   `Replay`, which recomputes the report from the input and the rules, is the
   authority on the match mode.
+
+## Chart rules and `require_set_member`
+
+A rule may be about a Helm chart's own versions instead of the software the
+chart installs. Its subject then names the chart next to the component:
+
+```json
+"subject": {"component": "pkg:github/cert-manager/cert-manager",
+            "chart": {"source": "https://charts.jetstack.io", "name": "cert-manager"},
+            "from": "1.16.0", "to": "1.17.0"}
+```
+
+`from` and `to` are chart versions. `source` is the repository URL users
+install from, in the normal form `chartidentity.NormalizeRepoURL` produces
+(scheme `https` or `oci`, lower-case host, no trailing `/` or `.git`, no
+query, fragment or user information); the engine refuses any other spelling
+rather than normalising it. `name` follows the rule-id pattern.
+
+An input declares a chart hop the same way: the component carries
+`"chart": {"source", "name"}` on both sides, and its `version` is the chart
+version. The two kinds never meet:
+
+- a chart rule decides only a component that declares the same chart on both
+  sides. For an application version, or another chart, it is UNKNOWN with
+  `RULE_SUBJECT_CHART_NOT_DECLARED` and excluded from the scope enumeration;
+- an application rule never decides a chart hop: it is UNKNOWN with
+  `RULE_APP_VERSION_NOT_DECLARED` and undetermined in scope, so a chart hop
+  that leaves an application rule unread is never a complete pass. A
+  `require_component_version` dependency on a chart hop is UNKNOWN for the
+  same reason;
+- an input that declares a chart is evaluated only against a document under
+  the chart contract; any other document is refused. A chart never sits next
+  to a `distribution`, and a component declared on both sides declares the
+  same chart (or none) on both.
+
+A chart rule is anchor-only (no `range`, no `crossing`) and carries no
+`severity`. It may be a `require_component_version` rule on another component
+(for example the Kubernetes version a chart's `kubeVersion` constraint needs),
+never on its own component, whose declared version is the chart version.
+
+`require_set_member` is the negative of `forbid_set_member`: its
+`setCondition` names members the set must contain. It is PASS only when the set
+is declared complete and holds every member, BLOCKED only when the set is
+declared complete and a member is absent (the claim lists them in
+`missingMembers`), and UNKNOWN otherwise: a missing or undeclared fact, or an
+incomplete set even when every member is present, because a source the set did
+not read can still remove a member. It never carries a crossing. A
+`forbid_set_member` and a `require_set_member` rule on the same set fact with a
+common member and overlapping subjects are refused: together they would block
+every hop.
+
+`rule validate` accepts neither from a community contribution. On the
+maintainer path it requires `require_set_member` to read a values-path set fact
+(an id ending in `_values_paths_set`) and a chart rule to have an active row
+in the reviewed chart-source table (`cli/internal/chartidentity/data/chart-sources.json`)
+whose component is the rule's.
+
+A document holding a chart rule or a `require_set_member` rule carries rules
+schema `v1alpha8` and its own engine and scope contract digests; a pack holding
+one is pack level `v1alpha13`. External and project packs do not accept them,
+and the application-hop rule selection never selects a chart rule. Every other
+document, input and report keeps its bytes and digests.
