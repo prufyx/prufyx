@@ -148,8 +148,8 @@
         "evaluatedAt": "2026-11-20T00:00:00Z",
         "inputDigest": "sha256:f97b2da482d3ad4454ea833ec04bdf3e2b1b8e8a7daecc26b9ea26c8142261c1",
         "knowledgeOrigin": "embedded",
-        "knowledgeRevision": "cncf-2026-09-13.8",
-        "knowledgeDigest": "sha256:c99bec4d80c148f24e02362abe6a51de135dd3255ce5f3985d23bddb4c6e19b0",
+        "knowledgeRevision": "cncf-2026-09-13.9",
+        "knowledgeDigest": "sha256:09fef3b4cad1fd575d7e810135dc50d23321d4d783ea30d3b7f8226a7fac01cc",
         "engineContractDigest": "sha256:0d46478e7a818c192fa57367bf17bf5a066ec7e414d0b745e0f900fd319fd463",
         "networkUsed": false,
         "omissions": [

@@ -9,6 +9,17 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Embedded CNCF knowledge: 28 mechanically derived custom-resource
+  version-removal rules (extractor `crd.version-removal` 2.1.0) for
+  Crossplane (2, 1.20 to 2.0), Kyverno (1, 1.15 to 1.16), Longhorn (15, 1.8
+  to 1.9) and Strimzi (10, 0.51 to 1.0), and line reviews of custom-resource
+  versions for four Strimzi release lines (0.50, 0.51, 1.1 and 1.2, none of
+  which removes a version). The embedded CNCF pack moves to schema
+  `v1alpha4` and revision `cncf-2026-09-13.9`. A check or scan of these
+  projects over an upgrade that crosses one of the removals now reports it:
+  BLOCKED when a manifest uses a removed version, UNKNOWN when the
+  custom-resource version set is not supplied, so some upgrades that exited
+  0 before now exit 11.
 - Maintainer command `prufyx-maintainer docs-tables` (with `--check`): writes
   the tables of the reviewed custom-resource projects and of the
   `crd.version-removal` targets to `cli/docs/generated/` from the data compiled

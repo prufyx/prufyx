@@ -31,7 +31,7 @@ const (
 	syntheticGate      = "SyntheticRemovedGate"
 	syntheticRevision  = "0000000000000000000000000000000000000001"
 	syntheticRuleID    = "kubernetes.synthetic-removed-gate.1-36-0-to-1-37-0"
-	embeddedPackSHA256 = "c99bec4d80c148f24e02362abe6a51de135dd3255ce5f3985d23bddb4c6e19b0"
+	embeddedPackSHA256 = "09fef3b4cad1fd575d7e810135dc50d23321d4d783ea30d3b7f8226a7fac01cc"
 )
 
 // unregisteredSetFact is a set fact of the component-configuration adapter
