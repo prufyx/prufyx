@@ -267,7 +267,7 @@ func (p OnboardingProject) validate() error {
 		return fmt.Errorf("a proof lists at most %d scan findings", maxOnboardingFindings)
 	}
 	for i, f := range pr.Scan {
-		if !onboardingFindingClasses[f.Class] || !validOnboardingPath(f.Path) || (f.SHA256 != "" && !sha256HexRE.MatchString(f.SHA256)) {
+		if !onboardingFindingClasses[f.Class] || !validOnboardingPath(f.Path) || (f.SHA256 != "" && !validBatchDigest(f.SHA256)) {
 			return bad
 		}
 		if i > 0 && onboardingFindingKey(pr.Scan[i-1]) >= onboardingFindingKey(f) {
@@ -276,8 +276,6 @@ func (p OnboardingProject) validate() error {
 	}
 	return nil
 }
-
-var sha256HexRE = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 func onboardingFindingKey(f OnboardingFinding) string {
 	return f.Path + "\x00" + f.Class + "\x00" + f.SHA256

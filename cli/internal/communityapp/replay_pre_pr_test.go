@@ -3,9 +3,13 @@
 package communityapp
 
 import (
+	"bytes"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/goldenfile"
 )
 
 // A report saved by a build that predates the rewritten next-action text
@@ -21,7 +25,21 @@ func TestReplayOfPreRewriteReportNamesTheOlderContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	knowledge, err := cncfcheck.LoadScanKnowledge()
+	if err != nil {
+		t.Fatal(err)
+	}
 	inputPath := writeCNCFFile(t, "input.json", input, 0o600)
+	// The stored report holds placeholders for the pack revision and digest and
+	// for the rule set digest, which covers the revision. The current rule set
+	// digest is read from a fresh check of the same input.
+	_, fresh, _ := runCNCFCLI(t, "check", "cncf", "--project", "containerd", "--input", inputPath, "--now", "2026-10-08T00:00:00Z", "--format", "json")
+	current := ruleSetDigestField.Find([]byte(fresh))
+	if current == nil {
+		t.Fatalf("fresh check holds no rule set digest: %q", fresh)
+	}
+	report = bytes.ReplaceAll(report, []byte(maskedRuleSetDigestField), current)
+	report = goldenfile.UnmaskPack(report, knowledge.Revision(), knowledge.PackDigest())
 	args := func(report []byte) []string {
 		return []string{"check", "cncf", "--project", "containerd", "--input", inputPath, "--now", "2026-10-08T00:00:00Z", "--format", "json",
 			"--replay-report", writeCNCFFile(t, "report.json", report, 0o600)}
