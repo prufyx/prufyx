@@ -264,9 +264,9 @@ func TestGuardScope(t *testing.T) {
 	}
 	// A declared copy that a Makefile applies stays a checked copy.
 	copyEntry := Exclusion{Path: "charts/templates/", Repo: "github.com/argoproj/argo-cd", Reason: "Helm templates of the same definitions", Evidence: "checked as copies of the listed definitions at every tag", Copies: true}
-	crds := "{{- if .Values.crds }}\n" + later
+	crds := "{{- if .Values.crds }}\n" + later + "{{- end }}\n"
 	s = newSynth(
-		release{"v1.0.0", map[string]string{"deploy/crds/a.yaml": alpha, "charts/templates/crds.yaml": "{{- if .Values.crds }}\n" + alpha, "Makefile": refs["Makefile"]}},
+		release{"v1.0.0", map[string]string{"deploy/crds/a.yaml": alpha, "charts/templates/crds.yaml": "{{- if .Values.crds }}\n" + alpha + "{{- end }}\n", "Makefile": refs["Makefile"]}},
 		release{"v1.1.0", map[string]string{"deploy/crds/a.yaml": later, "charts/templates/crds.yaml": crds, "Makefile": refs["Makefile"]}},
 	)
 	p, proof := pairOf(t, runSynth(t, synthTarget(copyEntry), s), "1.0.0", "1.1.0")
@@ -313,11 +313,11 @@ func TestGuardVoidKeepsTheRule(t *testing.T) {
 	}
 	goBuild["Makefile"] = "install:\n\tkustomize build tools/gen | kubectl apply -f -\n"
 	p, proof = run(goBuild)
-	var unsupported bool
+	var goDefined bool
 	for _, f := range proof.To.Scan.Findings {
-		unsupported = unsupported || (f.Class == ClassUnsupported && f.Path == "tools/gen/crd/build.go" && f.Location == "void: tools/gen/")
+		goDefined = goDefined || (f.Class == ClassGoDefined && f.Path == "tools/gen/crd/build.go" && f.Location == "void: tools/gen/")
 	}
-	if p.Status != extract.PairDerived || !unsupported {
+	if p.Status != extract.PairDerived || !goDefined {
 		t.Fatalf("pair %s %q findings %+v", p.Status, p.Reason, proof.To.Scan.Findings)
 	}
 }

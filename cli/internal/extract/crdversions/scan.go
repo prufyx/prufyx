@@ -12,10 +12,13 @@ import (
 	"io"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
@@ -37,6 +40,11 @@ const (
 	// ClassCopy: every definition in the file is in the inventory with the
 	// same versions and served flags.
 	ClassCopy = "copy"
+	// ClassTemplatedCopy: a templated file outside a reviewed copies
+	// exclusion that is a copy once its template directives are removed;
+	// its directives are only a whole-file condition and directives in
+	// metadata, and its expressions lie in metadata and spec.conversion.
+	ClassTemplatedCopy = "templated-copy"
 	// ClassSchemaPatch: a kustomization whose only CustomResourceDefinition
 	// references are patch targets, and whose patches only touch version
 	// schemas, conversion settings or metadata labels and annotations.
@@ -52,13 +60,16 @@ const (
 	// defines none at the top level, and is not a schema-only
 	// kustomization.
 	ClassReference = "reference"
-	// ClassUnread: names the kind and is templated, not strictly
-	// decodable, over the bounds, or a submodule.
+	// ClassUnread: names the kind and is templated (in a form whose
+	// rendered versions cannot be determined, or that is not a copy), not
+	// strictly decodable, over the bounds, or a submodule.
 	ClassUnread = "unread"
 	// ClassUnsupported: a source the scan does not parse that names the
-	// kind (a template, jsonnet or cue file, Go code that constructs a
-	// definition, a packaged Helm chart).
+	// kind (a template, jsonnet or cue file, a packaged Helm chart).
 	ClassUnsupported = "unsupported"
+	// ClassGoDefined: Go code that builds a definition as a composite
+	// literal; its served versions are not read.
+	ClassGoDefined = "go-defined"
 	// ClassExternal: a Helm chart dependency or a kustomize resource that
 	// comes from another repository; its definitions are not read.
 	ClassExternal = "external"
@@ -132,6 +143,26 @@ var (
 	patchPathRE  = regexp.MustCompile(`^/(spec/versions/(0|[1-9][0-9]{0,2})/schema|spec/conversion|metadata/(annotations|labels))(/[^\x00-\x1f]*)?$|^/spec/preserveUnknownFields$`)
 	templateRE   = regexp.MustCompile(`\{\{.*?\}\}`)
 	valueExprRE  = regexp.MustCompile(`^(\s*[^\s#{][^:{]*:)\s*\{\{[^{}]*\}\}\s*$`)
+	// templatedKindRE is a top-level apiVersion or kind whose value is a
+	// template expression (on the same line or the next).
+	templatedKindRE = regexp.MustCompile(`(?m)^["']?(?:apiVersion|kind)["']?[ \t]*:(?:[^\n]*\{\{|[ \t]*\r?\n[ \t]+[^\n]*\{\{)`)
+	// assignRE is a template variable assignment ($x := ..., $x = ...).
+	assignRE = regexp.MustCompile(`\$[A-Za-z0-9_]*\s*:?=`)
+	// releaseRefRE is an action whose output is a release or chart name
+	// (one line, never a document separator).
+	releaseRefRE = regexp.MustCompile(`^\.(Release\.(Name|Namespace|Service|Revision)|Chart\.(Name|Version))$`)
+	// quotedRE is a field reference piped to quote, which renders one
+	// double-quoted line (line breaks escaped).
+	quotedRE = regexp.MustCompile(`^\$?(\.[A-Za-z_][A-Za-z0-9_]*)+\s*\|\s*quote$`)
+	// indentedRE is a pipeline that ends in indent or nindent by at least
+	// one column, so no line of its output that a newline starts reaches
+	// column 0 (indent pads only after a newline: another line break in the
+	// text a template or value renders, which is not read, is not bounded).
+	indentedRE = regexp.MustCompile(`\|\s*n?indent\s+[1-9][0-9]*\s*$`)
+	// templateCommentRE is a template comment as the template lexer reads
+	// one: "/*" right after the opening delimiter (or "{{- "), "*/" right
+	// before the closing one (or " -}}").
+	templateCommentRE = regexp.MustCompile(`^\{\{(- )?/\*(?s:.*)\*/( -)?\}\}$`)
 )
 
 func indentOf(line string) int { return len(line) - len(strings.TrimLeft(line, " ")) }
@@ -186,7 +217,7 @@ type Finding struct {
 // blocks reports whether a finding keeps the scan from being clean.
 func (f Finding) blocks() bool {
 	switch f.Class {
-	case ClassSchemaPatch, ClassCRDPatch, ClassKustomizeConfig, ClassLegacyCopy, ClassExcluded, ClassExcludedUnread:
+	case ClassSchemaPatch, ClassCRDPatch, ClassKustomizeConfig, ClassLegacyCopy, ClassTemplatedCopy, ClassExcluded, ClassExcludedUnread:
 		return false
 	}
 	return true
@@ -196,7 +227,7 @@ func (f Finding) blocks() bool {
 // may hide in it.
 func (f Finding) opaque() bool {
 	switch f.Class {
-	case ClassUnread, ClassUnsupported, ClassExternal, ClassReference, ClassExcludedUnread:
+	case ClassUnread, ClassUnsupported, ClassGoDefined, ClassExternal, ClassReference, ClassExcludedUnread:
 		return true
 	}
 	return false
@@ -213,24 +244,25 @@ func (f Finding) defaultLike() bool {
 }
 
 // unreadable reports a finding that may serve, to the users of a release,
-// a version the inventory does not show: a templated, unreadable or
-// unsupported CRD source in the open tree or among declared copies, or a
-// declared copy (a chart template) that serves other versions. A file
-// under a default-excluded directory only blocks attestation.
+// a version the inventory does not show: a templated, unreadable,
+// unsupported or Go-defined CRD source in the open tree or among declared
+// copies, or a declared copy (a chart template) that serves other
+// versions. A file under a default-excluded directory only blocks
+// attestation.
 func (f Finding) unreadable() bool {
 	if strings.HasPrefix(f.Location, "default: ") || strings.HasPrefix(f.Location, voidPrefix) {
 		return false
 	}
 	switch f.Class {
-	case ClassUnread, ClassUnsupported, ClassConflict:
+	case ClassUnread, ClassUnsupported, ClassGoDefined, ClassConflict:
 		return true
 	}
 	return false
 }
 
-// Clean reports a complete scan with nothing but copies (v1 or v1beta1),
-// schema-only kustomizations, kubebuilder patch fragments and transformer
-// configurations, and reviewed exclusions.
+// Clean reports a complete scan with nothing but copies (v1, v1beta1 or
+// templated), schema-only kustomizations, kubebuilder patch fragments and
+// transformer configurations, and reviewed exclusions.
 func (s *ScanRecord) Clean() bool {
 	if s == nil || !s.Complete {
 		return false
@@ -316,9 +348,9 @@ type blobInfo struct {
 	// chartDeps are the dependencies of the bytes read as a Helm
 	// Chart.yaml that come from another repository.
 	chartDeps []string
-	// template is the result of reading the bytes as a checked copy, with
-	// template directives removed (nil when the bytes hold no template
-	// syntax or no kind name).
+	// template is the result of reading the bytes with their template
+	// directives removed (nil when the bytes hold no template syntax or no
+	// kind name).
 	template *templateRead
 	// legacy are the definitions of bytes that hold
 	// apiextensions.k8s.io/v1beta1 definitions, all strictly read (nil
@@ -399,10 +431,16 @@ func readGzipLiterals(data []byte) *gzipRead {
 	return g
 }
 
-// templateRead is a templated file read as a copy.
+// templateRead is a templated file read with its template directives
+// removed (see readTemplate).
 type templateRead struct {
+	// unread is why the rendered versions cannot be determined ("" when
+	// they can).
 	unread string
 	crds   []CRD
+	// kindTemplated: a document's apiVersion or kind is a template
+	// expression, so what it is cannot be known; such a file is a finding.
+	kindTemplated bool
 }
 
 // kustomization is a decoded kustomization file's patch references and
@@ -595,8 +633,8 @@ func placed(f Finding, at place) Finding {
 		return f
 	}
 	switch f.Class {
-	case ClassCopy, ClassSchemaPatch, ClassCRDPatch, ClassKustomizeConfig, ClassLegacyCopy:
-	case ClassUnread, ClassUnsupported:
+	case ClassCopy, ClassTemplatedCopy, ClassSchemaPatch, ClassCRDPatch, ClassKustomizeConfig, ClassLegacyCopy:
+	case ClassUnread, ClassUnsupported, ClassGoDefined:
 		f.Class = ClassExcludedUnread
 	default:
 		f.Class = ClassExcluded
@@ -774,48 +812,403 @@ func countKinds(v any, info *blobInfo) {
 	}
 }
 
-// readTemplate reads a templated file as a copy: lines that hold only a
-// template directive are removed and every other template expression is
-// replaced by a placeholder. Anything left that is not a complete
-// definition is unread.
+// templateUnread starts the reason a templated file is not read.
+const templateUnread = "with template directives, its rendered versions cannot be determined: "
+
+// templateLine is a line of a templated file kept after its directive-only
+// lines are removed, and whether it lies in a top-level metadata block.
+type templateLine struct {
+	text string
+	meta bool
+}
+
+// templateAction returns the action of one template delimiter pair
+// ("{{- if .x }}" is "if .x") and whether it trims the whitespace after
+// it.
+func templateAction(expr string) (action string, after bool) {
+	inner := strings.TrimSuffix(strings.TrimPrefix(expr, "{{"), "}}")
+	if len(inner) >= 2 && inner[0] == '-' && strings.ContainsRune(" \t\r\n", rune(inner[1])) {
+		inner = inner[1:]
+	}
+	if n := len(inner); n >= 2 && inner[n-1] == '-' && strings.ContainsRune(" \t\r\n", rune(inner[n-2])) {
+		inner, after = inner[:n-1], true
+	}
+	return strings.TrimSpace(inner), after
+}
+
+// directiveWord names a directive by its first word, with its article.
+func directiveWord(word string) string {
+	switch {
+	case word == "":
+		return "an empty"
+	case strings.ContainsRune("aeiouAEIOU", rune(word[0])):
+		return "an " + strconv.Quote(word)
+	}
+	return "a " + strconv.Quote(word)
+}
+
+// templateComment reports a template comment (expr is the whole action
+// with its delimiters).
+func templateComment(expr string) bool {
+	return templateCommentRE.MatchString(expr) && strings.Count(expr, "*/") == 1
+}
+
+// boundedOutput returns why the output of an action that renders text may
+// reach column 0 or span lines ("" when it cannot): it must be a release or
+// chart name outside a with block (where the dot is another value), a field
+// reference piped to quote, or a pipeline that ends in indent or nindent.
+func boundedOutput(action string, inWith bool) string {
+	switch {
+	case indentedRE.MatchString(action), quotedRE.MatchString(action):
+		return ""
+	case releaseRefRE.MatchString(action) && !inWith:
+		return ""
+	}
+	return "a template expression whose output may span lines (only a release or chart name, a quoted field, or a pipeline ending in indent or nindent is read)"
+}
+
+// trimsNothing reports that the first line of rest that is not blank
+// starts at column 0: trimming the whitespace before it removes only line
+// breaks and blank lines.
+func trimsNothing(rest []string) bool {
+	for _, line := range rest {
+		if strings.TrimSpace(line) != "" {
+			return strings.TrimLeft(line, " \t\r\v\f") == line
+		}
+	}
+	return false
+}
+
+// readTemplate reads a templated file whose rendered definitions are
+// determined by its literal lines. It is checked line by line before it
+// is decoded:
+//   - a line that holds only one template directive is removed, and is
+//     accepted only as a template comment (anywhere), as the condition
+//     around the whole file (an if on the first line that is not blank or
+//     a comment, whose end is the last line that is not blank), or as an
+//     if, with, end, include or toYaml directive inside a top-level
+//     metadata block (from a metadata: line at column 0 to the next line
+//     at column 0 that is not blank or a comment). Every if and with in a
+//     metadata block ends inside it. An else, range, define, template or
+//     block, a variable assignment, and a directive anywhere else make the
+//     file unread;
+//   - a directive that trims the line break after it is accepted only on
+//     the last line, or on the first line that is not blank when the next
+//     line that is not blank starts at column 0 (nothing is joined and no
+//     indentation is lost), and an expression inside a line may not trim
+//     the line break before or after it: either joins two lines;
+//   - an expression inside a line is accepted only in a top-level metadata
+//     block or in the conversion block of a top-level spec, and is replaced
+//     by a placeholder; a key whose whole value is an expression followed
+//     by more indented lines (labels: {{- include ... | nindent 4 }})
+//     keeps its literal children, in metadata only;
+//   - an expression left open across lines makes the file unread;
+//   - every action is well formed (its text holds no "{{" or "}}"), a
+//     comment is one as the template lexer reads it, and an action that
+//     renders text is bounded (boundedOutput); a directive-only include or
+//     toYaml line must end in indent or nindent.
+//
+// The decoded documents are then walked: a placeholder in a document's
+// apiVersion or kind, in a definition's metadata.name, or anywhere in its
+// spec but spec.conversion makes the file unread. What is left must decode
+// as apiextensions.k8s.io/v1 definitions like any other file.
 func readTemplate(data []byte) *templateRead {
-	var kept []string
-	for _, line := range strings.Split(string(data), "\n") {
+	tr := &templateRead{kindTemplated: templatedKindRE.Match(data)}
+	refuse := func(why string) *templateRead {
+		tr.unread = templateUnread + why
+		tr.crds = nil
+		return tr
+	}
+	if len(data) > MaxFileBytes {
+		return refuse(fmt.Sprintf("the file is over the %d-byte bound", MaxFileBytes))
+	}
+	lines := strings.Split(string(data), "\n")
+	first, last := -1, -1
+	for i, line := range lines {
+		if strings.TrimSpace(line) != "" {
+			if first < 0 {
+				first = i
+			}
+			last = i
+		}
+	}
+	var kept []templateLine
+	// metaStarts and convStarts are the kept lines (1-based) that open a
+	// metadata or a spec.conversion block.
+	var metaStarts, convStarts []int
+	depth, metaDepth := 0, 0
+	wrapper, seen := false, false
+	// withs holds, for each open if or with, whether it is a with: inside
+	// one the dot is another value, so .Release is not the release.
+	var withs []bool
+	inMeta, inSpec, inConv := false, false, false
+	specIndent, convIndent := -1, 0
+	for i, line := range lines {
 		t := strings.TrimSpace(line)
-		if strings.HasPrefix(t, "{{") && strings.HasSuffix(t, "}}") && strings.Count(t, "{{") == 1 {
+		if strings.HasPrefix(t, "{{") && templateRE.FindString(t) == t {
+			if strings.Contains(t[2:], "{{") {
+				return refuse("a template action is not well formed")
+			}
+			action, after := templateAction(t)
+			if after && i != last && !(i == first && trimsNothing(lines[i+1:])) {
+				return refuse("a directive trims the line break after it")
+			}
+			if templateComment(t) {
+				continue
+			}
+			if assignRE.MatchString(action) {
+				return refuse("a template variable is assigned")
+			}
+			word := ""
+			if f := strings.Fields(action); len(f) > 0 {
+				word = f[0]
+			}
+			first := !seen
+			seen = true
+			switch {
+			case word == "if" && first && depth == 0:
+				wrapper, depth = true, 1
+				withs = append(withs, false)
+			case word == "end" && wrapper && depth == 1:
+				if i != last {
+					return refuse("the condition around the whole file ends before its last line")
+				}
+				if inMeta && metaDepth != depth {
+					return refuse("a condition in metadata does not end inside it")
+				}
+				inMeta, depth, withs = false, 0, nil
+			case !inMeta:
+				return refuse(directiveWord(word) + " directive outside metadata")
+			case word == "if" || word == "with":
+				depth++
+				withs = append(withs, word == "with")
+			case word == "end":
+				if depth <= metaDepth {
+					return refuse("an end in metadata closes a condition opened outside it")
+				}
+				depth--
+				withs = withs[:len(withs)-1]
+			case word == "include" || word == "toYaml":
+				if !indentedRE.MatchString(action) {
+					return refuse(directiveWord(word) + " directive whose output does not end in indent or nindent")
+				}
+			default:
+				return refuse(directiveWord(word) + " directive")
+			}
 			continue
 		}
-		kept = append(kept, line)
+		if t == "" {
+			kept = append(kept, templateLine{text: line, meta: inMeta})
+			continue
+		}
+		comment := strings.HasPrefix(t, "#")
+		if !comment {
+			seen = true
+			indent := indentOf(line)
+			switch {
+			case indent == 0:
+				if inMeta && depth != metaDepth {
+					return refuse("a condition in metadata does not end inside it")
+				}
+				inMeta, inSpec, inConv = false, false, false
+				switch strings.TrimRight(line, " \t\r") {
+				case "metadata:":
+					inMeta, metaDepth = true, depth
+					metaStarts = append(metaStarts, len(kept)+1)
+				case "spec:":
+					inSpec, specIndent = true, -1
+				}
+			case inSpec:
+				if specIndent < 0 {
+					specIndent = indent
+				}
+				if inConv && indent <= convIndent {
+					inConv = false
+				}
+				if indent == specIndent && strings.TrimRight(line, " \t\r") == strings.Repeat(" ", indent)+"conversion:" {
+					inConv, convIndent = true, indent
+					convStarts = append(convStarts, len(kept)+1)
+				}
+			}
+		}
+		if strings.Contains(line, "{{") {
+			if !inMeta && !inConv {
+				return refuse("a template expression outside metadata and spec.conversion")
+			}
+			if strings.HasPrefix(t, "{{-") || strings.HasSuffix(t, "-}}") {
+				return refuse("a template expression trims a line break")
+			}
+			// An action whose text holds "}}" ends early: the rest of it is
+			// left over.
+			if strings.Contains(templateRE.ReplaceAllString(line, ""), "}}") {
+				return refuse("a template action is not well formed")
+			}
+			for _, expr := range templateRE.FindAllString(line, -1) {
+				if strings.Contains(expr[2:], "{{") {
+					return refuse("a template action is not well formed")
+				}
+				if templateComment(expr) {
+					continue
+				}
+				action, _ := templateAction(expr)
+				word := ""
+				if f := strings.Fields(action); len(f) > 0 {
+					word = f[0]
+				}
+				switch {
+				case assignRE.MatchString(action):
+					return refuse("a template variable is assigned")
+				case slicesContains([]string{"if", "else", "end", "range", "with", "define", "template", "block", "break", "continue"}, word):
+					return refuse(directiveWord(word) + " directive inside a line")
+				case inConv && (strings.Contains(action, "indent") || strings.Contains(action, "toYaml")):
+					return refuse("a template expression in spec.conversion that may span lines")
+				}
+				if why := boundedOutput(action, slices.Contains(withs, true)); why != "" {
+					return refuse(why)
+				}
+			}
+		}
+		kept = append(kept, templateLine{text: line, meta: inMeta})
+	}
+	if inMeta && depth != metaDepth {
+		return refuse("a condition in metadata does not end inside it")
+	}
+	if depth != 0 {
+		return refuse("a condition does not end")
 	}
 	var b strings.Builder
-	for i, line := range kept {
+	for i, k := range kept {
+		line := k.text
 		// A key whose whole value is an expression followed by more
 		// indented lines (labels: {{- include ... | nindent 4 }}) keeps
 		// its literal children: the expression adds entries to them.
-		if m := valueExprRE.FindStringSubmatch(line); m != nil && i+1 < len(kept) && indentOf(kept[i+1]) > indentOf(line) && strings.TrimSpace(kept[i+1]) != "" {
+		if m := valueExprRE.FindStringSubmatch(line); m != nil && i+1 < len(kept) && indentOf(kept[i+1].text) > indentOf(line) && strings.TrimSpace(kept[i+1].text) != "" {
+			if !k.meta {
+				return refuse("a key outside metadata whose value is an expression has more lines under it")
+			}
 			line = m[1]
 		}
 		line = templateRE.ReplaceAllString(line, placeholder)
 		// A closing "}}" alone is text (a brace in a description); an
 		// opening "{{" left over starts an expression that spans lines.
 		if strings.Contains(line, "{{") {
-			return &templateRead{unread: "a template expression spans lines"}
+			return refuse("a template expression spans lines")
 		}
 		b.WriteString(line)
 		b.WriteByte('\n')
 	}
-	_, crds, err := parseFile(fileWord, []byte(b.String()))
+	text := []byte(b.String())
+	nodes, values, err := decodeStrict(text)
+	if err != nil {
+		return refuse("with them removed, the file is not decodable within the strict YAML subset")
+	}
+	if why := templatedFields(nodes, values, metaStarts, convStarts, tr); why != "" {
+		return refuse(why)
+	}
+	_, crds, err := parseFile(fileWord, text)
 	if err != nil {
 		msg := err.Error()
 		if pr, ok := asProblem(err); ok {
 			msg = pr.msg
 		}
-		return &templateRead{unread: "with template directives removed, " + msg}
+		return refuse("with them removed, " + msg)
 	}
 	for i := range crds {
 		crds[i].Path = ""
 	}
-	return &templateRead{crds: crds}
+	tr.crds = crds
+	return tr
+}
+
+// templatedFields checks the decoded documents of a templated file: every
+// line that opened a metadata or spec.conversion block is that key of a
+// document, no apiVersion or kind is a placeholder, and in a definition a
+// placeholder lies only in metadata (not its name) and spec.conversion.
+func templatedFields(nodes []*yaml.Node, values []any, metaStarts, convStarts []int, tr *templateRead) string {
+	metas, convs := map[int]bool{}, map[int]bool{}
+	for _, root := range nodes {
+		if key := keyNode(root, "metadata"); key != nil && key.Column == 1 {
+			metas[key.Line] = true
+		}
+		spec, _ := child(root, "spec")
+		if key := keyNode(spec, "conversion"); key != nil {
+			convs[key.Line] = true
+		}
+	}
+	for _, l := range metaStarts {
+		if !metas[l] {
+			return "a metadata line is not the metadata of a document"
+		}
+	}
+	for _, l := range convStarts {
+		if !convs[l] {
+			return "a conversion line is not the spec.conversion of a document"
+		}
+	}
+	for _, v := range values {
+		obj, ok := v.(map[string]any)
+		if !ok {
+			continue
+		}
+		if templated(obj["apiVersion"]) || templated(obj["kind"]) {
+			tr.kindTemplated = true
+			return "a document's apiVersion or kind is a template expression"
+		}
+		if kind, _ := obj["kind"].(string); kind != crdKind {
+			continue
+		}
+		for _, key := range sortedKeys(obj) {
+			val := obj[key]
+			switch {
+			case strings.Contains(key, placeholder):
+				return "a top-level key is a template expression"
+			case key == "metadata":
+				if meta, _ := val.(map[string]any); templated(meta["name"]) {
+					return "metadata.name is a template expression"
+				}
+			case key == "spec":
+				spec, ok := val.(map[string]any)
+				if !ok && templated(val) {
+					return "spec holds a template expression"
+				}
+				for _, sk := range sortedKeys(spec) {
+					if sk != "conversion" && (strings.Contains(sk, placeholder) || templated(spec[sk])) {
+						return "spec." + sk + " holds a template expression"
+					}
+				}
+			case templated(val):
+				return key + " holds a template expression"
+			}
+		}
+	}
+	return ""
+}
+
+// keyNode returns the key node of key in a mapping node.
+func keyNode(n *yaml.Node, key string) *yaml.Node {
+	_, k := child(n, key)
+	return k
+}
+
+// templated reports a placeholder anywhere in a decoded value.
+func templated(v any) bool {
+	switch t := v.(type) {
+	case string:
+		return strings.Contains(t, placeholder)
+	case map[string]any:
+		for k, c := range t {
+			if strings.Contains(k, placeholder) || templated(c) {
+				return true
+			}
+		}
+	case []any:
+		for _, c := range t {
+			if templated(c) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // remoteSource reports a kustomize resource or chart repository that lies
@@ -884,7 +1277,7 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 	case kindGo:
 		switch g := info.gzip; {
 		case info.goConstruct:
-			fd.Class, fd.Detail = ClassUnsupported, "Go code that constructs a CustomResourceDefinition: definitions built in code are not read"
+			fd.Class, fd.Detail = ClassGoDefined, "a CustomResourceDefinition built in Go code: its served versions are not read"
 		case g == nil:
 			return fd, false, nil
 		case g.unread != "":
@@ -910,9 +1303,15 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 	case isKust && info.kust != nil:
 		external = info.kust.remote
 	}
+	tpl := info.template
 	switch {
-	case info.unread != "" && f.at.copies && info.template != nil:
-		// A checked copy that is templated: read without its directives.
+	case info.unread != "" && tpl != nil && tpl.unread == "" && len(tpl.crds) > 0:
+		// A templated file whose definitions its literal lines determine:
+		// read without its directives.
+	case info.unread != "" && tpl != nil && tpl.unread != "" && (f.at.copies || info.kindLike || isChart || isKust || tpl.kindTemplated):
+		// A declared copy that cannot be read is never accepted.
+		fd.Class, fd.Detail = ClassUnread, tpl.unread
+		return placed(fd, f.at), true, nil
 	case info.unread != "" && info.legacy != nil:
 		// apiextensions.k8s.io/v1beta1 definitions, strictly read: they
 		// are compared with the inventory below.
@@ -942,17 +1341,14 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 		return placed(fd, f.at), true, nil
 	}
 	crds := info.crds
+	fromTemplate := false
 	switch {
 	case info.legacy != nil:
 		crds = info.legacy
 	case info.unread != "":
-		// Only a templated checked copy reaches here.
-		if info.template.unread != "" {
-			// A checked copy that cannot be read is never accepted.
-			fd.Class, fd.Detail = ClassUnread, info.template.unread
-			return placed(fd, f.at), true, nil
-		}
-		crds = info.template.crds
+		// Only a templated file read without its directives reaches here
+		// undecoded.
+		fromTemplate, crds = true, tpl.crds
 	}
 	if isKust && info.kust != nil && info.kust.open != "" && !info.embedded && underDefinitionDir(f.path, dirs) {
 		fd.Class, fd.Detail = ClassReference, info.kust.open
@@ -994,13 +1390,24 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 		return placed(fd, f.at), true, nil
 	}
 	fd = compareDefinitions(fd, crds, inv)
-	if info.legacy != nil {
-		switch fd.Class {
-		case ClassCopy:
-			fd.Class, fd.Detail = ClassLegacyCopy, "apiextensions.k8s.io/v1beta1 definitions with the versions and served flags of the listed paths"
-		case ClassConflict:
-			fd.Detail = "apiextensions.k8s.io/v1beta1 copy: " + fd.Detail
+	switch {
+	case fromTemplate && f.at.copies:
+		// A declared copy keeps its class: copy, or the conflict or extra
+		// definition the reviewer's claim does not hold for.
+	case fromTemplate && fd.Class == ClassCopy:
+		fd = namedCopy(fd, ClassTemplatedCopy, crds, "with its template directives removed (a condition around the whole file, directives in metadata) and its expressions in metadata and spec.conversion read as placeholders, a copy of the listed paths")
+	case fromTemplate:
+		// Nobody claims an unreviewed template is a copy: one that is not
+		// is never taken for a conflict or an extra definition.
+		what := "it defines a CustomResourceDefinition the listed paths do not hold"
+		if fd.Class == ClassConflict {
+			what = fd.Detail
 		}
+		fd.Class, fd.Detail = ClassUnread, "with template directives removed, it is not a copy of the listed paths: "+what
+	case info.legacy != nil && fd.Class == ClassCopy:
+		fd.Class, fd.Detail = ClassLegacyCopy, "apiextensions.k8s.io/v1beta1 definitions with the versions and served flags of the listed paths"
+	case info.legacy != nil && fd.Class == ClassConflict:
+		fd.Detail = "apiextensions.k8s.io/v1beta1 copy: " + fd.Detail
 	}
 	if f.at.copies && fd.Class == ClassExtra {
 		// The reviewer states these are copies: the claim is checked.
@@ -1019,14 +1426,9 @@ func compareDefinitions(fd Finding, crds []CRD, inv *Inventory) Finding {
 		}
 	}
 	fd.Class = ClassCopy
+	fd.CRDs, fd.Served = definitionsOf(crds)
 	for i := range crds {
 		c := &crds[i]
-		fd.CRDs = append(fd.CRDs, c.Name)
-		for _, v := range c.Versions {
-			if v.Served {
-				fd.Served = append(fd.Served, member(c.Group, v.Name, c.Kind))
-			}
-		}
 		known, ok := byName[c.Name]
 		switch {
 		case !ok:
@@ -1038,11 +1440,35 @@ func compareDefinitions(fd Finding, crds []CRD, inv *Inventory) Finding {
 			fd.Detail = fmt.Sprintf("%s: versions %s here, %s in %s", c.Name, servingString(c), servingString(known), known.Path)
 		}
 	}
-	sort.Strings(fd.CRDs)
-	sort.Strings(fd.Served)
 	if fd.Class == ClassCopy {
 		fd.CRDs, fd.Served = nil, nil
 	}
+	return fd
+}
+
+// definitionsOf returns the names of definitions and the members they
+// serve, sorted.
+func definitionsOf(crds []CRD) (names, served []string) {
+	for i := range crds {
+		c := &crds[i]
+		names = append(names, c.Name)
+		for _, v := range c.Versions {
+			if v.Served {
+				served = append(served, member(c.Group, v.Name, c.Kind))
+			}
+		}
+	}
+	sort.Strings(names)
+	sort.Strings(served)
+	return names, served
+}
+
+// namedCopy records a copy read in another form than a v1 manifest: a
+// finding of class that does not block, naming its definitions and the
+// members they serve.
+func namedCopy(fd Finding, class string, crds []CRD, detail string) Finding {
+	fd.Class, fd.Detail = class, detail
+	fd.CRDs, fd.Served = definitionsOf(crds)
 	return fd
 }
 
