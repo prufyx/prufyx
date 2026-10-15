@@ -220,7 +220,7 @@ func cmdRun(args []string, existing []string, now func() time.Time, stdout io.Wr
 		wants = &wantsReader{inner: src, missing: map[wantKey]bool{}, absent: map[string]bool{}, listed: map[string][]string{}}
 		reader = wants
 	}
-	out, err := extract.Run(ctx, ex, src, reader, extract.Options{Repo: repo, DerivedAt: at, Lease: time.Duration(leaseDays) * 24 * time.Hour, ExistingRules: existing})
+	out, err := Derive(ctx, ex, src, reader, extract.Options{Repo: repo, DerivedAt: at, Lease: time.Duration(leaseDays) * 24 * time.Hour, ExistingRules: existing})
 	if wants != nil && len(wants.missing) > 0 {
 		// Whatever the run did next, it read stand-in bytes for the
 		// missing files: nothing it derived is written.
@@ -272,7 +272,7 @@ func cmdVerify(args []string, existing []string, stdout io.Writer) (int, error) 
 	}
 	ctx, stop := signalContext()
 	defer stop()
-	problems, err := extract.Verify(ctx, ex, src, src, c.out, existing)
+	problems, err := VerifyRun(ctx, ex, src, src, c.out, existing)
 	if err != nil {
 		return 2, err
 	}

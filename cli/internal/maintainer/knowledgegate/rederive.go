@@ -138,24 +138,21 @@ func rederiveGroup(ctx context.Context, src Source, catalog map[string]extractcl
 		return nil, nil, fmt.Errorf("validUntil %q", k.validUntil)
 	}
 	ex := spec.New(concurrency)
-	out, err := extract.Run(ctx, ex, src, src, extract.Options{Repo: repo, DerivedAt: derived, Lease: until.Sub(derived)})
+	run, err := extractcli.Derive(ctx, ex, src, src, extract.Options{Repo: repo, DerivedAt: derived, Lease: until.Sub(derived)})
 	if err != nil {
 		return nil, nil, err
 	}
-	id := out.Manifest.Extractor
+	id := run.Manifest.Extractor
 	if id.ID != k.id || id.Version != k.version || id.CodeDigest != k.codeDigest {
 		return nil, nil, fmt.Errorf("the rule names extractor %s %s %s, this gate runs %s %s %s", k.id, k.version, k.codeDigest, id.ID, id.Version, id.CodeDigest)
 	}
-	entries := map[string][]byte{}
-	for _, e := range out.Entries {
-		raw, err := json.Marshal(e)
-		if err != nil {
-			return nil, nil, err
-		}
-		entries[e.Rule.ID] = raw
-	}
+	entries := run.Entries
 	attestations := map[string][]byte{}
-	for _, a := range out.Attestations {
+	var stamped []lineattest.LineAttestation
+	if run.Output != nil {
+		stamped = run.Output.Attestations
+	}
+	for _, a := range stamped {
 		raw, err := extract.Canonical(a)
 		if err != nil {
 			return nil, nil, err

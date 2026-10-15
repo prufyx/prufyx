@@ -80,6 +80,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   byte-identical and evaluate exactly as before. `rulecheck` admits a chart
   rule only from a mechanical extractor and only for a chart listed in the
   reviewed chart-source table. See `cli/docs/contributing-rules.md`.
+- Extractor framework, chart extractors (not used by any extractor yet): a new
+  package, `cli/internal/extract/chartrun`, runs extractors whose candidates
+  name a chart in the rule subject and may carry a `require_component_version`
+  dependency. It stamps, checks and writes runs exactly as the extractor
+  framework does (same manifest schema, files and reads logs) and generates
+  and engine-checks the vectors of chart `forbid_set_member`,
+  `require_set_member` and a proposed-side `gte` dependency bound (the blocked
+  vector's missing members are compared too). The framework's own files do
+  not change and no other extractor imports the package, so the code digests
+  of `k8s.feature-gate-removal`, `k8s.served-api-removal` and every
+  `crd.version-removal.*` id do not move. A chart extractor's code digest
+  covers the framework, `chartrun` and its own package.
 
 - KIND-VAL (maintainer tool, `cli/internal/tools/kindval` and
   `cli/scripts/kind-val.sh`): checks the Kubernetes knowledge against real
