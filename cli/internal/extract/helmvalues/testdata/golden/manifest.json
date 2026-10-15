@@ -36,7 +36,7 @@
   "extractor": {
     "codeDigest": "sha256:CODE",
     "id": "helm.values.keda.keda",
-    "version": "1.2.0"
+    "version": "1.3.0"
   },
   "outputs": {
     "candidates.json": "sha256:OUTPUT",
@@ -137,6 +137,24 @@
               }
             ]
           },
+          "rangeOutcome": "anchor-only: release v90.0.1 of line 90.0 does not read completely",
+          "ranges": [
+            {
+              "kind": "kube-version",
+              "outcome": "anchor-only: release v90.0.1 of line 90.0 does not read completely",
+              "pairsChecked": 0
+            },
+            {
+              "kind": "required-values",
+              "outcome": "anchor-only: release v90.0.1 of line 90.0 does not read completely",
+              "pairsChecked": 0
+            },
+            {
+              "kind": "removed-values",
+              "outcome": "anchor-only: release v90.0.1 of line 90.0 does not read completely",
+              "pairsChecked": 0
+            }
+          ],
           "to": {
             "line": "90.1",
             "releases": [
@@ -408,6 +426,24 @@
               }
             ]
           },
+          "rangeOutcome": "anchor-only: line 90.1 has a single final release",
+          "ranges": [
+            {
+              "kind": "kube-version",
+              "outcome": "no rule at the anchors",
+              "pairsChecked": 0
+            },
+            {
+              "kind": "required-values",
+              "outcome": "no rule at the anchors",
+              "pairsChecked": 0
+            },
+            {
+              "kind": "removed-values",
+              "outcome": "no rule at the anchors",
+              "pairsChecked": 0
+            }
+          ],
           "to": {
             "line": "90.2",
             "releases": [

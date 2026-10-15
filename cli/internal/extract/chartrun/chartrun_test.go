@@ -161,6 +161,7 @@ type toyExtractor struct {
 	cite     string
 	withhold bool
 	src      string
+	rng      *constraintengine.VersionRange
 }
 
 func (toyExtractor) ID() string                     { return "toy.chart" }
@@ -190,6 +191,10 @@ func (x toyExtractor) Extract(_ context.Context, r extract.PinnedReader, p extra
 			Subject:    Subject{Component: chartComponent, Chart: &chart, From: p.From, To: p.To},
 			ReasonCode: "EXAMPLE_CHART", NextAction: "set the listed values"},
 		Sources: []extract.SourceRef{{ID: "toy-values", Repo: p.Repo, Commit: p.ToCommit, Path: cite}},
+	}
+	if x.rng != nil {
+		rng := *x.rng
+		c.Rule.Range = &rng
 	}
 	switch x.op {
 	case dependencyOperator:
@@ -483,5 +488,58 @@ func TestDependencySourcesAreInTheCodeDigest(t *testing.T) {
 	dup := dupDependency{withDependency{x, fstest.MapFS{"toy.go": {Data: []byte("package toy\n")}}}}
 	if _, err := run(dup); err == nil {
 		t.Fatal("a file listed twice accepted")
+	}
+}
+
+// toyRange is a range over the toy chart's lines 1.0 and 2.0, every bound
+// citing the toy's source.
+func toyRange(fromGte string, bases ...string) *constraintengine.VersionRange {
+	names := []string{"from.gte", "from.lt", "to.gte", "to.lt"}
+	r := &constraintengine.VersionRange{From: constraintengine.VersionBound{Gte: fromGte, Lt: "1.1.0"}, To: constraintengine.VersionBound{Gte: "2.0.0", Lt: "2.1.0"}}
+	for i, b := range bases {
+		r.Bounds = append(r.Bounds, constraintengine.RangeBound{Bound: names[i], Basis: b, SourceID: "toy-values"})
+	}
+	return r
+}
+
+// A ranged chart rule is stamped with its range, its vectors agree with the
+// engine, and a range outside the chart-range shapes or with anchors that
+// are not the first releases of both lines refuses the run.
+func TestRunStampsRangedChartRules(t *testing.T) {
+	root := toyFixture(t)
+	whole := []string{"UPGRADE_FROM_SERIES", "UPGRADE_FROM_SERIES", "TARGET_SERIES", "TARGET_SERIES"}
+	for _, op := range []string{constraintengine.OperatorRequireSetMember, constraintengine.OperatorForbidSetMember, dependencyOperator} {
+		out, err := runToy(t, toyExtractor{op: op, rng: toyRange("1.0.0", whole...)}, root)
+		if err != nil {
+			t.Fatalf("%s: %v", op, err)
+		}
+		r := out.Entries[0].Rule.Range
+		if r == nil || r.From.Gte != "1.0.0" || r.To.Lt != "2.1.0" || len(r.Bounds) != 4 {
+			t.Fatalf("%s: range %+v", op, r)
+		}
+		if err := CheckVectors(out.Entries, out.Vectors, toyTime); err != nil {
+			t.Fatalf("%s: %v", op, err)
+		}
+		raw, err := json.Marshal(out.Entries[0].Rule)
+		if err != nil || !strings.Contains(string(raw), `"range":{`) {
+			t.Fatalf("%s: rule %s", op, raw)
+		}
+	}
+	// Anchor-only rules carry no range key.
+	out, err := runToy(t, toyExtractor{op: constraintengine.OperatorRequireSetMember}, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if raw, _ := json.Marshal(out.Entries[0].Rule); strings.Contains(string(raw), `"range"`) {
+		t.Fatalf("anchor-only rule %s", raw)
+	}
+	for name, x := range map[string]toyExtractor{
+		"consecutive shape over lines that are not consecutive": {op: constraintengine.OperatorRequireSetMember, rng: toyRange("1.0.0", "PREVIOUS_MINOR_LINE", "CHANGED_IN_RELEASE", "CHANGED_IN_RELEASE", "TARGET_SERIES")},
+		"anchor is not the first release of its line":           {op: constraintengine.OperatorRequireSetMember, rng: toyRange("0.9.0", whole...)},
+		"too few bounds": {op: constraintengine.OperatorForbidSetMember, rng: toyRange("1.0.0", whole[:3]...)},
+	} {
+		if _, err := runToy(t, x, root); err == nil || !strings.Contains(err.Error(), "rulecheck rejected") {
+			t.Fatalf("%s: %v", name, err)
+		}
 	}
 }

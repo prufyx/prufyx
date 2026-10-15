@@ -293,7 +293,7 @@ func validScopeBlock(scope *ScopeCompleteness, claims []Claim, engineDigest stri
 	if !validScopeCharts(scope) {
 		return false
 	}
-	severityScope := scope.ContractDigest == scopeContractDigestSeverity() || scope.ContractDigest == scopeContractDigestCrossing() || scope.ContractDigest == scopeContractDigestChart() || scope.ContractDigest == scopeContractDigestChartNotice()
+	severityScope := scope.ContractDigest == scopeContractDigestSeverity() || scope.ContractDigest == scopeContractDigestCrossing() || scope.ContractDigest == scopeContractDigestChart() || scope.ContractDigest == scopeContractDigestChartNotice() || scope.ContractDigest == scopeContractDigestChartRanged()
 	basisScope := scope.ContractDigest == scopeContractDigestBasis() || severityScope
 	statuses, reasons := make(map[string]string, len(claims)), make(map[string]string, len(claims))
 	for _, claim := range claims {

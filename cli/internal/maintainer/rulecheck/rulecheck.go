@@ -1046,9 +1046,30 @@ func setNoticeProblems(body ruleBody) []string {
 	return problems
 }
 
+// chartRangeProblems checks the range of a chart rule: one of the three
+// operators a chart derivation produces, one of the two release-line shapes
+// (consecutive lines: PREVIOUS_MINOR_LINE, CHANGED_IN_RELEASE or
+// REMOVED_IN_RELEASE twice, TARGET_SERIES; any other two lines: each whole
+// line, UPGRADE_FROM_SERIES twice, TARGET_SERIES twice), and anchors that
+// are the first releases of both lines, since the derivation names its
+// anchors that way. Only the maintainers' derivation tooling (AllowRange)
+// produces one; a set notice never carries a range (setNoticeProblems). The
+// engine's ParseRuleSet applies the other range guards.
+func chartRangeProblems(body ruleBody) []string {
+	var problems []string
+	if !constraintengine.ValidChartRangeShape(body.Operator, *body.Range) {
+		problems = append(problems, "a chart rule's rule.range must be require_component_version, require_set_member or forbid_set_member with the consecutive-line shape (PREVIOUS_MINOR_LINE, CHANGED_IN_RELEASE or REMOVED_IN_RELEASE on from.lt and to.gte, TARGET_SERIES) or, for lines that are not consecutive, the whole-line shape (UPGRADE_FROM_SERIES twice, TARGET_SERIES twice)")
+	}
+	if !constraintengine.SameVersion(body.Subject.From, body.Range.From.Gte) || !constraintengine.SameVersion(body.Subject.To, body.Range.To.Gte) {
+		problems = append(problems, fmt.Sprintf("a ranged chart rule's anchors must be the first releases of its two lines: rule.subject.from %q must equal range.from.gte %q and rule.subject.to %q must equal range.to.gte %q", body.Subject.From, body.Range.From.Gte, body.Subject.To, body.Range.To.Gte))
+	}
+	return problems
+}
+
 // chartProblems checks a chart rule, a require_set_member rule and a set
-// notice: the chart identity is in normal form; a chart rule is anchor-only,
-// carries no severity and never requires its own component's version;
+// notice: the chart identity is in normal form; a chart rule carries no
+// crossing and no severity, never requires its own component's version, and
+// carries a range only as chartRangeProblems allows;
 // require_set_member reads only a values-path set fact; a set notice passes
 // setNoticeProblems; and the chart has an active reviewed chart-source row
 // whose component is the rule's. A community contribution may not carry any
@@ -1074,8 +1095,11 @@ func chartProblems(body ruleBody, opts Options) []string {
 		} else if !strings.HasSuffix(body.SetCondition.FactID, valuesPathsSetSuffix) {
 			problems = append(problems, fmt.Sprintf("require_set_member may only read a values-path set fact (id ending %q), got %q", valuesPathsSetSuffix, body.SetCondition.FactID))
 		}
-		if body.Range != nil || body.Crossing != nil {
-			problems = append(problems, "require_set_member cannot carry a range or a crossing")
+		if body.Crossing != nil {
+			problems = append(problems, "require_set_member cannot carry a crossing")
+		}
+		if body.Range != nil && chart == nil {
+			problems = append(problems, "require_set_member cannot carry a range without rule.subject.chart: only a ranged chart rule may")
 		}
 	}
 	if chart == nil {
@@ -1084,8 +1108,11 @@ func chartProblems(body ruleBody, opts Options) []string {
 	if !constraintengine.ValidChartRef(*chart) {
 		problems = append(problems, fmt.Sprintf("rule.subject.chart {source %q, name %q} must be a normalised https or oci repository URL (chartidentity.NormalizeRepoURL) and a chart name matching ^[a-z0-9][a-z0-9._-]{0,127}$", chart.Source, chart.Name))
 	}
-	if body.Range != nil || body.Crossing != nil {
-		problems = append(problems, "a chart rule is anchor-only: rule.range and rule.crossing are not accepted")
+	if body.Crossing != nil {
+		problems = append(problems, "a chart rule never carries rule.crossing")
+	}
+	if body.Range != nil {
+		problems = append(problems, chartRangeProblems(body)...)
 	}
 	if body.Severity != "" || body.Dependency != nil && body.Dependency.Component == body.Subject.Component {
 		problems = append(problems, "a chart rule cannot carry a severity or require its own component's version: its versions are chart versions")

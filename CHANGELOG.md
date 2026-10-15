@@ -153,6 +153,50 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   (absent), and a set notice carries no `appliesWhen`. See
   `cli/docs/contributing-rules.md`.
 
+- Ranged chart rules (no shipped rule uses them yet): a chart rule may carry a
+  `range` that widens it from its anchor pair to every release of two chart
+  release lines, in one of two shapes only. Between consecutive lines of one
+  major the range pins the later line's first release as a boundary
+  (`PREVIOUS_MINOR_LINE`, `CHANGED_IN_RELEASE` or `REMOVED_IN_RELEASE`,
+  `TARGET_SERIES`), so a hop that crosses it from outside the range is
+  UNKNOWN with `RULE_RELEASE_BOUNDARY_NOT_REVIEWED`, never not applicable;
+  between any other two lines each side is one whole line
+  (`UPGRADE_FROM_SERIES`, `TARGET_SERIES`). Any other basis, a range on an
+  operator other than `require_component_version`, `require_set_member` or
+  `forbid_set_member`, a crossing and a severity are refused on a chart rule;
+  set notices stay anchor-only. A hop matched through the range discloses it
+  in `subjectMatch` and never makes the declared scope complete; a report
+  seals that disclosure on a chart-rule claim only under the new contract. Documents
+  with such a rule use rules schema
+  `prufyx.io/deterministic-constraint-rules/v1alpha10` (scope contract
+  `scope-completeness-contract-v9`) and pack schema
+  `prufyx.io/cncf-source-rule-pack/v1alpha15`; a chart rule with a range under
+  `v1alpha8` or `v1alpha9` is refused, and documents without one keep their
+  schema, digests and replay bytes. `rulecheck` admits a ranged chart rule
+  only from a mechanical extractor, in one of the two shapes, with each anchor
+  the first release of its line. See `cli/docs/contributing-rules.md`.
+- Maintainer extractor `helm.values` 1.3.0 ranges a Kubernetes minimum, newly
+  required values or keys the schema no longer admits rule over both release
+  lines of its pair when the same derivation, run on every final release of
+  the earlier line against every final release of the later one, gives the
+  same rule as the anchors, every release reads, each line has more than one
+  final release, each anchor is the first release of its line and no tag
+  outside the tag scheme (another prefix, a part over four digits, a tag
+  without a commit) names a version of either line. Otherwise the rule stays
+  anchor-only, as do all notices. The range covers every version of both
+  lines, including releases without a matching tag and later patches; the
+  proof covers only the tagged final releases it lists. The proof records the
+  pair's range outcome and, per rule kind, the outcome, the number of release
+  pairs checked and the first pair whose rule differs. A ranged rule's next
+  action names the later line (`2.16.x`). The chart extractor runner
+  (`internal/extract/chartrun`) carries a chart rule's range into the entry
+  (`rule.range`) and leaves the decision to `rulecheck` and the engine: a
+  range outside the chart-range shapes, or whose anchors are not the first
+  releases of both lines, refuses the run. Only `helm.values` and `chartrun`
+  source changed, so the code digest of every `helm.values.*` extractor
+  changes and its earlier outputs must be derived again; no other
+  extractor's code digest changes. See `cli/docs/extractors/helm.values.md`.
+
 - KIND-VAL (maintainer tool, `cli/internal/tools/kindval` and
   `cli/scripts/kind-val.sh`): checks the Kubernetes knowledge against real
   API servers in kind clusters, one per release line: the served APIs

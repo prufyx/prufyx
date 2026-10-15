@@ -73,7 +73,7 @@ func TestRulecheckChartGate(t *testing.T) {
 		}, maintainer, "values-path set fact"},
 		"chart rule with a range": {func(e map[string]any) {
 			rule(e)["range"] = map[string]any{"from": map[string]any{"gte": "1.16.0", "lt": "1.17.0"}, "to": map[string]any{"gte": "1.17.0", "lt": "1.18.0"}, "bounds": []any{}}
-		}, maintainer, "anchor-only"},
+		}, maintainer, "consecutive-line shape"},
 		"require with a range and no chart": {func(e map[string]any) {
 			delete(rule(e)["subject"].(map[string]any), "chart")
 			rule(e)["range"] = map[string]any{"from": map[string]any{"gte": "1.16.0", "lt": "1.17.0"}, "to": map[string]any{"gte": "1.17.0", "lt": "1.18.0"}, "bounds": []any{}}

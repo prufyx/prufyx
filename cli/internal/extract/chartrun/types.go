@@ -83,6 +83,12 @@ type Rule struct {
 	Operator     string
 	Subject      Subject
 	SetCondition *extract.SetCondition
+	// Range widens the anchor transition to the release lines the
+	// derivation proved the rule for (a ranged chart rule). It is nil for an
+	// anchor-only rule. rulecheck accepts it only in the chart-range shapes
+	// (constraintengine.ValidChartRangeShape) with the anchors as the first
+	// releases of both lines; anything else refuses the run.
+	Range *constraintengine.VersionRange
 	// Dependency is used by require_component_version rules: the version
 	// bound another component must meet.
 	Dependency *Dependency
@@ -118,14 +124,15 @@ type Entry struct {
 
 // RuleJSON is the full rule as the engine parses it.
 type RuleJSON struct {
-	ID           string                `json:"id"`
-	Operator     string                `json:"operator"`
-	Subject      Subject               `json:"subject"`
-	SetCondition *extract.SetCondition `json:"setCondition,omitempty"`
-	Dependency   *Dependency           `json:"dependency,omitempty"`
-	Evidence     extract.Evidence      `json:"evidence"`
-	ReasonCode   string                `json:"reasonCode"`
-	NextAction   string                `json:"nextAction"`
+	ID           string                         `json:"id"`
+	Operator     string                         `json:"operator"`
+	Subject      Subject                        `json:"subject"`
+	SetCondition *extract.SetCondition          `json:"setCondition,omitempty"`
+	Range        *constraintengine.VersionRange `json:"range,omitempty"`
+	Dependency   *Dependency                    `json:"dependency,omitempty"`
+	Evidence     extract.Evidence               `json:"evidence"`
+	ReasonCode   string                         `json:"reasonCode"`
+	NextAction   string                         `json:"nextAction"`
 }
 
 // Vector is one generated test vector: an engine input for the rule's

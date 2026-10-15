@@ -228,9 +228,10 @@ func scopeContractDigestChartNotice() string {
 func ScopeContractDigestChartNotice() string { return scopeContractDigestChartNotice() }
 
 // atLeastChartContract reports a digest that admits every feature of the
-// chart contract: the chart contract itself or the chart notice one.
+// chart contract: the chart contract itself, the chart notice one or the
+// ranged chart one.
 func atLeastChartContract(digest string) bool {
-	return digest == engineContractDigestChart() || digest == engineContractDigestChartNotice()
+	return digest == engineContractDigestChart() || digest == engineContractDigestChartNotice() || digest == engineContractDigestChartRanged()
 }
 
 // validNoticeSetClaims binds the set notice semantics to the chart notice
@@ -242,7 +243,7 @@ func atLeastChartContract(digest string) bool {
 // present operator, absent ones for the absent operator); any other set
 // notice claim discloses none.
 func validNoticeSetClaims(report Report) bool {
-	noticeContract := report.EngineContractDigest == engineContractDigestChartNotice()
+	noticeContract := report.EngineContractDigest == engineContractDigestChartNotice() || report.EngineContractDigest == engineContractDigestChartRanged()
 	for _, claim := range report.Claims {
 		setNotice := IsSetNoticeOperator(claim.Operator)
 		if claim.ReasonCode == ReasonNoticeNotApplicable && (!setNotice || claim.Status != "UNKNOWN") {

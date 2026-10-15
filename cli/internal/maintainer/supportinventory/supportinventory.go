@@ -585,6 +585,7 @@ var cncfPackLevels = []packLevel{
 	{"prufyx.io/cncf-source-rule-pack/v1alpha12", anyCommunityCatalogEntry},
 	{"prufyx.io/cncf-source-rule-pack/v1alpha13", anyRule(constraintengine.AnyChartRule)},
 	{"prufyx.io/cncf-source-rule-pack/v1alpha14", anyRule(constraintengine.AnyChartNoticeRule)},
+	{"prufyx.io/cncf-source-rule-pack/v1alpha15", anyRule(constraintengine.AnyChartRangedRule)},
 }
 
 // anyCommunityCatalogEntry is the loader's test for a pack holding an entry

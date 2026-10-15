@@ -176,3 +176,58 @@ func TestExternalRefusesSetNotices(t *testing.T) {
 		t.Fatalf("validateExternalPack admitted a set notice: %v", err)
 	}
 }
+
+// syntheticRangedChartEntry is a test-only chart rule over a registered set
+// fact, widened to every release of two consecutive chart lines. It is
+// never published.
+func syntheticRangedChartEntry(t *testing.T) Entry {
+	t.Helper()
+	entry := syntheticSetEntry(t)
+	var rule map[string]any
+	if err := json.Unmarshal(entry.Rule, &rule); err != nil {
+		t.Fatal(err)
+	}
+	rule["id"] = "synthetic-ranged-chart-rule"
+	rule["subject"].(map[string]any)["chart"] = map[string]any{"source": "https://charts.example.io", "name": "kubernetes"}
+	bound := func(name, basis string) map[string]any {
+		return map[string]any{"bound": name, "basis": basis, "sourceId": "synthetic-gate-declaration"}
+	}
+	rule["range"] = map[string]any{
+		"from": map[string]any{"gte": "1.36.0", "lt": "1.37.0"}, "to": map[string]any{"gte": "1.37.0", "lt": "1.38.0"},
+		"bounds": []any{bound("from.gte", constraintengine.BasisPreviousMinorLine), bound("from.lt", constraintengine.BasisRemovedInRelease), bound("to.gte", constraintengine.BasisRemovedInRelease), bound("to.lt", constraintengine.BasisTargetSeries)},
+	}
+	raw, err := json.Marshal(rule)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry.Rule = raw
+	return entry
+}
+
+// TestPackChartRangedLevel: a pack holding a ranged chart rule carries
+// exactly the ranged chart level, every lower level refuses it, and the
+// level is never used without one.
+func TestPackChartRangedLevel(t *testing.T) {
+	entry := syntheticRangedChartEntry(t)
+	if _, err := assembleSynthetic(syntheticPack(t, packSchemaChartRanged, nil, entry), nil); err != nil {
+		t.Fatalf("ranged chart pack under the ranged chart level refused: %v", err)
+	}
+	// With a set notice beside it, the level is still the ranged chart one.
+	if _, err := assembleSynthetic(syntheticPack(t, packSchemaChartRanged, nil, entry, syntheticSetNoticeEntry(t, constraintengine.OperatorNoticeSetMemberPresent)), nil); err != nil {
+		t.Fatalf("ranged chart pack with a set notice refused: %v", err)
+	}
+	for _, schema := range []string{packSchema, packSchemaRanged, packSchemaSet, packSchemaAttested, packSchemaPathPolicies, packSchemaNotice, packSchemaBasis, packSchemaSeverity, packSchemaDistributions, packSchemaServedAPIs, packSchemaCrossing, packSchemaCommunity, packSchemaChart, packSchemaChartNotice} {
+		if _, err := assembleSynthetic(syntheticPack(t, schema, nil, entry), nil); !errors.Is(err, ErrIntegrity) {
+			t.Fatalf("ranged chart pack under %s accepted: %v", schema, err)
+		}
+	}
+	for name, entries := range map[string][]Entry{
+		"anchor-only chart rule": {syntheticChartEntry(t)},
+		"set notice":             {syntheticSetNoticeEntry(t, constraintengine.OperatorNoticeSetMemberPresent)},
+		"published pack":         nil,
+	} {
+		if _, err := assembleSynthetic(syntheticPack(t, packSchemaChartRanged, nil, entries...), nil); !errors.Is(err, ErrIntegrity) {
+			t.Fatalf("ranged chart level with only a %s accepted", name)
+		}
+	}
+}

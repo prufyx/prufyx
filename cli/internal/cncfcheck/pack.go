@@ -334,6 +334,9 @@ const (
 	// packSchemaChartNotice is the level of a pack holding a set notice
 	// (notice_set_member_present or notice_set_member_absent).
 	packSchemaChartNotice = "prufyx.io/cncf-source-rule-pack/v1alpha14"
+	// packSchemaChartRanged is the level of a pack holding a chart rule
+	// with a range over two chart release lines.
+	packSchemaChartRanged = "prufyx.io/cncf-source-rule-pack/v1alpha15"
 )
 
 // packFeature is one pack feature and the schema that introduced it.
@@ -368,6 +371,9 @@ var packFeatureLevels = []packFeature{
 	}},
 	{packSchemaChartNotice, func(_ rulePack, rules []json.RawMessage) (bool, error) {
 		return constraintengine.AnyChartNoticeRule(rules)
+	}},
+	{packSchemaChartRanged, func(_ rulePack, rules []json.RawMessage) (bool, error) {
+		return constraintengine.AnyChartRangedRule(rules)
 	}},
 }
 

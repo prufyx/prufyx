@@ -30,11 +30,12 @@ import (
 //     version is not evidence that nothing changed. The same holds for a
 //     require_component_version dependency that names a chart component.
 //
-// Chart rules are anchor-only (no range, no crossing: those carry Kubernetes
-// release-line semantics nobody reviewed for chart versioning) and carry no
-// severity. A chart rule may require a version of another component (the
-// Kubernetes version a chart's kubeVersion constraint names), never of its
-// own component, whose declared version is the chart version.
+// Chart rules carry no crossing and no severity. Under RulesSchemaChart they
+// are anchor-only; a range over two chart release lines needs
+// RulesSchemaChartRanged and one of its two line shapes (chart_range.go). A
+// chart rule may require a version of another component (the Kubernetes
+// version a chart's kubeVersion constraint names), never of its own
+// component, whose declared version is the chart version.
 //
 // require_set_member is the negative of forbid_set_member: it requires
 // members in a declared set fact. It is PASS only when the set is declared
@@ -169,8 +170,16 @@ func validateChartRule(r rule, registry Registry) error {
 		if !ValidChartRef(*chart) {
 			return fmt.Errorf("subject chart identity: %w", ErrInvalid)
 		}
-		if r.Range != nil || r.Crossing != nil {
-			return fmt.Errorf("a chart rule is anchor-only: %w", ErrInvalid)
+		if r.Crossing != nil {
+			return fmt.Errorf("a chart rule never carries a crossing: %w", ErrInvalid)
+		}
+		// A range is admitted only in the release-line shapes
+		// (chart_range.go); the schema check in ParseRuleSet admits it only
+		// under RulesSchemaChartRanged.
+		if r.Range != nil {
+			if err := validateChartRange(r); err != nil {
+				return err
+			}
 		}
 		if r.Severity != "" || r.Dependency != nil && r.Dependency.Component == r.Subject.Component {
 			return fmt.Errorf("a chart rule cannot carry a severity or require its own component's version: %w", ErrInvalid)
@@ -179,7 +188,9 @@ func validateChartRule(r rule, registry Registry) error {
 	if r.Operator != OperatorRequireSetMember {
 		return nil
 	}
-	if r.SetCondition == nil || r.Condition != nil || r.Dependency != nil || r.Intermediate != "" || r.Range != nil || r.Crossing != nil || r.Severity != "" {
+	// A range on require_set_member is a ranged chart rule, checked above;
+	// without a chart subject it is refused.
+	if r.SetCondition == nil || r.Condition != nil || r.Dependency != nil || r.Intermediate != "" || r.Range != nil && r.Subject.Chart == nil || r.Crossing != nil || r.Severity != "" {
 		return fmt.Errorf("require set member structure: %w", ErrInvalid)
 	}
 	return validateSetCondition(*r.SetCondition, registry)
@@ -364,10 +375,31 @@ func atLeastCrossingContract(digest string) bool {
 // chart reason codes and the missing-member disclosure appear only under it;
 // the chart reasons only on an UNKNOWN claim without a match disclosure; a
 // require_set_member claim is legal only under it, carries missing members
-// exactly when it is BLOCKED, and never carries matched members.
+// exactly when it is BLOCKED, and never carries matched members. A range
+// disclosure on a chart-rule claim is legal only under the ranged chart
+// contract: a require_set_member claim is always a chart-rule claim, and any
+// other claim is one when the scope block lists its rule under a chart hop.
 func validChartClaims(report Report) bool {
 	chartContract := atLeastChartContract(report.EngineContractDigest)
+	ranged := report.EngineContractDigest == engineContractDigestChartRanged()
+	chartRules := map[string]bool{}
+	if scope := report.ScopeCompleteness; scope != nil {
+		for _, component := range scope.Components {
+			if component.Chart == nil {
+				continue
+			}
+			for _, id := range component.EvaluatedRuleIDs {
+				chartRules[id] = true
+			}
+			for _, skipped := range component.NotEvaluated {
+				chartRules[skipped.RuleID] = true
+			}
+		}
+	}
 	for _, claim := range report.Claims {
+		if claim.SubjectMatch != nil && !ranged && (claim.Operator == OperatorRequireSetMember || chartRules[claim.RuleID]) {
+			return false
+		}
 		if claim.ReasonCode == ReasonSubjectChartNotDeclared || claim.ReasonCode == ReasonAppVersionNotDeclared {
 			if !chartContract || claim.Status != "UNKNOWN" || claim.SubjectMatch != nil || claim.CrossingMatch != nil {
 				return false
@@ -382,7 +414,8 @@ func validChartClaims(report Report) bool {
 			}
 			continue
 		}
-		if !chartContract || claim.MatchedMembers != nil || claim.CrossingMatch != nil || claim.SubjectMatch != nil {
+		// validClaimMatches binds the structure of a range disclosure.
+		if !chartContract || claim.MatchedMembers != nil || claim.CrossingMatch != nil {
 			return false
 		}
 		if claim.Status == "BLOCKED" {
@@ -399,7 +432,7 @@ func validChartClaims(report Report) bool {
 // validScopeCharts binds a scope block's chart identities and chart reasons
 // to the chart scope contract.
 func validScopeCharts(scope *ScopeCompleteness) bool {
-	chartScope := scope.ContractDigest == scopeContractDigestChart() || scope.ContractDigest == scopeContractDigestChartNotice()
+	chartScope := scope.ContractDigest == scopeContractDigestChart() || scope.ContractDigest == scopeContractDigestChartNotice() || scope.ContractDigest == scopeContractDigestChartRanged()
 	for _, component := range scope.Components {
 		if component.Chart != nil && (!chartScope || !ValidChartRef(*component.Chart)) {
 			return false

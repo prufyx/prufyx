@@ -1,6 +1,6 @@
 # Extractor `helm.values`
 
-Version 1.2.0. Compares a Helm chart's source at the first release of two
+Version 1.3.0. Compares a Helm chart's source at the first release of two
 consecutive release lines and derives rules only for the upgrades Helm itself
 refuses, plus two verdict-neutral notices (see [Notices](#notices)). It is deterministic, reads only upstream source pinned by full commit
 SHA, and involves no model.
@@ -43,16 +43,19 @@ every pair of theirs is withheld today (see below).
 A **line** is one `major.minor` with at least one final release tag
 (`<prefix>X.Y.Z`; pre-releases never count). A **pair** is two consecutive
 lines in version order, starting from the line in the table, named by the
-first final release of each line (its **anchor**). Rules are anchor-only chart
-rules: the subject is the chart (`subject.chart`), from the earlier anchor's
-chart version to the later one's, and nothing else matches them.
+first final release of each line (its **anchor**). A rule is a chart rule:
+the subject is the chart (`subject.chart`), from the earlier anchor's chart
+version to the later one's. It also covers every other release of both lines
+only when the extractor checked that each of them gives the same rule (see
+[Ranges](#ranges)); otherwise it is anchor-only and nothing but the anchor pair
+matches it.
 
 At each anchor the extractor reads the chart directory: `Chart.yaml`,
 `values.yaml`, `values.schema.json` when present, `requirements.yaml` when
 present, the `Chart.yaml` of each vendored subchart under `charts/`, and every
 file under `templates/`. The other final releases of both lines are read too
 (without templates) and recorded in the proof; a release there that does not
-read is recorded and never withholds the pair.
+read never withholds the pair, it keeps the pair's rules anchor-only.
 
 The pair is **withheld** (no rule; the manifest says why) when, at either
 anchor, the chart directory or `Chart.yaml` or `values.yaml` is missing;
@@ -163,7 +166,9 @@ same member.
   as defaulted (class `null-default`).
 - A required key under a mapping that defaults to `{}`. Helm refuses such an
   upgrade too, but no rule is derived for it (class `empty-ancestor`).
-- Anything about patch releases or other transitions than the anchor pair.
+- Anything about a transition other than the anchor pair, unless the rule
+  carries a range; then only about upgrades between the two lines it names
+  (see [Ranges](#ranges)).
 - That an upgrade is safe: a PASS from these rules only says that the
   supplied values meet these particular checks.
 
@@ -243,6 +248,67 @@ or that a value supplied as `null`, or a scalar supplied where the chart
 defaults a mapping, keeps the chart's default. Each notice lists at most 64
 keys; over that, its keys are recorded as `over-bound`.
 
+## Ranges
+
+A Kubernetes minimum, newly required values or keys the schema no longer
+admits rule covers every upgrade from a release of the earlier line to a
+release of the later line (a `range` on the rule) when all of this holds:
+
+- each line has at least two final releases, and at most 64;
+- every final release of both lines reads completely (as for an anchor, see
+  above);
+- each anchor is the first release `M.m.0` of its line;
+- no other tag names a final version of either line: a tag with another
+  prefix, a version part longer than four digits or with a leading zero, or
+  a tag that does not name a commit keeps the rules anchor-only (a tag with a
+  pre-release or build suffix is ignored, as everywhere in this extractor);
+- the same derivation, run on every final release of the earlier line
+  against every final release of the later line, gives the same rule as the
+  anchors: the same operator, the same listed keys, the same Kubernetes
+  minimum, and no rule where the anchors derive none. A later release whose
+  schema requires one more key, or an earlier release whose `kubeVersion`
+  already reaches the later minimum, keeps the rule anchor-only.
+
+Otherwise the rule is anchor-only, with the reason in the proof. Notices are
+always anchor-only.
+
+The range has one of two shapes:
+
+- **Consecutive lines** of one major (for example 2.15 and 2.16): from
+  `[2.15.0, 2.16.0)` to `[2.16.0, 2.17.0)`, with the bases
+  `PREVIOUS_MINOR_LINE`, `CHANGED_IN_RELEASE` (`REMOVED_IN_RELEASE` for keys
+  the schema no longer admits) on both sides of the boundary, and
+  `TARGET_SERIES`. The later line's first release is the boundary: an upgrade
+  that crosses it from outside the range, such as 2.14.3 to 2.16.0, is not
+  covered and is reported as `RULE_RELEASE_BOUNDARY_NOT_REVIEWED` (UNKNOWN),
+  never as not applicable.
+- **Any other two lines** (a new major, or a minor line without a final
+  release between them): each side is one whole line, with the bases
+  `UPGRADE_FROM_SERIES` and `TARGET_SERIES`. No boundary is known, so an
+  upgrade from outside the earlier line is outside the rule.
+
+The bounds cite the rule's own sources: the earlier bounds its first source
+at the earlier anchor, the later bounds its first source at the later anchor
+(the later one for all four when the rule cites nothing at the earlier
+anchor). The rule's subject stays the anchor pair; its description names the
+number of tagged final releases checked on each line and says that the range
+also applies to other patches of those lines, and its next action names the
+later line (`2.16.x`). A verdict reached through the range says so in the
+report (`subjectMatch`), and an upgrade covered only through a range never
+makes the declared scope complete.
+
+What a range covers is wider than what its proof read. The range covers every
+version of both lines, including a chart version published without a tag the
+release index matches (a commit that was never tagged, or a tag the checks
+above cannot see) and a patch release of either line published after the
+derivation. The proof covers only the tagged final releases it lists (`lines`
+in the pair proof). The rule's validity window bounds that difference until
+the rule is derived again.
+
+A ranged chart rule needs rules schema
+`prufyx.io/deterministic-constraint-rules/v1alpha10`; see
+[../contributing-rules.md](../contributing-rules.md#ranged-chart-rules).
+
 ## Proof and completeness
 
 For each derived pair the proof lists both anchors (version, `kubeVersion`,
@@ -254,6 +320,13 @@ required key of the later schema with its class (`rule`, `default`,
 objects, and every earlier key path with its class for the closed-object
 check (declared and open keys are counted, the rest listed). `completeness`
 states the counts, and every earlier key path has exactly one class. The
+`lines.rangeOutcome` is `checked` when each rule kind was checked against
+every release pair, or the reason no rule of the pair can be ranged
+(`anchor-only: ...`), and `lines.ranges` holds one record per kind
+(`kube-version`, `required-values`, `removed-values`): its outcome
+(`range: consecutive lines`, `range: whole lines`, `anchor-only: ...` or
+`no rule at the anchors`), the number of release pairs checked, and the
+first release pair whose rule differs, with what differs. The
 soft facts record, for each notice, every key it considered with its class
 (`notice`, `unproven`, `still-read`, `schema`, `subchart`, `unexpressible`,
 `over-bound` for keys no longer read; `notice`, `ambiguous-scalar`,
