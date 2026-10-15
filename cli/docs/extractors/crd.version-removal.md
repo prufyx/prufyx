@@ -1,6 +1,6 @@
 # Extractor `crd.version-removal`
 
-Version 2.3.0. Derives `forbid_set_member` rules for custom-resource
+Version 2.4.0. Derives `forbid_set_member` rules for custom-resource
 versions that a project's release line no longer serves, from the
 CustomResourceDefinition manifests the project ships in its repository. It is
 deterministic, reads only upstream source pinned by full commit SHA, and
@@ -166,7 +166,8 @@ Through the offline factory mirror (or a fixture tree), never the network.
   `CustomResourceDefinition` anywhere, Helm `Chart.yaml` files and
   kustomizations are decoded in the strict subset; a definition is found
   whatever its YAML form (block or flow style, the value of `kind` on the next
-  line). Each file is placed in one of three **locations**: the open tree; a
+  line). A templated YAML file is read by the template rules below. Each
+  file is placed in one of three **locations**: the open tree; a
   **default-excluded directory** (a path segment named `test`, `tests`,
   `testdata`, `_testdata`, `e2e`, `example`, `examples`, `vendor` or
   `third_party`), whose content a project does not normally install; or a
@@ -180,11 +181,13 @@ Through the offline factory mirror (or a fixture tree), never the network.
   | `crd-patch` | a kubebuilder strategic merge patch fragment (`webhook_in_*.yaml`, `cainjection_in_*.yaml`) below a declared definition kustomization directory: every document is an `apiextensions.k8s.io/v1` or `v1beta1` `CustomResourceDefinition` of a listed definition with nothing but `metadata.name`, metadata labels and annotations, `spec.conversion` (strategy, webhook client configuration, review versions) and `spec.preserveUnknownFields`, each of its known shape; a template, any other key (`spec.versions`, `spec.version`, `spec.group`, a `$patch` or `$retainKeys` directive, ...) or a definition the listed paths do not hold leaves the file `unread` |
   | `kustomize-config` | a kustomize transformer configuration (`kustomizeconfig.yaml`) below a declared definition kustomization directory that holds only `nameReference`, `namespace`, `varReference`, `commonLabels` and `commonAnnotations`, in which every field spec of the kind names the `apiextensions.k8s.io` group, and it and every field spec without a kind a path under `spec/conversion` or metadata labels and annotations; otherwise the file stays a `reference`. Every configuration a kustomization below such a directory names (`configurations`), and every `kustomizeconfig.yaml` there, is read even when it never contains the kind name (a field spec without a kind applies to every kind); one that cannot be read or has an unchecked field spec is a `reference` |
   | `legacy-copy` | every definition in it is strictly read, at least one is an `apiextensions.k8s.io/v1beta1` definition (versions from `spec.versions` with `served` and `storage`, the first equal to `spec.version` when both are given, or from `spec.version` alone, served and stored; exactly one storage version), and every one is in the inventory with the same group, kind, versions and `served` flags; a v1beta1 definition with other versions or flags is a `conflict`, one not in the inventory `extra`, an incomplete one `unread` |
+  | `templated-copy` | a templated file in the open tree, a default-excluded directory or a reviewed exclusion that does not declare copies, whose rendered versions its literal lines determine (see below) and which, read that way, is a copy; recorded with its definitions and the members they serve |
   | `conflict` | it defines a CRD of the inventory with other versions or `served` flags |
   | `extra` | it defines a CRD that is not in the inventory |
   | `reference` | it holds the kind as a value (a nested object, a field, a manifest embedded in a string) but defines none at the top level, and is not a schema-only kustomization; a file that only mentions the word in a comment or a description is not a finding |
-  | `unread` | it is templated, not strictly decodable or over the bounds and holds the kind as the value of a `kind` key (on the same line or the next); or a submodule |
-  | `unsupported` | a template, jsonnet or cue source that holds the word, Go code that builds a definition as a composite literal (`CustomResourceDefinition{ObjectMeta: ...}`, or of its spec, names or versions), or a packaged Helm chart |
+  | `unread` | it is not strictly decodable or over the bounds and holds the kind as the value of a `kind` key (on the same line or the next); a templated file that holds the kind and whose rendered versions cannot be determined, or whose top-level `apiVersion` or `kind` is an expression; a templated file outside a declared copy that is read but is not a copy (the comparison is in the detail); or a submodule |
+  | `unsupported` | a template, jsonnet or cue source that holds the word, or a packaged Helm chart |
+  | `go-defined` | Go code that builds a definition as a composite literal (`CustomResourceDefinition{ObjectMeta: ...}`, or of its spec, names or versions); its served versions are not read |
   | `external` | a Helm `Chart.yaml` with a dependency whose `repository` is another repository (`https://`, `oci://`, an alias such as `@repo`; not a local `file://` path or none), or a kustomization with a remote resource, component or base (a URL, `github.com/...`, `git@...`, `?ref=`) |
   | `excluded` | a file under a reviewed exclusion that does not declare copies, whose content is recorded (path, sha256, the definitions it holds) |
   | `excluded-unread` | the same, when its content could not be read |
@@ -192,32 +195,79 @@ Through the offline factory mirror (or a fixture tree), never the network.
 
   The effect depends on the class and the location:
 
-  - `copy`, `schema-patch`, `crd-patch`, `kustomize-config` and `legacy-copy`:
-    none, anywhere.
+  - `copy`, `templated-copy`, `schema-patch`, `crd-patch`, `kustomize-config`
+    and `legacy-copy`: none, anywhere.
   - `conflict` in the open tree: the pair is withheld when the release is a
     pair's first release; otherwise the pair's rules hold for the anchor pair
     only.
-  - `unread` or `unsupported` in the open tree, and `conflict`, `unread` or
-    `unsupported` among declared copies: at the later line's first release the
-    pair's rules are withheld (a version they forbid may still be served
+  - `unread`, `unsupported` or `go-defined` in the open tree, and `conflict`,
+    `unread`, `unsupported` or `go-defined` among declared copies: at the later
+    line's first release the pair's rules are withheld (a version they forbid may still be served
     there); at another release of the later line the rules hold for the anchor
     pair only.
   - every other class in the open tree or among declared copies, and every
-    class but those five under a default-excluded directory:
+    class but those six under a default-excluded directory:
     the pair is not attestable.
   - `excluded` and `excluded-unread`: recorded; the pair stays attestable. An
     `excluded-unread` file keeps a definition from being established as gone,
     unless it also lies in a default-excluded directory (a test-fixture entry
     such as `test/e2e/manifests/`).
+  - A templated YAML file that holds the word is read, in every location,
+    only when its literal lines fix the versions it renders. It is checked
+    line by line before it is decoded. Every action must be well formed: an
+    action whose text holds `{{` or `}}` (such as `{{ if eq .x "}}" }}`, or
+    literal text after an action that a later `}}` seems to close) makes the
+    file `unread`. A line that holds nothing but one action is dropped, and
+    is accepted only as a template comment in the form the template lexer
+    reads (`{{/* ... */}}`, with `{{- ` or ` -}}` trim markers; `{{ /* ... */ }}`
+    is not a comment), as an `if` around the whole file (on the first line
+    that is not blank or a comment, its `end` on the last line that is not
+    blank), or as an `if`, `with` or `end` line, or an `include` or `toYaml`
+    line whose pipeline ends in `indent` or `nindent` by at least one column,
+    inside a top-level `metadata` block (from a `metadata:` line at column 0
+    to the next line at column 0 that is not blank or a comment), where
+    every `if` and `with` must also end. An expression inside a line is
+    accepted only in a top-level `metadata` block or in the `conversion`
+    block of `spec`, and becomes a placeholder; a key whose whole value is
+    an expression followed by more indented lines keeps those lines, in
+    `metadata` only. The output of such an expression must be bounded: a
+    release or chart name (`.Release.Name`, `.Release.Namespace`,
+    `.Release.Service`, `.Release.Revision`, `.Chart.Name`, `.Chart.Version`,
+    not inside a `with`, where the dot is another value), a field reference
+    piped to `quote` (one line, its line breaks escaped), or a pipeline that
+    ends in `indent` or `nindent` by at least one column, so no line of the
+    output that a newline starts reaches column 0 and no `---` separator can
+    appear. The text an `include` or a value renders is not read: `indent`
+    pads only after a newline, so a carriage return or a Unicode line
+    separator in that text is not bounded. A chart whose named templates or
+    default values hold such a line break is outside what the scan
+    establishes. An inline `include`,
+    `tpl`, `toYaml`, `.Files.Get` or `.Values` reference without them may
+    render any text, including a further definition, and is not read
+    (kueue's chart, which names its webhook service with an inline
+    `include`, is `unread`). Anything else also makes the file `unread`: an
+    `else`, `range`, `define`, `template` or `block`, a variable assignment,
+    a directive or expression anywhere else (a condition around a version
+    entry, a templated `served` flag or `spec.versions`), a directive that
+    trims the line break after it other than on the last line or on the
+    first line that is not blank when the next line that is not blank starts
+    at column 0 (as in `{{- if .Values.crds.enabled -}}` before a `---`
+    line, where nothing is joined), an expression that trims a line break, an
+    `indent` or `toYaml` expression in `spec.conversion`, or an expression
+    left open across lines. Once decoded, a placeholder in a document's
+    `apiVersion` or `kind`, in a definition's `metadata.name`, in its `spec`
+    when that is not a mapping, or anywhere in its `spec` but
+    `spec.conversion` also makes it `unread`, and what remains must be
+    `apiextensions.k8s.io/v1` definitions. Outside a reviewed exclusion that
+    declares copies, a file read this way that is a copy is `templated-copy`;
+    one that is not is `unread`, never a `conflict` or `extra`, since nobody
+    has claimed it is a copy.
   - A reviewed exclusion with `copies` (chart templates of the listed
-    definitions) is checked: each file's template directives are removed (a
-    line that holds only a directive is dropped, a key whose whole value is an
-    expression followed by more indented lines keeps those lines, any other
-    expression becomes a placeholder, and an expression left open across lines
-    makes the file unread) and the result must define only listed
-    CRDs with the same versions and `served` flags. A file that serves other
-    versions is a `conflict`, one that defines another CRD is `extra`, and one
-    that cannot be read is `unread`.
+    definitions) is checked: each file is read by the template rules above
+    and must define only listed CRDs with the same versions and `served`
+    flags. A copy is listed under `copies`, a file that serves other versions
+    is a `conflict`, one that defines another CRD is `extra`, and one that
+    cannot be read is `unread`.
 
   **Reviewed exclusions carry evidence and are guarded.** Every entry of the
   table names its repository, the path (a directory prefix ending in `/`, one
@@ -320,7 +370,7 @@ was read completely, no release holds a conflicting copy, every CRD keeps its
 group and kind, no version that some earlier-line release serves is served by
 some later-line releases and not by others, no release of the later line drops
 a definition its first release holds, and no release of the later line holds an
-unread or unsupported CRD source (or a declared copy serving other versions). Otherwise the pair's rules are
+unread, unsupported or Go-defined CRD source (or a declared copy serving other versions). Otherwise the pair's rules are
 derived from the two anchors only, carry no range, and match only the anchor
 transition. (Cilium 1.20.2 serves CiliumNodeConfig `v2alpha1` again after 1.20.0
 and 1.20.1 dropped it, so that rule holds for 1.19.0 -> 1.20.0 only.)
@@ -500,7 +550,7 @@ and, when given, number of removals, `lineWide` and `attestable`. When removals
 The target table was one file, `targets.json`, covered by the code digest that
 every id shared, so any change to one target moved every id's digest. It is
 now one file per target, covered by its own id's digest only. The code of the
-extractor and its version (2.3.0) are unchanged, as are rules, vectors,
+extractor and its version are unchanged, as are rules, vectors,
 candidates and attestations, except that every id's code digest differs once
 from the digest it carried before.
 
@@ -513,6 +563,22 @@ version must come from a full run of that project's id with this build (which
 then carries the id's own digest), not from an edit of a record that carries
 the old shared digest. From then on, a change to one target only requires
 re-deriving the records of that target's id.
+## Changes from version 2.3.0
+
+Version 2.4.0 reads templated YAML files in every location, not only under a
+reviewed exclusion that declares copies, by the stricter template rules
+above: a template whose literal lines fix its rendered versions and that is a
+copy of the listed definitions is `templated-copy` and does not block; one
+that is not a copy is `unread`. Templated declared copies are read by the
+same rules, so a form the earlier reader accepted (a condition that never
+ends, a directive under `spec`, an expression outside `metadata` and
+`spec.conversion`, an inline `include` or `.Values` reference whose output
+is not bounded) is now `unread`. A templated file whose top-level
+`apiVersion` or `kind` is an expression is `unread` instead of not being a
+finding. Go code that builds a definition is `go-defined` instead of
+`unsupported`, with the same effects. Rules, vectors and candidates of a scan
+where none of these applies are unchanged except for the extractor version
+and code digest.
 
 ## Changes from version 2.2.0
 

@@ -127,12 +127,28 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- Maintainer extractor `crd.version-removal` 2.4.0 reads templated YAML files
+  (Helm chart templates of the listed definitions) in every location, where
+  earlier versions read them only under a reviewed exclusion that declares copies. A
+  template is read only when its literal lines fix the versions it renders:
+  directives only as a condition around the whole file or inside `metadata`,
+  expressions only in `metadata` and `spec.conversion`, each rendering a
+  release or chart name, a quoted value or an indented block, so none can add
+  a line at column 0. Such a template that is a copy of the listed definitions
+  is class `templated-copy` and does not block attestation; one that is not a
+  copy is `unread`, never a `conflict` or `extra`. Any other templated form is
+  `unread`, including declared copies the earlier reader accepted (an inline
+  `include` or `.Values` reference among them) and a template whose top-level
+  `apiVersion` or `kind` is an expression, which was not a finding before.
+  Go code that builds a definition is now class `go-defined`, with the
+  effects `unsupported` had.
+  Rules and vectors of a scan without such files are unchanged.
 - Maintainer extractor `crd.version-removal`: each
   `crd.version-removal.<project>` id has its own code digest. The target table
   is one file per target (`target-<project>.json`, schema
   `prufyx.io/crd-version-target/v1`), and an id's digest covers the
   extractor's code and its own target file only, so adding or changing one
-  target no longer moves the digest of every other id. The version stays 2.3.0
+  target no longer moves the digest of every other id. The version does not change
   and outputs are unchanged apart from the code digest, which differs once for
   every id; the Kubernetes extractors' digests do not move. A rule or line
   attestation of a `crd.version-removal` id that is added or changed from now

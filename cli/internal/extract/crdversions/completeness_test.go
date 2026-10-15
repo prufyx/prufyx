@@ -154,7 +154,7 @@ func TestCheckedTemplateCopies(t *testing.T) {
 		t.Fatalf("earlier conflict: %+v %+v", p, f)
 	}
 	// A declared copy that defines a CRD the listed paths do not hold.
-	p, proof = run(template(crd("Alpha", "v1beta1", "v1")), template(crd("Alpha", "v1beta1:off", "v1"))+"---\n"+crd("Beta", "v1"))
+	p, proof = run(template(crd("Alpha", "v1beta1", "v1")), template(crd("Alpha", "v1beta1:off", "v1")+"---\n"+crd("Beta", "v1")))
 	f = proof.To.Scan.Findings
 	if p.Status != extract.PairDerived || proof.Completeness.Attestable || len(f) != 1 || f[0].Class != ClassExtra || !strings.Contains(f[0].Detail, "declared copy") {
 		t.Fatalf("extra copy: %+v %+v", p, f)
