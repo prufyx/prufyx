@@ -164,21 +164,32 @@ func (e *evaluator) crdField(c Claim, cr *ClaimResult) {
 	case f.ToAnswer == nil:
 		undetermined(ReasonNotProbed, "the object was not sent after "+to+" was installed")
 		return
-	case f.ToAnswer.Outcome == ServerError || f.ToInPlace != nil && f.ToInPlace.Outcome == ServerError:
+	case f.ToAnswer.Outcome == ServerError:
 		cr.Outcome, cr.Reason = OutcomeError, ReasonServerNoAnswer
-		cr.Detail = "the API server gave no answer to the object at " + to
+		cr.Detail = "the API server gave no answer to the object at " + to + ": " + oneLine(f.ToAnswer)
 		return
 	}
 	inPlace := ""
 	if f.InPlace == "refused" {
 		inPlace = "; the in-place update was refused, decided on the fresh install of " + to
 	}
+	// The fresh install decides; an in-place dry run without an answer only
+	// leaves the decision without its cross-check.
+	crossCheck := f.ToInPlace
+	if crossCheck != nil && crossCheck.Outcome == ServerError {
+		crossCheck = nil
+		inPlace += "; the in-place dry run got no answer from the API server (no cross-check): " + oneLine(f.ToInPlace)
+	}
 	if f.ToAnswer.Outcome == ServerAccepted {
 		switch {
 		case f.ToSchema == schemaPermissive:
 			undetermined(ReasonSchemaPermissive, to+" accepts the object, but its schema at "+s.Path+" preserves unknown fields"+inPlace)
-		case f.ToInPlace != nil && f.ToInPlace.Outcome != ServerAccepted:
-			undetermined(ReasonOtherRejection, "the fresh install of "+to+" accepts the object, the in-place update refused it: "+oneLine(f.ToInPlace))
+		case f.ToSchema == schemaAbsent:
+			// Strict field validation would have refused an undeclared
+			// field: it did not run (client-side validation, pruning).
+			undetermined(ReasonOtherRejection, "accepted although the path is absent from the schema at "+to+": strict field validation did not decide"+inPlace)
+		case crossCheck != nil && crossCheck.Outcome != ServerAccepted:
+			undetermined(ReasonOtherRejection, "the fresh install of "+to+" accepts the object, the in-place update refused it: "+oneLine(crossCheck))
 		default:
 			cr.Outcome, cr.Reason = OutcomeRefuted, ReasonDisagreement
 			cr.Detail = fmt.Sprintf("the CRD schema at %s accepts the object that sets %s, as %s does%s", to, where, from, inPlace)
@@ -202,15 +213,15 @@ func (e *evaluator) crdField(c Claim, cr *ClaimResult) {
 		undetermined(ReasonOtherRejection, "the server names "+where+" unknown, but the schema at "+to+" still has it ("+f.ToSchema+")")
 		return
 	}
-	if f.ToInPlace != nil && f.ToInPlace.Outcome != ServerAccepted {
-		if p := matchField(s.Change, where, f.ToInPlace.Message).Pattern; p != m.Pattern {
-			undetermined(ReasonOtherRejection, "the in-place update and the fresh install of "+to+" refuse the object differently: "+oneLine(f.ToInPlace)+" / "+oneLine(f.ToAnswer))
+	if crossCheck != nil && crossCheck.Outcome != ServerAccepted {
+		if p := matchField(s.Change, where, crossCheck.Message).Pattern; p != m.Pattern {
+			undetermined(ReasonOtherRejection, "the in-place update and the fresh install of "+to+" refuse the object differently: "+oneLine(crossCheck)+" / "+oneLine(f.ToAnswer))
 			return
 		}
 	}
 	cr.Outcome = OutcomeConfirmed
 	cr.Detail = fmt.Sprintf("accepted at %s; refused at %s (%s): %s%s", from, to, m.Pattern, oneLine(f.ToAnswer), inPlace)
-	if f.ToInPlace != nil && f.ToInPlace.Outcome == ServerAccepted {
+	if crossCheck != nil && crossCheck.Outcome == ServerAccepted {
 		cr.Detail += "; the in-place dry run right after the update was accepted (the server had not yet switched schemas)"
 	}
 	if len(m.Other) > 0 {

@@ -66,6 +66,24 @@ func TestFieldAnswer(t *testing.T) {
 
 // matchField confirms a claim only from causes on its own path that read
 // exactly as its change.
+// canonicalPath writes an index in brackets as a dot segment and keeps
+// everything else.
+func TestCanonicalPath(t *testing.T) {
+	for in, want := range map[string]string{
+		"spec.ports[0].name":   "spec.ports.0.name",
+		"spec.ports.0.name":    "spec.ports.0.name",
+		"spec.matrix[0][12].x": "spec.matrix.0.12.x",
+		"spec.labels.team":     "spec.labels.team",
+		"spec.odd[x].y":        "spec.odd[x].y",
+		"spec.open[0":          "spec.open[0",
+		"spec.ports[]":         "spec.ports[]",
+	} {
+		if got := canonicalPath(in); got != want {
+			t.Errorf("canonicalPath(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestMatchField(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -114,6 +132,19 @@ func TestMatchField(t *testing.T) {
 		{"ancestor", ChangeRequiredAdded, "spec.a.b", invalid(`spec.a: Required value`), "", []string{`spec.a: Required value`}, "the ancestor spec.a is refused"},
 		{"array path", ChangeEnumValueRemoved, "spec.ports[0].name", invalid(`spec.ports[0].name: Unsupported value: "x": supported values: "y"`, `spec.ports[1].name: Required value`), patternUnsupportedValue, []string{`spec.ports[1].name: Required value`}, ""},
 		{"array other element", ChangeEnumValueRemoved, "spec.ports[0].name", invalid(`spec.ports[10].name: Unsupported value: "x": supported values: "y"`), "", []string{`spec.ports[10].name: Unsupported value: "x": supported values: "y"`}, "no cause on spec.ports[0].name"},
+		// Array indexes in both spellings: kube-openapi schema causes write
+		// spec.ports.0.name, strict decoding and CEL spec.ports[0].name.
+		{"kube-openapi index, bracket path", ChangeEnumValueRemoved, "spec.ports[0].name", invalid(`spec.ports.0.name: Unsupported value: "x": supported values: "y"`), patternUnsupportedValue, nil, ""},
+		{"bracket index, dotted path", ChangeRequiredAdded, "spec.ports.0.name", invalid(`spec.ports[0].name: Required value`), patternRequiredValue, nil, ""},
+		{"kube-openapi type error in nested arrays", ChangeTypeChanged, "spec.matrix[0][0].cell", invalid(typeCause("spec.matrix.0.0.cell")), patternTypeInvalid, nil, ""},
+		{"kube-openapi other index", ChangeEnumValueRemoved, "spec.ports[0].name", invalid(`spec.ports.1.name: Unsupported value: "x": supported values: "y"`), "", []string{`spec.ports.1.name: Unsupported value: "x": supported values: "y"`}, "no cause on spec.ports[0].name"},
+		{"kube-openapi index prefix", ChangeEnumValueRemoved, "spec.ports[1].name", invalid(`spec.ports.10.name: Unsupported value: "x": supported values: "y"`), "", []string{`spec.ports.10.name: Unsupported value: "x": supported values: "y"`}, "no cause on spec.ports[1].name"},
+		{"kube-openapi field suffix", ChangeRequiredAdded, "spec.ports[0].name", invalid(`spec.ports.0.namex: Required value`), "", []string{`spec.ports.0.namex: Required value`}, "no cause on spec.ports[0].name"},
+		{"kube-openapi ancestor element", ChangeValidationTightened, "spec.ports[0].name", invalid(`spec.ports.0: Invalid value: "object": rule failed`), "", []string{`spec.ports.0: Invalid value: "object": rule failed`}, "the ancestor spec.ports.0 is refused"},
+		{"kube-openapi descendant", ChangeValidationTightened, "spec.ports[0]", invalid(`spec.ports.0.name: Too long: may not be more than 3 bytes`), "", []string{`spec.ports.0.name: Too long: may not be more than 3 bytes`}, "the descendant spec.ports.0.name is refused"},
+		{"strict index in dotted spelling", ChangeFieldRemoved, "spec.ports[0].legacy", strictHead + `unknown field "spec.ports.0.legacy"`, patternUnknownField, nil, ""},
+		{"map value", ChangeEnumValueRemoved, "spec.labels.team", invalid(`spec.labels.team: Unsupported value: "b": supported values: "a"`), patternUnsupportedValue, nil, ""},
+		{"map other key", ChangeEnumValueRemoved, "spec.labels.team", invalid(`spec.labels.teams: Unsupported value: "b": supported values: "a"`), "", []string{`spec.labels.teams: Unsupported value: "b": supported values: "a"`}, "no cause on spec.labels.team"},
 		// unparsed
 		{"aggregate", ChangeRequiredAdded, "spec.a", invalidHead + `[spec.a: Required value, spec.b: Required value]`, "", nil, "aggregate"},
 		{"no refusal", ChangeRequiredAdded, "spec.a", `Error from server (Forbidden): gadgets is forbidden`, "", nil, "no strict-decoding or schema refusal"},

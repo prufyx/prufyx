@@ -550,3 +550,52 @@ func TestPairWithoutFieldsIsUnchanged(t *testing.T) {
 		t.Fatalf("fields member written: %s", data)
 	}
 }
+
+// Accepted while the path is absent from To's schema: strict field
+// validation did not decide, so this is no refutation.
+func TestFieldAcceptedButAbsentAtTo(t *testing.T) {
+	_, got, res := fieldCase{fromProps: legacy + nameFree, toProps: nameFree, claim: fieldClaim("c", "spec.legacy", ChangeFieldRemoved, nil), to: accept}.run(t, &fieldCluster{})
+	if got.Outcome != OutcomeUndetermined || got.Reason != ReasonOtherRejection || !strings.Contains(got.Detail, "accepted although the path is absent from the schema at v4.0.0") {
+		t.Fatalf("%+v", got)
+	}
+	if res.Totals.Medium != 0 {
+		t.Fatalf("findings %+v", res.Findings)
+	}
+}
+
+// A claim under an array is confirmed by the kube-openapi spelling of the
+// schema cause (spec.ports.0.name) as well as the bracket one.
+func TestFieldArrayPathSpellings(t *testing.T) {
+	ports := func(enum string) string {
+		return "              ports:\n                type: array\n                items:\n                  type: object\n                  properties:\n                    proto: {type: string, enum: [" + enum + "]}\n"
+	}
+	for _, field := range []string{"spec.ports.0.proto", "spec.ports[0].proto"} {
+		f, got, _ := fieldCase{fromProps: ports("tcp, udp"), toProps: ports("tcp"), claim: fieldClaim("c", "spec.ports.proto", ChangeEnumValueRemoved, "udp"),
+			to: refuse(widgetInvalid(field + `: Unsupported value: "udp": supported values: "tcp"`))}.run(t, &fieldCluster{})
+		if got.Outcome != OutcomeConfirmed || f.ServerPath != "spec.ports[0].proto" {
+			t.Fatalf("%s: %+v %+v", field, got, f)
+		}
+	}
+	_, got, _ := fieldCase{fromProps: ports("tcp, udp"), toProps: ports("tcp"), claim: fieldClaim("c", "spec.ports.proto", ChangeEnumValueRemoved, "udp"),
+		to: refuse(widgetInvalid(`spec.ports.1.proto: Unsupported value: "udp": supported values: "tcp"`))}.run(t, &fieldCluster{})
+	if got.Outcome != OutcomeUndetermined || got.Reason != ReasonOtherRejection {
+		t.Fatalf("other index: %+v", got)
+	}
+}
+
+// An in-place dry run without an answer leaves the fresh install to decide,
+// without its cross-check.
+func TestFieldInPlaceNoAnswer(t *testing.T) {
+	cluster := &fieldCluster{}
+	tc := fieldCase{fromProps: modeAB, toProps: modeA, claim: fieldClaim("c", "spec.mode", ChangeEnumValueRemoved, "b"),
+		to: func(map[string]any) (string, int) {
+			if cluster.inPlace {
+				return "Unable to connect to the server: dial tcp 127.0.0.1:6443: connect: connection refused", 1
+			}
+			return widgetInvalid(`spec.mode: Unsupported value: "b": supported values: "a"`), 1
+		}}
+	f, got, _ := tc.run(t, cluster)
+	if got.Outcome != OutcomeConfirmed || f.ToInPlace.Outcome != ServerError || !strings.Contains(got.Detail, "no cross-check") {
+		t.Fatalf("%+v %+v", got, f)
+	}
+}

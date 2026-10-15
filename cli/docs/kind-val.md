@@ -101,9 +101,15 @@ accepts is refused by the `to` release's schema, for one reason:
 ```
 
 `path` is dot-separated property names (an array is crossed through its
-items, which the API server names `[0]`: `spec.ports.name` is
-`spec.ports[0].name`); it may not start with `apiVersion`, `kind` or
-`metadata`. `change` is one of `field-removed`, `field-required-added`,
+items, which the object fills with one element: `spec.ports.name` is
+`spec.ports[0].name`; a map value is named by its key: `spec.labels.team`);
+it may not start with `apiVersion`, `kind` or `metadata`. The API server
+spells an array element two ways: strict decoding and
+`x-kubernetes-validations` rules write `spec.ports[0].name`, the schema
+validation causes write `spec.ports.0.name`. Both sides of every comparison
+are written one way (`[N]` as `.N`) before they are compared; the match stays
+exact (no prefix or suffix, and `spec.ports.1.name` never matches
+`spec.ports[0].name`). A map value is `spec.labels.team` in every message. `change` is one of `field-removed`, `field-required-added`,
 `field-type-changed`, `enum-value-removed`, `validation-tightened`. `value` is
 the value that `from` accepts and `to` should refuse; it is required for
 `field-type-changed`, `enum-value-removed` and `validation-tightened`. The
@@ -132,7 +138,10 @@ are deleted afterwards):
    every level (and the first branch of a `oneOf`/`anyOf` that only lists
    required names) get placeholders from the `from` schema (first enum value,
    `"x"` padded to `minLength`, `1` or `minimum`, `true`, `{}`, `[]`); when a
-   placeholder cannot be made: `object-not-buildable`.
+   placeholder cannot be made: `object-not-buildable`. Placeholders do not
+   follow `pattern`, `format`, a `maximum` below 1 or `nullable`; a schema
+   that needs them refuses the object at `from`, and the claim is
+   `from-rejected` (never refuted).
 3. `kubectl create --dry-run=server --validate=strict -f -` must be accepted.
    A refusal: `from-rejected` (never refuted). No answer from the API server
    (kubectl did not run, transport failure, a client-side validation error,
@@ -146,18 +155,18 @@ are deleted afterwards):
    update the server may still validate against the `from` schema. The
    in-place answer is a cross-check: if it refuses where the fresh install
    accepts, or refuses differently: `other-rejection`. When the in-place
-   apply itself is refused, the detail says so and the fresh install alone
-   decides.
+   apply itself is refused, or the in-place dry run gets no answer from the
+   API server, the detail says so and the fresh install alone decides.
 5. The fresh answer is matched against a closed set of messages, on the exact
    server path:
 
 | `change` | `confirmed` when `to` refuses with | `refuted` when |
 | --- | --- | --- |
-| `field-removed` | the strict decoding error `unknown field "<path>"`, and `to`'s schema no longer has the path | `to` accepts the object |
-| `field-required-added` | `<path>: Required value` | `to` accepts the object |
-| `field-type-changed` | `<path>: Invalid value: ...` naming the type (`in body must be of type`) | `to` accepts the object |
-| `enum-value-removed` | `<path>: Unsupported value` | `to` accepts the object |
-| `validation-tightened` | `<path>: Invalid value` (not a type error; a `x-kubernetes-validations` rule reports this way), `Too long` or `Too many` | `to` accepts the object |
+| `field-removed` | the strict decoding error `unknown field "<path>"`, and `to`'s schema no longer has the path | `to` accepts the object and its schema declares the path |
+| `field-required-added` | `<path>: Required value` | `to` accepts the object and its schema declares the path |
+| `field-type-changed` | `<path>: Invalid value: ...` naming the type (`in body must be of type`) | `to` accepts the object and its schema declares the path |
+| `enum-value-removed` | `<path>: Unsupported value` | `to` accepts the object and its schema declares the path |
+| `validation-tightened` | `<path>: Invalid value` (not a type error; a `x-kubernetes-validations` rule reports this way), `Too long` or `Too many` | `to` accepts the object and its schema declares the path |
 
 Everything else is `undetermined` with `other-rejection`, the server's message
 in `detail`: a refusal for another reason, on another path (also a parent: a
@@ -166,8 +175,11 @@ absent from `to`'s schema for a change other than `field-removed`, a `to`
 release that no longer defines the CRD, an answer from a webhook. When `to` refuses on the path as claimed and also for
 other causes on other paths, the claim is confirmed and an `INFO` finding
 `<id>.also` lists the other causes. `to` accepting while its schema preserves
-unknown fields at the path is `schema-permissive`, never refuted. A refuted
-claim raises a `MEDIUM` finding.
+unknown fields at the path is `schema-permissive`, never refuted; `to`
+accepting the object while the path is absent from its schema is
+`other-rejection` (strict field validation would have refused an undeclared
+field, so it did not decide), never refuted. A refuted claim raises a
+`MEDIUM` finding.
 
 The crd run records each claim in `fields` (additive): the claim id, the
 pair, the server path, the digest of the object sent, the answers at `from`,

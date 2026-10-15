@@ -148,9 +148,38 @@ func unknownField(entry string) (string, bool) {
 	return entry[len(pre) : len(entry)-1], true
 }
 
+// canonicalPath spells a server path one way. The API server names an array
+// element two ways: strict decoding and x-kubernetes-validations rules write
+// spec.ports[0].name, the schema validation causes (kube-openapi) write
+// spec.ports.0.name. A map value is spec.labels.team in both. An index in
+// brackets becomes a dot segment; anything else in brackets is kept as is
+// (and so never equals a dotted path).
+func canonicalPath(p string) string {
+	var b strings.Builder
+	for i := 0; i < len(p); i++ {
+		if p[i] == '[' {
+			j := i + 1
+			for j < len(p) && p[j] >= '0' && p[j] <= '9' {
+				j++
+			}
+			if j > i+1 && j < len(p) && p[j] == ']' {
+				b.WriteString("." + p[i+1:j])
+				i = j
+				continue
+			}
+		}
+		b.WriteByte(p[i])
+	}
+	return b.String()
+}
+
+// samePath reports whether two server paths name the same field, whatever
+// the spelling of their array indexes. Different indexes never match.
+func samePath(a, b string) bool { return canonicalPath(a) == canonicalPath(b) }
+
 // isAncestor reports whether p names an ancestor of path.
 func isAncestor(p, path string) bool {
-	return strings.HasPrefix(path, p+".") || strings.HasPrefix(path, p+"[")
+	return strings.HasPrefix(canonicalPath(path), canonicalPath(p)+".")
 }
 
 func matchStrict(change, serverPath string, entries []string, tail string) fieldMatch {
@@ -159,7 +188,7 @@ func matchStrict(change, serverPath string, entries []string, tail string) field
 	ancestor := ""
 	for _, e := range entries {
 		p, ok := unknownField(e)
-		if ok && p == serverPath {
+		if ok && samePath(p, serverPath) {
 			exact = true
 			continue
 		}
@@ -234,7 +263,7 @@ func matchSchema(change, serverPath string, causes []cause) fieldMatch {
 	var m fieldMatch
 	var on []cause
 	for _, c := range causes {
-		if c.Field == serverPath {
+		if samePath(c.Field, serverPath) {
 			on = append(on, c)
 		} else {
 			m.Other = append(m.Other, c.Field+": "+c.Body)
