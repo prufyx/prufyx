@@ -91,6 +91,9 @@ const (
 	ControlStateOK     = "ok"
 	ControlStateFailed = "failed"
 	ControlStateAbsent = "absent"
+	// ControlStateIncomplete: every control of the group came out as
+	// expected, but all have the same expectation.
+	ControlStateIncomplete = "incomplete"
 )
 
 // Finding severities.

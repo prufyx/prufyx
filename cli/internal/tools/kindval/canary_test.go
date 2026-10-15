@@ -448,3 +448,89 @@ func TestV2CRDControls(t *testing.T) {
 		t.Fatalf("summary %+v", s)
 	}
 }
+
+// A removal hop whose removals no upstream guide documents has false
+// removal controls only: the group is incomplete and a confirmed removal
+// claim on it is undetermined, not confirmed by execution.
+func TestV2OneExpectationGroupIsIncomplete(t *testing.T) {
+	const cidr = "networking.k8s.io/v1beta1 ServiceCIDR"
+	removal := Claim{ID: "removal.cidr", Kind: KindK8sRemoval, Subject: Subject{From: rawString("1.36"), To: rawString("1.37"), Group: "networking.k8s.io", Version: "v1beta1", Kind: "ServiceCIDR"}}
+	served := servedAPIClaim("1.37", "apps", "v1", "Deployment", ExpectServed, "t")
+	claims := v2Claims(t, []string{"1.36", "1.37"}, removal, served)
+	accepted := func(api string) VerdictCase {
+		return VerdictCase{ID: caseID(api), API: api, Server: ServerTry{Outcome: ServerAccepted}}
+	}
+	keptOn37 := func(api string) VerdictCase {
+		c := accepted(api)
+		c.Scan = &ScanTry{From: "1.36.0", To: "1.37.0", Exit: exitPass, Verdict: "PASS", Gaps: []string{}, Rules: []string{}}
+		return c
+	}
+	runs := Runs{
+		Snapshots: map[string]Snapshot{"1.36": lineSnapshot("1.36", apiDeploy, apiDS, cidr), "1.37": lineSnapshot("1.37", apiDeploy, apiDS)},
+		Verdicts: map[string]VerdictRun{
+			"1.36": {Line: "1.36", Cases: []VerdictCase{accepted(apiDeploy), accepted(apiDS), accepted(cidr)}},
+			"1.37": {Line: "1.37", Cases: []VerdictCase{keptOn37(apiDeploy), keptOn37(apiDS), {ID: caseID(cidr), API: cidr, Server: ServerTry{Outcome: ServerNotServed}, Scan: &ScanTry{From: "1.36.0", To: "1.37.0", Exit: exitBlocked, Verdict: "BLOCKED", Gaps: []string{gapNotServed}, Rules: []string{}}}}},
+		},
+	}
+	res := Evaluate(claims, runs, Provenance{}, time.Unix(0, 0))
+	checkReasons(t, "incomplete", res)
+	for _, c := range res.Controls {
+		if !c.OK {
+			t.Fatalf("control %s: %s (%s)", c.ID, c.Outcome, c.Detail)
+		}
+	}
+	got := outcomes(res)
+	if c := got["removal.cidr"]; c.Outcome != OutcomeUndetermined || c.Reason != ReasonControlsAbsent || !strings.Contains(c.Detail, "all have one expectation") {
+		t.Fatalf("removal %+v", c)
+	}
+	if s, _ := summaryOf(res, KindK8sRemoval, "1.37"); s.State != ControlStateIncomplete || s.True != 0 || s.False != 2 {
+		t.Fatalf("summary %+v", res.Totals.Controls)
+	}
+	if c := got["k8s.1.37.apps_v1_Deployment.served"]; c.Outcome != OutcomeConfirmed || c.Verdict != VerdictConfirmed {
+		t.Fatalf("served %+v", c)
+	}
+}
+
+// Every finding a voided claim raised goes with it, whatever its id
+// (here the ".undefined" finding of a crd-pair claim), and the canary
+// finding names what was dropped.
+func TestV2VoidDropsAllFindingsOfTheClaim(t *testing.T) {
+	quiet := gadgetClaims(false)
+	claims := v2Claims(t, lines3132, quiet.Claims...)
+	runs := crdControlRuns(claims)
+	// The fixture's later release no longer defines the Gadget definition.
+	dropping := func(ctx context.Context, repo, commit, path string) ([]byte, error) {
+		if commit == gadgetFrom.Commit {
+			return gadget(true, false), nil
+		}
+		return []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: nothing-here\n"), nil
+	}
+	cluster := &fakeCluster{crds: map[string]CRDDef{}}
+	for i, p := range runs.CRD[0].Pairs {
+		if p.Project == "fixture" {
+			runs.CRD[0].Pairs[i] = runPair(context.Background(), kube{run: cluster.runner, kubeconfig: "kc"}, dropping, quiet.Pairs()[0])
+		}
+	}
+	res := evalObserved(claims, runs, Provenance{}, time.Unix(0, 0))
+	if _, ok := hasFinding(res, "quiet.undefined"); !ok {
+		t.Fatalf("the fixture raises no .undefined finding: %+v", res.Findings)
+	}
+	for i, p := range runs.CRD[0].Pairs {
+		if p.ID == "control.external-snapshotter.v6.0.0-to-v6.0.1" {
+			runs.CRD[0].Pairs[i].To.Error = "fetch: connection reset"
+		}
+	}
+	res = evalObserved(claims, runs, Provenance{}, time.Unix(0, 0))
+	checkReasons(t, "void findings", res)
+	if c := outcomes(res)["quiet"]; c.Reason != ReasonCanaryFailed {
+		t.Fatalf("quiet %+v", c)
+	}
+	for _, f := range res.Findings {
+		if strings.HasPrefix(f.ID, "quiet") {
+			t.Fatalf("finding of a voided claim kept: %+v", f)
+		}
+	}
+	if f, ok := hasFinding(res, "canary-failed/"+KindCRDPair); !ok || !strings.Contains(f.Message, "dropped: MEDIUM quiet.undefined") {
+		t.Fatalf("canary finding %+v", f)
+	}
+}

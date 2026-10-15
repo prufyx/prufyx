@@ -70,7 +70,7 @@ func loadControls() ([]controlEntry, error) {
 			return nil, fmt.Errorf("controls.json: %s: control must be \"true\" or \"false\"", e.ID)
 		case e.Lines != nil && e.Kind != KindServedAPI && e.Kind != KindK8sRemoval:
 			return nil, fmt.Errorf("controls.json: %s: only Kubernetes controls take lines", e.ID)
-		case e.Lines != nil && (e.Subject.Line != "" || e.Subject.From != nil || e.Subject.To != nil):
+		case e.Lines != nil && (e.Subject.Line != "" || len(e.Subject.From)+len(e.Subject.To) > 0):
 			return nil, fmt.Errorf("controls.json: %s: an entry with lines names no line of its own", e.ID)
 		}
 		ids[e.ID] = true

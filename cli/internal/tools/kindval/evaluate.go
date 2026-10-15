@@ -160,13 +160,25 @@ func Evaluate(claims Claims, runs Runs, prov Provenance, now time.Time) Results 
 		s := runs.Snapshots[line]
 		res.Lines = append(res.Lines, LineSummary{Line: line, ServerVersion: s.ServerVersion, Image: s.Image, Served: len(s.Served)})
 	}
-	for _, c := range plain {
+	// owner maps each finding to the claim that raised it (ownerMissed:
+	// the missed-removal check of the custom-resource pairs; ownerNone: the
+	// served-API differences), so a voided claim takes its findings along.
+	var owner []int
+	own := func(who int) {
+		for len(owner) < len(res.Findings) {
+			owner = append(owner, who)
+		}
+	}
+	for i, c := range plain {
 		res.Claims = append(res.Claims, ev.evaluate(c))
+		own(i)
 	}
 	ev.missedRemovals(plain)
+	own(ownerMissed)
 	ev.diffs(lines, plain)
+	own(ownerNone)
 	if v2 {
-		applyControls(res, plain, controls, runs, prov)
+		applyControls(res, plain, controls, runs, prov, owner)
 	} else {
 		for i := range res.Claims {
 			res.Claims[i].Reason, res.Claims[i].Verdict = "", ""
@@ -217,6 +229,12 @@ func groupKey(c Claim) (kind, line string) {
 	return c.Kind, ""
 }
 
+// Finding owners that are not a claim (see Evaluate).
+const (
+	ownerNone   = -1
+	ownerMissed = -2
+)
+
 // expectedOutcome is the outcome a control must have.
 func expectedOutcome(control string) string {
 	if control == ControlTrue {
@@ -236,7 +254,7 @@ type controlGroup struct {
 // that did not come out as expected: nothing a void group shows is
 // evidence. A decided claim whose group has no control while its kind has
 // some is undetermined. It then sets the verdicts and the control totals.
-func applyControls(res *Results, plain, controls []Claim, runs Runs, prov Provenance) {
+func applyControls(res *Results, plain, controls []Claim, runs Runs, prov Provenance, owner []int) {
 	cev := newEvaluator(runs, prov, &Results{}, controls)
 	groups := map[[2]string]*controlGroup{}
 	res.Controls = []ControlResult{}
@@ -266,9 +284,19 @@ func applyControls(res *Results, plain, controls []Claim, runs Runs, prov Proven
 		sort.Slice(g.failed, func(i, j int) bool { return g.failed[i].ID < g.failed[j].ID })
 	}
 
+	// A group needs a true and a false control: one expectation alone
+	// cannot tell a working harness from one that answers the same thing
+	// to everything (a hop whose removals no upstream guide documents has
+	// false removal controls only).
+	for _, g := range groups {
+		if g.summary.State == ControlStateOK && (g.summary.True == 0 || g.summary.False == 0) {
+			g.summary.State = ControlStateIncomplete
+		}
+	}
 	withEntries := controlKindsWithEntries()
 	absent := map[[2]string]bool{}
-	voided := map[string]bool{}
+	voided := map[int]bool{}
+	voidedGroup := map[[2]string]bool{}
 	for i := range res.Claims {
 		cr := &res.Claims[i]
 		kind, line := groupKey(plain[i])
@@ -278,34 +306,55 @@ func applyControls(res *Results, plain, controls []Claim, runs Runs, prov Proven
 		}
 		g := groups[[2]string{kind, line}]
 		switch {
-		case g == nil:
-			absent[[2]string{kind, line}] = true
+		case g == nil || g.summary.State == ControlStateIncomplete:
+			if g == nil {
+				absent[[2]string{kind, line}] = true
+			}
 			if cr.Outcome == OutcomeConfirmed || cr.Outcome == OutcomeRefuted {
 				where := "on line " + line
 				if line == "" {
 					where = "in this run"
 				}
-				voided[cr.ID] = true
+				what := "no control of kind " + kind + " ran " + where
+				if g != nil {
+					what = "the controls of kind " + kind + " " + where + " all have one expectation"
+				}
+				voided[i], voidedGroup[[2]string{kind, line}] = true, true
 				cr.Outcome, cr.Reason = OutcomeUndetermined, ReasonControlsAbsent
-				cr.Detail += "; no control of kind " + kind + " ran " + where
+				cr.Detail += "; " + what
 			}
 		case len(g.failed) > 0:
 			var failed []string
 			for _, f := range g.failed {
 				failed = append(failed, fmt.Sprintf("%s (expected %s, got %s)", f.ID, expectedOutcome(f.Expected), f.Outcome))
 			}
-			voided[cr.ID] = true
+			voided[i], voidedGroup[[2]string{kind, line}] = true, true
 			cr.Outcome, cr.Reason = OutcomeError, ReasonCanaryFailed
 			cr.Detail = "canary failed: " + strings.Join(failed, ", ") + "; was: " + cr.Detail
 		}
 	}
 
-	// A voided claim is no evidence: the findings it raised go with it.
+	// A voided claim is no evidence: the findings it raised go with it, and
+	// the missed-removal findings go with a voided crd-removal group. The
+	// canary finding of the group lists what was dropped.
+	dropped := map[[2]string][]string{}
 	kept := res.Findings[:0]
-	for _, f := range res.Findings {
-		if !voided[strings.TrimSuffix(f.ID, ".leftover")] {
-			kept = append(kept, f)
+	for i, f := range res.Findings {
+		who := ownerNone
+		if i < len(owner) {
+			who = owner[i]
 		}
+		var key [2]string
+		switch {
+		case who >= 0 && voided[who]:
+			key[0], key[1] = groupKey(plain[who])
+		case who == ownerMissed && voidedGroup[[2]string{KindCRDRemoval, ""}]:
+			key = [2]string{KindCRDRemoval, ""}
+		default:
+			kept = append(kept, f)
+			continue
+		}
+		dropped[key] = append(dropped[key], f.Severity+" "+f.ID)
 	}
 	res.Findings = kept
 
@@ -341,7 +390,11 @@ func applyControls(res *Results, plain, controls []Claim, runs Runs, prov Proven
 			if k[1] != "" {
 				id, where = id+"/"+k[1], "on line "+k[1]
 			}
-			res.Findings = append(res.Findings, Finding{Severity: SeverityHigh, ID: id, Message: fmt.Sprintf("the controls of %s %s did not come out as expected, so no claim of the group is evidence: %s", k[0], where, strings.Join(msgs, "; "))})
+			msg := fmt.Sprintf("the controls of %s %s did not come out as expected, so no claim of the group is evidence: %s", k[0], where, strings.Join(msgs, "; "))
+			if d := dropped[k]; len(d) > 0 {
+				msg += "; findings of the voided claims dropped: " + strings.Join(d, ", ")
+			}
+			res.Findings = append(res.Findings, Finding{Severity: SeverityHigh, ID: id, Message: msg})
 		}
 	}
 

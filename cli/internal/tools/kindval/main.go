@@ -256,7 +256,7 @@ func cmdCRD(ctx context.Context, args []string) error {
 	observed := fs.String("observed-digests", "", "repository digests of the image the node container runs (docker inspect), comma or space separated")
 	claimsPath := fs.String("claims", "", "claims file with the custom-resource claims")
 	out := fs.String("out", "", "output file")
-	only := fs.String("pair", "", "run only the pair with this id (<project>.<fromTag>-to-<toTag>)")
+	only := fs.String("pair", "", "run only the pair with this id (<project>.<fromTag>-to-<toTag>); with v2 claims the controls left out are undetermined and void their kinds")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}

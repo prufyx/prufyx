@@ -154,8 +154,8 @@ Every claim result gains:
 The results gain `controls` (one entry per control: `id`, `kind`, `line`,
 `expected` (`true` or `false`), `outcome`, `ok`, `reason`, `detail`; omitted
 when the run has no control), `totals.verdicts` (claims by verdict) and
-`totals.controls` (one entry per kind and line: `state` `ok`, `failed` or
-`absent`, the number of `true` and `false` controls, the `failed` control
+`totals.controls` (one entry per kind and line: `state` `ok`, `failed`,
+`incomplete` or `absent`, the number of `true` and `false` controls, the `failed` control
 ids). Controls are never in `claims` and never in the claim totals. The
 summary gains a `Controls` section with one line per `totals.controls`
 entry.
@@ -177,7 +177,7 @@ entry.
 | `disagreement` | refuted | The API server (or the scan) contradicts the claim. |
 | `image-digest-mismatch` | error | The node is not proven to run the configured image digest. |
 | `canary-failed` | error | A control of the kind on this line did not come out as expected. |
-| `controls-absent` | undetermined | The controls file has controls for the kind, but none ran for this claim's line. |
+| `controls-absent` | undetermined | The controls file has controls for the kind, but none ran for this claim's line, or all that ran have the same expectation. |
 
 ### The void rule
 
@@ -194,14 +194,21 @@ the one custom-resource line of the run). For each group with claims:
   `verdict: error`, `reason: canary-failed`; `detail` names the failed
   controls and keeps the former detail after `was:`. A claim that would have
   been refuted is reported as error too: nothing from a void group is
-  evidence either way. One `HIGH` finding `canary-failed/<kind>/<line>`
-  (`canary-failed/<kind>` for the custom-resource kinds) names each failed
-  control with its outcome, reason and detail.
+  evidence either way, so the findings those claims raised (and, for a void
+  `crd-removal` group, the missed-removal findings of the pairs) are dropped.
+  One `HIGH` finding `canary-failed/<kind>/<line>` (`canary-failed/<kind>`
+  for the custom-resource kinds) names each failed control with its outcome,
+  reason and detail, and the findings it dropped. A control that repeats a
+  claim (the documented removals are both) therefore turns a knowledge defect
+  on that line into `canary-failed`: read the failed control's detail.
 - The group has no control although the controls file has entries for the
   kind (a claim about a line outside the matrix, a hop between lines that are
-  not one minor apart): a confirmed or refuted claim becomes `undetermined`
-  with `reason: controls-absent`; `totals.controls` has the entry with
-  `state: absent`.
+  not one minor apart), or every control of the group came out as expected
+  but all have the same expectation (`state: incomplete`): a confirmed or
+  refuted claim becomes `undetermined` with `reason: controls-absent`, and its
+  findings are dropped; `totals.controls` has the entry with `state: absent`
+  or `incomplete`. One expectation cannot tell a working harness from one
+  that gives the same answer to everything.
 - The controls file has no entry for the kind (`addon-rule`): the claims are
   unchanged and `totals.controls` has `{kind, state: "absent"}`. No control is
   ever made up at run time.
@@ -210,12 +217,14 @@ Controls failing on one line void that kind's claims on that line only; the
 other lines and kinds are unaffected. Controls add no other finding and take
 no part in the served-API differences or the missed-removal check.
 
-A group can have controls of one expectation only: the hops whose removals the
-upstream deprecation guide does not document (1.33, 1.34, 1.37 in the
-current table) have only `false` removal controls. A `false` removal control
-is refuted already at the server stage (the later line still serves the API),
-so on those hops the scan stage has no canary; `totals.controls` shows the
-counts.
+The hops whose removals the upstream deprecation guide does not document
+(1.33, 1.34, 1.37 in the current table) have only `false` removal controls,
+so their `k8s-removal` groups are `incomplete` and their removal claims stay
+`undetermined` until a reviewed `true` control is added for the hop.
+
+A control that cannot be decided is not as expected: a line without a
+snapshot, or a custom-resource run limited with `kindval crd --pair` (or
+missing), voids the groups whose controls it would have decided.
 
 ### The controls file
 
