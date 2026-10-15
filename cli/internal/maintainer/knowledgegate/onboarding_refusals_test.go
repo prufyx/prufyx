@@ -175,6 +175,25 @@ func TestOnboardingRefusals(t *testing.T) {
 			})
 		}), nil, "the table row of " + otherSlug() + " changes"},
 
+		{"O2 another project's row is removed", blind(func(t *testing.T, f *onboardingFixture) {
+			f.editTable(t, func(ps []customresources.Project) []customresources.Project {
+				var out []customresources.Project
+				for _, p := range ps {
+					if p.Slug != otherSlug() {
+						out = append(out, p)
+					}
+				}
+				return out
+			})
+		}), nil, "the table row of " + otherSlug() + " is removed"},
+		{"O3 registryDigest is not the registry of the head table", blind(func(t *testing.T, f *onboardingFixture) {
+			raw, _ := f.head.Read(cncfRulesPath, MaxFileBytes)
+			var m struct {
+				RegistryDigest string `json:"registryDigest"`
+			}
+			json.Unmarshal(raw, &m)
+			f.writePack(t, []byte(strings.Replace(string(raw), m.RegistryDigest, obLedger, 1)))
+		}), nil, "O3: the head pack's registryDigest is not the registry"},
 		// O3: the states and artifacts.
 		{"O3 revision bump other than one", blind(func(t *testing.T, f *onboardingFixture) {
 			raw, _ := f.head.Read(cncfRulesPath, MaxFileBytes)
