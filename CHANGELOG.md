@@ -245,6 +245,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   `object-not-buildable`, `from-rejected`, `other-rejection`); `refuted`
   means only that To's CRD schema accepts the object (webhooks and
   controllers are not installed). The crd run file gains `fields` (additive);
+  Schema-validation paths match in both array spellings (`[N]` and `.N`) and
+  bracketed map keys; an accept while the path is absent from To's schema is
+  `undetermined`; an in-place dry run with no answer leaves the fresh install
+  to decide (no cross-check).
   reviewed `crd-field` controls join the controls file.
 
 - Knowledge gate: the first attested update of a pack that holds an older schema

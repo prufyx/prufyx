@@ -584,7 +584,7 @@ func TestFieldArrayPathSpellings(t *testing.T) {
 }
 
 // An in-place dry run without an answer leaves the fresh install to decide,
-// without its cross-check.
+// without its cross-check; a fresh install without an answer is an error.
 func TestFieldInPlaceNoAnswer(t *testing.T) {
 	cluster := &fieldCluster{}
 	tc := fieldCase{fromProps: modeAB, toProps: modeA, claim: fieldClaim("c", "spec.mode", ChangeEnumValueRemoved, "b"),
@@ -597,6 +597,13 @@ func TestFieldInPlaceNoAnswer(t *testing.T) {
 	f, got, _ := tc.run(t, cluster)
 	if got.Outcome != OutcomeConfirmed || f.ToInPlace.Outcome != ServerError || !strings.Contains(got.Detail, "no cross-check") {
 		t.Fatalf("%+v %+v", got, f)
+	}
+	const noAnswer = "Unable to connect to the server: dial tcp 127.0.0.1:6443: connect: connection refused"
+	cluster = &fieldCluster{}
+	f, got, _ = fieldCase{fromProps: modeAB, toProps: modeA, claim: fieldClaim("c", "spec.mode", ChangeEnumValueRemoved, "b"),
+		to: func(map[string]any) (string, int) { return noAnswer, 1 }}.run(t, cluster)
+	if f.ToInPlace == nil || f.ToInPlace.Outcome != ServerError || got.Outcome != OutcomeError || got.Reason != ReasonServerNoAnswer {
+		t.Fatalf("fresh has no answer: %+v %+v", got, f)
 	}
 }
 
