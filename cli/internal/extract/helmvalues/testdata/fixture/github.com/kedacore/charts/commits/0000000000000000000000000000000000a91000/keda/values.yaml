@@ -1,0 +1,13 @@
+auth:
+  enabled: true
+  mode: basic
+operator:
+  replicas: 1
+  keep: 2
+metrics:
+  port: 8080
+sub:
+  x: 1
+emptyObj: {}
+weird:
+  a: 1

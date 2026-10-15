@@ -1,0 +1,65 @@
+{
+  "schema": "prufyx.io/helm-values-targets/v1",
+  "targets": [
+    {
+      "project": "cert-manager",
+      "name": "cert-manager",
+      "repo": "github.com/cert-manager/cert-manager",
+      "component": "pkg:github/cert-manager/cert-manager",
+      "factProject": "cert_manager",
+      "chart": {"source": "oci://quay.io/jetstack/charts", "name": "cert-manager", "path": "deploy/charts/cert-manager"},
+      "tagPrefix": "v",
+      "minFrom": "1.15"
+    },
+    {
+      "project": "external-secrets",
+      "name": "External Secrets Operator",
+      "repo": "github.com/external-secrets/external-secrets",
+      "component": "pkg:github/external-secrets/external-secrets",
+      "factProject": "external_secrets",
+      "chart": {"source": "https://charts.external-secrets.io", "name": "external-secrets", "path": "deploy/charts/external-secrets"},
+      "tagPrefix": "helm-chart-",
+      "minFrom": "2.6"
+    },
+    {
+      "project": "istio",
+      "name": "Istio",
+      "repo": "github.com/istio/istio",
+      "component": "pkg:github/istio/istio",
+      "factProject": "istio",
+      "chart": {"source": "https://istio-release.storage.googleapis.com/charts", "name": "gateway", "path": "manifests/charts/gateway"},
+      "tagPrefix": "",
+      "minFrom": "1.26"
+    },
+    {
+      "project": "keda",
+      "name": "KEDA",
+      "repo": "github.com/kedacore/charts",
+      "component": "pkg:github/kedacore/keda",
+      "factProject": "keda",
+      "chart": {"source": "https://kedacore.github.io/charts", "name": "keda", "path": "keda"},
+      "tagPrefix": "v",
+      "minFrom": "2.15"
+    },
+    {
+      "project": "metallb",
+      "name": "MetalLB",
+      "repo": "github.com/metallb/metallb",
+      "component": "pkg:github/metallb/metallb",
+      "factProject": "metallb",
+      "chart": {"source": "https://metallb.github.io/metallb", "name": "metallb", "path": "charts/metallb"},
+      "tagPrefix": "v",
+      "minFrom": "0.11"
+    },
+    {
+      "project": "opentelemetry",
+      "name": "OpenTelemetry Collector",
+      "repo": "github.com/open-telemetry/opentelemetry-helm-charts",
+      "component": "pkg:github/open-telemetry/opentelemetry-collector",
+      "factProject": "opentelemetry",
+      "chart": {"source": "https://open-telemetry.github.io/opentelemetry-helm-charts", "name": "opentelemetry-collector", "path": "charts/opentelemetry-collector"},
+      "tagPrefix": "opentelemetry-collector-",
+      "minFrom": "0.169"
+    }
+  ]
+}

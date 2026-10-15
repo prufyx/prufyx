@@ -1,0 +1,7 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "keda.name" . }}
+spec:
+  replicas: {{ .Values.operator.replicas }}
+  token: {{ .Values.auth.token | quote }}

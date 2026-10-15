@@ -1,0 +1,626 @@
+{
+  "codeFiles": [],
+  "commits": [
+    {
+      "commit": "0000000000000000000000000000000000a90000",
+      "listings": 3,
+      "reads": 6,
+      "readsDigest": "sha256:59551100e25a2361b47a608cbbe0f2ddf1b454754c650b9de82f6ef037b2dd3b"
+    },
+    {
+      "commit": "0000000000000000000000000000000000a90001",
+      "listings": 1,
+      "reads": 1,
+      "readsDigest": "sha256:7f3ba4d5125a40218619031c42061b06ae3947c1c42a970fd3beb1470e1d5fa6"
+    },
+    {
+      "commit": "0000000000000000000000000000000000a91000",
+      "listings": 6,
+      "reads": 7,
+      "readsDigest": "sha256:dc733977c201f3831ea472a9476b7051d1216dab5699ddf2c43799a0523ae105"
+    },
+    {
+      "commit": "0000000000000000000000000000000000a92000",
+      "listings": 6,
+      "reads": 6,
+      "readsDigest": "sha256:57e0e92ec52acf60aaafa4a18a04f5943a49fbbfbe5629833fd44df98884cbc5"
+    },
+    {
+      "commit": "0000000000000000000000000000000000a93000",
+      "listings": 1,
+      "reads": 2,
+      "readsDigest": "sha256:f9141ae01b4ea59614d9cc179889a8207e410ea5ebf81f68c74d3199151a6b78"
+    }
+  ],
+  "derivedAt": "2026-10-11T00:00:00Z",
+  "extractor": {
+    "codeDigest": "sha256:CODE",
+    "id": "helm.values.keda.keda",
+    "version": "1.0.0"
+  },
+  "outputs": {
+    "candidates.json": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000a90000.tsv": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000a90001.tsv": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000a91000.tsv": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000a92000.tsv": "sha256:OUTPUT",
+    "reads/0000000000000000000000000000000000a93000.tsv": "sha256:OUTPUT",
+    "vectors.json": "sha256:OUTPUT"
+  },
+  "pairs": [
+    {
+      "from": "90.0.0",
+      "fromCommit": "0000000000000000000000000000000000a90000",
+      "fromTag": "v90.0.0",
+      "proof": {
+        "chart": {
+          "name": "keda",
+          "source": "https://kedacore.github.io/charts"
+        },
+        "completeness": {
+          "earlierKeys": 12,
+          "earlierKeysClassified": 12,
+          "requiredKeys": 8,
+          "schemaOpaque": 1,
+          "templatesRefused": 1
+        },
+        "from": {
+          "commit": "0000000000000000000000000000000000a90000",
+          "kubeVersion": ">=1.20.0-0",
+          "requiredKeys": [
+            "auth.enabled"
+          ],
+          "schema": true,
+          "subcharts": [
+            "sub"
+          ],
+          "tag": "v90.0.0",
+          "templates": {
+            "dynamic": 1,
+            "files": 2,
+            "paths": [
+              "auth.enabled",
+              "operator.legacyFlag",
+              "operator.replicas"
+            ],
+            "refused": []
+          },
+          "valuesPaths": [
+            "auth",
+            "auth.enabled",
+            "metrics",
+            "metrics.port",
+            "operator",
+            "operator.keep",
+            "operator.legacyFlag",
+            "operator.legacyMap",
+            "operator.legacyMap.inner",
+            "operator.replicas",
+            "sub",
+            "sub.x"
+          ],
+          "version": "90.0.0"
+        },
+        "kubeVersion": {
+          "from": {
+            "constraint": ">=1.20.0-0",
+            "minimum": "1.20.0",
+            "preRelease": true,
+            "shape": "minimum"
+          },
+          "outcome": "rule",
+          "to": {
+            "constraint": ">= 1.23-0",
+            "minimum": "1.23.0",
+            "preRelease": true,
+            "shape": "minimum"
+          }
+        },
+        "lines": {
+          "from": {
+            "line": "90.0",
+            "releases": [
+              {
+                "anchor": true,
+                "commit": "0000000000000000000000000000000000a90000",
+                "tag": "v90.0.0",
+                "version": "90.0.0"
+              },
+              {
+                "commit": "0000000000000000000000000000000000a90001",
+                "problem": "keda/Chart.yaml declares version 90.0.2, the tag names 90.0.1",
+                "tag": "v90.0.1",
+                "version": "90.0.1"
+              }
+            ]
+          },
+          "to": {
+            "line": "90.1",
+            "releases": [
+              {
+                "anchor": true,
+                "commit": "0000000000000000000000000000000000a91000",
+                "tag": "v90.1.0",
+                "version": "90.1.0"
+              }
+            ]
+          }
+        },
+        "removed": {
+          "candidates": 12,
+          "counts": {
+            "declared": 7,
+            "rejected": 2,
+            "same-prefix": 1,
+            "subchart": 2
+          },
+          "keys": [
+            {
+              "class": "rejected",
+              "detail": "operator.legacyFlag",
+              "path": "operator.legacyFlag"
+            },
+            {
+              "class": "rejected",
+              "detail": "operator.legacyMap",
+              "path": "operator.legacyMap"
+            },
+            {
+              "class": "subchart",
+              "path": "sub"
+            },
+            {
+              "class": "subchart",
+              "path": "sub.x"
+            }
+          ],
+          "outcome": "rule"
+        },
+        "required": {
+          "keys": [
+            {
+              "class": "default",
+              "path": "auth.enabled"
+            },
+            {
+              "class": "default",
+              "path": "auth.mode"
+            },
+            {
+              "class": "rule",
+              "path": "auth.token"
+            },
+            {
+              "class": "empty-ancestor",
+              "path": "emptyObj.k"
+            },
+            {
+              "class": "inactive-ancestor",
+              "path": "missing.deep"
+            },
+            {
+              "class": "rule",
+              "path": "rootKey"
+            },
+            {
+              "class": "subchart",
+              "path": "sub.y"
+            },
+            {
+              "class": "unexpressible",
+              "path": "weird.bad key"
+            }
+          ],
+          "opaque": [
+            {
+              "path": "hidden",
+              "reason": "keyword allOf"
+            }
+          ],
+          "outcome": "rule"
+        },
+        "rules": [
+          "keda.helm-values.keda.90-0-0-to-90-1-0.kube-version",
+          "keda.helm-values.keda.90-0-0-to-90-1-0.required-values",
+          "keda.helm-values.keda.90-0-0-to-90-1-0.removed-values"
+        ],
+        "soft": {
+          "defaultsChanged": [],
+          "defaultsRemoved": [
+            "operator.legacyFlag",
+            "operator.legacyMap"
+          ],
+          "referencesRemoved": [
+            "auth.enabled",
+            "operator.legacyFlag"
+          ]
+        },
+        "target": "keda",
+        "to": {
+          "commit": "0000000000000000000000000000000000a91000",
+          "kubeVersion": ">= 1.23-0",
+          "requiredKeys": [
+            "auth.enabled",
+            "auth.mode",
+            "auth.token",
+            "emptyObj.k",
+            "missing.deep",
+            "rootKey",
+            "sub.y",
+            "weird.bad key"
+          ],
+          "schema": true,
+          "subcharts": [
+            "sub"
+          ],
+          "tag": "v90.1.0",
+          "templates": {
+            "dynamic": 0,
+            "files": 3,
+            "paths": [
+              "auth.token",
+              "operator.replicas"
+            ],
+            "refused": [
+              "templates/broken.txt"
+            ]
+          },
+          "valuesPaths": [
+            "auth",
+            "auth.enabled",
+            "auth.mode",
+            "emptyObj",
+            "metrics",
+            "metrics.port",
+            "operator",
+            "operator.keep",
+            "operator.replicas",
+            "sub",
+            "sub.x",
+            "weird",
+            "weird.a"
+          ],
+          "version": "90.1.0"
+        }
+      },
+      "rules": [
+        "keda.helm-values.keda.90-0-0-to-90-1-0.kube-version",
+        "keda.helm-values.keda.90-0-0-to-90-1-0.removed-values",
+        "keda.helm-values.keda.90-0-0-to-90-1-0.required-values"
+      ],
+      "status": "derived",
+      "to": "90.1.0",
+      "toCommit": "0000000000000000000000000000000000a91000",
+      "toTag": "v90.1.0"
+    },
+    {
+      "from": "90.1.0",
+      "fromCommit": "0000000000000000000000000000000000a91000",
+      "fromTag": "v90.1.0",
+      "proof": {
+        "chart": {
+          "name": "keda",
+          "source": "https://kedacore.github.io/charts"
+        },
+        "completeness": {
+          "earlierKeys": 18,
+          "earlierKeysClassified": 18,
+          "requiredKeys": 8,
+          "schemaOpaque": 1,
+          "templatesRefused": 1
+        },
+        "from": {
+          "commit": "0000000000000000000000000000000000a91000",
+          "kubeVersion": ">= 1.23-0",
+          "requiredKeys": [
+            "auth.enabled",
+            "auth.mode",
+            "auth.token",
+            "emptyObj.k",
+            "missing.deep",
+            "rootKey",
+            "sub.y",
+            "weird.bad key"
+          ],
+          "schema": true,
+          "subcharts": [
+            "sub"
+          ],
+          "tag": "v90.1.0",
+          "templates": {
+            "dynamic": 0,
+            "files": 3,
+            "paths": [
+              "auth.token",
+              "operator.replicas"
+            ],
+            "refused": [
+              "templates/broken.txt"
+            ]
+          },
+          "valuesPaths": [
+            "auth",
+            "auth.enabled",
+            "auth.mode",
+            "emptyObj",
+            "metrics",
+            "metrics.port",
+            "operator",
+            "operator.keep",
+            "operator.replicas",
+            "sub",
+            "sub.x",
+            "weird",
+            "weird.a"
+          ],
+          "version": "90.1.0"
+        },
+        "kubeVersion": {
+          "from": {
+            "constraint": ">= 1.23-0",
+            "minimum": "1.23.0",
+            "preRelease": true,
+            "shape": "minimum"
+          },
+          "outcome": "no rule: the later kubeVersion has no -0 suffix, so Helm also refuses cluster versions with a vendor suffix at or above the bound, which a declared X.Y.Z version cannot show",
+          "to": {
+            "constraint": ">= 1.25.0",
+            "minimum": "1.25.0",
+            "preRelease": false,
+            "shape": "minimum"
+          }
+        },
+        "lines": {
+          "from": {
+            "line": "90.1",
+            "releases": [
+              {
+                "anchor": true,
+                "commit": "0000000000000000000000000000000000a91000",
+                "tag": "v90.1.0",
+                "version": "90.1.0"
+              }
+            ]
+          },
+          "to": {
+            "line": "90.2",
+            "releases": [
+              {
+                "anchor": true,
+                "commit": "0000000000000000000000000000000000a92000",
+                "tag": "v90.2.0",
+                "version": "90.2.0"
+              }
+            ]
+          }
+        },
+        "removed": {
+          "candidates": 18,
+          "counts": {
+            "declared": 15,
+            "open": 1,
+            "subchart": 2
+          },
+          "keys": [
+            {
+              "class": "subchart",
+              "path": "sub"
+            },
+            {
+              "class": "subchart",
+              "path": "sub.x"
+            }
+          ],
+          "outcome": "no rule: the later schema refuses no key the earlier chart used"
+        },
+        "required": {
+          "keys": [
+            {
+              "class": "default",
+              "path": "auth.enabled"
+            },
+            {
+              "class": "default",
+              "path": "auth.mode"
+            },
+            {
+              "class": "already-required",
+              "path": "auth.token"
+            },
+            {
+              "class": "empty-ancestor",
+              "path": "emptyObj.k"
+            },
+            {
+              "class": "inactive-ancestor",
+              "path": "missing.deep"
+            },
+            {
+              "class": "already-required",
+              "path": "rootKey"
+            },
+            {
+              "class": "subchart",
+              "path": "sub.y"
+            },
+            {
+              "class": "already-required",
+              "path": "weird.bad key"
+            }
+          ],
+          "opaque": [
+            {
+              "path": "hidden",
+              "reason": "keyword allOf"
+            }
+          ],
+          "outcome": "no rule: no required key lost its default"
+        },
+        "soft": {
+          "defaultsChanged": [],
+          "defaultsRemoved": [],
+          "referencesRemoved": []
+        },
+        "target": "keda",
+        "to": {
+          "commit": "0000000000000000000000000000000000a92000",
+          "kubeVersion": ">= 1.25.0",
+          "requiredKeys": [
+            "auth.enabled",
+            "auth.mode",
+            "auth.token",
+            "emptyObj.k",
+            "missing.deep",
+            "rootKey",
+            "sub.y",
+            "weird.bad key"
+          ],
+          "schema": true,
+          "subcharts": [
+            "sub"
+          ],
+          "tag": "v90.2.0",
+          "templates": {
+            "dynamic": 0,
+            "files": 2,
+            "paths": [
+              "auth.token",
+              "operator.replicas"
+            ],
+            "refused": []
+          },
+          "valuesPaths": [
+            "auth",
+            "auth.enabled",
+            "auth.mode",
+            "emptyObj",
+            "metrics",
+            "metrics.port",
+            "operator",
+            "operator.keep",
+            "operator.replicas",
+            "sub",
+            "sub.x",
+            "weird",
+            "weird.a"
+          ],
+          "version": "90.2.0"
+        }
+      },
+      "rules": [],
+      "status": "derived",
+      "to": "90.2.0",
+      "toCommit": "0000000000000000000000000000000000a92000",
+      "toTag": "v90.2.0"
+    },
+    {
+      "from": "90.2.0",
+      "fromCommit": "0000000000000000000000000000000000a92000",
+      "fromTag": "v90.2.0",
+      "proof": {
+        "chart": {
+          "name": "keda",
+          "source": "https://kedacore.github.io/charts"
+        },
+        "from": {
+          "commit": "0000000000000000000000000000000000a92000",
+          "kubeVersion": ">= 1.25.0",
+          "requiredKeys": [
+            "auth.enabled",
+            "auth.mode",
+            "auth.token",
+            "emptyObj.k",
+            "missing.deep",
+            "rootKey",
+            "sub.y",
+            "weird.bad key"
+          ],
+          "schema": true,
+          "subcharts": [
+            "sub"
+          ],
+          "tag": "v90.2.0",
+          "templates": {
+            "dynamic": 0,
+            "files": 2,
+            "paths": [
+              "auth.token",
+              "operator.replicas"
+            ],
+            "refused": []
+          },
+          "valuesPaths": [
+            "auth",
+            "auth.enabled",
+            "auth.mode",
+            "emptyObj",
+            "metrics",
+            "metrics.port",
+            "operator",
+            "operator.keep",
+            "operator.replicas",
+            "sub",
+            "sub.x",
+            "weird",
+            "weird.a"
+          ],
+          "version": "90.2.0"
+        },
+        "lines": {
+          "from": {
+            "line": "90.2",
+            "releases": [
+              {
+                "anchor": true,
+                "commit": "0000000000000000000000000000000000a92000",
+                "tag": "v90.2.0",
+                "version": "90.2.0"
+              }
+            ]
+          },
+          "to": {
+            "line": "90.3",
+            "releases": [
+              {
+                "anchor": true,
+                "commit": "0000000000000000000000000000000000a93000",
+                "tag": "v90.3.0",
+                "version": "90.3.0"
+              }
+            ]
+          }
+        },
+        "target": "keda",
+        "to": {
+          "commit": "0000000000000000000000000000000000a93000",
+          "problem": "keda/values.yaml: outside the strict YAML subset or its bounds",
+          "schema": false,
+          "tag": "v90.3.0",
+          "templates": {
+            "dynamic": 0,
+            "files": 0,
+            "paths": [],
+            "refused": []
+          }
+        }
+      },
+      "reason": "keda at v90.3.0: keda/values.yaml: outside the strict YAML subset or its bounds",
+      "rules": [],
+      "status": "withheld",
+      "to": "90.3.0",
+      "toCommit": "0000000000000000000000000000000000a93000",
+      "toTag": "v90.3.0"
+    }
+  ],
+  "repo": "github.com/kedacore/charts",
+  "schema": "prufyx.io/extractor-run-manifest/v1",
+  "totals": {
+    "commitsRead": 5,
+    "derived": 2,
+    "pairs": 3,
+    "rules": 3,
+    "vectors": 9,
+    "withheld": 1
+  },
+  "validUntil": "2027-01-09T00:00:00Z"
+}

@@ -1,0 +1,12 @@
+{
+  "pairs": [
+    {"from": "90.0.0", "to": "90.1.0", "status": "derived", "rules": 3},
+    {"from": "90.1.0", "to": "90.2.0", "status": "derived", "rules": 0},
+    {"from": "90.2.0", "to": "90.3.0", "status": "withheld"}
+  ],
+  "rules": [
+    {"id": "keda.helm-values.keda.90-0-0-to-90-1-0.kube-version", "operator": "require_component_version", "minimum": "1.23.0"},
+    {"id": "keda.helm-values.keda.90-0-0-to-90-1-0.removed-values", "operator": "forbid_set_member", "members": ["operator.legacyFlag", "operator.legacyMap"]},
+    {"id": "keda.helm-values.keda.90-0-0-to-90-1-0.required-values", "operator": "require_set_member", "members": ["auth.token", "rootKey"]}
+  ]
+}

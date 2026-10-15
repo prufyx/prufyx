@@ -27,6 +27,7 @@ var cases = []kase{
 	{"served-apis", "k8s.served-api-removal", "../k8sservedapis/testdata/fixture"}, // gitleaks:allow (fixture name, not a secret)
 	{"strimzi", "crd.version-removal.strimzi", "../crdversions/testdata/strimzi"},
 	{"argo-cd", "crd.version-removal.argo-cd", "../crdversions/testdata/fixture"},
+	{"keda-chart", "helm.values.keda.keda", "../helmvalues/testdata/fixture"},
 }
 
 func setup(t *testing.T, c kase) (extract.Extractor, extract.RepoRef, extract.FixtureReader) {
@@ -50,7 +51,7 @@ func build(t *testing.T, c kase, r extract.PinnedReader, commit string) ([]byte,
 func pairs(t *testing.T, c kase) []map[string]any {
 	t.Helper()
 	ex, repo, src := setup(t, c)
-	out, err := extract.Run(context.Background(), ex, src, src, extract.Options{Repo: repo, DerivedAt: time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC)})
+	out, err := extractcli.Derive(context.Background(), ex, src, src, extract.Options{Repo: repo, DerivedAt: time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,6 +137,13 @@ func TestInventoryMatchesTheExtractorsOwnView(t *testing.T) {
 							if !hasGVK(from, k) || hasGVK(to, k) {
 								t.Fatalf("removed %s: not served at from or still served at to", k)
 							}
+						}
+					}
+				case "keda-chart":
+					for side, doc := range map[string]map[string]any{"from": from, "to": to} {
+						chart, seen := doc["helmChart"].(map[string]any), proof[side].(map[string]any)
+						if !eq(strs(chart["valuesPaths"]), strs(seen["valuesPaths"])) || !eq(strs(chart["requiredKeys"]), strs(seen["requiredKeys"])) || chart["version"] != seen["version"] {
+							t.Fatalf("%s chart values differ from the extractor's view", side)
 						}
 					}
 				default:
@@ -283,7 +291,7 @@ func assertIncomplete(t *testing.T, c kase, r extract.PinnedReader, commit, miss
 func readsAt(t *testing.T, c kase, commit string) []string {
 	t.Helper()
 	ex, repo, src := setup(t, c)
-	out, err := extract.Run(context.Background(), ex, src, src, extract.Options{Repo: repo, DerivedAt: time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC)})
+	out, err := extractcli.Derive(context.Background(), ex, src, src, extract.Options{Repo: repo, DerivedAt: time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC)})
 	if err != nil {
 		t.Fatal(err)
 	}

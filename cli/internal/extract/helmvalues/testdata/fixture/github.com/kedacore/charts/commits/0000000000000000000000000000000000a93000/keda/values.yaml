@@ -1,0 +1,3 @@
+base: &b
+  a: 1
+other: *b

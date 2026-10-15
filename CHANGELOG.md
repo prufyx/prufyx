@@ -67,6 +67,24 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   API, and `scan` no longer checks Gateway API objects against the list of
   APIs Kubernetes serves (nor counts them as alpha Kubernetes APIs), unless
   that list names the group.
+- Maintainer extractor `helm.values` 1.0.0, registered once per reviewed chart
+  as `helm.values.<project>.<chart>` (cert-manager, External Secrets Operator,
+  the Istio gateway chart, KEDA, MetalLB and the OpenTelemetry Collector). It
+  compares a chart's source at the first release of two consecutive release
+  lines and derives anchor-only chart rules only where Helm itself refuses the
+  upgrade: a raised `kubeVersion` lower bound (`require_component_version` on
+  Kubernetes), keys the values schema newly requires with no default
+  (`require_set_member`), and keys a closed schema object no longer admits
+  (`forbid_set_member`). Removed or changed defaults and values the templates
+  no longer reference are recorded in the proof, never as rules. Charts whose
+  `Chart.yaml` carries a placeholder version at the release tag (cert-manager,
+  Istio) are withheld. `extract inventory` prints a `helm-values` inventory for
+  these ids. The chart-source table now holds a reviewed, cited row for each
+  of these charts; only `rulecheck` reads it. It runs through
+  `cli/internal/extract/chartrun`; its code digest covers the extractor
+  framework, `chartrun` and its own package. No other extractor's code digest
+  or output changes. See `cli/docs/extractors/helm.values.md`.
+
 - Chart rules (not used by any shipped rule yet): a rule subject may name a
   Helm chart (`subject.chart`, a normalised repository URL and a chart name),
   and the new `require_set_member` operator passes only when a complete
@@ -80,6 +98,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   byte-identical and evaluate exactly as before. `rulecheck` admits a chart
   rule only from a mechanical extractor and only for a chart listed in the
   reviewed chart-source table. See `cli/docs/contributing-rules.md`.
+- Extractor framework, chart extractors (not used by any extractor yet): a new
+  package, `cli/internal/extract/chartrun`, runs extractors whose candidates
+  name a chart in the rule subject and may carry a `require_component_version`
+  dependency. It stamps, checks and writes runs exactly as the extractor
+  framework does (same manifest schema, files and reads logs) and generates
+  and engine-checks the vectors of chart `forbid_set_member`,
+  `require_set_member` and a proposed-side `gte` dependency bound (the blocked
+  vector's missing members are compared too). The framework's own files do
+  not change and no other extractor imports the package, so the code digests
+  of `k8s.feature-gate-removal`, `k8s.served-api-removal` and every
+  `crd.version-removal.*` id do not move. A chart extractor's code digest
+  covers the framework, `chartrun` and its own package.
 
 - KIND-VAL (maintainer tool, `cli/internal/tools/kindval` and
   `cli/scripts/kind-val.sh`): checks the Kubernetes knowledge against real

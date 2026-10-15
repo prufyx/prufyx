@@ -1,0 +1,15 @@
+Synthetic Helm chart sources under the KEDA charts repository key and its
+listed chart path (keda). The tags v90.x and v2.0.0, the commit ids and every
+file are invented; no byte comes from upstream.
+
+v90.0.0 -> v90.1.0: kubeVersion rises from >=1.20.0-0 to >= 1.23-0; the
+values schema newly requires rootKey and auth.token with no default (auth.mode
+is required with a default; missing.deep sits under a key with no default;
+emptyObj.k under an empty mapping; sub.y under a dependency; "bad key" cannot
+be named as a member; hidden is opaque); operator is closed to the
+legacyFlag and legacyMap keys the earlier values set.
+v90.1.0 -> v90.2.0: kubeVersion >= 1.25.0 has no -0 suffix; nothing else
+changes. v90.2.0 -> v90.3.0: the later values.yaml uses an anchor, so the
+pair is withheld. v90.0.1 declares chart version 90.0.2 (recorded, not
+withheld); v90.4.0-rc.1 is a pre-release; v2.0.0 is before the target's
+first line.

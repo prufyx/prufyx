@@ -1,0 +1,11 @@
+apiVersion: v2
+name: keda
+description: Fixture chart.
+type: application
+version: 90.2.0
+appVersion: "90.2.0"
+kubeVersion: ">= 1.25.0"
+dependencies:
+  - name: sub
+    version: 1.0.0
+    repository: file://charts/sub

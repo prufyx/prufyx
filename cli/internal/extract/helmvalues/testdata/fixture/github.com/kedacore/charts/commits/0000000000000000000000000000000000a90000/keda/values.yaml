@@ -1,0 +1,13 @@
+auth:
+  enabled: true
+operator:
+  replicas: 1
+  legacyFlag: true
+  legacyMap:
+    inner: x
+  keep: 2
+metrics:
+  port: 8080
+sub:
+  x: 1
+nullable: null

@@ -3,8 +3,10 @@
 Prufyx reads Helm chart references in GitOps repositories (a `HelmRelease`, an Argo CD
 `Application`, a `helmCharts` entry). A chart reference tells you a repository URL, a chart name and
 a chart version. It does not tell you which software the chart installs, or which version of that
-software the chart version contains. Two embedded tables bridge that gap. Both ship empty in the
-source tree until reviewed entries are published.
+software the chart version contains. Two embedded tables bridge that gap. The app-version table
+ships empty; the chart-source table holds the reviewed rows of the charts the `helm.values`
+extractor reads (see [extractors/helm.values.md](extractors/helm.values.md)), which only `rulecheck`
+consults today: a chart rule needs one.
 
 ## A chart version is not an application version
 
