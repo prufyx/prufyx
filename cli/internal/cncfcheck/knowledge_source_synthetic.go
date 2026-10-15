@@ -7,6 +7,7 @@ package cncfcheck
 import (
 	"encoding/json"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
@@ -68,10 +69,12 @@ func UseSyntheticRecords(definitions []constraintengine.FactDefinition, entries 
 }
 
 // UseSyntheticKnowledgeReplacing is UseSyntheticKnowledge where a synthetic
-// entry whose rule id the embedded pack already holds replaces that entry
-// instead of colliding with it: a test that re-derives a published rule
-// (under its own derivation time) evaluates its own derivation, not both.
-// No other embedded entry is removed.
+// custom-resource version-removal entry (rule id containing
+// ".crd-version-removal.") whose rule id the embedded pack already holds
+// replaces that entry instead of colliding with it: a test that re-derives
+// a published rule (under its own derivation time) evaluates its own
+// derivation, not both. Any other entry is refused (ErrInvalid); no other
+// embedded entry is removed.
 func UseSyntheticKnowledgeReplacing(definitions []constraintengine.FactDefinition, entries []Entry) (func(), error) {
 	return useSynthetic(definitions, entries, SyntheticRecords{}, true)
 }
@@ -91,7 +94,7 @@ func useSynthetic(definitions []constraintengine.FactDefinition, entries []Entry
 			var shape struct {
 				ID string `json:"id"`
 			}
-			if err := json.Unmarshal(entry.Rule, &shape); err != nil {
+			if err := json.Unmarshal(entry.Rule, &shape); err != nil || !strings.Contains(shape.ID, ".crd-version-removal.") {
 				return nil, ErrInvalid
 			}
 			synthetic[shape.ID] = true
