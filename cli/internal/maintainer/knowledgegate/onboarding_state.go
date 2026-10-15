@@ -11,7 +11,6 @@ import (
 	"path"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"testing/fstest"
 
@@ -28,7 +27,7 @@ import (
 type OnboardingLayout struct {
 	// Dir holds the onboarding batches as <batch id>.json.
 	Dir string
-	// Pack is the pack whose revision and registry move with the table.
+	// Pack is the pack whose registryDigest moves with the table.
 	Pack string
 	// TargetsDir holds the CRD version targets, target-<slug>.json.
 	TargetsDir string
@@ -96,7 +95,8 @@ type onboardingSide struct {
 	projects []customresources.Project
 	reserved []customresources.ReservedGroup
 	state    OnboardingState
-	// members are the pack's revision and registryDigest members.
+	// members are the pack's revision and registryDigest members (the
+	// revision is read to require that it does not change).
 	revision, registryDigest string
 }
 
@@ -248,20 +248,6 @@ func (st *onboardingState) docs() map[string]string {
 	}
 }
 
-// nextRevision is the pack revision after rev: the same prefix and the
-// final counter plus one.
-func nextRevision(rev string) (string, bool) {
-	m := onboardingRevisionRE.FindStringSubmatch(rev)
-	if m == nil {
-		return "", false
-	}
-	n, err := strconv.Atoi(m[2])
-	if err != nil {
-		return "", false
-	}
-	return m[1] + strconv.Itoa(n+1), true
-}
-
 func targetPath(ol OnboardingLayout, slug string) string {
 	return ol.TargetsDir + "/" + crdversions.TargetFileName(slug)
 }
@@ -314,15 +300,16 @@ func (st *onboardingState) check(rec OnboardingRecord, batchPath string) []strin
 	if len(outside) > 0 {
 		bad("O2: an onboarding change may change only the batch file, the listed projects' target files, the custom-resource table, the %s pack file, its corpus attestation and the generated support inventory; it also changes %d other files%s", ol.Pack, len(outside), listDetail(outside))
 	}
-	// O2: the classification holds the pack's revision and, with a new
-	// project, its registryDigest; nothing else.
+	// O2: the classification holds, with a new project, the pack's
+	// registryDigest; nothing else. The pack's revision never changes: it is
+	// a release step, not part of a data change.
 	newProjects := 0
 	for _, p := range rec.Projects {
 		if p.Kind == OnboardingKindNew {
 			newProjects++
 		}
 	}
-	wantMembers := map[string]bool{"revision": true}
+	wantMembers := map[string]bool{}
 	if newProjects > 0 {
 		wantMembers["registryDigest"] = true
 	}
@@ -372,8 +359,8 @@ func (st *onboardingState) check(rec OnboardingRecord, batchPath string) []strin
 	if st.head.state.RegistryDigest != st.head.registryDigest {
 		bad("O3: the head pack's registryDigest is not the registry the base's code compiles from the head table")
 	}
-	if next, ok := nextRevision(st.base.revision); !ok || st.head.revision != next {
-		bad("O3: the head pack revision must be the base revision plus one")
+	if st.head.revision != st.base.revision || rec.Head.PackRevision != rec.Base.PackRevision {
+		bad("O3: the pack revision may not change in an onboarding change; it moves in a release step of its own")
 	}
 
 	// O4 and O5, per project.

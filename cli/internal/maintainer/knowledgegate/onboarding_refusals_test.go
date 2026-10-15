@@ -195,15 +195,21 @@ func TestOnboardingRefusals(t *testing.T) {
 			f.writePack(t, []byte(strings.Replace(string(raw), m.RegistryDigest, obLedger, 1)))
 		}), nil, "O3: the head pack's registryDigest is not the registry"},
 		// O3: the states and artifacts.
-		{"O3 revision bump other than one", blind(func(t *testing.T, f *onboardingFixture) {
+		{"O3 any revision change", blind(func(t *testing.T, f *onboardingFixture) {
 			raw, _ := f.head.Read(cncfRulesPath, MaxFileBytes)
 			var m struct {
 				Revision string `json:"revision"`
 			}
 			json.Unmarshal(raw, &m)
-			next, _ := nextRevision(m.Revision)
-			f.writePack(t, []byte(strings.Replace(string(raw), `"revision": "`+m.Revision+`"`, `"revision": "`+next+`"`, 1)))
-		}), nil, "O3: the head pack revision must be the base revision plus one"},
+			m2 := m.Revision[:len(m.Revision)-1] + "9"
+			if m2 == m.Revision {
+				m2 = m.Revision[:len(m.Revision)-1] + "8"
+			}
+			f.writePack(t, []byte(strings.Replace(string(raw), `"revision": "`+m.Revision+`"`, `"revision": "`+m2+`"`, 1)))
+		}), nil, "O3: the pack revision may not change in an onboarding change"},
+		{"O3 signed head revision differs from the base's", resigned(func(rec *OnboardingRecord) {
+			rec.Head.PackRevision = rec.Base.PackRevision[:len(rec.Base.PackRevision)-1] + "7"
+		}), nil, "O3: the head state differs"},
 		{"O3 target changed after signing", signed(func(t *testing.T, f *onboardingFixture, _ OnboardingRecord) {
 			editTarget(t, f, func(tg map[string]any) { tg["name"] = "OpenEBS changed" })
 		}), nil, "O3: the target file differs"},

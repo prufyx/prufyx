@@ -885,8 +885,8 @@ reviewed custom-resource catalogue as data only. Per project it admits the
 project's CRD version target (`cli/internal/extract/crdversions/target-<slug>.json`)
 and its row of the reviewed custom-resource table
 (`cli/internal/customresources/table.json`), and the CNCF pack members that move
-with them: `revision` (always, by exactly one) and `registryDigest` (when a
-project is added). It can also turn on line attestation for a project that is
+with them: the pack's `registryDigest` (when a project is added). The pack's
+`revision` never changes in a batch: it moves in a release step of its own. It can also turn on line attestation for a project that is
 already in the base (kind `attest`), as the only change to that project's target.
 It admits no rule, record or attestation: those enter later through the usual
 proofs (re-derivation, a reattestation statement or an owner approval).
@@ -903,8 +903,8 @@ eligible for automatic merging: the owner merges it.
 | Check | The gate refuses the change when |
 | --- | --- |
 | O1 file and signature | the change adds more than one batch file, or a file not named after its batch id; the file does not decode strictly; the key is not pinned in the base key file (whose digest is `--approval-keys-digest`) or has expired; the identity is not an owner; the signature does not verify; `decidedAt` is in the future, `notAfter` has passed or is more than 72 hours after `decidedAt`; the base holds the same batch (id, record or signature), or a batch about one of its projects decided at the same time or later |
-| O2 paths | the change touches anything but the batch file, the listed projects' target files (added for kind `new`, changed for kind `attest`, never removed), the table, the CNCF pack file, its corpus attestation, the generated support inventory and the generated tables `cli/docs/generated/crd-version-targets.md` and `cli/docs/generated/custom-resource-projects.md` (which must equal the base's rendering of the head's targets and table); any file it touches has an executable bit; the classification holds anything but the pack's `revision` and, with a new project, `registryDigest`; the table changes a row of the base, a reserved-group record, or adds a row the batch does not list |
-| O3 states | a target file differs from the digest the batch lists; the batch's base or head state (pack revision, registry digest, table digest, targets digest) differs from the gate's own computation from that tree; a pack's `registryDigest` is not the registry the base's code compiles from that tree's table; the head revision is not the base revision plus one |
+| O2 paths | the change touches anything but the batch file, the listed projects' target files (added for kind `new`, changed for kind `attest`, never removed), the table, the CNCF pack file, its corpus attestation, the generated support inventory and the generated tables `cli/docs/generated/crd-version-targets.md` and `cli/docs/generated/custom-resource-projects.md` (which must equal the base's rendering of the head's targets and table); any file it touches has an executable bit; the classification holds anything but, with a new project, the pack's `registryDigest`; the table changes a row of the base, a reserved-group record, or adds a row the batch does not list |
+| O3 states | a target file differs from the digest the batch lists; the batch's base or head state (pack revision, registry digest, table digest, targets digest) differs from the gate's own computation from that tree; a pack's `registryDigest` is not the registry the base's code compiles from that tree's table; the pack revision differs between base and head (or in the batch's two states) |
 | O4 loaders | the targets or the table do not load with the base's loaders, or the table is not in its canonical spelling; for a new project: its target or row is already in the base, it is not a CNCF landscape project, its repository is not the landscape's, the target attests, declares a remote source, install channels or any scan exclusion, the target and row name different facts or components, a group is reserved or listed by another project, a fact project is used twice; for kind `attest`: the base target is missing or already attests, anything but `attest` changes, the target has scan exclusions, a remote source or install channels, the table row changes, or the proposal reports a refuted claim (the count is the proposal's own; the gate's evidence for turning attestation on is its own dry run, O6, which must attest the pair) |
 | O5 registry | the registry the base's code compiles from the head table is not the base's registry plus exactly each new project's `component.<project>.custom_resource_versions_set`, or a project lists other facts |
 | O6 dry run | for every project, the gate builds the extractor from the head's target bytes with its own code and runs the newest release pair the target names against GitHub; it refuses when that pair is not the pair the proposal names, is not derived, the full-tree scan finds a file the proposal did not list, a new project's group is not declared in the file its table row cites (which must be under a listed path of the project's own repository, at the pair's later release), or a kind `attest` target does not attest the pair. Each project may use 60 GitHub REST requests and 2000 reads; over either budget the batch is refused. Without a source that counts its requests (`--source github`) no batch is admitted |
@@ -912,8 +912,8 @@ eligible for automatic merging: the owner merges it.
 | O8 kill switch | `factory/PAUSE` is set |
 
 A change that adds no batch is checked as before: the gate admits the CNCF pack
-against the table it was built with, so a table change without a batch fails
-`admit/cncf`. Only once a batch is admitted are `admit/cncf` and
+against the table it was built with, so a table change that moves the pack's
+`registryDigest` without a batch fails `admit/cncf` and the pack member check. Only once a batch is admitted are `admit/cncf` and
 `attestation/cncf` run against the head's table, compiled by the base's code.
 A batch file in the base is never changed, and removed only 14 days after it
 expired; a knowledge batch may not touch `cli/knowledge/onboarding/`.

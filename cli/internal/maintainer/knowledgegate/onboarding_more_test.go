@@ -95,8 +95,8 @@ func TestOnboardingAttestFlip(t *testing.T) {
 	f.sign(t, f.record(t))
 	r := f.gate(t)
 	requirePass(t, r)
-	if len(r.Changes) != 1 || r.Changes[0].Member != "revision" || r.Changes[0].Proof != ProofOnboarding {
-		t.Fatalf("changes %+v", r.Changes)
+	if len(r.Changes) != 0 {
+		t.Fatalf("an attest flip changes no pack member, got %+v", r.Changes)
 	}
 	if !strings.Contains(r.onboarding.summary, "**Attestation turned on: "+f.draft.Projects[0].Slug+".**") {
 		t.Fatalf("summary does not lead with the attest flip:\n%s", r.onboarding.summary)

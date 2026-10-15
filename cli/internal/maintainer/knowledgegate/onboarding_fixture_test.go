@@ -198,7 +198,7 @@ func (f *onboardingFixture) onboardRow(t *testing.T, slug, targetJSON, component
 }
 
 // editTable rewrites the head table (canonical spelling) and every file
-// that follows it: the pack's revision and registryDigest, the corpus
+// that follows it: the pack's registryDigest, the corpus
 // attestation, the generated inventory and the docs tables.
 func (f *onboardingFixture) editTable(t *testing.T, edit func([]customresources.Project) []customresources.Project) {
 	t.Helper()
@@ -221,8 +221,8 @@ func (f *onboardingFixture) editTable(t *testing.T, edit func([]customresources.
 	f.follow(t)
 }
 
-// follow bumps the head pack revision once (from the base's) and sets its
-// registryDigest from the head table, then regenerates what follows.
+// follow sets the head pack's registryDigest from the head table (the
+// revision stays the base's), then regenerates what follows.
 func (f *onboardingFixture) follow(t *testing.T) {
 	t.Helper()
 	ol := DefaultLayout().Onboarding
@@ -233,7 +233,7 @@ func (f *onboardingFixture) follow(t *testing.T) {
 	digest, err := cncfcheck.TableRegistryDigest(table)
 	if err != nil {
 		// A test of a table the loader refuses: the pack keeps its
-		// registry, the revision still moves.
+		// registry.
 		digest = ""
 	}
 	baseRaw, err := f.base.Read(cncfRulesPath, MaxFileBytes)
@@ -247,11 +247,7 @@ func (f *onboardingFixture) follow(t *testing.T) {
 	if err := json.Unmarshal(baseRaw, &members); err != nil {
 		t.Fatal(err)
 	}
-	next, ok := nextRevision(members.Revision)
-	if !ok {
-		t.Fatalf("revision %s", members.Revision)
-	}
-	headRaw := bytes.Replace(baseRaw, []byte(`"revision": "`+members.Revision+`"`), []byte(`"revision": "`+next+`"`), 1)
+	headRaw := baseRaw
 	if digest != "" {
 		headRaw = bytes.Replace(headRaw, []byte(members.RegistryDigest), []byte(digest), 1)
 	}

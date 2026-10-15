@@ -23,7 +23,7 @@ import (
 // manifest that adds up to MaxOnboardingProjects projects to the reviewed
 // custom-resource catalogue as data only: per project, its CRD version target
 // file and its row of the reviewed custom-resource table, and the pack
-// members that move with them (revision and registryDigest). It cannot carry
+// members that move with them (registryDigest; the revision never moves in a batch). It cannot carry
 // a rule, a record, code, a test, an approval or trust material: the gate
 // refuses every other path (onboarding_state.go). It also turns on line
 // attestation for a project already in the base (kind attest), as the only

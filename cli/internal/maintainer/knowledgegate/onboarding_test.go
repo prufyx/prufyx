@@ -25,7 +25,7 @@ func TestOnboardingBatchAdmits(t *testing.T) {
 			}
 		}
 	}
-	if members != 2 || len(r.Changes) != 2 {
+	if members != 1 || len(r.Changes) != 1 {
 		t.Fatalf("changes %+v", r.Changes)
 	}
 	if r.AutoMerge.Eligible || !strings.Contains(strings.Join(r.AutoMerge.Reasons, ";"), "onboarding batch") {

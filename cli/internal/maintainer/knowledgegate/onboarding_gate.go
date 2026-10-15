@@ -25,7 +25,7 @@ type onboardingResult struct {
 	summary string
 	// headTable is the head's custom-resource table, which the cncf pack
 	// is admitted against once the batch is admitted; headRevision and
-	// headRegistry are the pack members it admits.
+	// headRegistry is the pack member it admits.
 	headTable                  []byte
 	headRevision, headRegistry string
 	// restRequests are the dry runs' GitHub REST requests, per project.
@@ -37,7 +37,7 @@ func (o *onboardingResult) admitsMember(layout Layout, c *Change) bool {
 	if o == nil || !o.ok || c.Pack != layout.Onboarding.Pack {
 		return false
 	}
-	return c.Member == "revision" || c.Member == "registryDigest"
+	return c.Member == "registryDigest"
 }
 
 // onboardingFiles lists the onboarding files the head adds, by name, and the
