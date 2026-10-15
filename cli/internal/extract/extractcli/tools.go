@@ -17,8 +17,9 @@ func cmdApply(args []string, existing []string, stdout, stderr io.Writer) (int, 
 	f := flag.NewFlagSet("extract apply", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	var runDir, pack string
-	var withdraw, rulesOnly bool
+	var withdraw, rulesOnly, quietOnly bool
 	f.BoolVar(&rulesOnly, "rules-only", false, "apply the run's rules only: no attestations, no schema change")
+	f.BoolVar(&quietOnly, "quiet-lines-only", false, "apply only the run's empty-list line attestations for lines the pack holds no rule for; no rules")
 	f.StringVar(&runDir, "out", "", "run output directory (from extract run)")
 	f.StringVar(&pack, "pack", "", "rule pack file to edit in place")
 	f.BoolVar(&withdraw, "withdraw", false, "withdraw the rules the run no longer produces instead of adding its rules")
@@ -28,7 +29,10 @@ func cmdApply(args []string, existing []string, stdout, stderr io.Writer) (int, 
 	if rulesOnly && withdraw {
 		return 2, errors.New("command rejected: --rules-only does not combine with --withdraw\n" + usage)
 	}
-	rep, err := extractpack.Apply(extractpack.Options{PackPath: pack, RunDir: runDir, Withdraw: withdraw, RulesOnly: rulesOnly, ExistingRules: existing})
+	if quietOnly && (withdraw || rulesOnly) {
+		return 2, errors.New("command rejected: --quiet-lines-only does not combine with --withdraw or --rules-only\n" + usage)
+	}
+	rep, err := extractpack.Apply(extractpack.Options{PackPath: pack, RunDir: runDir, Withdraw: withdraw, RulesOnly: rulesOnly, QuietOnly: quietOnly, ExistingRules: existing})
 	if errors.Is(err, extractpack.ErrStale) {
 		fmt.Fprintf(stderr, "extract: %v\n", err)
 		return 3, nil
@@ -49,6 +53,9 @@ func cmdApply(args []string, existing []string, stdout, stderr io.Writer) (int, 
 	}
 	for _, k := range rep.AttAdded {
 		fmt.Fprintln(stdout, "attested "+k)
+	}
+	for _, k := range rep.AttSkipped {
+		fmt.Fprintln(stdout, "skipped "+k)
 	}
 	if rep.SchemaFrom != rep.SchemaTo {
 		fmt.Fprintf(stdout, "schema %s -> %s\n", rep.SchemaFrom, rep.SchemaTo)

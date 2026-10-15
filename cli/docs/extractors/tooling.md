@@ -18,7 +18,7 @@ Exit codes of the `extract` subcommands:
 ## `extract apply`
 
 ```
-prufyx-maintainer extract apply --out DIR --pack FILE [--withdraw | --rules-only]
+prufyx-maintainer extract apply --out DIR --pack FILE [--withdraw | --rules-only | --quiet-lines-only]
 ```
 
 `--out DIR` is the directory of an `extract run`; `--pack FILE` is a rule pack
@@ -91,6 +91,15 @@ was, and the pack schema never changes: if the engine loader refuses the
 merged pack at its own schema the merge is refused (a schema move is part of
 an attested apply). It does not combine with `--withdraw`. Every other check
 above applies unchanged.
+
+**With `--quiet-lines-only`** no rule is added. Only the run's empty-list line
+attestations (`ruleIds` empty) are applied, and only for a component, line and
+fact family for which the pack holds no rule. Every other attestation of the
+run is skipped and printed as `skipped <key>: <reason>`: either it lists rules,
+or the pack holds rules for that line. The schema bump, the attestation
+checks, the audit and the admission run as for a full apply. A run with nothing
+quiet to add leaves the pack file untouched. It does not combine with
+`--withdraw` or `--rules-only`.
 
 ## `extract supersede`
 

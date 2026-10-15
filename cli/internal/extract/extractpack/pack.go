@@ -295,6 +295,7 @@ type Report struct {
 	Withdrawn    []string // rule ids set to withdrawn
 	AttAdded     []string // attestation keys added
 	AttUnchanged []string
+	AttSkipped   []string // "<key>: <reason>" for run attestations --quiet-lines-only left out
 	SchemaFrom   string
 	SchemaTo     string
 	Changed      bool
@@ -317,6 +318,9 @@ type Options struct {
 	// RulesOnly applies the run's rules without its attestations and without
 	// any change to the pack schema.
 	RulesOnly bool
+	// QuietOnly applies only the run's empty-list line attestations whose
+	// scope has no rule in the pack, and no rules at all.
+	QuietOnly bool
 	// SchemaLevels bounds how many schema levels above the pack's own a merge
 	// may move to (default 12).
 	SchemaLevels int
@@ -343,15 +347,23 @@ func Apply(opts Options) (*Report, error) {
 	if err != nil {
 		return nil, err
 	}
+	rep := &Report{}
 	if opts.RulesOnly {
 		if opts.Withdraw {
 			return nil, errors.New("extract apply: --rules-only does not combine with --withdraw")
 		}
 		run.Attestations = nil
 	}
+	if opts.QuietOnly {
+		if opts.Withdraw || opts.RulesOnly {
+			return nil, errors.New("extract apply: --quiet-lines-only does not combine with --withdraw or --rules-only")
+		}
+		if err := quietOnly(base, run, rep); err != nil {
+			return nil, err
+		}
+	}
 	var head *Pack
 	var allowed map[string]bool
-	rep := &Report{}
 	if opts.Withdraw {
 		head, allowed, err = withdrawStep(base, run, rep)
 	} else {
@@ -453,4 +465,39 @@ func joinArray(items []json.RawMessage) []byte {
 	}
 	buf.WriteByte(']')
 	return buf.Bytes()
+}
+
+// quietOnly narrows run to the empty-list attestations whose scope has no
+// rule in base and drops its rules; each other attestation is listed in
+// rep.AttSkipped with the reason.
+func quietOnly(base *Pack, run *Run, rep *Report) error {
+	rules := make([]json.RawMessage, 0, len(base.Entries))
+	for _, e := range base.Entries {
+		var one struct {
+			Rule json.RawMessage `json:"rule"`
+		}
+		if err := json.Unmarshal(e, &one); err != nil {
+			return fmt.Errorf("%w: %v", ErrPack, err)
+		}
+		rules = append(rules, one.Rule)
+	}
+	byScope, _, err := lineattest.RulesByScope(rules)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrPack, err)
+	}
+	run.Entries = nil
+	var keep []lineattest.LineAttestation
+	for _, a := range run.Attestations {
+		switch {
+		case len(a.RuleIDs) > 0:
+			rep.AttSkipped = append(rep.AttSkipped, attKeyString(a)+": lists rules")
+		case len(byScope[a.Key()]) > 0:
+			rep.AttSkipped = append(rep.AttSkipped, attKeyString(a)+": the pack holds rules for this line")
+		default:
+			keep = append(keep, a)
+		}
+	}
+	run.Attestations = keep
+	sort.Strings(rep.AttSkipped)
+	return nil
 }
