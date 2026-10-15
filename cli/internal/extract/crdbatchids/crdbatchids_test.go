@@ -93,6 +93,7 @@ func TestHoldsRefusesPartialAndAlteredBatches(t *testing.T) {
 		"foreign crd rule":    packOf(append(all, `{"project":"keda","rule":{"id":"keda.crd-version-removal.x"}}`), quiet),
 		"line with a rule":    packOf(all, append(quiet[1:], lineOf(Lines()[0], `["`+first.ID+`"]`))),
 		"line without ids":    packOf(all, append(quiet[1:], lineOf(Lines()[0], "null"))),
+		"repeated line":       packOf(all, append(quiet, quiet[0])),
 		"unknown line":        packOf(all, append(quiet, lineOf(Line{Component: "pkg:github/strimzi/strimzi-kafka-operator", Line: "0.49"}, "[]"))),
 	} {
 		if _, err := Holds(pack); err == nil {
