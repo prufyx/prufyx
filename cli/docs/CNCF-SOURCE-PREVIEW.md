@@ -187,7 +187,7 @@ The generic check accepts one local JSON file containing minimized, operator-dec
 
 The current embedded preview has 190 active exact rules across 53 rule projects
 (one further rule is withdrawn and not used; `prufyx catalog cncf --format json`
-reports `sourceRuleCovered`). The separate SPIFFE X.509-SVID and CloudEvents structured JSON
+reports the 53 projects as `sourceRuleCovered`). The separate SPIFFE X.509-SVID and CloudEvents structured JSON
 standards-conformance profiles have no from/to pairs and do not alter these
 transition-rule totals. SPIFFE does not duplicate the SPIRE project's
 versioned CLI rule. See the [SPIFFE](spiffe-x509-svid.md) and
