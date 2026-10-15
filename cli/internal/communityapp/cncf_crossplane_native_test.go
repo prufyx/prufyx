@@ -25,7 +25,7 @@ func TestCrossplaneNativeCompositionCheck_BoundedOutcomesAndPrivacy(t *testing.T
 		want              int
 	}{
 		{"resources mode blocks", crossplaneResourcesCompositionResource, "REVIEWED_SOURCE_CONSTRAINT", ExitBlocked},
-		{"pipeline mode passes", crossplanePipelineCompositionResource, "REVIEWED_SOURCE_CONSTRAINT", ExitOK},
+		{"pipeline mode passes", crossplanePipelineCompositionResource, "REVIEWED_SOURCE_CONSTRAINT", passExit(batchRuleIDs("crossplane"))},
 		{"list keeps the resources witness", `{"apiVersion":"v1","kind":"List","items":[` + crossplanePipelineCompositionResource + `,` + crossplaneResourcesCompositionResource + `]}`, "REVIEWED_SOURCE_CONSTRAINT", ExitBlocked},
 		{"other kind stays unknown", `{"apiVersion":"apiextensions.crossplane.io/v1","kind":"CompositeResourceDefinition","metadata":{"name":"private-xrd"}}`, "RULE_FACT_UNAVAILABLE", ExitUnknown},
 		{"unreviewed served version stays unknown", `{"apiVersion":"apiextensions.crossplane.io/v1beta1","kind":"Composition","metadata":{"name":"private-composition"},"spec":{"mode":"Resources"}}`, "RULE_FACT_UNAVAILABLE", ExitUnknown},
@@ -39,6 +39,7 @@ func TestCrossplaneNativeCompositionCheck_BoundedOutcomesAndPrivacy(t *testing.T
 			if code != test.want || stderr != "" || !strings.Contains(stdout, test.reason) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) || strings.Contains(stdout, "private-") || strings.Contains(stdout, path) {
 				t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 			}
+			checkBatchClaims(t, stdout, batchRuleIDs("crossplane"))
 		})
 	}
 }
@@ -49,9 +50,10 @@ func TestCrossplaneNativeCompositionCheck_KeepsWholeUpgradeAggregateUnknown(t *t
 	t.Parallel()
 	path := writeCNCFFile(t, "crossplane.json", []byte(crossplanePipelineCompositionResource), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, crossplaneNativeArgs(path)...)
-	if code != ExitOK || stderr != "" || !strings.Contains(stdout, `"status":"PASS"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
+	if code != passExit(batchRuleIDs("crossplane")) || stderr != "" || !strings.Contains(stdout, `"status":"PASS"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
+	checkBatchClaims(t, stdout, batchRuleIDs("crossplane"))
 	if !strings.Contains(stdout, "WHOLE_UPGRADE_COMPATIBILITY_NOT_EVALUATED") {
 		t.Fatalf("missing whole-upgrade omission: %q", stdout)
 	}
@@ -100,9 +102,10 @@ func TestCrossplaneNativeCompositionCheck_RejectsMalformedWrongPairAndWrongRoute
 		}
 	}
 	code, stdout, stderr := runCNCFCLI(t, args...)
-	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "RULE_TRANSITION_NOT_REVIEWED") {
-		t.Fatalf("wrong pair code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	if stderr != "" {
+		t.Fatalf("wrong pair stderr=%q", stderr)
 	}
+	checkOffPairReport(t, code, stdout, "crossplane", "crossplane.composition-resources-mode-removed.1-20-2-0")
 	code, stdout, stderr = runCNCFCLI(t, "check", "cncf", "--project", "crossplane", "--composition", selected, "--crossplane-distribution", "vendor_build", "--crossplane-schema-validation-required", "--from", "1.20.0", "--to", "2.0.0", "--now", "2026-09-18T10:00:00Z", "--format", "json")
 	if code != ExitUsage || stdout != "" || strings.Contains(stderr, selected) {
 		t.Fatalf("bad distribution code=%d stdout=%q stderr=%q", code, stdout, stderr)

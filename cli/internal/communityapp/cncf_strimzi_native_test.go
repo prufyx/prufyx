@@ -25,7 +25,7 @@ func TestStrimziNativeKafkaAPICheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 		want              int
 	}{
 		{"removed v1beta2 blocks", strimziRemovedKafkaResource, "REVIEWED_SOURCE_CONSTRAINT", ExitBlocked},
-		{"target v1 passes", strimziTargetKafkaResource, "REVIEWED_SOURCE_CONSTRAINT", ExitOK},
+		{"target v1 passes", strimziTargetKafkaResource, "REVIEWED_SOURCE_CONSTRAINT", passExit(batchRuleIDs("strimzi"))},
 		{"list keeps the removed witness", `{"apiVersion":"v1","kind":"List","items":[` + strimziTargetKafkaResource + `,` + strimziRemovedKafkaResource + `]}`, "REVIEWED_SOURCE_CONSTRAINT", ExitBlocked},
 		{"other kind stays unknown", `{"apiVersion":"kafka.strimzi.io/v1beta2","kind":"KafkaTopic","metadata":{"name":"private-topic","namespace":"private-ns"}}`, "RULE_APPLICABILITY_NOT_MATCHED", ExitUnknown},
 		{"unreviewed served version stays unknown", `{"apiVersion":"kafka.strimzi.io/v1beta1","kind":"Kafka","metadata":{"name":"private-cluster","namespace":"private-ns"}}`, "RULE_APPLICABILITY_FACT_UNAVAILABLE", ExitUnknown},
@@ -38,6 +38,7 @@ func TestStrimziNativeKafkaAPICheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 			if code != test.want || stderr != "" || !strings.Contains(stdout, test.reason) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) || strings.Contains(stdout, "private-") || strings.Contains(stdout, path) {
 				t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 			}
+			checkBatchClaims(t, stdout, batchRuleIDs("strimzi"))
 		})
 	}
 }
@@ -48,9 +49,10 @@ func TestStrimziNativeKafkaAPICheck_KeepsWholeUpgradeAggregateUnknown(t *testing
 	t.Parallel()
 	path := writeCNCFFile(t, "strimzi.json", []byte(strimziTargetKafkaResource), 0o600)
 	code, stdout, stderr := runCNCFCLI(t, strimziNativeArgs(path)...)
-	if code != ExitOK || stderr != "" || !strings.Contains(stdout, `"status":"PASS"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
+	if code != passExit(batchRuleIDs("strimzi")) || stderr != "" || !strings.Contains(stdout, `"status":"PASS"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
+	checkBatchClaims(t, stdout, batchRuleIDs("strimzi"))
 	if !strings.Contains(stdout, "WHOLE_UPGRADE_COMPATIBILITY_NOT_EVALUATED") {
 		t.Fatalf("missing whole-upgrade omission: %q", stdout)
 	}
@@ -99,9 +101,10 @@ func TestStrimziNativeKafkaAPICheck_RejectsMalformedWrongPairAndWrongRoute(t *te
 		}
 	}
 	code, stdout, stderr := runCNCFCLI(t, args...)
-	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "RULE_TRANSITION_NOT_REVIEWED") {
-		t.Fatalf("wrong pair code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	if stderr != "" {
+		t.Fatalf("wrong pair stderr=%q", stderr)
 	}
+	checkOffPairReport(t, code, stdout, "strimzi", "strimzi.kafka-v1beta2-api-removed.1-0")
 	code, stdout, stderr = runCNCFCLI(t, "check", "cncf", "--project", "strimzi", "--kafka-resource", duplicate, "--strimzi-distribution", "vendor_build", "--target-kafka-crd-admission-required", "--from", "0.51.0", "--to", "1.0.0", "--now", "2026-09-18T10:00:00Z", "--format", "json")
 	if code != ExitUsage || stdout != "" || strings.Contains(stderr, duplicate) {
 		t.Fatalf("bad distribution code=%d stdout=%q stderr=%q", code, stdout, stderr)
