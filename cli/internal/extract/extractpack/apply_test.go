@@ -138,6 +138,26 @@ func TestApplyGoldenPerExtractor(t *testing.T) {
 					t.Fatal("a base entry changed")
 				}
 			}
+			// The base's own line attestations survive the apply unchanged
+			// (the golden view below leaves them out).
+			var baseAtts, resultAtts struct {
+				LineAttestations []any `json:"lineAttestations"`
+			}
+			if err := json.Unmarshal(base, &baseAtts); err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal(got, &resultAtts); err != nil {
+				t.Fatal(err)
+			}
+			for _, b := range baseAtts.LineAttestations {
+				kept := false
+				for _, a := range resultAtts.LineAttestations {
+					kept = kept || reflect.DeepEqual(a, b)
+				}
+				if !kept {
+					t.Fatal("a base line attestation changed")
+				}
+			}
 			golden := filepath.Join("testdata", "golden", c.name+".json")
 			want, _ := extractCanon(addedView(t, pack, base, rep.Added))
 			if os.Getenv("UPDATE_GOLDEN") != "" {
