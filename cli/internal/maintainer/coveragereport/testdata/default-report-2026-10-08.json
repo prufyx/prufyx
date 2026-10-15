@@ -1,0 +1,2745 @@
+{
+  "schema": "prufyx.io/coverage-report/v1",
+  "now": "2026-10-08T12:00:00Z",
+  "window": 6,
+  "pack": {
+    "revision": "cncf-2026-09-13.4",
+    "schema": "prufyx.io/cncf-source-rule-pack/v1alpha2",
+    "digest": "sha256:22afc2a718338e3b74dc48d51f61e5d277b62424813a158314c0df5fb98b4e48"
+  },
+  "lines": {
+    "capturedOn": "2026-10-08",
+    "digest": "sha256:0b93060b709d662c660894817b1ac11f75c0596622e07b6ca2adeaca34eae216"
+  },
+  "packProjectsCovered": 53,
+  "fleet": {
+    "projects": 55,
+    "pairs": 275,
+    "a": 0,
+    "b": 0,
+    "s": 44,
+    "g": 231,
+    "c1": 53,
+    "c3": 0,
+    "c5": 0,
+    "vcPairs": 0,
+    "vcMean": 0,
+    "sPairs": 0.16,
+    "rulesInWindow": 123
+  },
+  "priorityProjects": {
+    "projects": 30,
+    "pairs": 150,
+    "a": 0,
+    "b": 0,
+    "s": 25,
+    "g": 125,
+    "c1": 28,
+    "c3": 0,
+    "c5": 0,
+    "vcPairs": 0,
+    "vcMean": 0,
+    "sPairs": 0.1667,
+    "rulesInWindow": 92
+  },
+  "families": [],
+  "projects": [
+    {
+      "project": "argo-cd",
+      "priority": true,
+      "window": [
+        "3.0",
+        "3.1",
+        "3.2",
+        "3.3",
+        "3.4",
+        "3.5"
+      ],
+      "pairs": [
+        {
+          "from": "3.0",
+          "to": "3.1",
+          "status": "G"
+        },
+        {
+          "from": "3.1",
+          "to": "3.2",
+          "status": "G"
+        },
+        {
+          "from": "3.2",
+          "to": "3.3",
+          "status": "G"
+        },
+        {
+          "from": "3.3",
+          "to": "3.4",
+          "status": "G"
+        },
+        {
+          "from": "3.4",
+          "to": "3.5",
+          "status": "S"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 7,
+      "rulesInWindow": 5,
+      "expiring14d": 0
+    },
+    {
+      "project": "buildpacks",
+      "priority": false,
+      "window": [
+        "0.16",
+        "0.17",
+        "0.18",
+        "0.19",
+        "0.20",
+        "0.21"
+      ],
+      "pairs": [
+        {
+          "from": "0.16",
+          "to": "0.17",
+          "status": "S"
+        },
+        {
+          "from": "0.17",
+          "to": "0.18",
+          "status": "G"
+        },
+        {
+          "from": "0.18",
+          "to": "0.19",
+          "status": "G"
+        },
+        {
+          "from": "0.19",
+          "to": "0.20",
+          "status": "G"
+        },
+        {
+          "from": "0.20",
+          "to": "0.21",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "cert-manager",
+      "priority": true,
+      "window": [
+        "1.16",
+        "1.17",
+        "1.18",
+        "1.19",
+        "1.20",
+        "1.21"
+      ],
+      "pairs": [
+        {
+          "from": "1.16",
+          "to": "1.17",
+          "status": "G"
+        },
+        {
+          "from": "1.17",
+          "to": "1.18",
+          "status": "G"
+        },
+        {
+          "from": "1.18",
+          "to": "1.19",
+          "status": "G"
+        },
+        {
+          "from": "1.19",
+          "to": "1.20",
+          "status": "G"
+        },
+        {
+          "from": "1.20",
+          "to": "1.21",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": false,
+      "validRules": 0,
+      "rulesInWindow": 0,
+      "expiring14d": 0
+    },
+    {
+      "project": "cilium",
+      "priority": true,
+      "window": [
+        "1.15",
+        "1.16",
+        "1.17",
+        "1.18",
+        "1.19",
+        "1.20"
+      ],
+      "pairs": [
+        {
+          "from": "1.15",
+          "to": "1.16",
+          "status": "G"
+        },
+        {
+          "from": "1.16",
+          "to": "1.17",
+          "status": "S"
+        },
+        {
+          "from": "1.17",
+          "to": "1.18",
+          "status": "G"
+        },
+        {
+          "from": "1.18",
+          "to": "1.19",
+          "status": "S"
+        },
+        {
+          "from": "1.19",
+          "to": "1.20",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 2,
+      "g": 3,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 3,
+      "rulesInWindow": 3,
+      "expiring14d": 0
+    },
+    {
+      "project": "cloud-custodian",
+      "priority": false,
+      "window": [
+        "9.48",
+        "9.49",
+        "9.50",
+        "9.51",
+        "9.52",
+        "9.53"
+      ],
+      "pairs": [
+        {
+          "from": "9.48",
+          "to": "9.49",
+          "status": "G"
+        },
+        {
+          "from": "9.49",
+          "to": "9.50",
+          "status": "G"
+        },
+        {
+          "from": "9.50",
+          "to": "9.51",
+          "status": "S"
+        },
+        {
+          "from": "9.51",
+          "to": "9.52",
+          "status": "S"
+        },
+        {
+          "from": "9.52",
+          "to": "9.53",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 2,
+      "g": 3,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 6,
+      "rulesInWindow": 5,
+      "expiring14d": 0
+    },
+    {
+      "project": "cloudnativepg",
+      "priority": false,
+      "window": [
+        "1.25",
+        "1.26",
+        "1.27",
+        "1.28",
+        "1.29",
+        "1.30"
+      ],
+      "pairs": [
+        {
+          "from": "1.25",
+          "to": "1.26",
+          "status": "G"
+        },
+        {
+          "from": "1.26",
+          "to": "1.27",
+          "status": "G"
+        },
+        {
+          "from": "1.27",
+          "to": "1.28",
+          "status": "G"
+        },
+        {
+          "from": "1.28",
+          "to": "1.29",
+          "status": "G"
+        },
+        {
+          "from": "1.29",
+          "to": "1.30",
+          "status": "S"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "container-network-interface-cni",
+      "priority": false,
+      "window": [
+        "0.7",
+        "0.8",
+        "1.0",
+        "1.1",
+        "1.2",
+        "1.3"
+      ],
+      "pairs": [
+        {
+          "from": "0.7",
+          "to": "0.8",
+          "status": "G"
+        },
+        {
+          "from": "0.8",
+          "to": "1.0",
+          "status": "G"
+        },
+        {
+          "from": "1.0",
+          "to": "1.1",
+          "status": "G"
+        },
+        {
+          "from": "1.1",
+          "to": "1.2",
+          "status": "G"
+        },
+        {
+          "from": "1.2",
+          "to": "1.3",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 0,
+      "expiring14d": 0
+    },
+    {
+      "project": "containerd",
+      "priority": true,
+      "window": [
+        "1.7",
+        "2.0",
+        "2.1",
+        "2.2",
+        "2.3",
+        "2.4"
+      ],
+      "pairs": [
+        {
+          "from": "1.7",
+          "to": "2.0",
+          "status": "S"
+        },
+        {
+          "from": "2.0",
+          "to": "2.1",
+          "status": "G"
+        },
+        {
+          "from": "2.1",
+          "to": "2.2",
+          "status": "G"
+        },
+        {
+          "from": "2.2",
+          "to": "2.3",
+          "status": "G"
+        },
+        {
+          "from": "2.3",
+          "to": "2.4",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 2,
+      "rulesInWindow": 2,
+      "expiring14d": 0
+    },
+    {
+      "project": "contour",
+      "priority": false,
+      "window": [
+        "1.28",
+        "1.29",
+        "1.30",
+        "1.31",
+        "1.32",
+        "1.33"
+      ],
+      "pairs": [
+        {
+          "from": "1.28",
+          "to": "1.29",
+          "status": "G"
+        },
+        {
+          "from": "1.29",
+          "to": "1.30",
+          "status": "G"
+        },
+        {
+          "from": "1.30",
+          "to": "1.31",
+          "status": "G"
+        },
+        {
+          "from": "1.31",
+          "to": "1.32",
+          "status": "G"
+        },
+        {
+          "from": "1.32",
+          "to": "1.33",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 0,
+      "expiring14d": 0
+    },
+    {
+      "project": "coredns",
+      "priority": true,
+      "window": [
+        "1.9",
+        "1.10",
+        "1.11",
+        "1.12",
+        "1.13",
+        "1.14"
+      ],
+      "pairs": [
+        {
+          "from": "1.9",
+          "to": "1.10",
+          "status": "G"
+        },
+        {
+          "from": "1.10",
+          "to": "1.11",
+          "status": "G"
+        },
+        {
+          "from": "1.11",
+          "to": "1.12",
+          "status": "G"
+        },
+        {
+          "from": "1.12",
+          "to": "1.13",
+          "status": "G"
+        },
+        {
+          "from": "1.13",
+          "to": "1.14",
+          "status": "S"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 6,
+      "rulesInWindow": 5,
+      "expiring14d": 0
+    },
+    {
+      "project": "cortex",
+      "priority": false,
+      "window": [
+        "1.16",
+        "1.17",
+        "1.18",
+        "1.19",
+        "1.20",
+        "1.21"
+      ],
+      "pairs": [
+        {
+          "from": "1.16",
+          "to": "1.17",
+          "status": "G"
+        },
+        {
+          "from": "1.17",
+          "to": "1.18",
+          "status": "G"
+        },
+        {
+          "from": "1.18",
+          "to": "1.19",
+          "status": "G"
+        },
+        {
+          "from": "1.19",
+          "to": "1.20",
+          "status": "G"
+        },
+        {
+          "from": "1.20",
+          "to": "1.21",
+          "status": "S"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 5,
+      "rulesInWindow": 5,
+      "expiring14d": 0
+    },
+    {
+      "project": "cri-o",
+      "priority": true,
+      "window": [
+        "1.32",
+        "1.33",
+        "1.34",
+        "1.35",
+        "1.36",
+        "1.37"
+      ],
+      "pairs": [
+        {
+          "from": "1.32",
+          "to": "1.33",
+          "status": "G"
+        },
+        {
+          "from": "1.33",
+          "to": "1.34",
+          "status": "G"
+        },
+        {
+          "from": "1.34",
+          "to": "1.35",
+          "status": "G"
+        },
+        {
+          "from": "1.35",
+          "to": "1.36",
+          "status": "G"
+        },
+        {
+          "from": "1.36",
+          "to": "1.37",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": false,
+      "validRules": 0,
+      "rulesInWindow": 0,
+      "expiring14d": 0
+    },
+    {
+      "project": "crossplane",
+      "priority": true,
+      "window": [
+        "1.20",
+        "2.0",
+        "2.1",
+        "2.2",
+        "2.3",
+        "2.4"
+      ],
+      "pairs": [
+        {
+          "from": "1.20",
+          "to": "2.0",
+          "status": "S"
+        },
+        {
+          "from": "2.0",
+          "to": "2.1",
+          "status": "G"
+        },
+        {
+          "from": "2.1",
+          "to": "2.2",
+          "status": "G"
+        },
+        {
+          "from": "2.2",
+          "to": "2.3",
+          "status": "G"
+        },
+        {
+          "from": "2.3",
+          "to": "2.4",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "cubefs",
+      "priority": false,
+      "window": [
+        "3.1",
+        "3.2",
+        "3.3",
+        "3.4",
+        "3.5",
+        "3.6"
+      ],
+      "pairs": [
+        {
+          "from": "3.1",
+          "to": "3.2",
+          "status": "G"
+        },
+        {
+          "from": "3.2",
+          "to": "3.3",
+          "status": "S"
+        },
+        {
+          "from": "3.3",
+          "to": "3.4",
+          "status": "G"
+        },
+        {
+          "from": "3.4",
+          "to": "3.5",
+          "status": "G"
+        },
+        {
+          "from": "3.5",
+          "to": "3.6",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "dapr",
+      "priority": false,
+      "window": [
+        "1.13",
+        "1.14",
+        "1.15",
+        "1.16",
+        "1.17",
+        "1.18"
+      ],
+      "pairs": [
+        {
+          "from": "1.13",
+          "to": "1.14",
+          "status": "G"
+        },
+        {
+          "from": "1.14",
+          "to": "1.15",
+          "status": "S"
+        },
+        {
+          "from": "1.15",
+          "to": "1.16",
+          "status": "G"
+        },
+        {
+          "from": "1.16",
+          "to": "1.17",
+          "status": "G"
+        },
+        {
+          "from": "1.17",
+          "to": "1.18",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "distribution",
+      "priority": false,
+      "window": [
+        "2.5",
+        "2.6",
+        "2.7",
+        "2.8",
+        "3.0",
+        "3.1"
+      ],
+      "pairs": [
+        {
+          "from": "2.5",
+          "to": "2.6",
+          "status": "G"
+        },
+        {
+          "from": "2.6",
+          "to": "2.7",
+          "status": "G"
+        },
+        {
+          "from": "2.7",
+          "to": "2.8",
+          "status": "G"
+        },
+        {
+          "from": "2.8",
+          "to": "3.0",
+          "status": "S"
+        },
+        {
+          "from": "3.0",
+          "to": "3.1",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "dragonfly",
+      "priority": true,
+      "window": [
+        "2.0",
+        "2.1",
+        "2.2",
+        "2.3",
+        "2.4",
+        "2.5"
+      ],
+      "pairs": [
+        {
+          "from": "2.0",
+          "to": "2.1",
+          "status": "G"
+        },
+        {
+          "from": "2.1",
+          "to": "2.2",
+          "status": "G"
+        },
+        {
+          "from": "2.2",
+          "to": "2.3",
+          "status": "G"
+        },
+        {
+          "from": "2.3",
+          "to": "2.4",
+          "status": "G"
+        },
+        {
+          "from": "2.4",
+          "to": "2.5",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 2,
+      "rulesInWindow": 2,
+      "expiring14d": 0
+    },
+    {
+      "project": "emissary-ingress",
+      "priority": false,
+      "window": [
+        "3.7",
+        "3.8",
+        "3.9",
+        "3.10",
+        "4.0",
+        "4.1"
+      ],
+      "pairs": [
+        {
+          "from": "3.7",
+          "to": "3.8",
+          "status": "G"
+        },
+        {
+          "from": "3.8",
+          "to": "3.9",
+          "status": "G"
+        },
+        {
+          "from": "3.9",
+          "to": "3.10",
+          "status": "G"
+        },
+        {
+          "from": "3.10",
+          "to": "4.0",
+          "status": "S"
+        },
+        {
+          "from": "4.0",
+          "to": "4.1",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "envoy",
+      "priority": true,
+      "window": [
+        "1.34",
+        "1.35",
+        "1.36",
+        "1.37",
+        "1.38",
+        "1.39"
+      ],
+      "pairs": [
+        {
+          "from": "1.34",
+          "to": "1.35",
+          "status": "G"
+        },
+        {
+          "from": "1.35",
+          "to": "1.36",
+          "status": "G"
+        },
+        {
+          "from": "1.36",
+          "to": "1.37",
+          "status": "G"
+        },
+        {
+          "from": "1.37",
+          "to": "1.38",
+          "status": "G"
+        },
+        {
+          "from": "1.38",
+          "to": "1.39",
+          "status": "S"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 6,
+      "rulesInWindow": 5,
+      "expiring14d": 0
+    },
+    {
+      "project": "etcd",
+      "priority": true,
+      "window": [
+        "3.2",
+        "3.3",
+        "3.4",
+        "3.5",
+        "3.6",
+        "3.7"
+      ],
+      "pairs": [
+        {
+          "from": "3.2",
+          "to": "3.3",
+          "status": "G"
+        },
+        {
+          "from": "3.3",
+          "to": "3.4",
+          "status": "G"
+        },
+        {
+          "from": "3.4",
+          "to": "3.5",
+          "status": "G"
+        },
+        {
+          "from": "3.5",
+          "to": "3.6",
+          "status": "S"
+        },
+        {
+          "from": "3.6",
+          "to": "3.7",
+          "status": "S"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 2,
+      "g": 3,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 10,
+      "rulesInWindow": 10,
+      "expiring14d": 0
+    },
+    {
+      "project": "falco",
+      "priority": true,
+      "window": [
+        "0.40",
+        "0.41",
+        "0.42",
+        "0.43",
+        "0.44",
+        "0.45"
+      ],
+      "pairs": [
+        {
+          "from": "0.40",
+          "to": "0.41",
+          "status": "S"
+        },
+        {
+          "from": "0.41",
+          "to": "0.42",
+          "status": "G"
+        },
+        {
+          "from": "0.42",
+          "to": "0.43",
+          "status": "G"
+        },
+        {
+          "from": "0.43",
+          "to": "0.44",
+          "status": "G"
+        },
+        {
+          "from": "0.44",
+          "to": "0.45",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 2,
+      "rulesInWindow": 2,
+      "expiring14d": 0
+    },
+    {
+      "project": "fluentd",
+      "priority": true,
+      "window": [
+        "1.14",
+        "1.15",
+        "1.16",
+        "1.17",
+        "1.18",
+        "1.19"
+      ],
+      "pairs": [
+        {
+          "from": "1.14",
+          "to": "1.15",
+          "status": "G"
+        },
+        {
+          "from": "1.15",
+          "to": "1.16",
+          "status": "G"
+        },
+        {
+          "from": "1.16",
+          "to": "1.17",
+          "status": "S"
+        },
+        {
+          "from": "1.17",
+          "to": "1.18",
+          "status": "S"
+        },
+        {
+          "from": "1.18",
+          "to": "1.19",
+          "status": "S"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 3,
+      "g": 2,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 7,
+      "rulesInWindow": 7,
+      "expiring14d": 0
+    },
+    {
+      "project": "flux",
+      "priority": true,
+      "window": [
+        "2.4",
+        "2.5",
+        "2.6",
+        "2.7",
+        "2.8",
+        "2.9"
+      ],
+      "pairs": [
+        {
+          "from": "2.4",
+          "to": "2.5",
+          "status": "G"
+        },
+        {
+          "from": "2.5",
+          "to": "2.6",
+          "status": "G"
+        },
+        {
+          "from": "2.6",
+          "to": "2.7",
+          "status": "S"
+        },
+        {
+          "from": "2.7",
+          "to": "2.8",
+          "status": "G"
+        },
+        {
+          "from": "2.8",
+          "to": "2.9",
+          "status": "S"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 2,
+      "g": 3,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 6,
+      "rulesInWindow": 6,
+      "expiring14d": 0
+    },
+    {
+      "project": "harbor",
+      "priority": true,
+      "window": [
+        "2.10",
+        "2.11",
+        "2.12",
+        "2.13",
+        "2.14",
+        "2.15"
+      ],
+      "pairs": [
+        {
+          "from": "2.10",
+          "to": "2.11",
+          "status": "G"
+        },
+        {
+          "from": "2.11",
+          "to": "2.12",
+          "status": "G"
+        },
+        {
+          "from": "2.12",
+          "to": "2.13",
+          "status": "G"
+        },
+        {
+          "from": "2.13",
+          "to": "2.14",
+          "status": "G"
+        },
+        {
+          "from": "2.14",
+          "to": "2.15",
+          "status": "S"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 7,
+      "rulesInWindow": 5,
+      "expiring14d": 0
+    },
+    {
+      "project": "helm",
+      "priority": true,
+      "window": [
+        "3.21",
+        "3.22",
+        "4.0",
+        "4.1",
+        "4.2",
+        "4.3"
+      ],
+      "pairs": [
+        {
+          "from": "3.21",
+          "to": "3.22",
+          "status": "G"
+        },
+        {
+          "from": "3.22",
+          "to": "4.0",
+          "status": "G"
+        },
+        {
+          "from": "4.0",
+          "to": "4.1",
+          "status": "G"
+        },
+        {
+          "from": "4.1",
+          "to": "4.2",
+          "status": "G"
+        },
+        {
+          "from": "4.2",
+          "to": "4.3",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 0,
+      "expiring14d": 0
+    },
+    {
+      "project": "in-toto",
+      "priority": false,
+      "window": [
+        "2.0",
+        "2.1",
+        "2.2",
+        "2.3",
+        "3.0",
+        "3.1"
+      ],
+      "pairs": [
+        {
+          "from": "2.0",
+          "to": "2.1",
+          "status": "G"
+        },
+        {
+          "from": "2.1",
+          "to": "2.2",
+          "status": "G"
+        },
+        {
+          "from": "2.2",
+          "to": "2.3",
+          "status": "G"
+        },
+        {
+          "from": "2.3",
+          "to": "3.0",
+          "status": "G"
+        },
+        {
+          "from": "3.0",
+          "to": "3.1",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "istio",
+      "priority": true,
+      "window": [
+        "1.26",
+        "1.27",
+        "1.28",
+        "1.29",
+        "1.30",
+        "1.31"
+      ],
+      "pairs": [
+        {
+          "from": "1.26",
+          "to": "1.27",
+          "status": "G"
+        },
+        {
+          "from": "1.27",
+          "to": "1.28",
+          "status": "G"
+        },
+        {
+          "from": "1.28",
+          "to": "1.29",
+          "status": "G"
+        },
+        {
+          "from": "1.29",
+          "to": "1.30",
+          "status": "G"
+        },
+        {
+          "from": "1.30",
+          "to": "1.31",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 0,
+      "expiring14d": 0
+    },
+    {
+      "project": "jaeger",
+      "priority": true,
+      "window": [
+        "2.17",
+        "2.18",
+        "2.19",
+        "2.20",
+        "2.21",
+        "2.22"
+      ],
+      "pairs": [
+        {
+          "from": "2.17",
+          "to": "2.18",
+          "status": "G"
+        },
+        {
+          "from": "2.18",
+          "to": "2.19",
+          "status": "G"
+        },
+        {
+          "from": "2.19",
+          "to": "2.20",
+          "status": "S"
+        },
+        {
+          "from": "2.20",
+          "to": "2.21",
+          "status": "G"
+        },
+        {
+          "from": "2.21",
+          "to": "2.22",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 6,
+      "rulesInWindow": 3,
+      "expiring14d": 0
+    },
+    {
+      "project": "karmada",
+      "priority": false,
+      "window": [
+        "1.14",
+        "1.15",
+        "1.16",
+        "1.17",
+        "1.18",
+        "1.19"
+      ],
+      "pairs": [
+        {
+          "from": "1.14",
+          "to": "1.15",
+          "status": "G"
+        },
+        {
+          "from": "1.15",
+          "to": "1.16",
+          "status": "G"
+        },
+        {
+          "from": "1.16",
+          "to": "1.17",
+          "status": "G"
+        },
+        {
+          "from": "1.17",
+          "to": "1.18",
+          "status": "G"
+        },
+        {
+          "from": "1.18",
+          "to": "1.19",
+          "status": "S"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "keda",
+      "priority": true,
+      "window": [
+        "2.16",
+        "2.17",
+        "2.18",
+        "2.19",
+        "2.20",
+        "2.21"
+      ],
+      "pairs": [
+        {
+          "from": "2.16",
+          "to": "2.17",
+          "status": "S"
+        },
+        {
+          "from": "2.17",
+          "to": "2.18",
+          "status": "G"
+        },
+        {
+          "from": "2.18",
+          "to": "2.19",
+          "status": "G"
+        },
+        {
+          "from": "2.19",
+          "to": "2.20",
+          "status": "G"
+        },
+        {
+          "from": "2.20",
+          "to": "2.21",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "keycloak",
+      "priority": false,
+      "window": [
+        "26.3",
+        "26.4",
+        "26.5",
+        "26.6",
+        "26.7",
+        "26.8"
+      ],
+      "pairs": [
+        {
+          "from": "26.3",
+          "to": "26.4",
+          "status": "G"
+        },
+        {
+          "from": "26.4",
+          "to": "26.5",
+          "status": "G"
+        },
+        {
+          "from": "26.5",
+          "to": "26.6",
+          "status": "G"
+        },
+        {
+          "from": "26.6",
+          "to": "26.7",
+          "status": "G"
+        },
+        {
+          "from": "26.7",
+          "to": "26.8",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "knative",
+      "priority": false,
+      "window": [
+        "0.45",
+        "0.46",
+        "0.47",
+        "0.48",
+        "0.49",
+        "0.50"
+      ],
+      "pairs": [
+        {
+          "from": "0.45",
+          "to": "0.46",
+          "status": "G"
+        },
+        {
+          "from": "0.46",
+          "to": "0.47",
+          "status": "G"
+        },
+        {
+          "from": "0.47",
+          "to": "0.48",
+          "status": "G"
+        },
+        {
+          "from": "0.48",
+          "to": "0.49",
+          "status": "G"
+        },
+        {
+          "from": "0.49",
+          "to": "0.50",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 0,
+      "expiring14d": 0
+    },
+    {
+      "project": "kubeedge",
+      "priority": false,
+      "window": [
+        "1.18",
+        "1.19",
+        "1.20",
+        "1.21",
+        "1.22",
+        "1.23"
+      ],
+      "pairs": [
+        {
+          "from": "1.18",
+          "to": "1.19",
+          "status": "S"
+        },
+        {
+          "from": "1.19",
+          "to": "1.20",
+          "status": "G"
+        },
+        {
+          "from": "1.20",
+          "to": "1.21",
+          "status": "G"
+        },
+        {
+          "from": "1.21",
+          "to": "1.22",
+          "status": "G"
+        },
+        {
+          "from": "1.22",
+          "to": "1.23",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "kubeflow",
+      "priority": false,
+      "window": [
+        "2.4",
+        "2.5",
+        "2.14",
+        "2.15",
+        "2.16",
+        "2.17"
+      ],
+      "pairs": [
+        {
+          "from": "2.4",
+          "to": "2.5",
+          "status": "G"
+        },
+        {
+          "from": "2.5",
+          "to": "2.14",
+          "status": "G"
+        },
+        {
+          "from": "2.14",
+          "to": "2.15",
+          "status": "G"
+        },
+        {
+          "from": "2.15",
+          "to": "2.16",
+          "status": "G"
+        },
+        {
+          "from": "2.16",
+          "to": "2.17",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 0,
+      "expiring14d": 0
+    },
+    {
+      "project": "kubernetes",
+      "priority": true,
+      "window": [
+        "1.32",
+        "1.33",
+        "1.34",
+        "1.35",
+        "1.36",
+        "1.37"
+      ],
+      "pairs": [
+        {
+          "from": "1.32",
+          "to": "1.33",
+          "status": "G"
+        },
+        {
+          "from": "1.33",
+          "to": "1.34",
+          "status": "G"
+        },
+        {
+          "from": "1.34",
+          "to": "1.35",
+          "status": "G"
+        },
+        {
+          "from": "1.35",
+          "to": "1.36",
+          "status": "G"
+        },
+        {
+          "from": "1.36",
+          "to": "1.37",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 26,
+      "rulesInWindow": 0,
+      "expiring14d": 0
+    },
+    {
+      "project": "kubevirt",
+      "priority": false,
+      "window": [
+        "1.4",
+        "1.5",
+        "1.6",
+        "1.7",
+        "1.8",
+        "1.9"
+      ],
+      "pairs": [
+        {
+          "from": "1.4",
+          "to": "1.5",
+          "status": "G"
+        },
+        {
+          "from": "1.5",
+          "to": "1.6",
+          "status": "G"
+        },
+        {
+          "from": "1.6",
+          "to": "1.7",
+          "status": "G"
+        },
+        {
+          "from": "1.7",
+          "to": "1.8",
+          "status": "G"
+        },
+        {
+          "from": "1.8",
+          "to": "1.9",
+          "status": "S"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "kuma",
+      "priority": true,
+      "window": [
+        "2.9",
+        "2.10",
+        "2.11",
+        "2.12",
+        "2.13",
+        "2.14"
+      ],
+      "pairs": [
+        {
+          "from": "2.9",
+          "to": "2.10",
+          "status": "G"
+        },
+        {
+          "from": "2.10",
+          "to": "2.11",
+          "status": "G"
+        },
+        {
+          "from": "2.11",
+          "to": "2.12",
+          "status": "G"
+        },
+        {
+          "from": "2.12",
+          "to": "2.13",
+          "status": "G"
+        },
+        {
+          "from": "2.13",
+          "to": "2.14",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 0,
+      "expiring14d": 0
+    },
+    {
+      "project": "kyverno",
+      "priority": true,
+      "window": [
+        "1.14",
+        "1.15",
+        "1.16",
+        "1.17",
+        "1.18",
+        "1.19"
+      ],
+      "pairs": [
+        {
+          "from": "1.14",
+          "to": "1.15",
+          "status": "G"
+        },
+        {
+          "from": "1.15",
+          "to": "1.16",
+          "status": "G"
+        },
+        {
+          "from": "1.16",
+          "to": "1.17",
+          "status": "G"
+        },
+        {
+          "from": "1.17",
+          "to": "1.18",
+          "status": "G"
+        },
+        {
+          "from": "1.18",
+          "to": "1.19",
+          "status": "S"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 6,
+      "rulesInWindow": 5,
+      "expiring14d": 0
+    },
+    {
+      "project": "linkerd",
+      "priority": true,
+      "window": [
+        "2.15",
+        "2.16",
+        "2.17",
+        "2.18",
+        "2.19",
+        "2.20"
+      ],
+      "pairs": [
+        {
+          "from": "2.15",
+          "to": "2.16",
+          "status": "G"
+        },
+        {
+          "from": "2.16",
+          "to": "2.17",
+          "status": "G"
+        },
+        {
+          "from": "2.17",
+          "to": "2.18",
+          "status": "G"
+        },
+        {
+          "from": "2.18",
+          "to": "2.19",
+          "status": "G"
+        },
+        {
+          "from": "2.19",
+          "to": "2.20",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 0,
+      "expiring14d": 0
+    },
+    {
+      "project": "longhorn",
+      "priority": true,
+      "window": [
+        "1.8",
+        "1.9",
+        "1.10",
+        "1.11",
+        "1.12",
+        "1.13"
+      ],
+      "pairs": [
+        {
+          "from": "1.8",
+          "to": "1.9",
+          "status": "G"
+        },
+        {
+          "from": "1.9",
+          "to": "1.10",
+          "status": "G"
+        },
+        {
+          "from": "1.10",
+          "to": "1.11",
+          "status": "G"
+        },
+        {
+          "from": "1.11",
+          "to": "1.12",
+          "status": "G"
+        },
+        {
+          "from": "1.12",
+          "to": "1.13",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 0,
+      "expiring14d": 0
+    },
+    {
+      "project": "metallb",
+      "priority": false,
+      "window": [
+        "0.11",
+        "0.12",
+        "0.13",
+        "0.14",
+        "0.15",
+        "0.16"
+      ],
+      "pairs": [
+        {
+          "from": "0.11",
+          "to": "0.12",
+          "status": "G"
+        },
+        {
+          "from": "0.12",
+          "to": "0.13",
+          "status": "S"
+        },
+        {
+          "from": "0.13",
+          "to": "0.14",
+          "status": "G"
+        },
+        {
+          "from": "0.14",
+          "to": "0.15",
+          "status": "G"
+        },
+        {
+          "from": "0.15",
+          "to": "0.16",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "nats",
+      "priority": false,
+      "window": [
+        "2.9",
+        "2.10",
+        "2.11",
+        "2.12",
+        "2.14",
+        "2.15"
+      ],
+      "pairs": [
+        {
+          "from": "2.9",
+          "to": "2.10",
+          "status": "G"
+        },
+        {
+          "from": "2.10",
+          "to": "2.11",
+          "status": "S"
+        },
+        {
+          "from": "2.11",
+          "to": "2.12",
+          "status": "G"
+        },
+        {
+          "from": "2.12",
+          "to": "2.14",
+          "status": "S"
+        },
+        {
+          "from": "2.14",
+          "to": "2.15",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 2,
+      "g": 3,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 6,
+      "rulesInWindow": 5,
+      "expiring14d": 0
+    },
+    {
+      "project": "opa",
+      "priority": true,
+      "window": [
+        "1.16",
+        "1.17",
+        "1.18",
+        "1.19",
+        "1.20",
+        "1.21"
+      ],
+      "pairs": [
+        {
+          "from": "1.16",
+          "to": "1.17",
+          "status": "G"
+        },
+        {
+          "from": "1.17",
+          "to": "1.18",
+          "status": "G"
+        },
+        {
+          "from": "1.18",
+          "to": "1.19",
+          "status": "G"
+        },
+        {
+          "from": "1.19",
+          "to": "1.20",
+          "status": "S"
+        },
+        {
+          "from": "1.20",
+          "to": "1.21",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 6,
+      "rulesInWindow": 4,
+      "expiring14d": 0
+    },
+    {
+      "project": "opencost",
+      "priority": false,
+      "window": [
+        "2.0",
+        "2.1",
+        "2.2",
+        "2.3",
+        "2.4",
+        "2.5"
+      ],
+      "pairs": [
+        {
+          "from": "2.0",
+          "to": "2.1",
+          "status": "G"
+        },
+        {
+          "from": "2.1",
+          "to": "2.2",
+          "status": "G"
+        },
+        {
+          "from": "2.2",
+          "to": "2.3",
+          "status": "G"
+        },
+        {
+          "from": "2.3",
+          "to": "2.4",
+          "status": "G"
+        },
+        {
+          "from": "2.4",
+          "to": "2.5",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 6,
+      "rulesInWindow": 0,
+      "expiring14d": 0
+    },
+    {
+      "project": "openfga",
+      "priority": false,
+      "window": [
+        "1.17",
+        "1.18",
+        "1.19",
+        "1.20",
+        "1.21",
+        "1.22"
+      ],
+      "pairs": [
+        {
+          "from": "1.17",
+          "to": "1.18",
+          "status": "S"
+        },
+        {
+          "from": "1.18",
+          "to": "1.19",
+          "status": "G"
+        },
+        {
+          "from": "1.19",
+          "to": "1.20",
+          "status": "G"
+        },
+        {
+          "from": "1.20",
+          "to": "1.21",
+          "status": "G"
+        },
+        {
+          "from": "1.21",
+          "to": "1.22",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "opentelemetry",
+      "priority": true,
+      "window": [
+        "0.157",
+        "0.158",
+        "0.159",
+        "0.160",
+        "0.161",
+        "0.162"
+      ],
+      "pairs": [
+        {
+          "from": "0.157",
+          "to": "0.158",
+          "status": "G"
+        },
+        {
+          "from": "0.158",
+          "to": "0.159",
+          "status": "G"
+        },
+        {
+          "from": "0.159",
+          "to": "0.160",
+          "status": "G"
+        },
+        {
+          "from": "0.160",
+          "to": "0.161",
+          "status": "G"
+        },
+        {
+          "from": "0.161",
+          "to": "0.162",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 2,
+      "rulesInWindow": 0,
+      "expiring14d": 0
+    },
+    {
+      "project": "prometheus",
+      "priority": true,
+      "window": [
+        "3.10",
+        "3.11",
+        "3.12",
+        "3.13",
+        "3.14",
+        "3.15"
+      ],
+      "pairs": [
+        {
+          "from": "3.10",
+          "to": "3.11",
+          "status": "G"
+        },
+        {
+          "from": "3.11",
+          "to": "3.12",
+          "status": "G"
+        },
+        {
+          "from": "3.12",
+          "to": "3.13",
+          "status": "G"
+        },
+        {
+          "from": "3.13",
+          "to": "3.14",
+          "status": "S"
+        },
+        {
+          "from": "3.14",
+          "to": "3.15",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 15,
+      "rulesInWindow": 8,
+      "expiring14d": 0
+    },
+    {
+      "project": "rook",
+      "priority": true,
+      "window": [
+        "1.16",
+        "1.17",
+        "1.18",
+        "1.19",
+        "1.20",
+        "1.21"
+      ],
+      "pairs": [
+        {
+          "from": "1.16",
+          "to": "1.17",
+          "status": "G"
+        },
+        {
+          "from": "1.17",
+          "to": "1.18",
+          "status": "G"
+        },
+        {
+          "from": "1.18",
+          "to": "1.19",
+          "status": "G"
+        },
+        {
+          "from": "1.19",
+          "to": "1.20",
+          "status": "S"
+        },
+        {
+          "from": "1.20",
+          "to": "1.21",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 11,
+      "rulesInWindow": 9,
+      "expiring14d": 0
+    },
+    {
+      "project": "spire",
+      "priority": false,
+      "window": [
+        "1.10",
+        "1.11",
+        "1.12",
+        "1.13",
+        "1.14",
+        "1.15"
+      ],
+      "pairs": [
+        {
+          "from": "1.10",
+          "to": "1.11",
+          "status": "S"
+        },
+        {
+          "from": "1.11",
+          "to": "1.12",
+          "status": "G"
+        },
+        {
+          "from": "1.12",
+          "to": "1.13",
+          "status": "G"
+        },
+        {
+          "from": "1.13",
+          "to": "1.14",
+          "status": "G"
+        },
+        {
+          "from": "1.14",
+          "to": "1.15",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "strimzi",
+      "priority": false,
+      "window": [
+        "0.49",
+        "0.50",
+        "0.51",
+        "1.0",
+        "1.1",
+        "1.2"
+      ],
+      "pairs": [
+        {
+          "from": "0.49",
+          "to": "0.50",
+          "status": "G"
+        },
+        {
+          "from": "0.50",
+          "to": "0.51",
+          "status": "G"
+        },
+        {
+          "from": "0.51",
+          "to": "1.0",
+          "status": "S"
+        },
+        {
+          "from": "1.0",
+          "to": "1.1",
+          "status": "G"
+        },
+        {
+          "from": "1.1",
+          "to": "1.2",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "tekton",
+      "priority": false,
+      "window": [
+        "1.12",
+        "1.13",
+        "1.14",
+        "1.15",
+        "1.16",
+        "1.17"
+      ],
+      "pairs": [
+        {
+          "from": "1.12",
+          "to": "1.13",
+          "status": "G"
+        },
+        {
+          "from": "1.13",
+          "to": "1.14",
+          "status": "G"
+        },
+        {
+          "from": "1.14",
+          "to": "1.15",
+          "status": "G"
+        },
+        {
+          "from": "1.15",
+          "to": "1.16",
+          "status": "G"
+        },
+        {
+          "from": "1.16",
+          "to": "1.17",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 0,
+      "g": 5,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 0,
+      "expiring14d": 0
+    },
+    {
+      "project": "thanos",
+      "priority": true,
+      "window": [
+        "0.37",
+        "0.38",
+        "0.39",
+        "0.40",
+        "0.41",
+        "0.42"
+      ],
+      "pairs": [
+        {
+          "from": "0.37",
+          "to": "0.38",
+          "status": "G"
+        },
+        {
+          "from": "0.38",
+          "to": "0.39",
+          "status": "G"
+        },
+        {
+          "from": "0.39",
+          "to": "0.40",
+          "status": "G"
+        },
+        {
+          "from": "0.40",
+          "to": "0.41",
+          "status": "G"
+        },
+        {
+          "from": "0.41",
+          "to": "0.42",
+          "status": "S"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 6,
+      "rulesInWindow": 6,
+      "expiring14d": 0
+    },
+    {
+      "project": "the-update-framework-tuf",
+      "priority": false,
+      "window": [
+        "3.1",
+        "4.0",
+        "5.0",
+        "5.1",
+        "6.0",
+        "7.0"
+      ],
+      "pairs": [
+        {
+          "from": "3.1",
+          "to": "4.0",
+          "status": "G"
+        },
+        {
+          "from": "4.0",
+          "to": "5.0",
+          "status": "G"
+        },
+        {
+          "from": "5.0",
+          "to": "5.1",
+          "status": "G"
+        },
+        {
+          "from": "5.1",
+          "to": "6.0",
+          "status": "G"
+        },
+        {
+          "from": "6.0",
+          "to": "7.0",
+          "status": "S"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    },
+    {
+      "project": "velero",
+      "priority": true,
+      "window": [
+        "1.13",
+        "1.14",
+        "1.15",
+        "1.16",
+        "1.17",
+        "1.18"
+      ],
+      "pairs": [
+        {
+          "from": "1.13",
+          "to": "1.14",
+          "status": "G"
+        },
+        {
+          "from": "1.14",
+          "to": "1.15",
+          "status": "G"
+        },
+        {
+          "from": "1.15",
+          "to": "1.16",
+          "status": "G"
+        },
+        {
+          "from": "1.16",
+          "to": "1.17",
+          "status": "G"
+        },
+        {
+          "from": "1.17",
+          "to": "1.18",
+          "status": "S"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 2,
+      "rulesInWindow": 2,
+      "expiring14d": 0
+    },
+    {
+      "project": "vitess",
+      "priority": true,
+      "window": [
+        "19.0",
+        "20.0",
+        "21.0",
+        "22.0",
+        "23.0",
+        "24.0"
+      ],
+      "pairs": [
+        {
+          "from": "19.0",
+          "to": "20.0",
+          "status": "G"
+        },
+        {
+          "from": "20.0",
+          "to": "21.0",
+          "status": "G"
+        },
+        {
+          "from": "21.0",
+          "to": "22.0",
+          "status": "G"
+        },
+        {
+          "from": "22.0",
+          "to": "23.0",
+          "status": "S"
+        },
+        {
+          "from": "23.0",
+          "to": "24.0",
+          "status": "G"
+        }
+      ],
+      "a": 0,
+      "b": 0,
+      "s": 1,
+      "g": 4,
+      "vc": 0,
+      "vcA": 0,
+      "covered": true,
+      "validRules": 1,
+      "rulesInWindow": 1,
+      "expiring14d": 0
+    }
+  ],
+  "projectsWithoutLines": [],
+  "expiringProjects": []
+}
