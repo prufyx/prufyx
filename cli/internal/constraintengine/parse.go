@@ -143,10 +143,10 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	if err := decodeStrict(raw, &document); err != nil {
 		return RuleSet{}, err
 	}
-	if (document.Schema != RulesSchema && document.Schema != RulesSchemaRanged && document.Schema != RulesSchemaSet && document.Schema != RulesSchemaNotice && document.Schema != RulesSchemaBasis && document.Schema != RulesSchemaSeverity && document.Schema != RulesSchemaCrossing && document.Schema != RulesSchemaChart) || !idRE.MatchString(document.Revision) || !idRE.MatchString(document.PolicyID) || !digestRE.MatchString(document.PolicyDigest) || len(document.Rules) > maxRules {
+	if (document.Schema != RulesSchema && document.Schema != RulesSchemaRanged && document.Schema != RulesSchemaSet && document.Schema != RulesSchemaNotice && document.Schema != RulesSchemaBasis && document.Schema != RulesSchemaSeverity && document.Schema != RulesSchemaCrossing && document.Schema != RulesSchemaChart && document.Schema != RulesSchemaChartNotice) || !idRE.MatchString(document.Revision) || !idRE.MatchString(document.PolicyID) || !digestRE.MatchString(document.PolicyDigest) || len(document.Rules) > maxRules {
 		return RuleSet{}, fmt.Errorf("ruleset identity: %w", ErrInvalid)
 	}
-	ranged, setOperator, notice, basis, severity, crossing, chart := false, false, false, false, false, false, false
+	ranged, setOperator, notice, basis, severity, crossing, chart, chartNotice := false, false, false, false, false, false, false, false
 	for i, rule := range document.Rules {
 		if i > 0 && document.Rules[i-1].ID >= rule.ID {
 			return RuleSet{}, fmt.Errorf("rule order: %w", ErrInvalid)
@@ -161,6 +161,7 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 		severity = severity || rule.usesSeverity()
 		crossing = crossing || rule.usesCrossing()
 		chart = chart || rule.usesChart()
+		chartNotice = chartNotice || rule.usesChartNotice()
 	}
 	// The schema string states which contract the document needs, and it
 	// must be right in every direction: a document carries exactly the
@@ -173,8 +174,8 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	// schema (which also admits ranges); otherwise an exact-only schema never
 	// admits a range, and the ranged schema is never used without one. Every
 	// document has exactly one schema and one engine contract.
-	if document.Schema != requiredRulesSchema(ranged, setOperator, notice, basis, severity, crossing, chart) {
-		return RuleSet{}, fmt.Errorf("ruleset schema does not match range, set, notice operator, basis, severity, crossing or chart use: %w", ErrInvalid)
+	if document.Schema != requiredRulesSchema(ranged, setOperator, notice, basis, severity, crossing, chart, chartNotice) {
+		return RuleSet{}, fmt.Errorf("ruleset schema does not match range, set, notice operator, basis, severity, crossing, chart or set notice use: %w", ErrInvalid)
 	}
 	if ranged || crossing {
 		if err := validateRangeOverlaps(document.Rules); err != nil {
@@ -189,7 +190,7 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	if err := validateCorpus(document); err != nil {
 		return RuleSet{}, err
 	}
-	return RuleSet{document: document, digest: digestJSON(document), registryDigest: registry.Digest(), ranged: ranged, setOperator: setOperator, notice: notice, basis: basis, severity: severity, crossing: crossing, chart: chart, seal: &ruleSetSeal{}}, nil
+	return RuleSet{document: document, digest: digestJSON(document), registryDigest: registry.Digest(), ranged: ranged, setOperator: setOperator, notice: notice, basis: basis, severity: severity, crossing: crossing, chart: chart, chartNotice: chartNotice, seal: &ruleSetSeal{}}, nil
 }
 
 // validateCorpus admits a completeness attestation only when the document can
@@ -260,10 +261,12 @@ func validateRule(rule rule, registry Registry) error {
 		}
 		seenConditions[key] = struct{}{}
 	}
-	if rule.SetCondition != nil && rule.Operator != OperatorForbidSetMember && rule.Operator != OperatorRequireSetMember {
-		return fmt.Errorf("set condition is only valid for %s and %s: %w", OperatorForbidSetMember, OperatorRequireSetMember, ErrInvalid)
+	if rule.SetCondition != nil && rule.Operator != OperatorForbidSetMember && rule.Operator != OperatorRequireSetMember && !IsSetNoticeOperator(rule.Operator) {
+		return fmt.Errorf("set condition is only valid for %s, %s and the set notices: %w", OperatorForbidSetMember, OperatorRequireSetMember, ErrInvalid)
 	}
 	switch rule.Operator {
+	case OperatorNoticeSetMemberPresent, OperatorNoticeSetMemberAbsent:
+		return validateSetNoticeRule(rule, registry)
 	case OperatorRequireSetMember:
 		// Structure and set condition checked by validateChartRule.
 		return nil

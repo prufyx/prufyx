@@ -584,6 +584,7 @@ var cncfPackLevels = []packLevel{
 	{"prufyx.io/cncf-source-rule-pack/v1alpha11", anyRule(constraintengine.AnyCrossingRule)},
 	{"prufyx.io/cncf-source-rule-pack/v1alpha12", anyCommunityCatalogEntry},
 	{"prufyx.io/cncf-source-rule-pack/v1alpha13", anyRule(constraintengine.AnyChartRule)},
+	{"prufyx.io/cncf-source-rule-pack/v1alpha14", anyRule(constraintengine.AnyChartNoticeRule)},
 }
 
 // anyCommunityCatalogEntry is the loader's test for a pack holding an entry
@@ -734,10 +735,11 @@ func genericProjectsWith(rules map[string]any, identities map[string]identity, c
 			return nil, 0, nil, none, invalid("duplicate rule")
 		}
 		seen[id] = true
-		// A one-way notice is verdict-neutral: it is not an executable rule
-		// and must not be counted or listed as one. Until the inventory has a
-		// section of its own for notices it refuses them rather than overclaim.
-		if rule["operator"] == constraintengine.OperatorNoticeOneWay {
+		// A notice (one-way or set notice) is verdict-neutral: it is not an
+		// executable rule and must not be counted or listed as one. Until the
+		// inventory has a section of its own for notices it refuses them
+		// rather than overclaim.
+		if operator, _ := rule["operator"].(string); constraintengine.IsNoticeOperator(operator) {
 			return nil, 0, nil, none, invalid("the inventory does not list notices yet")
 		}
 		// A support-range rule (severity "unsupported") never blocks: its

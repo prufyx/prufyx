@@ -104,3 +104,75 @@ func TestExternalRefusesChartRules(t *testing.T) {
 		t.Fatalf("validateExternalPack admitted a chart rule: %v", err)
 	}
 }
+
+// syntheticSetNoticeEntry is a test-only set notice on a chart subject
+// over a registered set fact. It is never published.
+func syntheticSetNoticeEntry(t *testing.T, operator string) Entry {
+	t.Helper()
+	entry := syntheticSetEntry(t)
+	var rule map[string]any
+	if err := json.Unmarshal(entry.Rule, &rule); err != nil {
+		t.Fatal(err)
+	}
+	rule["id"], rule["operator"] = "synthetic-set-notice", operator
+	rule["subject"].(map[string]any)["chart"] = map[string]any{"source": "https://charts.example.io", "name": "kubernetes"}
+	rule["reasonCode"], rule["nextAction"] = "HELM_VALUES_KEY_NOT_REFERENCED", "review the listed setting before upgrading"
+	raw, err := json.Marshal(rule)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry.Rule = raw
+	return entry
+}
+
+// TestPackChartNoticeLevel: a pack holding a set notice carries exactly the
+// set-notice level, every lower level refuses it, and the level is never
+// used without one. A set notice is verdict-neutral for selection, and
+// external packs refuse it.
+func TestPackChartNoticeLevel(t *testing.T) {
+	for _, operator := range []string{constraintengine.OperatorNoticeSetMemberPresent, constraintengine.OperatorNoticeSetMemberAbsent} {
+		entry := syntheticSetNoticeEntry(t, operator)
+		if _, err := assembleSynthetic(syntheticPack(t, packSchemaChartNotice, nil, entry), nil); err != nil {
+			t.Fatalf("%s: set-notice pack under the set-notice level refused: %v", operator, err)
+		}
+		for _, schema := range []string{packSchema, packSchemaRanged, packSchemaSet, packSchemaAttested, packSchemaPathPolicies, packSchemaNotice, packSchemaBasis, packSchemaSeverity, packSchemaDistributions, packSchemaServedAPIs, packSchemaCrossing, packSchemaCommunity, packSchemaChart} {
+			if _, err := assembleSynthetic(syntheticPack(t, schema, nil, entry), nil); !errors.Is(err, ErrIntegrity) {
+				t.Fatalf("%s: set-notice pack under %s accepted: %v", operator, schema, err)
+			}
+		}
+		neutral, err := isVerdictNeutralRule(entry.Rule)
+		if err != nil || !neutral {
+			t.Fatalf("%s: not verdict-neutral: %v", operator, err)
+		}
+	}
+	// A chart rule without a set notice stays at the chart level.
+	if _, err := assembleSynthetic(syntheticPack(t, packSchemaChartNotice, nil, syntheticChartEntry(t)), nil); !errors.Is(err, ErrIntegrity) {
+		t.Fatal("set-notice level without a set notice accepted")
+	}
+	if _, err := assembleSynthetic(syntheticPack(t, packSchemaChartNotice, nil), nil); !errors.Is(err, ErrIntegrity) {
+		t.Fatal("set-notice level for the published pack accepted")
+	}
+}
+
+func TestExternalRefusesSetNotices(t *testing.T) {
+	raw, err := ExportEmbeddedExternalBundle("7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var envelope map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &envelope); err != nil {
+		t.Fatal(err)
+	}
+	var value rulePack
+	if err := json.Unmarshal(envelope["pack"], &value); err != nil {
+		t.Fatal(err)
+	}
+	base, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	value.Entries = append(value.Entries, syntheticSetNoticeEntry(t, constraintengine.OperatorNoticeSetMemberPresent))
+	if err := validateExternalPack(base, value, "7", false); !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("validateExternalPack admitted a set notice: %v", err)
+	}
+}

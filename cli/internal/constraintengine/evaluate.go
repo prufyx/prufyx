@@ -27,7 +27,7 @@ func Evaluate(input Input, rules RuleSet, now time.Time) (Report, error) {
 	}
 	// A chart hop is evaluated only under the chart contract, which knows
 	// that its versions are chart versions (chart.go).
-	if input.document.declaresChart() && !rules.chart {
+	if input.document.declaresChart() && !rules.chart && !rules.chartNotice {
 		return Report{}, fmt.Errorf("an input declaring a chart needs a rule document under the chart contract: %w", ErrInvalid)
 	}
 	claims := make([]Claim, len(rules.document.Rules))
@@ -128,6 +128,10 @@ func evaluateMatchedRule(input inputDocument, rule rule, claim Claim) Claim {
 		return evaluateSetRule(input, rule, claim)
 	case OperatorRequireSetMember:
 		return evaluateRequireSetRule(input, rule, claim)
+	case OperatorNoticeSetMemberPresent, OperatorNoticeSetMemberAbsent:
+		// Informational only (notice_set.go): scope completeness never
+		// counts it.
+		return evaluateNoticeSetRule(input, rule, claim)
 	case "forbid_predicate_value":
 		fact, found := findFact(input, rule.Condition.Side, rule.Condition.Component, rule.Condition.FactID)
 		if !found || fact.State != "declared" {
@@ -392,7 +396,7 @@ func issueReport(report Report) Report {
 // independently re-derive that same assessment. No block, no verdict —
 // however many claims passed. See legalAssessment.
 func MarshalReport(report Report) ([]byte, error) {
-	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !validSetClaims(report) || !validNoticeClaims(report) || !validBasisClaims(report) || !validSeverityClaims(report) || !validCrossingClaims(report) || !validReleaseBoundaryClaims(report) || !validChartClaims(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
+	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !validSetClaims(report) || !validNoticeClaims(report) || !validBasisClaims(report) || !validSeverityClaims(report) || !validCrossingClaims(report) || !validReleaseBoundaryClaims(report) || !validChartClaims(report) || !validNoticeSetClaims(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
 		return nil, ErrIntegrity
 	}
 	raw, err := json.Marshal(report)

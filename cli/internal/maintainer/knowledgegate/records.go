@@ -621,7 +621,7 @@ func readRuleShape(rule json.RawMessage) (ruleShape, error) {
 // in the same order), and a rule that takes part in verdicts (not a notice,
 // not a lead).
 func (listed ruleShape) decides(derived ruleShape) bool {
-	return listed.operator != constraintengine.OperatorNoticeOneWay && listed.basis != constraintengine.BasisLead &&
+	return !constraintengine.IsNoticeOperator(listed.operator) && listed.basis != constraintengine.BasisLead &&
 		listed.operator == derived.operator && derived.condition != nil && bytes.Equal(listed.condition, derived.condition)
 }
 

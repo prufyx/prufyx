@@ -134,6 +134,25 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   `crd.version-removal.*` id do not move. A chart extractor's code digest
   covers the framework, `chartrun` and its own package.
 
+- Set notices (no shipped rule uses them yet): two verdict-neutral operators
+  over a declared set fact on a chart hop. `notice_set_member_present` is a
+  NOTICE when a listed member is present (complete set or not; the claim
+  lists `matchedMembers`); `notice_set_member_absent` is a NOTICE only when a
+  complete set lacks a listed member (the claim lists `missingMembers`).
+  Otherwise each is UNKNOWN, with the new reason `RULE_NOTICE_NOT_APPLICABLE`
+  when a complete set gives it nothing to say; that claim prints nothing. Set
+  notices are counted in `noticeRules`, never decide or change an aggregate,
+  carry their own reason code and no verdict wording, and their members are
+  never printed as forbidden or required members. Documents with one use rules
+  schema `prufyx.io/deterministic-constraint-rules/v1alpha9` (scope contract
+  `scope-completeness-contract-v8`) and pack schema
+  `prufyx.io/cncf-source-rule-pack/v1alpha14`; documents without one keep
+  their schema, digests and replay bytes. `rulecheck` admits a set notice
+  only from a mechanical extractor, on a values-path set fact, with reason
+  `HELM_VALUES_KEY_NOT_REFERENCED` (present) or `HELM_VALUES_DEFAULT_CHANGED`
+  (absent), and a set notice carries no `appliesWhen`. See
+  `cli/docs/contributing-rules.md`.
+
 - KIND-VAL (maintainer tool, `cli/internal/tools/kindval` and
   `cli/scripts/kind-val.sh`): checks the Kubernetes knowledge against real
   API servers in kind clusters, one per release line: the served APIs
@@ -207,6 +226,31 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   is not the canonical member of its path. A values file whose key holds a NUL
   byte is outside the strict YAML subset. No engine contract, schema or
   registry digest changes. See `cli/docs/extractors/helm.values.md`.
+- Maintainer extractor `helm.values` 1.2.0 derives two set notices, which
+  never pass, block or change completeness. `HELM_VALUES_KEY_NOT_REFERENCED`
+  (`notice_set_member_present`, rule id `...unread-values`) lists values keys
+  the earlier chart's templates name and the later chart's templates provably
+  no longer read: the later chart has a `templates/` directory, every template
+  parses, no entry there is a symbolic link, submodule or other non-file, no
+  template uses `index`, `tpl`, the whole values, the root context outside
+  `include`, `template`, `if` or `with`, or any other route the scan does not
+  resolve, the chart has no dependency and no `charts/` directory, no later
+  template names the key, a key above it or a key below it, and the later
+  values schema does not require or declare it.
+  `HELM_VALUES_DEFAULT_CHANGED` (`notice_set_member_absent`, rule id
+  `...changed-defaults`) lists keys whose scalar default changed as Helm reads
+  it, holds only over a complete values set, and compares only booleans,
+  plain decimals and strings that every YAML reader reads the same way, under
+  no subchart or global key, where neither values schema refuses the key or
+  leaves it unread. The template scan now counts every unresolved route, and
+  the proof classifies each key either notice considered (`unread`,
+  `changed`). Chart extractor runner (`internal/extract/chartrun`): set notices
+  have their own test vectors (`notice`, `no-notice-complete`,
+  `unknown-incomplete`), and a vector kind of the other family is refused.
+  Only the `helm.values.*` code digests move; the extractor framework files
+  are unchanged, so the digests of `k8s.feature-gate-removal`,
+  `k8s.served-api-removal` and `crd.version-removal.*` do not move. See
+  `cli/docs/extractors/helm.values.md`.
 - Chart extractor runner (`internal/extract/chartrun`): a chart extractor may
   name shared packages whose source is part of its code, and `helm.values`
   names the values reader and member encoding it shares

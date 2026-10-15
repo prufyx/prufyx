@@ -1169,16 +1169,23 @@ func title(description string) string {
 }
 
 // noticeExclusions are the reasons a notice rule does not apply: its
-// absence says nothing, so they give no entry.
+// absence says nothing, so they give no entry. A set notice that has
+// nothing to say gives none either.
 var noticeExclusions = map[string]bool{
-	"RULE_TRANSITION_NOT_REVIEWED":   true,
-	"RULE_SUBJECT_COMPONENT_MISSING": true,
-	"RULE_APPLICABILITY_NOT_MATCHED": true,
+	"RULE_TRANSITION_NOT_REVIEWED":                 true,
+	"RULE_SUBJECT_COMPONENT_MISSING":               true,
+	"RULE_APPLICABILITY_NOT_MATCHED":               true,
+	constraintengine.ReasonSubjectChartNotDeclared: true,
+	constraintengine.ReasonNoticeNotApplicable:     true,
 }
 
 // notice records a one-way notice rule that applies to ref. It never adds a
-// gap, a finding, a pass or a hop reason.
+// gap, a finding, a pass or a hop reason. A set notice is not a one-way
+// change, so the scan lists nothing for it.
 func (r *kubernetesRun) notice(rule cncfcheck.ScanRule, eval evaluation, ref scanreport.HopRef, covers bool) {
+	if rule.SetNotice {
+		return
+	}
 	entry := scanreport.Notice{RuleID: rule.Scope.ID, Component: kubernetesSlug, Hop: ref, Text: rule.NextAction, Basis: "reviewed", Citations: []constraintengine.SourceEvidence{}}
 	claim, found := eval.claims[rule.Scope.ID]
 	if found {

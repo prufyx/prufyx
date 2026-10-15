@@ -450,7 +450,9 @@ func claimNotes(claims []constraintengine.Claim) []string {
 	for _, claim := range claims {
 		if lines, notice := claim.NoticeLines(); notice && claim.IsNotice() {
 			notes = append(notes, lines...)
-			if len(lines) > 0 && claim.Status == constraintengine.StatusNotice {
+			// The scope line is about rolling back: only an established
+			// one-way notice calls for it.
+			if len(lines) > 0 && claim.Operator == constraintengine.OperatorNoticeOneWay && claim.Status == constraintengine.StatusNotice {
 				established = true
 			}
 		}

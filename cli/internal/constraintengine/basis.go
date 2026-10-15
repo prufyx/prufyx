@@ -119,9 +119,9 @@ func (r rule) usesBasisSemantics() bool {
 }
 
 // verdictNeutral reports whether a parsed rule is left out of scope
-// completeness: a one-way notice or a lead.
+// completeness: a notice (one-way or set notice) or a lead.
 func (r rule) verdictNeutral() bool {
-	return r.usesNoticeOperator() || r.Evidence.Basis == BasisLead
+	return r.isNotice() || r.Evidence.Basis == BasisLead
 }
 
 // AnyBasisRule reports whether any raw rule declares a consensus or lead
@@ -163,11 +163,15 @@ func RawRuleBasis(raw json.RawMessage) (string, error) {
 }
 
 // RawRuleVerdictNeutral reports whether one raw rule never takes part in a
-// verdict: a one-way notice or a lead.
+// verdict: a one-way notice, a set notice or a lead.
 func RawRuleVerdictNeutral(raw json.RawMessage) (bool, error) {
 	notice, err := AnyNoticeRule([]json.RawMessage{raw})
 	if err != nil || notice {
 		return notice, err
+	}
+	setNotice, err := AnyChartNoticeRule([]json.RawMessage{raw})
+	if err != nil || setNotice {
+		return setNotice, err
 	}
 	basis, err := RawRuleBasis(raw)
 	if err != nil {
@@ -177,11 +181,11 @@ func RawRuleVerdictNeutral(raw json.RawMessage) (bool, error) {
 }
 
 // validateBasisRule refuses the combinations the basis contract does not
-// define: a one-way notice is already verdict-neutral and carries no
-// consensus or lead basis.
+// define: a notice (one-way or set notice) is already verdict-neutral and
+// carries no consensus or lead basis.
 func validateBasisRule(r rule) error {
-	if r.usesBasisSemantics() && r.usesNoticeOperator() {
-		return fmt.Errorf("a one-way notice cannot carry a consensus or lead basis: %w", ErrInvalid)
+	if r.usesBasisSemantics() && r.isNotice() {
+		return fmt.Errorf("a notice cannot carry a consensus or lead basis: %w", ErrInvalid)
 	}
 	return nil
 }

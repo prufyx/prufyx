@@ -153,9 +153,10 @@ func sameChart(a, b *ChartRef) bool {
 // selected for an application hop with the same numbers, nor the reverse.
 func (t RuleTransition) AdmitsChart(declared *ChartRef) bool { return sameChart(t.Chart, declared) }
 
-// usesChart reports whether a parsed rule needs the chart contract.
+// usesChart reports whether a parsed rule needs the chart contract (or the
+// chart notice contract above it).
 func (r rule) usesChart() bool {
-	return r.Subject.Chart != nil || r.Operator == OperatorRequireSetMember
+	return r.Subject.Chart != nil || r.Operator == OperatorRequireSetMember || r.usesChartNotice()
 }
 
 // validateChartRule checks the chart subject and the require_set_member
@@ -284,8 +285,9 @@ func setMembersMissing(declared, required []string) []string {
 }
 
 // AnyChartRule reports whether any raw rule carries a chart subject or uses
-// require_set_member, which needs RulesSchemaChart. It reads the keys only;
-// ParseRuleSet remains the authority on validity.
+// require_set_member or a set notice operator, which needs RulesSchemaChart
+// (or RulesSchemaChartNotice above it). It reads the keys only; ParseRuleSet
+// remains the authority on validity.
 func AnyChartRule(rules []json.RawMessage) (bool, error) {
 	for _, raw := range rules {
 		var shape struct {
@@ -298,7 +300,7 @@ func AnyChartRule(rules []json.RawMessage) (bool, error) {
 		if _, ok := shape.Subject["chart"]; ok {
 			return true, nil
 		}
-		if shape.Operator != nil && *shape.Operator == OperatorRequireSetMember {
+		if shape.Operator != nil && (*shape.Operator == OperatorRequireSetMember || IsSetNoticeOperator(*shape.Operator)) {
 			return true, nil
 		}
 	}
@@ -308,12 +310,16 @@ func AnyChartRule(rules []json.RawMessage) (bool, error) {
 // validateSetContradictions refuses a forbid_set_member and a
 // require_set_member rule on the same set fact, for the same subject, whose
 // members intersect and whose subjects overlap: together they block every
-// hop they both match, whatever the set holds.
+// hop they both match, whatever the set holds. A set notice is
+// verdict-neutral and never contradicts anything.
 func validateSetContradictions(rules []rule) error {
+	verdictSet := func(r rule) bool {
+		return r.Operator == OperatorForbidSetMember || r.Operator == OperatorRequireSetMember
+	}
 	for i := range rules {
 		for j := i + 1; j < len(rules); j++ {
 			a, b := rules[i], rules[j]
-			if a.SetCondition == nil || b.SetCondition == nil || a.Operator == b.Operator || a.Subject.Component != b.Subject.Component || !sameChart(a.Subject.Chart, b.Subject.Chart) {
+			if a.SetCondition == nil || b.SetCondition == nil || !verdictSet(a) || !verdictSet(b) || a.Operator == b.Operator || a.Subject.Component != b.Subject.Component || !sameChart(a.Subject.Chart, b.Subject.Chart) {
 				continue
 			}
 			ca, cb := a.SetCondition, b.SetCondition
@@ -348,9 +354,10 @@ func scopeContractDigestChart() string {
 func ScopeContractDigestChart() string { return scopeContractDigestChart() }
 
 // atLeastCrossingContract reports a digest that admits every feature of the
-// crossing contract: the crossing contract itself or the chart one.
+// crossing contract: the crossing contract itself, the chart one or the
+// chart notice one.
 func atLeastCrossingContract(digest string) bool {
-	return digest == engineContractDigestCrossing() || digest == engineContractDigestChart()
+	return digest == engineContractDigestCrossing() || atLeastChartContract(digest)
 }
 
 // validChartClaims binds the chart semantics to the chart contract: the two
@@ -359,7 +366,7 @@ func atLeastCrossingContract(digest string) bool {
 // require_set_member claim is legal only under it, carries missing members
 // exactly when it is BLOCKED, and never carries matched members.
 func validChartClaims(report Report) bool {
-	chartContract := report.EngineContractDigest == engineContractDigestChart()
+	chartContract := atLeastChartContract(report.EngineContractDigest)
 	for _, claim := range report.Claims {
 		if claim.ReasonCode == ReasonSubjectChartNotDeclared || claim.ReasonCode == ReasonAppVersionNotDeclared {
 			if !chartContract || claim.Status != "UNKNOWN" || claim.SubjectMatch != nil || claim.CrossingMatch != nil {
@@ -368,7 +375,9 @@ func validChartClaims(report Report) bool {
 		}
 		require := claim.Operator == OperatorRequireSetMember
 		if !require {
-			if claim.MissingMembers != nil {
+			// A notice_set_member_absent claim discloses missing members
+			// too; validNoticeSetClaims binds them.
+			if claim.MissingMembers != nil && claim.Operator != OperatorNoticeSetMemberAbsent {
 				return false
 			}
 			continue
@@ -390,7 +399,7 @@ func validChartClaims(report Report) bool {
 // validScopeCharts binds a scope block's chart identities and chart reasons
 // to the chart scope contract.
 func validScopeCharts(scope *ScopeCompleteness) bool {
-	chartScope := scope.ContractDigest == scopeContractDigestChart()
+	chartScope := scope.ContractDigest == scopeContractDigestChart() || scope.ContractDigest == scopeContractDigestChartNotice()
 	for _, component := range scope.Components {
 		if component.Chart != nil && (!chartScope || !ValidChartRef(*component.Chart)) {
 			return false
@@ -408,7 +417,8 @@ func validScopeCharts(scope *ScopeCompleteness) bool {
 // members a BLOCKED require_set_member claim found absent. ok is false for
 // every other claim, whose human output is unchanged.
 func (c Claim) MissingMembersLine() (line string, ok bool) {
-	if len(c.MissingMembers) == 0 {
+	// A notice's members are printed by NoticeLines, never as required.
+	if len(c.MissingMembers) == 0 || c.IsNotice() {
 		return "", false
 	}
 	return "required members absent: " + strings.Join(c.MissingMembers, ", "), true
