@@ -146,6 +146,23 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   contains the kind name, as a field spec without a kind applies to every
   kind; one that is unparseable or reaches other paths than conversion settings
   and metadata blocks attestation.
+- Maintainer extractor `crd.version-removal`, CRD-GEN wave 3: nineteen more
+  CNCF projects are read (Agones, Capsule, Chaos Mesh, Dex, Fluid, Higress,
+  kagent, kcp, Kgateway, Kube-OVN, KubeArmor, Kuberhealthy, KubeVela, Litmus,
+  Logging Operator (Kube Logging), OpenChoreo, OpenYurt, Radius and
+  Submariner; 42 CNCF projects in total), each over its latest six release
+  lines or from the first line that ships the listed CRD manifests. Their
+  custom-resource version sets are registered in the fact registry and their
+  API groups listed in the reviewed table. The line attestation (`attest`)
+  stays off for all nineteen. Not listed for any of them: `argoproj.io`, which
+  Litmus ships as a copy of Argo Workflows' CRDs (it stays Argo CD's group),
+  and the Kubernetes groups `admissionregistration.k8s.io` and
+  `rbac.authorization.k8s.io` that kcp defines as CRDs. The embedded CNCF pack
+  moves to revision `cncf-2026-09-13.9` (same rules; only the registry digest
+  and the revision differ); external CNCF packs and knowledge databases built
+  against the previous registry, including revision `cncf-2026-09-13.8`, are
+  refused by this release until they are rebuilt. No rule over the new sets
+  ships yet.
 - Maintainer extractor `crd.version-removal`, CRD-GEN wave 2: eleven more
   projects are read (Antrea, CloudNativePG, Contour, Dapr, External Secrets
   Operator, Karmada, Koordinator, MetalLB, OpenKruise, Tekton Pipelines and
