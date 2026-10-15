@@ -57,9 +57,9 @@ type Target struct {
 	// FactProject is the project part of the set fact id
 	// component.<FactProject>.custom_resource_versions_set.
 	FactProject string
-	// TagPrefixes are the prefixes of final release tags ("v", ""), in
-	// order of preference. A version tagged under two prefixes must name
-	// one commit.
+	// TagPrefixes are the prefixes of final release tags ("v", "",
+	// "knative-v"), in order of preference. A version tagged under two
+	// prefixes must name one commit.
 	TagPrefixes []string
 	// MinFrom is the first earlier line (major, minor) a pair may start
 	// from.
@@ -187,6 +187,15 @@ type PathSpec struct {
 // served flags, defines one the inventory does not hold, or cannot be read
 // after its template directives are removed blocks attestation.
 //
+// With PrePatch (a directory prefix only), the reviewer states that the
+// files are the definitions a kustomization at that path renders into the
+// listed paths before its patches apply (the generated sources of a
+// rendered bundle). The scan checks that claim at every tag (see
+// checkPrePatch): only when the kustomization, its patches and the files
+// have the exact shape it reads, and the patched definitions are the listed
+// ones, do the files stop blocking attestation. Otherwise every file keeps
+// its class, as under a declared copy.
+//
 // Every entry names its repository, the reason the files are not installed
 // and the evidence a reviewer read (what uses the files and how). The reason
 // and the evidence must hold at every tag of the window; the install-surface
@@ -195,15 +204,32 @@ type PathSpec struct {
 // install command or an embedding Go package refers to the excluded path,
 // or the path lies under a chart, the entry is void for that tag and the
 // files under it block attestation like any others. An entry that is not a
-// declared copy may not lie under a chart, an install, deploy, manifests or
-// CRD directory (see installSegments).
+// declared copy or pre-patch copy may not lie under a chart, an install,
+// deploy, manifests or CRD directory (see installSegments).
 type Exclusion struct {
 	Path     string
 	Repo     string
 	Reason   string
 	Evidence string
 	Copies   bool
+	// PrePatch is the kustomization that renders the files under Path
+	// into the listed paths ("" when the entry declares no pre-patch
+	// copies).
+	PrePatch string
 }
+
+// checked reports an entry whose claim the scan checks (declared copies or
+// pre-patch copies): the install-surface guard does not void it, and the
+// files under it keep their classes.
+func (e Exclusion) checked() bool { return e.Copies || e.PrePatch != "" }
+
+// TagPrefixes are the release tag prefixes a target may name: none, "v",
+// and "knative-v" (Knative's release tags, knative-v1.15.0). Each ends in a
+// character that is not a digit or a dot, so a version is never read with
+// part of it taken for the prefix.
+var TagPrefixes = []string{"", "v", "knative-v"}
+
+const tagPrefixNames = `"", "v" and "knative-v"`
 
 // DefaultExcludedSegments are the directory names whose content is not
 // what a project normally installs: tests, test data, examples and
@@ -279,6 +305,7 @@ type exclusionJSON struct {
 	Reason   string `json:"reason"`
 	Evidence string `json:"evidence"`
 	Copies   bool   `json:"copies,omitempty"`
+	PrePatch string `json:"prePatch,omitempty"`
 }
 
 var (
@@ -393,11 +420,11 @@ func (tj targetJSON) target() (Target, error) {
 		return t, fmt.Errorf("component %q does not name repository %s", t.Component, t.Repo)
 	}
 	if len(t.TagPrefixes) == 0 || len(t.TagPrefixes) > 2 {
-		return t, fmt.Errorf("tagPrefixes: one or two of \"v\" and \"\"")
+		return t, fmt.Errorf("tagPrefixes: one or two of %s", tagPrefixNames)
 	}
 	for i, p := range t.TagPrefixes {
-		if (p != "" && p != "v") || (i > 0 && p == t.TagPrefixes[0]) {
-			return t, fmt.Errorf("tagPrefixes: one or two of \"v\" and \"\"")
+		if !slicesContains(TagPrefixes, p) || (i > 0 && p == t.TagPrefixes[0]) {
+			return t, fmt.Errorf("tagPrefixes: one or two of %s", tagPrefixNames)
 		}
 	}
 	m := lineRE.FindStringSubmatch(tj.MinFrom)
@@ -446,7 +473,20 @@ func (tj targetJSON) target() (Target, error) {
 		if ej.Repo != t.Repo {
 			return t, fmt.Errorf("exclusion %q names repository %q, not %s", ej.Path, ej.Repo, t.Repo)
 		}
-		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Repo: ej.Repo, Reason: ej.Reason, Evidence: ej.Evidence, Copies: ej.Copies})
+		if ej.PrePatch != "" {
+			// The rendering is compared with the declared definitions of
+			// the repository itself: a target with other channels or a
+			// remote source has none to compare it with alone.
+			if len(t.Channels) > 0 || tj.Remote != nil {
+				return t, fmt.Errorf("exclusion %q: prePatch is not read for a target with channels or a remote source", ej.Path)
+			}
+			for _, ps := range t.allListedPaths() {
+				if ej.PrePatch == ps.Path || strings.HasPrefix(ej.PrePatch, ps.Path+"/") {
+					return t, fmt.Errorf("exclusion %q: prePatch %s lies under the listed path %s", ej.Path, ej.PrePatch, ps.Path)
+				}
+			}
+		}
+		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Repo: ej.Repo, Reason: ej.Reason, Evidence: ej.Evidence, Copies: ej.Copies, PrePatch: ej.PrePatch})
 	}
 	if tj.Remote != nil {
 		remote, err := tj.Remote.remote(t)
@@ -630,7 +670,19 @@ func validExclusion(ej exclusionJSON) error {
 	if e := strings.TrimSpace(ej.Evidence); e != ej.Evidence || len(e) < 40 || len(e) > 800 {
 		return fmt.Errorf("evidence of 40 to 800 characters is required")
 	}
-	if !ej.Copies {
+	if ej.PrePatch != "" {
+		switch {
+		case ej.Copies:
+			return fmt.Errorf("copies and prePatch exclude each other")
+		case !strings.HasSuffix(ej.Path, "/") || strings.ContainsAny(ej.Path, globMeta):
+			return fmt.Errorf("prePatch needs a directory prefix")
+		case !cleanRepoPath(ej.PrePatch) || !isKustomizationName(path.Base(ej.PrePatch)):
+			return fmt.Errorf("prePatch %q is not the clean repository path of a kustomization", ej.PrePatch)
+		case strings.HasPrefix(ej.PrePatch, ej.Path):
+			return fmt.Errorf("prePatch %s lies under the entry", ej.PrePatch)
+		}
+	}
+	if !ej.Copies && ej.PrePatch == "" {
 		if seg := installSegment(ej.Path); seg != "" {
 			return fmt.Errorf("%q lies under a %q directory: definitions there are installed or generated for install and are never excluded", ej.Path, seg)
 		}
@@ -639,7 +691,8 @@ func validExclusion(ej exclusionJSON) error {
 }
 
 // installSegments are the directory names of the places a project installs
-// from; an entry that is not a declared, checked copy may not lie under one.
+// from; an entry that is not a declared, checked copy (or pre-patch copy)
+// may not lie under one.
 // "chart", "charts", "deploy", "deployment", "deployments", "install" and
 // "installation" count at any depth. "manifests" counts only as the first
 // directory of the repository (the install directory of the projects that
@@ -703,12 +756,14 @@ const (
 )
 
 // place is the location of one scanned path: its kind, the default segment
-// ("default: <name>") or reviewed exclusion entry, and whether the entry
-// declares checked copies.
+// ("default: <name>") or reviewed exclusion entry, whether the entry
+// declares checked copies, and the kustomization of an entry that declares
+// pre-patch copies.
 type place struct {
-	kind   int
-	entry  string
-	copies bool
+	kind     int
+	entry    string
+	copies   bool
+	prePatch string
 	// void: a reviewed exclusion that an install surface refers to at this
 	// release. The place is a default-like one ("void: <entry>"): the files
 	// are classified, block attestation and never withhold a pair, but a
@@ -725,7 +780,7 @@ func (t Target) placeOf(p string) place {
 			if t.voided[e.Path] {
 				return place{kind: locDefault, entry: voidPrefix + e.Path, void: true}
 			}
-			return place{kind: locReviewed, entry: e.Path, copies: e.Copies}
+			return place{kind: locReviewed, entry: e.Path, copies: e.Copies, prePatch: e.PrePatch}
 		}
 	}
 	if d := defaultSegment(p); d != "" {

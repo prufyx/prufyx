@@ -607,3 +607,50 @@ func TestUpstreamOracles(t *testing.T) {
 		})
 	}
 }
+
+// Knative tags its releases knative-v1.15.0: the prefix is accepted, alone
+// or with another, and nothing near it is.
+func TestKnativeTagPrefix(t *testing.T) {
+	prefixes := func(ps ...string) []byte {
+		raw, err := json.Marshal(ps)
+		must(t, err)
+		return []byte(fmt.Sprintf(`{"schema":%q,"target":{"project":"p","name":"P","repo":"github.com/o/p","component":"pkg:github/o/p","factProject":"p","tagPrefixes":%s,"minFrom":"1.0","paths":[{"path":"crds/a.yaml"}],"exclude":[]}}`, TargetSchema, raw))
+	}
+	for _, ok := range [][]string{{"knative-v"}, {"knative-v", "v"}, {"", "knative-v"}} {
+		tg, err := LoadTarget("target-p.json", prefixes(ok...))
+		if err != nil || !slices.Equal(tg.TagPrefixes, ok) {
+			t.Fatalf("%q: %v", ok, err)
+		}
+	}
+	for _, bad := range [][]string{{"knative-"}, {"Knative-v"}, {"release-"}, {"v", "v"}, {"knative-v", "knative-v"}, {"knative-v", "v", ""}, {}} {
+		if _, err := LoadTarget("target-p.json", prefixes(bad...)); err == nil || !strings.Contains(err.Error(), "tagPrefixes") {
+			t.Fatalf("%q: %v", bad, err)
+		}
+	}
+	x := New(Target{TagPrefixes: []string{"knative-v"}})
+	idx := extract.ReleaseIndex{Tags: []extract.Tag{
+		{Name: "knative-v1.15.0", Commit: strings.Repeat("a", 40)},
+		{Name: "v1.15.0", Commit: strings.Repeat("b", 40)},
+		{Name: "knative-v1.15.1-rc1", Commit: strings.Repeat("c", 40)},
+		{Name: "knative-v1.15.0-rc1", Commit: strings.Repeat("c", 40)},
+		{Name: "xknative-v1.15.2", Commit: strings.Repeat("d", 40)},
+		{Name: "knative-v01.2.3", Commit: strings.Repeat("e", 40)},
+		{Name: "knative-v1.16.0", Commit: strings.Repeat("f", 40)},
+	}}
+	lines := x.releaseLines(idx)
+	if len(lines) != 2 || !slices.Equal(lines[0].Versions, []string{"1.15.0"}) || lines[0].Tags[0].Name != "knative-v1.15.0" || lines[0].Problem != "" || !slices.Equal(lines[1].Versions, []string{"1.16.0"}) {
+		t.Fatalf("lines %+v", lines)
+	}
+	// With "v" as well, a version tagged under both at two commits makes
+	// its line unusable, and the pair is withheld.
+	tg := synthTarget()
+	tg.TagPrefixes = []string{"knative-v", "v"}
+	s := newSynth(
+		release{"knative-v1.0.0", map[string]string{"deploy/crds/a.yaml": crd("Alpha", "v1")}},
+		release{"v1.0.0", map[string]string{"deploy/crds/a.yaml": crd("Alpha", "v1")}},
+		release{"knative-v1.1.0", map[string]string{"deploy/crds/a.yaml": crd("Alpha", "v1")}},
+	)
+	if p, _ := pairOf(t, runSynth(t, tg, s), "1.0.0", "1.1.0"); p.Status != extract.PairWithheld || !strings.Contains(p.Reason, "tagged twice") {
+		t.Fatalf("%+v", p)
+	}
+}

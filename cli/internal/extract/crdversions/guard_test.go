@@ -649,7 +649,7 @@ func TestReviewedTableRules(t *testing.T) {
 			if e.Repo != tg.Repo || len(e.Evidence) < 40 || len(e.Reason) < 12 {
 				t.Errorf("%s %s: %+v", tg.Project, e.Path, e)
 			}
-			if seg := installSegment(e.Path); seg != "" && !e.Copies {
+			if seg := installSegment(e.Path); seg != "" && !e.checked() {
 				t.Errorf("%s %s lies under %s", tg.Project, e.Path, seg)
 			}
 			for _, bad := range []string{"deploy/examples/", "vendor/sigs.k8s.io/mcs-api/"} {

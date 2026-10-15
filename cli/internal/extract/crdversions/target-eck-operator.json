@@ -12,6 +12,8 @@
     "paths": [
       {"path": "config/crds/v1/all-crds.yaml"}
     ],
-    "exclude": []
+    "exclude": [
+      {"path": "config/crds/v1/resources/", "repo": "github.com/elastic/cloud-on-k8s", "reason": "controller-gen output that config/crds/v1/patches renders into the listed all-crds.yaml before its patches apply (checked as pre-patch copies)", "evidence": "Read at every tag from v3.0.0 to v3.5.0: the Makefile target generate-manifests writes these files with controller-gen (output:crd:artifacts:config=config/crds/v1/resources), then runs kubectl kustomize config/crds/v1/patches > config/crds/v1/all-crds.yaml; that kustomization's only resource is ../resources, and no other file of the tree names the directory. Not trusted, checked: at every tag the rendering is read and compared with the listed definitions.", "prePatch": "config/crds/v1/patches/kustomization.yaml"}
+    ]
   }
 }
