@@ -54,7 +54,8 @@ from an offline lines snapshot, `--lines`. The command has no network access.
 
 ```
 prufyx-maintainer coverage report --lines lines.json --now 2026-10-08T12:00:00Z \
-  [--pack rules.json] [--window 6] [--json-out report.json] [--md-out report.md]
+  [--pack rules.json] [--window 6|ALL] [--declared declared.json] [--complete] \
+  [--json-out report.json] [--md-out report.md]
 ```
 
 `--now` and `--lines` are required: the report never reads the clock. Without
@@ -74,11 +75,19 @@ the lines file.
 }
 ```
 
-Lines are `major.minor`, ascending and unique. `priority` and `component` are
-optional (`component` lets a project without rules still own line
+Lines are `major.minor`, ascending and unique. `priority`, `component` and
+`releases` are optional (`component` lets a project without rules still own line
 attestations). Unknown members are rejected. A project with rules but no entry
 is listed under `projectsWithoutLines`; its pairs are unknown and are never
 counted as covered.
+
+`releases` maps a line to the final releases of that line, ascending
+(`"releases": {"1.28": ["1.28.0", "1.28.1"]}`). Every key must be a listed
+line and every version a final release of that line. The ALL window compares
+it with the releases a release-scoped attestation names (see below); a line
+without an entry cannot be compared. The member is additive to schema
+`prufyx.io/coverage-lines/v1`: a binary that predates it rejects a file that
+holds it, so an old tool never reads such a snapshot silently.
 
 ### Building the snapshot from tags
 
@@ -99,7 +108,9 @@ prufyx-maintainer coverage lines-from-tags --tags-dir tags --out lines.json \
 Each `<project>.tags` file holds one tag per line or `git ls-remote` output.
 Only final release tags make a line: `v1.2.3` or `1.2.3`. Pre-releases, snapshots
 and unknown spellings are ignored, so an unrecognised tag scheme yields fewer
-lines, never invented ones. A reviewed table covers `linkerd`
+lines, never invented ones. The same tags fill `releases` (`v1.2.3` is release
+`1.2.3`); a project with its own tag scheme (`linkerd`, `cloud-custodian`) gets
+none. A reviewed table covers `linkerd`
 (`stable-2.X.Y`, `version-2.X.Y`) and `cloud-custodian` (`0.9.N[.M]` to line
 `9.N`).
 
@@ -113,3 +124,127 @@ expiring within 14 days. The Markdown file is a summary of the same facts.
 
 `rulesInWindow` counts valid rules whose from and to versions both lie in the
 window.
+
+## The ALL window and the complete predicate
+
+`--window ALL` measures every release line from the project's `minFrom` (the
+first line its extractors read) instead of the last N lines. `--window N`
+(N from 2 to 64) and the default of 6 are unchanged: their output is
+byte-identical to what earlier versions of the tool wrote, and none of the
+members below appears in it. In the ALL window the report carries
+`"windowAll": true` instead of `window`, at most 1024 lines per project, and
+the extra members below. The window of a project starts at the lowest
+`minFrom` of the families it is registered in (`kubernetes.removed_served_gvk`
+from line 1.19, `crd.custom_resource_versions` from the `minFrom` of its target
+file); a project registered in none uses all its lines and can never be
+complete.
+
+Per project, and per family under `familyCounts`:
+
+| Member | Meaning |
+|---|---|
+| `linesTotal` | Lines of the window. |
+| `decided` | Pairs `L(i)` to `L(i+1)` decided by a qualifying attestation. |
+| `declaredUnknown` | Pairs with no attestation and a valid declaration (below). |
+| `undeclared` | `linesTotal - 1 - decided - declaredUnknown`: pairs nobody has stated anything about. |
+| `complete` | True only when every clause below holds. |
+| `invalidDeclarations` | Declarations of the project that name a family it is not registered in, a chart-line family, or lines that are not consecutive in the snapshot. |
+| `incompleteReasons` | Why `complete` is false, from a closed list (`snapshot-stale`, `snapshot-undated`, `snapshot-future`, `snapshot-truncated`, `snapshot-hole`, `no-registered-family`, `chart-lines-unmapped`, `too-few-lines`, `invalid-declaration`, `undeclared-pairs`, `count-mismatch`). |
+
+At project level a pair is `decided` only when every family the project is
+registered in decides it, and `declaredUnknown` when each family that does not
+decide it declares it unknown. The `families` list gets the same four counts as
+sums over the CNCF projects. `complete` is per project and never part of the
+fleet or priority totals; community-catalog projects are reported apart as
+before.
+
+### The predicate
+
+`complete` is true for a project only when all of the following hold. It is
+computed from the pack and the inputs named on the command line, never from
+any other state.
+
+1. Lines. The project is in the lines snapshot; the snapshot has a
+   `capturedOn` date that is not in the future and at most 14 days before
+   `--now` (counted from midnight of that date); the first line is not later
+   than the `minFrom` of any family the project is registered in; and inside
+   one major version consecutive lines differ by exactly one minor (a gap is a
+   missing line). Whether the snapshot lists every upstream line is the
+   snapshot's claim: the report states the snapshot's date and digest under
+   `linesSnapshot` and in the Markdown, and `complete` is relative to it.
+2. Pairs. For every family the project is registered in, each pair has an
+   attestation for `L(i+1)` whose previous line is `L(i)`, every rule it lists is
+   valid and line-wide for the pair (an empty list is allowed), and, for a
+   release-scoped family, the attestation's `releases.from` and `releases.to` are
+   exactly the snapshot's `releases` of the two lines (the attestation's own list
+   is never trusted; a snapshot without `releases` for either line decides
+   nothing). Otherwise the pair must carry a valid declaration. A pair into a new
+   major version has no previous line, so it needs a declaration.
+3. Citations. The attestation and every listed rule cite at least one source
+   with a 40-hex commit and a path in it.
+4. Evidence. The attestation and every listed rule have basis `mechanical`, name
+   the extractor id, version and code digest that this build of the tool ships,
+   and are valid for more than 14 days beyond `--now` (a record valid for exactly
+   14 days does not count). A `reviewed` record never satisfies this clause.
+5. Counts. `undeclared = 0` and `decided + declaredUnknown = linesTotal - 1`,
+   with at least two lines, in every family and for the project.
+
+The extractor identity is computed at run time from the sources compiled into
+the tool, so an attestation derived by another version of the extractor does
+not count until it is derived again.
+
+`helm.values_schema` is registered for the projects that have a chart target,
+but its pairs are pairs of chart lines, which the snapshot does not hold, and
+no attestation exists for it. Its pairs are always `undeclared` (declarations
+for it are ignored and counted as invalid): a project with a chart target is
+never complete (`chart-lines-unmapped`). Chart lines are not mapped onto the
+project's lines.
+
+What `complete` claims: for every pair of consecutive lines of the snapshot in
+the window, the pack holds a current, mechanically derived statement of the
+rules of the registered families (or a reviewed declaration that the pair cannot
+be decided). What it does not claim: that an upgrade is safe, that facts outside
+the families are covered, or that the snapshot lists every upstream release.
+
+### Declared unknown
+
+A pair that cannot be decided can be declared unknown with a reason from a
+closed list. The declarations are a reviewed file embedded in the tool
+(`data/declared-unknown.json` in the package; it declares nothing yet), or the
+file given with `--declared`. They are not part of the rule pack. The report
+records the digest and the number of records used under `declared`.
+
+```json
+{
+  "schema": "prufyx.io/coverage-declared-unknown/v1",
+  "declarations": [
+    {
+      "project": "example", "family": "crd.custom_resource_versions",
+      "from": "1.2", "to": "1.3", "reason": "blocked:go-defined-crds",
+      "note": "short reviewed explanation",
+      "declaredAt": "2026-10-01T00:00:00Z", "validUntil": "2026-12-15T00:00:00Z"
+    }
+  ]
+}
+```
+
+Reasons: `blocked:go-defined-crds`, `blocked:templated-only`,
+`blocked:other-repository`, `frozen:tag-deleted`, `conflict:shared-group`,
+`scan:not-clean`. The decoder is strict: unknown members are rejected, records
+are sorted by project, family and `from`, a project, family and `from` appear
+once, `note` is at most 512 bytes and `validUntil` is after `declaredAt` by at
+most 90 days. A bad file refuses the whole report. A declaration counts only
+while it is current and valid for more than 14 days beyond `--now`; an
+expired one is ignored. `to` must be the next snapshot line after `from`, and
+the family must be one the project is registered in; a declaration that is not
+is ignored and counted in `invalidDeclarations`, which makes the project
+incomplete. A declaration never replaces an attestation: it only fills a pair
+that has none.
+
+### `--complete`
+
+`--complete` implies the ALL window and prints the projects whose `complete` is
+true, one slug per line, sorted. When there are none the output is empty and the
+exit code is 0. It cannot be combined with `--window N`, `--json-out` or
+`--md-out` (usage error, exit code 2); `--declared` needs `--window ALL` or
+`--complete`.
