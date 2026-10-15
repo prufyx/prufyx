@@ -4,6 +4,7 @@ package coveragereport
 
 import (
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
@@ -189,11 +190,25 @@ func (c *completer) evaluate(slug string, pl ProjectLines, window []string) *Com
 		if len(pl.Lines) == 0 || lineAtLeast(pl.Lines[0], [2]int{r.minFrom[0], r.minFrom[1] + 1}) {
 			why[whySnapshotTruncated] = true
 		}
+		// The family's window must start at its minFrom itself: a missing
+		// minFrom line is a hole the window start would hide.
+		first := ""
+		for _, l := range window {
+			if lineAtLeast(l, r.minFrom) {
+				first = l
+				break
+			}
+		}
+		if first != fmt.Sprintf("%d.%d", r.minFrom[0], r.minFrom[1]) {
+			why[whySnapshotHole] = true
+		}
 	}
 	for i := 0; i+1 < len(window); i++ {
 		a1, a2, ok1 := lineParts(window[i])
 		b1, b2, ok2 := lineParts(window[i+1])
-		if !ok1 || !ok2 || (a1 == b1 && b2 != a2+1) {
+		// Inside a major the next line is the next minor; a new major follows
+		// the previous major and starts at X.0.
+		if !ok1 || !ok2 || (a1 == b1 && b2 != a2+1) || (a1 != b1 && (b1 != a1+1 || b2 != 0)) {
 			why[whySnapshotHole] = true
 		}
 	}
@@ -231,12 +246,17 @@ func (c *completer) evaluate(slug string, pl ProjectLines, window []string) *Com
 	// declares it.
 	for i := 0; i+1 < len(window); i++ {
 		state := stateDecided
+		considered := 0
 		for _, r := range regs {
+			if !lineAtLeast(window[i], r.minFrom) {
+				continue
+			}
+			considered++
 			if s := c.pairState(slug, r, pl, window[i], window[i+1]); s < state {
 				state = s
 			}
 		}
-		if len(regs) == 0 {
+		if considered == 0 {
 			state = stateUndeclared
 		}
 		switch state {
@@ -302,7 +322,7 @@ func (c *completer) pairState(slug string, r registration, pl ProjectLines, from
 	if r.space != projectLines {
 		return stateUndeclared
 	}
-	if c.attested(r, pl, from, to) {
+	if c.attested(slug, r, pl, from, to) {
 		return stateDecided
 	}
 	if d, ok := c.decls[declKey{slug, r.family, from}]; ok && d.To == to && d.currentAt(c.now) {
@@ -314,7 +334,7 @@ func (c *completer) pairState(slug string, r registration, pl ProjectLines, from
 // attested reports whether a current attestation decides the pair, by every
 // clause: the hop, the releases read, cited sources, the shipped extractor
 // and the expiry horizon, for the attestation and for each rule it lists.
-func (c *completer) attested(r registration, pl ProjectLines, from, to string) bool {
+func (c *completer) attested(slug string, r registration, pl ProjectLines, from, to string) bool {
 	family, ok := lineattest.LookupFamily(r.family)
 	if !ok {
 		return false
@@ -334,7 +354,7 @@ func (c *completer) attested(r registration, pl ProjectLines, from, to string) b
 		}
 		for _, id := range a.RuleIDs {
 			rule := c.byID[id]
-			if rule == nil || !rule.valid || !family.CoversLine(rule.tr, to) {
+			if rule == nil || rule.project != slug || !rule.valid || !family.CoversLine(rule.tr, to) {
 				return false
 			}
 			var shape struct {

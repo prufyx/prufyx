@@ -137,6 +137,7 @@ func TestMaintainerCLI_CoverageCompleteUsage(t *testing.T) {
 		{"--complete", "--md-out", filepath.Join(dir, "r.md")},
 		{"--complete", "--window", "6"},
 		{"--window", "many"},
+		{"--window", "all"},
 		{"--declared", badDeclared},
 		{"--window", "ALL", "--declared", badDeclared},
 		{"--window", "ALL", "--declared", filepath.Join(dir, "missing.json")},

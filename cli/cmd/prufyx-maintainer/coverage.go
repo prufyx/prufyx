@@ -65,7 +65,7 @@ func runCoverageReport(args []string, stdout io.Writer) error {
 	}
 	all, window := false, 0
 	switch {
-	case strings.EqualFold(*windowText, "ALL"):
+	case *windowText == "ALL":
 		all = true
 	case *windowText != "":
 		n, err := strconv.Atoi(*windowText)

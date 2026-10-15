@@ -217,6 +217,9 @@ func TestCompleteClauseA(t *testing.T) {
 		{"undated snapshot", func(s *scenario) { s.capturedOn = "" }, whySnapshotUndated},
 		{"snapshot from the future", func(s *scenario) { s.capturedOn = "2026-10-09" }, whySnapshotFuture},
 		{"truncated snapshot", func(s *scenario) { s.lines = []string{"1.20", "1.21", "1.22"} }, whySnapshotTruncated},
+		{"minFrom line missing", func(s *scenario) { s.lines = []string{"1.18", "1.20", "1.21"} }, whySnapshotHole},
+		{"new major not starting at .0", func(s *scenario) { s.lines = []string{"1.19", "1.20", "2.3"} }, whySnapshotHole},
+		{"skipped major", func(s *scenario) { s.lines = []string{"1.19", "1.20", "3.0"} }, whySnapshotHole},
 		{"hole inside a major", func(s *scenario) { s.lines = []string{"1.19", "1.20", "1.22"} }, whySnapshotHole},
 	}
 	for _, c := range cases {
@@ -623,5 +626,18 @@ func TestLinesReleases(t *testing.T) {
 		if _, err := ParseLines([]byte(fmt.Sprintf(valid, c.releases))); (err == nil) != c.ok {
 			t.Errorf("%s: err = %v", c.name, err)
 		}
+	}
+}
+
+// A rule of another project in an attestation's list never counts.
+func TestListedRuleOfAnotherProject(t *testing.T) {
+	reg := shippedID(t, "kubernetes", lineattest.FamilyKubernetesRemovedServedGVK)
+	digest, _ := reg.digest()
+	ev := fmt.Sprintf(`{"state":"active","basis":"mechanical","extractor":{"id":%q,"version":%q,"codeDigest":%q},"derivedAt":%q,"reviewedAt":%q,"validUntil":%q,"sources":[{"id":"src-a","url":"https://github.com/kubernetes/kubernetes/blob/%s/api/file.go","revision":%q,"contentDigest":"sha256:%s","startLine":1,"endLine":2}]}`, reg.extractorID, reg.version, digest, allReviewed, allReviewed, allUntil, rev, rev, strings.Repeat("a", 64))
+	for project, want := range map[string]bool{"kubernetes": true, "other-project": false} {
+		s := k8sScenario("1.19", "1.20")
+		s.extra = []string{strings.Replace(mechanicalRule(t, "rule-one", ev), `"project":"kubernetes"`, `"project":"`+project+`"`, 1)}
+		s.mutate = func(a *lineattest.LineAttestation) { a.RuleIDs = []string{"rule-one"} }
+		assertComplete(t, s.project(t), want, "")
 	}
 }

@@ -167,9 +167,11 @@ any other state.
 1. Lines. The project is in the lines snapshot; the snapshot has a
    `capturedOn` date that is not in the future and at most 14 days before
    `--now` (counted from midnight of that date); the first line is not later
-   than the `minFrom` of any family the project is registered in; and inside
-   one major version consecutive lines differ by exactly one minor (a gap is a
-   missing line). Whether the snapshot lists every upstream line is the
+   than the `minFrom` of any family the project is registered in; the window
+   of each family starts exactly at its `minFrom` line (a missing `minFrom`
+   line is a hole); inside one major version consecutive lines differ by
+   exactly one minor, and a new major follows the previous major and starts at
+   `X.0` (anything else is a missing line). Whether the snapshot lists every upstream line is the
    snapshot's claim: the report states the snapshot's date and digest under
    `linesSnapshot` and in the Markdown, and `complete` is relative to it.
 2. Pairs. For every family the project is registered in, each pair has an
