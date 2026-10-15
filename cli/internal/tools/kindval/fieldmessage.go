@@ -151,20 +151,20 @@ func unknownField(entry string) (string, bool) {
 // canonicalPath spells a server path one way. The API server names an array
 // element two ways: strict decoding and x-kubernetes-validations rules write
 // spec.ports[0].name, the schema validation causes (kube-openapi) write
-// spec.ports.0.name. A map value is spec.labels.team in both. An index in
-// brackets becomes a dot segment; anything else in brackets is kept as is
-// (and so never equals a dotted path).
+// spec.ports.0.name. A map value is spec.labels.team, except in an
+// x-kubernetes-validations cause, which writes spec.labels[team]. A bracketed
+// index or key becomes a dot segment; an empty or unclosed bracket, or one
+// whose content has a dot or a bracket, is kept as is (and so never equals a
+// dotted path). The rewrite is safe because every comparison is between the
+// server's answer about one object and that object's own path: at a given
+// path the object holds an array, a map or an object, never two of them.
 func canonicalPath(p string) string {
 	var b strings.Builder
 	for i := 0; i < len(p); i++ {
 		if p[i] == '[' {
-			j := i + 1
-			for j < len(p) && p[j] >= '0' && p[j] <= '9' {
-				j++
-			}
-			if j > i+1 && j < len(p) && p[j] == ']' {
-				b.WriteString("." + p[i+1:j])
-				i = j
+			if j := strings.IndexByte(p[i+1:], ']'); j > 0 && !strings.ContainsAny(p[i+1:i+1+j], ".[") {
+				b.WriteString("." + p[i+1:i+1+j])
+				i += j + 1
 				continue
 			}
 		}

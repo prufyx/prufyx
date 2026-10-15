@@ -599,3 +599,26 @@ func TestFieldInPlaceNoAnswer(t *testing.T) {
 		t.Fatalf("%+v %+v", got, f)
 	}
 }
+
+// The other accepted-but-absent cases, and an in-place dry run without an
+// answer while the fresh install accepts: the fresh install decides.
+func TestFieldAcceptedButAbsentOtherChanges(t *testing.T) {
+	_, got, _ := fieldCase{fromProps: ownerString + nameFree, toProps: nameFree, claim: fieldClaim("c", "spec.owner", ChangeRequiredAdded, nil), to: accept}.run(t, &fieldCluster{})
+	if got.Outcome != OutcomeUndetermined || got.Reason != ReasonOtherRejection || !strings.Contains(got.Detail, "a wider change than claimed") {
+		t.Fatalf("required-added: %+v", got)
+	}
+	_, got, _ = fieldCase{fromProps: sizeString, toProps: nameFree, claim: fieldClaim("c", "spec.size", ChangeTypeChanged, "large"), to: accept}.run(t, &fieldCluster{})
+	if got.Outcome != OutcomeUndetermined || got.Reason != ReasonOtherRejection || !strings.Contains(got.Detail, "strict field validation did not decide") {
+		t.Fatalf("type-changed: %+v", got)
+	}
+	cluster := &fieldCluster{}
+	_, got, _ = fieldCase{fromProps: modeAB, toProps: modeAB, claim: fieldClaim("c", "spec.mode", ChangeEnumValueRemoved, "b"), to: func(map[string]any) (string, int) {
+		if cluster.inPlace {
+			return "Unable to connect to the server: dial tcp 127.0.0.1:6443: connect: connection refused", 1
+		}
+		return "", 0
+	}}.run(t, cluster)
+	if got.Outcome != OutcomeRefuted || !strings.Contains(got.Detail, "no cross-check") {
+		t.Fatalf("refuted without cross-check: %+v", got)
+	}
+}

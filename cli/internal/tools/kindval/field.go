@@ -187,7 +187,11 @@ func (e *evaluator) crdField(c Claim, cr *ClaimResult) {
 		case f.ToSchema == schemaAbsent:
 			// Strict field validation would have refused an undeclared
 			// field: it did not run (client-side validation, pruning).
-			undetermined(ReasonOtherRejection, "accepted although the path is absent from the schema at "+to+": strict field validation did not decide"+inPlace)
+			why := ": strict field validation did not decide"
+			if s.Change == ChangeRequiredAdded {
+				why = ": the field is gone, a wider change than claimed"
+			}
+			undetermined(ReasonOtherRejection, "accepted although the path is absent from the schema at "+to+why+inPlace)
 		case crossCheck != nil && crossCheck.Outcome != ServerAccepted:
 			undetermined(ReasonOtherRejection, "the fresh install of "+to+" accepts the object, the in-place update refused it: "+oneLine(crossCheck))
 		default:

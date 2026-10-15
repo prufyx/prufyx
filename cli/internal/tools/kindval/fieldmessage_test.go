@@ -66,7 +66,7 @@ func TestFieldAnswer(t *testing.T) {
 
 // matchField confirms a claim only from causes on its own path that read
 // exactly as its change.
-// canonicalPath writes an index in brackets as a dot segment and keeps
+// canonicalPath writes a bracketed index or key as a dot segment and keeps
 // everything else.
 func TestCanonicalPath(t *testing.T) {
 	for in, want := range map[string]string{
@@ -74,7 +74,9 @@ func TestCanonicalPath(t *testing.T) {
 		"spec.ports.0.name":    "spec.ports.0.name",
 		"spec.matrix[0][12].x": "spec.matrix.0.12.x",
 		"spec.labels.team":     "spec.labels.team",
-		"spec.odd[x].y":        "spec.odd[x].y",
+		"spec.odd[x].y":        "spec.odd.x.y",
+		"spec.labels[team]":    "spec.labels.team",
+		"spec.odd[a.b].y":      "spec.odd[a.b].y",
 		"spec.open[0":          "spec.open[0",
 		"spec.ports[]":         "spec.ports[]",
 	} {
@@ -144,6 +146,8 @@ func TestMatchField(t *testing.T) {
 		{"kube-openapi descendant", ChangeValidationTightened, "spec.ports[0]", invalid(`spec.ports.0.name: Too long: may not be more than 3 bytes`), "", []string{`spec.ports.0.name: Too long: may not be more than 3 bytes`}, "the descendant spec.ports.0.name is refused"},
 		{"strict index in dotted spelling", ChangeFieldRemoved, "spec.ports[0].legacy", strictHead + `unknown field "spec.ports.0.legacy"`, patternUnknownField, nil, ""},
 		{"map value", ChangeEnumValueRemoved, "spec.labels.team", invalid(`spec.labels.team: Unsupported value: "b": supported values: "a"`), patternUnsupportedValue, nil, ""},
+		{"map value, CEL spelling", ChangeValidationTightened, "spec.labels.team", invalid(`spec.labels[team]: Invalid value: "string": must not be empty`), patternInvalidValue, nil, ""},
+		{"map other key, CEL spelling", ChangeValidationTightened, "spec.labels.team", invalid(`spec.labels[teams]: Invalid value: "string": must not be empty`), "", []string{`spec.labels[teams]: Invalid value: "string": must not be empty`}, "no cause on spec.labels.team"},
 		{"map other key", ChangeEnumValueRemoved, "spec.labels.team", invalid(`spec.labels.teams: Unsupported value: "b": supported values: "a"`), "", []string{`spec.labels.teams: Unsupported value: "b": supported values: "a"`}, "no cause on spec.labels.team"},
 		// unparsed
 		{"aggregate", ChangeRequiredAdded, "spec.a", invalidHead + `[spec.a: Required value, spec.b: Required value]`, "", nil, "aggregate"},
