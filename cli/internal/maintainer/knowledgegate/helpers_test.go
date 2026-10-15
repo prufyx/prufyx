@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchfixture"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedefixture"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/rulecheck"
@@ -64,9 +65,9 @@ var (
 // copyKnowledge copies the knowledge files of this repository into a new
 // tree. The pack is the one as it was before the served-API supersede (the
 // mechanical Kubernetes rules cannot be re-derived from the small upstream
-// fixtures these tests use); the files generated from the pack follow it. On
-// a shipped pack that holds the reviewed rules this is the repository's own
-// bytes.
+// fixtures these tests use) and before the custom-resource batch; the files
+// generated from the pack follow it. On a shipped pack that holds the
+// reviewed rules and not the batch this is the repository's own bytes.
 func copyKnowledge(t *testing.T) Tree {
 	t.Helper()
 	knowledgeTemplateOnce.Do(func() { knowledgeTemplateFiles, knowledgeTemplateErr = buildKnowledgeTemplate() })
@@ -93,8 +94,16 @@ func buildKnowledgeTemplate() (map[string][]byte, error) {
 			if err != nil {
 				return nil, err
 			}
-			rebuilt = !bytes.Equal(raw, reviewed)
-			raw = reviewed
+			// The gate's trees model updates of the pack as it was before
+			// the custom-resource batch (crdbatchfixture): the first
+			// attested update, the set-rule step and the batch-sized
+			// changes the tests state are that pack's.
+			prior, err := crdbatchfixture.Without(reviewed)
+			if err != nil {
+				return nil, err
+			}
+			rebuilt = !bytes.Equal(raw, prior)
+			raw = prior
 		}
 		files[rel] = raw
 	}

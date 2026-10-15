@@ -117,12 +117,15 @@ func checkOffPairReport(t *testing.T, code int, stdout, project, exact string) {
 	}
 }
 
-// kyvernoLatestBatchRuleIDs are the custom-resource batch rules a Kyverno hop
-// from origin to 1.19.1 (or 1.19.2) crosses without being their reviewed
-// pair: the UpdateRequest v1beta1 removal at 1.16 lies on the hops from
-// 1.14.5 and 1.15.3, not on the later ones. Their claims are UNKNOWN.
-func kyvernoLatestBatchRuleIDs(origin string) []string {
-	if origin == "1.14.5" || origin == "1.15.3" {
+// kyvernoLatestBatchRuleIDs are the custom-resource batch rules a Kyverno
+// report from origin to target holds, each UNKNOWN. On the reviewed target
+// 1.19.1 they are the rules whose boundary the hop crosses without being
+// their reviewed pair: the UpdateRequest v1beta1 removal at 1.16 lies on the
+// hops from 1.14.5 and 1.15.3, not on the later ones. On another target no
+// rule matches the hop, so the report holds every rule of the project, the
+// batch's included.
+func kyvernoLatestBatchRuleIDs(origin, target string) []string {
+	if target != "1.19.1" || origin == "1.14.5" || origin == "1.15.3" {
 		return batchRuleIDs("kyverno")
 	}
 	return nil

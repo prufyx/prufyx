@@ -90,12 +90,12 @@ func TestLatestKyvernoExactOriginsNativeCLI(t *testing.T) {
 				checkCode, output, checkErr := runCNCFCLI(t, "check", "cncf", "--project", "kyverno", "--input", preparedPath, "--input-digest", cncfDigest(preparedRaw), "--now", "2026-09-12T09:34:00Z", "--format", "json")
 				wantCode := tc.checkCode
 				if wantCode == ExitOK {
-					wantCode = passExit(kyvernoLatestBatchRuleIDs(from))
+					wantCode = passExit(kyvernoLatestBatchRuleIDs(from, tc.to))
 				}
 				if checkCode != wantCode || checkErr != "" || !strings.Contains(output, `"assessment":"UNKNOWN"`) || (tc.status != "UNKNOWN" && !strings.Contains(output, `"status":"`+tc.status+`"`)) || strings.Contains(output, "private-latest-kyverno") {
 					t.Fatalf("check code=%d stderr=%q output=%s", checkCode, checkErr, output)
 				}
-				checkBatchClaims(t, output, kyvernoLatestBatchRuleIDs(from))
+				checkBatchClaims(t, output, kyvernoLatestBatchRuleIDs(from, tc.to))
 			})
 		}
 	}
