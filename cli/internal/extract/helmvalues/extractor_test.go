@@ -119,7 +119,7 @@ func TestFixtureRules(t *testing.T) {
 	}
 
 	req := rules[prefix01+"required-values"]
-	if req.Rule.Operator != constraintengine.OperatorRequireSetMember || !slices.Equal(req.Rule.SetCondition.Members, []string{"auth.token", "k..weird..bad_20key", "rootKey"}) ||
+	if req.Rule.Operator != constraintengine.OperatorRequireSetMember || !slices.Equal(req.Rule.SetCondition.Members, []string{"auth.token", "k..weird..bad_20key", "rootKey"}) || // gitleaks:allow (a values-path member, not a secret)
 		req.Rule.SetCondition.FactID != "component.keda.chart_keda_values_paths_set" || *req.Rule.Subject.Chart != *chart || req.Rule.ReasonCode != ReasonRequired {
 		t.Fatalf("required rule %+v", req.Rule)
 	}
