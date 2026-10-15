@@ -6,17 +6,19 @@
 // subcommands against it. The evaluation is offline; only snapshot,
 // verdicts and crd talk to a cluster, and crd fetches manifests from GitHub.
 //
-//	kindval claims   --lines 1.30,1.31 [--crd FILE] --out FILE
+//	kindval claims   --lines 1.30,1.31 [--crd FILE] [--schema v1|v2] --out FILE
 //	kindval snapshot --kubeconfig FILE --line L --image REF --out FILE
 //	kindval verdicts --kubeconfig FILE --line L --dir DIR --out FILE [--claims FILE] [--prufyx BIN --from-version X --to-version Y]
 //	kindval crd      --kubeconfig FILE --line L --image REF --claims FILE --out FILE [--pair ID]
 //	kindval evaluate --claims FILE --runs DIR --out FILE [--summary FILE] [--prufyx BIN] [--prufyx-commit SHA] [--log FILE]
 //
-// Files: claims (prufyx.io/kind-val-claims/v1) is the input, one claim per
-// statement (see docs/kind-val.md for the contract); snapshot, verdicts and
+// Files: claims (prufyx.io/kind-val-claims/v1 or v2) is the input, one claim
+// per statement (see docs/kind-val.md for the contract); a v2 file also
+// carries the reviewed control claims of its lines. Snapshot, verdicts and
 // crd outputs are one file per cluster under the runs directory; evaluate
-// writes the results (prufyx.io/kind-val-results/v1): every claim
-// confirmed, refuted, undetermined or error, the served-API differences
+// writes the results (prufyx.io/kind-val-results/v1, or v2 for a v2 claims
+// file): every claim confirmed, refuted, undetermined or error (v2 adds a
+// verdict, a reason code and the controls), the served-API differences
 // between consecutive lines, and the findings.
 package main
 
@@ -114,24 +116,66 @@ func cmdClaims(args []string) error {
 	lines := fs.String("lines", "", "comma-separated release lines of the matrix (1.30,1.31,...)")
 	extra := fs.String("crd", "", "claims file whose claims are merged in (custom-resource claims, or any other)")
 	out := fs.String("out", "", "output file")
+	schema := fs.String("schema", "v1", "claims schema to write: v1, or v2 (verdicts, reason codes and the reviewed controls)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if *lines == "" || *out == "" {
 		return errors.New("--lines and --out are required")
 	}
-	claims := Claims{Schema: ClaimsSchema, Claims: KubernetesClaims(splitLines(*lines))}
+	if *schema != "v1" && *schema != "v2" {
+		return fmt.Errorf("--schema %q is neither v1 nor v2", *schema)
+	}
+	matrix := splitLines(*lines)
+	claims := Claims{Schema: ClaimsSchema, Claims: KubernetesClaims(matrix)}
 	if *extra != "" {
-		more, err := loadClaims(*extra)
+		more, err := loadExtraClaims(*extra)
 		if err != nil {
 			return err
 		}
 		claims.Claims = append(claims.Claims, more.Claims...)
 	}
+	if *schema == "v2" {
+		// The controls of every kind the claims have join the run, so the
+		// same clusters decide them.
+		claims.Schema, claims.Lines = ClaimsSchemaV2, matrix
+		controls, err := loadControls()
+		if err != nil {
+			return err
+		}
+		claims.Claims = append(claims.Claims, ExpandControls(controls, matrix, claimKinds(claims.Claims))...)
+	}
 	if err := claims.Validate(); err != nil {
 		return err
 	}
 	return writeJSON(*out, claims)
+}
+
+// loadExtraClaims reads a claims file to merge (v1 or v2). Controls come
+// only from the binary: a file that carries controls or lines (a claims file
+// written by a v2 run) is refused.
+func loadExtraClaims(path string) (Claims, error) {
+	var claims Claims
+	if err := readJSON(path, &claims); err != nil {
+		return claims, err
+	}
+	if len(claims.Lines) > 0 {
+		return claims, fmt.Errorf("%s: a claims file to merge names no lines", path)
+	}
+	for _, c := range claims.Claims {
+		if c.Control != "" || (claims.Schema == ClaimsSchemaV2 && strings.HasPrefix(c.ID, "control.")) {
+			return claims, fmt.Errorf("%s: claim %s: controls come only from the reviewed controls file", path, c.ID)
+		}
+	}
+	// Validate as v1: the members of the claims themselves are the same.
+	check := claims
+	if check.Schema == ClaimsSchemaV2 {
+		check.Schema = ClaimsSchema
+	}
+	if err := check.Validate(); err != nil {
+		return claims, fmt.Errorf("%s: %w", path, err)
+	}
+	return claims, nil
 }
 
 // loadClaims reads and validates a claims file.

@@ -6,11 +6,14 @@ import "encoding/json"
 
 // Schemas of the files the tool reads and writes.
 const (
-	ClaimsSchema   = "prufyx.io/kind-val-claims/v1"
-	SnapshotSchema = "prufyx.io/kind-val-snapshot/v1"
-	VerdictsSchema = "prufyx.io/kind-val-verdicts/v1"
-	CRDRunSchema   = "prufyx.io/kind-val-crd-run/v1"
-	ResultsSchema  = "prufyx.io/kind-val-results/v1"
+	ClaimsSchema    = "prufyx.io/kind-val-claims/v1"
+	ClaimsSchemaV2  = "prufyx.io/kind-val-claims/v2"
+	SnapshotSchema  = "prufyx.io/kind-val-snapshot/v1"
+	VerdictsSchema  = "prufyx.io/kind-val-verdicts/v1"
+	CRDRunSchema    = "prufyx.io/kind-val-crd-run/v1"
+	ResultsSchema   = "prufyx.io/kind-val-results/v1"
+	ResultsSchemaV2 = "prufyx.io/kind-val-results/v2"
+	ControlsSchema  = "prufyx.io/kind-val-controls/v1"
 )
 
 // Claim kinds.
@@ -37,6 +40,59 @@ const (
 	OutcomeError        = "error"
 )
 
+// Verdicts (results v2): the outcome as a consumer may rely on it. Nothing
+// stronger than what the API server showed: only a confirmed outcome is
+// confirmed-by-execution.
+const (
+	VerdictConfirmed    = "confirmed-by-execution"
+	VerdictRefuted      = "refuted"
+	VerdictUndetermined = "undetermined"
+	VerdictError        = "error"
+)
+
+// Reason codes (results v2): why a result is not confirmed-by-execution. The
+// list is closed; docs/kind-val.md has the table.
+const (
+	ReasonNotEvaluated        = "not-evaluated"
+	ReasonNoSnapshot          = "no-snapshot"
+	ReasonNoRun               = "no-run"
+	ReasonNoCorpusCase        = "no-corpus-case"
+	ReasonNotProbed           = "not-probed"
+	ReasonReleaseUnavailable  = "release-unavailable"
+	ReasonReleaseNotInstalled = "release-not-installed"
+	ReasonServerNoAnswer      = "server-no-answer"
+	ReasonScanNoReport        = "scan-no-report"
+	ReasonInstallFailed       = "install-failed"
+	ReasonCRDMissing          = "crd-missing"
+	ReasonVersionNotDeclared  = "version-not-declared"
+	ReasonImageDigestMismatch = "image-digest-mismatch"
+	ReasonDisagreement        = "disagreement"
+	ReasonCanaryFailed        = "canary-failed"
+	ReasonControlsAbsent      = "controls-absent"
+)
+
+// Reasons is the closed list of reason codes.
+var Reasons = []string{
+	ReasonNotEvaluated, ReasonNoSnapshot, ReasonNoRun, ReasonNoCorpusCase, ReasonNotProbed,
+	ReasonReleaseUnavailable, ReasonReleaseNotInstalled, ReasonServerNoAnswer, ReasonScanNoReport,
+	ReasonInstallFailed, ReasonCRDMissing, ReasonVersionNotDeclared, ReasonImageDigestMismatch,
+	ReasonDisagreement, ReasonCanaryFailed, ReasonControlsAbsent,
+}
+
+// Control expectations: a control claim is known true (expected confirmed)
+// or known false (expected refuted).
+const (
+	ControlTrue  = "true"
+	ControlFalse = "false"
+)
+
+// Control group states (results v2, totals.controls).
+const (
+	ControlStateOK     = "ok"
+	ControlStateFailed = "failed"
+	ControlStateAbsent = "absent"
+)
+
 // Finding severities.
 const (
 	SeverityHigh   = "HIGH"
@@ -47,8 +103,11 @@ const (
 // Claims is the input: a list of statements the knowledge makes, each to
 // be confirmed or refuted by a real API server. See docs/kind-val.md.
 type Claims struct {
-	Schema string  `json:"schema"`
-	Claims []Claim `json:"claims"`
+	Schema string `json:"schema"`
+	// Lines is the cluster matrix of the run (v2 only): the controls of the
+	// file are exactly the reviewed controls expanded for these lines.
+	Lines  []string `json:"lines,omitempty"`
+	Claims []Claim  `json:"claims"`
 }
 
 // Claim is one statement. Subject holds the members of the claim's kind;
@@ -59,6 +118,9 @@ type Claim struct {
 	Subject  Subject         `json:"subject"`
 	Expect   string          `json:"expect,omitempty"`
 	Evidence json.RawMessage `json:"evidence,omitempty"`
+	// Control marks a reviewed control claim (v2 only): "true" when the
+	// claim is known to hold, "false" when it is known not to.
+	Control string `json:"control,omitempty"`
 }
 
 // Subject is the union of the subject members of every claim kind; a kind
@@ -258,9 +320,45 @@ type Results struct {
 	LogDigest   string        `json:"logDigest,omitempty"`
 	Lines       []LineSummary `json:"lines"`
 	Claims      []ClaimResult `json:"claims"`
-	Diffs       []LineDiff    `json:"diffs"`
-	Findings    []Finding     `json:"findings"`
-	Totals      Totals        `json:"totals"`
+	// Controls (v2 only) are the control claims of the run with their
+	// outcomes; they are never in Claims or the claim totals.
+	Controls []ControlResult `json:"controls,omitempty"`
+	Diffs    []LineDiff      `json:"diffs"`
+	Findings []Finding       `json:"findings"`
+	Totals   Totals          `json:"totals"`
+}
+
+// ControlResult is one control claim with its outcome; OK when the outcome
+// is the expected one (confirmed for a true control, refuted for a false).
+type ControlResult struct {
+	ID       string `json:"id"`
+	Kind     string `json:"kind"`
+	Line     string `json:"line,omitempty"`
+	Expected string `json:"expected"`
+	Outcome  string `json:"outcome"`
+	OK       bool   `json:"ok"`
+	Reason   string `json:"reason,omitempty"`
+	Detail   string `json:"detail,omitempty"`
+}
+
+// ControlSummary is the state of the controls of one kind on one line
+// (Line is empty for the custom-resource kinds, decided on one line, and
+// for a kind the controls file has no entry for).
+type ControlSummary struct {
+	Kind   string   `json:"kind"`
+	Line   string   `json:"line,omitempty"`
+	State  string   `json:"state"`
+	True   int      `json:"true"`
+	False  int      `json:"false"`
+	Failed []string `json:"failed,omitempty"`
+}
+
+// VerdictTotals counts the claim results by verdict (v2 only).
+type VerdictTotals struct {
+	ConfirmedByExecution int `json:"confirmed-by-execution"`
+	Refuted              int `json:"refuted"`
+	Undetermined         int `json:"undetermined"`
+	Error                int `json:"error"`
 }
 
 // Binary identifies the scanned prufyx binary.
@@ -282,6 +380,8 @@ type ClaimResult struct {
 	ID              string          `json:"id"`
 	Kind            string          `json:"kind"`
 	Outcome         string          `json:"outcome"`
+	Verdict         string          `json:"verdict,omitempty"`
+	Reason          string          `json:"reason,omitempty"`
 	Detail          string          `json:"detail,omitempty"`
 	PrufyxCommit    string          `json:"prufyxCommit,omitempty"`
 	NodeImageDigest string          `json:"nodeImageDigest,omitempty"`
@@ -316,4 +416,7 @@ type Totals struct {
 	High         int `json:"high"`
 	Medium       int `json:"medium"`
 	Info         int `json:"info"`
+	// Verdicts and Controls are v2 only.
+	Verdicts *VerdictTotals   `json:"verdicts,omitempty"`
+	Controls []ControlSummary `json:"controls,omitempty"`
 }

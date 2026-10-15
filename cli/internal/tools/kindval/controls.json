@@ -1,0 +1,602 @@
+{
+  "schema": "prufyx.io/kind-val-controls/v1",
+  "controls": [
+    {
+      "id": "control.served.apps_v1_Deployment.served",
+      "kind": "k8s-served-api",
+      "subject": {
+        "group": "apps",
+        "version": "v1",
+        "kind": "Deployment"
+      },
+      "expect": "served",
+      "evidence": {
+        "source": "https://github.com/kubernetes/website/blob/e91eff3b59c0bf813193202a4f193d37beb7efd7/content/en/docs/reference/using-api/deprecation-guide.md#deployment-v116"
+      },
+      "control": "true",
+      "lines": {}
+    },
+    {
+      "id": "control.served.apps_v1_DaemonSet.served",
+      "kind": "k8s-served-api",
+      "subject": {
+        "group": "apps",
+        "version": "v1",
+        "kind": "DaemonSet"
+      },
+      "expect": "served",
+      "evidence": {
+        "source": "https://github.com/kubernetes/website/blob/e91eff3b59c0bf813193202a4f193d37beb7efd7/content/en/docs/reference/using-api/deprecation-guide.md#daemonset-v116"
+      },
+      "control": "true",
+      "lines": {}
+    },
+    {
+      "id": "control.served.apps_v1_Deployment.not_served",
+      "kind": "k8s-served-api",
+      "subject": {
+        "group": "apps",
+        "version": "v1",
+        "kind": "Deployment"
+      },
+      "expect": "not_served",
+      "evidence": {
+        "source": "https://github.com/kubernetes/website/blob/e91eff3b59c0bf813193202a4f193d37beb7efd7/content/en/docs/reference/using-api/deprecation-guide.md#deployment-v116"
+      },
+      "control": "false",
+      "lines": {}
+    },
+    {
+      "id": "control.served.apps_v1_DaemonSet.not_served",
+      "kind": "k8s-served-api",
+      "subject": {
+        "group": "apps",
+        "version": "v1",
+        "kind": "DaemonSet"
+      },
+      "expect": "not_served",
+      "evidence": {
+        "source": "https://github.com/kubernetes/website/blob/e91eff3b59c0bf813193202a4f193d37beb7efd7/content/en/docs/reference/using-api/deprecation-guide.md#daemonset-v116"
+      },
+      "control": "false",
+      "lines": {}
+    },
+    {
+      "id": "control.served.flowcontrol.apiserver.k8s.io_v1beta3_FlowSchema.not_served",
+      "kind": "k8s-served-api",
+      "subject": {
+        "group": "flowcontrol.apiserver.k8s.io",
+        "version": "v1beta3",
+        "kind": "FlowSchema"
+      },
+      "expect": "not_served",
+      "evidence": {
+        "source": "https://github.com/kubernetes/website/blob/e91eff3b59c0bf813193202a4f193d37beb7efd7/content/en/docs/reference/using-api/deprecation-guide.md#flowcontrol-resources-v132"
+      },
+      "control": "true",
+      "lines": {
+        "from": "1.32"
+      }
+    },
+    {
+      "id": "control.served.flowcontrol.apiserver.k8s.io_v1beta3_FlowSchema.served",
+      "kind": "k8s-served-api",
+      "subject": {
+        "group": "flowcontrol.apiserver.k8s.io",
+        "version": "v1beta3",
+        "kind": "FlowSchema"
+      },
+      "expect": "served",
+      "evidence": {
+        "source": "https://github.com/kubernetes/website/blob/e91eff3b59c0bf813193202a4f193d37beb7efd7/content/en/docs/reference/using-api/deprecation-guide.md#flowcontrol-resources-v132"
+      },
+      "control": "false",
+      "lines": {
+        "from": "1.32"
+      }
+    },
+    {
+      "id": "control.removal.apps_v1_Deployment",
+      "kind": "k8s-removal",
+      "subject": {
+        "group": "apps",
+        "version": "v1",
+        "kind": "Deployment"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes/website/blob/e91eff3b59c0bf813193202a4f193d37beb7efd7/content/en/docs/reference/using-api/deprecation-guide.md#deployment-v116"
+      },
+      "control": "false",
+      "lines": {}
+    },
+    {
+      "id": "control.removal.apps_v1_DaemonSet",
+      "kind": "k8s-removal",
+      "subject": {
+        "group": "apps",
+        "version": "v1",
+        "kind": "DaemonSet"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes/website/blob/e91eff3b59c0bf813193202a4f193d37beb7efd7/content/en/docs/reference/using-api/deprecation-guide.md#daemonset-v116"
+      },
+      "control": "false",
+      "lines": {}
+    },
+    {
+      "id": "control.removal.batch_v1beta1_CronJob.1.24-to-1.25",
+      "kind": "k8s-removal",
+      "subject": {
+        "from": "1.24",
+        "to": "1.25",
+        "group": "batch",
+        "version": "v1beta1",
+        "kind": "CronJob"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes/website/blob/e91eff3b59c0bf813193202a4f193d37beb7efd7/content/en/docs/reference/using-api/deprecation-guide.md#cronjob-v125"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.removal.policy_v1beta1_PodDisruptionBudget.1.24-to-1.25",
+      "kind": "k8s-removal",
+      "subject": {
+        "from": "1.24",
+        "to": "1.25",
+        "group": "policy",
+        "version": "v1beta1",
+        "kind": "PodDisruptionBudget"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes/website/blob/e91eff3b59c0bf813193202a4f193d37beb7efd7/content/en/docs/reference/using-api/deprecation-guide.md#poddisruptionbudget-v125"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.removal.autoscaling_v2beta2_HorizontalPodAutoscaler.1.25-to-1.26",
+      "kind": "k8s-removal",
+      "subject": {
+        "from": "1.25",
+        "to": "1.26",
+        "group": "autoscaling",
+        "version": "v2beta2",
+        "kind": "HorizontalPodAutoscaler"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes/website/blob/e91eff3b59c0bf813193202a4f193d37beb7efd7/content/en/docs/reference/using-api/deprecation-guide.md#horizontalpodautoscaler-v126"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.removal.flowcontrol.apiserver.k8s.io_v1beta1_FlowSchema.1.25-to-1.26",
+      "kind": "k8s-removal",
+      "subject": {
+        "from": "1.25",
+        "to": "1.26",
+        "group": "flowcontrol.apiserver.k8s.io",
+        "version": "v1beta1",
+        "kind": "FlowSchema"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes/website/blob/e91eff3b59c0bf813193202a4f193d37beb7efd7/content/en/docs/reference/using-api/deprecation-guide.md#flowcontrol-resources-v126"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.removal.storage.k8s.io_v1beta1_CSIStorageCapacity.1.26-to-1.27",
+      "kind": "k8s-removal",
+      "subject": {
+        "from": "1.26",
+        "to": "1.27",
+        "group": "storage.k8s.io",
+        "version": "v1beta1",
+        "kind": "CSIStorageCapacity"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes/website/blob/e91eff3b59c0bf813193202a4f193d37beb7efd7/content/en/docs/reference/using-api/deprecation-guide.md#csistoragecapacity-v127"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.removal.flowcontrol.apiserver.k8s.io_v1beta2_FlowSchema.1.28-to-1.29",
+      "kind": "k8s-removal",
+      "subject": {
+        "from": "1.28",
+        "to": "1.29",
+        "group": "flowcontrol.apiserver.k8s.io",
+        "version": "v1beta2",
+        "kind": "FlowSchema"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes/website/blob/e91eff3b59c0bf813193202a4f193d37beb7efd7/content/en/docs/reference/using-api/deprecation-guide.md#flowcontrol-resources-v129"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.removal.flowcontrol.apiserver.k8s.io_v1beta2_PriorityLevelConfiguration.1.28-to-1.29",
+      "kind": "k8s-removal",
+      "subject": {
+        "from": "1.28",
+        "to": "1.29",
+        "group": "flowcontrol.apiserver.k8s.io",
+        "version": "v1beta2",
+        "kind": "PriorityLevelConfiguration"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes/website/blob/e91eff3b59c0bf813193202a4f193d37beb7efd7/content/en/docs/reference/using-api/deprecation-guide.md#flowcontrol-resources-v129"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.removal.flowcontrol.apiserver.k8s.io_v1beta3_FlowSchema.1.31-to-1.32",
+      "kind": "k8s-removal",
+      "subject": {
+        "from": "1.31",
+        "to": "1.32",
+        "group": "flowcontrol.apiserver.k8s.io",
+        "version": "v1beta3",
+        "kind": "FlowSchema"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes/website/blob/e91eff3b59c0bf813193202a4f193d37beb7efd7/content/en/docs/reference/using-api/deprecation-guide.md#flowcontrol-resources-v132"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.removal.flowcontrol.apiserver.k8s.io_v1beta3_PriorityLevelConfiguration.1.31-to-1.32",
+      "kind": "k8s-removal",
+      "subject": {
+        "from": "1.31",
+        "to": "1.32",
+        "group": "flowcontrol.apiserver.k8s.io",
+        "version": "v1beta3",
+        "kind": "PriorityLevelConfiguration"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes/website/blob/e91eff3b59c0bf813193202a4f193d37beb7efd7/content/en/docs/reference/using-api/deprecation-guide.md#flowcontrol-resources-v132"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.crd-version.external-snapshotter.v6.0.1.volumesnapshotclasses.v1beta1.served-false.storage-false",
+      "kind": "crd-version",
+      "subject": {
+        "project": "control.external-snapshotter",
+        "repo": "github.com/kubernetes-csi/external-snapshotter",
+        "release": {
+          "tag": "v6.0.1",
+          "commit": "e746d0717a32109d8c57cb76a70b299ec849f54d",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        },
+        "crd": "volumesnapshotclasses.snapshot.storage.k8s.io",
+        "group": "snapshot.storage.k8s.io",
+        "version": "v1beta1",
+        "kind": "VolumeSnapshotClass",
+        "served": false,
+        "storage": false
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/e746d0717a32109d8c57cb76a70b299ec849f54d/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml#L92-L127"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.crd-version.external-snapshotter.v6.0.1.volumesnapshots.v1.served-true.storage-true",
+      "kind": "crd-version",
+      "subject": {
+        "project": "control.external-snapshotter",
+        "repo": "github.com/kubernetes-csi/external-snapshotter",
+        "release": {
+          "tag": "v6.0.1",
+          "commit": "e746d0717a32109d8c57cb76a70b299ec849f54d",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        },
+        "crd": "volumesnapshots.snapshot.storage.k8s.io",
+        "group": "snapshot.storage.k8s.io",
+        "version": "v1",
+        "kind": "VolumeSnapshot",
+        "served": true,
+        "storage": true
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/e746d0717a32109d8c57cb76a70b299ec849f54d/client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml#L61-L196"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.crd-version.external-snapshotter.v6.0.1.volumesnapshotclasses.v1beta1.served-true.storage-false",
+      "kind": "crd-version",
+      "subject": {
+        "project": "control.external-snapshotter",
+        "repo": "github.com/kubernetes-csi/external-snapshotter",
+        "release": {
+          "tag": "v6.0.1",
+          "commit": "e746d0717a32109d8c57cb76a70b299ec849f54d",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        },
+        "crd": "volumesnapshotclasses.snapshot.storage.k8s.io",
+        "group": "snapshot.storage.k8s.io",
+        "version": "v1beta1",
+        "kind": "VolumeSnapshotClass",
+        "served": true,
+        "storage": false
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/e746d0717a32109d8c57cb76a70b299ec849f54d/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml#L92-L127"
+      },
+      "control": "false"
+    },
+    {
+      "id": "control.crd-version.external-snapshotter.v5.0.1.volumesnapshotclasses.v1.served-true.storage-false",
+      "kind": "crd-version",
+      "subject": {
+        "project": "control.external-snapshotter",
+        "repo": "github.com/kubernetes-csi/external-snapshotter",
+        "release": {
+          "tag": "v5.0.1",
+          "commit": "9f6fc893a6ed5c93c06cc6365d2eec9d5a5d3c48",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        },
+        "crd": "volumesnapshotclasses.snapshot.storage.k8s.io",
+        "group": "snapshot.storage.k8s.io",
+        "version": "v1",
+        "kind": "VolumeSnapshotClass",
+        "served": true,
+        "storage": false
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/9f6fc893a6ed5c93c06cc6365d2eec9d5a5d3c48/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml#L34-L64"
+      },
+      "control": "false"
+    },
+    {
+      "id": "control.crd-removal.external-snapshotter.v5.0.1-to-v6.0.0.volumesnapshotclasses.v1beta1",
+      "kind": "crd-removal",
+      "subject": {
+        "project": "control.external-snapshotter",
+        "repo": "github.com/kubernetes-csi/external-snapshotter",
+        "from": {
+          "tag": "v5.0.1",
+          "commit": "9f6fc893a6ed5c93c06cc6365d2eec9d5a5d3c48",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        },
+        "to": {
+          "tag": "v6.0.0",
+          "commit": "83d0e0914f696b6f686f568ce0c2e99d1cbe3269",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        },
+        "group": "snapshot.storage.k8s.io",
+        "version": "v1beta1",
+        "kind": "VolumeSnapshotClass"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/83d0e0914f696b6f686f568ce0c2e99d1cbe3269/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.crd-removal.external-snapshotter.v5.0.1-to-v6.0.0.volumesnapshots.v1beta1",
+      "kind": "crd-removal",
+      "subject": {
+        "project": "control.external-snapshotter",
+        "repo": "github.com/kubernetes-csi/external-snapshotter",
+        "from": {
+          "tag": "v5.0.1",
+          "commit": "9f6fc893a6ed5c93c06cc6365d2eec9d5a5d3c48",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        },
+        "to": {
+          "tag": "v6.0.0",
+          "commit": "83d0e0914f696b6f686f568ce0c2e99d1cbe3269",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        },
+        "group": "snapshot.storage.k8s.io",
+        "version": "v1beta1",
+        "kind": "VolumeSnapshot"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/83d0e0914f696b6f686f568ce0c2e99d1cbe3269/client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.crd-removal.external-snapshotter.v5.0.1-to-v6.0.0.volumesnapshotclasses.v1",
+      "kind": "crd-removal",
+      "subject": {
+        "project": "control.external-snapshotter",
+        "repo": "github.com/kubernetes-csi/external-snapshotter",
+        "from": {
+          "tag": "v5.0.1",
+          "commit": "9f6fc893a6ed5c93c06cc6365d2eec9d5a5d3c48",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        },
+        "to": {
+          "tag": "v6.0.0",
+          "commit": "83d0e0914f696b6f686f568ce0c2e99d1cbe3269",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        },
+        "group": "snapshot.storage.k8s.io",
+        "version": "v1",
+        "kind": "VolumeSnapshotClass"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/83d0e0914f696b6f686f568ce0c2e99d1cbe3269/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml#L34-L79"
+      },
+      "control": "false"
+    },
+    {
+      "id": "control.crd-removal.external-snapshotter.v4.2.1-to-v5.0.1.volumesnapshots.v1beta1",
+      "kind": "crd-removal",
+      "subject": {
+        "project": "control.external-snapshotter",
+        "repo": "github.com/kubernetes-csi/external-snapshotter",
+        "from": {
+          "tag": "v4.2.1",
+          "commit": "6fc14b4f219ab9ce11b9f9124751e33f98c2afaa",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        },
+        "to": {
+          "tag": "v5.0.1",
+          "commit": "9f6fc893a6ed5c93c06cc6365d2eec9d5a5d3c48",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        },
+        "group": "snapshot.storage.k8s.io",
+        "version": "v1beta1",
+        "kind": "VolumeSnapshot"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/9f6fc893a6ed5c93c06cc6365d2eec9d5a5d3c48/client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml#L156-L225"
+      },
+      "control": "false"
+    },
+    {
+      "id": "control.crd-pair.external-snapshotter.v4.2.1-to-v5.0.1",
+      "kind": "crd-pair",
+      "subject": {
+        "project": "control.external-snapshotter",
+        "repo": "github.com/kubernetes-csi/external-snapshotter",
+        "from": {
+          "tag": "v4.2.1",
+          "commit": "6fc14b4f219ab9ce11b9f9124751e33f98c2afaa",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        },
+        "to": {
+          "tag": "v5.0.1",
+          "commit": "9f6fc893a6ed5c93c06cc6365d2eec9d5a5d3c48",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        }
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/9f6fc893a6ed5c93c06cc6365d2eec9d5a5d3c48/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.crd-pair.external-snapshotter.v6.0.0-to-v6.0.1",
+      "kind": "crd-pair",
+      "subject": {
+        "project": "control.external-snapshotter",
+        "repo": "github.com/kubernetes-csi/external-snapshotter",
+        "from": {
+          "tag": "v6.0.0",
+          "commit": "83d0e0914f696b6f686f568ce0c2e99d1cbe3269",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        },
+        "to": {
+          "tag": "v6.0.1",
+          "commit": "e746d0717a32109d8c57cb76a70b299ec849f54d",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        }
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/e746d0717a32109d8c57cb76a70b299ec849f54d/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.crd-pair.external-snapshotter.v5.0.1-to-v6.0.0",
+      "kind": "crd-pair",
+      "subject": {
+        "project": "control.external-snapshotter",
+        "repo": "github.com/kubernetes-csi/external-snapshotter",
+        "from": {
+          "tag": "v5.0.1",
+          "commit": "9f6fc893a6ed5c93c06cc6365d2eec9d5a5d3c48",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        },
+        "to": {
+          "tag": "v6.0.0",
+          "commit": "83d0e0914f696b6f686f568ce0c2e99d1cbe3269",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        }
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/83d0e0914f696b6f686f568ce0c2e99d1cbe3269/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml"
+      },
+      "control": "false"
+    },
+    {
+      "id": "control.crd-pair.external-snapshotter.v5.0.1-to-v6.0.1",
+      "kind": "crd-pair",
+      "subject": {
+        "project": "control.external-snapshotter",
+        "repo": "github.com/kubernetes-csi/external-snapshotter",
+        "from": {
+          "tag": "v5.0.1",
+          "commit": "9f6fc893a6ed5c93c06cc6365d2eec9d5a5d3c48",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        },
+        "to": {
+          "tag": "v6.0.1",
+          "commit": "e746d0717a32109d8c57cb76a70b299ec849f54d",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+          ]
+        }
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/e746d0717a32109d8c57cb76a70b299ec849f54d/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml#L92-L127"
+      },
+      "control": "false"
+    }
+  ]
+}

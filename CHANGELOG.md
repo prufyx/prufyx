@@ -209,6 +209,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   claims name and no pair covers, so those claims are decided instead of
   `undetermined`; a release that cannot be installed from the claim's
   evidence stays `undetermined` with the reason, a failed fetch or install is `error`.
+  Results v2 (additive): a `prufyx.io/kind-val-claims/v2` claims file gives
+  `prufyx.io/kind-val-results/v2`, where every claim also has a `verdict`
+  (`confirmed-by-execution`, `refuted`, `undetermined`, `error`) and, unless
+  confirmed, a `reason` from a closed list of codes. The run also decides
+  reviewed control claims (known true and known false, embedded from
+  `controls.json`, each value cited to an upstream file at a commit) for
+  every kind it has; they are reported apart in `controls`, and when a
+  control of a kind does not come out as expected on a line, every claim of
+  that kind on that line is an `error` with reason `canary-failed` and a
+  `HIGH` finding names the control. `kind-val.sh` now writes v2 claims by
+  default (`--v1` for the former files); a v1 claims file gives exactly the
+  v1 results as before.
 
 - Knowledge gate: the first attested update of a pack that holds an older schema
   is admissible. A change of the pack's top-level `schema` member is admitted
