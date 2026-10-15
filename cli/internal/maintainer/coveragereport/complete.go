@@ -187,8 +187,10 @@ func (c *completer) evaluate(slug string, pl ProjectLines, window []string) *Com
 			why[whyChartLines] = true
 			continue
 		}
+		truncated := false
 		if len(pl.Lines) == 0 || lineAtLeast(pl.Lines[0], [2]int{r.minFrom[0], r.minFrom[1] + 1}) {
 			why[whySnapshotTruncated] = true
+			truncated = true
 		}
 		// The family's window must start at its minFrom itself: a missing
 		// minFrom line is a hole the window start would hide.
@@ -199,7 +201,7 @@ func (c *completer) evaluate(slug string, pl ProjectLines, window []string) *Com
 				break
 			}
 		}
-		if first != fmt.Sprintf("%d.%d", r.minFrom[0], r.minFrom[1]) {
+		if !truncated && first != fmt.Sprintf("%d.%d", r.minFrom[0], r.minFrom[1]) {
 			why[whySnapshotHole] = true
 		}
 	}
@@ -236,8 +238,15 @@ func (c *completer) evaluate(slug string, pl ProjectLines, window []string) *Com
 			}
 		}
 		fc.Undeclared = max(fc.LinesTotal-1-fc.Decided-fc.DeclaredUnknown, 0)
-		if fc.LinesTotal < 2 || fc.Decided+fc.DeclaredUnknown != fc.LinesTotal-1 || fc.Undeclared != 0 {
+		// count-mismatch asserts the arithmetic; an ordinary gap is
+		// undeclared-pairs and a short window is too-few-lines.
+		switch {
+		case fc.LinesTotal < 2:
+			why[whyTooFewLines] = true
+		case fc.Decided+fc.DeclaredUnknown > fc.LinesTotal-1:
 			why[whyCountMismatch] = true
+		case fc.Undeclared != 0:
+			why[whyUndeclared] = true
 		}
 		out.FamilyCounts = append(out.FamilyCounts, fc)
 	}
@@ -272,7 +281,10 @@ func (c *completer) evaluate(slug string, pl ProjectLines, window []string) *Com
 	if out.Undeclared != 0 {
 		why[whyUndeclared] = true
 	}
-	if out.LinesTotal < 2 || out.Decided+out.DeclaredUnknown != out.LinesTotal-1 {
+	if out.LinesTotal >= 2 && out.Undeclared >= 0 && out.Undeclared+out.Decided+out.DeclaredUnknown != out.LinesTotal-1 {
+		why[whyCountMismatch] = true
+	}
+	if out.Undeclared < 0 {
 		why[whyCountMismatch] = true
 	}
 	out.InvalidDeclarations = c.invalidDeclarations(slug, pl, regs)

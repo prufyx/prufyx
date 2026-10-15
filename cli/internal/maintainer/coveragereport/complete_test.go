@@ -641,3 +641,23 @@ func TestListedRuleOfAnotherProject(t *testing.T) {
 		assertComplete(t, s.project(t), want, "")
 	}
 }
+
+// count-mismatch asserts the arithmetic and never shows for an ordinary gap;
+// a truncated snapshot is not also reported as a hole.
+func TestReasonsAreNotRedundant(t *testing.T) {
+	s := k8sScenario("1.19", "1.20", "1.21")
+	s.skip = map[string]bool{"1.21": true}
+	p := s.project(t)
+	assertComplete(t, p, false, whyUndeclared)
+	if strings.Join(p.Reasons, ",") != whyUndeclared {
+		t.Fatalf("reasons = %v, want only %s", p.Reasons, whyUndeclared)
+	}
+	tr := k8sScenario("1.20", "1.21", "1.22")
+	q := tr.project(t)
+	for _, r := range q.Reasons {
+		if r == whyCountMismatch || r == whySnapshotHole {
+			t.Fatalf("reasons = %v", q.Reasons)
+		}
+	}
+	assertComplete(t, q, false, whySnapshotTruncated)
+}

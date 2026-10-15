@@ -149,7 +149,7 @@ Per project, and per family under `familyCounts`:
 | `undeclared` | `linesTotal - 1 - decided - declaredUnknown`: pairs nobody has stated anything about. |
 | `complete` | True only when every clause below holds. |
 | `invalidDeclarations` | Declarations of the project that name a family it is not registered in, a chart-line family, or lines that are not consecutive in the snapshot. |
-| `incompleteReasons` | Why `complete` is false, from a closed list (`snapshot-stale`, `snapshot-undated`, `snapshot-future`, `snapshot-truncated`, `snapshot-hole`, `no-registered-family`, `chart-lines-unmapped`, `too-few-lines`, `invalid-declaration`, `undeclared-pairs`, `count-mismatch`). |
+| `incompleteReasons` | Why `complete` is false, from a closed list (`snapshot-stale`, `snapshot-undated`, `snapshot-future`, `snapshot-truncated`, `snapshot-hole`, `no-registered-family`, `chart-lines-unmapped`, `too-few-lines`, `invalid-declaration`, `undeclared-pairs`, `count-mismatch`). `count-mismatch` is an assertion of the counting itself and is not expected to appear; a gap shows as `undeclared-pairs`. |
 
 At project level a pair is `decided` only when every family the project is
 registered in decides it, and `declaredUnknown` when each family that does not
