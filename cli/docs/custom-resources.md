@@ -306,6 +306,52 @@ did not read, a listed rule that does not decide the hop, an unlisted rule)
 is a named `LINE_NOT_ATTESTED` gap of the hop. Without a review of the target
 line, the hop is evaluated as before.
 
+## Guarding the table and the targets
+
+The table (`internal/customresources/table.json`) and the version targets
+(`internal/extract/crdversions/target-*.json`) decide whether a custom resource
+version can be attested. Removing a row or narrowing a target turns an answer
+of `UNKNOWN` into a pass, so a change to them is checked by
+`prufyx-maintainer target-check` (`make targets-check`, `make
+targets-check-citations`), which does not depend on the knowledge gate.
+
+`target-check offline [--base-ref <git revision>]` needs no network:
+
+- every cited source is a `github.com` blob URL whose ref is a full 40-digit
+  commit (never a tag or a branch), with a plain repository path, in the
+  project's own repository (or, for a target that moves its definitions, the
+  repository it names);
+- no group is claimed by two projects, a target's pins are full commits, and a
+  target agrees with its table row (catalog, repository, component, fact
+  project);
+- every table project has a target file or a reason in `noTarget` of
+  `internal/customresources/guard.json`, and a `noTarget` entry for a project
+  that has a target is refused.
+
+With `--base-ref`, the same files at that revision are compared with the
+working tree. A removed project, a removed group, a removed ownership record, a
+removed target, and a narrowed target (a higher `minFrom`, a dropped tag
+prefix, a dropped or changed path, a path made optional, a dropped attestation,
+channel or remote pin, a new exclusion) each need an entry in `removals` of
+`guard.json` that the same change adds: its `kind` (`project`, `group`,
+`reserved`, `target`, `target-narrowed`), `project`, `detail` (the group, the
+record name, or the narrowing as the check prints it, such as `minFrom:1.16`) and
+a `reason` of 12 to 300 characters. The list only grows. An entry that is
+already at the base revision does not justify a later removal, an entry that
+matches no change is refused, and an entry that was deleted is refused, so an
+approval cannot be placed ahead of the change or used twice. A base revision
+git cannot resolve is an error, not a pass.
+
+`target-check citations` is the network check: every table source and each
+community licence source is a commit of its repository (a tag object is
+refused) that is a tag commit or in the default branch history, and its path
+exists at that commit; each pinned commit of a remote target holds the
+`kustomization.yaml` its directory names. It runs the revision, reachability
+and fetch checks of `prufyx-maintainer rule verify-citations`. No source
+declares a content digest today; a digest, when one is added, is compared like
+a rule's `contentDigest`. Exit codes: 0 pass, 1 a finding, 2 a usage or I/O
+error.
+
 ## What is not checked
 
 Installing or upgrading the CRDs themselves, stored objects and their storage

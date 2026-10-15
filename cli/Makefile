@@ -3,7 +3,7 @@ MAINTAINER ?= go run ./cmd/prufyx-maintainer
 RELEASE_POLICY := release/community-shipping-policy-v2.json
 STATICCHECK ?= staticcheck
 
-.PHONY: mutants toolchain-check staticcheck staticcheck-full dco-check release-gate-test release-manifest regenerate-pack-goldens
+.PHONY: targets-check targets-check-citations mutants toolchain-check staticcheck staticcheck-full dco-check release-gate-test release-manifest regenerate-pack-goldens
 
 toolchain-check:
 	@version="$$(GOTOOLCHAIN=local $(GO) env GOVERSION)"; test "$$version" = go1.26.8 || { echo "Go 1.26.8 is required; found $$version" >&2; exit 1; }
@@ -35,6 +35,16 @@ regenerate-pack-goldens:
 release-manifest:
 	@test -n "$(OUTPUT)" || { echo "OUTPUT=/absolute/path/SOURCE-MANIFEST.json is required" >&2; exit 2; }
 	$(MAINTAINER) release-gate generate --source-root .. --policy $(RELEASE_POLICY) --go $(GO) --output "$(OUTPUT)"
+
+# CRD targets and the custom-resource table (see docs/custom-resources.md).
+# targets-check is offline: the structure of both data sets and, with
+# BASE_REF=<git revision>, the removal guard against that revision.
+# targets-check-citations needs the network (set GITHUB_TOKEN to raise the API rate limit).
+targets-check:
+	$(MAINTAINER) target-check offline $(if $(BASE_REF),--base-ref $(BASE_REF),)
+
+targets-check-citations:
+	$(MAINTAINER) target-check citations $(if $(OUTPUT),--out $(OUTPUT),)
 
 # Source mutation checks (see CONTRIBUTING.md). Slow; not part of default CI.
 # One mutant at a time, go test -p 2, GOMAXPROCS=4. MUTANT_ARGS="-only ID,ID" selects some.

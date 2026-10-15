@@ -35,6 +35,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/stagingreceipt"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/supportinventory"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/targetguard"
 )
 
 type commandError struct {
@@ -191,8 +192,17 @@ func run(args []string, stdout, stderr io.Writer) error {
 			return &commandError{code: code, message: "rule validate failed", printed: true}
 		}
 		return nil
+	case "target-check":
+		root, err := cliRoot()
+		if err != nil {
+			return &commandError{code: 2, message: "target-check: CLI root is unavailable", err: err}
+		}
+		if code := targetguard.Run(args[1:], root, stdout, stderr); code != 0 {
+			return &commandError{code: code, message: "target-check failed", printed: true}
+		}
+		return nil
 	case "help", "-h", "--help":
-		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|consensus|chart-versions|gate|approval|rule|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-sign|support-inventory|docs-tables|release-gate|staging-receipt|release|local-kind|release-*> [options]")
+		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|consensus|chart-versions|gate|approval|rule|target-check|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-sign|support-inventory|docs-tables|release-gate|staging-receipt|release|local-kind|release-*> [options]")
 		return nil
 	default:
 		return usageError()
