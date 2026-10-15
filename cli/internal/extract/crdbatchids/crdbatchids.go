@@ -160,6 +160,13 @@ func Count(project string) int {
 	return len(ProjectRules(project))
 }
 
+// subject is a rule's subject: component and release pair.
+type subject struct {
+	Component string `json:"component"`
+	From      string `json:"from"`
+	To        string `json:"to"`
+}
+
 // Holds reports whether pack holds the batch (true) or none of it (false).
 // A pack holding part of the batch, a batch rule that differs from its
 // statement here (project, operator, subject, set condition), a line
@@ -170,13 +177,9 @@ func Holds(pack []byte) (bool, error) {
 		Entries []struct {
 			Project string `json:"project"`
 			Rule    struct {
-				ID       string `json:"id"`
-				Operator string `json:"operator"`
-				Subject  struct {
-					Component string `json:"component"`
-					From      string `json:"from"`
-					To        string `json:"to"`
-				} `json:"subject"`
+				ID           string  `json:"id"`
+				Operator     string  `json:"operator"`
+				Subject      subject `json:"subject"`
 				SetCondition *struct {
 					Side      string   `json:"side"`
 					Component string   `json:"component"`
@@ -211,7 +214,9 @@ func Holds(pack []byte) (bool, error) {
 		}
 		held++
 		set := got.SetCondition
-		if entry.Project != want.Project || got.Operator != "forbid_set_member" || got.Subject.Component != want.Component || got.Subject.From != want.From || got.Subject.To != want.To ||
+		// The subject is compared as a whole: this is the batch's statement
+		// of its rule, not transition matching.
+		if entry.Project != want.Project || got.Operator != "forbid_set_member" || got.Subject != (subject{want.Component, want.From, want.To}) ||
 			set == nil || set.Side != "proposed" || set.Component != want.Component || set.FactID != want.FactID() || strings.Join(set.Members, "\n") != strings.Join(want.Members, "\n") {
 			return false, fmt.Errorf("the pack's rule %s differs from the batch's statement of it", got.ID)
 		}
