@@ -182,6 +182,9 @@ type Report struct {
 	// batch is the decision on the batch approval the change adds (nil:
 	// none).
 	batch *batchResult
+	// onboarding is the decision on the onboarding batch the change adds
+	// (nil: none).
+	onboarding *onboardingResult
 
 	// rederivedUnchanged counts rules re-derived by --rederive-all: every
 	// active mechanical rule the change did not already re-derive (see
@@ -423,6 +426,10 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	// reviewed entries.
 	batch := runBatch(ctx, opts, cls, r.ChangedPaths, loadKeys, approvals)
 	r.batch = batch
+	// An onboarding batch is decided the same way, before any change: it
+	// alone admits the pack members it moves (onboarding_gate.go).
+	onboarding := runOnboarding(ctx, opts, cls, r.ChangedPaths, loadKeys)
+	r.onboarding = onboarding
 
 	var mechanical, removals, schemaChanges []*Change
 	consensusChecks := &consensusRun{}
@@ -439,6 +446,10 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		if c.Member == "schema" {
 			// Decided once every other change of the pack has been.
 			schemaChanges = append(schemaChanges, c)
+			continue
+		}
+		if onboarding.admitsMember(opts.Layout, c) {
+			c.OK, c.Proof = true, ProofOnboarding
 			continue
 		}
 		if c.Member != "" {
@@ -497,6 +508,10 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		r.add(CheckBatch, batch.ok, "%s", batch.detail)
 		r.alarm(AlarmBatch, "the change carries a batch approval (%s): %s", map[bool]string{true: "admitted", false: "refused"}[batch.ok], batch.detail)
 	}
+	if onboarding != nil {
+		r.add(CheckOnboarding, onboarding.ok, "%s", onboarding.detail)
+		r.alarm(AlarmOnboarding, "the change carries an onboarding batch (%s): %s", map[bool]string{true: "admitted", false: "refused"}[onboarding.ok], onboarding.detail)
+	}
 	rederive(ctx, opts.Source, opts.Catalog, opts.Concurrency, opts.Layout, mechanical)
 	for _, c := range removals {
 		admitSupersede(c, opts)
@@ -514,6 +529,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	r.modeCheck(opts)
 	r.baselineApprovalsUsed = r.baselinesCheck(opts, loadKeys, approvals)
 	r.recordCheck(cls, statements, opts)
+	r.onboardingRecordsCheck(opts, onboarding)
 	r.citationCheck(ctx, cls, opts)
 	// After the citation check: its GitHub calls draw on the same budget, so
 	// a run starved during citations is reported as could not run too.
@@ -705,7 +721,7 @@ func (r *Report) packChecks(cls *Classification, opts Options) {
 			r.add("admit/"+spec.Name, !b.Present, "the pack file is missing")
 			continue
 		}
-		stats, err := spec.Admit(opts.Head)
+		stats, err := r.admitPack(spec, opts)
 		if err != nil {
 			r.add("admit/"+spec.Name, false, "the engine does not admit the pack: %v", err)
 		} else {
@@ -723,6 +739,24 @@ func (r *Report) packChecks(cls *Classification, opts Options) {
 		r.attestationCheck(spec, opts)
 		r.basisCheck(spec, h)
 	}
+}
+
+// admitPack is spec.Admit, except for the onboarding pack of a change whose
+// onboarding batch was admitted: that pack is admitted against the head's
+// custom-resource table the batch verified. attestPack does the same for
+// the corpus attestation.
+func (r *Report) admitPack(spec PackSpec, opts Options) (PackStats, error) {
+	if r.onboarding != nil && r.onboarding.ok && spec.Name == opts.Layout.Onboarding.Pack {
+		return onboardingAdmit(opts, r.onboarding)
+	}
+	return spec.Admit(opts.Head)
+}
+
+func (r *Report) attestPack(spec PackSpec, opts Options) ([]byte, error) {
+	if r.onboarding != nil && r.onboarding.ok && spec.Name == opts.Layout.Onboarding.Pack {
+		return onboardingAttest(opts, r.onboarding)
+	}
+	return spec.Attest(opts.Head)
 }
 
 func (r *Report) sizeCheck(spec PackSpec, stats PackStats, baseLen, headLen int, loosens bool) {
@@ -794,7 +828,7 @@ func (r *Report) staggerCheck(spec PackSpec, h *loadedPack, weeks map[string]boo
 }
 
 func (r *Report) attestationCheck(spec PackSpec, opts Options) {
-	want, err := spec.Attest(opts.Head)
+	want, err := r.attestPack(spec, opts)
 	if err != nil {
 		r.add("attestation/"+spec.Name, false, "cannot regenerate the corpus attestation: %v", err)
 		return
@@ -855,6 +889,9 @@ func (r *Report) autoMerge(opts Options) {
 	reasons = append(reasons, commitReasons(opts)...)
 	if r.batch != nil {
 		reasons = append(reasons, "the change carries a batch approval; batch approvals are merged by the owner, never automatically")
+	}
+	if r.onboarding != nil {
+		reasons = append(reasons, "the change carries an onboarding batch; onboarding batches are merged by the owner, never automatically")
 	}
 	for _, c := range r.Changes {
 		if c.isSupersede() {

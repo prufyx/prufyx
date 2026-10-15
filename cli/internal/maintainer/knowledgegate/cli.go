@@ -548,6 +548,12 @@ func writeSummary(w io.Writer, r *Report) {
 	for _, a := range r.Alarms {
 		fmt.Fprintf(w, "- Alarm: %s\n", mdEscape(a))
 	}
+	if r.onboarding != nil && r.onboarding.summary != "" {
+		// The batch's review summary as the gate renders it, verbatim in a
+		// code block (backticks neutralised), so nothing in it is read as
+		// Markdown.
+		fmt.Fprintf(w, "\nOnboarding batch review summary (rendered by the gate):\n\n````text\n%s\n````\n", strings.ReplaceAll(r.onboarding.summary, "`", "'"))
+	}
 	if r.AutoMerge.Eligible {
 		fmt.Fprintln(w, "\nAutomatic merge: eligible.")
 	} else {

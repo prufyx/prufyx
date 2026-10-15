@@ -119,6 +119,9 @@ type Layout struct {
 	// and refuses the schema change on its own. A change of a pack's schema level is never admitted in a
 	// change that also touches one of them.
 	RegistryPaths []string
+	// Onboarding names the files of onboarding batches (onboarding.go);
+	// an empty Onboarding.Dir disables them.
+	Onboarding OnboardingLayout
 }
 
 // Repository paths of the default layout.
@@ -161,15 +164,7 @@ func DefaultLayout() Layout {
 					if err != nil {
 						return PackStats{}, err
 					}
-					r, err := cncfcheck.CheckPackFiles(files[0], files[1], files[2])
-					if err != nil {
-						return PackStats{}, err
-					}
-					stats := PackStats{Entries: r.Entries, TargetBytes: r.TargetBytes, MaxTargetBytes: r.MaxTargetBytes, RegistryFacts: r.RegistryFacts, MaxRegistryFacts: r.MaxRegistryFacts, Split: true, SplitErr: r.SplitErr}
-					for _, target := range r.ProjectTargets {
-						stats.Targets = append(stats.Targets, knowledgetargets.Target{Path: target.Path, Bytes: int64(len(target.Bytes))})
-					}
-					return stats, nil
+					return cncfPackStats(files[0], files[1], files[2], nil)
 				},
 				View: cncfcheck.AdmittedPackView, Entry: cncfcheck.AdmittedEntry,
 				AttestationPath: cncfAttestPath,
@@ -232,7 +227,28 @@ func DefaultLayout() Layout {
 			"cli/internal/cncfcheck/data/priority-portfolio.json",
 			"cli/internal/projectcheck/data/projects.json",
 		},
+		Onboarding: defaultOnboardingLayout(),
 	}
+}
+
+// cncfPackStats admits the CNCF pack files with cncfcheck.CheckPackFiles,
+// or, with a table, cncfcheck.CheckPackFilesWithTable.
+func cncfPackStats(landscape, priority, rules, table []byte) (PackStats, error) {
+	var r cncfcheck.PackFileReport
+	var err error
+	if table == nil {
+		r, err = cncfcheck.CheckPackFiles(landscape, priority, rules)
+	} else {
+		r, err = cncfcheck.CheckPackFilesWithTable(landscape, priority, rules, table)
+	}
+	if err != nil {
+		return PackStats{}, err
+	}
+	stats := PackStats{Entries: r.Entries, TargetBytes: r.TargetBytes, MaxTargetBytes: r.MaxTargetBytes, RegistryFacts: r.RegistryFacts, MaxRegistryFacts: r.MaxRegistryFacts, Split: true, SplitErr: r.SplitErr}
+	for _, target := range r.ProjectTargets {
+		stats.Targets = append(stats.Targets, knowledgetargets.Target{Path: target.Path, Bytes: int64(len(target.Bytes))})
+	}
+	return stats, nil
 }
 
 // supportInventoryConfig points the support inventory generator at a tree's

@@ -149,6 +149,22 @@ const MaxInputBytes = maxPackBytes
 // slashes. A reader that refuses links and bounds sizes keeps a tree it
 // does not trust from leading the read anywhere else.
 func DocumentFromFiles(pack string, readFile func(rel string) ([]byte, error)) ([]byte, error) {
+	return documentFromFiles(pack, readFile, cncfcheck.BuildAttestationFromFiles)
+}
+
+// DocumentFromFilesWithTable is DocumentFromFiles for the CNCF pack admitted
+// against the reviewed custom-resource table tableRaw instead of the
+// embedded one (cncfcheck.BuildAttestationFromFilesWithTable).
+func DocumentFromFilesWithTable(pack string, readFile func(rel string) ([]byte, error), tableRaw []byte) ([]byte, error) {
+	if pack != PackCNCF {
+		return nil, fmt.Errorf("only the CNCF pack is admitted against a table file")
+	}
+	return documentFromFiles(pack, readFile, func(landscape, priority, rules []byte) (cncfcheck.Attestation, error) {
+		return cncfcheck.BuildAttestationFromFilesWithTable(landscape, priority, rules, tableRaw)
+	})
+}
+
+func documentFromFiles(pack string, readFile func(rel string) ([]byte, error), buildCNCF func(landscape, priority, rules []byte) (cncfcheck.Attestation, error)) ([]byte, error) {
 	read := func(rel string) ([]byte, error) {
 		raw, err := readFile(rel)
 		if err != nil {
@@ -174,7 +190,7 @@ func DocumentFromFiles(pack string, readFile func(rel string) ([]byte, error)) (
 		if err != nil {
 			return nil, err
 		}
-		attestation, err := cncfcheck.BuildAttestationFromFiles(landscape, priority, rules)
+		attestation, err := buildCNCF(landscape, priority, rules)
 		if err != nil {
 			return nil, err
 		}

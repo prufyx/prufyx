@@ -46,6 +46,12 @@ func CheckPackFiles(landscapeRaw, priorityRaw, packRaw []byte) (PackFileReport, 
 	if err != nil {
 		return PackFileReport{}, err
 	}
+	return packFileReport(b, len(compiledDefinitions()))
+}
+
+// packFileReport sizes an admitted bundle as CheckPackFiles reports it;
+// registryFacts is the size of the registry it was admitted against.
+func packFileReport(b bundle, registryFacts int) (PackFileReport, error) {
 	capability, err := externalCapabilityDigest(b)
 	if err != nil {
 		return PackFileReport{}, ErrIntegrity
@@ -78,7 +84,7 @@ func CheckPackFiles(landscapeRaw, priorityRaw, packRaw []byte) (PackFileReport, 
 		ProjectTargets: targets, SplitErr: splitErr,
 		Entries: len(b.pack.Entries), MaxEntries: maxExternalEntries,
 		TargetBytes: len(raw), MaxTargetBytes: maxExternalBundleBytes,
-		RegistryFacts: len(compiledDefinitions()), MaxRegistryFacts: constraintengine.MaxCompiledRegistryFacts,
+		RegistryFacts: registryFacts, MaxRegistryFacts: constraintengine.MaxCompiledRegistryFacts,
 	}, nil
 }
 
@@ -90,6 +96,11 @@ func BuildAttestationFromFiles(landscapeRaw, priorityRaw, packRaw []byte) (Attes
 	if err != nil {
 		return Attestation{}, err
 	}
+	return attestationOf(b)
+}
+
+// attestationOf is the corpus attestation of an admitted bundle.
+func attestationOf(b bundle) (Attestation, error) {
 	inventory, err := b.unfilteredCorpus()
 	if err != nil {
 		return Attestation{}, err
