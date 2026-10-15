@@ -41,15 +41,22 @@ func passExit(batchIDs []string) int {
 	return ExitUnknown
 }
 
+// batchBeforeReview is the reason of a batch claim at an evaluation time
+// before the batch rules' review (every caller of checkBatchClaims
+// evaluates at such a time).
+const batchBeforeReview = "RULE_EVIDENCE_CLOCK_BEFORE_REVIEW"
+
 // checkBatchClaims fails unless the claims of the JSON CNCF check report
-// stdout that name a rule of the batch are exactly want, each UNKNOWN.
+// stdout that name a rule of the batch are exactly want, each UNKNOWN with
+// reason batchBeforeReview.
 func checkBatchClaims(t *testing.T, stdout string, want []string) {
 	t.Helper()
 	var report struct {
 		Check struct {
 			Claims []struct {
-				RuleID string `json:"ruleId"`
-				Status string `json:"status"`
+				RuleID     string `json:"ruleId"`
+				Status     string `json:"status"`
+				ReasonCode string `json:"reasonCode"`
 			} `json:"claims"`
 		} `json:"check"`
 	}
@@ -65,8 +72,8 @@ func checkBatchClaims(t *testing.T, stdout string, want []string) {
 		if !batch[claim.RuleID] {
 			continue
 		}
-		if claim.Status != "UNKNOWN" {
-			t.Fatalf("batch claim %s is %s", claim.RuleID, claim.Status)
+		if claim.Status != "UNKNOWN" || claim.ReasonCode != batchBeforeReview {
+			t.Fatalf("batch claim %s is %s %s", claim.RuleID, claim.Status, claim.ReasonCode)
 		}
 		got = append(got, claim.RuleID)
 	}
@@ -132,14 +139,17 @@ func kyvernoLatestBatchRuleIDs(origin, target string) []string {
 }
 
 // batchClaimStatuses maps every claim of the JSON CNCF check report stdout
-// to its status; a claim of a rule outside the batch fails the test.
+// to its status; a claim of a rule outside the batch fails the test, and so
+// does an UNKNOWN claim for any reason but an unavailable fact (the set not
+// complete: constraintengine's set rule).
 func batchClaimStatuses(t *testing.T, stdout string) map[string]string {
 	t.Helper()
 	var report struct {
 		Check struct {
 			Claims []struct {
-				RuleID string `json:"ruleId"`
-				Status string `json:"status"`
+				RuleID     string `json:"ruleId"`
+				Status     string `json:"status"`
+				ReasonCode string `json:"reasonCode"`
 			} `json:"claims"`
 		} `json:"check"`
 	}
@@ -154,6 +164,9 @@ func batchClaimStatuses(t *testing.T, stdout string) map[string]string {
 	for _, claim := range report.Check.Claims {
 		if !batch[claim.RuleID] {
 			t.Fatalf("claim of %s, which is not a batch rule", claim.RuleID)
+		}
+		if claim.Status == "UNKNOWN" && claim.ReasonCode != "RULE_FACT_UNAVAILABLE" {
+			t.Fatalf("claim of %s UNKNOWN for %s", claim.RuleID, claim.ReasonCode)
 		}
 		out[claim.RuleID] = claim.Status
 	}
