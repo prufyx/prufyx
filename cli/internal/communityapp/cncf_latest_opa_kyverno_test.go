@@ -88,9 +88,14 @@ func TestLatestKyvernoExactOriginsNativeCLI(t *testing.T) {
 				preparedRaw := []byte(prepared)
 				preparedPath := writeCNCFFile(t, "kyverno-prepared.json", preparedRaw, 0o600)
 				checkCode, output, checkErr := runCNCFCLI(t, "check", "cncf", "--project", "kyverno", "--input", preparedPath, "--input-digest", cncfDigest(preparedRaw), "--now", "2026-09-12T09:34:00Z", "--format", "json")
-				if checkCode != tc.checkCode || checkErr != "" || !strings.Contains(output, `"assessment":"UNKNOWN"`) || (tc.status != "UNKNOWN" && !strings.Contains(output, `"status":"`+tc.status+`"`)) || strings.Contains(output, "private-latest-kyverno") {
+				wantCode := tc.checkCode
+				if wantCode == ExitOK {
+					wantCode = passExit(kyvernoLatestBatchRuleIDs(from))
+				}
+				if checkCode != wantCode || checkErr != "" || !strings.Contains(output, `"assessment":"UNKNOWN"`) || (tc.status != "UNKNOWN" && !strings.Contains(output, `"status":"`+tc.status+`"`)) || strings.Contains(output, "private-latest-kyverno") {
 					t.Fatalf("check code=%d stderr=%q output=%s", checkCode, checkErr, output)
 				}
+				checkBatchClaims(t, output, kyvernoLatestBatchRuleIDs(from))
 			})
 		}
 	}

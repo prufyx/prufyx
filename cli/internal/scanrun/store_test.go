@@ -166,6 +166,52 @@ func editPack(t *testing.T, raw []byte, edit func(project string, rule map[strin
 	return out
 }
 
+// withoutComponentRecords removes the pack's line attestations of
+// component (a pack without a project's rules is a pack without its
+// records) and sets the schema to the level of what remains: the line
+// attestation level while an attestation remains, else the set level when
+// a set rule remains, else the ranged level.
+func withoutComponentRecords(t *testing.T, raw []byte, component string) []byte {
+	t.Helper()
+	var pack map[string]any
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	if err := decoder.Decode(&pack); err != nil {
+		t.Fatal(err)
+	}
+	for member := range pack {
+		switch member {
+		case "schema", "revision", "policyId", "policyDigest", "landscapeFileDigest", "registryDigest", "entries", "lineAttestations":
+		default:
+			t.Fatalf("pack member %s is not handled", member)
+		}
+	}
+	var kept []any
+	if attestations, ok := pack["lineAttestations"].([]any); ok {
+		for _, item := range attestations {
+			if item.(map[string]any)["component"] != component {
+				kept = append(kept, item)
+			}
+		}
+	}
+	delete(pack, "lineAttestations")
+	pack["schema"] = "prufyx.io/cncf-source-rule-pack/v1alpha2"
+	for _, item := range pack["entries"].([]any) {
+		if item.(map[string]any)["rule"].(map[string]any)["operator"] == "forbid_set_member" {
+			pack["schema"] = "prufyx.io/cncf-source-rule-pack/v1alpha3"
+		}
+	}
+	if len(kept) > 0 {
+		pack["lineAttestations"] = kept
+		pack["schema"] = "prufyx.io/cncf-source-rule-pack/v1alpha4"
+	}
+	out, err := json.Marshal(pack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
 // withoutProvenance is the report JSON with the provenance member removed.
 func withoutProvenance(t *testing.T, report scanreport.Report) []byte {
 	t.Helper()
@@ -769,7 +815,7 @@ func TestScanStoreRefusesOtherKnowledge(t *testing.T) {
 // Kubernetes: one named gap, the component not covered, no path, and
 // nothing from the embedded knowledge.
 func TestScanStoreCustomResourceProjectAbsent(t *testing.T) {
-	pack := editPack(t, embeddedPack(t), func(project string, _ map[string]any) bool { return project != "strimzi" })
+	pack := withoutComponentRecords(t, editPack(t, embeddedPack(t), func(project string, _ map[string]any) bool { return project != "strimzi" }), "pkg:github/strimzi/strimzi-kafka-operator")
 	fixture := newStoreFixture(t, cncfknowledge.LayoutPerProject)
 	fixture.importPack(pack, "8")
 	opened, err := OpenStore(fixture.store, []string{"strimzi"})
