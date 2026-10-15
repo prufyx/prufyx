@@ -226,6 +226,31 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   is not the canonical member of its path. A values file whose key holds a NUL
   byte is outside the strict YAML subset. No engine contract, schema or
   registry digest changes. See `cli/docs/extractors/helm.values.md`.
+- Maintainer extractor `helm.values` 1.2.0 derives two set notices, which
+  never pass, block or change completeness. `HELM_VALUES_KEY_NOT_REFERENCED`
+  (`notice_set_member_present`, rule id `...unread-values`) lists values keys
+  the earlier chart's templates name and the later chart's templates provably
+  no longer read: the later chart has a `templates/` directory, every template
+  parses, no entry there is a symbolic link, submodule or other non-file, no
+  template uses `index`, `tpl`, the whole values, the root context outside
+  `include`, `template`, `if` or `with`, or any other route the scan does not
+  resolve, the chart has no dependency and no `charts/` directory, no later
+  template names the key, a key above it or a key below it, and the later
+  values schema does not require or declare it.
+  `HELM_VALUES_DEFAULT_CHANGED` (`notice_set_member_absent`, rule id
+  `...changed-defaults`) lists keys whose scalar default changed as Helm reads
+  it, holds only over a complete values set, and compares only booleans,
+  plain decimals and strings that every YAML reader reads the same way, under
+  no subchart or global key, where neither values schema refuses the key or
+  leaves it unread. The template scan now counts every unresolved route, and
+  the proof classifies each key either notice considered (`unread`,
+  `changed`). Chart extractor runner (`internal/extract/chartrun`): set notices
+  have their own test vectors (`notice`, `no-notice-complete`,
+  `unknown-incomplete`), and a vector kind of the other family is refused.
+  Only the `helm.values.*` code digests move; the extractor framework files
+  are unchanged, so the digests of `k8s.feature-gate-removal`,
+  `k8s.served-api-removal` and `crd.version-removal.*` do not move. See
+  `cli/docs/extractors/helm.values.md`.
 - Chart extractor runner (`internal/extract/chartrun`): a chart extractor may
   name shared packages whose source is part of its code, and `helm.values`
   names the values reader and member encoding it shares

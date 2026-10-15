@@ -1,8 +1,8 @@
 # Extractor `helm.values`
 
-Version 1.1.0. Compares a Helm chart's source at the first release of two
+Version 1.2.0. Compares a Helm chart's source at the first release of two
 consecutive release lines and derives rules only for the upgrades Helm itself
-refuses. It is deterministic, reads only upstream source pinned by full commit
+refuses, plus two verdict-neutral notices (see [Notices](#notices)). It is deterministic, reads only upstream source pinned by full commit
 SHA, and involves no model.
 
 A run reads one repository, so the extractor is registered once per chart, as
@@ -171,10 +171,77 @@ same member.
 
 The proof also records what changed that Helm does not refuse: default keys
 the later chart removed, scalar defaults it changed, and `.Values` paths the
-earlier templates referenced and the later ones do not (a syntactic scan: a
-value read through `with`, `range`, `index`, `include`, `tpl` or a variable is
-not resolved, and template files the parser refuses are listed). None of them
-is a rule.
+earlier templates referenced and the later ones do not. The template scan is
+syntactic: it records each literal `.Values.a.b` or `$.Values.a.b` path, lists
+the template files the parser refuses, and counts every construct through
+which a template may read values it does not resolve (`index`, `tpl`, the
+whole `.Values`, a variable or chain naming `Values`, the string `"Values"`,
+and the root context used other than as the data of `include` or `template`
+or the pipeline of `if` or `with`). None of these soft facts is a rule; two of
+them become notices when they are proven, and the rest stay in the proof.
+
+## Notices
+
+A notice is a set notice on the values-path set fact: informational, never a
+verdict. It never passes or blocks an upgrade, never changes an aggregate or
+whether the scope is complete, and is counted apart from the rules that
+decide. Its member lists are never printed as forbidden or required keys. A
+soft fact that is not proven is only recorded.
+
+**Keys no longer read** (`notice_set_member_present`, reason
+`HELM_VALUES_KEY_NOT_REFERENCED`, rule id ending `.unread-values`). The
+notice lists keys that the earlier chart's templates name literally and the
+later chart's templates provably no longer read. It is shown whenever the
+supplied values hold a listed key, even when the declared set is not
+complete. A key is listed only when all of this holds at the later anchor:
+
+- the chart has a `templates/` directory, every file in it parses, and it
+  holds no symbolic link, submodule or other entry that is not a plain file
+  (such an entry is listed as refused);
+- the scan counts no `index`, `tpl`, whole-values or other unresolved access
+  (see [Soft facts](#soft-facts));
+- the chart declares no dependency and has no `charts/` entry, since a
+  subchart's or library chart's templates render with values this scan does
+  not read;
+- no later template names the key, a key above it or a key below it;
+- the later `values.schema.json`, if any, does not name the key: it does not
+  require the key, a key above it or a key below it, does not declare the
+  key under `properties` (or a key above it with a schema that is not an
+  object), and holds no object on the way that the schema walk does not read
+  (otherwise `schema`);
+- the key is not under a subchart key or `global` at either anchor.
+
+When any chart-wide condition fails, every key is recorded as `unproven` and
+no notice is derived. The sources are the later `Chart.yaml` and up to seven
+earlier template files that named the keys.
+
+**Defaults that changed** (`notice_set_member_absent`, reason
+`HELM_VALUES_DEFAULT_CHANGED`, rule id ending `.changed-defaults`). The
+notice lists keys whose scalar default differs between the anchors as Helm
+reads it. It is shown only over a complete values set that does not hold a
+listed key, since only then does the release take the new default. A key is
+listed only when:
+
+- both defaults are scalars that every YAML reader reads the same way: a
+  boolean, a plain decimal number (no exponent, sign other than `-`, leading
+  zero or base prefix), or a string that cannot be read as a boolean, null or
+  number (it does not start with a digit, `+`, `-` or `.`, and is not `y`,
+  `n`, `yes`, `no`, `on`, `off`, `true`, `false`, `null` or `~` in any case);
+  any other changed scalar is recorded as `ambiguous-scalar`, and two
+  spellings of one number (`1` and `1.0`) as `same-value`;
+- the key is not under a subchart key or `global`, and no packaged subchart
+  is opaque at either anchor;
+- each anchor's values schema, if any, declares the key or leaves it under an
+  open object (otherwise `schema`).
+
+When one key is listed and both defaults are short, the notice text names
+the old and the new default. The sources are `values.yaml` at both anchors.
+A removed default is never a notice.
+
+What a notice does not say: that a key absent from it is read or unchanged,
+or that a value supplied as `null`, or a scalar supplied where the chart
+defaults a mapping, keeps the chart's default. Each notice lists at most 64
+keys; over that, its keys are recorded as `over-bound`.
 
 ## Proof and completeness
 
@@ -186,7 +253,12 @@ required key of the later schema with its class (`rule`, `default`,
 `packaged-subchart`, `unexpressible`, `over-bound`), the opaque schema
 objects, and every earlier key path with its class for the closed-object
 check (declared and open keys are counted, the rest listed). `completeness`
-states the counts, and every earlier key path has exactly one class.
+states the counts, and every earlier key path has exactly one class. The
+soft facts record, for each notice, every key it considered with its class
+(`notice`, `unproven`, `still-read`, `schema`, `subchart`, `unexpressible`,
+`over-bound` for keys no longer read; `notice`, `ambiguous-scalar`,
+`same-value`, `subchart`, `packaged-subchart`, `schema`, `unexpressible`,
+`over-bound` for changed defaults) and the outcome.
 
 ## Running and verifying
 

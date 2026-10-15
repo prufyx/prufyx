@@ -22,6 +22,25 @@ const (
 	dependencyOperator      = "require_component_version"
 )
 
+// Vector kinds of a set notice. A verdict rule has extract.VectorBlocked,
+// extract.VectorPassComplete and extract.VectorUnknownIncomplete vectors; a
+// set notice has VectorNotice, VectorNoNoticeComplete and
+// extract.VectorUnknownIncomplete vectors (VectorKinds).
+const (
+	VectorNotice           = "notice"
+	VectorNoNoticeComplete = "no-notice-complete"
+)
+
+// VectorKinds is the set of vector kinds every rule of an operator must
+// have: notice, no-notice-complete and unknown-incomplete for a set notice,
+// blocked, pass-complete and unknown-incomplete for every other operator.
+func VectorKinds(operator string) []string {
+	if constraintengine.IsSetNoticeOperator(operator) {
+		return []string{VectorNotice, VectorNoNoticeComplete, extract.VectorUnknownIncomplete}
+	}
+	return []string{extract.VectorBlocked, extract.VectorPassComplete, extract.VectorUnknownIncomplete}
+}
+
 type inputDoc struct {
 	Schema    string    `json:"schema"`
 	Authority string    `json:"authority"`
@@ -56,7 +75,9 @@ type inputFact struct {
 //     pass-complete is a complete set of the pass members; unknown-incomplete
 //     is the same set, not complete;
 //   - require_set_member: see generateRequireSetVectors;
-//   - require_component_version: see generateDependencyVectors.
+//   - require_component_version: see generateDependencyVectors;
+//   - notice_set_member_present, notice_set_member_absent: a set notice has
+//     its own kinds; see generateNoticeSetVectors.
 //
 // Any other operator or shape is refused.
 func GenerateVectors(entry Entry, pass []string) ([]Vector, error) {
@@ -68,8 +89,10 @@ func GenerateVectors(entry Entry, pass []string) ([]Vector, error) {
 		return generateRequireSetVectors(entry, pass)
 	case dependencyOperator:
 		return generateDependencyVectors(entry)
+	case constraintengine.OperatorNoticeSetMemberPresent, constraintengine.OperatorNoticeSetMemberAbsent:
+		return generateNoticeSetVectors(entry, pass)
 	}
-	return nil, fmt.Errorf("rule %s: chart vectors are generated for forbid_set_member, require_set_member and require_component_version rules only", rule.ID)
+	return nil, fmt.Errorf("rule %s: chart vectors are generated for forbid_set_member, require_set_member, require_component_version, notice_set_member_present and notice_set_member_absent rules only", rule.ID)
 }
 
 func setDoc(rule RuleJSON, cond extract.SetCondition, members []string, complete bool) inputDoc {
@@ -111,6 +134,58 @@ func generateForbidSetVectors(entry Entry, pass []string) ([]Vector, error) {
 		{extract.VectorBlocked, blockedSet, false, VectorExpect{Status: "BLOCKED", ReasonCode: rule.ReasonCode, MatchedMembers: append([]string(nil), cond.Members...)}},
 		{extract.VectorPassComplete, passSet, true, VectorExpect{Status: "PASS", ReasonCode: rule.ReasonCode}},
 		{extract.VectorUnknownIncomplete, passSet, false, VectorExpect{Status: "UNKNOWN", ReasonCode: reasonSetIncomplete}},
+	} {
+		raw, err := compact(setDoc(rule, cond, spec.members, spec.complete))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, Vector{Name: rule.ID + "/" + spec.kind, RuleID: rule.ID, Kind: spec.kind, Input: raw, Expect: spec.expect})
+	}
+	return out, nil
+}
+
+// generateNoticeSetVectors derives the vectors of a set notice entry. The
+// pass members are extra members the rule never lists:
+//
+//   - notice: for notice_set_member_present, a set holding every listed
+//     member and the extra members, NOT declared complete (presence alone
+//     is the notice); for notice_set_member_absent, a complete set holding
+//     only the extra members, so every listed member is absent;
+//   - no-notice-complete: a complete set that gives the notice nothing to
+//     say (only the extra members for present, every listed member and the
+//     extra members for absent): UNKNOWN RULE_NOTICE_NOT_APPLICABLE;
+//   - unknown-incomplete: a set holding only the extra members, not
+//     declared complete: UNKNOWN RULE_SET_FACT_INCOMPLETE.
+func generateNoticeSetVectors(entry Entry, pass []string) ([]Vector, error) {
+	rule := entry.Rule
+	cond, err := setCondition(rule)
+	if err != nil {
+		return nil, err
+	}
+	for _, m := range pass {
+		if slices.Contains(cond.Members, m) {
+			return nil, fmt.Errorf("rule %s: extra member %s is listed", rule.ID, m)
+		}
+	}
+	extra := sortedUnique(pass)
+	full := sortedUnique(append(append([]string(nil), cond.Members...), pass...))
+	listed := sortedUnique(cond.Members)
+	notice := VectorExpect{Status: constraintengine.StatusNotice, ReasonCode: rule.ReasonCode, MatchedMembers: listed}
+	noticeSet, noticeComplete, quietSet := full, false, extra
+	if rule.Operator == constraintengine.OperatorNoticeSetMemberAbsent {
+		notice = VectorExpect{Status: constraintengine.StatusNotice, ReasonCode: rule.ReasonCode, MissingMembers: listed}
+		noticeSet, noticeComplete, quietSet = extra, true, full
+	}
+	var out []Vector
+	for _, spec := range []struct {
+		kind     string
+		members  []string
+		complete bool
+		expect   VectorExpect
+	}{
+		{VectorNotice, noticeSet, noticeComplete, notice},
+		{VectorNoNoticeComplete, quietSet, true, VectorExpect{Status: "UNKNOWN", ReasonCode: constraintengine.ReasonNoticeNotApplicable}},
+		{extract.VectorUnknownIncomplete, extra, false, VectorExpect{Status: "UNKNOWN", ReasonCode: reasonSetIncomplete}},
 	} {
 		raw, err := compact(setDoc(rule, cond, spec.members, spec.complete))
 		if err != nil {
@@ -262,8 +337,9 @@ func compact(v any) (json.RawMessage, error) {
 // CheckVectors evaluates every vector through the constraint engine against
 // its own entry and returns an error for the first vector whose claim
 // differs from what it expects (status, reason code, matched and missing
-// members), or for an entry without all three vector kinds. now must lie
-// inside the rules' validity.
+// members), for an entry without all three vector kinds of its operator
+// (VectorKinds), or for an entry with a vector kind of the other family.
+// now must lie inside the rules' validity.
 func CheckVectors(entries []Entry, vectors []Vector, now time.Time) error {
 	byID := map[string]Entry{}
 	for _, e := range entries {
@@ -287,10 +363,22 @@ func CheckVectors(entries []Entry, vectors []Vector, now time.Time) error {
 			return fmt.Errorf("vector %s: engine says %s/%s %v missing %v, vector expects %s/%s %v missing %v", v.Name, claim.Status, claim.ReasonCode, claim.MatchedMembers, claim.MissingMembers, v.Expect.Status, v.Expect.ReasonCode, v.Expect.MatchedMembers, v.Expect.MissingMembers)
 		}
 	}
-	for id := range byID {
-		for _, kind := range []string{extract.VectorBlocked, extract.VectorPassComplete, extract.VectorUnknownIncomplete} {
+	for id, entry := range byID {
+		for _, kind := range VectorKinds(entry.Rule.Operator) {
 			if !covered[id][kind] {
 				return fmt.Errorf("rule %s has no %s vector", id, kind)
+			}
+		}
+		// A notice rule never has a verdict vector and a verdict rule
+		// never has a notice vector; other kinds (a test's own) are only
+		// checked against the engine above.
+		for kind := range covered[id] {
+			foreign := []string{VectorNotice, VectorNoNoticeComplete}
+			if constraintengine.IsSetNoticeOperator(entry.Rule.Operator) {
+				foreign = []string{extract.VectorBlocked, extract.VectorPassComplete}
+			}
+			if slices.Contains(foreign, kind) {
+				return fmt.Errorf("rule %s has a %s vector, which its operator %s does not have", id, kind, entry.Rule.Operator)
 			}
 		}
 	}
