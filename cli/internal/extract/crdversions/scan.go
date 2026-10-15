@@ -80,6 +80,15 @@ const (
 	// could not be read. It does not block attestation, but a definition
 	// cannot be established to be gone while one exists.
 	ClassExcludedUnread = "excluded-unread"
+	// ClassPrePatchCopy: a file under a reviewed pre-patch exclusion that
+	// the kustomization it names renders into the listed paths: with that
+	// kustomization's patches applied (version schemas, conversion
+	// settings, metadata, and unserved versions added), its definitions
+	// are the listed ones. See checkPrePatch.
+	ClassPrePatchCopy = "pre-patch-copy"
+	// ClassPrePatch: the kustomization of a reviewed pre-patch exclusion
+	// whose rendering checkPrePatch accepted.
+	ClassPrePatch = "pre-patch"
 )
 
 // Scan bounds.
@@ -217,7 +226,7 @@ type Finding struct {
 // blocks reports whether a finding keeps the scan from being clean.
 func (f Finding) blocks() bool {
 	switch f.Class {
-	case ClassSchemaPatch, ClassCRDPatch, ClassKustomizeConfig, ClassLegacyCopy, ClassTemplatedCopy, ClassExcluded, ClassExcludedUnread:
+	case ClassSchemaPatch, ClassCRDPatch, ClassKustomizeConfig, ClassLegacyCopy, ClassTemplatedCopy, ClassPrePatchCopy, ClassPrePatch, ClassExcluded, ClassExcludedUnread:
 		return false
 	}
 	return true
@@ -260,9 +269,10 @@ func (f Finding) unreadable() bool {
 	return false
 }
 
-// Clean reports a complete scan with nothing but copies (v1, v1beta1 or
-// templated), schema-only kustomizations, kubebuilder patch fragments and
-// transformer configurations, and reviewed exclusions.
+// Clean reports a complete scan with nothing but copies (v1, v1beta1,
+// templated or pre-patch), schema-only kustomizations, kubebuilder patch
+// fragments and transformer configurations, accepted pre-patch
+// kustomizations, and reviewed exclusions.
 func (s *ScanRecord) Clean() bool {
 	if s == nil || !s.Complete {
 		return false
@@ -455,8 +465,14 @@ type kustomization struct {
 	// the kustomization's directory).
 	crdTargets int
 	patchPaths []string
+	// inline counts the entries among them whose patch is given inline as
+	// a string; inlineBad is why one of those strings is not a JSON 6902
+	// list that only touches version schemas, conversion settings or
+	// metadata labels and annotations ("" when each is one).
+	inline    int
+	inlineBad string
 	// problem is why a CRD patch entry cannot be checked ("" when every
-	// one names a local file).
+	// one names a local file or is an inline string).
 	problem string
 	// open is why some patch or replacement could select a definition
 	// without naming the kind literally ("" when none can): such an entry
@@ -607,6 +623,14 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 		}
 		rec.Findings = append(rec.Findings, fd)
 	}
+	for _, e := range tg.Exclude {
+		if e.PrePatch == "" {
+			continue
+		}
+		if err := x.checkPrePatch(r, repo, commit, tg, e, rec, inv); err != nil {
+			return nil, err
+		}
+	}
 	cfg, err := x.scanConfigs(r, repo, commit, files, infos, defDirs, tg, rec.Findings)
 	if err != nil {
 		return nil, err
@@ -621,15 +645,15 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 }
 
 // placed records a finding's location. Under a reviewed exclusion that
-// does not declare copies a finding is recorded, never blocking: excluded
-// when its content is known, excluded-unread otherwise. Under one that
-// declares copies every class keeps its effect.
+// does not declare copies or pre-patch copies a finding is recorded, never
+// blocking: excluded when its content is known, excluded-unread otherwise.
+// Under one that declares them every class keeps its effect.
 func placed(f Finding, at place) Finding {
 	if at.kind == locTree {
 		return f
 	}
 	f.Location = at.entry
-	if at.kind != locReviewed || at.copies {
+	if at.kind != locReviewed || at.copies || at.prePatch != "" {
 		return f
 	}
 	switch f.Class {
@@ -1211,6 +1235,431 @@ func templated(v any) bool {
 	return false
 }
 
+// prePatchRefused starts the note added to a pre-patch kustomization whose
+// rendering the scan does not accept.
+const prePatchRefused = "; not a pre-patch rendering the scan accepts: "
+
+// checkPrePatch checks the claim of a reviewed pre-patch exclusion at one
+// tag: the files under the entry are the definitions the kustomization it
+// names (e.PrePatch) renders into the listed paths, before its patches
+// apply. It is accepted only in this exact shape:
+//   - the kustomization, strictly decoded, holds exactly the keys resources
+//     and patches; its one resource is a local path that resolves to the
+//     entry directory, and each patch entry holds exactly a target (group
+//     apiextensions.k8s.io, version v1, kind CustomResourceDefinition and a
+//     literal name, whose only regular expression characters are dots and
+//     which, anchored as kustomize anchors it, matches no other definition
+//     of the resources) and a path to a file inside the kustomization's
+//     directory;
+//   - the entry directory's kustomization.yaml, strictly decoded, holds
+//     exactly the key resources, each a file in that directory; they are
+//     every file under the entry that names the kind, and each holds
+//     apiextensions.k8s.io/v1 definitions only, strictly read;
+//   - every operation of every patch file is one schemaOnlyPatch accepts,
+//     or adds to /spec/versions/- a version that the definition does not
+//     yet list, with served: false and storage: false as booleans (and
+//     only a name and a schema besides); a patch target that no resource
+//     defines refuses the entry;
+//   - with the patches applied, the definitions are those of the inventory
+//     (same names; group, kind, versions and served flags).
+//
+// Then the resource files are pre-patch copies and the kustomization is
+// class pre-patch, neither blocking attestation. Otherwise nothing
+// changes: the files keep their classes (a definition that differs from
+// the listed paths stays a conflict) and a kustomization that is a
+// reference says why the rendering was refused.
+func (x *Extractor) checkPrePatch(r extract.PinnedReader, repo extract.RepoRef, commit string, tg Target, e Exclusion, rec *ScanRecord, inv *Inventory) error {
+	// The files under the entry that name the kind.
+	present := map[string]bool{}
+	for _, p := range rec.Copies {
+		if exclusionMatches(e.Path, p) {
+			present[p] = true
+		}
+	}
+	for _, f := range rec.Findings {
+		if exclusionMatches(e.Path, f.Path) {
+			present[f.Path] = true
+		}
+	}
+	if len(present) == 0 {
+		return nil
+	}
+	acc, why, err := x.readPrePatch(r, repo, commit, tg, e, present, inv)
+	if err != nil {
+		return err
+	}
+	if why != "" {
+		for i := range rec.Findings {
+			if f := &rec.Findings[i]; f.Path == e.PrePatch && f.Class == ClassReference {
+				f.Detail += prePatchRefused + why
+			}
+		}
+		return nil
+	}
+	var copies []string
+	for _, p := range rec.Copies {
+		if acc.files[p] == nil {
+			copies = append(copies, p)
+		}
+	}
+	rec.Copies = append([]string{}, copies...)
+	var out []Finding
+	for _, f := range rec.Findings {
+		if acc.files[f.Path] == nil && f.Path != e.PrePatch {
+			out = append(out, f)
+		}
+	}
+	for p, pf := range acc.files {
+		fd := namedCopy(Finding{Path: p, SHA256: pf.sha256, Location: e.Path}, ClassPrePatchCopy, pf.crds, "with the patches of "+e.PrePatch+" applied ("+pf.ops+"), a copy of the listed paths")
+		out = append(out, fd)
+	}
+	kf := Finding{Path: e.PrePatch, SHA256: acc.sha256, Class: ClassPrePatch, Detail: fmt.Sprintf("renders %s into the listed paths with patches that only change version schemas, conversion settings and metadata labels and annotations, or add unserved versions", e.Path)}
+	if at := tg.placeOf(e.PrePatch); at.kind != locTree {
+		kf.Location = at.entry
+	}
+	rec.Findings = append(out, kf)
+	return nil
+}
+
+// prePatchFile is one resource file of an accepted pre-patch rendering:
+// its definitions with the patches applied and what the patches did.
+type prePatchFile struct {
+	sha256 string
+	crds   []CRD
+	ops    string
+}
+
+// prePatchRead is an accepted pre-patch rendering: its resource files by
+// path, and the kustomization's sha256.
+type prePatchRead struct {
+	files  map[string]*prePatchFile
+	sha256 string
+}
+
+// readPrePatch reads a pre-patch rendering (see checkPrePatch). It returns
+// why it is refused ("" when it is accepted); reader errors other than a
+// missing file abort.
+func (x *Extractor) readPrePatch(r extract.PinnedReader, repo extract.RepoRef, commit string, tg Target, e Exclusion, present map[string]bool, inv *Inventory) (*prePatchRead, string, error) {
+	acc := &prePatchRead{files: map[string]*prePatchFile{}}
+	entryDir := strings.TrimSuffix(e.Path, "/")
+	read := func(p string) ([]byte, string, error) {
+		data, err := r.Read(repo, commit, p)
+		switch {
+		case isNotFound(err):
+			return nil, fmt.Sprintf("%s does not exist", p), nil
+		case err != nil:
+			return nil, "", err
+		case len(data) > MaxFileBytes:
+			return nil, fmt.Sprintf("%s is over the %d-byte bound", p, MaxFileBytes), nil
+		}
+		return data, "", nil
+	}
+	// The patches kustomization.
+	data, why, err := read(e.PrePatch)
+	if why != "" || err != nil {
+		return nil, why, err
+	}
+	sum := sha256.Sum256(data)
+	acc.sha256 = "sha256:" + hex.EncodeToString(sum[:])
+	kdir := path.Dir(e.PrePatch)
+	obj, why := strictMapping(data, "resources", "patches")
+	if why != "" {
+		return nil, e.PrePatch + " " + why, nil
+	}
+	res, ok := obj["resources"].([]any)
+	if rel, _ := firstString(res); !ok || len(res) != 1 || rel == "" || remoteSource(rel) || strings.HasPrefix(rel, "/") || path.Join(kdir, rel) != entryDir {
+		return nil, fmt.Sprintf("%s does not have exactly one resource, the entry directory %s", e.PrePatch, entryDir), nil
+	}
+	patches, ok := obj["patches"].([]any)
+	if !ok || len(patches) == 0 || len(patches) > maxKustomizePatches {
+		return nil, fmt.Sprintf("%s patches is not a list of 1 to %d entries", e.PrePatch, maxKustomizePatches), nil
+	}
+	type patchRef struct{ name, file string }
+	var refs []patchRef
+	for i, it := range patches {
+		ref, why := prePatchEntry(it, kdir)
+		if why != "" {
+			return nil, fmt.Sprintf("%s patch %d %s", e.PrePatch, i+1, why), nil
+		}
+		refs = append(refs, patchRef{ref[0], ref[1]})
+	}
+	// The resources kustomization of the entry directory.
+	ekust := entryDir + "/kustomization.yaml"
+	data, why, err = read(ekust)
+	if why != "" || err != nil {
+		return nil, why, err
+	}
+	eobj, why := strictMapping(data, "resources")
+	if why != "" {
+		return nil, ekust + " " + why, nil
+	}
+	items, ok := eobj["resources"].([]any)
+	if !ok || len(items) == 0 {
+		return nil, ekust + " resources is not a list of files", nil
+	}
+	listed := map[string]bool{}
+	var paths []string
+	for _, it := range items {
+		s, _ := it.(string)
+		full := path.Join(entryDir, s)
+		if s == "" || strings.Contains(s, "/") || remoteSource(s) || !cleanRepoPath(full) || path.Dir(full) != entryDir || listed[full] {
+			return nil, fmt.Sprintf("%s resource %q is not a file of the directory", ekust, s), nil
+		}
+		listed[full] = true
+		paths = append(paths, full)
+	}
+	sort.Strings(paths)
+	for _, p := range sortedSet(present) {
+		if !listed[p] {
+			return nil, fmt.Sprintf("%s names the CustomResourceDefinition kind and is not a resource of %s", p, ekust), nil
+		}
+	}
+	// The definitions before the patches, by name.
+	byName := map[string]*CRD{}
+	fileOf := map[string]string{}
+	var names []string
+	for _, p := range paths {
+		if !present[p] {
+			return nil, fmt.Sprintf("resource %s of %s does not define a CustomResourceDefinition", p, ekust), nil
+		}
+		if at := tg.placeOf(p); at.entry != e.Path {
+			return nil, fmt.Sprintf("resource %s lies under another exclusion", p), nil
+		}
+		data, why, err := read(p)
+		if why != "" || err != nil {
+			return nil, why, err
+		}
+		frec, crds, err := parseFile(fileWord, data)
+		if err != nil || frec.OtherDocuments > 0 || len(crds) == 0 {
+			return nil, fmt.Sprintf("resource %s is not strictly read as apiextensions.k8s.io/v1 definitions only", p), nil
+		}
+		acc.files[p] = &prePatchFile{sha256: frec.SHA256}
+		for i := range crds {
+			c := crds[i]
+			c.Path = ""
+			if byName[c.Name] != nil {
+				return nil, fmt.Sprintf("%s is defined twice among the resources", c.Name), nil
+			}
+			byName[c.Name], fileOf[c.Name] = &c, p
+			names = append(names, c.Name)
+		}
+	}
+	sort.Strings(names)
+	// The patches, in order.
+	added := map[string][]string{}
+	schemaOps := map[string]int{}
+	for _, ref := range refs {
+		c := byName[ref.name]
+		if c == nil {
+			return nil, fmt.Sprintf("a patch targets %s, which no resource defines", ref.name), nil
+		}
+		target := regexp.MustCompile(`^(?:` + ref.name + `)$`)
+		for _, n := range names {
+			if n != ref.name && target.MatchString(n) {
+				return nil, fmt.Sprintf("the patch target %s also selects %s", ref.name, n), nil
+			}
+		}
+		data, why, err := read(ref.file)
+		if why != "" || err != nil {
+			return nil, why, err
+		}
+		ops, why := patchOps(data)
+		if why != "" {
+			return nil, fmt.Sprintf("patch %s: %s", ref.file, why), nil
+		}
+		for i, o := range ops {
+			if schemaOnlyOp(i, o) == "" {
+				schemaOps[ref.name]++
+				continue
+			}
+			v, why := unservedVersionOp(o)
+			if why != "" {
+				return nil, fmt.Sprintf("patch %s operation %d %s", ref.file, i, why), nil
+			}
+			if _, listed := c.version(v); listed {
+				return nil, fmt.Sprintf("patch %s operation %d adds version %s, which %s already lists", ref.file, i, v, ref.name), nil
+			}
+			c.Versions = append(c.Versions, CRDVersion{Name: v})
+			added[ref.name] = append(added[ref.name], v)
+		}
+	}
+	// The patched definitions are the listed ones.
+	if inv == nil {
+		return nil, "no inventory", nil
+	}
+	known := map[string]*CRD{}
+	for i := range inv.CRDs {
+		known[inv.CRDs[i].Name] = &inv.CRDs[i]
+	}
+	for _, n := range names {
+		k := known[n]
+		switch {
+		case k == nil:
+			return nil, fmt.Sprintf("the listed paths do not define %s", n), nil
+		case !sameServing(k, byName[n]):
+			return nil, fmt.Sprintf("%s: versions %s once patched, %s in %s", n, servingString(byName[n]), servingString(k), k.Path), nil
+		}
+	}
+	for _, c := range inv.CRDs {
+		if byName[c.Name] == nil {
+			return nil, fmt.Sprintf("the listed paths define %s, which no resource does", c.Name), nil
+		}
+	}
+	for p, pf := range acc.files {
+		var parts []string
+		for _, n := range names {
+			if fileOf[n] != p {
+				continue
+			}
+			pf.crds = append(pf.crds, *byName[n])
+			var did []string
+			if vs := added[n]; len(vs) > 0 {
+				did = append(did, "adds unserved "+strings.Join(vs, ", "))
+			}
+			switch k := schemaOps[n]; {
+			case k == 1:
+				did = append(did, "1 schema-only operation")
+			case k > 1:
+				did = append(did, fmt.Sprintf("%d schema-only operations", k))
+			}
+			if len(did) == 0 {
+				did = append(did, "no patch")
+			}
+			parts = append(parts, n+": "+strings.Join(did, ", "))
+		}
+		pf.ops = strings.Join(parts, "; ")
+	}
+	return acc, "", nil
+}
+
+// strictMapping decodes a file as one strict mapping with exactly the
+// given keys.
+func strictMapping(data []byte, keys ...string) (map[string]any, string) {
+	if strings.Contains(string(data), templateMarker) {
+		return nil, "is templated"
+	}
+	_, values, err := decodeStrict(data)
+	if err != nil || len(values) != 1 {
+		return nil, "is not a single strictly decodable document"
+	}
+	obj, ok := values[0].(map[string]any)
+	if !ok {
+		return nil, "is not a mapping"
+	}
+	for _, k := range sortedKeys(obj) {
+		if !slices.Contains(keys, k) {
+			return nil, fmt.Sprintf("has key %q (only %s are read)", k, strings.Join(keys, " and "))
+		}
+	}
+	for _, k := range keys {
+		if _, ok := obj[k]; !ok {
+			return nil, fmt.Sprintf("has no %s", k)
+		}
+	}
+	return obj, ""
+}
+
+func sortedSet(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func firstString(items []any) (string, bool) {
+	if len(items) == 0 {
+		return "", false
+	}
+	s, ok := items[0].(string)
+	return s, ok
+}
+
+// literalNameRE is a definition name whose only regular expression
+// characters are its dots.
+var literalNameRE = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)+$`)
+
+// prePatchEntry checks one patch entry of a pre-patch kustomization and
+// returns the definition it targets and its file.
+func prePatchEntry(v any, kdir string) ([2]string, string) {
+	var out [2]string
+	entry, ok := v.(map[string]any)
+	if !ok {
+		return out, "is not a mapping"
+	}
+	for _, k := range sortedKeys(entry) {
+		if k != "target" && k != "path" {
+			return out, fmt.Sprintf("has key %q (only target and path are read)", k)
+		}
+	}
+	target, ok := entry["target"].(map[string]any)
+	if !ok {
+		return out, "has no target mapping"
+	}
+	for _, k := range sortedKeys(target) {
+		switch k {
+		case "group", "version", "kind", "name":
+		default:
+			return out, fmt.Sprintf("target has key %q", k)
+		}
+	}
+	group, _ := target["group"].(string)
+	version, _ := target["version"].(string)
+	kind, _ := target["kind"].(string)
+	name, _ := target["name"].(string)
+	switch {
+	case group != crdGroup || version != "v1" || kind != crdKind:
+		return out, fmt.Sprintf("target is not group %s, version v1, kind %s", crdGroup, crdKind)
+	case len(name) > maxNameBytes || !literalNameRE.MatchString(name) || regexp.QuoteMeta(name) != strings.ReplaceAll(name, ".", `\.`):
+		return out, fmt.Sprintf("target name %q is not a literal definition name", name)
+	}
+	rel, _ := entry["path"].(string)
+	full := path.Join(kdir, rel)
+	if rel == "" || strings.HasPrefix(rel, "/") || remoteSource(rel) || !cleanRepoPath(full) || !strings.HasPrefix(full, kdir+"/") {
+		return out, fmt.Sprintf("path %q is not a file inside %s", rel, kdir)
+	}
+	return [2]string{name, full}, ""
+}
+
+// unservedVersionOp reads a JSON 6902 operation that adds an unserved,
+// unstored version at the end of spec.versions and returns its name.
+func unservedVersionOp(v any) (string, string) {
+	op, _ := v.(map[string]any)
+	for _, k := range sortedKeys(op) {
+		if k != "op" && k != "path" && k != "value" {
+			return "", fmt.Sprintf("has key %q", k)
+		}
+	}
+	if o, _ := op["op"].(string); o != "add" {
+		return "", fmt.Sprintf("is op %q outside version schemas, conversion settings and metadata labels and annotations", o)
+	}
+	if p, _ := op["path"].(string); p != "/spec/versions/-" {
+		return "", fmt.Sprintf("adds at %q, outside version schemas, conversion settings, metadata labels and annotations and the end of spec.versions", p)
+	}
+	value, ok := op["value"].(map[string]any)
+	if !ok {
+		return "", "adds a version that is not a mapping"
+	}
+	for _, k := range sortedKeys(value) {
+		switch k {
+		case "name", "served", "storage", "schema":
+		default:
+			return "", fmt.Sprintf("adds a version with key %q", k)
+		}
+	}
+	name, _ := value["name"].(string)
+	served, sok := value["served"].(bool)
+	stored, tok := value["storage"].(bool)
+	switch {
+	case !versionRE.MatchString(name) || len(name) > maxVersionNameByte:
+		return "", fmt.Sprintf("adds a version named %q", value["name"])
+	case !sok || !tok || served || stored:
+		return "", fmt.Sprintf("adds version %s without served: false and storage: false", name)
+	}
+	return name, ""
+}
+
 // remoteSource reports a kustomize resource or chart repository that lies
 // in another repository.
 func remoteSource(s string) bool {
@@ -1557,7 +2006,23 @@ func readKustomization(obj map[string]any) *kustomization {
 			}
 			k.crdTargets++
 			pp, _ := entry["path"].(string)
-			if _, inline := entry["patch"]; inline || pp == "" {
+			_, hasPath := entry["path"]
+			if raw, inline := entry["patch"]; inline {
+				// An inline string is read like a patch file; one that is
+				// not a JSON 6902 list (a strategic merge patch) is not
+				// checked, nor is an inline mapping.
+				text, ok := raw.(string)
+				if !ok || hasPath {
+					k.problem = "a CustomResourceDefinition patch is inline or names no file"
+					return k
+				}
+				k.inline++
+				if why := schemaOnlyPatch([]byte(text)); why != "" && k.inlineBad == "" {
+					k.inlineBad = fmt.Sprintf("inline patch %d: %s", k.inline, why)
+				}
+				continue
+			}
+			if pp == "" {
 				k.problem = "a CustomResourceDefinition patch is inline or names no file"
 				return k
 			}
@@ -1579,7 +2044,7 @@ func readKustomization(obj map[string]any) *kustomization {
 	if _, smp := obj["patchesStrategicMerge"]; smp {
 		k.problem = "strategic merge patches are not checked"
 	}
-	if len(k.patchPaths) > maxKustomizePatches {
+	if len(k.patchPaths)+k.inline > maxKustomizePatches {
 		k.problem = "too many patch files"
 	}
 	return k
@@ -1616,8 +2081,8 @@ func replacementOpen(v any) string {
 // checkKustomization returns "" when every CustomResourceDefinition
 // reference of the file is a checked patch target and every patch only
 // changes version schemas, conversion settings or metadata labels and
-// annotations: a JSON 6902 list, or a strategic merge patch fragment of
-// definitions the inventory holds.
+// annotations: a JSON 6902 list (in a file, or inline as a string), or a
+// strategic merge patch fragment file of definitions the inventory holds.
 func (x *Extractor) checkKustomization(r extract.PinnedReader, repo extract.RepoRef, commit, p string, info *blobInfo, inv *Inventory) (string, error) {
 	k := info.kust
 	switch {
@@ -1627,6 +2092,8 @@ func (x *Extractor) checkKustomization(r extract.PinnedReader, repo extract.Repo
 		return k.problem, nil
 	case k.crdTargets == 0 || k.crdTargets != info.kinds:
 		return "names the CustomResourceDefinition kind outside patch targets", nil
+	case k.inlineBad != "":
+		return k.inlineBad, nil
 	}
 	dir := path.Dir(p)
 	for _, rel := range k.patchPaths {
@@ -1670,47 +2137,67 @@ func fragmentPatch(data []byte, inv *Inventory) bool {
 // (spec/conversion, spec/preserveUnknownFields) or metadata
 // labels/annotations.
 func schemaOnlyPatch(data []byte) string {
+	ops, why := patchOps(data)
+	if why != "" {
+		return why
+	}
+	for i, o := range ops {
+		if why := schemaOnlyOp(i, o); why != "" {
+			return why
+		}
+	}
+	return ""
+}
+
+// patchOps decodes a JSON 6902 patch: a single strictly decodable document
+// that is a list of operations, without template syntax.
+func patchOps(data []byte) ([]any, string) {
 	if strings.Contains(string(data), templateMarker) {
-		return "templated"
+		return nil, "templated"
 	}
 	_, values, err := decodeStrict(data)
 	if err != nil || len(values) != 1 {
-		return "not a single strictly decodable document"
+		return nil, "not a single strictly decodable document"
 	}
 	ops, ok := values[0].([]any)
 	if !ok || len(ops) == 0 {
-		return "not a JSON 6902 operation list"
+		return nil, "not a JSON 6902 operation list"
 	}
-	for i, o := range ops {
-		op, ok := o.(map[string]any)
-		if !ok {
-			return fmt.Sprintf("operation %d is not a mapping", i)
-		}
-		name, _ := op["op"].(string)
-		switch name {
-		case "add", "remove", "replace", "test", "copy", "move":
+	return ops, ""
+}
+
+// schemaOnlyOp checks operation i of a JSON 6902 patch: a known op whose
+// path (and from) lies under a version's schema, the conversion settings or
+// metadata labels and annotations.
+func schemaOnlyOp(i int, o any) string {
+	op, ok := o.(map[string]any)
+	if !ok {
+		return fmt.Sprintf("operation %d is not a mapping", i)
+	}
+	name, _ := op["op"].(string)
+	switch name {
+	case "add", "remove", "replace", "test", "copy", "move":
+	default:
+		return fmt.Sprintf("operation %d has op %q", i, name)
+	}
+	for _, key := range sortedKeys(op) {
+		switch key {
+		case "op", "path", "value", "from":
 		default:
-			return fmt.Sprintf("operation %d has op %q", i, name)
+			return fmt.Sprintf("operation %d has key %q", i, key)
 		}
-		for key := range op {
-			switch key {
-			case "op", "path", "value", "from":
-			default:
-				return fmt.Sprintf("operation %d has key %q", i, key)
+	}
+	for _, key := range []string{"path", "from"} {
+		v, present := op[key]
+		if !present {
+			if key == "path" {
+				return fmt.Sprintf("operation %d has no path", i)
 			}
+			continue
 		}
-		for _, key := range []string{"path", "from"} {
-			v, present := op[key]
-			if !present {
-				if key == "path" {
-					return fmt.Sprintf("operation %d has no path", i)
-				}
-				continue
-			}
-			s, _ := v.(string)
-			if !patchPathRE.MatchString(s) {
-				return fmt.Sprintf("operation %d %s %q is outside version schemas, conversion settings and metadata labels and annotations", i, key, s)
-			}
+		s, _ := v.(string)
+		if !patchPathRE.MatchString(s) {
+			return fmt.Sprintf("operation %d %s %q is outside version schemas, conversion settings and metadata labels and annotations", i, key, s)
 		}
 	}
 	return ""

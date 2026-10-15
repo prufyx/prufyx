@@ -127,6 +127,25 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- Maintainer extractor `crd.version-removal` 2.5.0: a reviewed exclusion can
+  name the kustomization that renders its files into a listed bundle
+  (`prePatch`), and the scan checks that rendering at every release. It is
+  accepted only in one exact shape: a kustomization with nothing but its one
+  resource (the excluded directory) and patches of literally named
+  definitions, whose operations either only touch version schemas, conversion
+  settings and metadata labels and annotations or add a version that is
+  neither served nor stored; the patched definitions must be the listed ones.
+  Then the files are class `pre-patch-copy` and the kustomization class
+  `pre-patch`, neither blocking attestation; any other shape leaves every file
+  as it was. Elastic Cloud on Kubernetes' `config/crds/v1/resources/` is
+  reviewed this way, so its pairs, withheld by conflicting copies until now,
+  are derived (none attestable yet). A kustomization patch given inline as a
+  string is read like a patch file. A definition the later line no longer
+  defines records the one definition of the same kind and plural under
+  another API group as its `successor` (recorded only, never a rule); the
+  Percona Operator for PostgreSQL 2.9 to 3.0 pair stays withheld, by a patch
+  that writes a scratch path. The release tag prefix `knative-v` is accepted.
+  Other output changes only in the extractor version and code digest.
 - Maintainer extractor `crd.version-removal` 2.4.0 reads templated YAML files
   (Helm chart templates of the listed definitions) in every location, where
   earlier versions read them only under a reviewed exclusion that declares copies. A

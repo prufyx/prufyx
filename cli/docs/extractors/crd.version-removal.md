@@ -1,6 +1,6 @@
 # Extractor `crd.version-removal`
 
-Version 2.4.0. Derives `forbid_set_member` rules for custom-resource
+Version 2.5.0. Derives `forbid_set_member` rules for custom-resource
 versions that a project's release line no longer serves, from the
 CustomResourceDefinition manifests the project ships in its repository. It is
 deterministic, reads only upstream source pinned by full commit SHA, and
@@ -26,7 +26,8 @@ tags, the first release line a pair may start from, the paths that hold its
 rendered CRD manifests, and the reviewed exclusions of the full-tree scan
 (below), each with the reason it was accepted and, for chart templates that are
 copies of the listed definitions, the flag `copies` that makes the scan check
-that claim.
+that claim, or, for the generated sources a kustomization renders into a
+listed bundle, the kustomization `prePatch` whose rendering the scan checks.
 
 An entry of a project outside the CNCF landscape catalog carries
 `"catalog": "community"` (an entry without the field is a CNCF catalog
@@ -101,7 +102,13 @@ and cannot have a `remote`.
 ## Release lines and pairs
 
 A **line** is one `major.minor` of a project with at least one final release
-tag (`<prefix>X.Y.Z`; release candidates never count). When a release is tagged
+tag (`<prefix>X.Y.Z`; release candidates never count). A target names one or
+two prefixes from a closed set: none, `v`, and `knative-v` (the release tags of
+the Knative projects, `knative-v1.15.0`); each ends in a character that is not
+a digit or a dot, so no part of a version is ever read as the prefix, and a
+tag with anything before the prefix (`xknative-v1.15.0`), a suffix
+(`knative-v1.15.0-rc1`) or a leading zero (`knative-v01.2.3`) is not a release
+of the target. When a release is tagged
 under both prefixes of a project they must name one commit, or every pair of
 that line is withheld. A **pair** is two consecutive lines in version order (so
 a major release follows the last minor of the previous major, and a skipped
@@ -177,11 +184,13 @@ Through the offline factory mirror (or a fixture tree), never the network.
   | Class | Meaning |
   | --- | --- |
   | `copy` | every definition in it is in the inventory with the same versions and `served` flags |
-  | `schema-patch` | a kustomization whose only mentions of the kind are patch targets, each patch a JSON 6902 list whose every operation path lies under `/spec/versions/N/schema/`, `/spec/conversion`, at `/spec/preserveUnknownFields` or under metadata labels and annotations, or a `crd-patch` fragment (below) of listed definitions |
+  | `schema-patch` | a kustomization whose only mentions of the kind are patch targets, each patch (a file, or a string given inline under `patch`) a JSON 6902 list whose every operation path lies under `/spec/versions/N/schema/`, `/spec/conversion`, at `/spec/preserveUnknownFields` or under metadata labels and annotations, or a `crd-patch` fragment (below) of listed definitions; an inline patch that is a mapping or a strategic merge string keeps the file a `reference` |
   | `crd-patch` | a kubebuilder strategic merge patch fragment (`webhook_in_*.yaml`, `cainjection_in_*.yaml`) below a declared definition kustomization directory: every document is an `apiextensions.k8s.io/v1` or `v1beta1` `CustomResourceDefinition` of a listed definition with nothing but `metadata.name`, metadata labels and annotations, `spec.conversion` (strategy, webhook client configuration, review versions) and `spec.preserveUnknownFields`, each of its known shape; a template, any other key (`spec.versions`, `spec.version`, `spec.group`, a `$patch` or `$retainKeys` directive, ...) or a definition the listed paths do not hold leaves the file `unread` |
   | `kustomize-config` | a kustomize transformer configuration (`kustomizeconfig.yaml`) below a declared definition kustomization directory that holds only `nameReference`, `namespace`, `varReference`, `commonLabels` and `commonAnnotations`, in which every field spec of the kind names the `apiextensions.k8s.io` group, and it and every field spec without a kind a path under `spec/conversion` or metadata labels and annotations; otherwise the file stays a `reference`. Every configuration a kustomization below such a directory names (`configurations`), and every `kustomizeconfig.yaml` there, is read even when it never contains the kind name (a field spec without a kind applies to every kind); one that cannot be read or has an unchecked field spec is a `reference` |
   | `legacy-copy` | every definition in it is strictly read, at least one is an `apiextensions.k8s.io/v1beta1` definition (versions from `spec.versions` with `served` and `storage`, the first equal to `spec.version` when both are given, or from `spec.version` alone, served and stored; exactly one storage version), and every one is in the inventory with the same group, kind, versions and `served` flags; a v1beta1 definition with other versions or flags is a `conflict`, one not in the inventory `extra`, an incomplete one `unread` |
   | `templated-copy` | a templated file in the open tree, a default-excluded directory or a reviewed exclusion that does not declare copies, whose rendered versions its literal lines determine (see below) and which, read that way, is a copy; recorded with its definitions and the members they serve |
+  | `pre-patch-copy` | a file under a reviewed exclusion with `prePatch` whose rendering the scan accepted (see below): with the kustomization's patches applied, its definitions are listed ones with the same versions and `served` flags; recorded with its definitions, the members they serve and, in the detail, the operations applied to each |
+  | `pre-patch` | the kustomization named by such an exclusion, when its rendering is accepted |
   | `conflict` | it defines a CRD of the inventory with other versions or `served` flags |
   | `extra` | it defines a CRD that is not in the inventory |
   | `reference` | it holds the kind as a value (a nested object, a field, a manifest embedded in a string) but defines none at the top level, and is not a schema-only kustomization; a file that only mentions the word in a comment or a description is not a finding |
@@ -195,13 +204,14 @@ Through the offline factory mirror (or a fixture tree), never the network.
 
   The effect depends on the class and the location:
 
-  - `copy`, `templated-copy`, `schema-patch`, `crd-patch`, `kustomize-config`
-    and `legacy-copy`: none, anywhere.
+  - `copy`, `templated-copy`, `schema-patch`, `crd-patch`, `kustomize-config`,
+    `legacy-copy`, `pre-patch-copy` and `pre-patch`: none, anywhere.
   - `conflict` in the open tree: the pair is withheld when the release is a
     pair's first release; otherwise the pair's rules hold for the anchor pair
     only.
   - `unread`, `unsupported` or `go-defined` in the open tree, and `conflict`,
-    `unread`, `unsupported` or `go-defined` among declared copies: at the later
+    `unread`, `unsupported` or `go-defined` among declared copies (with
+    `copies` or `prePatch`): at the later
     line's first release the pair's rules are withheld (a version they forbid may still be served
     there); at another release of the later line the rules hold for the anchor
     pair only.
@@ -268,13 +278,52 @@ Through the offline factory mirror (or a fixture tree), never the network.
     flags. A copy is listed under `copies`, a file that serves other versions
     is a `conflict`, one that defines another CRD is `extra`, and one that
     cannot be read is `unread`.
+  - A reviewed exclusion with `prePatch` (a directory prefix, such as Elastic
+    Cloud on Kubernetes' `config/crds/v1/resources/`, which
+    `kubectl kustomize config/crds/v1/patches` renders into the listed
+    `config/crds/v1/all-crds.yaml`) states that its files are the listed
+    definitions before the patches of the named kustomization apply. Its
+    files keep their classes, as among declared copies, unless the scan
+    accepts the rendering at the release, which it does only in this exact
+    shape:
+    - the named kustomization, strictly decoded, has exactly the keys
+      `resources` and `patches` (no inline patch, `patchesStrategicMerge`,
+      `replacements`, `components`, `commonLabels`, `namePrefix`, ...); its
+      one resource is a local path to the entry's directory; each patch
+      entry has exactly a `target` (group `apiextensions.k8s.io`, version
+      `v1`, kind `CustomResourceDefinition` and a definition name whose only
+      regular expression characters are its dots and which, anchored as
+      kustomize anchors it, matches no other definition of the resources)
+      and a `path` to a file inside the kustomization's directory;
+    - the `kustomization.yaml` of the entry's directory, strictly decoded,
+      has exactly the key `resources`, each a file of that directory; they
+      are every file under the entry that holds the kind, and each holds
+      `apiextensions.k8s.io/v1` definitions only, strictly read;
+    - every operation of every patch file is one a `schema-patch` may hold,
+      or an `add` at `/spec/versions/-` of a version the definition does
+      not list yet, with a valid name, `served: false` and `storage: false`
+      as booleans and nothing but a `schema` besides; any other operation,
+      a templated patch, or a target that no resource defines refuses the
+      rendering;
+    - with the patches applied in order, the definitions are those of the
+      inventory: the same names, and the same group, kind, versions and
+      `served` flags for each.
+
+    When the rendering is accepted the resource files are `pre-patch-copy`
+    and the kustomization is `pre-patch`. Otherwise nothing changes: a
+    resource that lacks the added version stays a `conflict`, and a
+    kustomization that is a `reference` says in its detail why the rendering
+    was refused. The loader refuses `prePatch` together with `copies`, on a
+    file or pattern entry, when it is not the clean path of a kustomization,
+    lies under the entry or a listed path, or the target has install
+    channels or a `remote` source.
 
   **Reviewed exclusions carry evidence and are guarded.** Every entry of the
   table names its repository, the path (a directory prefix ending in `/`, one
   file or a pattern whose wildcards are in the last path element only), the
   reason the files are not installed and the evidence a reviewer read, and the
   claim must hold at every release of the window. An
-  entry that is not a declared copy may not lie under a chart, deploy,
+  entry that is not a declared copy (`copies` or `prePatch`) may not lie under a chart, deploy,
   deployment, install or installation directory, below a `config/crd` or
   `config/crds` directory, or below a top-level `manifests` directory (the
   loader refuses it), and never covers a listed path. At each release the
@@ -318,8 +367,9 @@ Through the offline factory mirror (or a fixture tree), never the network.
   configuration), a container build that copies its whole context and selects
   files while it runs, and Go code that opens a path at run time. Go sources
   under a reviewed exclusion are not read for definitions, only for
-  `//go:embed` directives. Declared copies are not guarded: they
-  are install surfaces by nature and are checked file by file instead.
+  `//go:embed` directives. Declared copies (`copies` or `prePatch`) are not
+  guarded: they are install surfaces by nature and are checked file by file
+  instead.
 
   A file with the same git blob id (and kind) as one already read is not read
   again; what the scan concludes from the bytes never depends on the path they
@@ -421,7 +471,14 @@ For every pair, `manifest.json` records under `pairs[].proof`:
 - `definitionsRemoved`: each CRD a release of the later line defines nowhere
   (`crd`, the `members` served before, `fromTag` and `fromPath` of the latest
   release before that defines it, and `absentAt`, the later-line releases
-  without it);
+  without it); for a CRD the later line's first release no longer defines,
+  `successor` names the one definition of that release with the same kind and
+  plural under another API group (a renamed group), when there is exactly
+  one and no release of the earlier line defines it. It is recorded only: the
+  completeness reason adds that a definition of the kind exists under the new
+  name and that whether objects are converted is not established; it is never
+  a rule (the old group's members get none) and the pair stays not
+  attestable;
 - `storageHistory`: for each CRD, every storage version it has at the releases
   read;
 - `unlistedRemovals`: each version that a definition outside the listed paths
@@ -563,6 +620,22 @@ version must come from a full run of that project's id with this build (which
 then carries the id's own digest), not from an edit of a record that carries
 the old shared digest. From then on, a change to one target only requires
 re-deriving the records of that target's id.
+## Changes from version 2.4.0
+
+Version 2.5.0 adds the `prePatch` member of a reviewed exclusion and the
+classes `pre-patch-copy` and `pre-patch` (above), and reviews Elastic Cloud on
+Kubernetes' `config/crds/v1/resources/` with it: its resource files, which lack
+the unserved `v1alpha1` the patches add, were conflicts in the open tree and
+withheld its pairs. A kustomization patch given inline as a string is read like
+a patch file, so a kustomization whose inline patches only touch metadata
+labels (Percona's PostgreSQL operator) is `schema-patch` instead of a
+`reference`; that project's 2.9 to 3.0 pair stays withheld, since another
+patch of those kustomizations writes a scratch path (`/work`) the scan does not
+accept. A removed definition records its `successor` under a renamed API group.
+The tag prefix `knative-v` is accepted. Output is unchanged for every target
+and file none of these applies to, except the extractor version and the code
+digest.
+
 ## Changes from version 2.3.0
 
 Version 2.4.0 reads templated YAML files in every location, not only under a

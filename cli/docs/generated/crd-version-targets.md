@@ -16,7 +16,7 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.contour` | CNCF | `github.com/projectcontour/contour` | `vX.Y.Z` | 1.28 | no | `examples/contour/01-crds.yaml` | 0 |
 | `crd.version-removal.crossplane` | CNCF | `github.com/crossplane/crossplane` | `vX.Y.Z` | 1.20 | no | files matching `^[^.][^/]*\.ya?ml$` in `cluster/crds` | 5 |
 | `crd.version-removal.dapr` | CNCF | `github.com/dapr/dapr` | `vX.Y.Z` | 1.13 | no | files matching `^[^.][^/]*\.ya?ml$` in `charts/dapr/crds` | 0 |
-| `crd.version-removal.eck-operator` | community | `github.com/elastic/cloud-on-k8s` | `vX.Y.Z` | 3.0 | no | `config/crds/v1/all-crds.yaml` | 0 |
+| `crd.version-removal.eck-operator` | community | `github.com/elastic/cloud-on-k8s` | `vX.Y.Z` | 3.0 | no | `config/crds/v1/all-crds.yaml` | 1 |
 | `crd.version-removal.external-secrets` | CNCF | `github.com/external-secrets/external-secrets` | `vX.Y.Z` | 2.7 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crds/bases` | 0 |
 | `crd.version-removal.gateway-api` | community | `github.com/kubernetes-sigs/gateway-api` | `vX.Y.Z` | 1.1 | no | channel `standard` (declared): files matching `^[^.][^/]*\.ya?ml$` in `config/crd/standard`; channel `experimental`, read only to keep the versions it still serves out of rules: files matching `^[^.][^/]*\.ya?ml$` in `config/crd/experimental` | 0 |
 | `crd.version-removal.istio` | CNCF | `github.com/istio/istio` | `X.Y.Z` | 1.26 | yes | `manifests/charts/base/files/crd-all.gen.yaml` | 7 |

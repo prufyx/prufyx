@@ -37,7 +37,7 @@ const (
 	// IDPrefix is followed by the project slug: one extractor id per
 	// project, since a run reads one repository.
 	IDPrefix = "crd.version-removal."
-	Version  = "2.4.0"
+	Version  = "2.5.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/crdversions"
 )
@@ -552,6 +552,13 @@ type DefinitionRemoval struct {
 	FromTag  string   `json:"fromTag"`
 	FromPath string   `json:"fromPath"`
 	AbsentAt []string `json:"absentAt"`
+	// Successor is the definition of the later anchor with the same kind
+	// and plural under another group (a renamed API group), when exactly
+	// one exists and no earlier-line release defines it. It is recorded
+	// only: whether the objects of the removed definition are converted to
+	// it is not established, so it is never a rule and the removal still
+	// keeps the pair from being attestable.
+	Successor string `json:"successor,omitempty"`
 }
 
 // StorageHistory is every storage version one CRD has at the releases read.
@@ -842,6 +849,7 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 		scope = []*tagState{ta}
 	}
 	removals, proof.ChannelRetained = dropChannelRetained(removals, scope)
+	setSuccessors(defsRemoved, fromTags, ta)
 	all := append(append([]*tagState{}, fromTags...), toTags...)
 	history := storageHistory(all)
 	for i := range removals {
@@ -1344,6 +1352,41 @@ func definitionRemoval(name string, members []string, from, absentAt []*tagState
 	return d
 }
 
+// setSuccessors records, for each definition the later anchor no longer
+// defines, the one definition of the later anchor with the same kind and
+// plural under another group, when there is exactly one and no
+// earlier-line release defines it.
+func setSuccessors(defs []DefinitionRemoval, from []*tagState, ta *tagState) {
+	for i := range defs {
+		var old *CRD
+		for j := len(from) - 1; j >= 0 && old == nil; j-- {
+			if from[j].complete() {
+				old = from[j].byName[defs[i].CRD]
+			}
+		}
+		if old == nil {
+			continue
+		}
+		var found []string
+		for k := range ta.inv.CRDs {
+			c := &ta.inv.CRDs[k]
+			if c.Kind == old.Kind && c.Plural == old.Plural && c.Group != old.Group {
+				found = append(found, c.Name)
+			}
+		}
+		if len(found) != 1 {
+			continue
+		}
+		earlier := false
+		for _, st := range from {
+			earlier = earlier || (st.complete() && st.byName[found[0]] != nil)
+		}
+		if !earlier {
+			defs[i].Successor = found[0]
+		}
+	}
+}
+
 func slicesContains(s []string, v string) bool {
 	for _, x := range s {
 		if x == v {
@@ -1472,7 +1515,11 @@ func completeness(fromLine, toLine *releaseLine, from, to []*tagState, lines *Li
 		if len(d.AbsentAt) > 0 {
 			where = strings.Join(d.AbsentAt, ", ")
 		}
-		c.Reasons = append(c.Reasons, fmt.Sprintf("%s no longer defines %s: whether an upgraded cluster keeps the old definition or deletes it with its objects depends on the install method and is not established", where, d.CRD))
+		reason := fmt.Sprintf("%s no longer defines %s: whether an upgraded cluster keeps the old definition or deletes it with its objects depends on the install method and is not established", where, d.CRD)
+		if d.Successor != "" {
+			reason += fmt.Sprintf("; a definition of kind %s exists as %s; whether objects are converted is not established", kindOf(d.CRD, from), d.Successor)
+		}
+		c.Reasons = append(c.Reasons, reason)
 	}
 	for _, u := range unlisted {
 		c.Reasons = append(c.Reasons, fmt.Sprintf("%s is served outside the listed paths (%s at %s) and by no file of the later line", u.Member, u.Path, u.FromTag))
@@ -1481,6 +1528,17 @@ func completeness(fromLine, toLine *releaseLine, from, to []*tagState, lines *Li
 	// keeps the scan from being clean.
 	c.Attestable = c.Declared && c.Scan && c.LineWide && c.Hop == HopPreviousMinor && len(defs) == 0
 	return c
+}
+
+// kindOf is the kind of a definition some release of the earlier line
+// holds.
+func kindOf(name string, from []*tagState) string {
+	for _, st := range from {
+		if st.complete() && st.byName[name] != nil {
+			return st.byName[name].Kind
+		}
+	}
+	return ""
 }
 
 // nameSlug turns a CRD name into a rule id part without collisions: a

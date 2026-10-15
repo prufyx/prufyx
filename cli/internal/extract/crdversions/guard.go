@@ -696,15 +696,15 @@ func refKind(p string) string {
 	return "kustomization"
 }
 
-// guard checks the reviewed exclusions that are not declared copies
-// against the install surfaces of one tag. It returns a finding for each
-// exclusion that has files at the tag and is referenced, and the set of
-// those exclusions (by entry path). blobs are all the files of the tree,
-// commits its submodules.
+// guard checks the reviewed exclusions that are not declared copies or
+// pre-patch copies against the install surfaces of one tag. It returns a
+// finding for each exclusion that has files at the tag and is referenced,
+// and the set of those exclusions (by entry path). blobs are all the files
+// of the tree, commits its submodules.
 func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extract.RepoRef, commit string, blobs []extract.TreeEntry, commits []string) ([]Finding, map[string]bool, error) {
 	var excl []Exclusion
 	for _, e := range x.target.Exclude {
-		if !e.Copies {
+		if !e.checked() {
 			excl = append(excl, e)
 		}
 	}
