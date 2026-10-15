@@ -128,6 +128,10 @@ func snapshotInfo(digest, capturedOn string, now time.Time) *SnapshotInfo {
 	return info
 }
 
+// sameLine compares two release lines (major.minor labels), not versions: no
+// transition matching goes through it.
+func sameLine(a, b string) bool { return a == b }
+
 func lineParts(line string) (int, int, bool) {
 	major, minor, ok := strings.Cut(line, ".")
 	if !ok {
@@ -315,7 +319,7 @@ func (c *completer) invalidDeclarations(slug string, pl ProjectLines, regs []reg
 		if ok {
 			ok = false
 			for i := 0; i+1 < len(pl.Lines); i++ {
-				if pl.Lines[i] == d.From && pl.Lines[i+1] == d.To {
+				if sameLine(pl.Lines[i], d.From) && sameLine(pl.Lines[i+1], d.To) {
 					ok = true
 				}
 			}
@@ -337,7 +341,7 @@ func (c *completer) pairState(slug string, r registration, pl ProjectLines, from
 	if c.attested(slug, r, pl, from, to) {
 		return stateDecided
 	}
-	if d, ok := c.decls[declKey{slug, r.family, from}]; ok && d.To == to && d.currentAt(c.now) {
+	if d, ok := c.decls[declKey{slug, r.family, from}]; ok && sameLine(d.To, to) && d.currentAt(c.now) {
 		return stateDeclared
 	}
 	return stateUndeclared
@@ -351,11 +355,11 @@ func (c *completer) attested(slug string, r registration, pl ProjectLines, from,
 	if !ok {
 		return false
 	}
-	if previous, ok := previousLine(to); !ok || previous != from {
+	if previous, ok := previousLine(to); !ok || !sameLine(previous, from) {
 		return false
 	}
 	for _, a := range c.atts {
-		if a.Component != r.component || a.FactFamily != r.family || a.Line != to || a.Completeness != lineattest.Completeness {
+		if a.Component != r.component || a.FactFamily != r.family || !sameLine(a.Line, to) || a.Completeness != lineattest.Completeness {
 			continue
 		}
 		if a.Freshness(c.now) != lineattest.FreshnessCurrent || !c.evidenceOK(r, a.Evidence.Basis, a.Evidence.Extractor, a.Evidence.Sources, a.Evidence.ValidUntil) {
