@@ -23,36 +23,55 @@ that Prufyx embeds (`CNCF`) or a project of the **community catalog**
 
 | Project | Catalog | Fact | API groups |
 | --- | --- | --- | --- |
+| `agones` | CNCF | `component.agones.custom_resource_versions_set` | `agones.dev`, `autoscaling.agones.dev`, `multicluster.agones.dev` |
 | `antrea` | CNCF | `component.antrea.custom_resource_versions_set` | `crd.antrea.io`, `multicluster.crd.antrea.io` |
 | `argo-cd` | CNCF | `component.argo_cd.custom_resource_versions_set` | `argoproj.io` |
+| `capsule` | CNCF | `component.capsule.custom_resource_versions_set` | `capsule.clastix.io` |
 | `cert-manager` | CNCF | `component.cert_manager.custom_resource_versions_set` | `acme.cert-manager.io`, `cert-manager.io` |
+| `chaos-mesh` | CNCF | `component.chaos_mesh.custom_resource_versions_set` | `chaos-mesh.org` |
 | `cilium` | CNCF | `component.cilium.custom_resource_versions_set` | `cilium.io` |
 | `cloudnativepg` | CNCF | `component.cloudnativepg.custom_resource_versions_set` | `postgresql.cnpg.io` |
 | `cluster-api` | community | `component.cluster_api.custom_resource_versions_set` | `cluster.x-k8s.io`, `clusterctl.cluster.x-k8s.io`, `runtime.cluster.x-k8s.io` |
 | `contour` | CNCF | `component.contour.custom_resource_versions_set` | `projectcontour.io` |
 | `crossplane` | CNCF | `component.crossplane.custom_resource_versions_set` | `apiextensions.crossplane.io`, `ops.crossplane.io`, `pkg.crossplane.io`, `protection.crossplane.io`, `secrets.crossplane.io` |
 | `dapr` | CNCF | `component.dapr.custom_resource_versions_set` | `dapr.io` |
+| `dex` | CNCF | `component.dex.custom_resource_versions_set` | `dex.coreos.com` |
 | `eck-operator` | community | `component.eck_operator.custom_resource_versions_set` | `agent.k8s.elastic.co`, `apm.k8s.elastic.co`, `autoops.k8s.elastic.co`, `autoscaling.k8s.elastic.co`, `beat.k8s.elastic.co`, `elasticsearch.k8s.elastic.co`, `enterprisesearch.k8s.elastic.co`, `kibana.k8s.elastic.co`, `logstash.k8s.elastic.co`, `maps.k8s.elastic.co`, `packageregistry.k8s.elastic.co`, `stackconfigpolicy.k8s.elastic.co` |
 | `external-secrets` | CNCF | `component.external_secrets.custom_resource_versions_set` | `external-secrets.io`, `generators.external-secrets.io` |
+| `fluid` | CNCF | `component.fluid.custom_resource_versions_set` | `data.fluid.io` |
 | `gateway-api` | community | `component.gateway_api.custom_resource_versions_set` | `gateway.networking.k8s.io` |
+| `higress` | CNCF | `component.higress.custom_resource_versions_set` | `extensions.higress.io`, `networking.higress.io` |
 | `istio` | CNCF | `component.istio.custom_resource_versions_set` | `extensions.istio.io`, `networking.istio.io`, `security.istio.io`, `telemetry.istio.io` |
+| `kagent` | CNCF | `component.kagent.custom_resource_versions_set` | `kagent.dev` |
 | `karmada` | CNCF | `component.karmada.custom_resource_versions_set` | `apps.karmada.io`, `autoscaling.karmada.io`, `config.karmada.io`, `networking.karmada.io`, `operator.karmada.io`, `policy.karmada.io`, `remedy.karmada.io`, `work.karmada.io` |
+| `kcp` | CNCF | `component.kcp.custom_resource_versions_set` | `apis.kcp.io`, `cache.kcp.io`, `core.kcp.io`, `migration.kcp.io`, `tenancy.kcp.io`, `topology.kcp.io` |
 | `keda` | CNCF | `component.keda.custom_resource_versions_set` | `eventing.keda.sh`, `keda.sh` |
+| `kgateway` | CNCF | `component.kgateway.custom_resource_versions_set` | `gateway.kgateway.dev` |
 | `kong-ingress-controller` | community | `component.kong_ingress_controller.custom_resource_versions_set` | `configuration.konghq.com` |
 | `koordinator` | CNCF | `component.koordinator.custom_resource_versions_set` | `analysis.koordinator.sh`, `config.koordinator.sh`, `quota.koordinator.sh`, `scheduling.koordinator.sh`, `slo.koordinator.sh` |
+| `kube-ovn` | CNCF | `component.kube_ovn.custom_resource_versions_set` | `kubeovn.io` |
+| `kubearmor` | CNCF | `component.kubearmor.custom_resource_versions_set` | `security.kubearmor.com` |
+| `kuberhealthy` | CNCF | `component.kuberhealthy.custom_resource_versions_set` | `comcast.github.io`, `kuberhealthy.github.io` |
+| `kubevela` | CNCF | `component.kubevela.custom_resource_versions_set` | `core.oam.dev`, `cue.oam.dev`, `standard.oam.dev` |
 | `kueue` | community | `component.kueue.custom_resource_versions_set` | `kueue.x-k8s.io` |
 | `kuma` | CNCF | `component.kuma.custom_resource_versions_set` | `kuma.io` |
 | `kyverno` | CNCF | `component.kyverno.custom_resource_versions_set` | `kyverno.io`, `policies.kyverno.io`, `reports.kyverno.io`, `wgpolicyk8s.io` |
+| `litmus` | CNCF | `component.litmus.custom_resource_versions_set` | `eventtracker.litmuschaos.io`, `litmuschaos.io` |
+| `logging-operator-kube-logging` | CNCF | `component.logging_operator_kube_logging.custom_resource_versions_set` | `logging-extensions.banzaicloud.io`, `logging.banzaicloud.io` |
 | `longhorn` | CNCF | `component.longhorn.custom_resource_versions_set` | `longhorn.io` |
 | `metallb` | CNCF | `component.metallb.custom_resource_versions_set` | `metallb.io` |
 | `mongodb-kubernetes` | community | `component.mongodb_kubernetes.custom_resource_versions_set` | `ai.mongodb.com`, `mongodb.com`, `mongodbcommunity.mongodb.com` |
 | `node-feature-discovery` | community | `component.node_feature_discovery.custom_resource_versions_set` | `nfd.k8s-sigs.io` |
+| `openchoreo` | CNCF | `component.openchoreo.custom_resource_versions_set` | `openchoreo.dev` |
 | `openkruise` | CNCF | `component.openkruise.custom_resource_versions_set` | `apps.kruise.io`, `policy.kruise.io` |
+| `openyurt` | CNCF | `component.openyurt.custom_resource_versions_set` | `apps.openyurt.io`, `iot.openyurt.io`, `network.openyurt.io`, `raven.openyurt.io` |
 | `percona-postgresql-operator` | community | `component.percona_postgresql_operator.custom_resource_versions_set` | `pgv2.percona.com`, `upstream.pgv2.percona.com` |
 | `prometheus-operator` | community | `component.prometheus_operator.custom_resource_versions_set` | `monitoring.coreos.com` |
+| `radius` | CNCF | `component.radius.custom_resource_versions_set` | `radapp.io`, `ucp.dev` |
 | `rancher` | community | `component.rancher.custom_resource_versions_set` | `auditlog.cattle.io`, `catalog.cattle.io`, `management.cattle.io`, `operation.cattle.io`, `plan.cattle.io`, `provisioning.cattle.io`, `rke.cattle.io`, `scc.cattle.io`, `telemetry.cattle.io` |
 | `rook` | CNCF | `component.rook.custom_resource_versions_set` | `ceph.rook.io`, `objectbucket.io` |
 | `strimzi` | CNCF | `component.strimzi.custom_resource_versions_set` | `core.strimzi.io`, `kafka.strimzi.io` |
+| `submariner` | CNCF | `component.submariner.custom_resource_versions_set` | `submariner.io` |
 | `tekton` | CNCF | `component.tekton.custom_resource_versions_set` | `resolution.tekton.dev`, `tekton.dev` |
 | `velero` | CNCF | `component.velero.custom_resource_versions_set` | `velero.io` |
 | `volcano` | CNCF | `component.volcano.custom_resource_versions_set` | `batch.volcano.sh`, `bus.volcano.sh`, `config.volcano.sh`, `flow.volcano.sh`, `nodeinfo.volcano.sh`, `scheduling.volcano.sh`, `shard.volcano.sh`, `topology.volcano.sh` |
@@ -113,6 +132,12 @@ both ship, the Cluster API provider groups (`bootstrap`, `controlplane`,
 `addons`, `ipam` and `infrastructure.cluster.x-k8s.io`, which other providers
 define CRDs in too), and `postgres-operator.crunchydata.com`, which the Percona
 Operator for PostgreSQL ships as a fork of Crunchy Data's operator. `access.strimzi.io` is not listed either.
+A group that already belongs to another project of the table is not listed for
+a project that ships a copy of its CRDs: Litmus ships Argo Workflows' CRDs
+(`argoproj.io`), and Higress ships Istio's EnvoyFilter CRD
+(`networking.istio.io`). Nor are Kubernetes groups that a project defines as
+CRDs of its own: kcp defines `admissionregistration.k8s.io` and
+`rbac.authorization.k8s.io` types for its logical clusters.
 
 ### Groups in Kubernetes namespaces
 

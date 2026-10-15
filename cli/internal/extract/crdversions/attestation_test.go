@@ -195,11 +195,11 @@ func TestRealTargetsAttestOnlyWhatTheyMay(t *testing.T) {
 }
 
 // attestPending lists the registered targets that do not attest yet: their
-// set fact and groups are in the reviewed table (REGISTRY-WAVE-1, CRD-GEN wave 2) and the
+// set fact and groups are in the reviewed table (REGISTRY-WAVE-1, CRD-GEN waves 2 and 3) and the
 // family admits their component, but the extractor attests their lines only
 // after their own review of what a complete line means for the project
 // (the attest flag of targets.json, a separate reviewed change).
-var attestPending = []string{"antrea", "cert-manager", "cilium", "cloudnativepg", "contour", "crossplane", "dapr", "external-secrets", "karmada", "keda", "koordinator", "kuma", "kyverno", "longhorn", "metallb", "openkruise", "rook", "tekton", "velero", "volcano"}
+var attestPending = []string{"agones", "antrea", "capsule", "cert-manager", "chaos-mesh", "cilium", "cloudnativepg", "contour", "crossplane", "dapr", "dex", "external-secrets", "fluid", "higress", "kagent", "karmada", "kcp", "keda", "kgateway", "koordinator", "kube-ovn", "kubearmor", "kuberhealthy", "kubevela", "kuma", "kyverno", "litmus", "logging-operator-kube-logging", "longhorn", "metallb", "openchoreo", "openkruise", "openyurt", "radius", "rook", "submariner", "tekton", "velero", "volcano"}
 
 // A target attests only when its project is in the reviewed custom-resource
 // table (its set fact is registered), and never while it is listed as

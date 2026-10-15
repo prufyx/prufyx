@@ -2,6 +2,19 @@
   "schema": "prufyx.io/crd-version-targets/v1",
   "targets": [
     {
+      "project": "agones",
+      "name": "Agones",
+      "repo": "github.com/agones-dev/agones",
+      "component": "pkg:github/agones-dev/agones",
+      "factProject": "agones",
+      "tagPrefixes": ["v"],
+      "minFrom": "1.56",
+      "paths": [
+        {"path": "install/yaml/install.yaml"}
+      ],
+      "exclude": []
+    },
+    {
       "project": "antrea",
       "name": "Antrea",
       "repo": "github.com/antrea-io/antrea",
@@ -30,6 +43,19 @@
       "exclude": []
     },
     {
+      "project": "capsule",
+      "name": "Capsule",
+      "repo": "github.com/projectcapsule/capsule",
+      "component": "pkg:github/projectcapsule/capsule",
+      "factProject": "capsule",
+      "tagPrefixes": ["v"],
+      "minFrom": "0.9",
+      "paths": [
+        {"path": "charts/capsule/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
       "project": "cert-manager",
       "name": "cert-manager",
       "repo": "github.com/cert-manager/cert-manager",
@@ -44,6 +70,19 @@
         {"path": "deploy/charts/cert-manager/templates/", "repo": "github.com/cert-manager/cert-manager", "reason": "Helm chart templates; the chart's CRD templates are rendered from the same generated definitions as deploy/crds (checked as copies)", "evidence": "Not trusted, checked: at every tag each file is read with its template directives removed and its definitions are compared with the listed paths (versions, served flags); a mismatch, another definition or an unreadable file blocks attestation.", "copies": true},
         {"path": "make/", "repo": "github.com/cert-manager/cert-manager", "reason": "build scripts and the Helm template header used to generate chart CRD templates; no installed definition", "evidence": "Read at v1.16.0 and v1.21.2: make/ holds the Makefile fragments included by the root Makefile, kind and e2e scripts, and make/config/* (kind, kyverno, bind, ...) which only the e2e-setup targets apply to a test cluster; make/_shared*/helm/crd.template.header.yaml is the header the CRD generator prepends to the chart templates."}
       ]
+    },
+    {
+      "project": "chaos-mesh",
+      "name": "Chaos Mesh",
+      "repo": "github.com/chaos-mesh/chaos-mesh",
+      "component": "pkg:github/chaos-mesh/chaos-mesh",
+      "factProject": "chaos_mesh",
+      "tagPrefixes": ["v"],
+      "minFrom": "2.3",
+      "paths": [
+        {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
     },
     {
       "project": "cilium",
@@ -136,6 +175,19 @@
       "exclude": []
     },
     {
+      "project": "dex",
+      "name": "Dex",
+      "repo": "github.com/dexidp/dex",
+      "component": "pkg:github/dexidp/dex",
+      "factProject": "dex",
+      "tagPrefixes": ["v"],
+      "minFrom": "2.41",
+      "paths": [
+        {"path": "scripts/manifests/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
       "project": "eck-operator",
       "catalog": "community",
       "name": "Elastic Cloud on Kubernetes",
@@ -163,6 +215,19 @@
       "exclude": []
     },
     {
+      "project": "fluid",
+      "name": "Fluid",
+      "repo": "github.com/fluid-cloudnative/fluid",
+      "component": "pkg:github/fluid-cloudnative/fluid",
+      "factProject": "fluid",
+      "tagPrefixes": ["v"],
+      "minFrom": "0.7",
+      "paths": [
+        {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
       "project": "gateway-api",
       "catalog": "community",
       "name": "Gateway API",
@@ -181,6 +246,19 @@
           {"path": "config/crd/experimental", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
         ]}
       ]
+    },
+    {
+      "project": "higress",
+      "name": "Higress",
+      "repo": "github.com/higress-group/higress",
+      "component": "pkg:github/higress-group/higress",
+      "factProject": "higress",
+      "tagPrefixes": ["v"],
+      "minFrom": "1.2",
+      "paths": [
+        {"path": "helm/core/crds/customresourcedefinitions.gen.yaml"}
+      ],
+      "exclude": []
     },
     {
       "project": "istio",
@@ -205,6 +283,19 @@
       ]
     },
     {
+      "project": "kagent",
+      "name": "kagent",
+      "repo": "github.com/kagent-dev/kagent",
+      "component": "pkg:github/kagent-dev/kagent",
+      "factProject": "kagent",
+      "tagPrefixes": ["v"],
+      "minFrom": "0.5",
+      "paths": [
+        {"path": "helm/kagent-crds/templates", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
       "project": "karmada",
       "name": "Karmada",
       "repo": "github.com/karmada-io/karmada",
@@ -219,6 +310,19 @@
       "exclude": []
     },
     {
+      "project": "kcp",
+      "name": "kcp",
+      "repo": "github.com/kcp-dev/kcp",
+      "component": "pkg:github/kcp-dev/kcp",
+      "factProject": "kcp",
+      "tagPrefixes": ["v"],
+      "minFrom": "0.28",
+      "paths": [
+        {"path": "config/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd.*\\.(ya?ml|json)$"}
+      ],
+      "exclude": []
+    },
+    {
       "project": "keda",
       "name": "KEDA",
       "repo": "github.com/kedacore/keda",
@@ -228,6 +332,19 @@
       "minFrom": "2.16",
       "paths": [
         {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "kgateway",
+      "name": "Kgateway",
+      "repo": "github.com/kgateway-dev/kgateway",
+      "component": "pkg:github/kgateway-dev/kgateway",
+      "factProject": "kgateway",
+      "tagPrefixes": ["v"],
+      "minFrom": "2.0",
+      "paths": [
+        {"path": "install/helm/kgateway-crds/templates", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
       "exclude": []
     },
@@ -269,6 +386,58 @@
       "minFrom": "1.3",
       "paths": [
         {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "kube-ovn",
+      "name": "Kube-OVN",
+      "repo": "github.com/kubeovn/kube-ovn",
+      "component": "pkg:github/kubeovn/kube-ovn",
+      "factProject": "kube_ovn",
+      "tagPrefixes": ["v"],
+      "minFrom": "1.14",
+      "paths": [
+        {"path": "charts/kube-ovn-v2/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "kubearmor",
+      "name": "KubeArmor",
+      "repo": "github.com/kubearmor/kubearmor",
+      "component": "pkg:github/kubearmor/kubearmor",
+      "factProject": "kubearmor",
+      "tagPrefixes": ["v"],
+      "minFrom": "1.2",
+      "paths": [
+        {"path": "deployments/CRD", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "kuberhealthy",
+      "name": "Kuberhealthy",
+      "repo": "github.com/kuberhealthy/kuberhealthy",
+      "component": "pkg:github/kuberhealthy/kuberhealthy",
+      "factProject": "kuberhealthy",
+      "tagPrefixes": ["v"],
+      "minFrom": "2.6",
+      "paths": [
+        {"path": "deploy/helm/kuberhealthy/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "kubevela",
+      "name": "KubeVela",
+      "repo": "github.com/kubevela/kubevela",
+      "component": "pkg:github/kubevela/kubevela",
+      "factProject": "kubevela",
+      "tagPrefixes": ["v"],
+      "minFrom": "1.6",
+      "paths": [
+        {"path": "charts/vela-core/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
       "exclude": []
     },
@@ -321,6 +490,32 @@
         {"path": "cmd/cli/kubectl-kyverno/data/crds/cli.kyverno.io_*", "repo": "github.com/kyverno/kyverno", "reason": "copies of the CLI file schemas (cli.kyverno.io) embedded in the CLI; never installed into a cluster", "evidence": "Read at v1.14.0 and v1.19.1: the Makefile target codegen-cli-crds copies generated definitions \"to embed in the CLI\" into cmd/cli/kubectl-kyverno/data/crds and data.go embeds the directory (//go:embed crds); the cli.kyverno.io kinds are the CLI test and values files. The guard voids the entry at every tag because of that embed."},
         {"path": "pkg/engine/resources/default-config.yaml", "repo": "github.com/kyverno/kyverno", "reason": "the engine's default configuration; names the CustomResourceDefinition kind in a list of fields to ignore and defines none", "evidence": "Read at v1.14.0 and v1.19.1: pkg/engine/resources/resources.go embeds it (//go:embed default-config.yaml) and pkg/engine/handlers/validation/validate_manifest.go reads the default ignoreFields from it; it names the CustomResourceDefinition kind in that list and defines none. The guard voids the entry at every tag because of that embed."}
       ]
+    },
+    {
+      "project": "litmus",
+      "name": "Litmus",
+      "repo": "github.com/litmuschaos/litmus",
+      "component": "pkg:github/litmuschaos/litmus",
+      "factProject": "litmus",
+      "tagPrefixes": [""],
+      "minFrom": "3.27",
+      "paths": [
+        {"path": "chaoscenter/manifests/litmus-portal-crds.yml"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "logging-operator-kube-logging",
+      "name": "Logging Operator (Kube Logging)",
+      "repo": "github.com/kube-logging/logging-operator",
+      "component": "pkg:github/kube-logging/logging-operator",
+      "factProject": "logging_operator_kube_logging",
+      "tagPrefixes": [""],
+      "minFrom": "6.4",
+      "paths": [
+        {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
     },
     {
       "project": "longhorn",
@@ -379,6 +574,19 @@
       "exclude": []
     },
     {
+      "project": "openchoreo",
+      "name": "OpenChoreo",
+      "repo": "github.com/openchoreo/openchoreo",
+      "component": "pkg:github/openchoreo/openchoreo",
+      "factProject": "openchoreo",
+      "tagPrefixes": ["v"],
+      "minFrom": "0.16",
+      "paths": [
+        {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
       "project": "openkruise",
       "name": "OpenKruise",
       "repo": "github.com/openkruise/kruise",
@@ -388,6 +596,20 @@
       "minFrom": "1.4",
       "paths": [
         {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "openyurt",
+      "name": "OpenYurt",
+      "repo": "github.com/openyurtio/openyurt",
+      "component": "pkg:github/openyurtio/openyurt",
+      "factProject": "openyurt",
+      "tagPrefixes": ["v"],
+      "minFrom": "1.3",
+      "paths": [
+        {"path": "charts/yurt-iot-dock/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true},
+        {"path": "charts/yurt-manager/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
       ],
       "exclude": []
     },
@@ -416,6 +638,19 @@
       "minFrom": "0.89",
       "paths": [
         {"path": "example/prometheus-operator-crd", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
+    },
+    {
+      "project": "radius",
+      "name": "Radius",
+      "repo": "github.com/radius-project/radius",
+      "component": "pkg:github/radius-project/radius",
+      "factProject": "radius",
+      "tagPrefixes": ["v"],
+      "minFrom": "0.56",
+      "paths": [
+        {"path": "deploy/Chart/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "recursive": true}
       ],
       "exclude": []
     },
@@ -466,6 +701,19 @@
         {"path": "crd-generator/src/test/resources/", "repo": "github.com/strimzi/strimzi-kafka-operator", "reason": "golden outputs of the CRD generator unit tests", "evidence": "Read at 1.2.0: crd-generator/src/test/java/.../CrdGeneratorTest.java compares the generated YAML with simpleTest.yaml, simpleTestWithoutDescriptions.yaml, simpleTestWithSubresources.yaml and simpleTestHelmMetadata.yaml through CrdTestUtils.readResource."},
         {"path": "systemtest/src/test/resources/", "repo": "github.com/strimzi/strimzi-kafka-operator", "reason": "resources of the system tests (third-party operators installed into the test cluster, upgrade bundles)", "evidence": "Read at 0.49.0 and 1.2.0: systemtest/src/test/resources holds the cert-manager and OpenTelemetry operator manifests and the upgrade bundles that the system tests apply to a test cluster; the only references are the system-test CI scripts (.azure, .github/workflows/run-system-tests.yml)."}
       ]
+    },
+    {
+      "project": "submariner",
+      "name": "Submariner",
+      "repo": "github.com/submariner-io/submariner",
+      "component": "pkg:github/submariner-io/submariner",
+      "factProject": "submariner",
+      "tagPrefixes": ["v"],
+      "minFrom": "0.22",
+      "paths": [
+        {"path": "deploy/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ],
+      "exclude": []
     },
     {
       "project": "tekton",

@@ -140,6 +140,14 @@ func FactID(factProject string) string {
 // listed only with a reviewed ownership record (reserved, below).
 var table = []Project{
 	{
+		Slug: "agones", Catalog: CatalogCNCF, FactProject: "agones", Component: "pkg:github/agones-dev/agones",
+		Groups: []Group{
+			{Name: "agones.dev", Source: "https://github.com/agones-dev/agones/blob/11cccfd04136a01dd578b24dc2808a7a44aabbb5/install/yaml/install.yaml"},
+			{Name: "autoscaling.agones.dev", Source: "https://github.com/agones-dev/agones/blob/11cccfd04136a01dd578b24dc2808a7a44aabbb5/install/yaml/install.yaml"},
+			{Name: "multicluster.agones.dev", Source: "https://github.com/agones-dev/agones/blob/11cccfd04136a01dd578b24dc2808a7a44aabbb5/install/yaml/install.yaml"},
+		},
+	},
+	{
 		Slug: "antrea", Catalog: CatalogCNCF, FactProject: "antrea", Component: "pkg:github/antrea-io/antrea",
 		Groups: []Group{
 			{Name: "crd.antrea.io", Source: "https://github.com/antrea-io/antrea/blob/e59003c2c1b13a961ff58a6d7b8f1133049d0bf0/build/charts/antrea/crds/trafficcontrol.yaml"},
@@ -153,10 +161,22 @@ var table = []Project{
 		},
 	},
 	{
+		Slug: "capsule", Catalog: CatalogCNCF, FactProject: "capsule", Component: "pkg:github/projectcapsule/capsule",
+		Groups: []Group{
+			{Name: "capsule.clastix.io", Source: "https://github.com/projectcapsule/capsule/blob/65a4e19e028fbbb2703b888d81f02035cf36cefa/charts/capsule/crds/capsule.clastix.io_tenants.yaml"},
+		},
+	},
+	{
 		Slug: "cert-manager", Catalog: CatalogCNCF, FactProject: "cert_manager", Component: "pkg:github/cert-manager/cert-manager",
 		Groups: []Group{
 			{Name: "acme.cert-manager.io", Source: "https://github.com/cert-manager/cert-manager/blob/b8f325e36f49626ba72d7efbe138c01a5e661d96/deploy/crds/acme.cert-manager.io_orders.yaml"},
 			{Name: "cert-manager.io", Source: "https://github.com/cert-manager/cert-manager/blob/b8f325e36f49626ba72d7efbe138c01a5e661d96/deploy/crds/cert-manager.io_issuers.yaml"},
+		},
+	},
+	{
+		Slug: "chaos-mesh", Catalog: CatalogCNCF, FactProject: "chaos_mesh", Component: "pkg:github/chaos-mesh/chaos-mesh",
+		Groups: []Group{
+			{Name: "chaos-mesh.org", Source: "https://github.com/chaos-mesh/chaos-mesh/blob/211bf86e599e5228f47f7fa9f3f4fd2af012c011/config/crd/bases/chaos-mesh.org_workflows.yaml"},
 		},
 	},
 	{
@@ -203,6 +223,12 @@ var table = []Project{
 		},
 	},
 	{
+		Slug: "dex", Catalog: CatalogCNCF, FactProject: "dex", Component: "pkg:github/dexidp/dex",
+		Groups: []Group{
+			{Name: "dex.coreos.com", Source: "https://github.com/dexidp/dex/blob/05a275057112ba93e17db21f600b756f000f1c21/scripts/manifests/crds/signingkeies.yaml"},
+		},
+	},
+	{
 		Slug: "eck-operator", Catalog: CatalogCommunity, FactProject: "eck_operator", Component: "pkg:github/elastic/cloud-on-k8s",
 		Upstream: Upstream{Name: "Elastic Cloud on Kubernetes", Repository: "https://github.com/elastic/cloud-on-k8s", License: "Elastic-2.0", LicenseSource: "https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/LICENSE.txt"},
 		Groups: []Group{
@@ -228,10 +254,23 @@ var table = []Project{
 		},
 	},
 	{
+		Slug: "fluid", Catalog: CatalogCNCF, FactProject: "fluid", Component: "pkg:github/fluid-cloudnative/fluid",
+		Groups: []Group{
+			{Name: "data.fluid.io", Source: "https://github.com/fluid-cloudnative/fluid/blob/b1060936c20e6ff38a06eda694b2f58c02d0c11d/config/crd/bases/data.fluid.io_vineyardruntimes.yaml"},
+		},
+	},
+	{
 		Slug: "gateway-api", Catalog: CatalogCommunity, FactProject: "gateway_api", Component: "pkg:github/kubernetes-sigs/gateway-api",
 		Upstream: Upstream{Name: "Gateway API", Repository: "https://github.com/kubernetes-sigs/gateway-api", License: "Apache-2.0", LicenseSource: "https://github.com/kubernetes-sigs/gateway-api/blob/89b3b0c3fa63f9342f43ba0fb2cf93d6aab53af7/LICENSE"},
 		Groups: []Group{
 			{Name: "gateway.networking.k8s.io", Source: "https://github.com/kubernetes-sigs/gateway-api/blob/89b3b0c3fa63f9342f43ba0fb2cf93d6aab53af7/config/crd/standard/gateway.networking.k8s.io_udproutes.yaml"},
+		},
+	},
+	{
+		Slug: "higress", Catalog: CatalogCNCF, FactProject: "higress", Component: "pkg:github/higress-group/higress",
+		Groups: []Group{
+			{Name: "extensions.higress.io", Source: "https://github.com/higress-group/higress/blob/1f10cc293f2ba272392184035d701614cfc20485/helm/core/crds/customresourcedefinitions.gen.yaml"},
+			{Name: "networking.higress.io", Source: "https://github.com/higress-group/higress/blob/1f10cc293f2ba272392184035d701614cfc20485/helm/core/crds/customresourcedefinitions.gen.yaml"},
 		},
 	},
 	{
@@ -241,6 +280,12 @@ var table = []Project{
 			{Name: "networking.istio.io", Source: "https://github.com/istio/istio/blob/8825a6b7f8c9a2d66005a5f8b64e98aaee0dda99/manifests/charts/base/files/crd-all.gen.yaml"},
 			{Name: "security.istio.io", Source: "https://github.com/istio/istio/blob/8825a6b7f8c9a2d66005a5f8b64e98aaee0dda99/manifests/charts/base/files/crd-all.gen.yaml"},
 			{Name: "telemetry.istio.io", Source: "https://github.com/istio/istio/blob/8825a6b7f8c9a2d66005a5f8b64e98aaee0dda99/manifests/charts/base/files/crd-all.gen.yaml"},
+		},
+	},
+	{
+		Slug: "kagent", Catalog: CatalogCNCF, FactProject: "kagent", Component: "pkg:github/kagent-dev/kagent",
+		Groups: []Group{
+			{Name: "kagent.dev", Source: "https://github.com/kagent-dev/kagent/blob/ae008d1e19fbb195ba3c8205fe345d17309a9158/helm/kagent-crds/templates/kagent.dev_toolservers.yaml"},
 		},
 	},
 	{
@@ -257,10 +302,27 @@ var table = []Project{
 		},
 	},
 	{
+		Slug: "kcp", Catalog: CatalogCNCF, FactProject: "kcp", Component: "pkg:github/kcp-dev/kcp",
+		Groups: []Group{
+			{Name: "apis.kcp.io", Source: "https://github.com/kcp-dev/kcp/blob/1a4cb725de077a081365b2ce40bb3e5e8006efa3/config/crds/apis.kcp.io_apiresourceschemas.yaml"},
+			{Name: "cache.kcp.io", Source: "https://github.com/kcp-dev/kcp/blob/1a4cb725de077a081365b2ce40bb3e5e8006efa3/config/crds/cache.kcp.io_clustercachedresources.yaml"},
+			{Name: "core.kcp.io", Source: "https://github.com/kcp-dev/kcp/blob/1a4cb725de077a081365b2ce40bb3e5e8006efa3/config/crds/core.kcp.io_shards.yaml"},
+			{Name: "migration.kcp.io", Source: "https://github.com/kcp-dev/kcp/blob/1a4cb725de077a081365b2ce40bb3e5e8006efa3/config/crds/migration.kcp.io_logicalclustermigrations.yaml"},
+			{Name: "tenancy.kcp.io", Source: "https://github.com/kcp-dev/kcp/blob/1a4cb725de077a081365b2ce40bb3e5e8006efa3/config/crds/tenancy.kcp.io_workspacetypes.yaml"},
+			{Name: "topology.kcp.io", Source: "https://github.com/kcp-dev/kcp/blob/1a4cb725de077a081365b2ce40bb3e5e8006efa3/config/crds/topology.kcp.io_partitionsets.yaml"},
+		},
+	},
+	{
 		Slug: "keda", Catalog: CatalogCNCF, FactProject: "keda", Component: "pkg:github/kedacore/keda",
 		Groups: []Group{
 			{Name: "eventing.keda.sh", Source: "https://github.com/kedacore/keda/blob/626ded5d783108bedf647e20bbc83f8e458e02e4/config/crd/bases/eventing.keda.sh_clustercloudeventsources.yaml"},
 			{Name: "keda.sh", Source: "https://github.com/kedacore/keda/blob/626ded5d783108bedf647e20bbc83f8e458e02e4/config/crd/bases/keda.sh_triggerauthentications.yaml"},
+		},
+	},
+	{
+		Slug: "kgateway", Catalog: CatalogCNCF, FactProject: "kgateway", Component: "pkg:github/kgateway-dev/kgateway",
+		Groups: []Group{
+			{Name: "gateway.kgateway.dev", Source: "https://github.com/kgateway-dev/kgateway/blob/c6c5eeafd2108b0e0e5ebb5608a38290cf3066dc/install/helm/kgateway-crds/templates/gateway.kgateway.dev_trafficpolicies.yaml"},
 		},
 	},
 	{
@@ -278,6 +340,33 @@ var table = []Project{
 			{Name: "quota.koordinator.sh", Source: "https://github.com/koordinator-sh/koordinator/blob/989ca85c62abcca92b303aa12fd2ccff2ed30fed/config/crd/bases/quota.koordinator.sh_elasticquotaprofiles.yaml"},
 			{Name: "scheduling.koordinator.sh", Source: "https://github.com/koordinator-sh/koordinator/blob/989ca85c62abcca92b303aa12fd2ccff2ed30fed/config/crd/bases/scheduling.koordinator.sh_scheduleexplanations.yaml"},
 			{Name: "slo.koordinator.sh", Source: "https://github.com/koordinator-sh/koordinator/blob/989ca85c62abcca92b303aa12fd2ccff2ed30fed/config/crd/bases/slo.koordinator.sh_nodeslos.yaml"},
+		},
+	},
+	{
+		Slug: "kube-ovn", Catalog: CatalogCNCF, FactProject: "kube_ovn", Component: "pkg:github/kubeovn/kube-ovn",
+		Groups: []Group{
+			{Name: "kubeovn.io", Source: "https://github.com/kubeovn/kube-ovn/blob/7162bc4afda1aee29c67addc2badc73b8c7227cf/charts/kube-ovn-v2/crds/kube-ovn-crd.yaml"},
+		},
+	},
+	{
+		Slug: "kubearmor", Catalog: CatalogCNCF, FactProject: "kubearmor", Component: "pkg:github/kubearmor/kubearmor",
+		Groups: []Group{
+			{Name: "security.kubearmor.com", Source: "https://github.com/kubearmor/kubearmor/blob/4817c389113b84e4fb4b54d0bfca0808ce09536c/deployments/CRD/KubeArmorPolicy.yaml"},
+		},
+	},
+	{
+		Slug: "kuberhealthy", Catalog: CatalogCNCF, FactProject: "kuberhealthy", Component: "pkg:github/kuberhealthy/kuberhealthy",
+		Groups: []Group{
+			{Name: "comcast.github.io", Source: "https://github.com/kuberhealthy/kuberhealthy/blob/45e156ade56d4e2c1911e48d6dae5c0ccaa86a71/deploy/helm/kuberhealthy/crds/comcast.github.io_khstates.yaml"},
+			{Name: "kuberhealthy.github.io", Source: "https://github.com/kuberhealthy/kuberhealthy/blob/42640eda49d092aacc7e412bc1b08578e540703b/deploy/helm/kuberhealthy/crds/healthchecks.kuberhealthy.github.io.yaml"},
+		},
+	},
+	{
+		Slug: "kubevela", Catalog: CatalogCNCF, FactProject: "kubevela", Component: "pkg:github/kubevela/kubevela",
+		Groups: []Group{
+			{Name: "core.oam.dev", Source: "https://github.com/kubevela/kubevela/blob/a1860544f0556828e165ef68701b2926730671a7/charts/vela-core/crds/core.oam.dev_workloaddefinitions.yaml"},
+			{Name: "cue.oam.dev", Source: "https://github.com/kubevela/kubevela/blob/a1860544f0556828e165ef68701b2926730671a7/charts/vela-core/crds/cue.oam.dev_packages.yaml"},
+			{Name: "standard.oam.dev", Source: "https://github.com/kubevela/kubevela/blob/fcd721ffed6013777962befb68fff96424b67b06/charts/vela-core/crds/standard.oam.dev_rollouts.yaml"},
 		},
 	},
 	{
@@ -300,6 +389,20 @@ var table = []Project{
 			{Name: "policies.kyverno.io", Source: "https://github.com/kyverno/kyverno/blob/ee97ce09538b09b6f1b03853cc41a62654d6a58f/config/crds/policies.kyverno.io/policies.kyverno.io_validatingpolicies.yaml"},
 			{Name: "reports.kyverno.io", Source: "https://github.com/kyverno/kyverno/blob/ee97ce09538b09b6f1b03853cc41a62654d6a58f/config/crds/reports/reports.kyverno.io_ephemeralreports.yaml"},
 			{Name: "wgpolicyk8s.io", Source: "https://github.com/kyverno/kyverno/blob/ee97ce09538b09b6f1b03853cc41a62654d6a58f/config/crds/policyreport/wgpolicyk8s.io_policyreports.yaml"},
+		},
+	},
+	{
+		Slug: "litmus", Catalog: CatalogCNCF, FactProject: "litmus", Component: "pkg:github/litmuschaos/litmus",
+		Groups: []Group{
+			{Name: "eventtracker.litmuschaos.io", Source: "https://github.com/litmuschaos/litmus/blob/99826fa898a81c30d5efaccebb20a63e461d12fd/chaoscenter/manifests/litmus-portal-crds.yml"},
+			{Name: "litmuschaos.io", Source: "https://github.com/litmuschaos/litmus/blob/99826fa898a81c30d5efaccebb20a63e461d12fd/chaoscenter/manifests/litmus-portal-crds.yml"},
+		},
+	},
+	{
+		Slug: "logging-operator-kube-logging", Catalog: CatalogCNCF, FactProject: "logging_operator_kube_logging", Component: "pkg:github/kube-logging/logging-operator",
+		Groups: []Group{
+			{Name: "logging-extensions.banzaicloud.io", Source: "https://github.com/kube-logging/logging-operator/blob/1e3fd1216c8700effc1d92b295273575ad6b1824/config/crd/bases/logging-extensions.banzaicloud.io_hosttailers.yaml"},
+			{Name: "logging.banzaicloud.io", Source: "https://github.com/kube-logging/logging-operator/blob/1e3fd1216c8700effc1d92b295273575ad6b1824/config/crd/bases/logging.banzaicloud.io_syslogngoutputs.yaml"},
 		},
 	},
 	{
@@ -331,10 +434,25 @@ var table = []Project{
 		},
 	},
 	{
+		Slug: "openchoreo", Catalog: CatalogCNCF, FactProject: "openchoreo", Component: "pkg:github/openchoreo/openchoreo",
+		Groups: []Group{
+			{Name: "openchoreo.dev", Source: "https://github.com/openchoreo/openchoreo/blob/178dfbde3e3343e5ac151b88a2f203f523f97480/config/crd/bases/openchoreo.dev_workloads.yaml"},
+		},
+	},
+	{
 		Slug: "openkruise", Catalog: CatalogCNCF, FactProject: "openkruise", Component: "pkg:github/openkruise/kruise",
 		Groups: []Group{
 			{Name: "apps.kruise.io", Source: "https://github.com/openkruise/kruise/blob/b1e001a957ce62bf87894d0212f5e704a8e9c2b4/config/crd/bases/apps.kruise.io_workloadspreads.yaml"},
 			{Name: "policy.kruise.io", Source: "https://github.com/openkruise/kruise/blob/b1e001a957ce62bf87894d0212f5e704a8e9c2b4/config/crd/bases/policy.kruise.io_podunavailablebudgets.yaml"},
+		},
+	},
+	{
+		Slug: "openyurt", Catalog: CatalogCNCF, FactProject: "openyurt", Component: "pkg:github/openyurtio/openyurt",
+		Groups: []Group{
+			{Name: "apps.openyurt.io", Source: "https://github.com/openyurtio/openyurt/blob/35ef4cd692e387d0d56c9084e3da161bad2a3092/charts/yurt-manager/crds/apps.openyurt.io_yurtstaticsets.yaml"},
+			{Name: "iot.openyurt.io", Source: "https://github.com/openyurtio/openyurt/blob/35ef4cd692e387d0d56c9084e3da161bad2a3092/charts/yurt-manager/crds/iot.openyurt.io_platformadmins.yaml"},
+			{Name: "network.openyurt.io", Source: "https://github.com/openyurtio/openyurt/blob/35ef4cd692e387d0d56c9084e3da161bad2a3092/charts/yurt-manager/crds/network.openyurt.io_poolservices.yaml"},
+			{Name: "raven.openyurt.io", Source: "https://github.com/openyurtio/openyurt/blob/35ef4cd692e387d0d56c9084e3da161bad2a3092/charts/yurt-manager/crds/raven.openyurt.io_gateways.yaml"},
 		},
 	},
 	{
@@ -350,6 +468,13 @@ var table = []Project{
 		Upstream: Upstream{Name: "Prometheus Operator", Repository: "https://github.com/prometheus-operator/prometheus-operator", License: "Apache-2.0", LicenseSource: "https://github.com/prometheus-operator/prometheus-operator/blob/2e4af1d7d8f0ae634fcf0ac967a76fb381a65542/LICENSE"},
 		Groups: []Group{
 			{Name: "monitoring.coreos.com", Source: "https://github.com/prometheus-operator/prometheus-operator/blob/2e4af1d7d8f0ae634fcf0ac967a76fb381a65542/example/prometheus-operator-crd/monitoring.coreos.com_thanosrulers.yaml"},
+		},
+	},
+	{
+		Slug: "radius", Catalog: CatalogCNCF, FactProject: "radius", Component: "pkg:github/radius-project/radius",
+		Groups: []Group{
+			{Name: "radapp.io", Source: "https://github.com/radius-project/radius/blob/69c94eecb1ba98b5104c1cb43606c0ce7bcc2392/deploy/Chart/crds/radius/radapp.io_deploymenttemplates.yaml"},
+			{Name: "ucp.dev", Source: "https://github.com/radius-project/radius/blob/69c94eecb1ba98b5104c1cb43606c0ce7bcc2392/deploy/Chart/crds/ucpd/ucp.dev_resources.yaml"},
 		},
 	},
 	{
@@ -379,6 +504,12 @@ var table = []Project{
 		Groups: []Group{
 			{Name: "core.strimzi.io", Source: "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/042-Crd-strimzipodset.yaml"},
 			{Name: "kafka.strimzi.io", Source: "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/040-Crd-kafka.yaml"},
+		},
+	},
+	{
+		Slug: "submariner", Catalog: CatalogCNCF, FactProject: "submariner", Component: "pkg:github/submariner-io/submariner",
+		Groups: []Group{
+			{Name: "submariner.io", Source: "https://github.com/submariner-io/submariner/blob/d7fd3ecb9bc86f0a2c74c7cb62e9eae8019940f3/deploy/crds/submariner.io_routeagents.yaml"},
 		},
 	},
 	{
