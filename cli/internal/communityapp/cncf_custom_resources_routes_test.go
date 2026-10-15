@@ -41,8 +41,11 @@ func crdRouteEntry(now time.Time) map[string]any {
 	}
 }
 
-// crdRoutePack is the embedded pack with the published Strimzi rule replaced
-// by the test-only custom-resource rule, at the set-rule pack level.
+// crdRoutePack is the embedded pack with the published Strimzi rules (and
+// the shipped line attestations of Strimzi lines, which list them) replaced
+// by the test-only custom-resource rule, at the pack level of what remains:
+// the set-rule level, or the line attestation level while another
+// project's line attestation remains.
 func crdRoutePack(t *testing.T, now time.Time) []byte {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join("..", "cncfcheck", "data", "rules.json"))
@@ -65,6 +68,19 @@ func crdRoutePack(t *testing.T, now time.Time) []byte {
 	sort.SliceStable(entries, func(i, j int) bool { return id(entries[i]) < id(entries[j]) })
 	pack["entries"] = entries
 	pack["schema"] = "prufyx.io/cncf-source-rule-pack/v1alpha3"
+	if attestations, ok := pack["lineAttestations"].([]any); ok {
+		var kept []any
+		for _, item := range attestations {
+			if item.(map[string]any)["component"] != crdRouteComponent {
+				kept = append(kept, item)
+			}
+		}
+		delete(pack, "lineAttestations")
+		if len(kept) > 0 {
+			pack["lineAttestations"] = kept
+			pack["schema"] = "prufyx.io/cncf-source-rule-pack/v1alpha4"
+		}
+	}
 	out, err := json.Marshal(pack)
 	if err != nil {
 		t.Fatal(err)
@@ -130,12 +146,35 @@ func TestExternalGenericInputNeverPassesCustomResourceRules(t *testing.T) {
 	}
 }
 
-// No custom-resource rule is published, so the embedded generic route keeps
-// its outputs: no claim reads a set and no scope line is added.
+// For a project without a published custom-resource rule the embedded
+// generic route keeps its outputs: no claim reads a set and no scope line is
+// added. KEDA has none before or after the custom-resource batch ships;
+// Strimzi has none until it ships.
 func TestGenericInputWithoutCustomResourceRulesHasNoScopeLine(t *testing.T) {
 	t.Parallel()
+	raw, err := os.ReadFile(filepath.Join("../../examples/cncf", "keda-input.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(raw, &document); err != nil {
+		t.Fatal(err)
+	}
+	setProposedBoolFact(t, document, "component.keda.legacy_tls_cert_file_required_for_transport", false)
+	kedaRaw, err := json.Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keda := writeCNCFFile(t, "keda.json", kedaRaw, 0o600)
+	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "keda", "--input", keda, "--now", "2026-09-10T04:00:00Z")
+	if code != ExitOK || stderr != "" || strings.Contains(stdout, customResourceScopeLine) {
+		t.Fatalf("keda: code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	if len(batchRuleIDs("strimzi")) > 0 {
+		return
+	}
 	input := writeCNCFFile(t, "strimzi.json", []byte(strings.Replace(crdRouteInput, `{"id":"`+crdRouteFact+`","state":"declared","setValue":{"members":["kafka.strimzi.io/v1/Kafka"],"complete":true}}`, `{"id":"component.strimzi.distribution","state":"declared","enumValue":"official_upstream"},{"id":"component.strimzi.execution_surface","state":"declared","enumValue":"kafka_custom_resource"},{"id":"component.strimzi.kafka_v1beta2_api_present","state":"declared","boolValue":false},{"id":"component.strimzi.target_kafka_crd_admission_required","state":"declared","boolValue":true}`, 1)), 0o600)
-	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "strimzi", "--input", input, "--now", "2026-10-04T00:00:00Z")
+	code, stdout, stderr = runCNCFCLI(t, "check", "cncf", "--project", "strimzi", "--input", input, "--now", "2026-10-04T00:00:00Z")
 	if code != ExitOK || stderr != "" || strings.Contains(stdout, customResourceScopeLine) {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}

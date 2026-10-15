@@ -436,6 +436,21 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 							wantCode = ExitUnknown
 						}
 					}
+					// The journey's hops (its pair, and the wrong transition
+					// next to it) are matched by every custom-resource batch
+					// rule of the project once the batch ships
+					// (journeyBatchRuleIDs): their claims are UNKNOWN, so a
+					// scoped PASS exits 11, and on the wrong transition they
+					// are the report's only claims.
+					batchIDs := journeyBatchRuleIDs(journey.project)
+					wantReason := tc.wantReason
+					if len(batchIDs) > 0 && wantCode == ExitOK {
+						wantCode = ExitUnknown
+					}
+					offPair := tc.wantReason == "RULE_TRANSITION_NOT_REVIEWED" && len(batchIDs) > 0
+					if offPair {
+						wantReason = ""
+					}
 					if code != wantCode || stderr != "" {
 						t.Fatalf("code=%d want=%d stdout=%q stderr=%q", code, wantCode, stdout, stderr)
 					}
@@ -445,8 +460,12 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 					if tc.wantClaim && !strings.Contains(stdout, `"status":"`+tc.wantStatus+`"`) {
 						t.Fatalf("missing claim status %s: %q", tc.wantStatus, stdout)
 					}
-					if tc.wantReason != "" && !strings.Contains(stdout, `"reasonCode":"`+tc.wantReason+`"`) {
-						t.Fatalf("missing reason %s: %q", tc.wantReason, stdout)
+					if wantReason != "" && !strings.Contains(stdout, `"reasonCode":"`+wantReason+`"`) {
+						t.Fatalf("missing reason %s: %q", wantReason, stdout)
+					}
+					checkBatchClaims(t, stdout, batchIDs)
+					if offPair && strings.Count(stdout, `"ruleId":`) != len(batchIDs) {
+						t.Fatalf("wrong transition reports a rule outside the batch: %q", stdout)
 					}
 				})
 			}
@@ -672,4 +691,14 @@ func currentKubernetesReviewNow(t *testing.T, fallback string) string {
 		}
 	}
 	return latest.UTC().Format(time.RFC3339)
+}
+
+// journeyBatchRuleIDs are the custom-resource batch rules that match the
+// hops of the journey of project: every Crossplane batch rule (1.20 to 2.0)
+// for the Crossplane journey; no batch rule matches another journey's hops.
+func journeyBatchRuleIDs(project string) []string {
+	if project == "crossplane" {
+		return batchRuleIDs(project)
+	}
+	return nil
 }

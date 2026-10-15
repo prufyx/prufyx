@@ -1837,6 +1837,7 @@ func TestPrepareAndVerifyStayWithinStaggerCapOnRealPacks(t *testing.T) {
 			}
 		}
 		worklistRaw := marshalWorklist(t, wl)
+		items := len(doc.Entries) + len(doc.records)
 		for wave := minWave; wave <= maxWave; wave++ {
 			prepared := withSampleRecords(t, PrepareOptions{
 				WorklistRaw: worklistRaw, PackName: tc.pack, PackPath: tc.path, PackRaw: raw, Chain: &Chain{},
@@ -1846,8 +1847,10 @@ func TestPrepareAndVerifyStayWithinStaggerCapOnRealPacks(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s wave %d: Prepare: %v", tc.pack, wave, err)
 			}
-			if res.EligibleRuleCount > staggerCap(len(doc.Entries)) {
-				t.Fatalf("%s wave %d: %d rules renewed, over the cap of %d", tc.pack, wave, res.EligibleRuleCount, staggerCap(len(doc.Entries)))
+			// The cap counts the pack's rules and its records (line
+			// attestations, path policies) together, as V7 does.
+			if res.EligibleRuleCount > staggerCap(items) {
+				t.Fatalf("%s wave %d: %d rules renewed, over the cap of %d", tc.pack, wave, res.EligibleRuleCount, staggerCap(items))
 			}
 			if _, err := Verify(VerifyOptions{
 				StatementRaw: res.StatementCanonical, PriorPackRaw: raw, NextPackRaw: res.NextPack, WorklistRaw: worklistRaw,
@@ -1856,7 +1859,7 @@ func TestPrepareAndVerifyStayWithinStaggerCapOnRealPacks(t *testing.T) {
 			}); err != nil {
 				t.Fatalf("%s wave %d: Verify rejected Prepare's own output (%d renewed): %v", tc.pack, wave, res.EligibleRuleCount, err)
 			}
-			t.Logf("%s wave %d: renewed %d of %d rules, not extended %d, cap %d", tc.pack, wave, res.EligibleRuleCount, len(doc.Entries), res.NotExtendedRuleCount, staggerCap(len(doc.Entries)))
+			t.Logf("%s wave %d: renewed %d of %d rules and records, not extended %d, cap %d", tc.pack, wave, res.EligibleRuleCount, items, res.NotExtendedRuleCount, staggerCap(items))
 			if wave == 3 && res.EligibleRuleCount == 0 {
 				t.Fatalf("%s: expected at least one rule renewed", tc.pack)
 			}
