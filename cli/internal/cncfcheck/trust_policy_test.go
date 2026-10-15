@@ -529,7 +529,7 @@ func TestExternalPackRefusesBasis(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, basis := range []string{constraintengine.BasisConsensus, constraintengine.BasisLead} {
-		pack := base.pack
+		pack := syntheticBase(t)
 		pack.Entries = []Entry{containerdBasisEntry("containerd.synthetic-basis", basis, "")}
 		pack.Schema = packSchemaBasis
 		if err := validateExternalPack(base, pack, pack.Revision, false); !errors.Is(err, ErrIntegrity) {
@@ -537,7 +537,7 @@ func TestExternalPackRefusesBasis(t *testing.T) {
 		}
 	}
 	// An empirical rule is admitted.
-	pack := base.pack
+	pack := syntheticBase(t)
 	pack.Entries = []Entry{containerdBasisEntry("containerd.synthetic-empirical", constraintengine.BasisEmpirical, "")}
 	pack.Schema = packSchema
 	if err := validateExternalPack(base, pack, pack.Revision, false); err != nil {

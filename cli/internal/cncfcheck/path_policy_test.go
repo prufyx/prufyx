@@ -47,14 +47,7 @@ func validPolicies(t *testing.T) []byte {
 // path-policy sections (nil for none).
 func featurePack(t *testing.T, schema string, attestations, policies []byte) []byte {
 	t.Helper()
-	raw, err := packagedFiles.ReadFile("data/rules.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var pack rulePack
-	if err := strictJSON(raw, &pack); err != nil {
-		t.Fatal(err)
-	}
+	pack := syntheticBase(t)
 	pack.Schema, pack.LineAttestations, pack.PathPolicies = schema, attestations, policies
 	encoded, err := json.Marshal(pack)
 	if err != nil {
@@ -236,7 +229,9 @@ func TestPathPoliciesStrict(t *testing.T) {
 }
 
 // A pack carries exactly the schema of its highest-level feature; a pack
-// without path policies keeps its schema and bytes.
+// without path policies keeps its schema and bytes. The embedded pack
+// carries exactly the level shippedSchemaLevel states from its bytes; the
+// feature matrix is built on syntheticBase.
 func TestPackSchemaLevels(t *testing.T) {
 	raw, err := packagedFiles.ReadFile("data/rules.json")
 	if err != nil {
@@ -249,15 +244,17 @@ func TestPackSchemaLevels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if b.pack.Schema != packSchemaRanged || b.packDigest != "sha256:"+embeddedPackSHA256 {
+	level := shippedSchemaLevel(t)
+	if b.pack.Schema != level || b.packDigest != "sha256:"+embeddedPackSHA256 {
 		t.Fatalf("embedded pack schema %s digest %s", b.pack.Schema, b.packDigest)
 	}
-	// Decoding and re-encoding a pack without the new sections adds nothing.
+	// Decoding and re-encoding the pack adds no section: no path policies,
+	// and line attestations exactly when the file holds them.
 	reencoded, err := json.Marshal(b.pack)
-	if err != nil || bytes.Contains(reencoded, []byte(upgradepath.PackMember)) || bytes.Contains(reencoded, []byte("lineAttestations")) {
+	if err != nil || bytes.Contains(reencoded, []byte(upgradepath.PackMember)) || bytes.Contains(reencoded, []byte("lineAttestations")) != bytes.Contains(raw, []byte("lineAttestations")) {
 		t.Fatalf("re-encoded pack gained a section: %v", err)
 	}
-	if schema, err := requiredPackSchema(b.pack); err != nil || schema != packSchemaRanged {
+	if schema, err := requiredPackSchema(b.pack); err != nil || schema != level {
 		t.Fatalf("required schema of the embedded pack %s %v", schema, err)
 	}
 
@@ -305,10 +302,7 @@ func TestPackSchemaLevels(t *testing.T) {
 }
 
 func TestExternalRefusesPathPolicies(t *testing.T) {
-	raw, err := ExportEmbeddedExternalBundle("7")
-	if err != nil {
-		t.Fatal(err)
-	}
+	raw := syntheticBaseExternalBundle(t, "7")
 	if _, err := ParseExternalBundle(raw); err != nil {
 		t.Fatalf("untampered external bundle refused: %v", err)
 	}

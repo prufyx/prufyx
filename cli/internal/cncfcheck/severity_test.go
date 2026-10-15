@@ -134,7 +134,7 @@ func TestExternalPackRefusesSeverity(t *testing.T) {
 		`"subject":{"component":"`+containerdComponent+`","from":"1.7.28","to":"2.0.0"}`, `"subject":{"component":"`+containerdComponent+`","from":"1.7.28","to":"2.0.0"},"dependency":{"side":"proposed","component":"`+containerdComponent+`","comparison":"gte","version":"2.1.0"},"severity":"unsupported"`,
 		`"reasonCode":"REVIEWED_SOURCE_CONSTRAINT"`, `"reasonCode":"`+syntheticSupportReason+`"`,
 	).Replace(string(entry.Rule)))
-	pack := base.pack
+	pack := syntheticBase(t)
 	pack.Entries = []Entry{entry}
 	pack.Schema = packSchemaSeverity
 	if err := validateExternalPack(base, pack, pack.Revision, false); !errors.Is(err, ErrIntegrity) {

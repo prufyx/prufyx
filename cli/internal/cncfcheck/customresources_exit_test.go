@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchids"
 )
 
 // strimziDeclaredInput is a hand-written operator-declared input for Strimzi
@@ -55,11 +56,9 @@ func passingClaims(t *testing.T, report Report, want int) int {
 // serving.
 func TestClaimExitNeverPassesCustomResourceRules(t *testing.T) {
 	now := time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC)
-	plain, err := load()
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Baseline: the reviewed Kafka rule alone passes and exits 0.
+	plain := syntheticBaseBundle(t)
+	// Baseline: the reviewed Kafka rule alone (syntheticBase holds no set
+	// rule) passes and exits 0.
 	report, err := plain.check("strimzi", "", strimziDeclaredInput(""), now)
 	if err != nil {
 		t.Fatal(err)
@@ -110,6 +109,26 @@ func TestClaimExitNeverPassesCustomResourceRules(t *testing.T) {
 	}
 	if got := ClaimExit(report); got != 10 {
 		t.Fatalf("removed version: exit %d, want 10", got)
+	}
+
+	// The shipped knowledge, at the clock of its custom-resource rules:
+	// the reviewed Kafka rule and every published Strimzi set rule pass on
+	// a complete served set, and the exit is still never 0 when one of them
+	// reads the set; with no published set rule it is 0.
+	shipped, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err = shipped.check("strimzi", "", strimziDeclaredInput(servedStrimziSet), time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sets := crdbatchids.Count("strimzi")
+	if reading := passingClaims(t, report, 1+sets); reading != sets {
+		t.Fatalf("shipped: %d claims read the set, want %d", reading, sets)
+	}
+	if got, want := ClaimExit(report), map[bool]int{false: 0, true: 11}[sets > 0]; got != want {
+		t.Fatalf("shipped: exit %d, want %d", got, want)
 	}
 }
 

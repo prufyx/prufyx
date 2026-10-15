@@ -9,6 +9,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -17,11 +18,13 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/customresources"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchids"
 )
 
 // These tests hold a synthetic forbid_set_member rule to every check the
 // packaged knowledge passes. The rule names a gate that does not exist and is
-// never published; the embedded pack stays byte-identical.
+// never published; it is added to syntheticBase, and the embedded pack stays
+// byte-identical (embeddedPackSHA256).
 
 const (
 	syntheticSetFact   = "component.kubernetes.kubelet_feature_gates_set"
@@ -58,14 +61,7 @@ func syntheticSetEntry(t *testing.T) Entry {
 // the registry digest of the compiled definitions plus extra.
 func syntheticPack(t *testing.T, schema string, extra []constraintengine.FactDefinition, entries ...Entry) []byte {
 	t.Helper()
-	raw, err := packagedFiles.ReadFile("data/rules.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var pack rulePack
-	if err := strictJSON(raw, &pack); err != nil {
-		t.Fatal(err)
-	}
+	pack := syntheticBase(t)
 	pack.Entries = append(pack.Entries, entries...)
 	sort.SliceStable(pack.Entries, func(i, j int) bool { return ruleID(t, pack.Entries[i]) < ruleID(t, pack.Entries[j]) })
 	registry, err := constraintengine.NewCompiledRegistry(append(compiledDefinitions(), extra...))
@@ -97,7 +93,13 @@ func assembleSynthetic(packRaw []byte, extra []constraintengine.FactDefinition) 
 	return assemble(landscape, priority, packRaw, append(compiledDefinitions(), extra...))
 }
 
-func TestEmbeddedKnowledgeCarriesNoSetRule(t *testing.T) {
+// TestEmbeddedKnowledgeSetRulesReadCustomResourceSets: the embedded pack is
+// the pinned one, and every set rule it publishes is a custom-resource
+// version-removal rule of the batch crdbatchids states (none before the
+// batch ships, exactly its 28 after): a forbid_set_member rule over the
+// custom-resource version set of its own project, on the proposed side,
+// declared with the set type. No published rule reads a feature-gate set.
+func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 	raw, err := packagedFiles.ReadFile("data/rules.json")
 	if err != nil {
 		t.Fatal(err)
@@ -108,11 +110,58 @@ func TestEmbeddedKnowledgeCarriesNoSetRule(t *testing.T) {
 	}
 	// The set facts of the compiled registry are the custom-resource version
 	// sets (one per project of the reviewed custom-resource table) and the
-	// five Kubernetes component feature-gate sets. No published rule reads
-	// the latter yet; the pack digest pin above proves the pack is unchanged.
+	// five Kubernetes component feature-gate sets.
 	crd := map[string]bool{}
+	factOf := map[string]string{}
 	for _, p := range customresources.Projects() {
 		crd[p.FactID()] = true
+		factOf[p.Slug] = p.FactID()
+	}
+	want := map[string]crdbatchids.Rule{}
+	if crdbatchids.Shipped() {
+		for _, r := range crdbatchids.Rules() {
+			want[r.ID] = r
+		}
+	}
+	published := 0
+	for _, entry := range shippedPack(t).Entries {
+		if !isSetRule(t, entry) {
+			if strings.Contains(string(entry.Rule), `"setCondition"`) {
+				t.Fatalf("rule %s carries a set condition without the set operator", ruleID(t, entry))
+			}
+			continue
+		}
+		published++
+		id := ruleID(t, entry)
+		var rule struct {
+			SetCondition struct {
+				Side, Component, FactID string
+				Members                 []string
+			} `json:"setCondition"`
+		}
+		if err := json.Unmarshal(entry.Rule, &rule); err != nil {
+			t.Fatal(err)
+		}
+		stated, ok := want[id]
+		fact := rule.SetCondition.FactID
+		if !ok || entry.Project != stated.Project || fact != stated.FactID() || fact != factOf[entry.Project] || !crd[fact] || rule.SetCondition.Side != "proposed" || rule.SetCondition.Component != stated.Component || !slices.Equal(rule.SetCondition.Members, stated.Members) {
+			t.Fatalf("published set rule %s (project %s) reads %s %s %v: not a stated custom-resource version-removal rule of its project", id, entry.Project, rule.SetCondition.Side, fact, rule.SetCondition.Members)
+		}
+		declared := 0
+		for _, f := range entry.RequiredFacts {
+			if f.ID == fact {
+				if f.Type != constraintengine.FactSet || f.Side != "proposed" || f.Component != stated.Component {
+					t.Fatalf("%s declares %s as %+v", id, fact, f)
+				}
+				declared++
+			}
+		}
+		if declared != 1 {
+			t.Fatalf("%s declares its set fact %d times", id, declared)
+		}
+	}
+	if published != len(want) {
+		t.Fatalf("%d published set rules, the batch states %d", published, len(want))
 	}
 	gates := map[string]bool{}
 	for _, slug := range []string{"kube_apiserver", "kube_controller_manager", "kube_scheduler", "kubelet", "kube_proxy"} {
