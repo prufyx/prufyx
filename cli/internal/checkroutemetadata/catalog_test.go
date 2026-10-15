@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchids"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/projectcheck"
 )
@@ -36,6 +37,15 @@ func TestDescriptorSetBindsCompiledIdentity(t *testing.T) {
 
 // kubernetesExtra is how many more checks (and native routes) the embedded
 // pack has once the mechanical Kubernetes rules replace the reviewed ones.
+// crdbatchIDs are the custom-resource batch rules the shipped pack holds:
+// all of them once the batch ships, none before.
+func crdbatchIDs() []string {
+	if !crdbatchids.Shipped() {
+		return nil
+	}
+	return crdbatchids.IDs()
+}
+
 func kubernetesExtra() int {
 	if supersedeids.Superseded() {
 		return 4
@@ -82,7 +92,9 @@ func TestDiscoverCompleteEmbeddedIdentityCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Schema != Schema || len(result.Checks) != 225+kubernetesExtra() {
+	// Every rule of the pack is an identity: the custom-resource batch adds
+	// its 28 once it ships (crdbatchids).
+	if result.Schema != Schema || len(result.Checks) != 225+kubernetesExtra()+len(crdbatchIDs()) {
 		t.Fatalf("catalog schema/count = %q/%d", result.Schema, len(result.Checks))
 	}
 	if result.Scope.SourceEvidenceFreshness != "NOT_EVALUATED" {
