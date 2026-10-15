@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -36,7 +37,24 @@ func TestCommunityExampleRunsNativeSyntheticCNCFJourneys(t *testing.T) {
 				t.Fatalf("result=%#v", envelope.Data)
 			}
 			needsClean := example == "cncf-coredns-latest" || example == "cncf-envoy-latest" || example == "cncf-etcd" || example == "cncf-kyverno-latest" || example == "cncf-nats-latest" || example == "cncf-opa-latest" || example == "cncf-opentelemetry" || example == "cncf-rook-latest" || example == "project-ceph-latest"
-			if envelope.Data.BlockedExit != ExitBlocked || envelope.Data.UnknownExit != ExitUnknown || (needsClean && envelope.Data.CleanExit != ExitOK) {
+			wantClean := ExitOK
+			if example == "cncf-kyverno-latest" {
+				// The hops from 1.14.5 and 1.15.3 cross the custom-resource
+				// batch's Kyverno rule once it ships: exit 11 there.
+				wantByOrigin := map[string]int{}
+				for _, from := range []string{"1.14.5", "1.15.3", "1.16.4", "1.17.2", "1.18.2"} {
+					wantByOrigin[from] = passExit(kyvernoLatestBatchRuleIDs(from, "1.19.1"))
+					if wantByOrigin[from] != ExitOK {
+						wantClean = wantByOrigin[from]
+					}
+				}
+				if !reflect.DeepEqual(envelope.Data.CleanExitsByOrigin, wantByOrigin) {
+					t.Fatalf("clean exits by origin %v, want %v", envelope.Data.CleanExitsByOrigin, wantByOrigin)
+				}
+			} else if envelope.Data.CleanExitsByOrigin != nil {
+				t.Fatalf("clean exits by origin on %s: %v", example, envelope.Data.CleanExitsByOrigin)
+			}
+			if envelope.Data.BlockedExit != ExitBlocked || envelope.Data.UnknownExit != ExitUnknown || (needsClean && envelope.Data.CleanExit != wantClean) {
 				t.Fatalf("exit result=%#v", envelope.Data)
 			}
 		})
