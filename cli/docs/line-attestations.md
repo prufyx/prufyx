@@ -238,6 +238,72 @@ the pair's rules and names every release read. As for Kubernetes, the
 manifest records the attestation status of every pair, `attestations.json`
 holds the attestations, and `extract verify` covers them.
 
+## Empty-list attestations: admission
+
+A mechanical attestation that lists no rule says that nothing was removed
+between the two lines. The gate admits a new or changed one only when the
+extractor it names re-derives that exact record from pinned upstream bytes
+(as for any mechanical record) and all of these hold. A refused change carries
+a detail that starts `empty-list/<code>:`, and the report has an extra check
+named `empty-list` while a change holds such a record.
+
+1. The target attests: the extractor, as compiled into the gate, declares the
+   fact family and attests this component. A target that does not attest, or an
+   unknown extractor, is refused.
+2. The record names the extractor identity (id, version, code digest) that
+   this gate ships.
+3. Every cited source is an immutable blob URL of the extractor's repository at
+   a full 40-hex revision, with a clean file path, no query or fragment, and a
+   line span of at least one line; every release commit is a full 40-hex commit.
+   The whole-file digests and spans are read from upstream by the citations
+   check, and a finding there is attached to the record.
+4. The record was derived inside the usual 24-hour window and stays valid for
+   more than 14 days after the gate's clock.
+5. The releases are complete, and the newest line of the change is empty (see
+   below).
+
+| Code | Refused because |
+| --- | --- |
+| `target-not-attesting` | the extractor is unknown, does not declare the family, or attests another component |
+| `extractor-digest` | the extractor identity in the record is not the one the gate ships |
+| `citation` | a source or release commit has a malformed URL, revision or span, or the citations check has a finding for the record |
+| `freshness` | `derivedAt` is outside the window, or `validUntil` is not more than 14 days ahead |
+| `releases-incomplete` | the tags the gate reads do not show exactly the releases or anchors the record names |
+| `newest-pair-not-empty` | the newest empty-list line of a component and family in the change was not derived empty by the gate's own run |
+
+Conditions 1 to 4 are checked before re-derivation, so a refused record is
+never re-derived. For the custom-resource family, the gate lists the final
+release tags (`<prefix>X.Y.Z` for a prefix of the target, no pre-release or
+suffix) of the previous minor line and of the line itself, and requires the
+record's `releases.from` and `releases.to` to be exactly those, by version and
+commit, in ascending order, one to 64 per side. A version tagged at two
+commits, a matching tag without a full commit, or no release of a line
+refuses the record. The Kubernetes family names no releases. The gate requires
+final tags `v1.(L-1).0` and `v1.L.0` with full commits, requires the record's
+`openapi-1-(L-1)-0` and `openapi-1-L-0` sources to cite exactly those commits,
+requires `L-1` to be at least the extractor's first source minor, and refuses
+the record when any final tag `v1.(L-1).*` or `v1.L.*` has no full commit. It
+does not require the patch releases: it relies on Kubernetes removing served
+API versions only at the `.0` release of a minor line.
+
+If the change holds several empty-list records of one component and family,
+the newest of them must be one the gate's own run derived empty. When it is
+not, every empty-list record of the change is refused with
+`newest-pair-not-empty`.
+
+An empty Kubernetes list means that no beta or stable served API version was
+removed between `v1.(L-1).0` and `v1.L.0`, as declared by the lifecycle files
+and the OpenAPI specification of the two releases. A removal for which the
+extractor has no adapter fact is not claimed absent: the line stays
+unattested.
+
+A reviewed (not mechanical) empty-list attestation is not affected: it still
+needs a reattestation statement or an owner approval. The scheduled
+`--rederive-all` run re-derives unchanged records and does not apply these
+checks, since an unchanged record is not a loosening. Empty-list records count
+as loosening changes toward the per-change cap and the daily limit like any
+other record.
+
 ## Retracting an attestation
 
 Retract a wrong attestation by withdrawing it (`evidence.state` `active` to
