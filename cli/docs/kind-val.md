@@ -16,7 +16,9 @@ synthetic project.
 
 The input is a list of claims; the output gives one outcome per claim. Both
 are JSON with a `schema` member and are decoded strictly: an unknown member
-is refused, so the shape only changes with the schema name.
+is refused, so the shape only changes with the schema name. The `v1` shapes
+follow; `v2` adds verdicts, reason codes and control claims (see
+[Verdicts, reasons and controls](#verdicts-reasons-and-controls)).
 
 ### Input: `prufyx.io/kind-val-claims/v1`
 
@@ -121,6 +123,148 @@ the old definition, so its objects stay accepted until it is deleted). `INFO`: a
 that gave no report, a refused in-place CRD update, a definition a release
 no longer defines.
 
+## Verdicts, reasons and controls
+
+A claims file of schema `prufyx.io/kind-val-claims/v2` asks for results of
+schema `prufyx.io/kind-val-results/v2`. A `v1` claims file gives exactly the
+`v1` results described above, byte for byte; `evaluate` reads both.
+`kind-val.sh` writes `v1` claims (and so `v1` results, exactly as before)
+unless it is given `--v2`; `kindval claims` writes `v1` unless it is given
+`--schema v2`.
+
+### What v2 adds
+
+The v2 claims file has two more members: `lines`, the cluster matrix of the
+run, and, among `claims`, the control claims of the run (`"control": "true"`
+or `"false"`, ids starting with `control.`). Both come from `kindval claims`:
+a claims file merged with `--crd` may not carry them, and every subcommand
+refuses a v2 file whose controls are not exactly the reviewed controls of its
+lines and of the kinds of its other claims (none missing, none added, none
+changed). A control is an ordinary claim of an ordinary kind; the snapshots,
+verdicts and custom-resource runs decide it on the same clusters as the
+claims.
+
+Every claim result gains:
+
+- `verdict`: `confirmed-by-execution` (outcome `confirmed`), `refuted`,
+  `undetermined` or `error`. The verdict is never stronger than what the API
+  server showed in this run.
+- `reason`: one code of the closed list below; empty only for
+  `confirmed-by-execution`. `detail` stays the human explanation.
+
+The results gain `controls` (one entry per control: `id`, `kind`, `line`,
+`expected` (`true` or `false`), `outcome`, `ok`, `reason`, `detail`; omitted
+when the run has no control), `totals.verdicts` (claims by verdict) and
+`totals.controls` (one entry per kind and line: `state` `ok`, `failed`,
+`incomplete` or `absent`, the number of `true` and `false` controls, the `failed` control
+ids). Controls are never in `claims` and never in the claim totals. The
+summary gains a `Controls` section with one line per `totals.controls`
+entry.
+
+| `reason` | Outcome | Meaning |
+| --- | --- | --- |
+| `not-evaluated` | undetermined | The kind is not evaluated here (`addon-rule`). |
+| `no-snapshot` | undetermined | No snapshot of the line (or of a line of the hop). |
+| `no-run` | undetermined | No run of the release pair, or no run installed the release. |
+| `no-corpus-case` | undetermined | No dry run of the API on both lines of the hop, or no scan for it. |
+| `not-probed` | undetermined | The custom-resource member was not probed on both releases. |
+| `release-unavailable` | undetermined | The release cannot be installed from the claim's own evidence (its files hold no definitions or cannot be read). |
+| `release-not-installed` | undetermined or error | A run that should have installed the release did not reach it. |
+| `server-no-answer` | error | A kubectl call got no answer from the API server. |
+| `scan-no-report` | error | `prufyx scan` gave no report. |
+| `install-failed` | error | A fetch, apply, wait or cleanup of a release failed. |
+| `crd-missing` | refuted | The cluster holds no such definition after the install. |
+| `version-not-declared` | refuted | The definition does not declare the version. |
+| `disagreement` | refuted | The API server (or the scan) contradicts the claim. |
+| `image-digest-mismatch` | error | The node is not proven to run the configured image digest. |
+| `canary-failed` | error | A control of the kind on this line did not come out as expected. |
+| `controls-absent` | undetermined | The controls file has controls for the kind, but none ran for a group the claim depends on (for a removal, also the served-API group of either line), or all that ran have the same expectation. |
+
+### The void rule
+
+Controls are grouped like the claims they guard: a `k8s-served-api` claim by
+its `line`, a `k8s-removal` claim by its `to` line, and the custom-resource
+kinds by kind (they are decided on the one custom-resource line of the run).
+A `k8s-removal` claim reads the served APIs and dry runs of both its lines,
+so it depends on three groups: the removal group of its `to` line and the
+served-API groups of its `from` and `to` lines (a run with removal claims
+therefore always carries the served-API controls of its lines). For each
+claim:
+
+- Every control of the group came out as expected (`true`: confirmed;
+  `false`: refuted): the claims are reported as without controls, plus
+  `verdict` and `reason`.
+- Any control of a group it depends on did not (the other outcome,
+  `undetermined` or `error`): the claim becomes `outcome: error`,
+  `verdict: error`, `reason: canary-failed`; `detail` names the failed
+  controls and keeps the former detail after `was:`. A claim that would have
+  been refuted is reported as error too: nothing from a void group is
+  evidence either way, so the findings those claims raised (and, for a void
+  `crd-removal` group, the missed-removal findings of the pairs) are dropped.
+  One `HIGH` finding `canary-failed/<kind>/<line>` (`canary-failed/<kind>`
+  for the custom-resource kinds) names each failed control with its outcome,
+  reason and detail, and the findings it dropped. A control that repeats a
+  claim (the documented removals are both) therefore turns a knowledge defect
+  on that line into `canary-failed`: read the failed control's detail.
+- The group has no control although the controls file has entries for the
+  kind (a claim about a line outside the matrix, a hop between lines that are
+  not one minor apart), or every control of the group came out as expected
+  but all have the same expectation (`state: incomplete`): a confirmed or
+  refuted claim becomes `undetermined` with `reason: controls-absent`, and its
+  findings are dropped; `totals.controls` has the entry with `state: absent`
+  or `incomplete`. One expectation cannot tell a working harness from one
+  that gives the same answer to everything.
+- The controls file has no entry for the kind (`addon-rule`): the claims are
+  unchanged and `totals.controls` has `{kind, state: "absent"}`. No control is
+  ever made up at run time.
+
+Controls failing on one line void that kind's claims on that line only (and
+the removal claims of the hops into and out of it); the other lines and
+kinds are unaffected. Controls add no other finding and take no part in the
+missed-removal check. The served-API difference between two lines is kept
+only when the served-API groups of both lines are `ok`: otherwise its
+`diffs` entry and its `diff.<line>.*` findings are dropped (and listed in the
+`canary-failed` finding when a group failed). A v2 run without served-API or
+removal claims has no served-API controls and so reports no differences.
+
+`k8s-removal` controls are decided on the API servers only: the `from` line
+serves the API (discovery and dry run) and the `to` line does not. The scan
+verdict is not part of a control, so a scan or knowledge regression on a hop
+refutes the affected removal claims (which still require the scan to block)
+instead of voiding the hop. The scan stage itself therefore has no canary.
+
+The hops whose removals the upstream deprecation guide does not document
+(1.33, 1.34, 1.37 in the current table) have only `false` removal controls,
+so their `k8s-removal` groups are `incomplete` and their removal claims stay
+`undetermined` until a reviewed `true` control is added for the hop.
+
+A control that cannot be decided is not as expected: a line without a
+snapshot, or a custom-resource run limited with `kindval crd --pair` (or
+missing), voids the groups whose controls it would have decided.
+
+### The controls file
+
+`internal/tools/kindval/controls.json` (`prufyx.io/kind-val-controls/v1`) is
+embedded in the binary. Each entry is a claim of the claims contract plus
+`control`, and, for the Kubernetes kinds, an optional `lines` range
+(`{"from": "1.32"}`; empty bounds are open). An entry with `lines` names no
+line of its own: `kindval claims` expands it for every line of the matrix in
+range (a `k8s-served-api` entry gets the line, id suffixed `.<line>`; a
+`k8s-removal` entry gets the hop from the line one minor below when the
+matrix has it, id suffixed `.<from>-to-<to>`). An entry without `lines` is
+used when the matrix has its line or both lines of its hop. Custom-resource
+controls name a project of their own (`control.<project>`), so they never
+share a release with the claims; they are added whenever the claims have their
+kind. A line named twice in `--lines` counts once; a v2 claims file that
+names a line twice is refused.
+
+To add or change a control: open a reviewed pull request that edits
+`controls.json` and cites, for every value, the upstream file at a commit
+(for Kubernetes, the deprecation guide in `kubernetes/website`; for a
+project, the CRD manifest at the release's commit), in the entry's
+`evidence` and in the pull request. Keep at least two `true` and two `false`
+controls per kind.
+
 ## Running
 
 Needs `kind`, `kubectl` and `docker`, a built `prufyx`, and network access
@@ -135,7 +279,7 @@ cat > images.txt <<'EOF'
 EOF
 cli/scripts/kind-val.sh --images images.txt --out /tmp/kind-val --prufyx "$HOME/.local/bin/prufyx" \
   --prufyx-commit "$(git rev-parse HEAD)" [--crd-claims pairs.json] [--crd-line 1.37] \
-  [--kind-config FILE] [--post-check 'some health command']
+  [--kind-config FILE] [--post-check 'some health command'] [--v2]
 ```
 
 Pin node images by digest from the kind release notes: the script and `kindval snapshot`/`crd` refuse an image without `@sha256:<64 hex>`. The script also records the repository digests of the image the node container really runs (`docker inspect`) as `observedImageDigests`; a claim decided on a node whose observed digests do not include the configured one is an `error`. The clusters are
@@ -152,7 +296,7 @@ cluster is deleted and stops the run when it fails.
 The subcommands can be run one by one against any kubeconfig:
 
 ```text
-kindval claims   --lines 1.36,1.37 [--crd FILE] --out claims.json
+kindval claims   --lines 1.36,1.37 [--crd FILE] [--schema v2] --out claims.json
 kindval snapshot --kubeconfig KC --line 1.37 --image REF --out runs/snapshot-1.37.json
 kindval verdicts --kubeconfig KC --line 1.37 --dir corpus --out runs/verdicts-1.37.json \
                  --claims claims.json --prufyx BIN --from-version 1.36.4 --to-version 1.37.0
