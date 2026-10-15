@@ -6442,6 +6442,296 @@
     ]
   },
   {
+    "project": "crossplane",
+    "ruleId": "crossplane.crd-version-removal.compositionrevisions-apiextensions-crossplane-io.1-20-0-to-2-0-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.20.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "apiextensions.crossplane.io/v1/CompositionRevision"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.20.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "apiextensions.crossplane.io/v1/CompositionRevision",
+                        "apiextensions.crossplane.io/v1beta1/CompositionRevision"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.20.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.20.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.1.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "apiextensions.crossplane.io/v1/CompositionRevision",
+                        "apiextensions.crossplane.io/v1beta1/CompositionRevision"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "crossplane",
+    "ruleId": "crossplane.crd-version-removal.environmentconfigs-apiextensions-crossplane-io.1-20-0-to-2-0-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.20.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "apiextensions.crossplane.io/v1beta1/EnvironmentConfig"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.20.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "apiextensions.crossplane.io/v1alpha1/EnvironmentConfig",
+                        "apiextensions.crossplane.io/v1beta1/EnvironmentConfig"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.20.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.20.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.1.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "apiextensions.crossplane.io/v1alpha1/EnvironmentConfig",
+                        "apiextensions.crossplane.io/v1beta1/EnvironmentConfig"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
     "project": "cubefs",
     "ruleId": "cubefs.metanode-raft-snapshot-format.3-2-1-to-3-3-2",
     "cases": [
@@ -21616,6 +21906,151 @@
   },
   {
     "project": "kyverno",
+    "ruleId": "kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kyverno/kyverno",
+                "version": "1.15.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kyverno/kyverno",
+                "version": "1.16.0",
+                "facts": [
+                  {
+                    "id": "component.kyverno.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kyverno.io/v2/UpdateRequest"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kyverno/kyverno",
+                "version": "1.15.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kyverno/kyverno",
+                "version": "1.16.0",
+                "facts": [
+                  {
+                    "id": "component.kyverno.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kyverno.io/v1beta1/UpdateRequest",
+                        "kyverno.io/v2/UpdateRequest"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kyverno/kyverno",
+                "version": "1.15.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kyverno/kyverno",
+                "version": "1.16.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kyverno/kyverno",
+                "version": "1.15.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kyverno/kyverno",
+                "version": "1.17.0",
+                "facts": [
+                  {
+                    "id": "component.kyverno.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kyverno.io/v1beta1/UpdateRequest",
+                        "kyverno.io/v2/UpdateRequest"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kyverno",
     "ruleId": "kyverno.reports-chunk-size-removed.1-13",
     "cases": [
       {
@@ -25900,6 +26335,2181 @@
                     "id": "component.linkerd.schema_validation_required",
                     "state": "declared",
                     "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "longhorn",
+    "ruleId": "longhorn.crd-version-removal.backingimagedatasources-longhorn-io.1-8-0-to-1-9-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta2/BackingImageDataSource"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/BackingImageDataSource",
+                        "longhorn.io/v1beta2/BackingImageDataSource"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.10.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/BackingImageDataSource",
+                        "longhorn.io/v1beta2/BackingImageDataSource"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "longhorn",
+    "ruleId": "longhorn.crd-version-removal.backingimagemanagers-longhorn-io.1-8-0-to-1-9-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta2/BackingImageManager"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/BackingImageManager",
+                        "longhorn.io/v1beta2/BackingImageManager"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.10.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/BackingImageManager",
+                        "longhorn.io/v1beta2/BackingImageManager"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "longhorn",
+    "ruleId": "longhorn.crd-version-removal.backingimages-longhorn-io.1-8-0-to-1-9-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta2/BackingImage"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/BackingImage",
+                        "longhorn.io/v1beta2/BackingImage"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.10.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/BackingImage",
+                        "longhorn.io/v1beta2/BackingImage"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "longhorn",
+    "ruleId": "longhorn.crd-version-removal.backups-longhorn-io.1-8-0-to-1-9-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta2/Backup"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/Backup",
+                        "longhorn.io/v1beta2/Backup"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.10.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/Backup",
+                        "longhorn.io/v1beta2/Backup"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "longhorn",
+    "ruleId": "longhorn.crd-version-removal.backuptargets-longhorn-io.1-8-0-to-1-9-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta2/BackupTarget"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/BackupTarget",
+                        "longhorn.io/v1beta2/BackupTarget"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.10.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/BackupTarget",
+                        "longhorn.io/v1beta2/BackupTarget"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "longhorn",
+    "ruleId": "longhorn.crd-version-removal.backupvolumes-longhorn-io.1-8-0-to-1-9-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta2/BackupVolume"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/BackupVolume",
+                        "longhorn.io/v1beta2/BackupVolume"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.10.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/BackupVolume",
+                        "longhorn.io/v1beta2/BackupVolume"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "longhorn",
+    "ruleId": "longhorn.crd-version-removal.engineimages-longhorn-io.1-8-0-to-1-9-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta2/EngineImage"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/EngineImage",
+                        "longhorn.io/v1beta2/EngineImage"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.10.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/EngineImage",
+                        "longhorn.io/v1beta2/EngineImage"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "longhorn",
+    "ruleId": "longhorn.crd-version-removal.engines-longhorn-io.1-8-0-to-1-9-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta2/Engine"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/Engine",
+                        "longhorn.io/v1beta2/Engine"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.10.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/Engine",
+                        "longhorn.io/v1beta2/Engine"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "longhorn",
+    "ruleId": "longhorn.crd-version-removal.instancemanagers-longhorn-io.1-8-0-to-1-9-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta2/InstanceManager"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/InstanceManager",
+                        "longhorn.io/v1beta2/InstanceManager"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.10.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/InstanceManager",
+                        "longhorn.io/v1beta2/InstanceManager"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "longhorn",
+    "ruleId": "longhorn.crd-version-removal.nodes-longhorn-io.1-8-0-to-1-9-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta2/Node"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/Node",
+                        "longhorn.io/v1beta2/Node"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.10.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/Node",
+                        "longhorn.io/v1beta2/Node"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "longhorn",
+    "ruleId": "longhorn.crd-version-removal.recurringjobs-longhorn-io.1-8-0-to-1-9-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta2/RecurringJob"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/RecurringJob",
+                        "longhorn.io/v1beta2/RecurringJob"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.10.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/RecurringJob",
+                        "longhorn.io/v1beta2/RecurringJob"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "longhorn",
+    "ruleId": "longhorn.crd-version-removal.replicas-longhorn-io.1-8-0-to-1-9-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta2/Replica"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/Replica",
+                        "longhorn.io/v1beta2/Replica"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.10.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/Replica",
+                        "longhorn.io/v1beta2/Replica"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "longhorn",
+    "ruleId": "longhorn.crd-version-removal.settings-longhorn-io.1-8-0-to-1-9-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta2/Setting"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/Setting",
+                        "longhorn.io/v1beta2/Setting"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.10.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/Setting",
+                        "longhorn.io/v1beta2/Setting"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "longhorn",
+    "ruleId": "longhorn.crd-version-removal.sharemanagers-longhorn-io.1-8-0-to-1-9-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta2/ShareManager"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/ShareManager",
+                        "longhorn.io/v1beta2/ShareManager"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.10.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/ShareManager",
+                        "longhorn.io/v1beta2/ShareManager"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "longhorn",
+    "ruleId": "longhorn.crd-version-removal.volumes-longhorn-io.1-8-0-to-1-9-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta2/Volume"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/Volume",
+                        "longhorn.io/v1beta2/Volume"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.9.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.8.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/longhorn/longhorn",
+                "version": "1.10.0",
+                "facts": [
+                  {
+                    "id": "component.longhorn.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "longhorn.io/v1beta1/Volume",
+                        "longhorn.io/v1beta2/Volume"
+                      ],
+                      "complete": true
+                    }
                   }
                 ]
               }
@@ -34559,6 +37169,1456 @@
             ]
           },
           "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "strimzi",
+    "ruleId": "strimzi.crd-version-removal.kafkabridges-kafka-strimzi-io.0-51-0-to-1-0-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaBridge"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaBridge",
+                        "kafka.strimzi.io/v1beta2/KafkaBridge"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.1.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaBridge",
+                        "kafka.strimzi.io/v1beta2/KafkaBridge"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "strimzi",
+    "ruleId": "strimzi.crd-version-removal.kafkaconnectors-kafka-strimzi-io.0-51-0-to-1-0-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaConnector"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaConnector",
+                        "kafka.strimzi.io/v1beta2/KafkaConnector"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.1.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaConnector",
+                        "kafka.strimzi.io/v1beta2/KafkaConnector"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "strimzi",
+    "ruleId": "strimzi.crd-version-removal.kafkaconnects-kafka-strimzi-io.0-51-0-to-1-0-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaConnect"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaConnect",
+                        "kafka.strimzi.io/v1beta2/KafkaConnect"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.1.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaConnect",
+                        "kafka.strimzi.io/v1beta2/KafkaConnect"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "strimzi",
+    "ruleId": "strimzi.crd-version-removal.kafkamirrormaker2s-kafka-strimzi-io.0-51-0-to-1-0-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaMirrorMaker2"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaMirrorMaker2",
+                        "kafka.strimzi.io/v1beta2/KafkaMirrorMaker2"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.1.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaMirrorMaker2",
+                        "kafka.strimzi.io/v1beta2/KafkaMirrorMaker2"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "strimzi",
+    "ruleId": "strimzi.crd-version-removal.kafkanodepools-kafka-strimzi-io.0-51-0-to-1-0-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaNodePool"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaNodePool",
+                        "kafka.strimzi.io/v1beta2/KafkaNodePool"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.1.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaNodePool",
+                        "kafka.strimzi.io/v1beta2/KafkaNodePool"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "strimzi",
+    "ruleId": "strimzi.crd-version-removal.kafkarebalances-kafka-strimzi-io.0-51-0-to-1-0-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaRebalance"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaRebalance",
+                        "kafka.strimzi.io/v1beta2/KafkaRebalance"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.1.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaRebalance",
+                        "kafka.strimzi.io/v1beta2/KafkaRebalance"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "strimzi",
+    "ruleId": "strimzi.crd-version-removal.kafkas-kafka-strimzi-io.0-51-0-to-1-0-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/Kafka"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/Kafka",
+                        "kafka.strimzi.io/v1beta2/Kafka"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.1.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/Kafka",
+                        "kafka.strimzi.io/v1beta2/Kafka"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "strimzi",
+    "ruleId": "strimzi.crd-version-removal.kafkatopics-kafka-strimzi-io.0-51-0-to-1-0-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaTopic"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaTopic",
+                        "kafka.strimzi.io/v1beta2/KafkaTopic"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.1.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaTopic",
+                        "kafka.strimzi.io/v1beta2/KafkaTopic"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "strimzi",
+    "ruleId": "strimzi.crd-version-removal.kafkausers-kafka-strimzi-io.0-51-0-to-1-0-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaUser"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaUser",
+                        "kafka.strimzi.io/v1beta2/KafkaUser"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.1.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "kafka.strimzi.io/v1/KafkaUser",
+                        "kafka.strimzi.io/v1beta2/KafkaUser"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "strimzi",
+    "ruleId": "strimzi.crd-version-removal.strimzipodsets-core-strimzi-io.0-51-0-to-1-0-0",
+    "cases": [
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "core.strimzi.io/v1/StrimziPodSet"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "core.strimzi.io/v1/StrimziPodSet",
+                        "core.strimzi.io/v1beta2/StrimziPodSet"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.0.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.51.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "1.1.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.custom_resource_versions_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "core.strimzi.io/v1/StrimziPodSet",
+                        "core.strimzi.io/v1beta2/StrimziPodSet"
+                      ],
+                      "complete": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
         },
         "status": "UNKNOWN"
       }

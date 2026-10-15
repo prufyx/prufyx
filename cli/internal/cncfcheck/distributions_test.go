@@ -56,14 +56,7 @@ func validDistributions(t *testing.T) []byte {
 // for none).
 func distributionPack(t *testing.T, schema string, attestations, policies, distributions []byte) []byte {
 	t.Helper()
-	raw, err := packagedFiles.ReadFile("data/rules.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var pack rulePack
-	if err := strictJSON(raw, &pack); err != nil {
-		t.Fatal(err)
-	}
+	pack := syntheticBase(t)
 	pack.Schema, pack.LineAttestations, pack.PathPolicies, pack.Distributions = schema, attestations, policies, distributions
 	encoded, err := json.Marshal(pack)
 	if err != nil {
@@ -261,16 +254,24 @@ func TestPackSchemaLevelDistributions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if b.pack.Schema != packSchemaRanged || b.packDigest != "sha256:"+embeddedPackSHA256 || b.distributions.Len() != 0 {
+	level := shippedSchemaLevel(t)
+	if b.pack.Schema != level || b.packDigest != "sha256:"+embeddedPackSHA256 || b.distributions.Len() != 0 {
 		t.Fatalf("embedded pack schema %s digest %s", b.pack.Schema, b.packDigest)
 	}
+	// Re-encoding equals the strict decoding of the file re-encoded: the
+	// loader adds no section.
+	file, err := json.Marshal(shippedPack(t))
+	if err != nil {
+		t.Fatal(err)
+	}
 	reencoded, err := json.Marshal(b.pack)
-	if err != nil || bytes.Contains(reencoded, []byte(`"`+distribution.PackMember+`"`)) || !bytes.Equal(reencoded, distributionPack(t, b.pack.Schema, nil, nil, nil)) {
+	if err != nil || bytes.Contains(reencoded, []byte(`"`+distribution.PackMember+`"`)) || !bytes.Equal(reencoded, file) {
 		t.Fatalf("re-encoded pack gained a section: %v", err)
 	}
-	if schema, err := requiredPackSchema(b.pack); err != nil || schema != packSchemaRanged {
+	if schema, err := requiredPackSchema(b.pack); err != nil || schema != level {
 		t.Fatalf("required schema %s %v", schema, err)
 	}
+	// The matrix below is built on syntheticBase (distributionPack).
 	// With the section, exactly the distributions level is admitted, alone
 	// or with every lower section.
 	all := []string{packSchema, packSchemaRanged, packSchemaSet, packSchemaAttested, packSchemaPathPolicies, packSchemaNotice, packSchemaBasis, packSchemaSeverity, packSchemaDistributions, "prufyx.io/cncf-source-rule-pack/v1alpha10", packSchemaCrossing, packSchemaChart, packSchemaChartNotice, packSchemaChartRanged}
@@ -320,10 +321,7 @@ func TestPackSchemaLevelDistributions(t *testing.T) {
 }
 
 func TestExternalRefusesDistributions(t *testing.T) {
-	raw, err := ExportEmbeddedExternalBundle("7")
-	if err != nil {
-		t.Fatal(err)
-	}
+	raw := syntheticBaseExternalBundle(t, "7")
 	var envelope map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &envelope); err != nil {
 		t.Fatal(err)

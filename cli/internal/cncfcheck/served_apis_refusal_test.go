@@ -21,7 +21,7 @@ func TestExternalProfileRefusesServedAPIs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	value := base.pack
+	value := syntheticBase(t)
 	value.Revision = "7"
 	if err := validateExternalPack(base, value, "7", false); err != nil {
 		t.Fatalf("control: the pack without a served list is refused: %v", err)

@@ -23,15 +23,11 @@ type externalFixtureDocument struct {
 
 func externalFixture(t *testing.T, entries []Entry) []byte {
 	t.Helper()
-	base, err := load()
-	if err != nil {
-		t.Fatal(err)
-	}
 	capability, err := ExternalCapabilityDigest()
 	if err != nil {
 		t.Fatal(err)
 	}
-	pack := base.pack
+	pack := syntheticBase(t)
 	pack.Revision = "1"
 	pack.Entries = entries
 	pack.Schema = packSchema
@@ -47,11 +43,7 @@ func externalFixture(t *testing.T, entries []Entry) []byte {
 
 func kyvernoEntry(t *testing.T) Entry {
 	t.Helper()
-	base, err := load()
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, entry := range base.pack.Entries {
+	for _, entry := range syntheticBase(t).Entries {
 		if entry.Project == "kyverno" {
 			return entry
 		}
@@ -84,10 +76,13 @@ func ruleEntry(t *testing.T, project, ruleID string) Entry {
 	return Entry{}
 }
 
+// kyvernoInput is the input of case want of the vector of kyvernoEntry's
+// rule.
 func kyvernoInput(t *testing.T, want string) []byte {
 	t.Helper()
+	id := ruleID(t, kyvernoEntry(t))
 	for _, vector := range reviewedVectors(t) {
-		if vector.Project != "kyverno" {
+		if vector.Project != "kyverno" || vector.RuleID != id {
 			continue
 		}
 		for _, scenario := range vector.Cases {
