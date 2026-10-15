@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -27,11 +28,10 @@ import (
 
 // The onboarding fixture: a synthetic project, served by a local upstream
 // fixture, onboarded under the slug of a CNCF landscape project that the
-// reviewed table does not hold. Nothing here is a real upstream.
+// repository's reviewed table and targets do not hold (picked at test time,
+// so onboarding that project later does not move this test). Nothing here is
+// a real upstream.
 const (
-	obSlug   = "openebs"
-	obRepo   = "github.com/openebs/openebs"
-	obComp   = "pkg:github/openebs/openebs"
 	obGroup  = "storage.synthetic.example"
 	obFrom   = "00000000000000000000000000000000000a1000"
 	obTo     = "00000000000000000000000000000000000a1100"
@@ -40,14 +40,49 @@ const (
 	obCRD    = "deploy/crds/widgets.yaml"
 )
 
-var obTargetJSON = `{
+var (
+	obSlug, obRepo, obComp, obFact, obTargetJSON = obPick()
+	// obOwnerRepo is obRepo without its host.
+	obOwnerRepo = strings.TrimPrefix(obRepo, "github.com/")
+)
+
+// obPick picks the first CNCF landscape project, by slug, with a GitHub
+// repository that the reviewed table and the targets do not hold.
+func obPick() (slug, repo, component, fact, target string) {
+	raw, err := os.ReadFile(filepath.Join(repoRoot, "cli/internal/cncfcheck/data/landscape-projects.json"))
+	if err != nil {
+		panic(err)
+	}
+	var landscape struct {
+		Projects []struct {
+			Slug          string `json:"slug"`
+			RepositoryURL string `json:"repositoryURL"`
+		} `json:"projects"`
+	}
+	if err := json.Unmarshal(raw, &landscape); err != nil {
+		panic(err)
+	}
+	urlRE := regexp.MustCompile(`^https://github\.com/([a-z0-9-]+/[a-z0-9-]+)$`)
+	for _, p := range landscape.Projects {
+		m := urlRE.FindStringSubmatch(p.RepositoryURL)
+		if m == nil || !onboardingSlugRE.MatchString(p.Slug) {
+			continue
+		}
+		if _, held := customresources.ProjectFor(p.Slug); held {
+			continue
+		}
+		if _, held := crdversions.TargetFor(p.Slug); held {
+			continue
+		}
+		repo, component, fact = "github.com/"+m[1], "pkg:github/"+m[1], strings.ReplaceAll(p.Slug, "-", "_")
+		target = fmt.Sprintf(`{
   "schema": "prufyx.io/crd-version-target/v1",
   "target": {
-    "project": "openebs",
-    "name": "OpenEBS",
-    "repo": "github.com/openebs/openebs",
-    "component": "pkg:github/openebs/openebs",
-    "factProject": "openebs",
+    "project": %q,
+    "name": "Synthetic",
+    "repo": %q,
+    "component": %q,
+    "factProject": %q,
     "tagPrefixes": ["v"],
     "minFrom": "1.0",
     "paths": [
@@ -56,7 +91,11 @@ var obTargetJSON = `{
     "exclude": []
   }
 }
-`
+`, p.Slug, repo, component, fact)
+		return p.Slug, repo, component, fact, target
+	}
+	panic("no landscape project left to onboard in the fixture")
+}
 
 // obCRDDoc renders the fixture's one CRD serving versions.
 func obCRDDoc(group string, versions ...string) string {
@@ -154,7 +193,7 @@ func (f *onboardingFixture) onboardRow(t *testing.T, slug, targetJSON, component
 	writeFile(t, filepath.Join(f.head.Root, filepath.FromSlash(targetPath(ol, slug))), []byte(targetJSON))
 	f.editTable(t, func(projects []customresources.Project) []customresources.Project {
 		return append(projects, customresources.Project{Slug: slug, Catalog: customresources.CatalogCNCF, FactProject: strings.ReplaceAll(slug, "-", "_"),
-			Component: component, Groups: []customresources.Group{{Name: group, Source: "https://github.com/" + strings.TrimPrefix(obRepo, "github.com/") + "/blob/" + obTo + "/" + crdPath}}})
+			Component: component, Groups: []customresources.Group{{Name: group, Source: "https://github.com/" + obOwnerRepo + "/blob/" + obTo + "/" + crdPath}}})
 	})
 }
 

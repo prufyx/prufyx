@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -25,36 +26,66 @@ const (
 	atTo   = "00000000000000000000000000000000000b1400"
 )
 
-// attestFixture turns on attestation for metallb, a target of the base
-// that does not attest, against a synthetic upstream fixture.
-func attestFixture(t *testing.T, edit func(raw string) string) *onboardingFixture {
+// atPick is a target of the repository that does not attest yet and that a
+// small fixture can stand in for: a registered CNCF project with one plain
+// directory path, no exclusions, remote source or channels.
+func atPick(t *testing.T) (crdversions.Target, customresources.Project) {
 	t.Helper()
+	for _, tg := range crdversions.Targets {
+		row, registered := customresources.ProjectFor(tg.Project)
+		if tg.Attest || !registered || tg.Catalog != crdversions.CatalogCNCF || tg.Remote != nil || len(tg.Channels) > 0 || len(tg.Exclude) > 0 || len(tg.Paths) != 1 || !tg.Paths[0].Dir || tg.Paths[0].Recursive || len(tg.TagPrefixes) == 0 {
+			continue
+		}
+		return tg, row
+	}
+	t.Skip("no target of the repository is left to turn attestation on for")
+	return crdversions.Target{}, customresources.Project{}
+}
+
+// attestFixture turns on attestation for atPick's target, against a
+// synthetic upstream fixture; edit changes the head target document too.
+func attestFixture(t *testing.T, edit func(target map[string]any)) *onboardingFixture {
+	t.Helper()
+	tg, row := atPick(t)
 	base, head := trees(t)
 	onboardingRepoFiles(t, base)
 	onboardingRepoFiles(t, head)
 	key := newApprovalKey(t)
 	key.pinBoth(t, base, head, obOwner)
 	up := t.TempDir()
-	repo := "github.com/metallb/metallb"
-	writeFile(t, filepath.Join(up, filepath.FromSlash(repo), "tags.json"), []byte(`{"v0.13.0": "`+atFrom+`", "v0.14.0": "`+atTo+`"}`))
+	prefix := tg.TagPrefixes[0]
+	fromTag := fmt.Sprintf("%s%d.%d.0", prefix, tg.MinFrom[0], tg.MinFrom[1])
+	toTag := fmt.Sprintf("%s%d.%d.0", prefix, tg.MinFrom[0], tg.MinFrom[1]+1)
+	writeFile(t, filepath.Join(up, filepath.FromSlash(tg.Repo), "tags.json"), []byte(`{"`+fromTag+`": "`+atFrom+`", "`+toTag+`": "`+atTo+`"}`))
+	group := row.Groups[0].Name
 	for _, c := range []string{atFrom, atTo} {
-		writeFile(t, filepath.Join(up, filepath.FromSlash(repo), "commits", c, "config/crd/bases/metallb.io_widgets.yaml"), []byte(obCRDDoc("metallb.io", "v1beta1")))
+		writeFile(t, filepath.Join(up, filepath.FromSlash(tg.Repo), "commits", c, filepath.FromSlash(tg.Paths[0].Path), group+"_widgets-crd.yaml"), []byte(obCRDDoc(group, "v1beta1")))
 	}
 	f := &onboardingFixture{base: base, head: head, key: key, upstream: up, src: &obSource{FixtureReader: extract.FixtureReader{Root: up}, perList: 1}, signedAt: gateNow.Add(-time.Hour)}
 	ol := DefaultLayout().Onboarding
-	path := filepath.Join(head.Root, filepath.FromSlash(targetPath(ol, "metallb")))
+	path := filepath.Join(head.Root, filepath.FromSlash(targetPath(ol, tg.Project)))
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	flipped := strings.Replace(string(raw), `"minFrom": "0.13",`, `"minFrom": "0.13",`+"\n    \"attest\": true,", 1)
-	if edit != nil {
-		flipped = edit(flipped)
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
 	}
-	writeFile(t, path, []byte(flipped))
+	doc["target"].(map[string]any)["attest"] = true
+	if edit != nil {
+		edit(doc["target"].(map[string]any))
+	}
+	out, _ := json.MarshalIndent(doc, "", "  ")
+	writeFile(t, path, append(out, '\n'))
 	f.follow(t)
-	p := f.project("metallb", OnboardingKindAttest, "metallb.io")
-	p.Proof.Pair = OnboardingPair{FromCommit: atFrom, FromTag: "v0.13.0", ToCommit: atTo, ToTag: "v0.14.0"}
+	var groups []string
+	for _, g := range row.Groups {
+		groups = append(groups, g.Name)
+	}
+	p := f.project(tg.Project, OnboardingKindAttest, groups...)
+	p.Facts = []string{row.FactID()}
+	p.Proof.Pair = OnboardingPair{FromCommit: atFrom, FromTag: fromTag, ToCommit: atTo, ToTag: toTag}
 	f.draft = onboardingDraft{BatchID: "ob-20261003-1", CandidateID: "pr-2", Projects: []OnboardingProject{p}}
 	return f
 }
@@ -67,7 +98,7 @@ func TestOnboardingAttestFlip(t *testing.T) {
 	if len(r.Changes) != 1 || r.Changes[0].Member != "revision" || r.Changes[0].Proof != ProofOnboarding {
 		t.Fatalf("changes %+v", r.Changes)
 	}
-	if !strings.Contains(r.onboarding.summary, "**Attestation turned on: metallb.**") {
+	if !strings.Contains(r.onboarding.summary, "**Attestation turned on: "+f.draft.Projects[0].Slug+".**") {
 		t.Fatalf("summary does not lead with the attest flip:\n%s", r.onboarding.summary)
 	}
 }
@@ -81,7 +112,7 @@ func TestOnboardingAttestRefusals(t *testing.T) {
 		requireFail(t, f.gate(t), "no refuted claim")
 	})
 	t.Run("another member changes with attest", func(t *testing.T) {
-		f := attestFixture(t, func(raw string) string { return strings.Replace(raw, `"minFrom": "0.13"`, `"minFrom": "0.12"`, 1) })
+		f := attestFixture(t, func(target map[string]any) { target["name"] = "Renamed" })
 		f.refresh()
 		rec, _ := f.tryRecord(t)
 		f.sign(t, rec)
@@ -92,8 +123,10 @@ func TestOnboardingAttestRefusals(t *testing.T) {
 		// A stray definition outside the listed path keeps the scan from
 		// being clean, so the line cannot be attested; the proposal lists
 		// it, so only the attestation refuses.
-		writeFile(t, filepath.Join(f.upstream, "github.com/metallb/metallb/commits", atTo, "hack/stray-crd.yaml"), []byte(obCRDDoc("stray.synthetic.example", "v1")))
-		writeFile(t, filepath.Join(f.upstream, "github.com/metallb/metallb/commits", atFrom, "hack/stray-crd.yaml"), []byte(obCRDDoc("stray.synthetic.example", "v1")))
+		tg, _ := atPick(t)
+		for _, c := range []string{atTo, atFrom} {
+			writeFile(t, filepath.Join(f.upstream, filepath.FromSlash(tg.Repo), "commits", c, "hack/stray-crd.yaml"), []byte(obCRDDoc("stray.synthetic.example", "v1")))
+		}
 		src := &obSource{FixtureReader: extract.FixtureReader{Root: f.upstream}, perList: 1}
 		f.draft.Projects[0].Proof.Scan = scanOf(t, f, src)
 		f.sign(t, f.record(t))

@@ -31,14 +31,19 @@ func TestReplayOfPreRewriteReportNamesTheOlderContract(t *testing.T) {
 	}
 	inputPath := writeCNCFFile(t, "input.json", input, 0o600)
 	// The stored report holds placeholders for the pack revision and digest and
-	// for the rule set digest, which covers the revision. The current rule set
-	// digest is read from a fresh check of the same input.
+	// for the rule set and registry digests, which move with the pack. Their
+	// current values are read from a fresh check of the same input.
 	_, fresh, _ := runCNCFCLI(t, "check", "cncf", "--project", "containerd", "--input", inputPath, "--now", "2026-10-08T00:00:00Z", "--format", "json")
 	current := ruleSetDigestField.Find([]byte(fresh))
 	if current == nil {
 		t.Fatalf("fresh check holds no rule set digest: %q", fresh)
 	}
 	report = bytes.ReplaceAll(report, []byte(maskedRuleSetDigestField), current)
+	registry := registryDigestField.Find([]byte(fresh))
+	if registry == nil {
+		t.Fatalf("fresh check holds no registry digest: %q", fresh)
+	}
+	report = bytes.ReplaceAll(report, []byte(maskedRegistryDigestField), registry)
 	report = goldenfile.UnmaskPack(report, knowledge.Revision(), knowledge.PackDigest())
 	args := func(report []byte) []string {
 		return []string{"check", "cncf", "--project", "containerd", "--input", inputPath, "--now", "2026-10-08T00:00:00Z", "--format", "json",

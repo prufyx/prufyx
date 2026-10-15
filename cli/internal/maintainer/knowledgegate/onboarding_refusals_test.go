@@ -12,6 +12,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 )
 
 // Every case must make the gate refuse the change; each names the check
@@ -77,7 +78,7 @@ func TestOnboardingRefusals(t *testing.T) {
 					if ps[i].Slug == obSlug {
 						ps[i].Groups = nil
 						for _, g := range groups {
-							ps[i].Groups = append(ps[i].Groups, customresources.Group{Name: g, Source: "https://github.com/openebs/openebs/blob/" + obTo + "/" + obCRD})
+							ps[i].Groups = append(ps[i].Groups, customresources.Group{Name: g, Source: "https://github.com/" + obOwnerRepo + "/blob/" + obTo + "/" + obCRD})
 						}
 					}
 				}
@@ -161,18 +162,18 @@ func TestOnboardingRefusals(t *testing.T) {
 			f.writePack(t, raw)
 		}), nil, "O2: an onboarding change may not change rule"},
 		{"O2 a target is removed", blind(func(t *testing.T, f *onboardingFixture) {
-			os.Remove(headFile(f, ol.TargetsDir+"/target-metallb.json"))
+			os.Remove(headFile(f, ol.TargetsDir+"/"+crdversions.TargetFileName(crdversions.Targets[0].Project)))
 		}), nil, "is removed"},
 		{"O2 another project's row changes", blind(func(t *testing.T, f *onboardingFixture) {
 			f.editTable(t, func(ps []customresources.Project) []customresources.Project {
 				for i := range ps {
-					if ps[i].Slug == "metallb" {
-						ps[i].Groups[0].Source = "https://github.com/metallb/metallb/blob/" + obTo + "/config/crd/bases/x.yaml"
+					if ps[i].Slug == otherSlug() {
+						ps[i].Groups[0].Source = "https://github.com/" + strings.TrimPrefix(ps[i].Component, "pkg:github/") + "/blob/" + obTo + "/x.yaml"
 					}
 				}
 				return ps
 			})
-		}), nil, "the table row of metallb changes"},
+		}), nil, "the table row of " + otherSlug() + " changes"},
 
 		// O3: the states and artifacts.
 		{"O3 revision bump other than one", blind(func(t *testing.T, f *onboardingFixture) {
@@ -191,22 +192,22 @@ func TestOnboardingRefusals(t *testing.T) {
 
 		// O4: what the base's loaders read.
 		{"O4 reserved group", blind(func(t *testing.T, f *onboardingFixture) {
-			setGroups("storage.openebs.k8s.io", obGroup)(t, f)
+			setGroups("a.storage.synthetic.k8s.io", obGroup)(t, f)
 		}), nil, "O4"},
 		{"O4 reserved group with a record", blind(func(t *testing.T, f *onboardingFixture) {
 			ol := DefaultLayout().Onboarding
 			raw, _ := f.head.Read(ol.TablePath, MaxFileBytes)
 			projects, reserved, _ := customresources.LoadTable(raw)
-			reserved = append(reserved, customresources.ReservedGroup{Name: "storage.openebs.k8s.io", Owner: obSlug, Repository: "https://github.com/openebs/openebs", Reason: "a synthetic reserved group record"})
+			reserved = append(reserved, customresources.ReservedGroup{Name: "a.storage.synthetic.k8s.io", Owner: obSlug, Repository: "https://" + obRepo, Reason: "a synthetic reserved group record"})
 			for i := range projects {
 				if projects[i].Slug == obSlug {
-					projects[i].Groups = append([]customresources.Group{{Name: "storage.openebs.k8s.io", Source: projects[i].Groups[0].Source}}, projects[i].Groups...)
+					projects[i].Groups = append([]customresources.Group{{Name: "a.storage.synthetic.k8s.io", Source: projects[i].Groups[0].Source}}, projects[i].Groups...)
 				}
 			}
 			table, _ := customresources.CanonicalTable(projects, sortReserved(reserved))
 			writeFile(t, headFile(f, ol.TablePath), table)
 			f.follow(t)
-			f.draft.Projects[0].Groups = []string{"storage.openebs.k8s.io", obGroup}
+			f.draft.Projects[0].Groups = []string{"a.storage.synthetic.k8s.io", obGroup}
 		}), nil, "reserved"},
 		{"O4 shared group", blind(func(t *testing.T, f *onboardingFixture) {
 			setGroups("crd.antrea.io")(t, f)
@@ -241,12 +242,12 @@ func TestOnboardingRefusals(t *testing.T) {
 				}
 				return out
 			})
-			f.onboardRow(t, obSlug, strings.ReplaceAll(strings.ReplaceAll(obTargetJSON, "github.com/openebs/openebs", "github.com/openebs-fork/openebs"), "pkg:github/openebs/openebs", "pkg:github/openebs-fork/openebs"), "pkg:github/openebs-fork/openebs", obGroup, obCRD)
+			f.onboardRow(t, obSlug, strings.ReplaceAll(strings.ReplaceAll(obTargetJSON, obRepo, obRepo+"-fork"), obComp, obComp+"-fork"), obComp+"-fork", obGroup, obCRD)
 		}), nil, "is not the landscape repository"},
 
 		// O5: the registry.
 		{"O5 facts of another shape", resigned(func(rec *OnboardingRecord) {
-			rec.Projects[0].Facts = []string{"component.openebs_other.custom_resource_versions_set"}
+			rec.Projects[0].Facts = []string{"component."+obFact+"_other.custom_resource_versions_set"}
 		}), nil, "O5: the facts must be exactly"},
 		{"O5 a row for a project the batch does not list", blind(func(t *testing.T, f *onboardingFixture) {
 			f.editTable(t, func(ps []customresources.Project) []customresources.Project {
@@ -281,12 +282,12 @@ func TestOnboardingRefusals(t *testing.T) {
 			f.editTable(t, func(ps []customresources.Project) []customresources.Project {
 				for i := range ps {
 					if ps[i].Slug == obSlug {
-						ps[i].Groups[0].Source = strings.Replace(ps[i].Groups[0].Source, "openebs/openebs", "openebs/other", 1)
+						ps[i].Groups[0].Source = strings.Replace(ps[i].Groups[0].Source, obOwnerRepo, obOwnerRepo+"-other", 1)
 					}
 				}
 				return ps
 			})
-		}), nil, "not a file of github.com/openebs/openebs"},
+		}), nil, "not a file of "+obRepo},
 		{"O6 a group cited outside a listed path", blind(func(t *testing.T, f *onboardingFixture) {
 			writeUpstream(t, f.upstream, obTo, "docs/widgets.yaml", obCRDDoc(obGroup, "v1"))
 			f.editTable(t, func(ps []customresources.Project) []customresources.Project {
@@ -302,7 +303,7 @@ func TestOnboardingRefusals(t *testing.T) {
 			f.editTable(t, func(ps []customresources.Project) []customresources.Project {
 				for i := range ps {
 					if ps[i].Slug == obSlug {
-						ps[i].FactProject = "metallb"
+						ps[i].FactProject = customresources.Projects()[0].FactProject
 					}
 				}
 				return ps
@@ -352,3 +353,13 @@ func sortReserved(list []customresources.ReservedGroup) []customresources.Reserv
 }
 
 var _ = extract.PairDerived
+
+// otherSlug is a project of the repository's table other than the fixture's.
+func otherSlug() string {
+	for _, p := range customresources.Projects() {
+		if p.Slug != obSlug {
+			return p.Slug
+		}
+	}
+	panic("no other project")
+}
