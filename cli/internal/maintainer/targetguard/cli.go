@@ -137,8 +137,9 @@ func runCitations(args []string, root string, stdout, stderr io.Writer, deps *ci
 			fmt.Fprintf(stderr, "target-check: could not write %s: %v\n", *outPath, err)
 			return 2
 		}
-	} else {
-		stdout.Write(encoded)
+	} else if _, err := stdout.Write(encoded); err != nil {
+		fmt.Fprintf(stderr, "target-check: could not write the report: %v\n", err)
+		return 2
 	}
 	for _, f := range report.Findings {
 		fmt.Fprintf(stderr, "FAIL [%s] %s: %s\n", f.Check, f.RuleID, f.Message)

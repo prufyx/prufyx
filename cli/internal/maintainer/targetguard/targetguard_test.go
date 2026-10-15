@@ -19,6 +19,7 @@ import (
 	"testing/fstest"
 
 	"github.com/prufyx/prufyx/cli/internal/customresources"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/rulecheck"
 )
 
@@ -340,17 +341,17 @@ var removals = []removal{
 			tg["component"] = "pkg:github/evil/cilium"
 		})
 	}, Removal{Kind: KindIdentity, Project: "cilium", Detail: "repo:github.com/evil/cilium"}},
-	{"exclusion weakened", func(t *testing.T, m fstest.MapFS) {
-		editTarget(t, m, "crossplane", func(tg map[string]any) {
-			for _, e := range tg["exclude"].([]any) {
-				if e.(map[string]any)["copies"] == true {
-					e.(map[string]any)["copies"] = false
-					return
-				}
-			}
-			t.Skip("no exclusion with copies")
+	{"remote added", func(t *testing.T, m fstest.MapFS) {
+		editTarget(t, m, "cilium", func(tg map[string]any) {
+			tg["remote"] = map[string]any{"fromLine": "3.0", "kustomization": "k.yaml", "repo": "github.com/other/x", "directory": "d", "pins": []any{map[string]any{"tag": "v1.0.0", "commit": strings.Repeat("c", 40)}}}
 		})
-	}, Removal{Kind: KindNarrowed, Project: "crossplane", Detail: "excludeChanged:"}},
+	}, Removal{Kind: KindNarrowed, Project: "cilium", Detail: "remoteAdded:github.com/other/x"}},
+	{"remote fromLine lowered", func(t *testing.T, m fstest.MapFS) {
+		editTarget(t, m, "kong-ingress-controller", func(tg map[string]any) { tg["remote"].(map[string]any)["fromLine"] = "3.3" })
+	}, Removal{Kind: KindNarrowed, Project: "kong-ingress-controller", Detail: "remoteFrom:3.3"}},
+	{"tag prefix order", func(t *testing.T, m fstest.MapFS) {
+		editTarget(t, m, "kuma", func(tg map[string]any) { tg["tagPrefixes"] = []any{"", "v"} })
+	}, Removal{Kind: KindNarrowed, Project: "kuma", Detail: "tagPrefixOrder"}},
 	{"channel", func(t *testing.T, m fstest.MapFS) {
 		editTarget(t, m, "gateway-api", func(tg map[string]any) { delete(tg, "channels"); delete(tg, "declaredChannel") })
 	}, Removal{Kind: KindNarrowed, Project: "gateway-api", Detail: "channel:experimental"}},
@@ -368,9 +369,8 @@ func TestEveryRemovalNeedsAMatchingEntry(t *testing.T) {
 			}
 			found := false
 			for _, r := range Diff(base, head) {
-				if r.id() == rc.want.id() || (rc.name == "exclusion weakened" && r.Kind == rc.want.Kind && strings.HasPrefix(r.Detail, rc.want.Detail)) {
+				if r.id() == rc.want.id() {
 					found = true
-					rc.want = r
 				}
 			}
 			if !found {
@@ -669,4 +669,33 @@ func TestRemovalAgainAfterRestoreNeedsTheNextSeq(t *testing.T) {
 	// A seq that skips ahead is a stale pre-approval.
 	removed.Guard.Removals = []Removal{entry(0), entry(2)}
 	wantCheck(t, CheckRemovals(restored, removed), CheckRemovalStale, "tekton")
+}
+
+// The loader refuses to drop the check of an exclusion under an install
+// directory, so the weakening is exercised on the loaded targets directly.
+func TestWeakenedExclusionIsNarrowing(t *testing.T) {
+	base := mustLoad(t, realTree(t), false)
+	head := mustLoad(t, realTree(t), false)
+	n := 0
+	for i := range head.Targets {
+		head.Targets[i].Exclude = append([]crdversions.Exclusion(nil), head.Targets[i].Exclude...)
+		for j := range head.Targets[i].Exclude {
+			if head.Targets[i].Exclude[j].Copies {
+				head.Targets[i].Exclude[j].Copies = false
+				n++
+			}
+		}
+	}
+	if n == 0 {
+		t.Fatal("no exclusion with copies in the data: the case is void")
+	}
+	got := 0
+	for _, r := range Diff(base, head) {
+		if r.Kind == KindNarrowed && strings.HasPrefix(r.Detail, "excludeChanged:") {
+			got++
+		}
+	}
+	if got != n {
+		t.Fatalf("weakened %d exclusions, Diff lists %d: %+v", n, got, Diff(base, head))
+	}
 }

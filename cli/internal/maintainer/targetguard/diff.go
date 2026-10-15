@@ -112,6 +112,9 @@ func narrowed(b, h crdversions.Target) []string {
 			out = append(out, "tagPrefix:"+p)
 		}
 	}
+	if !samePrefixOrder(b.TagPrefixes, h.TagPrefixes) {
+		out = append(out, "tagPrefixOrder")
+	}
 	if b.Attest && !h.Attest {
 		out = append(out, "attest")
 	}
@@ -185,13 +188,16 @@ func shape(p crdversions.PathSpec) string {
 
 func remoteChanges(b, h *crdversions.Remote) []string {
 	if b == nil {
+		if h != nil {
+			return []string{"remoteAdded:" + h.Repo}
+		}
 		return nil
 	}
 	if h == nil {
 		return []string{"remote"}
 	}
 	var out []string
-	if lineLess(b.FromLine, h.FromLine) {
+	if b.FromLine != h.FromLine {
 		out = append(out, "remoteFrom:"+line(h.FromLine))
 	}
 	if b.Repo != h.Repo || b.Directory != h.Directory || b.Kustomization != h.Kustomization {
@@ -290,6 +296,9 @@ func projectIdentity(b, h customresources.Project) []Removal {
 	if b.FactProject != h.FactProject {
 		add("factProject:" + h.FactProject)
 	}
+	if b.Upstream.License != h.Upstream.License {
+		add("license:" + h.Upstream.License)
+	}
 	if b.Upstream.Repository != h.Upstream.Repository {
 		add("upstreamRepository:" + h.Upstream.Repository)
 	}
@@ -314,4 +323,25 @@ func targetIdentity(b, h crdversions.Target) []string {
 		out = append(out, "catalog:"+h.Catalog)
 	}
 	return out
+}
+
+// samePrefixOrder reports whether the prefixes both lists share keep their
+// order of preference.
+func samePrefixOrder(b, h []string) bool {
+	var common []string
+	for _, p := range b {
+		if containsString(h, p) {
+			common = append(common, p)
+		}
+	}
+	i := 0
+	for _, p := range h {
+		if containsString(common, p) {
+			if common[i] != p {
+				return false
+			}
+			i++
+		}
+	}
+	return true
 }
