@@ -40,6 +40,13 @@ type ScanRule struct {
 	Severity    string
 	Description string
 	NextAction  string
+	// Chart is the chart identity of a chart rule's subject; nil for a rule
+	// about application versions.
+	Chart *constraintengine.ChartRef
+	// SetFact and SetMembers are the fact and members of the rule's set
+	// condition; empty when it has none.
+	SetFact    string
+	SetMembers []string
 }
 
 // NewScanRule reads the selection view of one raw rule. It does not
@@ -56,6 +63,10 @@ func NewScanRule(project, description string, raw json.RawMessage) (ScanRule, er
 		Evidence   struct {
 			Basis string `json:"basis"`
 		} `json:"evidence"`
+		SetCondition *struct {
+			FactID  string   `json:"factId"`
+			Members []string `json:"members"`
+		} `json:"setCondition"`
 	}
 	if json.Unmarshal(raw, &shape) != nil || json.Unmarshal(raw, &action) != nil {
 		return ScanRule{}, ErrIntegrity
@@ -70,6 +81,18 @@ func NewScanRule(project, description string, raw json.RawMessage) (ScanRule, er
 		rule.Facts = append(rule.Facts, condition.FactID)
 	}
 	sort.Strings(rule.Facts)
+	subject, err := constraintengine.RuleTransitionOf(raw)
+	if err != nil {
+		return ScanRule{}, ErrIntegrity
+	}
+	if subject.Chart != nil {
+		chart := *subject.Chart
+		rule.Chart = &chart
+	}
+	if action.SetCondition != nil {
+		rule.SetFact = action.SetCondition.FactID
+		rule.SetMembers = append([]string{}, action.SetCondition.Members...)
+	}
 	return rule, nil
 }
 

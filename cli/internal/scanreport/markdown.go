@@ -68,7 +68,7 @@ func Markdown(report Report, options MarkdownOptions) []byte {
 				continue
 			}
 			line("")
-			line("### %s", mdText(fmt.Sprintf(labelPath, path.Component, path.From, path.To, pathSummary(path))))
+			line("### %s", mdText(pathLabel(path)))
 			writeFindingTable(&out, findings)
 		}
 		var rest []Finding
@@ -88,7 +88,7 @@ func Markdown(report Report, options MarkdownOptions) []byte {
 		line("## " + labelMDHops)
 		for _, path := range report.Paths {
 			line("")
-			line("### %s", mdText(fmt.Sprintf(labelPath, path.Component, path.From, path.To, pathSummary(path))))
+			line("### %s", mdText(pathLabel(path)))
 			if len(path.Hops) == 0 {
 				continue
 			}
@@ -223,6 +223,7 @@ func Markdown(report Report, options MarkdownOptions) []byte {
 		fmt.Sprintf(labelMDKnowledge, p.KnowledgeOrigin, p.KnowledgeRevision, p.KnowledgeDigest),
 	)
 	provenance = append(provenance, knowledgeStoreLines(p.KnowledgeStore)...)
+	provenance = append(provenance, helmValuesLines(p.HelmValues)...)
 	provenance = append(provenance,
 		fmt.Sprintf(labelMDEngine, p.EngineContractDigest),
 		fmt.Sprintf(labelMDBuild, p.Build.Version),
@@ -265,6 +266,9 @@ func writeFindingTable(out *bytes.Buffer, findings []Finding) {
 				break
 			}
 			where = append(where, markdownLocation(location))
+		}
+		if len(finding.Keys) > 0 {
+			where = append(where, mdText(fmt.Sprintf(labelKeys, strings.Join(finding.Keys, ", "))))
 		}
 		fmt.Fprintf(out, "| %s | %s | %s | %s |\n", mdText(hopLabel(finding.Hop)), mdText(finding.Title), strings.Join(where, "<br>"), mdText(finding.Fix))
 	}

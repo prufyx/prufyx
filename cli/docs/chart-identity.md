@@ -5,8 +5,11 @@ Prufyx reads Helm chart references in GitOps repositories (a `HelmRelease`, an A
 a chart version. It does not tell you which software the chart installs, or which version of that
 software the chart version contains. Two embedded tables bridge that gap. The app-version table
 ships empty; the chart-source table holds the reviewed rows of the charts the `helm.values`
-extractor reads (see [extractors/helm.values.md](extractors/helm.values.md)), which only `rulecheck`
-consults today: a chart rule needs one.
+extractor reads (see [extractors/helm.values.md](extractors/helm.values.md)). `rulecheck` consults it
+(a chart rule needs one), and so does `prufyx scan`: a chart declared with `--chart` or
+`declarations.helm` must match exactly one row that is current at the evaluation instant (see
+"Helm chart values" in [scan.md](scan.md)); a withdrawn or expired row is never used, and nothing is
+guessed when no row fits.
 
 ## A chart version is not an application version
 
@@ -46,7 +49,8 @@ Rules of the derivation:
 ## Freshness
 
 Every record has a `validUntil`. Lookups take the current time and treat an expired (or withdrawn)
-record as not found; a missing record means the chart label is shown but not used.
+record as not found; a missing record means the chart label is shown but not used. `prufyx scan`
+refuses a chart declaration that only an expired or withdrawn record would resolve.
 
 ## Maintainer commands
 

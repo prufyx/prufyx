@@ -224,6 +224,9 @@
             "community"
           ]
         },
+        "chart": {
+          "type": "string"
+        },
         "covered": {
           "type": "boolean"
         }
@@ -275,6 +278,49 @@
         },
         "servedList": {
           "$ref": "#/$defs/servedList"
+        },
+        "chart": {
+          "$ref": "#/$defs/pathChart"
+        }
+      }
+    },
+    "pathChart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "source",
+        "pathsRead",
+        "unnamed",
+        "universeSize",
+        "members",
+        "complete"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "pathsRead": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unnamed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "universeSize": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "members": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "complete": {
+          "type": "boolean"
         }
       }
     },
@@ -439,6 +485,9 @@
         },
         "wholeUpgrade": {
           "type": "boolean"
+        },
+        "chart": {
+          "type": "string"
         }
       }
     },
@@ -629,6 +678,12 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/location"
+          }
+        },
+        "keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         },
         "basis": {
@@ -1029,6 +1084,12 @@
         },
         "knowledgeStore": {
           "$ref": "#/$defs/knowledgeStore"
+        },
+        "helmValues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/helmValues"
+          }
         }
       }
     },
@@ -1094,6 +1155,62 @@
           "type": "string"
         },
         "revision": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
+        }
+      }
+    },
+    "helmValues": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "chart",
+        "source",
+        "digest",
+        "files",
+        "sets",
+        "declaredComplete"
+      ],
+      "properties": {
+        "component": {
+          "type": "string"
+        },
+        "chart": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/helmValuesFile"
+          }
+        },
+        "sets": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "declaredComplete": {
+          "type": "boolean"
+        }
+      }
+    },
+    "helmValuesFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "digest"
+      ],
+      "properties": {
+        "file": {
           "type": "string"
         },
         "digest": {

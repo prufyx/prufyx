@@ -117,6 +117,9 @@ type Component struct {
 	// project outside the embedded CNCF landscape catalog) and absent for a
 	// CNCF project.
 	Catalog string `json:"catalog,omitempty"`
+	// Chart names the chart when the versions are chart versions of a
+	// declared chart hop; absent for application versions.
+	Chart string `json:"chart,omitempty"`
 	// Covered is true when scan evaluates this component.
 	Covered bool `json:"covered"`
 }
@@ -134,6 +137,25 @@ type Path struct {
 	// ServedList is the served-API list of the target line that a
 	// SCOPE_COMPLETE_PASS relied on; it is present only in a PASS report.
 	ServedList *ServedList `json:"servedList,omitempty"`
+	// Chart is present for a declared chart hop: From and To are then chart
+	// versions of this chart, never application versions.
+	Chart *PathChart `json:"chart,omitempty"`
+}
+
+// PathChart describes a chart path: the chart, and what the scan read of
+// the values supplied for it. PathsRead counts the key paths of the merged
+// values (null values left out); the values-path set holds only the paths
+// the rules name (UniverseSize distinct members), and Members of them were
+// present. Unnamed counts paths too long to be a set member, which no rule
+// can name. Complete is whether the set was declared complete.
+type PathChart struct {
+	Name         string `json:"name"`
+	Source       string `json:"source"`
+	PathsRead    int    `json:"pathsRead"`
+	Unnamed      int    `json:"unnamed"`
+	UniverseSize int    `json:"universeSize"`
+	Members      int    `json:"members"`
+	Complete     bool   `json:"complete"`
 }
 
 // ServedList names the served-API list a scan relied on: its line, basis,
@@ -223,6 +245,8 @@ type HopRef struct {
 	From         string `json:"from"`
 	To           string `json:"to"`
 	WholeUpgrade bool   `json:"wholeUpgrade,omitempty"`
+	// Chart names the chart when From and To are chart versions.
+	Chart string `json:"chart,omitempty"`
 }
 
 // order sorts hops by index; the whole upgrade sorts after every hop.
@@ -256,12 +280,16 @@ type Finding struct {
 	// Match and the evidence (the rule's range, or its crossing) describe
 	// that step, not the hop the finding is attached to, and InputDigest /
 	// EngineContractDigest of the step are the ones in CrossedLine.
-	CrossedLine *CrossedLine                      `json:"crossedLine,omitempty"`
-	Locations   []Location                        `json:"locations"`
-	Basis       string                            `json:"basis"`
-	Extractor   string                            `json:"extractor,omitempty"`
-	Citations   []constraintengine.SourceEvidence `json:"citations"`
-	RuleDigest  string                            `json:"ruleDigest"`
+	CrossedLine *CrossedLine `json:"crossedLine,omitempty"`
+	Locations   []Location   `json:"locations"`
+	// Keys are the Helm values keys a chart values rule found: required
+	// keys the supplied values do not set, or refused keys they set, as
+	// values-path set members. Absent for every other finding.
+	Keys       []string                          `json:"keys,omitempty"`
+	Basis      string                            `json:"basis"`
+	Extractor  string                            `json:"extractor,omitempty"`
+	Citations  []constraintengine.SourceEvidence `json:"citations"`
+	RuleDigest string                            `json:"ruleDigest"`
 }
 
 // CrossedLine is the step a rule decided for a hop that skips release
@@ -378,6 +406,29 @@ type Provenance struct {
 	// local knowledge database (--knowledge-db). KnowledgeRevision and
 	// KnowledgeDigest then identify the selected target.
 	KnowledgeStore *KnowledgeStore `json:"knowledgeStore,omitempty"`
+	// HelmValues identifies the values supplied for each declared chart hop.
+	HelmValues []HelmValues `json:"helmValues,omitempty"`
+}
+
+// HelmValues identifies the values supplied for one declared chart: the
+// files in precedence order with their digests, the number of --helm-set
+// assignments, whether they were declared complete, and Digest, the
+// "sha256:" of one line per source in order ("file <digest>" or
+// "set <digest of the assignment text>"). Assignment text is never shown.
+type HelmValues struct {
+	Component string           `json:"component"`
+	Chart     string           `json:"chart"`
+	Source    string           `json:"source"`
+	Digest    string           `json:"digest"`
+	Files     []HelmValuesFile `json:"files"`
+	Sets      int              `json:"sets"`
+	Declared  bool             `json:"declaredComplete"`
+}
+
+// HelmValuesFile is one values file read for a chart.
+type HelmValuesFile struct {
+	File   string `json:"file"`
+	Digest string `json:"digest"`
 }
 
 // KnowledgeStore identifies the knowledge database a scan read: where it is,
@@ -672,7 +723,7 @@ func hopRefLess(a, b *HopRef) bool {
 		}
 		return 0
 	}
-	return cmp.Or(cmp.Compare(a.Index, b.Index), strings.Compare(a.From, b.From), strings.Compare(a.To, b.To), cmp.Compare(whole(a), whole(b))) < 0
+	return cmp.Or(cmp.Compare(a.Index, b.Index), strings.Compare(a.From, b.From), strings.Compare(a.To, b.To), cmp.Compare(whole(a), whole(b)), strings.Compare(a.Chart, b.Chart)) < 0
 }
 
 // uniqueGaps drops exact repeats of a sorted gap list.

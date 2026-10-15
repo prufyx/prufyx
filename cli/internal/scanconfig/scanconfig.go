@@ -59,7 +59,24 @@ type Config struct {
 // projects and keys additively.
 type DeclarationSet struct {
 	Kubernetes *KubernetesDeclarations
+	// Helm declares chart hops by project: nil when absent.
+	Helm map[string]HelmDeclaration
 }
+
+// HelmDeclaration declares that a project's versions are chart versions
+// of one chart, and the values supplied for the chart. Values paths are
+// relative to the file's directory; Set assignments are checked by the
+// scan.
+type HelmDeclaration struct {
+	// Chart is NAME or NAME@SOURCE.
+	Chart    string
+	Values   []string
+	Set      []string
+	Complete *bool
+}
+
+// MaxHelmValues bounds the values files and the assignments of one chart.
+const MaxHelmValues = 64
 
 // KubernetesDeclarations maps to the flags of the Kubernetes native route.
 type KubernetesDeclarations struct {
@@ -316,11 +333,16 @@ func validVersion(version string) bool {
 }
 
 func parseDeclarations(value any) (DeclarationSet, error) {
-	m, err := object(value, "declarations", "kubernetes")
+	m, err := object(value, "declarations", "kubernetes", "helm")
 	if err != nil {
 		return DeclarationSet{}, err
 	}
 	var set DeclarationSet
+	if v, present := m["helm"]; present {
+		if set.Helm, err = parseHelm(v); err != nil {
+			return DeclarationSet{}, err
+		}
+	}
 	if v, present := m["kubernetes"]; present {
 		k, err := object(v, "declarations.kubernetes", "distribution", "resourceScopeComplete", "targetApplyRequired")
 		if err != nil {
@@ -349,6 +371,67 @@ func parseDeclarations(value any) (DeclarationSet, error) {
 		set.Kubernetes = decl
 	}
 	return set, nil
+}
+
+// parseHelm reads declarations.helm: a mapping from catalog project to its
+// chart declaration.
+func parseHelm(value any) (map[string]HelmDeclaration, error) {
+	m, ok := value.(map[string]any)
+	if !ok {
+		return nil, fail("declarations.helm must be a mapping")
+	}
+	out := make(map[string]HelmDeclaration, len(m))
+	for _, slug := range sortedKeys(m) {
+		path := join("declarations.helm", slug)
+		if _, err := cncfcheck.Component(slug); err != nil || slug == "kubernetes" {
+			return nil, fail("unknown chart project %s under declarations.helm", echo(slug))
+		}
+		h, err := object(m[slug], path, "chart", "values", "set", "complete")
+		if err != nil {
+			return nil, err
+		}
+		var decl HelmDeclaration
+		chart, ok := h["chart"].(string)
+		if !ok || chart == "" || len(chart) > 512 || strings.ContainsAny(chart, "\x00\n\r\t ") {
+			return nil, fail("%s.chart must be a chart name, or NAME@SOURCE", echo(path))
+		}
+		decl.Chart = chart
+		if v, present := h["values"]; present {
+			list, ok := v.([]any)
+			if !ok || len(list) == 0 || len(list) > MaxHelmValues {
+				return nil, fail("%s.values must be a list of 1 to %d paths", echo(path), MaxHelmValues)
+			}
+			for index, item := range list {
+				file, ok := item.(string)
+				if !ok || !safeRelative(file) || strings.HasSuffix(file, "/") {
+					return nil, fail("%s.values[%d] must be a clean relative file path without ..", echo(path), index)
+				}
+				decl.Values = append(decl.Values, file)
+			}
+		}
+		if v, present := h["set"]; present {
+			list, ok := v.([]any)
+			if !ok || len(list) == 0 || len(list) > MaxHelmValues {
+				return nil, fail("%s.set must be a list of 1 to %d KEY=VALUE strings", echo(path), MaxHelmValues)
+			}
+			for index, item := range list {
+				assignment, ok := item.(string)
+				if !ok || assignment == "" {
+					return nil, fail("%s.set[%d] must be a KEY=VALUE string", echo(path), index)
+				}
+				decl.Set = append(decl.Set, assignment)
+			}
+		}
+		if v, present := h["complete"]; present {
+			b, ok := v.(bool)
+			if !ok {
+				return nil, fail("%s.complete must be true or false", echo(path))
+			}
+			decl.Complete = &b
+		}
+		out[slug] = decl
+	}
+	return out, nil
 }
 
 // Load reads and parses a configuration file. The file is opened through the

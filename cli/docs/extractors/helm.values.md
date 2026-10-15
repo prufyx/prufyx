@@ -104,6 +104,16 @@ value is not null, before the chart's defaults are merged, each written as one
 member in the form described below. A declared set that is not complete never
 passes. No rule has more than 64 members.
 
+The set a consumer builds holds only members that some rule of the project
+reading the fact names (the union of the members of all such rules, whatever
+their evidence basis); every other key path is left out, so unrelated values
+never change the evaluation input. A path no member can express is never in
+the set. When the rules name more than 256 members together, or a rule reads
+the fact other than through its set condition, the fact is marked
+unsupported and none of these rules is decided. `prufyx scan` builds the set
+this way from the values supplied with a declared chart hop (see
+[../scan.md](../scan.md)).
+
 ## Values-path members
 
 A key path is written as a set member in one of two forms, and every path has
