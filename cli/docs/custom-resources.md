@@ -332,11 +332,16 @@ With `--base-ref`, the same files at that revision are compared with the
 working tree. A removed project, a removed group, a removed ownership record, a
 removed target, and a narrowed target (a higher `minFrom`, a dropped tag
 prefix, a dropped or changed path, a path made optional, a dropped attestation,
-channel or remote pin, a new exclusion) each need an entry in `removals` of
+channel or remote pin, a new or weakened exclusion) and a changed identity (a
+project's or target's component, repository, catalog or fact project, the
+repository of a group source or licence source, the owner or repository of an
+ownership record) each need an entry in `removals` of
 `guard.json` that the same change adds: its `kind` (`project`, `group`,
-`reserved`, `target`, `target-narrowed`), `project`, `detail` (the group, the
+`reserved`, `target`, `target-narrowed`, `identity`), `project`, `detail` (the group, the
 record name, or the narrowing as the check prints it, such as `minFrom:1.16`) and
-a `reason` of 12 to 300 characters. The list only grows. An entry that is
+a `seq` and a `reason` of 12 to 300 characters. The list only grows. `seq`
+counts the entries of the same kind, project and detail from 0: removing
+something again after it was restored needs the next number. An entry that is
 already at the base revision does not justify a later removal, an entry that
 matches no change is refused, and an entry that was deleted is refused, so an
 approval cannot be placed ahead of the change or used twice. A base revision
