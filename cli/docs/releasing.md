@@ -70,7 +70,11 @@ The workflow has three jobs. Third-party actions are pinned by commit SHA.
 2. **Checksums and provenance.** Downloads all archives, writes `SHA256SUMS`
    (sha256sum format, one line per archive), and creates a GitHub build
    provenance attestation (`actions/attest-build-provenance`) for every
-   `.tar.gz`. `SHA256SUMS` itself is not an attested subject.
+   `.tar.gz`. `SHA256SUMS` itself is not an attested subject. This job runs in
+   the protected GitHub environment `release`: it waits until the owner, the
+   environment's only required reviewer, approves the run, and the environment
+   admits only tags matching `v*` as deployment refs. The draft release job needs this job,
+   so nothing is attested or drafted without that approval.
 3. **Draft release.** Creates a draft release for the tag with the archives and
    `SHA256SUMS` attached, using `cli/docs/release-notes-<tag>.md` as the text and
    marking hyphenated tags as pre-releases.
