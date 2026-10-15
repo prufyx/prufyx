@@ -16,7 +16,7 @@
         "extractor": {
           "codeDigest": "sha256:CODE",
           "id": "helm.values.keda.keda",
-          "version": "1.0.0"
+          "version": "1.1.0"
         },
         "reviewedAt": "2026-10-11T00:00:00Z",
         "sources": [
@@ -61,7 +61,7 @@
     "requiredFacts": [
       {
         "component": "pkg:github/kedacore/keda",
-        "description": "Key paths (keys joined by \".\", through mappings only) of the values supplied for the keda chart whose value is not null, before the chart's defaults are merged. Complete only when every values source of the release is read.",
+        "description": "Key paths (through mappings only) of the values supplied for the keda chart whose value is not null, before the chart's defaults are merged: keys joined by \".\" when every key is over [A-Za-z0-9_/-] and the first starts with a letter or digit, otherwise the documented escaped form \"k..\" followed by the keys joined by \"..\", each byte outside [A-Za-z0-9/-] written as _ and two upper-case hex digits. Complete only when every values source of the release is read.",
         "enumTokens": null,
         "id": "component.keda.chart_keda_values_paths_set",
         "side": "proposed",
@@ -75,7 +75,7 @@
         "extractor": {
           "codeDigest": "sha256:CODE",
           "id": "helm.values.keda.keda",
-          "version": "1.0.0"
+          "version": "1.1.0"
         },
         "reviewedAt": "2026-10-11T00:00:00Z",
         "sources": [
@@ -132,12 +132,12 @@
     }
   },
   {
-    "description": "The values schema of the keda chart 90.1.0 (KEDA) requires 2 key(s) that its default values do not set, which chart 90.0.0's defaults satisfied: Helm refuses the upgrade unless the supplied values set each one. Derived from values.schema.json and values.yaml at both release tags; keys under subchart or global values are not checked. Helm's --skip-schema-validation bypasses the check.",
+    "description": "The values schema of the keda chart 90.1.0 (KEDA) requires 3 key(s) that its default values do not set, which chart 90.0.0's defaults satisfied: Helm refuses the upgrade unless the supplied values set each one. Derived from values.schema.json and values.yaml at both release tags; keys under subchart or global values are not checked. Helm's --skip-schema-validation bypasses the check.",
     "project": "keda",
     "requiredFacts": [
       {
         "component": "pkg:github/kedacore/keda",
-        "description": "Key paths (keys joined by \".\", through mappings only) of the values supplied for the keda chart whose value is not null, before the chart's defaults are merged. Complete only when every values source of the release is read.",
+        "description": "Key paths (through mappings only) of the values supplied for the keda chart whose value is not null, before the chart's defaults are merged: keys joined by \".\" when every key is over [A-Za-z0-9_/-] and the first starts with a letter or digit, otherwise the documented escaped form \"k..\" followed by the keys joined by \"..\", each byte outside [A-Za-z0-9/-] written as _ and two upper-case hex digits. Complete only when every values source of the release is read.",
         "enumTokens": null,
         "id": "component.keda.chart_keda_values_paths_set",
         "side": "proposed",
@@ -151,7 +151,7 @@
         "extractor": {
           "codeDigest": "sha256:CODE",
           "id": "helm.values.keda.keda",
-          "version": "1.0.0"
+          "version": "1.1.0"
         },
         "reviewedAt": "2026-10-11T00:00:00Z",
         "sources": [
@@ -184,6 +184,7 @@
         "factId": "component.keda.chart_keda_values_paths_set",
         "members": [
           "auth.token",
+          "k..weird..bad_20key",
           "rootKey"
         ],
         "side": "proposed"

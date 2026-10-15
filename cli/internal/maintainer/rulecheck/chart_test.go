@@ -100,3 +100,42 @@ func TestRulecheckChartGate(t *testing.T) {
 		})
 	}
 }
+
+// A member of a values-path set fact must be the canonical rendering of
+// its key path: another spelling of the same path would never equal the
+// member a values reader collects.
+func TestRulecheckValuesPathMembers(t *testing.T) {
+	maintainer := Options{AllowRange: true, ChartSources: chartTable(chartidentity.StateActive, chartTestComponent)}
+	withMembers := func(members ...any) map[string]any {
+		entry := chartCandidate()
+		rule(entry)["setCondition"].(map[string]any)["members"] = members
+		return entry
+	}
+	for _, good := range [][]any{
+		{"a.b"},
+		{"a._b"},
+		{"k..a_2Eb"},
+		{"k.._5Fa"},
+		{"auth.token", "k..annotations..nginx_2Eingress_2Ekubernetes_2Eio/proxy-body-size", "rootKey"},
+	} {
+		if findings := chartFindings(t, withMembers(good...), maintainer); len(findings) != 0 {
+			t.Fatalf("%v rejected: %v", good, findings)
+		}
+	}
+	for _, bad := range []string{
+		"k..a..b",   // plainly expressible
+		"k..a",      // plainly expressible
+		"k..a_2e",   // lower-case hex
+		"k..",       // no key
+		"k..a....b", // empty key
+		"k..a_2",    // truncated escape
+		"k.._41",    // escape of a byte written as itself
+		"a..b",      // ".." in the plain form
+		"a.",        // empty key
+	} {
+		findings := chartFindings(t, withMembers(bad), maintainer)
+		if !strings.Contains(strings.Join(findings, "\n"), "not a canonical values-path member") {
+			t.Fatalf("%q: want a canonical-member finding in %v", bad, findings)
+		}
+	}
+}

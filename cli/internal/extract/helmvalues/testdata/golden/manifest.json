@@ -36,7 +36,7 @@
   "extractor": {
     "codeDigest": "sha256:CODE",
     "id": "helm.values.keda.keda",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "outputs": {
     "candidates.json": "sha256:OUTPUT",
@@ -207,7 +207,7 @@
               "path": "sub.y"
             },
             {
-              "class": "unexpressible",
+              "class": "rule",
               "path": "weird.bad key"
             }
           ],

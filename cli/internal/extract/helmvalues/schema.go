@@ -6,10 +6,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 
+	"github.com/prufyx/prufyx/cli/internal/helmvaluespath"
 	"github.com/prufyx/prufyx/cli/internal/strictjson"
 )
 
@@ -203,11 +203,11 @@ func walkSchema(root schemaNode) schemaWalk {
 	var visit func(n schemaNode, path []string)
 	visit = func(n schemaNode, path []string) {
 		if reason := n.opaqueReason(len(path) == 0); reason != "" {
-			w.Opaque = append(w.Opaque, OpaqueNode{Path: displayPath(path), Reason: reason})
+			w.Opaque = append(w.Opaque, OpaqueNode{Path: helmvaluespath.DisplayPath(path), Reason: reason})
 			return
 		}
 		for _, k := range n.requiredKeys() {
-			w.Required = append(w.Required, appendPath(path, k))
+			w.Required = append(w.Required, helmvaluespath.AppendPath(path, k))
 		}
 		props, _ := n["properties"].(map[string]any)
 		keys := make([]string, 0, len(props))
@@ -224,13 +224,13 @@ func walkSchema(root schemaNode) schemaWalk {
 				if b, ok := props[k].(bool); ok && b {
 					continue
 				}
-				w.Opaque = append(w.Opaque, OpaqueNode{Path: displayPath(appendPath(path, k)), Reason: reason})
+				w.Opaque = append(w.Opaque, OpaqueNode{Path: helmvaluespath.DisplayPath(helmvaluespath.AppendPath(path, k)), Reason: reason})
 				continue
 			}
 			if child.leaf() {
 				continue
 			}
-			visit(child, appendPath(path, k))
+			visit(child, helmvaluespath.AppendPath(path, k))
 		}
 	}
 	visit(root, nil)
@@ -245,7 +245,7 @@ func rejection(root schemaNode, path []string) (prefix []string, ok bool, reason
 	n := root
 	for i, k := range path {
 		if r := n.opaqueReason(i == 0); r != "" {
-			return nil, false, "opaque at " + displayPath(path[:i]) + ": " + r
+			return nil, false, "opaque at " + helmvaluespath.DisplayPath(path[:i]) + ": " + r
 		}
 		child, named, r := n.property(k)
 		if named {
@@ -258,16 +258,9 @@ func rejection(root schemaNode, path []string) (prefix []string, ok bool, reason
 		if n.closed() {
 			return append([]string(nil), path[:i+1]...), true, ""
 		}
-		return nil, false, "open object at " + displayPath(path[:i])
+		return nil, false, "open object at " + helmvaluespath.DisplayPath(path[:i])
 	}
 	return nil, false, "every key is declared"
-}
-
-func appendPath(path []string, k string) []string {
-	out := make([]string, len(path)+1)
-	copy(out, path)
-	out[len(path)] = k
-	return out
 }
 
 func pathLess(a, b []string) bool {
@@ -277,38 +270,4 @@ func pathLess(a, b []string) bool {
 		}
 	}
 	return len(a) < len(b)
-}
-
-// displayPath renders a key path for the proof: keys joined by ".", the
-// root as "(root)". It is not a set member; see memberOf.
-func displayPath(path []string) string {
-	if len(path) == 0 {
-		return "(root)"
-	}
-	return strings.Join(path, ".")
-}
-
-// segmentRE is one key of a member: what the engine's member grammar
-// admits between dots, so the dotted join reads back as the same path.
-var segmentRE = regexp.MustCompile(`^[A-Za-z0-9_/-]+$`)
-
-// memberOf renders a key path as a set member: keys joined by ".". A key
-// holding a dot or a character outside the member grammar, a path whose
-// first key does not start with a letter or digit, or a member over the
-// engine's byte bound cannot be expressed; no rule names it.
-func memberOf(path []string) (string, bool) {
-	if len(path) == 0 {
-		return "", false
-	}
-	for _, k := range path {
-		if !segmentRE.MatchString(k) {
-			return "", false
-		}
-	}
-	m := strings.Join(path, ".")
-	c := m[0]
-	if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9') || len(m) > maxMemberBytes {
-		return "", false
-	}
-	return m, true
 }

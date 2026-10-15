@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/prufyx/prufyx/cli/internal/helmvaluespath"
 )
 
 // chartMeta is what the extractor reads from Chart.yaml.
@@ -38,7 +40,7 @@ func normalVersion(v string) (string, bool) {
 // present, a list of mappings each with a string name and optional string
 // alias.
 func parseChartYAML(data []byte) (chartMeta, error) {
-	root, v, err := decodeOne(data)
+	root, v, err := helmvaluespath.DecodeYAML(data)
 	if err != nil {
 		return chartMeta{}, err
 	}
@@ -64,7 +66,7 @@ func parseChartYAML(data []byte) (chartMeta, error) {
 		if !ok {
 			return chartMeta{}, fmt.Errorf("Chart.yaml kubeVersion is not a string")
 		}
-		c.KubeVersion, c.KubeVersionLine = s, mappingLine(root, "kubeVersion")
+		c.KubeVersion, c.KubeVersionLine = s, helmvaluespath.MappingLine(root, "kubeVersion")
 	}
 	deps, err := dependencyKeys(m["dependencies"])
 	if err != nil {
@@ -176,55 +178,9 @@ func compareVersions(a, b string) int {
 	return 0
 }
 
-// valueAt returns the value at a key path of a decoded values document
-// and whether every key on the path exists. A null value exists here; the
-// callers decide what null means (Helm drops null keys when it merges).
-func valueAt(values any, path []string) (any, bool) {
-	cur := values
-	for _, k := range path {
-		m, ok := cur.(map[string]any)
-		if !ok {
-			return nil, false
-		}
-		cur, ok = m[k]
-		if !ok {
-			return nil, false
-		}
-	}
-	return cur, true
-}
-
 // present reports whether the defaults hold path, null included: Helm keeps a
 // chart's own null default through the merge, so the key exists for the schema.
 func present(values any, path []string) bool {
-	_, ok := valueAt(values, path)
+	_, ok := helmvaluespath.ValueAt(values, path)
 	return ok
-}
-
-// valuePaths lists every key path of the document whose value is not
-// null, through mappings only (a list is a leaf), in path order.
-func valuePaths(values any) [][]string {
-	var out [][]string
-	var visit func(v any, path []string)
-	visit = func(v any, path []string) {
-		m, ok := v.(map[string]any)
-		if !ok {
-			return
-		}
-		keys := make([]string, 0, len(m))
-		for k := range m {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			if m[k] == nil {
-				continue
-			}
-			p := appendPath(path, k)
-			out = append(out, p)
-			visit(m[k], p)
-		}
-	}
-	visit(values, nil)
-	return out
 }

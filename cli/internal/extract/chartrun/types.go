@@ -43,6 +43,18 @@ type Extractor interface {
 	SourceFiles() (dir string, files fs.FS)
 }
 
+// DependencySource is implemented by a chart extractor that uses a package
+// of the module outside the extractor framework, this package and its own
+// package: the embedded source of each such package (non-test Go files and
+// *.json data files are hashed), named by package directory relative to the
+// module's internal/ tree. Those files are covered by the extractor's code
+// digest, so a change in a shared package is a change of the extractor's
+// code. It lives here, not in the framework, so that the framework's source
+// (covered by every extractor's digest) does not change for it.
+type DependencySource interface {
+	DependencySources() []extract.SourceSet
+}
+
 // Extraction is the result for one pair.
 type Extraction struct {
 	Candidates []Candidate

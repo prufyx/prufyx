@@ -281,6 +281,7 @@
     "expect": {
       "missingMembers": [
         "auth.token",
+        "k..weird..bad_20key",
         "rootKey"
       ],
       "reasonCode": "HELM_VALUES_REQUIRED_KEY_UNSET",
@@ -364,6 +365,7 @@
                   "complete": true,
                   "members": [
                     "auth.token",
+                    "k..weird..bad_20key",
                     "rootKey"
                   ]
                 },
@@ -415,6 +417,7 @@
                   "complete": false,
                   "members": [
                     "auth.token",
+                    "k..weird..bad_20key",
                     "rootKey"
                   ]
                 },

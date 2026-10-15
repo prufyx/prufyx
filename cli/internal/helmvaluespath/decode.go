@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package helmvalues
+package helmvaluespath
 
 import (
 	"bytes"
@@ -8,17 +8,18 @@ import (
 	"errors"
 	"io"
 	"regexp"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
-// The strict YAML subset the extractor reads Chart.yaml and values.yaml
-// in, with the bounds of the CRD extractor's decoder. Anchors, aliases,
-// merge keys, custom tags, non-string, empty or duplicate keys are
-// refused, and so is a key that YAML 1.1 reads as a boolean or null:
-// Helm decodes values with a YAML 1.1 reader, which turns "on:" into the
-// key "true", so the key path this reader sees would not be the one Helm
-// validates.
+// The strict YAML subset Chart.yaml and values files are read in, with the
+// bounds of the CRD extractor's decoder. Anchors, aliases, merge keys,
+// custom tags, non-string, empty or duplicate keys, and keys holding a NUL
+// byte are refused, and so is a key that YAML 1.1 reads as a boolean or
+// null: Helm decodes values with a YAML 1.1 reader, which turns "on:" into
+// the key "true", so the key path this reader sees would not be the one
+// Helm validates.
 const (
 	maxDecodeDepth     = 128
 	maxDecodeNodes     = 4_000_000
@@ -27,16 +28,17 @@ const (
 	maxArrayItems      = 8192
 )
 
-var errStrict = errors.New("outside the strict YAML subset or its bounds")
+// ErrStrict is the error of a document outside the subset or its bounds.
+var ErrStrict = errors.New("outside the strict YAML subset or its bounds")
 
 // yaml11KeyRE matches the plain scalars YAML 1.1 resolves to a boolean or
 // null; as keys they mean something else to Helm than to this reader.
 var yaml11KeyRE = regexp.MustCompile(`^(y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF|null|Null|NULL|~)$`)
 
-// decodeOne returns the root node and the plain value (map[string]any,
+// DecodeYAML returns the root node and the plain value (map[string]any,
 // []any, string, bool, json.Number or nil) of a single-document file. An
 // empty file or a document holding only null decodes to a nil root.
-func decodeOne(data []byte) (*yaml.Node, any, error) {
+func DecodeYAML(data []byte) (*yaml.Node, any, error) {
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	budget := maxDecodeNodes
 	var root *yaml.Node
@@ -49,11 +51,11 @@ func decodeOne(data []byte) (*yaml.Node, any, error) {
 			return root, value, nil
 		}
 		if err != nil || node.Kind != yaml.DocumentNode || len(node.Content) > 1 {
-			return nil, nil, errStrict
+			return nil, nil, ErrStrict
 		}
 		docs++
 		if docs > maxDecodeDocuments {
-			return nil, nil, errStrict
+			return nil, nil, ErrStrict
 		}
 		if len(node.Content) == 0 {
 			continue
@@ -73,24 +75,24 @@ func decodeOne(data []byte) (*yaml.Node, any, error) {
 func strictValue(node *yaml.Node, depth int, budget *int) (any, error) {
 	*budget--
 	if *budget < 0 || depth > maxDecodeDepth || node == nil || node.Anchor != "" || node.Alias != nil || node.Kind == yaml.AliasNode {
-		return nil, errStrict
+		return nil, ErrStrict
 	}
 	switch node.Kind {
 	case yaml.MappingNode:
 		if node.ShortTag() != "!!map" || len(node.Content)%2 != 0 || len(node.Content)/2 > maxObjectMembers {
-			return nil, errStrict
+			return nil, ErrStrict
 		}
 		obj := make(map[string]any, len(node.Content)/2)
 		for i := 0; i < len(node.Content); i += 2 {
 			key := node.Content[i]
-			if key.Kind != yaml.ScalarNode || key.ShortTag() != "!!str" || key.Anchor != "" || key.Alias != nil || key.Value == "" || key.Value == "<<" {
-				return nil, errStrict
+			if key.Kind != yaml.ScalarNode || key.ShortTag() != "!!str" || key.Anchor != "" || key.Alias != nil || key.Value == "" || key.Value == "<<" || strings.IndexByte(key.Value, 0) >= 0 {
+				return nil, ErrStrict
 			}
 			if key.Style == 0 && yaml11KeyRE.MatchString(key.Value) {
-				return nil, errStrict
+				return nil, ErrStrict
 			}
 			if _, dup := obj[key.Value]; dup {
-				return nil, errStrict
+				return nil, ErrStrict
 			}
 			v, err := strictValue(node.Content[i+1], depth+1, budget)
 			if err != nil {
@@ -101,7 +103,7 @@ func strictValue(node *yaml.Node, depth int, budget *int) (any, error) {
 		return obj, nil
 	case yaml.SequenceNode:
 		if node.ShortTag() != "!!seq" || len(node.Content) > maxArrayItems {
-			return nil, errStrict
+			return nil, ErrStrict
 		}
 		items := make([]any, 0, len(node.Content))
 		for _, c := range node.Content {
@@ -129,12 +131,12 @@ func strictValue(node *yaml.Node, depth int, budget *int) (any, error) {
 			return nil, nil
 		}
 	}
-	return nil, errStrict
+	return nil, ErrStrict
 }
 
-// mappingLine returns the line of key's value in a mapping root, 0 when
+// MappingLine returns the line of key's value in a mapping root, 0 when
 // absent.
-func mappingLine(root *yaml.Node, key string) int {
+func MappingLine(root *yaml.Node, key string) int {
 	if root == nil || root.Kind != yaml.MappingNode {
 		return 0
 	}
