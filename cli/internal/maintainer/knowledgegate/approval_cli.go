@@ -429,6 +429,9 @@ func cmdApprovalSign(args []string, env approvalEnv, layout Layout, stdout io.Wr
 	if identity == "" || candidateID == "" || output == "" {
 		return 2, usageError{"--identity, --candidate-id and --output are required"}
 	}
+	if s.baseRoot != "" && s.subject != ApprovalSubjectRegistry {
+		return 2, usageError{"--base-root belongs to --subject registryDigest when signing"}
+	}
 	subject, keys, err := s.load(layout)
 	if err != nil {
 		return 2, err

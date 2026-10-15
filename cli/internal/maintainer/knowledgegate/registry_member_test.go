@@ -22,6 +22,7 @@ var addedFact = constraintengine.FactDefinition{ID: "component.argo_cd.synthetic
 const (
 	addedFactLine = `		{ID: "component.argo_cd.synthetic_registry_addition", Component: "pkg:github/argoproj/argo-cd", Type: constraintengine.FactBool, EnumTokens: nil},`
 	listOpen      = "return append([]constraintengine.FactDefinition{\n"
+	enumLine      = `		{ID: "component.argo_cd.latest_distribution", Component: "pkg:github/argoproj/argo-cd", Type: constraintengine.FactEnum, EnumTokens: []string{"custom_build", "official_upstream"}},`
 	existingLine  = `		{ID: "component.argo_cd.disable_fine_grained_inheritance", Component: "pkg:github/argoproj/argo-cd", Type: constraintengine.FactBool, EnumTokens: nil},`
 )
 
@@ -43,7 +44,7 @@ func registrySource(t *testing.T) string {
 		t.Fatal(err)
 	}
 	src := string(raw)
-	if strings.Count(src, listOpen) != 1 || strings.Count(src, existingLine+"\n") != 1 {
+	if strings.Count(src, listOpen) != 1 || strings.Count(src, existingLine+"\n") != 1 || strings.Count(src, enumLine+"\n") != 1 {
 		t.Fatal("the registry source is not in the form these tests edit")
 	}
 	return src
@@ -228,6 +229,7 @@ func TestGateRegistryAddition(t *testing.T) {
 		return out
 	}
 	existingID := "component.argo_cd.disable_fine_grained_inheritance"
+	enumID := "component.argo_cd.latest_distribution"
 	cases := map[string]struct {
 		editHead func(string) string
 		headDefs []constraintengine.FactDefinition
@@ -248,6 +250,12 @@ func TestGateRegistryAddition(t *testing.T) {
 		"head source not in the literal form": {func(src string) string {
 			return strings.Replace(withAdded(src), "customResourceVersionDefinitions()...)", "customResourceVersionDefinitions()[0:]...)", 1)
 		}, addedDefinitions(), nil, "packagedDefinitions is not in the literal form this gate reads"},
+		"enum tokens changed": {func(src string) string {
+			return strings.Replace(withAdded(src), enumLine, strings.Replace(enumLine, `"official_upstream"}`, `"official_upstream", "vendor_build"}`, 1), 1)
+		}, changed(enumID, func(d *constraintengine.FactDefinition) { d.EnumTokens = append(d.EnumTokens, "vendor_build") }), nil, "fact definitions with other enum tokens: " + enumID},
+		"trust material changed too": {withAdded, addedDefinitions(), func(t *testing.T, base, head Tree, opts *Options) {
+			key.pin(t, head, "airstand", "other-owner")
+		}, "trust material changed in the same change"},
 		"addition outside the literal list": {func(src string) string { return src }, addedDefinitions(), nil, "the head adds no fact definition"},
 		"no approval": {withAdded, addedDefinitions(), func(t *testing.T, base, head Tree, opts *Options) {
 			if err := os.Remove(registryApprovalFile(head)); err != nil {
@@ -294,7 +302,7 @@ func TestGateRegistryAddition(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			base, head := registryTrees(t, tc.editHead, tc.headDefs)
 			key.pinBoth(t, base, head, "airstand")
-			if strings.HasPrefix(name, "definition") || name == "component changed" || name == "addition outside the literal list" || name == "head digest names another list" || name == "head source not in the literal form" {
+			if strings.HasPrefix(name, "definition") || name == "component changed" || name == "enum tokens changed" || name == "addition outside the literal list" || name == "head digest names another list" || name == "head source not in the literal form" {
 				// The change cannot be read as an addition, so there is
 				// nothing to sign: any approval file is refused before it
 				// is read.
