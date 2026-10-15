@@ -21,6 +21,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/chartrun"
 	"github.com/prufyx/prufyx/cli/internal/extract/safefs"
+	"github.com/prufyx/prufyx/cli/internal/helmvaluespath"
 )
 
 var update = flag.Bool("update", false, "rewrite the golden files")
@@ -118,7 +119,7 @@ func TestFixtureRules(t *testing.T) {
 	}
 
 	req := rules[prefix01+"required-values"]
-	if req.Rule.Operator != constraintengine.OperatorRequireSetMember || !slices.Equal(req.Rule.SetCondition.Members, []string{"auth.token", "rootKey"}) ||
+	if req.Rule.Operator != constraintengine.OperatorRequireSetMember || !slices.Equal(req.Rule.SetCondition.Members, []string{"auth.token", "k..weird..bad_20key", "rootKey"}) || // gitleaks:allow (a values-path member, not a secret)
 		req.Rule.SetCondition.FactID != "component.keda.chart_keda_values_paths_set" || *req.Rule.Subject.Chart != *chart || req.Rule.ReasonCode != ReasonRequired {
 		t.Fatalf("required rule %+v", req.Rule)
 	}
@@ -138,7 +139,7 @@ func TestFixtureRules(t *testing.T) {
 		classes[k.Path] = k.Class
 	}
 	want := map[string]string{"auth.enabled": ClassDefault, "auth.mode": ClassDefault, "auth.token": ClassRule, "emptyObj.k": ClassEmptyAncestor,
-		"missing.deep": ClassInactive, "rootKey": ClassRule, "sub.y": ClassSubchart, "weird.bad key": ClassUnexpressible}
+		"missing.deep": ClassInactive, "rootKey": ClassRule, "sub.y": ClassSubchart, "weird.bad key": ClassRule}
 	if len(classes) != len(want) {
 		t.Fatalf("required classes %v", classes)
 	}
@@ -336,6 +337,52 @@ func TestReproducibleAndVerified(t *testing.T) {
 	}
 }
 
+// A required key holding dots (an annotation name) becomes a member in the
+// escaped form, and the run's vectors (blocked without it, pass with it,
+// unknown when the set is incomplete) agree with the engine.
+func TestDottedKeyThroughTheEngine(t *testing.T) {
+	root := copyFixture(t)
+	dir := filepath.Join(root, "github.com/kedacore/charts/commits", c1, "keda")
+	schema, err := os.ReadFile(filepath.Join(dir, "values.schema.json"))
+	must(t, err)
+	edited := bytes.Replace(schema, []byte(`"properties": {`), []byte(`"properties": {"annotations": {"type": "object", "required": ["nginx.ingress.kubernetes.io/proxy-body-size"]},`), 1)
+	if bytes.Equal(edited, schema) {
+		t.Fatal("schema not edited")
+	}
+	must(t, os.WriteFile(filepath.Join(dir, "values.schema.json"), edited, 0o644))
+	values, err := os.ReadFile(filepath.Join(dir, "values.yaml"))
+	must(t, err)
+	must(t, os.WriteFile(filepath.Join(dir, "values.yaml"), append(values, []byte("annotations:\n  x: y\n")...), 0o644))
+	out, err := runFixture(t, root)
+	must(t, err)
+	const member = "k..annotations..nginx_2Eingress_2Ekubernetes_2Eio/proxy-body-size"
+	req, ok := byID(out)[prefix01+"required-values"]
+	if !ok || !slices.Contains(req.Rule.SetCondition.Members, member) {
+		t.Fatalf("required rule %+v", req.Rule.SetCondition)
+	}
+	for _, m := range req.Rule.SetCondition.Members {
+		if !constraintengine.ValidSetMember(m) || !helmvaluespath.Canonical(m) {
+			t.Fatalf("member %q", m)
+		}
+	}
+	kinds := map[string]bool{}
+	for _, v := range out.Vectors {
+		if v.RuleID != req.Rule.ID {
+			continue
+		}
+		kinds[v.Kind] = true
+		if v.Kind == extract.VectorBlocked && !slices.Contains(v.Expect.MissingMembers, member) {
+			t.Fatalf("blocked vector %+v", v.Expect)
+		}
+	}
+	if len(kinds) != 3 {
+		t.Fatalf("vector kinds %v", kinds)
+	}
+	if err := chartrun.CheckVectors(out.Entries, out.Vectors, derivedAt); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // Without the values-path fact every set rule is UNKNOWN: the engine never
 // reads absence as compliance.
 func TestSetRulesAreUnknownWithoutTheFact(t *testing.T) {
@@ -436,7 +483,7 @@ func TestKubeVersionRule(t *testing.T) {
 func sideOf(t *testing.T, values, schema string, deps ...string) *side {
 	t.Helper()
 	s := &side{subcharts: deps}
-	_, v, err := decodeOne([]byte(values))
+	_, v, err := helmvaluespath.DecodeYAML([]byte(values))
 	must(t, err)
 	s.values = v
 	if schema != "" {
@@ -480,7 +527,10 @@ func TestRequiredKeys(t *testing.T) {
 		{"unknown keyword", "a: {x: 1}\n", "", "a: {x: 1}\n", `{"properties":{"a":{"required":["b"],"unevaluatedProperties":false}}}`, nil},
 		{"root opaque", "x: 1\n", "", "x: 1\n", `{"required":["a"],"if":{}}`, nil},
 		{"no later schema", "x: 1\n", "", "x: 1\n", "", nil},
-		{"dotted key", "x: 1\n", "", "x: 1\n", `{"required":["a.b"]}`, nil},
+		{"dotted key", "x: 1\n", "", "x: 1\n", `{"required":["a.b"]}`, []string{"k..a_2Eb"}},
+		{"dotted key under a set mapping", "annotations: {x: y}\n", "", "annotations: {x: y}\n", `{"properties":{"annotations":{"type":"object","required":["nginx.ingress.kubernetes.io/proxy-body-size"]}}}`, []string{"k..annotations..nginx_2Eingress_2Ekubernetes_2Eio/proxy-body-size"}},
+		{"dotted key with a default", "x: 1\n", "", "\"a.b\": 1\n", `{"required":["a.b"]}`, nil},
+		{"dotted key over the bound", "x: 1\n", "", "x: 1\n", `{"required":["` + strings.Repeat("a.", 63) + `"]}`, nil},
 		{"defs allowed at root", "x: 1\n", "", "x: 1\n", `{"$schema":"x","definitions":{"d":{}},"required":["k"]}`, []string{"k"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -550,7 +600,8 @@ func TestRemovedKeys(t *testing.T) {
 		{"ref on the path", "a: {keep: 1, gone: 2}\n", "", "a: {keep: 1}\n", `{"properties":{"a":{"$ref":"#/definitions/x","additionalProperties":false,"properties":{"keep":{}}}}}`, nil},
 		{"combinator on the path", "a: {keep: 1, gone: 2}\n", "", "a: {keep: 1}\n", `{"allOf":[{}],"properties":{"a":{"type":"object","additionalProperties":false,"properties":{"keep":{}}}}}`, nil},
 		{"global", "global: {x: 1}\n", "", "x: 1\n", `{"additionalProperties":false,"properties":{"x":{}}}`, nil},
-		{"unexpressible key", "a: {keep: 1, \"go.ne\": 2}\n", "", "a: {keep: 1}\n", closed, nil},
+		{"dotted key", "a: {keep: 1, \"go.ne\": 2}\n", "", "a: {keep: 1}\n", closed, []string{"k..a..go_2Ene"}},
+		{"dotted key over the bound", "a: {keep: 1, \"" + strings.Repeat("g.", 63) + "\": 2}\n", "", "a: {keep: 1}\n", closed, nil},
 		{"no later schema", "a: {gone: 1}\n", "", "x: 1\n", "", nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -581,15 +632,19 @@ func TestMemberGrammar(t *testing.T) {
 	}{
 		{[]string{"a", "b"}, "a.b", true},
 		{[]string{"A_1", "x-y", "p/q"}, "A_1.x-y.p/q", true},
-		{[]string{"_a"}, "", false},
+		{[]string{"_a"}, "k.._5Fa", true},
 		{[]string{"a", "_b"}, "a._b", true},
-		{[]string{"a.b"}, "", false},
-		{[]string{"a b"}, "", false},
-		{[]string{"ä"}, "", false},
+		{[]string{"a.b"}, "k..a_2Eb", true},
+		{[]string{"a", "b.c"}, "k..a..b_2Ec", true},
+		{[]string{"a b"}, "k..a_20b", true},
+		{[]string{"ä"}, "k.._C3_A4", true},
+		{[]string{strings.Repeat("a", 128)}, strings.Repeat("a", 128), true},
 		{[]string{strings.Repeat("a", 129)}, "", false},
+		{[]string{strings.Repeat("a", 124) + "."}, "", false},
+		{[]string{"a", ""}, "", false},
 		{nil, "", false},
 	} {
-		got, ok := memberOf(tc.path)
+		got, ok := helmvaluespath.Member(tc.path)
 		if got != tc.want || ok != tc.ok {
 			t.Errorf("%v: %q %v", tc.path, got, ok)
 		}
@@ -614,12 +669,12 @@ func TestStrictDecoder(t *testing.T) {
 		"a: 1\n---\nb: 2\n",
 		"[unclosed\n",
 	} {
-		if _, _, err := decodeOne([]byte(bad)); err == nil {
+		if _, _, err := helmvaluespath.DecodeYAML([]byte(bad)); err == nil {
 			t.Errorf("accepted %q", bad)
 		}
 	}
 	for _, good := range []string{"", "---\n", "\"on\": x\n", "a: yes\n", "a: [1, {b: null}]\n"} {
-		if _, _, err := decodeOne([]byte(good)); err != nil {
+		if _, _, err := helmvaluespath.DecodeYAML([]byte(good)); err != nil {
 			t.Errorf("refused %q: %v", good, err)
 		}
 	}

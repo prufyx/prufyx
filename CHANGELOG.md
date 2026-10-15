@@ -171,6 +171,26 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- Maintainer extractor `helm.values` 1.1.0: a values key holding a `.` or any
+  other character outside `[A-Za-z0-9_/-]` (an annotation name such as
+  `nginx.ingress.kubernetes.io/proxy-body-size`), or a first key that does not
+  start with a letter or digit, is now listed in a rule instead of being
+  recorded only. Such a path is written as an escaped member,
+  `k..<key>..<key>`, where every byte of a key other than a letter, digit, `/`
+  or `-` becomes `_` and two upper-case hex digits; every other path keeps the
+  plain dotted member it had in 1.0.0. The class `unexpressible` now means only
+  a member longer than 128 bytes or a schema key holding a NUL byte. The values-path set fact description states
+  the encoding, and `rulecheck` refuses a member of a values-path set fact that
+  is not the canonical member of its path. A values file whose key holds a NUL
+  byte is outside the strict YAML subset. No engine contract, schema or
+  registry digest changes. See `cli/docs/extractors/helm.values.md`.
+- Chart extractor runner (`internal/extract/chartrun`): a chart extractor may
+  name shared packages whose source is part of its code, and `helm.values`
+  names the values reader and member encoding it shares
+  (`internal/helmvaluespath`), so a change there changes its code digest. Only
+  the `helm.values.*` code digests move; the extractor framework files are
+  unchanged, so the digests of `k8s.feature-gate-removal`,
+  `k8s.served-api-removal` and `crd.version-removal.*` do not move.
 - Maintainer extractor `crd.version-removal` 2.5.0: a reviewed exclusion can
   name the kustomization that renders its files into a listed bundle
   (`prePatch`), and the scan checks that rendering at every release. It is

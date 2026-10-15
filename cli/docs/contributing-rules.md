@@ -700,7 +700,10 @@ every hop.
 maintainer path it requires `require_set_member` to read a values-path set fact
 (an id ending in `_values_paths_set`) and a chart rule to have an active row
 in the reviewed chart-source table (`cli/internal/chartidentity/data/chart-sources.json`)
-whose component is the rule's.
+whose component is the rule's. Every member of a rule on a values-path set
+fact must be the canonical member of its key path: the keys joined by `.`, or
+the escaped `k..` form when the plain form cannot write the path (see
+[extractors/helm.values.md](extractors/helm.values.md)).
 
 A document holding a chart rule or a `require_set_member` rule carries rules
 schema `v1alpha8` and its own engine and scope contract digests; a pack holding

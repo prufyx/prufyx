@@ -4,6 +4,7 @@ package helmvalues
 
 import (
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/helmvaluespath"
 )
 
 // PairProof is the extractor's account of one pair: what it read at each
@@ -48,13 +49,13 @@ func sideRecord(s *side) *SideRecord {
 	r.Version, r.KubeVersion, r.Subcharts, r.PackagedSubchart = s.meta.Version, s.meta.KubeVersion, s.subcharts, s.opaqueSubcharts
 	r.Schema = s.schema != nil
 	r.ValuesPaths = []string{}
-	for _, p := range valuePaths(s.values) {
-		r.ValuesPaths = append(r.ValuesPaths, displayPath(p))
+	for _, p := range helmvaluespath.ValuePaths(s.values) {
+		r.ValuesPaths = append(r.ValuesPaths, helmvaluespath.DisplayPath(p))
 	}
 	r.RequiredKeys = []string{}
 	if s.schema != nil {
 		for _, p := range walkSchema(s.schema).Required {
-			r.RequiredKeys = append(r.RequiredKeys, displayPath(p))
+			r.RequiredKeys = append(r.RequiredKeys, helmvaluespath.DisplayPath(p))
 		}
 	}
 	return r

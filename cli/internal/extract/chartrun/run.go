@@ -37,10 +37,15 @@ const SourceDir = "extract/chartrun"
 func Source() extract.SourceSet { return extract.SourceSet{Dir: SourceDir, Files: source} }
 
 // CodeFiles lists the files a chart extractor's code digest covers: the
-// framework's, this package's and the extractor's own package's.
+// framework's, this package's, the extractor's own package's and those of
+// the shared packages it names (DependencySource).
 func CodeFiles(ex Extractor) ([]extract.CodeFile, error) {
 	dir, own := ex.SourceFiles()
-	return extract.CodeFiles(extract.FrameworkSource(), Source(), extract.SourceSet{Dir: dir, Files: own})
+	sets := []extract.SourceSet{extract.FrameworkSource(), Source(), {Dir: dir, Files: own}}
+	if deps, ok := ex.(DependencySource); ok {
+		sets = append(sets, deps.DependencySources()...)
+	}
+	return extract.CodeFiles(sets...)
 }
 
 // Output is a complete run result, rendered to files by Files.

@@ -13,3 +13,7 @@ testdata/synthetic-cluster-scenarios/v4/corpus-index.json:generic-api-key:1
 # kubectl resource argument "apiservices.apiregistration.k8s.io" flagged by the
 # generic-api-key heuristic; it is a Kubernetes API group name, not a credential.
 cli/internal/localcollector/collect.go:generic-api-key:68
+
+# Values-path set member "k..weird..bad_20key" (the escaped form of a schema key
+# with a dot and a space) in the helm.values oracle fixture; a key name, not a credential.
+cli/internal/extract/helmvalues/testdata/oracle-fixture.json:generic-api-key:10

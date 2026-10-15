@@ -4,6 +4,9 @@ package helmvalues
 
 import (
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/helmvaluespath"
 )
 
 // The decoders and the analyses never panic, and a decoded document's key
@@ -13,16 +16,16 @@ func FuzzValues(f *testing.F) {
 		f.Add([]byte(s))
 	}
 	f.Fuzz(func(t *testing.T, data []byte) {
-		_, v, err := decodeOne(data)
+		_, v, err := helmvaluespath.DecodeYAML(data)
 		if err != nil {
 			return
 		}
-		for _, p := range valuePaths(v) {
-			if got, ok := valueAt(v, p); !ok || got == nil {
+		for _, p := range helmvaluespath.ValuePaths(v) {
+			if got, ok := helmvaluespath.ValueAt(v, p); !ok || got == nil {
 				t.Fatalf("path %v does not read back", p)
 			}
-			if m, ok := memberOf(p); ok && len(m) > maxMemberBytes {
-				t.Fatalf("member %q over the bound", m)
+			if m, ok := helmvaluespath.Member(p); ok && !constraintengine.ValidSetMember(m) {
+				t.Fatalf("member %q outside the engine grammar", m)
 			}
 		}
 	})

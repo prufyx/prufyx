@@ -34,13 +34,14 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/chartrun"
+	"github.com/prufyx/prufyx/cli/internal/helmvaluespath"
 )
 
 // Identity.
 const (
 	// IDPrefix is followed by the project slug and the chart name.
 	IDPrefix = "helm.values."
-	Version  = "1.0.0"
+	Version  = "1.1.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/helmvalues"
 )
@@ -65,7 +66,6 @@ const (
 	maxIDBytes     = 128
 	maxNext        = 256
 	maxTagsPerLine = 64
-	maxMemberBytes = constraintengine.MaxSetMemberBytes
 	maxRuleMembers = constraintengine.MaxForbiddenMembers
 	// maxTemplateFiles bounds the files read under templates/.
 	maxTemplateFiles = 2000
@@ -97,6 +97,13 @@ func (x *Extractor) Version() string { return Version }
 
 // SourceFiles implements chartrun.Extractor: the package's code and its target table.
 func (x *Extractor) SourceFiles() (string, fs.FS) { return SourceDir, source }
+
+// DependencySources implements chartrun.DependencySource: the shared values
+// reader and member encoding are part of this extractor's code.
+func (x *Extractor) DependencySources() []extract.SourceSet {
+	dir, files := helmvaluespath.Source()
+	return []extract.SourceSet{{Dir: dir, Files: files}}
+}
 
 // Applies implements chartrun.Extractor.
 func (x *Extractor) Applies(repo extract.RepoRef) bool { return repo.Key == x.target.Repo }
@@ -283,7 +290,7 @@ func (x *Extractor) readSide(r extract.PinnedReader, repo extract.RepoRef, tag, 
 	if data, err = r.Read(repo, commit, s.valuesYAML); err != nil {
 		return nil, err
 	}
-	_, s.values, err = decodeOne(data)
+	_, s.values, err = helmvaluespath.DecodeYAML(data)
 	if err != nil {
 		return s.fail("%s: %v", s.valuesYAML, err), nil
 	}
@@ -311,7 +318,7 @@ func (x *Extractor) readSide(r extract.PinnedReader, repo extract.RepoRef, tag, 
 		if data, err = r.Read(repo, commit, t.ChartPath+"/requirements.yaml"); err != nil {
 			return nil, err
 		}
-		_, v, err := decodeOne(data)
+		_, v, err := helmvaluespath.DecodeYAML(data)
 		if err != nil {
 			return s.fail("requirements.yaml: %v", err), nil
 		}
@@ -655,7 +662,7 @@ const (
 	ClassInactive        = "inactive-ancestor"
 	ClassEmptyAncestor   = "empty-ancestor"
 	ClassSubchart        = "subchart"
-	ClassUnexpressible   = "unexpressible"
+	ClassUnexpressible   = "unexpressible" // its member would be over the 128-byte bound
 	ClassOverBound       = "over-bound"
 	ClassOpaqueSubcharts = "packaged-subchart"
 )
@@ -670,7 +677,7 @@ func requirement(s *side, p []string) string {
 		return ClassOpaqueSubcharts
 	}
 	for i := 1; i < len(p); i++ {
-		v, ok := valueAt(s.values, p[:i])
+		v, ok := helmvaluespath.ValueAt(s.values, p[:i])
 		if !ok || v == nil {
 			return ClassInactive
 		}
@@ -682,7 +689,7 @@ func requirement(s *side, p []string) string {
 			return ClassEmptyAncestor
 		}
 	}
-	if v, ok := valueAt(s.values, p); ok {
+	if v, ok := helmvaluespath.ValueAt(s.values, p); ok {
 		if v == nil {
 			return ClassNullDefault
 		}
@@ -714,11 +721,11 @@ func (x *Extractor) required(pair extract.VersionPair, from, to *side) (*Require
 		if class == ClassRule && fromRequired[strings.Join(p, "\x00")] && requirement(from, p) == ClassRule {
 			class = ClassAlready
 		}
-		m, ok := memberOf(p)
+		m, ok := helmvaluespath.Member(p)
 		if class == ClassRule && !ok {
 			class = ClassUnexpressible
 		}
-		rec.Keys = append(rec.Keys, KeyClass{Path: displayPath(p), Class: class})
+		rec.Keys = append(rec.Keys, KeyClass{Path: helmvaluespath.DisplayPath(p), Class: class})
 		if class == ClassRule {
 			members = append(members, m)
 		}
@@ -765,7 +772,7 @@ func (x *Extractor) valuesFact() extract.Fact {
 	t := x.target
 	return extract.Fact{
 		Side: "proposed", ID: t.FactID(), Component: t.Component, Type: string(constraintengine.FactSet),
-		Description: fmt.Sprintf("Key paths (keys joined by \".\", through mappings only) of the values supplied for the %s chart whose value is not null, before the chart's defaults are merged. Complete only when every values source of the release is read.", t.Chart.Name),
+		Description: fmt.Sprintf("Key paths (through mappings only) of the values supplied for the %s chart whose value is not null, before the chart's defaults are merged: keys joined by \".\" when every key is over [A-Za-z0-9_/-] and the first starts with a letter or digit, otherwise the documented escaped form \"k..\" followed by the keys joined by \"..\", each byte outside [A-Za-z0-9/-] written as _ and two upper-case hex digits. Complete only when every values source of the release is read.", t.Chart.Name),
 	}
 }
 
@@ -787,7 +794,7 @@ func (x *Extractor) removed(pair extract.VersionPair, from, to *side) (*RemovedR
 		return rec, nil
 	}
 	cands := map[string][]string{}
-	for _, p := range valuePaths(from.values) {
+	for _, p := range helmvaluespath.ValuePaths(from.values) {
 		cands[strings.Join(p, "\x00")] = p
 	}
 	if from.schema != nil {
@@ -829,8 +836,8 @@ func (x *Extractor) removed(pair extract.VersionPair, from, to *side) (*RemovedR
 					break
 				}
 				prefixes[pk] = true
-				shown = displayPath(prefix)
-				m, expressible := memberOf(prefix)
+				shown = helmvaluespath.DisplayPath(prefix)
+				m, expressible := helmvaluespath.Member(prefix)
 				switch {
 				case present(to.values, prefix):
 					class = ClassStillDefaulted
@@ -846,7 +853,7 @@ func (x *Extractor) removed(pair extract.VersionPair, from, to *side) (*RemovedR
 		}
 		rec.Counts[class]++
 		if class != "declared" && class != "open" && class != "same-prefix" {
-			rec.Keys = append(rec.Keys, KeyClass{Path: displayPath(p), Class: class, Detail: shown})
+			rec.Keys = append(rec.Keys, KeyClass{Path: helmvaluespath.DisplayPath(p), Class: class, Detail: shown})
 		}
 	}
 	if len(members) == 0 {
@@ -907,7 +914,7 @@ func schemaPaths(root schemaNode) [][]string {
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			q := appendPath(p, k)
+			q := helmvaluespath.AppendPath(p, k)
 			out = append(out, q)
 			if child, _, reason := n.property(k); reason == "" && !child.leaf() {
 				visit(child, q)
@@ -930,20 +937,20 @@ func sortedUnique(in []string) []string {
 func softFacts(from, to *side) *SoftRecord {
 	rec := &SoftRecord{DefaultsRemoved: []string{}, DefaultsChanged: []string{}, ReferencesRemoved: []string{}}
 	removed := map[string]bool{}
-	for _, p := range valuePaths(from.values) {
+	for _, p := range helmvaluespath.ValuePaths(from.values) {
 		if len(p) > 1 && removed[strings.Join(p[:len(p)-1], "\x00")] {
 			removed[strings.Join(p, "\x00")] = true
 			continue
 		}
-		v, ok := valueAt(to.values, p)
+		v, ok := helmvaluespath.ValueAt(to.values, p)
 		if !ok || v == nil {
 			removed[strings.Join(p, "\x00")] = true
-			rec.DefaultsRemoved = append(rec.DefaultsRemoved, displayPath(p))
+			rec.DefaultsRemoved = append(rec.DefaultsRemoved, helmvaluespath.DisplayPath(p))
 			continue
 		}
-		old, _ := valueAt(from.values, p)
+		old, _ := helmvaluespath.ValueAt(from.values, p)
 		if scalar(old) && scalar(v) && fmt.Sprint(old) != fmt.Sprint(v) {
-			rec.DefaultsChanged = append(rec.DefaultsChanged, displayPath(p))
+			rec.DefaultsChanged = append(rec.DefaultsChanged, helmvaluespath.DisplayPath(p))
 		}
 	}
 	toRefs := map[string]bool{}

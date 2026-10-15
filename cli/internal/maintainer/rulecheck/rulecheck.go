@@ -34,6 +34,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/chartidentity"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/helmvaluespath"
 )
 
 // Mirrored verbatim from internal/constraintengine/contracts.go (unexported
@@ -447,6 +448,11 @@ func checkEntry(index int, entry Entry, opts Options) ([]Finding, string, bool) 
 		for memberIndex, member := range body.SetCondition.Members {
 			if !constraintengine.ValidSetMember(member) {
 				addRule(ruleID, "set-member", "rule.setCondition.members[%d] %q must be 1-%d bytes of [A-Za-z0-9._/-] starting with a letter or digit", memberIndex, member, constraintengine.MaxSetMemberBytes)
+			} else if strings.HasSuffix(body.SetCondition.FactID, valuesPathsSetSuffix) && !helmvaluespath.Canonical(member) {
+				// A values-path member must be exactly what the values
+				// reader renders for its key path; any other spelling of
+				// the same path never matches a collected member.
+				addRule(ruleID, "set-member", "rule.setCondition.members[%d] %q is not a canonical values-path member: keys joined by \".\" when every key is over [A-Za-z0-9_/-] and the first starts with a letter or digit, otherwise \"k..\" and the keys joined by \"..\" with every other byte written as _ and two upper-case hex digits", memberIndex, member)
 			} else if memberIndex > 0 && body.SetCondition.Members[memberIndex-1] >= member {
 				addRule(ruleID, "set-member", "rule.setCondition.members must be strictly ascending with no duplicates; %q follows %q", member, body.SetCondition.Members[memberIndex-1])
 			}

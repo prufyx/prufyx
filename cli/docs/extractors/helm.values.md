@@ -1,6 +1,6 @@
 # Extractor `helm.values`
 
-Version 1.0.0. Compares a Helm chart's source at the first release of two
+Version 1.1.0. Compares a Helm chart's source at the first release of two
 consecutive release lines and derives rules only for the upgrades Helm itself
 refuses. It is deterministic, reads only upstream source pinned by full commit
 SHA, and involves no model.
@@ -59,9 +59,10 @@ anchor, the chart directory or `Chart.yaml` or `values.yaml` is missing;
 `Chart.yaml` names another chart or declares a chart version other than the
 tag's (after removing one leading `v`; only `X.Y.Z`); a YAML file is outside
 the strict subset (anchors, aliases, merge keys, custom tags, duplicate or
-non-string keys, more than one document, or a key YAML 1.1 reads as a boolean
-or null such as `on:`); or `values.schema.json` is not one plain JSON object
-(duplicate or case-folded member names are refused).
+non-string or empty keys, a key holding a NUL byte, more than one document, or
+a key YAML 1.1 reads as a boolean or null such as `on:`); or
+`values.schema.json` is not one plain JSON object (duplicate or case-folded
+member names are refused).
 
 ## What it derives
 
@@ -98,11 +99,38 @@ such prefix is listed, unless the later defaults still hold it (even as
 `null`) or the earlier schema already refused it.
 
 Both set rules read `component.<project>.chart_<chart>_values_paths_set`: the
-key paths (keys joined by `.`, through mappings only) of the values supplied
-for the chart whose value is not null, before the chart's defaults are merged.
-A declared set that is not complete never passes. A key holding a `.` or a
-character outside the set-member grammar cannot be named, so it is recorded
-and never listed; neither is a rule with more than 64 members.
+key paths (through mappings only) of the values supplied for the chart whose
+value is not null, before the chart's defaults are merged, each written as one
+member in the form described below. A declared set that is not complete never
+passes. No rule has more than 64 members.
+
+## Values-path members
+
+A key path is written as a set member in one of two forms, and every path has
+exactly one member:
+
+- **Plain**: when every key consists only of letters, digits, `_`, `/` and
+  `-`, and the first key starts with a letter or digit, the member is the keys
+  joined by `.`, for example `auth.token`.
+- **Escaped**: for any other path, the member is `k..` followed by the keys
+  joined by `..`. Inside a key, letters, digits, `/` and `-` stand for
+  themselves and every other byte (UTF-8 bytes one by one, `_` and `.`
+  included) is written as `_` and two upper-case hex digits. For example the
+  key `nginx.ingress.kubernetes.io/proxy-body-size` under `annotations` is
+  `k..annotations..nginx_2Eingress_2Ekubernetes_2Eio/proxy-body-size`, and the
+  top-level key `_internal` is `k.._5Finternal`.
+
+A plain member never contains `..` and an escaped member always does, so the
+two forms cannot collide, and a member reads back to exactly one key path.
+Both forms stay inside the set-member grammar. A rule only ever lists the
+canonical member of a path: `rulecheck` refuses a member of a values-path set
+fact that is not exactly what this encoding gives for some path (the escaped
+form of a path the plain form can write, lower-case or incomplete escapes, an
+escape of a letter, digit, `/` or `-`, or an empty key). A path whose member
+would be longer than 128 bytes, or a schema key holding a NUL byte (which no
+values file can set), cannot be named; it is recorded with the class
+`unexpressible` and never listed. A path that version 1.0.0 listed keeps the
+same member.
 
 ## What it never claims
 
@@ -164,7 +192,9 @@ extractors (see [tooling.md](tooling.md)). It is a chart extractor: it runs
 through `internal/extract/chartrun`, which stamps, checks and writes a run
 exactly as the framework does and generates the vectors of chart rules, and
 its code digest covers the non-test Go files of `internal/extract`,
-`internal/extract/chartrun` and `internal/extract/helmvalues`, and
-`targets.json`. No other extractor depends on `chartrun`, so their code
-digests do not cover it and do not move with it. The `oracle` file lists the expected outcome of each pair and
+`internal/extract/chartrun`, `internal/extract/helmvalues` and
+`internal/helmvaluespath` (the shared values reader and member encoding), and
+`targets.json`. No other extractor depends on `chartrun` or
+`helmvaluespath`, so their code digests do not cover them and do not move
+with them. The `oracle` file lists the expected outcome of each pair and
 the rules the run must hold (`testdata/oracle-fixture.json` is the fixture's).

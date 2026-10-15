@@ -428,3 +428,60 @@ func TestCodeFilesCoverThisPackageOnDisk(t *testing.T) {
 		t.Fatalf("digest covers %d files, want %d", len(files), len(fw)+n+1)
 	}
 }
+
+// withDependency is the toy chart extractor using a shared package: its files
+// are in the code digest, and a change to them changes the digest.
+type withDependency struct {
+	toyExtractor
+	dep fstest.MapFS
+}
+
+func (w withDependency) DependencySources() []extract.SourceSet {
+	return []extract.SourceSet{{Dir: "shared", Files: w.dep}}
+}
+
+type dupDependency struct{ withDependency }
+
+func (d dupDependency) DependencySources() []extract.SourceSet {
+	return []extract.SourceSet{{Dir: "toy", Files: d.dep}}
+}
+
+func TestDependencySourcesAreInTheCodeDigest(t *testing.T) {
+	root := toyFixture(t)
+	repo, err := extract.ParseRepo(testRepo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fr := extract.FixtureReader{Root: root}
+	run := func(ex Extractor) (*Output, error) {
+		return Run(context.Background(), ex, fr, fr, extract.Options{Repo: repo, DerivedAt: toyTime})
+	}
+	must := func(ex Extractor) *Output {
+		t.Helper()
+		out, err := run(ex)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	x := toyExtractor{op: constraintengine.OperatorRequireSetMember}
+	plain := must(x)
+	dep := fstest.MapFS{"shared.go": {Data: []byte("package shared\n")}, "shared_test.go": {Data: []byte("package shared\n")}}
+	a := must(withDependency{x, dep})
+	if !slices.ContainsFunc(a.Manifest.CodeFiles, func(f extract.CodeFile) bool { return f.Path == "shared/shared.go" }) ||
+		slices.ContainsFunc(a.Manifest.CodeFiles, func(f extract.CodeFile) bool { return f.Path == "shared/shared_test.go" }) {
+		t.Fatalf("code files %+v", a.Manifest.CodeFiles)
+	}
+	if a.Manifest.Extractor.CodeDigest == plain.Manifest.Extractor.CodeDigest {
+		t.Fatal("dependency not in the code digest")
+	}
+	changed := fstest.MapFS{"shared.go": {Data: []byte("package shared // v2\n")}}
+	if b := must(withDependency{x, changed}); b.Manifest.Extractor.CodeDigest == a.Manifest.Extractor.CodeDigest {
+		t.Fatal("a changed dependency file did not change the code digest")
+	}
+	// A dependency may not list a file a second time.
+	dup := dupDependency{withDependency{x, fstest.MapFS{"toy.go": {Data: []byte("package toy\n")}}}}
+	if _, err := run(dup); err == nil {
+		t.Fatal("a file listed twice accepted")
+	}
+}
