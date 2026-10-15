@@ -453,13 +453,20 @@ func TestApplyRulesOnlyRefusals(t *testing.T) {
 	if _, err := extractpack.Apply(extractpack.Options{PackPath: pack, RunDir: run, RulesOnly: true, Withdraw: true, Admit: admitAll}); err == nil || !strings.Contains(err.Error(), "rules-only") {
 		t.Fatalf("withdraw + rules-only: %v", err)
 	}
-	// A loader that admits the pack only at another schema: rules-only never moves it.
+	// A loader that admits the pack only at another schema than the one it
+	// carries: rules-only never moves it.
+	var preHead struct {
+		Schema string `json:"schema"`
+	}
+	if err := json.Unmarshal(pre, &preHead); err != nil || preHead.Schema == "" {
+		t.Fatalf("pack schema %q: %v", preHead.Schema, err)
+	}
 	_, err := extractpack.Apply(extractpack.Options{PackPath: pack, RunDir: run, RulesOnly: true, Admit: func(_ string, raw []byte) error {
 		var head struct {
 			Schema string `json:"schema"`
 		}
 		_ = json.Unmarshal(raw, &head)
-		if strings.HasSuffix(head.Schema, "v1alpha2") {
+		if head.Schema == preHead.Schema {
 			return errors.New("needs a higher schema")
 		}
 		return nil
