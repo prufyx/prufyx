@@ -52,11 +52,10 @@ does not match the pattern makes the inventory incomplete: it may hold a
 definition the extractor would not read. A listed path must exist at every
 release unless it is marked optional (Strimzi's `install/access-operator`).
 
-Only the custom-resource version sets of `argo-cd`, `istio` and `strimzi` are
-registered today (see [../custom-resources.md](../custom-resources.md)). The
-rules derived for the other projects are correct candidates, but the knowledge
-gate refuses them until their set and API groups are added to the reviewed
-custom-resource table in a change of their own.
+The custom-resource version sets of every project of the reviewed table are
+registered (see [../custom-resources.md](../custom-resources.md)); a rule over
+the set of a project that is not listed there is refused by the knowledge gate
+until its set and API groups are added to the table in a change of their own.
 
 ## Another repository from some line on
 

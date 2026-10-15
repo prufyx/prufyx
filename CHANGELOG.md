@@ -257,6 +257,24 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- Maintainer extractor `crd.version-removal`, CRD-GEN wave 3: twenty-six more
+  projects are read (Agones, Capsule, Chaos Mesh, Dex, Emissary-ingress, Fluid,
+  Higress, k8gb, K8up, kagent, kcp, Kgateway, KServe, Kube-OVN, KubeArmor,
+  KubeEdge, Kuberhealthy, KubeVela, Litmus, Logging operator, Metal3,
+  OpenChoreo, OpenYurt, Radius, SchemaHero and Submariner; 49 CNCF projects
+  in total), each over about its latest six release lines, where the listed
+  paths exist. Their custom-resource version sets are registered in the fact
+  registry and their API groups listed in the reviewed table, like the
+  projects of the first two waves. The line attestation (`attest`) stays off for
+  all twenty-six. Copies of other projects' definitions that kcp and k8gb carry
+  are not read, nor are the Argo Workflows definitions in Litmus's portal
+  manifest (Litmus's listed file holds only its own), no listed group ends in
+  `.k8s.io`, and Agones' aggregated allocation API (`allocation.agones.dev`,
+  an APIService, not a CustomResourceDefinition) is not listed. The embedded
+  CNCF pack moves to revision `cncf-2026-09-13.9` (same rules; only the
+  registry digest and the revision differ); external CNCF packs and knowledge
+  databases built against the previous registry are refused by this release
+  until they are rebuilt. No rule over the new sets ships yet.
 - Maintainer extractor `helm.values` 1.1.0: a values key holding a `.` or any
   other character outside `[A-Za-z0-9_/-]` (an annotation name such as
   `nginx.ingress.kubernetes.io/proxy-body-size`), or a first key that does not

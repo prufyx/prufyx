@@ -68,6 +68,9 @@ both ship, the Cluster API provider groups (`bootstrap`, `controlplane`,
 `addons`, `ipam` and `infrastructure.cluster.x-k8s.io`, which other providers
 define CRDs in too), and `postgres-operator.crunchydata.com`, which the Percona
 Operator for PostgreSQL ships as a fork of Crunchy Data's operator. `access.strimzi.io` is not listed either.
+Only groups that a CustomResourceDefinition defines are listed: Agones'
+allocation API `allocation.agones.dev` is served by an aggregated API server
+(an `APIService`), so it is not listed.
 
 ### Groups in Kubernetes namespaces
 
