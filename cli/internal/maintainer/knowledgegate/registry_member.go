@@ -241,11 +241,7 @@ func sameDefinition(a, b constraintengine.FactDefinition) bool {
 
 // registryStatement is the canonical JSON of the RegistryAddition.
 func registryStatement(baseRegistry, headRegistry constraintengine.Registry, added []constraintengine.FactDefinition) ([]byte, error) {
-	raw, err := json.Marshal(RegistryAddition{Schema: RegistryAdditionSchema, BaseRegistryDigest: baseRegistry.Digest(), HeadRegistryDigest: headRegistry.Digest(), Added: added})
-	if err != nil {
-		return nil, err
-	}
-	return extract.Canonical(raw)
+	return extract.Canonical(RegistryAddition{Schema: RegistryAdditionSchema, BaseRegistryDigest: baseRegistry.Digest(), HeadRegistryDigest: headRegistry.Digest(), Added: added})
 }
 
 // parsePackagedDefinitions reads the literal definitions of the function

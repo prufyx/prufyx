@@ -9,6 +9,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Knowledge gate: a change that adds fact definitions to the CNCF fact registry
+  (and so moves the pack's `registryDigest`) is admitted with an owner approval
+  of the new subject `registryDigest`, signed and checked with
+  `prufyx-maintainer approval sign|verify --subject registryDigest`. The gate
+  reads the definitions from the base and head source without running the
+  change's code and refuses any removed, retyped or moved definition, a digest
+  that does not match, and any other top-level pack change in the same change.
+  Existing gate decisions are unchanged.
 - Maintainer command `prufyx-maintainer docs-tables` (with `--check`): writes
   the tables of the reviewed custom-resource projects and of the
   `crd.version-removal` targets to `cli/docs/generated/` from the data compiled
