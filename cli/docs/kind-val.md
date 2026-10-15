@@ -195,7 +195,7 @@ claim:
   `false`: refuted): the claims are reported as without controls, plus
   `verdict` and `reason`.
 - Any control of a group it depends on did not (the other outcome,
-  `undetermined` or `error`): every claim of the group becomes `outcome: error`,
+  `undetermined` or `error`): the claim becomes `outcome: error`,
   `verdict: error`, `reason: canary-failed`; `detail` names the failed
   controls and keeps the former detail after `was:`. A claim that would have
   been refuted is reported as error too: nothing from a void group is
