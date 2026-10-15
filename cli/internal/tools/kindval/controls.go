@@ -101,6 +101,7 @@ func controlKindsWithEntries() map[string]bool {
 // given claim kinds, in id order: every entry of those kinds whose lines
 // the matrix has.
 func ExpandControls(entries []controlEntry, lines []string, kinds map[string]bool) []Claim {
+	lines = uniqueLines(lines)
 	have := map[string]bool{}
 	for _, l := range lines {
 		have[l] = true
@@ -150,12 +151,31 @@ func ExpandControls(entries []controlEntry, lines []string, kinds map[string]boo
 	return out
 }
 
-// claimKinds is the set of kinds of the claims that are not controls.
+// claimKinds is the set of kinds whose controls a run of the claims needs:
+// the kinds of the claims that are not controls, and k8s-served-api as well
+// when there is a k8s-removal claim (a removal is decided on the served
+// APIs of both its lines).
 func claimKinds(claims []Claim) map[string]bool {
 	out := map[string]bool{}
 	for _, c := range claims {
 		if c.Control == "" {
 			out[c.Kind] = true
+		}
+	}
+	if out[KindK8sRemoval] {
+		out[KindServedAPI] = true
+	}
+	return out
+}
+
+// uniqueLines is the lines in order, each once.
+func uniqueLines(lines []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, l := range lines {
+		if !seen[l] {
+			seen[l] = true
+			out = append(out, l)
 		}
 	}
 	return out
@@ -173,6 +193,9 @@ func (c Claims) checkControls() error {
 		if _, _, ok := minorOf(l); !ok || strings.Count(l, ".") != 1 {
 			return fmt.Errorf("line %q is not major.minor", l)
 		}
+	}
+	if len(uniqueLines(c.Lines)) != len(c.Lines) {
+		return errors.New("a line is named twice")
 	}
 	entries, err := loadControls()
 	if err != nil {

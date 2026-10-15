@@ -232,3 +232,64 @@ func TestClaimsCommandWritesControls(t *testing.T) {
 		t.Fatalf("--schema v3: exit %d", code)
 	}
 }
+
+// A merged claims file may not use the control member or a control. id,
+// whatever its schema: the error names the file.
+func TestMergedFileWithControlIDIsRefused(t *testing.T) {
+	dir := t.TempDir()
+	extra := filepath.Join(dir, "extra.json")
+	legacy := Claims{Schema: ClaimsSchema, Claims: []Claim{servedAPIClaim("1.32", "apps", "v1", "Deployment", ExpectServed, "t")}}
+	legacy.Claims[0].ID = "control.legacy"
+	data, _ := json.Marshal(legacy)
+	if err := os.WriteFile(extra, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stderr strings.Builder
+	if code := run([]string{"claims", "--lines", "1.31,1.32", "--crd", extra, "--out", filepath.Join(dir, "out.json")}, os.Stdout, &stderr); code != 1 {
+		t.Fatalf("exit %d", code)
+	}
+	if !strings.Contains(stderr.String(), extra) || !strings.Contains(stderr.String(), "control.legacy") {
+		t.Fatalf("error does not name the file and claim: %s", stderr.String())
+	}
+}
+
+// A line named twice gives each control once; a v2 file that names a line
+// twice is refused.
+func TestDuplicateLinesAreDeduplicated(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "claims.json")
+	if code := run([]string{"claims", "--lines", "1.31,1.32,1.32,1.31", "--schema", "v2", "--out", out}, os.Stdout, os.Stderr); code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	c, err := loadClaims(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(c.Lines, ",") != "1.31,1.32" {
+		t.Fatalf("lines %v", c.Lines)
+	}
+	twice := c
+	twice.Lines = []string{"1.31", "1.32", "1.32"}
+	if err := twice.Validate(); err == nil {
+		t.Fatal("a line named twice is accepted")
+	}
+	ids := map[string]bool{}
+	for _, ctl := range ExpandControls(mustControls(), []string{"1.32", "1.31", "1.32"}, map[string]bool{KindServedAPI: true, KindK8sRemoval: true}) {
+		if ids[ctl.ID] {
+			t.Fatalf("duplicate control %s", ctl.ID)
+		}
+		ids[ctl.ID] = true
+	}
+}
+
+// Removal claims alone bring the served-API controls of their lines too: a
+// removal is decided on the served APIs of both lines.
+func TestRemovalClaimsBringServedAPIControls(t *testing.T) {
+	kinds := claimKinds([]Claim{removalClaim("r", "flowcontrol.apiserver.k8s.io", "v1beta3", "FlowSchema", "")})
+	if !kinds[KindServedAPI] || !kinds[KindK8sRemoval] {
+		t.Fatalf("kinds %v", kinds)
+	}
+	if kinds := claimKinds([]Claim{servedAPIClaim("1.32", "apps", "v1", "Deployment", ExpectServed, "t")}); kinds[KindK8sRemoval] {
+		t.Fatalf("served-API claims alone bring removal controls: %v", kinds)
+	}
+}

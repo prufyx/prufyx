@@ -6,15 +6,15 @@
 # server dry run and scans it with prufyx for the hop from the previous line,
 # runs the custom-resource pairs (and the releases only version claims name)
 # on the line chosen for them, deletes the
-# cluster, and finally evaluates every claim. By default the claims are
-# written as prufyx.io/kind-val-claims/v2: the reviewed controls (known-true
-# and known-false claims) of every kind join the run and decide whether its
-# answers are usable; --v1 writes the v1 claims and results instead. See
+# cluster, and finally evaluates every claim. With --v2 the claims are written
+# as prufyx.io/kind-val-claims/v2: the reviewed controls (known-true and
+# known-false claims) of every kind join the run and decide whether its
+# answers are usable; without it the claims and results are v1. See
 # docs/kind-val.md.
 #
 # usage: kind-val.sh --images FILE --out DIR --prufyx BIN [--prufyx-commit SHA]
 #                    [--kindval BIN] [--crd-claims FILE] [--crd-line LINE]
-#                    [--kind-config FILE] [--min-free-mb N] [--post-check CMD] [--keep] [--v1]
+#                    [--kind-config FILE] [--min-free-mb N] [--post-check CMD] [--keep] [--v2]
 #
 # The image list has one line per release line: "<line> <image@sha256:...>";
 # an image without a digest is refused, and the digest the node container
@@ -25,7 +25,7 @@
 set -euo pipefail
 
 images=""; out=""; prufyx=""; prufyx_commit=""; kindval=""; crd_claims=""; crd_line=""; kind_config=""
-min_free_mb=2000; post_check=""; keep=0; schema=v2
+min_free_mb=2000; post_check=""; keep=0; v2=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --images) images="$2"; shift 2 ;;
@@ -39,7 +39,7 @@ while [ $# -gt 0 ]; do
     --min-free-mb) min_free_mb="$2"; shift 2 ;;
     --post-check) post_check="$2"; shift 2 ;;
     --keep) keep=1; shift ;;
-    --v1) schema=v1; shift ;;
+    --v2) v2=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -103,9 +103,14 @@ last_line=${lines##*,}
 say "lines: $lines (custom resources on $crd_line)"
 
 claims="$out/claims.json"
-# shellcheck disable=SC2086
-$kindval claims --lines "$lines" ${crd_claims:+--crd "$crd_claims"} --schema "$schema" --out "$claims"
-say "claims ($schema) written to $claims"
+if [ "$v2" -eq 1 ]; then
+  # shellcheck disable=SC2086
+  $kindval claims --lines "$lines" ${crd_claims:+--crd "$crd_claims"} --schema v2 --out "$claims"
+else
+  # shellcheck disable=SC2086
+  $kindval claims --lines "$lines" ${crd_claims:+--crd "$crd_claims"} --out "$claims"
+fi
+say "claims written to $claims"
 
 prev_line=""; prev_version=""
 while read -r line image; do

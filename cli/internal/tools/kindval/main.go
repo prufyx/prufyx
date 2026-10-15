@@ -126,7 +126,7 @@ func cmdClaims(args []string) error {
 	if *schema != "v1" && *schema != "v2" {
 		return fmt.Errorf("--schema %q is neither v1 nor v2", *schema)
 	}
-	matrix := splitLines(*lines)
+	matrix := uniqueLines(splitLines(*lines))
 	claims := Claims{Schema: ClaimsSchema, Claims: KubernetesClaims(matrix)}
 	if *extra != "" {
 		more, err := loadExtraClaims(*extra)
@@ -163,8 +163,8 @@ func loadExtraClaims(path string) (Claims, error) {
 		return claims, fmt.Errorf("%s: a claims file to merge names no lines", path)
 	}
 	for _, c := range claims.Claims {
-		if c.Control != "" || (claims.Schema == ClaimsSchemaV2 && strings.HasPrefix(c.ID, "control.")) {
-			return claims, fmt.Errorf("%s: claim %s: controls come only from the reviewed controls file", path, c.ID)
+		if c.Control != "" || strings.HasPrefix(c.ID, "control.") {
+			return claims, fmt.Errorf("%s: claim %s: the control member and ids starting with control. are reserved for the reviewed controls file", path, c.ID)
 		}
 	}
 	// Validate as v1: the members of the claims themselves are the same.

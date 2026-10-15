@@ -128,8 +128,9 @@ no longer defines.
 A claims file of schema `prufyx.io/kind-val-claims/v2` asks for results of
 schema `prufyx.io/kind-val-results/v2`. A `v1` claims file gives exactly the
 `v1` results described above, byte for byte; `evaluate` reads both.
-`kind-val.sh` writes `v2` claims unless it is given `--v1`;
-`kindval claims` writes `v1` unless it is given `--schema v2`.
+`kind-val.sh` writes `v1` claims (and so `v1` results, exactly as before)
+unless it is given `--v2`; `kindval claims` writes `v1` unless it is given
+`--schema v2`.
 
 ### What v2 adds
 
@@ -182,15 +183,19 @@ entry.
 ### The void rule
 
 Controls are grouped like the claims they guard: a `k8s-served-api` claim by
-its `line`, a `k8s-removal` claim by its `to` line (the cluster the removal
-is decided on), and the custom-resource kinds by kind (they are decided on
-the one custom-resource line of the run). For each group with claims:
+its `line`, a `k8s-removal` claim by its `to` line, and the custom-resource
+kinds by kind (they are decided on the one custom-resource line of the run).
+A `k8s-removal` claim reads the served APIs and dry runs of both its lines,
+so it depends on three groups: the removal group of its `to` line and the
+served-API groups of its `from` and `to` lines (a run with removal claims
+therefore always carries the served-API controls of its lines). For each
+claim:
 
 - Every control of the group came out as expected (`true`: confirmed;
   `false`: refuted): the claims are reported as without controls, plus
   `verdict` and `reason`.
-- Any control of the group did not (the other outcome, `undetermined` or
-  `error`): every claim of the group becomes `outcome: error`,
+- Any control of a group it depends on did not (the other outcome,
+  `undetermined` or `error`): every claim of the group becomes `outcome: error`,
   `verdict: error`, `reason: canary-failed`; `detail` names the failed
   controls and keeps the former detail after `was:`. A claim that would have
   been refuted is reported as error too: nothing from a void group is
@@ -213,9 +218,19 @@ the one custom-resource line of the run). For each group with claims:
   unchanged and `totals.controls` has `{kind, state: "absent"}`. No control is
   ever made up at run time.
 
-Controls failing on one line void that kind's claims on that line only; the
-other lines and kinds are unaffected. Controls add no other finding and take
-no part in the served-API differences or the missed-removal check.
+Controls failing on one line void that kind's claims on that line only (and
+the removal claims of the hops into and out of it); the other lines and
+kinds are unaffected. Controls add no other finding and take no part in the
+missed-removal check. The served-API difference between two lines is kept
+only when the served-API groups of both lines are `ok`: otherwise its
+`diffs` entry and its `diff.<line>.*` findings are dropped (and listed in the
+`canary-failed` finding when a group failed).
+
+`k8s-removal` controls are decided on the API servers only: the `from` line
+serves the API (discovery and dry run) and the `to` line does not. The scan
+verdict is not part of a control, so a scan or knowledge regression on a hop
+refutes the affected removal claims (which still require the scan to block)
+instead of voiding the hop. The scan stage itself therefore has no canary.
 
 The hops whose removals the upstream deprecation guide does not document
 (1.33, 1.34, 1.37 in the current table) have only `false` removal controls,
@@ -239,7 +254,8 @@ matrix has it, id suffixed `.<from>-to-<to>`). An entry without `lines` is
 used when the matrix has its line or both lines of its hop. Custom-resource
 controls name a project of their own (`control.<project>`), so they never
 share a release with the claims; they are added whenever the claims have their
-kind.
+kind. A line named twice in `--lines` counts once; a v2 claims file that
+names a line twice is refused.
 
 To add or change a control: open a reviewed pull request that edits
 `controls.json` and cites, for every value, the upstream file at a commit
@@ -262,7 +278,7 @@ cat > images.txt <<'EOF'
 EOF
 cli/scripts/kind-val.sh --images images.txt --out /tmp/kind-val --prufyx "$HOME/.local/bin/prufyx" \
   --prufyx-commit "$(git rev-parse HEAD)" [--crd-claims pairs.json] [--crd-line 1.37] \
-  [--kind-config FILE] [--post-check 'some health command'] [--v1]
+  [--kind-config FILE] [--post-check 'some health command'] [--v2]
 ```
 
 Pin node images by digest from the kind release notes: the script and `kindval snapshot`/`crd` refuse an image without `@sha256:<64 hex>`. The script also records the repository digests of the image the node container really runs (`docker inspect`) as `observedImageDigests`; a claim decided on a node whose observed digests do not include the configured one is an `error`. The clusters are

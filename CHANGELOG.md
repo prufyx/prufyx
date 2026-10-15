@@ -218,9 +218,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   every kind it has; they are reported apart in `controls`, and when a
   control of a kind does not come out as expected on a line, every claim of
   that kind on that line is an `error` with reason `canary-failed` and a
-  `HIGH` finding names the control. `kind-val.sh` now writes v2 claims by
-  default (`--v1` for the former files); a v1 claims file gives exactly the
-  v1 results as before.
+  `HIGH` finding names the control. `kind-val.sh` still writes v1 claims and
+  results by default; `--v2` opts in. A v1 claims file gives exactly the v1
+  results as before.
 
 - Knowledge gate: the first attested update of a pack that holds an older schema
   is admissible. A change of the pack's top-level `schema` member is admitted
