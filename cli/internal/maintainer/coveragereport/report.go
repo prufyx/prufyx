@@ -46,6 +46,11 @@ type Input struct {
 	Lines  []byte
 	Now    time.Time
 	Window int
+	// All selects the ALL window: every line from the project's minFrom. It
+	// adds the completeness members and ignores Window, which must be 0.
+	All bool
+	// Declared is the declared-unknown file; nil means the embedded one.
+	Declared []byte
 }
 
 // Pair is one consecutive pair of lines and its status.
@@ -84,6 +89,8 @@ type Project struct {
 	// Expiring counts valid rules and attestations whose validUntil falls
 	// within 14 days.
 	Expiring int `json:"expiring14d"`
+	// Completion is present in the ALL window only.
+	*Completion
 }
 
 // Totals aggregates a set of projects.
@@ -114,6 +121,8 @@ type Family struct {
 	Family string `json:"family"`
 	A      int    `json:"a"`
 	B      int    `json:"b"`
+	// Counts sum the family's counts over the CNCF projects; ALL window only.
+	*Counts
 }
 
 // Report is the whole result. It carries no wall-clock time: the same
@@ -121,8 +130,11 @@ type Family struct {
 type Report struct {
 	Schema string `json:"schema"`
 	Now    string `json:"now"`
-	Window int    `json:"window"`
-	Pack   struct {
+	Window int    `json:"window,omitempty"`
+	// WindowAll marks the ALL window (every line from minFrom); it replaces
+	// Window.
+	WindowAll bool `json:"windowAll,omitempty"`
+	Pack      struct {
 		Revision string `json:"revision"`
 		Schema   string `json:"schema"`
 		Digest   string `json:"digest"`
@@ -131,6 +143,10 @@ type Report struct {
 		CapturedOn string `json:"capturedOn,omitempty"`
 		Digest     string `json:"digest"`
 	} `json:"lines"`
+	// LinesSnapshot and Declared are present in the ALL window only: the
+	// complete predicate is relative to this snapshot and this declared file.
+	LinesSnapshot *SnapshotInfo `json:"linesSnapshot,omitempty"`
+	Declared      *DeclaredInfo `json:"declared,omitempty"`
 	// PackProjects is the number of projects with a valid rule or
 	// attestation in the pack, whether or not lines are known for them.
 	PackProjects int    `json:"packProjectsCovered"`
@@ -168,6 +184,7 @@ type ruleRec struct {
 	valid     bool
 	expiring  bool
 	validTill time.Time
+	raw       json.RawMessage
 }
 
 type evidenceShape struct {
@@ -246,11 +263,17 @@ func ratio(n, d int) float64 {
 // attestation families) and never evaluates a rule.
 func Compute(in Input) (Report, error) {
 	window := in.Window
-	if window == 0 {
-		window = DefaultWindow
-	}
-	if window < 2 || window > 64 {
-		return Report{}, fmt.Errorf("%w: window must be between 2 and 64", ErrInvalid)
+	if in.All {
+		if window != 0 {
+			return Report{}, fmt.Errorf("%w: the ALL window takes no window size", ErrInvalid)
+		}
+	} else {
+		if window == 0 {
+			window = DefaultWindow
+		}
+		if window < 2 || window > 64 {
+			return Report{}, fmt.Errorf("%w: window must be between 2 and 64", ErrInvalid)
+		}
 	}
 	if in.Now.IsZero() {
 		return Report{}, fmt.Errorf("%w: now is required", ErrInvalid)
@@ -297,7 +320,7 @@ func Compute(in Input) (Report, error) {
 			return Report{}, fmt.Errorf("%w: pack: %v", ErrInvalid, err)
 		}
 		ok, until := validAt(shape.Evidence, now)
-		rec := &ruleRec{id: scope.ID, project: entry.Project, tr: scope.Transition, families: scope.Families, valid: ok && !neutral, validTill: until}
+		rec := &ruleRec{id: scope.ID, project: entry.Project, tr: scope.Transition, families: scope.Families, valid: ok && !neutral, validTill: until, raw: entry.Rule}
 		rec.expiring = rec.valid && until.Sub(now) <= ExpiryHorizon
 		byID[rec.id] = rec
 		byProject[entry.Project] = append(byProject[entry.Project], rec)
@@ -341,11 +364,28 @@ func Compute(in Input) (Report, error) {
 	report.Schema = Schema
 	report.Now = now.Format(time.RFC3339)
 	report.Window = window
+	report.WindowAll = in.All
 	report.Pack.Revision = pack.Revision
 	report.Pack.Schema = pack.Schema
 	report.Pack.Digest = digestOf(in.Pack)
 	report.Lines.CapturedOn = linesFile.CapturedOn
 	report.Lines.Digest = digestOf(in.Lines)
+
+	var comp *completer
+	famCounts := map[string]*Counts{}
+	if in.All {
+		declaredRaw := in.Declared
+		if declaredRaw == nil {
+			declaredRaw = embeddedDeclared
+		}
+		declared, err := ParseDeclared(declaredRaw)
+		if err != nil {
+			return Report{}, err
+		}
+		report.LinesSnapshot = snapshotInfo(report.Lines.Digest, linesFile.CapturedOn, now)
+		report.Declared = &DeclaredInfo{Digest: digestOf(declaredRaw), Records: len(declared.Declarations)}
+		comp = newCompleter(now, atts, byID, declared.Declarations, linesFile.CapturedOn)
+	}
 
 	covered := map[string]bool{}
 	for project, recs := range byProject {
@@ -378,7 +418,12 @@ func Compute(in Input) (Report, error) {
 	for _, slug := range slugs {
 		pl := linesFile.Projects[slug]
 		lines := pl.Lines
-		if len(lines) > window {
+		if in.All {
+			if len(lines) > MaxAllLines {
+				return Report{}, fmt.Errorf("%w: lines: %s: more than %d lines", ErrInvalid, slug, MaxAllLines)
+			}
+			lines = allWindow(lines, registrations(slug))
+		} else if len(lines) > window {
 			lines = lines[len(lines)-window:]
 		}
 		row := Project{Project: slug, Priority: pl.Priority, Window: append([]string{}, lines...), Pairs: []Pair{}, Covered: covered[slug]}
@@ -427,6 +472,22 @@ func Compute(in Input) (Report, error) {
 				row.S++
 			default:
 				row.G++
+			}
+		}
+		if in.All {
+			row.Completion = comp.evaluate(slug, pl, lines)
+			if !community {
+				for _, fc := range row.Completion.FamilyCounts {
+					sum := famCounts[fc.Family]
+					if sum == nil {
+						sum = &Counts{}
+						famCounts[fc.Family] = sum
+					}
+					sum.LinesTotal += fc.LinesTotal
+					sum.Decided += fc.Decided
+					sum.DeclaredUnknown += fc.DeclaredUnknown
+					sum.Undeclared += fc.Undeclared
+				}
 			}
 		}
 		row.VC = ratio(row.A+row.B, len(row.Pairs))
@@ -501,9 +562,17 @@ func Compute(in Input) (Report, error) {
 	for f := range familyB {
 		names[f] = true
 	}
+	if in.All {
+		for _, f := range registeredFamilies() {
+			names[f] = true
+			if famCounts[f] == nil {
+				famCounts[f] = &Counts{}
+			}
+		}
+	}
 	report.Families = []Family{}
 	for f := range names {
-		report.Families = append(report.Families, Family{Family: f, A: familyA[f], B: familyB[f]})
+		report.Families = append(report.Families, Family{Family: f, A: familyA[f], B: familyB[f], Counts: famCounts[f]})
 	}
 	sort.Slice(report.Families, func(i, j int) bool { return report.Families[i].Family < report.Families[j].Family })
 

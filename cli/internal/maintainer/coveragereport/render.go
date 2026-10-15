@@ -5,6 +5,7 @@ package coveragereport
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -29,7 +30,11 @@ func totalsRow(name string, t Totals) string {
 func (r Report) Markdown() []byte {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# Coverage report\n\n")
-	fmt.Fprintf(&b, "- Evaluated at: %s\n- Window: last %d lines per project (%d consecutive pairs)\n", r.Now, r.Window, r.Window-1)
+	if r.WindowAll {
+		fmt.Fprintf(&b, "- Evaluated at: %s\n- Window: all lines from minFrom of each project's families\n", r.Now)
+	} else {
+		fmt.Fprintf(&b, "- Evaluated at: %s\n- Window: last %d lines per project (%d consecutive pairs)\n", r.Now, r.Window, r.Window-1)
+	}
 	fmt.Fprintf(&b, "- Pack: `%s` (revision %s, schema %s)\n", r.Pack.Digest, r.Pack.Revision, r.Pack.Schema)
 	captured := r.Lines.CapturedOn
 	if captured == "" {
@@ -76,6 +81,9 @@ func (r Report) Markdown() []byte {
 		}
 		fmt.Fprintf(&b, "| %s | %s | %d | %d | %d | %d | %.2f | %s | %d |\n", name, window, p.A, p.B, p.S, p.G, p.VC, covered, p.Expiring)
 	}
+	if r.WindowAll {
+		b.WriteString(r.completenessMarkdown())
+	}
 	if len(r.WithoutLines) > 0 {
 		b.WriteString("\n## Projects without lines\n\nThese projects have a valid rule or attestation but no lines in the snapshot; their pairs are unknown and are not counted.\n\n")
 		for _, p := range r.WithoutLines {
@@ -83,4 +91,45 @@ func (r Report) Markdown() []byte {
 		}
 	}
 	return []byte(b.String())
+}
+
+// CompleteProjects lists the projects whose complete is true, sorted. It is
+// empty outside the ALL window.
+func (r Report) CompleteProjects() []string {
+	out := []string{}
+	for _, p := range r.Projects {
+		if p.Completion != nil && p.Complete {
+			out = append(out, p.Project)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (r Report) completenessMarkdown() string {
+	var b strings.Builder
+	b.WriteString("\n## Completeness\n\n")
+	if r.LinesSnapshot != nil {
+		captured := r.LinesSnapshot.CapturedOn
+		if captured == "" {
+			captured = "not stated"
+		}
+		fmt.Fprintf(&b, "complete is relative to the external lines snapshot captured %s, digest `%s`", captured, r.LinesSnapshot.Digest)
+		if r.Declared != nil {
+			fmt.Fprintf(&b, ", and the declared-unknown file `%s` (%d records)", r.Declared.Digest, r.Declared.Records)
+		}
+		b.WriteString(".\n\n")
+	}
+	b.WriteString("| Project | Complete | Lines | Decided | Declared unknown | Undeclared | Reasons |\n|---|---|---|---|---|---|---|\n")
+	for _, p := range r.Projects {
+		if p.Completion == nil {
+			continue
+		}
+		complete := "no"
+		if p.Complete {
+			complete = "yes"
+		}
+		fmt.Fprintf(&b, "| %s | %s | %d | %d | %d | %d | %s |\n", p.Project, complete, p.LinesTotal, p.Decided, p.DeclaredUnknown, p.Undeclared, strings.Join(p.Reasons, ", "))
+	}
+	return b.String()
 }
