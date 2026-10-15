@@ -245,7 +245,7 @@ func (s *subjectFlags) load(layout Layout) (ApprovalSubject, ApprovalKeys, error
 	case s.subject == ApprovalSubjectLineAttestation && (s.record == "" || s.rule != ""):
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--subject lineAttestation takes --record ID, not --rule"}
 	case s.subject != ApprovalSubjectRule && s.subject != ApprovalSubjectLineAttestation:
-		return ApprovalSubject{}, ApprovalKeys{}, fmt.Errorf("--subject %q is not supported (supported: rule, lineAttestation, repinBaseline, registryDigest)", s.subject)
+		return ApprovalSubject{}, ApprovalKeys{}, fmt.Errorf("--subject %q is not supported (supported: rule, lineAttestation, repinBaseline); --subject registryDigest takes --pack, --base-root and --head-root", s.subject)
 	case s.repository != "" || s.baseBaselines != "" || s.headBaselines != "":
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--repository, --base-baselines and --head-baselines belong to --subject repinBaseline"}
 	}
