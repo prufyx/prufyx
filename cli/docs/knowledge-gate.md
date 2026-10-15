@@ -264,6 +264,8 @@ Run on every pack of the head, whatever the change:
 | `records-trust` | the change changes a pack record (line attestation or path policy) and trust material together |
 | `knowledge-records` | an approval file, worklist or review record changed without the rule change or statement it belongs to (see below) |
 | `batch-approval` | (a change that adds a batch approval) the batch does not verify; see [Batch approvals](#batch-approvals) |
+| `onboarding-batch` | (a change that adds an onboarding batch) the batch does not verify; see [Onboarding batches](#onboarding-batches) |
+| `onboarding-records` | (a change that touches `cli/knowledge/onboarding/`) it adds a file that is not the batch admitted in this run, changes a batch file, or removes one before 14 days after it expired |
 | `limits` | the change holds more loosening changes than the cap (default 200) |
 | `kill-switch` | the file `factory/PAUSE` exists in the base or the head and the change holds any loosening change |
 
@@ -477,6 +479,7 @@ Sign it with `prufyx-maintainer approval sign --subject repinBaseline`, see
 | `cli/knowledge/approvals/<pack>/<rule id>.json` | head | owner approvals (`<record id>.json` for a line attestation) |
 | `cli/knowledge/approvals/batches/<batch id>.json` | base and head | owner batch approvals (see [Batch approvals](#batch-approvals)) |
 | `cli/knowledge/trust/web-approval-keys.json` | base only | the pinned owner-approval keys; their digest is passed separately (`--approval-keys-digest`) |
+| `cli/knowledge/onboarding/<batch id>.json` | base and head | owner onboarding batches (see [Onboarding batches](#onboarding-batches)) |
 
 `<pack>` is `cncf` or `community`. A reattestation worklist names each pack by
 its repository path (`cli/internal/cncfcheck/data/rules.json`,
@@ -874,6 +877,73 @@ and the single-use checks against `--base`, and prints `batch OK` or
 `batch REFUSED` with the reason. It does not verify the citations upstream or
 run the extractor cross-check; the gate does both. Exit codes are those of
 `approval`.
+
+## Onboarding batches
+
+An onboarding batch is one owner signature that adds up to 50 projects to the
+reviewed custom-resource catalogue as data only. Per project it admits the
+project's CRD version target (`cli/internal/extract/crdversions/target-<slug>.json`)
+and its row of the reviewed custom-resource table
+(`cli/internal/customresources/table.json`), and the CNCF pack members that move
+with them: `revision` (always, by exactly one) and `registryDigest` (when a
+project is added). It can also turn on line attestation for a project that is
+already in the base (kind `attest`), as the only change to that project's target.
+It admits no rule, record or attestation: those enter later through the usual
+proofs (re-derivation, a reattestation statement or an owner approval).
+
+The batch is the file `cli/knowledge/onboarding/<batch id>.json`
+(`prufyx.io/knowledge-onboarding-batch/v1`). Its signature uses its own domain,
+so it never verifies as an approval or a knowledge batch, and the reverse; the
+key is the pinned owner-approval key. The gate reads it only when the change
+adds it, and decides it all or nothing. Every failure fails the
+`onboarding-batch` check and leaves the pack member changes refused. Every run
+that carries one raises the `onboarding-batch` alarm, and such a change is never
+eligible for automatic merging (`CODEOWNERS` asks for the owner's review of
+`cli/knowledge/onboarding/`).
+
+| Check | The gate refuses the change when |
+| --- | --- |
+| O1 file and signature | the change adds more than one batch file, or a file not named after its batch id; the file does not decode strictly; the key is not pinned in the base key file (whose digest is `--approval-keys-digest`) or has expired; the identity is not an owner; the signature does not verify; `decidedAt` is in the future, `notAfter` has passed or is more than 72 hours after `decidedAt`; the base holds the same batch (id, record or signature), or a batch about one of its projects decided at the same time or later |
+| O2 paths | the change touches anything but the batch file, the listed projects' target files (added for kind `new`, changed for kind `attest`, never removed), the table, the CNCF pack file, its corpus attestation, the generated support inventory and the generated tables `cli/docs/generated/crd-version-targets.md` and `cli/docs/generated/custom-resource-projects.md` (which must equal the base's rendering of the head's targets and table); any file it touches has an executable bit; the classification holds anything but the pack's `revision` and, with a new project, `registryDigest`; the table changes a row of the base, a reserved-group record, or adds a row the batch does not list |
+| O3 states | a target file differs from the digest the batch lists; the batch's base or head state (pack revision, registry digest, table digest, targets digest) differs from the gate's own computation from that tree; a pack's `registryDigest` is not the registry the base's code compiles from that tree's table; the head revision is not the base revision plus one |
+| O4 loaders | the targets or the table do not load with the base's loaders, or the table is not in its canonical spelling; for a new project: its target or row is already in the base, it is not a CNCF landscape project, its repository is not the landscape's, the target attests, declares a remote source, install channels or any scan exclusion, the target and row name different facts or components, a group is reserved or listed by another project, a fact project is used twice; for kind `attest`: the base target is missing or already attests, anything but `attest` changes, the table row changes, or the proposal reports a refuted claim |
+| O5 registry | the registry the base's code compiles from the head table is not the base's registry plus exactly each new project's `component.<project>.custom_resource_versions_set`, or a project lists other facts |
+| O6 dry run | for every project, the gate builds the extractor from the head's target bytes with its own code and runs the newest release pair the target names against GitHub; it refuses when that pair is not the pair the proposal names, is not derived, the full-tree scan finds a file the proposal did not list, a new project's group is not declared in the file its table row cites (which must be under a listed path of the project's own repository, at the pair's later release), or a kind `attest` target does not attest the pair. Each project may use 60 GitHub REST requests and 2000 reads; over either budget the batch is refused. Without a source that counts its requests (`--source github`) no batch is admitted |
+| O7 digests | the change-set digest (the classification and the changed paths), the sample of projects read in full or the digest of the review summary differs from the gate's own |
+| O8 kill switch | `factory/PAUSE` is set |
+
+A change that adds no batch is checked as before: the gate admits the CNCF pack
+against the table it was built with, so a table change without a batch fails
+`admit/cncf`. Only once a batch is admitted are `admit/cncf` and
+`attestation/cncf` run against the head's table, compiled by the base's code.
+A batch file in the base is never changed, and removed only 14 days after it
+expired; a knowledge batch may not touch `cli/knowledge/onboarding/`.
+
+The gate's run budget (`--rest-budget`) is shared by every project's dry run,
+so a batch holds as many projects as that budget allows at about 60 requests
+each; a run that runs out of it never passes.
+
+### Signing and checking an onboarding batch
+
+```sh
+prufyx-maintainer approval sign --onboarding draft.json --base BASE --head HEAD \
+  --keys web-approval-keys.json --keys-digest sha256:... --identity LOGIN --key-stdin
+prufyx-maintainer approval verify --onboarding cli/knowledge/onboarding/ob-YYYYMMDD-N.json \
+  --base BASE --head HEAD --keys web-approval-keys.json --keys-digest sha256:...
+```
+
+The draft holds the batch id (`ob-YYYYMMDD-N`), a candidate id and the
+projects, each with its dry-run pair, the scan findings it saw and its claims
+summary. The signer computes everything else from the two checkouts with the
+gate's code, runs every check that needs no network, draws the review nonce and
+the sample (a tenth of the projects, at least 3), prints the review summary
+(attestation turned on first, every project, and the sampled ones in full:
+target, table row with its cited sources, dry-run pair, scan findings and
+claims), asks for the batch id on the terminal and signs. Sign with a binary
+built from the base revision: the gate recomputes every digest with the base's
+code. `verify` runs the same offline checks; the dry run needs upstream and is
+run by the gate only. The claims counts are the proposal's and are shown, not
+checked.
 
 ## Commands
 
