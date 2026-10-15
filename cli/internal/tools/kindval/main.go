@@ -277,7 +277,9 @@ func cmdCRD(ctx context.Context, args []string) error {
 			continue
 		}
 		fmt.Fprintf(os.Stderr, "kindval crd: %s %s -> %s\n", pair.Project, pair.From.Tag, pair.To.Tag)
-		cr.Pairs = append(cr.Pairs, runPair(ctx, k, httpFetcher, pair))
+		res, fields := runPairFields(ctx, k, httpFetcher, pair)
+		cr.Pairs = append(cr.Pairs, res)
+		cr.Fields = append(cr.Fields, fields...)
 	}
 	if *only == "" {
 		for _, single := range claims.Singles() {

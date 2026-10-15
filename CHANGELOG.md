@@ -229,6 +229,23 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   `HIGH` finding names the control. `kind-val.sh` still writes v1 claims and
   results by default; `--v2` opts in. A v1 claims file gives exactly the v1
   results as before.
+  New claim kind `crd-field` (claims v1 and v2): a field-level change between
+  two releases of a project's CRDs (`field-removed`, `field-required-added`,
+  `field-type-changed`, `enum-value-removed`, `validation-tightened`) is
+  decided by the API server's strict field validation. Within the run of the
+  release pair, `kindval crd` reads the installed From schema from the
+  cluster, builds a minimal object that sets only the claimed path, requires
+  a server dry run (`--validate=strict`) to accept it at From, sends it again
+  after To is applied in place and after a fresh install of To (which
+  decides), and matches To's answer against a closed set of
+  message patterns on the exact path. A refusal for another reason or on
+  another path, a permissive schema, a path absent at From, a missing value
+  or an object that cannot be built is `undetermined` with a reason code
+  (`schema-permissive`, `path-not-in-from`, `value-missing`,
+  `object-not-buildable`, `from-rejected`, `other-rejection`); `refuted`
+  means only that To's CRD schema accepts the object (webhooks and
+  controllers are not installed). The crd run file gains `fields` (additive);
+  reviewed `crd-field` controls join the controls file.
 
 - Knowledge gate: the first attested update of a pack that holds an older schema
   is admissible. A change of the pack's top-level `schema` member is admitted

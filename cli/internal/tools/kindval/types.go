@@ -24,7 +24,21 @@ const (
 	KindCRDRemoval = "crd-removal"
 	KindCRDPair    = "crd-pair"
 	KindAddonRule  = "addon-rule"
+	KindCRDField   = "crd-field"
 )
+
+// Field changes a crd-field claim names: what the To release's schema does
+// to an object the From release's schema accepts.
+const (
+	ChangeFieldRemoved        = "field-removed"
+	ChangeRequiredAdded       = "field-required-added"
+	ChangeTypeChanged         = "field-type-changed"
+	ChangeEnumValueRemoved    = "enum-value-removed"
+	ChangeValidationTightened = "validation-tightened"
+)
+
+// fieldChanges is the closed list of field changes.
+var fieldChanges = map[string]bool{ChangeFieldRemoved: true, ChangeRequiredAdded: true, ChangeTypeChanged: true, ChangeEnumValueRemoved: true, ChangeValidationTightened: true}
 
 // Expectations and observations of a served API.
 const (
@@ -69,6 +83,13 @@ const (
 	ReasonDisagreement        = "disagreement"
 	ReasonCanaryFailed        = "canary-failed"
 	ReasonControlsAbsent      = "controls-absent"
+	// crd-field
+	ReasonSchemaPermissive   = "schema-permissive"
+	ReasonPathNotInFrom      = "path-not-in-from"
+	ReasonValueMissing       = "value-missing"
+	ReasonObjectNotBuildable = "object-not-buildable"
+	ReasonFromRejected       = "from-rejected"
+	ReasonOtherRejection     = "other-rejection"
 )
 
 // Reasons is the closed list of reason codes.
@@ -77,6 +98,8 @@ var Reasons = []string{
 	ReasonReleaseUnavailable, ReasonReleaseNotInstalled, ReasonServerNoAnswer, ReasonScanNoReport,
 	ReasonInstallFailed, ReasonCRDMissing, ReasonVersionNotDeclared, ReasonImageDigestMismatch,
 	ReasonDisagreement, ReasonCanaryFailed, ReasonControlsAbsent,
+	ReasonSchemaPermissive, ReasonPathNotInFrom, ReasonValueMissing, ReasonObjectNotBuildable,
+	ReasonFromRejected, ReasonOtherRejection,
 }
 
 // Control expectations: a control claim is known true (expected confirmed)
@@ -146,6 +169,13 @@ type Subject struct {
 	CRD     string      `json:"crd,omitempty"`
 	Served  *bool       `json:"served,omitempty"`
 	Storage *bool       `json:"storage,omitempty"`
+	// crd-field: the field (dot-separated property names; an array is
+	// crossed through its items), the change, and the From-valid value To
+	// should refuse (enum-value-removed, field-type-changed,
+	// validation-tightened).
+	Path   string          `json:"path,omitempty"`
+	Change string          `json:"change,omitempty"`
+	Value  json.RawMessage `json:"value,omitempty"`
 }
 
 // CRDRelease is one release of a project: its tag, the commit the tag
@@ -250,6 +280,42 @@ type CRDRun struct {
 	// Releases: releases named by crd-version claims that no pair covers,
 	// each installed on its own.
 	Releases []CRDReleaseResult `json:"releases,omitempty"`
+	// Fields: one entry per crd-field claim, decided within the run of its
+	// pair.
+	Fields []CRDFieldResult `json:"fields,omitempty"`
+}
+
+// CRDFieldResult is what the cluster said about one crd-field claim: the
+// object built from the From schema, the server's answer to it after From
+// was installed, after To was applied in place and after To was installed
+// fresh, the state of To's schema at the path, and the message pattern the
+// fresh answer matched. The claim is decided on the fresh install (no cached
+// From schema can answer there); the in-place answer is a cross-check. Skip is
+// the reason code when the claim was decided before an answer could tell (the
+// schema is permissive, the path is not in From, no value, no buildable
+// object). Error is a failed install or schema read: the claim is an error,
+// never confirmed.
+type CRDFieldResult struct {
+	ID     string `json:"id"`
+	Pair   string `json:"pair"`
+	Change string `json:"change"`
+	// ServerPath is the path as the API server names it (an array element
+	// is [0]).
+	ServerPath string `json:"serverPath,omitempty"`
+	Skip       string `json:"skip,omitempty"`
+	Detail     string `json:"detail,omitempty"`
+	// ObjectDigest is the sha256 digest of the object sent (JSON).
+	ObjectDigest string     `json:"objectDigest,omitempty"`
+	FromAnswer   *ServerTry `json:"from,omitempty"`
+	// InPlace is "applied" or "refused": the in-place apply of To over From.
+	InPlace   string     `json:"inPlace,omitempty"`
+	ToInPlace *ServerTry `json:"toInPlace,omitempty"`
+	ToAnswer  *ServerTry `json:"to,omitempty"`
+	// ToSchema is the state of the path in To's installed schema: present,
+	// absent or permissive (it or an ancestor preserves unknown fields).
+	ToSchema string `json:"toSchema,omitempty"`
+	Pattern  string `json:"pattern,omitempty"`
+	Error    string `json:"error,omitempty"`
 }
 
 // CRDReleaseResult is what the cluster said about one release installed on
