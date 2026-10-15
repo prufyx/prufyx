@@ -147,6 +147,26 @@ func TestSyntheticCustomResourceExitNeverReturnsZero(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Once the shipped pack holds the custom-resource batch, the Kafka rule
+	// alone no longer makes a passing Strimzi report (the batch rules are
+	// UNKNOWN without the set); a passing KEDA report stands in for it.
+	if len(batchRuleIDs("strimzi")) > 0 {
+		raw, err := os.ReadFile(filepath.Join("../../examples/cncf", "keda-input.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var document map[string]any
+		if err := json.Unmarshal(raw, &document); err != nil {
+			t.Fatal(err)
+		}
+		setProposedBoolFact(t, document, "component.keda.legacy_tls_cert_file_required_for_transport", false)
+		if raw, err = json.Marshal(document); err != nil {
+			t.Fatal(err)
+		}
+		if kafkaOnly, err = cncfcheck.Check("keda", raw, time.Date(2026, 9, 10, 4, 0, 0, 0, time.UTC)); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if got := cncfcheck.ClaimExit(kafkaOnly); got != ExitOK {
 		t.Fatalf("setup: ClaimExit = %d, want the would-be exit %d", got, ExitOK)
 	}
