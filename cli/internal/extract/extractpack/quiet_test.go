@@ -34,14 +34,14 @@ func schemaIn(t *testing.T, pack string) string {
 	return h.Schema
 }
 
-// needsHigher admits a pack only above the v1alpha2 schema, so a merge that
-// adds attestations has to bump it.
+// needsHigher admits a pack only at the attested schema, so a merge that
+// adds attestations has to bump the ranged or set schema the fixture starts at.
 func needsHigher(_ string, raw []byte) error {
 	var h struct {
 		Schema string `json:"schema"`
 	}
 	_ = json.Unmarshal(raw, &h)
-	if strings.HasSuffix(h.Schema, "v1alpha2") {
+	if !strings.HasSuffix(h.Schema, "v1alpha4") {
 		return errors.New("needs a higher schema")
 	}
 	return nil
