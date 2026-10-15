@@ -72,6 +72,23 @@ func levelSetNoticeRule() map[string]any {
 	return rule
 }
 
+// levelRangedChartRule is a synthetic chart rule widened to every release
+// of two consecutive chart lines: the level reader must see it as the
+// ranged chart level.
+func levelRangedChartRule() map[string]any {
+	rule := levelSetRule()
+	rule["id"] = "kubernetes.synthetic-ranged-chart.1-36-0-to-1-37-0"
+	rule["subject"].(map[string]any)["chart"] = map[string]any{"source": "https://charts.example.io", "name": "kubernetes"}
+	bound := func(name, basis string) map[string]any {
+		return map[string]any{"bound": name, "basis": basis, "sourceId": "synthetic-gate-declaration"}
+	}
+	rule["range"] = map[string]any{
+		"from": map[string]any{"gte": "1.36.0", "lt": "1.37.0"}, "to": map[string]any{"gte": "1.37.0", "lt": "1.38.0"},
+		"bounds": []any{bound("from.gte", "PREVIOUS_MINOR_LINE"), bound("from.lt", "REMOVED_IN_RELEASE"), bound("to.gte", "REMOVED_IN_RELEASE"), bound("to.lt", "TARGET_SERIES")},
+	}
+	return rule
+}
+
 func levelSource(id, repo, path string, start, end int) map[string]any {
 	return map[string]any{
 		"id": id, "url": "https://github.com/kubernetes/" + repo + "/blob/" + levelTestRevision + "/" + path,
@@ -187,7 +204,7 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 		"prufyx.io/cncf-source-rule-pack/v1alpha4", "prufyx.io/cncf-source-rule-pack/v1alpha5", "prufyx.io/cncf-source-rule-pack/v1alpha6",
 		"prufyx.io/cncf-source-rule-pack/v1alpha7", "prufyx.io/cncf-source-rule-pack/v1alpha8", "prufyx.io/cncf-source-rule-pack/v1alpha9",
 		"prufyx.io/cncf-source-rule-pack/v1alpha10", "prufyx.io/cncf-source-rule-pack/v1alpha11", "prufyx.io/cncf-source-rule-pack/v1alpha12",
-		"prufyx.io/cncf-source-rule-pack/v1alpha13", "prufyx.io/cncf-source-rule-pack/v1alpha14",
+		"prufyx.io/cncf-source-rule-pack/v1alpha13", "prufyx.io/cncf-source-rule-pack/v1alpha14", "prufyx.io/cncf-source-rule-pack/v1alpha15",
 	}
 	for _, tc := range []struct {
 		name      string
@@ -231,6 +248,7 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 		}, want: schemas[8], refusal: "does not list distribution records"},
 		{name: "served-API lists", edit: func(p map[string]any) { p["servedAPIs"] = levelServedAPIs() }, want: schemas[9], refusal: "does not list served-API lists"},
 		{name: "set notice", edit: func(p map[string]any) { addRule(p, levelSetNoticeRule()) }, want: schemas[13], refusal: "does not list notices"},
+		{name: "ranged chart rule", edit: func(p map[string]any) { addRule(p, levelRangedChartRule()) }, want: schemas[14]},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, schema := range schemas {

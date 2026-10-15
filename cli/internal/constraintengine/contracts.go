@@ -448,6 +448,7 @@ type RuleSet struct {
 	crossing       bool
 	chart          bool
 	chartNotice    bool
+	chartRanged    bool
 	seal           *ruleSetSeal
 }
 type ruleSetSeal struct{}
@@ -611,6 +612,9 @@ func EngineContractDigest() string { return engineContractDigest() }
 func EngineContractDigestRanged() string { return engineContractDigestRanged() }
 
 func (r RuleSet) engineDigest() string {
+	if r.chartRanged {
+		return engineContractDigestChartRanged()
+	}
 	if r.chartNotice {
 		return engineContractDigestChartNotice()
 	}
@@ -679,6 +683,8 @@ func scopeDigestFor(engineDigest string) string {
 		return scopeContractDigestChart()
 	case engineContractDigestChartNotice():
 		return scopeContractDigestChartNotice()
+	case engineContractDigestChartRanged():
+		return scopeContractDigestChartRanged()
 	}
 	return ""
 }

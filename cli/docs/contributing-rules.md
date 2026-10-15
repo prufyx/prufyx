@@ -680,8 +680,9 @@ version. The two kinds never meet:
   to a `distribution`, and a component declared on both sides declares the
   same chart (or none) on both.
 
-A chart rule is anchor-only (no `range`, no `crossing`) and carries no
-`severity`. It may be a `require_component_version` rule on another component
+A chart rule never carries a `crossing` or a `severity`. It is anchor-only
+unless it carries a range over two chart release lines (see
+[Ranged chart rules](#ranged-chart-rules)). It may be a `require_component_version` rule on another component
 (for example the Kubernetes version a chart's `kubeVersion` constraint needs),
 never on its own component, whose declared version is the chart version.
 
@@ -765,3 +766,54 @@ engine and scope contract digests (scope contract
 `v1alpha14`. External and project packs do not accept set notices, and the
 support inventory refuses them as it refuses one-way notices. Every document
 without a set notice keeps its schema, digests and replay bytes.
+
+## Ranged chart rules
+
+A chart rule may carry a `range` that widens it from its anchor pair to every
+release of two chart release lines. Only two shapes are accepted, the ones a
+line-wide derivation produces:
+
+- **Consecutive lines** `M.(m-1)` and `M.m` of one major: `from`
+  `[M.(m-1).0, M.m.0)` and `to` `[M.m.0, M.(m+1).0)`, with the bounds
+  `PREVIOUS_MINOR_LINE`, then `CHANGED_IN_RELEASE` or `REMOVED_IN_RELEASE`
+  (the same basis on `from.lt` and `to.gte`), then `TARGET_SERIES`. The range
+  pins the release boundary `M.m.0`: a hop that crosses it from outside the
+  range (one that skips the earlier line) is undetermined with
+  `RULE_RELEASE_BOUNDARY_NOT_REVIEWED`, never excluded.
+- **Any other two lines** (a new major, or a gap in minor numbers): each side
+  is one whole line, with `UPGRADE_FROM_SERIES` on both `from` bounds and
+  `TARGET_SERIES` on both `to` bounds. No boundary is known, so a hop outside
+  the range is excluded as for any range without release-basis bounds. This
+  shape is refused for consecutive lines, which always take the first shape.
+
+Any other basis (`ANCHOR_ONLY`, `RESTORED_IN_RELEASE`,
+`REVIEWED_THROUGH_MINOR_LINE`) is refused on a chart rule, and so is a range
+on any operator other than `require_component_version`, `require_set_member`
+and `forbid_set_member`. Every other range rule applies unchanged: each side
+spans one minor line, the anchor lies inside the range, every matched pair is
+a strict upgrade, and each bound cites a source the rule carries. A
+`require_set_member` rule may carry a range only with a chart subject, and
+never a crossing. A set notice stays anchor-only.
+
+A hop matched through the range is decided like the anchor and discloses the
+match in `subjectMatch`; as for every ranged rule, such a hop can block but
+never makes the declared scope complete.
+
+`rule validate` accepts a ranged chart rule only on the maintainer path, in
+one of the two shapes, and only when each anchor is the first release of its
+line (`subject.from` equals `range.from.gte` and `subject.to` equals
+`range.to.gte`). `helm.values` derives one only when the same rule derives
+at every tagged final release of both lines (see
+[extractors/helm.values.md](extractors/helm.values.md#ranges)). The range
+covers every version of both lines, including releases with no matching tag
+and later patches; the proof covers only the tagged final releases it lists.
+Each bound cites the rule's first source at its own anchor; when the rule
+cites nothing at the earlier anchor, all four bounds cite the later anchor's
+source.
+
+A document holding a ranged chart rule carries rules schema `v1alpha10` and
+its own engine and scope contract digests (scope contract
+`scope-completeness-contract-v9`); a pack holding one is pack level
+`v1alpha15`. A chart rule with a range under any earlier schema is refused.
+External and project packs do not accept chart rules. Every document without
+a ranged chart rule keeps its schema, digests and replay bytes.
