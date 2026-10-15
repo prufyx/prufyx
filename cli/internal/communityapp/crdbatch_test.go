@@ -140,8 +140,8 @@ func kyvernoLatestBatchRuleIDs(origin, target string) []string {
 
 // batchClaimStatuses maps every claim of the JSON CNCF check report stdout
 // to its status; a claim of a rule outside the batch fails the test, and so
-// does an UNKNOWN claim for any reason but an unavailable fact (the set not
-// complete: constraintengine's set rule).
+// does an UNKNOWN claim for any reason but an incomplete set (the reason a
+// set rule gives when the set is not declared complete).
 func batchClaimStatuses(t *testing.T, stdout string) map[string]string {
 	t.Helper()
 	var report struct {
@@ -165,7 +165,7 @@ func batchClaimStatuses(t *testing.T, stdout string) map[string]string {
 		if !batch[claim.RuleID] {
 			t.Fatalf("claim of %s, which is not a batch rule", claim.RuleID)
 		}
-		if claim.Status == "UNKNOWN" && claim.ReasonCode != "RULE_FACT_UNAVAILABLE" {
+		if claim.Status == "UNKNOWN" && claim.ReasonCode != "RULE_SET_FACT_INCOMPLETE" {
 			t.Fatalf("claim of %s UNKNOWN for %s", claim.RuleID, claim.ReasonCode)
 		}
 		out[claim.RuleID] = claim.Status
