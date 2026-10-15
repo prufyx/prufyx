@@ -16,9 +16,11 @@
 // pair's proof and is never a verdict. Two soft facts, when proven at both
 // anchors, become verdict-neutral set notices (see notices.go): keys the
 // later templates provably no longer read, and scalar defaults that
-// changed. Rules and notices are anchor-only chart rules: their subject is
-// the chart, from the first release of one line to the first release of
-// the next.
+// changed. A rule's subject is the chart, from the first release of one
+// line to the first release of the next. A rule is widened to every release
+// of both lines only when the same derivation over every final release of
+// both lines gives the same rule (ranges.go); otherwise, and for every
+// notice, it stays anchor-only.
 package helmvalues
 
 import (
@@ -44,7 +46,7 @@ import (
 const (
 	// IDPrefix is followed by the project slug and the chart name.
 	IDPrefix = "helm.values."
-	Version  = "1.2.0"
+	Version  = "1.3.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/helmvalues"
 )
@@ -122,6 +124,11 @@ type releaseLine struct {
 	Versions     []string
 	// Problem is set when the line has too many tags.
 	Problem string
+	// Outside is the tags, by name, that name a final version of this line
+	// but are not among its release tags (another prefix, a part over four
+	// digits, a tag that does not name a commit). Any of them keeps the
+	// line's rules anchor-only (ranges.go).
+	Outside []string
 }
 
 func (l *releaseLine) key() string { return fmt.Sprintf("%d.%d", l.Major, l.Minor) }
@@ -180,8 +187,31 @@ func (x *Extractor) releaseLines(index extract.ReleaseIndex) []*releaseLine {
 			l.Problem = fmt.Sprintf("the line has %d release tags, over the bound of %d", len(l.Tags), maxTagsPerLine)
 		}
 	}
+	listed := map[extract.Tag]bool{}
+	for _, r := range rels {
+		listed[r.tag] = true
+	}
+	for _, t := range index.Tags {
+		m := versionTailRE.FindStringSubmatch(t.Name)
+		if m == nil || listed[t] {
+			continue
+		}
+		major, errMajor := strconv.Atoi(m[1])
+		minor, errMinor := strconv.Atoi(m[2])
+		if errMajor != nil || errMinor != nil {
+			continue
+		}
+		if l := byKey[fmt.Sprintf("%d.%d", major, minor)]; l != nil {
+			l.Outside = append(l.Outside, t.Name)
+		}
+	}
 	return out
 }
+
+// versionTailRE finds a final version X.Y.Z (any number of digits) at the
+// end of a tag name, after any prefix that does not end in a digit or a
+// dot. A tag with a pre-release or build suffix does not match.
+var versionTailRE = regexp.MustCompile(`(?:^|[^0-9.])([0-9]+)\.([0-9]+)\.([0-9]+)$`)
 
 // Pairs implements chartrun.Extractor: every two consecutive release lines
 // whose earlier line is at or after MinFrom, each named by its first final
@@ -525,9 +555,11 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 		}
 	}
 	proof := &PairProof{Target: x.target.Project, Chart: x.target.Chart, From: sideRecord(from), To: sideRecord(to)}
+	var lines *pairLines
 	if !inventory {
 		fromLine, toLine := x.lineFor(pair.FromTag, pair.FromCommit, pair.From), x.lineFor(pair.ToTag, pair.ToCommit, pair.To)
-		if proof.Lines, err = x.linesRecord(ctx, r, pair.Repo, fromLine, toLine); err != nil {
+		lines = &pairLines{from: fromLine, to: toLine}
+		if proof.Lines, lines.fromSides, lines.toSides, err = x.linesRecord(ctx, r, pair.Repo, fromLine, toLine); err != nil {
 			return chartrun.Extraction{}, err
 		}
 	}
@@ -540,20 +572,20 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 		return chartrun.Extraction{Proof: proof}, nil
 	}
 	var candidates []chartrun.Candidate
-	kube, c := x.kubeVersion(pair, from, to)
+	kube, kubeC := x.kubeVersion(pair, from, to)
 	proof.KubeVersion = kube
-	if c != nil {
-		candidates = append(candidates, *c)
-	}
-	req, c := x.required(pair, from, to)
+	req, reqC := x.required(pair, from, to)
 	proof.Required = req
-	if c != nil {
-		candidates = append(candidates, *c)
-	}
-	rem, c := x.removed(pair, from, to)
+	rem, remC := x.removed(pair, from, to)
 	proof.Removed = rem
-	if c != nil {
-		candidates = append(candidates, *c)
+	// A rule is widened to both whole lines only when the cross-product
+	// proof holds (ranges.go); the anchor derivation above is unchanged.
+	lines.fromSides[0], lines.toSides[0] = from, to
+	proof.Lines.RangeOutcome, proof.Lines.Ranges = x.ranges(pair, lines, map[string]*chartrun.Candidate{kindKube: kubeC, kindRequired: reqC, kindRemoved: remC})
+	for _, c := range []*chartrun.Candidate{kubeC, reqC, remC} {
+		if c != nil {
+			candidates = append(candidates, *c)
+		}
 	}
 	proof.Soft = softFacts(from, to)
 	unread, c := x.unread(pair, from, to)
@@ -578,23 +610,27 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 
 // linesRecord reads every other final release of both lines (Chart.yaml,
 // values.yaml and the schema) and records whether each reads completely.
-// A rule is about the anchors only, so a release that does not read is
-// recorded and never withholds the pair.
-func (x *Extractor) linesRecord(ctx context.Context, r extract.PinnedReader, repo extract.RepoRef, lines ...*releaseLine) (*LinesRecord, error) {
+// It returns the releases as read, one per tag of each line; the anchor's
+// slot is nil (Extract reads the anchors). A release that does not read
+// never withholds the pair: it keeps the pair's rules anchor-only.
+func (x *Extractor) linesRecord(ctx context.Context, r extract.PinnedReader, repo extract.RepoRef, from, to *releaseLine) (*LinesRecord, []*side, []*side, error) {
 	rec := &LinesRecord{}
-	for i, l := range lines {
+	var sides [2][]*side
+	for i, l := range []*releaseLine{from, to} {
 		lr := LineRecord{Line: l.key(), Problem: l.Problem, Releases: []LineTag{}}
+		sides[i] = make([]*side, len(l.Tags))
 		for j, t := range l.Tags {
 			if err := ctx.Err(); err != nil {
-				return nil, err
+				return nil, nil, nil, err
 			}
 			lt := LineTag{Tag: t.Name, Commit: t.Commit, Version: l.Versions[j], Anchor: j == 0}
 			if j > 0 && l.Problem == "" {
 				s, err := x.readSide(r, repo, t.Name, t.Commit, l.Versions[j], false)
 				if err != nil {
-					return nil, err
+					return nil, nil, nil, err
 				}
 				lt.Problem = s.problem
+				sides[i][j] = s
 			}
 			lr.Releases = append(lr.Releases, lt)
 		}
@@ -604,7 +640,7 @@ func (x *Extractor) linesRecord(ctx context.Context, r extract.PinnedReader, rep
 			rec.To = lr
 		}
 	}
-	return rec, nil
+	return rec, sides[0], sides[1], nil
 }
 
 func slug(v string) string { return strings.ReplaceAll(v, ".", "-") }
@@ -624,6 +660,12 @@ func (x *Extractor) subject(pair extract.VersionPair) chartrun.Subject {
 
 // kubeVersion derives the Kubernetes lower bound rule.
 func (x *Extractor) kubeVersion(pair extract.VersionPair, from, to *side) (*KubeRecord, *chartrun.Candidate) {
+	return x.kubeVersionFor(pair, from, to, pair.To)
+}
+
+// kubeVersionFor is kubeVersion with the later chart named as toLabel in
+// the next action: the anchor version, or its whole line for a ranged rule.
+func (x *Extractor) kubeVersionFor(pair extract.VersionPair, from, to *side, toLabel string) (*KubeRecord, *chartrun.Candidate) {
 	rec := &KubeRecord{From: parseKubeVersion(from.meta.KubeVersion), To: parseKubeVersion(to.meta.KubeVersion)}
 	switch {
 	case rec.To.Shape == "absent":
@@ -664,7 +706,7 @@ func (x *Extractor) kubeVersion(pair extract.VersionPair, from, to *side) (*Kube
 			ID: id, Operator: "require_component_version", Subject: x.subject(pair),
 			Dependency: &chartrun.Dependency{Side: "proposed", Component: KubernetesComponent, Comparison: "gte", Version: rec.To.Minimum},
 			ReasonCode: ReasonKubeVersion,
-			NextAction: boundNext(fmt.Sprintf("upgrade Kubernetes to %s or later before upgrading the %s chart to %s; Helm refuses the chart on an older cluster", rec.To.Minimum, t.Chart.Name, pair.To)),
+			NextAction: boundNext(fmt.Sprintf("upgrade Kubernetes to %s or later before upgrading the %s chart to %s; Helm refuses the chart on an older cluster", rec.To.Minimum, t.Chart.Name, toLabel)),
 		},
 		Sources: sources,
 	}
@@ -733,6 +775,12 @@ func requirement(s *side, p []string) string {
 // requires, under ancestors its defaults set, with no default of their own,
 // that the earlier chart's defaults satisfied (or did not require).
 func (x *Extractor) required(pair extract.VersionPair, from, to *side) (*RequiredRecord, *chartrun.Candidate) {
+	return x.requiredFor(pair, from, to, pair.To)
+}
+
+// requiredFor is required with the later chart named as toLabel in the
+// next action.
+func (x *Extractor) requiredFor(pair extract.VersionPair, from, to *side, toLabel string) (*RequiredRecord, *chartrun.Candidate) {
 	rec := &RequiredRecord{Keys: []KeyClass{}, Opaque: []OpaqueNode{}}
 	if to.schema == nil {
 		rec.Outcome = "no rule: the later chart has no values.schema.json"
@@ -790,7 +838,7 @@ func (x *Extractor) required(pair extract.VersionPair, from, to *side) (*Require
 			ID: id, Operator: constraintengine.OperatorRequireSetMember, Subject: x.subject(pair),
 			SetCondition: &extract.SetCondition{Side: "proposed", Component: t.Component, FactID: t.FactID(), Members: members},
 			ReasonCode:   ReasonRequired,
-			NextAction:   boundNext(fmt.Sprintf("set every listed key in the values supplied for the %s chart %s; its values schema requires each and the chart sets no default", t.Chart.Name, pair.To)),
+			NextAction:   boundNext(fmt.Sprintf("set every listed key in the values supplied for the %s chart %s; its values schema requires each and the chart sets no default", t.Chart.Name, toLabel)),
 		},
 		Sources: []extract.SourceRef{
 			{ID: "values-schema-" + slug(pair.To), Repo: pair.Repo, Commit: pair.ToCommit, Path: to.schemaJSON},
@@ -819,6 +867,12 @@ const (
 // chart used (in its defaults or its schema) that the later schema refuses
 // as unknown keys of a closed object.
 func (x *Extractor) removed(pair extract.VersionPair, from, to *side) (*RemovedRecord, *chartrun.Candidate) {
+	return x.removedFor(pair, from, to, pair.To)
+}
+
+// removedFor is removed with the later chart named as toLabel in the next
+// action.
+func (x *Extractor) removedFor(pair extract.VersionPair, from, to *side, toLabel string) (*RemovedRecord, *chartrun.Candidate) {
 	rec := &RemovedRecord{Keys: []KeyClass{}, Counts: map[string]int{}}
 	if to.schema == nil {
 		rec.Outcome = "no rule: the later chart has no values.schema.json"
@@ -916,7 +970,7 @@ func (x *Extractor) removed(pair extract.VersionPair, from, to *side) (*RemovedR
 			ID: id, Operator: constraintengine.OperatorForbidSetMember, Subject: x.subject(pair),
 			SetCondition: &extract.SetCondition{Side: "proposed", Component: t.Component, FactID: t.FactID(), Members: members},
 			ReasonCode:   ReasonNotAllowed,
-			NextAction:   boundNext(fmt.Sprintf("remove or rename every listed key in the values supplied for the %s chart %s; its values schema no longer admits them", t.Chart.Name, pair.To)),
+			NextAction:   boundNext(fmt.Sprintf("remove or rename every listed key in the values supplied for the %s chart %s; its values schema no longer admits them", t.Chart.Name, toLabel)),
 		},
 		Sources: sources,
 	}

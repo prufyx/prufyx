@@ -183,8 +183,13 @@ func stamp(c Candidate, rec *extract.Recorder, id constraintengine.Extractor, de
 		dep := *c.Rule.Dependency
 		c.Rule.Dependency = &dep
 	}
+	if c.Rule.Range != nil {
+		rng := *c.Rule.Range
+		rng.Bounds = append([]constraintengine.RangeBound(nil), rng.Bounds...)
+		c.Rule.Range = &rng
+	}
 	e := Entry{Project: c.Project, Description: c.Description, RequiredFacts: append([]extract.Fact(nil), c.RequiredFacts...), Rule: RuleJSON{
-		ID: c.Rule.ID, Operator: c.Rule.Operator, Subject: c.Rule.Subject, SetCondition: c.Rule.SetCondition, Dependency: c.Rule.Dependency,
+		ID: c.Rule.ID, Operator: c.Rule.Operator, Subject: c.Rule.Subject, SetCondition: c.Rule.SetCondition, Range: c.Rule.Range, Dependency: c.Rule.Dependency,
 		ReasonCode: c.Rule.ReasonCode, NextAction: c.Rule.NextAction,
 		Evidence: extract.Evidence{State: "active", Basis: constraintengine.BasisMechanical, Extractor: id, DerivedAt: derivedAt, ReviewedAt: derivedAt, ValidUntil: validUntil},
 	}}

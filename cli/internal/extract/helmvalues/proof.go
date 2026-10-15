@@ -61,10 +61,36 @@ func sideRecord(s *side) *SideRecord {
 	return r
 }
 
-// LinesRecord lists the final releases of both lines.
+// LinesRecord lists the final releases of both lines and whether the
+// pair's rules hold for every release of both lines.
 type LinesRecord struct {
 	From LineRecord `json:"from"`
 	To   LineRecord `json:"to"`
+	// RangeOutcome is why no rule of the pair can be ranged ("anchor-only:
+	// ..."), or "checked" when every kind was checked (see Ranges).
+	RangeOutcome string `json:"rangeOutcome,omitempty"`
+	// Ranges is the range proof of each rule kind.
+	Ranges []RangeProof `json:"ranges,omitempty"`
+}
+
+// RangeProof is the cross-product proof of one rule kind: the derivation
+// run on every final release of the earlier line against every final
+// release of the later one.
+type RangeProof struct {
+	Kind string `json:"kind"`
+	// Outcome is "range: consecutive lines", "range: whole lines",
+	// "anchor-only: ..." or "no rule at the anchors".
+	Outcome      string      `json:"outcome"`
+	PairsChecked int         `json:"pairsChecked"`
+	Divergence   *Divergence `json:"divergence,omitempty"`
+}
+
+// Divergence is the first release pair whose derived rule differs from
+// the anchors' rule.
+type Divergence struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+	What string `json:"what"`
 }
 
 // LineRecord is one release line.
@@ -75,7 +101,8 @@ type LineRecord struct {
 }
 
 // LineTag is one final release of a line. A release other than the anchor
-// is read for the record only; rules are about the anchors.
+// is read for the range proof: a rule is ranged only when every release of
+// both lines reads and derives the same rule.
 type LineTag struct {
 	Tag     string `json:"tag"`
 	Commit  string `json:"commit"`
