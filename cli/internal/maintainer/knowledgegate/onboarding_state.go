@@ -564,6 +564,9 @@ func (st *onboardingState) checkProject(p OnboardingProject, baseRows, headRows 
 			bad("O4: the base target does not load: %v", logSafe(err.Error()))
 			return problems
 		}
+		if len(head.Exclude) > 0 || head.Remote != nil || len(head.Channels) > 0 || head.DeclaredChannel != "" {
+			bad("O4: a target with scan exclusions, a remote source or install channels is never turned on for attestation by a batch (%d exclusions)", len(head.Exclude))
+		}
 		if base.Attest || !head.Attest {
 			bad("O4: kind attest turns attestation on: the base target must not attest and the head target must")
 		}

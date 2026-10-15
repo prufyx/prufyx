@@ -118,6 +118,15 @@ func TestOnboardingAttestRefusals(t *testing.T) {
 		f.sign(t, rec)
 		requireFail(t, f.gate(t), "may change only the target's attest member")
 	})
+	t.Run("a target with an exclusion", func(t *testing.T) {
+		f := attestFixture(t, func(target map[string]any) {
+			target["exclude"] = []any{map[string]any{"path": "test/crds/", "repo": target["repo"], "reason": "end-to-end test manifests", "evidence": "the directory holds only the manifests of the end-to-end tests"}}
+		})
+		f.refresh()
+		rec, _ := f.tryRecord(t)
+		f.sign(t, rec)
+		requireFail(t, f.gate(t), "never turned on for attestation by a batch")
+	})
 	t.Run("the pair does not attest", func(t *testing.T) {
 		f := attestFixture(t, nil)
 		// A stray definition outside the listed path keeps the scan from
