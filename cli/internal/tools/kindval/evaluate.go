@@ -55,9 +55,9 @@ type evaluator struct {
 
 // claimedRemovals indexes the members the crd-removal claims name, by
 // pair id.
-func claimedRemovals(claims Claims) map[string]map[string]bool {
+func claimedRemovals(claims []Claim) map[string]map[string]bool {
 	out := map[string]map[string]bool{}
-	for _, c := range claims.Claims {
+	for _, c := range claims {
 		if c.Kind != KindCRDRemoval {
 			continue
 		}
@@ -72,21 +72,24 @@ func claimedRemovals(claims Claims) map[string]map[string]bool {
 	return out
 }
 
-// Evaluate compares the claims with the runs.
-func Evaluate(claims Claims, runs Runs, prov Provenance, now time.Time) Results {
-	res := &Results{Schema: ResultsSchema, GeneratedAt: now.UTC().Format(time.RFC3339), Prufyx: prov.Prufyx, LogDigest: prov.LogDigest, Lines: []LineSummary{}, Claims: []ClaimResult{}, Diffs: []LineDiff{}, Findings: []Finding{}}
-	ev := evaluator{runs: runs, prov: prov, res: res, sets: map[string]map[string]bool{}, cases: map[string]map[string]VerdictCase{}, pairs: map[string]CRDPairResult{}, pairImage: map[string]string{}, singles: map[string]CRDReleaseResult{}, singleImg: map[string]string{}, imageProblem: map[string]string{}}
+// runLines is the lines of the snapshots, in order.
+func runLines(runs Runs) []string {
 	lines := make([]string, 0, len(runs.Snapshots))
-	for line, s := range runs.Snapshots {
+	for line := range runs.Snapshots {
 		lines = append(lines, line)
-		ev.sets[line] = servedSet(s)
 	}
 	sortLines(lines)
-	for _, line := range lines {
-		s := runs.Snapshots[line]
-		res.Lines = append(res.Lines, LineSummary{Line: line, ServerVersion: s.ServerVersion, Image: s.Image, Served: len(s.Served)})
+	return lines
+}
+
+// newEvaluator indexes the runs for the given claims; its findings go to
+// res.
+func newEvaluator(runs Runs, prov Provenance, res *Results, claims []Claim) *evaluator {
+	ev := &evaluator{runs: runs, prov: prov, res: res, sets: map[string]map[string]bool{}, cases: map[string]map[string]VerdictCase{}, pairs: map[string]CRDPairResult{}, pairImage: map[string]string{}, singles: map[string]CRDReleaseResult{}, singleImg: map[string]string{}, imageProblem: map[string]string{}}
+	for line, s := range runs.Snapshots {
+		ev.sets[line] = servedSet(s)
 	}
-	for _, line := range lines {
+	for _, line := range runLines(runs) {
 		ev.checkImage(runs.Snapshots[line].Image, runs.Snapshots[line].ObservedImageDigests)
 	}
 	for _, run := range runs.CRD {
@@ -119,18 +122,56 @@ func Evaluate(claims Claims, runs Runs, prov Provenance, now time.Time) Results 
 		}
 	}
 	ev.claimed = claimedRemovals(claims)
-	for _, c := range claims.Claims {
-		cr := ev.claim(c)
-		// A verdict from a node whose image is not proven to be the
-		// configured digest is no verdict.
-		if problem := ev.imageProblem[cr.NodeImageDigest]; problem != "" && (cr.Outcome == OutcomeConfirmed || cr.Outcome == OutcomeRefuted) {
-			cr.Outcome = OutcomeError
-			cr.Detail += "; " + problem
-		}
-		res.Claims = append(res.Claims, cr)
+	return ev
+}
+
+// evaluate evaluates one claim. A verdict from a node whose image is not
+// proven to be the configured digest is no verdict.
+func (e *evaluator) evaluate(c Claim) ClaimResult {
+	cr := e.claim(c)
+	if problem := e.imageProblem[cr.NodeImageDigest]; problem != "" && (cr.Outcome == OutcomeConfirmed || cr.Outcome == OutcomeRefuted) {
+		cr.Outcome, cr.Reason = OutcomeError, ReasonImageDigestMismatch
+		cr.Detail += "; " + problem
 	}
-	ev.missedRemovals(claims)
-	ev.diffs(lines, claims)
+	return cr
+}
+
+// Evaluate compares the claims with the runs. A v2 claims file carries
+// controls: they are evaluated apart, and a group of claims whose controls
+// did not all come out as expected is void (see applyControls).
+func Evaluate(claims Claims, runs Runs, prov Provenance, now time.Time) Results {
+	v2 := claims.Schema == ClaimsSchemaV2
+	res := &Results{Schema: ResultsSchema, GeneratedAt: now.UTC().Format(time.RFC3339), Prufyx: prov.Prufyx, LogDigest: prov.LogDigest, Lines: []LineSummary{}, Claims: []ClaimResult{}, Diffs: []LineDiff{}, Findings: []Finding{}}
+	plain, controls := claims.Claims, []Claim(nil)
+	if v2 {
+		res.Schema = ResultsSchemaV2
+		plain = nil
+		for _, c := range claims.Claims {
+			if c.Control == "" {
+				plain = append(plain, c)
+			} else {
+				controls = append(controls, c)
+			}
+		}
+	}
+	ev := newEvaluator(runs, prov, res, plain)
+	lines := runLines(runs)
+	for _, line := range lines {
+		s := runs.Snapshots[line]
+		res.Lines = append(res.Lines, LineSummary{Line: line, ServerVersion: s.ServerVersion, Image: s.Image, Served: len(s.Served)})
+	}
+	for _, c := range plain {
+		res.Claims = append(res.Claims, ev.evaluate(c))
+	}
+	ev.missedRemovals(plain)
+	ev.diffs(lines, plain)
+	if v2 {
+		applyControls(res, plain, controls, runs, prov)
+	} else {
+		for i := range res.Claims {
+			res.Claims[i].Reason, res.Claims[i].Verdict = "", ""
+		}
+	}
 	sort.SliceStable(res.Findings, func(i, j int) bool {
 		if rank(res.Findings[i].Severity) != rank(res.Findings[j].Severity) {
 			return rank(res.Findings[i].Severity) < rank(res.Findings[j].Severity)
@@ -163,6 +204,174 @@ func Evaluate(claims Claims, runs Runs, prov Provenance, now time.Time) Results 
 	return *res
 }
 
+// groupKey is the control group of a claim: its kind and the line it is
+// decided on (the custom-resource kinds are decided on one line: "").
+func groupKey(c Claim) (kind, line string) {
+	switch c.Kind {
+	case KindServedAPI:
+		return c.Kind, c.Subject.Line
+	case KindK8sRemoval:
+		to, _ := lineSubject(c.Subject.To)
+		return c.Kind, to
+	}
+	return c.Kind, ""
+}
+
+// expectedOutcome is the outcome a control must have.
+func expectedOutcome(control string) string {
+	if control == ControlTrue {
+		return OutcomeConfirmed
+	}
+	return OutcomeRefuted
+}
+
+// controlGroup is the controls of one kind on one line.
+type controlGroup struct {
+	summary ControlSummary
+	failed  []ControlResult
+}
+
+// applyControls evaluates the controls with an evaluator of their own (its
+// findings are discarded) and voids every claim whose group has a control
+// that did not come out as expected: nothing a void group shows is
+// evidence. A decided claim whose group has no control while its kind has
+// some is undetermined. It then sets the verdicts and the control totals.
+func applyControls(res *Results, plain, controls []Claim, runs Runs, prov Provenance) {
+	cev := newEvaluator(runs, prov, &Results{}, controls)
+	groups := map[[2]string]*controlGroup{}
+	res.Controls = []ControlResult{}
+	for _, c := range controls {
+		cr := cev.evaluate(c)
+		kind, line := groupKey(c)
+		ctl := ControlResult{ID: c.ID, Kind: c.Kind, Line: line, Expected: c.Control, Outcome: cr.Outcome, Reason: cr.Reason, Detail: cr.Detail}
+		ctl.OK = cr.Outcome == expectedOutcome(c.Control)
+		res.Controls = append(res.Controls, ctl)
+		g := groups[[2]string{kind, line}]
+		if g == nil {
+			g = &controlGroup{summary: ControlSummary{Kind: kind, Line: line, State: ControlStateOK}}
+			groups[[2]string{kind, line}] = g
+		}
+		if c.Control == ControlTrue {
+			g.summary.True++
+		} else {
+			g.summary.False++
+		}
+		if !ctl.OK {
+			g.summary.State = ControlStateFailed
+			g.failed = append(g.failed, ctl)
+		}
+	}
+	sort.Slice(res.Controls, func(i, j int) bool { return res.Controls[i].ID < res.Controls[j].ID })
+	for _, g := range groups {
+		sort.Slice(g.failed, func(i, j int) bool { return g.failed[i].ID < g.failed[j].ID })
+	}
+
+	withEntries := controlKindsWithEntries()
+	absent := map[[2]string]bool{}
+	voided := map[string]bool{}
+	for i := range res.Claims {
+		cr := &res.Claims[i]
+		kind, line := groupKey(plain[i])
+		if !withEntries[kind] {
+			absent[[2]string{kind, ""}] = true
+			continue
+		}
+		g := groups[[2]string{kind, line}]
+		switch {
+		case g == nil:
+			absent[[2]string{kind, line}] = true
+			if cr.Outcome == OutcomeConfirmed || cr.Outcome == OutcomeRefuted {
+				where := "on line " + line
+				if line == "" {
+					where = "in this run"
+				}
+				voided[cr.ID] = true
+				cr.Outcome, cr.Reason = OutcomeUndetermined, ReasonControlsAbsent
+				cr.Detail += "; no control of kind " + kind + " ran " + where
+			}
+		case len(g.failed) > 0:
+			var failed []string
+			for _, f := range g.failed {
+				failed = append(failed, fmt.Sprintf("%s (expected %s, got %s)", f.ID, expectedOutcome(f.Expected), f.Outcome))
+			}
+			voided[cr.ID] = true
+			cr.Outcome, cr.Reason = OutcomeError, ReasonCanaryFailed
+			cr.Detail = "canary failed: " + strings.Join(failed, ", ") + "; was: " + cr.Detail
+		}
+	}
+
+	// A voided claim is no evidence: the findings it raised go with it.
+	kept := res.Findings[:0]
+	for _, f := range res.Findings {
+		if !voided[strings.TrimSuffix(f.ID, ".leftover")] {
+			kept = append(kept, f)
+		}
+	}
+	res.Findings = kept
+
+	// Every group with controls is summarised, with or without claims.
+	keys := make([][2]string, 0, len(groups)+len(absent))
+	for k := range groups {
+		keys = append(keys, k)
+	}
+	for k := range absent {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i][0] != keys[j][0] {
+			return keys[i][0] < keys[j][0]
+		}
+		return keys[i][1] != keys[j][1] && (keys[i][1] == "" || keys[j][1] != "" && lineLess(keys[i][1], keys[j][1]))
+	})
+	res.Totals.Controls = []ControlSummary{}
+	for _, k := range keys {
+		g := groups[k]
+		if g == nil {
+			res.Totals.Controls = append(res.Totals.Controls, ControlSummary{Kind: k[0], Line: k[1], State: ControlStateAbsent})
+			continue
+		}
+		var msgs []string
+		for _, f := range g.failed {
+			g.summary.Failed = append(g.summary.Failed, f.ID)
+			msgs = append(msgs, fmt.Sprintf("%s expected %s, got %s (%s): %s", f.ID, expectedOutcome(f.Expected), f.Outcome, orNone(f.Reason), f.Detail))
+		}
+		res.Totals.Controls = append(res.Totals.Controls, g.summary)
+		if len(msgs) > 0 {
+			id, where := "canary-failed/"+k[0], "in this run"
+			if k[1] != "" {
+				id, where = id+"/"+k[1], "on line "+k[1]
+			}
+			res.Findings = append(res.Findings, Finding{Severity: SeverityHigh, ID: id, Message: fmt.Sprintf("the controls of %s %s did not come out as expected, so no claim of the group is evidence: %s", k[0], where, strings.Join(msgs, "; "))})
+		}
+	}
+
+	// Verdicts: only a confirmed outcome is confirmed by execution.
+	res.Totals.Verdicts = &VerdictTotals{}
+	for i := range res.Claims {
+		cr := &res.Claims[i]
+		switch cr.Outcome {
+		case OutcomeConfirmed:
+			cr.Verdict, cr.Reason = VerdictConfirmed, ""
+			res.Totals.Verdicts.ConfirmedByExecution++
+		case OutcomeRefuted:
+			cr.Verdict = VerdictRefuted
+			res.Totals.Verdicts.Refuted++
+		case OutcomeError:
+			cr.Verdict = VerdictError
+			res.Totals.Verdicts.Error++
+		default:
+			cr.Verdict = VerdictUndetermined
+			res.Totals.Verdicts.Undetermined++
+		}
+	}
+}
+
+func orNone(s string) string {
+	if s == "" {
+		return "no reason"
+	}
+	return s
+}
 func pairFailed(p CRDPairResult) bool {
 	return p.Error != "" || p.From.Error != "" || p.To.Error != "" || len(p.To.Files) == 0
 }
@@ -232,7 +441,7 @@ func (e *evaluator) claim(c Claim) ClaimResult {
 	case KindCRDPair:
 		e.crdPair(c, &cr)
 	default:
-		cr.Detail = "not evaluated by kind-val"
+		cr.Detail, cr.Reason = "not evaluated by kind-val", ReasonNotEvaluated
 	}
 	return cr
 }
@@ -240,7 +449,7 @@ func (e *evaluator) claim(c Claim) ClaimResult {
 func (e *evaluator) servedAPI(c Claim, cr *ClaimResult) {
 	s, ok := e.runs.Snapshots[c.Subject.Line]
 	if !ok {
-		cr.Detail = "no snapshot of line " + c.Subject.Line
+		cr.Detail, cr.Reason = "no snapshot of line "+c.Subject.Line, ReasonNoSnapshot
 		return
 	}
 	cr.NodeImageDigest = imageDigest(s.Image)
@@ -257,7 +466,7 @@ func (e *evaluator) servedAPI(c Claim, cr *ClaimResult) {
 	// Either way the knowledge is wrong about this line: it would block a
 	// manifest the server accepts, or it names a line that does not serve
 	// a version it says is served.
-	cr.Outcome = OutcomeRefuted
+	cr.Outcome, cr.Reason = OutcomeRefuted, ReasonDisagreement
 	e.finding(SeverityMedium, c.ID, "line %s (%s): the claim says %s is %s, the API server says %s", c.Subject.Line, s.ServerVersion, api, c.Expect, observed)
 }
 
@@ -270,7 +479,7 @@ func (e *evaluator) k8sRemoval(c Claim, cr *ClaimResult) {
 	toSnap, okTo := e.runs.Snapshots[to]
 	_, okFrom := e.runs.Snapshots[from]
 	if !okFrom || !okTo {
-		cr.Detail = fmt.Sprintf("no snapshot of line %s or %s", from, to)
+		cr.Detail, cr.Reason = fmt.Sprintf("no snapshot of line %s or %s", from, to), ReasonNoSnapshot
 		return
 	}
 	cr.NodeImageDigest = imageDigest(toSnap.Image)
@@ -278,11 +487,11 @@ func (e *evaluator) k8sRemoval(c Claim, cr *ClaimResult) {
 	fromCase, okFromCase := e.cases[from][id]
 	toCase, okToCase := e.cases[to][id]
 	if !okFromCase || !okToCase || toCase.Scan == nil {
-		cr.Detail = "the corpus has no dry run of the API on both lines, or no scan for the hop"
+		cr.Detail, cr.Reason = "the corpus has no dry run of the API on both lines, or no scan for the hop", ReasonNoCorpusCase
 		return
 	}
 	if fromCase.Server.Outcome == ServerError || toCase.Server.Outcome == ServerError {
-		cr.Outcome = OutcomeError
+		cr.Outcome, cr.Reason = OutcomeError, ReasonServerNoAnswer
 		cr.Detail = "the API server gave no answer to a dry run: " + strings.TrimSpace(fromCase.Server.Message+" "+toCase.Server.Message)
 		return
 	}
@@ -295,14 +504,14 @@ func (e *evaluator) k8sRemoval(c Claim, cr *ClaimResult) {
 		problems = append(problems, fmt.Sprintf("%s still serves %s", to, api))
 	}
 	if len(problems) > 0 {
-		cr.Outcome = OutcomeRefuted
+		cr.Outcome, cr.Reason = OutcomeRefuted, ReasonDisagreement
 		cr.Detail = strings.Join(problems, "; ")
 		e.finding(SeverityMedium, c.ID, "%s -> %s: %s", from, to, cr.Detail)
 		return
 	}
 	sc := toCase.Scan
 	if sc.Error != "" {
-		cr.Outcome = OutcomeError
+		cr.Outcome, cr.Reason = OutcomeError, ReasonScanNoReport
 		cr.Detail = "the scan gave no report: " + sc.Error
 		e.finding(SeverityInfo, c.ID, "%s -> %s, %s: %s", sc.From, sc.To, api, cr.Detail)
 		return
@@ -320,24 +529,24 @@ func (e *evaluator) k8sRemoval(c Claim, cr *ClaimResult) {
 	case sc.Exit == exitBlocked && hasGap && hasRule:
 		cr.Outcome = OutcomeConfirmed
 	case sc.Exit == exitBlocked && hasGap:
-		cr.Outcome = OutcomeRefuted
+		cr.Outcome, cr.Reason = OutcomeRefuted, ReasonDisagreement
 		cr.Detail += "; rule " + c.Subject.RuleID + " did not match"
 		e.finding(SeverityMedium, c.ID, "%s -> %s: the scan blocks %s but not through rule %s (matched: %s)", sc.From, sc.To, api, c.Subject.RuleID, strings.Join(sc.Rules, ", "))
 	case sc.Exit == exitBlocked:
 		cr.Outcome = OutcomeConfirmed
 		cr.Detail += "; blocked without the " + gapNotServed + " gap"
 	case sc.Exit == exitPass:
-		cr.Outcome = OutcomeRefuted
+		cr.Outcome, cr.Reason = OutcomeRefuted, ReasonDisagreement
 		e.finding(SeverityHigh, c.ID, "%s -> %s: the scan PASSES %s, which %s serves and %s rejects", sc.From, sc.To, api, from, to)
 	case sc.Exit == exitUnknown && hasGap:
 		// The report names the API as not served by the target (the gap
 		// the GitHub Action fails on), but no published rule decides the
 		// hop, so the verdict stays UNKNOWN.
-		cr.Outcome = OutcomeRefuted
+		cr.Outcome, cr.Reason = OutcomeRefuted, ReasonDisagreement
 		cr.Detail += "; UNKNOWN with the " + gapNotServed + " gap: no published rule decides the hop"
 		e.finding(SeverityMedium, c.ID, "%s -> %s: the scan names %s as not served by %s but answers UNKNOWN (exit 11), not BLOCKED: no published removal rule for the %s line", sc.From, sc.To, api, to, to)
 	default:
-		cr.Outcome = OutcomeRefuted
+		cr.Outcome, cr.Reason = OutcomeRefuted, ReasonDisagreement
 		e.finding(SeverityMedium, c.ID, "%s -> %s: the scan answers %s (exit %d) for %s, which %s serves and %s rejects; the removal is not known", sc.From, sc.To, sc.Verdict, sc.Exit, api, from, to)
 	}
 }
@@ -347,12 +556,12 @@ func (e *evaluator) pairFor(project, fromTag, toTag string, cr *ClaimResult) (CR
 	id := pairID(project, fromTag, toTag)
 	pr, ok := e.pairs[id]
 	if !ok {
-		cr.Detail = "no run of " + id
+		cr.Detail, cr.Reason = "no run of "+id, ReasonNoRun
 		return pr, false
 	}
 	cr.NodeImageDigest = imageDigest(e.pairImage[id])
 	if pr.Error != "" || pr.From.Error != "" || pr.To.Error != "" {
-		cr.Outcome = OutcomeError
+		cr.Outcome, cr.Reason = OutcomeError, ReasonInstallFailed
 		cr.Detail = strings.TrimSpace(pr.Error + " " + pr.From.Error + " " + pr.To.Error)
 		return pr, false
 	}
@@ -368,7 +577,7 @@ func (e *evaluator) releaseStateFor(project, tag string, cr *ClaimResult) (CRDRe
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	var failed string
+	var failed, failedReason string
 	for _, id := range ids {
 		pr := e.pairs[id]
 		if pr.Project != project {
@@ -386,11 +595,12 @@ func (e *evaluator) releaseStateFor(project, tag string, cr *ClaimResult) (CRDRe
 		cr.NodeImageDigest = imageDigest(e.pairImage[id])
 		switch {
 		case state.Error != "":
-			failed = state.Error
+			failed, failedReason = state.Error, ReasonInstallFailed
 		case len(state.Files) == 0:
 			// The pair stopped before this release was installed.
-			failed = strings.TrimSpace(pr.Error + " " + pr.From.Error)
+			failed, failedReason = strings.TrimSpace(pr.Error+" "+pr.From.Error), ReasonInstallFailed
 			if failed == "" {
+				failedReason = ReasonReleaseNotInstalled
 				failed = "the pair " + id + " did not install " + tag
 			}
 		default:
@@ -398,7 +608,7 @@ func (e *evaluator) releaseStateFor(project, tag string, cr *ClaimResult) (CRDRe
 		}
 	}
 	if failed != "" {
-		cr.Outcome = OutcomeError
+		cr.Outcome, cr.Reason = OutcomeError, failedReason
 		cr.Detail = failed
 		return CRDReleaseState{}, false
 	}
@@ -406,18 +616,18 @@ func (e *evaluator) releaseStateFor(project, tag string, cr *ClaimResult) (CRDRe
 		cr.NodeImageDigest = imageDigest(e.singleImg[r.ID])
 		switch {
 		case r.Unavailable != "":
-			cr.Detail = fmt.Sprintf("release %s %s cannot be installed from the claim's evidence: %s", project, tag, r.Unavailable)
+			cr.Detail, cr.Reason = fmt.Sprintf("release %s %s cannot be installed from the claim's evidence: %s", project, tag, r.Unavailable), ReasonReleaseUnavailable
 		case r.Error != "" || r.State.Error != "":
-			cr.Outcome = OutcomeError
+			cr.Outcome, cr.Reason = OutcomeError, ReasonInstallFailed
 			cr.Detail = strings.TrimSpace(r.Error + " " + r.State.Error)
 		case len(r.State.Files) == 0:
-			cr.Detail = fmt.Sprintf("release %s %s was not installed", project, tag)
+			cr.Detail, cr.Reason = fmt.Sprintf("release %s %s was not installed", project, tag), ReasonReleaseNotInstalled
 		default:
 			return r.State, true
 		}
 		return CRDReleaseState{}, false
 	}
-	cr.Detail = fmt.Sprintf("release %s %s was not installed by any pair or on its own", project, tag)
+	cr.Detail, cr.Reason = fmt.Sprintf("release %s %s was not installed by any pair or on its own", project, tag), ReasonNoRun
 	return CRDReleaseState{}, false
 }
 
@@ -447,7 +657,7 @@ func (e *evaluator) crdVersion(c Claim, cr *ClaimResult) {
 		}
 	}
 	if def == nil {
-		cr.Outcome = OutcomeRefuted
+		cr.Outcome, cr.Reason = OutcomeRefuted, ReasonCRDMissing
 		cr.Detail = "the cluster holds no " + s.CRD + " after installing " + s.Release.Tag
 		e.finding(SeverityMedium, c.ID, "%s %s: %s", s.Project, s.Release.Tag, cr.Detail)
 		return
@@ -461,13 +671,13 @@ func (e *evaluator) crdVersion(c Claim, cr *ClaimResult) {
 	m := member(s.Group, s.Version, s.Kind)
 	probe := objectOutcome(state, m)
 	if got == nil {
-		cr.Outcome = OutcomeRefuted
+		cr.Outcome, cr.Reason = OutcomeRefuted, ReasonVersionNotDeclared
 		cr.Detail = fmt.Sprintf("%s does not declare %s at %s", s.CRD, s.Version, s.Release.Tag)
 		e.finding(SeverityMedium, c.ID, "%s %s: %s", s.Project, s.Release.Tag, cr.Detail)
 		return
 	}
 	if probe == ServerError {
-		cr.Outcome = OutcomeError
+		cr.Outcome, cr.Reason = OutcomeError, ReasonServerNoAnswer
 		cr.Detail = fmt.Sprintf("%s: the API server gave no answer to the dry-run object", m)
 		return
 	}
@@ -478,7 +688,7 @@ func (e *evaluator) crdVersion(c Claim, cr *ClaimResult) {
 		cr.Outcome = OutcomeConfirmed
 		return
 	}
-	cr.Outcome = OutcomeRefuted
+	cr.Outcome, cr.Reason = OutcomeRefuted, ReasonDisagreement
 	severity := SeverityMedium
 	if *s.Served && (!got.Served || probe == ServerNotServed) {
 		severity = SeverityHigh // the knowledge keeps a version the release dropped
@@ -499,15 +709,15 @@ func (e *evaluator) crdRemoval(c Claim, cr *ClaimResult) {
 	cr.Detail = fmt.Sprintf("%s: %s at %s, %s at %s", m, orUnprobed(before), from.Tag, orUnprobed(after), to.Tag)
 	switch {
 	case before == ServerError || after == ServerError:
-		cr.Outcome = OutcomeError
+		cr.Outcome, cr.Reason = OutcomeError, ReasonServerNoAnswer
 		cr.Detail = m + ": the API server gave no answer to a dry-run object"
 	case before == "" || after == "":
-		cr.Detail = "the member was not probed on both releases"
+		cr.Detail, cr.Reason = "the member was not probed on both releases", ReasonNotProbed
 	case before == ServerNotServed:
-		cr.Outcome = OutcomeRefuted
+		cr.Outcome, cr.Reason = OutcomeRefuted, ReasonDisagreement
 		e.finding(SeverityMedium, c.ID, "%s %s does not serve %s, which the claim says it served", s.Project, from.Tag, m)
 	case after != ServerNotServed:
-		cr.Outcome = OutcomeRefuted
+		cr.Outcome, cr.Reason = OutcomeRefuted, ReasonDisagreement
 		e.finding(SeverityHigh, c.ID, "%s %s still serves %s, which the claim says it removed", s.Project, to.Tag, m)
 	default:
 		cr.Outcome = OutcomeConfirmed
@@ -542,7 +752,7 @@ func (e *evaluator) crdPair(c Claim, cr *ClaimResult) {
 	}
 	for _, o := range append(append([]ObjectTry{}, pr.From.Objects...), pr.To.Objects...) {
 		if o.Outcome == ServerError {
-			cr.Outcome = OutcomeError
+			cr.Outcome, cr.Reason = OutcomeError, ReasonServerNoAnswer
 			cr.Detail = o.Member + ": the API server gave no answer to a dry-run object"
 			return
 		}
@@ -565,7 +775,7 @@ func (e *evaluator) crdPair(c Claim, cr *ClaimResult) {
 	if len(missed)+len(claimed) > 0 {
 		// The pair is not quiet. Versions a crd-removal claim of the pair
 		// names are that claim's business; the others are unexplained.
-		cr.Outcome = OutcomeRefuted
+		cr.Outcome, cr.Reason = OutcomeRefuted, ReasonDisagreement
 		if len(claimed) > 0 {
 			cr.Detail += "; no longer served, named by removal claims: " + strings.Join(claimed, ", ")
 		}
@@ -586,9 +796,9 @@ func (e *evaluator) crdPair(c Claim, cr *ClaimResult) {
 // version served after From and not after To that no removal claim of the
 // pair names (a pair with a crd-pair claim is already checked by it). A
 // definition the later release no longer defines is the usual cause.
-func (e *evaluator) missedRemovals(claims Claims) {
+func (e *evaluator) missedRemovals(claims []Claim) {
 	quiet := map[string]bool{}
-	for _, c := range claims.Claims {
+	for _, c := range claims {
 		if c.Kind == KindCRDPair {
 			from, _ := releaseSubject(c.Subject.From)
 			to, _ := releaseSubject(c.Subject.To)
@@ -663,9 +873,9 @@ func leftoverFor(pr CRDPairResult, group, kind string) bool {
 
 // diffs compares consecutive lines and reports every removed API that
 // neither the removal table nor a claim names.
-func (e *evaluator) diffs(lines []string, claims Claims) {
+func (e *evaluator) diffs(lines []string, claims []Claim) {
 	known := knownRemovals()
-	for _, c := range claims.Claims {
+	for _, c := range claims {
 		if c.Kind == KindServedAPI && c.Expect == ExpectNotServed {
 			if known[c.Subject.Line] == nil {
 				known[c.Subject.Line] = map[string]bool{}
@@ -757,7 +967,24 @@ func Summary(res Results) string {
 			fmt.Fprintf(&b, "- %s %s: %s\n", f.Severity, f.ID, f.Message)
 		}
 	}
+	if res.Schema == ResultsSchemaV2 {
+		b.WriteString("\n## Controls\n\n")
+		for _, c := range res.Totals.Controls {
+			fmt.Fprintf(&b, "- %s %s: %s (%d true, %d false)", c.Kind, orAll(c.Line), c.State, c.True, c.False)
+			if len(c.Failed) > 0 {
+				fmt.Fprintf(&b, "; failed: %s", strings.Join(c.Failed, ", "))
+			}
+			b.WriteString("\n")
+		}
+	}
 	return b.String()
+}
+
+func orAll(line string) string {
+	if line == "" {
+		return "(all lines)"
+	}
+	return line
 }
 
 func orUnknown(s string) string {

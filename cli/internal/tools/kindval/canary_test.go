@@ -1,0 +1,450 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"testing"
+	"time"
+)
+
+// v2Claims is a v2 claims file of the given lines: the claims plus the
+// reviewed controls of their kinds.
+func v2Claims(t *testing.T, lines []string, claims ...Claim) Claims {
+	t.Helper()
+	c := Claims{Schema: ClaimsSchemaV2, Lines: lines, Claims: append([]Claim(nil), claims...)}
+	c.Claims = append(c.Claims, ExpandControls(mustControls(), lines, claimKinds(claims))...)
+	if err := c.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	return c
+}
+
+const (
+	apiDeploy = "apps/v1 Deployment"
+	apiDS     = "apps/v1 DaemonSet"
+	apiFS     = "flowcontrol.apiserver.k8s.io/v1beta3 FlowSchema"
+	apiPLC    = "flowcontrol.apiserver.k8s.io/v1beta3 PriorityLevelConfiguration"
+)
+
+// lineImage is a pinned node image of a line.
+func lineImage(line string) string {
+	return "kindest/node:v" + line + ".0@sha256:" + strings.Repeat(fmt.Sprint(len(line)%10), 63) + line[len(line)-1:]
+}
+
+func lineSnapshot(line string, served ...string) Snapshot {
+	img := lineImage(line)
+	return Snapshot{Line: line, ServerVersion: "v" + line + ".0", Image: img, ObservedImageDigests: []string{"registry.example/node@" + imageDigest(img)}, Served: served}
+}
+
+// k8sRuns are runs on which every Kubernetes control of 1.31 and 1.32 comes
+// out as expected: apps/v1 served on both, flow-control v1beta3 served by
+// 1.31 only, the removal hop blocked by the scan.
+func k8sRuns() Runs {
+	accepted := func(api string) VerdictCase {
+		return VerdictCase{ID: caseID(api), API: api, Server: ServerTry{Outcome: ServerAccepted}}
+	}
+	removed := func(api string) VerdictCase {
+		return VerdictCase{ID: caseID(api), API: api, Server: ServerTry{Outcome: ServerNotServed}, Scan: scanTry(exitBlocked, "BLOCKED", nil, gapNotServed)}
+	}
+	kept := func(api string) VerdictCase {
+		c := accepted(api)
+		c.Scan = scanTry(exitPass, "PASS", nil)
+		return c
+	}
+	return Runs{
+		Snapshots: map[string]Snapshot{
+			"1.31": lineSnapshot("1.31", apiDeploy, apiDS, apiFS, apiPLC),
+			"1.32": lineSnapshot("1.32", apiDeploy, apiDS),
+		},
+		Verdicts: map[string]VerdictRun{
+			"1.31": {Line: "1.31", Cases: []VerdictCase{accepted(apiDeploy), accepted(apiDS), accepted(apiFS), accepted(apiPLC)}},
+			"1.32": {Line: "1.32", Cases: []VerdictCase{kept(apiDeploy), kept(apiDS), removed(apiFS), removed(apiPLC)}},
+		},
+	}
+}
+
+// k8sPlainClaims: two confirmed served-API claims, one refuted, a confirmed
+// removal and an addon rule.
+func k8sPlainClaims() []Claim {
+	return []Claim{
+		servedAPIClaim("1.32", "flowcontrol.apiserver.k8s.io", "v1beta3", "FlowSchema", ExpectNotServed, "t"),
+		servedAPIClaim("1.31", "flowcontrol.apiserver.k8s.io", "v1beta3", "FlowSchema", ExpectServed, "t"),
+		servedAPIClaim("1.32", "apps", "v1", "DaemonSet", ExpectNotServed, "t"),
+		removalClaim("removal.blocked", "flowcontrol.apiserver.k8s.io", "v1beta3", "FlowSchema", ""),
+		{ID: "addon", Kind: KindAddonRule, Subject: Subject{Project: "x", RuleID: "x.y"}},
+	}
+}
+
+func controlsByID(res Results) map[string]ControlResult {
+	out := map[string]ControlResult{}
+	for _, c := range res.Controls {
+		out[c.ID] = c
+	}
+	return out
+}
+
+func summaryOf(res Results, kind, line string) (ControlSummary, bool) {
+	for _, s := range res.Totals.Controls {
+		if s.Kind == kind && s.Line == line {
+			return s, true
+		}
+	}
+	return ControlSummary{}, false
+}
+
+// checkReasons requires a reason of the closed list on every result that is
+// not confirmed, none on a confirmed one, and the verdict of the outcome.
+func checkReasons(t *testing.T, name string, res Results) {
+	t.Helper()
+	known := map[string]bool{}
+	for _, r := range Reasons {
+		known[r] = true
+	}
+	verdict := map[string]string{OutcomeConfirmed: VerdictConfirmed, OutcomeRefuted: VerdictRefuted, OutcomeError: VerdictError, OutcomeUndetermined: VerdictUndetermined}
+	check := func(id, outcome, reason string) {
+		if outcome == OutcomeConfirmed && reason != "" {
+			t.Errorf("%s: %s is confirmed with reason %q", name, id, reason)
+		}
+		if outcome != OutcomeConfirmed && !known[reason] {
+			t.Errorf("%s: %s is %s with reason %q, not one of the list", name, id, outcome, reason)
+		}
+	}
+	for _, c := range res.Claims {
+		check(c.ID, c.Outcome, c.Reason)
+		if c.Verdict != verdict[c.Outcome] {
+			t.Errorf("%s: %s outcome %s verdict %q", name, c.ID, c.Outcome, c.Verdict)
+		}
+	}
+	for _, c := range res.Controls {
+		check(c.ID, c.Outcome, c.Reason)
+	}
+}
+
+func hasFinding(res Results, id string) (Finding, bool) {
+	for _, f := range res.Findings {
+		if f.ID == id {
+			return f, true
+		}
+	}
+	return Finding{}, false
+}
+
+var lines3132 = []string{"1.31", "1.32"}
+
+func TestV2AllControlsPass(t *testing.T) {
+	plain := k8sPlainClaims()
+	claims := v2Claims(t, lines3132, plain...)
+	res := Evaluate(claims, k8sRuns(), Provenance{}, time.Unix(0, 0))
+	checkReasons(t, "all pass", res)
+	if res.Schema != ResultsSchemaV2 || len(res.Claims) != len(plain) {
+		t.Fatalf("schema %s, %d claims", res.Schema, len(res.Claims))
+	}
+	for _, c := range res.Claims {
+		if strings.HasPrefix(c.ID, "control.") {
+			t.Fatalf("control in claims: %s", c.ID)
+		}
+	}
+	if len(res.Controls) != len(claims.Claims)-len(plain) {
+		t.Fatalf("%d controls", len(res.Controls))
+	}
+	for i, c := range res.Controls {
+		if !c.OK {
+			t.Errorf("control %s: %s (%s)", c.ID, c.Outcome, c.Detail)
+		}
+		if i > 0 && res.Controls[i-1].ID >= c.ID {
+			t.Errorf("controls not sorted at %s", c.ID)
+		}
+	}
+	got := outcomes(res)
+	want := map[string]string{
+		"k8s.1.32.flowcontrol.apiserver.k8s.io_v1beta3_FlowSchema.not_served": OutcomeConfirmed,
+		"k8s.1.31.flowcontrol.apiserver.k8s.io_v1beta3_FlowSchema.served":     OutcomeConfirmed,
+		"k8s.1.32.apps_v1_DaemonSet.not_served":                               OutcomeRefuted,
+		"removal.blocked":                                                     OutcomeConfirmed,
+		"addon":                                                               OutcomeUndetermined,
+	}
+	for id, outcome := range want {
+		if got[id].Outcome != outcome {
+			t.Errorf("%s: %s (%s), want %s", id, got[id].Outcome, got[id].Detail, outcome)
+		}
+	}
+	if got["addon"].Reason != ReasonNotEvaluated {
+		t.Errorf("addon %+v", got["addon"])
+	}
+	tt := res.Totals
+	if tt.Claims != 5 || tt.Confirmed != 3 || tt.Refuted != 1 || tt.Undetermined != 1 || tt.Error != 0 {
+		t.Fatalf("totals %+v", tt)
+	}
+	if *tt.Verdicts != (VerdictTotals{ConfirmedByExecution: 3, Refuted: 1, Undetermined: 1}) {
+		t.Fatalf("verdicts %+v", *tt.Verdicts)
+	}
+	wantSummary := []ControlSummary{
+		{Kind: KindAddonRule, State: ControlStateAbsent},
+		{Kind: KindK8sRemoval, Line: "1.32", State: ControlStateOK, True: 2, False: 2},
+		{Kind: KindServedAPI, Line: "1.31", State: ControlStateOK, True: 2, False: 2},
+		{Kind: KindServedAPI, Line: "1.32", State: ControlStateOK, True: 3, False: 3},
+	}
+	if fmt.Sprint(tt.Controls) != fmt.Sprint(wantSummary) {
+		t.Fatalf("controls summary %+v", tt.Controls)
+	}
+	for _, f := range res.Findings {
+		if strings.HasPrefix(f.ID, "canary-failed") || strings.HasPrefix(f.ID, "control.") {
+			t.Fatalf("finding %+v", f)
+		}
+	}
+	if tt.Medium != 1 || tt.High != 0 {
+		t.Fatalf("findings %+v", res.Findings)
+	}
+	if s := Summary(res); !strings.Contains(s, "## Controls") || !strings.Contains(s, "- k8s-served-api 1.32: ok (3 true, 3 false)") || !strings.Contains(s, "- addon-rule (all lines): absent") {
+		t.Fatalf("summary:\n%s", s)
+	}
+}
+
+// A v1 file gets no v2 member.
+func TestV1HasNoV2Members(t *testing.T) {
+	res := Evaluate(Claims{Schema: ClaimsSchema, Claims: k8sPlainClaims()}, k8sRuns(), Provenance{}, time.Unix(0, 0))
+	if res.Schema != ResultsSchema || res.Controls != nil || res.Totals.Verdicts != nil || res.Totals.Controls != nil {
+		t.Fatalf("v1 results %+v", res)
+	}
+	for _, c := range res.Claims {
+		if c.Reason != "" || c.Verdict != "" {
+			t.Fatalf("v1 claim %+v", c)
+		}
+	}
+	if strings.Contains(Summary(res), "## Controls") {
+		t.Fatal("v1 summary has controls")
+	}
+}
+
+// A line that does not serve apps/v1 Deployment fails its controls: every
+// served-API claim of that line is void, the other lines and kinds are not.
+func TestV2FailedControlVoidsItsGroup(t *testing.T) {
+	claims := v2Claims(t, lines3132, k8sPlainClaims()...)
+	runs := k8sRuns()
+	runs.Snapshots["1.32"] = lineSnapshot("1.32", apiDS)
+	res := Evaluate(claims, runs, Provenance{}, time.Unix(0, 0))
+	checkReasons(t, "failed", res)
+	got := outcomes(res)
+	for _, id := range []string{"k8s.1.32.flowcontrol.apiserver.k8s.io_v1beta3_FlowSchema.not_served", "k8s.1.32.apps_v1_DaemonSet.not_served"} {
+		c := got[id]
+		if c.Outcome != OutcomeError || c.Reason != ReasonCanaryFailed || !strings.HasPrefix(c.Detail, "canary failed: control.served.apps_v1_Deployment.not_served.1.32 (expected refuted, got confirmed), control.served.apps_v1_Deployment.served.1.32 (expected confirmed, got refuted); was: ") {
+			t.Errorf("%s: %+v", id, c)
+		}
+	}
+	if got["k8s.1.31.flowcontrol.apiserver.k8s.io_v1beta3_FlowSchema.served"].Outcome != OutcomeConfirmed || got["removal.blocked"].Outcome != OutcomeConfirmed {
+		t.Fatalf("other groups: %+v", got)
+	}
+	if res.Totals.Refuted != 0 || res.Totals.Error != 2 || res.Totals.Verdicts.Error != 2 {
+		t.Fatalf("totals %+v", res.Totals)
+	}
+	s, _ := summaryOf(res, KindServedAPI, "1.32")
+	if s.State != ControlStateFailed || strings.Join(s.Failed, ",") != "control.served.apps_v1_Deployment.not_served.1.32,control.served.apps_v1_Deployment.served.1.32" {
+		t.Fatalf("summary %+v", s)
+	}
+	if s, _ := summaryOf(res, KindServedAPI, "1.31"); s.State != ControlStateOK {
+		t.Fatalf("1.31 summary %+v", s)
+	}
+	f, ok := hasFinding(res, "canary-failed/"+KindServedAPI+"/1.32")
+	if !ok || f.Severity != SeverityHigh || !strings.Contains(f.Message, "control.served.apps_v1_Deployment.served.1.32 expected confirmed, got refuted (disagreement): not served by v1.32.0") {
+		t.Fatalf("finding %+v in %+v", f, res.Findings)
+	}
+	// The would-be refutation is no evidence: its finding is dropped too.
+	if f, ok := hasFinding(res, "k8s.1.32.apps_v1_DaemonSet.not_served"); ok {
+		t.Fatalf("finding of a voided claim kept: %+v", f)
+	}
+	if len(res.Findings) == 0 || res.Findings[0].Severity != SeverityHigh || res.Totals.High != 1 {
+		t.Fatalf("findings %+v", res.Findings)
+	}
+	if !strings.Contains(Summary(res), "- k8s-served-api 1.32: failed (3 true, 3 false); failed: control.served.apps_v1_Deployment.not_served.1.32, control.served.apps_v1_Deployment.served.1.32") {
+		t.Fatalf("summary:\n%s", Summary(res))
+	}
+}
+
+// A control that cannot be decided (no snapshot of its line) voids its
+// group.
+func TestV2UndeterminedControlVoids(t *testing.T) {
+	plain := append(k8sPlainClaims(), servedAPIClaim("1.33", "apps", "v1", "Deployment", ExpectServed, "t"))
+	claims := v2Claims(t, []string{"1.31", "1.32", "1.33"}, plain...)
+	res := Evaluate(claims, k8sRuns(), Provenance{}, time.Unix(0, 0))
+	checkReasons(t, "undetermined", res)
+	c := outcomes(res)["k8s.1.33.apps_v1_Deployment.served"]
+	if c.Outcome != OutcomeError || c.Reason != ReasonCanaryFailed || !strings.Contains(c.Detail, "(expected confirmed, got undetermined)") || !strings.HasSuffix(c.Detail, "; was: no snapshot of line 1.33") {
+		t.Fatalf("claim %+v", c)
+	}
+	if ctl := controlsByID(res)["control.served.apps_v1_Deployment.served.1.33"]; ctl.OK || ctl.Reason != ReasonNoSnapshot || ctl.Line != "1.33" || ctl.Expected != ControlTrue {
+		t.Fatalf("control %+v", ctl)
+	}
+	// The removal controls of the hop into 1.33 fail too, with no claim.
+	if s, _ := summaryOf(res, KindK8sRemoval, "1.33"); s.State != ControlStateFailed || s.False != 2 {
+		t.Fatalf("summary %+v", res.Totals.Controls)
+	}
+	if _, ok := hasFinding(res, "canary-failed/"+KindK8sRemoval+"/1.33"); !ok {
+		t.Fatalf("findings %+v", res.Findings)
+	}
+	if outcomes(res)["removal.blocked"].Outcome != OutcomeConfirmed {
+		t.Fatal("the 1.32 removal is not affected")
+	}
+}
+
+// A decided claim on a line outside the matrix has no control: it is
+// undetermined.
+func TestV2ClaimWithoutControlsIsUndetermined(t *testing.T) {
+	plain := append(k8sPlainClaims(), servedAPIClaim("1.30", "apps", "v1", "Deployment", ExpectServed, "t"), servedAPIClaim("1.29", "apps", "v1", "Deployment", ExpectServed, "t"))
+	claims := v2Claims(t, lines3132, plain...)
+	runs := k8sRuns()
+	runs.Snapshots["1.30"] = lineSnapshot("1.30", apiDeploy)
+	res := Evaluate(claims, runs, Provenance{}, time.Unix(0, 0))
+	checkReasons(t, "absent", res)
+	got := outcomes(res)
+	c := got["k8s.1.30.apps_v1_Deployment.served"]
+	if c.Outcome != OutcomeUndetermined || c.Reason != ReasonControlsAbsent || c.Detail != "served by v1.30.0; no control of kind k8s-served-api ran on line 1.30" {
+		t.Fatalf("claim %+v", c)
+	}
+	// Already undetermined: keeps its reason.
+	if c := got["k8s.1.29.apps_v1_Deployment.served"]; c.Reason != ReasonNoSnapshot {
+		t.Fatalf("claim %+v", c)
+	}
+	for _, line := range []string{"1.29", "1.30"} {
+		if s, ok := summaryOf(res, KindServedAPI, line); !ok || s.State != ControlStateAbsent {
+			t.Fatalf("summary %+v", res.Totals.Controls)
+		}
+	}
+	if res.Totals.Controls[2].Line != "1.29" || res.Totals.Controls[3].Line != "1.30" {
+		t.Fatalf("summary order %+v", res.Totals.Controls)
+	}
+	if got["addon"].Outcome != OutcomeUndetermined || got["addon"].Reason != ReasonNotEvaluated {
+		t.Fatalf("addon %+v", got["addon"])
+	}
+}
+
+// A node image that is not proven voids the line's controls; the claim's
+// detail keeps the image problem after "was:".
+func TestV2ImageMismatchInAVoidGroup(t *testing.T) {
+	claims := v2Claims(t, lines3132, k8sPlainClaims()...)
+	runs := k8sRuns()
+	s := runs.Snapshots["1.32"]
+	s.ObservedImageDigests = []string{"kindest/node@sha256:" + strings.Repeat("f", 64)}
+	runs.Snapshots["1.32"] = s
+	res := Evaluate(claims, runs, Provenance{}, time.Unix(0, 0))
+	checkReasons(t, "image", res)
+	c := outcomes(res)["k8s.1.32.flowcontrol.apiserver.k8s.io_v1beta3_FlowSchema.not_served"]
+	if c.Outcome != OutcomeError || c.Reason != ReasonCanaryFailed || !strings.Contains(c.Detail, "; was: not served by v1.32.0; observed node image digest") {
+		t.Fatalf("claim %+v", c)
+	}
+	if ctl := controlsByID(res)["control.served.apps_v1_Deployment.served.1.32"]; ctl.OK || ctl.Reason != ReasonImageDigestMismatch {
+		t.Fatalf("control %+v", ctl)
+	}
+	if outcomes(res)["k8s.1.31.flowcontrol.apiserver.k8s.io_v1beta3_FlowSchema.served"].Outcome != OutcomeConfirmed {
+		t.Fatal("1.31 is not affected")
+	}
+}
+
+// snapshotterTags are the external-snapshotter releases the controls cite.
+var snapshotterTags = map[string]string{
+	"6fc14b4f219ab9ce11b9f9124751e33f98c2afaa": "v4.2.1",
+	"9f6fc893a6ed5c93c06cc6365d2eec9d5a5d3c48": "v5.0.1",
+	"83d0e0914f696b6f686f568ce0c2e99d1cbe3269": "v6.0.0",
+	"e746d0717a32109d8c57cb76a70b299ec849f54d": "v6.0.1",
+}
+
+// snapshotterCRD mirrors the upstream versions: v4.2.1 and v5.0.1 serve v1
+// (storage) and v1beta1; v6.0.0 declares only v1; v6.0.1 declares v1
+// (storage) and v1beta1 served: false.
+func snapshotterCRD(tag, path string) []byte {
+	plural, kind, scope := "volumesnapshots", "VolumeSnapshot", "Namespaced"
+	if strings.HasSuffix(path, "volumesnapshotclasses.yaml") {
+		plural, kind, scope = "volumesnapshotclasses", "VolumeSnapshotClass", "Cluster"
+	}
+	versions := "  - {name: v1, served: true, storage: true}\n"
+	switch tag {
+	case "v4.2.1", "v5.0.1":
+		versions += "  - {name: v1beta1, served: true, storage: false}\n"
+	case "v6.0.1":
+		versions += "  - {name: v1beta1, served: false, storage: false}\n"
+	}
+	return []byte(fmt.Sprintf("apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\nmetadata:\n  name: %s.snapshot.storage.k8s.io\nspec:\n  group: snapshot.storage.k8s.io\n  scope: %s\n  names:\n    kind: %s\n    plural: %s\n  versions:\n%s", plural, scope, kind, plural, versions))
+}
+
+func snapshotterFetcher(ctx context.Context, repo, commit, path string) ([]byte, error) {
+	if tag, ok := snapshotterTags[commit]; ok {
+		return snapshotterCRD(tag, path), nil
+	}
+	return fixtureFetcher(false)(ctx, repo, commit, path)
+}
+
+// crdControlRuns runs every pair and single release the claims need on a
+// fake cluster.
+func crdControlRuns(claims Claims) Runs {
+	cluster := &fakeCluster{crds: map[string]CRDDef{}}
+	k := kube{run: cluster.runner, kubeconfig: "kc"}
+	run := CRDRun{Schema: CRDRunSchema, Line: "1.32", Image: "img@sha256:crd"}
+	for _, p := range claims.Pairs() {
+		run.Pairs = append(run.Pairs, runPair(context.Background(), k, snapshotterFetcher, p))
+	}
+	for _, s := range claims.Singles() {
+		run.Releases = append(run.Releases, runSingle(context.Background(), k, snapshotterFetcher, s))
+	}
+	return Runs{Snapshots: map[string]Snapshot{}, Verdicts: map[string]VerdictRun{}, CRD: []CRDRun{run}}
+}
+
+// The custom-resource controls pass on releases that match upstream; a
+// failed control pair voids its kind only.
+func TestV2CRDControls(t *testing.T) {
+	quiet := gadgetClaims(false).Claims
+	plain := append(gadgetClaims(true).Claims, quiet[len(quiet)-1])
+	claims := v2Claims(t, lines3132, plain...)
+	runs := crdControlRuns(claims)
+	res := evalObserved(claims, runs, Provenance{}, time.Unix(0, 0))
+	checkReasons(t, "crd pass", res)
+	for _, c := range res.Controls {
+		if !c.OK {
+			t.Errorf("control %s: %s (%s)", c.ID, c.Outcome, c.Detail)
+		}
+	}
+	got := outcomes(res)
+	if got["removal"].Outcome != OutcomeConfirmed || got["to.v1"].Outcome != OutcomeConfirmed || got["quiet"].Outcome != OutcomeRefuted {
+		t.Fatalf("claims %+v", res.Claims)
+	}
+	for _, kind := range []string{KindCRDVersion, KindCRDRemoval, KindCRDPair} {
+		if s, _ := summaryOf(res, kind, ""); s.State != ControlStateOK {
+			t.Fatalf("summary %+v", res.Totals.Controls)
+		}
+	}
+	// The controls' own findings (missed removals of their pairs) are not
+	// reported.
+	for _, f := range res.Findings {
+		if strings.Contains(f.ID, "control.") || strings.Contains(f.Message, "snapshot.storage.k8s.io") {
+			t.Fatalf("control finding %+v", f)
+		}
+	}
+
+	// A fetch of the v6.0.0 -> v6.0.1 pair fails: the crd-pair control of
+	// that pair is an error, so every crd-pair claim is void.
+	for i, p := range runs.CRD[0].Pairs {
+		if p.ID == "control.external-snapshotter.v6.0.0-to-v6.0.1" {
+			runs.CRD[0].Pairs[i].To.Error = "fetch: connection reset"
+		}
+	}
+	res = evalObserved(claims, runs, Provenance{}, time.Unix(0, 0))
+	checkReasons(t, "crd failed", res)
+	got = outcomes(res)
+	if c := got["quiet"]; c.Outcome != OutcomeError || c.Reason != ReasonCanaryFailed || c.Detail != "canary failed: control.crd-pair.external-snapshotter.v6.0.0-to-v6.0.1 (expected confirmed, got error); was: 1 version(s) served at v9.0.0 still served at v9.1.0; no longer served, named by removal claims: fixture.example/v1beta1/Gadget" {
+		t.Fatalf("quiet %+v", c)
+	}
+	if got["to.v1"].Outcome != OutcomeConfirmed || got["removal"].Outcome != OutcomeConfirmed {
+		t.Fatalf("other kinds %+v", res.Claims)
+	}
+	f, ok := hasFinding(res, "canary-failed/"+KindCRDPair)
+	if !ok || f.Severity != SeverityHigh || !strings.Contains(f.Message, "(install-failed): fetch: connection reset") {
+		t.Fatalf("finding %+v in %+v", f, res.Findings)
+	}
+	if s, _ := summaryOf(res, KindCRDPair, ""); s.State != ControlStateFailed || len(s.Failed) != 1 || s.True != 2 || s.False != 2 {
+		t.Fatalf("summary %+v", s)
+	}
+	if s, _ := summaryOf(res, KindCRDRemoval, ""); s.State != ControlStateOK {
+		t.Fatalf("summary %+v", s)
+	}
+}

@@ -156,7 +156,9 @@ The results gain `controls` (one entry per control: `id`, `kind`, `line`,
 when the run has no control), `totals.verdicts` (claims by verdict) and
 `totals.controls` (one entry per kind and line: `state` `ok`, `failed` or
 `absent`, the number of `true` and `false` controls, the `failed` control
-ids). Controls are never in `claims` and never in the claim totals.
+ids). Controls are never in `claims` and never in the claim totals. The
+summary gains a `Controls` section with one line per `totals.controls`
+entry.
 
 | `reason` | Outcome | Meaning |
 | --- | --- | --- |
