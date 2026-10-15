@@ -416,13 +416,26 @@ func (r *Report) emptyListCitations(cls *Classification) {
 	if len(all) == 0 {
 		return
 	}
+	// The upstream half of condition 3 (digest, span) lives in the citations
+	// check: when it did not run or did not pass, no empty list is admitted.
+	citationsOK, citationsDetail := false, "the citations check did not run"
+	for _, ck := range r.Checks {
+		if ck.Name == CheckCitations {
+			citationsOK, citationsDetail = ck.OK, ck.Detail
+		}
+	}
 	for _, c := range all {
 		id := rulecheck.AttestationCitationItem(*c.rhead.attestation).ID
+		named := false
 		for _, f := range r.citationFindings {
 			if f.RuleID == id {
 				c.failFirst(emptyListErr(emptyListCitation, "source %s [%s]: %s", logSafe(f.SourceID), f.Check, logSafe(f.Message)).Error())
+				named = true
 				break
 			}
+		}
+		if !named && !citationsOK {
+			c.failFirst(emptyListErr(emptyListCitation, "the citations check did not pass: %s", logSafe(citationsDetail)).Error())
 		}
 	}
 	var failed []string

@@ -271,8 +271,10 @@ named `empty-list` while a change holds such a record.
 | `releases-incomplete` | the tags the gate reads do not show exactly the releases or anchors the record names |
 | `newest-pair-not-empty` | the newest empty-list line of a component and family in the change was not derived empty by the gate's own run |
 
-Conditions 1 to 4 are checked before re-derivation, so a refused record is
-never re-derived. For the custom-resource family, the gate lists the final
+Conditions 2 and 4, the form part of condition 3 and the target check run
+before re-derivation, so a record they refuse is never re-derived; the
+upstream part of condition 3 (digest and line span) is the citations check, and
+an empty list is refused when that check did not run or did not pass. For the custom-resource family, the gate lists the final
 release tags (`<prefix>X.Y.Z` for a prefix of the target, no pre-release or
 suffix) of the previous minor line and of the line itself, and requires the
 record's `releases.from` and `releases.to` to be exactly those, by version and

@@ -341,10 +341,20 @@ func TestEmptyListCitationFinding(t *testing.T) {
 	if ck, ok := check(r, "empty-list"); !ok || ck.OK {
 		t.Fatalf("empty-list check %+v", ck)
 	}
-	// A finding for another record leaves the change alone.
+	// A finding for another record still fails the citations check, so no
+	// empty list is admitted next to it.
 	r = runGate(t, Options{Base: base, Head: head, Source: fixtureSource, Author: DefaultBotLogin, Citations: namedFinding{id: "lineAttestation other 1.2 x"}})
-	if c := change(t, r, attestationID("1.31")); !c.OK {
-		t.Fatalf("change %+v", c)
+	c = change(t, r, attestationID("1.31"))
+	requireEmptyListCode(t, c, "citation")
+	if !strings.Contains(c.Detail, "citations check did not pass") {
+		t.Fatalf("detail %q", c.Detail)
+	}
+	// With no verifier configured the citations check cannot pass: refused.
+	r = runGateExact(t, Options{Base: base, Head: head, Source: fixtureSource, Author: DefaultBotLogin})
+	c = change(t, r, attestationID("1.31"))
+	requireEmptyListCode(t, c, "citation")
+	if c.Proof == ProofRederived && c.OK {
+		t.Fatalf("admitted without a citations check: %+v", c)
 	}
 }
 
