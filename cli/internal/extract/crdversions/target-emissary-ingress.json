@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "emissary-ingress",
+    "name": "Emissary-Ingress",
+    "repo": "github.com/emissary-ingress/emissary",
+    "component": "pkg:github/emissary-ingress/emissary",
+    "factProject": "emissary_ingress",
+    "tagPrefixes": ["v"],
+    "minFrom": "3.7",
+    "paths": [
+      {"path": "pkg/api/getambassador.io/crds.yaml"}
+    ],
+    "exclude": []
+  }
+}

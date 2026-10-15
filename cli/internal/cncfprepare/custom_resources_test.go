@@ -288,7 +288,7 @@ func TestCustomResourceVersionsArguments(t *testing.T) {
 			t.Fatalf("%+v accepted", tc)
 		}
 	}
-	if got := CustomResourceProjects(); !reflect.DeepEqual(got, []string{"antrea", "argo-cd", "cert-manager", "cilium", "cloudnativepg", "cluster-api", "contour", "crossplane", "dapr", "eck-operator", "external-secrets", "gateway-api", "istio", "karmada", "keda", "kong-ingress-controller", "koordinator", "kueue", "kuma", "kyverno", "longhorn", "metallb", "mongodb-kubernetes", "node-feature-discovery", "openkruise", "percona-postgresql-operator", "prometheus-operator", "rancher", "rook", "strimzi", "tekton", "velero", "volcano"}) {
+	if got := CustomResourceProjects(); !reflect.DeepEqual(got, []string{"agones", "antrea", "argo-cd", "capsule", "cert-manager", "chaos-mesh", "cilium", "cloudnativepg", "cluster-api", "contour", "crossplane", "dapr", "dex", "eck-operator", "emissary-ingress", "external-secrets", "fluid", "gateway-api", "higress", "istio", "k8gb", "k8up", "kagent", "karmada", "kcp", "keda", "kgateway", "kong-ingress-controller", "koordinator", "kserve", "kube-ovn", "kubearmor", "kubeedge", "kuberhealthy", "kubevela", "kueue", "kuma", "kyverno", "litmus", "logging-operator-kube-logging", "longhorn", "metal3-io", "metallb", "mongodb-kubernetes", "node-feature-discovery", "openchoreo", "openkruise", "openyurt", "percona-postgresql-operator", "prometheus-operator", "radius", "rancher", "rook", "schemahero", "strimzi", "submariner", "tekton", "velero", "volcano"}) {
 		t.Fatalf("projects %v", got)
 	}
 	if fact, ok := CustomResourceVersionsFact("strimzi"); !ok || fact != strimziFact {

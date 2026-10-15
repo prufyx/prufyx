@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kubeedge",
+    "name": "KubeEdge",
+    "repo": "github.com/kubeedge/kubeedge",
+    "component": "pkg:github/kubeedge/kubeedge",
+    "factProject": "kubeedge",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.18",
+    "paths": [
+      {"path": "build/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "recursive": true}
+    ],
+    "exclude": []
+  }
+}

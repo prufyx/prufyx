@@ -2,6 +2,26 @@
   "schema": "prufyx.io/custom-resource-table/v1",
   "projects": [
     {
+      "slug": "agones",
+      "catalog": "cncf",
+      "factProject": "agones",
+      "component": "pkg:github/agones-dev/agones",
+      "groups": [
+        {
+          "name": "agones.dev",
+          "source": "https://github.com/agones-dev/agones/blob/11cccfd04136a01dd578b24dc2808a7a44aabbb5/install/yaml/install.yaml"
+        },
+        {
+          "name": "autoscaling.agones.dev",
+          "source": "https://github.com/agones-dev/agones/blob/11cccfd04136a01dd578b24dc2808a7a44aabbb5/install/yaml/install.yaml"
+        },
+        {
+          "name": "multicluster.agones.dev",
+          "source": "https://github.com/agones-dev/agones/blob/11cccfd04136a01dd578b24dc2808a7a44aabbb5/install/yaml/install.yaml"
+        }
+      ]
+    },
+    {
       "slug": "antrea",
       "catalog": "cncf",
       "factProject": "antrea",
@@ -30,6 +50,18 @@
       ]
     },
     {
+      "slug": "capsule",
+      "catalog": "cncf",
+      "factProject": "capsule",
+      "component": "pkg:github/projectcapsule/capsule",
+      "groups": [
+        {
+          "name": "capsule.clastix.io",
+          "source": "https://github.com/projectcapsule/capsule/blob/2fa9cb53e86857b26d9e96708efc36be78982a5e/charts/capsule/crds/capsule.clastix.io_tenants.yaml"
+        }
+      ]
+    },
+    {
       "slug": "cert-manager",
       "catalog": "cncf",
       "factProject": "cert_manager",
@@ -42,6 +74,18 @@
         {
           "name": "cert-manager.io",
           "source": "https://github.com/cert-manager/cert-manager/blob/b8f325e36f49626ba72d7efbe138c01a5e661d96/deploy/crds/cert-manager.io_issuers.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "chaos-mesh",
+      "catalog": "cncf",
+      "factProject": "chaos_mesh",
+      "component": "pkg:github/chaos-mesh/chaos-mesh",
+      "groups": [
+        {
+          "name": "chaos-mesh.org",
+          "source": "https://github.com/chaos-mesh/chaos-mesh/blob/0bfee5d117f859ab0e3f433a370e622283badd91/config/crd/bases/chaos-mesh.org_workflows.yaml"
         }
       ]
     },
@@ -148,6 +192,18 @@
       ]
     },
     {
+      "slug": "dex",
+      "catalog": "cncf",
+      "factProject": "dex",
+      "component": "pkg:github/dexidp/dex",
+      "groups": [
+        {
+          "name": "dex.coreos.com",
+          "source": "https://github.com/dexidp/dex/blob/05a275057112ba93e17db21f600b756f000f1c21/scripts/manifests/crds/authcodes.yaml"
+        }
+      ]
+    },
+    {
       "slug": "eck-operator",
       "catalog": "community",
       "upstream": {
@@ -210,6 +266,18 @@
       ]
     },
     {
+      "slug": "emissary-ingress",
+      "catalog": "cncf",
+      "factProject": "emissary_ingress",
+      "component": "pkg:github/emissary-ingress/emissary",
+      "groups": [
+        {
+          "name": "getambassador.io",
+          "source": "https://github.com/emissary-ingress/emissary/blob/5497a66908186400d16de0a4fba3e467f4b55e46/pkg/api/getambassador.io/crds.yaml"
+        }
+      ]
+    },
+    {
       "slug": "external-secrets",
       "catalog": "cncf",
       "factProject": "external_secrets",
@@ -222,6 +290,18 @@
         {
           "name": "generators.external-secrets.io",
           "source": "https://github.com/external-secrets/external-secrets/blob/9d17906e8e4c5532ffe513f72273df03b7b07bc6/config/crds/bases/generators.external-secrets.io_webhooks.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "fluid",
+      "catalog": "cncf",
+      "factProject": "fluid",
+      "component": "pkg:github/fluid-cloudnative/fluid",
+      "groups": [
+        {
+          "name": "data.fluid.io",
+          "source": "https://github.com/fluid-cloudnative/fluid/blob/de578cd23c56a83b527ac00586ab1659cf460f68/config/crd/bases/data.fluid.io_alluxioruntimes.yaml"
         }
       ]
     },
@@ -240,6 +320,22 @@
         {
           "name": "gateway.networking.k8s.io",
           "source": "https://github.com/kubernetes-sigs/gateway-api/blob/89b3b0c3fa63f9342f43ba0fb2cf93d6aab53af7/config/crd/standard/gateway.networking.k8s.io_udproutes.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "higress",
+      "catalog": "cncf",
+      "factProject": "higress",
+      "component": "pkg:github/higress-group/higress",
+      "groups": [
+        {
+          "name": "extensions.higress.io",
+          "source": "https://github.com/higress-group/higress/blob/1f10cc293f2ba272392184035d701614cfc20485/helm/core/crds/customresourcedefinitions.gen.yaml"
+        },
+        {
+          "name": "networking.higress.io",
+          "source": "https://github.com/higress-group/higress/blob/1f10cc293f2ba272392184035d701614cfc20485/helm/core/crds/customresourcedefinitions.gen.yaml"
         }
       ]
     },
@@ -264,6 +360,46 @@
         {
           "name": "telemetry.istio.io",
           "source": "https://github.com/istio/istio/blob/8825a6b7f8c9a2d66005a5f8b64e98aaee0dda99/manifests/charts/base/files/crd-all.gen.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "k8gb",
+      "catalog": "cncf",
+      "factProject": "k8gb",
+      "component": "pkg:github/k8gb-io/k8gb",
+      "groups": [
+        {
+          "name": "k8gb.absa.oss",
+          "source": "https://github.com/k8gb-io/k8gb/blob/9cffd9150a33c982295105c1f1b093adbae029d7/chart/k8gb/crd/k8gb.absa.oss_gslbs.yaml"
+        },
+        {
+          "name": "k8gb.io",
+          "source": "https://github.com/k8gb-io/k8gb/blob/9cffd9150a33c982295105c1f1b093adbae029d7/chart/k8gb/crd/k8gb.io_gslbs.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "k8up",
+      "catalog": "cncf",
+      "factProject": "k8up",
+      "component": "pkg:github/k8up-io/k8up",
+      "groups": [
+        {
+          "name": "k8up.io",
+          "source": "https://github.com/k8up-io/k8up/blob/343b99d1519385d75738dbb07d6ff45785c3f186/config/crd/apiextensions.k8s.io/v1/k8up.io_backups.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kagent",
+      "catalog": "cncf",
+      "factProject": "kagent",
+      "component": "pkg:github/kagent-dev/kagent",
+      "groups": [
+        {
+          "name": "kagent.dev",
+          "source": "https://github.com/kagent-dev/kagent/blob/8878c39ac64421cb665c8e62ecc6411dd12f2fc2/go/api/config/crd/bases/kagent.dev_agents.yaml"
         }
       ]
     },
@@ -308,6 +444,38 @@
       ]
     },
     {
+      "slug": "kcp",
+      "catalog": "cncf",
+      "factProject": "kcp",
+      "component": "pkg:github/kcp-dev/kcp",
+      "groups": [
+        {
+          "name": "apis.kcp.io",
+          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/apis.kcp.io_apibindings.yaml"
+        },
+        {
+          "name": "cache.kcp.io",
+          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/cache.kcp.io_cachedobjects.yaml"
+        },
+        {
+          "name": "core.kcp.io",
+          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/core.kcp.io_logicalclusters.yaml"
+        },
+        {
+          "name": "migration.kcp.io",
+          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/migration.kcp.io_logicalclusterdumps.yaml"
+        },
+        {
+          "name": "tenancy.kcp.io",
+          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/tenancy.kcp.io_workspacetypes.yaml"
+        },
+        {
+          "name": "topology.kcp.io",
+          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/topology.kcp.io_partitions.yaml"
+        }
+      ]
+    },
+    {
       "slug": "keda",
       "catalog": "cncf",
       "factProject": "keda",
@@ -320,6 +488,18 @@
         {
           "name": "keda.sh",
           "source": "https://github.com/kedacore/keda/blob/626ded5d783108bedf647e20bbc83f8e458e02e4/config/crd/bases/keda.sh_triggerauthentications.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kgateway",
+      "catalog": "cncf",
+      "factProject": "kgateway",
+      "component": "pkg:github/kgateway-dev/kgateway",
+      "groups": [
+        {
+          "name": "gateway.kgateway.dev",
+          "source": "https://github.com/kgateway-dev/kgateway/blob/c6c5eeafd2108b0e0e5ebb5608a38290cf3066dc/install/helm/kgateway-crds/templates/gateway.kgateway.dev_trafficpolicies.yaml"
         }
       ]
     },
@@ -366,6 +546,114 @@
         {
           "name": "slo.koordinator.sh",
           "source": "https://github.com/koordinator-sh/koordinator/blob/989ca85c62abcca92b303aa12fd2ccff2ed30fed/config/crd/bases/slo.koordinator.sh_nodeslos.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kserve",
+      "catalog": "cncf",
+      "factProject": "kserve",
+      "component": "pkg:github/kserve/kserve",
+      "groups": [
+        {
+          "name": "serving.kserve.io",
+          "source": "https://github.com/kserve/kserve/blob/d1482554fc4f66dd41aee70e01f5174e24f265bd/config/crd/full/serving.kserve.io_inferenceservices.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kube-ovn",
+      "catalog": "cncf",
+      "factProject": "kube_ovn",
+      "component": "pkg:github/kubeovn/kube-ovn",
+      "groups": [
+        {
+          "name": "kubeovn.io",
+          "source": "https://github.com/kubeovn/kube-ovn/blob/7162bc4afda1aee29c67addc2badc73b8c7227cf/charts/kube-ovn-v2/crds/kube-ovn-crd.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kubearmor",
+      "catalog": "cncf",
+      "factProject": "kubearmor",
+      "component": "pkg:github/kubearmor/kubearmor",
+      "groups": [
+        {
+          "name": "operator.kubearmor.com",
+          "source": "https://github.com/kubearmor/kubearmor/blob/fcdb06520561dc2db4cb25d9e1c4f555ac733de1/pkg/KubeArmorOperator/config/crd/bases/operator.kubearmor.com_kubearmorconfigs.yaml"
+        },
+        {
+          "name": "security.kubearmor.com",
+          "source": "https://github.com/kubearmor/kubearmor/blob/fcdb06520561dc2db4cb25d9e1c4f555ac733de1/deployments/CRD/KubeArmorPolicy.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kubeedge",
+      "catalog": "cncf",
+      "factProject": "kubeedge",
+      "component": "pkg:github/kubeedge/kubeedge",
+      "groups": [
+        {
+          "name": "apps.kubeedge.io",
+          "source": "https://github.com/kubeedge/kubeedge/blob/1a7ee88d3c61dc781cc9c9053066ab3d38519dd5/build/crds/apps/apps_v1alpha1_edgeapplication.yaml"
+        },
+        {
+          "name": "devices.kubeedge.io",
+          "source": "https://github.com/kubeedge/kubeedge/blob/1a7ee88d3c61dc781cc9c9053066ab3d38519dd5/build/crds/devices/devices_v1beta1_device.yaml"
+        },
+        {
+          "name": "operations.kubeedge.io",
+          "source": "https://github.com/kubeedge/kubeedge/blob/1a7ee88d3c61dc781cc9c9053066ab3d38519dd5/build/crds/operations/operations_v1alpha2_nodeupgradejob.yaml"
+        },
+        {
+          "name": "policy.kubeedge.io",
+          "source": "https://github.com/kubeedge/kubeedge/blob/1a7ee88d3c61dc781cc9c9053066ab3d38519dd5/build/crds/policy/policy_v1alpha1_serviceaccountaccess.yaml"
+        },
+        {
+          "name": "reliablesyncs.kubeedge.io",
+          "source": "https://github.com/kubeedge/kubeedge/blob/1a7ee88d3c61dc781cc9c9053066ab3d38519dd5/build/crds/reliablesyncs/objectsync_v1alpha1.yaml"
+        },
+        {
+          "name": "rules.kubeedge.io",
+          "source": "https://github.com/kubeedge/kubeedge/blob/1a7ee88d3c61dc781cc9c9053066ab3d38519dd5/build/crds/router/router_v1_rule.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kuberhealthy",
+      "catalog": "cncf",
+      "factProject": "kuberhealthy",
+      "component": "pkg:github/kuberhealthy/kuberhealthy",
+      "groups": [
+        {
+          "name": "comcast.github.io",
+          "source": "https://github.com/kuberhealthy/kuberhealthy/blob/4b499809a9f1b42980134680c36cd7dc8c921c72/deploy/helm/kuberhealthy/crds/comcast.github.io_khstates.yaml"
+        },
+        {
+          "name": "kuberhealthy.github.io",
+          "source": "https://github.com/kuberhealthy/kuberhealthy/blob/ab3f163197f8350289c0f91baab9f42096632e05/deploy/helm/kuberhealthy/crds/healthchecks.kuberhealthy.github.io.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kubevela",
+      "catalog": "cncf",
+      "factProject": "kubevela",
+      "component": "pkg:github/kubevela/kubevela",
+      "groups": [
+        {
+          "name": "core.oam.dev",
+          "source": "https://github.com/kubevela/kubevela/blob/a1860544f0556828e165ef68701b2926730671a7/charts/vela-core/crds/core.oam.dev_applications.yaml"
+        },
+        {
+          "name": "cue.oam.dev",
+          "source": "https://github.com/kubevela/kubevela/blob/a1860544f0556828e165ef68701b2926730671a7/charts/vela-core/crds/cue.oam.dev_packages.yaml"
+        },
+        {
+          "name": "standard.oam.dev",
+          "source": "https://github.com/kubevela/kubevela/blob/360f69bea54cb0d15814ba14ea71dacc5f3eba97/charts/vela-core/crds/standard.oam.dev_rollouts.yaml"
         }
       ]
     },
@@ -424,6 +712,38 @@
       ]
     },
     {
+      "slug": "litmus",
+      "catalog": "cncf",
+      "factProject": "litmus",
+      "component": "pkg:github/litmuschaos/litmus",
+      "groups": [
+        {
+          "name": "eventtracker.litmuschaos.io",
+          "source": "https://github.com/litmuschaos/litmus/blob/99826fa898a81c30d5efaccebb20a63e461d12fd/chaoscenter/graphql/server/manifests/cluster/2a_litmus_crds.yaml"
+        },
+        {
+          "name": "litmuschaos.io",
+          "source": "https://github.com/litmuschaos/litmus/blob/99826fa898a81c30d5efaccebb20a63e461d12fd/chaoscenter/graphql/server/manifests/cluster/2a_litmus_crds.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "logging-operator-kube-logging",
+      "catalog": "cncf",
+      "factProject": "logging_operator_kube_logging",
+      "component": "pkg:github/kube-logging/logging-operator",
+      "groups": [
+        {
+          "name": "logging-extensions.banzaicloud.io",
+          "source": "https://github.com/kube-logging/logging-operator/blob/1e3fd1216c8700effc1d92b295273575ad6b1824/config/crd/bases/logging-extensions.banzaicloud.io_eventtailers.yaml"
+        },
+        {
+          "name": "logging.banzaicloud.io",
+          "source": "https://github.com/kube-logging/logging-operator/blob/1e3fd1216c8700effc1d92b295273575ad6b1824/config/crd/bases/logging.banzaicloud.io_loggings.yaml"
+        }
+      ]
+    },
+    {
       "slug": "longhorn",
       "catalog": "cncf",
       "factProject": "longhorn",
@@ -432,6 +752,18 @@
         {
           "name": "longhorn.io",
           "source": "https://github.com/longhorn/longhorn/blob/c3d88832bd8cec4f38dec65e79436984871dc313/deploy/longhorn.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "metal3-io",
+      "catalog": "cncf",
+      "factProject": "metal3_io",
+      "component": "pkg:github/metal3-io/baremetal-operator",
+      "groups": [
+        {
+          "name": "metal3.io",
+          "source": "https://github.com/metal3-io/baremetal-operator/blob/767846c3f3a8b2426cbc5d5fc3b0f4a8565fa440/config/base/crds/bases/metal3.io_baremetalhosts.yaml"
         }
       ]
     },
@@ -492,6 +824,18 @@
       ]
     },
     {
+      "slug": "openchoreo",
+      "catalog": "cncf",
+      "factProject": "openchoreo",
+      "component": "pkg:github/openchoreo/openchoreo",
+      "groups": [
+        {
+          "name": "openchoreo.dev",
+          "source": "https://github.com/openchoreo/openchoreo/blob/178dfbde3e3343e5ac151b88a2f203f523f97480/config/crd/bases/openchoreo.dev_workloads.yaml"
+        }
+      ]
+    },
+    {
       "slug": "openkruise",
       "catalog": "cncf",
       "factProject": "openkruise",
@@ -504,6 +848,30 @@
         {
           "name": "policy.kruise.io",
           "source": "https://github.com/openkruise/kruise/blob/b1e001a957ce62bf87894d0212f5e704a8e9c2b4/config/crd/bases/policy.kruise.io_podunavailablebudgets.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "openyurt",
+      "catalog": "cncf",
+      "factProject": "openyurt",
+      "component": "pkg:github/openyurtio/openyurt",
+      "groups": [
+        {
+          "name": "apps.openyurt.io",
+          "source": "https://github.com/openyurtio/openyurt/blob/35ef4cd692e387d0d56c9084e3da161bad2a3092/charts/yurt-manager/crds/apps.openyurt.io_nodebuckets.yaml"
+        },
+        {
+          "name": "iot.openyurt.io",
+          "source": "https://github.com/openyurtio/openyurt/blob/35ef4cd692e387d0d56c9084e3da161bad2a3092/charts/yurt-iot-dock/crds/iot.openyurt.io_deviceprofiles.yaml"
+        },
+        {
+          "name": "network.openyurt.io",
+          "source": "https://github.com/openyurtio/openyurt/blob/35ef4cd692e387d0d56c9084e3da161bad2a3092/charts/yurt-manager/crds/network.openyurt.io_poolservices.yaml"
+        },
+        {
+          "name": "raven.openyurt.io",
+          "source": "https://github.com/openyurtio/openyurt/blob/35ef4cd692e387d0d56c9084e3da161bad2a3092/charts/yurt-manager/crds/raven.openyurt.io_gateways.yaml"
         }
       ]
     },
@@ -544,6 +912,22 @@
         {
           "name": "monitoring.coreos.com",
           "source": "https://github.com/prometheus-operator/prometheus-operator/blob/2e4af1d7d8f0ae634fcf0ac967a76fb381a65542/example/prometheus-operator-crd/monitoring.coreos.com_thanosrulers.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "radius",
+      "catalog": "cncf",
+      "factProject": "radius",
+      "component": "pkg:github/radius-project/radius",
+      "groups": [
+        {
+          "name": "radapp.io",
+          "source": "https://github.com/radius-project/radius/blob/b913c13618039677b8727a2063cc853142cdb7c9/deploy/Chart/crds/radius/radapp.io_deploymenttemplates.yaml"
+        },
+        {
+          "name": "ucp.dev",
+          "source": "https://github.com/radius-project/radius/blob/b913c13618039677b8727a2063cc853142cdb7c9/deploy/Chart/crds/ucpd/ucp.dev_resources.yaml"
         }
       ]
     },
@@ -614,6 +998,22 @@
       ]
     },
     {
+      "slug": "schemahero",
+      "catalog": "cncf",
+      "factProject": "schemahero",
+      "component": "pkg:github/schemahero/schemahero",
+      "groups": [
+        {
+          "name": "databases.schemahero.io",
+          "source": "https://github.com/schemahero/schemahero/blob/8fca22cee1665d5c9c06a1fbfffdba2c9862aff7/config/crds/v1/databases.schemahero.io_databases.yaml"
+        },
+        {
+          "name": "schemas.schemahero.io",
+          "source": "https://github.com/schemahero/schemahero/blob/8fca22cee1665d5c9c06a1fbfffdba2c9862aff7/config/crds/v1/schemas.schemahero.io_tables.yaml"
+        }
+      ]
+    },
+    {
       "slug": "strimzi",
       "catalog": "cncf",
       "factProject": "strimzi",
@@ -626,6 +1026,18 @@
         {
           "name": "kafka.strimzi.io",
           "source": "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/040-Crd-kafka.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "submariner",
+      "catalog": "cncf",
+      "factProject": "submariner",
+      "component": "pkg:github/submariner-io/submariner",
+      "groups": [
+        {
+          "name": "submariner.io",
+          "source": "https://github.com/submariner-io/submariner/blob/d7fd3ecb9bc86f0a2c74c7cb62e9eae8019940f3/deploy/crds/submariner.io_routeagents.yaml"
         }
       ]
     },

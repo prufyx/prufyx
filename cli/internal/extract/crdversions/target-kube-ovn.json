@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kube-ovn",
+    "name": "Kube-OVN",
+    "repo": "github.com/kubeovn/kube-ovn",
+    "component": "pkg:github/kubeovn/kube-ovn",
+    "factProject": "kube_ovn",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.14",
+    "paths": [
+      {"path": "charts/kube-ovn-v2/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kagent",
+    "name": "kagent",
+    "repo": "github.com/kagent-dev/kagent",
+    "component": "pkg:github/kagent-dev/kagent",
+    "factProject": "kagent",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.8",
+    "paths": [
+      {"path": "go/api/config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

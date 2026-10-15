@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kgateway",
+    "name": "Kgateway",
+    "repo": "github.com/kgateway-dev/kgateway",
+    "component": "pkg:github/kgateway-dev/kgateway",
+    "factProject": "kgateway",
+    "tagPrefixes": ["v"],
+    "minFrom": "2.0",
+    "paths": [
+      {"path": "install/helm/kgateway-crds/templates", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "higress",
+    "name": "Higress",
+    "repo": "github.com/higress-group/higress",
+    "component": "pkg:github/higress-group/higress",
+    "factProject": "higress",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.2",
+    "paths": [
+      {"path": "helm/core/crds/customresourcedefinitions.gen.yaml"}
+    ],
+    "exclude": []
+  }
+}

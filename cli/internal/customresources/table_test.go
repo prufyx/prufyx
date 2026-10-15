@@ -16,7 +16,7 @@ import (
 // ReservedGroups() as the table stood when it was Go source. Moving the table
 // to table.json changed where it is written, not one value of it; a deliberate
 // change to the table updates this pin in the same commit.
-const tablePin = "2ae8b193ac1617e153b5be13241e6d5cc7baade95d733a572151439493a96607"
+const tablePin = "582053256d2280c0341b7ba1a431988a961bbfdb2a890fb14946d18f5fdf31df"
 
 func TestTableMatchesPin(t *testing.T) {
 	sum := sha256.Sum256([]byte(fmt.Sprintf("%#v\n%#v", Projects(), ReservedGroups())))

@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kcp",
+    "name": "kcp",
+    "repo": "github.com/kcp-dev/kcp",
+    "component": "pkg:github/kcp-dev/kcp",
+    "factProject": "kcp",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.28",
+    "paths": [
+      {"path": "config/crds", "directory": true, "match": "^[^./][^/]*\\.kcp\\.io_[^/]*\\.ya?ml$", "guard": "(?i)kcp\\.io[^/]*\\.ya?ml$"}
+    ],
+    "exclude": []
+  }
+}

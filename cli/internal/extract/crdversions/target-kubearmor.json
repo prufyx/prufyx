@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kubearmor",
+    "name": "KubeArmor",
+    "repo": "github.com/kubearmor/kubearmor",
+    "component": "pkg:github/kubearmor/kubearmor",
+    "factProject": "kubearmor",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.2",
+    "paths": [
+      {"path": "deployments/CRD", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "pkg/KubeArmorOperator/config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

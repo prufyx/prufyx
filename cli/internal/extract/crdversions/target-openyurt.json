@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "openyurt",
+    "name": "OpenYurt",
+    "repo": "github.com/openyurtio/openyurt",
+    "component": "pkg:github/openyurtio/openyurt",
+    "factProject": "openyurt",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.3",
+    "paths": [
+      {"path": "charts/yurt-manager/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "charts/yurt-iot-dock/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true}
+    ],
+    "exclude": []
+  }
+}
