@@ -160,6 +160,11 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	if err != nil {
 		return 2, err
 	}
+	if paths, err := ChangedPaths(base, head); err != nil {
+		return 2, err
+	} else if why := onboardingModes(Options{Base: base, Head: head}, paths); why != "" {
+		return 2, errors.New(why)
+	}
 	_, baseFiles, err := onboardingFiles(Options{Base: base, Head: head, Layout: layout})
 	if err != nil {
 		return 2, err

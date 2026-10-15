@@ -35,7 +35,7 @@ func (st *onboardingState) summary(rec OnboardingRecord) string {
 	w("# Onboarding batch %s\n\n", cell(rec.BatchID))
 	w("Candidate: %s. Projects: %d (at most %d). Sample read in full: %d. Nonce: %s.\n\n", cell(rec.CandidateID), len(rec.Projects), MaxOnboardingProjects, len(rec.Sample), cell(rec.Nonce))
 	if len(attest) > 0 {
-		w("**Attestation turned on: %s.** An attesting target can turn answers into a scope-complete PASS once its line attestations are admitted.\n\n", cell(strings.Join(attest, ", ")))
+		w("**Attestation turned on: %s.** An attesting target can turn answers into a scope-complete PASS once its line attestations are admitted. The gate admits it only when its own dry run attests the newest pair; the refuted-claims count is the proposal's own.\n\n", cell(strings.Join(attest, ", ")))
 	}
 	w("New projects: %s.\n\n", cell(orNone(added)))
 	w("Signing registers each new project's custom-resource version set and adds its target and table row. It admits no rule, record or attestation: those enter later, re-derived by the gate. The claims counts below are reported by the proposal and are not checked by the gate.\n\n")

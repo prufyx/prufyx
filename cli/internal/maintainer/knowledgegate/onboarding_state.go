@@ -574,7 +574,7 @@ func (st *onboardingState) checkProject(p OnboardingProject, baseRows, headRows 
 			bad("O4: kind attest leaves the project's table row unchanged")
 		}
 		if p.Proof.Claims.Refuted != 0 {
-			bad("O4: attestation is turned on only for a project with no refuted claim")
+			bad("O4: attestation is turned on only for a project with no refuted claim (as the proposal reports it; the gate's own evidence is the attested dry-run pair)")
 		}
 	}
 	return problems

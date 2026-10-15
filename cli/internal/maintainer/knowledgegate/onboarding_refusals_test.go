@@ -118,6 +118,10 @@ func TestOnboardingRefusals(t *testing.T) {
 		{"O1 validity over 72 hours", resigned(func(rec *OnboardingRecord) {
 			rec.NotAfter = gateNow.Add(80 * time.Hour).Format("2006-01-02T15:04:05Z")
 		}), nil, "at most 72 hours"},
+		{"O1 decided in the future", resigned(func(rec *OnboardingRecord) {
+			rec.DecidedAt = gateNow.Add(time.Hour).Format("2006-01-02T15:04:05Z")
+			rec.NotAfter = gateNow.Add(2 * time.Hour).Format("2006-01-02T15:04:05Z")
+		}), nil, "decided in the future"},
 		{"O1 replayed batch", signed(func(t *testing.T, f *onboardingFixture, rec OnboardingRecord) {
 			raw, _ := os.ReadFile(headFile(f, ol.Dir+"/"+rec.BatchID+".json"))
 			f.writeBatch(t, f.base, "ob-20261001-1.json", raw)
@@ -273,6 +277,37 @@ func TestOnboardingRefusals(t *testing.T) {
 			})
 		}), nil, "it must cite the newest pair's later release"},
 
+		{"O6 a group cited in another repository", blind(func(t *testing.T, f *onboardingFixture) {
+			f.editTable(t, func(ps []customresources.Project) []customresources.Project {
+				for i := range ps {
+					if ps[i].Slug == obSlug {
+						ps[i].Groups[0].Source = strings.Replace(ps[i].Groups[0].Source, "openebs/openebs", "openebs/other", 1)
+					}
+				}
+				return ps
+			})
+		}), nil, "not a file of github.com/openebs/openebs"},
+		{"O6 a group cited outside a listed path", blind(func(t *testing.T, f *onboardingFixture) {
+			writeUpstream(t, f.upstream, obTo, "docs/widgets.yaml", obCRDDoc(obGroup, "v1"))
+			f.editTable(t, func(ps []customresources.Project) []customresources.Project {
+				for i := range ps {
+					if ps[i].Slug == obSlug {
+						ps[i].Groups[0].Source = strings.Replace(ps[i].Groups[0].Source, obCRD, "docs/widgets.yaml", 1)
+					}
+				}
+				return ps
+			})
+		}), nil, "not under a listed path"},
+		{"O4 a fact project used twice", blind(func(t *testing.T, f *onboardingFixture) {
+			f.editTable(t, func(ps []customresources.Project) []customresources.Project {
+				for i := range ps {
+					if ps[i].Slug == obSlug {
+						ps[i].FactProject = "metallb"
+					}
+				}
+				return ps
+			})
+		}), nil, "O4"},
 		// O7: the change set, the sample and the summary.
 		{"O7 summary digest", resigned(func(rec *OnboardingRecord) { rec.SummaryDigest = obLedger }), nil, "O7: the summary digest"},
 		{"O7 change set digest", resigned(func(rec *OnboardingRecord) { rec.ChangeSetDigest = obLedger }), nil, "O7: the change set"},
