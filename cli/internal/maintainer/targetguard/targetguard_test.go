@@ -18,6 +18,7 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/rulecheck"
 )
 
@@ -173,30 +174,34 @@ func TestSourceInAnotherRepositoryFails(t *testing.T) {
 
 func TestRemoteRepositorySourceIsAccepted(t *testing.T) {
 	in := mustLoad(t, realTree(t), false)
-	var remote string
-	for _, tg := range in.Targets {
-		if tg.Remote != nil {
-			remote = tg.Remote.Repo
+	for i, p := range in.Projects {
+		if p.Slug != "kong-ingress-controller" {
+			continue
 		}
+		var remote string
+		for _, tg := range in.Targets {
+			if tg.Project == p.Slug {
+				remote = tg.Remote.Repo
+			}
+		}
+		in.Projects[i].Groups = append([]customresources.Group(nil), p.Groups...)
+		in.Projects[i].Groups[0].Source = "https://" + remote + "/blob/" + strings.Repeat("a", 40) + "/crds/x.yaml"
+		if got := Structure(in); len(got) != 0 {
+			t.Fatalf("remote repository refused: %s", checks(got))
+		}
+		in.Projects[i].Groups[0].Source = "https://github.com/third/party/blob/" + strings.Repeat("a", 40) + "/crds/x.yaml"
+		wantCheck(t, Structure(in), CheckSourceRepo, p.Slug)
+		return
 	}
-	if remote == "" {
-		t.Fatal("no target with a remote source in the data")
-	}
+	t.Fatal("no kong-ingress-controller")
 }
 
 func TestDuplicateGroupAcrossProjectsFails(t *testing.T) {
-	m := realTree(t)
-	editTable(t, m, func(ps []any, _ map[string]any) {
-		a := project(ps, "argo-cd")["groups"].([]any)[0].(map[string]any)
-		other := project(ps, "cilium")
-		other["groups"] = append(other["groups"].([]any), map[string]any{"name": "zz." + a["name"].(string), "source": a["source"]})
-		other["groups"].([]any)[len(other["groups"].([]any))-1].(map[string]any)["name"] = a["name"]
-	})
-	in, err := Load(m, false)
-	if err != nil {
-		return // the table loader refused it: also a failure
-	}
-	wantCheck(t, Structure(in), CheckDuplicate, "group")
+	in := mustLoad(t, realTree(t), false)
+	a, b := in.Projects[0], in.Projects[1]
+	in.Projects = append([]customresources.Project(nil), in.Projects...)
+	in.Projects[1].Groups = append(append([]customresources.Group(nil), b.Groups...), a.Groups[0])
+	wantCheck(t, Structure(in), CheckDuplicate, "group "+a.Groups[0].Name)
 }
 
 func TestProjectWithoutTargetNeedsAReason(t *testing.T) {
@@ -281,7 +286,8 @@ type removal struct {
 
 // alsoRequired are the further entries a removal case needs.
 var alsoRequired = map[string][]Removal{
-	"channel": {{Kind: KindNarrowed, Project: "gateway-api", Detail: "declaredChannel:"}},
+	"identity target repo": {{Kind: KindIdentity, Project: "cilium", Detail: "component:pkg:github/evil/cilium"}},
+	"channel":              {{Kind: KindNarrowed, Project: "gateway-api", Detail: "declaredChannel:"}},
 }
 
 var removals = []removal{
@@ -320,6 +326,31 @@ var removals = []removal{
 			r["pins"] = r["pins"].([]any)[1:]
 		})
 	}, Removal{Kind: KindNarrowed, Project: "kong-ingress-controller", Detail: "remotePin:v1.0.0"}},
+	{"identity component", func(t *testing.T, m fstest.MapFS) {
+		editTable(t, m, func(ps []any, _ map[string]any) { project(ps, "cilium")["component"] = "pkg:github/evil/cilium" })
+	}, Removal{Kind: KindIdentity, Project: "cilium", Detail: "component:pkg:github/evil/cilium"}},
+	{"identity group repo", func(t *testing.T, m fstest.MapFS) {
+		editTable(t, m, func(ps []any, _ map[string]any) {
+			project(ps, "cilium")["groups"].([]any)[0].(map[string]any)["source"] = "https://github.com/evil/cilium/blob/" + strings.Repeat("b", 40) + "/crds/x.yaml"
+		})
+	}, Removal{Kind: KindIdentity, Project: "cilium", Detail: "groupRepo:cilium.io:evil/cilium"}},
+	{"identity target repo", func(t *testing.T, m fstest.MapFS) {
+		editTarget(t, m, "cilium", func(tg map[string]any) {
+			tg["repo"] = "github.com/evil/cilium"
+			tg["component"] = "pkg:github/evil/cilium"
+		})
+	}, Removal{Kind: KindIdentity, Project: "cilium", Detail: "repo:github.com/evil/cilium"}},
+	{"exclusion weakened", func(t *testing.T, m fstest.MapFS) {
+		editTarget(t, m, "crossplane", func(tg map[string]any) {
+			for _, e := range tg["exclude"].([]any) {
+				if e.(map[string]any)["copies"] == true {
+					e.(map[string]any)["copies"] = false
+					return
+				}
+			}
+			t.Skip("no exclusion with copies")
+		})
+	}, Removal{Kind: KindNarrowed, Project: "crossplane", Detail: "excludeChanged:"}},
 	{"channel", func(t *testing.T, m fstest.MapFS) {
 		editTarget(t, m, "gateway-api", func(tg map[string]any) { delete(tg, "channels"); delete(tg, "declaredChannel") })
 	}, Removal{Kind: KindNarrowed, Project: "gateway-api", Detail: "channel:experimental"}},
@@ -337,8 +368,9 @@ func TestEveryRemovalNeedsAMatchingEntry(t *testing.T) {
 			}
 			found := false
 			for _, r := range Diff(base, head) {
-				if r.key() == rc.want.key() {
+				if r.id() == rc.want.id() || (rc.name == "exclusion weakened" && r.Kind == rc.want.Kind && strings.HasPrefix(r.Detail, rc.want.Detail)) {
 					found = true
+					rc.want = r
 				}
 			}
 			if !found {
@@ -611,4 +643,30 @@ func writeTar(w io.Writer, name string) error {
 		return err
 	}
 	return tw.Close()
+}
+
+func TestRemovalAgainAfterRestoreNeedsTheNextSeq(t *testing.T) {
+	full := mustLoad(t, realTree(t), false)
+	m := realTree(t)
+	editTable(t, m, func(_ []any, doc map[string]any) { dropProject(doc, "tekton") })
+	removed := mustLoad(t, m, false)
+	entry := func(seq int) Removal {
+		return Removal{Kind: KindProject, Project: "tekton", Seq: seq, Reason: "reviewed: the upstream dropped it"}
+	}
+	// First removal: seq 0.
+	removed.Guard.Removals = []Removal{entry(0)}
+	if got := CheckRemovals(full, removed); len(got) != 0 {
+		t.Fatalf("first removal: %s", checks(got))
+	}
+	// Restored (base has seq 0 and the row), removed again: seq 0 is spent.
+	restored := full
+	restored.Guard.Removals = []Removal{entry(0)}
+	wantCheck(t, CheckRemovals(restored, removed), CheckRemovalUnlisted, "tekton")
+	removed.Guard.Removals = []Removal{entry(0), entry(1)}
+	if got := CheckRemovals(restored, removed); len(got) != 0 {
+		t.Fatalf("second removal with seq 1: %s", checks(got))
+	}
+	// A seq that skips ahead is a stale pre-approval.
+	removed.Guard.Removals = []Removal{entry(0), entry(2)}
+	wantCheck(t, CheckRemovals(restored, removed), CheckRemovalStale, "tekton")
 }

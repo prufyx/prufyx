@@ -5,6 +5,7 @@ package targetguard
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
@@ -44,23 +45,32 @@ func Diff(base, head Inputs) []Removal {
 			out = append(out, Removal{Kind: KindProject, Project: bp.Slug})
 			continue
 		}
+		out = append(out, projectIdentity(bp, hp)...)
 		have := map[string]bool{}
+		headSource := map[string]string{}
 		for _, g := range hp.Groups {
 			have[g.Name] = true
+			headSource[g.Name] = g.Source
 		}
 		for _, g := range bp.Groups {
 			if !have[g.Name] {
 				out = append(out, Removal{Kind: KindGroup, Project: bp.Slug, Detail: g.Name})
+			} else if a, b := sourceRepo(g.Source), sourceRepo(headSource[g.Name]); a != b {
+				out = append(out, Removal{Kind: KindIdentity, Project: bp.Slug, Detail: "groupRepo:" + g.Name + ":" + b})
 			}
 		}
 	}
-	reserved := map[string]bool{}
+	reserved := map[string]customresources.ReservedGroup{}
 	for _, r := range head.Reserved {
-		reserved[r.Name] = true
+		reserved[r.Name] = r
 	}
 	for _, r := range base.Reserved {
-		if !reserved[r.Name] {
+		hr, ok := reserved[r.Name]
+		switch {
+		case !ok:
 			out = append(out, Removal{Kind: KindReserved, Project: r.Owner, Detail: r.Name})
+		case hr.Owner != r.Owner || hr.Repository != r.Repository:
+			out = append(out, Removal{Kind: KindIdentity, Project: r.Owner, Detail: "reserved:" + r.Name + ":" + hr.Owner + ":" + hr.Repository})
 		}
 	}
 	headTargets := map[string]crdversions.Target{}
@@ -72,6 +82,9 @@ func Diff(base, head Inputs) []Removal {
 		if !ok {
 			out = append(out, Removal{Kind: KindTarget, Project: bt.Project})
 			continue
+		}
+		for _, d := range targetIdentity(bt, ht) {
+			out = append(out, Removal{Kind: KindIdentity, Project: bt.Project, Detail: d})
 		}
 		for _, d := range narrowed(bt, ht) {
 			out = append(out, Removal{Kind: KindNarrowed, Project: bt.Project, Detail: d})
@@ -118,13 +131,21 @@ func narrowed(b, h crdversions.Target) []string {
 	if b.DeclaredChannel != h.DeclaredChannel {
 		out = append(out, "declaredChannel:"+h.DeclaredChannel)
 	}
-	baseExcl := map[string]bool{}
+	baseExcl := map[string]crdversions.Exclusion{}
 	for _, e := range b.Exclude {
-		baseExcl[e.Path+"\x00"+e.Repo] = true
+		baseExcl[e.Path+"\x00"+e.Repo] = e
 	}
 	for _, e := range h.Exclude {
-		if !baseExcl[e.Path+"\x00"+e.Repo] {
-			out = append(out, "exclude:"+e.Path)
+		name := e.Path
+		if e.Repo != "" {
+			name += "@" + e.Repo
+		}
+		be, ok := baseExcl[e.Path+"\x00"+e.Repo]
+		switch {
+		case !ok:
+			out = append(out, "exclude:"+name)
+		case be.Copies != e.Copies || be.PrePatch != e.PrePatch:
+			out = append(out, "excludeChanged:"+name)
 		}
 	}
 	out = append(out, remoteChanges(b.Remote, h.Remote)...)
@@ -201,12 +222,17 @@ func containsString(values []string, v string) bool {
 }
 
 // CheckRemovals compares head with base. Every removal or narrowing needs a
-// matching entry that head's list has and base's list does not; an entry
-// that matches no change, or a base entry that head dropped, is refused: the
-// list is append-only, so an approval cannot be pre-placed for a later
-// change or reused.
+// matching entry that head's list has and base's list does not: the entry
+// whose Seq equals the number of base entries for the same kind, project and
+// detail. An entry that matches no change, or a base entry that head dropped,
+// is refused: the list is append-only, so an approval cannot be pre-placed
+// for a later change or reused.
 func CheckRemovals(base, head Inputs) []Finding {
 	var out []Finding
+	baseCount := map[string]int{}
+	for _, r := range base.Guard.Removals {
+		baseCount[r.id()]++
+	}
 	baseListed := map[string]bool{}
 	for _, r := range base.Guard.Removals {
 		baseListed[r.key()] = true
@@ -220,20 +246,19 @@ func CheckRemovals(base, head Inputs) []Finding {
 			out = append(out, Finding{CheckRemovalDropped, subject(r), "an entry of the reviewed removals list was deleted; the list is append-only"})
 		}
 	}
-	changes := map[string]Removal{}
+	required := map[string]bool{}
 	for _, r := range Diff(base, head) {
-		changes[r.key()] = r
-		if !headListed[r.key()] || baseListed[r.key()] {
-			out = append(out, Finding{CheckRemovalUnlisted, subject(r), "removed or narrowed without a new entry in " + GuardPath + " (kind " + r.Kind + ", project " + r.Project + ", detail " + r.Detail + ")"})
+		r.Seq = baseCount[r.id()]
+		required[r.key()] = true
+		if !headListed[r.key()] {
+			out = append(out, Finding{CheckRemovalUnlisted, subject(r), fmt.Sprintf("removed or narrowed without a new entry in %s (kind %s, project %s, detail %q, seq %d)", GuardPath, r.Kind, r.Project, r.Detail, r.Seq)})
 		}
 	}
 	for _, r := range head.Guard.Removals {
-		if baseListed[r.key()] {
+		if baseListed[r.key()] || required[r.key()] {
 			continue
 		}
-		if _, ok := changes[r.key()]; !ok {
-			out = append(out, Finding{CheckRemovalStale, subject(r), "new removals entry matches no removal in this change"})
-		}
+		out = append(out, Finding{CheckRemovalStale, subject(r), "new removals entry matches no removal in this change (check its seq)"})
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].String() < out[j].String() })
 	return out
@@ -244,4 +269,49 @@ func subject(r Removal) string {
 		return r.Kind + " " + r.Project
 	}
 	return r.Kind + " " + r.Project + " " + r.Detail
+}
+
+func sourceRepo(source string) string {
+	if b, ok := ParseBlob(source); ok {
+		return strings.ToLower(b.Owner + "/" + b.Repo)
+	}
+	return source
+}
+
+func projectIdentity(b, h customresources.Project) []Removal {
+	var out []Removal
+	add := func(detail string) { out = append(out, Removal{Kind: KindIdentity, Project: b.Slug, Detail: detail}) }
+	if b.Component != h.Component {
+		add("component:" + h.Component)
+	}
+	if b.Catalog != h.Catalog {
+		add("catalog:" + string(h.Catalog))
+	}
+	if b.FactProject != h.FactProject {
+		add("factProject:" + h.FactProject)
+	}
+	if b.Upstream.Repository != h.Upstream.Repository {
+		add("upstreamRepository:" + h.Upstream.Repository)
+	}
+	if sourceRepo(b.Upstream.LicenseSource) != sourceRepo(h.Upstream.LicenseSource) {
+		add("licenseSource:" + sourceRepo(h.Upstream.LicenseSource))
+	}
+	return out
+}
+
+func targetIdentity(b, h crdversions.Target) []string {
+	var out []string
+	if b.Repo != h.Repo {
+		out = append(out, "repo:"+h.Repo)
+	}
+	if b.Component != h.Component {
+		out = append(out, "component:"+h.Component)
+	}
+	if b.FactProject != h.FactProject {
+		out = append(out, "factProject:"+h.FactProject)
+	}
+	if b.Catalog != h.Catalog {
+		out = append(out, "catalog:"+h.Catalog)
+	}
+	return out
 }

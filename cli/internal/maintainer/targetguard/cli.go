@@ -103,7 +103,13 @@ func runCitations(args []string, root string, stdout, stderr io.Writer, deps *ci
 	}
 	// The same structure the offline check demands: a source that is not a
 	// pinned blob URL must fail here too, not just be skipped.
-	structural := Structure(head)
+	if structural := Structure(head); len(structural) > 0 {
+		for _, f := range structural {
+			fmt.Fprintf(stderr, "FAIL %s\n", f)
+		}
+		fmt.Fprintf(stderr, "target-check citations: %d structural findings; no source was fetched\n", len(structural))
+		return 1
+	}
 	verifier := &rulecheck.CitationVerifier{Concurrency: *concurrency, Timeout: *timeout}
 	if deps != nil {
 		verifier.Resolver, verifier.Fetcher = deps.resolver, deps.fetcher
@@ -134,14 +140,11 @@ func runCitations(args []string, root string, stdout, stderr io.Writer, deps *ci
 	} else {
 		stdout.Write(encoded)
 	}
-	for _, f := range structural {
-		fmt.Fprintf(stderr, "FAIL %s\n", f)
-	}
 	for _, f := range report.Findings {
 		fmt.Fprintf(stderr, "FAIL [%s] %s: %s\n", f.Check, f.RuleID, f.Message)
 	}
-	fmt.Fprintf(stderr, "target-check citations: %d sources, %d findings\n", report.SourcesChecked, len(report.Findings)+len(structural))
-	if !report.Pass || len(structural) > 0 {
+	fmt.Fprintf(stderr, "target-check citations: %d sources, %d findings\n", report.SourcesChecked, len(report.Findings))
+	if !report.Pass {
 		return 1
 	}
 	return 0

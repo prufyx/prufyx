@@ -48,6 +48,9 @@ const (
 	KindTarget = "target"
 	// KindNarrowed: a target that stays now covers less; Detail says what.
 	KindNarrowed = "target-narrowed"
+	// KindIdentity: the repository, component, catalog or fact project a
+	// project or target stands for changed; Detail says which and to what.
+	KindIdentity = "identity"
 )
 
 // Guard is guard.json: the reviewed removals and the table projects that
@@ -64,10 +67,14 @@ type Removal struct {
 	Kind    string `json:"kind"`
 	Project string `json:"project"`
 	Detail  string `json:"detail"`
-	Reason  string `json:"reason"`
+	// Seq numbers the entries of one (kind, project, detail), from 0: a
+	// thing removed again after it was restored needs the next number.
+	Seq    int    `json:"seq"`
+	Reason string `json:"reason"`
 }
 
-func (r Removal) key() string { return r.Kind + "\x00" + r.Project + "\x00" + r.Detail }
+func (r Removal) id() string  { return r.Kind + "\x00" + r.Project + "\x00" + r.Detail }
+func (r Removal) key() string { return fmt.Sprintf("%s\x00%d", r.id(), r.Seq) }
 
 // NoTarget declares that a table project has no target file, and why.
 type NoTarget struct {
@@ -145,14 +152,14 @@ func DecodeGuard(raw []byte) (Guard, error) {
 			if r.Detail != "" {
 				return Guard{}, fmt.Errorf("removal %s %q: detail is empty for this kind", r.Kind, r.Project)
 			}
-		case KindGroup, KindReserved, KindNarrowed:
+		case KindGroup, KindReserved, KindNarrowed, KindIdentity:
 			if r.Detail == "" {
 				return Guard{}, fmt.Errorf("removal %s %q: detail is required", r.Kind, r.Project)
 			}
 		default:
 			return Guard{}, fmt.Errorf("removal kind %q is unknown", r.Kind)
 		}
-		if r.Project == "" || !reasonOK(r.Reason) {
+		if r.Seq < 0 || r.Project == "" || !reasonOK(r.Reason) {
 			return Guard{}, fmt.Errorf("removal %s %q: a project and a reason of 12 to 300 characters are required", r.Kind, r.Project)
 		}
 		if seen[r.key()] {
