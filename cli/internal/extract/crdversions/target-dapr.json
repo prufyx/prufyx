@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "dapr",
+    "name": "Dapr",
+    "repo": "github.com/dapr/dapr",
+    "component": "pkg:github/dapr/dapr",
+    "factProject": "dapr",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.13",
+    "paths": [
+      {"path": "charts/dapr/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

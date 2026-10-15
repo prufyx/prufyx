@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "tekton",
+    "name": "Tekton Pipelines",
+    "repo": "github.com/tektoncd/pipeline",
+    "component": "pkg:github/tektoncd/pipeline",
+    "factProject": "tekton",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.12",
+    "paths": [
+      {"path": "config/300-crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

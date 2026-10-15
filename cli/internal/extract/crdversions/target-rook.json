@@ -1,0 +1,18 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "rook",
+    "name": "Rook",
+    "repo": "github.com/rook/rook",
+    "component": "pkg:github/rook/rook",
+    "factProject": "rook",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.16",
+    "paths": [
+      {"path": "deploy/examples/crds.yaml"}
+    ],
+    "exclude": [
+      {"path": "deploy/charts/rook-ceph/templates/", "repo": "github.com/rook/rook", "reason": "Helm chart templates rendered from the same generated definitions as deploy/examples/crds.yaml (checked as copies)", "evidence": "Not trusted, checked: at every tag each file is read with its template directives removed and its definitions are compared with the listed paths (versions, served flags); a mismatch, another definition or an unreadable file blocks attestation.", "copies": true}
+    ]
+  }
+}

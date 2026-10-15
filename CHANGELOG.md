@@ -127,6 +127,17 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- Maintainer extractor `crd.version-removal`: each
+  `crd.version-removal.<project>` id has its own code digest. The target table
+  is one file per target (`target-<project>.json`, schema
+  `prufyx.io/crd-version-target/v1`), and an id's digest covers the
+  extractor's code and its own target file only, so adding or changing one
+  target no longer moves the digest of every other id. The version stays 2.3.0
+  and outputs are unchanged apart from the code digest, which differs once for
+  every id; the Kubernetes extractors' digests do not move. A rule or line
+  attestation of a `crd.version-removal` id that is added or changed from now
+  on must be derived with this build (the gate refuses one that names the old
+  shared digest); published records are unaffected until they change.
 - Maintainer extractor `crd.version-removal` 2.2.0 reads the kubebuilder
   scaffolding beside a project's generated definitions and its legacy copies,
   which kept every pair of such a project from being attestable: strategic

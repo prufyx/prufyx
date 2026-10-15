@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "karmada",
+    "name": "Karmada",
+    "repo": "github.com/karmada-io/karmada",
+    "component": "pkg:github/karmada-io/karmada",
+    "factProject": "karmada",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.14",
+    "paths": [
+      {"path": "charts/karmada/_crds/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "recursive": true},
+      {"path": "operator/config/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true}
+    ],
+    "exclude": []
+  }
+}

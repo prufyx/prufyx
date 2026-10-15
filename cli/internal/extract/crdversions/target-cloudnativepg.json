@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "cloudnativepg",
+    "name": "CloudNativePG",
+    "repo": "github.com/cloudnative-pg/cloudnative-pg",
+    "component": "pkg:github/cloudnative-pg/cloudnative-pg",
+    "factProject": "cloudnativepg",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.25",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

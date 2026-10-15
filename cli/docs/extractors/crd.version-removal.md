@@ -8,16 +8,20 @@ involves no model.
 
 A run reads one repository, so the extractor is registered once per project,
 as `crd.version-removal.<project>`; every registration runs the same code and
-carries the same version and code digest.
+carries the same version. Its code digest covers that code and its own target
+file only, so each id has its own digest (see Running and verifying).
 
 ## Projects and paths
 
-The reviewed source table is a data file compiled into the extractor,
-`cli/internal/extract/crdversions/targets.json` (schema
-`prufyx.io/crd-version-targets/v1`). It is part of the code digest that every
-`crd.version-removal.<project>` id shares: any change to it is a new extractor
-version, and rules derived by the previous version no longer re-derive. Each
-entry names a catalog project, its repository, the prefixes of its release
+The reviewed source table is one data file per target compiled into the
+extractor, `cli/internal/extract/crdversions/target-<project>.json` (schema
+`prufyx.io/crd-version-target/v1`, one `target` member; the file name must
+name the project it holds, and no project, fact, repository or component may
+appear in two files). A target file is part of the code digest of its own
+`crd.version-removal.<project>` id and of no other: any change to it is a new
+code digest of that id, and rules that id derived before no longer re-derive;
+adding a target, or changing one, leaves every other id's digest as it was.
+Each entry names a catalog project, its repository, the prefixes of its release
 tags, the first release line a pair may start from, the paths that hold its
 rendered CRD manifests, and the reviewed exclusions of the full-tree scan
 (below), each with the reason it was accepted and, for chart templates that are
@@ -400,7 +404,7 @@ For a derived pair it writes one attestation of the later line exactly when:
 - the later line is the next minor line of the same major (a new major or a
   skipped minor number is not attested: the family's hop shape is one minor
   line);
-- the target has `"attest": true` in `targets.json`, which a test pins to the
+- the target has `"attest": true` in its target file, which a test pins to the
   CNCF catalog projects of the custom-resource table (the projects whose set
   fact is registered and whose line reviews the family admits): today Argo
   CD, Istio and Strimzi. A community target never attests.
@@ -467,9 +471,11 @@ lines; a run that misses one names it under `--wants-out` and exits 3.
 `verify` re-derives from the pinned bytes with the recorded `derivedAt` and
 fails unless every output file is byte-identical. The code digest is sha256
 over the sorted lines `<dir>/<file> NUL <sha256> LF` of the non-test Go files
-and the reviewed `*.json` data files a source set embeds next to its code, of
-`internal/extract` and `internal/extract/crdversions` (so `targets.json` is
-covered); the manifest lists them.
+of `internal/extract` and `internal/extract/crdversions` and of the id's own
+target file `target-<project>.json`, and of no other target file; the manifest
+lists them. No derivation of one id reads another target: the other files are
+read only to check, when the program starts, that no two targets name the same
+project, fact, repository or component.
 
 `oracle` compares a run with an expected-results file:
 
@@ -488,6 +494,25 @@ storage change must be recorded; every listed pair must have the given status
 and, when given, number of removals, `lineWide` and `attestable`. When removals
 (or storage changes) are listed, any other one the run derives is reported as
 `EXTRA`. The exit code is 1 when there is any disagreement.
+
+## Per-id code digests
+
+The target table was one file, `targets.json`, covered by the code digest that
+every id shared, so any change to one target moved every id's digest. It is
+now one file per target, covered by its own id's digest only. The code of the
+extractor and its version (2.3.0) are unchanged, as are rules, vectors,
+candidates and attestations, except that every id's code digest differs once
+from the digest it carried before.
+
+Records already published keep the digest they were derived with and are not
+touched by this change. The knowledge gate re-derives a mechanical rule or a
+line attestation that a change adds or modifies, and refuses it unless it
+names the extractor id, version and code digest of the build that runs the
+gate. So the first rule or attestation of a project changed after this
+version must come from a full run of that project's id with this build (which
+then carries the id's own digest), not from an edit of a record that carries
+the old shared digest. From then on, a change to one target only requires
+re-deriving the records of that target's id.
 
 ## Changes from version 2.2.0
 

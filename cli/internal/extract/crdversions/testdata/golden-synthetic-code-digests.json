@@ -1,0 +1,214 @@
+[
+  {
+    "name": "base",
+    "digests": {
+      "crd.version-removal.alpha": {
+        "files": [
+          {
+            "path": "extract/crdversions/a.go",
+            "sha256": "6e6d99bea53cb88296fca1549c06d62d64911fa900694de77366f01022caf1e1"
+          },
+          {
+            "path": "extract/crdversions/b.go",
+            "sha256": "a355860eb43e352bd602baea00870180b1cdfe42855b56a81c652f01717182be"
+          },
+          {
+            "path": "extract/crdversions/target-alpha.json",
+            "sha256": "e2728b5e6d47c913c0717568b5f2d78fee9b92ecf1663c9e77fb4f77b774cdc6"
+          }
+        ],
+        "digest": "sha256:8f44800b555cf2bb311ee903ff11c4f22555c2b192651e31e898695fac5366f0"
+      },
+      "crd.version-removal.beta": {
+        "files": [
+          {
+            "path": "extract/crdversions/a.go",
+            "sha256": "6e6d99bea53cb88296fca1549c06d62d64911fa900694de77366f01022caf1e1"
+          },
+          {
+            "path": "extract/crdversions/b.go",
+            "sha256": "a355860eb43e352bd602baea00870180b1cdfe42855b56a81c652f01717182be"
+          },
+          {
+            "path": "extract/crdversions/target-beta.json",
+            "sha256": "f743bc365d50cd7461567d42889a8f10beab0570a657a5e9e14713c8a8a268d3"
+          }
+        ],
+        "digest": "sha256:64c826c17b4e1bceacbedaa1a9a5665455c43b482ebc99b4a7615fa8339308c7"
+      }
+    }
+  },
+  {
+    "name": "target added",
+    "digests": {
+      "crd.version-removal.alpha": {
+        "files": [
+          {
+            "path": "extract/crdversions/a.go",
+            "sha256": "6e6d99bea53cb88296fca1549c06d62d64911fa900694de77366f01022caf1e1"
+          },
+          {
+            "path": "extract/crdversions/b.go",
+            "sha256": "a355860eb43e352bd602baea00870180b1cdfe42855b56a81c652f01717182be"
+          },
+          {
+            "path": "extract/crdversions/target-alpha.json",
+            "sha256": "e2728b5e6d47c913c0717568b5f2d78fee9b92ecf1663c9e77fb4f77b774cdc6"
+          }
+        ],
+        "digest": "sha256:8f44800b555cf2bb311ee903ff11c4f22555c2b192651e31e898695fac5366f0"
+      },
+      "crd.version-removal.beta": {
+        "files": [
+          {
+            "path": "extract/crdversions/a.go",
+            "sha256": "6e6d99bea53cb88296fca1549c06d62d64911fa900694de77366f01022caf1e1"
+          },
+          {
+            "path": "extract/crdversions/b.go",
+            "sha256": "a355860eb43e352bd602baea00870180b1cdfe42855b56a81c652f01717182be"
+          },
+          {
+            "path": "extract/crdversions/target-beta.json",
+            "sha256": "f743bc365d50cd7461567d42889a8f10beab0570a657a5e9e14713c8a8a268d3"
+          }
+        ],
+        "digest": "sha256:64c826c17b4e1bceacbedaa1a9a5665455c43b482ebc99b4a7615fa8339308c7"
+      },
+      "crd.version-removal.gamma": {
+        "files": [
+          {
+            "path": "extract/crdversions/a.go",
+            "sha256": "6e6d99bea53cb88296fca1549c06d62d64911fa900694de77366f01022caf1e1"
+          },
+          {
+            "path": "extract/crdversions/b.go",
+            "sha256": "a355860eb43e352bd602baea00870180b1cdfe42855b56a81c652f01717182be"
+          },
+          {
+            "path": "extract/crdversions/target-gamma.json",
+            "sha256": "49bba367602b666ef1d1c739e2f23b8b6c80e1d9bdf863e6c4fda511cf10255b"
+          }
+        ],
+        "digest": "sha256:1a78b138a391d81d8b561fa86685063a1ef928df9cbc7657961d4fb7c5d96ece"
+      }
+    }
+  },
+  {
+    "name": "target changed",
+    "digests": {
+      "crd.version-removal.alpha": {
+        "files": [
+          {
+            "path": "extract/crdversions/a.go",
+            "sha256": "6e6d99bea53cb88296fca1549c06d62d64911fa900694de77366f01022caf1e1"
+          },
+          {
+            "path": "extract/crdversions/b.go",
+            "sha256": "a355860eb43e352bd602baea00870180b1cdfe42855b56a81c652f01717182be"
+          },
+          {
+            "path": "extract/crdversions/target-alpha.json",
+            "sha256": "e2728b5e6d47c913c0717568b5f2d78fee9b92ecf1663c9e77fb4f77b774cdc6"
+          }
+        ],
+        "digest": "sha256:8f44800b555cf2bb311ee903ff11c4f22555c2b192651e31e898695fac5366f0"
+      },
+      "crd.version-removal.beta": {
+        "files": [
+          {
+            "path": "extract/crdversions/a.go",
+            "sha256": "6e6d99bea53cb88296fca1549c06d62d64911fa900694de77366f01022caf1e1"
+          },
+          {
+            "path": "extract/crdversions/b.go",
+            "sha256": "a355860eb43e352bd602baea00870180b1cdfe42855b56a81c652f01717182be"
+          },
+          {
+            "path": "extract/crdversions/target-beta.json",
+            "sha256": "0062b5ed0f1d463410bdf75e96005a91d45c3ed234083568715dd07f27f4dd53"
+          }
+        ],
+        "digest": "sha256:538f235be73c2a22fe835f38869b163048cc910790a9146c13f2532b4295c03b"
+      }
+    }
+  },
+  {
+    "name": "code changed",
+    "digests": {
+      "crd.version-removal.alpha": {
+        "files": [
+          {
+            "path": "extract/crdversions/a.go",
+            "sha256": "2518bcdb1c03c81fb1a2529f4e4888df1df3e5bafb99897256d4535f576c3178"
+          },
+          {
+            "path": "extract/crdversions/b.go",
+            "sha256": "a355860eb43e352bd602baea00870180b1cdfe42855b56a81c652f01717182be"
+          },
+          {
+            "path": "extract/crdversions/target-alpha.json",
+            "sha256": "e2728b5e6d47c913c0717568b5f2d78fee9b92ecf1663c9e77fb4f77b774cdc6"
+          }
+        ],
+        "digest": "sha256:3d147d42af29140f03cadfeba60015d2ae3d33d797a372a2cef68fa44f26f8a1"
+      },
+      "crd.version-removal.beta": {
+        "files": [
+          {
+            "path": "extract/crdversions/a.go",
+            "sha256": "2518bcdb1c03c81fb1a2529f4e4888df1df3e5bafb99897256d4535f576c3178"
+          },
+          {
+            "path": "extract/crdversions/b.go",
+            "sha256": "a355860eb43e352bd602baea00870180b1cdfe42855b56a81c652f01717182be"
+          },
+          {
+            "path": "extract/crdversions/target-beta.json",
+            "sha256": "f743bc365d50cd7461567d42889a8f10beab0570a657a5e9e14713c8a8a268d3"
+          }
+        ],
+        "digest": "sha256:ab524da0b9a55ccd29aa5ba95308d41c4e2e58b408ef38ce60292800b0a04c43"
+      }
+    }
+  },
+  {
+    "name": "test and other data changed",
+    "digests": {
+      "crd.version-removal.alpha": {
+        "files": [
+          {
+            "path": "extract/crdversions/a.go",
+            "sha256": "6e6d99bea53cb88296fca1549c06d62d64911fa900694de77366f01022caf1e1"
+          },
+          {
+            "path": "extract/crdversions/b.go",
+            "sha256": "a355860eb43e352bd602baea00870180b1cdfe42855b56a81c652f01717182be"
+          },
+          {
+            "path": "extract/crdversions/target-alpha.json",
+            "sha256": "e2728b5e6d47c913c0717568b5f2d78fee9b92ecf1663c9e77fb4f77b774cdc6"
+          }
+        ],
+        "digest": "sha256:8f44800b555cf2bb311ee903ff11c4f22555c2b192651e31e898695fac5366f0"
+      },
+      "crd.version-removal.beta": {
+        "files": [
+          {
+            "path": "extract/crdversions/a.go",
+            "sha256": "6e6d99bea53cb88296fca1549c06d62d64911fa900694de77366f01022caf1e1"
+          },
+          {
+            "path": "extract/crdversions/b.go",
+            "sha256": "a355860eb43e352bd602baea00870180b1cdfe42855b56a81c652f01717182be"
+          },
+          {
+            "path": "extract/crdversions/target-beta.json",
+            "sha256": "f743bc365d50cd7461567d42889a8f10beab0570a657a5e9e14713c8a8a268d3"
+          }
+        ],
+        "digest": "sha256:64c826c17b4e1bceacbedaa1a9a5665455c43b482ebc99b4a7615fa8339308c7"
+      }
+    }
+  }
+]

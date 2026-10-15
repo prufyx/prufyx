@@ -1,0 +1,23 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "gateway-api",
+    "catalog": "community",
+    "name": "Gateway API",
+    "repo": "github.com/kubernetes-sigs/gateway-api",
+    "component": "pkg:github/kubernetes-sigs/gateway-api",
+    "factProject": "gateway_api",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.1",
+    "paths": [
+      {"path": "config/crd/standard", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": [],
+    "declaredChannel": "standard",
+    "channels": [
+      {"name": "experimental", "paths": [
+        {"path": "config/crd/experimental", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      ]}
+    ]
+  }
+}

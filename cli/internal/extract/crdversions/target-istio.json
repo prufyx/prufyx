@@ -1,0 +1,25 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "istio",
+    "name": "Istio",
+    "repo": "github.com/istio/istio",
+    "component": "pkg:github/istio/istio",
+    "factProject": "istio",
+    "tagPrefixes": [""],
+    "minFrom": "1.26",
+    "attest": true,
+    "paths": [
+      {"path": "manifests/charts/base/files/crd-all.gen.yaml"}
+    ],
+    "exclude": [
+      {"path": "common/scripts/", "repo": "github.com/istio/istio", "reason": "scripts and third-party manifests (MetalLB) used by the test infrastructure; no Istio definition", "evidence": "Read at 1.26.0 and 1.31.1: shell scripts (run.sh, gobuild.sh, setup_env.sh, kind_provisioner.sh, lint and format helpers) called from the Makefiles, and metallb-native.yaml, which kind_provisioner.sh installs into the test clusters it creates."},
+      {"path": "operator/cmd/mesh/testdata/", "repo": "github.com/istio/istio", "reason": "golden outputs and inputs of the operator manifest-generate tests", "evidence": "Read at 1.26.0 and 1.31.1: operator/scripts/run_update_golden_snapshots.sh regenerates operator/cmd/mesh/testdata/manifest-generate from the charts; the Go tests of operator/cmd/mesh compare against it."},
+      {"path": "pkg/config/analysis/analyzers/testdata/", "repo": "github.com/istio/istio", "reason": "input files of the analyzer unit tests", "evidence": "Read at 1.26.0 and 1.31.1: pkg/config/analysis/analyzers/analyzers_test.go lists the files by relative path (inputFiles: testdata/gateway-api-crd-version-old.yaml, ...); no other file names the directory."},
+      {"path": "pkg/config/schema/metadata.yaml", "repo": "github.com/istio/istio", "reason": "code-generation metadata of the resource types Istio handles; lists the built-in CustomResourceDefinition kind and defines none", "evidence": "Read at 1.26.0 and 1.31.1: only pkg/config/schema/codegen/collections.go reads it (os.ReadFile under the source tree) to generate Go collections; the file lists resource types and defines no CustomResourceDefinition."},
+      {"path": "pkg/kube/kclient/clienttest/", "repo": "github.com/istio/istio", "reason": "Go test helpers (they take a test.Failer) that build fake CustomResourceDefinitions for unit tests; not part of an install", "evidence": "Read at 1.26.0 and 1.31.1: the package is imported only by _test.go files (operator/cmd/mesh/manifest-generate_test.go, pilot/pkg/config/kube/crdclient/client_test.go, ...); its helpers take a test.Failer and create fake definitions for unit tests."},
+      {"path": "prow/", "repo": "github.com/istio/istio", "reason": "continuous-integration configuration and third-party manifests (Calico) for test clusters; no Istio definition", "evidence": "Read at 1.26.0 and 1.31.1: shell scripts (benchtest.sh, integ-suite-kind.sh, release-test.sh, ...), kind cluster configs (prow/config/*.yaml, calico.yaml) and topology JSON, run by the continuous-integration jobs and by Makefile.core.mk benchmark and buildx targets."},
+      {"path": "tests/integration/pilot/testdata/", "repo": "github.com/istio/istio", "reason": "copies of third-party CRDs (Gateway API, inference extension, MCS API) and upgrade fixtures for the integration tests", "evidence": "Read at 1.26.0 and 1.31.1: pkg/test/framework/components/crd/gateway.go and pkg/config/crd/validator.go open them under env.IstioSrc (the source tree), bin/update_crds.sh refreshes them, and the integration tests read testdata/upgrade; the definitions are not Istio's own."}
+    ]
+  }
+}

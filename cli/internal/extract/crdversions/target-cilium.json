@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "cilium",
+    "name": "Cilium",
+    "repo": "github.com/cilium/cilium",
+    "component": "pkg:github/cilium/cilium",
+    "factProject": "cilium",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.15",
+    "paths": [
+      {"path": "pkg/k8s/apis/cilium.io/client/crds/v2", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "pkg/k8s/apis/cilium.io/client/crds/v2alpha1", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

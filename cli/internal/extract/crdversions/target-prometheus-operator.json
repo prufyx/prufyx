@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "prometheus-operator",
+    "catalog": "community",
+    "name": "Prometheus Operator",
+    "repo": "github.com/prometheus-operator/prometheus-operator",
+    "component": "pkg:github/prometheus-operator/prometheus-operator",
+    "factProject": "prometheus_operator",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.89",
+    "paths": [
+      {"path": "example/prometheus-operator-crd", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

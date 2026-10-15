@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "mongodb-kubernetes",
+    "catalog": "community",
+    "name": "MongoDB Controllers for Kubernetes",
+    "repo": "github.com/mongodb/mongodb-kubernetes",
+    "component": "pkg:github/mongodb/mongodb-kubernetes",
+    "factProject": "mongodb_kubernetes",
+    "tagPrefixes": [""],
+    "minFrom": "1.8",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

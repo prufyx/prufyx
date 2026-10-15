@@ -42,10 +42,11 @@ const (
 	SourceDir = "extract/crdversions"
 )
 
-// source is the package's code and its reviewed target table; both are
-// covered by the code digest.
+// source is the package's code and its reviewed target files. The code
+// digest of one extractor id covers the code and that id's own target file
+// only (see SourceFiles).
 //
-//go:embed *.go targets.json
+//go:embed *.go target-*.json
 var source embed.FS
 
 const (
@@ -101,8 +102,12 @@ func (x *Extractor) ID() string { return x.target.ExtractorID() }
 // Version implements extract.Extractor.
 func (x *Extractor) Version() string { return Version }
 
-// SourceFiles implements extract.CodeSource.
-func (x *Extractor) SourceFiles() (string, fs.FS) { return SourceDir, source }
+// SourceFiles implements extract.CodeSource: the package's code and the
+// target file of this extractor's own project, so that a change to another
+// target, or a new one, does not move this id's code digest.
+func (x *Extractor) SourceFiles() (string, fs.FS) {
+	return SourceDir, CodeView(source, x.target.Project)
+}
 
 // Applies implements extract.Extractor.
 func (x *Extractor) Applies(repo extract.RepoRef) bool { return repo.Key == x.target.Repo }
@@ -930,7 +935,7 @@ func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *rele
 	case len(x.target.Channels) > 0:
 		return nil, "the project ships more than one install channel: its lines are not attested"
 	case !x.target.Attest:
-		return nil, "the target does not attest its lines (attest is off for it in targets.json)"
+		return nil, "the target does not attest its lines (attest is off in its target file)"
 	case !family.Admits(x.target.Component):
 		return nil, "the custom-resource version family does not cover " + x.target.Component
 	case !c.Attestable:

@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "node-feature-discovery",
+    "catalog": "community",
+    "name": "Node Feature Discovery",
+    "repo": "github.com/kubernetes-sigs/node-feature-discovery",
+    "component": "pkg:github/kubernetes-sigs/node-feature-discovery",
+    "factProject": "node_feature_discovery",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.14",
+    "paths": [
+      {"path": "deployment/base/nfd-crds/nfd-api-crds.yaml"}
+    ],
+    "exclude": []
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "antrea",
+    "name": "Antrea",
+    "repo": "github.com/antrea-io/antrea",
+    "component": "pkg:github/antrea-io/antrea",
+    "factProject": "antrea",
+    "tagPrefixes": ["v"],
+    "minFrom": "2.2",
+    "paths": [
+      {"path": "build/charts/antrea/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "multicluster/config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true}
+    ],
+    "exclude": []
+  }
+}

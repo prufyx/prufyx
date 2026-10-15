@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
@@ -55,14 +56,14 @@ func boolInt(b bool) int {
 }
 
 func TestCRDTargetsRendersRemoteChannelsAndEscapes(t *testing.T) {
-	raw := []byte(`{"schema": "prufyx.io/crd-version-targets/v1", "targets": [
+	a := []byte(`{"schema": "prufyx.io/crd-version-target/v1", "target":
   {"project": "a", "name": "A", "repo": "github.com/x/a", "component": "pkg:github/x/a", "factProject": "a", "tagPrefixes": ["v", ""], "minFrom": "1.2",
    "paths": [{"path": "crds", "directory": true, "recursive": true, "match": "^(a|b)\\.yaml$", "guard": "crd"}, {"path": "extra.yaml", "optional": true}],
-   "exclude": [], "remote": {"fromLine": "1.4", "kustomization": "config/kustomization.yaml", "repo": "github.com/x/b", "directory": "crd", "pins": [{"tag": "v1.0.0", "commit": "0123456789abcdef0123456789abcdef01234567"}]}},
+   "exclude": [], "remote": {"fromLine": "1.4", "kustomization": "config/kustomization.yaml", "repo": "github.com/x/b", "directory": "crd", "pins": [{"tag": "v1.0.0", "commit": "0123456789abcdef0123456789abcdef01234567"}]}}}`)
+	c := []byte(`{"schema": "prufyx.io/crd-version-target/v1", "target":
   {"project": "c", "name": "C", "repo": "github.com/x/c", "component": "pkg:github/x/c", "factProject": "c", "tagPrefixes": [""], "minFrom": "0.1",
-   "paths": [{"path": "std/crd.yaml"}], "exclude": [], "declaredChannel": "standard", "channels": [{"name": "experimental", "paths": [{"path": "exp/crd.yaml"}]}]}
-]}`)
-	targets, err := crdversions.LoadTargets(raw)
+   "paths": [{"path": "std/crd.yaml"}], "exclude": [], "declaredChannel": "standard", "channels": [{"name": "experimental", "paths": [{"path": "exp/crd.yaml"}]}]}}`)
+	targets, err := crdversions.LoadTargets(fstest.MapFS{"target-a.json": {Data: a}, "target-c.json": {Data: c}})
 	if err != nil {
 		t.Fatal(err)
 	}

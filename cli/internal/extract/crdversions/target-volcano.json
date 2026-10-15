@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "volcano",
+    "name": "Volcano",
+    "repo": "github.com/volcano-sh/volcano",
+    "component": "pkg:github/volcano-sh/volcano",
+    "factProject": "volcano",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.10",
+    "paths": [
+      {"path": "config/crd/volcano/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "config/crd/jobflow/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true}
+    ],
+    "exclude": []
+  }
+}

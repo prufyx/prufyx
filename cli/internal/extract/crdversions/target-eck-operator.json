@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "eck-operator",
+    "catalog": "community",
+    "name": "Elastic Cloud on Kubernetes",
+    "repo": "github.com/elastic/cloud-on-k8s",
+    "component": "pkg:github/elastic/cloud-on-k8s",
+    "factProject": "eck_operator",
+    "tagPrefixes": ["v"],
+    "minFrom": "3.0",
+    "paths": [
+      {"path": "config/crds/v1/all-crds.yaml"}
+    ],
+    "exclude": []
+  }
+}

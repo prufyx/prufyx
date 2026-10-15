@@ -1,0 +1,22 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "strimzi",
+    "name": "Strimzi",
+    "repo": "github.com/strimzi/strimzi-kafka-operator",
+    "component": "pkg:github/strimzi/strimzi-kafka-operator",
+    "factProject": "strimzi",
+    "tagPrefixes": [""],
+    "minFrom": "0.49",
+    "attest": true,
+    "paths": [
+      {"path": "install/access-operator", "directory": true, "optional": true, "match": "^[0-9A-Za-z]{3}-Crd-[A-Za-z0-9-]+\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "install/cluster-operator", "directory": true, "match": "^[0-9A-Za-z]{3}-Crd-[A-Za-z0-9-]+\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": [
+      {"path": "api/src/test/resources/crds/", "repo": "github.com/strimzi/strimzi-kafka-operator", "reason": "CRDs the Maven build of the api module generates into its test resources for the tests (v1 and v1beta2 variants)", "evidence": "Read at 0.49.0: api/pom.xml runs the CRD generator (exec-maven-plugin, test resources as output) into api/src/test/resources/crds/{v1,v1beta2}; AGENTS.md lists the directory apart from packaging/install; the release CRDs are packaging/install/cluster-operator (the listed path). The directory is gone from 1.1.0."},
+      {"path": "crd-generator/src/test/resources/", "repo": "github.com/strimzi/strimzi-kafka-operator", "reason": "golden outputs of the CRD generator unit tests", "evidence": "Read at 1.2.0: crd-generator/src/test/java/.../CrdGeneratorTest.java compares the generated YAML with simpleTest.yaml, simpleTestWithoutDescriptions.yaml, simpleTestWithSubresources.yaml and simpleTestHelmMetadata.yaml through CrdTestUtils.readResource."},
+      {"path": "systemtest/src/test/resources/", "repo": "github.com/strimzi/strimzi-kafka-operator", "reason": "resources of the system tests (third-party operators installed into the test cluster, upgrade bundles)", "evidence": "Read at 0.49.0 and 1.2.0: systemtest/src/test/resources holds the cert-manager and OpenTelemetry operator manifests and the upgrade bundles that the system tests apply to a test cluster; the only references are the system-test CI scripts (.azure, .github/workflows/run-system-tests.yml)."}
+    ]
+  }
+}

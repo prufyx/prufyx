@@ -198,7 +198,7 @@ func TestRealTargetsAttestOnlyWhatTheyMay(t *testing.T) {
 // set fact and groups are in the reviewed table (REGISTRY-WAVE-1, CRD-GEN wave 2) and the
 // family admits their component, but the extractor attests their lines only
 // after their own review of what a complete line means for the project
-// (the attest flag of targets.json, a separate reviewed change).
+// (the attest flag of its target file, a separate reviewed change).
 var attestPending = []string{"antrea", "cert-manager", "cilium", "cloudnativepg", "contour", "crossplane", "dapr", "external-secrets", "karmada", "keda", "koordinator", "kuma", "kyverno", "longhorn", "metallb", "openkruise", "rook", "tekton", "velero", "volcano"}
 
 // A target attests only when its project is in the reviewed custom-resource

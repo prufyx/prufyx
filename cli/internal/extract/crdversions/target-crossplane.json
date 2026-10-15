@@ -1,0 +1,22 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "crossplane",
+    "name": "Crossplane",
+    "repo": "github.com/crossplane/crossplane",
+    "component": "pkg:github/crossplane/crossplane",
+    "factProject": "crossplane",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.20",
+    "paths": [
+      {"path": "cluster/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": [
+      {"path": "cluster/meta/", "repo": "github.com/crossplane/crossplane", "reason": "schemas of package metadata (meta.pkg.crossplane.io) read from package files by the package manager; never installed as CustomResourceDefinitions", "evidence": "Read at v1.20.0 and v2.4.2: generate.go says the meta.pkg.crossplane.io CRDs generated into cluster/meta \"are never installed, only used for API documentation\"; cluster/crds (the listed path) does not contain them and the Earthfile only saves the generated directory back to the tree."},
+      {"path": "cmd/crank/beta/validate/testdata/", "repo": "github.com/crossplane/crossplane", "reason": "fixtures of the crank validate unit tests: cached provider packages and CRDs of dummy providers", "evidence": "Read at v1.20.0: the Go tests of cmd/crank/beta/validate (cache_test.go and others) open testdata/cache and testdata/crds by relative path; no other file of the tree names the directory."},
+      {"path": "internal/xcrd/", "repo": "github.com/crossplane/crossplane", "reason": "Go code that builds the CustomResourceDefinitions of user-defined composite resources (XRDs) at run time; their groups are the user's, never Crossplane's own", "evidence": "Read at v1.20.0 and v1.20.5 (the directory is gone from v2.4.2): crd.go ForCompositeResource and ForCompositeResourceClaim build a CustomResourceDefinition from a CompositeResourceDefinition object at run time; the group, kind and versions come from the user object, nothing is fixed in the source."},
+      {"path": "internal/xpkg/testdata/", "repo": "github.com/crossplane/crossplane", "reason": "fixtures of the xpkg builder unit tests", "evidence": "Read at v1.20.0: internal/xpkg/build_test.go reads testdata/providerconfigs.helm.crossplane.io.yaml with afero; no other file names the directory."},
+      {"path": "test/e2e/manifests/", "repo": "github.com/crossplane/crossplane", "reason": "manifests applied by the end-to-end tests to a kind cluster that the tests create", "evidence": "Read at v1.20.0 and v2.4.2: the Go tests in test/e2e pass test/e2e/manifests/... to the e2e framework (manifests := \"test/e2e/manifests/...\"); the only other mentions are the kind config in the same directory and a reviewer-bot rule (.coderabbit.yaml)."}
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "velero",
+    "name": "Velero",
+    "repo": "github.com/velero-io/velero",
+    "component": "pkg:github/velero-io/velero",
+    "factProject": "velero",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.13",
+    "paths": [
+      {"path": "config/crd/v1/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "config/crd/v2alpha1/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": [
+      {"path": "design/", "repo": "github.com/velero-io/velero", "reason": "design proposals and proof-of-concept manifests; not shipped by a release", "evidence": "Read at v1.13.0 and v1.18.4: design/ holds Markdown proposals and design/CLI/PoC/base/*.yaml (apiextensions v1beta1 definitions of a CLI proof of concept); the only references are CI path filters and labeler globs in .github and the proposal template; the release CRDs are config/crd/v1/bases and v2alpha1/bases (the listed paths)."},
+      {"path": "pkg/backup/actions/testdata/", "repo": "github.com/velero-io/velero", "reason": "JSON fixtures of the remap-crd-version action unit tests (v1 and v1beta1 CRDs of third-party kinds)", "evidence": "Read at v1.13.0 and v1.18.4: remap_crd_version_action_test.go opens testdata/v1/%s.json and testdata/v1beta1/%s.json; the directory was pkg/backup/testdata before the action moved to pkg/backup/actions."},
+      {"path": "pkg/backup/testdata/", "repo": "github.com/velero-io/velero", "reason": "JSON fixtures of the remap-crd-version action unit tests before the action moved to pkg/backup/actions", "evidence": "Read at v1.13.0: pkg/backup/remap_crd_version_action_test.go opens testdata/v1/%s.json and testdata/v1beta1/%s.json; no other file names the directory."},
+      {"path": "test/testdata/enable_api_group_versions/", "repo": "github.com/velero-io/velero", "reason": "fixtures of the end-to-end test that enables API group versions", "evidence": "Read at v1.13.0 and v1.18.4: test/e2e/basic/api-group/enable_api_group_versions.go and enable_api_group_extentions.go open the files by relative path (../testdata/enable_api_group_versions/...); no other file names the directory."}
+    ]
+  }
+}
