@@ -55,6 +55,12 @@ exit status or any aggregate: notices are left out, so a report whose only
 claims are notices exits 11, and a notice beside passing or blocking claims
 leaves their exit status as it was. The absence of a notice means nothing; it
 does not say that a rollback is possible.
+A chart rule may also yield `NOTICE` about the values keys of a chart (for
+example a key the new chart version no longer reads). Such a notice is
+printed as `notice: <rule>` with its listed keys, follows the same rules, and
+never passes or blocks anything. When the listed keys show the notice does
+not apply, the claim is `UNKNOWN` and nothing is printed; when the evidence
+is too incomplete to tell, it prints `notice not established: <rule>`.
 
 A claim may also be `UNSUPPORTED`: a reviewed support-range rule found the
 declared combination outside a documented support range (for example an

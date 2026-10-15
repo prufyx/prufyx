@@ -27,13 +27,16 @@ type ScanKnowledge struct {
 
 // ScanRule is the selection view of one admitted rule: its scope for line
 // attestations (id, subject component, line, fact families, reviewed
-// transition), the facts it reads, whether it is a one-way notice, its
-// rule-provided description and its next action.
+// transition), the facts it reads, whether it is a notice (one-way or set
+// notice), its rule-provided description and its next action.
 type ScanRule struct {
 	Project string
 	Scope   lineattest.RuleScope
 	Facts   []string
-	Notice  bool
+	// Notice is set for every verdict-neutral notice operator; SetNotice
+	// only for the set notices, which are never a one-way change.
+	Notice    bool
+	SetNotice bool
 	// Basis is the rule's effective evidence basis.
 	Basis string
 	// Severity is "unsupported" for a support-range rule, else empty.
@@ -71,12 +74,10 @@ func NewScanRule(project, description string, raw json.RawMessage) (ScanRule, er
 	if json.Unmarshal(raw, &shape) != nil || json.Unmarshal(raw, &action) != nil {
 		return ScanRule{}, ErrIntegrity
 	}
-	// Only the one-way notice operator; a lead is told by its basis.
-	notice, err := constraintengine.AnyNoticeRule([]json.RawMessage{raw})
-	if err != nil {
-		return ScanRule{}, ErrIntegrity
-	}
-	rule := ScanRule{Project: project, Scope: scope, Notice: notice, Basis: constraintengine.EffectiveBasis(action.Evidence.Basis), Severity: action.Severity, Description: description, NextAction: action.NextAction}
+	// Every notice operator (one-way and set notices); a lead is told by
+	// its basis.
+	notice := constraintengine.IsNoticeOperator(shape.Operator)
+	rule := ScanRule{Project: project, Scope: scope, Notice: notice, SetNotice: constraintengine.IsSetNoticeOperator(shape.Operator), Basis: constraintengine.EffectiveBasis(action.Evidence.Basis), Severity: action.Severity, Description: description, NextAction: action.NextAction}
 	for _, condition := range shape.conditions() {
 		rule.Facts = append(rule.Facts, condition.FactID)
 	}

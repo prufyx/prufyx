@@ -137,9 +137,12 @@ func validNoticeClaims(report Report) bool {
 		if notice && report.EngineContractDigest != engineContractDigestNotice() && report.EngineContractDigest != engineContractDigestBasis() && !atLeastSeverityContract(report.EngineContractDigest) {
 			return false
 		}
-		// NOTICE comes from a one-way notice, or from a lead that would have
-		// blocked (bound to the basis contract by validBasisClaims).
-		noticeSource := notice && claim.ReasonCode == ReasonOneWayTransition || !notice && claim.IsLead() && claim.ReasonCode == ReasonLeadNotVerified
+		// NOTICE comes from a one-way notice, from a set notice (bound to
+		// the chart notice contract by validNoticeSetClaims), or from a lead
+		// that would have blocked (bound to the basis contract by
+		// validBasisClaims).
+		oneWay := claim.Operator == OperatorNoticeOneWay && claim.ReasonCode == ReasonOneWayTransition
+		noticeSource := notice && (oneWay || IsSetNoticeOperator(claim.Operator)) || !notice && claim.IsLead() && claim.ReasonCode == ReasonLeadNotVerified
 		if claim.Status == StatusNotice && (!noticeSource || claim.EvidenceFreshness != "current") {
 			return false
 		}
@@ -150,11 +153,12 @@ func validNoticeClaims(report Report) bool {
 	return true
 }
 
-// IsNotice reports whether the claim comes from a notice_one_way rule. Such a
-// claim is informational whatever its status: it never decides PASS, BLOCKED
-// or UNKNOWN of any aggregate.
+// IsNotice reports whether the claim comes from a notice rule: a
+// notice_one_way rule or a set notice (notice_set.go). Such a claim is
+// informational whatever its status: it never decides PASS, BLOCKED or
+// UNKNOWN of any aggregate.
 func (c Claim) IsNotice() bool {
-	return c.Operator == OperatorNoticeOneWay
+	return IsNoticeOperator(c.Operator)
 }
 
 // NoticeLines is the human statement of a notice_one_way claim. ok is false
@@ -163,7 +167,9 @@ func (c Claim) IsNotice() bool {
 // that does not apply to the declared transition yields no line, because the
 // absence of a notice says nothing; any other notice claim says that the
 // notice could not be established and why. No line states that a rollback
-// is possible. Every line is at most 256 bytes.
+// is possible. Every line is at most 256 bytes. A set notice prints its
+// rule, its text and the members it found (notice_set.go); one that does
+// not apply prints nothing.
 //
 // A lead claim is verdict-neutral too and is printed here: a lead that
 // would have blocked prints as an unverified lead with its next action, and
@@ -174,6 +180,9 @@ func (c Claim) NoticeLines() (lines []string, ok bool) {
 	}
 	if !c.IsNotice() {
 		return nil, false
+	}
+	if IsSetNoticeOperator(c.Operator) {
+		return c.setNoticeLines(), true
 	}
 	if c.Status == StatusNotice {
 		return append([]string{noticeLinePrefix + c.RuleID}, prefixedLines(noticeBeforePrefix, c.NextAction)...), true

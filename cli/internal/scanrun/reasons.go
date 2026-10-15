@@ -119,10 +119,11 @@ var otherRouteReasons = map[string]bool{
 	cncfprepare.ReasonKubernetesComponentSettingSetsComplete: true,
 }
 
-// noticeReasons are the reasons of verdict-neutral claims (one-way notices
-// and leads): neither decided claims nor gaps.
+// noticeReasons are the reasons of verdict-neutral claims (one-way notices,
+// set notices and leads): neither decided claims nor gaps.
 var noticeReasons = map[string]bool{
-	constraintengine.ReasonOneWayTransition: true,
-	constraintengine.ReasonLeadNotVerified:  true,
-	constraintengine.ReasonLeadNoKnownIssue: true,
+	constraintengine.ReasonOneWayTransition:    true,
+	constraintengine.ReasonNoticeNotApplicable: true,
+	constraintengine.ReasonLeadNotVerified:     true,
+	constraintengine.ReasonLeadNoKnownIssue:    true,
 }

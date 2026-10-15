@@ -10,16 +10,37 @@ import (
 
 // TemplateRefs is what a syntactic scan of the chart's templates found:
 // the values key paths written as .Values.a.b or $.Values.a.b, and the
-// files the template parser refused. It is a soft fact, recorded in the
-// proof and never a rule: a value read through with, range, index,
-// include, tpl or a variable is not resolved, so a path missing here may
-// still be read.
+// files the template parser refused. A value read through with, range,
+// index, include, tpl or a variable is not resolved, so a path missing here
+// may still be read. The counters record every construct through which a
+// template can read values the scan does not resolve; a "no longer read"
+// notice is derived only when all of them are zero (see unreadProblem).
 type TemplateRefs struct {
-	Files    int      `json:"files"`
-	Paths    []string `json:"paths"`
-	Refused  []string `json:"refused"`
-	Dynamic  int      `json:"dynamic"`
+	Files   int      `json:"files"`
+	Paths   []string `json:"paths"`
+	Refused []string `json:"refused"`
+	// Dynamic counts index calls in function position.
+	Dynamic int `json:"dynamic"`
+	// WholeValues counts .Values or $.Values used whole (passed, ranged
+	// over or rendered).
+	WholeValues int `json:"wholeValues"`
+	// Tpl counts uses of tpl, which renders a string as a template.
+	Tpl int `json:"tpl"`
+	// Indirect counts the other unresolved routes to values: a field or
+	// variable chain naming Values after its first element, a chained
+	// field naming Values, the string "Values", index outside function
+	// position, and the root context ("." or "$") used other than as the
+	// data of include or template or the pipeline of if or with.
+	Indirect int `json:"indirect"`
 	pathsSet map[string]bool
+	// files maps a path to the template files that name it.
+	files map[string][]string
+	file  string
+}
+
+// refuse lists an entry the scan does not read as a template.
+func (r *TemplateRefs) refuse(name string) {
+	r.Refused = append(r.Refused, name)
 }
 
 // maxTemplateBytes bounds one template file.
@@ -29,8 +50,9 @@ const maxTemplateBytes = 4 << 20
 func (r *TemplateRefs) scanTemplate(name string, text []byte) {
 	r.Files++
 	if r.pathsSet == nil {
-		r.pathsSet = map[string]bool{}
+		r.pathsSet, r.files = map[string]bool{}, map[string][]string{}
 	}
+	r.file = name
 	if len(text) > maxTemplateBytes {
 		r.Refused = append(r.Refused, name)
 		return
@@ -49,19 +71,67 @@ func (r *TemplateRefs) scanTemplate(name string, text []byte) {
 	sort.Strings(names)
 	for _, n := range names {
 		if tr := trees[n]; tr != nil && tr.Root != nil {
-			r.walk(tr.Root)
+			r.walk(tr.Root, true)
 		}
 	}
 }
 
+// add records a root field chain (.Values... or $.Values...): a path, or
+// the whole values when the chain is .Values alone. A chain that names
+// Values anywhere else is an unresolved route.
 func (r *TemplateRefs) add(ident []string) {
-	if len(ident) < 2 || ident[0] != "Values" {
+	if len(ident) > 0 && ident[0] == "Values" {
+		if len(ident) == 1 {
+			r.WholeValues++
+			return
+		}
+		p := strings.Join(ident[1:], ".")
+		r.pathsSet[p] = true
+		if fs := r.files[p]; len(fs) == 0 || fs[len(fs)-1] != r.file {
+			r.files[p] = append(fs, r.file)
+		}
 		return
 	}
-	r.pathsSet[strings.Join(ident[1:], ".")] = true
+	if namesValues(ident) {
+		r.Indirect++
+	}
 }
 
-func (r *TemplateRefs) walk(node parse.Node) {
+func namesValues(ident []string) bool {
+	for _, s := range ident {
+		if s == "Values" {
+			return true
+		}
+	}
+	return false
+}
+
+// rootContext reports an argument that may be the whole root context,
+// which holds the values: "$" always, "." where dot may still be the root
+// (dotRoot).
+func rootContext(node parse.Node, dotRoot bool) bool {
+	switch n := node.(type) {
+	case *parse.DotNode:
+		return dotRoot
+	case *parse.VariableNode:
+		return len(n.Ident) == 1 && n.Ident[0] == "$"
+	}
+	return false
+}
+
+// rootPipe reports a pipeline that is "." or "$" alone.
+func rootPipe(p *parse.PipeNode) bool {
+	if p == nil || len(p.Decl) != 0 || len(p.Cmds) != 1 || len(p.Cmds[0].Args) != 1 {
+		return false
+	}
+	return rootContext(p.Cmds[0].Args[0], true)
+}
+
+// walk scans one node. dotRoot is false only inside the body of a with or
+// range whose pipeline is not the root context alone: dot is then a value
+// that pipeline produced, and every way that pipeline could reach the
+// values is itself recorded or counted.
+func (r *TemplateRefs) walk(node parse.Node, dotRoot bool) {
 	switch n := node.(type) {
 	case nil:
 	case *parse.ListNode:
@@ -69,47 +139,93 @@ func (r *TemplateRefs) walk(node parse.Node) {
 			return
 		}
 		for _, c := range n.Nodes {
-			r.walk(c)
+			r.walk(c, dotRoot)
 		}
 	case *parse.ActionNode:
-		r.walk(n.Pipe)
+		r.walk(n.Pipe, dotRoot)
 	case *parse.PipeNode:
 		if n == nil {
 			return
 		}
 		for _, c := range n.Cmds {
-			r.walk(c)
+			r.walk(c, dotRoot)
 		}
 	case *parse.CommandNode:
-		for i, a := range n.Args {
-			if id, ok := a.(*parse.IdentifierNode); ok && id.Ident == "index" && i == 0 {
-				r.Dynamic++
+		include := false
+		if len(n.Args) > 0 {
+			if id, ok := n.Args[0].(*parse.IdentifierNode); ok && id.Ident == "include" {
+				include = true
 			}
-			r.walk(a)
+		}
+		for i, a := range n.Args {
+			if id, ok := a.(*parse.IdentifierNode); ok {
+				switch {
+				case id.Ident == "index" && i == 0:
+					r.Dynamic++
+				case id.Ident == "index":
+					r.Indirect++
+				case id.Ident == "tpl":
+					r.Tpl++
+				}
+			}
+			if rootContext(a, dotRoot) {
+				// include "name" . hands the root to a named template,
+				// whose body this scan reads like any other.
+				if !(include && i == 2 && len(n.Args) == 3) {
+					r.Indirect++
+				}
+				continue
+			}
+			r.walk(a, dotRoot)
 		}
 	case *parse.FieldNode:
 		r.add(n.Ident)
 	case *parse.VariableNode:
 		if len(n.Ident) > 0 && n.Ident[0] == "$" {
 			r.add(n.Ident[1:])
+		} else if namesValues(n.Ident) {
+			r.Indirect++
 		}
 	case *parse.ChainNode:
-		r.walk(n.Node)
+		if namesValues(n.Field) {
+			r.Indirect++
+		}
+		r.walk(n.Node, dotRoot)
+	case *parse.StringNode:
+		if n.Text == "Values" {
+			r.Indirect++
+		}
 	case *parse.IfNode:
-		r.walkBranch(&n.BranchNode)
+		r.walkBranch(&n.BranchNode, dotRoot, false)
 	case *parse.RangeNode:
-		r.walkBranch(&n.BranchNode)
+		r.walkBranch(&n.BranchNode, dotRoot, true)
 	case *parse.WithNode:
-		r.walkBranch(&n.BranchNode)
+		r.walkBranch(&n.BranchNode, dotRoot, true)
 	case *parse.TemplateNode:
-		r.walk(n.Pipe)
+		// template "name" . hands the root to a named template.
+		if !rootPipe(n.Pipe) {
+			r.walk(n.Pipe, dotRoot)
+		}
 	}
 }
 
-func (r *TemplateRefs) walkBranch(b *parse.BranchNode) {
-	r.walk(b.Pipe)
-	r.walk(b.List)
-	r.walk(b.ElseList)
+// walkBranch walks an if, with or range. The pipeline of an if or with
+// may be the root context alone: it only tests it or makes it dot. A range
+// over the root context is counted like any other use of it. rebinds is
+// set for with and range, whose body has the pipeline's value as dot; the
+// else branch keeps the outer dot.
+func (r *TemplateRefs) walkBranch(b *parse.BranchNode, dotRoot, rebinds bool) {
+	root := rootPipe(b.Pipe)
+	isRange := b.NodeType == parse.NodeRange
+	if !root || isRange {
+		r.walk(b.Pipe, dotRoot)
+	}
+	body := dotRoot
+	if rebinds {
+		body = root && !isRange
+	}
+	r.walk(b.List, body)
+	r.walk(b.ElseList, dotRoot)
 }
 
 // finish sorts the record.

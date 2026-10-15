@@ -13,9 +13,12 @@
 //
 // Everything else it reads (defaults removed or changed, values the
 // templates no longer reference) is a soft fact: it is recorded in the
-// pair's proof and is never a rule. Rules are anchor-only chart rules:
-// their subject is the chart, from the first release of one line to the
-// first release of the next.
+// pair's proof and is never a verdict. Two soft facts, when proven at both
+// anchors, become verdict-neutral set notices (see notices.go): keys the
+// later templates provably no longer read, and scalar defaults that
+// changed. Rules and notices are anchor-only chart rules: their subject is
+// the chart, from the first release of one line to the first release of
+// the next.
 package helmvalues
 
 import (
@@ -41,7 +44,7 @@ import (
 const (
 	// IDPrefix is followed by the project slug and the chart name.
 	IDPrefix = "helm.values."
-	Version  = "1.1.0"
+	Version  = "1.2.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/helmvalues"
 )
@@ -235,11 +238,14 @@ type side struct {
 	// not read.
 	subcharts       []string
 	opaqueSubcharts bool
-	templates       TemplateRefs
-	chartYAML       string
-	valuesYAML      string
-	schemaJSON      string
-	chartYAMLLines  int
+	// chartsDir is set when the chart has a charts/ entry of any kind;
+	// templatesDir when templates/ is a directory that was scanned.
+	chartsDir, templatesDir bool
+	templates               TemplateRefs
+	chartYAML               string
+	valuesYAML              string
+	schemaJSON              string
+	chartYAMLLines          int
 }
 
 func (s *side) fail(format string, args ...any) *side {
@@ -331,6 +337,7 @@ func (x *Extractor) readSide(r extract.PinnedReader, repo extract.RepoRef, tag, 
 	default:
 		return s.fail("requirements.yaml is not a file"), nil
 	}
+	s.chartsDir = present["charts"] != ""
 	if present["charts"] == "tree" {
 		if err := x.readSubcharts(r, repo, s); err != nil {
 			return nil, err
@@ -342,12 +349,18 @@ func (x *Extractor) readSide(r extract.PinnedReader, repo extract.RepoRef, tag, 
 	sort.Strings(s.subcharts)
 	s.subcharts = compactStrings(s.subcharts)
 	if templates && present["templates"] == "tree" {
-		files, err := listFiles(r, repo, commit, t.ChartPath+"/templates", maxTemplateFiles)
+		s.templatesDir = true
+		files, special, err := listFiles(r, repo, commit, t.ChartPath+"/templates", maxTemplateFiles)
 		if err != nil {
 			if isBound(err) {
 				return s.fail("templates: %v", err), nil
 			}
 			return nil, err
+		}
+		// A symbolic link or a submodule under templates/ is not read: it
+		// is listed as refused, so the scan never claims a key unread.
+		for _, f := range special {
+			s.templates.refuse(strings.TrimPrefix(f, t.ChartPath+"/"))
 		}
 		for _, f := range files {
 			data, err := r.Read(repo, commit, f)
@@ -418,8 +431,10 @@ func isBound(err error) bool {
 	return errors.As(err, &b)
 }
 
-// listFiles lists every file under dir, recursively, in path order.
-func listFiles(r extract.PinnedReader, repo extract.RepoRef, commit, dir string, limit int) ([]string, error) {
+// listFiles lists every regular file under dir, recursively, in path order,
+// and apart from them every other entry (a symbolic link, a submodule or an
+// entry of any other mode), which is never read as a file.
+func listFiles(r extract.PinnedReader, repo extract.RepoRef, commit, dir string, limit int) (files, special []string, err error) {
 	var out []string
 	var visit func(d string, depth int) error
 	visit = func(d string, depth int) error {
@@ -432,25 +447,31 @@ func listFiles(r extract.PinnedReader, repo extract.RepoRef, commit, dir string,
 		}
 		for _, e := range entries {
 			p := e.Path
-			switch e.Type {
-			case "tree":
+			switch {
+			case e.Type == "tree":
 				if err := visit(p, depth+1); err != nil {
 					return err
 				}
-			case "blob":
+			case e.Type == "blob" && (e.Mode == "100644" || e.Mode == "100755"):
 				out = append(out, p)
 				if len(out) > limit {
 					return &boundError{fmt.Sprintf("more than %d files", limit)}
+				}
+			default:
+				special = append(special, p)
+				if len(special) > limit {
+					return &boundError{fmt.Sprintf("more than %d entries that are not files", limit)}
 				}
 			}
 		}
 		return nil
 	}
 	if err := visit(dir, 0); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	sort.Strings(out)
-	return out, nil
+	sort.Strings(special)
+	return out, special, nil
 }
 
 func lineCount(data []byte) int {
@@ -535,6 +556,16 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 		candidates = append(candidates, *c)
 	}
 	proof.Soft = softFacts(from, to)
+	unread, c := x.unread(pair, from, to)
+	proof.Soft.Unread = unread
+	if c != nil {
+		candidates = append(candidates, *c)
+	}
+	changed, c := x.changedDefaults(pair, from, to)
+	proof.Soft.Changed = changed
+	if c != nil {
+		candidates = append(candidates, *c)
+	}
 	proof.Completeness = completeness(proof)
 	for _, c := range candidates {
 		proof.Rules = append(proof.Rules, c.Rule.ID)

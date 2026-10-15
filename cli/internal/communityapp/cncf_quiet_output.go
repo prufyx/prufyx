@@ -97,7 +97,9 @@ func writeNotices(out io.Writer, notices []constraintengine.Claim, withSources b
 				}
 			}
 		}
-		if claim.IsNotice() && claim.Status == constraintengine.StatusNotice {
+		// The scope line is about rolling back: only an established
+		// one-way notice calls for it.
+		if claim.Operator == constraintengine.OperatorNoticeOneWay && claim.Status == constraintengine.StatusNotice {
 			established = true
 		}
 	}

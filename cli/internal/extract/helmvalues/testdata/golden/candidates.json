@@ -16,7 +16,7 @@
         "extractor": {
           "codeDigest": "sha256:CODE",
           "id": "helm.values.keda.keda",
-          "version": "1.1.0"
+          "version": "1.2.0"
         },
         "reviewedAt": "2026-10-11T00:00:00Z",
         "sources": [
@@ -75,7 +75,7 @@
         "extractor": {
           "codeDigest": "sha256:CODE",
           "id": "helm.values.keda.keda",
-          "version": "1.1.0"
+          "version": "1.2.0"
         },
         "reviewedAt": "2026-10-11T00:00:00Z",
         "sources": [
@@ -151,7 +151,7 @@
         "extractor": {
           "codeDigest": "sha256:CODE",
           "id": "helm.values.keda.keda",
-          "version": "1.1.0"
+          "version": "1.2.0"
         },
         "reviewedAt": "2026-10-11T00:00:00Z",
         "sources": [

@@ -331,6 +331,9 @@ const (
 	// packSchemaChart is the level of a pack holding a chart rule or a
 	// require_set_member rule.
 	packSchemaChart = "prufyx.io/cncf-source-rule-pack/v1alpha13"
+	// packSchemaChartNotice is the level of a pack holding a set notice
+	// (notice_set_member_present or notice_set_member_absent).
+	packSchemaChartNotice = "prufyx.io/cncf-source-rule-pack/v1alpha14"
 )
 
 // packFeature is one pack feature and the schema that introduced it.
@@ -362,6 +365,9 @@ var packFeatureLevels = []packFeature{
 	{packSchemaCommunity, func(pack rulePack, _ []json.RawMessage) (bool, error) { return anyCommunityEntry(pack), nil }},
 	{packSchemaChart, func(_ rulePack, rules []json.RawMessage) (bool, error) {
 		return constraintengine.AnyChartRule(rules)
+	}},
+	{packSchemaChartNotice, func(_ rulePack, rules []json.RawMessage) (bool, error) {
+		return constraintengine.AnyChartNoticeRule(rules)
 	}},
 }
 
@@ -684,8 +690,8 @@ func (b bundle) projectRules(project string) []json.RawMessage {
 	return rules
 }
 
-// isVerdictNeutralRule reports whether one raw rule is verdict-neutral: a one-way
-// notice or a lead.
+// isVerdictNeutralRule reports whether one raw rule is verdict-neutral: a
+// one-way notice, a set notice or a lead.
 func isVerdictNeutralRule(raw json.RawMessage) (bool, error) {
 	return constraintengine.RawRuleVerdictNeutral(raw)
 }

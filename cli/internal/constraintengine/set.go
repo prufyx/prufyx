@@ -222,7 +222,9 @@ func validSetClaims(report Report) bool {
 			return false
 		}
 		if !setClaim {
-			if claim.MatchedMembers != nil {
+			// A notice_set_member_present claim discloses matched members
+			// too; validNoticeSetClaims binds them.
+			if claim.MatchedMembers != nil && claim.Operator != OperatorNoticeSetMemberPresent {
 				return false
 			}
 			continue
@@ -242,7 +244,8 @@ func validSetClaims(report Report) bool {
 // members a BLOCKED forbid_set_member claim found. ok is false for every
 // other claim, whose human output is unchanged.
 func (c Claim) MatchedMembersLine() (line string, ok bool) {
-	if len(c.MatchedMembers) == 0 {
+	// A notice's members are printed by NoticeLines, never as forbidden.
+	if len(c.MatchedMembers) == 0 || c.IsNotice() {
 		return "", false
 	}
 	return "forbidden members present: " + strings.Join(c.MatchedMembers, ", "), true

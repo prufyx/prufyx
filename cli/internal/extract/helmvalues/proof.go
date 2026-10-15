@@ -119,6 +119,9 @@ type SoftRecord struct {
 	DefaultsRemoved   []string `json:"defaultsRemoved"`
 	DefaultsChanged   []string `json:"defaultsChanged"`
 	ReferencesRemoved []string `json:"referencesRemoved"`
+	// Unread and Changed classify the keys the two notices considered.
+	Unread  *NoticeRecord `json:"unread,omitempty"`
+	Changed *NoticeRecord `json:"changed,omitempty"`
 }
 
 // Completeness accounts for the derivation: every required key is

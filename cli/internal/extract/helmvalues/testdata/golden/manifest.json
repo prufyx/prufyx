@@ -36,7 +36,7 @@
   "extractor": {
     "codeDigest": "sha256:CODE",
     "id": "helm.values.keda.keda",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "outputs": {
     "candidates.json": "sha256:OUTPUT",
@@ -78,12 +78,15 @@
           "templates": {
             "dynamic": 1,
             "files": 2,
+            "indirect": 0,
             "paths": [
               "auth.enabled",
               "operator.legacyFlag",
               "operator.replicas"
             ],
-            "refused": []
+            "refused": [],
+            "tpl": 0,
+            "wholeValues": 1
           },
           "valuesPaths": [
             "auth",
@@ -225,6 +228,10 @@
           "keda.helm-values.keda.90-0-0-to-90-1-0.removed-values"
         ],
         "soft": {
+          "changed": {
+            "keys": [],
+            "outcome": "no notice: no scalar default changed as Helm reads it"
+          },
           "defaultsChanged": [],
           "defaultsRemoved": [
             "operator.legacyFlag",
@@ -233,7 +240,20 @@
           "referencesRemoved": [
             "auth.enabled",
             "operator.legacyFlag"
-          ]
+          ],
+          "unread": {
+            "keys": [
+              {
+                "class": "unproven",
+                "path": "auth.enabled"
+              },
+              {
+                "class": "unproven",
+                "path": "operator.legacyFlag"
+              }
+            ],
+            "outcome": "no notice: a later template file was not parsed"
+          }
         },
         "target": "keda",
         "to": {
@@ -257,13 +277,16 @@
           "templates": {
             "dynamic": 0,
             "files": 3,
+            "indirect": 0,
             "paths": [
               "auth.token",
               "operator.replicas"
             ],
             "refused": [
               "templates/broken.txt"
-            ]
+            ],
+            "tpl": 0,
+            "wholeValues": 0
           },
           "valuesPaths": [
             "auth",
@@ -330,13 +353,16 @@
           "templates": {
             "dynamic": 0,
             "files": 3,
+            "indirect": 0,
             "paths": [
               "auth.token",
               "operator.replicas"
             ],
             "refused": [
               "templates/broken.txt"
-            ]
+            ],
+            "tpl": 0,
+            "wholeValues": 0
           },
           "valuesPaths": [
             "auth",
@@ -457,9 +483,17 @@
           "outcome": "no rule: no required key lost its default"
         },
         "soft": {
+          "changed": {
+            "keys": [],
+            "outcome": "no notice: no scalar default changed as Helm reads it"
+          },
           "defaultsChanged": [],
           "defaultsRemoved": [],
-          "referencesRemoved": []
+          "referencesRemoved": [],
+          "unread": {
+            "keys": [],
+            "outcome": "no notice: every key the earlier templates name is still named"
+          }
         },
         "target": "keda",
         "to": {
@@ -483,11 +517,14 @@
           "templates": {
             "dynamic": 0,
             "files": 2,
+            "indirect": 0,
             "paths": [
               "auth.token",
               "operator.replicas"
             ],
-            "refused": []
+            "refused": [],
+            "tpl": 0,
+            "wholeValues": 0
           },
           "valuesPaths": [
             "auth",
@@ -543,11 +580,14 @@
           "templates": {
             "dynamic": 0,
             "files": 2,
+            "indirect": 0,
             "paths": [
               "auth.token",
               "operator.replicas"
             ],
-            "refused": []
+            "refused": [],
+            "tpl": 0,
+            "wholeValues": 0
           },
           "valuesPaths": [
             "auth",
@@ -599,8 +639,11 @@
           "templates": {
             "dynamic": 0,
             "files": 0,
+            "indirect": 0,
             "paths": [],
-            "refused": []
+            "refused": [],
+            "tpl": 0,
+            "wholeValues": 0
           }
         }
       },
