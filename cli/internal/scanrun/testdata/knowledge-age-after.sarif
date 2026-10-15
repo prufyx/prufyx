@@ -217,8 +217,8 @@
         "evaluatedAt": "2026-12-10T00:00:00Z",
         "inputDigest": "sha256:706abd92d4968558d52e272d3f490af7280ce84a6011ae824a9fa9ae7b4c47f7",
         "knowledgeOrigin": "embedded",
-        "knowledgeRevision": "cncf-2026-09-13.8",
-        "knowledgeDigest": "sha256:c99bec4d80c148f24e02362abe6a51de135dd3255ce5f3985d23bddb4c6e19b0",
+        "knowledgeRevision": "cncf-2026-09-13.9",
+        "knowledgeDigest": "sha256:09fef3b4cad1fd575d7e810135dc50d23321d4d783ea30d3b7f8226a7fac01cc",
         "engineContractDigest": "sha256:0d46478e7a818c192fa57367bf17bf5a066ec7e414d0b745e0f900fd319fd463",
         "networkUsed": false,
         "omissions": [
