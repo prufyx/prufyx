@@ -106,7 +106,7 @@ func noticeInput() []byte {
 }
 
 func TestClaimExitNotice(t *testing.T) {
-	b, err := load()
+	b, err := loadPlain()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +172,7 @@ func verdictClaimsOf(claims []constraintengine.Claim) []constraintengine.Claim {
 // generic selector and for the fact-family selector, so the verdict claims are
 // exactly those of the same report without the notice.
 func TestNoticeNeverChangesRuleSelection(t *testing.T) {
-	base, err := load()
+	base, err := loadPlain()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -263,7 +263,7 @@ func TestCorpusInventorySkipsNoticeOnlyComponents(t *testing.T) {
 // TestExternalPackRefusesNotices: the external knowledge target does not
 // accept one-way notices yet, even under the notice pack schema.
 func TestExternalPackRefusesNotices(t *testing.T) {
-	base, err := load()
+	base, err := loadPlain()
 	if err != nil {
 		t.Fatal(err)
 	}

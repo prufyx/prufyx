@@ -31,7 +31,7 @@ func reviewWindowRule(t *testing.T, reviewed, validUntil time.Time) []byte {
 }
 
 func TestCNCFReviewWindowBoundaries(t *testing.T) {
-	b, err := load()
+	b, err := loadPlain()
 	if err != nil {
 		t.Fatal(err)
 	}

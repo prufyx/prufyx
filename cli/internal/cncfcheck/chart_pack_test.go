@@ -91,7 +91,8 @@ func TestExternalRefusesChartRules(t *testing.T) {
 	if err := json.Unmarshal(envelope["pack"], &value); err != nil {
 		t.Fatal(err)
 	}
-	base, err := load()
+	value = withoutAttestations(t, value)
+	base, err := loadPlain()
 	if err != nil {
 		t.Fatal(err)
 	}

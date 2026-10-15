@@ -17,7 +17,7 @@ const servedSectionForRefusal = `[{"component":"pkg:github/kubernetes/kubernetes
 // served-API list section is refused by validateExternalPack, and the same
 // pack without it is admitted, so the refusal is the section's.
 func TestExternalProfileRefusesServedAPIs(t *testing.T) {
-	base, err := load()
+	base, err := loadPlain()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestExternalProfileRefusesServedAPIs(t *testing.T) {
 // envelope; the old envelope check (validateExternalPack without records)
 // still refuses it above.
 func TestSplitCarriesServedAPIs(t *testing.T) {
-	base, err := load()
+	base, err := loadPlain()
 	if err != nil {
 		t.Fatal(err)
 	}
