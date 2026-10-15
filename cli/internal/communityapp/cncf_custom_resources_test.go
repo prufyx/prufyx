@@ -59,7 +59,7 @@ func TestCustomResourceCheckWithoutPublishedRules(t *testing.T) {
 // Once the custom-resource batch ships, the Strimzi mode evaluates its ten
 // rules on the prepared set: on a complete set holding Kafka v1beta2 the
 // Kafka rule blocks and the nine others pass (exit 10); on an incomplete set
-// none of them passes. Before the batch ships this is the previous test's
+// the Kafka rule still blocks and the nine others stay UNKNOWN. Before the batch ships this is the previous test's
 // Strimzi case.
 func TestCustomResourceCheckWithPublishedRules(t *testing.T) {
 	t.Parallel()
@@ -95,13 +95,23 @@ func TestCustomResourceCheckWithPublishedRules(t *testing.T) {
 			t.Fatalf("%s: %s, want %s", id, statuses[id], want)
 		}
 	}
+	// Without a complete set the removed version still blocks (it is a
+	// witness either way), and no other rule passes.
 	code, stdout, _ = runCNCFCLI(t, args("--format", "json")...)
-	if code == ExitOK || code == ExitBlocked {
+	if code != ExitBlocked {
 		t.Fatalf("incomplete: code=%d %q", code, stdout)
 	}
-	for id, status := range batchClaimStatuses(t, stdout) {
-		if status == "PASS" {
-			t.Fatalf("incomplete set: %s passes", id)
+	statuses = batchClaimStatuses(t, stdout)
+	if len(statuses) != len(ids) {
+		t.Fatalf("incomplete: claims %v, want the %d batch rules", statuses, len(ids))
+	}
+	for _, id := range ids {
+		want := "UNKNOWN"
+		if id == "strimzi.crd-version-removal.kafkas-kafka-strimzi-io.0-51-0-to-1-0-0" {
+			want = "BLOCKED"
+		}
+		if statuses[id] != want {
+			t.Fatalf("incomplete: %s: %s, want %s", id, statuses[id], want)
 		}
 	}
 }

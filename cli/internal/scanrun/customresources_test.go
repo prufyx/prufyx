@@ -372,9 +372,10 @@ func TestScanCustomResourcePath(t *testing.T) {
 	if result.Exit != 11 || !hasComponentGap(result.Report, "strimzi", scanreport.ReasonDowngradeNotReviewed, "strimzi") {
 		t.Fatalf("downgrade: exit %d gaps %v", result.Exit, gapReasons(result.Report))
 	}
-	// Without the rule (embedded knowledge) the hop has no data, and objects
-	// of groups no reviewed project owns are still named.
-	result = crdScan(t, newKnowledge(t, knowledgeOptions{}), []string{kafkaV1beta2Doc, unownedGroupDoc}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete")
+	// Without the rule (the embedded knowledge without the custom-resource
+	// batch) the hop has no data, and objects of groups no reviewed project
+	// owns are still named.
+	result = crdScan(t, crdBaseKnowledge(t), []string{kafkaV1beta2Doc, unownedGroupDoc}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete")
 	if hop := strimziHop(t, result.Report); result.Exit != 11 || hop.Status != scanreport.HopNoData || !hasComponentGap(result.Report, "strimzi", scanreport.ReasonDocumentsNotEvaluated, "1 manifest(s) use custom-resource groups") {
 		t.Fatalf("no rules: exit %d hop %+v gaps %v", result.Exit, hop, gapReasons(result.Report))
 	}

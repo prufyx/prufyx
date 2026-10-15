@@ -49,8 +49,11 @@ func useStrimziCRDKnowledge(t *testing.T) {
 	if err := json.Unmarshal(raw, &entries); err != nil {
 		t.Fatal(err)
 	}
-	// No fact definition is added: the build registers the set.
-	restore, err := cncfcheck.UseSyntheticKnowledge(nil, entries)
+	// No fact definition is added: the build registers the set. Once the
+	// shipped pack holds these rules (the custom-resource batch), the
+	// derivation here replaces them, so that the rules evaluated are the
+	// ones derived at this test's time.
+	restore, err := cncfcheck.UseSyntheticKnowledgeReplacing(nil, entries)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -45,8 +45,35 @@ func TestGenericInputNeverPassesCustomResourceRules(t *testing.T) {
 	kafkaOnly := writeCNCFFile(t, "kafka-only.json", strimziHandWrittenInput(strimziKafkaRuleFacts), 0o600)
 	// Before the derived rules are loaded the reviewed Kafka rule alone
 	// decides, and passing it exits 0: the cap applies to set rules only.
-	if code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "strimzi", "--input", kafkaOnly, "--now", now); code != ExitOK || stderr != "" || strings.Contains(stdout, customResourceScopeLine) {
-		t.Fatalf("Kafka rule alone: code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	// Once the shipped pack holds the custom-resource batch, its Strimzi
+	// rules are not yet reviewed at this time: their claims are UNKNOWN and
+	// the exit is 11.
+	if ids := batchRuleIDs("strimzi"); len(ids) == 0 {
+		if code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "strimzi", "--input", kafkaOnly, "--now", now); code != ExitOK || stderr != "" || strings.Contains(stdout, customResourceScopeLine) {
+			t.Fatalf("Kafka rule alone: code=%d stdout=%q stderr=%q", code, stdout, stderr)
+		}
+	} else {
+		code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "strimzi", "--input", kafkaOnly, "--now", now, "--format", "json")
+		if code != ExitUnknown || stderr != "" {
+			t.Fatalf("Kafka rule and the shipped batch: code=%d stdout=%q stderr=%q", code, stdout, stderr)
+		}
+		checkBatchClaims(t, stdout, ids)
+		var report cncfcheck.Report
+		if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+			t.Fatal(err)
+		}
+		kafka := 0
+		for _, claim := range report.Check.Claims {
+			if claim.RuleID == "strimzi.kafka-v1beta2-api-removed.1-0" {
+				kafka++
+				if claim.Status != "PASS" {
+					t.Fatalf("Kafka rule %s %s", claim.Status, claim.ReasonCode)
+				}
+			}
+		}
+		if kafka != 1 || len(report.Check.Claims) != 1+len(ids) {
+			t.Fatalf("claims %+v", report.Check.Claims)
+		}
 	}
 
 	useStrimziCRDKnowledge(t)
