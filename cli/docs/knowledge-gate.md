@@ -990,6 +990,12 @@ The gate's run budget (`--rest-budget`) is shared by every project's dry run,
 so a batch holds as many projects as that budget allows at about 60 requests
 each; a run that runs out of it never passes.
 
+An onboarding batch and a fact-registry change with an owner approval (the
+`packagedDefinitions` literal and `member.registryDigest.json`) are two
+separate ways to move the CNCF pack's `registryDigest`. A pull request that
+carries both is refused with `RegistryPathsConflict`: the gate never combines
+them, and neither path admits `revision`.
+
 ### Signing and checking an onboarding batch
 
 ```sh
