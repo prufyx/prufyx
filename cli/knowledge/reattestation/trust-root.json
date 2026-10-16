@@ -1,0 +1,1 @@
+{"expires":"2028-10-01T12:54:48Z","keys":[{"keyId":"da5122923daf5170e0d1761112193fc78913be9b201aece2fa6eab95adab4b37","keyType":"ed25519","publicKey":"e7ab740fc4bdb2525955e6d5d8513150ef584b175a845b252bd757dc5f7c81b5","scheme":"ed25519"}],"purpose":"rule-evidence-reattestation","schemaVersion":"prufyx.io/evidence-reattestation-trust-root/v1","threshold":1}
