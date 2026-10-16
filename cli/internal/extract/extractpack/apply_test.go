@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -22,8 +23,9 @@ func apply(t *testing.T, pack, run string, withdraw bool) (*extractpack.Report, 
 }
 
 // addedView is the part of a result pack a golden file pins: the entries
-// the run added in pack order, and the attestation section.
-func addedView(t *testing.T, pack string, added []string) map[string]any {
+// the run added in pack order, and the attestation section without the
+// base's own attestations kept unchanged.
+func addedView(t *testing.T, pack string, base []byte, added []string) map[string]any {
 	t.Helper()
 	raw, err := os.ReadFile(pack)
 	if err != nil {
@@ -35,6 +37,35 @@ func addedView(t *testing.T, pack string, added []string) map[string]any {
 	}
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		t.Fatal(err)
+	}
+	// The base's own line attestations, kept as they were, are not the
+	// run's: the view holds the attestations the apply added or changed.
+	var baseDoc struct {
+		LineAttestations []any `json:"lineAttestations"`
+	}
+	if err := json.Unmarshal(base, &baseDoc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.LineAttestations != nil && len(baseDoc.LineAttestations) > 0 {
+		var all, run []any
+		if err := json.Unmarshal(doc.LineAttestations, &all); err != nil {
+			t.Fatal(err)
+		}
+		for _, a := range all {
+			kept := false
+			for _, b := range baseDoc.LineAttestations {
+				kept = kept || reflect.DeepEqual(a, b)
+			}
+			if !kept {
+				run = append(run, a)
+			}
+		}
+		doc.LineAttestations = nil
+		if run != nil {
+			if doc.LineAttestations, err = json.Marshal(run); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 	want := map[string]bool{}
 	for _, id := range added {
@@ -107,8 +138,28 @@ func TestApplyGoldenPerExtractor(t *testing.T) {
 					t.Fatal("a base entry changed")
 				}
 			}
+			// The base's own line attestations survive the apply unchanged
+			// (the golden view below leaves them out).
+			var baseAtts, resultAtts struct {
+				LineAttestations []any `json:"lineAttestations"`
+			}
+			if err := json.Unmarshal(base, &baseAtts); err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal(got, &resultAtts); err != nil {
+				t.Fatal(err)
+			}
+			for _, b := range baseAtts.LineAttestations {
+				kept := false
+				for _, a := range resultAtts.LineAttestations {
+					kept = kept || reflect.DeepEqual(a, b)
+				}
+				if !kept {
+					t.Fatal("a base line attestation changed")
+				}
+			}
 			golden := filepath.Join("testdata", "golden", c.name+".json")
-			want, _ := extractCanon(addedView(t, pack, rep.Added))
+			want, _ := extractCanon(addedView(t, pack, base, rep.Added))
 			if os.Getenv("UPDATE_GOLDEN") != "" {
 				if err := os.MkdirAll(filepath.Dir(golden), 0o755); err != nil {
 					t.Fatal(err)

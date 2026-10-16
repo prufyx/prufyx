@@ -80,10 +80,9 @@ func TestChartRuleNeverSelectedForAnApplicationHop(t *testing.T) {
 }
 
 func TestExternalRefusesChartRules(t *testing.T) {
-	raw, err := ExportEmbeddedExternalBundle("7")
-	if err != nil {
-		t.Fatal(err)
-	}
+	// A rules-only envelope over syntheticBase: the export of the embedded
+	// pack while it carries no record section.
+	raw := syntheticBaseExternalBundle(t, "7")
 	var envelope map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &envelope); err != nil {
 		t.Fatal(err)

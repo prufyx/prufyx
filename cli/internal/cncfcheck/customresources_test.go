@@ -13,6 +13,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/customresources"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchids"
 )
 
 const (
@@ -43,18 +44,11 @@ func withoutCustomResourceFacts() []constraintengine.FactDefinition {
 	return out
 }
 
-// crdPack is the embedded pack plus entries at the set-rule level, bound
-// to the registry of definitions.
+// crdPack is syntheticBase (the shipped rules without the set rules) plus
+// entries at the set-rule level, bound to the registry of definitions.
 func crdPack(t *testing.T, definitions []constraintengine.FactDefinition, entries ...Entry) []byte {
 	t.Helper()
-	raw, err := packagedFiles.ReadFile("data/rules.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var pack rulePack
-	if err := strictJSON(raw, &pack); err != nil {
-		t.Fatal(err)
-	}
+	pack := syntheticBase(t)
 	pack.Entries = append(pack.Entries, entries...)
 	sort.SliceStable(pack.Entries, func(i, j int) bool { return ruleID(t, pack.Entries[i]) < ruleID(t, pack.Entries[j]) })
 	registry, err := constraintengine.NewCompiledRegistry(definitions)
@@ -159,16 +153,31 @@ func TestCustomResourceRuleAdmissionNeedsTheRegisteredFact(t *testing.T) {
 	if _, err := assembleWith(crdPack(t, compiledDefinitions(), entry), compiledDefinitions()); err != nil {
 		t.Fatalf("rule over the registered fact refused: %v", err)
 	}
-	// The embedded pack itself carries no such rule.
+	// The embedded pack itself carries no such rule but the batch's
+	// (crdbatchids: none before it ships, its 28 after), each reading the
+	// set of its own project.
+	stated := map[string]crdbatchids.Rule{}
+	if crdbatchids.Shipped() {
+		for _, r := range crdbatchids.Rules() {
+			stated[r.ID] = r
+		}
+	}
 	if b, err := load(); err != nil {
 		t.Fatal(err)
 	} else {
+		reading := 0
 		for _, e := range b.pack.Entries {
 			for _, f := range e.RequiredFacts {
 				if strings.HasSuffix(f.ID, ".custom_resource_versions_set") {
-					t.Fatalf("embedded pack reads %s", f.ID)
+					if r, ok := stated[ruleID(t, e)]; !ok || f.ID != r.FactID() {
+						t.Fatalf("embedded pack rule %s reads %s", ruleID(t, e), f.ID)
+					}
+					reading++
 				}
 			}
+		}
+		if reading != len(stated) {
+			t.Fatalf("%d embedded rules read a custom-resource set, the batch states %d", reading, len(stated))
 		}
 	}
 }

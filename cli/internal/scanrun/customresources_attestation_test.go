@@ -67,7 +67,7 @@ func crdLineAttestation(basis string, ids ...string) lineattest.LineAttestation 
 
 func newAttestedCRD(t *testing.T, att *lineattest.LineAttestation, rules ...string) attestedCRD {
 	t.Helper()
-	k := attestedCRD{crdKnowledge: crdKnowledge{Knowledge: newKnowledge(t, knowledgeOptions{})}}
+	k := attestedCRD{crdKnowledge: crdKnowledge{Knowledge: crdBaseKnowledge(t)}}
 	if len(rules) > 0 {
 		k.crdKnowledge = newCRDKnowledge(t, rules...)
 	}

@@ -12,33 +12,109 @@ import (
 const customResourceManifests = "apiVersion: kafka.strimzi.io/v1beta2\nkind: Kafka\nmetadata:\n  name: private-cluster\n  namespace: private-ns\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: private-app\n"
 
 func customResourceArgs(path string, extra ...string) []string {
-	return append([]string{"check", "cncf", "--project", "strimzi", "--custom-resources", path, "--from", "0.51.0", "--to", "1.0.0", "--now", "2026-10-04T00:00:00Z"}, extra...)
+	return customResourceArgsFor("strimzi", "0.51.0", "1.0.0", path, extra...)
 }
 
-// The embedded knowledge holds no custom-resource rule: the mode reads the
-// manifests, prepares the set and stays UNKNOWN, without naming any private
-// value.
+func customResourceArgsFor(project, from, to, path string, extra ...string) []string {
+	return append([]string{"check", "cncf", "--project", project, "--custom-resources", path, "--from", from, "--to", to, "--now", "2026-10-04T00:00:00Z"}, extra...)
+}
+
+// kedaCustomResourceManifests are KEDA custom resources: KEDA has no
+// custom-resource rule in the embedded knowledge before or after the batch
+// ships.
+const kedaCustomResourceManifests = "apiVersion: keda.sh/v1alpha1\nkind: ScaledObject\nmetadata:\n  name: private-scaler\n  namespace: private-ns\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: private-app\n"
+
+// For a project the embedded knowledge holds no custom-resource rule of
+// (KEDA always; Strimzi until the custom-resource batch ships), the mode
+// reads the manifests, prepares the set and stays UNKNOWN, without naming
+// any private value.
 func TestCustomResourceCheckWithoutPublishedRules(t *testing.T) {
 	t.Parallel()
-	path := writeCNCFFile(t, "manifests.yaml", []byte(customResourceManifests), 0o600)
-	for _, format := range []string{"json", "human"} {
-		code, stdout, stderr := runCNCFCLI(t, customResourceArgs(path, "--custom-resources-complete", "--format", format)...)
-		if code != ExitUnknown || stderr != "" || strings.Contains(stdout, "private-") || strings.Contains(stdout, path) {
-			t.Fatalf("%s: code=%d stdout=%q stderr=%q", format, code, stdout, stderr)
-		}
-		if format == "human" && (!strings.Contains(stdout, "strimzi custom-resource version review") || !strings.Contains(stdout, "custom-resource set: complete") || !strings.Contains(stdout, "scoped result: UNKNOWN\naggregate: UNKNOWN")) {
-			t.Fatalf("human output %q", stdout)
-		}
-		if format == "json" && (!strings.Contains(stdout, `"claims":[]`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`)) {
-			t.Fatalf("json output %q", stdout)
-		}
+	type subject struct{ project, manifests, from, to string }
+	subjects := []subject{{"keda", kedaCustomResourceManifests, "2.16.0", "2.17.0"}}
+	if len(batchRuleIDs("strimzi")) == 0 {
+		subjects = append(subjects, subject{"strimzi", customResourceManifests, "0.51.0", "1.0.0"})
 	}
-	code, stdout, _ := runCNCFCLI(t, customResourceArgs(path)...)
-	if code != ExitUnknown || !strings.Contains(stdout, "custom-resource set: not complete (the manifests are not declared") {
-		t.Fatalf("incomplete: code=%d %q", code, stdout)
+	for _, s := range subjects {
+		path := writeCNCFFile(t, s.project+"-manifests.yaml", []byte(s.manifests), 0o600)
+		for _, format := range []string{"json", "human"} {
+			code, stdout, stderr := runCNCFCLI(t, customResourceArgsFor(s.project, s.from, s.to, path, "--custom-resources-complete", "--format", format)...)
+			if code != ExitUnknown || stderr != "" || strings.Contains(stdout, "private-") || strings.Contains(stdout, path) {
+				t.Fatalf("%s %s: code=%d stdout=%q stderr=%q", s.project, format, code, stdout, stderr)
+			}
+			if format == "human" && (!strings.Contains(stdout, s.project+" custom-resource version review") || !strings.Contains(stdout, "custom-resource set: complete") || !strings.Contains(stdout, "scoped result: UNKNOWN\naggregate: UNKNOWN")) {
+				t.Fatalf("%s human output %q", s.project, stdout)
+			}
+			if format == "json" && (!strings.Contains(stdout, `"claims":[]`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`)) {
+				t.Fatalf("%s json output %q", s.project, stdout)
+			}
+		}
+		code, stdout, _ := runCNCFCLI(t, customResourceArgsFor(s.project, s.from, s.to, path)...)
+		if code != ExitUnknown || !strings.Contains(stdout, "custom-resource set: not complete (the manifests are not declared") {
+			t.Fatalf("%s incomplete: code=%d %q", s.project, code, stdout)
+		}
 	}
 }
 
+// Once the custom-resource batch ships, the Strimzi mode evaluates its ten
+// rules on the prepared set: on a complete set holding Kafka v1beta2 the
+// Kafka rule blocks and the nine others pass (exit 10); on an incomplete set
+// the Kafka rule still blocks and the nine others stay UNKNOWN. Before the batch ships this is the previous test's
+// Strimzi case.
+func TestCustomResourceCheckWithPublishedRules(t *testing.T) {
+	t.Parallel()
+	ids := batchRuleIDs("strimzi")
+	if len(ids) == 0 {
+		t.Skip("the embedded knowledge holds no Strimzi custom-resource rule yet (TestCustomResourceCheckWithoutPublishedRules covers Strimzi)")
+	}
+	path := writeCNCFFile(t, "manifests.yaml", []byte(customResourceManifests), 0o600)
+	// At a time inside the batch rules' review window.
+	args := func(extra ...string) []string {
+		out := customResourceArgs(path, extra...)
+		for i := range out {
+			if out[i] == "2026-10-04T00:00:00Z" {
+				out[i] = "2026-11-01T00:00:00Z"
+			}
+		}
+		return out
+	}
+	code, stdout, stderr := runCNCFCLI(t, args("--custom-resources-complete", "--format", "json")...)
+	if code != ExitBlocked || stderr != "" || strings.Contains(stdout, "private-") || strings.Contains(stdout, path) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
+		t.Fatalf("complete: code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	statuses := batchClaimStatuses(t, stdout)
+	if len(statuses) != len(ids) {
+		t.Fatalf("claims %v, want the %d batch rules", statuses, len(ids))
+	}
+	for _, id := range ids {
+		want := "PASS"
+		if id == "strimzi.crd-version-removal.kafkas-kafka-strimzi-io.0-51-0-to-1-0-0" {
+			want = "BLOCKED"
+		}
+		if statuses[id] != want {
+			t.Fatalf("%s: %s, want %s", id, statuses[id], want)
+		}
+	}
+	// Without a complete set the removed version still blocks (it is a
+	// witness either way), and no other rule passes.
+	code, stdout, _ = runCNCFCLI(t, args("--format", "json")...)
+	if code != ExitBlocked {
+		t.Fatalf("incomplete: code=%d %q", code, stdout)
+	}
+	statuses = batchClaimStatuses(t, stdout)
+	if len(statuses) != len(ids) {
+		t.Fatalf("incomplete: claims %v, want the %d batch rules", statuses, len(ids))
+	}
+	for _, id := range ids {
+		want := "UNKNOWN"
+		if id == "strimzi.crd-version-removal.kafkas-kafka-strimzi-io.0-51-0-to-1-0-0" {
+			want = "BLOCKED"
+		}
+		if statuses[id] != want {
+			t.Fatalf("incomplete: %s: %s, want %s", id, statuses[id], want)
+		}
+	}
+}
 func TestCustomResourceCheckArguments(t *testing.T) {
 	t.Parallel()
 	path := writeCNCFFile(t, "manifests.yaml", []byte(customResourceManifests), 0o600)

@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
 )
 
@@ -83,6 +85,10 @@ type communityExampleResult struct {
 	RuntimeObserved bool   `json:"runtimeObserved"`
 	ProcessExecuted bool   `json:"processExecuted"`
 	ScopedClaimOnly bool   `json:"scopedClaimOnly"`
+	// CleanExitsByOrigin is, for an example that checks several origins,
+	// the exit of the clean witness from each origin; CleanExit is then the
+	// worst of them.
+	CleanExitsByOrigin map[string]int `json:"cleanExitsByOrigin,omitempty"`
 }
 
 func (r runtime) runKnowledgeCertManagerExample() (communityExampleResult, error) {
@@ -401,21 +407,79 @@ func (r runtime) runKyvernoLatestExample() (communityExampleResult, error) {
 	defer os.RemoveAll(work)
 	blocked := []byte(`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"synthetic-private"},"spec":{"template":{"spec":{"containers":[{"name":"selected","image":"private.example/opaque","command":["reports-controller"],"args":["--reportsChunkSize=16"]}]}}}}`)
 	clean := []byte(strings.Replace(string(blocked), `,"args":["--reportsChunkSize=16"]`, "", 1))
+	// From 1.14.5 and 1.15.3 the hop to 1.19.1 also crosses the boundary of
+	// a custom-resource version-removal rule when the embedded knowledge
+	// holds one (Kyverno UpdateRequest v1beta1, removed at 1.16). The native
+	// route supplies no custom-resource version set, so that rule's claim is
+	// UNKNOWN beside the reviewed rule's, and the clean witness honestly
+	// exits 11 there instead of 0.
+	cleanExits := map[string]int{}
+	cleanExit := ExitOK
 	for _, from := range []string{"1.14.5", "1.15.3", "1.16.4", "1.17.2", "1.18.2"} {
 		blockedCode, blockedReport, err := r.prepareKyvernoThenCheck(work, from, "1.19.1", "official_upstream", blocked)
-		if err != nil || blockedCode != ExitBlocked || !communityClaim(blockedReport, "BLOCKED") {
+		if _, ok := kyvernoLatestClaims(blockedReport, "BLOCKED"); err != nil || blockedCode != ExitBlocked || !ok {
 			return communityExampleResult{}, fmt.Errorf("Kyverno %s target-only witness did not produce scoped BLOCKED", from)
 		}
 		cleanCode, cleanReport, err := r.prepareKyvernoThenCheck(work, from, "1.19.1", "official_upstream", clean)
-		if err != nil || cleanCode != ExitOK || !communityClaim(cleanReport, "PASS") {
+		crossed, ok := kyvernoLatestClaims(cleanReport, "PASS")
+		want := ExitOK
+		if crossed > 0 {
+			want = ExitUnknown
+		}
+		if err != nil || !ok || cleanCode != want {
 			return communityExampleResult{}, fmt.Errorf("Kyverno %s corrected witness did not produce scoped PASS", from)
 		}
+		cleanExits[from] = cleanCode
+		if cleanCode != ExitOK {
+			cleanExit = cleanCode
+		}
 		unknownCode, unknownReport, err := r.prepareKyvernoThenCheck(work, from, "1.19.1", "custom_build", clean)
-		if err != nil || unknownCode != ExitUnknown || !communityClaim(unknownReport, "UNKNOWN") {
+		if _, ok := kyvernoLatestClaims(unknownReport, "UNKNOWN"); err != nil || unknownCode != ExitUnknown || !ok {
 			return communityExampleResult{}, fmt.Errorf("Kyverno %s custom distribution did not produce scoped UNKNOWN", from)
 		}
 	}
-	return communityExampleResult{Example: "cncf-kyverno-latest", BlockedExit: ExitBlocked, CleanExit: ExitOK, UnknownExit: ExitUnknown, Aggregate: "UNKNOWN", NetworkUsed: false, ClusterUsed: false, PrivateRetained: false, RuntimeObserved: false, ProcessExecuted: false, ScopedClaimOnly: true}, nil
+	return communityExampleResult{Example: "cncf-kyverno-latest", BlockedExit: ExitBlocked, CleanExit: cleanExit, UnknownExit: ExitUnknown, Aggregate: "UNKNOWN", NetworkUsed: false, ClusterUsed: false, PrivateRetained: false, RuntimeObserved: false, ProcessExecuted: false, ScopedClaimOnly: true, CleanExitsByOrigin: cleanExits}, nil
+}
+
+// kyvernoLatestClaims reports whether a Kyverno latest-origin report holds
+// exactly one claim that reads no custom-resource version set, with status
+// want, and otherwise only claims that read one and are UNKNOWN; it returns
+// how many of the latter the report holds.
+func kyvernoLatestClaims(report map[string]any, want string) (int, bool) {
+	check, _ := report["check"].(map[string]any)
+	claims, _ := check["claims"].([]any)
+	reviewed, crossed := 0, 0
+	for _, value := range claims {
+		claim, _ := value.(map[string]any)
+		status, _ := claim["status"].(string)
+		if readsCustomResourceSet(claim) {
+			if status != "UNKNOWN" {
+				return 0, false
+			}
+			crossed++
+			continue
+		}
+		if status != want {
+			return 0, false
+		}
+		reviewed++
+	}
+	ok := reviewed == 1 && report["assessment"] == "UNKNOWN" && report["networkUsed"] == false && report["runtimeReproduced"] == float64(0)
+	return crossed, ok
+}
+
+// readsCustomResourceSet reports whether a decoded claim reads a
+// custom-resource version set.
+func readsCustomResourceSet(claim map[string]any) bool {
+	raw, err := json.Marshal(claim)
+	if err != nil {
+		return false
+	}
+	var typed constraintengine.Claim
+	if err := json.Unmarshal(raw, &typed); err != nil {
+		return false
+	}
+	return cncfcheck.ReadsCustomResourceVersions(typed)
 }
 
 func (r runtime) prepareKyvernoThenCheck(work, from, to, distribution string, raw []byte) (int, map[string]any, error) {
