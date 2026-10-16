@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "schemahero",
+    "name": "SchemaHero",
+    "repo": "github.com/schemahero/schemahero",
+    "component": "pkg:github/schemahero/schemahero",
+    "factProject": "schemahero",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.21",
+    "paths": [
+      {"path": "config/crds/v1", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

@@ -464,6 +464,22 @@
       ]
     },
     {
+      "slug": "logging-operator-kube-logging",
+      "catalog": "cncf",
+      "factProject": "logging_operator_kube_logging",
+      "component": "pkg:github/kube-logging/logging-operator",
+      "groups": [
+        {
+          "name": "logging-extensions.banzaicloud.io",
+          "source": "https://github.com/kube-logging/logging-operator/blob/1e3fd1216c8700effc1d92b295273575ad6b1824/config/crd/bases/logging-extensions.banzaicloud.io_eventtailers.yaml"
+        },
+        {
+          "name": "logging.banzaicloud.io",
+          "source": "https://github.com/kube-logging/logging-operator/blob/1e3fd1216c8700effc1d92b295273575ad6b1824/config/crd/bases/logging.banzaicloud.io_loggings.yaml"
+        }
+      ]
+    },
+    {
       "slug": "longhorn",
       "catalog": "cncf",
       "factProject": "longhorn",
@@ -674,6 +690,22 @@
         {
           "name": "objectbucket.io",
           "source": "https://github.com/rook/rook/blob/f190ca3b45f131da03641741e9e03b2584cd7d5e/deploy/examples/crds.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "schemahero",
+      "catalog": "cncf",
+      "factProject": "schemahero",
+      "component": "pkg:github/schemahero/schemahero",
+      "groups": [
+        {
+          "name": "databases.schemahero.io",
+          "source": "https://github.com/schemahero/schemahero/blob/b1f03b64f47114393013bc0dc7f5736ad1a35e9a/config/crds/v1/databases.schemahero.io_databases.yaml"
+        },
+        {
+          "name": "schemas.schemahero.io",
+          "source": "https://github.com/schemahero/schemahero/blob/b1f03b64f47114393013bc0dc7f5736ad1a35e9a/config/crds/v1/schemas.schemahero.io_tables.yaml"
         }
       ]
     },
