@@ -31,8 +31,8 @@ const (
 	// OnboardingRESTBudget is the GitHub REST requests one project's dry run
 	// may use; OnboardingReadBudget its file reads. Over either the project,
 	// and with it the batch, is refused.
-	OnboardingRESTBudget = 60
-	OnboardingReadBudget = 2000
+	OnboardingRESTBudget = 250
+	OnboardingReadBudget = 3000
 )
 
 var errOnboardingBudget = errors.New("the dry run's request budget for this project ran out")
