@@ -433,12 +433,6 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	// An onboarding batch is decided the same way, before any change: it
 	// alone admits the pack members it moves (onboarding_gate.go).
 	onboarding := runOnboarding(ctx, opts, cls, r.ChangedPaths, loadKeys)
-	if onboarding != nil && onboarding.ok {
-		if why := registryPathsChanged(opts.Layout, r.ChangedPaths); why != "" {
-			onboarding.ok = false
-			onboarding.detail = "O9: " + RegistryPathsConflict + ": " + why
-		}
-	}
 	r.onboarding = onboarding
 
 	var mechanical, removals, schemaChanges, registryChanges []*Change
