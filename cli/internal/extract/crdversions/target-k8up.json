@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "k8up",
+    "name": "K8up",
+    "repo": "github.com/k8up-io/k8up",
+    "component": "pkg:github/k8up-io/k8up",
+    "factProject": "k8up",
+    "tagPrefixes": ["v"],
+    "minFrom": "2.11",
+    "paths": [
+      {"path": "config/crd/apiextensions.k8s.io/v1", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

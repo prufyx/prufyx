@@ -16,10 +16,13 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `contour` | CNCF | `component.contour.custom_resource_versions_set` | `projectcontour.io` |
 | `crossplane` | CNCF | `component.crossplane.custom_resource_versions_set` | `apiextensions.crossplane.io`, `ops.crossplane.io`, `pkg.crossplane.io`, `protection.crossplane.io`, `secrets.crossplane.io` |
 | `dapr` | CNCF | `component.dapr.custom_resource_versions_set` | `dapr.io` |
+| `dex` | CNCF | `component.dex.custom_resource_versions_set` | `dex.coreos.com` |
 | `eck-operator` | community | `component.eck_operator.custom_resource_versions_set` | `agent.k8s.elastic.co`, `apm.k8s.elastic.co`, `autoops.k8s.elastic.co`, `autoscaling.k8s.elastic.co`, `beat.k8s.elastic.co`, `elasticsearch.k8s.elastic.co`, `enterprisesearch.k8s.elastic.co`, `kibana.k8s.elastic.co`, `logstash.k8s.elastic.co`, `maps.k8s.elastic.co`, `packageregistry.k8s.elastic.co`, `stackconfigpolicy.k8s.elastic.co` |
 | `external-secrets` | CNCF | `component.external_secrets.custom_resource_versions_set` | `external-secrets.io`, `generators.external-secrets.io` |
 | `gateway-api` | community | `component.gateway_api.custom_resource_versions_set` | `gateway.networking.k8s.io` |
 | `istio` | CNCF | `component.istio.custom_resource_versions_set` | `extensions.istio.io`, `networking.istio.io`, `security.istio.io`, `telemetry.istio.io` |
+| `k8gb` | CNCF | `component.k8gb.custom_resource_versions_set` | `k8gb.absa.oss`, `k8gb.io` |
+| `k8up` | CNCF | `component.k8up.custom_resource_versions_set` | `k8up.io` |
 | `karmada` | CNCF | `component.karmada.custom_resource_versions_set` | `apps.karmada.io`, `autoscaling.karmada.io`, `config.karmada.io`, `networking.karmada.io`, `operator.karmada.io`, `policy.karmada.io`, `remedy.karmada.io`, `work.karmada.io` |
 | `keda` | CNCF | `component.keda.custom_resource_versions_set` | `eventing.keda.sh`, `keda.sh` |
 | `kong-ingress-controller` | community | `component.kong_ingress_controller.custom_resource_versions_set` | `configuration.konghq.com` |
@@ -32,11 +35,13 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `mongodb-kubernetes` | community | `component.mongodb_kubernetes.custom_resource_versions_set` | `ai.mongodb.com`, `mongodb.com`, `mongodbcommunity.mongodb.com` |
 | `node-feature-discovery` | community | `component.node_feature_discovery.custom_resource_versions_set` | `nfd.k8s-sigs.io` |
 | `openkruise` | CNCF | `component.openkruise.custom_resource_versions_set` | `apps.kruise.io`, `policy.kruise.io` |
+| `openyurt` | CNCF | `component.openyurt.custom_resource_versions_set` | `apps.openyurt.io`, `iot.openyurt.io`, `network.openyurt.io`, `raven.openyurt.io` |
 | `percona-postgresql-operator` | community | `component.percona_postgresql_operator.custom_resource_versions_set` | `pgv2.percona.com`, `upstream.pgv2.percona.com` |
 | `prometheus-operator` | community | `component.prometheus_operator.custom_resource_versions_set` | `monitoring.coreos.com` |
 | `rancher` | community | `component.rancher.custom_resource_versions_set` | `auditlog.cattle.io`, `catalog.cattle.io`, `management.cattle.io`, `operation.cattle.io`, `plan.cattle.io`, `provisioning.cattle.io`, `rke.cattle.io`, `scc.cattle.io`, `telemetry.cattle.io` |
 | `rook` | CNCF | `component.rook.custom_resource_versions_set` | `ceph.rook.io`, `objectbucket.io` |
 | `strimzi` | CNCF | `component.strimzi.custom_resource_versions_set` | `core.strimzi.io`, `kafka.strimzi.io` |
+| `submariner` | CNCF | `component.submariner.custom_resource_versions_set` | `submariner.io` |
 | `tekton` | CNCF | `component.tekton.custom_resource_versions_set` | `resolution.tekton.dev`, `tekton.dev` |
 | `velero` | CNCF | `component.velero.custom_resource_versions_set` | `velero.io` |
 | `volcano` | CNCF | `component.volcano.custom_resource_versions_set` | `batch.volcano.sh`, `bus.volcano.sh`, `config.volcano.sh`, `flow.volcano.sh`, `nodeinfo.volcano.sh`, `scheduling.volcano.sh`, `shard.volcano.sh`, `topology.volcano.sh` |

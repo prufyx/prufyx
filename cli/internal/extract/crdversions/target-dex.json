@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "dex",
+    "name": "Dex",
+    "repo": "github.com/dexidp/dex",
+    "component": "pkg:github/dexidp/dex",
+    "factProject": "dex",
+    "tagPrefixes": ["v"],
+    "minFrom": "2.41",
+    "paths": [
+      {"path": "scripts/manifests/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
