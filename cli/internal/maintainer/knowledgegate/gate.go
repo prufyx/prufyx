@@ -179,6 +179,10 @@ type Report struct {
 
 	// alarmKinds runs parallel to Alarms.
 	alarmKinds []string
+	// registryDefinitions holds, by pack, the head fact definitions of a
+	// registryDigest change admitted with an owner approval: that pack is
+	// admitted and attested under them.
+	registryDefinitions map[string][]constraintengine.FactDefinition
 	// batch is the decision on the batch approval the change adds (nil:
 	// none).
 	batch *batchResult
@@ -429,9 +433,15 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	// An onboarding batch is decided the same way, before any change: it
 	// alone admits the pack members it moves (onboarding_gate.go).
 	onboarding := runOnboarding(ctx, opts, cls, r.ChangedPaths, loadKeys)
+	if onboarding != nil && onboarding.ok {
+		if why := registryPathsChanged(opts.Layout, r.ChangedPaths); why != "" {
+			onboarding.ok = false
+			onboarding.detail = "O9: " + RegistryPathsConflict + ": " + why
+		}
+	}
 	r.onboarding = onboarding
 
-	var mechanical, removals, schemaChanges []*Change
+	var mechanical, removals, schemaChanges, registryChanges []*Change
 	consensusChecks := &consensusRun{}
 	defer consensusChecks.close()
 	for _, c := range cls.Changes {
@@ -450,6 +460,17 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		}
 		if onboarding.admitsMember(opts.Layout, c) {
 			c.OK, c.Proof = true, ProofOnboarding
+			continue
+		}
+		if c.Member == registryMember && registrySpec(opts.Layout, c.Pack) {
+			if onboarding != nil {
+				// An onboarding batch and a registry-member change are two
+				// registry-change paths; they are never combined.
+				c.fail(RegistryPathsConflict)
+				continue
+			}
+			// Decided once every other change has been classified.
+			registryChanges = append(registryChanges, c)
 			continue
 		}
 		if c.Member != "" {
@@ -518,6 +539,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	}
 	r.Supersedes = supersedeReport(cls)
 	admitSchemaChanges(cls, schemaChanges, r.ChangedPaths, opts)
+	r.registryDefinitions = admitRegistryChanges(cls, registryChanges, r.ChangedPaths, opts, loadKeys, approvals)
 
 	if opts.RederiveAll {
 		r.rederiveAll(ctx, cls, mechanical, opts)
@@ -741,20 +763,34 @@ func (r *Report) packChecks(cls *Classification, opts Options) {
 	}
 }
 
-// admitPack is spec.Admit, except for the onboarding pack of a change whose
-// onboarding batch was admitted: that pack is admitted against the head's
-// custom-resource table the batch verified. attestPack does the same for
-// the corpus attestation.
-func (r *Report) admitPack(spec PackSpec, opts Options) (PackStats, error) {
+// packOpts is what a pack is admitted against: the head table of an
+// admitted onboarding batch (the onboarding pack), the head fact definitions
+// of an admitted registry-member change, or neither (the registry and table
+// compiled into the gate). A change never carries both: an admitted
+// onboarding batch refuses any registry-member change and registry path in
+// the change, and a registry-member change is refused beside a batch.
+func (r *Report) packOpts(spec PackSpec, opts Options) (AdmitOpts, bool) {
 	if r.onboarding != nil && r.onboarding.ok && spec.Name == opts.Layout.Onboarding.Pack {
-		return onboardingAdmit(opts, r.onboarding)
+		return onboardingOpts(r.onboarding), true
+	}
+	if definitions, ok := r.registryDefinitions[spec.Name]; ok {
+		return AdmitOpts{Definitions: definitions}, true
+	}
+	return AdmitOpts{}, false
+}
+
+// admitPack is spec.Admit, or spec.AdmitWith under packOpts.
+func (r *Report) admitPack(spec PackSpec, opts Options) (PackStats, error) {
+	if o, ok := r.packOpts(spec, opts); ok {
+		return spec.AdmitWith(opts.Head, o)
 	}
 	return spec.Admit(opts.Head)
 }
 
+// attestPack is spec.Attest, or spec.AttestWith under packOpts.
 func (r *Report) attestPack(spec PackSpec, opts Options) ([]byte, error) {
-	if r.onboarding != nil && r.onboarding.ok && spec.Name == opts.Layout.Onboarding.Pack {
-		return onboardingAttest(opts, r.onboarding)
+	if o, ok := r.packOpts(spec, opts); ok {
+		return spec.AttestWith(opts.Head, o)
 	}
 	return spec.Attest(opts.Head)
 }
@@ -896,6 +932,12 @@ func (r *Report) autoMerge(opts Options) {
 	for _, c := range r.Changes {
 		if c.isSupersede() {
 			reasons = append(reasons, "the change supersedes a reviewed rule; that is made and merged by the owner, never automatically")
+			break
+		}
+	}
+	for _, c := range r.Changes {
+		if c.Member == registryMember && c.OK {
+			reasons = append(reasons, "the change adds fact definitions to a pack's registry; that is merged by the owner, never automatically")
 			break
 		}
 	}

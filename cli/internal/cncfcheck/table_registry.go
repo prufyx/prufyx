@@ -50,34 +50,68 @@ func TableRegistryDigest(tableRaw []byte) (string, error) {
 	return r.Digest(), nil
 }
 
-// assembleWithTable admits the files against the registry and community
-// catalog of a table file.
-func assembleWithTable(landscapeRaw, priorityRaw, packRaw, tableRaw []byte) (bundle, int, error) {
-	projects, _, err := customresources.LoadTable(tableRaw)
-	if err != nil {
-		return bundle{}, 0, ErrIntegrity
+// assembleFull admits the files against the registry and community catalog
+// given by definitions and tableRaw: a nil tableRaw is the embedded table, a
+// nil definitions is this build's compiled registry for that table (the
+// compiled registry for the embedded table, TableDefinitions for a table
+// file). It returns the bundle and the size of the registry it was admitted
+// against.
+func assembleFull(landscapeRaw, priorityRaw, packRaw []byte, definitions []constraintengine.FactDefinition, tableRaw []byte) (bundle, int, error) {
+	projects := customresources.Projects()
+	if tableRaw != nil {
+		var err error
+		if projects, _, err = customresources.LoadTable(tableRaw); err != nil {
+			return bundle{}, 0, ErrIntegrity
+		}
 	}
-	definitions := TableDefinitions(projects)
+	if definitions == nil {
+		if tableRaw == nil {
+			definitions = compiledDefinitions()
+		} else {
+			definitions = TableDefinitions(projects)
+		}
+	}
 	b, err := assembleWithCommunity(landscapeRaw, priorityRaw, packRaw, definitions, projects)
 	return b, len(definitions), err
 }
 
-// CheckPackFilesWithTable is CheckPackFiles against the registry and
-// community catalog of a table file.
-func CheckPackFilesWithTable(landscapeRaw, priorityRaw, packRaw, tableRaw []byte) (PackFileReport, error) {
-	b, n, err := assembleWithTable(landscapeRaw, priorityRaw, packRaw, tableRaw)
+// CheckPackFilesFull is CheckPackFiles against the registry given by
+// definitions and the reviewed custom-resource table tableRaw (see
+// assembleFull for the nil defaults). RegistryFacts reports the size of the
+// registry the pack was admitted against.
+func CheckPackFilesFull(landscapeRaw, priorityRaw, packRaw []byte, definitions []constraintengine.FactDefinition, tableRaw []byte) (PackFileReport, error) {
+	b, n, err := assembleFull(landscapeRaw, priorityRaw, packRaw, definitions, tableRaw)
 	if err != nil {
 		return PackFileReport{}, err
 	}
 	return packFileReport(b, n)
 }
 
-// BuildAttestationFromFilesWithTable is BuildAttestationFromFiles against
-// the registry and community catalog of a table file.
-func BuildAttestationFromFilesWithTable(landscapeRaw, priorityRaw, packRaw, tableRaw []byte) (Attestation, error) {
-	b, _, err := assembleWithTable(landscapeRaw, priorityRaw, packRaw, tableRaw)
+// CheckPackFilesWithTable is CheckPackFiles against the registry and
+// community catalog of a table file.
+func CheckPackFilesWithTable(landscapeRaw, priorityRaw, packRaw, tableRaw []byte) (PackFileReport, error) {
+	if tableRaw == nil {
+		return PackFileReport{}, ErrIntegrity
+	}
+	return CheckPackFilesFull(landscapeRaw, priorityRaw, packRaw, nil, tableRaw)
+}
+
+// BuildAttestationFromFilesFull is BuildAttestationFromFiles against the
+// registry given by definitions and the table tableRaw (nil defaults as in
+// assembleFull).
+func BuildAttestationFromFilesFull(landscapeRaw, priorityRaw, packRaw []byte, definitions []constraintengine.FactDefinition, tableRaw []byte) (Attestation, error) {
+	b, _, err := assembleFull(landscapeRaw, priorityRaw, packRaw, definitions, tableRaw)
 	if err != nil {
 		return Attestation{}, err
 	}
 	return attestationOf(b)
+}
+
+// BuildAttestationFromFilesWithTable is BuildAttestationFromFiles against
+// the registry and community catalog of a table file.
+func BuildAttestationFromFilesWithTable(landscapeRaw, priorityRaw, packRaw, tableRaw []byte) (Attestation, error) {
+	if tableRaw == nil {
+		return Attestation{}, ErrIntegrity
+	}
+	return BuildAttestationFromFilesFull(landscapeRaw, priorityRaw, packRaw, nil, tableRaw)
 }

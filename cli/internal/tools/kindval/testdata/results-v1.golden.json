@@ -1,0 +1,184 @@
+{
+  "schema": "prufyx.io/kind-val-results/v1",
+  "generatedAt": "1970-01-01T00:00:00Z",
+  "prufyx": {
+    "commit": "abc",
+    "sha256": "sha256:bin"
+  },
+  "logDigest": "sha256:log",
+  "lines": [
+    {
+      "line": "1.31",
+      "serverVersion": "v1.31.14",
+      "image": "kindest/node:v1.31.14@sha256:prev",
+      "served": 4
+    },
+    {
+      "line": "1.32",
+      "serverVersion": "v1.32.11",
+      "image": "kindest/node:v1.32.11@sha256:next",
+      "served": 2
+    }
+  ],
+  "claims": [
+    {
+      "id": "k8s.1.32.flowcontrol.apiserver.k8s.io_v1beta3_FlowSchema.not_served",
+      "kind": "k8s-served-api",
+      "outcome": "confirmed",
+      "detail": "not served by v1.32.11",
+      "prufyxCommit": "abc",
+      "nodeImageDigest": "sha256:next",
+      "logDigest": "sha256:log",
+      "evidence": {
+        "source": "t"
+      }
+    },
+    {
+      "id": "k8s.1.31.flowcontrol.apiserver.k8s.io_v1beta3_FlowSchema.served",
+      "kind": "k8s-served-api",
+      "outcome": "confirmed",
+      "detail": "served by v1.31.14",
+      "prufyxCommit": "abc",
+      "nodeImageDigest": "sha256:prev",
+      "logDigest": "sha256:log",
+      "evidence": {
+        "source": "t"
+      }
+    },
+    {
+      "id": "k8s.1.32.apps_v1_Deployment.not_served",
+      "kind": "k8s-served-api",
+      "outcome": "refuted",
+      "detail": "served by v1.32.11",
+      "prufyxCommit": "abc",
+      "nodeImageDigest": "sha256:next",
+      "logDigest": "sha256:log",
+      "evidence": {
+        "source": "t"
+      }
+    },
+    {
+      "id": "k8s.1.40.apps_v1_Deployment.served",
+      "kind": "k8s-served-api",
+      "outcome": "undetermined",
+      "detail": "no snapshot of line 1.40",
+      "prufyxCommit": "abc",
+      "logDigest": "sha256:log",
+      "evidence": {
+        "source": "t"
+      }
+    },
+    {
+      "id": "removal.blocked",
+      "kind": "k8s-removal",
+      "outcome": "confirmed",
+      "detail": "both servers agree; scan 1.31.14 -\u003e 1.32.11: BLOCKED (exit 10)",
+      "prufyxCommit": "abc",
+      "nodeImageDigest": "sha256:next",
+      "logDigest": "sha256:log"
+    },
+    {
+      "id": "removal.passed",
+      "kind": "k8s-removal",
+      "outcome": "refuted",
+      "detail": "both servers agree; scan 1.31.14 -\u003e 1.32.11: PASS (exit 0)",
+      "prufyxCommit": "abc",
+      "nodeImageDigest": "sha256:next",
+      "logDigest": "sha256:log"
+    },
+    {
+      "id": "addon",
+      "kind": "addon-rule",
+      "outcome": "undetermined",
+      "detail": "not evaluated by kind-val",
+      "prufyxCommit": "abc",
+      "logDigest": "sha256:log"
+    },
+    {
+      "id": "from.v1beta1",
+      "kind": "crd-version",
+      "outcome": "confirmed",
+      "detail": "gadgets.fixture.example at v9.0.0 declares v1beta1 served=true storage=false; dry-run object accepted",
+      "prufyxCommit": "abc",
+      "nodeImageDigest": "sha256:next",
+      "logDigest": "sha256:log"
+    },
+    {
+      "id": "from.v1",
+      "kind": "crd-version",
+      "outcome": "confirmed",
+      "detail": "gadgets.fixture.example at v9.0.0 declares v1 served=true storage=true; dry-run object accepted",
+      "prufyxCommit": "abc",
+      "nodeImageDigest": "sha256:next",
+      "logDigest": "sha256:log"
+    },
+    {
+      "id": "to.v1beta1",
+      "kind": "crd-version",
+      "outcome": "confirmed",
+      "detail": "gadgets.fixture.example at v9.1.0 declares v1beta1 served=false storage=false; dry-run object not_served",
+      "prufyxCommit": "abc",
+      "nodeImageDigest": "sha256:next",
+      "logDigest": "sha256:log"
+    },
+    {
+      "id": "to.v1",
+      "kind": "crd-version",
+      "outcome": "confirmed",
+      "detail": "gadgets.fixture.example at v9.1.0 declares v1 served=true storage=true; dry-run object accepted",
+      "prufyxCommit": "abc",
+      "nodeImageDigest": "sha256:next",
+      "logDigest": "sha256:log"
+    },
+    {
+      "id": "removal",
+      "kind": "crd-removal",
+      "outcome": "confirmed",
+      "detail": "fixture.example/v1beta1/Gadget: accepted at v9.0.0, not_served at v9.1.0",
+      "prufyxCommit": "abc",
+      "nodeImageDigest": "sha256:next",
+      "logDigest": "sha256:log"
+    }
+  ],
+  "diffs": [
+    {
+      "from": "1.31",
+      "to": "1.32",
+      "removed": [
+        "flowcontrol.apiserver.k8s.io/v1beta3 FlowSchema",
+        "h.example/v1beta1 K"
+      ],
+      "added": [],
+      "unknownRemovals": [
+        "h.example/v1beta1 K"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "severity": "HIGH",
+      "id": "removal.passed",
+      "message": "1.31.14 -\u003e 1.32.11: the scan PASSES h.example/v1beta1 K, which 1.31 serves and 1.32 rejects"
+    },
+    {
+      "severity": "MEDIUM",
+      "id": "diff.1.32.h-example_v1beta1_K",
+      "message": "line 1.32 no longer serves h.example/v1beta1 K (served by 1.31); no claim names it"
+    },
+    {
+      "severity": "MEDIUM",
+      "id": "k8s.1.32.apps_v1_Deployment.not_served",
+      "message": "line 1.32 (v1.32.11): the claim says apps/v1 Deployment is not_served, the API server says served"
+    }
+  ],
+  "totals": {
+    "claims": 12,
+    "confirmed": 8,
+    "refuted": 2,
+    "undetermined": 2,
+    "error": 0,
+    "high": 1,
+    "medium": 2,
+    "info": 0
+  }
+}

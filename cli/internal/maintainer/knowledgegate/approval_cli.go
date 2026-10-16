@@ -33,6 +33,12 @@ const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|public-key
   verify      --subject lineAttestation --record ID --base-root DIR (in place of --rule ID; the other
               options as above; --base-root is the base checkout, whose approvals are checked for
               single use and forward-only decisions)
+  sign        --subject registryDigest --pack cncf --base-root DIR --head-root DIR
+              --keys FILE --keys-digest sha256:... --identity LOGIN --candidate-id ID
+              (--key FILE | --key-stdin) --output FILE (run a build of the base: its compiled
+              fact registry is the base list)
+  verify      --approval FILE --subject registryDigest --pack cncf --base-root DIR --head-root DIR
+              --keys FILE --keys-digest sha256:... [--now RFC3339]
   verify      --approval FILE --subject repinBaseline --repository OWNER/REPO --head-baselines FILE
               [--base-baselines FILE] --base-root DIR --keys FILE --keys-digest sha256:... [--now RFC3339]
   sign        --batch --base DIR --head DIR --batch-id b-YYYYMMDD-N --candidate-id ID
@@ -179,10 +185,14 @@ type subjectFlags struct {
 	subject, pack, rule, record, basePack, headPack string
 	keys, keysDigest                                string
 	repository, baseBaselines, headBaselines        string
+	// baseRoot and headRoot are the base and head checkouts of a
+	// registryDigest subject (baseRoot is also verify's --base-root).
+	baseRoot, headRoot string
 }
 
 func (s *subjectFlags) register(f *flag.FlagSet) {
-	f.StringVar(&s.subject, "subject", ApprovalSubjectRule, "what the approval is for: rule, lineAttestation or repinBaseline")
+	f.StringVar(&s.subject, "subject", ApprovalSubjectRule, "what the approval is for: rule, lineAttestation, repinBaseline or registryDigest")
+	f.StringVar(&s.headRoot, "head-root", "", "registryDigest: the head checkout (the change as proposed)")
 	f.StringVar(&s.record, "record", "", "lineAttestation: the line attestation record ID (in place of --rule)")
 	f.StringVar(&s.repository, "repository", "", "repinBaseline: the repository (owner/repo), spelled as its entry spells it")
 	f.StringVar(&s.baseBaselines, "base-baselines", "", "repinBaseline: the baseline file as it is on the base branch (omit when the base has none)")
@@ -231,13 +241,19 @@ func (s *subjectFlags) load(layout Layout) (ApprovalSubject, ApprovalKeys, error
 	if s.subject == ApprovalSubjectRepinBaseline {
 		return s.loadBaseline()
 	}
+	if s.subject == ApprovalSubjectRegistry {
+		return s.loadRegistry(layout)
+	}
+	if s.headRoot != "" {
+		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--head-root belongs to --subject registryDigest"}
+	}
 	switch {
 	case s.subject == ApprovalSubjectRule && s.record != "":
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--subject rule takes --rule ID, not --record"}
 	case s.subject == ApprovalSubjectLineAttestation && (s.record == "" || s.rule != ""):
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--subject lineAttestation takes --record ID, not --rule"}
 	case s.subject != ApprovalSubjectRule && s.subject != ApprovalSubjectLineAttestation:
-		return ApprovalSubject{}, ApprovalKeys{}, fmt.Errorf("--subject %q is not supported (supported: rule, lineAttestation, repinBaseline)", s.subject)
+		return ApprovalSubject{}, ApprovalKeys{}, fmt.Errorf("--subject %q is not supported (supported: rule, lineAttestation, repinBaseline); --subject registryDigest takes --pack, --base-root and --head-root", s.subject)
 	case s.repository != "" || s.baseBaselines != "" || s.headBaselines != "":
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--repository, --base-baselines and --head-baselines belong to --subject repinBaseline"}
 	}
@@ -275,6 +291,43 @@ func (s *subjectFlags) load(layout Layout) (ApprovalSubject, ApprovalKeys, error
 	} else {
 		subject, err = RuleApprovalSubject(*spec, base, head, s.rule)
 	}
+	if err != nil {
+		return ApprovalSubject{}, ApprovalKeys{}, err
+	}
+	return subject, keys, nil
+}
+
+// loadRegistry reads a registryDigest subject from the base and head
+// checkouts exactly as the gate reads it. The base fact registry is the one
+// compiled into this program, so it must be built from the base.
+func (s *subjectFlags) loadRegistry(layout Layout) (ApprovalSubject, ApprovalKeys, error) {
+	if s.pack == "" || s.baseRoot == "" || s.headRoot == "" || s.keys == "" || s.keysDigest == "" {
+		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--pack, --base-root, --head-root, --keys and --keys-digest are required"}
+	}
+	if s.rule != "" || s.record != "" || s.basePack != "" || s.headPack != "" || s.repository != "" || s.baseBaselines != "" || s.headBaselines != "" {
+		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--subject registryDigest takes --pack, --base-root and --head-root only"}
+	}
+	var spec *PackSpec
+	for i := range layout.Packs {
+		if layout.Packs[i].Name == s.pack {
+			spec = &layout.Packs[i]
+		}
+	}
+	if spec == nil {
+		return ApprovalSubject{}, ApprovalKeys{}, fmt.Errorf("unknown pack %q", s.pack)
+	}
+	if !registrySpec(layout, s.pack) {
+		return ApprovalSubject{}, ApprovalKeys{}, fmt.Errorf("the %s pack has no fact registry this gate reads", s.pack)
+	}
+	keysRaw, err := readBoundedFile(s.keys, maxApprovalBytes*4)
+	if err != nil {
+		return ApprovalSubject{}, ApprovalKeys{}, err
+	}
+	keys, err := LoadApprovalKeys(keysRaw, s.keysDigest)
+	if err != nil {
+		return ApprovalSubject{}, ApprovalKeys{}, err
+	}
+	subject, _, err := RegistryApprovalSubject(*spec, Tree{Root: s.baseRoot}, Tree{Root: s.headRoot})
 	if err != nil {
 		return ApprovalSubject{}, ApprovalKeys{}, err
 	}
@@ -377,11 +430,15 @@ func cmdApprovalSign(args []string, env approvalEnv, layout Layout, stdout io.Wr
 	f.StringVar(&identity, "identity", "", "the owner's login, as pinned in the key file")
 	f.StringVar(&candidateID, "candidate-id", "", "a reference for the change, for example its pull request")
 	f.StringVar(&output, "output", "", "new approval file to write")
+	f.StringVar(&s.baseRoot, "base-root", "", "registryDigest: the base checkout")
 	if err := parseApprovalFlags(f, args); err != nil {
 		return 2, err
 	}
 	if identity == "" || candidateID == "" || output == "" {
 		return 2, usageError{"--identity, --candidate-id and --output are required"}
+	}
+	if s.baseRoot != "" && s.subject != ApprovalSubjectRegistry {
+		return 2, usageError{"--base-root belongs to --subject registryDigest when signing"}
 	}
 	subject, keys, err := s.load(layout)
 	if err != nil {
@@ -423,6 +480,8 @@ func printApproval(w io.Writer, rec ApprovalRecord, key ApprovalKey) {
 		fmt.Fprintf(w, "  subject    repinBaseline %s\n", rec.Scope)
 	case ApprovalSubjectLineAttestation:
 		fmt.Fprintf(w, "  subject    line attestation %s/%s (%s)\n", rec.Pack, rec.RuleID, rec.Scope)
+	case ApprovalSubjectRegistry:
+		fmt.Fprintf(w, "  subject    fact registry addition %s/%s\n", rec.Pack, rec.RuleID)
 	default:
 		fmt.Fprintf(w, "  subject    rule %s/%s\n", rec.Pack, rec.RuleID)
 	}
@@ -435,11 +494,11 @@ func printApproval(w io.Writer, rec ApprovalRecord, key ApprovalKey) {
 
 func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.Writer) (int, error) {
 	var s subjectFlags
-	var approval, now, baseRoot string
+	var approval, now string
 	f := flag.NewFlagSet("approval verify", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	s.register(f)
-	f.StringVar(&baseRoot, "base-root", "", "lineAttestation, repinBaseline: the base checkout, whose approvals the gate checks for single use and forward-only decisions")
+	f.StringVar(&s.baseRoot, "base-root", "", "lineAttestation, repinBaseline, registryDigest: the base checkout, whose approvals the gate checks for single use and forward-only decisions")
 	f.StringVar(&approval, "approval", "", "the approval file")
 	f.StringVar(&now, "now", "", "the clock, RFC 3339 UTC (default: now)")
 	if err := parseApprovalFlags(f, args); err != nil {
@@ -455,12 +514,13 @@ func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.
 			return 2, errors.New("--now must be RFC 3339 UTC")
 		}
 	}
-	checksBase := s.subject == ApprovalSubjectLineAttestation || s.subject == ApprovalSubjectRepinBaseline
+	baseRoot := s.baseRoot
+	checksBase := s.subject == ApprovalSubjectLineAttestation || s.subject == ApprovalSubjectRepinBaseline || s.subject == ApprovalSubjectRegistry
 	switch {
 	case checksBase && baseRoot == "":
 		return 2, usageError{"--base-root is required: the gate refuses an approval the base already holds or has superseded, and verify must say so before it says OK"}
 	case !checksBase && baseRoot != "":
-		return 2, usageError{"--base-root belongs to --subject lineAttestation or repinBaseline"}
+		return 2, usageError{"--base-root belongs to --subject lineAttestation, repinBaseline or registryDigest"}
 	}
 	subject, keys, err := s.load(layout)
 	if err != nil {
@@ -475,8 +535,11 @@ func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.
 		return 1, nil
 	}
 	if checksBase {
-		if err := s.checkBaseRoot(layout, baseRoot); err != nil {
-			return 2, err
+		// A registryDigest subject was read from --base-root itself.
+		if s.subject != ApprovalSubjectRegistry {
+			if err := s.checkBaseRoot(layout, baseRoot); err != nil {
+				return 2, err
+			}
 		}
 		used, err := (&baseApprovals{opts: Options{Base: Tree{Root: baseRoot}, Layout: layout}}).refuse(raw)
 		if err != nil {

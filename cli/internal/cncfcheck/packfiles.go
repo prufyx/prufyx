@@ -42,11 +42,14 @@ type PackFileReport struct {
 // engine checks), and reports the pack's published size against the
 // external target caps. It never reads the embedded pack.
 func CheckPackFiles(landscapeRaw, priorityRaw, packRaw []byte) (PackFileReport, error) {
-	b, err := assemble(landscapeRaw, priorityRaw, packRaw, compiledDefinitions())
-	if err != nil {
-		return PackFileReport{}, err
-	}
-	return packFileReport(b, len(compiledDefinitions()))
+	return CheckPackFilesWith(landscapeRaw, priorityRaw, packRaw, compiledDefinitions())
+}
+
+// CheckPackFilesWith is CheckPackFiles under the given fact definitions in
+// place of this build's compiled registry: the knowledge gate admits a head
+// pack that adds fact definitions under the head's definition list.
+func CheckPackFilesWith(landscapeRaw, priorityRaw, packRaw []byte, definitions []constraintengine.FactDefinition) (PackFileReport, error) {
+	return CheckPackFilesFull(landscapeRaw, priorityRaw, packRaw, definitions, nil)
 }
 
 // packFileReport sizes an admitted bundle as CheckPackFiles reports it;
@@ -92,11 +95,13 @@ func packFileReport(b bundle, registryFacts int) (PackFileReport, error) {
 // read from files, computed exactly as BuildAttestation computes it for the
 // embedded pack.
 func BuildAttestationFromFiles(landscapeRaw, priorityRaw, packRaw []byte) (Attestation, error) {
-	b, err := assemble(landscapeRaw, priorityRaw, packRaw, compiledDefinitions())
-	if err != nil {
-		return Attestation{}, err
-	}
-	return attestationOf(b)
+	return BuildAttestationFromFilesWith(landscapeRaw, priorityRaw, packRaw, compiledDefinitions())
+}
+
+// BuildAttestationFromFilesWith is BuildAttestationFromFiles under the given
+// fact definitions in place of this build's compiled registry.
+func BuildAttestationFromFilesWith(landscapeRaw, priorityRaw, packRaw []byte, definitions []constraintengine.FactDefinition) (Attestation, error) {
+	return BuildAttestationFromFilesFull(landscapeRaw, priorityRaw, packRaw, definitions, nil)
 }
 
 // attestationOf is the corpus attestation of an admitted bundle.

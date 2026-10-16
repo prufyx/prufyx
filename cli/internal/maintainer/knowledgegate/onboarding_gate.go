@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
-	"github.com/prufyx/prufyx/cli/internal/maintainer/corpusattest"
 )
 
 // onboardingResult is the gate's decision on the onboarding batch a change
@@ -274,27 +273,28 @@ func onboardingPathReason(opts Options, p string, ob *onboardingResult) string {
 	return ""
 }
 
+// onboardingOpts is what the cncf pack is admitted against once the batch
+// was admitted: the head table the batch verified, and never fact
+// definitions (the registry-member approval path is not combined with it).
+func onboardingOpts(ob *onboardingResult) AdmitOpts {
+	return AdmitOpts{TableRaw: ob.headTable}
+}
+
 // onboardingAdmit admits the cncf pack against the head table the batch
 // was admitted with; onboardingAttest regenerates its corpus attestation the
 // same way.
 func onboardingAdmit(opts Options, ob *onboardingResult) (PackStats, error) {
-	ol := opts.Layout.Onboarding
-	var spec *PackSpec
-	for i := range opts.Layout.Packs {
-		if opts.Layout.Packs[i].Name == ol.Pack {
-			spec = &opts.Layout.Packs[i]
-		}
-	}
-	if spec == nil {
+	spec, ok := opts.Layout.pack(opts.Layout.Onboarding.Pack)
+	if !ok || spec.AdmitWith == nil {
 		return PackStats{}, errors.New("no onboarding pack in the layout")
 	}
-	files, err := readAll(opts.Head, ol.LandscapePath, ol.PriorityPath, spec.Path)
-	if err != nil {
-		return PackStats{}, err
-	}
-	return cncfPackStats(files[0], files[1], files[2], ob.headTable)
+	return spec.AdmitWith(opts.Head, onboardingOpts(ob))
 }
 
 func onboardingAttest(opts Options, ob *onboardingResult) ([]byte, error) {
-	return corpusattest.DocumentFromFilesWithTable(corpusattest.PackCNCF, opts.Head.readUnder(cliDir), ob.headTable)
+	spec, ok := opts.Layout.pack(opts.Layout.Onboarding.Pack)
+	if !ok || spec.AttestWith == nil {
+		return nil, errors.New("no onboarding pack in the layout")
+	}
+	return spec.AttestWith(opts.Head, onboardingOpts(ob))
 }

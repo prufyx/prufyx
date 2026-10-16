@@ -143,6 +143,10 @@ func (r ApprovalRecord) validate() error {
 		if !approvalRepoScopeRE.MatchString(r.Scope) {
 			return errors.New("approval record field out of range")
 		}
+	case ApprovalSubjectRegistry:
+		if r.Scope != RegistryApprovalScope || r.RuleID != RegistryApprovalID || r.BaseDigest == ApprovalBaseAbsent {
+			return errors.New("approval record field out of range")
+		}
 	default:
 		return errors.New("approval record field out of range")
 	}

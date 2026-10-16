@@ -9,6 +9,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Knowledge gate: a change that adds fact definitions to the CNCF fact registry
+  (and so moves the pack's `registryDigest`) is admitted with an owner approval
+  of the new subject `registryDigest`, signed and checked with
+  `prufyx-maintainer approval sign|verify --subject registryDigest`. The gate
+  reads the definitions from the base and head source without running the
+  change's code and refuses any removed, retyped or moved definition, a digest
+  that does not match, and any other top-level pack change in the same change.
+  Existing gate decisions are unchanged.
 - Maintainer command `prufyx-maintainer docs-tables` (with `--check`): writes
   the tables of the reviewed custom-resource projects and of the
   `crd.version-removal` targets to `cli/docs/generated/` from the data compiled
@@ -209,6 +217,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   claims name and no pair covers, so those claims are decided instead of
   `undetermined`; a release that cannot be installed from the claim's
   evidence stays `undetermined` with the reason, a failed fetch or install is `error`.
+  Results v2 (additive): a `prufyx.io/kind-val-claims/v2` claims file gives
+  `prufyx.io/kind-val-results/v2`, where every claim also has a `verdict`
+  (`confirmed-by-execution`, `refuted`, `undetermined`, `error`) and, unless
+  confirmed, a `reason` from a closed list of codes. The run also decides
+  reviewed control claims (known true and known false, embedded from
+  `controls.json`, each value cited to an upstream file at a commit) for
+  every kind it has; they are reported apart in `controls`, and when a
+  control of a kind does not come out as expected on a line, every claim of
+  that kind on that line is an `error` with reason `canary-failed` and a
+  `HIGH` finding names the control. `kind-val.sh` still writes v1 claims and
+  results by default; `--v2` opts in. A v1 claims file gives exactly the v1
+  results as before.
 
 - Knowledge gate: the first attested update of a pack that holds an older schema
   is admissible. A change of the pack's top-level `schema` member is admitted

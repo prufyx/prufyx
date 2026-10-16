@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/treefs"
 	"github.com/prufyx/prufyx/cli/internal/projectcheck"
@@ -149,22 +150,31 @@ const MaxInputBytes = maxPackBytes
 // slashes. A reader that refuses links and bounds sizes keeps a tree it
 // does not trust from leading the read anywhere else.
 func DocumentFromFiles(pack string, readFile func(rel string) ([]byte, error)) ([]byte, error) {
-	return documentFromFiles(pack, readFile, cncfcheck.BuildAttestationFromFiles)
+	return documentFromFiles(pack, readFile, Options{})
 }
 
-// DocumentFromFilesWithTable is DocumentFromFiles for the CNCF pack admitted
-// against the reviewed custom-resource table tableRaw instead of the
-// embedded one (cncfcheck.BuildAttestationFromFilesWithTable).
-func DocumentFromFilesWithTable(pack string, readFile func(rel string) ([]byte, error), tableRaw []byte) ([]byte, error) {
-	if pack != PackCNCF {
-		return nil, fmt.Errorf("only the CNCF pack is admitted against a table file")
+// Options select what the CNCF pack is admitted against in place of this
+// build's compiled registry and embedded custom-resource table. A nil field
+// is that default: nil Definitions is this build's compiled registry (for
+// the table in use), nil TableRaw the embedded table.
+type Options struct {
+	// Definitions are the fact definitions the registry is compiled from.
+	Definitions []constraintengine.FactDefinition
+	// TableRaw is a reviewed custom-resource table file read in place of
+	// the embedded table.
+	TableRaw []byte
+}
+
+// DocumentFromFilesWith is DocumentFromFiles for the CNCF pack admitted
+// under opts. Only the CNCF pack takes options, and opts must set something.
+func DocumentFromFilesWith(pack string, readFile func(rel string) ([]byte, error), opts Options) ([]byte, error) {
+	if pack != PackCNCF || (opts.Definitions == nil && opts.TableRaw == nil) {
+		return nil, fmt.Errorf("fact definitions and table files apply only to the %s pack", PackCNCF)
 	}
-	return documentFromFiles(pack, readFile, func(landscape, priority, rules []byte) (cncfcheck.Attestation, error) {
-		return cncfcheck.BuildAttestationFromFilesWithTable(landscape, priority, rules, tableRaw)
-	})
+	return documentFromFiles(pack, readFile, opts)
 }
 
-func documentFromFiles(pack string, readFile func(rel string) ([]byte, error), buildCNCF func(landscape, priority, rules []byte) (cncfcheck.Attestation, error)) ([]byte, error) {
+func documentFromFiles(pack string, readFile func(rel string) ([]byte, error), opts Options) ([]byte, error) {
 	read := func(rel string) ([]byte, error) {
 		raw, err := readFile(rel)
 		if err != nil {
@@ -190,7 +200,7 @@ func documentFromFiles(pack string, readFile func(rel string) ([]byte, error), b
 		if err != nil {
 			return nil, err
 		}
-		attestation, err := buildCNCF(landscape, priority, rules)
+		attestation, err := cncfcheck.BuildAttestationFromFilesFull(landscape, priority, rules, opts.Definitions, opts.TableRaw)
 		if err != nil {
 			return nil, err
 		}

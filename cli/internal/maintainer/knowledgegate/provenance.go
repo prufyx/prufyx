@@ -220,6 +220,9 @@ func (r *Report) recordCheck(cls *Classification, statements map[string]statemen
 		if c.OK && c.RuleID != "" {
 			admitted[c.Pack+"\x00"+c.RuleID] = c
 		}
+		if c.OK && c.Member == registryMember {
+			admitted[c.Pack+"\x00"+RegistryApprovalID] = c
+		}
 	}
 	packs := map[string]bool{}
 	for _, spec := range opts.Layout.Packs {

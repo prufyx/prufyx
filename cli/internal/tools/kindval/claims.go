@@ -219,8 +219,12 @@ func pairID(project, fromTag, toTag string) string { return project + "." + from
 // Validate checks the claims document: known kinds, unique ids, complete
 // subjects, and one commit and file list per project release.
 func (c Claims) Validate() error {
-	if c.Schema != ClaimsSchema {
-		return fmt.Errorf("schema %q is not %s", c.Schema, ClaimsSchema)
+	v2 := c.Schema == ClaimsSchemaV2
+	if c.Schema != ClaimsSchema && !v2 {
+		return fmt.Errorf("schema %q is neither %s nor %s", c.Schema, ClaimsSchema, ClaimsSchemaV2)
+	}
+	if !v2 && len(c.Lines) > 0 {
+		return fmt.Errorf("lines are a %s member", ClaimsSchemaV2)
 	}
 	ids := map[string]bool{}
 	releases := map[string]CRDRelease{}
@@ -237,6 +241,14 @@ func (c Claims) Validate() error {
 			return fmt.Errorf("claim %d: id %q is empty or repeated", i, cl.ID)
 		}
 		ids[cl.ID] = true
+		switch {
+		case cl.Control != "" && !v2:
+			return fmt.Errorf("claim %s: control is a %s member", cl.ID, ClaimsSchemaV2)
+		case cl.Control != "" && cl.Control != ControlTrue && cl.Control != ControlFalse:
+			return fmt.Errorf("claim %s: control must be \"true\" or \"false\"", cl.ID)
+		case v2 && (cl.Control != "") != strings.HasPrefix(cl.ID, "control."):
+			return fmt.Errorf("claim %s: only a control has an id starting with control.", cl.ID)
+		}
 		s := cl.Subject
 		var err error
 		switch cl.Kind {
@@ -276,6 +288,9 @@ func (c Claims) Validate() error {
 		if err != nil {
 			return fmt.Errorf("claim %s (%s): %v", cl.ID, cl.Kind, err)
 		}
+	}
+	if v2 {
+		return c.checkControls()
 	}
 	return nil
 }

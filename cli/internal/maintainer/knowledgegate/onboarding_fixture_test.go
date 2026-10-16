@@ -262,7 +262,7 @@ func (f *onboardingFixture) writePack(t *testing.T, packRaw []byte) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if att, err := corpusattest.DocumentFromFilesWithTable(corpusattest.PackCNCF, f.head.readUnder(cliDir), table); err == nil {
+	if att, err := corpusattest.DocumentFromFilesWith(corpusattest.PackCNCF, f.head.readUnder(cliDir), corpusattest.Options{TableRaw: table}); err == nil {
 		writeFile(t, filepath.Join(f.head.Root, filepath.FromSlash(cncfAttestPath)), att)
 	}
 	for _, g := range DefaultLayout().Generated {

@@ -1,0 +1,14 @@
+{
+  "schema": "prufyx.io/web-approval-keys/v1",
+  "role": "web-approval",
+  "owners": [
+    "airstand"
+  ],
+  "keys": [
+    {
+      "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+      "publicKey": "017df93925df41dfa873b55664ed44b8d563d4e656b9288b7fdfb150425c274c",
+      "notAfter": "2027-10-16T00:00:00Z"
+    }
+  ]
+}
