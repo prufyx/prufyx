@@ -265,11 +265,11 @@ func kubernetesExtra() int {
 }
 
 // TestNoNativeRouteIsFullySatisfiedByVersionAlone documents and enforces a
-// core finding of the design: every one of the 194 native check routes (198 once the mechanical Kubernetes rules ship)
+// core finding of the design: every one of the 198 native check routes
 // requires at least one caller declaration (a file, a name, or a boolean
 // intent flag) beyond the --from/--to version pair. If this ever stops being
 // true, ApplicableFullySatisfied stops being a dead bucket and the design
-// note's "0 of 194" claim needs updating alongside this test.
+// note's "0 of 198" claim needs updating alongside this test.
 func TestNoNativeRouteIsFullySatisfiedByVersionAlone(t *testing.T) {
 	result, err := checkroutemetadata.Discover("", "", "")
 	if err != nil {
