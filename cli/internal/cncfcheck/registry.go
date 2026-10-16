@@ -190,6 +190,17 @@ func packagedDefinitions() []constraintengine.FactDefinition {
 	}, customResourceVersionDefinitions()...)
 }
 
+// CompiledFactDefinitions returns a copy of this build's fact registry
+// definitions (compiledDefinitions).
+func CompiledFactDefinitions() []constraintengine.FactDefinition {
+	definitions := compiledDefinitions()
+	out := make([]constraintengine.FactDefinition, len(definitions))
+	for i, d := range definitions {
+		out[i] = constraintengine.FactDefinition{ID: d.ID, Component: d.Component, Type: d.Type, EnumTokens: append([]string(nil), d.EnumTokens...)}
+	}
+	return out
+}
+
 func compiledRegistry() (constraintengine.Registry, error) {
 	return constraintengine.NewCompiledRegistry(compiledDefinitions())
 }

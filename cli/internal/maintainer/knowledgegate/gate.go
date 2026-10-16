@@ -179,6 +179,10 @@ type Report struct {
 
 	// alarmKinds runs parallel to Alarms.
 	alarmKinds []string
+	// registryDefinitions holds, by pack, the head fact definitions of a
+	// registryDigest change admitted with an owner approval: that pack is
+	// admitted and attested under them.
+	registryDefinitions map[string][]constraintengine.FactDefinition
 	// batch is the decision on the batch approval the change adds (nil:
 	// none).
 	batch *batchResult
@@ -424,7 +428,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	batch := runBatch(ctx, opts, cls, r.ChangedPaths, loadKeys, approvals)
 	r.batch = batch
 
-	var mechanical, removals, schemaChanges []*Change
+	var mechanical, removals, schemaChanges, registryChanges []*Change
 	consensusChecks := &consensusRun{}
 	defer consensusChecks.close()
 	for _, c := range cls.Changes {
@@ -439,6 +443,11 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		if c.Member == "schema" {
 			// Decided once every other change of the pack has been.
 			schemaChanges = append(schemaChanges, c)
+			continue
+		}
+		if c.Member == registryMember && registrySpec(opts.Layout, c.Pack) {
+			// Decided once every other change has been classified.
+			registryChanges = append(registryChanges, c)
 			continue
 		}
 		if c.Member != "" {
@@ -503,6 +512,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	}
 	r.Supersedes = supersedeReport(cls)
 	admitSchemaChanges(cls, schemaChanges, r.ChangedPaths, opts)
+	r.registryDefinitions = admitRegistryChanges(cls, registryChanges, r.ChangedPaths, opts, loadKeys, approvals)
 
 	if opts.RederiveAll {
 		r.rederiveAll(ctx, cls, mechanical, opts)
@@ -705,7 +715,13 @@ func (r *Report) packChecks(cls *Classification, opts Options) {
 			r.add("admit/"+spec.Name, !b.Present, "the pack file is missing")
 			continue
 		}
-		stats, err := spec.Admit(opts.Head)
+		var stats PackStats
+		var err error
+		if definitions, ok := r.registryDefinitions[spec.Name]; ok {
+			stats, err = spec.AdmitWith(opts.Head, definitions)
+		} else {
+			stats, err = spec.Admit(opts.Head)
+		}
 		if err != nil {
 			r.add("admit/"+spec.Name, false, "the engine does not admit the pack: %v", err)
 		} else {
@@ -794,7 +810,13 @@ func (r *Report) staggerCheck(spec PackSpec, h *loadedPack, weeks map[string]boo
 }
 
 func (r *Report) attestationCheck(spec PackSpec, opts Options) {
-	want, err := spec.Attest(opts.Head)
+	var want []byte
+	var err error
+	if definitions, ok := r.registryDefinitions[spec.Name]; ok {
+		want, err = spec.AttestWith(opts.Head, definitions)
+	} else {
+		want, err = spec.Attest(opts.Head)
+	}
 	if err != nil {
 		r.add("attestation/"+spec.Name, false, "cannot regenerate the corpus attestation: %v", err)
 		return
@@ -859,6 +881,12 @@ func (r *Report) autoMerge(opts Options) {
 	for _, c := range r.Changes {
 		if c.isSupersede() {
 			reasons = append(reasons, "the change supersedes a reviewed rule; that is made and merged by the owner, never automatically")
+			break
+		}
+	}
+	for _, c := range r.Changes {
+		if c.Member == registryMember && c.OK {
+			reasons = append(reasons, "the change adds fact definitions to a pack's registry; that is merged by the owner, never automatically")
 			break
 		}
 	}

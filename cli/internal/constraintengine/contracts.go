@@ -194,15 +194,36 @@ func (r Registry) definition(id string) (FactDefinition, bool) {
 
 func (r Registry) Digest() string { return r.digest }
 
+// Definitions returns copies of the registry's definitions sorted by ID, each
+// as the registry holds it (enum tokens sorted, no tokens as nil).
+func (r Registry) Definitions() []FactDefinition {
+	values := make([]FactDefinition, 0, len(r.definitions))
+	for _, definition := range r.definitions {
+		values = append(values, FactDefinition{ID: definition.ID, Component: definition.Component, Type: definition.Type, EnumTokens: append([]string(nil), definition.EnumTokens...)})
+	}
+	sort.Slice(values, func(i, j int) bool { return values[i].ID < values[j].ID })
+	return values
+}
+
+// Document returns the exact bytes Digest is the sha256 of.
+func (r Registry) Document() []byte {
+	raw, _ := json.Marshal(registryDocument(r.definitions))
+	return raw
+}
+
 func registryDigest(definitions map[string]FactDefinition) string {
+	return digestJSON(registryDocument(definitions))
+}
+
+func registryDocument(definitions map[string]FactDefinition) any {
 	values := make([]FactDefinition, 0, len(definitions))
 	for _, definition := range definitions {
 		values = append(values, definition)
 	}
 	sort.Slice(values, func(i, j int) bool { return values[i].ID < values[j].ID })
-	return digestJSON(struct {
+	return struct {
 		Facts []FactDefinition `json:"facts"`
-	}{Facts: values})
+	}{Facts: values}
 }
 
 type inputDocument struct {

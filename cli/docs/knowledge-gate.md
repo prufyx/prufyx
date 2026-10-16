@@ -381,7 +381,9 @@ job output `head-sha`). It is eligible only when:
   - anything under `cli/knowledge/approvals/`
   - anything under `cli/knowledge/reattestation/<pack>/chain/`, `…/worklists/` and `…/review-records/`
 - it holds no change of a pack's schema level (proof `schema-level`, below): the
-  first attested update of a pack is merged by the owner, never automatically.
+  first attested update of a pack is merged by the owner, never automatically;
+- it adds no fact definition (an admitted `registryDigest` change, see [Adding
+  fact definitions](#adding-fact-definitions)).
 
 Trust material is never on that list. A consumer that merges automatically
 must merge exactly the commit in `head-sha` (for example with the expected
@@ -661,7 +663,7 @@ prufyx-maintainer approval sign \
 | `--key FILE` | the private key file: a regular file owned by you with no group or other permission (mode `0600` or `0400`), not a symbolic link, with no symbolic link in its path and only one hard link |
 | `--key-stdin` | read the private key from standard input instead; standard input must be a pipe (a terminal, another device or a redirected file is refused; give a file with `--key`) |
 | `--output` | the approval file to create; its path must end in `<pack>/<rule id>.json` (the gate reads `cli/knowledge/approvals/<pack>/<rule id>.json`); an existing file or link there is never replaced, no directory in the path may be a symbolic link, missing directories are created, and the file gets mode `0644` |
-| `--subject` | what the approval is for: `rule` (the default), `lineAttestation` or `repinBaseline` |
+| `--subject` | what the approval is for: `rule` (the default), `lineAttestation`, `repinBaseline` or `registryDigest` |
 | `--record` | with `--subject lineAttestation`, in place of `--rule`: the line attestation's record ID; the proposed pack must hold it with evidence basis `reviewed`, it must differ from the base record, the base record must not be mechanical, and the change must loosen (a change that only shortens `validUntil` is refused) |
 
 A line attestation approval names `"subject": "lineAttestation"` and the
@@ -717,6 +719,72 @@ any of its commands prints the usage and exits `0`. Exit codes for `approval`:
 `0` signed, or the approval is accepted; `1` (`verify` only) the approval is
 refused, with the reason; `2` rejected input or a refused signing. Nothing
 uses the network.
+
+### Adding fact definitions
+
+The fact registry is Go code (`packagedDefinitions` in
+`cli/internal/cncfcheck/registry.go`), and the CNCF pack's `registryDigest`
+member is the digest of the registry compiled into Prufyx: Prufyx refuses a pack
+whose `registryDigest` is not the digest of its own registry. Adding a fact
+definition therefore moves the member. The gate admits that member change (proof
+`approval`) only when all of these hold, and refuses it otherwise with the reason:
+
+- the base's `registryDigest` is the digest of the registry compiled into the
+  gate (the base's);
+- the gate reads the literal definitions of `packagedDefinitions` from the base
+  and the head source without running any code of the change (only the literal
+  form, string literals and the three fact types are read; any other form is
+  refused); the base's literal definitions must be exactly those of the compiled
+  registry;
+- the head's definition list (the compiled registry with the base's literal
+  definitions replaced by the head's) is a valid registry, keeps every base
+  definition unchanged (none removed or renamed, retyped, moved to another
+  component or given other enum tokens) and adds at least one;
+- the head's `registryDigest` is the digest of that list; a definition added
+  anywhere else than in the literal list is therefore refused;
+- no other top-level member of any pack changes (`schema` and `revision`
+  included), and the change touches no trust material, no registry file and no
+  reattestation chain;
+- the change adds an owner approval at
+  `cli/knowledge/approvals/cncf/member.registryDigest.json` that verifies under
+  the base's pinned owner keys (no key pinned: refused): `subject`
+  `registryDigest`, `ruleId` `member.registryDigest`, `scope` `registryDigest`,
+  `baseDigest` the base `registryDigest`, and `candidateDigest` the digest of the
+  canonical statement
+
+  ```json
+  {"added": [{"component": "…", "enumTokens": null, "id": "…", "type": "bool"}],
+   "baseRegistryDigest": "sha256:…", "headRegistryDigest": "sha256:…",
+   "schema": "prufyx.io/fact-registry-addition/v1"}
+  ```
+
+  (keys sorted, two-space indent, one final newline; `added` sorted by `id`,
+  enum tokens sorted). The approval is single-use and forward-only like a record
+  approval, at most 14 days old, and counts as one loosening change.
+
+With the change admitted, the gate admits the pack and regenerates its corpus
+attestation under the head's definition list. A new definition is inert until a
+rule reads it, and that rule is admitted by its own proof. Such a change is never
+eligible for automatic merging.
+
+Sign and check the approval from a build of the base (its compiled registry is
+the base list) with both checkouts:
+
+```sh
+prufyx-maintainer approval sign --subject registryDigest --pack cncf \
+  --base-root "$BASE" --head-root "$HEAD" \
+  --keys "$BASE/cli/knowledge/trust/web-approval-keys.json" \
+  --keys-digest "$(gh variable get WEB_APPROVAL_KEYS_DIGEST)" \
+  --identity owner-login --candidate-id pr-123 --key-stdin \
+  --output "$HEAD/cli/knowledge/approvals/cncf/member.registryDigest.json"
+prufyx-maintainer approval verify --subject registryDigest --pack cncf \
+  --base-root "$BASE" --head-root "$HEAD" --keys … --keys-digest … \
+  --approval "$HEAD/cli/knowledge/approvals/cncf/member.registryDigest.json"
+```
+
+`--base-root` and `--head-root` belong to `--subject registryDigest` (and
+`--base-root` to `verify` of the record subjects); the rule, record and baseline
+flags are refused with it.
 
 ## Batch approvals
 
@@ -911,7 +979,10 @@ Change kinds: `withdraw`, `expire`, `add-withdrawn` (tightening); `new`,
 `basis-change`, `modify`, `pack-member` (loosening). A removal that is half of a supersede pair also has the kind `supersede`. A `pack-member` change
 names the member (`member`) instead of a rule id.
 
-A `pack-member` change is never admitted, with one exception: the pack's top-level
+A `pack-member` change is never admitted, with two exceptions: the pack's top-level
+`schema` member (below), and the CNCF pack's `registryDigest` member when the change
+adds fact definitions with an owner approval (see [Adding fact
+definitions](#adding-fact-definitions)). The first exception: the pack's top-level
 `schema` member. The first attested update of a pack that holds an older schema
 must move the pack to the schema its new content requires (line attestations need
 `v1alpha4`), so the gate admits a `schema` change (proof `schema-level`) only when

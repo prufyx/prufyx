@@ -42,7 +42,14 @@ type PackFileReport struct {
 // engine checks), and reports the pack's published size against the
 // external target caps. It never reads the embedded pack.
 func CheckPackFiles(landscapeRaw, priorityRaw, packRaw []byte) (PackFileReport, error) {
-	b, err := assemble(landscapeRaw, priorityRaw, packRaw, compiledDefinitions())
+	return CheckPackFilesWith(landscapeRaw, priorityRaw, packRaw, compiledDefinitions())
+}
+
+// CheckPackFilesWith is CheckPackFiles under the given fact definitions in
+// place of this build's compiled registry: the knowledge gate admits a head
+// pack that adds fact definitions under the head's definition list.
+func CheckPackFilesWith(landscapeRaw, priorityRaw, packRaw []byte, definitions []constraintengine.FactDefinition) (PackFileReport, error) {
+	b, err := assemble(landscapeRaw, priorityRaw, packRaw, definitions)
 	if err != nil {
 		return PackFileReport{}, err
 	}
@@ -78,7 +85,7 @@ func CheckPackFiles(landscapeRaw, priorityRaw, packRaw []byte) (PackFileReport, 
 		ProjectTargets: targets, SplitErr: splitErr,
 		Entries: len(b.pack.Entries), MaxEntries: maxExternalEntries,
 		TargetBytes: len(raw), MaxTargetBytes: maxExternalBundleBytes,
-		RegistryFacts: len(compiledDefinitions()), MaxRegistryFacts: constraintengine.MaxCompiledRegistryFacts,
+		RegistryFacts: len(definitions), MaxRegistryFacts: constraintengine.MaxCompiledRegistryFacts,
 	}, nil
 }
 
@@ -86,7 +93,13 @@ func CheckPackFiles(landscapeRaw, priorityRaw, packRaw []byte) (PackFileReport, 
 // read from files, computed exactly as BuildAttestation computes it for the
 // embedded pack.
 func BuildAttestationFromFiles(landscapeRaw, priorityRaw, packRaw []byte) (Attestation, error) {
-	b, err := assemble(landscapeRaw, priorityRaw, packRaw, compiledDefinitions())
+	return BuildAttestationFromFilesWith(landscapeRaw, priorityRaw, packRaw, compiledDefinitions())
+}
+
+// BuildAttestationFromFilesWith is BuildAttestationFromFiles under the given
+// fact definitions in place of this build's compiled registry.
+func BuildAttestationFromFilesWith(landscapeRaw, priorityRaw, packRaw []byte, definitions []constraintengine.FactDefinition) (Attestation, error) {
+	b, err := assemble(landscapeRaw, priorityRaw, packRaw, definitions)
 	if err != nil {
 		return Attestation{}, err
 	}

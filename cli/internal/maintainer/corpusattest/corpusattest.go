@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/treefs"
 	"github.com/prufyx/prufyx/cli/internal/projectcheck"
@@ -149,6 +150,19 @@ const MaxInputBytes = maxPackBytes
 // slashes. A reader that refuses links and bounds sizes keeps a tree it
 // does not trust from leading the read anywhere else.
 func DocumentFromFiles(pack string, readFile func(rel string) ([]byte, error)) ([]byte, error) {
+	return documentFromFiles(pack, readFile, nil)
+}
+
+// DocumentFromFilesWith is DocumentFromFiles for the CNCF pack under the
+// given fact definitions in place of this build's compiled registry.
+func DocumentFromFilesWith(pack string, readFile func(rel string) ([]byte, error), definitions []constraintengine.FactDefinition) ([]byte, error) {
+	if pack != PackCNCF || definitions == nil {
+		return nil, fmt.Errorf("fact definitions apply only to the %s pack", PackCNCF)
+	}
+	return documentFromFiles(pack, readFile, definitions)
+}
+
+func documentFromFiles(pack string, readFile func(rel string) ([]byte, error), definitions []constraintengine.FactDefinition) ([]byte, error) {
 	read := func(rel string) ([]byte, error) {
 		raw, err := readFile(rel)
 		if err != nil {
@@ -174,7 +188,12 @@ func DocumentFromFiles(pack string, readFile func(rel string) ([]byte, error)) (
 		if err != nil {
 			return nil, err
 		}
-		attestation, err := cncfcheck.BuildAttestationFromFiles(landscape, priority, rules)
+		var attestation cncfcheck.Attestation
+		if definitions == nil {
+			attestation, err = cncfcheck.BuildAttestationFromFiles(landscape, priority, rules)
+		} else {
+			attestation, err = cncfcheck.BuildAttestationFromFilesWith(landscape, priority, rules, definitions)
+		}
 		if err != nil {
 			return nil, err
 		}
