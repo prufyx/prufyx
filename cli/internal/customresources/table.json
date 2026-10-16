@@ -148,6 +148,18 @@
       ]
     },
     {
+      "slug": "dex",
+      "catalog": "cncf",
+      "factProject": "dex",
+      "component": "pkg:github/dexidp/dex",
+      "groups": [
+        {
+          "name": "dex.coreos.com",
+          "source": "https://github.com/dexidp/dex/blob/05a275057112ba93e17db21f600b756f000f1c21/scripts/manifests/crds/authcodes.yaml"
+        }
+      ]
+    },
+    {
       "slug": "eck-operator",
       "catalog": "community",
       "upstream": {
@@ -264,6 +276,34 @@
         {
           "name": "telemetry.istio.io",
           "source": "https://github.com/istio/istio/blob/8825a6b7f8c9a2d66005a5f8b64e98aaee0dda99/manifests/charts/base/files/crd-all.gen.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "k8gb",
+      "catalog": "cncf",
+      "factProject": "k8gb",
+      "component": "pkg:github/k8gb-io/k8gb",
+      "groups": [
+        {
+          "name": "k8gb.absa.oss",
+          "source": "https://github.com/k8gb-io/k8gb/blob/9cffd9150a33c982295105c1f1b093adbae029d7/chart/k8gb/crd/k8gb.absa.oss_gslbs.yaml"
+        },
+        {
+          "name": "k8gb.io",
+          "source": "https://github.com/k8gb-io/k8gb/blob/9cffd9150a33c982295105c1f1b093adbae029d7/chart/k8gb/crd/k8gb.io_gslbs.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "k8up",
+      "catalog": "cncf",
+      "factProject": "k8up",
+      "component": "pkg:github/k8up-io/k8up",
+      "groups": [
+        {
+          "name": "k8up.io",
+          "source": "https://github.com/k8up-io/k8up/blob/343b99d1519385d75738dbb07d6ff45785c3f186/config/crd/apiextensions.k8s.io/v1/k8up.io_backups.yaml"
         }
       ]
     },
@@ -508,6 +548,30 @@
       ]
     },
     {
+      "slug": "openyurt",
+      "catalog": "cncf",
+      "factProject": "openyurt",
+      "component": "pkg:github/openyurtio/openyurt",
+      "groups": [
+        {
+          "name": "apps.openyurt.io",
+          "source": "https://github.com/openyurtio/openyurt/blob/35ef4cd692e387d0d56c9084e3da161bad2a3092/charts/yurt-manager/crds/apps.openyurt.io_nodebuckets.yaml"
+        },
+        {
+          "name": "iot.openyurt.io",
+          "source": "https://github.com/openyurtio/openyurt/blob/35ef4cd692e387d0d56c9084e3da161bad2a3092/charts/yurt-iot-dock/crds/iot.openyurt.io_deviceprofiles.yaml"
+        },
+        {
+          "name": "network.openyurt.io",
+          "source": "https://github.com/openyurtio/openyurt/blob/35ef4cd692e387d0d56c9084e3da161bad2a3092/charts/yurt-manager/crds/network.openyurt.io_poolservices.yaml"
+        },
+        {
+          "name": "raven.openyurt.io",
+          "source": "https://github.com/openyurtio/openyurt/blob/35ef4cd692e387d0d56c9084e3da161bad2a3092/charts/yurt-manager/crds/raven.openyurt.io_gateways.yaml"
+        }
+      ]
+    },
+    {
       "slug": "percona-postgresql-operator",
       "catalog": "community",
       "upstream": {
@@ -626,6 +690,18 @@
         {
           "name": "kafka.strimzi.io",
           "source": "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/040-Crd-kafka.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "submariner",
+      "catalog": "cncf",
+      "factProject": "submariner",
+      "component": "pkg:github/submariner-io/submariner",
+      "groups": [
+        {
+          "name": "submariner.io",
+          "source": "https://github.com/submariner-io/submariner/blob/d7fd3ecb9bc86f0a2c74c7cb62e9eae8019940f3/deploy/crds/submariner.io_routeagents.yaml"
         }
       ]
     },
