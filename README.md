@@ -277,6 +277,10 @@ In plain terms: the rules are exact, reviewed transitions, mostly for older
 releases. No upgrade between two release lines is decided as a whole yet.
 Reviewed Kubernetes API removals exist for upgrades to 1.22, 1.25-1.27, 1.29,
 1.32-1.34 and 1.37, plus the in-tree dockershim removal in 1.24.
+Each served-API removal rule covers every patch release of the previous line
+going to every patch release of the line that stops serving the API, so a
+manifest at the removed version answers `BLOCKED` for any such pair (for
+example 1.31.14 to 1.32.11), not only at the `.0` releases.
 
 Further projects with executable checks: Argo Workflows, Ceph, Fluent Bit,
 Grafana, Grafana Loki, Kibana, MariaDB and MariaDB Operator (community
