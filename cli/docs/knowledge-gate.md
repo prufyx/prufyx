@@ -980,8 +980,10 @@ eligible for automatic merging: the owner merges it.
 | O8 kill switch | `factory/PAUSE` is set |
 
 A change that adds no batch is checked as before: the gate admits the CNCF pack
-against the table it was built with, so a table change that moves the pack's
-`registryDigest` without a batch fails `admit/cncf` and the pack member check. Only once a batch is admitted are `admit/cncf` and
+against the table it was built with, so a moved `registryDigest` member
+without a batch fails `admit/cncf` and the member check (a `table.json` edit
+alone is not seen by the gate; the repository's CI tests catch it). Only once a
+batch is admitted are `admit/cncf` and
 `attestation/cncf` run against the head's table, compiled by the base's code.
 A batch file in the base is never changed, and removed only 14 days after it
 expired; a knowledge batch may not touch `cli/knowledge/onboarding/`.
@@ -993,8 +995,11 @@ each; a run that runs out of it never passes.
 An onboarding batch and a fact-registry change with an owner approval (the
 `packagedDefinitions` literal and `member.registryDigest.json`) are two
 separate ways to move the CNCF pack's `registryDigest`. A pull request that
-carries both is refused with `RegistryPathsConflict`: the gate never combines
-them, and neither path admits `revision`.
+carries both is refused with the reason "an onboarding batch and a
+registry-member change are two registry-change paths and are never combined in
+one change": the gate never combines them, and neither path admits `revision`.
+A registry-member change that also edits the custom-resource table is refused
+with its own reason, "the custom-resource table changed in the same change".
 
 ### Signing and checking an onboarding batch
 
