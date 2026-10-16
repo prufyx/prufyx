@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
@@ -37,7 +38,15 @@ type ProjectLines struct {
 	// Lines are the minor release lines that have at least one final
 	// release, ascending ("1.28"), without duplicates.
 	Lines []string `json:"lines"`
+	// Releases are optionally the final releases of a line ("1.28":
+	// ["1.28.0", "1.28.1"]), ascending. The complete predicate compares them
+	// with the releases a release-scoped attestation names; a line without
+	// an entry cannot be compared.
+	Releases map[string][]string `json:"releases,omitempty"`
 }
+
+// maxLineReleases bounds the releases listed for one line.
+const maxLineReleases = 1024
 
 // LinesFile is the offline version input: a snapshot of upstream release
 // lines per project.
@@ -85,8 +94,37 @@ func ParseLines(raw []byte) (LinesFile, error) {
 				return LinesFile{}, fmt.Errorf("%w: lines: %s: lines must be strictly ascending", ErrInvalid, slug)
 			}
 		}
+		if err := checkReleases(slug, p); err != nil {
+			return LinesFile{}, err
+		}
 	}
 	return f, nil
+}
+
+// checkReleases validates the optional releases of one project: every key a
+// listed line, every version a final release of that line, ascending.
+func checkReleases(slug string, p ProjectLines) error {
+	inLines := map[string]bool{}
+	for _, line := range p.Lines {
+		inLines[line] = true
+	}
+	for line, list := range p.Releases {
+		if !inLines[line] {
+			return fmt.Errorf("%w: lines: %s: releases of %q, which is not a listed line", ErrInvalid, slug, line)
+		}
+		if len(list) == 0 || len(list) > maxLineReleases {
+			return fmt.Errorf("%w: lines: %s: releases of %s must hold 1-%d versions", ErrInvalid, slug, line, maxLineReleases)
+		}
+		for i, v := range list {
+			if l, ok := lineattest.LineOf(v); !ok || l != line {
+				return fmt.Errorf("%w: lines: %s: %q is not a release of line %s", ErrInvalid, slug, v, line)
+			}
+			if i > 0 && !constraintengine.VersionLess(list[i-1], v) {
+				return fmt.Errorf("%w: lines: %s: releases of %s must be strictly ascending", ErrInvalid, slug, line)
+			}
+		}
+	}
+	return nil
 }
 
 // MarshalLines returns the canonical bytes of a lines file: sorted keys,
@@ -145,6 +183,21 @@ func LineOfTag(project, tag string) (string, bool) {
 	return "", false
 }
 
+// releaseOfTag maps a tag to the final release version it spells, for the
+// projects whose tags are the release version ("v1.2.3" -> "1.2.3"). A project
+// with its own tag scheme (linkerd, cloud-custodian) lists no releases, so a
+// release-scoped attestation of it can never be compared and never completes.
+func releaseOfTag(project, tag string) (string, bool) {
+	if project == "linkerd" || project == "cloud-custodian" {
+		return "", false
+	}
+	tag = strings.TrimSuffix(strings.TrimPrefix(tag, "refs/tags/"), "^{}")
+	if m := finalTagRE.FindStringSubmatch(tag); m != nil {
+		return m[1] + "." + m[2] + "." + m[3], true
+	}
+	return "", false
+}
+
 // LinesFromTags turns per-project tag listings into a lines file. A listing
 // is either one tag per line or the output of git ls-remote --tags (the tag
 // is the last field). Blank lines and lines starting with # are skipped.
@@ -156,14 +209,22 @@ func LinesFromTags(listings map[string][]byte, priority map[string]bool, capture
 			return LinesFile{}, fmt.Errorf("%w: bad project slug", ErrInvalid)
 		}
 		seen := map[string]bool{}
+		releases := map[string]map[string]bool{}
 		for _, text := range strings.Split(string(raw), "\n") {
 			text = strings.TrimSpace(text)
 			if text == "" || strings.HasPrefix(text, "#") {
 				continue
 			}
 			fields := strings.Fields(text)
-			if line, ok := LineOfTag(project, fields[len(fields)-1]); ok {
+			tag := fields[len(fields)-1]
+			if line, ok := LineOfTag(project, tag); ok {
 				seen[line] = true
+				if v, ok := releaseOfTag(project, tag); ok {
+					if releases[line] == nil {
+						releases[line] = map[string]bool{}
+					}
+					releases[line][v] = true
+				}
 			}
 		}
 		lines := make([]string, 0, len(seen))
@@ -171,7 +232,19 @@ func LinesFromTags(listings map[string][]byte, priority map[string]bool, capture
 			lines = append(lines, line)
 		}
 		sort.Slice(lines, func(i, j int) bool { return lineattest.LineLess(lines[i], lines[j]) })
-		f.Projects[project] = ProjectLines{Priority: priority[project], Lines: lines}
+		pl := ProjectLines{Priority: priority[project], Lines: lines}
+		for line, set := range releases {
+			list := make([]string, 0, len(set))
+			for v := range set {
+				list = append(list, v)
+			}
+			sort.Slice(list, func(i, j int) bool { return constraintengine.VersionLess(list[i], list[j]) })
+			if pl.Releases == nil {
+				pl.Releases = map[string][]string{}
+			}
+			pl.Releases[line] = list
+		}
+		f.Projects[project] = pl
 	}
 	if _, err := MarshalLines(f); err != nil {
 		return LinesFile{}, err

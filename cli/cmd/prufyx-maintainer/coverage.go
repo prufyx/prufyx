@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -54,11 +55,36 @@ func runCoverageReport(args []string, stdout io.Writer) error {
 	packPath := flags.String("pack", "", "rule pack file (default: the embedded pack)")
 	linesPath := flags.String("lines", "", "lines snapshot file (required)")
 	nowText := flags.String("now", "", "evaluation time, RFC 3339 UTC (required)")
-	window := flags.Int("window", coveragereport.DefaultWindow, "lines per project window")
+	windowText := flags.String("window", "", "lines per project window: a number (default 6) or ALL for every line from minFrom")
+	declaredPath := flags.String("declared", "", "declared-unknown file (ALL window only; default: the embedded file)")
+	completeOnly := flags.Bool("complete", false, "print the projects whose complete is true, one per line (implies --window ALL)")
 	jsonOut := flags.String("json-out", "", "write the JSON report to this file")
 	mdOut := flags.String("md-out", "", "write the Markdown summary to this file")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || *linesPath == "" || *nowText == "" {
-		return &commandError{code: 2, message: "coverage report: usage: --lines FILE --now RFC3339 [--pack FILE] [--window N] [--json-out FILE] [--md-out FILE]"}
+		return &commandError{code: 2, message: "coverage report: usage: --lines FILE --now RFC3339 [--pack FILE] [--window N|ALL] [--declared FILE] [--complete] [--json-out FILE] [--md-out FILE]"}
+	}
+	all, window := false, 0
+	switch {
+	case *windowText == "ALL":
+		all = true
+	case *windowText != "":
+		n, err := strconv.Atoi(*windowText)
+		if err != nil {
+			return &commandError{code: 2, message: "coverage report: --window is not a number or ALL", err: err}
+		}
+		window = n
+	}
+	if *completeOnly {
+		if *windowText != "" && !all {
+			return &commandError{code: 2, message: "coverage report: --complete uses the ALL window and takes no --window N"}
+		}
+		if *jsonOut != "" || *mdOut != "" {
+			return &commandError{code: 2, message: "coverage report: --complete prints the project list and takes no --json-out or --md-out"}
+		}
+		all = true
+	}
+	if *declaredPath != "" && !all {
+		return &commandError{code: 2, message: "coverage report: --declared needs --window ALL or --complete"}
 	}
 	now, err := time.Parse(time.RFC3339, *nowText)
 	if err != nil {
@@ -77,9 +103,23 @@ func runCoverageReport(args []string, stdout io.Writer) error {
 	if err != nil {
 		return &commandError{code: 2, message: "coverage report: lines file is unreadable", err: err}
 	}
-	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: lines, Now: now, Window: *window})
+	var declared []byte
+	if *declaredPath != "" {
+		if declared, err = readBounded(*declaredPath); err != nil {
+			return &commandError{code: 2, message: "coverage report: declared file is unreadable", err: err}
+		}
+	}
+	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: lines, Now: now, Window: window, All: all, Declared: declared})
 	if err != nil {
 		return &commandError{code: 2, message: "coverage report: input rejected", err: err}
+	}
+	if *completeOnly {
+		for _, project := range report.CompleteProjects() {
+			if _, err := fmt.Fprintln(stdout, project); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 	raw, err := report.JSON()
 	if err != nil {
