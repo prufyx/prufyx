@@ -45,6 +45,10 @@ const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|public-key
               --keys FILE --keys-digest sha256:... --identity LOGIN (--key FILE | --key-stdin)
               [--output FILE] [--summary-out FILE] [--valid-for DURATION (at most 72h)]
   verify      --batch FILE --base DIR --head DIR --keys FILE --keys-digest sha256:... [--now RFC3339]
+  sign        --onboarding DRAFT --base DIR --head DIR --keys FILE --keys-digest sha256:...
+              --identity LOGIN (--key FILE | --key-stdin) [--output FILE] [--summary-out FILE]
+              [--valid-for DURATION (at most 72h)]
+  verify      --onboarding FILE --base DIR --head DIR --keys FILE --keys-digest sha256:... [--now RFC3339]
   public-key  (--key FILE | --key-stdin)
   keys-digest --keys FILE`
 
@@ -109,12 +113,16 @@ func approvalMain(args []string, env approvalEnv, layout Layout, stdout, stderr 
 	case "sign":
 		if hasBatchFlag(args[1:]) {
 			code, err = cmdBatchSign(args[1:], env, layout, stdout)
+		} else if hasFlag(args[1:], "onboarding") {
+			code, err = cmdOnboardingSign(args[1:], env, layout, stdout)
 		} else {
 			code, err = cmdApprovalSign(args[1:], env, layout, stdout)
 		}
 	case "verify":
 		if hasBatchFlag(args[1:]) {
 			code, err = cmdBatchVerify(args[1:], env, layout, stdout)
+		} else if hasFlag(args[1:], "onboarding") {
+			code, err = cmdOnboardingVerify(args[1:], env, layout, stdout)
 		} else {
 			code, err = cmdApprovalVerify(args[1:], env, layout, stdout)
 		}

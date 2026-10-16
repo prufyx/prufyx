@@ -523,3 +523,24 @@ func RegistryApprovalSubject(spec PackSpec, base, head Tree) (ApprovalSubject, R
 	addition := RegistryAddition{Schema: RegistryAdditionSchema, BaseRegistryDigest: change.base.Digest(), HeadRegistryDigest: change.head.Digest(), Added: change.added}
 	return ApprovalSubject{Kind: ApprovalSubjectRegistry, Pack: spec.Name, RuleID: RegistryApprovalID, Scope: RegistryApprovalScope, Base: change.base.Document(), Candidate: change.statement}, addition, nil
 }
+
+// RegistryPathsConflict is the stable reason for a change that carries an
+// onboarding batch and also changes the registry another way.
+const RegistryPathsConflict = "an onboarding batch and a registry-member change are two registry-change paths and are never combined in one change"
+
+// registryPathsChanged names the first path of a change that belongs to the
+// registry-member path (a registry source or an approval of a registry
+// change of a pack the gate reads a registry of), or "".
+func registryPathsChanged(layout Layout, changedPaths []string) string {
+	for _, spec := range layout.Packs {
+		if !registrySpec(layout, spec.Name) {
+			continue
+		}
+		for _, p := range changedPaths {
+			if p == spec.RegistrySourcePath || p == registryApprovalPath(layout, spec.Name) {
+				return logSafe(p)
+			}
+		}
+	}
+	return ""
+}

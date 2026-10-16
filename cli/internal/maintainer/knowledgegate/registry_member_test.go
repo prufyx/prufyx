@@ -73,7 +73,7 @@ func editRegistryPack(t *testing.T, tr Tree, definitions []constraintengine.Fact
 	edit(p)
 	p.write(t, tr, cncfRulesPath)
 	spec := cncfSpec(t)
-	attestation, err := spec.AttestWith(tr, definitions)
+	attestation, err := spec.AttestWith(tr, AdmitOpts{Definitions: definitions})
 	if err != nil {
 		return
 	}

@@ -4,8 +4,6 @@ package cncfcheck
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"reflect"
@@ -258,9 +256,7 @@ func TestPackSchemaLevelDistributions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sum := sha256.Sum256(raw); hex.EncodeToString(sum[:]) != embeddedPackSHA256 {
-		t.Fatalf("embedded pack changed: %x", sum)
-	}
+	embeddedPackSHA256 := embeddedPackDigest(raw)
 	b, err := load()
 	if err != nil {
 		t.Fatal(err)

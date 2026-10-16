@@ -24,11 +24,10 @@ import (
 // never published; the embedded pack stays byte-identical.
 
 const (
-	syntheticSetFact   = "component.kubernetes.kubelet_feature_gates_set"
-	syntheticGate      = "SyntheticRemovedGate"
-	syntheticRevision  = "0000000000000000000000000000000000000001"
-	syntheticRuleID    = "kubernetes.synthetic-removed-gate.1-36-0-to-1-37-0"
-	embeddedPackSHA256 = "c99bec4d80c148f24e02362abe6a51de135dd3255ce5f3985d23bddb4c6e19b0"
+	syntheticSetFact  = "component.kubernetes.kubelet_feature_gates_set"
+	syntheticGate     = "SyntheticRemovedGate"
+	syntheticRevision = "0000000000000000000000000000000000000001"
+	syntheticRuleID   = "kubernetes.synthetic-removed-gate.1-36-0-to-1-37-0"
 )
 
 // unregisteredSetFact is a set fact of the component-configuration adapter
@@ -97,19 +96,25 @@ func assembleSynthetic(packRaw []byte, extra []constraintengine.FactDefinition) 
 	return assemble(landscape, priority, packRaw, append(compiledDefinitions(), extra...))
 }
 
+// embeddedPackDigest is the hex sha256 of the embedded pack file.
+func embeddedPackDigest(raw []byte) string {
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:])
+}
+
 func TestEmbeddedKnowledgeCarriesNoSetRule(t *testing.T) {
 	raw, err := packagedFiles.ReadFile("data/rules.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	sum := sha256.Sum256(raw)
-	if hex.EncodeToString(sum[:]) != embeddedPackSHA256 {
-		t.Fatalf("embedded pack changed: %x", sum)
+	b, err := load()
+	if err != nil || b.packDigest != "sha256:"+embeddedPackDigest(raw) {
+		t.Fatalf("embedded pack not loaded as the embedded file: %v", err)
 	}
 	// The set facts of the compiled registry are the custom-resource version
 	// sets (one per project of the reviewed custom-resource table) and the
 	// five Kubernetes component feature-gate sets. No published rule reads
-	// the latter yet; the pack digest pin above proves the pack is unchanged.
+	// the latter yet (checked over the embedded pack's rules below).
 	crd := map[string]bool{}
 	for _, p := range customresources.Projects() {
 		crd[p.FactID()] = true
@@ -117,6 +122,13 @@ func TestEmbeddedKnowledgeCarriesNoSetRule(t *testing.T) {
 	gates := map[string]bool{}
 	for _, slug := range []string{"kube_apiserver", "kube_controller_manager", "kube_scheduler", "kubelet", "kube_proxy"} {
 		gates["component.kubernetes."+slug+"_feature_gates_set"] = true
+	}
+	for _, entry := range b.pack.Entries {
+		for _, fact := range entry.RequiredFacts {
+			if gates[fact.ID] {
+				t.Fatalf("a published rule of %s reads the feature-gate set %s", entry.Project, fact.ID)
+			}
+		}
 	}
 	sets := 0
 	for _, definition := range compiledDefinitions() {

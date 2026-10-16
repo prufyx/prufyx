@@ -28,7 +28,7 @@ var ageClocks = func() []struct{ name, now string } {
 
 func ageGolden(t *testing.T, name string, got []byte) {
 	t.Helper()
-	goldenfile.Check(t, filepath.Join("testdata", "knowledge-age", name), got, *updateAgeGoldens, "")
+	goldenfile.Check(t, filepath.Join("testdata", "knowledge-age", name), maskPack(t, got), *updateAgeGoldens, "")
 }
 
 // TestCheckOutputUnchangedNearExpiry: stdout and the exit code of check cncf

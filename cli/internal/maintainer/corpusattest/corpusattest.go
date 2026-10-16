@@ -150,19 +150,31 @@ const MaxInputBytes = maxPackBytes
 // slashes. A reader that refuses links and bounds sizes keeps a tree it
 // does not trust from leading the read anywhere else.
 func DocumentFromFiles(pack string, readFile func(rel string) ([]byte, error)) ([]byte, error) {
-	return documentFromFiles(pack, readFile, nil)
+	return documentFromFiles(pack, readFile, Options{})
 }
 
-// DocumentFromFilesWith is DocumentFromFiles for the CNCF pack under the
-// given fact definitions in place of this build's compiled registry.
-func DocumentFromFilesWith(pack string, readFile func(rel string) ([]byte, error), definitions []constraintengine.FactDefinition) ([]byte, error) {
-	if pack != PackCNCF || definitions == nil {
-		return nil, fmt.Errorf("fact definitions apply only to the %s pack", PackCNCF)
+// Options select what the CNCF pack is admitted against in place of this
+// build's compiled registry and embedded custom-resource table. A nil field
+// is that default: nil Definitions is this build's compiled registry (for
+// the table in use), nil TableRaw the embedded table.
+type Options struct {
+	// Definitions are the fact definitions the registry is compiled from.
+	Definitions []constraintengine.FactDefinition
+	// TableRaw is a reviewed custom-resource table file read in place of
+	// the embedded table.
+	TableRaw []byte
+}
+
+// DocumentFromFilesWith is DocumentFromFiles for the CNCF pack admitted
+// under opts. Only the CNCF pack takes options, and opts must set something.
+func DocumentFromFilesWith(pack string, readFile func(rel string) ([]byte, error), opts Options) ([]byte, error) {
+	if pack != PackCNCF || (opts.Definitions == nil && opts.TableRaw == nil) {
+		return nil, fmt.Errorf("fact definitions and table files apply only to the %s pack", PackCNCF)
 	}
-	return documentFromFiles(pack, readFile, definitions)
+	return documentFromFiles(pack, readFile, opts)
 }
 
-func documentFromFiles(pack string, readFile func(rel string) ([]byte, error), definitions []constraintengine.FactDefinition) ([]byte, error) {
+func documentFromFiles(pack string, readFile func(rel string) ([]byte, error), opts Options) ([]byte, error) {
 	read := func(rel string) ([]byte, error) {
 		raw, err := readFile(rel)
 		if err != nil {
@@ -188,12 +200,7 @@ func documentFromFiles(pack string, readFile func(rel string) ([]byte, error), d
 		if err != nil {
 			return nil, err
 		}
-		var attestation cncfcheck.Attestation
-		if definitions == nil {
-			attestation, err = cncfcheck.BuildAttestationFromFiles(landscape, priority, rules)
-		} else {
-			attestation, err = cncfcheck.BuildAttestationFromFilesWith(landscape, priority, rules, definitions)
-		}
+		attestation, err := cncfcheck.BuildAttestationFromFilesFull(landscape, priority, rules, opts.Definitions, opts.TableRaw)
 		if err != nil {
 			return nil, err
 		}

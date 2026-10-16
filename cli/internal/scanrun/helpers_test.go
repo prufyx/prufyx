@@ -498,7 +498,7 @@ func inDir(t testing.TB, dir string, f func()) {
 // file and logs what changed, and does not compare it with itself.
 func golden(t testing.TB, name string, got []byte) {
 	t.Helper()
-	goldenfile.Check(t, filepath.Join(testdata, name), got, *update, "")
+	goldenfile.Check(t, filepath.Join(testdata, name), maskPack(t, got), *update, "")
 }
 
 func jsonOf(t testing.TB, report scanreport.Report) []byte {

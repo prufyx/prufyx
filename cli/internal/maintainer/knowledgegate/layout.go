@@ -69,14 +69,40 @@ type PackSpec struct {
 	// FactDefinitions returns the fact registry compiled into the gate (the
 	// base's), RegistrySourcePath is the Go file whose packagedDefinitions
 	// literal the gate reads in the base and the head, and AdmitWith and
-	// AttestWith are Admit and Attest under a given definition list. All
-	// set admit an additive change of the pack's registryDigest member with
-	// an owner approval (registry_member.go); a pack without them never
-	// admits one.
+	// AttestWith are Admit and Attest against what AdmitOpts name instead
+	// of the registry and table compiled into the gate. All set admit an
+	// additive change of the pack's registryDigest member with an owner
+	// approval (registry_member.go); a pack without them never admits one.
+	// AdmitWith and AttestWith are also how an admitted onboarding batch
+	// has the pack admitted against the head's custom-resource table
+	// (onboarding_gate.go).
 	FactDefinitions    func() []constraintengine.FactDefinition
 	RegistrySourcePath string
-	AdmitWith          func(t Tree, definitions []constraintengine.FactDefinition) (PackStats, error)
-	AttestWith         func(t Tree, definitions []constraintengine.FactDefinition) ([]byte, error)
+	AdmitWith          func(t Tree, opts AdmitOpts) (PackStats, error)
+	AttestWith         func(t Tree, opts AdmitOpts) ([]byte, error)
+}
+
+// AdmitOpts is what a pack is admitted against in place of the registry and
+// custom-resource table compiled into the gate. A nil field is that default:
+// nil Definitions is the compiled registry (for the table in use), nil
+// TableRaw the embedded table. The gate sets one of them, never both: a
+// change carries the registry-member approval path or the onboarding path,
+// not each.
+type AdmitOpts struct {
+	Definitions []constraintengine.FactDefinition
+	TableRaw    []byte
+}
+
+func (o AdmitOpts) empty() bool { return o.Definitions == nil && o.TableRaw == nil }
+
+// pack returns the named pack's spec.
+func (l Layout) pack(name string) (PackSpec, bool) {
+	for _, s := range l.Packs {
+		if s.Name == name {
+			return s, true
+		}
+	}
+	return PackSpec{}, false
 }
 
 // GeneratedPair is a generated JSON and Markdown output pair.
@@ -131,6 +157,9 @@ type Layout struct {
 	// and refuses the schema change on its own. A change of a pack's schema level is never admitted in a
 	// change that also touches one of them.
 	RegistryPaths []string
+	// Onboarding names the files of onboarding batches (onboarding.go);
+	// an empty Onboarding.Dir disables them.
+	Onboarding OnboardingLayout
 }
 
 // Repository paths of the default layout.
@@ -165,27 +194,22 @@ func readAll(t Tree, rels ...string) ([][]byte, error) {
 	return out, nil
 }
 
-// admitCNCF admits the CNCF pack of a tree under the given fact definitions,
-// or under this build's compiled registry when definitions is nil.
-func admitCNCF(t Tree, definitions []constraintengine.FactDefinition) (PackStats, error) {
+// admitCNCF admits the CNCF pack of a tree against opts (the registry and
+// table compiled into the gate for the zero value).
+func admitCNCF(t Tree, opts AdmitOpts) (PackStats, error) {
 	files, err := readAll(t, "cli/internal/cncfcheck/data/landscape-projects.json", "cli/internal/cncfcheck/data/priority-portfolio.json", cncfRulesPath)
 	if err != nil {
 		return PackStats{}, err
 	}
-	var r cncfcheck.PackFileReport
-	if definitions == nil {
-		r, err = cncfcheck.CheckPackFiles(files[0], files[1], files[2])
-	} else {
-		r, err = cncfcheck.CheckPackFilesWith(files[0], files[1], files[2], definitions)
+	return cncfPackStats(files[0], files[1], files[2], opts)
+}
+
+// attestCNCF is the corpus attestation of the CNCF pack of a tree under opts.
+func attestCNCF(t Tree, opts AdmitOpts) ([]byte, error) {
+	if opts.empty() {
+		return corpusattest.DocumentFromFiles(corpusattest.PackCNCF, t.readUnder(cliDir))
 	}
-	if err != nil {
-		return PackStats{}, err
-	}
-	stats := PackStats{Entries: r.Entries, TargetBytes: r.TargetBytes, MaxTargetBytes: r.MaxTargetBytes, RegistryFacts: r.RegistryFacts, MaxRegistryFacts: r.MaxRegistryFacts, Split: true, SplitErr: r.SplitErr}
-	for _, target := range r.ProjectTargets {
-		stats.Targets = append(stats.Targets, knowledgetargets.Target{Path: target.Path, Bytes: int64(len(target.Bytes))})
-	}
-	return stats, nil
+	return corpusattest.DocumentFromFilesWith(corpusattest.PackCNCF, t.readUnder(cliDir), corpusattest.Options{Definitions: opts.Definitions, TableRaw: opts.TableRaw})
 }
 
 // DefaultLayout is the layout of this repository.
@@ -195,21 +219,21 @@ func DefaultLayout() Layout {
 			{
 				Name: evidencereattest.PackCNCF, Path: cncfRulesPath,
 				Admit: func(t Tree) (PackStats, error) {
-					return admitCNCF(t, nil)
+					return admitCNCF(t, AdmitOpts{})
 				},
-				AdmitWith: func(t Tree, definitions []constraintengine.FactDefinition) (PackStats, error) {
-					if definitions == nil {
-						return PackStats{}, errors.New("no fact definitions")
+				AdmitWith: func(t Tree, opts AdmitOpts) (PackStats, error) {
+					if opts.empty() {
+						return PackStats{}, errors.New("no fact definitions or table")
 					}
-					return admitCNCF(t, definitions)
+					return admitCNCF(t, opts)
 				},
 				FactDefinitions:    cncfcheck.CompiledFactDefinitions,
 				RegistrySourcePath: cncfRegistrySource,
-				AttestWith: func(t Tree, definitions []constraintengine.FactDefinition) ([]byte, error) {
-					if definitions == nil {
-						return nil, errors.New("no fact definitions")
+				AttestWith: func(t Tree, opts AdmitOpts) ([]byte, error) {
+					if opts.empty() {
+						return nil, errors.New("no fact definitions or table")
 					}
-					return corpusattest.DocumentFromFilesWith(corpusattest.PackCNCF, t.readUnder(cliDir), definitions)
+					return attestCNCF(t, opts)
 				},
 				View: cncfcheck.AdmittedPackView, Entry: cncfcheck.AdmittedEntry,
 				AttestationPath: cncfAttestPath,
@@ -272,7 +296,23 @@ func DefaultLayout() Layout {
 			"cli/internal/cncfcheck/data/priority-portfolio.json",
 			"cli/internal/projectcheck/data/projects.json",
 		},
+		Onboarding: defaultOnboardingLayout(),
 	}
+}
+
+// cncfPackStats admits the CNCF pack files with cncfcheck.CheckPackFilesFull
+// against opts; RegistryFacts is the size of the registry they were
+// admitted against.
+func cncfPackStats(landscape, priority, rules []byte, opts AdmitOpts) (PackStats, error) {
+	r, err := cncfcheck.CheckPackFilesFull(landscape, priority, rules, opts.Definitions, opts.TableRaw)
+	if err != nil {
+		return PackStats{}, err
+	}
+	stats := PackStats{Entries: r.Entries, TargetBytes: r.TargetBytes, MaxTargetBytes: r.MaxTargetBytes, RegistryFacts: r.RegistryFacts, MaxRegistryFacts: r.MaxRegistryFacts, Split: true, SplitErr: r.SplitErr}
+	for _, target := range r.ProjectTargets {
+		stats.Targets = append(stats.Targets, knowledgetargets.Target{Path: target.Path, Bytes: int64(len(target.Bytes))})
+	}
+	return stats, nil
 }
 
 // supportInventoryConfig points the support inventory generator at a tree's

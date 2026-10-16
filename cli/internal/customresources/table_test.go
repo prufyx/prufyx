@@ -12,16 +12,17 @@ import (
 	"testing"
 )
 
-// tablePin is the sha256 of the Go rendering (%#v) of Projects() and
-// ReservedGroups() as the table stood when it was Go source. Moving the table
-// to table.json changed where it is written, not one value of it; a deliberate
-// change to the table updates this pin in the same commit.
-const tablePin = "2ae8b193ac1617e153b5be13241e6d5cc7baade95d733a572151439493a96607"
+// reservedPin is the sha256 of the Go rendering (%#v) of ReservedGroups().
+// A reserved group is recorded by a person, one reviewed change per group,
+// and that change updates this pin. The project rows are not pinned: rows
+// are added as data (the knowledge gate checks each added row with this
+// package's loader), so a pin over them would move with every addition.
+const reservedPin = "9bc2428bad6065e83b4bb4c6255aa8452283467a7f82ca11721890f96c08170c"
 
-func TestTableMatchesPin(t *testing.T) {
-	sum := sha256.Sum256([]byte(fmt.Sprintf("%#v\n%#v", Projects(), ReservedGroups())))
-	if got := hex.EncodeToString(sum[:]); got != tablePin {
-		t.Fatalf("table rendering sha256 %s, pinned %s: update the pin only together with a reviewed table change", got, tablePin)
+func TestReservedGroupsMatchPin(t *testing.T) {
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%#v", ReservedGroups())))
+	if got := hex.EncodeToString(sum[:]); got != reservedPin {
+		t.Fatalf("reserved groups rendering sha256 %s, pinned %s: update the pin only together with a reviewed reserved-group record", got, reservedPin)
 	}
 }
 

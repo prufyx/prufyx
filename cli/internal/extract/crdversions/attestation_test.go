@@ -194,32 +194,26 @@ func TestRealTargetsAttestOnlyWhatTheyMay(t *testing.T) {
 	}
 }
 
-// attestPending lists the registered targets that do not attest yet: their
-// set fact and groups are in the reviewed table (REGISTRY-WAVE-1, CRD-GEN wave 2) and the
-// family admits their component, but the extractor attests their lines only
-// after their own review of what a complete line means for the project
-// (the attest flag of its target file, a separate reviewed change).
-var attestPending = []string{"antrea", "cert-manager", "cilium", "cloudnativepg", "contour", "crossplane", "dapr", "external-secrets", "karmada", "keda", "koordinator", "kuma", "kyverno", "longhorn", "metallb", "openkruise", "rook", "tekton", "velero", "volcano"}
-
 // A target attests only when its project is in the reviewed custom-resource
-// table (its set fact is registered), and never while it is listed as
-// pending; the family covers exactly the registered CNCF catalog
-// components. A community target never attests (the loader refuses it) and
-// the family never admits its component: its line reviews have no
-// knowledge target yet.
+// table (its set fact is registered); the family covers exactly the
+// registered CNCF catalog components. A registered target that does not
+// attest yet is data, not code: attestation is turned on for it by a change
+// of its own target file, which the knowledge gate admits only for a project
+// of the base whose newest pair the gate sees attest. A community target
+// never attests (the loader refuses it) and the family never admits its
+// component: its line reviews have no knowledge target yet.
 func TestAttestingTargetsAreTheRegisteredProjects(t *testing.T) {
 	family, _ := lineattest.LookupFamily(lineattest.FamilyCustomResourceVersions)
 	for _, tg := range Targets {
 		p, registered := customresources.ProjectFor(tg.Project)
 		if tg.Catalog == CatalogCommunity {
-			if !registered || !p.Community() || tg.Attest || family.Admits(tg.Component) || slices.Contains(attestPending, tg.Project) {
+			if !registered || !p.Community() || tg.Attest || family.Admits(tg.Component) {
 				t.Fatalf("%s: community target: registered %v, attest %v, family admits %v", tg.Project, registered, tg.Attest, family.Admits(tg.Component))
 			}
 			continue
 		}
-		pending := slices.Contains(attestPending, tg.Project)
-		if tg.Attest != (registered && !pending) || family.Admits(tg.Component) != registered {
-			t.Fatalf("%s: attest %v, registered %v, pending %v, family admits %v", tg.Project, tg.Attest, registered, pending, family.Admits(tg.Component))
+		if (tg.Attest && !registered) || family.Admits(tg.Component) != registered {
+			t.Fatalf("%s: attest %v, registered %v, family admits %v", tg.Project, tg.Attest, registered, family.Admits(tg.Component))
 		}
 		x := New(tg)
 		if x.AttestedComponent() != tg.Component {

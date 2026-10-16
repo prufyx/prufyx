@@ -186,6 +186,9 @@ type Report struct {
 	// batch is the decision on the batch approval the change adds (nil:
 	// none).
 	batch *batchResult
+	// onboarding is the decision on the onboarding batch the change adds
+	// (nil: none).
+	onboarding *onboardingResult
 
 	// rederivedUnchanged counts rules re-derived by --rederive-all: every
 	// active mechanical rule the change did not already re-derive (see
@@ -427,6 +430,16 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	// reviewed entries.
 	batch := runBatch(ctx, opts, cls, r.ChangedPaths, loadKeys, approvals)
 	r.batch = batch
+	// An onboarding batch is decided the same way, before any change: it
+	// alone admits the pack members it moves (onboarding_gate.go).
+	onboarding := runOnboarding(ctx, opts, cls, r.ChangedPaths, loadKeys)
+	if onboarding != nil && onboarding.ok {
+		if why := registryPathsChanged(opts.Layout, r.ChangedPaths); why != "" {
+			onboarding.ok = false
+			onboarding.detail = "O9: " + RegistryPathsConflict + ": " + why
+		}
+	}
+	r.onboarding = onboarding
 
 	var mechanical, removals, schemaChanges, registryChanges []*Change
 	consensusChecks := &consensusRun{}
@@ -445,7 +458,17 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 			schemaChanges = append(schemaChanges, c)
 			continue
 		}
+		if onboarding.admitsMember(opts.Layout, c) {
+			c.OK, c.Proof = true, ProofOnboarding
+			continue
+		}
 		if c.Member == registryMember && registrySpec(opts.Layout, c.Pack) {
+			if onboarding != nil {
+				// An onboarding batch and a registry-member change are two
+				// registry-change paths; they are never combined.
+				c.fail(RegistryPathsConflict)
+				continue
+			}
 			// Decided once every other change has been classified.
 			registryChanges = append(registryChanges, c)
 			continue
@@ -506,6 +529,10 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		r.add(CheckBatch, batch.ok, "%s", batch.detail)
 		r.alarm(AlarmBatch, "the change carries a batch approval (%s): %s", map[bool]string{true: "admitted", false: "refused"}[batch.ok], batch.detail)
 	}
+	if onboarding != nil {
+		r.add(CheckOnboarding, onboarding.ok, "%s", onboarding.detail)
+		r.alarm(AlarmOnboarding, "the change carries an onboarding batch (%s): %s", map[bool]string{true: "admitted", false: "refused"}[onboarding.ok], onboarding.detail)
+	}
 	rederive(ctx, opts.Source, opts.Catalog, opts.Concurrency, opts.Layout, mechanical)
 	for _, c := range removals {
 		admitSupersede(c, opts)
@@ -524,6 +551,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	r.modeCheck(opts)
 	r.baselineApprovalsUsed = r.baselinesCheck(opts, loadKeys, approvals)
 	r.recordCheck(cls, statements, opts)
+	r.onboardingRecordsCheck(opts, onboarding)
 	r.citationCheck(ctx, cls, opts)
 	// After the citation check: its GitHub calls draw on the same budget, so
 	// a run starved during citations is reported as could not run too.
@@ -715,13 +743,7 @@ func (r *Report) packChecks(cls *Classification, opts Options) {
 			r.add("admit/"+spec.Name, !b.Present, "the pack file is missing")
 			continue
 		}
-		var stats PackStats
-		var err error
-		if definitions, ok := r.registryDefinitions[spec.Name]; ok {
-			stats, err = spec.AdmitWith(opts.Head, definitions)
-		} else {
-			stats, err = spec.Admit(opts.Head)
-		}
+		stats, err := r.admitPack(spec, opts)
 		if err != nil {
 			r.add("admit/"+spec.Name, false, "the engine does not admit the pack: %v", err)
 		} else {
@@ -739,6 +761,38 @@ func (r *Report) packChecks(cls *Classification, opts Options) {
 		r.attestationCheck(spec, opts)
 		r.basisCheck(spec, h)
 	}
+}
+
+// packOpts is what a pack is admitted against: the head table of an
+// admitted onboarding batch (the onboarding pack), the head fact definitions
+// of an admitted registry-member change, or neither (the registry and table
+// compiled into the gate). A change never carries both: an admitted
+// onboarding batch refuses any registry-member change and registry path in
+// the change, and a registry-member change is refused beside a batch.
+func (r *Report) packOpts(spec PackSpec, opts Options) (AdmitOpts, bool) {
+	if r.onboarding != nil && r.onboarding.ok && spec.Name == opts.Layout.Onboarding.Pack {
+		return onboardingOpts(r.onboarding), true
+	}
+	if definitions, ok := r.registryDefinitions[spec.Name]; ok {
+		return AdmitOpts{Definitions: definitions}, true
+	}
+	return AdmitOpts{}, false
+}
+
+// admitPack is spec.Admit, or spec.AdmitWith under packOpts.
+func (r *Report) admitPack(spec PackSpec, opts Options) (PackStats, error) {
+	if o, ok := r.packOpts(spec, opts); ok {
+		return spec.AdmitWith(opts.Head, o)
+	}
+	return spec.Admit(opts.Head)
+}
+
+// attestPack is spec.Attest, or spec.AttestWith under packOpts.
+func (r *Report) attestPack(spec PackSpec, opts Options) ([]byte, error) {
+	if o, ok := r.packOpts(spec, opts); ok {
+		return spec.AttestWith(opts.Head, o)
+	}
+	return spec.Attest(opts.Head)
 }
 
 func (r *Report) sizeCheck(spec PackSpec, stats PackStats, baseLen, headLen int, loosens bool) {
@@ -810,13 +864,7 @@ func (r *Report) staggerCheck(spec PackSpec, h *loadedPack, weeks map[string]boo
 }
 
 func (r *Report) attestationCheck(spec PackSpec, opts Options) {
-	var want []byte
-	var err error
-	if definitions, ok := r.registryDefinitions[spec.Name]; ok {
-		want, err = spec.AttestWith(opts.Head, definitions)
-	} else {
-		want, err = spec.Attest(opts.Head)
-	}
+	want, err := r.attestPack(spec, opts)
 	if err != nil {
 		r.add("attestation/"+spec.Name, false, "cannot regenerate the corpus attestation: %v", err)
 		return
@@ -877,6 +925,9 @@ func (r *Report) autoMerge(opts Options) {
 	reasons = append(reasons, commitReasons(opts)...)
 	if r.batch != nil {
 		reasons = append(reasons, "the change carries a batch approval; batch approvals are merged by the owner, never automatically")
+	}
+	if r.onboarding != nil {
+		reasons = append(reasons, "the change carries an onboarding batch; onboarding batches are merged by the owner, never automatically")
 	}
 	for _, c := range r.Changes {
 		if c.isSupersede() {

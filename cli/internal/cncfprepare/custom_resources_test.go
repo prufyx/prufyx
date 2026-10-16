@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -288,8 +289,12 @@ func TestCustomResourceVersionsArguments(t *testing.T) {
 			t.Fatalf("%+v accepted", tc)
 		}
 	}
-	if got := CustomResourceProjects(); !reflect.DeepEqual(got, []string{"antrea", "argo-cd", "cert-manager", "cilium", "cloudnativepg", "cluster-api", "contour", "crossplane", "dapr", "eck-operator", "external-secrets", "gateway-api", "istio", "karmada", "keda", "kong-ingress-controller", "koordinator", "kueue", "kuma", "kyverno", "longhorn", "metallb", "mongodb-kubernetes", "node-feature-discovery", "openkruise", "percona-postgresql-operator", "prometheus-operator", "rancher", "rook", "strimzi", "tekton", "velero", "volcano"}) {
-		t.Fatalf("projects %v", got)
+	var want []string
+	for _, p := range customresources.Projects() {
+		want = append(want, p.Slug)
+	}
+	if got := CustomResourceProjects(); !reflect.DeepEqual(got, want) || !slices.Contains(got, "strimzi") {
+		t.Fatalf("projects %v, want the reviewed table's %v", got, want)
 	}
 	if fact, ok := CustomResourceVersionsFact("strimzi"); !ok || fact != strimziFact {
 		t.Fatal("strimzi fact")

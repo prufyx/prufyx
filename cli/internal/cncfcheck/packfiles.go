@@ -49,10 +49,12 @@ func CheckPackFiles(landscapeRaw, priorityRaw, packRaw []byte) (PackFileReport, 
 // place of this build's compiled registry: the knowledge gate admits a head
 // pack that adds fact definitions under the head's definition list.
 func CheckPackFilesWith(landscapeRaw, priorityRaw, packRaw []byte, definitions []constraintengine.FactDefinition) (PackFileReport, error) {
-	b, err := assemble(landscapeRaw, priorityRaw, packRaw, definitions)
-	if err != nil {
-		return PackFileReport{}, err
-	}
+	return CheckPackFilesFull(landscapeRaw, priorityRaw, packRaw, definitions, nil)
+}
+
+// packFileReport sizes an admitted bundle as CheckPackFiles reports it;
+// registryFacts is the size of the registry it was admitted against.
+func packFileReport(b bundle, registryFacts int) (PackFileReport, error) {
 	capability, err := externalCapabilityDigest(b)
 	if err != nil {
 		return PackFileReport{}, ErrIntegrity
@@ -85,7 +87,7 @@ func CheckPackFilesWith(landscapeRaw, priorityRaw, packRaw []byte, definitions [
 		ProjectTargets: targets, SplitErr: splitErr,
 		Entries: len(b.pack.Entries), MaxEntries: maxExternalEntries,
 		TargetBytes: len(raw), MaxTargetBytes: maxExternalBundleBytes,
-		RegistryFacts: len(definitions), MaxRegistryFacts: constraintengine.MaxCompiledRegistryFacts,
+		RegistryFacts: registryFacts, MaxRegistryFacts: constraintengine.MaxCompiledRegistryFacts,
 	}, nil
 }
 
@@ -99,10 +101,11 @@ func BuildAttestationFromFiles(landscapeRaw, priorityRaw, packRaw []byte) (Attes
 // BuildAttestationFromFilesWith is BuildAttestationFromFiles under the given
 // fact definitions in place of this build's compiled registry.
 func BuildAttestationFromFilesWith(landscapeRaw, priorityRaw, packRaw []byte, definitions []constraintengine.FactDefinition) (Attestation, error) {
-	b, err := assemble(landscapeRaw, priorityRaw, packRaw, definitions)
-	if err != nil {
-		return Attestation{}, err
-	}
+	return BuildAttestationFromFilesFull(landscapeRaw, priorityRaw, packRaw, definitions, nil)
+}
+
+// attestationOf is the corpus attestation of an admitted bundle.
+func attestationOf(b bundle) (Attestation, error) {
 	inventory, err := b.unfilteredCorpus()
 	if err != nil {
 		return Attestation{}, err
