@@ -65,6 +65,7 @@ follow; `v2` adds verdicts, reason codes and control claims (see
 | `crd-version` | `project`, `repo`, `release` (`tag`, `commit`, `files`), `crd`, `group`, `version`, `kind`, `served`, `storage` | After the release's files are installed, the cluster's definition declares the version with these flags, and a dry-run object of the version is accepted or rejected for another reason (served) or answered "no matches" (not served). |
 | `crd-removal` | `project`, `repo`, `from`, `to` (releases), `group`, `version`, `kind`, optional `ruleId` | The version is served after installing `from` and not served after installing `to`. The result also records whether applying `to` over `from` in place was refused (`status.storedVersions`) and whether `to` no longer defines the CRD at all (a plain apply leaves it in the cluster). |
 | `crd-pair` | `project`, `repo`, `from`, `to` (releases) | Every version served after `from` is still served after `to`; the versions that disappeared are named otherwise. |
+| `crd-field` | `project`, `repo`, `from`, `to` (releases), `crd`, `group`, `version`, `kind`, `path`, `change`, optional `value` | An object that sets only `path` is accepted by the `from` schema and refused by the `to` schema for the reason `change` names, as the API server's strict field validation reports it. See [crd-field](#crd-field). |
 | `addon-rule` | free (`project`, `ruleId`, `from`, `to`, ...) | Not evaluated here: outcome `undetermined`. Reserved so a ledger can carry every claim through one file. |
 
 `evidence` is free-form JSON, passed through to the output. Releases of one
@@ -82,6 +83,128 @@ hop L-1 -> L is a removal claim. Nothing is claimed about a removed version
 below L-1, since the table does not record when a version was introduced.
 `--crd FILE` merges the claims of another file, for example custom-resource
 claims written from the `crd.version-removal` extractor's proof.
+
+### crd-field
+
+A `crd-field` claim says that an object the `from` release's CRD schema
+accepts is refused by the `to` release's schema, for one reason:
+
+```json
+{"id": "example.v2.0.0-to-v3.0.0.gadgets.spec.size",
+ "kind": "crd-field",
+ "subject": {"project": "example", "repo": "github.com/example/example",
+             "from": {"tag": "v2.0.0", "commit": "<40 hex>", "files": ["config/crd/gadgets.yaml"]},
+             "to":   {"tag": "v3.0.0", "commit": "<40 hex>", "files": ["config/crd/gadgets.yaml"]},
+             "crd": "gadgets.example.io", "group": "example.io", "version": "v1", "kind": "Gadget",
+             "path": "spec.size", "change": "field-type-changed", "value": "large"},
+ "evidence": {}}
+```
+
+`path` is dot-separated property names (an array is crossed through its
+items, which the object fills with one element: `spec.ports.name` is
+`spec.ports[0].name`; a map value is named by its key: `spec.labels.team`);
+it may not start with `apiVersion`, `kind` or `metadata`. The API server
+spells an array element two ways: strict decoding and
+`x-kubernetes-validations` rules write `spec.ports[0].name`, the schema
+validation causes write `spec.ports.0.name`; a map value is
+`spec.labels.team`, except in an `x-kubernetes-validations` cause, which
+writes `spec.labels[team]`. Both sides of every comparison are written one
+way (a bracketed index or key as a dot segment) before they are compared;
+the match stays exact (no prefix or suffix, and `spec.ports.1.name` never
+matches `spec.ports[0].name`). `change` is one of `field-removed`, `field-required-added`,
+`field-type-changed`, `enum-value-removed`, `validation-tightened`. `value` is
+the value that `from` accepts and `to` should refuse; it is required for
+`field-type-changed`, `enum-value-removed` and `validation-tightened`. The
+claim's id is the caller's.
+
+The claim is decided within the run of its release pair (the same install
+and cleanup as `crd-removal` and `crd-pair` claims; the pair's definitions
+are deleted afterwards):
+
+1. After `from` is installed, the definition is read back from the cluster
+   (`kubectl get crd -o json`) and the path is walked in the version's
+   `openAPIV3Schema`. A schema that preserves unknown fields at the root, an
+   ancestor or the field, a version without a schema, a field without a type,
+   or a `status` field of a version with the status subresource (status is
+   dropped on create): `undetermined`, `schema-permissive`. The definition,
+   the version or the path absent (a map key reached through
+   `additionalProperties` counts as absent for `field-removed` and
+   `field-required-added`), or, for `enum-value-removed`, a `from` enum that
+   does not list the value: `path-not-in-from`.
+2. A minimal object of the group, version and kind (`metadata.name:
+   kindval-field`, `namespace: default` unless the scope is `Cluster`) sets
+   only the path, with the intermediate objects and one-element arrays the
+   schema asks for: for `field-removed` a placeholder of the field's type,
+   for `field-required-added` the parent without the field, otherwise the
+   claim's `value` (absent or `null`: `value-missing`). Required siblings at
+   every level (and the first branch of a `oneOf`/`anyOf` that only lists
+   required names) get placeholders from the `from` schema (first enum value,
+   `"x"` padded to `minLength`, `1` or `minimum`, `true`, `{}`, `[]`); when a
+   placeholder cannot be made: `object-not-buildable`. Placeholders do not
+   follow `pattern`, `format`, a `maximum` below 1 or `nullable`; a schema
+   that needs them refuses the object at `from`, and the claim is
+   `from-rejected` (never refuted).
+3. `kubectl create --dry-run=server --validate=strict -f -` must be accepted.
+   A refusal: `from-rejected` (never refuted). No answer from the API server
+   (kubectl did not run, transport failure, a client-side validation error,
+   or a server that could not handle the request: `ServiceUnavailable`,
+   `Timeout`, `TooManyRequests`, `InternalError` or an etcd failure that names
+   no webhook): `error`, `server-no-answer`. Any other `Error from server
+   (...)` is an answer.
+4. `to` is applied in place over `from` and the object is sent again; then the
+   pair's definitions are deleted, `to` is installed fresh, and the object is
+   sent a third time. The fresh install decides: right after an in-place
+   update the server may still validate against the `from` schema. The
+   in-place answer is a cross-check: if it refuses where the fresh install
+   accepts, or refuses differently: `other-rejection`. When the in-place
+   apply itself is refused, or the in-place dry run gets no answer from the
+   API server, the detail says so and the fresh install alone decides.
+5. The fresh answer is matched against a closed set of messages, on the exact
+   server path:
+
+| `change` | `confirmed` when `to` refuses with | `refuted` when |
+| --- | --- | --- |
+| `field-removed` | the strict decoding error `unknown field "<path>"`, and `to`'s schema no longer has the path | `to` accepts the object and its schema declares the path |
+| `field-required-added` | `<path>: Required value` | `to` accepts the object and its schema declares the path |
+| `field-type-changed` | `<path>: Invalid value: ...` naming the type (`in body must be of type`) | `to` accepts the object and its schema declares the path |
+| `enum-value-removed` | `<path>: Unsupported value` | `to` accepts the object and its schema declares the path |
+| `validation-tightened` | `<path>: Invalid value` (not a type error; a `x-kubernetes-validations` rule reports this way), `Too long` or `Too many` | `to` accepts the object and its schema declares the path |
+
+Everything else is `undetermined` with `other-rejection`, the server's message
+in `detail`: a refusal for another reason, on another path (also a parent: a
+removed ancestor is a wider change than claimed, claim the ancestor), a path
+absent from `to`'s schema for a change other than `field-removed`, a `to`
+release that no longer defines the CRD, an answer from a webhook. When `to` refuses on the path as claimed and also for
+other causes on other paths, the claim is confirmed and an `INFO` finding
+`<id>.also` lists the other causes. `to` accepting while its schema preserves
+unknown fields at the path is `schema-permissive`, never refuted; `to`
+accepting the object while the path is absent from its schema is
+`other-rejection`, never refuted: for an object that sets the path, strict
+field validation would have refused an undeclared field, so it did not
+decide; for `field-required-added`, the field is gone, a wider change than
+claimed. A refuted claim raises a
+`MEDIUM` finding.
+
+The crd run records each claim in `fields` (additive): the claim id, the
+pair, the server path, the digest of the object sent, the answers at `from`,
+after the in-place update and after the fresh install, whether the in-place
+apply was refused, the state of `to`'s schema at the path (`present`,
+`absent`, `permissive`), the matched pattern, or the skip reason or error.
+
+Limits:
+
+- `refuted` means "the CRD schema at `to` accepts the object", not "the
+  project accepts it": validation by admission webhooks or by the project's
+  controllers is out of reach of a dry run on a cluster without them.
+- A field under `x-kubernetes-preserve-unknown-fields` is never decided.
+- An `x-kubernetes-validations` rule is reported on the schema node that
+  carries it: the claim's path must be that node. Rules that compare with the
+  old object (`oldSelf`) do not run on create, and rules that need cluster
+  state are not exercised.
+- A field `to` gives a `default` is filled in before validation: a
+  `field-required-added` claim on it is refuted.
+- When `to` also drops a required sibling the object fills, the strict
+  decoding error is all the server says: `other-rejection`.
 
 ### Output: `prufyx.io/kind-val-results/v1`
 
@@ -179,6 +302,12 @@ entry.
 | `image-digest-mismatch` | error | The node is not proven to run the configured image digest. |
 | `canary-failed` | error | A control of the kind on this line did not come out as expected. |
 | `controls-absent` | undetermined | The controls file has controls for the kind, but none ran for a group the claim depends on (for a removal, also the served-API group of either line), or all that ran have the same expectation. |
+| `schema-permissive` | undetermined | `crd-field`: the schema preserves unknown fields at the path (or has no schema, or no type there): nothing can be refused. |
+| `path-not-in-from` | undetermined | `crd-field`: the definition, version or path is absent after installing `from`, or its enum does not list the claimed value. |
+| `value-missing` | undetermined | `crd-field`: the change needs a `value` and the claim has none. |
+| `object-not-buildable` | undetermined | `crd-field`: no object satisfying the `from` schema's required fields could be built. |
+| `from-rejected` | undetermined | `crd-field`: the `from` schema refuses the object. |
+| `other-rejection` | undetermined | `crd-field`: `to` refuses the object, but not for the claimed change on the claimed path. |
 
 ### The void rule
 

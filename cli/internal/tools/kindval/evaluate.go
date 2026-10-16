@@ -46,6 +46,9 @@ type evaluator struct {
 	pairImage map[string]string
 	singles   map[string]CRDReleaseResult
 	singleImg map[string]string
+	// field results by claim id, and the image of the run of each
+	fields   map[string]CRDFieldResult
+	fieldImg map[string]string
 	// imageProblem maps a configured node image digest to why the nodes
 	// that ran it are not proven to run it.
 	imageProblem map[string]string
@@ -88,7 +91,7 @@ func runLines(runs Runs) []string {
 // newEvaluator indexes the runs for the given claims; its findings go to
 // res.
 func newEvaluator(runs Runs, prov Provenance, res *Results, claims []Claim) *evaluator {
-	ev := &evaluator{runs: runs, prov: prov, res: res, sets: map[string]map[string]bool{}, cases: map[string]map[string]VerdictCase{}, pairs: map[string]CRDPairResult{}, pairImage: map[string]string{}, singles: map[string]CRDReleaseResult{}, singleImg: map[string]string{}, imageProblem: map[string]string{}}
+	ev := &evaluator{runs: runs, prov: prov, res: res, sets: map[string]map[string]bool{}, cases: map[string]map[string]VerdictCase{}, pairs: map[string]CRDPairResult{}, pairImage: map[string]string{}, singles: map[string]CRDReleaseResult{}, singleImg: map[string]string{}, fields: map[string]CRDFieldResult{}, fieldImg: map[string]string{}, imageProblem: map[string]string{}}
 	for line, s := range runs.Snapshots {
 		ev.sets[line] = servedSet(s)
 	}
@@ -122,6 +125,16 @@ func newEvaluator(runs Runs, prov Provenance, res *Results, claims []Claim) *eva
 			}
 			ev.singles[r.ID] = r
 			ev.singleImg[r.ID] = run.Image
+		}
+	}
+	for _, run := range runs.CRD {
+		for _, f := range run.Fields {
+			// Run again after a failure: the complete run decides.
+			if prev, ok := ev.fields[f.ID]; ok && f.Error != "" && prev.Error == "" {
+				continue
+			}
+			ev.fields[f.ID] = f
+			ev.fieldImg[f.ID] = run.Image
 		}
 	}
 	ev.claimed = claimedRemovals(claims)
@@ -571,6 +584,8 @@ func (e *evaluator) claim(c Claim) ClaimResult {
 		e.crdRemoval(c, &cr)
 	case KindCRDPair:
 		e.crdPair(c, &cr)
+	case KindCRDField:
+		e.crdField(c, &cr)
 	default:
 		cr.Detail, cr.Reason = "not evaluated by kind-val", ReasonNotEvaluated
 	}

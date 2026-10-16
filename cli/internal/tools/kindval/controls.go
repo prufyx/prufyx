@@ -46,7 +46,7 @@ func (r lineRange) has(line string) bool {
 }
 
 // controlKinds are the claim kinds a control may have.
-var controlKinds = map[string]bool{KindServedAPI: true, KindK8sRemoval: true, KindCRDVersion: true, KindCRDRemoval: true, KindCRDPair: true}
+var controlKinds = map[string]bool{KindServedAPI: true, KindK8sRemoval: true, KindCRDVersion: true, KindCRDRemoval: true, KindCRDPair: true, KindCRDField: true}
 
 // loadControls decodes and checks the embedded controls file.
 func loadControls() ([]controlEntry, error) {

@@ -6,3 +6,4 @@
 .DS_Store
 __pycache__/
 *.pyc
+/cli/internal/tools/kindval/kindval
