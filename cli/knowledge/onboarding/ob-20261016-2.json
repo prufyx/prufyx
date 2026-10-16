@@ -1,0 +1,220 @@
+{
+  "schema": "prufyx.io/knowledge-onboarding-batch/v1",
+  "record": {
+    "base": {
+      "packRevision": "cncf-2026-09-13.8",
+      "registryDigest": "sha256:dd7d0472f0721b0fbf0d5916d06815d01cf223da8e859c4bc55a9cc83d412eca",
+      "tableDigest": "sha256:34bb6b59ae23c58f614fd5897b89b973a566c7e9fd3fd13bcdb12356eced7734",
+      "targetsDigest": "sha256:1977dac71d3ac1c8e70f3138d6b4d145e3adcab16f15697c5946dfd275adbb02"
+    },
+    "batchId": "ob-20261016-2",
+    "candidateId": "pr-121",
+    "changeSetDigest": "sha256:76fffc8ec2d7734135fbf83f29ae9f93c78985fd3efe287d410610e399c2e702",
+    "decidedAt": "2026-10-16T17:35:57Z",
+    "decision": "approve",
+    "head": {
+      "packRevision": "cncf-2026-09-13.8",
+      "registryDigest": "sha256:ee7448350107459ac60eaad0354f9876fc70127bdb3be94b962fe46b6f463cc6",
+      "tableDigest": "sha256:1fbd9f7d075400d875d139d9f1d2e4f9641a14a4e3da8d89f1885928acdaebd9",
+      "targetsDigest": "sha256:426526b7c40c1a08b8eb7aa0e4ad349744612b454c62610fe7f79f9aab537b02"
+    },
+    "identity": "airstand",
+    "nonce": "09f9ecf902bab3c79cbb291c3eb26d29",
+    "notAfter": "2026-10-19T17:35:57Z",
+    "projects": [
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:82879d0d21cccf114dfa856086081a0038489033aadf7ac0de48c92635a05a0c",
+            "path": "cli/internal/extract/crdversions/target-dex.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.dex.custom_resource_versions_set"
+        ],
+        "groups": [
+          "dex.coreos.com"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 0,
+            "ledger": "sha256:82a226c7a25ec6d3e4a5b2be77e57ed353cd7c6028f1121eeb35918982a94820",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "bcc2283694018a59e9b84c43c6c50ce996e9409b",
+            "fromTag": "v2.45.0",
+            "toCommit": "05a275057112ba93e17db21f600b756f000f1c21",
+            "toTag": "v2.46.0"
+          },
+          "scan": []
+        },
+        "slug": "dex"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:40c1feac84502d2853fb6e9b676eeb68624262730d44b682b51ba2de92a5941c",
+            "path": "cli/internal/extract/crdversions/target-k8gb.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.k8gb.custom_resource_versions_set"
+        ],
+        "groups": [
+          "k8gb.absa.oss",
+          "k8gb.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 0,
+            "ledger": "sha256:82a226c7a25ec6d3e4a5b2be77e57ed353cd7c6028f1121eeb35918982a94820",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "5799495e783f1b2cb2a175e6e93a6b5ab939559f",
+            "fromTag": "v0.20.0",
+            "toCommit": "9cffd9150a33c982295105c1f1b093adbae029d7",
+            "toTag": "v1.0.0"
+          },
+          "scan": [
+            {
+              "class": "external",
+              "path": "chart/k8gb/Chart.yaml",
+              "sha256": "sha256:17621db10706f143ab7d437bd9e4ce890757fb25cde2a1a422e257913e33d767"
+            },
+            {
+              "class": "external",
+              "path": "chart/k8gb/Chart.yaml",
+              "sha256": "sha256:8a5b66594d98addb743a878e231cb85d017c62be9291233cab6798d19171a555"
+            },
+            {
+              "class": "external",
+              "path": "chart/k8gb/Chart.yaml",
+              "sha256": "sha256:b953741c501f5837d54bfdd2fe8e2d9ecf09311aa06e5b0cfe1332d9a0e7ac4a"
+            },
+            {
+              "class": "extra",
+              "path": "chart/k8gb/crd/dns-endpoint-crd-manifest.yaml",
+              "sha256": "sha256:4bb17a681b00a4745e4e93134a019a626f8c2be438f7c332041037b50f0c4a29"
+            }
+          ]
+        },
+        "slug": "k8gb"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:41c50fc194d892fecfea50e883b7a755b117dd601c7e19fa692b516f1bb0881b",
+            "path": "cli/internal/extract/crdversions/target-k8up.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.k8up.custom_resource_versions_set"
+        ],
+        "groups": [
+          "k8up.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 0,
+            "ledger": "sha256:82a226c7a25ec6d3e4a5b2be77e57ed353cd7c6028f1121eeb35918982a94820",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "0240a0613b2fa15665a71418079c1550ceb19df3",
+            "fromTag": "v2.15.0",
+            "toCommit": "343b99d1519385d75738dbb07d6ff45785c3f186",
+            "toTag": "v2.16.0"
+          },
+          "scan": []
+        },
+        "slug": "k8up"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:e07a0f24d7c8ee0def784828e860eb95c5daa81f9ecb8c97695d3cf99fdc7c29",
+            "path": "cli/internal/extract/crdversions/target-openyurt.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.openyurt.custom_resource_versions_set"
+        ],
+        "groups": [
+          "apps.openyurt.io",
+          "iot.openyurt.io",
+          "network.openyurt.io",
+          "raven.openyurt.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 0,
+            "ledger": "sha256:82a226c7a25ec6d3e4a5b2be77e57ed353cd7c6028f1121eeb35918982a94820",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "beab71c8f5a668de8276e542108c994a791575bb",
+            "fromTag": "v1.6.0",
+            "toCommit": "35ef4cd692e387d0d56c9084e3da161bad2a3092",
+            "toTag": "v1.7.0"
+          },
+          "scan": []
+        },
+        "slug": "openyurt"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:7b99198634b994484e0275c7c6e00f91b64a049addafdeac1dc265bbe933b42c",
+            "path": "cli/internal/extract/crdversions/target-submariner.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.submariner.custom_resource_versions_set"
+        ],
+        "groups": [
+          "submariner.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 0,
+            "ledger": "sha256:82a226c7a25ec6d3e4a5b2be77e57ed353cd7c6028f1121eeb35918982a94820",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "2ec8503c6e94ace8cd4a234413528b2d8681d988",
+            "fromTag": "v0.23.1",
+            "toCommit": "d7fd3ecb9bc86f0a2c74c7cb62e9eae8019940f3",
+            "toTag": "v0.24.0"
+          },
+          "scan": []
+        },
+        "slug": "submariner"
+      }
+    ],
+    "sample": [
+      0,
+      2,
+      4
+    ],
+    "summaryDigest": "sha256:7a49c69dc9353409d41230c4ec800869a75bf0faea209cfafc35bd8a4bc64b1a"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "T5LPkdJNHuBa5mU6AxVmPAGNUfO5GMwlAKPwBwQclBb2oAZX+MhhjxpTKSL66XDRCofd0H9fNuFvgLFfqrh1AQ=="
+}
