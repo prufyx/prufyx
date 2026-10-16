@@ -17,6 +17,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 )
 
 // Onboarding batches. An onboarding batch is one owner signature over a
@@ -173,10 +175,33 @@ type OnboardingEnvelope struct {
 }
 
 // onboardingFindingClasses are the scan classes a proof may list (the
-// classes of crdversions.Finding).
+// classes of crdversions.Finding). A proof only describes what the scan of
+// the newest release pair saw and did not read as a definition: a batch
+// admits no rule, record or attestation, and a project is attested only by
+// the gate's own dry run, which needs a clean scan (O6), so listing a class
+// never turns attestation on. O6 requires every finding of the gate's own
+// scan to be listed, whatever its class.
+//
+// Left out on purpose, because a target a batch admits has no reviewed scan
+// exclusion (O4) and these classes only arise under one: exclusion-void,
+// excluded-unread, pre-patch-copy and pre-patch (excluded, accepted before
+// them, stays). A new class of the scanner
+// is refused until it is added here (TestOnboardingFindingClasses).
 var onboardingFindingClasses = map[string]bool{
-	"conflict": true, "copy": true, "excluded": true, "external": true, "extra": true,
-	"reference": true, "unread": true, "unsupported": true,
+	crdversions.ClassConflict:        true,
+	crdversions.ClassCopy:            true,
+	crdversions.ClassCRDPatch:        true,
+	crdversions.ClassExcluded:        true,
+	crdversions.ClassExternal:        true,
+	crdversions.ClassExtra:           true,
+	crdversions.ClassGoDefined:       true,
+	crdversions.ClassKustomizeConfig: true,
+	crdversions.ClassLegacyCopy:      true,
+	crdversions.ClassReference:       true,
+	crdversions.ClassSchemaPatch:     true,
+	crdversions.ClassTemplatedCopy:   true,
+	crdversions.ClassUnread:          true,
+	crdversions.ClassUnsupported:     true,
 }
 
 func (s OnboardingState) validate() error {

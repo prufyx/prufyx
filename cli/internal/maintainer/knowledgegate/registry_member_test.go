@@ -256,6 +256,10 @@ func TestGateRegistryAddition(t *testing.T) {
 		"trust material changed too": {withAdded, addedDefinitions(), func(t *testing.T, base, head Tree, opts *Options) {
 			key.pin(t, head, "airstand", "other-owner")
 		}, "trust material changed in the same change"},
+		"custom-resource table changed too": {withAdded, addedDefinitions(), func(t *testing.T, base, head Tree, opts *Options) {
+			rel := DefaultLayout().Onboarding.TablePath
+			writeFile(t, filepath.Join(head.Root, filepath.FromSlash(rel)), []byte("{}\n"))
+		}, "the custom-resource table changed in the same change: " + DefaultLayout().Onboarding.TablePath},
 		"addition outside the literal list": {func(src string) string { return src }, addedDefinitions(), nil, "the head adds no fact definition"},
 		"no approval": {withAdded, addedDefinitions(), func(t *testing.T, base, head Tree, opts *Options) {
 			if err := os.Remove(registryApprovalFile(head)); err != nil {

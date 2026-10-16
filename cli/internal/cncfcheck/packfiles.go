@@ -47,8 +47,13 @@ func CheckPackFiles(landscapeRaw, priorityRaw, packRaw []byte) (PackFileReport, 
 
 // CheckPackFilesWith is CheckPackFiles under the given fact definitions in
 // place of this build's compiled registry: the knowledge gate admits a head
-// pack that adds fact definitions under the head's definition list.
+// pack that adds fact definitions under the head's definition list. An empty
+// list is refused with ErrIntegrity: it never falls back to the compiled
+// registry.
 func CheckPackFilesWith(landscapeRaw, priorityRaw, packRaw []byte, definitions []constraintengine.FactDefinition) (PackFileReport, error) {
+	if len(definitions) == 0 {
+		return PackFileReport{}, ErrIntegrity
+	}
 	return CheckPackFilesFull(landscapeRaw, priorityRaw, packRaw, definitions, nil)
 }
 
@@ -99,8 +104,12 @@ func BuildAttestationFromFiles(landscapeRaw, priorityRaw, packRaw []byte) (Attes
 }
 
 // BuildAttestationFromFilesWith is BuildAttestationFromFiles under the given
-// fact definitions in place of this build's compiled registry.
+// fact definitions in place of this build's compiled registry. An empty list
+// is refused with ErrIntegrity: it never falls back to the compiled registry.
 func BuildAttestationFromFilesWith(landscapeRaw, priorityRaw, packRaw []byte, definitions []constraintengine.FactDefinition) (Attestation, error) {
+	if len(definitions) == 0 {
+		return Attestation{}, ErrIntegrity
+	}
 	return BuildAttestationFromFilesFull(landscapeRaw, priorityRaw, packRaw, definitions, nil)
 }
 

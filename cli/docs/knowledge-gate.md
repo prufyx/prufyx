@@ -980,8 +980,10 @@ eligible for automatic merging: the owner merges it.
 | O8 kill switch | `factory/PAUSE` is set |
 
 A change that adds no batch is checked as before: the gate admits the CNCF pack
-against the table it was built with, so a table change that moves the pack's
-`registryDigest` without a batch fails `admit/cncf` and the pack member check. Only once a batch is admitted are `admit/cncf` and
+against the table it was built with, so a moved `registryDigest` member
+without a batch fails `admit/cncf` and the member check (a `table.json` edit
+alone is not seen by the gate; the repository's CI tests catch it). Only once a
+batch is admitted are `admit/cncf` and
 `attestation/cncf` run against the head's table, compiled by the base's code.
 A batch file in the base is never changed, and removed only 14 days after it
 expired; a knowledge batch may not touch `cli/knowledge/onboarding/`.
@@ -993,8 +995,42 @@ each; a run that runs out of it never passes.
 An onboarding batch and a fact-registry change with an owner approval (the
 `packagedDefinitions` literal and `member.registryDigest.json`) are two
 separate ways to move the CNCF pack's `registryDigest`. A pull request that
-carries both is refused with `RegistryPathsConflict`: the gate never combines
-them, and neither path admits `revision`.
+carries both is refused with the reason "an onboarding batch and a
+registry-member change are two registry-change paths and are never combined in
+one change": the gate never combines them, and neither path admits `revision`.
+A registry-member change that also edits the custom-resource table is refused
+with its own reason, "the custom-resource table changed in the same change".
+
+### Scan findings a proof may list
+
+A proof lists the files the full-tree scan of the project's newest release pair
+found outside the listed paths (O6 requires the gate's own scan to find nothing
+the proof did not list). The scan only describes what the extractor left unread
+or recognised as a copy: a batch admits no rule, record or attestation, and
+attestation is turned on only for a pair the gate's own dry run finds clean. A
+proof may list these classes:
+
+| Class | Meaning |
+| --- | --- |
+| `copy` | a definition that agrees with the listed paths |
+| `templated-copy` | a chart template that is a copy of the listed paths once its template directives are removed |
+| `legacy-copy` | `apiextensions.k8s.io/v1beta1` definitions with the versions and served flags of the listed paths |
+| `schema-patch` | a kustomization that only patches version schemas, conversion settings or metadata |
+| `crd-patch` | a patch fragment that only sets conversion, `preserveUnknownFields` or metadata of a listed definition |
+| `kustomize-config` | a kustomize transformer configuration that only reaches conversion settings or metadata |
+| `conflict` | a definition of a listed CRD with other versions or served flags |
+| `extra` | a definition the listed paths do not hold |
+| `reference` | a file that names the definition kind but defines none at the top level |
+| `unread` | a file that names the kind and could not be read (templated, over the bounds, not strictly decodable) |
+| `unsupported` | a source the scan does not parse (template, jsonnet or cue source, packaged chart) |
+| `go-defined` | Go code that builds a definition in a literal; its served versions are not read |
+| `external` | a chart dependency or kustomize resource from another repository |
+| `excluded` | a definition-like file under a reviewed exclusion |
+
+The classes `exclusion-void`, `excluded-unread`, `pre-patch-copy` and
+`pre-patch` arise only under a reviewed scan exclusion, which a batch's target
+never has, and are refused in a proof, as is any class not listed here. A new
+class of the scanner is refused until the list is extended.
 
 ### Signing and checking an onboarding batch
 
