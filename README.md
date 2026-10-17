@@ -73,7 +73,7 @@ Generated on 2026-10-17 by `scripts/readme-coverage.sh` (do not edit this block 
 
 | Executable rules | Count |
 | --- | --- |
-| CNCF source rules, active | 203 across 53 projects (1 withdrawn, not used) |
+| CNCF source rules, active | 207 across 53 projects (1 withdrawn, not used) |
 | Rules for further, non-CNCF projects | 34 across 8 projects |
 | Projects with at least one executable check | 65 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
@@ -82,11 +82,11 @@ Version-coverage depth, measured over the last five minor upgrades of each of th
 
 | Status | Upgrades | Share |
 | --- | --- | --- |
-| Decided for the whole release-line pair (A attested, B bounded) | 9 | 2.3% |
+| Decided for the whole release-line pair (A attested, B bounded) | 12 | 3% |
 | Rule for one exact version pair only (S) | 42 | 10.7% |
-| Gap, no valid rule (G) | 339 | 86.9% |
+| Gap, no valid rule (G) | 336 | 86.1% |
 
-Kubernetes: 26 valid rules, but 0 fall in its window 1.32 to 1.37; 3 of 5 upgrades in that window are gaps.
+Kubernetes: 30 valid rules, but 4 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 
 Decided means a valid rule or attestation covers every version of both release lines, so the answer is BLOCKED or UNKNOWN, never a whole-upgrade PASS. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
 <!-- coverage:end -->
