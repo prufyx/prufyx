@@ -55,6 +55,12 @@ var wants = []want{
 	{"docker.io/thanosio/thanos", "thanos", "pkg:oci/thanos-io/thanos", RoleVersionSource, "v0.42.4", "0.42.4", false},
 	{"quay.io/thanos/thanos", "thanos", "pkg:oci/thanos-io/thanos", RoleVersionSource, "v0.42.4", "0.42.4", false},
 	{"docker.io/velero/velero", "velero", "pkg:oci/velero/velero", RoleVersionSource, "v1.18.2", "1.18.2", false},
+	{"registry.k8s.io/coredns/coredns", "coredns", "pkg:oci/coredns/coredns", RoleVersionSource, "v1.11.3", "1.11.3", false},
+	{"cr.fluentbit.io/fluent/fluent-bit", "fluent-bit", "pkg:oci/fluent/fluent-bit", RoleVersionSource, "3.1.9", "3.1.9", false},
+	{"ghcr.io/kedacore/keda", "keda", "pkg:oci/kedacore/keda", RoleVersionSource, "2.15.1", "2.15.1", false},
+	{"docker.elastic.co/kibana/kibana", "kibana", "pkg:oci/elastic/kibana", RoleVersionSource, "8.15.0", "8.15.0", false},
+	{"reg.kyverno.io/kyverno/kyverno", "kyverno", "pkg:oci/kyverno/kyverno", RoleVersionSource, "v1.12.5", "1.12.5", false},
+	{"docker.io/grafana/loki", "loki", "pkg:oci/grafana/loki", RoleVersionSource, "3.2.1", "3.2.1", false},
 }
 
 func refForms(repo, tail string) []string {
