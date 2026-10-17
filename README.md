@@ -69,7 +69,7 @@ upgrade surface they decide.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-10-08 by `scripts/readme-coverage.sh` (do not edit this block by hand).
+Generated on 2026-10-17 by `scripts/readme-coverage.sh` (do not edit this block by hand).
 
 | Executable rules | Count |
 | --- | --- |
@@ -78,13 +78,13 @@ Generated on 2026-10-08 by `scripts/readme-coverage.sh` (do not edit this block 
 | Projects with at least one executable check | 65 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
 
-Version-coverage depth, measured over the last five minor upgrades of each of the 55 projects with a release-line snapshot (275 upgrades between consecutive release lines):
+Version-coverage depth, measured over the last five minor upgrades of each of the 78 projects with a release-line snapshot (390 upgrades between consecutive release lines):
 
 | Status | Upgrades | Share |
 | --- | --- | --- |
 | Decided for the whole release-line pair (A attested, B bounded) | 0 | 0% |
-| Rule for one exact version pair only (S) | 44 | 16% |
-| Gap, no valid rule (G) | 231 | 84% |
+| Rule for one exact version pair only (S) | 44 | 11.2% |
+| Gap, no valid rule (G) | 346 | 88.7% |
 
 Kubernetes: 26 valid rules, but 0 fall in its window 1.32 to 1.37; 5 of 5 upgrades in that window are gaps.
 
