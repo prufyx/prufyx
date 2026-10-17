@@ -13,6 +13,7 @@ import (
 
 // TestFailOnExitMatrix: --fail-on changes only the exit code mapping.
 func TestFailOnExitMatrix(t *testing.T) {
+	t.Parallel()
 	const (
 		pass, blocked, unknown = scanreport.ExitPass, scanreport.ExitBlocked, scanreport.ExitUnknown
 	)
@@ -41,6 +42,7 @@ func TestFailOnExitMatrix(t *testing.T) {
 // TestFailOnUsageErrors: bad values and repeats are usage errors (exit 2),
 // which no policy suppresses.
 func TestFailOnUsageErrors(t *testing.T) {
+	t.Parallel()
 	for _, bad := range [][]string{
 		{"--fail-on", "warn"}, {"--fail-on"}, {"--fail-on", ""}, {"--fail-on=none", "--fail-on=none"},
 		{"--only-blocked=maybe"}, {"--only-blocked", "--only-blocked"},
@@ -115,6 +117,7 @@ func TestOnlyBlocked(t *testing.T) {
 // API_VERSION_NOT_SERVED gap. No --fail-on value turns that into exit 0, the
 // same as the GitHub Action; an UNKNOWN without that gap is still suppressed.
 func TestFailOnKeepsNotServedExit(t *testing.T) {
+	t.Parallel()
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	_, paths := files(t, map[string]string{"applyset.yaml": "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: a}\n"})
 	result := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.25.3", "--to", "kubernetes=1.26.15")...)
@@ -148,6 +151,7 @@ func TestFailOnKeepsNotServedExit(t *testing.T) {
 // TestFailOnNoteOnlyWhenChanged: a pass, a default run and an unchanged
 // blocked exit print no note; every changed non-zero code does.
 func TestFailOnNoteOnlyWhenChanged(t *testing.T) {
+	t.Parallel()
 	report := scanreport.Report{Verdict: "BLOCKED"}
 	for _, c := range []struct {
 		failOn  string
@@ -172,6 +176,7 @@ func TestFailOnNoteOnlyWhenChanged(t *testing.T) {
 // scan the only finding-like item is the not-served gap; --only-blocked must
 // still print it, and hide the other gaps.
 func TestOnlyBlockedShowsNotServedGap(t *testing.T) {
+	t.Parallel()
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	_, paths := files(t, map[string]string{"applyset.yaml": "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: a}\n"})
 	for _, format := range []string{"human", "markdown"} {

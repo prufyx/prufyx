@@ -12,6 +12,7 @@ import (
 // store holds the opened projects' rules and nothing of the embedded pack.
 // An unopened project has no rule, no evaluation, no review and no policy.
 func TestStoreScanKnowledgeReadsOnlyOpenedProjects(t *testing.T) {
+	t.Parallel()
 	_, targets, err := BuildEmbeddedExternalTargets("3", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -108,6 +109,7 @@ func TestStoreScanKnowledgeReadsOnlyOpenedProjects(t *testing.T) {
 // exactly the embedded builders' targets, and a pack the embedded checks
 // refuse is refused.
 func TestExternalTargetsFromPack(t *testing.T) {
+	t.Parallel()
 	raw, err := packagedRulePack()
 	if err != nil {
 		t.Fatal(err)

@@ -8,6 +8,7 @@ import (
 )
 
 func TestPrometheusRefreshEvidenceBoundaryStaysUnknown(t *testing.T) {
+	t.Parallel()
 	wantRules := map[string]bool{
 		"prometheus.alertmanager-api-v1-removed.2-55-1-to-3-14-0":           true,
 		"prometheus.scrape-classic-histograms-key-renamed.2-55-1-to-3-14-0": true,

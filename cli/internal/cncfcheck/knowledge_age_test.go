@@ -14,6 +14,7 @@ import (
 // their end dates, and a withdrawn rule is not. The expectation is read from
 // the pack file directly.
 func TestKnowledgeAgeEmbedded(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile(filepath.Join("data", "rules.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -74,6 +75,7 @@ func TestKnowledgeAgeEmbedded(t *testing.T) {
 
 // TestActiveRuleEndsSkipsInactive: only active rules count.
 func TestActiveRuleEndsSkipsInactive(t *testing.T) {
+	t.Parallel()
 	entries := []Entry{
 		{Rule: json.RawMessage(`{"evidence":{"state":"active","validUntil":"2026-12-07T00:00:00Z"}}`)},
 		{Rule: json.RawMessage(`{"evidence":{"state":"withdrawn","validUntil":"2026-11-01T00:00:00Z"}}`)},

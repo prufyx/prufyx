@@ -10,6 +10,7 @@ import (
 )
 
 func TestPrometheusRemoteWriteHTTP2SelectedRule(t *testing.T) {
+	t.Parallel()
 	trueValue, falseValue := true, false
 	tests := []struct {
 		name     string
@@ -40,6 +41,7 @@ func TestPrometheusRemoteWriteHTTP2SelectedRule(t *testing.T) {
 }
 
 func TestPrometheusRemoteWriteHTTP2BatchGuardSurvivesMissingFact(t *testing.T) {
+	t.Parallel()
 	input := []byte(`{"schema":"prufyx.io/operator-declared-constraint-input/v1alpha1","authority":"OPERATOR_DECLARED_MINIMIZED","current":{"components":[{"component":"pkg:github/prometheus/prometheus","version":"2.55.1","facts":[]}]},"proposed":{"components":[{"component":"pkg:github/prometheus/prometheus","version":"3.14.0","facts":[{"id":"component.prometheus.scrape_classic_histograms_key","state":"declared","enumValue":"always_scrape_classic_histograms"}]}]}}`)
 	report, err := Check("prometheus", input, time.Date(2026, 9, 13, 9, 0, 0, 0, time.UTC))
 	if err != nil {

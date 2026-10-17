@@ -72,6 +72,7 @@ func scribble(v reflect.Value) {
 // Every value an index accessor returns is the caller's own: scribbling over
 // it, however deep, leaves the next answer of the same accessor unchanged.
 func TestIndexAccessorsReturnIndependentValues(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	cases := map[string]func() any{}
 
