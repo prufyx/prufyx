@@ -114,6 +114,18 @@ none. A reviewed table covers `linkerd`
 (`stable-2.X.Y`, `version-2.X.Y`) and `cloud-custodian` (`0.9.N[.M]` to line
 `9.N`).
 
+The committed snapshot `lines-2026-10-15.json` was built this way from the
+`git ls-remote --tags` output of each project's repository, keeping the last
+six lines of each project and the `priority` marks of the earlier snapshot.
+The repository comes from the CNCF landscape entry of the project, with these
+exceptions: `opentelemetry` reads `open-telemetry/opentelemetry-collector`,
+`buildpacks` reads `buildpacks/lifecycle` and `kubeflow` reads
+`kubeflow/pipelines`, because the landscape repository does not publish the
+releases the rules refer to. `linkerd` publishes its lines 2.15 to 2.20 as the
+tags `version-2.15` to `version-2.20`, which have no patch number and are not
+read by `lines-from-tags`; those six lines were entered as listed by the tags.
+`scripts/readme-coverage.sh` uses this snapshot by default.
+
 ## Output
 
 The JSON report holds the schema, evaluation time, window, pack and lines

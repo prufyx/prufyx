@@ -69,7 +69,7 @@ upgrade surface they decide.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-10-08 by `scripts/readme-coverage.sh` (do not edit this block by hand).
+Generated on 2026-10-15 by `scripts/readme-coverage.sh` (do not edit this block by hand).
 
 | Executable rules | Count |
 | --- | --- |
@@ -98,7 +98,8 @@ stale). The method and the full per-project table are in the
 In plain terms: the rules are exact, reviewed transitions, mostly for older
 releases. No upgrade between two release lines is decided as a whole yet, and
 Kubernetes has no rule for upgrades after 1.32. Reviewed Kubernetes API
-removals exist for upgrades to 1.22, 1.24-1.27, 1.29 and 1.32.
+removals exist for upgrades to 1.22, 1.25-1.27, 1.29 and 1.32, plus the
+dockershim removal in 1.24.
 
 Further projects with executable checks: Argo Workflows, Ceph, Fluent Bit,
 Grafana, Grafana Loki, Kibana, MariaDB and MariaDB Operator (community
