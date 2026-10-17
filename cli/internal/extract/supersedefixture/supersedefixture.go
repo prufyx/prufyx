@@ -56,7 +56,42 @@ func Reviewed(pack []byte) ([]byte, error) {
 		}
 	}
 	p.Entries = append(kept, old...)
+	if err := dropRuleAttestations(p); err != nil {
+		return nil, err
+	}
 	return p.Render()
+}
+
+// dropRuleAttestations removes the line attestations that list rules: they
+// name mechanical rules the rebuilt pack no longer holds. The empty-list
+// attestations (lines with no removal) stay, as they sat in the pack before.
+func dropRuleAttestations(p *extractpack.Pack) error {
+	raw, ok := p.Members["lineAttestations"]
+	if !ok {
+		return nil
+	}
+	var atts []json.RawMessage
+	if err := json.Unmarshal(raw, &atts); err != nil {
+		return err
+	}
+	var kept []json.RawMessage
+	for _, a := range atts {
+		var v struct {
+			RuleIDs []string `json:"ruleIds"`
+		}
+		if err := json.Unmarshal(a, &v); err != nil {
+			return err
+		}
+		if len(v.RuleIDs) == 0 {
+			kept = append(kept, a)
+		}
+	}
+	out, err := json.Marshal(kept)
+	if err != nil {
+		return err
+	}
+	p.Members["lineAttestations"] = out
+	return nil
 }
 
 // ReviewedEntries returns the 25 reviewed rule entries as shipped before the

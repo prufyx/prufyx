@@ -34,7 +34,7 @@ follow; `v2` adds verdicts, reason codes and control claims (see
     {"id": "k8s.1.31-to-1.32.flowcontrol.apiserver.k8s.io_v1beta3_FlowSchema.removal",
      "kind": "k8s-removal",
      "subject": {"from": "1.31", "to": "1.32", "group": "flowcontrol.apiserver.k8s.io", "version": "v1beta3",
-                 "kind": "FlowSchema", "ruleId": "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0"}},
+                 "kind": "FlowSchema", "ruleId": "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0"}},
     {"id": "example.v2.0.0.gadgets.example.io.v1beta1",
      "kind": "crd-version",
      "subject": {"project": "example", "repo": "github.com/example/example",

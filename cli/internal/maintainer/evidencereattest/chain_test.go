@@ -637,7 +637,9 @@ func TestWeeklyBatchSimulationOnRealPacks(t *testing.T) {
 	}
 }
 
-// withoutMechanicalRules drops every mechanical-basis rule from a pack.
+// withoutMechanicalRules drops every mechanical-basis rule from a pack, and
+// the line attestations that list rules (they name the dropped ones); the
+// empty-list attestations stay.
 func withoutMechanicalRules(t *testing.T, raw []byte) []byte {
 	t.Helper()
 	p, err := extractpack.ParsePack(raw)
@@ -661,6 +663,27 @@ func withoutMechanicalRules(t *testing.T, raw []byte) []byte {
 		}
 	}
 	p.Entries = kept
+	if section, ok := p.Members["lineAttestations"]; ok {
+		var atts []json.RawMessage
+		if err := json.Unmarshal(section, &atts); err != nil {
+			t.Fatal(err)
+		}
+		var empty []json.RawMessage
+		for _, att := range atts {
+			var a struct {
+				RuleIDs []string `json:"ruleIds"`
+			}
+			if err := json.Unmarshal(att, &a); err != nil {
+				t.Fatal(err)
+			}
+			if len(a.RuleIDs) == 0 {
+				empty = append(empty, att)
+			}
+		}
+		if p.Members["lineAttestations"], err = json.Marshal(empty); err != nil {
+			t.Fatal(err)
+		}
+	}
 	out, err := p.Render()
 	if err != nil {
 		t.Fatal(err)

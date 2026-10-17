@@ -1,4 +1,4 @@
-# BLOCKED: 1 problem must be fixed; 2 areas were not checked
+# BLOCKED: 1 problem must be fixed; 1 area was not checked
 
 ## PROBLEMS TO FIX (1)
 
@@ -6,7 +6,7 @@
 
 | Hop | Problem | Where | Fix |
 | --- | --- | --- | --- |
-| 1.24.17 -> 1.25.3 | Kubernetes 1.25 stops serving CronJob through batch/v1beta1 | `applyset.yaml:1` `CronJob default/nightly-report` | Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately. |
+| 1.24.17 -> 1.25.3 | Kubernetes 1.25 stops serving CronJob through batch/v1beta1 | `applyset.yaml:1` `CronJob default/nightly-report` | Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately. |
 
 ## HOPS
 
@@ -14,30 +14,30 @@
 
 | Hop | Status |
 | --- | --- |
-| 1.24.17 -> 1.25.3 | BLOCKED (LINE\_NOT\_ATTESTED) |
+| 1.24.17 -> 1.25.3 | BLOCKED |
 
-## NOT CHECKED (2)
+## NOT CHECKED (1)
 
 | Area | What | Next step |
 | --- | --- | --- |
 | kubernetes | no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked | check them against the API reference of that Kubernetes release by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml |
-| kubernetes 1.24.17 -> 1.25.3 | no review confirms that the removed-API rules for kubernetes 1.25 name every API that line removes | check the kubernetes 1.25 release notes for other removed APIs by hand, or request a line review |
 
 ## PASSED (6)
 
-- kubernetes 1.24.17 -> 1.25.3 `kubernetes.endpointslice-v1beta1-removed.1-24-0-to-1-25-0`
-- kubernetes 1.24.17 -> 1.25.3 `kubernetes.event-v1beta1-removed.1-24-0-to-1-25-0`
-- kubernetes 1.24.17 -> 1.25.3 `kubernetes.hpa-v2beta1-removed.1-24-0-to-1-25-0`
-- kubernetes 1.24.17 -> 1.25.3 `kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0`
-- kubernetes 1.24.17 -> 1.25.3 `kubernetes.psp-v1beta1-removed.1-24-0-to-1-25-0`
-- kubernetes 1.24.17 -> 1.25.3 `kubernetes.runtimeclass-v1beta1-removed.1-24-0-to-1-25-0`
+- kubernetes 1.24.17 -> 1.25.3 `kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0`
+- kubernetes 1.24.17 -> 1.25.3 `kubernetes.served-api-removal.discovery-k8s-io-v1beta1.1-24-0-to-1-25-0`
+- kubernetes 1.24.17 -> 1.25.3 `kubernetes.served-api-removal.events-k8s-io-v1beta1.1-24-0-to-1-25-0`
+- kubernetes 1.24.17 -> 1.25.3 `kubernetes.served-api-removal.node-k8s-io-v1beta1.1-24-0-to-1-25-0`
+- kubernetes 1.24.17 -> 1.25.3 `kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0`
+- kubernetes 1.24.17 -> 1.25.3 `kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0`
 
 ## SOURCES
 
 | Rules | Source | Lines | Revision |
 | --- | --- | --- | --- |
-| `kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0` | <https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md> | 87-93 | `9f1af2971c32` |
-| `kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0` | <https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md> | 189-193 | `9f1af2971c32` |
+| `kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0` | <https://github.com/kubernetes/kubernetes/blob/4ce5a8954017644c5420bae81d72b09b735c21f0/staging/src/k8s.io/api/batch/v1beta1/zz_generated.prerelease-lifecycle.go> | 48-74 | `4ce5a8954017` |
+| `kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0` | <https://github.com/kubernetes/kubernetes/blob/4ce5a8954017644c5420bae81d72b09b735c21f0/api/openapi-spec/swagger.json> | 1-90087 | `4ce5a8954017` |
+| `kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0` | <https://github.com/kubernetes/kubernetes/blob/a866cbe2e5bbaa01cfd5e969aa3e033f3282a8a2/api/openapi-spec/swagger.json> | 1-81603 | `a866cbe2e5bb` |
 
 Read 2 documents over 1 hop; 1 of 1 component has rules (partially evaluated). 6 checks passed (--show-passes).
 

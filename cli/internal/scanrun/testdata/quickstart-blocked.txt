@@ -3,7 +3,7 @@ BLOCKED: 1 problem must be fixed; 1 area was not checked
 kubernetes 1.24.17 -> 1.30.4: 6 hops (path policy sequential_minor)
   1.24.17 -> 1.25   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
                     applyset.yaml:1  CronJob default/nightly-report
-                    fix: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
+                    fix: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 
 NOT CHECKED (1)
   kubernetes   1 manifest(s) use API versions that the review of Kubernetes 1.30 does not list as served - check those API versions against the Kubernetes 1.30 API reference by hand

@@ -111,10 +111,10 @@ prufyx: NATIVE_CNCF_RESOURCE_INPUT_INVALID: input file is readable or writable b
 /tmp/prufyx check cncf --project kubernetes --native-resource applyset.json \
   --from 1.24.0 --to 1.25.0 \
   --distribution official_upstream --target-api-apply-required --resource-scope-complete \
-  --now 2026-09-24T00:00:00Z --format human
+  --now 2026-11-20T00:00:00Z --format human
 ```
 
-Verified output (the complete human output; the six other reviewed removals
+Verified output (the complete human output; the six other removals
 in this pair came back `PASS` because this apply set does not contain them, so
 they are counted rather than listed):
 
@@ -122,14 +122,15 @@ they are counted rather than listed):
 kubernetes native input review
 raw input digests: sha256:74b724b3dbe66cdea762575500e4fce48a5469b669668a7108280e026456a355
 prepared input digest: sha256:619e1cfad17ce822d3ad4d36b1cdc3ef3024e9ec37720096f2af8076b92660b2
-kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0: BLOCKED (REVIEWED_SOURCE_CONSTRAINT)
-next action: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
-evidence basis: reviewed by maintainer
+kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0: BLOCKED (KUBERNETES_SERVED_API_REMOVED)
+next action: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
+evidence basis: derived from source by k8s.served-api-removal v1.3.0
 6 rules PASS (not listed; use --show-passes)
 scoped result: BLOCKED
 aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
-pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md lines 87-93; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:96f34a49cbdd7bd53008cc7b7cc8aff58c373ad323e64eef0155cbbc44494f61
-pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md lines 189-193; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:7d33809eeb313cbd589018a8dde893974065c50f5ee8cde27d99e879d0dde81f
+pinned source: https://github.com/kubernetes/kubernetes/blob/4ce5a8954017644c5420bae81d72b09b735c21f0/staging/src/k8s.io/api/batch/v1beta1/zz_generated.prerelease-lifecycle.go lines 48-74; revision 4ce5a8954017644c5420bae81d72b09b735c21f0; digest sha256:ed52be6d14796fb3d02cd8a35df4b2a059d2e963d461d7372a8177c249d54ccc
+pinned source: https://github.com/kubernetes/kubernetes/blob/4ce5a8954017644c5420bae81d72b09b735c21f0/api/openapi-spec/swagger.json lines 1-90087; revision 4ce5a8954017644c5420bae81d72b09b735c21f0; digest sha256:0d43576f2097092c8a3f203368a8edc0d605540c9757125dae116031f182e53a
+pinned source: https://github.com/kubernetes/kubernetes/blob/a866cbe2e5bbaa01cfd5e969aa3e033f3282a8a2/api/openapi-spec/swagger.json lines 1-81603; revision a866cbe2e5bbaa01cfd5e969aa3e033f3282a8a2; digest sha256:96354682390d446dde77eb2246fe022baa89697133a8248612ca2573e4a12120
 ```
 
 ```sh
@@ -138,18 +139,19 @@ echo "exit code: $?"
 ```
 
 That `10` is `ExitBlocked`. In CI use `--strict-exit` on every `prufyx
-check`: then `14` means only the reviewed rules for this pair passed, and every
+check`: then `14` means only the rules for this pair passed, and every
 other code (2 = usage error, 3 = integrity failure, 10 = BLOCKED, 11 = UNKNOWN)
 needs a human decision. Without the flag a scoped pass exits `0`, but the
 whole upgrade is still `UNKNOWN` (the `aggregate:` line says so, and the
 command repeats it on standard error), so a `0` is not "proceed". `10` means a
-reviewed, pinned source says the target release no longer serves this
+pinned upstream source says the target release no longer serves this
 resource's API version. See [exit-codes.md](exit-codes.md).
 
 The `pinned source` line is not a description — it is a citation. Open that
-exact URL at that exact revision and you will find, at lines 87-93, the
-Kubernetes deprecation guide stating that `CronJob` stops being served at
-`batch/v1beta1` in 1.25. `digest` pins the exact bytes reviewed, so if
+exact URL at that exact revision and you will find, at lines 48-74, the
+Kubernetes source file that declares `CronJob` at `batch/v1beta1` removed in
+1.25. The rule was derived from that source by the extractor named in the
+`evidence basis` line. `digest` pins the exact bytes it read, so if
 upstream silently edits that page later, Prufyx's own corpus checks (not
 this command) catch the drift rather than silently citing changed text.
 
@@ -228,7 +230,7 @@ chmod 600 applyset.yaml
 /tmp/prufyx check cncf --project kubernetes --native-resource applyset.yaml \
   --from 1.24.0 --to 1.25.0 \
   --distribution official_upstream --target-api-apply-required --resource-scope-complete \
-  --now 2026-09-24T00:00:00Z --format human
+  --now 2026-11-20T00:00:00Z --format human
 ```
 
 Verified output:
@@ -237,14 +239,15 @@ Verified output:
 kubernetes native input review
 raw input digests: sha256:97307ffffabe0fdddbf2b527079b10ddf8559876f3cf1c356a7f424db023a654
 prepared input digest: sha256:619e1cfad17ce822d3ad4d36b1cdc3ef3024e9ec37720096f2af8076b92660b2
-kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0: BLOCKED (REVIEWED_SOURCE_CONSTRAINT)
-next action: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
-evidence basis: reviewed by maintainer
+kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0: BLOCKED (KUBERNETES_SERVED_API_REMOVED)
+next action: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
+evidence basis: derived from source by k8s.served-api-removal v1.3.0
 6 rules PASS (not listed; use --show-passes)
 scoped result: BLOCKED
 aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
-pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md lines 87-93; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:96f34a49cbdd7bd53008cc7b7cc8aff58c373ad323e64eef0155cbbc44494f61
-pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md lines 189-193; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:7d33809eeb313cbd589018a8dde893974065c50f5ee8cde27d99e879d0dde81f
+pinned source: https://github.com/kubernetes/kubernetes/blob/4ce5a8954017644c5420bae81d72b09b735c21f0/staging/src/k8s.io/api/batch/v1beta1/zz_generated.prerelease-lifecycle.go lines 48-74; revision 4ce5a8954017644c5420bae81d72b09b735c21f0; digest sha256:ed52be6d14796fb3d02cd8a35df4b2a059d2e963d461d7372a8177c249d54ccc
+pinned source: https://github.com/kubernetes/kubernetes/blob/4ce5a8954017644c5420bae81d72b09b735c21f0/api/openapi-spec/swagger.json lines 1-90087; revision 4ce5a8954017644c5420bae81d72b09b735c21f0; digest sha256:0d43576f2097092c8a3f203368a8edc0d605540c9757125dae116031f182e53a
+pinned source: https://github.com/kubernetes/kubernetes/blob/a866cbe2e5bbaa01cfd5e969aa3e033f3282a8a2/api/openapi-spec/swagger.json lines 1-81603; revision a866cbe2e5bbaa01cfd5e969aa3e033f3282a8a2; digest sha256:96354682390d446dde77eb2246fe022baa89697133a8248612ca2573e4a12120
 ```
 
 The `prepared input digest` is the same as for the JSON file, because both
@@ -264,14 +267,14 @@ line and exits `11`:
 /tmp/prufyx check cncf --project kubernetes --native-resource applyset.json \
   --from 1.21.0 --to 1.25.0 \
   --distribution official_upstream --target-api-apply-required --resource-scope-complete \
-  --now 2026-09-24T00:00:00Z --format human
+  --now 2026-11-20T00:00:00Z --format human
 ```
 
 ```
 kubernetes native input review
 raw input digests: sha256:74b724b3dbe66cdea762575500e4fce48a5469b669668a7108280e026456a355
 prepared input digest: sha256:0590394cb84c8f90bf0a765b6bd580a14bb2d2e203ce8645da7adf40a0cec443
-UNKNOWN: kubernetes 1.21.0 -> 1.25.0 is not a reviewed transition; reviewed pairs: 1.21.0 -> 1.22.0, 1.23.17 -> 1.24.0, 1.24.0 -> 1.25.0, 1.25.0 -> 1.26.0, 1.26.0 -> 1.27.0, 1.28.0 -> 1.29.0, 1.31.0 -> 1.32.0; for a multi-minor upgrade, check each minor step; a step without a reviewed pair stays UNKNOWN
+UNKNOWN: kubernetes 1.21.0 -> 1.25.0 is not a reviewed transition; reviewed pairs: 1.21.0 -> 1.22.0, 1.23.17 -> 1.24.0, 1.24.0 -> 1.25.0, 1.25.0 -> 1.26.0, 1.26.0 -> 1.27.0, 1.28.0 -> 1.29.0, 1.31.0 -> 1.32.0, 1.32.0 -> 1.33.0, and 2 more (prufyx catalog checks --project kubernetes); for a multi-minor upgrade, check each minor step; a step without a reviewed pair stays UNKNOWN
 20 rules about release boundaries (1.22.0, 1.25.0) this hop crosses are not reviewed for this hop
 scoped result: UNKNOWN
 aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
@@ -308,7 +311,7 @@ chmod 600 applyset-1-22.json
 /tmp/prufyx check cncf --project kubernetes --native-resource applyset-1-22.json \
   --from 1.21.0 --to 1.22.0 \
   --distribution official_upstream --target-api-apply-required --resource-scope-complete \
-  --now 2026-09-24T00:00:00Z --format human
+  --now 2026-11-20T00:00:00Z --format human
 ```
 
 Verified output:
@@ -317,14 +320,15 @@ Verified output:
 kubernetes native input review
 raw input digests: sha256:6670657e4ad5888348b0fa1ab708309940610063bcc9cbed1914e2283652f924
 prepared input digest: sha256:f7bd070cd7f335de92cd6824fd7454e80df20312b9fbc22cefc05508674fab9a
-kubernetes.ingress-extensions-v1beta1-removed.1-21-0-to-1-22-0: BLOCKED (REVIEWED_SOURCE_CONSTRAINT)
-next action: Migrate the named Ingress manifest to networking.k8s.io/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
-evidence basis: reviewed by maintainer
+kubernetes.served-api-removal.extensions-v1beta1.1-21-0-to-1-22-0: BLOCKED (KUBERNETES_SERVED_API_REMOVED)
+next action: Migrate the named Ingress manifests to networking.k8s.io/v1. pathType is now required. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
+evidence basis: derived from source by k8s.served-api-removal v1.3.0
 12 rules PASS (not listed; use --show-passes)
 scoped result: BLOCKED
 aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
-pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md lines 257-269; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:96f34a49cbdd7bd53008cc7b7cc8aff58c373ad323e64eef0155cbbc44494f61
-pinned source: https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md lines 189-193; revision 9f1af2971c32124bff0a1f42255ba5a2f3c8a16f; digest sha256:7d33809eeb313cbd589018a8dde893974065c50f5ee8cde27d99e879d0dde81f
+pinned source: https://github.com/kubernetes/kubernetes/blob/cb303e613a121a29364f75cc67d3d580833a7479/staging/src/k8s.io/api/extensions/v1beta1/zz_generated.prerelease-lifecycle.go lines 161-187; revision cb303e613a121a29364f75cc67d3d580833a7479; digest sha256:6c60ae809d85e7eeaf9dbb525fd04738d1fdf99aff059a9dc8e37a64def17791
+pinned source: https://github.com/kubernetes/kubernetes/blob/cb303e613a121a29364f75cc67d3d580833a7479/api/openapi-spec/swagger.json lines 1-110616; revision cb303e613a121a29364f75cc67d3d580833a7479; digest sha256:128a984dbb5a4e5ceceef9dea0db575267678d333f53ed606300a2132d2539cc
+pinned source: https://github.com/kubernetes/kubernetes/blob/c2b5237ccd9c0f1d600d3072634ca66cefdf272f/api/openapi-spec/swagger.json lines 1-90274; revision c2b5237ccd9c0f1d600d3072634ca66cefdf272f; digest sha256:d6718670e062681e4dc9e2b9dadf2b311c147cfdabcac628b9018011165d8773
 ```
 
 Exit code is again `10`. The 1.21 → 1.22 pair reviews thirteen separate
@@ -342,27 +346,26 @@ the YAML file from step 5a:
 cd /tmp/prufyx-quickstart
 /tmp/prufyx scan applyset.yaml --from kubernetes=1.24.17 --to kubernetes=1.25.3 \
   --distribution official_upstream --resource-scope-complete --target-api-apply-required \
-  --now 2026-10-04T00:00:00Z
+  --now 2026-11-20T00:00:00Z
 ```
 
 Verified output:
 
 ```
-BLOCKED: 1 problem must be fixed; 2 areas were not checked
+BLOCKED: 1 problem must be fixed; 1 area was not checked
 
 kubernetes 1.24.17 -> 1.25.3: 1 hop (no reviewed path policy)
   1.24.17 -> 1.25.3   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
                       applyset.yaml:2  CronJob default/nightly-report
-                      fix: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
+                      fix: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 
-NOT CHECKED (2)
+NOT CHECKED (1)
   kubernetes   no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the API reference of that Kubernetes release by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml
-  kubernetes 1.24.17 -> 1.25.3   no review confirms that the removed-API rules for kubernetes 1.25 name every API that line removes - check the kubernetes 1.25 release notes for other removed APIs by hand, or request a line review
 
 Read 2 documents over 1 hop; 1 of 1 component has rules (partially evaluated). 6 checks passed (--show-passes).
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
 Evidence: every finding cites pinned upstream source (--verbose). No network used.
-evaluated at 2026-10-04T00:00:00Z; input sha256:cac5facf042643aa2ca473b53dbc8e3de6e3001562dc1a16c4a0d15115aa07b0; knowledge embedded cncf-2026-09-13.8 sha256:c99bec4d80c148f24e02362abe6a51de135dd3255ce5f3985d23bddb4c6e19b0
+evaluated at 2026-11-20T00:00:00Z; input sha256:cac5facf042643aa2ca473b53dbc8e3de6e3001562dc1a16c4a0d15115aa07b0; knowledge embedded cncf-2026-09-13.8 sha256:58565d77469425e33207a773b44ac0e9b0b1abcdb3f6301f24b33bb4ae856d49
 ```
 
 The exit code is `10`, and the finding names the file, the line of the
