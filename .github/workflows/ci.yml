@@ -14,7 +14,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # The nightly run has its own group so a push to main neither cancels it nor is cancelled by it.
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'run' }}
   cancel-in-progress: true
 
 jobs:
@@ -248,11 +249,11 @@ jobs:
           cd cli
           selected=""
           if [ "${EVENT_NAME}" = "pull_request" ]; then
-            changed=$(git diff --name-only origin/main...HEAD)
+            changed=$(git diff --no-renames --name-only origin/main...HEAD)
             echo "changed files: $(printf '%s\n' "${changed}" | grep -c . || true)"
             # A change to the workflows, the module files or vendor/ can affect every package.
-            if printf '%s\n' "${changed}" | grep -Eq '^\.github/|(^|/)go\.(mod|sum)$|(^|/)vendor/'; then
-              echo "workflow, module or vendor change: all packages"
+            if printf '%s\n' "${changed}" | grep -Eq '^\.github/|^cli/examples/|(^|/)go\.(mod|sum)$|(^|/)vendor/'; then
+              echo "workflow, module, vendor or examples change: all packages"
               selected="${base_packages}"
             else
               for pkg in ${base_packages}; do
@@ -281,7 +282,7 @@ jobs:
             selected="${base_packages}"
           fi
           matrix=$(for pkg in ${selected}; do
-            jq -cn --arg p "${pkg}" '{package: $p, timeout_minutes: 40, go_timeout: "35m"}'
+            jq -cn --arg p "${pkg}" '{package: $p, timeout_minutes: 50, go_timeout: "40m"}'
           done | jq -cs '.')
           if [ "${EVENT_NAME}" = "schedule" ]; then
             # knowledgegate is too slow under -race for every commit; the nightly covers it.
