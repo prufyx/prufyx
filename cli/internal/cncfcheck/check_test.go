@@ -63,7 +63,7 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 	// other generation's 25 or 29 ids, and a rule without a vector all fail.
 	//
 	// The file also holds, ahead of the data change, one vector of four cases
-	// for each of the 28 custom-resource version-removal rules of the batch
+	// for each of the 13 custom-resource version-removal rules of the batch
 	// crdbatchids states: while the pack does not hold the batch they are
 	// counted like the other generation's (all present, none of the pack);
 	// once it does, they are the pack's and checked in pack order with the

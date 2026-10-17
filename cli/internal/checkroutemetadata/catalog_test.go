@@ -93,7 +93,7 @@ func TestDiscoverCompleteEmbeddedIdentityCatalog(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Every rule of the pack is an identity: the custom-resource batch adds
-	// its 28 once it ships (crdbatchids).
+	// its 13 once it ships (crdbatchids).
 	if result.Schema != Schema || len(result.Checks) != 225+kubernetesExtra()+len(crdbatchIDs()) {
 		t.Fatalf("catalog schema/count = %q/%d", result.Schema, len(result.Checks))
 	}

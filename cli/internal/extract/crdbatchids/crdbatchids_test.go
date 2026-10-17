@@ -11,8 +11,8 @@ import (
 	"testing"
 )
 
-// The batch statement itself: 28 rules over four projects, every id naming
-// its kind and project, four quiet Strimzi lines.
+// The batch statement itself: 13 rules over three projects, every id naming
+// its kind and project, five quiet Strimzi lines.
 func TestBatchStatement(t *testing.T) {
 	perProject := map[string]int{}
 	seen := map[string]bool{}
@@ -23,10 +23,10 @@ func TestBatchStatement(t *testing.T) {
 		seen[r.ID] = true
 		perProject[r.Project]++
 	}
-	if len(IDs()) != 28 || perProject["crossplane"] != 2 || perProject["kyverno"] != 1 || perProject["longhorn"] != 15 || perProject["strimzi"] != 10 || len(perProject) != 4 {
+	if len(IDs()) != 13 || perProject["crossplane"] != 2 || perProject["kyverno"] != 1 || perProject["strimzi"] != 10 || len(perProject) != 3 {
 		t.Fatalf("batch %d rules %v", len(IDs()), perProject)
 	}
-	if len(Lines()) != 4 {
+	if len(Lines()) != 5 {
 		t.Fatalf("%d lines", len(Lines()))
 	}
 }
@@ -44,7 +44,7 @@ func TestShippedPackHoldsAllOrNone(t *testing.T) {
 	if held != Shipped() {
 		t.Fatalf("Holds = %v, Shipped() = %v", held, Shipped())
 	}
-	for _, project := range []string{"crossplane", "kyverno", "longhorn", "strimzi", "argo-cd"} {
+	for _, project := range []string{"crossplane", "kyverno", "strimzi", "argo-cd"} {
 		if want := len(ProjectRules(project)); held && Count(project) != want || !held && Count(project) != 0 {
 			t.Fatalf("Count(%s) = %d", project, Count(project))
 		}
