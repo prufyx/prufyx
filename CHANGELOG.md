@@ -9,6 +9,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- CNCF knowledge: 13 custom-resource version-removal rules (`crd.version-removal`)
+  for Crossplane (2), Kyverno (1) and Strimzi (10), each forbidding a
+  custom-resource version the target release no longer serves, and Strimzi
+  line attestations for the lines 0.50, 0.51, 1.1, 1.2 and 1.3. Pack revision
+  `cncf-2026-09-13.8` is unchanged; `check cncf` and `scan` can now block such
+  an upgrade where the declared custom resources still use a removed version.
 - Knowledge gate: a change that adds fact definitions to the CNCF fact registry
   (and so moves the pack's `registryDigest`) is admitted with an owner approval
   of the new subject `registryDigest`, signed and checked with

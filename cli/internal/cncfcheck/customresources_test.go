@@ -154,7 +154,7 @@ func TestCustomResourceRuleAdmissionNeedsTheRegisteredFact(t *testing.T) {
 		t.Fatalf("rule over the registered fact refused: %v", err)
 	}
 	// The embedded pack itself carries no such rule but the batch's
-	// (crdbatchids: none before it ships, its 28 after), each reading the
+	// (crdbatchids: none before it ships, its 13 after), each reading the
 	// set of its own project.
 	stated := map[string]crdbatchids.Rule{}
 	if crdbatchids.Shipped() {

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Package crdbatchids names, for tests only, the first batch of mechanical
+// Package crdbatchids names, for tests only, the second batch of mechanical
 // custom-resource version-removal rules (crd.version-removal extractors) and
-// the line attestations that come with it: 28 rules for Crossplane, Kyverno,
-// Longhorn and Strimzi, and four quiet Strimzi lines. The shipped pack holds
+// the line attestations that come with it: 13 rules for Crossplane, Kyverno
+// and Strimzi, and five quiet Strimzi lines. The shipped pack holds
 // the whole batch or none of it, and no other custom-resource version-removal
 // rule. Tests whose expectations depend on the batch (rule counts, claim
 // counts, route outcomes) state both cases through this package, so that they
@@ -49,21 +49,6 @@ var rules = []Rule{
 	{"crossplane.crd-version-removal.compositionrevisions-apiextensions-crossplane-io.1-20-0-to-2-0-0", "crossplane", "pkg:github/crossplane/crossplane", "1.20.0", "2.0.0", []string{"apiextensions.crossplane.io/v1beta1/CompositionRevision"}},
 	{"crossplane.crd-version-removal.environmentconfigs-apiextensions-crossplane-io.1-20-0-to-2-0-0", "crossplane", "pkg:github/crossplane/crossplane", "1.20.0", "2.0.0", []string{"apiextensions.crossplane.io/v1alpha1/EnvironmentConfig"}},
 	{"kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0", "kyverno", "pkg:github/kyverno/kyverno", "1.15.0", "1.16.0", []string{"kyverno.io/v1beta1/UpdateRequest"}},
-	{"longhorn.crd-version-removal.backingimagedatasources-longhorn-io.1-8-0-to-1-9-0", "longhorn", "pkg:github/longhorn/longhorn", "1.8.0", "1.9.0", []string{"longhorn.io/v1beta1/BackingImageDataSource"}},
-	{"longhorn.crd-version-removal.backingimagemanagers-longhorn-io.1-8-0-to-1-9-0", "longhorn", "pkg:github/longhorn/longhorn", "1.8.0", "1.9.0", []string{"longhorn.io/v1beta1/BackingImageManager"}},
-	{"longhorn.crd-version-removal.backingimages-longhorn-io.1-8-0-to-1-9-0", "longhorn", "pkg:github/longhorn/longhorn", "1.8.0", "1.9.0", []string{"longhorn.io/v1beta1/BackingImage"}},
-	{"longhorn.crd-version-removal.backups-longhorn-io.1-8-0-to-1-9-0", "longhorn", "pkg:github/longhorn/longhorn", "1.8.0", "1.9.0", []string{"longhorn.io/v1beta1/Backup"}},
-	{"longhorn.crd-version-removal.backuptargets-longhorn-io.1-8-0-to-1-9-0", "longhorn", "pkg:github/longhorn/longhorn", "1.8.0", "1.9.0", []string{"longhorn.io/v1beta1/BackupTarget"}},
-	{"longhorn.crd-version-removal.backupvolumes-longhorn-io.1-8-0-to-1-9-0", "longhorn", "pkg:github/longhorn/longhorn", "1.8.0", "1.9.0", []string{"longhorn.io/v1beta1/BackupVolume"}},
-	{"longhorn.crd-version-removal.engineimages-longhorn-io.1-8-0-to-1-9-0", "longhorn", "pkg:github/longhorn/longhorn", "1.8.0", "1.9.0", []string{"longhorn.io/v1beta1/EngineImage"}},
-	{"longhorn.crd-version-removal.engines-longhorn-io.1-8-0-to-1-9-0", "longhorn", "pkg:github/longhorn/longhorn", "1.8.0", "1.9.0", []string{"longhorn.io/v1beta1/Engine"}},
-	{"longhorn.crd-version-removal.instancemanagers-longhorn-io.1-8-0-to-1-9-0", "longhorn", "pkg:github/longhorn/longhorn", "1.8.0", "1.9.0", []string{"longhorn.io/v1beta1/InstanceManager"}},
-	{"longhorn.crd-version-removal.nodes-longhorn-io.1-8-0-to-1-9-0", "longhorn", "pkg:github/longhorn/longhorn", "1.8.0", "1.9.0", []string{"longhorn.io/v1beta1/Node"}},
-	{"longhorn.crd-version-removal.recurringjobs-longhorn-io.1-8-0-to-1-9-0", "longhorn", "pkg:github/longhorn/longhorn", "1.8.0", "1.9.0", []string{"longhorn.io/v1beta1/RecurringJob"}},
-	{"longhorn.crd-version-removal.replicas-longhorn-io.1-8-0-to-1-9-0", "longhorn", "pkg:github/longhorn/longhorn", "1.8.0", "1.9.0", []string{"longhorn.io/v1beta1/Replica"}},
-	{"longhorn.crd-version-removal.settings-longhorn-io.1-8-0-to-1-9-0", "longhorn", "pkg:github/longhorn/longhorn", "1.8.0", "1.9.0", []string{"longhorn.io/v1beta1/Setting"}},
-	{"longhorn.crd-version-removal.sharemanagers-longhorn-io.1-8-0-to-1-9-0", "longhorn", "pkg:github/longhorn/longhorn", "1.8.0", "1.9.0", []string{"longhorn.io/v1beta1/ShareManager"}},
-	{"longhorn.crd-version-removal.volumes-longhorn-io.1-8-0-to-1-9-0", "longhorn", "pkg:github/longhorn/longhorn", "1.8.0", "1.9.0", []string{"longhorn.io/v1beta1/Volume"}},
 	{"strimzi.crd-version-removal.kafkabridges-kafka-strimzi-io.0-51-0-to-1-0-0", "strimzi", "pkg:github/strimzi/strimzi-kafka-operator", "0.51.0", "1.0.0", []string{"kafka.strimzi.io/v1beta2/KafkaBridge"}},
 	{"strimzi.crd-version-removal.kafkaconnectors-kafka-strimzi-io.0-51-0-to-1-0-0", "strimzi", "pkg:github/strimzi/strimzi-kafka-operator", "0.51.0", "1.0.0", []string{"kafka.strimzi.io/v1beta2/KafkaConnector"}},
 	{"strimzi.crd-version-removal.kafkaconnects-kafka-strimzi-io.0-51-0-to-1-0-0", "strimzi", "pkg:github/strimzi/strimzi-kafka-operator", "0.51.0", "1.0.0", []string{"kafka.strimzi.io/v1beta2/KafkaConnect"}},
@@ -88,6 +73,7 @@ var lines = []Line{
 	{"pkg:github/strimzi/strimzi-kafka-operator", "0.51"},
 	{"pkg:github/strimzi/strimzi-kafka-operator", "1.1"},
 	{"pkg:github/strimzi/strimzi-kafka-operator", "1.2"},
+	{"pkg:github/strimzi/strimzi-kafka-operator", "1.3"},
 }
 
 // Rules returns the batch's rules in id order.
