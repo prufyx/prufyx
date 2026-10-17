@@ -8,6 +8,7 @@
     "factProject": "velero",
     "tagPrefixes": ["v"],
     "minFrom": "1.13",
+    "attest": true,
     "paths": [
       {"path": "config/crd/v1/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
       {"path": "config/crd/v2alpha1/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
