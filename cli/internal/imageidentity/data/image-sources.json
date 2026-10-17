@@ -153,6 +153,36 @@
       }
     },
     {
+      "project": "coredns",
+      "component": "pkg:oci/coredns/coredns",
+      "catalog": "member",
+      "tagScheme": "v{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "registry.k8s.io/coredns/coredns",
+          "role": "version-source",
+          "sourceId": "manifest"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "manifest",
+            "url": "https://github.com/kubernetes/kubernetes/blob/949f064e6d9e32f0a597795c265fcd50c6aad66e/cluster/addons/dns/coredns/coredns.yaml.base",
+            "revision": "949f064e6d9e32f0a597795c265fcd50c6aad66e",
+            "contentDigest": "sha256:ca322b335813fac03e31c63a614fe34a8cd2672a4a3b290a45bf438b0f4d17b9",
+            "startLine": 136,
+            "endLine": 136
+          }
+        ]
+      }
+    },
+    {
       "project": "dragonfly",
       "component": "pkg:oci/dragonflyoss/dragonfly",
       "catalog": "member",
@@ -229,6 +259,36 @@
             "contentDigest": "sha256:252984124cb1bc5fe315c0402df293d543ca3308006853832e413d03a75fab35",
             "startLine": 70,
             "endLine": 70
+          }
+        ]
+      }
+    },
+    {
+      "project": "fluent-bit",
+      "component": "pkg:oci/fluent/fluent-bit",
+      "catalog": "member",
+      "tagScheme": "{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "cr.fluentbit.io/fluent/fluent-bit",
+          "role": "version-source",
+          "sourceId": "values"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "values",
+            "url": "https://github.com/fluent/helm-charts/blob/565b4de795998e6fffff9ff1bff2c162df0e5bfe/charts/fluent-bit/values.yaml",
+            "revision": "565b4de795998e6fffff9ff1bff2c162df0e5bfe",
+            "contentDigest": "sha256:e562eb0094e123e305381e3251ce125732387aff082cad51a2f1897749882430",
+            "startLine": 10,
+            "endLine": 10
           }
         ]
       }
@@ -320,6 +380,66 @@
       }
     },
     {
+      "project": "keda",
+      "component": "pkg:oci/kedacore/keda",
+      "catalog": "member",
+      "tagScheme": "{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "ghcr.io/kedacore/keda",
+          "role": "version-source",
+          "sourceId": "values"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "values",
+            "url": "https://github.com/kedacore/charts/blob/8b3a8837a62fa9e726f01b95990de3ec9a19a8f2/keda/values.yaml",
+            "revision": "8b3a8837a62fa9e726f01b95990de3ec9a19a8f2",
+            "contentDigest": "sha256:98fe984da16e4e9596065bdb6a5b05bf530e48ee8aa38ab6436ea28d68eee4c7",
+            "startLine": 25,
+            "endLine": 27
+          }
+        ]
+      }
+    },
+    {
+      "project": "kibana",
+      "component": "pkg:oci/elastic/kibana",
+      "catalog": "member",
+      "tagScheme": "{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "docker.elastic.co/kibana/kibana",
+          "role": "version-source",
+          "sourceId": "values"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "values",
+            "url": "https://github.com/elastic/helm-charts/blob/2fd64d0af65f14df7aa01da591919460dabac4b3/kibana/values.yaml",
+            "revision": "2fd64d0af65f14df7aa01da591919460dabac4b3",
+            "contentDigest": "sha256:33130a552b95f82ff46bfa2cc78821688dac030b12bc9928e9ddab4480dfd598",
+            "startLine": 40,
+            "endLine": 40
+          }
+        ]
+      }
+    },
+    {
       "project": "kube-state-metrics",
       "component": "pkg:oci/kubernetes/kube-state-metrics",
       "catalog": "none",
@@ -375,6 +495,66 @@
             "contentDigest": "sha256:f1051574dcce531eb78813755c49b106629597b0a211e6da54c2341a4d73d45b",
             "startLine": 10,
             "endLine": 11
+          }
+        ]
+      }
+    },
+    {
+      "project": "kyverno",
+      "component": "pkg:oci/kyverno/kyverno",
+      "catalog": "member",
+      "tagScheme": "v{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "reg.kyverno.io/kyverno/kyverno",
+          "role": "version-source",
+          "sourceId": "values"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "values",
+            "url": "https://github.com/kyverno/kyverno/blob/c7e70ee9226d94712b0ee2128a7c4864948e6887/charts/kyverno/values.yaml",
+            "revision": "c7e70ee9226d94712b0ee2128a7c4864948e6887",
+            "contentDigest": "sha256:789cd8e878de2b1a9088d10bf0792ee009df403d0bacc8de2f43242684743899",
+            "startLine": 1432,
+            "endLine": 1434
+          }
+        ]
+      }
+    },
+    {
+      "project": "loki",
+      "component": "pkg:oci/grafana/loki",
+      "catalog": "member",
+      "tagScheme": "{version}",
+      "tagWithDigest": false,
+      "operandRule": "none",
+      "images": [
+        {
+          "repo": "docker.io/grafana/loki",
+          "role": "version-source",
+          "sourceId": "values"
+        }
+      ],
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-06T00:00:00Z",
+        "validUntil": "2027-01-04T00:00:00Z",
+        "sources": [
+          {
+            "id": "values",
+            "url": "https://github.com/grafana/loki/blob/870c04ef096bc605fcef20697d5b61749cf08b28/production/helm/loki/values.yaml",
+            "revision": "870c04ef096bc605fcef20697d5b61749cf08b28",
+            "contentDigest": "sha256:e43152aec9bf155da9312dca7e85d9008164db6828cd42c1fea0e3877eeed909",
+            "startLine": 87,
+            "endLine": 89
           }
         ]
       }

@@ -75,7 +75,7 @@ func TestImageRegistryMakesProjectsObservableWithFailClosedVersions(t *testing.T
 			if c.Applicability != IndeterminateNotObservable {
 				t.Fatalf("%s %s: %+v", c.Project, c.RuleID, c)
 			}
-		case "loki", "keycloak", "jaeger":
+		case "keycloak", "jaeger":
 			if c.Applicability != IndeterminateNotObservable {
 				t.Fatalf("%s must stay not observable: %+v", c.Project, c)
 			}
@@ -98,8 +98,8 @@ func TestObservableComponentDerivesFromRegistryAndHonoursValidity(t *testing.T) 
 			t.Fatalf("%s is not observable", p)
 		}
 	}
-	if _, ok := observableComponent("loki", now); ok {
-		t.Fatal("loki must not be observable")
+	if _, ok := observableComponent("jaeger", now); ok {
+		t.Fatal("jaeger must not be observable")
 	}
 	if _, ok := observableComponent("cloudnativepg", time.Date(2031, 1, 1, 0, 0, 0, 0, time.UTC)); ok {
 		t.Fatal("an expired record must make the project not observable")

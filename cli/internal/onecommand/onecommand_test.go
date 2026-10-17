@@ -186,11 +186,11 @@ func TestRunClassifiesThreeWaySplit(t *testing.T) {
 	}
 
 	// A project neither the collector's adapter registry nor the reviewed
-	// image registry identifies (e.g. loki) is always indeterminate, never a
+	// image registry identifies (e.g. jaeger) is always indeterminate, never a
 	// claimed absence.
 	for _, c := range ctxReport.Checks {
-		if c.Project == "loki" && c.Applicability != IndeterminateNotObservable {
-			t.Fatalf("loki %s applicability=%q, want INDETERMINATE_NOT_OBSERVABLE", c.RuleID, c.Applicability)
+		if c.Project == "jaeger" && c.Applicability != IndeterminateNotObservable {
+			t.Fatalf("jaeger %s applicability=%q, want INDETERMINATE_NOT_OBSERVABLE", c.RuleID, c.Applicability)
 		}
 	}
 
