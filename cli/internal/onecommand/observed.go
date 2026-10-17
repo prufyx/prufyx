@@ -101,13 +101,16 @@ func readObserved(contextDir string) Observed {
 		Components []struct {
 			ComponentID      string  `json:"componentId"`
 			ObservedVersion  *string `json:"observedVersion"`
+			VersionScheme    string  `json:"versionScheme"`
 			ObservationState string  `json:"observationState"`
 		} `json:"components"`
 	}
 	if readJSON(filepath.Join(contextDir, "component-configuration-surface.json"), &surface) {
 		for _, c := range surface.Components {
 			comp := ObservedComp{ComponentID: c.ComponentID, State: c.ObservationState}
-			if c.ObservedVersion != nil {
+			// Only a plain tag is shown as observed: a tag pinned by digest is
+			// not verified against that digest, so its tag text is not evidence.
+			if c.ObservedVersion != nil && c.VersionScheme == "tag" {
 				comp.Version = *c.ObservedVersion
 			}
 			obs.Components = append(obs.Components, comp)
