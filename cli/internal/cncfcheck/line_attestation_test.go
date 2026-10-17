@@ -105,10 +105,7 @@ func TestEmbeddedPackLineAttestations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var want []crdbatchids.Line
-	if crdbatchids.Shipped() {
-		want = crdbatchids.Lines()
-	}
+	want := crdbatchids.ShippedLines()
 	if !present || bytes.Contains(raw, []byte("lineAttestations")) != present {
 		t.Fatalf("the published pack carries a line attestation section: %v, it must carry the Kubernetes lines", present)
 	}
