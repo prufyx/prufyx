@@ -12,6 +12,7 @@ import (
 // stable reason, whichever of the two the other checks would admit, and the
 // registryDigest member is admitted by neither.
 func TestOnboardingBatchRefusesRegistryMemberPath(t *testing.T) {
+	t.Parallel()
 	headFile := func(f *onboardingFixture, rel string) string {
 		return filepath.Join(f.head.Root, filepath.FromSlash(rel))
 	}

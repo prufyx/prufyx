@@ -20,6 +20,7 @@ import (
 // cannot leak into the report), a FIFO never blocks the gate, and the tree
 // check names them.
 func TestHeadSpecialFilesAreNeverRead(t *testing.T) {
+	t.Parallel()
 	secret := filepath.Join(t.TempDir(), "runner-secret")
 	writeFile(t, secret, []byte(`{"token":"do-not-print-0f1e2d"}`))
 	for name, tc := range map[string]struct {
@@ -91,6 +92,7 @@ func TestHeadSpecialFilesAreNeverRead(t *testing.T) {
 }
 
 func TestTreeReadRefusesSpecialFiles(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "d", "big.json"), make([]byte, 2048))
 	writeFile(t, filepath.Join(root, "d", "ok.json"), []byte("{}"))

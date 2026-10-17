@@ -220,6 +220,7 @@ func sectionRecord(doc map[string]any, section string, i int) map[string]any {
 // and a reviewed path policy, with one verified statement, is admitted
 // record by record and is eligible; every renewal counts as loosening.
 func TestGateRecordRenewal(t *testing.T) {
+	t.Parallel()
 	f := newRecordFixture(t, false)
 	r := runGate(t, f.opts())
 	requirePass(t, r)
@@ -259,6 +260,7 @@ func TestGateRecordRenewal(t *testing.T) {
 
 // Acceptance 1, 4 and 8: what a renewal through a statement may not do.
 func TestGateRecordRenewalRejects(t *testing.T) {
+	t.Parallel()
 	type tc struct {
 		mutate func(t *testing.T, f recordFixture, o *Options)
 		want   string
@@ -339,6 +341,7 @@ func TestGateRecordRenewalRejects(t *testing.T) {
 // statement's own checks refuse them and the gate sends the record to
 // re-derivation, which needs the extractor's exact output.
 func TestGateMechanicalRecordIsNeverRenewedByAStatement(t *testing.T) {
+	t.Parallel()
 	f := newRecordFixture(t, true)
 	for _, ra := range f.stmt.Rules {
 		if ra.RuleID == mechanicalAttestationID {
@@ -363,6 +366,7 @@ func TestGateMechanicalRecordIsNeverRenewedByAStatement(t *testing.T) {
 // (in the gate the statement is verified first, and V1/V6/V10 refuse most
 // of these too; the gate does not rely on them).
 func TestAdmitRecordChecksTheStatement(t *testing.T) {
+	t.Parallel()
 	f := newRecordFixture(t, false)
 	o := f.opts()
 	o.Now = f.now

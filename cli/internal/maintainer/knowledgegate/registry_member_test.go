@@ -158,6 +158,7 @@ func registryChangeOf(t *testing.T, r *Report) *Change {
 }
 
 func TestRegistryDocumentIsWhatTheDigestCovers(t *testing.T) {
+	t.Parallel()
 	r, err := constraintengine.NewCompiledRegistry(addedDefinitions())
 	if err != nil {
 		t.Fatal(err)
@@ -168,6 +169,7 @@ func TestRegistryDocumentIsWhatTheDigestCovers(t *testing.T) {
 }
 
 func TestParsePackagedDefinitionsReadsTheShippedSource(t *testing.T) {
+	t.Parallel()
 	literal, err := parsePackagedDefinitions([]byte(registrySource(t)))
 	if err != nil {
 		t.Fatal(err)
@@ -192,6 +194,7 @@ func TestParsePackagedDefinitionsReadsTheShippedSource(t *testing.T) {
 }
 
 func TestGateRegistryAddition(t *testing.T) {
+	t.Parallel()
 	key := newApprovalKey(t)
 
 	t.Run("admitted", func(t *testing.T) {
@@ -341,6 +344,7 @@ func decodeTestApproval(t *testing.T, head Tree) ApprovalEnvelope {
 }
 
 func TestApprovalCLIRegistryAddition(t *testing.T) {
+	t.Parallel()
 	key := newApprovalKey(t)
 	base, head := registryTrees(t, withAdded, addedDefinitions())
 	key.pinBoth(t, base, head, "airstand")
@@ -376,6 +380,7 @@ func TestApprovalCLIRegistryAddition(t *testing.T) {
 }
 
 func TestRegistryStatementIsCanonicalJSON(t *testing.T) {
+	t.Parallel()
 	base, err := constraintengine.NewCompiledRegistry(cncfcheck.CompiledFactDefinitions())
 	if err != nil {
 		t.Fatal(err)

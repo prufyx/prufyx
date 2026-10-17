@@ -121,6 +121,7 @@ func citationCheckOf(t *testing.T, r *Report) Check {
 // An added rule is verified against upstream with the same checks as
 // `rule verify-citations`; every way of not establishing a fact fails.
 func TestGateCitationsOfAddedRule(t *testing.T) {
+	t.Parallel()
 	bad := "sha256:" + strings.Repeat("0", 64)
 	tests := []struct {
 		name     string
@@ -167,6 +168,7 @@ func TestGateCitationsOfAddedRule(t *testing.T) {
 
 // Without an upstream source the check cannot run: it fails, it does not skip.
 func TestGateCitationsFailClosedWithoutVerifier(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	addRuleCiting(t, head, citeSource(citeCommit, goodDigest, 1, 2))
 	r := runGateExact(t, Options{Base: base, Head: head})
@@ -180,6 +182,7 @@ func TestGateCitationsFailClosedWithoutVerifier(t *testing.T) {
 // rule whose citation has rotted, never fail on citations, and the
 // verifier is not even called.
 func TestGateCitationsOnlyForChangedRules(t *testing.T) {
+	t.Parallel()
 	rotten := &fakeUpstream{}
 	base, head := trees(t)
 	r := runGate(t, Options{Base: base, Head: head, Citations: rotten.verifier()})
@@ -201,6 +204,7 @@ func TestGateCitationsOnlyForChangedRules(t *testing.T) {
 
 // A changed rule with no source at all is not a pass.
 func TestGateCitationsRuleWithoutSources(t *testing.T) {
+	t.Parallel()
 	items := []rulecheck.CitationItem{{ID: "r.empty"}}
 	report, err := healthyUpstream().verifier().VerifyItems(context.Background(), items)
 	if err != nil || report.Pass {
@@ -218,6 +222,7 @@ func (r *recordingCitations) VerifyItems(_ context.Context, items []rulecheck.Ci
 // Changed path policies and line attestations are listed with their sources;
 // an unchanged record, a removed attestation and a withdrawn policy are not.
 func TestGateCitationsOfRecords(t *testing.T) {
+	t.Parallel()
 	const att, pol = "lineAttestations", "pathPolicies"
 	cases := []struct {
 		name string
@@ -272,6 +277,7 @@ func TestGateCitationsOfRecords(t *testing.T) {
 // check fails with a clear reason, the gate fails, and the change is never
 // eligible for automatic merge (also not as a pointer value).
 func TestGateCitationsOfflineModeIsNeverAPass(t *testing.T) {
+	t.Parallel()
 	for name, offline := range map[string]CitationChecker{"value": OfflineCitations{}, "pointer": &OfflineCitations{}} {
 		t.Run(name, func(t *testing.T) {
 			base, head := trees(t)
@@ -293,6 +299,7 @@ func TestGateCitationsOfflineModeIsNeverAPass(t *testing.T) {
 // commit, a compare answer of diverged or 404) or one whose reachability
 // cannot be established fails the check through the gate.
 func TestGateCitationsRevisionReachability(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name  string
 		reach func(f *fakeUpstream)
@@ -320,6 +327,7 @@ func TestGateCitationsRevisionReachability(t *testing.T) {
 // changes; each must reach the verifier with its sources. A regression in
 // citationItems that filtered on Kinds would be caught here.
 func TestGateCitationsRenewalReactivationRepinReachVerifier(t *testing.T) {
+	t.Parallel()
 	ruleCases := []struct {
 		name string
 		prep func(t *testing.T, p *packDoc, id string)
@@ -396,6 +404,7 @@ func TestGateCitationsRenewalReactivationRepinReachVerifier(t *testing.T) {
 // client and the raw fetcher (and the same token as the gate's reader);
 // fixture wires the offline mode; no source wires nothing, which fails closed.
 func TestSourceFlagWiresCitationVerifier(t *testing.T) {
+	t.Parallel()
 	env := func(k string) string {
 		if k == "GITHUB_TOKEN" {
 			return "t0ken"
@@ -464,6 +473,7 @@ func TestSourceFlagWiresCitationVerifier(t *testing.T) {
 // and manual triggers only, contents: read, every action pinned by commit,
 // no secrets, no credentials kept in the checkout, nothing written back.
 func TestCitationsNightlyWorkflowShape(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(repoRoot, ".github", "workflows", "citations-nightly.yml")
 	raw, err := os.ReadFile(path)
 	if err != nil {

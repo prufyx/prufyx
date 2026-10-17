@@ -135,6 +135,7 @@ func sortRecords(records []map[string]any) {
 // only by re-deriving it, byte for byte, with the extractor the gate runs:
 // no person, no approval.
 func TestGateMechanicalCRDAttestation(t *testing.T) {
+	t.Parallel()
 	add := func(tamper func(a map[string]any)) (Tree, Tree) {
 		return crdAttestedTrees(t, func(base90_1 map[string]any, derived []map[string]any) []map[string]any {
 			a := attestationOfLine(derived, "90.2")
@@ -269,6 +270,7 @@ func reviewedCRD(a map[string]any) map[string]any {
 // A reviewed attestation of the family needs an owner approval and the
 // cross-check against the extractor of its own component.
 func TestGateReviewedCRDAttestation(t *testing.T) {
+	t.Parallel()
 	key := newApprovalKey(t)
 	setup := func(t *testing.T, edit func(a map[string]any)) (Tree, Tree, string) {
 		base, head := crdAttestedTrees(t, func(base90_1 map[string]any, derived []map[string]any) []map[string]any {
@@ -304,6 +306,7 @@ func TestGateReviewedCRDAttestation(t *testing.T) {
 // The cross-check on its own: the extractor of the attestation's component
 // is run; a set rule decides only through the identical set condition.
 func TestCrossCheckCRDAttestation(t *testing.T) {
+	t.Parallel()
 	out, floor, err := runAttester(context.Background(), argoFixture, extractcli.Catalog(), 0, lineattest.FamilyCustomResourceVersions, argoComponent, gateNow)
 	if err != nil || floor != "" {
 		t.Fatalf("run: %v floor %q", err, floor)

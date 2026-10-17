@@ -17,6 +17,7 @@ import (
 // admitted, even when the section itself is valid and the pack carries the
 // right schema. The section here is test data, not knowledge.
 func TestServedAPIsSectionIsAPackMemberChange(t *testing.T) {
+	t.Parallel()
 	revision := strings.Repeat("a", 40)
 	record := func(apis ...string) []servedapis.Record {
 		return []servedapis.Record{{

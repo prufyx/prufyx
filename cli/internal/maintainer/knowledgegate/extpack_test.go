@@ -16,6 +16,7 @@ import (
 // TestGateTargetsCarryRecords: a pack holding line attestations passes
 // targets/cncf, and the check sizes the targets with their records.
 func TestGateTargetsCarryRecords(t *testing.T) {
+	t.Parallel()
 	base, head := attestedTrees(t, []string{"1.22"}, []string{"1.22", "1.25"}, nil)
 	r := runGate(t, Options{Base: base, Head: head, Author: "airstand", Sender: "airstand"})
 	c, ok := check(r, "targets/cncf")
@@ -37,6 +38,7 @@ func TestGateTargetsCarryRecords(t *testing.T) {
 // approval keys (trust material the owner may change on its own): each
 // passes alone, together they fail records-trust.
 func TestGateRefusesRecordsWithTrustMaterial(t *testing.T) {
+	t.Parallel()
 	key := newApprovalKey(t)
 	run := func(records, trust bool) *Report {
 		t.Helper()

@@ -84,6 +84,7 @@ func writePackRaw(t *testing.T, tr Tree, rel string, p *packDoc, id string, cust
 // apparently withdrawn rule; the second only swaps the member order so the
 // engine reads an active rule while the canonical bytes stay the same.
 func TestRegressionCaseVariantRuleSwap(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	p := readPack(t, head, cncfRulesPath)
 	ids := p.activeReviewed()
@@ -135,6 +136,7 @@ func TestRegressionCaseVariantRuleSwap(t *testing.T) {
 // The automation account pins its own owner-approval key next to one
 // withdrawal, then uses the key to approve a new active rule.
 func TestRegressionApprovalKeyInjection(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	ids := readPack(t, base, cncfRulesPath).activeReviewed()
 	editPack(t, head, cncfRulesPath, func(p *packDoc) { evidenceOf(p.find(t, ids[1]))["state"] = "withdrawn" })
@@ -179,6 +181,7 @@ func TestRegressionApprovalKeyInjection(t *testing.T) {
 // Trust material: no change by the automation account, a person's change
 // only when it matches the pinned digest, and never eligible.
 func TestTrustMaterialChanges(t *testing.T) {
+	t.Parallel()
 	key := newApprovalKey(t)
 	for name, tc := range map[string]struct {
 		path   string
@@ -241,6 +244,7 @@ func TestTrustMaterialChanges(t *testing.T) {
 // An approval binds the base state: after the approved rule is withdrawn,
 // the same approval cannot re-activate it.
 func TestRegressionApprovalReplayAfterWithdrawal(t *testing.T) {
+	t.Parallel()
 	base, head, id, digest := approvalTrees(t)
 	key := newApprovalKey(t)
 	key.pinBoth(t, base, head, "airstand")
@@ -262,6 +266,7 @@ func TestRegressionApprovalReplayAfterWithdrawal(t *testing.T) {
 // Top-level pack members other than entries are compared too; a change to
 // any of them fails.
 func TestRegressionPackMemberChange(t *testing.T) {
+	t.Parallel()
 	for name, edit := range map[string]func(p *packDoc){
 		"revision":   func(p *packDoc) { p.fields["revision"] = json.RawMessage(`"1"`) },
 		"schema":     func(p *packDoc) { p.fields["schema"] = json.RawMessage(`"prufyx.io/cncf-source-rule-pack/v1alpha1"`) },
@@ -330,6 +335,7 @@ func TestRegressionPackMemberChange(t *testing.T) {
 // A rule id carrying line breaks never reaches the job log as a line of
 // its own (a workflow command).
 func TestRegressionWorkflowCommandInRuleID(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	ids := readPack(t, base, cncfRulesPath).activeReviewed()
 	evil := "zz\n::error title=x::injected\r\n::set-output name=auto_merge_eligible::true%0A::add-mask::x"
@@ -365,6 +371,7 @@ func TestRegressionWorkflowCommandInRuleID(t *testing.T) {
 // to have authored and committed every commit, with verified signatures,
 // up to exactly the head the gate checked.
 func TestEligibilityNeedsBotProvenance(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	ids := readPack(t, base, cncfRulesPath).activeReviewed()
 	editPack(t, head, cncfRulesPath, func(p *packDoc) { evidenceOf(p.find(t, ids[1]))["state"] = "withdrawn" })
@@ -423,6 +430,7 @@ func TestEligibilityNeedsBotProvenance(t *testing.T) {
 // A mechanical rule must have been derived around the gate's own clock: a
 // rule minted for the future, or presented as derived long ago, fails.
 func TestMechanicalDerivationTimeBound(t *testing.T) {
+	t.Parallel()
 	src := extract.FixtureReader{Root: servedFixture}
 	base, head, _ := mechanicalTrees(t, nil)
 	for name, tc := range map[string]struct {
@@ -455,6 +463,7 @@ func TestMechanicalDerivationTimeBound(t *testing.T) {
 // Approval files, worklists and review records change only together with
 // what they belong to.
 func TestRecordFilesNeedTheirChange(t *testing.T) {
+	t.Parallel()
 	key := newApprovalKey(t)
 	t.Run("approval with no rule change", func(t *testing.T) {
 		base, head := trees(t)
@@ -507,6 +516,7 @@ func TestRecordFilesNeedTheirChange(t *testing.T) {
 // A mode-only change is a change: outside the knowledge files it makes the
 // change ineligible, on a knowledge file it fails.
 func TestModeOnlyChanges(t *testing.T) {
+	t.Parallel()
 	setup := func(t *testing.T) (Tree, Tree) {
 		base, head := trees(t)
 		for _, tr := range []Tree{base, head} {
@@ -561,6 +571,7 @@ func TestModeOnlyChanges(t *testing.T) {
 // Step-summary text from the proposed change cannot form links, images or
 // HTML.
 func TestSummaryEscapesMarkdown(t *testing.T) {
+	t.Parallel()
 	got := mdEscape("![x](https://e.invalid/a.png) [y](https://e.invalid) <b>&")
 	for _, bad := range []string{"![", "](", "<b>", " & "} {
 		if strings.Contains(got, bad) {
@@ -572,6 +583,7 @@ func TestSummaryEscapesMarkdown(t *testing.T) {
 // The CNCF pack is also sized as the per-project targets and index it is
 // published as, with the limits of "knowledge-targets check-size".
 func TestTargetsCheck(t *testing.T) {
+	t.Parallel()
 	limit := knowledgetargets.DefaultLimit()
 	small := []knowledgetargets.Target{{Path: "knowledge/cncf/index.v1.json", Bytes: 1000}, {Path: "knowledge/cncf/projects/a.v1.json", Bytes: 5000}}
 	alarmed := append(append([]knowledgetargets.Target(nil), small...), knowledgetargets.Target{Path: "knowledge/cncf/projects/big.v1.json", Bytes: limit.Alarm})
@@ -617,6 +629,7 @@ func TestTargetsCheck(t *testing.T) {
 // A one-way notice rule is a rule entry like any other: added by the
 // automation account without a proof, it is a loosening change that fails.
 func TestNoticeRuleWithoutProofFails(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	const component = "pkg:github/kubernetes/kubernetes"
 	rule := map[string]any{

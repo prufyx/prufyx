@@ -152,6 +152,7 @@ func crdQuietTreesRaw(t *testing.T, edit func(a map[string]any)) (Tree, Tree) {
 }
 
 func TestEmptyListAdmitted(t *testing.T) {
+	t.Parallel()
 	t.Run("kubernetes", func(t *testing.T) {
 		base, head := k8sQuietTrees(t, nil)
 		r := runGate(t, Options{Base: base, Head: head, Source: fixtureSource, Author: DefaultBotLogin})
@@ -193,6 +194,7 @@ func TestEmptyListAdmitted(t *testing.T) {
 // Each refusal below happens before re-derivation: the change never gets
 // Proof=rederived and the upstream is never asked.
 func TestEmptyListRefusedBeforeRederivation(t *testing.T) {
+	t.Parallel()
 	notAttesting := func() map[string]extractcli.Spec {
 		catalog := extractcli.Catalog()
 		spec := catalog[argoID]
@@ -267,6 +269,7 @@ func TestEmptyListRefusedBeforeRederivation(t *testing.T) {
 // The pack loader already refuses most malformed citations; the check of
 // emptylist.go is the gate's own, kept independent of it.
 func TestEmptyListCitationShape(t *testing.T) {
+	t.Parallel()
 	repo, err := extract.ParseRepo(k8sservedapis.Repo)
 	if err != nil {
 		t.Fatal(err)
@@ -331,6 +334,7 @@ func TestEmptyListCitationShape(t *testing.T) {
 // The content digest and the line span are read by the citations check;
 // its finding is attached to the empty-list change it names.
 func TestEmptyListCitationFinding(t *testing.T) {
+	t.Parallel()
 	base, head := k8sQuietTrees(t, nil)
 	r := runGate(t, Options{Base: base, Head: head, Source: fixtureSource, Author: DefaultBotLogin, Citations: namedFinding{id: "lineAttestation " + recordComponent + " 1.31 " + lineattest.FamilyKubernetesRemovedServedGVK}})
 	c := change(t, r, attestationID("1.31"))
@@ -370,6 +374,7 @@ func (n namedFinding) VerifyItems(_ context.Context, items []rulecheck.CitationI
 // extractor derives a removal for line 1.32) refuses the quiet line 1.31 of
 // the same change too.
 func TestEmptyListNewestPairNotEmpty(t *testing.T) {
+	t.Parallel()
 	setup := func(t *testing.T, hide bool) (Tree, Tree) {
 		return k8sRawTrees(t, func(atts []map[string]any) []map[string]any {
 			atts = append(atts, derivedAttestation(t, "1.31"))
@@ -400,6 +405,7 @@ func TestEmptyListNewestPairNotEmpty(t *testing.T) {
 // The releases are read again after re-derivation, from the tags the gate
 // sees then (a release published in between, a moved tag).
 func TestEmptyListReleasesAtTheGate(t *testing.T) {
+	t.Parallel()
 	run := func(t *testing.T, base, head Tree, src Source, id string) *Change {
 		t.Helper()
 		r := runGate(t, Options{Base: base, Head: head, Source: src, Author: DefaultBotLogin})
@@ -464,6 +470,7 @@ func emptyListChangeOf(a lineattest.LineAttestation) *Change {
 }
 
 func TestEmptyListReleasesComplete(t *testing.T) {
+	t.Parallel()
 	_, crdAtts := argoDerivation(t, gateNow.Add(-time.Hour))
 	crd := parseAttestation(t, attestationOfLine(crdAtts, "90.2"))
 	k8s := parseAttestation(t, derivedAttestation(t, "1.31"))
@@ -549,6 +556,7 @@ func argoRoot() string { return argoFixture.Root }
 // Empty-list changes count as loosening, in the totals, the per-change cap and
 // the daily cap; nothing is added to or raised in the limits.
 func TestEmptyListCountsTowardsTheCaps(t *testing.T) {
+	t.Parallel()
 	base, head := k8sQuietTrees(t, nil)
 	r := runGate(t, Options{Base: base, Head: head, Source: fixtureSource, Author: DefaultBotLogin})
 	if r.Totals.Loosening != 1 || r.Limits.Loosening != 1 || r.Limits.MaxLoosening != DefaultMaxLoosening {
@@ -590,6 +598,7 @@ func TestEmptyListCountsTowardsTheCaps(t *testing.T) {
 // checks: it still needs a statement or an owner approval, and is refused
 // without one.
 func TestEmptyListReviewedStillNeedsApproval(t *testing.T) {
+	t.Parallel()
 	base, head := attestedTrees(t, []string{"1.22"}, []string{"1.22"}, func(p *packDoc, atts []map[string]any) []map[string]any {
 		a := reviewedAttestation(t, p, "1.31")
 		if len(a["ruleIds"].([]any)) != 0 {

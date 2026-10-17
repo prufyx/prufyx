@@ -8,6 +8,7 @@ import (
 )
 
 func TestOnboardingBatchAdmits(t *testing.T) {
+	t.Parallel()
 	f := newOnboardingFixture(t)
 	f.sign(t, f.record(t))
 	r := f.gate(t)
@@ -43,6 +44,7 @@ func TestOnboardingBatchAdmits(t *testing.T) {
 // base's code admits the pack only against its own table, and refuses the
 // moved pack members.
 func TestOnboardingChangeWithoutBatchFails(t *testing.T) {
+	t.Parallel()
 	f := newOnboardingFixture(t)
 	r := f.gate(t)
 	requireFail(t, r, "admit/cncf")

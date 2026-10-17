@@ -170,6 +170,7 @@ func (f ownerStatementFixture) opts() Options {
 // A human statement that renews on an owner-chosen baseline is admitted
 // when the baseline entry is already in the base the gate trusts.
 func TestGateAdmitsAHumanStatementOnAnOwnerBaseline(t *testing.T) {
+	t.Parallel()
 	f := newOwnerStatementFixture(t)
 	r := runGate(t, f.opts())
 	requirePass(t, r)
@@ -182,6 +183,7 @@ func TestGateAdmitsAHumanStatementOnAnOwnerBaseline(t *testing.T) {
 }
 
 func TestGateRefusesAStatementOnABaselineTheBaseDoesNotHold(t *testing.T) {
+	t.Parallel()
 	cases := map[string]func(t *testing.T, f ownerStatementFixture, o *Options){
 		"entry only in the head (added with the statement)": func(t *testing.T, f ownerStatementFixture, o *Options) {
 			if err := os.Remove(filepath.Join(f.base.Root, synthBaselinesPath)); err != nil {

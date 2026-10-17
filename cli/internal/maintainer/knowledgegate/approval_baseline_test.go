@@ -62,6 +62,7 @@ func (f baselineSignFixture) verifyArgs(withBase bool) []string {
 }
 
 func TestApprovalSignRepinBaselineRoundTripThroughGate(t *testing.T) {
+	t.Parallel()
 	for _, src := range []string{"file", "stdin"} {
 		f := newBaselineSignFixture(t)
 		var r approvalRun
@@ -87,6 +88,7 @@ func TestApprovalSignRepinBaselineRoundTripThroughGate(t *testing.T) {
 
 // The file is byte for byte the one built from the same record directly.
 func TestApprovalSignRepinBaselineBytesMatchGateFormat(t *testing.T) {
+	t.Parallel()
 	f := newBaselineSignFixture(t)
 	requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.signArgs(false, "--key-stdin")...), 0, "approval written")
 	got, err := os.ReadFile(f.out())
@@ -100,6 +102,7 @@ func TestApprovalSignRepinBaselineBytesMatchGateFormat(t *testing.T) {
 }
 
 func TestApprovalSignRepinBaselineChangedEntry(t *testing.T) {
+	t.Parallel()
 	f := newBaselineSignFixture(t)
 	old := baselineEntryAt("2026-10-01T10:00:00Z")
 	old.Tag, old.Commit = "0.9.45.0", strings.Repeat("b", 40)
@@ -115,6 +118,7 @@ func TestApprovalSignRepinBaselineChangedEntry(t *testing.T) {
 }
 
 func TestApprovalSignRepinBaselineRefusals(t *testing.T) {
+	t.Parallel()
 	key := func(f baselineSignFixture) string { return f.key.keyFile(t, 0o600) }
 	cases := map[string]struct {
 		edit func(f baselineSignFixture) []string
@@ -190,6 +194,7 @@ func replaceArg(args []string, name, value string) []string {
 }
 
 func TestApprovalVerifyRepinBaselineRefusesOtherSubjects(t *testing.T) {
+	t.Parallel()
 	f := newBaselineSignFixture(t)
 	requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.signArgs(false, "--key-stdin")...), 0, "approval written")
 	// A changed entry does not verify against the old approval.
@@ -206,6 +211,7 @@ func TestApprovalVerifyRepinBaselineRefusesOtherSubjects(t *testing.T) {
 // verify for a baseline approval needs a real base checkout in --base-root
 // (the pack-versus-base-pack mismatch is covered for line attestations).
 func TestApprovalVerifyBaselineRefusesNonCheckoutBaseRoot(t *testing.T) {
+	t.Parallel()
 	f := newBaselineSignFixture(t)
 	requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.signArgs(false, "--key-stdin")...), 0, "approval written")
 	empty := f.verifyArgs(false)

@@ -20,6 +20,7 @@ func runCLI(t *testing.T, args ...string) (int, string) {
 }
 
 func TestCLI(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	ids := readPack(t, base, cncfRulesPath).activeReviewed()
 	editPack(t, head, cncfRulesPath, func(p *packDoc) {

@@ -44,6 +44,7 @@ func otherPack(t *testing.T) string {
 // same rule decided at the same time or later: forward-only for rules runs in
 // both directions, like it does for records.
 func TestRuleApprovalBehindBatch(t *testing.T) {
+	t.Parallel()
 	key := newApprovalKey(t)
 	decided := gateNow.Add(-time.Hour)
 	setup := func(t *testing.T, batchAt time.Time, pack string) (Tree, Tree, string) {
@@ -89,6 +90,7 @@ func TestRuleApprovalBehindBatch(t *testing.T) {
 // and batches ignores the pack of a record, whichever side holds the later
 // decision; rule ids belong to their pack.
 func TestForwardOnlyPackScoping(t *testing.T) {
+	t.Parallel()
 	other := otherPack(t)
 	at := gateNow.Add(-time.Hour)
 	id := attestationID("1.25")
@@ -171,6 +173,7 @@ func TestForwardOnlyPackScoping(t *testing.T) {
 // The refusals inside the batch path: a change a batch may not approve is
 // refused whatever else the batch holds.
 func TestBatchRefusesForbiddenChanges(t *testing.T) {
+	t.Parallel()
 	good := func() *Change {
 		return &Change{Pack: "cncf", RuleID: "rule.ok", Class: ClassLoosening, Kinds: []string{KindRenew}, Basis: constraintengine.BasisReviewed, head: &entry{RuleID: "rule.ok", Canonical: []byte("{}\n")}}
 	}
@@ -215,6 +218,7 @@ func TestBatchRefusesForbiddenChanges(t *testing.T) {
 // problem the signer refuses (PR #60: only the gate's re-derivation makes a
 // record mechanical, and an owner approval never turns one reviewed).
 func TestBatchRefusesMechanicalToReviewedAttestation(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	editPack(t, base, cncfRulesPath, func(p *packDoc) { setAttestations(t, p, []map[string]any{derivedAttestation(t, "1.31")}) })
 	editPack(t, head, cncfRulesPath, func(p *packDoc) { setAttestations(t, p, []map[string]any{reviewedAttestation(t, p, "1.31")}) })
@@ -234,6 +238,7 @@ func TestBatchRefusesMechanicalToReviewedAttestation(t *testing.T) {
 // The entry's scope is signed and bound by the comparison with the scope
 // the gate derives from the record.
 func TestBatchEntryScopeIsCompared(t *testing.T) {
+	t.Parallel()
 	base, head := attestedTrees(t, []string{"1.22"}, []string{"1.22", "1.25"}, nil)
 	key := newApprovalKey(t)
 	key.pinBoth(t, base, head, "airstand")
@@ -251,6 +256,7 @@ func TestBatchEntryScopeIsCompared(t *testing.T) {
 // The nonce the signing tool draws is part of what the sample is drawn from:
 // the same change signed with other nonces gets other samples.
 func TestBatchSampleDependsOnNonce(t *testing.T) {
+	t.Parallel()
 	f := newBatchFixture(t, 30)
 	st := f.state(t)
 	seen := map[string]bool{}
@@ -278,6 +284,7 @@ func TestBatchSampleDependsOnNonce(t *testing.T) {
 // The gate refuses a batch signed with a key that is no longer valid, at the
 // boundary.
 func TestBatchSigningKeyExpiry(t *testing.T) {
+	t.Parallel()
 	for name, tc := range map[string]struct {
 		keyEnd time.Time
 		want   string
@@ -305,6 +312,7 @@ func TestBatchSigningKeyExpiry(t *testing.T) {
 
 // The time window of a batch at its boundaries.
 func TestBatchTimeBoundaries(t *testing.T) {
+	t.Parallel()
 	for name, tc := range map[string]struct {
 		decided  time.Time
 		notAfter time.Time
@@ -337,6 +345,7 @@ func TestBatchTimeBoundaries(t *testing.T) {
 // The same-time boundary of forward-only: a decision made at the same
 // second is as good as a later one, an earlier one is not.
 func TestRecordApprovalBehindBatchBoundary(t *testing.T) {
+	t.Parallel()
 	base, _ := trees(t)
 	key := newApprovalKey(t)
 	id := attestationID("1.25")
@@ -377,6 +386,7 @@ func TestRecordApprovalBehindBatchBoundary(t *testing.T) {
 
 // decodeBatch reads at most maxBatchBytes.
 func TestDecodeBatchBound(t *testing.T) {
+	t.Parallel()
 	if _, err := decodeBatch(make([]byte, maxBatchBytes+1)); err == nil || !strings.Contains(err.Error(), "too large") {
 		t.Fatalf("%v", err)
 	}
@@ -388,6 +398,7 @@ func TestDecodeBatchBound(t *testing.T) {
 // The owner sees every sampled entry and every flagged entry in full, with
 // the base and the proposed text; modify is flagged.
 func TestBatchSummaryShowsSampledAndFlaggedInFull(t *testing.T) {
+	t.Parallel()
 	f := newBatchFixture(t, 30)
 	edited := f.ids[7]
 	editPack(t, f.head, cncfRulesPath, func(p *packDoc) {
@@ -464,6 +475,7 @@ func TestBatchSummaryShowsSampledAndFlaggedInFull(t *testing.T) {
 // renewal-like edit; reactivation, widening, narrowing, range changes, basis
 // changes and modification are always read.
 func TestBatchFlaggedKinds(t *testing.T) {
+	t.Parallel()
 	for _, k := range []string{KindReactivate, KindBasis, KindWiden, KindNarrow, KindRangeChange, KindModify} {
 		if !batchFlaggedKinds[k] {
 			t.Fatalf("%s is not flagged", k)
@@ -479,6 +491,7 @@ func TestBatchFlaggedKinds(t *testing.T) {
 // The "Other changes" table is bounded, led by counts, and cannot push the
 // entries out of view.
 func TestBatchSummaryBoundsOtherChanges(t *testing.T) {
+	t.Parallel()
 	cls := &Classification{}
 	good := &Change{Pack: "cncf", RuleID: "rule.ok", Class: ClassLoosening, Kinds: []string{KindRenew}, Basis: constraintengine.BasisReviewed, head: &entry{RuleID: "rule.ok", Canonical: []byte("{}\n")}}
 	cls.Changes = append(cls.Changes, good)
@@ -535,6 +548,7 @@ func TestBatchSummaryBoundsOtherChanges(t *testing.T) {
 // change to a field, its order, a domain string or the sample draw shows up
 // here and not as a signature that suddenly fails to verify in production.
 func TestBatchGoldenVectors(t *testing.T) {
+	t.Parallel()
 	a, b, c := "sha256:"+strings.Repeat("aa", 32), "sha256:"+strings.Repeat("bb", 32), "sha256:"+strings.Repeat("cc", 32)
 	t.Run("change set", func(t *testing.T) {
 		got, err := changeSetDigestOf([]changeSetItem{
