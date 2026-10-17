@@ -18445,6 +18445,888 @@
   ],
   "lineAttestations": [
     {
+      "component": "pkg:github/cert-manager/cert-manager",
+      "line": "1.20",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.19.0",
+            "commit": "12a3ef97916bf5c1bea55740caab49e93e2b6d54"
+          },
+          {
+            "version": "1.19.1",
+            "commit": "a22e21ea38f6a8e031af99471b0a50287fed8e7f"
+          },
+          {
+            "version": "1.19.2",
+            "commit": "6e38ee57a338a1f27bb724ddb5933f4b8e23e567"
+          },
+          {
+            "version": "1.19.3",
+            "commit": "d4faed26ae12115cceb807cdc12507ebc28980e2"
+          },
+          {
+            "version": "1.19.4",
+            "commit": "83820a03ce3e6b8a1084fa765d77a6b5b98e6943"
+          },
+          {
+            "version": "1.19.5",
+            "commit": "cda7b7896e70dafb2de66212028cf9997a5e9490"
+          },
+          {
+            "version": "1.19.6",
+            "commit": "60b0447cc9a64885d42567ea590862b88a62d1ad"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.20.0",
+            "commit": "0d2f215fe26ca2674758b5dfd780f04ac1dfde92"
+          },
+          {
+            "version": "1.20.1",
+            "commit": "dc96863ab671bb6418147a418ae4f33067cb914b"
+          },
+          {
+            "version": "1.20.2",
+            "commit": "e5b7b18450dd2c4b993b95bcd680b1a057205b00"
+          },
+          {
+            "version": "1.20.3",
+            "commit": "1e1d16d1744e6d9c80e464e58e8d9ab1caed222b"
+          },
+          {
+            "version": "1.20.4",
+            "commit": "0b9448974868c5669d4f3e7499f5afd393889e22"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cert-manager",
+          "version": "2.5.0",
+          "codeDigest": "sha256:cfdaf90deb080895239fd6a9070bbf6cb6437f5e559b4cb3f8a7cc6ea45cfccf"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-1-19-0",
+            "url": "https://github.com/cert-manager/cert-manager/blob/12a3ef97916bf5c1bea55740caab49e93e2b6d54/deploy/crds/acme.cert-manager.io_challenges.yaml",
+            "revision": "12a3ef97916bf5c1bea55740caab49e93e2b6d54",
+            "contentDigest": "sha256:ec81b760ed7ad2bf7129218a9914711baddddb927795c7b685a09c73835356fc",
+            "startLine": 1,
+            "endLine": 3474
+          },
+          {
+            "id": "crds-1-20-0",
+            "url": "https://github.com/cert-manager/cert-manager/blob/0d2f215fe26ca2674758b5dfd780f04ac1dfde92/deploy/crds/acme.cert-manager.io_challenges.yaml",
+            "revision": "0d2f215fe26ca2674758b5dfd780f04ac1dfde92",
+            "contentDigest": "sha256:e1452ef8341821b64106cdb9fe39f956063fe1136a027ecf0b1c9800a48c5f7f",
+            "startLine": 1,
+            "endLine": 3498
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/cert-manager/cert-manager",
+      "line": "1.21",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.20.0",
+            "commit": "0d2f215fe26ca2674758b5dfd780f04ac1dfde92"
+          },
+          {
+            "version": "1.20.1",
+            "commit": "dc96863ab671bb6418147a418ae4f33067cb914b"
+          },
+          {
+            "version": "1.20.2",
+            "commit": "e5b7b18450dd2c4b993b95bcd680b1a057205b00"
+          },
+          {
+            "version": "1.20.3",
+            "commit": "1e1d16d1744e6d9c80e464e58e8d9ab1caed222b"
+          },
+          {
+            "version": "1.20.4",
+            "commit": "0b9448974868c5669d4f3e7499f5afd393889e22"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.21.0",
+            "commit": "b8f325e36f49626ba72d7efbe138c01a5e661d96"
+          },
+          {
+            "version": "1.21.1",
+            "commit": "24e33194fb39488eff2bbf10c6dc640f407cad44"
+          },
+          {
+            "version": "1.21.2",
+            "commit": "922a06aa49ee4bb802db268ef72a174af70edd32"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cert-manager",
+          "version": "2.5.0",
+          "codeDigest": "sha256:cfdaf90deb080895239fd6a9070bbf6cb6437f5e559b4cb3f8a7cc6ea45cfccf"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-1-20-0",
+            "url": "https://github.com/cert-manager/cert-manager/blob/0d2f215fe26ca2674758b5dfd780f04ac1dfde92/deploy/crds/acme.cert-manager.io_challenges.yaml",
+            "revision": "0d2f215fe26ca2674758b5dfd780f04ac1dfde92",
+            "contentDigest": "sha256:e1452ef8341821b64106cdb9fe39f956063fe1136a027ecf0b1c9800a48c5f7f",
+            "startLine": 1,
+            "endLine": 3498
+          },
+          {
+            "id": "crds-1-21-0",
+            "url": "https://github.com/cert-manager/cert-manager/blob/b8f325e36f49626ba72d7efbe138c01a5e661d96/deploy/crds/acme.cert-manager.io_challenges.yaml",
+            "revision": "b8f325e36f49626ba72d7efbe138c01a5e661d96",
+            "contentDigest": "sha256:dff7542a2ee6581e3963a076410212ad3207201b70df8a328aa50826d569161c",
+            "startLine": 1,
+            "endLine": 3524
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/cilium/cilium",
+      "line": "1.16",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.15.0",
+            "commit": "2db45c468981a863b230186ad37d44e5a7c08d61"
+          },
+          {
+            "version": "1.15.1",
+            "commit": "a368c8f0f34dfe9a47e8a621af31ea94337f6fb5"
+          },
+          {
+            "version": "1.15.2",
+            "commit": "7cf5782920423b07e7a4e6e67fafd81e1d4a1d33"
+          },
+          {
+            "version": "1.15.3",
+            "commit": "22dfbc58ad8e1f52a5cae1adc17d6f317bffd747"
+          },
+          {
+            "version": "1.15.4",
+            "commit": "9b3f9a8c0d71bf70bc0fd3fbc256bacc67fe6c32"
+          },
+          {
+            "version": "1.15.5",
+            "commit": "8c7e442ccd48b9011a10f34a128ec98751d9a80e"
+          },
+          {
+            "version": "1.15.6",
+            "commit": "a09e05e6b63d82dbc3a1b0de1721a3407c340e7c"
+          },
+          {
+            "version": "1.15.7",
+            "commit": "de06bcfb3cf8ff165421729d2bf579c92fef7631"
+          },
+          {
+            "version": "1.15.8",
+            "commit": "e6291578f4104127b932365f5bf0fd61ff772f40"
+          },
+          {
+            "version": "1.15.9",
+            "commit": "2ea0cf3328be75b4dbcead6d7d846ec07f0a4623"
+          },
+          {
+            "version": "1.15.10",
+            "commit": "2fdab41a13d2a3f8abbbb4d3b4ba8cc1624c3935"
+          },
+          {
+            "version": "1.15.11",
+            "commit": "e580c18c63c428f3b0bdf6bf5a888d954f628bd9"
+          },
+          {
+            "version": "1.15.12",
+            "commit": "1f74fa42d94cdb6a57307b70ea2bb91a99379f1f"
+          },
+          {
+            "version": "1.15.13",
+            "commit": "1d896cad39c6ec67ca15984c6c4748577622b80a"
+          },
+          {
+            "version": "1.15.14",
+            "commit": "779ce30860298b8cde9a960ea1db45deb9adf468"
+          },
+          {
+            "version": "1.15.15",
+            "commit": "dacf1b6b130757f7670b7c3b2f485deeb2b1fc97"
+          },
+          {
+            "version": "1.15.16",
+            "commit": "a0ee30f5ee96eaf4766453e0cae7759a6965b90d"
+          },
+          {
+            "version": "1.15.17",
+            "commit": "01998c02af47f57e49fa4a2ee5e55c60107d1027"
+          },
+          {
+            "version": "1.15.18",
+            "commit": "fbfb9b30afed1c6a42769c3a338f1c6ddc42678c"
+          },
+          {
+            "version": "1.15.19",
+            "commit": "6a0e0dfd47b1d6057e766dfb1fbd6d5e6ed661d1"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.16.0",
+            "commit": "82999990bc954699cf24853ef9747d9166ee24c8"
+          },
+          {
+            "version": "1.16.1",
+            "commit": "685790550b375380dd8fac71cc2a37427d78fc40"
+          },
+          {
+            "version": "1.16.2",
+            "commit": "3261be3fea2dfb3ca90deb69a85e848d13286fa5"
+          },
+          {
+            "version": "1.16.3",
+            "commit": "f221719170636b0e0da2c7b8227c18967a1201c8"
+          },
+          {
+            "version": "1.16.4",
+            "commit": "0380724290f01576aa053c2c2ad35532063c695e"
+          },
+          {
+            "version": "1.16.5",
+            "commit": "ad6882773c5f89feda9c295276707f01de269296"
+          },
+          {
+            "version": "1.16.6",
+            "commit": "9e9f098982ddc31463cfcf2d589d9e1d8bb040a7"
+          },
+          {
+            "version": "1.16.7",
+            "commit": "2ab5f8da5915992a1e548c290105dbc08f4be52d"
+          },
+          {
+            "version": "1.16.8",
+            "commit": "dc65ba9bb5f8201e0f51babfb6e7a02de2527460"
+          },
+          {
+            "version": "1.16.9",
+            "commit": "bf7387b2b6aed80d9c8e4c04f8fc7dd6040ed93d"
+          },
+          {
+            "version": "1.16.10",
+            "commit": "a93da32ed27ce87ed3f03d2c30923a132f98aa10"
+          },
+          {
+            "version": "1.16.11",
+            "commit": "bf9392a9b488df95ba7de58d14de5f8d3afa2067"
+          },
+          {
+            "version": "1.16.12",
+            "commit": "a66093957f9614320e5d7364615235209b757c55"
+          },
+          {
+            "version": "1.16.13",
+            "commit": "ec7cc0716d8439e20bf3464e8be982a72177afe5"
+          },
+          {
+            "version": "1.16.14",
+            "commit": "52717bf2cd4cb5ba7e4bcccf698f1c1d1d7b4c32"
+          },
+          {
+            "version": "1.16.15",
+            "commit": "75130674084311ceedfc2bd6dfec511478d23105"
+          },
+          {
+            "version": "1.16.16",
+            "commit": "0b0482a8e7589c6333611ef331bcd2d5d7d8882b"
+          },
+          {
+            "version": "1.16.17",
+            "commit": "46dd18e1cf303ee70f444a2ade146941beccbd1d"
+          },
+          {
+            "version": "1.16.18",
+            "commit": "ab50022137f1d6af6914dead0d83b13ab3119d4d"
+          },
+          {
+            "version": "1.16.19",
+            "commit": "011fab6e7b798edd17e0337307dc034ed4916653"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cilium",
+          "version": "2.5.0",
+          "codeDigest": "sha256:2ed2374fa42a7a4de1f0927911fff1cc7d8e0b38ec1fd8577b6b9e8b6f0f16be"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-1-15-0",
+            "url": "https://github.com/cilium/cilium/blob/2db45c468981a863b230186ad37d44e5a7c08d61/pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml",
+            "revision": "2db45c468981a863b230186ad37d44e5a7c08d61",
+            "contentDigest": "sha256:95234ab6b5d9f6293f392aab2d2902f72665a71e7919083606eea5521aba0481",
+            "startLine": 1,
+            "endLine": 123
+          },
+          {
+            "id": "crds-1-16-0",
+            "url": "https://github.com/cilium/cilium/blob/82999990bc954699cf24853ef9747d9166ee24c8/pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml",
+            "revision": "82999990bc954699cf24853ef9747d9166ee24c8",
+            "contentDigest": "sha256:542004b80a240055c9985fca13ca777865ca81f67dfd5e06de2bfe4e1857edce",
+            "startLine": 1,
+            "endLine": 187
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/cilium/cilium",
+      "line": "1.17",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.16.0",
+            "commit": "82999990bc954699cf24853ef9747d9166ee24c8"
+          },
+          {
+            "version": "1.16.1",
+            "commit": "685790550b375380dd8fac71cc2a37427d78fc40"
+          },
+          {
+            "version": "1.16.2",
+            "commit": "3261be3fea2dfb3ca90deb69a85e848d13286fa5"
+          },
+          {
+            "version": "1.16.3",
+            "commit": "f221719170636b0e0da2c7b8227c18967a1201c8"
+          },
+          {
+            "version": "1.16.4",
+            "commit": "0380724290f01576aa053c2c2ad35532063c695e"
+          },
+          {
+            "version": "1.16.5",
+            "commit": "ad6882773c5f89feda9c295276707f01de269296"
+          },
+          {
+            "version": "1.16.6",
+            "commit": "9e9f098982ddc31463cfcf2d589d9e1d8bb040a7"
+          },
+          {
+            "version": "1.16.7",
+            "commit": "2ab5f8da5915992a1e548c290105dbc08f4be52d"
+          },
+          {
+            "version": "1.16.8",
+            "commit": "dc65ba9bb5f8201e0f51babfb6e7a02de2527460"
+          },
+          {
+            "version": "1.16.9",
+            "commit": "bf7387b2b6aed80d9c8e4c04f8fc7dd6040ed93d"
+          },
+          {
+            "version": "1.16.10",
+            "commit": "a93da32ed27ce87ed3f03d2c30923a132f98aa10"
+          },
+          {
+            "version": "1.16.11",
+            "commit": "bf9392a9b488df95ba7de58d14de5f8d3afa2067"
+          },
+          {
+            "version": "1.16.12",
+            "commit": "a66093957f9614320e5d7364615235209b757c55"
+          },
+          {
+            "version": "1.16.13",
+            "commit": "ec7cc0716d8439e20bf3464e8be982a72177afe5"
+          },
+          {
+            "version": "1.16.14",
+            "commit": "52717bf2cd4cb5ba7e4bcccf698f1c1d1d7b4c32"
+          },
+          {
+            "version": "1.16.15",
+            "commit": "75130674084311ceedfc2bd6dfec511478d23105"
+          },
+          {
+            "version": "1.16.16",
+            "commit": "0b0482a8e7589c6333611ef331bcd2d5d7d8882b"
+          },
+          {
+            "version": "1.16.17",
+            "commit": "46dd18e1cf303ee70f444a2ade146941beccbd1d"
+          },
+          {
+            "version": "1.16.18",
+            "commit": "ab50022137f1d6af6914dead0d83b13ab3119d4d"
+          },
+          {
+            "version": "1.16.19",
+            "commit": "011fab6e7b798edd17e0337307dc034ed4916653"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.17.0",
+            "commit": "c2bbf787eab9b7f728fcc861904d9bcf17e4ba9b"
+          },
+          {
+            "version": "1.17.1",
+            "commit": "d6c9f9e8d560e4f941b31acfaf8070b0fd64857f"
+          },
+          {
+            "version": "1.17.2",
+            "commit": "fb3ab54ffe3f1b5059e87a9022fd6559b276b7ce"
+          },
+          {
+            "version": "1.17.3",
+            "commit": "3993bd066abcf2d493f38cbeeb104174b7ef1ed0"
+          },
+          {
+            "version": "1.17.4",
+            "commit": "55aecc0f4706b5f8a70fc38ed2817cc2e15b0f60"
+          },
+          {
+            "version": "1.17.5",
+            "commit": "69aab28cf10174430372aa6fbd7c1e555b267993"
+          },
+          {
+            "version": "1.17.6",
+            "commit": "ee3ca4a7e998da677a9b1c634619a85ce5b0dc64"
+          },
+          {
+            "version": "1.17.7",
+            "commit": "621ebf56873e48dcdbbaad4dddfeac931c5046d3"
+          },
+          {
+            "version": "1.17.8",
+            "commit": "03b5572f35bba14971c5ce049de3842b8ff4fa6a"
+          },
+          {
+            "version": "1.17.9",
+            "commit": "a2f97aa8d2de4bb360bee1e295e20556ce4166ce"
+          },
+          {
+            "version": "1.17.10",
+            "commit": "2661dea2811d5c3580c22fa8545d9c76df1688e6"
+          },
+          {
+            "version": "1.17.11",
+            "commit": "b832d4f4745651f187f84be9bcdbc31512ebc559"
+          },
+          {
+            "version": "1.17.12",
+            "commit": "7533de6dc6366c5504b394a090ac7d1680dc54ee"
+          },
+          {
+            "version": "1.17.13",
+            "commit": "b0547c9f09de0088acdd34f6e1e1aeb992d23837"
+          },
+          {
+            "version": "1.17.14",
+            "commit": "6fc7f9725d4a2f3293b17614181ae2b3fb5529cf"
+          },
+          {
+            "version": "1.17.15",
+            "commit": "4206eaa53006115b8a52cbab6394c78f06ebcf6a"
+          },
+          {
+            "version": "1.17.16",
+            "commit": "383d39c83a022b95ccc1b4738c9e33e63534af34"
+          },
+          {
+            "version": "1.17.17",
+            "commit": "0db95967f554c95ee21a1fb7268bb5785e563d9d"
+          },
+          {
+            "version": "1.17.18",
+            "commit": "e5796ad1eb6003acf44d8f6a7dc726699a37c1c0"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cilium",
+          "version": "2.5.0",
+          "codeDigest": "sha256:2ed2374fa42a7a4de1f0927911fff1cc7d8e0b38ec1fd8577b6b9e8b6f0f16be"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-1-16-0",
+            "url": "https://github.com/cilium/cilium/blob/82999990bc954699cf24853ef9747d9166ee24c8/pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml",
+            "revision": "82999990bc954699cf24853ef9747d9166ee24c8",
+            "contentDigest": "sha256:542004b80a240055c9985fca13ca777865ca81f67dfd5e06de2bfe4e1857edce",
+            "startLine": 1,
+            "endLine": 187
+          },
+          {
+            "id": "crds-1-17-0",
+            "url": "https://github.com/cilium/cilium/blob/c2bbf787eab9b7f728fcc861904d9bcf17e4ba9b/pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml",
+            "revision": "c2bbf787eab9b7f728fcc861904d9bcf17e4ba9b",
+            "contentDigest": "sha256:6702ee56ed447a7ecf1f85b1f8c745f29e2840f3446cdf98e514805972588770",
+            "startLine": 1,
+            "endLine": 198
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kedacore/keda",
+      "line": "2.17",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.16.0",
+            "commit": "5c52d032931b8ecf855d0c298f8d5e48937aecd7"
+          },
+          {
+            "version": "2.16.1",
+            "commit": "ce14b239e0300f388b0425aef68154d8070cd66f"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.17.0",
+            "commit": "dafd9a883acc8ec2d2506e0d106b8605f2c156e9"
+          },
+          {
+            "version": "2.17.1",
+            "commit": "a3e20902dc67acaf40a9d5a4146c90d4426a7b9f"
+          },
+          {
+            "version": "2.17.2",
+            "commit": "b51655b12fd85bb585f7392acae68f95eb20ac19"
+          },
+          {
+            "version": "2.17.3",
+            "commit": "e615440f24f6abec8b7c69bd88854cb4324e9eaa"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.keda",
+          "version": "2.5.0",
+          "codeDigest": "sha256:c4260fe5bcfab5faa7ffc6003ba859197c0d75ab5aaa340ea635cff70ea9472e"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-2-16-0",
+            "url": "https://github.com/kedacore/keda/blob/5c52d032931b8ecf855d0c298f8d5e48937aecd7/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "5c52d032931b8ecf855d0c298f8d5e48937aecd7",
+            "contentDigest": "sha256:83d611d2150be4d884d35c225c7a41f5849dc15da66b95390c90aa2b1e1435ff",
+            "startLine": 1,
+            "endLine": 156
+          },
+          {
+            "id": "crds-2-17-0",
+            "url": "https://github.com/kedacore/keda/blob/dafd9a883acc8ec2d2506e0d106b8605f2c156e9/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "dafd9a883acc8ec2d2506e0d106b8605f2c156e9",
+            "contentDigest": "sha256:83d611d2150be4d884d35c225c7a41f5849dc15da66b95390c90aa2b1e1435ff",
+            "startLine": 1,
+            "endLine": 156
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kedacore/keda",
+      "line": "2.18",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.17.0",
+            "commit": "dafd9a883acc8ec2d2506e0d106b8605f2c156e9"
+          },
+          {
+            "version": "2.17.1",
+            "commit": "a3e20902dc67acaf40a9d5a4146c90d4426a7b9f"
+          },
+          {
+            "version": "2.17.2",
+            "commit": "b51655b12fd85bb585f7392acae68f95eb20ac19"
+          },
+          {
+            "version": "2.17.3",
+            "commit": "e615440f24f6abec8b7c69bd88854cb4324e9eaa"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.18.0",
+            "commit": "559e73850876f0c1d2fe915f9c23904608e5e235"
+          },
+          {
+            "version": "2.18.1",
+            "commit": "3f590ba6027a67b2d6f79ece605061f6d201c54b"
+          },
+          {
+            "version": "2.18.2",
+            "commit": "b7c5655a31ebd980afc50980cf7d00d29eb23cc3"
+          },
+          {
+            "version": "2.18.3",
+            "commit": "0f98c4775b82df35f5d3bdaf85713e3e478f7a38"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.keda",
+          "version": "2.5.0",
+          "codeDigest": "sha256:c4260fe5bcfab5faa7ffc6003ba859197c0d75ab5aaa340ea635cff70ea9472e"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-2-17-0",
+            "url": "https://github.com/kedacore/keda/blob/dafd9a883acc8ec2d2506e0d106b8605f2c156e9/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "dafd9a883acc8ec2d2506e0d106b8605f2c156e9",
+            "contentDigest": "sha256:83d611d2150be4d884d35c225c7a41f5849dc15da66b95390c90aa2b1e1435ff",
+            "startLine": 1,
+            "endLine": 156
+          },
+          {
+            "id": "crds-2-18-0",
+            "url": "https://github.com/kedacore/keda/blob/559e73850876f0c1d2fe915f9c23904608e5e235/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "559e73850876f0c1d2fe915f9c23904608e5e235",
+            "contentDigest": "sha256:83d611d2150be4d884d35c225c7a41f5849dc15da66b95390c90aa2b1e1435ff",
+            "startLine": 1,
+            "endLine": 156
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kedacore/keda",
+      "line": "2.19",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.18.0",
+            "commit": "559e73850876f0c1d2fe915f9c23904608e5e235"
+          },
+          {
+            "version": "2.18.1",
+            "commit": "3f590ba6027a67b2d6f79ece605061f6d201c54b"
+          },
+          {
+            "version": "2.18.2",
+            "commit": "b7c5655a31ebd980afc50980cf7d00d29eb23cc3"
+          },
+          {
+            "version": "2.18.3",
+            "commit": "0f98c4775b82df35f5d3bdaf85713e3e478f7a38"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.19.0",
+            "commit": "3f88d60ae92f1174f67738f079f96ec17eeee77f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.keda",
+          "version": "2.5.0",
+          "codeDigest": "sha256:c4260fe5bcfab5faa7ffc6003ba859197c0d75ab5aaa340ea635cff70ea9472e"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-2-18-0",
+            "url": "https://github.com/kedacore/keda/blob/559e73850876f0c1d2fe915f9c23904608e5e235/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "559e73850876f0c1d2fe915f9c23904608e5e235",
+            "contentDigest": "sha256:83d611d2150be4d884d35c225c7a41f5849dc15da66b95390c90aa2b1e1435ff",
+            "startLine": 1,
+            "endLine": 156
+          },
+          {
+            "id": "crds-2-19-0",
+            "url": "https://github.com/kedacore/keda/blob/3f88d60ae92f1174f67738f079f96ec17eeee77f/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "3f88d60ae92f1174f67738f079f96ec17eeee77f",
+            "contentDigest": "sha256:a70edda6252c1bf04bee20dac9cbf1928e1033bb195ea7042d4c8627085ab427",
+            "startLine": 1,
+            "endLine": 170
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kedacore/keda",
+      "line": "2.20",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.19.0",
+            "commit": "3f88d60ae92f1174f67738f079f96ec17eeee77f"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.20.0",
+            "commit": "5322ecb9c19fb37e59344afbb388471d40efc0d8"
+          },
+          {
+            "version": "2.20.1",
+            "commit": "875675ce5cd1d34772fe00a228a71b8bf05b3b43"
+          },
+          {
+            "version": "2.20.2",
+            "commit": "68a5b5028f35b22d50597c69819ab32c4e92f21a"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.keda",
+          "version": "2.5.0",
+          "codeDigest": "sha256:c4260fe5bcfab5faa7ffc6003ba859197c0d75ab5aaa340ea635cff70ea9472e"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-2-19-0",
+            "url": "https://github.com/kedacore/keda/blob/3f88d60ae92f1174f67738f079f96ec17eeee77f/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "3f88d60ae92f1174f67738f079f96ec17eeee77f",
+            "contentDigest": "sha256:a70edda6252c1bf04bee20dac9cbf1928e1033bb195ea7042d4c8627085ab427",
+            "startLine": 1,
+            "endLine": 170
+          },
+          {
+            "id": "crds-2-20-0",
+            "url": "https://github.com/kedacore/keda/blob/5322ecb9c19fb37e59344afbb388471d40efc0d8/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "5322ecb9c19fb37e59344afbb388471d40efc0d8",
+            "contentDigest": "sha256:54693ed66e4a602f09137bef80297b381bb51c1a55980e8d4844524c074bac1a",
+            "startLine": 1,
+            "endLine": 173
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kedacore/keda",
+      "line": "2.21",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.20.0",
+            "commit": "5322ecb9c19fb37e59344afbb388471d40efc0d8"
+          },
+          {
+            "version": "2.20.1",
+            "commit": "875675ce5cd1d34772fe00a228a71b8bf05b3b43"
+          },
+          {
+            "version": "2.20.2",
+            "commit": "68a5b5028f35b22d50597c69819ab32c4e92f21a"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.21.0",
+            "commit": "626ded5d783108bedf647e20bbc83f8e458e02e4"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.keda",
+          "version": "2.5.0",
+          "codeDigest": "sha256:c4260fe5bcfab5faa7ffc6003ba859197c0d75ab5aaa340ea635cff70ea9472e"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-2-20-0",
+            "url": "https://github.com/kedacore/keda/blob/5322ecb9c19fb37e59344afbb388471d40efc0d8/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "5322ecb9c19fb37e59344afbb388471d40efc0d8",
+            "contentDigest": "sha256:54693ed66e4a602f09137bef80297b381bb51c1a55980e8d4844524c074bac1a",
+            "startLine": 1,
+            "endLine": 173
+          },
+          {
+            "id": "crds-2-21-0",
+            "url": "https://github.com/kedacore/keda/blob/626ded5d783108bedf647e20bbc83f8e458e02e4/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "626ded5d783108bedf647e20bbc83f8e458e02e4",
+            "contentDigest": "sha256:54693ed66e4a602f09137bef80297b381bb51c1a55980e8d4844524c074bac1a",
+            "startLine": 1,
+            "endLine": 173
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/kubernetes/kubernetes",
       "line": "1.20",
       "factFamily": "kubernetes.removed_served_gvk",
@@ -19392,6 +20274,336 @@
             "contentDigest": "sha256:2f6e07fc68bf3927580b13909396f5a642f77a8c56dbc26a53ee150ae7f372da",
             "startLine": 1,
             "endLine": 121
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/velero-io/velero",
+      "line": "1.14",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.13.0",
+            "commit": "76670e940c52880a18dbbc59e3cbee7b94cd3352"
+          },
+          {
+            "version": "1.13.1",
+            "commit": "ea5a89f83b89b2cb7a27f54148683c1ee8d57a37"
+          },
+          {
+            "version": "1.13.2",
+            "commit": "4d961fb6fec384ed7f3c1b7c65c818106107f5a6"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.14.0",
+            "commit": "2fc6300f2239f250b40b0488c35feae59520f2d3"
+          },
+          {
+            "version": "1.14.1",
+            "commit": "8afe3cea8b7058f7baaf447b9fb407312c40d2da"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.velero",
+          "version": "2.5.0",
+          "codeDigest": "sha256:0db28d95b90dfcc32eedc47844b400d42c0d341bb2d577c24a10b06ca0478f65"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-1-13-0",
+            "url": "https://github.com/velero-io/velero/blob/76670e940c52880a18dbbc59e3cbee7b94cd3352/config/crd/v1/bases/velero.io_backuprepositories.yaml",
+            "revision": "76670e940c52880a18dbbc59e3cbee7b94cd3352",
+            "contentDigest": "sha256:6ee39dac1c6ceea29ccb07cb3dd0f4b0a5d156506a5deb1faf73739532a521b3",
+            "startLine": 1,
+            "endLine": 96
+          },
+          {
+            "id": "crds-1-14-0",
+            "url": "https://github.com/velero-io/velero/blob/2fc6300f2239f250b40b0488c35feae59520f2d3/config/crd/v1/bases/velero.io_backuprepositories.yaml",
+            "revision": "2fc6300f2239f250b40b0488c35feae59520f2d3",
+            "contentDigest": "sha256:6a9a1d7fec9d386642355956087aa4561052e546b02d7ae4c731e43e45e65171",
+            "startLine": 1,
+            "endLine": 104
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/velero-io/velero",
+      "line": "1.15",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.14.0",
+            "commit": "2fc6300f2239f250b40b0488c35feae59520f2d3"
+          },
+          {
+            "version": "1.14.1",
+            "commit": "8afe3cea8b7058f7baaf447b9fb407312c40d2da"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.15.0",
+            "commit": "1d4f1475975b5107ec35f4d19ff17f7d1fcb3edf"
+          },
+          {
+            "version": "1.15.1",
+            "commit": "32499fc287815058802c1bc46ef620799cca7392"
+          },
+          {
+            "version": "1.15.2",
+            "commit": "804d73c4f2349f1ca9bd3d6c751956e1d2021c01"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.velero",
+          "version": "2.5.0",
+          "codeDigest": "sha256:0db28d95b90dfcc32eedc47844b400d42c0d341bb2d577c24a10b06ca0478f65"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-1-14-0",
+            "url": "https://github.com/velero-io/velero/blob/2fc6300f2239f250b40b0488c35feae59520f2d3/config/crd/v1/bases/velero.io_backuprepositories.yaml",
+            "revision": "2fc6300f2239f250b40b0488c35feae59520f2d3",
+            "contentDigest": "sha256:6a9a1d7fec9d386642355956087aa4561052e546b02d7ae4c731e43e45e65171",
+            "startLine": 1,
+            "endLine": 104
+          },
+          {
+            "id": "crds-1-15-0",
+            "url": "https://github.com/velero-io/velero/blob/1d4f1475975b5107ec35f4d19ff17f7d1fcb3edf/config/crd/v1/bases/velero.io_backuprepositories.yaml",
+            "revision": "1d4f1475975b5107ec35f4d19ff17f7d1fcb3edf",
+            "contentDigest": "sha256:3cff991051af26c00593e47c79828aa5d8e3f4391b7cb0716f16ce2c500898c2",
+            "startLine": 1,
+            "endLine": 111
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/velero-io/velero",
+      "line": "1.16",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.15.0",
+            "commit": "1d4f1475975b5107ec35f4d19ff17f7d1fcb3edf"
+          },
+          {
+            "version": "1.15.1",
+            "commit": "32499fc287815058802c1bc46ef620799cca7392"
+          },
+          {
+            "version": "1.15.2",
+            "commit": "804d73c4f2349f1ca9bd3d6c751956e1d2021c01"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.16.0",
+            "commit": "8f31599fe4af5453dee032beaf8a16bd75de91a5"
+          },
+          {
+            "version": "1.16.1",
+            "commit": "2eb97fa8b187f9ed0aeb49f216565eddf93a0b08"
+          },
+          {
+            "version": "1.16.2",
+            "commit": "a60808256d36a77a42e1ebc160ee8117477a83fa"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.velero",
+          "version": "2.5.0",
+          "codeDigest": "sha256:0db28d95b90dfcc32eedc47844b400d42c0d341bb2d577c24a10b06ca0478f65"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-1-15-0",
+            "url": "https://github.com/velero-io/velero/blob/1d4f1475975b5107ec35f4d19ff17f7d1fcb3edf/config/crd/v1/bases/velero.io_backuprepositories.yaml",
+            "revision": "1d4f1475975b5107ec35f4d19ff17f7d1fcb3edf",
+            "contentDigest": "sha256:3cff991051af26c00593e47c79828aa5d8e3f4391b7cb0716f16ce2c500898c2",
+            "startLine": 1,
+            "endLine": 111
+          },
+          {
+            "id": "crds-1-16-0",
+            "url": "https://github.com/velero-io/velero/blob/8f31599fe4af5453dee032beaf8a16bd75de91a5/config/crd/v1/bases/velero.io_backuprepositories.yaml",
+            "revision": "8f31599fe4af5453dee032beaf8a16bd75de91a5",
+            "contentDigest": "sha256:d1915a6f1fc290d6639a7891962d838871eb8b11da80dd5eb8e4405f11ee40cd",
+            "startLine": 1,
+            "endLine": 138
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/velero-io/velero",
+      "line": "1.17",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.16.0",
+            "commit": "8f31599fe4af5453dee032beaf8a16bd75de91a5"
+          },
+          {
+            "version": "1.16.1",
+            "commit": "2eb97fa8b187f9ed0aeb49f216565eddf93a0b08"
+          },
+          {
+            "version": "1.16.2",
+            "commit": "a60808256d36a77a42e1ebc160ee8117477a83fa"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.17.0",
+            "commit": "3172d9f99c3d501aad9ddfac8176d783f7692dce"
+          },
+          {
+            "version": "1.17.1",
+            "commit": "94f64639cee09c5caaa65b65ab5f42175f41c101"
+          },
+          {
+            "version": "1.17.2",
+            "commit": "7013a4097f17a97a0201c0ad3c9dd3f810d32bf6"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.velero",
+          "version": "2.5.0",
+          "codeDigest": "sha256:0db28d95b90dfcc32eedc47844b400d42c0d341bb2d577c24a10b06ca0478f65"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-1-16-0",
+            "url": "https://github.com/velero-io/velero/blob/8f31599fe4af5453dee032beaf8a16bd75de91a5/config/crd/v1/bases/velero.io_backuprepositories.yaml",
+            "revision": "8f31599fe4af5453dee032beaf8a16bd75de91a5",
+            "contentDigest": "sha256:d1915a6f1fc290d6639a7891962d838871eb8b11da80dd5eb8e4405f11ee40cd",
+            "startLine": 1,
+            "endLine": 138
+          },
+          {
+            "id": "crds-1-17-0",
+            "url": "https://github.com/velero-io/velero/blob/3172d9f99c3d501aad9ddfac8176d783f7692dce/config/crd/v1/bases/velero.io_backuprepositories.yaml",
+            "revision": "3172d9f99c3d501aad9ddfac8176d783f7692dce",
+            "contentDigest": "sha256:a269b5e2949ba3207dd3323fdd17cd5dfd8dfafac5b9b01f2ad6409da4d56e65",
+            "startLine": 1,
+            "endLine": 137
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/velero-io/velero",
+      "line": "1.18",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.17.0",
+            "commit": "3172d9f99c3d501aad9ddfac8176d783f7692dce"
+          },
+          {
+            "version": "1.17.1",
+            "commit": "94f64639cee09c5caaa65b65ab5f42175f41c101"
+          },
+          {
+            "version": "1.17.2",
+            "commit": "7013a4097f17a97a0201c0ad3c9dd3f810d32bf6"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.18.0",
+            "commit": "6adcf06b5b0e6fb93998d3e101e2cbdc134fa3c3"
+          },
+          {
+            "version": "1.18.1",
+            "commit": "26ef8fa7df68dfa9ab8aa4669b8ac47340b0c510"
+          },
+          {
+            "version": "1.18.2",
+            "commit": "c253c7fe37d78c9b7e55c68544f7c5b2608712d8"
+          },
+          {
+            "version": "1.18.3",
+            "commit": "cd3fd10b093dad32ee284e27fcba4e9073c9c94b"
+          },
+          {
+            "version": "1.18.4",
+            "commit": "4ee1e79a7aed367fd9b767b8219ec65bd0c96892"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.velero",
+          "version": "2.5.0",
+          "codeDigest": "sha256:0db28d95b90dfcc32eedc47844b400d42c0d341bb2d577c24a10b06ca0478f65"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-1-17-0",
+            "url": "https://github.com/velero-io/velero/blob/3172d9f99c3d501aad9ddfac8176d783f7692dce/config/crd/v1/bases/velero.io_backuprepositories.yaml",
+            "revision": "3172d9f99c3d501aad9ddfac8176d783f7692dce",
+            "contentDigest": "sha256:a269b5e2949ba3207dd3323fdd17cd5dfd8dfafac5b9b01f2ad6409da4d56e65",
+            "startLine": 1,
+            "endLine": 137
+          },
+          {
+            "id": "crds-1-18-0",
+            "url": "https://github.com/velero-io/velero/blob/6adcf06b5b0e6fb93998d3e101e2cbdc134fa3c3/config/crd/v1/bases/velero.io_backuprepositories.yaml",
+            "revision": "6adcf06b5b0e6fb93998d3e101e2cbdc134fa3c3",
+            "contentDigest": "sha256:a269b5e2949ba3207dd3323fdd17cd5dfd8dfafac5b9b01f2ad6409da4d56e65",
+            "startLine": 1,
+            "endLine": 137
           }
         ]
       }
