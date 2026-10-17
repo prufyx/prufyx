@@ -445,7 +445,7 @@ func (b bundle) admit(rules []json.RawMessage, corpus []string) (selection, erro
 	kept := make([]json.RawMessage, 0, len(rules))
 	var result selection
 	for _, rule := range rules {
-		basis, err := constraintengine.RawRuleBasis(rule)
+		basis, err := ruleBasis(rule)
 		if err != nil {
 			return selection{}, ErrIntegrity
 		}
@@ -477,14 +477,16 @@ func (b bundle) admit(rules []json.RawMessage, corpus []string) (selection, erro
 // Documents a check evaluates come through admit; only the admission of a
 // whole pack and the attestation digest read it directly.
 func (b bundle) parseRulesCorpus(rules []json.RawMessage, corpus []string) (constraintengine.RuleSet, error) {
-	if err := validateCNCFReviewWindows(rules); err != nil {
-		return constraintengine.RuleSet{}, err
-	}
-	raw, err := b.ruleDocumentBytes(rules, corpus)
-	if err != nil {
-		return constraintengine.RuleSet{}, err
-	}
-	return constraintengine.ParseRuleSet(raw, b.registry)
+	return memoizedParse(b, rules, corpus, func() (constraintengine.RuleSet, error) {
+		if err := validateCNCFReviewWindows(rules); err != nil {
+			return constraintengine.RuleSet{}, err
+		}
+		raw, err := b.ruleDocumentBytes(rules, corpus)
+		if err != nil {
+			return constraintengine.RuleSet{}, err
+		}
+		return constraintengine.ParseRuleSet(raw, b.registry)
+	})
 }
 
 // ruleDocumentBytes renders the rule document exactly as the engine will see
@@ -624,7 +626,7 @@ func (b bundle) selectForInput(project string, raw []byte) (selection, error) {
 		if entry.Project != project {
 			continue
 		}
-		subject, err := constraintengine.RuleTransitionOf(entry.Rule)
+		subject, err := ruleTransition(entry.Rule)
 		if err != nil {
 			return selection{}, ErrIntegrity
 		}
@@ -640,7 +642,7 @@ func (b bundle) selectForInput(project string, raw []byte) (selection, error) {
 			matched = append(matched, entry.Rule)
 		}
 		if matches {
-			notice, err := isVerdictNeutralRule(entry.Rule)
+			notice, err := ruleVerdictNeutral(entry.Rule)
 			if err != nil {
 				return selection{}, ErrIntegrity
 			}
@@ -672,11 +674,11 @@ func (b bundle) fallbackRules(candidates, matched []json.RawMessage) []json.RawM
 	for _, rule := range candidates {
 		// The fallback serves an application hop too: a chart rule is about
 		// chart versions and never joins it.
-		if subject, err := constraintengine.RuleTransitionOf(rule); err == nil && !subject.AdmitsChart(nil) {
+		if subject, err := ruleTransition(rule); err == nil && !subject.AdmitsChart(nil) {
 			continue
 		}
 		if !matching[string(rule)] && !b.policy.Admits(constraintengine.BasisLead) {
-			if basis, err := constraintengine.RawRuleBasis(rule); err == nil && basis == constraintengine.BasisLead {
+			if basis, err := ruleBasis(rule); err == nil && basis == constraintengine.BasisLead {
 				continue
 			}
 		}
@@ -738,20 +740,19 @@ func (b bundle) selectFamily(project string, facts []string, raw []byte) (select
 		if entry.Project != project {
 			continue
 		}
-		var shape ruleShape
-		if json.Unmarshal(entry.Rule, &shape) != nil {
+		factIDs, err := ruleFactIDs(entry.Rule)
+		if err != nil {
 			return selection{}, ErrIntegrity
 		}
-		conditions := shape.conditions()
-		inFamily := len(conditions) > 0
-		for _, condition := range conditions {
-			inFamily = inFamily && allowed[condition.FactID]
+		inFamily := len(factIDs) > 0
+		for _, factID := range factIDs {
+			inFamily = inFamily && allowed[factID]
 		}
 		if !inFamily {
 			continue
 		}
 		family = append(family, entry.Rule)
-		subject, err := constraintengine.RuleTransitionOf(entry.Rule)
+		subject, err := ruleTransition(entry.Rule)
 		if err != nil {
 			return selection{}, ErrIntegrity
 		}
@@ -767,7 +768,7 @@ func (b bundle) selectFamily(project string, facts []string, raw []byte) (select
 			matched = append(matched, entry.Rule)
 		}
 		if matches {
-			notice, err := isVerdictNeutralRule(entry.Rule)
+			notice, err := ruleVerdictNeutral(entry.Rule)
 			if err != nil {
 				return selection{}, ErrIntegrity
 			}
