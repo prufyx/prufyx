@@ -176,3 +176,43 @@ func TestSameVersionSiblingImagesStayExact(t *testing.T) {
 		t.Fatal("two images at one version must stay exact")
 	}
 }
+
+// Registry-matched images of catalog-member projects reach the scan with their
+// tag version; a tag the strict parser rejects gives no version, never a guess.
+func TestRegistryMatchedImagesReachScanWithTagVersion(t *testing.T) {
+	for _, tc := range []struct {
+		name, project, image, want string
+	}{
+		{"grafana plain tag", "grafana", "docker.io/grafana/grafana:13.2.2", "13.2.2"},
+		{"velero v-tag", "velero", "docker.io/velero/velero:v1.18.2", "1.18.2"},
+		{"etcd quay v-tag", "etcd", "quay.io/coreos/etcd:v3.7.2", "3.7.2"},
+		{"grafana suffixed tag", "grafana", "docker.io/grafana/grafana:13.2.2-ubuntu", ""},
+		{"etcd kubeadm tag", "etcd", "registry.k8s.io/etcd:3.5.15-0", ""},
+		{"velero floating tag", "velero", "docker.io/velero/velero:latest", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runner := &imagesRunner{fakeRunner: fakeRunner{t: t}, images: []string{tc.image}}
+			var stdout, stderr bytes.Buffer
+			report, code := Run(context.Background(), baseTestOptions(t, runner), &stdout, &stderr)
+			if code != ExitOK {
+				t.Fatalf("code=%d stderr=%s", code, stderr.String())
+			}
+			seen := 0
+			for _, c := range report.Contexts[0].Checks {
+				if c.Project != tc.project {
+					continue
+				}
+				seen++
+				if c.ObservedVersion != tc.want {
+					t.Fatalf("%s %s: observed %q, want %q (%+v)", c.Project, c.RuleID, c.ObservedVersion, tc.want, c)
+				}
+				if tc.want == "" && c.Applicability != IndeterminateNotObservable {
+					t.Fatalf("%s %s: unversioned image must be unknown: %+v", c.Project, c.RuleID, c)
+				}
+			}
+			if seen == 0 {
+				t.Fatalf("no %s checks", tc.project)
+			}
+		})
+	}
+}
