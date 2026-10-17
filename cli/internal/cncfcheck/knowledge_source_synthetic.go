@@ -17,15 +17,28 @@ import (
 // which no release build sets. It lets end-to-end tests run the real command
 // routes against synthetic rules and facts that are never published.
 
-// load never caches under this tag: the pack and registry change with every
-// UseSyntheticKnowledge call, and a cached production bundle must never reach
-// a synthetic run (nor the reverse).
-func load() (bundle, error) { return loadUncached() }
+// load memoizes the bundle per generation: every UseSynthetic* call and every
+// restore bumps the generation, so a cached production bundle never reaches a
+// synthetic run (nor the reverse), while loads inside one generation share one
+// parse and strict validation of the pack and registry.
+func load() (bundle, error) {
+	syntheticKnowledge.Lock()
+	if syntheticKnowledge.memo == nil || syntheticKnowledge.memoGeneration != syntheticKnowledge.generation {
+		syntheticKnowledge.memo = &bundleMemo{}
+		syntheticKnowledge.memoGeneration = syntheticKnowledge.generation
+	}
+	memo := syntheticKnowledge.memo
+	syntheticKnowledge.Unlock()
+	return memo.get(loadUncached)
+}
 
 var syntheticKnowledge struct {
 	sync.Mutex
-	pack        []byte
-	definitions []constraintengine.FactDefinition
+	pack           []byte
+	definitions    []constraintengine.FactDefinition
+	generation     uint64
+	memo           *bundleMemo
+	memoGeneration uint64
 }
 
 func packagedRulePack() ([]byte, error) {
@@ -147,10 +160,12 @@ func useSynthetic(definitions []constraintengine.FactDefinition, entries []Entry
 	restore := func() {
 		syntheticKnowledge.Lock()
 		syntheticKnowledge.pack, syntheticKnowledge.definitions = nil, nil
+		syntheticKnowledge.generation++
 		syntheticKnowledge.Unlock()
 	}
 	syntheticKnowledge.Lock()
 	syntheticKnowledge.pack, syntheticKnowledge.definitions = encoded, append([]constraintengine.FactDefinition(nil), definitions...)
+	syntheticKnowledge.generation++
 	syntheticKnowledge.Unlock()
 	if _, err := load(); err != nil {
 		restore()
