@@ -16,7 +16,9 @@ import (
 
 // The build registers the custom-resource version set, so the engine's
 // loader admits the CRD-derived Strimzi rules unchanged, with no extra fact
-// definition; registering the definition a second time is refused.
+// definition; registering the definition a second time is refused. Once the
+// shipped pack holds these rules (the custom-resource batch) the derived ones
+// replace them, so that a refusal is the definition's, never a collision.
 func TestCRDRuleAdmissionUsesTheRegisteredFact(t *testing.T) {
 	maps := crdEntries(t, gateNow.Add(-time.Hour))
 	var entries []cncfcheck.Entry
@@ -31,14 +33,14 @@ func TestCRDRuleAdmissionUsesTheRegisteredFact(t *testing.T) {
 		}
 		entries = append(entries, entry)
 	}
-	restore, err := cncfcheck.UseSyntheticKnowledge(nil, entries)
+	restore, err := cncfcheck.UseSyntheticKnowledgeReplacing(nil, entries)
 	if err != nil {
 		t.Fatalf("rules over the registered fact refused: %v", err)
 	}
 	restore()
 	tg, _ := crdversions.TargetFor("strimzi")
 	def := []constraintengine.FactDefinition{{ID: tg.FactID(), Component: tg.Component, Type: constraintengine.FactSet}}
-	if restore, err := cncfcheck.UseSyntheticKnowledge(def, entries); err == nil {
+	if restore, err := cncfcheck.UseSyntheticKnowledgeReplacing(def, entries); err == nil {
 		restore()
 		t.Fatal("a second definition of the registered fact was accepted")
 	}

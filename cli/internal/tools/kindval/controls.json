@@ -597,6 +597,187 @@
         "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/e746d0717a32109d8c57cb76a70b299ec849f54d/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml#L92-L127"
       },
       "control": "false"
+    },
+    {
+      "id": "control.crd-field.external-snapshotter.v7.0.0-to-v8.0.0.volumesnapshots.spec.volumeSnapshotClassName.validation-tightened",
+      "kind": "crd-field",
+      "subject": {
+        "project": "control.external-snapshotter-fields",
+        "repo": "github.com/kubernetes-csi/external-snapshotter",
+        "from": {
+          "tag": "v7.0.0",
+          "commit": "533a2ee13a39cc4e568fb9181bdac4c2a7d03bd6",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml"
+          ]
+        },
+        "to": {
+          "tag": "v8.0.0",
+          "commit": "f36e8f79c133f84e01d3ec93156a77c9695ded14",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml"
+          ]
+        },
+        "crd": "volumesnapshots.snapshot.storage.k8s.io",
+        "group": "snapshot.storage.k8s.io",
+        "version": "v1",
+        "kind": "VolumeSnapshot",
+        "path": "spec.volumeSnapshotClassName",
+        "change": "validation-tightened",
+        "value": ""
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/f36e8f79c133f84e01d3ec93156a77c9695ded14/client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml#L129-L147"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.crd-field.external-snapshotter.v7.0.0-to-v8.0.0.volumesnapshotcontents.spec.volumeSnapshotRef.validation-tightened",
+      "kind": "crd-field",
+      "subject": {
+        "project": "control.external-snapshotter-fields",
+        "repo": "github.com/kubernetes-csi/external-snapshotter",
+        "from": {
+          "tag": "v7.0.0",
+          "commit": "533a2ee13a39cc4e568fb9181bdac4c2a7d03bd6",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml"
+          ]
+        },
+        "to": {
+          "tag": "v8.0.0",
+          "commit": "f36e8f79c133f84e01d3ec93156a77c9695ded14",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml"
+          ]
+        },
+        "crd": "volumesnapshotcontents.snapshot.storage.k8s.io",
+        "group": "snapshot.storage.k8s.io",
+        "version": "v1",
+        "kind": "VolumeSnapshotContent",
+        "path": "spec.volumeSnapshotRef",
+        "change": "validation-tightened",
+        "value": {
+          "name": "x"
+        }
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/f36e8f79c133f84e01d3ec93156a77c9695ded14/client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml#L167-L222"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.crd-field.external-snapshotter.v6.0.0-to-v5.0.1.volumesnapshotcontents.spec.sourceVolumeMode.field-removed",
+      "kind": "crd-field",
+      "subject": {
+        "project": "control.external-snapshotter-fields",
+        "repo": "github.com/kubernetes-csi/external-snapshotter",
+        "from": {
+          "tag": "v6.0.0",
+          "commit": "83d0e0914f696b6f686f568ce0c2e99d1cbe3269",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml"
+          ]
+        },
+        "to": {
+          "tag": "v5.0.1",
+          "commit": "9f6fc893a6ed5c93c06cc6365d2eec9d5a5d3c48",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml"
+          ]
+        },
+        "crd": "volumesnapshotcontents.snapshot.storage.k8s.io",
+        "group": "snapshot.storage.k8s.io",
+        "version": "v1",
+        "kind": "VolumeSnapshotContent",
+        "path": "spec.sourceVolumeMode",
+        "change": "field-removed"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/9f6fc893a6ed5c93c06cc6365d2eec9d5a5d3c48/client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml#L55-L193"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.crd-field.external-snapshotter.v7.0.0-to-v8.0.0.volumesnapshots.spec.volumeSnapshotClassName.field-removed",
+      "kind": "crd-field",
+      "subject": {
+        "project": "control.external-snapshotter-fields",
+        "repo": "github.com/kubernetes-csi/external-snapshotter",
+        "from": {
+          "tag": "v7.0.0",
+          "commit": "533a2ee13a39cc4e568fb9181bdac4c2a7d03bd6",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml"
+          ]
+        },
+        "to": {
+          "tag": "v8.0.0",
+          "commit": "f36e8f79c133f84e01d3ec93156a77c9695ded14",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml"
+          ]
+        },
+        "crd": "volumesnapshots.snapshot.storage.k8s.io",
+        "group": "snapshot.storage.k8s.io",
+        "version": "v1",
+        "kind": "VolumeSnapshot",
+        "path": "spec.volumeSnapshotClassName",
+        "change": "field-removed"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/f36e8f79c133f84e01d3ec93156a77c9695ded14/client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml#L129-L147"
+      },
+      "control": "false"
+    },
+    {
+      "id": "control.crd-field.external-snapshotter.v7.0.0-to-v8.0.0.volumesnapshotclasses.deletionPolicy.enum-value-removed",
+      "kind": "crd-field",
+      "subject": {
+        "project": "control.external-snapshotter-fields",
+        "repo": "github.com/kubernetes-csi/external-snapshotter",
+        "from": {
+          "tag": "v7.0.0",
+          "commit": "533a2ee13a39cc4e568fb9181bdac4c2a7d03bd6",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml"
+          ]
+        },
+        "to": {
+          "tag": "v8.0.0",
+          "commit": "f36e8f79c133f84e01d3ec93156a77c9695ded14",
+          "files": [
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml",
+            "client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml"
+          ]
+        },
+        "crd": "volumesnapshotclasses.snapshot.storage.k8s.io",
+        "group": "snapshot.storage.k8s.io",
+        "version": "v1",
+        "kind": "VolumeSnapshotClass",
+        "path": "deletionPolicy",
+        "change": "enum-value-removed",
+        "value": "Retain"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/f36e8f79c133f84e01d3ec93156a77c9695ded14/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml#L49-L60"
+      },
+      "control": "false"
     }
   ]
 }

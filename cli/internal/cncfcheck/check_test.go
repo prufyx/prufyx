@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchids"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
@@ -60,12 +61,28 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 	// (which the file keeps together at its end) and for all other rules. A
 	// duplicate vector, a vector of no rule of the pack that is not one of the
 	// other generation's 25 or 29 ids, and a rule without a vector all fail.
+	//
+	// The file also holds, ahead of the data change, one vector of four cases
+	// for each of the 28 custom-resource version-removal rules of the batch
+	// crdbatchids states: while the pack does not hold the batch they are
+	// counted like the other generation's (all present, none of the pack);
+	// once it does, they are the pack's and checked in pack order with the
+	// other rules.
 	all := reviewedVectors(t)
-	if len(all) != 220 {
-		t.Fatalf("the vector file holds %d vectors, want 220 (191 + the 29 mechanical)", len(all))
+	batch := len(crdbatchids.IDs())
+	if len(all) != 220+batch {
+		t.Fatalf("the vector file holds %d vectors, want %d (191 + the 29 mechanical + the %d of the custom-resource batch)", len(all), 220+batch, batch)
 	}
 	extra := 0
 	otherGeneration := map[string]bool{}
+	shippedBatch := 0
+	if crdbatchids.Shipped() {
+		shippedBatch = batch
+	} else {
+		for _, id := range crdbatchids.IDs() {
+			otherGeneration[id] = true
+		}
+	}
 	if supersedeids.Superseded() {
 		extra = 4
 		for _, id := range supersedeids.ReviewedIDs() {
@@ -142,10 +159,10 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 			}
 		}
 	}
-	if len(b.pack.Entries) != 191+extra || len(vectors) != 191+extra {
+	if len(b.pack.Entries) != 191+extra+shippedBatch || len(vectors) != 191+extra+shippedBatch {
 		t.Fatal("unexpected reviewed rule or vector count")
 	}
-	if caseCount != 963+4*extra {
+	if caseCount != 963+4*extra+4*shippedBatch {
 		t.Fatal("unexpected reviewed case count")
 	}
 	for _, vector := range vectors {
@@ -228,7 +245,7 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 				}
 				// A mechanical rule is reviewed at its derivation time: the
 				// vectors run one hour after it, inside the lease.
-				if strings.HasPrefix(vector.RuleID, supersedeids.MechanicalPrefix) {
+				if strings.HasPrefix(vector.RuleID, supersedeids.MechanicalPrefix) || strings.Contains(vector.RuleID, crdbatchids.Marker) {
 					clock = mechanicalReviewClock(t, vector.RuleID)
 				}
 				report, err := Check(vector.Project, scenario.Input, clock)
@@ -247,7 +264,29 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 						}
 					}
 				}
-				if !found {
+				// Two outside cases name a hop a custom-resource rule of the
+				// batch covers (its range holds every release of the two
+				// lines). Once the batch ships, the report holds the rules
+				// that match the hop: the exact-pair rule is then not
+				// reported, and every batch rule of the project is, UNKNOWN
+				// without the version set. Before, the rule is reported.
+				if crdbatchids.Shipped() && batchCoveredOutside[vector.RuleID+"/"+scenario.Name] {
+					if found {
+						t.Fatal("exact-pair rule reported on a hop the batch covers")
+					}
+					want := map[string]bool{}
+					for _, r := range crdbatchids.ProjectRules(vector.Project) {
+						want[r.ID] = true
+					}
+					if len(report.Check.Claims) != len(want) {
+						t.Fatalf("%d claims, want the %d batch rules of %s", len(report.Check.Claims), len(want), vector.Project)
+					}
+					for _, claim := range report.Check.Claims {
+						if !want[claim.RuleID] || claim.Status != "UNKNOWN" {
+							t.Fatalf("claim %s %s", claim.RuleID, claim.Status)
+						}
+					}
+				} else if !found {
 					t.Fatal("expected rule omitted")
 				}
 				if report.Assessment != "UNKNOWN" || report.Check.Assessment != "UNKNOWN" || report.RuntimeReproduced != 0 || report.NetworkUsed {
@@ -643,7 +682,7 @@ func TestCatalogueDoesNotInventCoverage(t *testing.T) {
 	for _, want := range []struct {
 		slug  string
 		rules int
-	}{{"cortex", 5}, {"falco", 2}, {"karmada", 1}, {"kubeedge", 1}, {"kuma", 1}, {"spire", 1}, {"strimzi", 1}} {
+	}{{"cortex", 5}, {"falco", 2}, {"karmada", 1}, {"kubeedge", 1}, {"kuma", 1}, {"spire", 1}, {"strimzi", 1 + crdbatchids.Count("strimzi")}} {
 		preview, err := Catalog(false, want.slug)
 		if err != nil || len(preview.Projects) != 1 || preview.Projects[0].SourceRuleCount != want.rules || preview.Projects[0].GenericCoverage != "source_rule_preview" || preview.Projects[0].RuntimeReproduced != 0 {
 			t.Fatalf("%s source preview coverage missing or overstated", want.slug)
@@ -866,6 +905,14 @@ func TestKarmadaClosedInputFailures(t *testing.T) {
 }
 
 // mechanicalReviewClock is one hour after the reviewedAt of the pack's rule.
+// batchCoveredOutside are the vector cases (rule id/case name) outside
+// their rule's reviewed pair whose hop a custom-resource rule of the batch
+// covers.
+var batchCoveredOutside = map[string]bool{
+	"crossplane.composition-resources-mode-removed.1-20-2-0/outside-transition": true,
+	"strimzi.kafka-v1beta2-api-removed.1-0/outside-to":                          true,
+}
+
 func mechanicalReviewClock(t *testing.T, ruleID string) time.Time {
 	t.Helper()
 	reviewed, _ := ruleEvidenceBounds(t, ruleID)

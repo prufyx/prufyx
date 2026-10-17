@@ -106,17 +106,23 @@ func withoutRanges(t *testing.T, pack rulePack) rulePack {
 	return pack
 }
 
-// TestPackSchemaStatesRangeUse: the embedded pack now carries the 24
-// published Kubernetes removal ranges, so it uses the ranged schema. A pack
-// with every range stripped back out must revert to the original schema, and
-// a pack in either state is rejected under the other schema string.
+// TestPackSchemaStatesRangeUse: the embedded pack carries the 24 published
+// Kubernetes removal ranges, so it uses at least the ranged schema (exactly
+// the level shippedSchemaLevel states). Its rules below the set level
+// (syntheticBase) use the ranged schema; with every range stripped back out
+// they must revert to the original schema, and a pack in either state is
+// rejected under the other schema string.
 func TestPackSchemaStatesRangeUse(t *testing.T) {
-	base, err := load()
+	shipped, err := load()
 	if err != nil {
 		t.Fatal(err)
 	}
+	if shipped.pack.Schema != shippedSchemaLevel(t) || !validPackSchema(shipped.pack) {
+		t.Fatalf("embedded pack schema=%s", shipped.pack.Schema)
+	}
+	base := bundle{pack: syntheticBase(t)}
 	if base.pack.Schema != packSchemaRanged || !validPackSchema(base.pack) {
-		t.Fatalf("embedded pack schema=%s", base.pack.Schema)
+		t.Fatalf("reduced pack schema=%s", base.pack.Schema)
 	}
 	unranged := withoutRanges(t, base.pack)
 	if validPackSchema(unranged) {

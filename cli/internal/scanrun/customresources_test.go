@@ -11,7 +11,9 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchids"
 	"github.com/prufyx/prufyx/cli/internal/intake"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
 
@@ -56,12 +58,76 @@ type crdKnowledge struct {
 	unevaluated map[string]bool
 }
 
+// withoutBatch is knowledge without the custom-resource batch crdbatchids
+// states: its rules, their claims and its line attestations are left out,
+// so that the test-only Strimzi rules here are the only custom-resource
+// rules, as they were before the batch shipped. While the shipped pack does
+// not hold the batch it is the knowledge unchanged. The shipped batch is
+// scanned on its own in TestScanShippedCustomResourceRules.
+type withoutBatch struct {
+	Knowledge
+}
+
+func inBatch(id string) bool {
+	if !crdbatchids.Shipped() {
+		return false
+	}
+	for _, batchID := range crdbatchids.IDs() {
+		if id == batchID {
+			return true
+		}
+	}
+	return false
+}
+
+func (k withoutBatch) Rules(project string) []cncfcheck.ScanRule {
+	var out []cncfcheck.ScanRule
+	for _, rule := range k.Knowledge.Rules(project) {
+		if !inBatch(rule.Scope.ID) {
+			out = append(out, rule)
+		}
+	}
+	return out
+}
+
+func (k withoutBatch) Evaluate(policy cncfcheck.TrustPolicy, project string, facts []string, inputRaw []byte, now time.Time) (Evaluation, error) {
+	evaluation, err := k.Knowledge.Evaluate(policy, project, facts, inputRaw, now)
+	if err != nil {
+		return evaluation, err
+	}
+	var claims []constraintengine.Claim
+	for _, claim := range evaluation.Claims {
+		if !inBatch(claim.RuleID) {
+			claims = append(claims, claim)
+		}
+	}
+	evaluation.Claims = claims
+	return evaluation, nil
+}
+
+func (k withoutBatch) AttestationsFor(component, line, family string, now time.Time) []lineattest.Status {
+	if family == crdbatchids.FactFamily && crdbatchids.Shipped() {
+		for _, l := range crdbatchids.Lines() {
+			if l.Component == component && l.Line == line {
+				return nil
+			}
+		}
+	}
+	return k.Knowledge.AttestationsFor(component, line, family, now)
+}
+
+// crdBaseKnowledge is the test knowledge without the shipped batch.
+func crdBaseKnowledge(t *testing.T) Knowledge {
+	t.Helper()
+	return withoutBatch{newKnowledge(t, knowledgeOptions{})}
+}
+
 func newCRDKnowledge(t *testing.T, raws ...string) crdKnowledge {
 	t.Helper()
 	if len(raws) == 0 {
 		raws = []string{crdRule}
 	}
-	k := crdKnowledge{Knowledge: newKnowledge(t, knowledgeOptions{}), raw: raws}
+	k := crdKnowledge{Knowledge: crdBaseKnowledge(t), raw: raws}
 	for _, raw := range raws {
 		rule, err := cncfcheck.NewScanRule("strimzi", "Strimzi 1.0.0 no longer serves version v1beta2 of Kafka. Test only.", json.RawMessage(raw))
 		if err != nil {
@@ -197,6 +263,39 @@ func TestScanCustomResourceBlocked(t *testing.T) {
 	}
 }
 
+// TestScanShippedCustomResourceRules: once the custom-resource batch ships,
+// the embedded knowledge scans a Strimzi upgrade with its own rules: the
+// removed Kafka version is a located finding of the shipped Kafka rule (with
+// or without a complete scope), and a served version is never a pass.
+// Before the batch ships the synthetic rule above stands in for it.
+func TestScanShippedCustomResourceRules(t *testing.T) {
+	if !crdbatchids.Shipped() {
+		t.Skip("the embedded knowledge holds no custom-resource rule yet (the tests above use a test-only one)")
+	}
+	knowledge := newKnowledge(t, knowledgeOptions{})
+	for _, scope := range [][]string{{"--resource-scope-complete"}, nil} {
+		result := crdScan(t, knowledge, []string{settingsDoc, kafkaV1beta2Doc}, append([]string{"--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0"}, scope...)...)
+		report := result.Report
+		if result.Exit != 10 || report.Verdict != scanreport.VerdictBlocked || len(report.Findings) != 1 {
+			t.Fatalf("exit %d verdict %s findings %+v gaps %v", result.Exit, report.Verdict, report.Findings, gapReasons(report))
+		}
+		finding := report.Findings[0]
+		if finding.RuleID != crdRuleID || finding.Component != "strimzi" || len(finding.Locations) != 1 {
+			t.Fatalf("finding %+v", finding)
+		}
+		if l := finding.Locations[0]; l.Kind != "Kafka" || l.Name != "events" || l.Namespace != "kafka" || l.Document != 1 || l.Line != 7 {
+			t.Fatalf("location %+v", l)
+		}
+		if hop := strimziHop(t, report); hop.Status != scanreport.HopBlocked {
+			t.Fatalf("hop %+v", hop)
+		}
+	}
+	result := crdScan(t, knowledge, []string{settingsDoc, kafkaV1Doc}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete")
+	if result.Exit == 0 || result.Report.Verdict == scanreport.VerdictPass || len(result.Report.Findings) != 0 {
+		t.Fatalf("served version: exit %d verdict %s findings %+v", result.Exit, result.Report.Verdict, result.Report.Findings)
+	}
+}
+
 // A served version is decided but never covers the component: scan has no
 // review that lists every custom-resource rule of a release, so the answer
 // stays UNKNOWN and names why.
@@ -273,9 +372,10 @@ func TestScanCustomResourcePath(t *testing.T) {
 	if result.Exit != 11 || !hasComponentGap(result.Report, "strimzi", scanreport.ReasonDowngradeNotReviewed, "strimzi") {
 		t.Fatalf("downgrade: exit %d gaps %v", result.Exit, gapReasons(result.Report))
 	}
-	// Without the rule (embedded knowledge) the hop has no data, and objects
-	// of groups no reviewed project owns are still named.
-	result = crdScan(t, newKnowledge(t, knowledgeOptions{}), []string{kafkaV1beta2Doc, unownedGroupDoc}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete")
+	// Without the rule (the embedded knowledge without the custom-resource
+	// batch) the hop has no data, and objects of groups no reviewed project
+	// owns are still named.
+	result = crdScan(t, crdBaseKnowledge(t), []string{kafkaV1beta2Doc, unownedGroupDoc}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete")
 	if hop := strimziHop(t, result.Report); result.Exit != 11 || hop.Status != scanreport.HopNoData || !hasComponentGap(result.Report, "strimzi", scanreport.ReasonDocumentsNotEvaluated, "1 manifest(s) use custom-resource groups") {
 		t.Fatalf("no rules: exit %d hop %+v gaps %v", result.Exit, hop, gapReasons(result.Report))
 	}

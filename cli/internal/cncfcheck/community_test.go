@@ -118,7 +118,7 @@ func TestCommunityIsInertWithShippedKnowledge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if b.pack.Schema != packSchemaRanged || anyCommunityEntry(b.pack) {
+	if b.pack.Schema != shippedSchemaLevel(t) || anyCommunityEntry(b.pack) {
 		t.Fatalf("shipped pack: schema %s, community entries %v", b.pack.Schema, anyCommunityEntry(b.pack))
 	}
 	k, err := LoadScanKnowledge()

@@ -212,6 +212,8 @@ type CRDPair struct {
 	Repo    string
 	From    CRDRelease
 	To      CRDRelease
+	// Fields are the crd-field claims decided on this pair.
+	Fields []Claim
 }
 
 func pairID(project, fromTag, toTag string) string { return project + "." + fromTag + "-to-" + toTag }
@@ -281,6 +283,15 @@ func (c Claims) Validate() error {
 					}
 				}
 			}
+		case KindCRDField:
+			err = validateField(s)
+			if err == nil {
+				from, _ := releaseSubject(s.From)
+				to, _ := releaseSubject(s.To)
+				if err = release(s.Project, from); err == nil {
+					err = release(s.Project, to)
+				}
+			}
 		case KindAddonRule:
 		default:
 			err = fmt.Errorf("unknown kind %q", cl.Kind)
@@ -295,21 +306,56 @@ func (c Claims) Validate() error {
 	return nil
 }
 
+// validateField checks the subject of a crd-field claim. The value is
+// checked when the claim is run: a change that needs one and has none is
+// undetermined (value-missing), not an invalid file.
+func validateField(s Subject) error {
+	if s.Project == "" || s.Repo == "" || s.CRD == "" || s.Group == "" || s.Version == "" || s.Kind == "" || s.Path == "" || !fieldChanges[s.Change] {
+		return errors.New("needs project, repo, from, to, crd, group, version, kind, path and a change of field-removed|field-required-added|field-type-changed|enum-value-removed|validation-tightened")
+	}
+	if s.CRD != strings.ToLower(s.CRD) || !strings.HasSuffix(s.CRD, "."+s.Group) {
+		return fmt.Errorf("crd %q is not <plural>.%s", s.CRD, s.Group)
+	}
+	switch strings.Split(s.Path, ".")[0] {
+	case "apiVersion", "kind", "metadata":
+		return fmt.Errorf("path %q is not a schema field of the custom resource", s.Path)
+	}
+	for _, seg := range strings.Split(s.Path, ".") {
+		if seg == "" || strings.ContainsAny(seg, "[]") {
+			return fmt.Errorf("path %q is not dot-separated property names", s.Path)
+		}
+	}
+	if len(s.Value) > 0 && !json.Valid(s.Value) {
+		return fmt.Errorf("value is not JSON")
+	}
+	if _, err := releaseSubject(s.From); err != nil {
+		return err
+	}
+	_, err := releaseSubject(s.To)
+	return err
+}
+
 // Pairs lists the release pairs the claims need installed, by project and
-// tags, in id order.
+// tags, in id order. The crd-field claims of a pair ride along, in id order.
 func (c Claims) Pairs() []CRDPair {
 	byID := map[string]CRDPair{}
 	for _, cl := range c.Claims {
-		if cl.Kind != KindCRDRemoval && cl.Kind != KindCRDPair {
+		if cl.Kind != KindCRDRemoval && cl.Kind != KindCRDPair && cl.Kind != KindCRDField {
 			continue
 		}
 		from, _ := releaseSubject(cl.Subject.From)
 		to, _ := releaseSubject(cl.Subject.To)
 		id := pairID(cl.Subject.Project, from.Tag, to.Tag)
-		byID[id] = CRDPair{ID: id, Project: cl.Subject.Project, Repo: cl.Subject.Repo, From: from, To: to}
+		p := byID[id]
+		p.ID, p.Project, p.Repo, p.From, p.To = id, cl.Subject.Project, cl.Subject.Repo, from, to
+		if cl.Kind == KindCRDField {
+			p.Fields = append(p.Fields, cl)
+		}
+		byID[id] = p
 	}
 	out := make([]CRDPair, 0, len(byID))
 	for _, p := range byID {
+		sort.SliceStable(p.Fields, func(i, j int) bool { return p.Fields[i].ID < p.Fields[j].ID })
 		out = append(out, p)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })

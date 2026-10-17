@@ -7,6 +7,7 @@ package cncfcheck
 import (
 	"encoding/json"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
@@ -64,6 +65,21 @@ type SyntheticRecords struct {
 // the pack, so a test can run the real loader, the real scan and the real
 // pack schema level over knowledge that is never published.
 func UseSyntheticRecords(definitions []constraintengine.FactDefinition, entries []Entry, records SyntheticRecords) (func(), error) {
+	return useSynthetic(definitions, entries, records, false)
+}
+
+// UseSyntheticKnowledgeReplacing is UseSyntheticKnowledge where a synthetic
+// custom-resource version-removal entry (rule id containing
+// ".crd-version-removal.") whose rule id the embedded pack already holds
+// replaces that entry instead of colliding with it: a test that re-derives
+// a published rule (under its own derivation time) evaluates its own
+// derivation, not both. Any other entry is refused (ErrInvalid); no other
+// embedded entry is removed.
+func UseSyntheticKnowledgeReplacing(definitions []constraintengine.FactDefinition, entries []Entry) (func(), error) {
+	return useSynthetic(definitions, entries, SyntheticRecords{}, true)
+}
+
+func useSynthetic(definitions []constraintengine.FactDefinition, entries []Entry, records SyntheticRecords, replace bool) (func(), error) {
 	raw, err := packagedFiles.ReadFile("data/rules.json")
 	if err != nil {
 		return nil, err
@@ -71,6 +87,31 @@ func UseSyntheticRecords(definitions []constraintengine.FactDefinition, entries 
 	var pack rulePack
 	if err := strictJSON(raw, &pack); err != nil {
 		return nil, err
+	}
+	if replace {
+		synthetic := map[string]bool{}
+		for _, entry := range entries {
+			var shape struct {
+				ID string `json:"id"`
+			}
+			if err := json.Unmarshal(entry.Rule, &shape); err != nil || !strings.Contains(shape.ID, ".crd-version-removal.") {
+				return nil, ErrInvalid
+			}
+			synthetic[shape.ID] = true
+		}
+		kept := make([]Entry, 0, len(pack.Entries))
+		for _, entry := range pack.Entries {
+			var shape struct {
+				ID string `json:"id"`
+			}
+			if err := json.Unmarshal(entry.Rule, &shape); err != nil {
+				return nil, ErrInvalid
+			}
+			if !synthetic[shape.ID] {
+				kept = append(kept, entry)
+			}
+		}
+		pack.Entries = kept
 	}
 	pack.Entries = append(pack.Entries, entries...)
 	pack.LineAttestations, pack.PathPolicies, pack.ServedAPIs = records.LineAttestations, records.PathPolicies, records.ServedAPIs

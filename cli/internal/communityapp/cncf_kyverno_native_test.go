@@ -73,12 +73,14 @@ func TestKyvernoNativeCheck_AllLatestOriginsAreRouted(t *testing.T) {
 			if code != ExitBlocked || stderr != "" || !strings.Contains(stdout, "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-"+strings.ReplaceAll(from, ".", "-")) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
 				t.Fatalf("from=%s code=%d stdout=%q stderr=%q", from, code, stdout, stderr)
 			}
+			checkBatchClaims(t, stdout, kyvernoLatestBatchRuleIDs(from, "1.19.1"))
 			cleanRaw := kyvernoProposal(t, []string{"reports-controller"}, nil, "private-canary-lc-"+from)
 			clean := writeCNCFFile(t, "kyverno-latest-clean.json", cleanRaw, 0o600)
 			code, stdout, stderr = runCNCFCLI(t, kyvernoNativeArgs(clean, from, "1.19.1", "official_upstream")...)
-			if code != ExitOK || stderr != "" || !strings.Contains(stdout, `"status":"PASS"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
+			if code != passExit(kyvernoLatestBatchRuleIDs(from, "1.19.1")) || stderr != "" || !strings.Contains(stdout, `"status":"PASS"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
 				t.Fatalf("from=%s code=%d stdout=%q stderr=%q", from, code, stdout, stderr)
 			}
+			checkBatchClaims(t, stdout, kyvernoLatestBatchRuleIDs(from, "1.19.1"))
 		})
 	}
 }

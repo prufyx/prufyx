@@ -302,3 +302,30 @@ func (k kube) getCRDs(ctx context.Context, names []string) ([]CRDDef, error) {
 	sort.Slice(defs, func(i, j int) bool { return defs[i].Name < defs[j].Name })
 	return defs, nil
 }
+
+// maxFieldMessage bounds the server message kept for a crd-field dry run: the
+// causes of a refusal can span several lines.
+const maxFieldMessage = 2000
+
+// dryRunCreateStrict submits an object with `kubectl create
+// --dry-run=server --validate=strict`: the API server's strict field
+// validation reports unknown fields as errors. The answer is read by
+// fieldAnswer, which keeps every line of it (bounded): a refusal lists one
+// cause per line.
+func (k kube) dryRunCreateStrict(ctx context.Context, manifest []byte) ServerTry {
+	_, errb, exit := k.run(ctx, "kubectl", k.args("create", "--dry-run=server", "--validate=strict", "-f", "-"), manifest)
+	return fieldAnswer(exit, string(errb))
+}
+
+// getCRDObject reads one CRD back from the cluster as JSON.
+func (k kube) getCRDObject(ctx context.Context, name string) (map[string]any, error) {
+	out, errb, exit := k.run(ctx, "kubectl", k.args("get", "-o", "json", "crd", name), nil)
+	if exit != 0 {
+		return nil, fmt.Errorf("kubectl get crd %s: exit %d: %s", name, exit, strings.TrimSpace(string(errb)))
+	}
+	var obj map[string]any
+	if err := json.Unmarshal(out, &obj); err != nil {
+		return nil, fmt.Errorf("kubectl get crd %s: %w", name, err)
+	}
+	return obj, nil
+}

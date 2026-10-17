@@ -170,7 +170,21 @@ func TestValidatePackAttestations(t *testing.T) {
 // rulecheck locates the section through the same exact-name function as the
 // pack loader: a variant spelling is an error, never "no section, valid".
 func TestValidatePackAttestationsMatchesMemberNamesExactly(t *testing.T) {
-	raw, err := os.ReadFile("../../cncfcheck/data/rules.json")
+	shipped, err := os.ReadFile("../../cncfcheck/data/rules.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The shipped pack's own section (if it carries one) is valid as it
+	// stands; the spellings below are tried on the pack without it.
+	if r, err := ValidatePackAttestations(shipped, AttestationOptions{}); err != nil || !r.Valid {
+		t.Fatalf("shipped pack: %+v %v", r, err)
+	}
+	var members map[string]json.RawMessage
+	if err := json.Unmarshal(shipped, &members); err != nil {
+		t.Fatal(err)
+	}
+	delete(members, "lineAttestations")
+	raw, err := json.Marshal(members)
 	if err != nil {
 		t.Fatal(err)
 	}

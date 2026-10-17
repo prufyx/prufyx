@@ -249,16 +249,32 @@ func installRelease(ctx context.Context, k kube, manifest []byte, defs []CRDDef,
 // removes a definition To dropped nor succeeds when a stored version goes.
 // The pair's CRDs are removed afterwards.
 func runPair(ctx context.Context, k kube, fetch fetcher, pair CRDPair) CRDPairResult {
-	res := CRDPairResult{ID: pair.ID, Project: pair.Project, FromTag: pair.From.Tag, ToTag: pair.To.Tag}
+	res, _ := runPairFields(ctx, k, fetch, pair)
+	return res
+}
+
+// runPairFields is runPair that also runs the pair's crd-field claims: each
+// object is sent after From is installed, again after To is applied in place
+// (when the apply is accepted) and again after the fresh install of To, whose
+// answer decides.
+func runPairFields(ctx context.Context, k kube, fetch fetcher, pair CRDPair) (res CRDPairResult, fields []CRDFieldResult) {
+	res = CRDPairResult{ID: pair.ID, Project: pair.Project, FromTag: pair.From.Tag, ToTag: pair.To.Tag}
+	runs := newFieldRuns(pair)
+	defer func() {
+		if res.Error != "" {
+			failFields(runs, res.Error)
+		}
+		fields = fieldResults(runs)
+	}()
 	fromManifest, fromDefs, fromFiles, err := releaseManifest(ctx, fetch, pair.Repo, pair.From)
 	if err != nil {
 		res.Error = "from: " + err.Error()
-		return res
+		return res, nil
 	}
 	toManifest, toDefs, toFiles, err := releaseManifest(ctx, fetch, pair.Repo, pair.To)
 	if err != nil {
 		res.Error = "to: " + err.Error()
-		return res
+		return res, nil
 	}
 	all := crdNames(append(append([]CRDDef(nil), fromDefs...), toDefs...))
 	defer func() {
@@ -268,13 +284,22 @@ func runPair(ctx context.Context, k kube, fetch fetcher, pair CRDPair) CRDPairRe
 	}()
 	res.From = installRelease(ctx, k, fromManifest, fromDefs, fromFiles, nil)
 	if res.From.Error != "" {
-		return res
+		failFields(runs, "from: "+res.From.Error)
+		return res, nil
 	}
+	fieldsAtFrom(ctx, k, runs, res.From.CRDs)
 	res.InPlace.Attempted = true
 	if err := k.apply(ctx, toManifest); err != nil {
 		res.InPlace.Message = firstLine(err.Error())
 	} else {
 		res.InPlace.Succeeded = true
+		fieldsAtTo(ctx, k, runs, false, nil)
+	}
+	for _, f := range runs {
+		f.res.InPlace = "refused"
+		if res.InPlace.Succeeded {
+			f.res.InPlace = "applied"
+		}
 	}
 	toNames := map[string]bool{}
 	for _, d := range toDefs {
@@ -288,10 +313,15 @@ func runPair(ctx context.Context, k kube, fetch fetcher, pair CRDPair) CRDPairRe
 	sort.Strings(res.InPlace.Leftover)
 	if err := k.deleteCRDs(ctx, all); err != nil {
 		res.Error = "reinstall: " + err.Error()
-		return res
+		return res, nil
 	}
 	res.To = installRelease(ctx, k, toManifest, toDefs, toFiles, fromDefs)
-	return res
+	if res.To.Error != "" {
+		failFields(runs, "to: "+res.To.Error)
+	} else {
+		fieldsAtTo(ctx, k, runs, true, res.To.CRDs)
+	}
+	return res, nil
 }
 
 // runSingle installs one release's CRDs on its own, probes them and removes
