@@ -72,7 +72,7 @@ func TestPackSeverityLevel(t *testing.T) {
 }
 
 func TestClaimExitUnsupported(t *testing.T) {
-	b, err := loadPlain()
+	b, err := load()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +124,7 @@ func TestClaimExitUnsupported(t *testing.T) {
 // TestExternalPackRefusesSeverity: the external knowledge target does not
 // accept support-range rules yet, even under the severity pack schema.
 func TestExternalPackRefusesSeverity(t *testing.T) {
-	base, err := loadPlain()
+	base, err := load()
 	if err != nil {
 		t.Fatal(err)
 	}

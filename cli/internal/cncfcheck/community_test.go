@@ -77,7 +77,7 @@ func communityBundle(t *testing.T, entries ...Entry) bundle {
 }
 
 func TestCommunityIdentitiesOfTheShippedTable(t *testing.T) {
-	b, err := loadPlain()
+	b, err := load()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestCommunityIdentitiesOfTheShippedTable(t *testing.T) {
 // With the shipped knowledge a community project is unknown to every route:
 // no data, not checkable, not in a scan snapshot, not in the index.
 func TestCommunityIsInertWithShippedKnowledge(t *testing.T) {
-	b, err := loadPlain()
+	b, err := load()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -323,7 +323,7 @@ func TestCommunityEntryCannotClaimCNCFIdentity(t *testing.T) {
 }
 
 func TestCommunityStaysOutOfTheCNCFCountsAndCorpus(t *testing.T) {
-	base, err := loadPlain()
+	base, err := load()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -600,7 +600,7 @@ func TestCommunityIndexRefusals(t *testing.T) {
 
 func mustLoad(t *testing.T) bundle {
 	t.Helper()
-	b, err := loadPlain()
+	b, err := load()
 	if err != nil {
 		t.Fatal(err)
 	}

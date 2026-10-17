@@ -188,15 +188,6 @@ func TestValidatePackAttestationsMatchesMemberNamesExactly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The published pack already carries the section; this test adds its own.
-	var members map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &members); err != nil {
-		t.Fatal(err)
-	}
-	delete(members, "lineAttestations")
-	if raw, err = json.Marshal(members); err != nil {
-		t.Fatal(err)
-	}
 	section := string(doc(t, attestation("1.30")))
 	withMembers := func(members string) []byte {
 		return []byte(strings.Replace(string(raw), `"entries":`, members+`"entries":`, 1))

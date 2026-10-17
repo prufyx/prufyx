@@ -524,7 +524,7 @@ func TestClaimExitBasis(t *testing.T) {
 // TestExternalPackRefusesBasis: the external knowledge target does not
 // accept consensus or lead rules yet, even under the basis pack schema.
 func TestExternalPackRefusesBasis(t *testing.T) {
-	base, err := loadPlain()
+	base, err := load()
 	if err != nil {
 		t.Fatal(err)
 	}
