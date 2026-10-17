@@ -11,6 +11,7 @@ import (
 // PackSchemaLevel orders the schemas by the features that introduced them,
 // and RequiredPackSchema agrees with the schema the shipped pack carries.
 func TestPackSchemaLevelAndRequired(t *testing.T) {
+	t.Parallel()
 	prev := -1
 	for _, s := range []string{packSchema, packSchemaRanged, packSchemaSet, packSchemaAttested, packSchemaPathPolicies, packSchemaNotice, packSchemaBasis, packSchemaSeverity, packSchemaDistributions, packSchemaServedAPIs, packSchemaCrossing} {
 		level, ok := PackSchemaLevel(s)

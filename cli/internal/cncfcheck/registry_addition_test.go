@@ -17,6 +17,7 @@ import (
 // definition (the pack's registryDigest moved to match), apart from the
 // registry and pack digests the report names.
 func TestAddedFactDefinitionIsInert(t *testing.T) {
+	t.Parallel()
 	landscape, err := packagedFiles.ReadFile("data/landscape-projects.json")
 	if err != nil {
 		t.Fatal(err)

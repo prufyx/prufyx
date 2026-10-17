@@ -42,6 +42,7 @@ func reencodeIndex(t *testing.T, raw []byte, mutate func(*externalIndexDocument)
 }
 
 func TestSplitTargetsCoverThePackExactlyAndAreDeterministic(t *testing.T) {
+	t.Parallel()
 	index, projects := buildSplit(t, "3")
 	again, projectsAgain := buildSplit(t, "3")
 	if !bytes.Equal(index.Bytes, again.Bytes) || len(projects) != len(projectsAgain) {
@@ -69,6 +70,7 @@ func TestSplitTargetsCoverThePackExactlyAndAreDeterministic(t *testing.T) {
 }
 
 func TestParseExternalIndexRejectsMalformedIndexes(t *testing.T) {
+	t.Parallel()
 	index, _ := buildSplit(t, "3")
 	cases := map[string][]byte{
 		"non-canonical": append(append([]byte(nil), index.Bytes...), ' '),
@@ -105,6 +107,7 @@ func TestParseExternalIndexRejectsMalformedIndexes(t *testing.T) {
 }
 
 func TestAdmitExternalProjectTargetBindsIndexEntry(t *testing.T) {
+	t.Parallel()
 	index, projects := buildSplit(t, "3")
 	parsed, err := ParseExternalIndex(index.Bytes)
 	if err != nil {
@@ -164,6 +167,7 @@ func TestAdmitExternalProjectTargetBindsIndexEntry(t *testing.T) {
 }
 
 func TestBuildFromPreviousIndexKeepsUnchangedRevisions(t *testing.T) {
+	t.Parallel()
 	index, _ := buildSplit(t, "3")
 	next, projects, err := BuildEmbeddedExternalTargetsFrom("4", index.Bytes)
 	if err != nil {
@@ -187,12 +191,14 @@ func TestBuildFromPreviousIndexKeepsUnchangedRevisions(t *testing.T) {
 }
 
 func TestTargetSizeAlarmBytesRoundsUp(t *testing.T) {
+	t.Parallel()
 	if got := TargetSizeAlarmBytes(); got != 838861 {
 		t.Fatalf("alarm bytes %d", got)
 	}
 }
 
 func TestEmptyExternalBundleHasNoRules(t *testing.T) {
+	t.Parallel()
 	bundle, err := EmptyExternalBundle("2", "operator_provided")
 	if err != nil {
 		t.Fatal(err)
@@ -207,6 +213,7 @@ func TestEmptyExternalBundleHasNoRules(t *testing.T) {
 // content had changed since, and requires only that project to move to the
 // new revision.
 func TestBuildFromPreviousIndexGivesChangedProjectsTheNewRevision(t *testing.T) {
+	t.Parallel()
 	index, _, _ := BuildEmbeddedExternalTargets("5", nil)
 	var document externalIndexDocument
 	if err := json.Unmarshal(index.Bytes, &document); err != nil {

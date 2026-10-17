@@ -12,6 +12,7 @@ import (
 // registry, which would admit a pack against a registry the caller never
 // named.
 func TestWithDefinitionsRefusesAnEmptyList(t *testing.T) {
+	t.Parallel()
 	landscape, err := packagedFiles.ReadFile("data/landscape-projects.json")
 	if err != nil {
 		t.Fatal(err)

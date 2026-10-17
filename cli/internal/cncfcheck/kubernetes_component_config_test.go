@@ -12,6 +12,7 @@ import (
 )
 
 func TestCheckFactsEvaluatesOnlyTheNamedFactFamily(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"apiVersion":"batch/v1beta1","kind":"CronJob","metadata":{"name":"c"}}`)
 	prepared, err := cncfprepare.PrepareKubernetesRemovedAPIs(raw, "1.24.0", "1.25.0", "official_upstream", true, true)
 	if err != nil {
@@ -45,6 +46,7 @@ func TestCheckFactsEvaluatesOnlyTheNamedFactFamily(t *testing.T) {
 }
 
 func TestRegisteredFact(t *testing.T) {
+	t.Parallel()
 	if !RegisteredFact("component.kubernetes.cronjob_v1beta1_removed_gvk_present") || RegisteredFact("component.kubernetes.not_published_anywhere") {
 		t.Fatal("RegisteredFact does not mirror the compiled registry")
 	}
@@ -55,6 +57,7 @@ func TestRegisteredFact(t *testing.T) {
 // fact is registered and is anchored on a pair that crosses the adapter's line
 // for that fact, so the adapter emits the fact exactly where the rule decides.
 func TestKubernetesComponentConfigFactsMatchPublishedRules(t *testing.T) {
+	t.Parallel()
 	b, err := load()
 	if err != nil {
 		t.Fatal(err)

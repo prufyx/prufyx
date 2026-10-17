@@ -51,6 +51,7 @@ func variantPack(t *testing.T, edit func(members map[string]string) string) []by
 // and "Rule" (or a repeated member) has two readings. Admission refuses it
 // at every depth.
 func TestPackRefusesCaseVariantMembers(t *testing.T) {
+	t.Parallel()
 	landscape, _ := packagedFiles.ReadFile("data/landscape-projects.json")
 	priority, _ := packagedFiles.ReadFile("data/priority-portfolio.json")
 	shipped, _ := packagedFiles.ReadFile("data/rules.json")
@@ -90,6 +91,7 @@ func TestPackRefusesCaseVariantMembers(t *testing.T) {
 // TestAdmittedPackView: the view holds every top-level member but entries,
 // and one re-encoded entry per pack entry.
 func TestAdmittedPackView(t *testing.T) {
+	t.Parallel()
 	shipped, _ := packagedFiles.ReadFile("data/rules.json")
 	members, entries, err := AdmittedPackView(shipped)
 	if err != nil {
@@ -111,6 +113,7 @@ func TestAdmittedPackView(t *testing.T) {
 // The external-bundle scanner folds member names exactly as struct
 // decoding matches them: "ſtate" (long s) is "state".
 func TestExternalScanFoldsLikeStructDecoding(t *testing.T) {
+	t.Parallel()
 	for _, doc := range []string{`{"state":"a","State":"b"}`, "{\"state\":\"a\",\"ſtate\":\"b\"}", "{\"kind\":\"a\",\"Kind\":\"b\"}"} {
 		if scanExternalJSON([]byte(doc)) == nil {
 			t.Fatalf("%s accepted", doc)

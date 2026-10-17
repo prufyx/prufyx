@@ -8,6 +8,7 @@ import (
 )
 
 func TestClosestOffersOnlyNearNames(t *testing.T) {
+	t.Parallel()
 	candidates := []string{"bootc", "youki", "etcd", "kubernetes", "bfe"}
 	if got := closest("etcdd", candidates, 3); !reflect.DeepEqual(got, []string{"etcd"}) {
 		t.Fatalf("near typo: %v", got)

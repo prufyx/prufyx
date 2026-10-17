@@ -177,6 +177,7 @@ func mustTime(t *testing.T, value string) time.Time {
 // document) and once through the cncfcheck binding, so neither check alone is
 // load-bearing.
 func TestAttestationOverAComponentWithNoRuleIsRejected(t *testing.T) {
+	t.Parallel()
 	b := testBundle(t)
 	present, err := b.corpusComponents()
 	if err != nil {
@@ -216,6 +217,7 @@ func TestAttestationOverAComponentWithNoRuleIsRejected(t *testing.T) {
 // TestEmptyAttestedComponentSetIsRejected: an attestation listing nothing at
 // all is the degenerate form of the same attack.
 func TestEmptyAttestedComponentSetIsRejected(t *testing.T) {
+	t.Parallel()
 	empty := reattest(t, func(a *Attestation) { a.Components = nil })
 	if _, err := ParseAttestation(empty); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("ParseAttestation accepted an empty attested component set: %v", err)
@@ -226,6 +228,7 @@ func TestEmptyAttestedComponentSetIsRejected(t *testing.T) {
 // pack it describes through the engine's own RuleSetDigest, so it cannot be
 // moved onto a different or narrowed pack.
 func TestAttestationPackDigestMismatchIsRejected(t *testing.T) {
+	t.Parallel()
 	b := testBundle(t)
 	cases := map[string][]byte{
 		"ruleSetDigest mismatch": reattest(t, func(a *Attestation) { a.RuleSetDigest = flipDigest(a.RuleSetDigest) }),
@@ -248,6 +251,7 @@ func TestAttestationPackDigestMismatchIsRejected(t *testing.T) {
 // document's digest is not the corpus digest, so the attestation cannot be
 // attached to it.
 func TestFilteredPackCannotCarryTheAttestation(t *testing.T) {
+	t.Parallel()
 	b := testBundle(t)
 	corpusDigest, err := b.unfilteredRuleSetDigest()
 	if err != nil {
@@ -290,6 +294,7 @@ func TestFilteredPackCannotCarryTheAttestation(t *testing.T) {
 // the maintainer never attested completeness for cannot reach a completeness
 // verdict, however many of its rules passed.
 func TestComponentInScopeWithoutAnAttestationStaysUnknown(t *testing.T) {
+	t.Parallel()
 	b := testBundle(t)
 	narrowed := reattest(t, func(a *Attestation) {
 		kept := make([]string, 0, len(a.Components))
@@ -336,6 +341,7 @@ func TestComponentInScopeWithoutAnAttestationStaysUnknown(t *testing.T) {
 // rests on declared versions and declared fact values, never on another rule's
 // evidence freshness.
 func TestExpiredRuleDoesNotPoisonAnUnrelatedComponent(t *testing.T) {
+	t.Parallel()
 	b := testBundle(t)
 	now := mustTime(t, "2026-12-10T00:00:00Z")
 
@@ -388,6 +394,7 @@ func TestExpiredRuleDoesNotPoisonAnUnrelatedComponent(t *testing.T) {
 // native descriptor, so this verdict is only honest because the unrouted rule
 // was evaluated too.
 func TestScopeCompletePassOverTheAttestedCorpus(t *testing.T) {
+	t.Parallel()
 	b := testBundle(t)
 	now := mustTime(t, "2026-09-20T00:00:00Z")
 	report, err := assessScopeWith(b, embeddedAttestation(t), containerdInput(t), now)
@@ -443,6 +450,7 @@ func TestScopeCompletePassOverTheAttestedCorpus(t *testing.T) {
 // carried into the applicable set, enumerated as UNDETERMINED, and must force
 // the aggregate to UNKNOWN.
 func TestUnroutedRuleIsNeverDroppedFromTheApplicableSet(t *testing.T) {
+	t.Parallel()
 	b := testBundle(t)
 	withheld := scopeInput(t, []string{containerdComponent},
 		map[string][2]string{containerdComponent: {"1.7.28", "2.0.0"}},
@@ -491,6 +499,7 @@ func TestUnroutedRuleIsNeverDroppedFromTheApplicableSet(t *testing.T) {
 // permanent unknown. With its fact declared at the reviewed value it decides,
 // and a decided applicable blocker outranks the completeness machinery.
 func TestBlockedIsReachableOverTheAttestedCorpus(t *testing.T) {
+	t.Parallel()
 	b := testBundle(t)
 	blocked := scopeInput(t, []string{containerdComponent},
 		map[string][2]string{containerdComponent: {"1.7.28", "2.0.0"}},
@@ -516,6 +525,7 @@ func TestBlockedIsReachableOverTheAttestedCorpus(t *testing.T) {
 // applicability fact was never declared is counted as unresolved, never
 // assumed away and never turned into a negative-presence pass.
 func TestUndeclaredFactStaysUnknown(t *testing.T) {
+	t.Parallel()
 	b := testBundle(t)
 	partial := scopeInput(t, []string{otelComponent},
 		map[string][2]string{otelComponent: {"0.110.0", "0.111.0"}},
@@ -549,6 +559,7 @@ func TestUndeclaredFactStaysUnknown(t *testing.T) {
 // component rook scope does not declare at all. The rule cannot be decided, so
 // it is carried as undetermined and the aggregate stays UNKNOWN.
 func TestCrossComponentDependencyStaysUnknownWhenTheDependencyIsOutOfScope(t *testing.T) {
+	t.Parallel()
 	b := testBundle(t)
 	input := scopeInput(t, []string{rookComponent},
 		map[string][2]string{rookComponent: {"1.19.5", "1.20.0"}},
@@ -589,6 +600,7 @@ func TestCrossComponentDependencyStaysUnknownWhenTheDependencyIsOutOfScope(t *te
 // evaluated rule of its own and would send the aggregate straight back to
 // UNKNOWN. Completeness is not something a wider scope buys for free.
 func TestCompletenessForADependentComponentNeedsItsDependencyInScope(t *testing.T) {
+	t.Parallel()
 	b := testBundle(t)
 	now := currentKubernetesReviewClock(t, mustTime(t, "2026-09-20T00:00:00Z"))
 	versions := map[string][2]string{
@@ -644,6 +656,7 @@ func TestCompletenessForADependentComponentNeedsItsDependencyInScope(t *testing.
 // compiled Landscape identity for, is a caller error rather than an evidence
 // gap.
 func TestScopeDeclarationIsValidatedNotTrusted(t *testing.T) {
+	t.Parallel()
 	b := testBundle(t)
 	attestation := embeddedAttestation(t)
 	now := mustTime(t, "2026-09-20T00:00:00Z")
@@ -695,6 +708,7 @@ func TestScopeDeclarationIsValidatedNotTrusted(t *testing.T) {
 // TestEmbeddedAttestationIsCurrent keeps the committed asset honest: it must be
 // exactly what the maintainer command would emit for the embedded pack today.
 func TestEmbeddedAttestationIsCurrent(t *testing.T) {
+	t.Parallel()
 	built, err := BuildAttestation()
 	if err != nil {
 		t.Fatal(err)
@@ -724,6 +738,7 @@ func TestEmbeddedAttestationIsCurrent(t *testing.T) {
 // re-sort, while the CNCF pack is already in one ascending rule-id order, so
 // the sort in unfilteredRules is a no-op and the document preserves pack order.
 func TestUnfilteredCorpusCoversEveryPackEntry(t *testing.T) {
+	t.Parallel()
 	b := testBundle(t)
 	inventory, err := b.unfilteredCorpus()
 	if err != nil {
@@ -777,6 +792,7 @@ func TestUnfilteredCorpusCoversEveryPackEntry(t *testing.T) {
 // over the routed subset of it. Every component that owns an unrouted rule is
 // attested, and the unfiltered document carries all 167 rules.
 func TestAttestationCoversEveryUnroutedRule(t *testing.T) {
+	t.Parallel()
 	attestation, err := ParseAttestation(embeddedAttestation(t))
 	if err != nil {
 		t.Fatal(err)

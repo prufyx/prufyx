@@ -26,6 +26,7 @@ func syntheticSupportEntry(id, minimum string) Entry {
 }
 
 func TestPackSeverityLevel(t *testing.T) {
+	t.Parallel()
 	entry := syntheticSupportEntry("kubernetes.synthetic-support.1-35-0-to-1-36-0", "1.37.0")
 	b, err := assembleSynthetic(syntheticPack(t, packSchemaSeverity, nil, entry), nil)
 	if err != nil {
@@ -72,6 +73,7 @@ func TestPackSeverityLevel(t *testing.T) {
 }
 
 func TestClaimExitUnsupported(t *testing.T) {
+	t.Parallel()
 	b, err := load()
 	if err != nil {
 		t.Fatal(err)
@@ -124,6 +126,7 @@ func TestClaimExitUnsupported(t *testing.T) {
 // TestExternalPackRefusesSeverity: the external knowledge target does not
 // accept support-range rules yet, even under the severity pack schema.
 func TestExternalPackRefusesSeverity(t *testing.T) {
+	t.Parallel()
 	base, err := load()
 	if err != nil {
 		t.Fatal(err)

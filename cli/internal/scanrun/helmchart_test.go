@@ -38,6 +38,7 @@ func embeddedKnowledge(t *testing.T) Knowledge {
 }
 
 func TestParseChartFlags(t *testing.T) {
+	t.Parallel()
 	request, err := ParseArgs([]string{"--chart", "keda=keda@https://kedacore.github.io/charts", "--helm-values", "a.yaml", "--helm-values=b.yaml", "--helm-set", "x=1", "--helm-values-complete", "--to", "keda=2.16.0"})
 	if err != nil {
 		t.Fatal(err)
@@ -63,6 +64,7 @@ func TestParseChartFlags(t *testing.T) {
 // resolved exactly, or values that cannot be read exactly, is a usage
 // error; nothing is evaluated.
 func TestChartDeclarationRefusals(t *testing.T) {
+	t.Parallel()
 	knowledge := embeddedKnowledge(t)
 	dir := helmDir(t, map[string]string{
 		"ok.yaml": "a: 1\n", "on.yaml": "on: 1\n", "alias.yaml": "a: &x {b: 1}\nc: *x\n", "dup.yaml": "a: 1\na: 2\n",
@@ -116,6 +118,7 @@ func TestChartDeclarationRefusals(t *testing.T) {
 // are shown as chart versions, the custom-resource route never runs on
 // them, and the values are identified only by digest.
 func TestChartHopWithoutChartRules(t *testing.T) {
+	t.Parallel()
 	knowledge := embeddedKnowledge(t)
 	dir := helmDir(t, map[string]string{"values.yaml": "image: {tag: x}\nsecret: hunter2\n"})
 	args := []string{filepath.Join(dir, "manifest.yaml"), "--now", testNow, "--chart", "keda=keda", "--from", "keda=2.15.0", "--to", "keda=2.16.0",
@@ -165,6 +168,7 @@ func TestChartHopWithoutChartRules(t *testing.T) {
 // that reads the fact; a rule that reads it other than as its set condition
 // leaves it unresolved.
 func TestChartUniverseOf(t *testing.T) {
+	t.Parallel()
 	const fact = "component.keda.chart_keda_values_paths_set"
 	rules := []cncfcheck.ScanRule{
 		{Facts: []string{fact}, SetFact: fact, SetMembers: []string{"b", "a"}, Basis: "mechanical"},

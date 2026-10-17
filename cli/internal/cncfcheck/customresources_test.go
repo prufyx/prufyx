@@ -74,6 +74,7 @@ func assembleWith(packRaw []byte, definitions []constraintengine.FactDefinition)
 // the CRD extractor's targets), as a set fact of each project's catalog
 // component, and for no other project.
 func TestCustomResourceFactsRegisteredForExtractorTargets(t *testing.T) {
+	t.Parallel()
 	want := map[string]string{}
 	for _, p := range customresources.Projects() {
 		want[p.FactID()] = p.Component
@@ -120,6 +121,7 @@ func TestCustomResourceFactsRegisteredForExtractorTargets(t *testing.T) {
 // refused, because the project is not in the CNCF catalog and the lower
 // schemas know no community entry.
 func TestCommunityCustomResourceRuleRefused(t *testing.T) {
+	t.Parallel()
 	var p customresources.Project
 	for _, q := range customresources.Projects() {
 		if q.Community() {
@@ -146,6 +148,7 @@ func TestCommunityCustomResourceRuleRefused(t *testing.T) {
 // refused against the registry without the custom-resource sets and
 // admitted with them.
 func TestCustomResourceRuleAdmissionNeedsTheRegisteredFact(t *testing.T) {
+	t.Parallel()
 	entry := crdKafkaEntry()
 	if _, err := assembleWith(crdPack(t, withoutCustomResourceFacts(), entry), withoutCustomResourceFacts()); !errors.Is(err, ErrIntegrity) {
 		t.Fatalf("rule over an unregistered custom-resource fact admitted: %v", err)
@@ -186,6 +189,7 @@ func TestCustomResourceRuleAdmissionNeedsTheRegisteredFact(t *testing.T) {
 // or without a complete scope, PASS only when the set is complete and holds
 // no removed version, UNKNOWN for every partial set.
 func TestCustomResourceRuleOverPreparedInput(t *testing.T) {
+	t.Parallel()
 	b, err := assembleWith(crdPack(t, compiledDefinitions(), crdKafkaEntry()), compiledDefinitions())
 	if err != nil {
 		t.Fatal(err)

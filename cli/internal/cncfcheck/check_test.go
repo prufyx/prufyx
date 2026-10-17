@@ -49,6 +49,7 @@ func reviewedVectors(t *testing.T) []reviewedVector {
 }
 
 func TestReviewedTransitionCorpus(t *testing.T) {
+	t.Parallel()
 	b, err := load()
 	if err != nil {
 		t.Fatal(err)
@@ -304,6 +305,7 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 }
 
 func TestTektonDuplicatePrometheusFactIsInvalidInput(t *testing.T) {
+	t.Parallel()
 	for _, vector := range reviewedVectors(t) {
 		if vector.RuleID != "tekton.metrics-protocol-prometheus.1-10" {
 			continue
@@ -341,6 +343,7 @@ func TestTektonDuplicatePrometheusFactIsInvalidInput(t *testing.T) {
 }
 
 func TestTektonCanonicalExamplePasses(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile("../../examples/cncf/tekton-input.json")
 	if err != nil {
 		t.Fatal(err)
@@ -355,6 +358,7 @@ func TestTektonCanonicalExamplePasses(t *testing.T) {
 }
 
 func TestFluentdLatestRubyExamplesStayScoped(t *testing.T) {
+	t.Parallel()
 	for name, want := range map[string]string{
 		"blocked.json":              "BLOCKED",
 		"fixed.json":                "PASS",
@@ -380,6 +384,7 @@ func TestFluentdLatestRubyExamplesStayScoped(t *testing.T) {
 }
 
 func TestSelectedRuleKeepsIndependentPrometheusCapabilitiesSeparate(t *testing.T) {
+	t.Parallel()
 	const (
 		alertmanagerRule = "prometheus.alertmanager-api-v1-removed.3-1"
 		scrapeRule       = "prometheus.scrape-classic-histograms-key-renamed.3-1"
@@ -417,6 +422,7 @@ func TestSelectedRuleKeepsIndependentPrometheusCapabilitiesSeparate(t *testing.T
 }
 
 func TestKyvernoVectorsParseAndStayBoundToTheirRule(t *testing.T) {
+	t.Parallel()
 	registry, err := compiledRegistry()
 	if err != nil {
 		t.Fatal(err)
@@ -448,6 +454,7 @@ func TestKyvernoVectorsParseAndStayBoundToTheirRule(t *testing.T) {
 }
 
 func TestSPIREVectorsParseAndStayBoundToTheirRule(t *testing.T) {
+	t.Parallel()
 	registry, err := compiledRegistry()
 	if err != nil {
 		t.Fatal(err)
@@ -479,6 +486,7 @@ func TestSPIREVectorsParseAndStayBoundToTheirRule(t *testing.T) {
 }
 
 func TestCortexStrimziVectorsParseAndStayBoundToTheirRule(t *testing.T) {
+	t.Parallel()
 	registry, err := compiledRegistry()
 	if err != nil {
 		t.Fatal(err)
@@ -516,6 +524,7 @@ func TestCortexStrimziVectorsParseAndStayBoundToTheirRule(t *testing.T) {
 }
 
 func TestCortexStrimziClosedInputFailures(t *testing.T) {
+	t.Parallel()
 	registry, err := compiledRegistry()
 	if err != nil {
 		t.Fatal(err)
@@ -601,6 +610,7 @@ func TestCortexStrimziClosedInputFailures(t *testing.T) {
 }
 
 func TestFluentdInvalidRubyVersionIsInvalidInput(t *testing.T) {
+	t.Parallel()
 	for _, vector := range reviewedVectors(t) {
 		if vector.RuleID != "fluentd.ruby-minimum.1-16-to-1-17" {
 			continue
@@ -623,6 +633,7 @@ func TestFluentdInvalidRubyVersionIsInvalidInput(t *testing.T) {
 // only withdrawn rule of the pack (CRI-O) must be counted apart, so that the
 // catalogue says 53 projects with rules, not 54.
 func TestCatalogueCountsActiveRulesOnly(t *testing.T) {
+	t.Parallel()
 	crio, err := Catalog(false, "cri-o")
 	if err != nil || len(crio.Projects) != 1 {
 		t.Fatal(err)
@@ -656,6 +667,7 @@ func TestCatalogueCountsActiveRulesOnly(t *testing.T) {
 }
 
 func TestCatalogueDoesNotInventCoverage(t *testing.T) {
+	t.Parallel()
 	all, err := Catalog(false, "")
 	if err != nil {
 		t.Fatal(err)
@@ -710,6 +722,7 @@ func TestCatalogueDoesNotInventCoverage(t *testing.T) {
 }
 
 func TestTransitionDispatchDoesNotApplySiblingVersionRule(t *testing.T) {
+	t.Parallel()
 	for _, vector := range reviewedVectors(t) {
 		if vector.RuleID != "rook.minimum-kubernetes.1-20" {
 			continue
@@ -727,6 +740,7 @@ func TestTransitionDispatchDoesNotApplySiblingVersionRule(t *testing.T) {
 }
 
 func TestSourceFreshnessWithdrawalsAndReplayRemainBounded(t *testing.T) {
+	t.Parallel()
 	var vector reviewedVector
 	for _, candidate := range reviewedVectors(t) {
 		if candidate.RuleID == "argo-cd.required-rbac-inheritance.3-0" {
@@ -779,6 +793,7 @@ func TestSourceFreshnessWithdrawalsAndReplayRemainBounded(t *testing.T) {
 }
 
 func TestReportsCannotBeForgedOrModified(t *testing.T) {
+	t.Parallel()
 	if _, err := MarshalReport(Report{Assessment: "UNKNOWN"}); err == nil {
 		t.Fatal("forged report accepted")
 	}
@@ -794,6 +809,7 @@ func TestReportsCannotBeForgedOrModified(t *testing.T) {
 }
 
 func TestUnsupportedProjectAndRawConfigurationAreNotAuthority(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"schema":"prufyx.io/operator-declared-constraint-input/v1alpha1","authority":"OPERATOR_DECLARED_MINIMIZED","current":{"components":[]},"proposed":{"components":[]}}`)
 	report, err := Check("agones", raw, reviewClock(t))
 	if err != nil || ClaimExit(report) != 11 || len(report.Check.Claims) != 0 || report.NextAction == "" {
@@ -806,6 +822,7 @@ func TestUnsupportedProjectAndRawConfigurationAreNotAuthority(t *testing.T) {
 }
 
 func TestKarmadaVectorsParseAndStayBoundToTheirRule(t *testing.T) {
+	t.Parallel()
 	registry, err := compiledRegistry()
 	if err != nil {
 		t.Fatal(err)
@@ -836,6 +853,7 @@ func TestKarmadaVectorsParseAndStayBoundToTheirRule(t *testing.T) {
 }
 
 func TestKarmadaClosedInputFailures(t *testing.T) {
+	t.Parallel()
 	registry, err := compiledRegistry()
 	if err != nil {
 		t.Fatal(err)

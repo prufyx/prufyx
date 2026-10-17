@@ -52,6 +52,7 @@ func crossingFinding(t *testing.T, report scanreport.Report) scanreport.Finding 
 // its disclosure. It used to abort the scan with ErrIntegrity, because the
 // hop overlap test did not know the crossing, and it was labelled "anchor".
 func TestScanCrossingBlockIsReportedNotAnIntegrityError(t *testing.T) {
+	t.Parallel()
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1beta1})
 	for name, from := range map[string]string{"patch origin": "1.24.17", "anchor origin": "1.24.0"} {
 		t.Run(name, func(t *testing.T) {
@@ -90,6 +91,7 @@ func TestScanCrossingBlockIsReportedNotAnIntegrityError(t *testing.T) {
 // hops stay decided by the range and the stepped scan keeps its PASS (the
 // crossing must not degrade it through the whole-upgrade evaluation).
 func TestScanCrossingNeverPasses(t *testing.T) {
+	t.Parallel()
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
 	command := args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")
 
@@ -119,6 +121,7 @@ func TestScanCrossingNeverPasses(t *testing.T) {
 // no removed-API fact, so a crossing rule reads it as unavailable: the answer
 // is a gap, never PASS and never an integrity error.
 func TestScanCrossingWithoutAPathPolicy(t *testing.T) {
+	t.Parallel()
 	for name, manifest := range map[string]string{"removed": cronjobV1beta1, "migrated": cronjobV1} {
 		t.Run(name, func(t *testing.T) {
 			_, paths := files(t, map[string]string{"applyset.yaml": manifest})
@@ -142,6 +145,7 @@ func TestScanCrossingWithoutAPathPolicy(t *testing.T) {
 // failure rather than a finding about a build nobody normalised. An UNKNOWN
 // claim that discloses the crossing (the fact is unavailable) is ordinary.
 func TestScanCrossingOnlyForDeclaredUpstream(t *testing.T) {
+	t.Parallel()
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1beta1})
 	base := crossingKnowledge(t, crossingRule(crossingRuleID, false), "current")
 	command := append(append([]string{}, paths...), "--distribution", "custom_build", "--resource-scope-complete", "--target-api-apply-required", "--now", testNow, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.27.2")

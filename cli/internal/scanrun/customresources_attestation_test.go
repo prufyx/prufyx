@@ -103,6 +103,7 @@ func requireNeverCovered(t *testing.T, result Result) {
 // 11) and the component is not covered; the report names the family and
 // what it does not check.
 func TestScanCustomResourceAttestedQuietLine(t *testing.T) {
+	t.Parallel()
 	att := crdLineAttestation(constraintengine.BasisMechanical)
 	k := newAttestedCRD(t, &att)
 	result := crdScan(t, k, []string{settingsDoc, kafkaV1beta2Doc}, "--from", "strimzi=0.50.1", "--to", "strimzi=0.51.0", "--resource-scope-complete")
@@ -163,6 +164,7 @@ func TestScanCustomResourceAttestedQuietLine(t *testing.T) {
 // A removal stays BLOCKED, and the family result says so; with the
 // replacement version the same reviewed line is PASS within the family.
 func TestScanCustomResourceAttestedRemoval(t *testing.T) {
+	t.Parallel()
 	att := crdLineAttestation(constraintengine.BasisReviewed, crdLineRuleID)
 	k := newAttestedCRD(t, &att, crdLineRule)
 	result := crdScan(t, k, []string{kafkaV1beta2Doc}, "--from", "strimzi=0.50.0", "--to", "strimzi=0.51.0", "--resource-scope-complete")
@@ -186,6 +188,7 @@ func TestScanCustomResourceAttestedRemoval(t *testing.T) {
 // Every way a review cannot decide the hop leaves the family undecided,
 // with a named gap where the review exists.
 func TestScanCustomResourceAttestationNotApplied(t *testing.T) {
+	t.Parallel()
 	mech := crdLineAttestation(constraintengine.BasisMechanical)
 	listed := crdLineAttestation(constraintengine.BasisReviewed, crdLineRuleID)
 	unknownListed := crdLineAttestation(constraintengine.BasisReviewed, "strimzi.not-a-rule")
@@ -245,6 +248,7 @@ func TestScanCustomResourceAttestationNotApplied(t *testing.T) {
 // no new gap (the component's own gap says scan checks custom-resource
 // versions only).
 func TestScanCustomResourceWithoutAttestationUnchanged(t *testing.T) {
+	t.Parallel()
 	result := crdScan(t, newAttestedCRD(t, nil), []string{kafkaV1Doc}, "--from", "strimzi=0.50.1", "--to", "strimzi=0.51.0", "--resource-scope-complete")
 	hop := strimziHop(t, result.Report)
 	if result.Exit != 11 || len(hop.Families) != 0 || hop.Attestation != nil || hop.Status != scanreport.HopNoData || len(result.Report.Gaps) != 1 {
@@ -257,6 +261,7 @@ func TestScanCustomResourceWithoutAttestationUnchanged(t *testing.T) {
 // lists it nor could (a rule of another line). The engine refuses such a
 // rule today, so the line review is called directly.
 func TestLineReviewNeedsEveryApplicableRuleDecided(t *testing.T) {
+	t.Parallel()
 	att := crdLineAttestation(constraintengine.BasisMechanical)
 	k := newAttestedCRD(t, &att)
 	run := func(applicable, decided map[string]bool) (*scanreport.FamilyResult, []scanreport.Gap) {

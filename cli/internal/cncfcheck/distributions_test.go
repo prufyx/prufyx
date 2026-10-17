@@ -66,6 +66,7 @@ func distributionPack(t *testing.T, schema string, attestations, policies, distr
 }
 
 func TestEmbeddedPackCarriesNoDistributions(t *testing.T) {
+	t.Parallel()
 	raw, err := packagedFiles.ReadFile("data/rules.json")
 	if err != nil {
 		t.Fatal(err)
@@ -93,6 +94,7 @@ func TestEmbeddedPackCarriesNoDistributions(t *testing.T) {
 }
 
 func TestDistributionPackIsAdmittedAndLookedUp(t *testing.T) {
+	t.Parallel()
 	b, err := assembleSynthetic(distributionPack(t, packSchemaDistributions, nil, nil, validDistributions(t)), nil)
 	if err != nil {
 		t.Fatalf("pack with distributions refused: %v", err)
@@ -149,6 +151,7 @@ func TestDistributionPackIsAdmittedAndLookedUp(t *testing.T) {
 
 // Every defect in the distribution section rejects the whole pack.
 func TestDistributionsStrict(t *testing.T) {
+	t.Parallel()
 	good := distributionPack(t, packSchemaDistributions, nil, nil, validDistributions(t))
 	if _, err := assembleSynthetic(good, nil); err != nil {
 		t.Fatalf("unmutated pack refused: %v", err)
@@ -243,6 +246,7 @@ func TestDistributionsStrict(t *testing.T) {
 }
 
 func TestPackSchemaLevelDistributions(t *testing.T) {
+	t.Parallel()
 	// Without the section the embedded pack keeps its schema and digest, and
 	// re-encoding adds nothing.
 	raw, err := packagedFiles.ReadFile("data/rules.json")
@@ -321,6 +325,7 @@ func TestPackSchemaLevelDistributions(t *testing.T) {
 }
 
 func TestExternalRefusesDistributions(t *testing.T) {
+	t.Parallel()
 	raw := syntheticBaseExternalBundle(t, "7")
 	var envelope map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &envelope); err != nil {
@@ -369,6 +374,7 @@ func TestExternalRefusesDistributions(t *testing.T) {
 }
 
 func TestDistributionPackMember(t *testing.T) {
+	t.Parallel()
 	field, ok := reflect.TypeOf(rulePack{}).FieldByName("Distributions")
 	if !ok {
 		t.Fatal("rulePack has no Distributions field")

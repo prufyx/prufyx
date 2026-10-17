@@ -18,6 +18,7 @@ import (
 // rule sets give the same claim statuses and exit code here and under the
 // community-project pack (see projectcheck's parity test).
 func TestPackParityTable(t *testing.T) {
+	t.Parallel()
 	b, err := load()
 	if err != nil {
 		t.Fatal(err)

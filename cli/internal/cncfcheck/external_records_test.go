@@ -99,6 +99,7 @@ func envelopeOf(t *testing.T, raw []byte) (string, rulePack) {
 // target is admitted against it, and the scan view built from the targets
 // answers the same record lookups as the pack.
 func TestSplitTargetsCarryRecords(t *testing.T) {
+	t.Parallel()
 	b := recordsBase(t, allRecords(t))
 	index, targets := splitAt(t, b, "7")
 	parsed, err := parseExternalIndex(index.Bytes, &b)
@@ -170,6 +171,7 @@ func TestSplitTargetsCarryRecords(t *testing.T) {
 // TestSplitWithoutRecordsIsUnchanged: a pack without records splits exactly
 // as before: a v1 index without a records member and v1alpha1 envelopes.
 func TestSplitWithoutRecordsIsUnchanged(t *testing.T) {
+	t.Parallel()
 	same := func(string, func(string) ([]byte, error)) (string, error) { return "7", nil }
 	index, projects, err := buildExternalTargets(syntheticBaseBundle(t), "7", "operator_provided", same)
 	if err != nil {
@@ -198,6 +200,7 @@ func TestSplitWithoutRecordsIsUnchanged(t *testing.T) {
 // TestRecordOnlyProjectGetsATarget: a project with a record and no rule gets
 // a records target without entries, admitted by its index entry.
 func TestRecordOnlyProjectGetsATarget(t *testing.T) {
+	t.Parallel()
 	base, err := load()
 	if err != nil {
 		t.Fatal(err)
@@ -284,6 +287,7 @@ func sortStrings(values []string) {
 // the smuggled target exactly; the honest target under the same procedure is
 // admitted.
 func TestProjectTargetRefusesForeignRecords(t *testing.T) {
+	t.Parallel()
 	b := recordsBase(t, allRecords(t))
 	_, targets := splitAt(t, b, "7")
 	if _, err := AdmitExternalProjectTarget(relabel(t, b, "7", targets), "kubernetes", targets["kubernetes"]); err != nil {
@@ -328,6 +332,7 @@ func TestProjectTargetRefusesForeignRecords(t *testing.T) {
 // envelope schema, a records envelope without records, and an index whose
 // records flag or schema level does not match are all refused.
 func TestRecordsTargetTamperRefused(t *testing.T) {
+	t.Parallel()
 	b := recordsBase(t, allRecords(t))
 	index, targets := splitAt(t, b, "7")
 	parsed, err := parseExternalIndex(index.Bytes, &b)
@@ -431,6 +436,7 @@ func TestRecordsTargetTamperRefused(t *testing.T) {
 // the schema exactly and decode strictly; this pins both properties on the
 // new documents.
 func TestOldClientsRefuseRecords(t *testing.T) {
+	t.Parallel()
 	b := recordsBase(t, allRecords(t))
 	index, targets := splitAt(t, b, "7")
 	type oldEntry struct {
@@ -474,6 +480,7 @@ func mustMember(t *testing.T, raw []byte, name string) json.RawMessage {
 // TestRecordsBindContentAndExpiry: the content digest moves with a record
 // alone, and a record expiring before every rule sets the target's expiry.
 func TestRecordsBindContentAndExpiry(t *testing.T) {
+	t.Parallel()
 	a := recordsBase(t, recordSections{ServedAPIs: extServedSection("1.29", "v1 ConfigMap")})
 	b := recordsBase(t, recordSections{ServedAPIs: extServedSection("1.29", "v1 ConfigMap", "v1 Secret")})
 	_, ta := splitAt(t, a, "7")
@@ -517,6 +524,7 @@ func TestRecordsBindContentAndExpiry(t *testing.T) {
 // TestDistributionsStayUnpublishable: distribution records have no target;
 // the split and both exports refuse a pack holding them.
 func TestDistributionsStayUnpublishable(t *testing.T) {
+	t.Parallel()
 	base, err := load()
 	if err != nil {
 		t.Fatal(err)
@@ -531,6 +539,7 @@ func TestDistributionsStayUnpublishable(t *testing.T) {
 // TestRecordOwnersAmbiguous: a component that is the subject of two
 // catalog projects has no owner, so its records cannot be split.
 func TestRecordOwnersAmbiguous(t *testing.T) {
+	t.Parallel()
 	projects := []projectIdentity{{Slug: "a", RepositoryURL: "https://github.com/x/y"}, {Slug: "b", RepositoryURL: "https://github.com/x/y"}, {Slug: "c", RepositoryURL: "https://github.com/x/z"}}
 	owners := recordOwners(projects)
 	if owners["pkg:github/x/y"] != "" || owners["pkg:github/x/z"] != "c" {
