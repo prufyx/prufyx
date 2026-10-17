@@ -2,9 +2,9 @@
   "schema": "prufyx.io/cncf-corpus-attestation/v1alpha1",
   "attestation": "COMPLETE_REVIEWED_RULES_FOR_LISTED_COMPONENTS",
   "revision": "cncf-2026-09-13.8",
-  "packDigest": "sha256:e8b7f15350dda00d8f179dde9c90330db23abebce6921009be028c6ae608de3c",
-  "ruleSetDigest": "sha256:6013a170a3d1faffb8638ffe0ca7b23541e9a4fcf9cd36bca2e0386c82bcc376",
-  "ruleCount": 194,
+  "packDigest": "sha256:b6fe5426cc46a5e56febcd8fa6372b3b1ca38ebb5073e3d19afbf7800dc9c8ee",
+  "ruleSetDigest": "sha256:d41a24df628c317b554a00f5da92c0a13fef4d853fec26fde0760165d84115cd",
+  "ruleCount": 204,
   "components": [
     "pkg:generic/cni-configuration-spec",
     "pkg:github/argoproj/argo-cd",
