@@ -309,8 +309,25 @@ func TestValidate_EveryPublishedEntryValidatesCleanly(t *testing.T) {
 
 // --- Range: community-contribution refusal, maintainer self-check accepts --
 
+// releaseBoundaryRange reports whether the rule carries a range pinned to the
+// release that removes the API (the shape a community contribution may carry);
+// other ranges in the pack (the series ranges of the set rules) are not it.
+func releaseBoundaryRange(body map[string]any) bool {
+	r, ok := body["range"].(map[string]any)
+	if !ok {
+		return false
+	}
+	bounds, _ := r["bounds"].([]any)
+	for _, b := range bounds {
+		if m, _ := b.(map[string]any); m != nil && m["basis"] == "REMOVED_IN_RELEASE" {
+			return true
+		}
+	}
+	return false
+}
+
 // firstRangedEntry returns the first entry in the cncfcheck pack that
-// carries a rule.range, so tests exercise a genuine range rather than a
+// carries a release-boundary rule.range, so tests exercise a genuine range rather than a
 // hand-built approximation. Once the shipped ranged rules are all mechanical
 // (which a community contribution cannot be), the first is returned as the
 // reviewed rule it would be if a person had written it: the mechanical
@@ -319,7 +336,7 @@ func firstRangedEntry(t *testing.T) map[string]any {
 	t.Helper()
 	var mechanical map[string]any
 	for _, entry := range realEntries(t, filepath.Join("..", "..", "cncfcheck", "data", "rules.json")) {
-		if _, ok := rule(entry)["range"]; !ok {
+		if !releaseBoundaryRange(rule(entry)) {
 			continue
 		}
 		evidence, _ := rule(entry)["evidence"].(map[string]any)
