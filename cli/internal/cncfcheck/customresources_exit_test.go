@@ -55,6 +55,7 @@ func passingClaims(t *testing.T, report Report, want int) int {
 // that the published rules name every version the target release stops
 // serving.
 func TestClaimExitNeverPassesCustomResourceRules(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC)
 	plain := syntheticBaseBundle(t)
 	// Baseline: the reviewed Kafka rule alone (syntheticBase holds no set
@@ -133,6 +134,7 @@ func TestClaimExitNeverPassesCustomResourceRules(t *testing.T) {
 }
 
 func TestReadsCustomResourceVersions(t *testing.T) {
+	t.Parallel()
 	claim := func(ids ...string) constraintengine.Claim {
 		var c constraintengine.Claim
 		for _, id := range ids {

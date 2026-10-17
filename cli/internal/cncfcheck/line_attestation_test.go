@@ -96,6 +96,7 @@ func validAttestations(t *testing.T) []byte {
 // publishedKubernetesRules, each listing the mechanical served-API removal
 // rules of the pack for it.
 func TestEmbeddedPackLineAttestations(t *testing.T) {
+	t.Parallel()
 	raw, err := packagedFiles.ReadFile("data/rules.json")
 	if err != nil {
 		t.Fatal(err)
@@ -201,6 +202,7 @@ func customResourceProjectOf(component string) (string, bool) {
 }
 
 func TestAttestedPackIsAdmittedAndLookedUp(t *testing.T) {
+	t.Parallel()
 	b, err := assembleSynthetic(attestedPack(t, packSchemaAttested, validAttestations(t)), nil)
 	if err != nil {
 		t.Fatalf("attested pack refused: %v", err)
@@ -236,6 +238,7 @@ func TestAttestedPackIsAdmittedAndLookedUp(t *testing.T) {
 }
 
 func TestLineAttestationSchemaGating(t *testing.T) {
+	t.Parallel()
 	atts := validAttestations(t)
 	for _, schema := range []string{packSchema, packSchemaRanged, packSchemaSet, "prufyx.io/cncf-source-rule-pack/v1alpha5"} {
 		if _, err := assembleSynthetic(attestedPack(t, schema, atts), nil); !errors.Is(err, ErrIntegrity) {
@@ -278,6 +281,7 @@ func TestLineAttestationSchemaGating(t *testing.T) {
 }
 
 func TestPackRejectsAttestationThatIsNotTheExactRuleSet(t *testing.T) {
+	t.Parallel()
 	missing := line125Rules[:6]
 	extra := append(append([]string{}, line125Rules...), "kubernetes.zz-not-a-rule")
 	otherLine := append(append([]string{}, line125Rules...), supersedeids.ID("kubernetes.flowcontrol-v1beta1-removed.1-25-0-to-1-26-0"))
@@ -298,6 +302,7 @@ func TestPackRejectsAttestationThatIsNotTheExactRuleSet(t *testing.T) {
 }
 
 func TestPackDigestCoversAttestations(t *testing.T) {
+	t.Parallel()
 	a, err := assembleSynthetic(attestedPack(t, packSchemaAttested, validAttestations(t)), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -314,6 +319,7 @@ func TestPackDigestCoversAttestations(t *testing.T) {
 }
 
 func TestExternalBundleRefusesAttestations(t *testing.T) {
+	t.Parallel()
 	raw := syntheticBaseExternalBundle(t, "7")
 	var envelope map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &envelope); err != nil {
@@ -347,6 +353,7 @@ func TestExternalBundleRefusesAttestations(t *testing.T) {
 // matches every hop into 1.32, so a 1.32 attestation lists it and an
 // attestation leaving it out is a missing rule.
 func TestPackAttestationOfTheLineWideFlowControlRule(t *testing.T) {
+	t.Parallel()
 	if !supersedeids.Superseded() {
 		t.Skip("the shipped pack still holds the anchor-only reviewed 1.32 rule")
 	}
@@ -385,6 +392,7 @@ func TestPackAttestationOfTheLineWideFlowControlRule(t *testing.T) {
 // covered while no rule matches it. The loader refuses it, and an attestation
 // leaving it out is a missing rule: 1.32 cannot be attested over this pack.
 func TestPackRejectsAttestationListingARuleThatIsNotLineWide(t *testing.T) {
+	t.Parallel()
 	if supersedeids.Superseded() {
 		t.Skip("the published 1.32 rule is a range rule: see TestPackAttestationOfTheLineWideFlowControlRule")
 	}
@@ -417,6 +425,7 @@ func TestPackRejectsAttestationListingARuleThatIsNotLineWide(t *testing.T) {
 // would serve a case or Unicode-folding variant as the attestation section
 // while a case-sensitive reader saw no section at all.
 func TestPackRejectsVariantSpellingsOfMembers(t *testing.T) {
+	t.Parallel()
 	good := attestedPack(t, packSchemaAttested, validAttestations(t))
 	if _, err := assembleSynthetic(good, nil); err != nil {
 		t.Fatalf("unmutated pack refused: %v", err)
@@ -444,6 +453,7 @@ func TestPackRejectsVariantSpellingsOfMembers(t *testing.T) {
 
 // The loader's pack type names exactly the members PackSection allows.
 func TestPackMembersMatchThePackType(t *testing.T) {
+	t.Parallel()
 	var names []string
 	typ := reflect.TypeOf(rulePack{})
 	for i := 0; i < typ.NumField(); i++ {

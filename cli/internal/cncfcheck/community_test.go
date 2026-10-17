@@ -77,6 +77,7 @@ func communityBundle(t *testing.T, entries ...Entry) bundle {
 }
 
 func TestCommunityIdentitiesOfTheShippedTable(t *testing.T) {
+	t.Parallel()
 	b, err := load()
 	if err != nil {
 		t.Fatal(err)
@@ -114,6 +115,7 @@ func TestCommunityIdentitiesOfTheShippedTable(t *testing.T) {
 // With the shipped knowledge a community project is unknown to every route:
 // no data, not checkable, not in a scan snapshot, not in the index.
 func TestCommunityIsInertWithShippedKnowledge(t *testing.T) {
+	t.Parallel()
 	b, err := load()
 	if err != nil {
 		t.Fatal(err)
@@ -164,6 +166,7 @@ func TestCommunityIsInertWithShippedKnowledge(t *testing.T) {
 }
 
 func TestCommunityTableOverlapRefusesThePack(t *testing.T) {
+	t.Parallel()
 	landscape, _ := packagedFiles.ReadFile("data/landscape-projects.json")
 	priority, _ := packagedFiles.ReadFile("data/priority-portfolio.json")
 	pack, _ := packagedFiles.ReadFile("data/rules.json")
@@ -224,6 +227,7 @@ func TestCommunityTableOverlapRefusesThePack(t *testing.T) {
 }
 
 func TestCommunityEntryNeedsItsOwnPackSchema(t *testing.T) {
+	t.Parallel()
 	entry := communityEntry()
 	if _, err := assembleWith(communityPack(t, packSchemaCommunity, entry), compiledDefinitions()); err != nil {
 		t.Fatalf("community pack under its schema refused: %v", err)
@@ -252,6 +256,7 @@ func TestCommunityEntryNeedsItsOwnPackSchema(t *testing.T) {
 }
 
 func TestCommunityEntryShapeIsClosed(t *testing.T) {
+	t.Parallel()
 	good := string(communityEntry().Rule)
 	with := func(from, to string) Entry {
 		entry := communityEntry()
@@ -305,6 +310,7 @@ func TestCommunityEntryShapeIsClosed(t *testing.T) {
 // A CNCF project's entry cannot carry a community component, and a
 // community entry cannot carry a CNCF one.
 func TestCommunityEntryCannotClaimCNCFIdentity(t *testing.T) {
+	t.Parallel()
 	cncf := crdKafkaEntry()
 	cncf.Rule = json.RawMessage(strings.NewReplacer(crdStrimziComponent, communityComponent, crdStrimziFact, communityFact).Replace(string(cncf.Rule)))
 	cncf.RequiredFacts[0].ID, cncf.RequiredFacts[0].Component = communityFact, communityComponent
@@ -323,6 +329,7 @@ func TestCommunityEntryCannotClaimCNCFIdentity(t *testing.T) {
 }
 
 func TestCommunityStaysOutOfTheCNCFCountsAndCorpus(t *testing.T) {
+	t.Parallel()
 	base, err := load()
 	if err != nil {
 		t.Fatal(err)
@@ -396,6 +403,7 @@ func TestCommunityStaysOutOfTheCNCFCountsAndCorpus(t *testing.T) {
 }
 
 func TestCommunityTargetPaths(t *testing.T) {
+	t.Parallel()
 	for slug, want := range map[string]string{
 		"gateway-api": "knowledge/community/projects/gateway-api.v1.json",
 		"strimzi":     "knowledge/cncf/projects/strimzi.v1.json",
@@ -437,6 +445,7 @@ func buildCommunityTargets(t *testing.T, b bundle) (ExternalTarget, []ExternalTa
 }
 
 func TestCommunityTargetsAndIndex(t *testing.T) {
+	t.Parallel()
 	b := communityBundle(t)
 	index, targets := buildCommunityTargets(t, b)
 	var document externalIndexDocument
@@ -506,6 +515,7 @@ func TestCommunityTargetsAndIndex(t *testing.T) {
 }
 
 func TestCommunityIndexRefusals(t *testing.T) {
+	t.Parallel()
 	b := communityBundle(t)
 	index, targets := buildCommunityTargets(t, b)
 	var document externalIndexDocument
@@ -610,6 +620,7 @@ func mustLoad(t *testing.T) bundle {
 // A community project is known to a scan once the knowledge holds data for
 // it, and then only with the community catalog label.
 func TestCommunityScanKnowledge(t *testing.T) {
+	t.Parallel()
 	b := communityBundle(t)
 	k, err := newScanKnowledge(b)
 	if err != nil {
@@ -657,6 +668,7 @@ func TestCommunityScanKnowledge(t *testing.T) {
 // Knowledge selected from a store: only the opened community target counts,
 // and an empty envelope is no data.
 func TestCommunityStoreScanKnowledge(t *testing.T) {
+	t.Parallel()
 	b := communityBundle(t)
 	_, targets := buildCommunityTargets(t, b)
 	opened := map[string]ExternalBundle{}
@@ -708,6 +720,7 @@ func TestCommunityStoreScanKnowledge(t *testing.T) {
 // is refused wherever an attestation is admitted, until the reviewed path
 // exists; the same attestation for a CNCF component is admitted.
 func TestCommunityCannotAttestYet(t *testing.T) {
+	t.Parallel()
 	attestation := func(component string) lineattest.LineAttestation {
 		a := lineattest.LineAttestation{
 			Component: component, Line: "1.2", FactFamily: lineattest.FamilyCustomResourceVersions, Completeness: lineattest.Completeness, RuleIDs: []string{},
@@ -797,6 +810,7 @@ func mustMarshal(t *testing.T, value any) []byte {
 // Record ownership knows the community catalog, so a record that is ever
 // admitted for a community component lands in its project's target.
 func TestCommunityRecordOwnership(t *testing.T) {
+	t.Parallel()
 	b := communityBundle(t)
 	owners := recordOwners(b.knowledgeProjects())
 	if owners[communityComponent] != communitySlug || owners[crdStrimziComponent] != "strimzi" {

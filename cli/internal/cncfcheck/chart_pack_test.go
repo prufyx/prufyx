@@ -25,6 +25,7 @@ func syntheticChartEntry(t *testing.T) Entry {
 }
 
 func TestPackChartLevel(t *testing.T) {
+	t.Parallel()
 	entry := syntheticChartEntry(t)
 	if _, err := assembleSynthetic(syntheticPack(t, packSchemaChart, nil, entry), nil); err != nil {
 		t.Fatalf("chart pack under the chart level refused: %v", err)
@@ -43,6 +44,7 @@ func TestPackChartLevel(t *testing.T) {
 // fallback serve application hops, so a chart rule with the hop's very
 // numbers is never selected, counted or evaluated for one.
 func TestChartRuleNeverSelectedForAnApplicationHop(t *testing.T) {
+	t.Parallel()
 	b, err := assembleSynthetic(syntheticPack(t, packSchemaChart, nil, syntheticChartEntry(t)), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -80,6 +82,7 @@ func TestChartRuleNeverSelectedForAnApplicationHop(t *testing.T) {
 }
 
 func TestExternalRefusesChartRules(t *testing.T) {
+	t.Parallel()
 	// A rules-only envelope over syntheticBase: the export of the embedded
 	// pack while it carries no record section.
 	raw := syntheticBaseExternalBundle(t, "7")
@@ -129,6 +132,7 @@ func syntheticSetNoticeEntry(t *testing.T, operator string) Entry {
 // used without one. A set notice is verdict-neutral for selection, and
 // external packs refuse it.
 func TestPackChartNoticeLevel(t *testing.T) {
+	t.Parallel()
 	for _, operator := range []string{constraintengine.OperatorNoticeSetMemberPresent, constraintengine.OperatorNoticeSetMemberAbsent} {
 		entry := syntheticSetNoticeEntry(t, operator)
 		if _, err := assembleSynthetic(syntheticPack(t, packSchemaChartNotice, nil, entry), nil); err != nil {
@@ -154,6 +158,7 @@ func TestPackChartNoticeLevel(t *testing.T) {
 }
 
 func TestExternalRefusesSetNotices(t *testing.T) {
+	t.Parallel()
 	raw, err := ExportEmbeddedExternalBundle("7")
 	if err != nil {
 		t.Fatal(err)
@@ -207,6 +212,7 @@ func syntheticRangedChartEntry(t *testing.T) Entry {
 // exactly the ranged chart level, every lower level refuses it, and the
 // level is never used without one.
 func TestPackChartRangedLevel(t *testing.T) {
+	t.Parallel()
 	entry := syntheticRangedChartEntry(t)
 	if _, err := assembleSynthetic(syntheticPack(t, packSchemaChartRanged, nil, entry), nil); err != nil {
 		t.Fatalf("ranged chart pack under the ranged chart level refused: %v", err)

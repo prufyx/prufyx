@@ -24,6 +24,7 @@ func crdSetNoticeRule(operator string) string {
 // does not fail, and exit, gaps, findings, passes and notices are those of
 // the scan without it.
 func TestScanSetNoticeIsNeutral(t *testing.T) {
+	t.Parallel()
 	for _, operator := range []string{constraintengine.OperatorNoticeSetMemberPresent, constraintengine.OperatorNoticeSetMemberAbsent} {
 		rule, err := cncfcheck.NewScanRule("strimzi", "Synthetic set notice. Test only.", []byte(crdSetNoticeRule(operator)))
 		if err != nil || !rule.Notice || !rule.SetNotice {

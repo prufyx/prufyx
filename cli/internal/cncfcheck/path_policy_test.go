@@ -55,6 +55,7 @@ func featurePack(t *testing.T, schema string, attestations, policies []byte) []b
 }
 
 func TestEmbeddedPackCarriesNoPathPolicies(t *testing.T) {
+	t.Parallel()
 	raw, err := packagedFiles.ReadFile("data/rules.json")
 	if err != nil {
 		t.Fatal(err)
@@ -73,6 +74,7 @@ func TestEmbeddedPackCarriesNoPathPolicies(t *testing.T) {
 }
 
 func TestPathPolicyPackIsAdmittedAndLookedUp(t *testing.T) {
+	t.Parallel()
 	b, err := assembleSynthetic(featurePack(t, packSchemaPathPolicies, nil, validPolicies(t)), nil)
 	if err != nil {
 		t.Fatalf("pack with path policies refused: %v", err)
@@ -114,6 +116,7 @@ func TestPathPolicyPackIsAdmittedAndLookedUp(t *testing.T) {
 }
 
 func TestPathPolicyFreshness(t *testing.T) {
+	t.Parallel()
 	withdrawn := testPolicyRecord(ciliumComponent, upgradepath.PolicyDirect)
 	withdrawn.Evidence.State = upgradepath.StateWithdrawn
 	b, err := assembleSynthetic(featurePack(t, packSchemaPathPolicies, nil, policySection(t, testPolicyRecord(k8sComponent, upgradepath.PolicySequentialMinor), withdrawn)), nil)
@@ -164,6 +167,7 @@ func TestPathPolicyFreshness(t *testing.T) {
 
 // Every defect in the path-policy section rejects the whole pack.
 func TestPathPoliciesStrict(t *testing.T) {
+	t.Parallel()
 	good := featurePack(t, packSchemaPathPolicies, nil, validPolicies(t))
 	if _, err := assembleSynthetic(good, nil); err != nil {
 		t.Fatalf("unmutated pack refused: %v", err)
@@ -231,6 +235,7 @@ func TestPathPoliciesStrict(t *testing.T) {
 // carries exactly the level shippedSchemaLevel states from its bytes; the
 // feature matrix is built on syntheticBase.
 func TestPackSchemaLevels(t *testing.T) {
+	t.Parallel()
 	raw, err := packagedFiles.ReadFile("data/rules.json")
 	if err != nil {
 		t.Fatal(err)
@@ -298,6 +303,7 @@ func TestPackSchemaLevels(t *testing.T) {
 }
 
 func TestExternalRefusesPathPolicies(t *testing.T) {
+	t.Parallel()
 	raw := syntheticBaseExternalBundle(t, "7")
 	if _, err := ParseExternalBundle(raw); err != nil {
 		t.Fatalf("untampered external bundle refused: %v", err)
@@ -337,6 +343,7 @@ func TestExternalRefusesPathPolicies(t *testing.T) {
 }
 
 func TestPathPolicyPackMember(t *testing.T) {
+	t.Parallel()
 	field, ok := reflect.TypeOf(rulePack{}).FieldByName("PathPolicies")
 	if !ok {
 		t.Fatal("rulePack has no PathPolicies field")
@@ -351,6 +358,7 @@ func TestPathPolicyPackMember(t *testing.T) {
 // envelope its content needs; a pack without records splits with each
 // target's schema chosen by the same level table as the loader's.
 func TestSplitTargetsCarrySections(t *testing.T) {
+	t.Parallel()
 	same := func(string, func(string) ([]byte, error)) (string, error) { return "7", nil }
 	for name, raw := range map[string][]byte{
 		"path policies": featurePack(t, packSchemaPathPolicies, nil, validPolicies(t)),

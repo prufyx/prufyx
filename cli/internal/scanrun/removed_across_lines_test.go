@@ -81,6 +81,7 @@ func findingFor(t *testing.T, report scanreport.Report, ruleID string) scanrepor
 // FOUND IN COVERED CHECKS" (exit 11) with a gap saying the version was
 // "removed before the evaluated hops".
 func TestScanC1RemovedAPIAcrossSkippedLines(t *testing.T) {
+	t.Parallel()
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobOnlyV1beta1})
 	result := mustScan(t, embeddedOnly(t), args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...)
 	report := result.Report
@@ -114,6 +115,7 @@ func TestScanC1RemovedAPIAcrossSkippedLines(t *testing.T) {
 // hop direct. Every removal a reviewed rule covers on an entered line blocks,
 // at the step that enters that line.
 func TestScanRemovedAPIAcrossSkippedLinesVariants(t *testing.T) {
+	t.Parallel()
 	const (
 		ingressExtensions = "apiVersion: extensions/v1beta1\nkind: Ingress\nmetadata:\n  name: web\n  namespace: demo\n"
 		hpaV2beta2        = "apiVersion: autoscaling/v2beta2\nkind: HorizontalPodAutoscaler\nmetadata:\n  name: web\n  namespace: demo\n"
@@ -172,6 +174,7 @@ func TestScanRemovedAPIAcrossSkippedLinesVariants(t *testing.T) {
 // the answer is UNKNOWN with a headline that names the object, a gap that
 // says why, and a next action. It is never "no blockers".
 func TestScanRemovedAPIUndecidedIsExplicitUnknown(t *testing.T) {
+	t.Parallel()
 	without := hiddenRules{Knowledge: embeddedOnly(t), hidden: map[string]bool{cronjobRuleID: true}}
 	cases := []struct {
 		name      string
@@ -293,6 +296,7 @@ func TestScanRemovedAPIAcrossSkippedLinesFormats(t *testing.T) {
 // APIs", and, because the shipped pack attests the removal rules of line 1.25
 // as complete, it carries no line-not-attested gap either.
 func TestScanLineReviewGapAgreesWithBlocker(t *testing.T) {
+	t.Parallel()
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobOnlyV1beta1})
 	result := mustScan(t, embeddedOnly(t), args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3")...)
 	if result.Exit != scanreport.ExitBlocked {
@@ -313,6 +317,7 @@ func TestScanLineReviewGapAgreesWithBlocker(t *testing.T) {
 // TestScanDowngradeGapHasNextAction: the downgrade gap names a real next
 // action, never "none".
 func TestScanDowngradeGapHasNextAction(t *testing.T) {
+	t.Parallel()
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
 	result := mustScan(t, embeddedOnly(t), args(paths, "--from", "kubernetes=1.25.2", "--to", "kubernetes=1.24.1")...)
 	for _, gap := range result.Report.Gaps {
@@ -331,6 +336,7 @@ func TestScanDowngradeGapHasNextAction(t *testing.T) {
 // every upgrade past 1.16, on a skipping hop and on an adjacent one, and the
 // headline never reads "no blockers".
 func TestScanPreV122RemovedAPIIsNeverNoBlockers(t *testing.T) {
+	t.Parallel()
 	for _, apiVersion := range []string{"extensions/v1beta1", "apps/v1beta2", "apps/v1beta1"} {
 		manifest := "apiVersion: " + apiVersion + "\nkind: Deployment\nmetadata:\n  name: web\n  namespace: demo\n"
 		for _, hop := range [][2]string{{"1.24.17", "1.25.4"}, {"1.29.1", "1.30.4"}} {
@@ -350,6 +356,7 @@ func TestScanPreV122RemovedAPIIsNeverNoBlockers(t *testing.T) {
 // TestScanServedVersionsAcrossSkippedLinesAreClean: objects at versions every
 // line serves are neither blocked nor named as unserved on a skipping hop.
 func TestScanServedVersionsAcrossSkippedLinesAreClean(t *testing.T) {
+	t.Parallel()
 	manifest := "apiVersion: batch/v1\nkind: CronJob\nmetadata:\n  name: nightly\n  namespace: demo\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\n  namespace: demo\n"
 	_, paths := files(t, map[string]string{"applyset.yaml": manifest})
 	result := mustScan(t, embeddedOnly(t), args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...)
@@ -362,6 +369,7 @@ func TestScanServedVersionsAcrossSkippedLinesAreClean(t *testing.T) {
 // nothing, gaps carry the reason, including the rules the trust policy left
 // out (counted in the trust policy block).
 func TestScanUndecidedStepSaysWhy(t *testing.T) {
+	t.Parallel()
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobOnlyV1beta1})
 	result := mustScan(t, embeddedOnly(t), args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", basisBelowPack())...)
 	report := result.Report

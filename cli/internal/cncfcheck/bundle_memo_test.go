@@ -12,6 +12,7 @@ import (
 
 // The memoized bundle is exactly the uncached one, call after call.
 func TestMemoizedBundleEqualsUncached(t *testing.T) {
+	t.Parallel()
 	want, err := loadUncached()
 	if err != nil {
 		t.Fatal(err)
@@ -30,6 +31,7 @@ func TestMemoizedBundleEqualsUncached(t *testing.T) {
 // Concurrent first use runs the loader once and every caller sees the same
 // bundle. Run under -race.
 func TestBundleMemoConcurrentFirstUse(t *testing.T) {
+	t.Parallel()
 	var m bundleMemo
 	var calls int32
 	loader := func() (bundle, error) {
@@ -62,6 +64,7 @@ func TestBundleMemoConcurrentFirstUse(t *testing.T) {
 // writable part is changed in one caller; the next caller still gets the
 // uncached bundle.
 func TestMutatingALoadedBundleDoesNotAffectTheCache(t *testing.T) {
+	t.Parallel()
 	want, err := loadUncached()
 	if err != nil {
 		t.Fatal(err)
@@ -95,6 +98,7 @@ func TestMutatingALoadedBundleDoesNotAffectTheCache(t *testing.T) {
 
 // A failed first load is cached as a failure: no retry, no fallback.
 func TestBundleMemoCachesFailure(t *testing.T) {
+	t.Parallel()
 	var m bundleMemo
 	calls := 0
 	loader := func() (bundle, error) { calls++; return bundle{}, ErrIntegrity }

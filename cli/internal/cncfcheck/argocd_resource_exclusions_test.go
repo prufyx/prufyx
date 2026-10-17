@@ -13,6 +13,7 @@ import (
 const argoExclusionsRule = "argo-cd.resource-exclusions-v2-visibility-preservation.3-0"
 
 func TestArgoCDResourceExclusionsSelectedRuleLeavesRBACGeneric(t *testing.T) {
+	t.Parallel()
 	yes := true
 	raw := []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: argocd-cm\ndata:\n  resource.exclusions: '[]'\n")
 	p, err := cncfprepare.PrepareArgoCDResourceExclusions(raw, cncfprepare.ArgoCDFrom, cncfprepare.ArgoCDTo, true, true, &yes)
@@ -31,6 +32,7 @@ func TestArgoCDResourceExclusionsSelectedRuleLeavesRBACGeneric(t *testing.T) {
 }
 
 func TestArgoCDResourceExclusionsIntentGuardsDefault(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2026, 9, 12, 1, 23, 59, 0, time.UTC)
 	for _, tc := range []struct{ name, state, value, status string }{{"missing", "unsupported", "", "UNKNOWN"}, {"true", "declared", "true", "BLOCKED"}, {"false", "declared", "false", "UNKNOWN"}} {
 		t.Run(tc.name, func(t *testing.T) {

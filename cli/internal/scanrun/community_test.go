@@ -59,6 +59,7 @@ func TestScanCommunityComponentWithoutDataIsRefusedAsBefore(t *testing.T) {
 // community project, in either layout: the project is named by the compiled
 // catalogue and refused once the database is open.
 func TestScanCommunityComponentRefusedByADatabaseWithoutData(t *testing.T) {
+	t.Parallel()
 	for _, layout := range storeLayouts {
 		t.Run(layout, func(t *testing.T) {
 			fixture := newStoreFixture(t, layout)

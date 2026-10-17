@@ -100,6 +100,7 @@ func externalReviewClock() time.Time {
 }
 
 func TestParseExternalBundleEmptyAndAdmissionBinding(t *testing.T) {
+	t.Parallel()
 	requirements, err := ExternalProfileRequirements()
 	if err != nil || requirements.Schema != externalBundleSchema || requirements.PackSchema == "" || requirements.EngineCapabilityDigest == "" || requirements.PolicyID == "" || requirements.PolicyDigest == "" || requirements.RegistryDigest == "" || requirements.LandscapeFileDigest == "" {
 		t.Fatalf("invalid scalar profile requirements: %+v err=%v", requirements, err)
@@ -122,6 +123,7 @@ func TestParseExternalBundleEmptyAndAdmissionBinding(t *testing.T) {
 }
 
 func TestParseExternalBundleRuleAdmissionAndExternalAuthority(t *testing.T) {
+	t.Parallel()
 	raw := externalFixture(t, []Entry{kyvernoEntry(t)})
 	bundle, err := ParseExternalBundle(raw)
 	if err != nil {
@@ -147,6 +149,7 @@ func TestParseExternalBundleRuleAdmissionAndExternalAuthority(t *testing.T) {
 }
 
 func TestExternalBundleDoesNotFallbackToEmbeddedRules(t *testing.T) {
+	t.Parallel()
 	bundle, err := ParseExternalBundle(externalFixture(t, []Entry{}))
 	if err != nil {
 		t.Fatal(err)
@@ -161,6 +164,7 @@ func TestExternalBundleDoesNotFallbackToEmbeddedRules(t *testing.T) {
 }
 
 func TestExternalSelectedRuleDoesNotFallbackOrCrossProjects(t *testing.T) {
+	t.Parallel()
 	const kyvernoRuleID = "kyverno.reports-chunk-size-removed.1-13"
 	bundle, err := ParseExternalBundle(externalFixture(t, []Entry{}))
 	if err != nil {
@@ -185,6 +189,7 @@ func TestExternalSelectedRuleDoesNotFallbackOrCrossProjects(t *testing.T) {
 }
 
 func TestExternalSelectedPrometheusRuleCannotReuseSourceDefaultForFuturePair(t *testing.T) {
+	t.Parallel()
 	const ruleID = "prometheus.alertmanager-api-v1-removed.3-1"
 	prepared, err := cncfprepare.PreparePrometheusAlertmanagerConfig([]byte("scheme: http\n"), "3.1.0", "3.2.0", true, true)
 	if err != nil || prepared.State != cncfprepare.StateUnknown || prepared.Reason != cncfprepare.ReasonPrometheusAlertmanagerUnsupported {
@@ -232,6 +237,7 @@ func TestExternalSelectedPrometheusRuleCannotReuseSourceDefaultForFuturePair(t *
 }
 
 func TestExternalBundleRejectsMalformedClosedShapes(t *testing.T) {
+	t.Parallel()
 	valid := externalFixture(t, []Entry{})
 	tests := [][]byte{
 		bytes.Replace(valid, []byte(`"schema":"prufyx.io/operator-cncf-knowledge/v1alpha1"`), []byte(`"Schema":"prufyx.io/operator-cncf-knowledge/v1alpha1"`), 1),
@@ -261,6 +267,7 @@ func TestExternalBundleRejectsMalformedClosedShapes(t *testing.T) {
 }
 
 func TestExternalBundleRejectsIdentityAndRegistryMismatches(t *testing.T) {
+	t.Parallel()
 	valid := externalFixture(t, []Entry{})
 	mutations := [][]byte{
 		bytes.Replace(valid, []byte(`"revision":"1"`), []byte(`"revision":"0"`), 1),
@@ -277,6 +284,7 @@ func TestExternalBundleRejectsIdentityAndRegistryMismatches(t *testing.T) {
 }
 
 func TestExternalBundleSealRejectsMutation(t *testing.T) {
+	t.Parallel()
 	bundle, err := ParseExternalBundle(externalFixture(t, []Entry{}))
 	if err != nil {
 		t.Fatal(err)
@@ -296,6 +304,7 @@ func TestExternalBundleSealRejectsMutation(t *testing.T) {
 }
 
 func TestExternalBundleEvidenceStatesRemainScoped(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name    string
 		replace []byte
@@ -325,6 +334,7 @@ func TestExternalBundleEvidenceStatesRemainScoped(t *testing.T) {
 }
 
 func TestExportEmbeddedExternalBundlePreservesCompletePack(t *testing.T) {
+	t.Parallel()
 	base, err := load()
 	if err != nil {
 		t.Fatal(err)
@@ -367,6 +377,7 @@ func TestExportEmbeddedExternalBundlePreservesCompletePack(t *testing.T) {
 }
 
 func TestExportEmbeddedExternalBundleRejectsInvalidRevision(t *testing.T) {
+	t.Parallel()
 	for _, revision := range []string{"", "0", "01", "main", "2147483648"} {
 		t.Run(revision, func(t *testing.T) {
 			if _, err := ExportEmbeddedExternalBundle(revision); err == nil {
@@ -377,6 +388,7 @@ func TestExportEmbeddedExternalBundleRejectsInvalidRevision(t *testing.T) {
 }
 
 func TestExternalProfileContractMatchesEnforcedRequirements(t *testing.T) {
+	t.Parallel()
 	contract, err := ExternalProfileContractForCNCF()
 	if err != nil {
 		t.Fatal(err)

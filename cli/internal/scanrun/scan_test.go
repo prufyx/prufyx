@@ -138,6 +138,7 @@ func TestScanIntermediateLineCoverage(t *testing.T) {
 
 // TestScanDowngrade: a downgrade is not planned and is a named gap.
 func TestScanDowngrade(t *testing.T) {
+	t.Parallel()
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
 	result := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.30.4", "--to", "kubernetes=1.29.1")...)
@@ -150,6 +151,7 @@ func TestScanDowngrade(t *testing.T) {
 // precondition of a pass leaves the answer UNKNOWN, on a path with rules and
 // on a path whose only line has none.
 func TestScanPassPreconditions(t *testing.T) {
+	t.Parallel()
 	type variant struct {
 		knowledge knowledgeOptions
 		files     map[string]string
@@ -221,6 +223,7 @@ func TestScanPassPreconditions(t *testing.T) {
 // the hop's concrete versions, even when the documents come from several
 // files.
 func TestScanEngineInputDigestUnchanged(t *testing.T) {
+	t.Parallel()
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	first := "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: a}\n"
 	second := "apiVersion: autoscaling/v2beta2\nkind: HorizontalPodAutoscaler\nmetadata: {name: b}\n---\napiVersion: v1\nkind: ConfigMap\nmetadata: {name: c}\n"
@@ -424,6 +427,7 @@ func TestScanPermissions(t *testing.T) {
 // TestScanSlugs: an unknown component is refused with at most three
 // suggestions; a known component scan does not evaluate is a named gap.
 func TestScanSlugs(t *testing.T) {
+	t.Parallel()
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
 	_, err := scan(t, knowledge, args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernets=1.30.4")...)
@@ -481,6 +485,7 @@ func TestScanConfigFile(t *testing.T) {
 
 // TestScanUsage: malformed command lines are refused before anything is read.
 func TestScanUsage(t *testing.T) {
+	t.Parallel()
 	for _, command := range [][]string{
 		{"--to"}, {"--to", "kubernetes"}, {"--to", "=1.2.3"}, {"--format", "xml"}, {"--format", "SARIF"}, {"--now", "2026-10-04T00:00:00+02:00"},
 		{"--now", "2026-10-04T00:00:00.5Z"}, {"--input-permissions", "loose"}, {"--distribution", "eks"}, {"--bogus"},
@@ -515,6 +520,7 @@ func TestScanUsage(t *testing.T) {
 // TestScanDefaultNow: without --now the scan uses the clock, truncated to
 // the second, and prints it as the evaluation instant.
 func TestScanDefaultNow(t *testing.T) {
+	t.Parallel()
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
 	request, err := ParseArgs(append(append([]string{}, paths...), append(declared, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...))
@@ -532,6 +538,7 @@ func TestScanDefaultNow(t *testing.T) {
 // unresolved, the hops name the omission's gap, and no other cause is
 // invented. The removed version in the readable document still blocks.
 func TestScanOmissionsExplainHops(t *testing.T) {
+	t.Parallel()
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	dir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1beta1, "values.yaml": "replicas: 2\n"})
 	result := mustScan(t, knowledge, args([]string{dir}, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...)
@@ -553,6 +560,7 @@ func TestScanOmissionsExplainHops(t *testing.T) {
 // TestFindingAttribution: a rule that blocks at several hops is reported
 // once, at the first, with the later hops (and the whole upgrade) in alsoAt.
 func TestFindingAttribution(t *testing.T) {
+	t.Parallel()
 	report := &scanreport.Report{}
 	run := &kubernetesRun{report: report, findings: map[string]int{}}
 	rule := cncfcheck.ScanRule{Scope: lineattest.RuleScope{ID: "r"}, Description: "Title. More.", NextAction: "fix"}
@@ -570,6 +578,7 @@ func TestFindingAttribution(t *testing.T) {
 // not apply to the hop, or leaves out a rule of the line that does, never
 // covers the hop.
 func TestScanInconsistentLineReview(t *testing.T) {
+	t.Parallel()
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
 	extra := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true,
 		extraRuleIDs: map[string][]string{"1.30": {supersedeids.ID("kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0")}}})
@@ -589,6 +598,7 @@ func TestScanInconsistentLineReview(t *testing.T) {
 // hop that skips lines, or a patch upgrade within one line, is not covered by
 // them, whatever policy planned it.
 func TestScanHopShape(t *testing.T) {
+	t.Parallel()
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
 	direct := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "direct"})
 	result := mustScan(t, direct, args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...)
@@ -606,6 +616,7 @@ func TestScanHopShape(t *testing.T) {
 // evidence scan does not collect (the 1.24 dockershim rule) leaves the hop
 // undecided even when the line review lists no removed-API rule.
 func TestScanRuleNeedsOtherEvidence(t *testing.T) {
+	t.Parallel()
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
 	knowledge := newKnowledge(t, knowledgeOptions{lines: []string{"1.24"}, policy: "current"})
 	result := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.23.17", "--to", "kubernetes=1.24.0")...)
@@ -617,6 +628,7 @@ func TestScanRuleNeedsOtherEvidence(t *testing.T) {
 // TestScanUnreviewedAPIVersion: a version of a reviewed kind that no
 // reviewed removal names keeps the hop's rule undecided.
 func TestScanUnreviewedAPIVersion(t *testing.T) {
+	t.Parallel()
 	_, paths := files(t, map[string]string{"applyset.yaml": "apiVersion: autoscaling/v2beta3\nkind: HorizontalPodAutoscaler\nmetadata: {name: web}\n"})
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	result := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3")...)
@@ -632,6 +644,7 @@ func TestScanUnreviewedAPIVersion(t *testing.T) {
 // TestScanEmptyInput: no manifest at all is never a pass, even on a line
 // with no rule.
 func TestScanEmptyInput(t *testing.T) {
+	t.Parallel()
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	for _, from := range []string{"1.29.6", "1.24.17"} {
 		_, paths := files(t, map[string]string{"empty.yaml": "# nothing rendered\n---\n"})
@@ -645,6 +658,7 @@ func TestScanEmptyInput(t *testing.T) {
 // TestJudgeClaims: every claim result other than PASS, BLOCKED and a rule
 // that does not apply leaves the rule undecided with a named gap.
 func TestJudgeClaims(t *testing.T) {
+	t.Parallel()
 	rule := cncfcheck.ScanRule{Scope: lineattest.RuleScope{ID: "r"}, Description: "Title.", NextAction: "fix"}
 	ref := scanreport.HopRef{Index: 1, From: "1.24.0", To: "1.25"}
 	cases := []struct {

@@ -14,6 +14,7 @@ import (
 // A refused file input on Windows names the platform and the way out, even
 // when the paths are redacted (18-m2).
 func TestInputErrorNamesTheWindowsLimitation(t *testing.T) {
+	t.Parallel()
 	cause := fmt.Errorf("%w: manifest.yaml: %w", intake.ErrInput, validation.ErrUnsupportedPlatform)
 	for _, redact := range []bool{false, true} {
 		err := inputError(cause, Request{Redact: redact})

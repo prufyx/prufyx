@@ -14,6 +14,7 @@ import (
 // whose reason is API_VERSION_NOT_SERVED. This pins the real serializer to
 // that contract: the field name and the exact value the script looks for.
 func TestScanJSONCarriesTheReasonTheActionChecks(t *testing.T) {
+	t.Parallel()
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	_, paths := files(t, map[string]string{"applyset.yaml": "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: a}\n"})
 	result := mustScan(t, knowledge, args(paths, "--from", "kubernetes=1.25.3", "--to", "kubernetes=1.30.4")...)
