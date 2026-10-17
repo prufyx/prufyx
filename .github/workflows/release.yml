@@ -184,6 +184,11 @@ jobs:
   provenance:
     name: Checksums and provenance
     needs: build
+    # Protected environment: the owner creates `release` with themselves as
+    # required reviewer and tags `v*` as the only deployment refs. Provenance is
+    # attested, and the draft release (which needs this job) is created,
+    # only after that approval.
+    environment: release
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
