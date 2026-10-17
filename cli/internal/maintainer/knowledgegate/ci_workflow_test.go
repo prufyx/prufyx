@@ -35,8 +35,14 @@ type ciWorkflowJob struct {
 }
 
 type ciWorkflowStep struct {
-	Run string            `yaml:"run"`
-	Env map[string]string `yaml:"env"`
+	Run             string            `yaml:"run"`
+	Env             map[string]string `yaml:"env"`
+	ContinueOnError any               `yaml:"continue-on-error"`
+}
+
+// ciSoftFail reports a continue-on-error value other than absent or false.
+func ciSoftFail(v any) bool {
+	return v != nil && v != false && v != "false"
 }
 
 // ciStringList accepts a scalar or a sequence, as GitHub does for needs.
@@ -97,8 +103,14 @@ func ciFanInProblems(raw []byte) []string {
 			for _, line := range strings.Split(st.Run, "\n") {
 				if ciGoTestRe.MatchString(line) {
 					runsTests = true
+					if ciSoftFail(st.ContinueOnError) || strings.Contains(line, "|| true") {
+						problems = append(problems, "job "+id+" lets a go test step fail without failing the job")
+					}
 				}
 			}
+		}
+		if (runsTests || needs[id]) && ciSoftFail(job.ContinueOnError) {
+			problems = append(problems, "job "+id+" sets continue-on-error, so its failure reports success to the fan-in")
 		}
 		if runsTests && !needs[id] {
 			problems = append(problems, "job "+id+" runs go test but is not in the "+ciFanInName+" needs")
@@ -115,7 +127,7 @@ func ciFanInProblems(raw []byte) []string {
 	if strings.ReplaceAll(strings.TrimSpace(fan.If), " ", "") != "always()" {
 		problems = append(problems, ciFanInName+" must have if: always(), else a failed shard skips it and a skipped required check can pass")
 	}
-	if fan.ContinueOnError != nil && fan.ContinueOnError != false && fan.ContinueOnError != "false" {
+	if ciSoftFail(fan.ContinueOnError) {
 		problems = append(problems, ciFanInName+" must not set continue-on-error")
 	}
 	checked := false
@@ -201,6 +213,13 @@ jobs:
 		"continue on error": func(s string) string {
 			return strings.Replace(s, "if: always()", "if: always()\n    continue-on-error: true", 1)
 		},
+		"shard continue-on-error": func(s string) string {
+			return strings.Replace(s, "  shard-a:\n    name: A", "  shard-a:\n    name: A\n    continue-on-error: true", 1)
+		},
+		"test step continue-on-error": func(s string) string {
+			return strings.Replace(s, "      - run: go test ./...", "      - continue-on-error: true\n        run: go test ./...", 1)
+		},
+		"test or true":   func(s string) string { return strings.Replace(s, "go test ./...", "go test ./... || true", 1) },
 		"race in needs":  func(s string) string { return strings.Replace(s, "[shard-a, shard-b]", "[shard-a, shard-b, race]", 1) },
 		"fan-in renamed": func(s string) string { return strings.Replace(s, "name: Build, vet, test", "name: Gate", 1) },
 	}
