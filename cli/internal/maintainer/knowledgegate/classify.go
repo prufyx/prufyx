@@ -79,6 +79,9 @@ type Change struct {
 	// evidence.reviewedAt and a later evidence.validUntil.
 	rbase, rhead *record
 	renewal      bool
+	// derivedGroup is every line attestation the re-derivation group of this
+	// record derived, in canonical JSON by record ID (nil until re-derived).
+	derivedGroup map[string][]byte
 }
 
 // diffPacks classifies every top-level member and every rule that differs
