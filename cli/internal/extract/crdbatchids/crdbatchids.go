@@ -76,6 +76,14 @@ var lines = []Line{
 	{"pkg:github/strimzi/strimzi-kafka-operator", "1.3"},
 }
 
+// otherQuiet are quiet lines of the same family that other changes ship (the
+// cilium target). Holds accepts them; they are
+// not part of the all-or-none batch and are not counted.
+var otherQuiet = []Line{
+	{"pkg:github/cilium/cilium", "1.16"},
+	{"pkg:github/cilium/cilium", "1.17"},
+}
+
 // Rules returns the batch's rules in id order.
 func Rules() []Rule {
 	out := make([]Rule, len(rules))
@@ -110,6 +118,23 @@ func ProjectRules(project string) []Rule {
 
 // Lines returns the batch's line attestations.
 func Lines() []Line { return append([]Line(nil), lines...) }
+
+// ShippedLines returns every quiet custom-resource-family line attestation
+// the shipped pack carries once the batch is shipped (the batch's and the other
+// shipped quiet lines), ordered as the pack orders them; none before.
+func ShippedLines() []Line {
+	if !Shipped() {
+		return nil
+	}
+	out := append(Lines(), otherQuiet...)
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Component != out[j].Component {
+			return out[i].Component < out[j].Component
+		}
+		return out[i].Line < out[j].Line
+	})
+	return out
+}
 
 var (
 	shippedOnce sync.Once
@@ -156,7 +181,8 @@ type subject struct {
 // Holds reports whether pack holds the batch (true) or none of it (false).
 // A pack holding part of the batch, a batch rule that differs from its
 // statement here (project, operator, subject, set condition), a line
-// attestation of the family that is not a quiet line of the batch, or any
+// attestation of the family that is neither a quiet line of the batch nor
+// one of the other shipped quiet lines, or any
 // other custom-resource version-removal rule is an error.
 func Holds(pack []byte) (bool, error) {
 	var p struct {
@@ -218,8 +244,13 @@ func Holds(pack []byte) (bool, error) {
 		} else {
 			seen[l] = true
 		}
-		known := false
+		known, inBatch := false, false
 		for _, l := range lines {
+			if l.Component == a.Component && l.Line == a.Line {
+				known, inBatch = true, true
+			}
+		}
+		for _, l := range otherQuiet {
 			if l.Component == a.Component && l.Line == a.Line {
 				known = true
 			}
@@ -227,7 +258,9 @@ func Holds(pack []byte) (bool, error) {
 		if !known || a.RuleIDs == nil || len(*a.RuleIDs) != 0 {
 			return false, fmt.Errorf("the pack's %s line attestation %s %s is not a quiet line of the batch", FactFamily, a.Component, a.Line)
 		}
-		attested++
+		if inBatch {
+			attested++
+		}
 	}
 	switch {
 	case held == 0 && attested == 0:
