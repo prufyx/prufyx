@@ -14,10 +14,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-test:
-    name: Build, vet, test
+  lint-build:
+    name: Build, vet, validate
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -38,21 +38,6 @@ jobs:
         working-directory: cli
         run: go vet ./...
 
-      - name: Test
-        working-directory: cli
-        # Some packages exceed go test's default 10-minute limit on hosted runners; keep the generous limit (the communityapp tests now run in parallel).
-        run: |
-          go test -timeout 60m -covermode=atomic -coverprofile=coverage.out ./...
-          go tool cover -func=coverage.out | tail -1
-
-      - name: Upload coverage profile
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: coverage-out
-          path: cli/coverage.out
-          retention-days: 14
-          if-no-files-found: error
-
       - name: Check knowledge target sizes
         # Fails when any per-project CNCF knowledge target or the index
         # reaches 80% of the 1 MiB per-target cap, when the single-target
@@ -61,15 +46,6 @@ jobs:
         # names the target.
         working-directory: cli
         run: go run ./cmd/prufyx-maintainer knowledge-targets check-size
-
-      - name: Test command routes against synthetic knowledge
-        working-directory: cli
-        # Every package with a prufyx_synthetic_knowledge file is listed, and the
-        # run has no -run filter, so a tagged test is never skipped for its name
-        # (TestCISyntheticPackagesAreCovered fails when a package is missing).
-        run: |
-          go vet -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/ ./internal/onecommand/ ./internal/scanrun/ ./internal/maintainer/knowledgegate/ ./internal/maintainer/knowledgetargets/ ./internal/maintainer/knowledgerelease/
-          go test -timeout 60m -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/ ./internal/onecommand/ ./internal/scanrun/ ./internal/maintainer/knowledgegate/ ./internal/maintainer/knowledgetargets/ ./internal/maintainer/knowledgerelease/
 
       - name: Validate community rule candidates
         working-directory: cli
@@ -89,6 +65,148 @@ jobs:
             fi
           done
           exit "${status}"
+
+  test-core:
+    name: Test (all packages except knowledgegate)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Test
+        working-directory: cli
+        # Some packages exceed go test's default 10-minute limit on hosted runners; keep a generous limit.
+        # The knowledgegate package has its own job (test-knowledgegate).
+        run: |
+          set -euo pipefail
+          packages=$(go list ./... | grep -v '/internal/maintainer/knowledgegate$')
+          # shellcheck disable=SC2086
+          go test -timeout 30m -covermode=atomic -coverprofile=coverage-core.out ${packages}
+
+      - name: Upload coverage profile
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-core
+          path: cli/coverage-core.out
+          retention-days: 14
+          if-no-files-found: error
+
+  test-knowledgegate:
+    name: Test (knowledgegate)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Test
+        working-directory: cli
+        run: go test -timeout 40m -covermode=atomic -coverprofile=coverage-knowledgegate.out ./internal/maintainer/knowledgegate/
+
+      - name: Upload coverage profile
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-knowledgegate
+          path: cli/coverage-knowledgegate.out
+          retention-days: 14
+          if-no-files-found: error
+
+  test-synthetic:
+    name: Test (synthetic knowledge)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Test command routes against synthetic knowledge
+        working-directory: cli
+        # Every package with a prufyx_synthetic_knowledge file is listed, and the
+        # run has no -run filter, so a tagged test is never skipped for its name
+        # (TestCISyntheticPackagesAreCovered fails when a package is missing).
+        run: |
+          go vet -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/ ./internal/onecommand/ ./internal/scanrun/ ./internal/maintainer/knowledgegate/ ./internal/maintainer/knowledgetargets/ ./internal/maintainer/knowledgerelease/
+          go test -timeout 60m -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/ ./internal/onecommand/ ./internal/scanrun/ ./internal/maintainer/knowledgegate/ ./internal/maintainer/knowledgetargets/ ./internal/maintainer/knowledgerelease/
+
+  build-test:
+    # Fan-in: the required check keeps its name. It passes only when every
+    # shard job succeeded; a skipped or cancelled shard fails it
+    # (TestCIFanInCoversEveryTestJob keeps the needs list complete).
+    name: Build, vet, test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: [lint-build, test-core, test-knowledgegate, test-synthetic]
+    if: always()
+    steps:
+      - name: Require every shard to succeed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "shard results: ${RESULTS}"
+          for r in ${RESULTS}; do
+            if [ "${r}" != "success" ]; then
+              echo "a shard did not succeed (${r})" >&2
+              exit 1
+            fi
+          done
+
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Download shard coverage profiles
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: coverage-*
+          path: coverage-shards
+
+      - name: Merge coverage profiles
+        run: |
+          set -euo pipefail
+          mkdir -p cli
+          { echo "mode: atomic"; tail -q -n +2 coverage-shards/*/coverage-*.out; } > cli/coverage.out
+          cd cli
+          go tool cover -func=coverage.out | tail -1
+
+      - name: Upload coverage profile
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-out
+          path: cli/coverage.out
+          retention-days: 14
+          if-no-files-found: error
 
   race:
     name: Race detector (verdict packages)
