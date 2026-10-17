@@ -13,6 +13,7 @@ import (
 // classification so that no later change treats adding a severity as
 // tightening.
 func TestClassifySeverityChanges(t *testing.T) {
+	t.Parallel()
 	const id = "fluentd.ruby-minimum-target.1-14-6-to-1-19-3"
 	set := func(sev bool, reason, state string) func(p *packDoc) {
 		return func(p *packDoc) {

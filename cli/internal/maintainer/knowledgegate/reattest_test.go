@@ -222,6 +222,7 @@ func (f reattestFixture) opts() Options {
 }
 
 func TestGateReattestationStatement(t *testing.T) {
+	t.Parallel()
 	f := newReattestFixture(t)
 	r := runGate(t, f.opts())
 	requirePass(t, r)
@@ -238,6 +239,7 @@ func TestGateReattestationStatement(t *testing.T) {
 }
 
 func TestGateReattestationRejects(t *testing.T) {
+	t.Parallel()
 	cases := map[string]struct {
 		mutate func(t *testing.T, f *reattestFixture, o *Options)
 		want   string
@@ -308,6 +310,7 @@ func TestGateReattestationRejects(t *testing.T) {
 // Worklists and review records change only with the statement appended in
 // the same change: its own worklist, and records of rules it renews.
 func TestGateReattestationRecordFiles(t *testing.T) {
+	t.Parallel()
 	dir := func(f reattestFixture) string {
 		return filepath.Join(f.head.Root, synthLayout().ReattestDir, "community")
 	}

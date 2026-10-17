@@ -41,6 +41,7 @@ type workflow struct {
 // checked out without credentials and never built or run, the token is
 // read-only, every action is pinned by commit, and nothing merges.
 func TestWorkflowShape(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile(workflowPath)
 	if err != nil {
 		t.Fatal(err)
@@ -271,6 +272,7 @@ func TestWorkflowShape(t *testing.T) {
 
 // TestWorkflowLint runs actionlint when it is installed.
 func TestWorkflowLint(t *testing.T) {
+	t.Parallel()
 	bin, err := exec.LookPath("actionlint")
 	if err != nil {
 		t.Skip("actionlint is not installed")

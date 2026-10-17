@@ -124,6 +124,7 @@ func loginCommits(author, committer string) *CommitList {
 func supersedeChange(t *testing.T, r *Report, id string) *Change { return change(t, r, id) }
 
 func TestSupersedeAdmitted(t *testing.T) {
+	t.Parallel()
 	base, head, rs, ms := supersedeCase{ids: pairIDs[:1]}.build(t)
 	r := runGate(t, ownerOpts(base, head))
 	requirePass(t, r)
@@ -156,6 +157,7 @@ func hasReason(r *Report, sub string) bool {
 // change: the removal is refused (not its author's to make) and the reason is
 // reported in addition to the refusal.
 func TestSupersedeNeverAutoMerged(t *testing.T) {
+	t.Parallel()
 	base, head, rs, _ := supersedeCase{ids: pairIDs[:1]}.build(t)
 	opts := ownerOpts(base, head)
 	opts.Author, opts.Sender = DefaultBotLogin, ""
@@ -169,6 +171,7 @@ func TestSupersedeNeverAutoMerged(t *testing.T) {
 }
 
 func TestSupersedeOnlyTheOwner(t *testing.T) {
+	t.Parallel()
 	cases := map[string]struct {
 		edit func(o *Options)
 		want string
@@ -209,6 +212,7 @@ func TestSupersedeOnlyTheOwner(t *testing.T) {
 }
 
 func TestSupersedeRefusals(t *testing.T) {
+	t.Parallel()
 	cases := map[string]struct {
 		c    supersedeCase
 		want string
@@ -271,6 +275,7 @@ func TestSupersedeRefusals(t *testing.T) {
 // M must be a mechanical rule: a reviewed (or any non-mechanical) addition
 // does not make the removal a supersede.
 func TestSupersedeMNotMechanical(t *testing.T) {
+	t.Parallel()
 	for _, basis := range []string{"reviewed"} {
 		t.Run(basis, func(t *testing.T) {
 			base, head, rs, ms := supersedeCase{ids: pairIDs[:1], adds: func(ms []map[string]any) {
@@ -294,6 +299,7 @@ func TestSupersedeMNotMechanical(t *testing.T) {
 
 // An addition that is withdrawn protects nothing; only an active M replaces R.
 func TestSupersedeMWithdrawn(t *testing.T) {
+	t.Parallel()
 	base, head, rs, _ := supersedeCase{ids: pairIDs[:1], adds: func(ms []map[string]any) {
 		evidenceOf(ms[0])["state"] = "withdrawn"
 	}}.build(t)
@@ -315,6 +321,7 @@ func TestSupersedeMWithdrawn(t *testing.T) {
 // A mechanical rule removed in favour of an equal one is not a supersede:
 // the class replaces a reviewed rule.
 func TestSupersedeRMustBeReviewed(t *testing.T) {
+	t.Parallel()
 	base, derived, _ := mechanicalTrees(t, nil)
 	head := copyTree(t, derived)
 	var victim string
@@ -456,6 +463,7 @@ func pairCases(t *testing.T) []pairCase {
 }
 
 func TestPairSupersedes(t *testing.T) {
+	t.Parallel()
 	cases := pairCases(t)
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -507,6 +515,7 @@ func TestPairSupersedes(t *testing.T) {
 // and the pairs are neither withdrawals for the breakers (set to trip at
 // one) nor more than one loosening each for the limits.
 func TestSupersedeFivePairsBreakersAndLimits(t *testing.T) {
+	t.Parallel()
 	base, head, rs, ms := supersedeCase{ids: pairIDs}.build(t)
 	opts := ownerOpts(base, head)
 	opts.MaxWithdrawPercent, opts.MaxWithdrawProject = 1, 1
@@ -575,6 +584,7 @@ func TestSupersedeFivePairsBreakersAndLimits(t *testing.T) {
 }
 
 func TestSupersedeKillSwitch(t *testing.T) {
+	t.Parallel()
 	base, head, rs, _ := supersedeCase{ids: pairIDs[:1]}.build(t)
 	writeFile(t, filepath.Join(head.Root, "factory", "PAUSE"), []byte("stop\n"))
 	r := runGate(t, ownerOpts(base, head))
@@ -585,6 +595,7 @@ func TestSupersedeKillSwitch(t *testing.T) {
 
 // The report text lists R -> M, in the log and in the Markdown summary.
 func TestSupersedeReportText(t *testing.T) {
+	t.Parallel()
 	base, head, rs, ms := supersedeCase{ids: pairIDs[:2]}.build(t)
 	r := runGate(t, ownerOpts(base, head))
 	var log, md bytes.Buffer
@@ -622,6 +633,7 @@ func TestSupersedeReportText(t *testing.T) {
 
 // The owner login flag defaults to the repository owner and can be set.
 func TestSupersedeOwnerFlag(t *testing.T) {
+	t.Parallel()
 	base, head, _, _ := supersedeCase{ids: pairIDs[:1]}.build(t)
 	commits := filepath.Join(t.TempDir(), "commits.json")
 	writeFile(t, commits, mustJSON(t, map[string]any{"status": "ahead", "ahead_by": 1, "behind_by": 0, "total_commits": 1, "commits": []any{
@@ -713,6 +725,7 @@ func setRule(members ...string) func(r map[string]any) {
 }
 
 func TestSupersedesPredicate(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		m, r func(r map[string]any)
@@ -781,6 +794,7 @@ func TestSupersedesPredicate(t *testing.T) {
 
 // The pairing uses the engine's one constraint key.
 func TestSupersedeUsesEngineKey(t *testing.T) {
+	t.Parallel()
 	a, b := facts(t, nil), facts(t, func(r map[string]any) { r["condition"].(map[string]any)["factId"] = "g" })
 	if a.Key == b.Key || a.Key == "" {
 		t.Fatalf("keys %q %q", a.Key, b.Key)
@@ -793,6 +807,7 @@ func TestSupersedeUsesEngineKey(t *testing.T) {
 // The owner's own commits: a foreign commit on the owner's change, or an
 // unusable list, means no pair is admitted.
 func TestSupersedeOwnerCommits(t *testing.T) {
+	t.Parallel()
 	base, head, rs, _ := supersedeCase{ids: pairIDs[:1]}.build(t)
 	foreign := loginCommits(ownerLogin, ownerLogin)
 	foreign.Commits = append([]CommitRecord{{SHA: "1123456789abcdef0123456789abcdef01234567", Author: &loginField{"collaborator"}, Committer: &loginField{ownerLogin}}}, foreign.Commits...)
@@ -833,6 +848,7 @@ func TestSupersedeOwnerCommits(t *testing.T) {
 
 // A rule whose canonical form cannot be computed is never paired.
 func TestSupersedeFailsClosedOnCanonicalForm(t *testing.T) {
+	t.Parallel()
 	old := supersedepred.CanonicalRule
 	defer func() { supersedepred.CanonicalRule = old }()
 	supersedepred.CanonicalRule = func(any) []byte { return nil }
@@ -871,6 +887,7 @@ func dependency(comparison, version string) func(r map[string]any) {
 // A dependency rule is the same constraint only with the same comparison and
 // version: a lower minimum version would turn BLOCKED into PASS.
 func TestPairSupersedesDependency(t *testing.T) {
+	t.Parallel()
 	wide := func(dep func(r map[string]any)) func(r map[string]any) {
 		return func(r map[string]any) { dep(r); withRange("1.24.0", "1.25.0", "1.25.0", "1.26.0")(r) }
 	}

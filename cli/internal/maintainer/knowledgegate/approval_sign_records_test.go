@@ -47,6 +47,7 @@ func (f signFixture) recordVerifyArgs() []string {
 // packs with records), is byte for byte the gate's own format, and
 // "approval verify" accepts it.
 func TestApprovalSignAttestationRoundTrip(t *testing.T) {
+	t.Parallel()
 	f := attestationFixture(t)
 	requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.recordSignArgs("--key-stdin")...), 0, "line attestation cncf/"+f.id)
 	r := runGate(t, Options{Base: f.base, Head: f.head, Source: fixtureSource, Author: DefaultBotLogin, ApprovalKeysDigest: f.keysDigest})
@@ -68,6 +69,7 @@ func TestApprovalSignAttestationRoundTrip(t *testing.T) {
 }
 
 func TestApprovalSignAttestationTamperRefused(t *testing.T) {
+	t.Parallel()
 	f := attestationFixture(t)
 	requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.recordSignArgs("--key-stdin")...), 0, "approval written")
 	signed, err := os.ReadFile(f.out())
@@ -104,6 +106,7 @@ func TestApprovalSignAttestationTamperRefused(t *testing.T) {
 }
 
 func TestApprovalSignAttestationRefusals(t *testing.T) {
+	t.Parallel()
 	t.Run("record id given as a rule", func(t *testing.T) {
 		f := attestationFixture(t)
 		requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.signArgs("--key-stdin")...), 2, "has no rule")
@@ -156,6 +159,7 @@ func TestApprovalSignAttestationRefusals(t *testing.T) {
 // mechanical attestation only by re-derivation and accepts no approval for
 // a path policy.
 func TestApprovalSignRecordKinds(t *testing.T) {
+	t.Parallel()
 	spec := recordLayout().Packs[0]
 	base, _, _ := recordPack(t, gateNow, false)
 	withMechanical, _, _ := recordPack(t, gateNow, true)
@@ -227,6 +231,7 @@ func TestApprovalSignRecordKinds(t *testing.T) {
 // same file again, refuses a new one decided at the same time, and admits
 // one decided later.
 func TestApprovalSignAttestationSingleUseAndForwardOnly(t *testing.T) {
+	t.Parallel()
 	f := attestationFixture(t)
 	signAt := func(now time.Time, candidate string) {
 		t.Helper()
@@ -278,6 +283,7 @@ func TestApprovalSignAttestationSingleUseAndForwardOnly(t *testing.T) {
 // An approval for a record the base already holds binds the base record's
 // digest: signing, verification and the gate agree on it.
 func TestApprovalSignAttestationChangedRecord(t *testing.T) {
+	t.Parallel()
 	base, head := attestedTrees(t, []string{"1.22"}, []string{"1.22"}, func(p *packDoc, atts []map[string]any) []map[string]any {
 		ev := atts[0]["evidence"].(map[string]any)
 		ev["validUntil"] = shiftTime(t, ev["validUntil"], 24*time.Hour)
@@ -308,6 +314,7 @@ func TestApprovalSignAttestationChangedRecord(t *testing.T) {
 }
 
 func TestApprovalSignSubjectFlagCombinations(t *testing.T) {
+	t.Parallel()
 	f := attestationFixture(t)
 	t.Run("record with the rule subject", func(t *testing.T) {
 		args := append(f.signArgs("--key-stdin"), "--record", f.id)

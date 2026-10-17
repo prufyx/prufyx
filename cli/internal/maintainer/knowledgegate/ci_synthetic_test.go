@@ -17,6 +17,7 @@ import (
 // tagged file, and must not filter it by test name: a package or a test the
 // run skips guards nothing and cannot fail a merge.
 func TestCISyntheticPackagesAreCovered(t *testing.T) {
+	t.Parallel()
 	const tag = "prufyx_synthetic_knowledge"
 	cli := filepath.Join(repoRoot, "cli")
 	packages := map[string]bool{}

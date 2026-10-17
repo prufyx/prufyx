@@ -13,6 +13,7 @@ import (
 )
 
 func TestGitHubSourceGetBoundsAndRedirects(t *testing.T) {
+	t.Parallel()
 	var otherHits atomic.Int32
 	var otherAuth atomic.Value
 	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +138,7 @@ func TestGitHubSourceTimeout(t *testing.T) {
 }
 
 func TestHTTPRedirectPolicyAndURLCheck(t *testing.T) {
+	t.Parallel()
 	check := newHTTPClient(nil).CheckRedirect
 	mk := func(u string) *http.Request { r, _ := http.NewRequest(http.MethodGet, u, nil); return r }
 	first := []*http.Request{mk("https://api.github.com/a")}

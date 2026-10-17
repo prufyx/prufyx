@@ -24,6 +24,7 @@ import (
 // F1: the stored Mode and Type are bound by the verification, not only the
 // names and ids.
 func TestDiskCacheTreeBindsModeAndType(t *testing.T) {
+	t.Parallel()
 	entries := []extract.TreeEntry{
 		{Mode: "100644", Type: "blob", SHA: sha('1'), Path: "a.txt"},
 		{Mode: "040000", Type: "tree", SHA: sha('2'), Path: "dir"},
@@ -70,6 +71,7 @@ func TestDiskCacheTreeBindsModeAndType(t *testing.T) {
 // F7: no write through a symlinked directory, no read of a swapped-in
 // symlink or FIFO.
 func TestDiskCacheDoesNotFollowSymlinkedDirectories(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	outside := t.TempDir()
 	data := []byte("hello\n")
@@ -109,6 +111,7 @@ func TestDiskCacheDoesNotFollowSymlinkedDirectories(t *testing.T) {
 
 // F4: the cap holds under concurrency (increment, then compare, roll back).
 func TestAdmitAPIDoesNotOvershootTheCapUnderConcurrency(t *testing.T) {
+	t.Parallel()
 	g := &GitHubSource{MaxRESTRequests: 10}
 	g.nAPI.Store(9)
 	var wg sync.WaitGroup
@@ -136,6 +139,7 @@ func TestAdmitAPIDoesNotOvershootTheCapUnderConcurrency(t *testing.T) {
 
 // F5: the citation verifier's GitHub calls draw on the same budget.
 func TestCitationRequestsCountAgainstTheSharedBudget(t *testing.T) {
+	t.Parallel()
 	var served atomic.Int64
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		served.Add(1)
@@ -175,6 +179,7 @@ func (d drainingCitations) VerifyItems(_ context.Context, items []rulecheck.Cita
 
 // A run starved during the citation check is could-not-run, with an alarm.
 func TestStarvationDuringCitationsIsCouldNotRun(t *testing.T) {
+	t.Parallel()
 	base, head, _ := mechanicalTrees(t, nil)
 	probe := newFakeGitHub(servedFixture)
 	r0 := runGate(t, Options{Base: base, Head: head, Source: githubSourceFor(t, probe), Concurrency: 1})
@@ -193,6 +198,7 @@ func TestStarvationDuringCitationsIsCouldNotRun(t *testing.T) {
 
 // F2: a starved run raises the could-not-run alarm, in the alarms file too.
 func TestCouldNotRunRaisesAnAlarm(t *testing.T) {
+	t.Parallel()
 	_, head, _ := mechanicalTrees(t, nil)
 	src := githubSourceFor(t, newFakeGitHub(servedFixture))
 	src.MaxRESTRequests = 1
@@ -209,6 +215,7 @@ func TestCouldNotRunRaisesAnAlarm(t *testing.T) {
 }
 
 func TestShardStateRecordsAttemptsAndSuccessesAndAlarmsWhenStale(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2026, 10, 8, 4, 0, 0, 0, time.UTC)
 	pass := &Report{Result: "pass", Shard: "3/7"}
 	if !pass.Passed() {
@@ -267,6 +274,7 @@ func TestShardStateRecordsAttemptsAndSuccessesAndAlarmsWhenStale(t *testing.T) {
 
 // F3: least/n picks the shard that went longest without a pass.
 func TestLeastShardPicksTheLeastRecentlySuccessful(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2026, 10, 8, 4, 0, 0, 0, time.UTC)
 	sh, err := ParseShard("least/3", now)
 	if err != nil || !sh.Least || sh.Count != 3 {
@@ -293,6 +301,7 @@ func TestLeastShardPicksTheLeastRecentlySuccessful(t *testing.T) {
 // F9: a changed rule is re-derived whatever the shard, so a tampered changed
 // rule fails in every shard of a --rederive-all run.
 func TestChangedRuleIsRederivedInEveryShard(t *testing.T) {
+	t.Parallel()
 	base, head, entries := mechanicalTrees(t, func(entries []map[string]any) { ruleOf(entries[0])["nextAction"] = "Changed." })
 	id := ruleID(entries[0])
 	src := extract.FixtureReader{Root: servedFixture}
@@ -310,6 +319,7 @@ func TestChangedRuleIsRederivedInEveryShard(t *testing.T) {
 // The CLI reads the shard state, runs the least recently successful shard and
 // writes the state back.
 func TestCLIShardStateRoundTrip(t *testing.T) {
+	t.Parallel()
 	_, head, _ := mechanicalTrees(t, nil)
 	state := filepath.Join(t.TempDir(), "shards.json")
 	now := "2026-10-08T04:00:00Z"

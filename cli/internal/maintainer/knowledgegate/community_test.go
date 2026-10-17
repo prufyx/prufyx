@@ -92,6 +92,7 @@ func communityHead(t *testing.T, entries []map[string]any, schema string) (Tree,
 }
 
 func TestGateAdmitsCommunityRulesAtTheCommunitySchema(t *testing.T) {
+	t.Parallel()
 	entries, catalog := communityEntries(t, gateNow.Add(-time.Hour))
 	base, head := communityHead(t, entries, communityPackSchema)
 	regenerate(t, head)
@@ -133,6 +134,7 @@ func TestGateAdmitsCommunityRulesAtTheCommunitySchema(t *testing.T) {
 }
 
 func TestGateRefusesCommunityRulesBelowTheCommunitySchema(t *testing.T) {
+	t.Parallel()
 	entries, catalog := communityEntries(t, gateNow.Add(-time.Hour))
 	// The set-rule level is the lowest the entries would need for their
 	// shape, but a community entry needs its own level: the head's schema is
@@ -155,6 +157,7 @@ func TestGateRefusesCommunityRulesBelowTheCommunitySchema(t *testing.T) {
 // without a proof: there is none for it, so the gate fails it like any
 // hand-written loosening.
 func TestGateDoesNotAdmitAHandWrittenCommunityRule(t *testing.T) {
+	t.Parallel()
 	entries, catalog := communityEntries(t, gateNow.Add(-time.Hour))
 	reviewed := entries[:1]
 	evidence := evidenceOf(reviewed[0])
@@ -176,6 +179,7 @@ func TestGateDoesNotAdmitAHandWrittenCommunityRule(t *testing.T) {
 // component fails the pack's admission, so the gate refuses it before any
 // proof is looked at.
 func TestGateRefusesACommunityLineAttestation(t *testing.T) {
+	t.Parallel()
 	entries, catalog := communityEntries(t, gateNow.Add(-time.Hour))
 	base, head := communityHead(t, entries, communityPackSchema)
 	p := readPack(t, head, cncfRulesPath)
