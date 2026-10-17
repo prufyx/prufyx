@@ -93,7 +93,7 @@ jobs:
   race:
     name: Race detector (verdict packages)
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 50
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -113,8 +113,10 @@ jobs:
         # Published binaries stay CGO_ENABLED=0; only this job needs cgo for -race.
         # knowledgegate is not in the race list: under -race it ran past 60 minutes
         # (it already runs in the build-test job, which also runs it with the tag).
+        # scanrun and cncfcheck take about 24 minutes of the former 25 under -race,
+        # so a few more rules in the shipped pack made them time out.
         run: |
-          go test -race -timeout 25m \
+          go test -race -timeout 40m \
             ./internal/scanreport/ ./internal/scanrun/ ./internal/cncfcheck/ \
             ./internal/constraintengine/ ./internal/knowledge/ \
             ./internal/maintainer/rulecheck/
