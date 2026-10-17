@@ -1,0 +1,377 @@
+{
+  "schema": "prufyx.io/knowledge-onboarding-batch/v1",
+  "record": {
+    "base": {
+      "packRevision": "cncf-2026-09-13.8",
+      "registryDigest": "sha256:ee7448350107459ac60eaad0354f9876fc70127bdb3be94b962fe46b6f463cc6",
+      "tableDigest": "sha256:1fbd9f7d075400d875d139d9f1d2e4f9641a14a4e3da8d89f1885928acdaebd9",
+      "targetsDigest": "sha256:426526b7c40c1a08b8eb7aa0e4ad349744612b454c62610fe7f79f9aab537b02"
+    },
+    "batchId": "ob-20261016-3",
+    "candidateId": "pr-124",
+    "changeSetDigest": "sha256:13a1ea8fd328377cffefaf7d6fa387308a6d2ab7e43f0d0c8b3d83eb0c1ecc2b",
+    "decidedAt": "2026-10-17T05:52:07Z",
+    "decision": "approve",
+    "head": {
+      "packRevision": "cncf-2026-09-13.8",
+      "registryDigest": "sha256:457ad727cc512acce1d60581ccdc259820443a4dd47f902ade66c3e5034b8dae",
+      "tableDigest": "sha256:c31d8f85a9a6196ccdfce8f2829164e60670c74eab2a0b30528662a09051a81a",
+      "targetsDigest": "sha256:bbe697d00b33faa4c5ca57d6063609782205613add00f2ff8440850b237ae675"
+    },
+    "identity": "airstand",
+    "nonce": "f9dcd986de900adcdfbca603b2dc52b5",
+    "notAfter": "2026-10-20T05:52:07Z",
+    "projects": [
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:ff21bff4a4acfd88d0a62b20c7b1f669b7998c0bcb9dbbbc9479fd5a7a27dbf8",
+            "path": "cli/internal/extract/crdversions/target-logging-operator-kube-logging.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.logging_operator_kube_logging.custom_resource_versions_set"
+        ],
+        "groups": [
+          "logging-extensions.banzaicloud.io",
+          "logging.banzaicloud.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 0,
+            "ledger": "sha256:82a226c7a25ec6d3e4a5b2be77e57ed353cd7c6028f1121eeb35918982a94820",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "31ba188b79b5ce462c12134f75e44c8df2d2d5d9",
+            "fromTag": "6.8.0",
+            "toCommit": "1e3fd1216c8700effc1d92b295273575ad6b1824",
+            "toTag": "6.9.0"
+          },
+          "scan": [
+            {
+              "class": "external",
+              "path": "charts/logging-operator/Chart.yaml",
+              "sha256": "sha256:82c3ce26a2284a451cde994ade09eb41bb7a54945445bc478fadf1a4c431671a"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging-extensions.banzaicloud.io_eventtailers.yaml",
+              "sha256": "sha256:6d4fda7b341b038f4658b7afce8c926dfabf9c99fd297bcde67fd437b54f9b9f"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging-extensions.banzaicloud.io_eventtailers.yaml",
+              "sha256": "sha256:f95f09a669dd1298957fd7215d7b009f1d2ddd56422df855fb08b7739d0e75ed"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging-extensions.banzaicloud.io_hosttailers.yaml",
+              "sha256": "sha256:bdc33c37ff13b83f02805b41a78195a428a4326eba1caef83ff900855ff8245c"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging-extensions.banzaicloud.io_hosttailers.yaml",
+              "sha256": "sha256:e36dcd0edf15606736f8b056709748457cc5bd8fa3044cf2150a0fbc4ca67954"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_axosyslogs.yaml",
+              "sha256": "sha256:9677a19383b38c8cf50956152f5a13e58f57c2ab80dbfb01418b043cdebe20fe"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_axosyslogs.yaml",
+              "sha256": "sha256:a501bf2043287a5531b9cff15c3fc29dfb7ae486bb76eb48ee6986890e87ac18"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_clusterflows.yaml",
+              "sha256": "sha256:0e50fd14483cee3af64c7ea1933b7efff856fa94b005179c0b6d3ae2f4d6c2cf"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_clusterflows.yaml",
+              "sha256": "sha256:6f389381c486c577c1eaae4715cc73c7eabf3329ec999602205862671dcd62e6"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_clusteroutputs.yaml",
+              "sha256": "sha256:3a5b8cff457fa9d3e80de79d294b4a2c24e054f31489a317b115436e550ec4fa"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_clusteroutputs.yaml",
+              "sha256": "sha256:90ca1b0b8396074d03d1076b110e60b0c2fb770b16b27c0405b59695f145be92"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_flows.yaml",
+              "sha256": "sha256:22abaa18944062cf20e885c8b51a60e5ac62316dfddee54b7ca48aa28ec8348a"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_flows.yaml",
+              "sha256": "sha256:69f77531630b9b3b74c111ad5a69bfb6a3b17f37df819480395808f4593b03f7"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_fluentbitagents.yaml",
+              "sha256": "sha256:cc90d3d0bcb02fe03b0db330d943b1636b9df1e56f5dc81d4d5e3b3f3d6a6cc2"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_fluentbitagents.yaml",
+              "sha256": "sha256:dd483c6064762f81becb409d74e71cb0a321bcb88a779cf993104f085dc129c5"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_fluentdconfigs.yaml",
+              "sha256": "sha256:c88755debe5dc480d160820cb45acd29541088c76352706df6ce32bf5d31c9d9"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_fluentdconfigs.yaml",
+              "sha256": "sha256:daa5b10be8ae2e54bcf2392e5d54ad636e17b6d0f5b82d3bcf9b7fd840983d70"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_loggingroutes.yaml",
+              "sha256": "sha256:32dfa0f129667300b68c7f189fb8dd1dbccae8f2177bb2cb046bedec4ca109cc"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_loggingroutes.yaml",
+              "sha256": "sha256:923cd26a71c68a34b70e9d4c57596c9260853871e0dcc1cbf19d964fcf8bbb2d"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_loggings.yaml",
+              "sha256": "sha256:9289ba73d8e244f51d87c65b4309e98b88d751dd27bc39d7ec721d7cd4ec160c"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_loggings.yaml",
+              "sha256": "sha256:fc4de1d5208c5b74f652799643927f3efe0866ffa4c43c1edfbb420d8b71c194"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_outputs.yaml",
+              "sha256": "sha256:3ea89485d74fa8747ec060097acd3c3c5b361eb2548e9326dc936f2a1e3ea130"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_outputs.yaml",
+              "sha256": "sha256:ae16d13a990b7a0c58df6c058f6a8a163902c06d44534c48fabfd144d9bc7469"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_syslogngclusterflows.yaml",
+              "sha256": "sha256:7c19dfdf44531ab8915e9907625d116920505b1ea4bedbabedfb9b0ac72f73db"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_syslogngclusterflows.yaml",
+              "sha256": "sha256:90157f9c629a45bd843423142482c06ef155ecc7de59532f1f41efcd264ae627"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_syslogngclusteroutputs.yaml",
+              "sha256": "sha256:195885e9389912823fae7c65de11017469e802afb4679727b61d6f2533e16738"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_syslogngclusteroutputs.yaml",
+              "sha256": "sha256:b3e29fb11211d918db389b85fff8b8c42453cefa66e8ae310f054715ded84cba"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_syslogngconfigs.yaml",
+              "sha256": "sha256:1d8b73a52914d6e843c6d5a6a914fe0813961c489848a24031940172c76ac229"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_syslogngconfigs.yaml",
+              "sha256": "sha256:87f4c8d4ef4a2d603abedf47b079e9a7410fd1fa4ecb96b7c599a878cf09ae1f"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_syslogngflows.yaml",
+              "sha256": "sha256:0b5366324115f20d11d7b1ba23f33e9af475025de756f891e0780947cd4362ec"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_syslogngflows.yaml",
+              "sha256": "sha256:e92d1a736712de8ae94d84c50498c510f56e89784d1d27f47df90771c6fc4ba6"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_syslogngoutputs.yaml",
+              "sha256": "sha256:25968eb0ba6f8ccedaafd6f2c9881485ee5746152fddd636bda55683e7094a4f"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/logging-operator/charts/logging-operator-crds/templates/logging.banzaicloud.io_syslogngoutputs.yaml",
+              "sha256": "sha256:5a5b187117f3baa8c4a374d5e3a30467b7b624e7c0fa4ac0a36668559652a24d"
+            },
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:527b0a00ef8b8fc9f8333c17f1ddf2f33ba07e95d00d369c9c1e86eafedc37af"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_clusterflows.yaml",
+              "sha256": "sha256:f71fb555fe0c430167409e831f6e1c8fa533160fefd9cf8c7777200d5616e06a"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_clusteroutputs.yaml",
+              "sha256": "sha256:626ba5221f53a20157c8cee0d3fad2a8e6c6f1638b46d4c51901cd3657ab2a17"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_flows.yaml",
+              "sha256": "sha256:61e5354736c99db5167bed6a0204baf375f459bd041b01402a49f5d60fc09125"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_fluentbits.yaml",
+              "sha256": "sha256:658eacec80b1211c2ef727c79456ee9e3b9643f9d7d73167b506b7654584c3d7"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_fluentds.yaml",
+              "sha256": "sha256:4518f4e5d54c6752a73f3e4dbf80b920078b3a6f3ac2c1bc7fb907971711cd04"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_loggings.yaml",
+              "sha256": "sha256:62db109b45618a9d0643a01a73af786c72c5ba428d617a6345b9b4da56ea5800"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_outputs.yaml",
+              "sha256": "sha256:277789cdb5f3ffcc20742c84d87a896d6aed55db78d93002dff192e71a76ed24"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_clusterflows.yaml",
+              "sha256": "sha256:0e36c0ef3b4b318f8cef7cbad8649ed1f86f6f371d62e7cb126efd7d87c2d201"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_clusteroutputs.yaml",
+              "sha256": "sha256:069fe2f07c4e05e7152c0d0ef7b8ce3cb3c744c9411823db2fe3dc3c026accc0"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_flows.yaml",
+              "sha256": "sha256:3ae65609440490a8839f4811912972bf99ea8fb660d3e6288da847c490b7948b"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_fluentbits.yaml",
+              "sha256": "sha256:a159d5070ea346894c4559ccfd0f640f982e1ffade548f82b532ba58fcb6a3f4"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_fluentds.yaml",
+              "sha256": "sha256:aac6255252cc11f85c675f75b4b1f31a043dfd19df406ec154b1fe93222ff148"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_loggings.yaml",
+              "sha256": "sha256:2c9122dd70edd5d87120977feaf5288f8d45f45db372babc364e0cfa0b979071"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_outputs.yaml",
+              "sha256": "sha256:5a39230ea9cd238a8ffd19b45b10f646d95c5af435994c75ab6ee388855ba8db"
+            }
+          ]
+        },
+        "slug": "logging-operator-kube-logging"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:b93aed6559c69801c45fdfa952ec9b2012b19b8f887722cee24912746033c76b",
+            "path": "cli/internal/extract/crdversions/target-schemahero.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.schemahero.custom_resource_versions_set"
+        ],
+        "groups": [
+          "databases.schemahero.io",
+          "schemas.schemahero.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 0,
+            "ledger": "sha256:82a226c7a25ec6d3e4a5b2be77e57ed353cd7c6028f1121eeb35918982a94820",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "2fc660453d932d12a26de9453ccd5603d8bc44a0",
+            "fromTag": "v0.25.0",
+            "toCommit": "b1f03b64f47114393013bc0dc7f5736ad1a35e9a",
+            "toTag": "v0.26.0"
+          },
+          "scan": [
+            {
+              "class": "unread",
+              "path": "config/crds/v1beta1/databases.schemahero.io_databases.yaml",
+              "sha256": "sha256:a2c74ed12ff962ddb48fa39b50b119e89fdba802d49db7982a6160ea09c52f88"
+            },
+            {
+              "class": "unread",
+              "path": "config/crds/v1beta1/databases.schemahero.io_databases.yaml",
+              "sha256": "sha256:f10be18c789f09119025621c008314238006a4758a7f49be0fed563b6585373e"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "config/crds/v1beta1/schemas.schemahero.io_datatypes.yaml",
+              "sha256": "sha256:267176c433ef41511453d0d3f886c20647506286b2ee25b7f548aff87b3fc0db"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "config/crds/v1beta1/schemas.schemahero.io_migrations.yaml",
+              "sha256": "sha256:4d67e79b6437db80b8f3c7515cd05c33c7b4a2684f1e4770fd1ff70eacff219c"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "config/crds/v1beta1/schemas.schemahero.io_migrations.yaml",
+              "sha256": "sha256:c3c79d78d9a086592229eaa6706bb5abadb1539898ee9d86177a19662059831d"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "config/crds/v1beta1/schemas.schemahero.io_tables.yaml",
+              "sha256": "sha256:4b45461df9ee713836d15f7515789bce6a0498c89bd84d70d170942fdd967d1f"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "config/crds/v1beta1/schemas.schemahero.io_tables.yaml",
+              "sha256": "sha256:6796ee4f473b374db7d96bb522fec9d5b69ea92e26aa651bcfd682bb1ba8652b"
+            }
+          ]
+        },
+        "slug": "schemahero"
+      }
+    ],
+    "sample": [
+      0,
+      1
+    ],
+    "summaryDigest": "sha256:5299b7c6ec5d22d1ab405c420f660483b8eba0814e3954450b3f1a86d30d6a48"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "GOqbjXoQHZ3xotFHpPXapSD6e54Z1Ov4U8Y9/eKr7P96jX0b3mCXWDPlHDj8OZI3+wavk4AYunNUt5+QOpBgCQ=="
+}
