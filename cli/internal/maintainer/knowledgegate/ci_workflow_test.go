@@ -1,0 +1,231 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package knowledgegate
+
+import (
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+	"testing"
+
+	"gopkg.in/yaml.v3"
+)
+
+// ciFanInName is the required status check. The test jobs are sharded, so
+// this job is the only one that stands for all of them.
+const ciFanInName = "Build, vet, test"
+
+// ciNonGateJobs run go test but are deliberately not part of the required
+// check (the race detector is advisory and sharded on its own).
+var ciNonGateJobs = map[string]bool{"race": true}
+
+type ciWorkflowFile struct {
+	Jobs map[string]ciWorkflowJob `yaml:"jobs"`
+}
+
+type ciWorkflowJob struct {
+	Name            string            `yaml:"name"`
+	If              string            `yaml:"if"`
+	ContinueOnError any               `yaml:"continue-on-error"`
+	Needs           ciStringList      `yaml:"needs"`
+	Steps           []ciWorkflowStep  `yaml:"steps"`
+	Env             map[string]string `yaml:"env"`
+}
+
+type ciWorkflowStep struct {
+	Run             string            `yaml:"run"`
+	Env             map[string]string `yaml:"env"`
+	ContinueOnError any               `yaml:"continue-on-error"`
+}
+
+// ciSoftFail reports a continue-on-error value other than absent or false.
+func ciSoftFail(v any) bool {
+	return v != nil && v != false && v != "false"
+}
+
+// ciStringList accepts a scalar or a sequence, as GitHub does for needs.
+type ciStringList []string
+
+func (l *ciStringList) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind == yaml.ScalarNode {
+		*l = ciStringList{n.Value}
+		return nil
+	}
+	var s []string
+	if err := n.Decode(&s); err != nil {
+		return err
+	}
+	*l = s
+	return nil
+}
+
+var ciGoTestRe = regexp.MustCompile(`(^|[\s;&|(])go test(\s|$)`)
+
+// ciFanInProblems returns every way the ci.yml text lets a test job skip the
+// required check.
+func ciFanInProblems(raw []byte) []string {
+	var wf ciWorkflowFile
+	if err := yaml.Unmarshal(raw, &wf); err != nil {
+		return []string{"ci.yml does not parse: " + err.Error()}
+	}
+	var problems []string
+	var fanID string
+	for id, job := range wf.Jobs {
+		if job.Name == ciFanInName {
+			if fanID != "" {
+				problems = append(problems, "two jobs are named "+ciFanInName)
+			}
+			fanID = id
+		}
+	}
+	if fanID == "" {
+		return append(problems, "no job is named "+ciFanInName)
+	}
+	fan := wf.Jobs[fanID]
+	needs := map[string]bool{}
+	for _, n := range fan.Needs {
+		needs[n] = true
+	}
+	var ids []string
+	for id := range wf.Jobs {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		job := wf.Jobs[id]
+		if id == fanID || ciNonGateJobs[id] {
+			continue
+		}
+		runsTests := false
+		for _, st := range job.Steps {
+			for _, line := range strings.Split(st.Run, "\n") {
+				if ciGoTestRe.MatchString(line) {
+					runsTests = true
+					if ciSoftFail(st.ContinueOnError) || strings.Contains(line, "|| true") {
+						problems = append(problems, "job "+id+" lets a go test step fail without failing the job")
+					}
+				}
+			}
+		}
+		if (runsTests || needs[id]) && ciSoftFail(job.ContinueOnError) {
+			problems = append(problems, "job "+id+" sets continue-on-error, so its failure reports success to the fan-in")
+		}
+		if runsTests && !needs[id] {
+			problems = append(problems, "job "+id+" runs go test but is not in the "+ciFanInName+" needs")
+		}
+	}
+	for n := range needs {
+		if _, ok := wf.Jobs[n]; !ok {
+			problems = append(problems, "needs lists unknown job "+n)
+		}
+		if ciNonGateJobs[n] {
+			problems = append(problems, "needs lists the advisory job "+n)
+		}
+	}
+	if strings.ReplaceAll(strings.TrimSpace(fan.If), " ", "") != "always()" {
+		problems = append(problems, ciFanInName+" must have if: always(), else a failed shard skips it and a skipped required check can pass")
+	}
+	if ciSoftFail(fan.ContinueOnError) {
+		problems = append(problems, ciFanInName+" must not set continue-on-error")
+	}
+	checked := false
+	for _, st := range fan.Steps {
+		var results string
+		for _, v := range st.Env {
+			if strings.Contains(v, "needs.*.result") {
+				results = v
+			}
+		}
+		if strings.Contains(st.Run, "needs.*.result") {
+			results = st.Run
+		}
+		if results == "" {
+			continue
+		}
+		// Anything but success (failure, cancelled, skipped) must fail the job.
+		if strings.Contains(st.Run, `!= "success"`) && strings.Contains(st.Run, "exit 1") {
+			checked = true
+		}
+	}
+	if !checked {
+		problems = append(problems, ciFanInName+" lacks a step that fails unless every needs.*.result is success")
+	}
+	return problems
+}
+
+// TestCIFanInCoversEveryTestJob: the test jobs of ci.yml are sharded behind
+// one fan-in job that carries the required check name. A shard that is not
+// in the fan-in needs, or a fan-in that does not fail on a skipped or
+// cancelled shard, would let a merge through without its tests.
+func TestCIFanInCoversEveryTestJob(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "ci.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range ciFanInProblems(raw) {
+		t.Error(p)
+	}
+}
+
+// The guard itself must fail on each way of breaking the fan-in.
+func TestCIFanInGuardRejectsBrokenFanIn(t *testing.T) {
+	good := `
+jobs:
+  shard-a:
+    name: A
+    steps:
+      - run: go test ./...
+  shard-b:
+    name: B
+    steps:
+      - run: |
+          set -e
+          go test -tags x ./a/
+  race:
+    name: Race
+    steps:
+      - run: go test -race ./...
+  fan:
+    name: Build, vet, test
+    needs: [shard-a, shard-b]
+    if: always()
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for r in ${RESULTS}; do
+            if [ "${r}" != "success" ]; then
+              exit 1
+            fi
+          done
+`
+	if p := ciFanInProblems([]byte(good)); len(p) != 0 {
+		t.Fatalf("good workflow rejected: %v", p)
+	}
+	cases := map[string]func(string) string{
+		"shard missing from needs": func(s string) string { return strings.Replace(s, "[shard-a, shard-b]", "[shard-a]", 1) },
+		"no if always":             func(s string) string { return strings.Replace(s, "if: always()", "", 1) },
+		"if success":               func(s string) string { return strings.Replace(s, "if: always()", "if: success()", 1) },
+		"no success check":         func(s string) string { return strings.Replace(s, `!= "success"`, `== "failure"`, 1) },
+		"no result env":            func(s string) string { return strings.Replace(s, "needs.*.result", "needs.shard-a.result", 1) },
+		"continue on error": func(s string) string {
+			return strings.Replace(s, "if: always()", "if: always()\n    continue-on-error: true", 1)
+		},
+		"shard continue-on-error": func(s string) string {
+			return strings.Replace(s, "  shard-a:\n    name: A", "  shard-a:\n    name: A\n    continue-on-error: true", 1)
+		},
+		"test step continue-on-error": func(s string) string {
+			return strings.Replace(s, "      - run: go test ./...", "      - continue-on-error: true\n        run: go test ./...", 1)
+		},
+		"test or true":   func(s string) string { return strings.Replace(s, "go test ./...", "go test ./... || true", 1) },
+		"race in needs":  func(s string) string { return strings.Replace(s, "[shard-a, shard-b]", "[shard-a, shard-b, race]", 1) },
+		"fan-in renamed": func(s string) string { return strings.Replace(s, "name: Build, vet, test", "name: Gate", 1) },
+	}
+	for name, mutate := range cases {
+		if p := ciFanInProblems([]byte(mutate(good))); len(p) == 0 {
+			t.Errorf("%s: broken fan-in accepted", name)
+		}
+	}
+}
