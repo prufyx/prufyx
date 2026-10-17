@@ -564,3 +564,33 @@ func TestCommunityCatalogIsCountedApart(t *testing.T) {
 		t.Fatalf("markdown:\n%s", md)
 	}
 }
+
+// An empty-list attestation counts as A for either family only while it is
+// current and only for the pair of adjacent lines it names: an expired one, or
+// one whose line is not the line after the previous window line, does not.
+func TestEmptyListCountsWhenCurrentAndAdjacent(t *testing.T) {
+	snapshot := func(window ...string) []byte {
+		quoted := make([]string, len(window))
+		for i, l := range window {
+			quoted[i] = fmt.Sprintf("%q", l)
+		}
+		return []byte(fmt.Sprintf(`{"schema":%q,"projects":{"strimzi":{"component":%q,"lines":[%s]}}}`, LinesSchema, strimzi, strings.Join(quoted, ",")))
+	}
+	crd := func(att string, window ...string) string {
+		report, err := Compute(Input{Pack: pack(nil, []string{att}), Lines: snapshot(window...), Now: baselineNow})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return statuses(report.Projects[0])
+	}
+	if got := crd(crdAttJSON("0.51", "0.50.0", "0.51.0"), "0.50", "0.51"); got != "A" {
+		t.Fatalf("current empty list (custom resources): %s", got)
+	}
+	stale := strings.Replace(crdAttJSON("0.51", "0.50.0", "0.51.0"), valid, expired, 1)
+	if got := crd(stale, "0.50", "0.51"); got != "G" {
+		t.Fatalf("expired empty list (custom resources): %s", got)
+	}
+	if got := crd(crdAttJSON("0.52", "0.51.0", "0.52.0"), "0.50", "0.52"); got != "G" {
+		t.Fatalf("non-adjacent empty list (custom resources): %s", got)
+	}
+}

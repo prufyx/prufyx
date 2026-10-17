@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"slices"
 	"sort"
 	"time"
 
@@ -83,6 +82,7 @@ func rederive(ctx context.Context, src Source, catalog map[string]extractcli.Spe
 				// A line attestation: the extractor's own record for
 				// the scope, compared canonically.
 				derived, ok := attestations[c.RuleID]
+				c.derivedGroup = attestations
 				switch {
 				case !ok:
 					c.fail(fmt.Sprintf("extractor %s %s does not attest this line from the pinned upstream bytes", k.id, k.version))
@@ -193,13 +193,7 @@ func runAttester(ctx context.Context, src Source, catalog map[string]extractcli.
 	for _, id := range ids {
 		spec := catalog[id]
 		ex := spec.New(concurrency)
-		attester, ok := ex.(extract.LineAttester)
-		if !ok || !slices.Contains(attester.AttestedFamilies(), family) {
-			continue
-		}
-		if ca, named := ex.(extract.ComponentAttester); named && ca.AttestedComponent() != component {
-			continue
-		} else if !named && !slices.Equal(f.Components(), []string{component}) {
+		if !attestsScope(ex, family, component, f) {
 			continue
 		}
 		repo, err := extract.ParseRepo(spec.Repo)

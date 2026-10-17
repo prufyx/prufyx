@@ -115,6 +115,7 @@ func (r *Report) citationCheck(ctx context.Context, cls *Classification, opts Op
 		r.add(CheckCitations, false, "citation verification could not run: %v", err)
 		return
 	}
+	r.citationFindings = report.Findings
 	if report.Pass {
 		r.add(CheckCitations, true, "%d rules and records, %d sources: each revision is a commit in the upstream history (tag or default branch), each whole-file digest and line span matches upstream", len(items), report.SourcesChecked)
 		return

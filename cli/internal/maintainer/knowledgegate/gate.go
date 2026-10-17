@@ -189,6 +189,8 @@ type Report struct {
 	// onboarding is the decision on the onboarding batch the change adds
 	// (nil: none).
 	onboarding *onboardingResult
+	// citationFindings are the findings of the citations check, by item.
+	citationFindings []rulecheck.CitationFinding
 
 	// rederivedUnchanged counts rules re-derived by --rederive-all: every
 	// active mechanical rule the change did not already re-derive (see
@@ -478,6 +480,10 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 			case c.rhead != nil && c.rhead.mechanical() && c.Section != sectionAttestations:
 				c.fail("no extractor derives path policies: a mechanical path policy cannot be re-derived")
 			case c.rhead != nil && c.rhead.mechanical():
+				if err := emptyListPre(c, opts); err != nil {
+					c.fail(err.Error())
+					continue
+				}
 				if err := freshRecordDerivation(c.rhead, opts.Now); err != nil {
 					c.fail(err.Error())
 					continue
@@ -528,6 +534,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		r.alarm(AlarmOnboarding, "the change carries an onboarding batch (%s): %s", map[bool]string{true: "admitted", false: "refused"}[onboarding.ok], onboarding.detail)
 	}
 	rederive(ctx, opts.Source, opts.Catalog, opts.Concurrency, opts.Layout, mechanical)
+	emptyListPost(cls.Changes, opts)
 	for _, c := range removals {
 		admitSupersede(c, opts)
 	}
@@ -547,6 +554,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	r.recordCheck(cls, statements, opts)
 	r.onboardingRecordsCheck(opts, onboarding)
 	r.citationCheck(ctx, cls, opts)
+	r.emptyListCitations(cls)
 	// After the citation check: its GitHub calls draw on the same budget, so
 	// a run starved during citations is reported as could not run too.
 	r.budgetCheck(opts)
