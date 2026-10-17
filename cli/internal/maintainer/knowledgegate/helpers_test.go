@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchfixture"
+	"github.com/prufyx/prufyx/cli/internal/extract/extractpack"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedefixture"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/rulecheck"
@@ -81,6 +82,21 @@ func copyKnowledge(t *testing.T) Tree {
 	return Tree{Root: root}
 }
 
+// withoutLineAttestations drops the pack's attestation member and restores
+// the ranged schema the rest of the pack needs.
+func withoutLineAttestations(raw []byte) ([]byte, error) {
+	p, err := extractpack.ParsePack(raw)
+	if err != nil {
+		return nil, err
+	}
+	if _, has := p.Members["lineAttestations"]; !has {
+		return raw, nil
+	}
+	delete(p.Members, "lineAttestations")
+	p.Members["schema"] = json.RawMessage(`"prufyx.io/cncf-source-rule-pack/v1alpha2"`)
+	return p.Render()
+}
+
 func buildKnowledgeTemplate() (map[string][]byte, error) {
 	files := map[string][]byte{}
 	rebuilt := false
@@ -104,6 +120,15 @@ func buildKnowledgeTemplate() (map[string][]byte, error) {
 			}
 			rebuilt = !bytes.Equal(raw, prior)
 			raw = prior
+			// The shipped line attestations are derived from the upstream
+			// tags, which the small upstream fixtures of these tests do
+			// not hold: the template starts without them.
+			plain, err := withoutLineAttestations(raw)
+			if err != nil {
+				return nil, err
+			}
+			rebuilt = rebuilt || !bytes.Equal(raw, plain)
+			raw = plain
 		}
 		files[rel] = raw
 	}

@@ -27,6 +27,11 @@ import (
 
 const k8sComponent = "pkg:github/kubernetes/kubernetes"
 
+// publishedKubernetesLines are the Kubernetes lines the embedded pack
+// attests, all with an empty rule list (no served-API removal). Changing the
+// set is deliberate.
+var publishedKubernetesLines = []string{"1.20", "1.21", "1.23", "1.24", "1.28", "1.30", "1.31", "1.35", "1.36"}
+
 // line125Rules are the rules of the 1.25 line in the ascending order a line
 // attestation lists them (the order depends on which ids the pack carries).
 var line125Rules = sortedIDs(
@@ -86,7 +91,9 @@ func validAttestations(t *testing.T) []byte {
 // (lineattest.CheckRuleSets finds no problem), is mechanical with the
 // custom-resource extractor of its project, cites at least one source, is
 // current at the review instant, and is what AttestationsFor returns for its
-// scope. No Kubernetes line is attested.
+// scope. The Kubernetes lines attested are exactly the empty-list lines of
+// publishedKubernetesLines (the minors with no served-API removal); no other
+// Kubernetes line is attested.
 func TestEmbeddedPackLineAttestations(t *testing.T) {
 	raw, err := packagedFiles.ReadFile("data/rules.json")
 	if err != nil {
@@ -101,26 +108,52 @@ func TestEmbeddedPackLineAttestations(t *testing.T) {
 	if crdbatchids.Shipped() {
 		want = crdbatchids.Lines()
 	}
-	if present != (len(want) > 0) || bytes.Contains(raw, []byte("lineAttestations")) != present {
-		t.Fatalf("the published pack carries a line attestation section: %v, the batch states %d lines", present, len(want))
+	if !present || bytes.Contains(raw, []byte("lineAttestations")) != present {
+		t.Fatalf("the published pack carries a line attestation section: %v, it must carry the Kubernetes lines", present)
 	}
-	if present {
-		atts, err := lineattest.Parse(section)
+	{
+		all, err := lineattest.Parse(section)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := lineattest.Validate(atts); err != nil {
+		if err := lineattest.Validate(all); err != nil {
 			t.Fatal(err)
 		}
+		// The Kubernetes attestations are checked against the stated set;
+		// the rest are the custom-resource batch's.
+		var atts []lineattest.LineAttestation
+		var k8sLines []string
+		for _, a := range all {
+			if a.Component == k8sComponent {
+				k8sLines = append(k8sLines, a.Line)
+				continue
+			}
+			atts = append(atts, a)
+		}
+		if !reflect.DeepEqual(k8sLines, publishedKubernetesLines) {
+			t.Fatalf("attested Kubernetes lines %v, want %v", k8sLines, publishedKubernetesLines)
+		}
 		if len(atts) != len(want) {
-			t.Fatalf("%d published line attestations, the batch states %d", len(atts), len(want))
+			t.Fatalf("%d custom-resource line attestations, the batch states %d", len(atts), len(want))
 		}
 		var rules []json.RawMessage
 		for _, entry := range shippedPack(t).Entries {
 			rules = append(rules, entry.Rule)
 		}
-		if problems, err := lineattest.CheckRuleSets(atts, rules); err != nil || len(problems) != 0 {
+		if problems, err := lineattest.CheckRuleSets(all, rules); err != nil || len(problems) != 0 {
 			t.Fatalf("published line attestations do not list the pack's rules: %v %v", problems, err)
+		}
+		for _, a := range all {
+			if a.Component != k8sComponent {
+				continue
+			}
+			if a.FactFamily != lineattest.FamilyKubernetesRemovedServedGVK || a.RuleIDs == nil || len(a.RuleIDs) != 0 || a.Evidence.Basis != constraintengine.BasisMechanical || a.Evidence.Extractor == nil || len(a.Evidence.Sources) == 0 {
+				t.Fatalf("published Kubernetes attestation %s is not a mechanical empty-list attestation: %+v", a.Key(), a.Evidence)
+			}
+			got, err := AttestationsFor(a.Component, a.Line, a.FactFamily, now)
+			if err != nil || len(got) != 1 || !got[0].Current() || !reflect.DeepEqual(got[0].Attestation, a) {
+				t.Fatalf("lookup of %s: %+v %v", a.Key(), got, err)
+			}
 		}
 		for i, a := range atts {
 			if a.Component != want[i].Component || a.Line != want[i].Line || a.FactFamily != crdbatchids.FactFamily || a.Completeness != lineattest.Completeness || a.RuleIDs == nil || len(a.RuleIDs) != 0 {

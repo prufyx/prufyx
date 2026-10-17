@@ -159,6 +159,26 @@ func editPack(t *testing.T, raw []byte, edit func(project string, rule map[strin
 		}
 	}
 	pack["entries"] = kept
+	// A line attestation of a component none of whose rules is kept goes with
+	// them: the edited pack must not decide lines of a project it dropped.
+	if atts, ok := pack["lineAttestations"].([]any); ok {
+		components := map[string]bool{}
+		for _, item := range kept {
+			rule := item.(map[string]any)["rule"].(map[string]any)
+			components[rule["subject"].(map[string]any)["component"].(string)] = true
+		}
+		var keptAtts []any
+		for _, item := range atts {
+			if components[item.(map[string]any)["component"].(string)] {
+				keptAtts = append(keptAtts, item)
+			}
+		}
+		if len(keptAtts) == 0 {
+			delete(pack, "lineAttestations")
+		} else {
+			pack["lineAttestations"] = keptAtts
+		}
+	}
 	out, err := json.Marshal(pack)
 	if err != nil {
 		t.Fatal(err)
@@ -450,7 +470,11 @@ func TestScanStoreProjectAbsent(t *testing.T) {
 	pack := editPack(t, embeddedPack(t), func(project string, _ map[string]any) bool { return project != kubernetesSlug })
 	// Without the Kubernetes rules no rule has a reviewed range, so the
 	// pack takes the exact-only schema.
-	pack = bytes.Replace(pack, []byte("cncf-source-rule-pack/v1alpha2"), []byte("cncf-source-rule-pack/v1alpha1"), 1)
+	// A pack that still carries line attestations (other components attest
+	// lines too) stays at the attested schema level, v1alpha4.
+	if !bytes.Contains(pack, []byte(`"lineAttestations"`)) {
+		pack = bytes.Replace(pack, []byte("cncf-source-rule-pack/v1alpha4"), []byte("cncf-source-rule-pack/v1alpha1"), 1)
+	}
 	fixture := newStoreFixture(t, cncfknowledge.LayoutPerProject)
 	fixture.importPack(pack, "8")
 	dir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1beta1})

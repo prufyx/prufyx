@@ -67,6 +67,7 @@ func crdRoutePack(t *testing.T, now time.Time) []byte {
 	id := func(item any) string { return item.(map[string]any)["rule"].(map[string]any)["id"].(string) }
 	sort.SliceStable(entries, func(i, j int) bool { return id(entries[i]) < id(entries[j]) })
 	pack["entries"] = entries
+	delete(pack, "lineAttestations")
 	pack["schema"] = "prufyx.io/cncf-source-rule-pack/v1alpha3"
 	if attestations, ok := pack["lineAttestations"].([]any); ok {
 		var kept []any

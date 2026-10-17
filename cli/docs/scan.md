@@ -145,10 +145,11 @@ no directory at that path; the directory must be private to its owner (mode
   like built-in ones (`EVIDENCE_EXPIRED`). `--require-basis` applies to the
   database's rules and records as it does to the built-in ones.
 - The knowledge database format does not carry line reviews, upgrade-path
-  policies or reviewed served-API lists yet, and the built-in knowledge
-  carries none either, so the related gaps (`LINE_NOT_ATTESTED`,
-  `NO_REVIEWED_PATH_POLICY`, `API_VERSION_NOT_REVIEWED`) are named exactly as
-  with the built-in knowledge. A database that carried such records would be
+  policies or reviewed served-API lists yet, so the related gaps
+  (`LINE_NOT_ATTESTED`, `NO_REVIEWED_PATH_POLICY`, `API_VERSION_NOT_REVIEWED`)
+  are named exactly as with the built-in knowledge, except that the built-in
+  knowledge attests nine Kubernetes lines as having no served-API removal
+  (see [line-attestations.md](line-attestations.md)); a database cannot. A database that carried such records would be
   refused when it is imported.
 
 The report's provenance names the database: `knowledgeOrigin` is

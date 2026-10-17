@@ -17,6 +17,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/extractcli"
+	"github.com/prufyx/prufyx/cli/internal/extract/extractpack"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedefixture"
 )
 
@@ -78,12 +79,39 @@ func packDir(t *testing.T, family string) string {
 			if b, err = supersedefixture.Reviewed(b); err != nil {
 				t.Fatal(err)
 			}
+			b = withoutLineAttestations(t, b)
 		}
 		if err := os.WriteFile(filepath.Join(dir, f), b, 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
 	return filepath.Join(dir, "rules.json")
+}
+
+// withoutLineAttestations is the pack as it was before it carried line
+// attestations: no attestation member and the lowest schema the rest of the
+// pack needs (ranged, or set when it holds set rules). The tests below build their own attestations over it.
+func withoutLineAttestations(t *testing.T, raw []byte) []byte {
+	t.Helper()
+	p, err := extractpack.ParsePack(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, has := p.Members["lineAttestations"]; !has {
+		return raw
+	}
+	delete(p.Members, "lineAttestations")
+	schema := "prufyx.io/cncf-source-rule-pack/v1alpha2"
+	if bytes.Contains(raw, []byte(`"forbid_set_member"`)) {
+		// The shipped set rules need the set schema.
+		schema = "prufyx.io/cncf-source-rule-pack/v1alpha3"
+	}
+	p.Members["schema"] = json.RawMessage(`"` + schema + `"`)
+	out, err := p.Render()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
 }
 
 func digestOf(b []byte) string {

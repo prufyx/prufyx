@@ -32,7 +32,7 @@ import (
 const usage = `usage:
   prufyx-maintainer extract run    --extractor ID (--mirror-state DIR | --fixture DIR) --out DIR [--derived-at RFC3339] [--lease-days N] [--concurrency N] [--wants-out FILE]
   prufyx-maintainer extract verify --extractor ID (--mirror-state DIR | --fixture DIR) --out DIR [--concurrency N]
-  prufyx-maintainer extract apply  --out DIR --pack FILE [--withdraw | --rules-only]   (exit 3: the run does not supersede a rule it would withdraw)
+  prufyx-maintainer extract apply  --out DIR --pack FILE [--withdraw | --rules-only | --quiet-lines-only]   (exit 3: the run does not supersede a rule it would withdraw)
   prufyx-maintainer extract supersede --out DIR --pack FILE   (replaces the reviewed rules the run covers; exit 3: refused, nothing written)
   prufyx-maintainer extract inventory --extractor ID (--mirror-state DIR | --fixture DIR) --repo OWNER/NAME --commit SHA
   prufyx-maintainer extract oracle --extractor ID --out DIR --expected FILE
