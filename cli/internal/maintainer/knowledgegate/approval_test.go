@@ -98,6 +98,7 @@ func approvalPath(head Tree, id string) string {
 }
 
 func TestGateOwnerApproval(t *testing.T) {
+	t.Parallel()
 	key := newApprovalKey(t)
 	good := func(id, digest string) ApprovalRecord {
 		return ApprovalRecord{BaseDigest: ApprovalBaseAbsent, CandidateDigest: digest, CandidateID: "cand-1", DecidedAt: gateNow.Add(-time.Hour).Format(time.RFC3339), Decision: "approve", Identity: "airstand", Pack: "cncf", RuleID: id}
@@ -227,6 +228,7 @@ func TestGateOwnerApproval(t *testing.T) {
 // An approval never admits a mechanical rule: those loosen only by
 // re-derivation.
 func TestApprovalDoesNotCoverMechanical(t *testing.T) {
+	t.Parallel()
 	key := newApprovalKey(t)
 	base, head, entries := mechanicalTrees(t, func(entries []map[string]any) { ruleOf(entries[0])["nextAction"] = "Changed." })
 	key.pinBoth(t, base, head, "airstand")
@@ -244,6 +246,7 @@ func TestApprovalDoesNotCoverMechanical(t *testing.T) {
 }
 
 func TestParseApprovalKeysRejects(t *testing.T) {
+	t.Parallel()
 	k := newApprovalKey(t)
 	ok := ApprovalKeys{Schema: ApprovalKeysSchema, Role: ApprovalKeyRole, Owners: []string{"airstand"}, Keys: []ApprovalKey{{KeyID: ApprovalKeyID(k.public), PublicKey: hex.EncodeToString(k.public), NotAfter: "2027-01-01T00:00:00Z"}}}
 	for name, mut := range map[string]func(a *ApprovalKeys){

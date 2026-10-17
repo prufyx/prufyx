@@ -108,6 +108,7 @@ func consensusChange(t *testing.T, bundle []byte, src Source) (*Report, *Change)
 // A consensus rule whose every claim verifies is still refused, with the
 // same refusal as before; nothing about admission depends on the verdict.
 func TestGateConsensusStillRefused(t *testing.T) {
+	t.Parallel()
 	notes := "# v1.41.0\n\n## Changes by Kind\n\n- Removed the SilentDial feature gate. ([#140005](https://github.com/kubernetes/kubernetes/pull/140005))\n\n# v1.41.0-rc.1\n"
 	r, c := consensusChange(t, consensusBundle(t, notes, "SilentDial"), consensusSource(t, notes))
 	if c.Consensus == nil || c.Consensus.Verified != 1 || c.Consensus.Error != "" {
@@ -129,6 +130,7 @@ func TestGateConsensusStillRefused(t *testing.T) {
 
 // The gate re-runs the verifier on the bundle and reports each verdict.
 func TestGateReportsVerifierVerdict(t *testing.T) {
+	t.Parallel()
 	_, c := consensusChange(t, consensusBundle(t, consensusNotes, "SilentDial", "PhantomAccelerator"), consensusSource(t, consensusNotes))
 	v := c.Consensus
 	if v == nil || v.Verified != 1 || v.Dropped != 1 || len(v.Results) != 2 || v.Results[1].Reason != consensus.ReasonNotInInventory {
@@ -182,6 +184,7 @@ func (c countingSource) OnBranch(repo extract.RepoRef, base, commit, branch stri
 }
 
 func TestGateConsensusBounds(t *testing.T) {
+	t.Parallel()
 	reads := 0
 	src := countingSource{consensusSource(t, consensusNotes), "pkg/features/kube_features.go", &reads}
 	head := Tree{Root: t.TempDir()}

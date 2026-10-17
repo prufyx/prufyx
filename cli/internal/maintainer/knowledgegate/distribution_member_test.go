@@ -16,6 +16,7 @@ import (
 // even when the section itself is valid and the pack carries the right
 // schema. The section here is test data, not knowledge.
 func TestDistributionSectionIsAPackMemberChange(t *testing.T) {
+	t.Parallel()
 	revision := strings.Repeat("a", 40)
 	evidence := distribution.Evidence{
 		State: distribution.StateActive, ReviewedAt: "2026-10-01T00:00:00Z", ValidUntil: "2026-12-30T00:00:00Z",

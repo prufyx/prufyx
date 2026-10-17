@@ -73,6 +73,7 @@ func requireRun(t *testing.T, r approvalRun, code int, want string) {
 }
 
 func TestBatchSignRoundTrip(t *testing.T) {
+	t.Parallel()
 	f := newBatchFixture(t, 4)
 	pemKey := f.key.pemKey(t)
 	r := runBatchCommand(t, pemKey, testBatchID, signNow, f.signBatchArgs(t)...)
@@ -105,6 +106,7 @@ func TestBatchSignRoundTrip(t *testing.T) {
 }
 
 func TestBatchSignRefusals(t *testing.T) {
+	t.Parallel()
 	t.Run("not confirmed", func(t *testing.T) {
 		f := newBatchFixture(t, 2)
 		requireRun(t, runBatchCommand(t, f.key.pemKey(t), "b-20261003-2", signNow, f.signBatchArgs(t)...), 2, "not confirmed")
@@ -168,6 +170,7 @@ func TestBatchSignRefusals(t *testing.T) {
 }
 
 func TestBatchVerifyRefusals(t *testing.T) {
+	t.Parallel()
 	sign := func(t *testing.T) batchFixture {
 		f := newBatchFixture(t, 3)
 		requireRun(t, runBatchCommand(t, f.key.pemKey(t), testBatchID, signNow, f.signBatchArgs(t)...), 0, "batch approval written")
@@ -202,6 +205,7 @@ func TestBatchVerifyRefusals(t *testing.T) {
 // read. The prompt goes to the terminal, so it holds whatever happens to
 // standard output.
 func TestBatchSignShowsWhatIsSignedBeforeAsking(t *testing.T) {
+	t.Parallel()
 	f := newBatchFixture(t, 4)
 	r, prompt := runBatchCommandPrompt(t, f.key.pemKey(t), testBatchID, signNow, f.signBatchArgs(t, "--valid-for", "48h")...)
 	requireRun(t, r, 0, "batch approval written")
@@ -230,6 +234,7 @@ func TestBatchSignShowsWhatIsSignedBeforeAsking(t *testing.T) {
 
 // A signer that cannot sign is refused before the owner is asked anything.
 func TestBatchSignRefusesBeforeAsking(t *testing.T) {
+	t.Parallel()
 	for name, tc := range map[string]struct {
 		edit func(args []string) []string
 		want string
@@ -260,6 +265,7 @@ func TestBatchSignRefusesBeforeAsking(t *testing.T) {
 // The signer applies the changed-path allowlist the gate applies, before it
 // draws a nonce or asks anything.
 func TestBatchSignRefusesChangedPaths(t *testing.T) {
+	t.Parallel()
 	for name, edit := range map[string]func(t *testing.T, f batchFixture){
 		"documentation": func(t *testing.T, f batchFixture) {
 			writeFile(t, filepath.Join(f.head.Root, "cli", "docs", "note.md"), []byte("x\n"))
@@ -307,6 +313,7 @@ func (r *countingReader) Read(p []byte) (int, error) {
 // The batch directory is read with a bound; the signer does not add to one
 // that is nearly full.
 func TestBatchSignRefusesFullDirectory(t *testing.T) {
+	t.Parallel()
 	f := newBatchFixture(t, 2)
 	for _, tr := range []Tree{f.base, f.head} {
 		dir := filepath.Dir(batchFilePath(tr, "x"))
@@ -325,6 +332,7 @@ func TestBatchSignRefusesFullDirectory(t *testing.T) {
 // --summary-out holds the summary the owner was shown, is created
 // exclusively and is never written through a link.
 func TestBatchSummaryOut(t *testing.T) {
+	t.Parallel()
 	t.Run("written", func(t *testing.T) {
 		f := newBatchFixture(t, 4)
 		out := filepath.Join(t.TempDir(), "review", "summary.md")

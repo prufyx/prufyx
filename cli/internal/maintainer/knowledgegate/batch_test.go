@@ -144,6 +144,7 @@ func requireBatchProof(t *testing.T, r *Report, ids []string) {
 }
 
 func TestBatchGateAdmits(t *testing.T) {
+	t.Parallel()
 	for _, n := range []int{1, 5, MaxBatchEntries} {
 		f := newBatchFixture(t, n)
 		f.signAndWrite(t, f.record(t))
@@ -170,6 +171,7 @@ func TestBatchGateAdmits(t *testing.T) {
 }
 
 func TestBatchLimit(t *testing.T) {
+	t.Parallel()
 	f := newBatchFixture(t, MaxBatchEntries+1)
 	if err := f.state(t).readyForBatch(); err == nil || !strings.Contains(err.Error(), "at most 50") {
 		t.Fatalf("51 entries: %v", err)
@@ -193,6 +195,7 @@ func TestBatchLimit(t *testing.T) {
 }
 
 func TestBatchGateRefusals(t *testing.T) {
+	t.Parallel()
 	other := newApprovalKey(t)
 	cases := map[string]struct {
 		edit func(t *testing.T, f batchFixture, rec *BatchRecord) Options
@@ -387,6 +390,7 @@ func (brokenCitations) VerifyItems(context.Context, []rulecheck.CitationItem) (r
 }
 
 func TestBatchSignatureAndFile(t *testing.T) {
+	t.Parallel()
 	cases := map[string]struct {
 		write func(t *testing.T, f batchFixture, rec BatchRecord)
 		want  string
@@ -440,6 +444,7 @@ func TestBatchSignatureAndFile(t *testing.T) {
 // A batch admits only the change that adds it, and decisions only move
 // forward, for rules as for records.
 func TestBatchSingleUseAndForwardOnly(t *testing.T) {
+	t.Parallel()
 	t.Run("same batch in the base", func(t *testing.T) {
 		f := newBatchFixture(t, 3)
 		rec := f.record(t)
@@ -487,6 +492,7 @@ func TestBatchSingleUseAndForwardOnly(t *testing.T) {
 
 // The batch directory is append-only while a batch could still verify.
 func TestBatchFilesAreKept(t *testing.T) {
+	t.Parallel()
 	f := newBatchFixture(t, 2)
 	rec := f.record(t)
 	raw := f.key.signBatch(t, rec)
@@ -544,6 +550,7 @@ func TestBatchFilesAreKept(t *testing.T) {
 // A record approval older than a merged batch decision for the record
 // cannot replace it.
 func TestRecordApprovalBehindBatch(t *testing.T) {
+	t.Parallel()
 	base, _ := trees(t)
 	key := newApprovalKey(t)
 	id := attestationID("1.25")
@@ -568,6 +575,7 @@ func TestRecordApprovalBehindBatch(t *testing.T) {
 }
 
 func TestBatchLineAttestation(t *testing.T) {
+	t.Parallel()
 	for line, want := range map[string]string{"1.25": "", "1.33": "cross-check with the extractor"} {
 		t.Run(line, func(t *testing.T) {
 			base, head := attestedTrees(t, []string{"1.22"}, []string{"1.22", line}, nil)
@@ -596,6 +604,7 @@ func TestBatchLineAttestation(t *testing.T) {
 }
 
 func TestBatchSample(t *testing.T) {
+	t.Parallel()
 	for n, want := range map[int]int{1: 1, 2: 2, 3: 3, 4: 3, 30: 3, 31: 4, 49: 5, 50: 5} {
 		if got := batchSampleSize(n); got != want {
 			t.Fatalf("sample size of %d: %d, want %d", n, got, want)
@@ -631,6 +640,7 @@ func TestBatchSample(t *testing.T) {
 }
 
 func TestTermSafe(t *testing.T) {
+	t.Parallel()
 	if got := termSafe("a‮b\x1bc\n|"); got != `a\u{202E}b\u{001B}c`+"\n|" {
 		t.Fatalf("%q", got)
 	}
@@ -664,6 +674,7 @@ func forkCitingFixture(t *testing.T, revision string) batchFixture {
 // reachable commit is admitted, so the refusal is not an artifact of the
 // fixture.
 func TestBatchRefusesForkOnlyCommit(t *testing.T) {
+	t.Parallel()
 	const fork = "6666666666666666666666666666666666666666"
 	const flaky = "7777777777777777777777777777777777777777"
 	raw := func(rev string) string {
@@ -715,6 +726,7 @@ func (emptyPassCitations) VerifyItems(context.Context, []rulecheck.CitationItem)
 
 // A verifier that passes without checking any source proves nothing.
 func TestBatchRefusesPassWithoutSources(t *testing.T) {
+	t.Parallel()
 	f := newBatchFixture(t, 3)
 	f.signAndWrite(t, f.record(t))
 	requireFail(t, runGate(t, Options{Base: f.base, Head: f.head, Citations: emptyPassCitations{}}), "without checking a source")

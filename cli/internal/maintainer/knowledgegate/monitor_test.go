@@ -60,6 +60,7 @@ func hasAlarmKind(r *Report, kind string) bool {
 }
 
 func TestWithdrawalThreshold(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		n, total, percent int
 		tripped           bool
@@ -81,6 +82,7 @@ func TestWithdrawalThreshold(t *testing.T) {
 // rules of one project than allowed, fails with an alarm; at the limit it
 // passes.
 func TestWithdrawalBreaker(t *testing.T) {
+	t.Parallel()
 	t.Run("pack", func(t *testing.T) {
 		base, _ := trees(t)
 		active := activeCount(t, base, cncfRulesPath)
@@ -193,6 +195,7 @@ func TestWithdrawalBreaker(t *testing.T) {
 // With shadow on the report is identical to the enforcing one except for
 // the mode and the automatic-merge eligibility, which is false.
 func TestShadowMode(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	ids := readPack(t, base, cncfRulesPath).activeReviewed()
 	editPack(t, head, cncfRulesPath, func(p *packDoc) { evidenceOf(p.find(t, ids[0]))["state"] = "withdrawn" })
@@ -323,6 +326,7 @@ func metricsMust(t *testing.T, raw []byte) map[string]any {
 }
 
 func TestGateMetrics(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	ids := readPack(t, base, cncfRulesPath).activeReviewed()
 	long := strings.Repeat("p", 400)
@@ -409,6 +413,7 @@ func TestGateMetrics(t *testing.T) {
 }
 
 func TestGateAlarms(t *testing.T) {
+	t.Parallel()
 	long := strings.Repeat("p", 400)
 	t.Run("every tripped breaker and limit has a record", func(t *testing.T) {
 		base, head := trees(t)
@@ -508,6 +513,7 @@ func TestGateAlarms(t *testing.T) {
 }
 
 func TestDailyLimit(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	ids := readPack(t, base, cncfRulesPath).activeReviewed()
 	editPack(t, head, cncfRulesPath, func(p *packDoc) {
@@ -595,6 +601,7 @@ func commitAll(t *testing.T, repo, msg string) string {
 }
 
 func TestDailyCountFromHistory(t *testing.T) {
+	t.Parallel()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git is not installed")
 	}
@@ -659,6 +666,7 @@ func TestDailyCountFromHistory(t *testing.T) {
 }
 
 func TestParseDailyCommits(t *testing.T) {
+	t.Parallel()
 	sha := strings.Repeat("a", 40)
 	one := fmt.Sprintf(`[{"sha":%q,"parent":%q,"author":null}]`, sha, sha)
 	if l, err := ParseDailyCommits([]byte(one)); err != nil || len(l) != 1 || l[0].Author != nil {
@@ -679,6 +687,7 @@ func TestParseDailyCommits(t *testing.T) {
 }
 
 func TestExportOnly(t *testing.T) {
+	t.Parallel()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git is not installed")
 	}
@@ -704,6 +713,7 @@ func TestExportOnly(t *testing.T) {
 // without them fails with them, and shadow mode never turns an ineligible
 // change eligible or changes the result.
 func TestBreakersOnlyTighten(t *testing.T) {
+	t.Parallel()
 	rng := rand.New(rand.NewSource(8))
 	layout := DefaultLayout()
 	projects := []string{"alpha", "beta", "gamma", "delta"}

@@ -18,6 +18,7 @@ import (
 // own pack bytes, after which the gate reaches the verdict CI reaches:
 // pass, with no attestation or generated-file failure.
 func TestGateReachesVerdictAfterAttestationFromTree(t *testing.T) {
+	t.Parallel()
 	base, head, _ := mechanicalTrees(t, nil)
 	// Make the head's attestation stale, as it is straight after an
 	// extract apply that changed only the pack.

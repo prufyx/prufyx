@@ -18,6 +18,7 @@ import (
 // Every case must make the gate refuse the change; each names the check
 // (O1 to O8) whose refusal it shows and a part of the reason.
 func TestOnboardingRefusals(t *testing.T) {
+	t.Parallel()
 	ol := DefaultLayout().Onboarding
 	headFile := func(f *onboardingFixture, rel string) string {
 		return filepath.Join(f.head.Root, filepath.FromSlash(rel))

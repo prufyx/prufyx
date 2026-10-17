@@ -20,6 +20,7 @@ import (
 )
 
 func TestShardPartitionsExtractorsDeterministically(t *testing.T) {
+	t.Parallel()
 	var ids []string
 	for i := 0; i < 300; i++ {
 		ids = append(ids, fmt.Sprintf("crd-versions/project-%d", i))
@@ -54,6 +55,7 @@ func TestShardPartitionsExtractorsDeterministically(t *testing.T) {
 }
 
 func TestParseShard(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2026, 10, 8, 4, 23, 0, 0, time.UTC)
 	for _, s := range []string{"", "all"} {
 		if sh, err := ParseShard(s, now); err != nil || !sh.All() {
@@ -85,6 +87,7 @@ func TestParseShard(t *testing.T) {
 // A sharded full re-derivation touches only the rules of its shard; the
 // union of all shards is the unsharded run.
 func TestGateRederiveAllShards(t *testing.T) {
+	t.Parallel()
 	_, head, entries := mechanicalTrees(t, nil)
 	src := extract.FixtureReader{Root: servedFixture}
 	total := 0
@@ -120,6 +123,7 @@ func commitHandler(w http.ResponseWriter, r *http.Request) {
 func sha(c byte) string { return strings.Repeat(string(c), 40) }
 
 func TestGitHubSourceRESTCapStopsBeforeSending(t *testing.T) {
+	t.Parallel()
 	g, n := apiServer(t, commitHandler)
 	g.MaxRESTRequests = 2
 	repo, _ := extract.ParseRepo("github.com/o/r")
@@ -151,6 +155,7 @@ func TestGitHubSourceRESTCapStopsBeforeSending(t *testing.T) {
 }
 
 func TestGitHubSourceKeepsAReserveOfGitHubsRemaining(t *testing.T) {
+	t.Parallel()
 	g, n := apiServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-RateLimit-Remaining", "30")
 		commitHandler(w, r)
@@ -175,6 +180,7 @@ func TestGitHubSourceKeepsAReserveOfGitHubsRemaining(t *testing.T) {
 }
 
 func TestGitHubSourceRateLimitRefusalIsBudgetExhausted(t *testing.T) {
+	t.Parallel()
 	for name, set := range map[string]func(http.Header){
 		"primary":   func(h http.Header) { h.Set("X-RateLimit-Remaining", "0") },
 		"secondary": func(h http.Header) { h.Set("Retry-After", "60") },
@@ -202,6 +208,7 @@ func TestGitHubSourceRateLimitRefusalIsBudgetExhausted(t *testing.T) {
 // When the budget runs out the gate reports "could not run" and never
 // passes, whatever the rules said.
 func TestGateFailsClosedWhenTheBudgetRunsOut(t *testing.T) {
+	t.Parallel()
 	_, head, _ := mechanicalTrees(t, nil)
 	fake := newFakeGitHub(servedFixture)
 	src := githubSourceFor(t, fake)
@@ -227,6 +234,7 @@ func TestGateFailsClosedWhenTheBudgetRunsOut(t *testing.T) {
 }
 
 func TestGateReportsRESTRequestsOnAPassingRun(t *testing.T) {
+	t.Parallel()
 	_, head, _ := mechanicalTrees(t, nil)
 	fake := newFakeGitHub(servedFixture)
 	src := githubSourceFor(t, fake)
@@ -267,6 +275,7 @@ func realTreeID(t *testing.T, entries []extract.TreeEntry) string {
 }
 
 func TestDiskCacheTreesAreVerifiedAgainstTheirIDs(t *testing.T) {
+	t.Parallel()
 	entries := []extract.TreeEntry{
 		{Mode: "100644", Type: "blob", SHA: sha('1'), Path: "a.txt"},
 		{Mode: "040000", Type: "tree", SHA: sha('2'), Path: "dir"},
@@ -303,6 +312,7 @@ func TestDiskCacheTreesAreVerifiedAgainstTheirIDs(t *testing.T) {
 }
 
 func TestDiskCacheBlobsAreVerified(t *testing.T) {
+	t.Parallel()
 	g := &GitHubSource{CacheDir: t.TempDir()}
 	data := []byte("hello\n")
 	id := gitBlobID(data)
@@ -327,6 +337,7 @@ func TestDiskCacheBlobsAreVerified(t *testing.T) {
 
 // The second run over the same commits is answered from the disk cache.
 func TestGateUsesTheDiskCacheAcrossRuns(t *testing.T) {
+	t.Parallel()
 	_, head, _ := mechanicalTrees(t, nil)
 	dir := t.TempDir()
 	run := func() (*Report, *fakeGitHub) {

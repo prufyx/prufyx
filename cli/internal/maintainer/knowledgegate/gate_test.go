@@ -12,6 +12,7 @@ import (
 )
 
 func TestGateUnchangedPasses(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	r := runGate(t, Options{Base: base, Head: head})
 	requirePass(t, r)
@@ -31,6 +32,7 @@ func TestGateUnchangedPasses(t *testing.T) {
 // A tightening-only change (withdraw one rule, expire another) passes with
 // no proof, and a bot-authored one is eligible for automatic merging.
 func TestGateTighteningOnlyPasses(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	ids := readPack(t, base, cncfRulesPath).activeReviewed()
 	editPack(t, head, cncfRulesPath, func(p *packDoc) {
@@ -65,6 +67,7 @@ func TestGateTighteningOnlyPasses(t *testing.T) {
 // Loosening a reviewed rule without a proof fails: a renewal, a re-pin, a
 // text change and a new rule.
 func TestGateLooseningWithoutProofFails(t *testing.T) {
+	t.Parallel()
 	cases := map[string]func(t *testing.T, p *packDoc, ids []string){
 		"renew": func(t *testing.T, p *packDoc, ids []string) {
 			ev := evidenceOf(p.find(t, ids[0]))
@@ -96,6 +99,7 @@ func TestGateLooseningWithoutProofFails(t *testing.T) {
 }
 
 func TestGateRemovalFails(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	ids := readPack(t, base, cncfRulesPath).activeReviewed()
 	editPack(t, head, cncfRulesPath, func(p *packDoc) {
@@ -112,6 +116,7 @@ func TestGateRemovalFails(t *testing.T) {
 }
 
 func TestGateStaleGeneratedFilesFail(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	ids := readPack(t, base, cncfRulesPath).activeReviewed()
 	p := readPack(t, head, cncfRulesPath)
@@ -124,6 +129,7 @@ func TestGateStaleGeneratedFilesFail(t *testing.T) {
 
 // The kill switch blocks every loosening change and lets tightening pass.
 func TestGateKillSwitch(t *testing.T) {
+	t.Parallel()
 	for _, where := range []string{"base", "head"} {
 		t.Run(where, func(t *testing.T) {
 			base, head := trees(t)
@@ -158,6 +164,7 @@ func TestGateKillSwitch(t *testing.T) {
 
 // More loosening changes than the cap fail, in verify and in limits.
 func TestGateLooseningLimit(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	ids := readPack(t, base, cncfRulesPath).activeReviewed()
 	editPack(t, head, cncfRulesPath, func(p *packDoc) {
@@ -182,6 +189,7 @@ func TestGateLooseningLimit(t *testing.T) {
 }
 
 func TestGateSizeAlarm(t *testing.T) {
+	t.Parallel()
 	r := &Report{}
 	spec := PackSpec{Name: "x"}
 	stats := PackStats{TargetBytes: 85, MaxTargetBytes: 100}
@@ -210,6 +218,7 @@ func TestGateSizeAlarm(t *testing.T) {
 // published: none is admitted as a loosening change. The engine's basis
 // flags back the block-only check of every head pack.
 func TestGateConsensusBlockOnly(t *testing.T) {
+	t.Parallel()
 	// A copied rule relabelled consensus, without derivedAt and under the
 	// old pack schema: refused as loosening and by admission.
 	base, head := trees(t)
@@ -270,6 +279,7 @@ func requireNotFailed(t *testing.T, r *Report, name string) {
 }
 
 func TestGateStaggerCap(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	p := readPack(t, base, cncfRulesPath)
 	h := &loadedPack{Entries: map[string]*entry{}}
@@ -291,6 +301,7 @@ func TestGateStaggerCap(t *testing.T) {
 }
 
 func TestTreeRefusesLinks(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "outside", "secret.json"), []byte("{}"))
 	root := filepath.Join(dir, "root")
@@ -318,6 +329,7 @@ func TestTreeRefusesLinks(t *testing.T) {
 // tightens: a description with a control character the engine tolerates
 // is still refused.
 func TestGateRulecheck(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	ids := readPack(t, base, cncfRulesPath).activeReviewed()
 	for _, tr := range []Tree{base, head} {
@@ -337,6 +349,7 @@ func TestGateRulecheck(t *testing.T) {
 // A verified statement admits only the rules it renews; anything else in
 // the pack needs its own proof.
 func TestAdmitReviewedNeedsRenewedRule(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	c := &Change{Pack: "cncf", RuleID: "some.rule", head: &entry{RuleID: "some.rule"}}
 	opts := Options{Layout: DefaultLayout(), Base: base, Head: head, Now: gateNow}

@@ -15,6 +15,7 @@ import (
 // when the gate would refuse any removal of the table's case, the tool
 // refuses the whole run (exit 3) and prints no map.
 func TestExtractSupersedeAndTheGateAgree(t *testing.T) {
+	t.Parallel()
 	for _, tc := range pairCases(t) {
 		t.Run(tc.name, func(t *testing.T) {
 			var entries []json.RawMessage

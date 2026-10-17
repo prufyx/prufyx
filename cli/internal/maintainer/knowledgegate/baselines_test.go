@@ -72,6 +72,7 @@ func (f baselineFixture) run(t *testing.T) *Report {
 }
 
 func TestGateAdmitsAnOwnerBaselineEntryWithAnApproval(t *testing.T) {
+	t.Parallel()
 	f := newBaselineFixture(t)
 	r := f.run(t)
 	requirePass(t, r)
@@ -87,6 +88,7 @@ func TestGateAdmitsAnOwnerBaselineEntryWithAnApproval(t *testing.T) {
 }
 
 func TestGateAdmitsAChangedEntryWithANewerApproval(t *testing.T) {
+	t.Parallel()
 	f := newBaselineFixture(t)
 	old := baselineEntryAt("2026-10-01T10:00:00Z")
 	old.Tag, old.Commit, old.Approval = "0.9.45.0", strings.Repeat("b", 40), "pr-9"
@@ -101,6 +103,7 @@ func TestGateAdmitsAChangedEntryWithANewerApproval(t *testing.T) {
 }
 
 func TestGateAdmitsRemovingABaselineEntryWithoutAnApproval(t *testing.T) {
+	t.Parallel()
 	f := newBaselineFixture(t)
 	old := baselineEntryAt("2026-10-01T10:00:00Z")
 	writeBaselines(t, f.base, old)
@@ -120,6 +123,7 @@ func TestGateAdmitsRemovingABaselineEntryWithoutAnApproval(t *testing.T) {
 }
 
 func TestGateRefusesAnOwnerBaselineEntryWithoutAValidApproval(t *testing.T) {
+	t.Parallel()
 	sign := func(f baselineFixture, mutate func(r *ApprovalRecord)) {
 		rec := baselineRecord(f.entry, nil, gateNow.Add(-time.Hour))
 		mutate(&rec)
@@ -187,6 +191,7 @@ func TestGateRefusesAnOwnerBaselineEntryWithoutAValidApproval(t *testing.T) {
 }
 
 func TestGateBaselineApprovalKeyPinning(t *testing.T) {
+	t.Parallel()
 	f := newBaselineFixture(t)
 	r := runGate(t, Options{Base: f.base, Head: f.head, Author: "airstand", ApprovalKeysDigest: "none"})
 	requireFail(t, r, "no owner approval key digest")
@@ -198,6 +203,7 @@ func TestGateBaselineApprovalKeyPinning(t *testing.T) {
 // base (the entry was removed, then proposed again) is spent; and a base
 // decision made later than the offered approval cannot be put back.
 func TestGateBaselineApprovalsAreSingleUseAndForwardOnly(t *testing.T) {
+	t.Parallel()
 	f := newBaselineFixture(t)
 	spent := baselineRecord(f.entry, nil, gateNow.Add(-time.Hour))
 	writeFile(t, baselineApprovalPath(f.base, testBaselineRepo), f.key.sign(t, spent))
@@ -219,6 +225,7 @@ func TestGateBaselineApprovalsAreSingleUseAndForwardOnly(t *testing.T) {
 }
 
 func TestGateRefusesBaselineEntriesThatMoveBackward(t *testing.T) {
+	t.Parallel()
 	f := newBaselineFixture(t)
 	old := baselineEntryAt("2026-10-03T10:00:00Z")
 	old.Tag = "0.9.45.0"
@@ -232,6 +239,7 @@ func TestGateRefusesBaselineEntriesThatMoveBackward(t *testing.T) {
 }
 
 func TestGateRefusesBaselineFileFromTheAutomationAccount(t *testing.T) {
+	t.Parallel()
 	f := newBaselineFixture(t)
 	r := runGate(t, Options{Base: f.base, Head: f.head, Author: DefaultBotLogin})
 	if c, _ := check(r, "repin-baselines"); c.OK || !strings.Contains(c.Detail, "automation account") {
@@ -243,6 +251,7 @@ func TestGateRefusesBaselineFileFromTheAutomationAccount(t *testing.T) {
 }
 
 func TestGateRefusesMalformedBaselineFiles(t *testing.T) {
+	t.Parallel()
 	for name, edit := range map[string]func(f baselineFixture){
 		"head malformed": func(f baselineFixture) {
 			writeFile(t, filepath.Join(f.head.Root, filepath.FromSlash(repinbaselines.DefaultPath)), []byte(`{"schema":"x"}`))
@@ -266,6 +275,7 @@ func TestGateRefusesMalformedBaselineFiles(t *testing.T) {
 // An approval file under the baseline directory needs the baseline change
 // it admitted in the same change.
 func TestGateRefusesBaselineApprovalFilesWithoutTheirChange(t *testing.T) {
+	t.Parallel()
 	f := newBaselineFixture(t)
 	writeBaselines(t, f.head) // entry not proposed after all
 	r := f.run(t)
@@ -280,6 +290,7 @@ func TestGateRefusesBaselineApprovalFilesWithoutTheirChange(t *testing.T) {
 }
 
 func TestGateWithoutABaselineFileHasNoBaselineCheck(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	r := runGate(t, Options{Base: base, Head: head, Author: "airstand"})
 	if _, ok := check(r, "repin-baselines"); ok {
@@ -295,6 +306,7 @@ func TestGateWithoutABaselineFileHasNoBaselineCheck(t *testing.T) {
 }
 
 func TestBaselineApprovalRecordScopeIsARepository(t *testing.T) {
+	t.Parallel()
 	rec := baselineRecord(baselineEntryAt("2026-10-03T10:00:00Z"), nil, gateNow)
 	if _, err := SignedApprovalBytes(rec); err != nil {
 		t.Fatal(err)
