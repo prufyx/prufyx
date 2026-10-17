@@ -76,8 +76,8 @@ func TestWithout(t *testing.T) {
 			t.Fatalf("rule %s changed", id)
 		}
 	}
-	if bytes.Contains(without, []byte("lineAttestations")) {
-		t.Fatal("line attestations left")
+	if bytes.Contains(without, []byte(`"factFamily":"`+crdbatchids.FactFamily+`"`)) || bytes.Contains(without, []byte(`"factFamily": "`+crdbatchids.FactFamily+`"`)) {
+		t.Fatal("batch line attestations left")
 	}
 	if _, err := cncfcheck.CheckPackFiles(data(t, "landscape-projects.json"), data(t, "priority-portfolio.json"), without); err != nil {
 		t.Fatalf("the rebuilt pack is refused: %v", err)

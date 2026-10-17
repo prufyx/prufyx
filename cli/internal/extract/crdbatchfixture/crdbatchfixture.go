@@ -26,10 +26,10 @@ const (
 // Without returns pack without the batch, rendered like the shipped pack. A
 // pack that does not hold the batch is returned unchanged. The batch moved
 // the pack from the ranged schema to the line attestation schema; Without
-// moves it back and refuses a pack that holds anything else that would need
-// a schema above the ranged one (another line attestation, a set rule
-// outside the batch, another section), so it never yields a pack its loader
-// would refuse for a reason the batch did not bring.
+// moves it back unless line attestations of other facts remain, and refuses a
+// pack that holds anything else that would need a schema above the ranged
+// one (a set rule outside the batch, another section), so it never yields a
+// pack its loader would refuse for a reason the batch did not bring.
 func Without(pack []byte) ([]byte, error) {
 	held, err := crdbatchids.Holds(pack)
 	if err != nil || !held {
@@ -73,20 +73,33 @@ func Without(pack []byte) ([]byte, error) {
 		}
 		kept = append(kept, raw)
 	}
-	var atts []struct {
-		Component  string `json:"component"`
-		Line       string `json:"line"`
-		FactFamily string `json:"factFamily"`
-	}
+	var atts []json.RawMessage
 	if err := json.Unmarshal(p.Members["lineAttestations"], &atts); err != nil {
 		return nil, err
 	}
-	for _, a := range atts {
+	var keptAtts []json.RawMessage
+	for _, raw := range atts {
+		var a struct {
+			FactFamily string `json:"factFamily"`
+		}
+		if err := json.Unmarshal(raw, &a); err != nil {
+			return nil, err
+		}
 		if a.FactFamily != crdbatchids.FactFamily {
-			return nil, fmt.Errorf("crdbatchfixture: line attestation %s %s %s is not of the batch", a.Component, a.Line, a.FactFamily)
+			keptAtts = append(keptAtts, raw)
 		}
 	}
 	p.Entries = kept
+	if len(keptAtts) > 0 {
+		// Attestations of other facts stay, and with them the schema that
+		// admits them.
+		out, err := json.Marshal(keptAtts)
+		if err != nil {
+			return nil, err
+		}
+		p.Members["lineAttestations"] = out
+		return p.Render()
+	}
 	delete(p.Members, "lineAttestations")
 	p.Members["schema"] = json.RawMessage(`"` + schemaRanged + `"`)
 	return p.Render()
