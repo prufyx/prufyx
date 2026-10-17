@@ -10413,6 +10413,101 @@
       }
     },
     {
+      "description": "Kyverno 1.16.0 no longer serves version v1beta1 of UpdateRequest (CustomResourceDefinition updaterequests.kyverno.io), which 1.15.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 1.15 and 1.16, with a scan of the whole repository at each; it holds for upgrades from any 1.15 release to any 1.16 release. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "kyverno",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/kyverno/kyverno",
+          "description": "Custom-resource versions (group/version/Kind) of the Kyverno custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.kyverno.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-10-17T05:46:27Z",
+          "extractor": {
+            "codeDigest": "sha256:225f5707b71e90a986ce3f3a8e0763761b79d47e30b84543eb60a2e46c7016ea",
+            "id": "crd.version-removal.kyverno",
+            "version": "2.5.0"
+          },
+          "reviewedAt": "2026-10-17T05:46:27Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:4da606b34b772d8d846bdec3927c35e712571299f2e50f7996ca095e25447e87",
+              "endLine": 402,
+              "id": "crd-versions-1-15-0",
+              "revision": "be04f6e69bf608dc3a9bc16f1443cb869628bcd2",
+              "startLine": 21,
+              "url": "https://github.com/kyverno/kyverno/blob/be04f6e69bf608dc3a9bc16f1443cb869628bcd2/config/crds/kyverno/kyverno.io_updaterequests.yaml"
+            },
+            {
+              "contentDigest": "sha256:046e076cb1f32ecc0413cee3dc5c0913ba5509fd8edc1565fe064895d41fb6fb",
+              "endLine": 399,
+              "id": "served-false-v1beta1-1-16-0",
+              "revision": "18f9549cb2af30ec0537cd97f3200228d9f42d4b",
+              "startLine": 399,
+              "url": "https://github.com/kyverno/kyverno/blob/18f9549cb2af30ec0537cd97f3200228d9f42d4b/config/crds/kyverno/kyverno.io_updaterequests.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-15T05:46:27Z"
+        },
+        "id": "kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0",
+        "nextAction": "change apiVersion of UpdateRequest to kyverno.io/v2 before upgrading to 1.16.0",
+        "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-1-15-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-1-15-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "served-false-v1beta1-1-16-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "served-false-v1beta1-1-16-0"
+            }
+          ],
+          "from": {
+            "gte": "1.15.0",
+            "lt": "1.16.0"
+          },
+          "to": {
+            "gte": "1.16.0",
+            "lt": "1.17.0"
+          }
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/kyverno/kyverno",
+          "factId": "component.kyverno.custom_resource_versions_set",
+          "members": [
+            "kyverno.io/v1beta1/UpdateRequest"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/kyverno/kyverno",
+          "from": "1.15.0",
+          "to": "1.16.0"
+        }
+      }
+    },
+    {
       "project": "kyverno",
       "description": "Kyverno reportsChunkSize removal only for an explicitly declared official upstream reports-controller invocation; image provenance, wrappers, other command surfaces, controller behavior, and whole-upgrade compatibility are unverified.",
       "requiredFacts": [
