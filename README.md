@@ -95,10 +95,15 @@ Update the block with `scripts/readme-coverage.sh` (`--check` fails when it is
 stale). The method and the full per-project table are in the
 [coverage report guide](cli/docs/coverage-report.md).
 
-In plain terms: the rules are exact, reviewed transitions, mostly for older
-releases. No upgrade between two release lines is decided as a whole yet, and
-Kubernetes has no rule for upgrades after 1.32. Reviewed Kubernetes API
-removals exist for upgrades to 1.22, 1.24-1.27, 1.29 and 1.32.
+In plain terms: most rules are exact, reviewed transitions, mostly for older
+releases. Kubernetes served-API removal rules are generated from the upstream
+API lifecycle declarations and exist for upgrades to 1.22, 1.25, 1.26, 1.27,
+1.29, 1.32, 1.33, 1.34 and 1.37 (1.35 and 1.36 remove no API version a
+manifest can target), plus the 1.24 dockershim removal.
+Each served-API removal rule covers every patch release of the previous line
+going to every patch release of the line that stops serving the API, so a
+manifest at the removed version answers `BLOCKED` for any such pair (for
+example 1.31.14 to 1.32.11), not only at the `.0` releases.
 
 Further projects with executable checks: Argo Workflows, Ceph, Fluent Bit,
 Grafana, Grafana Loki, Kibana, MariaDB and MariaDB Operator (community

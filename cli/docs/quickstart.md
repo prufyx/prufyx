@@ -384,11 +384,11 @@ gaps, `--redact`, JSON output and `prufyx.yaml`.
 - [`catalog checks`](community-checks.md#discovering-embedded-source-rule-routes)
   lists the exact rule identities and input shape for one project without
   running a check.
-- The current build has **194 registered native check routes** across all
+- The current build has **198 registered native check routes** across all
   projects (enforced by `internal/checkroutemetadata`, not a doc claim you
-  have to trust); Kubernetes reviews removed APIs for six from/to pairs
-  (upgrades to 1.22, 1.25, 1.26, 1.27, 1.29 and 1.32) plus the 1.24 dockershim
-  removal. This quickstart exercised two of them.
+  have to trust); Kubernetes decides removed APIs for the upgrades
+  to 1.22, 1.25, 1.26, 1.27, 1.29, 1.32, 1.33, 1.34 and 1.37 plus the 1.24
+  dockershim removal. This quickstart exercised two of them.
 - A scoped `PASS`, `BLOCKED`, or `UNKNOWN` result is never a whole-upgrade
   safety claim. See the root [README](../README.md) and
   [`docs/product-contract.md`](product-contract.md) for what Prufyx does and
