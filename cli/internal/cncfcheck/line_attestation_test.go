@@ -27,10 +27,11 @@ import (
 
 const k8sComponent = "pkg:github/kubernetes/kubernetes"
 
-// publishedKubernetesLines are the Kubernetes lines the embedded pack
-// attests, all with an empty rule list (no served-API removal). Changing the
-// set is deliberate.
-var publishedKubernetesLines = []string{"1.20", "1.21", "1.23", "1.24", "1.28", "1.30", "1.31", "1.35", "1.36"}
+// publishedKubernetesRules are the Kubernetes lines the embedded pack
+// attests, with the number of served-API removal rules each lists (nine lines
+// have no removal and an empty list). Changing the set is deliberate.
+var publishedKubernetesRules = map[string]int{"1.20": 0, "1.21": 0, "1.22": 13, "1.23": 0, "1.24": 0, "1.25": 7, "1.26": 2, "1.27": 1, "1.28": 0,
+	"1.29": 1, "1.30": 0, "1.31": 0, "1.32": 1, "1.33": 1, "1.34": 1, "1.35": 0, "1.36": 0, "1.37": 2}
 
 // line125Rules are the rules of the 1.25 line in the ascending order a line
 // attestation lists them (the order depends on which ids the pack carries).
@@ -91,9 +92,9 @@ func validAttestations(t *testing.T) []byte {
 // (lineattest.CheckRuleSets finds no problem), is mechanical with the
 // custom-resource extractor of its project, cites at least one source, is
 // current at the review instant, and is what AttestationsFor returns for its
-// scope. The Kubernetes lines attested are exactly the empty-list lines of
-// publishedKubernetesLines (the minors with no served-API removal); no other
-// Kubernetes line is attested.
+// scope. The Kubernetes lines attested are exactly the lines of
+// publishedKubernetesRules, each listing the mechanical served-API removal
+// rules of the pack for it.
 func TestEmbeddedPackLineAttestations(t *testing.T) {
 	raw, err := packagedFiles.ReadFile("data/rules.json")
 	if err != nil {
@@ -122,23 +123,31 @@ func TestEmbeddedPackLineAttestations(t *testing.T) {
 		// The Kubernetes attestations are checked against the stated set;
 		// the rest are the custom-resource batch's.
 		var atts []lineattest.LineAttestation
-		var k8sLines []string
+		gotRules := map[string]int{}
 		for _, a := range all {
 			if a.Component == k8sComponent {
-				k8sLines = append(k8sLines, a.Line)
+				gotRules[a.Line] = len(a.RuleIDs)
 				continue
 			}
 			atts = append(atts, a)
 		}
-		if !reflect.DeepEqual(k8sLines, publishedKubernetesLines) {
-			t.Fatalf("attested Kubernetes lines %v, want %v", k8sLines, publishedKubernetesLines)
+		if !reflect.DeepEqual(gotRules, publishedKubernetesRules) {
+			t.Fatalf("attested Kubernetes lines and rule counts %v, want %v", gotRules, publishedKubernetesRules)
 		}
 		if len(atts) != len(want) {
 			t.Fatalf("%d custom-resource line attestations, the batch states %d", len(atts), len(want))
 		}
 		var rules []json.RawMessage
+		known := map[string]bool{}
 		for _, entry := range shippedPack(t).Entries {
 			rules = append(rules, entry.Rule)
+			var rule struct {
+				ID string `json:"id"`
+			}
+			if err := json.Unmarshal(entry.Rule, &rule); err != nil {
+				t.Fatal(err)
+			}
+			known[rule.ID] = true
 		}
 		if problems, err := lineattest.CheckRuleSets(all, rules); err != nil || len(problems) != 0 {
 			t.Fatalf("published line attestations do not list the pack's rules: %v %v", problems, err)
@@ -147,8 +156,13 @@ func TestEmbeddedPackLineAttestations(t *testing.T) {
 			if a.Component != k8sComponent {
 				continue
 			}
-			if a.FactFamily != lineattest.FamilyKubernetesRemovedServedGVK || a.RuleIDs == nil || len(a.RuleIDs) != 0 || a.Evidence.Basis != constraintengine.BasisMechanical || a.Evidence.Extractor == nil || len(a.Evidence.Sources) == 0 {
-				t.Fatalf("published Kubernetes attestation %s is not a mechanical empty-list attestation: %+v", a.Key(), a.Evidence)
+			if a.FactFamily != lineattest.FamilyKubernetesRemovedServedGVK || a.RuleIDs == nil || a.Evidence.Basis != constraintengine.BasisMechanical || a.Evidence.Extractor == nil || len(a.Evidence.Sources) == 0 {
+				t.Fatalf("published Kubernetes attestation %s is not a mechanical attestation: %+v", a.Key(), a.Evidence)
+			}
+			for _, id := range a.RuleIDs {
+				if !known[id] || !strings.HasPrefix(id, "kubernetes.served-api-removal.") {
+					t.Fatalf("line %s lists %q, which is not a mechanical rule of the pack", a.Line, id)
+				}
 			}
 			got, err := AttestationsFor(a.Component, a.Line, a.FactFamily, now)
 			if err != nil || len(got) != 1 || !got[0].Current() || !reflect.DeepEqual(got[0].Attestation, a) {
@@ -169,9 +183,9 @@ func TestEmbeddedPackLineAttestations(t *testing.T) {
 			}
 		}
 	}
-	got, err := AttestationsFor(k8sComponent, "1.25", lineattest.FamilyKubernetesRemovedServedGVK, now)
-	if err != nil || len(got) != 0 {
-		t.Fatalf("embedded attestations: %v %v", got, err)
+	found, err := AttestationsFor(k8sComponent, "1.25", lineattest.FamilyKubernetesRemovedServedGVK, now)
+	if err != nil || len(found) != 1 || len(found[0].Attestation.RuleIDs) != 7 {
+		t.Fatalf("1.25 must be attested with its seven removals: %v %v", found, err)
 	}
 }
 

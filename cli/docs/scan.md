@@ -35,31 +35,31 @@ YAML
 chmod 600 applyset.yaml
 prufyx scan applyset.yaml --from kubernetes=1.24.17 --to kubernetes=1.25.3 \
   --distribution official_upstream --resource-scope-complete --target-api-apply-required \
-  --now 2026-10-04T00:00:00Z
+  --now 2026-11-20T00:00:00Z
 ```
 
 ```
-BLOCKED: 1 problem must be fixed; 2 areas were not checked
+BLOCKED: 1 problem must be fixed; 1 area was not checked
 
 kubernetes 1.24.17 -> 1.25.3: 1 hop (no reviewed path policy)
   1.24.17 -> 1.25.3   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
                       applyset.yaml:1  CronJob default/nightly-report
-                      fix: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
+                      fix: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 
-NOT CHECKED (2)
+NOT CHECKED (1)
   kubernetes   no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the API reference of that Kubernetes release by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml
-  kubernetes 1.24.17 -> 1.25.3   no review confirms that the removed-API rules for kubernetes 1.25 name every API that line removes - check the kubernetes 1.25 release notes for other removed APIs by hand, or request a line review
 
 Read 2 documents over 1 hop; 1 of 1 component has rules (partially evaluated). 6 checks passed (--show-passes).
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
 Evidence: every finding cites pinned upstream source (--verbose). No network used.
-evaluated at 2026-10-04T00:00:00Z; input sha256:706abd92d4968558d52e272d3f490af7280ce84a6011ae824a9fa9ae7b4c47f7; knowledge embedded cncf-2026-09-13.8 sha256:c99bec4d80c148f24e02362abe6a51de135dd3255ce5f3985d23bddb4c6e19b0
+evaluated at 2026-11-20T00:00:00Z; input sha256:706abd92d4968558d52e272d3f490af7280ce84a6011ae824a9fa9ae7b4c47f7; knowledge embedded cncf-2026-09-13.8 sha256:58565d77469425e33207a773b44ac0e9b0b1abcdb3f6301f24b33bb4ae856d49
 ```
 
-The exit code is `10`. The built-in knowledge does not yet carry reviews of
-whole release lines or reviewed lists of served API versions, so the answer
-also names `LINE_NOT_ATTESTED` and `API_VERSION_NOT_REVIEWED`: it can be
-`BLOCKED` or "not every area checked", but not yet a pass. `applyset.yaml:1` is the line of the CronJob's
+The exit code is `10`. The built-in knowledge attests the removed-API rules of
+every Kubernetes line from 1.20 to 1.37 as complete, but does not yet carry
+reviewed lists of served API versions, so the answer also names
+`API_VERSION_NOT_REVIEWED`: it can be `BLOCKED` or "not every area checked",
+but not yet a pass. `applyset.yaml:1` is the line of the CronJob's
 `apiVersion`; for a document without a known line the location is
 `file#document` (and `/item` for an object inside a `List`).
 

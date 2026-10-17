@@ -15,10 +15,12 @@ rule document with or without them. `scan` reads them to decide whether a
 Kubernetes hop is covered for removed APIs, and whether a project's
 custom-resource versions are decided on a hop (see
 [custom-resources.md](custom-resources.md#line-reviews-of-custom-resource-versions));
-no `check` route reads them. The published knowledge pack carries mechanical,
-empty-list attestations for the Kubernetes lines it lists (1.20, 1.21, 1.23,
-1.24, 1.28, 1.30, 1.31, 1.35 and 1.36): minors in which no served API was
-removed. It carries none for other lines or other components.
+no `check` route reads them. The published knowledge pack carries mechanical
+attestations for every Kubernetes line from 1.20 to 1.37. Nine of them are
+empty-list attestations (1.20, 1.21, 1.23, 1.24, 1.28, 1.30, 1.31, 1.35 and
+1.36): minors in which no served API was removed. The other nine (1.22, 1.25,
+1.26, 1.27, 1.29, 1.32, 1.33, 1.34 and 1.37) list the served-API removal rules
+derived for that line. It carries none for other components.
 
 ## The record
 

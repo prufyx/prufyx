@@ -288,10 +288,10 @@ func TestScanRemovedAPIAcrossSkippedLinesFormats(t *testing.T) {
 	}
 }
 
-// TestScanLineReviewGapAgreesWithBlocker: a report where a reviewed 1.25
-// removal rule decided BLOCKED never also says 1.25 "has not been reviewed
-// for removed APIs"; the missing evidence is a review that the rules are the
-// complete list for the line, and the gap says so.
+// TestScanLineReviewGapAgreesWithBlocker: a report where a 1.25 removal rule
+// decided BLOCKED never also says 1.25 "has not been reviewed for removed
+// APIs", and, because the shipped pack attests the removal rules of line 1.25
+// as complete, it carries no line-not-attested gap either.
 func TestScanLineReviewGapAgreesWithBlocker(t *testing.T) {
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobOnlyV1beta1})
 	result := mustScan(t, embeddedOnly(t), args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3")...)
@@ -303,8 +303,10 @@ func TestScanLineReviewGapAgreesWithBlocker(t *testing.T) {
 			t.Fatalf("contradicting gap %q", gap.Detail)
 		}
 	}
-	if !hasGap(result.Report, scanreport.ReasonLineNotAttested, "no review confirms that the removed-API rules for kubernetes 1.25 name every API that line removes") {
-		t.Fatalf("gaps %+v", result.Report.Gaps)
+	for _, gap := range result.Report.Gaps {
+		if gap.Reason == scanreport.ReasonLineNotAttested {
+			t.Fatalf("line 1.25 is attested, yet the report has a line-not-attested gap %+v", gap)
+		}
 	}
 }
 

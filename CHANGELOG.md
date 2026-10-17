@@ -23,6 +23,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   change's code and refuses any removed, retyped or moved definition, a digest
   that does not match, and any other top-level pack change in the same change.
   Existing gate decisions are unchanged.
+- The embedded knowledge pack carries mechanical line attestations for every
+  Kubernetes line from 1.20 to 1.37, which `scan` reads for those lines. Nine
+  lines in which no served API was removed (1.20, 1.21, 1.23, 1.24, 1.28,
+  1.30, 1.31, 1.35, 1.36) carry an empty rule list; the other nine (1.22,
+  1.25, 1.26, 1.27, 1.29, 1.32, 1.33, 1.34, 1.37) list the served-API removal
+  rules derived for them. A hop into an attested line no longer reports
+  `LINE_NOT_ATTESTED` for removed APIs. The pack moves to schema `v1alpha4`;
+  earlier builds refuse such a pack, so upgrade the CLI first. External
+  knowledge keeps its format: only a records envelope carries attestations.
 - Maintainer command `prufyx-maintainer docs-tables` (with `--check`): writes
   the tables of the reviewed custom-resource projects and of the
   `crd.version-removal` targets to `cli/docs/generated/` from the data compiled
@@ -304,6 +313,17 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- The 25 reviewed Kubernetes served-API removal rules of the embedded pack are
+  replaced by the rules the `k8s.served-api-removal` extractor derives from the
+  pinned upstream source (rule ids `kubernetes.served-api-removal.*`, evidence
+  basis `mechanical`), plus four new ones (Kubernetes 1.33
+  `authentication.k8s.io/v1beta1`, 1.34 `admissionregistration.k8s.io/v1beta1`
+  and two for 1.37). The conditions are unchanged and the version ranges equal
+  or wider, so the same manifests are `BLOCKED`; the reason code is now
+  `KUBERNETES_SERVED_API_REMOVED`, and the rule ids, next-action text and cited
+  sources differ. A mechanical rule is current only from its derivation
+  instant: an evaluation time (`--now`) before `2026-10-17T06:54:28Z` answers
+  `UNKNOWN`.
 - Maintainer extractor `helm.values` 1.1.0: a values key holding a `.` or any
   other character outside `[A-Za-z0-9_/-]` (an annotation name such as
   `nginx.ingress.kubernetes.io/proxy-body-size`), or a first key that does not

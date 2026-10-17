@@ -10,19 +10,19 @@
           "informationUri": "https://github.com/prufyx/prufyx",
           "rules": [
             {
-              "id": "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0",
+              "id": "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0",
               "shortDescription": {
                 "text": "Kubernetes 1.25 stops serving CronJob through batch/v1beta1"
               },
               "help": {
-                "text": "Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+                "text": "Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
               },
-              "helpUri": "https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md",
+              "helpUri": "https://github.com/kubernetes/kubernetes/blob/4ce5a8954017644c5420bae81d72b09b735c21f0/staging/src/k8s.io/api/batch/v1beta1/zz_generated.prerelease-lifecycle.go",
               "defaultConfiguration": {
                 "level": "error"
               },
               "properties": {
-                "basis": "reviewed",
+                "basis": "mechanical",
                 "kind": "blocker"
               }
             },
@@ -41,22 +41,6 @@
                 "basis": "none",
                 "kind": "gap"
               }
-            },
-            {
-              "id": "prufyx/gap/LINE_NOT_ATTESTED",
-              "shortDescription": {
-                "text": "Area not checked: LINE_NOT_ATTESTED"
-              },
-              "help": {
-                "text": "Prufyx could not decide this area (LINE_NOT_ATTESTED), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
-              },
-              "defaultConfiguration": {
-                "level": "warning"
-              },
-              "properties": {
-                "basis": "none",
-                "kind": "gap"
-              }
             }
           ]
         }
@@ -65,7 +49,7 @@
         {
           "executionSuccessful": true,
           "exitCode": 10,
-          "exitCodeDescription": "BLOCKED: 1 problem must be fixed; 2 areas were not checked",
+          "exitCodeDescription": "BLOCKED: 1 problem must be fixed; 1 area was not checked",
           "startTimeUtc": "2026-12-10T00:00:00Z",
           "toolExecutionNotifications": [
             {
@@ -80,31 +64,17 @@
                 "kind": "gap",
                 "component": "kubernetes"
               }
-            },
-            {
-              "level": "warning",
-              "message": {
-                "text": "no review confirms that the removed-API rules for kubernetes 1.25 name every API that line removes - check the kubernetes 1.25 release notes for other removed APIs by hand, or request a line review"
-              },
-              "descriptor": {
-                "id": "LINE_NOT_ATTESTED"
-              },
-              "properties": {
-                "kind": "gap",
-                "component": "kubernetes",
-                "hop": "1.24.17 -> 1.25.3"
-              }
             }
           ]
         }
       ],
       "results": [
         {
-          "ruleId": "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0",
+          "ruleId": "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0",
           "ruleIndex": 0,
           "level": "error",
           "message": {
-            "text": "Kubernetes 1.25 stops serving CronJob through batch/v1beta1 — fix: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+            "text": "Kubernetes 1.25 stops serving CronJob through batch/v1beta1 — fix: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
           },
           "locations": [
             {
@@ -127,12 +97,12 @@
             }
           ],
           "partialFingerprints": {
-            "prufyxResult/v1": "2b140161e3ac0757d21dac898fd83df1fb55b91f6df47fc4a97bc55ebe73c1e4"
+            "prufyxResult/v1": "a8bb40aa45109de4535aadd151b8c83506c7de70fa6d58f391696e71875472f4"
           },
           "properties": {
             "component": "kubernetes",
             "hop": "1.24.17 -> 1.25.3",
-            "basis": "reviewed",
+            "basis": "mechanical",
             "match": "range"
           }
         },
@@ -165,44 +135,14 @@
             "basis": "none",
             "match": "gap"
           }
-        },
-        {
-          "ruleId": "prufyx/gap/LINE_NOT_ATTESTED",
-          "ruleIndex": 2,
-          "level": "warning",
-          "message": {
-            "text": "no review confirms that the removed-API rules for kubernetes 1.25 name every API that line removes - check the kubernetes 1.25 release notes for other removed APIs by hand, or request a line review"
-          },
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "applyset.yaml",
-                  "uriBaseId": "%SRCROOT%"
-                },
-                "region": {
-                  "startLine": 1
-                }
-              }
-            }
-          ],
-          "partialFingerprints": {
-            "prufyxResult/v1": "51a4bae6b6b4ece5a8cddff1308ae9a02f6aa404917eaf969611790cc20bca8b"
-          },
-          "properties": {
-            "component": "kubernetes",
-            "hop": "1.24.17 -> 1.25.3",
-            "basis": "none",
-            "match": "gap"
-          }
         }
       ],
       "properties": {
         "verdict": "BLOCKED",
-        "headline": "BLOCKED: 1 problem must be fixed; 2 areas were not checked",
+        "headline": "BLOCKED: 1 problem must be fixed; 1 area was not checked",
         "summary": {
           "blockers": 1,
-          "gaps": 2,
+          "gaps": 1,
           "passes": 6,
           "componentsDetected": 1,
           "componentsCovered": 1,

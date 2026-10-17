@@ -74,7 +74,7 @@ func TestWithKubernetesDeclarationActionsOnlyTouchesUnavailableClaims(t *testing
 func TestKubernetesNativeUnknownNamesTheMissingFlag(t *testing.T) {
 	t.Parallel()
 	path := writeCNCFFile(t, "applyset.json", []byte(`{"apiVersion":"v1","kind":"List","items":[{"apiVersion":"batch/v1beta1","kind":"CronJob","metadata":{"name":"nightly-report","namespace":"default"}}]}`), 0o600)
-	base := []string{"check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", "1.24.0", "--to", "1.25.0", "--now", "2026-09-24T00:00:00Z", "--format", "human"}
+	base := []string{"check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", "1.24.0", "--to", "1.25.0", "--now", "2026-11-20T00:00:00Z", "--format", "human"}
 	for _, test := range []struct {
 		name  string
 		flags []string

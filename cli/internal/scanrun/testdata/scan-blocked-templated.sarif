@@ -10,19 +10,19 @@
           "informationUri": "https://github.com/prufyx/prufyx",
           "rules": [
             {
-              "id": "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0",
+              "id": "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0",
               "shortDescription": {
                 "text": "Kubernetes 1.25 stops serving CronJob through batch/v1beta1"
               },
               "help": {
-                "text": "Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+                "text": "Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
               },
-              "helpUri": "https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md",
+              "helpUri": "https://github.com/kubernetes/kubernetes/blob/4ce5a8954017644c5420bae81d72b09b735c21f0/staging/src/k8s.io/api/batch/v1beta1/zz_generated.prerelease-lifecycle.go",
               "defaultConfiguration": {
                 "level": "error"
               },
               "properties": {
-                "basis": "reviewed",
+                "basis": "mechanical",
                 "kind": "blocker"
               }
             },
@@ -99,11 +99,11 @@
       ],
       "results": [
         {
-          "ruleId": "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0",
+          "ruleId": "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0",
           "ruleIndex": 0,
           "level": "error",
           "message": {
-            "text": "Kubernetes 1.25 stops serving CronJob through batch/v1beta1 — fix: Migrate the named CronJob manifest to batch/v1, then reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
+            "text": "Kubernetes 1.25 stops serving CronJob through batch/v1beta1 — fix: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
           },
           "locations": [
             {
@@ -126,12 +126,12 @@
             }
           ],
           "partialFingerprints": {
-            "prufyxResult/v1": "2b140161e3ac0757d21dac898fd83df1fb55b91f6df47fc4a97bc55ebe73c1e4"
+            "prufyxResult/v1": "a8bb40aa45109de4535aadd151b8c83506c7de70fa6d58f391696e71875472f4"
           },
           "properties": {
             "component": "kubernetes",
             "hop": "1.24.17 -> 1.25",
-            "basis": "reviewed",
+            "basis": "mechanical",
             "match": "range"
           }
         },

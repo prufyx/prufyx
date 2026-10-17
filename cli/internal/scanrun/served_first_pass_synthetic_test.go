@@ -177,8 +177,9 @@ func TestScanFirstPassNeedsEveryRecord(t *testing.T) {
 	// the pack loader: the whole pack, not just the record.
 	installRecords(t, recordSet{attestation: true, served: true, refused: true, attestationRules: func([]string) []string { return nil }})
 	// After a refused pack nothing is left behind: the knowledge carries no
-	// record and behaves exactly as today.
-	if result := scanHop(t, mustEmbedded(t), cronjobV1); result.Exit != scanreport.ExitUnknown || !hasGap(result.Report, "API_VERSION_NOT_REVIEWED", "") || !hasGap(result.Report, "LINE_NOT_ATTESTED", "") {
+	// served list and behaves exactly as today. The shipped pack attests
+	// line 1.29 itself, so only the served list is missing.
+	if result := scanHop(t, mustEmbedded(t), cronjobV1); result.Exit != scanreport.ExitUnknown || !hasGap(result.Report, "API_VERSION_NOT_REVIEWED", "") || hasGap(result.Report, "LINE_NOT_ATTESTED", "") {
 		t.Fatalf("shipped knowledge: exit %d gaps %v", result.Exit, gapReasons(result.Report))
 	}
 }
