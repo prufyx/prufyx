@@ -17634,6 +17634,330 @@
   ],
   "lineAttestations": [
     {
+      "component": "pkg:github/kubernetes/kubernetes",
+      "line": "1.20",
+      "factFamily": "kubernetes.removed_served_gvk",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "k8s.served-api-removal",
+          "version": "1.3.0",
+          "codeDigest": "sha256:7b94e1ed652afa63355671bd20e6f131da603822aa53cf8f45cf2790a00955e6"
+        },
+        "derivedAt": "2026-10-17T06:54:28Z",
+        "reviewedAt": "2026-10-17T06:54:28Z",
+        "validUntil": "2027-01-01T06:54:28Z",
+        "sources": [
+          {
+            "id": "openapi-1-19-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/e19964183377d0ec2052d1f1fa930c4d7575bd50/api/openapi-spec/swagger.json",
+            "revision": "e19964183377d0ec2052d1f1fa930c4d7575bd50",
+            "contentDigest": "sha256:657c689d4014c512baae14e02badb2b53743282b8ea163f0c499a4b622a07097",
+            "startLine": 1,
+            "endLine": 105020
+          },
+          {
+            "id": "openapi-1-20-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/af46c47ce925f4c4ad5cc8d1fca46c7b77d13b38/api/openapi-spec/swagger.json",
+            "revision": "af46c47ce925f4c4ad5cc8d1fca46c7b77d13b38",
+            "contentDigest": "sha256:c7354e6ab4034a89873229a9b7c1fa31fa6242b2e5f5a9b67c3be4fc67cb903c",
+            "startLine": 1,
+            "endLine": 108928
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubernetes/kubernetes",
+      "line": "1.21",
+      "factFamily": "kubernetes.removed_served_gvk",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "k8s.served-api-removal",
+          "version": "1.3.0",
+          "codeDigest": "sha256:7b94e1ed652afa63355671bd20e6f131da603822aa53cf8f45cf2790a00955e6"
+        },
+        "derivedAt": "2026-10-17T06:54:28Z",
+        "reviewedAt": "2026-10-17T06:54:28Z",
+        "validUntil": "2027-01-01T06:54:28Z",
+        "sources": [
+          {
+            "id": "openapi-1-20-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/af46c47ce925f4c4ad5cc8d1fca46c7b77d13b38/api/openapi-spec/swagger.json",
+            "revision": "af46c47ce925f4c4ad5cc8d1fca46c7b77d13b38",
+            "contentDigest": "sha256:c7354e6ab4034a89873229a9b7c1fa31fa6242b2e5f5a9b67c3be4fc67cb903c",
+            "startLine": 1,
+            "endLine": 108928
+          },
+          {
+            "id": "openapi-1-21-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/cb303e613a121a29364f75cc67d3d580833a7479/api/openapi-spec/swagger.json",
+            "revision": "cb303e613a121a29364f75cc67d3d580833a7479",
+            "contentDigest": "sha256:128a984dbb5a4e5ceceef9dea0db575267678d333f53ed606300a2132d2539cc",
+            "startLine": 1,
+            "endLine": 110616
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubernetes/kubernetes",
+      "line": "1.23",
+      "factFamily": "kubernetes.removed_served_gvk",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "k8s.served-api-removal",
+          "version": "1.3.0",
+          "codeDigest": "sha256:7b94e1ed652afa63355671bd20e6f131da603822aa53cf8f45cf2790a00955e6"
+        },
+        "derivedAt": "2026-10-17T06:54:28Z",
+        "reviewedAt": "2026-10-17T06:54:28Z",
+        "validUntil": "2027-01-01T06:54:28Z",
+        "sources": [
+          {
+            "id": "openapi-1-22-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/c2b5237ccd9c0f1d600d3072634ca66cefdf272f/api/openapi-spec/swagger.json",
+            "revision": "c2b5237ccd9c0f1d600d3072634ca66cefdf272f",
+            "contentDigest": "sha256:d6718670e062681e4dc9e2b9dadf2b311c147cfdabcac628b9018011165d8773",
+            "startLine": 1,
+            "endLine": 90274
+          },
+          {
+            "id": "openapi-1-23-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/ab69524f795c42094a6630298ff53f3c3ebab7f4/api/openapi-spec/swagger.json",
+            "revision": "ab69524f795c42094a6630298ff53f3c3ebab7f4",
+            "contentDigest": "sha256:4a744e0c28180c3fe90256d69ebdf57d31b8579d9d5dfcdff141cd4e2d7a3b4a",
+            "startLine": 1,
+            "endLine": 91079
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubernetes/kubernetes",
+      "line": "1.24",
+      "factFamily": "kubernetes.removed_served_gvk",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "k8s.served-api-removal",
+          "version": "1.3.0",
+          "codeDigest": "sha256:7b94e1ed652afa63355671bd20e6f131da603822aa53cf8f45cf2790a00955e6"
+        },
+        "derivedAt": "2026-10-17T06:54:28Z",
+        "reviewedAt": "2026-10-17T06:54:28Z",
+        "validUntil": "2027-01-01T06:54:28Z",
+        "sources": [
+          {
+            "id": "openapi-1-23-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/ab69524f795c42094a6630298ff53f3c3ebab7f4/api/openapi-spec/swagger.json",
+            "revision": "ab69524f795c42094a6630298ff53f3c3ebab7f4",
+            "contentDigest": "sha256:4a744e0c28180c3fe90256d69ebdf57d31b8579d9d5dfcdff141cd4e2d7a3b4a",
+            "startLine": 1,
+            "endLine": 91079
+          },
+          {
+            "id": "openapi-1-24-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/4ce5a8954017644c5420bae81d72b09b735c21f0/api/openapi-spec/swagger.json",
+            "revision": "4ce5a8954017644c5420bae81d72b09b735c21f0",
+            "contentDigest": "sha256:0d43576f2097092c8a3f203368a8edc0d605540c9757125dae116031f182e53a",
+            "startLine": 1,
+            "endLine": 90087
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubernetes/kubernetes",
+      "line": "1.28",
+      "factFamily": "kubernetes.removed_served_gvk",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "k8s.served-api-removal",
+          "version": "1.3.0",
+          "codeDigest": "sha256:7b94e1ed652afa63355671bd20e6f131da603822aa53cf8f45cf2790a00955e6"
+        },
+        "derivedAt": "2026-10-17T06:54:28Z",
+        "reviewedAt": "2026-10-17T06:54:28Z",
+        "validUntil": "2027-01-01T06:54:28Z",
+        "sources": [
+          {
+            "id": "openapi-1-27-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/1b4df30b3cdfeaba6024e81e559a6cd09a089d65/api/openapi-spec/swagger.json",
+            "revision": "1b4df30b3cdfeaba6024e81e559a6cd09a089d65",
+            "contentDigest": "sha256:09a502c5b98190a3e47604d6df835f23e7a334dfbbc3fb80729f7bb2cabf8fc4",
+            "startLine": 1,
+            "endLine": 90647
+          },
+          {
+            "id": "openapi-1-28-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/855e7c48de7388eb330da0f8d9d2394ee818fb8d/api/openapi-spec/swagger.json",
+            "revision": "855e7c48de7388eb330da0f8d9d2394ee818fb8d",
+            "contentDigest": "sha256:c3d62644ad31aeca618e6f640178caf39f917ba296b4919443d9838a22a10be1",
+            "startLine": 1,
+            "endLine": 74797
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubernetes/kubernetes",
+      "line": "1.30",
+      "factFamily": "kubernetes.removed_served_gvk",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "k8s.served-api-removal",
+          "version": "1.3.0",
+          "codeDigest": "sha256:7b94e1ed652afa63355671bd20e6f131da603822aa53cf8f45cf2790a00955e6"
+        },
+        "derivedAt": "2026-10-17T06:54:28Z",
+        "reviewedAt": "2026-10-17T06:54:28Z",
+        "validUntil": "2027-01-01T06:54:28Z",
+        "sources": [
+          {
+            "id": "openapi-1-29-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/3f7a50f38688eb332e2a1b013678c6435d539ae6/api/openapi-spec/swagger.json",
+            "revision": "3f7a50f38688eb332e2a1b013678c6435d539ae6",
+            "contentDigest": "sha256:84c20b1e2bcedce1d9d09c03e0ccb02500cd96e62e4fa54651b0e97b3a211046",
+            "startLine": 1,
+            "endLine": 75863
+          },
+          {
+            "id": "openapi-1-30-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/7c48c2bd72b9bf5c44d21d7338cc7bea77d0ad2a/api/openapi-spec/swagger.json",
+            "revision": "7c48c2bd72b9bf5c44d21d7338cc7bea77d0ad2a",
+            "contentDigest": "sha256:94ca7544416a4f27d8cb3f8a332630d41325c5edeb2408a5aefe37ba3fd6af6d",
+            "startLine": 1,
+            "endLine": 81994
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubernetes/kubernetes",
+      "line": "1.31",
+      "factFamily": "kubernetes.removed_served_gvk",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "k8s.served-api-removal",
+          "version": "1.3.0",
+          "codeDigest": "sha256:7b94e1ed652afa63355671bd20e6f131da603822aa53cf8f45cf2790a00955e6"
+        },
+        "derivedAt": "2026-10-17T06:54:28Z",
+        "reviewedAt": "2026-10-17T06:54:28Z",
+        "validUntil": "2027-01-01T06:54:28Z",
+        "sources": [
+          {
+            "id": "openapi-1-30-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/7c48c2bd72b9bf5c44d21d7338cc7bea77d0ad2a/api/openapi-spec/swagger.json",
+            "revision": "7c48c2bd72b9bf5c44d21d7338cc7bea77d0ad2a",
+            "contentDigest": "sha256:94ca7544416a4f27d8cb3f8a332630d41325c5edeb2408a5aefe37ba3fd6af6d",
+            "startLine": 1,
+            "endLine": 81994
+          },
+          {
+            "id": "openapi-1-31-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/9edcffcde5595e8a5b1a35f88c421764e575afce/api/openapi-spec/swagger.json",
+            "revision": "9edcffcde5595e8a5b1a35f88c421764e575afce",
+            "contentDigest": "sha256:ac357350d9d00ee233ea9a172d7c868201ff405332fec8ffe0fda25dee3e41b4",
+            "startLine": 1,
+            "endLine": 82182
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubernetes/kubernetes",
+      "line": "1.35",
+      "factFamily": "kubernetes.removed_served_gvk",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "k8s.served-api-removal",
+          "version": "1.3.0",
+          "codeDigest": "sha256:7b94e1ed652afa63355671bd20e6f131da603822aa53cf8f45cf2790a00955e6"
+        },
+        "derivedAt": "2026-10-17T06:54:28Z",
+        "reviewedAt": "2026-10-17T06:54:28Z",
+        "validUntil": "2027-01-01T06:54:28Z",
+        "sources": [
+          {
+            "id": "openapi-1-34-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/f28b4c9efbca5c5c0af716d9f2d5702667ee8a45/api/openapi-spec/swagger.json",
+            "revision": "f28b4c9efbca5c5c0af716d9f2d5702667ee8a45",
+            "contentDigest": "sha256:d3b0cdc2fda15c753206d25ab459dc7c12df64e2fd652b6809687471ea751c37",
+            "startLine": 1,
+            "endLine": 95438
+          },
+          {
+            "id": "openapi-1-35-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/66452049f3d692768c39c797b21b793dce80314e/api/openapi-spec/swagger.json",
+            "revision": "66452049f3d692768c39c797b21b793dce80314e",
+            "contentDigest": "sha256:483500149ee52ce5753d75f5639101d985bb4f5e902cc05b1ba7627465d62446",
+            "startLine": 1,
+            "endLine": 95897
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubernetes/kubernetes",
+      "line": "1.36",
+      "factFamily": "kubernetes.removed_served_gvk",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "k8s.served-api-removal",
+          "version": "1.3.0",
+          "codeDigest": "sha256:7b94e1ed652afa63355671bd20e6f131da603822aa53cf8f45cf2790a00955e6"
+        },
+        "derivedAt": "2026-10-17T06:54:28Z",
+        "reviewedAt": "2026-10-17T06:54:28Z",
+        "validUntil": "2027-01-01T06:54:28Z",
+        "sources": [
+          {
+            "id": "openapi-1-35-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/66452049f3d692768c39c797b21b793dce80314e/api/openapi-spec/swagger.json",
+            "revision": "66452049f3d692768c39c797b21b793dce80314e",
+            "contentDigest": "sha256:483500149ee52ce5753d75f5639101d985bb4f5e902cc05b1ba7627465d62446",
+            "startLine": 1,
+            "endLine": 95897
+          },
+          {
+            "id": "openapi-1-36-0",
+            "url": "https://github.com/kubernetes/kubernetes/blob/ecf6decece6a6de25a57aad9ba90b6ce580f6f78/api/openapi-spec/swagger.json",
+            "revision": "ecf6decece6a6de25a57aad9ba90b6ce580f6f78",
+            "contentDigest": "sha256:dcede2063da1d7ad62ecb5af8adb6d7fabd0b52385a7fa0048afb491dac90450",
+            "startLine": 1,
+            "endLine": 102285
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/strimzi/strimzi-kafka-operator",
       "line": "0.50",
       "factFamily": "crd.custom_resource_versions",
