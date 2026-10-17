@@ -1,5 +1,5 @@
 {
-  "schema": "prufyx.io/cncf-source-rule-pack/v1alpha2",
+  "schema": "prufyx.io/cncf-source-rule-pack/v1alpha3",
   "revision": "cncf-2026-09-13.8",
   "policyId": "cncf-source-preview-v1",
   "policyDigest": "sha256:59fb35dd1cf0241cb704b10de6d8040cd584da29fb17443a353bab4542aeb83d",
@@ -3406,6 +3406,196 @@
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "nextAction": "Use Composition Pipeline mode for the official Crossplane 2.0 target schema, or review a separate migration for Resources-mode Compositions."
+      }
+    },
+    {
+      "description": "Crossplane 2.0.0 no longer serves version v1beta1 of CompositionRevision (CustomResourceDefinition compositionrevisions.apiextensions.crossplane.io), which 1.20.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 1.20 and 2.0, with a scan of the whole repository at each; it holds for upgrades from any 1.20 release to any 2.0 release. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "crossplane",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/crossplane/crossplane",
+          "description": "Custom-resource versions (group/version/Kind) of the Crossplane custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.crossplane.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-10-17T05:31:50Z",
+          "extractor": {
+            "codeDigest": "sha256:bf04611637073ebd4cdf8a8bc30c4b55377e2b52e344c8103ccfb7a2f2b4f858",
+            "id": "crd.version-removal.crossplane",
+            "version": "2.5.0"
+          },
+          "reviewedAt": "2026-10-17T05:31:50Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:0866ed25ba43e0606272bf9b8255e907d674c348a6297cf73dac99103b433569",
+              "endLine": 309,
+              "id": "crd-2-0-0",
+              "revision": "b639502e2f93680ff83417a0f517ec459ce079cc",
+              "startLine": 1,
+              "url": "https://github.com/crossplane/crossplane/blob/b639502e2f93680ff83417a0f517ec459ce079cc/cluster/crds/apiextensions.crossplane.io_compositionrevisions.yaml"
+            },
+            {
+              "contentDigest": "sha256:6127560eefbefe251287f7a45464eae0bbe0f56d5e883ce0c5ef124594fbfa03",
+              "endLine": 2268,
+              "id": "crd-versions-1-20-0",
+              "revision": "2efdb03ae80fc27f4b6b9b0cebc96a462233cf17",
+              "startLine": 1145,
+              "url": "https://github.com/crossplane/crossplane/blob/2efdb03ae80fc27f4b6b9b0cebc96a462233cf17/cluster/crds/apiextensions.crossplane.io_compositionrevisions.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-15T05:31:50Z"
+        },
+        "id": "crossplane.crd-version-removal.compositionrevisions-apiextensions-crossplane-io.1-20-0-to-2-0-0",
+        "nextAction": "change apiVersion of CompositionRevision to apiextensions.crossplane.io/v1 before upgrading to 2.0.0",
+        "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-1-20-0"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-1-20-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "crd-2-0-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-2-0-0"
+            }
+          ],
+          "from": {
+            "gte": "1.20.0",
+            "lt": "1.21.0"
+          },
+          "to": {
+            "gte": "2.0.0",
+            "lt": "2.1.0"
+          }
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/crossplane/crossplane",
+          "factId": "component.crossplane.custom_resource_versions_set",
+          "members": [
+            "apiextensions.crossplane.io/v1beta1/CompositionRevision"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/crossplane/crossplane",
+          "from": "1.20.0",
+          "to": "2.0.0"
+        }
+      }
+    },
+    {
+      "description": "Crossplane 2.0.0 no longer serves version v1alpha1 of EnvironmentConfig (CustomResourceDefinition environmentconfigs.apiextensions.crossplane.io), which 1.20.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 1.20 and 2.0, with a scan of the whole repository at each; it holds for upgrades from any 1.20 release to any 2.0 release. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "crossplane",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/crossplane/crossplane",
+          "description": "Custom-resource versions (group/version/Kind) of the Crossplane custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.crossplane.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-10-17T05:31:50Z",
+          "extractor": {
+            "codeDigest": "sha256:bf04611637073ebd4cdf8a8bc30c4b55377e2b52e344c8103ccfb7a2f2b4f858",
+            "id": "crd.version-removal.crossplane",
+            "version": "2.5.0"
+          },
+          "reviewedAt": "2026-10-17T05:31:50Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:04279e2d7254b06c456916cb02a3d3a1100e9b279deabcecd4f903e17e74bebd",
+              "endLine": 62,
+              "id": "crd-2-0-0",
+              "revision": "b639502e2f93680ff83417a0f517ec459ce079cc",
+              "startLine": 1,
+              "url": "https://github.com/crossplane/crossplane/blob/b639502e2f93680ff83417a0f517ec459ce079cc/cluster/crds/apiextensions.crossplane.io_environmentconfigs.yaml"
+            },
+            {
+              "contentDigest": "sha256:2e20fda939f486a221488cabbc36925e42e8d13390345696a3373f04ebe682c5",
+              "endLine": 62,
+              "id": "crd-versions-1-20-0",
+              "revision": "2efdb03ae80fc27f4b6b9b0cebc96a462233cf17",
+              "startLine": 21,
+              "url": "https://github.com/crossplane/crossplane/blob/2efdb03ae80fc27f4b6b9b0cebc96a462233cf17/cluster/crds/apiextensions.crossplane.io_environmentconfigs.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-15T05:31:50Z"
+        },
+        "id": "crossplane.crd-version-removal.environmentconfigs-apiextensions-crossplane-io.1-20-0-to-2-0-0",
+        "nextAction": "change apiVersion of EnvironmentConfig to apiextensions.crossplane.io/v1beta1 before upgrading to 2.0.0",
+        "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-1-20-0"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-1-20-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "crd-2-0-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-2-0-0"
+            }
+          ],
+          "from": {
+            "gte": "1.20.0",
+            "lt": "1.21.0"
+          },
+          "to": {
+            "gte": "2.0.0",
+            "lt": "2.1.0"
+          }
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/crossplane/crossplane",
+          "factId": "component.crossplane.custom_resource_versions_set",
+          "members": [
+            "apiextensions.crossplane.io/v1alpha1/EnvironmentConfig"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/crossplane/crossplane",
+          "from": "1.20.0",
+          "to": "2.0.0"
+        }
       }
     },
     {
