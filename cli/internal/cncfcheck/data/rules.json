@@ -18445,6 +18445,488 @@
   ],
   "lineAttestations": [
     {
+      "component": "pkg:github/cert-manager/cert-manager",
+      "line": "1.20",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.19.0",
+            "commit": "12a3ef97916bf5c1bea55740caab49e93e2b6d54"
+          },
+          {
+            "version": "1.19.1",
+            "commit": "a22e21ea38f6a8e031af99471b0a50287fed8e7f"
+          },
+          {
+            "version": "1.19.2",
+            "commit": "6e38ee57a338a1f27bb724ddb5933f4b8e23e567"
+          },
+          {
+            "version": "1.19.3",
+            "commit": "d4faed26ae12115cceb807cdc12507ebc28980e2"
+          },
+          {
+            "version": "1.19.4",
+            "commit": "83820a03ce3e6b8a1084fa765d77a6b5b98e6943"
+          },
+          {
+            "version": "1.19.5",
+            "commit": "cda7b7896e70dafb2de66212028cf9997a5e9490"
+          },
+          {
+            "version": "1.19.6",
+            "commit": "60b0447cc9a64885d42567ea590862b88a62d1ad"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.20.0",
+            "commit": "0d2f215fe26ca2674758b5dfd780f04ac1dfde92"
+          },
+          {
+            "version": "1.20.1",
+            "commit": "dc96863ab671bb6418147a418ae4f33067cb914b"
+          },
+          {
+            "version": "1.20.2",
+            "commit": "e5b7b18450dd2c4b993b95bcd680b1a057205b00"
+          },
+          {
+            "version": "1.20.3",
+            "commit": "1e1d16d1744e6d9c80e464e58e8d9ab1caed222b"
+          },
+          {
+            "version": "1.20.4",
+            "commit": "0b9448974868c5669d4f3e7499f5afd393889e22"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cert-manager",
+          "version": "2.5.0",
+          "codeDigest": "sha256:cfdaf90deb080895239fd6a9070bbf6cb6437f5e559b4cb3f8a7cc6ea45cfccf"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-1-19-0",
+            "url": "https://github.com/cert-manager/cert-manager/blob/12a3ef97916bf5c1bea55740caab49e93e2b6d54/deploy/crds/acme.cert-manager.io_challenges.yaml",
+            "revision": "12a3ef97916bf5c1bea55740caab49e93e2b6d54",
+            "contentDigest": "sha256:ec81b760ed7ad2bf7129218a9914711baddddb927795c7b685a09c73835356fc",
+            "startLine": 1,
+            "endLine": 3474
+          },
+          {
+            "id": "crds-1-20-0",
+            "url": "https://github.com/cert-manager/cert-manager/blob/0d2f215fe26ca2674758b5dfd780f04ac1dfde92/deploy/crds/acme.cert-manager.io_challenges.yaml",
+            "revision": "0d2f215fe26ca2674758b5dfd780f04ac1dfde92",
+            "contentDigest": "sha256:e1452ef8341821b64106cdb9fe39f956063fe1136a027ecf0b1c9800a48c5f7f",
+            "startLine": 1,
+            "endLine": 3498
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/cert-manager/cert-manager",
+      "line": "1.21",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.20.0",
+            "commit": "0d2f215fe26ca2674758b5dfd780f04ac1dfde92"
+          },
+          {
+            "version": "1.20.1",
+            "commit": "dc96863ab671bb6418147a418ae4f33067cb914b"
+          },
+          {
+            "version": "1.20.2",
+            "commit": "e5b7b18450dd2c4b993b95bcd680b1a057205b00"
+          },
+          {
+            "version": "1.20.3",
+            "commit": "1e1d16d1744e6d9c80e464e58e8d9ab1caed222b"
+          },
+          {
+            "version": "1.20.4",
+            "commit": "0b9448974868c5669d4f3e7499f5afd393889e22"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.21.0",
+            "commit": "b8f325e36f49626ba72d7efbe138c01a5e661d96"
+          },
+          {
+            "version": "1.21.1",
+            "commit": "24e33194fb39488eff2bbf10c6dc640f407cad44"
+          },
+          {
+            "version": "1.21.2",
+            "commit": "922a06aa49ee4bb802db268ef72a174af70edd32"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cert-manager",
+          "version": "2.5.0",
+          "codeDigest": "sha256:cfdaf90deb080895239fd6a9070bbf6cb6437f5e559b4cb3f8a7cc6ea45cfccf"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-1-20-0",
+            "url": "https://github.com/cert-manager/cert-manager/blob/0d2f215fe26ca2674758b5dfd780f04ac1dfde92/deploy/crds/acme.cert-manager.io_challenges.yaml",
+            "revision": "0d2f215fe26ca2674758b5dfd780f04ac1dfde92",
+            "contentDigest": "sha256:e1452ef8341821b64106cdb9fe39f956063fe1136a027ecf0b1c9800a48c5f7f",
+            "startLine": 1,
+            "endLine": 3498
+          },
+          {
+            "id": "crds-1-21-0",
+            "url": "https://github.com/cert-manager/cert-manager/blob/b8f325e36f49626ba72d7efbe138c01a5e661d96/deploy/crds/acme.cert-manager.io_challenges.yaml",
+            "revision": "b8f325e36f49626ba72d7efbe138c01a5e661d96",
+            "contentDigest": "sha256:dff7542a2ee6581e3963a076410212ad3207201b70df8a328aa50826d569161c",
+            "startLine": 1,
+            "endLine": 3524
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kedacore/keda",
+      "line": "2.17",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.16.0",
+            "commit": "5c52d032931b8ecf855d0c298f8d5e48937aecd7"
+          },
+          {
+            "version": "2.16.1",
+            "commit": "ce14b239e0300f388b0425aef68154d8070cd66f"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.17.0",
+            "commit": "dafd9a883acc8ec2d2506e0d106b8605f2c156e9"
+          },
+          {
+            "version": "2.17.1",
+            "commit": "a3e20902dc67acaf40a9d5a4146c90d4426a7b9f"
+          },
+          {
+            "version": "2.17.2",
+            "commit": "b51655b12fd85bb585f7392acae68f95eb20ac19"
+          },
+          {
+            "version": "2.17.3",
+            "commit": "e615440f24f6abec8b7c69bd88854cb4324e9eaa"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.keda",
+          "version": "2.5.0",
+          "codeDigest": "sha256:c4260fe5bcfab5faa7ffc6003ba859197c0d75ab5aaa340ea635cff70ea9472e"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-2-16-0",
+            "url": "https://github.com/kedacore/keda/blob/5c52d032931b8ecf855d0c298f8d5e48937aecd7/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "5c52d032931b8ecf855d0c298f8d5e48937aecd7",
+            "contentDigest": "sha256:83d611d2150be4d884d35c225c7a41f5849dc15da66b95390c90aa2b1e1435ff",
+            "startLine": 1,
+            "endLine": 156
+          },
+          {
+            "id": "crds-2-17-0",
+            "url": "https://github.com/kedacore/keda/blob/dafd9a883acc8ec2d2506e0d106b8605f2c156e9/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "dafd9a883acc8ec2d2506e0d106b8605f2c156e9",
+            "contentDigest": "sha256:83d611d2150be4d884d35c225c7a41f5849dc15da66b95390c90aa2b1e1435ff",
+            "startLine": 1,
+            "endLine": 156
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kedacore/keda",
+      "line": "2.18",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.17.0",
+            "commit": "dafd9a883acc8ec2d2506e0d106b8605f2c156e9"
+          },
+          {
+            "version": "2.17.1",
+            "commit": "a3e20902dc67acaf40a9d5a4146c90d4426a7b9f"
+          },
+          {
+            "version": "2.17.2",
+            "commit": "b51655b12fd85bb585f7392acae68f95eb20ac19"
+          },
+          {
+            "version": "2.17.3",
+            "commit": "e615440f24f6abec8b7c69bd88854cb4324e9eaa"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.18.0",
+            "commit": "559e73850876f0c1d2fe915f9c23904608e5e235"
+          },
+          {
+            "version": "2.18.1",
+            "commit": "3f590ba6027a67b2d6f79ece605061f6d201c54b"
+          },
+          {
+            "version": "2.18.2",
+            "commit": "b7c5655a31ebd980afc50980cf7d00d29eb23cc3"
+          },
+          {
+            "version": "2.18.3",
+            "commit": "0f98c4775b82df35f5d3bdaf85713e3e478f7a38"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.keda",
+          "version": "2.5.0",
+          "codeDigest": "sha256:c4260fe5bcfab5faa7ffc6003ba859197c0d75ab5aaa340ea635cff70ea9472e"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-2-17-0",
+            "url": "https://github.com/kedacore/keda/blob/dafd9a883acc8ec2d2506e0d106b8605f2c156e9/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "dafd9a883acc8ec2d2506e0d106b8605f2c156e9",
+            "contentDigest": "sha256:83d611d2150be4d884d35c225c7a41f5849dc15da66b95390c90aa2b1e1435ff",
+            "startLine": 1,
+            "endLine": 156
+          },
+          {
+            "id": "crds-2-18-0",
+            "url": "https://github.com/kedacore/keda/blob/559e73850876f0c1d2fe915f9c23904608e5e235/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "559e73850876f0c1d2fe915f9c23904608e5e235",
+            "contentDigest": "sha256:83d611d2150be4d884d35c225c7a41f5849dc15da66b95390c90aa2b1e1435ff",
+            "startLine": 1,
+            "endLine": 156
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kedacore/keda",
+      "line": "2.19",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.18.0",
+            "commit": "559e73850876f0c1d2fe915f9c23904608e5e235"
+          },
+          {
+            "version": "2.18.1",
+            "commit": "3f590ba6027a67b2d6f79ece605061f6d201c54b"
+          },
+          {
+            "version": "2.18.2",
+            "commit": "b7c5655a31ebd980afc50980cf7d00d29eb23cc3"
+          },
+          {
+            "version": "2.18.3",
+            "commit": "0f98c4775b82df35f5d3bdaf85713e3e478f7a38"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.19.0",
+            "commit": "3f88d60ae92f1174f67738f079f96ec17eeee77f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.keda",
+          "version": "2.5.0",
+          "codeDigest": "sha256:c4260fe5bcfab5faa7ffc6003ba859197c0d75ab5aaa340ea635cff70ea9472e"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-2-18-0",
+            "url": "https://github.com/kedacore/keda/blob/559e73850876f0c1d2fe915f9c23904608e5e235/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "559e73850876f0c1d2fe915f9c23904608e5e235",
+            "contentDigest": "sha256:83d611d2150be4d884d35c225c7a41f5849dc15da66b95390c90aa2b1e1435ff",
+            "startLine": 1,
+            "endLine": 156
+          },
+          {
+            "id": "crds-2-19-0",
+            "url": "https://github.com/kedacore/keda/blob/3f88d60ae92f1174f67738f079f96ec17eeee77f/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "3f88d60ae92f1174f67738f079f96ec17eeee77f",
+            "contentDigest": "sha256:a70edda6252c1bf04bee20dac9cbf1928e1033bb195ea7042d4c8627085ab427",
+            "startLine": 1,
+            "endLine": 170
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kedacore/keda",
+      "line": "2.20",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.19.0",
+            "commit": "3f88d60ae92f1174f67738f079f96ec17eeee77f"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.20.0",
+            "commit": "5322ecb9c19fb37e59344afbb388471d40efc0d8"
+          },
+          {
+            "version": "2.20.1",
+            "commit": "875675ce5cd1d34772fe00a228a71b8bf05b3b43"
+          },
+          {
+            "version": "2.20.2",
+            "commit": "68a5b5028f35b22d50597c69819ab32c4e92f21a"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.keda",
+          "version": "2.5.0",
+          "codeDigest": "sha256:c4260fe5bcfab5faa7ffc6003ba859197c0d75ab5aaa340ea635cff70ea9472e"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-2-19-0",
+            "url": "https://github.com/kedacore/keda/blob/3f88d60ae92f1174f67738f079f96ec17eeee77f/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "3f88d60ae92f1174f67738f079f96ec17eeee77f",
+            "contentDigest": "sha256:a70edda6252c1bf04bee20dac9cbf1928e1033bb195ea7042d4c8627085ab427",
+            "startLine": 1,
+            "endLine": 170
+          },
+          {
+            "id": "crds-2-20-0",
+            "url": "https://github.com/kedacore/keda/blob/5322ecb9c19fb37e59344afbb388471d40efc0d8/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "5322ecb9c19fb37e59344afbb388471d40efc0d8",
+            "contentDigest": "sha256:54693ed66e4a602f09137bef80297b381bb51c1a55980e8d4844524c074bac1a",
+            "startLine": 1,
+            "endLine": 173
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kedacore/keda",
+      "line": "2.21",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.20.0",
+            "commit": "5322ecb9c19fb37e59344afbb388471d40efc0d8"
+          },
+          {
+            "version": "2.20.1",
+            "commit": "875675ce5cd1d34772fe00a228a71b8bf05b3b43"
+          },
+          {
+            "version": "2.20.2",
+            "commit": "68a5b5028f35b22d50597c69819ab32c4e92f21a"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.21.0",
+            "commit": "626ded5d783108bedf647e20bbc83f8e458e02e4"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.keda",
+          "version": "2.5.0",
+          "codeDigest": "sha256:c4260fe5bcfab5faa7ffc6003ba859197c0d75ab5aaa340ea635cff70ea9472e"
+        },
+        "derivedAt": "2026-10-17T13:08:58Z",
+        "reviewedAt": "2026-10-17T13:08:58Z",
+        "validUntil": "2027-01-15T13:08:58Z",
+        "sources": [
+          {
+            "id": "crds-2-20-0",
+            "url": "https://github.com/kedacore/keda/blob/5322ecb9c19fb37e59344afbb388471d40efc0d8/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "5322ecb9c19fb37e59344afbb388471d40efc0d8",
+            "contentDigest": "sha256:54693ed66e4a602f09137bef80297b381bb51c1a55980e8d4844524c074bac1a",
+            "startLine": 1,
+            "endLine": 173
+          },
+          {
+            "id": "crds-2-21-0",
+            "url": "https://github.com/kedacore/keda/blob/626ded5d783108bedf647e20bbc83f8e458e02e4/config/crd/bases/eventing.keda.sh_cloudeventsources.yaml",
+            "revision": "626ded5d783108bedf647e20bbc83f8e458e02e4",
+            "contentDigest": "sha256:54693ed66e4a602f09137bef80297b381bb51c1a55980e8d4844524c074bac1a",
+            "startLine": 1,
+            "endLine": 173
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/kubernetes/kubernetes",
       "line": "1.20",
       "factFamily": "kubernetes.removed_served_gvk",
