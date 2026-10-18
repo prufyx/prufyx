@@ -4,6 +4,13 @@ This gets you from a clean clone to a real **BLOCKED** verdict, with a
 citation into upstream Kubernetes source, in under five minutes. It uses the
 Kubernetes API-removal route, which is real, published, and checked in CI.
 
+**Start with `prufyx scan`.** It is the command for rendered Kubernetes
+manifests, and its report leads with the answer, the file and line of every
+problem, and the fix. The [README quickstart](../../README.md#quickstart) runs
+it first; section 7 below shows it on the same manifest. This guide starts with
+`prufyx check`, which gives the same decision for one rule route with the full
+upstream citation, and is the command for other projects' configuration.
+
 Every command below was run from a fresh temporary directory to produce this
 transcript. You can copy them as-is.
 
@@ -41,20 +48,20 @@ environment variables:
 
 Every `prufyx check` prints one aggregate assessment and the rules that
 decide something. Rules that came back `PASS` are counted, not listed (add
-`--show-passes` to list them):
+`--show-passes` to list them).
 
-- **PASS** — the input does not match the reviewed source condition for this
-  rule. It is not a certificate that the rest of the upgrade is safe.
-- **BLOCKED** — the input matches a reviewed, pinned source condition that
-  the target release actually enforces (a removed API, a removed flag, and
-  so on). The command exits with code `10`, so CI can gate on it.
-- **UNKNOWN** — the input does not give Prufyx enough to decide either way
-  (a required declaration is missing, the fact is outside what the rule
-  reviews, or a different rule in the same set could not be evaluated).
-  **This is a feature, not a bug.** Prufyx never claims a scoped PASS from
-  missing evidence, and it never claims a whole-upgrade PASS from a set of
-  scoped PASS results. Guessing "probably fine" from an absent fact is
-  exactly the failure mode a deterministic checker exists to avoid.
+- **PASS**: the checked rules passed for that scope. Not a certificate that the
+  rest of the upgrade is safe.
+- **BLOCKED**: the input matches a reviewed, pinned source condition that the
+  target release enforces. Exit `10`, so CI can gate on it.
+- **UNKNOWN**: the input does not give Prufyx enough to decide (a required
+  declaration is missing, the fact is outside what the rule reviews, or another
+  rule in the set could not be evaluated). Exit `11`. **This is a feature, not a
+  bug.** Prufyx never claims a scoped PASS from missing evidence, and it never
+  claims a whole-upgrade PASS from a set of scoped PASS results.
+
+[verdicts.md](verdicts.md) has the full page: what each answer means, what it
+does not mean, and what to do.
 
 ## 3. A file, mode 0600
 
@@ -164,6 +171,8 @@ those kinds; that is not the same as proving they never occur anywhere in a
 real cluster.
 
 ## 5. What `--resource-scope-complete` and `--target-api-apply-required` are actually asserting
+
+(The complete list of declaration flags is in [declarations.md](declarations.md).)
 
 Both flags are on the command deliberately — they are not boilerplate.
 
@@ -365,7 +374,7 @@ NOT CHECKED (1)
 Read 2 documents over 1 hop; 1 of 1 component has rules (partially evaluated). 6 checks passed (--show-passes).
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
 Evidence: every finding cites pinned upstream source (--verbose). No network used.
-evaluated at 2026-11-20T00:00:00Z; input sha256:cac5facf042643aa2ca473b53dbc8e3de6e3001562dc1a16c4a0d15115aa07b0; knowledge embedded cncf-2026-09-13.8 sha256:58565d77469425e33207a773b44ac0e9b0b1abcdb3f6301f24b33bb4ae856d49
+evaluated at 2026-11-20T00:00:00Z; input sha256:cac5facf042643aa2ca473b53dbc8e3de6e3001562dc1a16c4a0d15115aa07b0; knowledge embedded cncf-2026-09-13.8 sha256:c34732a2dffc4191904c07e8dfddb86ccffbc2d0a2a1ad51e1ff020e3da25896
 ```
 
 The exit code is `10`, and the finding names the file, the line of the
@@ -389,6 +398,10 @@ gaps, `--redact`, JSON output and `prufyx.yaml`.
   have to trust); Kubernetes reviews removed APIs for six from/to pairs
   (upgrades to 1.22, 1.25, 1.26, 1.27, 1.29 and 1.32) plus the 1.24 dockershim
   removal. This quickstart exercised two of them.
+- [`one-command-flow.md`](one-command-flow.md) covers `prufyx assess`, which
+  reads a live cluster (read-only) and lists which checks apply to it. Put all
+  flags before the context name:
+  `prufyx assess --kubeconfig FILE --acknowledge-kubeconfig-exec-risk --format json CONTEXT`.
 - A scoped `PASS`, `BLOCKED`, or `UNKNOWN` result is never a whole-upgrade
   safety claim. See the root [README](../README.md) and
   [`docs/product-contract.md`](product-contract.md) for what Prufyx does and

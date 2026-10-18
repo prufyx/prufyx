@@ -24,16 +24,194 @@ evidence does not decide the question, the answer is `UNKNOWN`, not a guess.
 
 Requires Go 1.26 (release builds use 1.26.8; see CONTRIBUTING.md).
 
+**1. Build.**
+
 ```sh
 git clone https://github.com/prufyx/prufyx.git
 cd prufyx/cli
+mkdir -p "$HOME/.local/bin"
 go build -buildvcs=false -o "$HOME/.local/bin/prufyx" ./cmd/prufyx-community
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
-The [quickstart guide](cli/docs/quickstart.md) takes you from a clean clone to
-a real `BLOCKED` verdict on a Kubernetes API removal, with its upstream source
-citation, in under five minutes. It also shows how to wire the exit code into
-CI (use `check --strict-exit` there).
+**2. Scan your rendered manifests.** `scan` is the command to start with: it
+reads manifests, says first whether the upgrade is blocked, and for every
+problem names the file, line, object and fix. This example creates a small
+manifest file with a CronJob that Kubernetes 1.25 no longer serves. With your
+own chart, render it first (`helm template my-release ./chart > rendered.yaml`;
+`kustomize build` works too) and keep the file owner-only.
+
+```sh
+mkdir -p /tmp/prufyx-demo && cd /tmp/prufyx-demo
+cat > rendered.yaml <<'YAML'
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: nightly-report
+  namespace: default
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: report
+              image: example/report:1.0
+          restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: report-settings
+  namespace: default
+data:
+  mode: nightly
+YAML
+chmod 600 rendered.yaml
+prufyx scan rendered.yaml --from kubernetes=1.24.0 --to kubernetes=1.25.0
+```
+
+Real output (exit `11`; the last line of the report, which carries a
+timestamp and digests, is left out here):
+
+```
+UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (4 other areas were not checked)
+
+kubernetes 1.24.0 -> 1.25.0: 1 hop (no reviewed path policy)
+
+NOT CHECKED (5)
+  kubernetes   no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the API reference of that Kubernetes release by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml
+  kubernetes   1 manifest(s) use API versions Kubernetes 1.25 does not serve, removed on a line this upgrade enters - no reviewed rule decided them; migrate them to a served API version before upgrading, and the gaps for the step that enters the line say why
+  kubernetes   it is not declared that these manifests are applied to the target kubernetes API - if they are, add targetApplyRequired: true to prufyx.yaml or pass --target-api-apply-required
+  kubernetes   the kubernetes distribution is not declared - for upstream builds, add distribution: official_upstream to prufyx.yaml or pass --distribution official_upstream
+  kubernetes   the kubernetes manifests are not declared to be the complete set you apply - if they are, add resourceScopeComplete: true to prufyx.yaml or pass --resource-scope-complete
+
+Read 2 documents over 1 hop; 1 of 1 component has rules (partially evaluated).
+Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
+Evidence: every finding cites pinned upstream source (--verbose). No network used.
+```
+
+The first line is the answer: `UNKNOWN` is not a pass. The five entries under
+`NOT CHECKED` say what is missing. Three of them are facts only you can state
+(see [declarations](cli/docs/declarations.md)).
+
+**3. Declare what is true, run again.** If `rendered.yaml` is every manifest you
+apply, it is applied to the target API, and the cluster runs upstream
+Kubernetes, say so:
+
+```sh
+prufyx scan rendered.yaml --from kubernetes=1.24.0 --to kubernetes=1.25.0 \
+  --distribution official_upstream \
+  --resource-scope-complete \
+  --target-api-apply-required
+```
+
+Real output (exit `10`):
+
+```
+BLOCKED: 1 problem must be fixed; 1 area was not checked
+
+kubernetes 1.24.0 -> 1.25.0: 1 hop (no reviewed path policy)
+  1.24.0 -> 1.25.0   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
+                     rendered.yaml:1  CronJob default/nightly-report
+                     fix: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
+
+NOT CHECKED (1)
+  kubernetes   no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the API reference of that Kubernetes release by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml
+
+Read 2 documents over 1 hop; 1 of 1 component has rules (partially evaluated). 6 checks passed (--show-passes).
+Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
+Evidence: every finding cites pinned upstream source (--verbose). No network used.
+```
+
+`BLOCKED` names the problem, where it is, and the fix. Fix it, run the same
+command again. The `NOT CHECKED` entry that remains is not a failure of the
+command: no reviewed list of the API versions Kubernetes 1.25 serves exists
+yet, so those manifests are listed as not checked rather than passed. Put the
+declarations in a `prufyx.yaml` to stop typing them (see
+[scan-config.md](cli/docs/scan-config.md)).
+
+**Never add a declaration flag that is not true.** Prufyx does not default any
+of them, because a false one turns `UNKNOWN` into an answer the evidence does
+not support.
+
+### What the exit code means
+
+| Exit | Meaning |
+| --- | --- |
+| `0` | `scan`: `PASS FOR THE DECLARED SCOPE`. `check`: the checked rules passed, nothing more. |
+| `10` | `BLOCKED`: a reviewed rule matched your input. |
+| `11` | `UNKNOWN`: the evidence did not decide. Not a pass. |
+| `2` / `3` | Input not accepted / integrity failure. |
+
+`check` exit `0` is a scoped pass: add `--strict-exit` in CI, so it exits `14`.
+Full meanings: [verdicts](cli/docs/verdicts.md) and [exit codes](cli/docs/exit-codes.md).
+In CI, `scan` gates on its exit code. `--fail-on blocked` makes an `UNKNOWN`
+scan exit `0` (except when manifests use an API version the target does not
+serve); that `0` is not a pass, so use it knowingly.
+
+### More examples
+
+All of these run as written after step 2 (same directory).
+
+Scan from standard input, for example straight from a render step (replace
+`cat rendered.yaml` with `helm template my-release ./chart`):
+
+```sh
+cat rendered.yaml | prufyx scan - \
+  --from kubernetes=1.24.0 --to kubernetes=1.25.0 \
+  --distribution official_upstream --resource-scope-complete --target-api-apply-required
+```
+
+A markdown report for a pull request comment or ticket (`--format` also takes
+`json`, `sarif` and `csv`):
+
+```sh
+prufyx scan rendered.yaml --from kubernetes=1.24.0 --to kubernetes=1.25.0 \
+  --distribution official_upstream --resource-scope-complete --target-api-apply-required \
+  --format markdown > report.md
+```
+
+A project config with `check`. `scan` reads Kubernetes manifests; for another
+project's configuration use `check`. Example: cert-manager Helm values (a
+config file, owner-only):
+
+```sh
+echo '{"prometheus":{"servicemonitor":{"path":"/custom"}}}' > values.json
+chmod 600 values.json
+prufyx check cert-manager-values --from 1.20.3 --to 1.21.1 --values values.json
+```
+
+The first lines of the real output (exit `10`; the rest lists the pinned
+sources):
+
+```
+cert-manager removed monitor values: BLOCKED
+claim: CERT_MANAGER_REMOVED_MONITOR_VALUE_PRESENT
+reason: the exact proposed values contain a curated key rejected by the target chart schema
+matched curated paths: prometheus.servicemonitor.path
+values digest: sha256:6fbf9de30d9b79c9e77974bf5c4dd0cb46355ff556e4226a0957cfb4664c683f
+```
+
+`prufyx catalog checks --project NAME` lists the checks and the exact command
+and input each one reads; the [community checks reference](cli/docs/community-checks.md)
+documents every input.
+
+Triage a live cluster with `assess`. This one reads a cluster (read-only,
+through kubectl), so it is not part of the copy-paste sequence above. **Put all
+flags before the context name**: anything after it is taken as another context.
+
+```sh
+prufyx assess --kubeconfig "$HOME/.kube/config" --acknowledge-kubeconfig-exec-risk \
+  --format json my-context
+```
+
+`assess` does not give a verdict. It lists which checks apply to what it found
+and what each still needs from you. See [one-command flow](cli/docs/one-command-flow.md).
+
+The longer [quickstart guide](cli/docs/quickstart.md) walks through `check`
+on the same manifest, with the upstream source citation of each finding.
 
 Run `prufyx` for a short command overview and `prufyx <command> help` for one
 command's details. Help text is coloured only on a terminal; `NO_COLOR` or
@@ -42,18 +220,18 @@ the quickstart guide). Reports are never coloured.
 
 ## What the verdicts mean
 
-The table is for `check`, where `PASS` is scoped to the rules that were
-checked. `scan` exit `0` means a complete scope. See [exit codes](cli/docs/exit-codes.md)
-for the single table of both, and for `check --strict-exit`, which CI should
-always use: a scoped `PASS` then exits `14`, so it cannot be read as a
-complete pass.
+- `BLOCKED`: your input matches a reviewed condition the target release
+  enforces. The output names the fix. Exit `10`.
+- `UNKNOWN`: the evidence does not decide. Never read it as a pass. Exit `11`.
+- `PASS`: the checked rules passed for that scope. It is not a whole-upgrade
+  certificate. `scan` exit `0` means the declared scope is complete; `check`
+  exit `0` means only the checked rules passed (use `--strict-exit` in CI, exit
+  `14`).
 
-| Verdict | Meaning | Exit code |
-| --- | --- | --- |
-| `PASS` | The input does not match the reviewed source condition for this rule. It is not a whole-upgrade certificate. | `0` |
-| `BLOCKED` | The input matches a reviewed condition that the target release enforces, such as a removed API or flag. The output names the remediation. | `10` |
-| `UNKNOWN` | The input does not contain enough to decide, or the transition is outside reviewed evidence. | `11` |
-| invalid input / integrity failure | The input was rejected, or the built-in knowledge or the `--knowledge-db` database failed verification. | `2` / `3` |
+The page [what the verdicts mean](cli/docs/verdicts.md) gives, for each answer,
+what it means, what it does not mean and what to do. The single exit-code table
+is [exit codes](cli/docs/exit-codes.md). What each declaration flag asserts is in
+[declarations](cli/docs/declarations.md).
 
 A rule applies to the exact reviewed version pair, or to a version range only
 where the cited evidence states that range. Outside it, the result is
