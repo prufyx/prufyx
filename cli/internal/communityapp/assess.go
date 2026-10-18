@@ -44,7 +44,7 @@ func (r runtime) assess(ctx context.Context, args []string) int {
 	}
 	contexts := fs.Args()
 	for _, name := range contexts {
-		if strings.HasPrefix(name, "-") {
+		if !hasDoubleDash(args) && strings.HasPrefix(name, "-") {
 			return r.usage(fmt.Sprintf("assess: flags must come before CONTEXT; found %q after the context name", name))
 		}
 	}
@@ -244,4 +244,15 @@ Options:
   --output DIR                              private working directory for the collected bundle (default: a fresh temporary directory)
   --exec-env NAME                           forward one named ambient variable to kubectl; repeatable
   --format human|json                       default human`)
+}
+
+// hasDoubleDash reports an explicit "--" terminator, after which a leading
+// "-" in a context name is deliberate.
+func hasDoubleDash(args []string) bool {
+	for _, arg := range args {
+		if arg == "--" {
+			return true
+		}
+	}
+	return false
 }

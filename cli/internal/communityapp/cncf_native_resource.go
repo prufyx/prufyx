@@ -142,12 +142,12 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 		if readErr != nil {
 			return r.fail(withPermissionHint("NATIVE_CNCF_RESOURCE_INPUT_INVALID", readErr), ExitUsage)
 		}
-		if flag, jsonOnly := cncfJSONOnlyInputFlag[project]; jsonOnly && !looksLikeJSON(raw) {
-			return r.usage("--" + flag + " must be JSON; convert YAML first, for example with: yq -o=json FILE")
-		}
 		digest := digestCommunityBytes(raw)
 		if nativePin != "" && nativePin != digest {
 			return r.fail("NATIVE_CNCF_RESOURCE_INTEGRITY_FAILURE", ExitIntegrity)
+		}
+		if flag, jsonOnly := cncfJSONOnlyInputFlag[project]; jsonOnly && !looksLikeJSON(raw) {
+			return r.usage("--" + flag + " must be JSON; convert YAML first, for example with: yq -o=json FILE")
 		}
 		if project == "kubevirt" {
 			prepared, err = cncfprepare.PrepareKubeVirt(raw, from, to)
