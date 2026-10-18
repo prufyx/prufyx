@@ -59,7 +59,7 @@ It can be a blocked or undecided scan; the report headline shows which.
 - **Means:** your input matches a reviewed, pinned source condition that the
   target release enforces, such as a removed API or flag. The report names the
   object (`scan`: file, line, kind and name), the fix, and cites the upstream
-  source it relies on.
+  source it relies on (`scan`: with `--verbose`).
 - **Does not mean:** that fixing it makes the upgrade safe. Other things may
   still be undecided.
 - **Do:** apply the fix shown after `fix:` (`scan`) or `next action:`
@@ -92,8 +92,9 @@ and the entries are still listed.
 
 ## Whole-upgrade status
 
-- `check` prints `aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN;
-  network used: false)` after the scoped result. It is `UNKNOWN` even next to a
+- `check` prints an `aggregate: UNKNOWN` line after the scoped result (the
+  Kubernetes route spells it `aggregate: UNKNOWN (whole-upgrade compatibility:
+  UNKNOWN; network used: false)`). It is `UNKNOWN` even next to a
   scoped `PASS` or a `BLOCKED` result, because the checked rules are a part of
   the upgrade, not all of it.
 - `scan` prints `Scope limits:` and the count of areas not checked.
