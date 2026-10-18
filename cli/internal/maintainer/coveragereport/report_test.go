@@ -108,7 +108,7 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 		baseline = "cncf-2026-09-13.9"
 	}
 	if supersedeids.Superseded() {
-		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 14, B: 3, S: 41, G: 217, C1: 53, C3: 3}
+		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 19, B: 3, S: 40, G: 213, C1: 53, C3: 4}
 	} else if head.Revision != baseline {
 		// Only the reviewed generation is tied to the baseline revision: a
 		// bumped revision means a new baseline, which this file records.
