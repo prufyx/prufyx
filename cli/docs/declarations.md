@@ -27,8 +27,8 @@ of each undecided rule).
 Why Prufyx cannot infer them:
 
 - **Scope.** A `PASS` from "the removed kind is absent from what I was shown" is
-  worthless if what you were shown was half the picture. Prufyx reads local
-  files and never talks to a cluster or a Git repository, so only you know.
+  worthless if what you were shown was half the picture. `scan` and `check` read
+  local files and never talk to a cluster or a Git repository, so only you know.
 - **Target apply.** A file that exists is not a file that is applied. The
   declaration ties the finding to "this is really sent to the target API".
 - **Distribution.** Only `official_upstream` is evaluated. With `custom_build`
@@ -86,9 +86,9 @@ its own declaration flags, named after what they assert. The common ones:
 | Flag pattern | Asserts |
 | --- | --- |
 | `--effective-config-complete`, `--scrape-config-complete`, `--alertmanager-config-complete`, `--containerd-config-complete`, `--cilium-config-complete`, `--otel-config-complete`, and similar | The file you pass is the complete configuration of that component, not a fragment. Some routes also ask for the resolved result (for example OpenFGA: file, environment and flag precedence resolved); the route's help says which. |
-| `--workload-complete`, `--custom-resources-complete`, `--resource-complete` | The manifests you pass are the complete set you apply for that route (for example `--custom-resources-complete`). |
+| `--custom-resources-complete`, `--resource-complete` | The resources you pass for that route are the complete selected set (for example `--custom-resources-complete`: the manifests you apply). `--workload-complete` declares that the selected workload's command line is complete. |
 | `--<project>-distribution` (for example `--strimzi-distribution official_upstream`) | The project build is the declared distribution (`official_upstream` is the one the reviewed rules cover). |
-| `--target-kafka-crd-admission-required`, `--crossplane-schema-validation-required`, `--keda-legacy-tls-transport-required` and similar `*-required` flags | A named condition holds in your target environment. |
+| `--target-kafka-crd-admission-required`, `--crossplane-schema-validation-required`, `--keda-legacy-tls-transport-required` and similar `*-required` flags | A named condition holds in your target environment (some take `true` or `false`; `false` is a declaration too). |
 
 The table is a guide, not a contract: the exact meaning is per route. Do not guess. For one project, list the exact command and
 every flag a route needs:
