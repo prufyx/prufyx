@@ -14,6 +14,7 @@ import (
 // TestScanKnowledgeMatchesPackageFunctions: the snapshot answers exactly as
 // the package-level lookups over the same embedded knowledge.
 func TestScanKnowledgeMatchesPackageFunctions(t *testing.T) {
+	t.Parallel()
 	k, err := LoadScanKnowledge()
 	if err != nil {
 		t.Fatal(err)
@@ -129,6 +130,7 @@ func TestScanKnowledgeMatchesPackageFunctions(t *testing.T) {
 // TestNewScanRuleBasisAndNotice: a lead is told by its basis, not as a
 // one-way notice; the facts a rule reads are listed.
 func TestNewScanRuleBasisAndNotice(t *testing.T) {
+	t.Parallel()
 	lead := `{"id":"kubernetes.x","operator":"forbid_predicate_value","subject":{"component":"pkg:github/kubernetes/kubernetes","from":"1.25.0","to":"1.26.0"},"condition":{"side":"proposed","component":"pkg:github/kubernetes/kubernetes","factId":"component.kubernetes.hpa_v2beta2_removed_gvk_present","boolValue":true},"evidence":{"basis":"lead"},"nextAction":"x"}`
 	rule, err := NewScanRule("kubernetes", "d", []byte(lead))
 	if err != nil || rule.Notice || rule.Basis != "lead" || len(rule.Facts) != 1 || rule.Facts[0] != "component.kubernetes.hpa_v2beta2_removed_gvk_present" {

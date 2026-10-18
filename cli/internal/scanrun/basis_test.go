@@ -92,6 +92,7 @@ func TestScanLeadsAreVerdictNeutral(t *testing.T) {
 // TestScanConsensus: a consensus rule may block, and where it finds nothing
 // its claim never decides the hop.
 func TestScanConsensus(t *testing.T) {
+	t.Parallel()
 	const id = "kubernetes.synthetic-consensus.1-25-0-to-1-26-0"
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
 	// Blocks when the fact is false (no flow-control v1beta1 object).
@@ -117,6 +118,7 @@ func TestScanConsensus(t *testing.T) {
 // The policy also selects the evidence the line reviews, the path policy and
 // the served lists rest on.
 func TestScanRequireBasis(t *testing.T) {
+	t.Parallel()
 	ruleBasis, otherBasis := kubernetesRuleBases()
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
 	command := args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--require-basis", otherBasis)
@@ -168,6 +170,7 @@ func TestScanRequireBasis(t *testing.T) {
 // TestScanBasisIntegrity: claims that contradict their rule's basis are an
 // integrity failure, never an answer.
 func TestScanBasisIntegrity(t *testing.T) {
+	t.Parallel()
 	const id = "kubernetes.synthetic-lead.1-25-0-to-1-26-0"
 	base := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true, synthetic: []string{basisRule(id, "lead", false)}})
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})

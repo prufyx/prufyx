@@ -40,6 +40,7 @@ func syntheticNoticeEntry() Entry {
 }
 
 func TestPackNoticeLevel(t *testing.T) {
+	t.Parallel()
 	entry := syntheticNoticeEntry()
 	b, err := assembleSynthetic(syntheticPack(t, packSchemaNotice, nil, entry), nil)
 	if err != nil {
@@ -106,6 +107,7 @@ func noticeInput() []byte {
 }
 
 func TestClaimExitNotice(t *testing.T) {
+	t.Parallel()
 	b, err := load()
 	if err != nil {
 		t.Fatal(err)
@@ -172,6 +174,7 @@ func verdictClaimsOf(claims []constraintengine.Claim) []constraintengine.Claim {
 // generic selector and for the fact-family selector, so the verdict claims are
 // exactly those of the same report without the notice.
 func TestNoticeNeverChangesRuleSelection(t *testing.T) {
+	t.Parallel()
 	base, err := load()
 	if err != nil {
 		t.Fatal(err)
@@ -232,6 +235,7 @@ func TestNoticeNeverChangesRuleSelection(t *testing.T) {
 // is built from leaves out a component whose only rules are notices, so the
 // generated attestation still binds.
 func TestCorpusInventorySkipsNoticeOnlyComponents(t *testing.T) {
+	t.Parallel()
 	const aeraki = "pkg:github/aeraki-mesh/aeraki"
 	notice := Entry{Project: "aeraki-mesh", Description: "Synthetic test-only one-way transition.", RequiredFacts: []Fact{}, Rule: json.RawMessage(strings.Replace(syntheticNoticeRule("aeraki-mesh.synthetic-one-way.1-35-0-to-1-36-0", windowReviewed, windowUntil), noticeComponent, aeraki, 1))}
 	b, err := assembleSynthetic(syntheticPack(t, packSchemaNotice, nil, notice), nil)
@@ -263,6 +267,7 @@ func TestCorpusInventorySkipsNoticeOnlyComponents(t *testing.T) {
 // TestExternalPackRefusesNotices: the external knowledge target does not
 // accept one-way notices yet, even under the notice pack schema.
 func TestExternalPackRefusesNotices(t *testing.T) {
+	t.Parallel()
 	base, err := load()
 	if err != nil {
 		t.Fatal(err)

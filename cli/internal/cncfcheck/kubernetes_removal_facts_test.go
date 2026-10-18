@@ -99,6 +99,7 @@ func removalPack(t *testing.T, definitions []constraintengine.FactDefinition, en
 // pinned to the adapter's by a test in the extractor package, so this covers
 // every fact a derived removal rule can read.
 func TestKubernetesRemovalFactsRegistered(t *testing.T) {
+	t.Parallel()
 	count := map[string]int{}
 	for _, d := range compiledDefinitions() {
 		count[d.ID]++
@@ -161,6 +162,7 @@ func laterRemovalRule(t *testing.T, fact string, line int) (bundle, string) {
 // refused against the registry without the fact and admitted with it. The
 // embedded pack itself reads none of them.
 func TestKubernetesRemovalRuleAdmissionNeedsTheRegisteredFact(t *testing.T) {
+	t.Parallel()
 	if supersedeids.Superseded() {
 		// The embedded pack holds a rule over each fact: it is refused
 		// against the registry without the fact and admitted with it.
@@ -213,6 +215,7 @@ func TestKubernetesRemovalRuleAdmissionNeedsTheRegisteredFact(t *testing.T) {
 // UNKNOWN for an unreviewed version, an incomplete scope, or a transition
 // outside the rule's lines.
 func TestKubernetesRemovalFactsDecideTheirRules(t *testing.T) {
+	t.Parallel()
 	now := supersedeids.Clock()
 	doc := func(api, kind string) string {
 		return `{"apiVersion":"` + api + `","kind":"` + kind + `","metadata":{"name":"x"}}`

@@ -12,6 +12,7 @@ import (
 )
 
 func TestKubernetesFlowControlReviewClock_BoundsStaticRule(t *testing.T) {
+	t.Parallel()
 	input := []byte(`{"schema":"prufyx.io/operator-declared-constraint-input/v1alpha1","authority":"OPERATOR_DECLARED_MINIMIZED","current":{"components":[{"component":"pkg:github/kubernetes/kubernetes","version":"1.31.0","facts":[]}]},"proposed":{"components":[{"component":"pkg:github/kubernetes/kubernetes","version":"1.32.0","facts":[{"id":"component.kubernetes.flowcontrol_v1beta3_removed_gvk_present","state":"declared","boolValue":false}]}]}}`)
 	// The bounds are the rule's own: one second before its review, and its
 	// expiry instant.

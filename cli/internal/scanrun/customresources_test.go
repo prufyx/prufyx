@@ -237,6 +237,7 @@ func strimziHop(t *testing.T, report scanreport.Report) scanreport.Hop {
 // A Strimzi upgrade is evaluated for custom-resource versions: a removed
 // version is a located finding, with or without a complete scope.
 func TestScanCustomResourceBlocked(t *testing.T) {
+	t.Parallel()
 	knowledge := newCRDKnowledge(t)
 	for _, scope := range [][]string{{"--resource-scope-complete"}, nil} {
 		result := crdScan(t, knowledge, []string{settingsDoc, kafkaV1beta2Doc}, append([]string{"--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0"}, scope...)...)
@@ -269,6 +270,7 @@ func TestScanCustomResourceBlocked(t *testing.T) {
 // or without a complete scope), and a served version is never a pass.
 // Before the batch ships the synthetic rule above stands in for it.
 func TestScanShippedCustomResourceRules(t *testing.T) {
+	t.Parallel()
 	if !crdbatchids.Shipped() {
 		t.Skip("the embedded knowledge holds no custom-resource rule yet (the tests above use a test-only one)")
 	}
@@ -300,6 +302,7 @@ func TestScanShippedCustomResourceRules(t *testing.T) {
 // review that lists every custom-resource rule of a release, so the answer
 // stays UNKNOWN and names why.
 func TestScanCustomResourceNeverPasses(t *testing.T) {
+	t.Parallel()
 	knowledge := newCRDKnowledge(t)
 	result := crdScan(t, knowledge, []string{settingsDoc, kafkaV1Doc}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete")
 	report := result.Report
@@ -322,6 +325,7 @@ func TestScanCustomResourceNeverPasses(t *testing.T) {
 
 // Every partial set is a named gap and never a pass.
 func TestScanCustomResourcePartialSets(t *testing.T) {
+	t.Parallel()
 	knowledge := newCRDKnowledge(t)
 	for name, tc := range map[string]struct {
 		docs   []string
@@ -355,6 +359,7 @@ func TestScanCustomResourcePartialSets(t *testing.T) {
 }
 
 func TestScanCustomResourcePath(t *testing.T) {
+	t.Parallel()
 	knowledge := newCRDKnowledge(t)
 	// The rule is anchored at 0.51.0 -> 1.0.0: a direct upgrade from 0.50.0
 	// is another transition, which no rule decides.
@@ -393,6 +398,7 @@ const topicV1beta2Doc = "apiVersion: kafka.strimzi.io/v1beta2\nkind: KafkaTopic\
 // A finding is located at the objects of the versions its rule forbids,
 // not at every object of the set.
 func TestScanCustomResourceFindingLocationsAreTheMatchedMembers(t *testing.T) {
+	t.Parallel()
 	result := crdScan(t, newCRDKnowledge(t), []string{topicV1beta2Doc, kafkaV1beta2Doc, topicV1beta2Doc}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete")
 	if result.Exit != 10 || len(result.Report.Findings) != 1 {
 		t.Fatalf("exit %d findings %+v", result.Exit, result.Report.Findings)
@@ -407,6 +413,7 @@ func TestScanCustomResourceFindingLocationsAreTheMatchedMembers(t *testing.T) {
 // it or not, exit, gaps, findings and passes are those of the scan without
 // it.
 func TestScanCustomResourceLeadIsNeutral(t *testing.T) {
+	t.Parallel()
 	for _, docs := range [][]string{{kafkaV1Doc, topicV1beta2Doc}, {kafkaV1beta2Doc, topicV1beta2Doc}} {
 		for _, basis := range [][]string{nil, {"--require-basis", "reviewed,mechanical,empirical,consensus,lead"}} {
 			extra := append([]string{"--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete"}, basis...)
@@ -423,6 +430,7 @@ func TestScanCustomResourceLeadIsNeutral(t *testing.T) {
 // rule the trust policy leaves out, and an UNSUPPORTED claim are integrity
 // failures.
 func TestScanCustomResourceClaimIntegrity(t *testing.T) {
+	t.Parallel()
 	_, paths := files(t, map[string]string{"kafka.yaml": kafkaV1Doc})
 	base := append(append([]string{}, paths...), "--now", testNow, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete")
 	// The engine's PASS for the 0.51.0 -> 1.0.0 rule, presented as a claim
@@ -453,6 +461,7 @@ func TestScanCustomResourceClaimIntegrity(t *testing.T) {
 // the report discloses it, and a removed version it forbids is not reported
 // as a finding.
 func TestScanCustomResourceTrustPolicy(t *testing.T) {
+	t.Parallel()
 	result := crdScan(t, newCRDKnowledge(t), []string{kafkaV1beta2Doc}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete", "--require-basis", "mechanical")
 	if result.Exit != 11 || len(result.Report.Findings) != 0 || result.Report.TrustPolicy == nil || result.Report.TrustPolicy.ExcludedRules != 1 {
 		t.Fatalf("exit %d findings %+v trust %+v", result.Exit, result.Report.Findings, result.Report.TrustPolicy)
@@ -469,6 +478,7 @@ func TestScanCustomResourceTrustPolicy(t *testing.T) {
 // Knowledge that refuses the input leaves the hop without data, never
 // covered.
 func TestScanCustomResourceRefusedInput(t *testing.T) {
+	t.Parallel()
 	k := newCRDKnowledge(t)
 	k.refuse = true
 	result := crdScan(t, k, []string{kafkaV1beta2Doc}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete")
@@ -482,6 +492,7 @@ func TestScanCustomResourceRefusedInput(t *testing.T) {
 // omission reason scan does not know (counted as a document that is not a
 // Kubernetes object).
 func TestScanCustomResourceDocumentGaps(t *testing.T) {
+	t.Parallel()
 	result := crdScan(t, newCRDKnowledge(t), []string{"# nothing here\n"}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete")
 	if !hasComponentGap(result.Report, "strimzi", scanreport.ReasonDocumentsNotEvaluated, "no Kubernetes manifests") {
 		t.Fatalf("empty input gaps %v", gapReasons(result.Report))

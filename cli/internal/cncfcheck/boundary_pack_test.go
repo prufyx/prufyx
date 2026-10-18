@@ -36,6 +36,7 @@ func wideKubernetesAnchorEntry(t *testing.T) Entry {
 // their reviewed range, so the engine reports them as unreviewed and the exit
 // is never 0.
 func TestSelectionKeepsBoundaryCrossedRules(t *testing.T) {
+	t.Parallel()
 	b, err := assembleSynthetic(syntheticPack(t, packSchemaRanged, nil, wideKubernetesAnchorEntry(t)), nil)
 	if err != nil {
 		t.Fatal(err)

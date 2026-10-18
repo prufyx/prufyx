@@ -33,6 +33,7 @@ func rangedRule(id, fact string, value bool, appliesWhen string) string {
 // PASS or BLOCKED claim that requires it; a rule whose applicability did not
 // hold does not judge it, even when a (wrong) served list names the object.
 func TestScanTrueFactJudgedByVerdict(t *testing.T) {
+	t.Parallel()
 	const id = "kubernetes.synthetic-applies-when.1-24-0-to-1-25-0"
 	applies := `"appliesWhen":[{"side":"proposed","component":"pkg:github/kubernetes/kubernetes","factId":"component.kubernetes.psp_v1beta1_removed_gvk_present","boolValue":true}],`
 	base := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true, servedExtra: []string{"batch/v1beta1 CronJob"},
@@ -50,6 +51,7 @@ func TestScanTrueFactJudgedByVerdict(t *testing.T) {
 // claim and one by no rule, the hop is not covered, whatever the order the
 // facts are checked in.
 func TestScanEveryTrueFactJudged(t *testing.T) {
+	t.Parallel()
 	const id = "kubernetes.synthetic-cronjob-pass.1-24-0-to-1-25-0"
 	base := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true, servedExtra: []string{"batch/v1beta1 CronJob", "policy/v1beta1 PodDisruptionBudget"},
 		synthetic: []string{rangedRule(id, cronjobFact, false, "")}, dropRuleIDs: map[string][]string{"1.25": {cronjobRuleID, pdbRuleID}}})
@@ -69,6 +71,7 @@ func TestScanEveryTrueFactJudged(t *testing.T) {
 // the target line and component, and whose basis the trust policy admits;
 // and the list names a kind, not only a version.
 func TestScanServedLists(t *testing.T) {
+	t.Parallel()
 	full := knowledgeOptions{lines: allLines, policy: "current"}
 	with := func(change func(*knowledgeOptions)) knowledgeOptions {
 		options := full
@@ -112,6 +115,7 @@ func TestScanServedLists(t *testing.T) {
 // same, the overlap fails closed: the group's objects are checked against
 // the list again.
 func TestScanReservedCustomResourceGroups(t *testing.T) {
+	t.Parallel()
 	full := knowledgeOptions{lines: allLines, policy: "current"}
 	route := "apiVersion: gateway.networking.k8s.io/v1\nkind: HTTPRoute\nmetadata: {name: a}\n"
 	alphaRoute := "apiVersion: gateway.networking.k8s.io/v1alpha2\nkind: TCPRoute\nmetadata: {name: a}\n"
@@ -146,6 +150,7 @@ func TestScanReservedCustomResourceGroups(t *testing.T) {
 // TestScanPolicyExcludedClaimIntegrity: a claim from a rule the trust policy
 // leaves out is an integrity failure.
 func TestScanPolicyExcludedClaimIntegrity(t *testing.T) {
+	t.Parallel()
 	const id = "kubernetes.synthetic-lead.1-25-0-to-1-26-0"
 	base := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true, synthetic: []string{basisRule(id, "lead", false)}})
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
@@ -179,6 +184,7 @@ func supportRule(id, version string) string {
 // rule, reason and next action, keeps its hop from covered, and never makes
 // the answer BLOCKED or PASS; a support-range rule that holds passes.
 func TestScanUnsupportedCombinations(t *testing.T) {
+	t.Parallel()
 	const id = "kubernetes.synthetic-support-range.1-25-0-to-1-26-0"
 	outside := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true, synthetic: []string{supportRule(id, "1.26.0")}})
 	inside := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true, synthetic: []string{supportRule(id, "1.27.0")}})

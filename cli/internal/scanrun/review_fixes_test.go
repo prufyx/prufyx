@@ -66,6 +66,7 @@ func hasGap(report scanreport.Report, reason, detail string) bool {
 // serves is never a pass, whether it was removed on a line no hop crosses or
 // is a version no served list of the target names.
 func TestScanAPIVersionsAtTarget(t *testing.T) {
+	t.Parallel()
 	full := knowledgeOptions{lines: allLines, policy: "current"}
 	cases := []struct {
 		name, manifest, from string
@@ -100,6 +101,7 @@ func TestScanAPIVersionsAtTarget(t *testing.T) {
 // TestScanNonFamilyRuleInsideLine: a rule outside the removed-API family that
 // applies to some releases of an intermediate line leaves that hop PARTIAL.
 func TestScanNonFamilyRuleInsideLine(t *testing.T) {
+	t.Parallel()
 	rule := verdictRule("kubernetes.synthetic-other-evidence.1-25-7-to-1-26-0", "1.25.7", "1.26.0", "", "component.kubernetes.in_tree_dockershim_required")
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", synthetic: []string{rule}})
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
@@ -116,6 +118,7 @@ func TestScanNonFamilyRuleInsideLine(t *testing.T) {
 // overlap and keeps the hop undecided, even when the line review leaves it
 // out.
 func TestScanRuleInsideLine(t *testing.T) {
+	t.Parallel()
 	const id = "kubernetes.synthetic-inside-line.1-25-7-to-1-26-0"
 	rule := verdictRule(id, "1.25.7", "1.26.0", "", "component.kubernetes.flowcontrol_v1beta3_removed_gvk_present")
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true, synthetic: []string{rule}, dropRuleIDs: map[string][]string{"1.26": {id}}})
@@ -131,6 +134,7 @@ func TestScanRuleInsideLine(t *testing.T) {
 // matches no hop of a sequential plan. Its blocker is found on the whole
 // upgrade, so it is never lost, and its pass alone never decides anything.
 func TestScanWholeUpgradeRule(t *testing.T) {
+	t.Parallel()
 	const id = "kubernetes.synthetic-whole-upgrade.1-24-17-to-1-30-4"
 	rule := verdictRule(id, "1.24.17", "1.30.4", "", "component.kubernetes.flowcontrol_v1beta3_removed_gvk_present")
 	knowledge := newKnowledge(t, knowledgeOptions{lines: []string{"1.25", "1.26", "1.27", "1.28", "1.29"}, policy: "current", synthetic: []string{rule}})
@@ -161,6 +165,7 @@ func TestScanWholeUpgradeRule(t *testing.T) {
 // rule for is NO_DATA, even when a (malformed) review of the line exists:
 // whether the knowledge lacks the line's facts or only the rules over them.
 func TestScanRefusedLine(t *testing.T) {
+	t.Parallel()
 	if supersedeids.Superseded() {
 		t.Skip("the mechanical rules read these lines: see TestScanLaterLinesWithoutAttestation")
 	}
@@ -202,6 +207,7 @@ func onlyWithMechanicalKubernetesRules(t *testing.T) {
 // and the hop stays PARTIAL for want of the review, never COVERED and never
 // a line without rules.
 func TestScanLaterLinesWithoutAttestation(t *testing.T) {
+	t.Parallel()
 	onlyWithMechanicalKubernetesRules(t)
 	for _, line := range []struct {
 		line, from, to, removed, rule string
@@ -231,6 +237,7 @@ func TestScanLaterLinesWithoutAttestation(t *testing.T) {
 // removal facts must not make a hop into that line COVERED. 1.37 removes two
 // kinds, each with its own rule; the pack here has only one of them.
 func TestScanLineAttestationNeedsEveryRemovalRule(t *testing.T) {
+	t.Parallel()
 	onlyWithMechanicalKubernetesRules(t)
 	const ipAddress = "kubernetes.served-api-removal.networking-k8s-io-v1beta1.1-36-0-to-1-37-0"
 	base := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true, dropRuleIDs: map[string][]string{"1.37": {ipAddress}}})
@@ -252,6 +259,7 @@ func TestScanLineAttestationNeedsEveryRemovalRule(t *testing.T) {
 // removal facts, the hop is evaluated: a removed version blocks, and a
 // served one is not reported as a line without rules.
 func TestScanRegisteredLineWithARule(t *testing.T) {
+	t.Parallel()
 	// The mechanical rules ship a rule over this fact; before them a
 	// synthetic one stands in (a second one would collide with the shipped).
 	id := "kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-36-0-to-1-37-0"
@@ -315,6 +323,7 @@ func (k hiddenRules) Evaluate(policy cncfcheck.TrustPolicy, project string, fact
 // rule deciding the hop reads keeps the hop from COVERED, even when the
 // line's review lists every remaining rule.
 func TestScanTrueFactWithoutRule(t *testing.T) {
+	t.Parallel()
 	cronjob := supersedeids.ID("kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0")
 	base := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true, dropRuleIDs: map[string][]string{"1.25": {cronjob}}})
 	knowledge := hiddenRules{Knowledge: base, hidden: map[string]bool{cronjob: true}}
@@ -329,6 +338,7 @@ func TestScanTrueFactWithoutRule(t *testing.T) {
 // TestScanTwoLinesWithoutPolicy: skipping one line without a reviewed
 // policy is named as such.
 func TestScanTwoLinesWithoutPolicy(t *testing.T) {
+	t.Parallel()
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
 	result := mustScan(t, newKnowledge(t, knowledgeOptions{lines: allLines}), args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.26.3")...)
 	if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"NO_REVIEWED_PATH_POLICY"}) {
@@ -437,6 +447,7 @@ func (k claimEditor) Evaluate(policy cncfcheck.TrustPolicy, project string, fact
 // notice rule, or a notice claim of a rule scan does not know as a notice is
 // an integrity failure, never an answer.
 func TestScanNoticeIntegrity(t *testing.T) {
+	t.Parallel()
 	const covering = "kubernetes.synthetic-notice.1-25-0-to-1-26-0"
 	base := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true, synthetic: []string{noticeRule(covering, "1.25.0", "1.26.0", lineRange("1.25", "1.26", "1.27"), currentWindow)}})
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
@@ -484,6 +495,7 @@ func TestScanNoticeIntegrity(t *testing.T) {
 // TestScanWholeUpgradeNotice: a notice reviewed for the exact end-to-end
 // pair is listed on the whole upgrade and does not change a pass.
 func TestScanWholeUpgradeNotice(t *testing.T) {
+	t.Parallel()
 	const id = "kubernetes.synthetic-notice-whole.1-24-17-to-1-30-4"
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true, synthetic: []string{noticeRule(id, "1.24.17", "1.30.4", "", currentWindow)}})
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
@@ -499,6 +511,7 @@ func TestScanWholeUpgradeNotice(t *testing.T) {
 // line the object was removed on blocks the hop, and names the step. (It used
 // to leave only an API_VERSION_NOT_SERVED gap, an UNKNOWN answer.)
 func TestScanDirectPolicyRemovedVersion(t *testing.T) {
+	t.Parallel()
 	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1beta1})
 	direct := newKnowledge(t, knowledgeOptions{lines: append([]string{"1.24"}, allLines...), policy: "direct"})
 	// Removed on a line inside the hop, and on the hop's own target line.

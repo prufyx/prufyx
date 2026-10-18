@@ -167,6 +167,7 @@ func engineReasons(t *testing.T) []string {
 // reasons, planner gaps, every engine reason, and the reasons the published
 // Kubernetes rules give decided claims. The catalog and the vocabulary agree.
 func TestGapCatalogComplete(t *testing.T) {
+	t.Parallel()
 	enumerated := map[string]string{}
 	add := func(origin string, values []string) {
 		if len(values) == 0 {
@@ -415,6 +416,7 @@ func TestScanJSONSchemaRichReports(t *testing.T) {
 // in JSON (no omitempty) is required by the schema, and every optional one
 // is not.
 func TestScanSchemaRequiredFields(t *testing.T) {
+	t.Parallel()
 	schema := readSchema(t)
 	types := map[string]reflect.Type{
 		"": reflect.TypeOf(scanreport.Report{}), "summary": reflect.TypeOf(scanreport.Summary{}), "component": reflect.TypeOf(scanreport.Component{}),
@@ -467,6 +469,7 @@ func TestScanSchemaRequiredFields(t *testing.T) {
 // TestScanJSONSchema: every JSON golden decodes strictly into the report
 // types and conforms to the published schema.
 func TestScanJSONSchema(t *testing.T) {
+	t.Parallel()
 	schema := readSchema(t)
 	goldens, err := filepath.Glob(filepath.Join(testdata, "*.json"))
 	if err != nil || len(goldens) < 2 {

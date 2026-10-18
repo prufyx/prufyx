@@ -53,6 +53,7 @@ func mustPolicy(t *testing.T, list string) TrustPolicy {
 }
 
 func TestTrustPolicyParse(t *testing.T) {
+	t.Parallel()
 	if got := (TrustPolicy{}).String(); got != "reviewed,mechanical,empirical,consensus" || got != DefaultTrustPolicy().String() {
 		t.Fatalf("default=%q", got)
 	}
@@ -73,6 +74,7 @@ func TestTrustPolicyParse(t *testing.T) {
 }
 
 func TestPackBasisLevel(t *testing.T) {
+	t.Parallel()
 	entry := containerdBasisEntry("containerd.synthetic-consensus", constraintengine.BasisConsensus, "")
 	if _, err := assembleSynthetic(syntheticPack(t, packSchemaBasis, nil, entry), nil); err != nil {
 		t.Fatalf("consensus pack under the basis schema refused: %v", err)
@@ -154,6 +156,7 @@ func claimByID(report Report, id string) (constraintengine.Claim, bool) {
 }
 
 func TestTrustPolicySelection(t *testing.T) {
+	t.Parallel()
 	consensusBlock := containerdBasisEntry("containerd.synthetic-a-consensus-block", constraintengine.BasisConsensus, "")
 	consensusQuiet := containerdBasisEntry("containerd.synthetic-b-consensus-quiet", constraintengine.BasisConsensus, containerdShimFact)
 	lead := containerdBasisEntry("containerd.synthetic-c-lead", constraintengine.BasisLead, "")
@@ -280,6 +283,7 @@ func TestTrustPolicySelection(t *testing.T) {
 }
 
 func TestTrustPolicyAndCorpus(t *testing.T) {
+	t.Parallel()
 	lead := containerdBasisEntry("containerd.synthetic-c-lead", constraintengine.BasisLead, "")
 	consensusQuiet := containerdBasisEntry("containerd.synthetic-b-consensus-quiet", constraintengine.BasisConsensus, containerdShimFact)
 	now := mustTime(t, "2026-09-20T00:00:00Z")
@@ -346,6 +350,7 @@ func TestTrustPolicyAndCorpus(t *testing.T) {
 // that admits only mechanical rules must leave every one of them out, on
 // every entry, and none may exit 0.
 func TestPolicyAppliedEverywhere(t *testing.T) {
+	t.Parallel()
 	policy := mustPolicy(t, "mechanical")
 	checker := WithTrustPolicy(policy)
 	now := mustTime(t, "2026-09-20T00:00:00Z")
@@ -432,6 +437,7 @@ func TestPolicyAppliedEverywhere(t *testing.T) {
 }
 
 func TestTrustPolicyDisclosureIntegrity(t *testing.T) {
+	t.Parallel()
 	report, err := WithTrustPolicy(mustPolicy(t, "mechanical")).Check("containerd", containerdInput(t), mustTime(t, "2026-09-20T00:00:00Z"))
 	if err != nil {
 		t.Fatal(err)
@@ -469,6 +475,7 @@ func TestTrustPolicyDisclosureIntegrity(t *testing.T) {
 }
 
 func TestClaimExitBasis(t *testing.T) {
+	t.Parallel()
 	b := testBundle(t)
 	inputRaw := noticeInput()
 	input, err := constraintengine.ParseInput(inputRaw, b.registry)
@@ -524,6 +531,7 @@ func TestClaimExitBasis(t *testing.T) {
 // TestExternalPackRefusesBasis: the external knowledge target does not
 // accept consensus or lead rules yet, even under the basis pack schema.
 func TestExternalPackRefusesBasis(t *testing.T) {
+	t.Parallel()
 	base, err := load()
 	if err != nil {
 		t.Fatal(err)
@@ -549,6 +557,7 @@ func TestExternalPackRefusesBasis(t *testing.T) {
 // is built from leaves out a component whose only rule is a lead, so the
 // generated attestation still binds and admits.
 func TestCorpusInventorySkipsLeadOnlyComponents(t *testing.T) {
+	t.Parallel()
 	const aeraki = "pkg:github/aeraki-mesh/aeraki"
 	lead := containerdBasisEntry("aeraki-mesh.synthetic-lead", constraintengine.BasisLead, "")
 	lead.Project = "aeraki-mesh"
@@ -582,6 +591,7 @@ func TestCorpusInventorySkipsLeadOnlyComponents(t *testing.T) {
 // TestScopeReportDisclosureIntegrity: a scope report's disclosure is checked
 // like a check report's.
 func TestScopeReportDisclosureIntegrity(t *testing.T) {
+	t.Parallel()
 	report, err := WithTrustPolicy(mustPolicy(t, "mechanical")).AssessScope(containerdInput(t), mustTime(t, "2026-09-20T00:00:00Z"))
 	if err != nil {
 		t.Fatal(err)

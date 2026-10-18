@@ -105,6 +105,7 @@ func embeddedPackDigest(raw []byte) string {
 // custom-resource version set of its own project, on the proposed side,
 // declared with the set type. No published rule reads a feature-gate set.
 func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
+	t.Parallel()
 	raw, err := packagedFiles.ReadFile("data/rules.json")
 	if err != nil {
 		t.Fatal(err)
@@ -221,6 +222,7 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 }
 
 func TestSetRulePackSchemaGating(t *testing.T) {
+	t.Parallel()
 	var extra []constraintengine.FactDefinition
 	entry := syntheticSetEntry(t)
 	if _, err := assembleSynthetic(syntheticPack(t, packSchemaSet, extra, entry), extra); err != nil {
@@ -256,6 +258,7 @@ func TestSetRulePackSchemaGating(t *testing.T) {
 // configuration adapter and the fact-family selection the command route
 // uses, against knowledge holding one synthetic set rule.
 func TestSyntheticRemovedGateThroughAdapterAndKnowledge(t *testing.T) {
+	t.Parallel()
 	var extra []constraintengine.FactDefinition
 	b, err := assembleSynthetic(syntheticPack(t, packSchemaSet, extra, syntheticSetEntry(t)), extra)
 	if err != nil {

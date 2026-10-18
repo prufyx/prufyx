@@ -22,6 +22,7 @@ func syntheticCrossingEntry(t *testing.T) Entry {
 }
 
 func TestPackCrossingLevel(t *testing.T) {
+	t.Parallel()
 	entry := syntheticCrossingEntry(t)
 	var extra []constraintengine.FactDefinition
 	if _, err := assembleSynthetic(syntheticPack(t, packSchemaCrossing, extra, entry), extra); err != nil {

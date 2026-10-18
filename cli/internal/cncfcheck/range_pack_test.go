@@ -113,6 +113,7 @@ func withoutRanges(t *testing.T, pack rulePack) rulePack {
 // they must revert to the original schema, and a pack in either state is
 // rejected under the other schema string.
 func TestPackSchemaStatesRangeUse(t *testing.T) {
+	t.Parallel()
 	shipped, err := load()
 	if err != nil {
 		t.Fatal(err)
@@ -144,6 +145,7 @@ func TestPackSchemaStatesRangeUse(t *testing.T) {
 // compare the pack schema with the exact-only string and reject the bundle;
 // under that string this binary rejects it too.
 func TestExternalBundleRangeSchemaGate(t *testing.T) {
+	t.Parallel()
 	entry := ruleEntry(t, "kubernetes", cronJobRuleID)
 	pack := withAnchorOnlyRange(t, rulePack{Entries: []Entry{entry}}, cronJobRuleID)
 	// externalFixture upgrades the schema for ranged packs, so force the
@@ -190,6 +192,7 @@ func TestExternalBundleRangeSchemaGate(t *testing.T) {
 // the pack with the shared matcher and renders the document under the schema
 // its selection requires.
 func TestRangeAwarePrefilterSelectsThroughTheMatcher(t *testing.T) {
+	t.Parallel()
 	base, err := load()
 	if err != nil {
 		t.Fatal(err)
@@ -261,6 +264,7 @@ func mustInput(t *testing.T, b bundle, raw []byte) constraintengine.Input {
 // declared fact, never a false PASS or BLOCKED. Whole-upgrade scope-complete
 // PASS is still out of reach with an incomplete fact set.
 func TestPublishedRangeWidensSelectionAndClaims(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		present     bool
 		wantExit    int

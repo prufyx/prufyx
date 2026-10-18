@@ -31,6 +31,7 @@ func reviewWindowRule(t *testing.T, reviewed, validUntil time.Time) []byte {
 }
 
 func TestCNCFReviewWindowBoundaries(t *testing.T) {
+	t.Parallel()
 	b, err := load()
 	if err != nil {
 		t.Fatal(err)
@@ -63,6 +64,7 @@ func TestCNCFReviewWindowBoundaries(t *testing.T) {
 }
 
 func TestExternalParserSharesCNCFReviewWindow(t *testing.T) {
+	t.Parallel()
 	reviewed := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	entry := kyvernoEntry(t)
 	entry.Rule = reviewWindowRule(t, reviewed, reviewed.Add(maxCNCFReviewWindow+time.Second))

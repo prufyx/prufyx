@@ -172,6 +172,7 @@ func formatRunNamed(t *testing.T, name string) formatRun {
 // only when the documents that were read establish it. When its evidence
 // needs the unreadable document, the answer stays UNKNOWN with no finding.
 func TestScanBlockerNeedingUnreadableDocumentStaysUnknown(t *testing.T) {
+	t.Parallel()
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	scanDir := func(t *testing.T, k Knowledge, contents map[string]string, to string) Result {
 		dir, _ := files(t, contents)
@@ -306,6 +307,7 @@ func TestScanCustomResourceBlockerNotHidden(t *testing.T) {
 //
 // The same holds for a project checked for custom-resource versions.
 func TestScanNeverPassesWithAGap(t *testing.T) {
+	t.Parallel()
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	pool := []string{
 		cronjobV1,
@@ -342,43 +344,63 @@ func TestScanNeverPassesWithAGap(t *testing.T) {
 		}
 		return ids
 	}
-	checked := 0
-	for variantName, v := range variants {
-		for mask := 1; mask < 1<<len(pool); mask++ {
-			contents := map[string]string{}
-			for index, doc := range pool {
-				if mask&(1<<index) != 0 {
-					contents[fmt.Sprintf("doc%d.yaml", index)] = doc
-				}
-			}
-			if len(contents) > v.maxDocs {
-				continue
-			}
-			for _, pair := range v.pairs {
-				scanOf := func(input map[string]string) Result {
-					dir, _ := files(t, input)
-					command := append(append([]string{dir}, v.declarations...), "--now", testNow, "--from", "kubernetes="+pair[0], "--to", "kubernetes="+pair[1])
-					return mustScan(t, knowledge, command...)
-				}
-				readable := scanOf(contents)
-				for _, name := range names {
-					result := scanOf(withFiles(contents, unreadable[name].files))
-					report := result.Report
-					checked++
-					label := fmt.Sprintf("%s mask %b %s->%s %s", variantName, mask, pair[0], pair[1], name)
-					if len(report.Gaps) == 0 || len(report.Omitted) != unreadable[name].omitted || !gapNamed(report, unreadable[name].gap) {
-						t.Fatalf("%s: gap or omission missing: %v", label, gapReasons(report))
+	for variantName, whole := range variants {
+		chunks := 1
+		if variantName == "complete" {
+			chunks = 4
+		}
+		for _, only := range whole.pairs {
+			for chunk := 0; chunk < chunks; chunk++ {
+				v := whole
+				v.pairs = [][2]string{only}
+				t.Run(fmt.Sprintf("%s %s->%s part %d", variantName, only[0], only[1], chunk), func(t *testing.T) {
+					t.Parallel()
+					checked, seen := 0, 0
+					for mask := 1; mask < 1<<len(pool); mask++ {
+						contents := map[string]string{}
+						for index, doc := range pool {
+							if mask&(1<<index) != 0 {
+								contents[fmt.Sprintf("doc%d.yaml", index)] = doc
+							}
+						}
+						if len(contents) > v.maxDocs {
+							continue
+						}
+						seen++
+						if seen%chunks != chunk {
+							continue
+						}
+						for _, pair := range v.pairs {
+							scanOf := func(input map[string]string) Result {
+								dir, _ := files(t, input)
+								command := append(append([]string{dir}, v.declarations...), "--now", testNow, "--from", "kubernetes="+pair[0], "--to", "kubernetes="+pair[1])
+								return mustScan(t, knowledge, command...)
+							}
+							readable := scanOf(contents)
+							for _, name := range names {
+								result := scanOf(withFiles(contents, unreadable[name].files))
+								report := result.Report
+								checked++
+								label := fmt.Sprintf("%s mask %b %s->%s %s", variantName, mask, pair[0], pair[1], name)
+								if len(report.Gaps) == 0 || len(report.Omitted) != unreadable[name].omitted || !gapNamed(report, unreadable[name].gap) {
+									t.Fatalf("%s: gap or omission missing: %v", label, gapReasons(report))
+								}
+								if report.Verdict == scanreport.VerdictPass || result.Exit == scanreport.ExitPass {
+									t.Fatalf("%s: PASS with gaps %v", label, gapReasons(report))
+								}
+								if !reflect.DeepEqual(ruleIDs(report), ruleIDs(readable.Report)) {
+									t.Fatalf("%s: findings %v, readable documents alone %v", label, ruleIDs(report), ruleIDs(readable.Report))
+								}
+								if (readable.Exit == scanreport.ExitBlocked) != (result.Exit == scanreport.ExitBlocked) {
+									t.Fatalf("%s: exit %d, readable documents alone %d", label, result.Exit, readable.Exit)
+								}
+							}
+						}
 					}
-					if report.Verdict == scanreport.VerdictPass || result.Exit == scanreport.ExitPass {
-						t.Fatalf("%s: PASS with gaps %v", label, gapReasons(report))
+					if checked == 0 {
+						t.Fatal("nothing checked")
 					}
-					if !reflect.DeepEqual(ruleIDs(report), ruleIDs(readable.Report)) {
-						t.Fatalf("%s: findings %v, readable documents alone %v", label, ruleIDs(report), ruleIDs(readable.Report))
-					}
-					if (readable.Exit == scanreport.ExitBlocked) != (result.Exit == scanreport.ExitBlocked) {
-						t.Fatalf("%s: exit %d, readable documents alone %d", label, result.Exit, readable.Exit)
-					}
-				}
+				})
 			}
 		}
 	}
@@ -387,33 +409,37 @@ func TestScanNeverPassesWithAGap(t *testing.T) {
 	crd := newCRDKnowledge(t)
 	crPool := []string{kafkaV1Doc, kafkaV1beta2Doc, unownedGroupDoc, settingsDoc}
 	for _, scope := range [][]string{{"--resource-scope-complete"}, nil} {
-		for mask := 1; mask < 1<<len(crPool); mask++ {
-			contents := map[string]string{}
-			for index, doc := range crPool {
-				if mask&(1<<index) != 0 {
-					contents[fmt.Sprintf("doc%d.yaml", index)] = doc
+		t.Run(fmt.Sprintf("strimzi %v", scope), func(t *testing.T) {
+			t.Parallel()
+			checked := 0
+			for mask := 1; mask < 1<<len(crPool); mask++ {
+				contents := map[string]string{}
+				for index, doc := range crPool {
+					if mask&(1<<index) != 0 {
+						contents[fmt.Sprintf("doc%d.yaml", index)] = doc
+					}
+				}
+				scanOf := func(input map[string]string) Result {
+					dir, _ := files(t, input)
+					return mustScan(t, crd, append([]string{dir, "--now", testNow, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0"}, scope...)...)
+				}
+				readable := scanOf(contents)
+				for _, name := range names {
+					result := scanOf(withFiles(contents, unreadable[name].files))
+					checked++
+					label := fmt.Sprintf("strimzi %v mask %b %s", scope, mask, name)
+					if result.Exit == scanreport.ExitPass || !gapNamed(result.Report, unreadable[name].gap) || len(result.Report.Passes) != 0 {
+						t.Fatalf("%s: exit %d passes %d gaps %v", label, result.Exit, len(result.Report.Passes), gapReasons(result.Report))
+					}
+					if !reflect.DeepEqual(ruleIDs(result.Report), ruleIDs(readable.Report)) {
+						t.Fatalf("%s: findings %v, readable documents alone %v", label, ruleIDs(result.Report), ruleIDs(readable.Report))
+					}
 				}
 			}
-			scanOf := func(input map[string]string) Result {
-				dir, _ := files(t, input)
-				return mustScan(t, crd, append([]string{dir, "--now", testNow, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0"}, scope...)...)
+			if checked == 0 {
+				t.Fatal("nothing checked")
 			}
-			readable := scanOf(contents)
-			for _, name := range names {
-				result := scanOf(withFiles(contents, unreadable[name].files))
-				checked++
-				label := fmt.Sprintf("strimzi %v mask %b %s", scope, mask, name)
-				if result.Exit == scanreport.ExitPass || !gapNamed(result.Report, unreadable[name].gap) || len(result.Report.Passes) != 0 {
-					t.Fatalf("%s: exit %d passes %d gaps %v", label, result.Exit, len(result.Report.Passes), gapReasons(result.Report))
-				}
-				if !reflect.DeepEqual(ruleIDs(result.Report), ruleIDs(readable.Report)) {
-					t.Fatalf("%s: findings %v, readable documents alone %v", label, ruleIDs(result.Report), ruleIDs(readable.Report))
-				}
-			}
-		}
-	}
-	if checked == 0 {
-		t.Fatal("nothing checked")
+		})
 	}
 }
 
@@ -424,6 +450,7 @@ func TestScanNeverPassesWithAGap(t *testing.T) {
 // template and a test hook are not witnesses: the answer stays UNKNOWN.
 // Documents that are rendered unconditionally still block.
 func TestScanWitnessMustBeRenderedUnconditionally(t *testing.T) {
+	t.Parallel()
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	cron := "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata: {name: legacy}\n"
 	templated := "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: '{{ .Release.Name }}'}\n"
