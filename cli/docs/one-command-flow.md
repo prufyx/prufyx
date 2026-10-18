@@ -32,6 +32,35 @@ It authors zero new compatibility claims. The classification never decides
 whether a transition is safe; it only decides whether a check *could* be
 attempted from what was collected, and if not, exactly why.
 
+## Run it
+
+```sh
+prufyx assess --kubeconfig "$HOME/.kube/config" --acknowledge-kubeconfig-exec-risk my-context
+```
+
+Three things you need to know before the first run:
+
+- **Both `--kubeconfig FILE` and `--acknowledge-kubeconfig-exec-risk` are
+  required**, and so is at least one `CONTEXT`. Without any of them the command
+  exits `2` with `invalid assess arguments; use --help`.
+- **Put every flag before the context name.** Flag parsing stops at the first
+  argument that is not a flag, and everything after it is read as another
+  context name. In
+  `prufyx assess --kubeconfig FILE --acknowledge-kubeconfig-exec-risk my-context --format json`
+  the `--format json` is not a flag. Write
+  `prufyx assess --kubeconfig FILE --acknowledge-kubeconfig-exec-risk --format json my-context`.
+  A flag given twice is refused as well. Global flags before `assess` are not
+  supported: `prufyx --kubeconfig FILE assess` is an unknown command.
+- **The answer is a triage list, not a verdict.** It says which checks could
+  apply to what was found and what each still needs from you (the
+  [declarations](declarations.md) and input files), and its `aggregate` stays
+  `UNKNOWN` unless you pass `--scope-input` (see below). Run the `check` or
+  `scan` command it names to get an actual verdict; see
+  [verdicts.md](verdicts.md) for how to read those.
+
+`assess` is the only command that reads a cluster. It is read-only, goes
+through `kubectl`, and uses only the kubeconfig and context you name.
+
 ## The three-way (in practice four-way) applicability split
 
 For each of the 194 native routes, against each collected kubeconfig
