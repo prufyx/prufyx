@@ -3,6 +3,7 @@
 package communityapp
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -48,6 +49,25 @@ func prometheusNativeRuleID(from, to string, alertmanager bool) string {
 		return "prometheus.alertmanager-api-v1.target-config." + origin + "-to-3-14-0"
 	}
 	return "prometheus.scrape-classic-histograms.target-config." + origin + "-to-3-14-0"
+}
+
+// cncfJSONOnlyInputFlag names, per project, the input flag whose file must be
+// JSON. YAML there would otherwise surface as a missing-fact UNKNOWN.
+var cncfJSONOnlyInputFlag = map[string]string{
+	"strimzi":    "kafka-resource",
+	"falco":      "falco-argv",
+	"kuma":       "kumactl-argv",
+	"crossplane": "composition",
+	"velero":     "upgrade-plan",
+	"spire":      "spire-entry-argv",
+	"keda":       "keda-scaled-object",
+}
+
+// looksLikeJSON reports whether the first non-space byte opens a JSON object
+// or array. It only picks the error message; the strict decoder still decides.
+func looksLikeJSON(raw []byte) bool {
+	trimmed := bytes.TrimSpace(raw)
+	return len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[')
 }
 
 // cncfNativeResourceCheck makes the native-resource adapters useful without
@@ -125,6 +145,9 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 		digest := digestCommunityBytes(raw)
 		if nativePin != "" && nativePin != digest {
 			return r.fail("NATIVE_CNCF_RESOURCE_INTEGRITY_FAILURE", ExitIntegrity)
+		}
+		if flag, jsonOnly := cncfJSONOnlyInputFlag[project]; jsonOnly && !looksLikeJSON(raw) {
+			return r.usage("--" + flag + " must be JSON; convert YAML first, for example with: yq -o=json FILE")
 		}
 		if project == "kubevirt" {
 			prepared, err = cncfprepare.PrepareKubeVirt(raw, from, to)

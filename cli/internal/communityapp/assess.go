@@ -43,10 +43,21 @@ func (r runtime) assess(ctx context.Context, args []string) int {
 		return r.usage("invalid assess arguments; use --help")
 	}
 	contexts := fs.Args()
-	if *kubeconfig == "" || !*ack || len(contexts) == 0 || (*format != "human" && *format != "json") {
-		return r.usage("invalid assess arguments; use --help")
+	for _, name := range contexts {
+		if !hasDoubleDash(args) && strings.HasPrefix(name, "-") {
+			return r.usage(fmt.Sprintf("assess: flags must come before CONTEXT; found %q after the context name", name))
+		}
 	}
-
+	switch {
+	case *kubeconfig == "":
+		return r.usage("assess: missing --kubeconfig FILE (an explicit private kubeconfig is required)")
+	case !*ack:
+		return r.usage("assess: missing --acknowledge-kubeconfig-exec-risk (confirms you trust the authentication helpers in the kubeconfig)")
+	case *format != "human" && *format != "json":
+		return r.usage(fmt.Sprintf("assess: unsupported --format %q; use human or json", *format))
+	case len(contexts) == 0:
+		return r.usage("assess: missing CONTEXT (one or more kubeconfig context names, after all flags)")
+	}
 	if *to != "" && !constraintengine.SameVersion(*to, *to) {
 		return r.usage("invalid --to " + *to + ": use a strict X.Y.Z release version such as 1.25.4 (not 1.25, v1.25.4 or 1.25.4-gke.100)")
 	}
@@ -233,4 +244,15 @@ Options:
   --output DIR                              private working directory for the collected bundle (default: a fresh temporary directory)
   --exec-env NAME                           forward one named ambient variable to kubectl; repeatable
   --format human|json                       default human`)
+}
+
+// hasDoubleDash reports an explicit "--" terminator, after which a leading
+// "-" in a context name is deliberate.
+func hasDoubleDash(args []string) bool {
+	for _, arg := range args {
+		if arg == "--" {
+			return true
+		}
+	}
+	return false
 }

@@ -120,7 +120,7 @@ func parseProjectArguments(args []string, check bool) (projectArguments, bool) {
 		return projectArguments{}, false
 	}
 	if check {
-		if result.now == "" || (result.format != "human" && result.format != "json") {
+		if result.now == "" {
 			return projectArguments{}, false
 		}
 	} else if result.now != "" || (result.format != "human" && result.format != "json" && result.format != "input") {
@@ -204,6 +204,9 @@ func (r runtime) project(args []string) int {
 	request, ok := parseProjectArguments(args, true)
 	if !ok {
 		return r.usage("invalid check project arguments; embedded-only route; use --help")
+	}
+	if request.format != "human" && request.format != "json" {
+		return r.usage(fmt.Sprintf("unsupported --format %q for check; use human or json", request.format))
 	}
 	now, err := parseUTC(request.now)
 	if err != nil || now.Nanosecond() != 0 {
