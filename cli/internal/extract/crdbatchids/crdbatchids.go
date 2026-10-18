@@ -77,7 +77,7 @@ var lines = []Line{
 }
 
 // otherQuiet are quiet lines of the same family that other changes ship (the
-// keda and cert-manager targets). Holds accepts them; they are
+// keda, cert-manager and velero targets). Holds accepts them; they are
 // not part of the all-or-none batch and are not counted.
 var otherQuiet = []Line{
 	{"pkg:github/cert-manager/cert-manager", "1.20"},
@@ -87,6 +87,11 @@ var otherQuiet = []Line{
 	{"pkg:github/kedacore/keda", "2.19"},
 	{"pkg:github/kedacore/keda", "2.20"},
 	{"pkg:github/kedacore/keda", "2.21"},
+	{"pkg:github/velero-io/velero", "1.14"},
+	{"pkg:github/velero-io/velero", "1.15"},
+	{"pkg:github/velero-io/velero", "1.16"},
+	{"pkg:github/velero-io/velero", "1.17"},
+	{"pkg:github/velero-io/velero", "1.18"},
 }
 
 // Rules returns the batch's rules in id order.
