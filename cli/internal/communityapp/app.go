@@ -212,7 +212,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, version s
 		}
 		return r.usage("Usage: prufyx community-preview <example|validate-prometheus-mode> [flags]")
 	default:
-		return r.usage("unknown command; use prufyx --help")
+		return r.usage(fmt.Sprintf("unknown command %q; flags go after the command (prufyx COMMAND [flags]); use prufyx --help", args[0]))
 	}
 }
 
