@@ -153,6 +153,7 @@ func requireCode(t *testing.T, r approvalRun, code int, want string) {
 // the whole gate for a new rule and for a changed rule, read from a key
 // file and from standard input, and "approval verify" accepts it too.
 func TestApprovalSignRoundTripThroughGate(t *testing.T) {
+	t.Parallel()
 	for name, mk := range map[string]func(*testing.T) signFixture{"new rule": newRuleFixture, "changed rule": changedRuleFixture} {
 		for _, src := range []string{"file", "stdin"} {
 			t.Run(name+" key "+src, func(t *testing.T) {
@@ -183,6 +184,7 @@ func TestApprovalSignRoundTripThroughGate(t *testing.T) {
 // The file the signer writes is byte for byte the one the gate's own test
 // signer builds from the same record: the format is the gate's.
 func TestApprovalSignBytesMatchGateFormat(t *testing.T) {
+	t.Parallel()
 	f := changedRuleFixture(t)
 	requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.signArgs("--key-stdin")...), 0, "approval written")
 	got, err := os.ReadFile(f.out())
@@ -207,6 +209,7 @@ func TestApprovalSignBytesMatchGateFormat(t *testing.T) {
 // Changing any signed field, the key id, the signature or the schema of a
 // signed approval makes both "approval verify" and the gate refuse it.
 func TestApprovalSignTamperRefused(t *testing.T) {
+	t.Parallel()
 	f := changedRuleFixture(t)
 	requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.signArgs("--key-stdin")...), 0, "approval written")
 	signed, err := os.ReadFile(f.out())
@@ -260,6 +263,7 @@ func TestApprovalSignTamperRefused(t *testing.T) {
 // A change to the proposed or the base entry after signing invalidates the
 // approval.
 func TestApprovalSignEntryChangedAfterSigning(t *testing.T) {
+	t.Parallel()
 	f := changedRuleFixture(t)
 	requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.signArgs("--key-stdin")...), 0, "approval written")
 	editPack(t, f.head, cncfRulesPath, func(p *packDoc) {
@@ -276,6 +280,7 @@ func TestApprovalSignEntryChangedAfterSigning(t *testing.T) {
 }
 
 func TestApprovalSignWrongKey(t *testing.T) {
+	t.Parallel()
 	f := newRuleFixture(t)
 	stranger := newApprovalKey(t)
 	// Signing with a key that is not pinned is refused before anything is
@@ -300,6 +305,7 @@ func TestApprovalSignWrongKey(t *testing.T) {
 }
 
 func TestApprovalSignKeyAndOwnerChecks(t *testing.T) {
+	t.Parallel()
 	t.Run("expired key", func(t *testing.T) {
 		f := newRuleFixture(t)
 		f.key.pinUntil(t, f.base, signNow.Add(-time.Second).Format(time.RFC3339), "airstand")
@@ -349,6 +355,7 @@ func TestApprovalSignKeyAndOwnerChecks(t *testing.T) {
 // An approval is accepted from its decision time (with the gate's five
 // minutes of skew) until 14 days later, and refused outside that window.
 func TestApprovalSignDecidedAtWindow(t *testing.T) {
+	t.Parallel()
 	f := newRuleFixture(t)
 	requireCode(t, runApproval(t, f.key.pemKey(t), signNow, f.signArgs("--key-stdin")...), 0, "approval written")
 	at := func(d time.Duration) string { return signNow.Add(d).Format(time.RFC3339) }
@@ -362,6 +369,7 @@ func TestApprovalSignDecidedAtWindow(t *testing.T) {
 }
 
 func TestApprovalSignSubjectRefusals(t *testing.T) {
+	t.Parallel()
 	t.Run("unsupported subject kind", func(t *testing.T) {
 		f := newRuleFixture(t)
 		requireCode(t, runApproval(t, f.key.pemKey(t), signNow, append(f.signArgs("--key-stdin"), "--subject", "pathPolicy")...), 2, "not supported")
@@ -422,6 +430,7 @@ func TestApprovalSignSubjectRefusals(t *testing.T) {
 // The key file must be the file itself (no link anywhere in its path, one
 // hard link), owned by the user, with no group or other permission.
 func TestApprovalSignKeyFileRefusals(t *testing.T) {
+	t.Parallel()
 	f := newRuleFixture(t)
 	for _, perm := range []os.FileMode{0o644, 0o640, 0o604, 0o660, 0o602, 0o620, 0o610, 0o601, 0o666, os.ModeSetuid | 0o600, os.ModeSetgid | 0o600, os.ModeSticky | 0o600} {
 		path := f.key.keyFile(t, perm)
@@ -470,6 +479,7 @@ func TestApprovalSignKeyFileRefusals(t *testing.T) {
 // manager or a file usually leave it) and nothing else, and is never read
 // from a terminal.
 func TestApprovalSignKeyStdin(t *testing.T) {
+	t.Parallel()
 	key := newApprovalKey(t)
 	block := bytes.TrimRight(key.pemKey(t), "\n")
 	for name, suffix := range map[string]string{"no newline": "", "newline": "\n", "CRLF": "\r\n", "two newlines": "\n\n"} {
@@ -536,6 +546,7 @@ func TestApprovalSignKeyStdin(t *testing.T) {
 }
 
 func TestApprovalPublicKeyAndKeysDigest(t *testing.T) {
+	t.Parallel()
 	f := newRuleFixture(t)
 	r := runApproval(t, nil, signNow, "public-key", "--key", f.key.keyFile(t, 0o600))
 	requireCode(t, r, 0, ApprovalKeyID(f.key.public))
@@ -560,6 +571,7 @@ func TestApprovalPublicKeyAndKeysDigest(t *testing.T) {
 // independent computation, for the endings editors and tools write, through
 // the whole gate.
 func TestApprovalKeysDigestOfNewlineTerminatedFile(t *testing.T) {
+	t.Parallel()
 	for name, ending := range map[string]string{"LF": "\n", "two LF": "\n\n", "CRLF": "\r\n"} {
 		t.Run(name, func(t *testing.T) {
 			f := newRuleFixture(t)
@@ -597,6 +609,7 @@ func TestApprovalKeysDigestOfNewlineTerminatedFile(t *testing.T) {
 // A change the gate classifies as tightening needs no approval; the signer
 // refuses it instead of writing a file the gate's records check would fail.
 func TestApprovalSignRefusesTightening(t *testing.T) {
+	t.Parallel()
 	for name, edit := range map[string]func(e map[string]any){
 		"withdrawn": func(e map[string]any) { evidenceOf(e)["state"] = "withdrawn" },
 		"earlier lease end": func(e map[string]any) {
@@ -622,6 +635,7 @@ func TestApprovalSignRefusesTightening(t *testing.T) {
 }
 
 func TestApprovalSignOutputName(t *testing.T) {
+	t.Parallel()
 	f := newRuleFixture(t)
 	for _, out := range []string{
 		filepath.Join(t.TempDir(), "approval.json"),
@@ -640,6 +654,7 @@ func TestApprovalSignOutputName(t *testing.T) {
 // Help prints the usage on standard output and exits 0; a refused command
 // line prints the reason and then the usage, line by line.
 func TestApprovalHelpAndUsage(t *testing.T) {
+	t.Parallel()
 	for _, args := range [][]string{{"--help"}, {"sign", "--help"}, {"sign", "-h"}, {"verify", "--help"}, {"public-key", "-help"}, {"keys-digest", "--help"}} {
 		r := runApproval(t, nil, signNow, args...)
 		if r.code != 0 || !strings.HasPrefix(r.stdout, "usage: prufyx-maintainer approval") || !strings.Contains(r.stdout, "\n  verify ") || r.stderr != "" {

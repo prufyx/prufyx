@@ -91,6 +91,7 @@ func attestFixture(t *testing.T, edit func(target map[string]any)) *onboardingFi
 }
 
 func TestOnboardingAttestFlip(t *testing.T) {
+	t.Parallel()
 	f := attestFixture(t, nil)
 	f.sign(t, f.record(t))
 	r := f.gate(t)
@@ -104,6 +105,7 @@ func TestOnboardingAttestFlip(t *testing.T) {
 }
 
 func TestOnboardingAttestRefusals(t *testing.T) {
+	t.Parallel()
 	t.Run("refuted claims", func(t *testing.T) {
 		f := attestFixture(t, nil)
 		f.draft.Projects[0].Proof.Claims.Refuted = 1
@@ -197,6 +199,7 @@ func scanOf(t *testing.T, f *onboardingFixture, src *obSource) []OnboardingFindi
 }
 
 func TestOnboardingRecordsRule(t *testing.T) {
+	t.Parallel()
 	f := newOnboardingFixture(t)
 	rec := f.record(t)
 	raw := f.key.signOnboarding(t, rec)
@@ -223,6 +226,7 @@ func TestOnboardingRecordsRule(t *testing.T) {
 // A knowledge batch refuses an onboarding path, and an onboarding batch an
 // approval path: neither path admits the other's files.
 func TestOnboardingAndKnowledgeBatchesRefuseEachOther(t *testing.T) {
+	t.Parallel()
 	bf := newBatchFixture(t, 3)
 	rec := bf.record(t)
 	bf.signAndWrite(t, rec)
@@ -238,6 +242,7 @@ func TestOnboardingAndKnowledgeBatchesRefuseEachOther(t *testing.T) {
 }
 
 func TestOnboardingSignAndVerifyCommands(t *testing.T) {
+	t.Parallel()
 	f := newOnboardingFixture(t)
 	ol := DefaultLayout().Onboarding
 	dir := t.TempDir()
@@ -279,6 +284,7 @@ func TestOnboardingSignAndVerifyCommands(t *testing.T) {
 // The signed bytes, the sample and the change-set digest are pinned: the
 // signing tool and the gate of a later revision must compute them alike.
 func TestOnboardingVectors(t *testing.T) {
+	t.Parallel()
 	p := OnboardingProject{
 		Artifacts: []OnboardingArtifact{{Digest: obLedger, Path: "cli/internal/extract/crdversions/target-sample.json"}},
 		Catalog:   "cncf", Facts: []string{"component.sample.custom_resource_versions_set"}, Groups: []string{"sample.synthetic.example"}, Kind: OnboardingKindNew, Slug: "sample",
@@ -322,6 +328,7 @@ func TestOnboardingVectors(t *testing.T) {
 // The registry the gate compiles from the embedded table is the compiled
 // registry the embedded pack names.
 func TestTableRegistryDigestOfTheEmbeddedTable(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile(filepath.Join(repoRoot, "cli/internal/customresources/table.json"))
 	if err != nil {
 		t.Fatal(err)

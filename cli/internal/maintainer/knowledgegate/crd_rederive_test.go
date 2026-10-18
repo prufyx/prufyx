@@ -78,6 +78,7 @@ func crdChanges(t *testing.T, entries []map[string]any) []*Change {
 // pinned bytes, and refuses each one that does not come out of the
 // extractor byte for byte.
 func TestGateRederivesCRDRules(t *testing.T) {
+	t.Parallel()
 	src := extract.FixtureReader{Root: strimziFixture}
 	changes := crdChanges(t, crdEntries(t, gateNow.Add(-time.Hour)))
 	rederive(context.Background(), src, extractcli.Catalog(), 0, DefaultLayout(), changes)
@@ -177,6 +178,7 @@ func crdHead(t *testing.T, entries []map[string]any, registryDigest string) (Tre
 // content requires: the gate admits that schema change (schema.go) and the
 // whole change passes.
 func TestGateAdmitsCRDRules(t *testing.T) {
+	t.Parallel()
 	for _, p := range customresources.Projects() {
 		if !cncfcheck.RegisteredFact(p.FactID()) {
 			t.Fatalf("%s is not registered", p.FactID())
@@ -215,6 +217,7 @@ func TestGateAdmitsCRDRules(t *testing.T) {
 // byte, and the CNCF admission check still refuses them: the engine does not
 // know the fact.
 func TestGateRefusesCRDRulesOfUnregisteredProject(t *testing.T) {
+	t.Parallel()
 	tg, ok := crdversions.TargetFor("longhorn")
 	if !ok || !cncfcheck.RegisteredFact(tg.FactID()) {
 		t.Fatalf("longhorn target %v, registered %v", ok, cncfcheck.RegisteredFact(tg.FactID()))

@@ -30,6 +30,7 @@ func entryFrom(t *testing.T, e map[string]any) *entry {
 // TestClassifyTable covers every class and kind with edits of a real
 // reviewed rule (with a range) from the shipped CNCF pack.
 func TestClassifyTable(t *testing.T) {
+	t.Parallel()
 	tr := copyKnowledge(t)
 	p := readPack(t, tr, cncfRulesPath)
 	var ranged, plain map[string]any
@@ -108,6 +109,7 @@ func withState(e map[string]any, state string) map[string]any {
 
 // TestClassifyAddRemove covers rules present in only one pack.
 func TestClassifyAddRemove(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	p := readPack(t, base, cncfRulesPath)
 	ids := p.activeReviewed()

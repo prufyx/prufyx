@@ -28,6 +28,7 @@ func gitIn(t *testing.T, dir string, args ...string) string {
 // bytes, while a checkout of the same commit differs: the gate checks
 // what merges, not what the change's attributes make of it.
 func TestExportIgnoresTheCommitsAttributes(t *testing.T) {
+	t.Parallel()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git is not installed")
 	}
@@ -99,6 +100,7 @@ func TestExportIgnoresTheCommitsAttributes(t *testing.T) {
 }
 
 func TestParseLsTreeRefuses(t *testing.T) {
+	t.Parallel()
 	blob := "100644 blob " + strings.Repeat("a", 40) + "      3\t"
 	for name, rec := range map[string]string{
 		"dot dot":      blob + "cli/../x",

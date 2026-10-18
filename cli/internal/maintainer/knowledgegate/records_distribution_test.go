@@ -16,6 +16,7 @@ import (
 // distributions section and line attestations is classified as usual, and
 // the section is no change at all.
 func TestRecordsAreReadBesideADistributionSection(t *testing.T) {
+	t.Parallel()
 	revision := strings.Repeat("a", 40)
 	evidence := distribution.Evidence{
 		State: distribution.StateActive, ReviewedAt: "2026-10-01T00:00:00Z", ValidUntil: "2026-12-30T00:00:00Z",

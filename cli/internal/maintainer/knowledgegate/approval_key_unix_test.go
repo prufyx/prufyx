@@ -28,6 +28,7 @@ func TestApprovalSignKeyFileOwner(t *testing.T) {
 // key, and a regular file redirected to standard input would skip the
 // checks --key applies to files.
 func TestCheckKeyStdin(t *testing.T) {
+	t.Parallel()
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -64,6 +65,7 @@ func TestCheckKeyStdin(t *testing.T) {
 // The production standard-input check, end to end: a key piped in signs; the
 // same key file redirected to standard input is refused.
 func TestApprovalSignKeyStdinProductionCheck(t *testing.T) {
+	t.Parallel()
 	run := func(stdin *os.File, f signFixture) approvalRun {
 		var out, errOut bytes.Buffer
 		env := approvalEnv{stdin: stdin, now: func() time.Time { return signNow }, checkStdin: checkKeyStdin}
@@ -92,6 +94,7 @@ func TestApprovalSignKeyStdinProductionCheck(t *testing.T) {
 // missing directories are created, and no directory of the output path may
 // be a symbolic link.
 func TestApprovalSignOutputFile(t *testing.T) {
+	t.Parallel()
 	old := syscall.Umask(0o077)
 	defer syscall.Umask(old)
 	f := newRuleFixture(t)

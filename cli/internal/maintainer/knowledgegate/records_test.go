@@ -160,6 +160,7 @@ func requireAdmittedButUnsplit(t *testing.T, r *Report) {
 // The base attests line 1.22; the shipped pack's 1.22 rules are line-wide,
 // so an attested pack is admitted unchanged.
 func TestGateAttestedPackUnchanged(t *testing.T) {
+	t.Parallel()
 	base, head := attestedTrees(t, []string{"1.22"}, []string{"1.22"}, nil)
 	r := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})
 	requireAdmittedButUnsplit(t, r)
@@ -175,6 +176,7 @@ func TestGateAttestedPackUnchanged(t *testing.T) {
 // an attested line without updating the attestation fails the rule check
 // (and admission).
 func TestGateAttestationRemovalAndRuleSets(t *testing.T) {
+	t.Parallel()
 	base, head := attestedTrees(t, []string{"1.22", "1.25"}, []string{"1.22"}, nil)
 	r := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})
 	requireAdmittedButUnsplit(t, r)
@@ -204,6 +206,7 @@ func TestGateAttestationRemovalAndRuleSets(t *testing.T) {
 // Acceptance 4: switching off many records trips the record breaker; the
 // rule breaker is unchanged.
 func TestGateRecordBreaker(t *testing.T) {
+	t.Parallel()
 	lines := []string{"1.22", "1.23", "1.24", "1.25", "1.26", "1.27", "1.28", "1.29", "1.30", "1.31", "1.33", "1.34"}
 	base, head := attestedTrees(t, append(lines, "1.35"), []string{"1.35"}, nil)
 	r := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin, MaxWithdrawPercent: 5})
@@ -228,6 +231,7 @@ func TestGateRecordBreaker(t *testing.T) {
 // Acceptance 3: a reviewed attestation added outside a renewal needs an
 // owner approval for exactly that record and the extractor cross-check.
 func TestGateReviewedAttestationApproval(t *testing.T) {
+	t.Parallel()
 	key := newApprovalKey(t)
 	setup := func(t *testing.T, line string) (Tree, Tree, string) {
 		base, head := attestedTrees(t, []string{"1.22"}, []string{"1.22", line}, nil)
@@ -415,6 +419,7 @@ func TestGateReviewedAttestationApproval(t *testing.T) {
 // crossCheckAttestation on its own: the extractor's run over the fixture
 // derives lines 1.25, 1.31, 1.32 and 1.33; its declared first line is 1.20.
 func TestCrossCheckAttestation(t *testing.T) {
+	t.Parallel()
 	out, floor, err := runAttester(context.Background(), fixtureSource, extractcli.Catalog(), 0, lineattest.FamilyKubernetesRemovedServedGVK, recordComponent, gateNow)
 	if err != nil {
 		t.Fatal(err)
@@ -579,6 +584,7 @@ func derivedAttestation(t *testing.T, line string) map[string]any {
 // Acceptance 2: a mechanical attestation is admitted only when the
 // extractor re-derives it byte for byte, under the derivation-time bound.
 func TestGateMechanicalAttestation(t *testing.T) {
+	t.Parallel()
 	add := func(tamper func(a map[string]any)) (Tree, Tree) {
 		return attestedTrees(t, []string{"1.22"}, []string{"1.22"}, func(p *packDoc, atts []map[string]any) []map[string]any {
 			a := derivedAttestation(t, "1.31")
@@ -669,6 +675,7 @@ func TestGateMechanicalAttestation(t *testing.T) {
 // let the same approval re-add it later). Kept, the approval in the base
 // refuses a re-add, in any encoding.
 func TestRecordApprovalIsKeptWhileItCouldVerify(t *testing.T) {
+	t.Parallel()
 	key := newApprovalKey(t)
 	id := attestationID("1.25")
 	setup := func(t *testing.T, keepInHead bool) (Tree, Tree) {
@@ -710,6 +717,7 @@ func TestRecordApprovalIsKeptWhileItCouldVerify(t *testing.T) {
 // may be overwritten only by a later one. The owner's real replacement
 // (X → X′ with A2 over A1) still passes.
 func TestSupersededRecordApprovalCannotReturn(t *testing.T) {
+	t.Parallel()
 	key := newApprovalKey(t)
 	id := attestationID("1.25")
 	laterX2 := func(p *packDoc, atts []map[string]any) []map[string]any {

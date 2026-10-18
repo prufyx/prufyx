@@ -50,6 +50,7 @@ func recordChange(t *testing.T, base, head *loadedPack, id string) *Change {
 }
 
 func TestClassifyRecordEdits(t *testing.T) {
+	t.Parallel()
 	ev := func(doc map[string]any, section string) map[string]any {
 		return sectionRecord(doc, section, 0)["evidence"].(map[string]any)
 	}
@@ -164,6 +165,7 @@ func TestClassifyRecordEdits(t *testing.T) {
 // A withdrawn path policy whose dates move later is no renewal (and not
 // tightening): a withdrawn record is never renewed.
 func TestWithdrawnPolicyWithLaterDatesIsNoRenewal(t *testing.T) {
+	t.Parallel()
 	withdraw := func(doc map[string]any) {
 		sectionRecord(doc, "pathPolicies", 0)["evidence"].(map[string]any)["state"] = "withdrawn"
 	}
@@ -196,6 +198,7 @@ func TestWithdrawnPolicyWithLaterDatesIsNoRenewal(t *testing.T) {
 // A record section that differs while no record does is a pack-member
 // change: the section never changes unseen.
 func TestRecordSectionFallsBackToMemberChange(t *testing.T) {
+	t.Parallel()
 	base, head := recordPair(t, func(d map[string]any) {})
 	head.Members["lineAttestations"] = json.RawMessage(`[]`)
 	var member bool
@@ -212,6 +215,7 @@ func TestRecordSectionFallsBackToMemberChange(t *testing.T) {
 // A pack whose records cannot be read is refused, never read as having
 // none.
 func TestLoadPackRefusesUnreadableRecords(t *testing.T) {
+	t.Parallel()
 	raw, _, _ := recordPack(t, gateNow, false)
 	var doc map[string]any
 	if err := json.Unmarshal(raw, &doc); err != nil {
@@ -232,6 +236,7 @@ func TestLoadPackRefusesUnreadableRecords(t *testing.T) {
 // The signed fields of an approval: a rule approval names no subject and no
 // scope; a record approval names a known subject and a well-formed scope.
 func TestApprovalRecordSubjectAndScope(t *testing.T) {
+	t.Parallel()
 	base := ApprovalRecord{BaseDigest: ApprovalBaseAbsent, CandidateDigest: "sha256:0000000000000000000000000000000000000000000000000000000000000000",
 		CandidateID: "cand-1", DecidedAt: "2026-10-03T11:00:00Z", Decision: "approve", Identity: "airstand", Pack: "cncf", RuleID: "line-attestation.000000000000000000000000"}
 	good := base

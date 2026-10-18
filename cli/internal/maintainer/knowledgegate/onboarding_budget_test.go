@@ -22,6 +22,7 @@ func (s *budgetStub) Read(extract.RepoRef, string, string) ([]byte, error) {
 // The per-project dry-run budget is a decision of the owner; moving it is a
 // reviewed change of this test too. The run budget (--rest-budget) is separate.
 func TestOnboardingProjectBudgetValues(t *testing.T) {
+	t.Parallel()
 	if OnboardingRESTBudget != 250 || OnboardingReadBudget != 3000 {
 		t.Fatalf("per-project budget is %d REST / %d reads, want 250 / 3000", OnboardingRESTBudget, OnboardingReadBudget)
 	}
@@ -30,6 +31,7 @@ func TestOnboardingProjectBudgetValues(t *testing.T) {
 // A project that reaches either limit is refused from then on: no read after
 // the limit succeeds and the source stays over.
 func TestBudgetSourceStopsAtEitherLimit(t *testing.T) {
+	t.Parallel()
 	st := &budgetStub{}
 	b := &budgetSource{src: st, stats: st}
 	for i := 0; i < OnboardingReadBudget; i++ {

@@ -95,6 +95,7 @@ func requireSchemaRefused(t *testing.T, r *Report, want string) {
 // Strimzi rules and no attestations, v1alpha2 to v1alpha3, is
 // TestGateAdmitsCRDRules.)
 func TestSchemaBumpAdmittedWithFirstAttestedUpdate(t *testing.T) {
+	t.Parallel()
 	base, head := schemaTrees(t, attestedPackSchema, nil)
 	r := gateArgo(t, base, head)
 	if !r.Passed() {
@@ -129,6 +130,7 @@ func TestSchemaBumpAdmittedWithFirstAttestedUpdate(t *testing.T) {
 // when the gate passes and the automation account authored it, it is not
 // eligible for automatic merging, and the reason names the schema level.
 func TestSchemaBumpIsNeverAutoMerged(t *testing.T) {
+	t.Parallel()
 	base, head := schemaTrees(t, attestedPackSchema, nil)
 	r := runGate(t, Options{Base: base, Head: head, Source: argoFixture, Author: DefaultBotLogin})
 	if !r.Passed() {
@@ -146,6 +148,7 @@ func TestSchemaBumpIsNeverAutoMerged(t *testing.T) {
 // a base without this admission refuses it exactly as before (the layout
 // without the schema functions).
 func TestSchemaBumpNeedsTheSchemaFunctions(t *testing.T) {
+	t.Parallel()
 	base, head := schemaTrees(t, attestedPackSchema, nil)
 	layout := DefaultLayout()
 	for i := range layout.Packs {
@@ -161,6 +164,7 @@ func TestSchemaBumpNeedsTheSchemaFunctions(t *testing.T) {
 // Condition 1: the head's schema is exactly the lowest level its content
 // requires.
 func TestSchemaBumpHigherThanNeededRefused(t *testing.T) {
+	t.Parallel()
 	base, head := schemaTrees(t, schemaPathPolicies, nil)
 	r := gateArgo(t, base, head)
 	requireSchemaRefused(t, r, "not the lowest level")
@@ -169,6 +173,7 @@ func TestSchemaBumpHigherThanNeededRefused(t *testing.T) {
 // Condition 1: a bump the content does not need (no attestation, no set
 // rule) is refused, whichever level it names.
 func TestSchemaBumpWithoutContentNeedingItRefused(t *testing.T) {
+	t.Parallel()
 	for _, schema := range []string{schemaSet, attestedPackSchema} {
 		base, head := trees(t)
 		setSchema(t, head, schema)
@@ -182,6 +187,7 @@ func TestSchemaBumpWithoutContentNeedingItRefused(t *testing.T) {
 
 // Condition 2: never a downgrade, never an unchanged level.
 func TestSchemaDowngradeRefused(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	setSchema(t, base, schemaSet)
 	// The head holds the content of the shipped pack under its own level.
@@ -191,6 +197,7 @@ func TestSchemaDowngradeRefused(t *testing.T) {
 
 // Condition 2: a base schema the binary does not know is not a base to bump.
 func TestSchemaBumpFromUnknownBaseRefused(t *testing.T) {
+	t.Parallel()
 	base, head := schemaTrees(t, attestedPackSchema, nil)
 	setSchema(t, base, "prufyx.io/cncf-source-rule-pack/v9")
 	requireSchemaRefused(t, gateArgo(t, base, head), "base's schema is unknown")
@@ -198,6 +205,7 @@ func TestSchemaBumpFromUnknownBaseRefused(t *testing.T) {
 
 // Condition 3: no other top-level member changes with the schema.
 func TestSchemaBumpWithAnotherTopLevelChangeRefused(t *testing.T) {
+	t.Parallel()
 	base, head := schemaTrees(t, attestedPackSchema, func(p *packDoc, _ *[]map[string]any) {
 		p.fields["registryDigest"] = json.RawMessage(`"sha256:` + strings.Repeat("a", 64) + `"`)
 	})
@@ -212,6 +220,7 @@ func TestSchemaBumpWithAnotherTopLevelChangeRefused(t *testing.T) {
 
 // Condition 4: every rule and record change is admitted by its own rules.
 func TestSchemaBumpWithUnadmittedChangeRefused(t *testing.T) {
+	t.Parallel()
 	for name, tamper := range map[string]func(p *packDoc, atts *[]map[string]any){
 		"rule": func(p *packDoc, _ *[]map[string]any) {
 			for _, e := range p.entries {
@@ -235,6 +244,7 @@ func TestSchemaBumpWithUnadmittedChangeRefused(t *testing.T) {
 
 // Condition 5: never in combination with trust material or registry files.
 func TestSchemaBumpWithTrustOrRegistryChangeRefused(t *testing.T) {
+	t.Parallel()
 	for name, rel := range map[string]string{
 		"trust material": approvalKeys,
 		"registry":       "cli/internal/cncfcheck/data/priority-portfolio.json",
@@ -250,6 +260,7 @@ func TestSchemaBumpWithTrustOrRegistryChangeRefused(t *testing.T) {
 
 // The community pack has no schema functions: its schema bump stays refused.
 func TestCommunitySchemaBumpStaysRefused(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	editPack(t, head, commRulesPath, func(p *packDoc) {
 		p.fields["schema"] = []byte(`"` + communitySeverityPack + `"`)
@@ -262,6 +273,7 @@ func TestCommunitySchemaBumpStaysRefused(t *testing.T) {
 
 // The kill switch stops the schema change like any other loosening change.
 func TestSchemaBumpStoppedByKillSwitch(t *testing.T) {
+	t.Parallel()
 	base, head := schemaTrees(t, attestedPackSchema, nil)
 	writeFile(t, headPath(head, "factory/PAUSE"), []byte("stop\n"))
 	r := gateArgo(t, base, head)

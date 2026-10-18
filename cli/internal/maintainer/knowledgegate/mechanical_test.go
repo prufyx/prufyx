@@ -86,6 +86,7 @@ func mechanicalTrees(t *testing.T, tamper func(entries []map[string]any)) (Tree,
 }
 
 func TestGateMechanicalRederived(t *testing.T) {
+	t.Parallel()
 	base, head, entries := mechanicalTrees(t, nil)
 	r := runGate(t, Options{Base: base, Head: head, Source: extract.FixtureReader{Root: servedFixture}, Author: DefaultBotLogin})
 	requirePass(t, r)
@@ -113,6 +114,7 @@ func TestGateMechanicalRederived(t *testing.T) {
 // engine's review window: the gate re-derives with the rule's own lease. A
 // renewal is a re-derivation at a later time.
 func TestGateMechanicalLeaseAndRenewal(t *testing.T) {
+	t.Parallel()
 	base, head, _ := mechanicalTrees(t, func(entries []map[string]any) {
 		for _, e := range entries {
 			evidenceOf(e)["validUntil"] = shiftTime(t, evidenceOf(e)["validUntil"], -10*24*time.Hour)
@@ -171,6 +173,7 @@ func copyTree(t *testing.T, src Tree) Tree {
 // A mechanical rule that does not come out of the extractor byte for byte
 // fails, whatever was changed.
 func TestGateMechanicalTamperedFails(t *testing.T) {
+	t.Parallel()
 	cases := map[string]struct {
 		tamper func(e map[string]any)
 		want   string
@@ -219,6 +222,7 @@ func TestGateMechanicalTamperedFails(t *testing.T) {
 // Without an upstream source, or with one whose bytes differ, nothing
 // mechanical is admitted.
 func TestGateMechanicalNeedsUpstream(t *testing.T) {
+	t.Parallel()
 	base, head, _ := mechanicalTrees(t, nil)
 	r := runGate(t, Options{Base: base, Head: head})
 	requireFail(t, r, "no upstream source is configured")
@@ -229,6 +233,7 @@ func TestGateMechanicalNeedsUpstream(t *testing.T) {
 // The scheduled run re-derives every active mechanical rule, changed or
 // not.
 func TestGateRederiveAll(t *testing.T) {
+	t.Parallel()
 	_, head, entries := mechanicalTrees(t, nil)
 	r := runGate(t, Options{Base: head, Head: head, Source: extract.FixtureReader{Root: servedFixture}, RederiveAll: true})
 	requirePass(t, r)
@@ -242,6 +247,7 @@ func TestGateRederiveAll(t *testing.T) {
 // A changed mechanical rule whose re-derivation fails is reported once, on
 // the change; the scheduled re-derivation neither repeats nor counts it.
 func TestGateRederiveAllSkipsAFailedChangedRule(t *testing.T) {
+	t.Parallel()
 	_, base, entries := mechanicalTrees(t, nil)
 	tampered := ruleID(entries[0])
 	head := copyTree(t, base)
@@ -274,6 +280,7 @@ func TestGateRederiveAllSkipsAFailedChangedRule(t *testing.T) {
 // without proof and never re-derived by the change, so the scheduled
 // re-derivation re-derives and counts it.
 func TestGateRederiveAllRederivesATighteningMechanicalEdit(t *testing.T) {
+	t.Parallel()
 	_, base, entries := mechanicalTrees(t, nil)
 	tightened := ruleID(entries[0])
 	head := copyTree(t, base)

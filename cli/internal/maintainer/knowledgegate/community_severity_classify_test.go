@@ -62,6 +62,7 @@ func communityNoticeEntry() map[string]any {
 // loosening modification, and withdrawing one is tightening. The pack
 // schema stays a pack-member change that the gate never admits on its own.
 func TestClassifyCommunitySupportRangeAndNoticeChanges(t *testing.T) {
+	t.Parallel()
 	withBase := func(p *packDoc) {
 		p.fields["schema"] = []byte(`"` + communitySeverityPack + `"`)
 		p.entries = append(p.entries, communitySupportEntry())
@@ -135,6 +136,7 @@ func TestClassifyCommunitySupportRangeAndNoticeChanges(t *testing.T) {
 // reports as a loosening pack-member change it never admits by itself (the
 // same as the CNCF pack's schema levels); the rule itself is a new rule.
 func TestClassifyCommunitySchemaBumpIsAPackMemberChange(t *testing.T) {
+	t.Parallel()
 	base, head := trees(t)
 	editPack(t, head, commRulesPath, func(p *packDoc) {
 		p.fields["schema"] = []byte(`"` + communitySeverityPack + `"`)

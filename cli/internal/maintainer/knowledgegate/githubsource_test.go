@@ -180,6 +180,7 @@ func githubSourceFor(t *testing.T, fake *fakeGitHub) *GitHubSource {
 // The gate re-derives mechanical rules from bytes it fetches itself over
 // the GitHub API and raw file endpoints, exactly as from a fixture tree.
 func TestGateRederivesFromGitHub(t *testing.T) {
+	t.Parallel()
 	base, head, _ := mechanicalTrees(t, nil)
 	fake := newFakeGitHub(servedFixture)
 	r := runGate(t, Options{Base: base, Head: head, Source: githubSourceFor(t, fake), Concurrency: 4})
@@ -192,6 +193,7 @@ func TestGateRederivesFromGitHub(t *testing.T) {
 // Bytes that do not hash to the blob id the commit's tree records are
 // refused, so a re-derivation can never run on altered upstream bytes.
 func TestGitHubSourceRefusesAlteredBytes(t *testing.T) {
+	t.Parallel()
 	fake := newFakeGitHub(servedFixture)
 	src := githubSourceFor(t, fake)
 	repo, _ := extract.ParseRepo("github.com/kubernetes/kubernetes")
@@ -248,6 +250,7 @@ func TestGitHubSourceRefusesAlteredBytes(t *testing.T) {
 }
 
 func TestParseLsRemoteTags(t *testing.T) {
+	t.Parallel()
 	a, c1, c2 := strings.Repeat("a", 40), strings.Repeat("1", 40), strings.Repeat("2", 40)
 	raw := a + "\trefs/tags/v1.0.0\n" + c1 + "\trefs/tags/v1.0.0^{}\n" + c2 + "\trefs/tags/v1.1.0\n"
 	tags, err := parseLsRemoteTags([]byte(raw))
@@ -301,6 +304,7 @@ func requireSameFiles(t *testing.T, want, got map[string][]byte) {
 // the mirror-backed reader derives: the fixture tree stands in for the
 // mirror, which serves the same pinned bytes.
 func TestGitHubSourceDerivesLikeTheMirror(t *testing.T) {
+	t.Parallel()
 	want := deriveFiles(t, extract.FixtureReader{Root: servedFixture})
 	for name, mod := range map[string]func(*fakeGitHub){
 		"recursive":           func(*fakeGitHub) {},
@@ -319,6 +323,7 @@ func TestGitHubSourceDerivesLikeTheMirror(t *testing.T) {
 // distinct directory subtree, and nothing for any directory below it. The
 // per-directory reader needed one call per directory per commit.
 func TestGitHubSourceRequestBudget(t *testing.T) {
+	t.Parallel()
 	run := func(truncateRecursive bool) (rest, rec, raw int, st GitHubStats) {
 		fake := newFakeGitHub(servedFixture)
 		fake.truncateRecursive = truncateRecursive
@@ -350,6 +355,7 @@ const budgetRest, budgetRaw = 44, 23
 
 // The same tree or blob is read once, however many callers ask.
 func TestGitHubSourceCachesAcrossCallers(t *testing.T) {
+	t.Parallel()
 	fake := newFakeGitHub(servedFixture)
 	src := githubSourceFor(t, fake)
 	deriveFiles(t, src)

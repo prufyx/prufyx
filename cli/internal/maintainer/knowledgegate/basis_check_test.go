@@ -8,6 +8,7 @@ import "testing"
 // basis the engine evaluates safely and refuses an unknown one on an active
 // rule.
 func TestBasisCheckUsesEngineFlags(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		basis, state string
 		ok           bool

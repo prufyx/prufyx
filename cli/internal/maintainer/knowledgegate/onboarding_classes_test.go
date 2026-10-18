@@ -118,6 +118,7 @@ func hasClass(list []OnboardingFinding, class string) bool {
 // find the class (the fixture does), and O6 still refuses when the proof
 // leaves a finding of that class out.
 func TestOnboardingAddedFindingClasses(t *testing.T) {
+	t.Parallel()
 	for class := range obAddedClasses {
 		t.Run(class, func(t *testing.T) {
 			if !onboardingFindingClasses[class] {
@@ -160,6 +161,7 @@ var obRefusedClasses = map[string]string{
 }
 
 func TestOnboardingRefusedFindingClasses(t *testing.T) {
+	t.Parallel()
 	classes := []string{"no-such-class", ""}
 	for c := range obRefusedClasses {
 		classes = append(classes, c)
@@ -186,6 +188,7 @@ func TestOnboardingRefusedFindingClasses(t *testing.T) {
 // in obRefusedClasses: adding a class to the scanner fails this test until
 // someone decides which.
 func TestOnboardingFindingClasses(t *testing.T) {
+	t.Parallel()
 	dir := filepath.Join(repoRoot, "cli/internal/extract/crdversions")
 	fset := token.NewFileSet()
 	entries, err := os.ReadDir(dir)
