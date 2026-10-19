@@ -1,15 +1,12 @@
-kyverno source-constraint preview
+BLOCKED  1 must fix · 0 undecided · 0 passed     kyverno 1.12.5 -> 1.13.0, 1 reviewed rule
 input authority: OPERATOR_DECLARED_MINIMIZED
-knowledge: embedded revision cncf-0000-00-00.0
-runtime transitions reproduced: 0
-network used: false
-kyverno.reports-chunk-size-removed.1-13: BLOCKED (REVIEWED_SOURCE_CONSTRAINT)
-next action: For the declared official upstream bare reports-controller surface, remove reportsChunkSize from literal proposed arguments. Otherwise supply an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.
-evidence basis: reviewed by maintainer
-scoped result: BLOCKED
-aggregate: UNKNOWN
-input digest: sha256:83faf6e3d00c2dd09282fcfc94f23e956ebb1230f9ca0eb6226863165ef7ca55
-knowledge pack digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+
+MUST FIX (1)
+  Kyverno reportsChunkSize removal only for an explicitly declared official upstream reports-controller invocation; image provenance, wrappers, other command surfaces, controller behavior, and whole-upgrade compatibility are unverified
+    fix: For the declared official upstream bare reports-controller surface, remove reportsChunkSize from literal proposed arguments. Otherwise supply an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.
+
+Whole upgrade: not proven. This report evaluated only 1 reviewed rule.
 next action: review each scoped claim; whole-upgrade behavior and runtime evidence remain unverified
+7 cited upstream sources (show with -v). Knowledge: embedded cncf-0000-00-00.0. No network used.
 
 exit 10

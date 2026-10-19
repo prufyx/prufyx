@@ -312,42 +312,26 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 			return ExitIntegrity
 		}
 	} else {
-		if _, err := fmt.Fprintf(r.stdout, "%s native input review\nraw input digests: %s\nprepared input digest: %s\n", project, joinNativeDigests(rawDigests), prepared.InputDigest); err != nil {
-			return ExitIntegrity
-		}
-		if err := writeBasisHeadline(r.stdout, report.Check.Claims, report.TrustPolicy); err != nil {
-			return ExitIntegrity
-		}
 		claims := report.Check.Claims
 		if project == "kubernetes" {
 			claims = withKubernetesDeclarationActions(claims, kubernetesDeclarationAction(prepared.Reason, resourceScopeComplete, targetAPIApplyRequired, kubernetesDistribution))
 		}
-		summary := summarizeClaims(claims, flagProvided(args, "show-passes"))
+		route := humanRoute{
+			exit: cncfcheck.ClaimExit(report), claims: claims, project: project, from: from, to: to,
+			showPasses: flagProvided(args, "show-passes"), verbose: verboseRequested(args), trust: report.TrustPolicy,
+			provenance: nativeProvenance(rawDigests, prepared.InputDigest, report),
+			knowledge:  knowledgeFooter(report),
+		}
 		if prometheusRemoteWriteMode {
-			if _, err := fmt.Fprintln(r.stdout, "selected input: one literal-name remote_write entry from the caller-supplied full configuration\nscope: direct enable_http2 and declared endpoint requirement only; negotiation, delivery, runtime flags, includes, and whole-config validity remain unverified"); err != nil {
-				return ExitIntegrity
-			}
+			route.scope = []string{"selected input: one literal-name remote_write entry from the caller-supplied full configuration", "scope: direct enable_http2 and declared endpoint requirement only; negotiation, delivery, runtime flags, includes, and whole-config validity remain unverified"}
 		} else if prometheusAlertmanagerMode {
 			selection := "literal api_version from the caller-selected mapping"
 			if prepared.Reason == cncfprepare.ReasonPrometheusAlertmanagerAPIDefaultV2 {
 				selection = "api_version omitted; exact target source-derived default v2"
 			}
-			if _, err := fmt.Fprintf(r.stdout, "selected API-version input: %s\ninput authority: caller-selected mapping; not observed running configuration\nscope: Alertmanager API-version selection only; v2 support, reachability and alert delivery remain unverified\n", selection); err != nil {
-				return ExitIntegrity
-			}
+			route.scope = []string{"selected API-version input: " + selection, "input authority: caller-selected mapping; not observed running configuration", "scope: Alertmanager API-version selection only; v2 support, reachability and alert delivery remain unverified"}
 		}
-		if summary.allUnreviewed {
-			if err := writeUnreviewedTransition(r.stdout, summary, project, from, to); err != nil {
-				return ExitIntegrity
-			}
-		}
-		if err := writeNativeClaims(r.stdout, summary, claims); err != nil {
-			return ExitIntegrity
-		}
-		if _, err := fmt.Fprintf(r.stdout, "%s\naggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)\n", scopedResultLine(cncfcheck.ClaimExit(report))); err != nil {
-			return ExitIntegrity
-		}
-		if err := writeSourceFooter(r.stdout, summary.shown); err != nil {
+		if err := writeHumanReport(r.stdout, route); err != nil {
 			return ExitIntegrity
 		}
 	}

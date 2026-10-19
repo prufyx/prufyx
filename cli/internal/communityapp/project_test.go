@@ -46,7 +46,7 @@ func TestProjectCLILokiPinnedSourcesAndScopedOutput(t *testing.T) {
 	t.Parallel()
 	path := writePrivateProjectFixture(t, "compactor:\n  shared_store_key_prefix: private-index/\n")
 	var stdout, stderr bytes.Buffer
-	exit := Run(t.Context(), []string{"check", "project", "--project", "loki", "--effective-config", path, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T00:00:00Z"}, &stdout, &stderr, "test")
+	exit := Run(t.Context(), []string{"check", "project", "--project", "loki", "--effective-config", path, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T00:00:00Z", "-v"}, &stdout, &stderr, "test")
 	if exit != ExitBlocked || stderr.Len() != 0 {
 		t.Fatalf("exit=%d stderr=%q stdout=%q", exit, stderr.String(), stdout.String())
 	}
@@ -248,7 +248,7 @@ func TestProjectCLIHumanShowsPinnedSourcesWithoutPrivateInput(t *testing.T) {
 	t.Parallel()
 	path := writePrivateProjectFixture(t, "xpack.reporting.roles.allow: [private-role]\n")
 	var stdout, stderr bytes.Buffer
-	exit := Run(t.Context(), []string{"check", "project", "--project", "kibana", "--effective-config", path, "--from", "8.18.0", "--to", "9.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-11T20:00:00Z"}, &stdout, &stderr, "test")
+	exit := Run(t.Context(), []string{"check", "project", "--project", "kibana", "--effective-config", path, "--from", "8.18.0", "--to", "9.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-11T20:00:00Z", "-v"}, &stdout, &stderr, "test")
 	if exit != ExitBlocked || stderr.Len() != 0 {
 		t.Fatalf("exit=%d stderr=%q", exit, stderr.String())
 	}

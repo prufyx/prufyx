@@ -166,7 +166,7 @@ func TestKubernetesLaterRemovalsThroughTheCommandRoute(t *testing.T) {
 	}
 	// Human output names the blocking rule and the fix.
 	path = writeCNCFFile(t, "applyset.json", []byte(`{"apiVersion":"v1","kind":"List","items":[`+laterObject("networking.k8s.io/v1beta1", "ServiceCIDR")+`]}`), 0o600)
-	code, stdout, _ = runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", "1.36.0", "--to", "1.37.0", "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", supersedeids.ClockString())
+	code, stdout, _ = runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", "1.36.0", "--to", "1.37.0", "--distribution", "official_upstream", "--target-api-apply-required", "--resource-scope-complete", "--now", supersedeids.ClockString(), "-v")
 	if code != ExitBlocked || !strings.Contains(stdout, ids["component.kubernetes.ipaddress_servicecidr_v1beta1_removed_gvk_present"]) || !strings.Contains(stdout, "networking.k8s.io/v1") {
 		t.Fatalf("code=%d %q", code, stdout)
 	}

@@ -89,7 +89,7 @@ func TestCephLatestSelectedOSDAllExactOrigins(t *testing.T) {
 func TestCephSelectedOSDProjectAdmissionAndHumanScope(t *testing.T) {
 	t.Parallel()
 	path := writePrivateProjectFixture(t, `{"id":7,"osd_objectstore":"filestore"}`)
-	base := []string{"check", "project", "--project", "ceph", "--selected-osd-metadata", path, "--selected-osd-id", "7", "--from", "17.2.7", "--to", "18.2.0", "--selected-osd-metadata-complete", "--now", "2026-09-11T21:00:00Z"}
+	base := []string{"check", "project", "--project", "ceph", "--selected-osd-metadata", path, "--selected-osd-id", "7", "--from", "17.2.7", "--to", "18.2.0", "--selected-osd-metadata-complete", "--now", "2026-09-11T21:00:00Z", "-v"}
 	var stdout, stderr bytes.Buffer
 	if exit := Run(t.Context(), base, &stdout, &stderr, "test"); exit != ExitBlocked || !strings.Contains(stdout.String(), "caller-selected current OSD metadata") || !strings.Contains(stdout.String(), "src/os/ObjectStore.cc") || strings.Contains(stdout.String()+stderr.String(), path) {
 		t.Fatalf("exit/output=%d %q %q", exit, stdout.String(), stderr.String())

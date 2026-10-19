@@ -3,6 +3,7 @@
 package communityapp
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -38,10 +39,10 @@ func TestQuietHumanUnreviewedTransitionsPrintAtMostSevenLines(t *testing.T) {
 	for _, pair := range [][2]string{{"1.21.0", "1.25.0"}, {"1.28.0", "1.30.0"}, {"1.25.0", "1.24.0"}} {
 		code, human, stderr := runCNCFCLI(t, quietArgs(path, pair[0], pair[1], "--format", "human")...)
 		lines := nonEmptyLines(human)
-		if code != ExitUnknown || stderr != "" || len(lines) > 7 {
+		if code != ExitUnknown || stderr != "" || len(lines) > 10 {
 			t.Fatalf("%v: code=%d lines=%d stderr=%q\n%s", pair, code, len(lines), stderr, human)
 		}
-		for _, want := range []string{"UNKNOWN: kubernetes " + pair[0] + " -> " + pair[1] + " is not a reviewed transition", "reviewed pairs:", "1.24.0 -> 1.25.0", "check each minor step; a step without a reviewed pair stays UNKNOWN", "scoped result: UNKNOWN\naggregate: UNKNOWN"} {
+		for _, want := range []string{"UNKNOWN: kubernetes " + pair[0] + " -> " + pair[1] + " is not a reviewed transition", "reviewed pairs:", "1.24.0 -> 1.25.0", "check each minor step; a step without a reviewed pair stays UNKNOWN", "Whole upgrade: not proven", "UNKNOWN  0 must fix"} {
 			if !strings.Contains(human, want) {
 				t.Errorf("%v: missing %q in\n%s", pair, want, human)
 			}
@@ -87,19 +88,23 @@ func TestQuietHumanReviewedPairCollapsesPassesAndSharesSources(t *testing.T) {
 	if code != ExitBlocked || stderr != "" || len(lines) > maxLines {
 		t.Fatalf("code=%d lines=%d\n%s", code, len(lines), human)
 	}
-	if strings.Count(human, "pinned source:") != sources || strings.Contains(human, ": PASS (") || !strings.Contains(human, "6 rules PASS (not listed; use --show-passes)") {
+	if !strings.Contains(human, fmt.Sprintf("%d cited upstream sources (show with -v)", sources)) || strings.Contains(human, "PASSED (") || !strings.Contains(human, "6 passed rules (--show-passes)") {
 		t.Fatalf("unexpected quiet output:\n%s", human)
 	}
-	if !strings.Contains(human, "BLOCKED ("+servedReason()+")") || !strings.Contains(human, "scoped result: BLOCKED\naggregate: UNKNOWN") {
-		t.Fatalf("decisive claim missing:\n%s", human)
+	if !strings.HasPrefix(human, "BLOCKED  1 must fix · 0 undecided · 6 passed") || !strings.Contains(human, "MUST FIX (1)") {
+		t.Fatalf("verdict must come first and name the decisive claim:\n%s", human)
 	}
-	aggregate, claim := strings.Index(human, "aggregate: UNKNOWN"), strings.Index(human, "BLOCKED (")
-	if aggregate < claim {
-		t.Fatalf("aggregate must follow the claims:\n%s", human)
+	if strings.Index(human, "Whole upgrade: not proven") < strings.Index(human, "MUST FIX") {
+		t.Fatalf("whole-upgrade line must follow the claims:\n%s", human)
+	}
+	// -v lists the rule with its reason and every source once.
+	_, verbose, _ := runCNCFCLI(t, quietArgs(path, "1.24.0", "1.25.0", "--format", "human", "-v")...)
+	if !strings.Contains(verbose, "("+"BLOCKED, "+servedReason()+")") || !strings.Contains(verbose, fmt.Sprintf("SOURCES (%d)", sources)) || strings.Count(verbose, "  https://") != sources {
+		t.Fatalf("-v output incomplete:\n%s", verbose)
 	}
 
 	code, withPasses, _ := runCNCFCLI(t, quietArgs(path, "1.24.0", "1.25.0", "--format", "human", "--show-passes")...)
-	if code != ExitBlocked || strings.Count(withPasses, ": PASS (") != 6 || hasDuplicateLines(withPasses) || !strings.Contains(withPasses, "pinned source:") || strings.Contains(withPasses, "--show-passes") {
+	if code != ExitBlocked || strings.Count(withPasses, "if this changes:") != 6 || !strings.Contains(withPasses, "cited upstream sources") || strings.Contains(withPasses, "--show-passes") {
 		t.Fatalf("--show-passes output:\n%s", withPasses)
 	}
 }
@@ -177,11 +182,11 @@ func TestGenericPreviewQuietHumanOutput(t *testing.T) {
 	}
 	// A reviewed pair with a PASS claim: counted, listed on request, aggregate after the claims.
 	code, quiet := run(syntheticHelmInput, "--format", "human")
-	if code != ExitOK || strings.Contains(quiet, ": PASS (") || !strings.Contains(quiet, "1 rule PASS (not listed; use --show-passes)") || strings.Index(quiet, "aggregate: UNKNOWN") < strings.Index(quiet, "rules PASS") {
+	if code != ExitOK || strings.Contains(quiet, "PASSED (") || !strings.Contains(quiet, "1 passed rule (--show-passes)") || !strings.HasPrefix(quiet, "PASS (scoped)  0 must fix") {
 		t.Fatalf("code=%d\n%s", code, quiet)
 	}
 	code, listed := run(syntheticHelmInput, "--format", "human", "--show-passes")
-	if code != ExitOK || !strings.Contains(listed, ": PASS (") || strings.Contains(listed, "--show-passes") {
+	if code != ExitOK || !strings.Contains(listed, "PASSED (1)") || strings.Contains(listed, "--show-passes") {
 		t.Fatalf("code=%d\n%s", code, listed)
 	}
 	// A pair outside every reviewed transition collapses to one line.

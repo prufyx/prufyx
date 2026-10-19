@@ -715,3 +715,22 @@ func validPackSchema(pack packDocument) bool {
 	}
 	return pack.Schema == want
 }
+
+// EmbeddedRuleDescriptions maps every embedded community rule id to the
+// description of its pack entry. It is display text only (human report
+// titles) and performs no evaluation.
+func EmbeddedRuleDescriptions() (map[string]string, error) {
+	b, err := load()
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]string, len(b.pack.Entries))
+	for _, entry := range b.pack.Entries {
+		var binding ruleBinding
+		if json.Unmarshal(entry.Rule, &binding) != nil || binding.ID == "" {
+			return nil, ErrIntegrity
+		}
+		result[binding.ID] = entry.Description
+	}
+	return result, nil
+}
