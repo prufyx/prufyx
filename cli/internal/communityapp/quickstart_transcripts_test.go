@@ -42,7 +42,9 @@ func TestQuickstartTranscriptsMatchTheCommands(t *testing.T) {
 		} else if fence == "" && pending != nil {
 			var stdout, stderr bytes.Buffer
 			Run(context.Background(), pending, &stdout, &stderr, "test")
-			got := strings.Split(strings.TrimRight(stdout.String(), "\n"), "\n")
+			// The document types relative file names; the report prints them as given.
+			shown := strings.ReplaceAll(stdout.String(), dir+string(filepath.Separator), "")
+			got := strings.Split(strings.TrimRight(shown, "\n"), "\n")
 			if *updateQuickstart {
 				lines = append(lines[:i+1], append(got, lines[end:]...)...)
 				end = i + 1 + len(got)

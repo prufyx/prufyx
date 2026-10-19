@@ -70,6 +70,10 @@ type Input struct {
 	Knowledge string
 	// NoticeScopeLine is printed once after an established one-way notice.
 	NoticeScopeLine string
+	// Locations are, per rule id, the ready-made object lines (for example
+	// "applyset.yaml:1  CronJob default/nightly-report") printed under the
+	// rule's title. Only a listed title shows them.
+	Locations map[string][]string
 }
 
 type item struct {
@@ -84,7 +88,7 @@ type group struct {
 
 // Render writes the report.
 func Render(out io.Writer, in Input) error {
-	w := &writer{out: out}
+	w := &writer{out: out, locations: in.Locations}
 	var mustFix, undecided, passed []item
 	counts := struct{ blocked, undecided, passed, verdicts, notCovered int }{}
 	var notices []constraintengine.Claim
@@ -330,6 +334,7 @@ func (w *writer) writeGroup(g group, label, trailing string, verbose, listTitles
 			if line, ok := it.claim.MatchedMembersLine(); ok {
 				w.printf("    %s\n", line)
 			}
+			w.writeLocations(it.claim.RuleID, verbose)
 			if verbose {
 				w.writeRule(it.claim)
 			}
@@ -346,6 +351,7 @@ func (w *writer) writeGroup(g group, label, trailing string, verbose, listTitles
 		if verbose {
 			for _, it := range g.items {
 				w.printf("    %s\n", it.title)
+				w.writeLocations(it.claim.RuleID, verbose)
 				w.writeRule(it.claim)
 			}
 		}
@@ -404,8 +410,26 @@ func plural(count int, one, many string) string {
 }
 
 type writer struct {
-	out io.Writer
-	err error
+	out       io.Writer
+	err       error
+	locations map[string][]string
+}
+
+// maxLocationsShown bounds the object lines listed under one rule title.
+const maxLocationsShown = 5
+
+func (w *writer) writeLocations(ruleID string, verbose bool) {
+	lines := w.locations[ruleID]
+	shown := lines
+	if !verbose && len(shown) > maxLocationsShown {
+		shown = shown[:maxLocationsShown]
+	}
+	for _, line := range shown {
+		w.printf("    %s\n", line)
+	}
+	if len(shown) < len(lines) {
+		w.printf("    and %d more objects (-v lists them)\n", len(lines)-len(shown))
+	}
 }
 
 func (w *writer) printf(format string, args ...any) {

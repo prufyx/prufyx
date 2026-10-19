@@ -130,6 +130,7 @@ func TestKubernetesNativeAcceptsYAMLWithSameVerdicts(t *testing.T) {
 	}
 	// Only the raw input digest line may differ.
 	strip := func(text string) string {
+		text = strings.ReplaceAll(strings.ReplaceAll(text, jsonPath, "FILE"), yamlPath, "FILE")
 		var kept []string
 		for _, line := range strings.Split(text, "\n") {
 			if !strings.HasPrefix(line, "raw input digests:") {

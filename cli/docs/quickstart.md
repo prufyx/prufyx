@@ -132,11 +132,21 @@ BLOCKED  1 must fix · 0 undecided · 6 passed     kubernetes 1.24.0 -> 1.25.0, 
 
 MUST FIX (1)
   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
+    applyset.json:6  CronJob default/nightly-report
     fix: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 
 Whole upgrade: not proven. This report evaluated only 7 reviewed rules.
 3 cited upstream sources (show with -v). 6 passed rules (--show-passes). Knowledge: embedded cncf-2026-09-13.8. No network used.
 ```
+
+Under each blocking rule the report names the objects that made it true:
+`file:line  Kind namespace/name`, the line being the object's `apiVersion` line
+(five objects are listed; `-v` lists all). The `--format json` report carries the
+same objects as an additional `locations` member on each BLOCKED claim; no other
+byte of the report changes, and the input digest does not depend on them. This is
+the route `--project kubernetes --native-resource` only. The file path and object
+names print as typed; add `--redact` to print their digests instead, as
+`prufyx scan --redact` does.
 
 ```sh
 echo "exit code: $?"
@@ -248,6 +258,7 @@ BLOCKED  1 must fix · 0 undecided · 6 passed     kubernetes 1.24.0 -> 1.25.0, 
 
 MUST FIX (1)
   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
+    applyset.yaml:2  CronJob default/nightly-report
     fix: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 
 Whole upgrade: not proven. This report evaluated only 7 reviewed rules.
@@ -326,6 +337,7 @@ BLOCKED  1 must fix · 0 undecided · 12 passed     kubernetes 1.21.0 -> 1.22.0,
 
 MUST FIX (1)
   Kubernetes 1.22 stops serving Ingress through extensions/v1beta1
+    applyset-1-22.json:6  Ingress default/legacy-ingress
     fix: Migrate the named Ingress manifests to networking.k8s.io/v1. pathType is now required. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 
 Whole upgrade: not proven. This report evaluated only 13 reviewed rules.

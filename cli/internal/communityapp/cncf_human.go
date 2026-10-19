@@ -31,6 +31,7 @@ type humanRoute struct {
 	provenance           []string
 	knowledge            string
 	customResourceCaveat bool
+	locations            map[string][]string
 }
 
 var (
@@ -134,6 +135,7 @@ func writeHumanReport(out io.Writer, route humanRoute) error {
 		Provenance:      route.provenance,
 		Knowledge:       route.knowledge,
 		NoticeScopeLine: noticeScopeLine,
+		Locations:       route.locations,
 	})
 }
 
