@@ -237,7 +237,7 @@ func TestOnboardingRefusals(t *testing.T) {
 		}), nil, "reserved"},
 		{"O4 shared group", blind(func(t *testing.T, f *onboardingFixture) {
 			setGroups("crd.antrea.io")(t, f)
-		}), nil, "is shared with"},
+		}), nil, "the custom-resource table does not load"},
 		{"O4 exclusion under a test directory", blind(func(t *testing.T, f *onboardingFixture) {
 			editTarget(t, f, func(tg map[string]any) {
 				tg["exclude"] = []any{map[string]any{"path": "test/crds/", "repo": obRepo, "reason": "end-to-end test manifests", "evidence": "the directory holds only the manifests of the end-to-end tests"}}

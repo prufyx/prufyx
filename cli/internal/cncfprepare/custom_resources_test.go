@@ -191,6 +191,57 @@ func TestCustomResourceVersionsSharedArgoGroup(t *testing.T) {
 	}
 }
 
+// Once argoproj.io is listed by kind, Application, Rollout and Workflow
+// objects land in the sets of the three projects that list them, and an
+// argoproj.io kind nobody lists keeps all three sets incomplete.
+func TestCustomResourceVersionsSharedGroupByKind(t *testing.T) {
+	application := crObject("argoproj.io/v1alpha1", "Application", "app")
+	rollout := crObject("argoproj.io/v1alpha1", "Rollout", "web")
+	workflow := crObject("argoproj.io/v1alpha1", "Workflow", "job")
+	eventSource := crObject("argoproj.io/v1alpha1", "EventSource", "events")
+	projects := customresources.Projects()
+	listKinds := func(slug string, kinds ...string) {
+		for i := range projects {
+			if projects[i].Slug != slug {
+				continue
+			}
+			for j := range projects[i].Groups {
+				if projects[i].Groups[j].Name == "argoproj.io" {
+					projects[i].Groups[j].Kinds = kinds
+					return
+				}
+			}
+			projects[i].Groups = append(projects[i].Groups, customresources.Group{Name: "argoproj.io", Kinds: kinds})
+			return
+		}
+		t.Fatalf("no project %s", slug)
+	}
+	listKinds("argo-cd", "Application")
+	listKinds("strimzi", "Rollout")
+	listKinds("istio", "Workflow")
+	index := customresources.NewIndex(projects)
+	prepare := func(project string, docs ...string) (CustomResourceScan, inputFact) {
+		scan, err := prepareCustomResourceVersions(index, crWorkspace(t, crDocs(docs...)), project, "0.51.0", "1.0.0", true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return scan, crFact(t, scan.Prepared)
+	}
+	for project, want := range map[string]string{"argo-cd": "argoproj.io/v1alpha1/Application", "strimzi": "argoproj.io/v1alpha1/Rollout", "istio": "argoproj.io/v1alpha1/Workflow"} {
+		scan, f := prepare(project, application, rollout, workflow)
+		if !f.SetValue.Complete || !reflect.DeepEqual(f.SetValue.Members, []string{want}) || len(scan.Unattributed) != 0 || scan.Prepared.Reason != ReasonCustomResourcesComplete {
+			t.Fatalf("%s: %+v reason %s unattributed %d", project, f, scan.Prepared.Reason, len(scan.Unattributed))
+		}
+		scan, f = prepare(project, application, rollout, workflow, eventSource)
+		if f.SetValue.Complete || len(scan.Unattributed) != 1 || scan.Prepared.Reason != ReasonCustomResourcesUnattributed || scan.Prepared.State != StatePrepared {
+			t.Fatalf("%s with an unlisted kind: %+v reason %s state %s unattributed %d", project, f, scan.Prepared.Reason, scan.Prepared.State, len(scan.Unattributed))
+		}
+		if !reflect.DeepEqual(f.SetValue.Members, []string{want}) {
+			t.Fatalf("%s with an unlisted kind: members %v", project, f.SetValue.Members)
+		}
+	}
+}
+
 func TestCustomResourceVersionsPaginatedList(t *testing.T) {
 	list := `{"apiVersion":"v1","kind":"List","metadata":{"continue":"next"},"items":[{"apiVersion":"kafka.strimzi.io/v1","kind":"Kafka","metadata":{"name":"a","namespace":"k"}}]}`
 	scan := prepareCR(t, []byte(list), "strimzi", true)

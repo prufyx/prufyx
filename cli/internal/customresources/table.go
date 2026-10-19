@@ -46,6 +46,10 @@ type upstreamJSON struct {
 type groupJSON struct {
 	Name   string `json:"name"`
 	Source string `json:"source"`
+	// Kinds is absent for a whole-group listing. A present empty list is
+	// kept non-nil and refused by Validate; null reads as absent, and only
+	// the canonical spelling (which drops it) passes the gate.
+	Kinds []string `json:"kinds,omitempty"`
 }
 
 type reservedJSON struct {
@@ -93,7 +97,7 @@ func LoadTable(raw []byte) ([]Project, []ReservedGroup, error) {
 			p.Upstream = Upstream{Name: u.Name, Repository: u.Repository, License: u.License, LicenseSource: u.LicenseSource}
 		}
 		for _, g := range pj.Groups {
-			p.Groups = append(p.Groups, Group{Name: g.Name, Source: g.Source})
+			p.Groups = append(p.Groups, Group{Name: g.Name, Source: g.Source, Kinds: cloneKinds(g.Kinds)})
 		}
 		projects = append(projects, p)
 	}
@@ -118,7 +122,7 @@ func encodeTable(projects []Project, records []ReservedGroup) ([]byte, error) {
 			pj.Upstream = &upstreamJSON{Name: u.Name, Repository: u.Repository, License: u.License, LicenseSource: u.LicenseSource}
 		}
 		for _, g := range p.Groups {
-			pj.Groups = append(pj.Groups, groupJSON{Name: g.Name, Source: g.Source})
+			pj.Groups = append(pj.Groups, groupJSON{Name: g.Name, Source: g.Source, Kinds: cloneKinds(g.Kinds)})
 		}
 		doc.Projects = append(doc.Projects, pj)
 	}

@@ -173,7 +173,7 @@ func prepareCustomResourceVersions(index customresources.Index, workspace intake
 		if customresources.KubernetesGroup(group) {
 			continue
 		}
-		owner, attribution := index.Owner(group)
+		owner, attribution := index.OwnerOf(group, kind)
 		if attribution != customresources.Owned {
 			scan.Unattributed = append(scan.Unattributed, document.source)
 			continue

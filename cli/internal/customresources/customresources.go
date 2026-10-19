@@ -12,9 +12,11 @@
 //   - the fact registry registers one custom-resource version set fact per
 //     project of the table, and no other;
 //   - the preparation attributes an object to a project only when its API
-//     group is listed for exactly that project. A group the table does not
-//     list, or lists for more than one project, is never attributed to any
-//     project, by suffix, by name or otherwise.
+//     group and kind are listed for exactly that project: a group listed
+//     without kinds belongs whole to its one project, and a group several
+//     projects share is listed with disjoint kinds for each. A group or kind
+//     the table does not list, or lists for more than one project, is never
+//     attributed to any project, by suffix, by name or otherwise.
 //
 // The table holds no versions and no rules: what a release serves is
 // derived by the extractor and published only through the knowledge gate.
@@ -32,6 +34,10 @@ import (
 type Group struct {
 	Name   string
 	Source string
+	// Kinds are the kinds of the group the project owns, sorted and unique.
+	// Nil lists the whole group for the project. A group several projects
+	// list names kinds in every listing, and the sets are pairwise disjoint.
+	Kinds []string `json:",omitempty"`
 }
 
 // Catalog names the catalog a project of the table belongs to.
@@ -114,13 +120,13 @@ func FactID(factProject string) string {
 // group, at the commit the extractor's paths were checked at.
 //
 // Shared groups: argoproj.io is defined upstream by Argo CD and by Argo
-// Workflows, Rollouts and Events. The catalog project argo-cd is the whole
-// Argo project, so the group is listed once, for argo-cd, and objects of the
-// other Argo components (a Rollout, a Workflow) join argo-cd's set. That is
-// harmless while rules name only Argo CD's own kinds. Listing argoproj.io for
-// a second project would make it ambiguous: every argoproj.io object would
-// then join no set and keep every set incomplete, so a removed Argo CD
-// version would no longer block (a missed blocker, never a false pass).
+// Workflows, Rollouts and Events. Today the group is listed once, whole, for
+// argo-cd, so objects of the other Argo components (a Rollout, a Workflow)
+// join argo-cd's set. That is harmless while rules name only Argo CD's own
+// kinds. Once the group is listed with kinds per project, an object joins the
+// set of the project that lists its kind, and an argoproj.io kind nobody
+// lists joins no set and keeps every set incomplete (never a false pass).
+// Listing the group whole for a second project is refused by Validate.
 //
 // wgpolicyk8s.io (Kyverno) and objectbucket.io (Rook) are also installed by
 // other software: the Kubernetes Policy WG report group by Trivy operator and
@@ -130,8 +136,11 @@ func FactID(factProject string) string {
 // reverse). When a rule over these groups is derived, its review must consider
 // the other installers.
 //
-// Before a second project shares a group, attribution must move to
-// (group, kind), with kinds taken from the extractor inventory.
+// A group several projects define is listed with kinds in every listing, the
+// kind sets disjoint (Validate refuses anything else), and an object is
+// attributed by (group, kind) (Index.OwnerOf). A kind no listing names is
+// attributed to no project and keeps every set incomplete. A group listed
+// without kinds belongs whole to its one project and cannot be shared.
 //
 // Community projects list only groups they define themselves. The Percona
 // Operator for PostgreSQL ships Crunchy Data's postgres-operator.crunchydata.com
@@ -192,8 +201,26 @@ func copyProjects(in []Project) []Project {
 	out := make([]Project, len(in))
 	for i, p := range in {
 		out[i] = p
-		out[i].Groups = append([]Group(nil), p.Groups...)
+		out[i].Groups = make([]Group, len(p.Groups))
+		for j, g := range p.Groups {
+			out[i].Groups[j] = g
+			out[i].Groups[j].Kinds = cloneKinds(g.Kinds)
+		}
+		if p.Groups == nil {
+			out[i].Groups = nil
+		}
 	}
+	return out
+}
+
+// cloneKinds copies a kinds list and keeps nil (the whole group) apart from
+// an empty list.
+func cloneKinds(kinds []string) []string {
+	if kinds == nil {
+		return nil
+	}
+	out := make([]string, len(kinds))
+	copy(out, kinds)
 	return out
 }
 
@@ -284,24 +311,34 @@ const (
 
 // Index attributes custom resource groups to projects.
 type Index struct {
-	owners map[string][]string
+	owners   map[string][]string
+	listings map[string][]listing
 }
 
-// NewIndex indexes a table. A group listed by two projects is ambiguous,
-// never attributed to either.
+// listing is one project's listing of a group.
+type listing struct {
+	slug  string
+	kinds []string
+}
+
+// NewIndex indexes a table. A group listed by two projects is ambiguous for
+// Owner, never attributed to either; OwnerOf tells projects that list
+// disjoint kinds of it apart.
 func NewIndex(projects []Project) Index {
 	owners := map[string][]string{}
+	listings := map[string][]listing{}
 	for _, p := range projects {
 		for _, g := range p.Groups {
 			if !containsString(owners[g.Name], p.Slug) {
 				owners[g.Name] = append(owners[g.Name], p.Slug)
 			}
+			listings[g.Name] = append(listings[g.Name], listing{slug: p.Slug, kinds: cloneKinds(g.Kinds)})
 		}
 	}
 	for _, slugs := range owners {
 		sort.Strings(slugs)
 	}
-	return Index{owners: owners}
+	return Index{owners: owners, listings: listings}
 }
 
 // DefaultIndex indexes the reviewed table.
@@ -316,6 +353,30 @@ func (x Index) Owner(group string) (string, Attribution) {
 		return "", Unknown
 	case 1:
 		return slugs[0], Owned
+	}
+	return "", Ambiguous
+}
+
+// OwnerOf returns the project an object of a group and kind belongs to. A
+// listing without kinds matches every kind of its group; a listing with kinds
+// matches exactly those kinds (exact, case-sensitive match, as Kubernetes
+// kinds are). Exactly one matching project is Owned, none is Unknown, and
+// more than one is Ambiguous (a table that Validate refuses; the index
+// fails closed all the same). A listing with an empty non-nil kinds list
+// matches nothing. Without kinds anywhere in the table OwnerOf(group, kind)
+// equals Owner(group) for every kind.
+func (x Index) OwnerOf(group, kind string) (string, Attribution) {
+	var matched []string
+	for _, l := range x.listings[group] {
+		if (l.kinds == nil || containsString(l.kinds, kind)) && !containsString(matched, l.slug) {
+			matched = append(matched, l.slug)
+		}
+	}
+	switch len(matched) {
+	case 0:
+		return "", Unknown
+	case 1:
+		return matched[0], Owned
 	}
 	return "", Ambiguous
 }
@@ -338,19 +399,46 @@ var (
 	// or AND (LicenseRef-* for a licence SPDX does not list).
 	licenseRE     = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9.+-]{0,63}( (OR|AND) [A-Za-z0-9][A-Za-z0-9.+-]{0,63}){0,3}$`)
 	licenseFileRE = regexp.MustCompile(`^/blob/[0-9a-f]{40}/(LICENSE|COPYING)([.-][A-Za-z0-9]{1,16})?$`)
+	kindRE        = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]{0,62}$`)
 )
+
+// maxKindsPerGroup bounds the kinds one listing names (the size of a
+// version set fact).
+const maxKindsPerGroup = 256
+
+// validKinds: nil is the whole group; otherwise a non-empty, sorted,
+// unique list of well-formed kinds of bounded size.
+func validKinds(kinds []string) bool {
+	if kinds == nil {
+		return true
+	}
+	if len(kinds) == 0 || len(kinds) > maxKindsPerGroup {
+		return false
+	}
+	for i, k := range kinds {
+		if !kindRE.MatchString(k) || (i > 0 && kinds[i-1] >= k) {
+			return false
+		}
+	}
+	return true
+}
 
 // Validate checks a table against the reviewed ownership list: slugs
 // ascending and unique, well-formed fact projects and components, a known
 // catalog, provenance exactly for community projects, and every group a
 // custom resource group, named once per project, with a source pinned by
-// full commit SHA. A group of a Kubernetes-reserved namespace needs a
+// full commit SHA. A group may name kinds (sorted, unique, well-formed); a
+// group listed by more than one project names kinds in every listing and the
+// kind sets are pairwise disjoint, so no (group, kind) has two owners. A
+// group of a Kubernetes-reserved namespace needs a
 // reviewed ownership record naming that project and its repository, and
-// every record must be listed by its owner and by no other project.
+// every record must be listed by its owner and by no other project, whole
+// (a reserved group names no kinds).
 func Validate(projects []Project) bool { return validate(projects, reserved) }
 
 func validate(projects []Project, records []ReservedGroup) bool {
 	listed := map[string][]string{}
+	listedKinds := map[string][][]string{}
 	for i, p := range projects {
 		if !slugRE.MatchString(p.Slug) || !factProjectRE.MatchString(p.FactProject) || !strings.HasPrefix(p.Component, "pkg:github/") || len(p.Groups) == 0 {
 			return false
@@ -380,14 +468,37 @@ func validate(projects []Project, records []ReservedGroup) bool {
 			if j > 0 && p.Groups[j-1].Name >= g.Name {
 				return false
 			}
+			if !validKinds(g.Kinds) {
+				return false
+			}
 			if ReservedNamespace(g.Name) {
-				if !ownsReserved(records, g.Name, p.Slug, repository) {
+				if g.Kinds != nil || !ownsReserved(records, g.Name, p.Slug, repository) {
 					return false
 				}
 			} else if !strings.Contains(g.Name, ".") {
 				return false
 			}
 			listed[g.Name] = append(listed[g.Name], p.Slug)
+			listedKinds[g.Name] = append(listedKinds[g.Name], g.Kinds)
+		}
+	}
+	// A group several projects list needs kinds in every listing, and no kind
+	// in two listings.
+	for _, lists := range listedKinds {
+		if len(lists) < 2 {
+			continue
+		}
+		seen := map[string]bool{}
+		for _, kinds := range lists {
+			if kinds == nil {
+				return false
+			}
+			for _, k := range kinds {
+				if seen[k] {
+					return false
+				}
+				seen[k] = true
+			}
 		}
 	}
 	for i, r := range records {

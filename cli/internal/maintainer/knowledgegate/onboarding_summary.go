@@ -67,6 +67,24 @@ func (st *onboardingState) summary(rec OnboardingRecord) string {
 		w("| %d | %s | %s | %s | %s | %s | %s -> %s | %d | %d/%d/%d | %s |\n", i, cell(p.Slug), p.Kind, cell(repo), cell(paths), cell(strings.Join(p.Groups, ", ")),
 			cell(p.Proof.Pair.FromTag), cell(p.Proof.Pair.ToTag), len(p.Proof.Scan), c.Confirmed, c.Undetermined, c.Refuted, read)
 	}
+	if amended := st.amendments(rec); len(amended) > 0 {
+		w("\n## Amended table rows\n\n")
+		w("The batch adds kinds to existing whole-group listings. From then on only these kinds are attributed to the project; objects of any other kind of the group belong to no project.\n\n")
+		for _, a := range amended {
+			w("- %s, group %s: %s\n", cell(a.Slug), cell(a.Group), cell(strings.Join(a.Kinds, ", ")))
+		}
+	}
+	var listed []string
+	for _, p := range rec.Projects {
+		for _, g := range rows[p.Slug].Groups {
+			if len(g.Kinds) > 0 {
+				listed = append(listed, fmt.Sprintf("- %s, group %s: %s\n", cell(p.Slug), cell(g.Name), cell(strings.Join(g.Kinds, ", "))))
+			}
+		}
+	}
+	if len(listed) > 0 {
+		w("\n## Listed kinds of the new rows\n\n%s", strings.Join(listed, ""))
+	}
 	w("\n## Projects to read in full\n")
 	for i, p := range rec.Projects {
 		if !sampled[i] && p.Kind != OnboardingKindAttest {
