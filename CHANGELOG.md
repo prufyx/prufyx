@@ -313,6 +313,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- CLI help: `prufyx check -h`, `prepare -h`, `check cncf -h`, `prepare cncf -h` and the
+  `project` routes are now a purpose, three examples and a flags table (under 40
+  lines). `--project SLUG --help` on a route prints that project's usage. The former
+  long usage moved to generated pages in `cli/docs/projects/`. `prufyx help --all`
+  lists hidden commands and flags; `community-preview` no longer shows in the overview.
+
 - The 25 reviewed Kubernetes served-API removal rules of the embedded pack are
   replaced by the rules the `k8s.served-api-removal` extractor derives from the
   pinned upstream source (rule ids `kubernetes.served-api-removal.*`, evidence

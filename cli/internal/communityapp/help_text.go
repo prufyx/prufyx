@@ -6,58 +6,157 @@ package communityapp
 // printed by "prufyx <command> help" and "prufyx help <command>".
 
 const prepareHelp = `Usage:
-  prufyx prepare project --project grafana|kibana|loki --effective-config FILE --from VERSION --to VERSION --effective-config-complete --precedence-resolved [--effective-config-digest SHA256] [--format human|json|input]
-  prufyx prepare project --project loki --loki-schema-config FILE --from 2.9.8 --to 3.0.0 --effective-config-complete --precedence-resolved [--use-reviewed-target-default] [--loki-schema-config-digest SHA256] [--format human|json|input]
-  prufyx prepare project --project fluent-bit --effective-config FILE --from 3.2.0 --to 4.0.0 --effective-config-complete --current-default-was-used --preserve-http2-enabled [--effective-config-digest SHA256] [--format human|json|input]
-  prufyx prepare project --project ceph --selected-osd-metadata FILE --selected-osd-id ID --from VERSION --to VERSION --selected-osd-metadata-complete [--selected-osd-metadata-digest SHA256] [--format human|json|input]
-    note: Kibana 9.0.8|9.1.10|9.2.8|9.3.8|9.4.6 -> 9.5.3 additionally requires --full-status-without-monitor-required for the status-page scope.
-  prufyx prepare project --project fluent-bit --effective-config FILE --from 3.2.10|4.0.14|4.1.2|4.2.8|5.0.10 --to 5.1.2 --effective-config-complete --require-http2 [--effective-config-digest SHA256] [--format human|json|input]
-  prufyx prepare cncf --project kyverno --input FILE --container NAME --from VERSION --to VERSION [--distribution official_upstream|custom_build] [--format human|json|input]
-  prufyx prepare cncf --project linkerd --input FILE --from 2.13.7 --to 2.14.0 [--distribution official_upstream|custom_build] [--schema-validation required|disabled] [--format human|json|input]
-  prufyx prepare cncf --project karmada --input FILE --from 1.18.3 --to 1.19.0 [--distribution official_upstream|custom_build] [--target-policy-crd-admission required|disabled] [--input-digest SHA256] [--format human|json|input]
-  prufyx prepare cncf --project argo-cd --input FILE --from 2.14.0 --to 3.0.0 [--requires-inherited-application-permissions true|false] [--input-digest SHA256] [--format human|json|input]
-  prufyx prepare cncf --project jaeger --input FILE --from 1.76.0 --to 2.20.0 [--non-memory-storage-required true|false] [--official-jaeger-distribution true|false] [--input-digest SHA256] [--format human|json|input]
-  prufyx prepare cncf --project opencost --input FILE --from 1.119.0 --to 1.120.0 [--input-digest SHA256] [--format human|json|input]
-  prufyx prepare cncf --project harbor --input FILE --from 2.7.0 --to 2.8.0 [--input-digest SHA256] [--format human|json|input]
-  prufyx prepare cncf --project harbor --input FILE --from 2.10.3|2.11.2|2.12.4|2.13.5|2.14.4 --to 2.15.2 [--input-digest SHA256] [--format human|json|input]
-  prufyx prepare cncf --project containerd --input FILE --runtime-handler NAME --from 1.7.28 --to 2.0.0 --containerd-config-complete --containerd-config-precedence-resolved --containerd-official-upstream --containerd-official-bundled-runtimes-only [--input-digest SHA256] [--format human|json|input]`
+  prufyx prepare <cncf|project> --project SLUG [flags]
+
+Build a check input from a project's own configuration file. The prepared input can then
+be passed to prufyx check; --format input writes it out.
+
+Routes:
+  cncf      one CNCF project (about 50), by --project SLUG
+  project   grafana, kibana, loki, fluent-bit, ceph
+
+Examples:
+  prufyx prepare cncf --project opencost --input opencost.json --from 1.119.0 --to 1.120.0
+  prufyx prepare cncf --project linkerd --input linkerd.json --from 2.13.7 --to 2.14.0
+  prufyx prepare project --project loki --loki-schema-config schema.yaml \
+      --from 2.9.8 --to 3.0.0 --effective-config-complete --precedence-resolved
+
+Per-project inputs and flags:
+  prufyx prepare cncf --project SLUG --help
+  ` + docsProjectsHint + `
+
+Exit status: 0 prepared, 11 unresolved preparation, 2 invalid input, 3 integrity failure.`
 
 const checkHelp = `Usage:
-  prufyx check cncf --project argo-cd --config-map FILE --from 2.14.0 --to 3.0.0 [--requires-inherited-application-permissions true|false] --now RFC3339 [--config-map-digest SHA256] [--format human|json]
-  prufyx check cncf --project argo-cd --resource-exclusions-config-map FILE --from 2.14.0 --to 3.0.0 --resource-exclusions-config-complete --resource-exclusions-precedence-resolved [--requires-v2-visibility-of-v3-default-excluded-resources true] --now RFC3339 [--resource-exclusions-config-map-digest SHA256] [--format human|json]
-  prufyx check cncf --project knative --service FILE --from 1.22.0 --to 1.23.0 --now RFC3339 [--service-digest SHA256] [--format human|json]
-  prufyx check cncf --project emissary-ingress --diagd-argv FILE --from 3.10.0 --to 4.0.1 --now RFC3339 [--diagd-argv-digest SHA256] [--format human|json]
-  prufyx check cncf --project openfga --effective-config FILE --from 1.17.1 --to 1.18.0 [--effective-config-complete] --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
-  prufyx check cncf --project prometheus --scrape-config FILE --scrape-job NAME --from 2.55.1 --to 3.1.0 --scrape-config-complete --scrape-config-precedence-resolved --now RFC3339 [--scrape-config-digest SHA256] [--format human|json]
-  prufyx check cncf --project prometheus --alertmanager-config FILE --from 2.55.1 --to 3.1.0 --alertmanager-config-complete --alertmanager-config-precedence-resolved --now RFC3339 [--alertmanager-config-digest SHA256] [--format human|json]
-  prufyx check cncf --project prometheus --prometheus-config FILE --prometheus-config-complete --prometheus-config-precedence-resolved --prometheus-rule remote-write-http2-default --prometheus-remote-write-name NAME --prometheus-remote-write-http2-required=true|false --from 2.55.1 --to 3.14.0 --now RFC3339 [--prometheus-config-digest SHA256] [--format human|json]
-  prufyx check cncf --project containerd --containerd-config FILE --runtime-handler NAME --from 1.7.28 --to 2.0.0 --containerd-config-complete --containerd-config-precedence-resolved --containerd-official-upstream --containerd-official-bundled-runtimes-only --now RFC3339 [--containerd-config-digest SHA256] [--format human|json]
-  prufyx check cncf --project SLUG --input FILE --now RFC3339 [--input-digest SHA256] [--format human|json]
-  prufyx check cncf --project SLUG --input FILE --knowledge-db DIR [--input-digest SHA256] [--format human|json]
-  prufyx check project --project grafana|kibana|loki --effective-config FILE --from VERSION --to VERSION --effective-config-complete --precedence-resolved --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
-  prufyx check project --project loki --loki-schema-config FILE --from 2.9.8 --to 3.0.0 --effective-config-complete --precedence-resolved --now RFC3339 [--use-reviewed-target-default] [--loki-schema-config-digest SHA256] [--format human|json]
-  prufyx check project --project fluent-bit --effective-config FILE --from 3.2.0 --to 4.0.0 --effective-config-complete --current-default-was-used --preserve-http2-enabled --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
-  prufyx check project --project ceph --selected-osd-metadata FILE --selected-osd-id ID --from VERSION --to VERSION --selected-osd-metadata-complete --now RFC3339 [--selected-osd-metadata-digest SHA256] [--format human|json]
-    note: Kibana 9.0.8|9.1.10|9.2.8|9.3.8|9.4.6 -> 9.5.3 additionally requires --full-status-without-monitor-required for the status-page scope.
-  prufyx check project --project fluent-bit --effective-config FILE --from 3.2.10|4.0.14|4.1.2|4.2.8|5.0.10 --to 5.1.2 --effective-config-complete --require-http2 --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
-  prufyx check cert-manager-values --from VERSION --to VERSION --values FILE [--schema-validation required|disabled] [--values-digest SHA256] [--format human|json]
-  prufyx check batch --plan FILE --root DIR (--now RFC3339 | --knowledge-db DIR) [--format human|json] [--exit-mode legacy|detailed]
-  prufyx check prometheus-mode --demo [--format human|json]
-  prufyx check prometheus-mode --observation-root DIR --proposed-workload FILE --proposed-digest SHA256 --captured-at RFC3339 --now RFC3339 --max-age DURATION [--format human|json]
-  prufyx check spiffe-x509-svid --certificate FILE --now RFC3339 [--certificate-digest SHA256] [--format human|json]
-  prufyx check spiffe-x509-svid --certificate FILE --knowledge-db DIR [--certificate-digest SHA256] [--format human|json]
-  prufyx check cloudevents-structured-json --event FILE --now RFC3339 [--event-digest SHA256] [--format human|json]
-  prufyx check cloudevents-structured-json --event FILE --knowledge-db DIR [--event-digest SHA256] [--format human|json]
-  prufyx check tikv-gcp-v2-wif-backup --config FILE --target-version VERSION --operation OPERATION --now RFC3339 [--config-digest SHA256] [--format human|json]
-  prufyx check tikv-gcp-v2-wif-backup --config FILE --target-version VERSION --operation OPERATION --knowledge-db DIR [--config-digest SHA256] [--format human|json]
+  prufyx check <route> [flags]
 
-Exit status for check cncf and check project: 0 scoped PASS, 10 scoped BLOCKED, 11 UNKNOWN, 2 invalid input, 3 integrity failure. Exit 0 is not a whole-upgrade PASS: add --strict-exit to any check to exit 14 instead of 0 on a scoped PASS (see cli/docs/exit-codes.md).
-Exit status for check cert-manager-values: 0 scoped PASS, 10 scoped BLOCKED, 11 UNKNOWN, 2 invalid input, 3 integrity failure.
-Exit status for check prometheus-mode: 0 scoped PASS, 11 ATTENTION or UNKNOWN. The legacy alias always exits 11 because its aggregate remains UNKNOWN.
-Exit status for check spiffe-x509-svid: 0 scoped PASS, 10 scoped FAIL, 11 UNKNOWN, 2 invalid input, 3 integrity failure.
-Exit status for check cloudevents-structured-json: 0 scoped PASS, 10 scoped FAIL, 11 UNKNOWN, 2 invalid input, 3 integrity failure.
-Exit status for check tikv-gcp-v2-wif-backup: 0 scoped PASS, 10 scoped BLOCKED, 11 UNKNOWN, 2 invalid input, 3 integrity failure.
-Exit status for check batch: legacy mode preserves 0 PASS, 10 BLOCKED, 11 UNKNOWN or stale, 2 invalid input, 3 integrity failure; detailed mode uses 12 stale evidence and 13 evaluation clock before review.`
+Evaluate one scoped rule route against the inputs you declare. To scan whole manifests, use
+prufyx scan.
+
+Routes:
+  cncf                          one CNCF project (about 50), by --project SLUG
+  project                       grafana, kibana, loki, fluent-bit, ceph
+  cert-manager-values           cert-manager Helm values
+  batch                         run a plan file of checks
+  prometheus-mode               Prometheus mode observation
+  spiffe-x509-svid              a SPIFFE X.509 SVID certificate
+  cloudevents-structured-json   a CloudEvents structured JSON event
+  tikv-gcp-v2-wif-backup        a TiKV GCP v2 workload-identity backup config
+
+Examples:
+  prufyx check cncf --project knative --service service.json --from 1.22.0 --to 1.23.0 \
+      --now 2026-10-18T00:00:00Z
+  prufyx check cert-manager-values --from 1.20.3 --to 1.21.1 --values values.json
+  prufyx check batch --plan plan.json --root . --now 2026-10-18T00:00:00Z
+
+Flags shared by most routes:
+  --from, --to VERSION     versions to compare
+  --now RFC3339            evaluation time, or --knowledge-db DIR for a local store
+  --format human|json      report format (default human)
+  --strict-exit            exit 14 instead of 0 for a scoped PASS
+
+Project inputs: prufyx check cncf --project SLUG --help (` + docsProjectsHint + `)
+Exit: 0 scoped PASS (not a whole-upgrade PASS), 10 BLOCKED, 11 UNKNOWN, 2 invalid, 3 integrity.`
+
+const checkCNCFHelp = `Usage:
+  prufyx check cncf --project SLUG --input FILE (--now RFC3339 | --knowledge-db DIR) [flags]
+
+Check one CNCF project's upgrade against the minimized declarations you supply.
+The input flag differs per project: see the project's usage with --project SLUG --help.
+
+Examples:
+  prufyx check cncf --project knative --service service.json --from 1.22.0 --to 1.23.0 \
+      --now 2026-10-18T00:00:00Z
+  prufyx check cncf --project emissary-ingress --diagd-argv argv.json --from 3.10.0 --to 4.0.1 \
+      --now 2026-10-18T00:00:00Z
+  prufyx check cncf --project SLUG --input input.json --now 2026-10-18T00:00:00Z
+
+Flags:
+  --project SLUG           project to check (prufyx catalog cncf lists them)
+  --input FILE             minimized declarations; per-project flags replace it
+  --from, --to VERSION     versions to compare
+  --now RFC3339            evaluate with the embedded knowledge at this time
+  --knowledge-db DIR       use a local signed knowledge store instead
+  --knowledge auto|embedded  choose the installed store or the embedded knowledge
+  --require-basis LIST     only evaluate rules whose evidence basis is in LIST
+  --show-passes            human output: list PASS claims instead of counting them
+  --input-digest SHA256    pin the exact input file
+  --replay-report FILE     re-check a prior JSON report
+  --format human|json      report format (default human)
+
+Per-project usage and prose: prufyx check cncf --project SLUG --help
+Docs: ` + docsProjectsHint + `
+Exit: 0 PASS, 10 BLOCKED, 2 invalid input, 3 integrity failure, and
+  11 UNKNOWN, UNSUPPORTED, NO_KNOWN_ISSUE or no rules.`
+
+const prepareCNCFHelp = `Usage:
+  prufyx prepare cncf --project SLUG --input FILE [flags]
+
+Build a check input from a CNCF project's own configuration. Writes nothing unless you ask
+for --format input. Raw workload data is not kept in the report.
+
+Examples:
+  prufyx prepare cncf --project opencost --input opencost.json --from 1.119.0 --to 1.120.0
+  prufyx prepare cncf --project linkerd --input linkerd.json --from 2.13.7 --to 2.14.0
+  prufyx prepare cncf --project harbor --input harbor.json --from 2.7.0 --to 2.8.0 \
+      --format input
+
+Flags:
+  --project SLUG           project to prepare (prufyx catalog cncf lists them)
+  --input FILE             the project's own configuration; per-project flags replace it
+  --from, --to VERSION     versions to compare
+  --input-digest SHA256    pin the exact input file
+  --format human|json|input  report, JSON, or the prepared input itself
+
+Per-project usage and prose: prufyx prepare cncf --project SLUG --help
+Docs: ` + docsProjectsHint + `
+Exit: 0 prepared, 11 unresolved preparation, 2 invalid input, 3 integrity failure.`
+
+const checkProjectHelp = `Usage:
+  prufyx check project --project SLUG --effective-config FILE [flags]
+
+Check one non-CNCF project's upgrade against its effective configuration. This preview is
+embedded-only: --knowledge-db, --profile and replay flags are not supported.
+
+Examples:
+  prufyx check project --project loki --loki-schema-config schema.yaml --from 2.9.8 --to 3.0.0 \
+      --effective-config-complete --precedence-resolved --now 2026-10-18T00:00:00Z
+  prufyx check project --project grafana --effective-config grafana.ini --from VERSION \
+      --to VERSION --effective-config-complete --precedence-resolved --now 2026-10-18T00:00:00Z
+
+Flags:
+  --project SLUG           grafana, kibana, loki, fluent-bit or ceph
+  --effective-config FILE  effective configuration; loki, fluent-bit and ceph name their own
+                           input flag (see --project SLUG --help)
+  --from, --to VERSION     versions to compare
+  --now RFC3339            evaluation time
+  --format human|json      report format (default human)
+
+Per-project usage and prose: prufyx check project --project SLUG --help
+Docs: ` + docsProjectsHint + `
+Exit: 0 PASS, 10 BLOCKED, 11 UNKNOWN, 2 invalid input, 3 integrity failure.`
+
+const prepareProjectHelp = `Usage:
+  prufyx prepare project --project SLUG --effective-config FILE [flags]
+
+Build a check input from a non-CNCF project's effective configuration.
+
+Examples:
+  prufyx prepare project --project loki --loki-schema-config schema.yaml --from 2.9.8 --to 3.0.0 \
+      --effective-config-complete --precedence-resolved
+  prufyx prepare project --project grafana --effective-config grafana.ini --from VERSION \
+      --to VERSION --effective-config-complete --precedence-resolved
+
+Flags:
+  --project SLUG           grafana, kibana, loki, fluent-bit or ceph
+  --effective-config FILE  effective configuration; loki, fluent-bit and ceph name their own
+                           input flag (see --project SLUG --help)
+  --from, --to VERSION     versions to compare
+  --format human|json|input  report, JSON, or the prepared input itself
+
+Per-project usage and prose: prufyx prepare project --project SLUG --help
+Docs: ` + docsProjectsHint + `
+Exit: 0 prepared, 11 unresolved preparation, 2 invalid input, 3 integrity failure.`
 
 const catalogHelp = `Usage:
   prufyx catalog cncf [--priority] [--project SLUG] [--format human|json]

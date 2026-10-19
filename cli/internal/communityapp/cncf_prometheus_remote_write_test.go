@@ -113,15 +113,20 @@ func TestPrometheusRemoteWriteHTTP2PublicVerdicts(t *testing.T) {
 
 func TestPrometheusRemoteWriteHTTP2HelpAndSafeFailures(t *testing.T) {
 	t.Parallel()
-	code, stdout, stderr := runCNCFCLI(t, "check", "--help") // intentionally changed: root help is now an overview; full usage is per-command
+	// Short help no longer carries per-project usage: ask the project's help,
+	// and the generated reference page for the prose.
+	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "prometheus", "--help")
 	if code != ExitOK || stderr != "" || !strings.Contains(stdout, "--prometheus-config") || !strings.Contains(stdout, "remote-write-http2-default") {
-		t.Fatalf("root help code=%d stdout=%q stderr=%q", code, stdout, stderr)
+		t.Fatalf("project help code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 	for _, command := range []string{"check", "prepare"} {
-		code, stdout, stderr := runCNCFCLI(t, command, "cncf", "--help")
-		if code != ExitOK || stderr != "" || !strings.Contains(stdout, "--prometheus-config") || !strings.Contains(stdout, "--prometheus-remote-write-http2-required") || !strings.Contains(stdout, "enable_http2") {
+		code, stdout, stderr := runCNCFCLI(t, command, "cncf", "--project", "prometheus", "--help")
+		if code != ExitOK || stderr != "" || !strings.Contains(stdout, "--prometheus-config") || !strings.Contains(stdout, "--prometheus-remote-write-http2-required") {
 			t.Fatalf("%s help code=%d stdout=%q stderr=%q", command, code, stdout, stderr)
 		}
+	}
+	if !strings.Contains(string(renderProjectDocs()["routes.md"]), "enable_http2") {
+		t.Fatal("the generated reference text lost the enable_http2 prose")
 	}
 	path := writeCNCFFile(t, "PRIVATE-PATH-CANARY.yml", []byte("remote_write: []\n"), 0o600)
 	for _, args := range [][]string{

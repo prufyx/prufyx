@@ -91,7 +91,7 @@ func TestCiliumPreparationRejectsCrossProjectFlags(t *testing.T) {
 
 func TestCiliumPreparationHelpListsReviewedExactPairs(t *testing.T) {
 	t.Parallel()
-	code, stdout, stderr := runCNCFCLI(t, "prepare", "cncf", "--help")
+	code, stdout, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "cilium", "--help")
 	if code != ExitOK || stderr != "" {
 		t.Fatalf("code=%d stderr=%q", code, stderr)
 	}

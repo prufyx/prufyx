@@ -239,9 +239,11 @@ func TestCNCFDirectEmissaryAndOpenFGARoutes(t *testing.T) {
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "precedence was not declared complete") || strings.Contains(stdout, "caller declares file, environment, and flag precedence complete") {
 		t.Fatalf("incomplete OpenFGA human output code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
-	code, stdout, stderr = runCNCFCLI(t, "check", "cncf", "--help")
-	if code != ExitOK || stderr != "" || !strings.Contains(stdout, "--diagd-argv") || !strings.Contains(stdout, "--effective-config-complete") {
-		t.Fatalf("direct format help code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	for project, flag := range map[string]string{"emissary-ingress": "--diagd-argv", "openfga": "--effective-config-complete"} {
+		code, stdout, stderr = runCNCFCLI(t, "check", "cncf", "--project", project, "--help")
+		if code != ExitOK || stderr != "" || !strings.Contains(stdout, flag) {
+			t.Fatalf("%s help code=%d stdout=%q stderr=%q", project, code, stdout, stderr)
+		}
 	}
 }
 

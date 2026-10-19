@@ -13,6 +13,9 @@ import (
 
 const docsURL = "https://github.com/prufyx/prufyx/tree/main/cli/docs"
 
+// docsProjectsHint names the generated per-project pages (see project_docs.go).
+const docsProjectsHint = "cli/docs/projects/SLUG.md"
+
 // scopedPassHelpLine is the overview's one line on exit codes: a check that
 // exits 0 passed only the rules it checked (see cli/docs/exit-codes.md).
 const scopedPassHelpLine = "Exit 0 from check is a scoped PASS, not a whole-upgrade PASS: add --strict-exit in CI (cli/docs/exit-codes.md)."
@@ -42,9 +45,14 @@ var helpGroups = []helpGroup{
 	}},
 	{"Other:", []helpEntry{
 		{"version", "Print the build identity"},
-		{"community-preview", "Run public synthetic walkthroughs"},
 		{"help", "Show this overview, or help for one command"},
 	}},
+}
+
+// hiddenEntries are commands the overview leaves out; "prufyx help --all"
+// lists them. They stay routable and keep their own help.
+var hiddenEntries = []helpEntry{
+	{"community-preview", "Run public synthetic walkthroughs"},
 }
 
 // colorEnabled reports whether help output to w may use ANSI colour.
@@ -99,7 +107,7 @@ func (r runtime) rootHelp() int {
 			fmt.Fprintf(w, "  %s%s%s\n", p.cmd(e.name), pad, e.summary)
 		}
 	}
-	fmt.Fprintf(w, "\nRun 'prufyx <command> help' for details.\nDocs: %s\n", docsURL)
+	fmt.Fprintf(w, "\nRun 'prufyx <command> help' for details; 'prufyx help --all' lists hidden commands.\nDocs: %s\n", docsURL)
 	// Kept from the former full usage: a check that exits 0 is a scoped PASS only.
 	fmt.Fprintln(w, scopedPassHelpLine)
 	return ExitOK
@@ -139,6 +147,11 @@ func (r runtime) commandHelp(name string) int {
 			if e.name == name {
 				summary = e.summary
 			}
+		}
+	}
+	for _, e := range hiddenEntries {
+		if e.name == name {
+			summary = e.summary
 		}
 	}
 	if name != "scan" { // scan keeps its long-standing help text byte for byte
