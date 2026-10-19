@@ -40,17 +40,37 @@ prufyx assess --kubeconfig "$HOME/.kube/config" --acknowledge-kubeconfig-exec-ri
 
 Three things you need to know before the first run:
 
-- **Both `--kubeconfig FILE` and `--acknowledge-kubeconfig-exec-risk` are
-  required**, and so is at least one `CONTEXT`. Without any of them the command
-  exits `2` with `invalid assess arguments; use --help`.
-- **Put every flag before the context name.** Flag parsing stops at the first
-  argument that is not a flag, and everything after it is read as another
-  context name. In
-  `prufyx assess --kubeconfig FILE --acknowledge-kubeconfig-exec-risk my-context --format json`
-  the `--format json` is not a flag. Write
-  `prufyx assess --kubeconfig FILE --acknowledge-kubeconfig-exec-risk --format json my-context`.
-  A flag given twice is refused as well. Global flags before `assess` are not
-  supported: `prufyx --kubeconfig FILE assess` is an unknown command.
+- **`--kubeconfig FILE`, `--acknowledge-kubeconfig-exec-risk` and at least one
+  `CONTEXT` are required.** A missing one exits `2` and the message names it
+  (real output):
+
+  ```
+  $ prufyx assess ctx
+  prufyx: assess: missing --kubeconfig FILE (an explicit private kubeconfig is required)
+  $ prufyx assess --kubeconfig k.yaml ctx
+  prufyx: assess: missing --acknowledge-kubeconfig-exec-risk (confirms you trust the authentication helpers in the kubeconfig)
+  $ prufyx assess --kubeconfig k.yaml --acknowledge-kubeconfig-exec-risk
+  prufyx: assess: missing CONTEXT (one or more kubeconfig context names, after all flags)
+  $ prufyx assess --kubeconfig k.yaml --acknowledge-kubeconfig-exec-risk --format yaml ctx
+  prufyx: assess: unsupported --format "yaml"; use human or json
+  ```
+- **Put every flag before the context name.** A flag after the first context
+  name is refused (exit `2`):
+
+  ```
+  $ prufyx assess --kubeconfig k.yaml --acknowledge-kubeconfig-exec-risk ctx --format json
+  prufyx: assess: flags must come before CONTEXT; found "--format" after the context name
+  ```
+
+  Write `prufyx assess --kubeconfig FILE --acknowledge-kubeconfig-exec-risk --format json my-context`.
+  A flag given twice is refused too, with the generic
+  `prufyx: invalid assess arguments; use --help`. Global flags before `assess`
+  are not supported:
+
+  ```
+  $ prufyx --kubeconfig k.yaml assess ctx
+  prufyx: unknown command "--kubeconfig"; flags go after the command (prufyx COMMAND [flags]); use prufyx --help
+  ```
 - **The answer is a triage list, not a verdict.** It says which checks could
   apply to what was found and what each still needs from you (the
   [declarations](declarations.md) and input files), and its `aggregate` stays
