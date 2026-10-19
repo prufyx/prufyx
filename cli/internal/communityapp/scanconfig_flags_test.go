@@ -30,9 +30,10 @@ func TestDeclarationsMapToRouteFlags(t *testing.T) {
 		t.Fatal("the flag-parsing probe does not tell an unknown flag from a known route")
 	}
 	var help bytes.Buffer
-	Run(context.Background(), []string{"check", "cncf", "--help"}, &help, &bytes.Buffer{}, "test")
+	Run(context.Background(), []string{"check", "cncf", "--project", "kubernetes", "--help"}, &help, &bytes.Buffer{}, "test")
 	var kubernetesUsage string
-	for _, line := range strings.Split(help.String(), "\n") {
+	// The help wraps long usage lines; rejoin them before looking for one.
+	for _, line := range strings.Split(strings.Join(strings.Fields(help.String()), " "), "prufyx check cncf") {
 		if strings.Contains(line, "--project kubernetes --native-resource") {
 			kubernetesUsage = line
 		}

@@ -1,0 +1,427 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package communityapp
+
+// The former long usage texts of the check and prepare routes. They are no
+// longer printed whole: the short help in help_text.go replaces them, and
+// help_projects.go serves the lines of one project from here. The same text is
+// rendered into cli/docs/projects/ (see project_docs.go), and
+// TestLegacyUsageLinesAreDocumented keeps the two in step.
+
+const checkHelpLegacy = `Usage:
+  prufyx check cncf --project argo-cd --config-map FILE --from 2.14.0 --to 3.0.0 [--requires-inherited-application-permissions true|false] --now RFC3339 [--config-map-digest SHA256] [--format human|json]
+  prufyx check cncf --project argo-cd --resource-exclusions-config-map FILE --from 2.14.0 --to 3.0.0 --resource-exclusions-config-complete --resource-exclusions-precedence-resolved [--requires-v2-visibility-of-v3-default-excluded-resources true] --now RFC3339 [--resource-exclusions-config-map-digest SHA256] [--format human|json]
+  prufyx check cncf --project knative --service FILE --from 1.22.0 --to 1.23.0 --now RFC3339 [--service-digest SHA256] [--format human|json]
+  prufyx check cncf --project emissary-ingress --diagd-argv FILE --from 3.10.0 --to 4.0.1 --now RFC3339 [--diagd-argv-digest SHA256] [--format human|json]
+  prufyx check cncf --project openfga --effective-config FILE --from 1.17.1 --to 1.18.0 [--effective-config-complete] --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
+  prufyx check cncf --project prometheus --scrape-config FILE --scrape-job NAME --from 2.55.1 --to 3.1.0 --scrape-config-complete --scrape-config-precedence-resolved --now RFC3339 [--scrape-config-digest SHA256] [--format human|json]
+  prufyx check cncf --project prometheus --alertmanager-config FILE --from 2.55.1 --to 3.1.0 --alertmanager-config-complete --alertmanager-config-precedence-resolved --now RFC3339 [--alertmanager-config-digest SHA256] [--format human|json]
+  prufyx check cncf --project prometheus --prometheus-config FILE --prometheus-config-complete --prometheus-config-precedence-resolved --prometheus-rule remote-write-http2-default --prometheus-remote-write-name NAME --prometheus-remote-write-http2-required=true|false --from 2.55.1 --to 3.14.0 --now RFC3339 [--prometheus-config-digest SHA256] [--format human|json]
+  prufyx check cncf --project containerd --containerd-config FILE --runtime-handler NAME --from 1.7.28 --to 2.0.0 --containerd-config-complete --containerd-config-precedence-resolved --containerd-official-upstream --containerd-official-bundled-runtimes-only --now RFC3339 [--containerd-config-digest SHA256] [--format human|json]
+  prufyx check cncf --project SLUG --input FILE --now RFC3339 [--input-digest SHA256] [--format human|json]
+  prufyx check cncf --project SLUG --input FILE --knowledge-db DIR [--input-digest SHA256] [--format human|json]
+  prufyx check project --project grafana|kibana|loki --effective-config FILE --from VERSION --to VERSION --effective-config-complete --precedence-resolved --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
+  prufyx check project --project loki --loki-schema-config FILE --from 2.9.8 --to 3.0.0 --effective-config-complete --precedence-resolved --now RFC3339 [--use-reviewed-target-default] [--loki-schema-config-digest SHA256] [--format human|json]
+  prufyx check project --project fluent-bit --effective-config FILE --from 3.2.0 --to 4.0.0 --effective-config-complete --current-default-was-used --preserve-http2-enabled --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
+  prufyx check project --project ceph --selected-osd-metadata FILE --selected-osd-id ID --from VERSION --to VERSION --selected-osd-metadata-complete --now RFC3339 [--selected-osd-metadata-digest SHA256] [--format human|json]
+    note: Kibana 9.0.8|9.1.10|9.2.8|9.3.8|9.4.6 -> 9.5.3 additionally requires --full-status-without-monitor-required for the status-page scope.
+  prufyx check project --project fluent-bit --effective-config FILE --from 3.2.10|4.0.14|4.1.2|4.2.8|5.0.10 --to 5.1.2 --effective-config-complete --require-http2 --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
+  prufyx check cert-manager-values --from VERSION --to VERSION --values FILE [--schema-validation required|disabled] [--values-digest SHA256] [--format human|json]
+  prufyx check batch --plan FILE --root DIR (--now RFC3339 | --knowledge-db DIR) [--format human|json] [--exit-mode legacy|detailed]
+  prufyx check prometheus-mode --demo [--format human|json]
+  prufyx check prometheus-mode --observation-root DIR --proposed-workload FILE --proposed-digest SHA256 --captured-at RFC3339 --now RFC3339 --max-age DURATION [--format human|json]
+  prufyx check spiffe-x509-svid --certificate FILE --now RFC3339 [--certificate-digest SHA256] [--format human|json]
+  prufyx check spiffe-x509-svid --certificate FILE --knowledge-db DIR [--certificate-digest SHA256] [--format human|json]
+  prufyx check cloudevents-structured-json --event FILE --now RFC3339 [--event-digest SHA256] [--format human|json]
+  prufyx check cloudevents-structured-json --event FILE --knowledge-db DIR [--event-digest SHA256] [--format human|json]
+  prufyx check tikv-gcp-v2-wif-backup --config FILE --target-version VERSION --operation OPERATION --now RFC3339 [--config-digest SHA256] [--format human|json]
+  prufyx check tikv-gcp-v2-wif-backup --config FILE --target-version VERSION --operation OPERATION --knowledge-db DIR [--config-digest SHA256] [--format human|json]
+
+Exit status for check cncf and check project: 0 scoped PASS, 10 scoped BLOCKED, 11 UNKNOWN, 2 invalid input, 3 integrity failure. Exit 0 is not a whole-upgrade PASS: add --strict-exit to any check to exit 14 instead of 0 on a scoped PASS (see cli/docs/exit-codes.md).
+Exit status for check cert-manager-values: 0 scoped PASS, 10 scoped BLOCKED, 11 UNKNOWN, 2 invalid input, 3 integrity failure.
+Exit status for check prometheus-mode: 0 scoped PASS, 11 ATTENTION or UNKNOWN. The legacy alias always exits 11 because its aggregate remains UNKNOWN.
+Exit status for check spiffe-x509-svid: 0 scoped PASS, 10 scoped FAIL, 11 UNKNOWN, 2 invalid input, 3 integrity failure.
+Exit status for check cloudevents-structured-json: 0 scoped PASS, 10 scoped FAIL, 11 UNKNOWN, 2 invalid input, 3 integrity failure.
+Exit status for check tikv-gcp-v2-wif-backup: 0 scoped PASS, 10 scoped BLOCKED, 11 UNKNOWN, 2 invalid input, 3 integrity failure.
+Exit status for check batch: legacy mode preserves 0 PASS, 10 BLOCKED, 11 UNKNOWN or stale, 2 invalid input, 3 integrity failure; detailed mode uses 12 stale evidence and 13 evaluation clock before review.`
+
+const prepareHelpLegacy = `Usage:
+  prufyx prepare project --project grafana|kibana|loki --effective-config FILE --from VERSION --to VERSION --effective-config-complete --precedence-resolved [--effective-config-digest SHA256] [--format human|json|input]
+  prufyx prepare project --project loki --loki-schema-config FILE --from 2.9.8 --to 3.0.0 --effective-config-complete --precedence-resolved [--use-reviewed-target-default] [--loki-schema-config-digest SHA256] [--format human|json|input]
+  prufyx prepare project --project fluent-bit --effective-config FILE --from 3.2.0 --to 4.0.0 --effective-config-complete --current-default-was-used --preserve-http2-enabled [--effective-config-digest SHA256] [--format human|json|input]
+  prufyx prepare project --project ceph --selected-osd-metadata FILE --selected-osd-id ID --from VERSION --to VERSION --selected-osd-metadata-complete [--selected-osd-metadata-digest SHA256] [--format human|json|input]
+    note: Kibana 9.0.8|9.1.10|9.2.8|9.3.8|9.4.6 -> 9.5.3 additionally requires --full-status-without-monitor-required for the status-page scope.
+  prufyx prepare project --project fluent-bit --effective-config FILE --from 3.2.10|4.0.14|4.1.2|4.2.8|5.0.10 --to 5.1.2 --effective-config-complete --require-http2 [--effective-config-digest SHA256] [--format human|json|input]
+  prufyx prepare cncf --project kyverno --input FILE --container NAME --from VERSION --to VERSION [--distribution official_upstream|custom_build] [--format human|json|input]
+  prufyx prepare cncf --project linkerd --input FILE --from 2.13.7 --to 2.14.0 [--distribution official_upstream|custom_build] [--schema-validation required|disabled] [--format human|json|input]
+  prufyx prepare cncf --project karmada --input FILE --from 1.18.3 --to 1.19.0 [--distribution official_upstream|custom_build] [--target-policy-crd-admission required|disabled] [--input-digest SHA256] [--format human|json|input]
+  prufyx prepare cncf --project argo-cd --input FILE --from 2.14.0 --to 3.0.0 [--requires-inherited-application-permissions true|false] [--input-digest SHA256] [--format human|json|input]
+  prufyx prepare cncf --project jaeger --input FILE --from 1.76.0 --to 2.20.0 [--non-memory-storage-required true|false] [--official-jaeger-distribution true|false] [--input-digest SHA256] [--format human|json|input]
+  prufyx prepare cncf --project opencost --input FILE --from 1.119.0 --to 1.120.0 [--input-digest SHA256] [--format human|json|input]
+  prufyx prepare cncf --project harbor --input FILE --from 2.7.0 --to 2.8.0 [--input-digest SHA256] [--format human|json|input]
+  prufyx prepare cncf --project harbor --input FILE --from 2.10.3|2.11.2|2.12.4|2.13.5|2.14.4 --to 2.15.2 [--input-digest SHA256] [--format human|json|input]
+  prufyx prepare cncf --project containerd --input FILE --runtime-handler NAME --from 1.7.28 --to 2.0.0 --containerd-config-complete --containerd-config-precedence-resolved --containerd-official-upstream --containerd-official-bundled-runtimes-only [--input-digest SHA256] [--format human|json|input]`
+
+const checkCNCFLegacy = `Usage: prufyx check cncf --project SLUG --input FILE (--now RFC3339 | --knowledge-db DIR) [--input-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project argo-cd --config-map FILE --from 2.14.0 --to 3.0.0 [--requires-inherited-application-permissions true|false] --now RFC3339 [--config-map-digest SHA256] [--format human|json]
+   or: prufyx check cncf --project argo-cd --resource-exclusions-config-map FILE --from 2.14.0 --to 3.0.0 --resource-exclusions-config-complete --resource-exclusions-precedence-resolved [--requires-v2-visibility-of-v3-default-excluded-resources true] --now RFC3339 [--resource-exclusions-config-map-digest SHA256] [--format human|json]
+   or: prufyx check cncf --project knative --service FILE --from VERSION --to VERSION (--now RFC3339 | --knowledge-db DIR) [--service-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project in-toto --in-toto-run-argv FILE --from 2.2.0 --to 3.0.0 (--now RFC3339 | --knowledge-db DIR) [--in-toto-run-argv-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project the-update-framework-tuf --python-source FILE --from 6.0.0 --to 7.0.0 (--now RFC3339 | --knowledge-db DIR) [--python-source-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project kubeflow --python-source FILE --from 1.8.22 --to 2.0.0 (--now RFC3339 | --knowledge-db DIR) [--python-source-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project cubefs --metanode-config FILE --from 3.2.1 --to 3.3.2 [--phase metanode-upgrade] (--now RFC3339 | --knowledge-db DIR) [--metanode-config-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project cri-o --image-status-request FILE --artifact-operation named-reference-resolution --from 1.34.0 --to 1.35.0 (--now RFC3339 | --knowledge-db DIR) [--image-status-request-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project distribution --image-manifest FILE --from 2.8.3 --to 3.0.0 (--now RFC3339 | --knowledge-db DIR) [--image-manifest-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project container-network-interface-cni --cni-configuration FILE --from 0.4.0 --to 1.0.0 [--operation configuration-spec-migration] (--now RFC3339 | --knowledge-db DIR) [--cni-configuration-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project containerd --containerd-config FILE --runtime-handler NAME --from 1.7.28 --to 2.0.0 --containerd-config-complete --containerd-config-precedence-resolved --containerd-official-upstream --containerd-official-bundled-runtimes-only (--now RFC3339 | --knowledge-db DIR) [--containerd-config-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project emissary-ingress --diagd-argv FILE --from 3.10.0 --to 4.0.1 (--now RFC3339 | --knowledge-db DIR) [--diagd-argv-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project openfga --effective-config FILE --from 1.17.1 --to 1.18.0 [--effective-config-complete] (--now RFC3339 | --knowledge-db DIR) [--effective-config-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project buildpacks --current-lifecycle-config FILE --proposed-lifecycle-config FILE --from 0.16.5 --to 0.17.7 --current-platform-api 0.11 --proposed-platform-api 0.12|0.13 (--now RFC3339 | --knowledge-db DIR) [--current-lifecycle-config-digest SHA256] [--proposed-lifecycle-config-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project metallb|contour|kubevirt|thanos|cortex --native-resource FILE --from VERSION --to VERSION (--now RFC3339 | --knowledge-db DIR) [--native-resource-digest SHA256] [--replay-report FILE] [--format human|json]
+	 or: prufyx check cncf --project flux --native-resource FILE --from VERSION --to VERSION [--resource-scope-complete] (--now RFC3339 | --knowledge-db DIR) [--native-resource-digest SHA256] [--replay-report FILE] [--format human|json]
+	 or: prufyx check cncf --project kubernetes --native-resource FILE --from 1.31.0 --to 1.32.0 --distribution official_upstream|custom_build --target-api-apply-required --resource-scope-complete (--now RFC3339 | --knowledge-db DIR) [--native-resource-digest SHA256] [--replay-report FILE] [--format human|json]
+	 or: prufyx check cncf --project kubernetes --component-config FILE --from VERSION --to VERSION --distribution official_upstream|custom_build --now RFC3339 [--component-config-digest SHA256] [--format human|json]
+	 or: prufyx check cncf --project cilium --cilium-config-map FILE --from 1.16.19 --to 1.17.18 --cilium-distribution official_upstream|custom_build --cilium-config-complete --cilium-config-precedence-resolved (--now RFC3339 | --knowledge-db DIR) [--cilium-config-map-digest SHA256] [--replay-report FILE] [--format human|json]
+	 or: prufyx check cncf --project coredns --coredns-corefile FILE --from 1.6.9 --to 1.7.0 or 1.9.4|1.10.1|1.11.4|1.12.4|1.13.2 --to 1.14.7 --coredns-distribution official --coredns-corefile-complete (--now RFC3339 | --knowledge-db DIR) [--coredns-corefile-digest SHA256] [--replay-report FILE] [--format human|json]
+	 or: prufyx check cncf --project envoy --envoy-bootstrap FILE --envoy-bootstrap-selected --from 1.34.14|1.35.13|1.36.10|1.37.6|1.38.4 --to 1.39.1 (--now RFC3339 | --knowledge-db DIR) [--envoy-bootstrap-digest SHA256] [--replay-report FILE] [--format human|json]
+	 or: prufyx check cncf --project nats --nats-config FILE --from VERSION --to VERSION (--now RFC3339 | --knowledge-db DIR) [--nats-config-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project falco --falco-argv FILE --falco-distribution official_upstream|custom_build --from 0.40.0 --to 0.41.0|0.42.0 (--now RFC3339 | --knowledge-db DIR) [--falco-argv-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project kuma --kumactl-argv FILE --kuma-distribution official_upstream|custom_build --from 2.8.0 --to 2.9.0 (--now RFC3339 | --knowledge-db DIR) [--kumactl-argv-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project crossplane --composition FILE --crossplane-distribution official_upstream|custom_build --crossplane-schema-validation-required --from 1.20.0 --to 2.0.0 (--now RFC3339 | --knowledge-db DIR) [--composition-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project velero --upgrade-plan FILE --velero-server-deployment NAME --velero-plan-order-declared --from 1.17.0|1.16.2 --to 1.18.0 (--now RFC3339 | --knowledge-db DIR) [--upgrade-plan-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project keda --keda-scaled-object FILE --keda-scaled-object-complete --from 2.16.0 --to 2.17.0 [--keda-legacy-tls-transport-required true|false] (--now RFC3339 | --knowledge-db DIR) [--keda-scaled-object-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project spire --spire-entry-argv FILE --spire-distribution official_upstream|custom_build --from 1.10.4 --to 1.11.0 (--now RFC3339 | --knowledge-db DIR) [--spire-entry-argv-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project opentelemetry --otel-collector-config FILE --otel-distribution official|custom --otel-config-complete --otel-config-precedence-resolved --from 0.110.0 --to 0.111.0 (--now RFC3339 | --knowledge-db DIR) [--otel-collector-config-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project opentelemetry --otel-rule internal-telemetry-default-bind --otel-collector-config FILE --otel-distribution official --otel-config-complete --otel-config-precedence-resolved --otel-metrics-localhost-default true|false --otel-metrics-remote-scrape-required true|false --from 0.110.0 --to 0.111.0 (--now RFC3339 | --knowledge-db DIR) [--otel-collector-config-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project prometheus --scrape-config FILE --scrape-job NAME --from 2.55.1 --to 3.1.0 --scrape-config-complete --scrape-config-precedence-resolved (--now RFC3339 | --knowledge-db DIR) [--scrape-config-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project prometheus --alertmanager-config FILE --from 2.55.1 --to 3.1.0 --alertmanager-config-complete --alertmanager-config-precedence-resolved (--now RFC3339 | --knowledge-db DIR) [--alertmanager-config-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project prometheus --prometheus-config FILE --prometheus-config-complete --prometheus-config-precedence-resolved --prometheus-rule remote-write-http2-default --prometheus-remote-write-name NAME --prometheus-remote-write-http2-required=true|false --from 2.55.1 --to 3.14.0 (--now RFC3339 | --knowledge-db DIR) [--prometheus-config-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project strimzi --kafka-resource FILE --strimzi-distribution official_upstream|custom_build --target-kafka-crd-admission-required --from 0.51.0 --to 1.0.0 (--now RFC3339 | --knowledge-db DIR) [--kafka-resource-digest SHA256] [--replay-report FILE] [--format human|json]
+   or: prufyx check cncf --project PROJECT --custom-resources FILE --from VERSION --to VERSION --now RFC3339 [--custom-resources-complete] [--custom-resources-digest SHA256] [--format human|json]
+   or: prufyx check cncf --project tekton --tekton-config-observability FILE --tekton-distribution official_upstream|custom_build --tekton-system-namespace NAME --tekton-config-observability-complete true|false --retain-prometheus-metrics-required true|false --from 1.9.0 --to 1.10.0 --now RFC3339 [--tekton-config-observability-digest SHA256] [--format human|json]
+   or: prufyx check cncf --project kubeedge --keadm-init-argv FILE --kubeedge-distribution official_upstream|custom_build --keadm-argv-complete true|false --from 1.18.0 --to 1.19.0 --now RFC3339 [--keadm-init-argv-digest SHA256] [--format human|json]
+   or: prufyx check cncf --project cloudnativepg --current-resource FILE --resource FILE --from 1.29.0 --to 1.30.0 (--now RFC3339 | --knowledge-db DIR) [--current-resource-digest SHA256] [--resource-digest SHA256] [--replay-report FILE] [--format human|json]
+
+Optional, local source-constraint preview using minimized operator declarations.
+Inspect inputs with: prufyx catalog cncf --project SLUG --format json
+Input and replay files must be regular private files (mode 0600 or stricter, with no group or other access), without symlinks.
+Embedded rules use explicit canonical UTC with whole-second precision. Replay
+compares the exact prior JSON at its original time, without current freshness.
+Without --knowledge-db and --now, the check uses the verified knowledge database
+that prufyx db update installed in the default store location
+($XDG_DATA_HOME/prufyx/knowledge/cncf-projects, else ~/.local/share/...), and
+the embedded knowledge when none is installed. A default store that is present
+but invalid or expired is refused, never replaced silently; --knowledge=embedded
+forces the embedded knowledge at the current time. --now keeps selecting the
+embedded knowledge for replay. The source is shown on standard error and in the
+human output.
+Select a separate local signed CNCF store with --knowledge-db DIR. Current
+external checks use the verifier's actual clock; omit --now. External replay
+with --input FILE requires --replay-report FILE, --input-digest SHA256,
+--knowledge-revision REV,
+--knowledge-bundle-digest SHA256 and --knowledge-trust-receipt-digest SHA256;
+its original time comes from the exact report. There is no embedded fallback.
+No cluster, network, model, or database download is used by this command.
+The Argo CD ConfigMap mode prepares and checks the local file in memory. The resource-exclusions mode admits one complete, precedence-resolved argocd-cm YAML and only exact target default, absent, or explicit empty values; it never infers v2 visibility intent, resource existence, watches, UI, reconciliation, or runtime behavior.
+It
+does not write canonical input, infer RBAC intent, or edit the ConfigMap.
+The CoreDNS Corefile mode reads a caller-selected complete local Corefile and
+recognizes only a literal federation directive at a direct server-block
+position. The official distribution and completeness declarations remain
+caller authority. Balanced brace-delimited plugin bodies are structurally
+admitted up to 32 levels but their properties are ignored. Imports, snippets,
+substitutions, quotes, escapes, malformed structure, plugin validity, included
+files, DNS behavior, and runtime state remain UNKNOWN.
+The Envoy bootstrap mode reads a caller-selected local JSON bootstrap and can
+derive only a literal V2 xDS transport blocker at three direct DynamicResources
+paths. It never derives a V3/PASS result from an absent, AUTO, or V3 field, and
+does not parse YAML, other ConfigSource paths, Any/typed_config, fetched xDS,
+or runtime state.
+The Knative Serving Service mode derives only the target named HTTP startup-
+probe port-match fact. Embedded knowledge reviews only 1.22.0 -> 1.23.0.
+An explicit external store is authoritative and never falls back to embedded
+rules. Unsupported shapes and version pairs without a selected rule stay
+UNKNOWN; this does not edit the Service or validate other admission, startup,
+traffic, or runtime behavior. External replay requires --service-digest and
+all three knowledge pins. Its report binds minimized prepared input, so retain
+the raw Service and its digest separately when raw-byte identity matters.
+The Buildpacks mode reads two private Lifecycle config-shaped JSON files and compares
+explicit CNB_PLATFORM_API selections with their declared lifecycle support.
+Those labels and optional raw digests authenticate only supplied bytes, not
+registry provenance. Embedded knowledge covers Lifecycle 0.16.5 -> 0.17.7;
+external knowledge is authoritative with no embedded fallback. Historical
+replay requires both raw config digests and all three knowledge pins.
+The in-toto mode reads one private JSON argv array and inspects only a fixed
+in-toto-run prefix before the first valid -- delimiter. Everything after it is
+opaque. Embedded knowledge covers Python CLI 2.2.0 -> 3.0.0. A PASS clears
+only removal of -k/--key; it does not load or convert keys or run the command.
+Historical replay requires the raw argv digest and all three knowledge pins.
+The Prometheus mode reads one caller-selected native scrape_config YAML mapping.
+It retains only whether the reviewed old or new key is present; job names,
+targets and unrelated settings are discarded. Completeness and precedence are
+caller declarations. PASS covers only the selected key rename, not parsing the
+whole prometheus.yml, startup, scraping, or native-histogram behavior.
+The Prometheus Alertmanager mode reads one caller-selected native
+alerting.alertmanagers entry. It retains only the API-version selection class;
+addresses, credentials, paths and unrelated settings are discarded. An omitted
+api_version can PASS only as the exact target source-derived v2 default with
+both caller declarations. PASS does not establish that Alertmanager supports
+v2, is reachable, or can receive alerts; validate compatibility and the complete
+target Prometheus configuration separately.
+The Prometheus remote-write HTTP/2 mode reads one full caller-supplied
+prometheus.yml and selects exactly one remote_write mapping by literal name.
+It classifies only the direct inline enable_http2 key or its exact source-
+derived default and compares that with an explicit endpoint requirement.
+Nested http_config lookalikes, aliases, merges, substitutions, ambiguous names,
+unresolved completeness or precedence, and other version pairs stay UNKNOWN.
+PASS does not prove HTTP/2 negotiation, endpoint support, delivery, startup,
+runtime flag precedence, included configuration, or whole-config validity.
+The TUF mode uses a Go lexical parser that admits one unaliased direct import
+and one top-level direct Updater call. It reads private Python source as data
+and never imports or executes it. Source outside that narrow grammar remains
+UNKNOWN. Embedded knowledge covers Updater 6.0.0 -> 7.0.0 and checks only
+explicit bootstrap keyword presence in one admitted direct call. Historical
+replay requires the raw source digest and all three knowledge pins.
+The Kubeflow mode uses a Go lexical parser to recognize only one
+unaliased bare create_component_from_func or dsl.component decorator. It never
+imports or executes supplied Python source and does not require an interpreter.
+Embedded knowledge covers KFP Python SDK 1.8.22 -> 2.0.0 and checks only the
+removed authoring API. PASS does not validate component inputs, outputs,
+dependencies, compilation, backend, installed package, or runtime behavior.
+Historical replay requires the raw source digest and all three knowledge pins.
+The CubeFS mode reads one caller-supplied planned MetaNode JSON config and a
+caller-declared phase. It checks only the raftSyncSnapFormatVersion guard for
+the exact 3.2.1 -> 3.3.2 metanode-upgrade phase. Missing or unsupported phase,
+role, setting types, values, and version pairs stay UNKNOWN. PASS does not
+verify peer versions, rollout completion, restarts, client ordering, mounts,
+runtime behavior, or data safety. Historical replay requires the raw config
+digest and all three knowledge pins.
+The CRI-O mode reads one caller-supplied native CRI ImageStatusRequest JSON file
+and a caller-declared ArtifactStore named-reference-resolution operation. It
+classifies only a strict explicit-tag short or fully-qualified image.image for
+exact CRI-O 1.34.0 -> 1.35.0. PASS clears only the target short-name guard;
+registry aliases, store contents, request routing, access and runtime remain
+UNKNOWN. Historical replay requires the raw request digest and all three
+knowledge pins.
+The Distribution mode reads one private image manifest and classifies only its
+bounded schema1, Docker schema2, or OCI image-manifest form for the exact
+2.8.3 -> 3.0.0 source plan. It never contacts a registry or validates content,
+storage, pull, platform, or runtime behavior. The CNI mode reads one private
+configuration for specification 0.4.0 -> 1.0.0 and keeps library/plugin/runtime
+identity separate. It requires caller-declared configuration-spec-migration
+intent for a scoped result; missing or unsupported intent stays UNKNOWN.
+The custom-resource mode reads one private file of rendered manifests and
+records the group/version/Kind of every object in the API groups that the
+project's own CustomResourceDefinitions define (a reviewed, compiled table;
+PROJECT is a CNCF catalog project of it, or a community catalog project of it
+for which the embedded knowledge holds a rule, and the output then names the
+community catalog; a community project without one is refused); objects of
+other projects' groups are ignored. It evaluates only published
+rules about custom-resource versions the target release no longer serves. A
+listed version blocks (exit 10). A rule passes only with
+--custom-resources-complete and when every object of a non-Kubernetes API
+group in the file belongs to a group the table assigns to exactly one
+project, but the mode never exits 0: check reads no line review, so
+nothing shows that the published rules name every version a release stops
+serving, and the best answer is UNKNOWN (exit 11); prufyx scan reads line
+reviews of custom-resource versions. Embedded knowledge only. See docs/custom-resources.md.
+The same cap holds for the generic --input route (embedded or --knowledge-db,
+and replay): when any evaluated rule reads a custom-resource version set, the
+check never exits 0.
+The Kubernetes component-configuration mode reads one private selection
+document naming private local files (static pod manifests, kubelet flag files,
+argument lists, kubelet, scheduler, kube-proxy and admission configuration,
+kubeadm configuration, rendered manifests) and the scopes the caller declares
+complete. It evaluates only published rules for removed component settings on
+the crossed minor line. A supplied removed setting blocks; absence passes only
+for scopes declared complete whose every source was understood; everything else
+stays UNKNOWN. See docs/kubernetes-component-config.md.
+The containerd mode reads one private config.toml and one explicitly selected
+CRI runtime handler for 1.7.28 -> 2.0.0. It accepts config versions 2 and 3 at
+their reviewed plugin paths and never treats version 2 itself as a blocker.
+Imports, custom runtime types, runtime_path overrides, missing handlers, and
+unresolved completeness, precedence, distribution, or bundled-runtime scope
+stay UNKNOWN. PASS clears only the selected removed-official-shim constraint.
+The Emissary-Ingress mode reads one private direct diagd JSON argv array for
+the exact 3.10.0 -> 4.0.1 reviewed option removal. The OpenFGA mode reads one
+private, strictly parsed nested effective-configuration JSON file for 1.17.1
+-> 1.18.0. effective-config-complete is optional: omitted or false keeps
+the scoped claim UNKNOWN, while true declares file, environment, and flag
+precedence resolved. Neither mode runs a process, reads a cluster, or validates
+runtime behavior. Optional raw-input digests bind supplied bytes.
+Selected-store checks have no embedded fallback. Historical replay requires
+the matching raw native-input digest and all three knowledge pins.
+Exit 0: all selected nonempty claims PASS; 10: at least one claim BLOCKED;
+11: UNKNOWN, UNSUPPORTED, NO_KNOWN_ISSUE or no rules; 2: invalid input; 3: integrity failure.
+Whole-upgrade compatibility remains UNKNOWN in every case.
+Add --show-passes with --format human on the Kubernetes native-resource route and the generic --input preview to list PASS claims; by default they are counted. JSON is unaffected.
+--require-basis LIST (every route, embedded and external knowledge) evaluates only rules whose evidence basis is in LIST, a comma-separated subset of reviewed, mechanical, empirical, consensus, lead. The default is reviewed,mechanical,empirical,consensus. The report counts the rules it left out; a check that left out a rule never passes. A consensus rule may block but never passes: where it finds nothing its claim is NO_KNOWN_ISSUE (exit 11). A lead is shown only when lead is listed, and never blocks.`
+
+const prepareCNCFLegacy = `Usage: prufyx prepare cncf --project kyverno --input FILE --container NAME --from VERSION --to VERSION [--distribution official_upstream|custom_build] [--input-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project linkerd --input FILE --from 2.13.7 --to 2.14.0 [--distribution official_upstream|custom_build] [--schema-validation required|disabled] [--input-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project karmada --input FILE --from 1.18.3 --to 1.19.0 [--distribution official_upstream|custom_build] [--target-policy-crd-admission required|disabled] [--input-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project argo-cd --input FILE --from 2.14.0 --to 3.0.0 [--requires-inherited-application-permissions true|false] [--input-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project argo-cd --input FILE --from 3.0.23|3.1.16|3.2.12|3.3.14|3.4.8 --to 3.5.2 --distribution official_upstream|custom_build --repository-settings-resolved true|false --repository-uses-plain-http true|false [--input-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project cilium --input FILE --from 1.18.6 --to 1.19.0 [--complete-cnp-ccnp-set true|false] [--input-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project cilium --input FILE --from 1.18.13 --to 1.19.7 [--complete-cnp-ccnp-set true|false] [--input-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project cilium --cilium-config-map FILE --from 1.16.19 --to 1.17.18 --cilium-distribution official_upstream|custom_build --cilium-config-complete --cilium-config-precedence-resolved [--cilium-config-map-digest SHA256] [--format human|json|input]
+	 or: prufyx prepare cncf --project coredns --coredns-corefile FILE --from 1.6.9 --to 1.7.0 or 1.9.4|1.10.1|1.11.4|1.12.4|1.13.2 --to 1.14.7 --coredns-distribution official --coredns-corefile-complete [--coredns-corefile-digest SHA256] [--format human|json|input]
+	 or: prufyx prepare cncf --project envoy --envoy-bootstrap FILE --envoy-bootstrap-selected --from 1.34.14|1.35.13|1.36.10|1.37.6|1.38.4 --to 1.39.1 [--envoy-bootstrap-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project spire --spire-entry-argv FILE --from 1.10.4 --to 1.11.0 --spire-distribution official_upstream|custom_build [--spire-entry-argv-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project keda --keda-scaled-object FILE --from 2.16.0 --to 2.17.0 --keda-scaled-object-complete [--keda-legacy-tls-transport-required true|false] [--keda-scaled-object-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project kubernetes --input FILE --from 1.31.0 --to 1.32.0 --distribution official_upstream|custom_build --target-api-apply-required --resource-scope-complete [--input-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project strimzi --kafka-resource FILE --from 0.51.0 --to 1.0.0 --strimzi-distribution official_upstream|custom_build --target-kafka-crd-admission-required [--kafka-resource-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project falco --falco-argv FILE --from 0.40.0 --to 0.41.0|0.42.0 --falco-distribution official_upstream|custom_build [--falco-argv-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project kuma --kumactl-argv FILE --from 2.8.0 --to 2.9.0 --kuma-distribution official_upstream|custom_build [--kumactl-argv-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project crossplane --composition FILE --from 1.20.0 --to 2.0.0 --crossplane-distribution official_upstream|custom_build --crossplane-schema-validation-required [--composition-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project velero --upgrade-plan FILE --from 1.17.0|1.16.2 --to 1.18.0 --velero-server-deployment NAME --velero-plan-order-declared [--upgrade-plan-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project etcd --input FILE --from 3.5.17 --to 3.6.0 [--input-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project jaeger --input FILE --from 1.76.0 --to 2.20.0 [--non-memory-storage-required true|false] [--official-jaeger-distribution true|false] [--input-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project metallb|contour --input FILE --from VERSION --to VERSION [--input-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project cloudnativepg --input FILE --from 1.29.0 --to 1.30.0 [--input-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project kubevirt --input FILE --from 1.8.4 --to 1.9.0 [--input-digest SHA256] [--format human|json|input]
+	   or: prufyx prepare cncf --project emissary-ingress --input FILE --from 3.10.0 --to 4.0.1 [--input-digest SHA256] [--format human|json|input]
+	   or: prufyx prepare cncf --project harbor --input FILE --from 2.7.0 --to 2.8.0 or 2.10.3|2.11.2|2.12.4|2.13.5|2.14.4 --to 2.15.2 [--input-digest SHA256] [--format human|json|input]
+	   or: prufyx prepare cncf --project openfga --input FILE --from 1.17.1 --to 1.18.0 --effective-config-complete [--input-digest SHA256] [--format human|json|input]
+	   or: prufyx prepare cncf --project opencost --input FILE --from 1.119.0 --to 1.120.0 [--input-digest SHA256] [--format human|json|input]
+	   or: prufyx prepare cncf --project opencost --input FILE --from 1.116.0|1.117.6|1.118.0|1.119.2|1.120.4 --to 1.121.2 [--input-digest SHA256] [--format human|json|input]
+	   or: prufyx prepare cncf --project cloud-custodian --input FILE --from 0.9.50 --to 0.9.51 [--input-digest SHA256] [--format human|json|input]
+	   or: prufyx prepare cncf --project cloud-custodian --input FILE --from 0.9.47|0.9.48|0.9.49|0.9.50|0.9.51 --to 0.9.52 [--input-digest SHA256] [--format human|json|input]
+	   or: prufyx prepare cncf --project fluentd --input FILE --from 1.17.1 --to 1.18.0 [--input-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project distribution --input FILE --from 2.8.3 --to 3.0.0 [--input-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project container-network-interface-cni --input FILE --from 0.4.0 --to 1.0.0 --operation configuration-spec-migration [--input-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project containerd --input FILE --runtime-handler NAME --from 1.7.28 --to 2.0.0 --containerd-config-complete --containerd-config-precedence-resolved --containerd-official-upstream --containerd-official-bundled-runtimes-only [--input-digest SHA256] [--format human|json|input]
+   or: prufyx prepare cncf --project prometheus --prometheus-config FILE --prometheus-config-complete --prometheus-config-precedence-resolved --prometheus-rule remote-write-http2-default --prometheus-remote-write-name NAME --prometheus-remote-write-http2-required=true|false --from 2.55.1 --to 3.14.0 [--prometheus-config-digest SHA256] [--format human|json|input]
+
+Prepare a minimized declaration from one private local supported resource JSON or declaration.
+Select the Kyverno container explicitly. A scoped result requires an explicit
+distribution declaration and the bare literal reports-controller command. Image
+entrypoints, other paths, wrappers and ambiguous arguments remain UNKNOWN.
+This prepares operator-declared input. It does not observe a cluster, validate
+the complete workload or run an upgrade check. No network or model is used.
+
+Linkerd accepts one private MeshTLSAuthentication JSON resource and derives
+only selector emptiness. Its --container option is invalid. It does not parse
+a CRD, call API admission, inspect stored objects or establish runtime behavior.
+
+Karmada accepts one private policy.karmada.io/v1alpha1 PropagationPolicy or
+ClusterPropagationPolicy JSON resource. It can witness a legacy application
+purgeMode blocker but never prove aggregate absence or PASS. Its --container
+and --schema-validation options are invalid. It does not validate a CRD, call
+API admission, inspect stored resources or establish runtime behavior.
+
+Argo CD accepts one private proposed v1 ConfigMap JSON named argocd-cm. It
+reads only the explicit true or false inheritance setting and requires an
+explicit access-intent declaration. Missing or malformed configuration stays
+UNKNOWN; it does not inspect RBAC, call a cluster, or infer an effective default.
+
+For the five reviewed transitions to Argo CD 3.5.2, the same project route
+instead accepts one pre-apply v1 repository Secret. It checks only type=helm
+with enableOCI=true and a protocol-free OCI registry/path. The caller must
+declare plain-HTTP use, official distribution, and complete, precedence-resolved
+repository settings; inherited credential templates, authentication and network
+use are otherwise UNKNOWN. Secret values, names, URLs and credentials are discarded.
+
+Cilium accepts one private CiliumNetworkPolicy, CiliumClusterwideNetworkPolicy, or
+bounded policy List JSON. A nonempty requires field is a scoped blocker. A
+scoped false result requires an explicit complete CNP and CCNP set declaration;
+partial List pages, policy semantics, and runtime behavior remain UNKNOWN.
+
+MetalLB accepts one caller-selected legacy ConfigMap or one supported
+metallb.io/v1beta1 CR. Contour accepts one caller-selected Gateway API resource
+and classifies only the reviewed v1alpha1 group versus v1alpha2. These checks
+do not inspect a cluster or establish runtime behavior; unsupported shapes
+remain UNKNOWN.
+
+CloudNativePG accepts one JSON envelope containing matching current and
+proposed Database, Pooler, Publication, Subscription, or ScheduledBackup
+objects. It compares only the namespaced object identity and spec.cluster.name;
+both objects are required to establish an update.
+
+KubeVirt accepts one caller-supplied kubevirt.io/v1 VirtualMachine or
+VirtualMachineInstance JSON resource. It counts only the five reviewed
+interface binding slots and requires exactly one per named interface. Missing
+or malformed native paths remain UNKNOWN; it does not inspect feature gates,
+plugins, admission, or runtime behavior.
+
+Emissary-Ingress accepts a caller-supplied direct diagd argv JSON array. OpenFGA
+accepts strictly parsed nested authn effective-configuration JSON only when the
+caller explicitly declares file, environment, and flag precedence complete.
+Both retain only reviewed facts; wrappers, custom behavior, and runtime remain UNKNOWN.
+
+Harbor accepts one caller-declared complete literal make/install.sh argv vector.
+It checks only the removed --with-chartmuseum option for the reviewed 2.7.0 to
+2.8.0 and 2.10.3, 2.11.2, 2.12.4, 2.13.5, or 2.14.4 to 2.15.2 pairs. Help, wrappers, values, unknown options, and unresolved inputs remain
+UNKNOWN; it does not execute the installer or assess chart, database, or runtime state.
+
+OpenCost accepts one Prufyx operator declaration of enabled cloud-cost source
+selection. It is not an OpenCost native config parser. The caller declares
+selection completeness and whether a target cloud-integration file is selected
+and present; file contents, credentials, mounts, startup, and cloud access are
+not inspected. The reviewed latest route is each exact 1.116.0, 1.117.6,
+1.118.0, 1.119.2, or 1.120.4 origin to 1.121.2.
+
+Cloud Custodian's latest route is each exact package version 0.9.47, 0.9.48,
+0.9.49, 0.9.50, or 0.9.51 to package version 0.9.52. The retained source
+contract separately binds those package versions to four-part upstream release
+tags. The historical 0.9.50 to 0.9.51 route remains available.
+
+etcd accepts one private EtcdEffectiveArguments JSON object containing a complete
+direct arguments-only vector. The first slice accepts only self-contained
+--name=value atoms and recognizes the eight removed v2/proxy options. It never
+resolves wrappers, environment/config/response files, or executes etcd.
+
+Jaeger accepts one private direct-invocation JSON declaration with
+authority OPERATOR_DECLARED_DIRECT_OFFICIAL_JAEGER_V2_ARGUMENTS_ONLY and exactly
+one local literal --config=VALUE argv atom. It does not read the location or
+infer config content, backend, credentials, distribution, startup, or runtime.
+The two rule guards remain explicit operator declarations; other argument forms
+remain UNKNOWN.
+
+Distribution accepts one private image manifest JSON document and classifies
+only a bounded Docker schema1, Docker schema2, or OCI image-manifest shape.
+It does not contact a registry, pull an image, validate content references, or
+claim that a complete manifest can be stored or run.
+
+Container Network Interface (CNI) accepts one private CNI configuration JSON
+and explicit configuration-spec-migration intent. Its versions identify the
+specification, not the CNI Go library, plugins, or a runtime. It checks only
+single-plugin versus plugin-list configuration shape.
+
+containerd accepts one private effective config.toml and one explicit CRI
+runtime-handler selector. Config versions 2 and 3 are supported at their exact
+reviewed plugin table paths; version 2 is migrated by containerd 2.0 and is not
+itself a blocker. The adapter retains only whether the selected runtime_type is
+one of the two removed official shims. Imports, custom runtime types, missing
+handlers, runtime_path overrides, custom distributions, and separately supplied
+shims remain UNKNOWN.
+
+Prometheus accepts one full private prometheus.yml and selects one unique
+remote_write entry by literal name. It retains only the direct inline
+enable_http2 class and whether that class conflicts with the caller's explicit
+endpoint requirement. Aliases, merges, substitutions, nested http_config
+lookalikes, unresolved source precedence, and other version pairs stay UNKNOWN.
+
+--format input writes only the canonical declaration for check cncf. Redirect
+with umask 077 to a new file so it remains private. --format json also includes
+the source digest, preparation reason and omissions, without raw workload data.
+Exit 0: prepared; 11: unresolved preparation; 2: invalid input; 3: integrity failure.`
+
+const checkProjectLegacy = `Usage: prufyx check project --project grafana|kibana|loki --effective-config FILE --from VERSION --to VERSION --effective-config-complete --precedence-resolved --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
+   Kibana 9.0.8|9.1.10|9.2.8|9.3.8|9.4.6 -> 9.5.3 additionally requires --full-status-without-monitor-required for the status-page scope.
+   or: prufyx check project --project loki --loki-schema-config FILE --from 2.9.8 --to 3.0.0 --effective-config-complete --precedence-resolved --now RFC3339 [--use-reviewed-target-default] [--loki-schema-config-digest SHA256] [--format human|json]
+   or: prufyx check project --project fluent-bit --effective-config FILE --from 3.2.0 --to 4.0.0 --effective-config-complete --current-default-was-used --preserve-http2-enabled --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
+   or: prufyx check project --project fluent-bit --effective-config FILE --from 3.2.10|4.0.14|4.1.2|4.2.8|5.0.10 --to 5.1.2 --effective-config-complete --require-http2 --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
+   or: prufyx check project --project argo-workflows --workload FILE --from 3.5.0 --to 3.6.0 --workload-complete --now RFC3339 [--workload-digest SHA256] [--format human|json]
+   or: prufyx check project --project argo-workflows --workload FILE --from 3.4.18|3.5.15|3.6.19|3.7.18|4.0.11 --to 4.1.3 --workload-complete --now RFC3339 [--workload-digest SHA256] [--format human|json]
+   or: prufyx check project --project ceph --selected-osd-metadata FILE --selected-osd-id ID --from VERSION --to VERSION --selected-osd-metadata-complete --now RFC3339 [--selected-osd-metadata-digest SHA256] [--format human|json]
+This preview is embedded-only. --knowledge-db, --profile, and replay flags are not supported for community projects.`
+
+const prepareProjectLegacy = `Usage: prufyx prepare project --project grafana|kibana|loki --effective-config FILE --from VERSION --to VERSION --effective-config-complete --precedence-resolved [--effective-config-digest SHA256] [--format human|json|input]
+   Kibana 9.0.8|9.1.10|9.2.8|9.3.8|9.4.6 -> 9.5.3 additionally requires --full-status-without-monitor-required for the status-page scope.
+   or: prufyx prepare project --project loki --loki-schema-config FILE --from 2.9.8 --to 3.0.0 --effective-config-complete --precedence-resolved [--use-reviewed-target-default] [--loki-schema-config-digest SHA256] [--format human|json|input]
+   or: prufyx prepare project --project fluent-bit --effective-config FILE --from 3.2.0 --to 4.0.0 --effective-config-complete --current-default-was-used --preserve-http2-enabled [--effective-config-digest SHA256] [--format human|json|input]
+   or: prufyx prepare project --project fluent-bit --effective-config FILE --from 3.2.10|4.0.14|4.1.2|4.2.8|5.0.10 --to 5.1.2 --effective-config-complete --require-http2 [--effective-config-digest SHA256] [--format human|json|input]
+   or: prufyx prepare project --project argo-workflows --workload FILE --from 3.5.0 --to 3.6.0 --workload-complete [--workload-digest SHA256] [--format human|json|input]
+   or: prufyx prepare project --project argo-workflows --workload FILE --from 3.4.18|3.5.15|3.6.19|3.7.18|4.0.11 --to 4.1.3 --workload-complete [--workload-digest SHA256] [--format human|json|input]
+   or: prufyx prepare project --project ceph --selected-osd-metadata FILE --selected-osd-id ID --from VERSION --to VERSION --selected-osd-metadata-complete [--selected-osd-metadata-digest SHA256] [--format human|json|input]`

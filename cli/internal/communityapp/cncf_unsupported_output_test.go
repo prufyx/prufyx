@@ -72,7 +72,7 @@ func TestUnsupportedHumanOutput(t *testing.T) {
 func TestCheckHelpExitLegend(t *testing.T) {
 	t.Parallel()
 	code, stdout, _ := runCNCFCLI(t, "check", "cncf", "--help")
-	if code != 0 || !strings.Contains(stdout, "11: UNKNOWN, UNSUPPORTED, NO_KNOWN_ISSUE or no rules;") {
+	if code != 0 || !strings.Contains(stdout, "11 UNKNOWN, UNSUPPORTED, NO_KNOWN_ISSUE or no rules") {
 		t.Fatalf("code=%d help:\n%s", code, stdout)
 	}
 }

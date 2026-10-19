@@ -58,7 +58,7 @@ func TestPerCommandHelpForms(t *testing.T) {
 			}
 		}
 	}
-	if _, out := helpOut(t, "check", "help"); !strings.Contains(out, "prufyx check cncf") || !strings.Contains(out, "Exit status for check batch") {
+	if _, out := helpOut(t, "check", "help"); !strings.Contains(out, "prufyx check cncf") || !strings.Contains(out, "\nExit: ") {
 		t.Fatalf("check help lost usage lines: %s", out)
 	}
 	if code, _ := helpOut(t, "help", "nope"); code != ExitUsage {

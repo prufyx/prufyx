@@ -142,6 +142,9 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, version s
 	if len(args) == 0 {
 		return r.rootHelp()
 	}
+	if args[0] == "help" && len(args) == 2 && args[1] == "--all" {
+		return r.helpAll()
+	}
 	if args[0] == "help" && len(args) >= 2 {
 		return r.commandHelp(args[1])
 	}
