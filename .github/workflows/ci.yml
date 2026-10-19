@@ -5,12 +5,17 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # Nightly full run, including the knowledgegate race package.
+    - cron: '17 2 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # The nightly run has its own group so a push to main neither cancels it nor is cancelled by it.
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'run' }}
   cancel-in-progress: true
 
 jobs:
@@ -211,10 +216,91 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  race:
-    name: Race detector (verdict packages)
+  race-plan:
+    name: Race detector plan
     runs-on: ubuntu-24.04
-    timeout-minutes: 50
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Select race packages
+        id: plan
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        # Pull requests race only the packages whose import closure (with tests)
+        # contains a changed file; push to main, merge queue, nightly and manual
+        # runs race the full list, so every commit that reaches main is raced.
+        run: |
+          set -euo pipefail
+          base_packages="./internal/scanreport/ ./internal/scanrun/ ./internal/cncfcheck/ ./internal/constraintengine/ ./internal/knowledge/ ./internal/maintainer/rulecheck/"
+          root=$(pwd)
+          cd cli
+          selected=""
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
+            changed=$(git diff --no-renames --name-only origin/main...HEAD)
+            echo "changed files: $(printf '%s\n' "${changed}" | grep -c . || true)"
+            # A change to the workflows, the module files or vendor/ can affect every package.
+            if printf '%s\n' "${changed}" | grep -Eq '^\.github/|^cli/examples/|(^|/)go\.(mod|sum)$|(^|/)vendor/'; then
+              echo "workflow, module, vendor or examples change: all packages"
+              selected="${base_packages}"
+            else
+              for pkg in ${base_packages}; do
+                # Directories of this repository's packages in the import closure of the
+                # package and of its tests; a changed file under one of them (Go source,
+                # embedded data, testdata) selects the package.
+                dirs=$(go list -buildvcs=false -deps -test -f '{{if .Module}}{{if .Module.Main}}{{.Dir}}{{end}}{{end}}' "${pkg}" | sort -u)
+                hit=""
+                while IFS= read -r file; do
+                  [ -n "${file}" ] || continue
+                  abs="${root}/${file}"
+                  while IFS= read -r dir; do
+                    [ -n "${dir}" ] || continue
+                    case "${abs}" in "${dir}"/*) hit="${file}"; break ;; esac
+                  done <<< "${dirs}"
+                  [ -z "${hit}" ] || break
+                done <<< "${changed}"
+                if [ -n "${hit}" ]; then
+                  echo "${pkg} affected by ${hit}"
+                  selected="${selected} ${pkg}"
+                fi
+              done
+            fi
+          else
+            # push to main, merge_group, schedule, workflow_dispatch: the full list.
+            selected="${base_packages}"
+          fi
+          matrix=$(for pkg in ${selected}; do
+            jq -cn --arg p "${pkg}" '{package: $p, timeout_minutes: 50, go_timeout: "40m"}'
+          done | jq -cs '.')
+          if [ "${EVENT_NAME}" = "schedule" ]; then
+            # knowledgegate is too slow under -race for every commit; the nightly covers it.
+            matrix=$(printf '%s' "${matrix}" | jq -c '. + [{package: "./internal/maintainer/knowledgegate/", timeout_minutes: 90, go_timeout: "85m"}]')
+          fi
+          echo "race matrix: ${matrix}"
+          echo "matrix=${matrix}" >> "${GITHUB_OUTPUT:-/dev/stdout}"
+
+  race:
+    name: Race detector (${{ matrix.package }})
+    needs: race-plan
+    if: needs.race-plan.outputs.matrix != '[]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.race-plan.outputs.matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -231,16 +317,12 @@ jobs:
         working-directory: cli
         env:
           CGO_ENABLED: "1"
+          RACE_PACKAGE: ${{ matrix.package }}
+          RACE_TIMEOUT: ${{ matrix.go_timeout }}
         # Published binaries stay CGO_ENABLED=0; only this job needs cgo for -race.
-        # knowledgegate is not in the race list: under -race it ran past 60 minutes
-        # (it already runs in the build-test job, which also runs it with the tag).
-        # scanrun and cncfcheck take about 24 minutes of the former 25 under -race,
-        # so a few more rules in the shipped pack made them time out.
-        run: |
-          go test -race -timeout 40m \
-            ./internal/scanreport/ ./internal/scanrun/ ./internal/cncfcheck/ \
-            ./internal/constraintengine/ ./internal/knowledge/ \
-            ./internal/maintainer/rulecheck/
+        # knowledgegate is raced by the nightly run only: under -race it ran past
+        # 60 minutes (it already runs in the test-knowledgegate job, also with the tag).
+        run: go test -race -timeout "${RACE_TIMEOUT}" "${RACE_PACKAGE}"
 
   staticcheck:
     name: Staticcheck
