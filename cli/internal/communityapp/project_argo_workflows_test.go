@@ -26,7 +26,7 @@ func TestArgoWorkflowsProjectCLIEndToEndAndPrivacy(t *testing.T) {
 			body := `{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"private-workflow"},"spec":{"template":{"spec":{"containers":[{"name":"argo-server","image":"quay.io/argoproj/argocli:v3.6.0","command":["argo"],"args":[` + tc.args + `],"env":[]}]}}}}`
 			path := writePrivateProjectFixture(t, body)
 			var stdout, stderr bytes.Buffer
-			exit := Run(t.Context(), []string{"check", "project", "--project", "argo-workflows", "--workload", path, "--from", "3.5.0", "--to", "3.6.0", "--workload-complete", "--now", "2026-09-11T21:00:00Z"}, &stdout, &stderr, "test")
+			exit := Run(t.Context(), []string{"check", "project", "--project", "argo-workflows", "--workload", path, "--from", "3.5.0", "--to", "3.6.0", "--workload-complete", "--now", "2026-09-11T21:00:00Z", "-v"}, &stdout, &stderr, "test")
 			if exit != tc.want || stderr.Len() != 0 {
 				t.Fatalf("exit=%d want=%d stdout=%q stderr=%q", exit, tc.want, stdout.String(), stderr.String())
 			}

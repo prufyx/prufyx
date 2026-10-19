@@ -18,8 +18,8 @@ import (
 var projectDigestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 type projectArguments struct {
-	project, config, schemaConfig, workload, osdMetadata, mariadbResource, selectedOSDID, from, to, configPin, schemaConfigPin, workloadPin, osdMetadataPin, mariadbResourcePin, now, format, requireInnoDBDefragmentation                                                                                                                                                                                 string
-	complete, precedenceResolved, upstreamDistribution, useReviewedTargetDefault, workloadComplete, osdMetadataComplete, mariadbResourceComplete, mariadbPreOperatorUpdate, currentDefaultWasUsed, preserveHTTP2Enabled, requireHTTP2, fullStatusWithoutMonitor, fullStatusWithoutMonitorDeclared, requireInnoDBDefragmentationDeclared, mariadbResourceCompleteDeclared, mariadbPreOperatorUpdateDeclared bool
+	project, config, schemaConfig, workload, osdMetadata, mariadbResource, selectedOSDID, from, to, configPin, schemaConfigPin, workloadPin, osdMetadataPin, mariadbResourcePin, now, format, requireInnoDBDefragmentation                                                                                                                                                                                          string
+	verbose, complete, precedenceResolved, upstreamDistribution, useReviewedTargetDefault, workloadComplete, osdMetadataComplete, mariadbResourceComplete, mariadbPreOperatorUpdate, currentDefaultWasUsed, preserveHTTP2Enabled, requireHTTP2, fullStatusWithoutMonitor, fullStatusWithoutMonitorDeclared, requireInnoDBDefragmentationDeclared, mariadbResourceCompleteDeclared, mariadbPreOperatorUpdateDeclared bool
 }
 
 func parseProjectArguments(args []string, check bool) (projectArguments, bool) {
@@ -42,6 +42,9 @@ func parseProjectArguments(args []string, check bool) (projectArguments, bool) {
 	fs.StringVar(&result.mariadbResourcePin, "mariadb-resource-digest", "", "optional exact MariaDB resource SHA-256")
 	fs.StringVar(&result.now, "now", "", "explicit UTC evaluation time")
 	fs.StringVar(&result.format, "format", "human", "human, json, or input")
+	fs.BoolVar(&result.verbose, "verbose", false, "human output: also list every rule, cited source and the provenance")
+	fs.BoolVar(&result.verbose, "v", false, "same as --verbose")
+	fs.BoolVar(&result.verbose, "details", false, "same as --verbose")
 	fs.BoolVar(&result.complete, "effective-config-complete", false, "declare complete effective configuration")
 	fs.BoolVar(&result.precedenceResolved, "precedence-resolved", false, "declare environment and CLI precedence resolved")
 	fs.BoolVar(&result.upstreamDistribution, "upstream-distribution", false, "declare the reviewed upstream project distribution")
@@ -243,26 +246,36 @@ func (r runtime) project(args []string) int {
 	if request.format == "json" {
 		fmt.Fprintln(r.stdout, string(encoded))
 	} else {
-		fmt.Fprintf(r.stdout, "%s community-project source preview\naggregate: UNKNOWN\nknowledge: embedded only; external updates unavailable\n", request.project)
+		route := humanRoute{
+			exit: projectcheck.ClaimExit(report), claims: report.Check.Claims, project: request.project, from: request.from, to: request.to,
+			verbose: request.verbose, showPasses: true,
+			knowledge: "Knowledge: embedded only; external updates unavailable. No network used.",
+			provenance: []string{
+				"source digest " + prepared.SourceDigest + "  canonical input digest " + prepared.InputDigest,
+				"aggregate UNKNOWN (whole-upgrade assessment: UNKNOWN)",
+				"network used: false",
+			},
+		}
 		if request.osdMetadata != "" {
-			fmt.Fprintln(r.stdout, "input qualification: caller-selected current OSD metadata; not a target deployment or cluster inventory observation")
+			route.preamble = append(route.preamble, "input qualification: caller-selected current OSD metadata; not a target deployment or cluster inventory observation")
 		}
 		if slices.Contains(prepared.Omissions, "COMMAND_DEFAULT_DERIVED_FROM_REVIEWED_IMAGE_ENTRYPOINT_SOURCE") {
-			fmt.Fprintln(r.stdout, "input qualification: omitted command resolved from the reviewed exact-image ENTRYPOINT source; not observed at runtime")
+			route.preamble = append(route.preamble, "input qualification: omitted command resolved from the reviewed exact-image ENTRYPOINT source; not observed at runtime")
 		}
 		for _, omission := range prepared.Omissions {
 			if omission == "OMITTED_ALLOW_USES_SOURCE_DERIVED_TARGET_DEFAULT_AUTHORIZED_BY_EXPLICIT_FLAG" {
-				fmt.Fprintln(r.stdout, "input qualification: omitted allow_structured_metadata used the reviewed target default under an explicit opt-in; this is source-derived, not observed")
+				route.preamble = append(route.preamble, "input qualification: omitted allow_structured_metadata used the reviewed target default under an explicit opt-in; this is source-derived, not observed")
 			}
 		}
-		if err := writeProjectClaims(r.stdout, report.Check.Claims); err != nil {
+		for _, rule := range report.NotEvaluated {
+			route.notEvaluated = append(route.notEvaluated, rule.RuleID+": "+rule.NextAction)
+		}
+		if len(report.Check.Claims) == 0 {
+			route.trailer = []string{"next action: " + report.NextAction}
+		}
+		if err := writeHumanReport(r.stdout, route); err != nil {
 			return ExitIntegrity
 		}
-		writeNotEvaluated(r.stdout, report.NotEvaluated)
-		if len(report.Check.Claims) == 0 {
-			fmt.Fprintf(r.stdout, "next action: %s\n", report.NextAction)
-		}
-		fmt.Fprintf(r.stdout, "source digest: %s\ncanonical input digest: %s\nnetwork used: false\nwhole-upgrade assessment: UNKNOWN\n", prepared.SourceDigest, prepared.InputDigest)
 	}
 	return projectcheck.ClaimExit(report)
 }

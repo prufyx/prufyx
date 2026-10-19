@@ -9,7 +9,7 @@ Two rules hold everywhere:
 - **`UNKNOWN` is never a pass.** It means the evidence did not decide the
   question. Prufyx does not turn a missing fact into `PASS`.
 - **A pass is always about a scope.** No command certifies a whole upgrade as
-  safe. `check` says so in its `aggregate:` line; `scan` says so in its
+  safe. `check` says so in its `Whole upgrade: not proven` line; `scan` says so in its
   `Scope limits:` line.
 
 ## At a glance
@@ -50,7 +50,7 @@ It can be a blocked or undecided scan; the report headline shows which.
   pair, on that input, passed. It can be one rule (one setting in one file) or
   the seven removed-API rules of one Kubernetes pair.
 - **Does not mean:** the rest of the upgrade is fine. The report keeps
-  `aggregate: UNKNOWN` next to it, always.
+  `Whole upgrade: not proven` next to it, always.
 - **Do:** in CI add `--strict-exit`, so a scoped pass exits `14` and cannot be
   read as a complete pass.
 
@@ -62,8 +62,8 @@ It can be a blocked or undecided scan; the report headline shows which.
   source it relies on (`scan`: with `--verbose`).
 - **Does not mean:** that fixing it makes the upgrade safe. Other things may
   still be undecided.
-- **Do:** apply the fix shown after `fix:` (`scan`) or `next action:`
-  (`check`), then run the same command again.
+- **Do:** apply the fix shown after `fix:` (`scan`, and under each rule in `check`),
+  then run the same command again.
 
 ## UNKNOWN (exit 11)
 
@@ -71,10 +71,10 @@ It can be a blocked or undecided scan; the report headline shows which.
   (see [declarations.md](declarations.md)), the version pair or a release
   boundary is outside what was reviewed, or a fact the rule needs is not in the
   input. `scan` lists every cause under `NOT CHECKED`; `check` prints each
-  undecided rule with the reason code and a `next action:`.
+  undecided rule with a `to decide:` action (the reason code is behind `-v`).
 - **Does not mean:** the upgrade is fine, and does not mean it is broken. It
   means the evidence did not decide, so the answer is "do not assume".
-- **Do:** read the `next action:` or the `NOT CHECKED` entries. Add a missing
+- **Do:** read the `to decide:` line or the `NOT CHECKED` entries. Add a missing
   declaration only if it is true. If the pair itself is not reviewed, check each
   minor step on its own, or check by hand.
 
@@ -92,9 +92,9 @@ and the entries are still listed.
 
 ## Whole-upgrade status
 
-- `check` prints an `aggregate: UNKNOWN` line after the scoped result (the
-  Kubernetes route spells it `aggregate: UNKNOWN (whole-upgrade compatibility:
-  UNKNOWN; network used: false)`). It is `UNKNOWN` even next to a
+- `check` prints a `Whole upgrade: not proven` line after the findings (`-v`
+  adds `aggregate UNKNOWN (whole-upgrade compatibility: UNKNOWN)` and
+  `network used: false`). It is `UNKNOWN` even next to a
   scoped `PASS` or a `BLOCKED` result, because the checked rules are a part of
   the upgrade, not all of it.
 - `scan` prints `Scope limits:` and the count of areas not checked.

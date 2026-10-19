@@ -100,8 +100,8 @@ func TestGenericInputNeverPassesCustomResourceRules(t *testing.T) {
 		t.Fatalf("%d claims, %d read the set; want 11 PASS claims, 10 over the set", len(report.Check.Claims), reading)
 	}
 
-	code, human, stderr := runCNCFCLI(t, "check", "cncf", "--project", "strimzi", "--input", input, "--now", now, "--show-passes")
-	if code != ExitUnknown || stderr != "" || !strings.Contains(human, customResourceScopeLine) || !strings.Contains(human, "strimzi.kafka-v1beta2-api-removed.1-0: PASS") {
+	code, human, stderr := runCNCFCLI(t, "check", "cncf", "--project", "strimzi", "--input", input, "--now", now, "--show-passes", "-v")
+	if code != ExitUnknown || stderr != "" || !strings.Contains(human, customResourceScopeLine) || !strings.Contains(human, "strimzi.kafka-v1beta2-api-removed.1-0 (PASS") {
 		t.Fatalf("human: code=%d stdout=%q stderr=%q", code, human, stderr)
 	}
 

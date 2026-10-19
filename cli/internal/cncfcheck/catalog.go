@@ -266,3 +266,24 @@ func editDistance(a, b string) int {
 	}
 	return previous[len(b)]
 }
+
+// EmbeddedRuleDescriptions maps every embedded rule id to the description of
+// its pack entry. It is display text only (human report titles); it performs
+// no evaluation. A rule outside the embedded pack has no entry.
+func EmbeddedRuleDescriptions() (map[string]string, error) {
+	b, err := load()
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]string, len(b.pack.Entries))
+	for _, entry := range b.pack.Entries {
+		var shape struct {
+			ID string `json:"id"`
+		}
+		if json.Unmarshal(entry.Rule, &shape) != nil || shape.ID == "" {
+			return nil, ErrIntegrity
+		}
+		result[shape.ID] = entry.Description
+	}
+	return result, nil
+}

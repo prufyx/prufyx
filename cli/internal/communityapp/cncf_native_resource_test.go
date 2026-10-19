@@ -136,7 +136,7 @@ func TestCNCFNativeResourceHumanOutputIncludesScopedVerdictAndEvidence(t *testin
 	raw := []byte(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"config","namespace":"metallb-system"},"data":{"config":"address-pools: []"}}`)
 	path := writeCNCFFile(t, "resource.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "metallb", "--native-resource", path, "--from", "0.12.1", "--to", "0.13.2", "--now", "2026-09-11T18:00:00Z")
-	if code != ExitBlocked || stderr != "" || !strings.Contains(stdout, "BLOCKED") || !strings.Contains(stdout, "next action:") || !strings.Contains(stdout, "pinned source:") || strings.Contains(stdout, "metallb-system") {
+	if code != ExitBlocked || stderr != "" || !strings.Contains(stdout, "BLOCKED") || !strings.Contains(stdout, "fix:") || !strings.Contains(stdout, "cited upstream source") || strings.Contains(stdout, "metallb-system") {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 }
@@ -302,12 +302,12 @@ func TestCNCFHumanAndJSONOutputShowEvidenceBasisWithoutChangingExit(t *testing.T
 	raw := []byte(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"config","namespace":"metallb-system"},"data":{"config":"address-pools: []"}}`)
 	path := writeCNCFFile(t, "resource.json", raw, 0o600)
 	args := []string{"check", "cncf", "--project", "metallb", "--native-resource", path, "--from", "0.12.1", "--to", "0.13.2", "--now", "2026-09-11T18:00:00Z"}
-	code, stdout, stderr := runCNCFCLI(t, args...)
+	code, stdout, stderr := runCNCFCLI(t, append(append([]string(nil), args...), "-v")...)
 	if code != ExitBlocked || stderr != "" {
 		t.Fatalf("code=%d stderr=%q", code, stderr)
 	}
 	line := "evidence basis: reviewed by maintainer\n"
-	if strings.Count(stdout, line) != 1 || strings.Index(stdout, line) > strings.Index(stdout, "pinned source:") {
+	if strings.Count(stdout, line) != 1 || strings.Index(stdout, line) > strings.Index(stdout, "SOURCES (") {
 		t.Fatalf("expected one basis line before the pinned sources: %q", stdout)
 	}
 	jsonCode, jsonOut, jsonErr := runCNCFCLI(t, append(args, "--format", "json")...)

@@ -46,9 +46,11 @@ environment variables:
 
 ## 2. What the verdicts mean
 
-Every `prufyx check` prints one aggregate assessment and the rules that
-decide something. Rules that came back `PASS` are counted, not listed (add
-`--show-passes` to list them).
+Every `prufyx check` starts with one headline line: the verdict word, the counts
+(must fix, undecided, passed) and the scope. Rules that decide something are
+listed under it, grouped by the action they share. Rules that came back `PASS`
+are counted, not listed (add `--show-passes` to list them). Sources, rule ids
+and provenance are behind `-v`.
 
 - **PASS**: the checked rules passed for that scope. Not a certificate that the
   rest of the upgrade is safe.
@@ -126,18 +128,14 @@ in this pair came back `PASS` because this apply set does not contain them, so
 they are counted rather than listed):
 
 ```
-kubernetes native input review
-raw input digests: sha256:74b724b3dbe66cdea762575500e4fce48a5469b669668a7108280e026456a355
-prepared input digest: sha256:619e1cfad17ce822d3ad4d36b1cdc3ef3024e9ec37720096f2af8076b92660b2
-kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0: BLOCKED (KUBERNETES_SERVED_API_REMOVED)
-next action: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
-evidence basis: derived from source by k8s.served-api-removal v1.3.0
-6 rules PASS (not listed; use --show-passes)
-scoped result: BLOCKED
-aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
-pinned source: https://github.com/kubernetes/kubernetes/blob/4ce5a8954017644c5420bae81d72b09b735c21f0/staging/src/k8s.io/api/batch/v1beta1/zz_generated.prerelease-lifecycle.go lines 48-74; revision 4ce5a8954017644c5420bae81d72b09b735c21f0; digest sha256:ed52be6d14796fb3d02cd8a35df4b2a059d2e963d461d7372a8177c249d54ccc
-pinned source: https://github.com/kubernetes/kubernetes/blob/4ce5a8954017644c5420bae81d72b09b735c21f0/api/openapi-spec/swagger.json lines 1-90087; revision 4ce5a8954017644c5420bae81d72b09b735c21f0; digest sha256:0d43576f2097092c8a3f203368a8edc0d605540c9757125dae116031f182e53a
-pinned source: https://github.com/kubernetes/kubernetes/blob/a866cbe2e5bbaa01cfd5e969aa3e033f3282a8a2/api/openapi-spec/swagger.json lines 1-81603; revision a866cbe2e5bbaa01cfd5e969aa3e033f3282a8a2; digest sha256:96354682390d446dde77eb2246fe022baa89697133a8248612ca2573e4a12120
+BLOCKED  1 must fix · 0 undecided · 6 passed     kubernetes 1.24.0 -> 1.25.0, 7 reviewed rules
+
+MUST FIX (1)
+  Kubernetes 1.25 stops serving CronJob through batch/v1beta1
+    fix: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
+
+Whole upgrade: not proven. This report evaluated only 7 reviewed rules.
+3 cited upstream sources (show with -v). 6 passed rules (--show-passes). Knowledge: embedded cncf-2026-09-13.8. No network used.
 ```
 
 ```sh
@@ -149,20 +147,21 @@ That `10` is `ExitBlocked`. In CI use `--strict-exit` on every `prufyx
 check`: then `14` means only the rules for this pair passed, and every
 other code (2 = usage error, 3 = integrity failure, 10 = BLOCKED, 11 = UNKNOWN)
 needs a human decision. Without the flag a scoped pass exits `0`, but the
-whole upgrade is still `UNKNOWN` (the `aggregate:` line says so, and the
+whole upgrade is still `UNKNOWN` (the `Whole upgrade: not proven` line says so, and the
 command repeats it on standard error), so a `0` is not "proceed". `10` means a
 pinned upstream source says the target release no longer serves this
 resource's API version. See [exit-codes.md](exit-codes.md).
 
-The `pinned source` line is not a description — it is a citation. Open that
+The default output only counts the cited sources. Add `-v` to list them: each
+source line is a citation, not a description. Open that
 exact URL at that exact revision and you will find, at lines 48-74, the
 Kubernetes source file that declares `CronJob` at `batch/v1beta1` removed in
 1.25. The rule was derived from that source by the extractor named in the
-`evidence basis` line. `digest` pins the exact bytes it read, so if
+`evidence basis` line that `-v` prints under the rule. `digest` pins the exact bytes it read, so if
 upstream silently edits that page later, Prufyx's own corpus checks (not
 this command) catch the drift rather than silently citing changed text.
 
-Notice the aggregate stays `UNKNOWN` even though one rule is `BLOCKED`. A
+Notice the whole-upgrade result stays `UNKNOWN` (`-v` prints `aggregate UNKNOWN`) even though one rule is `BLOCKED`. A
 `BLOCKED` claim is still a `BLOCKED` claim — that specific resource will
 break — but Prufyx never inflates "one scoped claim was decisive" into
 "the whole upgrade was fully evaluated." The other removals in this pair
@@ -190,7 +189,7 @@ Both flags are on the command deliberately — they are not boilerplate.
   really be sent," not "this JSON merely exists somewhere."
 
 Drop either flag and every removal in this pair reports `UNKNOWN` instead of
-`PASS`/`BLOCKED` — try it: the `next action` field names the missing
+`PASS`/`BLOCKED` — try it: the `to decide:` line names the missing
 declaration and the flag that makes it, for example "the file is not declared
 to be the complete apply set; if it is, add --resource-scope-complete and run
 again". The reason code is `RULE_FACT_UNAVAILABLE`.
@@ -245,21 +244,17 @@ chmod 600 applyset.yaml
 Verified output:
 
 ```
-kubernetes native input review
-raw input digests: sha256:97307ffffabe0fdddbf2b527079b10ddf8559876f3cf1c356a7f424db023a654
-prepared input digest: sha256:619e1cfad17ce822d3ad4d36b1cdc3ef3024e9ec37720096f2af8076b92660b2
-kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0: BLOCKED (KUBERNETES_SERVED_API_REMOVED)
-next action: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
-evidence basis: derived from source by k8s.served-api-removal v1.3.0
-6 rules PASS (not listed; use --show-passes)
-scoped result: BLOCKED
-aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
-pinned source: https://github.com/kubernetes/kubernetes/blob/4ce5a8954017644c5420bae81d72b09b735c21f0/staging/src/k8s.io/api/batch/v1beta1/zz_generated.prerelease-lifecycle.go lines 48-74; revision 4ce5a8954017644c5420bae81d72b09b735c21f0; digest sha256:ed52be6d14796fb3d02cd8a35df4b2a059d2e963d461d7372a8177c249d54ccc
-pinned source: https://github.com/kubernetes/kubernetes/blob/4ce5a8954017644c5420bae81d72b09b735c21f0/api/openapi-spec/swagger.json lines 1-90087; revision 4ce5a8954017644c5420bae81d72b09b735c21f0; digest sha256:0d43576f2097092c8a3f203368a8edc0d605540c9757125dae116031f182e53a
-pinned source: https://github.com/kubernetes/kubernetes/blob/a866cbe2e5bbaa01cfd5e969aa3e033f3282a8a2/api/openapi-spec/swagger.json lines 1-81603; revision a866cbe2e5bbaa01cfd5e969aa3e033f3282a8a2; digest sha256:96354682390d446dde77eb2246fe022baa89697133a8248612ca2573e4a12120
+BLOCKED  1 must fix · 0 undecided · 6 passed     kubernetes 1.24.0 -> 1.25.0, 7 reviewed rules
+
+MUST FIX (1)
+  Kubernetes 1.25 stops serving CronJob through batch/v1beta1
+    fix: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
+
+Whole upgrade: not proven. This report evaluated only 7 reviewed rules.
+3 cited upstream sources (show with -v). 6 passed rules (--show-passes). Knowledge: embedded cncf-2026-09-13.8. No network used.
 ```
 
-The `prepared input digest` is the same as for the JSON file, because both
+With `-v`, the `prepared input digest` is the same as for the JSON file, because both
 files describe the same removal facts; only the `raw input digests` differ,
 since the bytes differ. The exit code is again `10`.
 
@@ -280,13 +275,14 @@ line and exits `11`:
 ```
 
 ```
-kubernetes native input review
-raw input digests: sha256:74b724b3dbe66cdea762575500e4fce48a5469b669668a7108280e026456a355
-prepared input digest: sha256:0590394cb84c8f90bf0a765b6bd580a14bb2d2e203ce8645da7adf40a0cec443
-UNKNOWN: kubernetes 1.21.0 -> 1.25.0 is not a reviewed transition; reviewed pairs: 1.21.0 -> 1.22.0, 1.23.17 -> 1.24.0, 1.24.0 -> 1.25.0, 1.25.0 -> 1.26.0, 1.26.0 -> 1.27.0, 1.28.0 -> 1.29.0, 1.31.0 -> 1.32.0, 1.32.0 -> 1.33.0, and 2 more (prufyx catalog checks --project kubernetes); for a multi-minor upgrade, check each minor step; a step without a reviewed pair stays UNKNOWN
-20 rules about release boundaries (1.22.0, 1.25.0) this hop crosses are not reviewed for this hop
-scoped result: UNKNOWN
-aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
+UNKNOWN  0 must fix · 29 undecided · 0 passed     kubernetes 1.21.0 -> 1.25.0, 29 reviewed rules
+
+UNDECIDED (29 rules)
+  UNKNOWN: kubernetes 1.21.0 -> 1.25.0 is not a reviewed transition; reviewed pairs: 1.21.0 -> 1.22.0, 1.23.17 -> 1.24.0, 1.24.0 -> 1.25.0, 1.25.0 -> 1.26.0, 1.26.0 -> 1.27.0, 1.28.0 -> 1.29.0, 1.31.0 -> 1.32.0, 1.32.0 -> 1.33.0, and 2 more (prufyx catalog checks --project kubernetes); for a multi-minor upgrade, check each minor step; a step without a reviewed pair stays UNKNOWN
+  20 rules about release boundaries (1.22.0, 1.25.0) this hop crosses are not reviewed for this hop
+
+Whole upgrade: not proven. No reviewed rule decided this transition.
+0 cited upstream sources (show with -v). Knowledge: embedded cncf-2026-09-13.8. No network used.
 ```
 
 `--format json` still lists every rule that was considered.
@@ -326,18 +322,14 @@ chmod 600 applyset-1-22.json
 Verified output:
 
 ```
-kubernetes native input review
-raw input digests: sha256:6670657e4ad5888348b0fa1ab708309940610063bcc9cbed1914e2283652f924
-prepared input digest: sha256:f7bd070cd7f335de92cd6824fd7454e80df20312b9fbc22cefc05508674fab9a
-kubernetes.served-api-removal.extensions-v1beta1.1-21-0-to-1-22-0: BLOCKED (KUBERNETES_SERVED_API_REMOVED)
-next action: Migrate the named Ingress manifests to networking.k8s.io/v1. pathType is now required. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
-evidence basis: derived from source by k8s.served-api-removal v1.3.0
-12 rules PASS (not listed; use --show-passes)
-scoped result: BLOCKED
-aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
-pinned source: https://github.com/kubernetes/kubernetes/blob/cb303e613a121a29364f75cc67d3d580833a7479/staging/src/k8s.io/api/extensions/v1beta1/zz_generated.prerelease-lifecycle.go lines 161-187; revision cb303e613a121a29364f75cc67d3d580833a7479; digest sha256:6c60ae809d85e7eeaf9dbb525fd04738d1fdf99aff059a9dc8e37a64def17791
-pinned source: https://github.com/kubernetes/kubernetes/blob/cb303e613a121a29364f75cc67d3d580833a7479/api/openapi-spec/swagger.json lines 1-110616; revision cb303e613a121a29364f75cc67d3d580833a7479; digest sha256:128a984dbb5a4e5ceceef9dea0db575267678d333f53ed606300a2132d2539cc
-pinned source: https://github.com/kubernetes/kubernetes/blob/c2b5237ccd9c0f1d600d3072634ca66cefdf272f/api/openapi-spec/swagger.json lines 1-90274; revision c2b5237ccd9c0f1d600d3072634ca66cefdf272f; digest sha256:d6718670e062681e4dc9e2b9dadf2b311c147cfdabcac628b9018011165d8773
+BLOCKED  1 must fix · 0 undecided · 12 passed     kubernetes 1.21.0 -> 1.22.0, 13 reviewed rules
+
+MUST FIX (1)
+  Kubernetes 1.22 stops serving Ingress through extensions/v1beta1
+    fix: Migrate the named Ingress manifests to networking.k8s.io/v1. pathType is now required. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
+
+Whole upgrade: not proven. This report evaluated only 13 reviewed rules.
+3 cited upstream sources (show with -v). 12 passed rules (--show-passes). Knowledge: embedded cncf-2026-09-13.8. No network used.
 ```
 
 Exit code is again `10`. The 1.21 → 1.22 pair reviews thirteen separate

@@ -112,30 +112,24 @@ func (r runtime) cncfCustomResourceCheck(req customResourceRequest) int {
 		}
 		return customResourceExit(report)
 	}
-	if _, err := fmt.Fprintf(r.stdout, "%s custom-resource version review\n%sraw input digest: %s\nprepared input digest: %s\ncustom-resource set: %s\n", req.project, catalogLine, digest, prepared.InputDigest, customResourceSetLine(prepared.Reason, customResourceSetRecorded(prepared.CanonicalInputJSON))); err != nil {
-		return ExitIntegrity
-	}
-	if err := writeBasisHeadline(r.stdout, report.Check.Claims, report.TrustPolicy); err != nil {
-		return ExitIntegrity
-	}
-	summary := summarizeClaims(report.Check.Claims, flagProvided(req.args, "show-passes"))
-	if summary.allUnreviewed {
-		if err := writeUnreviewedTransition(r.stdout, summary, req.project, req.from, req.to); err != nil {
-			return ExitIntegrity
-		}
-	}
-	if err := writeNativeClaims(r.stdout, summary, report.Check.Claims); err != nil {
-		return ExitIntegrity
+	scope := []string{
+		"custom-resource set: " + customResourceSetLine(prepared.Reason, customResourceSetRecorded(prepared.CanonicalInputJSON)),
 	}
 	if len(report.Check.Claims) == 0 {
-		if _, err := fmt.Fprintf(r.stdout, "no published rule reads the %s custom-resource version set for %s -> %s; the result stays UNKNOWN\n", req.project, req.from, req.to); err != nil {
-			return ExitIntegrity
-		}
+		scope = append(scope, fmt.Sprintf("no published rule reads the %s custom-resource version set for %s -> %s; the result stays UNKNOWN", req.project, req.from, req.to))
 	}
-	if _, err := fmt.Fprintf(r.stdout, "scope: only custom-resource versions named by published rules for this exact pair; check does not read line reviews, so this mode never passes (exit 11 at best); prufyx scan reports what a line review decides\nnot checked: other custom-resource versions, other changes, stored objects and conversion\n%s\naggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)\n", scopedResultLine(customResourceExit(report))); err != nil {
-		return ExitIntegrity
+	scope = append(scope, "scope: only custom-resource versions named by published rules for this exact pair; check does not read line reviews, so this mode never passes (exit 11 at best); prufyx scan reports what a line review decides", "not checked: other custom-resource versions, other changes, stored objects and conversion")
+	route := humanRoute{
+		exit: customResourceExit(report), claims: report.Check.Claims, project: req.project, from: req.from, to: req.to,
+		showPasses: flagProvided(req.args, "show-passes"), verbose: verboseRequested(req.args), trust: report.TrustPolicy,
+		scope:      scope,
+		provenance: append([]string{"raw input digest " + digest + "  prepared input digest " + prepared.InputDigest}, reportProvenance(report)...),
+		knowledge:  knowledgeFooter(report),
 	}
-	if err := writeSourceFooter(r.stdout, summary.shown); err != nil {
+	if catalogLine != "" {
+		route.preamble = splitLines(catalogLine)
+	}
+	if err := writeHumanReport(r.stdout, route); err != nil {
 		return ExitIntegrity
 	}
 	return customResourceExit(report)

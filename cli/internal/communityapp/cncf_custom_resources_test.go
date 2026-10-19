@@ -42,7 +42,7 @@ func TestCustomResourceCheckWithoutPublishedRules(t *testing.T) {
 			if code != ExitUnknown || stderr != "" || strings.Contains(stdout, "private-") || strings.Contains(stdout, path) {
 				t.Fatalf("%s %s: code=%d stdout=%q stderr=%q", s.project, format, code, stdout, stderr)
 			}
-			if format == "human" && (!strings.Contains(stdout, s.project+" custom-resource version review") || !strings.Contains(stdout, "custom-resource set: complete") || !strings.Contains(stdout, "scoped result: UNKNOWN\naggregate: UNKNOWN")) {
+			if format == "human" && (!strings.HasPrefix(stdout, "UNKNOWN  ") || !strings.Contains(stdout, "custom-resource set: complete") || !strings.Contains(stdout, "Whole upgrade: not proven")) {
 				t.Fatalf("%s human output %q", s.project, stdout)
 			}
 			if format == "json" && (!strings.Contains(stdout, `"claims":[]`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`)) {

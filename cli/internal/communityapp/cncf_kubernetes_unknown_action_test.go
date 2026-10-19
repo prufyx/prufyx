@@ -86,7 +86,7 @@ func TestKubernetesNativeUnknownNamesTheMissingFlag(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			code, stdout, stderr := runCNCFCLI(t, append(append([]string(nil), base...), test.flags...)...)
-			if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "next action: ") || !strings.Contains(stdout, test.want) {
+			if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "to decide: ") || !strings.Contains(stdout, test.want) {
 				t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 			}
 			for _, banned := range []string{"inspect local", "pkg:github", "gvk_present", "mark missing"} {

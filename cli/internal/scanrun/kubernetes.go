@@ -1155,6 +1155,10 @@ func (r *kubernetesRun) location(source intake.Source) scanreport.Location {
 	return location
 }
 
+// RuleTitle is the title scan shows for a rule with this description; the
+// check human report reuses it so both commands name a problem alike.
+func RuleTitle(description string) string { return title(description) }
+
 // title is the first sentence of a rule description, bounded.
 func title(description string) string {
 	text := description

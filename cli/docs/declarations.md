@@ -15,7 +15,7 @@ part of the cluster you did not show.
 
 These are the ones the first `scan` or `check cncf --project kubernetes` asks
 for. Without them the answer is `UNKNOWN`; the report lists the missing ones
-(`scan`: under `NOT CHECKED`, with the flag to add; `check`: the `next action:`
+(`scan`: under `NOT CHECKED`, with the flag to add; `check`: the `to decide:` line
 of each undecided rule).
 
 | Flag | In `prufyx.yaml` (`declarations.kubernetes.`) | True when | Leave it out when |
