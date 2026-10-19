@@ -57,7 +57,9 @@ func TestHumanReportLeavesJSONByteIdentical(t *testing.T) {
 			t.Parallel()
 			args := append(c.args(t), "--format", "json")
 			_, stdout, _ := runCNCFCLI(t, args...)
-			goldenfile.Check(t, filepath.Join("testdata", "human-report", c.name+".json"), maskPack(t, []byte(stdout)), *updateHumanReportGoldens, "")
+			// Object locations are additive (WI-4): without them the bytes are
+			// exactly the ones captured before the redesign.
+			goldenfile.Check(t, filepath.Join("testdata", "human-report", c.name+".json"), maskPack(t, withoutLocations([]byte(stdout))), *updateHumanReportGoldens, "")
 		})
 	}
 }

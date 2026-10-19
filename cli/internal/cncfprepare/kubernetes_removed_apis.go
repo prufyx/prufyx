@@ -555,3 +555,57 @@ func containsString(values []string, value string) bool {
 	}
 	return false
 }
+
+// ObjectRef names one object of the caller's apply set that made a fact
+// true. It is provenance for reports and never reaches a prepared input.
+type ObjectRef struct {
+	File      string
+	Document  int
+	Item      int
+	Line      int
+	Kind      string
+	Namespace string
+	Name      string
+}
+
+// PrepareKubernetesRemovedAPIsLocated is PrepareKubernetesRemovedAPIs that
+// also returns, per fact declared true, the objects that made it true. The
+// prepared result is the one the plain function returns for the same bytes:
+// the set is decoded under the same fixed name, and file only labels the
+// returned references. A pair outside the reviewed minor lines has none.
+func PrepareKubernetesRemovedAPIsLocated(raw []byte, file, from, to, distribution string, targetApplyRequired, complete bool) (Prepared, map[string][]ObjectRef, error) {
+	if _, reviewed := kubernetesRemovalsForCrossedMinorLine(from, to); !reviewed {
+		prepared, err := PrepareKubernetesRemovedAPIs(raw, from, to, distribution, targetApplyRequired, complete)
+		return prepared, nil, err
+	}
+	if len(raw) == 0 || len(raw) > maxInputBytes || !utf8.Valid(raw) {
+		return Prepared{}, nil, ErrInvalid
+	}
+	var workspace intake.Workspace
+	read := func() (kubernetesApplySet, error) {
+		decoded, err := intake.Decode("input", raw)
+		if err != nil {
+			return kubernetesApplySet{}, err
+		}
+		workspace = decoded
+		return kubernetesApplySetOf(decoded), nil
+	}
+	prepared, sources, err := prepareKubernetesRemovedAPIs(read, digestBytes(raw), from, to, distribution, targetApplyRequired, complete)
+	if err != nil {
+		return Prepared{}, nil, err
+	}
+	refs := map[string][]ObjectRef{}
+	for fact, list := range sources {
+		for _, source := range list {
+			ref := ObjectRef{File: file, Document: source.Document, Item: source.Item, Line: source.Line}
+			for _, document := range workspace.Documents {
+				if document.Source == source {
+					ref.Kind, ref.Namespace, ref.Name = document.Kind, document.Namespace, document.Name
+					break
+				}
+			}
+			refs[fact] = append(refs[fact], ref)
+		}
+	}
+	return prepared, refs, nil
+}

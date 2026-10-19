@@ -122,6 +122,11 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 	if from == "" || to == "" || cncfUnexpectedModeFlag(args, allowed...) {
 		return r.usage("invalid native CNCF resource check arguments; use --help")
 	}
+	redact := flagProvided(args, "redact")
+	if redact && (project != "kubernetes" || storeRoot != "" || replayPath != "") {
+		return r.usage("--redact applies to object locations, which only check cncf --project kubernetes --native-resource prints; use --help")
+	}
+	var objectFacts map[string][]cncfprepare.ObjectRef
 	var prepared cncfprepare.Prepared
 	var rawDigests []string
 	var expectedSourceDigest string
@@ -202,7 +207,7 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 			if kubernetesDistribution != "" && kubernetesDistribution != "official_upstream" && kubernetesDistribution != "custom_build" {
 				return r.usage("invalid Kubernetes distribution; use --help")
 			}
-			prepared, err = cncfprepare.PrepareKubernetesRemovedAPIs(raw, from, to, kubernetesDistribution, targetAPIApplyRequired, resourceScopeComplete)
+			prepared, objectFacts, err = cncfprepare.PrepareKubernetesRemovedAPIsLocated(raw, nativePath, from, to, kubernetesDistribution, targetAPIApplyRequired, resourceScopeComplete)
 		} else if project == "cilium" {
 			if ciliumDistribution != "" && ciliumDistribution != "official_upstream" && ciliumDistribution != "custom_build" {
 				return r.usage("invalid Cilium distribution; use --help")
@@ -307,7 +312,11 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 	if err != nil {
 		return r.fail("CNCF report integrity failure", ExitIntegrity)
 	}
+	locations := claimLocations(report.Check.Claims, objectFacts, redact)
 	if format == "json" {
+		if encoded, err = spliceClaimLocations(encoded, locations); err != nil {
+			return r.fail("CNCF report integrity failure", ExitIntegrity)
+		}
 		if _, err := fmt.Fprintln(r.stdout, string(encoded)); err != nil {
 			return ExitIntegrity
 		}
@@ -321,6 +330,7 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 			showPasses: flagProvided(args, "show-passes"), verbose: verboseRequested(args), trust: report.TrustPolicy,
 			provenance: nativeProvenance(rawDigests, prepared.InputDigest, report),
 			knowledge:  knowledgeFooter(report),
+			locations:  locationLines(locations),
 		}
 		if prometheusRemoteWriteMode {
 			route.scope = []string{"selected input: one literal-name remote_write entry from the caller-supplied full configuration", "scope: direct enable_http2 and declared endpoint requirement only; negotiation, delivery, runtime flags, includes, and whole-config validity remain unverified"}

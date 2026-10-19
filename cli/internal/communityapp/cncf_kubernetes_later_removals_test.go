@@ -105,7 +105,7 @@ func TestKubernetesLaterRemovalsThroughTheCommandRoute(t *testing.T) {
 			} {
 				t.Run(removal.fact+"/"+kind+"/"+tc.name, func(t *testing.T) {
 					path := writeCNCFFile(t, "applyset.json", []byte(`{"apiVersion":"v1","kind":"List","items":[`+strings.Join(tc.items, ",")+`]}`), 0o600)
-					args := []string{"check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", tc.from, "--to", tc.to, "--distribution", "official_upstream", "--target-api-apply-required", "--now", supersedeids.ClockString(), "--format", "json"}
+					args := []string{"check", "cncf", "--project", "kubernetes", "--native-resource", path, "--from", tc.from, "--to", tc.to, "--distribution", "official_upstream", "--target-api-apply-required", "--now", supersedeids.ClockString(), "--format", "json", "--redact"}
 					if tc.complete {
 						args = append(args, "--resource-scope-complete")
 					}

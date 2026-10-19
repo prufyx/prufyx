@@ -374,6 +374,20 @@ func sharedCitationList(findings []Finding) []constraintengine.SourceEvidence {
 	return out
 }
 
+// LocationText is the text scan prints for a location; the check report
+// prints its object lines the same way.
+func LocationText(location Location) string { return locationText(location) }
+
+// RedactLocation is the location with its file, namespace and name replaced
+// by their digests, as Redact does for a scan report.
+func RedactLocation(location Location) Location {
+	location.File, location.Namespace, location.Name = RedactValue(location.File), RedactValue(location.Namespace), RedactValue(location.Name)
+	return location
+}
+
+// SortLocations orders locations as a scan report lists them.
+func SortLocations(locations []Location) { sortLocations(locations) }
+
 // locationText is "file:line" when the line is known, else "file#document"
 // with "/item" for a List item, then the kind and namespace/name. Digests
 // print as a short prefix.
@@ -424,8 +438,7 @@ func RedactValue(value string) string {
 func Redact(report *Report) {
 	for f := range report.Findings {
 		for l := range report.Findings[f].Locations {
-			location := &report.Findings[f].Locations[l]
-			location.File, location.Namespace, location.Name = RedactValue(location.File), RedactValue(location.Namespace), RedactValue(location.Name)
+			report.Findings[f].Locations[l] = RedactLocation(report.Findings[f].Locations[l])
 		}
 		sortLocations(report.Findings[f].Locations)
 	}
