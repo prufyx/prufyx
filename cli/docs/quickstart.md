@@ -254,7 +254,7 @@ Whole upgrade: not proven. This report evaluated only 7 reviewed rules.
 3 cited upstream sources (show with -v). 6 passed rules (--show-passes). Knowledge: embedded cncf-2026-09-13.8. No network used.
 ```
 
-The `prepared input digest` is the same as for the JSON file, because both
+With `-v`, the `prepared input digest` is the same as for the JSON file, because both
 files describe the same removal facts; only the `raw input digests` differ,
 since the bytes differ. The exit code is again `10`.
 

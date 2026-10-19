@@ -46,15 +46,15 @@ func TestSyntheticRequireBasisThroughTheCommandRoute(t *testing.T) {
 	}{
 		{"default: consensus never passes, lead left out", []cncfcheck.Entry{reviewed, mechanical, consensus, lead}, "", ExitUnknown,
 			[]string{`"status":"NO_KNOWN_ISSUE"`, `"trustPolicy":{"requiredBasis":["reviewed","mechanical","empirical","consensus"],"excludedRules":0,"excludedLeadRules":1}`, `"engineContractDigest":"` + constraintengine.EngineContractDigestBasis() + `"`},
-			[]string{"1 finding relies on model consensus\n", "kubernetes.synthetic-c-consensus.1-35-0-to-1-36-0: NO_KNOWN_ISSUE (CONSENSUS_NO_KNOWN_ISSUE)\n", "evidence basis: two independent model readings, citations verified; may block, never passes\n", "trust policy: 1 unverified lead not shown; add lead to --require-basis to list it\n", "2 rules PASS (not listed; use --show-passes)\n"},
+			[]string{"1 finding relies on model consensus\n", "rule: kubernetes.synthetic-c-consensus.1-35-0-to-1-36-0 (NO_KNOWN_ISSUE, CONSENSUS_NO_KNOWN_ISSUE)\n", "evidence basis: two independent model readings, citations verified; may block, never passes\n", "trust policy: 1 unverified lead not shown; add lead to --require-basis to list it\n", "· 2 passed "},
 			[]string{"synthetic-d-lead", "result cannot pass"}},
 		{"reviewed only: mechanical rules left out, the check cannot pass", []cncfcheck.Entry{reviewed, mechanical, consensus, lead}, "reviewed", ExitUnknown,
 			[]string{`"trustPolicy":{"requiredBasis":["reviewed"],"excludedRules":2,"excludedLeadRules":1}`, `"status":"PASS"`},
-			[]string{"trust policy: evidence basis reviewed only; 2 rules left out, so the result cannot pass\n", "1 rule PASS (not listed; use --show-passes)\n"},
+			[]string{"trust policy: evidence basis reviewed only; 2 rules left out, so the result cannot pass\n", "· 1 passed "},
 			[]string{"synthetic-b-mechanical", "synthetic-c-consensus", "model consensus"}},
 		{"lead listed: an unverified lead never blocks", []cncfcheck.Entry{reviewed, mechanical, lead}, "reviewed,mechanical,lead", ExitOK,
 			[]string{`"status":"NOTICE"`, `"reasonCode":"LEAD_NOT_VERIFIED"`},
-			[]string{"unverified lead (does not block): kubernetes.synthetic-d-lead.1-35-0-to-1-36-0\nworth checking: plan the reviewed route\nevidence basis: one unverified model reading; never blocks or passes\n"},
+			[]string{"unverified lead (does not block): kubernetes.synthetic-d-lead.1-35-0-to-1-36-0\n  worth checking: plan the reviewed route\n  evidence basis: one unverified model reading; never blocks or passes\n"},
 			[]string{"BLOCKED", "trust policy"}},
 		{"no consensus finding, no note", []cncfcheck.Entry{reviewed, mechanical}, "", ExitOK, nil, nil, []string{"model consensus", "trust policy"}},
 	} {
@@ -65,7 +65,7 @@ func TestSyntheticRequireBasisThroughTheCommandRoute(t *testing.T) {
 			}
 			defer restore()
 			path := writeCNCFFile(t, "input.json", input, 0o600)
-			args := []string{"check", "cncf", "--project", "kubernetes", "--input", path, "--now", supersedeids.ClockString()}
+			args := []string{"check", "cncf", "--project", "kubernetes", "--input", path, "--now", supersedeids.ClockString(), "-v"}
 			if tc.policy != "" {
 				args = append(args, "--require-basis", tc.policy)
 			}

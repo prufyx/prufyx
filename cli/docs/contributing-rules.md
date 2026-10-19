@@ -336,7 +336,7 @@ repository cannot be cited yet; until a pinned statement exists the
 distribution stays a gap. See
 [kubernetes-distribution-versions.md](kubernetes-distribution-versions.md#distribution-records-and-applicability).
 
-Every human finding prints one line before the pinned sources, one of
+With `-v`, every human finding prints one line before the pinned sources, one of
 `evidence basis: reviewed by maintainer`,
 `evidence basis: derived from source by <extractor id> v<version>`,
 `evidence basis: reproduced with upstream artifacts; may block or pass`,

@@ -63,7 +63,7 @@ func TestSyntheticNoticeThroughTheCommandRoute(t *testing.T) {
 			if tc.unreviewed != strings.Contains(stdout, "UNKNOWN: kubernetes 1.35.0 -> 1.36.0 is not a reviewed transition") {
 				t.Fatalf("unreviewed line:\n%s", stdout)
 			}
-			if !strings.Contains(stdout, "cannot be rolled back: kubernetes.synthetic-one-way.1-35-0-to-1-36-0\nbefore you upgrade: "+noticeBeforeText+"\n") || strings.Contains(strings.ToLower(stdout), "safe") || strings.Contains(stdout, "NOTICE (") {
+			if !strings.Contains(stdout, "cannot be rolled back: kubernetes.synthetic-one-way.1-35-0-to-1-36-0\n  before you upgrade: "+noticeBeforeText+"\n") || strings.Contains(strings.ToLower(stdout), "safe") || strings.Contains(stdout, "NOTICE (") {
 				t.Fatalf("stdout:\n%s", stdout)
 			}
 			code, report, _ := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", supersedeids.ClockString(), "--format", "json")

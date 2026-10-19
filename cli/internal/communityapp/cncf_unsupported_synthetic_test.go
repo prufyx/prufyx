@@ -43,14 +43,14 @@ func TestSyntheticUnsupportedThroughTheCommandRoute(t *testing.T) {
 			}
 			defer restore()
 			path := writeCNCFFile(t, "input.json", input, 0o600)
-			code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", supersedeids.ClockString())
+			code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", supersedeids.ClockString(), "-v")
 			if code != tc.exit || stderr != "" {
 				t.Fatalf("code=%d stderr=%s stdout=%s", code, stderr, stdout)
 			}
 			if tc.headline != strings.Contains(stdout, headline) {
 				t.Fatalf("headline:\n%s", stdout)
 			}
-			if tc.headline && !strings.Contains(stdout, "kubernetes.synthetic-support.1-35-0-to-1-36-0: UNSUPPORTED (ADDON_KUBERNETES_SUPPORT_RANGE)\nnext action: "+supportAction+"\n") {
+			if tc.headline && (!strings.Contains(stdout, "kubernetes.synthetic-support.1-35-0-to-1-36-0 (UNSUPPORTED, ADDON_KUBERNETES_SUPPORT_RANGE)") || !strings.Contains(stdout, supportAction)) {
 				t.Fatalf("claim line:\n%s", stdout)
 			}
 			code, report, _ := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", supersedeids.ClockString(), "--format", "json")
