@@ -16,7 +16,7 @@ not the same size:
   exact pair passed** (one or a few rules, for example one setting in one
   file, or the seven removed-API rules of one Kubernetes pair). It says
   nothing about the rest of the upgrade, and the report says so
-  (`scoped result: PASS` and `aggregate: UNKNOWN`).
+  (the headline `PASS` and the `Whole upgrade: not proven` line).
 
 A CI step that treats every `0` as "safe to upgrade" misreads a `check` pass.
 **In CI, always add `--strict-exit` to `check`** (below): the scoped pass then

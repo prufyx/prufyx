@@ -331,23 +331,6 @@ func writeCollapsedNotes(out io.Writer, summary claimSummary) error {
 	return nil
 }
 
-// writeSourceFooter prints each distinct pinned source once, in first-seen order.
-func writeSourceFooter(out io.Writer, claims []constraintengine.Claim) error {
-	seen := map[constraintengine.SourceEvidence]bool{}
-	for _, claim := range claims {
-		for _, source := range claim.Sources {
-			if seen[source] {
-				continue
-			}
-			seen[source] = true
-			if _, err := fmt.Fprintf(out, "pinned source: %s lines %d-%d; revision %s; digest %s\n", source.URL, source.StartLine, source.EndLine, source.Revision, source.ContentDigest); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 // canonicalTransition reads the single from and to version of a canonical
 // input declaration; ok is false when it does not name exactly one component
 // on each side.

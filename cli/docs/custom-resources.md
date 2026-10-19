@@ -10,8 +10,8 @@ release no longer serves.
 The rules come from the `crd.version-removal` extractor
 ([extractors/crd.version-removal.md](extractors/crd.version-removal.md)) and
 reach users only through the knowledge gate. The embedded knowledge of this
-release holds no such rule yet, so today every check below answers `UNKNOWN`
-(exit 11) and says that no published rule reads the set.
+release holds such rules for some projects (the example below uses Strimzi).
+For a pair without a published rule the check answers `UNKNOWN` (exit 11).
 
 ## Projects
 
@@ -171,21 +171,24 @@ YAML
 chmod 600 manifests.yaml
 ./prufyx check cncf --project strimzi --custom-resources manifests.yaml \
   --custom-resources-complete --from 0.51.0 --to 1.0.0 \
-  --now 2026-10-04T00:00:00Z
+  --now 2026-10-20T00:00:00Z
 ```
 
 With the knowledge of this release:
 
 ```
-strimzi custom-resource version review
-raw input digest: sha256:0d08002f5c498c9ce126e92389518917be4ff0df0130ad7ade4ac6229fb9d0fd
-prepared input digest: sha256:90de632e6208586b85dfa4e1e72b80c05d7f885abad0c33910ec32981930e02a
+BLOCKED  1 must fix · 0 undecided · 9 passed     strimzi 0.51.0 -> 1.0.0, 10 reviewed rules
+
+MUST FIX (1)
+  Strimzi 1.0.0 no longer serves version v1beta2 of Kafka (CustomResourceDefinition kafkas.kafka.strimzi.io), which 0.51.0 served
+    forbidden members present: kafka.strimzi.io/v1beta2/Kafka
+    fix: migrate stored Kafka objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0
+
 custom-resource set: complete
-no published rule reads the strimzi custom-resource version set for 0.51.0 -> 1.0.0; the result stays UNKNOWN
 scope: only custom-resource versions named by published rules for this exact pair; check does not read line reviews, so this mode never passes (exit 11 at best); prufyx scan reports what a line review decides
 not checked: other custom-resource versions, other changes, stored objects and conversion
-scoped result: UNKNOWN
-aggregate: UNKNOWN (whole-upgrade compatibility: UNKNOWN; network used: false)
+Whole upgrade: not proven. This report evaluated only 10 reviewed rules.
+2 cited upstream sources (show with -v). 9 passed rules (--show-passes). Knowledge: embedded cncf-2026-09-13.8. No network used.
 ```
 
 Flags:

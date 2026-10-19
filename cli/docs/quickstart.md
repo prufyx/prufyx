@@ -46,9 +46,11 @@ environment variables:
 
 ## 2. What the verdicts mean
 
-Every `prufyx check` prints one aggregate assessment and the rules that
-decide something. Rules that came back `PASS` are counted, not listed (add
-`--show-passes` to list them).
+Every `prufyx check` starts with one headline line: the verdict word, the counts
+(must fix, undecided, passed) and the scope. Rules that decide something are
+listed under it, grouped by the action they share. Rules that came back `PASS`
+are counted, not listed (add `--show-passes` to list them). Sources, rule ids
+and provenance are behind `-v`.
 
 - **PASS**: the checked rules passed for that scope. Not a certificate that the
   rest of the upgrade is safe.
@@ -145,20 +147,21 @@ That `10` is `ExitBlocked`. In CI use `--strict-exit` on every `prufyx
 check`: then `14` means only the rules for this pair passed, and every
 other code (2 = usage error, 3 = integrity failure, 10 = BLOCKED, 11 = UNKNOWN)
 needs a human decision. Without the flag a scoped pass exits `0`, but the
-whole upgrade is still `UNKNOWN` (the `aggregate:` line says so, and the
+whole upgrade is still `UNKNOWN` (the `Whole upgrade: not proven` line says so, and the
 command repeats it on standard error), so a `0` is not "proceed". `10` means a
 pinned upstream source says the target release no longer serves this
 resource's API version. See [exit-codes.md](exit-codes.md).
 
-The `pinned source` line is not a description — it is a citation. Open that
+The default output only counts the cited sources. Add `-v` to list them: each
+source line is a citation, not a description. Open that
 exact URL at that exact revision and you will find, at lines 48-74, the
 Kubernetes source file that declares `CronJob` at `batch/v1beta1` removed in
 1.25. The rule was derived from that source by the extractor named in the
-`evidence basis` line. `digest` pins the exact bytes it read, so if
+`evidence basis` line that `-v` prints under the rule. `digest` pins the exact bytes it read, so if
 upstream silently edits that page later, Prufyx's own corpus checks (not
 this command) catch the drift rather than silently citing changed text.
 
-Notice the aggregate stays `UNKNOWN` even though one rule is `BLOCKED`. A
+Notice the whole-upgrade result stays `UNKNOWN` (`-v` prints `aggregate UNKNOWN`) even though one rule is `BLOCKED`. A
 `BLOCKED` claim is still a `BLOCKED` claim — that specific resource will
 break — but Prufyx never inflates "one scoped claim was decisive" into
 "the whole upgrade was fully evaluated." The other removals in this pair
@@ -186,7 +189,7 @@ Both flags are on the command deliberately — they are not boilerplate.
   really be sent," not "this JSON merely exists somewhere."
 
 Drop either flag and every removal in this pair reports `UNKNOWN` instead of
-`PASS`/`BLOCKED` — try it: the `next action` field names the missing
+`PASS`/`BLOCKED` — try it: the `to decide:` line names the missing
 declaration and the flag that makes it, for example "the file is not declared
 to be the complete apply set; if it is, add --resource-scope-complete and run
 again". The reason code is `RULE_FACT_UNAVAILABLE`.

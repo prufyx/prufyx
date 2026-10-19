@@ -338,19 +338,6 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 	return cncfcheck.ClaimExit(report)
 }
 
-// scopedResultLine names the result of the checked rules, the one the exit
-// code reports. The aggregate line beside it is the whole-upgrade
-// compatibility, which a single route never decides.
-func scopedResultLine(exit int) string {
-	switch exit {
-	case ExitBlocked:
-		return "scoped result: BLOCKED"
-	case ExitOK:
-		return "scoped result: PASS"
-	}
-	return "scoped result: UNKNOWN"
-}
-
 func joinNativeDigests(values []string) string {
 	if len(values) == 1 {
 		return values[0]
