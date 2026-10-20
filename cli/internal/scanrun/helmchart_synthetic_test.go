@@ -91,9 +91,10 @@ func baseChartEntries(basis string) []cncfcheck.Entry {
 	}
 }
 
+// chartDefinitions are the synthetic facts the registry does not hold; the
+// registry itself defines kedaFact.
 func chartDefinitions() []constraintengine.FactDefinition {
 	return []constraintengine.FactDefinition{
-		{ID: kedaFact, Component: kedaComponent, Type: constraintengine.FactSet},
 		{ID: "component.keda.chart_keda-other_values_paths_set", Component: kedaComponent, Type: constraintengine.FactSet},
 	}
 }
