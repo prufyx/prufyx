@@ -8,6 +8,7 @@
     "factProject": "tekton",
     "tagPrefixes": ["v"],
     "minFrom": "1.12",
+    "attest": true,
     "paths": [
       {"path": "config/300-crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],

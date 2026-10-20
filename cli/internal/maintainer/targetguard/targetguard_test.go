@@ -342,10 +342,10 @@ var removals = []removal{
 		})
 	}, Removal{Kind: KindIdentity, Project: "cilium", Detail: "repo:github.com/evil/cilium"}},
 	{"remote added", func(t *testing.T, m fstest.MapFS) {
-		editTarget(t, m, "kuma", func(tg map[string]any) {
+		editTarget(t, m, "antrea", func(tg map[string]any) {
 			tg["remote"] = map[string]any{"fromLine": "3.0", "kustomization": "k.yaml", "repo": "github.com/other/x", "directory": "d", "pins": []any{map[string]any{"tag": "v1.0.0", "commit": strings.Repeat("c", 40)}}}
 		})
-	}, Removal{Kind: KindNarrowed, Project: "kuma", Detail: "remoteAdded:github.com/other/x"}},
+	}, Removal{Kind: KindNarrowed, Project: "antrea", Detail: "remoteAdded:github.com/other/x"}},
 	{"remote fromLine lowered", func(t *testing.T, m fstest.MapFS) {
 		editTarget(t, m, "kong-ingress-controller", func(tg map[string]any) { tg["remote"].(map[string]any)["fromLine"] = "3.3" })
 	}, Removal{Kind: KindNarrowed, Project: "kong-ingress-controller", Detail: "remoteFrom:3.3"}},
