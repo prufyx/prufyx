@@ -8,6 +8,7 @@
     "factProject": "kuma",
     "tagPrefixes": ["v", ""],
     "minFrom": "2.9",
+    "attest": true,
     "paths": [
       {"path": "deployments/charts/kuma/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],

@@ -8,6 +8,7 @@
     "factProject": "dapr",
     "tagPrefixes": ["v"],
     "minFrom": "1.13",
+    "attest": true,
     "paths": [
       {"path": "charts/dapr/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
