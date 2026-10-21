@@ -76,24 +76,6 @@ var lines = []Line{
 	{"pkg:github/strimzi/strimzi-kafka-operator", "1.3"},
 }
 
-// otherQuiet are quiet lines of the same family that other changes ship (the
-// keda, cert-manager and velero targets). Holds accepts them; they are
-// not part of the all-or-none batch and are not counted.
-var otherQuiet = []Line{
-	{"pkg:github/cert-manager/cert-manager", "1.20"},
-	{"pkg:github/cert-manager/cert-manager", "1.21"},
-	{"pkg:github/kedacore/keda", "2.17"},
-	{"pkg:github/kedacore/keda", "2.18"},
-	{"pkg:github/kedacore/keda", "2.19"},
-	{"pkg:github/kedacore/keda", "2.20"},
-	{"pkg:github/kedacore/keda", "2.21"},
-	{"pkg:github/velero-io/velero", "1.14"},
-	{"pkg:github/velero-io/velero", "1.15"},
-	{"pkg:github/velero-io/velero", "1.16"},
-	{"pkg:github/velero-io/velero", "1.17"},
-	{"pkg:github/velero-io/velero", "1.18"},
-}
-
 // Rules returns the batch's rules in id order.
 func Rules() []Rule {
 	out := make([]Rule, len(rules))
@@ -130,13 +112,14 @@ func ProjectRules(project string) []Rule {
 func Lines() []Line { return append([]Line(nil), lines...) }
 
 // ShippedLines returns every quiet custom-resource-family line attestation
-// the shipped pack carries once the batch is shipped (the batch's and the other
-// shipped quiet lines), ordered as the pack orders them; none before.
+// the shipped pack carries once the batch is shipped (the batch's and the
+// other quiet lines the pack holds, whatever project they belong to),
+// ordered as the pack orders them; none before.
 func ShippedLines() []Line {
 	if !Shipped() {
 		return nil
 	}
-	out := append(Lines(), otherQuiet...)
+	out := append(Lines(), shippedOthers...)
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Component != out[j].Component {
 			return out[i].Component < out[j].Component
@@ -150,6 +133,9 @@ var (
 	shippedOnce sync.Once
 	shipped     bool
 	shippedErr  error
+	// shippedOthers are the quiet lines of the shipped pack that are not
+	// the batch's.
+	shippedOthers []Line
 )
 
 // Shipped reports whether the shipped rule pack (cncfcheck/data/rules.json,
@@ -164,7 +150,7 @@ func Shipped() bool {
 			shippedErr = err
 			return
 		}
-		shipped, shippedErr = Holds(raw)
+		shipped, shippedOthers, shippedErr = holds(raw)
 	})
 	if shippedErr != nil {
 		panic("crdbatchids: " + shippedErr.Error())
@@ -191,10 +177,19 @@ type subject struct {
 // Holds reports whether pack holds the batch (true) or none of it (false).
 // A pack holding part of the batch, a batch rule that differs from its
 // statement here (project, operator, subject, set condition), a line
-// attestation of the family that is neither a quiet line of the batch nor
-// one of the other shipped quiet lines, or any
-// other custom-resource version-removal rule is an error.
+// attestation of the family that is repeated or lists rules without being
+// a line of the batch, or any other custom-resource version-removal rule is
+// an error. Quiet lines of the family that are not the batch's are accepted
+// whatever project they belong to: other changes ship them (and the
+// factory's onboarding adds more), so no list of them is kept here.
 func Holds(pack []byte) (bool, error) {
+	held, _, err := holds(pack)
+	return held, err
+}
+
+// holds is Holds that also returns the pack's quiet lines of the family
+// that are not the batch's.
+func holds(pack []byte) (bool, []Line, error) {
 	var p struct {
 		Entries []struct {
 			Project string `json:"project"`
@@ -218,7 +213,7 @@ func Holds(pack []byte) (bool, error) {
 		} `json:"lineAttestations"`
 	}
 	if err := json.Unmarshal(pack, &p); err != nil {
-		return false, err
+		return false, nil, err
 	}
 	byID := map[string]Rule{}
 	for _, r := range rules {
@@ -230,7 +225,7 @@ func Holds(pack []byte) (bool, error) {
 		want, ok := byID[got.ID]
 		if !ok {
 			if strings.Contains(got.ID, Marker) {
-				return false, fmt.Errorf("the pack holds custom-resource version-removal rule %s, which is not of the batch", got.ID)
+				return false, nil, fmt.Errorf("the pack holds custom-resource version-removal rule %s, which is not of the batch", got.ID)
 			}
 			continue
 		}
@@ -240,45 +235,43 @@ func Holds(pack []byte) (bool, error) {
 		// of its rule, not transition matching.
 		if entry.Project != want.Project || got.Operator != "forbid_set_member" || got.Subject != (subject{want.Component, want.From, want.To}) ||
 			set == nil || set.Side != "proposed" || set.Component != want.Component || set.FactID != want.FactID() || strings.Join(set.Members, "\n") != strings.Join(want.Members, "\n") {
-			return false, fmt.Errorf("the pack's rule %s differs from the batch's statement of it", got.ID)
+			return false, nil, fmt.Errorf("the pack's rule %s differs from the batch's statement of it", got.ID)
 		}
 	}
 	attested := 0
+	var others []Line
 	seen := map[Line]bool{}
 	for _, a := range p.LineAttestations {
 		if a.FactFamily != FactFamily {
 			continue
 		}
 		if l := (Line{a.Component, a.Line}); seen[l] {
-			return false, fmt.Errorf("the pack's %s line attestation %s %s is repeated", FactFamily, a.Component, a.Line)
+			return false, nil, fmt.Errorf("the pack's %s line attestation %s %s is repeated", FactFamily, a.Component, a.Line)
 		} else {
 			seen[l] = true
 		}
-		known, inBatch := false, false
+		inBatch := false
 		for _, l := range lines {
 			if l.Component == a.Component && l.Line == a.Line {
-				known, inBatch = true, true
+				inBatch = true
 			}
 		}
-		for _, l := range otherQuiet {
-			if l.Component == a.Component && l.Line == a.Line {
-				known = true
-			}
-		}
-		if !known || a.RuleIDs == nil || len(*a.RuleIDs) != 0 {
-			return false, fmt.Errorf("the pack's %s line attestation %s %s is not a quiet line of the batch", FactFamily, a.Component, a.Line)
+		if a.RuleIDs == nil || len(*a.RuleIDs) != 0 {
+			return false, nil, fmt.Errorf("the pack's %s line attestation %s %s is not a quiet line", FactFamily, a.Component, a.Line)
 		}
 		if inBatch {
 			attested++
+		} else {
+			others = append(others, Line{a.Component, a.Line})
 		}
 	}
 	switch {
 	case held == 0 && attested == 0:
-		return false, nil
+		return false, others, nil
 	case held == len(rules) && attested == len(lines):
-		return true, nil
+		return true, others, nil
 	}
-	return false, fmt.Errorf("the pack holds %d of the batch's %d rules and %d of its %d line attestations, want all or none", held, len(rules), attested, len(lines))
+	return false, nil, fmt.Errorf("the pack holds %d of the batch's %d rules and %d of its %d line attestations, want all or none", held, len(rules), attested, len(lines))
 }
 
 func shippedPack() ([]byte, error) {

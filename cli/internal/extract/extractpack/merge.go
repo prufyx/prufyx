@@ -519,9 +519,10 @@ func newFactsHint(base, head *Pack, allowed map[string]bool) string {
 }
 
 // componentOf is the rule subject component of a repository key
-// ("github.com/owner/name" is "pkg:github/owner/name").
+// ("github.com/owner/name" is "pkg:github/owner/name"), lowercase like the
+// catalog's subject components (cncfcheck.subjectComponent).
 func componentOf(repo string) string {
-	return "pkg:github/" + strings.TrimPrefix(repo, "github.com/")
+	return "pkg:github/" + strings.ToLower(strings.TrimPrefix(repo, "github.com/"))
 }
 
 // supersedes requires that a run may withdraw a rule: the run is not older
