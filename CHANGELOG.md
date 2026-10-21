@@ -9,6 +9,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- `scripts/kind-val.sh --name-prefix P` names the clusters `P-<line>` (default `prufyx-kind`, unchanged), so several runs (each with its own prefix and `--out`) can share one Docker host; their cluster creations take turns where `flock` exists (`--create-lock`).
 - CNCF knowledge: 13 custom-resource version-removal rules (`crd.version-removal`)
   for Crossplane (2), Kyverno (1) and Strimzi (10), each forbidding a
   custom-resource version the target release no longer serves, and Strimzi

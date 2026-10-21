@@ -408,7 +408,7 @@ cat > images.txt <<'EOF'
 EOF
 cli/scripts/kind-val.sh --images images.txt --out /tmp/kind-val --prufyx "$HOME/.local/bin/prufyx" \
   --prufyx-commit "$(git rev-parse HEAD)" [--crd-claims pairs.json] [--crd-line 1.37] \
-  [--kind-config FILE] [--post-check 'some health command'] [--v2]
+  [--kind-config FILE] [--post-check 'some health command'] [--name-prefix P] [--create-lock FILE] [--v2]
 ```
 
 Pin node images by digest from the kind release notes: the script and `kindval snapshot`/`crd` refuse an image without `@sha256:<64 hex>`. The script also records the repository digests of the image the node container really runs (`docker inspect`) as `observedImageDigests`; a claim decided on a node whose observed digests do not include the configured one is an `error`. The clusters are
@@ -420,7 +420,15 @@ snapshot and verdicts file per line, one crd file for the chosen line),
 `corpus/` (the manifests scanned), `results.json` and `summary.md`. Without
 `--kindval` it runs a `kindval` executable placed next to the script, else
 the tool with `go run` from the `cli` directory. `--post-check` runs a command after each
-cluster is deleted and stops the run when it fails.
+cluster is deleted and stops the run when it fails. Clusters are named
+`<prefix>-<line>`; the prefix is `prufyx-kind` unless `--name-prefix` sets another
+(lowercase letters, digits and dashes; `<prefix>-<line>` at most 50 characters). Several
+runs can use one Docker host at the same time when each has its own prefix **and its own
+`--out` directory** (claims, log, snapshots and kubeconfigs live there; a run refuses an
+`--out` another run holds, via `$out/.kind-val.lock`). Where `flock` exists, the memory check
+and the cluster creation of all runs take turns on `--create-lock FILE` (default
+`${TMPDIR:-/tmp}/kind-val-create.lock`; runs in separate containers must share one file), so
+`--min-free-mb` applies to every create. Each run still creates one cluster at a time.
 
 The subcommands can be run one by one against any kubeconfig:
 
