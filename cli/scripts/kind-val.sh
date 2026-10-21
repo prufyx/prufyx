@@ -14,7 +14,7 @@
 #
 # usage: kind-val.sh --images FILE --out DIR --prufyx BIN [--prufyx-commit SHA]
 #                    [--kindval BIN] [--crd-claims FILE] [--crd-line LINE]
-#                    [--kind-config FILE] [--min-free-mb N] [--post-check CMD] [--name-prefix P] [--keep] [--v2]
+#                    [--kind-config FILE] [--min-free-mb N] [--post-check CMD] [--name-prefix P] [--create-lock FILE] [--keep] [--v2]
 #
 # The image list has one line per release line: "<line> <image@sha256:...>";
 # an image without a digest is refused, and the digest the node container
@@ -22,12 +22,17 @@
 # Needs kind, kubectl and docker on PATH. KINDVAL defaults to
 # `go run ./internal/tools/kindval` from the cli directory. Clusters are
 # named <prefix>-<line> (prefix prufyx-kind unless --name-prefix) and always
-# deleted (also on error), unless --keep. Runs that use different prefixes can
-# share one Docker host at the same time.
+# deleted (also on error), unless --keep. Runs that use different prefixes and
+# different --out directories can share one Docker host at the same time: a run
+# refuses an --out another run holds (the lock directory $out/.kind-val.lock),
+# and where flock exists the memory check and the cluster creation of all runs
+# take turns on --create-lock FILE (default ${TMPDIR:-/tmp}/kind-val-create.lock;
+# runs in separate containers must share one file), so --min-free-mb applies to
+# every create.
 set -euo pipefail
 
 images=""; out=""; prufyx=""; prufyx_commit=""; kindval=""; crd_claims=""; crd_line=""; kind_config=""
-min_free_mb=2000; post_check=""; keep=0; v2=0; name_prefix=prufyx-kind
+min_free_mb=2000; post_check=""; keep=0; v2=0; name_prefix=prufyx-kind; create_lock="${TMPDIR:-/tmp}/kind-val-create.lock"
 while [ $# -gt 0 ]; do
   case "$1" in
     --images) images="$2"; shift 2 ;;
@@ -41,6 +46,7 @@ while [ $# -gt 0 ]; do
     --min-free-mb) min_free_mb="$2"; shift 2 ;;
     --post-check) post_check="$2"; shift 2 ;;
     --name-prefix) name_prefix="$2"; shift 2 ;;
+    --create-lock) create_lock="$2"; shift 2 ;;
     --keep) keep=1; shift ;;
     --v2) v2=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
@@ -73,15 +79,18 @@ out=$(CDPATH= cd -- "$out" && pwd -P)
 log="$out/run.log"
 say() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" | tee -a "$log" >&2; }
 
-current=""
+current=""; out_locked=0
 cleanup() {
   if [ -n "$current" ] && [ "$keep" -eq 0 ]; then
     say "deleting cluster $current"
     kind delete cluster --name "$current" >>"$log" 2>&1 || true
     current=""
   fi
+  [ "$out_locked" -eq 1 ] && rmdir "$out/.kind-val.lock" 2>/dev/null || true
 }
 trap cleanup EXIT
+# one run per --out: its claims, log, snapshots and kubeconfigs all live there
+if mkdir "$out/.kind-val.lock" 2>/dev/null; then out_locked=1; else echo "another run uses $out (remove $out/.kind-val.lock if none does)" >&2; exit 2; fi
 
 wait_for_memory() {
   local avail
@@ -96,6 +105,7 @@ wait_for_memory() {
 lines=""
 while read -r line image; do
   [ -n "$line" ] && [ "${line#\#}" = "$line" ] || continue
+  [ $((${#name_prefix} + 1 + ${#line})) -le 50 ] || { echo "cluster name $name_prefix-$line is longer than the 50 characters kind allows" >&2; exit 2; }
   case "$image" in
     *@sha256:????????????????????????????????????????????????????????????????) ;;
     *) echo "image of line $line must be pinned by @sha256:<64 hex>: $image" >&2; exit 2 ;;
@@ -117,16 +127,22 @@ else
 fi
 say "claims written to $claims"
 
+# the memory check and the create of every run on this host take turns (macOS has no flock: unchanged there)
+have_flock=0
+if command -v flock >/dev/null 2>&1; then exec 9>"$create_lock" && have_flock=1; fi
+
 prev_line=""; prev_version=""
 while read -r line image; do
   [ -n "$line" ] && [ "${line#\#}" = "$line" ] || continue
   version=${image#*:v}; version=${version%%@*}
   name="$name_prefix-$line"
   kubeconfig="$out/kubeconfig-$line"
+  [ "$have_flock" -eq 1 ] && flock 9
   wait_for_memory
   say "creating $name from $image"
   current="$name"
   kind create cluster --name "$name" --image "$image" --config "$kind_config" --kubeconfig "$kubeconfig" --wait 180s >>"$log" 2>&1
+  [ "$have_flock" -eq 1 ] && flock -u 9
   # The digests of the image the node container really runs, next to the
   # configured one: kindval refuses a verdict when they differ.
   node_image_id=$(docker inspect --format '{{.Image}}' "$name-control-plane")
