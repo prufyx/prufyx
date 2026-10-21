@@ -86,9 +86,13 @@ cleanup() {
     kind delete cluster --name "$current" >>"$log" 2>&1 || true
     current=""
   fi
+}
+# the out lock lives until the run ends; cleanup also runs after every line
+on_exit() {
+  cleanup
   [ "$out_locked" -eq 1 ] && rmdir "$out/.kind-val.lock" 2>/dev/null || true
 }
-trap cleanup EXIT
+trap on_exit EXIT
 # one run per --out: its claims, log, snapshots and kubeconfigs all live there
 if mkdir "$out/.kind-val.lock" 2>/dev/null; then out_locked=1; else echo "another run uses $out (remove $out/.kind-val.lock if none does)" >&2; exit 2; fi
 
@@ -129,7 +133,10 @@ say "claims written to $claims"
 
 # the memory check and the create of every run on this host take turns (macOS has no flock: unchanged there)
 have_flock=0
-if command -v flock >/dev/null 2>&1; then exec 9>"$create_lock" && have_flock=1; fi
+if command -v flock >/dev/null 2>&1; then
+  exec 9>"$create_lock" || { echo "cannot open --create-lock $create_lock" >&2; exit 2; }
+  have_flock=1
+fi
 
 prev_line=""; prev_version=""
 while read -r line image; do
