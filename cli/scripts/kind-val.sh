@@ -14,18 +14,20 @@
 #
 # usage: kind-val.sh --images FILE --out DIR --prufyx BIN [--prufyx-commit SHA]
 #                    [--kindval BIN] [--crd-claims FILE] [--crd-line LINE]
-#                    [--kind-config FILE] [--min-free-mb N] [--post-check CMD] [--keep] [--v2]
+#                    [--kind-config FILE] [--min-free-mb N] [--post-check CMD] [--name-prefix P] [--keep] [--v2]
 #
 # The image list has one line per release line: "<line> <image@sha256:...>";
 # an image without a digest is refused, and the digest the node container
 # actually runs is recorded next to it.
 # Needs kind, kubectl and docker on PATH. KINDVAL defaults to
 # `go run ./internal/tools/kindval` from the cli directory. Clusters are
-# named prufyx-kind-<line> and always deleted (also on error), unless --keep.
+# named <prefix>-<line> (prefix prufyx-kind unless --name-prefix) and always
+# deleted (also on error), unless --keep. Runs that use different prefixes can
+# share one Docker host at the same time.
 set -euo pipefail
 
 images=""; out=""; prufyx=""; prufyx_commit=""; kindval=""; crd_claims=""; crd_line=""; kind_config=""
-min_free_mb=2000; post_check=""; keep=0; v2=0
+min_free_mb=2000; post_check=""; keep=0; v2=0; name_prefix=prufyx-kind
 while [ $# -gt 0 ]; do
   case "$1" in
     --images) images="$2"; shift 2 ;;
@@ -38,12 +40,15 @@ while [ $# -gt 0 ]; do
     --crd-line) crd_line="$2"; shift 2 ;;
     --min-free-mb) min_free_mb="$2"; shift 2 ;;
     --post-check) post_check="$2"; shift 2 ;;
+    --name-prefix) name_prefix="$2"; shift 2 ;;
     --keep) keep=1; shift ;;
     --v2) v2=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
 [ -n "$images" ] && [ -n "$out" ] && [ -n "$prufyx" ] || { echo "--images, --out and --prufyx are required" >&2; exit 2; }
+# the prefix becomes part of a DNS-1123 cluster name and a container name
+case "$name_prefix" in ''|*[!a-z0-9-]*|-*|*-) echo "--name-prefix must be lowercase letters, digits and dashes, not starting or ending with a dash: $name_prefix" >&2; exit 2 ;; esac
 for tool in kind kubectl docker; do
   command -v "$tool" >/dev/null 2>&1 || { echo "$tool is required on PATH" >&2; exit 2; }
 done
@@ -116,7 +121,7 @@ prev_line=""; prev_version=""
 while read -r line image; do
   [ -n "$line" ] && [ "${line#\#}" = "$line" ] || continue
   version=${image#*:v}; version=${version%%@*}
-  name="prufyx-kind-$line"
+  name="$name_prefix-$line"
   kubeconfig="$out/kubeconfig-$line"
   wait_for_memory
   say "creating $name from $image"
