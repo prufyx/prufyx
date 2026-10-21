@@ -831,11 +831,6 @@ func subjectComponent(project, repository string) string {
 	if project == "buildpacks" {
 		return "pkg:oci/buildpacksio/lifecycle"
 	}
-	// The pinned Landscape preserves CubeFS's mixed-case GitHub organization,
-	// while package URLs admitted by the constraint engine are lowercase.
-	if project == "cubefs" {
-		return "pkg:github/cubefs/cubefs"
-	}
 	if project == "kubeflow" {
 		return "pkg:pypi/kfp"
 	}
@@ -848,7 +843,10 @@ func subjectComponent(project, repository string) string {
 	if len(repository) <= len(prefix) || repository[:len(prefix)] != prefix {
 		return ""
 	}
-	return "pkg:github/" + repository[len(prefix):]
+	// The pinned Landscape preserves the mixed-case GitHub organization or
+	// repository of some projects (CubeFS, wasmCloud, ...), while package
+	// URLs admitted by the constraint engine are lowercase.
+	return "pkg:github/" + strings.ToLower(repository[len(prefix):])
 }
 
 func strictJSON(raw []byte, target any) error {
