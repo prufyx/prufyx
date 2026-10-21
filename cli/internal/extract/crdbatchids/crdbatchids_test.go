@@ -85,19 +85,50 @@ func TestHoldsRefusesPartialAndAlteredBatches(t *testing.T) {
 	first := Rules()[0]
 	altered := append([]string{entryOf(first, append(first.Members, "x.example/v1/Extra"))}, all[1:]...)
 	for name, pack := range map[string][]byte{
-		"rules without lines": packOf(all, nil),
-		"lines without rules": packOf(nil, quiet),
-		"one rule missing":    packOf(all[1:], quiet),
-		"one line missing":    packOf(all, quiet[1:]),
-		"altered members":     packOf(altered, quiet),
-		"foreign crd rule":    packOf(append(all, `{"project":"keda","rule":{"id":"keda.crd-version-removal.x"}}`), quiet),
-		"line with a rule":    packOf(all, append(quiet[1:], lineOf(Lines()[0], `["`+first.ID+`"]`))),
-		"line without ids":    packOf(all, append(quiet[1:], lineOf(Lines()[0], "null"))),
-		"repeated line":       packOf(all, append(quiet, quiet[0])),
-		"unknown line":        packOf(all, append(quiet, lineOf(Line{Component: "pkg:github/strimzi/strimzi-kafka-operator", Line: "0.49"}, "[]"))),
+		"rules without lines":      packOf(all, nil),
+		"lines without rules":      packOf(nil, quiet),
+		"one rule missing":         packOf(all[1:], quiet),
+		"one line missing":         packOf(all, quiet[1:]),
+		"altered members":          packOf(altered, quiet),
+		"foreign crd rule":         packOf(append(all, `{"project":"keda","rule":{"id":"keda.crd-version-removal.x"}}`), quiet),
+		"line with a rule":         packOf(all, append(quiet[1:], lineOf(Lines()[0], `["`+first.ID+`"]`))),
+		"line without ids":         packOf(all, append(quiet[1:], lineOf(Lines()[0], "null"))),
+		"repeated line":            packOf(all, append(quiet, quiet[0])),
+		"foreign line with a rule": packOf(all, append(quiet, lineOf(Line{Component: "pkg:github/dapr/dapr", Line: "1.14"}, `["`+first.ID+`"]`))),
+		"foreign repeated line":    packOf(all, append(quiet, lineOf(Line{Component: "pkg:github/dapr/dapr", Line: "1.14"}, "[]"), lineOf(Line{Component: "pkg:github/dapr/dapr", Line: "1.14"}, "[]"))),
 	} {
 		if _, err := Holds(pack); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
+	}
+}
+
+// Quiet lines of other projects are accepted whatever they are (the factory's
+// onboarding ships new ones), with the batch whole and with none of it; they
+// never count towards the batch.
+func TestHoldsAcceptsForeignQuietLines(t *testing.T) {
+	var all, quiet []string
+	for _, r := range Rules() {
+		all = append(all, entryOf(r, r.Members))
+	}
+	for _, l := range Lines() {
+		quiet = append(quiet, lineOf(l, "[]"))
+	}
+	foreign := []Line{{"pkg:github/dapr/dapr", "1.14"}, {"pkg:github/tektoncd/pipeline", "1.13"}, {"pkg:github/strimzi/strimzi-kafka-operator", "0.49"}}
+	var extra []string
+	for _, l := range foreign {
+		extra = append(extra, lineOf(l, "[]"))
+	}
+	held, others, err := holds(packOf(all, append(append([]string(nil), quiet...), extra...)))
+	if err != nil || !held || len(others) != len(foreign) {
+		t.Fatalf("whole batch with foreign lines: %v %v %v", held, others, err)
+	}
+	held, others, err = holds(packOf(nil, extra))
+	if err != nil || held || len(others) != len(foreign) {
+		t.Fatalf("no batch with foreign lines: %v %v %v", held, others, err)
+	}
+	// Foreign lines alone never make a partial batch.
+	if _, err := Holds(packOf(all, extra)); err == nil {
+		t.Fatal("rules and foreign lines without the batch's lines accepted")
 	}
 }
