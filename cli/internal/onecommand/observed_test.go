@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -96,5 +98,25 @@ func TestOmissionHints(t *testing.T) {
 func TestVersionOrdering(t *testing.T) {
 	if !versionLess("v1.9.0", "v1.10.0") || !versionLess("v1.30.2-eks-1", "v1.31.0") || versionLess("v1.31.0", "v1.30.9") {
 		t.Fatal("bad version ordering")
+	}
+}
+
+// A tag pinned by digest is not shown as an observed version: the digest is
+// not verified against the tag.
+func TestReadObservedHidesVersionOfDigestPinnedTag(t *testing.T) {
+	dir := t.TempDir()
+	surface := `{"components":[` +
+		`{"componentId":"pkg:oci/example/plain","observedVersion":"1.2.3","versionScheme":"tag","observationState":"observed"},` +
+		`{"componentId":"pkg:oci/example/pinned","observedVersion":"2.0.0","versionScheme":"digest","observationState":"observed"},` +
+		`{"componentId":"pkg:oci/example/none","observedVersion":null,"versionScheme":"unknown","observationState":"observed"}]}`
+	if err := os.WriteFile(filepath.Join(dir, "component-configuration-surface.json"), []byte(surface), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, c := range readObserved(dir).Components {
+		got[c.ComponentID] = c.Version
+	}
+	if got["pkg:oci/example/plain"] != "1.2.3" || got["pkg:oci/example/pinned"] != "" || got["pkg:oci/example/none"] != "" || len(got) != 3 {
+		t.Fatalf("components=%v", got)
 	}
 }
