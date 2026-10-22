@@ -68,6 +68,7 @@ type Snapshot struct {
 	Withdrawn  map[string]bool
 	Lines      map[string]map[string]bool // component -> attested lines
 	Onboarding map[string][]OnboardedProject
+	Decisions  map[string]string // batchId -> decision
 	Depth      *Depth
 	Missing    []string // data files this tree does not have
 }
