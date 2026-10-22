@@ -65,18 +65,121 @@ const (
 	ConfidenceMapped Confidence = "mapped"
 )
 
+// Stage is the pre-release stage of an upstream version, empty for a release.
+type Stage string
+
+const (
+	StageAlpha Stage = "alpha"
+	StageBeta  Stage = "beta"
+	StageRC    Stage = "rc"
+)
+
+// rank orders the stages as SemVer 2.0 does: identifiers compare in ASCII
+// order, and alpha < beta < rc.
+func (s Stage) rank() int {
+	switch s {
+	case StageAlpha:
+		return 1
+	case StageBeta:
+		return 2
+	case StageRC:
+		return 3
+	}
+	return 0
+}
+
 // Semver is an upstream Kubernetes version. PatchKnown is false when only the
-// minor is known (OpenShift mapping).
+// minor is known (OpenShift mapping). Pre is set for a pre-release
+// X.Y.0-(alpha|beta|rc).N, with N in PreN.
 type Semver struct {
 	Major, Minor, Patch int
 	PatchKnown          bool
+	Pre                 Stage
+	PreN                int
 }
+
+// PreRelease reports whether the version is a pre-release.
+func (s Semver) PreRelease() bool { return s.Pre != "" }
+
+// Line is the minor release line "X.Y". A pre-release belongs to its own line.
+func (s Semver) Line() string { return fmt.Sprintf("%d.%d", s.Major, s.Minor) }
 
 func (s Semver) String() string {
 	if !s.PatchKnown {
 		return fmt.Sprintf("%d.%d", s.Major, s.Minor)
 	}
+	if s.Pre != "" {
+		return fmt.Sprintf("%d.%d.%d-%s.%d", s.Major, s.Minor, s.Patch, s.Pre, s.PreN)
+	}
 	return fmt.Sprintf("%d.%d.%d", s.Major, s.Minor, s.Patch)
+}
+
+// Compare orders two versions as SemVer 2.0 does and returns -1, 0 or 1:
+// 1.38.0-alpha.1 < 1.38.0-alpha.2 < 1.38.0-beta.0 < 1.38.0-rc.0 < 1.38.0 <
+// 1.38.1. An unknown patch compares as 0.
+func Compare(a, b Semver) int {
+	for _, d := range [...][2]int{{a.Major, b.Major}, {a.Minor, b.Minor}, {a.Patch, b.Patch}} {
+		if d[0] != d[1] {
+			if d[0] < d[1] {
+				return -1
+			}
+			return 1
+		}
+	}
+	// A release is above every pre-release of the same X.Y.Z.
+	ra, rb := a.Pre.rank(), b.Pre.rank()
+	switch {
+	case ra == rb && ra == 0:
+		return 0
+	case ra == 0:
+		return 1
+	case rb == 0:
+		return -1
+	case ra != rb:
+		if ra < rb {
+			return -1
+		}
+		return 1
+	case a.PreN < b.PreN:
+		return -1
+	case a.PreN > b.PreN:
+		return 1
+	}
+	return 0
+}
+
+// ParsePreRelease reads a bare upstream pre-release X.Y.0-(alpha|beta|rc).N:
+// no "v" prefix, no distribution marker, no build metadata, N without a
+// leading zero. ok is false for anything else, a release included.
+func ParsePreRelease(s string) (Semver, bool) {
+	core, pre, found := strings.Cut(s, "-")
+	if !found {
+		return Semver{}, false
+	}
+	v, err := parseTriple(core, false, "")
+	if err != nil {
+		return Semver{}, false
+	}
+	return withPre(v, pre)
+}
+
+// withPre attaches the pre-release part "stage.N" to a parsed X.Y.Z. The
+// patch must be 0: Kubernetes publishes pre-releases of X.Y.0 only.
+func withPre(v Semver, pre string) (Semver, bool) {
+	stage, num, found := strings.Cut(pre, ".")
+	if !found || v.Patch != 0 {
+		return Semver{}, false
+	}
+	st := Stage(stage)
+	if st.rank() == 0 {
+		return Semver{}, false
+	}
+	n, ok := atoi(num)
+	if !ok {
+		return Semver{}, false
+	}
+	v.Pre, v.PreN = st, n
+	return v, true
 }
 
 // Version is the result of a successful Parse.
@@ -148,6 +251,18 @@ func parse(raw, declared string, table OpenShiftMap) (Version, error) {
 		return Version{}, err
 	}
 	_ = suffix
+	if core.pre != "" {
+		// Only the upstream forms carry a pre-release: a distribution
+		// marker or a declaration of another distribution stays refused.
+		if marker != "" || (d != "" && d != OfficialUpstream) {
+			return Version{}, fmt.Errorf("%w", ErrMalformed)
+		}
+		pv, ok := withPre(up, core.pre)
+		if !ok {
+			return Version{}, fmt.Errorf("%w", ErrMalformed)
+		}
+		up = pv
+	}
 	out := Version{Raw: raw, Upstream: up}
 	switch marker {
 	case "":
@@ -173,6 +288,7 @@ type core struct {
 	num string
 	v   bool // leading "v"
 	sep string
+	pre string // pre-release part "stage.N", checked by the caller
 }
 
 // split recognises the closed format vocabulary and returns the numeric core,
@@ -189,30 +305,36 @@ func split(raw string) (c core, marker, suffix string, err error) {
 		if !hasV || len(h) != 7 || !isLowerHex(h) {
 			return c, "", "", bad
 		}
-		return core{s[:i], hasV, ""}, string(EKS), h, nil
+		return core{num: s[:i], v: hasV}, string(EKS), h, nil
 	case strings.Contains(s, "-gke."):
 		i := strings.Index(s, "-gke.")
 		if !isPatchNumber(s[i+5:]) {
 			return c, "", "", bad
 		}
-		return core{s[:i], hasV, ""}, string(GKE), s[i+5:], nil
+		return core{num: s[:i], v: hasV}, string(GKE), s[i+5:], nil
 	case strings.Contains(s, "+k3s"):
 		i := strings.Index(s, "+k3s")
 		if !hasV || !isPatchNumber(s[i+4:]) {
 			return c, "", "", bad
 		}
-		return core{s[:i], hasV, ""}, string(K3s), s[i+4:], nil
+		return core{num: s[:i], v: hasV}, string(K3s), s[i+4:], nil
 	case strings.Contains(s, "+rke2r"):
 		i := strings.Index(s, "+rke2r")
 		if !hasV || !isPatchNumber(s[i+6:]) {
 			return c, "", "", bad
 		}
-		return core{s[:i], hasV, ""}, string(RKE2), s[i+6:], nil
+		return core{num: s[:i], v: hasV}, string(RKE2), s[i+6:], nil
 	}
-	if strings.ContainsAny(s, "-+_/ ") {
+	if strings.ContainsAny(s, "+_/ ") || strings.Count(s, "-") > 1 {
 		return c, "", "", bad
 	}
-	return core{s, hasV, ""}, "", "", nil
+	if num, pre, found := strings.Cut(s, "-"); found {
+		if pre == "" {
+			return c, "", "", bad
+		}
+		return core{num, hasV, "", pre}, "", "", nil
+	}
+	return core{s, hasV, "", ""}, "", "", nil
 }
 
 func isLowerHex(s string) bool {
