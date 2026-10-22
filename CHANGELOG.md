@@ -380,8 +380,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   `devOnlyMakeTargets`, Makefile targets a reviewer states exist for
   development only (a local lab cluster), each with its Makefile, target name,
   reason and evidence. At a release where the files show the target is reached
-  from nowhere else (its name occurs only in its own rule and in special rules
-  such as `.PHONY`, nothing runs make with a name it cannot read, includes and
+  from nowhere else (its name occurs only in its own rule and in the headers of
+  GNU special targets such as `.PHONY` (any other dot name is a normal rule), nothing runs make with a name or a makefile option it
+  cannot read, includes and
   the default goal are literal, no `.RECIPEPREFIX`, no prerequisite that can
   expand to the name when its variables are over-approximated from the
   Makefiles' assignments), the install-surface guard

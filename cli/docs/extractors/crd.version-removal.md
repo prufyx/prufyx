@@ -410,15 +410,22 @@ Through the offline factory mirror (or a fixture tree), never the network.
     that name could be read instead;
   - the target name occurs as a word in any Makefile, shell script or
     container build of the release, except in its own rule headers and recipe
-    lines in the listed Makefile, in the header of a special rule (every
-    target starts with `.`, such as `.PHONY`; not `.DEFAULT_GOAL`, and not the
-    recipe of such a rule), and in a rule whose every target is itself an
-    applied entry. Lines that are comments (`#` first) are not words. A
-    document that names the target does not void the entry: the proof lists
-    it;
+    lines in the listed Makefile, in the header of a rule whose every target
+    is one of the GNU special targets whose prerequisites are never built as
+    goals (`.PHONY`, `.SUFFIXES`, `.PRECIOUS`, `.INTERMEDIATE`,
+    `.NOTINTERMEDIATE`, `.SECONDARY`, `.SECONDEXPANSION`, `.DELETE_ON_ERROR`,
+    `.IGNORE`, `.LOW_RESOLUTION_TIME`, `.SILENT`, `.EXPORT_ALL_VARIABLES`,
+    `.NOTPARALLEL`, `.ONESHELL`, `.POSIX`; not the recipe of such a rule), and
+    in a rule whose every target is itself an applied entry. Any other name
+    that starts with a dot (`.lab`) is a normal rule. Lines that are comments
+    (`#` first) are not words. Files under an excluded path or a vendored
+    directory (`vendor`, `third_party`, `node_modules`) are read for this
+    check although the guard's own checks leave them out. A document that
+    names the target does not void the entry: the proof lists it;
   - a Makefile, shell script or container build line runs `make`, `gmake`,
     `$(MAKE)` or `${MAKE}` with a word that holds `$` or `%` (the name may be
-    built at run time);
+    built at run time) or that selects the makefile (`-f`, a cluster of short
+    options ending in `f`, `--file`, `--makefile`);
   - a rule of a target that is not an applied entry has a prerequisite word
     that may expand to the target name. A word with variable references is
     expanded over-approximately: each `$(V)`, `${V}` or `$V` (a plain name) is
@@ -435,7 +442,10 @@ Through the offline factory mirror (or a fixture tree), never the network.
   - an `include`, `-include` or `sinclude` operand is not a literal, clean
     path of a Makefile that was read; an include precedes the first rule while
     no `.DEFAULT_GOAL` is set; the target is the default goal; `.DEFAULT_GOAL`
-    holds a variable or `%`; the first rule's target holds one; or
+    occurs anywhere but in an assignment of a non-empty literal value (a
+    recipe, rule form, an empty or computed value); the first rule's target
+    (a name starting with a dot counts when it holds a `/`) holds a variable or
+    `%`; or
     `.RECIPEPREFIX` occurs in a Makefile;
   - a file over the bounds of the check (more than 50000 distinct words, or
     5000 rules or includes), or an install surface the guard cannot check, at

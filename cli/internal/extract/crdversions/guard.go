@@ -116,7 +116,7 @@ var (
 	// buildFlagRE is an option of a COPY or ADD instruction.
 	buildFlagRE  = regexp.MustCompile(`^--[a-z-]+(?:=\S*)?$`)
 	makeRuleRE   = regexp.MustCompile(`^([^\s:=#][^:=#]*?)\s*::?(?:[^=]|$)`)
-	makeAssignRE = regexp.MustCompile(`^\s*(?:export\s+|override\s+)?([A-Za-z_][A-Za-z0-9_.-]*)\s*(?:[:?+!]|::)?=\s*(.*)$`)
+	makeAssignRE = regexp.MustCompile(`^\s*(?:(?:export|override|private|unexport)[ \t]+)*(\.DEFAULT_GOAL|[A-Za-z_][A-Za-z0-9_.-]*)\s*(?:[:?+!]|::)?=\s*(.*)$`)
 	embedRE      = regexp.MustCompile(`(?m)^[ \t]*//go:embed[ \t]+(.+?)[ \t]*$`)
 	// vendoredDocs are directories whose documents belong to other
 	// projects.
@@ -266,6 +266,16 @@ func makeLines(data []byte) ([]surfaceLine, string) {
 	return out, why
 }
 
+// goalValueLiteral reports the value of a .DEFAULT_GOAL assignment that
+// names a goal: not empty, no variable reference and no pattern.
+func goalValueLiteral(v string) bool {
+	if i := commentStart(v); i >= 0 {
+		v = v[:i]
+	}
+	v = strings.TrimSpace(v)
+	return v != "" && !strings.ContainsAny(v, "$%")
+}
+
 // parseMake is makeLines; with dev it also collects what the dev-only
 // Makefile target check needs. A define, endef, include or .RECIPEPREFIX
 // line ends the rule the recipe lines before it belonged to: a tab line
@@ -287,6 +297,7 @@ func parseMake(data []byte, dev bool) ([]surfaceLine, *devInfo, string) {
 		switch {
 		case strings.HasPrefix(line, "\t"):
 			b.note(line, true)
+			b.goal(line, false)
 			b.words(line, b.ctx(targets), true)
 			text := strings.TrimSpace(line)
 			if isCommand(text) {
@@ -297,6 +308,8 @@ func parseMake(data []byte, dev bool) ([]surfaceLine, *devInfo, string) {
 		case strings.TrimSpace(line) == "" || strings.HasPrefix(strings.TrimSpace(line), "#"):
 		default:
 			b.note(line, true)
+			am := makeAssignRE.FindStringSubmatch(line)
+			b.goal(line, am != nil && am[1] == ".DEFAULT_GOAL" && goalValueLiteral(am[2]) && !makeShellAssignRE.MatchString(line))
 			if m := makeIncludeRE.FindStringSubmatch(line); m != nil {
 				targets = nil
 				b.include(strings.Fields(m[1]))
@@ -310,11 +323,11 @@ func parseMake(data []byte, dev bool) ([]surfaceLine, *devInfo, string) {
 			}
 			if f := strings.Fields(line); makeDefineRE.MatchString(line) || (len(f) > 0 && f[0] == ".RECIPEPREFIX") {
 				targets = nil
-				if len(f) > 1 && f[0] == "define" {
-					b.assign(f[1], "", true)
+				if d := makeDefineNameRE.FindStringSubmatch(line); d != nil {
+					b.assign(d[1], "", true)
 				}
 			}
-			if m := makeAssignRE.FindStringSubmatch(line); m != nil {
+			if m := am; m != nil {
 				b.words(line, -1, false)
 				value := m[2]
 				if i := commentStart(value); i >= 0 {
@@ -865,6 +878,9 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 	type job struct {
 		e    extract.TreeEntry
 		kind int
+		// extra: read for the dev-only Makefile check only (a file under an
+		// excluded or vendored path); the guard's own checks leave it out.
+		extra bool
 	}
 	var jobs []job
 	for _, b := range blobs {
@@ -873,10 +889,12 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 		}
 		switch k := surfaceKindOf(b.Path); k {
 		case surfRefs:
-			jobs = append(jobs, job{b, k})
+			jobs = append(jobs, job{b, k, false})
 		case surfMake, surfDoc, surfShell, surfBuild, surfNix:
 			if !inExcluded(b.Path) && !inVendored(b.Path) {
-				jobs = append(jobs, job{b, k})
+				jobs = append(jobs, job{b, k, false})
+			} else if len(devOnly) > 0 && k != surfNix {
+				jobs = append(jobs, job{b, k, true})
 			}
 		}
 	}
@@ -915,7 +933,7 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 			inside = inside || exclusionMatches(e.Path, b.Path)
 		}
 		if goDirs[d] || inside {
-			jobs = append(jobs, job{b, surfGo})
+			jobs = append(jobs, job{b, surfGo, false})
 		}
 	}
 	infos := make([]*surfaceInfo, len(jobs))
@@ -936,7 +954,7 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 	// directory (it may lead anywhere; links are not followed).
 	var unverified *hit
 	for i, j := range jobs {
-		if infos[i].unread != "" {
+		if infos[i].unread != "" && !j.extra {
 			unverified = &hit{kind: "an install surface that cannot be checked (" + infos[i].unread + ")", by: j.e.Path}
 			break
 		}
@@ -992,7 +1010,7 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 		for i, j := range jobs {
 			switch j.kind {
 			case surfMake, surfShell, surfBuild, surfDoc:
-				devFiles = append(devFiles, devFile{path: j.e.Path, kind: j.kind, info: infos[i].dev})
+				devFiles = append(devFiles, devFile{path: j.e.Path, kind: j.kind, info: infos[i].dev, extra: j.extra})
 			}
 		}
 		allPaths := map[string]bool{}
@@ -1062,6 +1080,9 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 		switch j.kind {
 		case surfMake, surfDoc, surfShell, surfBuild, surfNix:
 		default:
+			continue
+		}
+		if j.extra {
 			continue
 		}
 		dir := path.Dir(j.e.Path)
@@ -1144,7 +1165,7 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 			continue
 		}
 		for k, j := range jobs {
-			if j.kind == surfMake && j.e.Path == en.Makefile {
+			if j.kind == surfMake && j.e.Path == en.Makefile && !j.extra {
 				devRecs[i].Waived = devWaivers(en, infos[k].lines, live, devSkip(j.e.Path, devOnly, applied))
 			}
 		}

@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 // Dev-only Makefile targets (see DevOnlyMake). An entry (Makefile M, target
@@ -114,22 +115,46 @@ var (
 	// makeInvokeRE finds a word that runs make.
 	makeInvokeRE  = regexp.MustCompile(`(?:^|[^A-Za-z0-9_.-])g?make(?:$|[^A-Za-z0-9_./-])|\$[({]MAKE[)}]`)
 	makeIncludeRE = regexp.MustCompile(`^ *(?:-include|sinclude|include)(?:[ \t]+(.*))?$`)
-	makeDefineRE  = regexp.MustCompile(`^ *(?:define|endef)(?:[ \t]|$)`)
+	makeDefineRE  = regexp.MustCompile(`^ *(?:(?:export|override|private|unexport)[ \t]+)*(?:define|endef)(?:[ \t]|$)`)
+	// makeDefineNameRE reads the name of a define.
+	makeDefineNameRE = regexp.MustCompile(`^ *(?:(?:export|override|private|unexport)[ \t]+)*define[ \t]+([^ \t]+)`)
 	// makeShellAssignRE is an assignment whose value is a shell command.
-	makeShellAssignRE = regexp.MustCompile(`^\s*(?:export\s+|override\s+)?[A-Za-z_][A-Za-z0-9_.-]*\s*!=`)
+	makeShellAssignRE = regexp.MustCompile(`^\s*(?:(?:export|override|private|unexport)[ \t]+)*(?:\.DEFAULT_GOAL|[A-Za-z_][A-Za-z0-9_.-]*)\s*!=`)
 )
 
 // dynamicWord reports a word that may expand to a name: it holds a variable
 // or automatic variable reference ("$") or a pattern ("%").
 func dynamicWord(w string) bool { return strings.ContainsAny(w, "$%") }
 
+// makefileFlag reports a word that selects the makefile make reads (-f, a
+// cluster of short flags ending in f, --file, --makefile): the rules it
+// holds are not those of the files that were read.
+func makefileFlag(w string) bool {
+	if strings.HasPrefix(w, "--file") || strings.HasPrefix(w, "--makefile") {
+		return true
+	}
+	if !strings.HasPrefix(w, "-") || strings.HasPrefix(w, "--") {
+		return false
+	}
+	for _, r := range w[1:] {
+		if r == 'f' {
+			return true
+		}
+		if !unicode.IsLetter(r) {
+			return false
+		}
+	}
+	return false
+}
+
 // dynamicMake reports a line that runs make (make, gmake, $(MAKE), ${MAKE})
-// with a word after it that holds "$" or "%". The words after the command
+// with a word after it that holds "$" or "%", or that selects the makefile
+// (-f, --file, --makefile). The words after the command
 // are not cut at a pipe or a separator: more is read, never less.
 func dynamicMake(line string) bool {
 	for _, loc := range makeInvokeRE.FindAllStringIndex(line, -1) {
 		for _, w := range strings.Fields(line[loc[1]:]) {
-			if dynamicWord(w) {
+			if dynamicWord(w) || makefileFlag(w) {
 				return true
 			}
 		}
@@ -195,12 +220,28 @@ func (b *devBuilder) note(line string, makefile bool) {
 		switch w {
 		case ".RECIPEPREFIX":
 			b.info.recipePrefix = true
-		case ".DEFAULT_GOAL":
-			b.info.hasGoal = true
-			if strings.ContainsAny(line, "$%") {
-				b.info.dynGoal = true
-			}
 		}
+	}
+}
+
+// goal reads a line that holds .DEFAULT_GOAL: only an assignment of a
+// non-empty literal value sets a default goal that is known; any other line
+// that holds the word (a recipe, a rule, an empty or computed value) leaves
+// it open.
+func (b *devBuilder) goal(line string, literalAssign bool) {
+	if b == nil {
+		return
+	}
+	for _, w := range tokenize(line) {
+		if w != ".DEFAULT_GOAL" {
+			continue
+		}
+		if literalAssign {
+			b.info.hasGoal = true
+		} else {
+			b.info.dynGoal = true
+		}
+		return
 	}
 }
 
@@ -256,7 +297,7 @@ func (b *devBuilder) rule(targets []string, line string) {
 	}
 	if b.info.goal < 0 {
 		for _, t := range targets {
-			if !strings.HasPrefix(t, ".") {
+			if !strings.HasPrefix(t, ".") || strings.Contains(t, "/") {
 				b.info.goal = len(b.info.rules) - 1
 				break
 			}
@@ -315,6 +356,9 @@ type devFile struct {
 	path string
 	kind int
 	info *devInfo
+	// extra: a file under an excluded or vendored path, read for this check
+	// only.
+	extra bool
 }
 
 func devKey(file, target string) string { return file + "\x00" + target }
@@ -328,14 +372,23 @@ func containsWord(list []string, w string) bool {
 	return false
 }
 
-// dotRule reports the targets of a special rule: every one starts with "."
-// (.PHONY, .SUFFIXES) and none is .DEFAULT_GOAL.
+// specialTargets are the GNU make special targets whose prerequisites are
+// never built as goals. Any other name that starts with "." is a normal rule.
+var specialTargets = map[string]bool{
+	".PHONY": true, ".SUFFIXES": true, ".PRECIOUS": true, ".INTERMEDIATE": true, ".NOTINTERMEDIATE": true,
+	".SECONDARY": true, ".SECONDEXPANSION": true, ".DELETE_ON_ERROR": true, ".IGNORE": true,
+	".LOW_RESOLUTION_TIME": true, ".SILENT": true, ".EXPORT_ALL_VARIABLES": true, ".NOTPARALLEL": true,
+	".ONESHELL": true, ".POSIX": true,
+}
+
+// dotRule reports the targets of a special rule: every one is a special
+// target.
 func dotRule(targets []string) bool {
 	if len(targets) == 0 {
 		return false
 	}
 	for _, t := range targets {
-		if !strings.HasPrefix(t, ".") || t == ".DEFAULT_GOAL" {
+		if !specialTargets[t] {
 			return false
 		}
 	}
@@ -374,13 +427,13 @@ func evalDevOnly(entries []DevOnlyMake, files []devFile, blobs map[string]bool, 
 		case f.info.over:
 			pick("a file is too large to check in full: " + f.path)
 		case f.info.dynMake:
-			pick("make is run with a variable or % in " + f.path)
+			pick("make is run with a variable, % or a makefile option in " + f.path)
 		}
 		if f.kind != surfMake || f.info == nil {
 			continue
 		}
 		if f.info.dynGoal {
-			pick(".DEFAULT_GOAL holds a variable or % in " + f.path)
+			pick(".DEFAULT_GOAL is not a literal assignment in " + f.path)
 		}
 		if f.info.recipePrefix {
 			pick(".RECIPEPREFIX in " + f.path)
@@ -463,6 +516,9 @@ func staticDevWhy(en DevOnlyMake, byPath map[string]devFile, blobs map[string]bo
 	mf, ok := byPath[en.Makefile]
 	if !ok || mf.kind != surfMake || mf.info == nil {
 		return "the Makefile is missing at this release or is not read"
+	}
+	if mf.extra {
+		return "the Makefile lies under an excluded or vendored path"
 	}
 	named := false
 	for _, r := range mf.info.rules {
