@@ -194,12 +194,20 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 	} {
 		charts[id] = true
 	}
+	// The command-line flag, config key and runtime key sets of the relnotes
+	// projects (relnotes_set_facts_test.go): caller-supplied, no scan route.
+	relnotes := map[string]bool{}
+	for _, f := range relnotesSetFacts() {
+		relnotes[f.id()] = true
+	}
 	sets := 0
 	for _, definition := range compiledDefinitions() {
 		if definition.Type != constraintengine.FactSet {
 			continue
 		}
-		if charts[definition.ID] {
+		if relnotes[definition.ID] {
+			// checked by TestRelnotesSetFactsRegistered
+		} else if charts[definition.ID] {
 			// a chart values-path fact; the extractor test checks its component
 		} else if gates[definition.ID] {
 			if definition.Component != "pkg:github/kubernetes/kubernetes" {
@@ -210,8 +218,8 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 		}
 		sets++
 	}
-	if sets != len(crd)+len(gates)+len(charts) {
-		t.Fatalf("%d set facts registered, %d custom-resource projects, %d feature-gate facts and %d chart values-path facts", sets, len(crd), len(gates), len(charts))
+	if sets != len(crd)+len(gates)+len(charts)+len(relnotes) {
+		t.Fatalf("%d set facts registered, %d custom-resource projects, %d feature-gate facts, %d chart values-path facts and %d relnotes facts", sets, len(crd), len(gates), len(charts), len(relnotes))
 	}
 	// Every registered feature-gate fact is one the adapter can supply; the
 	// flag sets stay unregistered until a published rule consumes them.
