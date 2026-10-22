@@ -59,3 +59,19 @@ func TestAdmissionRemovedVersionsAddsPreV122(t *testing.T) {
 		t.Fatalf("first admission entry is line %s", adm[0].Line)
 	}
 }
+
+// A line reads as itself and a Kubernetes pre-release as its own line; a plain
+// version is not a line and reads as before.
+func TestLinePartsPreRelease(t *testing.T) {
+	for in, want := range map[string][2]uint64{
+		"1.38": {1, 38}, "1.9": {1, 9}, "1.38.0-alpha.2": {1, 38}, "1.38.0-rc.1": {1, 38},
+		"1.38.5": {1, 0}, "1.38.0-alpha": {1, 0}, "": {0, 0},
+	} {
+		if a, b := lineParts(in); a != want[0] || b != want[1] {
+			t.Errorf("lineParts(%q) = %d.%d, want %d.%d", in, a, b, want[0], want[1])
+		}
+	}
+	if !lineLess("1.38.0-alpha.2", "1.39") || lineLess("1.38.0-alpha.2", "1.38") {
+		t.Error("a pre-release orders as its own line")
+	}
+}
