@@ -213,6 +213,11 @@ type Options struct {
 	// collisions. A candidate ID equal to any published rule ID, or to
 	// another candidate ID in the same file, is rejected.
 	ExistingRulesPaths []string
+	// RenewableIDs are rule ids whose published entry is an active mechanical
+	// rule of the extractor that now re-derives it (see RenewableIn). A
+	// candidate with such an id is not a published-id collision; every other
+	// check, including a repeated id in the same candidate file, still applies.
+	RenewableIDs map[string]bool
 	// AllowRange opts in to accepting a rule.range field. It is for the
 	// maintainer's own publish-time self-check against already-published,
 	// reviewed packs, never for the public "rule validate" CLI a community
@@ -262,7 +267,7 @@ func Validate(raw []byte, opts Options) (Result, error) {
 			} else {
 				seenInBatch[ruleID] = index
 			}
-			if _, published := existingIDs[ruleID]; published {
+			if _, published := existingIDs[ruleID]; published && !opts.RenewableIDs[ruleID] {
 				result.Findings = append(result.Findings, Finding{
 					EntryIndex: index, RuleID: ruleID, Check: "rule-id-collision",
 					Message: fmt.Sprintf("rule id %q already exists in a published pack; choose a new, unique rule id", ruleID),
@@ -821,6 +826,57 @@ func loadExistingRuleIDs(paths []string) (map[string]struct{}, error) {
 		}
 	}
 	return ids, nil
+}
+
+// RenewableIn returns the rule ids that the packs at paths hold only as active
+// mechanical rules of the extractor with the given id: the ids a re-run of
+// that extractor may replace (extract apply --renew-attestations). An id that
+// any pack also holds in another shape (reviewed, withdrawn, another
+// extractor) is not in the set.
+func RenewableIn(paths []string, extractorID string) (map[string]bool, error) {
+	ok := map[string]bool{}
+	bad := map[string]bool{}
+	for _, path := range paths {
+		if strings.TrimSpace(path) == "" {
+			continue
+		}
+		raw, err := readFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read %s: %w", path, err)
+		}
+		var doc struct {
+			Entries []struct {
+				Rule struct {
+					ID       string `json:"id"`
+					Evidence struct {
+						State     string `json:"state"`
+						Basis     string `json:"basis"`
+						Extractor *struct {
+							ID string `json:"id"`
+						} `json:"extractor"`
+					} `json:"evidence"`
+				} `json:"rule"`
+			} `json:"entries"`
+		}
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			return nil, fmt.Errorf("parse %s: %w", path, err)
+		}
+		for _, e := range doc.Entries {
+			id, ev := e.Rule.ID, e.Rule.Evidence
+			if id == "" {
+				continue
+			}
+			if ev.State == "active" && ev.Basis == "mechanical" && ev.Extractor != nil && ev.Extractor.ID == extractorID && extractorID != "" {
+				ok[id] = true
+			} else {
+				bad[id] = true
+			}
+		}
+	}
+	for id := range bad {
+		delete(ok, id)
+	}
+	return ok, nil
 }
 
 // sortedFindingChecks is a small stable helper used by CLI formatting.

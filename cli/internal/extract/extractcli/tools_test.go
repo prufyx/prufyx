@@ -716,3 +716,66 @@ func shippedFile(t *testing.T, name string) []byte {
 	}
 	return out
 }
+
+// The usage names what --renew-attestations renews, so a maintainer reading
+// it does not conclude that rules are left alone.
+func TestApplyUsageSaysRulesAreRenewed(t *testing.T) {
+	code, _, errs := run("apply")
+	if code != 2 || !strings.Contains(errs, "--renew-attestations (renews mechanical rules and attestations)") {
+		t.Fatalf("%d %s", code, errs)
+	}
+}
+
+// A re-run for rules the packs hold as active mechanical rules of the same
+// extractor is not a rule id collision (extract apply decides whether it
+// renews them); the same ids held as reviewed rules still are.
+func TestRunAcceptsRenewableExistingRules(t *testing.T) {
+	const id, fx = "k8s.feature-gate-removal", "../k8sfeaturegates/testdata/fixture"
+	first := filepath.Join(t.TempDir(), "out")
+	if code, _, errs := run("run", "--extractor", id, "--fixture", fx, "--out", first, "--derived-at", "2026-10-02T00:00:00Z"); code != 0 {
+		t.Fatalf("run: %d %s", code, errs)
+	}
+	var cands []struct {
+		Rule struct {
+			ID string `json:"id"`
+		} `json:"rule"`
+	}
+	if err := json.Unmarshal(readFile(t, filepath.Join(first, "candidates.json")), &cands); err != nil || len(cands) == 0 {
+		t.Fatalf("candidates: %v", err)
+	}
+	packWith := func(basis, extractor string) string {
+		var entries []map[string]any
+		for _, c := range cands {
+			ev := map[string]any{"state": "active", "basis": basis}
+			if extractor != "" {
+				ev["extractor"] = map[string]any{"id": extractor}
+			}
+			entries = append(entries, map[string]any{"rule": map[string]any{"id": c.Rule.ID, "evidence": ev}})
+		}
+		raw, _ := json.Marshal(map[string]any{"entries": entries})
+		p := filepath.Join(t.TempDir(), "rules.json")
+		if err := os.WriteFile(p, raw, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	for _, c := range []struct {
+		name     string
+		pack     string
+		wantCode int
+	}{
+		{"same extractor, mechanical", packWith("mechanical", id), 0},
+		{"another extractor", packWith("mechanical", "k8s.served-api-removal"), 2},
+		{"reviewed", packWith("reviewed", ""), 2},
+	} {
+		dir := filepath.Join(t.TempDir(), "out")
+		var out, errb bytes.Buffer
+		code := Main([]string{"run", "--extractor", id, "--fixture", fx, "--out", dir, "--derived-at", "2026-10-02T00:00:00Z"}, []string{c.pack}, func() time.Time { return time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC) }, &out, &errb)
+		if code != c.wantCode {
+			t.Errorf("%s: exit %d, want %d: %s", c.name, code, c.wantCode, errb.String())
+		}
+		if c.wantCode == 2 && !strings.Contains(errb.String(), "rule-id-collision") {
+			t.Errorf("%s: %s", c.name, errb.String())
+		}
+	}
+}
