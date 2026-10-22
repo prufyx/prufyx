@@ -114,7 +114,7 @@ func remoteRef(t *Remote, file string, data []byte) (string, error) {
 // another repository: the tag the release's Kustomization names, resolved
 // through the table's pins, and the files the remote directory's own
 // kustomization lists, at the pinned commit.
-func readRemoteInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, commit string) (*Inventory, error) {
+func readRemoteInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, at attribution, commit string) (*Inventory, error) {
 	inv := &Inventory{Commit: commit, Paths: []PathRecord{}, Files: []FileRecord{}, CRDs: []CRD{}}
 	rm := t.Remote
 	data, err := r.Read(repo, commit, rm.Kustomization)
@@ -183,5 +183,5 @@ func readRemoteInventory(r extract.PinnedReader, repo extract.RepoRef, t Target,
 		Kustomization: digestOf(rm.Kustomization, data), Ref: ref, Repo: rm.Repo, Commit: pinned, Directory: rm.Directory,
 		DirectoryManifest: digestOf(dirFile, dirData), Resources: append([]string(nil), resources...), UnlistedYAMLIgnored: ignored,
 	}
-	return readDefinitions(r, remote, pinned, files, inv, &origin{repo: remote, commit: pinned})
+	return readDefinitions(r, remote, pinned, files, inv, &origin{repo: remote, commit: pinned}, at)
 }

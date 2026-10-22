@@ -28,6 +28,7 @@ import (
 	"sync"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
@@ -69,6 +70,8 @@ const (
 type Extractor struct {
 	target      Target
 	concurrency int
+	// index is the table that decides which project a definition belongs to.
+	index customresources.Index
 
 	mu    sync.Mutex
 	cache map[string]inventoryResult
@@ -93,7 +96,15 @@ func New(t Target) *Extractor { return NewConcurrent(t, 1) }
 // NewConcurrent returns the extractor of a target that reads up to
 // concurrency files at a time during the scan. Output never depends on it.
 func NewConcurrent(t Target, concurrency int) *Extractor {
-	return &Extractor{target: t, concurrency: max(concurrency, 1), cache: map[string]inventoryResult{}, scans: map[string]*ScanRecord{}, blobs: map[string]*blobInfo{}, surfaces: map[string]*surfaceInfo{}, lines: map[string]*releaseLine{}, lineOf: map[string]string{}}
+	return &Extractor{target: t, concurrency: max(concurrency, 1), index: customresources.DefaultIndex(), cache: map[string]inventoryResult{}, scans: map[string]*ScanRecord{}, blobs: map[string]*blobInfo{}, surfaces: map[string]*surfaceInfo{}, lines: map[string]*releaseLine{}, lineOf: map[string]string{}}
+}
+
+// WithIndex makes the extractor attribute definitions by ix instead of the
+// embedded reviewed table: an onboarding dry run passes the table the change
+// proposes, which the embedded one does not hold yet.
+func (x *Extractor) WithIndex(ix customresources.Index) *Extractor {
+	x.index = ix
+	return x
 }
 
 // ID implements extract.Extractor.
@@ -104,9 +115,11 @@ func (x *Extractor) Version() string { return Version }
 
 // SourceFiles implements extract.CodeSource: the package's code and the
 // target file of this extractor's own project, so that a change to another
-// target, or a new one, does not move this id's code digest.
+// target, or a new one, does not move this id's code digest. It also folds in
+// the listings of the table (the index the extractor attributes by) that can
+// change what this project's extraction keeps: see CodeViewWithIndex.
 func (x *Extractor) SourceFiles() (string, fs.FS) {
-	return SourceDir, CodeView(source, x.target.Project)
+	return SourceDir, CodeViewWithIndex(source, x.target.Project, x.index)
 }
 
 // Applies implements extract.Extractor.
@@ -282,6 +295,10 @@ type Inventory struct {
 	Paths    []PathRecord `json:"paths"`
 	Files    []FileRecord `json:"files"`
 	CRDs     []CRD        `json:"crds"`
+	// Foreign names the definitions found under the listed paths that were
+	// left out because the reviewed custom-resource table assigns their
+	// group and kind to another project; absent when there are none.
+	Foreign []string `json:"foreign,omitempty"`
 	// Remote records where the definitions were read when the release
 	// installs from another repository; absent otherwise.
 	Remote *RemoteRecord `json:"remote,omitempty"`
@@ -326,9 +343,9 @@ func (x *Extractor) inventory(r extract.PinnedReader, repo extract.RepoRef, tag,
 	var inv *Inventory
 	var err error
 	if line := x.lineFor(tag, commit, version); x.target.Remote.appliesTo(line.Major, line.Minor) {
-		inv, err = readRemoteInventory(r, repo, x.target, commit)
+		inv, err = readRemoteInventory(r, repo, x.target, x.attribution(), commit)
 	} else {
-		inv, err = readInventory(r, repo, x.target, commit)
+		inv, err = readInventory(r, repo, x.target, x.attribution(), commit)
 	}
 	if inv != nil {
 		inv.Tag = tag
@@ -381,15 +398,34 @@ func listFiles(r extract.PinnedReader, repo extract.RepoRef, commit string, p Pa
 	return files, nil
 }
 
+// attribution decides, by the reviewed custom-resource table, whether a
+// definition belongs to the target's project.
+type attribution struct {
+	project string
+	index   customresources.Index
+}
+
+func (x *Extractor) attribution() attribution {
+	return attribution{project: x.target.Project, index: x.index}
+}
+
+// foreign reports whether the table assigns the group and kind (exactly, to
+// one project) to a project other than the target's. An unlisted or
+// ambiguous definition is kept.
+func (a attribution) foreign(group, kind string) bool {
+	owner, attr := a.index.OwnerOf(group, kind)
+	return attr == customresources.Owned && owner != a.project
+}
+
 // readInventory reads every listed path at commit. On a problem it returns
 // the partial inventory with the problem.
-func readInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, commit string) (*Inventory, error) {
+func readInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, at attribution, commit string) (*Inventory, error) {
 	inv := &Inventory{Commit: commit, Paths: []PathRecord{}, Files: []FileRecord{}, CRDs: []CRD{}}
 	files, err := listPaths(r, repo, commit, t.Paths, inv)
 	if err != nil {
 		return inv, err
 	}
-	if _, err := readDefinitions(r, repo, commit, files, inv, nil); err != nil {
+	if _, err := readDefinitions(r, repo, commit, files, inv, nil, at); err != nil {
 		return inv, err
 	}
 	// The other install channels, each read in full: a definition is
@@ -399,7 +435,7 @@ func readInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, commi
 		ci := &Inventory{Paths: []PathRecord{}, Files: []FileRecord{}, CRDs: []CRD{}}
 		cfiles, err := listPaths(r, repo, commit, ch.Paths, ci)
 		if err == nil {
-			_, err = readDefinitions(r, repo, commit, cfiles, ci, nil)
+			_, err = readDefinitions(r, repo, commit, cfiles, ci, nil, at)
 		}
 		if err != nil {
 			if p, ok := asProblem(err); ok {
@@ -460,8 +496,11 @@ type origin struct {
 
 // readDefinitions reads the listed files of repo at commit into inv, in path
 // order, and checks that no definition is repeated. other is nil for the
-// release's own repository.
-func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string, files []string, inv *Inventory, other *origin) (*Inventory, error) {
+// release's own repository. A definition whose group and kind the reviewed
+// custom-resource table assigns to another project is not this project's
+// (a bundled copy of another project's CRDs): it is left out of the
+// inventory, and recorded by name in inv.Foreign.
+func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string, files []string, inv *Inventory, other *origin, at attribution) (*Inventory, error) {
 	sort.Strings(files)
 	byName := map[string]string{}
 	byKind := map[string]string{}
@@ -485,6 +524,10 @@ func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string
 			return inv, err
 		}
 		for _, c := range crds {
+			if at.foreign(c.Group, c.Kind) {
+				inv.Foreign = append(inv.Foreign, c.Name)
+				continue
+			}
 			if other != nil {
 				c.Repo, c.Commit = other.repo.Key, other.commit
 			}
@@ -506,6 +549,7 @@ func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string
 		return inv, problemf("no CustomResourceDefinition under the listed paths: an absence of removals cannot be told from a moved manifest")
 	}
 	sort.Slice(inv.CRDs, func(i, j int) bool { return inv.CRDs[i].Name < inv.CRDs[j].Name })
+	sort.Strings(inv.Foreign)
 	return inv, nil
 }
 

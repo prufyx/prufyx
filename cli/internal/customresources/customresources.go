@@ -381,6 +381,34 @@ func (x Index) OwnerOf(group, kind string) (string, Attribution) {
 	return "", Ambiguous
 }
 
+// ListingsSharing returns, in a canonical sorted form, every listing (group,
+// project slug and kinds) of every group the project lists itself, the
+// project's own listings and those of any project sharing the group. It
+// moves exactly when attribution of the project's groups changes, and not on
+// edits of other groups. It is empty when the project has no listing.
+// A listing without kinds reads "*", one with kinds "[k1,k2]".
+func (x Index) ListingsSharing(slug string) []string {
+	var out []string
+	for group, ls := range x.listings {
+		mine := false
+		for _, l := range ls {
+			mine = mine || l.slug == slug
+		}
+		if !mine {
+			continue
+		}
+		for _, l := range ls {
+			kinds := "*"
+			if l.kinds != nil {
+				kinds = "[" + strings.Join(l.kinds, ",") + "]"
+			}
+			out = append(out, group+" "+l.slug+" "+kinds)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 func containsString(values []string, value string) bool {
 	for _, v := range values {
 		if v == value {

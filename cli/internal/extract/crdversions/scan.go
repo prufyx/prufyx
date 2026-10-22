@@ -202,8 +202,19 @@ type ScanRecord struct {
 	NotRead []string `json:"notRead"`
 	// Copies are the files of class copy, sorted.
 	Copies []string `json:"copies"`
+	// ForeignCopies name, for the files of Copies and Findings that hold
+	// definitions the reviewed table assigns to another project (left out
+	// of the comparison), those definitions; absent when there are none.
+	ForeignCopies []ForeignCopy `json:"foreignCopies,omitempty"`
 	// Findings are the files of every other class, sorted by path.
 	Findings []Finding `json:"findings"`
+}
+
+// ForeignCopy is the definitions of one file left out because the table
+// assigns them to another project.
+type ForeignCopy struct {
+	Path        string   `json:"path"`
+	Definitions []string `json:"definitions"`
 }
 
 // Finding is one file outside the listed paths with CRD-like content, or
@@ -220,7 +231,11 @@ type Finding struct {
 	CRDs     []string `json:"crds,omitempty"`
 	// Served are the members the file's definitions serve.
 	Served []string `json:"served,omitempty"`
-	Detail string   `json:"detail,omitempty"`
+	// Foreign names the definitions of the file left out because the
+	// reviewed table assigns their group and kind to another project: it
+	// shows why a file is a copy. Absent when there are none.
+	Foreign []string `json:"foreign,omitempty"`
+	Detail  string   `json:"detail,omitempty"`
 }
 
 // blocks reports whether a finding keeps the scan from being clean.
@@ -616,6 +631,9 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 		}
 		if !found {
 			continue
+		}
+		if len(fd.Foreign) > 0 {
+			rec.ForeignCopies = append(rec.ForeignCopies, ForeignCopy{Path: f.path, Definitions: fd.Foreign})
 		}
 		if fd.Class == ClassCopy {
 			rec.Copies = append(rec.Copies, f.path)
@@ -1734,7 +1752,7 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 		case len(g.crds) > 0:
 			// Definitions compressed into the source (velero install):
 			// compared definition by definition like a YAML file.
-			fd = compareDefinitions(fd, g.crds, inv)
+			fd = compareDefinitions(fd, g.crds, inv, x.attribution())
 		case g.kinds > 0:
 			fd.Class, fd.Detail = ClassReference, "gzip-compressed string literals hold the CustomResourceDefinition kind but define none at the top level"
 		default:
@@ -1838,7 +1856,7 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 		}
 		return placed(fd, f.at), true, nil
 	}
-	fd = compareDefinitions(fd, crds, inv)
+	fd = compareDefinitions(fd, crds, inv, x.attribution())
 	switch {
 	case fromTemplate && f.at.copies:
 		// A declared copy keeps its class: copy, or the conflict or extra
@@ -1866,8 +1884,20 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 }
 
 // compareDefinitions classifies the definitions of one file against the
-// inventory: copy, extra or conflict.
-func compareDefinitions(fd Finding, crds []CRD, inv *Inventory) Finding {
+// inventory: copy, extra or conflict. A definition of a group and kind the reviewed
+// table assigns to another project is not the project's: it is left out (a
+// file of such definitions only is a copy), as the inventory leaves it out.
+func compareDefinitions(fd Finding, crds []CRD, inv *Inventory, at attribution) Finding {
+	own := make([]CRD, 0, len(crds))
+	for _, c := range crds {
+		if at.foreign(c.Group, c.Kind) {
+			fd.Foreign = append(fd.Foreign, c.Name)
+		} else {
+			own = append(own, c)
+		}
+	}
+	sort.Strings(fd.Foreign)
+	crds = own
 	byName := map[string]*CRD{}
 	if inv != nil {
 		for i := range inv.CRDs {

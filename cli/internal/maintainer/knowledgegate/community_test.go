@@ -5,6 +5,10 @@ package knowledgegate
 import (
 	"context"
 	"encoding/json"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -52,6 +56,39 @@ func communityCatalog(t *testing.T) (map[string]extractcli.Spec, crdversions.Tar
 	return catalog, tg
 }
 
+var strimziGroupRE = regexp.MustCompile(`(core|kafka)\.strimzi\.io`)
+
+// communityFixture is a copy of the Strimzi fixture whose custom resource
+// groups are the Gateway API group: the extractor leaves out definitions of
+// groups another project owns, so the community project reads definitions
+// of its own group.
+func communityFixture(t *testing.T) string {
+	t.Helper()
+	dst := t.TempDir()
+	err := filepath.WalkDir(strimziFixture, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(strimziFixture, path)
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return os.MkdirAll(filepath.Join(dst, rel), 0o755)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		data = strimziGroupRE.ReplaceAll(data, []byte("gateway.networking.k8s.io"))
+		return os.WriteFile(filepath.Join(dst, rel), data, 0o644)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dst
+}
+
 func communityEntries(t *testing.T, at time.Time) ([]map[string]any, map[string]extractcli.Spec) {
 	t.Helper()
 	catalog, tg := communityCatalog(t)
@@ -59,7 +96,7 @@ func communityEntries(t *testing.T, at time.Time) ([]map[string]any, map[string]
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := extract.FixtureReader{Root: strimziFixture}
+	src := extract.FixtureReader{Root: communityFixture(t)}
 	out, err := extract.Run(context.Background(), crdversions.New(tg), src, src, extract.Options{Repo: repo, DerivedAt: at})
 	if err != nil {
 		t.Fatal(err)
@@ -98,7 +135,7 @@ func TestGateAdmitsCommunityRulesAtTheCommunitySchema(t *testing.T) {
 	entries, catalog := communityEntries(t, gateNow.Add(-time.Hour))
 	base, head := communityHead(t, entries, communityPackSchema)
 	regenerate(t, head)
-	r := runGate(t, Options{Base: base, Head: head, Source: extract.FixtureReader{Root: strimziFixture}, Catalog: catalog})
+	r := runGate(t, Options{Base: base, Head: head, Source: extract.FixtureReader{Root: communityFixture(t)}, Catalog: catalog})
 	if !r.Passed() {
 		t.Fatalf("failed:\n%s", strings.Join(failedChecks(r), "\n"))
 	}
@@ -143,13 +180,13 @@ func TestGateRefusesCommunityRulesBelowTheCommunitySchema(t *testing.T) {
 	// then not the lowest level its content requires, and the pack itself
 	// does not load.
 	base, head := communityHead(t, entries, crdSetPackSchema)
-	r := runGate(t, Options{Base: base, Head: head, Source: extract.FixtureReader{Root: strimziFixture}, Catalog: catalog})
+	r := runGate(t, Options{Base: base, Head: head, Source: extract.FixtureReader{Root: communityFixture(t)}, Catalog: catalog})
 	if c, ok := check(r, "admit/cncf"); !ok || c.OK || r.Passed() {
 		t.Fatalf("admit/cncf %+v passed=%v", c, r.Passed())
 	}
 	// A level above what the content needs is never admitted either.
 	base, head = communityHead(t, entries, "prufyx.io/cncf-source-rule-pack/v1alpha13")
-	r = runGate(t, Options{Base: base, Head: head, Source: extract.FixtureReader{Root: strimziFixture}, Catalog: catalog})
+	r = runGate(t, Options{Base: base, Head: head, Source: extract.FixtureReader{Root: communityFixture(t)}, Catalog: catalog})
 	if r.Passed() {
 		t.Fatal("an unknown schema level passed")
 	}
@@ -168,7 +205,7 @@ func TestGateDoesNotAdmitAHandWrittenCommunityRule(t *testing.T) {
 	delete(evidence, "derivedAt")
 	base, head := communityHead(t, reviewed, communityPackSchema)
 	regenerate(t, head)
-	r := runGate(t, Options{Base: base, Head: head, Source: extract.FixtureReader{Root: strimziFixture}, Catalog: catalog})
+	r := runGate(t, Options{Base: base, Head: head, Source: extract.FixtureReader{Root: communityFixture(t)}, Catalog: catalog})
 	if r.Passed() {
 		t.Fatal("a hand-written community rule passed the gate")
 	}
@@ -199,7 +236,7 @@ func TestGateCommunityLineAttestationNeedsAProof(t *testing.T) {
 	}
 	p.fields["lineAttestations"] = raw
 	p.write(t, head, cncfRulesPath)
-	opts := Options{Base: base, Head: head, Source: extract.FixtureReader{Root: strimziFixture}, Catalog: catalog, Citations: passingCitations{}, Layout: DefaultLayout(), Now: gateNow}
+	opts := Options{Base: base, Head: head, Source: extract.FixtureReader{Root: communityFixture(t)}, Catalog: catalog, Citations: passingCitations{}, Layout: DefaultLayout(), Now: gateNow}
 	pinBaseKeys(&opts)
 	fromBot(&opts)
 	r, err := Verify(context.Background(), opts)
