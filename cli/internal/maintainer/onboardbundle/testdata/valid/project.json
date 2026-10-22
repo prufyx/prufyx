@@ -1,0 +1,31 @@
+{
+  "cncfStatusClaim": "sandbox",
+  "kind": "project",
+  "licence": {
+    "commit": "1111111111111111111111111111111111111111",
+    "path": "LICENSE",
+    "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "spdxGuess": "Apache-2.0"
+  },
+  "releaseLines": [
+    {
+      "commit": "1111111111111111111111111111111111111111",
+      "line": "1.3",
+      "tag": "v1.3.0"
+    },
+    {
+      "commit": "3333333333333333333333333333333333333333",
+      "line": "1.2",
+      "tag": "v1.2.0"
+    },
+    {
+      "commit": "4444444444444444444444444444444444444444",
+      "line": "1.1",
+      "tag": "v1.1.0"
+    }
+  ],
+  "repo": "github.com/example-org/example-operator",
+  "schema": "prufyx.io/onboard-bundle/v1",
+  "slug": "example-operator",
+  "tagPrefix": "v"
+}

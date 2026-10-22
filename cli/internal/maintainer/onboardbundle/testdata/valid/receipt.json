@@ -1,0 +1,42 @@
+{
+  "agentLabel": "example agent",
+  "bundleSha256": "5a5174d81c0330c5f2f32d6ed069f7112f47d60c1dd101f86038eb7902b013d2",
+  "checks": {
+    "dropped": [],
+    "extractRun": "not-run",
+    "targetCheckOffline": "pass"
+  },
+  "files": [
+    {
+      "name": "leads.json",
+      "sha256": "de9dadc67bcae3971b6e6496e49d69d892332a56cccd899ca6f0ccd110880936"
+    },
+    {
+      "name": "project.json",
+      "sha256": "5fbc53915ecdb6b266a6cd7a697c4086e29558617869c58e5badf2529d9305ad"
+    },
+    {
+      "name": "relnotes-sources.json",
+      "sha256": "488ba5db2ebba215fadd50631b4530992ae1c7788fbb18d046d226fa85f5a75b"
+    },
+    {
+      "name": "scan-notes.json",
+      "sha256": "66d8ef0b7226d1de4b2fb80018ecf6682dd570b0c948d001c136a6cd085f4724"
+    },
+    {
+      "name": "target-draft.json",
+      "sha256": "a5212a63c90e5f98c8d9144566819c6852334aecfbe6753783825eb312e7bfac"
+    }
+  ],
+  "generatedAt": "2026-10-22T00:00:00Z",
+  "kind": "receipt",
+  "kit": "k0-v0",
+  "review": {
+    "admissionState": "NOT_ADMITTED",
+    "state": "NOT_REVIEWED"
+  },
+  "schema": "prufyx.io/onboard-bundle/v1",
+  "tool": {
+    "prufyxCommit": "9999999999999999999999999999999999999999"
+  }
+}

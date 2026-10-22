@@ -136,6 +136,23 @@ the exact commands and outcomes in the pull request description. Changes to
 collection fields need a compatibility-predicate justification and disclosure
 review.
 
+### Onboarding a project with a bundle
+
+To go further than suggesting a project, you can open a pull request that adds
+an onboarding bundle at `contrib/onboard-bundles/<slug>/`: a small set of JSON
+files with hints (repository, licence, CRD paths, release-note locations). Read
+[contrib/onboard-bundles/README.md](contrib/onboard-bundles/README.md) for the
+files, the limits (256 KiB per file, at most 12 files, one bundle per project)
+and the offline check `prufyx-maintainer onboard-bundle validate`, which CI also
+runs. A bundle is a hint only; maintainers verify everything against upstream.
+
+The pull request needs the [CLA](CLA.md) like any other, and bundle data is
+licensed under CC BY-SA 4.0. The issue forms
+([public project source](https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml),
+[new project](https://github.com/prufyx/prufyx/issues/new?template=new-project.yml))
+stay for suggestions: an issue never carries a bundle, and a bundle never goes
+into an issue.
+
 ## Licenses and the Contributor License Agreement
 
 Prufyx source code is licensed under the

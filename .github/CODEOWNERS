@@ -65,3 +65,6 @@
 
 # Workflows, repository settings and this file.
 /.github/ @airstand
+
+# Community onboarding bundles (hints only): every change gets a maintainer review.
+/contrib/onboard-bundles/ @airstand

@@ -25,6 +25,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgepack"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgetargets"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/localkind"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/onboardbundle"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/projectonboarding"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/releasegate"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/releasehelpers"
@@ -196,6 +197,11 @@ func run(args []string, stdout, stderr io.Writer) error {
 			return &commandError{code: code, message: "rule validate failed", printed: true}
 		}
 		return nil
+	case "onboard-bundle":
+		if code := onboardbundle.Run(args[1:], stdout, stderr); code != 0 {
+			return &commandError{code: code, message: "onboard-bundle failed", printed: true}
+		}
+		return nil
 	case "target-check":
 		root, err := cliRoot()
 		if err != nil {
@@ -206,7 +212,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	case "help", "-h", "--help":
-		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|consensus|served-lists|chart-versions|gate|approval|rule|target-check|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-sign|support-inventory|docs-tables|release-notes|release-gate|staging-receipt|release|local-kind|release-*> [options]")
+		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|consensus|served-lists|chart-versions|gate|approval|rule|onboard-bundle|target-check|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-sign|support-inventory|docs-tables|release-notes|release-gate|staging-receipt|release|local-kind|release-*> [options]")
 		return nil
 	default:
 		return usageError()
