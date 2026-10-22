@@ -251,7 +251,19 @@ func admitServedIntroduction(cls *Classification, opts Options, loadKeys func() 
 	admitted := map[string]bool{}
 	for _, spec := range opts.Layout.Packs {
 		base, head := cls.base[spec.Name], cls.head[spec.Name]
-		if !spec.Records || base == nil || head == nil || !base.Present || !head.Present {
+		if !spec.Records || base == nil || head == nil || !head.Present {
+			continue
+		}
+		if !base.Present {
+			// A pack added with the member has no base to introduce it
+			// against: fail closed, the owner approves a later change.
+			if _, ok := head.Members[sectionServed]; ok {
+				for _, c := range cls.Changes {
+					if c.Pack == spec.Name && c.Section == sectionServed {
+						c.fail("the servedAPIs member may not be introduced together with the pack; add the pack first, then introduce the member with an owner approval")
+					}
+				}
+			}
 			continue
 		}
 		if _, ok := base.Members[sectionServed]; ok {

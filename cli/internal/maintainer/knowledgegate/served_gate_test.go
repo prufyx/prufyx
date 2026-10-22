@@ -521,6 +521,13 @@ func TestServedIntroductionNeedsAnOwnerApproval(t *testing.T) {
 			t.Fatalf("%v %q", got, s.changes[0].Detail)
 		}
 	})
+	t.Run("a pack added together with the member", func(t *testing.T) {
+		absent := &loadedPack{Spec: layout.Packs[0], Members: map[string]json.RawMessage{}}
+		head := headPack("1.30", "1.31")
+		s := setup(t, absent, head)
+		approve(s, signServedIntroduction(t, key, basePack(), head))
+		refused(t, s, decide(s), "may not be introduced together with the pack")
+	})
 	t.Run("a later change needs none", func(t *testing.T) {
 		base := headPack("1.30")
 		head := headPack("1.30", "1.31")
