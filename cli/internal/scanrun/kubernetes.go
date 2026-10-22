@@ -339,6 +339,8 @@ func (r *kubernetesRun) apiVersionGaps(to string, entered map[string]bool) *scan
 		r.rootGap(scanreport.GapServedListNotCurrent, targetLine, status.Freshness)
 	case !r.policy.Admits(status.List.Basis):
 		r.rootGap(scanreport.GapServedListTrustPolicy, targetLine, constraintengine.EffectiveBasis(status.List.Basis))
+	case notListed > 0 && status.List.Partial:
+		r.rootGap(scanreport.GapNotListedPartial, notListed, targetLine)
 	case notListed > 0:
 		r.rootGap(scanreport.GapAPIVersionNotListed, notListed, targetLine)
 	}
@@ -347,7 +349,7 @@ func (r *kubernetesRun) apiVersionGaps(to string, entered map[string]bool) *scan
 	}
 	return &scanreport.ServedList{
 		Line: status.List.Line, Basis: constraintengine.EffectiveBasis(status.List.Basis), Freshness: status.Freshness,
-		ValidUntil: status.List.ValidUntil, Digest: servedListDigest(status.List.APIs),
+		ValidUntil: status.List.ValidUntil, Partial: status.List.Partial, Digest: servedListDigest(status.List.APIs),
 	}
 }
 

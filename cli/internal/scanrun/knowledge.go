@@ -9,6 +9,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
+	"github.com/prufyx/prufyx/cli/internal/servedapis"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
@@ -94,7 +95,9 @@ type ServedList struct {
 	Basis     string
 	// ValidUntil is the end of the list's validity window, when known.
 	ValidUntil string
-	APIs       map[string]bool
+	// Partial is true for a list that names the stable (GA) versions only.
+	Partial bool
+	APIs    map[string]bool
 }
 
 // ServedStatus is a served-list lookup. Only a found list whose freshness is
@@ -126,7 +129,7 @@ func servedStatus(snapshot *cncfcheck.ScanKnowledge, component, line string, now
 	}
 	return ServedStatus{
 		Found:     true,
-		List:      ServedList{Component: status.Record.Component, Line: status.Record.Line, Basis: status.Record.Evidence.Basis, ValidUntil: status.Record.Evidence.ValidUntil, APIs: apis},
+		List:      ServedList{Component: status.Record.Component, Line: status.Record.Line, Basis: status.Record.Evidence.Basis, ValidUntil: status.Record.Evidence.ValidUntil, Partial: status.Record.Completeness == servedapis.CompletenessPartial, APIs: apis},
 		Freshness: status.Freshness,
 	}
 }

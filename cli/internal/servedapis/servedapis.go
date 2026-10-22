@@ -13,10 +13,12 @@ package servedapis
 
 import (
 	"bytes"
+	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"regexp"
 	"sort"
 	"time"
@@ -29,8 +31,23 @@ import (
 // PackMember is the rule pack member that holds the served-list section.
 const PackMember = "servedAPIs"
 
-// Completeness is the only completeness statement a record makes.
-const Completeness = "COMPLETE_SERVED_API_LIST_FOR_LINE"
+// The completeness statements a record may make. A partial list names only
+// the stable (GA) versions the line serves: an object absent from it is not
+// reviewed, never known to be unserved.
+const (
+	Completeness        = "COMPLETE_SERVED_API_LIST_FOR_LINE"
+	CompletenessPartial = "PARTIAL_STABLE_SERVED_API_LIST_FOR_LINE"
+)
+
+// SourceDir is this package's directory under the module's internal/.
+const SourceDir = "servedapis"
+
+//go:embed *.go
+var source embed.FS
+
+// SourceFiles is this package's own Go source, for the code digest of the
+// served-list deriver, which reads this package's record format.
+func SourceFiles() (string, fs.FS) { return SourceDir, source }
 
 // KubernetesComponent is the only component a served list may name.
 const KubernetesComponent = "pkg:github/kubernetes/kubernetes"
@@ -127,8 +144,8 @@ func (r Record) Validate() error {
 	if !lineattest.ValidLine(r.Line) {
 		return fmt.Errorf("%w: line %q is not major.minor", ErrInvalid, r.Line)
 	}
-	if r.Completeness != Completeness {
-		return fmt.Errorf("%w: completeness must be %s", ErrInvalid, Completeness)
+	if r.Completeness != Completeness && r.Completeness != CompletenessPartial {
+		return fmt.Errorf("%w: completeness must be %s or %s", ErrInvalid, Completeness, CompletenessPartial)
 	}
 	if len(r.APIs) == 0 || len(r.APIs) > MaxAPIs {
 		return fmt.Errorf("%w: apis must hold 1-%d pairs", ErrInvalid, MaxAPIs)

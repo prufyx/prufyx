@@ -166,7 +166,9 @@ type ServedList struct {
 	Basis      string `json:"basis"`
 	Freshness  string `json:"freshness"`
 	ValidUntil string `json:"validUntil,omitempty"`
-	Digest     string `json:"digest"`
+	// Partial is true when the list covers stable (GA) versions only.
+	Partial bool   `json:"partial,omitempty"`
+	Digest  string `json:"digest"`
 }
 
 // Endpoint is an exact version or a whole release line.
