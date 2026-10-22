@@ -50,7 +50,7 @@
           "executionSuccessful": true,
           "exitCode": 10,
           "exitCodeDescription": "BLOCKED: 1 problem must be fixed; 1 area was not checked",
-          "startTimeUtc": "2026-12-10T00:00:00Z",
+          "startTimeUtc": "2026-12-05T00:00:00Z",
           "toolExecutionNotifications": [
             {
               "level": "warning",
@@ -154,7 +154,7 @@
           "leads": 0,
           "unsupported": 0
         },
-        "evaluatedAt": "2026-12-10T00:00:00Z",
+        "evaluatedAt": "2026-12-05T00:00:00Z",
         "inputDigest": "sha256:706abd92d4968558d52e272d3f490af7280ce84a6011ae824a9fa9ae7b4c47f7",
         "knowledgeOrigin": "embedded",
         "knowledgeRevision": "cncf-0000-00-00.0",

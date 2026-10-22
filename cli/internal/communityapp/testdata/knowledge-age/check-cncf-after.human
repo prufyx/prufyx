@@ -1,12 +1,12 @@
-UNKNOWN  0 must fix · 1 undecided · 0 passed     kyverno 1.12.5 -> 1.13.0, 1 reviewed rule
+BLOCKED  1 must fix · 0 undecided · 0 passed     kyverno 1.12.5 -> 1.13.0, 1 reviewed rule
 input authority: OPERATOR_DECLARED_MINIMIZED
 
-UNDECIDED (1 rule)
+MUST FIX (1)
   Kyverno reportsChunkSize removal only for an explicitly declared official upstream reports-controller invocation; image provenance, wrappers, other command surfaces, controller behavior, and whole-upgrade compatibility are unverified
-    to decide: the review of this rule expired on 2026-12-08; use newer knowledge (a newer source build, or a signed package you trust), or check this change by hand against its cited source
+    fix: For the declared official upstream bare reports-controller surface, remove reportsChunkSize from literal proposed arguments. Otherwise supply an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.
 
 Whole upgrade: not proven. This report evaluated only 1 reviewed rule.
 next action: review each scoped claim; whole-upgrade behavior and runtime evidence remain unverified
 7 cited upstream sources (show with -v). Knowledge: embedded cncf-0000-00-00.0. No network used.
 
-exit 11
+exit 10
