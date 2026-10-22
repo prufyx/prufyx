@@ -522,6 +522,7 @@ func optionName(arg string) (string, bool) {
 	name := strings.SplitN(trimmed, "=", 2)[0]
 	return name, name != ""
 }
+
 // preReleaseVersionFlag reports a --from or --to value that is a Kubernetes
 // pre-release.
 func preReleaseVersionFlag(args []string) bool {
